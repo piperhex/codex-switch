@@ -187,8 +187,8 @@ h1 { margin: 5px 0 0; font: 700 26px/1.1 Manrope, sans-serif; letter-spacing: -.
 .settings-card code { display: block; padding: 8px 10px; border-radius: 7px; color: #456052; background: #f0f3ef; font-size: 10px; word-break: break-all; }
 .settings-field { margin-top: 12px; display: flex; align-items: center; gap: 12px; }
 .settings-field label { color: #5d6a62; font-size: 11px; font-weight: 700; }
-.settings-field .ant-input-number-group-wrapper { width: 150px; }
-.settings-field .ant-input-number { width: 96px; }
+.settings-field .ant-space-compact { width: 150px; }
+.settings-field .ant-input-number { width: 108px; }
 .note-card { border-color: #c8dccd; background: #f8fbf7; }
 .loading-state, .empty-state { margin: 30px var(--page-x) 0; min-height: 260px; border: 1px dashed #ced8d0; border-radius: 14px; display: flex; align-items: center; justify-content: center; gap: 10px; color: #718078; background: rgba(255,255,255,.45); font-size: 12px; }
 .empty-state { flex-direction: column; text-align: center; }

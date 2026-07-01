@@ -41,3 +41,8 @@ export interface LoginStart {
   url: string;
   embedded: boolean;
 }
+
+export interface LoginStatus {
+  ok: boolean;
+  message: string;
+}

@@ -1,35 +1,102 @@
 # Codex Auth Manager
 
-一个本地优先的 Tauri 2 桌面应用，用来登录、保存和切换多个 Codex / ChatGPT 账户。
+Codex Auth Manager is a local-first Tauri 2 desktop application for signing in to, storing, and switching between multiple Codex / ChatGPT accounts. It also displays the usage windows for each account.
 
-## 功能
+## Features
 
-- 复用 Codex CLI 的 OAuth 2.0 + PKCE 登录流程（回调端口 `1455`，备用 `1457`）
-- 支持应用内 ChatGPT 登录窗口，并保留默认浏览器登录作为企业 SSO 兼容方案
-- 导入和管理多份 `auth.json`
-- 切换账户时原子覆盖 `$CODEX_HOME/auth.json`（默认 `~/.codex/auth.json`）
-- 展示账户邮箱、套餐、5 小时与 1 周剩余用量
-- 访问令牌不进入 React 前端，不输出到日志
+- Reuses the Codex CLI OAuth 2.0 + PKCE login flow
+- Supports both an in-app login window and the system browser
+- Imports and manages multiple `auth.json` files
+- Atomically switches `$CODEX_HOME/auth.json` (defaults to `~/.codex/auth.json`)
+- Displays account email, plan, 5-hour / weekly usage, and reset credits
+- Refreshes one or all accounts manually or on a timer
+- Keeps tokens in the Rust backend and out of the React UI and application logs
 
-## 开发
+> [!IMPORTANT]
+> Credentials are stored in the local application data directory, but the application does not add another layer of encryption. Use a trusted device and protect your operating-system account. Never commit, share, or include an `auth.json` file in a screenshot.
 
-需要 Node.js、npm、Rust stable，以及 Windows 上的 WebView2。
+## Technology
+
+- Frontend: React 18, TypeScript, Vite, and Ant Design
+- Desktop runtime: Tauri 2
+- Backend: Rust, Reqwest, and Serde
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 18 or later
+- npm
+- The latest stable Rust toolchain
+- The appropriate [Tauri 2 system dependencies](https://v2.tauri.app/start/prerequisites/) for your platform
+- WebView2 on Windows (already installed on most modern Windows systems)
+
+Install dependencies and start the desktop application:
 
 ```powershell
 npm install
 npm run dev:app
 ```
 
-仅预览界面（使用演示数据，不读取真实凭据）：
+Start the browser-only preview with demo data and no access to real credentials:
 
 ```powershell
 npm run dev
 ```
 
-构建安装包：
+Build the desktop installer:
 
 ```powershell
 npm run build:app
 ```
 
-> 切换会立即替换磁盘上的 `auth.json`。已经运行的 Codex 进程可能缓存了旧身份，建议在切换后重新启动对应会话。
+Run all frontend and backend checks:
+
+```powershell
+npm run check
+```
+
+## Usage
+
+1. Select **Add account**, then sign in through the app, use the system browser, or import an existing `auth.json` file.
+2. Refresh usage from the account list. Expand a row to view its reset credits.
+3. Select **Switch** to atomically replace the `auth.json` file currently used by Codex.
+4. Restart the relevant Codex session after switching so that a running process does not continue using cached credentials.
+
+The application honors the `CODEX_HOME` environment variable and falls back to `~/.codex` when it is not set. Managed account copies are stored under `codex-auth-manager/accounts` in the operating system's application data directory.
+
+## Project Structure
+
+```text
+src/                 React frontend
+  api/               Tauri command and browser-preview adapter
+  components/        Reusable presentation components
+  hooks/             Account, notification, and auto-refresh state
+  pages/             Page-level composition
+  utils/             Side-effect-free formatting helpers
+src-tauri/src/       Rust backend
+  auth.rs            Credential validation and account identity parsing
+  codex_api.rs       Token refresh and Codex HTTP API access
+  commands.rs        Tauri command boundary and use-case orchestration
+  oauth.rs           OAuth PKCE login flow
+  storage.rs         Paths, atomic writes, and the account store
+  models.rs          Frontend/backend transfer models
+docs/                Architecture and development documentation
+```
+
+More documentation:
+
+- [Architecture and data flow](docs/architecture.md)
+- [Development and debugging](docs/development.md)
+- [Contributing guide](CONTRIBUTING.md)
+
+## Contributing
+
+Issues and pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before getting started, especially the credential-redaction, responsibility-boundary, and local-validation requirements.
+
+## Current Limitations
+
+- The OAuth callback first attempts to use local port `1455`, then falls back to `1457`.
+- The application currently targets desktop environments.
+- Embedded login depends on WebView and identity-provider policies; use the system browser if it fails.
+- The project does not currently declare an open-source license. Standard copyright restrictions apply until one is added.
