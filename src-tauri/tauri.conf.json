@@ -29,8 +29,19 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "icon": ["icons/icon.ico"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "category": "DeveloperTool",
     "shortDescription": "Manage and switch multiple Codex accounts",
-    "longDescription": "A local-first manager for Codex auth.json files and account usage windows."
+    "longDescription": "A local-first manager for Codex auth.json files and account usage windows.",
+    "macOS": {
+      "minimumSystemVersion": "10.13",
+      "signingIdentity": "-"
+    }
   }
 }

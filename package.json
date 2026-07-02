@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "dev:app": "tauri dev",
-    "build:app": "tauri build"
+    "build:app": "tauri build",
+    "build:app:mac": "tauri build --target universal-apple-darwin"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.8.0",

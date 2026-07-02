@@ -30,6 +30,7 @@ Codex Auth Manager is a local-first Tauri 2 desktop application for signing in t
 - The latest stable Rust toolchain
 - The appropriate [Tauri 2 system dependencies](https://v2.tauri.app/start/prerequisites/) for your platform
 - WebView2 on Windows (already installed on most modern Windows systems)
+- Xcode Command Line Tools on macOS
 
 Install dependencies and start the desktop application:
 
@@ -50,11 +51,28 @@ Build the desktop installer:
 npm run build:app
 ```
 
+On macOS, build a universal Apple Silicon + Intel bundle:
+
+```bash
+npm run build:app:mac
+```
+
 Run all frontend and backend checks:
 
 ```powershell
 npm run check
 ```
+
+## Releases
+
+GitHub Actions publishes release assets automatically when a version tag is pushed:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The release workflow builds Windows x64 plus macOS Apple Silicon and Intel artifacts, then uploads them to the matching GitHub Release. It can also be run manually from Actions by entering an existing tag.
 
 ## Usage
 
@@ -98,5 +116,6 @@ Issues and pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) be
 
 - The OAuth callback first attempts to use local port `1455`, then falls back to `1457`.
 - The application currently targets desktop environments.
+- macOS release builds are ad-hoc signed, but not notarized unless Apple Developer signing/notarization credentials are added to CI.
 - Embedded login depends on WebView and identity-provider policies; use the system browser if it fails.
 - The project does not currently declare an open-source license. Standard copyright restrictions apply until one is added.
