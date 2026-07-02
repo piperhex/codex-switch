@@ -68,7 +68,7 @@ npm run check
 GitHub Actions publishes release assets automatically when a version tag is pushed:
 
 ```bash
-git tag v0.1.0
+npm run release -- v0.1.0
 git push origin v0.1.0
 ```
 

@@ -12,7 +12,8 @@
     "tauri": "tauri",
     "dev:app": "tauri dev",
     "build:app": "tauri build",
-    "build:app:mac": "tauri build --target universal-apple-darwin"
+    "build:app:mac": "tauri build --target universal-apple-darwin",
+    "release": "node scripts/tag-release.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.8.0",
