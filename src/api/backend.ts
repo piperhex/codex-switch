@@ -5,12 +5,14 @@ import { DEMO_ACCOUNTS, DEMO_INFO } from "../demo";
 import type {
   Account,
   AppInfo,
+  AppSettings,
   LoginStart,
   LoginStatus,
   ResetCreditsSummary,
 } from "../types";
 
 export const isDesktopApp = "__TAURI_INTERNALS__" in window;
+const FLOATING_BUBBLE_PREVIEW_KEY = "codex-auth-manager:floating-bubble";
 
 export async function loadDashboard(): Promise<{ accounts: Account[]; info: AppInfo }> {
   if (!isDesktopApp) {
@@ -21,6 +23,29 @@ export async function loadDashboard(): Promise<{ accounts: Account[]; info: AppI
     invoke<AppInfo>("get_app_info"),
   ]);
   return { accounts, info };
+}
+
+export async function loadAppSettings(): Promise<AppSettings> {
+  if (!isDesktopApp) {
+    return { floatingBubbleEnabled: window.localStorage.getItem(FLOATING_BUBBLE_PREVIEW_KEY) === "true" };
+  }
+  return invoke<AppSettings>("get_app_settings");
+}
+
+export async function updateFloatingBubble(enabled: boolean): Promise<AppSettings> {
+  if (!isDesktopApp) {
+    window.localStorage.setItem(FLOATING_BUBBLE_PREVIEW_KEY, String(enabled));
+    return { floatingBubbleEnabled: enabled };
+  }
+  return invoke<AppSettings>("set_floating_bubble", { enabled });
+}
+
+export async function resizeFloatingBubble(expanded: boolean): Promise<void> {
+  if (isDesktopApp) await invoke("resize_floating_bubble", { expanded });
+}
+
+export async function dragFloatingBubble(): Promise<void> {
+  if (isDesktopApp) await invoke("drag_floating_bubble");
 }
 
 export async function beginLogin(embedded: boolean): Promise<LoginStart | null> {

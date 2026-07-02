@@ -42,6 +42,12 @@ export interface AppInfo {
   version: string;
 }
 
+export interface AppSettings {
+  floatingBubbleEnabled: boolean;
+  bubbleX?: number | null;
+  bubbleY?: number | null;
+}
+
 export interface LoginStart {
   url: string;
   embedded: boolean;

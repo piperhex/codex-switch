@@ -2,7 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Permissions for the main Codex Auth Manager window",
-  "windows": ["main"],
+  "windows": ["main", "usage-bubble"],
   "permissions": [
     "core:default",
     "core:event:default",

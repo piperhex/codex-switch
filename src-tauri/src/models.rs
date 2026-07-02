@@ -56,6 +56,17 @@ pub(crate) struct AppInfo {
     pub(crate) version: String,
 }
 
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct AppSettings {
+    #[serde(default)]
+    pub(crate) floating_bubble_enabled: bool,
+    #[serde(default)]
+    pub(crate) bubble_x: Option<f64>,
+    #[serde(default)]
+    pub(crate) bubble_y: Option<f64>,
+}
+
 #[derive(Serialize, Clone)]
 pub(crate) struct LoginStatus {
     pub(crate) ok: bool,

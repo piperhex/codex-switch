@@ -8,7 +8,7 @@ use tauri::{Manager, Runtime};
 
 use crate::{
     auth::{account_fields, validate_auth},
-    models::{ManagerStateFile, UsageSummary},
+    models::{AppSettings, ManagerStateFile, UsageSummary},
 };
 
 #[derive(Clone)]
@@ -119,6 +119,33 @@ pub(crate) fn read_state(paths: &Paths) -> ManagerStateFile {
 pub(crate) fn write_state(paths: &Paths, state: &ManagerStateFile) -> Result<(), String> {
     let value = serde_json::to_value(state).map_err(|error| error.to_string())?;
     write_json_atomic(&paths.state_file, &value)
+}
+
+pub(crate) fn read_app_settings<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+) -> Result<AppSettings, String> {
+    let path = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| format!("无法定位应用数据目录：{error}"))?
+        .join("settings.json");
+    Ok(fs::read(path)
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .unwrap_or_default())
+}
+
+pub(crate) fn write_app_settings<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    settings: &AppSettings,
+) -> Result<(), String> {
+    let path = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| format!("无法定位应用数据目录：{error}"))?
+        .join("settings.json");
+    let value = serde_json::to_value(settings).map_err(|error| error.to_string())?;
+    write_json_atomic(&path, &value)
 }
 
 pub(crate) fn import_value<R: Runtime>(

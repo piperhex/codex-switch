@@ -5,10 +5,12 @@ import zhCN from "antd/locale/zh_CN";
 import { CalendarClock, Check, CircleHelp, Github, Plus, RefreshCw, Settings, ShieldCheck, UserRound, Zap } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { HelpModal } from "./components/modals/HelpModal";
+import { FloatingUsageBubble } from "./components/FloatingUsageBubble";
 import { LoginModal } from "./components/modals/LoginModal";
 import { useAccountManager } from "./hooks/useAccountManager";
 import { useAutoRefresh } from "./hooks/useAutoRefresh";
 import { useLanguage } from "./hooks/useLanguage";
+import { useFloatingBubble } from "./hooks/useFloatingBubble";
 import { useResetCredits } from "./hooks/useResetCredits";
 import { useToast } from "./hooks/useToast";
 import { AccountsPage } from "./pages/AccountsPage";
@@ -23,13 +25,14 @@ function storedRefreshAllTime() {
   return value && !Number.isNaN(new Date(value).getTime()) ? value : null;
 }
 
-export default function App() {
+function DashboardApp() {
   const [page, setPage] = useState<"accounts" | "settings">("accounts");
   const [showLogin, setShowLogin] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [lastRefreshAllAt, setLastRefreshAllAt] = useState<string | null>(storedRefreshAllTime);
   const { message: toast, notify } = useToast();
   const { language, setLanguage, t } = useLanguage();
+  const floatingBubble = useFloatingBubble(notify);
   const manager = useAccountManager(notify, t);
   const resetCredits = useResetCredits(manager.accounts, notify, t);
   const markRefreshAll = useCallback(() => {
@@ -119,7 +122,8 @@ export default function App() {
           {page === "settings" ? (
             <SettingsPage info={manager.info} autoRefreshEnabled={autoRefresh.enabled}
               autoRefreshSeconds={autoRefresh.seconds} onEnabledChange={autoRefresh.setEnabled}
-              onSecondsChange={autoRefresh.updateSeconds} language={language}
+              onSecondsChange={autoRefresh.updateSeconds} floatingBubbleEnabled={floatingBubble.enabled}
+              floatingBubbleLoading={floatingBubble.loading} onFloatingBubbleChange={(enabled) => void floatingBubble.setEnabled(enabled)} language={language}
               onLanguageChange={setLanguage} t={t} />
           ) : (
             <AccountsPage accounts={manager.accounts} loading={manager.loading}
@@ -139,4 +143,11 @@ export default function App() {
       </div>
     </ConfigProvider>
   );
+}
+
+export default function App() {
+  if (new URLSearchParams(window.location.search).get("window") === "bubble") {
+    return <FloatingUsageBubble />;
+  }
+  return <DashboardApp />;
 }

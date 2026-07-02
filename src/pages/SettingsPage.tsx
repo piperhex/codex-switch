@@ -1,5 +1,5 @@
 import { Button, InputNumber, Segmented, Space, Switch } from "antd";
-import { FolderKey, KeyRound, Languages, RefreshCw, ShieldCheck } from "lucide-react";
+import { CircleGauge, FolderKey, KeyRound, Languages, RefreshCw, ShieldCheck } from "lucide-react";
 import { MAX_AUTO_REFRESH_SECONDS, MIN_AUTO_REFRESH_SECONDS } from "../hooks/useAutoRefresh";
 import { LANGUAGE_OPTIONS, type Language, type Translate } from "../i18n";
 import type { AppInfo } from "../types";
@@ -10,6 +10,9 @@ export function SettingsPage({
   autoRefreshSeconds,
   onEnabledChange,
   onSecondsChange,
+  floatingBubbleEnabled,
+  floatingBubbleLoading,
+  onFloatingBubbleChange,
   language,
   onLanguageChange,
   t,
@@ -19,6 +22,9 @@ export function SettingsPage({
   autoRefreshSeconds: number;
   onEnabledChange: (enabled: boolean) => void;
   onSecondsChange: (value: number | string | null) => void;
+  floatingBubbleEnabled: boolean;
+  floatingBubbleLoading: boolean;
+  onFloatingBubbleChange: (enabled: boolean) => void;
   language: Language;
   onLanguageChange: (language: Language) => void;
   t: Translate;
@@ -32,6 +38,17 @@ export function SettingsPage({
             <label htmlFor="language-selector">{t("settings.language.label")}</label>
             <Segmented id="language-selector" value={language} options={[...LANGUAGE_OPTIONS]}
               onChange={(value) => onLanguageChange(value as Language)} />
+          </div>
+        </div>
+      </section>
+      <section className="settings-card">
+        <div className="settings-icon"><CircleGauge size={23} /></div>
+        <div><h3>{t("settings.floatingBubble.title")}</h3><p>{t("settings.floatingBubble.description")}</p>
+          <div className="settings-field">
+            <label htmlFor="floating-bubble-enabled">{t("settings.floatingBubble.enabled")}</label>
+            <Switch id="floating-bubble-enabled" checked={floatingBubbleEnabled} loading={floatingBubbleLoading}
+              checkedChildren={t("settings.autoRefresh.on")} unCheckedChildren={t("settings.autoRefresh.off")}
+              onChange={onFloatingBubbleChange} />
           </div>
         </div>
       </section>
