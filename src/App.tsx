@@ -1,10 +1,13 @@
 import { useCallback, useState } from "react";
 import { ConfigProvider, theme as antdTheme } from "antd";
+import enUS from "antd/locale/en_US";
+import zhCN from "antd/locale/zh_CN";
 import { Check, CircleHelp, Plus, RefreshCw, Settings, ShieldCheck, UserRound, Zap } from "lucide-react";
 import { HelpModal } from "./components/modals/HelpModal";
 import { LoginModal } from "./components/modals/LoginModal";
 import { useAccountManager } from "./hooks/useAccountManager";
 import { useAutoRefresh } from "./hooks/useAutoRefresh";
+import { useLanguage } from "./hooks/useLanguage";
 import { useToast } from "./hooks/useToast";
 import { AccountsPage } from "./pages/AccountsPage";
 import { SettingsPage } from "./pages/SettingsPage";
@@ -23,7 +26,8 @@ export default function App() {
   const [showHelp, setShowHelp] = useState(false);
   const [lastRefreshAllAt, setLastRefreshAllAt] = useState<string | null>(storedRefreshAllTime);
   const { message: toast, notify } = useToast();
-  const manager = useAccountManager(notify);
+  const { language, setLanguage, t } = useLanguage();
+  const manager = useAccountManager(notify, t);
   const markRefreshAll = useCallback(() => {
     const refreshedAt = new Date().toISOString();
     window.localStorage.setItem(LAST_REFRESH_ALL_KEY, refreshedAt);
@@ -52,7 +56,7 @@ export default function App() {
   };
 
   return (
-    <ConfigProvider theme={{
+    <ConfigProvider locale={language === "zh" ? zhCN : enUS} theme={{
       algorithm: antdTheme.compactAlgorithm,
       token: { colorPrimary: "#1f7a51", borderRadius: 6, fontFamily: "\"DM Sans\", \"Microsoft YaHei UI\", sans-serif" },
     }}>
@@ -60,31 +64,31 @@ export default function App() {
         <header className="app-menu">
           <div className="brand"><div className="brand-mark"><Zap size={19} fill="currentColor" /></div>
             <span>Codex<br /><b>Auth Manager</b></span></div>
-          <nav className="top-tabs" aria-label="主导航">
+          <nav className="top-tabs" aria-label={t("nav.aria")}>
             <button className={page === "accounts" ? "selected" : ""} onClick={() => setPage("accounts")}>
-              <UserRound size={19} />账户管理</button>
+              <UserRound size={19} />{t("nav.accounts")}</button>
             <button className={page === "settings" ? "selected" : ""} onClick={() => setPage("settings")}>
-              <Settings size={19} />设置</button>
+              <Settings size={19} />{t("nav.settings")}</button>
           </nav>
           <div className="menu-tools">
-            <div className="security-chip"><ShieldCheck size={16} /><span><b>本地安全存储</b><small>凭据仅保存在此设备</small></span></div>
-            <button className="help-button" onClick={() => setShowHelp(true)}><CircleHelp size={17} />使用帮助</button>
+            <div className="security-chip"><ShieldCheck size={16} /><span><b>{t("chip.title")}</b><small>{t("chip.description")}</small></span></div>
+            <button className="help-button" onClick={() => setShowHelp(true)}><CircleHelp size={17} />{t("help.open")}</button>
           </div>
         </header>
 
         <main>
           <header className="topbar">
-            <div><span className="eyebrow">CODEX / AUTHENTICATION</span>
-              <h1>{page === "settings" ? "设置" : `账户管理（${manager.accounts.length}）`}</h1></div>
+            <div><span className="eyebrow">{t("topbar.eyebrow")}</span>
+              <h1>{page === "settings" ? t("topbar.settings") : t("topbar.accounts", { count: manager.accounts.length })}</h1></div>
             {page === "accounts" && (
               <div className="topbar-actions">
-                <button className="primary-button" onClick={() => setShowLogin(true)}><Plus size={18} />添加账户</button>
+                <button className="primary-button" onClick={() => setShowLogin(true)}><Plus size={18} />{t("actions.addAccount")}</button>
                 <div className="refresh-all-wrap">
                   <button className="refresh-all" onClick={refreshAll}
                     disabled={manager.refreshingAll || !manager.accounts.length}>
-                    <RefreshCw className={manager.refreshingAll ? "spin" : ""} size={17} />刷新全部用量
+                    <RefreshCw className={manager.refreshingAll ? "spin" : ""} size={17} />{t("actions.refreshAll")}
                   </button>
-                  <small className="last-auto-refresh">最后更新：{formatRefreshTime(lastRefreshAllAt)}</small>
+                  <small className="last-auto-refresh">{t("actions.lastUpdated", { time: formatRefreshTime(lastRefreshAllAt, language) })}</small>
                 </div>
               </div>
             )}
@@ -93,18 +97,19 @@ export default function App() {
           {page === "settings" ? (
             <SettingsPage info={manager.info} autoRefreshEnabled={autoRefresh.enabled}
               autoRefreshSeconds={autoRefresh.seconds} onEnabledChange={autoRefresh.setEnabled}
-              onSecondsChange={autoRefresh.updateSeconds} />
+              onSecondsChange={autoRefresh.updateSeconds} language={language}
+              onLanguageChange={setLanguage} t={t} />
           ) : (
             <AccountsPage accounts={manager.accounts} loading={manager.loading}
               busyAccountId={manager.busyAccountId} onAdd={() => setShowLogin(true)}
               onSwitch={(id) => void manager.switchAccount(id)}
               onRefresh={(id) => void manager.refreshUsage(id)}
-              onDelete={(id) => void manager.deleteAccount(id)} />
+              onDelete={(id) => void manager.deleteAccount(id)} language={language} t={t} />
           )}
         </main>
 
-        {showLogin && <LoginModal onClose={() => setShowLogin(false)} onStart={startLogin} onImport={importAuth} />}
-        {showHelp && <HelpModal onClose={() => setShowHelp(false)} version={manager.info?.version ?? "0.1.0"} />}
+        {showLogin && <LoginModal onClose={() => setShowLogin(false)} onStart={startLogin} onImport={importAuth} t={t} />}
+        {showHelp && <HelpModal onClose={() => setShowHelp(false)} version={manager.info?.version ?? "0.1.0"} t={t} />}
         {toast && <div className="toast"><Check size={17} />{toast}</div>}
       </div>
     </ConfigProvider>

@@ -9,6 +9,7 @@ import {
   removeAccount,
   subscribeToBackendEvents,
 } from "../api/backend";
+import type { Translate } from "../i18n";
 import type { Account, AppInfo } from "../types";
 
 interface RefreshAllOptions {
@@ -16,7 +17,7 @@ interface RefreshAllOptions {
   showSpinner?: boolean;
 }
 
-export function useAccountManager(notify: (message: string) => void) {
+export function useAccountManager(notify: (message: string) => void, t: Translate) {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [info, setInfo] = useState<AppInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -47,30 +48,30 @@ export function useAccountManager(notify: (message: string) => void) {
 
   const startLogin = useCallback(async (embedded: boolean) => {
     if (!isDesktopApp) {
-      notify("浏览器预览模式不会发起真实登录");
+      notify(t("toast.previewLogin"));
       return;
     }
-    notify(embedded ? "正在打开应用内登录窗口..." : "正在打开默认浏览器...");
+    notify(embedded ? t("toast.openingEmbedded") : t("toast.openingBrowser"));
     try {
       await beginLogin(embedded);
-      notify(embedded ? "登录窗口已打开" : "已在默认浏览器中打开登录页面");
+      notify(embedded ? t("toast.embeddedOpened") : t("toast.browserOpened"));
     } catch (error) {
       notify(String(error));
     }
-  }, [notify]);
+  }, [notify, t]);
 
   const importAuth = useCallback(async () => {
-    notify(isDesktopApp ? "请选择要导入的 auth.json" : "浏览器预览模式不会读取本地文件");
+    notify(isDesktopApp ? t("toast.importPrompt") : t("toast.previewNoFile"));
     try {
       const result = await chooseAndImportAuth();
       if (result === "imported") {
-        notify("账户已导入");
+        notify(t("toast.imported"));
         await load();
       }
     } catch (error) {
       notify(String(error));
     }
-  }, [load, notify]);
+  }, [load, notify, t]);
 
   const switchAccount = useCallback(async (id: string) => {
     setBusyAccountId(id);
@@ -79,14 +80,14 @@ export function useAccountManager(notify: (message: string) => void) {
       if (!isDesktopApp) {
         setAccounts((items) => items.map((item) => ({ ...item, active: item.id === id })));
       }
-      notify("已覆盖 ~/.codex/auth.json；运行中的 Codex 可能需要重新启动");
+      notify(t("toast.switched"));
       if (isDesktopApp) await load();
     } catch (error) {
       notify(String(error));
     } finally {
       setBusyAccountId(null);
     }
-  }, [load, notify]);
+  }, [load, notify, t]);
 
   const refreshUsage = useCallback(async (id: string, quiet = false) => {
     setBusyAccountId(id);
@@ -98,14 +99,14 @@ export function useAccountManager(notify: (message: string) => void) {
           ? { ...item, usage: { ...item.usage, fetchedAt } }
           : item));
       }
-      if (!quiet) notify("用量已刷新");
+      if (!quiet) notify(t("toast.usageRefreshed"));
       if (isDesktopApp) await load();
     } catch (error) {
       if (!quiet) notify(String(error));
     } finally {
       setBusyAccountId(null);
     }
-  }, [load, notify]);
+  }, [load, notify, t]);
 
   const refreshAll = useCallback(async ({ quiet = false, showSpinner = true }: RefreshAllOptions = {}) => {
     if (!accounts.length || refreshingAllRef.current) return;
@@ -118,23 +119,23 @@ export function useAccountManager(notify: (message: string) => void) {
         const fetchedAt = new Date().toISOString();
         setAccounts((items) => items.map((item) => ({ ...item, usage: { ...item.usage, fetchedAt } })));
       }
-      if (!quiet) notify("所有账户用量已刷新");
+      if (!quiet) notify(t("toast.allUsageRefreshed"));
     } finally {
       if (showSpinner) setRefreshingAll(false);
       refreshingAllRef.current = false;
     }
-  }, [accounts, load, notify]);
+  }, [accounts, load, notify, t]);
 
   const deleteAccount = useCallback(async (id: string) => {
     try {
       await removeAccount(id);
       if (!isDesktopApp) setAccounts((items) => items.filter((item) => item.id !== id));
-      notify("账户已删除");
+      notify(t("toast.deleted"));
       if (isDesktopApp) await load();
     } catch (error) {
       notify(String(error));
     }
-  }, [load, notify]);
+  }, [load, notify, t]);
 
   return {
     accounts,
