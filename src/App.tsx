@@ -8,7 +8,7 @@ import { HelpModal } from "./components/modals/HelpModal";
 import { FloatingUsageBubble } from "./components/FloatingUsageBubble";
 import { LoginModal } from "./components/modals/LoginModal";
 import { useAccountManager } from "./hooks/useAccountManager";
-import { useAutoRefresh } from "./hooks/useAutoRefresh";
+import { useAccountAutoRefresh, useAutoRefresh } from "./hooks/useAutoRefresh";
 import { useLanguage } from "./hooks/useLanguage";
 import { useFloatingBubble } from "./hooks/useFloatingBubble";
 import { useResetCredits } from "./hooks/useResetCredits";
@@ -35,6 +35,7 @@ function DashboardApp() {
   const floatingBubble = useFloatingBubble(notify);
   const manager = useAccountManager(notify, t);
   const resetCredits = useResetCredits(manager.accounts, notify, t);
+  const activeAccount = manager.accounts.find((account) => account.active) ?? null;
   const markRefreshAll = useCallback(() => {
     const refreshedAt = new Date().toISOString();
     window.localStorage.setItem(LAST_REFRESH_ALL_KEY, refreshedAt);
@@ -48,6 +49,10 @@ function DashboardApp() {
     [manager.refreshAll, markRefreshAll],
   );
   const autoRefresh = useAutoRefresh(manager.accounts.length > 0, automaticRefresh);
+  const accountAutoRefresh = useAccountAutoRefresh(
+    activeAccount?.id ?? null,
+    (accountId) => manager.refreshUsage(accountId, true, false),
+  );
 
   const startLogin = (embedded: boolean) => {
     setShowLogin(false);
@@ -122,7 +127,12 @@ function DashboardApp() {
           {page === "settings" ? (
             <SettingsPage info={manager.info} autoRefreshEnabled={autoRefresh.enabled}
               autoRefreshSeconds={autoRefresh.seconds} onEnabledChange={autoRefresh.setEnabled}
-              onSecondsChange={autoRefresh.updateSeconds} floatingBubbleEnabled={floatingBubble.enabled}
+              onSecondsChange={autoRefresh.updateSeconds} currentAccountEmail={activeAccount?.email ?? null}
+              accountAutoRefreshEnabled={accountAutoRefresh.enabled}
+              accountAutoRefreshSeconds={accountAutoRefresh.seconds}
+              onAccountAutoRefreshEnabledChange={accountAutoRefresh.setEnabled}
+              onAccountAutoRefreshSecondsChange={accountAutoRefresh.updateSeconds}
+              floatingBubbleEnabled={floatingBubble.enabled}
               floatingBubbleLoading={floatingBubble.loading} onFloatingBubbleChange={(enabled) => void floatingBubble.setEnabled(enabled)} language={language}
               onLanguageChange={setLanguage} t={t} />
           ) : (

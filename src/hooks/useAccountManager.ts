@@ -89,8 +89,8 @@ export function useAccountManager(notify: (message: string) => void, t: Translat
     }
   }, [load, notify, t]);
 
-  const refreshUsage = useCallback(async (id: string, quiet = false) => {
-    setBusyAccountId(id);
+  const refreshUsage = useCallback(async (id: string, quiet = false, showSpinner = true) => {
+    if (showSpinner) setBusyAccountId(id);
     try {
       await refreshAccountUsage(id);
       if (!isDesktopApp) {
@@ -104,7 +104,7 @@ export function useAccountManager(notify: (message: string) => void, t: Translat
     } catch (error) {
       if (!quiet) notify(String(error));
     } finally {
-      setBusyAccountId(null);
+      if (showSpinner) setBusyAccountId(null);
     }
   }, [load, notify, t]);
 

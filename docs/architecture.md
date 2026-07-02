@@ -21,7 +21,7 @@ The frontend only receives redacted models such as `AccountSummary`, `UsageSumma
 
 - `src/api/backend.ts` is the only entry point for Tauri IPC and file selection. It also provides browser-preview behavior.
 - `src/hooks/useAccountManager.ts` orchestrates loading, login, import, switching, deletion, and usage refreshes.
-- `src/hooks/useAutoRefresh.ts` persists refresh settings and owns the timer lifecycle.
+- `src/hooks/useAutoRefresh.ts` persists the global refresh timer plus per-account timers and owns their lifecycles.
 - `src/pages/` composes page-level layouts and does not call the backend directly.
 - `src/components/` contains presentation and local interactions. The account table loads reset credits through the API adapter.
 - `src/utils/` contains pure formatting helpers for dates, quotas, and display text.

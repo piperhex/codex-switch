@@ -191,6 +191,7 @@ h1 { margin: 5px 0 0; font: 700 26px/1.1 Manrope, sans-serif; letter-spacing: -.
 .settings-icon { width: 44px; height: 44px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 11px; color: var(--green); background: #e5f0e6; }
 .settings-card h3 { margin: 2px 0 5px; font: 700 14px Manrope, sans-serif; }
 .settings-card p { margin: 0 0 12px; font-size: 11px; color: var(--muted); line-height: 1.6; }
+.settings-card .settings-current-account { display: inline-block; margin: 0; padding: 5px 8px; border-radius: 6px; color: #35664b; background: #edf5ee; font-weight: 600; }
 .settings-card code { display: block; padding: 8px 10px; border-radius: 7px; color: #456052; background: #f0f3ef; font-size: 10px; word-break: break-all; }
 .settings-field { margin-top: 12px; display: flex; align-items: center; gap: 12px; }
 .settings-field label { color: #5d6a62; font-size: 11px; font-weight: 700; }

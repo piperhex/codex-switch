@@ -85,6 +85,8 @@ The release workflow builds Windows x64 plus macOS Apple Silicon and Intel artif
 3. Select **Switch** to atomically replace the `auth.json` file currently used by Codex.
 4. Restart the relevant Codex session after switching so that a running process does not continue using cached credentials.
 
+The Settings page provides both a global auto-refresh timer for all saved accounts and an independent timer for the current account. Current-account timer settings are saved separately for each account.
+
 The application honors the `CODEX_HOME` environment variable and falls back to `~/.codex` when it is not set. Managed account copies are stored under `codex-auth-manager/accounts` in the operating system's application data directory.
 
 ## Project Structure

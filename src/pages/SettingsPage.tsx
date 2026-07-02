@@ -10,6 +10,11 @@ export function SettingsPage({
   autoRefreshSeconds,
   onEnabledChange,
   onSecondsChange,
+  currentAccountEmail,
+  accountAutoRefreshEnabled,
+  accountAutoRefreshSeconds,
+  onAccountAutoRefreshEnabledChange,
+  onAccountAutoRefreshSecondsChange,
   floatingBubbleEnabled,
   floatingBubbleLoading,
   onFloatingBubbleChange,
@@ -22,6 +27,11 @@ export function SettingsPage({
   autoRefreshSeconds: number;
   onEnabledChange: (enabled: boolean) => void;
   onSecondsChange: (value: number | string | null) => void;
+  currentAccountEmail: string | null;
+  accountAutoRefreshEnabled: boolean;
+  accountAutoRefreshSeconds: number;
+  onAccountAutoRefreshEnabledChange: (enabled: boolean) => void;
+  onAccountAutoRefreshSecondsChange: (value: number | string | null) => void;
   floatingBubbleEnabled: boolean;
   floatingBubbleLoading: boolean;
   onFloatingBubbleChange: (enabled: boolean) => void;
@@ -63,6 +73,30 @@ export function SettingsPage({
             <Space.Compact>
               <InputNumber id="auto-refresh-interval" min={MIN_AUTO_REFRESH_SECONDS} max={MAX_AUTO_REFRESH_SECONDS}
                 step={1} value={autoRefreshSeconds} disabled={!autoRefreshEnabled} onChange={onSecondsChange} />
+              <Button disabled>{t("settings.autoRefresh.seconds")}</Button>
+            </Space.Compact>
+          </div>
+        </div>
+      </section>
+      <section className="settings-card">
+        <div className="settings-icon"><RefreshCw size={23} /></div>
+        <div><h3>{t("settings.accountAutoRefresh.title")}</h3><p>{t("settings.accountAutoRefresh.description")}</p>
+          <p className="settings-current-account">
+            {currentAccountEmail
+              ? t("settings.accountAutoRefresh.current", { email: currentAccountEmail })
+              : t("settings.accountAutoRefresh.none")}
+          </p>
+          <div className="settings-field">
+            <label htmlFor="account-auto-refresh-enabled">{t("settings.autoRefresh.enabled")}</label>
+            <Switch id="account-auto-refresh-enabled" checked={accountAutoRefreshEnabled}
+              disabled={!currentAccountEmail} checkedChildren={t("settings.autoRefresh.on")}
+              unCheckedChildren={t("settings.autoRefresh.off")} onChange={onAccountAutoRefreshEnabledChange} />
+            <label htmlFor="account-auto-refresh-interval">{t("settings.autoRefresh.interval")}</label>
+            <Space.Compact>
+              <InputNumber id="account-auto-refresh-interval" min={MIN_AUTO_REFRESH_SECONDS}
+                max={MAX_AUTO_REFRESH_SECONDS} step={1} value={accountAutoRefreshSeconds}
+                disabled={!currentAccountEmail || !accountAutoRefreshEnabled}
+                onChange={onAccountAutoRefreshSecondsChange} />
               <Button disabled>{t("settings.autoRefresh.seconds")}</Button>
             </Space.Compact>
           </div>
