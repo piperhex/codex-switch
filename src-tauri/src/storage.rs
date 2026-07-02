@@ -57,6 +57,16 @@ pub(crate) fn write_json_atomic(path: &Path, value: &Value) -> Result<(), String
     replace_file(&temp, path).map_err(|error| format!("提交 {} 失败：{error}", path.display()))
 }
 
+pub(crate) fn write_json_if_changed(path: &Path, value: &Value) -> Result<bool, String> {
+    if let Ok(existing) = read_json(path) {
+        if existing == *value {
+            return Ok(false);
+        }
+    }
+    write_json_atomic(path, value)?;
+    Ok(true)
+}
+
 #[cfg(not(windows))]
 fn replace_file(source: &Path, destination: &Path) -> io::Result<()> {
     fs::rename(source, destination)
@@ -119,9 +129,9 @@ pub(crate) fn import_value<R: Runtime>(
     validate_auth(&auth)?;
     let paths = resolve_paths(app)?;
     let (_, _, _, id) = account_fields(&auth)?;
-    write_json_atomic(&managed_auth_path(&paths, &id), &auth)?;
+    write_json_if_changed(&managed_auth_path(&paths, &id), &auth)?;
     if activate {
-        write_json_atomic(&paths.current_auth, &auth)?;
+        write_json_if_changed(&paths.current_auth, &auth)?;
         write_state(
             &paths,
             &ManagerStateFile {

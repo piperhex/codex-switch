@@ -55,10 +55,10 @@ The frontend only receives redacted models such as `AccountSummary`, `UsageSumma
 
 ### Usage Refresh
 
-1. The backend reads the selected credentials and refreshes the token before expiry or after a `401` response.
-2. It calls the Codex usage API and parses only the fields required by the UI.
-3. It writes the resulting summary to `usage.json`; the complete API response is never sent to the frontend.
-4. If the account is active, refreshed credentials are synchronized back to `$CODEX_HOME/auth.json`.
+1. For the account currently used by Codex, the backend reads `$CODEX_HOME/auth.json` as the authoritative credential source and syncs it into the managed store when it differs. Other accounts use their managed-store credentials.
+2. It refreshes the token before expiry or after a `401` response, then writes updated active credentials back to both `$CODEX_HOME/auth.json` and the managed store.
+3. It calls the Codex usage API and parses only the fields required by the UI.
+4. It writes the resulting summary to `usage.json`; the complete API response is never sent to the frontend.
 
 ## Persisted Data Layout
 

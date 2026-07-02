@@ -1,8 +1,9 @@
 import { useCallback, useState } from "react";
-import { ConfigProvider, theme as antdTheme } from "antd";
+import { ConfigProvider, Tooltip, theme as antdTheme } from "antd";
 import enUS from "antd/locale/en_US";
 import zhCN from "antd/locale/zh_CN";
-import { Check, CircleHelp, Plus, RefreshCw, Settings, ShieldCheck, UserRound, Zap } from "lucide-react";
+import { Check, CircleHelp, Github, Plus, RefreshCw, Settings, ShieldCheck, UserRound, Zap } from "lucide-react";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { HelpModal } from "./components/modals/HelpModal";
 import { LoginModal } from "./components/modals/LoginModal";
 import { useAccountManager } from "./hooks/useAccountManager";
@@ -14,6 +15,7 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { formatRefreshTime } from "./utils/format";
 
 const LAST_REFRESH_ALL_KEY = "codex-auth-manager:last-refresh-all-at";
+const REPOSITORY_URL = "https://github.com/piperhex/codex_auth_manager.git";
 
 function storedRefreshAllTime() {
   const value = window.localStorage.getItem(LAST_REFRESH_ALL_KEY);
@@ -54,6 +56,13 @@ export default function App() {
     markRefreshAll();
     void manager.refreshAll();
   };
+  const openRepository = () => {
+    if ("__TAURI_INTERNALS__" in window) {
+      void openUrl(REPOSITORY_URL).catch((error) => notify(String(error)));
+      return;
+    }
+    window.open(REPOSITORY_URL, "_blank", "noopener,noreferrer");
+  };
 
   return (
     <ConfigProvider locale={language === "zh" ? zhCN : enUS} theme={{
@@ -72,7 +81,14 @@ export default function App() {
           </nav>
           <div className="menu-tools">
             <div className="security-chip"><ShieldCheck size={16} /><span><b>{t("chip.title")}</b><small>{t("chip.description")}</small></span></div>
-            <button className="help-button" onClick={() => setShowHelp(true)}><CircleHelp size={17} />{t("help.open")}</button>
+            <div className="help-actions">
+              <button className="help-button" onClick={() => setShowHelp(true)}><CircleHelp size={17} />{t("help.open")}</button>
+              <Tooltip title={t("help.github")}>
+                <button type="button" className="github-button" aria-label={t("help.github")} onClick={openRepository}>
+                  <Github size={18} />
+                </button>
+              </Tooltip>
+            </div>
           </div>
         </header>
 

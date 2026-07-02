@@ -15,7 +15,7 @@ use crate::{
     storage::{
         account_dir, import_value, load_usage, managed_auth_path, read_json, read_state,
         resolve_paths, save_usage, sync_current_into_store, usage_path, write_json_atomic,
-        write_state,
+        write_json_if_changed, write_state, Paths,
     },
 };
 
@@ -126,13 +126,75 @@ fn api_client() -> Result<Client, String> {
 fn refresh_auth_if_needed(
     client: &Client,
     auth: &mut Value,
-    auth_path: &Path,
+    paths: &Paths,
+    id: &str,
 ) -> Result<(), String> {
     if token_expiring(auth) {
         refresh_tokens(client, auth)?;
-        write_json_atomic(auth_path, auth)?;
+        persist_request_auth(paths, id, auth)?;
     }
     Ok(())
+}
+
+fn is_active_account(paths: &Paths, id: &str) -> bool {
+    read_state(paths).active_account_id.as_deref() == Some(id)
+}
+
+fn mark_active_account(paths: &Paths, id: &str) -> Result<bool, String> {
+    let mut state = read_state(paths);
+    if state.active_account_id.as_deref() == Some(id) {
+        return Ok(false);
+    }
+    state.active_account_id = Some(id.to_string());
+    write_state(paths, &state)?;
+    Ok(true)
+}
+
+fn load_auth_for_request<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    paths: &Paths,
+    id: &str,
+) -> Result<Value, String> {
+    let managed_path = managed_auth_path(paths, id);
+    let state_says_active = is_active_account(paths, id);
+    let current_auth = read_json(&paths.current_auth).and_then(|auth| {
+        validate_auth(&auth)?;
+        let (_, _, _, current_id) = account_fields(&auth)?;
+        Ok((auth, current_id))
+    });
+
+    match current_auth {
+        Ok((auth, current_id)) if current_id == id => {
+            write_json_if_changed(&managed_path, &auth)?;
+            if mark_active_account(paths, id)? {
+                app.emit("accounts-changed", ())
+                    .map_err(|error| error.to_string())?;
+            }
+            return Ok(auth);
+        }
+        Ok((auth, current_id)) if state_says_active => {
+            write_json_if_changed(&managed_auth_path(paths, &current_id), &auth)?;
+            mark_active_account(paths, &current_id)?;
+            app.emit("accounts-changed", ())
+                .map_err(|error| error.to_string())?;
+            return Err(
+                "当前 Codex auth.json 已切换到其他账户，已同步到账户列表，请重新选择后刷新"
+                    .to_string(),
+            );
+        }
+        Ok(_) => {}
+        Err(error) if state_says_active => {
+            return Err(format!("当前 Codex auth.json 不可用：{error}"));
+        }
+        Err(_) => {}
+    }
+
+    read_json(&managed_path)
+}
+
+fn persist_request_auth(paths: &Paths, id: &str, auth: &Value) -> Result<(), String> {
+    write_json_if_changed(&managed_auth_path(paths, id), auth)?;
+    sync_active_auth(paths, id, auth)
 }
 
 #[tauri::command]
@@ -141,15 +203,14 @@ pub(crate) fn refresh_usage<R: Runtime>(
     id: String,
 ) -> Result<UsageSummary, String> {
     let paths = resolve_paths(&app)?;
-    let auth_path = managed_auth_path(&paths, &id);
-    let mut auth = read_json(&auth_path)?;
+    let mut auth = load_auth_for_request(&app, &paths, &id)?;
     let client = api_client()?;
-    refresh_auth_if_needed(&client, &mut auth, &auth_path)?;
+    refresh_auth_if_needed(&client, &mut auth, &paths, &id)?;
 
     let mut response = usage_request(&client, &auth)?;
     if response.status() == reqwest::StatusCode::UNAUTHORIZED {
         refresh_tokens(&client, &mut auth)?;
-        write_json_atomic(&auth_path, &auth)?;
+        persist_request_auth(&paths, &id, &auth)?;
         response = usage_request(&client, &auth)?;
     }
 
@@ -165,7 +226,7 @@ pub(crate) fn refresh_usage<R: Runtime>(
     match result {
         Ok(usage) => {
             save_usage(&usage_path(&paths, &id), &usage)?;
-            sync_active_auth(&paths, &id, &auth)?;
+            persist_request_auth(&paths, &id, &auth)?;
             app.emit("accounts-changed", ())
                 .map_err(|error| error.to_string())?;
             Ok(usage)
@@ -188,15 +249,14 @@ pub(crate) fn fetch_reset_credits<R: Runtime>(
     id: String,
 ) -> Result<ResetCreditsSummary, String> {
     let paths = resolve_paths(&app)?;
-    let auth_path = managed_auth_path(&paths, &id);
-    let mut auth = read_json(&auth_path)?;
+    let mut auth = load_auth_for_request(&app, &paths, &id)?;
     let client = api_client()?;
-    refresh_auth_if_needed(&client, &mut auth, &auth_path)?;
+    refresh_auth_if_needed(&client, &mut auth, &paths, &id)?;
 
     let mut response = reset_credits_request(&client, &auth)?;
     if response.status() == reqwest::StatusCode::UNAUTHORIZED {
         refresh_tokens(&client, &mut auth)?;
-        write_json_atomic(&auth_path, &auth)?;
+        persist_request_auth(&paths, &id, &auth)?;
         response = reset_credits_request(&client, &auth)?;
     }
     if response.status() == reqwest::StatusCode::UNAUTHORIZED {
@@ -209,13 +269,13 @@ pub(crate) fn fetch_reset_credits<R: Runtime>(
     let payload: Value = response
         .json()
         .map_err(|error| format!("解析重置卡响应失败：{error}"))?;
-    sync_active_auth(&paths, &id, &auth)?;
+    persist_request_auth(&paths, &id, &auth)?;
     parse_reset_credits(&payload)
 }
 
-fn sync_active_auth(paths: &crate::storage::Paths, id: &str, auth: &Value) -> Result<(), String> {
-    if read_state(paths).active_account_id.as_deref() == Some(id) {
-        write_json_atomic(&paths.current_auth, auth)?;
+fn sync_active_auth(paths: &Paths, id: &str, auth: &Value) -> Result<(), String> {
+    if is_active_account(paths, id) {
+        write_json_if_changed(&paths.current_auth, auth)?;
     }
     Ok(())
 }
