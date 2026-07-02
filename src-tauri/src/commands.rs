@@ -75,6 +75,7 @@ pub(crate) fn import_auth_file<R: Runtime>(
     let id = import_value(&app, auth, false)?;
     app.emit("accounts-changed", ())
         .map_err(|error| error.to_string())?;
+    crate::system_tray::refresh_menu(&app);
     Ok(id)
 }
 
@@ -96,7 +97,9 @@ pub(crate) fn switch_account<R: Runtime>(
         },
     )?;
     app.emit("accounts-changed", ())
-        .map_err(|error| error.to_string())
+        .map_err(|error| error.to_string())?;
+    crate::system_tray::refresh_menu(&app);
+    Ok(())
 }
 
 #[tauri::command]
@@ -113,7 +116,9 @@ pub(crate) fn delete_account<R: Runtime>(
         fs::remove_dir_all(&target).map_err(|error| format!("删除账户失败：{error}"))?;
     }
     app.emit("accounts-changed", ())
-        .map_err(|error| error.to_string())
+        .map_err(|error| error.to_string())?;
+    crate::system_tray::refresh_menu(&app);
+    Ok(())
 }
 
 fn api_client() -> Result<Client, String> {
@@ -169,6 +174,7 @@ fn load_auth_for_request<R: Runtime>(
             if mark_active_account(paths, id)? {
                 app.emit("accounts-changed", ())
                     .map_err(|error| error.to_string())?;
+                crate::system_tray::refresh_menu(app);
             }
             return Ok(auth);
         }
@@ -177,6 +183,7 @@ fn load_auth_for_request<R: Runtime>(
             mark_active_account(paths, &current_id)?;
             app.emit("accounts-changed", ())
                 .map_err(|error| error.to_string())?;
+            crate::system_tray::refresh_menu(app);
             return Err(
                 "当前 Codex auth.json 已切换到其他账户，已同步到账户列表，请重新选择后刷新"
                     .to_string(),
@@ -229,6 +236,7 @@ pub(crate) fn refresh_usage<R: Runtime>(
             persist_request_auth(&paths, &id, &auth)?;
             app.emit("accounts-changed", ())
                 .map_err(|error| error.to_string())?;
+            crate::system_tray::refresh_menu(&app);
             Ok(usage)
         }
         Err(error) => {

@@ -4,6 +4,7 @@ mod commands;
 mod models;
 mod oauth;
 mod storage;
+mod system_tray;
 
 use oauth::AppState;
 
@@ -13,6 +14,18 @@ pub fn run() {
         .manage(AppState::default())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .setup(|app| {
+            system_tray::setup(app)?;
+            Ok(())
+        })
+        .on_window_event(|window, event| {
+            if window.label() == "main" {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             commands::get_app_info,
             commands::list_accounts,

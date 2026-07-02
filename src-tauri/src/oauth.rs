@@ -254,6 +254,7 @@ fn run_login_loop<R: Runtime + 'static>(
                 );
                 emit_login(&app, true, "登录成功，账户已保存，可手动切换");
                 let _ = app.emit("accounts-changed", ());
+                crate::system_tray::refresh_menu(&app);
                 thread::sleep(Duration::from_millis(850));
                 if let Some(window) = app.get_webview_window("codex-login") {
                     let _ = window.close();
