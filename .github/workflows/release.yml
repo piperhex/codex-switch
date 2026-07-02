@@ -73,5 +73,5 @@ jobs:
           releaseName: "Codex Auth Manager ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}"
           releaseBody: "Windows and macOS installers are attached below."
           releaseDraft: false
-          prerelease: false
+          prerelease: ${{ contains(github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name, '-') }}
           args: ${{ matrix.args }}

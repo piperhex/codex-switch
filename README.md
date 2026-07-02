@@ -68,11 +68,15 @@ npm run check
 GitHub Actions publishes release assets automatically when a version tag is pushed:
 
 ```bash
-npm run release -- v0.1.0
-git push origin v0.1.0
+npm run release
+npm run release-beta
 ```
 
-The release workflow builds Windows x64 plus macOS Apple Silicon and Intel artifacts, then uploads them to the matching GitHub Release. It can also be run manually from Actions by entering an existing tag.
+`npm run release` reads `package.json`, bumps the patch version by 1, updates `package.json`, `package-lock.json`, and `src-tauri/tauri.conf.json`, commits the version bump, and creates an annotated tag such as `v0.1.1`. `npm run release-beta` creates a prerelease tag such as `v0.1.1-beta.0`, or increments the beta number if the current version is already beta.
+
+You can pass an exact version or tag with `npm run release -- v0.2.0` or `npm run release-beta -- v0.2.0-beta.1`. Explicit versions are also synced into the version files before the tag is created.
+
+The release workflow builds Windows x64 plus macOS Apple Silicon and Intel artifacts, then uploads them to the matching GitHub Release. Tags containing a prerelease suffix, such as `-beta.0`, are published as GitHub prereleases. The workflow can also be run manually from Actions by entering an existing tag.
 
 ## Usage
 
