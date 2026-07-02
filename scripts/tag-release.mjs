@@ -12,6 +12,7 @@ const packageLockPath = join(cwd, "package-lock.json");
 const tauriConfigPath = join(cwd, "src-tauri", "tauri.conf.json");
 const packageJson = readJson(packageJsonPath);
 const currentVersion = parseVersion(packageJson.version, "package.json version");
+const branch = gitOutput(["branch", "--show-current"]);
 
 if (requested === "-h" || requested === "--help") {
   printHelp();
@@ -33,6 +34,10 @@ if (tagExists(releaseTag)) {
   fail(`Tag ${releaseTag} already exists.`);
 }
 
+if (!branch) {
+  fail("Release must be run from a branch, not a detached HEAD.");
+}
+
 ensureCleanWorkingTree();
 syncVersionFiles(nextVersion);
 
@@ -47,17 +52,15 @@ if (gitOutput(["status", "--porcelain", "--", ...versionFiles])) {
 run("git", ["tag", "-a", releaseTag, "-m", `Release ${releaseTag}`]);
 
 console.log(`Created ${releaseTag}.`);
-const branch = gitOutput(["branch", "--show-current"]);
-if (branch) {
-  console.log(`Push it with: git push origin ${branch} && git push origin ${releaseTag}`);
-} else {
-  console.log(`Push it with: git push origin ${releaseTag}`);
-}
+console.log(`Pushing ${branch} and ${releaseTag} to origin...`);
+run("git", ["push", "origin", branch]);
+run("git", ["push", "origin", releaseTag]);
+console.log(`Pushed ${releaseTag}. GitHub Actions will start from the tag push.`);
 
 function printHelp() {
   console.log(`Usage: npm run ${beta ? "release-beta" : "release"} -- [version-or-tag]
 
-Creates a version bump commit and an annotated git tag.
+Creates a version bump commit, creates an annotated git tag, and pushes both to origin.
 
 Default behavior:
   npm run release       ${packageJson?.version ? `# ${packageJson.version} -> ${formatVersion(nextReleaseVersion(currentVersion))}` : ""}

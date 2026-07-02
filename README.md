@@ -72,7 +72,7 @@ npm run release
 npm run release-beta
 ```
 
-`npm run release` reads `package.json`, bumps the patch version by 1, updates `package.json`, `package-lock.json`, and `src-tauri/tauri.conf.json`, commits the version bump, and creates an annotated tag such as `v0.1.1`. `npm run release-beta` creates a prerelease tag such as `v0.1.1-beta.0`, or increments the beta number if the current version is already beta.
+`npm run release` reads `package.json`, bumps the patch version by 1, updates `package.json`, `package-lock.json`, and `src-tauri/tauri.conf.json`, commits the version bump, creates an annotated tag such as `v0.1.1`, then pushes both the branch and tag to `origin`. `npm run release-beta` creates a prerelease tag such as `v0.1.1-beta.0`, or increments the beta number if the current version is already beta, and also pushes automatically.
 
 You can pass an exact version or tag with `npm run release -- v0.2.0` or `npm run release-beta -- v0.2.0-beta.1`. Explicit versions are also synced into the version files before the tag is created.
 
