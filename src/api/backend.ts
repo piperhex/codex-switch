@@ -116,6 +116,10 @@ export async function fetchResetCredits(id: string): Promise<ResetCreditsSummary
   };
 }
 
+export async function restartCodex(): Promise<void> {
+  if (isDesktopApp) await invoke("restart_codex");
+}
+
 export function subscribeToBackendEvents(
   onAccountsChanged: () => void,
   onLoginStatus: (status: LoginStatus) => void,

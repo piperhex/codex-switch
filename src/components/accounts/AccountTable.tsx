@@ -1,7 +1,6 @@
 import { Button, Popconfirm, Space, Table, Tag, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { Check, Clock3, RefreshCw, RotateCcw, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
 import type { Language, Translate } from "../../i18n";
 import type { Account, ResetCreditsLoadState } from "../../types";
 import { formatUpdated, initials } from "../../utils/format";
@@ -61,16 +60,6 @@ export function AccountTable({
   language,
   t,
 }: AccountTableProps) {
-  const [now, setNow] = useState(() => Date.now());
-  const hasFiveHourReset = accounts.some((account) => Boolean(account.usage.primary?.resetsAt));
-
-  useEffect(() => {
-    if (!hasFiveHourReset) return;
-    setNow(Date.now());
-    const timer = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  }, [hasFiveHourReset]);
-
   const columns: ColumnsType<Account> = [
     {
       title: t("table.account"), dataIndex: "email", width: 200, fixed: "left",
@@ -95,11 +84,11 @@ export function AccountTable({
     },
     {
       title: t("table.fiveHours"), width: 148,
-      render: (_, account) => <UsageMeter window={account.usage.primary} resetWindow="fiveHours" now={now} language={language} t={t} />,
+      render: (_, account) => <UsageMeter window={account.usage.primary} resetWindow="fiveHours" language={language} t={t} />,
     },
     {
       title: t("table.oneWeek"), width: 148,
-      render: (_, account) => <UsageMeter window={account.usage.secondary} resetWindow="oneWeek" now={now} language={language} t={t} />,
+      render: (_, account) => <UsageMeter window={account.usage.secondary} resetWindow="oneWeek" language={language} t={t} />,
     },
     {
       title: t("table.resetCredits"), width: 130, align: "center",

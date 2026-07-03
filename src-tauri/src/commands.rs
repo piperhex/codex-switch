@@ -1,4 +1,10 @@
-use std::{fs, path::Path, time::Duration};
+use std::{
+    fs,
+    path::Path,
+    process::{Command, Output},
+    thread,
+    time::Duration,
+};
 
 use chrono::Utc;
 use reqwest::blocking::Client;
@@ -18,6 +24,8 @@ use crate::{
         write_json_if_changed, write_state, Paths,
     },
 };
+
+const CODEX_COMMAND: &str = "codex";
 
 #[tauri::command]
 pub(crate) fn get_app_info<R: Runtime>(app: tauri::AppHandle<R>) -> Result<AppInfo, String> {
@@ -119,6 +127,14 @@ pub(crate) fn delete_account<R: Runtime>(
         .map_err(|error| error.to_string())?;
     crate::system_tray::refresh_menu(&app);
     Ok(())
+}
+
+#[tauri::command]
+pub(crate) fn restart_codex() -> Result<(), String> {
+    let launch_target = codex_launch_target();
+    stop_codex_processes()?;
+    thread::sleep(Duration::from_millis(450));
+    start_codex(launch_target.as_deref())
 }
 
 fn api_client() -> Result<Client, String> {
@@ -286,4 +302,146 @@ fn sync_active_auth(paths: &Paths, id: &str, auth: &Value) -> Result<(), String>
         write_json_if_changed(&paths.current_auth, auth)?;
     }
     Ok(())
+}
+
+#[cfg(target_os = "windows")]
+fn codex_launch_target() -> Option<String> {
+    let output = Command::new("powershell")
+        .args([
+            "-NoProfile",
+            "-Command",
+            "(Get-Process -Name codex -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty Path)",
+        ])
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+
+    let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if path.is_empty() {
+        None
+    } else {
+        Some(path)
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn codex_launch_target() -> Option<String> {
+    None
+}
+
+#[cfg(target_os = "windows")]
+fn stop_codex_processes() -> Result<(), String> {
+    let output = Command::new("taskkill")
+        .args(["/F", "/T", "/FI", "IMAGENAME eq codex.exe"])
+        .output()
+        .map_err(|error| format!("停止 Codex 失败：{error}"))?;
+    if output.status.success() {
+        Ok(())
+    } else {
+        Err(command_output_error("停止 Codex 失败", &output))
+    }
+}
+
+#[cfg(unix)]
+fn stop_codex_processes() -> Result<(), String> {
+    stop_unix_process(CODEX_COMMAND)?;
+    #[cfg(target_os = "macos")]
+    stop_unix_process("Codex")?;
+    Ok(())
+}
+
+#[cfg(unix)]
+fn stop_unix_process(name: &str) -> Result<(), String> {
+    let status = Command::new("pkill")
+        .args(["-x", name])
+        .status()
+        .map_err(|error| format!("停止 Codex 失败：{error}"))?;
+    if status.success() || status.code() == Some(1) {
+        Ok(())
+    } else {
+        Err(status_error("停止 Codex 失败", status))
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn start_codex(target: Option<&str>) -> Result<(), String> {
+    let target = target.unwrap_or(CODEX_COMMAND);
+    let mut command = Command::new(target);
+    if let Some(parent) = Path::new(target)
+        .parent()
+        .filter(|path| !path.as_os_str().is_empty())
+    {
+        command.current_dir(parent);
+    }
+    command
+        .spawn()
+        .map(|_| ())
+        .map_err(|error| format!("启动 Codex 失败：{error}"))
+}
+
+#[cfg(target_os = "macos")]
+fn start_codex(_target: Option<&str>) -> Result<(), String> {
+    if matches!(Command::new("open").args(["-a", "Codex"]).status(), Ok(status) if status.success())
+    {
+        return Ok(());
+    }
+
+    let status = Command::new("osascript")
+        .args([
+            "-e",
+            "tell application \"Terminal\" to activate",
+            "-e",
+            "tell application \"Terminal\" to do script \"codex\"",
+        ])
+        .status()
+        .map_err(|error| format!("启动 Codex 失败：{error}"))?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err(status_error("启动 Codex 失败", status))
+    }
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+fn start_codex(_target: Option<&str>) -> Result<(), String> {
+    let terminals: &[(&str, &[&str])] = &[
+        ("x-terminal-emulator", &["-e", CODEX_COMMAND]),
+        ("gnome-terminal", &["--", CODEX_COMMAND]),
+        ("konsole", &["-e", CODEX_COMMAND]),
+        ("xfce4-terminal", &["-e", CODEX_COMMAND]),
+        ("xterm", &["-e", CODEX_COMMAND]),
+    ];
+
+    for (program, args) in terminals {
+        match Command::new(program).args(*args).spawn() {
+            Ok(_) => return Ok(()),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(format!("启动 Codex 失败：{error}")),
+        }
+    }
+
+    Command::new(CODEX_COMMAND)
+        .spawn()
+        .map(|_| ())
+        .map_err(|error| format!("启动 Codex 失败：{error}"))
+}
+
+fn command_output_error(action: &str, output: &Output) -> String {
+    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let detail = if stderr.is_empty() { stdout } else { stderr };
+    if detail.is_empty() {
+        status_error(action, output.status)
+    } else {
+        format!("{action}：{detail}")
+    }
+}
+
+fn status_error(action: &str, status: std::process::ExitStatus) -> String {
+    match status.code() {
+        Some(code) => format!("{action}（退出码：{code}）"),
+        None => format!("{action}（进程被信号终止）"),
+    }
 }

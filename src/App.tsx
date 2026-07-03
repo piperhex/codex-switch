@@ -1,9 +1,10 @@
-import { useCallback, useState } from "react";
+import { memo, useCallback, useState } from "react";
 import { ConfigProvider, Tooltip, theme as antdTheme } from "antd";
 import enUS from "antd/locale/en_US";
 import zhCN from "antd/locale/zh_CN";
-import { CalendarClock, Check, CircleHelp, Github, Plus, RefreshCw, Settings, ShieldCheck, UserRound, Zap } from "lucide-react";
+import { CalendarClock, Check, CircleHelp, Github, Plus, RefreshCw, RotateCcw, Settings, ShieldCheck, UserRound, Zap } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { isDesktopApp, restartCodex } from "./api/backend";
 import { HelpModal } from "./components/modals/HelpModal";
 import { FloatingUsageBubble } from "./components/FloatingUsageBubble";
 import { LoginModal } from "./components/modals/LoginModal";
@@ -20,6 +21,8 @@ import { formatRefreshTime } from "./utils/format";
 
 const LAST_REFRESH_ALL_KEY = "codex-switch:last-refresh-all-at";
 const REPOSITORY_URL = "https://github.com/piperhex/codex-switch.git";
+const MemoAccountsPage = memo(AccountsPage);
+const MemoSettingsPage = memo(SettingsPage);
 
 function storedRefreshAllTime() {
   const value = window.localStorage.getItem(LAST_REFRESH_ALL_KEY);
@@ -31,6 +34,7 @@ function DashboardApp() {
   const [showLogin, setShowLogin] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [lastRefreshAllAt, setLastRefreshAllAt] = useState<string | null>(storedRefreshAllTime);
+  const [restartingCodex, setRestartingCodex] = useState(false);
   const { message: toast, notify } = useToast();
   const { language, setLanguage, t } = useLanguage();
   const floatingBubble = useFloatingBubble(notify);
@@ -55,6 +59,25 @@ function DashboardApp() {
     activeAccount?.id ?? null,
     (accountId) => manager.refreshUsage(accountId, true, false),
   );
+  const openLogin = useCallback(() => setShowLogin(true), []);
+  const switchAccount = useCallback((id: string) => {
+    void manager.switchAccount(id);
+  }, [manager.switchAccount]);
+  const refreshUsage = useCallback((id: string) => {
+    void manager.refreshUsage(id);
+  }, [manager.refreshUsage]);
+  const deleteAccount = useCallback((id: string) => {
+    void manager.deleteAccount(id);
+  }, [manager.deleteAccount]);
+  const loadResetCredits = useCallback((id: string, force?: boolean) => {
+    void resetCredits.refreshAccount(id, force);
+  }, [resetCredits.refreshAccount]);
+  const changeThemeColor = useCallback((color: string) => {
+    void themeColor.setColor(color);
+  }, [themeColor.setColor]);
+  const changeFloatingBubble = useCallback((enabled: boolean) => {
+    void floatingBubble.setEnabled(enabled);
+  }, [floatingBubble.setEnabled]);
 
   const startLogin = (embedded: boolean) => {
     setShowLogin(false);
@@ -68,6 +91,17 @@ function DashboardApp() {
     markRefreshAll();
     void manager.refreshAll();
   };
+  const restartCodexProcess = useCallback(async () => {
+    setRestartingCodex(true);
+    try {
+      await restartCodex();
+      notify(isDesktopApp ? t("toast.codexRestarted") : t("toast.previewRestartCodex"));
+    } catch (error) {
+      notify(String(error));
+    } finally {
+      setRestartingCodex(false);
+    }
+  }, [notify, t]);
   const openRepository = () => {
     if ("__TAURI_INTERNALS__" in window) {
       void openUrl(REPOSITORY_URL).catch((error) => notify(String(error)));
@@ -110,7 +144,7 @@ function DashboardApp() {
               <h1>{page === "settings" ? t("topbar.settings") : t("topbar.accounts", { count: manager.accounts.length })}</h1></div>
             {page === "accounts" && (
               <div className="topbar-actions">
-                <button className="primary-button" onClick={() => setShowLogin(true)}><Plus size={18} />{t("actions.addAccount")}</button>
+                <button className="primary-button" onClick={openLogin}><Plus size={18} />{t("actions.addAccount")}</button>
                 <div className="refresh-all-wrap">
                   <button className="refresh-all" onClick={refreshAll}
                     disabled={manager.refreshingAll || !manager.accounts.length}>
@@ -122,12 +156,15 @@ function DashboardApp() {
                   disabled={resetCredits.refreshingAll || !manager.accounts.length}>
                   <CalendarClock className={resetCredits.refreshingAll ? "spin" : ""} size={17} />{t("actions.refreshResetCredits")}
                 </button>
+                <button className="refresh-all" onClick={() => void restartCodexProcess()} disabled={restartingCodex}>
+                  <RotateCcw className={restartingCodex ? "spin" : ""} size={17} />{t("actions.restartCodex")}
+                </button>
               </div>
             )}
           </header>
 
-          {page === "settings" ? (
-            <SettingsPage info={manager.info} autoRefreshEnabled={autoRefresh.enabled}
+          <section className="page-panel" hidden={page !== "settings"}>
+            <MemoSettingsPage info={manager.info} autoRefreshEnabled={autoRefresh.enabled}
               autoRefreshSeconds={autoRefresh.seconds} onEnabledChange={autoRefresh.setEnabled}
               onSecondsChange={autoRefresh.updateSeconds} currentAccountEmail={activeAccount?.email ?? null}
               accountAutoRefreshEnabled={accountAutoRefresh.enabled}
@@ -135,20 +172,21 @@ function DashboardApp() {
               onAccountAutoRefreshEnabledChange={accountAutoRefresh.setEnabled}
               onAccountAutoRefreshSecondsChange={accountAutoRefresh.updateSeconds}
               themeColor={themeColor.color} themeColorLoading={themeColor.loading}
-              onThemeColorChange={(color) => void themeColor.setColor(color)}
+              onThemeColorChange={changeThemeColor}
               floatingBubbleEnabled={floatingBubble.enabled}
-              floatingBubbleLoading={floatingBubble.loading} onFloatingBubbleChange={(enabled) => void floatingBubble.setEnabled(enabled)} language={language}
+              floatingBubbleLoading={floatingBubble.loading} onFloatingBubbleChange={changeFloatingBubble} language={language}
               onLanguageChange={setLanguage} t={t} />
-          ) : (
-            <AccountsPage accounts={manager.accounts} loading={manager.loading}
-              busyAccountId={manager.busyAccountId} onAdd={() => setShowLogin(true)}
-              onSwitch={(id) => void manager.switchAccount(id)}
-              onRefresh={(id) => void manager.refreshUsage(id)}
-              onDelete={(id) => void manager.deleteAccount(id)}
+          </section>
+          <section className="page-panel" hidden={page !== "accounts"}>
+            <MemoAccountsPage accounts={manager.accounts} loading={manager.loading}
+              busyAccountId={manager.busyAccountId} onAdd={openLogin}
+              onSwitch={switchAccount}
+              onRefresh={refreshUsage}
+              onDelete={deleteAccount}
               resetCredits={resetCredits.states}
-              onLoadResetCredits={(id, force) => void resetCredits.refreshAccount(id, force)}
+              onLoadResetCredits={loadResetCredits}
               language={language} t={t} />
-          )}
+          </section>
         </main>
 
         {showLogin && <LoginModal onClose={() => setShowLogin(false)} onStart={startLogin} onImport={importAuth} t={t} />}

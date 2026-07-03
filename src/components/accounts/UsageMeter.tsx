@@ -1,4 +1,5 @@
 import { Progress } from "antd";
+import { useEffect, useState } from "react";
 import type { Language, Translate } from "../../i18n";
 import type { UsageWindow } from "../../types";
 import { remainingTone, resetCountdownTime, resetLabel, type UsageResetWindow } from "../../utils/format";
@@ -18,15 +19,24 @@ function tableResetLabel(timestamp: number | null | undefined, language: Languag
   return language === "zh" ? `${label}(倒计时：${countdown})` : `${label} (Countdown: ${countdown})`;
 }
 
-export function UsageMeter({ window, resetWindow, now, language, t }: {
+export function UsageMeter({ window: usageWindow, resetWindow, language, t }: {
   window?: UsageWindow | null;
   resetWindow: UsageResetWindow;
-  now: number;
   language: Language;
   t: Translate;
 }) {
-  if (!window) return <span className="usage-missing">--</span>;
-  const remaining = Math.round(window.remainingPercent);
+  const [now, setNow] = useState(() => Date.now());
+  const countdownActive = resetWindow === "fiveHours" && Boolean(usageWindow?.resetsAt);
+
+  useEffect(() => {
+    if (!countdownActive) return;
+    setNow(Date.now());
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [countdownActive, usageWindow?.resetsAt]);
+
+  if (!usageWindow) return <span className="usage-missing">--</span>;
+  const remaining = Math.round(usageWindow.remainingPercent);
   const tone = remainingTone(remaining);
   return (
     <div className={`table-usage table-usage-${resetWindow}`}>
@@ -35,7 +45,7 @@ export function UsageMeter({ window, resetWindow, now, language, t }: {
         <span>{t("usage.remaining")}</span>
       </div>
       <Progress percent={remaining} showInfo={false} size="small" strokeColor={usageStroke(remaining)} />
-      <span className="usage-reset">{tableResetLabel(window.resetsAt, language, resetWindow, now)}</span>
+      <span className="usage-reset">{tableResetLabel(usageWindow.resetsAt, language, resetWindow, now)}</span>
     </div>
   );
 }

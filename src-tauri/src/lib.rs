@@ -41,6 +41,7 @@ pub fn run() {
             commands::delete_account,
             commands::refresh_usage,
             commands::fetch_reset_credits,
+            commands::restart_codex,
             floating_bubble::get_app_settings,
             floating_bubble::set_floating_bubble,
             floating_bubble::set_theme_color,

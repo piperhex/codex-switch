@@ -24,6 +24,7 @@ const translations = {
     "actions.addAccount": "Add account",
     "actions.refreshAll": "Refresh all usage",
     "actions.refreshResetCredits": "Refresh reset cards",
+    "actions.restartCodex": "Restart Codex",
     "actions.lastUpdated": "Last updated: {time}",
     "settings.language.title": "Language",
     "settings.language.description": "Choose the interface language. This setting is saved locally.",
@@ -126,6 +127,8 @@ const translations = {
     "toast.usageRefreshed": "Usage refreshed",
     "toast.allUsageRefreshed": "All account usage refreshed",
     "toast.resetCreditsRefreshed": "Reset card counts refreshed",
+    "toast.previewRestartCodex": "Browser preview mode cannot restart Codex",
+    "toast.codexRestarted": "Codex restart requested",
     "toast.deleted": "Account deleted",
   },
   zh: {
@@ -142,6 +145,7 @@ const translations = {
     "actions.addAccount": "添加账户",
     "actions.refreshAll": "刷新全部用量",
     "actions.refreshResetCredits": "刷新重置卡数",
+    "actions.restartCodex": "重启 Codex",
     "actions.lastUpdated": "最后更新：{time}",
     "settings.language.title": "语言",
     "settings.language.description": "选择界面显示语言。此设置会保存在本机。",
@@ -243,6 +247,8 @@ const translations = {
     "toast.usageRefreshed": "用量已刷新",
     "toast.allUsageRefreshed": "所有账户用量已刷新",
     "toast.resetCreditsRefreshed": "重置卡数已刷新",
+    "toast.previewRestartCodex": "浏览器预览模式不能重启 Codex",
+    "toast.codexRestarted": "已请求重启 Codex",
     "toast.deleted": "账户已删除",
   },
 } as const;
