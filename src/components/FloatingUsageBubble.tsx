@@ -19,6 +19,13 @@ function usageColor(remaining: number) {
   return "var(--green-highlight)";
 }
 
+function waterColors(remaining: number | null) {
+  const tone = remaining === null ? "good" : remainingTone(remaining);
+  if (tone === "danger") return { top: "#ff8a78", main: "#ef4f45", bottom: "#c92e32" };
+  if (tone === "warning") return { top: "#ffd76a", main: "#e5b84f", bottom: "#c88716" };
+  return { top: "#20b7ed", main: "#0b93d9", bottom: "#0873d5" };
+}
+
 const ignoreThemeError = () => undefined;
 
 function clampPercent(value: number) {
@@ -96,11 +103,14 @@ export function FloatingUsageBubble() {
   const secondary = account?.usage.secondary;
   const remaining = primary ? clampPercent(primary.remainingPercent) : null;
   const weeklyRemaining = secondary ? clampPercent(secondary.remainingPercent) : null;
+  const water = waterColors(remaining);
   const ringStyle = {
     "--bubble-progress": `${weeklyRemaining ?? 0}%`,
     "--bubble-color": weeklyRemaining === null ? "#7b8780" : usageColor(weeklyRemaining),
     "--bubble-water-level": `${remaining ?? 0}%`,
-    "--bubble-water-color": "#43c7ff",
+    "--bubble-water-top": water.top,
+    "--bubble-water-color": water.main,
+    "--bubble-water-bottom": water.bottom,
   } as CSSProperties;
 
   useEffect(() => {

@@ -301,10 +301,10 @@ html.floating-usage-page #root {
   left: 0;
   height: var(--bubble-water-level);
   background:
-    radial-gradient(80% 42% at 34% 10%, rgba(255, 255, 255, .32), rgba(255, 255, 255, 0) 62%),
-    linear-gradient(180deg, rgba(126, 225, 255, .96) 0%, rgba(50, 173, 225, .9) 48%, rgba(16, 119, 177, .94) 100%),
+    radial-gradient(80% 42% at 34% 10%, rgba(255, 255, 255, .38), rgba(255, 255, 255, 0) 62%),
+    linear-gradient(180deg, var(--bubble-water-top) 0%, var(--bubble-water-color) 48%, var(--bubble-water-bottom) 100%),
     var(--bubble-water-color);
-  opacity: .74;
+  opacity: .94;
   transform-origin: 50% 100%;
   transition: height .7s cubic-bezier(.2, .8, .2, 1);
 }
@@ -317,8 +317,8 @@ html.floating-usage-page #root {
   height: 10px;
   border-radius: 50%;
   background:
-    radial-gradient(14px 8px at 7px 6px, rgba(240, 253, 255, .74) 48%, rgba(240, 253, 255, 0) 52%) 0 0 / 28px 10px repeat-x,
-    linear-gradient(90deg, rgba(255, 255, 255, .16), rgba(255, 255, 255, .48), rgba(255, 255, 255, .16));
+    radial-gradient(14px 8px at 7px 6px, rgba(255, 255, 255, .78) 48%, rgba(255, 255, 255, 0) 52%) 0 0 / 28px 10px repeat-x,
+    linear-gradient(90deg, rgba(255, 255, 255, .12), rgba(255, 255, 255, .62), rgba(255, 255, 255, .12));
   opacity: .82;
   filter: blur(.15px);
   transition: bottom .7s cubic-bezier(.2, .8, .2, 1);
