@@ -102,6 +102,7 @@ h1 { margin: 5px 0 0; font: 700 26px/1.1 Manrope, sans-serif; letter-spacing: -.
 .plan-tag { margin: 0; max-width: 150px; overflow: hidden; text-overflow: ellipsis; text-transform: capitalize; }
 .account-id { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #7d8a82; font: 10px ui-monospace, SFMono-Regular, Consolas, monospace; }
 .table-usage { min-width: 116px; display: grid; gap: 2px; }
+.table-usage-fiveHours { min-width: 198px; }
 .table-usage-oneWeek { min-width: 206px; }
 .table-usage-head { display: flex; align-items: baseline; gap: 4px; line-height: 1; }
 .table-usage-head strong { font: 700 12px Manrope, sans-serif; }
@@ -248,12 +249,12 @@ html.floating-usage-page #root {
   position: absolute;
   right: 8px;
   bottom: 8px;
-  width: 80px;
-  height: 80px;
+  width: 92px;
+  height: 92px;
   padding: 0;
   display: grid;
   place-content: center;
-  gap: 3px;
+  gap: 4px;
   border: 0;
   border-radius: 50%;
   color: #f7fff8;
@@ -268,7 +269,7 @@ html.floating-usage-page #root {
 .floating-bubble::before {
   content: "";
   position: absolute;
-  inset: 7px;
+  inset: 8px;
   z-index: 0;
   border-radius: 50%;
   background: radial-gradient(circle at 38% 28%, #314139, #142019 72%);
@@ -276,7 +277,7 @@ html.floating-usage-page #root {
 }
 .floating-bubble-water {
   position: absolute;
-  inset: 7px;
+  inset: 8px;
   z-index: 1;
   overflow: hidden;
   border-radius: 50%;
@@ -313,8 +314,29 @@ html.floating-usage-page #root {
   transition: bottom .7s cubic-bezier(.2, .8, .2, 1);
   animation: bubble-water-drift 3.2s linear infinite;
 }
-.floating-bubble-value { position: relative; z-index: 2; font: 700 19px/1 Manrope, sans-serif; letter-spacing: -.04em; }
+.floating-bubble-value { position: relative; z-index: 2; font: 700 20px/1 Manrope, sans-serif; letter-spacing: 0; }
 .floating-bubble small { position: relative; z-index: 2; color: #d7f5ff; font-size: 9px; font-weight: 600; }
+.floating-bubble-reset {
+  max-width: 74px;
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.floating-bubble-reset-en {
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  line-height: 1.05;
+  text-overflow: clip;
+  white-space: normal;
+}
+.floating-bubble-reset-en span {
+  max-width: 74px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .floating-bubble.is-water-settling .floating-bubble-water::before {
   animation: bubble-water-slosh 1.1s ease-out;
 }
@@ -325,7 +347,7 @@ html.floating-usage-page #root {
 .bubble-details {
   position: absolute;
   right: 8px;
-  bottom: 104px;
+  bottom: 116px;
   width: calc(100% - 46px);
   min-height: 176px;
   padding: 13px 14px 11px;

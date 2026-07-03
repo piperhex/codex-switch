@@ -10,7 +10,7 @@ import {
 import { useLanguage } from "../hooks/useLanguage";
 import { useThemeColor } from "../hooks/useThemeColor";
 import type { Account, UsageWindow } from "../types";
-import { formatUpdated, remainingTone, resetLabel, type UsageResetWindow } from "../utils/format";
+import { formatUpdated, remainingTone, resetClockTime, resetLabel, type UsageResetWindow } from "../utils/format";
 
 function usageColor(remaining: number) {
   const tone = remainingTone(remaining);
@@ -25,12 +25,11 @@ function clampPercent(value: number) {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
-function DetailRow({ label, usage, language, resetWindow, now }: {
+function DetailRow({ label, usage, language, resetWindow }: {
   label: string;
   usage?: UsageWindow | null;
   language: "en" | "zh";
   resetWindow: UsageResetWindow;
-  now: number;
 }) {
   if (!usage) {
     const emptyStyle = {
@@ -56,9 +55,22 @@ function DetailRow({ label, usage, language, resetWindow, now }: {
         <span>{language === "zh" ? `剩余 ${remaining}%` : `${remaining}% left`}</span>
       </div>
       <div className="bubble-detail-progress" aria-hidden="true"><i /></div>
-      <small>{resetLabel(usage.resetsAt, language, resetWindow, now)}</small>
+      <small>{resetLabel(usage.resetsAt, language, resetWindow)}</small>
     </div>
   );
+}
+
+function BubbleResetLabel({ timestamp, language }: { timestamp?: number | null; language: "en" | "zh" }) {
+  const clock = resetClockTime(timestamp);
+  if (language === "en") {
+    return (
+      <small className="floating-bubble-reset floating-bubble-reset-en">
+        <span>{clock ? "Resets at" : "Reset time"}</span>
+        <span>{clock ?? "unknown"}</span>
+      </small>
+    );
+  }
+  return <small className="floating-bubble-reset">{resetLabel(timestamp, language, "fiveHours")}</small>;
 }
 
 export function FloatingUsageBubble() {
@@ -66,7 +78,6 @@ export function FloatingUsageBubble() {
   useThemeColor(ignoreThemeError);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [expanded, setExpanded] = useState(false);
-  const [now, setNow] = useState(() => Date.now());
   const [waterSettling, setWaterSettling] = useState(false);
   const lastPrimaryPointerDownAt = useRef(0);
   const previousRemaining = useRef<number | null>(null);
@@ -83,7 +94,6 @@ export function FloatingUsageBubble() {
   const account = useMemo(() => accounts.find((item) => item.active), [accounts]);
   const primary = account?.usage.primary;
   const secondary = account?.usage.secondary;
-  const hasFiveHourReset = Boolean(primary?.resetsAt);
   const remaining = primary ? clampPercent(primary.remainingPercent) : null;
   const weeklyRemaining = secondary ? clampPercent(secondary.remainingPercent) : null;
   const ringStyle = {
@@ -107,13 +117,6 @@ export function FloatingUsageBubble() {
       return () => window.clearTimeout(timer);
     }
   }, [remaining]);
-
-  useEffect(() => {
-    if (!expanded || !hasFiveHourReset) return;
-    setNow(Date.now());
-    const timer = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  }, [expanded, hasFiveHourReset]);
 
   const setHover = (nextExpanded: boolean) => {
     setExpanded(nextExpanded);
@@ -153,8 +156,8 @@ export function FloatingUsageBubble() {
             <strong title={account?.email}>{account?.email ?? (language === "zh" ? "暂无账号" : "No account")}</strong>
             {account && <small>{account.plan}</small>}
           </header>
-          <DetailRow label="5h" usage={primary} language={language} resetWindow="fiveHours" now={now} />
-          <DetailRow label={language === "zh" ? "1 周" : "1 week"} usage={account?.usage.secondary} language={language} resetWindow="oneWeek" now={now} />
+          <DetailRow label="5h" usage={primary} language={language} resetWindow="fiveHours" />
+          <DetailRow label={language === "zh" ? "1 周" : "1 week"} usage={account?.usage.secondary} language={language} resetWindow="oneWeek" />
           <footer>{language === "zh" ? "更新于 " : "Updated "}{formatUpdated(account?.usage.fetchedAt, language)}</footer>
         </aside>
       )}
@@ -163,7 +166,7 @@ export function FloatingUsageBubble() {
         onPointerDown={startDrag}>
         <span className="floating-bubble-water" aria-hidden="true" />
         <span className="floating-bubble-value">{remaining === null ? "--" : `${remaining}%`}</span>
-        <small>{language === "zh" ? "5h 剩余" : "5h left"}</small>
+        <BubbleResetLabel timestamp={primary?.resetsAt} language={language} />
       </button>
     </div>
   );

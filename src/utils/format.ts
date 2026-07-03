@@ -16,15 +16,30 @@ function padTimePart(value: number) {
   return String(value).padStart(2, "0");
 }
 
-function resetCountdownLabel(timestamp: number, language: Language, now: number) {
+export function resetClockTime(timestamp: number | null | undefined) {
+  if (!timestamp) return null;
+  const value = new Date(timestamp * 1000);
+  if (Number.isNaN(value.getTime())) return null;
+  const hour = padTimePart(value.getHours());
+  const minute = padTimePart(value.getMinutes());
+  const second = padTimePart(value.getSeconds());
+  return `${hour}:${minute}:${second}`;
+}
+
+export function resetCountdownTime(timestamp: number | null | undefined, now = Date.now()) {
+  if (!timestamp) return null;
   const distance = Math.max(0, timestamp * 1000 - now);
   const totalSeconds = Math.ceil(distance / 1000);
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
-  return language === "zh"
-    ? `${hours}时${padTimePart(minutes)}分${padTimePart(seconds)}秒后重置`
-    : `Resets in ${hours}h ${padTimePart(minutes)}m ${padTimePart(seconds)}s`;
+  return `${hours}:${padTimePart(minutes)}:${padTimePart(seconds)}`;
+}
+
+export function resetClockLabel(timestamp: number | null | undefined, language: Language) {
+  const clock = resetClockTime(timestamp);
+  if (!clock) return language === "zh" ? "重置时间未知" : "Reset time unknown";
+  return language === "zh" ? `${clock}后重置` : `Resets at ${clock}`;
 }
 
 function resetDateTimeLabel(timestamp: number, language: Language) {
@@ -45,10 +60,9 @@ export function resetLabel(
   timestamp: number | null | undefined,
   language: Language,
   windowType?: UsageResetWindow,
-  now = Date.now(),
 ) {
   if (!timestamp) return language === "zh" ? "重置时间未知" : "Reset time unknown";
-  if (windowType === "fiveHours") return resetCountdownLabel(timestamp, language, now);
+  if (windowType === "fiveHours") return resetClockLabel(timestamp, language);
   if (windowType === "oneWeek") return resetDateTimeLabel(timestamp, language);
   const distance = Math.max(0, timestamp * 1000 - Date.now());
   const minutes = Math.ceil(distance / 60_000);

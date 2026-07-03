@@ -10,15 +10,15 @@ use crate::{
 };
 
 pub(crate) const BUBBLE_LABEL: &str = "usage-bubble";
-const COLLAPSED_WIDTH: f64 = 96.0;
-const COLLAPSED_HEIGHT: f64 = 96.0;
+const COLLAPSED_WIDTH: f64 = 108.0;
+const COLLAPSED_HEIGHT: f64 = 108.0;
 const EXPANDED_WIDTH: f64 = 304.0;
-const EXPANDED_HEIGHT: f64 = 286.0;
+const EXPANDED_HEIGHT: f64 = 298.0;
 const SCREEN_MARGIN: f64 = 22.0;
 const MENU_SCREEN_MARGIN: f64 = 8.0;
 const MENU_EMAIL_CHARS: usize = 15;
 const MENU_VERTICAL_ATTACH_RATIO: f64 = 0.58;
-const BUBBLE_SIZE: f64 = 80.0;
+const BUBBLE_SIZE: f64 = 92.0;
 const BUBBLE_EDGE_INSET: f64 = 8.0;
 const HEX_COLOR_LEN: usize = 7;
 
