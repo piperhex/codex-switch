@@ -2,7 +2,7 @@ import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { ConfigProvider, Tooltip, theme as antdTheme } from "antd";
 import enUS from "antd/locale/en_US";
 import zhCN from "antd/locale/zh_CN";
-import { CalendarClock, Check, CircleHelp, Github, Plus, RefreshCw, RotateCcw, Settings, ShieldCheck, UserRound, Zap } from "lucide-react";
+import { CalendarClock, Check, CircleHelp, Github, Plus, RefreshCw, RotateCcw, Settings, ShieldCheck, UserRound } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { checkForUpdate, isDesktopApp, restartCodex } from "./api/backend";
 import { HelpModal, type HelpVersionState } from "./components/modals/HelpModal";
@@ -23,6 +23,7 @@ import type { UpdateInfo } from "./types";
 
 const LAST_REFRESH_ALL_KEY = "codex-switch:last-refresh-all-at";
 const REPOSITORY_URL = "https://github.com/piperhex/codex-switch.git";
+const APP_LOGO_URL = new URL("../src-tauri/icons/128x128.png", import.meta.url).href;
 const MemoAccountsPage = memo(AccountsPage);
 const MemoSettingsPage = memo(SettingsPage);
 
@@ -157,7 +158,7 @@ function DashboardApp() {
     }}>
       <div className="app-shell">
         <header className="app-menu">
-          <div className="brand"><div className="brand-mark"><Zap size={19} fill="currentColor" /></div>
+          <div className="brand"><img className="brand-logo" src={APP_LOGO_URL} alt="" />
             <span>Codex<br /><b>Switch</b></span></div>
           <nav className="top-tabs" aria-label={t("nav.aria")}>
             <button className={page === "accounts" ? "selected" : ""} onClick={() => setPage("accounts")}>

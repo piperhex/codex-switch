@@ -36,7 +36,7 @@ button:focus-visible { outline: 3px solid rgba(45, 131, 87, .24); outline-offset
 .app-shell { width: 100%; max-width: 100%; height: 100vh; overflow: hidden; display: grid; grid-template-rows: auto minmax(0, 1fr); }
 .app-menu { position: relative; z-index: 20; min-height: 64px; display: flex; align-items: center; gap: 20px; padding: 10px var(--page-x); background: #17251d; color: #eff7ef; box-shadow: 0 10px 30px rgba(16,33,23,.12); }
 .brand { min-width: 214px; display: flex; align-items: center; gap: 11px; line-height: 1.05; font-family: Manrope, sans-serif; letter-spacing: 0; }
-.brand-mark { width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center; color: #18341f; background: var(--green-highlight); box-shadow: 0 6px 18px rgba(var(--green-rgb), .18); }
+.brand-logo { width: 40px; height: 40px; object-fit: contain; flex: 0 0 auto; filter: drop-shadow(0 6px 12px rgba(9, 24, 13, .24)); }
 .brand span { font-size: 15px; color: #aab8ae; }
 .brand b { color: white; font-weight: 700; }
 .top-tabs { height: 40px; display: inline-flex; align-items: center; gap: 4px; padding: 4px; border: 1px solid rgba(var(--green-rgb), .22); border-radius: 10px; background: rgba(255,255,255,.05); }
@@ -329,16 +329,44 @@ html.floating-usage-page #root {
   transition: bottom .7s cubic-bezier(.2, .8, .2, 1);
   animation: bubble-water-drift 3.2s linear infinite;
 }
+.floating-bubble-weekly {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  z-index: 3;
+  min-width: 34px;
+  height: 13px;
+  padding: 0 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  color: rgba(255, 255, 255, .92);
+  background: var(--bubble-color);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .3), inset 0 0 0 1px rgba(255, 255, 255, .18);
+  font: 700 8px/1 Manrope, sans-serif;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, .45);
+  white-space: nowrap;
+  pointer-events: none;
+}
 .floating-bubble-value { position: relative; z-index: 2; font: 700 20px/1 Manrope, sans-serif; letter-spacing: 0; }
 .floating-bubble small { position: relative; z-index: 2; color: #d7f5ff; font-size: 9px; font-weight: 600; }
 .floating-bubble-reset {
   max-width: 74px;
+  padding: 2px 5px;
   overflow: hidden;
+  border-radius: 999px;
   text-align: center;
   text-overflow: ellipsis;
+  line-height: 1.15;
   white-space: nowrap;
+  color: rgba(255, 255, 255, .8) !important;
+  background: rgba(8, 24, 18, .3);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .28), inset 0 0 0 1px rgba(255, 255, 255, .1);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, .55);
 }
-.floating-bubble-reset-en {
+.floating-bubble-reset-stacked {
   display: grid;
   justify-items: center;
   gap: 1px;
@@ -346,7 +374,7 @@ html.floating-usage-page #root {
   text-overflow: clip;
   white-space: normal;
 }
-.floating-bubble-reset-en span {
+.floating-bubble-reset-stacked span {
   max-width: 74px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -359,53 +387,6 @@ html.floating-usage-page #root {
   animation: bubble-water-drift 1.6s linear infinite, bubble-water-surface-slosh 1.1s ease-out;
 }
 
-.bubble-details {
-  position: absolute;
-  right: 8px;
-  bottom: 116px;
-  width: calc(100% - 46px);
-  min-height: 176px;
-  padding: 13px 14px 11px;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 9px 12px;
-  border: 1px solid rgba(var(--green-rgb), .3);
-  border-radius: 15px;
-  color: #eaf3ec;
-  background: var(--green-surface);
-  animation: bubble-card-in .14s ease-out;
-}
-.bubble-details::after {
-  content: "";
-  position: absolute;
-  right: 33px;
-  bottom: -7px;
-  width: 14px;
-  height: 14px;
-  transform: rotate(45deg);
-  background: var(--green-surface);
-  border-right: 1px solid rgba(var(--green-rgb), .3);
-  border-bottom: 1px solid rgba(var(--green-rgb), .3);
-}
-.bubble-details header { grid-column: 1 / -1; min-width: 0; display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,.09); }
-.bubble-details header span { grid-column: 1 / -1; color: #8fa198; font-size: 9px; }
-.bubble-details header strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 12px Manrope, sans-serif; }
-.bubble-details header small { color: var(--green-highlight); font-size: 9px; text-transform: capitalize; }
-.bubble-detail-row { min-width: 0; display: grid; gap: 4px; }
-.bubble-detail-row-fiveHours,
-.bubble-detail-row-oneWeek { grid-column: 1 / -1; }
-.bubble-detail-row-head { min-width: 0; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-.bubble-detail-row b { color: var(--green-highlight); font: 700 11px Manrope, sans-serif; }
-.bubble-detail-row span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #d4ded7; font-size: 9px; text-align: right; }
-.bubble-detail-progress { height: 5px; overflow: hidden; border-radius: 999px; background: rgba(255, 255, 255, .11); }
-.bubble-detail-progress i { display: block; width: var(--bubble-detail-progress); height: 100%; border-radius: inherit; background: var(--bubble-detail-color); }
-.bubble-detail-row small { color: #8fa198; font-size: 8px; }
-.bubble-detail-row-oneWeek small { line-height: 1.25; }
-.bubble-details footer { grid-column: 1 / -1; color: #708278; font-size: 8px; }
-
-@keyframes bubble-card-in {
-  from { opacity: 0; transform: translateY(4px) scale(.98); }
-}
 @keyframes bubble-water-drift {
   to { transform: translateX(28px); }
 }
