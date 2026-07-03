@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button, Popconfirm, Space, Table, Tag, Tooltip } from "antd";
+import type { TableProps } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { Check, Clock3, RefreshCw, RotateCcw, Trash2 } from "lucide-react";
 import type { Language, Translate } from "../../i18n";
@@ -20,6 +21,44 @@ interface AccountTableProps {
   onLoadResetCredits: (id: string, force?: boolean) => void;
   language: Language;
   t: Translate;
+}
+
+const USAGE_SORT_STORAGE_KEY = "codex-switch:account-table-usage-sort";
+
+type UsageSortColumn = "fiveHours" | "oneWeek";
+type UsageSortOrder = "ascend" | "descend";
+
+interface UsageSortPreference {
+  column: UsageSortColumn;
+  order: UsageSortOrder;
+}
+
+function isUsageSortColumn(value: unknown): value is UsageSortColumn {
+  return value === "fiveHours" || value === "oneWeek";
+}
+
+function isUsageSortOrder(value: unknown): value is UsageSortOrder {
+  return value === "ascend" || value === "descend";
+}
+
+function loadUsageSortPreference(): UsageSortPreference | null {
+  try {
+    const parsed: unknown = JSON.parse(window.localStorage.getItem(USAGE_SORT_STORAGE_KEY) ?? "null");
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+    const preference = parsed as Partial<UsageSortPreference>;
+    if (!isUsageSortColumn(preference.column) || !isUsageSortOrder(preference.order)) return null;
+    return { column: preference.column, order: preference.order };
+  } catch {
+    return null;
+  }
+}
+
+function persistUsageSortPreference(preference: UsageSortPreference | null) {
+  if (!preference) {
+    window.localStorage.removeItem(USAGE_SORT_STORAGE_KEY);
+    return;
+  }
+  window.localStorage.setItem(USAGE_SORT_STORAGE_KEY, JSON.stringify(preference));
 }
 
 function ResetCreditCount({ state, language, t }: { state?: ResetCreditsLoadState; language: Language; t: Translate }) {
@@ -52,6 +91,18 @@ function ResetCreditCount({ state, language, t }: { state?: ResetCreditsLoadStat
   );
 }
 
+function usageRemainingSortValue(window: Account["usage"]["primary"]) {
+  return typeof window?.remainingPercent === "number" ? window.remainingPercent : Number.NEGATIVE_INFINITY;
+}
+
+function compareUsageRemaining(
+  left: Account,
+  right: Account,
+  usageWindow: "primary" | "secondary",
+) {
+  return usageRemainingSortValue(left.usage[usageWindow]) - usageRemainingSortValue(right.usage[usageWindow]);
+}
+
 export function AccountTable({
   accounts,
   busyAccountId,
@@ -65,6 +116,17 @@ export function AccountTable({
   t,
 }: AccountTableProps) {
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
+  const [usageSort, setUsageSort] = useState<UsageSortPreference | null>(loadUsageSortPreference);
+  const handleTableChange: NonNullable<TableProps<Account>["onChange"]> = (_, __, sorter) => {
+    const activeSorter = Array.isArray(sorter) ? sorter[0] : sorter;
+    const nextSort = isUsageSortColumn(activeSorter.columnKey) && isUsageSortOrder(activeSorter.order)
+      ? { column: activeSorter.columnKey, order: activeSorter.order }
+      : null;
+
+    setUsageSort(nextSort);
+    persistUsageSortPreference(nextSort);
+  };
+
   const columns: ColumnsType<Account> = [
     Table.EXPAND_COLUMN as ColumnsType<Account>[number],
     {
@@ -101,11 +163,15 @@ export function AccountTable({
       ),
     },
     {
-      title: t("table.fiveHours"), width: 110,
+      title: t("table.fiveHours"), key: "fiveHours", width: 110,
+      sorter: (left, right) => compareUsageRemaining(left, right, "primary"),
+      sortOrder: usageSort?.column === "fiveHours" ? usageSort.order : null,
       render: (_, account) => <UsageMeter window={account.usage.primary} resetWindow="fiveHours" language={language} t={t} />,
     },
     {
-      title: t("table.oneWeek"), width: 110,
+      title: t("table.oneWeek"), key: "oneWeek", width: 110,
+      sorter: (left, right) => compareUsageRemaining(left, right, "secondary"),
+      sortOrder: usageSort?.column === "oneWeek" ? usageSort.order : null,
       render: (_, account) => <UsageMeter window={account.usage.secondary} resetWindow="oneWeek" language={language} t={t} />,
     },
     {
@@ -142,6 +208,7 @@ export function AccountTable({
   return <>
     <div className="account-table-wrap">
       <Table rowKey="id" size="small" columns={columns} dataSource={accounts} pagination={false}
+        onChange={handleTableChange}
         rowClassName={(account) => (account.active ? "active-row" : "")}
         onRow={(account) => ({
           title: t("note.doubleClick"),
