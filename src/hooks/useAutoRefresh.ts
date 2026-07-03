@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 const INTERVAL_KEY = "codex-switch:auto-refresh-seconds";
 const ENABLED_KEY = "codex-switch:auto-refresh-enabled";
-const ACCOUNT_SETTINGS_KEY = "codex-switch:account-auto-refresh-settings";
+const CURRENT_ACCOUNT_INTERVAL_KEY = "codex-switch:current-account-auto-refresh-seconds";
+const CURRENT_ACCOUNT_ENABLED_KEY = "codex-switch:current-account-auto-refresh-enabled";
+const LEGACY_ACCOUNT_SETTINGS_KEY = "codex-switch:account-auto-refresh-settings";
 const DEFAULT_GLOBAL_INTERVAL_SECONDS = 300;
 const DEFAULT_ACCOUNT_INTERVAL_SECONDS = 5;
 
@@ -25,9 +27,13 @@ function clampInterval(value: unknown, fallback: number) {
   return Math.min(MAX_AUTO_REFRESH_SECONDS, Math.max(MIN_AUTO_REFRESH_SECONDS, Math.round(seconds)));
 }
 
-function loadAccountSettings(): AccountAutoRefreshSettings {
+function defaultAccountAutoRefreshSetting(): AccountAutoRefreshSetting {
+  return { enabled: false, seconds: DEFAULT_ACCOUNT_INTERVAL_SECONDS };
+}
+
+function loadLegacyAccountSettings(): AccountAutoRefreshSettings {
   try {
-    const parsed: unknown = JSON.parse(window.localStorage.getItem(ACCOUNT_SETTINGS_KEY) ?? "{}");
+    const parsed: unknown = JSON.parse(window.localStorage.getItem(LEGACY_ACCOUNT_SETTINGS_KEY) ?? "{}");
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
 
     return Object.fromEntries(Object.entries(parsed).flatMap(([id, value]) => {
@@ -41,6 +47,30 @@ function loadAccountSettings(): AccountAutoRefreshSettings {
   } catch {
     return {};
   }
+}
+
+function loadCurrentAccountSetting(accountId: string | null): AccountAutoRefreshSetting {
+  const storedEnabled = window.localStorage.getItem(CURRENT_ACCOUNT_ENABLED_KEY);
+  const storedSeconds = window.localStorage.getItem(CURRENT_ACCOUNT_INTERVAL_KEY);
+  if (storedEnabled !== null || storedSeconds !== null) {
+    return {
+      enabled: storedEnabled === "true",
+      seconds: clampInterval(storedSeconds, DEFAULT_ACCOUNT_INTERVAL_SECONDS),
+    };
+  }
+
+  if (!accountId) return defaultAccountAutoRefreshSetting();
+  return loadLegacyAccountSettings()[accountId] ?? defaultAccountAutoRefreshSetting();
+}
+
+function hasCurrentAccountSetting() {
+  return window.localStorage.getItem(CURRENT_ACCOUNT_ENABLED_KEY) !== null
+    || window.localStorage.getItem(CURRENT_ACCOUNT_INTERVAL_KEY) !== null;
+}
+
+function persistCurrentAccountSetting(setting: AccountAutoRefreshSetting) {
+  window.localStorage.setItem(CURRENT_ACCOUNT_ENABLED_KEY, String(setting.enabled));
+  window.localStorage.setItem(CURRENT_ACCOUNT_INTERVAL_KEY, String(setting.seconds));
 }
 
 export function useAutoRefresh(active: boolean, onRefresh: () => Promise<void>) {
@@ -74,26 +104,23 @@ export function useAccountAutoRefresh(
   accountId: string | null,
   onRefresh: (accountId: string) => Promise<void>,
 ) {
-  const [settings, setSettings] = useState<AccountAutoRefreshSettings>(loadAccountSettings);
+  const [setting, setSetting] = useState<AccountAutoRefreshSetting>(() => loadCurrentAccountSetting(accountId));
   const refreshRef = useRef(onRefresh);
   const refreshingRef = useRef(false);
+  const migratedLegacyRef = useRef(hasCurrentAccountSetting());
   refreshRef.current = onRefresh;
 
-  const setting = accountId ? settings[accountId] : undefined;
-  const enabled = setting?.enabled ?? false;
-  const seconds = setting?.seconds ?? DEFAULT_ACCOUNT_INTERVAL_SECONDS;
+  const enabled = setting.enabled;
+  const seconds = setting.seconds;
 
   const updateSetting = useCallback((update: Partial<AccountAutoRefreshSetting>) => {
-    if (!accountId) return;
-    setSettings((current) => ({
-      ...current,
-      [accountId]: {
-        enabled: current[accountId]?.enabled ?? false,
-        seconds: current[accountId]?.seconds ?? DEFAULT_ACCOUNT_INTERVAL_SECONDS,
-        ...update,
-      },
-    }));
-  }, [accountId]);
+    setSetting((current) => {
+      const next = { ...current, ...update };
+      persistCurrentAccountSetting(next);
+      migratedLegacyRef.current = true;
+      return next;
+    });
+  }, []);
 
   const setEnabled = useCallback((value: boolean) => {
     updateSetting({ enabled: value });
@@ -104,8 +131,13 @@ export function useAccountAutoRefresh(
   }, [updateSetting]);
 
   useEffect(() => {
-    window.localStorage.setItem(ACCOUNT_SETTINGS_KEY, JSON.stringify(settings));
-  }, [settings]);
+    if (!accountId || migratedLegacyRef.current) return;
+    const legacySetting = loadLegacyAccountSettings()[accountId];
+    if (!legacySetting) return;
+    setSetting(legacySetting);
+    persistCurrentAccountSetting(legacySetting);
+    migratedLegacyRef.current = true;
+  }, [accountId]);
 
   useEffect(() => {
     if (!accountId || !enabled) return;

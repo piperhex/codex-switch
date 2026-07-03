@@ -94,7 +94,7 @@ The release workflow builds Windows x64 plus macOS Apple Silicon and Intel artif
 3. Select **Switch** to atomically replace the `auth.json` file currently used by Codex.
 4. Use **Restart Codex** from the dashboard or tray after switching if a running Codex process may still be using cached credentials.
 
-The Settings page provides language selection, accent color, floating usage bubble control, a global auto-refresh timer for all saved accounts, and an independent timer for the current account. Current-account timer settings are saved separately for each account.
+The Settings page provides language selection, accent color, floating usage bubble control, a global auto-refresh timer for all saved accounts, and an independent timer that refreshes whichever account is currently active.
 
 The system tray menu can show the dashboard, switch accounts, restart Codex, or quit the app. The floating usage bubble shows the active account's 5-hour quota, expands on hover, can be dragged to a new position, and exposes the same quick actions through its context menu.
 

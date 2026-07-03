@@ -24,7 +24,7 @@ The frontend only receives redacted models such as `AccountSummary`, `UsageSumma
 
 - `src/api/backend.ts` is the only entry point for Tauri IPC and file selection. It also provides browser-preview behavior.
 - `src/hooks/useAccountManager.ts` orchestrates loading, login, import, switching, deletion, and usage refreshes.
-- `src/hooks/useAutoRefresh.ts` persists the global refresh timer plus per-account timers and owns their lifecycles.
+- `src/hooks/useAutoRefresh.ts` persists the global refresh timer plus the current-account timer and owns their lifecycles.
 - `src/hooks/useFloatingBubble.ts`, `src/hooks/useThemeColor.ts`, and `src/hooks/useLanguage.ts` manage local UI preferences.
 - `src/pages/` composes page-level layouts and does not call the backend directly.
 - `src/components/` contains presentation and local interactions. The account table loads reset credits through the API adapter, and `FloatingUsageBubble.tsx` renders the standalone usage bubble window.
@@ -97,7 +97,7 @@ $CODEX_HOME/
 
 The stable account ID is a truncated hash of the user identity and ChatGPT account ID. It does not contain token data.
 
-The WebView `localStorage` stores UI-only preferences such as language, last all-account refresh time, global auto-refresh state, and per-account auto-refresh timers.
+The WebView `localStorage` stores UI-only preferences such as language, last all-account refresh time, global auto-refresh state, and current-account auto-refresh state.
 
 ## Security Boundary
 
