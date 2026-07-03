@@ -1,11 +1,11 @@
-import { memo, useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { ConfigProvider, Tooltip, theme as antdTheme } from "antd";
 import enUS from "antd/locale/en_US";
 import zhCN from "antd/locale/zh_CN";
 import { CalendarClock, Check, CircleHelp, Github, Plus, RefreshCw, RotateCcw, Settings, ShieldCheck, UserRound, Zap } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { checkForUpdate, isDesktopApp, restartCodex } from "./api/backend";
-import { HelpModal } from "./components/modals/HelpModal";
+import { HelpModal, type HelpVersionState } from "./components/modals/HelpModal";
 import { FloatingUsageBubble } from "./components/FloatingUsageBubble";
 import { LoginModal } from "./components/modals/LoginModal";
 import { UpdateModal } from "./components/modals/UpdateModal";
@@ -35,9 +35,11 @@ function DashboardApp() {
   const [page, setPage] = useState<"accounts" | "settings">("accounts");
   const [showLogin, setShowLogin] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [helpVersionState, setHelpVersionState] = useState<HelpVersionState>({ status: "checking" });
   const [availableUpdate, setAvailableUpdate] = useState<UpdateInfo | null>(null);
   const [lastRefreshAllAt, setLastRefreshAllAt] = useState<string | null>(storedRefreshAllTime);
   const [restartingCodex, setRestartingCodex] = useState(false);
+  const helpVersionRequestId = useRef(0);
   const { message: toast, notify } = useToast();
   const { language, setLanguage, t } = useLanguage();
   const floatingBubble = useFloatingBubble(notify);
@@ -81,6 +83,21 @@ function DashboardApp() {
   const changeFloatingBubble = useCallback((enabled: boolean) => {
     void floatingBubble.setEnabled(enabled);
   }, [floatingBubble.setEnabled]);
+  const openHelp = useCallback(() => {
+    const requestId = ++helpVersionRequestId.current;
+    setShowHelp(true);
+    setHelpVersionState({ status: "checking" });
+    void checkForUpdate({ force: true })
+      .then((update) => {
+        if (helpVersionRequestId.current !== requestId) return;
+        setHelpVersionState(update
+          ? { status: "available", latestVersion: update.latestVersion }
+          : { status: "latest" });
+      })
+      .catch(() => {
+        if (helpVersionRequestId.current === requestId) setHelpVersionState({ status: "error" });
+      });
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -151,7 +168,7 @@ function DashboardApp() {
           <div className="menu-tools">
             <div className="security-chip"><ShieldCheck size={16} /><span><b>{t("chip.title")}</b><small>{t("chip.description")}</small></span></div>
             <div className="help-actions">
-              <button className="help-button" onClick={() => setShowHelp(true)}><CircleHelp size={17} />{t("help.open")}</button>
+              <button className="help-button" onClick={openHelp}><CircleHelp size={17} />{t("help.open")}</button>
               <Tooltip title={t("help.github")}>
                 <button type="button" className="github-button" aria-label={t("help.github")} onClick={openRepository}>
                   <Github size={18} />
@@ -213,7 +230,8 @@ function DashboardApp() {
         </main>
 
         {showLogin && <LoginModal onClose={() => setShowLogin(false)} onStart={startLogin} onImport={importAuth} t={t} />}
-        {showHelp && <HelpModal onClose={() => setShowHelp(false)} version={manager.info?.version ?? "0.1.0"} t={t} />}
+        {showHelp && <HelpModal onClose={() => setShowHelp(false)} version={manager.info?.version ?? "0.1.0"}
+          versionState={helpVersionState} t={t} />}
         {availableUpdate && <UpdateModal update={availableUpdate} onClose={() => setAvailableUpdate(null)}
           onDownload={openRelease} t={t} />}
         {toast && <div className="toast"><Check size={17} />{toast}</div>}

@@ -122,8 +122,9 @@ export async function restartCodex(): Promise<void> {
   if (isDesktopApp) await invoke("restart_codex");
 }
 
-export function checkForUpdate(): Promise<UpdateInfo | null> {
+export function checkForUpdate({ force = false }: { force?: boolean } = {}): Promise<UpdateInfo | null> {
   if (!isDesktopApp) return Promise.resolve(null);
+  if (force) return invoke<UpdateInfo | null>("check_for_update");
   updateCheckPromise ??= invoke<UpdateInfo | null>("check_for_update");
   return updateCheckPromise;
 }

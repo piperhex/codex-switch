@@ -198,6 +198,11 @@ h1 { margin: 5px 0 0; font: 700 26px/1.1 Manrope, sans-serif; letter-spacing: -.
 .help-features small { color: #7c8981; font-size: 10px; line-height: 1.5; }
 .help-version { margin-top: 16px; padding-top: 13px; border-top: 1px solid #e2e8e2; display: flex; align-items: center; justify-content: space-between; color: #7c8981; font-size: 10px; }
 .help-version b { color: var(--green-dark); font: 700 11px Manrope, sans-serif; }
+.help-version-details { display: flex; align-items: center; gap: 7px; }
+.help-version-status { padding: 3px 7px; border-radius: 999px; color: #68756d; background: #eef2ee; font-size: 9px; font-weight: 700; line-height: 1.2; }
+.help-version-status.latest { color: var(--green-dark); background: var(--green-soft); }
+.help-version-status.available { color: #9a5a0a; background: #fff0d5; }
+.help-version-status.error { color: #a24646; background: #f9e7e7; }
 
 .update-modal { width: min(500px, 95vw); }
 .update-versions { display: flex; gap: 10px; margin: -4px 0 18px; }

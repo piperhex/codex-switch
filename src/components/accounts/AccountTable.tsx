@@ -69,7 +69,13 @@ export function AccountTable({
           <div className="table-avatar">{initials(account.email)}</div>
           <div className="account-primary">
             <div className="account-email" title={account.email}>{account.email}</div>
-            <div className="account-meta">{account.active ? <Tag className="current-tag">{t("table.current")}</Tag> : <Tag>{t("table.standby")}</Tag>}</div>
+            <div className="account-meta">
+              {account.active ? <Tag className="current-tag">{t("table.current")}</Tag> : <Tag>{t("table.standby")}</Tag>}
+              <div className="updated-cell">
+                {language === "zh" ? "刷新于 " : "Updated "}{formatUpdated(account.usage.fetchedAt, language)}
+                {account.usage.error && <Tooltip title={account.usage.error}><Tag color="error">{t("table.error")}</Tag></Tooltip>}
+              </div>
+            </div>
           </div>
         </div>
       ),
@@ -93,15 +99,6 @@ export function AccountTable({
     {
       title: t("table.resetCredits"), width: 130, align: "center",
       render: (_, account) => <ResetCreditCount state={resetCredits[account.id]} language={language} t={t} />,
-    },
-    {
-      title: t("table.updated"), width: 100,
-      render: (_, account) => (
-        <div className="updated-cell">
-          <Clock3 size={13} /><span>{formatUpdated(account.usage.fetchedAt, language)}</span>
-          {account.usage.error && <Tooltip title={account.usage.error}><Tag color="error">{t("table.error")}</Tag></Tooltip>}
-        </div>
-      ),
     },
     {
       title: t("table.actions"), width: 140, align: "center", fixed: "right",
@@ -140,7 +137,7 @@ export function AccountTable({
             onRetry={() => onLoadResetCredits(account.id, true)} language={language} t={t} />,
           onExpand: (expanded, account) => { if (expanded) onLoadResetCredits(account.id); },
         }}
-        scroll={{ x: 1410 }} />
+        scroll={{ x: 1310 }} />
     </div>
   );
 }
