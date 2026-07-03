@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { Button, Popconfirm, Space, Table, Tag, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { Check, Clock3, RefreshCw, RotateCcw, Trash2 } from "lucide-react";
 import type { Language, Translate } from "../../i18n";
 import type { Account, ResetCreditsLoadState } from "../../types";
 import { formatUpdated, initials } from "../../utils/format";
+import { AccountNoteModal } from "../modals/AccountNoteModal";
 import { ResetCreditsPanel } from "./ResetCreditsPanel";
 import { UsageMeter } from "./UsageMeter";
 
@@ -13,6 +15,7 @@ interface AccountTableProps {
   onSwitch: (id: string) => void;
   onRefresh: (id: string) => void;
   onDelete: (id: string) => void;
+  onSaveNote: (id: string, note: string, expiresAt: string) => Promise<boolean>;
   resetCredits: Record<string, ResetCreditsLoadState>;
   onLoadResetCredits: (id: string, force?: boolean) => void;
   language: Language;
@@ -55,20 +58,25 @@ export function AccountTable({
   onSwitch,
   onRefresh,
   onDelete,
+  onSaveNote,
   resetCredits,
   onLoadResetCredits,
   language,
   t,
 }: AccountTableProps) {
+  const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const columns: ColumnsType<Account> = [
     {
-      title: t("table.account"), dataIndex: "email", width: 200, fixed: "left",
+      title: t("table.account"), dataIndex: "email", width: 100, fixed: "left",
       sorter: (left, right) => left.email.localeCompare(right.email),
       render: (_, account) => (
         <div className="account-cell">
           <div className="table-avatar">{initials(account.email)}</div>
           <div className="account-primary">
             <div className="account-email" title={account.email}>{account.email}</div>
+            <div className={`account-note-preview${account.note ? "" : " empty"}`} title={account.note || t("note.doubleClick")}>
+              {account.note || t("note.doubleClick")}
+            </div>
             <div className="account-meta">
               {account.active ? <Tag className="current-tag">{t("table.current")}</Tag> : <Tag>{t("table.standby")}</Tag>}
               <div className="updated-cell">
@@ -81,27 +89,30 @@ export function AccountTable({
       ),
     },
     {
-      title: t("table.planId"), width: 50,
+      title: t("table.planId"), width: 70,
       render: (_, account) => (
         <Tooltip title={account.accountId ? t("table.workspace", { id: account.accountId }) : t("table.personal")}>
-          <Tag className="plan-tag">{account.plan || "ChatGPT"}</Tag>
+          <div className="plan-stack">
+            <Tag className="plan-tag">{account.plan || "ChatGPT"}</Tag>
+            {account.expiresAt && <span className="plan-expiration">{t("table.expiresAt", { date: account.expiresAt })}</span>}
+          </div>
         </Tooltip>
       ),
     },
     {
-      title: t("table.fiveHours"), width: 148,
+      title: t("table.fiveHours"), width: 110,
       render: (_, account) => <UsageMeter window={account.usage.primary} resetWindow="fiveHours" language={language} t={t} />,
     },
     {
-      title: t("table.oneWeek"), width: 148,
+      title: t("table.oneWeek"), width: 110,
       render: (_, account) => <UsageMeter window={account.usage.secondary} resetWindow="oneWeek" language={language} t={t} />,
     },
     {
-      title: t("table.resetCredits"), width: 130, align: "center",
+      title: t("table.resetCredits"), width: 80, align: "center",
       render: (_, account) => <ResetCreditCount state={resetCredits[account.id]} language={language} t={t} />,
     },
     {
-      title: t("table.actions"), width: 140, align: "center", fixed: "right",
+      title: t("table.actions"), width: 80, align: "center", fixed: "right",
       render: (_, account) => {
         const waiting = busyAccountId === account.id;
         return (
@@ -127,17 +138,27 @@ export function AccountTable({
     },
   ];
 
-  return (
+  return <>
     <div className="account-table-wrap">
       <Table rowKey="id" size="small" columns={columns} dataSource={accounts} pagination={false}
         rowClassName={(account) => (account.active ? "active-row" : "")}
+        onRow={(account) => ({
+          title: t("note.doubleClick"),
+          onDoubleClick: (event) => {
+            if ((event.target as HTMLElement).closest("button, a, input, textarea")) return;
+            setEditingAccount(account);
+          },
+        })}
         expandable={{
           columnWidth: 42,
           expandedRowRender: (account) => <ResetCreditsPanel state={resetCredits[account.id]}
             onRetry={() => onLoadResetCredits(account.id, true)} language={language} t={t} />,
           onExpand: (expanded, account) => { if (expanded) onLoadResetCredits(account.id); },
         }}
-        scroll={{ x: 1310 }} />
+        scroll={{ x: 1390 }} />
     </div>
-  );
+    {editingAccount && <AccountNoteModal key={editingAccount.id} account={editingAccount}
+      onClose={() => setEditingAccount(null)}
+      onSave={(note, expiresAt) => onSaveNote(editingAccount.id, note, expiresAt)} t={t} />}
+  </>;
 }

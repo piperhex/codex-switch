@@ -96,11 +96,14 @@ h1 { margin: 5px 0 0; font: 700 26px/1.1 Manrope, sans-serif; letter-spacing: -.
 .table-avatar { width: 28px; height: 28px; border-radius: 7px; display: grid; place-items: center; flex: 0 0 auto; color: var(--green-dark); background: var(--green-soft); font: 700 10px Manrope, sans-serif; }
 .account-primary { min-width: 0; display: grid; gap: 2px; }
 .account-email { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+.account-note-preview { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #53675a; font-size: 10px; }
+.account-note-preview.empty { color: #9aa59e; font-style: italic; }
 .account-meta { height: 18px; display: flex; align-items: center; gap: 4px; }
 .account-meta .ant-tag { margin: 0; font-size: 10px; line-height: 16px; }
 .account-meta .current-tag { color: var(--green-dark); border-color: var(--green-accent); background: var(--green-selection); }
 .plan-stack { display: grid; gap: 4px; justify-items: start; }
 .plan-tag { margin: 0; max-width: 150px; overflow: hidden; text-overflow: ellipsis; text-transform: capitalize; }
+.plan-expiration { color: #7d8a82; font-size: 9px; white-space: nowrap; }
 .account-id { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #7d8a82; font: 10px ui-monospace, SFMono-Regular, Consolas, monospace; }
 .table-usage { min-width: 116px; display: grid; gap: 2px; }
 .table-usage-fiveHours { min-width: 198px; }
@@ -175,6 +178,19 @@ h1 { margin: 5px 0 0; font: 700 26px/1.1 Manrope, sans-serif; letter-spacing: -.
 .modal-icon { width: 46px; height: 46px; border-radius: 13px; display: grid; place-items: center; color: var(--green-dark); background: var(--green-soft); }
 .modal h2 { margin: 17px 0 7px; font: 700 20px Manrope, sans-serif; }
 .modal > p { margin: 0 0 20px; color: #738078; font-size: 12px; line-height: 1.6; }
+.account-note-modal { width: min(640px, 95vw); }
+.account-note-label { display: block; margin-bottom: 7px; color: #435047; font-size: 12px; font-weight: 700; }
+.account-expiration-picker.ant-picker { width: 220px; height: 38px; border-color: #d4ddd5; }
+.account-expiration-hint { display: block; margin: 5px 0 14px; color: #8b978f; font-size: 10px; }
+.account-note-textarea { width: 100%; min-height: 260px; max-height: 52vh; resize: vertical; padding: 12px 14px; border: 1px solid #d4ddd5; border-radius: 10px; outline: none; color: var(--ink); background: white; font: 13px/1.65 "DM Sans", "Microsoft YaHei UI", sans-serif; }
+.account-note-textarea:hover { border-color: #a8bbaa; }
+.account-note-textarea:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(var(--green-rgb), .12); }
+.account-note-footer { margin-top: 14px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.account-note-footer > span { color: #8b978f; font-size: 10px; }
+.account-note-footer > div { display: flex; gap: 9px; }
+.note-cancel-button { border: 1px solid #d8e0d9; border-radius: 9px; padding: 10px 16px; color: #536158; background: white; cursor: pointer; }
+.note-cancel-button:hover:not(:disabled) { border-color: #a8bbaa; color: var(--green-dark); }
+.account-note-footer button:disabled, .modal-close:disabled { opacity: .55; cursor: default; }
 .login-choice { width: 100%; display: grid; grid-template-columns: 38px 1fr auto; align-items: center; gap: 11px; text-align: left; padding: 12px; margin-top: 9px; border: 1px solid #dce3dc; border-radius: 11px; color: #243129; background: white; cursor: pointer; transition: .16s ease; }
 .login-choice:hover { border-color: #9fc0aa; transform: translateY(-1px); box-shadow: 0 7px 18px rgba(28,61,39,.07); }
 .login-choice.featured { border-color: #b7d1be; background: #f6faf5; }

@@ -75,6 +75,9 @@ function DashboardApp() {
   const deleteAccount = useCallback((id: string) => {
     void manager.deleteAccount(id);
   }, [manager.deleteAccount]);
+  const saveAccountNote = useCallback((id: string, note: string, expiresAt: string) => (
+    manager.saveAccountNote(id, note, expiresAt)
+  ), [manager.saveAccountNote]);
   const loadResetCredits = useCallback((id: string, force?: boolean) => {
     void resetCredits.refreshAccount(id, force);
   }, [resetCredits.refreshAccount]);
@@ -224,6 +227,7 @@ function DashboardApp() {
               onSwitch={switchAccount}
               onRefresh={refreshUsage}
               onDelete={deleteAccount}
+              onSaveNote={saveAccountNote}
               resetCredits={resetCredits.states}
               onLoadResetCredits={loadResetCredits}
               language={language} t={t} />

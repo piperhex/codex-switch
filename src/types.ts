@@ -15,6 +15,8 @@ export interface UsageSummary {
 export interface Account {
   id: string;
   email: string;
+  note: string;
+  expiresAt: string;
   plan: string;
   accountId?: string | null;
   active: boolean;

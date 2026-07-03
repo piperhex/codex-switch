@@ -4,6 +4,8 @@ export const DEMO_ACCOUNTS: Account[] = [
   {
     id: "demo-1",
     email: "alex.chen@example.com",
+    note: "Personal account for experiments and everyday Codex work.",
+    expiresAt: "2026-12-31",
     plan: "Plus",
     active: true,
     accountId: "workspace-personal",
@@ -16,6 +18,8 @@ export const DEMO_ACCOUNTS: Account[] = [
   {
     id: "demo-2",
     email: "studio@northwind.dev",
+    note: "",
+    expiresAt: "",
     plan: "Business",
     active: false,
     accountId: "workspace-studio",

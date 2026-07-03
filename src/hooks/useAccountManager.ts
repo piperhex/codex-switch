@@ -8,6 +8,7 @@ import {
   refreshAccountUsage,
   removeAccount,
   subscribeToBackendEvents,
+  updateAccountNote,
 } from "../api/backend";
 import type { Translate } from "../i18n";
 import type { Account, AppInfo } from "../types";
@@ -137,6 +138,18 @@ export function useAccountManager(notify: (message: string) => void, t: Translat
     }
   }, [load, notify, t]);
 
+  const saveAccountNote = useCallback(async (id: string, note: string, expiresAt: string) => {
+    try {
+      await updateAccountNote(id, note, expiresAt);
+      setAccounts((items) => items.map((item) => item.id === id ? { ...item, note, expiresAt } : item));
+      notify(t("toast.accountDetailsSaved"));
+      return true;
+    } catch (error) {
+      notify(String(error));
+      return false;
+    }
+  }, [notify, t]);
+
   return {
     accounts,
     info,
@@ -149,5 +162,6 @@ export function useAccountManager(notify: (message: string) => void, t: Translat
     refreshUsage,
     refreshAll,
     deleteAccount,
+    saveAccountNote,
   };
 }

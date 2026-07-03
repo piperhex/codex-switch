@@ -12,6 +12,7 @@ export function AccountsPage({
   onSwitch,
   onRefresh,
   onDelete,
+  onSaveNote,
   onLoadResetCredits,
   language,
   t,
@@ -24,6 +25,7 @@ export function AccountsPage({
   onSwitch: (id: string) => void;
   onRefresh: (id: string) => void;
   onDelete: (id: string) => void;
+  onSaveNote: (id: string, note: string, expiresAt: string) => Promise<boolean>;
   onLoadResetCredits: (id: string, force?: boolean) => void;
   language: Language;
   t: Translate;
@@ -40,5 +42,6 @@ export function AccountsPage({
   }
   return <AccountTable accounts={accounts} busyAccountId={busyAccountId}
     onSwitch={onSwitch} onRefresh={onRefresh} onDelete={onDelete}
+    onSaveNote={onSaveNote}
     resetCredits={resetCredits} onLoadResetCredits={onLoadResetCredits} language={language} t={t} />;
 }

@@ -109,6 +109,47 @@ pub(crate) fn usage_path(paths: &Paths, id: &str) -> PathBuf {
     account_dir(paths, id).join("usage.json")
 }
 
+pub(crate) fn note_path(paths: &Paths, id: &str) -> PathBuf {
+    account_dir(paths, id).join("note.txt")
+}
+
+pub(crate) fn expiration_path(paths: &Paths, id: &str) -> PathBuf {
+    account_dir(paths, id).join("expires-at.txt")
+}
+
+pub(crate) fn load_note(path: &Path) -> String {
+    fs::read_to_string(path).unwrap_or_default()
+}
+
+pub(crate) fn load_expiration(path: &Path) -> String {
+    fs::read_to_string(path).unwrap_or_default()
+}
+
+pub(crate) fn save_note(path: &Path, note: &str) -> Result<(), String> {
+    let parent = path
+        .parent()
+        .ok_or_else(|| "The note path has no parent directory".to_string())?;
+    fs::create_dir_all(parent)
+        .map_err(|error| format!("Failed to create {}: {error}", parent.display()))?;
+
+    if note.is_empty() {
+        if path.exists() {
+            fs::remove_file(path)
+                .map_err(|error| format!("Failed to remove {}: {error}", path.display()))?;
+        }
+        return Ok(());
+    }
+
+    let temp = path.with_extension(format!("tmp-{}", std::process::id()));
+    fs::write(&temp, note.as_bytes())
+        .map_err(|error| format!("Failed to write account note: {error}"))?;
+    replace_file(&temp, path).map_err(|error| format!("Failed to save {}: {error}", path.display()))
+}
+
+pub(crate) fn save_expiration(path: &Path, expires_at: &str) -> Result<(), String> {
+    save_note(path, expires_at)
+}
+
 pub(crate) fn read_state(paths: &Paths) -> ManagerStateFile {
     fs::read(&paths.state_file)
         .ok()

@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 pub(crate) struct AccountSummary {
     pub(crate) id: String,
     pub(crate) email: String,
+    pub(crate) note: String,
+    pub(crate) expires_at: String,
     pub(crate) plan: String,
     pub(crate) account_id: Option<String>,
     pub(crate) active: bool,

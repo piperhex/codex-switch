@@ -110,6 +110,10 @@ export async function removeAccount(id: string): Promise<void> {
   if (isDesktopApp) await invoke("delete_account", { id });
 }
 
+export async function updateAccountNote(id: string, note: string, expiresAt: string): Promise<void> {
+  if (isDesktopApp) await invoke("update_account_note", { id, note, expiresAt });
+}
+
 export async function fetchResetCredits(id: string): Promise<ResetCreditsSummary> {
   if (isDesktopApp) return invoke<ResetCreditsSummary>("fetch_reset_credits", { id });
   return {

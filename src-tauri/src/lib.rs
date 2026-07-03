@@ -39,6 +39,7 @@ pub fn run() {
             commands::list_accounts,
             commands::import_auth_file,
             commands::switch_account,
+            commands::update_account_note,
             commands::delete_account,
             commands::refresh_usage,
             commands::fetch_reset_credits,

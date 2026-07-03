@@ -9,7 +9,7 @@ use std::{
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
 
-use chrono::Utc;
+use chrono::{NaiveDate, Utc};
 use reqwest::blocking::Client;
 use serde_json::Value;
 use tauri::{Emitter, Runtime};
@@ -22,8 +22,9 @@ use crate::{
     },
     models::{AccountSummary, AppInfo, ManagerStateFile, ResetCreditsSummary, UsageSummary},
     storage::{
-        account_dir, import_value, load_usage, managed_auth_path, read_json, read_state,
-        resolve_paths, save_usage, sync_current_into_store, usage_path, write_json_atomic,
+        account_dir, expiration_path, import_value, load_expiration, load_note, load_usage,
+        managed_auth_path, note_path, read_json, read_state, resolve_paths, save_expiration,
+        save_note, save_usage, sync_current_into_store, usage_path, write_json_atomic,
         write_json_if_changed, write_state, Paths,
     },
 };
@@ -69,6 +70,8 @@ pub(crate) fn list_accounts<R: Runtime>(
         accounts.push(AccountSummary {
             active: active_id.as_deref() == Some(&id),
             usage: load_usage(&usage_path(&paths, &id)),
+            note: load_note(&note_path(&paths, &id)),
+            expires_at: load_expiration(&expiration_path(&paths, &id)),
             id,
             email,
             plan,
@@ -233,6 +236,28 @@ pub(crate) async fn refresh_usage<R: Runtime>(
     tauri::async_runtime::spawn_blocking(move || refresh_usage_blocking(app, id))
         .await
         .map_err(|error| format!("刷新用量任务失败：{error}"))?
+}
+
+#[tauri::command]
+pub(crate) fn update_account_note<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    id: String,
+    note: String,
+    expires_at: String,
+) -> Result<(), String> {
+    let paths = resolve_paths(&app)?;
+    if !managed_auth_path(&paths, &id).exists() {
+        return Err("Account does not exist".to_string());
+    }
+    if !expires_at.is_empty() {
+        NaiveDate::parse_from_str(&expires_at, "%Y-%m-%d")
+            .map_err(|_| "Expiration date must use YYYY-MM-DD format".to_string())?;
+    }
+    save_note(&note_path(&paths, &id), &note)?;
+    save_expiration(&expiration_path(&paths, &id), &expires_at)?;
+    app.emit("accounts-changed", ())
+        .map_err(|error| error.to_string())?;
+    Ok(())
 }
 
 fn refresh_usage_blocking<R: Runtime>(
