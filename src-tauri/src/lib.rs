@@ -57,6 +57,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::get_app_info,
+            commands::open_managed_folder,
             commands::list_accounts,
             commands::import_auth_file,
             commands::switch_account,

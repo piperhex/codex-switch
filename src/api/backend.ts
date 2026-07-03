@@ -128,6 +128,10 @@ export async function restartCodex(): Promise<void> {
   if (isDesktopApp) await invoke("restart_codex");
 }
 
+export async function openManagedFolder(target: "codexHome" | "accountStore"): Promise<void> {
+  if (isDesktopApp) await invoke("open_managed_folder", { target });
+}
+
 export function checkForUpdate({ force = false }: { force?: boolean } = {}): Promise<UpdateInfo | null> {
   if (!isDesktopApp) return Promise.resolve(null);
   if (force) return invoke<UpdateInfo | null>("check_for_update");

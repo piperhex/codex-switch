@@ -236,6 +236,9 @@ h1 { margin: 5px 0 0; font: 700 26px/1.1 Manrope, sans-serif; letter-spacing: -.
 .settings-card { display: flex; gap: 17px; padding: 22px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }
 .settings-card > div:last-child { min-width: 0; flex: 1; }
 .settings-icon { width: 44px; height: 44px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 11px; color: var(--green); background: var(--green-soft); }
+.settings-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.settings-card-header > div { min-width: 0; }
+.settings-card-header .ant-btn { flex: 0 0 auto; }
 .settings-card h3 { margin: 2px 0 5px; font: 700 14px Manrope, sans-serif; }
 .settings-card p { margin: 0 0 12px; font-size: 11px; color: var(--muted); line-height: 1.6; }
 .settings-card .settings-current-account { display: inline-block; margin: 0; padding: 5px 8px; border-radius: 6px; color: var(--green-dark); background: var(--green-selection); font-weight: 600; }

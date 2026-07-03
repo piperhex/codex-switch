@@ -11,8 +11,10 @@ use std::os::windows::process::CommandExt;
 
 use chrono::{NaiveDate, Utc};
 use reqwest::blocking::Client;
+use serde::Deserialize;
 use serde_json::Value;
 use tauri::{Emitter, Runtime};
+use tauri_plugin_opener::OpenerExt;
 
 use crate::{
     auth::{account_fields, validate_auth},
@@ -33,6 +35,13 @@ const CODEX_COMMAND: &str = "codex";
 #[cfg(target_os = "windows")]
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) enum ManagedFolder {
+    CodexHome,
+    AccountStore,
+}
+
 #[tauri::command]
 pub(crate) fn get_app_info<R: Runtime>(app: tauri::AppHandle<R>) -> Result<AppInfo, String> {
     let paths = resolve_paths(&app)?;
@@ -42,6 +51,23 @@ pub(crate) fn get_app_info<R: Runtime>(app: tauri::AppHandle<R>) -> Result<AppIn
         account_store: paths.accounts.display().to_string(),
         version: app.package_info().version.to_string(),
     })
+}
+
+#[tauri::command]
+pub(crate) fn open_managed_folder<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    target: ManagedFolder,
+) -> Result<(), String> {
+    let paths = resolve_paths(&app)?;
+    let path = match target {
+        ManagedFolder::CodexHome => paths.codex_home,
+        ManagedFolder::AccountStore => paths.accounts,
+    };
+    fs::create_dir_all(&path)
+        .map_err(|error| format!("Failed to create {}: {error}", path.display()))?;
+    app.opener()
+        .open_path(path.display().to_string(), None::<&str>)
+        .map_err(|error| format!("Failed to open {}: {error}", path.display()))
 }
 
 #[tauri::command]

@@ -4,7 +4,7 @@ import enUS from "antd/locale/en_US";
 import zhCN from "antd/locale/zh_CN";
 import { CalendarClock, Check, CircleHelp, Github, Plus, RefreshCw, RotateCcw, Settings, ShieldCheck, UserRound } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { checkForUpdate, isDesktopApp, restartCodex } from "./api/backend";
+import { checkForUpdate, isDesktopApp, openManagedFolder, restartCodex } from "./api/backend";
 import { HelpModal, type HelpVersionState } from "./components/modals/HelpModal";
 import { FloatingUsageBubble } from "./components/FloatingUsageBubble";
 import { LoginModal } from "./components/modals/LoginModal";
@@ -92,6 +92,19 @@ function DashboardApp() {
   const changeFloatingBubble = useCallback((enabled: boolean) => {
     void floatingBubble.setEnabled(enabled);
   }, [floatingBubble.setEnabled]);
+  const openFolder = useCallback((target: "codexHome" | "accountStore") => {
+    if (!isDesktopApp) {
+      notify(t("toast.previewOpenFolder"));
+      return;
+    }
+    void openManagedFolder(target).catch((error) => notify(String(error)));
+  }, [notify, t]);
+  const openCodexHome = useCallback(() => {
+    openFolder("codexHome");
+  }, [openFolder]);
+  const openAccountStore = useCallback(() => {
+    openFolder("accountStore");
+  }, [openFolder]);
   const openHelp = useCallback(() => {
     const requestId = ++helpVersionRequestId.current;
     setShowHelp(true);
@@ -228,7 +241,8 @@ function DashboardApp() {
               themeColor={themeColor.color} themeColorLoading={themeColor.loading}
               onThemeColorChange={changeThemeColor}
               floatingBubbleEnabled={floatingBubble.enabled}
-              floatingBubbleLoading={floatingBubble.loading} onFloatingBubbleChange={changeFloatingBubble} language={language}
+              floatingBubbleLoading={floatingBubble.loading} onFloatingBubbleChange={changeFloatingBubble}
+              onOpenCodexHome={openCodexHome} onOpenAccountStore={openAccountStore} language={language}
               onLanguageChange={setLanguage} t={t} />
           </section>
           <section className="page-panel" hidden={page !== "accounts"}>
