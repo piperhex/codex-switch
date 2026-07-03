@@ -22,6 +22,7 @@ import { formatRefreshTime } from "./utils/format";
 import type { UpdateInfo } from "./types";
 
 const LAST_REFRESH_ALL_KEY = "codex-switch:last-refresh-all-at";
+const IGNORED_UPDATE_VERSION_KEY = "codex-switch:ignored-update-version";
 const REPOSITORY_URL = "https://github.com/piperhex/codex-switch.git";
 const APP_LOGO_URL = new URL("../src-tauri/icons/128x128.png", import.meta.url).href;
 const MemoAccountsPage = memo(AccountsPage);
@@ -30,6 +31,10 @@ const MemoSettingsPage = memo(SettingsPage);
 function storedRefreshAllTime() {
   const value = window.localStorage.getItem(LAST_REFRESH_ALL_KEY);
   return value && !Number.isNaN(new Date(value).getTime()) ? value : null;
+}
+
+function shouldShowUpdate(update: UpdateInfo | null) {
+  return update?.latestVersion === window.localStorage.getItem(IGNORED_UPDATE_VERSION_KEY) ? null : update;
 }
 
 function DashboardApp() {
@@ -107,7 +112,7 @@ function DashboardApp() {
     let cancelled = false;
     void checkForUpdate()
       .then((update) => {
-        if (!cancelled) setAvailableUpdate(update);
+        if (!cancelled) setAvailableUpdate(shouldShowUpdate(update));
       })
       .catch(() => undefined);
     return () => { cancelled = true; };
@@ -153,6 +158,11 @@ function DashboardApp() {
     }
     window.open(releaseUrl, "_blank", "noopener,noreferrer");
   };
+  const ignoreUpdate = useCallback(() => {
+    if (!availableUpdate) return;
+    window.localStorage.setItem(IGNORED_UPDATE_VERSION_KEY, availableUpdate.latestVersion);
+    setAvailableUpdate(null);
+  }, [availableUpdate]);
 
   return (
     <ConfigProvider locale={language === "zh" ? zhCN : enUS} theme={{
@@ -238,7 +248,7 @@ function DashboardApp() {
         {showHelp && <HelpModal onClose={() => setShowHelp(false)} version={manager.info?.version ?? "0.1.0"}
           versionState={helpVersionState} t={t} />}
         {availableUpdate && <UpdateModal update={availableUpdate} onClose={() => setAvailableUpdate(null)}
-          onDownload={openRelease} t={t} />}
+          onIgnore={ignoreUpdate} onDownload={openRelease} t={t} />}
         {toast && <div className="toast"><Check size={17} />{toast}</div>}
       </div>
     </ConfigProvider>

@@ -230,7 +230,7 @@ h1 { margin: 5px 0 0; font: 700 26px/1.1 Manrope, sans-serif; letter-spacing: -.
 .update-notes { margin-bottom: 18px; padding: 13px 14px; border: 1px solid #e0e7e0; border-radius: 10px; background: white; }
 .update-notes > b { color: #34443a; font-size: 11px; }
 .update-notes pre { max-height: 150px; margin: 9px 0 0; overflow: auto; color: #718078; font: 10px/1.55 "DM Sans", "Microsoft YaHei UI", sans-serif; white-space: pre-wrap; word-break: break-word; }
-.update-actions { display: flex; justify-content: flex-end; gap: 9px; }
+.update-actions { display: flex; justify-content: flex-end; gap: 9px; flex-wrap: wrap; }
 
 .settings-page { margin: 30px var(--page-x); display: grid; gap: 14px; max-width: 850px; }
 .settings-card { display: flex; gap: 17px; padding: 22px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }

@@ -1,15 +1,16 @@
-import { Download, Rocket, X } from "lucide-react";
+import { BellOff, Download, Rocket, X } from "lucide-react";
 import type { Translate } from "../../i18n";
 import type { UpdateInfo } from "../../types";
 
 interface UpdateModalProps {
   update: UpdateInfo;
   onClose: () => void;
+  onIgnore: () => void;
   onDownload: () => void;
   t: Translate;
 }
 
-export function UpdateModal({ update, onClose, onDownload, t }: UpdateModalProps) {
+export function UpdateModal({ update, onClose, onIgnore, onDownload, t }: UpdateModalProps) {
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <section className="modal update-modal" role="dialog" aria-modal="true"
@@ -32,6 +33,9 @@ export function UpdateModal({ update, onClose, onDownload, t }: UpdateModalProps
         )}
         <div className="update-actions">
           <button type="button" className="refresh-all" onClick={onClose}>{t("update.later")}</button>
+          <button type="button" className="refresh-all" onClick={onIgnore}>
+            <BellOff size={17} />{t("update.ignoreVersion")}
+          </button>
           <button type="button" className="primary-button" onClick={onDownload}>
             <Download size={17} />{t("update.download")}
           </button>
