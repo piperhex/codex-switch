@@ -6,6 +6,8 @@ Codex Switch is a local-first Tauri 2 desktop application for signing in to, sto
 
 ![Codex Switch account dashboard](docs/assets/codex-switch-dashboard.png)
 
+![Codex Switch settings page](docs/assets/codex-switch-settings.png)
+
 ## Features
 
 - Reuses the Codex CLI OAuth 2.0 + PKCE login flow
