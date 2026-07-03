@@ -79,6 +79,9 @@ h1 { margin: 5px 0 0; font: 700 26px/1.1 Manrope, sans-serif; letter-spacing: -.
 .account-table-wrap .ant-table-tbody > tr.active-row > td:first-child { box-shadow: inset 4px 0 0 var(--green-accent); }
 .account-table-wrap .ant-table-tbody > tr:hover > td { background: #f6faf7; }
 .account-table-wrap .ant-table-cell { padding: 8px 16px !important; }
+.account-table-wrap .ant-table-expand-icon-col { width: 32px !important; min-width: 32px !important; }
+.account-table-wrap .ant-table-row-expand-icon-cell { width: 32px !important; min-width: 32px !important; max-width: 32px !important; padding-inline: 4px !important; text-align: center; }
+.account-table-wrap .ant-table-row-expand-icon { margin-inline: 0; }
 .account-table-wrap .ant-table-cell::before { display: none; }
 .account-table-wrap .ant-table-expanded-row > td { padding: 0 !important; background: #f7faf6 !important; }
 .reset-credits-panel { display: grid; gap: 8px; padding: 12px 18px 14px 52px; border-top: 1px solid #edf1ec; }

@@ -9,6 +9,26 @@ mod system_tray;
 mod update;
 
 use oauth::AppState;
+use tauri::{LogicalSize, Manager, Runtime};
+
+const MAIN_WINDOW_HEIGHT: f64 = 760.0;
+const MAIN_WINDOW_WIDTH_RATIO: f64 = 0.8;
+
+fn size_main_window_to_screen<R: Runtime>(app: &tauri::App<R>) -> tauri::Result<()> {
+    let Some(window) = app.get_webview_window("main") else {
+        return Ok(());
+    };
+    let Some(monitor) = window.current_monitor()?.or(app.primary_monitor()?) else {
+        return Ok(());
+    };
+    let work_area = monitor.work_area();
+    let screen_size = work_area.size.to_logical::<f64>(monitor.scale_factor());
+    let width = (screen_size.width * MAIN_WINDOW_WIDTH_RATIO).max(960.0);
+
+    window.set_size(LogicalSize::new(width, MAIN_WINDOW_HEIGHT))?;
+    window.center()?;
+    Ok(())
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -17,6 +37,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
+            size_main_window_to_screen(app)?;
             system_tray::setup(app)?;
             floating_bubble::setup(app.handle())?;
             Ok(())

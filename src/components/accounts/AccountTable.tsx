@@ -66,6 +66,7 @@ export function AccountTable({
 }: AccountTableProps) {
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const columns: ColumnsType<Account> = [
+    Table.EXPAND_COLUMN as ColumnsType<Account>[number],
     {
       title: t("table.account"), dataIndex: "email", width: 100, fixed: "left",
       sorter: (left, right) => left.email.localeCompare(right.email),
@@ -150,7 +151,8 @@ export function AccountTable({
           },
         })}
         expandable={{
-          columnWidth: 42,
+          columnWidth: 32,
+          fixed: "left",
           expandedRowRender: (account) => <ResetCreditsPanel state={resetCredits[account.id]}
             onRetry={() => onLoadResetCredits(account.id, true)} language={language} t={t} />,
           onExpand: (expanded, account) => { if (expanded) onLoadResetCredits(account.id); },
