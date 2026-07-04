@@ -7,7 +7,7 @@ use serde_json::{json, Value};
 use tauri::{Emitter, Manager, Runtime};
 
 use crate::{
-    auth::{account_fields, validate_auth},
+    auth::{account_fields, should_replace_auth_by_refresh_time, validate_auth},
     models::{AppSettings, CloudAccountPayload, CloudAuthState, CloudSyncResult, ManagerStateFile},
     storage::{
         expiration_path, load_expiration, load_note, load_usage, managed_auth_path, note_path,
@@ -269,13 +269,24 @@ fn apply_remote_account<R: Runtime>(
         ));
     }
     let paths = resolve_paths(app)?;
-    write_json_if_changed(&managed_auth_path(&paths, &account.id), &account.auth)?;
+    let auth_path = managed_auth_path(&paths, &account.id);
+    let local_auth = read_json(&auth_path).ok();
+    let account_auth =
+        if should_replace_auth_by_refresh_time(&account.id, local_auth.as_ref(), &account.auth) {
+            write_json_if_changed(&auth_path, &account.auth)?;
+            account.auth.clone()
+        } else {
+            local_auth.unwrap_or_else(|| account.auth.clone())
+        };
     save_note(&note_path(&paths, &account.id), &account.note)?;
     save_expiration(&expiration_path(&paths, &account.id), &account.expires_at)?;
     save_usage(&usage_path(&paths, &account.id), &account.usage)?;
 
-    if account.active && read_state(&paths).active_account_id.is_none() {
-        write_json_if_changed(&paths.current_auth, &account.auth)?;
+    let active_account_id = read_state(&paths).active_account_id;
+    if active_account_id.as_deref() == Some(&account.id) {
+        write_json_if_changed(&paths.current_auth, &account_auth)?;
+    } else if account.active && active_account_id.is_none() {
+        write_json_if_changed(&paths.current_auth, &account_auth)?;
         write_state(
             &paths,
             &ManagerStateFile {
@@ -540,8 +551,9 @@ pub(crate) async fn cloud_sync_accounts<R: Runtime>(
             .collect::<HashSet<_>>();
         let mut downloaded = 0;
         for account in get_remote_accounts(&client, &mut settings, &mut credentials)? {
-            if !local_ids.contains(&account.id) {
-                apply_remote_account(&app, &account)?;
+            let is_new = !local_ids.contains(&account.id);
+            apply_remote_account(&app, &account)?;
+            if is_new {
                 downloaded += 1;
             }
         }

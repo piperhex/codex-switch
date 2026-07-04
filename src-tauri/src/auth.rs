@@ -1,4 +1,5 @@
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
+use chrono::{DateTime, Utc};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
@@ -90,6 +91,55 @@ pub(crate) fn validate_auth(auth: &Value) -> Result<(), String> {
     account_fields(auth).map(|_| ())
 }
 
+pub(crate) fn should_replace_auth_by_refresh_time(
+    account_id: &str,
+    local_auth: Option<&Value>,
+    incoming_auth: &Value,
+) -> bool {
+    let Some(local_auth) = local_auth else {
+        return true;
+    };
+    if validate_auth(local_auth).is_err() {
+        return true;
+    }
+    match account_fields(local_auth) {
+        Ok((_, _, _, local_id)) if local_id == account_id => {}
+        _ => return true,
+    }
+
+    match (
+        last_refresh_time(local_auth),
+        last_refresh_time(incoming_auth),
+    ) {
+        (Some(local_refresh), Some(incoming_refresh)) if incoming_refresh != local_refresh => {
+            return incoming_refresh > local_refresh;
+        }
+        (None, Some(_)) => return true,
+        (Some(_), None) => return false,
+        _ => {}
+    }
+
+    let Some(incoming_iat) = access_token_iat(incoming_auth) else {
+        return false;
+    };
+    access_token_iat(local_auth).map_or(true, |local_iat| incoming_iat > local_iat)
+}
+
+pub(crate) fn last_refresh_time(auth: &Value) -> Option<DateTime<Utc>> {
+    let value = auth.get("last_refresh")?.as_str()?;
+    DateTime::parse_from_rfc3339(value)
+        .ok()
+        .map(|value| value.with_timezone(&Utc))
+}
+
+pub(crate) fn access_token_iat(auth: &Value) -> Option<i64> {
+    let claims = decode_jwt(token_string(auth, "access_token")?).ok()?;
+    let iat = claims.get("iat")?;
+    iat.as_i64()
+        .or_else(|| iat.as_u64().and_then(|value| i64::try_from(value).ok()))
+        .or_else(|| iat.as_str()?.parse().ok())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -123,5 +173,105 @@ mod tests {
         assert_eq!(plan, "plus");
         assert_eq!(account_id.as_deref(), Some("account-1"));
         assert_eq!(id.len(), 24);
+    }
+
+    fn auth_with_access_token_iat(iat: i64) -> Value {
+        json!({
+            "tokens": {
+                "access_token": jwt(json!({ "iat": iat }))
+            }
+        })
+    }
+
+    fn auth_with_refresh_and_iat(last_refresh: &str, iat: i64) -> Value {
+        json!({
+            "tokens": {
+                "access_token": jwt(json!({ "iat": iat }))
+            },
+            "last_refresh": last_refresh,
+        })
+    }
+
+    #[test]
+    fn incoming_auth_replaces_local_auth_only_when_access_token_iat_is_newer() {
+        let local = auth_with_access_token_iat(100);
+        let incoming_newer = auth_with_access_token_iat(101);
+        let incoming_older = auth_with_access_token_iat(99);
+        let (_, _, _, account_id) = account_fields(&local).unwrap();
+
+        assert!(should_replace_auth_by_refresh_time(
+            &account_id,
+            Some(&local),
+            &incoming_newer
+        ));
+        assert!(!should_replace_auth_by_refresh_time(
+            &account_id,
+            Some(&local),
+            &incoming_older
+        ));
+    }
+
+    #[test]
+    fn incoming_auth_uses_last_refresh_before_access_token_iat() {
+        let local = auth_with_refresh_and_iat("2026-07-01T09:58:50.638606500Z", 200);
+        let incoming_newer_refresh =
+            auth_with_refresh_and_iat("2026-07-01T09:58:51.638606500Z", 100);
+        let incoming_older_refresh =
+            auth_with_refresh_and_iat("2026-07-01T09:58:49.638606500Z", 300);
+        let incoming_equal_refresh =
+            auth_with_refresh_and_iat("2026-07-01T09:58:50.638606500Z", 201);
+        let (_, _, _, account_id) = account_fields(&local).unwrap();
+
+        assert!(should_replace_auth_by_refresh_time(
+            &account_id,
+            Some(&local),
+            &incoming_newer_refresh
+        ));
+        assert!(!should_replace_auth_by_refresh_time(
+            &account_id,
+            Some(&local),
+            &incoming_older_refresh
+        ));
+        assert!(should_replace_auth_by_refresh_time(
+            &account_id,
+            Some(&local),
+            &incoming_equal_refresh
+        ));
+    }
+
+    #[test]
+    fn incoming_auth_with_last_refresh_replaces_local_auth_without_last_refresh() {
+        let local = auth_with_access_token_iat(200);
+        let incoming = auth_with_refresh_and_iat("2026-07-01T09:58:50.638606500Z", 100);
+        let (_, _, _, account_id) = account_fields(&local).unwrap();
+
+        assert!(should_replace_auth_by_refresh_time(
+            &account_id,
+            Some(&local),
+            &incoming
+        ));
+    }
+
+    #[test]
+    fn incoming_auth_replaces_missing_or_unusable_local_auth() {
+        let incoming = auth_with_access_token_iat(100);
+        let local_without_iat = json!({ "tokens": { "access_token": jwt(json!({})) } });
+        let (_, _, _, account_id) = account_fields(&incoming).unwrap();
+
+        assert!(should_replace_auth_by_refresh_time(
+            &account_id,
+            None,
+            &incoming
+        ));
+        assert!(should_replace_auth_by_refresh_time(
+            &account_id,
+            Some(&json!({ "tokens": { "access_token": "" } })),
+            &incoming
+        ));
+        assert!(should_replace_auth_by_refresh_time(
+            &account_id,
+            Some(&local_without_iat),
+            &incoming
+        ));
     }
 }

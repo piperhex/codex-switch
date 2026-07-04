@@ -1,10 +1,11 @@
 import { invoke } from "@tauri-apps/api/core";
 import { emit, listen, type UnlistenFn } from "@tauri-apps/api/event";
-import { open } from "@tauri-apps/plugin-dialog";
+import { open, save } from "@tauri-apps/plugin-dialog";
 import { DEMO_ACCOUNTS, DEMO_INFO } from "../demo";
 import { LANGUAGE_STORAGE_KEY, isLanguage, type Language } from "../i18n";
 import type {
   Account,
+  AccountArchiveImportResult,
   AppInfo,
   AppSettings,
   CloudAuthState,
@@ -167,6 +168,16 @@ export type ImportAuthResult =
   | { status: "cancelled" }
   | { status: "preview" };
 
+export type ExportAccountArchiveResult =
+  | { status: "exported"; path: string }
+  | { status: "cancelled" }
+  | { status: "preview" };
+
+export type ImportAccountArchiveResult =
+  | { status: "imported"; result: AccountArchiveImportResult }
+  | { status: "cancelled" }
+  | { status: "preview" };
+
 export async function chooseAndImportAuth(): Promise<ImportAuthResult> {
   if (!isDesktopApp) return { status: "preview" };
   const selected = await open({
@@ -176,6 +187,28 @@ export async function chooseAndImportAuth(): Promise<ImportAuthResult> {
   if (!selected) return { status: "cancelled" };
   const id = await invoke<string>("import_auth_file", { path: selected });
   return { status: "imported", id };
+}
+
+export async function chooseAndExportAccountArchive(): Promise<ExportAccountArchiveResult> {
+  if (!isDesktopApp) return { status: "preview" };
+  const selected = await save({
+    defaultPath: `codex-switch-accounts-${new Date().toISOString().slice(0, 10)}.cs`,
+    filters: [{ name: "Codex Switch backup", extensions: ["cs"] }],
+  });
+  if (!selected) return { status: "cancelled" };
+  const path = await invoke<string>("export_accounts_archive", { path: selected });
+  return { status: "exported", path };
+}
+
+export async function chooseAndImportAccountArchive(): Promise<ImportAccountArchiveResult> {
+  if (!isDesktopApp) return { status: "preview" };
+  const selected = await open({
+    multiple: false,
+    filters: [{ name: "Codex Switch backup", extensions: ["cs"] }],
+  });
+  if (!selected) return { status: "cancelled" };
+  const result = await invoke<AccountArchiveImportResult>("import_accounts_archive", { path: selected });
+  return { status: "imported", result };
 }
 
 export async function activateAccount(id: string): Promise<void> {

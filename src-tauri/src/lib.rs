@@ -1,3 +1,4 @@
+mod account_archive;
 mod auth;
 mod cloud;
 mod codex_api;
@@ -61,6 +62,8 @@ pub fn run() {
             commands::open_managed_folder,
             commands::list_accounts,
             commands::import_auth_file,
+            account_archive::export_accounts_archive,
+            account_archive::import_accounts_archive,
             commands::switch_account,
             commands::update_account_note,
             commands::delete_account,

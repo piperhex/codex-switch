@@ -2,7 +2,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ConfigProvider, Tooltip, theme as antdTheme } from "antd";
 import enUS from "antd/locale/en_US";
 import zhCN from "antd/locale/zh_CN";
-import { CalendarClock, Check, CircleHelp, Cloud, Github, LogIn, LogOut, Plus, RefreshCw, RotateCcw, Settings, ShieldCheck, UploadCloud, UserRound } from "lucide-react";
+import { CalendarClock, Check, CircleHelp, Cloud, Download, Github, LogIn, LogOut, Plus, RefreshCw, RotateCcw, Settings, ShieldCheck, Upload, UploadCloud, UserRound } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { checkForUpdate, isDesktopApp, openManagedFolder, restartCodex } from "./api/backend";
 import { HelpModal, type HelpVersionState } from "./components/modals/HelpModal";
@@ -259,6 +259,22 @@ function DashboardApp() {
             {page === "accounts" && (
               <div className="topbar-actions">
                 <button className="primary-button" onClick={openLogin}><Plus size={18} />{t("actions.addAccount")}</button>
+                <Tooltip title={t("actions.importArchive")}>
+                  <button type="button" className="topbar-icon-button" aria-label={t("actions.importArchive")}
+                    disabled={manager.archiveOperation !== null}
+                    onClick={() => void manager.importAccountArchive()}>
+                    <Upload className={manager.archiveOperation === "import" ? "spin" : ""} size={17} />
+                    <span>{t("actions.importArchiveLabel")}</span>
+                  </button>
+                </Tooltip>
+                <Tooltip title={t("actions.exportArchive")}>
+                  <button type="button" className="topbar-icon-button" aria-label={t("actions.exportArchive")}
+                    disabled={manager.archiveOperation !== null || !manager.accounts.length}
+                    onClick={() => void manager.exportAccountArchive()}>
+                    <Download className={manager.archiveOperation === "export" ? "spin" : ""} size={17} />
+                    <span>{t("actions.exportArchiveLabel")}</span>
+                  </button>
+                </Tooltip>
                 <div className="refresh-all-wrap">
                   <button className="refresh-all" onClick={refreshAll}
                     disabled={manager.refreshingAll || !manager.accounts.length}>

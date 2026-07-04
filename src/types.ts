@@ -84,3 +84,9 @@ export interface CloudSyncResult {
   uploaded: number;
   downloaded: number;
 }
+
+export interface AccountArchiveImportResult {
+  imported: number;
+  accountIds: string[];
+  activeAccountId?: string | null;
+}
