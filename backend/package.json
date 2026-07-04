@@ -8,7 +8,11 @@
     "start": "nest start -r tsconfig-paths/register",
     "dev": "nest start --watch -r tsconfig-paths/register",
     "start:prod": "node dist/main",
-    "lint": "eslint \"src/**/*.ts\" --fix"
+    "lint": "eslint \"src/**/*.ts\" --fix",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:typecheck": "tsc --noEmit -p tsconfig.test.json"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -38,9 +42,11 @@
     "@types/express": "^5.0.0",
     "@types/node": "^22.10.7",
     "@types/passport-jwt": "^4.0.1",
+    "@vitest/coverage-v8": "^4.1.9",
     "ts-loader": "^9.5.2",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "vitest": "^4.1.9"
   }
 }

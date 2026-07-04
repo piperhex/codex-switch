@@ -1,5 +1,6 @@
 node_modules/
 dist/
+backend/coverage/
 src-tauri/target/
 .DS_Store
 *.log
