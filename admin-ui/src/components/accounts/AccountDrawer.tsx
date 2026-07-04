@@ -1,6 +1,7 @@
 import { Badge, Button, Drawer, Table } from "antd";
 import type { TableColumnsType } from "antd";
 import { Edit3, Trash2 } from "lucide-react";
+import { useI18n } from "../../i18n-context";
 import type { SyncAccount, UserRow } from "../../types";
 
 interface AccountDrawerProps {
@@ -20,21 +21,22 @@ export function AccountDrawer({
   onDeleteAccount,
   onEditAccount,
 }: AccountDrawerProps) {
+  const { t } = useI18n();
   const columns: TableColumnsType<SyncAccount> = [
-    { title: "邮箱", dataIndex: "email" },
-    { title: "备注", dataIndex: "note", ellipsis: true },
-    { title: "套餐", dataIndex: "plan", width: 120 },
+    { title: t("common.email"), dataIndex: "email" },
+    { title: t("common.note"), dataIndex: "note", ellipsis: true },
+    { title: t("common.plan"), dataIndex: "plan", width: 120 },
     {
-      title: "状态",
+      title: t("common.status"),
       dataIndex: "active",
       width: 90,
       render: (active: boolean) => (
-        <Badge status={active ? "processing" : "default"} text={active ? "当前" : "备用"} />
+        <Badge status={active ? "processing" : "default"} text={active ? t("accounts.active") : t("accounts.inactive")} />
       ),
     },
-    { title: "到期", dataIndex: "expiresAt", width: 120, render: (value: string) => value || "-" },
+    { title: t("common.expiresAt"), dataIndex: "expiresAt", width: 120, render: (value: string) => value || "-" },
     {
-      title: "操作",
+      title: t("common.actions"),
       width: 110,
       render: (_, row) => (
         <div className="table-actions">
@@ -52,7 +54,7 @@ export function AccountDrawer({
 
   return (
     <Drawer
-      title={user ? `${user.email} / 同步账号` : "同步账号"}
+      title={user ? t("accounts.drawerTitle", { email: user.email }) : t("accounts.title")}
       width={860}
       open={Boolean(user)}
       onClose={onClose}

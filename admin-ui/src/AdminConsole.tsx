@@ -27,6 +27,7 @@ import type {
   UserFilters,
   UserRow,
 } from "./types";
+import { useI18n } from "./i18n-context";
 import { loadStoredAuth, persistAuth } from "./utils/storage";
 
 interface AdminConsoleProps {
@@ -41,6 +42,7 @@ const emptyApprovals: PageResult<ApprovalRequest> = { items: [], total: 0, page:
 
 export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
   const { message, modal } = AntApp.useApp();
+  const { t } = useI18n();
   const [auth, setAuth] = useState<AuthTokens | null>(() => loadStoredAuth());
   const [profile, setProfile] = useState<Profile | null>(auth?.user ?? null);
   const [activeKey, setActiveKey] = useState<MenuKey>("users");
@@ -74,14 +76,14 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
     persistAuth(next);
   }, []);
 
-  const { api, signOut } = useAuthenticatedApi(auth, saveAuth);
+  const { api, signOut } = useAuthenticatedApi(auth, saveAuth, t);
 
   const loadProfile = useCallback(async () => {
     if (!auth?.accessToken) return;
     try {
       const data = await api<Profile>("/auth/me");
       if (data.role !== "admin") {
-        message.error("需要管理员权限");
+        message.error(t("errors.adminRequired"));
         await signOut();
         return;
       }
@@ -90,7 +92,7 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
       message.error((error as Error).message);
       await signOut();
     }
-  }, [api, auth?.accessToken, message, signOut]);
+  }, [api, auth?.accessToken, message, signOut, t]);
 
   const loadUsers = useCallback(async (page = users.page, pageSize = users.pageSize) => {
     setUsersLoading(true);
@@ -187,7 +189,7 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
       method: "POST",
       body: JSON.stringify({ decision }),
     });
-    message.success(decision === "approved" ? "已通过" : "已拒绝");
+    message.success(decision === "approved" ? t("common.approved") : t("common.rejected"));
     await loadApprovals();
     await loadUsers();
   }
@@ -214,7 +216,7 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
           onLoadInvitations={loadInvitations}
           onRevokeInvitation={async (invitation) => {
             await api(`/admin/api/invitations/${invitation.id}`, { method: "DELETE" });
-            message.success("已撤销");
+            message.success(t("common.revoked"));
             await loadInvitations();
           }}
         />
@@ -264,12 +266,12 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
         }}
         onDeleteUser={(user) => {
           modal.confirm({
-            title: "删除用户",
+            title: t("users.deleteTitle"),
             content: user.email,
             okButtonProps: { danger: true },
             onOk: async () => {
               await api(`/admin/api/users/${user.id}`, { method: "DELETE" });
-              message.success("已删除");
+              message.success(t("common.deleted"));
               await loadUsers();
             },
           });
@@ -312,12 +314,12 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
         onDeleteAccount={(account) => {
           if (!accountUser) return;
           modal.confirm({
-            title: "删除同步账号",
+            title: t("accounts.deleteTitle"),
             content: account.email,
             okButtonProps: { danger: true },
             onOk: async () => {
               await api(`/admin/api/users/${accountUser.id}/accounts/${account.id}`, { method: "DELETE" });
-              message.success("已删除");
+              message.success(t("common.deleted"));
               await loadAccounts(accountUser);
             },
           });

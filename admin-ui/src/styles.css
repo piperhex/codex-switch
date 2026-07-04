@@ -35,6 +35,13 @@ body {
   margin-bottom: 18px;
 }
 
+.login-brand-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
 .login-brand h1 {
   margin: 0;
   font-size: 24px;
@@ -97,6 +104,17 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.language-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #64748b;
+}
+
+.language-control .ant-segmented {
+  min-width: 110px;
 }
 
 .content-wrap {
@@ -218,5 +236,27 @@ body {
 
   .app-header {
     padding: 0 12px;
+  }
+
+  .header-actions {
+    gap: 6px;
+  }
+
+  .language-control svg,
+  .header-actions .ant-btn-text .ant-typography {
+    display: none;
+  }
+
+  .language-control .ant-segmented {
+    min-width: 96px;
+  }
+
+  .login-brand-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .login-brand-row .language-control {
+    justify-content: flex-start;
   }
 }

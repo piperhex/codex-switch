@@ -1,10 +1,11 @@
-import type { ReactNode } from "react";
-import { Avatar, Button, Dropdown, Layout, Menu, Space, Tooltip, Typography } from "antd";
+import { useMemo, type ReactNode } from "react";
+import { Avatar, Button, Dropdown, Layout, Menu, Segmented, Space, Tooltip, Typography } from "antd";
 import type { MenuProps } from "antd";
 import {
   FileClock,
   GitPullRequest,
   KeyRound,
+  Languages,
   LogOut,
   MailPlus,
   Moon,
@@ -12,7 +13,8 @@ import {
   UserRound,
   Users,
 } from "lucide-react";
-import { menuLabels } from "../../constants";
+import { LANGUAGE_OPTIONS, type Language, type TranslationKey } from "../../i18n";
+import { useI18n } from "../../i18n-context";
 import type { MenuKey, Profile } from "../../types";
 
 interface AdminShellProps {
@@ -27,19 +29,12 @@ interface AdminShellProps {
   onSignOut: () => Promise<void>;
 }
 
-const menuItems: MenuProps["items"] = [
-  { key: "users", icon: <Users size={17} />, label: menuLabels.users },
-  { key: "audit", icon: <FileClock size={17} />, label: menuLabels.audit },
-  { key: "invitations", icon: <MailPlus size={17} />, label: menuLabels.invitations },
-  { key: "approvals", icon: <GitPullRequest size={17} />, label: menuLabels.approvals },
-];
-
-const avatarMenu: MenuProps["items"] = [
-  { key: "profile", icon: <UserRound size={15} />, label: "用户信息" },
-  { key: "password", icon: <KeyRound size={15} />, label: "修改密码" },
-  { type: "divider" },
-  { key: "logout", icon: <LogOut size={15} />, label: "退出登录" },
-];
+const menuLabelKeys: Record<MenuKey, TranslationKey> = {
+  users: "nav.users",
+  audit: "nav.audit",
+  invitations: "nav.invitations",
+  approvals: "nav.approvals",
+};
 
 export function AdminShell({
   activeKey,
@@ -52,6 +47,21 @@ export function AdminShell({
   onSignOut,
   onThemeChange,
 }: AdminShellProps) {
+  const { language, setLanguage, t } = useI18n();
+  const menuItems = useMemo<MenuProps["items"]>(() => [
+    { key: "users", icon: <Users size={17} />, label: t("nav.users") },
+    { key: "audit", icon: <FileClock size={17} />, label: t("nav.audit") },
+    { key: "invitations", icon: <MailPlus size={17} />, label: t("nav.invitations") },
+    { key: "approvals", icon: <GitPullRequest size={17} />, label: t("nav.approvals") },
+  ], [t]);
+
+  const avatarMenu = useMemo<MenuProps["items"]>(() => [
+    { key: "profile", icon: <UserRound size={15} />, label: t("header.profile") },
+    { key: "password", icon: <KeyRound size={15} />, label: t("header.password") },
+    { type: "divider" },
+    { key: "logout", icon: <LogOut size={15} />, label: t("header.logout") },
+  ], [t]);
+
   return (
     <Layout className="admin-shell">
       <Layout.Sider breakpoint="lg" collapsedWidth={0} width={232}>
@@ -59,7 +69,7 @@ export function AdminShell({
           <div className="brand-mark">C</div>
           <div className="brand-copy">
             <strong>Codex Switch</strong>
-            <span>Admin Console</span>
+            <span>{t("app.subtitle")}</span>
           </div>
         </div>
         <Menu
@@ -73,11 +83,20 @@ export function AdminShell({
       <Layout>
         <header className="app-header">
           <div className="brand-copy">
-            <strong>{menuLabels[activeKey]}</strong>
+            <strong>{t(menuLabelKeys[activeKey])}</strong>
             <span>{profile?.email}</span>
           </div>
           <div className="header-actions">
-            <Tooltip title={dark ? "浅色主题" : "深色主题"}>
+            <div className="language-control" aria-label={t("language.label")}>
+              <Languages size={15} />
+              <Segmented
+                size="small"
+                value={language}
+                options={[...LANGUAGE_OPTIONS]}
+                onChange={(value) => setLanguage(value as Language)}
+              />
+            </div>
+            <Tooltip title={dark ? t("header.lightTheme") : t("header.darkTheme")}>
               <Button
                 className="icon-button"
                 icon={dark ? <Sun size={16} /> : <Moon size={16} />}

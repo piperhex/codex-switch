@@ -1,6 +1,7 @@
 import { Button, Space, Table, Tag } from "antd";
 import type { TableColumnsType } from "antd";
 import { CheckCircle, Plus, RefreshCw, XCircle } from "lucide-react";
+import { useI18n } from "../i18n-context";
 import type { ApprovalRequest, PageResult, Profile } from "../types";
 import { formatDate } from "../utils/format";
 
@@ -23,23 +24,28 @@ export function ApprovalsPage({
   onLoadApprovals,
   onReviewApproval,
 }: ApprovalsPageProps) {
+  const { language, t } = useI18n();
   const columns: TableColumnsType<ApprovalRequest> = [
-    { title: "目标用户", dataIndex: "targetEmail" },
-    { title: "提交人", dataIndex: "requestedByEmail", width: 220 },
+    { title: t("approvals.targetUser"), dataIndex: "targetEmail" },
+    { title: t("approvals.requester"), dataIndex: "requestedByEmail", width: 220 },
     {
-      title: "状态",
+      title: t("common.status"),
       dataIndex: "status",
       width: 110,
       render: (status: ApprovalRequest["status"]) => {
         const color = status === "approved" ? "green" : status === "rejected" ? "red" : "blue";
-        const label = status === "approved" ? "已通过" : status === "rejected" ? "已拒绝" : "待审批";
+        const label = status === "approved"
+          ? t("approvals.status.approved")
+          : status === "rejected"
+            ? t("approvals.status.rejected")
+            : t("approvals.status.pending");
         return <Tag color={color}>{label}</Tag>;
       },
     },
-    { title: "备注", dataIndex: "comment", ellipsis: true },
-    { title: "创建时间", dataIndex: "createdAt", width: 180, render: formatDate },
+    { title: t("approvals.comment"), dataIndex: "comment", ellipsis: true },
+    { title: t("common.createdAt"), dataIndex: "createdAt", width: 180, render: (value) => formatDate(value, language) },
     {
-      title: "操作",
+      title: t("common.actions"),
       width: 130,
       render: (_, row) => row.status === "pending" ? (
         <Space>
@@ -63,14 +69,14 @@ export function ApprovalsPage({
 
   return (
     <>
-      <h1 className="page-title">管理员审批</h1>
+      <h1 className="page-title">{t("approvals.title")}</h1>
       <div className="toolbar">
         <div className="toolbar-left">
-          <Tag color="blue">待审批 {pendingCount}</Tag>
+          <Tag color="blue">{t("approvals.pendingCount", { count: pendingCount })}</Tag>
         </div>
         <div className="toolbar-right">
-          <Button icon={<RefreshCw size={15} />} onClick={() => onLoadApprovals()}>刷新</Button>
-          <Button type="primary" icon={<Plus size={15} />} onClick={onCreateApproval}>提交审批</Button>
+          <Button icon={<RefreshCw size={15} />} onClick={() => onLoadApprovals()}>{t("common.refresh")}</Button>
+          <Button type="primary" icon={<Plus size={15} />} onClick={onCreateApproval}>{t("approvals.submit")}</Button>
         </div>
       </div>
       <div className="panel">

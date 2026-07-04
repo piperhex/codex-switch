@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { App as AntApp, Form, Input, Modal, Select } from "antd";
+import { useI18n } from "../../i18n-context";
 import type { ApiClient, UserRow } from "../../types";
 
 interface ApprovalModalProps {
@@ -22,6 +23,7 @@ export function ApprovalModal({
   users,
 }: ApprovalModalProps) {
   const { message } = AntApp.useApp();
+  const { t } = useI18n();
   const [form] = Form.useForm();
 
   const options = [...users, ...currentUsers]
@@ -35,7 +37,7 @@ export function ApprovalModal({
 
   return (
     <Modal
-      title="提交管理员审批"
+      title={t("approvalModal.title")}
       open={open}
       onCancel={() => {
         onClose();
@@ -53,16 +55,16 @@ export function ApprovalModal({
             method: "POST",
             body: JSON.stringify(values),
           });
-          message.success("已提交");
+          message.success(t("common.submitted"));
           onClose();
           form.resetFields();
           await onSaved();
         }}
       >
-        <Form.Item name="targetUserId" label="目标用户" rules={[{ required: true }]}>
+        <Form.Item name="targetUserId" label={t("approvalModal.targetUser")} rules={[{ required: true }]}>
           <Select showSearch options={options} />
         </Form.Item>
-        <Form.Item name="comment" label="备注">
+        <Form.Item name="comment" label={t("approvals.comment")}>
           <Input.TextArea rows={3} />
         </Form.Item>
       </Form>

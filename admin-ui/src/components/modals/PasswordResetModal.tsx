@@ -1,4 +1,5 @@
 import { App as AntApp, Form, Input, Modal, Typography } from "antd";
+import { useI18n } from "../../i18n-context";
 import type { ApiClient, UserRow } from "../../types";
 
 interface PasswordResetModalProps {
@@ -9,11 +10,12 @@ interface PasswordResetModalProps {
 
 export function PasswordResetModal({ api, onClose, user }: PasswordResetModalProps) {
   const { message } = AntApp.useApp();
+  const { t } = useI18n();
   const [form] = Form.useForm();
 
   return (
     <Modal
-      title="重置密码"
+      title={t("passwordReset.title")}
       open={Boolean(user)}
       onCancel={() => {
         onClose();
@@ -31,13 +33,13 @@ export function PasswordResetModal({ api, onClose, user }: PasswordResetModalPro
             method: "PATCH",
             body: JSON.stringify({ password: values.password }),
           });
-          message.success("已重置");
+          message.success(t("common.reset"));
           onClose();
           form.resetFields();
         }}
       >
         <Typography.Paragraph>{user?.email}</Typography.Paragraph>
-        <Form.Item name="password" label="新密码" rules={[{ required: true, min: 8 }]}>
+        <Form.Item name="password" label={t("passwordReset.newPassword")} rules={[{ required: true, min: 8 }]}>
           <Input.Password autoComplete="new-password" />
         </Form.Item>
       </Form>

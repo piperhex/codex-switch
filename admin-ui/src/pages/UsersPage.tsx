@@ -1,6 +1,8 @@
 import { Avatar, Badge, Button, Input, Select, Space, Table, Tag, Tooltip, Typography } from "antd";
 import type { TableColumnsType, TablePaginationConfig } from "antd";
 import { Database, Edit3, KeyRound, Plus, RefreshCw, Search, ShieldCheck, Trash2 } from "lucide-react";
+import { labelForRole } from "../i18n";
+import { useI18n } from "../i18n-context";
 import { formatDate } from "../utils/format";
 import type { PageResult, Profile, Role, UserFilters, UserRow } from "../types";
 
@@ -35,12 +37,13 @@ export function UsersPage({
   onRequestApproval,
   onResetPassword,
 }: UsersPageProps) {
+  const { language, t } = useI18n();
   const activeVisibleUsers = users.items.filter((item) => !item.disabled).length;
   const adminVisibleUsers = users.items.filter((item) => item.role === "admin").length;
 
   const columns: TableColumnsType<UserRow> = [
     {
-      title: "邮箱",
+      title: t("common.email"),
       dataIndex: "email",
       render: (email: string, row) => (
         <Space>
@@ -53,37 +56,37 @@ export function UsersPage({
       ),
     },
     {
-      title: "角色",
+      title: t("common.role"),
       dataIndex: "role",
       width: 110,
-      render: (role: Role) => <Tag color={role === "admin" ? "blue" : "default"}>{role}</Tag>,
+      render: (role: Role) => <Tag color={role === "admin" ? "blue" : "default"}>{labelForRole(role, t)}</Tag>,
     },
     {
-      title: "状态",
+      title: t("common.status"),
       dataIndex: "disabled",
       width: 100,
       render: (disabled: boolean) => (
-        <Badge status={disabled ? "default" : "success"} text={disabled ? "禁用" : "启用"} />
+        <Badge status={disabled ? "default" : "success"} text={disabled ? t("common.disabled") : t("common.enabled")} />
       ),
     },
-    { title: "最后登录", dataIndex: "lastLoginAt", width: 180, render: formatDate },
-    { title: "创建时间", dataIndex: "createdAt", width: 180, render: formatDate },
+    { title: t("users.lastLogin"), dataIndex: "lastLoginAt", width: 180, render: (value) => formatDate(value, language) },
+    { title: t("common.createdAt"), dataIndex: "createdAt", width: 180, render: (value) => formatDate(value, language) },
     {
-      title: "操作",
+      title: t("common.actions"),
       key: "actions",
       width: 310,
       render: (_, row) => (
         <div className="table-actions">
-          <Tooltip title="同步账号">
+          <Tooltip title={t("users.syncAccounts")}>
             <Button className="icon-button" icon={<Database size={15} />} onClick={() => onOpenAccounts(row)} />
           </Tooltip>
-          <Tooltip title="编辑">
+          <Tooltip title={t("common.edit")}>
             <Button className="icon-button" icon={<Edit3 size={15} />} onClick={() => onEditUser(row)} />
           </Tooltip>
-          <Tooltip title="重置密码">
+          <Tooltip title={t("users.resetPassword")}>
             <Button className="icon-button" icon={<KeyRound size={15} />} onClick={() => onResetPassword(row)} />
           </Tooltip>
-          <Tooltip title="提交管理员审批">
+          <Tooltip title={t("users.requestApproval")}>
             <Button
               className="icon-button"
               icon={<ShieldCheck size={15} />}
@@ -91,7 +94,7 @@ export function UsersPage({
               onClick={() => onRequestApproval(row)}
             />
           </Tooltip>
-          <Tooltip title="删除">
+          <Tooltip title={t("common.delete")}>
             <Button
               danger
               className="icon-button"
@@ -107,19 +110,19 @@ export function UsersPage({
 
   return (
     <>
-      <h1 className="page-title">用户管理</h1>
+      <h1 className="page-title">{t("users.title")}</h1>
       <div className="summary-grid">
-        <div className="metric"><span>总用户</span><strong>{users.total}</strong></div>
-        <div className="metric"><span>当前页启用</span><strong>{activeVisibleUsers}</strong></div>
-        <div className="metric"><span>当前页管理员</span><strong>{adminVisibleUsers}</strong></div>
-        <div className="metric"><span>待审批</span><strong>{pendingApprovalCount}</strong></div>
+        <div className="metric"><span>{t("users.total")}</span><strong>{users.total}</strong></div>
+        <div className="metric"><span>{t("users.activeCurrentPage")}</span><strong>{activeVisibleUsers}</strong></div>
+        <div className="metric"><span>{t("users.adminCurrentPage")}</span><strong>{adminVisibleUsers}</strong></div>
+        <div className="metric"><span>{t("users.pendingApprovals")}</span><strong>{pendingApprovalCount}</strong></div>
       </div>
       <div className="toolbar">
         <div className="toolbar-left">
           <Input
             allowClear
             prefix={<Search size={15} />}
-            placeholder="搜索邮箱"
+            placeholder={t("users.searchEmail")}
             value={filters.search}
             onChange={(event) => onFiltersChange({ ...filters, search: event.target.value })}
             onPressEnter={() => onLoadUsers(1)}
@@ -127,25 +130,25 @@ export function UsersPage({
           />
           <Select
             allowClear
-            placeholder="角色"
+            placeholder={t("common.role")}
             value={filters.role}
             onChange={(role) => onFiltersChange({ ...filters, role })}
-            options={[{ label: "admin", value: "admin" }, { label: "user", value: "user" }]}
+            options={[{ label: labelForRole("admin", t), value: "admin" }, { label: labelForRole("user", t), value: "user" }]}
             style={{ width: 130 }}
           />
           <Select
             allowClear
-            placeholder="状态"
+            placeholder={t("common.status")}
             value={filters.status}
             onChange={(status) => onFiltersChange({ ...filters, status })}
-            options={[{ label: "启用", value: "active" }, { label: "禁用", value: "disabled" }]}
+            options={[{ label: t("common.enabled"), value: "active" }, { label: t("common.disabled"), value: "disabled" }]}
             style={{ width: 130 }}
           />
-          <Button icon={<Search size={15} />} onClick={() => onLoadUsers(1)}>筛选</Button>
+          <Button icon={<Search size={15} />} onClick={() => onLoadUsers(1)}>{t("common.filter")}</Button>
         </div>
         <div className="toolbar-right">
-          <Button icon={<RefreshCw size={15} />} onClick={() => onLoadUsers()}>刷新</Button>
-          <Button type="primary" icon={<Plus size={15} />} onClick={onCreateUser}>新建用户</Button>
+          <Button icon={<RefreshCw size={15} />} onClick={() => onLoadUsers()}>{t("common.refresh")}</Button>
+          <Button type="primary" icon={<Plus size={15} />} onClick={onCreateUser}>{t("users.create")}</Button>
         </div>
       </div>
       <div className="panel">

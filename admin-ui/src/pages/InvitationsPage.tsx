@@ -1,6 +1,8 @@
 import { Button, Table, Tag } from "antd";
 import type { TableColumnsType } from "antd";
 import { Plus, RefreshCw, XCircle } from "lucide-react";
+import { labelForRole } from "../i18n";
+import { useI18n } from "../i18n-context";
 import type { Invitation, PageResult, Role } from "../types";
 import { formatDate } from "../utils/format";
 
@@ -19,24 +21,25 @@ export function InvitationsPage({
   onLoadInvitations,
   onRevokeInvitation,
 }: InvitationsPageProps) {
+  const { language, t } = useI18n();
   const columns: TableColumnsType<Invitation> = [
-    { title: "邮箱", dataIndex: "email" },
-    { title: "角色", dataIndex: "role", width: 100, render: (role: Role) => <Tag>{role}</Tag> },
-    { title: "创建人", dataIndex: "createdByEmail", width: 220 },
-    { title: "过期时间", dataIndex: "expiresAt", width: 180, render: formatDate },
+    { title: t("common.email"), dataIndex: "email" },
+    { title: t("common.role"), dataIndex: "role", width: 100, render: (role: Role) => <Tag>{labelForRole(role, t)}</Tag> },
+    { title: t("invitations.creator"), dataIndex: "createdByEmail", width: 220 },
+    { title: t("common.expiresAt"), dataIndex: "expiresAt", width: 180, render: (value) => formatDate(value, language) },
     {
-      title: "状态",
+      title: t("common.status"),
       key: "status",
       width: 110,
       render: (_, row) => {
-        if (row.revokedAt) return <Tag>已撤销</Tag>;
-        if (row.acceptedAt) return <Tag color="green">已接受</Tag>;
-        if (new Date(row.expiresAt) <= new Date()) return <Tag color="orange">已过期</Tag>;
-        return <Tag color="blue">待注册</Tag>;
+        if (row.revokedAt) return <Tag>{t("invitations.status.revoked")}</Tag>;
+        if (row.acceptedAt) return <Tag color="green">{t("invitations.status.accepted")}</Tag>;
+        if (new Date(row.expiresAt) <= new Date()) return <Tag color="orange">{t("invitations.status.expired")}</Tag>;
+        return <Tag color="blue">{t("invitations.status.pending")}</Tag>;
       },
     },
     {
-      title: "操作",
+      title: t("common.actions"),
       width: 90,
       render: (_, row) => (
         <Button
@@ -52,12 +55,12 @@ export function InvitationsPage({
 
   return (
     <>
-      <h1 className="page-title">邀请注册</h1>
+      <h1 className="page-title">{t("invitations.title")}</h1>
       <div className="toolbar">
         <div />
         <div className="toolbar-right">
-          <Button icon={<RefreshCw size={15} />} onClick={() => onLoadInvitations()}>刷新</Button>
-          <Button type="primary" icon={<Plus size={15} />} onClick={onCreateInvitation}>创建邀请</Button>
+          <Button icon={<RefreshCw size={15} />} onClick={() => onLoadInvitations()}>{t("common.refresh")}</Button>
+          <Button type="primary" icon={<Plus size={15} />} onClick={onCreateInvitation}>{t("invitations.create")}</Button>
         </div>
       </div>
       <div className="panel">

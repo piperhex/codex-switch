@@ -1,4 +1,6 @@
 import { Modal, Space, Tag, Typography } from "antd";
+import { labelForRole } from "../../i18n";
+import { useI18n } from "../../i18n-context";
 import type { Profile } from "../../types";
 
 interface ProfileModalProps {
@@ -8,12 +10,14 @@ interface ProfileModalProps {
 }
 
 export function ProfileModal({ onClose, open, profile }: ProfileModalProps) {
+  const { t } = useI18n();
+
   return (
-    <Modal title="用户信息" open={open} footer={null} onCancel={onClose}>
+    <Modal title={t("profile.title")} open={open} footer={null} onCancel={onClose}>
       <Space direction="vertical" size={10}>
         <Typography.Text copyable>{profile?.id}</Typography.Text>
         <Typography.Text>{profile?.email}</Typography.Text>
-        <Tag color="blue">{profile?.role}</Tag>
+        {profile?.role && <Tag color="blue">{labelForRole(profile.role, t)}</Tag>}
       </Space>
     </Modal>
   );

@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { App as AntApp, Button, Card, Form, Input, Space } from "antd";
+import { App as AntApp, Button, Card, Form, Input, Segmented, Space } from "antd";
+import { Languages } from "lucide-react";
+import { LANGUAGE_OPTIONS, type Language } from "../i18n";
+import { useI18n } from "../i18n-context";
 import type { AuthTokens } from "../types";
 
 interface LoginViewProps {
@@ -8,6 +11,7 @@ interface LoginViewProps {
 
 export function LoginView({ onAuth }: LoginViewProps) {
   const { message } = AntApp.useApp();
+  const { language, setLanguage, t } = useI18n();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const inviteToken = useMemo(() => new URLSearchParams(window.location.search).get("inviteToken") ?? "", []);
@@ -45,8 +49,21 @@ export function LoginView({ onAuth }: LoginViewProps) {
     <div className="login-screen">
       <Card className="login-card">
         <div className="login-brand">
-          <h1>Codex Switch Admin</h1>
-          <span>后台管理系统</span>
+          <div className="login-brand-row">
+            <div>
+              <h1>Codex Switch Admin</h1>
+              <span>{t("login.subtitle")}</span>
+            </div>
+            <div className="language-control" aria-label={t("language.label")}>
+              <Languages size={15} />
+              <Segmented
+                size="small"
+                value={language}
+                options={[...LANGUAGE_OPTIONS]}
+                onChange={(value) => setLanguage(value as Language)}
+              />
+            </div>
+          </div>
         </div>
         <Form
           form={form}
@@ -54,13 +71,13 @@ export function LoginView({ onAuth }: LoginViewProps) {
           initialValues={{ inviteToken }}
           onFinish={(values) => submit("/auth/login", values)}
         >
-          <Form.Item name="email" label="邮箱" rules={[{ required: true, type: "email" }]}>
+          <Form.Item name="email" label={t("common.email")} rules={[{ required: true, type: "email" }]}>
             <Input autoComplete="email" />
           </Form.Item>
-          <Form.Item name="password" label="密码" rules={[{ required: true, min: 6 }]}>
+          <Form.Item name="password" label={t("common.password")} rules={[{ required: true, min: 6 }]}>
             <Input.Password autoComplete="current-password" />
           </Form.Item>
-          <Form.Item name="inviteToken" label="邀请 Token">
+          <Form.Item name="inviteToken" label={t("login.inviteToken")}>
             <Input />
           </Form.Item>
           <Space style={{ width: "100%", justifyContent: "space-between" }}>
@@ -71,9 +88,9 @@ export function LoginView({ onAuth }: LoginViewProps) {
               }}
               disabled={loading}
             >
-              注册首个/邀请账号
+              {t("login.register")}
             </Button>
-            <Button type="primary" htmlType="submit" loading={loading}>登录</Button>
+            <Button type="primary" htmlType="submit" loading={loading}>{t("login.submit")}</Button>
           </Space>
         </Form>
       </Card>

@@ -1,9 +1,11 @@
 import { useCallback } from "react";
+import type { Translate } from "../i18n";
 import type { AuthTokens } from "../types";
 
 export function useAuthenticatedApi(
   auth: AuthTokens | null,
   saveAuth: (tokens: AuthTokens | null) => void,
+  t: Translate,
 ) {
   const signOut = useCallback(async () => {
     if (auth?.refreshToken) {
@@ -32,7 +34,7 @@ export function useAuthenticatedApi(
       return data as T;
     };
 
-    if (!auth?.accessToken) throw new Error("Not signed in");
+    if (!auth?.accessToken) throw new Error(t("errors.notSignedIn"));
     let response = await requestWithToken(auth.accessToken);
     if (response.status === 401 && auth.refreshToken) {
       const refreshResponse = await fetch("/auth/refresh", {
@@ -42,14 +44,14 @@ export function useAuthenticatedApi(
       });
       if (!refreshResponse.ok) {
         saveAuth(null);
-        throw new Error("Session expired");
+        throw new Error(t("errors.sessionExpired"));
       }
       const refreshed = await refreshResponse.json() as AuthTokens;
       saveAuth(refreshed);
       response = await requestWithToken(refreshed.accessToken);
     }
     return parse(response);
-  }, [auth, saveAuth]);
+  }, [auth, saveAuth, t]);
 
   return { api, signOut };
 }

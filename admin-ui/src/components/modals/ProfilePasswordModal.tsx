@@ -1,4 +1,5 @@
 import { App as AntApp, Form, Input, Modal } from "antd";
+import { useI18n } from "../../i18n-context";
 import type { ApiClient } from "../../types";
 
 interface ProfilePasswordModalProps {
@@ -9,11 +10,12 @@ interface ProfilePasswordModalProps {
 
 export function ProfilePasswordModal({ api, onClose, open }: ProfilePasswordModalProps) {
   const { message } = AntApp.useApp();
+  const { t } = useI18n();
   const [form] = Form.useForm();
 
   return (
     <Modal
-      title="修改密码"
+      title={t("profilePassword.title")}
       open={open}
       onCancel={() => {
         onClose();
@@ -30,15 +32,15 @@ export function ProfilePasswordModal({ api, onClose, open }: ProfilePasswordModa
             method: "PATCH",
             body: JSON.stringify(values),
           });
-          message.success("已修改");
+          message.success(t("common.changed"));
           onClose();
           form.resetFields();
         }}
       >
-        <Form.Item name="currentPassword" label="当前密码" rules={[{ required: true, min: 6 }]}>
+        <Form.Item name="currentPassword" label={t("profilePassword.currentPassword")} rules={[{ required: true, min: 6 }]}>
           <Input.Password autoComplete="current-password" />
         </Form.Item>
-        <Form.Item name="newPassword" label="新密码" rules={[{ required: true, min: 8 }]}>
+        <Form.Item name="newPassword" label={t("profilePassword.newPassword")} rules={[{ required: true, min: 8 }]}>
           <Input.Password autoComplete="new-password" />
         </Form.Item>
       </Form>

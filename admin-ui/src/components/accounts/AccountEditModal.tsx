@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { App as AntApp, Form, Input, Modal, Switch } from "antd";
+import { useI18n } from "../../i18n-context";
 import type { ApiClient, SyncAccount, UserRow } from "../../types";
 
 interface AccountEditModalProps {
@@ -12,6 +13,7 @@ interface AccountEditModalProps {
 
 export function AccountEditModal({ account, api, onClose, onSaved, user }: AccountEditModalProps) {
   const { message } = AntApp.useApp();
+  const { t } = useI18n();
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -21,7 +23,7 @@ export function AccountEditModal({ account, api, onClose, onSaved, user }: Accou
 
   return (
     <Modal
-      title="编辑同步账号"
+      title={t("accounts.editTitle")}
       open={Boolean(account)}
       onCancel={onClose}
       onOk={() => form.submit()}
@@ -36,27 +38,27 @@ export function AccountEditModal({ account, api, onClose, onSaved, user }: Accou
             method: "PATCH",
             body: JSON.stringify(values),
           });
-          message.success("已更新");
+          message.success(t("common.updated"));
           onClose();
           await onSaved(user);
         }}
       >
-        <Form.Item name="email" label="邮箱" rules={[{ required: true }]}>
+        <Form.Item name="email" label={t("common.email")} rules={[{ required: true }]}>
           <Input />
         </Form.Item>
-        <Form.Item name="note" label="备注">
+        <Form.Item name="note" label={t("common.note")}>
           <Input />
         </Form.Item>
-        <Form.Item name="plan" label="套餐" rules={[{ required: true }]}>
+        <Form.Item name="plan" label={t("common.plan")} rules={[{ required: true }]}>
           <Input />
         </Form.Item>
-        <Form.Item name="expiresAt" label="到期时间">
+        <Form.Item name="expiresAt" label={t("common.expiresAt")}>
           <Input />
         </Form.Item>
-        <Form.Item name="accountId" label="Provider Account ID">
+        <Form.Item name="accountId" label={t("accounts.providerAccountId")}>
           <Input />
         </Form.Item>
-        <Form.Item name="active" label="当前账号" valuePropName="checked">
+        <Form.Item name="active" label={t("accounts.currentAccount")} valuePropName="checked">
           <Switch />
         </Form.Item>
       </Form>

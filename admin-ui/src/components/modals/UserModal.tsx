@@ -1,5 +1,7 @@
 import { useEffect } from "react";
 import { App as AntApp, Form, Input, Modal, Select, Switch } from "antd";
+import { labelForRole } from "../../i18n";
+import { useI18n } from "../../i18n-context";
 import type { ApiClient, Role, UserRow } from "../../types";
 
 interface UserModalProps {
@@ -13,6 +15,7 @@ interface UserModalProps {
 
 export function UserModal({ api, currentPage, editingUser, open, onClose, onSaved }: UserModalProps) {
   const { message } = AntApp.useApp();
+  const { t } = useI18n();
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -27,7 +30,7 @@ export function UserModal({ api, currentPage, editingUser, open, onClose, onSave
 
   return (
     <Modal
-      title={editingUser ? "编辑用户" : "新建用户"}
+      title={editingUser ? t("userModal.editTitle") : t("userModal.createTitle")}
       open={open}
       onCancel={onClose}
       onOk={() => form.submit()}
@@ -42,30 +45,30 @@ export function UserModal({ api, currentPage, editingUser, open, onClose, onSave
               method: "PATCH",
               body: JSON.stringify(values),
             });
-            message.success("已更新");
+            message.success(t("common.updated"));
           } else {
             await api("/admin/api/users", {
               method: "POST",
               body: JSON.stringify(values),
             });
-            message.success("已创建");
+            message.success(t("common.created"));
           }
           onClose();
           await onSaved(editingUser ? currentPage : 1);
         }}
       >
-        <Form.Item name="email" label="邮箱" rules={[{ required: true, type: "email" }]}>
+        <Form.Item name="email" label={t("common.email")} rules={[{ required: true, type: "email" }]}>
           <Input autoComplete="email" />
         </Form.Item>
         {!editingUser && (
-          <Form.Item name="password" label="密码" rules={[{ required: true, min: 8 }]}>
+          <Form.Item name="password" label={t("common.password")} rules={[{ required: true, min: 8 }]}>
             <Input.Password autoComplete="new-password" />
           </Form.Item>
         )}
-        <Form.Item name="role" label="角色" rules={[{ required: true }]}>
-          <Select options={[{ label: "user", value: "user" }, { label: "admin", value: "admin" }]} />
+        <Form.Item name="role" label={t("common.role")} rules={[{ required: true }]}>
+          <Select options={[{ label: labelForRole("user", t), value: "user" }, { label: labelForRole("admin", t), value: "admin" }]} />
         </Form.Item>
-        <Form.Item name="disabled" label="禁用" valuePropName="checked">
+        <Form.Item name="disabled" label={t("userModal.disabled")} valuePropName="checked">
           <Switch />
         </Form.Item>
       </Form>
