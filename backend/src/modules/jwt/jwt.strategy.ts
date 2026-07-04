@@ -2,6 +2,7 @@ import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { MODULE_OPTIONS_TOKEN } from '@/config/configurable';
+import { getKongJwtSecret } from '@/config/auth-secrets';
 import type { ConfigModuleOptions } from '@/config/config.types';
 import { UserService } from '@/modules/user/user.service';
 import type { AuthUser } from '@/common/decorators/user.decorator';
@@ -22,7 +23,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: config.KONG_JWT_SECRET ?? 'change-me-kong-jwt-secret',
+      secretOrKey: getKongJwtSecret(config),
     });
   }
 

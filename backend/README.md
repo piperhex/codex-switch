@@ -26,12 +26,17 @@ The default Docker Compose file does not publish PostgreSQL, Redis, or the backe
 
 This backend does not run Kong. Deploy it as an upstream service behind your existing Kong gateway.
 
-Set these backend env values to match the JWT credential configured in Kong:
+Generate independent secrets before configuring the backend:
 
-```env
-KONG_JWT_KEY=codex-switch
-KONG_JWT_SECRET=change-me-kong-jwt-secret
+```bash
+export KONG_JWT_SECRET="$(openssl rand -hex 32)"
+export JWT_REFRESH_SECRET="$(openssl rand -hex 32)"
 ```
+
+Persist both exported values in the backend environment, set `KONG_JWT_KEY=codex-switch`,
+and use the same `KONG_JWT_SECRET` for the Kong JWT credential.
+
+Production startup fails if either secret is missing or still uses the development default.
 
 The backend signs access tokens with `iss=KONG_JWT_KEY`. Kong's JWT plugin should use `key_claim_name=iss` and `claims_to_verify=exp`.
 
@@ -43,7 +48,7 @@ curl -s -X POST http://KONG_ADMIN:8001/consumers \
 
 curl -s -X POST http://KONG_ADMIN:8001/consumers/codex-switch-client/jwt \
   --data key=codex-switch \
-  --data secret=change-me-kong-jwt-secret \
+  --data secret="$KONG_JWT_SECRET" \
   --data algorithm=HS256
 ```
 

@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { JwtService, type JwtSignOptions } from '@nestjs/jwt';
 import { IsNull, Repository } from 'typeorm';
 import { MODULE_OPTIONS_TOKEN } from '@/config/configurable';
+import { getKongJwtSecret, getRefreshSecret } from '@/config/auth-secrets';
 import type { ConfigModuleOptions } from '@/config/config.types';
 import { UserService } from '@/modules/user/user.service';
 import { UserEntity } from '@/modules/user/entities/user.entity';
@@ -90,7 +91,7 @@ export class AuthService {
         iss: this.config.KONG_JWT_KEY ?? 'codex-switch',
       },
       {
-        secret: this.config.KONG_JWT_SECRET ?? 'change-me-kong-jwt-secret',
+        secret: getKongJwtSecret(this.config),
         expiresIn: (this.config.JWT_ACCESS_EXPIRES ?? '15m') as JwtSignOptions['expiresIn'],
       },
     );
@@ -112,7 +113,7 @@ export class AuthService {
   }
 
   private get refreshSecret() {
-    return this.config.JWT_REFRESH_SECRET ?? 'replace-with-refresh-secret';
+    return getRefreshSecret(this.config);
   }
 
   private get refreshTtlSeconds() {

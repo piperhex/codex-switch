@@ -29,5 +29,6 @@ consumers:
   - username: codex-switch-client
     jwt_secrets:
       - key: codex-switch
-        secret: change-me-kong-jwt-secret
+        # Replace this before importing; it must match backend KONG_JWT_SECRET.
+        secret: REPLACE_WITH_A_RANDOM_SECRET
         algorithm: HS256
