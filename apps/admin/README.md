@@ -24,6 +24,21 @@ The default Docker Compose file does not publish PostgreSQL, Redis, or the backe
 
 If production uses `POSTGRES_DB_SYNCHRONIZE=false`, apply `sql/20260704-admin-management.sql` before using the expanded admin console.
 
+## Docker Troubleshooting
+
+`password authentication failed for user "codex_switch"` means the backend password does not match the PostgreSQL user's current password. PostgreSQL only applies `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB` when the data volume is first initialized, so changing `.env` later does not update an existing `codex-switch-postgres` volume.
+
+For a disposable local database, recreate the volume:
+
+```bash
+docker compose down -v
+docker compose up -d --build
+```
+
+For a database you need to keep, update the PostgreSQL user password inside the existing database instead of deleting the volume.
+
+`This Redis server's default user does not require a password, but a password was supplied` means `REDIS_PASSWORD` is set for the backend while the Redis server was started without `--requirepass`. The bundled compose file starts Redis with `--requirepass` automatically when `REDIS_PASSWORD` is non-empty.
+
 ## Existing Kong Integration
 
 This backend does not run Kong. Deploy it as an upstream service behind your existing Kong gateway.

@@ -1,10 +1,8 @@
 services:
   postgres:
     image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: codex_switch
-      POSTGRES_PASSWORD: codex_switch
-      POSTGRES_DB: codex_switch
+    env_file:
+      - .env
     volumes:
       - codex-switch-postgres:/var/lib/postgresql/data
     networks:
@@ -12,6 +10,16 @@ services:
 
   redis:
     image: redis:7-alpine
+    env_file:
+      - .env
+    command:
+      - sh
+      - -c
+      - |
+        if [ -n "$${REDIS_PASSWORD:-}" ]; then
+          exec redis-server --requirepass "$${REDIS_PASSWORD}"
+        fi
+        exec redis-server
     networks:
       - backend-internal
 
