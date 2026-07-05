@@ -17,7 +17,8 @@ ENV NODE_ENV=production
 COPY package*.json ./
 COPY apps/admin/package*.json ./apps/admin/
 RUN npm ci --omit=dev --workspace @codex-switch/backend --include-workspace-root --ignore-scripts
-COPY --from=build /app/apps/admin/dist ./dist
-COPY --from=build /app/apps/admin/public ./public
+COPY --from=build /app/apps/admin/dist ./apps/admin/dist
+COPY --from=build /app/apps/admin/public ./apps/admin/public
+WORKDIR /app/apps/admin
 EXPOSE 8080
 CMD ["node", "dist/main.js"]
