@@ -38,7 +38,7 @@ jobs:
           script: |
             const { owner, repo } = context.repo;
             const tag = process.env.TAG_NAME;
-            const boilerplate = "Windows and macOS installers are attached below.";
+            const boilerplate = "Windows, macOS, and Linux installers are attached below.";
 
             try {
               const { data: release } = await github.rest.repos.getReleaseByTag({
@@ -93,6 +93,9 @@ jobs:
           - name: macos-x86_64
             platform: macos-latest
             args: "--target x86_64-apple-darwin"
+          - name: ubuntu-x86_64
+            platform: ubuntu-22.04
+            args: ""
           - name: windows-x86_64
             platform: windows-latest
             args: ""
@@ -102,6 +105,12 @@ jobs:
         uses: actions/checkout@v7
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+
+      - name: Install Linux build dependencies
+        if: startsWith(matrix.name, 'ubuntu')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils
 
       - name: Setup Node.js
         uses: actions/setup-node@v6

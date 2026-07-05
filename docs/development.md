@@ -8,6 +8,13 @@ Install Node.js, npm, the latest stable Rust toolchain, and the Tauri 2 dependen
 npm install
 ```
 
+Ubuntu needs the Linux WebKitGTK/AppIndicator toolchain before `npm run dev:app`, `npm run check`, or `npm run build:app`:
+
+```bash
+sudo apt update
+sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils
+```
+
 Dependency versions are locked by the root `package-lock.json` and `apps/desktop/src-tauri/Cargo.lock`. Include both lockfile changes whenever a dependency update is intentional.
 
 ## Common Commands
@@ -58,7 +65,7 @@ The `.local-codex/` directory may contain credentials. Confirm that it cannot be
 
 `npm run release` and `npm run release-beta` require a clean working tree. The script updates `package.json`, `package-lock.json`, `apps/desktop/package.json`, and `apps/desktop/src-tauri/tauri.conf.json`, commits the version bump when needed, creates an annotated tag, then pushes both the current branch and tag to `origin`.
 
-The GitHub Actions release workflow starts from `v*` tags or a manual run with an existing tag. It creates or finds the GitHub Release, generates release notes when needed, runs `npm run check` in each build job, and uploads Windows x64 plus macOS Apple Silicon and Intel artifacts.
+The GitHub Actions release workflow starts from `v*` tags or a manual run with an existing tag. It creates or finds the GitHub Release, generates release notes when needed, runs `npm run check` in each build job, and uploads Windows x64, Ubuntu/Linux x64, and macOS Apple Silicon and Intel artifacts.
 
 ## Adding a Feature
 

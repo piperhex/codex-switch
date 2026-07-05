@@ -42,6 +42,13 @@ Codex Switch is a local-first Tauri 2 desktop application for signing in to, sto
 - WebView2 on Windows (already installed on most modern Windows systems)
 - Xcode Command Line Tools on macOS
 
+On Ubuntu, install the Tauri Linux build dependencies first:
+
+```bash
+sudo apt update
+sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils
+```
+
 Install dependencies and start the desktop application:
 
 ```powershell
@@ -74,6 +81,8 @@ On macOS, build a universal Apple Silicon + Intel bundle:
 npm run build:app:mac
 ```
 
+On Ubuntu, `npm run build:app` produces `.deb` and AppImage bundles.
+
 Run all frontend and backend checks:
 
 ```powershell
@@ -93,7 +102,7 @@ npm run release-beta
 
 You can pass an exact version or tag with `npm run release -- v0.2.0` or `npm run release-beta -- v0.2.0-beta.1`. Explicit versions are also synced into the version files before the tag is created.
 
-The release workflow builds Windows x64 plus macOS Apple Silicon and Intel artifacts, then uploads them to the matching GitHub Release. Release notes are generated automatically from the commits and pull requests included in the tag diff, with the installer download note kept at the top. Tags containing a prerelease suffix, such as `-beta.0`, are published as GitHub prereleases. The workflow can also be run manually from Actions by entering an existing tag.
+The release workflow builds Windows x64, Ubuntu/Linux x64, and macOS Apple Silicon and Intel artifacts, then uploads them to the matching GitHub Release. Release notes are generated automatically from the commits and pull requests included in the tag diff, with the installer download note kept at the top. Tags containing a prerelease suffix, such as `-beta.0`, are published as GitHub prereleases. The workflow can also be run manually from Actions by entering an existing tag.
 
 ## Usage
 
