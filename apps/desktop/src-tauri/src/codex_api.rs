@@ -61,10 +61,7 @@ pub(crate) fn refresh_tokens(client: &Client, auth: &mut Value) -> Result<(), St
     }
     auth.as_object_mut()
         .ok_or_else(|| "auth.json 顶层格式无效".to_string())?
-        .insert(
-            "last_refresh".to_string(),
-            Value::String(Utc::now().to_rfc3339()),
-        );
+        .remove("last_refresh");
     Ok(())
 }
 

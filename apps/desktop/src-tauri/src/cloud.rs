@@ -7,11 +7,12 @@ use serde_json::{json, Value};
 use tauri::{Emitter, Manager, Runtime};
 
 use crate::{
-    auth::{account_fields, should_replace_auth_by_refresh_time, validate_auth},
+    auth::{account_fields, validate_auth},
     models::{AppSettings, CloudAccountPayload, CloudAuthState, CloudSyncResult},
     storage::{
-        expiration_path, load_expiration, load_note, load_usage, managed_auth_path, note_path,
-        read_app_settings, read_json, read_state, resolve_paths, save_expiration, save_note,
+        expiration_path, load_expiration, load_note, load_or_init_last_modified, load_usage,
+        managed_auth_path, note_path, parse_last_modified, read_app_settings, read_json,
+        read_state, resolve_paths, save_account_last_modified, save_expiration, save_note,
         save_usage, sync_current_into_store, usage_path, write_app_settings, write_json_atomic,
         write_json_if_changed, write_state,
     },
@@ -230,11 +231,13 @@ fn collect_local_accounts<R: Runtime>(
         let auth = read_json(&auth_path)?;
         validate_auth(&auth)?;
         let (email, plan, account_id, id) = account_fields(&auth)?;
+        let last_modified_at = load_or_init_last_modified(&paths, &id)?.to_rfc3339();
         accounts.push(CloudAccountPayload {
             active: active_id.as_deref() == Some(&id),
             usage: load_usage(&usage_path(&paths, &id)),
             note: load_note(&note_path(&paths, &id)),
             expires_at: load_expiration(&expiration_path(&paths, &id)),
+            last_modified_at,
             id,
             email,
             plan,
@@ -259,7 +262,7 @@ fn collect_local_account<R: Runtime>(
 fn apply_remote_account<R: Runtime>(
     app: &tauri::AppHandle<R>,
     account: &CloudAccountPayload,
-) -> Result<(), String> {
+) -> Result<bool, String> {
     validate_auth(&account.auth)?;
     let (_, _, _, computed_id) = account_fields(&account.auth)?;
     if computed_id != account.id {
@@ -271,21 +274,42 @@ fn apply_remote_account<R: Runtime>(
     let paths = resolve_paths(app)?;
     let auth_path = managed_auth_path(&paths, &account.id);
     let local_auth = read_json(&auth_path).ok();
-    let account_auth =
-        if should_replace_auth_by_refresh_time(&account.id, local_auth.as_ref(), &account.auth) {
-            write_json_if_changed(&auth_path, &account.auth)?;
-            account.auth.clone()
-        } else {
-            local_auth.unwrap_or_else(|| account.auth.clone())
+    let local_usable = local_auth.as_ref().is_some_and(|auth| {
+        validate_auth(auth).is_ok()
+            && matches!(account_fields(auth), Ok((_, _, _, local_id)) if local_id == account.id)
+    });
+    let local_modified_at = if local_usable {
+        Some(load_or_init_last_modified(&paths, &account.id)?)
+    } else {
+        None
+    };
+    let remote_modified_at = parse_last_modified(&account.last_modified_at);
+    let should_apply_remote = !local_usable
+        || match (local_modified_at.as_ref(), remote_modified_at.as_ref()) {
+            (Some(local), Some(remote)) => remote > local,
+            (None, _) => true,
+            (Some(_), None) => false,
         };
-    save_note(&note_path(&paths, &account.id), &account.note)?;
-    save_expiration(&expiration_path(&paths, &account.id), &account.expires_at)?;
-    save_usage(&usage_path(&paths, &account.id), &account.usage)?;
+
+    let account_auth = if should_apply_remote {
+        write_json_if_changed(&auth_path, &account.auth)?;
+        save_note(&note_path(&paths, &account.id), &account.note)?;
+        save_expiration(&expiration_path(&paths, &account.id), &account.expires_at)?;
+        save_usage(&usage_path(&paths, &account.id), &account.usage)?;
+        save_account_last_modified(
+            &paths,
+            &account.id,
+            remote_modified_at.unwrap_or_else(Utc::now),
+        )?;
+        account.auth.clone()
+    } else {
+        local_auth.unwrap_or_else(|| account.auth.clone())
+    };
 
     let active_account_id = read_state(&paths).active_account_id;
-    if active_account_id.as_deref() == Some(&account.id) {
+    if should_apply_remote && active_account_id.as_deref() == Some(&account.id) {
         write_json_if_changed(&paths.current_auth, &account_auth)?;
-    } else if account.active && active_account_id.is_none() {
+    } else if should_apply_remote && account.active && active_account_id.is_none() {
         write_json_if_changed(&paths.current_auth, &account_auth)?;
         let mut state = read_state(&paths);
         if state.active_provider_id.is_some() {
@@ -295,7 +319,7 @@ fn apply_remote_account<R: Runtime>(
         state.active_provider_id = None;
         write_state(&paths, &state)?;
     }
-    Ok(())
+    Ok(should_apply_remote)
 }
 
 fn get_remote_accounts(
@@ -327,19 +351,31 @@ fn put_remote_accounts<R: Runtime>(
     credentials: &mut CloudCredentials,
 ) -> Result<usize, String> {
     let accounts = collect_local_accounts(app)?;
+    for account in &accounts {
+        upsert_remote_account_payload(client, settings, credentials, account)?;
+    }
+    settings.cloud_last_sync_at = Some(Utc::now().to_rfc3339());
+    Ok(accounts.len())
+}
+
+fn upsert_remote_account_payload(
+    client: &Client,
+    settings: &mut AppSettings,
+    credentials: &mut CloudCredentials,
+    account: &CloudAccountPayload,
+) -> Result<(), String> {
     let response = cloud_request(
         client,
         settings,
         credentials,
         Method::PUT,
-        "/sync/accounts",
-        Some(json!({ "accounts": accounts })),
+        &format!("/sync/accounts/{}", account.id),
+        Some(serde_json::to_value(account).map_err(|error| error.to_string())?),
     )?;
     if !response.status().is_success() {
         return Err(response_error("Cloud account upload", response));
     }
-    settings.cloud_last_sync_at = Some(Utc::now().to_rfc3339());
-    Ok(accounts.len())
+    Ok(())
 }
 
 fn put_remote_account<R: Runtime>(
@@ -350,17 +386,7 @@ fn put_remote_account<R: Runtime>(
     id: &str,
 ) -> Result<(), String> {
     let account = collect_local_account(app, id)?;
-    let response = cloud_request(
-        client,
-        settings,
-        credentials,
-        Method::PUT,
-        &format!("/sync/accounts/{id}"),
-        Some(serde_json::to_value(account).map_err(|error| error.to_string())?),
-    )?;
-    if !response.status().is_success() {
-        return Err(response_error("Cloud account upload", response));
-    }
+    upsert_remote_account_payload(client, settings, credentials, &account)?;
     settings.cloud_last_sync_at = Some(Utc::now().to_rfc3339());
     Ok(())
 }
@@ -553,8 +579,8 @@ pub(crate) async fn cloud_sync_accounts<R: Runtime>(
         let mut downloaded = 0;
         for account in get_remote_accounts(&client, &mut settings, &mut credentials)? {
             let is_new = !local_ids.contains(&account.id);
-            apply_remote_account(&app, &account)?;
-            if is_new {
+            let applied = apply_remote_account(&app, &account)?;
+            if is_new || applied {
                 downloaded += 1;
             }
         }

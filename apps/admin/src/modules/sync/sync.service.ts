@@ -32,20 +32,29 @@ export class SyncService {
   async replace(ownerId: string, dto: PutSyncAccountsDto) {
     await this.dataSource.transaction(async (manager) => {
       const repo = manager.getRepository(SyncedAccountEntity);
-      await repo.delete({ ownerId });
       if (!dto.accounts.length) return;
-      await repo.save(dto.accounts.map((account) => repo.create({
-        ownerId,
-        accountId: account.id,
-        email: account.email,
-        note: account.note ?? '',
-        expiresAt: account.expiresAt ?? '',
-        plan: account.plan,
-        codexAccountId: account.accountId ?? null,
-        active: account.active,
-        usage: account.usage ?? {},
-        auth: account.auth,
-      })));
+      for (const account of dto.accounts) {
+        const existing = await repo.findOne({ where: { ownerId, accountId: account.id } });
+        const incomingLastModifiedAt = this.parseLastModifiedAt(account.lastModifiedAt);
+        if (!this.shouldApplyIncoming(existing, incomingLastModifiedAt)) continue;
+        if (account.active) {
+          await repo.update({ ownerId }, { active: false });
+        }
+        await repo.save(repo.create({
+          id: existing?.id,
+          ownerId,
+          accountId: account.id,
+          email: account.email,
+          note: account.note ?? '',
+          expiresAt: account.expiresAt ?? '',
+          plan: account.plan,
+          codexAccountId: account.accountId ?? null,
+          active: account.active,
+          usage: account.usage ?? {},
+          lastModifiedAt: incomingLastModifiedAt,
+          auth: account.auth,
+        }));
+      }
     });
     await this.redis.del(this.cacheKey(ownerId));
     return { count: dto.accounts.length };
@@ -57,10 +66,12 @@ export class SyncService {
     }
     await this.dataSource.transaction(async (manager) => {
       const repo = manager.getRepository(SyncedAccountEntity);
+      const existing = await repo.findOne({ where: { ownerId, accountId } });
+      const incomingLastModifiedAt = this.parseLastModifiedAt(account.lastModifiedAt);
+      if (!this.shouldApplyIncoming(existing, incomingLastModifiedAt)) return;
       if (account.active) {
         await repo.update({ ownerId }, { active: false });
       }
-      const existing = await repo.findOne({ where: { ownerId, accountId } });
       await repo.save(repo.create({
         id: existing?.id,
         ownerId,
@@ -72,6 +83,7 @@ export class SyncService {
         codexAccountId: account.accountId ?? null,
         active: account.active,
         usage: account.usage ?? {},
+        lastModifiedAt: incomingLastModifiedAt,
         auth: account.auth,
       }));
     });
@@ -102,6 +114,11 @@ export class SyncService {
     if (patch.accountId !== undefined) account.codexAccountId = patch.accountId ?? null;
     if (patch.active !== undefined) account.active = patch.active;
     if (patch.usage !== undefined) account.usage = patch.usage ?? {};
+    if (patch.lastModifiedAt !== undefined) {
+      account.lastModifiedAt = this.parseLastModifiedAt(patch.lastModifiedAt);
+    } else if (Object.keys(patch).some((key) => key !== 'lastModifiedAt')) {
+      account.lastModifiedAt = new Date();
+    }
     if (patch.auth !== undefined) account.auth = patch.auth;
     const saved = await this.accounts.save(account);
     await this.redis.del(this.cacheKey(ownerId));
@@ -118,8 +135,35 @@ export class SyncService {
       accountId: row.codexAccountId,
       active: row.active,
       usage: row.usage,
+      lastModifiedAt: this.formatLastModifiedAt(row.lastModifiedAt ?? row.updatedAt),
       auth: row.auth,
     };
+  }
+
+  private parseLastModifiedAt(value: string | undefined) {
+    if (!value?.trim()) return new Date();
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+  }
+
+  private shouldApplyIncoming(existing: SyncedAccountEntity | null, incomingLastModifiedAt: Date) {
+    if (!existing) return true;
+    const existingLastModifiedAt = this.existingLastModifiedAt(existing);
+    return incomingLastModifiedAt > existingLastModifiedAt;
+  }
+
+  private existingLastModifiedAt(account: SyncedAccountEntity) {
+    return this.parseDateOrEpoch(account.lastModifiedAt ?? account.updatedAt);
+  }
+
+  private parseDateOrEpoch(value: Date | string | undefined) {
+    if (!value) return new Date(0);
+    const parsed = value instanceof Date ? value : new Date(value);
+    return Number.isNaN(parsed.getTime()) ? new Date(0) : parsed;
+  }
+
+  private formatLastModifiedAt(value: Date | string | undefined) {
+    return this.parseDateOrEpoch(value).toISOString();
   }
 
   private cacheKey(ownerId: string) {

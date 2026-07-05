@@ -26,6 +26,7 @@ export function makeAccount(overrides: Partial<SyncAccountDto> = {}): SyncAccoun
     accountId: 'codex-1',
     active: true,
     usage: { used: 10 },
+    lastModifiedAt: '2026-07-05T00:00:00.000Z',
     auth: { token: 'secret' },
     ...overrides,
   };

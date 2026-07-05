@@ -3,6 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use chrono::{DateTime, Utc};
 use serde_json::Value;
 use tauri::{Manager, Runtime};
 
@@ -136,6 +137,10 @@ pub(crate) fn expiration_path(paths: &Paths, id: &str) -> PathBuf {
     account_dir(paths, id).join("expires-at.txt")
 }
 
+pub(crate) fn last_modified_path(paths: &Paths, id: &str) -> PathBuf {
+    account_dir(paths, id).join("last-modified-at.txt")
+}
+
 pub(crate) fn load_note(path: &Path) -> String {
     fs::read_to_string(path).unwrap_or_default()
 }
@@ -167,6 +172,70 @@ pub(crate) fn save_note(path: &Path, note: &str) -> Result<(), String> {
 
 pub(crate) fn save_expiration(path: &Path, expires_at: &str) -> Result<(), String> {
     save_note(path, expires_at)
+}
+
+pub(crate) fn parse_last_modified(value: &str) -> Option<DateTime<Utc>> {
+    DateTime::parse_from_rfc3339(value.trim())
+        .ok()
+        .map(|value| value.with_timezone(&Utc))
+}
+
+pub(crate) fn load_last_modified(path: &Path) -> Option<DateTime<Utc>> {
+    parse_last_modified(&fs::read_to_string(path).ok()?)
+}
+
+pub(crate) fn save_last_modified(path: &Path, modified_at: DateTime<Utc>) -> Result<(), String> {
+    save_note(path, &modified_at.to_rfc3339())
+}
+
+pub(crate) fn save_account_last_modified(
+    paths: &Paths,
+    id: &str,
+    modified_at: DateTime<Utc>,
+) -> Result<(), String> {
+    save_last_modified(&last_modified_path(paths, id), modified_at)
+}
+
+fn latest_file_modified(paths: &Paths, id: &str) -> Option<DateTime<Utc>> {
+    [
+        managed_auth_path(paths, id),
+        note_path(paths, id),
+        expiration_path(paths, id),
+        usage_path(paths, id),
+    ]
+    .into_iter()
+    .filter_map(|path| fs::metadata(path).ok()?.modified().ok())
+    .map(DateTime::<Utc>::from)
+    .max()
+}
+
+pub(crate) fn load_or_init_last_modified(paths: &Paths, id: &str) -> Result<DateTime<Utc>, String> {
+    let path = last_modified_path(paths, id);
+    if let Some(modified_at) = load_last_modified(&path) {
+        return Ok(modified_at);
+    }
+
+    let modified_at = latest_file_modified(paths, id).unwrap_or_else(Utc::now);
+    save_last_modified(&path, modified_at)?;
+    Ok(modified_at)
+}
+
+pub(crate) fn touch_account_modified(paths: &Paths, id: &str) -> Result<DateTime<Utc>, String> {
+    let modified_at = Utc::now();
+    save_account_last_modified(paths, id, modified_at)?;
+    Ok(modified_at)
+}
+
+pub(crate) fn write_managed_auth_if_changed(
+    paths: &Paths,
+    id: &str,
+    auth: &Value,
+) -> Result<bool, String> {
+    let changed = write_json_if_changed(&managed_auth_path(paths, id), auth)?;
+    if changed {
+        touch_account_modified(paths, id)?;
+    }
+    Ok(changed)
 }
 
 pub(crate) fn read_state(paths: &Paths) -> ManagerStateFile {
@@ -216,7 +285,7 @@ pub(crate) fn import_value<R: Runtime>(
     validate_auth(&auth)?;
     let paths = resolve_paths(app)?;
     let (_, _, _, id) = account_fields(&auth)?;
-    write_json_if_changed(&managed_auth_path(&paths, &id), &auth)?;
+    write_managed_auth_if_changed(&paths, &id, &auth)?;
     if activate {
         write_json_if_changed(&paths.current_auth, &auth)?;
         let mut state = read_state(&paths);

@@ -40,6 +40,11 @@ export class SyncAccountDto {
   @IsObject()
   usage: Record<string, unknown>;
 
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  lastModifiedAt?: string;
+
   @IsObject()
   auth: Record<string, unknown>;
 }

@@ -16,11 +16,12 @@ use tauri::{Emitter, Runtime};
 use zip::{write::SimpleFileOptions, CompressionMethod, ZipArchive, ZipWriter};
 
 use crate::{
-    auth::{account_fields, should_replace_auth_by_refresh_time, validate_auth},
+    auth::{account_fields, validate_auth},
     models::UsageSummary,
     storage::{
-        expiration_path, load_expiration, load_note, load_usage, managed_auth_path, note_path,
-        read_json, read_state, resolve_paths, save_expiration, save_note, save_usage,
+        expiration_path, load_expiration, load_note, load_or_init_last_modified, load_usage,
+        managed_auth_path, note_path, parse_last_modified, read_json, read_state, resolve_paths,
+        save_account_last_modified, save_expiration, save_note, save_usage,
         sync_current_into_store, usage_path, write_json_if_changed, write_state,
     },
 };
@@ -47,6 +48,8 @@ struct AccountArchiveEntry {
     note: String,
     expires_at: String,
     usage: UsageSummary,
+    #[serde(default)]
+    last_modified_at: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -116,10 +119,12 @@ fn collect_accounts<R: Runtime>(
             let auth = read_json(&auth_path)?;
             validate_auth(&auth)?;
             let (_, _, _, id) = account_fields(&auth)?;
+            let last_modified_at = Some(load_or_init_last_modified(&paths, &id)?.to_rfc3339());
             accounts.push(AccountArchiveEntry {
                 note: load_note(&note_path(&paths, &id)),
                 expires_at: load_expiration(&expiration_path(&paths, &id)),
                 usage: load_usage(&usage_path(&paths, &id)),
+                last_modified_at,
                 id,
                 auth,
             });
@@ -170,17 +175,39 @@ fn apply_archive<R: Runtime>(
     for account in validated_accounts {
         let auth_path = managed_auth_path(&paths, &account.id);
         let local_auth = read_json(&auth_path).ok();
-        let account_auth =
-            if should_replace_auth_by_refresh_time(&account.id, local_auth.as_ref(), &account.auth)
-            {
-                write_json_if_changed(&auth_path, &account.auth)?;
-                account.auth.clone()
-            } else {
-                local_auth.unwrap_or_else(|| account.auth.clone())
+        let local_usable = local_auth.as_ref().is_some_and(|auth| {
+            validate_auth(auth).is_ok()
+                && matches!(account_fields(auth), Ok((_, _, _, local_id)) if local_id == account.id)
+        });
+        let local_modified_at = if local_usable {
+            Some(load_or_init_last_modified(&paths, &account.id)?)
+        } else {
+            None
+        };
+        let archive_modified_at = account
+            .last_modified_at
+            .as_deref()
+            .and_then(parse_last_modified);
+        let should_apply_archive = !local_usable
+            || match (local_modified_at.as_ref(), archive_modified_at.as_ref()) {
+                (Some(local), Some(archive)) => archive > local,
+                (None, _) => true,
+                (Some(_), None) => false,
             };
-        save_note(&note_path(&paths, &account.id), &account.note)?;
-        save_expiration(&expiration_path(&paths, &account.id), &account.expires_at)?;
-        save_usage(&usage_path(&paths, &account.id), &account.usage)?;
+        let account_auth = if should_apply_archive {
+            write_json_if_changed(&auth_path, &account.auth)?;
+            save_note(&note_path(&paths, &account.id), &account.note)?;
+            save_expiration(&expiration_path(&paths, &account.id), &account.expires_at)?;
+            save_usage(&usage_path(&paths, &account.id), &account.usage)?;
+            save_account_last_modified(
+                &paths,
+                &account.id,
+                archive_modified_at.unwrap_or_else(Utc::now),
+            )?;
+            account.auth.clone()
+        } else {
+            local_auth.unwrap_or_else(|| account.auth.clone())
+        };
 
         if payload.active_account_id.as_deref() == Some(&account.id) {
             active_account = Some((account.id.clone(), account_auth));
@@ -343,6 +370,7 @@ mod tests {
                 note: "plain-secret-note".to_string(),
                 expires_at: "2026-12-31".to_string(),
                 usage: UsageSummary::default(),
+                last_modified_at: Some("2026-07-04T00:00:00Z".to_string()),
             }],
         };
 

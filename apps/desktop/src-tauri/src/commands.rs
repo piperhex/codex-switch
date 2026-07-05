@@ -26,8 +26,9 @@ use crate::{
     storage::{
         account_dir, expiration_path, import_value, load_expiration, load_note, load_usage,
         managed_auth_path, note_path, read_json, read_state, resolve_paths, save_expiration,
-        save_note, save_usage, sync_current_into_store, usage_path, write_json_atomic,
-        write_json_if_changed, write_state, Paths,
+        save_note, save_usage, sync_current_into_store, touch_account_modified, usage_path,
+        write_json_atomic, write_json_if_changed, write_managed_auth_if_changed, write_state,
+        Paths,
     },
 };
 
@@ -139,8 +140,9 @@ pub(crate) fn switch_account<R: Runtime>(
         state.active_provider_id = None;
     }
     write_json_atomic(&paths.current_auth, &selected)?;
-    state.active_account_id = Some(id);
+    state.active_account_id = Some(id.clone());
     write_state(&paths, &state)?;
+    touch_account_modified(&paths, &id)?;
     app.emit("accounts-changed", ())
         .map_err(|error| error.to_string())?;
     app.emit("providers-changed", ())
@@ -225,8 +227,10 @@ fn load_auth_for_request<R: Runtime>(
 
     match current_auth {
         Ok((auth, current_id)) if current_id == id => {
-            write_json_if_changed(&managed_path, &auth)?;
-            if mark_active_account(paths, id)? {
+            write_managed_auth_if_changed(paths, id, &auth)?;
+            let active_changed = mark_active_account(paths, id)?;
+            if active_changed {
+                touch_account_modified(paths, id)?;
                 app.emit("accounts-changed", ())
                     .map_err(|error| error.to_string())?;
                 crate::system_tray::refresh_menu(app);
@@ -234,8 +238,10 @@ fn load_auth_for_request<R: Runtime>(
             return Ok(auth);
         }
         Ok((auth, current_id)) if state_says_active => {
-            write_json_if_changed(&managed_auth_path(paths, &current_id), &auth)?;
-            mark_active_account(paths, &current_id)?;
+            write_managed_auth_if_changed(paths, &current_id, &auth)?;
+            if mark_active_account(paths, &current_id)? {
+                touch_account_modified(paths, &current_id)?;
+            }
             app.emit("accounts-changed", ())
                 .map_err(|error| error.to_string())?;
             crate::system_tray::refresh_menu(app);
@@ -255,7 +261,7 @@ fn load_auth_for_request<R: Runtime>(
 }
 
 fn persist_request_auth(paths: &Paths, id: &str, auth: &Value) -> Result<(), String> {
-    write_json_if_changed(&managed_auth_path(paths, id), auth)?;
+    write_managed_auth_if_changed(paths, id, auth)?;
     sync_active_auth(paths, id, auth)
 }
 
@@ -286,6 +292,7 @@ pub(crate) fn update_account_note<R: Runtime>(
     }
     save_note(&note_path(&paths, &id), &note)?;
     save_expiration(&expiration_path(&paths, &id), &expires_at)?;
+    touch_account_modified(&paths, &id)?;
     app.emit("accounts-changed", ())
         .map_err(|error| error.to_string())?;
     Ok(())
@@ -319,6 +326,7 @@ fn refresh_usage_blocking<R: Runtime>(
     match result {
         Ok(usage) => {
             save_usage(&usage_path(&paths, &id), &usage)?;
+            touch_account_modified(&paths, &id)?;
             persist_request_auth(&paths, &id, &auth)?;
             app.emit("accounts-changed", ())
                 .map_err(|error| error.to_string())?;
@@ -331,7 +339,9 @@ fn refresh_usage_blocking<R: Runtime>(
                 fetched_at: Some(Utc::now().to_rfc3339()),
                 ..load_usage(&usage_path(&paths, &id))
             };
-            let _ = save_usage(&usage_path(&paths, &id), &cached);
+            if save_usage(&usage_path(&paths, &id), &cached).is_ok() {
+                let _ = touch_account_modified(&paths, &id);
+            }
             Err(error)
         }
     }

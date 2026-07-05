@@ -9,7 +9,6 @@ use std::{
 };
 
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
-use chrono::Utc;
 use rand::RngCore;
 use reqwest::blocking::Client;
 use serde_json::{json, Value};
@@ -305,7 +304,6 @@ fn persist_login<R: Runtime>(app: &tauri::AppHandle<R>, tokens: Value) -> Result
             "refresh_token": refresh_token,
             "account_id": account_id,
         },
-        "last_refresh": Utc::now().to_rfc3339(),
     });
     import_value(app, auth, false)
 }

@@ -166,5 +166,6 @@ pub(crate) struct CloudAccountPayload {
     pub(crate) account_id: Option<String>,
     pub(crate) active: bool,
     pub(crate) usage: UsageSummary,
+    pub(crate) last_modified_at: String,
     pub(crate) auth: serde_json::Value,
 }

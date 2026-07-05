@@ -113,6 +113,11 @@ export class UpdateAdminSyncedAccountDto {
   usage?: Record<string, unknown>;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  lastModifiedAt?: string;
+
+  @IsOptional()
   @IsObject()
   auth?: Record<string, unknown>;
 }

@@ -54,7 +54,8 @@ describe('SyncService', () => {
     accounts.find.mockResolvedValue([{
       ownerId: 'owner-1', accountId: 'account-1', email: 'a@example.com', note: '',
       expiresAt: '', plan: 'Plus', codexAccountId: null, active: false,
-      usage: { used: 2 }, auth: { token: 'x' },
+      usage: { used: 2 }, lastModifiedAt: new Date('2026-07-05T00:00:00.000Z'),
+      auth: { token: 'x' },
     }]);
     const expected = { accounts: [makeAccount({
       email: 'a@example.com', note: '', expiresAt: '', accountId: null,
@@ -73,25 +74,32 @@ describe('SyncService', () => {
     expect(accounts.find).not.toHaveBeenCalled();
   });
 
-  it('atomically replaces all accounts and applies optional defaults', async () => {
+  it('atomically upserts all provided accounts and applies optional defaults', async () => {
     const first = makeAccount({ note: undefined as unknown as string, expiresAt: undefined as unknown as string,
       accountId: undefined, usage: undefined as unknown as Record<string, unknown> });
     const second = makeAccount({ id: 'account-2', active: false });
+    transactionRepository.findOne
+      .mockResolvedValueOnce({ id: 'database-id-1' })
+      .mockResolvedValueOnce(null);
     await expect(service.replace('owner-1', { accounts: [first, second] })).resolves.toEqual({ count: 2 });
-    expect(transactionRepository.delete).toHaveBeenCalledWith({ ownerId: 'owner-1' });
-    expect(transactionRepository.save).toHaveBeenCalledWith([
+    expect(transactionRepository.delete).not.toHaveBeenCalled();
+    expect(transactionRepository.update).toHaveBeenCalledWith({ ownerId: 'owner-1' }, { active: false });
+    expect(transactionRepository.save).toHaveBeenNthCalledWith(1,
       expect.objectContaining({
-        ownerId: 'owner-1', accountId: first.id, note: '', expiresAt: '',
-        codexAccountId: null, usage: {},
+        id: 'database-id-1', ownerId: 'owner-1', accountId: first.id, note: '', expiresAt: '',
+        codexAccountId: null, usage: {}, lastModifiedAt: new Date(first.lastModifiedAt!),
       }),
-      expect.objectContaining({ accountId: 'account-2' }),
-    ]);
+    );
+    expect(transactionRepository.save).toHaveBeenNthCalledWith(2,
+      expect.objectContaining({ id: undefined, accountId: 'account-2' }),
+    );
     expect(redis.del).toHaveBeenCalledWith('sync:accounts:owner-1');
   });
 
-  it('deletes existing rows but skips save for an empty replacement', async () => {
+  it('keeps existing rows and skips save for an empty replacement', async () => {
     await expect(service.replace('owner-1', { accounts: [] })).resolves.toEqual({ count: 0 });
-    expect(transactionRepository.delete).toHaveBeenCalledWith({ ownerId: 'owner-1' });
+    expect(transactionRepository.delete).not.toHaveBeenCalled();
+    expect(transactionRepository.update).not.toHaveBeenCalled();
     expect(transactionRepository.save).not.toHaveBeenCalled();
     expect(redis.del).toHaveBeenCalled();
   });
@@ -113,8 +121,23 @@ describe('SyncService', () => {
     });
     expect(transactionRepository.create).toHaveBeenCalledWith(expect.objectContaining({
       id: 'database-id', ownerId: 'owner-1', accountId: account.id,
+      lastModifiedAt: new Date(account.lastModifiedAt!),
     }));
     expect(transactionRepository.save).toHaveBeenCalled();
+    expect(redis.del).toHaveBeenCalledWith('sync:accounts:owner-1');
+  });
+
+  it('keeps the existing remote account when an incoming upsert is older', async () => {
+    const account = makeAccount({ lastModifiedAt: '2026-07-05T00:00:00.000Z' });
+    transactionRepository.findOne.mockResolvedValue({
+      id: 'database-id',
+      lastModifiedAt: new Date('2026-07-05T00:00:01.000Z'),
+    });
+
+    await expect(service.upsert('owner-1', account.id, account)).resolves.toEqual({ id: account.id });
+
+    expect(transactionRepository.update).not.toHaveBeenCalled();
+    expect(transactionRepository.save).not.toHaveBeenCalled();
     expect(redis.del).toHaveBeenCalledWith('sync:accounts:owner-1');
   });
 
@@ -127,6 +150,7 @@ describe('SyncService', () => {
     expect(transactionRepository.update).not.toHaveBeenCalled();
     expect(transactionRepository.create).toHaveBeenCalledWith(expect.objectContaining({
       id: undefined, note: '', expiresAt: '', codexAccountId: null, usage: {}, active: false,
+      lastModifiedAt: new Date(account.lastModifiedAt!),
     }));
   });
 
@@ -147,6 +171,7 @@ describe('SyncService', () => {
       codexAccountId: null,
       active: false,
       usage: {},
+      lastModifiedAt: new Date('2026-07-04T00:00:00.000Z'),
       auth: { token: 'old' },
     });
 
@@ -159,6 +184,7 @@ describe('SyncService', () => {
       email: 'new@example.com',
       active: true,
       note: 'updated',
+      lastModifiedAt: expect.any(String),
     });
 
     expect(accounts.findOne).toHaveBeenCalledWith({ where: { ownerId: 'owner-1', accountId: 'account-1' } });
