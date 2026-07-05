@@ -24,7 +24,12 @@ export class UserService {
     private readonly users: Repository<UserEntity>,
   ) {}
 
-  async createUser({ email, password, role }: { email: string; password: string; role?: UserRole }) {
+  async createUser({
+    email,
+    password,
+    role,
+    disabled,
+  }: { email: string; password: string; role?: UserRole; disabled?: boolean }) {
     const normalizedEmail = email.trim().toLowerCase();
     const exists = await this.users.exists({ where: { email: normalizedEmail } });
     if (exists) throw new BadRequestException('Email already exists');
@@ -33,6 +38,7 @@ export class UserService {
       email: normalizedEmail,
       passwordHash: await bcrypt.hash(password, 12),
       role: role ?? (count === 0 ? 'admin' : 'user'),
+      disabled: disabled ?? false,
     });
     return this.users.save(user);
   }

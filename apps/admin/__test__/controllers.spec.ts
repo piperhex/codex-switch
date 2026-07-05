@@ -79,7 +79,9 @@ describe('HTTP controllers', () => {
     expect(controller.page(response as unknown as Response)).toBe('sent');
     expect(response.sendFile).toHaveBeenCalledWith(expect.stringMatching(/[\\/]public[\\/]admin\.html$/));
     await expect(controller.listUsers({ page: 1 })).resolves.toBe('users');
-    await expect(controller.createUser(actor, { email: 'new@example.com', password: 'password', role: 'admin' }))
+    await expect(controller.createUser(actor, {
+      email: 'new@example.com', password: 'password', role: 'admin', disabled: false,
+    }))
       .resolves.toBe('created');
     await expect(controller.updateUser(actor, 'user-1', { disabled: true })).resolves.toBe('updated');
     await expect(controller.deleteUser(actor, 'user-1')).resolves.toBe('deleted');
@@ -104,7 +106,7 @@ describe('HTTP controllers', () => {
       .resolves.toBe('reviewed');
 
     expect(admin.createUser).toHaveBeenCalledWith(actor, {
-      email: 'new@example.com', password: 'password', role: 'admin',
+      email: 'new@example.com', password: 'password', role: 'admin', disabled: false,
     });
     expect(admin.updateUser).toHaveBeenCalledWith(actor, 'user-1', { disabled: true });
   });

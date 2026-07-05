@@ -71,11 +71,11 @@ describe('AdminService', () => {
     users.createUser.mockResolvedValue(created);
 
     await expect(service.createUser(actor, {
-      email: created.email, password: 'password', role: 'user',
+      email: created.email, password: 'password', role: 'user', disabled: true,
     })).resolves.toBe(created);
 
     expect(users.createUser).toHaveBeenCalledWith({
-      email: created.email, password: 'password', role: 'user',
+      email: created.email, password: 'password', role: 'user', disabled: true,
     });
     expect(auditLogs.save).toHaveBeenCalledWith(expect.objectContaining({
       actorId: actor.id,

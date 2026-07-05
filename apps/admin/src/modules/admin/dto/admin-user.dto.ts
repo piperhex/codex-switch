@@ -24,6 +24,10 @@ export class CreateAdminUserDto {
   @IsOptional()
   @IsIn(['user', 'admin'])
   role?: UserRole;
+
+  @IsOptional()
+  @IsBoolean()
+  disabled?: boolean;
 }
 
 export class UpdateAdminUserDto {

@@ -49,6 +49,9 @@ describe('request DTO validation', () => {
         'email must be an email',
         'password must be longer than or equal to 8 characters',
       ]));
+    await expect(messages(CreateAdminUserDto, {
+      email: 'admin@example.com', password: 'password', role: 'user', disabled: false,
+    })).resolves.toEqual([]);
     await expect(messages(UpdateAdminUserDto, {})).resolves.toEqual([]);
   });
 

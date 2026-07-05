@@ -36,17 +36,25 @@ describe('UserService', () => {
 
     expect(repository.exists).toHaveBeenCalledWith({ where: { email: 'first@example.com' } });
     expect(repository.create).toHaveBeenCalledWith(expect.objectContaining({
-      email: 'first@example.com', role: 'admin', passwordHash: expect.any(String),
+      email: 'first@example.com', role: 'admin', disabled: false, passwordHash: expect.any(String),
     }));
     expect(user.passwordHash).not.toBe('strong-pass');
     await expect(service.validatePassword(user, 'strong-pass')).resolves.toBe(true);
   });
 
-  it('honors an explicit role for subsequent users', async () => {
+  it('honors an explicit role and disabled state for subsequent users', async () => {
     repository.exists.mockResolvedValue(false);
     repository.count.mockResolvedValue(9);
-    await service.createUser({ email: 'u@example.com', password: 'password', role: 'admin' });
-    expect(repository.create).toHaveBeenCalledWith(expect.objectContaining({ role: 'admin' }));
+    await service.createUser({
+      email: 'u@example.com',
+      password: 'password',
+      role: 'admin',
+      disabled: true,
+    });
+    expect(repository.create).toHaveBeenCalledWith(expect.objectContaining({
+      role: 'admin',
+      disabled: true,
+    }));
   });
 
   it('defaults subsequent users to user role', async () => {
