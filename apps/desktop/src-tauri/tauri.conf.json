@@ -40,6 +40,11 @@
     "category": "DeveloperTool",
     "shortDescription": "Manage and switch multiple Codex accounts",
     "longDescription": "A local-first manager for Codex auth.json files and account usage windows.",
+    "windows": {
+      "wix": {
+        "version": "0.2.3.0"
+      }
+    },
     "macOS": {
       "minimumSystemVersion": "10.13",
       "signingIdentity": "-"

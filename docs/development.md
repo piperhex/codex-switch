@@ -66,7 +66,7 @@ For local Windows ARM64 app builds, install the Rust `aarch64-pc-windows-msvc` t
 
 ## Release Workflow
 
-`npm run release` and `npm run release-beta` require a clean working tree. The script updates `package.json`, `package-lock.json`, `apps/desktop/package.json`, and `apps/desktop/src-tauri/tauri.conf.json`, commits the version bump when needed, creates an annotated tag, then pushes both the current branch and tag to `origin`.
+`npm run release` and `npm run release-beta` require a clean working tree. The script updates `package.json`, `package-lock.json`, `apps/desktop/package.json`, and `apps/desktop/src-tauri/tauri.conf.json`, including a numeric WiX/MSI version derived from prerelease tags such as `0.2.3-beta.0` -> `0.2.3.0`. It commits the version bump when needed, creates an annotated tag, then pushes both the current branch and tag to `origin`.
 
 The GitHub Actions release workflow starts from `v*` tags or a manual run with an existing tag. It creates or finds the GitHub Release, generates release notes when needed, runs `npm run check` in each build job, and uploads Windows x64, Windows ARM64, Ubuntu/Linux x64, and macOS Apple Silicon and Intel artifacts.
 

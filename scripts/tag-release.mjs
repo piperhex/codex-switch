@@ -9,8 +9,11 @@ const requested = userArgs[0];
 const cwd = process.cwd();
 const packageJsonPath = join(cwd, "package.json");
 const packageLockPath = join(cwd, "package-lock.json");
+const desktopPackageLockPath = "apps/desktop";
 const desktopPackageRelativePath = "apps/desktop/package.json";
 const tauriConfigRelativePath = "apps/desktop/src-tauri/tauri.conf.json";
+const MSI_VERSION_MAJOR_MINOR_MAX = 255;
+const MSI_VERSION_PATCH_BUILD_MAX = 65535;
 const desktopPackageJsonPath = join(cwd, ...desktopPackageRelativePath.split("/"));
 const tauriConfigPath = join(cwd, ...tauriConfigRelativePath.split("/"));
 const packageJson = readJson(packageJsonPath);
@@ -137,6 +140,9 @@ function syncVersionFiles(version) {
     if (lock.packages?.[""]) {
       lock.packages[""].version = versionText;
     }
+    if (lock.packages?.[desktopPackageLockPath]) {
+      lock.packages[desktopPackageLockPath].version = versionText;
+    }
     if (lock.packages?.[desktopPackageRelativePath]) {
       lock.packages[desktopPackageRelativePath].version = versionText;
     }
@@ -146,6 +152,10 @@ function syncVersionFiles(version) {
   if (existsSync(tauriConfigPath)) {
     const tauriConfig = readJson(tauriConfigPath);
     tauriConfig.version = versionText;
+    tauriConfig.bundle ??= {};
+    tauriConfig.bundle.windows ??= {};
+    tauriConfig.bundle.windows.wix ??= {};
+    tauriConfig.bundle.windows.wix.version = formatWixVersion(version);
     writeJson(tauriConfigPath, tauriConfig);
   }
 }
@@ -215,6 +225,38 @@ function formatVersion(version) {
   const prerelease = version.prerelease ? `-${version.prerelease}` : "";
   const build = version.build ? `+${version.build}` : "";
   return `${version.major}.${version.minor}.${version.patch}${prerelease}${build}`;
+}
+
+function formatWixVersion(version) {
+  assertMsiVersionPart(version.major, "major", MSI_VERSION_MAJOR_MINOR_MAX);
+  assertMsiVersionPart(version.minor, "minor", MSI_VERSION_MAJOR_MINOR_MAX);
+  assertMsiVersionPart(version.patch, "patch", MSI_VERSION_PATCH_BUILD_MAX);
+
+  const parts = [version.major, version.minor, version.patch];
+
+  if (version.prerelease) {
+    const prereleaseNumber = numericPrereleaseSuffix(version.prerelease);
+    assertMsiVersionPart(prereleaseNumber, "pre-release", MSI_VERSION_PATCH_BUILD_MAX);
+    parts.push(prereleaseNumber);
+  }
+
+  return parts.join(".");
+}
+
+function numericPrereleaseSuffix(prerelease) {
+  const lastIdentifier = prerelease.split(".").at(-1);
+  if (!/^\d+$/.test(lastIdentifier)) {
+    fail(
+      `MSI releases require a numeric pre-release suffix, but got "${prerelease}". Use a version like v0.1.0-beta.0.`,
+    );
+  }
+  return Number(lastIdentifier);
+}
+
+function assertMsiVersionPart(value, label, max) {
+  if (!Number.isInteger(value) || value < 0 || value > max) {
+    fail(`MSI ${label} version part must be between 0 and ${max}.`);
+  }
 }
 
 function fail(message) {
