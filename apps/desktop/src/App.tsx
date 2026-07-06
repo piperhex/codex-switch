@@ -99,6 +99,9 @@ function DashboardApp() {
   const switchProvider = useCallback((id: string) => {
     void providerManager.switchProvider(id);
   }, [providerManager.switchProvider]);
+  const switchProviderModel = useCallback((id: string, model: string) => {
+    void providerManager.switchModel(id, model);
+  }, [providerManager.switchModel]);
   const useOfficialProvider = useCallback(() => {
     void providerManager.useOfficialProvider();
   }, [providerManager.useOfficialProvider]);
@@ -343,7 +346,8 @@ function DashboardApp() {
               busyProviderId={providerManager.busyProviderId} saving={providerManager.saving}
               localProxy={providerManager.localProxy} proxyBusy={providerManager.proxyBusy}
               info={manager.info} onSave={providerManager.saveProvider}
-              onSwitch={switchProvider} onDisable={useOfficialProvider} onDelete={deleteProvider}
+              onSwitch={switchProvider} onSwitchModel={switchProviderModel}
+              onDisable={useOfficialProvider} onDelete={deleteProvider}
               onStartProxy={providerManager.startProxy} onStopProxy={providerManager.stopProxy} t={t} />
           </section>
           <section className="page-panel" hidden={page !== "accounts"}>

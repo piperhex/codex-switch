@@ -216,20 +216,30 @@ fn active_target<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<ActiveTarget, 
 }
 
 fn models_response<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<Value, String> {
-    let model = match active_target(app)? {
-        ActiveTarget::Provider(provider) => provider.model,
-        ActiveTarget::Official => "gpt-5-codex".to_string(),
+    let models = match active_target(app)? {
+        ActiveTarget::Provider(provider) => provider.models,
+        ActiveTarget::Official => vec!["gpt-5-codex".to_string()],
     };
+    let data = models
+        .iter()
+        .map(|model| json!({ "id": model, "object": "model" }))
+        .collect::<Vec<_>>();
+    let catalog = models
+        .iter()
+        .map(|model| {
+            json!({
+                "slug": model,
+                "display_name": model,
+                "description": model,
+                "context_window": 128000,
+                "max_context_window": 128000
+            })
+        })
+        .collect::<Vec<_>>();
     Ok(json!({
         "object": "list",
-        "data": [{ "id": model.clone(), "object": "model" }],
-        "models": [{
-            "slug": model.clone(),
-            "display_name": model.clone(),
-            "description": model.clone(),
-            "context_window": 128000,
-            "max_context_window": 128000
-        }]
+        "data": data,
+        "models": catalog
     }))
 }
 
@@ -1202,6 +1212,7 @@ mod tests {
             base_url,
             api_key: "sk-provider-test".to_string(),
             model: "deepseek-v4-flash".to_string(),
+            models: vec!["deepseek-v4-flash".to_string()],
             api_format: ProviderApiFormat::OpenaiChat,
         };
         let body = serde_json::to_vec(&json!({

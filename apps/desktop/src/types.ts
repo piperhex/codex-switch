@@ -53,6 +53,7 @@ export interface Provider {
   name: string;
   baseUrl: string;
   model: string;
+  models: string[];
   apiFormat: ProviderApiFormat;
   active: boolean;
   hasApiKey: boolean;
@@ -64,6 +65,7 @@ export interface ProviderInput {
   name: string;
   baseUrl: string;
   model: string;
+  models: string[];
   apiKey?: string;
   apiFormat: ProviderApiFormat;
 }

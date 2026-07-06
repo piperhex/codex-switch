@@ -76,6 +76,7 @@ pub fn run() {
             providers::list_providers,
             providers::save_provider,
             providers::switch_provider,
+            providers::switch_provider_model,
             providers::disable_provider,
             providers::delete_provider,
             local_proxy::get_local_proxy_status,

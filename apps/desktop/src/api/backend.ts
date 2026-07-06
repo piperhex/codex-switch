@@ -45,18 +45,37 @@ function previewCloudState(): CloudAuthState {
   };
 }
 
+function normalizeModels(model: string, models: unknown): string[] {
+  const normalized: string[] = [];
+  const push = (value: unknown) => {
+    if (typeof value !== "string") return;
+    const trimmed = value.trim();
+    if (trimmed && !normalized.includes(trimmed)) normalized.push(trimmed);
+  };
+  push(model);
+  if (Array.isArray(models)) models.forEach(push);
+  return normalized;
+}
+
 function readPreviewProviders(): Provider[] {
   try {
     const parsed: unknown = JSON.parse(window.localStorage.getItem(PROVIDERS_PREVIEW_KEY) ?? "[]");
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter((provider): provider is Provider => Boolean(
+    return parsed.filter((provider): provider is Provider & { models?: unknown } => Boolean(
       provider
       && typeof provider === "object"
       && "id" in provider
       && "name" in provider
       && "baseUrl" in provider
       && "model" in provider,
-    ));
+    )).map((provider) => {
+      const models = normalizeModels(provider.model, provider.models);
+      return {
+        ...provider,
+        model: models.includes(provider.model.trim()) ? provider.model.trim() : (models[0] ?? ""),
+        models,
+      };
+    });
   } catch {
     return [];
   }
@@ -121,11 +140,14 @@ export async function saveProviderProfile(provider: ProviderInput): Promise<Prov
     const existing = index >= 0 ? providers[index] : null;
     const hasApiKey = Boolean(provider.apiKey?.trim() || existing?.hasApiKey);
     if (!hasApiKey) throw new Error("API key is required for a new provider");
+    const models = normalizeModels(provider.model, provider.models);
+    const model = provider.model.trim() || (models[0] ?? "");
     const next: Provider = {
       id: existing?.id ?? provider.id ?? previewProviderId(),
       name: provider.name.trim(),
       baseUrl: provider.baseUrl.trim().replace(/\/+$/, ""),
-      model: provider.model.trim(),
+      model,
+      models,
       apiFormat: provider.apiFormat,
       active: existing?.active ?? false,
       hasApiKey,
@@ -149,6 +171,22 @@ export async function activateProvider(id: string): Promise<void> {
     return;
   }
   await invoke("switch_provider", { id });
+}
+
+export async function switchProviderModel(id: string, model: string): Promise<Provider> {
+  if (!isDesktopApp) {
+    const providers = readPreviewProviders();
+    const index = providers.findIndex((provider) => provider.id === id);
+    if (index < 0) throw new Error("Provider does not exist");
+    const selectedModel = model.trim();
+    if (!selectedModel) throw new Error("Model is required");
+    const provider = providers[index];
+    const models = normalizeModels(selectedModel, provider.models);
+    providers[index] = { ...provider, model: selectedModel, models };
+    writePreviewProviders(providers);
+    return providers[index];
+  }
+  return invoke<Provider>("switch_provider_model", { id, model });
 }
 
 export async function deactivateProvider(): Promise<void> {

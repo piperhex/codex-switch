@@ -9,6 +9,7 @@ import {
   startLocalProxy,
   stopLocalProxy,
   subscribeToProviderEvents,
+  switchProviderModel,
 } from "../api/backend";
 import type { Translate } from "../i18n";
 import type { LocalProxyStatus, Provider, ProviderInput } from "../types";
@@ -93,6 +94,19 @@ export function useProviderManager(notify: (message: string) => void, t: Transla
     }
   }, [load, localProxy?.running, notify, t]);
 
+  const switchModel = useCallback(async (id: string, model: string) => {
+    setBusyProviderId(id);
+    try {
+      await switchProviderModel(id, model);
+      notify(t("toast.providerModelSwitched"));
+      await load();
+    } catch (error) {
+      notify(providerErrorMessage(error, t));
+    } finally {
+      setBusyProviderId(null);
+    }
+  }, [load, notify, t]);
+
   const useOfficialProvider = useCallback(async () => {
     setBusyProviderId("official");
     try {
@@ -155,6 +169,7 @@ export function useProviderManager(notify: (message: string) => void, t: Transla
     activeProvider: providers.find((provider) => provider.active) ?? null,
     saveProvider,
     switchProvider,
+    switchModel,
     useOfficialProvider,
     deleteProvider,
     startProxy,

@@ -34,6 +34,8 @@ pub(crate) struct ProviderInput {
     base_url: String,
     api_key: Option<String>,
     model: String,
+    #[serde(default)]
+    models: Vec<String>,
     api_format: ProviderApiFormat,
 }
 
@@ -89,7 +91,7 @@ pub(crate) fn save_provider<R: Runtime>(
     };
     let name = require_non_empty("Provider name", &provider.name)?;
     let base_url = normalize_base_url(&provider.base_url)?;
-    let model = require_non_empty("Model", &provider.model)?;
+    let (model, models) = normalize_model_selection(&provider.model, provider.models)?;
     let supplied_key = provider.api_key.unwrap_or_default().trim().to_string();
     let api_key = if supplied_key.is_empty() {
         existing
@@ -109,11 +111,15 @@ pub(crate) fn save_provider<R: Runtime>(
         base_url,
         api_key,
         model,
+        models,
         api_format: provider.api_format,
     };
     write_provider(&paths, &profile)?;
 
     let active_provider_id = read_state(&paths).active_provider_id;
+    if active_provider_id.as_deref() == Some(&profile.id) {
+        write_active_provider_config(&paths, &profile)?;
+    }
     app.emit("providers-changed", ())
         .map_err(|error| error.to_string())?;
     Ok(provider_summary(
@@ -154,6 +160,32 @@ pub(crate) fn switch_provider<R: Runtime>(
     app.emit("providers-changed", ())
         .map_err(|error| error.to_string())?;
     Ok(())
+}
+
+#[tauri::command]
+pub(crate) fn switch_provider_model<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    id: String,
+    model: String,
+) -> Result<ProviderSummary, String> {
+    let paths = resolve_paths(&app)?;
+    let mut provider = read_provider(&paths, &id)?;
+    let selected_model = require_non_empty("Model", &model)?;
+    if !provider.models.iter().any(|value| value == &selected_model) {
+        provider.models.push(selected_model.clone());
+    }
+    provider.model = selected_model;
+    provider = normalize_provider_profile(provider)?;
+    write_provider(&paths, &provider)?;
+
+    let active_provider_id = read_state(&paths).active_provider_id;
+    let active = active_provider_id.as_deref() == Some(&provider.id);
+    if active {
+        write_active_provider_config(&paths, &provider)?;
+    }
+    app.emit("providers-changed", ())
+        .map_err(|error| error.to_string())?;
+    Ok(provider_summary(&provider, active))
 }
 
 #[tauri::command]
@@ -275,7 +307,9 @@ pub(crate) fn read_provider(paths: &Paths, id: &str) -> Result<ProviderProfile, 
 
 fn read_provider_file(path: PathBuf) -> Result<ProviderProfile, String> {
     let value = read_json(&path)?;
-    serde_json::from_value(value)
+    let profile: ProviderProfile = serde_json::from_value(value)
+        .map_err(|error| format!("Provider profile {} is invalid: {error}", path.display()))?;
+    normalize_provider_profile(profile)
         .map_err(|error| format!("Provider profile {} is invalid: {error}", path.display()))
 }
 
@@ -290,6 +324,7 @@ fn provider_summary(provider: &ProviderProfile, active: bool) -> ProviderSummary
         name: provider.name.clone(),
         base_url: provider.base_url.clone(),
         model: provider.model.clone(),
+        models: provider.models.clone(),
         api_format: provider.api_format,
         active,
         has_api_key: !provider.api_key.trim().is_empty(),
@@ -305,6 +340,34 @@ fn require_non_empty(label: &str, value: &str) -> Result<String, String> {
     } else {
         Ok(trimmed.to_string())
     }
+}
+
+fn normalize_model_selection(
+    model: &str,
+    models: Vec<String>,
+) -> Result<(String, Vec<String>), String> {
+    let selected = require_non_empty("Model", model)?;
+    let mut normalized = Vec::new();
+    push_model_once(&mut normalized, selected.clone());
+    for model in models {
+        push_model_once(&mut normalized, model);
+    }
+    Ok((selected, normalized))
+}
+
+fn normalize_provider_profile(mut provider: ProviderProfile) -> Result<ProviderProfile, String> {
+    let (model, models) = normalize_model_selection(&provider.model, provider.models)?;
+    provider.model = model;
+    provider.models = models;
+    Ok(provider)
+}
+
+fn push_model_once(models: &mut Vec<String>, model: String) {
+    let trimmed = model.trim();
+    if trimmed.is_empty() || models.iter().any(|value| value == trimmed) {
+        return;
+    }
+    models.push(trimmed.to_string());
 }
 
 fn normalize_base_url(value: &str) -> Result<String, String> {
@@ -415,6 +478,14 @@ fn write_provider_local_proxy_config(
     provider: &ProviderProfile,
 ) -> Result<(), String> {
     write_local_proxy_config(paths, &provider.name, Some(&provider.model))
+}
+
+fn write_active_provider_config(paths: &Paths, provider: &ProviderProfile) -> Result<(), String> {
+    if crate::local_proxy::is_running() {
+        write_provider_local_proxy_config(paths, provider)
+    } else {
+        write_provider_config(paths, provider)
+    }
 }
 
 fn write_local_proxy_config(paths: &Paths, name: &str, model: Option<&str>) -> Result<(), String> {
@@ -691,6 +762,7 @@ mod tests {
             base_url: "https://gateway.example.com/v1".to_string(),
             api_key: "sk-test".to_string(),
             model: "gpt-4.1".to_string(),
+            models: vec!["gpt-4.1".to_string()],
             api_format: ProviderApiFormat::OpenaiResponses,
         }
     }
@@ -724,6 +796,40 @@ sandbox_mode = "workspace-write"
         assert!(merged.contains("approval_policy = \"on-request\""));
         assert!(merged.contains("[profiles.default]"));
         assert!(!merged.contains("https://old.example.com"));
+    }
+
+    #[test]
+    fn normalize_provider_profile_keeps_legacy_model_as_model_list() {
+        let profile = normalize_provider_profile(ProviderProfile {
+            id: "p".to_string(),
+            name: "Gateway".to_string(),
+            base_url: "https://gateway.example.com/v1".to_string(),
+            api_key: "sk-test".to_string(),
+            model: "gpt-4.1".to_string(),
+            models: Vec::new(),
+            api_format: ProviderApiFormat::OpenaiResponses,
+        })
+        .unwrap();
+
+        assert_eq!(profile.model, "gpt-4.1");
+        assert_eq!(profile.models, vec!["gpt-4.1"]);
+    }
+
+    #[test]
+    fn normalize_model_selection_trims_and_deduplicates_models() {
+        let (model, models) = normalize_model_selection(
+            " deepseek-chat ",
+            vec![
+                "deepseek-chat".to_string(),
+                " deepseek-reasoner ".to_string(),
+                String::new(),
+                "deepseek-chat".to_string(),
+            ],
+        )
+        .unwrap();
+
+        assert_eq!(model, "deepseek-chat");
+        assert_eq!(models, vec!["deepseek-chat", "deepseek-reasoner"]);
     }
 
     #[test]

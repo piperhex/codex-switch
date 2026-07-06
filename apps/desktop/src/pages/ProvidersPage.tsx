@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Button, Input, Popconfirm, Segmented, Space, Table, Tag, Tooltip } from "antd";
+import { Button, Input, Popconfirm, Segmented, Select, Space, Table, Tag, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { Check, KeyRound, Pencil, Plus, Power, PowerOff, RadioTower, RefreshCw, RotateCcw, Save, Server, ShieldCheck, Trash2, X } from "lucide-react";
 import type { Translate } from "../i18n";
@@ -15,11 +15,27 @@ interface ProvidersPageProps {
   info: AppInfo | null;
   onSave: (provider: ProviderInput) => Promise<Provider | null>;
   onSwitch: (id: string) => void;
+  onSwitchModel: (id: string, model: string) => void;
   onDisable: () => void;
   onDelete: (id: string) => void;
   onStartProxy: () => void;
   onStopProxy: () => void;
   t: Translate;
+}
+
+function normalizeModels(activeModel: string, values: string[]) {
+  const models: string[] = [];
+  const push = (value: string) => {
+    const trimmed = value.trim();
+    if (trimmed && !models.includes(trimmed)) models.push(trimmed);
+  };
+  push(activeModel);
+  values.forEach(push);
+  return models;
+}
+
+function modelOptions(models: string[]) {
+  return models.map((model) => ({ label: model, value: model }));
 }
 
 interface ProviderModalProps {
@@ -34,6 +50,7 @@ function ProviderModal({ provider, saving, onClose, onSave, t }: ProviderModalPr
   const [name, setName] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
   const [model, setModel] = useState("");
+  const [models, setModels] = useState<string[]>([]);
   const [apiKey, setApiKey] = useState("");
   const [apiFormat, setApiFormat] = useState<ProviderApiFormat>("openaiResponses");
   const apiFormatOptions: { label: string; value: ProviderApiFormat }[] = [
@@ -44,19 +61,29 @@ function ProviderModal({ provider, saving, onClose, onSave, t }: ProviderModalPr
   useEffect(() => {
     setName(provider?.name ?? "");
     setBaseUrl(provider?.baseUrl ?? "");
-    setModel(provider?.model ?? "");
+    const nextModels = normalizeModels(provider?.model ?? "", provider?.models ?? []);
+    setModels(nextModels);
+    setModel(provider?.model ?? nextModels[0] ?? "");
     setApiKey("");
     setApiFormat(provider?.apiFormat ?? "openaiResponses");
   }, [provider]);
 
-  const canSave = Boolean(name.trim() && baseUrl.trim() && model.trim() && (provider?.hasApiKey || apiKey.trim()));
+  const normalizedModels = normalizeModels(model, models);
+  const activeModel = model.trim() || (normalizedModels[0] ?? "");
+  const canSave = Boolean(name.trim() && baseUrl.trim() && activeModel && (provider?.hasApiKey || apiKey.trim()));
+  const updateModels = (values: string[]) => {
+    const nextModels = normalizeModels("", values);
+    setModels(nextModels);
+    if (!nextModels.includes(model.trim())) setModel(nextModels[0] ?? "");
+  };
   const submit = async () => {
     if (!canSave) return;
     const saved = await onSave({
       id: provider?.id,
       name,
       baseUrl,
-      model,
+      model: activeModel,
+      models: normalizedModels,
       apiKey: apiKey.trim() || undefined,
       apiFormat,
     });
@@ -80,8 +107,13 @@ function ProviderModal({ provider, saving, onClose, onSave, t }: ProviderModalPr
           <Input id="provider-base-url" value={baseUrl} disabled={saving} placeholder="https://openrouter.ai/api/v1"
             onChange={(event) => setBaseUrl(event.target.value)} />
           <label htmlFor="provider-model">{t("providers.form.model")}</label>
-          <Input id="provider-model" value={model} disabled={saving} placeholder="openai/gpt-4.1"
-            onChange={(event) => setModel(event.target.value)} />
+          <Select id="provider-model" mode="tags" value={models} disabled={saving}
+            placeholder={t("providers.form.modelsPlaceholder")} tokenSeparators={[","]}
+            options={modelOptions(models)} onChange={updateModels} />
+          <label htmlFor="provider-active-model">{t("providers.form.activeModel")}</label>
+          <Select id="provider-active-model" value={activeModel || undefined} disabled={saving || !normalizedModels.length}
+            placeholder="openai/gpt-4.1" options={modelOptions(normalizedModels)}
+            onChange={(value) => setModel(value)} />
           <label htmlFor="provider-api-key">{t("providers.form.apiKey")}</label>
           <Input.Password id="provider-api-key" value={apiKey} disabled={saving}
             placeholder={provider?.hasApiKey ? t("providers.form.keepApiKey") : t("providers.form.newApiKey")}
@@ -105,6 +137,33 @@ function apiFormatTag(provider: Provider, t: Translate) {
   return <Tag color="gold">{t("providers.tag.chatBridge")}</Tag>;
 }
 
+function ProviderModelCell({
+  provider,
+  busy,
+  onSwitchModel,
+  t,
+}: {
+  provider: Provider;
+  busy: boolean;
+  onSwitchModel: (id: string, model: string) => void;
+  t: Translate;
+}) {
+  const models = normalizeModels(provider.model, provider.models);
+  if (models.length <= 1) {
+    return <code className="provider-model-code">{provider.model}</code>;
+  }
+  return (
+    <div className="provider-model-select">
+      <Tooltip title={t("providers.tooltip.switchModel")}>
+        <Select size="small" value={provider.model} disabled={busy}
+          options={modelOptions(models)} popupMatchSelectWidth={false}
+          onChange={(value) => onSwitchModel(provider.id, value)} />
+      </Tooltip>
+      <Tag>{t("providers.model.count", { count: models.length })}</Tag>
+    </div>
+  );
+}
+
 export function ProvidersPage({
   providers,
   loading,
@@ -115,6 +174,7 @@ export function ProvidersPage({
   info,
   onSave,
   onSwitch,
+  onSwitchModel,
   onDisable,
   onDelete,
   onStartProxy,
@@ -154,8 +214,9 @@ export function ProvidersPage({
     {
       title: t("providers.table.model"),
       dataIndex: "model",
-      width: 190,
-      render: (model: string) => <code className="provider-model-code">{model}</code>,
+      width: 260,
+      render: (_, provider) => <ProviderModelCell provider={provider}
+        busy={busyProviderId === provider.id} onSwitchModel={onSwitchModel} t={t} />,
     },
     {
       title: t("providers.table.api"),
@@ -257,7 +318,7 @@ export function ProvidersPage({
         <div className="provider-table-wrap">
           <Table rowKey="id" size="small" columns={columns} dataSource={providers}
             rowClassName={(provider) => (provider.active ? "active-row" : "")}
-            pagination={false} scroll={{ x: 860 }} />
+            pagination={false} scroll={{ x: 930 }} />
         </div>
       ) : (
         <div className="provider-empty">
