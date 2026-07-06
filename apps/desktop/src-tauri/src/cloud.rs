@@ -312,14 +312,11 @@ fn apply_remote_account<R: Runtime>(
     } else if should_apply_remote && account.active && active_account_id.is_none() {
         write_json_if_changed(&paths.current_auth, &account_auth)?;
         let mut state = read_state(&paths);
-        if crate::local_proxy::is_running() {
-            crate::providers::write_official_local_proxy_config(&paths)?;
-        } else if state.active_provider_id.is_some() {
-            crate::providers::restore_official_config(&paths)?;
-        }
         state.active_account_id = Some(account.id.clone());
-        state.active_provider_id = None;
         write_state(&paths, &state)?;
+        if crate::local_proxy::is_running() {
+            crate::providers::apply_local_proxy_config_for_paths(&paths)?;
+        }
     }
     Ok(should_apply_remote)
 }

@@ -84,8 +84,7 @@ export function useProviderManager(notify: (message: string) => void, t: Transla
   const switchProvider = useCallback(async (id: string) => {
     setBusyProviderId(id);
     try {
-      const provider = providers.find((item) => item.id === id);
-      const hotSwitch = Boolean(localProxy?.running && provider?.apiFormat === "openaiChat");
+      const hotSwitch = Boolean(localProxy?.running);
       await activateProvider(id);
       notify(t(hotSwitch ? "toast.providerSwitchedHot" : "toast.providerSwitched"));
       await load();
@@ -94,7 +93,7 @@ export function useProviderManager(notify: (message: string) => void, t: Transla
     } finally {
       setBusyProviderId(null);
     }
-  }, [load, localProxy?.running, notify, providers, t]);
+  }, [load, localProxy?.running, notify, t]);
 
   const switchModel = useCallback(async (id: string, model: string) => {
     setBusyProviderId(id);

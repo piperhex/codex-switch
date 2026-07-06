@@ -134,17 +134,13 @@ pub(crate) fn switch_account<R: Runtime>(
     let paths = resolve_paths(&app)?;
     let selected = read_json(&managed_auth_path(&paths, &id))?;
     validate_auth(&selected)?;
-    let mut state = read_state(&paths);
-    if crate::local_proxy::is_running() {
-        crate::providers::write_official_local_proxy_config(&paths)?;
-        state.active_provider_id = None;
-    } else if state.active_provider_id.is_some() {
-        crate::providers::restore_official_config(&paths)?;
-        state.active_provider_id = None;
-    }
     write_json_atomic(&paths.current_auth, &selected)?;
+    let mut state = read_state(&paths);
     state.active_account_id = Some(id.clone());
     write_state(&paths, &state)?;
+    if crate::local_proxy::is_running() {
+        crate::providers::apply_local_proxy_config_for_paths(&paths)?;
+    }
     touch_account_modified(&paths, &id)?;
     app.emit("accounts-changed", ())
         .map_err(|error| error.to_string())?;

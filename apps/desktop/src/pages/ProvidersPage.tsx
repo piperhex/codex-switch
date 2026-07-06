@@ -270,7 +270,6 @@ export function ProvidersPage({
       align: "right",
       render: (_, provider) => {
         const waiting = busyProviderId === provider.id;
-        const hotSwitch = proxyRunning && provider.apiFormat === "openaiChat";
         return (
           <Space size={4} className="table-actions">
             <Tooltip title={provider.supportsDirectSwitch ? t("providers.tooltip.switch") : t("providers.tooltip.requiresBridge")}>
@@ -280,7 +279,7 @@ export function ProvidersPage({
                 onClick={() => onSwitch(provider.id)}>
                 {provider.active
                   ? t("providers.action.inUse")
-                  : hotSwitch
+                  : proxyRunning
                     ? t("providers.action.hotSwitch")
                     : t("providers.action.switch")}
               </Button>
