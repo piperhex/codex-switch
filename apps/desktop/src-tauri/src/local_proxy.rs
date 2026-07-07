@@ -62,7 +62,7 @@ enum UpstreamBody {
 }
 
 enum ActiveTarget {
-    Official,
+    Official { model: String },
     Provider(ProviderProfile),
 }
 
@@ -614,7 +614,9 @@ fn handle_proxy_request<R: Runtime>(
     let diagnostic = proxy_diagnostic_entry(method, url, headers, &body, Some(&target), route);
     let usage_context = token_usage_context(method, path, &body, &target, started_at);
     let result = match target {
-        ActiveTarget::Official => forward_official(app, method, url, headers, body),
+        ActiveTarget::Official { model } => {
+            forward_official(app, method, url, headers, body, &model)
+        }
         ActiveTarget::Provider(provider) => {
             if is_responses_endpoint(path) && provider.api_format == ProviderApiFormat::OpenaiChat {
                 forward_chat_bridge(method, url, headers, body, &provider)
@@ -635,12 +637,14 @@ fn active_target<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<ActiveTarget, 
         providers::ensure_not_local_proxy_base_url(&provider.base_url)?;
         return Ok(ActiveTarget::Provider(provider));
     }
-    Ok(ActiveTarget::Official)
+    Ok(ActiveTarget::Official {
+        model: providers::preferred_official_model(&paths),
+    })
 }
 
 fn proxy_diagnostic_route(path: &str, target: &ActiveTarget) -> ProxyDiagnosticRoute {
     match target {
-        ActiveTarget::Official => ProxyDiagnosticRoute::Official,
+        ActiveTarget::Official { .. } => ProxyDiagnosticRoute::Official,
         ActiveTarget::Provider(provider)
             if is_responses_endpoint(path)
                 && provider.api_format == ProviderApiFormat::OpenaiChat =>
@@ -750,17 +754,7 @@ fn token_usage_context(
 
     let request_body = serde_json::from_slice::<Value>(body).ok();
     let (provider, model) = match target {
-        ActiveTarget::Official => {
-            let model = request_body
-                .as_ref()
-                .and_then(|value| value.get("model"))
-                .and_then(Value::as_str)
-                .map(str::trim)
-                .filter(|value| !value.is_empty())
-                .unwrap_or("gpt-5-codex")
-                .to_string();
-            ("Official Codex".to_string(), model)
-        }
+        ActiveTarget::Official { model } => ("Official Codex".to_string(), model.clone()),
         ActiveTarget::Provider(provider) => {
             let model = request_body
                 .as_ref()
@@ -1085,7 +1079,10 @@ fn request_query_diagnostic(url: &str) -> Value {
 
 fn diagnostic_target(target: Option<&ActiveTarget>, route: ProxyDiagnosticRoute) -> Value {
     match target {
-        Some(ActiveTarget::Official) => json!({ "type": "official" }),
+        Some(ActiveTarget::Official { model }) => json!({
+            "type": "official",
+            "model": model
+        }),
         Some(ActiveTarget::Provider(provider)) => json!({
             "type": "provider",
             "id": provider.id,
@@ -1567,7 +1564,7 @@ fn token_usage_jsonl_path<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<PathB
 fn models_response_for_target(target: &ActiveTarget) -> Value {
     let models = match target {
         ActiveTarget::Provider(provider) => provider_models_for_codex(provider),
-        ActiveTarget::Official => vec!["gpt-5-codex".to_string()],
+        ActiveTarget::Official { model } => vec![model.clone()],
     };
     let data = models
         .iter()
@@ -1598,11 +1595,13 @@ fn forward_official<R: Runtime>(
     url: &str,
     headers: &[(String, String)],
     body: Vec<u8>,
+    model: &str,
 ) -> Result<UpstreamPayload, String> {
     let client = http_client()?;
     let (access_token, account_id) = official_token(app, &client)?;
     let upstream_endpoint = upstream_endpoint_for_codex_request(url);
     let upstream_url = official_url(&upstream_endpoint);
+    let body = official_body_for_upstream(method, &upstream_endpoint, body, model);
     let mut request = client
         .request(reqwest_method(method)?, upstream_url)
         .bearer_auth(access_token)
@@ -1618,6 +1617,21 @@ fn forward_official<R: Runtime>(
             .send()
             .map_err(|error| format!("Official Codex proxy request failed: {error}"))?,
     )
+}
+
+fn official_body_for_upstream(method: &Method, url: &str, body: Vec<u8>, model: &str) -> Vec<u8> {
+    if *method != Method::Post || !is_responses_endpoint(request_path(url)) {
+        return body;
+    }
+    let model = model.trim();
+    if model.is_empty() {
+        return body;
+    }
+    let Ok(mut value) = serde_json::from_slice::<Value>(&body) else {
+        return body;
+    };
+    value["model"] = Value::String(model.to_string());
+    serde_json::to_vec(&value).unwrap_or(body)
 }
 
 fn forward_provider(
@@ -3378,7 +3392,9 @@ mod tests {
 
     #[test]
     fn proxy_diagnostic_entry_covers_local_models_route() {
-        let target = ActiveTarget::Official;
+        let target = ActiveTarget::Official {
+            model: "gpt-5-codex".to_string(),
+        };
         let entry = proxy_diagnostic_entry(
             &Method::Get,
             "/v1/models?probe=secret",
@@ -3391,10 +3407,28 @@ mod tests {
 
         assert_eq!(entry["route"].as_str(), Some("local_models"));
         assert_eq!(entry["target"]["type"].as_str(), Some("official"));
+        assert_eq!(entry["target"]["model"].as_str(), Some("gpt-5-codex"));
         assert_eq!(entry["requestBody"]["json"], false);
         assert_eq!(entry["query"]["present"], true);
         assert!(!serialized.contains("probe=secret"));
         assert!(entry.get("responses").is_none());
+    }
+
+    #[test]
+    fn official_responses_body_overrides_cached_provider_model() {
+        let body = serde_json::to_vec(&json!({
+            "model": "deepseek-chat",
+            "input": "ping",
+            "stream": false
+        }))
+        .unwrap();
+
+        let rewritten =
+            official_body_for_upstream(&Method::Post, "/v1/responses", body, "gpt-5-codex");
+        let json: Value = serde_json::from_slice(&rewritten).unwrap();
+
+        assert_eq!(json["model"], "gpt-5-codex");
+        assert_eq!(json["input"], "ping");
     }
 
     #[test]

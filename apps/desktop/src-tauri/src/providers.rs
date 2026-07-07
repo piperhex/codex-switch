@@ -25,7 +25,7 @@ pub(crate) const LOCAL_PROXY_BASE_URL: &str = "http://127.0.0.1:15722/v1";
 pub(crate) const LOCAL_PROXY_TOKEN: &str = "CODEX_SWITCH_LOCAL_PROXY";
 const LOCAL_PROXY_PROVIDER_ID: &str = "codex-switch-local";
 const LOCAL_PROXY_PROVIDER_NAME: &str = "Codex Switch Local Proxy";
-const DEFAULT_OFFICIAL_MODEL: &str = "gpt-5-codex";
+pub(crate) const DEFAULT_OFFICIAL_MODEL: &str = "gpt-5-codex";
 const MODEL_CATALOG_FILENAME: &str = "codex-switch-model-catalog.json";
 const DEFAULT_MODEL_CONTEXT_WINDOW: u64 = 128_000;
 
@@ -820,7 +820,7 @@ fn config_contains_local_proxy(config: &str) -> bool {
         || config.contains(&format!("[model_providers.{LOCAL_PROXY_PROVIDER_ID}]"))
 }
 
-fn preferred_official_model(paths: &Paths) -> String {
+pub(crate) fn preferred_official_model(paths: &Paths) -> String {
     let current = fs::read_to_string(&paths.current_config).ok();
     let backup = fs::read_to_string(&paths.config_backup).ok();
     preferred_official_model_from_configs(current.as_deref(), backup.as_deref())
