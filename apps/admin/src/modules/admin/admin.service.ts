@@ -11,6 +11,7 @@ import { SyncService } from '@/modules/sync/sync.service';
 import { UserService } from '@/modules/user/user.service';
 import type { UserEntity } from '@/modules/user/entities/user.entity';
 import type { SyncAccountDto } from '@/modules/sync/dto/sync-accounts.dto';
+import type { SyncProviderDto } from '@/modules/sync/dto/sync-providers.dto';
 import type { CreateAdminUserDto, ListAdminUsersQueryDto, UpdateAdminUserDto } from './dto/admin-user.dto';
 import type {
   CreateApprovalRequestDto,
@@ -29,6 +30,10 @@ export interface InvitationForRegistration {
   email: string;
   role: UserEntity['role'];
 }
+
+export type AdminSyncedProviderDto = Omit<SyncProviderDto, 'apiKey'> & {
+  hasApiKey: boolean;
+};
 
 @Injectable()
 export class AdminService {
@@ -78,6 +83,14 @@ export class AdminService {
   async listUserAccounts(ownerId: string) {
     await this.ensureUser(ownerId);
     return this.sync.list(ownerId);
+  }
+
+  async listUserProviders(ownerId: string): Promise<{ providers: AdminSyncedProviderDto[] }> {
+    await this.ensureUser(ownerId);
+    const data = await this.sync.listProviders(ownerId);
+    return {
+      providers: data.providers.map((provider) => this.presentSyncedProvider(provider)),
+    };
   }
 
   async updateUserAccount(
@@ -293,6 +306,14 @@ export class AdminService {
       revokedAt: invitation.revokedAt,
       createdAt: invitation.createdAt,
       updatedAt: invitation.updatedAt,
+    };
+  }
+
+  private presentSyncedProvider(provider: SyncProviderDto): AdminSyncedProviderDto {
+    const { apiKey, ...safeProvider } = provider;
+    return {
+      ...safeProvider,
+      hasApiKey: Boolean(apiKey?.trim()),
     };
   }
 }

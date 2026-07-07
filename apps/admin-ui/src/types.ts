@@ -43,6 +43,18 @@ export interface SyncAccount {
   auth: Record<string, unknown>;
 }
 
+export interface SyncProvider {
+  id: string;
+  name: string;
+  baseUrl: string;
+  model: string;
+  models: string[];
+  modelSelectionControlledByCodex: boolean;
+  apiFormat: "openaiResponses" | "openaiChat";
+  lastModifiedAt?: string;
+  hasApiKey: boolean;
+}
+
 export interface AuditLog {
   id: string;
   actorEmail: string;

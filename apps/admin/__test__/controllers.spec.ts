@@ -75,6 +75,7 @@ describe('HTTP controllers', () => {
       updateUser: vi.fn().mockResolvedValue('updated'), deleteUser: vi.fn().mockResolvedValue('deleted'),
       changePassword: vi.fn().mockResolvedValue({ ok: true }),
       listUserAccounts: vi.fn().mockResolvedValue('accounts'),
+      listUserProviders: vi.fn().mockResolvedValue('providers'),
       updateUserAccount: vi.fn().mockResolvedValue('account-updated'),
       deleteUserAccount: vi.fn().mockResolvedValue('account-deleted'),
       listAuditLogs: vi.fn().mockResolvedValue('logs'),
@@ -102,6 +103,7 @@ describe('HTTP controllers', () => {
       currentPassword: 'old-pass', newPassword: 'new-password',
     })).resolves.toEqual({ ok: true });
     await expect(controller.listUserAccounts('user-1')).resolves.toBe('accounts');
+    await expect(controller.listUserProviders('user-1')).resolves.toBe('providers');
     await expect(controller.updateUserAccount(actor, 'user-1', 'account-1', { active: false }))
       .resolves.toBe('account-updated');
     await expect(controller.deleteUserAccount(actor, 'user-1', 'account-1'))
@@ -122,5 +124,6 @@ describe('HTTP controllers', () => {
       email: 'new@example.com', password: 'password', role: 'admin', disabled: false,
     });
     expect(admin.updateUser).toHaveBeenCalledWith(actor, 'user-1', { disabled: true });
+    expect(admin.listUserProviders).toHaveBeenCalledWith('user-1');
   });
 });

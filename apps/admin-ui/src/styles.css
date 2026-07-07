@@ -197,6 +197,12 @@ body {
   flex-wrap: wrap;
 }
 
+.provider-model-tags {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
 .token-box {
   display: flex;
   gap: 8px;

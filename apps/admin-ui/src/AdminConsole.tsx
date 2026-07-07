@@ -24,6 +24,7 @@ import type {
   PageResult,
   Profile,
   SyncAccount,
+  SyncProvider,
   UserFilters,
   UserRow,
 } from "./types";
@@ -64,6 +65,8 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
   const [accountUser, setAccountUser] = useState<UserRow | null>(null);
   const [accounts, setAccounts] = useState<SyncAccount[]>([]);
   const [accountsLoading, setAccountsLoading] = useState(false);
+  const [providers, setProviders] = useState<SyncProvider[]>([]);
+  const [providersLoading, setProvidersLoading] = useState(false);
   const [editingAccount, setEditingAccount] = useState<SyncAccount | null>(null);
   const [invitationOpen, setInvitationOpen] = useState(false);
   const [approvalOpen, setApprovalOpen] = useState(false);
@@ -156,6 +159,18 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
       message.error((error as Error).message);
     } finally {
       setAccountsLoading(false);
+    }
+  }, [api, message]);
+
+  const loadProviders = useCallback(async (user: UserRow) => {
+    setProvidersLoading(true);
+    try {
+      const data = await api<{ providers: SyncProvider[] }>(`/admin/api/users/${user.id}/providers`);
+      setProviders(data.providers);
+    } catch (error) {
+      message.error((error as Error).message);
+    } finally {
+      setProvidersLoading(false);
     }
   }, [api, message]);
 
@@ -258,6 +273,7 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
         onOpenAccounts={(user) => {
           setAccountUser(user);
           void loadAccounts(user);
+          void loadProviders(user);
         }}
         onRequestApproval={(user) => {
           setApprovalUsers([user]);
@@ -305,10 +321,13 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
       <AccountDrawer
         user={accountUser}
         accounts={accounts}
+        providers={providers}
         loading={accountsLoading}
+        providersLoading={providersLoading}
         onClose={() => {
           setAccountUser(null);
           setAccounts([]);
+          setProviders([]);
         }}
         onEditAccount={setEditingAccount}
         onDeleteAccount={(account) => {

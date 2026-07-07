@@ -81,6 +81,12 @@ export class AdminController {
   }
 
   @UseGuards(JwtAuthGuard, AdminGuard)
+  @Get('api/users/:id/providers')
+  listUserProviders(@Param('id') id: string) {
+    return this.admin.listUserProviders(id);
+  }
+
+  @UseGuards(JwtAuthGuard, AdminGuard)
   @Patch('api/users/:id/accounts/:accountId')
   updateUserAccount(
     @CurrentUser() user: AuthUser,

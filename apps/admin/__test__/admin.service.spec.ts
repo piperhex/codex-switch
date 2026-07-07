@@ -8,7 +8,7 @@ import type { AdminInvitationEntity } from '@/modules/admin/entities/admin-invit
 import type { SyncService } from '@/modules/sync/sync.service';
 import type { UserService } from '@/modules/user/user.service';
 import type { AuthUser } from '@/common/decorators/user.decorator';
-import { makeUser } from './fixtures';
+import { makeProvider, makeUser } from './fixtures';
 
 describe('AdminService', () => {
   const actor: AuthUser = { id: 'admin-1', email: 'admin@example.com', role: 'admin' };
@@ -19,7 +19,7 @@ describe('AdminService', () => {
   };
   let sync: {
     list: ReturnType<typeof vi.fn>; updateForAdmin: ReturnType<typeof vi.fn>;
-    delete: ReturnType<typeof vi.fn>;
+    delete: ReturnType<typeof vi.fn>; listProviders: ReturnType<typeof vi.fn>;
   };
   let auditLogs: {
     create: ReturnType<typeof vi.fn>; save: ReturnType<typeof vi.fn>; findAndCount: ReturnType<typeof vi.fn>;
@@ -39,7 +39,7 @@ describe('AdminService', () => {
       listUsers: vi.fn(), createUser: vi.fn(), updateUser: vi.fn(),
       deleteUser: vi.fn(), changePassword: vi.fn(), findById: vi.fn(),
     };
-    sync = { list: vi.fn(), updateForAdmin: vi.fn(), delete: vi.fn() };
+    sync = { list: vi.fn(), updateForAdmin: vi.fn(), delete: vi.fn(), listProviders: vi.fn() };
     auditLogs = {
       create: vi.fn((value) => value),
       save: vi.fn(async (value) => value),
@@ -108,6 +108,30 @@ describe('AdminService', () => {
       action: 'invitation.accept',
       actorId: acceptedUser.id,
     }));
+  });
+
+  it('lists synced providers for an existing user without exposing API keys', async () => {
+    const owner = makeUser({ id: 'owner-1' });
+    const provider = makeProvider({ apiKey: 'sk-secret' });
+    users.findById.mockResolvedValue(owner);
+    sync.listProviders.mockResolvedValue({ providers: [provider] });
+
+    await expect(service.listUserProviders(owner.id)).resolves.toEqual({
+      providers: [{
+        id: provider.id,
+        name: provider.name,
+        baseUrl: provider.baseUrl,
+        model: provider.model,
+        models: provider.models,
+        modelSelectionControlledByCodex: provider.modelSelectionControlledByCodex,
+        apiFormat: provider.apiFormat,
+        lastModifiedAt: provider.lastModifiedAt,
+        hasApiKey: true,
+      }],
+    });
+
+    expect(users.findById).toHaveBeenCalledWith(owner.id);
+    expect(sync.listProviders).toHaveBeenCalledWith(owner.id);
   });
 
   it('requires a different admin to approve privileged requests and applies approved changes', async () => {
