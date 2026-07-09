@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button, Popconfirm, Space, Table, Tag, Tooltip } from "antd";
 import type { TableProps } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { Check, Clock3, RefreshCw, RotateCcw, Trash2 } from "lucide-react";
+import { CalendarClock, Check, RefreshCw, RotateCcw, Trash2 } from "lucide-react";
 import type { Language, Translate } from "../../i18n";
 import type { Account, ResetCreditsLoadState } from "../../types";
 import { formatUpdated, initials } from "../../utils/format";
@@ -19,6 +19,8 @@ interface AccountTableProps {
   onSaveNote: (id: string, note: string, expiresAt: string) => Promise<boolean>;
   resetCredits: Record<string, ResetCreditsLoadState>;
   onLoadResetCredits: (id: string, force?: boolean) => void;
+  onUseResetCredit: (id: string) => void;
+  resetCreditBusyAccountId: string | null;
   hotSwitchEnabled: boolean;
   language: Language;
   t: Translate;
@@ -62,36 +64,6 @@ function persistUsageSortPreference(preference: UsageSortPreference | null) {
   window.localStorage.setItem(USAGE_SORT_STORAGE_KEY, JSON.stringify(preference));
 }
 
-function ResetCreditCount({ state, language, t }: { state?: ResetCreditsLoadState; language: Language; t: Translate }) {
-  if (!state) {
-    return (
-      <Tooltip title={t("table.resetCreditsUnknown")}>
-        <span className="reset-count-cell">
-          <span className="reset-count reset-count-muted">-</span>
-          <span className="reset-count-updated">{t("table.resetCreditsUpdated", { time: formatUpdated(null, language) })}</span>
-        </span>
-      </Tooltip>
-    );
-  }
-  if (state.status === "loading") {
-    return (
-      <span className="reset-count-cell">
-        <span className="reset-count reset-count-muted"><RefreshCw className="spin" size={13} /></span>
-        <span className="reset-count-updated">{t("table.resetCreditsRefreshing")}</span>
-      </span>
-    );
-  }
-  if (state.status === "error") {
-    return <Tooltip title={state.error || t("table.resetCreditsError")}><Tag color="error">{t("table.error")}</Tag></Tooltip>;
-  }
-  return (
-    <span className="reset-count-cell">
-      <span className="reset-count">{state.data.credits.length}</span>
-      <span className="reset-count-updated">{t("table.resetCreditsUpdated", { time: formatUpdated(state.fetchedAt, language) })}</span>
-    </span>
-  );
-}
-
 function usageRemainingSortValue(window: Account["usage"]["primary"]) {
   return typeof window?.remainingPercent === "number" ? window.remainingPercent : Number.NEGATIVE_INFINITY;
 }
@@ -104,6 +76,10 @@ function compareUsageRemaining(
   return usageRemainingSortValue(left.usage[usageWindow]) - usageRemainingSortValue(right.usage[usageWindow]);
 }
 
+function resetCreditsCount(state?: ResetCreditsLoadState) {
+  return state?.status === "loaded" ? state.data.credits.length : null;
+}
+
 export function AccountTable({
   accounts,
   busyAccountId,
@@ -113,6 +89,8 @@ export function AccountTable({
   onSaveNote,
   resetCredits,
   onLoadResetCredits,
+  onUseResetCredit,
+  resetCreditBusyAccountId,
   hotSwitchEnabled,
   language,
   t,
@@ -174,16 +152,14 @@ export function AccountTable({
       title: t("table.oneWeek"), key: "oneWeek", width: 110,
       sorter: (left, right) => compareUsageRemaining(left, right, "secondary"),
       sortOrder: usageSort?.column === "oneWeek" ? usageSort.order : null,
-      render: (_, account) => <UsageMeter window={account.usage.secondary} resetWindow="oneWeek" language={language} t={t} />,
+      render: (_, account) => <UsageMeter window={account.usage.secondary} resetWindow="oneWeek"
+        resetCreditsCount={resetCreditsCount(resetCredits[account.id])} language={language} t={t} />,
     },
     {
-      title: t("table.resetCredits"), width: 80, align: "center",
-      render: (_, account) => <ResetCreditCount state={resetCredits[account.id]} language={language} t={t} />,
-    },
-    {
-      title: t("table.actions"), width: 80, align: "center", fixed: "right",
+      title: t("table.actions"), width: 120, align: "center", fixed: "right",
       render: (_, account) => {
         const waiting = busyAccountId === account.id;
+        const resetWaiting = resetCreditBusyAccountId === account.id;
         return (
           <Space size={4} className="table-actions">
             <Button size="small" type={account.active ? "default" : "primary"} disabled={account.active}
@@ -191,6 +167,20 @@ export function AccountTable({
               onClick={() => onSwitch(account.id)}>
               {account.active ? t("table.inUse") : hotSwitchEnabled ? t("table.hotSwitch") : t("table.switch")}
             </Button>
+            <Popconfirm title={t("table.useResetCreditConfirmTitle")}
+              description={<span className="reset-credit-confirm-description">{t("table.useResetCreditConfirmDescription")}</span>}
+              okText={t("table.useResetCreditOk")} cancelText={t("table.cancel")}
+              classNames={{ root: "reset-credit-popconfirm" }}
+              styles={{ root: { width: 320, maxWidth: "calc(100vw - 32px)" } }}
+              disabled={waiting || resetWaiting}
+              onConfirm={() => onUseResetCredit(account.id)}>
+              <Tooltip title={t("table.useResetCreditTooltip")}>
+                <Button size="small" className="reset-credit-action" loading={resetWaiting}
+                  disabled={waiting} icon={<CalendarClock size={14} />}>
+                  {t("table.useResetCredit")}
+                </Button>
+              </Tooltip>
+            </Popconfirm>
             <Tooltip title={t("table.refreshUsage")}>
               <Button size="small" className="table-icon-button" loading={waiting}
                 icon={<RefreshCw size={14} />} onClick={() => onRefresh(account.id)} />
@@ -228,7 +218,7 @@ export function AccountTable({
             onRetry={() => onLoadResetCredits(account.id, true)} language={language} t={t} />,
           onExpand: (expanded, account) => { if (expanded) onLoadResetCredits(account.id); },
         }}
-        scroll={{ x: 1390 }} />
+        scroll={{ x: 1310 }} />
     </div>
     {editingAccount && <AccountNoteModal key={editingAccount.id} account={editingAccount}
       onClose={() => setEditingAccount(null)}

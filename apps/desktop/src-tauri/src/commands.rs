@@ -19,8 +19,8 @@ use tauri_plugin_opener::OpenerExt;
 use crate::{
     auth::{account_fields, validate_auth},
     codex_api::{
-        parse_reset_credits, parse_usage, refresh_tokens, reset_credits_request, token_expiring,
-        usage_request,
+        consume_reset_credit_request, parse_reset_credits, parse_usage, refresh_tokens,
+        reset_credits_request, token_expiring, usage_request,
     },
     models::{AccountSummary, AppInfo, ResetCreditsSummary, UsageSummary},
     storage::{
@@ -365,11 +365,20 @@ fn fetch_reset_credits_blocking<R: Runtime>(
     let client = api_client()?;
     refresh_auth_if_needed(&client, &mut auth, &paths, &id)?;
 
-    let mut response = reset_credits_request(&client, &auth)?;
+    fetch_reset_credits_with_retry(&client, &mut auth, &paths, &id)
+}
+
+fn fetch_reset_credits_with_retry(
+    client: &Client,
+    auth: &mut Value,
+    paths: &Paths,
+    id: &str,
+) -> Result<ResetCreditsSummary, String> {
+    let mut response = reset_credits_request(client, auth)?;
     if response.status() == reqwest::StatusCode::UNAUTHORIZED {
-        refresh_tokens(&client, &mut auth)?;
-        persist_request_auth(&paths, &id, &auth)?;
-        response = reset_credits_request(&client, &auth)?;
+        refresh_tokens(client, auth)?;
+        persist_request_auth(paths, id, auth)?;
+        response = reset_credits_request(client, auth)?;
     }
     if response.status() == reqwest::StatusCode::UNAUTHORIZED {
         return Err("凭证已失效，或请求未正确携带 Authorization，请重新登录".to_string());
@@ -381,8 +390,68 @@ fn fetch_reset_credits_blocking<R: Runtime>(
     let payload: Value = response
         .json()
         .map_err(|error| format!("解析重置卡响应失败：{error}"))?;
-    persist_request_auth(&paths, &id, &auth)?;
+    persist_request_auth(paths, id, auth)?;
     parse_reset_credits(&payload)
+}
+
+#[tauri::command]
+pub(crate) async fn consume_reset_credit<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    id: String,
+) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || consume_reset_credit_blocking(app, id))
+        .await
+        .map_err(|error| format!("使用重置卡任务失败：{error}"))?
+}
+
+fn consume_reset_credit_blocking<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    id: String,
+) -> Result<(), String> {
+    let paths = resolve_paths(&app)?;
+    let mut auth = load_auth_for_request(&app, &paths, &id)?;
+    let client = api_client()?;
+    refresh_auth_if_needed(&client, &mut auth, &paths, &id)?;
+
+    let credits = fetch_reset_credits_with_retry(&client, &mut auth, &paths, &id)?;
+    if credits.credits.is_empty() {
+        return Err("当前账号没有可用重置卡".to_string());
+    }
+
+    let redeem_request_id = format!(
+        "codex-switch-{}-{}",
+        Utc::now().timestamp_millis(),
+        rand::random::<u64>()
+    );
+    let mut response = consume_reset_credit_request(&client, &auth, &redeem_request_id)?;
+    if response.status() == reqwest::StatusCode::UNAUTHORIZED {
+        refresh_tokens(&client, &mut auth)?;
+        persist_request_auth(&paths, &id, &auth)?;
+        response = consume_reset_credit_request(&client, &auth, &redeem_request_id)?;
+    }
+    if response.status() == reqwest::StatusCode::UNAUTHORIZED {
+        return Err("凭证已失效，或请求未正确携带 Authorization，请重新登录".to_string());
+    }
+    if !response.status().is_success() {
+        return Err(format!(
+            "Codex 重置卡使用接口返回 HTTP {}",
+            response.status()
+        ));
+    }
+
+    let payload: Value = response
+        .json()
+        .map_err(|error| format!("解析重置卡使用响应失败：{error}"))?;
+    match payload.get("code").and_then(Value::as_str) {
+        Some("reset") | Some("already_redeemed") => {
+            persist_request_auth(&paths, &id, &auth)?;
+            Ok(())
+        }
+        Some("no_credit") => Err("当前账号没有可用重置卡".to_string()),
+        Some("nothing_to_reset") => Err("当前账号当前没有需要重置的用量窗口".to_string()),
+        Some(code) => Err(format!("Codex 重置卡使用接口返回未知状态：{code}")),
+        None => Err("Codex 重置卡使用接口响应缺少 code".to_string()),
+    }
 }
 
 fn sync_active_auth(paths: &Paths, id: &str, auth: &Value) -> Result<(), String> {

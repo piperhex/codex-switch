@@ -85,6 +85,7 @@ pub fn run() {
             commands::delete_account,
             commands::refresh_usage,
             commands::fetch_reset_credits,
+            commands::consume_reset_credit,
             commands::restart_codex,
             providers::list_providers,
             providers::save_provider,

@@ -4,7 +4,7 @@ import enUS from "antd/locale/en_US";
 import zhCN from "antd/locale/zh_CN";
 import { BarChart3, CalendarClock, Check, CircleHelp, Cloud, Download, Github, LogIn, LogOut, Plus, RefreshCw, RotateCcw, Server, Settings, ShieldCheck, Upload, UploadCloud, UserRound } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { checkForUpdate, chooseAndExportDiagnosticLogs, isDesktopApp, openManagedFolder, restartCodex, showTokenUsageWindow } from "./api/backend";
+import { checkForUpdate, chooseAndExportDiagnosticLogs, consumeResetCredit, isDesktopApp, openManagedFolder, restartCodex, showTokenUsageWindow } from "./api/backend";
 import { HelpModal, type HelpVersionState } from "./components/modals/HelpModal";
 import { FloatingUsageBubble } from "./components/FloatingUsageBubble";
 import { TokenUsageWindow } from "./components/TokenUsageWindow";
@@ -53,6 +53,7 @@ function DashboardApp() {
   const [lastRefreshAllAt, setLastRefreshAllAt] = useState<string | null>(storedRefreshAllTime);
   const [restartingCodex, setRestartingCodex] = useState(false);
   const [exportingLogs, setExportingLogs] = useState(false);
+  const [resetCreditBusyAccountId, setResetCreditBusyAccountId] = useState<string | null>(null);
   const helpVersionRequestId = useRef(0);
   const { message: toast, notify } = useToast();
   const { language, setLanguage, t } = useLanguage();
@@ -121,6 +122,21 @@ function DashboardApp() {
   const loadResetCredits = useCallback((id: string, force?: boolean) => {
     void resetCredits.refreshAccount(id, force);
   }, [resetCredits.refreshAccount]);
+  const useResetCredit = useCallback(async (id: string) => {
+    setResetCreditBusyAccountId(id);
+    try {
+      await consumeResetCredit(id);
+      notify(t("toast.resetCreditConsumed"));
+      await Promise.allSettled([
+        resetCredits.refreshAccount(id, true),
+        manager.refreshUsage(id, true, false),
+      ]);
+    } catch (error) {
+      notify(String(error));
+    } finally {
+      setResetCreditBusyAccountId(null);
+    }
+  }, [manager.refreshUsage, notify, resetCredits.refreshAccount, t]);
   const changeThemeColor = useCallback((color: string) => {
     void themeColor.setColor(color);
   }, [themeColor.setColor]);
@@ -416,6 +432,8 @@ function DashboardApp() {
               onSaveNote={saveAccountNote}
               resetCredits={resetCredits.states}
               onLoadResetCredits={loadResetCredits}
+              onUseResetCredit={(id) => void useResetCredit(id)}
+              resetCreditBusyAccountId={resetCreditBusyAccountId}
               onStartProxy={providerManager.startProxy} onStopProxy={providerManager.stopProxy}
               language={language} t={t} />
           </section>

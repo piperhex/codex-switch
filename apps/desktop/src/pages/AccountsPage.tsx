@@ -17,6 +17,8 @@ export function AccountsPage({
   onDelete,
   onSaveNote,
   onLoadResetCredits,
+  onUseResetCredit,
+  resetCreditBusyAccountId,
   onStartProxy,
   onStopProxy,
   language,
@@ -34,6 +36,8 @@ export function AccountsPage({
   onDelete: (id: string) => void;
   onSaveNote: (id: string, note: string, expiresAt: string) => Promise<boolean>;
   onLoadResetCredits: (id: string, force?: boolean) => void;
+  onUseResetCredit: (id: string) => void;
+  resetCreditBusyAccountId: string | null;
   onStartProxy: () => void;
   onStopProxy: () => void;
   language: Language;
@@ -73,6 +77,7 @@ export function AccountsPage({
         onSwitch={onSwitch} onRefresh={onRefresh} onDelete={onDelete}
         onSaveNote={onSaveNote}
         resetCredits={resetCredits} onLoadResetCredits={onLoadResetCredits}
+        onUseResetCredit={onUseResetCredit} resetCreditBusyAccountId={resetCreditBusyAccountId}
         hotSwitchEnabled={hotSwitchEnabled} language={language} t={t} />
     </>
   );

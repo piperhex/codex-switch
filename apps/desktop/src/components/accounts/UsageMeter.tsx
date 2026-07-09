@@ -19,9 +19,10 @@ function tableResetLabel(timestamp: number | null | undefined, language: Languag
   return language === "zh" ? `${label}(倒计时：${countdown})` : `${label} (Countdown: ${countdown})`;
 }
 
-export function UsageMeter({ window: usageWindow, resetWindow, language, t }: {
+export function UsageMeter({ window: usageWindow, resetWindow, resetCreditsCount, language, t }: {
   window?: UsageWindow | null;
   resetWindow: UsageResetWindow;
+  resetCreditsCount?: number | null;
   language: Language;
   t: Translate;
 }) {
@@ -43,6 +44,11 @@ export function UsageMeter({ window: usageWindow, resetWindow, language, t }: {
       <div className="table-usage-head">
         <strong className={tone}>{remaining}%</strong>
         <span>{t("usage.remaining")}</span>
+        {resetCreditsCount !== undefined && (
+          <span className="usage-reset-credits">
+            {t("usage.resetCreditsRemaining", { count: resetCreditsCount ?? "-" })}
+          </span>
+        )}
       </div>
       <Progress percent={remaining} showInfo={false} size="small" strokeColor={usageStroke(remaining)} />
       <span className="usage-reset">{tableResetLabel(usageWindow.resetsAt, language, resetWindow, now)}</span>

@@ -501,6 +501,10 @@ export async function fetchResetCredits(id: string): Promise<ResetCreditsSummary
   };
 }
 
+export async function consumeResetCredit(id: string): Promise<void> {
+  if (isDesktopApp) await invoke("consume_reset_credit", { id });
+}
+
 export async function restartCodex(): Promise<void> {
   if (isDesktopApp) await invoke("restart_codex");
 }

@@ -12,6 +12,8 @@ pub(crate) const ISSUER: &str = "https://auth.openai.com";
 pub(crate) const ORIGINATOR: &str = "codex_cli_rs";
 const USAGE_URL: &str = "https://chatgpt.com/backend-api/wham/usage";
 const RESET_CREDITS_URL: &str = "https://chatgpt.com/backend-api/wham/rate-limit-reset-credits";
+const RESET_CREDIT_CONSUME_URL: &str =
+    "https://chatgpt.com/backend-api/wham/rate-limit-reset-credits/consume";
 
 pub(crate) fn token_expiring(auth: &Value) -> bool {
     let Some(token) = token_string(auth, "access_token") else {
@@ -71,6 +73,29 @@ pub(crate) fn usage_request(client: &Client, auth: &Value) -> Result<Response, S
 
 pub(crate) fn reset_credits_request(client: &Client, auth: &Value) -> Result<Response, String> {
     authorized_get(client, auth, RESET_CREDITS_URL, "读取 Codex 重置卡失败")
+}
+
+pub(crate) fn consume_reset_credit_request(
+    client: &Client,
+    auth: &Value,
+    redeem_request_id: &str,
+) -> Result<Response, String> {
+    let access_token = token_string(auth, "access_token")
+        .ok_or_else(|| "auth.json 缺少 access_token".to_string())?;
+    let (_, _, account_id, _) = account_fields(auth)?;
+    let mut request = client
+        .post(RESET_CREDIT_CONSUME_URL)
+        .bearer_auth(access_token)
+        .header("originator", ORIGINATOR)
+        .header("User-Agent", "codex_cli_rs/0.1.0")
+        .header("Content-Type", "application/json")
+        .json(&json!({ "redeem_request_id": redeem_request_id }));
+    if let Some(account_id) = account_id {
+        request = request.header("ChatGPT-Account-Id", account_id);
+    }
+    request
+        .send()
+        .map_err(|error| format!("使用 Codex 重置卡失败：{error}"))
 }
 
 fn authorized_get(
