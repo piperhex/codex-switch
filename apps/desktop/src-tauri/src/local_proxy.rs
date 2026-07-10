@@ -53,6 +53,7 @@ struct ProxyRuntime {
 struct UpstreamPayload {
     status: u16,
     content_type: Option<String>,
+    response_headers: Vec<(String, String)>,
     body: UpstreamBody,
 }
 
@@ -589,7 +590,15 @@ fn handle_proxy_request<R: Runtime>(
             Some(&target),
             ProxyDiagnosticRoute::LocalModels,
         );
-        let result = Ok(json_payload(200, models_response_for_target(&target)));
+        let result = match &target {
+            ActiveTarget::Official { model } => {
+                forward_official(app, method, url, headers, body, model)
+            }
+            ActiveTarget::Provider(provider) => Ok(json_payload(
+                200,
+                providers::model_catalog_for_models(&provider_models_for_codex(provider)),
+            )),
+        };
         append_proxy_diagnostic_result(app, diagnostic, &result, started_at.elapsed());
         return result;
     }
@@ -754,7 +763,13 @@ fn token_usage_context(
 
     let request_body = serde_json::from_slice::<Value>(body).ok();
     let (provider, model) = match target {
-        ActiveTarget::Official { model } => ("Official Codex".to_string(), model.clone()),
+        ActiveTarget::Official { model } => {
+            let selected_model = request_body
+                .as_ref()
+                .map(|value| selected_official_model(value, model))
+                .unwrap_or_else(|| model.clone());
+            ("Official Codex".to_string(), selected_model)
+        }
         ActiveTarget::Provider(provider) => {
             let model = request_body
                 .as_ref()
@@ -1561,34 +1576,6 @@ fn token_usage_jsonl_path<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<PathB
     Ok(app_data.join("logs").join(TOKEN_USAGE_JSONL_FILE_NAME))
 }
 
-fn models_response_for_target(target: &ActiveTarget) -> Value {
-    let models = match target {
-        ActiveTarget::Provider(provider) => provider_models_for_codex(provider),
-        ActiveTarget::Official { model } => vec![model.clone()],
-    };
-    let data = models
-        .iter()
-        .map(|model| json!({ "id": model, "object": "model" }))
-        .collect::<Vec<_>>();
-    let catalog = models
-        .iter()
-        .map(|model| {
-            json!({
-                "slug": model,
-                "display_name": model,
-                "description": model,
-                "context_window": 128000,
-                "max_context_window": 128000
-            })
-        })
-        .collect::<Vec<_>>();
-    json!({
-        "object": "list",
-        "data": data,
-        "models": catalog
-    })
-}
-
 fn forward_official<R: Runtime>(
     app: &tauri::AppHandle<R>,
     method: &Method,
@@ -1630,7 +1617,10 @@ fn official_body_for_upstream(method: &Method, url: &str, body: Vec<u8>, model: 
     let Ok(mut value) = serde_json::from_slice::<Value>(&body) else {
         return body;
     };
-    value["model"] = Value::String(model.to_string());
+    if requested_model(&value).is_some() {
+        return body;
+    }
+    value["model"] = Value::String(selected_official_model(&value, model));
     serde_json::to_vec(&value).unwrap_or(body)
 }
 
@@ -1718,10 +1708,12 @@ fn forward_chat_bridge(
         .get(reqwest::header::CONTENT_TYPE)
         .and_then(|value| value.to_str().ok())
         .map(str::to_string);
+    let response_headers = forwarded_response_headers(response.headers());
     if stream && status_ok(status) && is_event_stream(content_type.as_deref()) {
         return Ok(UpstreamPayload {
             status,
             content_type: Some("text/event-stream; charset=utf-8".to_string()),
+            response_headers,
             body: UpstreamBody::Streaming(Box::new(ChatSseReader::new(
                 BufReader::new(response),
                 selected_model,
@@ -1738,16 +1730,16 @@ fn forward_chat_bridge(
             status,
             content_type: content_type
                 .or_else(|| Some("application/json; charset=utf-8".to_string())),
+            response_headers,
             body: UpstreamBody::Buffered(body.to_vec()),
         });
     }
 
     let json: Value = serde_json::from_slice(&body)
         .map_err(|_| "Chat bridge upstream returned non-JSON response".to_string())?;
-    Ok(json_payload(
-        status,
-        chat_to_responses_json(&json, &tool_context),
-    ))
+    let mut payload = json_payload(status, chat_to_responses_json(&json, &tool_context));
+    payload.response_headers = response_headers;
+    Ok(payload)
 }
 
 fn selected_provider_model(body: &Value, provider: &ProviderProfile) -> String {
@@ -1759,6 +1751,19 @@ fn selected_provider_model(body: &Value, provider: &ProviderProfile) -> String {
         .map(str::trim)
         .filter(|model| provider.models.iter().any(|allowed| allowed == model))
         .unwrap_or(&provider.model)
+        .to_string()
+}
+
+fn requested_model(body: &Value) -> Option<&str> {
+    body.get("model")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|model| !model.is_empty())
+}
+
+fn selected_official_model(body: &Value, fallback: &str) -> String {
+    requested_model(body)
+        .unwrap_or_else(|| fallback.trim())
         .to_string()
 }
 
@@ -1816,7 +1821,14 @@ fn should_skip_header(name: &str, skip_auth: bool) -> bool {
     ) || (skip_auth
         && matches!(
             name,
-            "authorization" | "x-api-key" | "openai-api-key" | "api-key"
+            "authorization"
+                | "x-api-key"
+                | "openai-api-key"
+                | "api-key"
+                | "chatgpt-account-id"
+                | "cookie"
+                | "proxy-authorization"
+                | "originator"
         ))
 }
 
@@ -1840,6 +1852,7 @@ fn stream_response(response: ReqwestResponse) -> Result<UpstreamPayload, String>
         .get(reqwest::header::CONTENT_TYPE)
         .and_then(|value| value.to_str().ok())
         .map(str::to_string);
+    let response_headers = forwarded_response_headers(response.headers());
     if !status_ok(status) {
         let body = response
             .bytes()
@@ -1847,14 +1860,28 @@ fn stream_response(response: ReqwestResponse) -> Result<UpstreamPayload, String>
         return Ok(UpstreamPayload {
             status,
             content_type,
+            response_headers,
             body: UpstreamBody::Buffered(body.to_vec()),
         });
     }
     Ok(UpstreamPayload {
         status,
         content_type,
+        response_headers,
         body: UpstreamBody::Streaming(Box::new(response)),
     })
+}
+
+fn forwarded_response_headers(headers: &reqwest::header::HeaderMap) -> Vec<(String, String)> {
+    ["etag", "x-models-etag"]
+        .into_iter()
+        .filter_map(|name| {
+            headers
+                .get(name)
+                .and_then(|value| value.to_str().ok())
+                .map(|value| (name.to_string(), value.to_string()))
+        })
+        .collect()
 }
 
 fn build_upstream_url(base_url: &str, endpoint: &str) -> String {
@@ -1933,22 +1960,29 @@ fn json_payload(status: u16, value: Value) -> UpstreamPayload {
     UpstreamPayload {
         status,
         content_type: Some("application/json; charset=utf-8".to_string()),
+        response_headers: Vec::new(),
         body: UpstreamBody::Buffered(serde_json::to_vec(&value).unwrap_or_else(|_| b"{}".to_vec())),
     }
 }
 
 fn respond_payload(request: Request, payload: UpstreamPayload) {
-    match payload.body {
+    let UpstreamPayload {
+        status,
+        content_type,
+        response_headers,
+        body,
+    } = payload;
+    match body {
         UpstreamBody::Buffered(body) => {
-            let mut response =
-                Response::from_data(body).with_status_code(StatusCode(payload.status));
-            add_content_type(&mut response, payload.content_type.as_deref());
+            let mut response = Response::from_data(body).with_status_code(StatusCode(status));
+            add_content_type(&mut response, content_type.as_deref());
+            add_forwarded_response_headers(&mut response, &response_headers);
             let _ = request.respond(response);
         }
         UpstreamBody::Streaming(reader) => {
-            let mut response =
-                Response::new(StatusCode(payload.status), Vec::new(), reader, None, None);
-            add_content_type(&mut response, payload.content_type.as_deref());
+            let mut response = Response::new(StatusCode(status), Vec::new(), reader, None, None);
+            add_content_type(&mut response, content_type.as_deref());
+            add_forwarded_response_headers(&mut response, &response_headers);
             let _ = request.respond(response);
         }
     }
@@ -1957,6 +1991,17 @@ fn respond_payload(request: Request, payload: UpstreamPayload) {
 fn add_content_type<R: Read>(response: &mut Response<R>, content_type: Option<&str>) {
     if let Some(content_type) = content_type {
         if let Ok(header) = Header::from_bytes("Content-Type", content_type.as_bytes()) {
+            response.add_header(header);
+        }
+    }
+}
+
+fn add_forwarded_response_headers<R: Read>(
+    response: &mut Response<R>,
+    headers: &[(String, String)],
+) {
+    for (name, value) in headers {
+        if let Ok(header) = Header::from_bytes(name.as_bytes(), value.as_bytes()) {
             response.add_header(header);
         }
     }
@@ -3311,6 +3356,17 @@ mod tests {
     }
 
     #[test]
+    fn official_models_endpoint_preserves_client_version_query() {
+        let endpoint = upstream_endpoint_for_codex_request("/v1/models?client_version=0.144.0");
+
+        assert_eq!(endpoint, "/v1/models?client_version=0.144.0");
+        assert_eq!(
+            official_url(&endpoint),
+            "https://chatgpt.com/backend-api/codex/models?client_version=0.144.0"
+        );
+    }
+
+    #[test]
     fn proxy_diagnostic_entry_redacts_response_body_content() {
         let provider = ProviderProfile {
             id: "responses".to_string(),
@@ -3415,20 +3471,98 @@ mod tests {
     }
 
     #[test]
-    fn official_responses_body_overrides_cached_provider_model() {
+    fn official_responses_body_preserves_codex_selected_model() {
+        for model in ["gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"] {
+            let body = serde_json::to_vec(&json!({
+                "model": model,
+                "input": "ping",
+                "stream": false
+            }))
+            .unwrap();
+
+            let forwarded =
+                official_body_for_upstream(&Method::Post, "/v1/responses", body.clone(), "gpt-5.5");
+
+            assert_eq!(forwarded, body);
+        }
+    }
+
+    #[test]
+    fn official_responses_body_uses_preferred_model_when_request_has_none() {
+        for requested in [None, Some(Value::Null), Some(json!("  "))] {
+            let mut value = json!({ "input": "ping", "stream": false });
+            if let Some(requested) = requested {
+                value["model"] = requested;
+            }
+            let body = serde_json::to_vec(&value).unwrap();
+
+            let rewritten =
+                official_body_for_upstream(&Method::Post, "/v1/responses", body, "gpt-5.5");
+            let json: Value = serde_json::from_slice(&rewritten).unwrap();
+
+            assert_eq!(json["model"], "gpt-5.5");
+            assert_eq!(json["input"], "ping");
+        }
+    }
+
+    #[test]
+    fn official_token_usage_tracks_codex_selected_model() {
+        let target = ActiveTarget::Official {
+            model: "gpt-5.5".to_string(),
+        };
         let body = serde_json::to_vec(&json!({
-            "model": "deepseek-chat",
-            "input": "ping",
-            "stream": false
+            "model": "gpt-5.6-sol",
+            "input": "ping"
         }))
         .unwrap();
 
-        let rewritten =
-            official_body_for_upstream(&Method::Post, "/v1/responses", body, "gpt-5-codex");
-        let json: Value = serde_json::from_slice(&rewritten).unwrap();
+        let context = token_usage_context(
+            &Method::Post,
+            "/v1/responses",
+            &body,
+            &target,
+            Instant::now(),
+        )
+        .unwrap();
 
-        assert_eq!(json["model"], "gpt-5-codex");
-        assert_eq!(json["input"], "ping");
+        assert_eq!(context.model, "gpt-5.6-sol");
+    }
+
+    #[test]
+    fn provider_models_response_matches_codex_model_info_shape() {
+        let provider = ProviderProfile {
+            id: "deepseek".to_string(),
+            name: "DeepSeek".to_string(),
+            base_url: "https://api.deepseek.com/v1".to_string(),
+            api_key: "sk-provider-test".to_string(),
+            model: "deepseek-chat".to_string(),
+            models: vec!["deepseek-chat".to_string(), "deepseek-reasoner".to_string()],
+            model_selection_controlled_by_codex: true,
+            api_format: ProviderApiFormat::OpenaiResponses,
+        };
+        let catalog = providers::model_catalog_for_models(&provider_models_for_codex(&provider));
+        let models = catalog["models"].as_array().unwrap();
+
+        assert_eq!(models.len(), 2);
+        assert_eq!(models[0]["slug"], "deepseek-chat");
+        assert_eq!(models[1]["slug"], "deepseek-reasoner");
+        for model in models {
+            for key in [
+                "supported_reasoning_levels",
+                "shell_type",
+                "visibility",
+                "supported_in_api",
+                "priority",
+                "base_instructions",
+                "supports_reasoning_summaries",
+                "support_verbosity",
+                "truncation_policy",
+                "supports_parallel_tool_calls",
+                "experimental_supported_tools",
+            ] {
+                assert!(model.get(key).is_some(), "missing Codex model field {key}");
+            }
+        }
     }
 
     #[test]
@@ -3459,6 +3593,147 @@ mod tests {
         assert_eq!(diagnostic["captured"], true);
         assert_eq!(diagnostic["text"], "{\"error\":\"bad upstream key\"}");
         assert_eq!(diagnostic["truncated"], false);
+    }
+
+    #[test]
+    fn official_models_response_preserves_full_5_6_catalog_and_etag() {
+        let catalog = json!({
+            "models": [
+                {
+                    "slug": "gpt-5.6-sol",
+                    "tool_mode": "code_mode_only",
+                    "multi_agent_version": "v2",
+                    "use_responses_lite": true,
+                    "context_window": 372000
+                },
+                {
+                    "slug": "gpt-5.6-terra",
+                    "tool_mode": "code_mode_only",
+                    "multi_agent_version": "v2",
+                    "use_responses_lite": true,
+                    "context_window": 372000
+                },
+                {
+                    "slug": "gpt-5.6-luna",
+                    "tool_mode": "code_mode_only",
+                    "multi_agent_version": "v1",
+                    "use_responses_lite": true,
+                    "context_window": 372000
+                }
+            ]
+        });
+        let expected = serde_json::to_vec(&catalog).unwrap();
+        let server = Server::http("127.0.0.1:0").unwrap();
+        let addr = server.server_addr().to_ip().unwrap();
+        let upstream_body = expected.clone();
+        let handle = thread::spawn(move || {
+            let request = server.recv().unwrap();
+            let response = Response::from_data(upstream_body)
+                .with_header(Header::from_bytes("Content-Type", "application/json").unwrap())
+                .with_header(Header::from_bytes("ETag", "\"models-5.6\"").unwrap());
+            request.respond(response).unwrap();
+        });
+
+        let response = Client::new()
+            .get(format!("http://{addr}/models?client_version=0.144.0"))
+            .send()
+            .unwrap();
+        let mut payload = stream_response(response).unwrap();
+        handle.join().unwrap();
+        let mut actual = Vec::new();
+        match &mut payload.body {
+            UpstreamBody::Buffered(body) => actual.extend_from_slice(body),
+            UpstreamBody::Streaming(reader) => {
+                reader.read_to_end(&mut actual).unwrap();
+            }
+        }
+
+        assert_eq!(actual, expected);
+        assert_eq!(
+            payload.response_headers,
+            vec![("etag".to_string(), "\"models-5.6\"".to_string())]
+        );
+    }
+
+    #[test]
+    fn upstream_model_headers_are_allowlisted() {
+        let mut headers = reqwest::header::HeaderMap::new();
+        headers.insert(reqwest::header::ETAG, "\"models-5.6\"".parse().unwrap());
+        headers.insert("x-models-etag", "models-refresh".parse().unwrap());
+        headers.insert(reqwest::header::SET_COOKIE, "secret=value".parse().unwrap());
+
+        let forwarded = forwarded_response_headers(&headers);
+
+        assert_eq!(
+            forwarded,
+            vec![
+                ("etag".to_string(), "\"models-5.6\"".to_string()),
+                ("x-models-etag".to_string(), "models-refresh".to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn respond_payload_preserves_model_cache_headers() {
+        let server = Server::http("127.0.0.1:0").unwrap();
+        let addr = server.server_addr().to_ip().unwrap();
+        let handle = thread::spawn(move || {
+            let request = server.recv().unwrap();
+            respond_payload(
+                request,
+                UpstreamPayload {
+                    status: 200,
+                    content_type: Some("application/json".to_string()),
+                    response_headers: vec![
+                        ("etag".to_string(), "\"models-5.6\"".to_string()),
+                        ("x-models-etag".to_string(), "models-refresh".to_string()),
+                    ],
+                    body: UpstreamBody::Buffered(b"{\"models\":[]}".to_vec()),
+                },
+            );
+        });
+
+        let response = Client::new()
+            .get(format!("http://{addr}/models"))
+            .send()
+            .unwrap();
+
+        assert_eq!(
+            response
+                .headers()
+                .get("etag")
+                .and_then(|value| value.to_str().ok()),
+            Some("\"models-5.6\"")
+        );
+        assert_eq!(
+            response
+                .headers()
+                .get("x-models-etag")
+                .and_then(|value| value.to_str().ok()),
+            Some("models-refresh")
+        );
+        assert_eq!(response.text().unwrap(), "{\"models\":[]}");
+        handle.join().unwrap();
+    }
+
+    #[test]
+    fn inbound_official_auth_routing_headers_are_not_forwarded() {
+        for header in [
+            "authorization",
+            "x-api-key",
+            "openai-api-key",
+            "api-key",
+            "chatgpt-account-id",
+            "cookie",
+            "proxy-authorization",
+            "originator",
+        ] {
+            assert!(
+                should_skip_header(header, true),
+                "header should be blocked: {header}"
+            );
+        }
+        assert!(!should_skip_header("x-request-id", true));
     }
 
     #[test]

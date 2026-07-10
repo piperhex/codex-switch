@@ -608,8 +608,11 @@ fn write_provider_model_catalog(paths: &Paths, provider: &ProviderProfile) -> Re
 }
 
 fn provider_model_catalog(provider: &ProviderProfile) -> Value {
-    let entries = provider
-        .models
+    model_catalog_for_models(&provider.models)
+}
+
+pub(crate) fn model_catalog_for_models(models: &[String]) -> Value {
+    let entries = models
         .iter()
         .enumerate()
         .map(|(index, model)| provider_model_catalog_entry(model, index))
@@ -635,17 +638,27 @@ fn provider_model_catalog_entry(model: &str, index: usize) -> Value {
         "supports_reasoning_summaries": true,
         "default_reasoning_summary": "none",
         "support_verbosity": false,
+        "default_verbosity": null,
+        "apply_patch_tool_type": null,
+        "web_search_tool_type": "text",
         "truncation_policy": { "mode": "bytes", "limit": 10000 },
         "supports_parallel_tool_calls": false,
         "supports_image_detail_original": false,
         "context_window": DEFAULT_MODEL_CONTEXT_WINDOW,
         "max_context_window": DEFAULT_MODEL_CONTEXT_WINDOW,
+        "auto_compact_token_limit": null,
+        "comp_hash": null,
         "effective_context_window_percent": 95,
         "experimental_supported_tools": [],
         "input_modalities": ["text"],
         "supports_search_tool": false,
+        "use_responses_lite": false,
+        "auto_review_model_override": null,
+        "tool_mode": null,
+        "multi_agent_version": null,
         "additional_speed_tiers": [],
         "service_tiers": [],
+        "default_service_tier": null,
         "availability_nux": null,
         "upgrade": null
     })
@@ -1042,13 +1055,15 @@ sandbox_mode = "workspace-write"
         assert_eq!(models.len(), 2);
         assert_eq!(models[0]["slug"], "deepseek-chat");
         assert_eq!(models[0]["display_name"], "deepseek-chat");
-        assert_eq!(
-            models[0]["base_instructions"]
-                .as_str()
-                .unwrap()
-                .contains("You are Codex"),
-            true
-        );
+        assert!(models[0]["base_instructions"]
+            .as_str()
+            .unwrap()
+            .contains("You are Codex"));
+        assert!(models[0].get("default_verbosity").is_some());
+        assert!(models[0].get("apply_patch_tool_type").is_some());
+        assert_eq!(models[0]["use_responses_lite"], false);
+        assert!(models[0].get("tool_mode").is_some());
+        assert!(models[0].get("multi_agent_version").is_some());
         assert_eq!(models[1]["slug"], "deepseek-reasoner");
     }
 
