@@ -111,7 +111,7 @@ npm run release-beta
 
 You can pass an exact version or tag with `npm run release -- v0.2.0` or `npm run release-beta -- v0.2.0-beta.1`. Explicit versions are also synced into the version files before the tag is created.
 
-The release workflow builds Windows x64, Windows ARM64, Ubuntu/Linux x64, and macOS Apple Silicon and Intel artifacts, then uploads them to the matching GitHub Release. Release notes are generated automatically from the commits and pull requests included in the tag diff, with the installer download note kept at the top. Tags containing a prerelease suffix, such as `-beta.0`, are published as GitHub prereleases. The workflow can also be run manually from Actions by entering an existing tag.
+The release workflow builds Windows x64, Windows ARM64, Ubuntu/Linux x64, macOS Apple Silicon and Intel artifacts, an Android APK, and an unsigned iOS Release `.app.zip`, then uploads them to the matching GitHub Release. The iOS artifact verifies the build but requires Apple signing credentials before it can be installed on a device or submitted to the App Store. Release notes are generated automatically from the commits and pull requests included in the tag diff, with the installer download note kept at the top. Tags containing a prerelease suffix, such as `-beta.0`, are published as GitHub prereleases. The workflow can also be run manually from Actions by entering an existing tag.
 
 ## Usage
 

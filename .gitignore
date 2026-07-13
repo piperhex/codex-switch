@@ -4,6 +4,8 @@ dist/
 apps/*/dist/
 apps/backend/coverage/
 apps/desktop/src-tauri/target/
+apps/native/android/
+apps/native/ios/
 .DS_Store
 *.log
 auth.json
