@@ -171,6 +171,10 @@ jobs:
     name: Build Android APK
     needs: create-release
     runs-on: ubuntu-latest
+    env:
+      # The root workspace uses a different React version, so npm keeps Expo
+      # under apps/native. Gradle's bundling subprocess needs that lookup path.
+      NODE_PATH: ${{ github.workspace }}/apps/native/node_modules
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -227,7 +231,10 @@ jobs:
   native-ios:
     name: Build iOS app
     needs: create-release
-    runs-on: macos-latest
+    # React Native 0.79's fmt pod is not compatible with Xcode 26 yet.
+    runs-on: macos-15
+    env:
+      NODE_PATH: ${{ github.workspace }}/apps/native/node_modules
     steps:
       - name: Checkout
         uses: actions/checkout@v7
