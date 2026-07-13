@@ -39,9 +39,9 @@ async function parseError(response: Response) {
 }
 
 export async function loadSession(): Promise<AuthSession | null> {
-  const raw = await SecureStore.getItemAsync(SESSION_KEY);
-  if (!raw) return null;
   try {
+    const raw = await SecureStore.getItemAsync(SESSION_KEY);
+    if (!raw) return null;
     const session: unknown = JSON.parse(raw);
     if (!session || typeof session !== 'object') return null;
     const candidate = session as Partial<AuthSession>;
@@ -57,7 +57,7 @@ async function persistSession(session: AuthSession) {
 }
 
 export function clearSession() {
-  return SecureStore.deleteItemAsync(SESSION_KEY);
+  return SecureStore.deleteItemAsync(SESSION_KEY).catch(() => undefined);
 }
 
 export async function login(baseUrlInput: string, email: string, password: string): Promise<AuthSession> {
