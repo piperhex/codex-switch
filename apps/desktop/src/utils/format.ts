@@ -36,6 +36,17 @@ export function resetCountdownTime(timestamp: number | null | undefined, now = D
   return `${hours}:${padTimePart(minutes)}:${padTimePart(seconds)}`;
 }
 
+export function resetCountdownWithDays(timestamp: number | null | undefined, language: Language, now = Date.now()) {
+  if (!timestamp) return null;
+  const distance = Math.max(0, timestamp * 1000 - now);
+  const totalSeconds = Math.ceil(distance / 1000);
+  const days = Math.floor(totalSeconds / 86_400);
+  const hours = Math.floor((totalSeconds % 86_400) / 3_600);
+  const minutes = Math.floor((totalSeconds % 3_600) / 60);
+  const seconds = totalSeconds % 60;
+  return `${days}${language === "zh" ? "天" : "d"} ${padTimePart(hours)}:${padTimePart(minutes)}:${padTimePart(seconds)}`;
+}
+
 export function resetClockLabel(timestamp: number | null | undefined, language: Language) {
   const clock = resetClockTime(timestamp);
   if (!clock) return language === "zh" ? "重置时间未知" : "Reset time unknown";

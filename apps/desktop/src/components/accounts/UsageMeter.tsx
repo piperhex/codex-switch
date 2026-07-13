@@ -2,7 +2,7 @@ import { Progress } from "antd";
 import { useEffect, useState } from "react";
 import type { Language, Translate } from "../../i18n";
 import type { UsageWindow } from "../../types";
-import { remainingTone, resetCountdownTime, resetLabel, type UsageResetWindow } from "../../utils/format";
+import { remainingTone, resetCountdownTime, resetCountdownWithDays, resetLabel, type UsageResetWindow } from "../../utils/format";
 
 function usageStroke(value: number) {
   const tone = remainingTone(value);
@@ -13,7 +13,12 @@ function usageStroke(value: number) {
 
 function tableResetLabel(timestamp: number | null | undefined, language: Language, resetWindow: UsageResetWindow, now: number) {
   const label = resetLabel(timestamp, language, resetWindow);
-  if (resetWindow !== "fiveHours" || !timestamp) return label;
+  if (!timestamp) return label;
+  if (resetWindow === "oneWeek") {
+    const countdown = resetCountdownWithDays(timestamp, language, now);
+    if (!countdown) return label;
+    return language === "zh" ? `${label}（倒计时：${countdown}）` : `${label} (Countdown: ${countdown})`;
+  }
   const countdown = resetCountdownTime(timestamp, now);
   if (!countdown) return label;
   return language === "zh" ? `${label}(倒计时：${countdown})` : `${label} (Countdown: ${countdown})`;
@@ -27,7 +32,7 @@ export function UsageMeter({ window: usageWindow, resetWindow, resetCreditsCount
   t: Translate;
 }) {
   const [now, setNow] = useState(() => Date.now());
-  const countdownActive = resetWindow === "fiveHours" && Boolean(usageWindow?.resetsAt);
+  const countdownActive = Boolean(usageWindow?.resetsAt);
 
   useEffect(() => {
     if (!countdownActive) return;

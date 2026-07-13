@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { Button, ColorPicker, Input, InputNumber, Segmented, Space, Switch } from "antd";
-import { CircleGauge, Cloud, FileDown, FolderKey, FolderOpen, KeyRound, Languages, Palette, RefreshCw, Save, ShieldCheck } from "lucide-react";
+import { CircleGauge, Cloud, EyeOff, FileDown, FolderKey, FolderOpen, KeyRound, Languages, Palette, RefreshCw, Save, ShieldCheck } from "lucide-react";
 import { MAX_AUTO_REFRESH_SECONDS, MIN_AUTO_REFRESH_SECONDS } from "../hooks/useAutoRefresh";
 import { LANGUAGE_OPTIONS, type Language, type Translate } from "../i18n";
-import type { AppInfo } from "../types";
+import type { AppInfo, BubbleResetDisplay } from "../types";
 
 export function SettingsPage({
   info,
@@ -26,6 +26,12 @@ export function SettingsPage({
   floatingBubbleEnabled,
   floatingBubbleLoading,
   onFloatingBubbleChange,
+  bubbleResetDisplay,
+  bubbleResetDisplayLoading,
+  onBubbleResetDisplayChange,
+  privacyModeEnabled,
+  privacyModeLoading,
+  onPrivacyModeChange,
   onOpenCodexHome,
   onOpenAccountStore,
   onExportLogs,
@@ -54,6 +60,12 @@ export function SettingsPage({
   floatingBubbleEnabled: boolean;
   floatingBubbleLoading: boolean;
   onFloatingBubbleChange: (enabled: boolean) => void;
+  bubbleResetDisplay: BubbleResetDisplay;
+  bubbleResetDisplayLoading: boolean;
+  onBubbleResetDisplayChange: (display: BubbleResetDisplay) => void;
+  privacyModeEnabled: boolean;
+  privacyModeLoading: boolean;
+  onPrivacyModeChange: (enabled: boolean) => void;
   onOpenCodexHome: () => void;
   onOpenAccountStore: () => void;
   onExportLogs: () => void;
@@ -119,6 +131,24 @@ export function SettingsPage({
             <Switch id="floating-bubble-enabled" checked={floatingBubbleEnabled} loading={floatingBubbleLoading}
               checkedChildren={t("settings.autoRefresh.on")} unCheckedChildren={t("settings.autoRefresh.off")}
               onChange={onFloatingBubbleChange} />
+            <label htmlFor="floating-bubble-reset-display">{t("settings.floatingBubble.resetDisplay")}</label>
+            <Segmented id="floating-bubble-reset-display" value={bubbleResetDisplay} disabled={bubbleResetDisplayLoading}
+              options={[
+                { value: "countdown", label: t("settings.floatingBubble.countdown") },
+                { value: "resetAt", label: t("settings.floatingBubble.resetAt") },
+              ]}
+              onChange={(value) => onBubbleResetDisplayChange(value as BubbleResetDisplay)} />
+          </div>
+        </div>
+      </section>
+      <section className="settings-card">
+        <div className="settings-icon"><EyeOff size={23} /></div>
+        <div><h3>{t("settings.privacy.title")}</h3><p>{t("settings.privacy.description")}</p>
+          <div className="settings-field">
+            <label htmlFor="privacy-mode-enabled">{t("settings.privacy.enabled")}</label>
+            <Switch id="privacy-mode-enabled" checked={privacyModeEnabled} loading={privacyModeLoading}
+              checkedChildren={t("settings.autoRefresh.on")} unCheckedChildren={t("settings.autoRefresh.off")}
+              onChange={onPrivacyModeChange} />
           </div>
         </div>
       </section>

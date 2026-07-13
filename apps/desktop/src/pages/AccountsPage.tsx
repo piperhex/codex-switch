@@ -21,6 +21,7 @@ export function AccountsPage({
   resetCreditBusyAccountId,
   onStartProxy,
   onStopProxy,
+  privacyMode,
   language,
   t,
 }: {
@@ -40,6 +41,7 @@ export function AccountsPage({
   resetCreditBusyAccountId: string | null;
   onStartProxy: () => void;
   onStopProxy: () => void;
+  privacyMode: boolean;
   language: Language;
   t: Translate;
 }) {
@@ -78,7 +80,7 @@ export function AccountsPage({
         onSaveNote={onSaveNote}
         resetCredits={resetCredits} onLoadResetCredits={onLoadResetCredits}
         onUseResetCredit={onUseResetCredit} resetCreditBusyAccountId={resetCreditBusyAccountId}
-        hotSwitchEnabled={hotSwitchEnabled} language={language} t={t} />
+        hotSwitchEnabled={hotSwitchEnabled} privacyMode={privacyMode} language={language} t={t} />
     </>
   );
 }

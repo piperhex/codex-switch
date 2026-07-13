@@ -5,7 +5,7 @@ use tauri::{
 
 use crate::{
     commands,
-    models::{AppSettings, UsageWindow},
+    models::{AppSettings, BubbleResetDisplay, UsageWindow},
     providers,
     storage::{read_app_settings, write_app_settings},
 };
@@ -123,6 +123,36 @@ pub(crate) async fn set_floating_bubble<R: Runtime>(
         create(&app, &settings)?;
     } else if let Some(window) = app.get_webview_window(BUBBLE_LABEL) {
         window.close().map_err(|error| error.to_string())?;
+    }
+    Ok(settings)
+}
+
+#[tauri::command]
+pub(crate) fn set_privacy_mode<R: Runtime>(
+    app: AppHandle<R>,
+    enabled: bool,
+) -> Result<AppSettings, String> {
+    let mut settings = read_app_settings(&app)?;
+    settings.privacy_mode = enabled;
+    write_app_settings(&app, &settings)?;
+    Ok(settings)
+}
+
+#[tauri::command]
+pub(crate) fn set_bubble_reset_display<R: Runtime>(
+    app: AppHandle<R>,
+    display: BubbleResetDisplay,
+) -> Result<AppSettings, String> {
+    let mut settings = read_app_settings(&app)?;
+    settings.bubble_reset_display = display;
+    write_app_settings(&app, &settings)?;
+    let event_name = "bubble-reset-display-changed";
+    let event_payload = settings.bubble_reset_display.clone();
+    app.emit(event_name, event_payload.clone())
+        .map_err(|error| error.to_string())?;
+    if let Some(window) = app.get_webview_window(BUBBLE_LABEL) {
+        window.emit(event_name, event_payload)
+            .map_err(|error| error.to_string())?;
     }
     Ok(settings)
 }

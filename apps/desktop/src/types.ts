@@ -102,6 +102,8 @@ export interface UpdateInfo {
 
 export interface AppSettings {
   floatingBubbleEnabled: boolean;
+  privacyMode: boolean;
+  bubbleResetDisplay: BubbleResetDisplay;
   themeColor?: string | null;
   bubbleX?: number | null;
   bubbleY?: number | null;
@@ -141,3 +143,5 @@ export interface AccountArchiveImportResult {
   providerIds: string[];
   activeProviderId?: string | null;
 }
+
+export type BubbleResetDisplay = "countdown" | "resetAt";

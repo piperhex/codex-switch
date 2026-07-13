@@ -22,6 +22,7 @@ interface AccountTableProps {
   onUseResetCredit: (id: string) => void;
   resetCreditBusyAccountId: string | null;
   hotSwitchEnabled: boolean;
+  privacyMode: boolean;
   language: Language;
   t: Translate;
 }
@@ -34,6 +35,11 @@ type UsageSortOrder = "ascend" | "descend";
 interface UsageSortPreference {
   column: UsageSortColumn;
   order: UsageSortOrder;
+}
+
+function maskAccountEmail(email: string) {
+  if (email.length <= 10) return "*****";
+  return `${email.slice(0, 5)}*****${email.slice(-5)}`;
 }
 
 function isUsageSortColumn(value: unknown): value is UsageSortColumn {
@@ -92,6 +98,7 @@ export function AccountTable({
   onUseResetCredit,
   resetCreditBusyAccountId,
   hotSwitchEnabled,
+  privacyMode,
   language,
   t,
 }: AccountTableProps) {
@@ -116,9 +123,11 @@ export function AccountTable({
         <div className="account-cell">
           <div className="table-avatar">{initials(account.email)}</div>
           <div className="account-primary">
-            <div className="account-email" title={account.email}>{account.email}</div>
-            <div className={`account-note-preview${account.note ? "" : " empty"}`} title={account.note || t("note.doubleClick")}>
-              {account.note || t("note.doubleClick")}
+            <div className="account-email" title={privacyMode ? undefined : account.email}>
+              {privacyMode ? maskAccountEmail(account.email) : account.email}
+            </div>
+            <div className={`account-note-preview${account.note ? "" : " empty"}`} title={privacyMode ? undefined : account.note || t("note.doubleClick")}>
+              {privacyMode && account.note ? "**********" : account.note || t("note.doubleClick")}
             </div>
             <div className="account-meta">
               {account.active ? <Tag className="current-tag">{t("table.current")}</Tag> : <Tag>{t("table.standby")}</Tag>}
@@ -146,7 +155,9 @@ export function AccountTable({
       title: t("table.fiveHours"), key: "fiveHours", width: 110,
       sorter: (left, right) => compareUsageRemaining(left, right, "primary"),
       sortOrder: usageSort?.column === "fiveHours" ? usageSort.order : null,
-      render: (_, account) => <UsageMeter window={account.usage.primary} resetWindow="fiveHours" language={language} t={t} />,
+      // OpenAI currently reports the primary (5-hour) quota with a weekly reset window.
+      // Render its reset time like the weekly quota so it does not show a misleading 5-hour countdown.
+      render: (_, account) => <UsageMeter window={account.usage.primary} resetWindow="oneWeek" language={language} t={t} />,
     },
     {
       title: t("table.oneWeek"), key: "oneWeek", width: 110,

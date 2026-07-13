@@ -8,6 +8,7 @@ import type {
   AccountArchiveImportResult,
   AppInfo,
   AppSettings,
+  BubbleResetDisplay,
   CloudAuthState,
   CloudSyncResult,
   LoginStart,
@@ -23,12 +24,15 @@ import { DEFAULT_THEME_COLOR, normalizeThemeColor } from "../utils/theme";
 
 export const isDesktopApp = "__TAURI_INTERNALS__" in window;
 const FLOATING_BUBBLE_PREVIEW_KEY = "codex-switch:floating-bubble";
+const PRIVACY_MODE_PREVIEW_KEY = "codex-switch:privacy-mode";
+const BUBBLE_RESET_DISPLAY_PREVIEW_KEY = "codex-switch:bubble-reset-display";
 const THEME_COLOR_PREVIEW_KEY = "codex-switch:theme-color";
 const CLOUD_BASE_URL_PREVIEW_KEY = "codex-switch:cloud-base-url";
 const CLOUD_USER_PREVIEW_KEY = "codex-switch:cloud-user-email";
 const PROVIDERS_PREVIEW_KEY = "codex-switch:providers";
 const LOCAL_PROXY_PREVIEW_KEY = "codex-switch:local-proxy-running";
 const THEME_COLOR_EVENT = "codex-switch:theme-color-changed";
+const BUBBLE_RESET_DISPLAY_EVENT = "bubble-reset-display-changed";
 const LANGUAGE_EVENT = "codex-switch:language-changed";
 const PROVIDERS_EVENT = "codex-switch:providers-changed";
 let updateCheckPromise: Promise<UpdateInfo | null> | null = null;
@@ -117,6 +121,8 @@ export async function loadAppSettings(): Promise<AppSettings> {
   if (!isDesktopApp) {
     return {
       floatingBubbleEnabled: window.localStorage.getItem(FLOATING_BUBBLE_PREVIEW_KEY) === "true",
+      privacyMode: window.localStorage.getItem(PRIVACY_MODE_PREVIEW_KEY) !== "false",
+      bubbleResetDisplay: window.localStorage.getItem(BUBBLE_RESET_DISPLAY_PREVIEW_KEY) === "resetAt" ? "resetAt" : "countdown",
       themeColor: normalizeThemeColor(window.localStorage.getItem(THEME_COLOR_PREVIEW_KEY) ?? DEFAULT_THEME_COLOR),
       cloudBaseUrl: window.localStorage.getItem(CLOUD_BASE_URL_PREVIEW_KEY),
     };
@@ -299,10 +305,39 @@ export async function updateFloatingBubble(enabled: boolean): Promise<AppSetting
     window.localStorage.setItem(FLOATING_BUBBLE_PREVIEW_KEY, String(enabled));
     return {
       floatingBubbleEnabled: enabled,
+      privacyMode: window.localStorage.getItem(PRIVACY_MODE_PREVIEW_KEY) !== "false",
+      bubbleResetDisplay: window.localStorage.getItem(BUBBLE_RESET_DISPLAY_PREVIEW_KEY) === "resetAt" ? "resetAt" : "countdown",
       themeColor: normalizeThemeColor(window.localStorage.getItem(THEME_COLOR_PREVIEW_KEY) ?? DEFAULT_THEME_COLOR),
     };
   }
   return invoke<AppSettings>("set_floating_bubble", { enabled });
+}
+
+export async function updatePrivacyMode(enabled: boolean): Promise<AppSettings> {
+  if (!isDesktopApp) {
+    window.localStorage.setItem(PRIVACY_MODE_PREVIEW_KEY, String(enabled));
+    return {
+      floatingBubbleEnabled: window.localStorage.getItem(FLOATING_BUBBLE_PREVIEW_KEY) === "true",
+      privacyMode: enabled,
+      bubbleResetDisplay: window.localStorage.getItem(BUBBLE_RESET_DISPLAY_PREVIEW_KEY) === "resetAt" ? "resetAt" : "countdown",
+      themeColor: normalizeThemeColor(window.localStorage.getItem(THEME_COLOR_PREVIEW_KEY) ?? DEFAULT_THEME_COLOR),
+    };
+  }
+  return invoke<AppSettings>("set_privacy_mode", { enabled });
+}
+
+export async function updateBubbleResetDisplay(display: BubbleResetDisplay): Promise<AppSettings> {
+  if (!isDesktopApp) {
+    window.localStorage.setItem(BUBBLE_RESET_DISPLAY_PREVIEW_KEY, display);
+    window.dispatchEvent(new CustomEvent<BubbleResetDisplay>(BUBBLE_RESET_DISPLAY_EVENT, { detail: display }));
+    return {
+      floatingBubbleEnabled: window.localStorage.getItem(FLOATING_BUBBLE_PREVIEW_KEY) === "true",
+      privacyMode: window.localStorage.getItem(PRIVACY_MODE_PREVIEW_KEY) !== "false",
+      bubbleResetDisplay: display,
+      themeColor: normalizeThemeColor(window.localStorage.getItem(THEME_COLOR_PREVIEW_KEY) ?? DEFAULT_THEME_COLOR),
+    };
+  }
+  return invoke<AppSettings>("set_bubble_reset_display", { display });
 }
 
 export async function updateThemeColor(color: string): Promise<AppSettings> {
@@ -312,6 +347,8 @@ export async function updateThemeColor(color: string): Promise<AppSettings> {
     window.dispatchEvent(new CustomEvent<string>(THEME_COLOR_EVENT, { detail: themeColor }));
     return {
       floatingBubbleEnabled: window.localStorage.getItem(FLOATING_BUBBLE_PREVIEW_KEY) === "true",
+      privacyMode: window.localStorage.getItem(PRIVACY_MODE_PREVIEW_KEY) !== "false",
+      bubbleResetDisplay: window.localStorage.getItem(BUBBLE_RESET_DISPLAY_PREVIEW_KEY) === "resetAt" ? "resetAt" : "countdown",
       themeColor,
     };
   }
@@ -551,6 +588,33 @@ export function subscribeToThemeColorChanges(onChange: (color: string) => void):
 
   const subscription = listen<string>("theme-color-changed", ({ payload }) => {
     onChange(normalizeThemeColor(payload));
+  });
+  return () => void subscription.then((unlisten) => unlisten());
+}
+
+export function subscribeToBubbleResetDisplayChanges(
+  onChange: (display: BubbleResetDisplay) => void,
+): () => void {
+  const handleChange = (value: unknown) => {
+    if (value === "countdown" || value === "resetAt") onChange(value);
+  };
+  if (!isDesktopApp) {
+    const handleDisplayChange = (event: Event) => {
+      handleChange((event as CustomEvent<BubbleResetDisplay>).detail);
+    };
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === BUBBLE_RESET_DISPLAY_PREVIEW_KEY) handleChange(event.newValue);
+    };
+    window.addEventListener(BUBBLE_RESET_DISPLAY_EVENT, handleDisplayChange);
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      window.removeEventListener(BUBBLE_RESET_DISPLAY_EVENT, handleDisplayChange);
+      window.removeEventListener("storage", handleStorage);
+    };
+  }
+
+  const subscription = listen<BubbleResetDisplay>(BUBBLE_RESET_DISPLAY_EVENT, ({ payload }) => {
+    handleChange(payload);
   });
   return () => void subscription.then((unlisten) => unlisten());
 }

@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent } from "react";
 import {
   dragFloatingBubble,
+  loadAppSettings,
   loadDashboard,
   refreshAccountUsage,
   showDashboardFromBubble,
   showFloatingBubbleMenu,
+  subscribeToBubbleResetDisplayChanges,
   subscribeToBackendEvents,
 } from "../api/backend";
 import { useLanguage } from "../hooks/useLanguage";
 import { useThemeColor } from "../hooks/useThemeColor";
-import type { Account } from "../types";
+import type { Account, BubbleResetDisplay } from "../types";
 import { remainingTone, resetClockTime } from "../utils/format";
 
 function usageColor(remaining: number) {
@@ -40,12 +42,41 @@ function clampPercent(value: number) {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
-function BubbleResetLabel({ timestamp, language }: { timestamp?: number | null; language: "en" | "zh" }) {
-  const clock = resetClockTime(timestamp);
+function BubbleResetLabel({ timestamp, language, display }: {
+  timestamp?: number | null;
+  language: "en" | "zh";
+  display: BubbleResetDisplay;
+}) {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!timestamp || display !== "countdown") return;
+    setNow(Date.now());
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [display, timestamp]);
+
+  if (display === "resetAt") {
+    const clock = resetClockTime(timestamp);
+    return (
+      <small className="floating-bubble-reset floating-bubble-reset-stacked">
+        <span>{language === "zh" ? (clock ? "重置于" : "重置时间") : (clock ? "Resets at" : "Reset time")}</span>
+        <span>{clock ?? (language === "zh" ? "未知" : "unknown")}</span>
+      </small>
+    );
+  }
+
+  const totalSeconds = timestamp ? Math.max(0, Math.ceil((timestamp * 1000 - now) / 1000)) : null;
+  const days = totalSeconds === null ? null : Math.floor(totalSeconds / 86_400);
+  const hours = totalSeconds === null ? null : Math.floor((totalSeconds % 86_400) / 3_600);
+  const minutes = totalSeconds === null ? null : Math.floor((totalSeconds % 3_600) / 60);
+  const seconds = totalSeconds === null ? null : totalSeconds % 60;
+  const time = hours === null || minutes === null || seconds === null
+    ? null
+    : `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
   return (
     <small className="floating-bubble-reset floating-bubble-reset-stacked">
-      <span>{language === "zh" ? (clock ? "重置于" : "重置时间") : (clock ? "Resets at" : "Reset time")}</span>
-      <span>{clock ?? (language === "zh" ? "未知" : "unknown")}</span>
+      {time ? <><span>{days}{language === "zh" ? "天" : "d"}</span><span>{time}</span></> : <span>--</span>}
     </small>
   );
 }
@@ -54,6 +85,7 @@ export function FloatingUsageBubble() {
   const { language } = useLanguage();
   useThemeColor(ignoreThemeError);
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [resetDisplay, setResetDisplay] = useState<BubbleResetDisplay>("countdown");
   const [refreshing, setRefreshing] = useState(false);
   const [waterSettling, setWaterSettling] = useState(false);
   const lastPrimaryPointerDownAt = useRef(0);
@@ -65,11 +97,22 @@ export function FloatingUsageBubble() {
     const { accounts: nextAccounts } = await loadDashboard();
     setAccounts(nextAccounts);
   }, []);
+  const loadResetDisplay = useCallback(() => {
+    void loadAppSettings()
+      .then((settings) => setResetDisplay(settings.bubbleResetDisplay))
+      .catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     void load();
     return subscribeToBackendEvents(load, load);
   }, [load]);
+
+  useEffect(() => {
+    loadResetDisplay();
+  }, [loadResetDisplay]);
+
+  useEffect(() => subscribeToBubbleResetDisplayChanges(loadResetDisplay), [loadResetDisplay]);
 
   const account = useMemo(() => accounts.find((item) => item.active), [accounts]);
   const primary = account?.usage.primary;
@@ -184,7 +227,7 @@ export function FloatingUsageBubble() {
           {language === "zh" ? "周" : "W"} {weeklyRemaining === null ? "--" : `${weeklyRemaining}%`}
         </span>
         <span className="floating-bubble-value">{remaining === null ? "--" : `${remaining}%`}</span>
-        <BubbleResetLabel timestamp={primary?.resetsAt} language={language} />
+        <BubbleResetLabel timestamp={primary?.resetsAt} language={language} display={resetDisplay} />
       </button>
     </div>
   );

@@ -13,10 +13,12 @@ import { LoginModal } from "./components/modals/LoginModal";
 import { UpdateModal } from "./components/modals/UpdateModal";
 import { useAccountManager } from "./hooks/useAccountManager";
 import { useAccountAutoRefresh, useAutoRefresh } from "./hooks/useAutoRefresh";
+import { useBubbleResetDisplay } from "./hooks/useBubbleResetDisplay";
 import { useCloudAuth } from "./hooks/useCloudAuth";
 import { useLanguage } from "./hooks/useLanguage";
 import { useFloatingBubble } from "./hooks/useFloatingBubble";
 import { useProviderManager } from "./hooks/useProviderManager";
+import { usePrivacyMode } from "./hooks/usePrivacyMode";
 import { useResetCredits } from "./hooks/useResetCredits";
 import { useThemeColor } from "./hooks/useThemeColor";
 import { useToast } from "./hooks/useToast";
@@ -24,7 +26,7 @@ import { AccountsPage } from "./pages/AccountsPage";
 import { ProvidersPage } from "./pages/ProvidersPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { formatRefreshTime } from "./utils/format";
-import type { UpdateInfo } from "./types";
+import type { BubbleResetDisplay, UpdateInfo } from "./types";
 
 const LAST_REFRESH_ALL_KEY = "codex-switch:last-refresh-all-at";
 const IGNORED_UPDATE_VERSION_KEY = "codex-switch:ignored-update-version";
@@ -68,6 +70,8 @@ function DashboardApp() {
     deleteProvider: cloud.deleteProviderQuietly,
   }), [cloud.deleteProviderQuietly, cloud.pushProviderQuietly]);
   const floatingBubble = useFloatingBubble(notify);
+  const bubbleResetDisplay = useBubbleResetDisplay(notify);
+  const privacyMode = usePrivacyMode(notify);
   const themeColor = useThemeColor(notify);
   const manager = useAccountManager(notify, t, accountCloudSync);
   const providerManager = useProviderManager(notify, t, providerCloudSync);
@@ -158,6 +162,12 @@ function DashboardApp() {
   const changeFloatingBubble = useCallback((enabled: boolean) => {
     void floatingBubble.setEnabled(enabled);
   }, [floatingBubble.setEnabled]);
+  const changeBubbleResetDisplay = useCallback((display: BubbleResetDisplay) => {
+    void bubbleResetDisplay.setDisplay(display);
+  }, [bubbleResetDisplay.setDisplay]);
+  const changePrivacyMode = useCallback((enabled: boolean) => {
+    void privacyMode.setEnabled(enabled);
+  }, [privacyMode.setEnabled]);
   const openFolder = useCallback((target: "codexHome" | "accountStore") => {
     if (!isDesktopApp) {
       notify(t("toast.previewOpenFolder"));
@@ -408,6 +418,10 @@ function DashboardApp() {
               onCloudBaseUrlSave={saveCloudBaseUrl}
               floatingBubbleEnabled={floatingBubble.enabled}
               floatingBubbleLoading={floatingBubble.loading} onFloatingBubbleChange={changeFloatingBubble}
+              bubbleResetDisplay={bubbleResetDisplay.display} bubbleResetDisplayLoading={bubbleResetDisplay.loading}
+              onBubbleResetDisplayChange={changeBubbleResetDisplay}
+              privacyModeEnabled={privacyMode.enabled} privacyModeLoading={privacyMode.loading}
+              onPrivacyModeChange={changePrivacyMode}
               onOpenCodexHome={openCodexHome} onOpenAccountStore={openAccountStore} language={language}
               onExportLogs={() => void exportLogs()} exportingLogs={exportingLogs}
               onLanguageChange={setLanguage} t={t} />
@@ -435,6 +449,7 @@ function DashboardApp() {
               onUseResetCredit={(id) => void useResetCredit(id)}
               resetCreditBusyAccountId={resetCreditBusyAccountId}
               onStartProxy={providerManager.startProxy} onStopProxy={providerManager.stopProxy}
+              privacyMode={privacyMode.enabled}
               language={language} t={t} />
           </section>
         </main>

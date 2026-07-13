@@ -134,13 +134,17 @@ pub(crate) struct UpdateInfo {
     pub(crate) release_url: String,
 }
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct AppSettings {
     #[serde(default)]
     pub(crate) floating_bubble_enabled: bool,
     #[serde(default)]
     pub(crate) theme_color: Option<String>,
+    #[serde(default = "default_privacy_mode")]
+    pub(crate) privacy_mode: bool,
+    #[serde(default)]
+    pub(crate) bubble_reset_display: BubbleResetDisplay,
     #[serde(default)]
     pub(crate) bubble_x: Option<f64>,
     #[serde(default)]
@@ -153,6 +157,40 @@ pub(crate) struct AppSettings {
     pub(crate) cloud_user_id: Option<String>,
     #[serde(default)]
     pub(crate) cloud_last_sync_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) enum BubbleResetDisplay {
+    Countdown,
+    ResetAt,
+}
+
+impl Default for BubbleResetDisplay {
+    fn default() -> Self {
+        Self::Countdown
+    }
+}
+
+fn default_privacy_mode() -> bool {
+    true
+}
+
+impl Default for AppSettings {
+    fn default() -> Self {
+        Self {
+            floating_bubble_enabled: false,
+            theme_color: None,
+            privacy_mode: default_privacy_mode(),
+            bubble_reset_display: BubbleResetDisplay::default(),
+            bubble_x: None,
+            bubble_y: None,
+            cloud_base_url: None,
+            cloud_user_email: None,
+            cloud_user_id: None,
+            cloud_last_sync_at: None,
+        }
+    }
 }
 
 #[derive(Serialize, Clone)]
