@@ -151,7 +151,8 @@ pub(crate) fn set_bubble_reset_display<R: Runtime>(
     app.emit(event_name, event_payload.clone())
         .map_err(|error| error.to_string())?;
     if let Some(window) = app.get_webview_window(BUBBLE_LABEL) {
-        window.emit(event_name, event_payload)
+        window
+            .emit(event_name, event_payload)
             .map_err(|error| error.to_string())?;
     }
     Ok(settings)
