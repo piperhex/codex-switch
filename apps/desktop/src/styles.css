@@ -264,22 +264,21 @@ h1 { margin: 5px 0 0; font: 700 26px/1.1 Manrope, sans-serif; letter-spacing: -.
 .update-actions { display: flex; justify-content: flex-end; gap: 9px; flex-wrap: wrap; }
 
 .settings-page { width: calc(100% - 32px); max-width: none; margin: 30px 16px; display: grid; gap: 14px; }
-.settings-card { display: flex; gap: 17px; padding: 22px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }
-.settings-card > div:last-child { min-width: 0; flex: 1; }
+.settings-card { display: flex; align-items: center; gap: 15px; padding: 16px 18px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }
+.settings-card-content { min-width: 0; flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 28px; }
+.settings-card-copy { min-width: 0; flex: 1 1 auto; }
 .settings-icon { width: 44px; height: 44px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 11px; color: var(--green); background: var(--green-soft); }
-.settings-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-.settings-card-header > div { min-width: 0; }
-.settings-card-header .ant-btn { flex: 0 0 auto; }
 .settings-card h3 { margin: 2px 0 5px; font: 700 14px Manrope, sans-serif; }
-.settings-card p { margin: 0 0 12px; font-size: 11px; color: var(--muted); line-height: 1.6; }
+.settings-card p { margin: 0; font-size: 11px; color: var(--muted); line-height: 1.6; }
 .settings-card .settings-current-account { display: inline-block; margin: 0; padding: 5px 8px; border-radius: 6px; color: var(--green-dark); background: var(--green-selection); font-weight: 600; }
-.settings-card code { display: block; padding: 8px 10px; border-radius: 7px; color: #456052; background: #f0f3ef; font-size: 10px; word-break: break-all; }
-.settings-field { margin-top: 12px; display: flex; align-items: center; gap: 12px; }
+.settings-card-copy > .settings-current-account, .settings-card-copy > code, .settings-card-copy > .cloud-settings-status { margin-top: 7px !important; }
+.settings-card code { display: block; padding: 6px 8px; border-radius: 7px; color: #456052; background: #f0f3ef; font-size: 10px; word-break: break-all; }
+.settings-field { flex: 0 0 auto; display: flex; align-items: center; justify-content: flex-end; gap: 10px; white-space: nowrap; }
 .settings-field label { color: #5d6a62; font-size: 11px; font-weight: 700; }
 .settings-field-wide { align-items: stretch; }
 .settings-field-wide label { align-self: center; flex: 0 0 auto; }
-.settings-field-wide .ant-input-affix-wrapper { max-width: 430px; }
-.cloud-settings-status { display: inline-block; margin-top: 10px !important; padding: 5px 8px; border-radius: 6px; color: #456052 !important; background: #eef4ee; font-weight: 600; }
+.settings-field-wide .ant-input-affix-wrapper { width: clamp(210px, 28vw, 430px); }
+.cloud-settings-status { display: inline-block; padding: 5px 8px; border-radius: 6px; color: #456052 !important; background: #eef4ee; font-weight: 600; }
 .settings-field .ant-space-compact { width: 150px; }
 .settings-field .ant-input-number { width: 108px; }
 .note-card { border-color: #c8dccd; background: #f8fbf7; }
@@ -491,6 +490,13 @@ html.token-usage-page #root {
   .usage-copy { min-width: 85px; }
   .provider-official, .provider-proxy { align-items: flex-start; flex-wrap: wrap; }
   .provider-official-actions { margin-left: 40px; flex-wrap: wrap; justify-content: flex-start; }
+}
+
+@media (max-width: 820px) {
+  .settings-card { align-items: flex-start; }
+  .settings-card-content { align-items: flex-start; flex-direction: column; gap: 10px; }
+  .settings-field { flex-wrap: wrap; justify-content: flex-start; white-space: normal; }
+  .settings-field-wide .ant-input-affix-wrapper { width: min(430px, 100%); }
 }
 
 html.floating-usage-page,

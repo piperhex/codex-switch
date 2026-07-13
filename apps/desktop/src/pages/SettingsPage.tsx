@@ -84,7 +84,8 @@ export function SettingsPage({
     <div className="settings-page">
       <section className="settings-card">
         <div className="settings-icon"><Languages size={23} /></div>
-        <div><h3>{t("settings.language.title")}</h3><p>{t("settings.language.description")}</p>
+        <div className="settings-card-content">
+          <div className="settings-card-copy"><h3>{t("settings.language.title")}</h3><p>{t("settings.language.description")}</p></div>
           <div className="settings-field">
             <label htmlFor="language-selector">{t("settings.language.label")}</label>
             <Segmented id="language-selector" value={language} options={[...LANGUAGE_OPTIONS]}
@@ -94,7 +95,14 @@ export function SettingsPage({
       </section>
       <section className="settings-card">
         <div className="settings-icon"><Cloud size={23} /></div>
-        <div><h3>{t("settings.cloud.title")}</h3><p>{t("settings.cloud.description")}</p>
+        <div className="settings-card-content">
+          <div className="settings-card-copy"><h3>{t("settings.cloud.title")}</h3><p>{t("settings.cloud.description")}</p>
+            <p className="cloud-settings-status">
+              {cloudBaseUrl
+                ? cloudAuthenticated ? t("settings.cloud.signedIn") : t("settings.cloud.enabled")
+                : t("settings.cloud.localMode")}
+            </p>
+          </div>
           <div className="settings-field settings-field-wide">
             <label htmlFor="cloud-base-url">{t("settings.cloud.label")}</label>
             <Input id="cloud-base-url" value={cloudBaseUrlDraft} disabled={cloudBaseUrlLoading}
@@ -103,16 +111,12 @@ export function SettingsPage({
             <Button type="primary" size="small" icon={<Save size={14} />} loading={cloudBaseUrlLoading}
               onClick={() => void onCloudBaseUrlSave(cloudBaseUrlDraft)}>{t("settings.cloud.save")}</Button>
           </div>
-          <p className="cloud-settings-status">
-            {cloudBaseUrl
-              ? cloudAuthenticated ? t("settings.cloud.signedIn") : t("settings.cloud.enabled")
-              : t("settings.cloud.localMode")}
-          </p>
         </div>
       </section>
       <section className="settings-card">
         <div className="settings-icon"><Palette size={23} /></div>
-        <div><h3>{t("settings.theme.title")}</h3><p>{t("settings.theme.description")}</p>
+        <div className="settings-card-content">
+          <div className="settings-card-copy"><h3>{t("settings.theme.title")}</h3><p>{t("settings.theme.description")}</p></div>
           <div className="settings-field">
             <label htmlFor="theme-color-picker">{t("settings.theme.label")}</label>
             <span id="theme-color-picker" className="theme-color-picker">
@@ -125,7 +129,8 @@ export function SettingsPage({
       </section>
       <section className="settings-card">
         <div className="settings-icon"><CircleGauge size={23} /></div>
-        <div><h3>{t("settings.floatingBubble.title")}</h3><p>{t("settings.floatingBubble.description")}</p>
+        <div className="settings-card-content">
+          <div className="settings-card-copy"><h3>{t("settings.floatingBubble.title")}</h3><p>{t("settings.floatingBubble.description")}</p></div>
           <div className="settings-field">
             <label htmlFor="floating-bubble-enabled">{t("settings.floatingBubble.enabled")}</label>
             <Switch id="floating-bubble-enabled" checked={floatingBubbleEnabled} loading={floatingBubbleLoading}
@@ -143,7 +148,8 @@ export function SettingsPage({
       </section>
       <section className="settings-card">
         <div className="settings-icon"><EyeOff size={23} /></div>
-        <div><h3>{t("settings.privacy.title")}</h3><p>{t("settings.privacy.description")}</p>
+        <div className="settings-card-content">
+          <div className="settings-card-copy"><h3>{t("settings.privacy.title")}</h3><p>{t("settings.privacy.description")}</p></div>
           <div className="settings-field">
             <label htmlFor="privacy-mode-enabled">{t("settings.privacy.enabled")}</label>
             <Switch id="privacy-mode-enabled" checked={privacyModeEnabled} loading={privacyModeLoading}
@@ -154,7 +160,8 @@ export function SettingsPage({
       </section>
       <section className="settings-card">
         <div className="settings-icon"><RefreshCw size={23} /></div>
-        <div><h3>{t("settings.autoRefresh.title")}</h3><p>{t("settings.autoRefresh.description")}</p>
+        <div className="settings-card-content">
+          <div className="settings-card-copy"><h3>{t("settings.autoRefresh.title")}</h3><p>{t("settings.autoRefresh.description")}</p></div>
           <div className="settings-field">
             <label htmlFor="auto-refresh-enabled">{t("settings.autoRefresh.enabled")}</label>
             <Switch id="auto-refresh-enabled" checked={autoRefreshEnabled} checkedChildren={t("settings.autoRefresh.on")} unCheckedChildren={t("settings.autoRefresh.off")}
@@ -170,12 +177,14 @@ export function SettingsPage({
       </section>
       <section className="settings-card">
         <div className="settings-icon"><RefreshCw size={23} /></div>
-        <div><h3>{t("settings.accountAutoRefresh.title")}</h3><p>{t("settings.accountAutoRefresh.description")}</p>
-          <p className="settings-current-account">
-            {currentAccountEmail
-              ? t("settings.accountAutoRefresh.current", { email: currentAccountEmail })
-              : t("settings.accountAutoRefresh.none")}
-          </p>
+        <div className="settings-card-content">
+          <div className="settings-card-copy"><h3>{t("settings.accountAutoRefresh.title")}</h3><p>{t("settings.accountAutoRefresh.description")}</p>
+            <p className="settings-current-account">
+              {currentAccountEmail
+                ? t("settings.accountAutoRefresh.current", { email: currentAccountEmail })
+                : t("settings.accountAutoRefresh.none")}
+            </p>
+          </div>
           <div className="settings-field">
             <label htmlFor="account-auto-refresh-enabled">{t("settings.autoRefresh.enabled")}</label>
             <Switch id="account-auto-refresh-enabled" checked={accountAutoRefreshEnabled}
@@ -193,32 +202,30 @@ export function SettingsPage({
         </div>
       </section>
       <section className="settings-card"><div className="settings-icon"><FolderKey size={23} /></div>
-        <div>
-          <div className="settings-card-header">
-            <div><h3>Codex Home</h3><p>{t("settings.codexHome.description")}</p></div>
-            <Button size="small" icon={<FolderOpen size={14} />} disabled={!info?.codexHome}
-              onClick={onOpenCodexHome}>{t("settings.openFolder")}</Button>
+        <div className="settings-card-content">
+          <div className="settings-card-copy">
+            <h3>Codex Home</h3><p>{t("settings.codexHome.description")}</p>
+            <code>{info?.codexHome ?? t("settings.loading")}</code>
           </div>
-          <code>{info?.codexHome ?? t("settings.loading")}</code>
+          <Button size="small" icon={<FolderOpen size={14} />} disabled={!info?.codexHome}
+            onClick={onOpenCodexHome}>{t("settings.openFolder")}</Button>
         </div></section>
       <section className="settings-card"><div className="settings-icon"><KeyRound size={23} /></div>
-        <div>
-          <div className="settings-card-header">
-            <div><h3>{t("settings.accountStore.title")}</h3><p>{t("settings.accountStore.description")}</p></div>
-            <Button size="small" icon={<FolderOpen size={14} />} disabled={!info?.accountStore}
-              onClick={onOpenAccountStore}>{t("settings.openFolder")}</Button>
+        <div className="settings-card-content">
+          <div className="settings-card-copy">
+            <h3>{t("settings.accountStore.title")}</h3><p>{t("settings.accountStore.description")}</p>
+            <code>{info?.accountStore ?? t("settings.loading")}</code>
           </div>
-          <code>{info?.accountStore ?? t("settings.loading")}</code>
+          <Button size="small" icon={<FolderOpen size={14} />} disabled={!info?.accountStore}
+            onClick={onOpenAccountStore}>{t("settings.openFolder")}</Button>
         </div></section>
       <section className="settings-card note-card"><div className="settings-icon"><ShieldCheck size={23} /></div>
-        <div><h3>{t("settings.security.title")}</h3><p>{t("settings.security.description")}</p></div></section>
+        <div className="settings-card-content"><div className="settings-card-copy"><h3>{t("settings.security.title")}</h3><p>{t("settings.security.description")}</p></div></div></section>
       <section className="settings-card"><div className="settings-icon"><FileDown size={23} /></div>
-        <div>
-          <div className="settings-card-header">
-            <div><h3>{t("settings.logs.title")}</h3><p>{t("settings.logs.description")}</p></div>
-            <Button size="small" icon={<FileDown size={14} />} loading={exportingLogs}
-              onClick={onExportLogs}>{t("settings.logs.export")}</Button>
-          </div>
+        <div className="settings-card-content">
+          <div className="settings-card-copy"><h3>{t("settings.logs.title")}</h3><p>{t("settings.logs.description")}</p></div>
+          <Button size="small" icon={<FileDown size={14} />} loading={exportingLogs}
+            onClick={onExportLogs}>{t("settings.logs.export")}</Button>
         </div></section>
     </div>
   );
