@@ -8,6 +8,7 @@ export const DEMO_ACCOUNTS: Account[] = [
     expiresAt: "2026-12-31",
     plan: "Plus",
     active: true,
+    autoSwitchEnabled: true,
     accountId: "workspace-personal",
     usage: {
       primary: { usedPercent: 28, remainingPercent: 72, resetsAt: Date.now() / 1000 + 8200 },
@@ -22,6 +23,7 @@ export const DEMO_ACCOUNTS: Account[] = [
     expiresAt: "",
     plan: "Business",
     active: false,
+    autoSwitchEnabled: false,
     accountId: "workspace-studio",
     usage: {
       primary: { usedPercent: 64, remainingPercent: 36, resetsAt: Date.now() / 1000 + 4500 },

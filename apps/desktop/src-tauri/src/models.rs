@@ -10,6 +10,7 @@ pub(crate) struct AccountSummary {
     pub(crate) plan: String,
     pub(crate) account_id: Option<String>,
     pub(crate) active: bool,
+    pub(crate) auto_switch_enabled: bool,
     pub(crate) usage: UsageSummary,
 }
 
@@ -52,6 +53,8 @@ pub(crate) struct ManagerStateFile {
     pub(crate) local_proxy_enabled: bool,
     #[serde(default)]
     pub(crate) auto_switch_on_quota_exhaustion: bool,
+    #[serde(default)]
+    pub(crate) disabled_account_ids: Vec<String>,
 }
 
 #[derive(Serialize)]
@@ -271,5 +274,6 @@ mod tests {
         assert_eq!(state.active_account_id.as_deref(), Some("account-1"));
         assert!(!state.local_proxy_enabled);
         assert!(!state.auto_switch_on_quota_exhaustion);
+        assert!(state.disabled_account_ids.is_empty());
     }
 }

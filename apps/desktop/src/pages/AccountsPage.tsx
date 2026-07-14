@@ -15,6 +15,8 @@ export function AccountsPage({
   onSwitch,
   onRefresh,
   onDelete,
+  onAutoSwitchEnabledChange,
+  autoSwitchBusyAccountId,
   onSaveNote,
   onLoadResetCredits,
   onUseResetCredit,
@@ -36,6 +38,8 @@ export function AccountsPage({
   onSwitch: (id: string) => void;
   onRefresh: (id: string) => void;
   onDelete: (id: string) => void;
+  onAutoSwitchEnabledChange: (id: string, enabled: boolean) => void;
+  autoSwitchBusyAccountId: string | null;
   onSaveNote: (id: string, note: string, expiresAt: string) => Promise<boolean>;
   onLoadResetCredits: (id: string, force?: boolean) => void;
   onUseResetCredit: (id: string) => void;
@@ -57,33 +61,34 @@ export function AccountsPage({
   );
   if (loading) {
     return (
-      <>
+      <div className="accounts-page">
         {proxyCard}
         <div className="loading-state"><RefreshCw className="spin" />{t("accounts.loading")}</div>
-      </>
+      </div>
     );
   }
   if (!accounts.length) {
     return (
-      <>
+      <div className="accounts-page">
         {proxyCard}
         <div className="empty-state">
           <div><LogIn size={28} /></div><h2>{t("accounts.empty.title")}</h2>
           <p>{t("accounts.empty.description")}</p>
           <button className="primary-button" onClick={onAdd}>{t("accounts.empty.addFirst")}<ArrowRight size={17} /></button>
         </div>
-      </>
+      </div>
     );
   }
   return (
-    <>
+    <div className="accounts-page">
       {proxyCard}
       <AccountTable accounts={accounts} busyAccountId={busyAccountId}
         onSwitch={onSwitch} onRefresh={onRefresh} onDelete={onDelete}
+        onAutoSwitchEnabledChange={onAutoSwitchEnabledChange} autoSwitchBusyAccountId={autoSwitchBusyAccountId}
         onSaveNote={onSaveNote}
         resetCredits={resetCredits} onLoadResetCredits={onLoadResetCredits}
         onUseResetCredit={onUseResetCredit} resetCreditBusyAccountId={resetCreditBusyAccountId}
         hotSwitchEnabled={hotSwitchEnabled} privacyMode={privacyMode} language={language} t={t} />
-    </>
+    </div>
   );
 }

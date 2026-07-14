@@ -545,6 +545,10 @@ export async function activateAccount(id: string): Promise<void> {
   if (isDesktopApp) await invoke("switch_account", { id });
 }
 
+export async function setAccountAutoSwitchEnabled(id: string, enabled: boolean): Promise<void> {
+  if (isDesktopApp) await invoke("set_account_auto_switch_enabled", { id, enabled });
+}
+
 export async function refreshAccountUsage(id: string): Promise<void> {
   if (isDesktopApp) await invoke("refresh_usage", { id });
 }

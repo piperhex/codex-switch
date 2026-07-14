@@ -105,6 +105,9 @@ function DashboardApp() {
   const deleteAccount = useCallback((id: string) => {
     void manager.deleteAccount(id);
   }, [manager.deleteAccount]);
+  const setAccountAutoSwitchEnabled = useCallback((id: string, enabled: boolean) => {
+    void manager.setAutoSwitchEnabled(id, enabled);
+  }, [manager.setAutoSwitchEnabled]);
   const saveAccountNote = useCallback((id: string, note: string, expiresAt: string) => (
     manager.saveAccountNote(id, note, expiresAt)
   ), [manager.saveAccountNote]);
@@ -329,7 +332,7 @@ function DashboardApp() {
           </div>
         </header>
 
-        <main>
+        <main className={page === "accounts" ? "accounts-main" : undefined}>
           <header className="topbar">
             <div><span className="eyebrow">{page === "providers" ? t("topbar.providersEyebrow") : t("topbar.eyebrow")}</span>
               <h1>{page === "settings"
@@ -438,13 +441,15 @@ function DashboardApp() {
               onStartProxy={providerManager.startProxy} onStopProxy={providerManager.stopProxy}
               onAutoSwitchChange={providerManager.setProxyAutoSwitch} t={t} />
           </section>
-          <section className="page-panel" hidden={page !== "accounts"}>
+          <section className="page-panel accounts-page-panel" hidden={page !== "accounts"}>
             <MemoAccountsPage accounts={manager.accounts} loading={manager.loading}
               busyAccountId={manager.busyAccountId} onAdd={openLogin}
               localProxy={providerManager.localProxy} proxyBusy={providerManager.proxyBusy}
               onSwitch={switchAccount}
               onRefresh={refreshUsage}
               onDelete={deleteAccount}
+              onAutoSwitchEnabledChange={setAccountAutoSwitchEnabled}
+              autoSwitchBusyAccountId={manager.autoSwitchBusyAccountId}
               onSaveNote={saveAccountNote}
               resetCredits={resetCredits.states}
               onLoadResetCredits={loadResetCredits}

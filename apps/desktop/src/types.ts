@@ -20,6 +20,7 @@ export interface Account {
   plan: string;
   accountId?: string | null;
   active: boolean;
+  autoSwitchEnabled: boolean;
   usage: UsageSummary;
 }
 

@@ -92,7 +92,8 @@ pub(crate) fn list_accounts<R: Runtime>(
     let _ = sync_current_into_store(&app);
     let paths = resolve_paths(&app)?;
     fs::create_dir_all(&paths.accounts).map_err(|error| format!("创建账户目录失败：{error}"))?;
-    let active_id = read_state(&paths).active_account_id;
+    let state = read_state(&paths);
+    let active_id = state.active_account_id.clone();
     let mut accounts = Vec::new();
     for entry in
         fs::read_dir(&paths.accounts).map_err(|error| format!("读取账户目录失败：{error}"))?
@@ -107,6 +108,7 @@ pub(crate) fn list_accounts<R: Runtime>(
         }
         let auth = read_json(&auth_path)?;
         let (email, plan, account_id, id) = account_fields(&auth)?;
+        let auto_switch_enabled = !state.disabled_account_ids.contains(&id);
         accounts.push(AccountSummary {
             active: active_id.as_deref() == Some(&id),
             usage: load_usage(&usage_path(&paths, &id)),
@@ -116,6 +118,7 @@ pub(crate) fn list_accounts<R: Runtime>(
             email,
             plan,
             account_id,
+            auto_switch_enabled,
         });
     }
     accounts.sort_by(|left, right| left.email.cmp(&right.email));
@@ -380,6 +383,32 @@ pub(crate) fn switch_account<R: Runtime>(
 }
 
 #[tauri::command]
+pub(crate) fn set_account_auto_switch_enabled<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    id: String,
+    enabled: bool,
+) -> Result<(), String> {
+    let paths = resolve_paths(&app)?;
+    if !managed_auth_path(&paths, &id).exists() {
+        return Err("Account does not exist".to_string());
+    }
+
+    let mut state = read_state(&paths);
+    if enabled {
+        state
+            .disabled_account_ids
+            .retain(|account_id| account_id != &id);
+    } else if !state.disabled_account_ids.contains(&id) {
+        state.disabled_account_ids.push(id);
+        state.disabled_account_ids.sort();
+    }
+    write_state(&paths, &state)?;
+    app.emit("accounts-changed", ())
+        .map_err(|error| error.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
 pub(crate) fn delete_account<R: Runtime>(
     app: tauri::AppHandle<R>,
     id: String,
@@ -391,6 +420,14 @@ pub(crate) fn delete_account<R: Runtime>(
     let target = account_dir(&paths, &id);
     if target.exists() {
         fs::remove_dir_all(&target).map_err(|error| format!("删除账户失败：{error}"))?;
+    }
+    let mut state = read_state(&paths);
+    let disabled_count = state.disabled_account_ids.len();
+    state
+        .disabled_account_ids
+        .retain(|account_id| account_id != &id);
+    if state.disabled_account_ids.len() != disabled_count {
+        write_state(&paths, &state)?;
     }
     app.emit("accounts-changed", ())
         .map_err(|error| error.to_string())?;

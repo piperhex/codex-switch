@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Popconfirm, Space, Table, Tag, Tooltip } from "antd";
+import { Button, Popconfirm, Space, Switch, Table, Tag, Tooltip } from "antd";
 import type { TableProps } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { CalendarClock, Check, RefreshCw, RotateCcw, Trash2 } from "lucide-react";
@@ -16,6 +16,8 @@ interface AccountTableProps {
   onSwitch: (id: string) => void;
   onRefresh: (id: string) => void;
   onDelete: (id: string) => void;
+  onAutoSwitchEnabledChange: (id: string, enabled: boolean) => void;
+  autoSwitchBusyAccountId: string | null;
   onSaveNote: (id: string, note: string, expiresAt: string) => Promise<boolean>;
   resetCredits: Record<string, ResetCreditsLoadState>;
   onLoadResetCredits: (id: string, force?: boolean) => void;
@@ -92,6 +94,8 @@ export function AccountTable({
   onSwitch,
   onRefresh,
   onDelete,
+  onAutoSwitchEnabledChange,
+  autoSwitchBusyAccountId,
   onSaveNote,
   resetCredits,
   onLoadResetCredits,
@@ -168,7 +172,7 @@ export function AccountTable({
         resetCreditsCount={resetCreditsCount(resetCredits[account.id])} language={language} t={t} />,
     },
     {
-      title: t("table.actions"), width: 120, align: "center", fixed: "right",
+      title: t("table.actions"), width: 135, align: "center", fixed: "right",
       render: (_, account) => {
         const waiting = busyAccountId === account.id;
         const resetWaiting = resetCreditBusyAccountId === account.id;
@@ -205,6 +209,13 @@ export function AccountTable({
                   disabled={account.active} icon={<Trash2 size={14} />} />
               </Tooltip>
             </Popconfirm>
+            <Tooltip title={t("table.autoSwitchTooltip")}>
+              <Switch size="small" checked={account.autoSwitchEnabled}
+                checkedChildren={t("table.enabled")} unCheckedChildren={t("table.disabled")}
+                loading={autoSwitchBusyAccountId === account.id}
+                disabled={autoSwitchBusyAccountId !== null && autoSwitchBusyAccountId !== account.id}
+                onChange={(enabled) => onAutoSwitchEnabledChange(account.id, enabled)} />
+            </Tooltip>
           </Space>
         );
       },
@@ -230,7 +241,7 @@ export function AccountTable({
             onRetry={() => onLoadResetCredits(account.id, true)} language={language} t={t} />,
           onExpand: (expanded, account) => { if (expanded) onLoadResetCredits(account.id); },
         }}
-        scroll={{ x: 1310 }} />
+        scroll={{ x: 1350 }} />
     </div>
     {editingAccount && <AccountNoteModal key={editingAccount.id} account={editingAccount}
       onClose={() => setEditingAccount(null)}

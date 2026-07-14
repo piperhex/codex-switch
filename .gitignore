@@ -10,4 +10,5 @@ apps/native/ios/
 *.log
 auth.json
 *.auth.json
+.env
 .webview2-test

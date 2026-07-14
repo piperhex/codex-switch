@@ -744,11 +744,18 @@ fn auto_switch_official_account<R: Runtime>(
         }
     };
 
-    // The quota result that triggered this flow can be stale, so refresh every saved
+    // The quota result that triggered this flow can be stale, so refresh every enabled
     // official account before choosing a replacement instead of relying on cached usage.
     let accounts = crate::commands::list_accounts(app.clone())?;
+    if !accounts
+        .iter()
+        .any(|account| account.id == current_id && account.auto_switch_enabled)
+    {
+        return Ok(None);
+    }
     let refreshed_accounts = accounts
         .into_iter()
+        .filter(|account| account.auto_switch_enabled)
         .filter_map(|mut account| {
             match crate::commands::refresh_usage_blocking(app.clone(), account.id.clone()) {
                 Ok(usage) => {
@@ -792,6 +799,7 @@ fn account_with_lowest_remaining_primary_quota<'a>(
     accounts
         .iter()
         .filter(|account| account.id != current_id)
+        .filter(|account| account.auto_switch_enabled)
         .filter_map(|account| {
             primary_remaining_quota_score(&account.usage).map(|score| (account, score))
         })
@@ -3508,6 +3516,7 @@ mod tests {
             plan: String::new(),
             account_id: None,
             active: id == "current",
+            auto_switch_enabled: true,
             usage: UsageSummary {
                 primary: Some(UsageWindow {
                     used_percent: 100.0 - primary,
@@ -3539,6 +3548,21 @@ mod tests {
         let selected = account_with_lowest_remaining_primary_quota(&accounts, "current").unwrap();
 
         assert_eq!(selected.id, "lowest-remaining");
+    }
+
+    #[test]
+    fn quota_switch_ignores_accounts_disabled_for_automatic_switching() {
+        let mut disabled = account_with_usage("disabled", 5.0, 1.0);
+        disabled.auto_switch_enabled = false;
+        let accounts = vec![
+            account_with_usage("current", 0.0, 80.0),
+            disabled,
+            account_with_usage("enabled", 72.0, 99.0),
+        ];
+
+        let selected = account_with_lowest_remaining_primary_quota(&accounts, "current").unwrap();
+
+        assert_eq!(selected.id, "enabled");
     }
 
     #[test]

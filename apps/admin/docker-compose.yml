@@ -35,6 +35,8 @@ services:
     depends_on:
       - postgres
       - redis
+    ports:
+      - "9999:8080"
     networks:
       backend-internal:
       kong-net:

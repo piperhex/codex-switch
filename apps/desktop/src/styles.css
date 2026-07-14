@@ -67,6 +67,9 @@ button:focus-visible { outline: 3px solid rgba(45, 131, 87, .24); outline-offset
 
 main { width: 100%; min-width: 0; min-height: 0; overflow-x: hidden; overflow-y: auto; scrollbar-gutter: stable; padding-bottom: 60px; }
 .page-panel[hidden] { display: none !important; }
+main.accounts-main { overflow: hidden; display: flex; flex-direction: column; padding-bottom: 0; }
+.accounts-page-panel { min-height: 0; }
+main.accounts-main .accounts-page-panel { flex: 1; display: flex; flex-direction: column; }
 .topbar { width: 100%; height: 110px; padding: 25px var(--page-x); border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; gap: 18px; background: rgba(248,250,247,.82); backdrop-filter: blur(16px); }
 .topbar-actions { display: flex; align-items: center; gap: 10px; }
 .refresh-all-wrap { position: relative; }
@@ -88,9 +91,12 @@ h1 { margin: 5px 0 0; font: 700 26px/1.1 Manrope, sans-serif; letter-spacing: -.
 .home-proxy-wrap { width: calc(100% - 32px); max-width: calc(100% - 32px); margin: 8px 16px 0; }
 .home-proxy-wrap + .account-table-wrap { margin-top: 8px; }
 .account-list { margin: 0 var(--page-x); display: grid; gap: 14px; }
-.account-table-wrap { width: calc(100% - 32px); max-width: calc(100% - 32px); min-width: 0; margin: 30px 16px 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: white; box-shadow: 0 5px 18px rgba(24,45,31,.035); }
+.account-table-wrap { width: calc(100% - 32px); max-width: calc(100% - 32px); min-width: 0; margin: 30px 16px 0; border: 1px solid var(--line); border-radius: 8px; overflow-x: hidden; overflow-y: auto; scrollbar-gutter: stable; background: white; box-shadow: 0 5px 18px rgba(24,45,31,.035); }
+main.accounts-main .accounts-page { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; padding: 8px 0 16px; }
+main.accounts-main .accounts-page .home-proxy-wrap { flex: 0 0 auto; margin: 0 16px; }
+main.accounts-main .accounts-page .account-table-wrap { flex: 1; min-height: 0; margin: 0 16px; }
 .account-table-wrap .ant-table { color: var(--ink); font-size: 12px; }
-.account-table-wrap .ant-table-thead > tr > th { background: #f6f8f5; color: #5d6a62; font-size: 11px; font-weight: 700; }
+.account-table-wrap .ant-table-thead > tr > th { position: sticky; top: 0; z-index: 3; background: #f6f8f5; color: #5d6a62; font-size: 11px; font-weight: 700; }
 .account-table-wrap .ant-table-tbody > tr > td { background: #fff; }
 .account-table-wrap .ant-table-tbody > tr.active-row > td { background: var(--green-selection); }
 .account-table-wrap .ant-table-tbody > tr.active-row:hover > td { background: var(--green-selection-hover); }

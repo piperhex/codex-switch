@@ -82,6 +82,7 @@ pub fn run() {
             account_archive::export_accounts_archive,
             account_archive::import_accounts_archive,
             commands::switch_account,
+            commands::set_account_auto_switch_enabled,
             commands::update_account_note,
             commands::delete_account,
             commands::refresh_usage,

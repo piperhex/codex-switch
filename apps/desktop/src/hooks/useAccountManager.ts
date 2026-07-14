@@ -10,6 +10,7 @@ import {
   loadDashboard,
   refreshAccountUsage,
   removeAccount,
+  setAccountAutoSwitchEnabled,
   subscribeToBackendEvents,
   updateAccountNote,
 } from "../api/backend";
@@ -36,6 +37,7 @@ export function useAccountManager(
   const [info, setInfo] = useState<AppInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [busyAccountId, setBusyAccountId] = useState<string | null>(null);
+  const [autoSwitchBusyAccountId, setAutoSwitchBusyAccountId] = useState<string | null>(null);
   const [refreshingAll, setRefreshingAll] = useState(false);
   const [archiveOperation, setArchiveOperation] = useState<"import" | "export" | null>(null);
   const refreshingAllRef = useRef(false);
@@ -210,6 +212,21 @@ export function useAccountManager(
     }
   }, [cloudSync, load, notify, t]);
 
+  const setAutoSwitchEnabled = useCallback(async (id: string, enabled: boolean) => {
+    setAutoSwitchBusyAccountId(id);
+    try {
+      await setAccountAutoSwitchEnabled(id, enabled);
+      setAccounts((items) => items.map((item) => item.id === id
+        ? { ...item, autoSwitchEnabled: enabled }
+        : item));
+      if (isDesktopApp) await load();
+    } catch (error) {
+      notify(String(error));
+    } finally {
+      setAutoSwitchBusyAccountId(null);
+    }
+  }, [load, notify]);
+
   const saveAccountNote = useCallback(async (id: string, note: string, expiresAt: string) => {
     try {
       await updateAccountNote(id, note, expiresAt);
@@ -228,6 +245,7 @@ export function useAccountManager(
     info,
     loading,
     busyAccountId,
+    autoSwitchBusyAccountId,
     refreshingAll,
     archiveOperation,
     startLogin,
@@ -239,6 +257,7 @@ export function useAccountManager(
     refreshUsage,
     refreshAll,
     deleteAccount,
+    setAutoSwitchEnabled,
     saveAccountNote,
     reload: load,
   };
