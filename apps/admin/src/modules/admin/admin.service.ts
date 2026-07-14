@@ -84,6 +84,10 @@ export class AdminService {
     return result;
   }
 
+  listOwnAccounts(actor: AuthUser) {
+    return this.sync.listForPortal(actor.id);
+  }
+
   async listUserAccounts(ownerId: string) {
     await this.ensureUser(ownerId);
     return this.sync.listForAdmin(ownerId);

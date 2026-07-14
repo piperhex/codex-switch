@@ -15,6 +15,8 @@ export interface ConfigModuleOptions {
   REFRESH_TOKEN_TTL_SECONDS?: string;
   KONG_JWT_KEY?: string;
   KONG_JWT_SECRET?: string;
+  CODEX_OAUTH_CLIENT_ID?: string;
+  CODEX_OAUTH_ISSUER?: string;
 }
 
 export interface ConfigModuleRegister extends ConfigModuleOptions {

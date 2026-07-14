@@ -86,6 +86,16 @@ describe('SyncService', () => {
     expect(accounts.find).not.toHaveBeenCalled();
   });
 
+  it('removes account credentials from the self-service portal response', async () => {
+    const account = { ...makeAccount(), source: 'personal' as const };
+    vi.spyOn(service, 'listForAdmin').mockResolvedValue({ accounts: [account] });
+
+    const result = await service.listForPortal('owner-1');
+
+    expect(result.accounts).toEqual([{ ...account, auth: undefined }].map(({ auth: _auth, ...row }) => row));
+    expect(result.accounts[0]).not.toHaveProperty('auth');
+  });
+
   it('loads, maps, sorts and caches a cache miss', async () => {
     redis.get.mockResolvedValue(null);
     accounts.find.mockResolvedValue([{

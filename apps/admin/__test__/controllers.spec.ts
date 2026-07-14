@@ -2,6 +2,7 @@ import type { Response } from 'express';
 import { describe, expect, it, vi } from 'vitest';
 import { AdminController } from '@/modules/admin/admin.controller';
 import type { AdminService } from '@/modules/admin/admin.service';
+import type { OfficialAccountOAuthService } from '@/modules/admin/official-account-oauth.service';
 import { AuthController } from '@/modules/auth/auth.controller';
 import { SyncController } from '@/modules/sync/sync.controller';
 import type { AuthService } from '@/modules/auth/auth.service';
@@ -77,6 +78,7 @@ describe('HTTP controllers', () => {
       listUsers: vi.fn().mockResolvedValue('users'), createUser: vi.fn().mockResolvedValue('created'),
       updateUser: vi.fn().mockResolvedValue('updated'), deleteUser: vi.fn().mockResolvedValue('deleted'),
       changePassword: vi.fn().mockResolvedValue({ ok: true }),
+      listOwnAccounts: vi.fn().mockResolvedValue('own-accounts'),
       listUserAccounts: vi.fn().mockResolvedValue('accounts'),
       listUserProviders: vi.fn().mockResolvedValue('providers'),
       updateUserAccount: vi.fn().mockResolvedValue('account-updated'),
@@ -96,7 +98,14 @@ describe('HTTP controllers', () => {
       createApprovalRequest: vi.fn().mockResolvedValue('approval'),
       reviewApprovalRequest: vi.fn().mockResolvedValue('reviewed'),
     };
-    const controller = new AdminController(admin as unknown as AdminService);
+    const officialAccountOAuth = {
+      start: vi.fn().mockResolvedValue('oauth-started'),
+      poll: vi.fn().mockResolvedValue('oauth-polled'),
+    };
+    const controller = new AdminController(
+      admin as unknown as AdminService,
+      officialAccountOAuth as unknown as OfficialAccountOAuthService,
+    );
     const response = { sendFile: vi.fn().mockReturnValue('sent') };
     const actor: AuthUser = { id: 'admin-1', email: 'admin@example.com', role: 'admin' };
 
@@ -112,6 +121,7 @@ describe('HTTP controllers', () => {
     await expect(controller.changePassword(actor, {
       currentPassword: 'old-pass', newPassword: 'new-password',
     })).resolves.toEqual({ ok: true });
+    await expect(controller.listOwnAccounts(actor)).resolves.toBe('own-accounts');
     await expect(controller.listUserAccounts('user-1')).resolves.toBe('accounts');
     await expect(controller.listUserProviders('user-1')).resolves.toBe('providers');
     await expect(controller.updateUserAccount(actor, 'user-1', 'account-1', { active: false }))
@@ -121,6 +131,9 @@ describe('HTTP controllers', () => {
     await expect(controller.listSystemAccounts({ page: 1 })).resolves.toBe('system-accounts');
     await expect(controller.createSystemAccount(actor, { auth: { tokens: {} } }))
       .resolves.toBe('system-account-created');
+    await expect(controller.startSystemAccountOAuth(actor)).resolves.toBe('oauth-started');
+    await expect(controller.pollSystemAccountOAuth(actor, 'oauth-session'))
+      .resolves.toBe('oauth-polled');
     await expect(controller.updateSystemAccount(actor, 'system-account-1', { note: 'updated' }))
       .resolves.toBe('system-account-updated');
     await expect(controller.deleteSystemAccount(actor, 'system-account-1'))
@@ -149,8 +162,11 @@ describe('HTTP controllers', () => {
       email: 'new@example.com', password: 'password', role: 'admin', disabled: false,
     });
     expect(admin.updateUser).toHaveBeenCalledWith(actor, 'user-1', { disabled: true });
+    expect(admin.listOwnAccounts).toHaveBeenCalledWith(actor);
     expect(admin.listUserProviders).toHaveBeenCalledWith('user-1');
     expect(admin.bindSystemAccounts).toHaveBeenCalledWith(actor, bindingDto);
     expect(admin.unbindSystemAccounts).toHaveBeenCalledWith(actor, bindingDto);
+    expect(officialAccountOAuth.start).toHaveBeenCalledWith(actor);
+    expect(officialAccountOAuth.poll).toHaveBeenCalledWith(actor, 'oauth-session');
   });
 });

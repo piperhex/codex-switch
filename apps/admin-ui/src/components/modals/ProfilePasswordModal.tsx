@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { App as AntApp, Form, Input, Modal } from "antd";
 import { useI18n } from "../../i18n-context";
 import type { ApiClient } from "../../types";
@@ -12,6 +13,7 @@ export function ProfilePasswordModal({ api, onClose, open }: ProfilePasswordModa
   const { message } = AntApp.useApp();
   const { t } = useI18n();
   const [form] = Form.useForm();
+  const [saving, setSaving] = useState(false);
 
   return (
     <Modal
@@ -22,19 +24,27 @@ export function ProfilePasswordModal({ api, onClose, open }: ProfilePasswordModa
         form.resetFields();
       }}
       onOk={() => form.submit()}
+      confirmLoading={saving}
       destroyOnClose
     >
       <Form
         form={form}
         layout="vertical"
         onFinish={async (values: { currentPassword: string; newPassword: string }) => {
-          await api("/admin/api/profile/password", {
-            method: "PATCH",
-            body: JSON.stringify(values),
-          });
-          message.success(t("common.changed"));
-          onClose();
-          form.resetFields();
+          setSaving(true);
+          try {
+            await api("/admin/api/profile/password", {
+              method: "PATCH",
+              body: JSON.stringify(values),
+            });
+            message.success(t("common.changed"));
+            onClose();
+            form.resetFields();
+          } catch (error) {
+            message.error((error as Error).message);
+          } finally {
+            setSaving(false);
+          }
         }}
       >
         <Form.Item name="currentPassword" label={t("profilePassword.currentPassword")} rules={[{ required: true, min: 6 }]}>

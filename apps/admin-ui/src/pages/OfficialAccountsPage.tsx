@@ -1,6 +1,6 @@
 import { Badge, Button, Input, Table, Tag, Tooltip, Typography } from "antd";
 import type { TableColumnsType, TablePaginationConfig } from "antd";
-import { Edit3, Link2, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
+import { Edit3, Link2, LogIn, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
 import { useI18n } from "../i18n-context";
 import type { PageResult, SystemAccount } from "../types";
 import { formatDate } from "../utils/format";
@@ -12,6 +12,7 @@ interface OfficialAccountsPageProps {
   onSearchChange: (value: string) => void;
   onLoadAccounts: (page?: number, pageSize?: number) => void | Promise<void>;
   onCreate: () => void;
+  onOAuthCreate: () => void;
   onEdit: (account: SystemAccount) => void;
   onBind: (account: SystemAccount) => void;
   onDelete: (account: SystemAccount) => void;
@@ -23,6 +24,7 @@ export function OfficialAccountsPage({
   search,
   onBind,
   onCreate,
+  onOAuthCreate,
   onDelete,
   onEdit,
   onLoadAccounts,
@@ -97,8 +99,11 @@ export function OfficialAccountsPage({
         </div>
         <div className="toolbar-right">
           <Button icon={<RefreshCw size={15} />} onClick={() => onLoadAccounts()}>{t("common.refresh")}</Button>
-          <Button type="primary" icon={<Plus size={15} />} onClick={onCreate}>
-            {t("officialAccounts.create")}
+          <Button icon={<Plus size={15} />} onClick={onCreate}>
+            {t("officialAccounts.createWithAuthJson")}
+          </Button>
+          <Button type="primary" icon={<LogIn size={15} />} onClick={onOAuthCreate}>
+            {t("officialAccounts.oauthCreate")}
           </Button>
         </div>
       </div>
