@@ -227,6 +227,10 @@ function DashboardApp() {
     setShowLogin(false);
     void manager.importAuth();
   };
+  const importCompatibleJson = () => {
+    setShowLogin(false);
+    void manager.importCompatibleJson();
+  };
   const refreshAll = () => {
     markRefreshAll();
     void manager.refreshAll();
@@ -451,7 +455,7 @@ function DashboardApp() {
           </section>
         </main>
 
-        {showLogin && <LoginModal onClose={() => setShowLogin(false)} onStart={startLogin} onImport={importAuth} t={t} />}
+        {showLogin && <LoginModal onClose={() => setShowLogin(false)} onStart={startLogin} onImport={importAuth} onImportCompatibleJson={importCompatibleJson} t={t} />}
         {showCloudLogin && <CloudLoginModal loading={cloud.loading} onClose={() => setShowCloudLogin(false)}
           onLogin={loginCloudAccount} t={t} />}
         {showHelp && <HelpModal onClose={() => setShowHelp(false)} onDownload={openRelease} version={manager.info?.version ?? "0.1.0"}

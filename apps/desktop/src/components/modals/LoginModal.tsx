@@ -1,10 +1,11 @@
 import { ChevronRight, ExternalLink, FileInput, KeyRound, LayoutGrid, ShieldCheck, X } from "lucide-react";
 import type { Translate } from "../../i18n";
 
-export function LoginModal({ onClose, onStart, onImport, t }: {
+export function LoginModal({ onClose, onStart, onImport, onImportCompatibleJson, t }: {
   onClose: () => void;
   onStart: (embedded: boolean) => void;
   onImport: () => void;
+  onImportCompatibleJson: () => void;
   t: Translate;
 }) {
   return (
@@ -24,6 +25,7 @@ export function LoginModal({ onClose, onStart, onImport, t }: {
         </button>
         <div className="modal-divider"><span>{t("login.or")}</span></div>
         <button type="button" className="import-choice" onClick={onImport}><FileInput size={17} />{t("login.import")}</button>
+        <button type="button" className="import-choice" onClick={onImportCompatibleJson}><FileInput size={17} />{t("login.importCompatible")}</button>
         <div className="safety-note"><ShieldCheck size={16} />{t("login.safety")}</div>
       </section>
     </div>

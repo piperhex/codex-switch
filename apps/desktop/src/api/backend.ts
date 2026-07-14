@@ -453,6 +453,11 @@ export type ImportAuthResult =
   | { status: "cancelled" }
   | { status: "preview" };
 
+export type CompatibleJsonImportResult =
+  | { status: "imported"; ids: string[] }
+  | { status: "cancelled" }
+  | { status: "preview" };
+
 export type ExportAccountArchiveResult =
   | { status: "exported"; path: string }
   | { status: "cancelled" }
@@ -477,6 +482,17 @@ export async function chooseAndImportAuth(): Promise<ImportAuthResult> {
   if (!selected) return { status: "cancelled" };
   const id = await invoke<string>("import_auth_file", { path: selected });
   return { status: "imported", id };
+}
+
+export async function chooseAndImportCompatibleJson(): Promise<CompatibleJsonImportResult> {
+  if (!isDesktopApp) return { status: "preview" };
+  const selected = await open({
+    multiple: false,
+    filters: [{ name: "Compatible Codex JSON", extensions: ["json"] }],
+  });
+  if (!selected) return { status: "cancelled" };
+  const result = await invoke<{ importedIds: string[] }>("import_compatible_json_file", { path: selected });
+  return { status: "imported", ids: result.importedIds };
 }
 
 export async function chooseAndExportAccountArchive(): Promise<ExportAccountArchiveResult> {

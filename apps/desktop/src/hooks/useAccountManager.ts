@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   activateAccount,
   beginLogin,
+  chooseAndImportCompatibleJson,
   chooseAndExportAccountArchive,
   chooseAndImportAccountArchive,
   chooseAndImportAuth,
@@ -83,6 +84,22 @@ export function useAccountManager(
         notify(t("toast.imported"));
         await load();
         await cloudSync?.pushAccount?.(result.id);
+      }
+    } catch (error) {
+      notify(String(error));
+    }
+  }, [cloudSync, load, notify, t]);
+
+  const importCompatibleJson = useCallback(async () => {
+    notify(isDesktopApp ? t("toast.compatibleImportPrompt") : t("toast.previewNoFile"));
+    try {
+      const result = await chooseAndImportCompatibleJson();
+      if (result.status === "imported") {
+        await load();
+        for (const id of result.ids) {
+          await cloudSync?.pushAccount?.(id);
+        }
+        notify(t("toast.compatibleImported", { count: result.ids.length }));
       }
     } catch (error) {
       notify(String(error));
@@ -215,6 +232,7 @@ export function useAccountManager(
     archiveOperation,
     startLogin,
     importAuth,
+    importCompatibleJson,
     exportAccountArchive,
     importAccountArchive,
     switchAccount,

@@ -11,7 +11,7 @@ use std::os::windows::process::CommandExt;
 
 use chrono::{NaiveDate, Utc};
 use reqwest::blocking::Client;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::{Emitter, Runtime};
 use tauri_plugin_opener::OpenerExt;
@@ -133,6 +133,224 @@ pub(crate) fn import_auth_file<R: Runtime>(
         .map_err(|error| error.to_string())?;
     crate::system_tray::refresh_menu(&app);
     Ok(id)
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CompatibleJsonImportResult {
+    pub(crate) imported_ids: Vec<String>,
+}
+
+#[derive(Default)]
+struct CompatibleJsonAuthTokens {
+    id_token: Option<String>,
+    access_token: Option<String>,
+    refresh_token: Option<String>,
+}
+
+impl CompatibleJsonAuthTokens {
+    fn has_any(&self) -> bool {
+        self.id_token.is_some() || self.access_token.is_some() || self.refresh_token.is_some()
+    }
+}
+
+/// Imports the common Codex token layouts used by account managers and session exports.
+/// The stored result is always reduced to this app's canonical auth.json shape before validation.
+#[tauri::command]
+pub(crate) fn import_compatible_json_file<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    path: String,
+) -> Result<CompatibleJsonImportResult, String> {
+    let content =
+        fs::read_to_string(&path).map_err(|error| format!("读取 {} 失败：{error}", path))?;
+    let auth_values = parse_compatible_json_auth_values(&content)?;
+    let mut imported_ids = Vec::new();
+
+    for (index, value) in auth_values.iter().enumerate() {
+        let auth = normalize_compatible_json_auth(value)
+            .map_err(|error| format!("第 {} 个账号无法导入：{error}", index + 1))?;
+        let id = import_value(&app, auth, false)?;
+        if !imported_ids.contains(&id) {
+            imported_ids.push(id);
+        }
+    }
+
+    app.emit("accounts-changed", ())
+        .map_err(|error| error.to_string())?;
+    crate::system_tray::refresh_menu(&app);
+    Ok(CompatibleJsonImportResult { imported_ids })
+}
+
+fn parse_compatible_json_auth_values(content: &str) -> Result<Vec<Value>, String> {
+    let content = content.trim_start_matches('\u{feff}').trim();
+    if content.is_empty() {
+        return Err("导入文件为空".to_string());
+    }
+
+    match serde_json::from_str::<Value>(content) {
+        Ok(Value::Array(items)) if !items.is_empty() => Ok(items),
+        Ok(Value::Array(_)) => Err("导入文件中没有账号".to_string()),
+        Ok(Value::Object(object)) => {
+            if let Some(accounts) = object.get("accounts").and_then(Value::as_array) {
+                if accounts.is_empty() {
+                    return Err("导入文件中没有账号".to_string());
+                }
+                return Ok(accounts.clone());
+            }
+            Ok(vec![Value::Object(object)])
+        }
+        Ok(_) => Err("导入文件顶层必须是 JSON 对象或数组".to_string()),
+        Err(parse_error) => parse_line_delimited_compatible_json(content)
+            .map_err(|line_error| format!("JSON 格式无效：{parse_error}；{line_error}")),
+    }
+}
+
+fn parse_line_delimited_compatible_json(content: &str) -> Result<Vec<Value>, String> {
+    let lines: Vec<(usize, &str)> = content
+        .lines()
+        .enumerate()
+        .filter_map(|(index, line)| {
+            let trimmed = line.trim();
+            (!trimmed.is_empty()).then_some((index + 1, trimmed))
+        })
+        .collect();
+    if lines.len() <= 1 {
+        return Err("请提供完整 JSON，或每行一个 JSON 对象".to_string());
+    }
+
+    lines
+        .into_iter()
+        .map(|(line_number, line)| {
+            let value = serde_json::from_str::<Value>(line)
+                .map_err(|error| format!("第 {line_number} 行不是有效 JSON：{error}"))?;
+            if value.is_object() {
+                Ok(value)
+            } else {
+                Err(format!("第 {line_number} 行必须是 JSON 对象"))
+            }
+        })
+        .collect()
+}
+
+fn normalize_compatible_json_auth(value: &Value) -> Result<Value, String> {
+    let tokens = extract_compatible_json_tokens(value, 0).ok_or_else(|| {
+        "未找到可用的 Codex token；支持 access_token/accessToken、完整 tokens、session/session_json 或 refresh_token"
+            .to_string()
+    })?;
+
+    let mut token_object = serde_json::Map::new();
+    if let Some(access_token) = tokens.access_token {
+        token_object.insert("access_token".to_string(), Value::String(access_token));
+    }
+    if let Some(id_token) = tokens
+        .id_token
+        .filter(|token| crate::auth::decode_jwt(token).is_ok())
+    {
+        token_object.insert("id_token".to_string(), Value::String(id_token));
+    }
+    if let Some(refresh_token) = tokens.refresh_token {
+        token_object.insert("refresh_token".to_string(), Value::String(refresh_token));
+    }
+
+    let mut auth_object = serde_json::Map::new();
+    auth_object.insert("tokens".to_string(), Value::Object(token_object));
+    let mut auth = Value::Object(auth_object);
+
+    if crate::auth::token_string(&auth, "access_token").is_none() {
+        let client = api_client()?;
+        refresh_tokens(&client, &mut auth)?;
+    }
+
+    validate_auth(&auth)?;
+    Ok(auth)
+}
+
+fn extract_compatible_json_tokens(value: &Value, depth: usize) -> Option<CompatibleJsonAuthTokens> {
+    if depth > 4 {
+        return None;
+    }
+
+    let tokens = CompatibleJsonAuthTokens {
+        id_token: first_compatible_json_string(
+            value,
+            &[
+                &["id_token"],
+                &["idToken"],
+                &["tokens", "id_token"],
+                &["tokens", "idToken"],
+                &["credentials", "id_token"],
+                &["credentials", "idToken"],
+            ],
+        ),
+        access_token: first_compatible_json_string(
+            value,
+            &[
+                &["access_token"],
+                &["accessToken"],
+                &["tokens", "access_token"],
+                &["tokens", "accessToken"],
+                &["credentials", "access_token"],
+                &["credentials", "accessToken"],
+            ],
+        ),
+        refresh_token: first_compatible_json_string(
+            value,
+            &[
+                &["refresh_token"],
+                &["refreshToken"],
+                &["tokens", "refresh_token"],
+                &["tokens", "refreshToken"],
+                &["credentials", "refresh_token"],
+                &["credentials", "refreshToken"],
+            ],
+        ),
+    };
+    if tokens.has_any() {
+        return Some(tokens);
+    }
+
+    let object = value.as_object()?;
+    for key in [
+        "auth",
+        "auth_json",
+        "authJson",
+        "session",
+        "session_json",
+        "sessionJson",
+    ] {
+        let Some(nested) = object.get(key) else {
+            continue;
+        };
+        match nested {
+            Value::Object(_) => {
+                if let Some(tokens) = extract_compatible_json_tokens(nested, depth + 1) {
+                    return Some(tokens);
+                }
+            }
+            Value::String(raw) => {
+                let parsed = serde_json::from_str::<Value>(raw).ok()?;
+                if let Some(tokens) = extract_compatible_json_tokens(&parsed, depth + 1) {
+                    return Some(tokens);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+fn first_compatible_json_string(value: &Value, paths: &[&[&str]]) -> Option<String> {
+    paths.iter().find_map(|path| {
+        let mut current = value;
+        for key in *path {
+            current = current.get(*key)?;
+        }
+        current
+            .as_str()
+            .map(str::trim)
+            .filter(|item| !item.is_empty())
+            .map(ToOwned::to_owned)
+    })
 }
 
 #[tauri::command]
@@ -748,5 +966,76 @@ fn status_error(action: &str, status: std::process::ExitStatus) -> String {
     match status.code() {
         Some(code) => format!("{action}（退出码：{code}）"),
         None => format!("{action}（进程被信号终止）"),
+    }
+}
+
+#[cfg(test)]
+mod compatible_json_import_tests {
+    use super::{normalize_compatible_json_auth, parse_compatible_json_auth_values};
+    use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
+    use serde_json::{json, Value};
+
+    fn jwt(payload: Value) -> String {
+        format!(
+            "e30.{}.sig",
+            URL_SAFE_NO_PAD.encode(serde_json::to_vec(&payload).expect("serialize JWT payload"))
+        )
+    }
+
+    fn access_token() -> String {
+        jwt(json!({
+            "email": "compatible@example.com",
+            "sub": "compatible-user",
+            "https://api.openai.com/auth": {
+                "chatgpt_plan_type": "plus",
+                "chatgpt_account_id": "compatible-account"
+            }
+        }))
+    }
+
+    #[test]
+    fn accepts_cockpit_style_account_arrays() {
+        let token = access_token();
+        let input = json!([{
+            "email": "compatible@example.com",
+            "tokens": {
+                "idToken": token,
+                "accessToken": token,
+                "refreshToken": "refresh-token"
+            }
+        }])
+        .to_string();
+
+        let values = parse_compatible_json_auth_values(&input).expect("parse compatible array");
+        assert_eq!(values.len(), 1);
+        let auth = normalize_compatible_json_auth(&values[0]).expect("normalize account");
+
+        assert_eq!(
+            auth.pointer("/tokens/access_token").and_then(Value::as_str),
+            Some(token.as_str())
+        );
+        assert_eq!(
+            auth.pointer("/tokens/refresh_token")
+                .and_then(Value::as_str),
+            Some("refresh-token")
+        );
+    }
+
+    #[test]
+    fn unwraps_json_encoded_session_values() {
+        let token = access_token();
+        let session = json!({
+            "idToken": token,
+            "accessToken": token,
+        });
+        let input = json!({ "session_json": session.to_string() }).to_string();
+
+        let values = parse_compatible_json_auth_values(&input).expect("parse session wrapper");
+        let auth = normalize_compatible_json_auth(&values[0]).expect("normalize session");
+
+        assert_eq!(
+            auth.pointer("/tokens/access_token").and_then(Value::as_str),
+            Some(token.as_str())
+        );
     }
 }
