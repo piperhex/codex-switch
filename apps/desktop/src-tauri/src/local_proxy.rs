@@ -4043,6 +4043,32 @@ mod tests {
     }
 
     #[test]
+    fn provider_image_generation_request_preserves_gpt_image_model() {
+        let provider = ProviderProfile {
+            id: "images".to_string(),
+            name: "Images".to_string(),
+            base_url: "https://images.example.com/v1".to_string(),
+            api_key: "sk-provider-test".to_string(),
+            model: "provider-text-model".to_string(),
+            models: vec!["provider-text-model".to_string()],
+            model_selection_controlled_by_codex: false,
+            api_format: ProviderApiFormat::OpenaiResponses,
+        };
+        let body = serde_json::to_vec(&json!({
+            "model": "gpt-image-2",
+            "prompt": "a fox reading code"
+        }))
+        .unwrap();
+
+        let forwarded =
+            provider_body_for_upstream(&Method::Post, "/v1/images/generations", body, &provider);
+        let forwarded: Value = serde_json::from_slice(&forwarded).unwrap();
+
+        assert_eq!(forwarded["model"], "gpt-image-2");
+        assert_eq!(forwarded["prompt"], "a fox reading code");
+    }
+
+    #[test]
     fn responses_chat_bridge_roundtrips_tool_search_and_namespace_tools() {
         let body = json!({
             "model": "deepseek-chat",

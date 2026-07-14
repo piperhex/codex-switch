@@ -761,6 +761,7 @@ fn merge_local_proxy_config(
         toml_string(LOCAL_PROXY_BASE_URL)
     ));
     config.push_str("wire_api = \"responses\"\n");
+    config.push_str("requires_openai_auth = true\n");
     config.push_str(&format!(
         "experimental_bearer_token = {}\n",
         toml_string(LOCAL_PROXY_TOKEN)
@@ -972,8 +973,8 @@ mod tests {
         assert!(merged.contains("model = \"deepseek-chat\""));
         assert!(merged.contains("model_catalog_json = \"codex-switch-model-catalog.json\""));
         assert!(merged.contains("base_url = \"http://127.0.0.1:15722/v1\""));
+        assert!(merged.contains("requires_openai_auth = true"));
         assert!(merged.contains("experimental_bearer_token = \"CODEX_SWITCH_LOCAL_PROXY\""));
-        assert!(!merged.contains("requires_openai_auth"));
         assert!(!merged.contains("model = \"old\""));
     }
 
