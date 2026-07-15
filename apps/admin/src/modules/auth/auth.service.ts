@@ -6,6 +6,7 @@ import { IsNull, Repository } from 'typeorm';
 import { MODULE_OPTIONS_TOKEN } from '@/config/configurable';
 import { getKongJwtSecret, getRefreshSecret } from '@/config/auth-secrets';
 import type { ConfigModuleOptions } from '@/config/config.types';
+import { permissionsForRole } from '@/common/rbac/permissions';
 import { AdminService } from '@/modules/admin/admin.service';
 import { UserService } from '@/modules/user/user.service';
 import { UserEntity } from '@/modules/user/entities/user.entity';
@@ -87,7 +88,12 @@ export class AuthService {
   async me(userId: string) {
     const user = await this.users.findActiveById(userId);
     if (!user) throw new UnauthorizedException('User not found');
-    return { id: user.id, email: user.email, role: user.role };
+    return {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      permissions: permissionsForRole(user.role),
+    };
   }
 
   private async issueTokens(user: UserEntity) {
@@ -116,7 +122,12 @@ export class AuthService {
     return {
       accessToken,
       refreshToken,
-      user: { id: user.id, email: user.email, role: user.role },
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        permissions: permissionsForRole(user.role),
+      },
     };
   }
 

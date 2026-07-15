@@ -5,6 +5,7 @@ import { AccountEditModal } from "./components/accounts/AccountEditModal";
 import { BatchBindSystemAccountsModal } from "./components/accounts/BatchBindSystemAccountsModal";
 import { SystemAccountBindingModal } from "./components/accounts/SystemAccountBindingModal";
 import { SystemAccountModal } from "./components/accounts/SystemAccountModal";
+import { SystemAccountOAuthModal } from "./components/accounts/SystemAccountOAuthModal";
 import { AdminShell } from "./components/layout/AdminShell";
 import { ApprovalModal } from "./components/modals/ApprovalModal";
 import { InvitationModal } from "./components/modals/InvitationModal";
@@ -17,6 +18,7 @@ import { useAuthenticatedApi } from "./hooks/useAuthenticatedApi";
 import { ApprovalsPage } from "./pages/ApprovalsPage";
 import { AuditLogsPage } from "./pages/AuditLogsPage";
 import { InvitationsPage } from "./pages/InvitationsPage";
+import { MyAccountsPage } from "./pages/MyAccountsPage";
 import { OfficialAccountsPage } from "./pages/OfficialAccountsPage";
 import { UsersPage } from "./pages/UsersPage";
 import type {
@@ -52,7 +54,11 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
   const { t } = useI18n();
   const [auth, setAuth] = useState<AuthTokens | null>(() => loadStoredAuth());
   const [profile, setProfile] = useState<Profile | null>(auth?.user ?? null);
-  const [activeKey, setActiveKey] = useState<MenuKey>("users");
+  const [activeKey, setActiveKey] = useState<MenuKey>(() => (
+    auth?.user.role === "admin" ? "users" : "myAccounts"
+  ));
+  const [ownAccounts, setOwnAccounts] = useState<SyncAccount[]>([]);
+  const [ownAccountsLoading, setOwnAccountsLoading] = useState(false);
   const [users, setUsers] = useState<PageResult<UserRow>>(emptyUsers);
   const [userFilters, setUserFilters] = useState<UserFilters>({});
   const [usersLoading, setUsersLoading] = useState(false);
@@ -78,6 +84,7 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
   const [providersLoading, setProvidersLoading] = useState(false);
   const [editingAccount, setEditingAccount] = useState<SyncAccount | null>(null);
   const [systemAccountModalOpen, setSystemAccountModalOpen] = useState(false);
+  const [systemAccountOAuthOpen, setSystemAccountOAuthOpen] = useState(false);
   const [editingSystemAccount, setEditingSystemAccount] = useState<SystemAccount | null>(null);
   const [bindingSystemAccount, setBindingSystemAccount] = useState<SystemAccount | null>(null);
   const [bindingUsers, setBindingUsers] = useState<UserRow[]>([]);
@@ -94,6 +101,7 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
   const saveAuth = useCallback((next: AuthTokens | null) => {
     setAuth(next);
     setProfile(next?.user ?? null);
+    if (next) setActiveKey(next.user.role === "admin" ? "users" : "myAccounts");
     persistAuth(next);
   }, []);
 
@@ -103,17 +111,25 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
     if (!auth?.accessToken) return;
     try {
       const data = await api<Profile>("/auth/me");
-      if (data.role !== "admin") {
-        message.error(t("errors.adminRequired"));
-        await signOut();
-        return;
-      }
       setProfile(data);
+      if (data.role === "user") setActiveKey("myAccounts");
     } catch (error) {
       message.error((error as Error).message);
       await signOut();
     }
-  }, [api, auth?.accessToken, message, signOut, t]);
+  }, [api, auth?.accessToken, message, signOut]);
+
+  const loadOwnAccounts = useCallback(async () => {
+    setOwnAccountsLoading(true);
+    try {
+      const data = await api<{ accounts: SyncAccount[] }>("/admin/api/profile/accounts");
+      setOwnAccounts(data.accounts);
+    } catch (error) {
+      message.error((error as Error).message);
+    } finally {
+      setOwnAccountsLoading(false);
+    }
+  }, [api, message]);
 
   const loadUsers = useCallback(async (page = users.page, pageSize = users.pageSize) => {
     setUsersLoading(true);
@@ -214,6 +230,7 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
 
   useEffect(() => {
     if (!auth?.accessToken || !profile) return;
+    if (activeKey === "myAccounts") void loadOwnAccounts();
     if (activeKey === "users") void loadUsers();
     if (activeKey === "officialAccounts") void loadSystemAccounts();
     if (activeKey === "audit") void loadAuditLogs();
@@ -225,6 +242,7 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
     loadApprovals,
     loadAuditLogs,
     loadInvitations,
+    loadOwnAccounts,
     loadSystemAccounts,
     loadUsers,
     profile,
@@ -308,6 +326,16 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
   }
 
   const renderPage = () => {
+    if (activeKey === "myAccounts") {
+      return (
+        <MyAccountsPage
+          accounts={ownAccounts}
+          loading={ownAccountsLoading}
+          onRefresh={loadOwnAccounts}
+        />
+      );
+    }
+
     if (activeKey === "officialAccounts") {
       return (
         <OfficialAccountsPage
@@ -320,6 +348,7 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
             setEditingSystemAccount(null);
             setSystemAccountModalOpen(true);
           }}
+          onOAuthCreate={() => setSystemAccountOAuthOpen(true)}
           onEdit={(account) => {
             setEditingSystemAccount(account);
             setSystemAccountModalOpen(true);
@@ -510,6 +539,12 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
           setSystemAccountModalOpen(false);
           setEditingSystemAccount(null);
         }}
+        onSaved={loadSystemAccounts}
+      />
+      <SystemAccountOAuthModal
+        open={systemAccountOAuthOpen}
+        api={api}
+        onClose={() => setSystemAccountOAuthOpen(false)}
         onSaved={loadSystemAccounts}
       />
       <SystemAccountBindingModal

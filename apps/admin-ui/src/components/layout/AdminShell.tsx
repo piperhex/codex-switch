@@ -10,13 +10,14 @@ import {
   LogOut,
   MailPlus,
   Moon,
+  Rows3,
   Sun,
   UserRound,
   Users,
 } from "lucide-react";
 import { LANGUAGE_OPTIONS, type Language, type TranslationKey } from "../../i18n";
 import { useI18n } from "../../i18n-context";
-import type { MenuKey, Profile } from "../../types";
+import type { MenuKey, Permission, Profile } from "../../types";
 
 interface AdminShellProps {
   activeKey: MenuKey;
@@ -31,11 +32,21 @@ interface AdminShellProps {
 }
 
 const menuLabelKeys: Record<MenuKey, TranslationKey> = {
+  myAccounts: "nav.myAccounts",
   users: "nav.users",
   officialAccounts: "nav.officialAccounts",
   audit: "nav.audit",
   invitations: "nav.invitations",
   approvals: "nav.approvals",
+};
+
+const menuPermissions: Record<MenuKey, Permission> = {
+  myAccounts: "self.accounts.read",
+  users: "admin.users.read",
+  officialAccounts: "admin.official-accounts.read",
+  audit: "admin.audit-logs.read",
+  invitations: "admin.invitations.read",
+  approvals: "admin.approvals.read",
 };
 
 export function AdminShell({
@@ -50,13 +61,18 @@ export function AdminShell({
   onThemeChange,
 }: AdminShellProps) {
   const { language, setLanguage, t } = useI18n();
-  const menuItems = useMemo<MenuProps["items"]>(() => [
-    { key: "users", icon: <Users size={17} />, label: t("nav.users") },
-    { key: "officialAccounts", icon: <BadgeCheck size={17} />, label: t("nav.officialAccounts") },
-    { key: "audit", icon: <FileClock size={17} />, label: t("nav.audit") },
-    { key: "invitations", icon: <MailPlus size={17} />, label: t("nav.invitations") },
-    { key: "approvals", icon: <GitPullRequest size={17} />, label: t("nav.approvals") },
-  ], [t]);
+  const menuItems = useMemo<MenuProps["items"]>(() => {
+    const permissions = new Set(profile?.permissions ?? []);
+    const items = [
+      { key: "myAccounts" as const, icon: <Rows3 size={17} />, label: t("nav.myAccounts") },
+      { key: "users" as const, icon: <Users size={17} />, label: t("nav.users") },
+      { key: "officialAccounts" as const, icon: <BadgeCheck size={17} />, label: t("nav.officialAccounts") },
+      { key: "audit" as const, icon: <FileClock size={17} />, label: t("nav.audit") },
+      { key: "invitations" as const, icon: <MailPlus size={17} />, label: t("nav.invitations") },
+      { key: "approvals" as const, icon: <GitPullRequest size={17} />, label: t("nav.approvals") },
+    ];
+    return items.filter((item) => permissions.has(menuPermissions[item.key]));
+  }, [profile?.permissions, t]);
 
   const avatarMenu = useMemo<MenuProps["items"]>(() => [
     { key: "profile", icon: <UserRound size={15} />, label: t("header.profile") },

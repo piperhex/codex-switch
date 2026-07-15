@@ -22,6 +22,8 @@ export type AdminSyncAccountDto = SyncAccountDto & {
   systemAccountId?: string;
 };
 
+export type PortalSyncAccountDto = Omit<AdminSyncAccountDto, 'auth'>;
+
 export interface SystemAccountDto {
   id: string;
   syncAccountId: string;
@@ -195,6 +197,13 @@ export class SyncService {
     }
     return {
       accounts: [...effective.values()].sort((left, right) => left.email.localeCompare(right.email)),
+    };
+  }
+
+  async listForPortal(ownerId: string): Promise<{ accounts: PortalSyncAccountDto[] }> {
+    const data = await this.listForAdmin(ownerId);
+    return {
+      accounts: data.accounts.map(({ auth: _auth, ...account }) => account),
     };
   }
 

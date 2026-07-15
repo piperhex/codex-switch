@@ -221,6 +221,38 @@ body {
   background: rgba(15, 23, 42, 0.08);
 }
 
+.oauth-content {
+  min-height: 180px;
+  display: grid;
+  align-content: center;
+  gap: 16px;
+}
+
+.oauth-content > .ant-spin {
+  justify-self: center;
+}
+
+.oauth-code {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border: 1px solid rgba(126, 144, 161, 0.28);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.05);
+}
+
+.oauth-code-value {
+  font-size: 24px;
+  font-weight: 650;
+  letter-spacing: 0;
+}
+
+.oauth-waiting {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 @media (max-width: 860px) {
   .summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));

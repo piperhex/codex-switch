@@ -51,7 +51,7 @@ export function LoginView({ onAuth }: LoginViewProps) {
         <div className="login-brand">
           <div className="login-brand-row">
             <div>
-              <h1>Codex Switch Admin</h1>
+              <h1>Codex Switch</h1>
               <span>{t("login.subtitle")}</span>
             </div>
             <div className="language-control" aria-label={t("language.label")}>

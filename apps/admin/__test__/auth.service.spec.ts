@@ -8,6 +8,7 @@ import type { AdminService } from '@/modules/admin/admin.service';
 import type { RefreshTokenEntity } from '@/modules/auth/entities/refresh-token.entity';
 import type { UserService } from '@/modules/user/user.service';
 import { makeUser } from './fixtures';
+import { permissionsForRole } from '@/common/rbac/permissions';
 
 const hash = (value: string) => createHash('sha256').update(value).digest('hex');
 
@@ -77,7 +78,12 @@ describe('AuthService', () => {
     await expect(service.register('USER@example.com', 'password'))
       .resolves.toEqual({
         accessToken: 'access-token', refreshToken: 'refresh-token',
-        user: { id: user.id, email: user.email, role: user.role },
+        user: {
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          permissions: permissionsForRole(user.role),
+        },
       });
 
     expect(users.createUser).toHaveBeenCalledWith({ email: 'USER@example.com', password: 'password' });
@@ -189,7 +195,12 @@ describe('AuthService', () => {
   it('returns only the public profile for an active user', async () => {
     const user = makeUser({ role: 'admin' });
     users.findActiveById.mockResolvedValue(user);
-    await expect(service.me(user.id)).resolves.toEqual({ id: user.id, email: user.email, role: 'admin' });
+    await expect(service.me(user.id)).resolves.toEqual({
+      id: user.id,
+      email: user.email,
+      role: 'admin',
+      permissions: permissionsForRole('admin'),
+    });
   });
 
   it('rejects profile lookup when the user is unavailable', async () => {

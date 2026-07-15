@@ -22,7 +22,8 @@ export default defineConfig({
       include: [
         'src/config/auth-secrets.ts',
         'src/config/config.module.ts',
-        'src/common/guards/admin.guard.ts',
+        'src/common/guards/permissions.guard.ts',
+        'src/common/rbac/permissions.ts',
         'src/modules/admin/admin.controller.ts',
         'src/modules/auth/auth.controller.ts',
         'src/modules/auth/auth.service.ts',

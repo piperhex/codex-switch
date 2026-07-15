@@ -9,7 +9,7 @@ NestJS backend for Codex Switch cloud login, account and Provider synchronizatio
 - Redis for cached profiles, account lists, and Provider lists
 - JWT dual token authentication
 - Access tokens compatible with your existing Kong JWT plugin
-- React + Ant Design admin console at `/admin`
+- React + Ant Design management console at `/admin`
 
 ## Local Run
 
@@ -109,6 +109,19 @@ The mobile client uses `GET /sync/accounts/summary`, which removes `auth` from e
 
 Admins can add credentials to the official account pool and bind one or more pool entries to users. Bound entries are merged into the user's effective `/sync/accounts` list. A bound official entry wins over a personal entry with the same stable sync ID; user-side updates and deletes do not modify the official copy. Edit, unbind, or delete those entries through the official-account admin APIs. All pool mutations and binding changes are written to the admin audit log.
 
+The admin console can also add an official account through Codex OAuth. It uses the official device authorization flow because the Codex CLI browser flow only permits its localhost callback ports. The one-time OAuth session is scoped to the authenticated administrator, stored in Redis for 15 minutes, and never exposes exchanged tokens to the browser. Keep `CODEX_OAUTH_ISSUER` at its default unless you operate a compatible trusted authorization service.
+
+## RBAC
+
+Every management and synchronization endpoint is protected by an explicit permission in addition to JWT authentication. Permissions are derived from the user's current database role on every request, so changing or disabling a user takes effect without trusting stale role claims from an access token.
+
+| Role | Permissions |
+| --- | --- |
+| `user` | Read and synchronize own accounts/providers; change own password |
+| `admin` | All user permissions plus user, official-account, audit-log, invitation, and approval management |
+
+Ordinary users can sign in to `/admin`, see only the **My Accounts** page, open their profile, and change their own password. `GET /admin/api/profile/accounts` returns account display data without any `auth` credentials. Menu filtering is only a user-interface aid; backend permission guards remain authoritative.
+
 ## API
 
 - `POST /auth/register`
@@ -131,12 +144,15 @@ Admins can add credentials to the official account pool and bind one or more poo
 - `PATCH /admin/api/users/:id`
 - `DELETE /admin/api/users/:id`
 - `PATCH /admin/api/profile/password`
+- `GET /admin/api/profile/accounts`
 - `GET /admin/api/users/:id/accounts`
 - `GET /admin/api/users/:id/providers`
 - `PATCH /admin/api/users/:id/accounts/:accountId`
 - `DELETE /admin/api/users/:id/accounts/:accountId`
 - `GET /admin/api/official-accounts`
 - `POST /admin/api/official-accounts`
+- `POST /admin/api/official-accounts/oauth/start`
+- `POST /admin/api/official-accounts/oauth/:sessionId/poll`
 - `PATCH /admin/api/official-accounts/:id`
 - `DELETE /admin/api/official-accounts/:id`
 - `GET /admin/api/official-accounts/:id/bindings`

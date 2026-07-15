@@ -1,6 +1,21 @@
 export type Role = "user" | "admin";
 export type UserStatus = "active" | "disabled";
-export type MenuKey = "users" | "officialAccounts" | "audit" | "invitations" | "approvals";
+export type Permission =
+  | "self.accounts.read"
+  | "self.accounts.write"
+  | "self.providers.read"
+  | "self.providers.write"
+  | "self.password.update"
+  | "admin.users.read"
+  | "admin.users.manage"
+  | "admin.official-accounts.read"
+  | "admin.official-accounts.manage"
+  | "admin.audit-logs.read"
+  | "admin.invitations.read"
+  | "admin.invitations.manage"
+  | "admin.approvals.read"
+  | "admin.approvals.manage";
+export type MenuKey = "myAccounts" | "users" | "officialAccounts" | "audit" | "invitations" | "approvals";
 
 export interface AuthTokens {
   accessToken: string;
@@ -12,6 +27,7 @@ export interface Profile {
   id: string;
   email: string;
   role: Role;
+  permissions?: Permission[];
 }
 
 export interface PageResult<T> {
@@ -40,7 +56,8 @@ export interface SyncAccount {
   accountId?: string | null;
   active: boolean;
   usage: Record<string, unknown>;
-  auth: Record<string, unknown>;
+  auth?: Record<string, unknown>;
+  lastModifiedAt?: string;
   source?: "personal" | "system";
   systemAccountId?: string;
 }
