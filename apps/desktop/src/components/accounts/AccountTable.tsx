@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Button, Popconfirm, Space, Switch, Table, Tag, Tooltip } from "antd";
 import type { TableProps } from "antd";
 import type { ColumnsType } from "antd/es/table";
@@ -88,6 +88,10 @@ function resetCreditsCount(state?: ResetCreditsLoadState) {
   return state?.status === "loaded" ? state.data.credits.length : null;
 }
 
+function needsAccountAttention(account: Account) {
+  return Boolean(account.usage.error) || !account.autoSwitchEnabled;
+}
+
 export function AccountTable({
   accounts,
   busyAccountId,
@@ -108,6 +112,9 @@ export function AccountTable({
 }: AccountTableProps) {
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [usageSort, setUsageSort] = useState<UsageSortPreference | null>(loadUsageSortPreference);
+  const orderedAccounts = useMemo(() => [...accounts].sort(
+    (left, right) => Number(needsAccountAttention(left)) - Number(needsAccountAttention(right)),
+  ), [accounts]);
   const handleTableChange: NonNullable<TableProps<Account>["onChange"]> = (_, __, sorter) => {
     const activeSorter = Array.isArray(sorter) ? sorter[0] : sorter;
     const nextSort = isUsageSortColumn(activeSorter.columnKey) && isUsageSortOrder(activeSorter.order)
@@ -123,6 +130,13 @@ export function AccountTable({
     {
       title: t("table.account"), dataIndex: "email", width: 100, fixed: "left",
       sorter: (left, right) => left.email.localeCompare(right.email),
+      filters: [
+        { text: t("table.filterNormal"), value: "normal" },
+        { text: t("table.filterError"), value: "error" },
+      ],
+      onFilter: (value, account) => value === "error"
+        ? needsAccountAttention(account)
+        : !needsAccountAttention(account),
       render: (_, account) => (
         <div className="account-cell">
           <div className="table-avatar">{initials(account.email)}</div>
@@ -224,11 +238,11 @@ export function AccountTable({
 
   return <>
     <div className="account-table-wrap">
-      <Table rowKey="id" size="small" columns={columns} dataSource={accounts} pagination={false}
+      <Table rowKey="id" size="small" columns={columns} dataSource={orderedAccounts} pagination={false}
         onChange={handleTableChange}
         rowClassName={(account) => [
           account.active ? "active-row" : "",
-          account.usage.error || !account.autoSwitchEnabled ? "account-alert-row" : "",
+          needsAccountAttention(account) ? "account-alert-row" : "",
         ].filter(Boolean).join(" ")}
         onRow={(account) => ({
           title: t("note.doubleClick"),
