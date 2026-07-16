@@ -23,6 +23,7 @@ interface ProvidersPageProps {
   onStartProxy: () => void;
   onStopProxy: () => void;
   onAutoSwitchChange: (enabled: boolean) => void;
+  onAutoDisableUnreachableChange: (enabled: boolean) => void;
   t: Translate;
 }
 
@@ -208,6 +209,7 @@ export function ProvidersPage({
   onStartProxy,
   onStopProxy,
   onAutoSwitchChange,
+  onAutoDisableUnreachableChange,
   t,
 }: ProvidersPageProps) {
   const [editingProvider, setEditingProvider] = useState<Provider | null>(null);
@@ -326,7 +328,8 @@ export function ProvidersPage({
 
       <LocalProxyCard localProxy={localProxy} proxyBusy={proxyBusy}
         onStartProxy={onStartProxy} onStopProxy={onStopProxy}
-        onAutoSwitchChange={onAutoSwitchChange} t={t} />
+        onAutoSwitchChange={onAutoSwitchChange}
+        onAutoDisableUnreachableChange={onAutoDisableUnreachableChange} t={t} />
 
       <div className="provider-toolbar">
         <div>

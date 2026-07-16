@@ -607,7 +607,12 @@ pub(crate) fn refresh_usage_blocking<R: Runtime>(
                 // disconnect or timeout). Do not turn a transient failure into a persisted
                 // account exclusion. Only disable accounts after an explicit authentication
                 // rejection from the upstream API.
-                let disable_error = if should_disable_account_auto_switch(&error) {
+                let state = read_state(&paths);
+                let disable_error = if should_disable_account_auto_switch(
+                    &error,
+                    state.auto_switch_on_quota_exhaustion
+                        && state.auto_disable_unreachable_accounts,
+                ) {
                     set_account_auto_switch_enabled_for_paths(&paths, &id, false).err()
                 } else {
                     None
@@ -623,12 +628,29 @@ pub(crate) fn refresh_usage_blocking<R: Runtime>(
     }
 }
 
-fn should_disable_account_auto_switch(error: &str) -> bool {
+fn should_disable_account_auto_switch(
+    error: &str,
+    auto_disable_unreachable_accounts: bool,
+) -> bool {
     // `try_refresh_usage_blocking` includes the upstream HTTP status in these errors.
-    // Treat only definite authentication/authorization failures as permanent enough to
+    // Treat only definite account access failures as permanent enough to
     // remove the account from automatic switching. Network errors, timeouts, 5xx, parsing
-    // errors, and refresh-token endpoint failures remain retryable.
-    error.contains("HTTP 401") || error.contains("HTTP 403")
+    // errors, and refresh-token endpoint failures remain retryable unless the user has opted
+    // in to automatically disabling unreachable accounts.
+    error.contains("HTTP 401")
+        || error.contains("HTTP 403")
+        || error.contains("HTTP 402")
+        || (auto_disable_unreachable_accounts && is_unreachable_usage_error(error))
+}
+
+fn is_unreachable_usage_error(error: &str) -> bool {
+    let error = error.to_ascii_lowercase();
+    error.contains("error sending request")
+        || error.contains("timed out")
+        || error.contains("timeout")
+        || error.contains("dns error")
+        || error.contains("connection")
+        || error.contains("network")
 }
 
 fn try_refresh_usage_blocking<R: Runtime>(
@@ -1149,20 +1171,33 @@ mod compatible_json_import_tests {
     #[test]
     fn usage_refresh_failures_only_disable_for_explicit_auth_rejections() {
         assert!(should_disable_account_auto_switch(
-            "Codex usage endpoint returned HTTP 401 Unauthorized"
+            "Codex usage endpoint returned HTTP 401 Unauthorized",
+            false,
         ));
         assert!(should_disable_account_auto_switch(
-            "Codex usage endpoint returned HTTP 403 Forbidden"
+            "Codex usage endpoint returned HTTP 403 Forbidden",
+            false,
+        ));
+        assert!(should_disable_account_auto_switch(
+            "Codex usage endpoint returned HTTP 402 Payment Required",
+            false,
         ));
 
         assert!(!should_disable_account_auto_switch(
-            "failed to read Codex usage: error sending request"
+            "failed to read Codex usage: error sending request",
+            false,
         ));
         assert!(!should_disable_account_auto_switch(
-            "failed to read Codex usage: operation timed out"
+            "failed to read Codex usage: operation timed out",
+            false,
         ));
         assert!(!should_disable_account_auto_switch(
-            "Codex usage endpoint returned HTTP 503 Service Unavailable"
+            "Codex usage endpoint returned HTTP 503 Service Unavailable",
+            false,
+        ));
+        assert!(should_disable_account_auto_switch(
+            "failed to read Codex usage: error sending request",
+            true,
         ));
     }
 }

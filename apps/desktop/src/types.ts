@@ -79,6 +79,7 @@ export interface LocalProxyStatus {
   port: number;
   baseUrl: string;
   autoSwitchOnQuotaExhaustion: boolean;
+  autoDisableUnreachableAccounts: boolean;
 }
 
 export interface TokenUsageEntry {

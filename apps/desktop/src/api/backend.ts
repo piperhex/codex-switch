@@ -32,6 +32,7 @@ const CLOUD_USER_PREVIEW_KEY = "codex-switch:cloud-user-email";
 const PROVIDERS_PREVIEW_KEY = "codex-switch:providers";
 const LOCAL_PROXY_PREVIEW_KEY = "codex-switch:local-proxy-running";
 const LOCAL_PROXY_AUTO_SWITCH_PREVIEW_KEY = "codex-switch:local-proxy-auto-switch";
+const LOCAL_PROXY_AUTO_DISABLE_UNREACHABLE_PREVIEW_KEY = "codex-switch:local-proxy-auto-disable-unreachable";
 const THEME_COLOR_EVENT = "codex-switch:theme-color-changed";
 const BUBBLE_RESET_DISPLAY_EVENT = "bubble-reset-display-changed";
 const LANGUAGE_EVENT = "codex-switch:language-changed";
@@ -105,6 +106,7 @@ function previewLocalProxyStatus(): LocalProxyStatus {
     port: 15722,
     baseUrl: "http://127.0.0.1:15722/v1",
     autoSwitchOnQuotaExhaustion: window.localStorage.getItem(LOCAL_PROXY_AUTO_SWITCH_PREVIEW_KEY) === "true",
+    autoDisableUnreachableAccounts: window.localStorage.getItem(LOCAL_PROXY_AUTO_DISABLE_UNREACHABLE_PREVIEW_KEY) === "true",
   };
 }
 
@@ -311,6 +313,18 @@ export async function setLocalProxyAutoSwitch(enabled: boolean): Promise<LocalPr
     return previewLocalProxyStatus();
   }
   return invoke<LocalProxyStatus>("set_auto_switch_on_quota_exhaustion", { enabled });
+}
+
+export async function setLocalProxyAutoDisableUnreachable(enabled: boolean): Promise<LocalProxyStatus> {
+  if (!isDesktopApp) {
+    const status = previewLocalProxyStatus();
+    if (enabled && (!status.running || !status.autoSwitchOnQuotaExhaustion)) {
+      throw new Error("Enable automatic account switching before enabling automatic disabling of unreachable accounts");
+    }
+    window.localStorage.setItem(LOCAL_PROXY_AUTO_DISABLE_UNREACHABLE_PREVIEW_KEY, String(enabled));
+    return previewLocalProxyStatus();
+  }
+  return invoke<LocalProxyStatus>("set_auto_disable_unreachable_accounts", { enabled });
 }
 
 export async function updateFloatingBubble(enabled: boolean): Promise<AppSettings> {

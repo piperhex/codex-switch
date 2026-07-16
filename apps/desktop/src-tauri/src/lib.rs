@@ -103,6 +103,7 @@ pub fn run() {
             local_proxy::start_local_proxy,
             local_proxy::stop_local_proxy,
             local_proxy::set_auto_switch_on_quota_exhaustion,
+            local_proxy::set_auto_disable_unreachable_accounts,
             update::check_for_update,
             floating_bubble::get_app_settings,
             floating_bubble::set_floating_bubble,

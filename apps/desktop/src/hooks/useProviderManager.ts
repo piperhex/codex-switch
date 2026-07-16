@@ -6,6 +6,7 @@ import {
   loadProviders,
   removeProvider,
   saveProviderProfile,
+  setLocalProxyAutoDisableUnreachable,
   setLocalProxyAutoSwitch,
   setProviderModelControl,
   startLocalProxy,
@@ -200,6 +201,18 @@ export function useProviderManager(
     }
   }, [load, notify, t]);
 
+  const setProxyAutoDisableUnreachable = useCallback(async (enabled: boolean) => {
+    setProxyBusy(true);
+    try {
+      setLocalProxy(await setLocalProxyAutoDisableUnreachable(enabled));
+      await load();
+    } catch (error) {
+      notify(providerErrorMessage(error, t));
+    } finally {
+      setProxyBusy(false);
+    }
+  }, [load, notify, t]);
+
   return {
     providers,
     localProxy,
@@ -217,6 +230,7 @@ export function useProviderManager(
     startProxy,
     stopProxy,
     setProxyAutoSwitch,
+    setProxyAutoDisableUnreachable,
     reload: load,
   };
 }

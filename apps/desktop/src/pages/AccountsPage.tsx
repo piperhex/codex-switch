@@ -24,6 +24,7 @@ export function AccountsPage({
   onStartProxy,
   onStopProxy,
   onAutoSwitchChange,
+  onAutoDisableUnreachableChange,
   privacyMode,
   language,
   t,
@@ -47,6 +48,7 @@ export function AccountsPage({
   onStartProxy: () => void;
   onStopProxy: () => void;
   onAutoSwitchChange: (enabled: boolean) => void;
+  onAutoDisableUnreachableChange: (enabled: boolean) => void;
   privacyMode: boolean;
   language: Language;
   t: Translate;
@@ -56,7 +58,8 @@ export function AccountsPage({
     <div className="home-proxy-wrap">
       <LocalProxyCard localProxy={localProxy} proxyBusy={proxyBusy}
         onStartProxy={onStartProxy} onStopProxy={onStopProxy}
-        onAutoSwitchChange={onAutoSwitchChange} t={t} />
+        onAutoSwitchChange={onAutoSwitchChange}
+        onAutoDisableUnreachableChange={onAutoDisableUnreachableChange} t={t} />
     </div>
   );
   if (loading) {

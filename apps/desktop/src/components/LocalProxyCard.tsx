@@ -9,6 +9,7 @@ interface LocalProxyCardProps {
   onStartProxy: () => void;
   onStopProxy: () => void;
   onAutoSwitchChange: (enabled: boolean) => void;
+  onAutoDisableUnreachableChange: (enabled: boolean) => void;
   t: Translate;
 }
 
@@ -18,6 +19,7 @@ export function LocalProxyCard({
   onStartProxy,
   onStopProxy,
   onAutoSwitchChange,
+  onAutoDisableUnreachableChange,
   t,
 }: LocalProxyCardProps) {
   const proxyRunning = Boolean(localProxy?.running);
@@ -56,13 +58,24 @@ export function LocalProxyCard({
           </Popconfirm>
         )}
         {proxyRunning && (
-          <Tooltip title={t("providers.proxy.autoSwitchTooltip")}>
-            <span className="proxy-auto-switch">
-              <Switch size="small" checked={localProxy?.autoSwitchOnQuotaExhaustion ?? false}
-                disabled={proxyBusy} onChange={onAutoSwitchChange} />
-              <span>{t("providers.proxy.autoSwitch")}</span>
-            </span>
-          </Tooltip>
+          <>
+            <Tooltip title={t("providers.proxy.autoSwitchTooltip")}>
+              <span className="proxy-auto-switch">
+                <Switch size="small" checked={localProxy?.autoSwitchOnQuotaExhaustion ?? false}
+                  disabled={proxyBusy} onChange={onAutoSwitchChange} />
+                <span>{t("providers.proxy.autoSwitch")}</span>
+              </span>
+            </Tooltip>
+            {localProxy?.autoSwitchOnQuotaExhaustion && (
+              <Tooltip title={t("providers.proxy.autoDisableUnreachableTooltip")}>
+                <span className="proxy-auto-switch">
+                  <Switch size="small" checked={localProxy.autoDisableUnreachableAccounts}
+                    disabled={proxyBusy} onChange={onAutoDisableUnreachableChange} />
+                  <span>{t("providers.proxy.autoDisableUnreachable")}</span>
+                </span>
+              </Tooltip>
+            )}
+          </>
         )}
       </div>
     </section>

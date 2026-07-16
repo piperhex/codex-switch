@@ -54,6 +54,8 @@ pub(crate) struct ManagerStateFile {
     #[serde(default)]
     pub(crate) auto_switch_on_quota_exhaustion: bool,
     #[serde(default)]
+    pub(crate) auto_disable_unreachable_accounts: bool,
+    #[serde(default)]
     pub(crate) disabled_account_ids: Vec<String>,
 }
 
@@ -113,6 +115,7 @@ pub(crate) struct LocalProxyStatus {
     pub(crate) port: u16,
     pub(crate) base_url: String,
     pub(crate) auto_switch_on_quota_exhaustion: bool,
+    pub(crate) auto_disable_unreachable_accounts: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -274,6 +277,7 @@ mod tests {
         assert_eq!(state.active_account_id.as_deref(), Some("account-1"));
         assert!(!state.local_proxy_enabled);
         assert!(!state.auto_switch_on_quota_exhaustion);
+        assert!(!state.auto_disable_unreachable_accounts);
         assert!(state.disabled_account_ids.is_empty());
     }
 }

@@ -327,15 +327,22 @@ pub(crate) fn is_running() -> bool {
 }
 
 fn status<R: Runtime>(app: &tauri::AppHandle<R>) -> LocalProxyStatus {
-    let auto_switch_on_quota_exhaustion = resolve_paths(app)
-        .map(|paths| read_state(&paths).auto_switch_on_quota_exhaustion)
-        .unwrap_or(false);
+    let (auto_switch_on_quota_exhaustion, auto_disable_unreachable_accounts) = resolve_paths(app)
+        .map(|paths| {
+            let state = read_state(&paths);
+            (
+                state.auto_switch_on_quota_exhaustion,
+                state.auto_disable_unreachable_accounts,
+            )
+        })
+        .unwrap_or((false, false));
     LocalProxyStatus {
         running: is_running(),
         address: LOCAL_PROXY_HOST.to_string(),
         port: LOCAL_PROXY_PORT,
         base_url: LOCAL_PROXY_BASE_URL.to_string(),
         auto_switch_on_quota_exhaustion,
+        auto_disable_unreachable_accounts,
     }
 }
 
@@ -491,6 +498,26 @@ pub(crate) fn set_auto_switch_on_quota_exhaustion<R: Runtime>(
     let paths = resolve_paths(&app)?;
     let mut state = read_state(&paths);
     state.auto_switch_on_quota_exhaustion = enabled;
+    write_state(&paths, &state)?;
+    app.emit("providers-changed", ())
+        .map_err(|error| error.to_string())?;
+    Ok(status(&app))
+}
+
+#[tauri::command]
+pub(crate) fn set_auto_disable_unreachable_accounts<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    enabled: bool,
+) -> Result<LocalProxyStatus, String> {
+    let paths = resolve_paths(&app)?;
+    let mut state = read_state(&paths);
+    if enabled && (!is_running() || !state.auto_switch_on_quota_exhaustion) {
+        return Err(
+            "Enable automatic account switching before enabling automatic disabling of unreachable accounts"
+                .to_string(),
+        );
+    }
+    state.auto_disable_unreachable_accounts = enabled;
     write_state(&paths, &state)?;
     app.emit("providers-changed", ())
         .map_err(|error| error.to_string())?;
