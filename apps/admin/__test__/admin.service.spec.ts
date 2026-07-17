@@ -109,17 +109,41 @@ describe('AdminService', () => {
     expect(created.email).toBe('invite@example.com');
     expect(created.token).toEqual(expect.any(String));
     expect(stored.tokenHash).not.toBe(created.token);
+    expect(stored.maxUses).toBe(1);
+    expect(stored.usedCount).toBe(0);
     await expect(service.validateInvitation(created.token!, 'invite@example.com'))
       .resolves.toMatchObject({ id: 'invitation-1', role: 'admin' });
 
     const acceptedUser = makeUser({ id: 'user-2', email: 'invite@example.com', role: 'admin' });
     await service.acceptInvitation('invitation-1', acceptedUser);
+    expect(stored.usedCount).toBe(1);
     expect(stored.acceptedById).toBe(acceptedUser.id);
     expect(stored.acceptedAt).toBeInstanceOf(Date);
     expect(auditLogs.save).toHaveBeenCalledWith(expect.objectContaining({
       action: 'invitation.accept',
       actorId: acceptedUser.id,
     }));
+  });
+
+  it('supports reusable invitations without an email or expiration date', async () => {
+    const created = await service.createInvitation(actor, {
+      role: 'user',
+      maxUses: 2,
+      neverExpires: true,
+    });
+    const stored = invitations.save.mock.calls[0][0] as AdminInvitationEntity;
+    invitations.findOne.mockResolvedValue(stored);
+
+    expect(stored.email).toBeNull();
+    expect(stored.expiresAt).toBeNull();
+    await expect(service.validateInvitation(created.token!, 'first@example.com')).resolves.toBeTruthy();
+    await service.acceptInvitation('invitation-1', makeUser({ id: 'user-2', email: 'first@example.com' }));
+    await expect(service.validateInvitation(created.token!, 'second@example.com')).resolves.toBeTruthy();
+    await service.acceptInvitation('invitation-1', makeUser({ id: 'user-3', email: 'second@example.com' }));
+
+    expect(stored.usedCount).toBe(2);
+    await expect(service.validateInvitation(created.token!, 'third@example.com'))
+      .rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('lists synced providers for an existing user without exposing API keys', async () => {

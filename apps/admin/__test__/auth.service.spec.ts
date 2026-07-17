@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { UnauthorizedException } from '@nestjs/common';
 import type { JwtService } from '@nestjs/jwt';
-import type { Repository } from 'typeorm';
+import type { DataSource, Repository } from 'typeorm';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthService } from '@/modules/auth/auth.service';
 import type { AdminService } from '@/modules/admin/admin.service';
@@ -31,6 +31,8 @@ describe('AuthService', () => {
     findOne: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
   };
+  let dataSource: { transaction: ReturnType<typeof vi.fn> };
+  let transactionManager: object;
   let service: AuthService;
 
   beforeEach(() => {
@@ -49,11 +51,16 @@ describe('AuthService', () => {
       create: vi.fn((value) => ({ id: 'refresh-id', ...value })),
       save: vi.fn(async (value) => value), findOne: vi.fn(), update: vi.fn(),
     };
+    transactionManager = {};
+    dataSource = {
+      transaction: vi.fn(async (callback) => callback(transactionManager)),
+    };
     service = new AuthService(
       users as unknown as UserService,
       admin as unknown as AdminService,
       jwt as unknown as JwtService,
       tokens as unknown as Repository<RefreshTokenEntity>,
+      dataSource as unknown as DataSource,
       {
         KONG_JWT_KEY: 'kong-key',
         KONG_JWT_SECRET: 'kong-secret',
@@ -110,11 +117,13 @@ describe('AuthService', () => {
 
     await service.register(user.email, 'password', 'invite-token');
 
-    expect(admin.validateInvitation).toHaveBeenCalledWith('invite-token', user.email);
     expect(users.createUser).toHaveBeenCalledWith({
       email: user.email, password: 'password', role: 'admin',
-    });
-    expect(admin.acceptInvitation).toHaveBeenCalledWith('invitation-1', user);
+    }, transactionManager);
+    expect(admin.validateInvitation).toHaveBeenCalledWith(
+      'invite-token', user.email, transactionManager,
+    );
+    expect(admin.acceptInvitation).toHaveBeenCalledWith('invitation-1', user, transactionManager);
   });
 
   it.each([
@@ -215,6 +224,7 @@ describe('AuthService', () => {
       admin as unknown as AdminService,
       jwt as unknown as JwtService,
       tokens as unknown as Repository<RefreshTokenEntity>,
+      dataSource as unknown as DataSource,
       {},
     );
     users.createUser.mockResolvedValue(user);

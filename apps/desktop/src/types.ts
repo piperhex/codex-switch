@@ -82,6 +82,11 @@ export interface LocalProxyStatus {
   autoDisableUnreachableAccounts: boolean;
 }
 
+export interface DirectConversationSyncResult {
+  conversationsUpdated: number;
+  rolloutFilesUpdated: number;
+}
+
 export interface TokenUsageEntry {
   id: string;
   ts: number;

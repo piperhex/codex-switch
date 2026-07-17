@@ -102,10 +102,12 @@ export interface AuditLog {
 
 export interface Invitation {
   id: string;
-  email: string;
+  email?: string | null;
   role: Role;
   createdByEmail: string;
-  expiresAt: string;
+  expiresAt?: string | null;
+  maxUses: number;
+  usedCount: number;
   acceptedAt?: string | null;
   revokedAt?: string | null;
   createdAt: string;

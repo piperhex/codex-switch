@@ -2,7 +2,7 @@ import { createHash } from 'crypto';
 import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { JwtService, type JwtSignOptions } from '@nestjs/jwt';
-import { IsNull, Repository } from 'typeorm';
+import { DataSource, IsNull, Repository } from 'typeorm';
 import { MODULE_OPTIONS_TOKEN } from '@/config/configurable';
 import { getKongJwtSecret, getRefreshSecret } from '@/config/auth-secrets';
 import type { ConfigModuleOptions } from '@/config/config.types';
@@ -26,18 +26,23 @@ export class AuthService {
     private readonly jwt: JwtService,
     @InjectRepository(RefreshTokenEntity)
     private readonly refreshTokens: Repository<RefreshTokenEntity>,
+    private readonly dataSource: DataSource,
     @Inject(MODULE_OPTIONS_TOKEN)
     private readonly config: ConfigModuleOptions,
   ) {}
 
   async register(email: string, password: string, inviteToken?: string) {
-    const invitation = inviteToken
-      ? await this.admin.validateInvitation(inviteToken, email)
-      : undefined;
-    const user = await this.users.createUser(
-      invitation ? { email, password, role: invitation.role } : { email, password },
-    );
-    if (invitation) await this.admin.acceptInvitation(invitation.id, user);
+    const user = inviteToken
+      ? await this.dataSource.transaction(async (manager) => {
+        const invitation = await this.admin.validateInvitation(inviteToken, email, manager);
+        const invitedUser = await this.users.createUser(
+          { email, password, role: invitation.role },
+          manager,
+        );
+        await this.admin.acceptInvitation(invitation.id, invitedUser, manager);
+        return invitedUser;
+      })
+      : await this.users.createUser({ email, password });
     return this.issueTokens(user);
   }
 

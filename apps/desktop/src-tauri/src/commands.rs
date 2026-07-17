@@ -1,6 +1,8 @@
 use std::{
+    collections::HashSet,
     fs,
-    path::Path,
+    io::{BufRead, BufReader, BufWriter, Write},
+    path::{Path, PathBuf},
     process::{Command, Output},
     sync::{Mutex, OnceLock},
     thread,
@@ -12,6 +14,7 @@ use std::os::windows::process::CommandExt;
 
 use chrono::{NaiveDate, Utc};
 use reqwest::blocking::Client;
+use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::{Emitter, Runtime};
@@ -34,6 +37,8 @@ use crate::{
 };
 
 const CHATGPT_COMMAND: &str = "chatgpt";
+const OFFICIAL_CONVERSATION_PROVIDER: &str = "openai";
+const LOCAL_PROXY_CONVERSATION_PROVIDER: &str = "codex-switch-local";
 #[cfg(unix)]
 const LEGACY_CODEX_COMMAND: &str = "codex";
 #[cfg(target_os = "windows")]
@@ -470,6 +475,260 @@ pub(crate) fn restart_chatgpt() -> Result<(), String> {
     stop_chatgpt_processes()?;
     thread::sleep(Duration::from_millis(450));
     start_chatgpt(launch_target.as_ref())
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct DirectConversationSyncResult {
+    conversations_updated: usize,
+    rollout_files_updated: usize,
+}
+
+#[tauri::command]
+pub(crate) async fn sync_direct_conversations<R: Runtime + 'static>(
+    app: tauri::AppHandle<R>,
+) -> Result<DirectConversationSyncResult, String> {
+    tauri::async_runtime::spawn_blocking(move || sync_direct_conversations_blocking(app))
+        .await
+        .map_err(|error| format!("同步直连对话任务失败：{error}"))?
+}
+
+fn sync_direct_conversations_blocking<R: Runtime>(
+    app: tauri::AppHandle<R>,
+) -> Result<DirectConversationSyncResult, String> {
+    if !crate::local_proxy::is_running() {
+        return Err("请先启动本地代理，再同步直连对话".to_string());
+    }
+
+    let paths = resolve_paths(&app)?;
+    let launch_target = chatgpt_launch_target();
+    stop_chatgpt_processes()?;
+    thread::sleep(Duration::from_millis(650));
+
+    let sync_result = sync_conversation_metadata(&paths.codex_home);
+    let start_result = start_chatgpt(launch_target.as_ref());
+
+    match (sync_result, start_result) {
+        (Ok(result), Ok(())) => Ok(result),
+        (Err(sync_error), Ok(())) => Err(sync_error),
+        (Ok(_), Err(start_error)) => Err(format!(
+            "直连对话已同步，但重新启动 ChatGPT 失败：{start_error}"
+        )),
+        (Err(sync_error), Err(start_error)) => Err(format!(
+            "同步直连对话失败：{sync_error}；重新启动 ChatGPT 也失败：{start_error}"
+        )),
+    }
+}
+
+fn sync_conversation_metadata(codex_home: &Path) -> Result<DirectConversationSyncResult, String> {
+    let state_database = latest_codex_state_database(codex_home)?;
+    let mut connection = open_conversation_database(&state_database)?;
+    if !sqlite_table_has_column(&connection, "threads", "model_provider")? {
+        return Err(format!(
+            "{} 中没有可识别的 Codex 对话表",
+            state_database.display()
+        ));
+    }
+
+    let conversation_rollouts = openai_conversation_rollouts(&connection, &state_database)?;
+    let mut rollout_files_updated = 0;
+    let mut unique_rollout_paths = HashSet::new();
+    for rollout_path in conversation_rollouts {
+        if unique_rollout_paths.insert(rollout_path.clone())
+            && update_rollout_provider(&rollout_path)?
+        {
+            rollout_files_updated += 1;
+        }
+    }
+
+    let transaction = connection
+        .transaction()
+        .map_err(|error| format!("无法开始更新 {}：{error}", state_database.display()))?;
+    let conversations_updated = transaction
+        .execute(
+            "UPDATE threads SET model_provider = ?1 WHERE model_provider = ?2",
+            params![
+                LOCAL_PROXY_CONVERSATION_PROVIDER,
+                OFFICIAL_CONVERSATION_PROVIDER
+            ],
+        )
+        .map_err(|error| format!("更新 {} 失败：{error}", state_database.display()))?;
+    transaction
+        .commit()
+        .map_err(|error| format!("提交 {} 失败：{error}", state_database.display()))?;
+
+    update_desktop_thread_catalogs(codex_home)?;
+
+    Ok(DirectConversationSyncResult {
+        conversations_updated,
+        rollout_files_updated,
+    })
+}
+
+fn latest_codex_state_database(codex_home: &Path) -> Result<PathBuf, String> {
+    let entries = fs::read_dir(codex_home)
+        .map_err(|error| format!("无法读取 Codex Home {}：{error}", codex_home.display()))?;
+    let mut candidates = Vec::new();
+    for entry in entries {
+        let entry = entry.map_err(|error| format!("读取 Codex Home 目录项失败：{error}"))?;
+        let Some(file_name) = entry.file_name().to_str().map(str::to_string) else {
+            continue;
+        };
+        let Some(version) = file_name
+            .strip_prefix("state_")
+            .and_then(|value| value.strip_suffix(".sqlite"))
+            .and_then(|value| value.parse::<u64>().ok())
+        else {
+            continue;
+        };
+        candidates.push((version, entry.path()));
+    }
+    candidates
+        .into_iter()
+        .max_by_key(|(version, _)| *version)
+        .map(|(_, path)| path)
+        .ok_or_else(|| format!("未在 {} 中找到 Codex 对话数据库", codex_home.display()))
+}
+
+fn open_conversation_database(path: &Path) -> Result<Connection, String> {
+    let connection = Connection::open(path)
+        .map_err(|error| format!("无法打开 Codex 对话数据库 {}：{error}", path.display()))?;
+    connection
+        .busy_timeout(Duration::from_secs(5))
+        .map_err(|error| format!("无法配置 Codex 对话数据库 {}：{error}", path.display()))?;
+    Ok(connection)
+}
+
+fn sqlite_table_has_column(
+    connection: &Connection,
+    table: &str,
+    column: &str,
+) -> Result<bool, String> {
+    let mut statement = connection
+        .prepare(&format!("PRAGMA table_info({table})"))
+        .map_err(|error| format!("无法读取 SQLite 表 {table}：{error}"))?;
+    let columns = statement
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|error| format!("无法读取 SQLite 表 {table} 的字段：{error}"))?;
+    for item in columns {
+        if item.map_err(|error| format!("无法解析 SQLite 表 {table} 的字段：{error}"))? == column
+        {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
+fn openai_conversation_rollouts(
+    connection: &Connection,
+    database_path: &Path,
+) -> Result<Vec<PathBuf>, String> {
+    let mut statement = connection
+        .prepare("SELECT rollout_path FROM threads WHERE model_provider = ?1")
+        .map_err(|error| format!("无法查询 {}：{error}", database_path.display()))?;
+    let rows = statement
+        .query_map(params![OFFICIAL_CONVERSATION_PROVIDER], |row| {
+            row.get::<_, String>(0)
+        })
+        .map_err(|error| format!("无法读取 {} 中的对话：{error}", database_path.display()))?;
+    rows.map(|row| {
+        row.map(PathBuf::from)
+            .map_err(|error| format!("无法解析 Codex 对话文件路径：{error}"))
+    })
+    .collect()
+}
+
+fn update_rollout_provider(path: &Path) -> Result<bool, String> {
+    if !path.exists() {
+        return Err(format!("Codex 对话文件不存在：{}", path.display()));
+    }
+
+    let source = fs::File::open(path)
+        .map_err(|error| format!("无法打开 Codex 对话文件 {}：{error}", path.display()))?;
+    let mut reader = BufReader::new(source);
+    let mut first_line = String::new();
+    reader
+        .read_line(&mut first_line)
+        .map_err(|error| format!("无法读取 Codex 对话文件 {}：{error}", path.display()))?;
+    if first_line.trim().is_empty() {
+        return Err(format!("Codex 对话文件为空：{}", path.display()));
+    }
+
+    let mut metadata: Value = serde_json::from_str(first_line.trim_end())
+        .map_err(|error| format!("Codex 对话元数据无效 {}：{error}", path.display()))?;
+    let Some(provider) = metadata.pointer_mut("/payload/model_provider") else {
+        return Err(format!(
+            "Codex 对话文件缺少 model_provider：{}",
+            path.display()
+        ));
+    };
+    if provider.as_str() != Some(OFFICIAL_CONVERSATION_PROVIDER) {
+        return Ok(false);
+    }
+    *provider = Value::String(LOCAL_PROXY_CONVERSATION_PROVIDER.to_string());
+
+    let temp_path = path.with_extension(format!("codex-switch-sync-{}.tmp", std::process::id()));
+    let write_result = (|| -> Result<(), String> {
+        let temp = fs::File::create(&temp_path).map_err(|error| {
+            format!(
+                "无法创建 Codex 对话临时文件 {}：{error}",
+                temp_path.display()
+            )
+        })?;
+        let mut writer = BufWriter::new(temp);
+        serde_json::to_writer(&mut writer, &metadata)
+            .map_err(|error| format!("无法写入 Codex 对话元数据：{error}"))?;
+        writer
+            .write_all(b"\n")
+            .and_then(|_| std::io::copy(&mut reader, &mut writer).map(|_| ()))
+            .and_then(|_| writer.flush())
+            .map_err(|error| format!("无法写入 Codex 对话文件 {}：{error}", path.display()))?;
+        writer
+            .get_ref()
+            .sync_all()
+            .map_err(|error| format!("无法刷新 Codex 对话文件 {}：{error}", path.display()))
+    })();
+
+    if let Err(error) = write_result {
+        let _ = fs::remove_file(&temp_path);
+        return Err(error);
+    }
+    drop(reader);
+    crate::storage::replace_file(&temp_path, path).map_err(|error| {
+        let _ = fs::remove_file(&temp_path);
+        format!("无法提交 Codex 对话文件 {}：{error}", path.display())
+    })?;
+    Ok(true)
+}
+
+fn update_desktop_thread_catalogs(codex_home: &Path) -> Result<(), String> {
+    let catalog_dir = codex_home.join("sqlite");
+    if !catalog_dir.exists() {
+        return Ok(());
+    }
+    let entries = fs::read_dir(&catalog_dir)
+        .map_err(|error| format!("无法读取 Codex 对话目录 {}：{error}", catalog_dir.display()))?;
+    for entry in entries {
+        let entry = entry.map_err(|error| format!("读取 Codex 对话目录项失败：{error}"))?;
+        let path = entry.path();
+        if path.extension().and_then(|value| value.to_str()) != Some("db") {
+            continue;
+        }
+        let connection = open_conversation_database(&path)?;
+        if !sqlite_table_has_column(&connection, "local_thread_catalog", "model_provider")? {
+            continue;
+        }
+        connection
+            .execute(
+                "UPDATE local_thread_catalog SET model_provider = ?1 WHERE model_provider = ?2",
+                params![
+                    LOCAL_PROXY_CONVERSATION_PROVIDER,
+                    OFFICIAL_CONVERSATION_PROVIDER
+                ],
+            )
+            .map_err(|error| format!("更新 Codex 对话目录 {} 失败：{error}", path.display()))?;
+    }
+    Ok(())
 }
 
 fn api_client() -> Result<Client, String> {
@@ -1089,11 +1348,14 @@ fn status_error(action: &str, status: std::process::ExitStatus) -> String {
 mod compatible_json_import_tests {
     use super::{
         normalize_compatible_json_auth, parse_compatible_json_auth_values,
-        should_disable_account_auto_switch, update_disabled_account_ids,
+        should_disable_account_auto_switch, sync_conversation_metadata,
+        update_disabled_account_ids, LOCAL_PROXY_CONVERSATION_PROVIDER,
     };
     use crate::models::ManagerStateFile;
     use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
+    use rusqlite::Connection;
     use serde_json::{json, Value};
+    use std::{fs, path::PathBuf, time::SystemTime};
 
     fn jwt(payload: Value) -> String {
         format!(
@@ -1204,5 +1466,114 @@ mod compatible_json_import_tests {
             "failed to read Codex usage: error sending request",
             true,
         ));
+    }
+
+    #[test]
+    fn syncs_openai_conversations_into_the_local_proxy_history() {
+        let codex_home = temporary_sync_test_dir();
+        let rollout_path = codex_home.join("rollout.jsonl");
+        fs::write(
+            &rollout_path,
+            format!(
+                "{}\n{}\n",
+                json!({
+                    "type": "session_meta",
+                    "payload": { "model_provider": "openai" }
+                }),
+                json!({ "type": "event_msg", "payload": { "type": "task_started" } })
+            ),
+        )
+        .expect("write rollout");
+
+        let state_path = codex_home.join("state_5.sqlite");
+        let state = Connection::open(&state_path).expect("open state database");
+        state
+            .execute_batch(
+                "CREATE TABLE threads (
+                    id TEXT PRIMARY KEY,
+                    rollout_path TEXT NOT NULL,
+                    model_provider TEXT NOT NULL
+                );",
+            )
+            .expect("create threads table");
+        state
+            .execute(
+                "INSERT INTO threads (id, rollout_path, model_provider) VALUES (?1, ?2, 'openai')",
+                ("thread-1", rollout_path.to_string_lossy().as_ref()),
+            )
+            .expect("insert thread");
+        drop(state);
+
+        let catalog_dir = codex_home.join("sqlite");
+        fs::create_dir_all(&catalog_dir).expect("create catalog directory");
+        let catalog_path = catalog_dir.join("codex-dev.db");
+        let catalog = Connection::open(&catalog_path).expect("open catalog database");
+        catalog
+            .execute_batch(
+                "CREATE TABLE local_thread_catalog (
+                    thread_id TEXT PRIMARY KEY,
+                    model_provider TEXT NOT NULL
+                );
+                INSERT INTO local_thread_catalog (thread_id, model_provider)
+                VALUES ('thread-1', 'openai');",
+            )
+            .expect("create catalog");
+        drop(catalog);
+
+        let result = sync_conversation_metadata(&codex_home).expect("sync conversations");
+        assert_eq!(result.conversations_updated, 1);
+        assert_eq!(result.rollout_files_updated, 1);
+
+        let state = Connection::open(&state_path).expect("reopen state database");
+        let state_provider: String = state
+            .query_row(
+                "SELECT model_provider FROM threads WHERE id = 'thread-1'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("read state provider");
+        assert_eq!(state_provider, LOCAL_PROXY_CONVERSATION_PROVIDER);
+
+        let catalog = Connection::open(&catalog_path).expect("reopen catalog database");
+        let catalog_provider: String = catalog
+            .query_row(
+                "SELECT model_provider FROM local_thread_catalog WHERE thread_id = 'thread-1'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("read catalog provider");
+        assert_eq!(catalog_provider, LOCAL_PROXY_CONVERSATION_PROVIDER);
+
+        let metadata: Value = serde_json::from_str(
+            fs::read_to_string(&rollout_path)
+                .expect("read rollout")
+                .lines()
+                .next()
+                .expect("rollout metadata"),
+        )
+        .expect("parse rollout metadata");
+        assert_eq!(
+            metadata
+                .pointer("/payload/model_provider")
+                .and_then(Value::as_str),
+            Some(LOCAL_PROXY_CONVERSATION_PROVIDER)
+        );
+
+        drop(catalog);
+        drop(state);
+        fs::remove_dir_all(&codex_home).expect("remove test directory");
+    }
+
+    fn temporary_sync_test_dir() -> PathBuf {
+        let nonce = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .expect("system clock")
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!(
+            "codex-switch-conversation-sync-{}-{nonce}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&path).expect("create test directory");
+        path
     }
 }

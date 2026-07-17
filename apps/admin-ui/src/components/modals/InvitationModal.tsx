@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { App as AntApp, Button, Form, Input, InputNumber, Modal, Select } from "antd";
+import { App as AntApp, Button, Form, Input, InputNumber, Modal, Select, Switch } from "antd";
 import { ClipboardCopy } from "lucide-react";
 import { labelForRole } from "../../i18n";
 import { useI18n } from "../../i18n-context";
@@ -12,11 +12,20 @@ interface InvitationModalProps {
   onSaved: () => void | Promise<void>;
 }
 
+interface InvitationFormValues {
+  email?: string;
+  role: Role;
+  maxUses: number;
+  neverExpires: boolean;
+  expiresInHours: number;
+}
+
 export function InvitationModal({ api, onClose, onSaved, open }: InvitationModalProps) {
   const { message } = AntApp.useApp();
   const { t } = useI18n();
   const [form] = Form.useForm();
   const [createdInvite, setCreatedInvite] = useState<string | null>(null);
+  const neverExpires = Form.useWatch("neverExpires", form) ?? false;
 
   const close = () => {
     onClose();
@@ -47,8 +56,8 @@ export function InvitationModal({ api, onClose, onSaved, open }: InvitationModal
       <Form
         form={form}
         layout="vertical"
-        initialValues={{ role: "user", expiresInHours: 72 }}
-        onFinish={async (values: { email: string; role: Role; expiresInHours: number }) => {
+        initialValues={{ role: "user", maxUses: 1, neverExpires: false, expiresInHours: 72 }}
+        onFinish={async (values: InvitationFormValues) => {
           const invitation = await api<Invitation>("/admin/api/invitations", {
             method: "POST",
             body: JSON.stringify(values),
@@ -58,14 +67,29 @@ export function InvitationModal({ api, onClose, onSaved, open }: InvitationModal
           await onSaved();
         }}
       >
-        <Form.Item name="email" label={t("common.email")} rules={[{ required: true, type: "email" }]}>
-          <Input />
+        <Form.Item
+          name="email"
+          label={t("common.email")}
+          extra={t("invitations.emailHint")}
+          rules={[{ type: "email" }]}
+        >
+          <Input placeholder={t("invitations.anyEmail")} />
         </Form.Item>
         <Form.Item name="role" label={t("common.role")} rules={[{ required: true }]}>
           <Select options={[{ label: labelForRole("user", t), value: "user" }, { label: labelForRole("admin", t), value: "admin" }]} />
         </Form.Item>
-        <Form.Item name="expiresInHours" label={t("invitations.validHours")} rules={[{ required: true }]}>
-          <InputNumber min={1} max={720} style={{ width: "100%" }} />
+        <Form.Item name="maxUses" label={t("invitations.maxUses")} rules={[{ required: true }]}>
+          <InputNumber min={1} max={10000} precision={0} style={{ width: "100%" }} />
+        </Form.Item>
+        <Form.Item name="neverExpires" label={t("invitations.neverExpires")} valuePropName="checked">
+          <Switch />
+        </Form.Item>
+        <Form.Item
+          name="expiresInHours"
+          label={t("invitations.validHours")}
+          rules={neverExpires ? [] : [{ required: true }]}
+        >
+          <InputNumber min={1} max={720} precision={0} disabled={neverExpires} style={{ width: "100%" }} />
         </Form.Item>
       </Form>
     </Modal>

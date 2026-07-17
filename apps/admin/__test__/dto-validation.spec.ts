@@ -60,12 +60,17 @@ describe('request DTO validation', () => {
 
   it('validates management invitations, approvals and admin account edits', async () => {
     await expect(messages(CreateInvitationDto, {
-      email: 'bad', role: 'owner', expiresInHours: 0,
+      email: 'bad', role: 'owner', expiresInHours: 0, maxUses: 0, neverExpires: 'yes',
     })).resolves.toEqual(expect.arrayContaining([
       'email must be an email',
       'role must be one of the following values: user, admin',
       'expiresInHours must not be less than 1',
+      'maxUses must not be less than 1',
+      'neverExpires must be a boolean value',
     ]));
+    await expect(messages(CreateInvitationDto, {
+      role: 'user', maxUses: 5, neverExpires: true,
+    })).resolves.toEqual([]);
     await expect(messages(CreateApprovalRequestDto, {
       type: 'delete_everything', targetUserId: 123,
     })).resolves.toEqual(expect.arrayContaining([

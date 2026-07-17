@@ -89,6 +89,7 @@ pub fn run() {
             commands::fetch_reset_credits,
             commands::consume_reset_credit,
             commands::restart_chatgpt,
+            commands::sync_direct_conversations,
             providers::list_providers,
             providers::save_provider,
             providers::switch_provider,

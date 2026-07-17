@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcryptjs';
-import { ILike, Not, Repository } from 'typeorm';
+import { EntityManager, ILike, Not, Repository } from 'typeorm';
 import { UserEntity, UserRole } from './entities/user.entity';
 
 export interface ListUsersOptions {
@@ -29,18 +29,19 @@ export class UserService {
     password,
     role,
     disabled,
-  }: { email: string; password: string; role?: UserRole; disabled?: boolean }) {
+  }: { email: string; password: string; role?: UserRole; disabled?: boolean }, manager?: EntityManager) {
+    const users = manager?.getRepository(UserEntity) ?? this.users;
     const normalizedEmail = email.trim().toLowerCase();
-    const exists = await this.users.exists({ where: { email: normalizedEmail } });
+    const exists = await users.exists({ where: { email: normalizedEmail } });
     if (exists) throw new BadRequestException('Email already exists');
-    const count = await this.users.count();
-    const user = this.users.create({
+    const count = await users.count();
+    const user = users.create({
       email: normalizedEmail,
       passwordHash: await bcrypt.hash(password, 12),
       role: role ?? (count === 0 ? 'admin' : 'user'),
       disabled: disabled ?? false,
     });
-    return this.users.save(user);
+    return users.save(user);
   }
 
   findByEmailWithPassword(email: string) {

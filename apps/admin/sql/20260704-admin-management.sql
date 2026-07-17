@@ -15,13 +15,15 @@ CREATE INDEX IF NOT EXISTS "IDX_admin_audit_logs_action" ON admin_audit_logs ("a
 
 CREATE TABLE IF NOT EXISTS admin_invitations (
   "id" uuid PRIMARY KEY,
-  "email" varchar(160) NOT NULL,
+  "email" varchar(160) NULL,
   "role" varchar(20) NOT NULL DEFAULT 'user',
   "tokenHash" varchar(128) NOT NULL,
   "createdById" uuid NOT NULL,
   "createdByEmail" varchar(160) NOT NULL,
   "acceptedById" uuid NULL,
-  "expiresAt" timestamptz NOT NULL,
+  "maxUses" integer NOT NULL DEFAULT 1,
+  "usedCount" integer NOT NULL DEFAULT 0,
+  "expiresAt" timestamptz NULL,
   "acceptedAt" timestamptz NULL,
   "revokedAt" timestamptz NULL,
   "createdAt" timestamptz NOT NULL DEFAULT now(),

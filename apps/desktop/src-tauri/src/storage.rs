@@ -88,12 +88,12 @@ pub(crate) fn write_json_if_changed(path: &Path, value: &Value) -> Result<bool, 
 }
 
 #[cfg(not(windows))]
-fn replace_file(source: &Path, destination: &Path) -> io::Result<()> {
+pub(crate) fn replace_file(source: &Path, destination: &Path) -> io::Result<()> {
     fs::rename(source, destination)
 }
 
 #[cfg(windows)]
-fn replace_file(source: &Path, destination: &Path) -> io::Result<()> {
+pub(crate) fn replace_file(source: &Path, destination: &Path) -> io::Result<()> {
     use std::os::windows::ffi::OsStrExt;
     use windows_sys::Win32::Storage::FileSystem::{
         MoveFileExW, MOVEFILE_REPLACE_EXISTING, MOVEFILE_WRITE_THROUGH,

@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { ILike, IsNull, Repository } from 'typeorm';
+import { EntityManager, ILike, IsNull, Repository } from 'typeorm';
 import type { AuthUser } from '@/common/decorators/user.decorator';
 import { SyncService } from '@/modules/sync/sync.service';
 import { UserService } from '@/modules/user/user.service';
@@ -31,7 +31,7 @@ import { AdminInvitationEntity } from './entities/admin-invitation.entity';
 
 export interface InvitationForRegistration {
   id: string;
-  email: string;
+  email?: string | null;
   role: UserEntity['role'];
 }
 
@@ -202,17 +202,22 @@ export class AdminService {
   async createInvitation(actor: AuthUser, dto: CreateInvitationDto) {
     const token = randomBytes(24).toString('base64url');
     const invitation = this.invitations.create({
-      email: dto.email.trim().toLowerCase(),
+      email: dto.email?.trim().toLowerCase() || null,
       role: dto.role ?? 'user',
       tokenHash: this.hashToken(token),
       createdById: actor.id,
       createdByEmail: actor.email,
-      expiresAt: new Date(Date.now() + Number(dto.expiresInHours ?? 72) * 60 * 60 * 1000),
+      maxUses: dto.maxUses ?? 1,
+      usedCount: 0,
+      expiresAt: dto.neverExpires
+        ? null
+        : new Date(Date.now() + Number(dto.expiresInHours ?? 72) * 60 * 60 * 1000),
     });
     const saved = await this.invitations.save(invitation);
     await this.record(actor, 'invitation.create', 'invitation', saved.id, saved.email, {
       role: saved.role,
       expiresAt: saved.expiresAt,
+      maxUses: saved.maxUses,
     });
     return { ...this.presentInvitation(saved), token };
   }
@@ -236,35 +241,54 @@ export class AdminService {
     return this.presentInvitation(saved);
   }
 
-  async validateInvitation(token: string, email: string): Promise<InvitationForRegistration> {
-    const invitation = await this.invitations.findOne({
+  async validateInvitation(
+    token: string,
+    email: string,
+    manager?: EntityManager,
+  ): Promise<InvitationForRegistration> {
+    const invitations = manager?.getRepository(AdminInvitationEntity) ?? this.invitations;
+    const invitation = await invitations.findOne({
       where: {
         tokenHash: this.hashToken(token),
-        acceptedAt: IsNull(),
         revokedAt: IsNull(),
       },
+      ...(manager ? { lock: { mode: 'pessimistic_write' as const } } : {}),
     });
     const normalizedEmail = email.trim().toLowerCase();
-    if (!invitation || invitation.expiresAt <= new Date() || invitation.email !== normalizedEmail) {
+    if (
+      !invitation
+      || (invitation.expiresAt && invitation.expiresAt <= new Date())
+      || (invitation.email && invitation.email !== normalizedEmail)
+      || invitation.usedCount >= invitation.maxUses
+    ) {
       throw new BadRequestException('Invitation is invalid or expired');
     }
     return { id: invitation.id, email: invitation.email, role: invitation.role };
   }
 
-  async acceptInvitation(invitationId: string, user: UserEntity) {
-    const invitation = await this.invitations.findOne({ where: { id: invitationId } });
-    if (!invitation || invitation.acceptedAt) return;
+  async acceptInvitation(invitationId: string, user: UserEntity, manager?: EntityManager) {
+    const invitations = manager?.getRepository(AdminInvitationEntity) ?? this.invitations;
+    const auditLogs = manager?.getRepository(AdminAuditLogEntity) ?? this.auditLogs;
+    const invitation = await invitations.findOne({ where: { id: invitationId } });
+    if (!invitation || invitation.usedCount >= invitation.maxUses) {
+      throw new BadRequestException('Invitation has no remaining uses');
+    }
+    invitation.usedCount += 1;
     invitation.acceptedAt = new Date();
     invitation.acceptedById = user.id;
-    await this.invitations.save(invitation);
-    await this.auditLogs.save(this.auditLogs.create({
+    await invitations.save(invitation);
+    await auditLogs.save(auditLogs.create({
       actorId: user.id,
       actorEmail: user.email,
       action: 'invitation.accept',
       targetType: 'invitation',
       targetId: invitation.id,
       targetEmail: invitation.email,
-      metadata: { role: invitation.role },
+      metadata: {
+        role: invitation.role,
+        usedCount: invitation.usedCount,
+        maxUses: invitation.maxUses,
+      },
     }));
   }
 
@@ -368,6 +392,8 @@ export class AdminService {
       role: invitation.role,
       createdByEmail: invitation.createdByEmail,
       expiresAt: invitation.expiresAt,
+      maxUses: invitation.maxUses,
+      usedCount: invitation.usedCount,
       acceptedAt: invitation.acceptedAt,
       revokedAt: invitation.revokedAt,
       createdAt: invitation.createdAt,

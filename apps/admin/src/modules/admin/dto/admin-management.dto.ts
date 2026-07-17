@@ -102,8 +102,9 @@ export class ChangeSystemAccountBindingsDto {
 }
 
 export class CreateInvitationDto {
+  @IsOptional()
   @IsEmail()
-  email: string;
+  email?: string;
 
   @IsOptional()
   @IsIn(['user', 'admin'])
@@ -115,6 +116,17 @@ export class CreateInvitationDto {
   @Min(1)
   @Max(24 * 30)
   expiresInHours?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  neverExpires?: boolean;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(10_000)
+  maxUses?: number;
 }
 
 export class CreateApprovalRequestDto {

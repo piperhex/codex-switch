@@ -23,9 +23,9 @@ The first registered account becomes an admin. For local development without Kon
 The default Docker Compose file does not publish PostgreSQL, Redis, or the backend on host ports. In production, Kong should reach the backend through the external `kong-net` network at `http://codex-switch-backend:8080`. For local host debugging, add a temporary compose override with explicit `ports`.
 
 If production uses `POSTGRES_DB_SYNCHRONIZE=false`, apply `sql/20260704-admin-management.sql`,
-`sql/20260705-sync-last-modified.sql`, `sql/20260707-sync-providers.sql`, and
-`sql/20260714-system-account-pool.sql` before using the expanded admin console, provider sync,
-and official account pool.
+`sql/20260705-sync-last-modified.sql`, `sql/20260707-sync-providers.sql`,
+`sql/20260714-system-account-pool.sql`, and `sql/20260717-invitation-policies.sql` before using
+the expanded admin console, provider sync, official account pool, and reusable invitations.
 
 ## Docker Troubleshooting
 
@@ -121,6 +121,11 @@ Every management and synchronization endpoint is protected by an explicit permis
 | `admin` | All user permissions plus user, official-account, audit-log, invitation, and approval management |
 
 Ordinary users can sign in to `/admin`, see only the **My Accounts** page, open their profile, and change their own password. `GET /admin/api/profile/accounts` returns account display data without any `auth` credentials. Menu filtering is only a user-interface aid; backend permission guards remain authoritative.
+
+Invitations can optionally target one email, allow a configurable number of successful
+registrations, and either expire after a configured number of hours or remain valid until their
+usage limit is reached or an administrator revokes them. Invitation usage is counted atomically
+with user creation so concurrent registrations cannot exceed the configured limit.
 
 ## API
 

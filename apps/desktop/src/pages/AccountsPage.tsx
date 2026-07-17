@@ -11,6 +11,7 @@ export function AccountsPage({
   busyAccountId,
   localProxy,
   proxyBusy,
+  conversationSyncBusy,
   resetCredits,
   onAdd,
   onSwitch,
@@ -24,6 +25,7 @@ export function AccountsPage({
   resetCreditBusyAccountId,
   onStartProxy,
   onStopProxy,
+  onSyncDirectConversations,
   onAutoSwitchChange,
   onAutoDisableUnreachableChange,
   privacyMode,
@@ -36,6 +38,7 @@ export function AccountsPage({
   busyAccountId: string | null;
   localProxy: LocalProxyStatus | null;
   proxyBusy: boolean;
+  conversationSyncBusy: boolean;
   resetCredits: Record<string, ResetCreditsLoadState>;
   onAdd: () => void;
   onSwitch: (id: string) => void;
@@ -49,6 +52,7 @@ export function AccountsPage({
   resetCreditBusyAccountId: string | null;
   onStartProxy: () => void;
   onStopProxy: () => void;
+  onSyncDirectConversations: () => void;
   onAutoSwitchChange: (enabled: boolean) => void;
   onAutoDisableUnreachableChange: (enabled: boolean) => void;
   privacyMode: boolean;
@@ -60,7 +64,9 @@ export function AccountsPage({
   const proxyCard = (
     <div className="home-proxy-wrap">
       <LocalProxyCard localProxy={localProxy} proxyBusy={proxyBusy}
+        conversationSyncBusy={conversationSyncBusy}
         onStartProxy={onStartProxy} onStopProxy={onStopProxy}
+        onSyncDirectConversations={onSyncDirectConversations}
         onAutoSwitchChange={onAutoSwitchChange}
         onAutoDisableUnreachableChange={onAutoDisableUnreachableChange} t={t} />
     </div>

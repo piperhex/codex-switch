@@ -16,8 +16,8 @@ export class AdminInvitationEntity {
   @PrimaryColumn({ type: 'uuid' })
   id: string = randomUUID();
 
-  @Column({ type: 'varchar', length: 160 })
-  email: string;
+  @Column({ type: 'varchar', length: 160, nullable: true })
+  email?: string | null;
 
   @Column({ type: 'varchar', length: 20, default: 'user' })
   role: UserRole;
@@ -34,8 +34,14 @@ export class AdminInvitationEntity {
   @Column({ type: 'uuid', nullable: true })
   acceptedById?: string | null;
 
-  @Column({ type: 'timestamptz' })
-  expiresAt: Date;
+  @Column({ type: 'int', default: 1 })
+  maxUses: number;
+
+  @Column({ type: 'int', default: 0 })
+  usedCount: number;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  expiresAt?: Date | null;
 
   @Column({ type: 'timestamptz', nullable: true })
   acceptedAt?: Date | null;

@@ -14,6 +14,7 @@ interface ProvidersPageProps {
   saving: boolean;
   localProxy: LocalProxyStatus | null;
   proxyBusy: boolean;
+  conversationSyncBusy: boolean;
   info: AppInfo | null;
   onSave: (provider: ProviderInput) => Promise<Provider | null>;
   onSwitch: (id: string) => void;
@@ -22,6 +23,7 @@ interface ProvidersPageProps {
   onDelete: (id: string) => void;
   onStartProxy: () => void;
   onStopProxy: () => void;
+  onSyncDirectConversations: () => void;
   onAutoSwitchChange: (enabled: boolean) => void;
   onAutoDisableUnreachableChange: (enabled: boolean) => void;
   displayMode: AccountDisplayMode;
@@ -200,6 +202,7 @@ export function ProvidersPage({
   saving,
   localProxy,
   proxyBusy,
+  conversationSyncBusy,
   info,
   onSave,
   onSwitch,
@@ -208,6 +211,7 @@ export function ProvidersPage({
   onDelete,
   onStartProxy,
   onStopProxy,
+  onSyncDirectConversations,
   onAutoSwitchChange,
   onAutoDisableUnreachableChange,
   displayMode,
@@ -311,7 +315,9 @@ export function ProvidersPage({
   return (
     <div className="provider-page">
       <LocalProxyCard localProxy={localProxy} proxyBusy={proxyBusy}
+        conversationSyncBusy={conversationSyncBusy}
         onStartProxy={onStartProxy} onStopProxy={onStopProxy}
+        onSyncDirectConversations={onSyncDirectConversations}
         onAutoSwitchChange={onAutoSwitchChange}
         onAutoDisableUnreachableChange={onAutoDisableUnreachableChange} t={t} />
 

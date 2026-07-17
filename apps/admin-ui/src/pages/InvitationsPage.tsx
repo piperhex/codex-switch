@@ -23,19 +23,36 @@ export function InvitationsPage({
 }: InvitationsPageProps) {
   const { language, t } = useI18n();
   const columns: TableColumnsType<Invitation> = [
-    { title: t("common.email"), dataIndex: "email" },
+    {
+      title: t("common.email"),
+      dataIndex: "email",
+      render: (email?: string | null) => email || t("invitations.anyEmail"),
+    },
     { title: t("common.role"), dataIndex: "role", width: 100, render: (role: Role) => <Tag>{labelForRole(role, t)}</Tag> },
     { title: t("invitations.creator"), dataIndex: "createdByEmail", width: 220 },
-    { title: t("common.expiresAt"), dataIndex: "expiresAt", width: 180, render: (value) => formatDate(value, language) },
+    {
+      title: t("invitations.uses"),
+      key: "uses",
+      width: 110,
+      render: (_, row) => `${row.usedCount}/${row.maxUses}`,
+    },
+    {
+      title: t("common.expiresAt"),
+      dataIndex: "expiresAt",
+      width: 180,
+      render: (value?: string | null) => value ? formatDate(value, language) : t("invitations.neverExpires"),
+    },
     {
       title: t("common.status"),
       key: "status",
       width: 110,
       render: (_, row) => {
         if (row.revokedAt) return <Tag>{t("invitations.status.revoked")}</Tag>;
-        if (row.acceptedAt) return <Tag color="green">{t("invitations.status.accepted")}</Tag>;
-        if (new Date(row.expiresAt) <= new Date()) return <Tag color="orange">{t("invitations.status.expired")}</Tag>;
-        return <Tag color="blue">{t("invitations.status.pending")}</Tag>;
+        if (row.usedCount >= row.maxUses) return <Tag color="green">{t("invitations.status.exhausted")}</Tag>;
+        if (row.expiresAt && new Date(row.expiresAt) <= new Date()) {
+          return <Tag color="orange">{t("invitations.status.expired")}</Tag>;
+        }
+        return <Tag color="blue">{t("invitations.status.active")}</Tag>;
       },
     },
     {
@@ -46,7 +63,7 @@ export function InvitationsPage({
           danger
           className="icon-button"
           icon={<XCircle size={15} />}
-          disabled={Boolean(row.revokedAt || row.acceptedAt)}
+          disabled={Boolean(row.revokedAt || row.usedCount >= row.maxUses)}
           onClick={() => onRevokeInvitation(row)}
         />
       ),
@@ -76,7 +93,7 @@ export function InvitationsPage({
             showSizeChanger: true,
           }}
           onChange={(pagination) => onLoadInvitations(pagination.current, pagination.pageSize)}
-          scroll={{ x: 880 }}
+          scroll={{ x: 1080 }}
         />
       </div>
     </>
