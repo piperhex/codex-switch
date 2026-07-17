@@ -4,7 +4,7 @@ import enUS from "antd/locale/en_US";
 import zhCN from "antd/locale/zh_CN";
 import { BarChart3, CalendarClock, Check, CircleHelp, Cloud, Download, Github, LogIn, LogOut, Plus, RefreshCw, RotateCcw, Server, Settings, ShieldCheck, Upload, UploadCloud, UserRound } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { checkForUpdate, chooseAndExportDiagnosticLogs, consumeResetCredit, isDesktopApp, openManagedFolder, restartChatGpt, showTokenUsageWindow, syncDirectConversations } from "./api/backend";
+import { checkForUpdate, chooseAndExportDiagnosticLogs, consumeResetCredit, DEFAULT_CLOUD_BASE_URL, isDesktopApp, openManagedFolder, restartChatGpt, showTokenUsageWindow, syncDirectConversations } from "./api/backend";
 import { HelpModal, type HelpVersionState } from "./components/modals/HelpModal";
 import { FloatingUsageBubble } from "./components/FloatingUsageBubble";
 import { TokenUsageWindow } from "./components/TokenUsageWindow";
@@ -160,6 +160,15 @@ function DashboardApp() {
     if (ok) await manager.reload();
     return ok;
   }, [cloud.register, manager.reload]);
+  const openCloudPasswordReset = useCallback(() => {
+    const baseUrl = (cloud.state.baseUrl?.trim() || DEFAULT_CLOUD_BASE_URL).replace(/\/+$/, "");
+    const resetUrl = `${baseUrl}/admin/reset-password`;
+    if (isDesktopApp) {
+      void openUrl(resetUrl).catch((error) => notify(String(error)));
+      return;
+    }
+    window.open(resetUrl, "_blank", "noopener,noreferrer");
+  }, [cloud.state.baseUrl, notify]);
   const syncCloud = useCallback(async () => {
     const result = await cloud.sync();
     if (result) {
@@ -496,7 +505,8 @@ function DashboardApp() {
         {showLogin && <LoginModal onClose={() => setShowLogin(false)} onStart={startLogin} onImport={importAuth} onImportCompatibleJson={importCompatibleJson} t={t} />}
         {showCloudLogin && <CloudLoginModal loading={cloud.loading} onClose={() => setShowCloudLogin(false)}
           sendingRegistrationCode={cloud.sendingRegistrationCode} onLogin={loginCloudAccount}
-          onRegister={registerCloudAccount} onSendRegistrationCode={cloud.sendRegistrationCode} t={t} />}
+          onForgotPassword={openCloudPasswordReset} onRegister={registerCloudAccount}
+          onSendRegistrationCode={cloud.sendRegistrationCode} t={t} />}
         {showHelp && <HelpModal onClose={() => setShowHelp(false)} onDownload={openRelease} version={manager.info?.version ?? "0.1.0"}
           versionState={helpVersionState} t={t} />}
         {availableUpdate && <UpdateModal update={availableUpdate} onClose={() => setAvailableUpdate(null)}

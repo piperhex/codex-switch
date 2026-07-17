@@ -17,6 +17,8 @@ export const REGISTRATION_CODE_TTL_SECONDS = 5 * 60;
 const REGISTRATION_CODE_RESEND_SECONDS = 60;
 const REGISTRATION_CODE_MAX_ATTEMPTS = 5;
 
+type VerificationPurpose = 'registration' | 'password-reset';
+
 interface StoredRegistrationCode {
   salt: string;
   hash: string;
@@ -44,9 +46,25 @@ export class EmailVerificationService {
   }
 
   async sendRegistrationCode(email: string) {
+    return this.sendCode(email, 'registration');
+  }
+
+  async sendPasswordResetCode(email: string) {
+    return this.sendCode(email, 'password-reset');
+  }
+
+  async verifyAndConsume(email: string, code: string) {
+    return this.verifyCodeAndConsume(email, code, 'registration');
+  }
+
+  async verifyPasswordResetCode(email: string, code: string) {
+    return this.verifyCodeAndConsume(email, code, 'password-reset');
+  }
+
+  private async sendCode(email: string, purpose: VerificationPurpose) {
     this.ensureConfigured();
     const normalizedEmail = this.normalizeEmail(email);
-    const cooldownKey = this.cooldownKey(normalizedEmail);
+    const cooldownKey = this.cooldownKey(normalizedEmail, purpose);
     const cooldown = await this.redis.set(
       cooldownKey,
       '1',
@@ -64,8 +82,8 @@ export class EmailVerificationService {
     const code = randomInt(0, 1_000_000).toString().padStart(6, '0');
     const salt = randomBytes(16).toString('hex');
     const stored: StoredRegistrationCode = { salt, hash: this.hash(normalizedEmail, code, salt) };
-    const codeKey = this.codeKey(normalizedEmail);
-    const attemptsKey = this.attemptsKey(normalizedEmail);
+    const codeKey = this.codeKey(normalizedEmail, purpose);
+    const attemptsKey = this.attemptsKey(normalizedEmail, purpose);
     await this.redis.del(attemptsKey);
     await this.redis.set(codeKey, JSON.stringify(stored), 'EX', REGISTRATION_CODE_TTL_SECONDS);
 
@@ -73,9 +91,15 @@ export class EmailVerificationService {
       await this.transporter!.sendMail({
         from: this.config.mail__from,
         to: normalizedEmail,
-        subject: 'Codex Switch 注册验证码',
-        text: `你的 Codex Switch 注册验证码是 ${code}，5 分钟内有效。请勿将验证码提供给他人。`,
-        html: `<p>你的 Codex Switch 注册验证码是：</p><p style="font-size:28px;font-weight:700;letter-spacing:6px">${code}</p><p>验证码 5 分钟内有效，请勿将验证码提供给他人。</p>`,
+        subject: purpose === 'registration'
+          ? 'Codex Switch 注册验证码'
+          : 'Codex Switch 密码重置验证码',
+        text: purpose === 'registration'
+          ? `你的 Codex Switch 注册验证码是 ${code}，5 分钟内有效。请勿将验证码提供给他人。`
+          : `你的 Codex Switch 密码重置验证码是 ${code}，5 分钟内有效。请勿将验证码提供给他人。`,
+        html: purpose === 'registration'
+          ? `<p>你的 Codex Switch 注册验证码是：</p><p style="font-size:28px;font-weight:700;letter-spacing:6px">${code}</p><p>验证码 5 分钟内有效，请勿将验证码提供给他人。</p>`
+          : `<p>你的 Codex Switch 密码重置验证码是：</p><p style="font-size:28px;font-weight:700;letter-spacing:6px">${code}</p><p>验证码 5 分钟内有效，请勿将验证码提供给他人。</p>`,
       });
     } catch {
       await this.redis.del(codeKey, cooldownKey, attemptsKey);
@@ -85,9 +109,9 @@ export class EmailVerificationService {
     return { ok: true, expiresInSeconds: REGISTRATION_CODE_TTL_SECONDS };
   }
 
-  async verifyAndConsume(email: string, code: string) {
+  private async verifyCodeAndConsume(email: string, code: string, purpose: VerificationPurpose) {
     const normalizedEmail = this.normalizeEmail(email);
-    const key = this.codeKey(normalizedEmail);
+    const key = this.codeKey(normalizedEmail, purpose);
     const serialized = await this.redis.get(key);
     if (!serialized) throw this.invalidCode();
 
@@ -111,7 +135,7 @@ export class EmailVerificationService {
          return attempts`,
         2,
         key,
-        this.attemptsKey(normalizedEmail),
+        this.attemptsKey(normalizedEmail, purpose),
         REGISTRATION_CODE_TTL_SECONDS,
         REGISTRATION_CODE_MAX_ATTEMPTS,
       );
@@ -126,7 +150,7 @@ export class EmailVerificationService {
        return 0`,
       2,
       key,
-      this.attemptsKey(normalizedEmail),
+      this.attemptsKey(normalizedEmail, purpose),
       serialized,
     );
     if (consumed !== 1) throw this.invalidCode();
@@ -148,16 +172,16 @@ export class EmailVerificationService {
     return email.trim().toLowerCase();
   }
 
-  private codeKey(email: string) {
-    return `auth:registration-code:${createHash('sha256').update(email).digest('hex')}`;
+  private codeKey(email: string, purpose: VerificationPurpose) {
+    return `auth:${purpose}-code:${createHash('sha256').update(email).digest('hex')}`;
   }
 
-  private cooldownKey(email: string) {
-    return `${this.codeKey(email)}:cooldown`;
+  private cooldownKey(email: string, purpose: VerificationPurpose) {
+    return `${this.codeKey(email, purpose)}:cooldown`;
   }
 
-  private attemptsKey(email: string) {
-    return `${this.codeKey(email)}:attempts`;
+  private attemptsKey(email: string, purpose: VerificationPurpose) {
+    return `${this.codeKey(email, purpose)}:attempts`;
   }
 
   private hash(email: string, code: string, salt: string) {

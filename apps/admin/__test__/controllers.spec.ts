@@ -15,6 +15,8 @@ describe('HTTP controllers', () => {
     const auth = {
       register: vi.fn().mockResolvedValue('registered'),
       requestRegistrationCode: vi.fn().mockResolvedValue({ ok: true }),
+      requestPasswordResetCode: vi.fn().mockResolvedValue({ ok: true }),
+      resetPassword: vi.fn().mockResolvedValue({ ok: true }),
       login: vi.fn().mockResolvedValue('logged-in'),
       refresh: vi.fn().mockResolvedValue('refreshed'),
       logout: vi.fn().mockResolvedValue({ ok: true }),
@@ -28,6 +30,11 @@ describe('HTTP controllers', () => {
       .resolves.toBe('registered');
     await expect(controller.requestRegistrationCode({ email: 'a@example.com' }))
       .resolves.toEqual({ ok: true });
+    await expect(controller.requestPasswordResetCode({ email: 'a@example.com' }))
+      .resolves.toEqual({ ok: true });
+    await expect(controller.resetPassword({
+      email: 'a@example.com', verificationCode: '123456', newPassword: 'new-password',
+    })).resolves.toEqual({ ok: true });
     await expect(controller.login({ email: 'a@example.com', password: 'secret' }))
       .resolves.toBe('logged-in');
     await expect(controller.refresh({ refreshToken: 'refresh' })).resolves.toBe('refreshed');
@@ -37,6 +44,8 @@ describe('HTTP controllers', () => {
 
     expect(auth.register).toHaveBeenCalledWith('a@example.com', 'password', '123456', undefined);
     expect(auth.requestRegistrationCode).toHaveBeenCalledWith('a@example.com');
+    expect(auth.requestPasswordResetCode).toHaveBeenCalledWith('a@example.com');
+    expect(auth.resetPassword).toHaveBeenCalledWith('a@example.com', '123456', 'new-password');
     expect(auth.login).toHaveBeenCalledWith('a@example.com', 'secret');
     expect(auth.refresh).toHaveBeenCalledWith('refresh');
     expect(auth.logout).toHaveBeenCalledWith('refresh');
@@ -116,6 +125,8 @@ describe('HTTP controllers', () => {
     const actor: AuthUser = { id: 'admin-1', email: 'admin@example.com', role: 'admin' };
 
     expect(controller.page(response as unknown as Response)).toBe('sent');
+    expect(controller.resetPasswordPage(response as unknown as Response)).toBe('sent');
+    expect(response.sendFile).toHaveBeenCalledTimes(2);
     expect(response.sendFile).toHaveBeenCalledWith(expect.stringMatching(/[\\/]public[\\/]admin\.html$/));
     await expect(controller.listUsers({ page: 1 })).resolves.toBe('users');
     await expect(controller.createUser(actor, {

@@ -156,6 +156,8 @@ Every management and synchronization endpoint is protected by an explicit permis
 
 Ordinary users can sign in to `/admin`, see only the **My Accounts** page, open their profile, and change their own password. `GET /admin/api/profile/accounts` returns account display data without any `auth` credentials. Menu filtering is only a user-interface aid; backend permission guards remain authoritative.
 
+The public `/admin/reset-password` page resets a forgotten password with a single-use six-digit email code that expires after five minutes. A successful reset revokes all active refresh tokens for that user. The code request response does not reveal whether the supplied email belongs to an account.
+
 Invitations can optionally target one email, allow a configurable number of successful
 registrations, and either expire after a configured number of hours or remain valid until their
 usage limit is reached or an administrator revokes them. Invitation usage is counted atomically
@@ -165,6 +167,8 @@ with user creation so concurrent registrations cannot exceed the configured limi
 
 - `POST /auth/register`
 - `POST /auth/register/code`
+- `POST /auth/password-reset/code`
+- `POST /auth/password-reset`
 - `POST /auth/login`
 - `POST /auth/refresh`
 - `POST /auth/logout`
@@ -179,6 +183,7 @@ with user creation so concurrent registrations cannot exceed the configured limi
 - `PUT /sync/providers/:id`
 - `DELETE /sync/providers/:id`
 - `GET /admin`
+- `GET /admin/reset-password`
 - `GET /admin/api/users`
 - `POST /admin/api/users`
 - `PATCH /admin/api/users/:id`

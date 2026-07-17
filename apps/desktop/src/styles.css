@@ -273,6 +273,9 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .cloud-login-modal { width: min(430px, 95vw); }
 .cloud-login-form { display: grid; gap: 8px; }
 .cloud-login-form label { color: #526259; font-size: 11px; font-weight: 700; }
+.cloud-login-label-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.cloud-login-label-row button { border: 0; padding: 0; color: var(--green-dark); background: transparent; font-size: 11px; cursor: pointer; }
+.cloud-login-label-row button:hover { text-decoration: underline; }
 .cloud-login-input { height: 39px; display: flex; align-items: center; gap: 8px; padding: 0 11px; border: 1px solid #d7e0d8; border-radius: 9px; color: #6d7a72; background: white; }
 .cloud-login-input:focus-within { border-color: var(--green); box-shadow: 0 0 0 3px rgba(var(--green-rgb), .12); }
 .cloud-login-input input { width: 100%; min-width: 0; border: 0; outline: 0; color: var(--ink); background: transparent; font: 12px "DM Sans", "Microsoft YaHei UI", sans-serif; }

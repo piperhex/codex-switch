@@ -74,6 +74,26 @@ describe('EmailVerificationService', () => {
     }));
   });
 
+  it('keeps password reset codes separate from registration codes', async () => {
+    const service = new EmailVerificationService(redis as unknown as Redis, config);
+
+    await expect(service.sendPasswordResetCode('user@example.com')).resolves.toEqual({
+      ok: true,
+      expiresInSeconds: REGISTRATION_CODE_TTL_SECONDS,
+    });
+
+    expect(redis.set).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining('auth:password-reset-code:'),
+      expect.any(String),
+      'EX',
+      300,
+    );
+    expect(sendMail).toHaveBeenCalledWith(expect.objectContaining({
+      subject: expect.stringContaining('密码重置验证码'),
+    }));
+  });
+
   it('atomically consumes a matching code and rejects a wrong code', async () => {
     const service = new EmailVerificationService(redis as unknown as Redis, config);
     const email = 'user@example.com';
@@ -95,6 +115,16 @@ describe('EmailVerificationService', () => {
       .rejects.toThrow('Verification code is invalid or expired');
     expect(redis.eval).toHaveBeenCalledWith(
       expect.any(String), 2, expect.any(String), expect.stringMatching(/:attempts$/), 300, 5,
+    );
+
+    redis.eval.mockClear().mockResolvedValue(1);
+    await expect(service.verifyPasswordResetCode(email, code)).resolves.toBeUndefined();
+    expect(redis.eval).toHaveBeenCalledWith(
+      expect.any(String),
+      2,
+      expect.stringContaining('auth:password-reset-code:'),
+      expect.stringMatching(/:attempts$/),
+      serialized,
     );
   });
 

@@ -5,7 +5,9 @@ import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { RegisterDto } from './dto/register.dto';
+import { RequestPasswordResetCodeDto } from './dto/request-password-reset-code.dto';
 import { RequestRegistrationCodeDto } from './dto/request-registration-code.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -19,6 +21,16 @@ export class AuthController {
   @Post('register/code')
   requestRegistrationCode(@Body() dto: RequestRegistrationCodeDto) {
     return this.auth.requestRegistrationCode(dto.email);
+  }
+
+  @Post('password-reset/code')
+  requestPasswordResetCode(@Body() dto: RequestPasswordResetCodeDto) {
+    return this.auth.requestPasswordResetCode(dto.email);
+  }
+
+  @Post('password-reset')
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.auth.resetPassword(dto.email, dto.verificationCode, dto.newPassword);
   }
 
   @Post('login')

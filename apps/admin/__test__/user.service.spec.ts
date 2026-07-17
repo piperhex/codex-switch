@@ -80,6 +80,10 @@ describe('UserService', () => {
     });
     await service.findActiveById('user-2');
     expect(repository.findOne).toHaveBeenNthCalledWith(2, { where: { id: 'user-2', disabled: false } });
+    await service.findActiveByEmail(' User@Example.COM ');
+    expect(repository.findOne).toHaveBeenNthCalledWith(3, {
+      where: { email: 'user@example.com', disabled: false },
+    });
     await service.emailExists(' User@Example.COM ');
     expect(repository.exists).toHaveBeenCalledWith({ where: { email: 'user@example.com' } });
   });
@@ -148,6 +152,13 @@ describe('UserService', () => {
     repository.findOne.mockResolvedValue(user);
     await expect(service.changePassword(user.id, 'wrong-pass', 'newer-password'))
       .rejects.toThrow('Current password is invalid');
+  });
+
+  it('sets a verified user password without requiring the old password again', async () => {
+    const user = makeUser();
+    await service.setPassword(user, 'reset-password');
+    expect(repository.save).toHaveBeenCalledWith(user);
+    await expect(service.validatePassword(user, 'reset-password')).resolves.toBe(true);
   });
 
   it('deletes users but preserves the last active administrator', async () => {

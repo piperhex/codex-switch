@@ -13,6 +13,8 @@ import {
 import { LoginDto } from '@/modules/auth/dto/login.dto';
 import { RefreshDto } from '@/modules/auth/dto/refresh.dto';
 import { RegisterDto } from '@/modules/auth/dto/register.dto';
+import { RequestPasswordResetCodeDto } from '@/modules/auth/dto/request-password-reset-code.dto';
+import { ResetPasswordDto } from '@/modules/auth/dto/reset-password.dto';
 import { PutSyncAccountsDto, SyncAccountDto } from '@/modules/sync/dto/sync-accounts.dto';
 import { PutSyncProvidersDto, SyncProviderDto } from '@/modules/sync/dto/sync-providers.dto';
 import { makeAccount, makeProvider } from './fixtures';
@@ -36,6 +38,14 @@ describe('request DTO validation', () => {
       email: 'valid@example.com', password: '12345678', verificationCode: '123456',
     }))
       .resolves.toEqual([]);
+    await expect(messages(RequestPasswordResetCodeDto, { email: 'bad' }))
+      .resolves.toContain('email must be an email');
+    await expect(messages(ResetPasswordDto, {
+      email: 'valid@example.com', verificationCode: '12ab', newPassword: 'short',
+    })).resolves.toEqual(expect.arrayContaining([
+      'verificationCode must be a 6-digit number',
+      'newPassword must be longer than or equal to 8 characters',
+    ]));
   });
 
   it('restricts admin user roles, password length and patch types', async () => {

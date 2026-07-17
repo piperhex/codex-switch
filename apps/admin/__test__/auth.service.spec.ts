@@ -20,7 +20,9 @@ describe('AuthService', () => {
     validatePassword: ReturnType<typeof vi.fn>;
     markLogin: ReturnType<typeof vi.fn>;
     findActiveById: ReturnType<typeof vi.fn>;
+    findActiveByEmail: ReturnType<typeof vi.fn>;
     emailExists: ReturnType<typeof vi.fn>;
+    setPassword: ReturnType<typeof vi.fn>;
   };
   let jwt: { signAsync: ReturnType<typeof vi.fn>; verifyAsync: ReturnType<typeof vi.fn> };
   let admin: {
@@ -37,7 +39,9 @@ describe('AuthService', () => {
   let transactionManager: object;
   let emailVerification: {
     sendRegistrationCode: ReturnType<typeof vi.fn>;
+    sendPasswordResetCode: ReturnType<typeof vi.fn>;
     verifyAndConsume: ReturnType<typeof vi.fn>;
+    verifyPasswordResetCode: ReturnType<typeof vi.fn>;
   };
   let service: AuthService;
 
@@ -46,7 +50,8 @@ describe('AuthService', () => {
     vi.setSystemTime(new Date('2026-07-04T00:00:00.000Z'));
     users = {
       createUser: vi.fn(), findByEmailWithPassword: vi.fn(), validatePassword: vi.fn(),
-      markLogin: vi.fn(), findActiveById: vi.fn(), emailExists: vi.fn(),
+      markLogin: vi.fn(), findActiveById: vi.fn(), findActiveByEmail: vi.fn(),
+      emailExists: vi.fn(), setPassword: vi.fn(),
     };
     admin = {
       validateInvitation: vi.fn(),
@@ -57,13 +62,15 @@ describe('AuthService', () => {
       create: vi.fn((value) => ({ id: 'refresh-id', ...value })),
       save: vi.fn(async (value) => value), findOne: vi.fn(), update: vi.fn(),
     };
-    transactionManager = {};
+    transactionManager = { getRepository: vi.fn(() => tokens) };
     dataSource = {
       transaction: vi.fn(async (callback) => callback(transactionManager)),
     };
     emailVerification = {
       sendRegistrationCode: vi.fn().mockResolvedValue({ ok: true, expiresInSeconds: 300 }),
+      sendPasswordResetCode: vi.fn().mockResolvedValue({ ok: true, expiresInSeconds: 300 }),
       verifyAndConsume: vi.fn().mockResolvedValue(undefined),
+      verifyPasswordResetCode: vi.fn().mockResolvedValue(undefined),
     };
     service = new AuthService(
       users as unknown as UserService,
@@ -98,6 +105,43 @@ describe('AuthService', () => {
     users.emailExists.mockResolvedValue(true);
     await expect(service.requestRegistrationCode('existing@example.com'))
       .rejects.toThrow('Email is already registered');
+  });
+
+  it('sends password reset codes without revealing whether an account exists', async () => {
+    users.findActiveByEmail.mockResolvedValueOnce(makeUser()).mockResolvedValueOnce(null);
+
+    await expect(service.requestPasswordResetCode('user@example.com')).resolves.toEqual({
+      ok: true, expiresInSeconds: 300,
+    });
+    await expect(service.requestPasswordResetCode('missing@example.com')).resolves.toEqual({
+      ok: true, expiresInSeconds: 300,
+    });
+
+    expect(emailVerification.sendPasswordResetCode).toHaveBeenCalledTimes(1);
+    expect(emailVerification.sendPasswordResetCode).toHaveBeenCalledWith('user@example.com');
+  });
+
+  it('resets a verified password and revokes every active refresh token', async () => {
+    const user = makeUser();
+    users.findActiveByEmail.mockResolvedValue(user);
+
+    await expect(service.resetPassword(user.email, '123456', 'new-password'))
+      .resolves.toEqual({ ok: true });
+
+    expect(emailVerification.verifyPasswordResetCode).toHaveBeenCalledWith(user.email, '123456');
+    expect(users.setPassword).toHaveBeenCalledWith(user, 'new-password', transactionManager);
+    expect(tokens.update).toHaveBeenCalledWith(
+      { userId: user.id, revokedAt: expect.anything() },
+      { revokedAt: new Date('2026-07-04T00:00:00.000Z') },
+    );
+  });
+
+  it('rejects password resets for unavailable users', async () => {
+    users.findActiveByEmail.mockResolvedValue(null);
+    await expect(service.resetPassword('missing@example.com', '123456', 'new-password'))
+      .rejects.toThrow('Verification code is invalid or expired');
+    expect(emailVerification.verifyPasswordResetCode).not.toHaveBeenCalled();
+    expect(users.setPassword).not.toHaveBeenCalled();
   });
 
   it('registers a user and issues persistently hashed access/refresh tokens', async () => {

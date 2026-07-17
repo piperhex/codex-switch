@@ -59,6 +59,12 @@ export class UserService {
     return this.users.findOne({ where: { id, disabled: false } });
   }
 
+  findActiveByEmail(email: string) {
+    return this.users.findOne({
+      where: { email: email.trim().toLowerCase(), disabled: false },
+    });
+  }
+
   findById(id: string) {
     return this.users.findOne({ where: { id } });
   }
@@ -128,6 +134,11 @@ export class UserService {
     user.passwordHash = await bcrypt.hash(newPassword, 12);
     await this.users.save(user);
     return { ok: true };
+  }
+
+  async setPassword(user: UserEntity, newPassword: string, manager?: EntityManager) {
+    user.passwordHash = await bcrypt.hash(newPassword, 12);
+    await (manager?.getRepository(UserEntity) ?? this.users).save(user);
   }
 
   async deleteUser(id: string) {

@@ -50,6 +50,11 @@ export class AdminController {
     return response.sendFile(join(process.cwd(), 'public', 'admin.html'));
   }
 
+  @Get('reset-password')
+  resetPasswordPage(@Res() response: Response) {
+    return response.sendFile(join(process.cwd(), 'public', 'admin.html'));
+  }
+
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermissions(Permission.UsersRead)
   @Get('api/users')

@@ -7,6 +7,7 @@ export function CloudLoginModal({
   sendingRegistrationCode,
   onClose,
   onLogin,
+  onForgotPassword,
   onRegister,
   onSendRegistrationCode,
   t,
@@ -15,6 +16,7 @@ export function CloudLoginModal({
   sendingRegistrationCode: boolean;
   onClose: () => void;
   onLogin: (email: string, password: string) => Promise<boolean>;
+  onForgotPassword: () => void;
   onRegister: (email: string, password: string, verificationCode: string) => Promise<boolean>;
   onSendRegistrationCode: (email: string) => Promise<boolean>;
   t: Translate;
@@ -64,7 +66,10 @@ export function CloudLoginModal({
             <input id="cloud-login-email" type="email" autoComplete="email" value={email}
               disabled={loading} onChange={(event) => setEmail(event.target.value)}
               placeholder={t("cloudLogin.emailPlaceholder")} /></span>
-          <label htmlFor="cloud-login-password">{t("cloudLogin.password")}</label>
+          <div className="cloud-login-label-row">
+            <label htmlFor="cloud-login-password">{t("cloudLogin.password")}</label>
+            <button type="button" onClick={onForgotPassword}>{t("cloudLogin.forgotPassword")}</button>
+          </div>
           <span className="cloud-login-input"><LockKeyhole size={16} />
             <input id="cloud-login-password" type="password" autoComplete="current-password" value={password}
               disabled={loading} onChange={(event) => setPassword(event.target.value)}

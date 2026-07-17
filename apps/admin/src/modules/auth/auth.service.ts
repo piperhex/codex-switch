@@ -11,7 +11,10 @@ import { AdminService } from '@/modules/admin/admin.service';
 import { UserService } from '@/modules/user/user.service';
 import { UserEntity } from '@/modules/user/entities/user.entity';
 import { RefreshTokenEntity } from './entities/refresh-token.entity';
-import { EmailVerificationService } from './email-verification.service';
+import {
+  EmailVerificationService,
+  REGISTRATION_CODE_TTL_SECONDS,
+} from './email-verification.service';
 
 interface RefreshPayload {
   sub: string;
@@ -38,6 +41,26 @@ export class AuthService {
       throw new BadRequestException('Email is already registered');
     }
     return this.emailVerification.sendRegistrationCode(email);
+  }
+
+  async requestPasswordResetCode(email: string) {
+    const user = await this.users.findActiveByEmail(email);
+    if (user) await this.emailVerification.sendPasswordResetCode(email);
+    return { ok: true, expiresInSeconds: REGISTRATION_CODE_TTL_SECONDS };
+  }
+
+  async resetPassword(email: string, verificationCode: string, newPassword: string) {
+    const user = await this.users.findActiveByEmail(email);
+    if (!user) throw new BadRequestException('Verification code is invalid or expired');
+    await this.emailVerification.verifyPasswordResetCode(email, verificationCode);
+    await this.dataSource.transaction(async (manager) => {
+      await this.users.setPassword(user, newPassword, manager);
+      await manager.getRepository(RefreshTokenEntity).update(
+        { userId: user.id, revokedAt: IsNull() },
+        { revokedAt: new Date() },
+      );
+    });
+    return { ok: true };
   }
 
   async register(email: string, password: string, verificationCode: string, inviteToken?: string) {

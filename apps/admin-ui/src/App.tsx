@@ -2,6 +2,7 @@ import { App as AntApp, ConfigProvider, theme } from "antd";
 import enUS from "antd/locale/en_US";
 import zhCN from "antd/locale/zh_CN";
 import { AdminConsole } from "./AdminConsole";
+import { PasswordResetPage } from "./pages/PasswordResetPage";
 import { I18nProvider } from "./i18n-context";
 import { useLanguage } from "./hooks/useLanguage";
 import { useThemeMode } from "./hooks/useThemeMode";
@@ -9,6 +10,7 @@ import { useThemeMode } from "./hooks/useThemeMode";
 export function App() {
   const [dark, setDark] = useThemeMode();
   const [language, setLanguage] = useLanguage();
+  const passwordResetPage = window.location.pathname.replace(/\/+$/, "").endsWith("/admin/reset-password");
 
   return (
     <ConfigProvider
@@ -24,7 +26,9 @@ export function App() {
     >
       <I18nProvider language={language} onLanguageChange={setLanguage}>
         <AntApp>
-          <AdminConsole dark={dark} onThemeChange={setDark} />
+          {passwordResetPage
+            ? <PasswordResetPage />
+            : <AdminConsole dark={dark} onThemeChange={setDark} />}
         </AntApp>
       </I18nProvider>
     </ConfigProvider>
