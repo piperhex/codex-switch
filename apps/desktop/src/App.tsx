@@ -2,9 +2,9 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ConfigProvider, Popconfirm, Tooltip, theme as antdTheme } from "antd";
 import enUS from "antd/locale/en_US";
 import zhCN from "antd/locale/zh_CN";
-import { BarChart3, CalendarClock, Check, CircleHelp, Cloud, Download, Github, LogIn, LogOut, Plus, RefreshCw, RotateCcw, Server, Settings, ShieldCheck, Upload, UploadCloud, UserRound } from "lucide-react";
+import { BarChart3, CalendarClock, Check, CircleHelp, Cloud, Download, Github, LogIn, LogOut, Megaphone, Plus, RefreshCw, RotateCcw, Server, Settings, ShieldCheck, Upload, UploadCloud, UserRound } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { checkForUpdate, chooseAndExportDiagnosticLogs, consumeResetCredit, DEFAULT_CLOUD_BASE_URL, isDesktopApp, openManagedFolder, restartChatGpt, showTokenUsageWindow, syncDirectConversations } from "./api/backend";
+import { checkForUpdate, chooseAndExportDiagnosticLogs, consumeResetCredit, DEFAULT_CLOUD_BASE_URL, fetchCloudAnnouncement, isDesktopApp, openManagedFolder, reportBaseUrlChange, reportFirstInstallation, restartChatGpt, showTokenUsageWindow, syncDirectConversations } from "./api/backend";
 import { HelpModal, type HelpVersionState } from "./components/modals/HelpModal";
 import { FloatingUsageBubble } from "./components/FloatingUsageBubble";
 import { TokenUsageWindow } from "./components/TokenUsageWindow";
@@ -27,7 +27,7 @@ import { AccountsPage } from "./pages/AccountsPage";
 import { ProvidersPage } from "./pages/ProvidersPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { formatRefreshTime } from "./utils/format";
-import type { BubbleResetDisplay, UpdateInfo } from "./types";
+import type { BubbleResetDisplay, CloudAnnouncement, UpdateInfo } from "./types";
 
 const LAST_REFRESH_ALL_KEY = "codex-switch:last-refresh-all-at";
 const IGNORED_UPDATE_VERSION_KEY = "codex-switch:ignored-update-version";
@@ -58,6 +58,7 @@ function DashboardApp() {
   const [syncingDirectConversations, setSyncingDirectConversations] = useState(false);
   const [exportingLogs, setExportingLogs] = useState(false);
   const [resetCreditBusyAccountId, setResetCreditBusyAccountId] = useState<string | null>(null);
+  const [announcement, setAnnouncement] = useState<CloudAnnouncement | null>(null);
   const helpVersionRequestId = useRef(0);
   const { message: toast, notify } = useToast();
   const { language, setLanguage, t } = useLanguage();
@@ -148,8 +149,17 @@ function DashboardApp() {
     void themeColor.setColor(color);
   }, [themeColor.setColor]);
   const saveCloudBaseUrl = useCallback(async (baseUrl: string) => {
-    await cloud.saveBaseUrl(baseUrl);
-  }, [cloud.saveBaseUrl]);
+    const previousBaseUrl = cloud.state.baseUrl?.trim().replace(/\/+$/, "") ?? "";
+    const requestedBaseUrl = baseUrl.trim().replace(/\/+$/, "");
+    if (previousBaseUrl && !requestedBaseUrl) {
+      await reportBaseUrlChange().catch(() => undefined);
+    }
+    const nextState = await cloud.saveBaseUrl(baseUrl);
+    const nextBaseUrl = nextState.baseUrl?.trim().replace(/\/+$/, "") ?? "";
+    if (nextBaseUrl && nextBaseUrl !== previousBaseUrl) {
+      void reportBaseUrlChange().catch(() => undefined);
+    }
+  }, [cloud.saveBaseUrl, cloud.state.baseUrl]);
   const loginCloudAccount = useCallback(async (email: string, password: string) => {
     const ok = await cloud.login(email, password);
     if (ok) await manager.reload();
@@ -236,6 +246,30 @@ function DashboardApp() {
     return () => { cancelled = true; };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    const loadAnnouncement = () => {
+      void fetchCloudAnnouncement()
+        .then((result) => {
+          if (!cancelled) setAnnouncement(result.enabled && result.content.trim() ? result : null);
+        })
+        .catch(() => {
+          if (!cancelled) setAnnouncement(null);
+        });
+    };
+    setAnnouncement(null);
+    loadAnnouncement();
+    const timer = window.setInterval(loadAnnouncement, 60 * 60 * 1000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [cloud.state.baseUrl]);
+
+  useEffect(() => {
+    void reportFirstInstallation().catch(() => undefined);
+  }, [cloud.state.baseUrl]);
+
   const startLogin = (embedded: boolean) => {
     setShowLogin(false);
     void manager.startLogin(embedded);
@@ -316,6 +350,21 @@ function DashboardApp() {
         <header className="app-menu">
           <div className="brand"><img className="brand-logo" src={APP_LOGO_URL} alt="" />
             <span>Codex<br /><b>Switch</b></span></div>
+          <div className="announcement-slot" aria-live="polite">
+            <div
+              className="announcement-marquee"
+              title={announcement?.content ?? t("announcement.welcome")}
+              style={announcement ? {
+                color: announcement.textColor,
+                backgroundColor: announcement.backgroundColor,
+              } : undefined}
+            >
+              <div className="announcement-track" key={announcement?.content ?? language}>
+                <Megaphone size={15} />
+                <span>{announcement?.content ?? t("announcement.welcome")}</span>
+              </div>
+            </div>
+          </div>
           <nav className="top-tabs" aria-label={t("nav.aria")}>
             <button className={page === "accounts" ? "selected" : ""} onClick={() => setPage("accounts")}>
               <UserRound size={19} />{t("nav.accounts")}</button>

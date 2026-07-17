@@ -10,6 +10,7 @@ import type {
   AppSettings,
   BubbleResetDisplay,
   CloudAuthState,
+  CloudAnnouncement,
   CloudSyncResult,
   DirectConversationSyncResult,
   LoginStart,
@@ -410,6 +411,34 @@ export async function loginCloud(email: string, password: string): Promise<Cloud
     return previewCloudState();
   }
   return invoke<CloudAuthState>("cloud_login", { email, password });
+}
+
+export async function fetchCloudAnnouncement(): Promise<CloudAnnouncement> {
+  if (isDesktopApp) return invoke<CloudAnnouncement>("fetch_cloud_announcement");
+  const { baseUrl } = previewCloudState();
+  if (!baseUrl) return {
+    content: "",
+    enabled: false,
+    textColor: "#C4D7C8",
+    backgroundColor: "#203128",
+    updatedAt: null,
+  };
+  const response = await fetch(`${baseUrl.replace(/\/+$/, "")}/announcements/current`, {
+    headers: { Accept: "application/json" },
+    cache: "no-store",
+  });
+  if (!response.ok) throw new Error(`Announcement request failed with HTTP ${response.status}`);
+  return response.json() as Promise<CloudAnnouncement>;
+}
+
+export async function reportFirstInstallation(): Promise<boolean> {
+  if (!isDesktopApp) return false;
+  return invoke<boolean>("report_first_installation");
+}
+
+export async function reportBaseUrlChange(): Promise<void> {
+  if (!isDesktopApp) return;
+  return invoke<void>("report_base_url_change");
 }
 
 export async function requestCloudRegistrationCode(email: string): Promise<void> {

@@ -14,8 +14,10 @@ export type Permission =
   | "admin.invitations.read"
   | "admin.invitations.manage"
   | "admin.approvals.read"
-  | "admin.approvals.manage";
-export type MenuKey = "myAccounts" | "users" | "officialAccounts" | "audit" | "invitations" | "approvals";
+  | "admin.approvals.manage"
+  | "admin.announcements.read"
+  | "admin.announcements.manage";
+export type MenuKey = "myAccounts" | "users" | "officialAccounts" | "announcement" | "audit" | "invitations" | "approvals";
 
 export interface AuthTokens {
   accessToken: string;
@@ -35,6 +37,14 @@ export interface PageResult<T> {
   total: number;
   page: number;
   pageSize: number;
+}
+
+export interface AnnouncementConfig {
+  content: string;
+  enabled: boolean;
+  textColor: string;
+  backgroundColor: string;
+  updatedAt?: string | null;
 }
 
 export interface UserRow {

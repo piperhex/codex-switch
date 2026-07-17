@@ -16,6 +16,7 @@ import { UserModal } from "./components/modals/UserModal";
 import { LoginView } from "./components/LoginView";
 import { useAuthenticatedApi } from "./hooks/useAuthenticatedApi";
 import { ApprovalsPage } from "./pages/ApprovalsPage";
+import { AnnouncementPage } from "./pages/AnnouncementPage";
 import { AuditLogsPage } from "./pages/AuditLogsPage";
 import { InvitationsPage } from "./pages/InvitationsPage";
 import { MyAccountsPage } from "./pages/MyAccountsPage";
@@ -23,6 +24,7 @@ import { OfficialAccountsPage } from "./pages/OfficialAccountsPage";
 import { UsersPage } from "./pages/UsersPage";
 import type {
   ApprovalRequest,
+  AnnouncementConfig,
   AuditLog,
   AuthTokens,
   Invitation,
@@ -48,6 +50,13 @@ const emptyAuditLogs: PageResult<AuditLog> = { items: [], total: 0, page: 1, pag
 const emptyInvitations: PageResult<Invitation> = { items: [], total: 0, page: 1, pageSize: 20 };
 const emptyApprovals: PageResult<ApprovalRequest> = { items: [], total: 0, page: 1, pageSize: 20 };
 const emptySystemAccounts: PageResult<SystemAccount> = { items: [], total: 0, page: 1, pageSize: 20 };
+const emptyAnnouncement: AnnouncementConfig = {
+  content: "",
+  enabled: false,
+  textColor: "#C4D7C8",
+  backgroundColor: "#203128",
+  updatedAt: null,
+};
 
 export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
   const { message, modal } = AntApp.useApp();
@@ -72,6 +81,9 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
   const [invitationLoading, setInvitationLoading] = useState(false);
   const [approvals, setApprovals] = useState<PageResult<ApprovalRequest>>(emptyApprovals);
   const [approvalLoading, setApprovalLoading] = useState(false);
+  const [announcement, setAnnouncement] = useState<AnnouncementConfig>(emptyAnnouncement);
+  const [announcementLoading, setAnnouncementLoading] = useState(false);
+  const [announcementSaving, setAnnouncementSaving] = useState(false);
   const [userModalOpen, setUserModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserRow | null>(null);
   const [passwordUser, setPasswordUser] = useState<UserRow | null>(null);
@@ -200,6 +212,35 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
     }
   }, [api, approvals.page, approvals.pageSize, message]);
 
+  const loadAnnouncement = useCallback(async () => {
+    setAnnouncementLoading(true);
+    try {
+      setAnnouncement(await api<AnnouncementConfig>("/admin/api/announcement"));
+    } catch (error) {
+      message.error((error as Error).message);
+    } finally {
+      setAnnouncementLoading(false);
+    }
+  }, [api, message]);
+
+  const saveAnnouncement = useCallback(async (
+    next: Pick<AnnouncementConfig, "content" | "enabled" | "textColor" | "backgroundColor">,
+  ) => {
+    setAnnouncementSaving(true);
+    try {
+      const saved = await api<AnnouncementConfig>("/admin/api/announcement", {
+        method: "PATCH",
+        body: JSON.stringify(next),
+      });
+      setAnnouncement(saved);
+      message.success(t("announcement.saved"));
+    } catch (error) {
+      message.error((error as Error).message);
+    } finally {
+      setAnnouncementSaving(false);
+    }
+  }, [api, message, t]);
+
   const loadAccounts = useCallback(async (user: UserRow) => {
     setAccountsLoading(true);
     try {
@@ -233,6 +274,7 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
     if (activeKey === "myAccounts") void loadOwnAccounts();
     if (activeKey === "users") void loadUsers();
     if (activeKey === "officialAccounts") void loadSystemAccounts();
+    if (activeKey === "announcement") void loadAnnouncement();
     if (activeKey === "audit") void loadAuditLogs();
     if (activeKey === "invitations") void loadInvitations();
     if (activeKey === "approvals") void loadApprovals();
@@ -242,6 +284,7 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
     loadApprovals,
     loadAuditLogs,
     loadInvitations,
+    loadAnnouncement,
     loadOwnAccounts,
     loadSystemAccounts,
     loadUsers,
@@ -366,6 +409,18 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
               },
             });
           }}
+        />
+      );
+    }
+
+    if (activeKey === "announcement") {
+      return (
+        <AnnouncementPage
+          announcement={announcement}
+          loading={announcementLoading}
+          saving={announcementSaving}
+          onRefresh={loadAnnouncement}
+          onSave={saveAnnouncement}
         />
       );
     }

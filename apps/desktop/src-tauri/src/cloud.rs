@@ -5,6 +5,7 @@ use reqwest::{blocking::Client, Method, StatusCode};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tauri::{Emitter, Manager, Runtime};
+use uuid::Uuid;
 
 use crate::{
     auth::{account_fields, validate_auth},
@@ -46,6 +47,25 @@ struct CloudAccountsResponse {
 #[serde(rename_all = "camelCase")]
 struct CloudProvidersResponse {
     providers: Vec<ProviderSyncPayload>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CloudAnnouncement {
+    content: String,
+    enabled: bool,
+    text_color: String,
+    background_color: String,
+    updated_at: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct InstallationState {
+    device_id: String,
+    platform: String,
+    #[serde(default)]
+    reported_at: Option<String>,
 }
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
@@ -627,6 +647,116 @@ pub(crate) async fn cloud_login<R: Runtime>(
     password: String,
 ) -> Result<CloudAuthState, String> {
     cloud_authenticate(app, email, password, None, "/auth/login", "Cloud login").await
+}
+
+fn installation_state_path<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+) -> Result<std::path::PathBuf, String> {
+    Ok(app
+        .path()
+        .app_data_dir()
+        .map_err(|error| format!("Failed to locate app data directory: {error}"))?
+        .join("installation.json"))
+}
+
+fn read_or_create_installation_state<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+) -> Result<InstallationState, String> {
+    let path = installation_state_path(app)?;
+    if let Ok(bytes) = fs::read(&path) {
+        if let Ok(state) = serde_json::from_slice::<InstallationState>(&bytes) {
+            if Uuid::parse_str(&state.device_id).is_ok() {
+                return Ok(state);
+            }
+        }
+    }
+    let state = InstallationState {
+        device_id: Uuid::new_v4().to_string(),
+        platform: std::env::consts::OS.to_string(),
+        reported_at: None,
+    };
+    let value = serde_json::to_value(&state).map_err(|error| error.to_string())?;
+    write_json_atomic(&path, &value)?;
+    Ok(state)
+}
+
+fn post_device_event<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    installation: &InstallationState,
+    event_type: &str,
+) -> Result<(), String> {
+    let client = api_client()?;
+    let settings = read_app_settings(app)?;
+    let response = client
+        .post(endpoint(&settings, "/telemetry/installations")?)
+        .header("Accept", "application/json")
+        .json(&json!({
+            "deviceId": installation.device_id,
+            "platform": installation.platform,
+            "eventType": event_type,
+        }))
+        .send()
+        .map_err(|error| format!("Device event report failed: {error}"))?;
+    if !response.status().is_success() {
+        return Err(response_error("Device event report", response));
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub(crate) async fn fetch_cloud_announcement<R: Runtime>(
+    app: tauri::AppHandle<R>,
+) -> Result<CloudAnnouncement, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let client = api_client()?;
+        let settings = read_app_settings(&app)?;
+        let response = client
+            .get(endpoint(&settings, "/announcements/current")?)
+            .header("Accept", "application/json")
+            .send()
+            .map_err(|error| format!("Announcement request failed: {error}"))?;
+        if !response.status().is_success() {
+            return Err(response_error("Announcement request", response));
+        }
+        response
+            .json()
+            .map_err(|error| format!("Announcement response is invalid: {error}"))
+    })
+    .await
+    .map_err(|error| format!("Announcement request task failed: {error}"))?
+}
+
+#[tauri::command]
+pub(crate) async fn report_first_installation<R: Runtime>(
+    app: tauri::AppHandle<R>,
+) -> Result<bool, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut installation = read_or_create_installation_state(&app)?;
+        if installation.reported_at.is_some() {
+            return Ok(false);
+        }
+
+        post_device_event(&app, &installation, "installation")?;
+
+        installation.reported_at = Some(Utc::now().to_rfc3339());
+        let value = serde_json::to_value(&installation).map_err(|error| error.to_string())?;
+        write_json_atomic(&installation_state_path(&app)?, &value)?;
+        Ok(true)
+    })
+    .await
+    .map_err(|error| format!("Installation report task failed: {error}"))?
+}
+
+#[tauri::command]
+pub(crate) async fn report_base_url_change<R: Runtime>(
+    app: tauri::AppHandle<R>,
+) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let installation = read_or_create_installation_state(&app)?;
+        post_device_event(&app, &installation, "base_url_changed")
+    })
+    .await
+    .map_err(|error| format!("Base URL change report task failed: {error}"))?
 }
 
 #[tauri::command]

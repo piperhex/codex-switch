@@ -4,10 +4,12 @@ import { join } from 'path';
 import { ConfigModule } from '@/config/config.module';
 import { PostgresqlModule } from '@/database/postgresql.module';
 import { AdminModule } from '@/modules/admin/admin.module';
+import { AnnouncementModule } from '@/modules/announcement/announcement.module';
 import { AuthModule } from '@/modules/auth/auth.module';
 import { JwtConfigModule } from '@/modules/jwt/jwt.module';
 import { RedisModule } from '@/modules/redis/redis.module';
 import { SyncModule } from '@/modules/sync/sync.module';
+import { TelemetryModule } from '@/modules/telemetry/telemetry.module';
 import { UserModule } from '@/modules/user/user.module';
 
 @Module({
@@ -22,6 +24,8 @@ import { UserModule } from '@/modules/user/user.module';
     AuthModule,
     SyncModule,
     AdminModule,
+    AnnouncementModule,
+    TelemetryModule,
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'public'),
     }),

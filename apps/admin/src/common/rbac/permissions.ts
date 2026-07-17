@@ -15,6 +15,8 @@ export enum Permission {
   InvitationsManage = 'admin.invitations.manage',
   ApprovalsRead = 'admin.approvals.read',
   ApprovalsManage = 'admin.approvals.manage',
+  AnnouncementsRead = 'admin.announcements.read',
+  AnnouncementsManage = 'admin.announcements.manage',
 }
 
 const userPermissions = [

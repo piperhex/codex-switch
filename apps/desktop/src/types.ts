@@ -143,6 +143,14 @@ export interface CloudSyncResult {
   downloaded: number;
 }
 
+export interface CloudAnnouncement {
+  content: string;
+  enabled: boolean;
+  textColor: string;
+  backgroundColor: string;
+  updatedAt?: string | null;
+}
+
 export interface AccountArchiveImportResult {
   imported: number;
   accountIds: string[];

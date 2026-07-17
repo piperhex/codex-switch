@@ -39,7 +39,12 @@ button:focus-visible { outline: 3px solid rgba(45, 131, 87, .24); outline-offset
 .brand-logo { width: 40px; height: 40px; object-fit: contain; flex: 0 0 auto; filter: drop-shadow(0 6px 12px rgba(9, 24, 13, .24)); }
 .brand span { font-size: 15px; color: #aab8ae; }
 .brand b { color: white; font-weight: 700; }
-.top-tabs { height: 40px; margin-left: auto; display: inline-flex; align-items: center; gap: 4px; padding: 4px; border: 1px solid rgba(var(--green-rgb), .22); border-radius: 10px; background: rgba(255,255,255,.05); }
+.announcement-slot { min-width: 100px; flex: 1 1 520px; }
+.announcement-marquee { width: 100%; height: 36px; overflow: hidden; display: flex; align-items: center; border: 1px solid rgba(111,177,112,.22); border-radius: 9px; color: #c4d7c8; background: rgba(255,255,255,.035); }
+.announcement-track { width: max-content; padding-left: 100%; display: inline-flex; align-items: center; gap: 9px; white-space: nowrap; font-size: 12px; animation: announcement-scroll 22s linear infinite; will-change: transform; }
+.announcement-track svg { flex: 0 0 auto; color: currentColor; }
+.announcement-marquee:hover .announcement-track { animation-play-state: paused; }
+.top-tabs { height: 40px; display: inline-flex; align-items: center; gap: 4px; padding: 4px; border: 1px solid rgba(var(--green-rgb), .22); border-radius: 10px; background: rgba(255,255,255,.05); }
 .top-tabs button { height: 30px; border: 0; display: inline-flex; gap: 8px; align-items: center; padding: 0 13px; border-radius: 7px; color: #b5c2ba; background: transparent; cursor: pointer; transition: .18s ease; font-size: 12px; font-weight: 600; white-space: nowrap; }
 .top-tabs button:hover { color: white; background: rgba(255,255,255,.06); }
 .top-tabs button.selected { color: #17251d; background: var(--green-highlight); box-shadow: 0 7px 18px rgba(var(--green-rgb), .18); }
@@ -562,9 +567,19 @@ html.token-usage-page #root {
 @media (max-width: 1100px) {
   .app-menu { gap: 12px; }
   .brand { min-width: 184px; }
+  .announcement-slot { flex-basis: 220px; }
   .usage-copy { min-width: 85px; }
   .provider-official, .provider-proxy { align-items: flex-start; flex-wrap: wrap; }
   .provider-official-actions { margin-left: 40px; flex-wrap: wrap; justify-content: flex-start; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .announcement-track { width: 100%; padding: 0 12px; justify-content: center; overflow: hidden; animation: none; }
+  .announcement-track span { overflow: hidden; text-overflow: ellipsis; }
+}
+
+@keyframes announcement-scroll {
+  to { transform: translateX(-100%); }
 }
 
 @media (max-width: 820px) {
