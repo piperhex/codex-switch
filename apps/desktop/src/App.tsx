@@ -155,6 +155,11 @@ function DashboardApp() {
     if (ok) await manager.reload();
     return ok;
   }, [cloud.login, manager.reload]);
+  const registerCloudAccount = useCallback(async (email: string, password: string, verificationCode: string) => {
+    const ok = await cloud.register(email, password, verificationCode);
+    if (ok) await manager.reload();
+    return ok;
+  }, [cloud.register, manager.reload]);
   const syncCloud = useCallback(async () => {
     const result = await cloud.sync();
     if (result) {
@@ -490,7 +495,8 @@ function DashboardApp() {
 
         {showLogin && <LoginModal onClose={() => setShowLogin(false)} onStart={startLogin} onImport={importAuth} onImportCompatibleJson={importCompatibleJson} t={t} />}
         {showCloudLogin && <CloudLoginModal loading={cloud.loading} onClose={() => setShowCloudLogin(false)}
-          onLogin={loginCloudAccount} t={t} />}
+          sendingRegistrationCode={cloud.sendingRegistrationCode} onLogin={loginCloudAccount}
+          onRegister={registerCloudAccount} onSendRegistrationCode={cloud.sendRegistrationCode} t={t} />}
         {showHelp && <HelpModal onClose={() => setShowHelp(false)} onDownload={openRelease} version={manager.info?.version ?? "0.1.0"}
           versionState={helpVersionState} t={t} />}
         {availableUpdate && <UpdateModal update={availableUpdate} onClose={() => setAvailableUpdate(null)}

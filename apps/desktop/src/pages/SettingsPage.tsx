@@ -3,6 +3,7 @@ import { Button, ColorPicker, Input, InputNumber, Segmented, Space, Switch } fro
 import { CircleGauge, Cloud, EyeOff, FileDown, FolderKey, FolderOpen, KeyRound, Languages, LayoutGrid, Palette, RefreshCw, Save, ShieldCheck, TableProperties } from "lucide-react";
 import { MAX_AUTO_REFRESH_SECONDS, MIN_AUTO_REFRESH_SECONDS } from "../hooks/useAutoRefresh";
 import type { AccountDisplayMode } from "../hooks/useAccountDisplayMode";
+import { DEFAULT_CLOUD_BASE_URL } from "../api/backend";
 import { LANGUAGE_OPTIONS, type Language, type Translate } from "../i18n";
 import type { AppInfo, BubbleResetDisplay } from "../types";
 
@@ -80,6 +81,8 @@ export function SettingsPage({
   t: Translate;
 }) {
   const [cloudBaseUrlDraft, setCloudBaseUrlDraft] = useState(cloudBaseUrl);
+  const usingOfficialCloudServer = cloudBaseUrlDraft.trim().replace(/\/+$/, "").toLowerCase()
+    === DEFAULT_CLOUD_BASE_URL.toLowerCase();
 
   useEffect(() => {
     setCloudBaseUrlDraft(cloudBaseUrl);
@@ -115,6 +118,14 @@ export function SettingsPage({
               onChange={(event) => setCloudBaseUrlDraft(event.target.value)} />
             <Button type="primary" size="small" icon={<Save size={14} />} loading={cloudBaseUrlLoading}
               onClick={() => void onCloudBaseUrlSave(cloudBaseUrlDraft)}>{t("settings.cloud.save")}</Button>
+            {!usingOfficialCloudServer && (
+              <Button size="small" disabled={cloudBaseUrlLoading} onClick={() => {
+                setCloudBaseUrlDraft(DEFAULT_CLOUD_BASE_URL);
+                void onCloudBaseUrlSave(DEFAULT_CLOUD_BASE_URL);
+              }}>
+                {t("settings.cloud.useOfficial")}
+              </Button>
+            )}
           </div>
         </div>
       </section>

@@ -1,5 +1,5 @@
 import { createHash } from 'crypto';
-import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { JwtService, type JwtSignOptions } from '@nestjs/jwt';
 import { DataSource, IsNull, Repository } from 'typeorm';
@@ -11,6 +11,7 @@ import { AdminService } from '@/modules/admin/admin.service';
 import { UserService } from '@/modules/user/user.service';
 import { UserEntity } from '@/modules/user/entities/user.entity';
 import { RefreshTokenEntity } from './entities/refresh-token.entity';
+import { EmailVerificationService } from './email-verification.service';
 
 interface RefreshPayload {
   sub: string;
@@ -27,11 +28,20 @@ export class AuthService {
     @InjectRepository(RefreshTokenEntity)
     private readonly refreshTokens: Repository<RefreshTokenEntity>,
     private readonly dataSource: DataSource,
+    private readonly emailVerification: EmailVerificationService,
     @Inject(MODULE_OPTIONS_TOKEN)
     private readonly config: ConfigModuleOptions,
   ) {}
 
-  async register(email: string, password: string, inviteToken?: string) {
+  async requestRegistrationCode(email: string) {
+    if (await this.users.emailExists(email)) {
+      throw new BadRequestException('Email is already registered');
+    }
+    return this.emailVerification.sendRegistrationCode(email);
+  }
+
+  async register(email: string, password: string, verificationCode: string, inviteToken?: string) {
+    await this.emailVerification.verifyAndConsume(email, verificationCode);
     const user = inviteToken
       ? await this.dataSource.transaction(async (manager) => {
         const invitation = await this.admin.validateInvitation(inviteToken, email, manager);

@@ -9,6 +9,8 @@ import {
   pushCloudAccounts,
   pushCloudProvider,
   pushCloudProviders,
+  registerCloud,
+  requestCloudRegistrationCode,
   syncCloudAccounts,
   updateCloudBaseUrl,
 } from "../api/backend";
@@ -28,6 +30,7 @@ export function useCloudAuth(notify: (message: string) => void, t: Translate) {
   const [state, setState] = useState<CloudAuthState>(DISABLED_STATE);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [sendingRegistrationCode, setSendingRegistrationCode] = useState(false);
 
   const load = useCallback(async () => {
     const nextState = await loadCloudAuthState();
@@ -69,6 +72,35 @@ export function useCloudAuth(notify: (message: string) => void, t: Translate) {
       const nextState = await loginCloud(email, password);
       setState(nextState);
       notify(t("toast.cloudLoginSuccess"));
+      return true;
+    } catch (error) {
+      notify(String(error));
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, [notify, t]);
+
+  const sendRegistrationCode = useCallback(async (email: string) => {
+    setSendingRegistrationCode(true);
+    try {
+      await requestCloudRegistrationCode(email);
+      notify(t("toast.cloudVerificationCodeSent"));
+      return true;
+    } catch (error) {
+      notify(String(error));
+      return false;
+    } finally {
+      setSendingRegistrationCode(false);
+    }
+  }, [notify, t]);
+
+  const register = useCallback(async (email: string, password: string, verificationCode: string) => {
+    setLoading(true);
+    try {
+      const nextState = await registerCloud(email, password, verificationCode);
+      setState(nextState);
+      notify(t("toast.cloudRegisterSuccess"));
       return true;
     } catch (error) {
       notify(String(error));
@@ -171,9 +203,12 @@ export function useCloudAuth(notify: (message: string) => void, t: Translate) {
     state,
     loading,
     syncing,
+    sendingRegistrationCode,
     load,
     saveBaseUrl,
     login,
+    sendRegistrationCode,
+    register,
     logout,
     sync,
     pushQuietly,

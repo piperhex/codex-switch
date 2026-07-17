@@ -51,6 +51,10 @@ export class UserService {
     });
   }
 
+  emailExists(email: string) {
+    return this.users.exists({ where: { email: email.trim().toLowerCase() } });
+  }
+
   findActiveById(id: string) {
     return this.users.findOne({ where: { id, disabled: false } });
   }

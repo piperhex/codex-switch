@@ -277,7 +277,15 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .cloud-login-input:focus-within { border-color: var(--green); box-shadow: 0 0 0 3px rgba(var(--green-rgb), .12); }
 .cloud-login-input input { width: 100%; min-width: 0; border: 0; outline: 0; color: var(--ink); background: transparent; font: 12px "DM Sans", "Microsoft YaHei UI", sans-serif; }
 .cloud-login-input input::placeholder { color: #9aa69f; }
-.cloud-login-submit { width: 100%; margin-top: 10px; }
+.cloud-verification-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.cloud-code-button { min-width: 104px; border: 1px solid rgba(var(--green-rgb), .35); border-radius: 9px; padding: 0 12px; color: var(--green-dark); background: #f6fbf7; font-size: 11px; font-weight: 600; cursor: pointer; }
+.cloud-code-button:hover:not(:disabled) { border-color: var(--green); background: #edf7ef; }
+.cloud-code-button:disabled { opacity: .58; cursor: not-allowed; }
+.cloud-login-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
+.cloud-login-action { width: 100%; min-width: 0; }
+.cloud-register-button { border: 1px solid rgba(var(--green-rgb), .42); display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 11px 17px; border-radius: 9px; color: var(--green-dark); background: #f6fbf7; font-weight: 600; white-space: nowrap; cursor: pointer; transition: .18s ease; }
+.cloud-register-button:hover:not(:disabled) { border-color: var(--green); background: #edf7ef; transform: translateY(-1px); }
+.cloud-register-button:disabled { opacity: .58; cursor: not-allowed; }
 .help-modal { width: min(560px, 95vw); }
 .help-features { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .help-features > div { min-width: 0; display: flex; align-items: flex-start; gap: 10px; padding: 12px; border: 1px solid #e0e7e0; border-radius: 10px; background: white; }

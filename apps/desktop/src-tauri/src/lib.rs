@@ -120,6 +120,8 @@ pub fn run() {
             cloud::get_cloud_auth_state,
             cloud::set_cloud_base_url,
             cloud::cloud_login,
+            cloud::cloud_request_registration_code,
+            cloud::cloud_register,
             cloud::cloud_logout,
             cloud::cloud_push_accounts,
             cloud::cloud_push_account,

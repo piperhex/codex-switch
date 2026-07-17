@@ -7,6 +7,7 @@ import { AuthService } from '@/modules/auth/auth.service';
 import type { AdminService } from '@/modules/admin/admin.service';
 import type { RefreshTokenEntity } from '@/modules/auth/entities/refresh-token.entity';
 import type { UserService } from '@/modules/user/user.service';
+import type { EmailVerificationService } from '@/modules/auth/email-verification.service';
 import { makeUser } from './fixtures';
 import { permissionsForRole } from '@/common/rbac/permissions';
 
@@ -19,6 +20,7 @@ describe('AuthService', () => {
     validatePassword: ReturnType<typeof vi.fn>;
     markLogin: ReturnType<typeof vi.fn>;
     findActiveById: ReturnType<typeof vi.fn>;
+    emailExists: ReturnType<typeof vi.fn>;
   };
   let jwt: { signAsync: ReturnType<typeof vi.fn>; verifyAsync: ReturnType<typeof vi.fn> };
   let admin: {
@@ -33,6 +35,10 @@ describe('AuthService', () => {
   };
   let dataSource: { transaction: ReturnType<typeof vi.fn> };
   let transactionManager: object;
+  let emailVerification: {
+    sendRegistrationCode: ReturnType<typeof vi.fn>;
+    verifyAndConsume: ReturnType<typeof vi.fn>;
+  };
   let service: AuthService;
 
   beforeEach(() => {
@@ -40,7 +46,7 @@ describe('AuthService', () => {
     vi.setSystemTime(new Date('2026-07-04T00:00:00.000Z'));
     users = {
       createUser: vi.fn(), findByEmailWithPassword: vi.fn(), validatePassword: vi.fn(),
-      markLogin: vi.fn(), findActiveById: vi.fn(),
+      markLogin: vi.fn(), findActiveById: vi.fn(), emailExists: vi.fn(),
     };
     admin = {
       validateInvitation: vi.fn(),
@@ -55,12 +61,17 @@ describe('AuthService', () => {
     dataSource = {
       transaction: vi.fn(async (callback) => callback(transactionManager)),
     };
+    emailVerification = {
+      sendRegistrationCode: vi.fn().mockResolvedValue({ ok: true, expiresInSeconds: 300 }),
+      verifyAndConsume: vi.fn().mockResolvedValue(undefined),
+    };
     service = new AuthService(
       users as unknown as UserService,
       admin as unknown as AdminService,
       jwt as unknown as JwtService,
       tokens as unknown as Repository<RefreshTokenEntity>,
       dataSource as unknown as DataSource,
+      emailVerification as unknown as EmailVerificationService,
       {
         KONG_JWT_KEY: 'kong-key',
         KONG_JWT_SECRET: 'kong-secret',
@@ -77,12 +88,24 @@ describe('AuthService', () => {
     jwt.signAsync.mockResolvedValueOnce('access-token').mockResolvedValueOnce('refresh-token');
   }
 
+  it('sends registration codes only for unregistered email addresses', async () => {
+    users.emailExists.mockResolvedValue(false);
+    await expect(service.requestRegistrationCode('new@example.com')).resolves.toEqual({
+      ok: true, expiresInSeconds: 300,
+    });
+    expect(emailVerification.sendRegistrationCode).toHaveBeenCalledWith('new@example.com');
+
+    users.emailExists.mockResolvedValue(true);
+    await expect(service.requestRegistrationCode('existing@example.com'))
+      .rejects.toThrow('Email is already registered');
+  });
+
   it('registers a user and issues persistently hashed access/refresh tokens', async () => {
     const user = makeUser();
     users.createUser.mockResolvedValue(user);
     prepareIssuance();
 
-    await expect(service.register('USER@example.com', 'password'))
+    await expect(service.register('USER@example.com', 'password', '123456'))
       .resolves.toEqual({
         accessToken: 'access-token', refreshToken: 'refresh-token',
         user: {
@@ -94,6 +117,7 @@ describe('AuthService', () => {
       });
 
     expect(users.createUser).toHaveBeenCalledWith({ email: 'USER@example.com', password: 'password' });
+    expect(emailVerification.verifyAndConsume).toHaveBeenCalledWith('USER@example.com', '123456');
     expect(jwt.signAsync).toHaveBeenNthCalledWith(1, {
       sub: user.id, email: user.email, role: user.role, iss: 'kong-key',
     }, { secret: 'kong-secret', expiresIn: '5m' });
@@ -115,7 +139,7 @@ describe('AuthService', () => {
     users.createUser.mockResolvedValue(user);
     prepareIssuance();
 
-    await service.register(user.email, 'password', 'invite-token');
+    await service.register(user.email, 'password', '123456', 'invite-token');
 
     expect(users.createUser).toHaveBeenCalledWith({
       email: user.email, password: 'password', role: 'admin',
@@ -225,11 +249,12 @@ describe('AuthService', () => {
       jwt as unknown as JwtService,
       tokens as unknown as Repository<RefreshTokenEntity>,
       dataSource as unknown as DataSource,
+      emailVerification as unknown as EmailVerificationService,
       {},
     );
     users.createUser.mockResolvedValue(user);
     prepareIssuance();
-    await service.register(user.email, 'password');
+    await service.register(user.email, 'password', '123456');
     expect(jwt.signAsync).toHaveBeenNthCalledWith(1, expect.objectContaining({ iss: 'codex-switch' }), {
       secret: 'change-me-kong-jwt-secret', expiresIn: '15m',
     });

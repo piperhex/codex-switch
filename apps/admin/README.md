@@ -42,6 +42,28 @@ For a database you need to keep, update the PostgreSQL user password inside the 
 
 `This Redis server's default user does not require a password, but a password was supplied` means `REDIS_PASSWORD` is set for the backend while the Redis server was started without `--requirepass`. The bundled compose file starts Redis with `--requirepass` automatically when `REDIS_PASSWORD` is non-empty.
 
+## Registration Email Verification
+
+Every public or invitation-based registration requires a six-digit email verification code. Codes
+are stored as hashes in Redis, expire after five minutes, and are consumed after one successful
+verification. Requests for the same email are limited to once per minute, and five incorrect
+attempts invalidate the current code.
+
+Mailgun SMTP is supported with the following environment variables:
+
+```dotenv
+mail__transport=SMTP
+mail__options__host=smtp.mailgun.org
+mail__options__port=465
+mail__options__secure=true
+mail__options__auth__user=blog@chirp.onepiper.cloud
+mail__options__auth__pass=replace-with-mailgun-smtp-password
+mail__from="Codex Switch <noreply@blog.onepiper.cloud>"
+```
+
+The registration client first calls `POST /auth/register/code` with the email address, then sends
+the received code as `verificationCode` when calling `POST /auth/register`.
+
 ## Existing Kong Integration
 
 This backend does not run Kong. Deploy it as an upstream service behind your existing Kong gateway.
@@ -130,6 +152,7 @@ with user creation so concurrent registrations cannot exceed the configured limi
 ## API
 
 - `POST /auth/register`
+- `POST /auth/register/code`
 - `POST /auth/login`
 - `POST /auth/refresh`
 - `POST /auth/logout`

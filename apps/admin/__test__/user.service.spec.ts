@@ -80,6 +80,8 @@ describe('UserService', () => {
     });
     await service.findActiveById('user-2');
     expect(repository.findOne).toHaveBeenNthCalledWith(2, { where: { id: 'user-2', disabled: false } });
+    await service.emailExists(' User@Example.COM ');
+    expect(repository.exists).toHaveBeenCalledWith({ where: { email: 'user@example.com' } });
   });
 
   it('marks login and lists newest users first', async () => {

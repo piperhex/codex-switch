@@ -29,7 +29,7 @@ describe('ConfigModule.register', () => {
     const directory = mkdtempSync(join(tmpdir(), 'codex-switch-config-'));
     tempDirectories.push(directory);
     const path = join(directory, '.env');
-    writeFileSync(path, 'POSTGRES_HOST=file-host\nPOSTGRES_PORT=1111\n');
+    writeFileSync(path, 'POSTGRES_HOST=file-host\nPOSTGRES_PORT=1111\nmail__transport=SMTP\n');
     process.env.POSTGRES_PORT = '3333';
 
     const config = getConfig(path, { POSTGRES_HOST: 'option-host', REDIS_PORT: '7777' });
@@ -37,6 +37,7 @@ describe('ConfigModule.register', () => {
     expect(config.POSTGRES_HOST).toBe('option-host');
     expect(config.POSTGRES_PORT).toBe('3333');
     expect(config.REDIS_PORT).toBe('7777');
+    expect(config.mail__transport).toBe('SMTP');
     expect(config.path).toBe(path);
   });
 

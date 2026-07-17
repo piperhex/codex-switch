@@ -24,6 +24,7 @@ import type {
 import { DEFAULT_THEME_COLOR, normalizeThemeColor } from "../utils/theme";
 
 export const isDesktopApp = "__TAURI_INTERNALS__" in window;
+export const DEFAULT_CLOUD_BASE_URL = "https://codex.onepiper.cloud";
 const FLOATING_BUBBLE_PREVIEW_KEY = "codex-switch:floating-bubble";
 const PRIVACY_MODE_PREVIEW_KEY = "codex-switch:privacy-mode";
 const BUBBLE_RESET_DISPLAY_PREVIEW_KEY = "codex-switch:bubble-reset-display";
@@ -41,7 +42,8 @@ const PROVIDERS_EVENT = "codex-switch:providers-changed";
 let updateCheckPromise: Promise<UpdateInfo | null> | null = null;
 
 function previewCloudState(): CloudAuthState {
-  const baseUrl = window.localStorage.getItem(CLOUD_BASE_URL_PREVIEW_KEY)?.trim() ?? "";
+  const storedBaseUrl = window.localStorage.getItem(CLOUD_BASE_URL_PREVIEW_KEY);
+  const baseUrl = (storedBaseUrl ?? DEFAULT_CLOUD_BASE_URL).trim();
   const userEmail = window.localStorage.getItem(CLOUD_USER_PREVIEW_KEY);
   return {
     enabled: baseUrl.length > 0,
@@ -129,7 +131,7 @@ export async function loadAppSettings(): Promise<AppSettings> {
       privacyMode: window.localStorage.getItem(PRIVACY_MODE_PREVIEW_KEY) !== "false",
       bubbleResetDisplay: window.localStorage.getItem(BUBBLE_RESET_DISPLAY_PREVIEW_KEY) === "resetAt" ? "resetAt" : "countdown",
       themeColor: normalizeThemeColor(window.localStorage.getItem(THEME_COLOR_PREVIEW_KEY) ?? DEFAULT_THEME_COLOR),
-      cloudBaseUrl: window.localStorage.getItem(CLOUD_BASE_URL_PREVIEW_KEY),
+      cloudBaseUrl: window.localStorage.getItem(CLOUD_BASE_URL_PREVIEW_KEY) ?? DEFAULT_CLOUD_BASE_URL,
     };
   }
   return invoke<AppSettings>("get_app_settings");
@@ -391,9 +393,8 @@ export async function loadCloudAuthState(): Promise<CloudAuthState> {
 export async function updateCloudBaseUrl(baseUrl: string): Promise<CloudAuthState> {
   if (!isDesktopApp) {
     const normalized = baseUrl.trim().replace(/\/+$/, "");
-    if (normalized) window.localStorage.setItem(CLOUD_BASE_URL_PREVIEW_KEY, normalized);
-    else {
-      window.localStorage.removeItem(CLOUD_BASE_URL_PREVIEW_KEY);
+    window.localStorage.setItem(CLOUD_BASE_URL_PREVIEW_KEY, normalized);
+    if (!normalized) {
       window.localStorage.removeItem(CLOUD_USER_PREVIEW_KEY);
     }
     return previewCloudState();
@@ -403,13 +404,30 @@ export async function updateCloudBaseUrl(baseUrl: string): Promise<CloudAuthStat
 
 export async function loginCloud(email: string, password: string): Promise<CloudAuthState> {
   if (!isDesktopApp) {
-    const baseUrl = window.localStorage.getItem(CLOUD_BASE_URL_PREVIEW_KEY);
-    if (!baseUrl) throw new Error("Cloud server base URL is not configured");
+    if (!previewCloudState().baseUrl) throw new Error("Cloud server base URL is not configured");
     if (!email || !password) throw new Error("Email and password are required");
     window.localStorage.setItem(CLOUD_USER_PREVIEW_KEY, email);
     return previewCloudState();
   }
   return invoke<CloudAuthState>("cloud_login", { email, password });
+}
+
+export async function requestCloudRegistrationCode(email: string): Promise<void> {
+  if (!isDesktopApp) {
+    if (!previewCloudState().baseUrl) throw new Error("Cloud server base URL is not configured");
+    if (!email) throw new Error("Email is required");
+    return;
+  }
+  await invoke("cloud_request_registration_code", { email });
+}
+
+export async function registerCloud(
+  email: string,
+  password: string,
+  verificationCode: string,
+): Promise<CloudAuthState> {
+  if (!isDesktopApp) return loginCloud(email, password);
+  return invoke<CloudAuthState>("cloud_register", { email, password, verificationCode });
 }
 
 export async function logoutCloud(): Promise<CloudAuthState> {

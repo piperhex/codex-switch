@@ -14,6 +14,7 @@ describe('HTTP controllers', () => {
   it('AuthController forwards every endpoint argument and result', async () => {
     const auth = {
       register: vi.fn().mockResolvedValue('registered'),
+      requestRegistrationCode: vi.fn().mockResolvedValue({ ok: true }),
       login: vi.fn().mockResolvedValue('logged-in'),
       refresh: vi.fn().mockResolvedValue('refreshed'),
       logout: vi.fn().mockResolvedValue({ ok: true }),
@@ -21,8 +22,12 @@ describe('HTTP controllers', () => {
     };
     const controller = new AuthController(auth as unknown as AuthService);
 
-    await expect(controller.register({ email: 'a@example.com', password: 'password' }))
+    await expect(controller.register({
+      email: 'a@example.com', password: 'password', verificationCode: '123456',
+    }))
       .resolves.toBe('registered');
+    await expect(controller.requestRegistrationCode({ email: 'a@example.com' }))
+      .resolves.toEqual({ ok: true });
     await expect(controller.login({ email: 'a@example.com', password: 'secret' }))
       .resolves.toBe('logged-in');
     await expect(controller.refresh({ refreshToken: 'refresh' })).resolves.toBe('refreshed');
@@ -30,7 +35,8 @@ describe('HTTP controllers', () => {
     const user: AuthUser = { id: 'user-1', email: 'a@example.com', role: 'user' };
     await expect(controller.me(user)).resolves.toBe('profile');
 
-    expect(auth.register).toHaveBeenCalledWith('a@example.com', 'password', undefined);
+    expect(auth.register).toHaveBeenCalledWith('a@example.com', 'password', '123456', undefined);
+    expect(auth.requestRegistrationCode).toHaveBeenCalledWith('a@example.com');
     expect(auth.login).toHaveBeenCalledWith('a@example.com', 'secret');
     expect(auth.refresh).toHaveBeenCalledWith('refresh');
     expect(auth.logout).toHaveBeenCalledWith('refresh');

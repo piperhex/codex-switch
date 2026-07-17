@@ -5,6 +5,7 @@ import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { RegisterDto } from './dto/register.dto';
+import { RequestRegistrationCodeDto } from './dto/request-registration-code.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -12,7 +13,12 @@ export class AuthController {
 
   @Post('register')
   register(@Body() dto: RegisterDto) {
-    return this.auth.register(dto.email, dto.password, dto.inviteToken);
+    return this.auth.register(dto.email, dto.password, dto.verificationCode, dto.inviteToken);
+  }
+
+  @Post('register/code')
+  requestRegistrationCode(@Body() dto: RequestRegistrationCodeDto) {
+    return this.auth.requestRegistrationCode(dto.email);
   }
 
   @Post('login')

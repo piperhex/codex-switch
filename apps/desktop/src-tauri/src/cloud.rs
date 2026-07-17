@@ -626,20 +626,75 @@ pub(crate) async fn cloud_login<R: Runtime>(
     email: String,
     password: String,
 ) -> Result<CloudAuthState, String> {
+    cloud_authenticate(app, email, password, None, "/auth/login", "Cloud login").await
+}
+
+#[tauri::command]
+pub(crate) async fn cloud_register<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    email: String,
+    password: String,
+    verification_code: String,
+) -> Result<CloudAuthState, String> {
+    cloud_authenticate(
+        app,
+        email,
+        password,
+        Some(verification_code),
+        "/auth/register",
+        "Cloud registration",
+    )
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn cloud_request_registration_code<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    email: String,
+) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let client = api_client()?;
+        let settings = read_app_settings(&app)?;
+        let response = client
+            .post(endpoint(&settings, "/auth/register/code")?)
+            .json(&json!({ "email": email }))
+            .send()
+            .map_err(|error| format!("Verification code request failed: {error}"))?;
+        if !response.status().is_success() {
+            return Err(response_error("Verification code request", response));
+        }
+        Ok(())
+    })
+    .await
+    .map_err(|error| format!("Verification code request task failed: {error}"))?
+}
+
+async fn cloud_authenticate<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    email: String,
+    password: String,
+    verification_code: Option<String>,
+    path: &'static str,
+    action: &'static str,
+) -> Result<CloudAuthState, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let client = api_client()?;
         let mut settings = read_app_settings(&app)?;
+        let mut payload = json!({ "email": email, "password": password });
+        if let Some(code) = verification_code {
+            payload["verificationCode"] = Value::String(code);
+        }
         let response = client
-            .post(endpoint(&settings, "/auth/login")?)
-            .json(&json!({ "email": email, "password": password }))
+            .post(endpoint(&settings, path)?)
+            .json(&payload)
             .send()
-            .map_err(|error| format!("Cloud login failed: {error}"))?;
+            .map_err(|error| format!("{action} failed: {error}"))?;
         if !response.status().is_success() {
-            return Err(response_error("Cloud login", response));
+            return Err(response_error(action, response));
         }
         let tokens: CloudTokenResponse = response
             .json()
-            .map_err(|error| format!("Cloud login response is invalid: {error}"))?;
+            .map_err(|error| format!("{action} response is invalid: {error}"))?;
         let mut credentials = CloudCredentials {
             access_token: Some(tokens.access_token),
             refresh_token: Some(tokens.refresh_token),
@@ -655,7 +710,7 @@ pub(crate) async fn cloud_login<R: Runtime>(
         Ok(cloud_state(&settings, &credentials))
     })
     .await
-    .map_err(|error| format!("Cloud login task failed: {error}"))?
+    .map_err(|error| format!("{action} task failed: {error}"))?
 }
 
 #[tauri::command]

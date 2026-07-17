@@ -24,14 +24,17 @@ async function messages<T extends object>(type: new () => T, value: object) {
 
 describe('request DTO validation', () => {
   it('enforces authentication email, password and token contracts', async () => {
-    await expect(messages(RegisterDto, { email: 'bad', password: 'short' }))
+    await expect(messages(RegisterDto, { email: 'bad', password: 'short', verificationCode: '12ab' }))
       .resolves.toEqual(expect.arrayContaining([
         'email must be an email', 'password must be longer than or equal to 8 characters',
+        'verificationCode must be a 6-digit number',
       ]));
     await expect(messages(LoginDto, { email: 'valid@example.com', password: '12345' }))
       .resolves.toContain('password must be longer than or equal to 6 characters');
     await expect(messages(RefreshDto, { refreshToken: 123 })).resolves.toContain('refreshToken must be a string');
-    await expect(messages(RegisterDto, { email: 'valid@example.com', password: '12345678' }))
+    await expect(messages(RegisterDto, {
+      email: 'valid@example.com', password: '12345678', verificationCode: '123456',
+    }))
       .resolves.toEqual([]);
   });
 

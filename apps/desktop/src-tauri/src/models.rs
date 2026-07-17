@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+pub(crate) const DEFAULT_CLOUD_BASE_URL: &str = "https://codex.onepiper.cloud";
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct AccountSummary {
@@ -160,7 +162,7 @@ pub(crate) struct AppSettings {
     pub(crate) bubble_x: Option<f64>,
     #[serde(default)]
     pub(crate) bubble_y: Option<f64>,
-    #[serde(default)]
+    #[serde(default = "default_cloud_base_url")]
     pub(crate) cloud_base_url: Option<String>,
     #[serde(default)]
     pub(crate) cloud_user_email: Option<String>,
@@ -187,6 +189,10 @@ fn default_privacy_mode() -> bool {
     true
 }
 
+fn default_cloud_base_url() -> Option<String> {
+    Some(DEFAULT_CLOUD_BASE_URL.to_string())
+}
+
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
@@ -197,7 +203,7 @@ impl Default for AppSettings {
             bubble_reset_display: BubbleResetDisplay::default(),
             bubble_x: None,
             bubble_y: None,
-            cloud_base_url: None,
+            cloud_base_url: default_cloud_base_url(),
             cloud_user_email: None,
             cloud_user_id: None,
             cloud_last_sync_at: None,
@@ -282,5 +288,23 @@ mod tests {
         assert!(!state.auto_switch_on_quota_exhaustion);
         assert!(!state.auto_disable_unreachable_accounts);
         assert!(state.disabled_account_ids.is_empty());
+    }
+
+    #[test]
+    fn app_settings_default_to_the_hosted_cloud_server() {
+        let defaults = AppSettings::default();
+        let migrated: AppSettings = serde_json::from_str("{}").unwrap();
+        let explicitly_disabled: AppSettings =
+            serde_json::from_str(r#"{"cloudBaseUrl":null}"#).unwrap();
+
+        assert_eq!(
+            defaults.cloud_base_url.as_deref(),
+            Some(DEFAULT_CLOUD_BASE_URL)
+        );
+        assert_eq!(
+            migrated.cloud_base_url.as_deref(),
+            Some(DEFAULT_CLOUD_BASE_URL)
+        );
+        assert!(explicitly_disabled.cloud_base_url.is_none());
     }
 }

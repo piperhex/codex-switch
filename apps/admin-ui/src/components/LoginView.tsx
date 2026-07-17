@@ -14,15 +14,24 @@ export function LoginView({ onAuth }: LoginViewProps) {
   const { language, setLanguage, t } = useI18n();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
+  const [sendingCode, setSendingCode] = useState(false);
+  const [codeCooldown, setCodeCooldown] = useState(0);
   const inviteToken = useMemo(() => new URLSearchParams(window.location.search).get("inviteToken") ?? "", []);
 
   useEffect(() => {
     if (inviteToken) form.setFieldValue("inviteToken", inviteToken);
   }, [form, inviteToken]);
 
+  useEffect(() => {
+    if (codeCooldown <= 0) return;
+    const timer = window.setTimeout(() => setCodeCooldown((value) => value - 1), 1000);
+    return () => window.clearTimeout(timer);
+  }, [codeCooldown]);
+
   async function submit(path: "/auth/login" | "/auth/register", values: {
     email: string;
     password: string;
+    verificationCode?: string;
     inviteToken?: string;
   }) {
     setLoading(true);
@@ -42,6 +51,26 @@ export function LoginView({ onAuth }: LoginViewProps) {
       message.error((error as Error).message);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function sendRegistrationCode() {
+    const { email } = await form.validateFields(["email"]);
+    setSendingCode(true);
+    try {
+      const response = await fetch("/auth/register/code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || response.statusText);
+      setCodeCooldown(60);
+      message.success(t("login.codeSent"));
+    } catch (error) {
+      message.error((error as Error).message);
+    } finally {
+      setSendingCode(false);
     }
   }
 
@@ -77,13 +106,40 @@ export function LoginView({ onAuth }: LoginViewProps) {
           <Form.Item name="password" label={t("common.password")} rules={[{ required: true, min: 6 }]}>
             <Input.Password autoComplete="current-password" />
           </Form.Item>
+          <Form.Item
+            name="verificationCode"
+            label={t("login.verificationCode")}
+            rules={[{ pattern: /^\d{6}$/, message: t("login.codeRequired") }]}
+          >
+            <Space.Compact block>
+              <Input maxLength={6} inputMode="numeric" autoComplete="one-time-code"
+                onChange={(event) => form.setFieldValue(
+                  "verificationCode",
+                  event.target.value.replace(/\D/g, "").slice(0, 6),
+                )} />
+              <Button onClick={() => void sendRegistrationCode()}
+                loading={sendingCode} disabled={loading || codeCooldown > 0}>
+                {codeCooldown > 0
+                  ? t("login.resendCountdown", { seconds: codeCooldown })
+                  : t("login.sendCode")}
+              </Button>
+            </Space.Compact>
+          </Form.Item>
           <Form.Item name="inviteToken" label={t("login.inviteToken")}>
             <Input />
           </Form.Item>
           <Space style={{ width: "100%", justifyContent: "space-between" }}>
             <Button
               onClick={async () => {
-                const values = await form.validateFields();
+                const values = await form.validateFields(["email", "password", "verificationCode", "inviteToken"]);
+                if (!/^\d{6}$/.test(values.verificationCode ?? "")) {
+                  message.error(t("login.codeRequired"));
+                  return;
+                }
+                if (values.password.length < 8) {
+                  message.error(t("login.registerPasswordLength"));
+                  return;
+                }
                 await submit("/auth/register", values);
               }}
               disabled={loading}
