@@ -22,6 +22,15 @@ The first registered account becomes an admin. For local development without Kon
 
 The default Docker Compose file does not publish PostgreSQL, Redis, or the backend on host ports. In production, Kong should reach the backend through the external `kong-net` network at `http://codex-switch-backend:8080`. For local host debugging, add a temporary compose override with explicit `ports`.
 
+PostgreSQL data is bind-mounted from `/srv/codex-switch/postgres` on the Linux host. Prepare the
+directory before the first deployment:
+
+```bash
+sudo install -d -m 0750 /srv/codex-switch/postgres
+```
+
+The data remains in this directory after `docker compose down` or `docker compose down -v`.
+
 If production uses `POSTGRES_DB_SYNCHRONIZE=false`, apply `sql/20260704-admin-management.sql`,
 `sql/20260705-sync-last-modified.sql`, `sql/20260707-sync-providers.sql`,
 `sql/20260714-system-account-pool.sql`, and `sql/20260717-invitation-policies.sql` before using
@@ -29,12 +38,15 @@ the expanded admin console, provider sync, official account pool, and reusable i
 
 ## Docker Troubleshooting
 
-`password authentication failed for user "codex_switch"` means the backend password does not match the PostgreSQL user's current password. PostgreSQL only applies `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB` when the data volume is first initialized, so changing `.env` later does not update an existing `codex-switch-postgres` volume.
+`password authentication failed for user "codex_switch"` means the backend password does not match the PostgreSQL user's current password. PostgreSQL only applies `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB` when the data directory is first initialized, so changing `.env` later does not update an existing database.
 
-For a disposable local database, recreate the volume:
+For a disposable database, stop the stack and move the existing data directory aside before
+starting it again:
 
 ```bash
-docker compose down -v
+docker compose down
+sudo mv /srv/codex-switch/postgres "/srv/codex-switch/postgres-backup-$(date +%Y%m%d-%H%M%S)"
+sudo install -d -m 0750 /srv/codex-switch/postgres
 docker compose up -d --build
 ```
 

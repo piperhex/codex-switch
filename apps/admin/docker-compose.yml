@@ -4,7 +4,7 @@ services:
     env_file:
       - .env
     volumes:
-      - codex-switch-postgres:/var/lib/postgresql/data
+      - /srv/codex-switch/postgres:/var/lib/postgresql/data
     networks:
       - backend-internal
 
@@ -42,9 +42,6 @@ services:
       kong-net:
         aliases:
           - codex-switch-backend
-
-volumes:
-  codex-switch-postgres:
 
 networks:
   backend-internal:
