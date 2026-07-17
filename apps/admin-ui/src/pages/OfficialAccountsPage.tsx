@@ -17,6 +17,7 @@ interface OfficialAccountsPageProps {
   onEdit: (account: SystemAccount) => void;
   onBind: (account: SystemAccount) => void;
   onDelete: (account: SystemAccount) => void;
+  canManage: boolean;
 }
 
 export function OfficialAccountsPage({
@@ -31,6 +32,7 @@ export function OfficialAccountsPage({
   onEdit,
   onLoadAccounts,
   onSearchChange,
+  canManage,
 }: OfficialAccountsPageProps) {
   const { language, t } = useI18n();
   const columns: TableColumnsType<SystemAccount> = [
@@ -70,13 +72,13 @@ export function OfficialAccountsPage({
       render: (_, row) => (
         <div className="table-actions">
           <Tooltip title={t("officialAccounts.bindUsers")}>
-            <Button className="icon-button" icon={<Link2 size={15} />} onClick={() => onBind(row)} />
+            <Button disabled={!canManage} className="icon-button" icon={<Link2 size={15} />} onClick={() => onBind(row)} />
           </Tooltip>
           <Tooltip title={t("common.edit")}>
-            <Button className="icon-button" icon={<Edit3 size={15} />} onClick={() => onEdit(row)} />
+            <Button disabled={!canManage} className="icon-button" icon={<Edit3 size={15} />} onClick={() => onEdit(row)} />
           </Tooltip>
           <Tooltip title={t("common.delete")}>
-            <Button danger className="icon-button" icon={<Trash2 size={15} />} onClick={() => onDelete(row)} />
+            <Button disabled={!canManage} danger className="icon-button" icon={<Trash2 size={15} />} onClick={() => onDelete(row)} />
           </Tooltip>
         </div>
       ),
@@ -101,15 +103,19 @@ export function OfficialAccountsPage({
         </div>
         <div className="toolbar-right">
           <Button icon={<RefreshCw size={15} />} onClick={() => onLoadAccounts()}>{t("common.refresh")}</Button>
-          <Button icon={<Plus size={15} />} onClick={onCreate}>
-            {t("officialAccounts.createWithAuthJson")}
-          </Button>
-          <Button icon={<Files size={15} />} onClick={onCompatibleCreate}>
-            {t("officialAccounts.compatibleImport")}
-          </Button>
-          <Button type="primary" icon={<LogIn size={15} />} onClick={onOAuthCreate}>
-            {t("officialAccounts.oauthCreate")}
-          </Button>
+          {canManage && (
+            <>
+              <Button icon={<Plus size={15} />} onClick={onCreate}>
+                {t("officialAccounts.createWithAuthJson")}
+              </Button>
+              <Button icon={<Files size={15} />} onClick={onCompatibleCreate}>
+                {t("officialAccounts.compatibleImport")}
+              </Button>
+              <Button type="primary" icon={<LogIn size={15} />} onClick={onOAuthCreate}>
+                {t("officialAccounts.oauthCreate")}
+              </Button>
+            </>
+          )}
         </div>
       </div>
       <div className="panel">

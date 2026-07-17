@@ -6,11 +6,12 @@ import { getKongJwtSecret } from '@/config/auth-secrets';
 import type { ConfigModuleOptions } from '@/config/config.types';
 import { UserService } from '@/modules/user/user.service';
 import type { AuthUser } from '@/common/decorators/user.decorator';
+import { RbacService } from '@/modules/rbac/rbac.service';
 
 interface AccessPayload {
   sub: string;
   email: string;
-  role: 'user' | 'admin';
+  role: string;
   iss: string;
 }
 
@@ -19,6 +20,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor(
     @Inject(MODULE_OPTIONS_TOKEN) config: ConfigModuleOptions,
     private readonly userService: UserService,
+    private readonly rbac: RbacService,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -30,6 +32,14 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   async validate(payload: AccessPayload): Promise<AuthUser> {
     const user = await this.userService.findActiveById(payload.sub);
     if (!user) throw new UnauthorizedException('User is disabled or no longer exists');
-    return { id: user.id, email: user.email, role: user.role };
+    const access = await this.rbac.accessForRole(user.role);
+    if (!access) throw new UnauthorizedException('User role is no longer available');
+    return {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      roleName: access.roleName,
+      permissions: access.permissions,
+    };
   }
 }

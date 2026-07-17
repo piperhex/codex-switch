@@ -7,6 +7,7 @@ import type { AdminAuditLogEntity } from '@/modules/admin/entities/admin-audit-l
 import type { AdminInvitationEntity } from '@/modules/admin/entities/admin-invitation.entity';
 import type { SyncService } from '@/modules/sync/sync.service';
 import type { UserService } from '@/modules/user/user.service';
+import type { RbacService } from '@/modules/rbac/rbac.service';
 import type { AuthUser } from '@/common/decorators/user.decorator';
 import { makeProvider, makeUser } from './fixtures';
 
@@ -26,6 +27,14 @@ describe('AdminService', () => {
     updateSystemAccount: ReturnType<typeof vi.fn>;
     deleteSystemAccount: ReturnType<typeof vi.fn>; listSystemAccountBindingIds: ReturnType<typeof vi.fn>;
     bindSystemAccounts: ReturnType<typeof vi.fn>; unbindSystemAccounts: ReturnType<typeof vi.fn>;
+  };
+  let rbac: {
+    assertRoleAssignable: ReturnType<typeof vi.fn>;
+    listRoles: ReturnType<typeof vi.fn>;
+    listPermissions: ReturnType<typeof vi.fn>;
+    createRole: ReturnType<typeof vi.fn>;
+    updateRole: ReturnType<typeof vi.fn>;
+    deleteRole: ReturnType<typeof vi.fn>;
   };
   let auditLogs: {
     create: ReturnType<typeof vi.fn>; save: ReturnType<typeof vi.fn>; findAndCount: ReturnType<typeof vi.fn>;
@@ -54,6 +63,14 @@ describe('AdminService', () => {
       listSystemAccountBindingIds: vi.fn(), bindSystemAccounts: vi.fn(),
       unbindSystemAccounts: vi.fn(),
     };
+    rbac = {
+      assertRoleAssignable: vi.fn().mockResolvedValue({ code: 'user' }),
+      listRoles: vi.fn(),
+      listPermissions: vi.fn(),
+      createRole: vi.fn(),
+      updateRole: vi.fn(),
+      deleteRole: vi.fn(),
+    };
     auditLogs = {
       create: vi.fn((value) => value),
       save: vi.fn(async (value) => value),
@@ -74,6 +91,7 @@ describe('AdminService', () => {
     service = new AdminService(
       users as unknown as UserService,
       sync as unknown as SyncService,
+      rbac as unknown as RbacService,
       auditLogs as unknown as Repository<AdminAuditLogEntity>,
       invitations as unknown as Repository<AdminInvitationEntity>,
       approvals as unknown as Repository<AdminApprovalRequestEntity>,

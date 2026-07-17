@@ -19,7 +19,7 @@ export class AdminInvitationEntity {
   @Column({ type: 'varchar', length: 160, nullable: true })
   email?: string | null;
 
-  @Column({ type: 'varchar', length: 20, default: 'user' })
+  @Column({ type: 'varchar', length: 64, default: 'user' })
   role: UserRole;
 
   @Column({ type: 'varchar', length: 128 })

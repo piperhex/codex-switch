@@ -16,6 +16,8 @@ interface AccountDrawerProps {
   onEditAccount: (account: SyncAccount) => void;
   onDeleteAccount: (account: SyncAccount) => void;
   onRemoveBinding: (account: SyncAccount) => void;
+  canManageUsers: boolean;
+  canManageOfficialAccounts: boolean;
 }
 
 export function AccountDrawer({
@@ -29,6 +31,8 @@ export function AccountDrawer({
   onDeleteAccount,
   onEditAccount,
   onRemoveBinding,
+  canManageUsers,
+  canManageOfficialAccounts,
 }: AccountDrawerProps) {
   const { language, t } = useI18n();
   const accountColumns: TableColumnsType<SyncAccount> = [
@@ -63,6 +67,7 @@ export function AccountDrawer({
           className="icon-button"
           title={t("accounts.removeBinding")}
           icon={<Unlink size={15} />}
+          disabled={!canManageOfficialAccounts}
           onClick={() => onRemoveBinding(row)}
         />
       ) : (
@@ -71,13 +76,15 @@ export function AccountDrawer({
             className="icon-button"
             title={t("accounts.addToPool")}
             icon={<PackagePlus size={15} />}
+            disabled={!canManageOfficialAccounts}
             onClick={() => onAddToPool(row)}
           />
-          <Button className="icon-button" icon={<Edit3 size={15} />} onClick={() => onEditAccount(row)} />
+          <Button disabled={!canManageUsers} className="icon-button" icon={<Edit3 size={15} />} onClick={() => onEditAccount(row)} />
           <Button
             danger
             className="icon-button"
             icon={<Trash2 size={15} />}
+            disabled={!canManageUsers}
             onClick={() => onDeleteAccount(row)}
           />
         </div>

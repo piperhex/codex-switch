@@ -14,6 +14,7 @@ const en = {
   "language.label": "Language",
   "nav.myAccounts": "My Accounts",
   "nav.users": "Users",
+  "nav.roles": "Roles & Permissions",
   "nav.officialAccounts": "Official Account Pool",
   "nav.audit": "Audit Logs",
   "nav.invitations": "Invitations",
@@ -62,6 +63,22 @@ const en = {
   "common.changed": "Changed",
   "role.admin": "Admin",
   "role.user": "User",
+  "roles.title": "Roles & Permissions",
+  "roles.description": "Create roles and assign the capabilities available to each role.",
+  "roles.create": "New Role",
+  "roles.code": "Role code",
+  "roles.codeHint": "Lowercase letters, numbers, underscores, and hyphens. It cannot be changed later.",
+  "roles.name": "Role name",
+  "roles.descriptionField": "Description",
+  "roles.permissions": "Permissions",
+  "roles.permissionCount": "{count} permissions",
+  "roles.userCount": "{count} users",
+  "roles.system": "Built-in",
+  "roles.custom": "Custom",
+  "roles.createTitle": "Create Role",
+  "roles.editTitle": "Edit Role",
+  "roles.deleteTitle": "Delete role",
+  "roles.systemHint": "Built-in roles are synchronized by the system and cannot be edited or deleted.",
   "login.subtitle": "Account console",
   "login.inviteToken": "Invitation Token",
   "login.verificationCode": "Email verification code",
@@ -152,6 +169,9 @@ const en = {
   "audit.action.user.create": "Create user",
   "audit.action.user.update": "Update user",
   "audit.action.user.delete": "Delete user",
+  "audit.action.role.create": "Create role",
+  "audit.action.role.update": "Update role",
+  "audit.action.role.delete": "Delete role",
   "audit.action.profile.password.change": "Change password",
   "audit.action.sync-account.update": "Update synced account",
   "audit.action.sync-account.delete": "Delete synced account",
@@ -299,6 +319,26 @@ const en = {
 type TranslationKey = keyof typeof en;
 
 const zh: Record<TranslationKey, string> = {
+  "nav.roles": "角色权限",
+  "roles.title": "角色与权限",
+  "roles.description": "创建角色，并为每个角色分配可使用的系统权限。",
+  "roles.create": "新建角色",
+  "roles.code": "角色编码",
+  "roles.codeHint": "只能使用小写字母、数字、下划线和连字符，创建后不可修改。",
+  "roles.name": "角色名称",
+  "roles.descriptionField": "角色描述",
+  "roles.permissions": "权限",
+  "roles.permissionCount": "{count} 项权限",
+  "roles.userCount": "{count} 个用户",
+  "roles.system": "系统内置",
+  "roles.custom": "自定义",
+  "roles.createTitle": "新建角色",
+  "roles.editTitle": "编辑角色",
+  "roles.deleteTitle": "删除角色",
+  "roles.systemHint": "系统内置角色由系统同步，不能编辑或删除。",
+  "audit.action.role.create": "新建角色",
+  "audit.action.role.update": "更新角色",
+  "audit.action.role.delete": "删除角色",
   "app.subtitle": "后台管理系统",
   "language.label": "语言",
   "nav.myAccounts": "我的账号",
@@ -607,6 +647,8 @@ export function hasTranslation(key: string): key is TranslationKey {
   return key in en;
 }
 
-export function labelForRole(role: "admin" | "user", t: Translate) {
-  return t(role === "admin" ? "role.admin" : "role.user");
+export function labelForRole(role: string, t: Translate) {
+  if (role === "admin") return t("role.admin");
+  if (role === "user") return t("role.user");
+  return role;
 }

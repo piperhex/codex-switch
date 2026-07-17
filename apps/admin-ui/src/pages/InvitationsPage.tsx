@@ -3,7 +3,7 @@ import type { TableColumnsType } from "antd";
 import { Plus, RefreshCw, XCircle } from "lucide-react";
 import { labelForRole } from "../i18n";
 import { useI18n } from "../i18n-context";
-import type { Invitation, PageResult, Role } from "../types";
+import type { Invitation, PageResult, RbacRole, Role } from "../types";
 import { formatDate } from "../utils/format";
 
 interface InvitationsPageProps {
@@ -12,6 +12,8 @@ interface InvitationsPageProps {
   onCreateInvitation: () => void;
   onLoadInvitations: (page?: number, pageSize?: number) => void | Promise<void>;
   onRevokeInvitation: (invitation: Invitation) => void;
+  roles: RbacRole[];
+  canManage: boolean;
 }
 
 export function InvitationsPage({
@@ -20,6 +22,8 @@ export function InvitationsPage({
   onCreateInvitation,
   onLoadInvitations,
   onRevokeInvitation,
+  roles,
+  canManage,
 }: InvitationsPageProps) {
   const { language, t } = useI18n();
   const columns: TableColumnsType<Invitation> = [
@@ -28,7 +32,14 @@ export function InvitationsPage({
       dataIndex: "email",
       render: (email?: string | null) => email || t("invitations.anyEmail"),
     },
-    { title: t("common.role"), dataIndex: "role", width: 100, render: (role: Role) => <Tag>{labelForRole(role, t)}</Tag> },
+    {
+      title: t("common.role"),
+      dataIndex: "role",
+      width: 120,
+      render: (role: Role) => (
+        <Tag>{roles.find((item) => item.code === role)?.name ?? labelForRole(role, t)}</Tag>
+      ),
+    },
     { title: t("invitations.creator"), dataIndex: "createdByEmail", width: 220 },
     {
       title: t("invitations.uses"),
@@ -63,7 +74,7 @@ export function InvitationsPage({
           danger
           className="icon-button"
           icon={<XCircle size={15} />}
-          disabled={Boolean(row.revokedAt || row.usedCount >= row.maxUses)}
+          disabled={!canManage || Boolean(row.revokedAt || row.usedCount >= row.maxUses)}
           onClick={() => onRevokeInvitation(row)}
         />
       ),
@@ -77,7 +88,9 @@ export function InvitationsPage({
         <div />
         <div className="toolbar-right">
           <Button icon={<RefreshCw size={15} />} onClick={() => onLoadInvitations()}>{t("common.refresh")}</Button>
-          <Button type="primary" icon={<Plus size={15} />} onClick={onCreateInvitation}>{t("invitations.create")}</Button>
+          {canManage && (
+            <Button type="primary" icon={<Plus size={15} />} onClick={onCreateInvitation}>{t("invitations.create")}</Button>
+          )}
         </div>
       </div>
       <div className="panel">

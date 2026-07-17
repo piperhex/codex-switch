@@ -2,18 +2,19 @@ import { useEffect } from "react";
 import { App as AntApp, Form, Input, Modal, Select, Switch } from "antd";
 import { labelForRole } from "../../i18n";
 import { useI18n } from "../../i18n-context";
-import type { ApiClient, Role, UserRow } from "../../types";
+import type { ApiClient, RbacRole, Role, UserRow } from "../../types";
 
 interface UserModalProps {
   open: boolean;
   editingUser: UserRow | null;
   api: ApiClient;
   currentPage: number;
+  roles: RbacRole[];
   onClose: () => void;
   onSaved: (page?: number) => void | Promise<void>;
 }
 
-export function UserModal({ api, currentPage, editingUser, open, onClose, onSaved }: UserModalProps) {
+export function UserModal({ api, currentPage, editingUser, open, onClose, onSaved, roles }: UserModalProps) {
   const { message } = AntApp.useApp();
   const { t } = useI18n();
   const [form] = Form.useForm();
@@ -66,7 +67,14 @@ export function UserModal({ api, currentPage, editingUser, open, onClose, onSave
           </Form.Item>
         )}
         <Form.Item name="role" label={t("common.role")} rules={[{ required: true }]}>
-          <Select options={[{ label: labelForRole("user", t), value: "user" }, { label: labelForRole("admin", t), value: "admin" }]} />
+          <Select
+            showSearch
+            optionFilterProp="label"
+            options={roles.map((role) => ({
+              label: role.system ? labelForRole(role.code, t) : role.name,
+              value: role.code,
+            }))}
+          />
         </Form.Item>
         <Form.Item name="disabled" label={t("userModal.disabled")} valuePropName="checked">
           <Switch />

@@ -14,6 +14,7 @@ import { PasswordResetModal } from "./components/modals/PasswordResetModal";
 import { ProfileModal } from "./components/modals/ProfileModal";
 import { ProfilePasswordModal } from "./components/modals/ProfilePasswordModal";
 import { UserModal } from "./components/modals/UserModal";
+import { RoleModal } from "./components/modals/RoleModal";
 import { LoginView } from "./components/LoginView";
 import { useAuthenticatedApi } from "./hooks/useAuthenticatedApi";
 import { ApprovalsPage } from "./pages/ApprovalsPage";
@@ -25,6 +26,7 @@ import { MyAccountsPage } from "./pages/MyAccountsPage";
 import { OfficialAccountsPage } from "./pages/OfficialAccountsPage";
 import { TelemetryPage } from "./pages/TelemetryPage";
 import { UsersPage } from "./pages/UsersPage";
+import { RolesPage } from "./pages/RolesPage";
 import type {
   ApprovalRequest,
   AnnouncementConfig,
@@ -35,7 +37,10 @@ import type {
   DeviceInstallation,
   MenuKey,
   PageResult,
+  Permission,
+  PermissionDefinition,
   Profile,
+  RbacRole,
   SyncAccount,
   SyncProvider,
   SystemAccount,
@@ -77,14 +82,43 @@ const emptyAnnouncement: AnnouncementConfig = {
   updatedAt: null,
 };
 
+const menuPermissions: Record<MenuKey, Permission> = {
+  myAccounts: "self.accounts.read",
+  users: "admin.users.read",
+  roles: "admin.roles.read",
+  officialAccounts: "admin.official-accounts.read",
+  announcement: "admin.announcements.read",
+  feedback: "admin.feedback.read",
+  telemetry: "admin.telemetry.read",
+  audit: "admin.audit-logs.read",
+  invitations: "admin.invitations.read",
+  approvals: "admin.approvals.read",
+};
+
+const menuOrder: MenuKey[] = [
+  "users",
+  "roles",
+  "myAccounts",
+  "officialAccounts",
+  "announcement",
+  "feedback",
+  "telemetry",
+  "audit",
+  "invitations",
+  "approvals",
+];
+
+function firstAccessibleMenu(profile: Profile | null | undefined): MenuKey {
+  const permissions = new Set(profile?.permissions ?? []);
+  return menuOrder.find((key) => permissions.has(menuPermissions[key])) ?? "myAccounts";
+}
+
 export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
   const { message, modal } = AntApp.useApp();
   const { t } = useI18n();
   const [auth, setAuth] = useState<AuthTokens | null>(() => loadStoredAuth());
   const [profile, setProfile] = useState<Profile | null>(auth?.user ?? null);
-  const [activeKey, setActiveKey] = useState<MenuKey>(() => (
-    auth?.user.role === "admin" ? "users" : "myAccounts"
-  ));
+  const [activeKey, setActiveKey] = useState<MenuKey>(() => firstAccessibleMenu(auth?.user));
   const [ownAccounts, setOwnAccounts] = useState<SyncAccount[]>([]);
   const [ownAccountsLoading, setOwnAccountsLoading] = useState(false);
   const [editingOwnAccount, setEditingOwnAccount] = useState<SyncAccount | null>(null);
@@ -140,11 +174,16 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
   const [approvalOpen, setApprovalOpen] = useState(false);
   const [approvalUsers, setApprovalUsers] = useState<UserRow[]>([]);
   const [approvalTargetUserId, setApprovalTargetUserId] = useState<string | null>(null);
+  const [roles, setRoles] = useState<RbacRole[]>([]);
+  const [permissionCatalog, setPermissionCatalog] = useState<PermissionDefinition[]>([]);
+  const [rolesLoading, setRolesLoading] = useState(false);
+  const [roleModalOpen, setRoleModalOpen] = useState(false);
+  const [editingRole, setEditingRole] = useState<RbacRole | null>(null);
 
   const saveAuth = useCallback((next: AuthTokens | null) => {
     setAuth(next);
     setProfile(next?.user ?? null);
-    if (next) setActiveKey(next.user.role === "admin" ? "users" : "myAccounts");
+    if (next) setActiveKey(firstAccessibleMenu(next.user));
     persistAuth(next);
   }, []);
 
@@ -155,12 +194,30 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
     try {
       const data = await api<Profile>("/auth/me");
       setProfile(data);
-      if (data.role === "user") setActiveKey("myAccounts");
+      setActiveKey((current) => (
+        data.permissions?.includes(menuPermissions[current]) ? current : firstAccessibleMenu(data)
+      ));
     } catch (error) {
       message.error((error as Error).message);
       await signOut();
     }
   }, [api, auth?.accessToken, message, signOut]);
+
+  const loadRbac = useCallback(async () => {
+    setRolesLoading(true);
+    try {
+      const [nextRoles, nextPermissions] = await Promise.all([
+        api<RbacRole[]>("/admin/api/roles"),
+        api<PermissionDefinition[]>("/admin/api/permissions"),
+      ]);
+      setRoles(nextRoles);
+      setPermissionCatalog(nextPermissions);
+    } catch (error) {
+      message.error((error as Error).message);
+    } finally {
+      setRolesLoading(false);
+    }
+  }, [api, message]);
 
   const loadOwnAccounts = useCallback(async () => {
     setOwnAccountsLoading(true);
@@ -383,6 +440,11 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
   }, [loadProfile]);
 
   useEffect(() => {
+    if (!auth?.accessToken || !profile?.permissions?.includes("admin.roles.read")) return;
+    void loadRbac();
+  }, [auth?.accessToken, loadRbac, profile?.permissions]);
+
+  useEffect(() => {
     if (!auth?.accessToken || !profile) return;
     if (activeKey === "myAccounts") void loadOwnAccounts();
     if (activeKey === "users") void loadUsers();
@@ -418,6 +480,14 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
   }
 
   const pendingApprovalCount = approvals.items.filter((item) => item.status === "pending").length;
+  const canManageUsers = Boolean(profile?.permissions?.includes("admin.users.manage"));
+  const canManageRoles = Boolean(profile?.permissions?.includes("admin.roles.manage"));
+  const canManageOfficialAccounts = Boolean(profile?.permissions?.includes("admin.official-accounts.manage"));
+  const canManageInvitations = Boolean(profile?.permissions?.includes("admin.invitations.manage"));
+  const canManageApprovals = Boolean(profile?.permissions?.includes("admin.approvals.manage"));
+  const canManageAnnouncements = Boolean(profile?.permissions?.includes("admin.announcements.manage"));
+  const canManageFeedback = Boolean(profile?.permissions?.includes("admin.feedback.manage"));
+  const canManageOwnAccounts = Boolean(profile?.permissions?.includes("self.accounts.write"));
 
   async function openApprovalModal() {
     const data = await api<PageResult<UserRow>>("/admin/api/users?page=1&pageSize=100&role=user&status=active");
@@ -496,6 +566,7 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
         <MyAccountsPage
           accounts={ownAccounts}
           loading={ownAccountsLoading}
+          canManage={canManageOwnAccounts}
           onEdit={setEditingOwnAccount}
           onRefresh={loadOwnAccounts}
         />
@@ -507,6 +578,7 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
         <OfficialAccountsPage
           accounts={systemAccounts}
           loading={systemAccountsLoading}
+          canManage={canManageOfficialAccounts}
           search={systemAccountSearch}
           onSearchChange={setSystemAccountSearch}
           onLoadAccounts={loadSystemAccounts}
@@ -543,12 +615,44 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
       );
     }
 
+    if (activeKey === "roles") {
+      return (
+        <RolesPage
+          roles={roles}
+          loading={rolesLoading}
+          canManage={canManageRoles}
+          onRefresh={loadRbac}
+          onCreate={() => {
+            setEditingRole(null);
+            setRoleModalOpen(true);
+          }}
+          onEdit={(role) => {
+            setEditingRole(role);
+            setRoleModalOpen(true);
+          }}
+          onDelete={(role) => {
+            modal.confirm({
+              title: t("roles.deleteTitle"),
+              content: `${role.name} (${role.code})`,
+              okButtonProps: { danger: true },
+              onOk: async () => {
+                await api(`/admin/api/roles/${encodeURIComponent(role.code)}`, { method: "DELETE" });
+                message.success(t("common.deleted"));
+                await loadRbac();
+              },
+            });
+          }}
+        />
+      );
+    }
+
     if (activeKey === "announcement") {
       return (
         <AnnouncementPage
           announcement={announcement}
           loading={announcementLoading}
           saving={announcementSaving}
+          canManage={canManageAnnouncements}
           onRefresh={loadAnnouncement}
           onSave={saveAnnouncement}
         />
@@ -560,6 +664,7 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
         <FeedbackPage
           feedback={feedback}
           loading={feedbackLoading}
+          canManage={canManageFeedback}
           onLoad={loadFeedback}
           onLoadAttachment={loadFeedbackAttachment}
           onSendEmail={sendFeedbackEmail}
@@ -604,6 +709,8 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
         <InvitationsPage
           invitations={invitations}
           loading={invitationLoading}
+          roles={roles}
+          canManage={canManageInvitations}
           onCreateInvitation={() => setInvitationOpen(true)}
           onLoadInvitations={loadInvitations}
           onRevokeInvitation={async (invitation) => {
@@ -622,6 +729,7 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
           loading={approvalLoading}
           pendingCount={pendingApprovalCount}
           profile={profile}
+          canManage={canManageApprovals}
           onCreateApproval={() => void openApprovalModal()}
           onLoadApprovals={loadApprovals}
           onReviewApproval={(approval, decision) => void reviewApproval(approval, decision)}
@@ -635,6 +743,10 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
         loading={usersLoading}
         filters={userFilters}
         profile={profile}
+        roles={roles}
+        canManage={canManageUsers}
+        canBindOfficialAccounts={canManageOfficialAccounts}
+        canManageApprovals={canManageApprovals}
         pendingApprovalCount={pendingApprovalCount}
         onFiltersChange={setUserFilters}
         onLoadUsers={loadUsers}
@@ -692,6 +804,7 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
         editingUser={editingUser}
         api={api}
         currentPage={users.page}
+        roles={roles}
         onClose={() => setUserModalOpen(false)}
         onSaved={loadUsers}
       />
@@ -702,6 +815,8 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
         providers={providers}
         loading={accountsLoading}
         providersLoading={providersLoading}
+        canManageUsers={canManageUsers}
+        canManageOfficialAccounts={canManageOfficialAccounts}
         onClose={() => {
           setAccountUser(null);
           setAccounts([]);
@@ -820,8 +935,21 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
       <InvitationModal
         open={invitationOpen}
         api={api}
+        roles={roles}
         onClose={() => setInvitationOpen(false)}
         onSaved={() => loadInvitations(1)}
+      />
+      <RoleModal
+        open={roleModalOpen}
+        role={editingRole}
+        permissions={permissionCatalog}
+        grantablePermissions={profile?.permissions ?? []}
+        api={api}
+        onClose={() => {
+          setRoleModalOpen(false);
+          setEditingRole(null);
+        }}
+        onSaved={loadRbac}
       />
       <ApprovalModal
         open={approvalOpen}

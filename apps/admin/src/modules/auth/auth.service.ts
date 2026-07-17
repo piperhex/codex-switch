@@ -6,8 +6,8 @@ import { DataSource, IsNull, Repository } from 'typeorm';
 import { MODULE_OPTIONS_TOKEN } from '@/config/configurable';
 import { getKongJwtSecret, getRefreshSecret } from '@/config/auth-secrets';
 import type { ConfigModuleOptions } from '@/config/config.types';
-import { permissionsForRole } from '@/common/rbac/permissions';
 import { AdminService } from '@/modules/admin/admin.service';
+import { RbacService } from '@/modules/rbac/rbac.service';
 import { UserService } from '@/modules/user/user.service';
 import { UserEntity } from '@/modules/user/entities/user.entity';
 import { RefreshTokenEntity } from './entities/refresh-token.entity';
@@ -32,6 +32,7 @@ export class AuthService {
     private readonly refreshTokens: Repository<RefreshTokenEntity>,
     private readonly dataSource: DataSource,
     private readonly emailVerification: EmailVerificationService,
+    private readonly rbac: RbacService,
     @Inject(MODULE_OPTIONS_TOKEN)
     private readonly config: ConfigModuleOptions,
   ) {}
@@ -126,15 +127,20 @@ export class AuthService {
   async me(userId: string) {
     const user = await this.users.findActiveById(userId);
     if (!user) throw new UnauthorizedException('User not found');
+    const access = await this.rbac.accessForRole(user.role);
+    if (!access) throw new UnauthorizedException('User role is no longer available');
     return {
       id: user.id,
       email: user.email,
       role: user.role,
-      permissions: permissionsForRole(user.role),
+      roleName: access.roleName,
+      permissions: access.permissions,
     };
   }
 
   private async issueTokens(user: UserEntity) {
+    const access = await this.rbac.accessForRole(user.role);
+    if (!access) throw new UnauthorizedException('User role is no longer available');
     const accessToken = await this.jwt.signAsync(
       {
         sub: user.id,
@@ -164,7 +170,8 @@ export class AuthService {
         id: user.id,
         email: user.email,
         role: user.role,
-        permissions: permissionsForRole(user.role),
+        roleName: access.roleName,
+        permissions: access.permissions,
       },
     };
   }

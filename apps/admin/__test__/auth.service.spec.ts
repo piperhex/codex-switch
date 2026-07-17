@@ -8,8 +8,9 @@ import type { AdminService } from '@/modules/admin/admin.service';
 import type { RefreshTokenEntity } from '@/modules/auth/entities/refresh-token.entity';
 import type { UserService } from '@/modules/user/user.service';
 import type { EmailVerificationService } from '@/modules/auth/email-verification.service';
+import type { RbacService } from '@/modules/rbac/rbac.service';
 import { makeUser } from './fixtures';
-import { permissionsForRole } from '@/common/rbac/permissions';
+import { Permission, USER_ROLE_PERMISSIONS } from '@/common/rbac/permissions';
 
 const hash = (value: string) => createHash('sha256').update(value).digest('hex');
 
@@ -43,6 +44,7 @@ describe('AuthService', () => {
     verifyAndConsume: ReturnType<typeof vi.fn>;
     verifyPasswordResetCode: ReturnType<typeof vi.fn>;
   };
+  let rbac: { accessForRole: ReturnType<typeof vi.fn> };
   let service: AuthService;
 
   beforeEach(() => {
@@ -72,6 +74,12 @@ describe('AuthService', () => {
       verifyAndConsume: vi.fn().mockResolvedValue(undefined),
       verifyPasswordResetCode: vi.fn().mockResolvedValue(undefined),
     };
+    rbac = {
+      accessForRole: vi.fn(async (role: string) => ({
+        roleName: role === 'admin' ? 'Administrator' : 'User',
+        permissions: role === 'admin' ? Object.values(Permission) : [...USER_ROLE_PERMISSIONS],
+      })),
+    };
     service = new AuthService(
       users as unknown as UserService,
       admin as unknown as AdminService,
@@ -79,6 +87,7 @@ describe('AuthService', () => {
       tokens as unknown as Repository<RefreshTokenEntity>,
       dataSource as unknown as DataSource,
       emailVerification as unknown as EmailVerificationService,
+      rbac as unknown as RbacService,
       {
         KONG_JWT_KEY: 'kong-key',
         KONG_JWT_SECRET: 'kong-secret',
@@ -156,7 +165,8 @@ describe('AuthService', () => {
           id: user.id,
           email: user.email,
           role: user.role,
-          permissions: permissionsForRole(user.role),
+          roleName: 'User',
+          permissions: [...USER_ROLE_PERMISSIONS],
         },
       });
 
@@ -276,7 +286,8 @@ describe('AuthService', () => {
       id: user.id,
       email: user.email,
       role: 'admin',
-      permissions: permissionsForRole('admin'),
+      roleName: 'Administrator',
+      permissions: Object.values(Permission),
     });
   });
 
@@ -294,6 +305,7 @@ describe('AuthService', () => {
       tokens as unknown as Repository<RefreshTokenEntity>,
       dataSource as unknown as DataSource,
       emailVerification as unknown as EmailVerificationService,
+      rbac as unknown as RbacService,
       {},
     );
     users.createUser.mockResolvedValue(user);

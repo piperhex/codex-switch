@@ -9,6 +9,8 @@ import { EntityManager, ILike, IsNull, Repository } from 'typeorm';
 import type { AuthUser } from '@/common/decorators/user.decorator';
 import { SyncService } from '@/modules/sync/sync.service';
 import { UserService } from '@/modules/user/user.service';
+import { RbacService } from '@/modules/rbac/rbac.service';
+import type { CreateRoleDto, UpdateRoleDto } from '@/modules/rbac/dto/rbac.dto';
 import type { UserEntity } from '@/modules/user/entities/user.entity';
 import type { SyncAccountDto } from '@/modules/sync/dto/sync-accounts.dto';
 import type { SyncProviderDto } from '@/modules/sync/dto/sync-providers.dto';
@@ -45,6 +47,7 @@ export class AdminService {
   constructor(
     private readonly users: UserService,
     private readonly sync: SyncService,
+    private readonly rbac: RbacService,
     @InjectRepository(AdminAuditLogEntity)
     private readonly auditLogs: Repository<AdminAuditLogEntity>,
     @InjectRepository(AdminInvitationEntity)
@@ -58,12 +61,14 @@ export class AdminService {
   }
 
   async createUser(actor: AuthUser, dto: CreateAdminUserDto) {
+    await this.rbac.assertRoleAssignable(actor, dto.role ?? 'user');
     const user = await this.users.createUser(dto);
     await this.record(actor, 'user.create', 'user', user.id, user.email, { role: user.role });
     return user;
   }
 
   async updateUser(actor: AuthUser, id: string, dto: UpdateAdminUserDto) {
+    if (dto.role) await this.rbac.assertRoleAssignable(actor, dto.role);
     const user = await this.users.updateUser(id, dto);
     await this.record(actor, 'user.update', 'user', user.id, user.email, {
       fields: Object.keys(dto).filter((key) => key !== 'password'),
@@ -226,6 +231,7 @@ export class AdminService {
   }
 
   async createInvitation(actor: AuthUser, dto: CreateInvitationDto) {
+    await this.rbac.assertRoleAssignable(actor, dto.role ?? 'user');
     const token = randomBytes(24).toString('base64url');
     const invitation = this.invitations.create({
       email: dto.email?.trim().toLowerCase() || null,
@@ -356,6 +362,7 @@ export class AdminService {
       throw new BadRequestException('A different admin must review this request');
     }
     if (dto.decision === 'approved' && request.type === 'promote_user_to_admin') {
+      await this.rbac.assertRoleAssignable(actor, 'admin');
       await this.users.updateUser(request.targetUserId, { role: 'admin' });
     }
     request.status = dto.decision;
@@ -369,6 +376,38 @@ export class AdminService {
       targetUserId: request.targetUserId,
     });
     return saved;
+  }
+
+  listRoles() {
+    return this.rbac.listRoles();
+  }
+
+  listPermissions() {
+    return this.rbac.listPermissions();
+  }
+
+  async createRole(actor: AuthUser, dto: CreateRoleDto) {
+    const role = await this.rbac.createRole(actor, dto);
+    await this.record(actor, 'role.create', 'role', role.code, null, {
+      name: role.name,
+      permissions: role.permissions,
+    });
+    return role;
+  }
+
+  async updateRole(actor: AuthUser, code: string, dto: UpdateRoleDto) {
+    const role = await this.rbac.updateRole(actor, code, dto);
+    await this.record(actor, 'role.update', 'role', code, null, {
+      fields: Object.keys(dto),
+      permissions: role.permissions,
+    });
+    return role;
+  }
+
+  async deleteRole(actor: AuthUser, code: string) {
+    const result = await this.rbac.deleteRole(code);
+    await this.record(actor, 'role.delete', 'role', code);
+    return result;
   }
 
   private async ensureUser(id: string) {

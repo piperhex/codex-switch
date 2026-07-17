@@ -14,6 +14,7 @@ interface AnnouncementPageProps {
     AnnouncementConfig,
     "content" | "enabled" | "textColor" | "backgroundColor" | "scrollDurationSeconds"
   >) => Promise<void>;
+  canManage: boolean;
 }
 
 export function AnnouncementPage({
@@ -22,6 +23,7 @@ export function AnnouncementPage({
   saving,
   onRefresh,
   onSave,
+  canManage,
 }: AnnouncementPageProps) {
   const { language, t } = useI18n();
   const [content, setContent] = useState(announcement.content);
@@ -69,7 +71,7 @@ export function AnnouncementPage({
           scrollDurationSeconds,
         })}>
           <Form.Item label={t("announcement.enabled")} extra={t("announcement.enabledHint")}>
-            <Switch checked={enabled} onChange={setEnabled} />
+            <Switch disabled={!canManage} checked={enabled} onChange={setEnabled} />
           </Form.Item>
           <Form.Item label={t("announcement.content")}>
             <Input.TextArea
@@ -79,6 +81,7 @@ export function AnnouncementPage({
               showCount
               placeholder={t("announcement.contentPlaceholder")}
               onChange={(event) => setContent(event.target.value)}
+              disabled={!canManage}
             />
           </Form.Item>
           <Space size="large" wrap>
@@ -87,6 +90,7 @@ export function AnnouncementPage({
                 value={textColor}
                 showText
                 onChange={(color) => setTextColor(color.toHexString().toUpperCase())}
+                disabled={!canManage}
               />
             </Form.Item>
             <Form.Item label={t("announcement.backgroundColor")}>
@@ -94,6 +98,7 @@ export function AnnouncementPage({
                 value={backgroundColor}
                 showText
                 onChange={(color) => setBackgroundColor(color.toHexString().toUpperCase())}
+                disabled={!canManage}
               />
             </Form.Item>
             <Form.Item
@@ -107,6 +112,7 @@ export function AnnouncementPage({
                 value={scrollDurationSeconds}
                 addonAfter={t("announcement.secondsPerLoop")}
                 onChange={(value) => setScrollDurationSeconds(value ?? 22)}
+                disabled={!canManage}
               />
             </Form.Item>
           </Space>
@@ -127,7 +133,7 @@ export function AnnouncementPage({
               type="primary"
               htmlType="submit"
               loading={saving}
-              disabled={enabled && !content.trim()}
+              disabled={!canManage || (enabled && !content.trim())}
               icon={<Save size={15} />}
             >
               {t("announcement.save")}

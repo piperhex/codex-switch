@@ -14,6 +14,7 @@ import {
   MessageSquareText,
   Moon,
   Rows3,
+  Shield,
   Sun,
   UserRound,
   Users,
@@ -37,6 +38,7 @@ interface AdminShellProps {
 const menuLabelKeys: Record<MenuKey, TranslationKey> = {
   myAccounts: "nav.myAccounts",
   users: "nav.users",
+  roles: "nav.roles",
   officialAccounts: "nav.officialAccounts",
   announcement: "nav.announcement",
   feedback: "nav.feedback",
@@ -49,6 +51,7 @@ const menuLabelKeys: Record<MenuKey, TranslationKey> = {
 const menuPermissions: Record<MenuKey, Permission> = {
   myAccounts: "self.accounts.read",
   users: "admin.users.read",
+  roles: "admin.roles.read",
   officialAccounts: "admin.official-accounts.read",
   announcement: "admin.announcements.read",
   feedback: "admin.feedback.read",
@@ -75,6 +78,7 @@ export function AdminShell({
     const items = [
       { key: "myAccounts" as const, icon: <Rows3 size={17} />, label: t("nav.myAccounts") },
       { key: "users" as const, icon: <Users size={17} />, label: t("nav.users") },
+      { key: "roles" as const, icon: <Shield size={17} />, label: t("nav.roles") },
       { key: "officialAccounts" as const, icon: <BadgeCheck size={17} />, label: t("nav.officialAccounts") },
       { key: "announcement" as const, icon: <BellRing size={17} />, label: t("nav.announcement") },
       { key: "feedback" as const, icon: <MessageSquareText size={17} />, label: t("nav.feedback") },

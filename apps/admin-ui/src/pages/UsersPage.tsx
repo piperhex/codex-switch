@@ -5,7 +5,7 @@ import { Database, Edit3, KeyRound, Link2, Plus, RefreshCw, Search, ShieldCheck,
 import { labelForRole } from "../i18n";
 import { useI18n } from "../i18n-context";
 import { formatDate } from "../utils/format";
-import type { PageResult, Profile, Role, UserFilters, UserRow } from "../types";
+import type { PageResult, Profile, RbacRole, Role, UserFilters, UserRow } from "../types";
 
 interface UsersPageProps {
   users: PageResult<UserRow>;
@@ -13,6 +13,10 @@ interface UsersPageProps {
   filters: UserFilters;
   profile: Profile | null;
   pendingApprovalCount: number;
+  roles: RbacRole[];
+  canManage: boolean;
+  canBindOfficialAccounts: boolean;
+  canManageApprovals: boolean;
   onFiltersChange: (filters: UserFilters) => void;
   onLoadUsers: (page?: number, pageSize?: number) => void | Promise<void>;
   onCreateUser: () => void;
@@ -29,6 +33,10 @@ export function UsersPage({
   loading,
   pendingApprovalCount,
   profile,
+  roles,
+  canManage,
+  canBindOfficialAccounts,
+  canManageApprovals,
   users,
   onCreateUser,
   onDeleteUser,
@@ -44,6 +52,7 @@ export function UsersPage({
   const [selectedUserIds, setSelectedUserIds] = useState<React.Key[]>([]);
   const activeVisibleUsers = users.items.filter((item) => !item.disabled).length;
   const adminVisibleUsers = users.items.filter((item) => item.role === "admin").length;
+  const roleName = (code: string) => roles.find((role) => role.code === code)?.name ?? labelForRole(code, t);
 
   const columns: TableColumnsType<UserRow> = [
     {
@@ -63,7 +72,7 @@ export function UsersPage({
       title: t("common.role"),
       dataIndex: "role",
       width: 110,
-      render: (role: Role) => <Tag color={role === "admin" ? "blue" : "default"}>{labelForRole(role, t)}</Tag>,
+      render: (role: Role) => <Tag color={role === "admin" ? "blue" : "default"}>{roleName(role)}</Tag>,
     },
     {
       title: t("common.status"),
@@ -85,16 +94,16 @@ export function UsersPage({
             <Button className="icon-button" icon={<Database size={15} />} onClick={() => onOpenAccounts(row)} />
           </Tooltip>
           <Tooltip title={t("common.edit")}>
-            <Button className="icon-button" icon={<Edit3 size={15} />} onClick={() => onEditUser(row)} />
+            <Button disabled={!canManage} className="icon-button" icon={<Edit3 size={15} />} onClick={() => onEditUser(row)} />
           </Tooltip>
           <Tooltip title={t("users.resetPassword")}>
-            <Button className="icon-button" icon={<KeyRound size={15} />} onClick={() => onResetPassword(row)} />
+            <Button disabled={!canManage} className="icon-button" icon={<KeyRound size={15} />} onClick={() => onResetPassword(row)} />
           </Tooltip>
           <Tooltip title={t("users.requestApproval")}>
             <Button
               className="icon-button"
               icon={<ShieldCheck size={15} />}
-              disabled={row.role === "admin"}
+              disabled={!canManageApprovals || row.role === "admin"}
               onClick={() => onRequestApproval(row)}
             />
           </Tooltip>
@@ -103,7 +112,7 @@ export function UsersPage({
               danger
               className="icon-button"
               icon={<Trash2 size={15} />}
-              disabled={row.id === profile?.id}
+              disabled={!canManage || row.id === profile?.id}
               onClick={() => onDeleteUser(row)}
             />
           </Tooltip>
@@ -137,7 +146,7 @@ export function UsersPage({
             placeholder={t("common.role")}
             value={filters.role}
             onChange={(role) => onFiltersChange({ ...filters, role })}
-            options={[{ label: labelForRole("admin", t), value: "admin" }, { label: labelForRole("user", t), value: "user" }]}
+            options={roles.map((role) => ({ label: role.name, value: role.code }))}
             style={{ width: 130 }}
           />
           <Select
@@ -154,14 +163,16 @@ export function UsersPage({
           <Button icon={<RefreshCw size={15} />} onClick={() => onLoadUsers()}>{t("common.refresh")}</Button>
           <Button
             icon={<Link2 size={15} />}
-            disabled={!selectedUserIds.length}
+            disabled={!canBindOfficialAccounts || !selectedUserIds.length}
             onClick={() => onBindPoolAccounts(
               users.items.filter((user) => selectedUserIds.includes(user.id)),
             )}
           >
             {t("users.batchBindAccounts", { count: selectedUserIds.length })}
           </Button>
-          <Button type="primary" icon={<Plus size={15} />} onClick={onCreateUser}>{t("users.create")}</Button>
+          {canManage && (
+            <Button type="primary" icon={<Plus size={15} />} onClick={onCreateUser}>{t("users.create")}</Button>
+          )}
         </div>
       </div>
       <div className="panel">
@@ -170,10 +181,10 @@ export function UsersPage({
           loading={loading}
           columns={columns}
           dataSource={users.items}
-          rowSelection={{
+          rowSelection={canBindOfficialAccounts ? {
             selectedRowKeys: selectedUserIds,
             onChange: setSelectedUserIds,
-          }}
+          } : undefined}
           pagination={{
             current: users.page,
             pageSize: users.pageSize,

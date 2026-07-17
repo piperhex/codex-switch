@@ -7,9 +7,16 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { EmailVerificationService } from './email-verification.service';
 import { RefreshTokenEntity } from './entities/refresh-token.entity';
+import { RbacModule } from '@/common/rbac/rbac.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([RefreshTokenEntity]), UserModule, JwtConfigModule, AdminModule],
+  imports: [
+    TypeOrmModule.forFeature([RefreshTokenEntity]),
+    UserModule,
+    JwtConfigModule,
+    AdminModule,
+    RbacModule,
+  ],
   controllers: [AuthController],
   providers: [AuthService, EmailVerificationService],
   exports: [AuthService],

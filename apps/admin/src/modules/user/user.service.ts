@@ -112,6 +112,13 @@ export class UserService {
   ) {
     const user = await this.users.findOne({ where: { id } });
     if (!user) throw new NotFoundException('User not found');
+    if (
+      user.role === 'admin'
+      && !user.disabled
+      && ((patch.role !== undefined && patch.role !== 'admin') || patch.disabled === true)
+    ) {
+      await this.ensureAnotherActiveAdmin(id);
+    }
     if (patch.email !== undefined) {
       const normalizedEmail = patch.email.trim().toLowerCase();
       const exists = await this.users.exists({ where: { email: normalizedEmail, id: Not(id) } });
@@ -145,10 +152,16 @@ export class UserService {
     const user = await this.users.findOne({ where: { id } });
     if (!user) throw new NotFoundException('User not found');
     if (user.role === 'admin' && !user.disabled) {
-      const activeAdmins = await this.users.count({ where: { role: 'admin', disabled: false } });
-      if (activeAdmins <= 1) throw new BadRequestException('At least one active admin must remain');
+      await this.ensureAnotherActiveAdmin(id);
     }
     await this.users.delete({ id });
     return { id, email: user.email };
+  }
+
+  private async ensureAnotherActiveAdmin(excludedId: string) {
+    const activeAdmins = await this.users.count({
+      where: { role: 'admin', disabled: false, id: Not(excludedId) },
+    });
+    if (activeAdmins === 0) throw new BadRequestException('At least one active admin must remain');
   }
 }

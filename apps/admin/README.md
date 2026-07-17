@@ -35,9 +35,12 @@ If production uses `POSTGRES_DB_SYNCHRONIZE=false`, apply `sql/20260704-admin-ma
 `sql/20260705-sync-last-modified.sql`, `sql/20260707-sync-providers.sql`,
 `sql/20260714-system-account-pool.sql`, `sql/20260717-invitation-policies.sql`,
 `sql/20260717-app-announcements.sql`, `sql/20260717-device-installations.sql`,
-`sql/20260718-announcement-scroll-speed.sql`, and `sql/20260718-user-feedback.sql` before using
+`sql/20260718-announcement-scroll-speed.sql`, `sql/20260718-user-feedback.sql`, and
+`sql/20260718-dynamic-rbac.sql` before using
 the expanded admin console, provider sync,
 official account pool, reusable invitations, announcements, telemetry, and feedback management.
+The RBAC migration must be applied before starting this version because application startup
+synchronizes the permission catalog and protected system roles.
 
 ## Docker Troubleshooting
 
@@ -151,12 +154,9 @@ The admin console can also add an official account through Codex OAuth. It uses 
 
 ## RBAC
 
-Every management and synchronization endpoint is protected by an explicit permission in addition to JWT authentication. Permissions are derived from the user's current database role on every request, so changing or disabling a user takes effect without trusting stale role claims from an access token.
+Every management and synchronization endpoint is protected by an explicit permission in addition to JWT authentication. Roles and role-permission assignments are stored in PostgreSQL and permissions are derived from the user's current database role on every request, so changing or disabling a user takes effect without trusting stale role claims from an access token.
 
-| Role | Permissions |
-| --- | --- |
-| `user` | Read and synchronize own accounts/providers; change own password |
-| `admin` | All user permissions plus user, official-account, announcement, feedback, audit-log, invitation, and approval management |
+The built-in `user` role provides self-service access and the protected `admin` role receives every permission. Administrators can create additional roles and assign catalog permissions from the **Roles & Permissions** page. Permission identifiers remain application-defined because each one corresponds to an enforced backend capability.
 
 Ordinary users can sign in to `/admin`, see only the **My Accounts** page, open their profile, and change their own password. `GET /admin/api/profile/accounts` returns account display data without any `auth` credentials. Menu filtering is only a user-interface aid; backend permission guards remain authoritative.
 

@@ -13,6 +13,7 @@ interface ApprovalsPageProps {
   onCreateApproval: () => void;
   onLoadApprovals: (page?: number, pageSize?: number) => void | Promise<void>;
   onReviewApproval: (approval: ApprovalRequest, decision: "approved" | "rejected") => void;
+  canManage: boolean;
 }
 
 export function ApprovalsPage({
@@ -23,6 +24,7 @@ export function ApprovalsPage({
   onCreateApproval,
   onLoadApprovals,
   onReviewApproval,
+  canManage,
 }: ApprovalsPageProps) {
   const { language, t } = useI18n();
   const columns: TableColumnsType<ApprovalRequest> = [
@@ -52,14 +54,14 @@ export function ApprovalsPage({
           <Button
             className="icon-button"
             icon={<CheckCircle size={15} />}
-            disabled={row.requestedByEmail === profile?.email}
+            disabled={!canManage || row.requestedByEmail === profile?.email}
             onClick={() => onReviewApproval(row, "approved")}
           />
           <Button
             danger
             className="icon-button"
             icon={<XCircle size={15} />}
-            disabled={row.requestedByEmail === profile?.email}
+            disabled={!canManage || row.requestedByEmail === profile?.email}
             onClick={() => onReviewApproval(row, "rejected")}
           />
         </Space>
@@ -76,7 +78,9 @@ export function ApprovalsPage({
         </div>
         <div className="toolbar-right">
           <Button icon={<RefreshCw size={15} />} onClick={() => onLoadApprovals()}>{t("common.refresh")}</Button>
-          <Button type="primary" icon={<Plus size={15} />} onClick={onCreateApproval}>{t("approvals.submit")}</Button>
+          {canManage && (
+            <Button type="primary" icon={<Plus size={15} />} onClick={onCreateApproval}>{t("approvals.submit")}</Button>
+          )}
         </div>
       </div>
       <div className="panel">

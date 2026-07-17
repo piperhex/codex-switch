@@ -55,17 +55,17 @@ describe('request DTO validation', () => {
     ]));
   });
 
-  it('restricts admin user roles, password length and patch types', async () => {
+  it('accepts dynamic role codes while rejecting malformed codes and patch types', async () => {
     await expect(messages(CreateAdminUserDto, {
-      email: 'admin@example.com', password: '1234567', role: 'superuser',
+      email: 'admin@example.com', password: '1234567', role: 'SuperUser',
     })).resolves.toEqual(expect.arrayContaining([
       'password must be longer than or equal to 8 characters',
-      'role must be one of the following values: user, admin',
+      'role must match /^[a-z][a-z0-9_-]{1,63}$/ regular expression',
     ]));
-    await expect(messages(UpdateAdminUserDto, { disabled: 'yes', role: 'owner' }))
+    await expect(messages(UpdateAdminUserDto, { disabled: 'yes', role: 'bad role' }))
       .resolves.toEqual(expect.arrayContaining([
         'disabled must be a boolean value',
-        'role must be one of the following values: user, admin',
+        'role must match /^[a-z][a-z0-9_-]{1,63}$/ regular expression',
       ]));
     await expect(messages(UpdateAdminUserDto, { email: 'bad', password: 'short' }))
       .resolves.toEqual(expect.arrayContaining([
@@ -73,17 +73,17 @@ describe('request DTO validation', () => {
         'password must be longer than or equal to 8 characters',
       ]));
     await expect(messages(CreateAdminUserDto, {
-      email: 'admin@example.com', password: 'password', role: 'user', disabled: false,
+      email: 'admin@example.com', password: 'password', role: 'support_manager', disabled: false,
     })).resolves.toEqual([]);
     await expect(messages(UpdateAdminUserDto, {})).resolves.toEqual([]);
   });
 
   it('validates management invitations, approvals and admin account edits', async () => {
     await expect(messages(CreateInvitationDto, {
-      email: 'bad', role: 'owner', expiresInHours: 0, maxUses: 0, neverExpires: 'yes',
+      email: 'bad', role: 'Bad Role', expiresInHours: 0, maxUses: 0, neverExpires: 'yes',
     })).resolves.toEqual(expect.arrayContaining([
       'email must be an email',
-      'role must be one of the following values: user, admin',
+      'role must match /^[a-z][a-z0-9_-]{1,63}$/ regular expression',
       'expiresInHours must not be less than 1',
       'maxUses must not be less than 1',
       'neverExpires must be a boolean value',

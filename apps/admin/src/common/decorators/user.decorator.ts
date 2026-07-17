@@ -1,9 +1,12 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
+import type { Permission } from '@/common/rbac/permissions';
 
 export interface AuthUser {
   id: string;
   email: string;
-  role: 'user' | 'admin';
+  role: string;
+  roleName?: string;
+  permissions?: Permission[];
 }
 
 export const CurrentUser = createParamDecorator(

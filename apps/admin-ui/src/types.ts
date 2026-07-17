@@ -1,4 +1,4 @@
-export type Role = "user" | "admin";
+export type Role = string;
 export type UserStatus = "active" | "disabled";
 export type Permission =
   | "self.accounts.read"
@@ -8,6 +8,8 @@ export type Permission =
   | "self.password.update"
   | "admin.users.read"
   | "admin.users.manage"
+  | "admin.roles.read"
+  | "admin.roles.manage"
   | "admin.official-accounts.read"
   | "admin.official-accounts.manage"
   | "admin.audit-logs.read"
@@ -20,7 +22,7 @@ export type Permission =
   | "admin.feedback.read"
   | "admin.feedback.manage"
   | "admin.telemetry.read";
-export type MenuKey = "myAccounts" | "users" | "officialAccounts" | "announcement" | "feedback" | "telemetry" | "audit" | "invitations" | "approvals";
+export type MenuKey = "myAccounts" | "users" | "roles" | "officialAccounts" | "announcement" | "feedback" | "telemetry" | "audit" | "invitations" | "approvals";
 
 export interface AuthTokens {
   accessToken: string;
@@ -32,7 +34,26 @@ export interface Profile {
   id: string;
   email: string;
   role: Role;
+  roleName?: string;
   permissions?: Permission[];
+}
+
+export interface RbacRole {
+  code: string;
+  name: string;
+  description: string;
+  system: boolean;
+  permissions: Permission[];
+  userCount: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface PermissionDefinition {
+  code: Permission;
+  group: string;
+  name: string;
+  description: string;
 }
 
 export interface PageResult<T> {

@@ -24,6 +24,7 @@ interface FeedbackPageProps {
   onLoad: (page?: number, pageSize?: number) => void | Promise<void>;
   onLoadAttachment: (feedbackId: string, attachmentId: string) => Promise<string>;
   onSendEmail: (feedbackId: string, subject: string, content: string) => Promise<void>;
+  canManage: boolean;
 }
 
 interface EmailForm {
@@ -41,6 +42,7 @@ export function FeedbackPage({
   onLoad,
   onLoadAttachment,
   onSendEmail,
+  canManage,
 }: FeedbackPageProps) {
   const { language, t } = useI18n();
   const [selected, setSelected] = useState<FeedbackRow | null>(null);
@@ -138,7 +140,7 @@ export function FeedbackPage({
           </Button>
           <Tooltip title={row.email ? undefined : t("feedback.noEmailHint")}>
             <span>
-              <Button size="small" icon={<Mail size={14} />} disabled={!row.email}
+              <Button size="small" icon={<Mail size={14} />} disabled={!canManage || !row.email}
                 onClick={() => openEmail(row)}>{t("feedback.sendEmail")}</Button>
             </span>
           </Tooltip>
@@ -207,7 +209,7 @@ export function FeedbackPage({
                 </Image.PreviewGroup>
               </>
             )}
-            {selected.email && (
+            {canManage && selected.email && (
               <Button type="primary" icon={<Mail size={15} />} onClick={() => openEmail(selected)}>
                 {t("feedback.sendEmail")}
               </Button>

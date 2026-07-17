@@ -17,7 +17,7 @@ export function ProfileModal({ onClose, open, profile }: ProfileModalProps) {
       <Space direction="vertical" size={10}>
         <Typography.Text copyable>{profile?.id}</Typography.Text>
         <Typography.Text>{profile?.email}</Typography.Text>
-        {profile?.role && <Tag color="blue">{labelForRole(profile.role, t)}</Tag>}
+        {profile?.role && <Tag color="blue">{profile.roleName ?? labelForRole(profile.role, t)}</Tag>}
       </Space>
     </Modal>
   );

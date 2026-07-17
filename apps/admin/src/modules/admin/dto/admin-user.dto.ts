@@ -6,6 +6,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  Matches,
   Max,
   MaxLength,
   Min,
@@ -22,7 +23,8 @@ export class CreateAdminUserDto {
   password: string;
 
   @IsOptional()
-  @IsIn(['user', 'admin'])
+  @IsString()
+  @Matches(/^[a-z][a-z0-9_-]{1,63}$/)
   role?: UserRole;
 
   @IsOptional()
@@ -45,7 +47,8 @@ export class UpdateAdminUserDto {
   disabled?: boolean;
 
   @IsOptional()
-  @IsIn(['user', 'admin'])
+  @IsString()
+  @Matches(/^[a-z][a-z0-9_-]{1,63}$/)
   role?: UserRole;
 }
 
@@ -56,7 +59,8 @@ export class ListAdminUsersQueryDto {
   search?: string;
 
   @IsOptional()
-  @IsIn(['user', 'admin'])
+  @IsString()
+  @Matches(/^[a-z][a-z0-9_-]{1,63}$/)
   role?: UserRole;
 
   @IsOptional()

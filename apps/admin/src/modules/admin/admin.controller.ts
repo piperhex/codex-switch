@@ -16,6 +16,7 @@ import { CurrentUser, type AuthUser } from '@/common/decorators/user.decorator';
 import { RequirePermissions } from '@/common/decorators/permissions.decorator';
 import { PermissionsGuard } from '@/common/guards/permissions.guard';
 import { Permission } from '@/common/rbac/permissions';
+import { CreateRoleDto, UpdateRoleDto } from '@/modules/rbac/dto/rbac.dto';
 import { JwtAuthGuard } from '@/modules/jwt/jwt-auth.guard';
 import { AdminService } from './admin.service';
 import { OfficialAccountOAuthService } from './official-account-oauth.service';
@@ -57,6 +58,45 @@ export class AdminController {
   @Get('reset-password')
   resetPasswordPage(@Res() response: Response) {
     return response.sendFile(join(process.cwd(), 'public', 'admin.html'));
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.RolesRead)
+  @Get('api/roles')
+  listRoles() {
+    return this.admin.listRoles();
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.RolesRead)
+  @Get('api/permissions')
+  listPermissions() {
+    return this.admin.listPermissions();
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.RolesManage)
+  @Post('api/roles')
+  createRole(@CurrentUser() user: AuthUser, @Body() dto: CreateRoleDto) {
+    return this.admin.createRole(user, dto);
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.RolesManage)
+  @Patch('api/roles/:code')
+  updateRole(
+    @CurrentUser() user: AuthUser,
+    @Param('code') code: string,
+    @Body() dto: UpdateRoleDto,
+  ) {
+    return this.admin.updateRole(user, code, dto);
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.RolesManage)
+  @Delete('api/roles/:code')
+  deleteRole(@CurrentUser() user: AuthUser, @Param('code') code: string) {
+    return this.admin.deleteRole(user, code);
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)

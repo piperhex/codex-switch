@@ -3,13 +3,14 @@ import { App as AntApp, Button, Form, Input, InputNumber, Modal, Select, Switch 
 import { ClipboardCopy } from "lucide-react";
 import { labelForRole } from "../../i18n";
 import { useI18n } from "../../i18n-context";
-import type { ApiClient, Invitation, Role } from "../../types";
+import type { ApiClient, Invitation, RbacRole, Role } from "../../types";
 
 interface InvitationModalProps {
   open: boolean;
   api: ApiClient;
   onClose: () => void;
   onSaved: () => void | Promise<void>;
+  roles: RbacRole[];
 }
 
 interface InvitationFormValues {
@@ -20,7 +21,7 @@ interface InvitationFormValues {
   expiresInHours: number;
 }
 
-export function InvitationModal({ api, onClose, onSaved, open }: InvitationModalProps) {
+export function InvitationModal({ api, onClose, onSaved, open, roles }: InvitationModalProps) {
   const { message } = AntApp.useApp();
   const { t } = useI18n();
   const [form] = Form.useForm();
@@ -76,7 +77,14 @@ export function InvitationModal({ api, onClose, onSaved, open }: InvitationModal
           <Input placeholder={t("invitations.anyEmail")} />
         </Form.Item>
         <Form.Item name="role" label={t("common.role")} rules={[{ required: true }]}>
-          <Select options={[{ label: labelForRole("user", t), value: "user" }, { label: labelForRole("admin", t), value: "admin" }]} />
+          <Select
+            showSearch
+            optionFilterProp="label"
+            options={roles.map((role) => ({
+              label: role.system ? labelForRole(role.code, t) : role.name,
+              value: role.code,
+            }))}
+          />
         </Form.Item>
         <Form.Item name="maxUses" label={t("invitations.maxUses")} rules={[{ required: true }]}>
           <InputNumber min={1} max={10000} precision={0} style={{ width: "100%" }} />

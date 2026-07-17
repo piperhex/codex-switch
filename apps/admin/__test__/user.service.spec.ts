@@ -136,6 +136,16 @@ describe('UserService', () => {
       .rejects.toBeInstanceOf(NotFoundException);
   });
 
+  it('prevents demoting or disabling the last active built-in administrator', async () => {
+    repository.findOne.mockResolvedValue(makeUser({ id: 'admin-1', role: 'admin' }));
+    repository.count.mockResolvedValue(0);
+    await expect(service.updateUser('admin-1', { role: 'support' }))
+      .rejects.toThrow('At least one active admin must remain');
+    await expect(service.updateUser('admin-1', { disabled: true }))
+      .rejects.toThrow('At least one active admin must remain');
+    expect(repository.save).not.toHaveBeenCalled();
+  });
+
   it('rejects duplicate emails when updating a user', async () => {
     repository.findOne.mockResolvedValue(makeUser());
     repository.exists.mockResolvedValue(true);
@@ -163,7 +173,7 @@ describe('UserService', () => {
 
   it('deletes users but preserves the last active administrator', async () => {
     repository.findOne.mockResolvedValue(makeUser({ id: 'admin-1', role: 'admin' }));
-    repository.count.mockResolvedValue(1);
+    repository.count.mockResolvedValue(0);
     await expect(service.deleteUser('admin-1')).rejects.toThrow('At least one active admin must remain');
 
     repository.findOne.mockResolvedValue(makeUser({ id: 'user-1', email: 'u@example.com' }));

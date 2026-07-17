@@ -11,9 +11,10 @@ interface MyAccountsPageProps {
   loading: boolean;
   onEdit: (account: SyncAccount) => void;
   onRefresh: () => void | Promise<void>;
+  canManage: boolean;
 }
 
-export function MyAccountsPage({ accounts, loading, onEdit, onRefresh }: MyAccountsPageProps) {
+export function MyAccountsPage({ accounts, canManage, loading, onEdit, onRefresh }: MyAccountsPageProps) {
   const { language, t } = useI18n();
   const [noteAccount, setNoteAccount] = useState<SyncAccount | null>(null);
   const columns: TableColumnsType<SyncAccount> = [
@@ -92,7 +93,7 @@ export function MyAccountsPage({ accounts, loading, onEdit, onRefresh }: MyAccou
             type="link"
             size="small"
             icon={<Pencil size={14} />}
-            disabled={account.source === "system"}
+            disabled={!canManage || account.source === "system"}
             onClick={() => onEdit(account)}
           >
             {t("common.edit")}

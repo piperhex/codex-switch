@@ -11,7 +11,7 @@ import { RefreshTokenEntity } from '@/modules/auth/entities/refresh-token.entity
 import { SyncedAccountEntity } from '@/modules/sync/entities/synced-account.entity';
 import { SyncedProviderEntity } from '@/modules/sync/entities/synced-provider.entity';
 
-export type UserRole = 'user' | 'admin';
+export type UserRole = string;
 
 @Entity({ name: 'users' })
 export class UserEntity {
@@ -24,7 +24,7 @@ export class UserEntity {
   @Column({ type: 'varchar', length: 120, select: false })
   passwordHash: string;
 
-  @Column({ type: 'varchar', length: 20, default: 'user' })
+  @Column({ type: 'varchar', length: 64, default: 'user' })
   role: UserRole;
 
   @Column({ type: 'boolean', default: false })

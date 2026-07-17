@@ -12,6 +12,7 @@ import { SyncModule } from '@/modules/sync/sync.module';
 import { TelemetryModule } from '@/modules/telemetry/telemetry.module';
 import { FeedbackModule } from '@/modules/feedback/feedback.module';
 import { UserModule } from '@/modules/user/user.module';
+import { RbacModule } from '@/common/rbac/rbac.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { UserModule } from '@/modules/user/user.module';
     }),
     PostgresqlModule,
     RedisModule,
+    RbacModule,
     UserModule,
     JwtConfigModule,
     AuthModule,
