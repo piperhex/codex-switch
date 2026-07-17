@@ -4,8 +4,9 @@ import enUS from "antd/locale/en_US";
 import zhCN from "antd/locale/zh_CN";
 import { BarChart3, CalendarClock, Check, CircleHelp, Cloud, Download, Github, LogIn, LogOut, Megaphone, Plus, RefreshCw, RotateCcw, Server, Settings, ShieldCheck, Upload, UploadCloud, UserRound } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { checkForUpdate, chooseAndExportDiagnosticLogs, consumeResetCredit, DEFAULT_CLOUD_BASE_URL, fetchCloudAnnouncement, isDesktopApp, openManagedFolder, reportBaseUrlChange, reportFirstInstallation, restartChatGpt, showTokenUsageWindow, syncDirectConversations } from "./api/backend";
+import { checkForUpdate, chooseAndExportDiagnosticLogs, consumeResetCredit, DEFAULT_CLOUD_BASE_URL, fetchCloudAnnouncement, isDesktopApp, openManagedFolder, reportBaseUrlChange, reportFirstInstallation, restartChatGpt, showTokenUsageWindow, submitFeedback, syncDirectConversations } from "./api/backend";
 import { HelpModal, type HelpVersionState } from "./components/modals/HelpModal";
+import { FeedbackModal } from "./components/modals/FeedbackModal";
 import { FloatingUsageBubble } from "./components/FloatingUsageBubble";
 import { TokenUsageWindow } from "./components/TokenUsageWindow";
 import { CloudLoginModal } from "./components/modals/CloudLoginModal";
@@ -51,6 +52,7 @@ function DashboardApp() {
   const [showLogin, setShowLogin] = useState(false);
   const [showCloudLogin, setShowCloudLogin] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
   const [helpVersionState, setHelpVersionState] = useState<HelpVersionState>({ status: "checking" });
   const [availableUpdate, setAvailableUpdate] = useState<UpdateInfo | null>(null);
   const [lastRefreshAllAt, setLastRefreshAllAt] = useState<string | null>(storedRefreshAllTime);
@@ -245,6 +247,10 @@ function DashboardApp() {
       .catch(() => undefined);
     return () => { cancelled = true; };
   }, []);
+  const sendFeedback = useCallback(async (content: string, images: File[]) => {
+    await submitFeedback(content, manager.info?.version ?? "0.1.0", images);
+    notify(t("feedback.success"));
+  }, [manager.info?.version, notify, t]);
 
   useEffect(() => {
     let cancelled = false;
@@ -360,8 +366,14 @@ function DashboardApp() {
               } : undefined}
             >
               <div className="announcement-track" key={announcement?.content ?? language}>
-                <Megaphone size={15} />
-                <span>{announcement?.content ?? t("announcement.welcome")}</span>
+                <div className="announcement-copy">
+                  <Megaphone size={15} />
+                  <span>{announcement?.content ?? t("announcement.welcome")}</span>
+                </div>
+                <div className="announcement-copy" aria-hidden="true">
+                  <Megaphone size={15} />
+                  <span>{announcement?.content ?? t("announcement.welcome")}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -556,8 +568,11 @@ function DashboardApp() {
           sendingRegistrationCode={cloud.sendingRegistrationCode} onLogin={loginCloudAccount}
           onForgotPassword={openCloudPasswordReset} onRegister={registerCloudAccount}
           onSendRegistrationCode={cloud.sendRegistrationCode} t={t} />}
-        {showHelp && <HelpModal onClose={() => setShowHelp(false)} onDownload={openRelease} version={manager.info?.version ?? "0.1.0"}
+        {showHelp && <HelpModal onClose={() => setShowHelp(false)} onDownload={openRelease}
+          onFeedback={() => setShowFeedback(true)} version={manager.info?.version ?? "0.1.0"}
           versionState={helpVersionState} t={t} />}
+        {showFeedback && <FeedbackModal email={cloud.state.authenticated ? cloud.state.userEmail : null}
+          onClose={() => setShowFeedback(false)} onSubmit={sendFeedback} t={t} />}
         {availableUpdate && <UpdateModal update={availableUpdate} onClose={() => setAvailableUpdate(null)}
           onIgnore={ignoreUpdate} onDownload={() => {
             setAvailableUpdate(null);

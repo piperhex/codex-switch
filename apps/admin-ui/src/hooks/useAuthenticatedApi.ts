@@ -53,5 +53,32 @@ export function useAuthenticatedApi(
     return parse(response);
   }, [auth, saveAuth, t]);
 
-  return { api, signOut };
+  const apiBlob = useCallback(async (path: string): Promise<Blob> => {
+    const requestWithToken = (token: string) => fetch(path, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!auth?.accessToken) throw new Error(t("errors.notSignedIn"));
+    let response = await requestWithToken(auth.accessToken);
+    if (response.status === 401 && auth.refreshToken) {
+      const refreshResponse = await fetch("/auth/refresh", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refreshToken: auth.refreshToken }),
+      });
+      if (!refreshResponse.ok) {
+        saveAuth(null);
+        throw new Error(t("errors.sessionExpired"));
+      }
+      const refreshed = await refreshResponse.json() as AuthTokens;
+      saveAuth(refreshed);
+      response = await requestWithToken(refreshed.accessToken);
+    }
+    if (!response.ok) {
+      const error = await response.json().catch(() => null) as { message?: string } | null;
+      throw new Error(error?.message || response.statusText);
+    }
+    return response.blob();
+  }, [auth, saveAuth, t]);
+
+  return { api, apiBlob, signOut };
 }

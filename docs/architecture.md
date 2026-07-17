@@ -56,8 +56,8 @@ The desktop React frontend receives redacted models such as `AccountSummary`, `P
 ## Cloud Backend and Mobile Responsibilities
 
 - `apps/admin` exposes registration/login, refresh-token, account sync, Provider sync, redacted mobile-summary, and admin-management routes.
-- PostgreSQL stores users, refresh tokens, synchronized account credentials, Provider API keys, admin audit data, and the optional official-account pool. Redis caches account and Provider lists.
-- The admin console at `/admin` manages users, their synchronized accounts and Providers, invitations, approval requests, audit logs, and official-account assignments.
+- PostgreSQL stores users, refresh tokens, synchronized account credentials, Provider API keys, admin audit data, feedback with image attachments, and the optional official-account pool. Redis caches account and Provider lists.
+- The admin console at `/admin` manages users, their synchronized accounts and Providers, invitations, approval requests, feedback and replies, audit logs, and official-account assignments.
 - An official account assigned to a user is merged into that user's effective sync list. The assigned system copy wins when its stable account ID collides with a personal copy, and it must be edited or removed from the official pool.
 - `apps/native` stores only its cloud login session in the platform secure store and reads `/sync/accounts/summary`. The response excludes each account's `auth` payload; the mobile app cannot switch accounts or refresh official usage directly.
 
@@ -97,6 +97,12 @@ The desktop React frontend receives redacted models such as `AccountSummary`, `P
 2. After authentication, account and Provider changes push complete payloads to the configured server. Manual sync downloads remote changes and then uploads local entries; `lastModifiedAt` resolves competing edits.
 3. Full `/sync/accounts` responses are for desktop synchronization. `/sync/accounts/summary` removes `auth` before serving the mobile app.
 4. Cloud logout removes the local cloud session but does not delete synchronized server data or local account data.
+
+### Issue Feedback
+
+1. The Help dialog opens a feedback form that includes the app version and platform user agent. Signed-in submissions use the existing cloud JWT so the backend binds the verified account email; anonymous submissions contain no contact email.
+2. A submission accepts up to four JPEG, PNG, or WebP images. The desktop UI compresses any image larger than 5 MB before IPC, and both Rust and NestJS enforce the 5 MB per-image limit again.
+3. Feedback image bytes remain in PostgreSQL and are only returned through permission-guarded admin endpoints. The admin console can preview attachments and send a plain-text SMTP reply when a verified email is available.
 
 ### Settings, Tray, and Auxiliary Windows
 

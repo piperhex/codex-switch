@@ -16,8 +16,10 @@ export type Permission =
   | "admin.approvals.read"
   | "admin.approvals.manage"
   | "admin.announcements.read"
-  | "admin.announcements.manage";
-export type MenuKey = "myAccounts" | "users" | "officialAccounts" | "announcement" | "audit" | "invitations" | "approvals";
+  | "admin.announcements.manage"
+  | "admin.feedback.read"
+  | "admin.feedback.manage";
+export type MenuKey = "myAccounts" | "users" | "officialAccounts" | "announcement" | "feedback" | "audit" | "invitations" | "approvals";
 
 export interface AuthTokens {
   accessToken: string;
@@ -45,6 +47,25 @@ export interface AnnouncementConfig {
   textColor: string;
   backgroundColor: string;
   updatedAt?: string | null;
+}
+
+export interface FeedbackAttachment {
+  id: string;
+  fileName: string;
+  mimeType: string;
+  size: number;
+}
+
+export interface FeedbackRow {
+  id: string;
+  content: string;
+  version: string;
+  platform: string;
+  email?: string | null;
+  attachments: FeedbackAttachment[];
+  lastRepliedAt?: string | null;
+  lastRepliedByEmail?: string | null;
+  createdAt: string;
 }
 
 export interface UserRow {

@@ -33,8 +33,10 @@ The data remains in this directory after `docker compose down` or `docker compos
 
 If production uses `POSTGRES_DB_SYNCHRONIZE=false`, apply `sql/20260704-admin-management.sql`,
 `sql/20260705-sync-last-modified.sql`, `sql/20260707-sync-providers.sql`,
-`sql/20260714-system-account-pool.sql`, and `sql/20260717-invitation-policies.sql` before using
-the expanded admin console, provider sync, official account pool, and reusable invitations.
+`sql/20260714-system-account-pool.sql`, `sql/20260717-invitation-policies.sql`,
+`sql/20260717-app-announcements.sql`, `sql/20260717-device-installations.sql`, and
+`sql/20260718-user-feedback.sql` before using the expanded admin console, provider sync,
+official account pool, reusable invitations, announcements, telemetry, and feedback management.
 
 ## Docker Troubleshooting
 
@@ -117,6 +119,7 @@ curl -s -X POST http://KONG_ADMIN:8001/services/codex-switch-backend/routes \
   --data name=codex-switch-public \
   --data 'paths[]=/auth' \
   --data 'paths[]=/admin' \
+  --data 'paths[]=/feedback' \
   --data strip_path=false
 
 curl -s -X POST http://KONG_ADMIN:8001/services/codex-switch-backend/routes \
@@ -152,7 +155,7 @@ Every management and synchronization endpoint is protected by an explicit permis
 | Role | Permissions |
 | --- | --- |
 | `user` | Read and synchronize own accounts/providers; change own password |
-| `admin` | All user permissions plus user, official-account, audit-log, invitation, and approval management |
+| `admin` | All user permissions plus user, official-account, announcement, feedback, audit-log, invitation, and approval management |
 
 Ordinary users can sign in to `/admin`, see only the **My Accounts** page, open their profile, and change their own password. `GET /admin/api/profile/accounts` returns account display data without any `auth` credentials. Menu filtering is only a user-interface aid; backend permission guards remain authoritative.
 
@@ -173,6 +176,8 @@ with user creation so concurrent registrations cannot exceed the configured limi
 - `POST /auth/refresh`
 - `POST /auth/logout`
 - `GET /auth/me`
+- `POST /feedback`
+- `POST /feedback/authenticated`
 - `GET /sync/accounts`
 - `GET /sync/accounts/summary`
 - `PUT /sync/accounts`
@@ -210,5 +215,9 @@ with user creation so concurrent registrations cannot exceed the configured limi
 - `GET /admin/api/approvals`
 - `POST /admin/api/approvals`
 - `POST /admin/api/approvals/:id/review`
+- `GET /admin/api/feedback`
+- `GET /admin/api/feedback/:id`
+- `GET /admin/api/feedback/:id/attachments/:attachmentId`
+- `POST /admin/api/feedback/:id/email`
 
 Kong JWT plugin validation uses the access token `iss` claim. Keep `KONG_JWT_KEY` and `KONG_JWT_SECRET` aligned with the JWT credential in your existing Kong.

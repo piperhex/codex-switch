@@ -1,4 +1,4 @@
-import { CalendarClock, CircleHelp, Clock3, Download, RefreshCw, RotateCcw, ShieldCheck, UserRound, X } from "lucide-react";
+import { CalendarClock, CircleHelp, Clock3, Download, MessageSquareText, RefreshCw, RotateCcw, ShieldCheck, UserRound, X } from "lucide-react";
 import type { Translate } from "../../i18n";
 
 export type HelpVersionState =
@@ -10,6 +10,7 @@ export type HelpVersionState =
 interface HelpModalProps {
   onClose: () => void;
   onDownload: (releaseUrl: string) => void;
+  onFeedback: () => void;
   version: string;
   versionState: HelpVersionState;
   t: Translate;
@@ -22,7 +23,7 @@ function versionStatusLabel(state: HelpVersionState, t: Translate) {
   return t("help.version.checking");
 }
 
-export function HelpModal({ onClose, onDownload, version, versionState, t }: HelpModalProps) {
+export function HelpModal({ onClose, onDownload, onFeedback, version, versionState, t }: HelpModalProps) {
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <section className="modal help-modal" role="dialog" aria-modal="true" aria-labelledby="help-modal-title"
@@ -42,6 +43,9 @@ export function HelpModal({ onClose, onDownload, version, versionState, t }: Hel
         <div className="help-version">
           <span>Codex Switch</span>
           <div className="help-version-details">
+            <button type="button" className="help-feedback-button" onClick={onFeedback}>
+              <MessageSquareText size={12} />{t("help.feedback")}
+            </button>
             <b>v{version}</b>
             <span className={`help-version-status ${versionState.status}`} role="status" aria-live="polite">
               {versionStatusLabel(versionState, t)}

@@ -18,6 +18,7 @@ import { useAuthenticatedApi } from "./hooks/useAuthenticatedApi";
 import { ApprovalsPage } from "./pages/ApprovalsPage";
 import { AnnouncementPage } from "./pages/AnnouncementPage";
 import { AuditLogsPage } from "./pages/AuditLogsPage";
+import { FeedbackPage } from "./pages/FeedbackPage";
 import { InvitationsPage } from "./pages/InvitationsPage";
 import { MyAccountsPage } from "./pages/MyAccountsPage";
 import { OfficialAccountsPage } from "./pages/OfficialAccountsPage";
@@ -28,6 +29,7 @@ import type {
   AuditLog,
   AuthTokens,
   Invitation,
+  FeedbackRow,
   MenuKey,
   PageResult,
   Profile,
@@ -49,6 +51,7 @@ const emptyUsers: PageResult<UserRow> = { items: [], total: 0, page: 1, pageSize
 const emptyAuditLogs: PageResult<AuditLog> = { items: [], total: 0, page: 1, pageSize: 20 };
 const emptyInvitations: PageResult<Invitation> = { items: [], total: 0, page: 1, pageSize: 20 };
 const emptyApprovals: PageResult<ApprovalRequest> = { items: [], total: 0, page: 1, pageSize: 20 };
+const emptyFeedback: PageResult<FeedbackRow> = { items: [], total: 0, page: 1, pageSize: 20 };
 const emptySystemAccounts: PageResult<SystemAccount> = { items: [], total: 0, page: 1, pageSize: 20 };
 const emptyAnnouncement: AnnouncementConfig = {
   content: "",
@@ -77,6 +80,8 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
   const [auditLogs, setAuditLogs] = useState<PageResult<AuditLog>>(emptyAuditLogs);
   const [auditSearch, setAuditSearch] = useState("");
   const [auditLoading, setAuditLoading] = useState(false);
+  const [feedback, setFeedback] = useState<PageResult<FeedbackRow>>(emptyFeedback);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [invitations, setInvitations] = useState<PageResult<Invitation>>(emptyInvitations);
   const [invitationLoading, setInvitationLoading] = useState(false);
   const [approvals, setApprovals] = useState<PageResult<ApprovalRequest>>(emptyApprovals);
@@ -117,7 +122,7 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
     persistAuth(next);
   }, []);
 
-  const { api, signOut } = useAuthenticatedApi(auth, saveAuth, t);
+  const { api, apiBlob, signOut } = useAuthenticatedApi(auth, saveAuth, t);
 
   const loadProfile = useCallback(async () => {
     if (!auth?.accessToken) return;
@@ -173,6 +178,36 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
       setAuditLoading(false);
     }
   }, [api, auditLogs.page, auditLogs.pageSize, auditSearch, message]);
+
+  const loadFeedback = useCallback(async (page = feedback.page, pageSize = feedback.pageSize) => {
+    setFeedbackLoading(true);
+    try {
+      setFeedback(await api<PageResult<FeedbackRow>>(`/admin/api/feedback?page=${page}&pageSize=${pageSize}`));
+    } catch (error) {
+      message.error((error as Error).message);
+    } finally {
+      setFeedbackLoading(false);
+    }
+  }, [api, feedback.page, feedback.pageSize, message]);
+
+  const loadFeedbackAttachment = useCallback(async (feedbackId: string, attachmentId: string) => {
+    const blob = await apiBlob(`/admin/api/feedback/${feedbackId}/attachments/${attachmentId}`);
+    return URL.createObjectURL(blob);
+  }, [apiBlob]);
+
+  const sendFeedbackEmail = useCallback(async (feedbackId: string, subject: string, content: string) => {
+    try {
+      await api(`/admin/api/feedback/${feedbackId}/email`, {
+        method: "POST",
+        body: JSON.stringify({ subject, content }),
+      });
+      message.success(t("feedback.emailSent"));
+      await loadFeedback();
+    } catch (error) {
+      message.error((error as Error).message);
+      throw error;
+    }
+  }, [api, loadFeedback, message, t]);
 
   const loadSystemAccounts = useCallback(async (
     page = systemAccounts.page,
@@ -275,6 +310,7 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
     if (activeKey === "users") void loadUsers();
     if (activeKey === "officialAccounts") void loadSystemAccounts();
     if (activeKey === "announcement") void loadAnnouncement();
+    if (activeKey === "feedback") void loadFeedback();
     if (activeKey === "audit") void loadAuditLogs();
     if (activeKey === "invitations") void loadInvitations();
     if (activeKey === "approvals") void loadApprovals();
@@ -284,6 +320,7 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
     loadApprovals,
     loadAuditLogs,
     loadInvitations,
+    loadFeedback,
     loadAnnouncement,
     loadOwnAccounts,
     loadSystemAccounts,
@@ -421,6 +458,18 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
           saving={announcementSaving}
           onRefresh={loadAnnouncement}
           onSave={saveAnnouncement}
+        />
+      );
+    }
+
+    if (activeKey === "feedback") {
+      return (
+        <FeedbackPage
+          feedback={feedback}
+          loading={feedbackLoading}
+          onLoad={loadFeedback}
+          onLoadAttachment={loadFeedbackAttachment}
+          onSendEmail={sendFeedbackEmail}
         />
       );
     }

@@ -119,6 +119,7 @@ pub fn run() {
             oauth::start_login,
             cloud::get_cloud_auth_state,
             cloud::fetch_cloud_announcement,
+            cloud::submit_feedback,
             cloud::report_first_installation,
             cloud::report_base_url_change,
             cloud::set_cloud_base_url,

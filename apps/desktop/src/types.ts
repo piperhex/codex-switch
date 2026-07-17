@@ -151,6 +151,12 @@ export interface CloudAnnouncement {
   updatedAt?: string | null;
 }
 
+export interface FeedbackImageInput {
+  fileName: string;
+  mimeType: string;
+  dataBase64: string;
+}
+
 export interface AccountArchiveImportResult {
   imported: number;
   accountIds: string[];

@@ -1,7 +1,11 @@
 use std::{collections::HashSet, fs, time::Duration};
 
+use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
 use chrono::Utc;
-use reqwest::{blocking::Client, Method, StatusCode};
+use reqwest::{
+    blocking::{multipart, Client},
+    Method, StatusCode,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tauri::{Emitter, Manager, Runtime};
@@ -59,6 +63,25 @@ pub(crate) struct CloudAnnouncement {
     updated_at: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct FeedbackImageInput {
+    file_name: String,
+    mime_type: String,
+    data_base64: String,
+}
+
+#[derive(Debug)]
+struct FeedbackImage {
+    file_name: String,
+    mime_type: String,
+    data: Vec<u8>,
+}
+
+const MAX_FEEDBACK_IMAGE_BYTES: usize = 5 * 1024 * 1024;
+const MAX_FEEDBACK_IMAGES: usize = 4;
+const FEEDBACK_IMAGE_MIME_TYPES: [&str; 3] = ["image/jpeg", "image/png", "image/webp"];
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct InstallationState {
@@ -115,6 +138,38 @@ fn api_client() -> Result<Client, String> {
         .timeout(Duration::from_secs(20))
         .build()
         .map_err(|error| format!("Failed to create cloud HTTP client: {error}"))
+}
+
+fn feedback_client() -> Result<Client, String> {
+    Client::builder()
+        .timeout(Duration::from_secs(60))
+        .build()
+        .map_err(|error| format!("Failed to create feedback HTTP client: {error}"))
+}
+
+fn decode_feedback_images(inputs: Vec<FeedbackImageInput>) -> Result<Vec<FeedbackImage>, String> {
+    if inputs.len() > MAX_FEEDBACK_IMAGES {
+        return Err(format!(
+            "At most {MAX_FEEDBACK_IMAGES} feedback images are allowed"
+        ));
+    }
+    inputs
+        .into_iter()
+        .map(|input| {
+            let maximum_base64_length = MAX_FEEDBACK_IMAGE_BYTES.div_ceil(3) * 4 + 4;
+            if input.data_base64.len() > maximum_base64_length {
+                return Err("Each feedback image must not exceed 5 MB".to_string());
+            }
+            let data = BASE64_STANDARD
+                .decode(&input.data_base64)
+                .map_err(|_| "Feedback image data is invalid".to_string())?;
+            Ok(FeedbackImage {
+                file_name: input.file_name,
+                mime_type: input.mime_type,
+                data,
+            })
+        })
+        .collect()
 }
 
 fn normalize_base_url(value: &str) -> Result<Option<String>, String> {
@@ -649,6 +704,57 @@ pub(crate) async fn cloud_login<R: Runtime>(
     cloud_authenticate(app, email, password, None, "/auth/login", "Cloud login").await
 }
 
+fn feedback_form(
+    content: &str,
+    version: &str,
+    platform: &str,
+    images: &[FeedbackImage],
+) -> Result<multipart::Form, String> {
+    let mut form = multipart::Form::new()
+        .text("content", content.to_string())
+        .text("version", version.to_string())
+        .text("platform", platform.to_string());
+    for image in images {
+        let part = multipart::Part::bytes(image.data.clone())
+            .file_name(image.file_name.clone())
+            .mime_str(&image.mime_type)
+            .map_err(|error| format!("Feedback image type is invalid: {error}"))?;
+        form = form.part("images", part);
+    }
+    Ok(form)
+}
+
+fn validate_feedback(
+    content: &str,
+    version: &str,
+    platform: &str,
+    images: &[FeedbackImage],
+) -> Result<(), String> {
+    if content.trim().is_empty() || content.chars().count() > 5_000 {
+        return Err("Feedback must contain between 1 and 5000 characters".to_string());
+    }
+    if version.trim().is_empty() || version.chars().count() > 40 {
+        return Err("Feedback version is invalid".to_string());
+    }
+    if platform.trim().is_empty() || platform.chars().count() > 500 {
+        return Err("Feedback platform information is invalid".to_string());
+    }
+    if images.len() > MAX_FEEDBACK_IMAGES {
+        return Err(format!(
+            "At most {MAX_FEEDBACK_IMAGES} feedback images are allowed"
+        ));
+    }
+    for image in images {
+        if !FEEDBACK_IMAGE_MIME_TYPES.contains(&image.mime_type.as_str()) {
+            return Err("Only JPEG, PNG and WebP feedback images are supported".to_string());
+        }
+        if image.data.len() > MAX_FEEDBACK_IMAGE_BYTES {
+            return Err("Each feedback image must not exceed 5 MB".to_string());
+        }
+    }
+    Ok(())
+}
+
 fn installation_state_path<R: Runtime>(
     app: &tauri::AppHandle<R>,
 ) -> Result<std::path::PathBuf, String> {
@@ -724,6 +830,62 @@ pub(crate) async fn fetch_cloud_announcement<R: Runtime>(
     })
     .await
     .map_err(|error| format!("Announcement request task failed: {error}"))?
+}
+
+#[tauri::command]
+pub(crate) async fn submit_feedback<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    content: String,
+    version: String,
+    platform: String,
+    images: Vec<FeedbackImageInput>,
+) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let images = decode_feedback_images(images)?;
+        validate_feedback(&content, &version, &platform, &images)?;
+        let client = feedback_client()?;
+        let mut settings = read_app_settings(&app)?;
+        let mut credentials = read_cloud_credentials(&app);
+        let authenticated =
+            credentials.access_token.is_some() && credentials.refresh_token.is_some();
+        let path = if authenticated {
+            "/feedback/authenticated"
+        } else {
+            "/feedback"
+        };
+        let mut final_response = None;
+
+        for attempt in 0..if authenticated { 2 } else { 1 } {
+            let mut request = client
+                .post(endpoint(&settings, path)?)
+                .header("Accept", "application/json")
+                .multipart(feedback_form(&content, &version, &platform, &images)?);
+            if let Some(access_token) = credentials.access_token.as_ref().filter(|_| authenticated)
+            {
+                request = request.bearer_auth(access_token);
+            }
+            let response = request
+                .send()
+                .map_err(|error| format!("Feedback submission failed: {error}"))?;
+            if !authenticated || response.status() != StatusCode::UNAUTHORIZED || attempt == 1 {
+                final_response = Some(response);
+                break;
+            }
+            refresh_cloud_token(&client, &mut settings, &mut credentials)?;
+        }
+
+        if authenticated {
+            write_app_settings(&app, &settings)?;
+            write_cloud_credentials(&app, &credentials)?;
+        }
+        let response = final_response.ok_or_else(|| "Feedback submission failed".to_string())?;
+        if !response.status().is_success() {
+            return Err(response_error("Feedback submission", response));
+        }
+        Ok(())
+    })
+    .await
+    .map_err(|error| format!("Feedback submission task failed: {error}"))?
 }
 
 #[tauri::command]

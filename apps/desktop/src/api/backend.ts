@@ -13,6 +13,7 @@ import type {
   CloudAnnouncement,
   CloudSyncResult,
   DirectConversationSyncResult,
+  FeedbackImageInput,
   LoginStart,
   LoginStatus,
   LocalProxyStatus,
@@ -429,6 +430,41 @@ export async function fetchCloudAnnouncement(): Promise<CloudAnnouncement> {
   });
   if (!response.ok) throw new Error(`Announcement request failed with HTTP ${response.status}`);
   return response.json() as Promise<CloudAnnouncement>;
+}
+
+export async function submitFeedback(content: string, version: string, images: File[]): Promise<void> {
+  const platform = (navigator.userAgent || navigator.platform || "unknown").slice(0, 500);
+  if (isDesktopApp) {
+    const inputs: FeedbackImageInput[] = await Promise.all(images.map(async (file) => ({
+      fileName: file.name,
+      mimeType: file.type,
+      dataBase64: await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result).split(",", 2)[1] ?? "");
+        reader.onerror = () => reject(reader.error ?? new Error("Unable to read feedback image"));
+        reader.readAsDataURL(file);
+      }),
+    })));
+    await invoke("submit_feedback", { content, version, platform, images: inputs });
+    return;
+  }
+
+  const { baseUrl } = previewCloudState();
+  if (!baseUrl) throw new Error("Cloud server base URL is not configured");
+  const form = new FormData();
+  form.append("content", content);
+  form.append("version", version);
+  form.append("platform", platform);
+  images.forEach((image) => form.append("images", image, image.name));
+  const response = await fetch(`${baseUrl.replace(/\/+$/, "")}/feedback`, {
+    method: "POST",
+    headers: { Accept: "application/json" },
+    body: form,
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => null) as { message?: string } | null;
+    throw new Error(error?.message || `Feedback submission failed with HTTP ${response.status}`);
+  }
 }
 
 export async function reportFirstInstallation(): Promise<boolean> {
