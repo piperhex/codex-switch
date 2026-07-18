@@ -99,7 +99,7 @@ export function AdminShell({
 
   return (
     <Layout className="admin-shell">
-      <Layout.Sider breakpoint="lg" collapsedWidth={0} width={232}>
+      <Layout.Sider className="admin-sider" breakpoint="lg" collapsedWidth={0} width={232}>
         <div className="brand-block" style={{ height: 58, padding: "0 18px" }}>
           <div className="brand-mark">C</div>
           <div className="brand-copy">

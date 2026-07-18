@@ -48,7 +48,7 @@ export const PERMISSION_CATALOG: readonly PermissionDefinition[] = [
   { code: Permission.InvitationsManage, group: 'invitations', name: 'Manage invitations', description: 'Create and revoke registration invitations.' },
   { code: Permission.ApprovalsRead, group: 'approvals', name: 'Read approvals', description: 'View administrator approval requests.' },
   { code: Permission.ApprovalsManage, group: 'approvals', name: 'Manage approvals', description: 'Create and review administrator approval requests.' },
-  { code: Permission.AnnouncementsRead, group: 'content', name: 'Read announcements', description: 'View the application announcement configuration.' },
+  { code: Permission.AnnouncementsRead, group: 'content', name: 'Read announcements', description: 'View the application announcement configuration and link click analytics.' },
   { code: Permission.AnnouncementsManage, group: 'content', name: 'Manage announcements', description: 'Publish and update application announcements.' },
   { code: Permission.FeedbackRead, group: 'feedback', name: 'Read feedback', description: 'View feedback and its attachments.' },
   { code: Permission.FeedbackManage, group: 'feedback', name: 'Manage feedback', description: 'Reply to user feedback.' },

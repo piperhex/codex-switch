@@ -166,6 +166,55 @@ describe('AdminService', () => {
       .rejects.toBeInstanceOf(BadRequestException);
   });
 
+  it('lists every user registered through an invitation', async () => {
+    const invitation = { id: 'invitation-1', role: 'user' } as AdminInvitationEntity;
+    invitations.findOne.mockResolvedValue(invitation);
+    auditLogs.findAndCount.mockResolvedValue([[
+      {
+        id: 'audit-2',
+        actorId: 'user-3',
+        actorEmail: 'second@example.com',
+        action: 'invitation.accept',
+        targetType: 'invitation',
+        targetId: invitation.id,
+        metadata: { role: 'admin' },
+        createdAt: new Date('2026-07-04T02:00:00.000Z'),
+      },
+      {
+        id: 'audit-1',
+        actorId: 'user-2',
+        actorEmail: 'first@example.com',
+        action: 'invitation.accept',
+        targetType: 'invitation',
+        targetId: invitation.id,
+        metadata: {},
+        createdAt: new Date('2026-07-04T01:00:00.000Z'),
+      },
+    ], 2]);
+
+    await expect(service.listInvitationUsers(invitation.id, { page: 1, pageSize: 20 }))
+      .resolves.toEqual({
+        items: [
+          expect.objectContaining({
+            id: 'audit-2', userId: 'user-3', email: 'second@example.com', role: 'admin',
+          }),
+          expect.objectContaining({
+            id: 'audit-1', userId: 'user-2', email: 'first@example.com', role: 'user',
+          }),
+        ],
+        total: 2,
+        page: 1,
+        pageSize: 20,
+      });
+    expect(auditLogs.findAndCount).toHaveBeenCalledWith(expect.objectContaining({
+      where: {
+        action: 'invitation.accept',
+        targetType: 'invitation',
+        targetId: invitation.id,
+      },
+    }));
+  });
+
   it('lists synced providers for an existing user without exposing API keys', async () => {
     const owner = makeUser({ id: 'owner-1' });
     const provider = makeProvider({ apiKey: 'sk-secret' });

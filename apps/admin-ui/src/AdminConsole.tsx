@@ -30,10 +30,14 @@ import { UsersPage } from "./pages/UsersPage";
 import { RolesPage } from "./pages/RolesPage";
 import type {
   ApprovalRequest,
+  AnnouncementClick,
+  AnnouncementClickFilters,
+  AnnouncementClickOverview,
   AnnouncementConfig,
   AuditLog,
   AuthTokens,
   Invitation,
+  InvitationRegisteredUser,
   FeedbackRow,
   DeviceInstallation,
   MenuKey,
@@ -83,6 +87,14 @@ const emptyAnnouncement: AnnouncementConfig = {
   backgroundColor: "#203128",
   scrollDurationSeconds: 22,
   updatedAt: null,
+};
+const emptyAnnouncementClicks: PageResult<AnnouncementClick> = {
+  items: [], total: 0, page: 1, pageSize: 20,
+};
+const emptyAnnouncementClickOverview: AnnouncementClickOverview = {
+  totalClicks: 0,
+  clicksLast30Days: 0,
+  platforms: { windows: 0, macos: 0, linux: 0, android: 0, ios: 0 },
 };
 
 const menuPermissions: Record<MenuKey, Permission> = {
@@ -151,6 +163,13 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
   const [announcement, setAnnouncement] = useState<AnnouncementConfig>(emptyAnnouncement);
   const [announcementLoading, setAnnouncementLoading] = useState(false);
   const [announcementSaving, setAnnouncementSaving] = useState(false);
+  const [announcementClickOverview, setAnnouncementClickOverview] = useState(
+    emptyAnnouncementClickOverview,
+  );
+  const [announcementClickOverviewLoading, setAnnouncementClickOverviewLoading] = useState(false);
+  const [announcementClicks, setAnnouncementClicks] = useState(emptyAnnouncementClicks);
+  const [announcementClicksLoading, setAnnouncementClicksLoading] = useState(false);
+  const [announcementClickFilters, setAnnouncementClickFilters] = useState<AnnouncementClickFilters>({});
   const [userModalOpen, setUserModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserRow | null>(null);
   const [passwordUser, setPasswordUser] = useState<UserRow | null>(null);
@@ -395,6 +414,48 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
     }
   }, [api, message]);
 
+  const loadAnnouncementClickOverview = useCallback(async () => {
+    setAnnouncementClickOverviewLoading(true);
+    try {
+      setAnnouncementClickOverview(await api<AnnouncementClickOverview>(
+        "/admin/api/announcement/clicks/overview",
+      ));
+    } catch (error) {
+      message.error((error as Error).message);
+    } finally {
+      setAnnouncementClickOverviewLoading(false);
+    }
+  }, [api, message]);
+
+  const loadAnnouncementClicks = useCallback(async (
+    page = announcementClicks.page,
+    pageSize = announcementClicks.pageSize,
+  ) => {
+    setAnnouncementClicksLoading(true);
+    try {
+      const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+      if (announcementClickFilters.search?.trim()) {
+        params.set("search", announcementClickFilters.search.trim());
+      }
+      if (announcementClickFilters.platform) {
+        params.set("platform", announcementClickFilters.platform);
+      }
+      setAnnouncementClicks(await api<PageResult<AnnouncementClick>>(
+        `/admin/api/announcement/clicks?${params}`,
+      ));
+    } catch (error) {
+      message.error((error as Error).message);
+    } finally {
+      setAnnouncementClicksLoading(false);
+    }
+  }, [
+    announcementClickFilters,
+    announcementClicks.page,
+    announcementClicks.pageSize,
+    api,
+    message,
+  ]);
+
   const saveAnnouncement = useCallback(async (
     next: Pick<
       AnnouncementConfig,
@@ -456,7 +517,11 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
     if (activeKey === "myAccounts") void loadOwnAccounts();
     if (activeKey === "users") void loadUsers();
     if (activeKey === "officialAccounts") void loadSystemAccounts();
-    if (activeKey === "announcement") void loadAnnouncement();
+    if (activeKey === "announcement") {
+      void loadAnnouncement();
+      void loadAnnouncementClickOverview();
+      void loadAnnouncementClicks();
+    }
     if (activeKey === "feedback") void loadFeedback();
     if (activeKey === "audit") void loadAuditLogs();
     if (activeKey === "invitations") void loadInvitations();
@@ -469,6 +534,8 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
     loadInvitations,
     loadFeedback,
     loadAnnouncement,
+    loadAnnouncementClickOverview,
+    loadAnnouncementClicks,
     loadOwnAccounts,
     loadSystemAccounts,
     loadUsers,
@@ -670,8 +737,19 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
           announcement={announcement}
           loading={announcementLoading}
           saving={announcementSaving}
+          clickOverview={announcementClickOverview}
+          clicks={announcementClicks}
+          clickOverviewLoading={announcementClickOverviewLoading}
+          clicksLoading={announcementClicksLoading}
+          clickFilters={announcementClickFilters}
+          onClickFiltersChange={setAnnouncementClickFilters}
+          onLoadClicks={loadAnnouncementClicks}
           canManage={canManageAnnouncements}
-          onRefresh={loadAnnouncement}
+          onRefresh={() => {
+            void loadAnnouncement();
+            void loadAnnouncementClickOverview();
+            void loadAnnouncementClicks();
+          }}
           onSave={saveAnnouncement}
         />
       );
@@ -731,6 +809,11 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
           canManage={canManageInvitations}
           onCreateInvitation={() => setInvitationOpen(true)}
           onLoadInvitations={loadInvitations}
+          onLoadInvitationUsers={(invitationId, page = 1, pageSize = 20) => (
+            api<PageResult<InvitationRegisteredUser>>(
+              `/admin/api/invitations/${encodeURIComponent(invitationId)}/users?page=${page}&pageSize=${pageSize}`,
+            )
+          )}
           onRevokeInvitation={async (invitation) => {
             await api(`/admin/api/invitations/${invitation.id}`, { method: "DELETE" });
             message.success(t("common.revoked"));

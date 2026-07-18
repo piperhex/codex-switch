@@ -110,6 +110,7 @@ describe('HTTP controllers', () => {
       unbindSystemAccounts: vi.fn().mockResolvedValue('system-account-unbound'),
       listAuditLogs: vi.fn().mockResolvedValue('logs'),
       listInvitations: vi.fn().mockResolvedValue('invitations'),
+      listInvitationUsers: vi.fn().mockResolvedValue('invitation-users'),
       createInvitation: vi.fn().mockResolvedValue('invitation'),
       revokeInvitation: vi.fn().mockResolvedValue('revoked'),
       listApprovalRequests: vi.fn().mockResolvedValue('approvals'),
@@ -179,6 +180,8 @@ describe('HTTP controllers', () => {
     await expect(controller.unbindSystemAccounts(actor, bindingDto)).resolves.toBe('system-account-unbound');
     await expect(controller.listAuditLogs({ page: 1 })).resolves.toBe('logs');
     await expect(controller.listInvitations({ page: 1 })).resolves.toBe('invitations');
+    await expect(controller.listInvitationUsers('invitation-1', { page: 1 }))
+      .resolves.toBe('invitation-users');
     await expect(controller.createInvitation(actor, { email: 'invite@example.com' }))
       .resolves.toBe('invitation');
     await expect(controller.revokeInvitation(actor, 'invitation-1')).resolves.toBe('revoked');

@@ -269,6 +269,37 @@ export class AdminService {
     return { items: items.map((item) => this.presentInvitation(item)), total, page, pageSize };
   }
 
+  async listInvitationUsers(id: string, query: PageQueryDto) {
+    const invitation = await this.invitations.findOne({ where: { id } });
+    if (!invitation) throw new NotFoundException('Invitation not found');
+
+    const { page, pageSize } = this.page(query);
+    const [acceptances, total] = await this.auditLogs.findAndCount({
+      where: {
+        action: 'invitation.accept',
+        targetType: 'invitation',
+        targetId: id,
+      },
+      order: { createdAt: 'DESC' },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    });
+    return {
+      items: acceptances.map((acceptance) => ({
+        id: acceptance.id,
+        userId: acceptance.actorId,
+        email: acceptance.actorEmail,
+        role: typeof acceptance.metadata.role === 'string'
+          ? acceptance.metadata.role
+          : invitation.role,
+        registeredAt: acceptance.createdAt,
+      })),
+      total,
+      page,
+      pageSize,
+    };
+  }
+
   async revokeInvitation(actor: AuthUser, id: string) {
     const invitation = await this.invitations.findOne({ where: { id } });
     if (!invitation) throw new NotFoundException('Invitation not found');

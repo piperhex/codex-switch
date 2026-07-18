@@ -54,6 +54,27 @@ export interface AnnouncementConfig {
   updatedAt?: string | null;
 }
 
+export interface AnnouncementClickOverview {
+  totalClicks: number;
+  clicksLast30Days: number;
+  platforms: Record<TelemetryPlatform, number>;
+}
+
+export interface AnnouncementClick {
+  id: string;
+  deviceId: string;
+  platform: TelemetryPlatform;
+  email?: string | null;
+  link: string;
+  announcementUpdatedAt?: string | null;
+  createdAt: string;
+}
+
+export interface AnnouncementClickFilters {
+  search?: string;
+  platform?: TelemetryPlatform;
+}
+
 export interface FeedbackAttachment {
   id: string;
   fileName: string;
@@ -178,6 +199,14 @@ export interface Invitation {
   revokedAt?: string | null;
   createdAt: string;
   token?: string;
+}
+
+export interface InvitationRegisteredUser {
+  id: string;
+  userId?: string | null;
+  email: string;
+  role: Role;
+  registeredAt: string;
 }
 
 export interface ApprovalRequest {

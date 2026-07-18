@@ -100,6 +100,14 @@ body {
   font-size: 12px;
 }
 
+.admin-sider .brand-copy strong {
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.admin-sider .brand-copy span {
+  color: rgba(255, 255, 255, 0.68);
+}
+
 .header-actions {
   display: flex;
   align-items: center;
@@ -233,6 +241,14 @@ body {
   max-width: 920px;
   padding: 22px;
   overflow: visible;
+}
+
+.announcement-click-title {
+  margin-top: 28px !important;
+}
+
+.announcement-click-summary {
+  max-width: 560px;
 }
 
 .announcement-preview {

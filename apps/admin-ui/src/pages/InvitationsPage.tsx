@@ -1,9 +1,10 @@
-import { Button, Table, Tag } from "antd";
+import { useState } from "react";
+import { App as AntApp, Button, Modal, Space, Table, Tag, Typography } from "antd";
 import type { TableColumnsType } from "antd";
-import { Plus, RefreshCw, XCircle } from "lucide-react";
+import { Eye, Plus, RefreshCw, XCircle } from "lucide-react";
 import { labelForRole } from "../i18n";
 import { useI18n } from "../i18n-context";
-import type { Invitation, PageResult, RbacRole, Role } from "../types";
+import type { Invitation, InvitationRegisteredUser, PageResult, RbacRole, Role } from "../types";
 import { formatDate } from "../utils/format";
 
 interface InvitationsPageProps {
@@ -11,6 +12,11 @@ interface InvitationsPageProps {
   loading: boolean;
   onCreateInvitation: () => void;
   onLoadInvitations: (page?: number, pageSize?: number) => void | Promise<void>;
+  onLoadInvitationUsers: (
+    invitationId: string,
+    page?: number,
+    pageSize?: number,
+  ) => Promise<PageResult<InvitationRegisteredUser>>;
   onRevokeInvitation: (invitation: Invitation) => void;
   roles: RbacRole[];
   canManage: boolean;
@@ -21,11 +27,57 @@ export function InvitationsPage({
   loading,
   onCreateInvitation,
   onLoadInvitations,
+  onLoadInvitationUsers,
   onRevokeInvitation,
   roles,
   canManage,
 }: InvitationsPageProps) {
+  const { message } = AntApp.useApp();
   const { language, t } = useI18n();
+  const [selectedInvitation, setSelectedInvitation] = useState<Invitation | null>(null);
+  const [registeredUsers, setRegisteredUsers] = useState<PageResult<InvitationRegisteredUser>>({
+    items: [],
+    total: 0,
+    page: 1,
+    pageSize: 20,
+  });
+  const [registeredUsersLoading, setRegisteredUsersLoading] = useState(false);
+
+  async function loadRegisteredUsers(invitation: Invitation, page = 1, pageSize = 20) {
+    setRegisteredUsersLoading(true);
+    try {
+      setRegisteredUsers(await onLoadInvitationUsers(invitation.id, page, pageSize));
+    } catch (error) {
+      message.error((error as Error).message);
+    } finally {
+      setRegisteredUsersLoading(false);
+    }
+  }
+
+  function openRegisteredUsers(invitation: Invitation) {
+    setSelectedInvitation(invitation);
+    setRegisteredUsers({ items: [], total: 0, page: 1, pageSize: 20 });
+    void loadRegisteredUsers(invitation);
+  }
+
+  const registeredUserColumns: TableColumnsType<InvitationRegisteredUser> = [
+    { title: t("common.email"), dataIndex: "email" },
+    {
+      title: t("common.role"),
+      dataIndex: "role",
+      width: 140,
+      render: (role: Role) => (
+        <Tag>{roles.find((item) => item.code === role)?.name ?? labelForRole(role, t)}</Tag>
+      ),
+    },
+    {
+      title: t("invitations.registeredAt"),
+      dataIndex: "registeredAt",
+      width: 190,
+      render: (value: string) => formatDate(value, language),
+    },
+  ];
+
   const columns: TableColumnsType<Invitation> = [
     {
       title: t("common.email"),
@@ -68,15 +120,23 @@ export function InvitationsPage({
     },
     {
       title: t("common.actions"),
-      width: 90,
+      key: "actions",
+      width: 160,
+      fixed: "right",
       render: (_, row) => (
-        <Button
-          danger
-          className="icon-button"
-          icon={<XCircle size={15} />}
-          disabled={!canManage || Boolean(row.revokedAt || row.usedCount >= row.maxUses)}
-          onClick={() => onRevokeInvitation(row)}
-        />
+        <Space size="small">
+          <Button size="small" icon={<Eye size={14} />} onClick={() => openRegisteredUsers(row)}>
+            {t("invitations.viewUsers")}
+          </Button>
+          <Button
+            danger
+            size="small"
+            className="icon-button"
+            icon={<XCircle size={15} />}
+            disabled={!canManage || Boolean(row.revokedAt || row.usedCount >= row.maxUses)}
+            onClick={() => onRevokeInvitation(row)}
+          />
+        </Space>
       ),
     },
   ];
@@ -106,9 +166,45 @@ export function InvitationsPage({
             showSizeChanger: true,
           }}
           onChange={(pagination) => onLoadInvitations(pagination.current, pagination.pageSize)}
-          scroll={{ x: 1080 }}
+          scroll={{ x: 1160 }}
         />
       </div>
+
+      <Modal
+        title={t("invitations.usersTitle")}
+        open={Boolean(selectedInvitation)}
+        width={760}
+        footer={null}
+        onCancel={() => setSelectedInvitation(null)}
+        destroyOnClose
+      >
+        <Typography.Paragraph type="secondary">
+          {t("invitations.registeredUsersCount", { count: registeredUsers.total })}
+        </Typography.Paragraph>
+        <Table
+          rowKey="id"
+          size="small"
+          loading={registeredUsersLoading}
+          columns={registeredUserColumns}
+          dataSource={registeredUsers.items}
+          locale={{ emptyText: t("invitations.noRegisteredUsers") }}
+          pagination={{
+            current: registeredUsers.page,
+            pageSize: registeredUsers.pageSize,
+            total: registeredUsers.total,
+            showSizeChanger: true,
+          }}
+          onChange={(pagination) => {
+            if (selectedInvitation) {
+              void loadRegisteredUsers(
+                selectedInvitation,
+                pagination.current,
+                pagination.pageSize,
+              );
+            }
+          }}
+        />
+      </Modal>
     </>
   );
 }

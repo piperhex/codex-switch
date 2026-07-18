@@ -14,6 +14,10 @@ import {
 } from '@/modules/admin/dto/admin-management.dto';
 import { LoginDto } from '@/modules/auth/dto/login.dto';
 import { UpdateAnnouncementDto } from '@/modules/announcement/dto/update-announcement.dto';
+import {
+  CreateAnnouncementClickDto,
+  ListAnnouncementClicksQueryDto,
+} from '@/modules/announcement/dto/announcement-click.dto';
 import { RefreshDto } from '@/modules/auth/dto/refresh.dto';
 import { RegisterDto } from '@/modules/auth/dto/register.dto';
 import { RequestPasswordResetCodeDto } from '@/modules/auth/dto/request-password-reset-code.dto';
@@ -142,6 +146,32 @@ describe('request DTO validation', () => {
       ...validAnnouncement,
       scrollDurationSeconds: 120.5,
     })).resolves.toContain('scrollDurationSeconds must be an integer number');
+  });
+
+  it('validates announcement click device, platform, link and paging fields', async () => {
+    await expect(messages(CreateAnnouncementClickDto, {
+      deviceId: '18f72fe6-1ec1-4d68-b5c1-f1b52b67503f',
+      platform: 'windows',
+      link: 'https://status.example.com/notice',
+      announcementUpdatedAt: '2026-07-18T01:00:00.000Z',
+    })).resolves.toEqual([]);
+    await expect(messages(CreateAnnouncementClickDto, {
+      deviceId: 'not-a-device-id',
+      platform: 'web',
+      link: 'javascript:alert(1)',
+      announcementUpdatedAt: 'yesterday',
+    })).resolves.toEqual(expect.arrayContaining([
+      'deviceId must be a UUID',
+      'platform must be one of the following values: windows, macos, linux, android, ios',
+      'link must be a URL address',
+      'announcementUpdatedAt must be a valid ISO 8601 date string',
+    ]));
+    await expect(messages(ListAnnouncementClicksQueryDto, {
+      page: '2',
+      pageSize: '50',
+      search: 'user@example.com',
+      platform: 'macos',
+    })).resolves.toEqual([]);
   });
 
   it('validates nested sync accounts and accepts a complete valid payload', async () => {

@@ -325,6 +325,13 @@ export class AdminController {
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.InvitationsRead)
+  @Get('api/invitations/:id/users')
+  listInvitationUsers(@Param('id') id: string, @Query() query: PageQueryDto) {
+    return this.admin.listInvitationUsers(id, query);
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermissions(Permission.InvitationsManage)
   @Post('api/invitations')
   createInvitation(@CurrentUser() user: AuthUser, @Body() dto: CreateInvitationDto) {

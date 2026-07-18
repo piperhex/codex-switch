@@ -850,6 +850,60 @@ pub(crate) async fn fetch_cloud_announcement<R: Runtime>(
 }
 
 #[tauri::command]
+pub(crate) async fn report_announcement_click<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    link: String,
+    announcement_updated_at: Option<String>,
+) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let installation = read_or_create_installation_state(&app)?;
+        let client = api_client()?;
+        let mut settings = read_app_settings(&app)?;
+        let mut credentials = read_cloud_credentials(&app);
+        let authenticated =
+            credentials.access_token.is_some() && credentials.refresh_token.is_some();
+        let path = if authenticated {
+            "/announcements/clicks/authenticated"
+        } else {
+            "/announcements/clicks"
+        };
+        let payload = json!({
+            "deviceId": installation.device_id,
+            "platform": installation.platform,
+            "link": link,
+            "announcementUpdatedAt": announcement_updated_at,
+        });
+
+        let response = if authenticated {
+            let response = cloud_request(
+                &client,
+                &mut settings,
+                &mut credentials,
+                Method::POST,
+                path,
+                Some(payload),
+            )?;
+            write_app_settings(&app, &settings)?;
+            write_cloud_credentials(&app, &credentials)?;
+            response
+        } else {
+            client
+                .post(endpoint(&settings, path)?)
+                .header("Accept", "application/json")
+                .json(&payload)
+                .send()
+                .map_err(|error| format!("Announcement click report failed: {error}"))?
+        };
+        if !response.status().is_success() {
+            return Err(response_error("Announcement click report", response));
+        }
+        Ok(())
+    })
+    .await
+    .map_err(|error| format!("Announcement click report task failed: {error}"))?
+}
+
+#[tauri::command]
 pub(crate) async fn submit_feedback<R: Runtime>(
     app: tauri::AppHandle<R>,
     content: String,

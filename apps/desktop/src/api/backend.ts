@@ -436,6 +436,14 @@ export async function fetchCloudAnnouncement(): Promise<CloudAnnouncement> {
   return response.json() as Promise<CloudAnnouncement>;
 }
 
+export async function reportAnnouncementClick(
+  link: string,
+  announcementUpdatedAt?: string | null,
+): Promise<void> {
+  if (!isDesktopApp) return;
+  await invoke("report_announcement_click", { link, announcementUpdatedAt });
+}
+
 export async function submitFeedback(content: string, version: string, images: File[]): Promise<void> {
   const platform = (navigator.userAgent || navigator.platform || "unknown").slice(0, 500);
   if (isDesktopApp) {

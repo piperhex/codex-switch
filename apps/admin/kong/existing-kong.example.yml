@@ -12,6 +12,9 @@ services:
         paths:
           - /auth
           - /admin
+          - /feedback
+          - /announcements
+          - /telemetry
         strip_path: false
       - name: codex-switch-protected
         paths:

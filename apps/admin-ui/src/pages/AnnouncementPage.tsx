@@ -1,8 +1,29 @@
 import { useEffect, useRef, useState } from "react";
-import { App, Button, ColorPicker, Form, Input, InputNumber, Space, Switch, Typography } from "antd";
-import { BellRing, RefreshCw } from "lucide-react";
+import {
+  App,
+  Button,
+  ColorPicker,
+  Form,
+  Input,
+  InputNumber,
+  Select,
+  Space,
+  Switch,
+  Table,
+  Tag,
+  Typography,
+} from "antd";
+import type { TableColumnsType } from "antd";
+import { BellRing, RefreshCw, Search } from "lucide-react";
 import { useI18n } from "../i18n-context";
-import type { AnnouncementConfig } from "../types";
+import type {
+  AnnouncementClick,
+  AnnouncementClickFilters,
+  AnnouncementClickOverview,
+  AnnouncementConfig,
+  PageResult,
+  TelemetryPlatform,
+} from "../types";
 import { formatDate } from "../utils/format";
 
 type EditableAnnouncement = Pick<
@@ -47,6 +68,13 @@ interface AnnouncementPageProps {
   announcement: AnnouncementConfig;
   loading: boolean;
   saving: boolean;
+  clickOverview: AnnouncementClickOverview;
+  clicks: PageResult<AnnouncementClick>;
+  clickOverviewLoading: boolean;
+  clicksLoading: boolean;
+  clickFilters: AnnouncementClickFilters;
+  onClickFiltersChange: (filters: AnnouncementClickFilters) => void;
+  onLoadClicks: (page?: number, pageSize?: number) => void | Promise<void>;
   onRefresh: () => void | Promise<void>;
   onSave: (announcement: Pick<
     AnnouncementConfig,
@@ -56,10 +84,27 @@ interface AnnouncementPageProps {
   canManage: boolean;
 }
 
+const platforms: TelemetryPlatform[] = ["windows", "macos", "linux", "android", "ios"];
+
+const platformColors: Record<TelemetryPlatform, string> = {
+  windows: "blue",
+  macos: "purple",
+  linux: "orange",
+  android: "green",
+  ios: "cyan",
+};
+
 export function AnnouncementPage({
   announcement,
   loading,
   saving,
+  clickOverview,
+  clicks,
+  clickOverviewLoading,
+  clicksLoading,
+  clickFilters,
+  onClickFiltersChange,
+  onLoadClicks,
   onRefresh,
   onSave,
   canManage,
@@ -95,6 +140,37 @@ export function AnnouncementPage({
   const preview = previewContent.trim() || t("announcement.emptyPreview");
   const normalizedLink = link.trim();
   const linkIsValid = isValidAnnouncementLink(normalizedLink);
+  const platformOptions = platforms.map((platform) => ({
+    value: platform,
+    label: t(`telemetry.platform.${platform}`),
+  }));
+  const clickColumns: TableColumnsType<AnnouncementClick> = [
+    {
+      title: t("announcement.clickTime"),
+      dataIndex: "createdAt",
+      width: 190,
+      render: (value: string) => formatDate(value, language),
+    },
+    {
+      title: t("announcement.clickEmail"),
+      dataIndex: "email",
+      width: 240,
+      render: (value?: string | null) => value || t("announcement.clickAnonymous"),
+    },
+    {
+      title: t("announcement.clickPlatform"),
+      dataIndex: "platform",
+      width: 130,
+      render: (platform: TelemetryPlatform) => (
+        <Tag color={platformColors[platform]}>{t(`telemetry.platform.${platform}`)}</Tag>
+      ),
+    },
+    {
+      title: t("announcement.clickDeviceId"),
+      dataIndex: "deviceId",
+      render: (value: string) => <Typography.Text code copyable>{value}</Typography.Text>,
+    },
+  ];
 
   const autoSave = (overrides: Partial<EditableAnnouncement> = {}) => {
     const next = editableAnnouncement({
@@ -146,7 +222,11 @@ export function AnnouncementPage({
           )}
         </div>
         <div className="toolbar-right">
-          <Button loading={loading} icon={<RefreshCw size={15} />} onClick={() => void onRefresh()}>
+          <Button
+            loading={loading || clickOverviewLoading || clicksLoading}
+            icon={<RefreshCw size={15} />}
+            onClick={() => void onRefresh()}
+          >
             {t("common.refresh")}
           </Button>
         </div>
@@ -257,6 +337,80 @@ export function AnnouncementPage({
             </div>
           </Form.Item>
         </Form>
+      </div>
+      <Typography.Title level={4} className="announcement-click-title">
+        {t("announcement.clickAnalytics")}
+      </Typography.Title>
+      <Typography.Paragraph type="secondary">
+        {t("announcement.clickAnalyticsDescription")}
+      </Typography.Paragraph>
+      <div className="summary-grid announcement-click-summary">
+        <div className="metric">
+          <span>{t("announcement.totalClicks")}</span>
+          <strong>{clickOverview.totalClicks}</strong>
+        </div>
+        <div className="metric">
+          <span>{t("announcement.clicksLast30Days")}</span>
+          <strong>{clickOverview.clicksLast30Days}</strong>
+        </div>
+      </div>
+      <div className="toolbar">
+        <Space wrap>
+          <Typography.Text type="secondary">
+            {t("announcement.clickPlatformDistribution")}
+          </Typography.Text>
+          {platforms.map((platform) => (
+            <Tag key={platform}>
+              {t(`telemetry.platform.${platform}`)}: {clickOverview.platforms[platform]}
+            </Tag>
+          ))}
+        </Space>
+      </div>
+      <div className="panel telemetry-panel">
+        <div className="toolbar telemetry-table-toolbar">
+          <div className="toolbar-left">
+            <Input
+              allowClear
+              prefix={<Search size={15} />}
+              placeholder={t("announcement.clickSearchPlaceholder")}
+              value={clickFilters.search}
+              onChange={(event) => onClickFiltersChange({
+                ...clickFilters,
+                search: event.target.value,
+              })}
+              onPressEnter={() => onLoadClicks(1)}
+              style={{ width: 320 }}
+            />
+            <Select
+              allowClear
+              placeholder={t("announcement.clickPlatform")}
+              value={clickFilters.platform}
+              options={platformOptions}
+              onChange={(platform) => onClickFiltersChange({ ...clickFilters, platform })}
+              style={{ width: 150 }}
+            />
+            <Button icon={<Search size={15} />} onClick={() => onLoadClicks(1)}>
+              {t("common.filter")}
+            </Button>
+          </div>
+          <Typography.Text type="secondary">
+            {t("announcement.clickRecordsTotal", { count: clicks.total })}
+          </Typography.Text>
+        </div>
+        <Table
+          rowKey="id"
+          loading={clickOverviewLoading || clicksLoading}
+          columns={clickColumns}
+          dataSource={clicks.items}
+          pagination={{
+            current: clicks.page,
+            pageSize: clicks.pageSize,
+            total: clicks.total,
+            showSizeChanger: true,
+          }}
+          onChange={(pagination) => onLoadClicks(pagination.current, pagination.pageSize)}
+          scroll={{ x: 920 }}
+        />
       </div>
     </>
   );

@@ -4,6 +4,7 @@ import type { AuthUser } from '@/common/decorators/user.decorator';
 import { AnnouncementController } from '@/modules/announcement/announcement.controller';
 import { AnnouncementService } from '@/modules/announcement/announcement.service';
 import type { AppAnnouncementEntity } from '@/modules/announcement/entities/app-announcement.entity';
+import type { AnnouncementLinkClickEntity } from '@/modules/announcement/entities/announcement-link-click.entity';
 import type { AdminAuditLogEntity } from '@/modules/admin/entities/admin-audit-log.entity';
 
 function createService() {
@@ -16,11 +17,18 @@ function createService() {
     create: vi.fn((value) => value),
     save: vi.fn(),
   };
+  const clicks = {
+    create: vi.fn((value) => value),
+    save: vi.fn(),
+    count: vi.fn(),
+    createQueryBuilder: vi.fn(),
+  };
   const service = new AnnouncementService(
     announcements as unknown as Repository<AppAnnouncementEntity>,
     auditLogs as unknown as Repository<AdminAuditLogEntity>,
+    clicks as unknown as Repository<AnnouncementLinkClickEntity>,
   );
-  return { service, announcements, auditLogs };
+  return { service, announcements, auditLogs, clicks };
 }
 
 describe('AnnouncementService', () => {
@@ -117,6 +125,57 @@ describe('AnnouncementService', () => {
       scrollDurationSeconds: 22,
     })).rejects.toThrow('Chinese and English announcement content are required when enabled');
   });
+
+  it('records each link click with platform, device ID and authenticated email', async () => {
+    const { service, clicks } = createService();
+    const dto = {
+      deviceId: '18f72fe6-1ec1-4d68-b5c1-f1b52b67503f',
+      platform: 'windows' as const,
+      link: ' https://status.example.com/notice ',
+      announcementUpdatedAt: '2026-07-18T01:00:00.000Z',
+    };
+
+    await expect(service.recordClick(dto, actor)).resolves.toEqual({ ok: true });
+    expect(clicks.create).toHaveBeenCalledWith({
+      deviceId: dto.deviceId,
+      platform: 'windows',
+      email: 'admin@example.com',
+      link: 'https://status.example.com/notice',
+      announcementUpdatedAt: new Date(dto.announcementUpdatedAt),
+    });
+    expect(clicks.save).toHaveBeenCalledOnce();
+  });
+
+  it('summarizes total, recent and per-platform link clicks', async () => {
+    const { service, clicks } = createService();
+    const recentBuilder = {
+      where: vi.fn().mockReturnThis(),
+      getCount: vi.fn().mockResolvedValue(4),
+    };
+    const platformBuilder = {
+      select: vi.fn().mockReturnThis(),
+      addSelect: vi.fn().mockReturnThis(),
+      groupBy: vi.fn().mockReturnThis(),
+      getRawMany: vi.fn().mockResolvedValue([
+        { platform: 'windows', count: '6' },
+        { platform: 'macos', count: '2' },
+      ]),
+    };
+    clicks.count.mockResolvedValue(8);
+    clicks.createQueryBuilder
+      .mockReturnValueOnce(recentBuilder)
+      .mockReturnValueOnce(platformBuilder);
+
+    await expect(service.getClickOverview()).resolves.toEqual({
+      totalClicks: 8,
+      clicksLast30Days: 4,
+      platforms: { windows: 6, macos: 2, linux: 0, android: 0, ios: 0 },
+    });
+    expect(recentBuilder.where).toHaveBeenCalledWith(
+      'click.createdAt >= :since',
+      { since: expect.any(Date) },
+    );
+  });
 });
 
 describe('AnnouncementController', () => {
@@ -124,6 +183,9 @@ describe('AnnouncementController', () => {
     const announcements = {
       getPublic: vi.fn().mockResolvedValue('public-announcement'),
       getAdmin: vi.fn().mockResolvedValue('admin-announcement'),
+      recordClick: vi.fn().mockResolvedValue({ ok: true }),
+      getClickOverview: vi.fn().mockResolvedValue('click-overview'),
+      listClicks: vi.fn().mockResolvedValue('click-list'),
       update: vi.fn().mockResolvedValue('updated-announcement'),
     };
     const controller = new AnnouncementController(announcements as unknown as AnnouncementService);
@@ -137,10 +199,23 @@ describe('AnnouncementController', () => {
       backgroundColor: '#000000',
       scrollDurationSeconds: 22,
     };
+    const clickDto = {
+      deviceId: '18f72fe6-1ec1-4d68-b5c1-f1b52b67503f',
+      platform: 'windows' as const,
+      link: 'https://status.example.com',
+    };
+    const clickQuery = { page: 2, platform: 'windows' as const };
 
     await expect(controller.getCurrent()).resolves.toBe('public-announcement');
     await expect(controller.getAdminConfig()).resolves.toBe('admin-announcement');
+    await expect(controller.recordPublicClick(clickDto)).resolves.toEqual({ ok: true });
+    await expect(controller.recordAuthenticatedClick(actor, clickDto)).resolves.toEqual({ ok: true });
+    await expect(controller.getClickOverview()).resolves.toBe('click-overview');
+    await expect(controller.listClicks(clickQuery)).resolves.toBe('click-list');
     await expect(controller.update(actor, dto)).resolves.toBe('updated-announcement');
+    expect(announcements.recordClick).toHaveBeenNthCalledWith(1, clickDto);
+    expect(announcements.recordClick).toHaveBeenNthCalledWith(2, clickDto, actor);
+    expect(announcements.listClicks).toHaveBeenCalledWith(clickQuery);
     expect(announcements.update).toHaveBeenCalledWith(actor, dto);
   });
 });

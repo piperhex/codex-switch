@@ -37,6 +37,7 @@ If production uses `POSTGRES_DB_SYNCHRONIZE=false`, apply `sql/20260704-admin-ma
 `sql/20260717-app-announcements.sql`, `sql/20260717-device-installations.sql`,
 `sql/20260718-announcement-scroll-speed.sql`,
 `sql/20260718-announcement-localization-link.sql`,
+`sql/20260718-announcement-link-clicks.sql`,
 `sql/20260718-device-installation-app-version.sql`, `sql/20260718-user-feedback.sql`, and
 `sql/20260718-dynamic-rbac.sql` before using
 the expanded admin console, provider sync,
@@ -114,7 +115,7 @@ curl -s -X POST http://KONG_ADMIN:8001/consumers/codex-switch-client/jwt \
   --data algorithm=HS256
 ```
 
-Create routes so `/auth` and `/admin` remain public, while `/sync` and `/admin/api` are protected by the JWT plugin:
+Create routes so the client-facing `/auth`, `/admin`, `/feedback`, `/announcements`, and `/telemetry` paths remain public, while `/sync` and `/admin/api` are protected by the JWT plugin. Authenticated sub-routes on a public prefix still enforce JWTs in NestJS:
 
 ```bash
 curl -s -X POST http://KONG_ADMIN:8001/services \
@@ -126,6 +127,8 @@ curl -s -X POST http://KONG_ADMIN:8001/services/codex-switch-backend/routes \
   --data 'paths[]=/auth' \
   --data 'paths[]=/admin' \
   --data 'paths[]=/feedback' \
+  --data 'paths[]=/announcements' \
+  --data 'paths[]=/telemetry' \
   --data strip_path=false
 
 curl -s -X POST http://KONG_ADMIN:8001/services/codex-switch-backend/routes \
@@ -181,6 +184,10 @@ with user creation so concurrent registrations cannot exceed the configured limi
 - `GET /auth/me`
 - `POST /feedback`
 - `POST /feedback/authenticated`
+- `GET /announcements/current`
+- `POST /announcements/clicks`
+- `POST /announcements/clicks/authenticated`
+- `POST /telemetry/installations`
 - `GET /sync/accounts`
 - `GET /sync/accounts/summary`
 - `PUT /sync/accounts`
@@ -215,6 +222,7 @@ with user creation so concurrent registrations cannot exceed the configured limi
 - `POST /admin/api/official-accounts/unbind`
 - `GET /admin/api/audit-logs`
 - `GET /admin/api/invitations`
+- `GET /admin/api/invitations/:id/users`
 - `POST /admin/api/invitations`
 - `DELETE /admin/api/invitations/:id`
 - `GET /admin/api/approvals`
@@ -224,5 +232,12 @@ with user creation so concurrent registrations cannot exceed the configured limi
 - `GET /admin/api/feedback/:id`
 - `GET /admin/api/feedback/:id/attachments/:attachmentId`
 - `POST /admin/api/feedback/:id/email`
+- `GET /admin/api/announcement`
+- `PATCH /admin/api/announcement`
+- `GET /admin/api/announcement/clicks/overview`
+- `GET /admin/api/announcement/clicks`
+- `GET /admin/api/telemetry/overview`
+- `GET /admin/api/telemetry/installations`
+- `GET /admin/api/telemetry/events`
 
 Kong JWT plugin validation uses the access token `iss` claim. Keep `KONG_JWT_KEY` and `KONG_JWT_SECRET` aligned with the JWT credential in your existing Kong.
