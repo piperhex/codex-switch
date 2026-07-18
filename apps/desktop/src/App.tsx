@@ -10,6 +10,7 @@ import { FeedbackModal } from "./components/modals/FeedbackModal";
 import { FloatingUsageBubble } from "./components/FloatingUsageBubble";
 import { TokenUsageWindow } from "./components/TokenUsageWindow";
 import { CloudLoginModal } from "./components/modals/CloudLoginModal";
+import { CloudAccountModal } from "./components/modals/CloudAccountModal";
 import { LoginModal } from "./components/modals/LoginModal";
 import { UpdateModal } from "./components/modals/UpdateModal";
 import { useAccountManager } from "./hooks/useAccountManager";
@@ -62,6 +63,7 @@ function DashboardApp() {
   const [page, setPage] = useState<"accounts" | "providers" | "settings">("accounts");
   const [showLogin, setShowLogin] = useState(false);
   const [showCloudLogin, setShowCloudLogin] = useState(false);
+  const [showCloudAccount, setShowCloudAccount] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   const [helpVersionState, setHelpVersionState] = useState<HelpVersionState>({ status: "checking" });
@@ -130,6 +132,7 @@ function DashboardApp() {
   );
   const openLogin = useCallback(() => setShowLogin(true), []);
   const openCloudLogin = useCallback(() => setShowCloudLogin(true), []);
+  const openCloudAccount = useCallback(() => setShowCloudAccount(true), []);
   const switchAccount = useCallback((id: string) => {
     void manager.switchAccount(id);
   }, [manager.switchAccount]);
@@ -444,7 +447,10 @@ function DashboardApp() {
             {cloud.state.enabled ? (
               cloud.state.authenticated ? (
                 <div className="cloud-chip">
-                  <Cloud size={16} /><span><b>{cloud.state.userEmail ?? t("cloud.signedIn")}</b><small>{t("cloud.synced")}</small></span>
+                  <button type="button" className="cloud-account-summary" onClick={openCloudAccount}
+                    aria-label={t("cloud.accountDetails")}>
+                    <Cloud size={16} /><span><b>{cloud.state.userEmail ?? t("cloud.signedIn")}</b><small>{t("cloud.synced")}</small></span>
+                  </button>
                   <div className="cloud-chip-actions">
                     <Tooltip title={t("cloud.sync")}>
                       <button type="button" className="cloud-icon-button" aria-label={t("cloud.sync")}
@@ -623,6 +629,13 @@ function DashboardApp() {
           sendingRegistrationCode={cloud.sendingRegistrationCode} onLogin={loginCloudAccount}
           onForgotPassword={openCloudPasswordReset} onRegister={registerCloudAccount}
           onSendRegistrationCode={cloud.sendRegistrationCode} t={t} />}
+        {showCloudAccount && cloud.state.authenticated && <CloudAccountModal
+          email={cloud.state.userEmail} baseUrl={cloud.state.baseUrl}
+          changingPassword={cloud.changingPassword} onChangePassword={cloud.changePassword}
+          onClose={() => setShowCloudAccount(false)} onOpenPasswordReset={() => {
+            setShowCloudAccount(false);
+            openCloudPasswordReset();
+          }} t={t} />}
         {showHelp && <HelpModal onClose={() => setShowHelp(false)} onDownload={openRelease}
           onFeedback={() => setShowFeedback(true)} version={manager.info?.version ?? "0.1.0"}
           versionState={helpVersionState} t={t} />}

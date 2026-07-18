@@ -3,6 +3,7 @@ import { Avatar, Button, Dropdown, Layout, Menu, Segmented, Space, Tooltip, Typo
 import type { MenuProps } from "antd";
 import {
   Activity,
+  ChartNoAxesCombined,
   FileClock,
   BadgeCheck,
   BellRing,
@@ -36,6 +37,7 @@ interface AdminShellProps {
 }
 
 const menuLabelKeys: Record<MenuKey, TranslationKey> = {
+  dashboard: "nav.dashboard",
   myAccounts: "nav.myAccounts",
   users: "nav.users",
   roles: "nav.roles",
@@ -49,6 +51,7 @@ const menuLabelKeys: Record<MenuKey, TranslationKey> = {
 };
 
 const menuPermissions: Record<MenuKey, Permission> = {
+  dashboard: "admin.dashboard.read",
   myAccounts: "self.accounts.read",
   users: "admin.users.read",
   roles: "admin.roles.read",
@@ -76,6 +79,7 @@ export function AdminShell({
   const menuItems = useMemo<MenuProps["items"]>(() => {
     const permissions = new Set(profile?.permissions ?? []);
     const items = [
+      { key: "dashboard" as const, icon: <ChartNoAxesCombined size={17} />, label: t("nav.dashboard") },
       { key: "myAccounts" as const, icon: <Rows3 size={17} />, label: t("nav.myAccounts") },
       { key: "users" as const, icon: <Users size={17} />, label: t("nav.users") },
       { key: "roles" as const, icon: <Shield size={17} />, label: t("nav.roles") },

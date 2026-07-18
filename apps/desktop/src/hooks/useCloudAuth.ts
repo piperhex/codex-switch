@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import {
+  changeCloudPassword,
   loadCloudAuthState,
   deleteCloudAccount,
   deleteCloudProvider,
@@ -31,6 +32,7 @@ export function useCloudAuth(notify: (message: string) => void, t: Translate) {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [sendingRegistrationCode, setSendingRegistrationCode] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
 
   const load = useCallback(async () => {
     const nextState = await loadCloudAuthState();
@@ -107,6 +109,20 @@ export function useCloudAuth(notify: (message: string) => void, t: Translate) {
       return false;
     } finally {
       setLoading(false);
+    }
+  }, [notify, t]);
+
+  const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
+    setChangingPassword(true);
+    try {
+      await changeCloudPassword(currentPassword, newPassword);
+      notify(t("toast.cloudPasswordChanged"));
+      return true;
+    } catch (error) {
+      notify(String(error));
+      return false;
+    } finally {
+      setChangingPassword(false);
     }
   }, [notify, t]);
 
@@ -204,11 +220,13 @@ export function useCloudAuth(notify: (message: string) => void, t: Translate) {
     loading,
     syncing,
     sendingRegistrationCode,
+    changingPassword,
     load,
     saveBaseUrl,
     login,
     sendRegistrationCode,
     register,
+    changePassword,
     logout,
     sync,
     pushQuietly,

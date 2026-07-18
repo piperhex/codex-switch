@@ -1,7 +1,7 @@
 export type Role = string;
 export type UserStatus = "active" | "disabled";
 export type Permission = string;
-export type MenuKey = "myAccounts" | "users" | "roles" | "officialAccounts" | "announcement" | "feedback" | "telemetry" | "audit" | "invitations" | "approvals";
+export type MenuKey = "dashboard" | "myAccounts" | "users" | "roles" | "officialAccounts" | "announcement" | "feedback" | "telemetry" | "audit" | "invitations" | "approvals";
 
 export interface AuthTokens {
   accessToken: string;
@@ -122,6 +122,44 @@ export interface TelemetryEvent {
 export interface TelemetryFilters {
   search?: string;
   platform?: TelemetryPlatform;
+}
+
+export interface DashboardOverview {
+  range: {
+    days: 7 | 30 | 90;
+    startDate: string;
+    endDate: string;
+  };
+  summary: {
+    totalUsers: number;
+    activeUsers: number;
+    newUsers: number;
+    totalInstallations: number;
+    newInstallations: number;
+    officialAccounts: number;
+    boundOfficialAccounts: number;
+    totalBindings: number;
+    pendingFeedback: number;
+    repliedFeedback: number;
+    pendingApprovals: number;
+  };
+  trend: Array<{
+    date: string;
+    users: number;
+    installations: number;
+  }>;
+  platforms: Array<{
+    name: TelemetryPlatform;
+    value: number;
+  }>;
+  accountPlans: Array<{
+    name: string;
+    value: number;
+  }>;
+  feedback: {
+    pending: number;
+    replied: number;
+  };
 }
 
 export interface UserRow {

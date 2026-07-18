@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
-import { App as AntApp } from "antd";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
+import { App as AntApp, Skeleton } from "antd";
 import { AccountDrawer } from "./components/accounts/AccountDrawer";
 import { AccountEditModal } from "./components/accounts/AccountEditModal";
 import { BatchBindSystemAccountsModal } from "./components/accounts/BatchBindSystemAccountsModal";
@@ -40,6 +40,7 @@ import type {
   InvitationRegisteredUser,
   FeedbackRow,
   DeviceInstallation,
+  DashboardOverview,
   MenuKey,
   PageResult,
   Permission,
@@ -57,6 +58,10 @@ import type {
 } from "./types";
 import { useI18n } from "./i18n-context";
 import { loadStoredAuth, persistAuth } from "./utils/storage";
+
+const DashboardPage = lazy(() => import("./pages/DashboardPage").then((module) => ({
+  default: module.DashboardPage,
+})));
 
 interface AdminConsoleProps {
   dark: boolean;
@@ -98,6 +103,7 @@ const emptyAnnouncementClickOverview: AnnouncementClickOverview = {
 };
 
 const menuPermissions: Record<MenuKey, Permission> = {
+  dashboard: "admin.dashboard.read",
   myAccounts: "self.accounts.read",
   users: "admin.users.read",
   roles: "admin.roles.read",
@@ -111,6 +117,7 @@ const menuPermissions: Record<MenuKey, Permission> = {
 };
 
 const menuOrder: MenuKey[] = [
+  "dashboard",
   "users",
   "roles",
   "myAccounts",
@@ -148,6 +155,9 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
   const [auditLoading, setAuditLoading] = useState(false);
   const [feedback, setFeedback] = useState<PageResult<FeedbackRow>>(emptyFeedback);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [dashboard, setDashboard] = useState<DashboardOverview | null>(null);
+  const [dashboardDays, setDashboardDays] = useState<7 | 30 | 90>(30);
+  const [dashboardLoading, setDashboardLoading] = useState(false);
   const [telemetryOverview, setTelemetryOverview] = useState<TelemetryOverview>(emptyTelemetryOverview);
   const [telemetryOverviewLoading, setTelemetryOverviewLoading] = useState(false);
   const [installations, setInstallations] = useState<PageResult<DeviceInstallation>>(emptyInstallations);
@@ -296,6 +306,17 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
       setFeedbackLoading(false);
     }
   }, [api, feedback.page, feedback.pageSize, message]);
+
+  const loadDashboard = useCallback(async (days = dashboardDays) => {
+    setDashboardLoading(true);
+    try {
+      setDashboard(await api<DashboardOverview>(`/admin/api/dashboard/overview?days=${days}`));
+    } catch (error) {
+      message.error((error as Error).message);
+    } finally {
+      setDashboardLoading(false);
+    }
+  }, [api, dashboardDays, message]);
 
   const loadFeedbackAttachment = useCallback(async (feedbackId: string, attachmentId: string) => {
     const blob = await apiBlob(`/admin/api/feedback/${feedbackId}/attachments/${attachmentId}`);
@@ -514,6 +535,7 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
 
   useEffect(() => {
     if (!auth?.accessToken || !profile) return;
+    if (activeKey === "dashboard") void loadDashboard();
     if (activeKey === "myAccounts") void loadOwnAccounts();
     if (activeKey === "users") void loadUsers();
     if (activeKey === "officialAccounts") void loadSystemAccounts();
@@ -533,6 +555,7 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
     loadAuditLogs,
     loadInvitations,
     loadFeedback,
+    loadDashboard,
     loadAnnouncement,
     loadAnnouncementClickOverview,
     loadAnnouncementClicks,
@@ -636,6 +659,23 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
   }
 
   const renderPage = () => {
+    if (activeKey === "dashboard") {
+      return (
+        <Suspense fallback={<Skeleton active paragraph={{ rows: 10 }} />}>
+          <DashboardPage
+            data={dashboard}
+            days={dashboardDays}
+            dark={dark}
+            loading={dashboardLoading}
+            permissions={profile?.permissions ?? []}
+            onDaysChange={setDashboardDays}
+            onNavigate={setActiveKey}
+            onRefresh={loadDashboard}
+          />
+        </Suspense>
+      );
+    }
+
     if (activeKey === "myAccounts") {
       return (
         <MyAccountsPage

@@ -127,6 +127,7 @@ pub fn run() {
             cloud::cloud_login,
             cloud::cloud_request_registration_code,
             cloud::cloud_register,
+            cloud::cloud_change_password,
             cloud::cloud_logout,
             cloud::cloud_push_accounts,
             cloud::cloud_push_account,

@@ -10,6 +10,7 @@ import {
   Space,
   Switch,
   Table,
+  Tabs,
   Tag,
   Typography,
 } from "antd";
@@ -231,187 +232,202 @@ export function AnnouncementPage({
           </Button>
         </div>
       </div>
-      <div className="panel announcement-config-panel" aria-busy={saving}>
-        <Form layout="vertical">
-          <Form.Item label={t("announcement.enabled")} extra={t("announcement.enabledHint")}>
-            <Switch
-              disabled={!canManage}
-              checked={enabled}
-              onChange={(checked) => {
-                if (autoSave({ enabled: checked })) setEnabled(checked);
-              }}
-            />
-          </Form.Item>
-          <Form.Item label={t("announcement.contentZh")}>
-            <Input.TextArea
-              value={contentZh}
-              rows={5}
-              maxLength={1000}
-              showCount
-              placeholder={t("announcement.contentZhPlaceholder")}
-              onChange={(event) => setContentZh(event.target.value)}
-              onBlur={() => autoSave()}
-              disabled={!canManage}
-            />
-          </Form.Item>
-          <Form.Item label={t("announcement.contentEn")}>
-            <Input.TextArea
-              value={contentEn}
-              rows={5}
-              maxLength={1000}
-              showCount
-              placeholder={t("announcement.contentEnPlaceholder")}
-              onChange={(event) => setContentEn(event.target.value)}
-              onBlur={() => autoSave()}
-              disabled={!canManage}
-            />
-          </Form.Item>
-          <Form.Item
-            label={t("announcement.link")}
-            extra={linkIsValid ? t("announcement.linkHint") : undefined}
-            validateStatus={linkIsValid ? undefined : "error"}
-            help={linkIsValid ? undefined : t("announcement.linkInvalid")}
-          >
-            <Input
-              value={link}
-              maxLength={2048}
-              placeholder={t("announcement.linkPlaceholder")}
-              onChange={(event) => setLink(event.target.value)}
-              onBlur={() => autoSave()}
-              disabled={!canManage}
-              allowClear
-            />
-          </Form.Item>
-          <Space size="large" wrap>
-            <Form.Item label={t("announcement.textColor")}>
-              <ColorPicker
-                value={textColor}
-                showText
-                onChange={(color) => setTextColor(color.toHexString().toUpperCase())}
-                onOpenChange={(open) => {
-                  if (!open) autoSave();
-                }}
-                disabled={!canManage}
-              />
-            </Form.Item>
-            <Form.Item label={t("announcement.backgroundColor")}>
-              <ColorPicker
-                value={backgroundColor}
-                showText
-                onChange={(color) => setBackgroundColor(color.toHexString().toUpperCase())}
-                onOpenChange={(open) => {
-                  if (!open) autoSave();
-                }}
-                disabled={!canManage}
-              />
-            </Form.Item>
-            <Form.Item
-              label={t("announcement.scrollSpeed")}
-              extra={t("announcement.scrollSpeedHint")}
-            >
-              <InputNumber
-                min={5}
-                max={120}
-                precision={0}
-                value={scrollDurationSeconds}
-                addonAfter={t("announcement.secondsPerLoop")}
-                onChange={(value) => setScrollDurationSeconds(value ?? 22)}
-                onBlur={() => autoSave()}
-                disabled={!canManage}
-              />
-            </Form.Item>
-          </Space>
-          <Form.Item
-            label={t("announcement.preview")}
-            extra={t("announcement.previewLanguageHint")}
-          >
-            <div className="announcement-preview" style={{ color: textColor, backgroundColor }}>
-              <div
-                className="announcement-preview-track"
-                key={preview}
-                style={{ animationDuration: `${scrollDurationSeconds}s` }}
-              >
-                <BellRing size={15} />
-                <span>{preview}</span>
+      <Tabs
+        items={[
+          {
+            key: "settings",
+            label: t("announcement.settingsTab"),
+            children: (
+              <div className="panel announcement-config-panel" aria-busy={saving}>
+                <Form layout="vertical">
+                  <Form.Item label={t("announcement.enabled")} extra={t("announcement.enabledHint")}>
+                    <Switch
+                      disabled={!canManage}
+                      checked={enabled}
+                      onChange={(checked) => {
+                        if (autoSave({ enabled: checked })) setEnabled(checked);
+                      }}
+                    />
+                  </Form.Item>
+                  <Form.Item label={t("announcement.contentZh")}>
+                    <Input.TextArea
+                      value={contentZh}
+                      rows={5}
+                      maxLength={1000}
+                      showCount
+                      placeholder={t("announcement.contentZhPlaceholder")}
+                      onChange={(event) => setContentZh(event.target.value)}
+                      onBlur={() => autoSave()}
+                      disabled={!canManage}
+                    />
+                  </Form.Item>
+                  <Form.Item label={t("announcement.contentEn")}>
+                    <Input.TextArea
+                      value={contentEn}
+                      rows={5}
+                      maxLength={1000}
+                      showCount
+                      placeholder={t("announcement.contentEnPlaceholder")}
+                      onChange={(event) => setContentEn(event.target.value)}
+                      onBlur={() => autoSave()}
+                      disabled={!canManage}
+                    />
+                  </Form.Item>
+                  <Form.Item
+                    label={t("announcement.link")}
+                    extra={linkIsValid ? t("announcement.linkHint") : undefined}
+                    validateStatus={linkIsValid ? undefined : "error"}
+                    help={linkIsValid ? undefined : t("announcement.linkInvalid")}
+                  >
+                    <Input
+                      value={link}
+                      maxLength={2048}
+                      placeholder={t("announcement.linkPlaceholder")}
+                      onChange={(event) => setLink(event.target.value)}
+                      onBlur={() => autoSave()}
+                      disabled={!canManage}
+                      allowClear
+                    />
+                  </Form.Item>
+                  <Space size="large" wrap>
+                    <Form.Item label={t("announcement.textColor")}>
+                      <ColorPicker
+                        value={textColor}
+                        showText
+                        onChange={(color) => setTextColor(color.toHexString().toUpperCase())}
+                        onOpenChange={(open) => {
+                          if (!open) autoSave();
+                        }}
+                        disabled={!canManage}
+                      />
+                    </Form.Item>
+                    <Form.Item label={t("announcement.backgroundColor")}>
+                      <ColorPicker
+                        value={backgroundColor}
+                        showText
+                        onChange={(color) => setBackgroundColor(color.toHexString().toUpperCase())}
+                        onOpenChange={(open) => {
+                          if (!open) autoSave();
+                        }}
+                        disabled={!canManage}
+                      />
+                    </Form.Item>
+                    <Form.Item
+                      label={t("announcement.scrollSpeed")}
+                      extra={t("announcement.scrollSpeedHint")}
+                    >
+                      <InputNumber
+                        min={5}
+                        max={120}
+                        precision={0}
+                        value={scrollDurationSeconds}
+                        addonAfter={t("announcement.secondsPerLoop")}
+                        onChange={(value) => setScrollDurationSeconds(value ?? 22)}
+                        onBlur={() => autoSave()}
+                        disabled={!canManage}
+                      />
+                    </Form.Item>
+                  </Space>
+                  <Form.Item
+                    label={t("announcement.preview")}
+                    extra={t("announcement.previewLanguageHint")}
+                  >
+                    <div className="announcement-preview" style={{ color: textColor, backgroundColor }}>
+                      <div
+                        className="announcement-preview-track"
+                        key={preview}
+                        style={{ animationDuration: `${scrollDurationSeconds}s` }}
+                      >
+                        <BellRing size={15} />
+                        <span>{preview}</span>
+                      </div>
+                    </div>
+                  </Form.Item>
+                </Form>
               </div>
-            </div>
-          </Form.Item>
-        </Form>
-      </div>
-      <Typography.Title level={4} className="announcement-click-title">
-        {t("announcement.clickAnalytics")}
-      </Typography.Title>
-      <Typography.Paragraph type="secondary">
-        {t("announcement.clickAnalyticsDescription")}
-      </Typography.Paragraph>
-      <div className="summary-grid announcement-click-summary">
-        <div className="metric">
-          <span>{t("announcement.totalClicks")}</span>
-          <strong>{clickOverview.totalClicks}</strong>
-        </div>
-        <div className="metric">
-          <span>{t("announcement.clicksLast30Days")}</span>
-          <strong>{clickOverview.clicksLast30Days}</strong>
-        </div>
-      </div>
-      <div className="toolbar">
-        <Space wrap>
-          <Typography.Text type="secondary">
-            {t("announcement.clickPlatformDistribution")}
-          </Typography.Text>
-          {platforms.map((platform) => (
-            <Tag key={platform}>
-              {t(`telemetry.platform.${platform}`)}: {clickOverview.platforms[platform]}
-            </Tag>
-          ))}
-        </Space>
-      </div>
-      <div className="panel telemetry-panel">
-        <div className="toolbar telemetry-table-toolbar">
-          <div className="toolbar-left">
-            <Input
-              allowClear
-              prefix={<Search size={15} />}
-              placeholder={t("announcement.clickSearchPlaceholder")}
-              value={clickFilters.search}
-              onChange={(event) => onClickFiltersChange({
-                ...clickFilters,
-                search: event.target.value,
-              })}
-              onPressEnter={() => onLoadClicks(1)}
-              style={{ width: 320 }}
-            />
-            <Select
-              allowClear
-              placeholder={t("announcement.clickPlatform")}
-              value={clickFilters.platform}
-              options={platformOptions}
-              onChange={(platform) => onClickFiltersChange({ ...clickFilters, platform })}
-              style={{ width: 150 }}
-            />
-            <Button icon={<Search size={15} />} onClick={() => onLoadClicks(1)}>
-              {t("common.filter")}
-            </Button>
-          </div>
-          <Typography.Text type="secondary">
-            {t("announcement.clickRecordsTotal", { count: clicks.total })}
-          </Typography.Text>
-        </div>
-        <Table
-          rowKey="id"
-          loading={clickOverviewLoading || clicksLoading}
-          columns={clickColumns}
-          dataSource={clicks.items}
-          pagination={{
-            current: clicks.page,
-            pageSize: clicks.pageSize,
-            total: clicks.total,
-            showSizeChanger: true,
-          }}
-          onChange={(pagination) => onLoadClicks(pagination.current, pagination.pageSize)}
-          scroll={{ x: 920 }}
-        />
-      </div>
+            ),
+          },
+          {
+            key: "clickAnalytics",
+            label: t("announcement.clickAnalytics"),
+            children: (
+              <>
+                <Typography.Paragraph type="secondary">
+                  {t("announcement.clickAnalyticsDescription")}
+                </Typography.Paragraph>
+                <div className="summary-grid announcement-click-summary">
+                  <div className="metric">
+                    <span>{t("announcement.totalClicks")}</span>
+                    <strong>{clickOverview.totalClicks}</strong>
+                  </div>
+                  <div className="metric">
+                    <span>{t("announcement.clicksLast30Days")}</span>
+                    <strong>{clickOverview.clicksLast30Days}</strong>
+                  </div>
+                </div>
+                <div className="toolbar">
+                  <Space wrap>
+                    <Typography.Text type="secondary">
+                      {t("announcement.clickPlatformDistribution")}
+                    </Typography.Text>
+                    {platforms.map((platform) => (
+                      <Tag key={platform}>
+                        {t(`telemetry.platform.${platform}`)}: {clickOverview.platforms[platform]}
+                      </Tag>
+                    ))}
+                  </Space>
+                </div>
+                <div className="panel telemetry-panel">
+                  <div className="toolbar telemetry-table-toolbar">
+                    <div className="toolbar-left">
+                      <Input
+                        allowClear
+                        prefix={<Search size={15} />}
+                        placeholder={t("announcement.clickSearchPlaceholder")}
+                        value={clickFilters.search}
+                        onChange={(event) => onClickFiltersChange({
+                          ...clickFilters,
+                          search: event.target.value,
+                        })}
+                        onPressEnter={() => onLoadClicks(1)}
+                        style={{ width: 320 }}
+                      />
+                      <Select
+                        allowClear
+                        placeholder={t("announcement.clickPlatform")}
+                        value={clickFilters.platform}
+                        options={platformOptions}
+                        onChange={(platform) => onClickFiltersChange({ ...clickFilters, platform })}
+                        style={{ width: 150 }}
+                      />
+                      <Button icon={<Search size={15} />} onClick={() => onLoadClicks(1)}>
+                        {t("common.filter")}
+                      </Button>
+                    </div>
+                    <Typography.Text type="secondary">
+                      {t("announcement.clickRecordsTotal", { count: clicks.total })}
+                    </Typography.Text>
+                  </div>
+                  <Table
+                    rowKey="id"
+                    loading={clickOverviewLoading || clicksLoading}
+                    columns={clickColumns}
+                    dataSource={clicks.items}
+                    pagination={{
+                      current: clicks.page,
+                      pageSize: clicks.pageSize,
+                      total: clicks.total,
+                      showSizeChanger: true,
+                    }}
+                    onChange={(pagination) => onLoadClicks(pagination.current, pagination.pageSize)}
+                    scroll={{ x: 920 }}
+                  />
+                </div>
+              </>
+            ),
+          },
+        ]}
+      />
     </>
   );
 }

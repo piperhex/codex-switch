@@ -1017,6 +1017,38 @@ pub(crate) async fn cloud_register<R: Runtime>(
 }
 
 #[tauri::command]
+pub(crate) async fn cloud_change_password<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    current_password: String,
+    new_password: String,
+) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let client = api_client()?;
+        let mut settings = read_app_settings(&app)?;
+        let mut credentials = read_cloud_credentials(&app);
+        let response = cloud_request(
+            &client,
+            &mut settings,
+            &mut credentials,
+            Method::PATCH,
+            "/admin/api/profile/password",
+            Some(json!({
+                "currentPassword": current_password,
+                "newPassword": new_password,
+            })),
+        )?;
+        write_app_settings(&app, &settings)?;
+        write_cloud_credentials(&app, &credentials)?;
+        if !response.status().is_success() {
+            return Err(response_error("Cloud password change", response));
+        }
+        Ok(())
+    })
+    .await
+    .map_err(|error| format!("Cloud password change task failed: {error}"))?
+}
+
+#[tauri::command]
 pub(crate) async fn cloud_request_registration_code<R: Runtime>(
     app: tauri::AppHandle<R>,
     email: String,

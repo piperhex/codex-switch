@@ -507,6 +507,16 @@ export async function registerCloud(
   return invoke<CloudAuthState>("cloud_register", { email, password, verificationCode });
 }
 
+export async function changeCloudPassword(currentPassword: string, newPassword: string): Promise<void> {
+  if (!isDesktopApp) {
+    if (!previewCloudState().authenticated) throw new Error("Cloud account is not signed in");
+    if (currentPassword.length < 6) throw new Error("Current password must be at least 6 characters");
+    if (newPassword.length < 8) throw new Error("New password must be at least 8 characters");
+    return;
+  }
+  await invoke("cloud_change_password", { currentPassword, newPassword });
+}
+
 export async function logoutCloud(): Promise<CloudAuthState> {
   if (!isDesktopApp) {
     window.localStorage.removeItem(CLOUD_USER_PREVIEW_KEY);

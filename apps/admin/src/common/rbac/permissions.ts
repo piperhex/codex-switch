@@ -21,6 +21,7 @@ export enum Permission {
   FeedbackRead = 'admin.feedback.read',
   FeedbackManage = 'admin.feedback.manage',
   TelemetryRead = 'admin.telemetry.read',
+  DashboardRead = 'admin.dashboard.read',
 }
 
 export interface PermissionDefinition {
@@ -53,6 +54,7 @@ export const PERMISSION_CATALOG: readonly PermissionDefinition[] = [
   { code: Permission.FeedbackRead, group: 'feedback', name: 'Read feedback', description: 'View feedback and its attachments.' },
   { code: Permission.FeedbackManage, group: 'feedback', name: 'Manage feedback', description: 'Reply to user feedback.' },
   { code: Permission.TelemetryRead, group: 'telemetry', name: 'Read telemetry', description: 'View installation and telemetry analytics.' },
+  { code: Permission.DashboardRead, group: 'analytics', name: 'Read dashboard', description: 'View cross-system operational metrics and trends.' },
 ] as const;
 
 export const USER_ROLE_PERMISSIONS: readonly Permission[] = [
