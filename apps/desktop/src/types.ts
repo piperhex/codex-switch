@@ -144,7 +144,11 @@ export interface CloudSyncResult {
 }
 
 export interface CloudAnnouncement {
+  /** Legacy Chinese content returned for compatibility with older clients. */
   content: string;
+  contentZh: string;
+  contentEn: string;
+  link: string;
   enabled: boolean;
   textColor: string;
   backgroundColor: string;

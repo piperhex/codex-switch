@@ -47,6 +47,17 @@ function shouldShowUpdate(update: UpdateInfo | null) {
   return update?.latestVersion === window.localStorage.getItem(IGNORED_UPDATE_VERSION_KEY) ? null : update;
 }
 
+function normalizeHttpUrl(value: string | undefined) {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  try {
+    const url = new URL(trimmed);
+    return url.protocol === "http:" || url.protocol === "https:" ? trimmed : null;
+  } catch {
+    return null;
+  }
+}
+
 function DashboardApp() {
   const [page, setPage] = useState<"accounts" | "providers" | "settings">("accounts");
   const [showLogin, setShowLogin] = useState(false);
@@ -89,7 +100,9 @@ function DashboardApp() {
     try {
       const result = await fetchCloudAnnouncement();
       if (announcementRequestId.current === requestId) {
-        setAnnouncement(result.enabled && result.content.trim() ? result : null);
+        const hasChineseContent = result.contentZh?.trim() || result.content?.trim();
+        const hasEnglishContent = result.contentEn?.trim() || result.content?.trim();
+        setAnnouncement(result.enabled && hasChineseContent && hasEnglishContent ? result : null);
       }
     } catch {
       if (announcementRequestId.current === requestId) setAnnouncement(null);
@@ -353,6 +366,41 @@ function DashboardApp() {
     setAvailableUpdate(null);
   }, [availableUpdate]);
 
+  const localizedAnnouncementContent = announcement
+    ? (language === "zh" ? announcement.contentZh : announcement.contentEn)?.trim()
+      || announcement.content?.trim()
+    : "";
+  const announcementText = localizedAnnouncementContent || t("announcement.welcome");
+  const announcementLink = normalizeHttpUrl(announcement?.link);
+  const announcementStyle = announcement ? {
+    color: announcement.textColor,
+    backgroundColor: announcement.backgroundColor,
+  } : undefined;
+  const announcementTrack = (
+    <div
+      className="announcement-track"
+      key={`${language}:${announcementText}`}
+      style={{ animationDuration: `${announcement?.scrollDurationSeconds ?? 22}s` }}
+    >
+      <div className="announcement-copy">
+        <Megaphone size={15} />
+        <span>{announcementText}</span>
+      </div>
+      <div className="announcement-copy" aria-hidden="true">
+        <Megaphone size={15} />
+        <span>{announcementText}</span>
+      </div>
+    </div>
+  );
+  const openAnnouncementLink = () => {
+    if (!announcementLink) return;
+    if (isDesktopApp) {
+      void openUrl(announcementLink).catch((error) => notify(String(error)));
+      return;
+    }
+    window.open(announcementLink, "_blank", "noopener,noreferrer");
+  };
+
   return (
     <ConfigProvider locale={language === "zh" ? zhCN : enUS} theme={{
       algorithm: antdTheme.compactAlgorithm,
@@ -363,31 +411,25 @@ function DashboardApp() {
           <div className="brand"><img className="brand-logo" src={APP_LOGO_URL} alt="" />
             <span>Codex<br /><b>Switch</b></span></div>
           <div className="announcement-slot" aria-live="polite">
-            <div
-              className="announcement-marquee"
-              title={announcement?.content ?? t("announcement.welcome")}
-              style={announcement ? {
-                color: announcement.textColor,
-                backgroundColor: announcement.backgroundColor,
-              } : undefined}
-            >
-              <div
-                className="announcement-track"
-                key={announcement?.content ?? language}
-                style={{
-                  animationDuration: `${announcement?.scrollDurationSeconds ?? 22}s`,
-                }}
+            {announcementLink ? (
+              <button
+                type="button"
+                className="announcement-marquee announcement-marquee-link"
+                title={announcementText}
+                style={announcementStyle}
+                onClick={openAnnouncementLink}
               >
-                <div className="announcement-copy">
-                  <Megaphone size={15} />
-                  <span>{announcement?.content ?? t("announcement.welcome")}</span>
-                </div>
-                <div className="announcement-copy" aria-hidden="true">
-                  <Megaphone size={15} />
-                  <span>{announcement?.content ?? t("announcement.welcome")}</span>
-                </div>
+                {announcementTrack}
+              </button>
+            ) : (
+              <div
+                className="announcement-marquee"
+                title={announcementText}
+                style={announcementStyle}
+              >
+                {announcementTrack}
               </div>
-            </div>
+            )}
           </div>
           <nav className="top-tabs" aria-label={t("nav.aria")}>
             <button className={page === "accounts" ? "selected" : ""} onClick={() => setPage("accounts")}>

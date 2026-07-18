@@ -44,7 +44,9 @@ export interface PageResult<T> {
 }
 
 export interface AnnouncementConfig {
-  content: string;
+  contentZh: string;
+  contentEn: string;
+  link: string;
   enabled: boolean;
   textColor: string;
   backgroundColor: string;

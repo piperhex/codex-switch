@@ -75,7 +75,9 @@ const emptyTelemetryOverview: TelemetryOverview = {
   platforms: { windows: 0, macos: 0, linux: 0 },
 };
 const emptyAnnouncement: AnnouncementConfig = {
-  content: "",
+  contentZh: "",
+  contentEn: "",
+  link: "",
   enabled: false,
   textColor: "#C4D7C8",
   backgroundColor: "#203128",
@@ -396,7 +398,8 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
   const saveAnnouncement = useCallback(async (
     next: Pick<
       AnnouncementConfig,
-      "content" | "enabled" | "textColor" | "backgroundColor" | "scrollDurationSeconds"
+      "contentZh" | "contentEn" | "link" | "enabled" | "textColor"
+      | "backgroundColor" | "scrollDurationSeconds"
     >,
   ) => {
     setAnnouncementSaving(true);

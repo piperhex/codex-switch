@@ -9,7 +9,11 @@ import { AppAnnouncementEntity } from './entities/app-announcement.entity';
 const CURRENT_ANNOUNCEMENT_ID = 'current';
 
 export interface AnnouncementResponse {
+  /** Kept for compatibility with desktop clients released before localized announcements. */
   content: string;
+  contentZh: string;
+  contentEn: string;
+  link: string;
   enabled: boolean;
   textColor: string;
   backgroundColor: string;
@@ -32,9 +36,14 @@ export class AnnouncementService {
 
   async getPublic(): Promise<AnnouncementResponse> {
     const announcement = await this.findCurrent();
-    const enabled = Boolean(announcement?.enabled && announcement.content.trim());
+    const contentZh = announcement?.contentZh.trim() ?? '';
+    const contentEn = announcement?.contentEn.trim() ?? '';
+    const enabled = Boolean(announcement?.enabled && contentZh && contentEn);
     return {
-      content: enabled ? announcement!.content.trim() : '',
+      content: enabled ? contentZh : '',
+      contentZh: enabled ? contentZh : '',
+      contentEn: enabled ? contentEn : '',
+      link: enabled ? announcement!.link.trim() : '',
       enabled,
       textColor: announcement?.textColor ?? DEFAULT_TEXT_COLOR,
       backgroundColor: announcement?.backgroundColor ?? DEFAULT_BACKGROUND_COLOR,
@@ -47,7 +56,10 @@ export class AnnouncementService {
   async getAdmin(): Promise<AnnouncementResponse> {
     const announcement = await this.findCurrent();
     return {
-      content: announcement?.content ?? '',
+      content: announcement?.contentZh ?? '',
+      contentZh: announcement?.contentZh ?? '',
+      contentEn: announcement?.contentEn ?? '',
+      link: announcement?.link ?? '',
       enabled: announcement?.enabled ?? false,
       textColor: announcement?.textColor ?? DEFAULT_TEXT_COLOR,
       backgroundColor: announcement?.backgroundColor ?? DEFAULT_BACKGROUND_COLOR,
@@ -58,14 +70,20 @@ export class AnnouncementService {
   }
 
   async update(actor: AuthUser, dto: UpdateAnnouncementDto): Promise<AnnouncementResponse> {
-    const content = dto.content.trim();
-    if (dto.enabled && !content) {
-      throw new BadRequestException('Announcement content is required when enabled');
+    const contentZh = dto.contentZh.trim();
+    const contentEn = dto.contentEn.trim();
+    const link = dto.link.trim();
+    if (dto.enabled && (!contentZh || !contentEn)) {
+      throw new BadRequestException(
+        'Chinese and English announcement content are required when enabled',
+      );
     }
 
     const existing = await this.findCurrent();
     const announcement = existing ?? this.announcements.create({ id: CURRENT_ANNOUNCEMENT_ID });
-    announcement.content = content;
+    announcement.contentZh = contentZh;
+    announcement.contentEn = contentEn;
+    announcement.link = link;
     announcement.enabled = dto.enabled;
     announcement.textColor = dto.textColor.toUpperCase();
     announcement.backgroundColor = dto.backgroundColor.toUpperCase();
@@ -87,7 +105,10 @@ export class AnnouncementService {
     }));
 
     return {
-      content: saved.content,
+      content: saved.contentZh,
+      contentZh: saved.contentZh,
+      contentEn: saved.contentEn,
+      link: saved.link,
       enabled: saved.enabled,
       textColor: saved.textColor,
       backgroundColor: saved.backgroundColor,

@@ -12,7 +12,8 @@ interface AnnouncementPageProps {
   onRefresh: () => void | Promise<void>;
   onSave: (announcement: Pick<
     AnnouncementConfig,
-    "content" | "enabled" | "textColor" | "backgroundColor" | "scrollDurationSeconds"
+    "contentZh" | "contentEn" | "link" | "enabled" | "textColor"
+    | "backgroundColor" | "scrollDurationSeconds"
   >) => Promise<void>;
   canManage: boolean;
 }
@@ -26,7 +27,9 @@ export function AnnouncementPage({
   canManage,
 }: AnnouncementPageProps) {
   const { language, t } = useI18n();
-  const [content, setContent] = useState(announcement.content);
+  const [contentZh, setContentZh] = useState(announcement.contentZh);
+  const [contentEn, setContentEn] = useState(announcement.contentEn);
+  const [link, setLink] = useState(announcement.link);
   const [enabled, setEnabled] = useState(announcement.enabled);
   const [textColor, setTextColor] = useState(announcement.textColor);
   const [backgroundColor, setBackgroundColor] = useState(announcement.backgroundColor);
@@ -35,14 +38,27 @@ export function AnnouncementPage({
   );
 
   useEffect(() => {
-    setContent(announcement.content);
+    setContentZh(announcement.contentZh);
+    setContentEn(announcement.contentEn);
+    setLink(announcement.link);
     setEnabled(announcement.enabled);
     setTextColor(announcement.textColor);
     setBackgroundColor(announcement.backgroundColor);
     setScrollDurationSeconds(announcement.scrollDurationSeconds);
   }, [announcement]);
 
-  const preview = content.trim() || t("announcement.emptyPreview");
+  const previewContent = language === "zh" ? contentZh : contentEn;
+  const preview = previewContent.trim() || t("announcement.emptyPreview");
+  const normalizedLink = link.trim();
+  let linkIsValid = true;
+  if (normalizedLink) {
+    try {
+      const url = new URL(normalizedLink);
+      linkIsValid = url.protocol === "http:" || url.protocol === "https:";
+    } catch {
+      linkIsValid = false;
+    }
+  }
 
   return (
     <>
@@ -64,7 +80,9 @@ export function AnnouncementPage({
       </div>
       <div className="panel announcement-config-panel">
         <Form layout="vertical" onFinish={() => void onSave({
-          content: content.trim(),
+          contentZh: contentZh.trim(),
+          contentEn: contentEn.trim(),
+          link: normalizedLink,
           enabled,
           textColor,
           backgroundColor,
@@ -73,15 +91,41 @@ export function AnnouncementPage({
           <Form.Item label={t("announcement.enabled")} extra={t("announcement.enabledHint")}>
             <Switch disabled={!canManage} checked={enabled} onChange={setEnabled} />
           </Form.Item>
-          <Form.Item label={t("announcement.content")}>
+          <Form.Item label={t("announcement.contentZh")}>
             <Input.TextArea
-              value={content}
+              value={contentZh}
               rows={5}
               maxLength={1000}
               showCount
-              placeholder={t("announcement.contentPlaceholder")}
-              onChange={(event) => setContent(event.target.value)}
+              placeholder={t("announcement.contentZhPlaceholder")}
+              onChange={(event) => setContentZh(event.target.value)}
               disabled={!canManage}
+            />
+          </Form.Item>
+          <Form.Item label={t("announcement.contentEn")}>
+            <Input.TextArea
+              value={contentEn}
+              rows={5}
+              maxLength={1000}
+              showCount
+              placeholder={t("announcement.contentEnPlaceholder")}
+              onChange={(event) => setContentEn(event.target.value)}
+              disabled={!canManage}
+            />
+          </Form.Item>
+          <Form.Item
+            label={t("announcement.link")}
+            extra={linkIsValid ? t("announcement.linkHint") : undefined}
+            validateStatus={linkIsValid ? undefined : "error"}
+            help={linkIsValid ? undefined : t("announcement.linkInvalid")}
+          >
+            <Input
+              value={link}
+              maxLength={2048}
+              placeholder={t("announcement.linkPlaceholder")}
+              onChange={(event) => setLink(event.target.value)}
+              disabled={!canManage}
+              allowClear
             />
           </Form.Item>
           <Space size="large" wrap>
@@ -116,7 +160,10 @@ export function AnnouncementPage({
               />
             </Form.Item>
           </Space>
-          <Form.Item label={t("announcement.preview")}>
+          <Form.Item
+            label={t("announcement.preview")}
+            extra={t("announcement.previewLanguageHint")}
+          >
             <div className="announcement-preview" style={{ color: textColor, backgroundColor }}>
               <div
                 className="announcement-preview-track"
@@ -133,7 +180,8 @@ export function AnnouncementPage({
               type="primary"
               htmlType="submit"
               loading={saving}
-              disabled={!canManage || (enabled && !content.trim())}
+              disabled={!canManage || !linkIsValid
+                || (enabled && (!contentZh.trim() || !contentEn.trim()))}
               icon={<Save size={15} />}
             >
               {t("announcement.save")}

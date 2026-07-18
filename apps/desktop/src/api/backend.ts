@@ -419,6 +419,9 @@ export async function fetchCloudAnnouncement(): Promise<CloudAnnouncement> {
   const { baseUrl } = previewCloudState();
   if (!baseUrl) return {
     content: "",
+    contentZh: "",
+    contentEn: "",
+    link: "",
     enabled: false,
     textColor: "#C4D7C8",
     backgroundColor: "#203128",

@@ -32,11 +32,41 @@ describe('AnnouncementService', () => {
 
     await expect(service.getPublic()).resolves.toEqual({
       content: '',
+      contentZh: '',
+      contentEn: '',
+      link: '',
       enabled: false,
       textColor: '#C4D7C8',
       backgroundColor: '#203128',
       scrollDurationSeconds: 22,
       updatedAt: null,
+    });
+  });
+
+  it('returns both localized messages and the trimmed banner link publicly', async () => {
+    const { service, announcements } = createService();
+    const updatedAt = new Date('2026-07-18T01:00:00.000Z');
+    announcements.findOne.mockResolvedValue({
+      contentZh: '  系统维护通知  ',
+      contentEn: '  System maintenance notice  ',
+      link: '  https://status.example.com  ',
+      enabled: true,
+      textColor: '#FFFFFF',
+      backgroundColor: '#000000',
+      scrollDurationSeconds: 18,
+      updatedAt,
+    });
+
+    await expect(service.getPublic()).resolves.toEqual({
+      content: '系统维护通知',
+      contentZh: '系统维护通知',
+      contentEn: 'System maintenance notice',
+      link: 'https://status.example.com',
+      enabled: true,
+      textColor: '#FFFFFF',
+      backgroundColor: '#000000',
+      scrollDurationSeconds: 18,
+      updatedAt: updatedAt.toISOString(),
     });
   });
 
@@ -47,13 +77,18 @@ describe('AnnouncementService', () => {
     announcements.save.mockImplementation(async (value) => ({ ...value, updatedAt }));
 
     await expect(service.update(actor, {
-      content: '  Service maintenance tonight  ',
+      contentZh: '  今晚服务维护  ',
+      contentEn: '  Service maintenance tonight  ',
+      link: '  https://status.example.com/maintenance  ',
       enabled: true,
       textColor: '#aabbcc',
       backgroundColor: '#112233',
       scrollDurationSeconds: 15,
     })).resolves.toEqual({
-      content: 'Service maintenance tonight',
+      content: '今晚服务维护',
+      contentZh: '今晚服务维护',
+      contentEn: 'Service maintenance tonight',
+      link: 'https://status.example.com/maintenance',
       enabled: true,
       textColor: '#AABBCC',
       backgroundColor: '#112233',
@@ -73,12 +108,14 @@ describe('AnnouncementService', () => {
     const { service } = createService();
 
     await expect(service.update(actor, {
-      content: '   ',
+      contentZh: '维护通知',
+      contentEn: '   ',
+      link: '',
       enabled: true,
       textColor: '#C4D7C8',
       backgroundColor: '#203128',
       scrollDurationSeconds: 22,
-    })).rejects.toThrow('Announcement content is required when enabled');
+    })).rejects.toThrow('Chinese and English announcement content are required when enabled');
   });
 });
 
@@ -92,7 +129,9 @@ describe('AnnouncementController', () => {
     const controller = new AnnouncementController(announcements as unknown as AnnouncementService);
     const actor: AuthUser = { id: 'admin-1', email: 'admin@example.com', role: 'admin' };
     const dto = {
-      content: 'Notice',
+      contentZh: '通知',
+      contentEn: 'Notice',
+      link: '',
       enabled: true,
       textColor: '#FFFFFF',
       backgroundColor: '#000000',

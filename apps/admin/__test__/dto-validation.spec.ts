@@ -116,13 +116,23 @@ describe('request DTO validation', () => {
 
   it('restricts announcement scroll duration to whole seconds from 5 through 120', async () => {
     const validAnnouncement = {
-      content: 'Scheduled maintenance',
+      contentZh: '计划维护',
+      contentEn: 'Scheduled maintenance',
+      link: '',
       enabled: true,
       textColor: '#FFFFFF',
       backgroundColor: '#000000',
       scrollDurationSeconds: 22,
     };
     await expect(messages(UpdateAnnouncementDto, validAnnouncement)).resolves.toEqual([]);
+    await expect(messages(UpdateAnnouncementDto, {
+      ...validAnnouncement,
+      link: 'https://status.example.com/notices/maintenance',
+    })).resolves.toEqual([]);
+    await expect(messages(UpdateAnnouncementDto, {
+      ...validAnnouncement,
+      link: 'javascript:alert(1)',
+    })).resolves.toContain('link must be a URL address');
     await expect(messages(UpdateAnnouncementDto, {
       ...validAnnouncement,
       scrollDurationSeconds: 4,

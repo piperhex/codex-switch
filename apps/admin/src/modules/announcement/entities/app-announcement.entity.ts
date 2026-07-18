@@ -11,8 +11,14 @@ export class AppAnnouncementEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id: string;
 
+  @Column({ name: 'content', type: 'text', default: '' })
+  contentZh: string;
+
   @Column({ type: 'text', default: '' })
-  content: string;
+  contentEn: string;
+
+  @Column({ type: 'varchar', length: 2048, default: '' })
+  link: string;
 
   @Column({ type: 'boolean', default: false })
   enabled: boolean;

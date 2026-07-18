@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { App as AntApp, Form, Input, Modal } from "antd";
+import { App as AntApp, DatePicker, Form, Input, Modal } from "antd";
+import dayjs, { type Dayjs } from "dayjs";
 import { useI18n } from "../../i18n-context";
 import type { ApiClient, SyncAccount } from "../../types";
 
@@ -12,7 +13,7 @@ interface OwnAccountEditModalProps {
 
 interface FormValues {
   note?: string;
-  expiresAt?: string;
+  expiresAt?: Dayjs | null;
 }
 
 export function OwnAccountEditModal({ account, api, onClose, onSaved }: OwnAccountEditModalProps) {
@@ -23,9 +24,10 @@ export function OwnAccountEditModal({ account, api, onClose, onSaved }: OwnAccou
 
   useEffect(() => {
     if (!account) return;
+    const expiresAt = account.expiresAt ? dayjs(account.expiresAt) : null;
     form.setFieldsValue({
       note: account.note ?? "",
-      expiresAt: account.expiresAt ?? "",
+      expiresAt: expiresAt?.isValid() ? expiresAt : null,
     });
   }, [account, form]);
 
@@ -37,7 +39,7 @@ export function OwnAccountEditModal({ account, api, onClose, onSaved }: OwnAccou
         method: "PATCH",
         body: JSON.stringify({
           note: values.note ?? "",
-          expiresAt: values.expiresAt ?? "",
+          expiresAt: values.expiresAt?.format("YYYY-MM-DD") ?? "",
         }),
       });
       message.success(t("common.updated"));
@@ -65,7 +67,7 @@ export function OwnAccountEditModal({ account, api, onClose, onSaved }: OwnAccou
           <Input.TextArea rows={6} maxLength={1000} showCount />
         </Form.Item>
         <Form.Item name="expiresAt" label={t("common.expiresAt")}>
-          <Input maxLength={40} placeholder="YYYY-MM-DD" />
+          <DatePicker format="YYYY-MM-DD" style={{ width: "100%" }} />
         </Form.Item>
       </Form>
     </Modal>

@@ -55,7 +55,7 @@ export function SystemAccountModal({
     const content = values.authJson?.trim() ?? "";
     const body: Record<string, unknown> = {
       note: values.note ?? "",
-      expiresAt: values.expiresAt?.toISOString() ?? "",
+      expiresAt: values.expiresAt?.format("YYYY-MM-DD") ?? "",
     };
     if (content && !compatible) {
       try {
@@ -174,8 +174,7 @@ export function SystemAccountModal({
         </Form.Item>
         <Form.Item name="expiresAt" label={t("common.expiresAt")}>
           <DatePicker
-            showTime={{ format: "HH:mm:ss" }}
-            format="YYYY-MM-DD HH:mm:ss"
+            format="YYYY-MM-DD"
             placeholder={t("officialAccounts.expiresAtPlaceholder")}
             style={{ width: "100%" }}
           />

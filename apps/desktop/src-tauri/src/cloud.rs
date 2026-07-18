@@ -57,6 +57,12 @@ struct CloudProvidersResponse {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct CloudAnnouncement {
     content: String,
+    #[serde(default)]
+    content_zh: String,
+    #[serde(default)]
+    content_en: String,
+    #[serde(default)]
+    link: String,
     enabled: bool,
     text_color: String,
     background_color: String,
