@@ -79,11 +79,11 @@ jobs:
               tag_name: tag,
               name: process.env.RELEASE_NAME,
               body: boilerplate,
-              draft: false,
+              draft: true,
               prerelease: process.env.PRERELEASE === "true",
               generate_release_notes: true,
             });
-            core.info(`Created release ${release.id} for ${tag}.`);
+            core.info(`Created draft release ${release.id} for ${tag}.`);
             return release.id.toString();
 
   release:
@@ -289,3 +289,40 @@ jobs:
         with:
           tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
           files: apps/native/CodexSwitch-ios-unsigned.app.zip
+
+  publish-release:
+    name: Publish GitHub Release
+    needs:
+      - create-release
+      - release
+      - native-android
+      - native-ios
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish release
+        uses: actions/github-script@v9
+        env:
+          RELEASE_ID: ${{ needs.create-release.outputs.release_id }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { owner, repo } = context.repo;
+            const releaseId = Number(process.env.RELEASE_ID);
+            const { data: release } = await github.rest.repos.getRelease({
+              owner,
+              repo,
+              release_id: releaseId,
+            });
+
+            if (!release.draft) {
+              core.info(`Release ${releaseId} is already published.`);
+              return;
+            }
+
+            await github.rest.repos.updateRelease({
+              owner,
+              repo,
+              release_id: releaseId,
+              draft: false,
+            });
+            core.info(`Published release ${releaseId}.`);
