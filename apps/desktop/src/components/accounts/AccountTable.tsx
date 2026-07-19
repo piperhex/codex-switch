@@ -3,10 +3,11 @@ import { Button, Popconfirm, Space, Switch, Table, Tag, Tooltip } from "antd";
 import type { TableProps } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { CalendarClock, Check, RefreshCw, RotateCcw, ToggleLeft, ToggleRight, Trash2, X } from "lucide-react";
+import { loadTokenUsageEntries } from "../../api/backend";
 import type { Language, Translate } from "../../i18n";
 import type { AccountDisplayMode } from "../../hooks/useAccountDisplayMode";
-import type { Account, ResetCreditsLoadState } from "../../types";
-import { formatUpdated, initials } from "../../utils/format";
+import type { Account, ResetCreditsLoadState, TokenUsageEntry } from "../../types";
+import { initials } from "../../utils/format";
 import { AccountNoteModal } from "../modals/AccountNoteModal";
 import { ResetCreditsPanel } from "./ResetCreditsPanel";
 import { UsageMeter } from "./UsageMeter";
@@ -27,6 +28,8 @@ interface AccountTableProps {
   hotSwitchEnabled: boolean;
   privacyMode: boolean;
   displayMode: AccountDisplayMode;
+  currentModel: string;
+  tokenUsageRefreshSeconds: number;
   language: Language;
   t: Translate;
 }
@@ -96,6 +99,89 @@ function resetCreditsCount(state?: ResetCreditsLoadState) {
   return state?.status === "loaded" ? state.data.credits.length : null;
 }
 
+interface TokenTypeTotals {
+  input: number;
+  output: number;
+  reasoning: number;
+  cached: number;
+}
+
+const EMPTY_TOKEN_TOTALS: TokenTypeTotals = { input: 0, output: 0, reasoning: 0, cached: 0 };
+
+function tokenAccountKeys(account: Account) {
+  return [
+    account.accountId?.trim() ? `id:${account.accountId.trim()}` : "",
+    account.email.trim() ? `email:${account.email.trim().toLowerCase()}` : "",
+  ].filter(Boolean);
+}
+
+function entryAccountKeys(entry: TokenUsageEntry) {
+  return [
+    entry.accountId?.trim() ? `id:${entry.accountId.trim()}` : "",
+    entry.accountEmail?.trim() ? `email:${entry.accountEmail.trim().toLowerCase()}` : "",
+  ].filter(Boolean);
+}
+
+function formatCompactTokenCount(value: number, language: Language) {
+  const locale = language === "zh" ? "zh-CN" : "en-US";
+  if (value >= 1_000_000) {
+    return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(value / 1_000_000)}M`;
+  }
+  if (value >= 1_000) {
+    return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(value / 1_000)}K`;
+  }
+  return new Intl.NumberFormat(locale).format(value);
+}
+
+function CompactModelTokenChart({ model, totals, language }: {
+  model: string;
+  totals: TokenTypeTotals;
+  language: Language;
+}) {
+  const labels = language === "zh"
+    ? { title: "当前模型 Token 类型累计", input: "输入", output: "输出", reasoning: "推理", cached: "缓存" }
+    : { title: "Current model token totals", input: "Input", output: "Output", reasoning: "Reasoning", cached: "Cached" };
+  const values = [totals.input, totals.output, totals.reasoning, totals.cached];
+  const maximum = Math.max(...values, 1);
+  const total = totals.input + totals.output;
+  const tooltip = (
+    <div className="compact-token-tooltip">
+      <strong>{model || "--"}</strong>
+      <small>{labels.title}</small>
+      {values.map((value, index) => (
+        <span key={index}>
+          <i className={`token-type-${index}`} />
+          {([labels.input, labels.output, labels.reasoning, labels.cached] as const)[index]}
+          <b>{formatCompactTokenCount(value, language)}</b>
+        </span>
+      ))}
+    </div>
+  );
+  return (
+    <Tooltip title={tooltip} placement="top">
+      <div className="compact-model-token-chart" role="img" aria-label={`${labels.title}: ${model || "--"}`}>
+        <span>TOKEN</span>
+        <svg viewBox="0 0 48 26" aria-hidden="true">
+          {values.map((value, index) => {
+            const height = value > 0 ? Math.max(3, Math.round((value / maximum) * 22)) : 2;
+            return <rect key={index} className={`token-type-${index}`} x={index * 12 + 2}
+              y={24 - height} width="8" height={height} rx="2" />;
+          })}
+        </svg>
+        <small>{formatCompactTokenCount(total, language)}</small>
+      </div>
+    </Tooltip>
+  );
+}
+
+function totalsForAccount(totalsByAccount: Map<string, TokenTypeTotals>, account: Account) {
+  for (const key of tokenAccountKeys(account)) {
+    const totals = totalsByAccount.get(key);
+    if (totals) return totals;
+  }
+  return EMPTY_TOKEN_TOTALS;
+}
+
 function isAccountDisabled(account: Account, hotSwitchEnabled: boolean) {
   return hotSwitchEnabled && !account.autoSwitchEnabled;
 }
@@ -158,6 +244,8 @@ export function AccountTable({
   hotSwitchEnabled,
   privacyMode,
   displayMode,
+  currentModel,
+  tokenUsageRefreshSeconds,
   language,
   t,
 }: AccountTableProps) {
@@ -168,6 +256,7 @@ export function AccountTable({
   const [contextMenu, setContextMenu] = useState<AccountContextMenu | null>(null);
   const [usageSort, setUsageSort] = useState<UsageSortPreference | null>(loadUsageSortPreference);
   const [tableScrollY, setTableScrollY] = useState(0);
+  const [tokenUsageEntries, setTokenUsageEntries] = useState<TokenUsageEntry[]>([]);
   useEffect(() => {
     const tableWrap = tableWrapRef.current;
     if (!tableWrap) return undefined;
@@ -189,6 +278,44 @@ export function AccountTable({
     document.addEventListener("pointerdown", closeContextMenu);
     return () => document.removeEventListener("pointerdown", closeContextMenu);
   }, []);
+  useEffect(() => {
+    if (!hotSwitchEnabled) {
+      setTokenUsageEntries([]);
+      return undefined;
+    }
+    let active = true;
+    const refresh = async () => {
+      try {
+        const entries = await loadTokenUsageEntries();
+        if (active) setTokenUsageEntries(entries);
+      } catch {
+        // Keep the last successful totals; quota rendering must not fail with token statistics.
+      }
+    };
+    void refresh();
+    const timer = window.setInterval(() => void refresh(), Math.max(1, tokenUsageRefreshSeconds) * 1000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [hotSwitchEnabled, tokenUsageRefreshSeconds]);
+  const effectiveCurrentModel = currentModel.trim() || tokenUsageEntries[0]?.model || "";
+  const tokenTotalsByAccount = useMemo(() => {
+    const totals = new Map<string, TokenTypeTotals>();
+    if (!effectiveCurrentModel) return totals;
+    tokenUsageEntries.forEach((entry) => {
+      if (entry.model !== effectiveCurrentModel) return;
+      entryAccountKeys(entry).forEach((key) => {
+        const current = totals.get(key) ?? { ...EMPTY_TOKEN_TOTALS };
+        current.input += entry.inputTokens ?? 0;
+        current.output += entry.outputTokens ?? 0;
+        current.reasoning += entry.reasoningTokens ?? 0;
+        current.cached += entry.cachedTokens ?? 0;
+        totals.set(key, current);
+      });
+    });
+    return totals;
+  }, [effectiveCurrentModel, tokenUsageEntries]);
   const orderedAccounts = useMemo(() => [...accounts].sort(
     (left, right) => Number(needsAccountAttention(left, hotSwitchEnabled))
       - Number(needsAccountAttention(right, hotSwitchEnabled)),
@@ -206,7 +333,7 @@ export function AccountTable({
   const columns: ColumnsType<Account> = [
     Table.EXPAND_COLUMN as ColumnsType<Account>[number],
     {
-      title: t("table.account"), dataIndex: "email", width: 300, fixed: "left",
+      title: t("table.account"), dataIndex: "email", width: 280, fixed: "left",
       sorter: (left, right, sortOrder) => compareKeepingAttentionLast(
         left,
         right,
@@ -232,9 +359,11 @@ export function AccountTable({
               {privacyMode && account.note ? "**********" : account.note || t("note.doubleClick")}
             </div>
             <div className="account-meta">
-              {account.active ? <Tag className="current-tag">{t("table.current")}</Tag> : <Tag>{t("table.standby")}</Tag>}
+              <Tooltip title={account.accountId ? t("table.workspace", { id: account.accountId }) : t("table.personal")}>
+                <Tag className="plan-tag">{account.plan || "ChatGPT"}</Tag>
+              </Tooltip>
               <div className="updated-cell">
-                {language === "zh" ? "刷新于 " : "Updated "}{formatUpdated(account.usage.fetchedAt, language)}
+                {account.expiresAt && <span className="plan-expiration">{t("table.expiresAt", { date: account.expiresAt })}</span>}
                 {account.usage.error && <Tooltip title={account.usage.error}><Tag color="error">{t("table.error")}</Tag></Tooltip>}
               </div>
             </div>
@@ -243,18 +372,7 @@ export function AccountTable({
       ),
     },
     {
-      title: t("table.planId"), width: 120,
-      render: (_, account) => (
-        <Tooltip title={account.accountId ? t("table.workspace", { id: account.accountId }) : t("table.personal")}>
-          <div className="plan-stack">
-            <Tag className="plan-tag">{account.plan || "ChatGPT"}</Tag>
-            {account.expiresAt && <span className="plan-expiration">{t("table.expiresAt", { date: account.expiresAt })}</span>}
-          </div>
-        </Tooltip>
-      ),
-    },
-    {
-      title: t("table.fiveHours"), key: "fiveHours", width: 290,
+      title: t("table.fiveHours"), key: "fiveHours", width: 260,
       sorter: (left, right, sortOrder) => compareKeepingAttentionLast(
         left,
         right,
@@ -266,10 +384,11 @@ export function AccountTable({
       // OpenAI currently reports the primary (5-hour) quota with a weekly reset window.
       // Render its reset time like the weekly quota so it does not show a misleading 5-hour countdown.
       render: (_, account) => <UsageMeter window={account.usage.primary} resetWindow="oneWeek"
-        resetCreditsCount={resetCreditsCount(resetCredits[account.id])} language={language} t={t} />,
+        resetCreditsCount={resetCreditsCount(resetCredits[account.id])} fetchedAt={account.usage.fetchedAt}
+        language={language} t={t} />,
     },
     {
-      title: t("table.oneWeek"), key: "oneWeek", width: 290,
+      title: t("table.oneWeek"), key: "oneWeek", width: 260,
       sorter: (left, right, sortOrder) => compareKeepingAttentionLast(
         left,
         right,
@@ -282,7 +401,22 @@ export function AccountTable({
         resetCreditsCount={resetCreditsCount(resetCredits[account.id])} language={language} t={t} />,
     },
     {
-      title: t("table.actions"), width: 318, align: "center", fixed: "right",
+      title: t("table.tokenTotals"), key: "tokenTotals", width: 92, align: "center" as const,
+      render: (_: unknown, account: Account) => (
+        <div className="account-token-chart-cell">
+          {hotSwitchEnabled ? (
+            <CompactModelTokenChart model={effectiveCurrentModel}
+              totals={totalsForAccount(tokenTotalsByAccount, account)} language={language} />
+          ) : (
+            <Tooltip title={t("table.tokenTotalsProxyOnly")}>
+              <span className="account-token-chart-unavailable">--</span>
+            </Tooltip>
+          )}
+        </div>
+      ),
+    },
+    {
+      title: t("table.actions"), width: 300, align: "center", fixed: "right",
       render: (_, account) => {
         const waiting = busyAccountId === account.id;
         const resetWaiting = resetCreditBusyAccountId === account.id;
@@ -364,7 +498,9 @@ export function AccountTable({
               <div className="identity">
                 <div className="identity-line">
                   <h3 title={privacyMode ? undefined : account.email}>{privacyMode ? maskAccountEmail(account.email) : account.email}</h3>
-                  {account.active ? <Tag className="current-tag">{t("table.current")}</Tag> : <Tag>{t("table.standby")}</Tag>}
+                  <Tooltip title={account.accountId ? t("table.workspace", { id: account.accountId }) : t("table.personal")}>
+                    <Tag className="plan-tag">{account.plan || "ChatGPT"}</Tag>
+                  </Tooltip>
                 </div>
                 <Tooltip title={privacyMode ? "**********" : account.note || t("note.doubleClick")}>
                   <div className="account-note-trigger" onClick={(event) => event.stopPropagation()}
@@ -372,9 +508,8 @@ export function AccountTable({
                     {privacyMode ? "**********" : account.note || t("note.doubleClick")}
                   </div>
                 </Tooltip>
-                <div className="plan-line"><span className="plan-badge">{account.plan || "ChatGPT"}</span>
+                <div className="plan-line">
                   {account.expiresAt && <span>{t("table.expiresAt", { date: account.expiresAt })}</span>}
-                  <span className="reset-credits-badge">{t("table.resetCredits")}: {resetCreditsCount(resetCredits[account.id]) ?? "-"}</span>
                   {account.usage.error && <Tooltip title={account.usage.error}><Tag color="error">{t("table.error")}</Tag></Tooltip>}
                 </div>
               </div>
@@ -420,6 +555,7 @@ export function AccountTable({
             </header>
             <div className="account-card-usage">
               <section><span>{t("table.fiveHours")}</span><UsageMeter window={account.usage.primary} resetWindow="oneWeek"
+                resetCreditsCount={resetCreditsCount(resetCredits[account.id])} fetchedAt={account.usage.fetchedAt}
                 variant="circle" language={language} t={t} /></section>
               <section><span>{t("table.oneWeek")}</span><UsageMeter window={account.usage.secondary} resetWindow="oneWeek"
                 variant="circle" language={language} t={t} /></section>
@@ -457,7 +593,7 @@ export function AccountTable({
             onRetry={() => onLoadResetCredits(account.id, true)} language={language} t={t} />,
           onExpand: (expanded, account) => { if (expanded) onLoadResetCredits(account.id); },
         }}
-        scroll={tableScrollY ? { x: 1350, y: tableScrollY } : { x: 1350 }} />
+        scroll={tableScrollY ? { x: 1230, y: tableScrollY } : { x: 1230 }} />
     </div>
     {editingAccount && <AccountNoteModal key={editingAccount.id} account={editingAccount}
       onClose={() => setEditingAccount(null)}

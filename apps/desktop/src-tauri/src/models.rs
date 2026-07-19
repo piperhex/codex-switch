@@ -126,6 +126,8 @@ pub(crate) struct TokenUsageEntry {
     pub(crate) id: String,
     pub(crate) ts: u64,
     pub(crate) provider: String,
+    pub(crate) account_id: Option<String>,
+    pub(crate) account_email: Option<String>,
     pub(crate) model: String,
     pub(crate) duration_ms: Option<u64>,
     pub(crate) input_tokens: Option<u64>,
@@ -133,6 +135,17 @@ pub(crate) struct TokenUsageEntry {
     pub(crate) reasoning_tokens: Option<u64>,
     pub(crate) cached_tokens: Option<u64>,
     pub(crate) total_tokens: Option<u64>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct DailyTokenUsage {
+    pub(crate) date: String,
+    pub(crate) total_tokens: u64,
+    pub(crate) input_tokens: u64,
+    pub(crate) output_tokens: u64,
+    pub(crate) reasoning_tokens: u64,
+    pub(crate) cached_tokens: u64,
 }
 
 #[derive(Debug, Serialize)]
@@ -170,6 +183,10 @@ pub(crate) struct AppSettings {
     pub(crate) cloud_user_id: Option<String>,
     #[serde(default)]
     pub(crate) cloud_last_sync_at: Option<String>,
+    #[serde(default = "default_token_usage_weeks")]
+    pub(crate) token_usage_weeks: u16,
+    #[serde(default = "default_token_usage_refresh_seconds")]
+    pub(crate) token_usage_refresh_seconds: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -193,6 +210,19 @@ fn default_cloud_base_url() -> Option<String> {
     Some(DEFAULT_CLOUD_BASE_URL.to_string())
 }
 
+pub(crate) const MIN_TOKEN_USAGE_WEEKS: u16 = 1;
+pub(crate) const MAX_TOKEN_USAGE_WEEKS: u16 = 52;
+pub(crate) const MIN_TOKEN_USAGE_REFRESH_SECONDS: u64 = 1;
+pub(crate) const MAX_TOKEN_USAGE_REFRESH_SECONDS: u64 = 3_600;
+
+fn default_token_usage_weeks() -> u16 {
+    20
+}
+
+fn default_token_usage_refresh_seconds() -> u64 {
+    60
+}
+
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
@@ -207,6 +237,8 @@ impl Default for AppSettings {
             cloud_user_email: None,
             cloud_user_id: None,
             cloud_last_sync_at: None,
+            token_usage_weeks: default_token_usage_weeks(),
+            token_usage_refresh_seconds: default_token_usage_refresh_seconds(),
         }
     }
 }

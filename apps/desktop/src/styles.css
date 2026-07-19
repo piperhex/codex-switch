@@ -35,7 +35,7 @@ button:focus-visible { outline: 3px solid rgba(45, 131, 87, .24); outline-offset
 
 .app-shell { width: 100%; max-width: 100%; height: 100vh; overflow: hidden; display: grid; grid-template-rows: auto minmax(0, 1fr); }
 .app-menu { position: relative; z-index: 20; width: 100%; min-width: 0; max-width: 100%; min-height: 64px; display: flex; align-items: center; gap: 20px; padding: 10px var(--page-x); background: #17251d; color: #eff7ef; box-shadow: 0 10px 30px rgba(16,33,23,.12); }
-.brand { min-width: 214px; flex: 0 0 auto; display: flex; align-items: center; gap: 11px; line-height: 1.05; font-family: Manrope, sans-serif; letter-spacing: 0; }
+.brand { flex: 0 0 auto; display: flex; align-items: center; gap: 11px; line-height: 1.05; font-family: Manrope, sans-serif; letter-spacing: 0; }
 .brand-logo { width: 40px; height: 40px; object-fit: contain; flex: 0 0 auto; filter: drop-shadow(0 6px 12px rgba(9, 24, 13, .24)); }
 .brand span { font-size: 15px; color: #aab8ae; }
 .brand b { color: white; font-weight: 700; }
@@ -85,6 +85,38 @@ main.accounts-main { overflow: hidden; display: flex; flex-direction: column; pa
 main.accounts-main .accounts-page-panel { flex: 1; display: flex; flex-direction: column; }
 .topbar { width: 100%; height: 110px; padding: 25px var(--page-x); border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; gap: 18px; background: rgba(248,250,247,.82); backdrop-filter: blur(16px); }
 .topbar-actions { display: flex; align-items: center; gap: 10px; }
+.accounts-topbar { height: 136px; padding-block: 16px; }
+.token-heatmap { min-width: 0; flex: 1 1 auto; display: flex; align-items: center; gap: 18px; overflow: hidden; }
+.token-heatmap-summary { min-width: 158px; display: grid; gap: 5px; }
+.token-heatmap-summary > span { color: #7b8980; font-size: 9px; font-weight: 700; letter-spacing: .1em; white-space: nowrap; }
+.token-heatmap-summary > strong { color: var(--ink); font: 700 22px/1 Manrope, sans-serif; letter-spacing: -.025em; white-space: nowrap; }
+.token-heatmap-summary > strong small { margin-left: 5px; color: var(--green-dark); font: 700 9px/1 "DM Sans", sans-serif; letter-spacing: .03em; }
+.token-heatmap-chart { min-width: 0; display: flex; align-items: center; gap: 6px; }
+.token-heatmap-weekdays { width: 11px; height: 82px; flex: 0 0 auto; display: grid; grid-template-rows: repeat(7, 10px); gap: 2px; color: #849188; font-size: 8px; line-height: 10px; text-align: right; }
+.token-heatmap-weekdays span { height: 10px; display: block; }
+.token-heatmap-weekdays span:nth-child(1) { grid-row: 2; }
+.token-heatmap-weekdays span:nth-child(2) { grid-row: 4; }
+.token-heatmap-weekdays span:nth-child(3) { grid-row: 6; }
+.token-heatmap-content { min-width: 0; display: grid; gap: 5px; }
+.token-heatmap-scroll { min-width: 0; max-width: min(43vw, 590px); overflow-x: auto; padding: 2px 1px 1px; scrollbar-width: thin; }
+.token-heatmap-columns { width: max-content; display: flex; gap: 3px; }
+.token-heatmap-week { display: grid; grid-template-rows: repeat(7, 10px); gap: 2px; }
+.token-heatmap-week > span { display: block; width: 10px; height: 10px; line-height: 0; }
+.token-heatmap-cell { width: 10px; height: 10px; display: block; border: 1px solid #dfe5e1; border-radius: 2px; background: #edf1ee; cursor: default; }
+.token-heatmap-cell.level-1 { border-color: rgba(var(--green-rgb), .18); background: rgba(var(--green-rgb), .22); }
+.token-heatmap-cell.level-2 { border-color: rgba(var(--green-rgb), .28); background: rgba(var(--green-rgb), .43); }
+.token-heatmap-cell.level-3 { border-color: rgba(var(--green-rgb), .45); background: rgba(var(--green-rgb), .69); }
+.token-heatmap-cell.level-4 { border-color: var(--green-dark); background: var(--green-dark); }
+.token-heatmap-cell.future { visibility: hidden; }
+.token-heatmap-legend { min-height: 12px; display: flex; align-items: center; justify-content: flex-end; gap: 5px; color: #7d8a82; font-size: 8px; line-height: 1; }
+.token-heatmap-legend-scale { display: flex; align-items: center; gap: 3px; }
+.token-heatmap-legend-scale .token-heatmap-cell { width: 9px; height: 9px; }
+.token-heatmap-tooltip { display: grid; gap: 4px; }
+.token-heatmap-tooltip strong { font-size: 11px; }
+.token-heatmap-tooltip span { color: rgba(255,255,255,.78); font-size: 10px; }
+.token-heatmap-tooltip-details { min-width: 132px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 12px; }
+.token-heatmap-tooltip-details span { display: flex; justify-content: space-between; gap: 8px; white-space: nowrap; }
+.token-heatmap-tooltip-details b { color: rgba(255,255,255,.58); font-weight: 500; }
 .refresh-all-wrap { position: relative; }
 .last-auto-refresh { position: absolute; top: calc(100% + 6px); right: 0; color: #8a958e; font-size: 9px; font-weight: 400; white-space: nowrap; }
 .eyebrow { font-size: 10px; font-weight: 700; color: #819087; letter-spacing: .14em; }
@@ -132,6 +164,7 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .card-usage-meter .ant-progress-text strong { color: var(--green) !important; font: 700 11px Manrope, sans-serif; }
 .card-usage-percent { display: grid; justify-items: center; gap: 1px; line-height: 1; }
 .card-usage-percent small { color: #839088; font-size: 8px; }
+.card-usage-meta { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; color: var(--green-dark); font-size: 8px; font-weight: 700; }
 .card-usage-reset { grid-column: 1 / -1; display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #839088; font-size: 9px; text-align: center; }
 .account-reset-credits { margin: 11px 20px 0; border: 1px solid #e0e7e0; border-radius: 8px; overflow: hidden; }
 .account-reset-credits summary { padding: 8px 10px; color: #536158; background: #f7faf6; cursor: pointer; font-size: 10px; font-weight: 700; }
@@ -173,7 +206,6 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .account-meta { height: 18px; display: flex; align-items: center; gap: 4px; }
 .account-meta .ant-tag { margin: 0; font-size: 10px; line-height: 16px; }
 .account-meta .current-tag { color: var(--green-dark); border-color: var(--green-accent); background: var(--green-selection); }
-.plan-stack { display: grid; gap: 4px; justify-items: start; }
 .plan-tag { margin: 0; max-width: 150px; overflow: hidden; text-overflow: ellipsis; text-transform: capitalize; }
 .plan-expiration { color: #7d8a82; font-size: 9px; white-space: nowrap; }
 .account-id { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #7d8a82; font: 10px ui-monospace, SFMono-Regular, Consolas, monospace; }
@@ -186,7 +218,30 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .table-usage-head strong.warning { color: #a87515; }
 .table-usage-head strong.danger { color: #b94b42; }
 .table-usage-head span, .usage-reset, .usage-missing { color: #839088; font-size: 10px; }
+.compact-model-token-chart { width: 54px; min-width: 54px; padding-left: 7px; display: grid; justify-items: center; align-content: center; border-left: 1px solid #dce5dd; color: #75837a; cursor: help; }
+.compact-model-token-chart > span { color: var(--green-dark); font: 800 7px/1 Manrope, sans-serif; letter-spacing: .08em; }
+.compact-model-token-chart svg { width: 48px; height: 26px; display: block; overflow: visible; }
+.compact-model-token-chart small { max-width: 48px; overflow: hidden; color: #718078; font: 700 8px/1 Manrope, sans-serif; text-overflow: ellipsis; white-space: nowrap; }
+.compact-model-token-chart rect { stroke: rgba(255,255,255,.72); stroke-width: .6px; }
+.compact-model-token-chart .token-type-0 { fill: #3b82f6; }
+.compact-model-token-chart .token-type-1 { fill: #10b981; }
+.compact-model-token-chart .token-type-2 { fill: #8b5cf6; }
+.compact-model-token-chart .token-type-3 { fill: #f59e0b; }
+.compact-token-tooltip { min-width: 170px; display: grid; gap: 5px; }
+.compact-token-tooltip > strong { max-width: 220px; overflow: hidden; color: #fff; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.compact-token-tooltip > small { padding-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,.18); color: rgba(255,255,255,.68); font-size: 9px; }
+.compact-token-tooltip > span { display: grid; grid-template-columns: 7px minmax(0, 1fr) auto; align-items: center; gap: 6px; color: rgba(255,255,255,.82); font-size: 10px; }
+.compact-token-tooltip > span i { width: 7px; height: 7px; border-radius: 2px; }
+.compact-token-tooltip > span b { color: #fff; font-weight: 700; }
+.compact-token-tooltip .token-type-0 { background: #3b82f6; }
+.compact-token-tooltip .token-type-1 { background: #10b981; }
+.compact-token-tooltip .token-type-2 { background: #8b5cf6; }
+.compact-token-tooltip .token-type-3 { background: #f59e0b; }
+.account-token-chart-cell { display: flex; align-items: center; justify-content: center; }
+.account-token-chart-cell .compact-model-token-chart { padding-left: 0; border-left: 0; }
+.account-token-chart-unavailable { min-width: 32px; color: #9aa69f; font-size: 11px; cursor: help; }
 .usage-reset-credits { white-space: nowrap; color: var(--green-dark) !important; font-weight: 700; }
+.usage-recent-refresh { white-space: nowrap; color: #718078 !important; }
 .usage-reset { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; white-space: normal; }
 .usage-reset > span:first-child { white-space: nowrap; }
 .account-table-wrap .ant-progress-line { line-height: 1; }
@@ -404,6 +459,9 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .cloud-settings-status { display: inline-block; padding: 5px 8px; border-radius: 6px; color: #456052 !important; background: #eef4ee; font-weight: 600; }
 .settings-field .ant-space-compact { width: 150px; }
 .settings-field .ant-input-number { width: 108px; }
+.token-usage-settings-field { flex-wrap: wrap; }
+.token-usage-settings-field .ant-space-compact { width: 132px; }
+.token-usage-settings-field .ant-input-number { width: 88px; }
 .note-card { border-color: #c8dccd; background: #f8fbf7; }
 
 .provider-page { width: calc(100% - 32px); max-width: none; margin: 30px 16px; display: grid; gap: 14px; }
@@ -491,6 +549,37 @@ html.token-usage-page #root {
   background: #f3f5f1;
 }
 
+main.tokens-main { overflow: hidden; padding-bottom: 0; }
+.token-dashboard-page { height: 100%; min-height: 0; }
+.token-dashboard { width: 100%; height: 100vh; min-height: 0; padding: 22px; display: grid; grid-template-rows: auto minmax(0, 1.08fr) minmax(0, .92fr); align-content: stretch; gap: 14px; overflow: hidden; background: #f3f5f1; }
+.token-dashboard.embedded { height: 100%; min-height: 0; padding: 18px 16px; }
+.token-dashboard-header { min-height: 64px; display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.token-dashboard-header > div { min-width: 0; }
+.token-dashboard-header > div > span { color: #819087; font-size: 10px; font-weight: 700; letter-spacing: .14em; }
+.token-dashboard-header h1 { margin: 5px 0 3px; font-size: 24px; }
+.token-dashboard-header small { color: #7c8981; font-size: 10px; }
+.token-dashboard-header small { display: block; }
+.token-dashboard-header .token-dashboard-proxy-note { color: #a06d29; font-weight: 600; }
+.token-dashboard-actions { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; }
+.token-dashboard-range { display: flex; align-items: center; gap: 6px; color: #718078; font-size: 11px; white-space: nowrap; }
+.token-dashboard-range .ant-input-number { width: 64px; }
+.token-chart-panel { min-width: 0; min-height: 0; padding: 16px 16px 10px; display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); box-shadow: 0 5px 18px rgba(24,45,31,.035); }
+.token-chart-panel-heatmap { padding-bottom: 6px; }
+.token-chart-heading { min-width: 0; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.token-chart-heading h2 { margin: 0; color: var(--ink); font: 700 13px Manrope, sans-serif; }
+.token-chart-heading span { max-width: 68%; overflow: hidden; color: #7c8981; font-size: 9px; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
+.token-dashboard-grid { min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.token-dashboard-grid-top,
+.token-dashboard-grid-bottom { min-height: 0; }
+.token-dashboard-grid-bottom { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.token-chart-panel-wide { grid-column: 1 / -1; }
+.token-echart { width: 100%; height: 100%; min-width: 0; min-height: 0; flex: 1; }
+.token-chart-tooltip { min-width: 178px; display: grid; gap: 5px; }
+.token-chart-tooltip > strong { display: block; padding-bottom: 4px; border-bottom: 1px solid #e5eae5; color: #26342c; font-size: 11px; }
+.token-chart-tooltip > div { display: flex; justify-content: space-between; gap: 18px; color: #66736b; font-size: 10px; }
+.token-chart-tooltip > div b { color: #26342c; font-weight: 700; }
+.token-dashboard-empty { padding: 32px; color: #849188; text-align: center; font-size: 11px; }
+
 .token-usage-shell {
   width: 100vw;
   height: 100vh;
@@ -563,6 +652,21 @@ html.token-usage-page #root {
   font-size: 12px;
 }
 
+.token-account {
+  display: inline-block;
+  max-width: 190px;
+  overflow: hidden;
+  color: #34443a;
+  font: 600 11px ui-monospace, SFMono-Regular, Consolas, monospace;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.token-account-missing {
+  color: #96a099;
+}
+
 .token-model-code {
   display: inline-block;
   max-width: 190px;
@@ -628,11 +732,21 @@ html.token-usage-page #root {
 
 @media (max-width: 1100px) {
   .app-menu { gap: 12px; }
-  .brand { min-width: 184px; }
   .announcement-slot { flex-basis: 220px; }
   .usage-copy { min-width: 85px; }
   .provider-official, .provider-proxy { align-items: flex-start; flex-wrap: wrap; }
   .provider-official-actions { margin-left: 40px; flex-wrap: wrap; justify-content: flex-start; }
+}
+
+@media (max-width: 900px) {
+  html.token-usage-page,
+  html.token-usage-page body,
+  html.token-usage-page #root,
+  main.tokens-main { overflow-y: auto; }
+  .token-dashboard { height: auto; min-height: 100%; grid-template-rows: auto; overflow: visible; }
+  .token-dashboard-grid { grid-template-columns: 1fr; }
+  .token-chart-panel { min-height: 280px; }
+  .token-chart-panel-wide { grid-column: auto; }
 }
 
 @media (prefers-reduced-motion: reduce) {

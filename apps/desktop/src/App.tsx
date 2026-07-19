@@ -8,6 +8,8 @@ import { checkForUpdate, chooseAndExportDiagnosticLogs, consumeResetCredit, DEFA
 import { HelpModal, type HelpVersionState } from "./components/modals/HelpModal";
 import { FeedbackModal } from "./components/modals/FeedbackModal";
 import { FloatingUsageBubble } from "./components/FloatingUsageBubble";
+import { TokenUsageHeatmap } from "./components/TokenUsageHeatmap";
+import { TokenUsageDashboard } from "./components/TokenUsageDashboard";
 import { TokenUsageWindow } from "./components/TokenUsageWindow";
 import { CloudLoginModal } from "./components/modals/CloudLoginModal";
 import { CloudAccountModal } from "./components/modals/CloudAccountModal";
@@ -24,6 +26,7 @@ import { useProviderManager } from "./hooks/useProviderManager";
 import { usePrivacyMode } from "./hooks/usePrivacyMode";
 import { useResetCredits } from "./hooks/useResetCredits";
 import { useThemeColor } from "./hooks/useThemeColor";
+import { useTokenUsagePreferences } from "./hooks/useTokenUsagePreferences";
 import { useToast } from "./hooks/useToast";
 import { AccountsPage } from "./pages/AccountsPage";
 import { ProvidersPage } from "./pages/ProvidersPage";
@@ -60,7 +63,7 @@ function normalizeHttpUrl(value: string | undefined) {
 }
 
 function DashboardApp() {
-  const [page, setPage] = useState<"accounts" | "providers" | "settings">("accounts");
+  const [page, setPage] = useState<"accounts" | "providers" | "tokens" | "settings">("accounts");
   const [showLogin, setShowLogin] = useState(false);
   const [showCloudLogin, setShowCloudLogin] = useState(false);
   const [showCloudAccount, setShowCloudAccount] = useState(false);
@@ -93,6 +96,7 @@ function DashboardApp() {
   const privacyMode = usePrivacyMode(notify);
   const accountDisplayMode = useAccountDisplayMode();
   const themeColor = useThemeColor(notify);
+  const tokenUsagePreferences = useTokenUsagePreferences(notify);
   const manager = useAccountManager(notify, t, accountCloudSync);
   const providerManager = useProviderManager(notify, t, providerCloudSync);
   const resetCredits = useResetCredits(manager.accounts, notify, t);
@@ -440,6 +444,8 @@ function DashboardApp() {
               <UserRound size={19} />{t("nav.accounts")}</button>
             <button className={page === "providers" ? "selected" : ""} onClick={() => setPage("providers")}>
               <Server size={19} />{t("nav.providers")}</button>
+            <button className={page === "tokens" ? "selected" : ""} onClick={() => setPage("tokens")}>
+              <BarChart3 size={19} />{t("nav.tokenUsage")}</button>
             <button className={page === "settings" ? "selected" : ""} onClick={() => setPage("settings")}>
               <Settings size={19} />{t("nav.settings")}</button>
           </nav>
@@ -485,14 +491,20 @@ function DashboardApp() {
           </div>
         </header>
 
-        <main className={page === "accounts" ? "accounts-main" : undefined}>
-          <header className="topbar">
-            <div><span className="eyebrow">{page === "providers" ? t("topbar.providersEyebrow") : t("topbar.eyebrow")}</span>
-              <h1>{page === "settings"
-                ? t("topbar.settings")
-                : page === "providers"
-                  ? t("topbar.providers", { count: providerManager.providers.length })
-                  : t("topbar.accounts", { count: manager.accounts.length })}</h1></div>
+        <main className={page === "accounts" ? "accounts-main" : page === "tokens" ? "tokens-main" : undefined}>
+          {page !== "tokens" && (
+          <header className={`topbar${page === "accounts" && providerManager.localProxy?.running ? " accounts-topbar" : ""}`}>
+            {page === "accounts" && providerManager.localProxy?.running ? (
+              <TokenUsageHeatmap weeks={tokenUsagePreferences.weeks}
+                refreshSeconds={tokenUsagePreferences.refreshSeconds} language={language} t={t} />
+            ) : (
+              <div><span className="eyebrow">{page === "providers" ? t("topbar.providersEyebrow") : t("topbar.eyebrow")}</span>
+                <h1>{page === "settings"
+                  ? t("topbar.settings")
+                  : page === "providers"
+                    ? t("topbar.providers", { count: providerManager.providers.length })
+                    : t("topbar.accounts", { count: manager.accounts.length })}</h1></div>
+            )}
             {page === "accounts" && (
               <div className="topbar-actions">
                 <button className="primary-button" onClick={openLogin}><Plus size={18} />{t("actions.addAccount")}</button>
@@ -558,6 +570,7 @@ function DashboardApp() {
               </div>
             )}
           </header>
+          )}
 
           <section className="page-panel" hidden={page !== "settings"}>
             <MemoSettingsPage info={manager.info} autoRefreshEnabled={autoRefresh.enabled}
@@ -581,6 +594,11 @@ function DashboardApp() {
               onPrivacyModeChange={changePrivacyMode}
               accountDisplayMode={accountDisplayMode.displayMode}
               onAccountDisplayModeChange={accountDisplayMode.setDisplayMode}
+              tokenUsageWeeks={tokenUsagePreferences.weeks}
+              tokenUsageRefreshSeconds={tokenUsagePreferences.refreshSeconds}
+              tokenUsagePreferencesLoading={tokenUsagePreferences.loading}
+              onTokenUsageWeeksChange={tokenUsagePreferences.updateWeeks}
+              onTokenUsageRefreshSecondsChange={tokenUsagePreferences.updateRefreshSeconds}
               onOpenCodexHome={openCodexHome} onOpenAccountStore={openAccountStore} language={language}
               onExportLogs={() => void exportLogs()} exportingLogs={exportingLogs}
               onLanguageChange={setLanguage} t={t} />
@@ -598,6 +616,13 @@ function DashboardApp() {
               onAutoSwitchChange={providerManager.setProxyAutoSwitch}
               onAutoDisableUnreachableChange={providerManager.setProxyAutoDisableUnreachable}
               displayMode={accountDisplayMode.displayMode} t={t} />
+          </section>
+          <section className="page-panel token-dashboard-page" hidden={page !== "tokens"}>
+            <TokenUsageDashboard language={language} themeColor={themeColor.color}
+              weeks={tokenUsagePreferences.weeks}
+              refreshSeconds={tokenUsagePreferences.refreshSeconds}
+              onWeeksChange={tokenUsagePreferences.updateWeeks}
+              preferencesLoading={tokenUsagePreferences.loading} embedded />
           </section>
           <section className="page-panel accounts-page-panel" hidden={page !== "accounts"}>
             <MemoAccountsPage accounts={manager.accounts} loading={manager.loading}
@@ -620,6 +645,8 @@ function DashboardApp() {
               onAutoDisableUnreachableChange={providerManager.setProxyAutoDisableUnreachable}
               privacyMode={privacyMode.enabled}
               displayMode={accountDisplayMode.displayMode}
+              currentModel={providerManager.activeProvider?.model ?? ""}
+              tokenUsageRefreshSeconds={tokenUsagePreferences.refreshSeconds}
               language={language} t={t} />
           </section>
         </main>

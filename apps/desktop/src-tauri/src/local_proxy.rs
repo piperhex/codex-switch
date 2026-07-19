@@ -8,6 +8,7 @@ use std::{
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
+use chrono::{Local, TimeZone};
 use reqwest::blocking::{Client, Response as ReqwestResponse};
 use rusqlite::{params, Connection, OptionalExtension};
 use serde_json::{json, Value};
@@ -19,8 +20,8 @@ use crate::{
     auth::{account_fields, token_string, validate_auth},
     codex_api::{refresh_tokens, token_expiring, ORIGINATOR},
     models::{
-        AccountSummary, LocalProxyStatus, ProviderApiFormat, ProviderProfile, TokenUsageEntry,
-        UsageSummary,
+        AccountSummary, DailyTokenUsage, LocalProxyStatus, ProviderApiFormat, ProviderProfile,
+        TokenUsageEntry, UsageSummary,
     },
     providers::{self, LOCAL_PROXY_BASE_URL, LOCAL_PROXY_HOST, LOCAL_PROXY_PORT},
     storage::{
@@ -58,6 +59,7 @@ struct UpstreamPayload {
     content_type: Option<String>,
     response_headers: Vec<(String, String)>,
     body: UpstreamBody,
+    token_usage_account: Option<TokenUsageAccount>,
 }
 
 enum UpstreamBody {
@@ -70,13 +72,19 @@ enum ActiveTarget {
     Provider(ProviderProfile),
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 struct TokenUsageValues {
     input_tokens: Option<u64>,
     output_tokens: Option<u64>,
     reasoning_tokens: Option<u64>,
     cached_tokens: Option<u64>,
     total_tokens: Option<u64>,
+}
+
+#[derive(Clone)]
+struct TokenUsageAccount {
+    account_id: String,
+    account_email: String,
 }
 
 #[derive(Clone)]
@@ -87,6 +95,8 @@ struct TokenUsageContext {
     request_hash: String,
     started_at: Instant,
     content_type: Option<String>,
+    expects_event_stream: bool,
+    account: Option<TokenUsageAccount>,
 }
 
 #[derive(Clone, Copy)]
@@ -401,6 +411,15 @@ pub(crate) fn list_token_usage_entries<R: Runtime>(
 }
 
 #[tauri::command]
+pub(crate) fn list_daily_token_usage<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    start_ts: u64,
+) -> Result<Vec<DailyTokenUsage>, String> {
+    let connection = open_token_usage_db(&app)?;
+    list_daily_token_usage_from_db(&connection, start_ts)
+}
+
+#[tauri::command]
 pub(crate) async fn show_token_usage_window<R: Runtime>(
     app: tauri::AppHandle<R>,
 ) -> Result<(), String> {
@@ -410,8 +429,8 @@ pub(crate) async fn show_token_usage_window<R: Runtime>(
 
     WebviewWindowBuilder::new(&app, TOKEN_USAGE_WINDOW_LABEL, token_usage_window_url())
         .title("Token Usage")
-        .inner_size(980.0, 560.0)
-        .min_inner_size(780.0, 420.0)
+        .inner_size(1180.0, 780.0)
+        .min_inner_size(900.0, 620.0)
         .resizable(true)
         .maximizable(true)
         .closable(true)
@@ -994,6 +1013,12 @@ fn token_usage_context(
         request_hash: short_hash_bytes(body),
         started_at,
         content_type: None,
+        expects_event_stream: request_body
+            .as_ref()
+            .and_then(|value| value.get("stream"))
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
+        account: None,
     })
 }
 
@@ -1010,9 +1035,14 @@ fn attach_token_usage_capture<R: Runtime + 'static>(
         return Ok(payload);
     }
     context.content_type = payload.content_type.clone();
+    context.account = payload.token_usage_account.clone();
     payload.body = match payload.body {
         UpstreamBody::Buffered(body) => {
-            let usage = extract_token_usage_from_bytes(&body, context.content_type.as_deref());
+            let usage = extract_token_usage_from_bytes(
+                &body,
+                context.content_type.as_deref(),
+                context.expects_event_stream,
+            );
             record_token_usage_entry(app, &context, usage);
             UpstreamBody::Buffered(body)
         }
@@ -1051,7 +1081,7 @@ impl<R: Runtime> TokenUsageCaptureReader<R> {
     }
 
     fn observe(&mut self, bytes: &[u8]) {
-        if is_event_stream(self.context.content_type.as_deref()) {
+        if self.captures_event_stream() {
             let chunk = String::from_utf8_lossy(bytes).replace("\r\n", "\n");
             self.sse_buffer.push_str(&chunk);
             self.process_sse_blocks();
@@ -1089,20 +1119,27 @@ impl<R: Runtime> TokenUsageCaptureReader<R> {
         }
     }
 
+    fn captures_event_stream(&self) -> bool {
+        self.context.expects_event_stream || is_event_stream(self.context.content_type.as_deref())
+    }
+
     fn finish(&mut self) {
         if self.recorded {
             return;
         }
         self.recorded = true;
-        if is_event_stream(self.context.content_type.as_deref()) {
+        if self.captures_event_stream() {
             self.process_sse_blocks();
             if !self.sse_buffer.trim().is_empty() {
                 let block = std::mem::take(&mut self.sse_buffer);
                 self.process_sse_block(&block);
             }
         } else if self.usage.is_none() {
-            self.usage =
-                extract_token_usage_from_bytes(&self.body, self.context.content_type.as_deref());
+            self.usage = extract_token_usage_from_bytes(
+                &self.body,
+                self.context.content_type.as_deref(),
+                self.context.expects_event_stream,
+            );
         }
         record_token_usage_entry(&self.app, &self.context, self.usage.clone());
     }
@@ -1136,8 +1173,9 @@ impl<R: Runtime> Drop for TokenUsageCaptureReader<R> {
 fn extract_token_usage_from_bytes(
     bytes: &[u8],
     content_type: Option<&str>,
+    expects_event_stream: bool,
 ) -> Option<TokenUsageValues> {
-    if is_event_stream(content_type) {
+    if expects_event_stream || is_event_stream(content_type) {
         let text = String::from_utf8_lossy(bytes).replace("\r\n", "\n");
         let mut usage = None;
         for block in text.split("\n\n") {
@@ -1253,6 +1291,14 @@ fn record_token_usage_entry<R: Runtime>(
         id,
         ts: context.ts,
         provider: context.provider.clone(),
+        account_id: context
+            .account
+            .as_ref()
+            .map(|account| account.account_id.clone()),
+        account_email: context
+            .account
+            .as_ref()
+            .map(|account| account.account_email.clone()),
         model: context.model.clone(),
         duration_ms: Some(duration_ms),
         input_tokens: usage.input_tokens,
@@ -1550,6 +1596,8 @@ fn init_token_usage_schema(connection: &Connection) -> Result<(), String> {
                 id TEXT PRIMARY KEY,
                 ts INTEGER NOT NULL,
                 provider TEXT NOT NULL,
+                account_id TEXT,
+                account_email TEXT,
                 model TEXT NOT NULL,
                 duration_ms INTEGER,
                 input_tokens INTEGER,
@@ -1567,7 +1615,40 @@ fn init_token_usage_schema(connection: &Connection) -> Result<(), String> {
             );
             "#,
         )
-        .map_err(|error| format!("Failed to initialize token usage database: {error}"))
+        .map_err(|error| format!("Failed to initialize token usage database: {error}"))?;
+    ensure_token_usage_account_columns(connection)
+}
+
+fn ensure_token_usage_account_columns(connection: &Connection) -> Result<(), String> {
+    let columns = token_usage_table_columns(connection)?;
+    for (name, sql) in [
+        (
+            "account_id",
+            "ALTER TABLE token_usage_entries ADD COLUMN account_id TEXT",
+        ),
+        (
+            "account_email",
+            "ALTER TABLE token_usage_entries ADD COLUMN account_email TEXT",
+        ),
+    ] {
+        if !columns.contains(name) {
+            connection
+                .execute(sql, [])
+                .map_err(|error| format!("Failed to add token usage column {name}: {error}"))?;
+        }
+    }
+    Ok(())
+}
+
+fn token_usage_table_columns(connection: &Connection) -> Result<HashSet<String>, String> {
+    let mut statement = connection
+        .prepare("PRAGMA table_info(token_usage_entries)")
+        .map_err(|error| format!("Failed to inspect token usage database: {error}"))?;
+    let rows = statement
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|error| format!("Failed to inspect token usage columns: {error}"))?;
+    rows.collect::<Result<HashSet<_>, _>>()
+        .map_err(|error| format!("Failed to read token usage columns: {error}"))
 }
 
 fn migrate_token_usage_jsonl_if_needed(
@@ -1617,9 +1698,10 @@ fn import_token_usage_jsonl(connection: &mut Connection, path: &Path) -> Result<
             .prepare(
                 r#"
                 INSERT OR IGNORE INTO token_usage_entries (
-                    id, ts, provider, model, duration_ms, input_tokens, output_tokens,
-                    reasoning_tokens, cached_tokens, total_tokens, created_at_ms
-                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+                    id, ts, provider, account_id, account_email, model, duration_ms,
+                    input_tokens, output_tokens, reasoning_tokens, cached_tokens,
+                    total_tokens, created_at_ms
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
                 "#,
             )
             .map_err(|error| format!("Failed to prepare token usage migration: {error}"))?;
@@ -1654,9 +1736,10 @@ fn insert_token_usage_entry(
         .execute(
             r#"
             INSERT OR IGNORE INTO token_usage_entries (
-                id, ts, provider, model, duration_ms, input_tokens, output_tokens,
-                reasoning_tokens, cached_tokens, total_tokens, created_at_ms
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+                id, ts, provider, account_id, account_email, model, duration_ms,
+                input_tokens, output_tokens, reasoning_tokens, cached_tokens,
+                total_tokens, created_at_ms
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
             "#,
             token_usage_params(entry),
         )
@@ -1680,8 +1763,8 @@ fn list_token_usage_entries_from_db(
     let mut statement = connection
         .prepare(
             r#"
-            SELECT id, ts, provider, model, duration_ms, input_tokens, output_tokens,
-                   reasoning_tokens, cached_tokens, total_tokens
+            SELECT id, ts, provider, account_id, account_email, model, duration_ms,
+                   input_tokens, output_tokens, reasoning_tokens, cached_tokens, total_tokens
             FROM token_usage_entries
             ORDER BY ts DESC, id DESC
             LIMIT ?1
@@ -1694,19 +1777,91 @@ fn list_token_usage_entries_from_db(
                 id: row.get(0)?,
                 ts: i64_to_u64(row.get::<_, i64>(1)?),
                 provider: row.get(2)?,
-                model: row.get(3)?,
-                duration_ms: opt_i64_to_u64(row.get(4)?),
-                input_tokens: opt_i64_to_u64(row.get(5)?),
-                output_tokens: opt_i64_to_u64(row.get(6)?),
-                reasoning_tokens: opt_i64_to_u64(row.get(7)?),
-                cached_tokens: opt_i64_to_u64(row.get(8)?),
-                total_tokens: opt_i64_to_u64(row.get(9)?),
+                account_id: row.get(3)?,
+                account_email: row.get(4)?,
+                model: row.get(5)?,
+                duration_ms: opt_i64_to_u64(row.get(6)?),
+                input_tokens: opt_i64_to_u64(row.get(7)?),
+                output_tokens: opt_i64_to_u64(row.get(8)?),
+                reasoning_tokens: opt_i64_to_u64(row.get(9)?),
+                cached_tokens: opt_i64_to_u64(row.get(10)?),
+                total_tokens: opt_i64_to_u64(row.get(11)?),
             })
         })
         .map_err(|error| format!("Failed to read token usage entries: {error}"))?;
 
     rows.collect::<Result<Vec<_>, _>>()
         .map_err(|error| format!("Failed to parse token usage entries: {error}"))
+}
+
+fn list_daily_token_usage_from_db(
+    connection: &Connection,
+    start_ts: u64,
+) -> Result<Vec<DailyTokenUsage>, String> {
+    let mut statement = connection
+        .prepare(
+            r#"
+            SELECT ts, total_tokens, input_tokens, output_tokens, reasoning_tokens, cached_tokens
+            FROM token_usage_entries
+            WHERE ts >= ?1
+            ORDER BY ts ASC
+            "#,
+        )
+        .map_err(|error| format!("Failed to query daily token usage: {error}"))?;
+    let rows = statement
+        .query_map(params![u64_to_i64(start_ts)], |row| {
+            Ok((
+                row.get::<_, i64>(0)?,
+                row.get::<_, Option<i64>>(1)?,
+                row.get::<_, Option<i64>>(2)?,
+                row.get::<_, Option<i64>>(3)?,
+                row.get::<_, Option<i64>>(4)?,
+                row.get::<_, Option<i64>>(5)?,
+            ))
+        })
+        .map_err(|error| format!("Failed to read daily token usage: {error}"))?;
+
+    let mut daily_totals = BTreeMap::<String, (u64, u64, u64, u64, u64)>::new();
+    for row in rows {
+        let (timestamp, total, input, output, reasoning, cached) =
+            row.map_err(|error| format!("Failed to parse daily token usage: {error}"))?;
+        let Some(local_time) = Local.timestamp_opt(timestamp, 0).single() else {
+            continue;
+        };
+        let input = opt_i64_to_u64(input).unwrap_or(0);
+        let output = opt_i64_to_u64(output).unwrap_or(0);
+        let reasoning = opt_i64_to_u64(reasoning).unwrap_or(0);
+        let cached = opt_i64_to_u64(cached).unwrap_or(0);
+        let total = opt_i64_to_u64(total).unwrap_or_else(|| input.saturating_add(output));
+        let date = local_time.format("%Y-%m-%d").to_string();
+        daily_totals
+            .entry(date)
+            .and_modify(|current| {
+                current.0 = current.0.saturating_add(total);
+                current.1 = current.1.saturating_add(input);
+                current.2 = current.2.saturating_add(output);
+                current.3 = current.3.saturating_add(reasoning);
+                current.4 = current.4.saturating_add(cached);
+            })
+            .or_insert((total, input, output, reasoning, cached));
+    }
+
+    Ok(daily_totals
+        .into_iter()
+        .map(
+            |(
+                date,
+                (total_tokens, input_tokens, output_tokens, reasoning_tokens, cached_tokens),
+            )| DailyTokenUsage {
+                date,
+                total_tokens,
+                input_tokens,
+                output_tokens,
+                reasoning_tokens,
+                cached_tokens,
+            },
+        )
+        .collect())
 }
 
 fn prune_token_usage_entries(connection: &Connection) -> Result<(), String> {
@@ -1726,11 +1881,13 @@ fn prune_token_usage_entries(connection: &Connection) -> Result<(), String> {
         .map_err(|error| format!("Failed to prune token usage entries: {error}"))
 }
 
-fn token_usage_params(entry: &TokenUsageEntry) -> [rusqlite::types::Value; 11] {
+fn token_usage_params(entry: &TokenUsageEntry) -> [rusqlite::types::Value; 13] {
     [
         rusqlite::types::Value::Text(entry.id.clone()),
         rusqlite::types::Value::Integer(u64_to_i64(entry.ts)),
         rusqlite::types::Value::Text(entry.provider.clone()),
+        optional_string_value(entry.account_id.as_deref()),
+        optional_string_value(entry.account_email.as_deref()),
         rusqlite::types::Value::Text(entry.model.clone()),
         optional_u64_value(entry.duration_ms),
         optional_u64_value(entry.input_tokens),
@@ -1740,6 +1897,12 @@ fn token_usage_params(entry: &TokenUsageEntry) -> [rusqlite::types::Value; 11] {
         optional_u64_value(entry.total_tokens),
         rusqlite::types::Value::Integer(u128_to_i64(unix_millis())),
     ]
+}
+
+fn optional_string_value(value: Option<&str>) -> rusqlite::types::Value {
+    value
+        .map(|value| rusqlite::types::Value::Text(value.to_string()))
+        .unwrap_or(rusqlite::types::Value::Null)
 }
 
 fn optional_u64_value(value: Option<u64>) -> rusqlite::types::Value {
@@ -1793,7 +1956,7 @@ fn forward_official<R: Runtime>(
     model: &str,
 ) -> Result<UpstreamPayload, String> {
     let client = http_client()?;
-    let (access_token, account_id) = official_token(app, &client)?;
+    let (access_token, chatgpt_account_id, token_usage_account) = official_token(app, &client)?;
     let upstream_endpoint = upstream_endpoint_for_codex_request(url);
     let upstream_url = official_url(&upstream_endpoint);
     let body = official_body_for_upstream(method, &upstream_endpoint, body, model);
@@ -1802,16 +1965,18 @@ fn forward_official<R: Runtime>(
         .bearer_auth(access_token)
         .header("originator", ORIGINATOR)
         .header("User-Agent", "codex_cli_rs/0.1.0");
-    if let Some(account_id) = account_id {
+    if let Some(account_id) = chatgpt_account_id {
         request = request.header("ChatGPT-Account-Id", account_id);
     }
     request = apply_forward_headers(request, headers, true);
-    stream_response(
+    let mut payload = stream_response(
         request
             .body(body)
             .send()
             .map_err(|error| format!("Official Codex proxy request failed: {error}"))?,
-    )
+    )?;
+    payload.token_usage_account = Some(token_usage_account);
+    Ok(payload)
 }
 
 fn official_body_for_upstream(method: &Method, url: &str, body: Vec<u8>, model: &str) -> Vec<u8> {
@@ -1927,6 +2092,7 @@ fn forward_chat_bridge(
                 selected_model,
                 tool_context,
             ))),
+            token_usage_account: None,
         });
     }
 
@@ -1940,6 +2106,7 @@ fn forward_chat_bridge(
                 .or_else(|| Some("application/json; charset=utf-8".to_string())),
             response_headers,
             body: UpstreamBody::Buffered(body.to_vec()),
+            token_usage_account: None,
         });
     }
 
@@ -1978,7 +2145,7 @@ fn selected_official_model(body: &Value, fallback: &str) -> String {
 fn official_token<R: Runtime>(
     app: &tauri::AppHandle<R>,
     client: &Client,
-) -> Result<(String, Option<String>), String> {
+) -> Result<(String, Option<String>, TokenUsageAccount), String> {
     let paths = resolve_paths(app)?;
     let mut auth = read_json(&paths.current_auth)?;
     validate_auth(&auth)?;
@@ -1992,11 +2159,18 @@ fn official_token<R: Runtime>(
     let access_token = token_string(&auth, "access_token")
         .ok_or_else(|| "auth.json is missing tokens.access_token".to_string())?
         .to_string();
-    let (_, _, account_id, id) = account_fields(&auth)?;
+    let (email, _, account_id, id) = account_fields(&auth)?;
     if !managed_auth_path(&paths, &id).exists() {
         let _ = write_managed_auth_if_changed(&paths, &id, &auth);
     }
-    Ok((access_token, account_id))
+    Ok((
+        access_token,
+        account_id,
+        TokenUsageAccount {
+            account_id: id,
+            account_email: email,
+        },
+    ))
 }
 
 fn apply_forward_headers(
@@ -2070,6 +2244,7 @@ fn stream_response(response: ReqwestResponse) -> Result<UpstreamPayload, String>
             content_type,
             response_headers,
             body: UpstreamBody::Buffered(body.to_vec()),
+            token_usage_account: None,
         });
     }
     Ok(UpstreamPayload {
@@ -2077,6 +2252,7 @@ fn stream_response(response: ReqwestResponse) -> Result<UpstreamPayload, String>
         content_type,
         response_headers,
         body: UpstreamBody::Streaming(Box::new(response)),
+        token_usage_account: None,
     })
 }
 
@@ -2170,6 +2346,7 @@ fn json_payload(status: u16, value: Value) -> UpstreamPayload {
         content_type: Some("application/json; charset=utf-8".to_string()),
         response_headers: Vec::new(),
         body: UpstreamBody::Buffered(serde_json::to_vec(&value).unwrap_or_else(|_| b"{}".to_vec())),
+        token_usage_account: None,
     }
 }
 
@@ -2179,6 +2356,7 @@ fn respond_payload(request: Request, payload: UpstreamPayload) {
         content_type,
         response_headers,
         body,
+        ..
     } = payload;
     match body {
         UpstreamBody::Buffered(body) => {
@@ -3599,12 +3777,14 @@ mod tests {
             content_type: Some("application/json".to_string()),
             response_headers: Vec::new(),
             body: UpstreamBody::Buffered(br#"{"error":{"code":"insufficient_quota"}}"#.to_vec()),
+            token_usage_account: None,
         };
         let forbidden_payload = UpstreamPayload {
             status: 403,
             content_type: Some("application/json".to_string()),
             response_headers: Vec::new(),
             body: UpstreamBody::Buffered(br#"{"error":{"code":"forbidden"}}"#.to_vec()),
+            token_usage_account: None,
         };
 
         assert!(is_official_quota_exhaustion(&quota_payload));
@@ -3815,6 +3995,44 @@ mod tests {
     }
 
     #[test]
+    fn streaming_token_usage_does_not_require_response_content_type() {
+        let target = ActiveTarget::Official {
+            model: "gpt-5.6-sol".to_string(),
+        };
+        let body = serde_json::to_vec(&json!({
+            "model": "gpt-5.6-sol",
+            "input": "ping",
+            "stream": true
+        }))
+        .unwrap();
+        let context = token_usage_context(
+            &Method::Post,
+            "/v1/responses",
+            &body,
+            &target,
+            Instant::now(),
+        )
+        .unwrap();
+        let sse = concat!(
+            "event: response.completed\n",
+            "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp-1\",\"usage\":{\"input_tokens\":120,\"input_tokens_details\":{\"cached_tokens\":80},\"output_tokens\":30,\"output_tokens_details\":{\"reasoning_tokens\":12},\"total_tokens\":150}}}\n\n",
+            "data: [DONE]\n\n"
+        );
+
+        assert!(context.expects_event_stream);
+        assert_eq!(
+            extract_token_usage_from_bytes(sse.as_bytes(), None, context.expects_event_stream),
+            Some(TokenUsageValues {
+                input_tokens: Some(120),
+                output_tokens: Some(30),
+                reasoning_tokens: Some(12),
+                cached_tokens: Some(80),
+                total_tokens: Some(150),
+            })
+        );
+    }
+
+    #[test]
     fn provider_models_response_matches_codex_model_info_shape() {
         let provider = ProviderProfile {
             id: "deepseek".to_string(),
@@ -3975,6 +4193,7 @@ mod tests {
                         ("x-models-etag".to_string(), "models-refresh".to_string()),
                     ],
                     body: UpstreamBody::Buffered(b"{\"models\":[]}".to_vec()),
+                    token_usage_account: None,
                 },
             );
         });
@@ -4033,6 +4252,8 @@ mod tests {
                     id: format!("entry-{index:03}"),
                     ts: index as u64,
                     provider: "Provider".to_string(),
+                    account_id: Some("account-123".to_string()),
+                    account_email: Some("person@example.com".to_string()),
                     model: "gpt-test".to_string(),
                     duration_ms: Some(10),
                     input_tokens: Some(index as u64),
@@ -4050,8 +4271,43 @@ mod tests {
 
         assert_eq!(entries.len(), TOKEN_USAGE_LIST_LIMIT);
         assert_eq!(entries[0].id, "entry-501");
+        assert_eq!(entries[0].account_id.as_deref(), Some("account-123"));
+        assert_eq!(
+            entries[0].account_email.as_deref(),
+            Some("person@example.com")
+        );
         assert_eq!(entries[TOKEN_USAGE_LIST_LIMIT - 1].id, "entry-002");
         assert!(entries.iter().all(|entry| entry.id != "entry-001"));
+    }
+
+    #[test]
+    fn token_usage_database_migrates_account_columns() {
+        let connection = Connection::open_in_memory().unwrap();
+        connection
+            .execute_batch(
+                r#"
+                CREATE TABLE token_usage_entries (
+                    id TEXT PRIMARY KEY,
+                    ts INTEGER NOT NULL,
+                    provider TEXT NOT NULL,
+                    model TEXT NOT NULL,
+                    duration_ms INTEGER,
+                    input_tokens INTEGER,
+                    output_tokens INTEGER,
+                    reasoning_tokens INTEGER,
+                    cached_tokens INTEGER,
+                    total_tokens INTEGER,
+                    created_at_ms INTEGER NOT NULL
+                );
+                "#,
+            )
+            .unwrap();
+
+        init_token_usage_schema(&connection).unwrap();
+
+        let columns = token_usage_table_columns(&connection).unwrap();
+        assert!(columns.contains("account_id"));
+        assert!(columns.contains("account_email"));
     }
 
     #[test]

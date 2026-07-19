@@ -24,23 +24,32 @@ function tableResetLabel(timestamp: number | null | undefined, language: Languag
   return language === "zh" ? `${label}(倒计时：${countdown})` : `${label} (Countdown: ${countdown})`;
 }
 
-export function UsageMeter({ window: usageWindow, resetWindow, resetCreditsCount, variant = "line", language, t }: {
+function secondsSinceRefresh(timestamp: string | null | undefined, now: number) {
+  if (!timestamp) return null;
+  const refreshedAt = new Date(timestamp).getTime();
+  if (Number.isNaN(refreshedAt)) return null;
+  return Math.max(0, Math.floor((now - refreshedAt) / 1000));
+}
+
+export function UsageMeter({ window: usageWindow, resetWindow, resetCreditsCount, fetchedAt, variant = "line", language, t }: {
   window?: UsageWindow | null;
   resetWindow: UsageResetWindow;
   resetCreditsCount?: number | null;
+  fetchedAt?: string | null;
   variant?: "line" | "circle";
   language: Language;
   t: Translate;
 }) {
   const [now, setNow] = useState(() => Date.now());
-  const countdownActive = Boolean(usageWindow?.resetsAt);
+  const recentRefreshSeconds = secondsSinceRefresh(fetchedAt, now);
+  const tickerActive = Boolean(usageWindow?.resetsAt) || recentRefreshSeconds !== null;
 
   useEffect(() => {
-    if (!countdownActive) return;
+    if (!tickerActive) return;
     setNow(Date.now());
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
-  }, [countdownActive, usageWindow?.resetsAt]);
+  }, [tickerActive, usageWindow?.resetsAt, fetchedAt]);
 
   if (!usageWindow) return <span className="usage-missing">--</span>;
   const remaining = Math.round(usageWindow.remainingPercent);
@@ -49,6 +58,10 @@ export function UsageMeter({ window: usageWindow, resetWindow, resetCreditsCount
     <div className={`table-usage card-usage-meter table-usage-${resetWindow}`}>
       <Progress type="circle" percent={remaining} size={54} strokeWidth={10} strokeColor={usageStroke(remaining)}
         format={() => <span className="card-usage-percent"><strong className={tone}>{remaining}%</strong><small>{t("usage.remaining")}</small></span>} />
+      {(resetCreditsCount !== undefined || recentRefreshSeconds !== null) && <span className="card-usage-meta">
+        {resetCreditsCount !== undefined && t("usage.resetCreditsRemaining", { count: resetCreditsCount ?? "-" })}
+        {recentRefreshSeconds !== null && t("usage.recentRefresh", { seconds: recentRefreshSeconds })}
+      </span>}
       <span className="card-usage-reset">{resetLabel(usageWindow.resetsAt, language, resetWindow)}</span>
     </div>
   );
@@ -61,6 +74,9 @@ export function UsageMeter({ window: usageWindow, resetWindow, resetCreditsCount
           <span className="usage-reset-credits">
             {t("usage.resetCreditsRemaining", { count: resetCreditsCount ?? "-" })}
           </span>
+        )}
+        {recentRefreshSeconds !== null && (
+          <span className="usage-recent-refresh">{t("usage.recentRefresh", { seconds: recentRefreshSeconds })}</span>
         )}
       </div>
       <Progress percent={remaining} showInfo={false} size="small" strokeColor={usageStroke(remaining)} />

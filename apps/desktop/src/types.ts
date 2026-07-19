@@ -91,6 +91,8 @@ export interface TokenUsageEntry {
   id: string;
   ts: number;
   provider: string;
+  accountId?: string | null;
+  accountEmail?: string | null;
   model: string;
   durationMs?: number | null;
   inputTokens?: number | null;
@@ -98,6 +100,15 @@ export interface TokenUsageEntry {
   reasoningTokens?: number | null;
   cachedTokens?: number | null;
   totalTokens?: number | null;
+}
+
+export interface DailyTokenUsage {
+  date: string;
+  totalTokens: number;
+  inputTokens: number;
+  outputTokens: number;
+  reasoningTokens: number;
+  cachedTokens: number;
 }
 
 export interface UpdateInfo {
@@ -116,6 +127,8 @@ export interface AppSettings {
   bubbleX?: number | null;
   bubbleY?: number | null;
   cloudBaseUrl?: string | null;
+  tokenUsageWeeks?: number;
+  tokenUsageRefreshSeconds?: number;
 }
 
 export interface LoginStart {

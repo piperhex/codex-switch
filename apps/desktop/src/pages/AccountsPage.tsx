@@ -30,6 +30,8 @@ export function AccountsPage({
   onAutoDisableUnreachableChange,
   privacyMode,
   displayMode,
+  currentModel,
+  tokenUsageRefreshSeconds,
   language,
   t,
 }: {
@@ -57,6 +59,8 @@ export function AccountsPage({
   onAutoDisableUnreachableChange: (enabled: boolean) => void;
   privacyMode: boolean;
   displayMode: AccountDisplayMode;
+  currentModel: string;
+  tokenUsageRefreshSeconds: number;
   language: Language;
   t: Translate;
 }) {
@@ -100,7 +104,9 @@ export function AccountsPage({
         onSaveNote={onSaveNote}
         resetCredits={resetCredits} onLoadResetCredits={onLoadResetCredits}
         onUseResetCredit={onUseResetCredit} resetCreditBusyAccountId={resetCreditBusyAccountId}
-        hotSwitchEnabled={hotSwitchEnabled} privacyMode={privacyMode} displayMode={displayMode} language={language} t={t} />
+        hotSwitchEnabled={hotSwitchEnabled} privacyMode={privacyMode} displayMode={displayMode}
+        currentModel={currentModel} tokenUsageRefreshSeconds={tokenUsageRefreshSeconds}
+        language={language} t={t} />
     </div>
   );
 }

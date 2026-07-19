@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Button, ColorPicker, Input, InputNumber, Segmented, Space, Switch } from "antd";
-import { CircleGauge, Cloud, EyeOff, FileDown, FolderKey, FolderOpen, KeyRound, Languages, LayoutGrid, Palette, RefreshCw, Save, ShieldCheck, TableProperties } from "lucide-react";
+import { CalendarDays, CircleGauge, Cloud, EyeOff, FileDown, FolderKey, FolderOpen, KeyRound, Languages, LayoutGrid, Palette, RefreshCw, Save, ShieldCheck, TableProperties } from "lucide-react";
 import { MAX_AUTO_REFRESH_SECONDS, MIN_AUTO_REFRESH_SECONDS } from "../hooks/useAutoRefresh";
+import { MAX_TOKEN_USAGE_REFRESH_SECONDS, MAX_TOKEN_USAGE_WEEKS, MIN_TOKEN_USAGE_REFRESH_SECONDS, MIN_TOKEN_USAGE_WEEKS } from "../hooks/useTokenUsagePreferences";
 import type { AccountDisplayMode } from "../hooks/useAccountDisplayMode";
 import { DEFAULT_CLOUD_BASE_URL } from "../api/backend";
 import { LANGUAGE_OPTIONS, type Language, type Translate } from "../i18n";
@@ -36,6 +37,11 @@ export function SettingsPage({
   onPrivacyModeChange,
   accountDisplayMode,
   onAccountDisplayModeChange,
+  tokenUsageWeeks,
+  tokenUsageRefreshSeconds,
+  tokenUsagePreferencesLoading,
+  onTokenUsageWeeksChange,
+  onTokenUsageRefreshSecondsChange,
   onOpenCodexHome,
   onOpenAccountStore,
   onExportLogs,
@@ -72,6 +78,11 @@ export function SettingsPage({
   onPrivacyModeChange: (enabled: boolean) => void;
   accountDisplayMode: AccountDisplayMode;
   onAccountDisplayModeChange: (mode: AccountDisplayMode) => void;
+  tokenUsageWeeks: number;
+  tokenUsageRefreshSeconds: number;
+  tokenUsagePreferencesLoading: boolean;
+  onTokenUsageWeeksChange: (value: number | string | null) => void;
+  onTokenUsageRefreshSecondsChange: (value: number | string | null) => void;
   onOpenCodexHome: () => void;
   onOpenAccountStore: () => void;
   onExportLogs: () => void;
@@ -186,6 +197,28 @@ export function SettingsPage({
                 { value: "cards", label: <span className="segmented-option-label"><LayoutGrid size={14} />{t("settings.accountDisplay.cards")}</span> },
               ]}
               onChange={(value) => onAccountDisplayModeChange(value as AccountDisplayMode)} />
+          </div>
+        </div>
+      </section>
+      <section className="settings-card">
+        <div className="settings-icon"><CalendarDays size={23} /></div>
+        <div className="settings-card-content">
+          <div className="settings-card-copy"><h3>{t("settings.tokenUsage.title")}</h3><p>{t("settings.tokenUsage.description")}</p></div>
+          <div className="settings-field token-usage-settings-field">
+            <label htmlFor="token-usage-weeks">{t("settings.tokenUsage.weeks")}</label>
+            <Space.Compact>
+              <InputNumber id="token-usage-weeks" min={MIN_TOKEN_USAGE_WEEKS} max={MAX_TOKEN_USAGE_WEEKS}
+                step={1} value={tokenUsageWeeks} disabled={tokenUsagePreferencesLoading}
+                onChange={onTokenUsageWeeksChange} />
+              <Button disabled>{t("settings.tokenUsage.weeksUnit")}</Button>
+            </Space.Compact>
+            <label htmlFor="token-usage-refresh-interval">{t("settings.tokenUsage.refreshInterval")}</label>
+            <Space.Compact>
+              <InputNumber id="token-usage-refresh-interval" min={MIN_TOKEN_USAGE_REFRESH_SECONDS}
+                max={MAX_TOKEN_USAGE_REFRESH_SECONDS} step={1} value={tokenUsageRefreshSeconds}
+                disabled={tokenUsagePreferencesLoading} onChange={onTokenUsageRefreshSecondsChange} />
+              <Button disabled>{t("settings.autoRefresh.seconds")}</Button>
+            </Space.Compact>
           </div>
         </div>
       </section>

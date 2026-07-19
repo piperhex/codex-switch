@@ -5,7 +5,10 @@ use tauri::{
 
 use crate::{
     commands,
-    models::{AppSettings, BubbleResetDisplay, UsageWindow},
+    models::{
+        AppSettings, BubbleResetDisplay, UsageWindow, MAX_TOKEN_USAGE_REFRESH_SECONDS,
+        MAX_TOKEN_USAGE_WEEKS, MIN_TOKEN_USAGE_REFRESH_SECONDS, MIN_TOKEN_USAGE_WEEKS,
+    },
     providers,
     storage::{read_app_settings, write_app_settings},
 };
@@ -134,6 +137,32 @@ pub(crate) fn set_privacy_mode<R: Runtime>(
 ) -> Result<AppSettings, String> {
     let mut settings = read_app_settings(&app)?;
     settings.privacy_mode = enabled;
+    write_app_settings(&app, &settings)?;
+    Ok(settings)
+}
+
+#[tauri::command]
+pub(crate) fn set_token_usage_preferences<R: Runtime>(
+    app: AppHandle<R>,
+    weeks: u16,
+    refresh_seconds: u64,
+) -> Result<AppSettings, String> {
+    if !(MIN_TOKEN_USAGE_WEEKS..=MAX_TOKEN_USAGE_WEEKS).contains(&weeks) {
+        return Err(format!(
+            "token usage weeks must be between {MIN_TOKEN_USAGE_WEEKS} and {MAX_TOKEN_USAGE_WEEKS}"
+        ));
+    }
+    if !(MIN_TOKEN_USAGE_REFRESH_SECONDS..=MAX_TOKEN_USAGE_REFRESH_SECONDS)
+        .contains(&refresh_seconds)
+    {
+        return Err(format!(
+            "token usage refresh interval must be between {MIN_TOKEN_USAGE_REFRESH_SECONDS} and {MAX_TOKEN_USAGE_REFRESH_SECONDS} seconds"
+        ));
+    }
+
+    let mut settings = read_app_settings(&app)?;
+    settings.token_usage_weeks = weeks;
+    settings.token_usage_refresh_seconds = refresh_seconds;
     write_app_settings(&app, &settings)?;
     Ok(settings)
 }

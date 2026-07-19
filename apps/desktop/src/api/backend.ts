@@ -13,6 +13,7 @@ import type {
   CloudAnnouncement,
   CloudSyncResult,
   DirectConversationSyncResult,
+  DailyTokenUsage,
   FeedbackImageInput,
   LoginStart,
   LoginStatus,
@@ -37,6 +38,8 @@ const PROVIDERS_PREVIEW_KEY = "codex-switch:providers";
 const LOCAL_PROXY_PREVIEW_KEY = "codex-switch:local-proxy-running";
 const LOCAL_PROXY_AUTO_SWITCH_PREVIEW_KEY = "codex-switch:local-proxy-auto-switch";
 const LOCAL_PROXY_AUTO_DISABLE_UNREACHABLE_PREVIEW_KEY = "codex-switch:local-proxy-auto-disable-unreachable";
+const TOKEN_USAGE_WEEKS_PREVIEW_KEY = "codex-switch:token-usage-weeks";
+const TOKEN_USAGE_REFRESH_PREVIEW_KEY = "codex-switch:token-usage-refresh-seconds";
 const THEME_COLOR_EVENT = "codex-switch:theme-color-changed";
 const BUBBLE_RESET_DISPLAY_EVENT = "bubble-reset-display-changed";
 const LANGUAGE_EVENT = "codex-switch:language-changed";
@@ -134,6 +137,8 @@ export async function loadAppSettings(): Promise<AppSettings> {
       bubbleResetDisplay: window.localStorage.getItem(BUBBLE_RESET_DISPLAY_PREVIEW_KEY) === "resetAt" ? "resetAt" : "countdown",
       themeColor: normalizeThemeColor(window.localStorage.getItem(THEME_COLOR_PREVIEW_KEY) ?? DEFAULT_THEME_COLOR),
       cloudBaseUrl: window.localStorage.getItem(CLOUD_BASE_URL_PREVIEW_KEY) ?? DEFAULT_CLOUD_BASE_URL,
+      tokenUsageWeeks: Number(window.localStorage.getItem(TOKEN_USAGE_WEEKS_PREVIEW_KEY)) || 20,
+      tokenUsageRefreshSeconds: Number(window.localStorage.getItem(TOKEN_USAGE_REFRESH_PREVIEW_KEY)) || 60,
     };
   }
   return invoke<AppSettings>("get_app_settings");
@@ -250,14 +255,16 @@ export async function loadTokenUsageEntries(): Promise<TokenUsageEntry[]> {
       {
         id: "preview-token-1",
         ts: now - 92,
-        provider: "AICoding.sh",
+        provider: "Official Codex",
+        accountId: "workspace-personal",
+        accountEmail: "alex.chen@example.com",
         model: "gpt-5-codex",
         durationMs: 16720,
-        inputTokens: 20088,
-        outputTokens: 1376,
-        reasoningTokens: 1344,
-        cachedTokens: 19456,
-        totalTokens: 21464,
+        inputTokens: 2_000_088,
+        outputTokens: 1_376_000,
+        reasoningTokens: 1_344_000,
+        cachedTokens: 1_945_600,
+        totalTokens: 3_376_088,
       },
       {
         id: "preview-token-2",
@@ -274,6 +281,32 @@ export async function loadTokenUsageEntries(): Promise<TokenUsageEntry[]> {
     ];
   }
   return invoke<TokenUsageEntry[]>("list_token_usage_entries");
+}
+
+export async function loadDailyTokenUsage(startTs: number): Promise<DailyTokenUsage[]> {
+  if (!isDesktopApp) {
+    const entries: DailyTokenUsage[] = [];
+    const date = new Date(startTs * 1000);
+    date.setHours(12, 0, 0, 0);
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    while (date <= today) {
+      const signal = date.getDate() + date.getMonth() * 7 + date.getDay() * 3;
+      if (signal % 4 !== 0) {
+        entries.push({
+          date: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`,
+          totalTokens: (signal % 7 + 1) * 18_400,
+          inputTokens: (signal % 7 + 1) * 14_200,
+          outputTokens: (signal % 7 + 1) * 4_200,
+          reasoningTokens: (signal % 4 + 1) * 1_150,
+          cachedTokens: (signal % 5 + 1) * 8_100,
+        });
+      }
+      date.setDate(date.getDate() + 1);
+    }
+    return entries;
+  }
+  return invoke<DailyTokenUsage[]>("list_daily_token_usage", { startTs });
 }
 
 export async function showTokenUsageWindow(): Promise<void> {
@@ -356,6 +389,18 @@ export async function updatePrivacyMode(enabled: boolean): Promise<AppSettings> 
     };
   }
   return invoke<AppSettings>("set_privacy_mode", { enabled });
+}
+
+export async function updateTokenUsagePreferences(
+  weeks: number,
+  refreshSeconds: number,
+): Promise<AppSettings> {
+  if (!isDesktopApp) {
+    window.localStorage.setItem(TOKEN_USAGE_WEEKS_PREVIEW_KEY, String(weeks));
+    window.localStorage.setItem(TOKEN_USAGE_REFRESH_PREVIEW_KEY, String(refreshSeconds));
+    return loadAppSettings();
+  }
+  return invoke<AppSettings>("set_token_usage_preferences", { weeks, refreshSeconds });
 }
 
 export async function updateBubbleResetDisplay(display: BubbleResetDisplay): Promise<AppSettings> {
