@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-qin-moon-gai-nie",
+  "name": "盖聂·渊虹剑意 / Gai Nie Sword Intent",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Gai Nie draws Yuanhong in a misty bamboo valley.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "GAI NIE SWORD INTENT ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#497ca6"
+  }
+}

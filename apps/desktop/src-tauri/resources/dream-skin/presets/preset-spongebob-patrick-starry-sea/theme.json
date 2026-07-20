@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-spongebob-patrick-starry-sea",
+  "name": "比奇堡星海 / Bikini Bottom Stars",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "SpongeBob and Patrick watch glowing jellyfish in a starry sea.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "BIKINI BOTTOM STARS ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#38a7d4"
+  }
+}

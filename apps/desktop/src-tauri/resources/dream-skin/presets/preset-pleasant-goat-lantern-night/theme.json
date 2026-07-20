@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-pleasant-goat-lantern-night",
+  "name": "青青草原灯会 / Grassland Lantern Night",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Weslie and Wolffy meet beneath warm lantern light.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "GRASSLAND LANTERN NIGHT ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#d8893e"
+  }
+}

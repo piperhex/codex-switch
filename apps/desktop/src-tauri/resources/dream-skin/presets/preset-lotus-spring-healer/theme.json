@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-lotus-spring-healer",
+  "name": "莲灯春医 / Lotus Spring Healer",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Pink-robed spirit healer holding a glowing lotus lantern.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "LOTUS SPRING HEALER ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.73,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#d16f9c"
+  }
+}
+

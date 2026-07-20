@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-spongebob-patrick-krusty-krab",
+  "name": "蟹堡王欢乐时光 / Krusty Krab Fun",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "SpongeBob and Patrick enjoy a colorful Bikini Bottom afternoon.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "KRUSTY KRAB FUN ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#e47548"
+  }
+}

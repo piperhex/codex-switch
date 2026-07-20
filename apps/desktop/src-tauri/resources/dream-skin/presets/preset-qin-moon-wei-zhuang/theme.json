@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-qin-moon-wei-zhuang",
+  "name": "卫庄·鲨齿寒锋 / Wei Zhuang Cold Edge",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Wei Zhuang stands with Shark Teeth in a moonlit ruined palace.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "WEI ZHUANG COLD EDGE ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#9c3a3a"
+  }
+}

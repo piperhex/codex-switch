@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-pleasant-goat-friends-picnic",
+  "name": "羊村朋友野餐 / Sheep Village Picnic",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "The Sheep Village friends and Wolffy share a colorful picnic.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "SHEEP VILLAGE PICNIC ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#ef829a"
+  }
+}

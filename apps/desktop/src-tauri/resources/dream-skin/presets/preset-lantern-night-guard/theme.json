@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-lantern-night-guard",
+  "name": "灯夜守望 / Lantern Night Guard",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Gentle guardian carrying a rabbit lantern through a river town.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "LANTERN NIGHT GUARD ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.73,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#3f91a4"
+  }
+}
+

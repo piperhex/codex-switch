@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-qin-moon-tianming-shaoyu",
+  "name": "天明少羽·并肩 / Tianming & Shaoyu",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Tianming and Shaoyu stand above an ancient city at dawn.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "TIANMING AND SHAOYU ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#c9823b"
+  }
+}

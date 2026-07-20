@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-pleasant-goat-wolffy-chase",
+  "name": "喜羊羊灰太狼追逐 / Grassland Chase",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Weslie outsmarts Wolffy in a lively comic chase.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "GRASSLAND CHASE ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#5ba6ce"
+  }
+}

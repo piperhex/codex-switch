@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-white-fox-maiden",
+  "name": "白狐少女 / White Fox Maiden",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Ivory-robed maiden and an original white fox in snow.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "WHITE FOX MAIDEN ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.73,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#d16f9c"
+  }
+}
+

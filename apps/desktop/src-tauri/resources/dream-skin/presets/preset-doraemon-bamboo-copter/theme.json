@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-doraemon-bamboo-copter",
+  "name": "竹蜻蜓云端 / Bamboo-Copter Flight",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Doraemon and Nobita fly above the clouds with bamboo-copters.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "BAMBOO COPTER FLIGHT ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#4ca9d7"
+  }
+}

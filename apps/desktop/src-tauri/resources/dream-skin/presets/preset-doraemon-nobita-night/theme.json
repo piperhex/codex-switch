@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-doraemon-nobita-night",
+  "name": "大雄与机器猫夏夜 / Doraemon Summer Night",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Doraemon and Nobita sit on a rooftop beneath summer stars.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "DORAEMON SUMMER NIGHT ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#3a78bd"
+  }
+}

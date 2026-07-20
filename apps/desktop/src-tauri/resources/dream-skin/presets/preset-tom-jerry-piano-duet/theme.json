@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-tom-jerry-piano-duet",
+  "name": "钢琴欢闹曲 / Piano Mischief",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Tom plays piano while Jerry creates cheerful mischief.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "PIANO MISCHIEF ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#b26b33"
+  }
+}

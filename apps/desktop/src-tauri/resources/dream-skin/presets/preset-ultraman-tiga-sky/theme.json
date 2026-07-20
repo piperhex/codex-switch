@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-ultraman-tiga-sky",
+  "name": "迪迦·晨光天际 / Ultraman Tiga Sky",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Ultraman Tiga guards a dawn-lit skyline.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "ULTRAMAN TIGA SKY ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#7359a8"
+  }
+}

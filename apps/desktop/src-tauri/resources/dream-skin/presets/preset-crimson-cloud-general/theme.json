@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-crimson-cloud-general",
+  "name": "赤云小将 / Crimson Cloud General",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Young general on a cloud-wrapped ancient city wall.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "CRIMSON CLOUD GENERAL ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.73,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#3f91a4"
+  }
+}
+

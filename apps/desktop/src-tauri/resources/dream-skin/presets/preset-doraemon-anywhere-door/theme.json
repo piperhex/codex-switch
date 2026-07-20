@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-doraemon-anywhere-door",
+  "name": "任意门晴空 / Anywhere Door Day",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Doraemon and Nobita step through the Anywhere Door into a sunny meadow.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "ANYWHERE DOOR DAY ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#2d9fd4"
+  }
+}

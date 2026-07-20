@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-tom-jerry-starry-night",
+  "name": "屋顶星夜 / Rooftop Stars",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Tom and Jerry sit together beneath a quiet rooftop sky.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "ROOFTOP STARS ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#2f70b8"
+  }
+}

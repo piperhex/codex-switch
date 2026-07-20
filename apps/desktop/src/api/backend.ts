@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { emit, listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { DEMO_ACCOUNTS, DEMO_INFO } from "../demo";
+import { BUILT_IN_DREAM_SKIN_THEMES } from "../dreamSkinBuiltIns";
 import { LANGUAGE_STORAGE_KEY, isLanguage, type Language } from "../i18n";
 import type {
   Account,
@@ -51,28 +52,12 @@ const DREAM_SKIN_INSTALLED_PREVIEW_KEY = "codex-switch:dream-skin-installed";
 const DREAM_SKIN_SESSION_PREVIEW_KEY = "codex-switch:dream-skin-session";
 const DREAM_SKIN_THEME_PREVIEW_KEY = "codex-switch:dream-skin-theme";
 const DREAM_SKIN_APPEARANCE_PREVIEW_KEY = "codex-switch:dream-skin-appearance";
-const DREAM_SKIN_PREVIEW_THEME_NAMES: Record<string, string> = {
-  "preset-gothic-void-crusade": "Gothic Void Crusade",
-  "preset-rose-reverie": "Rose Reverie",
-  "preset-fortune-at-work": "Fortune at Work",
-  "preset-coral-horizon": "Coral Horizon",
-  "preset-sage-daylight": "Sage Daylight",
-  "preset-spark-studio": "Spark Studio",
-  "preset-cosmic-violet": "Cosmic Violet",
-  "preset-aqua-resonance": "Aqua Resonance",
-  "preset-midnight-gold": "Midnight Gold",
-};
-const DREAM_SKIN_PREVIEW_THEME_APPEARANCES: Record<string, DreamSkinAppearance> = {
-  "preset-gothic-void-crusade": "dark",
-  "preset-rose-reverie": "light",
-  "preset-fortune-at-work": "light",
-  "preset-coral-horizon": "light",
-  "preset-sage-daylight": "light",
-  "preset-spark-studio": "light",
-  "preset-cosmic-violet": "dark",
-  "preset-aqua-resonance": "light",
-  "preset-midnight-gold": "dark",
-};
+const DREAM_SKIN_PREVIEW_THEME_NAMES: Record<string, string> = Object.fromEntries(
+  BUILT_IN_DREAM_SKIN_THEMES.map((theme) => [theme.id, theme.englishName]),
+);
+const DREAM_SKIN_PREVIEW_THEME_APPEARANCES: Record<string, DreamSkinAppearance> = Object.fromEntries(
+  BUILT_IN_DREAM_SKIN_THEMES.map((theme) => [theme.id, theme.appearance]),
+);
 let updateCheckPromise: Promise<UpdateInfo | null> | null = null;
 
 function previewDreamSkinStatus(): DreamSkinStatus {

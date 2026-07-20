@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-campus-cardigan-girl",
+  "name": "奶油针织少女 / Cream Cardigan Girl",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Sunny Chinese university scene with soft cream knitwear.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "CREAM CARDIGAN GIRL ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.73,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#df7998"
+  }
+}
+

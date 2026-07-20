@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-guilin-cloud-sea",
+  "name": "桂林云海 / Guilin Cloud Sea",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Karst peaks, a tiny fishing boat, and clear morning mist.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "GUILIN CLOUD SEA ONLINE",
+  "quote": "BREATHE IN THE BIG PICTURE",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.5,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#4f8f73"
+  }
+}
+

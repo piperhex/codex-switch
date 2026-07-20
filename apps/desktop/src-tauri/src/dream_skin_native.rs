@@ -31,10 +31,11 @@ use crate::dream_skin::{
 const NATIVE_RUNTIME_VERSION: &str = "2.0.0";
 const SKIN_VERSION: &str = "1.2.0";
 const DEFAULT_CDP_PORT: u16 = 9335;
+const CDP_COMMAND_TIMEOUT: Duration = Duration::from_secs(10);
 const MAX_ART_BYTES: u64 = 16 * 1024 * 1024;
 const MAX_ART_DIMENSION: u32 = 16_384;
 const MAX_ART_PIXELS: u64 = 50_000_000;
-const BUILT_IN_THEME_IDS: [&str; 9] = [
+const BUILT_IN_THEME_IDS: [&str; 57] = [
     "preset-gothic-void-crusade",
     "preset-rose-reverie",
     "preset-fortune-at-work",
@@ -44,6 +45,54 @@ const BUILT_IN_THEME_IDS: [&str; 9] = [
     "preset-cosmic-violet",
     "preset-aqua-resonance",
     "preset-midnight-gold",
+    "preset-celadon-sword-lord",
+    "preset-bamboo-flute-scholar",
+    "preset-crimson-cloud-general",
+    "preset-white-fox-scholar",
+    "preset-jade-dragon-prince",
+    "preset-lantern-night-guard",
+    "preset-snow-crane-swordsman",
+    "preset-lotus-spring-healer",
+    "preset-tea-mountain-youth",
+    "preset-dunhuang-lotus-dancer",
+    "preset-white-fox-maiden",
+    "preset-bamboo-qin-muse",
+    "preset-campus-cardigan-girl",
+    "preset-bookstore-spring-girl",
+    "preset-cafe-strawberry-girl",
+    "preset-film-camera-girl",
+    "preset-west-lake-morning",
+    "preset-guilin-cloud-sea",
+    "preset-huangshan-sunrise",
+    "preset-jiangnan-rain-town",
+    "preset-ultraman-tiga-sky",
+    "preset-ultraman-zero-cosmos",
+    "preset-ultraman-mebius-dawn",
+    "preset-ultraman-z-starlight",
+    "preset-doraemon-anywhere-door",
+    "preset-doraemon-bamboo-copter",
+    "preset-doraemon-time-machine",
+    "preset-doraemon-nobita-night",
+    "preset-tom-jerry-kitchen-chase",
+    "preset-tom-jerry-piano-duet",
+    "preset-tom-jerry-garden-picnic",
+    "preset-tom-jerry-starry-night",
+    "preset-spongebob-patrick-jellyfish",
+    "preset-spongebob-patrick-pineapple",
+    "preset-spongebob-patrick-krusty-krab",
+    "preset-spongebob-patrick-starry-sea",
+    "preset-boonie-bears-forest-day",
+    "preset-boonie-bears-snow-adventure",
+    "preset-boonie-bears-treehouse",
+    "preset-boonie-bears-spring-picnic",
+    "preset-pleasant-goat-grassland",
+    "preset-pleasant-goat-wolffy-chase",
+    "preset-pleasant-goat-lantern-night",
+    "preset-pleasant-goat-friends-picnic",
+    "preset-qin-moon-tianming-shaoyu",
+    "preset-qin-moon-gai-nie",
+    "preset-qin-moon-wei-zhuang",
+    "preset-qin-moon-shaosiming",
 ];
 const RETIRED_THEME_IDS: [&str; 1] = ["preset-arina-hashimoto"];
 
@@ -587,9 +636,19 @@ fn load_payload(paths: &RuntimePaths) -> Result<LoadedPayload, String> {
         theme.mime,
         BASE64.encode(&theme.image_bytes)
     );
+    render_payload(&template, &css, &art_data_url, &theme.document)
+}
+
+#[cfg(target_os = "windows")]
+fn render_payload(
+    template: &str,
+    css: &str,
+    art_data_url: &str,
+    theme: &Value,
+) -> Result<LoadedPayload, String> {
     let css_json = serde_json::to_string(&css).map_err(|error| error.to_string())?;
     let art_json = serde_json::to_string(&art_data_url).map_err(|error| error.to_string())?;
-    let theme_json = serde_json::to_string(&theme.document).map_err(|error| error.to_string())?;
+    let theme_json = serde_json::to_string(theme).map_err(|error| error.to_string())?;
     let source = template
         .replace("__DREAM_CSS_JSON__", &css_json)
         .replace("__DREAM_ART_JSON__", &art_json)
@@ -603,6 +662,59 @@ fn load_payload(paths: &RuntimePaths) -> Result<LoadedPayload, String> {
     let mut hasher = Sha256::new();
     hasher.update(source.as_bytes());
     let revision = format!("{:x}", hasher.finalize());
+    Ok(LoadedPayload { source, revision })
+}
+
+#[cfg(target_os = "macos")]
+fn render_payload(
+    template: &str,
+    css: &str,
+    art_data_url: &str,
+    theme: &Value,
+) -> Result<LoadedPayload, String> {
+    let css_json = serde_json::to_string(&css).map_err(|error| error.to_string())?;
+    let art_json = serde_json::to_string(&art_data_url).map_err(|error| error.to_string())?;
+    let theme_json = serde_json::to_string(theme).map_err(|error| error.to_string())?;
+
+    let mut style_hasher = Sha256::new();
+    style_hasher.update(css.as_bytes());
+    let style_revision = format!("{:x}", style_hasher.finalize())[..20].to_string();
+
+    let mut payload_hasher = Sha256::new();
+    payload_hasher.update(SKIN_VERSION.as_bytes());
+    payload_hasher.update(css.as_bytes());
+    payload_hasher.update(template.as_bytes());
+    payload_hasher.update(theme_json.as_bytes());
+    let revision = format!("{:x}", payload_hasher.finalize())[..20].to_string();
+
+    let version_json = serde_json::to_string(SKIN_VERSION).map_err(|error| error.to_string())?;
+    let style_revision_json =
+        serde_json::to_string(&style_revision).map_err(|error| error.to_string())?;
+    let revision_json = serde_json::to_string(&revision).map_err(|error| error.to_string())?;
+    let replacements = [
+        ("__DREAM_SKIN_CSS_JSON__", css_json.as_str()),
+        ("__DREAM_SKIN_ART_JSON__", art_json.as_str()),
+        ("__DREAM_SKIN_THEME_JSON__", theme_json.as_str()),
+        ("__DREAM_SKIN_VERSION_JSON__", version_json.as_str()),
+        (
+            "__DREAM_SKIN_STYLE_REVISION_JSON__",
+            style_revision_json.as_str(),
+        ),
+        (
+            "__DREAM_SKIN_PAYLOAD_REVISION_JSON__",
+            revision_json.as_str(),
+        ),
+    ];
+    let mut source = template.to_string();
+    for (placeholder, value) in replacements {
+        source = source.replace(placeholder, value);
+    }
+    if replacements
+        .iter()
+        .any(|(placeholder, _)| source.contains(placeholder))
+    {
+        return Err("Dream Skin renderer template contains unresolved placeholders.".to_string());
+    }
     Ok(LoadedPayload { source, revision })
 }
 
@@ -631,7 +743,7 @@ fn early_payload(payload: &LoadedPayload) -> String {
             observer = new MutationObserver(install);
             observer.observe(document.documentElement, {{ childList: true, subtree: true }});
           }}
-          timeout = setTimeout(stop, 10000);
+          timeout = setTimeout(stop, 60000);
         }})()"#,
         payload.source
     )
@@ -676,9 +788,25 @@ const VERIFY_PAYLOAD: &str = r#"(() => {
   return result;
 })()"#;
 
+const CODEX_PROBE_PAYLOAD: &str = r#"(() => ({
+  codex: Boolean(
+    document.querySelector('main.main-surface') &&
+    document.querySelector('aside.app-shell-left-panel')
+  )
+}))()"#;
+
 struct CdpSession {
     socket: WebSocket<TcpStream>,
     next_id: u64,
+}
+
+fn cdp_command_remaining(deadline: Instant, method: &str) -> Result<Duration, String> {
+    let remaining = deadline.saturating_duration_since(Instant::now());
+    if remaining.is_zero() {
+        Err(format!("CDP command timed out: {method}"))
+    } else {
+        Ok(remaining)
+    }
 }
 
 impl CdpSession {
@@ -699,8 +827,18 @@ impl CdpSession {
     }
 
     fn send(&mut self, method: &str, params: Value) -> Result<Value, String> {
+        self.send_with_timeout(method, params, CDP_COMMAND_TIMEOUT)
+    }
+
+    fn send_with_timeout(
+        &mut self,
+        method: &str,
+        params: Value,
+        timeout: Duration,
+    ) -> Result<Value, String> {
         let id = self.next_id;
         self.next_id += 1;
+        let deadline = Instant::now() + timeout;
         self.socket
             .send(Message::Text(
                 json!({ "id": id, "method": method, "params": params })
@@ -709,10 +847,22 @@ impl CdpSession {
             ))
             .map_err(|error| format!("Failed to send CDP command {method}: {error}"))?;
         loop {
-            let message = self
-                .socket
-                .read()
-                .map_err(|error| format!("Failed to read CDP response for {method}: {error}"))?;
+            let remaining = cdp_command_remaining(deadline, method)?;
+            self.socket
+                .get_mut()
+                .set_read_timeout(Some(remaining))
+                .map_err(|error| format!("Failed to configure CDP timeout: {error}"))?;
+            let message = match self.socket.read() {
+                Ok(message) => message,
+                Err(tungstenite::Error::Io(error))
+                    if matches!(error.kind(), ErrorKind::TimedOut | ErrorKind::WouldBlock) =>
+                {
+                    return Err(format!("CDP command timed out: {method}"));
+                }
+                Err(error) => {
+                    return Err(format!("Failed to read CDP response for {method}: {error}"));
+                }
+            };
             let Message::Text(text) = message else {
                 continue;
             };
@@ -828,6 +978,20 @@ fn list_targets(port: u16) -> Result<Vec<CdpTarget>, String> {
         .collect())
 }
 
+fn wait_for_codex_probe(session: &mut CdpSession, timeout: Duration) -> Result<bool, String> {
+    let deadline = Instant::now() + timeout;
+    loop {
+        let probe = session.evaluate(CODEX_PROBE_PAYLOAD)?;
+        if probe.get("codex").and_then(Value::as_bool) == Some(true) {
+            return Ok(true);
+        }
+        if Instant::now() >= deadline {
+            return Ok(false);
+        }
+        thread::sleep(Duration::from_millis(50));
+    }
+}
+
 fn inject_target(
     target: &CdpTarget,
     port: u16,
@@ -841,11 +1005,58 @@ fn inject_target(
     }
     let early = early_payload(payload);
     let early_script_id = session.register_early(&early)?;
-    session.evaluate(&early)?;
-    Ok(InjectedTarget {
-        revision: payload.revision.clone(),
-        early_script_id,
-    })
+    let result = (|| -> Result<bool, String> {
+        session.evaluate(&early)?;
+        if !wait_for_codex_probe(&mut session, Duration::from_millis(1800))? {
+            return Ok(false);
+        }
+
+        let revision_json =
+            serde_json::to_string(&payload.revision).map_err(|error| error.to_string())?;
+        let early_applied = session.evaluate(&format!(
+            "window.__CODEX_DREAM_SKIN_EARLY_APPLIED__ === {revision_json}"
+        ))?;
+        if early_applied.as_bool() != Some(true) {
+            let fallback_generation =
+                serde_json::to_string(&format!("fallback:{}", payload.revision))
+                    .map_err(|error| error.to_string())?;
+            session.evaluate(&format!(
+                "window.__CODEX_DREAM_SKIN_EARLY_GENERATION__ = {fallback_generation}"
+            ))?;
+            session.evaluate(&payload.source)?;
+        }
+
+        let verification = session.evaluate(VERIFY_PAYLOAD)?;
+        if verification.get("pass").and_then(Value::as_bool) != Some(true) {
+            return Err(format!(
+                "Dream Skin target verification failed: {}",
+                serde_json::to_string(&verification).unwrap_or_default()
+            ));
+        }
+        Ok(true)
+    })();
+
+    match result {
+        Ok(true) => Ok(InjectedTarget {
+            revision: payload.revision.clone(),
+            early_script_id,
+        }),
+        Ok(false) => {
+            if let Some(identifier) = early_script_id.as_deref() {
+                session.remove_early(identifier);
+            }
+            Ok(InjectedTarget {
+                revision: payload.revision.clone(),
+                early_script_id: None,
+            })
+        }
+        Err(error) => {
+            if let Some(identifier) = early_script_id.as_deref() {
+                session.remove_early(identifier);
+            }
+            Err(error)
+        }
+    }
 }
 
 fn remove_target(
@@ -913,19 +1124,25 @@ fn monitor_iteration(
                 );
             }
         } else if let Some(payload) = &payload {
-            if current
+            let needs_injection = current
                 .as_ref()
-                .is_none_or(|entry| entry.revision != payload.revision)
-            {
-                let next = inject_target(
+                .is_none_or(|entry| entry.revision != payload.revision);
+            if needs_injection {
+                match inject_target(
                     &target,
                     port,
                     payload,
                     current
                         .as_ref()
                         .and_then(|entry| entry.early_script_id.as_deref()),
-                )?;
-                injected.insert(target.id, next);
+                ) {
+                    Ok(next) => {
+                        injected.insert(target.id, next);
+                    }
+                    Err(error) => {
+                        eprintln!("Dream Skin target {}: {error}", target.id);
+                    }
+                }
             }
         }
     }
@@ -1000,6 +1217,16 @@ fn wait_for_targets(port: u16, timeout: Duration) -> Result<Vec<CdpTarget>, Stri
     ))
 }
 
+fn verification_succeeded(results: &[Value]) -> bool {
+    results.iter().any(|entry| {
+        entry
+            .get("result")
+            .and_then(|result| result.get("pass"))
+            .and_then(Value::as_bool)
+            == Some(true)
+    })
+}
+
 fn wait_for_verified(port: u16, timeout: Duration) -> Result<Vec<Value>, String> {
     let deadline = Instant::now() + timeout;
     let mut last_results = Vec::new();
@@ -1019,15 +1246,7 @@ fn wait_for_verified(port: u16, timeout: Duration) -> Result<Vec<Value>, String>
                         Err(error) => last_error = error,
                     }
                 }
-                if !last_results.is_empty()
-                    && last_results.iter().all(|entry| {
-                        entry
-                            .get("result")
-                            .and_then(|result| result.get("pass"))
-                            .and_then(Value::as_bool)
-                            == Some(true)
-                    })
-                {
+                if verification_succeeded(&last_results) {
                     return Ok(last_results);
                 }
             }
@@ -1282,25 +1501,36 @@ fn launch_codex(install: &CodexInstall, arguments: &str) -> Result<u32, String> 
 }
 
 #[cfg(target_os = "macos")]
+fn find_macos_codex_install_in(applications_dir: &Path) -> Option<CodexInstall> {
+    [
+        applications_dir
+            .join("ChatGPT.app")
+            .join("Contents")
+            .join("MacOS")
+            .join("ChatGPT"),
+        applications_dir
+            .join("Codex.app")
+            .join("Contents")
+            .join("MacOS")
+            .join("Codex"),
+    ]
+    .into_iter()
+    .find(|path| path.is_file())
+    .map(|executable| CodexInstall { executable })
+}
+
+#[cfg(target_os = "macos")]
 fn find_codex_install() -> Result<CodexInstall, String> {
-    let mut candidates = vec![PathBuf::from(
-        "/Applications/Codex.app/Contents/MacOS/Codex",
-    )];
+    let mut applications_dirs = vec![PathBuf::from("/Applications")];
     if let Some(home) = dirs::home_dir() {
-        candidates.insert(
-            0,
-            home.join("Applications")
-                .join("Codex.app")
-                .join("Contents")
-                .join("MacOS")
-                .join("Codex"),
-        );
+        applications_dirs.insert(0, home.join("Applications"));
     }
-    candidates
+    applications_dirs
         .into_iter()
-        .find(|path| path.is_file())
-        .map(|executable| CodexInstall { executable })
-        .ok_or_else(|| "The official Codex.app is not installed in Applications.".to_string())
+        .find_map(|directory| find_macos_codex_install_in(&directory))
+        .ok_or_else(|| {
+            "The official ChatGPT/Codex app is not installed in Applications.".to_string()
+        })
 }
 
 #[cfg(target_os = "macos")]
@@ -1372,7 +1602,6 @@ pub(crate) fn setup(app: &AppHandle) -> Result<(), String> {
 
 fn install_unlocked(app: &AppHandle, restart_chatgpt: bool) -> Result<(), String> {
     let root = bundled_root(app)?;
-    let install = find_codex_install()?;
     initialize_store(&root)?;
     write_json(
         &marker_path()?,
@@ -1385,26 +1614,13 @@ fn install_unlocked(app: &AppHandle, restart_chatgpt: bool) -> Result<(), String
     if !session_path()?.is_file() {
         write_session(&NativeSessionState::default())?;
     }
-    ensure_monitor(RuntimePaths { bundled_root: root });
+    let paths = RuntimePaths { bundled_root: root };
     if restart_chatgpt {
-        // The user has acknowledged this in the UI.  Stop the exact ChatGPT/Codex
-        // executable discovered from the running process before completing setup.
-        stop_codex(&install)?;
-        let fallback = find_default_codex_install()?;
-        if let Err(primary_error) = launch_codex(&install, "") {
-            if same_install(&install, &fallback) {
-                return Err(primary_error);
-            }
-            launch_codex(&fallback, "").map_err(|fallback_error| {
-                format!(
-                    "Dream Skin could not relaunch ChatGPT from the running path ({}): {primary_error}; fallback path ({}) also failed: {fallback_error}",
-                    install.executable.display(),
-                    fallback.executable.display(),
-                )
-            })?;
-        }
+        restart_with_skin(&paths)
+    } else {
+        ensure_monitor(paths);
+        Ok(())
     }
-    Ok(())
 }
 
 pub(crate) fn install(app: &AppHandle) -> Result<(), String> {
@@ -1763,6 +1979,32 @@ mod tests {
         assert_eq!(value["runtime"], "rust-native");
     }
 
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn macos_payload_replaces_all_renderer_placeholders() {
+        let template = include_str!("../resources/dream-skin/assets/macos/renderer-inject.js");
+        let payload = render_payload(
+            template,
+            "html { color: red; }",
+            "data:image/png;base64,AA==",
+            &json!({ "id": "test-theme" }),
+        )
+        .unwrap();
+
+        for placeholder in [
+            "__DREAM_SKIN_CSS_JSON__",
+            "__DREAM_SKIN_ART_JSON__",
+            "__DREAM_SKIN_THEME_JSON__",
+            "__DREAM_SKIN_VERSION_JSON__",
+            "__DREAM_SKIN_STYLE_REVISION_JSON__",
+            "__DREAM_SKIN_PAYLOAD_REVISION_JSON__",
+        ] {
+            assert!(!payload.source.contains(placeholder));
+        }
+        assert_eq!(payload.revision.len(), 20);
+        assert!(payload.source.contains("test-theme"));
+    }
+
     #[test]
     fn cdp_target_rejects_remote_hosts() {
         let target = CdpTarget {
@@ -1772,6 +2014,26 @@ mod tests {
             web_socket_debugger_url: "ws://example.com:9335/devtools/page/page-1".to_string(),
         };
         assert!(validate_target(&target, 9335).is_err());
+    }
+
+    #[test]
+    fn cdp_command_deadline_is_absolute() {
+        let error = cdp_command_remaining(Instant::now(), "Runtime.enable").unwrap_err();
+        assert!(error.contains("CDP command timed out: Runtime.enable"));
+        assert!(
+            cdp_command_remaining(Instant::now() + Duration::from_secs(1), "Runtime.enable")
+                .is_ok()
+        );
+    }
+
+    #[test]
+    fn verification_accepts_one_primary_target_among_auxiliary_targets() {
+        let auxiliary = json!({ "result": { "pass": false } });
+        let primary = json!({ "result": { "pass": true } });
+
+        assert!(verification_succeeded(&[auxiliary.clone(), primary]));
+        assert!(!verification_succeeded(&[auxiliary]));
+        assert!(!verification_succeeded(&[]));
     }
 
     #[test]
@@ -1786,6 +2048,58 @@ mod tests {
                 .unwrap_or_else(|error| panic!("{theme_id} failed to load: {error}"));
             assert_eq!(theme.document["id"], theme_id);
         }
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn macos_discovers_current_and_legacy_app_names() {
+        let applications_dir = std::env::temp_dir().join(format!(
+            "codex-switch-macos-install-test-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let chatgpt = applications_dir
+            .join("ChatGPT.app")
+            .join("Contents")
+            .join("MacOS")
+            .join("ChatGPT");
+        let codex = applications_dir
+            .join("Codex.app")
+            .join("Contents")
+            .join("MacOS")
+            .join("Codex");
+        fs::create_dir_all(chatgpt.parent().unwrap()).unwrap();
+        fs::create_dir_all(codex.parent().unwrap()).unwrap();
+        fs::write(&chatgpt, b"").unwrap();
+        fs::write(&codex, b"").unwrap();
+
+        let current = find_macos_codex_install_in(&applications_dir).unwrap();
+        assert_eq!(current.executable, chatgpt);
+
+        fs::remove_file(&chatgpt).unwrap();
+        let legacy = find_macos_codex_install_in(&applications_dir).unwrap();
+        assert_eq!(legacy.executable, codex);
+
+        fs::remove_dir_all(applications_dir).unwrap();
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    #[ignore = "requires the official ChatGPT/Codex application"]
+    fn discovers_official_codex_application() {
+        let install = find_default_codex_install()
+            .expect("official ChatGPT/Codex application should be discoverable");
+        assert!(
+            install
+                .executable
+                .ends_with("ChatGPT.app/Contents/MacOS/ChatGPT")
+                || install
+                    .executable
+                    .ends_with("Codex.app/Contents/MacOS/Codex")
+        );
     }
 
     #[cfg(target_os = "windows")]

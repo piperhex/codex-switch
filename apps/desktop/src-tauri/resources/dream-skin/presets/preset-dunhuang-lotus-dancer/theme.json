@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-dunhuang-lotus-dancer",
+  "name": "敦煌莲舞 / Dunhuang Lotus Dancer",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Original Dunhuang-inspired dancer with lotus ribbons.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "DUNHUANG LOTUS DANCER ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.73,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#d16f9c"
+  }
+}
+

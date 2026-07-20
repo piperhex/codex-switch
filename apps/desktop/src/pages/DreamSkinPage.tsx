@@ -29,113 +29,10 @@ import {
   setDreamSkinPaused,
   verifyDreamSkin,
 } from "../api/backend";
+import { BUILT_IN_DREAM_SKIN_IDS, BUILT_IN_DREAM_SKIN_THEMES } from "../dreamSkinBuiltIns";
 import type { Translate } from "../i18n";
 import type { DreamSkinAppearance, DreamSkinImportOptions, DreamSkinStatus, DreamSkinThemeSummary } from "../types";
 
-const GOTHIC_PREVIEW = new URL(
-  "../../src-tauri/resources/dream-skin/presets/preset-gothic-void-crusade/background.jpg",
-  import.meta.url,
-).href;
-const ROSE_REVERIE_PREVIEW = new URL(
-  "../../src-tauri/resources/dream-skin/presets/preset-rose-reverie/background.jpg",
-  import.meta.url,
-).href;
-const FORTUNE_AT_WORK_PREVIEW = new URL(
-  "../../src-tauri/resources/dream-skin/presets/preset-fortune-at-work/background.jpg",
-  import.meta.url,
-).href;
-const CORAL_HORIZON_PREVIEW = new URL(
-  "../../src-tauri/resources/dream-skin/presets/preset-coral-horizon/background.jpg",
-  import.meta.url,
-).href;
-const SAGE_DAYLIGHT_PREVIEW = new URL(
-  "../../src-tauri/resources/dream-skin/presets/preset-sage-daylight/background.jpg",
-  import.meta.url,
-).href;
-const SPARK_STUDIO_PREVIEW = new URL(
-  "../../src-tauri/resources/dream-skin/presets/preset-spark-studio/background.jpg",
-  import.meta.url,
-).href;
-const COSMIC_VIOLET_PREVIEW = new URL(
-  "../../src-tauri/resources/dream-skin/presets/preset-cosmic-violet/background.jpg",
-  import.meta.url,
-).href;
-const AQUA_RESONANCE_PREVIEW = new URL(
-  "../../src-tauri/resources/dream-skin/presets/preset-aqua-resonance/background.jpg",
-  import.meta.url,
-).href;
-const MIDNIGHT_GOLD_PREVIEW = new URL(
-  "../../src-tauri/resources/dream-skin/presets/preset-midnight-gold/background.jpg",
-  import.meta.url,
-).href;
-
-const BUILT_IN_THEMES = [
-  {
-    id: "preset-gothic-void-crusade",
-    nameKey: "dreamSkin.theme.gothic.name" as const,
-    descriptionKey: "dreamSkin.theme.gothic.description" as const,
-    preview: GOTHIC_PREVIEW,
-    tone: "gothic",
-  },
-  {
-    id: "preset-rose-reverie",
-    nameKey: "dreamSkin.theme.roseReverie.name" as const,
-    descriptionKey: "dreamSkin.theme.roseReverie.description" as const,
-    preview: ROSE_REVERIE_PREVIEW,
-    tone: "rose-reverie",
-  },
-  {
-    id: "preset-fortune-at-work",
-    nameKey: "dreamSkin.theme.fortuneAtWork.name" as const,
-    descriptionKey: "dreamSkin.theme.fortuneAtWork.description" as const,
-    preview: FORTUNE_AT_WORK_PREVIEW,
-    tone: "fortune",
-  },
-  {
-    id: "preset-coral-horizon",
-    nameKey: "dreamSkin.theme.coralHorizon.name" as const,
-    descriptionKey: "dreamSkin.theme.coralHorizon.description" as const,
-    preview: CORAL_HORIZON_PREVIEW,
-    tone: "coral",
-  },
-  {
-    id: "preset-sage-daylight",
-    nameKey: "dreamSkin.theme.sageDaylight.name" as const,
-    descriptionKey: "dreamSkin.theme.sageDaylight.description" as const,
-    preview: SAGE_DAYLIGHT_PREVIEW,
-    tone: "sage",
-  },
-  {
-    id: "preset-spark-studio",
-    nameKey: "dreamSkin.theme.sparkStudio.name" as const,
-    descriptionKey: "dreamSkin.theme.sparkStudio.description" as const,
-    preview: SPARK_STUDIO_PREVIEW,
-    tone: "spark",
-  },
-  {
-    id: "preset-cosmic-violet",
-    nameKey: "dreamSkin.theme.cosmicViolet.name" as const,
-    descriptionKey: "dreamSkin.theme.cosmicViolet.description" as const,
-    preview: COSMIC_VIOLET_PREVIEW,
-    tone: "cosmic",
-  },
-  {
-    id: "preset-aqua-resonance",
-    nameKey: "dreamSkin.theme.aquaResonance.name" as const,
-    descriptionKey: "dreamSkin.theme.aquaResonance.description" as const,
-    preview: AQUA_RESONANCE_PREVIEW,
-    tone: "aqua",
-  },
-  {
-    id: "preset-midnight-gold",
-    nameKey: "dreamSkin.theme.midnightGold.name" as const,
-    descriptionKey: "dreamSkin.theme.midnightGold.description" as const,
-    preview: MIDNIGHT_GOLD_PREVIEW,
-    tone: "midnight",
-  },
-] as const;
-
-const BUILT_IN_IDS = new Set(BUILT_IN_THEMES.map((theme) => theme.id));
 const APPEARANCE_OPTIONS = [
   { value: "auto", labelKey: "dreamSkin.option.auto" },
   { value: "light", labelKey: "dreamSkin.option.light" },
@@ -337,7 +234,7 @@ export function DreamSkinPage({ t, notify }: DreamSkinPageProps) {
   }, [runStatusOperation, saveName, t]);
 
   const savedThemes = useMemo(() => (
-    status?.savedThemes.filter((theme) => !BUILT_IN_IDS.has(theme.id as (typeof BUILT_IN_THEMES)[number]["id"])) ?? []
+    status?.savedThemes.filter((theme) => !BUILT_IN_DREAM_SKIN_IDS.has(theme.id)) ?? []
   ), [status?.savedThemes]);
 
   const sessionLabel = status ? t(`dreamSkin.session.${status.session}`) : t("dreamSkin.session.loading");
@@ -442,7 +339,7 @@ export function DreamSkinPage({ t, notify }: DreamSkinPageProps) {
           <h2>{t("dreamSkin.presets.title")}</h2></div>
           <p>{t("dreamSkin.presets.description")}</p></div>
         <div className="dream-theme-grid">
-          {BUILT_IN_THEMES.map((theme) => <ThemeCard key={theme.id}
+          {BUILT_IN_DREAM_SKIN_THEMES.map((theme) => <ThemeCard key={theme.id}
             active={status?.activeThemeId === theme.id} busy={busy === `apply:${theme.id}`}
             description={t(theme.descriptionKey)} id={theme.id} name={t(theme.nameKey)}
             preview={theme.preview} tone={theme.tone} onApply={() => applyTheme(theme.id)} t={t} />)}

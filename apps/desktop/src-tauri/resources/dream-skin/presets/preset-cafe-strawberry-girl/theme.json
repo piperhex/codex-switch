@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-cafe-strawberry-girl",
+  "name": "草莓咖啡少女 / Strawberry Café Girl",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Pink café scene with original strawberry desserts.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "STRAWBERRY CAFÉ GIRL ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.73,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#df7998"
+  }
+}
+

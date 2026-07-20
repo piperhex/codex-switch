@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-spongebob-patrick-pineapple",
+  "name": "菠萝屋好朋友 / Pineapple House Friends",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "SpongeBob and Patrick play outside the pineapple house.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "PINEAPPLE HOUSE FRIENDS ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#e6a72e"
+  }
+}

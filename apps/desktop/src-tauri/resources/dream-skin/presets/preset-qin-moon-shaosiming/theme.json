@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-qin-moon-shaosiming",
+  "name": "少司命·万叶飞花 / Shao Siming Leaves",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Shao Siming summons luminous leaves in an ethereal forest.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "SHAO SIMING LEAVES ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#7651a8"
+  }
+}

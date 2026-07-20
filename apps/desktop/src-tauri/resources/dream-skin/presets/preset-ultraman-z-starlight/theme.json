@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-ultraman-z-starlight",
+  "name": "泽塔·星光守护 / Ultraman Z Starlight",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Ultraman Z guards a futuristic city under blue starlight.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "ULTRAMAN Z STARLIGHT ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#338bd1"
+  }
+}

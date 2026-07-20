@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-jiangnan-rain-town",
+  "name": "江南烟雨 / Jiangnan Rain Town",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "White walls, dark tiles, stone bridge, and a quiet rainy canal.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "JIANGNAN RAIN TOWN ONLINE",
+  "quote": "BREATHE IN THE BIG PICTURE",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.5,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#4f8f73"
+  }
+}
+

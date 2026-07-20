@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-huangshan-sunrise",
+  "name": "黄山日出 / Huangshan Sunrise",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Ancient pines above a golden sea of clouds.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "HUANGSHAN SUNRISE ONLINE",
+  "quote": "BREATHE IN THE BIG PICTURE",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.5,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#4f8f73"
+  }
+}
+

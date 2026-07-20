@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-west-lake-morning",
+  "name": "西湖晨雾 / West Lake Morning",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Lotus leaves, long bridge, pavilion, and misty lake mountains.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "WEST LAKE MORNING ONLINE",
+  "quote": "BREATHE IN THE BIG PICTURE",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.5,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#4f8f73"
+  }
+}
+

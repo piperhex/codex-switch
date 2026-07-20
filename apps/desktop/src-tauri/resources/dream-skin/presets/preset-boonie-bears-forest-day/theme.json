@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-boonie-bears-forest-day",
+  "name": "狗熊岭晴日 / Forest Friends Day",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Briar, Bramble, and Vick enjoy a sunny forest day.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "FOREST FRIENDS DAY ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#4f9a62"
+  }
+}

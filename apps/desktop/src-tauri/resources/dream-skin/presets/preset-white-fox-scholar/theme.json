@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-white-fox-scholar",
+  "name": "白狐书生 / White Fox Scholar",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Ivory-robed scholar reading beside a snowy fox companion.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "WHITE FOX SCHOLAR ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.73,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#3f91a4"
+  }
+}
+

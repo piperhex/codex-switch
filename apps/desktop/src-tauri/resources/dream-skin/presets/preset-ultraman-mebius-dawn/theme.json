@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-ultraman-mebius-dawn",
+  "name": "梦比优斯·赤焰黎明 / Ultraman Mebius Dawn",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Ultraman Mebius against a warm red-gold sunrise.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "ULTRAMAN MEBIUS DAWN ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#d75c42"
+  }
+}

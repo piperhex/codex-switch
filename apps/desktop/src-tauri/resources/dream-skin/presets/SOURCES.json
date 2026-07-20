@@ -1,0 +1,415 @@
+{
+  "schemaVersion": 2,
+  "purpose": "Provenance record for bundled Dream Skin preset artwork.",
+  "createdAt": "2026-07-20",
+  "generator": "OpenAI built-in image generation",
+  "provenance": "Generated from text-only prompts for this project. Entries are explicitly classified as project-original artwork or third-party-IP fan art.",
+  "promptPolicy": {
+    "scope": "Project-original entries only.",
+    "style": "Premium contemporary Chinese 2D donghua key visual with clean expressive linework, polished cel shading, luminous atmospheric painting, and a cute high-appeal original character or Chinese landscape.",
+    "composition": "Wide cinematic 16:9 desktop theme; character on the right third with a calm low-detail left UI area, or a landscape with the same left-side readability.",
+    "avoid": "No real person, cosplay photography, Western comic or cyberpunk styling, existing franchise character, text, logo, or watermark."
+  },
+  "thirdPartyFanArtPolicy": {
+    "scope": "Entries whose rightsStatus is thirdPartyFanArt.",
+    "composition": "Wide cinematic 16:9 desktop theme with recognizable characters on the right and a calm low-detail left UI area.",
+    "avoid": "No source-image copying, readable text, franchise logo, watermark, border, or UI mockup."
+  },
+  "transformations": "Each generated image is resized to 2560x1440, converted to JPEG, and configured as an adaptive Codex Dream Skin theme.",
+  "distributionNote": "Bundled only as configured themes inside Codex Switch.",
+  "rightsNotice": "Themes marked thirdPartyFanArt depict third-party characters. Permission from the applicable IP owners is required before public or commercial distribution.",
+  "themes": [
+    {
+      "id": "preset-celadon-sword-lord",
+      "category": "ancient-male",
+      "nameEn": "Celadon Sword Lord",
+      "nameZh": "青岚剑君",
+      "promptSummary": "Pale-cyan swordsman above a Guilin-inspired cloud sea."
+    },
+    {
+      "id": "preset-bamboo-flute-scholar",
+      "category": "ancient-male",
+      "nameEn": "Bamboo Flute Scholar",
+      "nameZh": "竹林笛公子",
+      "promptSummary": "Moon-white flute player in a misty bamboo pavilion."
+    },
+    {
+      "id": "preset-crimson-cloud-general",
+      "category": "ancient-male",
+      "nameEn": "Crimson Cloud General",
+      "nameZh": "赤云小将",
+      "promptSummary": "Young general on a cloud-wrapped ancient city wall."
+    },
+    {
+      "id": "preset-white-fox-scholar",
+      "category": "ancient-male",
+      "nameEn": "White Fox Scholar",
+      "nameZh": "白狐书生",
+      "promptSummary": "Ivory-robed scholar reading beside a snowy fox companion."
+    },
+    {
+      "id": "preset-jade-dragon-prince",
+      "category": "ancient-male",
+      "nameEn": "Jade Dragon Prince",
+      "nameZh": "玉龙少年",
+      "promptSummary": "Jade-robed fantasy prince by a luminous river palace."
+    },
+    {
+      "id": "preset-lantern-night-guard",
+      "category": "ancient-male",
+      "nameEn": "Lantern Night Guard",
+      "nameZh": "灯夜守望",
+      "promptSummary": "Gentle guardian carrying a rabbit lantern through a river town."
+    },
+    {
+      "id": "preset-snow-crane-swordsman",
+      "category": "ancient-male",
+      "nameEn": "Snow Crane Swordsman",
+      "nameZh": "雪鹤剑客",
+      "promptSummary": "White-robed swordsman beneath snowy plum branches and cranes."
+    },
+    {
+      "id": "preset-lotus-spring-healer",
+      "category": "ancient-female",
+      "nameEn": "Lotus Spring Healer",
+      "nameZh": "莲灯春医",
+      "promptSummary": "Pink-robed spirit healer holding a glowing lotus lantern."
+    },
+    {
+      "id": "preset-tea-mountain-youth",
+      "category": "ancient-male",
+      "nameEn": "Tea Mountain Youth",
+      "nameZh": "茶山少年",
+      "promptSummary": "Fresh spring tea terraces and a warm young traveler."
+    },
+    {
+      "id": "preset-dunhuang-lotus-dancer",
+      "category": "ancient-female",
+      "nameEn": "Dunhuang Lotus Dancer",
+      "nameZh": "敦煌莲舞",
+      "promptSummary": "Original Dunhuang-inspired dancer with lotus ribbons."
+    },
+    {
+      "id": "preset-white-fox-maiden",
+      "category": "ancient-female",
+      "nameEn": "White Fox Maiden",
+      "nameZh": "白狐少女",
+      "promptSummary": "Ivory-robed maiden and an original white fox in snow."
+    },
+    {
+      "id": "preset-bamboo-qin-muse",
+      "category": "ancient-female",
+      "nameEn": "Bamboo Qin Muse",
+      "nameZh": "竹下琴心",
+      "promptSummary": "Gentle musician playing guqin in a green bamboo grove."
+    },
+    {
+      "id": "preset-campus-cardigan-girl",
+      "category": "modern-female",
+      "nameEn": "Cream Cardigan Girl",
+      "nameZh": "奶油针织少女",
+      "promptSummary": "Sunny Chinese university scene with soft cream knitwear."
+    },
+    {
+      "id": "preset-bookstore-spring-girl",
+      "category": "modern-female",
+      "nameEn": "Bookstore Spring",
+      "nameZh": "书店春日",
+      "promptSummary": "Warm independent bookstore and a cheerful young reader."
+    },
+    {
+      "id": "preset-cafe-strawberry-girl",
+      "category": "modern-female",
+      "nameEn": "Strawberry Café Girl",
+      "nameZh": "草莓咖啡少女",
+      "promptSummary": "Pink café scene with original strawberry desserts."
+    },
+    {
+      "id": "preset-film-camera-girl",
+      "category": "modern-female",
+      "nameEn": "Film Camera Girl",
+      "nameZh": "胶片相机少女",
+      "promptSummary": "Spring old-street walk with an analog camera."
+    },
+    {
+      "id": "preset-west-lake-morning",
+      "category": "china-landscape",
+      "nameEn": "West Lake Morning",
+      "nameZh": "西湖晨雾",
+      "promptSummary": "Lotus leaves, long bridge, pavilion, and misty lake mountains."
+    },
+    {
+      "id": "preset-guilin-cloud-sea",
+      "category": "china-landscape",
+      "nameEn": "Guilin Cloud Sea",
+      "nameZh": "桂林云海",
+      "promptSummary": "Karst peaks, a tiny fishing boat, and clear morning mist."
+    },
+    {
+      "id": "preset-huangshan-sunrise",
+      "category": "china-landscape",
+      "nameEn": "Huangshan Sunrise",
+      "nameZh": "黄山日出",
+      "promptSummary": "Ancient pines above a golden sea of clouds."
+    },
+    {
+      "id": "preset-jiangnan-rain-town",
+      "category": "china-landscape",
+      "nameEn": "Jiangnan Rain Town",
+      "nameZh": "江南烟雨",
+      "promptSummary": "White walls, dark tiles, stone bridge, and a quiet rainy canal."
+    },
+    {
+      "id": "preset-ultraman-tiga-sky",
+      "category": "ultraman",
+      "franchise": "Ultraman",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Ultraman Tiga Sky",
+      "nameZh": "迪迦·晨光天际",
+      "promptSummary": "Ultraman Tiga guarding a dawn-lit city skyline."
+    },
+    {
+      "id": "preset-ultraman-zero-cosmos",
+      "category": "ultraman",
+      "franchise": "Ultraman",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Ultraman Zero Cosmos",
+      "nameZh": "赛罗·宇宙锋芒",
+      "promptSummary": "Ultraman Zero in a blue-violet cosmic nebula."
+    },
+    {
+      "id": "preset-ultraman-mebius-dawn",
+      "category": "ultraman",
+      "franchise": "Ultraman",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Ultraman Mebius Dawn",
+      "nameZh": "梦比优斯·赤焰黎明",
+      "promptSummary": "Ultraman Mebius against a warm red-gold sunrise."
+    },
+    {
+      "id": "preset-ultraman-z-starlight",
+      "category": "ultraman",
+      "franchise": "Ultraman",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Ultraman Z Starlight",
+      "nameZh": "泽塔·星光守护",
+      "promptSummary": "Ultraman Z guarding a futuristic city under blue starlight."
+    },
+    {
+      "id": "preset-doraemon-anywhere-door",
+      "category": "doraemon",
+      "franchise": "Doraemon",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Anywhere Door Day",
+      "nameZh": "任意门晴空",
+      "promptSummary": "Doraemon and Nobita step through the Anywhere Door into a sunny meadow."
+    },
+    {
+      "id": "preset-doraemon-bamboo-copter",
+      "category": "doraemon",
+      "franchise": "Doraemon",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Bamboo-Copter Flight",
+      "nameZh": "竹蜻蜓云端",
+      "promptSummary": "Doraemon and Nobita fly above the clouds with bamboo-copters."
+    },
+    {
+      "id": "preset-doraemon-time-machine",
+      "category": "doraemon",
+      "franchise": "Doraemon",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Time Machine Voyage",
+      "nameZh": "时光机星河",
+      "promptSummary": "Doraemon and Nobita ride the time machine through a luminous galaxy."
+    },
+    {
+      "id": "preset-doraemon-nobita-night",
+      "category": "doraemon",
+      "franchise": "Doraemon",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Doraemon Summer Night",
+      "nameZh": "大雄与机器猫夏夜",
+      "promptSummary": "Doraemon and Nobita sit on a rooftop beneath summer stars."
+    },
+    {
+      "id": "preset-tom-jerry-kitchen-chase",
+      "category": "tom-jerry",
+      "franchise": "Tom and Jerry",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Kitchen Chase",
+      "nameZh": "厨房追逐战",
+      "promptSummary": "Tom and Jerry race through a bright kitchen."
+    },
+    {
+      "id": "preset-tom-jerry-piano-duet",
+      "category": "tom-jerry",
+      "franchise": "Tom and Jerry",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Piano Mischief",
+      "nameZh": "钢琴欢闹曲",
+      "promptSummary": "Tom plays piano while Jerry creates cheerful mischief."
+    },
+    {
+      "id": "preset-tom-jerry-garden-picnic",
+      "category": "tom-jerry",
+      "franchise": "Tom and Jerry",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Garden Picnic",
+      "nameZh": "花园野餐",
+      "promptSummary": "Tom and Jerry share a warm flower-garden picnic."
+    },
+    {
+      "id": "preset-tom-jerry-starry-night",
+      "category": "tom-jerry",
+      "franchise": "Tom and Jerry",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Rooftop Stars",
+      "nameZh": "屋顶星夜",
+      "promptSummary": "Tom and Jerry sit together beneath a quiet rooftop sky."
+    },
+    {
+      "id": "preset-spongebob-patrick-jellyfish",
+      "category": "spongebob",
+      "franchise": "SpongeBob SquarePants",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Jellyfish Fields",
+      "nameZh": "水母田冒险",
+      "promptSummary": "SpongeBob and Patrick chase glowing jellyfish."
+    },
+    {
+      "id": "preset-spongebob-patrick-pineapple",
+      "category": "spongebob",
+      "franchise": "SpongeBob SquarePants",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Pineapple House Friends",
+      "nameZh": "菠萝屋好朋友",
+      "promptSummary": "SpongeBob and Patrick play outside the pineapple house."
+    },
+    {
+      "id": "preset-spongebob-patrick-krusty-krab",
+      "category": "spongebob",
+      "franchise": "SpongeBob SquarePants",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Krusty Krab Fun",
+      "nameZh": "蟹堡王欢乐时光",
+      "promptSummary": "SpongeBob and Patrick enjoy a colorful Bikini Bottom afternoon."
+    },
+    {
+      "id": "preset-spongebob-patrick-starry-sea",
+      "category": "spongebob",
+      "franchise": "SpongeBob SquarePants",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Bikini Bottom Stars",
+      "nameZh": "比奇堡星海",
+      "promptSummary": "SpongeBob and Patrick watch glowing jellyfish in a starry sea."
+    },
+    {
+      "id": "preset-boonie-bears-forest-day",
+      "category": "boonie-bears",
+      "franchise": "Boonie Bears",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Forest Friends Day",
+      "nameZh": "狗熊岭晴日",
+      "promptSummary": "Briar, Bramble, and Vick enjoy a sunny forest day."
+    },
+    {
+      "id": "preset-boonie-bears-snow-adventure",
+      "category": "boonie-bears",
+      "franchise": "Boonie Bears",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Snow Adventure",
+      "nameZh": "狗熊岭雪趣",
+      "promptSummary": "Briar, Bramble, and Vick play in a snowy forest."
+    },
+    {
+      "id": "preset-boonie-bears-treehouse",
+      "category": "boonie-bears",
+      "franchise": "Boonie Bears",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Woodland Cabin",
+      "nameZh": "林间木屋欢聚",
+      "promptSummary": "Briar, Bramble, and Vick gather at a woodland cabin."
+    },
+    {
+      "id": "preset-boonie-bears-spring-picnic",
+      "category": "boonie-bears",
+      "franchise": "Boonie Bears",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Spring Picnic",
+      "nameZh": "熊大熊二春游",
+      "promptSummary": "Briar, Bramble, and Vick share a cheerful spring picnic."
+    },
+    {
+      "id": "preset-pleasant-goat-grassland",
+      "category": "pleasant-goat",
+      "franchise": "Pleasant Goat and Big Big Wolf",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Green Grassland Day",
+      "nameZh": "青青草原晴天",
+      "promptSummary": "Weslie and Wolffy dash across the sunny grassland."
+    },
+    {
+      "id": "preset-pleasant-goat-wolffy-chase",
+      "category": "pleasant-goat",
+      "franchise": "Pleasant Goat and Big Big Wolf",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Grassland Chase",
+      "nameZh": "喜羊羊灰太狼追逐",
+      "promptSummary": "Weslie outsmarts Wolffy in a lively comic chase."
+    },
+    {
+      "id": "preset-pleasant-goat-lantern-night",
+      "category": "pleasant-goat",
+      "franchise": "Pleasant Goat and Big Big Wolf",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Grassland Lantern Night",
+      "nameZh": "青青草原灯会",
+      "promptSummary": "Weslie and Wolffy meet beneath warm lantern light."
+    },
+    {
+      "id": "preset-pleasant-goat-friends-picnic",
+      "category": "pleasant-goat",
+      "franchise": "Pleasant Goat and Big Big Wolf",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Sheep Village Picnic",
+      "nameZh": "羊村朋友野餐",
+      "promptSummary": "The Sheep Village friends and Wolffy share a colorful picnic."
+    },
+    {
+      "id": "preset-qin-moon-tianming-shaoyu",
+      "category": "qin-moon",
+      "franchise": "Qin's Moon",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Tianming & Shaoyu",
+      "nameZh": "天明少羽·并肩",
+      "promptSummary": "Tianming and Shaoyu stand above an ancient city at dawn."
+    },
+    {
+      "id": "preset-qin-moon-gai-nie",
+      "category": "qin-moon",
+      "franchise": "Qin's Moon",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Gai Nie Sword Intent",
+      "nameZh": "盖聂·渊虹剑意",
+      "promptSummary": "Gai Nie draws Yuanhong in a misty bamboo valley."
+    },
+    {
+      "id": "preset-qin-moon-wei-zhuang",
+      "category": "qin-moon",
+      "franchise": "Qin's Moon",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Wei Zhuang Cold Edge",
+      "nameZh": "卫庄·鲨齿寒锋",
+      "promptSummary": "Wei Zhuang stands with Shark Teeth in a moonlit ruined palace."
+    },
+    {
+      "id": "preset-qin-moon-shaosiming",
+      "category": "qin-moon",
+      "franchise": "Qin's Moon",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Shao Siming Leaves",
+      "nameZh": "少司命·万叶飞花",
+      "promptSummary": "Shao Siming summons luminous leaves in an ethereal forest."
+    }
+  ]
+}

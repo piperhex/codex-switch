@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-pleasant-goat-grassland",
+  "name": "青青草原晴天 / Green Grassland Day",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Weslie and Wolffy dash across the sunny grassland.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "GREEN GRASSLAND DAY ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#63ab4f"
+  }
+}

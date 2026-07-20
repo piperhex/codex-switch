@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-bamboo-qin-muse",
+  "name": "竹下琴心 / Bamboo Qin Muse",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Gentle musician playing guqin in a green bamboo grove.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "BAMBOO QIN MUSE ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.73,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#d16f9c"
+  }
+}
+

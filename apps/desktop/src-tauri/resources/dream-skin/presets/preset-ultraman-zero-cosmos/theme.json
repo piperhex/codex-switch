@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-ultraman-zero-cosmos",
+  "name": "赛罗·宇宙锋芒 / Ultraman Zero Cosmos",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Ultraman Zero in a blue-violet cosmic nebula.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "ULTRAMAN ZERO COSMOS ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#596ee2"
+  }
+}

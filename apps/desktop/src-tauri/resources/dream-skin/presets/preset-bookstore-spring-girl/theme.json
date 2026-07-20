@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-bookstore-spring-girl",
+  "name": "书店春日 / Bookstore Spring",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Warm independent bookstore and a cheerful young reader.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "BOOKSTORE SPRING ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.73,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#df7998"
+  }
+}
+

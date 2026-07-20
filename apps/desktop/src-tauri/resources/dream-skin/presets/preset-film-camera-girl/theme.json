@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-film-camera-girl",
+  "name": "胶片相机少女 / Film Camera Girl",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Spring old-street walk with an analog camera.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "FILM CAMERA GIRL ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.73,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#df7998"
+  }
+}
+

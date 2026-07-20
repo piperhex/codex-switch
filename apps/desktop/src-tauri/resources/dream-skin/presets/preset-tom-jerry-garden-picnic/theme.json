@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-tom-jerry-garden-picnic",
+  "name": "花园野餐 / Garden Picnic",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Tom and Jerry share a warm flower-garden picnic.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "GARDEN PICNIC ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#da6d85"
+  }
+}
