@@ -1,6 +1,7 @@
 use std::{
     fs, io,
     path::{Path, PathBuf},
+    sync::atomic::{AtomicU64, Ordering},
 };
 
 use chrono::{DateTime, Utc};
@@ -30,6 +31,16 @@ pub(crate) struct Paths {
     pub(crate) providers: PathBuf,
     pub(crate) config_backup: PathBuf,
     pub(crate) state_file: PathBuf,
+}
+
+static TEMP_FILE_COUNTER: AtomicU64 = AtomicU64::new(1);
+
+fn atomic_temp_path(path: &Path) -> PathBuf {
+    path.with_extension(format!(
+        "tmp-{}-{}",
+        std::process::id(),
+        TEMP_FILE_COUNTER.fetch_add(1, Ordering::Relaxed)
+    ))
 }
 
 pub(crate) fn resolve_paths<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<Paths, String> {
@@ -69,7 +80,7 @@ pub(crate) fn write_json_atomic(path: &Path, value: &Value) -> Result<(), String
         .map_err(|error| format!("创建 {} 失败：{error}", parent.display()))?;
     let bytes =
         serde_json::to_vec_pretty(value).map_err(|error| format!("序列化 JSON 失败：{error}"))?;
-    let temp = path.with_extension(format!("tmp-{}", std::process::id()));
+    let temp = atomic_temp_path(path);
     fs::write(&temp, bytes).map_err(|error| format!("写入临时文件失败：{error}"))?;
     replace_file(&temp, path).map_err(|error| format!("提交 {} 失败：{error}", path.display()))
 }
@@ -80,7 +91,7 @@ pub(crate) fn write_text_atomic(path: &Path, value: &str) -> Result<(), String> 
         .ok_or_else(|| "Target path has no parent directory".to_string())?;
     fs::create_dir_all(parent)
         .map_err(|error| format!("Failed to create {}: {error}", parent.display()))?;
-    let temp = path.with_extension(format!("tmp-{}", std::process::id()));
+    let temp = atomic_temp_path(path);
     fs::write(&temp, value.as_bytes())
         .map_err(|error| format!("Failed to write temporary file: {error}"))?;
     replace_file(&temp, path).map_err(|error| format!("Failed to save {}: {error}", path.display()))
@@ -177,7 +188,7 @@ pub(crate) fn save_note(path: &Path, note: &str) -> Result<(), String> {
         return Ok(());
     }
 
-    let temp = path.with_extension(format!("tmp-{}", std::process::id()));
+    let temp = atomic_temp_path(path);
     fs::write(&temp, note.as_bytes())
         .map_err(|error| format!("Failed to write account note: {error}"))?;
     replace_file(&temp, path).map_err(|error| format!("Failed to save {}: {error}", path.display()))

@@ -25,8 +25,8 @@ use crate::{
     },
     providers::{self, LOCAL_PROXY_BASE_URL, LOCAL_PROXY_HOST, LOCAL_PROXY_PORT},
     storage::{
-        managed_auth_path, read_json, read_state, resolve_paths, write_json_atomic,
-        write_managed_auth_if_changed, write_state, Paths,
+        managed_auth_path, read_json, read_state, resolve_paths, write_managed_auth_if_changed,
+        write_state, Paths,
     },
 };
 
@@ -2147,22 +2147,28 @@ fn official_token<R: Runtime>(
     client: &Client,
 ) -> Result<(String, Option<String>, TokenUsageAccount), String> {
     let paths = resolve_paths(app)?;
-    let mut auth = read_json(&paths.current_auth)?;
+    let active_account_id = read_state(&paths)
+        .active_account_id
+        .ok_or_else(|| "Select an official account before using the local proxy".to_string())?;
+    let mut auth = read_json(&managed_auth_path(&paths, &active_account_id))?;
     validate_auth(&auth)?;
+    let (_, _, _, auth_account_id) = account_fields(&auth)?;
+    if auth_account_id != active_account_id {
+        return Err(format!(
+            "Managed proxy credential does not match the selected account: selected={}, credential={}",
+            active_account_id, auth_account_id
+        ));
+    }
     if token_expiring(&auth) {
         refresh_tokens(client, &mut auth)?;
-        write_json_atomic(&paths.current_auth, &auth)?;
-        if let Ok((_, _, _, id)) = account_fields(&auth) {
-            let _ = write_managed_auth_if_changed(&paths, &id, &auth);
-        }
+        // An old in-flight request must not overwrite Codex's watched auth.json after a
+        // hot switch.  Refresh only the managed credential for the account it started with.
+        write_managed_auth_if_changed(&paths, &active_account_id, &auth)?;
     }
     let access_token = token_string(&auth, "access_token")
         .ok_or_else(|| "auth.json is missing tokens.access_token".to_string())?
         .to_string();
     let (email, _, account_id, id) = account_fields(&auth)?;
-    if !managed_auth_path(&paths, &id).exists() {
-        let _ = write_managed_auth_if_changed(&paths, &id, &auth);
-    }
     Ok((
         access_token,
         account_id,

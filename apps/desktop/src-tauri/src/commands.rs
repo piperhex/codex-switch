@@ -45,9 +45,14 @@ const LEGACY_CODEX_COMMAND: &str = "codex";
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 static ACCOUNT_AUTO_SWITCH_STATE_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+static ACCOUNT_SWITCH_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 
 fn account_auto_switch_state_lock() -> &'static Mutex<()> {
     ACCOUNT_AUTO_SWITCH_STATE_LOCK.get_or_init(|| Mutex::new(()))
+}
+
+fn account_switch_lock() -> &'static Mutex<()> {
+    ACCOUNT_SWITCH_LOCK.get_or_init(|| Mutex::new(()))
 }
 
 #[cfg(target_os = "windows")]
@@ -101,7 +106,9 @@ pub(crate) fn list_accounts<R: Runtime>(
     app: tauri::AppHandle<R>,
 ) -> Result<Vec<AccountSummary>, String> {
     // 非 ChatGPT 模式或损坏的当前 auth.json 不应阻止管理器打开。
-    let _ = sync_current_into_store(&app);
+    if !crate::local_proxy::is_running() {
+        let _ = sync_current_into_store(&app);
+    }
     let paths = resolve_paths(&app)?;
     fs::create_dir_all(&paths.accounts).map_err(|error| format!("创建账户目录失败：{error}"))?;
     let state = read_state(&paths);
@@ -373,16 +380,26 @@ pub(crate) fn switch_account<R: Runtime>(
     app: tauri::AppHandle<R>,
     id: String,
 ) -> Result<(), String> {
+    let _switch_guard = account_switch_lock()
+        .lock()
+        .map_err(|_| "Account switch lock is poisoned".to_string())?;
+    let proxy_running = crate::local_proxy::is_running();
     // 尽力保存 Codex 在上次切换后自行刷新的 token。
-    let _ = sync_current_into_store(&app);
+    if !proxy_running {
+        let _ = sync_current_into_store(&app);
+    }
     let paths = resolve_paths(&app)?;
     let selected = read_json(&managed_auth_path(&paths, &id))?;
     validate_auth(&selected)?;
-    write_json_atomic(&paths.current_auth, &selected)?;
+    if !proxy_running {
+        // The local proxy reads the selected managed credential.  Avoid modifying the
+        // authentication file watched by the already-running Codex application.
+        write_json_atomic(&paths.current_auth, &selected)?;
+    }
     let mut state = read_state(&paths);
     let was_using_provider = state.active_provider_id.take().is_some();
     if was_using_provider {
-        if crate::local_proxy::is_running() {
+        if proxy_running {
             crate::providers::write_official_local_proxy_config(&paths)?;
         } else {
             crate::providers::restore_official_config(&paths)?;
