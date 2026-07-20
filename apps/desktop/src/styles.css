@@ -465,8 +465,8 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .token-usage-settings-field .ant-input-number { width: 88px; }
 .note-card { border-color: #c8dccd; background: #f8fbf7; }
 
-.provider-page { width: calc(100% - 32px); max-width: none; margin: 30px 16px; display: grid; gap: 14px; }
-.provider-official, .provider-proxy { min-height: 72px; padding: 15px 18px; border: 1px solid var(--line); border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 16px; background: var(--panel); box-shadow: 0 5px 18px rgba(24,45,31,.035); }
+.provider-page { width: calc(100% - 32px); max-width: none; min-width: 0; margin: 30px 16px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+.provider-official, .provider-proxy { min-width: 0; min-height: 72px; padding: 15px 18px; border: 1px solid var(--line); border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 16px; background: var(--panel); box-shadow: 0 5px 18px rgba(24,45,31,.035); }
 .provider-official.active { border-color: #b9d0bf; background: var(--green-selection); }
 .provider-proxy.active { border-color: #b9d0bf; background: #f4faf5; }
 .provider-official-main, .provider-official-actions { min-width: 0; display: flex; align-items: center; gap: 10px; }
@@ -486,8 +486,8 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .provider-avatar { width: 30px; height: 30px; flex: 0 0 auto; border-radius: 8px; display: grid; place-items: center; color: var(--green-dark); background: var(--green-soft); }
 .provider-avatar.official { color: #234f34; background: #dcebdd; }
 .provider-avatar.proxy { color: #334a62; background: #e7edf3; }
-.provider-toolbar { min-height: 46px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
-.provider-table-wrap { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: white; box-shadow: 0 5px 18px rgba(24,45,31,.035); }
+.provider-toolbar { min-width: 0; min-height: 46px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.provider-table-wrap { min-width: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: white; box-shadow: 0 5px 18px rgba(24,45,31,.035); }
 .provider-table-wrap .ant-table { color: var(--ink); font-size: 12px; }
 .provider-table-wrap .ant-table-thead > tr > th { background: #f6f8f5; color: #5d6a62; font-size: 11px; font-weight: 700; }
 .provider-table-wrap .ant-table-tbody > tr > td { background: #fff; }
@@ -496,7 +496,7 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .provider-table-wrap .ant-table-tbody > tr.active-row > td:first-child { box-shadow: inset 4px 0 0 var(--green-accent); }
 .provider-table-wrap .ant-table-tbody > tr:hover > td { background: #f6faf7; }
 .provider-table-wrap .ant-table-cell { padding: 8px 16px !important; }
-.provider-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(390px, 1fr)); gap: 14px; }
+.provider-card-grid { min-width: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(390px, 1fr)); gap: 14px; }
 .provider-card { position: relative; overflow: hidden; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); box-shadow: 0 5px 18px rgba(24,45,31,.035); }
 .provider-card.switchable { cursor: pointer; }
 .provider-card.active { border-color: rgba(var(--green-rgb), .72); box-shadow: 0 0 0 2px rgba(var(--green-rgb), .48), 0 12px 28px rgba(var(--green-rgb), .14); }
