@@ -39,7 +39,7 @@ If production uses `POSTGRES_DB_SYNCHRONIZE=false`, apply `sql/20260704-admin-ma
 `sql/20260718-announcement-localization-link.sql`,
 `sql/20260718-announcement-link-clicks.sql`,
 `sql/20260718-device-installation-app-version.sql`, `sql/20260718-user-feedback.sql`, and
-`sql/20260718-dynamic-rbac.sql` before using
+`sql/20260718-dynamic-rbac.sql`, and `sql/20260720-sync-account-field-modified-at.sql` before using
 the expanded admin console, provider sync,
 official account pool, reusable invitations, announcements, telemetry, and feedback management.
 The RBAC migration must be applied before starting this version because application startup

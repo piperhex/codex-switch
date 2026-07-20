@@ -275,6 +275,21 @@ pub(crate) struct CloudSyncResult {
     pub(crate) downloaded: usize,
 }
 
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct AccountFieldModifiedAt {
+    #[serde(default)]
+    pub(crate) auth: String,
+    #[serde(default)]
+    pub(crate) note: String,
+    #[serde(default)]
+    pub(crate) expires_at: String,
+    #[serde(default)]
+    pub(crate) usage: String,
+    #[serde(default)]
+    pub(crate) active: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct CloudAccountPayload {
@@ -287,6 +302,8 @@ pub(crate) struct CloudAccountPayload {
     pub(crate) active: bool,
     pub(crate) usage: UsageSummary,
     pub(crate) last_modified_at: String,
+    #[serde(default)]
+    pub(crate) field_modified_at: AccountFieldModifiedAt,
     pub(crate) auth: serde_json::Value,
 }
 

@@ -9,6 +9,33 @@ import {
   ValidateNested,
 } from 'class-validator';
 
+export class AccountFieldModifiedAtDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  auth?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  note?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  expiresAt?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  usage?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  active?: string;
+}
+
 export class SyncAccountDto {
   @IsString()
   @MaxLength(64)
@@ -44,6 +71,12 @@ export class SyncAccountDto {
   @IsString()
   @MaxLength(40)
   lastModifiedAt?: string;
+
+  @IsOptional()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => AccountFieldModifiedAtDto)
+  fieldModifiedAt?: AccountFieldModifiedAtDto;
 
   @IsObject()
   auth: Record<string, unknown>;

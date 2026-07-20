@@ -9,8 +9,17 @@ use tauri::{Manager, Runtime};
 
 use crate::{
     auth::{account_fields, validate_auth},
-    models::{AppSettings, ManagerStateFile, UsageSummary},
+    models::{AccountFieldModifiedAt, AppSettings, ManagerStateFile, UsageSummary},
 };
+
+#[derive(Clone, Copy)]
+pub(crate) enum AccountSyncField {
+    Auth,
+    Note,
+    ExpiresAt,
+    Usage,
+    Active,
+}
 
 #[derive(Clone)]
 pub(crate) struct Paths {
@@ -141,6 +150,10 @@ pub(crate) fn last_modified_path(paths: &Paths, id: &str) -> PathBuf {
     account_dir(paths, id).join("last-modified-at.txt")
 }
 
+pub(crate) fn field_modified_at_path(paths: &Paths, id: &str) -> PathBuf {
+    account_dir(paths, id).join("field-modified-at.json")
+}
+
 pub(crate) fn load_note(path: &Path) -> String {
     fs::read_to_string(path).unwrap_or_default()
 }
@@ -220,9 +233,95 @@ pub(crate) fn load_or_init_last_modified(paths: &Paths, id: &str) -> Result<Date
     Ok(modified_at)
 }
 
-pub(crate) fn touch_account_modified(paths: &Paths, id: &str) -> Result<DateTime<Utc>, String> {
+fn file_modified_or_fallback(path: PathBuf, fallback: &str) -> String {
+    fs::metadata(path)
+        .ok()
+        .and_then(|metadata| metadata.modified().ok())
+        .map(DateTime::<Utc>::from)
+        .unwrap_or_else(|| parse_last_modified(fallback).unwrap_or_else(Utc::now))
+        .to_rfc3339()
+}
+
+fn fill_missing_field_modified_at(
+    values: &mut AccountFieldModifiedAt,
+    paths: &Paths,
+    id: &str,
+    fallback: &str,
+) {
+    if values.auth.trim().is_empty() {
+        values.auth = file_modified_or_fallback(managed_auth_path(paths, id), fallback);
+    }
+    if values.note.trim().is_empty() {
+        values.note = file_modified_or_fallback(note_path(paths, id), fallback);
+    }
+    if values.expires_at.trim().is_empty() {
+        values.expires_at = file_modified_or_fallback(expiration_path(paths, id), fallback);
+    }
+    if values.usage.trim().is_empty() {
+        values.usage = file_modified_or_fallback(usage_path(paths, id), fallback);
+    }
+    if values.active.trim().is_empty() {
+        values.active = fallback.to_string();
+    }
+}
+
+pub(crate) fn load_or_init_account_field_modified_at(
+    paths: &Paths,
+    id: &str,
+) -> Result<AccountFieldModifiedAt, String> {
+    let fallback = load_or_init_last_modified(paths, id)?.to_rfc3339();
+    let path = field_modified_at_path(paths, id);
+    let mut values = fs::read(&path)
+        .ok()
+        .and_then(|bytes| serde_json::from_slice::<AccountFieldModifiedAt>(&bytes).ok())
+        .unwrap_or_default();
+    let original = serde_json::to_value(&values).map_err(|error| error.to_string())?;
+    fill_missing_field_modified_at(&mut values, paths, id, &fallback);
+    if serde_json::to_value(&values).map_err(|error| error.to_string())? != original {
+        save_account_field_modified_at(paths, id, &values)?;
+    }
+    Ok(values)
+}
+
+pub(crate) fn save_account_field_modified_at(
+    paths: &Paths,
+    id: &str,
+    values: &AccountFieldModifiedAt,
+) -> Result<(), String> {
+    let value = serde_json::to_value(values).map_err(|error| error.to_string())?;
+    write_json_atomic(&field_modified_at_path(paths, id), &value)?;
+    let latest = [
+        &values.auth,
+        &values.note,
+        &values.expires_at,
+        &values.usage,
+        &values.active,
+    ]
+    .into_iter()
+    .filter_map(|value| parse_last_modified(value))
+    .max();
+    if let Some(latest) = latest {
+        save_account_last_modified(paths, id, latest)?;
+    }
+    Ok(())
+}
+
+pub(crate) fn touch_account_field(
+    paths: &Paths,
+    id: &str,
+    field: AccountSyncField,
+) -> Result<DateTime<Utc>, String> {
     let modified_at = Utc::now();
-    save_account_last_modified(paths, id, modified_at)?;
+    let mut values = load_or_init_account_field_modified_at(paths, id)?;
+    let value = modified_at.to_rfc3339();
+    match field {
+        AccountSyncField::Auth => values.auth = value,
+        AccountSyncField::Note => values.note = value,
+        AccountSyncField::ExpiresAt => values.expires_at = value,
+        AccountSyncField::Usage => values.usage = value,
+        AccountSyncField::Active => values.active = value,
+    }
+    save_account_field_modified_at(paths, id, &values)?;
     Ok(modified_at)
 }
 
@@ -233,7 +332,7 @@ pub(crate) fn write_managed_auth_if_changed(
 ) -> Result<bool, String> {
     let changed = write_json_if_changed(&managed_auth_path(paths, id), auth)?;
     if changed {
-        touch_account_modified(paths, id)?;
+        touch_account_field(paths, id, AccountSyncField::Auth)?;
     }
     Ok(changed)
 }

@@ -240,6 +240,78 @@ describe('SyncService', () => {
     expect(redis.del).toHaveBeenCalledWith('sync:accounts:owner-1');
   });
 
+  it('merges a newer usage refresh without replacing a newer cloud note', async () => {
+    const existing = {
+      id: 'database-id',
+      ownerId: 'owner-1',
+      accountId: 'account-1',
+      email: 'account@example.com',
+      note: 'cloud note',
+      expiresAt: '2027-01-01',
+      plan: 'Plus',
+      codexAccountId: 'codex-1',
+      active: true,
+      usage: { used: 10 },
+      auth: { token: 'secret' },
+      lastModifiedAt: new Date('2026-07-05T00:00:00.000Z'),
+      fieldModifiedAt: {
+        auth: '2026-07-05T00:00:00.000Z',
+        note: '2026-07-05T00:00:00.000Z',
+        expiresAt: '2026-07-05T00:00:00.000Z',
+        usage: '2026-07-05T00:00:00.000Z',
+        active: '2026-07-05T00:00:00.000Z',
+      },
+    };
+    transactionRepository.findOne.mockResolvedValue(existing);
+    const incoming = makeAccount({
+      note: '',
+      usage: { used: 20 },
+      fieldModifiedAt: {
+        auth: '2026-07-04T00:00:00.000Z',
+        note: '2026-07-04T00:00:00.000Z',
+        expiresAt: '2026-07-04T00:00:00.000Z',
+        usage: '2026-07-06T00:00:00.000Z',
+        active: '2026-07-04T00:00:00.000Z',
+      },
+    });
+
+    await service.upsert('owner-1', incoming.id, incoming);
+
+    expect(transactionRepository.save).toHaveBeenCalledWith(expect.objectContaining({
+      note: 'cloud note',
+      usage: { used: 20 },
+      fieldModifiedAt: expect.objectContaining({
+        note: '2026-07-05T00:00:00.000Z',
+        usage: '2026-07-06T00:00:00.000Z',
+      }),
+    }));
+  });
+
+  it('does not let a legacy client overwrite versioned metadata with its account-wide timestamp', async () => {
+    const existing = {
+      id: 'database-id', ownerId: 'owner-1', accountId: 'account-1',
+      email: 'account@example.com', note: 'cloud note', expiresAt: '2027-01-01',
+      plan: 'Plus', codexAccountId: 'codex-1', active: true, usage: { used: 10 },
+      auth: { token: 'secret' }, lastModifiedAt: new Date('2026-07-05T00:00:00.000Z'),
+      fieldModifiedAt: {
+        auth: '2026-07-05T00:00:00.000Z', note: '2026-07-05T00:00:00.000Z',
+        expiresAt: '2026-07-05T00:00:00.000Z', usage: '2026-07-05T00:00:00.000Z',
+        active: '2026-07-05T00:00:00.000Z',
+      },
+    };
+    transactionRepository.findOne.mockResolvedValue(existing);
+    const legacy = makeAccount({
+      note: '', usage: { used: 20 }, lastModifiedAt: '2026-07-06T00:00:00.000Z',
+      fieldModifiedAt: undefined,
+    });
+
+    await service.upsert('owner-1', legacy.id, legacy);
+
+    expect(transactionRepository.save).toHaveBeenCalledWith(expect.objectContaining({
+      note: 'cloud note', usage: { used: 20 },
+    }));
+  });
+
   it('upserts a new inactive account without deactivating siblings', async () => {
     const account = makeAccount({ active: false, note: undefined as unknown as string,
       expiresAt: undefined as unknown as string, accountId: undefined,

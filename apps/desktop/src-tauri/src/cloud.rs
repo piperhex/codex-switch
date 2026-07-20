@@ -14,15 +14,15 @@ use uuid::Uuid;
 use crate::{
     auth::{account_fields, validate_auth},
     models::{
-        AppSettings, CloudAccountPayload, CloudAuthState, CloudSyncResult, ProviderProfile,
-        ProviderSyncPayload,
+        AccountFieldModifiedAt, AppSettings, CloudAccountPayload, CloudAuthState, CloudSyncResult,
+        ProviderProfile, ProviderSyncPayload,
     },
     storage::{
-        expiration_path, load_expiration, load_note, load_or_init_last_modified, load_usage,
-        managed_auth_path, note_path, parse_last_modified, read_app_settings, read_json,
-        read_state, resolve_paths, save_account_last_modified, save_expiration, save_note,
-        save_usage, sync_current_into_store, usage_path, write_app_settings, write_json_atomic,
-        write_json_if_changed, write_state,
+        expiration_path, load_expiration, load_note, load_or_init_account_field_modified_at,
+        load_or_init_last_modified, load_usage, managed_auth_path, note_path, parse_last_modified,
+        read_app_settings, read_json, read_state, resolve_paths, save_account_field_modified_at,
+        save_expiration, save_note, save_usage, sync_current_into_store, usage_path,
+        write_app_settings, write_json_atomic, write_json_if_changed, write_state,
     },
 };
 
@@ -329,6 +329,7 @@ fn collect_local_accounts<R: Runtime>(
         let auth = read_json(&auth_path)?;
         validate_auth(&auth)?;
         let (email, plan, account_id, id) = account_fields(&auth)?;
+        let field_modified_at = load_or_init_account_field_modified_at(&paths, &id)?;
         let last_modified_at = load_or_init_last_modified(&paths, &id)?.to_rfc3339();
         accounts.push(CloudAccountPayload {
             active: active_id.as_deref() == Some(&id),
@@ -336,6 +337,7 @@ fn collect_local_accounts<R: Runtime>(
             note: load_note(&note_path(&paths, &id)),
             expires_at: load_expiration(&expiration_path(&paths, &id)),
             last_modified_at,
+            field_modified_at,
             id,
             email,
             plan,
@@ -383,6 +385,32 @@ fn collect_local_provider<R: Runtime>(
         .ok_or_else(|| format!("Local provider {id} does not exist"))
 }
 
+fn normalize_account_field_modified_at(
+    mut values: AccountFieldModifiedAt,
+    fallback: &str,
+) -> AccountFieldModifiedAt {
+    for value in [
+        &mut values.auth,
+        &mut values.note,
+        &mut values.expires_at,
+        &mut values.usage,
+        &mut values.active,
+    ] {
+        if value.trim().is_empty() {
+            *value = fallback.to_string();
+        }
+    }
+    values
+}
+
+fn remote_field_is_newer(local: &str, remote: &str) -> bool {
+    match (parse_last_modified(local), parse_last_modified(remote)) {
+        (Some(local), Some(remote)) => remote > local,
+        (None, Some(_)) => true,
+        _ => false,
+    }
+}
+
 fn apply_remote_account<R: Runtime>(
     app: &tauri::AppHandle<R>,
     account: &CloudAccountPayload,
@@ -402,38 +430,64 @@ fn apply_remote_account<R: Runtime>(
         validate_auth(auth).is_ok()
             && matches!(account_fields(auth), Ok((_, _, _, local_id)) if local_id == account.id)
     });
-    let local_modified_at = if local_usable {
-        Some(load_or_init_last_modified(&paths, &account.id)?)
-    } else {
-        None
-    };
-    let remote_modified_at = parse_last_modified(&account.last_modified_at);
-    let should_apply_remote = !local_usable
-        || match (local_modified_at.as_ref(), remote_modified_at.as_ref()) {
-            (Some(local), Some(remote)) => remote > local,
-            (None, _) => true,
-            (Some(_), None) => false,
-        };
+    let mut local_field_modified_at = load_or_init_account_field_modified_at(&paths, &account.id)?;
+    let remote_field_modified_at = normalize_account_field_modified_at(
+        account.field_modified_at.clone(),
+        &account.last_modified_at,
+    );
+    let apply_auth = !local_usable
+        || remote_field_is_newer(
+            &local_field_modified_at.auth,
+            &remote_field_modified_at.auth,
+        );
+    let apply_note = remote_field_is_newer(
+        &local_field_modified_at.note,
+        &remote_field_modified_at.note,
+    );
+    let apply_expires_at = remote_field_is_newer(
+        &local_field_modified_at.expires_at,
+        &remote_field_modified_at.expires_at,
+    );
+    let apply_usage = remote_field_is_newer(
+        &local_field_modified_at.usage,
+        &remote_field_modified_at.usage,
+    );
+    let apply_active = remote_field_is_newer(
+        &local_field_modified_at.active,
+        &remote_field_modified_at.active,
+    );
 
-    let account_auth = if should_apply_remote {
+    let account_auth = if apply_auth {
         write_json_if_changed(&auth_path, &account.auth)?;
-        save_note(&note_path(&paths, &account.id), &account.note)?;
-        save_expiration(&expiration_path(&paths, &account.id), &account.expires_at)?;
-        save_usage(&usage_path(&paths, &account.id), &account.usage)?;
-        save_account_last_modified(
-            &paths,
-            &account.id,
-            remote_modified_at.unwrap_or_else(Utc::now),
-        )?;
+        local_field_modified_at.auth = remote_field_modified_at.auth.clone();
         account.auth.clone()
     } else {
         local_auth.unwrap_or_else(|| account.auth.clone())
     };
 
+    if apply_note {
+        save_note(&note_path(&paths, &account.id), &account.note)?;
+        local_field_modified_at.note = remote_field_modified_at.note.clone();
+    }
+    if apply_expires_at {
+        save_expiration(&expiration_path(&paths, &account.id), &account.expires_at)?;
+        local_field_modified_at.expires_at = remote_field_modified_at.expires_at.clone();
+    }
+    if apply_usage {
+        save_usage(&usage_path(&paths, &account.id), &account.usage)?;
+        local_field_modified_at.usage = remote_field_modified_at.usage.clone();
+    }
+    if apply_active {
+        local_field_modified_at.active = remote_field_modified_at.active.clone();
+    }
+    if apply_auth || apply_note || apply_expires_at || apply_usage || apply_active {
+        save_account_field_modified_at(&paths, &account.id, &local_field_modified_at)?;
+    }
+
     let active_account_id = read_state(&paths).active_account_id;
-    if should_apply_remote && active_account_id.as_deref() == Some(&account.id) {
+    if apply_auth && active_account_id.as_deref() == Some(&account.id) {
         write_json_if_changed(&paths.current_auth, &account_auth)?;
-    } else if should_apply_remote && account.active && active_account_id.is_none() {
+    } else if apply_active && account.active && active_account_id.is_none() {
         write_json_if_changed(&paths.current_auth, &account_auth)?;
         let mut state = read_state(&paths);
         state.active_account_id = Some(account.id.clone());
@@ -442,7 +496,7 @@ fn apply_remote_account<R: Runtime>(
             crate::providers::apply_local_proxy_config_for_paths(&paths)?;
         }
     }
-    Ok(should_apply_remote)
+    Ok(apply_auth || apply_note || apply_expires_at || apply_usage || apply_active)
 }
 
 fn apply_remote_provider<R: Runtime>(
@@ -1103,6 +1157,14 @@ async fn cloud_authenticate<R: Runtime>(
         if let Some(user) = tokens.user {
             settings.cloud_user_id = Some(user.id);
             settings.cloud_user_email = Some(user.email);
+        }
+        // A returning device may hold an older local copy. Merge the cloud state first so a
+        // login cannot immediately publish that stale copy over newer cloud fields.
+        for account in get_remote_accounts(&client, &mut settings, &mut credentials)? {
+            apply_remote_account(&app, &account)?;
+        }
+        for provider in get_remote_providers(&client, &mut settings, &mut credentials)? {
+            apply_remote_provider(&app, &provider)?;
         }
         let _ = put_remote_accounts(&app, &client, &mut settings, &mut credentials)?;
         let _ = put_remote_providers(&app, &client, &mut settings, &mut credentials)?;

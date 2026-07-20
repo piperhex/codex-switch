@@ -24,6 +24,19 @@ export type AdminSyncAccountDto = SyncAccountDto & {
 
 export type PortalSyncAccountDto = Omit<AdminSyncAccountDto, 'auth'>;
 
+type AccountFieldModifiedAt = {
+  auth: string;
+  note: string;
+  expiresAt: string;
+  usage: string;
+  active: string;
+};
+
+interface AccountMergeResult {
+  account: Partial<SyncedAccountEntity>;
+  activeApplied: boolean;
+}
+
 export interface SystemAccountDto {
   id: string;
   syncAccountId: string;
@@ -86,25 +99,12 @@ export class SyncService {
       for (const account of dto.accounts) {
         if (managedIds.has(account.id)) continue;
         const existing = await repo.findOne({ where: { ownerId, accountId: account.id } });
-        const incomingLastModifiedAt = this.parseLastModifiedAt(account.lastModifiedAt);
-        if (!this.shouldApplyIncoming(existing, incomingLastModifiedAt)) continue;
-        if (account.active) {
+        const merged = this.mergeIncomingAccount(existing, ownerId, account);
+        if (!merged) continue;
+        if (merged.activeApplied && merged.account.active) {
           await repo.update({ ownerId }, { active: false });
         }
-        await repo.save(repo.create({
-          id: existing?.id,
-          ownerId,
-          accountId: account.id,
-          email: account.email,
-          note: account.note ?? '',
-          expiresAt: account.expiresAt ?? '',
-          plan: account.plan,
-          codexAccountId: account.accountId ?? null,
-          active: account.active,
-          usage: account.usage ?? {},
-          lastModifiedAt: incomingLastModifiedAt,
-          auth: account.auth,
-        }));
+        await repo.save(repo.create(merged.account));
       }
     });
     await this.redis.del(this.cacheKey(ownerId));
@@ -121,25 +121,12 @@ export class SyncService {
     await this.dataSource.transaction(async (manager) => {
       const repo = manager.getRepository(SyncedAccountEntity);
       const existing = await repo.findOne({ where: { ownerId, accountId } });
-      const incomingLastModifiedAt = this.parseLastModifiedAt(account.lastModifiedAt);
-      if (!this.shouldApplyIncoming(existing, incomingLastModifiedAt)) return;
-      if (account.active) {
+      const merged = this.mergeIncomingAccount(existing, ownerId, account);
+      if (!merged) return;
+      if (merged.activeApplied && merged.account.active) {
         await repo.update({ ownerId }, { active: false });
       }
-      await repo.save(repo.create({
-        id: existing?.id,
-        ownerId,
-        accountId: account.id,
-        email: account.email,
-        note: account.note ?? '',
-        expiresAt: account.expiresAt ?? '',
-        plan: account.plan,
-        codexAccountId: account.accountId ?? null,
-        active: account.active,
-        usage: account.usage ?? {},
-        lastModifiedAt: incomingLastModifiedAt,
-        auth: account.auth,
-      }));
+      await repo.save(repo.create(merged.account));
     });
     await this.redis.del(this.cacheKey(ownerId));
     return { id: accountId };
@@ -475,25 +462,166 @@ export class SyncService {
     }
     const account = await this.accounts.findOne({ where: { ownerId, accountId } });
     if (!account) throw new NotFoundException('Synced account not found');
+    const fieldModifiedAt = this.normalizeAccountFieldModifiedAt(
+      account.fieldModifiedAt,
+      this.formatLastModifiedAt(account.lastModifiedAt ?? account.updatedAt),
+    );
+    const modifiedAt = this.formatLastModifiedAt(
+      patch.lastModifiedAt === undefined ? new Date() : this.parseLastModifiedAt(patch.lastModifiedAt),
+    );
     if (patch.active === true) {
       await this.accounts.update({ ownerId }, { active: false });
     }
     if (patch.email !== undefined) account.email = patch.email;
-    if (patch.note !== undefined) account.note = patch.note ?? '';
-    if (patch.expiresAt !== undefined) account.expiresAt = patch.expiresAt ?? '';
     if (patch.plan !== undefined) account.plan = patch.plan;
     if (patch.accountId !== undefined) account.codexAccountId = patch.accountId ?? null;
-    if (patch.active !== undefined) account.active = patch.active;
-    if (patch.usage !== undefined) account.usage = patch.usage ?? {};
-    if (patch.lastModifiedAt !== undefined) {
-      account.lastModifiedAt = this.parseLastModifiedAt(patch.lastModifiedAt);
-    } else if (Object.keys(patch).some((key) => key !== 'lastModifiedAt')) {
-      account.lastModifiedAt = new Date();
-    }
     if (patch.auth !== undefined) account.auth = patch.auth;
+    if (patch.email !== undefined || patch.plan !== undefined || patch.accountId !== undefined || patch.auth !== undefined) {
+      fieldModifiedAt.auth = modifiedAt;
+    }
+    if (patch.note !== undefined) {
+      account.note = patch.note ?? '';
+      fieldModifiedAt.note = modifiedAt;
+    }
+    if (patch.expiresAt !== undefined) {
+      account.expiresAt = patch.expiresAt ?? '';
+      fieldModifiedAt.expiresAt = modifiedAt;
+    }
+    if (patch.usage !== undefined) {
+      account.usage = patch.usage ?? {};
+      fieldModifiedAt.usage = modifiedAt;
+    }
+    if (patch.active !== undefined) {
+      account.active = patch.active;
+      fieldModifiedAt.active = modifiedAt;
+    }
+    account.fieldModifiedAt = fieldModifiedAt;
+    account.lastModifiedAt = this.latestAccountFieldModifiedAt(fieldModifiedAt);
     const saved = await this.accounts.save(account);
     await this.redis.del(this.cacheKey(ownerId));
     return this.toDto(saved);
+  }
+
+  private mergeIncomingAccount(
+    existing: SyncedAccountEntity | null,
+    ownerId: string,
+    incoming: SyncAccountDto,
+  ): AccountMergeResult | null {
+    const incomingFieldModifiedAt = this.normalizeAccountFieldModifiedAt(
+      incoming.fieldModifiedAt,
+      incoming.lastModifiedAt,
+    );
+    if (!existing) {
+      return {
+        activeApplied: true,
+        account: {
+          id: undefined,
+          ownerId,
+          accountId: incoming.id,
+          email: incoming.email,
+          note: incoming.note ?? '',
+          expiresAt: incoming.expiresAt ?? '',
+          plan: incoming.plan,
+          codexAccountId: incoming.accountId ?? null,
+          active: incoming.active,
+          usage: incoming.usage ?? {},
+          auth: incoming.auth,
+          fieldModifiedAt: incomingFieldModifiedAt,
+          lastModifiedAt: this.latestAccountFieldModifiedAt(incomingFieldModifiedAt),
+        },
+      };
+    }
+
+    const existingFieldModifiedAt = this.normalizeAccountFieldModifiedAt(
+      existing.fieldModifiedAt,
+      this.formatLastModifiedAt(existing.lastModifiedAt ?? existing.updatedAt),
+    );
+    const incomingHasFieldVersions = Object.values(incoming.fieldModifiedAt ?? {})
+      .some((value) => typeof value === 'string' && value.trim().length > 0);
+    const existingHasFieldVersions = Object.values(existing.fieldModifiedAt ?? {})
+      .some((value) => typeof value === 'string' && value.trim().length > 0);
+    const account: Partial<SyncedAccountEntity> = {
+      id: existing.id,
+      ownerId,
+      accountId: incoming.id,
+      email: existing.email,
+      note: existing.note,
+      expiresAt: existing.expiresAt,
+      plan: existing.plan,
+      codexAccountId: existing.codexAccountId ?? null,
+      active: existing.active,
+      usage: existing.usage,
+      auth: existing.auth,
+      lastModifiedAt: existing.lastModifiedAt,
+      fieldModifiedAt: { ...existingFieldModifiedAt },
+    };
+    let changed = false;
+    let activeApplied = false;
+    if (this.isIncomingFieldNewer(existingFieldModifiedAt.auth, incomingFieldModifiedAt.auth)) {
+      account.email = incoming.email;
+      account.plan = incoming.plan;
+      account.codexAccountId = incoming.accountId ?? null;
+      account.auth = incoming.auth;
+      account.fieldModifiedAt!.auth = incomingFieldModifiedAt.auth;
+      changed = true;
+    }
+    // Legacy desktop clients only send one account-wide timestamp. Once an account has
+    // field-level versions, letting that legacy timestamp update metadata would recreate the
+    // usage-refresh-overwrites-note bug. Preserve note and expiration until that client updates.
+    if ((incomingHasFieldVersions || !existingHasFieldVersions)
+      && this.isIncomingFieldNewer(existingFieldModifiedAt.note, incomingFieldModifiedAt.note)) {
+      account.note = incoming.note ?? '';
+      account.fieldModifiedAt!.note = incomingFieldModifiedAt.note;
+      changed = true;
+    }
+    if ((incomingHasFieldVersions || !existingHasFieldVersions)
+      && this.isIncomingFieldNewer(existingFieldModifiedAt.expiresAt, incomingFieldModifiedAt.expiresAt)) {
+      account.expiresAt = incoming.expiresAt ?? '';
+      account.fieldModifiedAt!.expiresAt = incomingFieldModifiedAt.expiresAt;
+      changed = true;
+    }
+    if (this.isIncomingFieldNewer(existingFieldModifiedAt.usage, incomingFieldModifiedAt.usage)) {
+      account.usage = incoming.usage ?? {};
+      account.fieldModifiedAt!.usage = incomingFieldModifiedAt.usage;
+      changed = true;
+    }
+    if (this.isIncomingFieldNewer(existingFieldModifiedAt.active, incomingFieldModifiedAt.active)) {
+      account.active = incoming.active;
+      account.fieldModifiedAt!.active = incomingFieldModifiedAt.active;
+      activeApplied = true;
+      changed = true;
+    }
+    if (!changed) return null;
+    account.lastModifiedAt = this.latestAccountFieldModifiedAt(account.fieldModifiedAt!);
+    return { account, activeApplied };
+  }
+
+  private normalizeAccountFieldModifiedAt(
+    value: Partial<AccountFieldModifiedAt> | undefined,
+    fallback: string | undefined,
+  ): AccountFieldModifiedAt {
+    const defaultValue = this.formatLastModifiedAt(this.parseLastModifiedAt(fallback));
+    return {
+      auth: this.formatLastModifiedAt(this.parseLastModifiedAt(value?.auth ?? defaultValue)),
+      note: this.formatLastModifiedAt(this.parseLastModifiedAt(value?.note ?? defaultValue)),
+      expiresAt: this.formatLastModifiedAt(this.parseLastModifiedAt(value?.expiresAt ?? defaultValue)),
+      usage: this.formatLastModifiedAt(this.parseLastModifiedAt(value?.usage ?? defaultValue)),
+      active: this.formatLastModifiedAt(this.parseLastModifiedAt(value?.active ?? defaultValue)),
+    };
+  }
+
+  private isIncomingFieldNewer(existing: string, incoming: string) {
+    return this.parseLastModifiedAt(incoming) > this.parseLastModifiedAt(existing);
+  }
+
+  private latestAccountFieldModifiedAt(values: Partial<AccountFieldModifiedAt>) {
+    return new Date(Math.max(
+      this.parseLastModifiedAt(values.auth).getTime(),
+      this.parseLastModifiedAt(values.note).getTime(),
+      this.parseLastModifiedAt(values.expiresAt).getTime(),
+      this.parseLastModifiedAt(values.usage).getTime(),
+      this.parseLastModifiedAt(values.active).getTime(),
+    ));
   }
 
   private toDto(row: SyncedAccountEntity): SyncAccountDto {
@@ -507,6 +635,10 @@ export class SyncService {
       active: row.active,
       usage: row.usage,
       lastModifiedAt: this.formatLastModifiedAt(row.lastModifiedAt ?? row.updatedAt),
+      fieldModifiedAt: this.normalizeAccountFieldModifiedAt(
+        row.fieldModifiedAt,
+        this.formatLastModifiedAt(row.lastModifiedAt ?? row.updatedAt),
+      ),
       auth: row.auth,
     };
   }

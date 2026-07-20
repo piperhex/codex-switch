@@ -49,6 +49,9 @@ export class SyncedAccountEntity {
   @Column({ type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
   lastModifiedAt: Date;
 
+  @Column({ type: 'jsonb', default: {} })
+  fieldModifiedAt: Record<string, string>;
+
   @Column({ type: 'jsonb' })
   auth: Record<string, unknown>;
 
