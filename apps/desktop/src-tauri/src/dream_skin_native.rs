@@ -162,7 +162,8 @@ fn bundled_root(app: &AppHandle) -> Result<PathBuf, String> {
                 .join("windows")
                 .join("renderer-inject.js")
                 .is_file()
-                && path.join("assets")
+                && path
+                    .join("assets")
                     .join("macos")
                     .join("renderer-inject.js")
                     .is_file()
@@ -216,7 +217,10 @@ fn ensure_no_reparse_points(path: &Path) -> Result<(), String> {
             Ok(_) => {}
             Err(error) if error.kind() == ErrorKind::NotFound => {}
             Err(error) => {
-                return Err(format!("Failed to inspect {}: {error}", candidate.display()));
+                return Err(format!(
+                    "Failed to inspect {}: {error}",
+                    candidate.display()
+                ));
             }
         }
         current = candidate.parent();
@@ -238,7 +242,10 @@ fn ensure_no_reparse_points(path: &Path) -> Result<(), String> {
             Ok(_) => {}
             Err(error) if error.kind() == ErrorKind::NotFound => {}
             Err(error) => {
-                return Err(format!("Failed to inspect {}: {error}", candidate.display()));
+                return Err(format!(
+                    "Failed to inspect {}: {error}",
+                    candidate.display()
+                ));
             }
         }
         current = candidate.parent();
@@ -252,7 +259,10 @@ fn ensure_directory(path: &Path) -> Result<(), String> {
         .map_err(|error| format!("Failed to create {}: {error}", path.display()))?;
     ensure_no_reparse_points(path)?;
     if !path.is_dir() {
-        return Err(format!("Managed path is not a directory: {}", path.display()));
+        return Err(format!(
+            "Managed path is not a directory: {}",
+            path.display()
+        ));
     }
     Ok(())
 }
@@ -341,8 +351,7 @@ fn normalize_theme_document(mut document: Value, fallback_id: &str) -> Result<Va
         .get("name")
         .and_then(Value::as_str)
         .unwrap_or("Codex Dream Skin");
-    if name.trim().is_empty() || name.chars().count() > 120 || name.chars().any(char::is_control)
-    {
+    if name.trim().is_empty() || name.chars().count() > 120 || name.chars().any(char::is_control) {
         return Err("Theme name is invalid.".to_string());
     }
     object.insert("name".to_string(), Value::String(name.to_string()));
@@ -378,7 +387,10 @@ fn normalize_theme_document(mut document: Value, fallback_id: &str) -> Result<Va
         .and_then(Value::as_str)
         .unwrap_or("auto")
         .to_string();
-    if !matches!(safe_area.as_str(), "auto" | "left" | "right" | "center" | "none") {
+    if !matches!(
+        safe_area.as_str(),
+        "auto" | "left" | "right" | "center" | "none"
+    ) {
         return Err("Theme safe area is invalid.".to_string());
     }
     let task_mode = art
@@ -570,7 +582,11 @@ fn load_payload(paths: &RuntimePaths) -> Result<LoadedPayload, String> {
         .map_err(|error| format!("Failed to read Dream Skin CSS: {error}"))?;
     let template = fs::read_to_string(assets.join("renderer-inject.js"))
         .map_err(|error| format!("Failed to read Dream Skin renderer: {error}"))?;
-    let art_data_url = format!("data:{};base64,{}", theme.mime, BASE64.encode(&theme.image_bytes));
+    let art_data_url = format!(
+        "data:{};base64,{}",
+        theme.mime,
+        BASE64.encode(&theme.image_bytes)
+    );
     let css_json = serde_json::to_string(&css).map_err(|error| error.to_string())?;
     let art_json = serde_json::to_string(&art_data_url).map_err(|error| error.to_string())?;
     let theme_json = serde_json::to_string(&theme.document).map_err(|error| error.to_string())?;
@@ -832,7 +848,11 @@ fn inject_target(
     })
 }
 
-fn remove_target(target: &CdpTarget, port: u16, previous_script: Option<&str>) -> Result<(), String> {
+fn remove_target(
+    target: &CdpTarget,
+    port: u16,
+    previous_script: Option<&str>,
+) -> Result<(), String> {
     let mut session = CdpSession::connect(target, port)?;
     session.enable()?;
     if let Some(identifier) = previous_script {
@@ -863,17 +883,26 @@ fn monitor_iteration(
         *last_port = Some(port);
     }
     let paused = pause_path()?.is_file();
-    let payload = if paused { None } else { Some(load_payload(paths)?) };
+    let payload = if paused {
+        None
+    } else {
+        Some(load_payload(paths)?)
+    };
     let targets = list_targets(port)?;
     injected.retain(|id, _| targets.iter().any(|target| &target.id == id));
     for target in targets {
         let current = injected.get(&target.id).cloned();
         if paused {
-            if current.as_ref().is_none_or(|entry| entry.revision != "paused") {
+            if current
+                .as_ref()
+                .is_none_or(|entry| entry.revision != "paused")
+            {
                 remove_target(
                     &target,
                     port,
-                    current.as_ref().and_then(|entry| entry.early_script_id.as_deref()),
+                    current
+                        .as_ref()
+                        .and_then(|entry| entry.early_script_id.as_deref()),
                 )?;
                 injected.insert(
                     target.id,
@@ -892,7 +921,9 @@ fn monitor_iteration(
                     &target,
                     port,
                     payload,
-                    current.as_ref().and_then(|entry| entry.early_script_id.as_deref()),
+                    current
+                        .as_ref()
+                        .and_then(|entry| entry.early_script_id.as_deref()),
                 )?;
                 injected.insert(target.id, next);
             }
@@ -906,7 +937,10 @@ fn monitor_loop(control: Arc<MonitorControl>) {
     let mut last_port = None;
     loop {
         let paths = {
-            let guard = control.paths.lock().unwrap_or_else(|error| error.into_inner());
+            let guard = control
+                .paths
+                .lock()
+                .unwrap_or_else(|error| error.into_inner());
             let (guard, _) = control
                 .wake
                 .wait_timeout(guard, Duration::from_millis(1200))
@@ -979,7 +1013,9 @@ fn wait_for_verified(port: u16, timeout: Duration) -> Result<Vec<Value>, String>
                         session.enable()?;
                         session.evaluate(VERIFY_PAYLOAD)
                     }) {
-                        Ok(value) => last_results.push(json!({ "targetId": target.id, "result": value })),
+                        Ok(value) => {
+                            last_results.push(json!({ "targetId": target.id, "result": value }))
+                        }
                         Err(error) => last_error = error,
                     }
                 }
@@ -1086,7 +1122,8 @@ fn find_codex_install() -> Result<CodexInstall, String> {
             .map_err(|error| format!("Failed to inspect a package id: {error}"))?;
         if id.Name().map(|name| name.to_string()).unwrap_or_default() != "OpenAI.Codex"
             || package.IsDevelopmentMode().unwrap_or(true)
-            || package.SignatureKind().ok() != Some(windows::ApplicationModel::PackageSignatureKind::Store)
+            || package.SignatureKind().ok()
+                != Some(windows::ApplicationModel::PackageSignatureKind::Store)
         {
             continue;
         }
@@ -1117,7 +1154,12 @@ fn find_codex_install() -> Result<CodexInstall, String> {
             if aumid.starts_with(&format!("{}!", id.FamilyName().unwrap_or_default())) {
                 let version = id.Version().unwrap_or_default();
                 matches.push((
-                    (version.Major, version.Minor, version.Build, version.Revision),
+                    (
+                        version.Major,
+                        version.Minor,
+                        version.Build,
+                        version.Revision,
+                    ),
                     CodexInstall {
                         executable: executable.clone(),
                         app_user_model_id: aumid,
@@ -1127,12 +1169,9 @@ fn find_codex_install() -> Result<CodexInstall, String> {
         }
     }
     matches.sort_by_key(|(version, _)| *version);
-    matches
-        .pop()
-        .map(|(_, install)| install)
-        .ok_or_else(|| {
-            "The official OpenAI Codex Microsoft Store package is not installed.".to_string()
-        })
+    matches.pop().map(|(_, install)| install).ok_or_else(|| {
+        "The official OpenAI Codex Microsoft Store package is not installed.".to_string()
+    })
 }
 
 #[cfg(target_os = "windows")]
@@ -1140,7 +1179,10 @@ fn launch_codex(install: &CodexInstall, arguments: &str) -> Result<u32, String> 
     use windows::{
         core::HSTRING,
         Win32::{
-            System::Com::{CoCreateInstance, CoInitializeEx, CoUninitialize, CLSCTX_LOCAL_SERVER, COINIT_APARTMENTTHREADED},
+            System::Com::{
+                CoCreateInstance, CoInitializeEx, CoUninitialize, CLSCTX_LOCAL_SERVER,
+                COINIT_APARTMENTTHREADED,
+            },
             UI::Shell::{ApplicationActivationManager, IApplicationActivationManager, AO_NONE},
         },
     };
@@ -1156,10 +1198,9 @@ fn launch_codex(install: &CodexInstall, arguments: &str) -> Result<u32, String> 
         .ok()
         .map_err(|error| format!("Failed to initialize Windows app activation: {error}"))?;
     let _com = ComGuard;
-    let manager: IApplicationActivationManager = unsafe {
-        CoCreateInstance(&ApplicationActivationManager, None, CLSCTX_LOCAL_SERVER)
-    }
-    .map_err(|error| format!("Failed to create Windows app activation manager: {error}"))?;
+    let manager: IApplicationActivationManager =
+        unsafe { CoCreateInstance(&ApplicationActivationManager, None, CLSCTX_LOCAL_SERVER) }
+            .map_err(|error| format!("Failed to create Windows app activation manager: {error}"))?;
     unsafe {
         manager.ActivateApplication(
             &HSTRING::from(&install.app_user_model_id),
@@ -1208,9 +1249,7 @@ fn restart_with_skin(paths: &RuntimePaths) -> Result<(), String> {
     let install = find_codex_install()?;
     stop_codex(&install)?;
     let port = select_port()?;
-    let arguments = format!(
-        "--remote-debugging-address=127.0.0.1 --remote-debugging-port={port}"
-    );
+    let arguments = format!("--remote-debugging-address=127.0.0.1 --remote-debugging-port={port}");
     let mut state = read_session();
     state.session = "active".to_string();
     state.port = Some(port);
@@ -1231,9 +1270,7 @@ pub(crate) fn setup(app: &AppHandle) -> Result<(), String> {
     }
     let root = bundled_root(app)?;
     initialize_store(&root)?;
-    ensure_monitor(RuntimePaths {
-        bundled_root: root,
-    });
+    ensure_monitor(RuntimePaths { bundled_root: root });
     Ok(())
 }
 
@@ -1444,9 +1481,9 @@ pub(crate) fn verify(app: &AppHandle) -> Result<String, String> {
         .map_err(|_| "Dream Skin operation lock is unavailable.".to_string())?;
     ensure_installed(app)?;
     let state = read_session();
-    let port = state
-        .port
-        .ok_or_else(|| "Dream Skin is installed but Codex has not been launched with it.".to_string())?;
+    let port = state.port.ok_or_else(|| {
+        "Dream Skin is installed but Codex has not been launched with it.".to_string()
+    })?;
     let targets = wait_for_verified(port, Duration::from_secs(10))?;
     serde_json::to_string_pretty(&json!({
         "pass": true,
