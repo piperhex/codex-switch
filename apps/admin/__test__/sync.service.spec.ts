@@ -331,7 +331,7 @@ describe('SyncService', () => {
     expect(redis.del).toHaveBeenCalledWith('sync:accounts:owner-1');
   });
 
-  it('does not let an assigned user overwrite or delete a system-pool account', async () => {
+  it('does not let an assigned user overwrite a system-pool account, but unbinds it on delete', async () => {
     systemBindings.find.mockResolvedValue([{
       systemAccountId: '10000000-0000-4000-8000-000000000001',
       userId: 'owner-1',
@@ -345,6 +345,11 @@ describe('SyncService', () => {
 
     expect(dataSource.transaction).not.toHaveBeenCalled();
     expect(accounts.delete).not.toHaveBeenCalled();
+    expect(systemBindings.delete).toHaveBeenCalledWith({
+      systemAccountId: '10000000-0000-4000-8000-000000000001',
+      userId: 'owner-1',
+    });
+    expect(redis.del).toHaveBeenCalledWith('sync:accounts:owner-1');
   });
 
   it('loads and caches synced providers without exposing other owners', async () => {

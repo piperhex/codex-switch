@@ -133,7 +133,14 @@ export class SyncService {
   }
 
   async delete(ownerId: string, accountId: string) {
-    if (await this.isSystemAccountBound(ownerId, accountId)) {
+    const bindings = await this.loadSystemBindings(ownerId);
+    const binding = bindings.find((item) => item.account.syncAccountId === accountId);
+    if (binding) {
+      await this.systemBindings.delete({
+        systemAccountId: binding.systemAccountId,
+        userId: ownerId,
+      });
+      await this.redis.del(this.cacheKey(ownerId));
       return { id: accountId };
     }
     await this.accounts.delete({ ownerId, accountId });
