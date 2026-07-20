@@ -57,27 +57,12 @@ button:focus-visible { outline: 3px solid rgba(45, 131, 87, .24); outline-offset
 .security-chip span { display: grid; gap: 3px; }
 .security-chip b { font-size: 12px; color: #e8f1e9; }
 .security-chip small { font-size: 10px; color: #829187; }
-.cloud-login-chip, .cloud-chip { min-height: 43px; display: flex; gap: 9px; align-items: center; padding: 8px 10px; border: 1px solid rgba(var(--green-rgb), .24); border-radius: 10px; background: rgba(255,255,255,.04); color: var(--green-highlight); }
-.cloud-login-chip { cursor: pointer; }
-.cloud-login-chip:hover:not(:disabled) { background: rgba(255,255,255,.08); }
-.cloud-login-chip:disabled { opacity: .62; cursor: default; }
-.cloud-login-chip span, .cloud-chip span { display: grid; gap: 3px; min-width: 0; }
-.cloud-login-chip b, .cloud-chip b { max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: #e8f1e9; }
-.cloud-login-chip small, .cloud-chip small { font-size: 10px; color: #829187; }
-.cloud-account-summary { min-width: 0; margin: -3px; border: 0; border-radius: 7px; display: flex; align-items: flex-start; gap: 9px; padding: 3px; text-align: left; color: var(--green-highlight); background: transparent; cursor: pointer; }
-.cloud-account-summary:hover { background: rgba(255,255,255,.08); }
-.cloud-account-summary:focus-visible { outline: 2px solid rgba(196,215,200,.62); outline-offset: 2px; }
-.cloud-account-summary > svg { flex: 0 0 auto; }
-.cloud-chip-actions { margin-left: 2px; display: flex; align-items: center; gap: 3px; }
-.cloud-icon-button { width: 25px; height: 25px; border: 0; border-radius: 7px; display: grid; place-items: center; color: #a7d6aa; background: transparent; cursor: pointer; }
-.cloud-icon-button:hover:not(:disabled) { color: #eff7ef; background: rgba(255,255,255,.08); }
-.cloud-icon-button:disabled { opacity: .5; cursor: default; }
-.help-actions { display: flex; align-items: center; gap: 16px; }
-.help-button { border: 0; color: #819086; display: flex; align-items: center; gap: 9px; background: transparent; cursor: pointer; padding: 8px 11px; font-size: 12px; }
-.help-button:hover { color: #dbe6de; }
-.github-button { width: 34px; height: 34px; border: 0; border-radius: 8px; display: grid; place-items: center; color: #819086; background: transparent; cursor: pointer; }
-.github-button:hover { color: #dbe6de; background: rgba(255,255,255,.06); }
-
+.cloud-avatar-button { width: 36px; height: 36px; border: 1px solid rgba(var(--green-rgb), .35); border-radius: 50%; display: grid; place-items: center; padding: 0; color: var(--green-highlight); background: rgba(255,255,255,.05); cursor: pointer; transition: .18s ease; }
+.cloud-avatar-button:hover:not(:disabled), .cloud-avatar-button.authenticated { color: #eff7ef; border-color: var(--green-highlight); background: rgba(var(--green-rgb), .28); }
+.cloud-avatar-button span { font: 700 11px/1 Manrope, sans-serif; letter-spacing: .02em; }
+.cloud-avatar-button:disabled { opacity: .62; cursor: default; }
+.cloud-sync-action { border-color: rgba(var(--green-rgb), .4); color: var(--green-dark); background: var(--green-soft); }
+.cloud-sync-action:hover:not(:disabled) { border-color: var(--green); color: var(--green-dark); background: var(--green-selection); }
 main { width: 100%; min-width: 0; min-height: 0; overflow-x: hidden; overflow-y: auto; scrollbar-gutter: stable; padding-bottom: 60px; }
 .page-panel[hidden] { display: none !important; }
 main.accounts-main { overflow: hidden; display: flex; flex-direction: column; padding-bottom: 0; }
@@ -836,12 +821,7 @@ main.tokens-main { overflow: hidden; padding-bottom: 0; }
   .top-tabs button { gap: 5px; padding-inline: 8px; font-size: 11px; }
   .top-tabs button svg { width: 16px; height: 16px; }
   .menu-tools { gap: 4px; }
-  .cloud-login-chip, .cloud-chip { gap: 6px; padding-inline: 8px; }
-  .cloud-login-chip small, .cloud-chip small, .security-chip small { display: none; }
-  .cloud-login-chip b, .cloud-chip b { max-width: 100px; font-size: 11px; }
-  .help-actions { gap: 2px; }
-  .help-button { width: 34px; height: 34px; padding: 0; justify-content: center; gap: 0; font-size: 0; }
-  .github-button { display: none; }
+  .security-chip small { display: none; }
   .usage-copy { min-width: 85px; }
   .provider-official, .provider-proxy { align-items: flex-start; flex-wrap: wrap; }
   .provider-official-actions { margin-left: 40px; flex-wrap: wrap; justify-content: flex-start; }

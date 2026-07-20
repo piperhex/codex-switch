@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Button, ColorPicker, Input, InputNumber, Segmented, Space, Switch } from "antd";
-import { CalendarDays, CircleGauge, Cloud, EyeOff, FileDown, FolderKey, FolderOpen, KeyRound, Languages, LayoutGrid, Palette, RefreshCw, Save, ShieldCheck, TableProperties } from "lucide-react";
+import { CalendarDays, CircleGauge, Cloud, EyeOff, FileDown, FolderKey, FolderOpen, KeyRound, Languages, LayoutGrid, Palette, RefreshCw, ShieldCheck, TableProperties } from "lucide-react";
 import { MAX_AUTO_REFRESH_SECONDS, MIN_AUTO_REFRESH_SECONDS } from "../hooks/useAutoRefresh";
 import { MAX_TOKEN_USAGE_REFRESH_SECONDS, MAX_TOKEN_USAGE_WEEKS, MIN_TOKEN_USAGE_REFRESH_SECONDS, MIN_TOKEN_USAGE_WEEKS } from "../hooks/useTokenUsagePreferences";
 import type { AccountDisplayMode } from "../hooks/useAccountDisplayMode";
@@ -126,11 +126,12 @@ export function SettingsPage({
             <label htmlFor="cloud-base-url">{t("settings.cloud.label")}</label>
             <Input id="cloud-base-url" value={cloudBaseUrlDraft} disabled={cloudBaseUrlLoading}
               allowClear placeholder={t("settings.cloud.placeholder")}
-              onChange={(event) => setCloudBaseUrlDraft(event.target.value)} />
-            <Button type="primary" size="small" icon={<Save size={14} />} loading={cloudBaseUrlLoading}
-              onClick={() => void onCloudBaseUrlSave(cloudBaseUrlDraft)}>{t("settings.cloud.save")}</Button>
+              onChange={(event) => setCloudBaseUrlDraft(event.target.value)}
+              onBlur={() => {
+                if (cloudBaseUrlDraft !== cloudBaseUrl) void onCloudBaseUrlSave(cloudBaseUrlDraft);
+              }} />
             {!usingOfficialCloudServer && (
-              <Button size="small" disabled={cloudBaseUrlLoading} onClick={() => {
+              <Button size="small" disabled={cloudBaseUrlLoading} onMouseDown={(event) => event.preventDefault()} onClick={() => {
                 setCloudBaseUrlDraft(DEFAULT_CLOUD_BASE_URL);
                 void onCloudBaseUrlSave(DEFAULT_CLOUD_BASE_URL);
               }}>

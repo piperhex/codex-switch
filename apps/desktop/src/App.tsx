@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ConfigProvider, Popconfirm, Tooltip, theme as antdTheme } from "antd";
+import { ConfigProvider, Dropdown, Popconfirm, Tooltip, theme as antdTheme } from "antd";
 import enUS from "antd/locale/en_US";
 import zhCN from "antd/locale/zh_CN";
 import { BarChart3, CalendarClock, Check, CircleHelp, Cloud, Download, Github, LogIn, LogOut, Megaphone, Palette, Plus, RefreshCw, RotateCcw, Server, Settings, ShieldCheck, Upload, UploadCloud, UserRound } from "lucide-react";
@@ -455,43 +455,46 @@ function DashboardApp() {
           </nav>
           <div className="menu-tools">
             {cloud.state.enabled ? (
-              cloud.state.authenticated ? (
-                <div className="cloud-chip">
-                  <button type="button" className="cloud-account-summary" onClick={openCloudAccount}
-                    aria-label={t("cloud.accountDetails")}>
-                    <Cloud size={16} /><span><b>{cloud.state.userEmail ?? t("cloud.signedIn")}</b><small>{t("cloud.synced")}</small></span>
-                  </button>
-                  <div className="cloud-chip-actions">
-                    <Tooltip title={t("cloud.sync")}>
-                      <button type="button" className="cloud-icon-button" aria-label={t("cloud.sync")}
-                        disabled={cloud.syncing} onClick={() => void syncCloud()}>
-                        <UploadCloud className={cloud.syncing ? "spin" : ""} size={16} />
-                      </button>
-                    </Tooltip>
-                    <Tooltip title={t("cloud.logout")}>
-                      <button type="button" className="cloud-icon-button" aria-label={t("cloud.logout")}
-                        disabled={cloud.loading} onClick={() => void cloud.logout()}>
-                        <LogOut size={16} />
-                      </button>
-                    </Tooltip>
-                  </div>
-                </div>
-              ) : (
-                <button type="button" className="cloud-login-chip" disabled={cloud.loading} onClick={openCloudLogin}>
-                  <LogIn size={16} /><span><b>{t("cloud.login")}</b><small>{t("cloud.loginDescription")}</small></span>
+              <>
+              <Dropdown
+                trigger={["click"]}
+                menu={{
+                  items: cloud.state.authenticated
+                    ? [
+                      { key: "account", icon: <Cloud size={15} />, label: t("cloud.accountDetails") },
+                      { type: "divider" },
+                      { key: "logout", icon: <LogOut size={15} />, label: t("cloud.logout"), disabled: cloud.loading },
+                      { type: "divider" },
+                      { key: "help", icon: <CircleHelp size={15} />, label: t("help.open") },
+                      { key: "repository", icon: <Github size={15} />, label: t("help.github") },
+                    ]
+                    : [
+                      { key: "login", icon: <LogIn size={15} />, label: t("cloud.login"), disabled: cloud.loading },
+                      { type: "divider" },
+                      { key: "help", icon: <CircleHelp size={15} />, label: t("help.open") },
+                      { key: "repository", icon: <Github size={15} />, label: t("help.github") },
+                    ],
+                  onClick: ({ key }) => {
+                    if (key === "account") openCloudAccount();
+                    if (key === "logout") void cloud.logout();
+                    if (key === "login") openCloudLogin();
+                    if (key === "help") openHelp();
+                    if (key === "repository") openRepository();
+                  },
+                }}
+              >
+                <button type="button" className={`cloud-avatar-button${cloud.state.authenticated ? " authenticated" : ""}`}
+                  aria-label={cloud.state.authenticated ? t("cloud.accountDetails") : t("cloud.login")}
+                  disabled={cloud.loading}>
+                  {cloud.state.authenticated
+                    ? <span>{(cloud.state.userEmail ?? t("cloud.signedIn")).slice(0, 4).toUpperCase()}</span>
+                    : <UserRound size={18} />}
                 </button>
-              )
+              </Dropdown>
+              </>
             ) : (
               <div className="security-chip"><ShieldCheck size={16} /><span><b>{t("chip.title")}</b><small>{t("chip.description")}</small></span></div>
             )}
-            <div className="help-actions">
-              <button className="help-button" onClick={openHelp}><CircleHelp size={17} />{t("help.open")}</button>
-              <Tooltip title={t("help.github")}>
-                <button type="button" className="github-button" aria-label={t("help.github")} onClick={openRepository}>
-                  <Github size={18} />
-                </button>
-              </Tooltip>
-            </div>
           </div>
         </header>
 
@@ -551,6 +554,14 @@ function DashboardApp() {
                     </button>
                   </Tooltip>
                 </Popconfirm>
+                {cloud.state.authenticated && (
+                  <Tooltip title={t("cloud.syncDescription")}>
+                    <button type="button" className="refresh-all cloud-sync-action" disabled={cloud.syncing}
+                      onClick={() => void syncCloud()}>
+                      <UploadCloud className={cloud.syncing ? "spin" : ""} size={17} />{t("cloud.sync")}
+                    </button>
+                  </Tooltip>
+                )}
               </div>
             )}
             {page === "providers" && (
@@ -571,6 +582,21 @@ function DashboardApp() {
                     </button>
                   </Tooltip>
                 </Popconfirm>
+                {cloud.state.authenticated && (
+                  <Tooltip title={t("cloud.syncDescription")}>
+                    <button type="button" className="refresh-all cloud-sync-action" disabled={cloud.syncing}
+                      onClick={() => void syncCloud()}>
+                      <UploadCloud className={cloud.syncing ? "spin" : ""} size={17} />{t("cloud.sync")}
+                    </button>
+                  </Tooltip>
+                )}
+              </div>
+            )}
+            {page === "settings" && (
+              <div className="topbar-actions">
+                <button type="button" className="refresh-all settings-help-button" onClick={openHelp}>
+                  <CircleHelp size={17} />{t("help.open")}
+                </button>
               </div>
             )}
           </header>
