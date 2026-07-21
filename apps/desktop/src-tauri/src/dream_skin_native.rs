@@ -1206,6 +1206,11 @@ fn recover_running_codex(paths: &RuntimePaths) -> Result<(), String> {
     if SKIN_LAUNCHING.load(Ordering::Acquire) {
         return Ok(());
     }
+    // A normal launch can leave renderer/helper processes alive after its
+    // shell exits.  Ensure the old instance is completely gone before asking
+    // the OS to start the managed instance with the debugging arguments.
+    crate::commands::stop_chatgpt_processes()?;
+    crate::commands::wait_for_chatgpt_processes_to_exit(Duration::from_secs(10))?;
     restart_with_skin(paths)
 }
 
@@ -1525,6 +1530,26 @@ fn find_codex_install() -> Result<CodexInstall, String> {
     find_default_codex_install()
 }
 
+fn remembered_codex_install() -> Option<CodexInstall> {
+    let executable = read_session().codex_executable.map(PathBuf::from)?;
+    if !executable.is_file() {
+        return None;
+    }
+    #[cfg(target_os = "windows")]
+    return Some(CodexInstall {
+        executable,
+        app_user_model_id: None,
+    });
+    #[cfg(target_os = "macos")]
+    Some(CodexInstall { executable })
+}
+
+fn find_skin_launch_install() -> Result<CodexInstall, String> {
+    remembered_codex_install()
+        .map(Ok)
+        .unwrap_or_else(find_codex_install)
+}
+
 #[cfg(target_os = "windows")]
 fn launch_codex(install: &CodexInstall, arguments: &str) -> Result<u32, String> {
     use windows::{
@@ -1646,7 +1671,10 @@ fn start_with_skin(paths: &RuntimePaths, install: &CodexInstall) -> Result<(), S
 }
 
 fn restart_with_skin(paths: &RuntimePaths) -> Result<(), String> {
-    let install = find_codex_install()?;
+    // The current process is often already gone on a normal restart.  Prefer
+    // the executable that originally activated the skin instead of falling
+    // back to whichever Store installation happens to be discoverable.
+    let install = find_skin_launch_install()?;
     let fallback = find_default_codex_install()
         .ok()
         .filter(|fallback| !same_install(&install, fallback));
