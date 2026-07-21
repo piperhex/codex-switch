@@ -47,6 +47,7 @@ pub fn run() {
         .setup(|app| {
             size_main_window_to_screen(app)?;
             commands::initialize_local_state(app.handle());
+            floating_bubble::initialize_proxy_onboarding(app.handle())?;
             if let Err(error) = dream_skin::setup(app.handle()) {
                 eprintln!("failed to restore Dream Skin monitor: {error}");
             }
@@ -129,6 +130,7 @@ pub fn run() {
             local_proxy::set_auto_disable_unreachable_accounts,
             update::check_for_update,
             floating_bubble::get_app_settings,
+            floating_bubble::set_proxy_onboarding_choice,
             floating_bubble::set_floating_bubble,
             floating_bubble::set_privacy_mode,
             floating_bubble::set_token_usage_preferences,

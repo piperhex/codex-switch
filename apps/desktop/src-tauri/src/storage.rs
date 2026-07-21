@@ -360,14 +360,18 @@ pub(crate) fn write_state(paths: &Paths, state: &ManagerStateFile) -> Result<(),
     write_json_atomic(&paths.state_file, &value)
 }
 
-pub(crate) fn read_app_settings<R: Runtime>(
-    app: &tauri::AppHandle<R>,
-) -> Result<AppSettings, String> {
-    let path = app
+pub(crate) fn app_settings_path<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<PathBuf, String> {
+    Ok(app
         .path()
         .app_data_dir()
         .map_err(|error| format!("无法定位应用数据目录：{error}"))?
-        .join("settings.json");
+        .join("settings.json"))
+}
+
+pub(crate) fn read_app_settings<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+) -> Result<AppSettings, String> {
+    let path = app_settings_path(app)?;
     Ok(fs::read(path)
         .ok()
         .and_then(|bytes| serde_json::from_slice(&bytes).ok())
@@ -378,11 +382,7 @@ pub(crate) fn write_app_settings<R: Runtime>(
     app: &tauri::AppHandle<R>,
     settings: &AppSettings,
 ) -> Result<(), String> {
-    let path = app
-        .path()
-        .app_data_dir()
-        .map_err(|error| format!("无法定位应用数据目录：{error}"))?
-        .join("settings.json");
+    let path = app_settings_path(app)?;
     let value = serde_json::to_value(settings).map_err(|error| error.to_string())?;
     write_json_atomic(&path, &value)
 }

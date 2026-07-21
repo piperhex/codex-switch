@@ -4,7 +4,7 @@ import enUS from "antd/locale/en_US";
 import zhCN from "antd/locale/zh_CN";
 import { BarChart3, CalendarClock, Check, CircleHelp, Cloud, Download, Github, LogIn, LogOut, Megaphone, Palette, Plus, RefreshCw, RotateCcw, Server, Settings, ShieldCheck, Upload, UploadCloud, UserRound } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { checkForUpdate, chooseAndExportDiagnosticLogs, consumeResetCredit, DEFAULT_CLOUD_BASE_URL, fetchCloudAnnouncement, isDesktopApp, openManagedFolder, reportAnnouncementClick, reportBaseUrlChange, reportFirstInstallation, restartChatGpt, showTokenUsageWindow, submitFeedback, syncDirectConversations } from "./api/backend";
+import { checkForUpdate, chooseAndExportDiagnosticLogs, consumeResetCredit, DEFAULT_CLOUD_BASE_URL, fetchCloudAnnouncement, isDesktopApp, loadAppSettings, openManagedFolder, reportAnnouncementClick, reportBaseUrlChange, reportFirstInstallation, restartChatGpt, setProxyOnboardingChoice, showTokenUsageWindow, submitFeedback, syncDirectConversations } from "./api/backend";
 import { HelpModal, type HelpVersionState } from "./components/modals/HelpModal";
 import { FeedbackModal } from "./components/modals/FeedbackModal";
 import { FloatingUsageBubble } from "./components/FloatingUsageBubble";
@@ -15,6 +15,7 @@ import { CloudLoginModal } from "./components/modals/CloudLoginModal";
 import { CloudAccountModal } from "./components/modals/CloudAccountModal";
 import { LoginModal } from "./components/modals/LoginModal";
 import { UpdateModal } from "./components/modals/UpdateModal";
+import { ProxyOnboardingModal } from "./components/modals/ProxyOnboardingModal";
 import { useAccountManager } from "./hooks/useAccountManager";
 import { useAccountAutoRefresh, useAutoRefresh } from "./hooks/useAutoRefresh";
 import { useAccountDisplayMode } from "./hooks/useAccountDisplayMode";
@@ -71,6 +72,8 @@ function DashboardApp() {
   const [showCloudAccount, setShowCloudAccount] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [showProxyOnboarding, setShowProxyOnboarding] = useState(false);
+  const [proxyOnboardingBusy, setProxyOnboardingBusy] = useState(false);
   const [helpVersionState, setHelpVersionState] = useState<HelpVersionState>({ status: "checking" });
   const [availableUpdate, setAvailableUpdate] = useState<UpdateInfo | null>(null);
   const [lastRefreshAllAt, setLastRefreshAllAt] = useState<string | null>(storedRefreshAllTime);
@@ -81,6 +84,7 @@ function DashboardApp() {
   const [announcement, setAnnouncement] = useState<CloudAnnouncement | null>(null);
   const helpVersionRequestId = useRef(0);
   const announcementRequestId = useRef(0);
+  const proxyOnboardingChecked = useRef(false);
   const { message: toast, notify } = useToast();
   const { language, setLanguage, t } = useLanguage();
   const cloud = useCloudAuth(notify, t);
@@ -302,6 +306,40 @@ function DashboardApp() {
   useEffect(() => {
     void reportFirstInstallation().catch(() => undefined);
   }, [cloud.state.baseUrl]);
+
+  useEffect(() => {
+    if (!isDesktopApp || providerManager.loading || proxyOnboardingChecked.current) return;
+    proxyOnboardingChecked.current = true;
+    if (providerManager.localProxy?.running) return;
+    void loadAppSettings()
+      .then((settings) => setShowProxyOnboarding(settings.proxyOnboardingStatus === "pending"))
+      .catch(() => undefined);
+  }, [providerManager.loading, providerManager.localProxy?.running]);
+
+  const declineProxyOnboarding = useCallback(async () => {
+    setProxyOnboardingBusy(true);
+    try {
+      await setProxyOnboardingChoice(false);
+      setShowProxyOnboarding(false);
+    } catch (error) {
+      notify(String(error));
+    } finally {
+      setProxyOnboardingBusy(false);
+    }
+  }, [notify]);
+
+  const enableProxyOnboarding = useCallback(async () => {
+    setProxyOnboardingBusy(true);
+    try {
+      await setProxyOnboardingChoice(true);
+      setShowProxyOnboarding(false);
+      await providerManager.startProxy();
+    } catch (error) {
+      notify(String(error));
+    } finally {
+      setProxyOnboardingBusy(false);
+    }
+  }, [notify, providerManager.startProxy]);
 
   const startLogin = (embedded: boolean) => {
     setShowLogin(false);
@@ -706,6 +744,8 @@ function DashboardApp() {
             setAvailableUpdate(null);
             openRelease(availableUpdate.releaseUrl);
           }} t={t} />}
+        {showProxyOnboarding && <ProxyOnboardingModal busy={proxyOnboardingBusy}
+          onDecline={() => void declineProxyOnboarding()} onEnable={() => void enableProxyOnboarding()} t={t} />}
         {toast && <div className="toast"><Check size={17} />{toast}</div>}
       </div>
     </ConfigProvider>

@@ -21,12 +21,12 @@ use crate::{
     codex_api::{refresh_tokens, token_expiring, ORIGINATOR},
     models::{
         AccountSummary, DailyTokenUsage, LocalProxyStatus, ProviderApiFormat, ProviderProfile,
-        TokenUsageEntry, UsageSummary,
+        ProxyOnboardingStatus, TokenUsageEntry, UsageSummary,
     },
     providers::{self, LOCAL_PROXY_BASE_URL, LOCAL_PROXY_HOST, LOCAL_PROXY_PORT},
     storage::{
-        managed_auth_path, read_json, read_state, resolve_paths, write_managed_auth_if_changed,
-        write_state, Paths,
+        managed_auth_path, read_app_settings, read_json, read_state, resolve_paths,
+        write_app_settings, write_managed_auth_if_changed, write_state, Paths,
     },
 };
 
@@ -472,6 +472,12 @@ pub(crate) fn restore_local_proxy_if_enabled<R: Runtime>(
 pub(crate) fn start_local_proxy<R: Runtime>(
     app: tauri::AppHandle<R>,
 ) -> Result<LocalProxyStatus, String> {
+    // Preserve the path of a running client before ending all ChatGPT/Codex
+    // processes.  This keeps custom installations usable after proxy mode starts.
+    let launch_target = crate::commands::refresh_and_get_chatgpt_launch_target(&app);
+    crate::commands::stop_chatgpt_processes()?;
+    crate::commands::wait_for_chatgpt_processes_to_exit(std::time::Duration::from_secs(10))?;
+
     let paths = resolve_paths(&app)?;
     let started = start_server(app.clone())?;
     if let Err(error) = providers::apply_local_proxy_config_for_state(&app) {
@@ -481,10 +487,19 @@ pub(crate) fn start_local_proxy<R: Runtime>(
         return Err(error);
     }
     set_local_proxy_enabled(&paths, true)?;
+    let mut settings = read_app_settings(&app)?;
+    settings.proxy_onboarding_status = ProxyOnboardingStatus::Enabled;
+    write_app_settings(&app, &settings)?;
     app.emit("providers-changed", ())
         .map_err(|error| error.to_string())?;
     crate::system_tray::refresh_menu(&app);
-    Ok(status(&app))
+    let proxy_status = status(&app);
+    crate::commands::start_chatgpt(launch_target.as_ref()).map_err(|error| {
+        format!(
+            "代理模式已启动，但无法自动启动 ChatGPT/Codex（{error}）。请手动启动 ChatGPT 或 Codex。"
+        )
+    })?;
+    Ok(proxy_status)
 }
 
 #[tauri::command]

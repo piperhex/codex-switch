@@ -64,7 +64,8 @@ pub(crate) fn initialize_local_state<R: Runtime>(app: &tauri::AppHandle<R>) {
 }
 
 #[cfg(target_os = "windows")]
-enum ChatGptLaunchTarget {
+#[derive(Clone)]
+pub(crate) enum ChatGptLaunchTarget {
     ShellApp(String),
     Executable(String),
 }
@@ -1142,7 +1143,7 @@ fn discover_running_chatgpt_or_codex_path() -> Option<String> {
     .and_then(|path| normalize_windows_chatgpt_target(&path))
 }
 
-fn refresh_and_get_chatgpt_launch_target<R: Runtime>(
+pub(crate) fn refresh_and_get_chatgpt_launch_target<R: Runtime>(
     app: &tauri::AppHandle<R>,
 ) -> Option<ChatGptLaunchTarget> {
     refresh_local_codex_path(app);
@@ -1210,7 +1211,7 @@ fn chatgpt_or_codex_is_running() -> Result<bool, String> {
 }
 
 #[cfg(target_os = "windows")]
-fn stop_chatgpt_processes() -> Result<(), String> {
+pub(crate) fn stop_chatgpt_processes() -> Result<(), String> {
     let output = windows_hidden_command("powershell")
         .args([
             "-NoProfile",
@@ -1227,7 +1228,7 @@ fn stop_chatgpt_processes() -> Result<(), String> {
 }
 
 #[cfg(target_os = "windows")]
-fn wait_for_chatgpt_processes_to_exit(timeout: Duration) -> Result<(), String> {
+pub(crate) fn wait_for_chatgpt_processes_to_exit(timeout: Duration) -> Result<(), String> {
     // ChatGPT is a multi-process application.  Its main process can exit before a
     // renderer or the bundled `codex.exe` has gone away, and a remaining process
     // may briefly respawn another one.  Keep checking and terminating during the
@@ -1272,7 +1273,7 @@ while ($true) {{
 }
 
 #[cfg(unix)]
-fn stop_chatgpt_processes() -> Result<(), String> {
+pub(crate) fn stop_chatgpt_processes() -> Result<(), String> {
     stop_unix_process(CHATGPT_COMMAND)?;
     stop_unix_process(LEGACY_CODEX_COMMAND)?;
     #[cfg(target_os = "macos")]
@@ -1284,7 +1285,7 @@ fn stop_chatgpt_processes() -> Result<(), String> {
 }
 
 #[cfg(unix)]
-fn wait_for_chatgpt_processes_to_exit(_timeout: Duration) -> Result<(), String> {
+pub(crate) fn wait_for_chatgpt_processes_to_exit(_timeout: Duration) -> Result<(), String> {
     Ok(())
 }
 
@@ -1302,7 +1303,7 @@ fn stop_unix_process(name: &str) -> Result<(), String> {
 }
 
 #[cfg(target_os = "windows")]
-fn start_chatgpt(target: Option<&ChatGptLaunchTarget>) -> Result<(), String> {
+pub(crate) fn start_chatgpt(target: Option<&ChatGptLaunchTarget>) -> Result<(), String> {
     match target {
         Some(ChatGptLaunchTarget::ShellApp(app_id)) => {
             let app_uri = format!("shell:AppsFolder\\{app_id}");
@@ -1312,9 +1313,31 @@ fn start_chatgpt(target: Option<&ChatGptLaunchTarget>) -> Result<(), String> {
                 .map(|_| ())
                 .map_err(|error| format!("启动 ChatGPT 失败：{error}"))
         }
-        Some(ChatGptLaunchTarget::Executable(target)) => start_windows_executable(target),
+        Some(ChatGptLaunchTarget::Executable(target)) => start_windows_executable(target)
+            .or_else(|recorded_error| start_official_windows_chatgpt(recorded_error)),
         None => Err("未找到本地 ChatGPT/Codex 路径，且官方默认安装路径不可用".to_string()),
     }
+}
+
+#[cfg(target_os = "windows")]
+fn start_official_windows_chatgpt(recorded_error: String) -> Result<(), String> {
+    let official_target = official_default_chatgpt_target().ok_or(recorded_error.clone())?;
+    let result = match official_target {
+        ChatGptLaunchTarget::ShellApp(app_id) => {
+            let app_uri = format!("shell:AppsFolder\\{app_id}");
+            windows_hidden_command("explorer.exe")
+                .arg(app_uri)
+                .spawn()
+                .map(|_| ())
+                .map_err(|error| format!("Failed to start official ChatGPT: {error}"))
+        }
+        ChatGptLaunchTarget::Executable(path) => start_windows_executable(&path),
+    };
+    result.map_err(|official_error| {
+        format!(
+            "Failed to start the recorded ChatGPT/Codex path: {recorded_error}; the official installation also failed: {official_error}"
+        )
+    })
 }
 
 #[cfg(target_os = "windows")]
@@ -1410,7 +1433,7 @@ fn is_dir_named(path: &Path, expected: &str) -> bool {
 }
 
 #[cfg(target_os = "macos")]
-fn start_chatgpt(_target: Option<&ChatGptLaunchTarget>) -> Result<(), String> {
+pub(crate) fn start_chatgpt(_target: Option<&ChatGptLaunchTarget>) -> Result<(), String> {
     if matches!(Command::new("open").args(["-a", "ChatGPT"]).status(), Ok(status) if status.success())
     {
         return Ok(());
@@ -1437,7 +1460,7 @@ fn start_chatgpt(_target: Option<&ChatGptLaunchTarget>) -> Result<(), String> {
 }
 
 #[cfg(all(unix, not(target_os = "macos")))]
-fn start_chatgpt(_target: Option<&ChatGptLaunchTarget>) -> Result<(), String> {
+pub(crate) fn start_chatgpt(_target: Option<&ChatGptLaunchTarget>) -> Result<(), String> {
     let terminals: &[(&str, &[&str])] = &[
         (
             "x-terminal-emulator",

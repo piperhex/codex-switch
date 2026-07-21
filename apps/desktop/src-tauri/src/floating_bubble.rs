@@ -6,11 +6,12 @@ use tauri::{
 use crate::{
     commands,
     models::{
-        AppSettings, BubbleResetDisplay, UsageWindow, MAX_TOKEN_USAGE_REFRESH_SECONDS,
-        MAX_TOKEN_USAGE_WEEKS, MIN_TOKEN_USAGE_REFRESH_SECONDS, MIN_TOKEN_USAGE_WEEKS,
+        AppSettings, BubbleResetDisplay, ProxyOnboardingStatus, UsageWindow,
+        MAX_TOKEN_USAGE_REFRESH_SECONDS, MAX_TOKEN_USAGE_WEEKS, MIN_TOKEN_USAGE_REFRESH_SECONDS,
+        MIN_TOKEN_USAGE_WEEKS,
     },
     providers,
-    storage::{read_app_settings, write_app_settings},
+    storage::{app_settings_path, read_app_settings, write_app_settings},
 };
 
 pub(crate) const BUBBLE_LABEL: &str = "usage-bubble";
@@ -32,6 +33,17 @@ pub(crate) fn setup<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
         create(app, &settings)?;
     }
     Ok(())
+}
+
+/// Mark only a fresh installation as eligible for the proxy introduction.  A
+/// settings file from an earlier version is treated as an existing user.
+pub(crate) fn initialize_proxy_onboarding<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
+    if app_settings_path(app)?.exists() {
+        return Ok(());
+    }
+    let mut settings = AppSettings::default();
+    settings.proxy_onboarding_status = ProxyOnboardingStatus::Pending;
+    write_app_settings(app, &settings)
 }
 
 fn create<R: Runtime>(app: &AppHandle<R>, settings: &AppSettings) -> Result<(), String> {
@@ -111,6 +123,21 @@ fn position_is_visible<R: Runtime>(app: &AppHandle<R>, x: f64, y: f64) -> bool {
 #[tauri::command]
 pub(crate) fn get_app_settings<R: Runtime>(app: AppHandle<R>) -> Result<AppSettings, String> {
     read_app_settings(&app)
+}
+
+#[tauri::command]
+pub(crate) fn set_proxy_onboarding_choice<R: Runtime>(
+    app: AppHandle<R>,
+    use_proxy: bool,
+) -> Result<AppSettings, String> {
+    let mut settings = read_app_settings(&app)?;
+    settings.proxy_onboarding_status = if use_proxy {
+        ProxyOnboardingStatus::Enabled
+    } else {
+        ProxyOnboardingStatus::Declined
+    };
+    write_app_settings(&app, &settings)?;
+    Ok(settings)
 }
 
 #[tauri::command]

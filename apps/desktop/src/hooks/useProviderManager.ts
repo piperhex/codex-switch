@@ -156,6 +156,9 @@ export function useProviderManager(
       await load();
     } catch (error) {
       notify(providerErrorMessage(error, t));
+      // Configuration is kept when only the client relaunch fails, so ensure the
+      // card reflects the running proxy before the user starts it manually.
+      await load();
     } finally {
       setProxyBusy(false);
     }
