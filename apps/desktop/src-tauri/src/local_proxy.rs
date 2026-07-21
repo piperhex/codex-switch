@@ -528,8 +528,31 @@ pub(crate) fn start_local_proxy<R: Runtime>(
 pub(crate) fn stop_local_proxy<R: Runtime>(
     app: tauri::AppHandle<R>,
 ) -> Result<LocalProxyStatus, String> {
-    stop_server();
+    let _switch_guard = crate::commands::account_switch_lock()
+        .lock()
+        .map_err(|_| "Account switch lock is poisoned".to_string())?;
     let paths = resolve_paths(&app)?;
+    let selected_account_id = read_state(&paths).active_account_id;
+
+    // Validate the selected credential before interrupting the client. The managed
+    // copy is loaded again after shutdown so auth.json receives the latest tokens.
+    if let Some(account_id) = selected_account_id.as_deref() {
+        crate::commands::load_validated_managed_auth(&paths, account_id)?;
+    }
+
+    let client_was_running = crate::commands::chatgpt_or_codex_is_running()?;
+    let launch_target = client_was_running
+        .then(|| crate::commands::refresh_and_get_chatgpt_launch_target(&app))
+        .flatten();
+    if client_was_running {
+        crate::commands::stop_chatgpt_processes()?;
+        crate::commands::wait_for_chatgpt_processes_to_exit(Duration::from_secs(10))?;
+    }
+
+    stop_server();
+    if let Some(account_id) = selected_account_id.as_deref() {
+        crate::commands::write_managed_auth_to_current(&paths, account_id)?;
+    }
     providers::restore_official_config(&paths)?;
     let mut state = read_state(&paths);
     state.active_provider_id = None;
@@ -538,7 +561,24 @@ pub(crate) fn stop_local_proxy<R: Runtime>(
     app.emit("providers-changed", ())
         .map_err(|error| error.to_string())?;
     crate::system_tray::refresh_menu(&app);
-    Ok(status(&app))
+    let proxy_status = status(&app);
+    if !client_was_running {
+        return Ok(proxy_status);
+    }
+
+    let restart_result = crate::dream_skin::restart_active_session().and_then(|restarted| {
+        if restarted {
+            Ok(())
+        } else {
+            crate::commands::start_chatgpt(launch_target.as_ref())
+        }
+    });
+    restart_result.map_err(|error| {
+        format!(
+            "Local proxy was stopped and the selected auth.json was restored, but ChatGPT/Codex could not be restarted ({error}). Please start ChatGPT or Codex manually."
+        )
+    })?;
+    Ok(proxy_status)
 }
 
 #[tauri::command]
