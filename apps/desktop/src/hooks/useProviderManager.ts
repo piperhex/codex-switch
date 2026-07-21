@@ -172,6 +172,9 @@ export function useProviderManager(
       await load();
     } catch (error) {
       notify(providerErrorMessage(error, t));
+      // Stopping the proxy is committed before the client relaunch. Refresh the
+      // card even when only the relaunch fails.
+      await load();
     } finally {
       setProxyBusy(false);
     }

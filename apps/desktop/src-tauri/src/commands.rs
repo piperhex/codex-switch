@@ -51,7 +51,7 @@ fn account_auto_switch_state_lock() -> &'static Mutex<()> {
     ACCOUNT_AUTO_SWITCH_STATE_LOCK.get_or_init(|| Mutex::new(()))
 }
 
-fn account_switch_lock() -> &'static Mutex<()> {
+pub(crate) fn account_switch_lock() -> &'static Mutex<()> {
     ACCOUNT_SWITCH_LOCK.get_or_init(|| Mutex::new(()))
 }
 
@@ -420,9 +420,7 @@ pub(crate) fn switch_account_and_restart_chatgpt<R: Runtime>(
     // Validate the target before stopping ChatGPT so a malformed managed
     // credential cannot leave the user with a closed application.
     let paths = resolve_paths(&app)?;
-    let mut selected = read_json(&managed_auth_path(&paths, &id))?;
-    canonicalize_chatgpt_auth(&mut selected)?;
-    validate_auth(&selected)?;
+    load_validated_managed_auth(&paths, &id)?;
 
     let launch_target = refresh_and_get_chatgpt_launch_target(&app);
     if chatgpt_or_codex_is_running()? {
@@ -447,11 +445,7 @@ pub(crate) fn switch_account_and_restart_chatgpt<R: Runtime>(
 fn switch_account_unlocked<R: Runtime>(app: &tauri::AppHandle<R>, id: &str) -> Result<(), String> {
     let proxy_running = crate::local_proxy::is_running();
     let paths = resolve_paths(app)?;
-    let mut selected = read_json(&managed_auth_path(&paths, id))?;
-    if canonicalize_chatgpt_auth(&mut selected)? {
-        write_managed_auth_if_changed(&paths, id, &selected)?;
-    }
-    validate_auth(&selected)?;
+    let selected = load_validated_managed_auth(&paths, id)?;
     if !proxy_running {
         // The local proxy reads the selected managed credential.  Avoid modifying the
         // authentication file watched by the already-running Codex application.
@@ -475,6 +469,20 @@ fn switch_account_unlocked<R: Runtime>(app: &tauri::AppHandle<R>, id: &str) -> R
         .map_err(|error| error.to_string())?;
     crate::system_tray::refresh_menu(&app);
     Ok(())
+}
+
+pub(crate) fn load_validated_managed_auth(paths: &Paths, id: &str) -> Result<Value, String> {
+    let mut auth = read_json(&managed_auth_path(paths, id))?;
+    if canonicalize_chatgpt_auth(&mut auth)? {
+        write_managed_auth_if_changed(paths, id, &auth)?;
+    }
+    validate_auth(&auth)?;
+    Ok(auth)
+}
+
+pub(crate) fn write_managed_auth_to_current(paths: &Paths, id: &str) -> Result<(), String> {
+    let auth = load_validated_managed_auth(paths, id)?;
+    write_json_atomic(&paths.current_auth, &auth)
 }
 
 #[tauri::command]
@@ -583,9 +591,7 @@ fn sync_active_proxy_auth_for_restart<R: Runtime>(app: &tauri::AppHandle<R>) -> 
         return Ok(());
     };
 
-    let auth = read_json(&managed_auth_path(&paths, &account_id))?;
-    validate_auth(&auth)?;
-    write_json_atomic(&paths.current_auth, &auth)
+    write_managed_auth_to_current(&paths, &account_id)
 }
 
 #[derive(Debug, Serialize)]
@@ -1573,10 +1579,10 @@ mod compatible_json_import_tests {
         normalize_compatible_json_auth, parse_compatible_json_auth_values,
         should_disable_account_auto_switch, sync_conversation_metadata,
         sync_current_auth_with_client_state, update_disabled_account_ids,
-        LOCAL_PROXY_CONVERSATION_PROVIDER,
+        write_managed_auth_to_current, LOCAL_PROXY_CONVERSATION_PROVIDER,
     };
     use crate::models::ManagerStateFile;
-    use crate::storage::{read_json, write_json_atomic, Paths};
+    use crate::storage::{managed_auth_path, read_json, write_json_atomic, Paths};
     use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
     use rusqlite::Connection;
     use serde_json::{json, Value};
@@ -1683,6 +1689,32 @@ mod compatible_json_import_tests {
         assert!(sync_current_auth_with_client_state(&paths, &new_auth, false).unwrap());
         assert_eq!(read_json(&paths.current_auth).unwrap(), new_auth);
 
+        fs::remove_dir_all(paths.codex_home.parent().unwrap()).unwrap();
+    }
+
+    #[test]
+    fn selected_managed_auth_replaces_stale_current_auth() {
+        let paths = test_paths();
+        let token = access_token();
+        let selected = json!({
+            "auth_mode": "chatgpt",
+            "OPENAI_API_KEY": null,
+            "tokens": {
+                "id_token": token,
+                "access_token": token,
+                "refresh_token": "refresh-token"
+            },
+            "last_refresh": "2026-07-21T00:00:00Z"
+        });
+        write_json_atomic(&managed_auth_path(&paths, "selected"), &selected).unwrap();
+        write_json_atomic(&paths.current_auth, &json!({ "credential": "stale" })).unwrap();
+
+        write_managed_auth_to_current(&paths, "selected").unwrap();
+
+        assert_eq!(
+            read_json(&paths.current_auth).unwrap(),
+            read_json(&managed_auth_path(&paths, "selected")).unwrap()
+        );
         fs::remove_dir_all(paths.codex_home.parent().unwrap()).unwrap();
     }
 
