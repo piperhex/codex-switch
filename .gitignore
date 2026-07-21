@@ -11,4 +11,6 @@ apps/native/ios/
 auth.json
 *.auth.json
 .env
+.updater/
+apps/desktop/src-tauri/.updater/
 .webview2-test

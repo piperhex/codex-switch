@@ -14,7 +14,6 @@ mod providers;
 mod storage;
 mod system_proxy;
 mod system_tray;
-mod update;
 
 use oauth::AppState;
 use tauri::{LogicalSize, Manager, Runtime};
@@ -44,6 +43,8 @@ pub fn run() {
         .manage(AppState::default())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             size_main_window_to_screen(app)?;
             commands::initialize_local_state(app.handle());
@@ -127,7 +128,6 @@ pub fn run() {
             local_proxy::stop_local_proxy,
             local_proxy::set_auto_switch_on_quota_exhaustion,
             local_proxy::set_auto_disable_unreachable_accounts,
-            update::check_for_update,
             floating_bubble::get_app_settings,
             floating_bubble::set_proxy_onboarding_choice,
             floating_bubble::set_floating_bubble,

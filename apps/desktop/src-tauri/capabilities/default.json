@@ -9,6 +9,8 @@
     "dialog:allow-open",
     "dialog:allow-save",
     "opener:allow-open-url",
-    "opener:allow-default-urls"
+    "opener:allow-default-urls",
+    "process:default",
+    "updater:default"
   ]
 }

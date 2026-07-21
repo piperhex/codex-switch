@@ -152,16 +152,6 @@ pub(crate) struct DailyTokenUsage {
     pub(crate) cached_tokens: u64,
 }
 
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub(crate) struct UpdateInfo {
-    pub(crate) current_version: String,
-    pub(crate) latest_version: String,
-    pub(crate) release_name: String,
-    pub(crate) release_notes: Option<String>,
-    pub(crate) release_url: String,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct AppSettings {

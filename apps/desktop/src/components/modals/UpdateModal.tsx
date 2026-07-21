@@ -7,10 +7,13 @@ interface UpdateModalProps {
   onClose: () => void;
   onIgnore: () => void;
   onDownload: () => void;
+  installing: boolean;
+  progress: number | null;
+  error: string | null;
   t: Translate;
 }
 
-export function UpdateModal({ update, onClose, onIgnore, onDownload, t }: UpdateModalProps) {
+export function UpdateModal({ update, onClose, onIgnore, onDownload, installing, progress, error, t }: UpdateModalProps) {
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <section className="modal update-modal" role="dialog" aria-modal="true"
@@ -31,13 +34,17 @@ export function UpdateModal({ update, onClose, onIgnore, onDownload, t }: Update
             <pre>{update.releaseNotes}</pre>
           </div>
         )}
+        {installing && <p role="status">{progress === null
+          ? t("update.installing")
+          : t("update.downloading", { progress })}</p>}
+        {error && <p role="alert">{t("update.installError", { error })}</p>}
         <div className="update-actions">
-          <button type="button" className="refresh-all" onClick={onClose}>{t("update.later")}</button>
-          <button type="button" className="refresh-all" onClick={onIgnore}>
+          <button type="button" className="refresh-all" disabled={installing} onClick={onClose}>{t("update.later")}</button>
+          <button type="button" className="refresh-all" disabled={installing} onClick={onIgnore}>
             <BellOff size={17} />{t("update.ignoreVersion")}
           </button>
-          <button type="button" className="primary-button" onClick={onDownload}>
-            <Download size={17} />{t("update.download")}
+          <button type="button" className="primary-button" disabled={installing} onClick={onDownload}>
+            <Download size={17} />{installing ? t("update.installing") : t("update.download")}
           </button>
         </div>
       </section>

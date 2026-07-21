@@ -4,7 +4,7 @@ import enUS from "antd/locale/en_US";
 import zhCN from "antd/locale/zh_CN";
 import { BarChart3, CalendarClock, Check, CircleHelp, Cloud, Download, Github, LogIn, LogOut, Megaphone, Palette, Plus, RefreshCw, RotateCcw, Server, Settings, ShieldCheck, Upload, UploadCloud, UserRound } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { checkForUpdate, chooseAndExportDiagnosticLogs, consumeResetCredit, DEFAULT_CLOUD_BASE_URL, fetchCloudAnnouncement, isDesktopApp, loadAppSettings, openManagedFolder, reportAnnouncementClick, reportBaseUrlChange, reportFirstInstallation, restartChatGpt, setProxyOnboardingChoice, showTokenUsageWindow, submitFeedback } from "./api/backend";
+import { checkForUpdate, chooseAndExportDiagnosticLogs, consumeResetCredit, DEFAULT_CLOUD_BASE_URL, fetchCloudAnnouncement, installAvailableUpdate, isDesktopApp, loadAppSettings, openManagedFolder, reportAnnouncementClick, reportBaseUrlChange, reportFirstInstallation, restartChatGpt, setProxyOnboardingChoice, showTokenUsageWindow, submitFeedback } from "./api/backend";
 import { HelpModal, type HelpVersionState } from "./components/modals/HelpModal";
 import { FeedbackModal } from "./components/modals/FeedbackModal";
 import { FloatingUsageBubble } from "./components/FloatingUsageBubble";
@@ -76,6 +76,9 @@ function DashboardApp() {
   const [proxyOnboardingBusy, setProxyOnboardingBusy] = useState(false);
   const [helpVersionState, setHelpVersionState] = useState<HelpVersionState>({ status: "checking" });
   const [availableUpdate, setAvailableUpdate] = useState<UpdateInfo | null>(null);
+  const [installingUpdate, setInstallingUpdate] = useState(false);
+  const [updateProgress, setUpdateProgress] = useState<number | null>(null);
+  const [updateInstallError, setUpdateInstallError] = useState<string | null>(null);
   const [lastRefreshAllAt, setLastRefreshAllAt] = useState<string | null>(storedRefreshAllTime);
   const [restartingChatGpt, setRestartingChatGpt] = useState(false);
   const [exportingLogs, setExportingLogs] = useState(false);
@@ -394,6 +397,16 @@ function DashboardApp() {
     window.localStorage.setItem(IGNORED_UPDATE_VERSION_KEY, availableUpdate.latestVersion);
     setAvailableUpdate(null);
   }, [availableUpdate]);
+  const installUpdate = useCallback(async () => {
+    setInstallingUpdate(true);
+    setUpdateInstallError(null);
+    try {
+      await installAvailableUpdate(setUpdateProgress);
+    } catch (error) {
+      setUpdateInstallError(String(error));
+      setInstallingUpdate(false);
+    }
+  }, []);
 
   const localizedAnnouncementContent = announcement
     ? (language === "zh" ? announcement.contentZh : announcement.contentEn)?.trim()
@@ -718,10 +731,8 @@ function DashboardApp() {
         {showFeedback && <FeedbackModal email={cloud.state.authenticated ? cloud.state.userEmail : null}
           onClose={() => setShowFeedback(false)} onSubmit={sendFeedback} t={t} />}
         {availableUpdate && <UpdateModal update={availableUpdate} onClose={() => setAvailableUpdate(null)}
-          onIgnore={ignoreUpdate} onDownload={() => {
-            setAvailableUpdate(null);
-            openRelease(availableUpdate.releaseUrl);
-          }} t={t} />}
+          onIgnore={ignoreUpdate} onDownload={() => void installUpdate()} installing={installingUpdate}
+          progress={updateProgress} error={updateInstallError} t={t} />}
         {showProxyOnboarding && <ProxyOnboardingModal busy={proxyOnboardingBusy}
           onDecline={() => void declineProxyOnboarding()} onEnable={() => void enableProxyOnboarding()} t={t} />}
         {toast && <div className="toast"><Check size={17} />{toast}</div>}

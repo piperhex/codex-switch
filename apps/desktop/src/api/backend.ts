@@ -1,6 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import { emit, listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { open, save } from "@tauri-apps/plugin-dialog";
+import { relaunch } from "@tauri-apps/plugin-process";
+import { check, type DownloadEvent, type Update } from "@tauri-apps/plugin-updater";
 import { DEMO_ACCOUNTS, DEMO_INFO } from "../demo";
 import { BUILT_IN_DREAM_SKIN_THEMES } from "../dreamSkinBuiltIns";
 import { LANGUAGE_STORAGE_KEY, isLanguage, type Language } from "../i18n";
@@ -31,6 +33,8 @@ import { DEFAULT_THEME_COLOR, normalizeThemeColor } from "../utils/theme";
 
 export const isDesktopApp = "__TAURI_INTERNALS__" in window;
 export const DEFAULT_CLOUD_BASE_URL = "https://codex.onepiper.cloud";
+const RELEASES_URL = "https://github.com/piperhex/codex-switch/releases/latest";
+let pendingAppUpdate: Update | null = null;
 const FLOATING_BUBBLE_PREVIEW_KEY = "codex-switch:floating-bubble";
 const PRIVACY_MODE_PREVIEW_KEY = "codex-switch:privacy-mode";
 const BUBBLE_RESET_DISPLAY_PREVIEW_KEY = "codex-switch:bubble-reset-display";
@@ -905,9 +909,48 @@ export async function loadDreamSkinThemePreview(themeId: string): Promise<string
 
 export function checkForUpdate({ force = false }: { force?: boolean } = {}): Promise<UpdateInfo | null> {
   if (!isDesktopApp) return Promise.resolve(null);
-  if (force) return invoke<UpdateInfo | null>("check_for_update");
-  updateCheckPromise ??= invoke<UpdateInfo | null>("check_for_update");
+  if (force) return getAvailableAppUpdate();
+  updateCheckPromise ??= getAvailableAppUpdate();
   return updateCheckPromise;
+}
+
+async function getAvailableAppUpdate(): Promise<UpdateInfo | null> {
+  const update = await check();
+  pendingAppUpdate = update;
+  if (!update) return null;
+  return {
+    currentVersion: update.currentVersion,
+    latestVersion: update.version,
+    releaseName: `Codex Switch v${update.version}`,
+    releaseNotes: update.body ?? null,
+    releaseUrl: RELEASES_URL,
+  };
+}
+
+export async function installAvailableUpdate(onProgress?: (progress: number | null) => void): Promise<void> {
+  if (!isDesktopApp) return;
+  const update = pendingAppUpdate ?? await check();
+  if (!update) return;
+
+  let downloadedBytes = 0;
+  let totalBytes: number | undefined;
+  const reportProgress = (event: DownloadEvent) => {
+    if (event.event === "Started") {
+      totalBytes = event.data.contentLength;
+      onProgress?.(totalBytes ? 0 : null);
+    } else if (event.event === "Progress") {
+      downloadedBytes += event.data.chunkLength;
+      onProgress?.(totalBytes ? Math.min(100, Math.round((downloadedBytes / totalBytes) * 100)) : null);
+    }
+  };
+
+  try {
+    await update.downloadAndInstall(reportProgress);
+  } finally {
+    await update.close();
+    pendingAppUpdate = null;
+  }
+  await relaunch();
 }
 
 export function subscribeToBackendEvents(

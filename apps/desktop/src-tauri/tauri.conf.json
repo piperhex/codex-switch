@@ -27,8 +27,17 @@
       "csp": "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' ipc: http://ipc.localhost"
     }
   },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZDNzM5NjczQzMxNTBBQjcKUldTM0NoWERjNVp6L0ZxQ0k3ZzhJUGV4U1FVajBQdkZCclV6K1lkU3U5VXA2MDh6ZE5sK3Z4UXIK",
+      "endpoints": [
+        "https://github.com/piperhex/codex-switch/releases/latest/download/latest.json"
+      ]
+    }
+  },
   "bundle": {
     "active": true,
+    "createUpdaterArtifacts": true,
     "targets": "all",
     "resources": [
       "resources/dream-skin/**/*"

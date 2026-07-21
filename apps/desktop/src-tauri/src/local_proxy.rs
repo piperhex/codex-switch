@@ -472,11 +472,19 @@ pub(crate) fn restore_local_proxy_if_enabled<R: Runtime>(
 pub(crate) fn start_local_proxy<R: Runtime>(
     app: tauri::AppHandle<R>,
 ) -> Result<LocalProxyStatus, String> {
-    // Preserve the path of a running client before ending all ChatGPT/Codex
-    // processes.  This keeps custom installations usable after proxy mode starts.
-    let launch_target = crate::commands::refresh_and_get_chatgpt_launch_target(&app);
-    crate::commands::stop_chatgpt_processes()?;
-    crate::commands::wait_for_chatgpt_processes_to_exit(std::time::Duration::from_secs(10))?;
+    // Only interrupt and relaunch a client that is actually running. When no
+    // client is open, proxy mode can be enabled by updating its configuration
+    // directly, without treating the absence of a process as a stop failure.
+    let client_was_running = crate::commands::chatgpt_or_codex_is_running()?;
+    let launch_target = client_was_running
+        .then(|| crate::commands::refresh_and_get_chatgpt_launch_target(&app))
+        .flatten();
+    if client_was_running {
+        // Preserve the path of a running client before ending all ChatGPT/Codex
+        // processes. This keeps custom installations usable after proxy mode starts.
+        crate::commands::stop_chatgpt_processes()?;
+        crate::commands::wait_for_chatgpt_processes_to_exit(std::time::Duration::from_secs(10))?;
+    }
 
     let paths = resolve_paths(&app)?;
     let started = start_server(app.clone())?;
@@ -494,6 +502,9 @@ pub(crate) fn start_local_proxy<R: Runtime>(
         .map_err(|error| error.to_string())?;
     crate::system_tray::refresh_menu(&app);
     let proxy_status = status(&app);
+    if !client_was_running {
+        return Ok(proxy_status);
+    }
     // Update direct-history metadata while the desktop client is completely
     // stopped, then only launch it once the old conversations are ready for
     // local-proxy mode.

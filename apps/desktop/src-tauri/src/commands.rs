@@ -1196,7 +1196,7 @@ fn official_default_chatgpt_target() -> Option<ChatGptLaunchTarget> {
 }
 
 #[cfg(target_os = "windows")]
-fn chatgpt_or_codex_is_running() -> Result<bool, String> {
+pub(crate) fn chatgpt_or_codex_is_running() -> Result<bool, String> {
     let output = windows_hidden_command("powershell")
         .args([
             "-NoProfile",
@@ -1209,7 +1209,7 @@ fn chatgpt_or_codex_is_running() -> Result<bool, String> {
 }
 
 #[cfg(unix)]
-fn chatgpt_or_codex_is_running() -> Result<bool, String> {
+pub(crate) fn chatgpt_or_codex_is_running() -> Result<bool, String> {
     for name in [CHATGPT_COMMAND, LEGACY_CODEX_COMMAND] {
         match Command::new("pgrep").args(["-x", name]).status() {
             Ok(status) if status.success() => return Ok(true),
