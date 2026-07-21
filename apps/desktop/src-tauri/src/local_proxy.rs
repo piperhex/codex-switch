@@ -23,7 +23,10 @@ use crate::{
         AccountSummary, DailyTokenUsage, LocalProxyStatus, ProviderApiFormat, ProviderProfile,
         ProxyOnboardingStatus, TokenUsageEntry, UsageSummary,
     },
-    providers::{self, LOCAL_PROXY_BASE_URL, LOCAL_PROXY_HOST, LOCAL_PROXY_PORT},
+    providers::{
+        self, LOCAL_PROXY_ACTOR_AUTHORIZATION_HEADER, LOCAL_PROXY_BASE_URL, LOCAL_PROXY_HOST,
+        LOCAL_PROXY_PORT,
+    },
     storage::{
         managed_auth_path, read_app_settings, read_json, read_state, resolve_paths,
         write_app_settings, write_managed_auth_if_changed, write_state, Paths,
@@ -2283,6 +2286,7 @@ fn should_skip_header(name: &str, skip_auth: bool) -> bool {
             | "x-forwarded-for"
             | "x-forwarded-host"
             | "x-forwarded-proto"
+            | LOCAL_PROXY_ACTOR_AUTHORIZATION_HEADER
     ) || (skip_auth
         && matches!(
             name,
@@ -4315,12 +4319,17 @@ mod tests {
             "cookie",
             "proxy-authorization",
             "originator",
+            LOCAL_PROXY_ACTOR_AUTHORIZATION_HEADER,
         ] {
             assert!(
                 should_skip_header(header, true),
                 "header should be blocked: {header}"
             );
         }
+        assert!(should_skip_header(
+            LOCAL_PROXY_ACTOR_AUTHORIZATION_HEADER,
+            false
+        ));
         assert!(!should_skip_header("x-request-id", true));
     }
 

@@ -23,6 +23,7 @@ pub(crate) const LOCAL_PROXY_HOST: &str = "127.0.0.1";
 pub(crate) const LOCAL_PROXY_PORT: u16 = 15722;
 pub(crate) const LOCAL_PROXY_BASE_URL: &str = "http://127.0.0.1:15722/v1";
 pub(crate) const LOCAL_PROXY_TOKEN: &str = "CODEX_SWITCH_LOCAL_PROXY";
+pub(crate) const LOCAL_PROXY_ACTOR_AUTHORIZATION_HEADER: &str = "x-openai-actor-authorization";
 const LOCAL_PROXY_PROVIDER_ID: &str = "codex-switch-local";
 const LOCAL_PROXY_PROVIDER_NAME: &str = "Codex Switch Local Proxy";
 pub(crate) const DEFAULT_OFFICIAL_MODEL: &str = "gpt-5.6-sol";
@@ -777,6 +778,11 @@ fn merge_local_proxy_config(
     config.push_str("wire_api = \"responses\"\n");
     config.push_str("requires_openai_auth = false\n");
     config.push_str(&format!(
+        "http_headers = {{ {} = {} }}\n",
+        toml_string(LOCAL_PROXY_ACTOR_AUTHORIZATION_HEADER),
+        toml_string(LOCAL_PROXY_TOKEN)
+    ));
+    config.push_str(&format!(
         "experimental_bearer_token = {}\n",
         toml_string(LOCAL_PROXY_TOKEN)
     ));
@@ -1052,7 +1058,10 @@ mod tests {
         assert!(merged.contains("model = \"deepseek-chat\""));
         assert!(merged.contains("model_catalog_json = \"codex-switch-model-catalog.json\""));
         assert!(merged.contains("base_url = \"http://127.0.0.1:15722/v1\""));
-        assert!(merged.contains("requires_openai_auth = true"));
+        assert!(merged.contains("requires_openai_auth = false"));
+        assert!(merged.contains(
+            "http_headers = { \"x-openai-actor-authorization\" = \"CODEX_SWITCH_LOCAL_PROXY\" }"
+        ));
         assert!(merged.contains("experimental_bearer_token = \"CODEX_SWITCH_LOCAL_PROXY\""));
         assert!(!merged.contains("model = \"old\""));
     }
