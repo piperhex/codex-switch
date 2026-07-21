@@ -608,7 +608,7 @@ fn sync_direct_conversations_blocking<R: Runtime>(
     stop_chatgpt_processes()?;
     thread::sleep(Duration::from_millis(650));
 
-    let sync_result = sync_conversation_metadata(&paths.codex_home);
+    let sync_result = sync_conversation_metadata_if_present(&paths.codex_home);
     let start_result = start_chatgpt(launch_target.as_ref());
 
     match (sync_result, start_result) {
@@ -621,6 +621,46 @@ fn sync_direct_conversations_blocking<R: Runtime>(
             "同步直连对话失败：{sync_error}；重新启动 ChatGPT 也失败：{start_error}"
         )),
     }
+}
+
+pub(crate) fn sync_conversation_metadata_if_present(
+    codex_home: &Path,
+) -> Result<DirectConversationSyncResult, String> {
+    if !has_codex_state_database(codex_home)? {
+        return Ok(DirectConversationSyncResult {
+            conversations_updated: 0,
+            rollout_files_updated: 0,
+        });
+    }
+    sync_conversation_metadata(codex_home)
+}
+
+fn has_codex_state_database(codex_home: &Path) -> Result<bool, String> {
+    let entries = match fs::read_dir(codex_home) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+        Err(error) => {
+            return Err(format!(
+                "无法读取 Codex Home {}：{error}",
+                codex_home.display()
+            ))
+        }
+    };
+    for entry in entries {
+        let entry = entry.map_err(|error| format!("读取 Codex Home 目录项失败：{error}"))?;
+        let Some(file_name) = entry.file_name().to_str().map(str::to_string) else {
+            continue;
+        };
+        if file_name
+            .strip_prefix("state_")
+            .and_then(|value| value.strip_suffix(".sqlite"))
+            .and_then(|value| value.parse::<u64>().ok())
+            .is_some()
+        {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 fn sync_conversation_metadata(codex_home: &Path) -> Result<DirectConversationSyncResult, String> {

@@ -494,12 +494,23 @@ pub(crate) fn start_local_proxy<R: Runtime>(
         .map_err(|error| error.to_string())?;
     crate::system_tray::refresh_menu(&app);
     let proxy_status = status(&app);
-    crate::commands::start_chatgpt(launch_target.as_ref()).map_err(|error| {
-        format!(
-            "代理模式已启动，但无法自动启动 ChatGPT/Codex（{error}）。请手动启动 ChatGPT 或 Codex。"
-        )
-    })?;
-    Ok(proxy_status)
+    // Update direct-history metadata while the desktop client is completely
+    // stopped, then only launch it once the old conversations are ready for
+    // local-proxy mode.
+    let sync_result = crate::commands::sync_conversation_metadata_if_present(&paths.codex_home);
+    let start_result = crate::commands::start_chatgpt(launch_target.as_ref());
+    match (sync_result, start_result) {
+        (Ok(_), Ok(())) => Ok(proxy_status),
+        (Err(sync_error), Ok(())) => Err(format!(
+            "代理模式已启动，ChatGPT/Codex 已重启，但此前对话记录同步失败：{sync_error}"
+        )),
+        (Ok(_), Err(start_error)) => Err(format!(
+            "代理模式已启动，但无法自动启动 ChatGPT/Codex（{start_error}）。请手动启动 ChatGPT 或 Codex。"
+        )),
+        (Err(sync_error), Err(start_error)) => Err(format!(
+            "代理模式已启动，但此前对话记录同步失败（{sync_error}），且无法自动启动 ChatGPT/Codex（{start_error}）。请手动启动 ChatGPT 或 Codex。"
+        )),
+    }
 }
 
 #[tauri::command]
