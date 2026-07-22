@@ -104,3 +104,7 @@ The **Providers** page manages OpenAI Responses or Chat Completions-compatible e
 ## License
 
 Codex Switch is licensed under the [Apache License 2.0](LICENSE), the same license used by the official [OpenAI Codex](https://github.com/openai/codex) repository.
+
+## Disclaimer
+
+Codex Switch is independently developed third-party software and is not affiliated with, associated with, authorized by, endorsed by, or officially partnered with OpenAI or its Codex products.

@@ -213,3 +213,7 @@ Codex Switch 使用 [Apache License 2.0](LICENSE)，与官方 [OpenAI Codex](htt
 - 内嵌登录依赖 WebView 与身份提供商策略；若失败，请使用系统浏览器登录。
 - 本地代理仅监听 `127.0.0.1:15722`；Token 历史仅包含经该代理转发的请求。
 - “重启 ChatGPT”为尽力而为的操作，依赖本地进程发现以及操作系统重新启动 ChatGPT 或旧版 `codex` 入口的能力。
+
+## 免责声明
+
+Codex Switch 是独立开发的第三方软件，与 OpenAI 及其 Codex 产品不存在隶属、关联、授权、认可或官方合作关系。
