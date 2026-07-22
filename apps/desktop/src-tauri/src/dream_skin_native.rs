@@ -1786,6 +1786,10 @@ pub(crate) fn apply_theme(app: &AppHandle, theme_id: &str) -> Result<(), String>
     let _operation = OPERATION_LOCK
         .lock()
         .map_err(|_| "Dream Skin operation lock is unavailable.".to_string())?;
+    // A running Dream Skin session watches the active theme payload and
+    // reinjects it when its revision changes.  Only the initial installation
+    // needs a managed launch to give ChatGPT/Codex its CDP arguments.
+    let already_installed = marker_path()?.is_file();
     let paths = ensure_installed(app)?;
     let directory = if BUILT_IN_THEME_IDS.contains(&theme_id) {
         built_in_theme_directory(&paths.bundled_root, theme_id)?
@@ -1794,7 +1798,13 @@ pub(crate) fn apply_theme(app: &AppHandle, theme_id: &str) -> Result<(), String>
     };
     copy_theme_to_active(&directory)?;
     let _ = fs::remove_file(pause_path()?);
-    restart_with_skin(&paths)
+    if already_installed {
+        ensure_monitor(paths);
+        wake_monitor();
+        Ok(())
+    } else {
+        restart_with_skin(&paths)
+    }
 }
 
 fn validate_import_options(options: &DreamSkinImportOptions) -> Result<(), String> {
@@ -1834,6 +1844,7 @@ pub(crate) fn import_image(
     let _operation = OPERATION_LOCK
         .lock()
         .map_err(|_| "Dream Skin operation lock is unavailable.".to_string())?;
+    let already_installed = marker_path()?.is_file();
     let paths = ensure_installed(app)?;
     let staging = state_root()?.join("import-staging");
     ensure_directory(&staging)?;
@@ -1870,7 +1881,13 @@ pub(crate) fn import_image(
     copy_theme_to_active(&staging)?;
     save_current_theme(&options.name)?;
     let _ = fs::remove_file(pause_path()?);
-    restart_with_skin(&paths)
+    if already_installed {
+        ensure_monitor(paths);
+        wake_monitor();
+        Ok(())
+    } else {
+        restart_with_skin(&paths)
+    }
 }
 
 pub(crate) fn save_theme(app: &AppHandle, name: &str) -> Result<(), String> {
