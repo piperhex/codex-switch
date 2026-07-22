@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { SyncModule } from '@/modules/sync/sync.module';
 import { UserModule } from '@/modules/user/user.module';
 import { RbacModule } from '@/common/rbac/rbac.module';
+import { EmailTemplateModule } from '@/modules/email-template/email-template.module';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
 import { OfficialAccountOAuthService } from './official-account-oauth.service';
@@ -16,6 +17,7 @@ import { AdminInvitationEntity } from './entities/admin-invitation.entity';
     UserModule,
     SyncModule,
     RbacModule,
+    EmailTemplateModule,
     TypeOrmModule.forFeature([
       AdminApprovalRequestEntity,
       AdminAuditLogEntity,

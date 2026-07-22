@@ -4,6 +4,7 @@ import {
   Inject,
   Injectable,
   NotFoundException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, ILike, IsNull, Repository } from 'typeorm';
@@ -14,6 +15,7 @@ import type { ConfigModuleOptions } from '@/config/config.types';
 import { SyncService } from '@/modules/sync/sync.service';
 import { UserService } from '@/modules/user/user.service';
 import { RbacService } from '@/modules/rbac/rbac.service';
+import { EmailTemplateService } from '@/modules/email-template/email-template.service';
 import type {
   CreatePermissionDto,
   CreateRoleDto,
@@ -53,10 +55,13 @@ export type AdminSyncedProviderDto = Omit<SyncProviderDto, 'apiKey'> & {
 
 @Injectable()
 export class AdminService {
+  private readonly logger = new Logger(AdminService.name);
+
   constructor(
     private readonly users: UserService,
     private readonly sync: SyncService,
     private readonly rbac: RbacService,
+    private readonly emailTemplates: EmailTemplateService,
     @InjectRepository(AdminAuditLogEntity)
     private readonly auditLogs: Repository<AdminAuditLogEntity>,
     @InjectRepository(AdminInvitationEntity)
@@ -204,14 +209,37 @@ export class AdminService {
   }
 
   async bindSystemAccounts(actor: AuthUser, dto: ChangeSystemAccountBindingsDto) {
-    await this.ensureUsers(dto.userIds);
+    const targetUsers = await this.ensureUsers(dto.userIds);
     const result = await this.sync.bindSystemAccounts(dto.systemAccountIds, dto.userIds);
     await this.record(actor, 'official-account.bind', 'official-account', null, null, {
       systemAccountIds: dto.systemAccountIds,
       userIds: dto.userIds,
       createdBindings: result.count,
     });
-    return result;
+    const usersById = new Map(targetUsers.map((user) => [user.id, user]));
+    const accountEmailsByUser = new Map<string, string[]>();
+    for (const binding of result.createdBindings ?? []) {
+      const emails = accountEmailsByUser.get(binding.userId) ?? [];
+      emails.push(binding.systemAccountEmail);
+      accountEmailsByUser.set(binding.userId, emails);
+    }
+    const notificationResults = await Promise.allSettled(
+      [...accountEmailsByUser].map(([userId, accountEmails]) => {
+        const user = usersById.get(userId)!;
+        return this.emailTemplates.sendOfficialAccountBound({
+          recipientEmail: user.email,
+          accountEmails,
+          operatorEmail: actor.email,
+        });
+      }),
+    );
+    const failedNotifications = notificationResults.filter((item) => item.status === 'rejected');
+    if (failedNotifications.length) {
+      this.logger.warn(
+        `${failedNotifications.length} account binding notification email(s) could not be sent`,
+      );
+    }
+    return { count: result.count };
   }
 
   async unbindSystemAccounts(actor: AuthUser, dto: ChangeSystemAccountBindingsDto) {
@@ -495,7 +523,7 @@ export class AdminService {
   }
 
   private async ensureUsers(ids: string[]) {
-    await Promise.all([...new Set(ids)].map((id) => this.ensureUser(id)));
+    return Promise.all([...new Set(ids)].map((id) => this.ensureUser(id)));
   }
 
   private async record(

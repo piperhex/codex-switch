@@ -66,6 +66,12 @@ export interface SystemAccountPatch {
   usage?: Record<string, unknown>;
 }
 
+export interface CreatedSystemAccountBinding {
+  systemAccountId: string;
+  systemAccountEmail: string;
+  userId: string;
+}
+
 @Injectable()
 export class SyncService {
   constructor(
@@ -379,7 +385,8 @@ export class SyncService {
   async bindSystemAccounts(systemAccountIds: string[], userIds: string[]) {
     const accountIds = [...new Set(systemAccountIds)];
     const targetUserIds = [...new Set(userIds)];
-    await this.requireSystemAccounts(accountIds);
+    const accounts = await this.requireSystemAccounts(accountIds);
+    const accountEmails = new Map(accounts.map((account) => [account.id, account.email]));
     const existing = await this.systemBindings.find({
       where: {
         systemAccountId: In(accountIds),
@@ -394,7 +401,14 @@ export class SyncService {
       .map((userId) => this.systemBindings.create({ systemAccountId, userId })));
     if (additions.length) await this.systemBindings.save(additions);
     await this.invalidateAccountCaches(targetUserIds);
-    return { count: additions.length };
+    return {
+      count: additions.length,
+      createdBindings: additions.map((binding): CreatedSystemAccountBinding => ({
+        systemAccountId: binding.systemAccountId,
+        systemAccountEmail: accountEmails.get(binding.systemAccountId)!,
+        userId: binding.userId,
+      })),
+    };
   }
 
   async unbindSystemAccounts(systemAccountIds: string[], userIds: string[]) {

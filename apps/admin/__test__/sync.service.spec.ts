@@ -521,13 +521,20 @@ describe('SyncService', () => {
   it('bulk binds pool accounts idempotently and invalidates every affected user cache', async () => {
     const accountId = '10000000-0000-4000-8000-000000000001';
     const userIds = ['20000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000002'];
-    systemAccounts.find.mockResolvedValue([{ id: accountId }]);
+    systemAccounts.find.mockResolvedValue([{ id: accountId, email: 'official@example.com' }]);
     systemBindings.find.mockResolvedValue([{
       systemAccountId: accountId,
       userId: userIds[0],
     }]);
 
-    await expect(service.bindSystemAccounts([accountId], userIds)).resolves.toEqual({ count: 1 });
+    await expect(service.bindSystemAccounts([accountId], userIds)).resolves.toEqual({
+      count: 1,
+      createdBindings: [{
+        systemAccountId: accountId,
+        systemAccountEmail: 'official@example.com',
+        userId: userIds[1],
+      }],
+    });
 
     expect(systemBindings.save).toHaveBeenCalledWith([{
       systemAccountId: accountId,

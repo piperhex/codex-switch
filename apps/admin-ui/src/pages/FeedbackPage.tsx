@@ -6,6 +6,7 @@ import {
   Image,
   Input,
   Modal,
+  Select,
   Space,
   Table,
   Tag,
@@ -15,7 +16,7 @@ import {
 import type { TableColumnsType } from "antd";
 import { Eye, Mail, RefreshCw } from "lucide-react";
 import { useI18n } from "../i18n-context";
-import type { FeedbackRow, PageResult } from "../types";
+import type { FeedbackRow, MailServiceConfig, PageResult } from "../types";
 import { formatDate } from "../utils/format";
 
 interface FeedbackPageProps {
@@ -23,13 +24,20 @@ interface FeedbackPageProps {
   loading: boolean;
   onLoad: (page?: number, pageSize?: number) => void | Promise<void>;
   onLoadAttachment: (feedbackId: string, attachmentId: string) => Promise<string>;
-  onSendEmail: (feedbackId: string, subject: string, content: string) => Promise<void>;
+  onSendEmail: (
+    feedbackId: string,
+    subject: string,
+    content: string,
+    mailServiceId?: string | null,
+  ) => Promise<void>;
+  mailServices: MailServiceConfig[];
   canManage: boolean;
 }
 
 interface EmailForm {
   subject: string;
   content: string;
+  mailServiceId: string;
 }
 
 function formatBytes(bytes: number) {
@@ -42,6 +50,7 @@ export function FeedbackPage({
   onLoad,
   onLoadAttachment,
   onSendEmail,
+  mailServices,
   canManage,
 }: FeedbackPageProps) {
   const { language, t } = useI18n();
@@ -82,6 +91,7 @@ export function FeedbackPage({
     form.setFieldsValue({
       subject: t("feedback.emailDefaultSubject"),
       content: "",
+      mailServiceId: "default",
     });
   };
 
@@ -225,7 +235,12 @@ export function FeedbackPage({
           if (!emailing) return;
           setEmailSending(true);
           try {
-            await onSendEmail(emailing.id, values.subject, values.content);
+            await onSendEmail(
+              emailing.id,
+              values.subject,
+              values.content,
+              values.mailServiceId === "default" ? null : values.mailServiceId,
+            );
             setEmailing(null);
           } catch {
             // The parent reports the API error and the form remains open for retry.
@@ -236,6 +251,15 @@ export function FeedbackPage({
           <Typography.Paragraph type="secondary">
             {t("feedback.emailTo", { email: emailing?.email ?? "" })}
           </Typography.Paragraph>
+          <Form.Item name="mailServiceId" label={t("mailServices.sender")} rules={[{ required: true }]}>
+            <Select options={mailServices.map((service) => ({
+              value: service.id ?? "default",
+              label: service.source === "default"
+                ? `${t("mailServices.default")} · ${service.fromAddress || t("mailServices.notConfigured")}`
+                : `${service.name} · ${service.fromAddress}`,
+              disabled: !service.enabled,
+            }))} />
+          </Form.Item>
           <Form.Item name="subject" label={t("feedback.emailSubject")}
             rules={[{ required: true, whitespace: true }]}>
             <Input maxLength={200} showCount />

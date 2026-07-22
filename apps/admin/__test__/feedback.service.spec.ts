@@ -4,6 +4,7 @@ import type { AuthUser } from '@/common/decorators/user.decorator';
 import type { AdminAuditLogEntity } from '@/modules/admin/entities/admin-audit-log.entity';
 import type { FeedbackAttachmentEntity } from '@/modules/feedback/entities/feedback-attachment.entity';
 import type { FeedbackEntity } from '@/modules/feedback/entities/feedback.entity';
+import type { MailService } from '@/modules/mail/mail.service';
 import {
   FeedbackService,
   MAX_FEEDBACK_IMAGE_BYTES,
@@ -26,13 +27,14 @@ function createService() {
     createQueryBuilder: vi.fn(),
   };
   const auditLogs = { create: vi.fn((value) => value), save: vi.fn() };
+  const mail = { send: vi.fn().mockResolvedValue({ ok: true }) };
   const service = new FeedbackService(
     feedback as unknown as Repository<FeedbackEntity>,
     attachments as unknown as Repository<FeedbackAttachmentEntity>,
     auditLogs as unknown as Repository<AdminAuditLogEntity>,
-    {},
+    mail as unknown as MailService,
   );
-  return { service, feedback, attachments };
+  return { service, feedback, attachments, auditLogs, mail };
 }
 
 function jpeg(overrides: Partial<UploadedFeedbackImage> = {}): UploadedFeedbackImage {
@@ -90,5 +92,33 @@ describe('FeedbackService', () => {
       .rejects.toThrow('Each feedback image must not exceed 5 MB');
     await expect(service.create(dto, [jpeg({ buffer: Buffer.from('not-an-image'), size: 12 })]))
       .rejects.toThrow('Feedback image data is invalid');
+  });
+
+  it('sends a reply through the selected mail service', async () => {
+    const { service, feedback, mail, auditLogs } = createService();
+    const actor: AuthUser = { id: 'admin-1', email: 'admin@example.com', role: 'admin' };
+    feedback.findOne.mockResolvedValue({
+      id: 'feedback-1',
+      email: 'user@example.com',
+    });
+
+    await service.sendEmail(actor, 'feedback-1', {
+      subject: 'Reply',
+      content: 'Resolved',
+      mailServiceId: '10000000-0000-4000-8000-000000000001',
+    });
+
+    expect(mail.send).toHaveBeenCalledWith({
+      serviceId: '10000000-0000-4000-8000-000000000001',
+      to: 'user@example.com',
+      subject: 'Reply',
+      text: 'Resolved',
+    });
+    expect(auditLogs.save).toHaveBeenCalledWith(expect.objectContaining({
+      metadata: {
+        subject: 'Reply',
+        mailServiceId: '10000000-0000-4000-8000-000000000001',
+      },
+    }));
   });
 });

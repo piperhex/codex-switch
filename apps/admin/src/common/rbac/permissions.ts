@@ -18,6 +18,10 @@ export enum Permission {
   ApprovalsManage = 'admin.approvals.manage',
   AnnouncementsRead = 'admin.announcements.read',
   AnnouncementsManage = 'admin.announcements.manage',
+  EmailTemplatesRead = 'admin.email-templates.read',
+  EmailTemplatesManage = 'admin.email-templates.manage',
+  MailServicesRead = 'admin.mail-services.read',
+  MailServicesManage = 'admin.mail-services.manage',
   FeedbackRead = 'admin.feedback.read',
   FeedbackManage = 'admin.feedback.manage',
   TelemetryRead = 'admin.telemetry.read',
@@ -51,6 +55,10 @@ export const PERMISSION_CATALOG: readonly PermissionDefinition[] = [
   { code: Permission.ApprovalsManage, group: 'approvals', name: 'Manage approvals', description: 'Create and review administrator approval requests.' },
   { code: Permission.AnnouncementsRead, group: 'content', name: 'Read announcements', description: 'View the application announcement configuration and link click analytics.' },
   { code: Permission.AnnouncementsManage, group: 'content', name: 'Manage announcements', description: 'Publish and update application announcements.' },
+  { code: Permission.EmailTemplatesRead, group: 'content', name: 'Read email templates', description: 'View notification email template content and variables.' },
+  { code: Permission.EmailTemplatesManage, group: 'content', name: 'Manage email templates', description: 'Customize notification email subjects and content.' },
+  { code: Permission.MailServicesRead, group: 'content', name: 'Read mail services', description: 'View default and custom SMTP sending services.' },
+  { code: Permission.MailServicesManage, group: 'content', name: 'Manage mail services', description: 'Create, update, and delete custom SMTP sending services.' },
   { code: Permission.FeedbackRead, group: 'feedback', name: 'Read feedback', description: 'View feedback and its attachments.' },
   { code: Permission.FeedbackManage, group: 'feedback', name: 'Manage feedback', description: 'Reply to user feedback.' },
   { code: Permission.TelemetryRead, group: 'telemetry', name: 'Read telemetry', description: 'View installation and telemetry analytics.' },
@@ -80,7 +88,10 @@ const PERMISSION_DEPENDENCIES: Partial<Record<Permission, readonly Permission[]>
   [Permission.InvitationsManage]: [Permission.InvitationsRead, Permission.RolesRead],
   [Permission.ApprovalsManage]: [Permission.ApprovalsRead, Permission.UsersRead],
   [Permission.AnnouncementsManage]: [Permission.AnnouncementsRead],
-  [Permission.FeedbackManage]: [Permission.FeedbackRead],
+  [Permission.EmailTemplatesRead]: [Permission.MailServicesRead],
+  [Permission.EmailTemplatesManage]: [Permission.EmailTemplatesRead, Permission.MailServicesManage],
+  [Permission.MailServicesManage]: [Permission.MailServicesRead],
+  [Permission.FeedbackManage]: [Permission.FeedbackRead, Permission.MailServicesRead],
 };
 
 export function expandPermissionDependencies(permissions: readonly string[]): string[] {

@@ -1,7 +1,7 @@
 export type Role = string;
 export type UserStatus = "active" | "disabled";
 export type Permission = string;
-export type MenuKey = "dashboard" | "myAccounts" | "users" | "roles" | "officialAccounts" | "announcement" | "feedback" | "telemetry" | "audit" | "invitations" | "approvals";
+export type MenuKey = "dashboard" | "myAccounts" | "users" | "roles" | "officialAccounts" | "announcement" | "emailTemplates" | "feedback" | "telemetry" | "audit" | "invitations" | "approvals";
 
 export interface AuthTokens {
   accessToken: string;
@@ -52,6 +52,51 @@ export interface AnnouncementConfig {
   backgroundColor: string;
   scrollDurationSeconds: number;
   updatedAt?: string | null;
+}
+
+export interface EmailTemplateVariable {
+  key: string;
+  description: string;
+  example: string;
+}
+
+export interface EmailTemplate {
+  code: string;
+  name: string;
+  description: string;
+  subject: string;
+  body: string;
+  mailServiceId?: string | null;
+  variables: EmailTemplateVariable[];
+  customized: boolean;
+  updatedByEmail?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface MailServiceConfig {
+  id: string | null;
+  source: "default" | "custom";
+  name: string;
+  host: string;
+  port: number;
+  secure: boolean;
+  username: string;
+  fromAddress: string;
+  enabled: boolean;
+  hasPassword: boolean;
+  updatedByEmail?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface MailServiceInput {
+  name: string;
+  host: string;
+  port: number;
+  secure: boolean;
+  username: string;
+  password?: string;
+  fromAddress: string;
+  enabled: boolean;
 }
 
 export interface AnnouncementClickOverview {
