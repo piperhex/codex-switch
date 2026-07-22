@@ -798,6 +798,9 @@ function DashboardApp() {
               onDelete={deleteAccount}
               onAutoSwitchEnabledChange={setAccountAutoSwitchEnabled}
               autoSwitchBusyAccountId={manager.autoSwitchBusyAccountId}
+              onAutoSwitchPriorityChange={manager.setAutoSwitchPriority}
+              autoSwitchPriorityBusyAccountId={manager.autoSwitchPriorityBusyAccountId}
+              onCustomAutoSwitchPriorityEnabledChange={providerManager.setProxyCustomPriority}
               onSaveNote={saveAccountNote}
               resetCredits={resetCredits.states}
               onLoadResetCredits={loadResetCredits}

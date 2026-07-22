@@ -19,9 +19,10 @@ use crate::{
     auth::{account_fields, canonicalize_chatgpt_auth, validate_auth},
     models::{ProviderProfile, ProviderSyncPayload, UsageSummary},
     storage::{
-        expiration_path, load_expiration, load_note, load_or_init_last_modified, load_usage,
-        managed_auth_path, note_path, parse_last_modified, read_json, read_state, resolve_paths,
-        save_account_last_modified, save_expiration, save_note, save_usage, usage_path,
+        auto_switch_priority_path, expiration_path, load_auto_switch_priority, load_expiration,
+        load_note, load_or_init_last_modified, load_usage, managed_auth_path, note_path,
+        parse_last_modified, read_json, read_state, resolve_paths, save_account_last_modified,
+        save_auto_switch_priority, save_expiration, save_note, save_usage, usage_path,
         write_json_if_changed, write_managed_auth_if_changed, write_state,
     },
 };
@@ -52,6 +53,8 @@ struct AccountArchiveEntry {
     note: String,
     expires_at: String,
     usage: UsageSummary,
+    #[serde(default)]
+    auto_switch_priority: i32,
     #[serde(default)]
     last_modified_at: Option<String>,
 }
@@ -142,6 +145,9 @@ fn collect_accounts<R: Runtime>(
                 note: load_note(&note_path(&paths, &id)),
                 expires_at: load_expiration(&expiration_path(&paths, &id)),
                 usage: load_usage(&usage_path(&paths, &id)),
+                auto_switch_priority: load_auto_switch_priority(&auto_switch_priority_path(
+                    &paths, &id,
+                )),
                 last_modified_at,
                 id,
                 auth,
@@ -151,7 +157,7 @@ fn collect_accounts<R: Runtime>(
     accounts.sort_by(|left, right| left.id.cmp(&right.id));
     let providers = collect_providers(&paths)?;
     Ok(AccountArchivePayload {
-        format_version: 2,
+        format_version: 3,
         exported_at: Utc::now().to_rfc3339(),
         active_account_id,
         active_provider_id,
@@ -164,7 +170,7 @@ fn apply_archive<R: Runtime>(
     app: &tauri::AppHandle<R>,
     payload: AccountArchivePayload,
 ) -> Result<AccountArchiveImportResult, String> {
-    if payload.format_version == 0 || payload.format_version > 2 {
+    if payload.format_version == 0 || payload.format_version > 3 {
         return Err(format!(
             "Unsupported account archive version: {}",
             payload.format_version
@@ -223,6 +229,10 @@ fn apply_archive<R: Runtime>(
             save_note(&note_path(&paths, &account.id), &account.note)?;
             save_expiration(&expiration_path(&paths, &account.id), &account.expires_at)?;
             save_usage(&usage_path(&paths, &account.id), &account.usage)?;
+            save_auto_switch_priority(
+                &auto_switch_priority_path(&paths, &account.id),
+                account.auto_switch_priority,
+            )?;
             save_account_last_modified(
                 &paths,
                 &account.id,
@@ -479,6 +489,7 @@ mod tests {
                 note: "plain-secret-note".to_string(),
                 expires_at: "2026-12-31".to_string(),
                 usage: UsageSummary::default(),
+                auto_switch_priority: 0,
                 last_modified_at: Some("2026-07-04T00:00:00Z".to_string()),
             }],
             providers: vec![ProviderSyncPayload {

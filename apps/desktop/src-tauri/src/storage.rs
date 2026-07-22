@@ -20,6 +20,7 @@ pub(crate) enum AccountSyncField {
     ExpiresAt,
     Usage,
     Active,
+    AutoSwitchPriority,
 }
 
 #[derive(Clone)]
@@ -157,6 +158,10 @@ pub(crate) fn expiration_path(paths: &Paths, id: &str) -> PathBuf {
     account_dir(paths, id).join("expires-at.txt")
 }
 
+pub(crate) fn auto_switch_priority_path(paths: &Paths, id: &str) -> PathBuf {
+    account_dir(paths, id).join("auto-switch-priority.txt")
+}
+
 pub(crate) fn last_modified_path(paths: &Paths, id: &str) -> PathBuf {
     account_dir(paths, id).join("last-modified-at.txt")
 }
@@ -171,6 +176,13 @@ pub(crate) fn load_note(path: &Path) -> String {
 
 pub(crate) fn load_expiration(path: &Path) -> String {
     fs::read_to_string(path).unwrap_or_default()
+}
+
+pub(crate) fn load_auto_switch_priority(path: &Path) -> i32 {
+    fs::read_to_string(path)
+        .ok()
+        .and_then(|value| value.trim().parse().ok())
+        .unwrap_or_default()
 }
 
 pub(crate) fn save_note(path: &Path, note: &str) -> Result<(), String> {
@@ -196,6 +208,10 @@ pub(crate) fn save_note(path: &Path, note: &str) -> Result<(), String> {
 
 pub(crate) fn save_expiration(path: &Path, expires_at: &str) -> Result<(), String> {
     save_note(path, expires_at)
+}
+
+pub(crate) fn save_auto_switch_priority(path: &Path, priority: i32) -> Result<(), String> {
+    write_text_atomic(path, &priority.to_string())
 }
 
 pub(crate) fn parse_last_modified(value: &str) -> Option<DateTime<Utc>> {
@@ -226,6 +242,7 @@ fn latest_file_modified(paths: &Paths, id: &str) -> Option<DateTime<Utc>> {
         note_path(paths, id),
         expiration_path(paths, id),
         usage_path(paths, id),
+        auto_switch_priority_path(paths, id),
     ]
     .into_iter()
     .filter_map(|path| fs::metadata(path).ok()?.modified().ok())
@@ -274,6 +291,10 @@ fn fill_missing_field_modified_at(
     if values.active.trim().is_empty() {
         values.active = fallback.to_string();
     }
+    if values.auto_switch_priority.trim().is_empty() {
+        values.auto_switch_priority =
+            file_modified_or_fallback(auto_switch_priority_path(paths, id), fallback);
+    }
 }
 
 pub(crate) fn load_or_init_account_field_modified_at(
@@ -307,6 +328,7 @@ pub(crate) fn save_account_field_modified_at(
         &values.expires_at,
         &values.usage,
         &values.active,
+        &values.auto_switch_priority,
     ]
     .into_iter()
     .filter_map(|value| parse_last_modified(value))
@@ -331,6 +353,7 @@ pub(crate) fn touch_account_field(
         AccountSyncField::ExpiresAt => values.expires_at = value,
         AccountSyncField::Usage => values.usage = value,
         AccountSyncField::Active => values.active = value,
+        AccountSyncField::AutoSwitchPriority => values.auto_switch_priority = value,
     }
     save_account_field_modified_at(paths, id, &values)?;
     Ok(modified_at)

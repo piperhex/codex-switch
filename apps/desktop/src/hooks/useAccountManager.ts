@@ -11,6 +11,7 @@ import {
   refreshAccountUsage,
   removeAccount,
   setAccountAutoSwitchEnabled,
+  setAccountAutoSwitchPriority,
   subscribeToBackendEvents,
   subscribeToProviderEvents,
   updateAccountNote,
@@ -39,6 +40,7 @@ export function useAccountManager(
   const [loading, setLoading] = useState(true);
   const [busyAccountId, setBusyAccountId] = useState<string | null>(null);
   const [autoSwitchBusyAccountId, setAutoSwitchBusyAccountId] = useState<string | null>(null);
+  const [autoSwitchPriorityBusyAccountId, setAutoSwitchPriorityBusyAccountId] = useState<string | null>(null);
   const [refreshingAll, setRefreshingAll] = useState(false);
   const [archiveOperation, setArchiveOperation] = useState<"import" | "export" | null>(null);
   const refreshingAllRef = useRef(false);
@@ -244,12 +246,31 @@ export function useAccountManager(
     }
   }, [cloudSync, notify, t]);
 
+  const setAutoSwitchPriority = useCallback(async (id: string, priority: number) => {
+    setAutoSwitchPriorityBusyAccountId(id);
+    try {
+      await setAccountAutoSwitchPriority(id, priority);
+      setAccounts((items) => items.map((item) => item.id === id
+        ? { ...item, autoSwitchPriority: priority }
+        : item));
+      await cloudSync?.pushAccount?.(id);
+      if (isDesktopApp) await load();
+      return true;
+    } catch (error) {
+      notify(String(error));
+      return false;
+    } finally {
+      setAutoSwitchPriorityBusyAccountId(null);
+    }
+  }, [cloudSync, load, notify]);
+
   return {
     accounts,
     info,
     loading,
     busyAccountId,
     autoSwitchBusyAccountId,
+    autoSwitchPriorityBusyAccountId,
     refreshingAll,
     archiveOperation,
     startLogin,
@@ -262,6 +283,7 @@ export function useAccountManager(
     refreshAll,
     deleteAccount,
     setAutoSwitchEnabled,
+    setAutoSwitchPriority,
     saveAccountNote,
     reload: load,
   };

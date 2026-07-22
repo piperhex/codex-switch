@@ -28,11 +28,12 @@ use crate::{
     },
     models::{AccountSummary, AppInfo, ManagerStateFile, ResetCreditsSummary, UsageSummary},
     storage::{
-        account_dir, expiration_path, import_value, load_expiration, load_note, load_usage,
-        managed_auth_path, note_path, read_json, read_state, resolve_paths, save_expiration,
-        save_note, save_usage, sync_current_into_store, touch_account_field, usage_path,
-        write_json_atomic, write_json_if_changed, write_managed_auth_if_changed, write_state,
-        AccountSyncField, Paths,
+        account_dir, auto_switch_priority_path, expiration_path, import_value,
+        load_auto_switch_priority, load_expiration, load_note, load_usage, managed_auth_path,
+        note_path, read_json, read_state, resolve_paths, save_auto_switch_priority,
+        save_expiration, save_note, save_usage, sync_current_into_store, touch_account_field,
+        usage_path, write_json_atomic, write_json_if_changed, write_managed_auth_if_changed,
+        write_state, AccountSyncField, Paths,
     },
 };
 
@@ -141,6 +142,8 @@ pub(crate) fn list_accounts<R: Runtime>(
         let agent_identity = is_agent_identity_auth(&auth);
         let direct_switch_compatible = !agent_identity;
         let auto_switch_enabled = !state.disabled_account_ids.contains(&id);
+        let auto_switch_priority =
+            load_auto_switch_priority(&auto_switch_priority_path(&paths, &id));
         accounts.push(AccountSummary {
             active: active_id.as_deref() == Some(&id),
             usage: load_usage(&usage_path(&paths, &id)),
@@ -151,6 +154,7 @@ pub(crate) fn list_accounts<R: Runtime>(
             plan,
             account_id,
             auto_switch_enabled,
+            auto_switch_priority,
             local_proxy_compatible,
             direct_switch_compatible,
             agent_identity,
@@ -694,6 +698,26 @@ pub(crate) fn set_account_auto_switch_enabled<R: Runtime>(
         return Err("Account does not exist".to_string());
     }
     set_account_auto_switch_enabled_for_paths(&paths, &id, enabled)?;
+    app.emit("accounts-changed", ())
+        .map_err(|error| error.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub(crate) fn set_account_auto_switch_priority<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    id: String,
+    priority: i32,
+) -> Result<(), String> {
+    let paths = resolve_paths(&app)?;
+    if !managed_auth_path(&paths, &id).exists() {
+        return Err("Account does not exist".to_string());
+    }
+    let path = auto_switch_priority_path(&paths, &id);
+    if load_auto_switch_priority(&path) != priority || !path.exists() {
+        save_auto_switch_priority(&path, priority)?;
+        touch_account_field(&paths, &id, AccountSyncField::AutoSwitchPriority)?;
+    }
     app.emit("accounts-changed", ())
         .map_err(|error| error.to_string())?;
     Ok(())

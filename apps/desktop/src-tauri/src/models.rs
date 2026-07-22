@@ -13,6 +13,7 @@ pub(crate) struct AccountSummary {
     pub(crate) account_id: Option<String>,
     pub(crate) active: bool,
     pub(crate) auto_switch_enabled: bool,
+    pub(crate) auto_switch_priority: i32,
     pub(crate) local_proxy_compatible: bool,
     pub(crate) direct_switch_compatible: bool,
     pub(crate) agent_identity: bool,
@@ -62,6 +63,8 @@ pub(crate) struct ManagerStateFile {
     pub(crate) local_proxy_enabled: bool,
     #[serde(default)]
     pub(crate) auto_switch_on_quota_exhaustion: bool,
+    #[serde(default)]
+    pub(crate) custom_auto_switch_priority_enabled: bool,
     #[serde(default)]
     pub(crate) auto_disable_unreachable_accounts: bool,
     #[serde(default)]
@@ -128,6 +131,7 @@ pub(crate) struct LocalProxyStatus {
     pub(crate) port: u16,
     pub(crate) base_url: String,
     pub(crate) auto_switch_on_quota_exhaustion: bool,
+    pub(crate) custom_auto_switch_priority_enabled: bool,
     pub(crate) auto_disable_unreachable_accounts: bool,
     pub(crate) listen_on_all_interfaces: bool,
     pub(crate) image_generation_account_id: Option<String>,
@@ -311,6 +315,8 @@ pub(crate) struct AccountFieldModifiedAt {
     pub(crate) usage: String,
     #[serde(default)]
     pub(crate) active: String,
+    #[serde(default)]
+    pub(crate) auto_switch_priority: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -323,6 +329,8 @@ pub(crate) struct CloudAccountPayload {
     pub(crate) plan: String,
     pub(crate) account_id: Option<String>,
     pub(crate) active: bool,
+    #[serde(default)]
+    pub(crate) auto_switch_priority: i32,
     pub(crate) usage: UsageSummary,
     pub(crate) last_modified_at: String,
     #[serde(default)]
@@ -358,6 +366,7 @@ mod tests {
         assert_eq!(state.active_account_id.as_deref(), Some("account-1"));
         assert!(!state.local_proxy_enabled);
         assert!(!state.auto_switch_on_quota_exhaustion);
+        assert!(!state.custom_auto_switch_priority_enabled);
         assert!(!state.auto_disable_unreachable_accounts);
         assert!(!state.local_proxy_listen_on_all_interfaces);
         assert!(state.image_generation_account_id.is_none());

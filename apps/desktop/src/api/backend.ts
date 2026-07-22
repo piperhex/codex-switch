@@ -45,6 +45,7 @@ const CLOUD_USER_PREVIEW_KEY = "codex-switch:cloud-user-email";
 const PROVIDERS_PREVIEW_KEY = "codex-switch:providers";
 const LOCAL_PROXY_PREVIEW_KEY = "codex-switch:local-proxy-running";
 const LOCAL_PROXY_AUTO_SWITCH_PREVIEW_KEY = "codex-switch:local-proxy-auto-switch";
+const LOCAL_PROXY_CUSTOM_PRIORITY_PREVIEW_KEY = "codex-switch:local-proxy-custom-priority";
 const LOCAL_PROXY_AUTO_DISABLE_UNREACHABLE_PREVIEW_KEY = "codex-switch:local-proxy-auto-disable-unreachable";
 const LOCAL_PROXY_LISTEN_ALL_INTERFACES_PREVIEW_KEY = "codex-switch:local-proxy-listen-all-interfaces";
 const LOCAL_PROXY_IMAGE_ACCOUNT_PREVIEW_KEY = "codex-switch:image-generation-account";
@@ -158,6 +159,7 @@ function previewLocalProxyStatus(): LocalProxyStatus {
     port: 15722,
     baseUrl: "http://127.0.0.1:15722/v1",
     autoSwitchOnQuotaExhaustion: window.localStorage.getItem(LOCAL_PROXY_AUTO_SWITCH_PREVIEW_KEY) === "true",
+    customAutoSwitchPriorityEnabled: window.localStorage.getItem(LOCAL_PROXY_CUSTOM_PRIORITY_PREVIEW_KEY) === "true",
     autoDisableUnreachableAccounts: window.localStorage.getItem(LOCAL_PROXY_AUTO_DISABLE_UNREACHABLE_PREVIEW_KEY) === "true",
     listenOnAllInterfaces: window.localStorage.getItem(LOCAL_PROXY_LISTEN_ALL_INTERFACES_PREVIEW_KEY) === "true",
     imageGenerationAccountId: window.localStorage.getItem(LOCAL_PROXY_IMAGE_ACCOUNT_PREVIEW_KEY),
@@ -415,6 +417,19 @@ export async function setLocalProxyAutoDisableUnreachable(enabled: boolean): Pro
     return previewLocalProxyStatus();
   }
   return invoke<LocalProxyStatus>("set_auto_disable_unreachable_accounts", { enabled });
+}
+
+export async function setLocalProxyCustomPriority(enabled: boolean): Promise<LocalProxyStatus> {
+  if (!isDesktopApp) {
+    const status = previewLocalProxyStatus();
+    if (enabled && (!status.running || !status.autoSwitchOnQuotaExhaustion)) {
+      throw new Error("Enable automatic account switching before enabling custom priorities");
+    }
+    window.localStorage.setItem(LOCAL_PROXY_CUSTOM_PRIORITY_PREVIEW_KEY, String(enabled));
+    window.dispatchEvent(new CustomEvent(PROVIDERS_EVENT));
+    return previewLocalProxyStatus();
+  }
+  return invoke<LocalProxyStatus>("set_custom_auto_switch_priority_enabled", { enabled });
 }
 
 export async function setLocalProxyImageAccount(accountId: string | null): Promise<LocalProxyStatus> {
@@ -829,6 +844,11 @@ export async function setProxyOnboardingChoice(useProxy: boolean): Promise<AppSe
 
 export async function setAccountAutoSwitchEnabled(id: string, enabled: boolean): Promise<void> {
   if (isDesktopApp) await invoke("set_account_auto_switch_enabled", { id, enabled });
+}
+
+export async function setAccountAutoSwitchPriority(id: string, priority: number): Promise<void> {
+  if (!Number.isInteger(priority)) throw new Error("Auto-switch priority must be an integer");
+  if (isDesktopApp) await invoke("set_account_auto_switch_priority", { id, priority });
 }
 
 export async function refreshAccountUsage(id: string): Promise<void> {

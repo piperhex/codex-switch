@@ -18,9 +18,10 @@ use crate::{
         ProviderProfile, ProviderSyncPayload,
     },
     storage::{
-        expiration_path, load_expiration, load_note, load_or_init_account_field_modified_at,
-        load_or_init_last_modified, load_usage, managed_auth_path, note_path, parse_last_modified,
-        read_app_settings, read_json, read_state, resolve_paths, save_account_field_modified_at,
+        auto_switch_priority_path, expiration_path, load_auto_switch_priority, load_expiration,
+        load_note, load_or_init_account_field_modified_at, load_or_init_last_modified, load_usage,
+        managed_auth_path, note_path, parse_last_modified, read_app_settings, read_json,
+        read_state, resolve_paths, save_account_field_modified_at, save_auto_switch_priority,
         save_expiration, save_note, save_usage, usage_path, write_app_settings, write_json_atomic,
         write_json_if_changed, write_managed_auth_if_changed, write_state,
     },
@@ -338,6 +339,9 @@ fn collect_local_accounts<R: Runtime>(
         let last_modified_at = load_or_init_last_modified(&paths, &id)?.to_rfc3339();
         accounts.push(CloudAccountPayload {
             active: active_id.as_deref() == Some(&id),
+            auto_switch_priority: load_auto_switch_priority(&auto_switch_priority_path(
+                &paths, &id,
+            )),
             usage: load_usage(&usage_path(&paths, &id)),
             note: load_note(&note_path(&paths, &id)),
             expires_at: load_expiration(&expiration_path(&paths, &id)),
@@ -400,6 +404,7 @@ fn normalize_account_field_modified_at(
         &mut values.expires_at,
         &mut values.usage,
         &mut values.active,
+        &mut values.auto_switch_priority,
     ] {
         if value.trim().is_empty() {
             *value = fallback.to_string();
@@ -463,6 +468,10 @@ fn apply_remote_account<R: Runtime>(
         &local_field_modified_at.active,
         &remote_field_modified_at.active,
     );
+    let apply_auto_switch_priority = remote_field_is_newer(
+        &local_field_modified_at.auto_switch_priority,
+        &remote_field_modified_at.auto_switch_priority,
+    );
 
     let account_auth = if apply_auth {
         write_json_if_changed(&auth_path, &remote_auth)?;
@@ -487,7 +496,21 @@ fn apply_remote_account<R: Runtime>(
     if apply_active {
         local_field_modified_at.active = remote_field_modified_at.active.clone();
     }
-    if apply_auth || apply_note || apply_expires_at || apply_usage || apply_active {
+    if apply_auto_switch_priority {
+        save_auto_switch_priority(
+            &auto_switch_priority_path(&paths, &account.id),
+            account.auto_switch_priority,
+        )?;
+        local_field_modified_at.auto_switch_priority =
+            remote_field_modified_at.auto_switch_priority.clone();
+    }
+    if apply_auth
+        || apply_note
+        || apply_expires_at
+        || apply_usage
+        || apply_active
+        || apply_auto_switch_priority
+    {
         save_account_field_modified_at(&paths, &account.id, &local_field_modified_at)?;
     }
 
@@ -510,7 +533,12 @@ fn apply_remote_account<R: Runtime>(
             }
         }
     }
-    Ok(apply_auth || apply_note || apply_expires_at || apply_usage || apply_active)
+    Ok(apply_auth
+        || apply_note
+        || apply_expires_at
+        || apply_usage
+        || apply_active
+        || apply_auto_switch_priority)
 }
 
 fn apply_remote_provider<R: Runtime>(

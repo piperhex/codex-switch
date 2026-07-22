@@ -2,10 +2,13 @@ import { Type } from 'class-transformer';
 import {
   IsArray,
   IsBoolean,
+  IsInt,
   IsObject,
   IsOptional,
   IsString,
   MaxLength,
+  Max,
+  Min,
   ValidateNested,
 } from 'class-validator';
 
@@ -34,6 +37,11 @@ export class AccountFieldModifiedAtDto {
   @IsString()
   @MaxLength(40)
   active?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  autoSwitchPriority?: string;
 }
 
 export class SyncAccountDto {
@@ -63,6 +71,12 @@ export class SyncAccountDto {
 
   @IsBoolean()
   active: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(-2147483648)
+  @Max(2147483647)
+  autoSwitchPriority?: number;
 
   @IsObject()
   usage: Record<string, unknown>;

@@ -344,6 +344,7 @@ pub(crate) fn is_running() -> bool {
 fn status<R: Runtime>(app: &tauri::AppHandle<R>) -> LocalProxyStatus {
     let (
         auto_switch_on_quota_exhaustion,
+        custom_auto_switch_priority_enabled,
         auto_disable_unreachable_accounts,
         listen_on_all_interfaces,
         image_generation_account_id,
@@ -352,18 +353,20 @@ fn status<R: Runtime>(app: &tauri::AppHandle<R>) -> LocalProxyStatus {
             let state = read_state(&paths);
             (
                 state.auto_switch_on_quota_exhaustion,
+                state.custom_auto_switch_priority_enabled,
                 state.auto_disable_unreachable_accounts,
                 state.local_proxy_listen_on_all_interfaces,
                 state.image_generation_account_id,
             )
         })
-        .unwrap_or((false, false, false, None));
+        .unwrap_or((false, false, false, false, None));
     LocalProxyStatus {
         running: is_running(),
         address: proxy_bind_host(listen_on_all_interfaces).to_string(),
         port: LOCAL_PROXY_PORT,
         base_url: LOCAL_PROXY_BASE_URL.to_string(),
         auto_switch_on_quota_exhaustion,
+        custom_auto_switch_priority_enabled,
         auto_disable_unreachable_accounts,
         listen_on_all_interfaces,
         image_generation_account_id,
@@ -622,6 +625,25 @@ pub(crate) fn set_auto_switch_on_quota_exhaustion<R: Runtime>(
     let paths = resolve_paths(&app)?;
     let mut state = read_state(&paths);
     state.auto_switch_on_quota_exhaustion = enabled;
+    write_state(&paths, &state)?;
+    app.emit("providers-changed", ())
+        .map_err(|error| error.to_string())?;
+    Ok(status(&app))
+}
+
+#[tauri::command]
+pub(crate) fn set_custom_auto_switch_priority_enabled<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    enabled: bool,
+) -> Result<LocalProxyStatus, String> {
+    let paths = resolve_paths(&app)?;
+    let mut state = read_state(&paths);
+    if enabled && (!is_running() || !state.auto_switch_on_quota_exhaustion) {
+        return Err(
+            "Enable automatic account switching before enabling custom priorities".to_string(),
+        );
+    }
+    state.custom_auto_switch_priority_enabled = enabled;
     write_state(&paths, &state)?;
     app.emit("providers-changed", ())
         .map_err(|error| error.to_string())?;
@@ -1049,9 +1071,11 @@ fn auto_switch_official_account<R: Runtime>(
         return Ok(None);
     }
 
-    let Some(target) =
-        account_with_lowest_remaining_primary_quota(&refreshed_accounts, &current_id)
-    else {
+    let Some(target) = account_with_lowest_remaining_primary_quota(
+        &refreshed_accounts,
+        &current_id,
+        state.custom_auto_switch_priority_enabled,
+    ) else {
         return Ok(None);
     };
     let target_id = target.id.clone();
@@ -1062,6 +1086,7 @@ fn auto_switch_official_account<R: Runtime>(
 fn account_with_lowest_remaining_primary_quota<'a>(
     accounts: &'a [AccountSummary],
     current_id: &str,
+    custom_priority_enabled: bool,
 ) -> Option<&'a AccountSummary> {
     accounts
         .iter()
@@ -1070,8 +1095,19 @@ fn account_with_lowest_remaining_primary_quota<'a>(
         .filter_map(|account| {
             primary_remaining_quota_score(&account.usage).map(|score| (account, score))
         })
-        .min_by(|(_, left), (_, right)| {
-            left.partial_cmp(right).unwrap_or(std::cmp::Ordering::Equal)
+        .min_by(|(left_account, left_usage), (right_account, right_usage)| {
+            let priority_order = if custom_priority_enabled {
+                left_account
+                    .auto_switch_priority
+                    .cmp(&right_account.auto_switch_priority)
+            } else {
+                std::cmp::Ordering::Equal
+            };
+            priority_order.then_with(|| {
+                left_usage
+                    .partial_cmp(right_usage)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
         })
         .map(|(account, _)| account)
 }
@@ -4121,6 +4157,7 @@ mod tests {
             account_id: None,
             active: id == "current",
             auto_switch_enabled: true,
+            auto_switch_priority: 0,
             local_proxy_compatible: true,
             direct_switch_compatible: true,
             agent_identity: false,
@@ -4152,7 +4189,8 @@ mod tests {
             account_with_usage("exhausted", 0.0, 99.0),
         ];
 
-        let selected = account_with_lowest_remaining_primary_quota(&accounts, "current").unwrap();
+        let selected =
+            account_with_lowest_remaining_primary_quota(&accounts, "current", false).unwrap();
 
         assert_eq!(selected.id, "lowest-remaining");
     }
@@ -4167,9 +4205,46 @@ mod tests {
             account_with_usage("enabled", 72.0, 99.0),
         ];
 
-        let selected = account_with_lowest_remaining_primary_quota(&accounts, "current").unwrap();
+        let selected =
+            account_with_lowest_remaining_primary_quota(&accounts, "current", false).unwrap();
 
         assert_eq!(selected.id, "enabled");
+    }
+
+    #[test]
+    fn quota_switch_prefers_lower_custom_priority_before_usage() {
+        let mut lower_priority = account_with_usage("lower-priority", 72.0, 99.0);
+        lower_priority.auto_switch_priority = -1;
+        let mut higher_priority = account_with_usage("higher-priority", 5.0, 1.0);
+        higher_priority.auto_switch_priority = 2;
+        let accounts = vec![
+            account_with_usage("current", 0.0, 80.0),
+            higher_priority,
+            lower_priority,
+        ];
+
+        let selected =
+            account_with_lowest_remaining_primary_quota(&accounts, "current", true).unwrap();
+
+        assert_eq!(selected.id, "lower-priority");
+    }
+
+    #[test]
+    fn quota_switch_uses_existing_usage_rule_when_custom_priorities_match() {
+        let mut lower_usage = account_with_usage("lower-usage", 5.0, 1.0);
+        lower_usage.auto_switch_priority = 3;
+        let mut higher_usage = account_with_usage("higher-usage", 72.0, 99.0);
+        higher_usage.auto_switch_priority = 3;
+        let accounts = vec![
+            account_with_usage("current", 0.0, 80.0),
+            higher_usage,
+            lower_usage,
+        ];
+
+        let selected =
+            account_with_lowest_remaining_primary_quota(&accounts, "current", true).unwrap();
+
+        assert_eq!(selected.id, "lower-usage");
     }
 
     #[test]

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Button, Popconfirm, Space, Switch, Table, Tag, Tooltip } from "antd";
+import { Button, InputNumber, Popconfirm, Space, Switch, Table, Tag, Tooltip } from "antd";
 import type { TableProps } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { CalendarClock, Check, RefreshCw, RotateCcw, ToggleLeft, ToggleRight, Trash2, X } from "lucide-react";
@@ -20,6 +20,12 @@ interface AccountTableProps {
   onDelete: (id: string) => void;
   onAutoSwitchEnabledChange: (id: string, enabled: boolean) => void;
   autoSwitchBusyAccountId: string | null;
+  onAutoSwitchPriorityChange: (id: string, priority: number) => Promise<boolean>;
+  autoSwitchPriorityBusyAccountId: string | null;
+  autoSwitchOnQuotaExhaustion: boolean;
+  customAutoSwitchPriorityEnabled: boolean;
+  onCustomAutoSwitchPriorityEnabledChange: (enabled: boolean) => void;
+  customAutoSwitchPriorityBusy: boolean;
   onSaveNote: (id: string, note: string, expiresAt: string) => Promise<boolean>;
   resetCredits: Record<string, ResetCreditsLoadState>;
   onLoadResetCredits: (id: string, force?: boolean) => void;
@@ -203,6 +209,34 @@ function compareKeepingAttentionLast(
   return compare(left, right);
 }
 
+function AutoSwitchPriorityInput({
+  account,
+  disabled,
+  onSave,
+  t,
+}: {
+  account: Account;
+  disabled: boolean;
+  onSave: (id: string, priority: number) => Promise<boolean>;
+  t: Translate;
+}) {
+  const [value, setValue] = useState<number | null>(account.autoSwitchPriority);
+
+  useEffect(() => setValue(account.autoSwitchPriority), [account.autoSwitchPriority]);
+
+  const save = async () => {
+    const priority = value === null ? 0 : Math.trunc(value);
+    setValue(priority);
+    if (priority === account.autoSwitchPriority) return;
+    if (!await onSave(account.id, priority)) setValue(account.autoSwitchPriority);
+  };
+
+  return <InputNumber className="auto-switch-priority-input" size="small" precision={0} step={1}
+    min={-2_147_483_648} max={2_147_483_647} value={value} disabled={disabled}
+    aria-label={t("table.autoSwitchPriority")} onChange={setValue}
+    onBlur={() => void save()} onPressEnter={(event) => event.currentTarget.blur()} />;
+}
+
 function ResetCreditsModal({
   state,
   onClose,
@@ -236,6 +270,12 @@ export function AccountTable({
   onDelete,
   onAutoSwitchEnabledChange,
   autoSwitchBusyAccountId,
+  onAutoSwitchPriorityChange,
+  autoSwitchPriorityBusyAccountId,
+  autoSwitchOnQuotaExhaustion,
+  customAutoSwitchPriorityEnabled,
+  onCustomAutoSwitchPriorityEnabledChange,
+  customAutoSwitchPriorityBusy,
   onSaveNote,
   resetCredits,
   onLoadResetCredits,
@@ -300,6 +340,8 @@ export function AccountTable({
     };
   }, [hotSwitchEnabled, tokenUsageRefreshSeconds]);
   const effectiveCurrentModel = currentModel.trim() || tokenUsageEntries[0]?.model || "";
+  const showCustomPriorityToggle = hotSwitchEnabled && autoSwitchOnQuotaExhaustion;
+  const customPriorityActive = showCustomPriorityToggle && customAutoSwitchPriorityEnabled;
   const tokenTotalsByAccount = useMemo(() => {
     const totals = new Map<string, TokenTypeTotals>();
     if (!effectiveCurrentModel) return totals;
@@ -415,8 +457,32 @@ export function AccountTable({
         </div>
       ),
     },
+    ...(customPriorityActive ? [{
+      title: t("table.autoSwitchPriority"), key: "autoSwitchPriority", width: 150,
+      align: "center" as const, fixed: "right" as const,
+      render: (_: unknown, account: Account) => (
+        <AutoSwitchPriorityInput account={account} t={t}
+          disabled={autoSwitchPriorityBusyAccountId !== null}
+          onSave={onAutoSwitchPriorityChange} />
+      ),
+    }] : []),
     {
-      title: t("table.actions"), width: 300, align: "center", fixed: "right",
+      title: (
+        <div className="account-actions-column-title">
+          <span>{t("table.actions")}</span>
+          {showCustomPriorityToggle && (
+            <Tooltip title={t("table.customPriorityTooltip")}>
+              <span className="account-custom-priority-switch">
+                <Switch size="small" checked={customAutoSwitchPriorityEnabled}
+                  disabled={customAutoSwitchPriorityBusy}
+                  onChange={onCustomAutoSwitchPriorityEnabledChange} />
+                <span>{t("table.customPriorityEnabled")}</span>
+              </span>
+            </Tooltip>
+          )}
+        </div>
+      ),
+      width: 350, align: "center", fixed: "right",
       render: (_, account) => {
         const waiting = busyAccountId === account.id;
         const resetWaiting = resetCreditBusyAccountId === account.id;
@@ -612,7 +678,9 @@ export function AccountTable({
             onRetry={() => onLoadResetCredits(account.id, true)} language={language} t={t} />,
           onExpand: (expanded, account) => { if (expanded) onLoadResetCredits(account.id); },
         }}
-        scroll={tableScrollY ? { x: 1230, y: tableScrollY } : { x: 1230 }} />
+        scroll={tableScrollY
+          ? { x: customPriorityActive ? 1434 : 1274, y: tableScrollY }
+          : { x: customPriorityActive ? 1434 : 1274 }} />
     </div>
     {editingAccount && <AccountNoteModal key={editingAccount.id} account={editingAccount}
       onClose={() => setEditingAccount(null)}
