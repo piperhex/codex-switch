@@ -17,7 +17,8 @@ use tauri::{Emitter, Manager, Runtime, WebviewUrl, WebviewWindowBuilder};
 use tiny_http::{Header, Method, Request, Response, Server, StatusCode};
 
 use crate::{
-    auth::{account_fields, token_string, validate_auth},
+    agent_identity,
+    auth::{account_fields, is_agent_identity_auth, token_string, validate_auth},
     codex_api::{refresh_tokens, token_expiring, ORIGINATOR},
     models::{
         AccountSummary, DailyTokenUsage, LocalProxyStatus, ProviderApiFormat, ProviderProfile,
@@ -483,9 +484,8 @@ pub(crate) fn start_local_proxy<R: Runtime>(
     app: tauri::AppHandle<R>,
 ) -> Result<LocalProxyStatus, String> {
     let paths = resolve_paths(&app)?;
-    // Reject incompatible official credentials before stopping a running client.
-    // Agent Identity accounts are valid direct auth.json credentials, but the local
-    // proxy only implements OAuth bearer-token forwarding.
+    // Validate the selected official credential before interrupting a running client.
+    // The local proxy supports both OAuth and Agent Identity authentication.
     providers::ensure_local_proxy_compatible_for_state(&paths)?;
     // Only interrupt and relaunch a client that is actually running. When no
     // client is open, proxy mode can be enabled by updating its configuration
@@ -632,6 +632,23 @@ pub(crate) fn set_auto_disable_unreachable_accounts<R: Runtime>(
     app.emit("providers-changed", ())
         .map_err(|error| error.to_string())?;
     Ok(status(&app))
+}
+
+enum OfficialRequestAuthentication {
+    OAuth {
+        access_token: String,
+        chatgpt_account_id: Option<String>,
+    },
+    AgentIdentity {
+        active_account_id: String,
+        auth: Value,
+        request_authentication: agent_identity::AgentIdentityRequestAuthentication,
+    },
+}
+
+struct OfficialProxyCredentials {
+    authentication: OfficialRequestAuthentication,
+    token_usage_account: TokenUsageAccount,
 }
 
 #[tauri::command]
@@ -2097,27 +2114,73 @@ fn forward_official<R: Runtime>(
     model: &str,
 ) -> Result<UpstreamPayload, String> {
     let client = http_client()?;
-    let (access_token, chatgpt_account_id, token_usage_account) = official_token(app, &client)?;
+    let mut credentials = official_credentials(app, &client)?;
     let upstream_endpoint = upstream_endpoint_for_codex_request(url);
     let upstream_url = official_url(&upstream_endpoint);
     let body = official_body_for_upstream(method, &upstream_endpoint, body, model);
+    let mut payload = send_official_request(
+        &client,
+        method,
+        &upstream_url,
+        headers,
+        body.as_slice(),
+        &credentials.authentication,
+    )?;
+    if invalid_agent_identity_task_response(&credentials.authentication, &payload) {
+        refresh_agent_identity_task(&mut credentials.authentication, app, &client)?;
+        payload = send_official_request(
+            &client,
+            method,
+            &upstream_url,
+            headers,
+            body.as_slice(),
+            &credentials.authentication,
+        )?;
+    }
+    payload.token_usage_account = Some(credentials.token_usage_account);
+    Ok(payload)
+}
+
+fn send_official_request(
+    client: &Client,
+    method: &Method,
+    upstream_url: &str,
+    headers: &[(String, String)],
+    body: &[u8],
+    authentication: &OfficialRequestAuthentication,
+) -> Result<UpstreamPayload, String> {
     let mut request = client
         .request(reqwest_method(method)?, upstream_url)
-        .bearer_auth(access_token)
         .header("originator", ORIGINATOR)
         .header("User-Agent", "codex_cli_rs/0.1.0");
-    if let Some(account_id) = chatgpt_account_id {
-        request = request.header("ChatGPT-Account-Id", account_id);
+    match authentication {
+        OfficialRequestAuthentication::OAuth {
+            access_token,
+            chatgpt_account_id,
+        } => {
+            request = request.bearer_auth(access_token);
+            if let Some(account_id) = chatgpt_account_id {
+                request = request.header("ChatGPT-Account-Id", account_id);
+            }
+        }
+        OfficialRequestAuthentication::AgentIdentity {
+            request_authentication,
+            ..
+        } => {
+            request = request
+                .header("Authorization", &request_authentication.authorization)
+                .header("ChatGPT-Account-Id", &request_authentication.account_id);
+            if request_authentication.is_fedramp {
+                request = request.header("x-openai-fedramp", "true");
+            }
+        }
     }
-    request = apply_forward_headers(request, headers, true);
-    let mut payload = stream_response(
-        request
-            .body(body)
+    stream_response(
+        apply_forward_headers(request, headers, true)
+            .body(body.to_vec())
             .send()
             .map_err(|error| format!("Official Codex proxy request failed: {error}"))?,
-    )?;
-    payload.token_usage_account = Some(token_usage_account);
-    Ok(payload)
+    )
 }
 
 fn official_body_for_upstream(method: &Method, url: &str, body: Vec<u8>, model: &str) -> Vec<u8> {
@@ -2283,10 +2346,10 @@ fn selected_official_model(body: &Value, fallback: &str) -> String {
         .to_string()
 }
 
-fn official_token<R: Runtime>(
+fn official_credentials<R: Runtime>(
     app: &tauri::AppHandle<R>,
     client: &Client,
-) -> Result<(String, Option<String>, TokenUsageAccount), String> {
+) -> Result<OfficialProxyCredentials, String> {
     let paths = resolve_paths(app)?;
     let active_account_id = read_state(&paths)
         .active_account_id
@@ -2300,6 +2363,24 @@ fn official_token<R: Runtime>(
             active_account_id, auth_account_id
         ));
     }
+    let (email, _, account_id, id) = account_fields(&auth)?;
+    let token_usage_account = TokenUsageAccount {
+        account_id: id,
+        account_email: email,
+    };
+    if is_agent_identity_auth(&auth) {
+        if agent_identity::ensure_task(client, &mut auth)? {
+            write_managed_auth_if_changed(&paths, &active_account_id, &auth)?;
+        }
+        return Ok(OfficialProxyCredentials {
+            authentication: OfficialRequestAuthentication::AgentIdentity {
+                active_account_id,
+                request_authentication: agent_identity::request_authentication(&auth)?,
+                auth,
+            },
+            token_usage_account,
+        });
+    }
     if token_expiring(&auth) {
         refresh_tokens(client, &mut auth)?;
         // An old in-flight request must not overwrite Codex's watched auth.json after a
@@ -2309,15 +2390,49 @@ fn official_token<R: Runtime>(
     let access_token = token_string(&auth, "access_token")
         .ok_or_else(|| "auth.json is missing tokens.access_token".to_string())?
         .to_string();
-    let (email, _, account_id, id) = account_fields(&auth)?;
-    Ok((
-        access_token,
-        account_id,
-        TokenUsageAccount {
-            account_id: id,
-            account_email: email,
+    Ok(OfficialProxyCredentials {
+        authentication: OfficialRequestAuthentication::OAuth {
+            access_token,
+            chatgpt_account_id: account_id,
         },
-    ))
+        token_usage_account,
+    })
+}
+
+fn invalid_agent_identity_task_response(
+    authentication: &OfficialRequestAuthentication,
+    payload: &UpstreamPayload,
+) -> bool {
+    let OfficialRequestAuthentication::AgentIdentity { .. } = authentication else {
+        return false;
+    };
+    let UpstreamBody::Buffered(body) = &payload.body else {
+        return false;
+    };
+    reqwest::StatusCode::from_u16(payload.status)
+        .ok()
+        .is_some_and(|status| {
+            agent_identity::is_invalid_task_response(status, &String::from_utf8_lossy(body))
+        })
+}
+
+fn refresh_agent_identity_task<R: Runtime>(
+    authentication: &mut OfficialRequestAuthentication,
+    app: &tauri::AppHandle<R>,
+    client: &Client,
+) -> Result<(), String> {
+    let OfficialRequestAuthentication::AgentIdentity {
+        active_account_id,
+        auth,
+        request_authentication,
+    } = authentication
+    else {
+        return Ok(());
+    };
+    agent_identity::register_task(client, auth)?;
+    write_managed_auth_if_changed(&resolve_paths(app)?, active_account_id, auth)?;
+    *request_authentication = agent_identity::request_authentication(auth)?;
+    Ok(())
 }
 
 fn apply_forward_headers(
