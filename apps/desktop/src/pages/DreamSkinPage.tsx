@@ -178,12 +178,17 @@ export function DreamSkinPage({ t, notify }: DreamSkinPageProps) {
   }, [t]);
 
   const applyTheme = useCallback((themeId: string) => {
-    confirmChatGptRestart(() => runStatusOperation(
+    const operation = () => runStatusOperation(
       `apply:${themeId}`,
       () => applyDreamSkinTheme(themeId),
       t("dreamSkin.toast.applied"),
-    ));
-  }, [confirmChatGptRestart, runStatusOperation, t]);
+    );
+    if (status?.installed) {
+      void operation();
+    } else {
+      confirmChatGptRestart(operation);
+    }
+  }, [confirmChatGptRestart, runStatusOperation, status?.installed, t]);
 
   const changeAppearance = useCallback((appearance: DreamSkinAppearance) => {
     void runStatusOperation(
@@ -210,15 +215,20 @@ export function DreamSkinPage({ t, notify }: DreamSkinPageProps) {
 
   const submitImport = useCallback(async () => {
     if (!importPath || !importOptions.name.trim()) return;
-    confirmChatGptRestart(async () => {
+    const operation = async () => {
       const ok = await runStatusOperation(
         "import",
         () => importDreamSkinImage(importPath, { ...importOptions, name: importOptions.name.trim() }),
         t("dreamSkin.toast.imported"),
       );
       if (ok) setImportOpen(false);
-    });
-  }, [confirmChatGptRestart, importOptions, importPath, runStatusOperation, t]);
+    };
+    if (status?.installed) {
+      await operation();
+    } else {
+      confirmChatGptRestart(operation);
+    }
+  }, [confirmChatGptRestart, importOptions, importPath, runStatusOperation, status?.installed, t]);
 
   const submitSave = useCallback(async () => {
     if (!saveName.trim()) return;
