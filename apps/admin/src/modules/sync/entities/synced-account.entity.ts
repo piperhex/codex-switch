@@ -43,6 +43,9 @@ export class SyncedAccountEntity {
   @Column({ type: 'boolean', default: false })
   active: boolean;
 
+  @Column({ type: 'integer', default: 0 })
+  autoSwitchPriority: number;
+
   @Column({ type: 'jsonb', default: {} })
   usage: Record<string, unknown>;
 

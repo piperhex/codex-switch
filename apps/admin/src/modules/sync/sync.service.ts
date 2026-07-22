@@ -30,6 +30,7 @@ type AccountFieldModifiedAt = {
   expiresAt: string;
   usage: string;
   active: string;
+  autoSwitchPriority: string;
 };
 
 interface AccountMergeResult {
@@ -528,6 +529,10 @@ export class SyncService {
       account.active = patch.active;
       fieldModifiedAt.active = modifiedAt;
     }
+    if (patch.autoSwitchPriority !== undefined) {
+      account.autoSwitchPriority = patch.autoSwitchPriority;
+      fieldModifiedAt.autoSwitchPriority = modifiedAt;
+    }
     account.fieldModifiedAt = fieldModifiedAt;
     account.lastModifiedAt = this.latestAccountFieldModifiedAt(fieldModifiedAt);
     const saved = await this.accounts.save(account);
@@ -559,6 +564,7 @@ export class SyncService {
           plan: incoming.plan,
           codexAccountId: incoming.accountId ?? null,
           active: incoming.active,
+          autoSwitchPriority: incoming.autoSwitchPriority ?? 0,
           usage: incoming.usage ?? {},
           auth: incoming.auth,
           deletedAt: null,
@@ -586,6 +592,7 @@ export class SyncService {
       plan: existing.plan,
       codexAccountId: existing.codexAccountId ?? null,
       active: existing.active,
+      autoSwitchPriority: existing.autoSwitchPriority ?? 0,
       usage: existing.usage,
       auth: existing.auth,
       deletedAt: null,
@@ -628,6 +635,16 @@ export class SyncService {
       activeApplied = true;
       changed = true;
     }
+    if (incoming.autoSwitchPriority !== undefined
+      && (incomingHasFieldVersions || !existingHasFieldVersions)
+      && this.isIncomingFieldNewer(
+        existingFieldModifiedAt.autoSwitchPriority,
+        incomingFieldModifiedAt.autoSwitchPriority,
+      )) {
+      account.autoSwitchPriority = incoming.autoSwitchPriority;
+      account.fieldModifiedAt!.autoSwitchPriority = incomingFieldModifiedAt.autoSwitchPriority;
+      changed = true;
+    }
     if (!changed) return null;
     account.lastModifiedAt = this.latestAccountFieldModifiedAt(account.fieldModifiedAt!);
     return { account, activeApplied };
@@ -644,6 +661,9 @@ export class SyncService {
       expiresAt: this.formatLastModifiedAt(this.parseLastModifiedAt(value?.expiresAt ?? defaultValue)),
       usage: this.formatLastModifiedAt(this.parseLastModifiedAt(value?.usage ?? defaultValue)),
       active: this.formatLastModifiedAt(this.parseLastModifiedAt(value?.active ?? defaultValue)),
+      autoSwitchPriority: this.formatLastModifiedAt(
+        this.parseLastModifiedAt(value?.autoSwitchPriority ?? defaultValue),
+      ),
     };
   }
 
@@ -658,6 +678,7 @@ export class SyncService {
       this.parseLastModifiedAt(values.expiresAt).getTime(),
       this.parseLastModifiedAt(values.usage).getTime(),
       this.parseLastModifiedAt(values.active).getTime(),
+      this.parseLastModifiedAt(values.autoSwitchPriority).getTime(),
     ));
   }
 
@@ -670,6 +691,7 @@ export class SyncService {
       plan: row.plan,
       accountId: row.codexAccountId,
       active: row.active,
+      autoSwitchPriority: row.autoSwitchPriority ?? 0,
       usage: row.usage,
       lastModifiedAt: this.formatLastModifiedAt(row.lastModifiedAt ?? row.updatedAt),
       fieldModifiedAt: this.normalizeAccountFieldModifiedAt(
@@ -741,6 +763,7 @@ export class SyncService {
       plan: systemAccount.plan,
       codexAccountId: systemAccount.codexAccountId ?? null,
       active: false,
+      autoSwitchPriority: 0,
       usage: systemAccount.usage,
       auth: systemAccount.auth,
       fieldModifiedAt: this.normalizeAccountFieldModifiedAt(undefined, fallbackModifiedAt),
@@ -775,6 +798,7 @@ export class SyncService {
       plan: account.plan,
       accountId: account.codexAccountId,
       active: false,
+      autoSwitchPriority: 0,
       usage: account.usage,
       lastModifiedAt: this.formatLastModifiedAt(account.lastModifiedAt ?? account.updatedAt),
       auth: account.auth,

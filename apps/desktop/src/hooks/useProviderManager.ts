@@ -7,6 +7,7 @@ import {
   restoreNonProxyConversations,
   saveProviderProfile,
   setLocalProxyAutoDisableUnreachable,
+  setLocalProxyCustomPriority,
   setLocalProxyImageAccount,
   setLocalProxyListenOnAllInterfaces,
   setLocalProxyAutoSwitch,
@@ -229,6 +230,18 @@ export function useProviderManager(
     }
   }, [load, notify, t]);
 
+  const setProxyCustomPriority = useCallback(async (enabled: boolean) => {
+    setProxyBusy(true);
+    try {
+      setLocalProxy(await setLocalProxyCustomPriority(enabled));
+      await load();
+    } catch (error) {
+      notify(providerErrorMessage(error, t));
+    } finally {
+      setProxyBusy(false);
+    }
+  }, [load, notify, t]);
+
   const setProxyImageAccount = useCallback(async (accountId: string | null) => {
     setProxyBusy(true);
     try {
@@ -275,6 +288,7 @@ export function useProviderManager(
     restoreConversations,
     setProxyAutoSwitch,
     setProxyAutoDisableUnreachable,
+    setProxyCustomPriority,
     setProxyImageAccount,
     setProxyListenOnAllInterfaces,
     reload: load,

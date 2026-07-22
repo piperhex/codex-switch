@@ -180,13 +180,19 @@ describe('request DTO validation', () => {
     await expect(validate(valid)).resolves.toEqual([]);
 
     const invalid = plainToInstance(PutSyncAccountsDto, {
-      accounts: [{ ...makeAccount(), id: 'x'.repeat(65), active: 'yes', usage: 'none' }],
+      accounts: [{
+        ...makeAccount(),
+        id: 'x'.repeat(65),
+        active: 'yes',
+        autoSwitchPriority: 1.5,
+        usage: 'none',
+      }],
     });
     const errors = await validate(invalid);
     expect(errors).toHaveLength(1);
     expect(errors[0].property).toBe('accounts');
     expect(errors[0].children?.[0].children?.map((error) => error.property))
-      .toEqual(expect.arrayContaining(['id', 'active', 'usage']));
+      .toEqual(expect.arrayContaining(['id', 'active', 'autoSwitchPriority', 'usage']));
   });
 
   it('applies sync DTO defaults while allowing a nullable provider account id', async () => {

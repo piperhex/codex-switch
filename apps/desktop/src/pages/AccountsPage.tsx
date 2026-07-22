@@ -19,6 +19,9 @@ export function AccountsPage({
   onDelete,
   onAutoSwitchEnabledChange,
   autoSwitchBusyAccountId,
+  onAutoSwitchPriorityChange,
+  autoSwitchPriorityBusyAccountId,
+  onCustomAutoSwitchPriorityEnabledChange,
   onSaveNote,
   onLoadResetCredits,
   onUseResetCredit,
@@ -50,6 +53,9 @@ export function AccountsPage({
   onDelete: (id: string) => void;
   onAutoSwitchEnabledChange: (id: string, enabled: boolean) => void;
   autoSwitchBusyAccountId: string | null;
+  onAutoSwitchPriorityChange: (id: string, priority: number) => Promise<boolean>;
+  autoSwitchPriorityBusyAccountId: string | null;
+  onCustomAutoSwitchPriorityEnabledChange: (enabled: boolean) => void;
   onSaveNote: (id: string, note: string, expiresAt: string) => Promise<boolean>;
   onLoadResetCredits: (id: string, force?: boolean) => void;
   onUseResetCredit: (id: string) => void;
@@ -112,6 +118,12 @@ export function AccountsPage({
       <AccountTable accounts={accounts} busyAccountId={busyAccountId}
         onSwitch={onSwitch} onRefresh={onRefresh} onDelete={onDelete}
         onAutoSwitchEnabledChange={onAutoSwitchEnabledChange} autoSwitchBusyAccountId={autoSwitchBusyAccountId}
+        onAutoSwitchPriorityChange={onAutoSwitchPriorityChange}
+        autoSwitchPriorityBusyAccountId={autoSwitchPriorityBusyAccountId}
+        autoSwitchOnQuotaExhaustion={localProxy?.autoSwitchOnQuotaExhaustion ?? false}
+        customAutoSwitchPriorityEnabled={localProxy?.customAutoSwitchPriorityEnabled ?? false}
+        onCustomAutoSwitchPriorityEnabledChange={onCustomAutoSwitchPriorityEnabledChange}
+        customAutoSwitchPriorityBusy={proxyBusy}
         onSaveNote={onSaveNote}
         resetCredits={resetCredits} onLoadResetCredits={onLoadResetCredits}
         onUseResetCredit={onUseResetCredit} resetCreditBusyAccountId={resetCreditBusyAccountId}

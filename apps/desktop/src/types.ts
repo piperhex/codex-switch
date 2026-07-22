@@ -21,6 +21,7 @@ export interface Account {
   accountId?: string | null;
   active: boolean;
   autoSwitchEnabled: boolean;
+  autoSwitchPriority: number;
   localProxyCompatible: boolean;
   directSwitchCompatible: boolean;
   agentIdentity: boolean;
@@ -82,6 +83,7 @@ export interface LocalProxyStatus {
   port: number;
   baseUrl: string;
   autoSwitchOnQuotaExhaustion: boolean;
+  customAutoSwitchPriorityEnabled: boolean;
   autoDisableUnreachableAccounts: boolean;
   listenOnAllInterfaces: boolean;
   imageGenerationAccountId?: string | null;
