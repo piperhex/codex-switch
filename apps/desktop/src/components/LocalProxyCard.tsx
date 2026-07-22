@@ -12,6 +12,7 @@ interface LocalProxyCardProps {
   onRestoreConversations: () => void;
   onAutoSwitchChange: (enabled: boolean) => void;
   onAutoDisableUnreachableChange: (enabled: boolean) => void;
+  onListenOnAllInterfacesChange: (enabled: boolean) => void;
   startDisabledReason?: string;
   t: Translate;
 }
@@ -25,6 +26,7 @@ export function LocalProxyCard({
   onRestoreConversations,
   onAutoSwitchChange,
   onAutoDisableUnreachableChange,
+  onListenOnAllInterfacesChange,
   startDisabledReason,
   t,
 }: LocalProxyCardProps) {
@@ -95,6 +97,13 @@ export function LocalProxyCard({
                 <Switch size="small" checked={localProxy?.autoSwitchOnQuotaExhaustion ?? false}
                   disabled={proxyBusy} onChange={onAutoSwitchChange} />
                 <span>{t("providers.proxy.autoSwitch")}</span>
+              </span>
+            </Tooltip>
+            <Tooltip title={t("providers.proxy.listenAllInterfacesTooltip")}>
+              <span className="proxy-auto-switch">
+                <Switch size="small" checked={localProxy?.listenOnAllInterfaces ?? false}
+                  disabled={proxyBusy} onChange={onListenOnAllInterfacesChange} />
+                <span>{t("providers.proxy.listenAllInterfaces")}</span>
               </span>
             </Tooltip>
           </>

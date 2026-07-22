@@ -51,6 +51,7 @@ pub(crate) const TOKEN_USAGE_WINDOW_LABEL: &str = "token-usage";
 const CUSTOM_TOOL_INPUT_DESCRIPTION: &str =
     "Raw string input for the original custom tool. Preserve formatting exactly.";
 const CUSTOM_TOOL_PRESERVED_METADATA_HEADING: &str = "Original tool definition:";
+const LOCAL_PROXY_LAN_HOST: &str = "0.0.0.0";
 
 struct ProxyRuntime {
     server: Arc<Server>,
@@ -340,22 +341,28 @@ pub(crate) fn is_running() -> bool {
 }
 
 fn status<R: Runtime>(app: &tauri::AppHandle<R>) -> LocalProxyStatus {
-    let (auto_switch_on_quota_exhaustion, auto_disable_unreachable_accounts) = resolve_paths(app)
+    let (
+        auto_switch_on_quota_exhaustion,
+        auto_disable_unreachable_accounts,
+        listen_on_all_interfaces,
+    ) = resolve_paths(app)
         .map(|paths| {
             let state = read_state(&paths);
             (
                 state.auto_switch_on_quota_exhaustion,
                 state.auto_disable_unreachable_accounts,
+                state.local_proxy_listen_on_all_interfaces,
             )
         })
-        .unwrap_or((false, false));
+        .unwrap_or((false, false, false));
     LocalProxyStatus {
         running: is_running(),
-        address: LOCAL_PROXY_HOST.to_string(),
+        address: proxy_bind_host(listen_on_all_interfaces).to_string(),
         port: LOCAL_PROXY_PORT,
         base_url: LOCAL_PROXY_BASE_URL.to_string(),
         auto_switch_on_quota_exhaustion,
         auto_disable_unreachable_accounts,
+        listen_on_all_interfaces,
     }
 }
 
@@ -627,6 +634,44 @@ pub(crate) fn set_auto_disable_unreachable_accounts<R: Runtime>(
     Ok(status(&app))
 }
 
+#[tauri::command]
+pub(crate) fn set_local_proxy_listen_on_all_interfaces<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    enabled: bool,
+) -> Result<LocalProxyStatus, String> {
+    if !is_running() {
+        return Err("Start the local proxy before changing its listening address".to_string());
+    }
+
+    let paths = resolve_paths(&app)?;
+    let mut state = read_state(&paths);
+    let previous = state.local_proxy_listen_on_all_interfaces;
+    if previous == enabled {
+        return Ok(status(&app));
+    }
+
+    state.local_proxy_listen_on_all_interfaces = enabled;
+    write_state(&paths, &state)?;
+    stop_server();
+    if let Err(error) = start_server(app.clone()) {
+        state.local_proxy_listen_on_all_interfaces = previous;
+        let _ = write_state(&paths, &state);
+        let restore_error = start_server(app.clone()).err();
+        return Err(match restore_error {
+            Some(restore_error) => format!(
+                "Failed to restart local proxy with the requested listening address: {error}. Failed to restore the previous listener: {restore_error}"
+            ),
+            None => format!(
+                "Failed to restart local proxy with the requested listening address: {error}. The previous listener was restored."
+            ),
+        });
+    }
+
+    app.emit("providers-changed", ())
+        .map_err(|error| error.to_string())?;
+    Ok(status(&app))
+}
+
 fn set_local_proxy_enabled(paths: &Paths, enabled: bool) -> Result<(), String> {
     let mut state = read_state(paths);
     state.local_proxy_enabled = enabled;
@@ -641,7 +686,11 @@ fn start_server<R: Runtime>(app: tauri::AppHandle<R>) -> Result<bool, String> {
         return Ok(false);
     }
 
-    let bind_addr = format!("{LOCAL_PROXY_HOST}:{LOCAL_PROXY_PORT}");
+    let state = read_state(&resolve_paths(&app)?);
+    let bind_addr = format!(
+        "{}:{LOCAL_PROXY_PORT}",
+        proxy_bind_host(state.local_proxy_listen_on_all_interfaces)
+    );
     let server = Arc::new(
         Server::http(&bind_addr)
             .map_err(|error| format!("Failed to start local proxy at {bind_addr}: {error}"))?,
@@ -663,6 +712,14 @@ fn start_server<R: Runtime>(app: tauri::AppHandle<R>) -> Result<bool, String> {
         handle: Some(handle),
     });
     Ok(true)
+}
+
+fn proxy_bind_host(listen_on_all_interfaces: bool) -> &'static str {
+    if listen_on_all_interfaces {
+        LOCAL_PROXY_LAN_HOST
+    } else {
+        LOCAL_PROXY_HOST
+    }
 }
 
 fn stop_server() {
@@ -3802,6 +3859,12 @@ mod tests {
     use crate::models::UsageWindow;
     use std::io::{Cursor, Read};
     use std::sync::mpsc;
+
+    #[test]
+    fn proxy_bind_host_uses_loopback_unless_lan_listening_is_enabled() {
+        assert_eq!(proxy_bind_host(false), LOCAL_PROXY_HOST);
+        assert_eq!(proxy_bind_host(true), LOCAL_PROXY_LAN_HOST);
+    }
 
     fn account_with_usage(id: &str, primary: f64, secondary: f64) -> AccountSummary {
         AccountSummary {
