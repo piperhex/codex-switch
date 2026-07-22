@@ -36,6 +36,16 @@ struct TaskRegistrationResponse {
     encrypted_task_id_camel: String,
 }
 
+/// Authentication material generated for one proxied Codex request.
+///
+/// Agent assertions include a timestamp, so callers must obtain a fresh value for
+/// every upstream request.  The private key never leaves this module.
+pub(crate) struct AgentIdentityRequestAuthentication {
+    pub(crate) authorization: String,
+    pub(crate) account_id: String,
+    pub(crate) is_fedramp: bool,
+}
+
 fn identity(auth: &Value) -> Result<&Value, String> {
     auth.get("agent_identity")
         .filter(|value| value.is_object())
@@ -176,9 +186,10 @@ pub(crate) fn ensure_task(client: &Client, auth: &mut Value) -> Result<bool, Str
     Ok(true)
 }
 
-pub(crate) fn usage_request(client: &Client, auth: &Value) -> Result<Response, String> {
+pub(crate) fn request_authentication(
+    auth: &Value,
+) -> Result<AgentIdentityRequestAuthentication, String> {
     let identity = identity(auth)?;
-    let assertion = build_assertion(identity, &utc_timestamp())?;
     let account_id = identity
         .get("account_id")
         .or_else(|| identity.get("chatgpt_account_id"))
@@ -186,10 +197,22 @@ pub(crate) fn usage_request(client: &Client, auth: &Value) -> Result<Response, S
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .ok_or_else(|| "auth.json 缺少 agent_identity.account_id".to_string())?;
+    Ok(AgentIdentityRequestAuthentication {
+        authorization: build_assertion(identity, &utc_timestamp())?,
+        account_id: account_id.to_string(),
+        is_fedramp: identity
+            .get("chatgpt_account_is_fedramp")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
+    })
+}
+
+pub(crate) fn usage_request(client: &Client, auth: &Value) -> Result<Response, String> {
+    let authentication = request_authentication(auth)?;
     let mut request = client
         .get(USAGE_URL)
-        .header("Authorization", assertion)
-        .header("ChatGPT-Account-Id", account_id)
+        .header("Authorization", authentication.authorization)
+        .header("ChatGPT-Account-Id", authentication.account_id)
         .header("openai-beta", "codex-1")
         .header("oai-language", "zh-CN")
         .header("originator", "Codex Desktop")
@@ -199,11 +222,7 @@ pub(crate) fn usage_request(client: &Client, auth: &Value) -> Result<Response, S
         .header("sec-fetch-dest", "empty")
         .header("priority", "u=4, i")
         .header("User-Agent", "codex_cli_rs/0.1.0");
-    if identity
-        .get("chatgpt_account_is_fedramp")
-        .and_then(Value::as_bool)
-        .unwrap_or(false)
-    {
+    if authentication.is_fedramp {
         request = request.header("x-openai-fedramp", "true");
     }
     request
@@ -279,6 +298,16 @@ mod tests {
         key.verifying_key()
             .verify(b"runtime-test:task-test:2026-07-14T00:09:10Z", &signature)
             .unwrap();
+    }
+
+    #[test]
+    fn request_authentication_uses_the_agent_assertion_and_account() {
+        let auth = json!({ "agent_identity": test_identity() });
+        let authentication = request_authentication(&auth).unwrap();
+
+        assert!(authentication.authorization.starts_with("AgentAssertion "));
+        assert_eq!(authentication.account_id, "account-test");
+        assert!(!authentication.is_fedramp);
     }
 
     #[test]

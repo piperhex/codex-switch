@@ -137,9 +137,8 @@ pub(crate) fn list_accounts<R: Runtime>(
         if repaired {
             write_managed_auth_if_changed(&paths, &id, &auth)?;
         }
-        let local_proxy_compatible = !is_agent_identity_auth(&auth);
-        let auto_switch_enabled =
-            local_proxy_compatible && !state.disabled_account_ids.contains(&id);
+        let local_proxy_compatible = true;
+        let auto_switch_enabled = !state.disabled_account_ids.contains(&id);
         accounts.push(AccountSummary {
             active: active_id.as_deref() == Some(&id),
             usage: load_usage(&usage_path(&paths, &id)),
@@ -631,6 +630,10 @@ fn switch_account_unlocked<R: Runtime>(app: &tauri::AppHandle<R>, id: &str) -> R
         // The local proxy reads the selected managed credential.  Avoid modifying the
         // authentication file watched by the already-running Codex application.
         write_json_atomic(&paths.current_auth, &selected)?;
+    } else if is_agent_identity_auth(&selected) {
+        // The local proxy owns Agent Identity authentication.  Do not leave the
+        // selected identity in the auth.json watched by the desktop client.
+        crate::providers::write_agent_identity_local_proxy_auth(&paths)?;
     }
     let mut state = read_state(&paths);
     let was_using_provider = state.active_provider_id.take().is_some();
@@ -652,12 +655,7 @@ fn switch_account_unlocked<R: Runtime>(app: &tauri::AppHandle<R>, id: &str) -> R
     Ok(())
 }
 
-fn ensure_account_switch_allowed(auth: &Value, proxy_running: bool) -> Result<(), String> {
-    if proxy_running && is_agent_identity_auth(auth) {
-        return Err(
-            "Agent Identity 账号不支持本地代理模式；请先停止本地代理，再切换到该账号".to_string(),
-        );
-    }
+fn ensure_account_switch_allowed(_auth: &Value, _proxy_running: bool) -> Result<(), String> {
     Ok(())
 }
 
@@ -685,10 +683,6 @@ pub(crate) fn set_account_auto_switch_enabled<R: Runtime>(
     if !managed_auth_path(&paths, &id).exists() {
         return Err("Account does not exist".to_string());
     }
-    if enabled && is_agent_identity_auth(&load_validated_managed_auth(&paths, &id)?) {
-        return Err("Agent Identity 账号不能参与本地代理自动切号".to_string());
-    }
-
     set_account_auto_switch_enabled_for_paths(&paths, &id, enabled)?;
     app.emit("accounts-changed", ())
         .map_err(|error| error.to_string())?;
@@ -2061,11 +2055,10 @@ mod compatible_json_import_tests {
     }
 
     #[test]
-    fn blocks_agent_identity_switches_only_while_local_proxy_is_running() {
+    fn allows_agent_identity_switches_while_local_proxy_is_running() {
         let auth = agent_identity_auth();
         ensure_account_switch_allowed(&auth, false).unwrap();
-        let error = ensure_account_switch_allowed(&auth, true).unwrap_err();
-        assert!(error.contains("Agent Identity"));
+        ensure_account_switch_allowed(&auth, true).unwrap();
     }
 
     #[test]
