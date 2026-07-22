@@ -2,6 +2,8 @@ import * as SecureStore from 'expo-secure-store';
 import type { AccountSummary, AuthResponse, AuthSession, UserProfile } from '../types';
 
 const SESSION_KEY = 'codex-switch.mobile.session.v1';
+const GLOBAL_REFRESH_INTERVAL_KEY = 'codex-switch.mobile.global-refresh-minutes.v1';
+export const DEFAULT_GLOBAL_REFRESH_MINUTES = 30;
 export const DEFAULT_CLOUD_BASE_URL = 'https://codex.onepiper.cloud';
 
 export class ApiError extends Error {
@@ -135,6 +137,36 @@ async function authorizedRequest(session: AuthSession, path: string, init: Reque
     if (error instanceof ApiError && error.message.includes('登录已过期')) await clearSession();
     throw error;
   }
+}
+
+export async function loadGlobalRefreshMinutes(): Promise<number> {
+  try {
+    const raw = await SecureStore.getItemAsync(GLOBAL_REFRESH_INTERVAL_KEY);
+    if (!raw) return DEFAULT_GLOBAL_REFRESH_MINUTES;
+    const value = Number(raw);
+    return Number.isInteger(value) && value >= 1 && value <= 1440
+      ? value
+      : DEFAULT_GLOBAL_REFRESH_MINUTES;
+  } catch {
+    return DEFAULT_GLOBAL_REFRESH_MINUTES;
+  }
+}
+
+export async function saveGlobalRefreshMinutes(value: number): Promise<void> {
+  if (!Number.isInteger(value) || value < 1 || value > 1440) {
+    throw new ApiError('全局刷新间隔需要设置为 1 到 1440 分钟');
+  }
+  await SecureStore.setItemAsync(GLOBAL_REFRESH_INTERVAL_KEY, String(value));
+}
+
+export async function adminRequest<T>(session: AuthSession, path: string, init: RequestInit = {}): Promise<T> {
+  const headers = new Headers(init.headers);
+  if (init.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+  const response = await authorizedRequest(session, path, { ...init, headers });
+  if (!response.ok) throw new ApiError(await parseError(response), response.status);
+  if (response.status === 204) return undefined as T;
+  const text = await response.text();
+  return (text ? JSON.parse(text) : undefined) as T;
 }
 
 export async function fetchAccountSummary(session: AuthSession): Promise<AccountSummary[]> {

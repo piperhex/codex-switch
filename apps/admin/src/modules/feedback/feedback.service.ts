@@ -1,17 +1,13 @@
 import {
   BadRequestException,
-  Inject,
   Injectable,
   NotFoundException,
-  ServiceUnavailableException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import nodemailer, { type Transporter } from 'nodemailer';
 import { Repository } from 'typeorm';
 import type { AuthUser } from '@/common/decorators/user.decorator';
-import { MODULE_OPTIONS_TOKEN } from '@/config/configurable';
-import type { ConfigModuleOptions } from '@/config/config.types';
 import { AdminAuditLogEntity } from '@/modules/admin/entities/admin-audit-log.entity';
+import { MailService } from '@/modules/mail/mail.service';
 import type {
   CreateFeedbackDto,
   ListFeedbackQueryDto,
@@ -33,8 +29,6 @@ export interface UploadedFeedbackImage {
 
 @Injectable()
 export class FeedbackService {
-  private readonly transporter?: Transporter;
-
   constructor(
     @InjectRepository(FeedbackEntity)
     private readonly feedback: Repository<FeedbackEntity>,
@@ -42,20 +36,8 @@ export class FeedbackService {
     private readonly attachments: Repository<FeedbackAttachmentEntity>,
     @InjectRepository(AdminAuditLogEntity)
     private readonly auditLogs: Repository<AdminAuditLogEntity>,
-    @Inject(MODULE_OPTIONS_TOKEN) private readonly config: ConfigModuleOptions,
-  ) {
-    if ((config.mail__transport ?? '').toUpperCase() === 'SMTP') {
-      this.transporter = nodemailer.createTransport({
-        host: config.mail__options__host,
-        port: Number(config.mail__options__port ?? 465),
-        secure: this.boolean(config.mail__options__secure, true),
-        auth: {
-          user: config.mail__options__auth__user,
-          pass: config.mail__options__auth__pass,
-        },
-      });
-    }
-  }
+    private readonly mail: MailService,
+  ) {}
 
   async create(dto: CreateFeedbackDto, images: UploadedFeedbackImage[], user?: AuthUser) {
     const content = dto.content.trim();
@@ -115,7 +97,6 @@ export class FeedbackService {
   }
 
   async sendEmail(actor: AuthUser, id: string, dto: SendFeedbackEmailDto) {
-    this.ensureMailConfigured();
     const feedback = await this.feedback.findOne({ where: { id } });
     if (!feedback) throw new NotFoundException('Feedback does not exist');
     if (!feedback.email) throw new BadRequestException('This feedback has no contact email');
@@ -123,16 +104,12 @@ export class FeedbackService {
     const content = dto.content.trim();
     if (!subject || !content) throw new BadRequestException('Email subject and content are required');
 
-    try {
-      await this.transporter!.sendMail({
-        from: this.config.mail__from,
-        to: feedback.email,
-        subject,
-        text: content,
-      });
-    } catch {
-      throw new ServiceUnavailableException('Feedback email could not be sent');
-    }
+    await this.mail.send({
+      serviceId: dto.mailServiceId,
+      to: feedback.email,
+      subject,
+      text: content,
+    });
 
     feedback.lastRepliedAt = new Date();
     feedback.lastRepliedById = actor.id;
@@ -145,7 +122,7 @@ export class FeedbackService {
       targetType: 'feedback',
       targetId: feedback.id,
       targetEmail: feedback.email,
-      metadata: { subject },
+      metadata: { subject, mailServiceId: dto.mailServiceId ?? null },
     }));
     return { ok: true, lastRepliedAt: feedback.lastRepliedAt.toISOString() };
   }
@@ -200,20 +177,4 @@ export class FeedbackService {
     };
   }
 
-  private ensureMailConfigured() {
-    if (
-      !this.transporter
-      || !this.config.mail__options__host
-      || !this.config.mail__options__auth__user
-      || !this.config.mail__options__auth__pass
-      || !this.config.mail__from
-    ) {
-      throw new ServiceUnavailableException('Email service is not configured');
-    }
-  }
-
-  private boolean(value: string | undefined, fallback: boolean) {
-    if (value === undefined) return fallback;
-    return value.trim().toLowerCase() === 'true';
-  }
 }

@@ -7,6 +7,7 @@ import {
   MaxLength,
   Min,
   MinLength,
+  IsUUID,
 } from 'class-validator';
 
 export class CreateFeedbackDto {
@@ -51,4 +52,8 @@ export class SendFeedbackEmailDto {
   @MinLength(1)
   @MaxLength(5000)
   content: string;
+
+  @IsOptional()
+  @IsUUID()
+  mailServiceId?: string | null;
 }

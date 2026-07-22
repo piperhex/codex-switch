@@ -22,6 +22,7 @@ import { ApprovalsPage } from "./pages/ApprovalsPage";
 import { AnnouncementPage } from "./pages/AnnouncementPage";
 import { AuditLogsPage } from "./pages/AuditLogsPage";
 import { FeedbackPage } from "./pages/FeedbackPage";
+import { EmailTemplatesPage } from "./pages/EmailTemplatesPage";
 import { InvitationsPage } from "./pages/InvitationsPage";
 import { MyAccountsPage } from "./pages/MyAccountsPage";
 import { OfficialAccountsPage } from "./pages/OfficialAccountsPage";
@@ -39,6 +40,9 @@ import type {
   Invitation,
   InvitationRegisteredUser,
   FeedbackRow,
+  EmailTemplate,
+  MailServiceConfig,
+  MailServiceInput,
   DeviceInstallation,
   DashboardOverview,
   MenuKey,
@@ -109,6 +113,7 @@ const menuPermissions: Record<MenuKey, Permission> = {
   roles: "admin.roles.read",
   officialAccounts: "admin.official-accounts.read",
   announcement: "admin.announcements.read",
+  emailTemplates: "admin.email-templates.read",
   feedback: "admin.feedback.read",
   telemetry: "admin.telemetry.read",
   audit: "admin.audit-logs.read",
@@ -123,6 +128,7 @@ const menuOrder: MenuKey[] = [
   "myAccounts",
   "officialAccounts",
   "announcement",
+  "emailTemplates",
   "feedback",
   "telemetry",
   "audit",
@@ -155,6 +161,12 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
   const [auditLoading, setAuditLoading] = useState(false);
   const [feedback, setFeedback] = useState<PageResult<FeedbackRow>>(emptyFeedback);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [emailTemplates, setEmailTemplates] = useState<EmailTemplate[]>([]);
+  const [emailTemplatesLoading, setEmailTemplatesLoading] = useState(false);
+  const [emailTemplateSaving, setEmailTemplateSaving] = useState(false);
+  const [mailServices, setMailServices] = useState<MailServiceConfig[]>([]);
+  const [mailServicesLoading, setMailServicesLoading] = useState(false);
+  const [mailServiceSaving, setMailServiceSaving] = useState(false);
   const [dashboard, setDashboard] = useState<DashboardOverview | null>(null);
   const [dashboardDays, setDashboardDays] = useState<7 | 30 | 90>(30);
   const [dashboardLoading, setDashboardLoading] = useState(false);
@@ -307,6 +319,86 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
     }
   }, [api, feedback.page, feedback.pageSize, message]);
 
+  const loadEmailTemplates = useCallback(async () => {
+    setEmailTemplatesLoading(true);
+    try {
+      setEmailTemplates(await api<EmailTemplate[]>("/admin/api/email-templates"));
+    } catch (error) {
+      message.error((error as Error).message);
+    } finally {
+      setEmailTemplatesLoading(false);
+    }
+  }, [api, message]);
+
+  const loadMailServices = useCallback(async () => {
+    setMailServicesLoading(true);
+    try {
+      setMailServices(await api<MailServiceConfig[]>("/admin/api/mail-services"));
+    } catch (error) {
+      message.error((error as Error).message);
+    } finally {
+      setMailServicesLoading(false);
+    }
+  }, [api, message]);
+
+  const saveEmailTemplate = useCallback(async (
+    code: string,
+    subject: string,
+    body: string,
+    mailServiceId?: string | null,
+  ) => {
+    setEmailTemplateSaving(true);
+    try {
+      const saved = await api<EmailTemplate>(`/admin/api/email-templates/${encodeURIComponent(code)}`, {
+        method: "PATCH",
+        body: JSON.stringify({ subject, body, mailServiceId: mailServiceId || null }),
+      });
+      setEmailTemplates((items) => items.map((item) => item.code === code ? saved : item));
+      message.success(t("emailTemplates.saved"));
+    } catch (error) {
+      message.error((error as Error).message);
+      throw error;
+    } finally {
+      setEmailTemplateSaving(false);
+    }
+  }, [api, message, t]);
+
+  const saveMailService = useCallback(async (
+    id: string | null,
+    values: MailServiceInput,
+  ) => {
+    setMailServiceSaving(true);
+    try {
+      const saved = await api<MailServiceConfig>(
+        id ? `/admin/api/mail-services/${id}` : "/admin/api/mail-services",
+        { method: id ? "PATCH" : "POST", body: JSON.stringify(values) },
+      );
+      setMailServices((items) => id
+        ? items.map((item) => item.id === id ? saved : item)
+        : [...items, saved]);
+      message.success(t("mailServices.saved"));
+    } catch (error) {
+      message.error((error as Error).message);
+      throw error;
+    } finally {
+      setMailServiceSaving(false);
+    }
+  }, [api, message, t]);
+
+  const deleteMailService = useCallback(async (id: string) => {
+    try {
+      await api(`/admin/api/mail-services/${id}`, { method: "DELETE" });
+      setMailServices((items) => items.filter((item) => item.id !== id));
+      setEmailTemplates((items) => items.map((item) => (
+        item.mailServiceId === id ? { ...item, mailServiceId: null } : item
+      )));
+      message.success(t("common.deleted"));
+    } catch (error) {
+      message.error((error as Error).message);
+      throw error;
+    }
+  }, [api, message, t]);
+
   const loadDashboard = useCallback(async (days = dashboardDays) => {
     setDashboardLoading(true);
     try {
@@ -323,11 +415,16 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
     return URL.createObjectURL(blob);
   }, [apiBlob]);
 
-  const sendFeedbackEmail = useCallback(async (feedbackId: string, subject: string, content: string) => {
+  const sendFeedbackEmail = useCallback(async (
+    feedbackId: string,
+    subject: string,
+    content: string,
+    mailServiceId?: string | null,
+  ) => {
     try {
       await api(`/admin/api/feedback/${feedbackId}/email`, {
         method: "POST",
-        body: JSON.stringify({ subject, content }),
+        body: JSON.stringify({ subject, content, mailServiceId: mailServiceId || null }),
       });
       message.success(t("feedback.emailSent"));
       await loadFeedback();
@@ -545,6 +642,11 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
       void loadAnnouncementClicks();
     }
     if (activeKey === "feedback") void loadFeedback();
+    if (activeKey === "feedback") void loadMailServices();
+    if (activeKey === "emailTemplates") {
+      void loadEmailTemplates();
+      void loadMailServices();
+    }
     if (activeKey === "audit") void loadAuditLogs();
     if (activeKey === "invitations") void loadInvitations();
     if (activeKey === "approvals") void loadApprovals();
@@ -555,6 +657,8 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
     loadAuditLogs,
     loadInvitations,
     loadFeedback,
+    loadEmailTemplates,
+    loadMailServices,
     loadDashboard,
     loadAnnouncement,
     loadAnnouncementClickOverview,
@@ -585,6 +689,8 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
   const canManageApprovals = Boolean(profile?.permissions?.includes("admin.approvals.manage"));
   const canManageAnnouncements = Boolean(profile?.permissions?.includes("admin.announcements.manage"));
   const canManageFeedback = Boolean(profile?.permissions?.includes("admin.feedback.manage"));
+  const canManageEmailTemplates = Boolean(profile?.permissions?.includes("admin.email-templates.manage"));
+  const canManageMailServices = Boolean(profile?.permissions?.includes("admin.mail-services.manage"));
   const canManageOwnAccounts = Boolean(profile?.permissions?.includes("self.accounts.write"));
 
   async function openApprovalModal() {
@@ -804,6 +910,27 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
           onLoad={loadFeedback}
           onLoadAttachment={loadFeedbackAttachment}
           onSendEmail={sendFeedbackEmail}
+          mailServices={mailServices}
+        />
+      );
+    }
+
+    if (activeKey === "emailTemplates") {
+      return (
+        <EmailTemplatesPage
+          templates={emailTemplates}
+          loading={emailTemplatesLoading}
+          saving={emailTemplateSaving}
+          canManage={canManageEmailTemplates}
+          canManageMailServices={canManageMailServices}
+          mailServices={mailServices}
+          mailServicesLoading={mailServicesLoading}
+          mailServiceSaving={mailServiceSaving}
+          onRefresh={loadEmailTemplates}
+          onRefreshMailServices={loadMailServices}
+          onSave={saveEmailTemplate}
+          onSaveMailService={saveMailService}
+          onDeleteMailService={deleteMailService}
         />
       );
     }

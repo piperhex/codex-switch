@@ -38,11 +38,11 @@ If production uses `POSTGRES_DB_SYNCHRONIZE=false`, apply `sql/20260704-admin-ma
 `sql/20260718-announcement-scroll-speed.sql`,
 `sql/20260718-announcement-localization-link.sql`,
 `sql/20260718-announcement-link-clicks.sql`,
-`sql/20260718-device-installation-app-version.sql`, `sql/20260718-user-feedback.sql`, and
-`sql/20260718-dynamic-rbac.sql`, `sql/20260720-sync-account-field-modified-at.sql`, and
-`sql/20260722-sync-account-soft-delete.sql` before using
-the expanded admin console, provider sync,
-official account pool, reusable invitations, announcements, telemetry, and feedback management.
+`sql/20260718-device-installation-app-version.sql`, `sql/20260718-user-feedback.sql`,
+`sql/20260718-dynamic-rbac.sql`, `sql/20260720-sync-account-field-modified-at.sql`,
+`sql/20260722-sync-account-soft-delete.sql`, and `sql/20260722-email-templates.sql` before using
+the expanded admin console, provider sync, official account pool, reusable invitations,
+announcements, email templates, telemetry, and feedback management.
 The RBAC migration must be applied before starting this version because application startup
 synchronizes the permission catalog and protected system roles.
 
@@ -82,6 +82,16 @@ mail__options__auth__user=blog@chirp.onepiper.cloud
 mail__options__auth__pass=replace-with-mailgun-smtp-password
 mail__from="Codex Switch <noreply@blog.onepiper.cloud>"
 ```
+
+The same SMTP configuration is exposed as the read-only default sending service. Administrators
+can add multiple custom SMTP services under **Email Settings**, select a service for each automatic
+notification template, and choose a service when manually replying to feedback. Custom SMTP
+passwords are encrypted at rest using an AES-256-GCM key derived from `KONG_JWT_SECRET` and are
+never returned by the API. Changing `KONG_JWT_SECRET` makes previously stored SMTP passwords
+unreadable, so update or recreate those services after an intentional secret rotation.
+
+Only newly created official-account bindings trigger a notification; submitting an existing
+binding again does not resend email.
 
 The registration client first calls `POST /auth/register/code` with the email address, then sends
 the received code as `verificationCode` when calling `POST /auth/register`.
@@ -245,6 +255,13 @@ devices can remove their local copy.
 - `PATCH /admin/api/announcement`
 - `GET /admin/api/announcement/clicks/overview`
 - `GET /admin/api/announcement/clicks`
+- `GET /admin/api/email-templates`
+- `GET /admin/api/email-templates/:code`
+- `PATCH /admin/api/email-templates/:code`
+- `GET /admin/api/mail-services`
+- `POST /admin/api/mail-services`
+- `PATCH /admin/api/mail-services/:id`
+- `DELETE /admin/api/mail-services/:id`
 - `GET /admin/api/telemetry/overview`
 - `GET /admin/api/telemetry/installations`
 - `GET /admin/api/telemetry/events`

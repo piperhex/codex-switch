@@ -8,6 +8,7 @@ import type { AdminInvitationEntity } from '@/modules/admin/entities/admin-invit
 import type { SyncService } from '@/modules/sync/sync.service';
 import type { UserService } from '@/modules/user/user.service';
 import type { RbacService } from '@/modules/rbac/rbac.service';
+import type { EmailTemplateService } from '@/modules/email-template/email-template.service';
 import type { AuthUser } from '@/common/decorators/user.decorator';
 import { makeProvider, makeUser } from './fixtures';
 
@@ -36,6 +37,9 @@ describe('AdminService', () => {
     createRole: ReturnType<typeof vi.fn>;
     updateRole: ReturnType<typeof vi.fn>;
     deleteRole: ReturnType<typeof vi.fn>;
+  };
+  let emailTemplates: {
+    sendOfficialAccountBound: ReturnType<typeof vi.fn>;
   };
   let auditLogs: {
     create: ReturnType<typeof vi.fn>; save: ReturnType<typeof vi.fn>; findAndCount: ReturnType<typeof vi.fn>;
@@ -73,6 +77,9 @@ describe('AdminService', () => {
       updateRole: vi.fn(),
       deleteRole: vi.fn(),
     };
+    emailTemplates = {
+      sendOfficialAccountBound: vi.fn().mockResolvedValue({ ok: true }),
+    };
     auditLogs = {
       create: vi.fn((value) => value),
       save: vi.fn(async (value) => value),
@@ -94,6 +101,7 @@ describe('AdminService', () => {
       users as unknown as UserService,
       sync as unknown as SyncService,
       rbac as unknown as RbacService,
+      emailTemplates as unknown as EmailTemplateService,
       auditLogs as unknown as Repository<AdminAuditLogEntity>,
       invitations as unknown as Repository<AdminInvitationEntity>,
       approvals as unknown as Repository<AdminApprovalRequestEntity>,
@@ -327,7 +335,14 @@ describe('AdminService', () => {
       userIds: [target.id],
     };
     users.findById.mockResolvedValue(target);
-    sync.bindSystemAccounts.mockResolvedValue({ count: 1 });
+    sync.bindSystemAccounts.mockResolvedValue({
+      count: 1,
+      createdBindings: [{
+        systemAccountId: dto.systemAccountIds[0],
+        systemAccountEmail: 'official@example.com',
+        userId: target.id,
+      }],
+    });
 
     await expect(service.bindSystemAccounts(actor, dto)).resolves.toEqual({ count: 1 });
 
@@ -337,6 +352,24 @@ describe('AdminService', () => {
       action: 'official-account.bind',
       metadata: expect.objectContaining({ createdBindings: 1, userIds: dto.userIds }),
     }));
+    expect(emailTemplates.sendOfficialAccountBound).toHaveBeenCalledWith({
+      recipientEmail: target.email,
+      accountEmails: ['official@example.com'],
+      operatorEmail: actor.email,
+    });
+  });
+
+  it('does not email users when every requested account binding already exists', async () => {
+    const target = makeUser({ id: '20000000-0000-4000-8000-000000000001' });
+    users.findById.mockResolvedValue(target);
+    sync.bindSystemAccounts.mockResolvedValue({ count: 0, createdBindings: [] });
+
+    await expect(service.bindSystemAccounts(actor, {
+      systemAccountIds: ['10000000-0000-4000-8000-000000000001'],
+      userIds: [target.id],
+    })).resolves.toEqual({ count: 0 });
+
+    expect(emailTemplates.sendOfficialAccountBound).not.toHaveBeenCalled();
   });
 
   it('requires a different admin to approve privileged requests and applies approved changes', async () => {

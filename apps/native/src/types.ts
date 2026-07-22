@@ -45,3 +45,90 @@ export interface AuthResponse {
   refreshToken: string;
   user?: UserProfile;
 }
+
+export interface PageResult<T> {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface AdminDashboardOverview {
+  range: { days: 7 | 30 | 90; startDate: string; endDate: string };
+  summary: {
+    totalUsers: number;
+    activeUsers: number;
+    newUsers: number;
+    totalInstallations: number;
+    newInstallations: number;
+    officialAccounts: number;
+    boundOfficialAccounts: number;
+    totalBindings: number;
+    pendingFeedback: number;
+    repliedFeedback: number;
+    pendingApprovals: number;
+  };
+  trend: Array<{ date: string; users: number; installations: number }>;
+  platforms: Array<{ name: string; value: number }>;
+  accountPlans: Array<{ name: string; value: number }>;
+  feedback: { pending: number; replied: number };
+}
+
+export interface AdminOfficialAccount {
+  id: string;
+  syncAccountId: string;
+  email: string;
+  note: string;
+  expiresAt: string;
+  plan: string;
+  accountId?: string | null;
+  usage: Record<string, unknown>;
+  lastModifiedAt: string;
+  boundUserCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminInvitation {
+  id: string;
+  email?: string | null;
+  role: string;
+  createdByEmail: string;
+  expiresAt?: string | null;
+  maxUses: number;
+  usedCount: number;
+  acceptedAt?: string | null;
+  revokedAt?: string | null;
+  createdAt: string;
+}
+
+export interface AdminFeedback {
+  id: string;
+  content: string;
+  version: string;
+  platform: string;
+  email?: string | null;
+  attachments: Array<{ id: string; fileName: string; mimeType: string; size: number }>;
+  lastRepliedAt?: string | null;
+  lastRepliedByEmail?: string | null;
+  createdAt: string;
+}
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  role: string;
+  disabled: boolean;
+  lastLoginAt?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface AdminRole {
+  code: string;
+  name: string;
+  description: string;
+  system: boolean;
+  permissions: string[];
+  userCount: number;
+}
