@@ -26,6 +26,7 @@ interface ProvidersPageProps {
   onRestoreConversations: () => void;
   onAutoSwitchChange: (enabled: boolean) => void;
   onAutoDisableUnreachableChange: (enabled: boolean) => void;
+  onListenOnAllInterfacesChange: (enabled: boolean) => void;
   displayMode: AccountDisplayMode;
   t: Translate;
 }
@@ -214,6 +215,7 @@ export function ProvidersPage({
   onRestoreConversations,
   onAutoSwitchChange,
   onAutoDisableUnreachableChange,
+  onListenOnAllInterfacesChange,
   displayMode,
   t,
 }: ProvidersPageProps) {
@@ -319,7 +321,8 @@ export function ProvidersPage({
         onStartProxy={onStartProxy} onStopProxy={onStopProxy}
         onRestoreConversations={onRestoreConversations}
         onAutoSwitchChange={onAutoSwitchChange}
-        onAutoDisableUnreachableChange={onAutoDisableUnreachableChange} t={t} />
+        onAutoDisableUnreachableChange={onAutoDisableUnreachableChange}
+        onListenOnAllInterfacesChange={onListenOnAllInterfacesChange} t={t} />
 
       <div className="provider-toolbar">
         <div>

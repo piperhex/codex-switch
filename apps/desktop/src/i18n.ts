@@ -408,6 +408,8 @@ const translations = {
     "providers.proxy.autoSwitchTooltip": "Official account mode only. When quota is exhausted, refresh all saved account usage, switch to the account with the lowest remaining primary quota above zero, then retry this request once.",
     "providers.proxy.autoDisableUnreachable": "Auto-disable unreachable accounts",
     "providers.proxy.autoDisableUnreachableTooltip": "When automatic account switching is enabled, exclude accounts whose usage refresh fails because they cannot be reached, such as a network error or timeout.",
+    "providers.proxy.listenAllInterfaces": "Listen on LAN (0.0.0.0)",
+    "providers.proxy.listenAllInterfacesTooltip": "Restarts the proxy and exposes it to devices on your local network. The proxy has no LAN access control; enable this only on a trusted network and protect it with your firewall.",
     "providers.section.title": "Third-party providers",
     "providers.empty.title": "No third-party providers",
     "providers.action.add": "Add provider",
@@ -620,6 +622,8 @@ const translations = {
     "toast.localProxyStopped": "Local proxy stopped and the selected auth.json was restored. Any running ChatGPT/Codex client was restarted.",
     "toast.proxyAutoSwitchEnabled": "Automatic official-account switching is enabled",
     "toast.proxyAutoSwitchDisabled": "Automatic official-account switching is disabled",
+    "toast.proxyLanListeningEnabled": "The local proxy now listens on all network interfaces",
+    "toast.proxyLanListeningDisabled": "The local proxy now listens only on this computer",
   },
   zh: {
     "nav.dreamSkin": "一键换肤",
@@ -1018,6 +1022,8 @@ const translations = {
     "providers.proxy.autoSwitchTooltip": "仅在官方账号模式生效。额度耗尽后会刷新所有已保存账号的用量，切换到主用量剩余额度最低且大于 0 的账号，并自动重试当前请求一次。",
     "providers.proxy.autoDisableUnreachable": "自动禁用不可访问账号",
     "providers.proxy.autoDisableUnreachableTooltip": "开启自动切号后，若刷新用量时因网络错误或超时等原因无法访问账号，则自动将该账号排除在自动切号之外。",
+    "providers.proxy.listenAllInterfaces": "监听局域网 (0.0.0.0)",
+    "providers.proxy.listenAllInterfacesTooltip": "会重启代理并向局域网设备开放访问。代理未提供局域网访问控制，请只在可信网络启用，并使用防火墙保护。",
     "providers.section.title": "三方 Provider",
     "providers.empty.title": "还没有三方 Provider",
     "providers.action.add": "添加 Provider",
@@ -1230,6 +1236,8 @@ const translations = {
     "toast.localProxyStopped": "本地代理已停止，当前选中账号的 auth.json 已写入；如 ChatGPT/Codex 原先正在运行，现已完成重启。",
     "toast.proxyAutoSwitchEnabled": "已开启官方账号自动切换",
     "toast.proxyAutoSwitchDisabled": "已关闭官方账号自动切换",
+    "toast.proxyLanListeningEnabled": "本地代理已开始监听所有网络接口",
+    "toast.proxyLanListeningDisabled": "本地代理现仅监听本机",
   },
 } as const;
 

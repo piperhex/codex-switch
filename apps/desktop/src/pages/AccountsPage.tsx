@@ -28,6 +28,7 @@ export function AccountsPage({
   onRestoreConversations,
   onAutoSwitchChange,
   onAutoDisableUnreachableChange,
+  onListenOnAllInterfacesChange,
   privacyMode,
   displayMode,
   currentModel,
@@ -57,6 +58,7 @@ export function AccountsPage({
   onRestoreConversations: () => void;
   onAutoSwitchChange: (enabled: boolean) => void;
   onAutoDisableUnreachableChange: (enabled: boolean) => void;
+  onListenOnAllInterfacesChange: (enabled: boolean) => void;
   privacyMode: boolean;
   displayMode: AccountDisplayMode;
   currentModel: string;
@@ -77,7 +79,8 @@ export function AccountsPage({
         onStartProxy={onStartProxy} onStopProxy={onStopProxy}
         onRestoreConversations={onRestoreConversations}
         onAutoSwitchChange={onAutoSwitchChange}
-        onAutoDisableUnreachableChange={onAutoDisableUnreachableChange} t={t} />
+        onAutoDisableUnreachableChange={onAutoDisableUnreachableChange}
+        onListenOnAllInterfacesChange={onListenOnAllInterfacesChange} t={t} />
     </div>
   );
   if (loading) {

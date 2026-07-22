@@ -685,6 +685,7 @@ function DashboardApp() {
               onRestoreConversations={providerManager.restoreConversations}
               onAutoSwitchChange={providerManager.setProxyAutoSwitch}
               onAutoDisableUnreachableChange={providerManager.setProxyAutoDisableUnreachable}
+              onListenOnAllInterfacesChange={providerManager.setProxyListenOnAllInterfaces}
               displayMode={accountDisplayMode.displayMode} t={t} />
           </section>
           <section className="page-panel token-dashboard-page" hidden={page !== "tokens"}>
@@ -713,6 +714,7 @@ function DashboardApp() {
               onRestoreConversations={providerManager.restoreConversations}
               onAutoSwitchChange={providerManager.setProxyAutoSwitch}
               onAutoDisableUnreachableChange={providerManager.setProxyAutoDisableUnreachable}
+              onListenOnAllInterfacesChange={providerManager.setProxyListenOnAllInterfaces}
               privacyMode={privacyMode.enabled}
               displayMode={accountDisplayMode.displayMode}
               currentModel={providerManager.activeProvider?.model ?? ""}

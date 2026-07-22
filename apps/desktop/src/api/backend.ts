@@ -46,6 +46,7 @@ const PROVIDERS_PREVIEW_KEY = "codex-switch:providers";
 const LOCAL_PROXY_PREVIEW_KEY = "codex-switch:local-proxy-running";
 const LOCAL_PROXY_AUTO_SWITCH_PREVIEW_KEY = "codex-switch:local-proxy-auto-switch";
 const LOCAL_PROXY_AUTO_DISABLE_UNREACHABLE_PREVIEW_KEY = "codex-switch:local-proxy-auto-disable-unreachable";
+const LOCAL_PROXY_LISTEN_ALL_INTERFACES_PREVIEW_KEY = "codex-switch:local-proxy-listen-all-interfaces";
 const TOKEN_USAGE_WEEKS_PREVIEW_KEY = "codex-switch:token-usage-weeks";
 const TOKEN_USAGE_REFRESH_PREVIEW_KEY = "codex-switch:token-usage-refresh-seconds";
 const THEME_COLOR_EVENT = "codex-switch:theme-color-changed";
@@ -152,11 +153,12 @@ function previewProviderId() {
 function previewLocalProxyStatus(): LocalProxyStatus {
   return {
     running: window.localStorage.getItem(LOCAL_PROXY_PREVIEW_KEY) === "true",
-    address: "127.0.0.1",
+    address: window.localStorage.getItem(LOCAL_PROXY_LISTEN_ALL_INTERFACES_PREVIEW_KEY) === "true" ? "0.0.0.0" : "127.0.0.1",
     port: 15722,
     baseUrl: "http://127.0.0.1:15722/v1",
     autoSwitchOnQuotaExhaustion: window.localStorage.getItem(LOCAL_PROXY_AUTO_SWITCH_PREVIEW_KEY) === "true",
     autoDisableUnreachableAccounts: window.localStorage.getItem(LOCAL_PROXY_AUTO_DISABLE_UNREACHABLE_PREVIEW_KEY) === "true",
+    listenOnAllInterfaces: window.localStorage.getItem(LOCAL_PROXY_LISTEN_ALL_INTERFACES_PREVIEW_KEY) === "true",
   };
 }
 
@@ -719,6 +721,17 @@ export async function chooseAndImportCompatibleJson(): Promise<CompatibleJsonImp
   if (!selected) return { status: "cancelled" };
   const result = await invoke<{ importedIds: string[] }>("import_compatible_json_file", { path: selected });
   return { status: "imported", ids: result.importedIds };
+}
+
+export async function setLocalProxyListenOnAllInterfaces(enabled: boolean): Promise<LocalProxyStatus> {
+  if (!isDesktopApp) {
+    if (!previewLocalProxyStatus().running) {
+      throw new Error("Start the local proxy before changing its listening address");
+    }
+    window.localStorage.setItem(LOCAL_PROXY_LISTEN_ALL_INTERFACES_PREVIEW_KEY, String(enabled));
+    return previewLocalProxyStatus();
+  }
+  return invoke<LocalProxyStatus>("set_local_proxy_listen_on_all_interfaces", { enabled });
 }
 
 export async function chooseAndImportSub2apiJson(): Promise<CompatibleJsonImportResult> {

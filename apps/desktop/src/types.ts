@@ -81,6 +81,7 @@ export interface LocalProxyStatus {
   baseUrl: string;
   autoSwitchOnQuotaExhaustion: boolean;
   autoDisableUnreachableAccounts: boolean;
+  listenOnAllInterfaces: boolean;
 }
 
 export interface DirectConversationSyncResult {

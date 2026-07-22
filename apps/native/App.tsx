@@ -1,13 +1,11 @@
 import 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
-import { Modal as AntMobileModal, Provider as AntMobileProvider } from '@ant-design/react-native';
+import { Provider as AntMobileProvider, Toast } from '@ant-design/react-native';
 import { Component, useCallback, useEffect, useMemo, useRef, useState, type ErrorInfo, type ReactNode } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   AppState,
   KeyboardAvoidingView,
-  Modal,
   Platform,
   Pressable,
   RefreshControl,
@@ -35,6 +33,7 @@ import {
 import type { AccountSummary, AuthSession, UsageWindow, UserProfile } from './src/types';
 import { reportMobileInstallation } from './src/telemetry';
 import { AdminArea } from './src/admin/AdminArea';
+import { BottomSheet } from './src/components/BottomSheet';
 
 const COLORS = {
   ink: '#13231c',
@@ -146,7 +145,7 @@ function LoginScreen({ initialBaseUrl, onLoggedIn }: { initialBaseUrl: string; o
       const session = await login(baseUrl, email, password);
       onLoggedIn(session);
     } catch (error) {
-      Alert.alert('无法登录', errorMessage(error));
+      Toast.fail(`无法登录：${errorMessage(error)}`);
     } finally {
       setSubmitting(false);
     }
@@ -285,6 +284,7 @@ function SettingsPage({ session, profile, globalRefreshMinutes, onGlobalRefreshM
   const [confirmPassword, setConfirmPassword] = useState('');
   const [saving, setSaving] = useState(false);
   const [passwordModalVisible, setPasswordModalVisible] = useState(false);
+  const [logoutDrawerVisible, setLogoutDrawerVisible] = useState(false);
   const [refreshMinutesInput, setRefreshMinutesInput] = useState(String(globalRefreshMinutes));
   const [savingRefreshInterval, setSavingRefreshInterval] = useState(false);
   const activeProfile = profile ?? session.profile;
@@ -303,15 +303,15 @@ function SettingsPage({ session, profile, globalRefreshMinutes, onGlobalRefreshM
   const saveRefreshInterval = useCallback(async () => {
     const minutes = Number(refreshMinutesInput);
     if (!Number.isInteger(minutes) || minutes < 1 || minutes > 1440) {
-      Alert.alert('刷新间隔无效', '请输入 1 到 1440 之间的整数分钟。');
+      Toast.fail('请输入 1 到 1440 之间的整数分钟');
       return;
     }
     setSavingRefreshInterval(true);
     try {
       await onGlobalRefreshMinutesChange(minutes);
-      Alert.alert('设置已保存', `全部账号将每 ${minutes} 分钟自动刷新一次。`);
+      Toast.success(`已设置为每 ${minutes} 分钟自动刷新`);
     } catch (error) {
-      Alert.alert('保存失败', errorMessage(error));
+      Toast.fail(errorMessage(error));
     } finally {
       setSavingRefreshInterval(false);
     }
@@ -319,15 +319,15 @@ function SettingsPage({ session, profile, globalRefreshMinutes, onGlobalRefreshM
 
   const submitPassword = useCallback(async () => {
     if (currentPassword.length < 6) {
-      Alert.alert('请检查当前密码', '当前密码至少需要 6 位。');
+      Toast.fail('当前密码至少需要 6 位');
       return;
     }
     if (newPassword.length < 8) {
-      Alert.alert('请检查新密码', '新密码至少需要 8 位。');
+      Toast.fail('新密码至少需要 8 位');
       return;
     }
     if (newPassword !== confirmPassword) {
-      Alert.alert('请检查新密码', '两次输入的新密码不一致。');
+      Toast.fail('两次输入的新密码不一致');
       return;
     }
     setSaving(true);
@@ -337,9 +337,9 @@ function SettingsPage({ session, profile, globalRefreshMinutes, onGlobalRefreshM
       setNewPassword('');
       setConfirmPassword('');
       setPasswordModalVisible(false);
-      Alert.alert('密码已修改', '下次登录请使用新密码。');
+      Toast.success('密码已修改，下次登录请使用新密码');
     } catch (error) {
-      Alert.alert('修改失败', errorMessage(error));
+      Toast.fail(errorMessage(error));
     } finally {
       setSaving(false);
     }
@@ -391,7 +391,7 @@ function SettingsPage({ session, profile, globalRefreshMinutes, onGlobalRefreshM
       </View>
 
       <Text style={styles.sectionLabel}>修改密码</Text>
-      <Pressable accessibilityRole="button" accessibilityHint="打开修改密码弹窗"
+      <Pressable accessibilityRole="button" accessibilityHint="打开修改密码抽屉"
         onPress={() => setPasswordModalVisible(true)} style={({ pressed }) => [styles.settingsCard, styles.passwordEntry, pressed && styles.pressed]}>
         <View style={styles.passwordEntryText}>
           <Text style={styles.refreshSettingsTitle}>登录密码</Text>
@@ -400,18 +400,25 @@ function SettingsPage({ session, profile, globalRefreshMinutes, onGlobalRefreshM
         <Text style={styles.passwordEntryArrow}>›</Text>
       </Pressable>
 
-      <Pressable accessibilityRole="button" onPress={onLogout}
+      <Pressable accessibilityRole="button" onPress={() => setLogoutDrawerVisible(true)}
         style={({ pressed }) => [styles.settingsLogoutButton, pressed && styles.pressed]}>
         <Text style={styles.settingsLogoutText}>退出登录</Text>
       </Pressable>
       <Text style={styles.securityNote}>登录令牌与账号信息保存在本机系统安全存储中。</Text>
     </ScrollView>
-    <AntMobileModal visible={passwordModalVisible} transparent maskClosable={false} title="修改密码"
-      onClose={closePasswordModal} footer={[
-        { text: '取消', onPress: closePasswordModal },
-        { text: saving ? '修改中…' : '确认修改', onPress: submitPassword },
-      ]}>
-      <View style={styles.passwordModalBody}>
+    <BottomSheet
+      visible={passwordModalVisible}
+      title="修改密码"
+      subtitle="验证当前密码后设置新的登录密码"
+      onClose={closePasswordModal}
+      dismissible={!saving}
+      tall
+      actions={[
+        { label: '取消', onPress: closePasswordModal, disabled: saving },
+        { label: '确认修改', tone: 'primary', onPress: submitPassword, loading: saving },
+      ]}
+    >
+      <ScrollView style={styles.passwordDrawerBody} keyboardShouldPersistTaps="handled">
         <Text style={styles.passwordHint}>修改密码前需要验证当前密码，新密码至少 8 位。</Text>
         <Text style={styles.fieldLabel}>当前密码</Text>
         <TextInput value={currentPassword} onChangeText={setCurrentPassword} secureTextEntry
@@ -425,8 +432,24 @@ function SettingsPage({ session, profile, globalRefreshMinutes, onGlobalRefreshM
         <TextInput value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry
           autoComplete="new-password" placeholder="再次输入新密码" placeholderTextColor="#98a9a0"
           style={styles.input} editable={!saving} onSubmitEditing={() => void submitPassword()} />
+      </ScrollView>
+    </BottomSheet>
+    <BottomSheet
+      visible={logoutDrawerVisible}
+      title="退出登录"
+      subtitle="退出后需要重新输入服务器地址、邮箱和密码"
+      onClose={() => setLogoutDrawerVisible(false)}
+      actions={[
+        { label: '继续使用', onPress: () => setLogoutDrawerVisible(false) },
+        { label: '退出登录', tone: 'danger', onPress: () => { setLogoutDrawerVisible(false); onLogout(); } },
+      ]}
+    >
+      <View style={styles.logoutConfirmBox}>
+        <View style={styles.logoutConfirmIcon}><Text style={styles.logoutConfirmIconText}>↪</Text></View>
+        <Text style={styles.logoutConfirmTitle}>确定要退出当前账号吗？</Text>
+        <Text style={styles.logoutConfirmText}>本机保存的登录会话将被清除，云端数据不会受到影响。</Text>
       </View>
-    </AntMobileModal>
+    </BottomSheet>
   </KeyboardAvoidingView>;
 }
 
@@ -453,32 +476,21 @@ function BottomNavigation({ activePage, isAdmin, onChange }: { activePage: AppPa
 }
 
 function NoteDrawer({ account, onClose }: { account: AccountSummary | null; onClose: () => void }) {
-  return <Modal visible={Boolean(account)} transparent animationType="slide" statusBarTranslucent
-    onRequestClose={onClose}>
-    <View style={styles.noteModalRoot}>
-      <Pressable accessible={false} style={styles.noteBackdrop} onPress={onClose} />
-      <SafeAreaView edges={['bottom']} style={styles.noteDrawer}>
-        <View style={styles.noteDrawerHandle} />
-        <View style={styles.noteDrawerHeader}>
-          <View style={styles.noteDrawerHeading}>
-            <Text style={styles.noteDrawerTitle}>账号备注</Text>
-            <Text style={styles.noteDrawerAccount} numberOfLines={1}>{account?.email}</Text>
-          </View>
-          <Pressable accessibilityRole="button" accessibilityLabel="关闭备注抽屉" hitSlop={8}
-            onPress={onClose} style={({ pressed }) => [styles.noteDrawerClose, pressed && styles.pressed]}>
-            <Text style={styles.noteDrawerCloseText}>关闭</Text>
-          </Pressable>
-        </View>
-        <View style={styles.noteContentBox}>
-          <ScrollView style={styles.noteContentScroll} contentContainerStyle={styles.noteContentScrollInner}>
-            <Text selectable style={[styles.noteContentText, !account?.note && styles.noteEmptyText]}>
-              {account?.note || '该账号暂无备注'}
-            </Text>
-          </ScrollView>
-        </View>
-      </SafeAreaView>
+  return <BottomSheet
+    visible={Boolean(account)}
+    title="账号备注"
+    subtitle={account?.email}
+    onClose={onClose}
+    actions={[{ label: '完成', tone: 'primary', onPress: onClose }]}
+  >
+    <View style={styles.noteContentBox}>
+      <ScrollView style={styles.noteContentScroll} contentContainerStyle={styles.noteContentScrollInner}>
+        <Text selectable style={[styles.noteContentText, !account?.note && styles.noteEmptyText]}>
+          {account?.note || '该账号暂无备注'}
+        </Text>
+      </ScrollView>
     </View>
-  </Modal>;
+  </BottomSheet>;
 }
 
 function AppContent() {
@@ -502,7 +514,7 @@ function AppContent() {
       lastRefreshAtRef.current = Date.now();
     } catch (error) {
       if (error instanceof ApiError && error.message.includes('登录已过期')) setSession(null);
-      if (!quiet) Alert.alert('刷新失败', errorMessage(error));
+      if (!quiet) Toast.fail(errorMessage(error));
     } finally {
       refreshingRef.current = false;
       setRefreshing(false);
@@ -574,11 +586,11 @@ function AppContent() {
         setAccounts(nextAccounts);
         lastRefreshAtRef.current = Date.now();
       })
-      .catch((error) => Alert.alert('读取账户失败', errorMessage(error)))
+      .catch((error) => Toast.fail(`读取账户失败：${errorMessage(error)}`))
       .finally(() => setLoading(false));
     void fetchUserProfile(nextSession)
       .then(setProfile)
-      .catch((error) => Alert.alert('读取用户身份失败', errorMessage(error)));
+      .catch((error) => Toast.fail(`读取用户身份失败：${errorMessage(error)}`));
   }, []);
 
   const handleGlobalRefreshMinutesChange = useCallback(async (minutes: number) => {
@@ -587,16 +599,11 @@ function AppContent() {
   }, []);
 
   const handleLogout = useCallback(() => {
-    Alert.alert('退出登录', '退出后需重新输入服务器地址、邮箱和密码。', [
-      { text: '取消', style: 'cancel' },
-      { text: '退出', style: 'destructive', onPress: () => {
-        void clearSession();
-        setSession(null);
-        setProfile(null);
-        setAccounts([]);
-        setActivePage('accounts');
-      } },
-    ]);
+    void clearSession();
+    setSession(null);
+    setProfile(null);
+    setAccounts([]);
+    setActivePage('accounts');
   }, []);
 
   if (initializing) return <View style={styles.boot}><StatusBar style="dark" /><ActivityIndicator size="large" color={COLORS.green} /><Text style={styles.bootText}>Codex Switch</Text></View>;
@@ -630,6 +637,7 @@ const styles = StyleSheet.create({
   noteModalRoot: { flex: 1, justifyContent: 'flex-end' }, noteBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(8, 24, 18, 0.42)' }, noteDrawer: { maxHeight: '72%', minHeight: 250, backgroundColor: COLORS.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingHorizontal: 20, shadowColor: '#10261d', shadowOpacity: 0.2, shadowRadius: 18, elevation: 18 }, noteDrawerHandle: { width: 42, height: 5, borderRadius: 3, alignSelf: 'center', backgroundColor: '#cddbd2', marginBottom: 15 }, noteDrawerHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16 }, noteDrawerHeading: { flex: 1, minWidth: 0 }, noteDrawerTitle: { color: COLORS.ink, fontSize: 20, fontWeight: '800' }, noteDrawerAccount: { color: COLORS.muted, fontSize: 12, marginTop: 4 }, noteDrawerClose: { paddingVertical: 7, paddingHorizontal: 10, borderRadius: 8, backgroundColor: COLORS.paleBlue }, noteDrawerCloseText: { color: '#168da2', fontSize: 13, fontWeight: '800' }, noteContentBox: { minHeight: 130, maxHeight: 360, backgroundColor: COLORS.canvas, borderColor: COLORS.border, borderWidth: 1, borderRadius: 14, marginTop: 18, marginBottom: 18, overflow: 'hidden' }, noteContentScroll: { flexGrow: 0 }, noteContentScrollInner: { padding: 16 }, noteContentText: { color: COLORS.ink, fontSize: 15, lineHeight: 24 }, noteEmptyText: { color: COLORS.muted },
   settingsScroll: { padding: 18, paddingBottom: 30 }, settingsHeader: { marginBottom: 24 }, settingsTitle: { color: COLORS.ink, fontSize: 28, fontWeight: '800' }, settingsSubtitle: { color: COLORS.muted, fontSize: 13, marginTop: 4 }, sectionLabel: { color: COLORS.muted, fontSize: 13, fontWeight: '700', marginLeft: 3, marginBottom: 9, marginTop: 2 }, settingsCard: { backgroundColor: COLORS.card, borderColor: COLORS.border, borderWidth: 1, borderRadius: 16, padding: 17, marginBottom: 22, shadowColor: '#456152', shadowOpacity: 0.04, shadowRadius: 8, elevation: 1 }, profileSummary: { flexDirection: 'row', alignItems: 'center' }, profileAvatar: { width: 50, height: 50, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: '#c9f0e7' }, profileAvatarText: { color: '#14806f', fontSize: 16, fontWeight: '800' }, profileSummaryText: { flex: 1, minWidth: 0, marginLeft: 12 }, profileName: { color: COLORS.ink, fontSize: 16, fontWeight: '800' }, profileCaption: { color: COLORS.muted, fontSize: 12, marginTop: 4 }, settingsDivider: { height: 1, backgroundColor: '#e4ede6', marginVertical: 16 }, infoRow: { minHeight: 38, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16 }, infoLabel: { color: COLORS.muted, fontSize: 14 }, infoValue: { color: COLORS.ink, fontSize: 14, fontWeight: '700', flex: 1, textAlign: 'right' }, rowDivider: { height: 1, backgroundColor: '#eef3ef', marginVertical: 7 }, roleBadge: { backgroundColor: COLORS.paleBlue, borderRadius: 8, paddingVertical: 5, paddingHorizontal: 10 }, roleBadgeText: { color: '#168da2', fontWeight: '800', fontSize: 12 }, passwordHint: { color: COLORS.muted, fontSize: 12, lineHeight: 18, marginBottom: 2 }, settingsLogoutButton: { height: 48, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#e9b7b2', borderRadius: 12, backgroundColor: '#fffafa' }, settingsLogoutText: { color: '#bd3c35', fontWeight: '800', fontSize: 15 },
   refreshSettingsTitle: { color: COLORS.ink, fontSize: 16, fontWeight: '800', marginBottom: 6 }, refreshIntervalRow: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 16 }, refreshIntervalInput: { width: 88, height: 44, borderWidth: 1, borderColor: '#cbdcd0', borderRadius: 9, backgroundColor: '#fbfdfb', color: COLORS.ink, fontSize: 16, textAlign: 'center' }, refreshIntervalUnit: { color: COLORS.muted, fontSize: 14, flex: 1 }, saveIntervalButton: { minWidth: 72, height: 42, alignItems: 'center', justifyContent: 'center', borderRadius: 9, backgroundColor: COLORS.cyan, paddingHorizontal: 14 }, saveIntervalText: { color: '#fff', fontWeight: '800', fontSize: 14 }, refreshSettingsHint: { color: COLORS.muted, fontSize: 11, lineHeight: 17, marginTop: 12 },
-  passwordEntry: { flexDirection: 'row', alignItems: 'center', minHeight: 76 }, passwordEntryText: { flex: 1 }, passwordEntryArrow: { color: '#91a198', fontSize: 30, lineHeight: 32, marginLeft: 12 }, passwordModalBody: { paddingTop: 2, paddingBottom: 6 },
+  passwordEntry: { flexDirection: 'row', alignItems: 'center', minHeight: 76 }, passwordEntryText: { flex: 1 }, passwordEntryArrow: { color: '#91a198', fontSize: 30, lineHeight: 32, marginLeft: 12 }, passwordDrawerBody: { maxHeight: 500, paddingTop: 2, paddingBottom: 6 },
+  logoutConfirmBox: { alignItems: 'center', borderRadius: 17, backgroundColor: COLORS.canvas, padding: 20 }, logoutConfirmIcon: { width: 50, height: 50, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fbe8e6', marginBottom: 13 }, logoutConfirmIconText: { color: COLORS.danger, fontSize: 23, fontWeight: '900' }, logoutConfirmTitle: { color: COLORS.ink, fontSize: 16, fontWeight: '900', textAlign: 'center' }, logoutConfirmText: { color: COLORS.muted, fontSize: 12, lineHeight: 19, textAlign: 'center', marginTop: 7 },
   bottomNavigation: { flexDirection: 'row', backgroundColor: COLORS.card, borderTopWidth: 1, borderTopColor: COLORS.border, shadowColor: '#314c3d', shadowOpacity: 0.08, shadowRadius: 8, elevation: 10 }, navItem: { flex: 1, minHeight: 58, alignItems: 'center', justifyContent: 'center', gap: 2 }, navIcon: { color: '#8a9b91', fontSize: 20, lineHeight: 23 }, navText: { color: '#7b8c82', fontSize: 11, fontWeight: '700' }, navTextActive: { color: COLORS.green },
 });

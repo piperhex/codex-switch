@@ -7,6 +7,7 @@ import {
   restoreNonProxyConversations,
   saveProviderProfile,
   setLocalProxyAutoDisableUnreachable,
+  setLocalProxyListenOnAllInterfaces,
   setLocalProxyAutoSwitch,
   setProviderModelControl,
   startLocalProxy,
@@ -221,6 +222,20 @@ export function useProviderManager(
     }
   }, [load, notify, t]);
 
+  const setProxyListenOnAllInterfaces = useCallback(async (enabled: boolean) => {
+    setProxyBusy(true);
+    try {
+      setLocalProxy(await setLocalProxyListenOnAllInterfaces(enabled));
+      notify(t(enabled ? "toast.proxyLanListeningEnabled" : "toast.proxyLanListeningDisabled"));
+      await load();
+    } catch (error) {
+      notify(providerErrorMessage(error, t));
+      await load();
+    } finally {
+      setProxyBusy(false);
+    }
+  }, [load, notify, t]);
+
   return {
     providers,
     localProxy,
@@ -240,6 +255,7 @@ export function useProviderManager(
     restoreConversations,
     setProxyAutoSwitch,
     setProxyAutoDisableUnreachable,
+    setProxyListenOnAllInterfaces,
     reload: load,
   };
 }
