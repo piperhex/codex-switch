@@ -532,6 +532,39 @@ describe('SyncService', () => {
     expect(systemAccounts.create).toHaveBeenCalledWith(expect.objectContaining({ auth }));
   });
 
+  it('derives official account identity from opaque tokens and exported metadata', async () => {
+    const auth = {
+      auth_mode: 'chatgpt',
+      tokens: {
+        id_token: '',
+        access_token: 'at-opaque-personal-access-token',
+        refresh_token: '',
+        account_id: 'workspace-opaque',
+        chatgpt_user_id: 'user-opaque',
+        email: 'opaque@example.com',
+        plan_type: 'team',
+      },
+    };
+    systemAccounts.findOne.mockResolvedValue(null);
+    systemAccounts.save.mockImplementationOnce(async (value) => ({
+      id: '10000000-0000-4000-8000-000000000010',
+      createdAt: new Date('2026-07-23T00:00:00.000Z'),
+      updatedAt: new Date('2026-07-23T00:00:00.000Z'),
+      bindings: [],
+      ...value,
+    }));
+
+    const result = await service.createSystemAccount({ auth });
+
+    expect(result).toMatchObject({
+      email: 'opaque@example.com',
+      plan: 'team',
+      accountId: 'workspace-opaque',
+    });
+    expect(result.syncAccountId).toMatch(/^[a-f0-9]{24}$/);
+    expect(systemAccounts.create).toHaveBeenCalledWith(expect.objectContaining({ auth }));
+  });
+
   it('derives official account identity from Agent Identity auth.json', async () => {
     const auth = {
       auth_mode: 'agentIdentity',

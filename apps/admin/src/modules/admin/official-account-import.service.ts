@@ -97,7 +97,30 @@ export function normalizeSub2apiAuth(value: unknown): JsonObject {
   if (!credentials) throw new BadRequestException('sub2api account is missing credentials');
   const authMode = firstString(credentials, [['auth_mode']]);
   if (authMode?.toLowerCase() !== 'agentidentity') {
-    throw new BadRequestException('Only auth_mode=agentIdentity sub2api accounts are supported');
+    const accessToken = firstString(credentials, [['access_token']]);
+    if (!accessToken) throw new BadRequestException('sub2api credentials is missing access_token');
+    const tokens: JsonObject = {
+      access_token: accessToken,
+      id_token: firstString(credentials, [['id_token']]) ?? '',
+      refresh_token: firstString(credentials, [['refresh_token']]) ?? '',
+    };
+    for (const [source, target] of [
+      ['chatgpt_account_id', 'account_id'],
+      ['chatgpt_user_id', 'chatgpt_user_id'],
+      ['email', 'email'],
+      ['plan_type', 'plan_type'],
+      ['organization_id', 'organization_id'],
+      ['expires_at', 'expires_at'],
+    ] as const) {
+      const field = firstString(credentials, [[source]]);
+      if (field) tokens[target] = field;
+    }
+    return {
+      auth_mode: 'chatgpt',
+      OPENAI_API_KEY: null,
+      tokens,
+      last_refresh: new Date().toISOString(),
+    };
   }
 
   const identity: JsonObject = {};

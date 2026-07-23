@@ -37,6 +37,14 @@ fn nested_auth(claims: &Value) -> Option<&Value> {
     claims.get("https://api.openai.com/auth")
 }
 
+fn token_metadata<'a>(auth: &'a Value, key: &str) -> Option<&'a str> {
+    auth.get("tokens")?
+        .get(key)?
+        .as_str()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+}
+
 pub(crate) fn is_agent_identity_auth(auth: &Value) -> bool {
     auth.get("auth_mode")
         .and_then(Value::as_str)
@@ -102,39 +110,50 @@ pub(crate) fn account_fields(
     if is_agent_identity_auth(auth) {
         return agent_identity_account_fields(auth);
     }
-    let claims = auth_claims(auth)?;
-    let nested = nested_auth(&claims);
-    let email = claims
-        .get("email")
-        .and_then(Value::as_str)
+    let claims = auth_claims(auth).ok();
+    let nested = claims.as_ref().and_then(nested_auth);
+    let email = token_metadata(auth, "email")
+        .or_else(|| claims.as_ref()?.get("email")?.as_str())
         .or_else(|| {
             claims
+                .as_ref()?
                 .get("https://api.openai.com/profile")?
                 .get("email")?
                 .as_str()
         })
         .unwrap_or("未知账户")
         .to_string();
-    let plan = nested
-        .and_then(|value| value.get("chatgpt_plan_type"))
-        .and_then(Value::as_str)
+    let plan = token_metadata(auth, "plan_type")
+        .or_else(|| nested?.get("chatgpt_plan_type")?.as_str())
         .unwrap_or("ChatGPT")
         .to_string();
-    let account_id = auth
-        .get("tokens")
-        .and_then(|value| value.get("account_id"))
-        .and_then(Value::as_str)
+    let account_id = token_metadata(auth, "account_id")
+        .or_else(|| token_metadata(auth, "chatgpt_account_id"))
         .or_else(|| nested?.get("chatgpt_account_id")?.as_str())
         .map(str::to_string);
-    let identity = nested
-        .and_then(|value| {
-            value
-                .get("chatgpt_user_id")
-                .or_else(|| value.get("user_id"))
+    let identity = token_metadata(auth, "chatgpt_user_id")
+        .or_else(|| token_metadata(auth, "user_id"))
+        .or_else(|| {
+            nested
+                .and_then(|value| {
+                    value
+                        .get("chatgpt_user_id")
+                        .or_else(|| value.get("user_id"))
+                })
+                .and_then(Value::as_str)
         })
-        .and_then(Value::as_str)
-        .or_else(|| claims.get("sub").and_then(Value::as_str))
-        .unwrap_or(&email);
+        .or_else(|| claims.as_ref()?.get("sub")?.as_str())
+        .or_else(|| token_metadata(auth, "email"))
+        .or_else(|| claims.as_ref().map(|_| email.as_str()));
+    let identity = match identity {
+        Some(identity) => identity,
+        None => {
+            // Keep the original malformed-token error for ordinary auth.json files.
+            // sub2api's opaque access tokens instead carry an explicit stable identity.
+            auth_claims(auth)?;
+            unreachable!("decoded auth claims must contain an identity")
+        }
+    };
     let mut hasher = Sha256::new();
     hasher.update(identity.as_bytes());
     hasher.update(b"\0");
@@ -201,6 +220,13 @@ pub(crate) fn canonicalize_chatgpt_auth(auth: &mut Value) -> Result<bool, String
             // Compatible account exports sometimes contain only an access JWT. Codex requires
             // an id_token field to deserialize TokenData, and accepts the same claim layout.
             tokens.insert("id_token".to_string(), Value::String(access_token));
+        } else if !tokens
+            .get("id_token")
+            .is_some_and(|value| value.is_string())
+        {
+            // Personal access tokens exported by sub2api are intentionally opaque. Codex still
+            // requires the structural field; account identity comes from explicit token metadata.
+            tokens.insert("id_token".to_string(), Value::String(String::new()));
         }
     }
     if !tokens
@@ -285,6 +311,30 @@ mod tests {
         assert!(DateTime::parse_from_rfc3339(auth["last_refresh"].as_str().unwrap()).is_ok());
         assert_eq!(auth["newer_codex_field"]["keep"], true);
         validate_auth(&auth).unwrap();
+    }
+
+    #[test]
+    fn accepts_opaque_access_tokens_with_exported_identity_metadata() {
+        let mut auth = json!({
+            "tokens": {
+                "access_token": "at-opaque-personal-access-token",
+                "account_id": "account-1",
+                "chatgpt_user_id": "user-1",
+                "email": "person@example.com",
+                "plan_type": "team"
+            }
+        });
+
+        canonicalize_chatgpt_auth(&mut auth).unwrap();
+        validate_auth(&auth).unwrap();
+        assert_eq!(auth["tokens"]["id_token"], "");
+        assert_eq!(auth["tokens"]["refresh_token"], "");
+
+        let (email, plan, account_id, id) = account_fields(&auth).unwrap();
+        assert_eq!(email, "person@example.com");
+        assert_eq!(plan, "team");
+        assert_eq!(account_id.as_deref(), Some("account-1"));
+        assert_eq!(id.len(), 24);
     }
 
     #[test]

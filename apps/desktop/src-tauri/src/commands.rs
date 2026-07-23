@@ -289,7 +289,7 @@ fn import_normalized_json_auth_values<R: Runtime>(
 }
 
 /// Imports the explicit `sub2api-data` export format and converts each supported
-/// OpenAI Agent Identity account into the auth.json shape consumed by Codex.
+/// OpenAI OAuth or Agent Identity account into the auth.json shape consumed by Codex.
 #[tauri::command]
 pub(crate) fn import_sub2api_json_file<R: Runtime>(
     app: tauri::AppHandle<R>,
@@ -351,9 +351,58 @@ fn normalize_sub2api_auth(value: &Value) -> Result<Value, String> {
     let credentials = account
         .get("credentials")
         .ok_or_else(|| "sub2api account 缺少 credentials".to_string())?;
-    let auth_mode = sub2api_required_string(credentials, "auth_mode")?;
+    let auth_mode = credentials
+        .get("auth_mode")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .unwrap_or_default();
     if !auth_mode.eq_ignore_ascii_case("agentIdentity") {
-        return Err("仅支持 auth_mode=agentIdentity 的 sub2api 账号".to_string());
+        let mut tokens = serde_json::Map::new();
+        tokens.insert(
+            "access_token".to_string(),
+            Value::String(sub2api_required_string(credentials, "access_token")?.to_string()),
+        );
+        for key in ["id_token", "refresh_token"] {
+            let value = credentials
+                .get(key)
+                .and_then(Value::as_str)
+                .map(str::trim)
+                .unwrap_or_default();
+            tokens.insert(key.to_string(), Value::String(value.to_string()));
+        }
+        for (source, target) in [
+            ("chatgpt_account_id", "account_id"),
+            ("chatgpt_user_id", "chatgpt_user_id"),
+            ("email", "email"),
+            ("plan_type", "plan_type"),
+            ("organization_id", "organization_id"),
+            ("expires_at", "expires_at"),
+        ] {
+            if let Some(value) = credentials
+                .get(source)
+                .and_then(Value::as_str)
+                .map(str::trim)
+                .filter(|item| !item.is_empty())
+            {
+                tokens.insert(target.to_string(), Value::String(value.to_string()));
+            }
+        }
+
+        let mut auth = serde_json::Map::new();
+        auth.insert(
+            "auth_mode".to_string(),
+            Value::String("chatgpt".to_string()),
+        );
+        auth.insert("OPENAI_API_KEY".to_string(), Value::Null);
+        auth.insert("tokens".to_string(), Value::Object(tokens));
+        auth.insert(
+            "last_refresh".to_string(),
+            Value::String(Utc::now().to_rfc3339()),
+        );
+        let mut auth = Value::Object(auth);
+        canonicalize_chatgpt_auth(&mut auth)?;
+        validate_auth(&auth)?;
+        return Ok(auth);
     }
 
     let mut identity = serde_json::Map::new();
@@ -2085,6 +2134,48 @@ mod compatible_json_import_tests {
         assert_eq!(auth["agent_identity"]["account_id"], "workspace-1");
         assert_eq!(auth["agent_identity"]["email"], "agent@example.com");
         assert!(auth.get("tokens").is_none());
+    }
+
+    #[test]
+    fn converts_sub2api_oauth_exports_with_opaque_access_tokens() {
+        let input = json!({
+            "type": "sub2api-data",
+            "version": 1,
+            "exported_at": "2026-07-23T06:05:26Z",
+            "proxies": [],
+            "accounts": [{
+                "name": "person@example.com",
+                "platform": "openai",
+                "type": "oauth",
+                "credentials": {
+                    "access_token": "at-opaque-personal-access-token",
+                    "chatgpt_account_id": "account-1",
+                    "chatgpt_user_id": "user-1",
+                    "email": "person@example.com",
+                    "plan_type": "team",
+                    "organization_id": "org-1",
+                    "expires_at": "2026-10-21T02:37:37Z",
+                    "id_token": "",
+                    "refresh_token": ""
+                }
+            }]
+        })
+        .to_string();
+
+        let values = parse_sub2api_auth_values(&input).expect("parse sub2api export");
+        let auth = normalize_sub2api_auth(&values[0]).expect("normalize sub2api oauth account");
+
+        assert_eq!(auth["auth_mode"], "chatgpt");
+        assert_eq!(
+            auth["tokens"]["access_token"],
+            "at-opaque-personal-access-token"
+        );
+        assert_eq!(auth["tokens"]["account_id"], "account-1");
+        assert_eq!(auth["tokens"]["chatgpt_user_id"], "user-1");
+        assert_eq!(auth["tokens"]["email"], "person@example.com");
+        assert_eq!(auth["tokens"]["plan_type"], "team");
+        assert_eq!(auth["tokens"]["refresh_token"], "");
+        crate::auth::validate_auth(&auth).unwrap();
     }
 
     #[test]

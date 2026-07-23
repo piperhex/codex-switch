@@ -99,6 +99,49 @@ describe('OfficialAccountImportService', () => {
     });
   });
 
+  it('normalizes sub2api OAuth exports with opaque access tokens', () => {
+    const content = JSON.stringify({
+      type: 'sub2api-data',
+      version: 1,
+      exported_at: '2026-07-23T06:05:26Z',
+      proxies: [],
+      accounts: [{
+        platform: 'openai',
+        type: 'oauth',
+        credentials: {
+          access_token: 'at-opaque-personal-access-token',
+          chatgpt_account_id: 'workspace-1',
+          chatgpt_user_id: 'user-1',
+          email: 'person@example.com',
+          plan_type: 'team',
+          organization_id: 'org-1',
+          expires_at: '2026-10-21T02:37:37Z',
+          id_token: '',
+          refresh_token: '',
+        },
+      }],
+    });
+
+    const [account] = parseSub2apiJsonAccounts(content);
+    const auth = normalizeSub2apiAuth(account);
+
+    expect(auth).toMatchObject({
+      auth_mode: 'chatgpt',
+      OPENAI_API_KEY: null,
+      tokens: {
+        access_token: 'at-opaque-personal-access-token',
+        id_token: '',
+        refresh_token: '',
+        account_id: 'workspace-1',
+        chatgpt_user_id: 'user-1',
+        email: 'person@example.com',
+        plan_type: 'team',
+        organization_id: 'org-1',
+        expires_at: '2026-10-21T02:37:37Z',
+      },
+    });
+  });
+
   it('imports sub2api accounts without attempting an OAuth token refresh', async () => {
     const admin = {
       createSystemAccount: vi.fn().mockResolvedValue({ id: 'agent-account' }),
