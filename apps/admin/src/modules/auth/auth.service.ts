@@ -2,7 +2,7 @@ import { createHash } from 'crypto';
 import { BadRequestException, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { JwtService, type JwtSignOptions } from '@nestjs/jwt';
-import { DataSource, IsNull, Repository } from 'typeorm';
+import { DataSource, IsNull, MoreThan, Repository } from 'typeorm';
 import { MODULE_OPTIONS_TOKEN } from '@/config/configurable';
 import { getKongJwtSecret, getRefreshSecret } from '@/config/auth-secrets';
 import type { ConfigModuleOptions } from '@/config/config.types';
@@ -108,11 +108,23 @@ export class AuthService {
       },
       relations: { user: true },
     });
-    if (!token || token.expiresAt <= new Date() || token.user.disabled) {
+    const now = new Date();
+    if (!token || token.expiresAt <= now || token.user.disabled) {
       throw new UnauthorizedException('Refresh token expired');
     }
-    token.revokedAt = new Date();
-    await this.refreshTokens.save(token);
+    const consumed = await this.refreshTokens.update(
+      {
+        id: payload.tokenId,
+        userId: payload.sub,
+        tokenHash: this.hashToken(refreshToken),
+        revokedAt: IsNull(),
+        expiresAt: MoreThan(now),
+      },
+      { revokedAt: now },
+    );
+    if (consumed.affected !== 1) {
+      throw new UnauthorizedException('Refresh token expired');
+    }
     return this.issueTokens(token.user);
   }
 

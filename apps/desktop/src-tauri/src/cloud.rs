@@ -1,4 +1,9 @@
-use std::{collections::HashSet, fs, time::Duration};
+use std::{
+    collections::HashSet,
+    fs,
+    sync::{Mutex, MutexGuard, OnceLock},
+    time::Duration,
+};
 
 use base64::{
     engine::general_purpose::{STANDARD as BASE64_STANDARD, URL_SAFE, URL_SAFE_NO_PAD},
@@ -99,6 +104,19 @@ struct FeedbackImage {
 const MAX_FEEDBACK_IMAGE_BYTES: usize = 5 * 1024 * 1024;
 const MAX_FEEDBACK_IMAGES: usize = 4;
 const FEEDBACK_IMAGE_MIME_TYPES: [&str; 3] = ["image/jpeg", "image/png", "image/webp"];
+
+// Refresh tokens are rotated by the backend. All cloud operations that read or
+// write cloud-auth.json must therefore share one critical section: otherwise a
+// slower request can overwrite a newly rotated token with the revoked one it
+// read before the refresh completed.
+static CLOUD_CREDENTIALS_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+
+fn lock_cloud_credentials() -> Result<MutexGuard<'static, ()>, String> {
+    CLOUD_CREDENTIALS_LOCK
+        .get_or_init(|| Mutex::new(()))
+        .lock()
+        .map_err(|_| "Cloud credentials lock is unavailable".to_string())
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -321,6 +339,7 @@ fn access_token_expires_soon(access_token: &str) -> bool {
 pub(crate) fn remote_control_config<R: Runtime>(
     app: &tauri::AppHandle<R>,
 ) -> Result<Option<RemoteControlConfig>, String> {
+    let _credentials_guard = lock_cloud_credentials()?;
     let mut settings = read_app_settings(app)?;
     let mut credentials = read_cloud_credentials(app);
     let Some(mut access_token) = credentials.access_token.clone() else {
@@ -896,6 +915,7 @@ fn delete_remote_provider(
 pub(crate) fn get_cloud_auth_state<R: Runtime>(
     app: tauri::AppHandle<R>,
 ) -> Result<CloudAuthState, String> {
+    let _credentials_guard = lock_cloud_credentials()?;
     let settings = read_app_settings(&app)?;
     let credentials = read_cloud_credentials(&app);
     Ok(cloud_state(&settings, &credentials))
@@ -906,6 +926,7 @@ pub(crate) fn set_cloud_base_url<R: Runtime>(
     app: tauri::AppHandle<R>,
     base_url: String,
 ) -> Result<CloudAuthState, String> {
+    let _credentials_guard = lock_cloud_credentials()?;
     let mut settings = read_app_settings(&app)?;
     let normalized = normalize_base_url(&base_url)?;
     if settings.cloud_base_url != normalized {
@@ -1079,6 +1100,7 @@ pub(crate) async fn report_announcement_click<R: Runtime>(
     announcement_updated_at: Option<String>,
 ) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
+        let _credentials_guard = lock_cloud_credentials()?;
         let installation = read_or_create_installation_state(&app)?;
         let client = api_client()?;
         let mut settings = read_app_settings(&app)?;
@@ -1136,6 +1158,7 @@ pub(crate) async fn submit_feedback<R: Runtime>(
     images: Vec<FeedbackImageInput>,
 ) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
+        let _credentials_guard = lock_cloud_credentials()?;
         let images = decode_feedback_images(images)?;
         let contact_email = contact_email
             .as_deref()
@@ -1257,6 +1280,7 @@ pub(crate) async fn cloud_change_password<R: Runtime>(
     new_password: String,
 ) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
+        let _credentials_guard = lock_cloud_credentials()?;
         let client = api_client()?;
         let mut settings = read_app_settings(&app)?;
         let mut credentials = read_cloud_credentials(&app);
@@ -1313,6 +1337,7 @@ async fn cloud_authenticate<R: Runtime>(
     action: &'static str,
 ) -> Result<CloudAuthState, String> {
     tauri::async_runtime::spawn_blocking(move || {
+        let _credentials_guard = lock_cloud_credentials()?;
         let client = api_client()?;
         let mut settings = read_app_settings(&app)?;
         let mut payload = json!({ "email": email, "password": password });
@@ -1366,6 +1391,7 @@ pub(crate) async fn cloud_logout<R: Runtime>(
     app: tauri::AppHandle<R>,
 ) -> Result<CloudAuthState, String> {
     tauri::async_runtime::spawn_blocking(move || {
+        let _credentials_guard = lock_cloud_credentials()?;
         let client = api_client()?;
         let mut settings = read_app_settings(&app)?;
         let credentials = read_cloud_credentials(&app);
@@ -1389,6 +1415,7 @@ pub(crate) async fn cloud_push_accounts<R: Runtime>(
     app: tauri::AppHandle<R>,
 ) -> Result<CloudSyncResult, String> {
     tauri::async_runtime::spawn_blocking(move || {
+        let _credentials_guard = lock_cloud_credentials()?;
         let client = api_client()?;
         let mut settings = read_app_settings(&app)?;
         let mut credentials = read_cloud_credentials(&app);
@@ -1411,6 +1438,7 @@ pub(crate) async fn cloud_push_account<R: Runtime>(
     id: String,
 ) -> Result<CloudSyncResult, String> {
     tauri::async_runtime::spawn_blocking(move || {
+        let _credentials_guard = lock_cloud_credentials()?;
         let client = api_client()?;
         let mut settings = read_app_settings(&app)?;
         let mut credentials = read_cloud_credentials(&app);
@@ -1431,6 +1459,7 @@ pub(crate) async fn cloud_push_providers<R: Runtime>(
     app: tauri::AppHandle<R>,
 ) -> Result<CloudSyncResult, String> {
     tauri::async_runtime::spawn_blocking(move || {
+        let _credentials_guard = lock_cloud_credentials()?;
         let client = api_client()?;
         let mut settings = read_app_settings(&app)?;
         let mut credentials = read_cloud_credentials(&app);
@@ -1452,6 +1481,7 @@ pub(crate) async fn cloud_push_provider<R: Runtime>(
     id: String,
 ) -> Result<CloudSyncResult, String> {
     tauri::async_runtime::spawn_blocking(move || {
+        let _credentials_guard = lock_cloud_credentials()?;
         let client = api_client()?;
         let mut settings = read_app_settings(&app)?;
         let mut credentials = read_cloud_credentials(&app);
@@ -1473,6 +1503,7 @@ pub(crate) async fn cloud_delete_account<R: Runtime>(
     id: String,
 ) -> Result<CloudSyncResult, String> {
     tauri::async_runtime::spawn_blocking(move || {
+        let _credentials_guard = lock_cloud_credentials()?;
         let client = api_client()?;
         let mut settings = read_app_settings(&app)?;
         let mut credentials = read_cloud_credentials(&app);
@@ -1494,6 +1525,7 @@ pub(crate) async fn cloud_delete_provider<R: Runtime>(
     id: String,
 ) -> Result<CloudSyncResult, String> {
     tauri::async_runtime::spawn_blocking(move || {
+        let _credentials_guard = lock_cloud_credentials()?;
         let client = api_client()?;
         let mut settings = read_app_settings(&app)?;
         let mut credentials = read_cloud_credentials(&app);
@@ -1514,6 +1546,7 @@ pub(crate) async fn cloud_sync_accounts<R: Runtime>(
     app: tauri::AppHandle<R>,
 ) -> Result<CloudSyncResult, String> {
     tauri::async_runtime::spawn_blocking(move || {
+        let _credentials_guard = lock_cloud_credentials()?;
         let client = api_client()?;
         let mut settings = read_app_settings(&app)?;
         let mut credentials = read_cloud_credentials(&app);
