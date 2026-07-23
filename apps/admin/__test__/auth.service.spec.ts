@@ -62,7 +62,7 @@ describe('AuthService', () => {
     jwt = { signAsync: vi.fn(), verifyAsync: vi.fn() };
     tokens = {
       create: vi.fn((value) => ({ id: 'refresh-id', ...value })),
-      save: vi.fn(async (value) => value), findOne: vi.fn(), update: vi.fn(),
+      save: vi.fn(async (value) => value), findOne: vi.fn(), update: vi.fn().mockResolvedValue({ affected: 1 }),
     };
     transactionManager = { getRepository: vi.fn(() => tokens) };
     dataSource = {
@@ -237,7 +237,7 @@ describe('AuthService', () => {
     expect(tokens.findOne).not.toHaveBeenCalled();
   });
 
-  it('rotates a valid refresh token and revokes the old record', async () => {
+  it('rotates a valid refresh token by atomically revoking the old record', async () => {
     const user = makeUser();
     const oldToken = {
       id: 'old-token-id', userId: user.id, user, tokenHash: hash('old-refresh'),
@@ -256,8 +256,28 @@ describe('AuthService', () => {
       }),
       relations: { user: true },
     });
-    expect(oldToken.revokedAt).toEqual(new Date('2026-07-04T00:00:00.000Z'));
-    expect(tokens.save).toHaveBeenNthCalledWith(1, oldToken);
+    expect(tokens.update).toHaveBeenCalledWith(expect.objectContaining({
+      id: oldToken.id,
+      userId: user.id,
+      tokenHash: hash('old-refresh'),
+      revokedAt: expect.anything(),
+      expiresAt: expect.anything(),
+    }), { revokedAt: new Date('2026-07-04T00:00:00.000Z') });
+  });
+
+  it('rejects a refresh token already consumed by a concurrent request', async () => {
+    const user = makeUser();
+    const oldToken = {
+      id: 'old-token-id', userId: user.id, user, tokenHash: hash('old-refresh'),
+      expiresAt: new Date('2026-07-04T00:01:00.000Z'), revokedAt: null,
+    };
+    jwt.verifyAsync.mockResolvedValue({ sub: user.id, tokenId: oldToken.id, typ: 'refresh' });
+    tokens.findOne.mockResolvedValue(oldToken);
+    tokens.update.mockResolvedValue({ affected: 0 });
+
+    await expect(service.refresh('old-refresh')).rejects.toThrow('Refresh token expired');
+
+    expect(jwt.signAsync).not.toHaveBeenCalled();
   });
 
   it.each([
