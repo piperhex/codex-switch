@@ -276,10 +276,11 @@ function formatAndroidVersionCode(version) {
   assertAndroidVersionPart(version.minor, "minor", 99);
   assertAndroidVersionPart(version.patch, "patch", 999);
 
-  const releaseSequence = version.prerelease
-    ? numericPrereleaseSuffix(version.prerelease)
-    : 99;
-  assertAndroidVersionPart(releaseSequence, "pre-release", 98);
+  let releaseSequence = 99;
+  if (version.prerelease) {
+    releaseSequence = numericPrereleaseSuffix(version.prerelease);
+    assertAndroidVersionPart(releaseSequence, "pre-release", 98);
+  }
 
   return (version.major * 10_000_000)
     + (version.minor * 100_000)
