@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Headers, Param, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, Param, Post, Put, UseGuards } from '@nestjs/common';
 import { CurrentUser, type AuthUser } from '@/common/decorators/user.decorator';
 import { RequirePermissions } from '@/common/decorators/permissions.decorator';
 import { PermissionsGuard } from '@/common/guards/permissions.guard';
@@ -27,6 +27,18 @@ export class SyncController {
   @RequirePermissions(Permission.SelfAccountsRead)
   listSummary(@CurrentUser() user: AuthUser) {
     return this.sync.listSummary(user.id);
+  }
+
+  @Get('accounts/:id/reset-credits')
+  @RequirePermissions(Permission.SelfAccountsRead)
+  resetCredits(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.sync.fetchResetCredits(user.id, id);
+  }
+
+  @Post('accounts/:id/reset-credits/consume')
+  @RequirePermissions(Permission.SelfAccountsWrite)
+  consumeResetCredit(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.sync.consumeResetCredit(user.id, id);
   }
 
   @Put('accounts')

@@ -1,5 +1,12 @@
 import * as SecureStore from 'expo-secure-store';
-import type { AccountSummary, AuthResponse, AuthSession, RemoteDevice, UserProfile } from '../types';
+import type {
+  AccountSummary,
+  AuthResponse,
+  AuthSession,
+  RemoteDevice,
+  ResetCreditsSummary,
+  UserProfile,
+} from '../types';
 
 const SESSION_KEY = 'codex-switch.mobile.session.v1';
 const GLOBAL_REFRESH_INTERVAL_KEY = 'codex-switch.mobile.global-refresh-minutes.v1';
@@ -203,6 +210,31 @@ export async function fetchAccountSummary(session: AuthSession): Promise<Account
     throw new ApiError('服务器返回的账户数据无效');
   }
   return (payload as { accounts: AccountSummary[] }).accounts;
+}
+
+export async function fetchResetCredits(
+  session: AuthSession,
+  accountId: string,
+): Promise<ResetCreditsSummary> {
+  const response = await authorizedRequest(
+    session,
+    `/sync/accounts/${encodeURIComponent(accountId)}/reset-credits`,
+  );
+  if (!response.ok) throw new ApiError(await parseError(response), response.status);
+  const payload: unknown = await response.json();
+  if (!payload || typeof payload !== 'object' || !Array.isArray((payload as { credits?: unknown }).credits)) {
+    throw new ApiError('服务器返回的重置卡数据无效');
+  }
+  return payload as ResetCreditsSummary;
+}
+
+export async function consumeResetCredit(session: AuthSession, accountId: string): Promise<void> {
+  const response = await authorizedRequest(
+    session,
+    `/sync/accounts/${encodeURIComponent(accountId)}/reset-credits/consume`,
+    { method: 'POST' },
+  );
+  if (!response.ok) throw new ApiError(await parseError(response), response.status);
 }
 
 export async function fetchRemoteDevices(session: AuthSession): Promise<RemoteDevice[]> {

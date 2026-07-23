@@ -1,5 +1,6 @@
-import { createHash } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import {
+  BadGatewayException,
   BadRequestException,
   ConflictException,
   Inject,
@@ -20,6 +21,25 @@ import { RemoteDeviceEntity } from '@/modules/devices/entities/remote-device.ent
 
 const DEVICE_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const CODEX_ORIGINATOR = 'codex_cli_rs';
+const RESET_CREDITS_URL = 'https://chatgpt.com/backend-api/wham/rate-limit-reset-credits';
+const RESET_CREDIT_CONSUME_URL =
+  'https://chatgpt.com/backend-api/wham/rate-limit-reset-credits/consume';
+const OPENAI_TOKEN_URL = 'https://auth.openai.com/oauth/token';
+const OPENAI_CLIENT_ID = 'app_EMoamEEZ73f0CkXaXp7hrann';
+
+export interface ResetCreditDto {
+  issuedAt?: string | null;
+  expiresAt?: string | null;
+}
+
+export interface ResetCreditsSummaryDto {
+  credits: ResetCreditDto[];
+}
+
+type StoredResetCreditAccount =
+  | { source: 'personal'; account: SyncedAccountEntity }
+  | { source: 'system'; account: SystemAccountEntity };
 
 export type AdminSyncAccountDto = SyncAccountDto & {
   source: 'personal' | 'system';
@@ -197,6 +217,46 @@ export class SyncService {
         return account;
       }),
     };
+  }
+
+  async fetchResetCredits(ownerId: string, accountId: string): Promise<ResetCreditsSummaryDto> {
+    const account = await this.resolveResetCreditAccount(ownerId, accountId);
+    return this.fetchResetCreditsForAccount(ownerId, account);
+  }
+
+  async consumeResetCredit(ownerId: string, accountId: string) {
+    const account = await this.resolveResetCreditAccount(ownerId, accountId);
+    const credits = await this.fetchResetCreditsForAccount(ownerId, account);
+    if (!credits.credits.length) {
+      throw new BadRequestException('当前账号没有可用重置卡');
+    }
+
+    const response = await this.codexAccountRequest(
+      ownerId,
+      account,
+      RESET_CREDIT_CONSUME_URL,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          redeem_request_id: `codex-switch-${Date.now()}-${randomUUID()}`,
+        }),
+      },
+    );
+    if (!response.ok) {
+      throw new BadGatewayException(`Codex 重置卡使用接口返回 HTTP ${response.status}`);
+    }
+
+    const payload = await this.responseObject(response, '解析重置卡使用响应失败');
+    const code = this.stringValue(payload.code);
+    if (code === 'reset' || code === 'already_redeemed') return { ok: true };
+    if (code === 'no_credit') throw new BadRequestException('当前账号没有可用重置卡');
+    if (code === 'nothing_to_reset') {
+      throw new BadRequestException('当前账号当前没有需要重置的用量窗口');
+    }
+    if (code) {
+      throw new BadGatewayException(`Codex 重置卡使用接口返回未知状态：${code}`);
+    }
+    throw new BadGatewayException('Codex 重置卡使用接口响应缺少 code');
   }
 
   async listForAdmin(ownerId: string): Promise<{ accounts: AdminSyncAccountDto[] }> {
@@ -915,6 +975,192 @@ export class SyncService {
       .subarray(0, 12)
       .toString('hex');
     return { syncAccountId, email, plan, codexAccountId };
+  }
+
+  private async resolveResetCreditAccount(
+    ownerId: string,
+    accountId: string,
+  ): Promise<StoredResetCreditAccount> {
+    const bindings = await this.systemBindings.find({
+      where: { userId: ownerId },
+      relations: { account: true },
+    });
+    const systemBinding = bindings.find((binding) => binding.account.syncAccountId === accountId);
+    if (systemBinding) return { source: 'system', account: systemBinding.account };
+
+    const account = await this.accounts.findOne({
+      where: { ownerId, accountId, deletedAt: IsNull() },
+    });
+    if (!account) throw new NotFoundException('Synced account not found');
+    return { source: 'personal', account };
+  }
+
+  private async fetchResetCreditsForAccount(
+    ownerId: string,
+    account: StoredResetCreditAccount,
+  ): Promise<ResetCreditsSummaryDto> {
+    const response = await this.codexAccountRequest(ownerId, account, RESET_CREDITS_URL);
+    if (!response.ok) {
+      throw new BadGatewayException(`Codex 重置卡接口返回 HTTP ${response.status}`);
+    }
+    const payload = await this.responseObject(response, '解析重置卡响应失败');
+    const rawCredits = payload.credits;
+    if (!Array.isArray(rawCredits)) {
+      throw new BadGatewayException('重置卡接口响应缺少 credits 列表');
+    }
+    const credits = rawCredits.map((value) => {
+      const credit = this.objectValue(value) ?? {};
+      return {
+        issuedAt: this.normalizedResetCreditTimestamp(credit.granted_at ?? credit.created_at),
+        expiresAt: this.normalizedResetCreditTimestamp(credit.expires_at),
+      };
+    });
+    credits.sort((left, right) => (left.expiresAt ?? '').localeCompare(right.expiresAt ?? ''));
+    return { credits };
+  }
+
+  private async codexAccountRequest(
+    ownerId: string,
+    account: StoredResetCreditAccount,
+    url: string,
+    init: { method?: 'GET' | 'POST'; body?: string } = {},
+  ) {
+    let response = await this.sendCodexAccountRequest(account, url, init);
+    if (response.status !== 401) return response;
+
+    const refreshedAuth = await this.refreshCodexAccountAuth(account.account.auth);
+    await this.persistRefreshedAccountAuth(ownerId, account, refreshedAuth);
+    response = await this.sendCodexAccountRequest(account, url, init);
+    if (response.status === 401) {
+      throw new BadRequestException('该账号的登录凭据已失效，请在桌面端重新登录');
+    }
+    return response;
+  }
+
+  private async sendCodexAccountRequest(
+    account: StoredResetCreditAccount,
+    url: string,
+    init: { method?: 'GET' | 'POST'; body?: string },
+  ) {
+    const tokens = this.objectValue(account.account.auth.tokens);
+    const accessToken = this.stringValue(tokens?.access_token);
+    if (!accessToken) {
+      throw new BadRequestException('当前账号的登录方式不支持重置卡');
+    }
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${accessToken}`,
+      originator: CODEX_ORIGINATOR,
+      'User-Agent': 'codex_cli_rs/0.1.0',
+    };
+    if (account.account.codexAccountId) {
+      headers['ChatGPT-Account-Id'] = account.account.codexAccountId;
+    }
+    if (init.body) headers['Content-Type'] = 'application/json';
+
+    try {
+      return await fetch(url, {
+        method: init.method ?? 'GET',
+        headers,
+        body: init.body,
+        signal: AbortSignal.timeout(20_000),
+      });
+    } catch {
+      throw new BadGatewayException('无法连接 Codex 重置卡服务');
+    }
+  }
+
+  private async refreshCodexAccountAuth(auth: Record<string, unknown>) {
+    const tokens = this.objectValue(auth.tokens);
+    const refreshToken = this.stringValue(tokens?.refresh_token);
+    if (!tokens || !refreshToken) {
+      throw new BadRequestException('该账号的登录凭据已失效，请在桌面端重新登录');
+    }
+
+    let response: Response;
+    try {
+      response = await fetch(OPENAI_TOKEN_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          originator: CODEX_ORIGINATOR,
+        },
+        body: JSON.stringify({
+          client_id: OPENAI_CLIENT_ID,
+          grant_type: 'refresh_token',
+          refresh_token: refreshToken,
+        }),
+        signal: AbortSignal.timeout(20_000),
+      });
+    } catch {
+      throw new BadGatewayException('无法连接 Codex 登录服务刷新账号凭据');
+    }
+    if (!response.ok) {
+      throw new BadRequestException('该账号的登录凭据已失效，请在桌面端重新登录');
+    }
+
+    const payload = await this.responseObject(response, '解析账号凭据刷新响应失败');
+    const accessToken = this.stringValue(payload.access_token);
+    if (!accessToken) {
+      throw new BadGatewayException('账号凭据刷新响应缺少 access_token');
+    }
+    const nextTokens: Record<string, unknown> = { ...tokens, access_token: accessToken };
+    for (const key of ['id_token', 'refresh_token'] as const) {
+      const value = this.stringValue(payload[key]);
+      if (value) nextTokens[key] = value;
+    }
+    return {
+      ...auth,
+      tokens: nextTokens,
+      last_refresh: new Date().toISOString(),
+    };
+  }
+
+  private async persistRefreshedAccountAuth(
+    ownerId: string,
+    stored: StoredResetCreditAccount,
+    auth: Record<string, unknown>,
+  ) {
+    const modifiedAt = new Date();
+    stored.account.auth = auth;
+    stored.account.lastModifiedAt = modifiedAt;
+    if (stored.source === 'personal') {
+      stored.account.fieldModifiedAt = {
+        ...stored.account.fieldModifiedAt,
+        auth: modifiedAt.toISOString(),
+      };
+      await this.accounts.save(stored.account);
+      await this.redis.del(this.cacheKey(ownerId));
+      return;
+    }
+
+    await this.systemAccounts.save(stored.account);
+    const bindings = await this.systemBindings.find({
+      where: { systemAccountId: stored.account.id },
+    });
+    await this.invalidateAccountCaches(bindings.map((binding) => binding.userId));
+  }
+
+  private async responseObject(response: Response, context: string) {
+    let payload: unknown;
+    try {
+      payload = await response.json();
+    } catch {
+      throw new BadGatewayException(`${context}：响应不是有效 JSON`);
+    }
+    const result = this.objectValue(payload);
+    if (!result) throw new BadGatewayException(`${context}：响应格式无效`);
+    return result;
+  }
+
+  private normalizedResetCreditTimestamp(value: unknown): string | null {
+    if (typeof value === 'string') {
+      const parsed = new Date(value);
+      return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+    }
+    if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+    const milliseconds = Math.abs(value) >= 100_000_000_000 ? value : value * 1000;
+    const parsed = new Date(milliseconds);
+    return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
   }
 
   private objectValue(value: unknown): Record<string, unknown> | undefined {
