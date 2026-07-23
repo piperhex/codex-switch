@@ -1,8 +1,10 @@
-import type { ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   KeyboardAvoidingView,
   Modal,
+  PanResponder,
   Platform,
   Pressable,
   StyleSheet,
@@ -10,6 +12,10 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+const AnimatedSafeAreaView = Animated.createAnimatedComponent(SafeAreaView);
+const DRAG_DISMISS_DISTANCE = 80;
+const DRAG_DISMISS_VELOCITY = 0.9;
 
 export interface BottomSheetAction {
   label: string;
@@ -40,9 +46,51 @@ export function BottomSheet({
   dismissible = true,
   tall = false,
 }: BottomSheetProps) {
+  const translateY = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!visible) return;
+    translateY.stopAnimation();
+    translateY.setValue(0);
+  }, [translateY, visible]);
+
   const close = () => {
     if (dismissible) onClose();
   };
+
+  const resetDrag = useCallback(() => {
+    Animated.spring(translateY, {
+      toValue: 0,
+      damping: 22,
+      stiffness: 240,
+      mass: 0.8,
+      useNativeDriver: true,
+    }).start();
+  }, [translateY]);
+
+  const dragResponder = useMemo(() => PanResponder.create({
+    onMoveShouldSetPanResponderCapture: (_event, gesture) => (
+      dismissible
+      && gesture.dy > 6
+      && Math.abs(gesture.dy) > Math.abs(gesture.dx)
+    ),
+    onPanResponderGrant: () => {
+      translateY.stopAnimation();
+    },
+    onPanResponderMove: (_event, gesture) => {
+      translateY.setValue(Math.max(0, gesture.dy));
+    },
+    onPanResponderRelease: (_event, gesture) => {
+      const draggedFarEnough = gesture.dy >= DRAG_DISMISS_DISTANCE;
+      const flickedDown = gesture.dy > 12 && gesture.vy >= DRAG_DISMISS_VELOCITY;
+      if (draggedFarEnough || flickedDown) {
+        onClose();
+        return;
+      }
+      resetDrag();
+    },
+    onPanResponderTerminate: resetDrag,
+  }), [dismissible, onClose, resetDrag, translateY]);
 
   return <Modal
     visible={visible}
@@ -56,22 +104,32 @@ export function BottomSheet({
       behavior={Platform.select({ ios: 'padding', android: undefined })}
     >
       <Pressable accessible={false} style={styles.backdrop} onPress={close} />
-      <SafeAreaView edges={['bottom']} style={[styles.sheet, tall && styles.sheetTall]}>
-        <View style={styles.handle} />
-        <View style={styles.header}>
-          <View style={styles.heading}>
-            <Text style={styles.title}>{title}</Text>
-            {subtitle ? <Text style={styles.subtitle} numberOfLines={2}>{subtitle}</Text> : null}
+      <AnimatedSafeAreaView
+        edges={['bottom']}
+        style={[
+          styles.sheet,
+          tall && styles.sheetTall,
+          { transform: [{ translateY }] },
+        ]}
+        {...dragResponder.panHandlers}
+      >
+        <View>
+          <View style={styles.handle} />
+          <View style={styles.header}>
+            <View style={styles.heading}>
+              <Text style={styles.title}>{title}</Text>
+              {subtitle ? <Text style={styles.subtitle} numberOfLines={2}>{subtitle}</Text> : null}
+            </View>
+            {dismissible ? <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`关闭${title}`}
+              hitSlop={8}
+              onPress={onClose}
+              style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}
+            >
+              <Text style={styles.closeText}>×</Text>
+            </Pressable> : null}
           </View>
-          {dismissible ? <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`关闭${title}`}
-            hitSlop={8}
-            onPress={onClose}
-            style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}
-          >
-            <Text style={styles.closeText}>×</Text>
-          </Pressable> : null}
         </View>
         {children ? <View style={styles.content}>{children}</View> : null}
         {actions.length ? <View style={styles.actions}>
@@ -100,7 +158,7 @@ export function BottomSheet({
             </Pressable>;
           })}
         </View> : null}
-      </SafeAreaView>
+      </AnimatedSafeAreaView>
     </KeyboardAvoidingView>
   </Modal>;
 }

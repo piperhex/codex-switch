@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Component, useCallback, useEffect, useMemo, useRef, useState, type ErrorInfo, type ReactNode } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   AppState,
   BackHandler,
   KeyboardAvoidingView,
@@ -20,9 +21,11 @@ import { initialWindowMetrics, SafeAreaProvider, SafeAreaView } from 'react-nati
 import {
   changePassword,
   clearSession,
+  consumeResetCredit,
   DEFAULT_GLOBAL_REFRESH_MINUTES,
   DEFAULT_CLOUD_BASE_URL,
   fetchAccountSummary,
+  fetchResetCredits,
   fetchRemoteDevices,
   fetchUserProfile,
   isSessionExpiredError,
@@ -32,7 +35,14 @@ import {
   saveGlobalRefreshMinutes,
   switchRemoteDeviceAccount,
 } from './src/api/client';
-import type { AccountSummary, AuthSession, RemoteDevice, UsageWindow, UserProfile } from './src/types';
+import type {
+  AccountSummary,
+  AuthSession,
+  RemoteDevice,
+  ResetCreditsSummary,
+  UsageWindow,
+  UserProfile,
+} from './src/types';
 import { reportMobileInstallation } from './src/telemetry';
 import { AdminArea } from './src/admin/AdminArea';
 import { AppToastHost, Toast } from './src/components/AppToast';
@@ -82,6 +92,20 @@ function displayDate(value?: string | null) {
   if (Number.isNaN(date.getTime())) return '未刷新';
   return new Intl.DateTimeFormat('zh-CN', {
     month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false,
+  }).format(date);
+}
+
+function displayFullDate(value?: string | null) {
+  if (!value) return '时间未知';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '时间未知';
+  return new Intl.DateTimeFormat('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
   }).format(date);
 }
 
@@ -255,7 +279,8 @@ function AccountCard({ account, privateMode, switchBusy, switching, onOpenDetail
   </Pressable>;
 }
 
-function Dashboard({ accounts, devices, loading, refreshing, switchingAccountId, onRefresh, onSwitch }: {
+function Dashboard({ session, accounts, devices, loading, refreshing, switchingAccountId, onRefresh, onSwitch }: {
+  session: AuthSession;
   accounts: AccountSummary[];
   devices: RemoteDevice[];
   loading: boolean;
@@ -266,6 +291,7 @@ function Dashboard({ accounts, devices, loading, refreshing, switchingAccountId,
 }) {
   const [privateMode, setPrivateMode] = useState(true);
   const [detailAccount, setDetailAccount] = useState<AccountSummary | null>(null);
+  const [resetCreditsAccount, setResetCreditsAccount] = useState<AccountSummary | null>(null);
   const [noteAccount, setNoteAccount] = useState<AccountSummary | null>(null);
   const [switchAccount, setSwitchAccount] = useState<AccountSummary | null>(null);
   const latestUpdate = useMemo(() => {
@@ -310,6 +336,7 @@ function Dashboard({ accounts, devices, loading, refreshing, switchingAccountId,
       devices={devices}
       privateMode={privateMode}
       onClose={() => setDetailAccount(null)}
+      onOpenResetCredits={(account) => setResetCreditsAccount(account)}
       onOpenNote={(account) => setNoteAccount(account)}
     />
     <DeviceSwitchDrawer
@@ -321,6 +348,11 @@ function Dashboard({ accounts, devices, loading, refreshing, switchingAccountId,
         await onSwitch(deviceId, accountId);
         setSwitchAccount(null);
       }}
+    />
+    <ResetCreditsDrawer
+      session={session}
+      account={resetCreditsAccount}
+      onClose={() => setResetCreditsAccount(null)}
     />
     <NoteDrawer account={noteAccount} onClose={() => setNoteAccount(null)} />
   </>;
@@ -537,11 +569,19 @@ function BottomNavigation({ activePage, isAdmin, onChange }: { activePage: AppPa
   </View>;
 }
 
-function AccountDetailsDrawer({ account, devices, privateMode, onClose, onOpenNote }: {
+function AccountDetailsDrawer({
+  account,
+  devices,
+  privateMode,
+  onClose,
+  onOpenResetCredits,
+  onOpenNote,
+}: {
   account: AccountSummary | null;
   devices: RemoteDevice[];
   privateMode: boolean;
   onClose: () => void;
+  onOpenResetCredits: (account: AccountSummary) => void;
   onOpenNote: (account: AccountSummary) => void;
 }) {
   const activeDevices = account
@@ -600,6 +640,19 @@ function AccountDetailsDrawer({ account, devices, privateMode, onClose, onOpenNo
 
       <Pressable
         accessibilityRole="button"
+        accessibilityHint="在新的底部抽屉中查看和使用重置卡"
+        onPress={() => onOpenResetCredits(account)}
+        style={({ pressed }) => [styles.openNoteButton, pressed && styles.pressed]}
+      >
+        <View>
+          <Text style={styles.openNoteTitle}>重置卡</Text>
+          <Text style={styles.openNoteHint}>查看可用数量、有效期并使用重置卡</Text>
+        </View>
+        <Text style={styles.openNoteArrow}>›</Text>
+      </Pressable>
+
+      <Pressable
+        accessibilityRole="button"
         accessibilityHint="在新的底部抽屉中查看账号备注"
         onPress={() => onOpenNote(account)}
         style={({ pressed }) => [styles.openNoteButton, pressed && styles.pressed]}
@@ -611,6 +664,145 @@ function AccountDetailsDrawer({ account, devices, privateMode, onClose, onOpenNo
         <Text style={styles.openNoteArrow}>›</Text>
       </Pressable>
     </ScrollView> : null}
+  </BottomSheet>;
+}
+
+function ResetCreditsDrawer({ session, account, onClose }: {
+  session: AuthSession;
+  account: AccountSummary | null;
+  onClose: () => void;
+}) {
+  const [summary, setSummary] = useState<ResetCreditsSummary | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [consuming, setConsuming] = useState(false);
+  const requestIdRef = useRef(0);
+  const accountId = account?.id;
+
+  const loadCredits = useCallback(async () => {
+    if (!accountId) return;
+    const requestId = ++requestIdRef.current;
+    setLoading(true);
+    setError(null);
+    try {
+      const next = await fetchResetCredits(session, accountId);
+      if (requestId === requestIdRef.current) setSummary(next);
+    } catch (nextError) {
+      if (requestId === requestIdRef.current) {
+        setSummary(null);
+        setError(errorMessage(nextError));
+      }
+    } finally {
+      if (requestId === requestIdRef.current) setLoading(false);
+    }
+  }, [accountId, session]);
+
+  useEffect(() => {
+    if (!accountId) {
+      requestIdRef.current += 1;
+      setSummary(null);
+      setError(null);
+      setLoading(false);
+      setConsuming(false);
+      return;
+    }
+    void loadCredits();
+  }, [accountId, loadCredits]);
+
+  const useCredit = useCallback(async () => {
+    if (!accountId || consuming) return;
+    setConsuming(true);
+    try {
+      await consumeResetCredit(session, accountId);
+      Toast.success('重置卡使用成功');
+      await loadCredits();
+    } catch (nextError) {
+      Toast.fail(`使用失败：${errorMessage(nextError)}`);
+    } finally {
+      setConsuming(false);
+    }
+  }, [accountId, consuming, loadCredits, session]);
+
+  const confirmUseCredit = useCallback(() => {
+    if (!summary?.credits.length || consuming) return;
+    Alert.alert(
+      '确认使用重置卡？',
+      '确认后会先检查该账号的可用重置卡，并消费一张来重置当前可重置的用量窗口。',
+      [
+        { text: '取消', style: 'cancel' },
+        { text: '使用重置卡', style: 'destructive', onPress: () => void useCredit() },
+      ],
+    );
+  }, [consuming, summary?.credits.length, useCredit]);
+
+  const credits = summary?.credits ?? [];
+  return <BottomSheet
+    visible={Boolean(account)}
+    title="重置卡详情"
+    subtitle={account?.email}
+    onClose={onClose}
+    dismissible={!consuming}
+    actions={[
+      { label: '关闭', onPress: onClose, disabled: consuming },
+      {
+        label: '使用重置卡',
+        tone: 'primary',
+        onPress: confirmUseCredit,
+        loading: consuming,
+        disabled: loading || Boolean(error) || credits.length === 0,
+      },
+    ]}
+  >
+    <View style={styles.resetCreditSummary}>
+      <View>
+        <Text style={styles.resetCreditSummaryLabel}>当前可用</Text>
+        <Text style={styles.resetCreditSummaryHint}>使用前会再次向 Codex 确认可用状态</Text>
+      </View>
+      <Text style={styles.resetCreditCount}>{loading ? '—' : credits.length}<Text style={styles.resetCreditCountUnit}> 张</Text></Text>
+    </View>
+
+    <ScrollView
+      style={styles.resetCreditsScroll}
+      contentContainerStyle={styles.resetCreditsScrollContent}
+      showsVerticalScrollIndicator={false}
+    >
+      {loading ? <View style={styles.resetCreditStatus}>
+        <ActivityIndicator color={COLORS.green} />
+        <Text style={styles.resetCreditStatusText}>正在读取重置卡…</Text>
+      </View> : error ? <View style={styles.resetCreditStatus}>
+        <Text style={styles.resetCreditErrorTitle}>读取失败</Text>
+        <Text style={styles.resetCreditStatusText}>{error}</Text>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => void loadCredits()}
+          style={({ pressed }) => [styles.resetCreditRetry, pressed && styles.pressed]}
+        >
+          <Text style={styles.resetCreditRetryText}>重新读取</Text>
+        </Pressable>
+      </View> : credits.length === 0 ? <View style={styles.resetCreditStatus}>
+        <Text style={styles.resetCreditEmptyIcon}>✓</Text>
+        <Text style={styles.resetCreditEmptyTitle}>当前没有可用重置卡</Text>
+        <Text style={styles.resetCreditStatusText}>获得新的重置卡后，可在这里查看和使用。</Text>
+      </View> : credits.map((credit, index) => <View
+        key={`${credit.issuedAt ?? 'unknown'}-${credit.expiresAt ?? 'unknown'}-${index}`}
+        style={styles.resetCreditCard}
+      >
+        <View style={styles.resetCreditCardHeader}>
+          <View style={styles.resetCreditCardIcon}><Text style={styles.resetCreditCardIconText}>↻</Text></View>
+          <Text style={styles.resetCreditCardTitle}>重置卡 {index + 1}</Text>
+          <View style={styles.resetCreditAvailableBadge}><Text style={styles.resetCreditAvailableText}>可用</Text></View>
+        </View>
+        <View style={styles.resetCreditTimeRow}>
+          <Text style={styles.resetCreditTimeLabel}>发放时间</Text>
+          <Text style={styles.resetCreditTimeValue}>{displayFullDate(credit.issuedAt)}</Text>
+        </View>
+        <View style={styles.resetCreditTimeDivider} />
+        <View style={styles.resetCreditTimeRow}>
+          <Text style={styles.resetCreditTimeLabel}>到期时间</Text>
+          <Text style={styles.resetCreditTimeValue}>{displayFullDate(credit.expiresAt)}</Text>
+        </View>
+      </View>)}
+    </ScrollView>
   </BottomSheet>;
 }
 
@@ -883,7 +1075,7 @@ function AppContent() {
   return <SafeAreaView style={styles.app}>
     <StatusBar style="dark" />
     {activePage === 'accounts'
-      ? <Dashboard accounts={accounts} devices={devices} loading={loading} refreshing={refreshing}
+      ? <Dashboard session={session} accounts={accounts} devices={devices} loading={loading} refreshing={refreshing}
         switchingAccountId={switchingAccountId} onRefresh={refreshAll} onSwitch={handleRemoteSwitch} />
       : activePage === 'admin' && profile?.role === 'admin'
         ? <AdminArea session={session} profile={profile} />
@@ -947,6 +1139,31 @@ const styles = StyleSheet.create({
   openNoteTitle: { color: COLORS.ink, fontSize: 14, fontWeight: '800' },
   openNoteHint: { color: COLORS.muted, fontSize: 11, marginTop: 3 },
   openNoteArrow: { color: '#91a198', fontSize: 28, lineHeight: 30 },
+  resetCreditSummary: { minHeight: 76, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 14, borderRadius: 15, backgroundColor: COLORS.paleBlue, paddingHorizontal: 16, paddingVertical: 13 },
+  resetCreditSummaryLabel: { color: COLORS.ink, fontSize: 14, fontWeight: '800' },
+  resetCreditSummaryHint: { color: COLORS.muted, fontSize: 10, lineHeight: 15, marginTop: 4 },
+  resetCreditCount: { color: '#148da3', fontSize: 26, fontWeight: '900' },
+  resetCreditCountUnit: { color: COLORS.muted, fontSize: 12, fontWeight: '700' },
+  resetCreditsScroll: { maxHeight: 390, marginTop: 12 },
+  resetCreditsScrollContent: { paddingBottom: 4 },
+  resetCreditStatus: { minHeight: 190, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.border, borderRadius: 15, backgroundColor: COLORS.canvas, padding: 22 },
+  resetCreditStatusText: { color: COLORS.muted, fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 8 },
+  resetCreditErrorTitle: { color: COLORS.danger, fontSize: 16, fontWeight: '800' },
+  resetCreditRetry: { minWidth: 94, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: COLORS.paleBlue, marginTop: 15, paddingHorizontal: 14 },
+  resetCreditRetryText: { color: '#168da2', fontSize: 13, fontWeight: '800' },
+  resetCreditEmptyIcon: { width: 42, height: 42, borderRadius: 21, color: '#14806f', backgroundColor: '#d8f4ec', fontSize: 23, lineHeight: 42, fontWeight: '900', textAlign: 'center', overflow: 'hidden' },
+  resetCreditEmptyTitle: { color: COLORS.ink, fontSize: 15, fontWeight: '800', marginTop: 12 },
+  resetCreditCard: { borderWidth: 1, borderColor: COLORS.border, borderRadius: 15, backgroundColor: '#fff', padding: 15, marginBottom: 10 },
+  resetCreditCardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 13 },
+  resetCreditCardIcon: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.paleBlue, marginRight: 10 },
+  resetCreditCardIconText: { color: '#168da2', fontSize: 19, lineHeight: 22, fontWeight: '800' },
+  resetCreditCardTitle: { flex: 1, color: COLORS.ink, fontSize: 14, fontWeight: '800' },
+  resetCreditAvailableBadge: { borderRadius: 7, backgroundColor: COLORS.paleGreen, paddingHorizontal: 8, paddingVertical: 4 },
+  resetCreditAvailableText: { color: '#14806f', fontSize: 10, fontWeight: '800' },
+  resetCreditTimeRow: { minHeight: 36, flexDirection: 'row', alignItems: 'center', gap: 14 },
+  resetCreditTimeLabel: { width: 58, color: COLORS.muted, fontSize: 11 },
+  resetCreditTimeValue: { flex: 1, color: COLORS.ink, fontSize: 12, fontWeight: '700', textAlign: 'right' },
+  resetCreditTimeDivider: { height: 1, backgroundColor: '#eef3ef' },
   switchDeviceScroll: { maxHeight: 440, marginBottom: 12 },
   switchDeviceRow: { minHeight: 70, flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, backgroundColor: '#fff', paddingHorizontal: 14, paddingVertical: 11, marginBottom: 10 },
   switchDeviceRowCurrent: { borderColor: '#8fdccf', backgroundColor: COLORS.paleBlue },

@@ -24,6 +24,15 @@ export interface AccountSummary {
   lastModifiedAt?: string;
 }
 
+export interface ResetCredit {
+  issuedAt?: string | null;
+  expiresAt?: string | null;
+}
+
+export interface ResetCreditsSummary {
+  credits: ResetCredit[];
+}
+
 export interface RemoteDevice {
   deviceId: string;
   name: string;

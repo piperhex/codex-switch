@@ -1,7 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import type Redis from 'ioredis';
 import type { DataSource, Repository } from 'typeorm';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SyncService } from '@/modules/sync/sync.service';
 import type { SyncedAccountEntity } from '@/modules/sync/entities/synced-account.entity';
 import type { SyncedProviderEntity } from '@/modules/sync/entities/synced-provider.entity';
@@ -80,6 +80,10 @@ describe('SyncService', () => {
       dataSource as unknown as DataSource,
       redis as unknown as Redis,
     );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it('returns a cache hit without querying PostgreSQL', async () => {
@@ -495,6 +499,147 @@ describe('SyncService', () => {
     expect(result.accounts[0]).not.toHaveProperty('auth');
     expect(accounts.find).toHaveBeenCalledWith({ where: { ownerId: 'owner-1' }, order: { email: 'ASC' } });
     expect(redis.get).not.toHaveBeenCalled();
+  });
+
+  it('reads and normalizes reset cards for an owner-scoped personal account', async () => {
+    accounts.findOne.mockResolvedValue({
+      ownerId: 'owner-1',
+      accountId: 'account-1',
+      codexAccountId: 'workspace-1',
+      auth: { tokens: { access_token: 'access-token' } },
+    });
+    const apiFetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      credits: [{
+        granted_at: 1_753_056_000,
+        expires_at: '2026-08-20T10:30:00.000Z',
+      }],
+    }), { status: 200 }));
+    vi.stubGlobal('fetch', apiFetch);
+
+    await expect(service.fetchResetCredits('owner-1', 'account-1')).resolves.toEqual({
+      credits: [{
+        issuedAt: '2025-07-21T00:00:00.000Z',
+        expiresAt: '2026-08-20T10:30:00.000Z',
+      }],
+    });
+    expect(apiFetch).toHaveBeenCalledWith(
+      'https://chatgpt.com/backend-api/wham/rate-limit-reset-credits',
+      expect.objectContaining({
+        method: 'GET',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer access-token',
+          'ChatGPT-Account-Id': 'workspace-1',
+        }),
+      }),
+    );
+    expect(accounts.findOne).toHaveBeenCalledWith({
+      where: expect.objectContaining({ ownerId: 'owner-1', accountId: 'account-1' }),
+    });
+  });
+
+  it('reads reset cards from an official account bound to the current owner', async () => {
+    systemBindings.find.mockResolvedValue([{
+      userId: 'owner-1',
+      systemAccountId: 'system-account-1',
+      account: {
+        id: 'system-account-1',
+        syncAccountId: 'account-1',
+        codexAccountId: 'workspace-1',
+        auth: { tokens: { access_token: 'official-access-token' } },
+      },
+    }]);
+    const apiFetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ credits: [] }), { status: 200 }),
+    );
+    vi.stubGlobal('fetch', apiFetch);
+
+    await expect(service.fetchResetCredits('owner-1', 'account-1')).resolves.toEqual({ credits: [] });
+    expect(accounts.findOne).not.toHaveBeenCalled();
+    expect((apiFetch.mock.calls[0]?.[1] as RequestInit).headers).toEqual(expect.objectContaining({
+      Authorization: 'Bearer official-access-token',
+      'ChatGPT-Account-Id': 'workspace-1',
+    }));
+  });
+
+  it('uses an available reset card after checking the current card list', async () => {
+    accounts.findOne.mockResolvedValue({
+      ownerId: 'owner-1',
+      accountId: 'account-1',
+      codexAccountId: 'workspace-1',
+      auth: { tokens: { access_token: 'access-token' } },
+    });
+    const apiFetch = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        credits: [{ granted_at: 1_753_056_000, expires_at: 1_756_000_000 }],
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ code: 'reset' }), { status: 200 }));
+    vi.stubGlobal('fetch', apiFetch);
+
+    await expect(service.consumeResetCredit('owner-1', 'account-1')).resolves.toEqual({ ok: true });
+    expect(apiFetch).toHaveBeenCalledTimes(2);
+    expect(apiFetch.mock.calls[1]?.[0]).toBe(
+      'https://chatgpt.com/backend-api/wham/rate-limit-reset-credits/consume',
+    );
+    expect(JSON.parse((apiFetch.mock.calls[1]?.[1] as RequestInit).body as string))
+      .toEqual({ redeem_request_id: expect.stringMatching(/^codex-switch-/) });
+  });
+
+  it('does not call the consume endpoint when the account has no reset cards', async () => {
+    accounts.findOne.mockResolvedValue({
+      ownerId: 'owner-1',
+      accountId: 'account-1',
+      codexAccountId: 'workspace-1',
+      auth: { tokens: { access_token: 'access-token' } },
+    });
+    const apiFetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ credits: [] }), { status: 200 }),
+    );
+    vi.stubGlobal('fetch', apiFetch);
+
+    await expect(service.consumeResetCredit('owner-1', 'account-1'))
+      .rejects.toThrow('当前账号没有可用重置卡');
+    expect(apiFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('refreshes an expired account credential, persists it, and retries the reset-card request', async () => {
+    const account = {
+      ownerId: 'owner-1',
+      accountId: 'account-1',
+      codexAccountId: 'workspace-1',
+      auth: {
+        tokens: {
+          access_token: 'expired-access',
+          refresh_token: 'refresh-token',
+          id_token: 'old-id',
+        },
+      },
+      fieldModifiedAt: { auth: '2026-07-01T00:00:00.000Z' },
+      lastModifiedAt: new Date('2026-07-01T00:00:00.000Z'),
+    };
+    accounts.findOne.mockResolvedValue(account);
+    const apiFetch = vi.fn()
+      .mockResolvedValueOnce(new Response('', { status: 401 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        access_token: 'fresh-access',
+        refresh_token: 'fresh-refresh',
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ credits: [] }), { status: 200 }));
+    vi.stubGlobal('fetch', apiFetch);
+
+    await expect(service.fetchResetCredits('owner-1', 'account-1')).resolves.toEqual({ credits: [] });
+    expect(accounts.save).toHaveBeenCalledWith(expect.objectContaining({
+      auth: expect.objectContaining({
+        tokens: expect.objectContaining({
+          access_token: 'fresh-access',
+          refresh_token: 'fresh-refresh',
+          id_token: 'old-id',
+        }),
+      }),
+      fieldModifiedAt: expect.objectContaining({ auth: expect.any(String) }),
+    }));
+    expect(redis.del).toHaveBeenCalledWith('sync:accounts:owner-1');
+    expect((apiFetch.mock.calls[2]?.[1] as RequestInit).headers)
+      .toEqual(expect.objectContaining({ Authorization: 'Bearer fresh-access' }));
   });
 
   it('derives official account identity from auth.json and never returns the credential in pool data', async () => {
