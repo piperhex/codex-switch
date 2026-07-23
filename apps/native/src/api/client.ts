@@ -5,11 +5,19 @@ import type {
   AuthSession,
   RemoteDevice,
   ResetCreditsSummary,
+  UsageSummary,
+  UsageWindow,
   UserProfile,
 } from '../types';
 
 const SESSION_KEY = 'codex-switch.mobile.session.v1';
 const GLOBAL_REFRESH_INTERVAL_KEY = 'codex-switch.mobile.global-refresh-minutes.v1';
+const CODEX_USAGE_URL = 'https://chatgpt.com/backend-api/wham/usage';
+const CODEX_RESET_CREDITS_URL =
+  'https://chatgpt.com/backend-api/wham/rate-limit-reset-credits';
+const CODEX_RESET_CREDIT_CONSUME_URL =
+  'https://chatgpt.com/backend-api/wham/rate-limit-reset-credits/consume';
+const CODEX_ORIGINATOR = 'codex_cli_rs';
 export const DEFAULT_GLOBAL_REFRESH_MINUTES = 30;
 export const DEFAULT_CLOUD_BASE_URL = 'https://codex.onepiper.cloud';
 
@@ -59,18 +67,140 @@ async function parseError(response: Response) {
   return `请求失败（HTTP ${response.status}）`;
 }
 
-async function parseResetCreditsError(response: Response) {
-  const message = await parseError(response);
-  if (
-    response.status === 404
-    || (
-      /ENOENT/i.test(message)
-      && /public[\\/]+index\.html/i.test(message)
-    )
-  ) {
-    return '当前服务器尚未启用移动端重置卡接口，请升级或重新部署服务端后重试';
+function objectValue(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : undefined;
+}
+
+function numberValue(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function upstreamErrorMessage(error: unknown) {
+  return error instanceof Error && error.message ? error.message : 'Codex 查询失败';
+}
+
+async function codexResponseObject(response: Response, context: string) {
+  let payload: unknown;
+  try {
+    payload = await response.json();
+  } catch {
+    throw new ApiError(`${context}：响应不是有效 JSON`);
   }
-  return message;
+  const body = objectValue(payload);
+  if (!body) throw new ApiError(`${context}：响应格式无效`);
+  return body;
+}
+
+async function parseCodexError(response: Response) {
+  if (response.status === 401 || response.status === 403) {
+    return 'Codex 登录凭据已过期，请先在桌面端刷新并同步该账号';
+  }
+  try {
+    const payload: unknown = await response.json();
+    const body = objectValue(payload);
+    for (const key of ['message', 'detail', 'error'] as const) {
+      const value = body?.[key];
+      if (typeof value === 'string' && value.trim()) return value;
+      const nested = objectValue(value);
+      if (typeof nested?.message === 'string' && nested.message.trim()) {
+        return nested.message;
+      }
+    }
+  } catch {
+    // Fall through to the generic upstream status message.
+  }
+  return `Codex 请求失败（HTTP ${response.status}）`;
+}
+
+async function codexRequest(
+  account: AccountSummary,
+  url: string,
+  init: RequestInit = {},
+): Promise<Response> {
+  const accessToken = account.codexAccessToken?.trim();
+  if (!accessToken) {
+    throw new ApiError('该账号没有可用于手机直连的 Codex Token，请先在桌面端重新同步');
+  }
+  const headers = new Headers(init.headers);
+  headers.set('Authorization', `Bearer ${accessToken}`);
+  headers.set('originator', CODEX_ORIGINATOR);
+  headers.set('User-Agent', 'codex_cli_rs/0.1.0');
+  if (account.accountId) headers.set('ChatGPT-Account-Id', account.accountId);
+
+  let response: Response;
+  try {
+    response = await fetch(url, { ...init, headers });
+  } catch {
+    throw new ApiError('无法从手机直接连接 Codex，请检查网络或 VPN');
+  }
+  if (!response.ok) {
+    throw new ApiError(await parseCodexError(response), response.status);
+  }
+  return response;
+}
+
+function usageWindow(value: unknown): UsageWindow | null {
+  const window = objectValue(value);
+  const usedPercent = numberValue(window?.used_percent);
+  if (usedPercent === undefined) return null;
+  const used = Math.max(0, Math.min(100, usedPercent));
+  const resetAt = numberValue(window?.reset_at);
+  const windowSeconds = numberValue(window?.limit_window_seconds);
+  return {
+    usedPercent: used,
+    remainingPercent: Math.max(0, Math.min(100, 100 - used)),
+    resetsAt: resetAt ?? null,
+    windowMinutes: windowSeconds && windowSeconds > 0
+      ? Math.floor(windowSeconds / 60)
+      : null,
+  };
+}
+
+async function fetchCodexUsage(account: AccountSummary): Promise<UsageSummary> {
+  const response = await codexRequest(account, CODEX_USAGE_URL);
+  const body = await codexResponseObject(response, '解析 Codex 用量失败');
+  const rateLimit = objectValue(body.rate_limit);
+  return {
+    primary: usageWindow(rateLimit?.primary_window),
+    secondary: usageWindow(rateLimit?.secondary_window),
+    fetchedAt: new Date().toISOString(),
+    error: null,
+  };
+}
+
+function normalizedTimestamp(value: unknown): string | null {
+  if (typeof value === 'string') {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+  }
+  const numeric = numberValue(value);
+  if (numeric === undefined) return null;
+  const milliseconds = Math.abs(numeric) >= 100_000_000_000 ? numeric : numeric * 1000;
+  const parsed = new Date(milliseconds);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+}
+
+async function mapWithConcurrency<T, R>(
+  values: readonly T[],
+  limit: number,
+  mapper: (value: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(values.length);
+  let cursor = 0;
+  const workers = Array.from(
+    { length: Math.min(limit, values.length) },
+    async () => {
+      while (cursor < values.length) {
+        const index = cursor;
+        cursor += 1;
+        results[index] = await mapper(values[index] as T, index);
+      }
+    },
+  );
+  await Promise.all(workers);
+  return results;
 }
 
 export async function loadSession(): Promise<AuthSession | null> {
@@ -223,36 +353,60 @@ export async function fetchAccountSummary(session: AuthSession): Promise<Account
   if (!payload || typeof payload !== 'object' || !Array.isArray((payload as { accounts?: unknown }).accounts)) {
     throw new ApiError('服务器返回的账户数据无效');
   }
-  return (payload as { accounts: AccountSummary[] }).accounts;
+  const accounts = (payload as { accounts: AccountSummary[] }).accounts;
+  return mapWithConcurrency(accounts, 4, async (account) => {
+    try {
+      return { ...account, usage: await fetchCodexUsage(account) };
+    } catch (error) {
+      return {
+        ...account,
+        usage: {
+          primary: null,
+          secondary: null,
+          fetchedAt: new Date().toISOString(),
+          error: upstreamErrorMessage(error),
+        },
+      };
+    }
+  });
 }
 
-export async function fetchResetCredits(
-  session: AuthSession,
-  accountId: string,
-): Promise<ResetCreditsSummary> {
-  const response = await authorizedRequest(
-    session,
-    `/sync/accounts/${encodeURIComponent(accountId)}/reset-credits`,
-  );
-  if (!response.ok) {
-    throw new ApiError(await parseResetCreditsError(response), response.status);
+export async function fetchResetCredits(account: AccountSummary): Promise<ResetCreditsSummary> {
+  const response = await codexRequest(account, CODEX_RESET_CREDITS_URL);
+  const body = await codexResponseObject(response, '解析 Codex 重置卡失败');
+  if (!Array.isArray(body?.credits)) {
+    throw new ApiError('Codex 返回的重置卡数据无效');
   }
-  const payload: unknown = await response.json();
-  if (!payload || typeof payload !== 'object' || !Array.isArray((payload as { credits?: unknown }).credits)) {
-    throw new ApiError('服务器返回的重置卡数据无效');
-  }
-  return payload as ResetCreditsSummary;
+  const credits = body.credits.map((value) => {
+    const credit = objectValue(value);
+    return {
+      issuedAt: normalizedTimestamp(credit?.granted_at ?? credit?.created_at),
+      expiresAt: normalizedTimestamp(credit?.expires_at),
+    };
+  });
+  credits.sort((left, right) => (left.expiresAt ?? '').localeCompare(right.expiresAt ?? ''));
+  return { credits };
 }
 
-export async function consumeResetCredit(session: AuthSession, accountId: string): Promise<void> {
-  const response = await authorizedRequest(
-    session,
-    `/sync/accounts/${encodeURIComponent(accountId)}/reset-credits/consume`,
-    { method: 'POST' },
-  );
-  if (!response.ok) {
-    throw new ApiError(await parseResetCreditsError(response), response.status);
+export async function consumeResetCredit(account: AccountSummary): Promise<void> {
+  const current = await fetchResetCredits(account);
+  if (!current.credits.length) throw new ApiError('当前账号没有可用重置卡');
+
+  const response = await codexRequest(account, CODEX_RESET_CREDIT_CONSUME_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      redeem_request_id: `codex-switch-mobile-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    }),
+  });
+  const code = (await codexResponseObject(response, '解析 Codex 重置卡使用结果失败')).code;
+  if (code === 'reset' || code === 'already_redeemed') return;
+  if (code === 'no_credit') throw new ApiError('当前账号没有可用重置卡');
+  if (code === 'nothing_to_reset') {
+    throw new ApiError('当前账号当前没有需要重置的用量窗口');
   }
+  if (typeof code === 'string') throw new ApiError(`Codex 重置卡接口返回未知状态：${code}`);
+  throw new ApiError('Codex 重置卡接口响应缺少 code');
 }
 
 export async function fetchRemoteDevices(session: AuthSession): Promise<RemoteDevice[]> {

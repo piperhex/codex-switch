@@ -213,8 +213,13 @@ export class SyncService {
   async listSummary(ownerId: string) {
     return {
       accounts: (await this.loadEffectiveAccountState(ownerId)).accounts.map((row) => {
-        const { auth: _auth, ...account } = row;
-        return account;
+        const { auth, ...account } = row;
+        const tokens = this.objectValue(auth.tokens);
+        const codexAccessToken = this.stringValue(tokens?.access_token);
+        return {
+          ...account,
+          ...(codexAccessToken ? { codexAccessToken } : {}),
+        };
       }),
     };
   }

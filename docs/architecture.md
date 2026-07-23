@@ -18,7 +18,9 @@ flowchart LR
     Loopback --> ProviderAPI["Third-party Provider APIs"]
     Rust -->|"Optional credential sync"| Cloud["Self-hosted NestJS backend"]
     AdminUI["Admin console"] --> Cloud
-    Mobile["Expo mobile companion"] -->|"Redacted account summaries"| Cloud
+    Mobile["Expo mobile companion"] -->|"Account summaries"| Cloud
+    Cloud -->|"Short-lived Codex access token"| Mobile
+    Mobile -->|"Live usage and reset-card requests"| OfficialAPI
     Cloud --> Postgres["PostgreSQL"]
     Cloud --> Redis["Redis cache"]
 ```
@@ -55,11 +57,11 @@ The desktop React frontend receives redacted models such as `AccountSummary`, `P
 
 ## Cloud Backend and Mobile Responsibilities
 
-- `apps/admin` exposes registration/login, refresh-token, account sync, Provider sync, redacted mobile-summary, and admin-management routes.
+- `apps/admin` exposes registration/login, refresh-token, account sync, Provider sync, mobile-summary, and admin-management routes.
 - PostgreSQL stores users, dynamic RBAC roles, built-in and custom permission definitions, role-permission assignments, refresh tokens, synchronized account credentials, Provider API keys, admin audit data, customizable email templates, encrypted custom SMTP services, announcement link-click details, feedback with image attachments, and the optional official-account pool. Redis caches account and Provider lists.
 - The admin console at `/admin` manages roles and permissions (including custom permission definitions for external systems), users, their synchronized accounts and Providers, invitations, approval requests, notification email templates and sending services, feedback and replies, audit logs, and official-account assignments. The SMTP service from environment variables remains the read-only default; templates and manual feedback replies can select an enabled custom service.
 - An official account assigned to a user is merged into that user's effective sync list. The assigned system copy wins when its stable account ID collides with a personal copy, and it must be edited or removed from the official pool.
-- `apps/native` stores only its cloud login session in the platform secure store and reads `/sync/accounts/summary`. The response excludes each account's `auth` payload; the mobile app cannot switch accounts or refresh official usage directly.
+- `apps/native` stores only its cloud login session in the platform secure store and reads `/sync/accounts/summary`. The response excludes each complete `auth` payload but includes the short-lived Codex access token. The mobile app keeps that token in runtime memory and uses it to query official usage and reset-card endpoints directly.
 
 ## Key Data Flows
 
@@ -95,7 +97,7 @@ The desktop React frontend receives redacted models such as `AccountSummary`, `P
 
 1. Cloud login is disabled until a backend Base URL is saved in Settings. Desktop access and refresh tokens are stored locally in `cloud-auth.json`.
 2. After authentication, account and Provider changes push complete payloads to the configured server. Manual sync downloads remote changes and then uploads local entries; `lastModifiedAt` resolves competing edits.
-3. Full `/sync/accounts` responses are for desktop synchronization. `/sync/accounts/summary` removes `auth` before serving the mobile app.
+3. Full `/sync/accounts` responses are for desktop synchronization. `/sync/accounts/summary` removes `auth`, refresh tokens, and ID tokens, then adds only the short-lived Codex access token needed by the mobile app.
 4. Cloud logout removes the local cloud session but does not delete synchronized server data or local account data.
 
 ### Issue Feedback
@@ -162,7 +164,8 @@ The WebView `localStorage` contains UI-only preferences such as language, last a
 - `.cs` archives contain restorable secrets. Their built-in container protection is not a substitute for access control or a user-held encryption key.
 - Enabling cloud sync deliberately sends complete account credentials and Provider API keys to the configured backend. Use HTTPS and a server whose operators and storage you trust.
 - The admin official-account workflow accepts and stores complete `auth.json` objects. Admin access, PostgreSQL backups, logs, and operational tooling must be treated as credential-bearing systems.
-- Mobile receives redacted summaries only, but its cloud access and refresh tokens are still sensitive and are stored through Expo SecureStore.
+- Mobile receives a short-lived Codex access token for every supported account. These tokens are kept in runtime memory rather than Expo SecureStore, but they still grant upstream account access while valid; mobile devices and backend responses are part of the credential trust boundary.
+- Mobile cloud access and refresh tokens are also sensitive and are stored through Expo SecureStore.
 - Proxy diagnostics summarize request shapes and selected response details; authorization headers, prompt text, and full successful response bodies must not be logged.
 - `auth.json`, `.cs` backups, exported diagnostics, and production database dumps must never be committed. Diagnostics can contain upstream error details even though request content and credential headers are summarized or omitted. Test fixtures must use unusable fake values.
 - Atomic writes reduce corruption risk but do not provide confidentiality. OAuth state and PKCE reduce forged-callback and intercepted-code risk.

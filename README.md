@@ -2,7 +2,7 @@
 
 > For English documentation, please see [README_EN.md](README_EN.md).
 
-Codex Switch 是一款以本地优先为原则的 Tauri 2 桌面应用，用于登录、保存和切换多个 Codex / ChatGPT 账号。它还支持管理第三方模型服务商、可选的本地热切换代理，以及与自建后端同步以供管理后台和只读移动端使用。
+Codex Switch 是一款以本地优先为原则的 Tauri 2 桌面应用，用于登录、保存和切换多个 Codex / ChatGPT 账号。它还支持管理第三方模型服务商、可选的本地热切换代理，以及与自建后端同步以供管理后台和移动端使用。
 
 [![许可证](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE) [![发布版本](https://img.shields.io/github/v/release/piperhex/codex-switch)](https://github.com/piperhex/codex-switch/releases)
 
@@ -51,11 +51,11 @@ Dream Skin 项目仓库：[Fei-Away/Codex-Dream-Skin](https://github.com/Fei-Awa
 - 记录经本地代理转发请求的 Token 用量，并可导出结构化代理诊断信息。
 - 在官方账号模式下，可在额度耗尽后刷新账号、选择主用量窗口使用率最低的可用账号、切换凭据并重试一次请求。
 - 支持界面语言、主题色、隐私模式和悬浮球偏好的本地设置。
-- 可选同步到自建 NestJS 后端；Expo 移动端只读取已脱敏的账号与用量摘要，并可通过 WebSocket 切换指定 PC 的账号。
+- 可选同步到自建 NestJS 后端；Expo 移动端读取账号摘要与短期 Codex access token，直接向 Codex 刷新用量和重置卡，并可通过 WebSocket 切换指定 PC 的账号。
 - 账号和服务商密钥仅保存在 Rust 后端，不会暴露给桌面端 React 界面或应用日志。
 
 > [!IMPORTANT]
-> 本地账号凭据、服务商 API 密钥和桌面端云登录令牌保存在应用数据目录中，未额外进行静态加密。`.cs` 备份包含有可恢复的账号凭据和服务商密钥，必须像 `auth.json` 一样妥善保护。云同步为可选功能；启用后，账号凭据和服务商密钥会上传到你配置的服务器。请仅在可信设备与可信自建服务器上使用，切勿提交或分享凭据文件、备份包，并在共享诊断导出文件前仔细检查内容。
+> 本地账号凭据、服务商 API 密钥和桌面端云登录令牌保存在应用数据目录中，未额外进行静态加密。`.cs` 备份包含有可恢复的账号凭据和服务商密钥，必须像 `auth.json` 一样妥善保护。云同步为可选功能；启用后，账号凭据和服务商密钥会上传到你配置的服务器，移动端还会接收短期 Codex access token 以直连官方接口。请仅在可信手机、可信桌面设备与可信自建服务器上使用，切勿提交或分享凭据文件、备份包，并在共享诊断导出文件前仔细检查内容。
 
 ## 技术栈
 
@@ -110,7 +110,7 @@ npm run dev:backend
 npm run start -w @codex-switch/native
 ```
 
-移动端需要已部署的云端后端，会显示已同步的账号摘要和在线 PC，并可分别切换每台 PC 的当前账号。详细配置请参阅 [移动端文档](apps/native/README.md) 和 [管理后端文档](apps/admin/README.md)。
+移动端需要已部署的云端后端，会读取已同步的账号摘要和短期 Codex access token，由手机直接刷新用量与重置卡，同时显示在线 PC 并可分别切换每台 PC 的当前账号。详细配置请参阅 [移动端文档](apps/native/README.md) 和 [管理后端文档](apps/admin/README.md)。
 
 构建桌面安装包：
 
@@ -158,7 +158,7 @@ npm run check
 
 应用会优先使用 `CODEX_HOME` 环境变量，否则使用 `~/.codex`。受管账号副本、服务商配置、应用设置、云令牌、代理日志和 Token 用量历史均保存在操作系统的应用数据目录中。
 
-在设置页填写 Base URL 前，云端登录保持关闭。登录后，手动同步和正常的账号/服务商变更会与该服务器交换完整凭据载荷；移动端调用的是经过脱敏的 `/sync/accounts/summary` 路由，永远不会收到 `auth.json` 内容。
+在设置页填写 Base URL 前，云端登录保持关闭。登录后，手动同步和正常的账号/服务商变更会与该服务器交换完整凭据载荷；移动端调用 `/sync/accounts/summary` 获取短期 Codex access token，但不会收到 refresh token、ID token 或完整 `auth.json`。
 
 ## 项目结构
 
@@ -207,7 +207,7 @@ Codex Switch 使用 [Apache License 2.0](LICENSE)，与官方 [OpenAI Codex](htt
 ## 当前限制
 
 - OAuth 回调会优先使用本地端口 `1455`，失败后回退到 `1457`。
-- 完整账号管理与第三方服务商工作流仅支持桌面端；移动端可查看同步数据并远程切换指定 PC 的官方账号。
+- 完整账号管理与第三方服务商工作流仅支持桌面端；移动端可直接刷新官方用量和重置卡，并远程切换指定 PC 的官方账号。
 - macOS 发布构建采用临时签名；除非在 CI 配置 Apple Developer 签名与公证凭据，否则不会完成公证。
 - 已发布的 iOS `.app.zip` 未签名，仅为 CI 构建产物，不能直接作为 App Store 安装包使用。
 - 内嵌登录依赖 WebView 与身份提供商策略；若失败，请使用系统浏览器登录。

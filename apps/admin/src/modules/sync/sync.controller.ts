@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Headers, Param, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Header, Headers, Param, Post, Put, UseGuards } from '@nestjs/common';
 import { CurrentUser, type AuthUser } from '@/common/decorators/user.decorator';
 import { RequirePermissions } from '@/common/decorators/permissions.decorator';
 import { PermissionsGuard } from '@/common/guards/permissions.guard';
@@ -20,10 +20,12 @@ export class SyncController {
   }
 
   /**
-   * Mobile clients only need the data rendered in the account overview.  Keep
-   * the encrypted/synchronised auth payload on the desktop-only sync route.
+   * Mobile clients receive the account overview plus the short-lived Codex
+   * access token needed for direct usage/reset-card requests. Never expose the
+   * refresh token, ID token, or the rest of the synchronized auth payload.
    */
   @Get('accounts/summary')
+  @Header('Cache-Control', 'no-store')
   @RequirePermissions(Permission.SelfAccountsRead)
   listSummary(@CurrentUser() user: AuthUser) {
     return this.sync.listSummary(user.id);
