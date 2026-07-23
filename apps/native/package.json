@@ -1,6 +1,6 @@
 {
   "name": "@codex-switch/native",
-  "version": "0.1.0",
+  "version": "1.0.45",
   "private": true,
   "main": "node_modules/expo/AppEntry.js",
   "scripts": {
@@ -23,6 +23,7 @@
     "expo-system-ui": "~5.0.11",
     "react": "19.0.0",
     "react-native": "0.79.5",
+    "react-native-blob-util": "^0.24.10",
     "react-native-gesture-handler": "~2.24.0",
     "react-native-reanimated": "~3.17.4",
     "react-native-safe-area-context": "5.4.0"

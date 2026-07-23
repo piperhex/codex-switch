@@ -247,13 +247,15 @@ jobs:
           ./gradlew assembleRelease --no-daemon
 
       - name: Prepare APK asset
-        run: cp apps/native/android/app/build/outputs/apk/release/app-release.apk apps/native/CodexSwitch-android.apk
+        env:
+          TAG_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+        run: cp apps/native/android/app/build/outputs/apk/release/app-release.apk "apps/native/CodexSwitch-android-${TAG_NAME}.apk"
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: CodexSwitch-android-apk
-          path: apps/native/CodexSwitch-android.apk
+          name: CodexSwitch-android-apk-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          path: apps/native/CodexSwitch-android-*.apk
           if-no-files-found: error
 
       - name: Upload APK to GitHub Release
@@ -262,7 +264,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
-          files: apps/native/CodexSwitch-android.apk
+          files: apps/native/CodexSwitch-android-*.apk
 
   native-ios:
     name: Build iOS app

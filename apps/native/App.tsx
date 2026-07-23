@@ -6,7 +6,9 @@ import {
   Alert,
   AppState,
   BackHandler,
+  Image,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   Pressable,
   RefreshControl,
@@ -47,6 +49,20 @@ import { reportMobileInstallation } from './src/telemetry';
 import { AdminArea } from './src/admin/AdminArea';
 import { AppToastHost, Toast } from './src/components/AppToast';
 import { BottomSheet } from './src/components/BottomSheet';
+import {
+  checkForAppUpdate,
+  CURRENT_APP_VERSION,
+  CURRENT_BUILD_VERSION,
+  getAndroidUpdateDownloadState,
+  installDownloadedAndroidUpdate,
+  refreshAndroidUpdateDownloadState,
+  RELEASES_URL,
+  startAndroidUpdateDownload,
+  subscribeAndroidUpdateDownload,
+  type AndroidUpdateDownloadState,
+  type AppRelease,
+  type AppUpdateCheck,
+} from './src/update/appUpdate';
 
 const COLORS = {
   ink: '#13231c',
@@ -366,11 +382,243 @@ function identityLabel(profile?: UserProfile | null) {
   return profile.role;
 }
 
-function SettingsPage({ session, profile, globalRefreshMinutes, onGlobalRefreshMinutesChange, onLogout }: {
+function useAndroidUpdateDownloadState() {
+  const [state, setState] = useState<AndroidUpdateDownloadState>(getAndroidUpdateDownloadState);
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') return undefined;
+    const unsubscribe = subscribeAndroidUpdateDownload(setState);
+    const refresh = () => void refreshAndroidUpdateDownloadState();
+    refresh();
+    const appStateSubscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') refresh();
+    });
+    return () => {
+      unsubscribe();
+      appStateSubscription.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (Platform.OS !== 'android' || state.status !== 'downloading') return undefined;
+    const timer = setInterval(() => void refreshAndroidUpdateDownloadState(), 5_000);
+    return () => clearInterval(timer);
+  }, [state.status]);
+
+  return state;
+}
+
+function AndroidUpdateInstallPrompt() {
+  const downloadState = useAndroidUpdateDownloadState();
+  const promptedVersion = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (downloadState.status !== 'downloaded' || promptedVersion.current === downloadState.version) return;
+    promptedVersion.current = downloadState.version;
+    Alert.alert(
+      '更新已下载',
+      `Codex Switch ${downloadState.version} 已下载完成，现在安装吗？`,
+      [
+        { text: '稍后', style: 'cancel' },
+        {
+          text: '立即安装',
+          onPress: () => {
+            void installDownloadedAndroidUpdate(downloadState.path)
+              .catch((error) => Toast.fail(`无法打开系统安装器：${errorMessage(error)}`));
+          },
+        },
+      ],
+    );
+  }, [downloadState]);
+
+  return null;
+}
+
+function compactReleaseNotes(notes: string) {
+  const compact = notes.replace(/\r/g, '').trim();
+  if (!compact) return '本次版本未提供更新说明。';
+  return compact.length > 900 ? `${compact.slice(0, 900).trimEnd()}…` : compact;
+}
+
+function AboutPage({ onBack }: { onBack: () => void }) {
+  const [checking, setChecking] = useState(false);
+  const [updateCheck, setUpdateCheck] = useState<AppUpdateCheck | null>(null);
+  const downloadState = useAndroidUpdateDownloadState();
+
+  const installDownloaded = useCallback((state: Extract<AndroidUpdateDownloadState, { status: 'downloaded' }>) => {
+    void installDownloadedAndroidUpdate(state.path)
+      .catch((error) => Toast.fail(`无法打开系统安装器：${errorMessage(error)}`));
+  }, []);
+
+  const beginDownload = useCallback((release: AppRelease) => {
+    if (Platform.OS !== 'android' || !release.androidAsset) {
+      void Linking.openURL(release.releaseUrl);
+      return;
+    }
+    Toast.success('已加入系统后台下载，可在通知栏查看进度');
+    void startAndroidUpdateDownload(release)
+      .catch((error) => Toast.fail(`更新下载失败：${errorMessage(error)}`));
+  }, []);
+
+  const checkForUpdate = useCallback(async () => {
+    setChecking(true);
+    try {
+      const result = await checkForAppUpdate();
+      setUpdateCheck(result);
+      if (!result.updateAvailable) {
+        Alert.alert('已是最新版本', `当前版本 v${CURRENT_APP_VERSION} 已是最新版本。`);
+        return;
+      }
+      const canInstall = Platform.OS === 'android' && Boolean(result.release.androidAsset);
+      Alert.alert(
+        `发现新版本 v${result.release.version}`,
+        canInstall
+          ? '可以交给系统在后台下载安装包，下载完成后会提示你安装。'
+          : '新版本已发布，可前往发布页面查看并下载。',
+        [
+          { text: '稍后', style: 'cancel' },
+          {
+            text: canInstall ? '后台下载' : '查看发布页',
+            onPress: () => beginDownload(result.release),
+          },
+        ],
+      );
+    } catch (error) {
+      Toast.fail(`检查更新失败：${errorMessage(error)}`);
+    } finally {
+      setChecking(false);
+    }
+  }, [beginDownload]);
+
+  const release = updateCheck?.release ?? null;
+  const downloadedUpdate = downloadState.status === 'downloaded' ? downloadState : null;
+  const releaseDownloadPending = Boolean(
+    release
+    && downloadState.status !== 'idle'
+    && downloadState.status !== 'failed'
+    && downloadState.version === release.version,
+  );
+
+  return <ScrollView style={styles.flex} contentContainerStyle={styles.aboutScroll}>
+    <View style={styles.aboutHeader}>
+      <Pressable accessibilityRole="button" accessibilityLabel="返回设置" onPress={onBack}
+        style={({ pressed }) => [styles.aboutBackButton, pressed && styles.pressed]}>
+        <Text style={styles.aboutBackText}>‹</Text>
+      </Pressable>
+      <View>
+        <Text style={styles.settingsTitle}>关于</Text>
+        <Text style={styles.settingsSubtitle}>软件信息与版本更新</Text>
+      </View>
+    </View>
+
+    <View style={styles.aboutHero}>
+      <Image source={require('./assets/icon.png')} style={styles.aboutAppIcon} />
+      <Text style={styles.aboutAppName}>Codex Switch</Text>
+      <Text style={styles.aboutVersion}>版本 {CURRENT_APP_VERSION} · 构建 {CURRENT_BUILD_VERSION}</Text>
+      <Text style={styles.aboutDescription}>集中查看 Codex 官方账号用量，并从手机端远程切换桌面设备账号。</Text>
+    </View>
+
+    <Text style={styles.sectionLabel}>软件信息</Text>
+    <View style={styles.settingsCard}>
+      <View style={styles.infoRow}>
+        <Text style={styles.infoLabel}>当前版本</Text>
+        <Text selectable style={styles.infoValue}>v{CURRENT_APP_VERSION}</Text>
+      </View>
+      <View style={styles.rowDivider} />
+      <View style={styles.infoRow}>
+        <Text style={styles.infoLabel}>构建版本</Text>
+        <Text selectable style={styles.infoValue}>{CURRENT_BUILD_VERSION}</Text>
+      </View>
+      <View style={styles.rowDivider} />
+      <View style={styles.infoRow}>
+        <Text style={styles.infoLabel}>运行平台</Text>
+        <Text style={styles.infoValue}>{Platform.OS === 'android' ? 'Android' : 'iOS'}</Text>
+      </View>
+      <View style={styles.rowDivider} />
+      <View style={styles.infoRow}>
+        <Text style={styles.infoLabel}>开源许可</Text>
+        <Text style={styles.infoValue}>Apache-2.0</Text>
+      </View>
+    </View>
+
+    <Text style={styles.sectionLabel}>版本更新</Text>
+    <View style={styles.settingsCard}>
+      <View style={styles.aboutUpdateHeading}>
+        <View style={styles.aboutUpdateHeadingText}>
+          <Text style={styles.refreshSettingsTitle}>检查新版本</Text>
+          <Text style={styles.passwordHint}>通过 Codex Switch 官方 GitHub Release 获取更新。</Text>
+        </View>
+        {downloadState.status === 'downloading'
+          ? <ActivityIndicator color={COLORS.cyan} />
+          : null}
+      </View>
+
+      {downloadState.status === 'downloading' ? <View style={styles.aboutDownloadStatus}>
+        <Text style={styles.aboutDownloadStatusTitle}>正在后台下载 v{downloadState.version}</Text>
+        <Text style={styles.aboutDownloadStatusText}>可以离开此页面，系统会继续下载；进度请在通知栏查看。</Text>
+      </View> : null}
+
+      {downloadState.status === 'failed' ? <View style={[styles.aboutDownloadStatus, styles.aboutDownloadFailed]}>
+        <Text style={styles.aboutDownloadErrorTitle}>v{downloadState.version} 下载失败</Text>
+        <Text style={styles.aboutDownloadStatusText}>{downloadState.message}</Text>
+      </View> : null}
+
+      {downloadedUpdate ? <View style={styles.aboutDownloadStatus}>
+        <Text style={styles.aboutDownloadStatusTitle}>v{downloadedUpdate.version} 已下载</Text>
+        <Text style={styles.aboutDownloadStatusText}>安装包已准备好，可以打开 Android 系统安装器。</Text>
+        <Pressable accessibilityRole="button" onPress={() => installDownloaded(downloadedUpdate)}
+          style={({ pressed }) => [styles.aboutInstallButton, pressed && styles.pressed]}>
+          <Text style={styles.aboutInstallButtonText}>立即安装</Text>
+        </Pressable>
+      </View> : null}
+
+      {release ? <View style={styles.aboutReleaseCard}>
+        <View style={styles.aboutReleaseTitleRow}>
+          <Text style={styles.aboutReleaseTitle}>最新版本 v{release.version}</Text>
+          <View style={[styles.aboutReleaseBadge, !updateCheck?.updateAvailable && styles.aboutReleaseBadgeCurrent]}>
+            <Text style={[styles.aboutReleaseBadgeText, !updateCheck?.updateAvailable && styles.aboutReleaseBadgeCurrentText]}>
+              {updateCheck?.updateAvailable ? '可更新' : '已是最新'}
+            </Text>
+          </View>
+        </View>
+        {release.publishedAt ? <Text style={styles.aboutReleaseDate}>发布于 {displayFullDate(release.publishedAt)}</Text> : null}
+        {updateCheck?.updateAvailable ? <Text style={styles.aboutReleaseNotes}>{compactReleaseNotes(release.notes)}</Text> : null}
+        {updateCheck?.updateAvailable && !releaseDownloadPending
+          ? <Pressable accessibilityRole="button" onPress={() => beginDownload(release)}
+            style={({ pressed }) => [styles.aboutInstallButton, pressed && styles.pressed]}>
+            <Text style={styles.aboutInstallButtonText}>
+              {Platform.OS === 'android' && release.androidAsset ? '后台下载更新' : '查看发布页面'}
+            </Text>
+          </Pressable>
+          : null}
+      </View> : null}
+
+      <Pressable accessibilityRole="button" disabled={checking}
+        onPress={() => void checkForUpdate()}
+        style={({ pressed }) => [styles.aboutCheckButton, pressed && styles.pressed, checking && styles.disabled]}>
+        {checking ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.aboutCheckButtonText}>检查更新</Text>}
+      </Pressable>
+      <Text style={styles.aboutUpdateHint}>
+        {Platform.OS === 'android'
+          ? 'Android 更新由系统下载管理器在后台完成；安装时需要允许此应用安装未知来源应用。'
+          : 'iOS 暂不支持应用内安装，将跳转到发布页面查看更新。'}
+      </Text>
+    </View>
+
+    <Pressable accessibilityRole="link" onPress={() => void Linking.openURL(RELEASES_URL)}
+      style={({ pressed }) => [styles.aboutLinkButton, pressed && styles.pressed]}>
+      <Text style={styles.aboutLinkText}>查看全部版本与开源项目</Text>
+      <Text style={styles.aboutLinkArrow}>›</Text>
+    </Pressable>
+  </ScrollView>;
+}
+
+function SettingsPage({ session, profile, globalRefreshMinutes, onGlobalRefreshMinutesChange, onOpenAbout, onLogout }: {
   session: AuthSession;
   profile: UserProfile | null;
   globalRefreshMinutes: number;
   onGlobalRefreshMinutesChange: (minutes: number) => Promise<void>;
+  onOpenAbout: () => void;
   onLogout: () => void;
 }) {
   const [currentPassword, setCurrentPassword] = useState('');
@@ -494,6 +742,20 @@ function SettingsPage({ session, profile, globalRefreshMinutes, onGlobalRefreshM
         <Text style={styles.passwordEntryArrow}>›</Text>
       </Pressable>
 
+      <Text style={styles.sectionLabel}>关于</Text>
+      <Pressable accessibilityRole="button" accessibilityHint="打开软件信息与版本更新页面"
+        onPress={onOpenAbout} style={({ pressed }) => [styles.settingsCard, styles.passwordEntry, pressed && styles.pressed]}>
+        <View style={styles.aboutSettingsIcon}><Text style={styles.aboutSettingsIconText}>i</Text></View>
+        <View style={styles.passwordEntryText}>
+          <Text style={styles.refreshSettingsTitle}>关于 Codex Switch</Text>
+          <Text style={styles.passwordHint}>软件信息、版本号与检查更新</Text>
+        </View>
+        <View style={styles.aboutSettingsVersion}>
+          <Text style={styles.aboutSettingsVersionText}>v{CURRENT_APP_VERSION}</Text>
+        </View>
+        <Text style={styles.passwordEntryArrow}>›</Text>
+      </Pressable>
+
       <Pressable accessibilityRole="button" onPress={() => setLogoutDrawerVisible(true)}
         style={({ pressed }) => [styles.settingsLogoutButton, pressed && styles.pressed]}>
         <Text style={styles.settingsLogoutText}>退出登录</Text>
@@ -547,9 +809,10 @@ function SettingsPage({ session, profile, globalRefreshMinutes, onGlobalRefreshM
   </KeyboardAvoidingView>;
 }
 
-type AppPage = 'accounts' | 'admin' | 'settings';
+type AppPage = 'accounts' | 'admin' | 'settings' | 'about';
 
 function BottomNavigation({ activePage, isAdmin, onChange }: { activePage: AppPage; isAdmin: boolean; onChange: (page: AppPage) => void }) {
+  const settingsActive = activePage === 'settings' || activePage === 'about';
   return <View style={styles.bottomNavigation} accessibilityRole="tablist">
     <Pressable accessibilityRole="tab" accessibilityState={{ selected: activePage === 'accounts' }}
       onPress={() => onChange('accounts')} style={styles.navItem}>
@@ -561,10 +824,10 @@ function BottomNavigation({ activePage, isAdmin, onChange }: { activePage: AppPa
       <Text style={[styles.navIcon, activePage === 'admin' && styles.navTextActive]}>▣</Text>
       <Text style={[styles.navText, activePage === 'admin' && styles.navTextActive]}>管理员</Text>
     </Pressable>}
-    <Pressable accessibilityRole="tab" accessibilityState={{ selected: activePage === 'settings' }}
+    <Pressable accessibilityRole="tab" accessibilityState={{ selected: settingsActive }}
       onPress={() => onChange('settings')} style={styles.navItem}>
-      <Text style={[styles.navIcon, activePage === 'settings' && styles.navTextActive]}>⚙</Text>
-      <Text style={[styles.navText, activePage === 'settings' && styles.navTextActive]}>设置</Text>
+      <Text style={[styles.navIcon, settingsActive && styles.navTextActive]}>⚙</Text>
+      <Text style={[styles.navText, settingsActive && styles.navTextActive]}>设置</Text>
     </Pressable>
   </View>;
 }
@@ -1010,7 +1273,7 @@ function AppContent() {
     // top-level tabs in the app before allowing the Activity to finish.
     if (!session || activePage === 'accounts') return undefined;
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-      setActivePage('accounts');
+      setActivePage(activePage === 'about' ? 'settings' : 'accounts');
       return true;
     });
     return () => subscription.remove();
@@ -1079,15 +1342,21 @@ function AppContent() {
         switchingAccountId={switchingAccountId} onRefresh={refreshAll} onSwitch={handleRemoteSwitch} />
       : activePage === 'admin' && profile?.role === 'admin'
         ? <AdminArea session={session} profile={profile} />
-        : <SettingsPage session={session} profile={profile} globalRefreshMinutes={globalRefreshMinutes}
-          onGlobalRefreshMinutesChange={handleGlobalRefreshMinutesChange} onLogout={handleLogout} />}
+        : activePage === 'about'
+          ? <AboutPage onBack={() => setActivePage('settings')} />
+          : <SettingsPage session={session} profile={profile} globalRefreshMinutes={globalRefreshMinutes}
+            onGlobalRefreshMinutesChange={handleGlobalRefreshMinutesChange}
+            onOpenAbout={() => setActivePage('about')} onLogout={handleLogout} />}
     <BottomNavigation activePage={activePage} isAdmin={profile?.role === 'admin'} onChange={setActivePage} />
   </SafeAreaView>;
 }
 
 export default function App() {
   return <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-    <StartupErrorBoundary><AppContent /></StartupErrorBoundary>
+    <StartupErrorBoundary>
+      <AndroidUpdateInstallPrompt />
+      <AppContent />
+    </StartupErrorBoundary>
     <AppToastHost />
   </SafeAreaProvider>;
 }
@@ -1189,6 +1458,43 @@ const styles = StyleSheet.create({
   settingsScroll: { padding: 18, paddingBottom: 30 }, settingsHeader: { marginBottom: 24 }, settingsTitle: { color: COLORS.ink, fontSize: 28, fontWeight: '800' }, settingsSubtitle: { color: COLORS.muted, fontSize: 13, marginTop: 4 }, sectionLabel: { color: COLORS.muted, fontSize: 13, fontWeight: '700', marginLeft: 3, marginBottom: 9, marginTop: 2 }, settingsCard: { backgroundColor: COLORS.card, borderColor: COLORS.border, borderWidth: 1, borderRadius: 16, padding: 17, marginBottom: 22, shadowColor: '#456152', shadowOpacity: 0.04, shadowRadius: 8, elevation: 1 }, profileSummary: { flexDirection: 'row', alignItems: 'center' }, profileAvatar: { width: 50, height: 50, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: '#c9f0e7' }, profileAvatarText: { color: '#14806f', fontSize: 16, fontWeight: '800' }, profileSummaryText: { flex: 1, minWidth: 0, marginLeft: 12 }, profileName: { color: COLORS.ink, fontSize: 16, fontWeight: '800' }, profileCaption: { color: COLORS.muted, fontSize: 12, marginTop: 4 }, settingsDivider: { height: 1, backgroundColor: '#e4ede6', marginVertical: 16 }, infoRow: { minHeight: 38, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16 }, infoLabel: { color: COLORS.muted, fontSize: 14 }, infoValue: { color: COLORS.ink, fontSize: 14, fontWeight: '700', flex: 1, textAlign: 'right' }, rowDivider: { height: 1, backgroundColor: '#eef3ef', marginVertical: 7 }, roleBadge: { backgroundColor: COLORS.paleBlue, borderRadius: 8, paddingVertical: 5, paddingHorizontal: 10 }, roleBadgeText: { color: '#168da2', fontWeight: '800', fontSize: 12 }, passwordHint: { color: COLORS.muted, fontSize: 12, lineHeight: 18, marginBottom: 2 }, settingsLogoutButton: { height: 48, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#e9b7b2', borderRadius: 12, backgroundColor: '#fffafa' }, settingsLogoutText: { color: '#bd3c35', fontWeight: '800', fontSize: 15 },
   refreshSettingsTitle: { color: COLORS.ink, fontSize: 16, fontWeight: '800', marginBottom: 6 }, refreshIntervalRow: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 16 }, refreshIntervalInput: { width: 88, height: 44, borderWidth: 1, borderColor: '#cbdcd0', borderRadius: 9, backgroundColor: '#fbfdfb', color: COLORS.ink, fontSize: 16, textAlign: 'center' }, refreshIntervalUnit: { color: COLORS.muted, fontSize: 14, flex: 1 }, saveIntervalButton: { minWidth: 72, height: 42, alignItems: 'center', justifyContent: 'center', borderRadius: 9, backgroundColor: COLORS.cyan, paddingHorizontal: 14 }, saveIntervalText: { color: '#fff', fontWeight: '800', fontSize: 14 }, refreshSettingsHint: { color: COLORS.muted, fontSize: 11, lineHeight: 17, marginTop: 12 },
   passwordEntry: { flexDirection: 'row', alignItems: 'center', minHeight: 76 }, passwordEntryText: { flex: 1 }, passwordEntryArrow: { color: '#91a198', fontSize: 30, lineHeight: 32, marginLeft: 12 }, passwordDrawerBody: { maxHeight: 500, paddingTop: 2, paddingBottom: 6 },
+  aboutSettingsIcon: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: COLORS.paleBlue, marginRight: 12 },
+  aboutSettingsIconText: { color: '#168da2', fontSize: 20, fontWeight: '900', fontStyle: 'italic' },
+  aboutSettingsVersion: { borderRadius: 8, backgroundColor: COLORS.paleGreen, paddingHorizontal: 8, paddingVertical: 5 },
+  aboutSettingsVersionText: { color: '#14806f', fontSize: 11, fontWeight: '800' },
+  aboutScroll: { padding: 18, paddingBottom: 36 },
+  aboutHeader: { flexDirection: 'row', alignItems: 'center', gap: 13, marginBottom: 22 },
+  aboutBackButton: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center', borderRadius: 13, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.card },
+  aboutBackText: { color: COLORS.ink, fontSize: 34, lineHeight: 36, marginTop: -3 },
+  aboutHero: { alignItems: 'center', borderWidth: 1, borderColor: COLORS.border, borderRadius: 20, backgroundColor: COLORS.card, paddingHorizontal: 24, paddingVertical: 25, marginBottom: 23 },
+  aboutAppIcon: { width: 76, height: 76, borderRadius: 20, marginBottom: 14 },
+  aboutAppName: { color: COLORS.ink, fontSize: 23, fontWeight: '900' },
+  aboutVersion: { color: '#14806f', fontSize: 13, fontWeight: '800', marginTop: 7 },
+  aboutDescription: { maxWidth: 310, color: COLORS.muted, fontSize: 12, lineHeight: 19, textAlign: 'center', marginTop: 11 },
+  aboutUpdateHeading: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  aboutUpdateHeadingText: { flex: 1 },
+  aboutDownloadStatus: { borderWidth: 1, borderColor: '#b9e6df', borderRadius: 13, backgroundColor: COLORS.paleBlue, padding: 13, marginTop: 14 },
+  aboutDownloadFailed: { borderColor: '#efc3bf', backgroundColor: '#fff7f6' },
+  aboutDownloadStatusTitle: { color: '#14806f', fontSize: 13, fontWeight: '800' },
+  aboutDownloadErrorTitle: { color: COLORS.danger, fontSize: 13, fontWeight: '800' },
+  aboutDownloadStatusText: { color: COLORS.muted, fontSize: 11, lineHeight: 17, marginTop: 5 },
+  aboutReleaseCard: { borderTopWidth: 1, borderTopColor: '#e4ede6', paddingTop: 15, marginTop: 16 },
+  aboutReleaseTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  aboutReleaseTitle: { flex: 1, color: COLORS.ink, fontSize: 14, fontWeight: '800' },
+  aboutReleaseBadge: { borderRadius: 7, backgroundColor: '#fff0d4', paddingHorizontal: 8, paddingVertical: 4 },
+  aboutReleaseBadgeText: { color: '#b37716', fontSize: 10, fontWeight: '800' },
+  aboutReleaseBadgeCurrent: { backgroundColor: COLORS.paleGreen },
+  aboutReleaseBadgeCurrentText: { color: '#14806f' },
+  aboutReleaseDate: { color: COLORS.muted, fontSize: 10, marginTop: 5 },
+  aboutReleaseNotes: { color: COLORS.muted, fontSize: 11, lineHeight: 18, marginTop: 11 },
+  aboutCheckButton: { height: 46, alignItems: 'center', justifyContent: 'center', borderRadius: 11, backgroundColor: COLORS.cyan, marginTop: 17 },
+  aboutCheckButtonText: { color: '#fff', fontSize: 14, fontWeight: '800' },
+  aboutInstallButton: { height: 41, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: COLORS.green, marginTop: 12 },
+  aboutInstallButtonText: { color: '#fff', fontSize: 13, fontWeight: '800' },
+  aboutUpdateHint: { color: COLORS.muted, fontSize: 10, lineHeight: 16, textAlign: 'center', marginTop: 11 },
+  aboutLinkButton: { minHeight: 55, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, backgroundColor: COLORS.card, paddingHorizontal: 16 },
+  aboutLinkText: { flex: 1, color: COLORS.ink, fontSize: 13, fontWeight: '700' },
+  aboutLinkArrow: { color: '#91a198', fontSize: 27 },
   logoutConfirmBox: { alignItems: 'center', borderRadius: 17, backgroundColor: COLORS.canvas, padding: 20 }, logoutConfirmIcon: { width: 50, height: 50, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fbe8e6', marginBottom: 13 }, logoutConfirmIconText: { color: COLORS.danger, fontSize: 23, fontWeight: '900' }, logoutConfirmTitle: { color: COLORS.ink, fontSize: 16, fontWeight: '900', textAlign: 'center' }, logoutConfirmText: { color: COLORS.muted, fontSize: 12, lineHeight: 19, textAlign: 'center', marginTop: 7 },
   bottomNavigation: { flexDirection: 'row', backgroundColor: COLORS.card, borderTopWidth: 1, borderTopColor: COLORS.border, shadowColor: '#314c3d', shadowOpacity: 0.08, shadowRadius: 8, elevation: 10 }, navItem: { flex: 1, minHeight: 58, alignItems: 'center', justifyContent: 'center', gap: 2 }, navIcon: { color: '#8a9b91', fontSize: 20, lineHeight: 23 }, navText: { color: '#7b8c82', fontSize: 11, fontWeight: '700' }, navTextActive: { color: COLORS.green },
 });
