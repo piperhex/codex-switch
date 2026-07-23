@@ -36,6 +36,19 @@ import { DeviceModule } from '@/modules/devices/device.module';
     DeviceModule,
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'public'),
+      // API misses must remain API 404 responses. Without these exclusions,
+      // ServeStatic falls back to public/index.html for an unknown API route,
+      // masking version mismatches as an ENOENT filesystem error.
+      exclude: [
+        '/auth/{*any}',
+        '/sync/{*any}',
+        '/admin/api/{*any}',
+        '/announcements/{*any}',
+        '/feedback/{*any}',
+        '/telemetry/{*any}',
+        '/devices/{*any}',
+        '/device-switch/{*any}',
+      ],
     }),
   ],
 })
