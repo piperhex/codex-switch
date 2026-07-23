@@ -875,27 +875,35 @@ export class SyncService {
     if (!accessToken) throw new BadRequestException('auth.json is missing tokens.access_token');
     const identityToken = this.stringValue(tokens?.id_token) ?? accessToken;
     const payloadPart = identityToken.split('.')[1];
-    if (!payloadPart) throw new BadRequestException('auth.json contains an invalid ChatGPT token');
-    let claims: Record<string, unknown>;
-    try {
-      claims = this.objectValue(JSON.parse(Buffer.from(payloadPart, 'base64url').toString('utf8')))
-        ?? {};
-    } catch {
-      throw new BadRequestException('auth.json contains an invalid ChatGPT token');
+    let claims: Record<string, unknown> = {};
+    if (payloadPart) {
+      try {
+        claims = this.objectValue(JSON.parse(Buffer.from(payloadPart, 'base64url').toString('utf8')))
+          ?? {};
+      } catch {
+        claims = {};
+      }
     }
     const nested = this.objectValue(claims['https://api.openai.com/auth']);
     const profile = this.objectValue(claims['https://api.openai.com/profile']);
-    const email = this.stringValue(claims.email)
+    const email = this.stringValue(tokens?.email)
+      ?? this.stringValue(claims.email)
       ?? this.stringValue(profile?.email)
       ?? 'Unknown account';
-    const plan = this.stringValue(nested?.chatgpt_plan_type) ?? 'ChatGPT';
+    const plan = this.stringValue(tokens?.plan_type)
+      ?? this.stringValue(nested?.chatgpt_plan_type)
+      ?? 'ChatGPT';
     const codexAccountId = this.stringValue(tokens?.account_id)
+      ?? this.stringValue(tokens?.chatgpt_account_id)
       ?? this.stringValue(nested?.chatgpt_account_id)
       ?? null;
-    const identity = this.stringValue(nested?.chatgpt_user_id)
+    const identity = this.stringValue(tokens?.chatgpt_user_id)
+      ?? this.stringValue(tokens?.user_id)
+      ?? this.stringValue(nested?.chatgpt_user_id)
       ?? this.stringValue(nested?.user_id)
       ?? this.stringValue(claims.sub)
-      ?? email;
+      ?? this.stringValue(tokens?.email);
+    if (!identity) throw new BadRequestException('auth.json contains an invalid ChatGPT token');
     if (email.length > 240 || plan.length > 80 || (codexAccountId?.length ?? 0) > 160) {
       throw new BadRequestException('Official account identity exceeds the supported length');
     }
