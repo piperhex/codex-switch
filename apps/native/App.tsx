@@ -4,6 +4,7 @@ import { Component, useCallback, useEffect, useMemo, useRef, useState, type Erro
 import {
   ActivityIndicator,
   AppState,
+  BackHandler,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -598,6 +599,17 @@ function AppContent() {
       subscription.remove();
     };
   }, [globalRefreshMinutes, refreshAll, session]);
+
+  useEffect(() => {
+    // Android's system Back action also covers the edge-swipe gesture. Keep
+    // top-level tabs in the app before allowing the Activity to finish.
+    if (!session || activePage === 'accounts') return undefined;
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      setActivePage('accounts');
+      return true;
+    });
+    return () => subscription.remove();
+  }, [activePage, session]);
 
   const handleLogin = useCallback((nextSession: AuthSession) => {
     void reportMobileInstallation(nextSession.baseUrl).catch(() => undefined);

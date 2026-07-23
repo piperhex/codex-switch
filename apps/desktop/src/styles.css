@@ -61,6 +61,11 @@ button:focus-visible { outline: 3px solid rgba(45, 131, 87, .24); outline-offset
 .cloud-avatar-button:hover:not(:disabled), .cloud-avatar-button.authenticated { color: #eff7ef; border-color: var(--green-highlight); background: rgba(var(--green-rgb), .28); }
 .cloud-avatar-button span { font: 700 11px/1 Manrope, sans-serif; letter-spacing: .02em; }
 .cloud-avatar-button:disabled { opacity: .62; cursor: default; }
+.update-ready-button { position: relative; width: 36px; height: 36px; border: 1px solid rgba(77, 163, 255, .72); border-radius: 50%; display: grid; place-items: center; padding: 0; color: #fff; background: #1677ff; box-shadow: 0 0 0 3px rgba(22, 119, 255, .14), 0 7px 18px rgba(22, 119, 255, .28); cursor: pointer; transition: .18s ease; }
+.update-ready-button:hover { border-color: #91caff; background: #4096ff; transform: translateY(-1px); }
+.update-ready-button.downloading { border-color: rgba(145, 202, 255, .9); background: conic-gradient(#4096ff var(--update-progress), rgba(22, 119, 255, .22) 0); }
+.update-ready-button.downloading::before { position: absolute; inset: 3px; border-radius: 50%; background: #173653; content: ""; }
+.update-ready-button.downloading > svg { position: relative; z-index: 1; }
 .cloud-sync-action { border-color: rgba(var(--green-rgb), .4); color: var(--green-dark); background: var(--green-soft); }
 .cloud-sync-action:hover:not(:disabled) { border-color: var(--green); color: var(--green-dark); background: var(--green-selection); }
 main { width: 100%; min-width: 0; min-height: 0; overflow-x: hidden; overflow-y: auto; scrollbar-gutter: stable; padding-bottom: 60px; }

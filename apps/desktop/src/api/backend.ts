@@ -36,6 +36,9 @@ export const isDesktopApp = "__TAURI_INTERNALS__" in window;
 export const DEFAULT_CLOUD_BASE_URL = "https://codex.onepiper.cloud";
 const RELEASES_URL = "https://github.com/piperhex/codex-switch/releases/latest";
 let pendingAppUpdate: Update | null = null;
+let appUpdateDownloaded = false;
+let updateDownloadPromise: Promise<void> | null = null;
+let updateInstallInProgress = false;
 const FLOATING_BUBBLE_PREVIEW_KEY = "codex-switch:floating-bubble";
 const PRIVACY_MODE_PREVIEW_KEY = "codex-switch:privacy-mode";
 const BUBBLE_RESET_DISPLAY_PREVIEW_KEY = "codex-switch:bubble-reset-display";
@@ -1002,17 +1005,42 @@ export async function loadDreamSkinThemePreview(themeId: string): Promise<string
   return invoke<string | null>("get_dream_skin_theme_preview", { themeId });
 }
 
-export function checkForUpdate({ force = false }: { force?: boolean } = {}): Promise<UpdateInfo | null> {
+export function checkForUpdate({
+  force = false,
+  replacePending = false,
+}: { force?: boolean; replacePending?: boolean } = {}): Promise<UpdateInfo | null> {
   if (!isDesktopApp) return Promise.resolve(null);
-  if (force) return getAvailableAppUpdate();
-  updateCheckPromise ??= getAvailableAppUpdate();
-  return updateCheckPromise;
+  if (pendingAppUpdate && replacePending && !updateDownloadPromise && !updateInstallInProgress) {
+    if (updateCheckPromise) return updateCheckPromise;
+    const request = refreshPendingAppUpdate();
+    trackUpdateCheck(request);
+    return request;
+  }
+  if (pendingAppUpdate && force) return Promise.resolve(toUpdateInfo(pendingAppUpdate));
+  if (pendingAppUpdate) return Promise.resolve(toUpdateInfo(pendingAppUpdate));
+  if (updateCheckPromise) return updateCheckPromise;
+
+  const request = getAvailableAppUpdate();
+  trackUpdateCheck(request);
+  return request;
+}
+
+function trackUpdateCheck(request: Promise<UpdateInfo | null>) {
+  updateCheckPromise = request;
+  void request.then(
+    () => { if (updateCheckPromise === request) updateCheckPromise = null; },
+    () => { if (updateCheckPromise === request) updateCheckPromise = null; },
+  );
 }
 
 async function getAvailableAppUpdate(): Promise<UpdateInfo | null> {
   const update = await check();
   pendingAppUpdate = update;
   if (!update) return null;
+  return toUpdateInfo(update);
+}
+
+function toUpdateInfo(update: Update): UpdateInfo {
   return {
     currentVersion: update.currentVersion,
     latestVersion: update.version,
@@ -1022,30 +1050,123 @@ async function getAvailableAppUpdate(): Promise<UpdateInfo | null> {
   };
 }
 
-export async function installAvailableUpdate(onProgress?: (progress: number | null) => void): Promise<void> {
-  if (!isDesktopApp) return;
-  const update = pendingAppUpdate ?? await check();
-  if (!update) return;
+async function refreshPendingAppUpdate(): Promise<UpdateInfo | null> {
+  const currentUpdate = pendingAppUpdate;
+  if (!currentUpdate) return getAvailableAppUpdate();
 
-  let downloadedBytes = 0;
-  let totalBytes: number | undefined;
-  const reportProgress = (event: DownloadEvent) => {
-    if (event.event === "Started") {
-      totalBytes = event.data.contentLength;
-      onProgress?.(totalBytes ? 0 : null);
-    } else if (event.event === "Progress") {
-      downloadedBytes += event.data.chunkLength;
-      onProgress?.(totalBytes ? Math.min(100, Math.round((downloadedBytes / totalBytes) * 100)) : null);
+  const candidate = await check();
+  if (!candidate) return toUpdateInfo(currentUpdate);
+
+  if (
+    pendingAppUpdate !== currentUpdate
+    || updateDownloadPromise
+    || updateInstallInProgress
+    || !isVersionNewer(candidate.version, currentUpdate.version)
+  ) {
+    await candidate.close();
+    return pendingAppUpdate ? toUpdateInfo(pendingAppUpdate) : null;
+  }
+
+  await currentUpdate.close();
+  pendingAppUpdate = candidate;
+  appUpdateDownloaded = false;
+  return toUpdateInfo(candidate);
+}
+
+function isVersionNewer(candidate: string, current: string): boolean {
+  const parse = (version: string) => {
+    const [withoutBuild] = version.replace(/^v/i, "").split("+", 1);
+    const [core, prerelease] = withoutBuild.split("-", 2);
+    return {
+      core: core.split(".").map((part) => Number.parseInt(part, 10) || 0),
+      prerelease: prerelease?.split(".") ?? [],
+    };
+  };
+  const left = parse(candidate);
+  const right = parse(current);
+  const coreLength = Math.max(left.core.length, right.core.length);
+  for (let index = 0; index < coreLength; index += 1) {
+    const difference = (left.core[index] ?? 0) - (right.core[index] ?? 0);
+    if (difference !== 0) return difference > 0;
+  }
+  if (left.prerelease.length === 0) return right.prerelease.length > 0;
+  if (right.prerelease.length === 0) return false;
+  const prereleaseLength = Math.max(left.prerelease.length, right.prerelease.length);
+  for (let index = 0; index < prereleaseLength; index += 1) {
+    const leftPart = left.prerelease[index];
+    const rightPart = right.prerelease[index];
+    if (leftPart === undefined) return false;
+    if (rightPart === undefined) return true;
+    if (leftPart === rightPart) continue;
+    const leftNumber = /^\d+$/.test(leftPart) ? Number(leftPart) : null;
+    const rightNumber = /^\d+$/.test(rightPart) ? Number(rightPart) : null;
+    if (leftNumber !== null && rightNumber !== null) return leftNumber > rightNumber;
+    if (leftNumber !== null) return false;
+    if (rightNumber !== null) return true;
+    return leftPart > rightPart;
+  }
+  return false;
+}
+
+export async function downloadAvailableUpdate(onProgress?: (progress: number | null) => void): Promise<void> {
+  if (!isDesktopApp) return;
+  if (appUpdateDownloaded) return;
+  if (updateDownloadPromise) return updateDownloadPromise;
+
+  const download = async () => {
+    const info = pendingAppUpdate ? toUpdateInfo(pendingAppUpdate) : await getAvailableAppUpdate();
+    const update = pendingAppUpdate;
+    if (!info || !update) return;
+
+    let downloadedBytes = 0;
+    let totalBytes: number | undefined;
+    const reportProgress = (event: DownloadEvent) => {
+      if (event.event === "Started") {
+        totalBytes = event.data.contentLength;
+        onProgress?.(totalBytes ? 0 : null);
+      } else if (event.event === "Progress") {
+        downloadedBytes += event.data.chunkLength;
+        onProgress?.(totalBytes ? Math.min(100, Math.round((downloadedBytes / totalBytes) * 100)) : null);
+      } else if (event.event === "Finished") {
+        onProgress?.(100);
+      }
+    };
+
+    try {
+      await update.download(reportProgress);
+      appUpdateDownloaded = true;
+    } catch (error) {
+      await update.close();
+      if (pendingAppUpdate === update) pendingAppUpdate = null;
+      throw error;
     }
   };
 
+  const request = download();
+  updateDownloadPromise = request;
   try {
-    await update.downloadAndInstall(reportProgress);
+    await request;
   } finally {
+    if (updateDownloadPromise === request) updateDownloadPromise = null;
+  }
+}
+
+export async function installDownloadedUpdate(): Promise<void> {
+  if (!isDesktopApp) return;
+  const update = pendingAppUpdate;
+  if (!update || !appUpdateDownloaded) throw new Error("The update has not finished downloading");
+
+  updateInstallInProgress = true;
+  try {
+    await update.install();
     await update.close();
     pendingAppUpdate = null;
+    appUpdateDownloaded = false;
+    await relaunch();
+  } catch (error) {
+    updateInstallInProgress = false;
+    throw error;
   }
-  await relaunch();
 }
 
 export function subscribeToBackendEvents(
