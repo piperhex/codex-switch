@@ -59,6 +59,20 @@ async function parseError(response: Response) {
   return `请求失败（HTTP ${response.status}）`;
 }
 
+async function parseResetCreditsError(response: Response) {
+  const message = await parseError(response);
+  if (
+    response.status === 404
+    || (
+      /ENOENT/i.test(message)
+      && /public[\\/]+index\.html/i.test(message)
+    )
+  ) {
+    return '当前服务器尚未启用移动端重置卡接口，请升级或重新部署服务端后重试';
+  }
+  return message;
+}
+
 export async function loadSession(): Promise<AuthSession | null> {
   try {
     const raw = await SecureStore.getItemAsync(SESSION_KEY);
@@ -220,7 +234,9 @@ export async function fetchResetCredits(
     session,
     `/sync/accounts/${encodeURIComponent(accountId)}/reset-credits`,
   );
-  if (!response.ok) throw new ApiError(await parseError(response), response.status);
+  if (!response.ok) {
+    throw new ApiError(await parseResetCreditsError(response), response.status);
+  }
   const payload: unknown = await response.json();
   if (!payload || typeof payload !== 'object' || !Array.isArray((payload as { credits?: unknown }).credits)) {
     throw new ApiError('服务器返回的重置卡数据无效');
@@ -234,7 +250,9 @@ export async function consumeResetCredit(session: AuthSession, accountId: string
     `/sync/accounts/${encodeURIComponent(accountId)}/reset-credits/consume`,
     { method: 'POST' },
   );
-  if (!response.ok) throw new ApiError(await parseError(response), response.status);
+  if (!response.ok) {
+    throw new ApiError(await parseResetCreditsError(response), response.status);
+  }
 }
 
 export async function fetchRemoteDevices(session: AuthSession): Promise<RemoteDevice[]> {
