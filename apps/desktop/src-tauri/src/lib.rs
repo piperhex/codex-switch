@@ -12,6 +12,7 @@ mod local_proxy;
 mod models;
 mod oauth;
 mod providers;
+mod remote_control;
 mod storage;
 mod system_proxy;
 mod system_tray;
@@ -63,6 +64,7 @@ pub fn run() {
             }
             system_tray::setup(app)?;
             floating_bubble::setup(app.handle())?;
+            remote_control::start(app.handle().clone());
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -137,6 +139,7 @@ pub fn run() {
             local_proxy::set_custom_auto_switch_priority_enabled,
             local_proxy::set_auto_disable_unreachable_accounts,
             local_proxy::set_image_generation_account,
+            local_proxy::set_local_proxy_openai_auth_account,
             local_proxy::set_local_proxy_listen_on_all_interfaces,
             floating_bubble::get_app_settings,
             floating_bubble::set_proxy_onboarding_choice,

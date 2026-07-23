@@ -52,6 +52,7 @@ const LOCAL_PROXY_CUSTOM_PRIORITY_PREVIEW_KEY = "codex-switch:local-proxy-custom
 const LOCAL_PROXY_AUTO_DISABLE_UNREACHABLE_PREVIEW_KEY = "codex-switch:local-proxy-auto-disable-unreachable";
 const LOCAL_PROXY_LISTEN_ALL_INTERFACES_PREVIEW_KEY = "codex-switch:local-proxy-listen-all-interfaces";
 const LOCAL_PROXY_IMAGE_ACCOUNT_PREVIEW_KEY = "codex-switch:image-generation-account";
+const LOCAL_PROXY_OPENAI_AUTH_ACCOUNT_PREVIEW_KEY = "codex-switch:proxy-openai-auth-account";
 const TOKEN_USAGE_WEEKS_PREVIEW_KEY = "codex-switch:token-usage-weeks";
 const TOKEN_USAGE_REFRESH_PREVIEW_KEY = "codex-switch:token-usage-refresh-seconds";
 const THEME_COLOR_EVENT = "codex-switch:theme-color-changed";
@@ -166,6 +167,7 @@ function previewLocalProxyStatus(): LocalProxyStatus {
     autoDisableUnreachableAccounts: window.localStorage.getItem(LOCAL_PROXY_AUTO_DISABLE_UNREACHABLE_PREVIEW_KEY) === "true",
     listenOnAllInterfaces: window.localStorage.getItem(LOCAL_PROXY_LISTEN_ALL_INTERFACES_PREVIEW_KEY) === "true",
     imageGenerationAccountId: window.localStorage.getItem(LOCAL_PROXY_IMAGE_ACCOUNT_PREVIEW_KEY),
+    openaiAuthAccountId: window.localStorage.getItem(LOCAL_PROXY_OPENAI_AUTH_ACCOUNT_PREVIEW_KEY),
   };
 }
 
@@ -445,6 +447,18 @@ export async function setLocalProxyImageAccount(accountId: string | null): Promi
     return previewLocalProxyStatus();
   }
   return invoke<LocalProxyStatus>("set_image_generation_account", { accountId });
+}
+
+export async function setLocalProxyOpenaiAuthAccount(accountId: string | null): Promise<LocalProxyStatus> {
+  if (!isDesktopApp) {
+    if (!previewLocalProxyStatus().running) {
+      throw new Error("Start the local proxy before selecting an OpenAI login account");
+    }
+    if (accountId) window.localStorage.setItem(LOCAL_PROXY_OPENAI_AUTH_ACCOUNT_PREVIEW_KEY, accountId);
+    else window.localStorage.removeItem(LOCAL_PROXY_OPENAI_AUTH_ACCOUNT_PREVIEW_KEY);
+    return previewLocalProxyStatus();
+  }
+  return invoke<LocalProxyStatus>("set_local_proxy_openai_auth_account", { accountId });
 }
 
 export async function updateFloatingBubble(enabled: boolean): Promise<AppSettings> {

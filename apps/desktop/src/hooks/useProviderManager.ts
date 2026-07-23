@@ -9,6 +9,7 @@ import {
   setLocalProxyAutoDisableUnreachable,
   setLocalProxyCustomPriority,
   setLocalProxyImageAccount,
+  setLocalProxyOpenaiAuthAccount,
   setLocalProxyListenOnAllInterfaces,
   setLocalProxyAutoSwitch,
   setProviderModelControl,
@@ -49,6 +50,12 @@ function providerErrorMessage(error: unknown, t: Translate) {
   }
   if (message.includes("Start the local proxy before selecting an image generation account")) {
     return t("providers.error.imageAccountProxyRequired");
+  }
+  if (message.includes("OpenAI login account must use an OAuth token")) {
+    return t("providers.error.openaiAuthAccountOAuthRequired");
+  }
+  if (message.includes("Start the local proxy before selecting an OpenAI login account")) {
+    return t("providers.error.openaiAuthAccountProxyRequired");
   }
   if (message.startsWith("Base URL is invalid:")) {
     return t("providers.error.baseUrlInvalid", { error: message.slice("Base URL is invalid:".length).trim() });
@@ -255,6 +262,22 @@ export function useProviderManager(
     }
   }, [load, notify, t]);
 
+  const setProxyOpenaiAuthAccount = useCallback(async (accountId: string | null) => {
+    setProxyBusy(true);
+    try {
+      setLocalProxy(await setLocalProxyOpenaiAuthAccount(accountId));
+      notify(t(accountId
+        ? "toast.proxyOpenaiAuthAccountSaved"
+        : "toast.proxyOpenaiAuthAccountCleared"));
+      await load();
+    } catch (error) {
+      notify(providerErrorMessage(error, t));
+      await load();
+    } finally {
+      setProxyBusy(false);
+    }
+  }, [load, notify, t]);
+
   const setProxyListenOnAllInterfaces = useCallback(async (enabled: boolean) => {
     setProxyBusy(true);
     try {
@@ -290,6 +313,7 @@ export function useProviderManager(
     setProxyAutoDisableUnreachable,
     setProxyCustomPriority,
     setProxyImageAccount,
+    setProxyOpenaiAuthAccount,
     setProxyListenOnAllInterfaces,
     reload: load,
   };

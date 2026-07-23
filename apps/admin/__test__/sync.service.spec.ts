@@ -33,6 +33,7 @@ describe('SyncService', () => {
   };
   let dataSource: { transaction: ReturnType<typeof vi.fn> };
   let redis: { get: ReturnType<typeof vi.fn>; set: ReturnType<typeof vi.fn>; del: ReturnType<typeof vi.fn> };
+  let remoteDevices: { findOne: ReturnType<typeof vi.fn>; update: ReturnType<typeof vi.fn> };
   let service: SyncService;
 
   beforeEach(() => {
@@ -69,11 +70,13 @@ describe('SyncService', () => {
       })),
     };
     redis = { get: vi.fn(), set: vi.fn(), del: vi.fn() };
+    remoteDevices = { findOne: vi.fn(), update: vi.fn() };
     service = new SyncService(
       accounts as unknown as Repository<SyncedAccountEntity>,
       providers as unknown as Repository<SyncedProviderEntity>,
       systemAccounts as unknown as Repository<SystemAccountEntity>,
       systemBindings as unknown as Repository<SystemAccountBindingEntity>,
+      remoteDevices as unknown as Repository<import('@/modules/devices/entities/remote-device.entity').RemoteDeviceEntity>,
       dataSource as unknown as DataSource,
       redis as unknown as Redis,
     );
@@ -85,6 +88,30 @@ describe('SyncService', () => {
     await expect(service.list('owner-1')).resolves.toEqual({ ...cached, deletedAccountIds: [] });
     expect(redis.get).toHaveBeenCalledWith('sync:accounts:owner-1');
     expect(accounts.find).not.toHaveBeenCalled();
+  });
+
+  it('projects the active account independently for each desktop device', async () => {
+    const cached = {
+      accounts: [
+        makeAccount({ id: 'account-1', active: true }),
+        makeAccount({ id: 'account-2', active: false }),
+      ],
+    };
+    redis.get.mockResolvedValue(JSON.stringify(cached));
+    remoteDevices.findOne.mockResolvedValue({ activeAccountId: 'account-2' });
+
+    const result = await service.list('owner-1', '10000000-0000-4000-8000-000000000001');
+
+    expect(result.accounts.map((account) => [account.id, account.active])).toEqual([
+      ['account-1', false],
+      ['account-2', true],
+    ]);
+    expect(remoteDevices.findOne).toHaveBeenCalledWith({
+      where: {
+        ownerId: 'owner-1',
+        deviceId: '10000000-0000-4000-8000-000000000001',
+      },
+    });
   });
 
   it('removes account credentials from the self-service portal response', async () => {

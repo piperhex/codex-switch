@@ -16,6 +16,10 @@ import { SyncedAccountEntity } from './entities/synced-account.entity';
 import { SyncedProviderEntity } from './entities/synced-provider.entity';
 import { SystemAccountBindingEntity } from './entities/system-account-binding.entity';
 import { SystemAccountEntity } from './entities/system-account.entity';
+import { RemoteDeviceEntity } from '@/modules/devices/entities/remote-device.entity';
+
+const DEVICE_ID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export type AdminSyncAccountDto = SyncAccountDto & {
   source: 'personal' | 'system';
@@ -84,11 +88,13 @@ export class SyncService {
     private readonly systemAccounts: Repository<SystemAccountEntity>,
     @InjectRepository(SystemAccountBindingEntity)
     private readonly systemBindings: Repository<SystemAccountBindingEntity>,
+    @InjectRepository(RemoteDeviceEntity)
+    private readonly remoteDevices: Repository<RemoteDeviceEntity>,
     private readonly dataSource: DataSource,
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
   ) {}
 
-  async list(ownerId: string) {
+  async list(ownerId: string, deviceId?: string) {
     const cacheKey = this.cacheKey(ownerId);
     const cached = await this.redis.get(cacheKey);
     if (cached) {
@@ -96,15 +102,19 @@ export class SyncService {
         accounts: SyncAccountDto[];
         deletedAccountIds?: string[];
       };
-      return { ...parsed, deletedAccountIds: parsed.deletedAccountIds ?? [] };
+      return this.withDeviceActiveAccount(
+        ownerId,
+        deviceId,
+        { ...parsed, deletedAccountIds: parsed.deletedAccountIds ?? [] },
+      );
     }
 
     const payload = await this.loadEffectiveAccountState(ownerId);
     await this.redis.set(cacheKey, JSON.stringify(payload), 'EX', 60);
-    return payload;
+    return this.withDeviceActiveAccount(ownerId, deviceId, payload);
   }
 
-  async replace(ownerId: string, dto: PutSyncAccountsDto) {
+  async replace(ownerId: string, dto: PutSyncAccountsDto, deviceId?: string) {
     const managedIds = await this.boundSystemSyncIds(ownerId);
     await this.dataSource.transaction(async (manager) => {
       const repo = manager.getRepository(SyncedAccountEntity);
@@ -121,14 +131,16 @@ export class SyncService {
       }
     });
     await this.redis.del(this.cacheKey(ownerId));
+    await this.updateDeviceActiveAccount(ownerId, deviceId, dto.accounts);
     return { count: dto.accounts.length };
   }
 
-  async upsert(ownerId: string, accountId: string, account: SyncAccountDto) {
+  async upsert(ownerId: string, accountId: string, account: SyncAccountDto, deviceId?: string) {
     if (account.id !== accountId) {
       throw new BadRequestException('Route account id does not match request body');
     }
     if (await this.isSystemAccountBound(ownerId, accountId)) {
+      await this.updateDeviceActiveAccount(ownerId, deviceId, [account]);
       return { id: accountId };
     }
     await this.dataSource.transaction(async (manager) => {
@@ -142,6 +154,7 @@ export class SyncService {
       await repo.save(repo.create(merged.account));
     });
     await this.redis.del(this.cacheKey(ownerId));
+    await this.updateDeviceActiveAccount(ownerId, deviceId, [account]);
     return { id: accountId };
   }
 
@@ -954,6 +967,41 @@ export class SyncService {
 
   private formatLastModifiedAt(value: Date | string | undefined) {
     return this.parseDateOrEpoch(value).toISOString();
+  }
+
+  private async withDeviceActiveAccount<T extends {
+    accounts: SyncAccountDto[];
+    deletedAccountIds: string[];
+  }>(ownerId: string, deviceId: string | undefined, payload: T): Promise<T> {
+    if (!deviceId || !DEVICE_ID_PATTERN.test(deviceId)) return payload;
+    const device = await this.remoteDevices.findOne({ where: { ownerId, deviceId } });
+    if (!device) {
+      return {
+        ...payload,
+        accounts: payload.accounts.map((account) => ({ ...account, active: false })),
+      };
+    }
+    return {
+      ...payload,
+      accounts: payload.accounts.map((account) => ({
+        ...account,
+        active: account.id === device.activeAccountId,
+      })),
+    };
+  }
+
+  private async updateDeviceActiveAccount(
+    ownerId: string,
+    deviceId: string | undefined,
+    accounts: SyncAccountDto[],
+  ) {
+    if (!deviceId || !DEVICE_ID_PATTERN.test(deviceId)) return;
+    const activeAccount = accounts.find((account) => account.active);
+    if (!activeAccount) return;
+    await this.remoteDevices.update(
+      { ownerId, deviceId },
+      { activeAccountId: activeAccount.id, lastSeenAt: new Date() },
+    );
   }
 
   private cacheKey(ownerId: string) {

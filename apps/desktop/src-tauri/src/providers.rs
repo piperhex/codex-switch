@@ -258,13 +258,7 @@ pub(crate) fn apply_local_proxy_config_for_state<R: Runtime>(
 
 pub(crate) fn apply_local_proxy_config_for_paths(paths: &Paths) -> Result<(), String> {
     let state = read_state(paths);
-    if let Some(account_id) = state.active_account_id.as_deref() {
-        if let Ok(auth) = read_json(&managed_auth_path(paths, account_id)) {
-            if is_agent_identity_auth(&auth) {
-                write_agent_identity_local_proxy_auth(paths)?;
-            }
-        }
-    }
+    sync_local_proxy_openai_auth_for_state(paths, &state)?;
     backup_codex_config_if_needed(paths, state.active_provider_id.is_none())?;
     if let Some(id) = state.active_provider_id.as_deref() {
         let provider = read_provider(paths, id)?;
@@ -278,6 +272,10 @@ pub(crate) fn apply_local_proxy_config_for_paths(paths: &Paths) -> Result<(), St
 
 pub(crate) fn ensure_local_proxy_compatible_for_state(paths: &Paths) -> Result<(), String> {
     let state = read_state(paths);
+    validate_local_proxy_openai_auth_account(
+        paths,
+        state.local_proxy_openai_auth_account_id.as_deref(),
+    )?;
     if state.active_provider_id.is_some() {
         return Ok(());
     }
@@ -529,19 +527,50 @@ fn ensure_official_auth_for_local_proxy(paths: &Paths) -> Result<(), String> {
     let account_id = state.active_account_id.as_deref();
     let auth = selected_official_auth_for_local_proxy(paths, account_id)?;
     validate_official_auth_for_local_proxy(&auth)?;
-    if account_id.is_some() {
-        let desktop_auth = if is_agent_identity_auth(&auth) {
-            local_proxy_desktop_auth()
-        } else {
-            auth
-        };
-        write_json_if_changed(&paths.current_auth, &desktop_auth)?;
+    Ok(())
+}
+
+pub(crate) fn validate_local_proxy_openai_auth_account(
+    paths: &Paths,
+    account_id: Option<&str>,
+) -> Result<(), String> {
+    let Some(account_id) = account_id else {
+        return Ok(());
+    };
+    let auth = read_json(&managed_auth_path(paths, account_id))
+        .map_err(|_| "OpenAI login account does not exist".to_string())?;
+    validate_auth(&auth)
+        .map_err(|error| format!("OpenAI login account has an invalid auth.json: {error}"))?;
+    if is_agent_identity_auth(&auth) {
+        return Err("OpenAI login account must use an OAuth token".to_string());
     }
     Ok(())
 }
 
-pub(crate) fn write_agent_identity_local_proxy_auth(paths: &Paths) -> Result<(), String> {
-    write_json_if_changed(&paths.current_auth, &local_proxy_desktop_auth()).map(|_| ())
+pub(crate) fn sync_local_proxy_openai_auth(paths: &Paths) -> Result<(), String> {
+    let state = read_state(paths);
+    sync_local_proxy_openai_auth_for_state(paths, &state)
+}
+
+fn sync_local_proxy_openai_auth_for_state(
+    paths: &Paths,
+    state: &crate::models::ManagerStateFile,
+) -> Result<(), String> {
+    if let Some(account_id) = state.local_proxy_openai_auth_account_id.as_deref() {
+        validate_local_proxy_openai_auth_account(paths, Some(account_id))?;
+        let auth = read_json(&managed_auth_path(paths, account_id))?;
+        write_json_if_changed(&paths.current_auth, &auth)?;
+        return Ok(());
+    }
+
+    match fs::remove_file(&paths.current_auth) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(format!(
+            "Failed to remove {}: {error}",
+            paths.current_auth.display()
+        )),
+    }
 }
 
 fn selected_official_auth_for_local_proxy(
@@ -564,16 +593,6 @@ fn validate_official_auth_for_local_proxy(auth: &Value) -> Result<(), String> {
         )
     })?;
     Ok(())
-}
-
-/// Keep Agent Identity credentials out of the auth.json watched by Codex Desktop
-/// while the local proxy owns upstream authentication.  The proxy configuration
-/// supplies the same local token, and the real identity remains in managed storage.
-fn local_proxy_desktop_auth() -> Value {
-    json!({
-        "auth_mode": "apikey",
-        "OPENAI_API_KEY": LOCAL_PROXY_TOKEN,
-    })
 }
 
 fn validate_provider_id(id: &str) -> Result<(), String> {
@@ -737,7 +756,16 @@ fn write_local_proxy_config(
     } else {
         String::new()
     };
-    let merged = merge_local_proxy_config(&existing, name, model, include_model_catalog);
+    let requires_openai_auth = read_state(paths)
+        .local_proxy_openai_auth_account_id
+        .is_some();
+    let merged = merge_local_proxy_config(
+        &existing,
+        name,
+        model,
+        include_model_catalog,
+        requires_openai_auth,
+    );
     write_text_atomic(&paths.current_config, &merged)
 }
 
@@ -784,6 +812,7 @@ fn merge_local_proxy_config(
     name: &str,
     model: Option<&str>,
     include_model_catalog: bool,
+    requires_openai_auth: bool,
 ) -> String {
     let cleaned = remove_provider_conflicts(&remove_marked_blocks(existing));
     let model = model.map(str::trim).filter(|value| !value.is_empty());
@@ -822,7 +851,7 @@ fn merge_local_proxy_config(
         toml_string(LOCAL_PROXY_BASE_URL)
     ));
     config.push_str("wire_api = \"responses\"\n");
-    config.push_str("requires_openai_auth = false\n");
+    config.push_str(&format!("requires_openai_auth = {requires_openai_auth}\n"));
     config.push_str(&format!(
         "http_headers = {{ {} = {} }}\n",
         toml_string(LOCAL_PROXY_ACTOR_AUTHORIZATION_HEADER),
@@ -1088,11 +1117,12 @@ mod tests {
     }
 
     #[test]
-    fn official_proxy_restores_missing_current_auth_from_active_oauth_account() {
+    fn official_proxy_without_login_selection_removes_current_auth() {
         let paths = test_paths();
         let auth = test_auth();
         let (_, _, _, id) = crate::auth::account_fields(&auth).unwrap();
         write_json_atomic(&managed_auth_path(&paths, &id), &auth).unwrap();
+        write_json_atomic(&paths.current_auth, &auth).unwrap();
         write_state(
             &paths,
             &crate::models::ManagerStateFile {
@@ -1102,15 +1132,18 @@ mod tests {
         )
         .unwrap();
 
-        ensure_official_auth_for_local_proxy(&paths).unwrap();
+        apply_local_proxy_config_for_paths(&paths).unwrap();
 
-        assert_eq!(read_json(&paths.current_auth).unwrap(), auth);
+        assert!(!paths.current_auth.exists());
+        assert!(fs::read_to_string(&paths.current_config)
+            .unwrap()
+            .contains("requires_openai_auth = false"));
         let root = paths.codex_home.parent().unwrap();
         fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
-    fn official_proxy_uses_an_api_key_stub_for_an_active_agent_identity_account() {
+    fn official_proxy_keeps_agent_identity_out_of_current_auth() {
         let paths = test_paths();
         let auth = test_agent_identity_auth();
         let (_, _, _, id) = crate::auth::account_fields(&auth).unwrap();
@@ -1125,11 +1158,8 @@ mod tests {
         .unwrap();
 
         ensure_local_proxy_compatible_for_state(&paths).unwrap();
-        ensure_official_auth_for_local_proxy(&paths).unwrap();
-        assert_eq!(
-            read_json(&paths.current_auth).unwrap(),
-            local_proxy_desktop_auth()
-        );
+        apply_local_proxy_config_for_paths(&paths).unwrap();
+        assert!(!paths.current_auth.exists());
         fs::remove_dir_all(paths.codex_home.parent().unwrap()).unwrap();
     }
 
@@ -1152,17 +1182,69 @@ mod tests {
 
         ensure_local_proxy_compatible_for_state(&paths).unwrap();
         apply_local_proxy_config_for_paths(&paths).unwrap();
-        assert_eq!(
-            read_json(&paths.current_auth).unwrap(),
-            local_proxy_desktop_auth()
-        );
+        assert!(!paths.current_auth.exists());
+        fs::remove_dir_all(paths.codex_home.parent().unwrap()).unwrap();
+    }
+
+    #[test]
+    fn selected_proxy_openai_login_writes_auth_and_enables_config_flag() {
+        let paths = test_paths();
+        let auth = test_auth();
+        let (_, _, _, id) = crate::auth::account_fields(&auth).unwrap();
+        write_json_atomic(&managed_auth_path(&paths, &id), &auth).unwrap();
+        write_provider(&paths, &provider()).unwrap();
+        write_state(
+            &paths,
+            &crate::models::ManagerStateFile {
+                active_provider_id: Some("p".to_string()),
+                local_proxy_openai_auth_account_id: Some(id),
+                ..crate::models::ManagerStateFile::default()
+            },
+        )
+        .unwrap();
+
+        ensure_local_proxy_compatible_for_state(&paths).unwrap();
+        apply_local_proxy_config_for_paths(&paths).unwrap();
+
+        assert_eq!(read_json(&paths.current_auth).unwrap(), auth);
+        assert!(fs::read_to_string(&paths.current_config)
+            .unwrap()
+            .contains("requires_openai_auth = true"));
+
+        let mut state = read_state(&paths);
+        state.local_proxy_openai_auth_account_id = None;
+        write_state(&paths, &state).unwrap();
+        apply_local_proxy_config_for_paths(&paths).unwrap();
+
+        assert!(!paths.current_auth.exists());
+        assert!(fs::read_to_string(&paths.current_config)
+            .unwrap()
+            .contains("requires_openai_auth = false"));
+        fs::remove_dir_all(paths.codex_home.parent().unwrap()).unwrap();
+    }
+
+    #[test]
+    fn agent_identity_cannot_be_used_as_proxy_openai_login() {
+        let paths = test_paths();
+        let auth = test_agent_identity_auth();
+        let (_, _, _, id) = crate::auth::account_fields(&auth).unwrap();
+        write_json_atomic(&managed_auth_path(&paths, &id), &auth).unwrap();
+
+        let error = validate_local_proxy_openai_auth_account(&paths, Some(&id)).unwrap_err();
+
+        assert!(error.contains("OAuth token"));
         fs::remove_dir_all(paths.codex_home.parent().unwrap()).unwrap();
     }
 
     #[test]
     fn local_proxy_config_points_codex_to_local_responses() {
-        let merged =
-            merge_local_proxy_config("model = \"old\"", "Proxy", Some("deepseek-chat"), true);
+        let merged = merge_local_proxy_config(
+            "model = \"old\"",
+            "Proxy",
+            Some("deepseek-chat"),
+            true,
+            false,
+        );
         assert!(merged.contains("model_provider = \"codex-switch-local\""));
         assert!(merged.contains("model = \"deepseek-chat\""));
         assert!(merged.contains("model_catalog_json = \"codex-switch-model-catalog.json\""));
@@ -1288,7 +1370,7 @@ model = "gpt-5.5"
 model_reasoning_effort = "xhigh"
 "#;
         let provider_proxy =
-            merge_local_proxy_config(backup, "DeepSeek", Some("deepseek-v4-flash"), true);
+            merge_local_proxy_config(backup, "DeepSeek", Some("deepseek-v4-flash"), true, false);
 
         assert_eq!(
             preferred_official_model_from_configs(Some(&provider_proxy), Some(backup)),
@@ -1301,6 +1383,7 @@ model_reasoning_effort = "xhigh"
             &provider_proxy,
             LOCAL_PROXY_PROVIDER_NAME,
             Some(&official_model),
+            false,
             false,
         );
         let first_model = extract_root_model(&official_proxy).unwrap();
@@ -1316,6 +1399,7 @@ model_reasoning_effort = "xhigh"
             "DeepSeek",
             Some("deepseek-v4-flash"),
             true,
+            false,
         );
 
         assert_eq!(

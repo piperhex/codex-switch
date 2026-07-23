@@ -40,8 +40,9 @@ If production uses `POSTGRES_DB_SYNCHRONIZE=false`, apply `sql/20260704-admin-ma
 `sql/20260718-announcement-link-clicks.sql`,
 `sql/20260718-device-installation-app-version.sql`, `sql/20260718-user-feedback.sql`,
 `sql/20260718-dynamic-rbac.sql`, `sql/20260720-sync-account-field-modified-at.sql`,
-`sql/20260722-sync-account-soft-delete.sql`, `sql/20260722-email-templates.sql`, and
-`sql/20260722-auto-switch-priority.sql` before using
+`sql/20260722-sync-account-soft-delete.sql`, `sql/20260722-email-templates.sql`,
+`sql/20260722-auto-switch-priority.sql`, and
+`sql/20260723-remote-device-account-switching.sql` before using
 the expanded admin console, provider sync, official account pool, reusable invitations,
 announcements, email templates, telemetry, and feedback management.
 The RBAC migration must be applied before starting this version because application startup
@@ -127,7 +128,7 @@ curl -s -X POST http://KONG_ADMIN:8001/consumers/codex-switch-client/jwt \
   --data algorithm=HS256
 ```
 
-Create routes so the client-facing `/auth`, `/admin`, `/feedback`, `/announcements`, and `/telemetry` paths remain public, while `/sync` and `/admin/api` are protected by the JWT plugin. Authenticated sub-routes on a public prefix still enforce JWTs in NestJS:
+Create routes so the client-facing `/auth`, `/admin`, `/feedback`, `/announcements`, `/telemetry`, and `/device-switch` paths remain public, while `/sync`, `/devices`, and `/admin/api` are protected by the JWT plugin. The WebSocket authenticates its first message in NestJS. Authenticated sub-routes on a public prefix still enforce JWTs in NestJS:
 
 ```bash
 curl -s -X POST http://KONG_ADMIN:8001/services \
@@ -141,11 +142,13 @@ curl -s -X POST http://KONG_ADMIN:8001/services/codex-switch-backend/routes \
   --data 'paths[]=/feedback' \
   --data 'paths[]=/announcements' \
   --data 'paths[]=/telemetry' \
+  --data 'paths[]=/device-switch' \
   --data strip_path=false
 
 curl -s -X POST http://KONG_ADMIN:8001/services/codex-switch-backend/routes \
   --data name=codex-switch-protected \
   --data 'paths[]=/sync' \
+  --data 'paths[]=/devices' \
   --data 'paths[]=/admin/api' \
   --data strip_path=false
 
@@ -202,6 +205,9 @@ tokens remain valid when a signed link is copied for an invitation created by an
 - `POST /announcements/clicks`
 - `POST /announcements/clicks/authenticated`
 - `POST /telemetry/installations`
+- `WS /device-switch`
+- `GET /devices`
+- `POST /devices/:deviceId/account`
 - `GET /sync/accounts`
 - `GET /sync/accounts/summary`
 - `PUT /sync/accounts`

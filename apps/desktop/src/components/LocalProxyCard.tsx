@@ -15,6 +15,7 @@ interface LocalProxyCardProps {
   onCustomAutoSwitchPriorityEnabledChange: (enabled: boolean) => void;
   onAutoDisableUnreachableChange: (enabled: boolean) => void;
   onImageAccountChange: (accountId: string | null) => void;
+  onOpenaiAuthAccountChange: (accountId: string | null) => void;
   onListenOnAllInterfacesChange: (enabled: boolean) => void;
   startDisabledReason?: string;
   t: Translate;
@@ -32,6 +33,7 @@ export function LocalProxyCard({
   onCustomAutoSwitchPriorityEnabledChange,
   onAutoDisableUnreachableChange,
   onImageAccountChange,
+  onOpenaiAuthAccountChange,
   onListenOnAllInterfacesChange,
   startDisabledReason,
   t,
@@ -39,6 +41,7 @@ export function LocalProxyCard({
   const proxyRunning = Boolean(localProxy?.running);
   const activeAccount = accounts.find((account) => account.active);
   const imageAccounts = accounts.filter((account) => !account.agentIdentity);
+  const openaiAuthAccounts = accounts.filter((account) => !account.agentIdentity);
   const showImageAccountSelect = proxyRunning && Boolean(activeAccount?.agentIdentity);
   const proxyBaseUrl = localProxy?.baseUrl ?? "http://127.0.0.1:15722/v1";
   const actionButton = (
@@ -78,6 +81,28 @@ export function LocalProxyCard({
               showSearch
               optionFilterProp="label"
               onChange={(value) => onImageAccountChange(value)}
+            />
+          </Tooltip>
+        )}
+        {proxyRunning && (
+          <Tooltip title={t("providers.proxy.openaiAuthAccountTooltip")}>
+            <Select
+              className="proxy-openai-auth-account"
+              size="small"
+              aria-label={t("providers.proxy.openaiAuthAccount")}
+              value={localProxy?.openaiAuthAccountId ?? undefined}
+              options={openaiAuthAccounts.map((account) => ({
+                label: account.email,
+                value: account.id,
+              }))}
+              placeholder={t(openaiAuthAccounts.length
+                ? "providers.proxy.openaiAuthAccountPlaceholder"
+                : "providers.proxy.openaiAuthAccountEmpty")}
+              disabled={proxyBusy}
+              allowClear
+              showSearch
+              optionFilterProp="label"
+              onChange={(value) => onOpenaiAuthAccountChange(value ?? null)}
             />
           </Tooltip>
         )}

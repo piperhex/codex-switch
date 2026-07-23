@@ -1,5 +1,5 @@
 import * as SecureStore from 'expo-secure-store';
-import type { AccountSummary, AuthResponse, AuthSession, UserProfile } from '../types';
+import type { AccountSummary, AuthResponse, AuthSession, RemoteDevice, UserProfile } from '../types';
 
 const SESSION_KEY = 'codex-switch.mobile.session.v1';
 const GLOBAL_REFRESH_INTERVAL_KEY = 'codex-switch.mobile.global-refresh-minutes.v1';
@@ -203,6 +203,30 @@ export async function fetchAccountSummary(session: AuthSession): Promise<Account
     throw new ApiError('服务器返回的账户数据无效');
   }
   return (payload as { accounts: AccountSummary[] }).accounts;
+}
+
+export async function fetchRemoteDevices(session: AuthSession): Promise<RemoteDevice[]> {
+  const response = await authorizedRequest(session, '/devices');
+  if (!response.ok) throw new ApiError(await parseError(response), response.status);
+  const payload: unknown = await response.json();
+  if (!payload || typeof payload !== 'object' || !Array.isArray((payload as { devices?: unknown }).devices)) {
+    throw new ApiError('服务器返回的设备数据无效');
+  }
+  return (payload as { devices: RemoteDevice[] }).devices;
+}
+
+export async function switchRemoteDeviceAccount(
+  session: AuthSession,
+  deviceId: string,
+  accountId: string,
+): Promise<{ deviceId: string; activeAccountId: string; online: boolean }> {
+  const response = await authorizedRequest(session, `/devices/${encodeURIComponent(deviceId)}/account`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ accountId }),
+  });
+  if (!response.ok) throw new ApiError(await parseError(response), response.status);
+  return response.json() as Promise<{ deviceId: string; activeAccountId: string; online: boolean }>;
 }
 
 export async function fetchUserProfile(session: AuthSession): Promise<UserProfile> {

@@ -72,6 +72,8 @@ pub(crate) struct ManagerStateFile {
     #[serde(default)]
     pub(crate) image_generation_account_id: Option<String>,
     #[serde(default)]
+    pub(crate) local_proxy_openai_auth_account_id: Option<String>,
+    #[serde(default)]
     pub(crate) disabled_account_ids: Vec<String>,
 }
 
@@ -135,6 +137,7 @@ pub(crate) struct LocalProxyStatus {
     pub(crate) auto_disable_unreachable_accounts: bool,
     pub(crate) listen_on_all_interfaces: bool,
     pub(crate) image_generation_account_id: Option<String>,
+    pub(crate) openai_auth_account_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

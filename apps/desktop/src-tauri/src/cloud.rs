@@ -1,6 +1,9 @@
 use std::{collections::HashSet, fs, time::Duration};
 
-use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
+use base64::{
+    engine::general_purpose::{STANDARD as BASE64_STANDARD, URL_SAFE, URL_SAFE_NO_PAD},
+    Engine as _,
+};
 use chrono::Utc;
 use reqwest::{
     blocking::{multipart, Client},
@@ -113,6 +116,18 @@ struct InstallationState {
 struct CloudCredentials {
     access_token: Option<String>,
     refresh_token: Option<String>,
+    #[serde(default)]
+    device_id: Option<String>,
+}
+
+pub(crate) struct RemoteControlConfig {
+    pub(crate) websocket_url: String,
+    pub(crate) access_token: String,
+    pub(crate) device_id: String,
+    pub(crate) device_name: String,
+    pub(crate) platform: String,
+    pub(crate) app_version: String,
+    pub(crate) active_account_id: Option<String>,
 }
 
 fn cloud_credentials_path<R: Runtime>(
@@ -126,11 +141,17 @@ fn cloud_credentials_path<R: Runtime>(
 }
 
 fn read_cloud_credentials<R: Runtime>(app: &tauri::AppHandle<R>) -> CloudCredentials {
-    cloud_credentials_path(app)
+    let mut credentials: CloudCredentials = cloud_credentials_path(app)
         .ok()
         .and_then(|path| fs::read(path).ok())
         .and_then(|bytes| serde_json::from_slice(&bytes).ok())
-        .unwrap_or_default()
+        .unwrap_or_default();
+    if credentials.device_id.is_none() {
+        credentials.device_id = read_or_create_installation_state(app)
+            .ok()
+            .map(|installation| installation.device_id);
+    }
+    credentials
 }
 
 fn write_cloud_credentials<R: Runtime>(
@@ -278,6 +299,74 @@ fn refresh_cloud_token(
     Ok(())
 }
 
+fn access_token_expires_soon(access_token: &str) -> bool {
+    let Some(payload) = access_token.split('.').nth(1) else {
+        return true;
+    };
+    let decoded = URL_SAFE_NO_PAD
+        .decode(payload)
+        .or_else(|_| URL_SAFE.decode(payload));
+    let Ok(decoded) = decoded else {
+        return true;
+    };
+    let Ok(payload) = serde_json::from_slice::<Value>(&decoded) else {
+        return true;
+    };
+    payload
+        .get("exp")
+        .and_then(Value::as_i64)
+        .is_none_or(|expires_at| expires_at <= Utc::now().timestamp() + 60)
+}
+
+pub(crate) fn remote_control_config<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+) -> Result<Option<RemoteControlConfig>, String> {
+    let mut settings = read_app_settings(app)?;
+    let mut credentials = read_cloud_credentials(app);
+    let Some(mut access_token) = credentials.access_token.clone() else {
+        return Ok(None);
+    };
+    if credentials.refresh_token.is_none() || settings.cloud_user_id.is_none() {
+        return Ok(None);
+    }
+    if access_token_expires_soon(&access_token) {
+        let client = api_client()?;
+        refresh_cloud_token(&client, &mut settings, &mut credentials)?;
+        access_token = credentials
+            .access_token
+            .clone()
+            .ok_or_else(|| "Cloud access token is missing after refresh".to_string())?;
+        write_app_settings(app, &settings)?;
+        write_cloud_credentials(app, &credentials)?;
+    }
+
+    let mut url = url::Url::parse(base_url(&settings)?)
+        .map_err(|error| format!("Cloud base URL is invalid: {error}"))?;
+    let websocket_scheme = match url.scheme() {
+        "http" => "ws",
+        "https" => "wss",
+        _ => return Err("Cloud base URL must use HTTP or HTTPS".to_string()),
+    };
+    url.set_scheme(websocket_scheme)
+        .map_err(|_| "Could not build the remote control WebSocket URL".to_string())?;
+    let base_path = url.path().trim_end_matches('/');
+    url.set_path(&format!("{base_path}/device-switch"));
+    url.set_query(None);
+    url.set_fragment(None);
+
+    let installation = read_or_create_installation_state(app)?;
+    let active_account_id = read_state(&resolve_paths(app)?).active_account_id;
+    Ok(Some(RemoteControlConfig {
+        websocket_url: url.to_string(),
+        access_token,
+        device_id: installation.device_id,
+        device_name: sysinfo::System::host_name().unwrap_or_else(|| "Codex Switch".to_string()),
+        platform: installation.platform,
+        app_version: app.package_info().version.to_string(),
+        active_account_id,
+    }))
+}
+
 fn cloud_request(
     client: &Client,
     settings: &mut AppSettings,
@@ -295,6 +384,9 @@ fn cloud_request(
             .request(method.clone(), endpoint(settings, path)?)
             .bearer_auth(access_token)
             .header("Accept", "application/json");
+        if let Some(device_id) = credentials.device_id.as_deref() {
+            request = request.header("X-Device-ID", device_id);
+        }
         if let Some(payload) = body.as_ref() {
             request = request.json(payload);
         }
@@ -1241,6 +1333,7 @@ async fn cloud_authenticate<R: Runtime>(
         let mut credentials = CloudCredentials {
             access_token: Some(tokens.access_token),
             refresh_token: Some(tokens.refresh_token),
+            device_id: Some(read_or_create_installation_state(&app)?.device_id),
         };
         if let Some(user) = tokens.user {
             settings.cloud_user_id = Some(user.id);

@@ -51,7 +51,7 @@ Dream Skin 项目仓库：[Fei-Away/Codex-Dream-Skin](https://github.com/Fei-Awa
 - 记录经本地代理转发请求的 Token 用量，并可导出结构化代理诊断信息。
 - 在官方账号模式下，可在额度耗尽后刷新账号、选择主用量窗口使用率最低的可用账号、切换凭据并重试一次请求。
 - 支持界面语言、主题色、隐私模式和悬浮球偏好的本地设置。
-- 可选同步到自建 NestJS 后端；Expo 移动端只读取已脱敏的账号与用量摘要。
+- 可选同步到自建 NestJS 后端；Expo 移动端只读取已脱敏的账号与用量摘要，并可通过 WebSocket 切换指定 PC 的账号。
 - 账号和服务商密钥仅保存在 Rust 后端，不会暴露给桌面端 React 界面或应用日志。
 
 > [!IMPORTANT]
@@ -110,7 +110,7 @@ npm run dev:backend
 npm run start -w @codex-switch/native
 ```
 
-移动端需要已部署的云端后端，并且仅显示已同步的账号摘要。详细配置请参阅 [移动端文档](apps/native/README.md) 和 [管理后端文档](apps/admin/README.md)。
+移动端需要已部署的云端后端，会显示已同步的账号摘要和在线 PC，并可分别切换每台 PC 的当前账号。详细配置请参阅 [移动端文档](apps/native/README.md) 和 [管理后端文档](apps/admin/README.md)。
 
 构建桌面安装包：
 
@@ -207,7 +207,7 @@ Codex Switch 使用 [Apache License 2.0](LICENSE)，与官方 [OpenAI Codex](htt
 ## 当前限制
 
 - OAuth 回调会优先使用本地端口 `1455`，失败后回退到 `1457`。
-- 完整账号管理与第三方服务商工作流仅支持桌面端；移动端仅用于查看同步到云端的数据。
+- 完整账号管理与第三方服务商工作流仅支持桌面端；移动端可查看同步数据并远程切换指定 PC 的官方账号。
 - macOS 发布构建采用临时签名；除非在 CI 配置 Apple Developer 签名与公证凭据，否则不会完成公证。
 - 已发布的 iOS `.app.zip` 未签名，仅为 CI 构建产物，不能直接作为 App Store 安装包使用。
 - 内嵌登录依赖 WebView 与身份提供商策略；若失败，请使用系统浏览器登录。

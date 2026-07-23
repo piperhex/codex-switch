@@ -24,6 +24,16 @@ export interface AccountSummary {
   lastModifiedAt?: string;
 }
 
+export interface RemoteDevice {
+  deviceId: string;
+  name: string;
+  platform: string;
+  appVersion?: string | null;
+  activeAccountId?: string | null;
+  lastSeenAt: string;
+  online: boolean;
+}
+
 export interface UserProfile {
   id: string;
   email: string;

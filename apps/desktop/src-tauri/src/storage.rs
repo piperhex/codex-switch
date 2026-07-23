@@ -421,6 +421,19 @@ fn should_activate_import(
             && state.active_provider_id.is_none())
 }
 
+fn should_sync_current_as_active(
+    state: &ManagerStateFile,
+    id: &str,
+    agent_identity: bool,
+    proxy_running: bool,
+) -> bool {
+    state.active_provider_id.is_none()
+        && !state.local_proxy_enabled
+        && !proxy_running
+        && state.active_account_id.as_deref() != Some(id)
+        && !agent_identity
+}
+
 pub(crate) fn import_value<R: Runtime>(
     app: &tauri::AppHandle<R>,
     mut auth: Value,
@@ -466,13 +479,15 @@ pub(crate) fn sync_current_into_store<R: Runtime>(app: &tauri::AppHandle<R>) -> 
         crate::commands::sync_current_auth_if_client_stopped(&paths, &auth)?;
     }
     let mut state = read_state(&paths);
-    // The current auth file remains on disk while a third-party Provider is active,
-    // but it is not the selected runtime identity in that mode. Do not let a routine
-    // sync turn that stored credential back into the active official account.
-    if state.active_provider_id.is_none()
-        && state.active_account_id.as_deref() != Some(&id)
-        && (crate::local_proxy::is_running() || !crate::auth::is_agent_identity_auth(&auth))
-    {
+    // In proxy mode auth.json is either absent or belongs to the optional OpenAI
+    // login-state account, which is independent from the upstream official account.
+    // Do not let startup synchronization turn that credential into the active account.
+    if should_sync_current_as_active(
+        &state,
+        &id,
+        crate::auth::is_agent_identity_auth(&auth),
+        crate::local_proxy::is_running(),
+    ) {
         state.active_account_id = Some(id);
         write_state(&paths, &state)?;
     }
@@ -493,7 +508,7 @@ pub(crate) fn save_usage(path: &Path, usage: &UsageSummary) -> Result<(), String
 
 #[cfg(test)]
 mod tests {
-    use super::should_activate_import;
+    use super::{should_activate_import, should_sync_current_as_active};
     use crate::models::ManagerStateFile;
 
     #[test]
@@ -530,6 +545,23 @@ mod tests {
             &ManagerStateFile::default(),
             true,
             true
+        ));
+    }
+
+    #[test]
+    fn proxy_login_auth_does_not_replace_the_active_upstream_account_on_startup() {
+        let state = ManagerStateFile {
+            active_account_id: Some("upstream-account".to_string()),
+            local_proxy_enabled: true,
+            local_proxy_openai_auth_account_id: Some("login-account".to_string()),
+            ..ManagerStateFile::default()
+        };
+
+        assert!(!should_sync_current_as_active(
+            &state,
+            "login-account",
+            false,
+            false
         ));
     }
 }

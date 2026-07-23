@@ -29,6 +29,7 @@ interface ProvidersPageProps {
   onCustomAutoSwitchPriorityEnabledChange: (enabled: boolean) => void;
   onAutoDisableUnreachableChange: (enabled: boolean) => void;
   onImageAccountChange: (accountId: string | null) => void;
+  onOpenaiAuthAccountChange: (accountId: string | null) => void;
   onListenOnAllInterfacesChange: (enabled: boolean) => void;
   displayMode: AccountDisplayMode;
   t: Translate;
@@ -221,6 +222,7 @@ export function ProvidersPage({
   onCustomAutoSwitchPriorityEnabledChange,
   onAutoDisableUnreachableChange,
   onImageAccountChange,
+  onOpenaiAuthAccountChange,
   onListenOnAllInterfacesChange,
   displayMode,
   t,
@@ -330,6 +332,7 @@ export function ProvidersPage({
         onCustomAutoSwitchPriorityEnabledChange={onCustomAutoSwitchPriorityEnabledChange}
         onAutoDisableUnreachableChange={onAutoDisableUnreachableChange}
         onImageAccountChange={onImageAccountChange}
+        onOpenaiAuthAccountChange={onOpenaiAuthAccountChange}
         onListenOnAllInterfacesChange={onListenOnAllInterfacesChange} t={t} />
 
       <div className="provider-toolbar">

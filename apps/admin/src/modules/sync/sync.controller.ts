@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, Param, Put, UseGuards } from '@nestjs/common';
 import { CurrentUser, type AuthUser } from '@/common/decorators/user.decorator';
 import { RequirePermissions } from '@/common/decorators/permissions.decorator';
 import { PermissionsGuard } from '@/common/guards/permissions.guard';
@@ -15,8 +15,8 @@ export class SyncController {
 
   @Get('accounts')
   @RequirePermissions(Permission.SelfAccountsRead)
-  list(@CurrentUser() user: AuthUser) {
-    return this.sync.list(user.id);
+  list(@CurrentUser() user: AuthUser, @Headers('x-device-id') deviceId?: string) {
+    return this.sync.list(user.id, deviceId);
   }
 
   /**
@@ -31,14 +31,23 @@ export class SyncController {
 
   @Put('accounts')
   @RequirePermissions(Permission.SelfAccountsWrite)
-  replace(@CurrentUser() user: AuthUser, @Body() dto: PutSyncAccountsDto) {
-    return this.sync.replace(user.id, dto);
+  replace(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: PutSyncAccountsDto,
+    @Headers('x-device-id') deviceId?: string,
+  ) {
+    return this.sync.replace(user.id, dto, deviceId);
   }
 
   @Put('accounts/:id')
   @RequirePermissions(Permission.SelfAccountsWrite)
-  upsert(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() dto: SyncAccountDto) {
-    return this.sync.upsert(user.id, id, dto);
+  upsert(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: SyncAccountDto,
+    @Headers('x-device-id') deviceId?: string,
+  ) {
+    return this.sync.upsert(user.id, id, dto, deviceId);
   }
 
   @Delete('accounts/:id')
