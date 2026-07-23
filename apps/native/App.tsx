@@ -191,48 +191,63 @@ function LoginScreen({ initialBaseUrl, onLoggedIn }: { initialBaseUrl: string; o
   </KeyboardAvoidingView>;
 }
 
-function AccountCard({ account, privateMode, active, canSwitch, switchBusy, switching, onOpenNote, onSwitch }: {
+function CompactPrimaryUsage({ usage }: { usage?: UsageWindow | null }) {
+  if (!usage) {
+    return <>
+      <View style={styles.compactUsageRow}>
+        <View style={styles.compactProgressTrack} />
+        <Text style={styles.compactUsageUnavailable}>--</Text>
+      </View>
+      <Text style={styles.compactResetText}>主用量窗口暂不可用</Text>
+    </>;
+  }
+  const remaining = Math.max(0, Math.min(100, Math.round(usage.remainingPercent)));
+  return <>
+    <View style={styles.compactUsageRow}>
+      <View style={styles.compactProgressTrack}>
+        <View style={[styles.progressFill, { width: `${remaining}%`, backgroundColor: usageColor(remaining) }]} />
+      </View>
+      <Text style={[styles.compactRemaining, { color: usageColor(remaining) }]}>{remaining}%</Text>
+    </View>
+    <Text style={styles.compactResetText} numberOfLines={1}>{resetLabel(usage.resetsAt)}</Text>
+  </>;
+}
+
+function AccountCard({ account, privateMode, switchBusy, switching, onOpenDetails, onOpenSwitch }: {
   account: AccountSummary;
   privateMode: boolean;
-  active: boolean;
-  canSwitch: boolean;
   switchBusy: boolean;
   switching: boolean;
-  onOpenNote: (account: AccountSummary) => void;
-  onSwitch: (accountId: string) => void;
+  onOpenDetails: (account: AccountSummary) => void;
+  onOpenSwitch: (account: AccountSummary) => void;
 }) {
   const email = privateMode ? maskEmail(account.email) : account.email;
-  return <View style={[styles.accountCard, active && styles.activeCard]}>
-    <View style={styles.accountTop}>
-      <View style={[styles.avatar, active && styles.activeAvatar]}><Text style={styles.avatarText}>{initials(account.email)}</Text></View>
-      <View style={styles.accountNameBlock}>
-        <Text style={styles.accountEmail} numberOfLines={1}>{email}</Text>
-        <Pressable accessibilityRole="button" accessibilityLabel={`${account.email} 的备注`}
-          accessibilityHint="查看完整备注" hitSlop={6} onPress={() => onOpenNote(account)}
-          style={({ pressed }) => [styles.accountNoteButton, pressed && styles.pressed]}>
-          <Text style={styles.accountNote} numberOfLines={1}>{privateMode && account.note ? '********' : account.note || '无备注'}</Text>
-        </Pressable>
-      </View>
-      {active && <View style={styles.currentBadge}><Text style={styles.currentBadgeText}>当前</Text></View>}
+  return <Pressable
+    accessibilityRole="button"
+    accessibilityLabel={`${account.email} 的账号信息`}
+    accessibilityHint="打开完整账号信息"
+    onPress={() => onOpenDetails(account)}
+    style={({ pressed }) => [styles.accountCard, pressed && styles.accountCardPressed]}
+  >
+    <View style={styles.compactAccountContent}>
+      <Text style={styles.compactAccountEmail} numberOfLines={1}>{email}</Text>
+      <CompactPrimaryUsage usage={account.usage.primary} />
     </View>
-    <View style={styles.metaRow}>
-      <View style={styles.planBadge}><Text style={styles.planText}>{account.plan || 'ChatGPT'}</Text></View>
-      {account.expiresAt ? <Text style={styles.metaText}>到期 {account.expiresAt}</Text> : null}
-      {account.accountId ? <Text style={styles.metaText} numberOfLines={1}>ID {account.accountId}</Text> : null}
-    </View>
-    <View style={styles.divider} />
-    <UsageMeter title="主用量窗口" usage={account.usage.primary} />
-    <UsageMeter title="次用量窗口" usage={account.usage.secondary} />
-    <Text style={[styles.updatedText, account.usage.error && styles.errorText]}>
-      {account.usage.error ? `获取失败：${account.usage.error}` : `数据更新于 ${displayDate(account.usage.fetchedAt)}`}
-    </Text>
-    {!active ? <Pressable accessibilityRole="button"
-      disabled={!canSwitch || switchBusy}
-      onPress={() => onSwitch(account.id)}
-      style={({ pressed }) => [styles.switchAccountButton, pressed && styles.pressed, (!canSwitch || switchBusy) && styles.disabled]}>
-      {switching ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.switchAccountButtonText}>{!canSwitch ? '设备离线，无法切换' : switchBusy ? '正在切换其他账号…' : '切换此设备到该账号'}</Text>}
-    </Pressable> : null}
-  </View>;
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`切换到账号 ${account.email}`}
+      disabled={switchBusy}
+      onPress={(event) => {
+        event.stopPropagation();
+        onOpenSwitch(account);
+      }}
+      style={({ pressed }) => [styles.compactSwitchButton, pressed && styles.pressed, switchBusy && styles.disabled]}
+    >
+      {switching
+        ? <ActivityIndicator color="#fff" size="small" />
+        : <Text style={styles.compactSwitchButtonText}>切换</Text>}
+    </Pressable>
+  </Pressable>;
 }
 
 function Dashboard({ accounts, devices, loading, refreshing, switchingAccountId, onRefresh, onSwitch }: {
@@ -245,14 +260,9 @@ function Dashboard({ accounts, devices, loading, refreshing, switchingAccountId,
   onSwitch: (deviceId: string, accountId: string) => Promise<void>;
 }) {
   const [privateMode, setPrivateMode] = useState(true);
+  const [detailAccount, setDetailAccount] = useState<AccountSummary | null>(null);
   const [noteAccount, setNoteAccount] = useState<AccountSummary | null>(null);
-  const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
-  useEffect(() => {
-    if (selectedDeviceId && devices.some((device) => device.deviceId === selectedDeviceId)) return;
-    setSelectedDeviceId(devices.find((device) => device.online)?.deviceId ?? devices[0]?.deviceId ?? null);
-  }, [devices, selectedDeviceId]);
-  const selectedDevice = devices.find((device) => device.deviceId === selectedDeviceId) ?? null;
-  const active = accounts.find((account) => account.id === selectedDevice?.activeAccountId);
+  const [switchAccount, setSwitchAccount] = useState<AccountSummary | null>(null);
   const latestUpdate = useMemo(() => {
     const timestamps = accounts.map((account) => account.usage.fetchedAt).filter(Boolean).sort();
     return timestamps.length ? timestamps[timestamps.length - 1] : null;
@@ -267,8 +277,8 @@ function Dashboard({ accounts, devices, loading, refreshing, switchingAccountId,
         <View>
           <Text style={styles.overviewEyebrow}>账户管理</Text>
           <Text style={styles.overviewTitle}>{accounts.length} 个官方账号</Text>
-          <Text style={styles.overviewMeta}>{selectedDevice
-            ? `${selectedDevice.name}：${active ? (privateMode ? maskEmail(active.email) : active.email) : '暂未设置账号'}`
+          <Text style={styles.overviewMeta}>{devices.length
+            ? `${devices.length} 台 PC 设备 · ${devices.filter((device) => device.online).length} 台在线`
             : '请先登录一台 PC 设备'}</Text>
         </View>
         <Pressable accessibilityRole="button" style={({ pressed }) => [styles.refreshButton, pressed && styles.pressed]}
@@ -276,21 +286,6 @@ function Dashboard({ accounts, devices, loading, refreshing, switchingAccountId,
           {refreshing ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.refreshText}>↻ 刷新全部</Text>}
         </Pressable>
       </View>
-      <Text style={styles.deviceSectionTitle}>选择要控制的设备</Text>
-      {devices.length ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.deviceList}>
-        {devices.map((device) => {
-          const selected = device.deviceId === selectedDeviceId;
-          return <Pressable key={device.deviceId} accessibilityRole="button"
-            onPress={() => setSelectedDeviceId(device.deviceId)}
-            style={({ pressed }) => [styles.deviceChip, selected && styles.deviceChipSelected, pressed && styles.pressed]}>
-            <View style={[styles.deviceStatusDot, device.online ? styles.deviceOnline : styles.deviceOffline]} />
-            <View>
-              <Text style={[styles.deviceName, selected && styles.deviceNameSelected]} numberOfLines={1}>{device.name}</Text>
-              <Text style={[styles.deviceMeta, selected && styles.deviceMetaSelected]}>{device.online ? '在线' : '离线'} · {device.platform}</Text>
-            </View>
-          </Pressable>;
-        })}
-      </ScrollView> : <View style={styles.noDeviceBox}><Text style={styles.noDeviceText}>暂无 PC 设备。请在 PC 端登录同一个云端账号并保持应用运行。</Text></View>}
       <View style={styles.controlRow}>
         <Text style={styles.lastUpdate}>最近更新：{displayDate(latestUpdate)}</Text>
         <View style={styles.privacyControl}><Text style={styles.privacyText}>隐藏信息</Text><Switch value={privateMode} onValueChange={setPrivateMode} trackColor={{ false: '#c8d6cd', true: '#87d9cb' }} thumbColor={privateMode ? COLORS.green : '#fff'} /></View>
@@ -299,14 +294,29 @@ function Dashboard({ accounts, devices, loading, refreshing, switchingAccountId,
       {!loading && accounts.length === 0 ? <View style={styles.emptyBox}><Text style={styles.emptyTitle}>还没有可展示的账号</Text><Text style={styles.emptyText}>请先在桌面端登录并同步账户，然后下拉刷新此页面。</Text></View> : null}
       {!loading && accounts.map((account) => <AccountCard key={account.id} account={account}
         privateMode={privateMode}
-        active={account.id === selectedDevice?.activeAccountId}
-        canSwitch={Boolean(selectedDevice?.online)}
         switchBusy={Boolean(switchingAccountId)}
         switching={switchingAccountId === account.id}
-        onOpenNote={setNoteAccount}
-        onSwitch={(accountId) => selectedDevice && void onSwitch(selectedDevice.deviceId, accountId)} />)}
+        onOpenDetails={setDetailAccount}
+        onOpenSwitch={setSwitchAccount} />)}
       <Text style={styles.footer}>下拉页面或点击“刷新全部”将更新所有账号</Text>
     </ScrollView>
+    <AccountDetailsDrawer
+      account={detailAccount}
+      devices={devices}
+      privateMode={privateMode}
+      onClose={() => setDetailAccount(null)}
+      onOpenNote={(account) => setNoteAccount(account)}
+    />
+    <DeviceSwitchDrawer
+      account={switchAccount}
+      devices={devices}
+      switching={Boolean(switchingAccountId)}
+      onClose={() => setSwitchAccount(null)}
+      onSwitch={async (deviceId, accountId) => {
+        await onSwitch(deviceId, accountId);
+        setSwitchAccount(null);
+      }}
+    />
     <NoteDrawer account={noteAccount} onClose={() => setNoteAccount(null)} />
   </>;
 }
@@ -520,6 +530,147 @@ function BottomNavigation({ activePage, isAdmin, onChange }: { activePage: AppPa
       <Text style={[styles.navText, activePage === 'settings' && styles.navTextActive]}>设置</Text>
     </Pressable>
   </View>;
+}
+
+function AccountDetailsDrawer({ account, devices, privateMode, onClose, onOpenNote }: {
+  account: AccountSummary | null;
+  devices: RemoteDevice[];
+  privateMode: boolean;
+  onClose: () => void;
+  onOpenNote: (account: AccountSummary) => void;
+}) {
+  const activeDevices = account
+    ? devices.filter((device) => device.activeAccountId === account.id)
+    : [];
+  const email = account
+    ? (privateMode ? maskEmail(account.email) : account.email)
+    : '';
+
+  return <BottomSheet
+    visible={Boolean(account)}
+    title="账号详情"
+    subtitle={email}
+    onClose={onClose}
+    tall
+  >
+    {account ? <ScrollView style={styles.accountDetailsScroll} showsVerticalScrollIndicator={false}>
+      <View style={styles.detailIdentity}>
+        <View style={styles.detailAvatar}><Text style={styles.avatarText}>{initials(account.email)}</Text></View>
+        <View style={styles.detailIdentityText}>
+          <Text style={styles.detailEmail} numberOfLines={1}>{email}</Text>
+          <Text style={styles.detailStatus}>
+            {activeDevices.length
+              ? `${activeDevices.map((device) => device.name).join('、')} 正在使用`
+              : '当前没有设备使用此账号'}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.detailInfoCard}>
+        <View style={styles.detailInfoRow}>
+          <Text style={styles.detailInfoLabel}>套餐</Text>
+          <Text selectable style={styles.detailInfoValue}>{account.plan || 'ChatGPT'}</Text>
+        </View>
+        <View style={styles.detailRowDivider} />
+        <View style={styles.detailInfoRow}>
+          <Text style={styles.detailInfoLabel}>到期时间</Text>
+          <Text selectable style={styles.detailInfoValue}>{account.expiresAt || '未设置'}</Text>
+        </View>
+        <View style={styles.detailRowDivider} />
+        <View style={styles.detailInfoRow}>
+          <Text style={styles.detailInfoLabel}>账号 ID</Text>
+          <Text selectable style={styles.detailInfoValue}>{account.accountId || '未提供'}</Text>
+        </View>
+      </View>
+
+      <View style={styles.detailUsageCard}>
+        <UsageMeter title="主用量窗口" usage={account.usage.primary} />
+        <UsageMeter title="次用量窗口" usage={account.usage.secondary} />
+        <Text style={[styles.updatedText, account.usage.error && styles.errorText]}>
+          {account.usage.error
+            ? `获取失败：${account.usage.error}`
+            : `数据更新于 ${displayDate(account.usage.fetchedAt)}`}
+        </Text>
+      </View>
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityHint="在新的底部抽屉中查看账号备注"
+        onPress={() => onOpenNote(account)}
+        style={({ pressed }) => [styles.openNoteButton, pressed && styles.pressed]}
+      >
+        <View>
+          <Text style={styles.openNoteTitle}>账号备注</Text>
+          <Text style={styles.openNoteHint}>备注详情将单独打开</Text>
+        </View>
+        <Text style={styles.openNoteArrow}>›</Text>
+      </Pressable>
+    </ScrollView> : null}
+  </BottomSheet>;
+}
+
+function DeviceSwitchDrawer({ account, devices, switching, onClose, onSwitch }: {
+  account: AccountSummary | null;
+  devices: RemoteDevice[];
+  switching: boolean;
+  onClose: () => void;
+  onSwitch: (deviceId: string, accountId: string) => Promise<void>;
+}) {
+  const [pendingDeviceId, setPendingDeviceId] = useState<string | null>(null);
+
+  const handleSwitch = useCallback(async (deviceId: string) => {
+    if (!account || switching) return;
+    setPendingDeviceId(deviceId);
+    try {
+      await onSwitch(deviceId, account.id);
+    } finally {
+      setPendingDeviceId(null);
+    }
+  }, [account, onSwitch, switching]);
+
+  return <BottomSheet
+    visible={Boolean(account)}
+    title="选择切换设备"
+    subtitle={account ? `切换到 ${account.email}` : undefined}
+    onClose={onClose}
+    dismissible={!switching}
+  >
+    <ScrollView style={styles.switchDeviceScroll} showsVerticalScrollIndicator={false}>
+      {!devices.length ? <View style={styles.switchDeviceEmpty}>
+        <Text style={styles.switchDeviceEmptyTitle}>暂无可用设备</Text>
+        <Text style={styles.switchDeviceEmptyText}>请先在 PC 端登录同一个云端账号并保持应用运行。</Text>
+      </View> : devices.map((device) => {
+        const current = device.activeAccountId === account?.id;
+        const disabled = switching || !device.online || current;
+        return <Pressable
+          key={device.deviceId}
+          accessibilityRole="button"
+          accessibilityState={{ disabled }}
+          disabled={disabled}
+          onPress={() => void handleSwitch(device.deviceId)}
+          style={({ pressed }) => [
+            styles.switchDeviceRow,
+            current && styles.switchDeviceRowCurrent,
+            pressed && styles.pressed,
+            disabled && !current && styles.switchDeviceRowDisabled,
+          ]}
+        >
+          <View style={[styles.deviceStatusDot, device.online ? styles.deviceOnline : styles.deviceOffline]} />
+          <View style={styles.switchDeviceInfo}>
+            <Text style={styles.switchDeviceName} numberOfLines={1}>{device.name}</Text>
+            <Text style={styles.switchDeviceMeta}>{device.online ? '在线' : '离线'} · {device.platform}</Text>
+          </View>
+          {pendingDeviceId === device.deviceId
+            ? <ActivityIndicator color={COLORS.green} size="small" />
+            : <View style={[styles.switchDeviceAction, current && styles.switchDeviceActionCurrent]}>
+              <Text style={[styles.switchDeviceActionText, current && styles.switchDeviceActionTextCurrent]}>
+                {current ? '当前' : device.online ? '切换' : '不可用'}
+              </Text>
+            </View>}
+        </Pressable>;
+      })}
+    </ScrollView>
+  </BottomSheet>;
 }
 
 function NoteDrawer({ account, onClose }: { account: AccountSummary | null; onClose: () => void }) {
@@ -748,11 +899,68 @@ const styles = StyleSheet.create({
   flex: { flex: 1 }, app: { flex: 1, backgroundColor: COLORS.canvas }, boot: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.canvas, gap: 12 }, bootText: { color: COLORS.ink, fontSize: 18, fontWeight: '700' }, startupError: { flex: 1, padding: 28, justifyContent: 'center', backgroundColor: COLORS.canvas }, startupErrorTitle: { color: COLORS.ink, fontSize: 22, fontWeight: '800' }, startupErrorMessage: { color: COLORS.muted, fontSize: 15, lineHeight: 22, marginTop: 12 }, startupErrorDetail: { color: COLORS.danger, fontSize: 12, marginTop: 20 },
   loginScroll: { flexGrow: 1, backgroundColor: COLORS.canvas, padding: 28, justifyContent: 'center' }, logoMark: { width: 58, height: 58, borderRadius: 18, backgroundColor: '#a7e733', justifyContent: 'center', alignItems: 'center', alignSelf: 'center', marginBottom: 18, shadowColor: '#4f7915', shadowOpacity: 0.18, shadowRadius: 14, elevation: 4 }, logoGlyph: { color: '#184122', fontSize: 34, fontWeight: '900' }, loginTitle: { color: COLORS.ink, fontSize: 30, fontWeight: '800', textAlign: 'center' }, loginSubtitle: { color: COLORS.muted, fontSize: 15, textAlign: 'center', marginTop: 8, marginBottom: 30 }, loginCard: { backgroundColor: COLORS.card, borderColor: COLORS.border, borderWidth: 1, borderRadius: 18, padding: 20, shadowColor: '#314c3d', shadowOpacity: 0.06, shadowRadius: 18, elevation: 2 }, fieldLabelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 36 }, fieldLabel: { color: COLORS.ink, fontSize: 14, fontWeight: '700', marginBottom: 8, marginTop: 14 }, officialServerButton: { paddingVertical: 6, paddingHorizontal: 9, borderRadius: 8, backgroundColor: COLORS.paleBlue, marginTop: 6 }, officialServerButtonText: { color: '#168da2', fontWeight: '700', fontSize: 12 }, fieldHint: { color: COLORS.muted, fontSize: 12, marginTop: 8 }, input: { height: 48, borderColor: '#cbdcd0', borderWidth: 1, borderRadius: 10, paddingHorizontal: 13, color: COLORS.ink, fontSize: 16, backgroundColor: '#fbfdfb' }, primaryButton: { height: 50, justifyContent: 'center', alignItems: 'center', borderRadius: 11, backgroundColor: COLORS.cyan, marginTop: 24, shadowColor: COLORS.cyan, shadowOpacity: 0.22, shadowRadius: 10, elevation: 3 }, primaryButtonText: { color: '#fff', fontWeight: '800', fontSize: 16 }, pressed: { opacity: 0.82 }, disabled: { opacity: 0.6 }, securityNote: { color: COLORS.muted, fontSize: 12, textAlign: 'center', marginTop: 18 },
   dashboardScroll: { padding: 18, paddingBottom: 34 }, header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }, brand: { color: COLORS.ink, fontSize: 22, fontWeight: '400' }, brandStrong: { fontWeight: '800' }, headerCaption: { color: COLORS.muted, marginTop: 3, fontSize: 12 }, logoutButton: { paddingVertical: 8, paddingHorizontal: 12, borderWidth: 1, borderColor: '#e9b7b2', borderRadius: 9, backgroundColor: '#fffafa' }, logoutText: { color: '#bd3c35', fontWeight: '700', fontSize: 13 }, overviewCard: { backgroundColor: '#112b21', padding: 20, borderRadius: 18, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, overviewEyebrow: { color: '#b5c9bd', fontSize: 13, fontWeight: '700', letterSpacing: 1 }, overviewTitle: { color: '#fff', fontSize: 22, fontWeight: '800', marginTop: 4 }, overviewMeta: { color: '#c7d7cd', fontSize: 12, marginTop: 8, maxWidth: 195 }, refreshButton: { minWidth: 106, height: 40, borderRadius: 10, backgroundColor: COLORS.cyan, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 12 }, refreshText: { color: '#fff', fontWeight: '800', fontSize: 14 }, controlRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 15 }, lastUpdate: { color: COLORS.muted, fontSize: 12, flex: 1 }, privacyControl: { flexDirection: 'row', alignItems: 'center', gap: 7 }, privacyText: { color: COLORS.muted, fontSize: 12 }, loadingBox: { backgroundColor: COLORS.card, borderRadius: 16, padding: 38, alignItems: 'center', gap: 14, borderWidth: 1, borderColor: COLORS.border }, loadingText: { color: COLORS.muted }, emptyBox: { backgroundColor: COLORS.card, borderRadius: 16, padding: 28, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border }, emptyTitle: { color: COLORS.ink, fontWeight: '800', fontSize: 17 }, emptyText: { color: COLORS.muted, textAlign: 'center', marginTop: 9, lineHeight: 20 },
-  accountCard: { backgroundColor: COLORS.card, borderColor: COLORS.border, borderWidth: 1, borderRadius: 16, padding: 16, marginBottom: 12, shadowColor: '#456152', shadowOpacity: 0.04, shadowRadius: 8, elevation: 1 }, activeCard: { borderColor: '#8fdccf', backgroundColor: COLORS.paleBlue }, accountTop: { flexDirection: 'row', alignItems: 'center' }, avatar: { width: 44, height: 44, borderRadius: 13, backgroundColor: COLORS.paleBlue, justifyContent: 'center', alignItems: 'center' }, activeAvatar: { backgroundColor: '#c9f0e7' }, avatarText: { color: '#178ba1', fontWeight: '800', fontSize: 14 }, accountNameBlock: { flex: 1, minWidth: 0, marginLeft: 11 }, accountEmail: { color: COLORS.ink, fontWeight: '800', fontSize: 16 }, accountNote: { color: COLORS.muted, marginTop: 3, fontSize: 12 }, currentBadge: { backgroundColor: '#c7eee8', borderRadius: 7, paddingHorizontal: 8, paddingVertical: 4 }, currentBadgeText: { color: '#14806f', fontWeight: '800', fontSize: 12 }, metaRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginTop: 14 }, planBadge: { borderWidth: 1, borderColor: '#cbd7cf', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3, backgroundColor: '#fff' }, planText: { color: COLORS.ink, fontSize: 12 }, metaText: { color: COLORS.muted, fontSize: 12, maxWidth: 148 }, divider: { height: 1, backgroundColor: '#e4ede6', marginVertical: 15 }, usageBlock: { marginBottom: 14 }, usageHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 }, usageTitle: { color: COLORS.ink, fontWeight: '700', fontSize: 13 }, remaining: { fontWeight: '800', fontSize: 16 }, remainingLabel: { color: COLORS.muted, fontWeight: '400', fontSize: 12 }, usageUnavailable: { color: COLORS.muted, marginTop: 3 }, progressTrack: { height: 7, borderRadius: 10, overflow: 'hidden', backgroundColor: '#dbe8e0' }, progressFill: { height: '100%', borderRadius: 10 }, resetText: { color: COLORS.muted, fontSize: 12, marginTop: 6 }, updatedText: { color: COLORS.muted, fontSize: 11, marginTop: 2 }, errorText: { color: COLORS.danger }, footer: { color: COLORS.muted, textAlign: 'center', fontSize: 12, marginTop: 12 },
-  switchAccountButton: { minHeight: 42, borderRadius: 10, backgroundColor: COLORS.cyan, alignItems: 'center', justifyContent: 'center', marginTop: 14, paddingHorizontal: 12 }, switchAccountButtonText: { color: '#fff', fontSize: 13, fontWeight: '800' },
-  deviceSectionTitle: { color: COLORS.ink, fontSize: 14, fontWeight: '800', marginTop: 18, marginBottom: 10 }, deviceList: { gap: 10, paddingRight: 8 }, deviceChip: { minWidth: 156, maxWidth: 220, minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: 9, borderWidth: 1, borderColor: COLORS.border, borderRadius: 13, backgroundColor: COLORS.card, paddingHorizontal: 13, paddingVertical: 10 }, deviceChipSelected: { backgroundColor: '#15372b', borderColor: '#15372b' }, deviceStatusDot: { width: 9, height: 9, borderRadius: 5 }, deviceOnline: { backgroundColor: '#32d19b' }, deviceOffline: { backgroundColor: '#a8b2ac' }, deviceName: { color: COLORS.ink, fontSize: 13, fontWeight: '800', maxWidth: 165 }, deviceNameSelected: { color: '#fff' }, deviceMeta: { color: COLORS.muted, fontSize: 11, marginTop: 3 }, deviceMetaSelected: { color: '#b9cec3' }, noDeviceBox: { borderWidth: 1, borderColor: COLORS.border, borderRadius: 13, backgroundColor: COLORS.card, padding: 15 }, noDeviceText: { color: COLORS.muted, fontSize: 12, lineHeight: 18 },
-  accountNoteButton: { minHeight: 22, justifyContent: 'center' },
-  noteModalRoot: { flex: 1, justifyContent: 'flex-end' }, noteBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(8, 24, 18, 0.42)' }, noteDrawer: { maxHeight: '72%', minHeight: 250, backgroundColor: COLORS.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingHorizontal: 20, shadowColor: '#10261d', shadowOpacity: 0.2, shadowRadius: 18, elevation: 18 }, noteDrawerHandle: { width: 42, height: 5, borderRadius: 3, alignSelf: 'center', backgroundColor: '#cddbd2', marginBottom: 15 }, noteDrawerHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16 }, noteDrawerHeading: { flex: 1, minWidth: 0 }, noteDrawerTitle: { color: COLORS.ink, fontSize: 20, fontWeight: '800' }, noteDrawerAccount: { color: COLORS.muted, fontSize: 12, marginTop: 4 }, noteDrawerClose: { paddingVertical: 7, paddingHorizontal: 10, borderRadius: 8, backgroundColor: COLORS.paleBlue }, noteDrawerCloseText: { color: '#168da2', fontSize: 13, fontWeight: '800' }, noteContentBox: { minHeight: 130, maxHeight: 360, backgroundColor: COLORS.canvas, borderColor: COLORS.border, borderWidth: 1, borderRadius: 14, marginTop: 18, marginBottom: 18, overflow: 'hidden' }, noteContentScroll: { flexGrow: 0 }, noteContentScrollInner: { padding: 16 }, noteContentText: { color: COLORS.ink, fontSize: 15, lineHeight: 24 }, noteEmptyText: { color: COLORS.muted },
+  accountCard: { minHeight: 102, flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: COLORS.card, borderColor: COLORS.border, borderWidth: 1, borderRadius: 16, paddingVertical: 14, paddingLeft: 16, paddingRight: 14, marginBottom: 12, shadowColor: '#456152', shadowOpacity: 0.04, shadowRadius: 8, elevation: 1 },
+  accountCardPressed: { backgroundColor: '#f2f8f4', borderColor: '#bcd7c5' },
+  compactAccountContent: { flex: 1, minWidth: 0, justifyContent: 'center' },
+  compactAccountEmail: { color: COLORS.ink, fontWeight: '800', fontSize: 15, marginBottom: 10 },
+  compactUsageRow: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  compactProgressTrack: { flex: 1, height: 7, borderRadius: 10, overflow: 'hidden', backgroundColor: '#dbe8e0' },
+  compactRemaining: { width: 38, textAlign: 'right', fontWeight: '800', fontSize: 12 },
+  compactUsageUnavailable: { width: 38, color: COLORS.muted, textAlign: 'right', fontSize: 12 },
+  compactResetText: { color: COLORS.muted, fontSize: 11, marginTop: 8 },
+  compactSwitchButton: { width: 64, minHeight: 44, borderRadius: 12, backgroundColor: COLORS.cyan, alignItems: 'center', justifyContent: 'center' },
+  compactSwitchButtonText: { color: '#fff', fontSize: 14, fontWeight: '800' },
+  avatarText: { color: '#178ba1', fontWeight: '800', fontSize: 14 },
+  usageBlock: { marginBottom: 14 },
+  usageHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 },
+  usageTitle: { color: COLORS.ink, fontWeight: '700', fontSize: 13 },
+  remaining: { fontWeight: '800', fontSize: 16 },
+  remainingLabel: { color: COLORS.muted, fontWeight: '400', fontSize: 12 },
+  usageUnavailable: { color: COLORS.muted, marginTop: 3 },
+  progressTrack: { height: 7, borderRadius: 10, overflow: 'hidden', backgroundColor: '#dbe8e0' },
+  progressFill: { height: '100%', borderRadius: 10 },
+  resetText: { color: COLORS.muted, fontSize: 12, marginTop: 6 },
+  updatedText: { color: COLORS.muted, fontSize: 11, marginTop: 2 },
+  errorText: { color: COLORS.danger },
+  footer: { color: COLORS.muted, textAlign: 'center', fontSize: 12, marginTop: 12 },
+  accountDetailsScroll: { maxHeight: 570, marginBottom: 12 },
+  detailIdentity: { flexDirection: 'row', alignItems: 'center', paddingBottom: 16 },
+  detailAvatar: { width: 48, height: 48, borderRadius: 14, backgroundColor: COLORS.paleBlue, justifyContent: 'center', alignItems: 'center' },
+  detailIdentityText: { flex: 1, minWidth: 0, marginLeft: 12 },
+  detailEmail: { color: COLORS.ink, fontSize: 16, fontWeight: '800' },
+  detailStatus: { color: COLORS.muted, fontSize: 12, lineHeight: 17, marginTop: 4 },
+  detailInfoCard: { borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, backgroundColor: COLORS.canvas, paddingHorizontal: 14, paddingVertical: 8 },
+  detailInfoRow: { minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: 14 },
+  detailInfoLabel: { width: 64, color: COLORS.muted, fontSize: 13 },
+  detailInfoValue: { flex: 1, color: COLORS.ink, fontSize: 13, fontWeight: '700', textAlign: 'right' },
+  detailRowDivider: { height: 1, backgroundColor: '#e4ede6' },
+  detailUsageCard: { borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, backgroundColor: '#fff', padding: 15, paddingBottom: 13, marginTop: 12 },
+  openNoteButton: { minHeight: 62, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, backgroundColor: COLORS.canvas, paddingHorizontal: 15, marginTop: 12, marginBottom: 4 },
+  openNoteTitle: { color: COLORS.ink, fontSize: 14, fontWeight: '800' },
+  openNoteHint: { color: COLORS.muted, fontSize: 11, marginTop: 3 },
+  openNoteArrow: { color: '#91a198', fontSize: 28, lineHeight: 30 },
+  switchDeviceScroll: { maxHeight: 440, marginBottom: 12 },
+  switchDeviceRow: { minHeight: 70, flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, backgroundColor: '#fff', paddingHorizontal: 14, paddingVertical: 11, marginBottom: 10 },
+  switchDeviceRowCurrent: { borderColor: '#8fdccf', backgroundColor: COLORS.paleBlue },
+  switchDeviceRowDisabled: { opacity: 0.58 },
+  deviceStatusDot: { width: 9, height: 9, borderRadius: 5 },
+  deviceOnline: { backgroundColor: '#32d19b' },
+  deviceOffline: { backgroundColor: '#a8b2ac' },
+  switchDeviceInfo: { flex: 1, minWidth: 0 },
+  switchDeviceName: { color: COLORS.ink, fontSize: 14, fontWeight: '800' },
+  switchDeviceMeta: { color: COLORS.muted, fontSize: 11, marginTop: 4 },
+  switchDeviceAction: { minWidth: 52, height: 30, borderRadius: 8, backgroundColor: COLORS.paleBlue, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
+  switchDeviceActionCurrent: { backgroundColor: '#c7eee8' },
+  switchDeviceActionText: { color: '#168da2', fontSize: 12, fontWeight: '800' },
+  switchDeviceActionTextCurrent: { color: '#14806f' },
+  switchDeviceEmpty: { minHeight: 150, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, backgroundColor: COLORS.canvas, padding: 20 },
+  switchDeviceEmptyTitle: { color: COLORS.ink, fontSize: 16, fontWeight: '800' },
+  switchDeviceEmptyText: { color: COLORS.muted, fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 7 },
+  noteContentBox: { minHeight: 130, maxHeight: 360, backgroundColor: COLORS.canvas, borderColor: COLORS.border, borderWidth: 1, borderRadius: 14, marginTop: 2, marginBottom: 18, overflow: 'hidden' },
+  noteContentScroll: { flexGrow: 0 },
+  noteContentScrollInner: { padding: 16 },
+  noteContentText: { color: COLORS.ink, fontSize: 15, lineHeight: 24 },
+  noteEmptyText: { color: COLORS.muted },
   settingsScroll: { padding: 18, paddingBottom: 30 }, settingsHeader: { marginBottom: 24 }, settingsTitle: { color: COLORS.ink, fontSize: 28, fontWeight: '800' }, settingsSubtitle: { color: COLORS.muted, fontSize: 13, marginTop: 4 }, sectionLabel: { color: COLORS.muted, fontSize: 13, fontWeight: '700', marginLeft: 3, marginBottom: 9, marginTop: 2 }, settingsCard: { backgroundColor: COLORS.card, borderColor: COLORS.border, borderWidth: 1, borderRadius: 16, padding: 17, marginBottom: 22, shadowColor: '#456152', shadowOpacity: 0.04, shadowRadius: 8, elevation: 1 }, profileSummary: { flexDirection: 'row', alignItems: 'center' }, profileAvatar: { width: 50, height: 50, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: '#c9f0e7' }, profileAvatarText: { color: '#14806f', fontSize: 16, fontWeight: '800' }, profileSummaryText: { flex: 1, minWidth: 0, marginLeft: 12 }, profileName: { color: COLORS.ink, fontSize: 16, fontWeight: '800' }, profileCaption: { color: COLORS.muted, fontSize: 12, marginTop: 4 }, settingsDivider: { height: 1, backgroundColor: '#e4ede6', marginVertical: 16 }, infoRow: { minHeight: 38, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16 }, infoLabel: { color: COLORS.muted, fontSize: 14 }, infoValue: { color: COLORS.ink, fontSize: 14, fontWeight: '700', flex: 1, textAlign: 'right' }, rowDivider: { height: 1, backgroundColor: '#eef3ef', marginVertical: 7 }, roleBadge: { backgroundColor: COLORS.paleBlue, borderRadius: 8, paddingVertical: 5, paddingHorizontal: 10 }, roleBadgeText: { color: '#168da2', fontWeight: '800', fontSize: 12 }, passwordHint: { color: COLORS.muted, fontSize: 12, lineHeight: 18, marginBottom: 2 }, settingsLogoutButton: { height: 48, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#e9b7b2', borderRadius: 12, backgroundColor: '#fffafa' }, settingsLogoutText: { color: '#bd3c35', fontWeight: '800', fontSize: 15 },
   refreshSettingsTitle: { color: COLORS.ink, fontSize: 16, fontWeight: '800', marginBottom: 6 }, refreshIntervalRow: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 16 }, refreshIntervalInput: { width: 88, height: 44, borderWidth: 1, borderColor: '#cbdcd0', borderRadius: 9, backgroundColor: '#fbfdfb', color: COLORS.ink, fontSize: 16, textAlign: 'center' }, refreshIntervalUnit: { color: COLORS.muted, fontSize: 14, flex: 1 }, saveIntervalButton: { minWidth: 72, height: 42, alignItems: 'center', justifyContent: 'center', borderRadius: 9, backgroundColor: COLORS.cyan, paddingHorizontal: 14 }, saveIntervalText: { color: '#fff', fontWeight: '800', fontSize: 14 }, refreshSettingsHint: { color: COLORS.muted, fontSize: 11, lineHeight: 17, marginTop: 12 },
   passwordEntry: { flexDirection: 'row', alignItems: 'center', minHeight: 76 }, passwordEntryText: { flex: 1 }, passwordEntryArrow: { color: '#91a198', fontSize: 30, lineHeight: 32, marginLeft: 12 }, passwordDrawerBody: { maxHeight: 500, paddingTop: 2, paddingBottom: 6 },
