@@ -3,7 +3,7 @@ use std::{
     fs::{self, OpenOptions},
     io::{self, BufRead, BufReader, Read, Write},
     path::{Path, PathBuf},
-    sync::{Arc, Mutex, OnceLock, TryLockError},
+    sync::{Arc, Mutex, MutexGuard, OnceLock, TryLockError},
     thread::{self, JoinHandle},
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
@@ -90,6 +90,9 @@ struct TokenUsageValues {
 struct TokenUsageAccount {
     account_id: String,
     account_email: String,
+    active_account_generation: u64,
+    auto_switch_attempt_generation: u64,
+    auto_switch_eligible: bool,
 }
 
 #[derive(Clone)]
@@ -320,7 +323,158 @@ impl CodexToolContext {
 
 static RUNTIME: OnceLock<Mutex<Option<ProxyRuntime>>> = OnceLock::new();
 static TOKEN_USAGE_DB_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-static AUTO_SWITCH_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+static AUTO_SWITCH_COORDINATOR: OnceLock<AutoSwitchCoordinator> = OnceLock::new();
+
+#[derive(Default)]
+struct AutoSwitchCoordinator {
+    state: Mutex<AutoSwitchState>,
+}
+
+#[derive(Default)]
+struct AutoSwitchState {
+    // The account generation advances only after a real automatic switch. The attempt
+    // generation also advances after no-op/error outcomes so requests that were already
+    // in flight do not repeat the same expensive refresh after waiting for the lock.
+    active_account_generation: u64,
+    switch_attempt_generation: u64,
+    last_attempt: Option<CompletedAutoSwitchAttempt>,
+}
+
+struct CompletedAutoSwitchAttempt {
+    observed_generation: u64,
+    failed_account_id: String,
+    should_retry: bool,
+}
+
+enum AutoSwitchAttempt {
+    Unchanged,
+    AlreadyChanged,
+    Switched,
+}
+
+impl AutoSwitchCoordinator {
+    fn recover_state<'a>(
+        &'a self,
+        mut state: MutexGuard<'a, AutoSwitchState>,
+    ) -> MutexGuard<'a, AutoSwitchState> {
+        // A panic can happen after the account state was written but before the
+        // coordinator published it. Advance both generations conservatively so old
+        // responses only retry, then keep ordinary official proxying available.
+        state.active_account_generation = state.active_account_generation.wrapping_add(1);
+        state.switch_attempt_generation = state.switch_attempt_generation.wrapping_add(1);
+        state.last_attempt = None;
+        self.state.clear_poison();
+        state
+    }
+
+    fn lock_state(&self) -> MutexGuard<'_, AutoSwitchState> {
+        match self.state.lock() {
+            Ok(state) => state,
+            Err(error) => self.recover_state(error.into_inner()),
+        }
+    }
+
+    #[cfg(test)]
+    fn active_account_generation(&self) -> u64 {
+        self.lock_state().active_account_generation
+    }
+
+    fn account_snapshot<T, F>(&self, snapshot: F) -> Result<(u64, u64, T), String>
+    where
+        F: FnOnce() -> Result<T, String>,
+    {
+        let state = self.lock_state();
+        let value = snapshot()?;
+        Ok((
+            state.active_account_generation,
+            state.switch_attempt_generation,
+            value,
+        ))
+    }
+
+    fn switch_or_wait<F>(
+        &self,
+        observed_generation: u64,
+        observed_attempt_generation: u64,
+        failed_account_id: &str,
+        switch: F,
+    ) -> Result<bool, String>
+    where
+        F: FnOnce() -> Result<AutoSwitchAttempt, String>,
+    {
+        self.switch_or_wait_with_waiter_hook(
+            observed_generation,
+            observed_attempt_generation,
+            failed_account_id,
+            switch,
+            || {},
+        )
+    }
+
+    fn switch_or_wait_with_waiter_hook<F, W>(
+        &self,
+        observed_generation: u64,
+        observed_attempt_generation: u64,
+        failed_account_id: &str,
+        switch: F,
+        waiter_hook: W,
+    ) -> Result<bool, String>
+    where
+        F: FnOnce() -> Result<AutoSwitchAttempt, String>,
+        W: FnOnce(),
+    {
+        let mut state = match self.state.try_lock() {
+            Ok(guard) => guard,
+            Err(TryLockError::WouldBlock) => {
+                waiter_hook();
+                self.lock_state()
+            }
+            Err(TryLockError::Poisoned(error)) => self.recover_state(error.into_inner()),
+        };
+
+        if state.active_account_generation != observed_generation {
+            return Ok(true);
+        }
+
+        if state.switch_attempt_generation != observed_attempt_generation {
+            if let Some(last_attempt) = state.last_attempt.as_ref() {
+                if last_attempt.observed_generation == observed_generation
+                    && last_attempt.failed_account_id == failed_account_id
+                {
+                    return Ok(last_attempt.should_retry);
+                }
+            }
+        }
+
+        let attempt = match switch() {
+            Ok(attempt) => attempt,
+            Err(error) => {
+                state.switch_attempt_generation = state.switch_attempt_generation.wrapping_add(1);
+                state.last_attempt = Some(CompletedAutoSwitchAttempt {
+                    observed_generation,
+                    failed_account_id: failed_account_id.to_string(),
+                    should_retry: false,
+                });
+                return Err(error);
+            }
+        };
+        state.switch_attempt_generation = state.switch_attempt_generation.wrapping_add(1);
+        let should_retry = match attempt {
+            AutoSwitchAttempt::Unchanged => false,
+            AutoSwitchAttempt::AlreadyChanged => true,
+            AutoSwitchAttempt::Switched => {
+                state.active_account_generation = state.active_account_generation.wrapping_add(1);
+                true
+            }
+        };
+        state.last_attempt = Some(CompletedAutoSwitchAttempt {
+            observed_generation,
+            failed_account_id: failed_account_id.to_string(),
+            should_retry,
+        });
+        Ok(should_retry)
+    }
+}
 
 fn runtime() -> &'static Mutex<Option<ProxyRuntime>> {
     RUNTIME.get_or_init(|| Mutex::new(None))
@@ -330,8 +484,8 @@ fn token_usage_db_lock() -> &'static Mutex<()> {
     TOKEN_USAGE_DB_LOCK.get_or_init(|| Mutex::new(()))
 }
 
-fn auto_switch_lock() -> &'static Mutex<()> {
-    AUTO_SWITCH_LOCK.get_or_init(|| Mutex::new(()))
+fn auto_switch_coordinator() -> &'static AutoSwitchCoordinator {
+    AUTO_SWITCH_COORDINATOR.get_or_init(AutoSwitchCoordinator::default)
 }
 
 pub(crate) fn is_running() -> bool {
@@ -957,20 +1111,52 @@ fn retry_official_request_after_quota_switch<R: Runtime, F>(
 where
     F: FnOnce() -> Result<UpstreamPayload, String>,
 {
+    retry_official_request_after_quota_switch_with(
+        response,
+        |observed_generation, observed_attempt_generation, failed_account_id| {
+            auto_switch_official_account(
+                app,
+                observed_generation,
+                observed_attempt_generation,
+                failed_account_id,
+            )
+        },
+        retry,
+    )
+}
+
+fn retry_official_request_after_quota_switch_with<S, F>(
+    response: Result<UpstreamPayload, String>,
+    switch: S,
+    retry: F,
+) -> Result<UpstreamPayload, String>
+where
+    S: FnOnce(u64, u64, &str) -> Result<bool, String>,
+    F: FnOnce() -> Result<UpstreamPayload, String>,
+{
     let response = response?;
     if !is_official_quota_exhaustion(&response) {
         return Ok(response);
     }
 
-    let paths = resolve_paths(app)?;
-    let state = read_state(&paths);
-    if !credential_matches_active_account(&state, response.token_usage_account.as_ref()) {
+    let Some(account) = response
+        .token_usage_account
+        .as_ref()
+        .filter(|account| credential_can_trigger_auto_switch(account))
+    else {
         return Ok(response);
-    }
+    };
+    let observed_generation = account.active_account_generation;
+    let observed_attempt_generation = account.auto_switch_attempt_generation;
+    let failed_account_id = account.account_id.clone();
 
-    match auto_switch_official_account(app) {
-        Ok(Some(_)) => retry(),
-        Ok(None) => Ok(response),
+    match switch(
+        observed_generation,
+        observed_attempt_generation,
+        &failed_account_id,
+    ) {
+        Ok(true) => retry(),
+        Ok(false) => Ok(response),
         Err(error) => {
             eprintln!(
                 "failed to automatically switch official account after quota exhaustion: {error}"
@@ -980,13 +1166,8 @@ where
     }
 }
 
-fn credential_matches_active_account(
-    state: &ManagerStateFile,
-    token_usage_account: Option<&TokenUsageAccount>,
-) -> bool {
-    token_usage_account.is_none_or(|account| {
-        state.active_account_id.as_deref() == Some(account.account_id.as_str())
-    })
+fn credential_can_trigger_auto_switch(account: &TokenUsageAccount) -> bool {
+    account.auto_switch_eligible
 }
 
 fn is_official_quota_exhaustion(payload: &UpstreamPayload) -> bool {
@@ -1015,23 +1196,45 @@ fn is_official_quota_exhaustion(payload: &UpstreamPayload) -> bool {
 
 fn auto_switch_official_account<R: Runtime>(
     app: &tauri::AppHandle<R>,
-) -> Result<Option<String>, String> {
+    observed_generation: u64,
+    observed_attempt_generation: u64,
+    failed_account_id: &str,
+) -> Result<bool, String> {
+    let should_retry = auto_switch_coordinator().switch_or_wait(
+        observed_generation,
+        observed_attempt_generation,
+        failed_account_id,
+        || try_auto_switch_official_account(app, failed_account_id),
+    )?;
+    if !should_retry {
+        return Ok(false);
+    }
+
+    // The retry closure is intentionally official-only. If the user selected a Provider
+    // while this request was waiting, keep the original quota response instead of sending
+    // the retry through stale official routing.
+    let state = read_state(&resolve_paths(app)?);
+    Ok(state.active_provider_id.is_none() && state.active_account_id.is_some())
+}
+
+fn try_auto_switch_official_account<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    failed_account_id: &str,
+) -> Result<AutoSwitchAttempt, String> {
     let paths = resolve_paths(app)?;
     let state = read_state(&paths);
     if !state.auto_switch_on_quota_exhaustion || state.active_provider_id.is_some() {
-        return Ok(None);
+        return Ok(AutoSwitchAttempt::Unchanged);
     }
     let Some(current_id) = state.active_account_id else {
-        return Ok(None);
+        return Ok(AutoSwitchAttempt::Unchanged);
     };
 
-    let _switch_guard = match auto_switch_lock().try_lock() {
-        Ok(guard) => guard,
-        Err(TryLockError::WouldBlock) => return Ok(None),
-        Err(TryLockError::Poisoned(_)) => {
-            return Err("Automatic account switching lock is poisoned".to_string());
-        }
-    };
+    // A manual official-account switch also makes the failed request stale. Retry against
+    // it without advancing the automatic-switch generation or switching away from it.
+    if current_id != failed_account_id {
+        return Ok(AutoSwitchAttempt::AlreadyChanged);
+    }
 
     // The quota result that triggered this flow can be stale, so refresh every enabled
     // official account before choosing a replacement instead of relying on cached usage.
@@ -1040,7 +1243,7 @@ fn auto_switch_official_account<R: Runtime>(
         .iter()
         .any(|account| account.id == current_id && account.auto_switch_enabled)
     {
-        return Ok(None);
+        return Ok(AutoSwitchAttempt::Unchanged);
     }
     let refreshed_accounts = accounts
         .into_iter()
@@ -1063,12 +1266,18 @@ fn auto_switch_official_account<R: Runtime>(
         .collect::<Vec<_>>();
 
     // Do not overwrite a manual switch or a Provider switch made while usage was refreshing.
+    // A new official account can service one retry, while a Provider requires rerouting the
+    // whole request and therefore leaves the original response unchanged here.
     let state = read_state(&paths);
-    if !state.auto_switch_on_quota_exhaustion
-        || state.active_provider_id.is_some()
-        || state.active_account_id.as_deref() != Some(&current_id)
-    {
-        return Ok(None);
+    if !state.auto_switch_on_quota_exhaustion || state.active_provider_id.is_some() {
+        return Ok(AutoSwitchAttempt::Unchanged);
+    }
+    if state.active_account_id.as_deref() != Some(&current_id) {
+        return Ok(if state.active_account_id.is_some() {
+            AutoSwitchAttempt::AlreadyChanged
+        } else {
+            AutoSwitchAttempt::Unchanged
+        });
     }
 
     let Some(target) = account_with_lowest_remaining_primary_quota(
@@ -1076,11 +1285,25 @@ fn auto_switch_official_account<R: Runtime>(
         &current_id,
         state.custom_auto_switch_priority_enabled,
     ) else {
-        return Ok(None);
+        return Ok(AutoSwitchAttempt::Unchanged);
     };
     let target_id = target.id.clone();
-    crate::commands::switch_account(app.clone(), target_id.clone())?;
-    Ok(Some(target_id))
+    if let Err(error) = crate::commands::switch_account(app.clone(), target_id.clone()) {
+        // switch_account writes the selected account before emitting UI events. If a
+        // post-switch side effect failed, the new account is still active and concurrent
+        // quota responses must be released to retry against it.
+        let state = read_state(&paths);
+        if state.active_provider_id.is_none()
+            && state.active_account_id.as_deref() == Some(&target_id)
+        {
+            eprintln!(
+                "automatic account switch to {target_id} completed with a post-switch error: {error}"
+            );
+            return Ok(AutoSwitchAttempt::Switched);
+        }
+        return Err(error);
+    }
+    Ok(AutoSwitchAttempt::Switched)
 }
 
 fn account_with_lowest_remaining_primary_quota<'a>(
@@ -2456,7 +2679,11 @@ fn official_credentials<R: Runtime>(
     purpose: OfficialCredentialPurpose,
 ) -> Result<OfficialProxyCredentials, String> {
     let paths = resolve_paths(app)?;
-    let state = read_state(&paths);
+    // Bind the selected account to both coordinator generations. Requests that start
+    // during a switch wait here and use the new account generation; requests from the
+    // same failed attempt can later tell that another thread already handled it.
+    let (active_account_generation, auto_switch_attempt_generation, state) =
+        auto_switch_coordinator().account_snapshot(|| Ok(read_state(&paths)))?;
     let active_account_id = state
         .active_account_id
         .as_deref()
@@ -2464,7 +2691,8 @@ fn official_credentials<R: Runtime>(
     let active_auth = read_json(&managed_auth_path(&paths, active_account_id))?;
     validate_auth(&active_auth)?;
     let credential_account_id = credential_account_id(&state, &active_auth, purpose)?;
-    let mut auth = if credential_account_id == active_account_id {
+    let auto_switch_eligible = credential_account_id == active_account_id;
+    let mut auth = if auto_switch_eligible {
         active_auth
     } else {
         read_json(&managed_auth_path(&paths, &credential_account_id))?
@@ -2481,6 +2709,9 @@ fn official_credentials<R: Runtime>(
     let token_usage_account = TokenUsageAccount {
         account_id: id,
         account_email: email,
+        active_account_generation,
+        auto_switch_attempt_generation,
+        auto_switch_eligible,
     };
     if matches!(purpose, OfficialCredentialPurpose::ImageGeneration)
         && is_agent_identity_auth(&auth)
@@ -4127,7 +4358,10 @@ mod tests {
     use crate::models::UsageWindow;
     use serde_json::json;
     use std::io::{Cursor, Read};
-    use std::sync::mpsc;
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering as AtomicOrdering},
+        mpsc,
+    };
 
     #[test]
     fn proxy_bind_host_uses_loopback_unless_lan_listening_is_enabled() {
@@ -4177,6 +4411,22 @@ mod tests {
                 fetched_at: None,
                 error: None,
             },
+        }
+    }
+
+    fn official_payload(status: u16, active_account_generation: u64) -> UpstreamPayload {
+        UpstreamPayload {
+            status,
+            content_type: Some("application/json".to_string()),
+            response_headers: Vec::new(),
+            body: UpstreamBody::Buffered(Vec::new()),
+            token_usage_account: Some(TokenUsageAccount {
+                account_id: "current".to_string(),
+                account_email: "current@example.com".to_string(),
+                active_account_generation,
+                auto_switch_attempt_generation: 0,
+                auto_switch_eligible: true,
+            }),
         }
     }
 
@@ -4266,6 +4516,261 @@ mod tests {
 
         assert!(is_official_quota_exhaustion(&quota_payload));
         assert!(!is_official_quota_exhaustion(&forbidden_payload));
+    }
+
+    #[test]
+    fn concurrent_quota_responses_share_one_switch_and_all_retry() {
+        const REQUEST_COUNT: usize = 8;
+
+        let coordinator = Arc::new(AutoSwitchCoordinator::default());
+        let observed_generation = coordinator.active_account_generation();
+        let switch_count = Arc::new(AtomicUsize::new(0));
+        let retry_count = Arc::new(AtomicUsize::new(0));
+        let (switch_started_tx, switch_started_rx) = mpsc::channel();
+        let (finish_switch_tx, finish_switch_rx) = mpsc::channel();
+        let mut handles = vec![{
+            let coordinator = coordinator.clone();
+            let switch_count = switch_count.clone();
+            let retry_count = retry_count.clone();
+            thread::spawn(move || {
+                retry_official_request_after_quota_switch_with(
+                    Ok(official_payload(429, observed_generation)),
+                    |generation, attempt_generation, failed_account_id| {
+                        coordinator.switch_or_wait(
+                            generation,
+                            attempt_generation,
+                            failed_account_id,
+                            || {
+                                switch_count.fetch_add(1, AtomicOrdering::SeqCst);
+                                switch_started_tx.send(()).unwrap();
+                                finish_switch_rx
+                                    .recv_timeout(Duration::from_secs(5))
+                                    .unwrap();
+                                Ok(AutoSwitchAttempt::Switched)
+                            },
+                        )
+                    },
+                    || {
+                        retry_count.fetch_add(1, AtomicOrdering::SeqCst);
+                        Ok(official_payload(200, observed_generation + 1))
+                    },
+                )
+                .unwrap()
+                .status
+            })
+        }];
+
+        switch_started_rx
+            .recv_timeout(Duration::from_secs(5))
+            .unwrap();
+        let (waiter_entered_tx, waiter_entered_rx) = mpsc::channel();
+        for _ in 1..REQUEST_COUNT {
+            let coordinator = coordinator.clone();
+            let switch_count = switch_count.clone();
+            let retry_count = retry_count.clone();
+            let waiter_entered_tx = waiter_entered_tx.clone();
+            handles.push(thread::spawn(move || {
+                retry_official_request_after_quota_switch_with(
+                    Ok(official_payload(429, observed_generation)),
+                    |generation, attempt_generation, failed_account_id| {
+                        coordinator.switch_or_wait_with_waiter_hook(
+                            generation,
+                            attempt_generation,
+                            failed_account_id,
+                            || {
+                                switch_count.fetch_add(1, AtomicOrdering::SeqCst);
+                                Ok(AutoSwitchAttempt::Switched)
+                            },
+                            || waiter_entered_tx.send(()).unwrap(),
+                        )
+                    },
+                    || {
+                        retry_count.fetch_add(1, AtomicOrdering::SeqCst);
+                        Ok(official_payload(200, observed_generation + 1))
+                    },
+                )
+                .unwrap()
+                .status
+            }));
+        }
+
+        for _ in 1..REQUEST_COUNT {
+            waiter_entered_rx
+                .recv_timeout(Duration::from_secs(5))
+                .unwrap();
+        }
+        finish_switch_tx.send(()).unwrap();
+
+        let statuses = handles
+            .into_iter()
+            .map(|handle| handle.join().unwrap())
+            .collect::<Vec<_>>();
+        assert!(statuses.iter().all(|status| *status == 200));
+        assert_eq!(switch_count.load(AtomicOrdering::SeqCst), 1);
+        assert_eq!(retry_count.load(AtomicOrdering::SeqCst), REQUEST_COUNT);
+        assert_eq!(coordinator.active_account_generation(), 1);
+    }
+
+    #[test]
+    fn quota_waiter_does_not_take_over_when_leader_does_not_switch() {
+        let coordinator = Arc::new(AutoSwitchCoordinator::default());
+        let observed_generation = coordinator.active_account_generation();
+        let follower_switch_count = Arc::new(AtomicUsize::new(0));
+        let (leader_started_tx, leader_started_rx) = mpsc::channel();
+        let (finish_leader_tx, finish_leader_rx) = mpsc::channel();
+
+        let leader = {
+            let coordinator = coordinator.clone();
+            thread::spawn(move || {
+                coordinator.switch_or_wait(observed_generation, 0, "current", || {
+                    leader_started_tx.send(()).unwrap();
+                    finish_leader_rx
+                        .recv_timeout(Duration::from_secs(5))
+                        .unwrap();
+                    Ok(AutoSwitchAttempt::Unchanged)
+                })
+            })
+        };
+        leader_started_rx
+            .recv_timeout(Duration::from_secs(5))
+            .unwrap();
+
+        let (waiter_entered_tx, waiter_entered_rx) = mpsc::channel();
+        let follower = {
+            let coordinator = coordinator.clone();
+            let follower_switch_count = follower_switch_count.clone();
+            thread::spawn(move || {
+                coordinator.switch_or_wait_with_waiter_hook(
+                    observed_generation,
+                    0,
+                    "current",
+                    || {
+                        follower_switch_count.fetch_add(1, AtomicOrdering::SeqCst);
+                        Ok(AutoSwitchAttempt::Switched)
+                    },
+                    || waiter_entered_tx.send(()).unwrap(),
+                )
+            })
+        };
+        waiter_entered_rx
+            .recv_timeout(Duration::from_secs(5))
+            .unwrap();
+        finish_leader_tx.send(()).unwrap();
+
+        assert!(!leader.join().unwrap().unwrap());
+        assert!(!follower.join().unwrap().unwrap());
+        assert_eq!(follower_switch_count.load(AtomicOrdering::SeqCst), 0);
+        assert_eq!(coordinator.active_account_generation(), 0);
+    }
+
+    #[test]
+    fn already_changed_account_does_not_advance_automatic_generation() {
+        let coordinator = AutoSwitchCoordinator::default();
+        let observed_generation = coordinator.active_account_generation();
+
+        assert!(coordinator
+            .switch_or_wait(observed_generation, 0, "old", || {
+                Ok(AutoSwitchAttempt::AlreadyChanged)
+            })
+            .unwrap());
+        assert_eq!(coordinator.active_account_generation(), observed_generation);
+
+        let switch_count = AtomicUsize::new(0);
+        assert!(coordinator
+            .switch_or_wait(observed_generation, 0, "current", || {
+                switch_count.fetch_add(1, AtomicOrdering::SeqCst);
+                Ok(AutoSwitchAttempt::Switched)
+            })
+            .unwrap());
+        assert_eq!(switch_count.load(AtomicOrdering::SeqCst), 1);
+        assert_eq!(coordinator.active_account_generation(), 1);
+    }
+
+    #[test]
+    fn poisoned_switch_coordinator_keeps_official_snapshots_available() {
+        let coordinator = Arc::new(AutoSwitchCoordinator::default());
+        let poisoning_coordinator = coordinator.clone();
+        assert!(thread::spawn(move || {
+            let _state = poisoning_coordinator.state.lock().unwrap();
+            panic!("poison automatic switch state for recovery test");
+        })
+        .join()
+        .is_err());
+
+        let (generation, attempt_generation, account_id) = coordinator
+            .account_snapshot(|| Ok::<_, String>("current".to_string()))
+            .unwrap();
+        assert_eq!(generation, 1);
+        assert_eq!(attempt_generation, 1);
+        assert_eq!(account_id, "current");
+
+        assert!(coordinator
+            .switch_or_wait(generation, attempt_generation, &account_id, || {
+                Ok(AutoSwitchAttempt::Switched)
+            })
+            .unwrap());
+        assert_eq!(coordinator.active_account_generation(), 2);
+    }
+
+    #[test]
+    fn delayed_quota_response_uses_its_original_generation() {
+        let coordinator = AutoSwitchCoordinator::default();
+        let observed_generation = coordinator.active_account_generation();
+        assert!(coordinator
+            .switch_or_wait(observed_generation, 0, "current", || {
+                Ok(AutoSwitchAttempt::Switched)
+            })
+            .unwrap());
+
+        let second_switch_count = AtomicUsize::new(0);
+        let retry_count = AtomicUsize::new(0);
+        let response = retry_official_request_after_quota_switch_with(
+            Ok(official_payload(429, observed_generation)),
+            |generation, attempt_generation, failed_account_id| {
+                coordinator.switch_or_wait(
+                    generation,
+                    attempt_generation,
+                    failed_account_id,
+                    || {
+                        second_switch_count.fetch_add(1, AtomicOrdering::SeqCst);
+                        Ok(AutoSwitchAttempt::Switched)
+                    },
+                )
+            },
+            || {
+                retry_count.fetch_add(1, AtomicOrdering::SeqCst);
+                Ok(official_payload(200, observed_generation + 1))
+            },
+        )
+        .unwrap();
+
+        assert_eq!(response.status, 200);
+        assert_eq!(second_switch_count.load(AtomicOrdering::SeqCst), 0);
+        assert_eq!(retry_count.load(AtomicOrdering::SeqCst), 1);
+        assert_eq!(coordinator.active_account_generation(), 1);
+    }
+
+    #[test]
+    fn quota_switch_retry_is_limited_to_once() {
+        let switch_count = AtomicUsize::new(0);
+        let retry_count = AtomicUsize::new(0);
+
+        let response = retry_official_request_after_quota_switch_with(
+            Ok(official_payload(429, 0)),
+            |_, _, _| {
+                switch_count.fetch_add(1, AtomicOrdering::SeqCst);
+                Ok(true)
+            },
+            || {
+                retry_count.fetch_add(1, AtomicOrdering::SeqCst);
+                Ok(official_payload(429, 1))
+            },
+        )
+        .unwrap();
+
+        assert_eq!(response.status, 429);
+        assert_eq!(switch_count.load(AtomicOrdering::SeqCst), 1);
+        assert_eq!(retry_count.load(AtomicOrdering::SeqCst), 1);
     }
 
     #[test]
@@ -4369,22 +4874,23 @@ mod tests {
 
     #[test]
     fn fallback_image_credentials_cannot_trigger_a_main_account_switch() {
-        let state = ManagerStateFile {
-            active_account_id: Some("agent-identity".to_string()),
-            image_generation_account_id: Some("oauth-account".to_string()),
-            ..ManagerStateFile::default()
-        };
         let active = TokenUsageAccount {
             account_id: "agent-identity".to_string(),
             account_email: "agent@example.com".to_string(),
+            active_account_generation: 0,
+            auto_switch_attempt_generation: 0,
+            auto_switch_eligible: true,
         };
         let fallback = TokenUsageAccount {
             account_id: "oauth-account".to_string(),
             account_email: "oauth@example.com".to_string(),
+            active_account_generation: 0,
+            auto_switch_attempt_generation: 0,
+            auto_switch_eligible: false,
         };
 
-        assert!(credential_matches_active_account(&state, Some(&active)));
-        assert!(!credential_matches_active_account(&state, Some(&fallback)));
+        assert!(credential_can_trigger_auto_switch(&active));
+        assert!(!credential_can_trigger_auto_switch(&fallback));
     }
 
     #[test]

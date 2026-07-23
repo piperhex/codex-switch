@@ -113,15 +113,6 @@ export function LocalProxyCard({
         )}
         {proxyRunning && (
           <>
-            {localProxy?.autoSwitchOnQuotaExhaustion && (
-              <Tooltip title={t("providers.proxy.autoDisableUnreachableTooltip")}>
-                <span className="proxy-auto-switch">
-                  <Switch size="small" checked={localProxy.autoDisableUnreachableAccounts}
-                    disabled={proxyBusy} onChange={onAutoDisableUnreachableChange} />
-                  <span>{t("providers.proxy.autoDisableUnreachable")}</span>
-                </span>
-              </Tooltip>
-            )}
             <Popover trigger="hover" placement="bottom" mouseEnterDelay={0.08} mouseLeaveDelay={0.12}
               content={(
                 <div className="proxy-auto-switch-menu">
@@ -137,6 +128,13 @@ export function LocalProxyCard({
                     <Switch size="small" checked={localProxy?.customAutoSwitchPriorityEnabled ?? false}
                       disabled={proxyBusy || !localProxy?.autoSwitchOnQuotaExhaustion}
                       onChange={onCustomAutoSwitchPriorityEnabledChange} />
+                  </div>
+                  <div className="proxy-auto-switch-menu-item"
+                    title={t("providers.proxy.autoDisableUnreachableTooltip")}>
+                    <span>{t("providers.proxy.autoDisableUnreachable")}</span>
+                    <Switch size="small" checked={localProxy?.autoDisableUnreachableAccounts ?? false}
+                      disabled={proxyBusy || !localProxy?.autoSwitchOnQuotaExhaustion}
+                      onChange={onAutoDisableUnreachableChange} />
                   </div>
                 </div>
               )}>

@@ -2,6 +2,7 @@ import * as Clipboard from 'expo-clipboard';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
+  BackHandler,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -1223,6 +1224,16 @@ function UsersPage({ session, profile, onBack }: AdminAreaProps & { onBack: () =
 export function AdminArea({ session, profile }: AdminAreaProps) {
   const [page, setPage] = useState<AdminPage>('home');
   const props = useMemo(() => ({ session, profile, onBack: () => setPage('home') }), [profile, session]);
+
+  useEffect(() => {
+    if (page === 'home') return undefined;
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      setPage('home');
+      return true;
+    });
+    return () => subscription.remove();
+  }, [page]);
+
   if (page === 'home') return <AdminHome profile={profile} onOpen={setPage} />;
   if (page === 'dashboard') return <DashboardPage {...props} />;
   if (page === 'officialAccounts') return <OfficialAccountsPage {...props} />;

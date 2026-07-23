@@ -1,10 +1,10 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { ConfigProvider, Dropdown, Modal, Tooltip, theme as antdTheme } from "antd";
 import enUS from "antd/locale/en_US";
 import zhCN from "antd/locale/zh_CN";
 import { Archive, BarChart3, CalendarClock, Check, CircleHelp, Cloud, Download, Github, LogIn, LogOut, Megaphone, MessageSquareText, Palette, Play, Plus, RefreshCw, RotateCcw, Server, Settings, ShieldCheck, Upload, UploadCloud, UserRound } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { checkForUpdate, chooseAndExportDiagnosticLogs, consumeResetCredit, DEFAULT_CLOUD_BASE_URL, fetchCloudAnnouncement, installAvailableUpdate, isDesktopApp, launchChatGpt, loadAppSettings, openManagedFolder, reportAnnouncementClick, reportBaseUrlChange, reportFirstInstallation, restartChatGpt, setProxyOnboardingChoice, showTokenUsageWindow, submitFeedback } from "./api/backend";
+import { checkForUpdate, chooseAndExportDiagnosticLogs, consumeResetCredit, DEFAULT_CLOUD_BASE_URL, downloadAvailableUpdate, fetchCloudAnnouncement, installDownloadedUpdate, isDesktopApp, launchChatGpt, loadAppSettings, openManagedFolder, reportAnnouncementClick, reportBaseUrlChange, reportFirstInstallation, restartChatGpt, setProxyOnboardingChoice, showTokenUsageWindow, submitFeedback } from "./api/backend";
 import { HelpModal, type HelpVersionState } from "./components/modals/HelpModal";
 import { FeedbackModal } from "./components/modals/FeedbackModal";
 import { FloatingUsageBubble } from "./components/FloatingUsageBubble";
@@ -37,7 +37,7 @@ import { formatRefreshTime } from "./utils/format";
 import type { BubbleResetDisplay, CloudAnnouncement, UpdateInfo } from "./types";
 
 const LAST_REFRESH_ALL_KEY = "codex-switch:last-refresh-all-at";
-const IGNORED_UPDATE_VERSION_KEY = "codex-switch:ignored-update-version";
+const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 const REPOSITORY_URL = "https://github.com/piperhex/codex-switch.git";
 const APP_LOGO_URL = new URL("../src-tauri/icons/128x128.png", import.meta.url).href;
 const MemoAccountsPage = memo(AccountsPage);
@@ -48,10 +48,6 @@ const MemoSettingsPage = memo(SettingsPage);
 function storedRefreshAllTime() {
   const value = window.localStorage.getItem(LAST_REFRESH_ALL_KEY);
   return value && !Number.isNaN(new Date(value).getTime()) ? value : null;
-}
-
-function shouldShowUpdate(update: UpdateInfo | null) {
-  return update?.latestVersion === window.localStorage.getItem(IGNORED_UPDATE_VERSION_KEY) ? null : update;
 }
 
 function normalizeHttpUrl(value: string | undefined) {
@@ -76,9 +72,13 @@ function DashboardApp() {
   const [proxyOnboardingBusy, setProxyOnboardingBusy] = useState(false);
   const [helpVersionState, setHelpVersionState] = useState<HelpVersionState>({ status: "checking" });
   const [availableUpdate, setAvailableUpdate] = useState<UpdateInfo | null>(null);
+  const [showUpdatePrompt, setShowUpdatePrompt] = useState(false);
   const [checkingForUpdate, setCheckingForUpdate] = useState(false);
-  const [installingUpdate, setInstallingUpdate] = useState(false);
+  const [downloadingUpdate, setDownloadingUpdate] = useState(false);
+  const [updateDownloaded, setUpdateDownloaded] = useState(false);
   const [updateProgress, setUpdateProgress] = useState<number | null>(null);
+  const [installAfterDownloadRequested, setInstallAfterDownloadRequested] = useState(false);
+  const [installingUpdate, setInstallingUpdate] = useState(false);
   const [updateInstallError, setUpdateInstallError] = useState<string | null>(null);
   const [lastRefreshAllAt, setLastRefreshAllAt] = useState<string | null>(storedRefreshAllTime);
   const [chatGptOperation, setChatGptOperation] = useState<"start" | "restart" | null>(null);
@@ -87,6 +87,11 @@ function DashboardApp() {
   const [announcement, setAnnouncement] = useState<CloudAnnouncement | null>(null);
   const helpVersionRequestId = useRef(0);
   const announcementRequestId = useRef(0);
+  const availableUpdateRef = useRef<UpdateInfo | null>(null);
+  const downloadingUpdateRef = useRef(false);
+  const updateDownloadedRef = useRef(false);
+  const downloadedUpdateUserInitiatedRef = useRef(false);
+  const installAfterDownloadRequestedRef = useRef(false);
   const proxyOnboardingChecked = useRef(false);
   const { message: toast, notify } = useToast();
   const { language, setLanguage, t } = useLanguage();
@@ -282,15 +287,6 @@ function DashboardApp() {
       });
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-    void checkForUpdate()
-      .then((update) => {
-        if (!cancelled) setAvailableUpdate(shouldShowUpdate(update));
-      })
-      .catch(() => undefined);
-    return () => { cancelled = true; };
-  }, []);
   const sendFeedback = useCallback(async (content: string, contactEmail: string | null, images: File[]) => {
     await submitFeedback(content, manager.info?.version ?? "0.1.0", contactEmail, images);
     notify(t("feedback.success"));
@@ -416,14 +412,57 @@ function DashboardApp() {
     }
     window.open(releaseUrl, "_blank", "noopener,noreferrer");
   };
+
+  const downloadUpdate = useCallback(async (update: UpdateInfo, promptWhenReady: boolean) => {
+    if (promptWhenReady) {
+      installAfterDownloadRequestedRef.current = true;
+      downloadedUpdateUserInitiatedRef.current = true;
+      setInstallAfterDownloadRequested(true);
+      setAvailableUpdate(update);
+      availableUpdateRef.current = update;
+    } else if (!downloadingUpdateRef.current) {
+      downloadedUpdateUserInitiatedRef.current = false;
+    }
+    downloadingUpdateRef.current = true;
+    setDownloadingUpdate(true);
+    setUpdateProgress(null);
+    setUpdateInstallError(null);
+    try {
+      await downloadAvailableUpdate(setUpdateProgress);
+      setAvailableUpdate(update);
+      availableUpdateRef.current = update;
+      setUpdateDownloaded(true);
+      updateDownloadedRef.current = true;
+      if (installAfterDownloadRequestedRef.current) {
+        installAfterDownloadRequestedRef.current = false;
+        setInstallAfterDownloadRequested(false);
+        setShowUpdatePrompt(true);
+      }
+      return true;
+    } catch (error) {
+      downloadedUpdateUserInitiatedRef.current = false;
+      if (installAfterDownloadRequestedRef.current) {
+        installAfterDownloadRequestedRef.current = false;
+        setInstallAfterDownloadRequested(false);
+        setUpdateInstallError(String(error));
+        setShowUpdatePrompt(true);
+      }
+      return false;
+    } finally {
+      downloadingUpdateRef.current = false;
+      setDownloadingUpdate(false);
+    }
+  }, []);
+
   const checkForUpdates = useCallback(async () => {
     setCheckingForUpdate(true);
-    setUpdateProgress(null);
     setUpdateInstallError(null);
     try {
       const update = await checkForUpdate({ force: true });
       if (update) {
         setAvailableUpdate(update);
+        availableUpdateRef.current = update;
+        setShowUpdatePrompt(true);
       } else {
         notify(t("update.latest"));
       }
@@ -433,16 +472,40 @@ function DashboardApp() {
       setCheckingForUpdate(false);
     }
   }, [notify, t]);
-  const ignoreUpdate = useCallback(() => {
-    if (!availableUpdate) return;
-    window.localStorage.setItem(IGNORED_UPDATE_VERSION_KEY, availableUpdate.latestVersion);
-    setAvailableUpdate(null);
-  }, [availableUpdate]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const checkAndDownload = async () => {
+      try {
+        if (downloadingUpdateRef.current || downloadedUpdateUserInitiatedRef.current) return;
+        const replacePending = updateDownloadedRef.current;
+        const previousVersion = availableUpdateRef.current?.latestVersion;
+        const update = await checkForUpdate({ force: true, replacePending });
+        if (!update) return;
+        if (replacePending && update.latestVersion === previousVersion) return;
+        if (replacePending) {
+          updateDownloadedRef.current = false;
+          setUpdateDownloaded(false);
+        }
+        if (!cancelled) await downloadUpdate(update, false);
+      } catch {
+        // Background update checks retry quietly on the next interval.
+      }
+    };
+    void checkAndDownload();
+    const timer = window.setInterval(() => void checkAndDownload(), UPDATE_CHECK_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [downloadUpdate]);
+
   const installUpdate = useCallback(async () => {
+    downloadedUpdateUserInitiatedRef.current = true;
     setInstallingUpdate(true);
     setUpdateInstallError(null);
     try {
-      await installAvailableUpdate(setUpdateProgress);
+      await installDownloadedUpdate();
     } catch (error) {
       setUpdateInstallError(String(error));
       setInstallingUpdate(false);
@@ -669,6 +732,22 @@ function DashboardApp() {
             ) : (
               <div className="security-chip"><ShieldCheck size={16} /><span><b>{t("chip.title")}</b><small>{t("chip.description")}</small></span></div>
             )}
+            {availableUpdate && (updateDownloaded || (downloadingUpdate && installAfterDownloadRequested)) && (
+              <Tooltip title={downloadingUpdate
+                ? (updateProgress === null
+                  ? t("update.backgroundDownloading")
+                  : t("update.downloading", { progress: updateProgress }))
+                : t("update.ready")}>
+                <button type="button" className={`update-ready-button${downloadingUpdate ? " downloading" : ""}`}
+                  style={downloadingUpdate
+                    ? { "--update-progress": `${updateProgress ?? 0}%` } as CSSProperties
+                    : undefined}
+                  aria-label={downloadingUpdate ? t("update.backgroundDownloading") : t("update.ready")}
+                  onClick={() => setShowUpdatePrompt(true)}>
+                  {downloadingUpdate ? <RefreshCw className="spin" size={18} /> : <Download size={18} />}
+                </button>
+              </Tooltip>
+            )}
           </div>
         </header>
 
@@ -839,9 +918,12 @@ function DashboardApp() {
           versionState={helpVersionState} t={t} />}
         {showFeedback && <FeedbackModal signedInEmail={cloud.state.authenticated ? cloud.state.userEmail : null}
           onClose={() => setShowFeedback(false)} onSubmit={sendFeedback} t={t} />}
-        {availableUpdate && <UpdateModal update={availableUpdate} onClose={() => setAvailableUpdate(null)}
-          onIgnore={ignoreUpdate} onDownload={() => void installUpdate()} installing={installingUpdate}
-          progress={updateProgress} error={updateInstallError} t={t} />}
+        {availableUpdate && showUpdatePrompt && <UpdateModal update={availableUpdate}
+          onClose={() => setShowUpdatePrompt(false)}
+          onDownload={() => void downloadUpdate(availableUpdate, true)}
+          onInstall={() => void installUpdate()} downloading={downloadingUpdate}
+          downloadRequested={installAfterDownloadRequested} downloaded={updateDownloaded}
+          installing={installingUpdate} progress={updateProgress} error={updateInstallError} t={t} />}
         {showProxyOnboarding && <ProxyOnboardingModal busy={proxyOnboardingBusy}
           onDecline={() => void declineProxyOnboarding()} onEnable={() => void enableProxyOnboarding()} t={t} />}
         {toast && <div className="toast"><Check size={17} />{toast}</div>}
