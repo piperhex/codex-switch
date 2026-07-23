@@ -480,6 +480,7 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .proxy-auto-switch-menu { min-width: 210px; display: grid; gap: 4px; }
 .proxy-auto-switch-menu-item { min-height: 30px; display: flex; align-items: center; justify-content: space-between; gap: 24px; color: #46534b; font-size: 12px; font-weight: 600; white-space: nowrap; }
 .proxy-image-account { width: 210px; }
+.proxy-openai-auth-account { width: 210px; }
 .proxy-start-confirm-description,
 .sync-direct-confirm-description { display: block; max-width: 320px; line-height: 1.6; white-space: normal; overflow-wrap: anywhere; }
 .provider-avatar { width: 30px; height: 30px; flex: 0 0 auto; border-radius: 8px; display: grid; place-items: center; color: var(--green-dark); background: var(--green-soft); }

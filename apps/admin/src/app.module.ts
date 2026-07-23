@@ -14,6 +14,7 @@ import { FeedbackModule } from '@/modules/feedback/feedback.module';
 import { UserModule } from '@/modules/user/user.module';
 import { RbacModule } from '@/common/rbac/rbac.module';
 import { DashboardModule } from '@/modules/dashboard/dashboard.module';
+import { DeviceModule } from '@/modules/devices/device.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { DashboardModule } from '@/modules/dashboard/dashboard.module';
     TelemetryModule,
     FeedbackModule,
     DashboardModule,
+    DeviceModule,
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'public'),
     }),

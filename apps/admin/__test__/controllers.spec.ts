@@ -78,10 +78,10 @@ describe('HTTP controllers', () => {
     await expect(controller.upsertProvider(user, provider.id, provider)).resolves.toBe('provider-upsert');
     await expect(controller.deleteProvider(user, provider.id)).resolves.toBe('provider-delete');
 
-    expect(sync.list).toHaveBeenCalledWith(user.id);
+    expect(sync.list).toHaveBeenCalledWith(user.id, undefined);
     expect(sync.listSummary).toHaveBeenCalledWith(user.id);
-    expect(sync.replace).toHaveBeenCalledWith(user.id, { accounts: [account] });
-    expect(sync.upsert).toHaveBeenCalledWith(user.id, account.id, account);
+    expect(sync.replace).toHaveBeenCalledWith(user.id, { accounts: [account] }, undefined);
+    expect(sync.upsert).toHaveBeenCalledWith(user.id, account.id, account, undefined);
     expect(sync.delete).toHaveBeenCalledWith(user.id, account.id);
     expect(sync.listProviders).toHaveBeenCalledWith(user.id);
     expect(sync.replaceProviders).toHaveBeenCalledWith(user.id, { providers: [provider] });

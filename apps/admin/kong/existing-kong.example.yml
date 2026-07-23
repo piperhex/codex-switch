@@ -15,11 +15,13 @@ services:
           - /feedback
           - /announcements
           - /telemetry
+          - /device-switch
         strip_path: false
       - name: codex-switch-protected
         paths:
           - /sync
           - /admin/api
+          - /devices
         strip_path: false
         plugins:
           - name: jwt

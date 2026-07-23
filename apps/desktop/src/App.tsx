@@ -858,6 +858,7 @@ function DashboardApp() {
               onCustomAutoSwitchPriorityEnabledChange={providerManager.setProxyCustomPriority}
               onAutoDisableUnreachableChange={providerManager.setProxyAutoDisableUnreachable}
               onImageAccountChange={providerManager.setProxyImageAccount}
+              onOpenaiAuthAccountChange={providerManager.setProxyOpenaiAuthAccount}
               onListenOnAllInterfacesChange={providerManager.setProxyListenOnAllInterfaces}
               displayMode={accountDisplayMode.displayMode} t={t} />
           </section>
@@ -891,6 +892,7 @@ function DashboardApp() {
               onAutoSwitchChange={providerManager.setProxyAutoSwitch}
               onAutoDisableUnreachableChange={providerManager.setProxyAutoDisableUnreachable}
               onImageAccountChange={providerManager.setProxyImageAccount}
+              onOpenaiAuthAccountChange={providerManager.setProxyOpenaiAuthAccount}
               onListenOnAllInterfacesChange={providerManager.setProxyListenOnAllInterfaces}
               privacyMode={privacyMode.enabled}
               displayMode={accountDisplayMode.displayMode}

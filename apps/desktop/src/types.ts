@@ -87,6 +87,7 @@ export interface LocalProxyStatus {
   autoDisableUnreachableAccounts: boolean;
   listenOnAllInterfaces: boolean;
   imageGenerationAccountId?: string | null;
+  openaiAuthAccountId?: string | null;
 }
 
 export interface DirectConversationSyncResult {

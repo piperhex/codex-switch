@@ -638,10 +638,6 @@ fn switch_account_unlocked<R: Runtime>(app: &tauri::AppHandle<R>, id: &str) -> R
         // The local proxy reads the selected managed credential.  Avoid modifying the
         // authentication file watched by the already-running Codex application.
         write_json_atomic(&paths.current_auth, &selected)?;
-    } else if is_agent_identity_auth(&selected) {
-        // The local proxy owns Agent Identity authentication.  Do not leave the
-        // selected identity in the auth.json watched by the desktop client.
-        crate::providers::write_agent_identity_local_proxy_auth(&paths)?;
     }
     let mut state = read_state(&paths);
     let was_using_provider = state.active_provider_id.take().is_some();
@@ -654,6 +650,9 @@ fn switch_account_unlocked<R: Runtime>(app: &tauri::AppHandle<R>, id: &str) -> R
     }
     state.active_account_id = Some(id.to_string());
     write_state(&paths, &state)?;
+    if proxy_running {
+        crate::providers::sync_local_proxy_openai_auth(&paths)?;
+    }
     touch_account_field(&paths, id, AccountSyncField::Active)?;
     app.emit("accounts-changed", ())
         .map_err(|error| error.to_string())?;
@@ -762,8 +761,15 @@ pub(crate) fn delete_account<R: Runtime>(
     id: String,
 ) -> Result<(), String> {
     let paths = resolve_paths(&app)?;
-    if read_state(&paths).active_account_id.as_deref() == Some(&id) {
+    let current_state = read_state(&paths);
+    if current_state.active_account_id.as_deref() == Some(&id) {
         return Err("不能删除当前正在使用的账户，请先切换到其他账户".to_string());
+    }
+    if current_state.local_proxy_openai_auth_account_id.as_deref() == Some(&id) {
+        return Err(
+            "Cannot delete the OpenAI login account selected by the local proxy. Clear the proxy login selection first."
+                .to_string(),
+        );
     }
     let target = account_dir(&paths, &id);
     if target.exists() {
@@ -795,10 +801,16 @@ pub(crate) fn restart_chatgpt<R: Runtime>(app: tauri::AppHandle<R>) -> Result<()
     let _switch_guard = account_switch_lock()
         .lock()
         .map_err(|_| "Account switch lock is poisoned".to_string())?;
-    let launch_target = refresh_and_get_chatgpt_launch_target(&app);
+    restart_chatgpt_unlocked(&app)
+}
+
+pub(crate) fn restart_chatgpt_unlocked<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+) -> Result<(), String> {
+    let launch_target = refresh_and_get_chatgpt_launch_target(app);
     stop_chatgpt_processes()?;
     wait_for_chatgpt_processes_to_exit(Duration::from_secs(10))?;
-    sync_active_proxy_auth_for_restart(&app)?;
+    sync_active_proxy_auth_for_restart(app)?;
     if crate::dream_skin::restart_active_session()? {
         Ok(())
     } else {
@@ -831,18 +843,7 @@ fn sync_active_proxy_auth_for_restart<R: Runtime>(app: &tauri::AppHandle<R>) -> 
     }
 
     let paths = resolve_paths(app)?;
-    let state = read_state(&paths);
-    // Third-party Provider mode does not use the selected official account.  Only
-    // synchronize the official-account proxy mode, where a stale auth.json can make
-    // a freshly restarted ChatGPT/Codex session fail during its bootstrap.
-    if state.active_provider_id.is_some() {
-        return Ok(());
-    }
-    let Some(account_id) = state.active_account_id else {
-        return Ok(());
-    };
-
-    write_managed_auth_to_current(&paths, &account_id)
+    crate::providers::sync_local_proxy_openai_auth(&paths)
 }
 
 #[derive(Debug, Serialize)]

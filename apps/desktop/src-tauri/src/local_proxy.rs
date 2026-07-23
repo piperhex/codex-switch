@@ -502,6 +502,7 @@ fn status<R: Runtime>(app: &tauri::AppHandle<R>) -> LocalProxyStatus {
         auto_disable_unreachable_accounts,
         listen_on_all_interfaces,
         image_generation_account_id,
+        openai_auth_account_id,
     ) = resolve_paths(app)
         .map(|paths| {
             let state = read_state(&paths);
@@ -511,9 +512,10 @@ fn status<R: Runtime>(app: &tauri::AppHandle<R>) -> LocalProxyStatus {
                 state.auto_disable_unreachable_accounts,
                 state.local_proxy_listen_on_all_interfaces,
                 state.image_generation_account_id,
+                state.local_proxy_openai_auth_account_id,
             )
         })
-        .unwrap_or((false, false, false, false, None));
+        .unwrap_or((false, false, false, false, None, None));
     LocalProxyStatus {
         running: is_running(),
         address: proxy_bind_host(listen_on_all_interfaces).to_string(),
@@ -524,6 +526,7 @@ fn status<R: Runtime>(app: &tauri::AppHandle<R>) -> LocalProxyStatus {
         auto_disable_unreachable_accounts,
         listen_on_all_interfaces,
         image_generation_account_id,
+        openai_auth_account_id,
     }
 }
 
@@ -850,6 +853,42 @@ pub(crate) fn set_image_generation_account<R: Runtime>(
     app.emit("providers-changed", ())
         .map_err(|error| error.to_string())?;
     Ok(status(&app))
+}
+
+#[tauri::command]
+pub(crate) fn set_local_proxy_openai_auth_account<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    account_id: Option<String>,
+) -> Result<LocalProxyStatus, String> {
+    if !is_running() {
+        return Err("Start the local proxy before selecting an OpenAI login account".to_string());
+    }
+
+    let _switch_guard = crate::commands::account_switch_lock()
+        .lock()
+        .map_err(|_| "Account switch lock is poisoned".to_string())?;
+    let paths = resolve_paths(&app)?;
+    let account_id = account_id.filter(|value| !value.trim().is_empty());
+    providers::validate_local_proxy_openai_auth_account(&paths, account_id.as_deref())?;
+
+    let mut state = read_state(&paths);
+    if state.local_proxy_openai_auth_account_id == account_id {
+        return Ok(status(&app));
+    }
+    state.local_proxy_openai_auth_account_id = account_id;
+    write_state(&paths, &state)?;
+    providers::apply_local_proxy_config_for_state(&app)?;
+    app.emit("providers-changed", ())
+        .map_err(|error| error.to_string())?;
+    crate::system_tray::refresh_menu(&app);
+    let proxy_status = status(&app);
+
+    crate::commands::restart_chatgpt_unlocked(&app).map_err(|error| {
+        format!(
+            "OpenAI login state was updated, but ChatGPT/Codex could not be restarted ({error}). Please start ChatGPT or Codex manually."
+        )
+    })?;
+    Ok(proxy_status)
 }
 
 #[derive(Clone, Copy)]

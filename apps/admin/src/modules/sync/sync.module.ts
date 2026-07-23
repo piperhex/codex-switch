@@ -7,6 +7,7 @@ import { SystemAccountBindingEntity } from './entities/system-account-binding.en
 import { SystemAccountEntity } from './entities/system-account.entity';
 import { SyncController } from './sync.controller';
 import { SyncService } from './sync.service';
+import { RemoteDeviceEntity } from '@/modules/devices/entities/remote-device.entity';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { SyncService } from './sync.service';
       SyncedProviderEntity,
       SystemAccountEntity,
       SystemAccountBindingEntity,
+      RemoteDeviceEntity,
     ]),
   ],
   controllers: [SyncController],

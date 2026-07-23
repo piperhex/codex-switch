@@ -32,6 +32,7 @@ export function AccountsPage({
   onAutoSwitchChange,
   onAutoDisableUnreachableChange,
   onImageAccountChange,
+  onOpenaiAuthAccountChange,
   onListenOnAllInterfacesChange,
   privacyMode,
   displayMode,
@@ -66,6 +67,7 @@ export function AccountsPage({
   onAutoSwitchChange: (enabled: boolean) => void;
   onAutoDisableUnreachableChange: (enabled: boolean) => void;
   onImageAccountChange: (accountId: string | null) => void;
+  onOpenaiAuthAccountChange: (accountId: string | null) => void;
   onListenOnAllInterfacesChange: (enabled: boolean) => void;
   privacyMode: boolean;
   displayMode: AccountDisplayMode;
@@ -90,6 +92,7 @@ export function AccountsPage({
         onCustomAutoSwitchPriorityEnabledChange={onCustomAutoSwitchPriorityEnabledChange}
         onAutoDisableUnreachableChange={onAutoDisableUnreachableChange}
         onImageAccountChange={onImageAccountChange}
+        onOpenaiAuthAccountChange={onOpenaiAuthAccountChange}
         onListenOnAllInterfacesChange={onListenOnAllInterfacesChange} t={t} />
     </div>
   );
