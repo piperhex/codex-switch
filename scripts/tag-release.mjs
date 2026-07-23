@@ -12,10 +12,15 @@ const packageLockPath = join(cwd, "package-lock.json");
 const desktopPackageLockPath = "apps/desktop";
 const desktopPackageRelativePath = "apps/desktop/package.json";
 const tauriConfigRelativePath = "apps/desktop/src-tauri/tauri.conf.json";
+const nativePackageLockPath = "apps/native";
+const nativePackageRelativePath = "apps/native/package.json";
+const nativeAppConfigRelativePath = "apps/native/app.json";
 const MSI_VERSION_MAJOR_MINOR_MAX = 255;
 const MSI_VERSION_PATCH_BUILD_MAX = 65535;
 const desktopPackageJsonPath = join(cwd, ...desktopPackageRelativePath.split("/"));
 const tauriConfigPath = join(cwd, ...tauriConfigRelativePath.split("/"));
+const nativePackageJsonPath = join(cwd, ...nativePackageRelativePath.split("/"));
+const nativeAppConfigPath = join(cwd, ...nativeAppConfigRelativePath.split("/"));
 const packageJson = readJson(packageJsonPath);
 const currentVersion = parseVersion(packageJson.version, "package.json version");
 const branch = gitOutput(["branch", "--show-current"]);
@@ -51,6 +56,8 @@ const versionFiles = ["package.json"];
 if (existsSync(packageLockPath)) versionFiles.push("package-lock.json");
 if (existsSync(desktopPackageJsonPath)) versionFiles.push(desktopPackageRelativePath);
 if (existsSync(tauriConfigPath)) versionFiles.push(tauriConfigRelativePath);
+if (existsSync(nativePackageJsonPath)) versionFiles.push(nativePackageRelativePath);
+if (existsSync(nativeAppConfigPath)) versionFiles.push(nativeAppConfigRelativePath);
 
 if (gitOutput(["status", "--porcelain", "--", ...versionFiles])) {
   run("git", ["add", ...versionFiles]);
@@ -146,6 +153,12 @@ function syncVersionFiles(version) {
     if (lock.packages?.[desktopPackageRelativePath]) {
       lock.packages[desktopPackageRelativePath].version = versionText;
     }
+    if (lock.packages?.[nativePackageLockPath]) {
+      lock.packages[nativePackageLockPath].version = versionText;
+    }
+    if (lock.packages?.[nativePackageRelativePath]) {
+      lock.packages[nativePackageRelativePath].version = versionText;
+    }
     writeJson(packageLockPath, lock);
   }
 
@@ -157,6 +170,21 @@ function syncVersionFiles(version) {
     tauriConfig.bundle.windows.wix ??= {};
     tauriConfig.bundle.windows.wix.version = formatWixVersion(version);
     writeJson(tauriConfigPath, tauriConfig);
+  }
+
+  if (existsSync(nativePackageJsonPath)) {
+    const nativePackageJson = readJson(nativePackageJsonPath);
+    nativePackageJson.version = versionText;
+    writeJson(nativePackageJsonPath, nativePackageJson);
+  }
+
+  if (existsSync(nativeAppConfigPath)) {
+    const nativeAppConfig = readJson(nativeAppConfigPath);
+    nativeAppConfig.expo ??= {};
+    nativeAppConfig.expo.android ??= {};
+    nativeAppConfig.expo.version = versionText;
+    nativeAppConfig.expo.android.versionCode = formatAndroidVersionCode(version);
+    writeJson(nativeAppConfigPath, nativeAppConfig);
   }
 }
 
@@ -243,6 +271,22 @@ function formatWixVersion(version) {
   return parts.join(".");
 }
 
+function formatAndroidVersionCode(version) {
+  assertAndroidVersionPart(version.major, "major", 209);
+  assertAndroidVersionPart(version.minor, "minor", 99);
+  assertAndroidVersionPart(version.patch, "patch", 999);
+
+  const releaseSequence = version.prerelease
+    ? numericPrereleaseSuffix(version.prerelease)
+    : 99;
+  assertAndroidVersionPart(releaseSequence, "pre-release", 98);
+
+  return (version.major * 10_000_000)
+    + (version.minor * 100_000)
+    + (version.patch * 100)
+    + releaseSequence;
+}
+
 function numericPrereleaseSuffix(prerelease) {
   const lastIdentifier = prerelease.split(".").at(-1);
   if (!/^\d+$/.test(lastIdentifier)) {
@@ -256,6 +300,12 @@ function numericPrereleaseSuffix(prerelease) {
 function assertMsiVersionPart(value, label, max) {
   if (!Number.isInteger(value) || value < 0 || value > max) {
     fail(`MSI ${label} version part must be between 0 and ${max}.`);
+  }
+}
+
+function assertAndroidVersionPart(value, label, max) {
+  if (!Number.isInteger(value) || value < 0 || value > max) {
+    fail(`Android ${label} version part must be between 0 and ${max}.`);
   }
 }
 

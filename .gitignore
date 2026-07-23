@@ -6,6 +6,7 @@ apps/backend/coverage/
 apps/desktop/src-tauri/target/
 apps/native/android/
 apps/native/ios/
+apps/native/.expo/
 .DS_Store
 *.log
 auth.json
