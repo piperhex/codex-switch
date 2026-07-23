@@ -480,23 +480,33 @@ describe('SyncService', () => {
     );
   });
 
-  it('returns the mobile account overview without the synced auth payload', async () => {
+  it('returns the mobile account overview with only the Codex access token', async () => {
     accounts.find.mockResolvedValue([{
       ownerId: 'owner-1', accountId: 'account-1', email: 'a@example.com', note: 'primary',
-      expiresAt: '', plan: 'Plus', codexAccountId: null, active: true,
+      expiresAt: '', plan: 'Plus', codexAccountId: 'workspace-1', active: true,
       usage: { primary: { remainingPercent: 80 } },
       lastModifiedAt: new Date('2026-07-05T00:00:00.000Z'),
-      auth: { accessToken: 'must-not-leave-the-server' },
+      auth: {
+        tokens: {
+          access_token: 'mobile-access-token',
+          id_token: 'must-not-leave-the-server',
+          refresh_token: 'must-not-leave-the-server',
+        },
+      },
     }]);
 
     const result = await service.listSummary('owner-1');
 
     expect(result).toEqual({
       accounts: [expect.objectContaining({
-        id: 'account-1', email: 'a@example.com', usage: { primary: { remainingPercent: 80 } },
+        id: 'account-1',
+        email: 'a@example.com',
+        accountId: 'workspace-1',
+        codexAccessToken: 'mobile-access-token',
       })],
     });
     expect(result.accounts[0]).not.toHaveProperty('auth');
+    expect(JSON.stringify(result)).not.toContain('must-not-leave-the-server');
     expect(accounts.find).toHaveBeenCalledWith({ where: { ownerId: 'owner-1' }, order: { email: 'ASC' } });
     expect(redis.get).not.toHaveBeenCalled();
   });

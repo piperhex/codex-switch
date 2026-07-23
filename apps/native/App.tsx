@@ -295,8 +295,7 @@ function AccountCard({ account, privateMode, switchBusy, switching, onOpenDetail
   </Pressable>;
 }
 
-function Dashboard({ session, accounts, devices, loading, refreshing, switchingAccountId, onRefresh, onSwitch }: {
-  session: AuthSession;
+function Dashboard({ accounts, devices, loading, refreshing, switchingAccountId, onRefresh, onSwitch }: {
   accounts: AccountSummary[];
   devices: RemoteDevice[];
   loading: boolean;
@@ -366,9 +365,9 @@ function Dashboard({ session, accounts, devices, loading, refreshing, switchingA
       }}
     />
     <ResetCreditsDrawer
-      session={session}
       account={resetCreditsAccount}
       onClose={() => setResetCreditsAccount(null)}
+      onConsumed={onRefresh}
     />
     <NoteDrawer account={noteAccount} onClose={() => setNoteAccount(null)} />
   </>;
@@ -930,10 +929,10 @@ function AccountDetailsDrawer({
   </BottomSheet>;
 }
 
-function ResetCreditsDrawer({ session, account, onClose }: {
-  session: AuthSession;
+function ResetCreditsDrawer({ account, onClose, onConsumed }: {
   account: AccountSummary | null;
   onClose: () => void;
+  onConsumed: () => Promise<void>;
 }) {
   const [summary, setSummary] = useState<ResetCreditsSummary | null>(null);
   const [loading, setLoading] = useState(false);
@@ -943,12 +942,12 @@ function ResetCreditsDrawer({ session, account, onClose }: {
   const accountId = account?.id;
 
   const loadCredits = useCallback(async () => {
-    if (!accountId) return;
+    if (!account) return;
     const requestId = ++requestIdRef.current;
     setLoading(true);
     setError(null);
     try {
-      const next = await fetchResetCredits(session, accountId);
+      const next = await fetchResetCredits(account);
       if (requestId === requestIdRef.current) setSummary(next);
     } catch (nextError) {
       if (requestId === requestIdRef.current) {
@@ -958,7 +957,7 @@ function ResetCreditsDrawer({ session, account, onClose }: {
     } finally {
       if (requestId === requestIdRef.current) setLoading(false);
     }
-  }, [accountId, session]);
+  }, [account]);
 
   useEffect(() => {
     if (!accountId) {
@@ -973,18 +972,18 @@ function ResetCreditsDrawer({ session, account, onClose }: {
   }, [accountId, loadCredits]);
 
   const useCredit = useCallback(async () => {
-    if (!accountId || consuming) return;
+    if (!account || consuming) return;
     setConsuming(true);
     try {
-      await consumeResetCredit(session, accountId);
+      await consumeResetCredit(account);
       Toast.success('重置卡使用成功');
-      await loadCredits();
+      await Promise.all([loadCredits(), onConsumed()]);
     } catch (nextError) {
       Toast.fail(`使用失败：${errorMessage(nextError)}`);
     } finally {
       setConsuming(false);
     }
-  }, [accountId, consuming, loadCredits, session]);
+  }, [account, consuming, loadCredits, onConsumed]);
 
   const confirmUseCredit = useCallback(() => {
     if (!summary?.credits.length || consuming) return;
@@ -1338,7 +1337,7 @@ function AppContent() {
   return <SafeAreaView style={styles.app}>
     <StatusBar style="dark" />
     {activePage === 'accounts'
-      ? <Dashboard session={session} accounts={accounts} devices={devices} loading={loading} refreshing={refreshing}
+      ? <Dashboard accounts={accounts} devices={devices} loading={loading} refreshing={refreshing}
         switchingAccountId={switchingAccountId} onRefresh={refreshAll} onSwitch={handleRemoteSwitch} />
       : activePage === 'admin' && profile?.role === 'admin'
         ? <AdminArea session={session} profile={profile} />

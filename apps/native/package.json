@@ -10,7 +10,8 @@
     "export:android": "node ./scripts/expo.cjs export --platform android --output-dir node_modules/.expo-export",
     "prebuild:android": "node ./scripts/expo.cjs prebuild --platform android --clean --no-install",
     "prebuild:ios": "node ./scripts/expo.cjs prebuild --platform ios --clean --no-install",
-    "check": "tsc --noEmit"
+    "check": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "expo": "^53.0.0",
@@ -30,6 +31,7 @@
   },
   "devDependencies": {
     "@types/react": "~19.0.10",
-    "typescript": "~5.8.3"
+    "typescript": "~5.8.3",
+    "vitest": "^4.1.9"
   }
 }

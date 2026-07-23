@@ -19,6 +19,7 @@ export interface AccountSummary {
   expiresAt: string;
   plan: string;
   accountId?: string | null;
+  codexAccessToken?: string;
   active: boolean;
   usage: UsageSummary;
   lastModifiedAt?: string;
