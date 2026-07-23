@@ -698,16 +698,16 @@ function DashboardApp() {
                       { type: "divider" },
                       { key: "checkUpdate", icon: <RefreshCw size={15} />, label: t("update.check"), disabled: checkingForUpdate },
                       { key: "feedback", icon: <MessageSquareText size={15} />, label: t("feedback.title") },
-                      { key: "help", icon: <CircleHelp size={15} />, label: t("help.open") },
                       { key: "repository", icon: <Github size={15} />, label: t("help.github") },
+                      { key: "help", icon: <CircleHelp size={15} />, label: t("about.open") },
                     ]
                     : [
                       { key: "login", icon: <LogIn size={15} />, label: t("cloud.login"), disabled: cloud.loading },
                       { type: "divider" },
                       { key: "checkUpdate", icon: <RefreshCw size={15} />, label: t("update.check"), disabled: checkingForUpdate },
                       { key: "feedback", icon: <MessageSquareText size={15} />, label: t("feedback.title") },
-                      { key: "help", icon: <CircleHelp size={15} />, label: t("help.open") },
                       { key: "repository", icon: <Github size={15} />, label: t("help.github") },
+                      { key: "help", icon: <CircleHelp size={15} />, label: t("about.open") },
                     ],
                   onClick: ({ key }) => {
                     if (key === "account") openCloudAccount();
