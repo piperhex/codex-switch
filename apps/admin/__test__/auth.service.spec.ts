@@ -37,7 +37,10 @@ describe('AuthService', () => {
     update: ReturnType<typeof vi.fn>;
   };
   let dataSource: { transaction: ReturnType<typeof vi.fn> };
-  let transactionManager: object;
+  let transactionManager: {
+    getRepository: ReturnType<typeof vi.fn>;
+    findOne: ReturnType<typeof vi.fn>;
+  };
   let emailVerification: {
     sendRegistrationCode: ReturnType<typeof vi.fn>;
     sendPasswordResetCode: ReturnType<typeof vi.fn>;
@@ -64,7 +67,10 @@ describe('AuthService', () => {
       create: vi.fn((value) => ({ id: 'refresh-id', ...value })),
       save: vi.fn(async (value) => value), findOne: vi.fn(), update: vi.fn().mockResolvedValue({ affected: 1 }),
     };
-    transactionManager = { getRepository: vi.fn(() => tokens) };
+    transactionManager = {
+      getRepository: vi.fn(() => tokens),
+      findOne: vi.fn(),
+    };
     dataSource = {
       transaction: vi.fn(async (callback) => callback(transactionManager)),
     };
@@ -237,7 +243,7 @@ describe('AuthService', () => {
     expect(tokens.findOne).not.toHaveBeenCalled();
   });
 
-  it('rotates a valid refresh token by atomically revoking the old record', async () => {
+  it('rotates a valid refresh token in one transaction', async () => {
     const user = makeUser();
     const oldToken = {
       id: 'old-token-id', userId: user.id, user, tokenHash: hash('old-refresh'),
@@ -245,6 +251,7 @@ describe('AuthService', () => {
     };
     jwt.verifyAsync.mockResolvedValue({ sub: user.id, tokenId: oldToken.id, typ: 'refresh' });
     tokens.findOne.mockResolvedValue(oldToken);
+    transactionManager.findOne.mockResolvedValue(user);
     prepareIssuance();
 
     await expect(service.refresh('old-refresh')).resolves.toMatchObject({ accessToken: 'access-token' });
@@ -254,18 +261,30 @@ describe('AuthService', () => {
       where: expect.objectContaining({
         id: oldToken.id, userId: user.id, tokenHash: hash('old-refresh'), revokedAt: expect.anything(),
       }),
-      relations: { user: true },
+      lock: { mode: 'pessimistic_write' },
     });
-    expect(tokens.update).toHaveBeenCalledWith(expect.objectContaining({
+    expect(dataSource.transaction).toHaveBeenCalledOnce();
+    expect(tokens.save).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      id: 'refresh-id',
+      tokenHash: hash('refresh-token'),
+    }));
+    expect(tokens.save).toHaveBeenNthCalledWith(2, expect.objectContaining({
       id: oldToken.id,
-      userId: user.id,
-      tokenHash: hash('old-refresh'),
-      revokedAt: expect.anything(),
-      expiresAt: expect.anything(),
-    }), { revokedAt: new Date('2026-07-04T00:00:00.000Z') });
+      revokedAt: new Date('2026-07-04T00:00:00.000Z'),
+    }));
   });
 
   it('rejects a refresh token already consumed by a concurrent request', async () => {
+    const user = makeUser();
+    jwt.verifyAsync.mockResolvedValue({ sub: user.id, tokenId: 'old-token-id', typ: 'refresh' });
+    tokens.findOne.mockResolvedValue(null);
+
+    await expect(service.refresh('old-refresh')).rejects.toThrow('Refresh token expired');
+
+    expect(jwt.signAsync).not.toHaveBeenCalled();
+  });
+
+  it('keeps the current refresh token active when replacement issuance fails', async () => {
     const user = makeUser();
     const oldToken = {
       id: 'old-token-id', userId: user.id, user, tokenHash: hash('old-refresh'),
@@ -273,20 +292,29 @@ describe('AuthService', () => {
     };
     jwt.verifyAsync.mockResolvedValue({ sub: user.id, tokenId: oldToken.id, typ: 'refresh' });
     tokens.findOne.mockResolvedValue(oldToken);
-    tokens.update.mockResolvedValue({ affected: 0 });
+    transactionManager.findOne.mockResolvedValue(user);
+    prepareIssuance();
+    tokens.save.mockRejectedValueOnce(new Error('database unavailable'));
 
-    await expect(service.refresh('old-refresh')).rejects.toThrow('Refresh token expired');
+    await expect(service.refresh('old-refresh')).rejects.toThrow('database unavailable');
 
-    expect(jwt.signAsync).not.toHaveBeenCalled();
+    expect(oldToken.revokedAt).toBeNull();
+    expect(tokens.save).toHaveBeenCalledOnce();
   });
 
   it.each([
-    ['missing record', null],
-    ['expired record', { expiresAt: new Date('2026-07-04T00:00:00.000Z'), user: makeUser() }],
-    ['disabled owner', { expiresAt: new Date('2026-07-04T00:01:00.000Z'), user: makeUser({ disabled: true }) }],
-  ])('rejects refresh for %s', async (_, token) => {
+    ['missing record', null, makeUser()],
+    ['expired record', { expiresAt: new Date('2026-07-04T00:00:00.000Z') }, makeUser()],
+    ['missing owner', { expiresAt: new Date('2026-07-04T00:01:00.000Z') }, null],
+    [
+      'disabled owner',
+      { expiresAt: new Date('2026-07-04T00:01:00.000Z') },
+      makeUser({ disabled: true }),
+    ],
+  ])('rejects refresh for %s', async (_, token, user) => {
     jwt.verifyAsync.mockResolvedValue({ sub: 'user-1', tokenId: 'token-1', typ: 'refresh' });
     tokens.findOne.mockResolvedValue(token);
+    transactionManager.findOne.mockResolvedValue(user);
     await expect(service.refresh('refresh')).rejects.toThrow('Refresh token expired');
     expect(tokens.save).not.toHaveBeenCalled();
   });

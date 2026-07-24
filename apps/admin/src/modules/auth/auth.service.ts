@@ -2,7 +2,7 @@ import { createHash } from 'crypto';
 import { BadRequestException, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { JwtService, type JwtSignOptions } from '@nestjs/jwt';
-import { DataSource, IsNull, MoreThan, Repository } from 'typeorm';
+import { DataSource, IsNull, Repository } from 'typeorm';
 import { MODULE_OPTIONS_TOKEN } from '@/config/configurable';
 import { getKongJwtSecret, getRefreshSecret } from '@/config/auth-secrets';
 import type { ConfigModuleOptions } from '@/config/config.types';
@@ -99,33 +99,31 @@ export class AuthService {
       throw new UnauthorizedException('Refresh token is invalid');
     }
     if (payload.typ !== 'refresh') throw new UnauthorizedException('Refresh token is invalid');
-    const token = await this.refreshTokens.findOne({
-      where: {
-        id: payload.tokenId,
-        userId: payload.sub,
-        tokenHash: this.hashToken(refreshToken),
-        revokedAt: IsNull(),
-      },
-      relations: { user: true },
+    return this.dataSource.transaction(async (manager) => {
+      const refreshTokens = manager.getRepository(RefreshTokenEntity);
+      const token = await refreshTokens.findOne({
+        where: {
+          id: payload.tokenId,
+          userId: payload.sub,
+          tokenHash: this.hashToken(refreshToken),
+          revokedAt: IsNull(),
+        },
+        lock: { mode: 'pessimistic_write' },
+      });
+      const now = new Date();
+      if (!token || token.expiresAt <= now) {
+        throw new UnauthorizedException('Refresh token expired');
+      }
+      const user = await manager.findOne(UserEntity, { where: { id: token.userId } });
+      if (!user || user.disabled) throw new UnauthorizedException('Refresh token expired');
+
+      // Keep issuance and consumption in one transaction. If signing or saving
+      // the replacement fails, the current refresh token remains usable.
+      const tokens = await this.issueTokens(user, refreshTokens);
+      token.revokedAt = now;
+      await refreshTokens.save(token);
+      return tokens;
     });
-    const now = new Date();
-    if (!token || token.expiresAt <= now || token.user.disabled) {
-      throw new UnauthorizedException('Refresh token expired');
-    }
-    const consumed = await this.refreshTokens.update(
-      {
-        id: payload.tokenId,
-        userId: payload.sub,
-        tokenHash: this.hashToken(refreshToken),
-        revokedAt: IsNull(),
-        expiresAt: MoreThan(now),
-      },
-      { revokedAt: now },
-    );
-    if (consumed.affected !== 1) {
-      throw new UnauthorizedException('Refresh token expired');
-    }
-    return this.issueTokens(token.user);
   }
 
   async logout(refreshToken: string) {
@@ -150,7 +148,10 @@ export class AuthService {
     };
   }
 
-  private async issueTokens(user: UserEntity) {
+  private async issueTokens(
+    user: UserEntity,
+    refreshTokens: Repository<RefreshTokenEntity> = this.refreshTokens,
+  ) {
     const access = await this.rbac.accessForRole(user.role);
     if (!access) throw new UnauthorizedException('User role is no longer available');
     const accessToken = await this.jwt.signAsync(
@@ -165,7 +166,7 @@ export class AuthService {
         expiresIn: (this.config.JWT_ACCESS_EXPIRES ?? '15m') as JwtSignOptions['expiresIn'],
       },
     );
-    const tokenEntity = this.refreshTokens.create({
+    const tokenEntity = refreshTokens.create({
       userId: user.id,
       expiresAt: new Date(Date.now() + this.refreshTtlSeconds * 1000),
     });
@@ -174,7 +175,7 @@ export class AuthService {
       { secret: this.refreshSecret, expiresIn: this.refreshTtlSeconds },
     );
     tokenEntity.tokenHash = this.hashToken(refreshToken);
-    await this.refreshTokens.save(tokenEntity);
+    await refreshTokens.save(tokenEntity);
     return {
       accessToken,
       refreshToken,
