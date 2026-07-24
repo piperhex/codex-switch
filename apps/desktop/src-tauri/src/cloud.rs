@@ -288,7 +288,33 @@ fn response_error(action: &str, response: reqwest::blocking::Response) -> String
     }
 }
 
-fn refresh_cloud_token(
+fn persist_cloud_token_response<WriteCredentials, WriteSettings>(
+    settings: &mut AppSettings,
+    credentials: &mut CloudCredentials,
+    tokens: CloudTokenResponse,
+    write_credentials: WriteCredentials,
+    write_settings: WriteSettings,
+) -> Result<(), String>
+where
+    WriteCredentials: FnOnce(&CloudCredentials) -> Result<(), String>,
+    WriteSettings: FnOnce(&AppSettings) -> Result<(), String>,
+{
+    credentials.access_token = Some(tokens.access_token);
+    credentials.refresh_token = Some(tokens.refresh_token);
+    if let Some(user) = tokens.user {
+        settings.cloud_user_id = Some(user.id);
+        settings.cloud_user_email = Some(user.email);
+    }
+
+    // The backend has already revoked the old refresh token. Store its
+    // replacement before any ancillary settings write or business retry.
+    write_credentials(credentials)?;
+    write_settings(settings)?;
+    Ok(())
+}
+
+fn refresh_cloud_token<R: Runtime>(
+    app: &tauri::AppHandle<R>,
     client: &Client,
     settings: &mut AppSettings,
     credentials: &mut CloudCredentials,
@@ -308,13 +334,13 @@ fn refresh_cloud_token(
     let tokens: CloudTokenResponse = response
         .json()
         .map_err(|error| format!("Cloud token refresh response is invalid: {error}"))?;
-    credentials.access_token = Some(tokens.access_token);
-    credentials.refresh_token = Some(tokens.refresh_token);
-    if let Some(user) = tokens.user {
-        settings.cloud_user_id = Some(user.id);
-        settings.cloud_user_email = Some(user.email);
-    }
-    Ok(())
+    persist_cloud_token_response(
+        settings,
+        credentials,
+        tokens,
+        |credentials| write_cloud_credentials(app, credentials),
+        |settings| write_app_settings(app, settings),
+    )
 }
 
 fn access_token_expires_soon(access_token: &str) -> bool {
@@ -350,7 +376,7 @@ pub(crate) fn remote_control_config<R: Runtime>(
     }
     if access_token_expires_soon(&access_token) {
         let client = api_client()?;
-        refresh_cloud_token(&client, &mut settings, &mut credentials)?;
+        refresh_cloud_token(app, &client, &mut settings, &mut credentials)?;
         access_token = credentials
             .access_token
             .clone()
@@ -386,7 +412,8 @@ pub(crate) fn remote_control_config<R: Runtime>(
     }))
 }
 
-fn cloud_request(
+fn cloud_request<R: Runtime>(
+    app: &tauri::AppHandle<R>,
     client: &Client,
     settings: &mut AppSettings,
     credentials: &mut CloudCredentials,
@@ -415,7 +442,7 @@ fn cloud_request(
         if response.status() != StatusCode::UNAUTHORIZED || attempt == 1 {
             return Ok(response);
         }
-        refresh_cloud_token(client, settings, credentials)?;
+        refresh_cloud_token(app, client, settings, credentials)?;
     }
     unreachable!("cloud_request returns inside the retry loop")
 }
@@ -706,12 +733,14 @@ fn provider_payload_to_profile(provider: &ProviderSyncPayload) -> ProviderProfil
     }
 }
 
-fn get_remote_accounts(
+fn get_remote_accounts<R: Runtime>(
+    app: &tauri::AppHandle<R>,
     client: &Client,
     settings: &mut AppSettings,
     credentials: &mut CloudCredentials,
 ) -> Result<CloudAccountsResponse, String> {
     let response = cloud_request(
+        app,
         client,
         settings,
         credentials,
@@ -753,12 +782,14 @@ fn apply_remote_account_deletion<R: Runtime>(
     Ok(existed || state_changed)
 }
 
-fn get_remote_providers(
+fn get_remote_providers<R: Runtime>(
+    app: &tauri::AppHandle<R>,
     client: &Client,
     settings: &mut AppSettings,
     credentials: &mut CloudCredentials,
 ) -> Result<Vec<ProviderSyncPayload>, String> {
     let response = cloud_request(
+        app,
         client,
         settings,
         credentials,
@@ -783,7 +814,7 @@ fn put_remote_accounts<R: Runtime>(
 ) -> Result<usize, String> {
     let accounts = collect_local_accounts(app)?;
     for account in &accounts {
-        upsert_remote_account_payload(client, settings, credentials, account)?;
+        upsert_remote_account_payload(app, client, settings, credentials, account)?;
     }
     settings.cloud_last_sync_at = Some(Utc::now().to_rfc3339());
     Ok(accounts.len())
@@ -797,19 +828,21 @@ fn put_remote_providers<R: Runtime>(
 ) -> Result<usize, String> {
     let providers = collect_local_providers(app)?;
     for provider in &providers {
-        upsert_remote_provider_payload(client, settings, credentials, provider)?;
+        upsert_remote_provider_payload(app, client, settings, credentials, provider)?;
     }
     settings.cloud_last_sync_at = Some(Utc::now().to_rfc3339());
     Ok(providers.len())
 }
 
-fn upsert_remote_account_payload(
+fn upsert_remote_account_payload<R: Runtime>(
+    app: &tauri::AppHandle<R>,
     client: &Client,
     settings: &mut AppSettings,
     credentials: &mut CloudCredentials,
     account: &CloudAccountPayload,
 ) -> Result<(), String> {
     let response = cloud_request(
+        app,
         client,
         settings,
         credentials,
@@ -823,13 +856,15 @@ fn upsert_remote_account_payload(
     Ok(())
 }
 
-fn upsert_remote_provider_payload(
+fn upsert_remote_provider_payload<R: Runtime>(
+    app: &tauri::AppHandle<R>,
     client: &Client,
     settings: &mut AppSettings,
     credentials: &mut CloudCredentials,
     provider: &ProviderSyncPayload,
 ) -> Result<(), String> {
     let response = cloud_request(
+        app,
         client,
         settings,
         credentials,
@@ -851,7 +886,7 @@ fn put_remote_account<R: Runtime>(
     id: &str,
 ) -> Result<(), String> {
     let account = collect_local_account(app, id)?;
-    upsert_remote_account_payload(client, settings, credentials, &account)?;
+    upsert_remote_account_payload(app, client, settings, credentials, &account)?;
     settings.cloud_last_sync_at = Some(Utc::now().to_rfc3339());
     Ok(())
 }
@@ -864,18 +899,20 @@ fn put_remote_provider<R: Runtime>(
     id: &str,
 ) -> Result<(), String> {
     let provider = collect_local_provider(app, id)?;
-    upsert_remote_provider_payload(client, settings, credentials, &provider)?;
+    upsert_remote_provider_payload(app, client, settings, credentials, &provider)?;
     settings.cloud_last_sync_at = Some(Utc::now().to_rfc3339());
     Ok(())
 }
 
-fn delete_remote_account(
+fn delete_remote_account<R: Runtime>(
+    app: &tauri::AppHandle<R>,
     client: &Client,
     settings: &mut AppSettings,
     credentials: &mut CloudCredentials,
     id: &str,
 ) -> Result<(), String> {
     let response = cloud_request(
+        app,
         client,
         settings,
         credentials,
@@ -890,13 +927,15 @@ fn delete_remote_account(
     Ok(())
 }
 
-fn delete_remote_provider(
+fn delete_remote_provider<R: Runtime>(
+    app: &tauri::AppHandle<R>,
     client: &Client,
     settings: &mut AppSettings,
     credentials: &mut CloudCredentials,
     id: &str,
 ) -> Result<(), String> {
     let response = cloud_request(
+        app,
         client,
         settings,
         credentials,
@@ -1121,6 +1160,7 @@ pub(crate) async fn report_announcement_click<R: Runtime>(
 
         let response = if authenticated {
             let response = cloud_request(
+                &app,
                 &client,
                 &mut settings,
                 &mut credentials,
@@ -1199,7 +1239,7 @@ pub(crate) async fn submit_feedback<R: Runtime>(
                 final_response = Some(response);
                 break;
             }
-            refresh_cloud_token(&client, &mut settings, &mut credentials)?;
+            refresh_cloud_token(&app, &client, &mut settings, &mut credentials)?;
         }
 
         if authenticated {
@@ -1285,6 +1325,7 @@ pub(crate) async fn cloud_change_password<R: Runtime>(
         let mut settings = read_app_settings(&app)?;
         let mut credentials = read_cloud_credentials(&app);
         let response = cloud_request(
+            &app,
             &client,
             &mut settings,
             &mut credentials,
@@ -1366,14 +1407,14 @@ async fn cloud_authenticate<R: Runtime>(
         }
         // A returning device may hold an older local copy. Merge the cloud state first so a
         // login cannot immediately publish that stale copy over newer cloud fields.
-        let remote_accounts = get_remote_accounts(&client, &mut settings, &mut credentials)?;
+        let remote_accounts = get_remote_accounts(&app, &client, &mut settings, &mut credentials)?;
         for account_id in &remote_accounts.deleted_account_ids {
             apply_remote_account_deletion(&app, account_id)?;
         }
         for account in remote_accounts.accounts {
             apply_remote_account(&app, &account)?;
         }
-        for provider in get_remote_providers(&client, &mut settings, &mut credentials)? {
+        for provider in get_remote_providers(&app, &client, &mut settings, &mut credentials)? {
             apply_remote_provider(&app, &provider)?;
         }
         let _ = put_remote_accounts(&app, &client, &mut settings, &mut credentials)?;
@@ -1507,7 +1548,7 @@ pub(crate) async fn cloud_delete_account<R: Runtime>(
         let client = api_client()?;
         let mut settings = read_app_settings(&app)?;
         let mut credentials = read_cloud_credentials(&app);
-        delete_remote_account(&client, &mut settings, &mut credentials, &id)?;
+        delete_remote_account(&app, &client, &mut settings, &mut credentials, &id)?;
         write_app_settings(&app, &settings)?;
         write_cloud_credentials(&app, &credentials)?;
         Ok(CloudSyncResult {
@@ -1529,7 +1570,7 @@ pub(crate) async fn cloud_delete_provider<R: Runtime>(
         let client = api_client()?;
         let mut settings = read_app_settings(&app)?;
         let mut credentials = read_cloud_credentials(&app);
-        delete_remote_provider(&client, &mut settings, &mut credentials, &id)?;
+        delete_remote_provider(&app, &client, &mut settings, &mut credentials, &id)?;
         write_app_settings(&app, &settings)?;
         write_cloud_credentials(&app, &credentials)?;
         Ok(CloudSyncResult {
@@ -1558,7 +1599,7 @@ pub(crate) async fn cloud_sync_accounts<R: Runtime>(
             .into_iter()
             .map(|provider| provider.id)
             .collect::<HashSet<_>>();
-        let remote_accounts = get_remote_accounts(&client, &mut settings, &mut credentials)?;
+        let remote_accounts = get_remote_accounts(&app, &client, &mut settings, &mut credentials)?;
         let mut downloaded = 0;
         for account_id in &remote_accounts.deleted_account_ids {
             if apply_remote_account_deletion(&app, account_id)? {
@@ -1573,7 +1614,7 @@ pub(crate) async fn cloud_sync_accounts<R: Runtime>(
             }
         }
         let mut providers_downloaded = 0;
-        for provider in get_remote_providers(&client, &mut settings, &mut credentials)? {
+        for provider in get_remote_providers(&app, &client, &mut settings, &mut credentials)? {
             let is_new = !local_provider_ids.contains(&provider.id);
             let applied = apply_remote_provider(&app, &provider)?;
             if is_new || applied {
@@ -1606,7 +1647,11 @@ pub(crate) async fn cloud_sync_accounts<R: Runtime>(
 
 #[cfg(test)]
 mod tests {
-    use super::CloudAccountsResponse;
+    use super::{
+        persist_cloud_token_response, CloudAccountsResponse, CloudCredentials, CloudTokenResponse,
+        CloudUserResponse,
+    };
+    use crate::models::AppSettings;
 
     #[test]
     fn cloud_account_response_accepts_soft_delete_tombstones() {
@@ -1615,5 +1660,67 @@ mod tests {
 
         assert!(response.accounts.is_empty());
         assert_eq!(response.deleted_account_ids, ["account-1"]);
+    }
+
+    #[test]
+    fn refreshed_credentials_are_persisted_before_followup_work() {
+        let mut settings = AppSettings::default();
+        let mut credentials = CloudCredentials {
+            access_token: Some("old-access".to_string()),
+            refresh_token: Some("old-refresh".to_string()),
+            device_id: Some("device-1".to_string()),
+        };
+        let mut persisted_credentials = None;
+
+        persist_cloud_token_response(
+            &mut settings,
+            &mut credentials,
+            CloudTokenResponse {
+                access_token: "new-access".to_string(),
+                refresh_token: "new-refresh".to_string(),
+                user: Some(CloudUserResponse {
+                    id: "user-1".to_string(),
+                    email: "user@example.com".to_string(),
+                }),
+            },
+            |credentials| {
+                persisted_credentials = Some(credentials.clone());
+                Ok(())
+            },
+            |_| Ok(()),
+        )
+        .unwrap();
+
+        let followup_result: Result<(), String> = Err("sync failed".to_string());
+        assert!(followup_result.is_err());
+        assert_eq!(
+            persisted_credentials.unwrap().refresh_token.as_deref(),
+            Some("new-refresh")
+        );
+    }
+
+    #[test]
+    fn credential_rotation_is_saved_before_profile_settings() {
+        let mut settings = AppSettings::default();
+        let mut credentials = CloudCredentials::default();
+        let mut credential_write_completed = false;
+
+        let result = persist_cloud_token_response(
+            &mut settings,
+            &mut credentials,
+            CloudTokenResponse {
+                access_token: "new-access".to_string(),
+                refresh_token: "new-refresh".to_string(),
+                user: None,
+            },
+            |_| {
+                credential_write_completed = true;
+                Ok(())
+            },
+            |_| Err("settings write failed".to_string()),
+        );
+
+        assert_eq!(result.unwrap_err(), "settings write failed");
+        assert!(credential_write_completed);
     }
 }
