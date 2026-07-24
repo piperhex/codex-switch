@@ -862,9 +862,7 @@ pub(crate) async fn restart_chatgpt<R: Runtime + 'static>(
         .map_err(|error| format!("ChatGPT restart task failed: {error}"))?
 }
 
-pub(crate) fn restart_chatgpt_blocking<R: Runtime>(
-    app: tauri::AppHandle<R>,
-) -> Result<(), String> {
+pub(crate) fn restart_chatgpt_blocking<R: Runtime>(app: tauri::AppHandle<R>) -> Result<(), String> {
     // Keep a manual account switch and a restart as one operation.  In proxy mode the
     // switch deliberately leaves auth.json alone while Codex is running, so the
     // restarted process must receive the selected credential before it starts.
