@@ -201,25 +201,6 @@ pub(crate) struct AppSettings {
     pub(crate) token_usage_weeks: u16,
     #[serde(default = "default_token_usage_refresh_seconds")]
     pub(crate) token_usage_refresh_seconds: u64,
-    /// New installations are invited to enable proxy mode once. Existing
-    /// installations retain the `Legacy` default and are never interrupted.
-    #[serde(default)]
-    pub(crate) proxy_onboarding_status: ProxyOnboardingStatus,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub(crate) enum ProxyOnboardingStatus {
-    Legacy,
-    Pending,
-    Enabled,
-    Declined,
-}
-
-impl Default for ProxyOnboardingStatus {
-    fn default() -> Self {
-        Self::Legacy
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -273,7 +254,6 @@ impl Default for AppSettings {
             cloud_session_expired: false,
             token_usage_weeks: default_token_usage_weeks(),
             token_usage_refresh_seconds: default_token_usage_refresh_seconds(),
-            proxy_onboarding_status: ProxyOnboardingStatus::Legacy,
         }
     }
 }

@@ -196,7 +196,6 @@ export async function loadAppSettings(): Promise<AppSettings> {
       cloudBaseUrl: window.localStorage.getItem(CLOUD_BASE_URL_PREVIEW_KEY) ?? DEFAULT_CLOUD_BASE_URL,
       tokenUsageWeeks: Number(window.localStorage.getItem(TOKEN_USAGE_WEEKS_PREVIEW_KEY)) || 20,
       tokenUsageRefreshSeconds: Number(window.localStorage.getItem(TOKEN_USAGE_REFRESH_PREVIEW_KEY)) || 60,
-      proxyOnboardingStatus: "legacy",
     };
   }
   return invoke<AppSettings>("get_app_settings");
@@ -887,11 +886,6 @@ export async function chooseAndExportDiagnosticLogs(): Promise<ExportDiagnosticL
 
 export async function activateAccount(id: string): Promise<void> {
   if (isDesktopApp) await invoke("switch_account_and_restart_chatgpt", { id });
-}
-
-export async function setProxyOnboardingChoice(useProxy: boolean): Promise<AppSettings> {
-  if (!isDesktopApp) return loadAppSettings();
-  return invoke<AppSettings>("set_proxy_onboarding_choice", { useProxy });
 }
 
 export async function setAccountAutoSwitchEnabled(id: string, enabled: boolean): Promise<void> {
