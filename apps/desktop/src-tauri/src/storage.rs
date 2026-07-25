@@ -98,6 +98,19 @@ pub(crate) fn write_text_atomic(path: &Path, value: &str) -> Result<(), String> 
     replace_file(&temp, path).map_err(|error| format!("Failed to save {}: {error}", path.display()))
 }
 
+pub(crate) fn write_text_if_changed(path: &Path, value: &str) -> Result<bool, String> {
+    match fs::read(path) {
+        Ok(existing) if existing == value.as_bytes() => return Ok(false),
+        Ok(_) => {}
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+        Err(error) => {
+            return Err(format!("Failed to read {}: {error}", path.display()));
+        }
+    }
+    write_text_atomic(path, value)?;
+    Ok(true)
+}
+
 pub(crate) fn write_json_if_changed(path: &Path, value: &Value) -> Result<bool, String> {
     if let Ok(existing) = read_json(path) {
         if existing == *value {
@@ -508,8 +521,28 @@ pub(crate) fn save_usage(path: &Path, usage: &UsageSummary) -> Result<(), String
 
 #[cfg(test)]
 mod tests {
-    use super::{should_activate_import, should_sync_current_as_active};
+    use std::fs;
+
+    use super::{should_activate_import, should_sync_current_as_active, write_text_if_changed};
     use crate::models::ManagerStateFile;
+
+    #[test]
+    fn text_is_only_replaced_when_contents_change() {
+        let root = std::env::temp_dir().join(format!(
+            "codex-switch-storage-test-{}",
+            uuid::Uuid::new_v4()
+        ));
+        let path = root.join("config.toml");
+
+        assert!(write_text_if_changed(&path, "model = \"first\"\n").unwrap());
+        assert!(!write_text_if_changed(&path, "model = \"first\"\n").unwrap());
+        assert_eq!(fs::read_to_string(&path).unwrap(), "model = \"first\"\n");
+
+        assert!(write_text_if_changed(&path, "model = \"second\"\n").unwrap());
+        assert_eq!(fs::read_to_string(&path).unwrap(), "model = \"second\"\n");
+
+        fs::remove_dir_all(root).unwrap();
+    }
 
     #[test]
     fn first_official_import_becomes_active_when_codex_has_no_auth() {

@@ -694,7 +694,13 @@ fn start_local_proxy_blocking<R: Runtime>(
     // stopped, then only launch it once the old conversations are ready for
     // local-proxy mode.
     let sync_result = crate::commands::sync_conversation_metadata_if_present(&paths.codex_home);
-    let start_result = crate::commands::start_chatgpt(launch_target.as_ref());
+    let start_result = crate::dream_skin::restart_active_session().and_then(|restarted| {
+        if restarted {
+            Ok(())
+        } else {
+            crate::commands::start_chatgpt(launch_target.as_ref())
+        }
+    });
     match (sync_result, start_result) {
         (Ok(_), Ok(())) => Ok(proxy_status),
         (Err(sync_error), Ok(())) => Err(format!(

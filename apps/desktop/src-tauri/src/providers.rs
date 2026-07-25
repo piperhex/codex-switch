@@ -11,7 +11,7 @@ use crate::{
     models::{ProviderApiFormat, ProviderProfile, ProviderSummary},
     storage::{
         managed_auth_path, read_json, read_state, resolve_paths, write_json_atomic,
-        write_json_if_changed, write_state, write_text_atomic, Paths,
+        write_json_if_changed, write_state, write_text_atomic, write_text_if_changed, Paths,
     },
 };
 
@@ -345,7 +345,7 @@ pub(crate) fn restore_official_config(paths: &Paths) -> Result<(), String> {
                     .map_err(|error| format!("Failed to remove managed Codex config: {error}"))?;
             }
         } else {
-            write_text_atomic(&paths.current_config, &backup)?;
+            write_text_if_changed(&paths.current_config, &backup)?;
         }
         fs::remove_file(&paths.config_backup)
             .map_err(|error| format!("Failed to clear Codex config backup: {error}"))?;
@@ -360,7 +360,7 @@ pub(crate) fn restore_official_config(paths: &Paths) -> Result<(), String> {
             fs::remove_file(&paths.current_config)
                 .map_err(|error| format!("Failed to remove managed Codex config: {error}"))?;
         } else if cleaned != current {
-            write_text_atomic(&paths.current_config, &cleaned)?;
+            write_text_if_changed(&paths.current_config, &cleaned)?;
         }
     }
     Ok(())
@@ -660,7 +660,7 @@ fn write_provider_config(paths: &Paths, provider: &ProviderProfile) -> Result<()
         String::new()
     };
     let merged = merge_provider_config(&existing, provider);
-    write_text_atomic(&paths.current_config, &merged)
+    write_text_if_changed(&paths.current_config, &merged).map(|_| ())
 }
 
 pub(crate) fn write_official_local_proxy_config(paths: &Paths) -> Result<(), String> {
@@ -693,7 +693,7 @@ fn write_active_provider_config(paths: &Paths, provider: &ProviderProfile) -> Re
 
 fn write_provider_model_catalog(paths: &Paths, provider: &ProviderProfile) -> Result<(), String> {
     let value = provider_model_catalog(provider);
-    write_json_atomic(&paths.codex_home.join(MODEL_CATALOG_FILENAME), &value)
+    write_json_if_changed(&paths.codex_home.join(MODEL_CATALOG_FILENAME), &value).map(|_| ())
 }
 
 fn provider_model_catalog(provider: &ProviderProfile) -> Value {
@@ -775,7 +775,7 @@ fn write_local_proxy_config(
         include_model_catalog,
         requires_openai_auth,
     );
-    write_text_atomic(&paths.current_config, &merged)
+    write_text_if_changed(&paths.current_config, &merged).map(|_| ())
 }
 
 fn merge_provider_config(existing: &str, provider: &ProviderProfile) -> String {
