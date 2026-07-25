@@ -22,15 +22,15 @@ use crate::{
     codex_api::{refresh_tokens, token_expiring, ORIGINATOR},
     models::{
         AccountSummary, DailyTokenUsage, LocalProxyStatus, ManagerStateFile, ProviderApiFormat,
-        ProviderProfile, ProxyOnboardingStatus, TokenUsageEntry, UsageSummary,
+        ProviderProfile, TokenUsageEntry, UsageSummary,
     },
     providers::{
         self, LOCAL_PROXY_ACTOR_AUTHORIZATION_HEADER, LOCAL_PROXY_BASE_URL, LOCAL_PROXY_HOST,
         LOCAL_PROXY_PORT,
     },
     storage::{
-        managed_auth_path, read_app_settings, read_json, read_state, resolve_paths,
-        write_app_settings, write_managed_auth_if_changed, write_state, Paths,
+        managed_auth_path, read_json, read_state, resolve_paths, write_managed_auth_if_changed,
+        write_state, Paths,
     },
 };
 
@@ -680,9 +680,6 @@ fn start_local_proxy_blocking<R: Runtime>(
         return Err(error);
     }
     set_local_proxy_enabled(&paths, true)?;
-    let mut settings = read_app_settings(&app)?;
-    settings.proxy_onboarding_status = ProxyOnboardingStatus::Enabled;
-    write_app_settings(&app, &settings)?;
     app.emit("providers-changed", ())
         .map_err(|error| error.to_string())?;
     crate::system_tray::refresh_menu(&app);

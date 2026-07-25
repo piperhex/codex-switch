@@ -139,7 +139,6 @@ export interface AppSettings {
   cloudBaseUrl?: string | null;
   tokenUsageWeeks?: number;
   tokenUsageRefreshSeconds?: number;
-  proxyOnboardingStatus?: "legacy" | "pending" | "enabled" | "declined";
 }
 
 export interface LoginStart {
