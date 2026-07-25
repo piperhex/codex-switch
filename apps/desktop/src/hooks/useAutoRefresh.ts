@@ -5,8 +5,8 @@ const ENABLED_KEY = "codex-switch:auto-refresh-enabled";
 const CURRENT_ACCOUNT_INTERVAL_KEY = "codex-switch:current-account-auto-refresh-seconds";
 const CURRENT_ACCOUNT_ENABLED_KEY = "codex-switch:current-account-auto-refresh-enabled";
 const LEGACY_ACCOUNT_SETTINGS_KEY = "codex-switch:account-auto-refresh-settings";
-const DEFAULT_GLOBAL_INTERVAL_SECONDS = 300;
-const DEFAULT_ACCOUNT_INTERVAL_SECONDS = 5;
+const DEFAULT_GLOBAL_INTERVAL_SECONDS = 600;
+const DEFAULT_ACCOUNT_INTERVAL_SECONDS = 10;
 
 export const MIN_AUTO_REFRESH_SECONDS = 1;
 export const MAX_AUTO_REFRESH_SECONDS = 3600;
@@ -28,7 +28,7 @@ function clampInterval(value: unknown, fallback: number) {
 }
 
 function defaultAccountAutoRefreshSetting(): AccountAutoRefreshSetting {
-  return { enabled: false, seconds: DEFAULT_ACCOUNT_INTERVAL_SECONDS };
+  return { enabled: true, seconds: DEFAULT_ACCOUNT_INTERVAL_SECONDS };
 }
 
 function loadLegacyAccountSettings(): AccountAutoRefreshSettings {
@@ -54,7 +54,7 @@ function loadCurrentAccountSetting(accountId: string | null): AccountAutoRefresh
   const storedSeconds = window.localStorage.getItem(CURRENT_ACCOUNT_INTERVAL_KEY);
   if (storedEnabled !== null || storedSeconds !== null) {
     return {
-      enabled: storedEnabled === "true",
+      enabled: storedEnabled === null ? true : storedEnabled === "true",
       seconds: clampInterval(storedSeconds, DEFAULT_ACCOUNT_INTERVAL_SECONDS),
     };
   }
@@ -78,7 +78,7 @@ export function useAutoRefresh(active: boolean, onRefresh: () => Promise<void>) 
     window.localStorage.getItem(INTERVAL_KEY),
     DEFAULT_GLOBAL_INTERVAL_SECONDS,
   ));
-  const [enabled, setEnabled] = useState(() => window.localStorage.getItem(ENABLED_KEY) === "true");
+  const [enabled, setEnabled] = useState(() => window.localStorage.getItem(ENABLED_KEY) !== "false");
   const refreshRef = useRef(onRefresh);
   refreshRef.current = onRefresh;
 

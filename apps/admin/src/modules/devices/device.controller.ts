@@ -2,7 +2,9 @@ import {
   Body,
   ConflictException,
   Controller,
+  Delete,
   Get,
+  HttpCode,
   Param,
   Post,
   UseGuards,
@@ -35,6 +37,20 @@ export class DeviceController {
         online: this.gateway.isOnline(user.id, device.deviceId),
       })),
     };
+  }
+
+  @Delete(':deviceId')
+  @HttpCode(204)
+  async remove(
+    @CurrentUser() user: AuthUser,
+    @Param('deviceId') deviceId: string,
+  ) {
+    await this.devices.getOwned(user.id, deviceId);
+    if (this.gateway.isOnline(user.id, deviceId)) {
+      throw new ConflictException('Online devices cannot be removed');
+    }
+    await this.devices.removeOwned(user.id, deviceId);
+    this.gateway.notifyDeviceRemoved(user.id, deviceId);
   }
 
   @Post(':deviceId/account')

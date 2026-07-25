@@ -461,6 +461,13 @@ export async function fetchRemoteDevices(session: AuthSession): Promise<RemoteDe
   return (payload as { devices: RemoteDevice[] }).devices;
 }
 
+export async function deleteRemoteDevice(session: AuthSession, deviceId: string): Promise<void> {
+  const response = await authorizedRequest(session, `/devices/${encodeURIComponent(deviceId)}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) throw new ApiError(await parseError(response), response.status);
+}
+
 export async function switchRemoteDeviceAccount(
   session: AuthSession,
   deviceId: string,

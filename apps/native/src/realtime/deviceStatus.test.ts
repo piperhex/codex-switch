@@ -76,4 +76,14 @@ describe('mobile device status WebSocket protocol', () => {
     expect(snapshot).not.toBeNull();
     expect(applyDeviceStatusSocketMessage([device], snapshot!)).toEqual([device]);
   });
+
+  it('removes a deleted device from the live list', () => {
+    const removed = parseDeviceStatusSocketMessage(JSON.stringify({
+      type: 'device-removed',
+      deviceId: device.deviceId,
+    }));
+
+    expect(removed).toEqual({ type: 'device-removed', deviceId: device.deviceId });
+    expect(applyDeviceStatusSocketMessage([device], removed!)).toEqual([]);
+  });
 });

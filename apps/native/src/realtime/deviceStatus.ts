@@ -3,7 +3,8 @@ import type { AuthSession, RemoteDevice } from '../types';
 export type DeviceStatusSocketMessage =
   | { type: 'devices-snapshot'; devices: RemoteDevice[] }
   | { type: 'device-online'; device: RemoteDevice }
-  | { type: 'device-offline'; deviceId: string; lastSeenAt: string };
+  | { type: 'device-offline'; deviceId: string; lastSeenAt: string }
+  | { type: 'device-removed'; deviceId: string };
 
 export function deviceStatusWebSocketUrl(baseUrl: string) {
   const url = new URL(baseUrl);
@@ -52,6 +53,9 @@ export function parseDeviceStatusSocketMessage(value: unknown): DeviceStatusSock
       lastSeenAt: message.lastSeenAt,
     };
   }
+  if (message.type === 'device-removed' && typeof message.deviceId === 'string') {
+    return { type: 'device-removed', deviceId: message.deviceId };
+  }
   return null;
 }
 
@@ -71,6 +75,9 @@ export function applyDeviceStatusSocketMessage(
       message.device,
       ...current.filter((device) => device.deviceId !== message.device.deviceId),
     ];
+  }
+  if (message.type === 'device-removed') {
+    return current.filter((device) => device.deviceId !== message.deviceId);
   }
   const offline = current.find((device) => device.deviceId === message.deviceId);
   if (!offline) return current;

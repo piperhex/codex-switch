@@ -2152,6 +2152,10 @@ mod tests {
         assert!(css.contains("dream-theme-dark main.main-surface"));
         assert!(css.contains("--color-token-text-primary: var(--dream-text);"));
         assert!(css.contains("--color-token-text-tertiary: var(--dream-text-muted);"));
+        assert!(css.contains("aside.app-shell-left-panel .sidebar-foreground-muted"));
+        assert!(css.contains("[class~=\"group/turn-diff-header\"]"));
+        assert!(css.contains("--color-token-dropdown-background: var(--dream-surface-raised);"));
+        assert!(css.contains("--color-token-button-tertiary-foreground: var(--dream-text);"));
     }
 
     #[cfg(target_os = "macos")]

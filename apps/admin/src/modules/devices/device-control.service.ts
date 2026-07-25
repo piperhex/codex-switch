@@ -54,6 +54,11 @@ export class DeviceControlService {
     return device;
   }
 
+  async removeOwned(ownerId: string, deviceId: string) {
+    const result = await this.devices.delete({ ownerId, deviceId });
+    if (result.affected !== 1) throw new NotFoundException('Device was not found');
+  }
+
   async assertAccountAvailable(ownerId: string, accountId: string) {
     const { accounts } = await this.sync.listSummary(ownerId);
     if (!accounts.some((account) => account.id === accountId)) {

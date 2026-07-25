@@ -173,7 +173,7 @@ pub(crate) struct DailyTokenUsage {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct AppSettings {
-    #[serde(default)]
+    #[serde(default = "default_floating_bubble_enabled")]
     pub(crate) floating_bubble_enabled: bool,
     #[serde(default)]
     pub(crate) theme_color: Option<String>,
@@ -220,6 +220,10 @@ fn default_privacy_mode() -> bool {
     true
 }
 
+fn default_floating_bubble_enabled() -> bool {
+    true
+}
+
 fn default_cloud_base_url() -> Option<String> {
     Some(DEFAULT_CLOUD_BASE_URL.to_string())
 }
@@ -240,7 +244,7 @@ fn default_token_usage_refresh_seconds() -> u64 {
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
-            floating_bubble_enabled: false,
+            floating_bubble_enabled: default_floating_bubble_enabled(),
             theme_color: None,
             language: None,
             privacy_mode: default_privacy_mode(),
@@ -378,5 +382,17 @@ mod tests {
             Some(DEFAULT_CLOUD_BASE_URL)
         );
         assert!(explicitly_disabled.cloud_base_url.is_none());
+    }
+
+    #[test]
+    fn app_settings_enable_the_floating_bubble_by_default() {
+        let defaults = AppSettings::default();
+        let migrated: AppSettings = serde_json::from_str("{}").unwrap();
+        let explicitly_disabled: AppSettings =
+            serde_json::from_str(r#"{"floatingBubbleEnabled":false}"#).unwrap();
+
+        assert!(defaults.floating_bubble_enabled);
+        assert!(migrated.floating_bubble_enabled);
+        assert!(!explicitly_disabled.floating_bubble_enabled);
     }
 }

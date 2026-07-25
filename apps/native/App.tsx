@@ -26,6 +26,7 @@ import {
   consumeResetCredit,
   DEFAULT_GLOBAL_REFRESH_MINUTES,
   DEFAULT_CLOUD_BASE_URL,
+  deleteRemoteDevice,
   fetchAccountSummary,
   fetchAccountUsage,
   fetchResetCredits,
@@ -155,6 +156,22 @@ function maskEmail(email: string) {
   if (at < 2) return '******';
   const local = email.slice(0, at);
   return `${local.slice(0, 2)}${'*'.repeat(Math.min(5, Math.max(2, local.length - 2)))}${email.slice(at)}`;
+}
+
+function platformLabel(platform: string) {
+  const normalized = platform.trim().toLowerCase();
+  if (normalized === 'windows') return 'Windows';
+  if (normalized === 'macos' || normalized === 'darwin') return 'macOS';
+  if (normalized === 'linux') return 'Linux';
+  return platform || '未知平台';
+}
+
+function platformGlyph(platform: string) {
+  const normalized = platform.trim().toLowerCase();
+  if (normalized === 'windows') return '▦';
+  if (normalized === 'macos' || normalized === 'darwin') return '⌘';
+  if (normalized === 'linux') return '◆';
+  return 'PC';
 }
 
 function usageColor(remaining: number) {
@@ -635,6 +652,179 @@ function AboutPage({ onBack }: { onBack: () => void }) {
   </ScrollView>;
 }
 
+function DeviceManagementPage({
+  accounts,
+  devices,
+  refreshing,
+  deletingDeviceId,
+  onRefresh,
+  onDelete,
+}: {
+  accounts: AccountSummary[];
+  devices: RemoteDevice[];
+  refreshing: boolean;
+  deletingDeviceId: string | null;
+  onRefresh: () => Promise<void>;
+  onDelete: (deviceId: string) => Promise<void>;
+}) {
+  const sortedDevices = useMemo(() => [...devices].sort((left, right) => {
+    if (left.online !== right.online) return left.online ? -1 : 1;
+    return new Date(right.lastSeenAt).getTime() - new Date(left.lastSeenAt).getTime();
+  }), [devices]);
+  const onlineCount = devices.filter((device) => device.online).length;
+
+  const confirmDelete = useCallback((device: RemoteDevice) => {
+    if (device.online || deletingDeviceId) return;
+    Alert.alert(
+      '删除设备',
+      `确定删除“${device.name}”吗？删除后，该设备下次登录桌面端时会重新出现在这里。`,
+      [
+        { text: '取消', style: 'cancel' },
+        {
+          text: '删除',
+          style: 'destructive',
+          onPress: () => void onDelete(device.deviceId),
+        },
+      ],
+    );
+  }, [deletingDeviceId, onDelete]);
+
+  return <ScrollView
+    style={styles.flex}
+    contentContainerStyle={styles.devicePageScroll}
+    refreshControl={<RefreshControl
+      refreshing={refreshing}
+      onRefresh={() => void onRefresh()}
+      tintColor={COLORS.green}
+    />}
+  >
+    <View style={styles.devicePageHeader}>
+      <View style={styles.devicePageHeaderText}>
+        <Text style={styles.settingsTitle}>设备管理</Text>
+        <Text style={styles.settingsSubtitle}>查看 PC 设备在线状态并清理旧设备</Text>
+      </View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="刷新设备列表"
+        disabled={refreshing}
+        onPress={() => void onRefresh()}
+        style={({ pressed }) => [
+          styles.deviceRefreshButton,
+          pressed && styles.pressed,
+          refreshing && styles.disabled,
+        ]}
+      >
+        {refreshing
+          ? <ActivityIndicator color={COLORS.green} size="small" />
+          : <Text style={styles.deviceRefreshIcon}>↻</Text>}
+      </Pressable>
+    </View>
+
+    <View style={styles.deviceSummaryCard}>
+      <View style={styles.deviceSummaryStat}>
+        <Text style={styles.deviceSummaryValue}>{onlineCount}</Text>
+        <Text style={styles.deviceSummaryLabel}>当前在线</Text>
+      </View>
+      <View style={styles.deviceSummaryDivider} />
+      <View style={styles.deviceSummaryStat}>
+        <Text style={styles.deviceSummaryValue}>{devices.length}</Text>
+        <Text style={styles.deviceSummaryLabel}>全部设备</Text>
+      </View>
+      <View style={styles.deviceLivePill}>
+        <View style={styles.deviceLiveDot} />
+        <Text style={styles.deviceLiveText}>实时更新</Text>
+      </View>
+    </View>
+
+    <View style={styles.deviceListHeading}>
+      <Text style={styles.sectionLabel}>已登录设备</Text>
+      <Text style={styles.deviceListCount}>{onlineCount} 台在线</Text>
+    </View>
+
+    {!devices.length ? <View style={styles.devicePageEmpty}>
+      <View style={styles.devicePageEmptyIcon}><Text style={styles.devicePageEmptyGlyph}>PC</Text></View>
+      <Text style={styles.devicePageEmptyTitle}>暂无 PC 设备</Text>
+      <Text style={styles.devicePageEmptyText}>在桌面端登录同一个云端账号后，设备会自动出现在这里。</Text>
+    </View> : sortedDevices.map((device) => {
+      const activeAccount = accounts.find((account) => account.id === device.activeAccountId);
+      const deleting = deletingDeviceId === device.deviceId;
+      const deleteDisabled = device.online || Boolean(deletingDeviceId);
+      return <View
+        key={device.deviceId}
+        style={[styles.deviceCard, device.online && styles.deviceCardOnline]}
+      >
+        <View style={styles.deviceCardTop}>
+          <View style={[styles.devicePlatformIcon, device.online && styles.devicePlatformIconOnline]}>
+            <Text style={[styles.devicePlatformGlyph, device.online && styles.devicePlatformGlyphOnline]}>
+              {platformGlyph(device.platform)}
+            </Text>
+          </View>
+          <View style={styles.deviceCardIdentity}>
+            <View style={styles.deviceCardTitleRow}>
+              <Text style={styles.deviceCardName} numberOfLines={1}>{device.name}</Text>
+              <View style={[
+                styles.deviceStatusBadge,
+                device.online ? styles.deviceStatusBadgeOnline : styles.deviceStatusBadgeOffline,
+              ]}>
+                <View style={[styles.deviceStatusDot, device.online ? styles.deviceOnline : styles.deviceOffline]} />
+                <Text style={[
+                  styles.deviceStatusBadgeText,
+                  device.online ? styles.deviceStatusBadgeTextOnline : styles.deviceStatusBadgeTextOffline,
+                ]}>
+                  {device.online ? '在线' : '离线'}
+                </Text>
+              </View>
+            </View>
+            <Text style={styles.deviceCardMeta}>
+              {platformLabel(device.platform)}
+              {device.appVersion ? ` · v${device.appVersion}` : ''}
+            </Text>
+          </View>
+        </View>
+        <View style={styles.deviceCardDivider} />
+        <View style={styles.deviceDetailRow}>
+          <Text style={styles.deviceDetailLabel}>当前账号</Text>
+          <Text style={styles.deviceDetailValue} numberOfLines={1}>
+            {activeAccount?.email ?? (device.activeAccountId ? '账号信息未同步' : '未选择')}
+          </Text>
+        </View>
+        <View style={styles.deviceDetailRow}>
+          <Text style={styles.deviceDetailLabel}>最后在线</Text>
+          <Text style={styles.deviceDetailValue}>
+            {device.online ? '当前在线' : displayFullDate(device.lastSeenAt)}
+          </Text>
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`删除设备 ${device.name}`}
+          accessibilityState={{ disabled: deleteDisabled }}
+          disabled={deleteDisabled}
+          onPress={() => confirmDelete(device)}
+          style={({ pressed }) => [
+            styles.deviceDeleteButton,
+            device.online && styles.deviceDeleteButtonOnline,
+            pressed && styles.pressed,
+            deleting && styles.disabled,
+          ]}
+        >
+          {deleting
+            ? <ActivityIndicator color={COLORS.danger} size="small" />
+            : <Text style={[
+              styles.deviceDeleteButtonText,
+              device.online && styles.deviceDeleteButtonTextOnline,
+            ]}>
+              {device.online ? '在线设备不可删除' : '删除设备'}
+            </Text>}
+        </Pressable>
+      </View>;
+    })}
+
+    {devices.length ? <Text style={styles.devicePageHint}>
+      为避免正在连接的设备被立即重新注册，请先退出桌面端，再删除不再使用的离线设备。
+    </Text> : null}
+  </ScrollView>;
+}
+
 function SettingsPage({ session, profile, globalRefreshMinutes, onGlobalRefreshMinutesChange, onOpenAbout, onLogout }: {
   session: AuthSession;
   profile: UserProfile | null;
@@ -831,7 +1021,7 @@ function SettingsPage({ session, profile, globalRefreshMinutes, onGlobalRefreshM
   </KeyboardAvoidingView>;
 }
 
-type AppPage = 'accounts' | 'admin' | 'settings' | 'about';
+type AppPage = 'accounts' | 'devices' | 'admin' | 'settings' | 'about';
 
 function BottomNavigation({ activePage, isAdmin, onChange }: { activePage: AppPage; isAdmin: boolean; onChange: (page: AppPage) => void }) {
   const settingsActive = activePage === 'settings' || activePage === 'about';
@@ -840,6 +1030,11 @@ function BottomNavigation({ activePage, isAdmin, onChange }: { activePage: AppPa
       onPress={() => onChange('accounts')} style={styles.navItem}>
       <Text style={[styles.navIcon, activePage === 'accounts' && styles.navTextActive]}>▦</Text>
       <Text style={[styles.navText, activePage === 'accounts' && styles.navTextActive]}>账号</Text>
+    </Pressable>
+    <Pressable accessibilityRole="tab" accessibilityState={{ selected: activePage === 'devices' }}
+      onPress={() => onChange('devices')} style={styles.navItem}>
+      <Text style={[styles.navIcon, activePage === 'devices' && styles.navTextActive]}>▤</Text>
+      <Text style={[styles.navText, activePage === 'devices' && styles.navTextActive]}>设备</Text>
     </Pressable>
     {isAdmin && <Pressable accessibilityRole="tab" accessibilityState={{ selected: activePage === 'admin' }}
       onPress={() => onChange('admin')} style={styles.navItem}>
@@ -1206,6 +1401,7 @@ function AppContent() {
   const [refreshingAccountId, setRefreshingAccountId] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<AccountSummary[]>([]);
   const [devices, setDevices] = useState<RemoteDevice[]>([]);
+  const [deletingDeviceId, setDeletingDeviceId] = useState<string | null>(null);
   const [switchingAccountId, setSwitchingAccountId] = useState<string | null>(null);
   const [globalRefreshMinutes, setGlobalRefreshMinutes] = useState(DEFAULT_GLOBAL_REFRESH_MINUTES);
   const refreshingRef = useRef(false);
@@ -1478,6 +1674,37 @@ function AppContent() {
     setGlobalRefreshMinutes(minutes);
   }, []);
 
+  const handleDeleteDevice = useCallback(async (deviceId: string) => {
+    if (!session || deletingDeviceId) return;
+    const device = devices.find((candidate) => candidate.deviceId === deviceId);
+    if (!device) return;
+    if (device.online) {
+      Toast.fail('请先退出该设备上的桌面端，再删除设备');
+      return;
+    }
+
+    setDeletingDeviceId(deviceId);
+    try {
+      await deleteRemoteDevice(session, deviceId);
+      setDevices((current) => current.filter((candidate) => candidate.deviceId !== deviceId));
+      Toast.success('设备已删除');
+    } catch (error) {
+      if (isSessionExpiredError(error)) {
+        await clearSession();
+        setSession(null);
+        setProfile(null);
+        setAccounts([]);
+        setDevices([]);
+        setActivePage('accounts');
+      } else {
+        Toast.fail(`删除失败：${errorMessage(error)}`);
+        void fetchRemoteDevices(session).then(setDevices).catch(() => undefined);
+      }
+    } finally {
+      setDeletingDeviceId(null);
+    }
+  }, [deletingDeviceId, devices, session]);
+
   const handleRemoteSwitch = useCallback(async (deviceId: string, accountId: string) => {
     if (!session || switchingAccountId) return;
     setSwitchingAccountId(accountId);
@@ -1501,6 +1728,7 @@ function AppContent() {
     setProfile(null);
     setAccounts([]);
     setDevices([]);
+    setDeletingDeviceId(null);
     setActivePage('accounts');
   }, []);
 
@@ -1514,6 +1742,9 @@ function AppContent() {
       ? <Dashboard accounts={accounts} devices={devices} loading={loading} refreshing={refreshing}
         refreshingAccountId={refreshingAccountId} switchingAccountId={switchingAccountId}
         onRefresh={refreshAll} onRefreshAccount={refreshAccount} onSwitch={handleRemoteSwitch} />
+      : activePage === 'devices'
+        ? <DeviceManagementPage accounts={accounts} devices={devices} refreshing={refreshing}
+          deletingDeviceId={deletingDeviceId} onRefresh={refreshAll} onDelete={handleDeleteDevice} />
       : activePage === 'admin' && profile?.role === 'admin'
         ? <AdminArea session={session} profile={profile} />
         : activePage === 'about'
@@ -1539,6 +1770,52 @@ const styles = StyleSheet.create({
   flex: { flex: 1 }, app: { flex: 1, backgroundColor: COLORS.canvas }, boot: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.canvas, gap: 12 }, bootText: { color: COLORS.ink, fontSize: 18, fontWeight: '700' }, startupError: { flex: 1, padding: 28, justifyContent: 'center', backgroundColor: COLORS.canvas }, startupErrorTitle: { color: COLORS.ink, fontSize: 22, fontWeight: '800' }, startupErrorMessage: { color: COLORS.muted, fontSize: 15, lineHeight: 22, marginTop: 12 }, startupErrorDetail: { color: COLORS.danger, fontSize: 12, marginTop: 20 },
   loginScroll: { flexGrow: 1, backgroundColor: COLORS.canvas, padding: 28, justifyContent: 'center' }, logoMark: { width: 58, height: 58, borderRadius: 18, backgroundColor: '#a7e733', justifyContent: 'center', alignItems: 'center', alignSelf: 'center', marginBottom: 18, shadowColor: '#4f7915', shadowOpacity: 0.18, shadowRadius: 14, elevation: 4 }, logoGlyph: { color: '#184122', fontSize: 34, fontWeight: '900' }, loginTitle: { color: COLORS.ink, fontSize: 30, fontWeight: '800', textAlign: 'center' }, loginSubtitle: { color: COLORS.muted, fontSize: 15, textAlign: 'center', marginTop: 8, marginBottom: 30 }, loginCard: { backgroundColor: COLORS.card, borderColor: COLORS.border, borderWidth: 1, borderRadius: 18, padding: 20, shadowColor: '#314c3d', shadowOpacity: 0.06, shadowRadius: 18, elevation: 2 }, fieldLabelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 36 }, fieldLabel: { color: COLORS.ink, fontSize: 14, fontWeight: '700', marginBottom: 8, marginTop: 14 }, officialServerButton: { paddingVertical: 6, paddingHorizontal: 9, borderRadius: 8, backgroundColor: COLORS.paleBlue, marginTop: 6 }, officialServerButtonText: { color: '#168da2', fontWeight: '700', fontSize: 12 }, fieldHint: { color: COLORS.muted, fontSize: 12, marginTop: 8 }, input: { height: 48, borderColor: '#cbdcd0', borderWidth: 1, borderRadius: 10, paddingHorizontal: 13, color: COLORS.ink, fontSize: 16, backgroundColor: '#fbfdfb' }, primaryButton: { height: 50, justifyContent: 'center', alignItems: 'center', borderRadius: 11, backgroundColor: COLORS.cyan, marginTop: 24, shadowColor: COLORS.cyan, shadowOpacity: 0.22, shadowRadius: 10, elevation: 3 }, primaryButtonText: { color: '#fff', fontWeight: '800', fontSize: 16 }, pressed: { opacity: 0.82 }, disabled: { opacity: 0.6 }, securityNote: { color: COLORS.muted, fontSize: 12, textAlign: 'center', marginTop: 18 },
   dashboardScroll: { padding: 18, paddingBottom: 34 }, header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }, brand: { color: COLORS.ink, fontSize: 22, fontWeight: '400' }, brandStrong: { fontWeight: '800' }, headerCaption: { color: COLORS.muted, marginTop: 3, fontSize: 12 }, logoutButton: { paddingVertical: 8, paddingHorizontal: 12, borderWidth: 1, borderColor: '#e9b7b2', borderRadius: 9, backgroundColor: '#fffafa' }, logoutText: { color: '#bd3c35', fontWeight: '700', fontSize: 13 }, overviewCard: { backgroundColor: '#112b21', padding: 20, borderRadius: 18, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, overviewEyebrow: { color: '#b5c9bd', fontSize: 13, fontWeight: '700', letterSpacing: 1 }, overviewTitle: { color: '#fff', fontSize: 22, fontWeight: '800', marginTop: 4 }, overviewMeta: { color: '#c7d7cd', fontSize: 12, marginTop: 8, maxWidth: 195 }, refreshButton: { minWidth: 106, height: 40, borderRadius: 10, backgroundColor: COLORS.cyan, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 12 }, refreshText: { color: '#fff', fontWeight: '800', fontSize: 14 }, controlRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 15 }, lastUpdate: { color: COLORS.muted, fontSize: 12, flex: 1 }, privacyControl: { flexDirection: 'row', alignItems: 'center', gap: 7 }, privacyText: { color: COLORS.muted, fontSize: 12 }, loadingBox: { backgroundColor: COLORS.card, borderRadius: 16, padding: 38, alignItems: 'center', gap: 14, borderWidth: 1, borderColor: COLORS.border }, loadingText: { color: COLORS.muted }, emptyBox: { backgroundColor: COLORS.card, borderRadius: 16, padding: 28, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border }, emptyTitle: { color: COLORS.ink, fontWeight: '800', fontSize: 17 }, emptyText: { color: COLORS.muted, textAlign: 'center', marginTop: 9, lineHeight: 20 },
+  devicePageScroll: { padding: 18, paddingBottom: 36 },
+  devicePageHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+  devicePageHeaderText: { flex: 1, minWidth: 0 },
+  deviceRefreshButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 14, borderWidth: 1, borderColor: '#bde8d8', backgroundColor: COLORS.paleGreen },
+  deviceRefreshIcon: { color: COLORS.green, fontSize: 25, lineHeight: 28, fontWeight: '700' },
+  deviceSummaryCard: { minHeight: 112, flexDirection: 'row', alignItems: 'center', borderRadius: 19, backgroundColor: '#112b21', paddingHorizontal: 19, paddingVertical: 18, marginBottom: 24 },
+  deviceSummaryStat: { minWidth: 70 },
+  deviceSummaryValue: { color: '#fff', fontSize: 28, lineHeight: 32, fontWeight: '900' },
+  deviceSummaryLabel: { color: '#b7cbc0', fontSize: 11, fontWeight: '700', marginTop: 4 },
+  deviceSummaryDivider: { width: 1, height: 48, backgroundColor: '#365044', marginHorizontal: 18 },
+  deviceLivePill: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 12, backgroundColor: '#213c31', paddingHorizontal: 10, paddingVertical: 8, marginLeft: 'auto' },
+  deviceLiveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#3ad4a1' },
+  deviceLiveText: { color: '#c9ddd2', fontSize: 10, fontWeight: '800' },
+  deviceListHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingRight: 3 },
+  deviceListCount: { color: COLORS.green, fontSize: 11, fontWeight: '800', marginBottom: 9 },
+  devicePageEmpty: { minHeight: 280, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.border, borderRadius: 18, backgroundColor: COLORS.card, padding: 28 },
+  devicePageEmptyIcon: { width: 58, height: 58, alignItems: 'center', justifyContent: 'center', borderRadius: 18, backgroundColor: COLORS.paleBlue, marginBottom: 15 },
+  devicePageEmptyGlyph: { color: '#168da2', fontSize: 15, fontWeight: '900' },
+  devicePageEmptyTitle: { color: COLORS.ink, fontSize: 17, fontWeight: '900' },
+  devicePageEmptyText: { maxWidth: 270, color: COLORS.muted, fontSize: 12, lineHeight: 19, textAlign: 'center', marginTop: 8 },
+  deviceCard: { borderWidth: 1, borderColor: COLORS.border, borderRadius: 17, backgroundColor: COLORS.card, padding: 15, marginBottom: 12, shadowColor: '#456152', shadowOpacity: 0.04, shadowRadius: 8, elevation: 1 },
+  deviceCardOnline: { borderColor: '#a9ded0' },
+  deviceCardTop: { flexDirection: 'row', alignItems: 'center' },
+  devicePlatformIcon: { width: 46, height: 46, alignItems: 'center', justifyContent: 'center', borderRadius: 14, backgroundColor: '#edf2ef', marginRight: 12 },
+  devicePlatformIconOnline: { backgroundColor: COLORS.paleGreen },
+  devicePlatformGlyph: { color: '#75877d', fontSize: 18, lineHeight: 22, fontWeight: '900' },
+  devicePlatformGlyphOnline: { color: '#14806f' },
+  deviceCardIdentity: { flex: 1, minWidth: 0 },
+  deviceCardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  deviceCardName: { flex: 1, minWidth: 0, color: COLORS.ink, fontSize: 15, fontWeight: '900' },
+  deviceCardMeta: { color: COLORS.muted, fontSize: 11, marginTop: 5 },
+  deviceStatusBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 9, paddingHorizontal: 8, paddingVertical: 5 },
+  deviceStatusBadgeOnline: { backgroundColor: COLORS.paleGreen },
+  deviceStatusBadgeOffline: { backgroundColor: '#edf2ef' },
+  deviceStatusBadgeText: { fontSize: 10, fontWeight: '800' },
+  deviceStatusBadgeTextOnline: { color: '#14806f' },
+  deviceStatusBadgeTextOffline: { color: '#75877d' },
+  deviceCardDivider: { height: 1, backgroundColor: '#edf2ee', marginVertical: 13 },
+  deviceDetailRow: { minHeight: 29, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  deviceDetailLabel: { width: 58, color: COLORS.muted, fontSize: 11 },
+  deviceDetailValue: { flex: 1, minWidth: 0, color: COLORS.ink, fontSize: 11, fontWeight: '700', textAlign: 'right' },
+  deviceDeleteButton: { height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 10, borderWidth: 1, borderColor: '#efc3bf', backgroundColor: '#fff8f7', marginTop: 12 },
+  deviceDeleteButtonOnline: { borderColor: '#e1e9e3', backgroundColor: '#f5f8f6' },
+  deviceDeleteButtonText: { color: '#bd3c35', fontSize: 12, fontWeight: '800' },
+  deviceDeleteButtonTextOnline: { color: '#91a198' },
+  devicePageHint: { color: COLORS.muted, fontSize: 11, lineHeight: 17, textAlign: 'center', marginHorizontal: 12, marginTop: 5 },
   accountCard: { minHeight: 102, flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: COLORS.card, borderColor: COLORS.border, borderWidth: 1, borderRadius: 16, paddingVertical: 14, paddingLeft: 16, paddingRight: 14, marginBottom: 12, shadowColor: '#456152', shadowOpacity: 0.04, shadowRadius: 8, elevation: 1 },
   accountCardPressed: { backgroundColor: '#f2f8f4', borderColor: '#bcd7c5' },
   compactAccountContent: { flex: 1, minWidth: 0, justifyContent: 'center' },

@@ -5,6 +5,7 @@ import zhCN from "antd/locale/zh_CN";
 import { Archive, BarChart3, Bell, CalendarClock, Check, CircleHelp, Cloud, Download, Github, LogIn, LogOut, Megaphone, MessageSquareText, Palette, Play, Plus, RefreshCw, RotateCcw, Server, Settings, ShieldCheck, Upload, UploadCloud, UserRound } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { checkForUpdate, chooseAndExportDiagnosticLogs, consumeResetCredit, DEFAULT_CLOUD_BASE_URL, downloadAvailableUpdate, fetchCloudAnnouncement, fetchCloudNotifications, installDownloadedUpdate, isDesktopApp, launchChatGpt, openManagedFolder, reportAnnouncementClick, reportBaseUrlChange, reportFirstInstallation, restartChatGpt, showTokenUsageWindow, submitFeedback, subscribeToCloudSessionExpired } from "./api/backend";
+import { AboutModal } from "./components/modals/AboutModal";
 import { HelpModal, type HelpVersionState } from "./components/modals/HelpModal";
 import { FeedbackModal } from "./components/modals/FeedbackModal";
 import { FloatingUsageBubble } from "./components/FloatingUsageBubble";
@@ -67,6 +68,7 @@ function DashboardApp() {
   const [showCloudLogin, setShowCloudLogin] = useState(false);
   const [cloudSessionExpired, setCloudSessionExpired] = useState(false);
   const [showCloudAccount, setShowCloudAccount] = useState(false);
+  const [showAbout, setShowAbout] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   const [helpVersionState, setHelpVersionState] = useState<HelpVersionState>({ status: "checking" });
@@ -327,9 +329,13 @@ function DashboardApp() {
     void checkForUpdate({ force: true })
       .then((update) => {
         if (helpVersionRequestId.current !== requestId) return;
-        setHelpVersionState(update
-          ? { status: "available", latestVersion: update.latestVersion, releaseUrl: update.releaseUrl }
-          : { status: "latest" });
+        if (update) {
+          setAvailableUpdate(update);
+          availableUpdateRef.current = update;
+          setHelpVersionState({ status: "available", latestVersion: update.latestVersion });
+        } else {
+          setHelpVersionState({ status: "latest" });
+        }
       })
       .catch(() => {
         if (helpVersionRequestId.current === requestId) setHelpVersionState({ status: "error" });
@@ -424,14 +430,6 @@ function DashboardApp() {
     }
     window.open(REPOSITORY_URL, "_blank", "noopener,noreferrer");
   };
-  const openRelease = (releaseUrl: string) => {
-    if (isDesktopApp) {
-      void openUrl(releaseUrl).catch((error) => notify(String(error)));
-      return;
-    }
-    window.open(releaseUrl, "_blank", "noopener,noreferrer");
-  };
-
   const downloadUpdate = useCallback(async (update: UpdateInfo, promptWhenReady: boolean) => {
     if (promptWhenReady) {
       installAfterDownloadRequestedRef.current = true;
@@ -529,6 +527,32 @@ function DashboardApp() {
       setUpdateInstallError(String(error));
       setInstallingUpdate(false);
     }
+  }, []);
+  const openAbout = useCallback(() => {
+    const requestId = ++helpVersionRequestId.current;
+    setShowAbout(true);
+    setHelpVersionState({ status: "checking" });
+    void checkForUpdate({ force: true })
+      .then((update) => {
+        if (helpVersionRequestId.current !== requestId) return;
+        if (update) {
+          setAvailableUpdate(update);
+          availableUpdateRef.current = update;
+          setHelpVersionState({ status: "available", latestVersion: update.latestVersion });
+        } else {
+          setHelpVersionState({ status: "latest" });
+        }
+      })
+      .catch(() => {
+        if (helpVersionRequestId.current === requestId) setHelpVersionState({ status: "error" });
+      });
+  }, []);
+  const openHelpUpdate = useCallback(() => {
+    if (!availableUpdateRef.current) return;
+    setUpdateInstallError(null);
+    setShowAbout(false);
+    setShowHelp(false);
+    setShowUpdatePrompt(true);
   }, []);
 
   const localizedAnnouncementContent = announcement
@@ -767,7 +791,8 @@ function DashboardApp() {
                       { key: "checkUpdate", icon: <RefreshCw size={15} />, label: t("update.check"), disabled: checkingForUpdate },
                       { key: "feedback", icon: <MessageSquareText size={15} />, label: t("feedback.title") },
                       { key: "repository", icon: <Github size={15} />, label: t("help.github") },
-                      { key: "help", icon: <CircleHelp size={15} />, label: t("about.open") },
+                      { key: "help", icon: <CircleHelp size={15} />, label: t("help.open") },
+                      { key: "about", icon: <ShieldCheck size={15} />, label: t("about.open") },
                     ]
                     : [
                       { key: "login", icon: <LogIn size={15} />, label: t("cloud.login"), disabled: cloud.loading },
@@ -775,7 +800,8 @@ function DashboardApp() {
                       { key: "checkUpdate", icon: <RefreshCw size={15} />, label: t("update.check"), disabled: checkingForUpdate },
                       { key: "feedback", icon: <MessageSquareText size={15} />, label: t("feedback.title") },
                       { key: "repository", icon: <Github size={15} />, label: t("help.github") },
-                      { key: "help", icon: <CircleHelp size={15} />, label: t("about.open") },
+                      { key: "help", icon: <CircleHelp size={15} />, label: t("help.open") },
+                      { key: "about", icon: <ShieldCheck size={15} />, label: t("about.open") },
                     ],
                   onClick: ({ key }) => {
                     if (key === "account") openCloudAccount();
@@ -784,6 +810,7 @@ function DashboardApp() {
                     if (key === "checkUpdate") void checkForUpdates();
                     if (key === "feedback") setShowFeedback(true);
                     if (key === "help") openHelp();
+                    if (key === "about") openAbout();
                     if (key === "repository") openRepository();
                   },
                 }}
@@ -1010,7 +1037,11 @@ function DashboardApp() {
             setShowCloudAccount(false);
             openCloudPasswordReset();
           }} t={t} />}
-        {showHelp && <HelpModal onClose={() => setShowHelp(false)} onDownload={openRelease}
+        {showHelp && <HelpModal onClose={() => setShowHelp(false)} onUpdate={openHelpUpdate}
+          onFeedback={() => setShowFeedback(true)} version={manager.info?.version ?? "0.1.0"}
+          versionState={helpVersionState} t={t} />}
+        {showAbout && <AboutModal logoUrl={APP_LOGO_URL} onClose={() => setShowAbout(false)}
+          onOpenRepository={openRepository} onUpdate={openHelpUpdate}
           onFeedback={() => setShowFeedback(true)} version={manager.info?.version ?? "0.1.0"}
           versionState={helpVersionState} t={t} />}
         {showFeedback && <FeedbackModal signedInEmail={cloud.state.authenticated ? cloud.state.userEmail : null}

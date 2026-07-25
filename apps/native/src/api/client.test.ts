@@ -9,6 +9,7 @@ vi.mock('expo-secure-store', () => ({
 
 import {
   consumeResetCredit,
+  deleteRemoteDevice,
   fetchAccountSummary,
   fetchAccountUsage,
   fetchResetCredits,
@@ -184,5 +185,20 @@ describe('mobile Codex API client', () => {
     expect(JSON.parse(request.body as string)).toEqual({
       redeem_request_id: expect.stringMatching(/^codex-switch-mobile-/),
     });
+  });
+
+  it('deletes an offline desktop device through the cloud API', async () => {
+    const apiFetch = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal('fetch', apiFetch);
+
+    await expect(deleteRemoteDevice(session, 'device/1')).resolves.toBeUndefined();
+
+    expect(apiFetch).toHaveBeenCalledTimes(1);
+    expect(apiFetch.mock.calls[0]?.[0]).toBe(
+      'https://switch.example.com/devices/device%2F1',
+    );
+    expect(apiFetch.mock.calls[0]?.[1]).toEqual(expect.objectContaining({ method: 'DELETE' }));
+    const headers = new Headers((apiFetch.mock.calls[0]?.[1] as RequestInit).headers);
+    expect(headers.get('Authorization')).toBe('Bearer switch-access');
   });
 });

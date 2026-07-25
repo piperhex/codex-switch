@@ -62,4 +62,45 @@ describe('DeviceController', () => {
     expect(devices.assertAccountAvailable).toHaveBeenCalledWith(user.id, 'account-2');
     expect(gateway.pushAccountSwitch).toHaveBeenCalledWith(user.id, 'device-1', 'account-2');
   });
+
+  it('removes an owned offline device and notifies live device subscribers', async () => {
+    const devices = {
+      getOwned: vi.fn().mockResolvedValue({ deviceId: 'device-1' }),
+      removeOwned: vi.fn().mockResolvedValue(undefined),
+    };
+    const gateway = {
+      isOnline: vi.fn().mockReturnValue(false),
+      notifyDeviceRemoved: vi.fn(),
+    };
+    const controller = new DeviceController(
+      devices as unknown as DeviceControlService,
+      gateway as unknown as DeviceGateway,
+    );
+
+    await expect(controller.remove(user, 'device-1')).resolves.toBeUndefined();
+    expect(devices.getOwned).toHaveBeenCalledWith(user.id, 'device-1');
+    expect(devices.removeOwned).toHaveBeenCalledWith(user.id, 'device-1');
+    expect(gateway.notifyDeviceRemoved).toHaveBeenCalledWith(user.id, 'device-1');
+  });
+
+  it('does not remove a device while it is online', async () => {
+    const devices = {
+      getOwned: vi.fn().mockResolvedValue({ deviceId: 'device-1' }),
+      removeOwned: vi.fn(),
+    };
+    const gateway = {
+      isOnline: vi.fn().mockReturnValue(true),
+      notifyDeviceRemoved: vi.fn(),
+    };
+    const controller = new DeviceController(
+      devices as unknown as DeviceControlService,
+      gateway as unknown as DeviceGateway,
+    );
+
+    await expect(controller.remove(user, 'device-1')).rejects.toThrow(
+      'Online devices cannot be removed',
+    );
+    expect(devices.removeOwned).not.toHaveBeenCalled();
+    expect(gateway.notifyDeviceRemoved).not.toHaveBeenCalled();
+  });
 });
