@@ -78,4 +78,76 @@ describe('DeviceGateway', () => {
     expect(devices.touch).toHaveBeenCalledWith(deviceId);
     gateway.handleDisconnect(socket as unknown as WebSocket);
   });
+
+  it('pushes owned device login and disconnect events to authenticated subscribers', async () => {
+    const deviceId = '10000000-0000-4000-8000-000000000001';
+    const registeredDevice = {
+      deviceId,
+      name: 'Work PC',
+      platform: 'windows',
+      appVersion: '1.2.3',
+      activeAccountId: 'account-1',
+      lastSeenAt: new Date('2026-07-26T01:00:00.000Z'),
+    };
+    const jwt = { verifyAsync: vi.fn().mockResolvedValue({ sub: 'user-1' }) };
+    const users = {
+      findActiveById: vi.fn().mockResolvedValue({ id: 'user-1', email: 'user@example.com' }),
+    };
+    const devices = {
+      list: vi.fn().mockResolvedValue([]),
+      register: vi.fn().mockResolvedValue(registeredDevice),
+      touch: vi.fn().mockResolvedValue(undefined),
+    };
+    const gateway = new DeviceGateway(
+      jwt as unknown as JwtService,
+      users as unknown as UserService,
+      devices as unknown as DeviceControlService,
+      { KONG_JWT_SECRET: 'test-secret' } as ConfigModuleOptions,
+    );
+    const subscriber = new FakeWebSocket();
+    gateway.handleConnection(subscriber as unknown as WebSocket);
+    subscriber.emit('message', Buffer.from(JSON.stringify({
+      type: 'subscribe-devices',
+      accessToken: 'mobile-access-token',
+    })));
+    await tick();
+
+    expect(JSON.parse(subscriber.sent[0])).toEqual({
+      type: 'devices-snapshot',
+      devices: [],
+    });
+
+    const desktop = new FakeWebSocket();
+    gateway.handleConnection(desktop as unknown as WebSocket);
+    desktop.emit('message', Buffer.from(JSON.stringify({
+      type: 'authenticate',
+      accessToken: 'desktop-access-token',
+      deviceId,
+      name: registeredDevice.name,
+      platform: registeredDevice.platform,
+      appVersion: registeredDevice.appVersion,
+      activeAccountId: registeredDevice.activeAccountId,
+    })));
+    await tick();
+
+    expect(JSON.parse(subscriber.sent[1])).toEqual({
+      type: 'device-online',
+      device: {
+        ...registeredDevice,
+        lastSeenAt: registeredDevice.lastSeenAt.toISOString(),
+        online: true,
+      },
+    });
+
+    gateway.handleDisconnect(desktop as unknown as WebSocket);
+    const offline = JSON.parse(subscriber.sent[2]) as {
+      type: string;
+      deviceId: string;
+      lastSeenAt: string;
+    };
+    expect(offline).toMatchObject({ type: 'device-offline', deviceId });
+    expect(new Date(offline.lastSeenAt).toString()).not.toBe('Invalid Date');
+    expect(devices.touch).toHaveBeenCalledWith(deviceId);
+    gateway.handleDisconnect(subscriber as unknown as WebSocket);
+  });
 });
