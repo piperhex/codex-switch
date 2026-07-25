@@ -332,7 +332,7 @@ function Dashboard({
     <ScrollView style={styles.flex} contentContainerStyle={styles.dashboardScroll}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor={COLORS.green} />}>
       <View style={styles.header}>
-        <View><Text style={styles.brand}>Codex <Text style={styles.brandStrong}>Switch</Text></Text><Text style={styles.headerCaption}>官方账号 · 移动端</Text></View>
+        <View><Text style={styles.brand}>Codex <Text style={styles.brandStrong}>Switch</Text></Text><Text style={styles.headerCaption}>仓库地址：https://github.com/piperhex/codex-switch</Text></View>
       </View>
       <View style={styles.overviewCard}>
         <View>
