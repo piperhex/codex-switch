@@ -257,10 +257,10 @@ function DashboardApp() {
     const ok = await cloud.login(email, password, rememberPassword);
     if (ok) {
       cloudSessionPromptedRef.current = false;
-      await manager.reload();
+      await Promise.all([manager.reload(), providerManager.reload()]);
     }
     return ok;
-  }, [cloud.login, manager.reload]);
+  }, [cloud.login, manager.reload, providerManager.reload]);
   const registerCloudAccount = useCallback(async (
     email: string,
     password: string,
@@ -270,10 +270,10 @@ function DashboardApp() {
     const ok = await cloud.register(email, password, verificationCode, rememberPassword);
     if (ok) {
       cloudSessionPromptedRef.current = false;
-      await manager.reload();
+      await Promise.all([manager.reload(), providerManager.reload()]);
     }
     return ok;
-  }, [cloud.register, manager.reload]);
+  }, [cloud.register, manager.reload, providerManager.reload]);
   const openCloudPasswordReset = useCallback(() => {
     const baseUrl = (cloud.state.baseUrl?.trim() || DEFAULT_CLOUD_BASE_URL).replace(/\/+$/, "");
     const resetUrl = `${baseUrl}/admin/reset-password`;

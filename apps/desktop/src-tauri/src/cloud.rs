@@ -1594,7 +1594,7 @@ async fn cloud_authenticate<R: Runtime>(
         let tokens: CloudTokenResponse = response
             .json()
             .map_err(|error| format!("{action} response is invalid: {error}"))?;
-        let credentials = CloudCredentials {
+        let mut credentials = CloudCredentials {
             access_token: Some(tokens.access_token),
             refresh_token: Some(tokens.refresh_token),
             device_id: Some(read_or_create_installation_state(&app)?.device_id),
@@ -1604,8 +1604,20 @@ async fn cloud_authenticate<R: Runtime>(
             settings.cloud_user_email = Some(user.email);
         }
         settings.cloud_session_expired = false;
-        // Authentication must not mutate either local or cloud sync data. The user explicitly
-        // starts the first merge with "Sync now" after signing in.
+        // Merge cloud data before uploading so a new or returning device cannot publish an empty
+        // or stale local copy over newer cloud fields during its first sync.
+        let remote_accounts = get_remote_accounts(&app, &client, &mut settings, &mut credentials)?;
+        for account_id in &remote_accounts.deleted_account_ids {
+            apply_remote_account_deletion(&app, account_id)?;
+        }
+        for account in remote_accounts.accounts {
+            apply_remote_account(&app, &account)?;
+        }
+        for provider in get_remote_providers(&app, &client, &mut settings, &mut credentials)? {
+            apply_remote_provider(&app, &provider)?;
+        }
+        let _ = put_remote_accounts(&app, &client, &mut settings, &mut credentials)?;
+        let _ = put_remote_providers(&app, &client, &mut settings, &mut credentials)?;
         let (password_saved, credential_storage_updated) = if remember_password {
             match update_saved_cloud_login(&settings, Some(&saved_login)) {
                 Ok(()) => (true, true),
