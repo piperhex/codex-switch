@@ -556,6 +556,38 @@ html.codex-dream-skin .dream-skin-home {
   padding-bottom: 0 !important;
 }
 
+/* Codex 26.721+ moved the real home content out of the first child's
+   descendant chain. That child now only owns the usually-empty
+   .home-banners slot, while the title, suggestions, and composer live in a
+   sibling. Collapse only that new wrapper shape so older layouts keep their
+   compact hero sizing. */
+html.codex-dream-skin
+  .dream-skin-home > div:first-child:has(> .home-banners) {
+  min-height: 0 !important;
+  padding-top: 0 !important;
+}
+
+html.codex-dream-skin
+  .dream-skin-home > div:first-child:has(> .home-banners) > .home-banners {
+  flex: 0 1 auto !important;
+  min-height: 0 !important;
+}
+
+html.codex-dream-skin
+  .dream-skin-home > div:first-child:has(> .home-banners) > .home-banners > div:first-child {
+  height: auto !important;
+  min-height: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+html.codex-dream-skin
+  .dream-skin-home > div:first-child:has(> .home-banners) > .home-banners > div:first-child::before {
+  content: none !important;
+}
+
 .dream-skin-home > div:first-child > div:first-child > div:first-child {
   position: relative !important;
   isolation: isolate;
