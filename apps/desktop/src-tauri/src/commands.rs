@@ -134,7 +134,7 @@ pub(crate) fn list_accounts<R: Runtime>(
         }
         let mut auth = read_json(&auth_path)?;
         let repaired = canonicalize_chatgpt_auth(&mut auth)?;
-        let (email, plan, account_id, id) = account_fields(&auth)?;
+        let (email, auth_plan, account_id, id) = account_fields(&auth)?;
         if repaired {
             write_managed_auth_if_changed(&paths, &id, &auth)?;
         }
@@ -144,9 +144,15 @@ pub(crate) fn list_accounts<R: Runtime>(
         let auto_switch_enabled = !state.disabled_account_ids.contains(&id);
         let auto_switch_priority =
             load_auto_switch_priority(&auto_switch_priority_path(&paths, &id));
+        let usage = load_usage(&usage_path(&paths, &id));
+        let plan = usage
+            .plan
+            .clone()
+            .filter(|value| !value.trim().is_empty())
+            .unwrap_or(auth_plan);
         accounts.push(AccountSummary {
             active: active_id.as_deref() == Some(&id),
-            usage: load_usage(&usage_path(&paths, &id)),
+            usage,
             note: load_note(&note_path(&paths, &id)),
             expires_at: load_expiration(&expiration_path(&paths, &id)),
             id,

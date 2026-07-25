@@ -2145,6 +2145,15 @@ mod tests {
         }
     }
 
+    #[test]
+    fn windows_dark_skin_rebinds_native_foregrounds() {
+        let css = include_str!("../resources/dream-skin/assets/windows/dream-skin.css");
+
+        assert!(css.contains("dream-theme-dark main.main-surface"));
+        assert!(css.contains("--color-token-text-primary: var(--dream-text);"));
+        assert!(css.contains("--color-token-text-tertiary: var(--dream-text-muted);"));
+    }
+
     #[cfg(target_os = "macos")]
     #[test]
     fn macos_payload_replaces_all_renderer_placeholders() {

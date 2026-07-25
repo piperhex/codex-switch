@@ -823,23 +823,26 @@ main.tokens-main { overflow: hidden; padding-bottom: 0; }
 .dream-section-heading { display: flex; align-items: end; justify-content: space-between; gap: 24px; }
 .dream-section-heading h2, .dream-tools-copy h2 { margin: 6px 0 0; color: #1b2a20; font: 740 21px/1.2 Manrope, sans-serif; letter-spacing: -.025em; }
 .dream-section-heading > p, .dream-tools-copy p { max-width: 570px; margin: 0; color: #738078; font-size: 11px; line-height: 1.6; text-align: right; }
-.dream-theme-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
-.dream-saved-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.dream-theme-card { min-width: 0; overflow: hidden; border: 1px solid #dce5dd; border-radius: 15px; background: #fff; box-shadow: 0 8px 24px rgba(26, 49, 32, .06); transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
+.dream-theme-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(max(260px, calc((100% - 36px) / 4)), 1fr));
+  gap: 12px;
+}
+.dream-theme-card { min-width: 260px; overflow: hidden; border: 1px solid #dce5dd; border-radius: 13px; background: #fff; box-shadow: 0 8px 24px rgba(26, 49, 32, .06); transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
 .dream-theme-card:hover { transform: translateY(-2px); border-color: rgba(var(--green-rgb), .44); box-shadow: 0 14px 32px rgba(26, 49, 32, .11); }
 .dream-theme-card.is-active { border-color: var(--green); box-shadow: 0 0 0 2px rgba(var(--green-rgb), .11), 0 14px 32px rgba(26, 49, 32, .1); }
-.dream-theme-preview { position: relative; height: 174px; overflow: hidden; background-size: cover; background-position: center; }
+.dream-theme-preview { position: relative; height: 142px; overflow: hidden; background-size: cover; background-position: center; }
 .dream-theme-preview-saved { background: radial-gradient(circle at 72% 24%, rgba(var(--green-rgb), .55), transparent 25%), linear-gradient(135deg, #16251c, #34503d); }
 .dream-theme-preview-shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(8,15,10,.04) 38%, rgba(8,15,10,.68)); }
 .dream-theme-id { position: absolute; right: 12px; bottom: 11px; left: 12px; overflow: hidden; color: rgba(255,255,255,.72); font: 650 9px/1 Manrope, sans-serif; text-overflow: ellipsis; white-space: nowrap; }
 .dream-theme-current { position: absolute; top: 11px; right: 11px; padding: 5px 8px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid rgba(255,255,255,.32); border-radius: 999px; color: #15331f; background: var(--green-highlight); font-size: 9px; font-weight: 750; box-shadow: 0 6px 16px rgba(0,0,0,.18); }
-.dream-theme-copy { min-height: 118px; padding: 15px; display: flex; align-items: flex-end; justify-content: space-between; gap: 13px; }
+.dream-theme-copy { min-height: 100px; padding: 12px; display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; }
 .dream-theme-copy > div { min-width: 0; }
 .dream-theme-copy h3 { margin: 0 0 6px; color: #1a2920; font: 720 14px/1.25 Manrope, sans-serif; }
 .dream-theme-copy p { margin: 0; color: #7a877f; font-size: 10px; line-height: 1.5; }
 .dream-theme-copy .ant-btn { flex: 0 0 auto; }
-.dream-theme-import-card { min-height: 293px; border-style: dashed; background: linear-gradient(145deg, rgba(var(--green-rgb), .055), rgba(255,255,255,.86)); }
-.dream-import-trigger { width: 100%; height: 100%; min-height: 293px; padding: 30px; border: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 15px; color: #223128; background: transparent; cursor: pointer; text-align: center; }
+.dream-theme-import-card { min-height: 242px; border-style: dashed; background: linear-gradient(145deg, rgba(var(--green-rgb), .055), rgba(255,255,255,.86)); }
+.dream-import-trigger { width: 100%; height: 100%; min-height: 242px; padding: 24px; border: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: #223128; background: transparent; cursor: pointer; text-align: center; }
 .dream-import-trigger:disabled { opacity: .55; cursor: default; }
 .dream-import-icon { width: 58px; height: 58px; display: grid; place-items: center; border: 1px solid rgba(var(--green-rgb), .25); border-radius: 18px; color: var(--green-dark); background: #fff; box-shadow: 0 9px 22px rgba(24, 55, 33, .09); }
 .dream-import-trigger span:nth-child(2) { display: grid; gap: 7px; }
@@ -887,7 +890,6 @@ main.tokens-main { overflow: hidden; padding-bottom: 0; }
 @media (max-width: 1260px) {
   .announcement-slot { display: none; }
   .app-menu { gap: 12px; }
-  .dream-theme-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .dream-skin-hero { grid-template-columns: minmax(260px, .75fr) minmax(480px, 1.25fr); }
   .dream-skin-status-card { grid-template-columns: 116px minmax(130px, 1fr) 190px; }
   .dream-tools-actions { justify-content: flex-start; }
@@ -898,8 +900,6 @@ main.tokens-main { overflow: hidden; padding-bottom: 0; }
   .dream-skin-status-card { grid-template-columns: 116px minmax(130px, 1fr) 190px; }
   .dream-section-heading { align-items: flex-start; flex-direction: column; gap: 7px; }
   .dream-section-heading > p { text-align: left; }
-  .dream-theme-grid { grid-template-columns: 1fr; }
-  .dream-theme-preview { height: 210px; }
 }
 
 @media (max-width: 900px) {

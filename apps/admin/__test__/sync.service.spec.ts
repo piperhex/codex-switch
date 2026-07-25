@@ -300,7 +300,7 @@ describe('SyncService', () => {
     expect(transactionRepository.save).not.toHaveBeenCalled();
   });
 
-  it('merges a newer usage refresh without replacing a newer cloud note', async () => {
+  it('merges a newer usage refresh and API plan without replacing a newer cloud note', async () => {
     const existing = {
       id: 'database-id',
       ownerId: 'owner-1',
@@ -325,7 +325,7 @@ describe('SyncService', () => {
     transactionRepository.findOne.mockResolvedValue(existing);
     const incoming = makeAccount({
       note: '',
-      usage: { used: 20 },
+      usage: { used: 20, plan: 'pro' },
       fieldModifiedAt: {
         auth: '2026-07-04T00:00:00.000Z',
         note: '2026-07-04T00:00:00.000Z',
@@ -339,7 +339,8 @@ describe('SyncService', () => {
 
     expect(transactionRepository.save).toHaveBeenCalledWith(expect.objectContaining({
       note: 'cloud note',
-      usage: { used: 20 },
+      plan: 'pro',
+      usage: { used: 20, plan: 'pro' },
       fieldModifiedAt: expect.objectContaining({
         note: '2026-07-05T00:00:00.000Z',
         usage: '2026-07-06T00:00:00.000Z',

@@ -4480,6 +4480,8 @@ mod tests {
                     resets_at: None,
                     window_minutes: Some(10_080),
                 }),
+                api_expires_at: None,
+                plan: None,
                 fetched_at: None,
                 error: None,
             },

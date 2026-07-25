@@ -162,9 +162,14 @@ export async function fetchAccountUsage(account: AccountSummary): Promise<UsageS
   const response = await codexRequest(account, CODEX_USAGE_URL);
   const body = await codexResponseObject(response, '解析 Codex 用量失败');
   const rateLimit = objectValue(body.rate_limit);
+  const plan = typeof body.plan_type === 'string' && body.plan_type.trim()
+    ? body.plan_type.trim()
+    : null;
   return {
     primary: usageWindow(rateLimit?.primary_window),
     secondary: usageWindow(rateLimit?.secondary_window),
+    apiExpiresAt: promoExpiration(body.promo),
+    plan,
     fetchedAt: new Date().toISOString(),
     error: null,
   };
@@ -180,6 +185,42 @@ function normalizedTimestamp(value: unknown): string | null {
   const milliseconds = Math.abs(numeric) >= 100_000_000_000 ? numeric : numeric * 1000;
   const parsed = new Date(milliseconds);
   return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+}
+
+function isExpirationKey(key: string) {
+  const normalized = key.toLowerCase().replace(/-/g, '_');
+  const compact = normalized.replace(/_/g, '');
+  return normalized.includes('expir')
+    || compact.endsWith('until')
+    || compact.endsWith('end')
+    || compact.endsWith('endat')
+    || compact.endsWith('endsat')
+    || compact.endsWith('enddate')
+    || compact.endsWith('endson');
+}
+
+function collectExpirationTimestamps(value: unknown, result: string[]) {
+  if (Array.isArray(value)) {
+    value.forEach((nested) => collectExpirationTimestamps(nested, result));
+    return;
+  }
+  const object = objectValue(value);
+  if (!object) return;
+  for (const [key, nested] of Object.entries(object)) {
+    if (isExpirationKey(key)) {
+      const timestamp = normalizedTimestamp(nested);
+      if (timestamp) result.push(timestamp);
+    }
+    collectExpirationTimestamps(nested, result);
+  }
+}
+
+function promoExpiration(value: unknown) {
+  if (value == null) return null;
+  const timestamps: string[] = [];
+  collectExpirationTimestamps(value, timestamps);
+  timestamps.sort((left, right) => Date.parse(left) - Date.parse(right));
+  return timestamps[0] ?? null;
 }
 
 async function mapWithConcurrency<T, R>(
@@ -356,7 +397,8 @@ export async function fetchAccountSummary(session: AuthSession): Promise<Account
   const accounts = (payload as { accounts: AccountSummary[] }).accounts;
   return mapWithConcurrency(accounts, 4, async (account) => {
     try {
-      return { ...account, usage: await fetchAccountUsage(account) };
+      const usage = await fetchAccountUsage(account);
+      return { ...account, plan: usage.plan ?? account.plan, usage };
     } catch (error) {
       return {
         ...account,
