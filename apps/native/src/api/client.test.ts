@@ -52,6 +52,13 @@ describe('mobile Codex API client', () => {
         })],
       }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({
+        plan_type: 'pro',
+        promo: {
+          offer: {
+            valid_until: '2026-08-31T12:30:00Z',
+            ends_at: '2026-09-30T12:30:00Z',
+          },
+        },
         rate_limit: {
           primary_window: {
             used_percent: 25,
@@ -82,8 +89,11 @@ describe('mobile Codex API client', () => {
         resetsAt: 1_800_100_000,
         windowMinutes: 10_080,
       },
+      apiExpiresAt: '2026-08-31T12:30:00.000Z',
+      plan: 'pro',
       error: null,
     }));
+    expect(result[0]?.plan).toBe('pro');
     expect(apiFetch.mock.calls[1]?.[0]).toBe('https://chatgpt.com/backend-api/wham/usage');
     const headers = new Headers((apiFetch.mock.calls[1]?.[1] as RequestInit).headers);
     expect(headers.get('Authorization')).toBe('Bearer codex-access');
@@ -129,6 +139,8 @@ describe('mobile Codex API client', () => {
         resetsAt: 1_800_000_000,
         windowMinutes: 300,
       },
+      apiExpiresAt: null,
+      plan: null,
       error: null,
     }));
     expect(apiFetch).toHaveBeenCalledTimes(1);

@@ -20,6 +20,7 @@ import { loadTokenUsageEntries } from "../../api/backend";
 import type { Language, Translate } from "../../i18n";
 import type { AccountDisplayMode } from "../../hooks/useAccountDisplayMode";
 import type { Account, ResetCreditsLoadState, TokenUsageEntry } from "../../types";
+import { earliestExpirationDate } from "../../utils/expiration";
 import { initials } from "../../utils/format";
 import { AccountNoteModal } from "../modals/AccountNoteModal";
 import { ResetCreditsPanel } from "./ResetCreditsPanel";
@@ -460,7 +461,11 @@ export function AccountTable({
                 <Tag className="plan-tag">{account.plan || "ChatGPT"}</Tag>
               </Tooltip>
               <div className="updated-cell">
-                {account.expiresAt && <span className="plan-expiration">{t("table.expiresAt", { date: account.expiresAt })}</span>}
+                {earliestExpirationDate(account.expiresAt, account.usage.apiExpiresAt) && (
+                  <span className="plan-expiration">{t("table.expiresAt", {
+                    date: earliestExpirationDate(account.expiresAt, account.usage.apiExpiresAt) ?? "",
+                  })}</span>
+                )}
                 {account.usage.error && <Tooltip title={account.usage.error}><Tag color="error">{t("table.error")}</Tag></Tooltip>}
               </div>
             </div>
@@ -803,7 +808,11 @@ export function AccountTable({
                   </div>
                 </Tooltip>
                 <div className="plan-line">
-                  {account.expiresAt && <span>{t("table.expiresAt", { date: account.expiresAt })}</span>}
+                  {earliestExpirationDate(account.expiresAt, account.usage.apiExpiresAt) && (
+                    <span>{t("table.expiresAt", {
+                      date: earliestExpirationDate(account.expiresAt, account.usage.apiExpiresAt) ?? "",
+                    })}</span>
+                  )}
                   {account.usage.error && <Tooltip title={account.usage.error}><Tag color="error">{t("table.error")}</Tag></Tooltip>}
                 </div>
               </div>

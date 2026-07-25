@@ -55,6 +55,32 @@
   --dream-task-immersive-far: color-mix(in oklab, var(--dream-surface) 60%, transparent);
 }
 
+/* A Dream Skin can use a dark palette while Codex itself is still in light
+   mode. Rebind the native foreground tokens inside the skinned surfaces so
+   newer Codex utility classes do not paint dark text over dark glass. Keep
+   overlays outside these surfaces on Codex's own matched palette. */
+html.codex-dream-skin.dream-theme-dark main.main-surface,
+html.codex-dream-skin.dream-theme-dark aside.app-shell-left-panel {
+  --color-text-foreground: var(--dream-text);
+  --color-text-foreground-secondary: var(--dream-text-muted);
+  --color-text-foreground-tertiary: var(--dream-text-muted);
+  --color-text-button-secondary: var(--dream-text);
+  --color-text-button-tertiary: var(--dream-text-muted);
+  --color-token-badge-foreground: var(--dream-text-muted);
+  --color-token-description-foreground: var(--dream-text-muted);
+  --color-token-disabled-foreground: var(--dream-text-muted);
+  --color-token-foreground: var(--dream-text);
+  --color-token-icon-foreground: var(--dream-text);
+  --color-token-input-foreground: var(--dream-text);
+  --color-token-input-placeholder-foreground: var(--dream-text-muted);
+  --color-token-list-active-selection-foreground: var(--dream-text);
+  --color-token-list-active-selection-icon-foreground: var(--dream-text);
+  --color-token-text-preformat-foreground: var(--dream-text);
+  --color-token-text-primary: var(--dream-text);
+  --color-token-text-secondary: var(--dream-text-muted);
+  --color-token-text-tertiary: var(--dream-text-muted);
+}
+
 html.codex-dream-skin body {
   background: var(--dream-canvas) !important;
   color: var(--dream-text) !important;
@@ -409,6 +435,13 @@ html.codex-dream-skin .composer-surface-chrome {
 html.codex-dream-skin .ProseMirror {
   color: var(--dream-text) !important;
   caret-color: var(--dream-accent) !important;
+}
+
+html.codex-dream-skin.dream-theme-dark main.main-surface input::placeholder,
+html.codex-dream-skin.dream-theme-dark main.main-surface textarea::placeholder,
+html.codex-dream-skin.dream-theme-dark .composer-surface-chrome p.placeholder::after {
+  color: var(--dream-text-muted) !important;
+  opacity: 1 !important;
 }
 
 html.codex-dream-skin button[class~="bg-token-foreground"] {

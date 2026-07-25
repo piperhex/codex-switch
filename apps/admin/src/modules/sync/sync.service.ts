@@ -704,6 +704,8 @@ export class SyncService {
     }
     if (this.isIncomingFieldNewer(existingFieldModifiedAt.usage, incomingFieldModifiedAt.usage)) {
       account.usage = incoming.usage ?? {};
+      const usagePlan = this.stringValue(this.objectValue(incoming.usage)?.plan);
+      if (usagePlan) account.plan = usagePlan;
       account.fieldModifiedAt!.usage = incomingFieldModifiedAt.usage;
       changed = true;
     }

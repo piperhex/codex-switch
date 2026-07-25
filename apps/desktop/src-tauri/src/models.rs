@@ -25,6 +25,8 @@ pub(crate) struct AccountSummary {
 pub(crate) struct UsageSummary {
     pub(crate) primary: Option<UsageWindow>,
     pub(crate) secondary: Option<UsageWindow>,
+    pub(crate) api_expires_at: Option<String>,
+    pub(crate) plan: Option<String>,
     pub(crate) fetched_at: Option<String>,
     pub(crate) error: Option<String>,
 }

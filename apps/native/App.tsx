@@ -47,6 +47,7 @@ import type {
   UserProfile,
 } from './src/types';
 import { reportMobileInstallation } from './src/telemetry';
+import { earliestExpirationDate } from './src/utils/expiration';
 import { AdminArea } from './src/admin/AdminArea';
 import { AppToastHost, Toast } from './src/components/AppToast';
 import { BottomSheet } from './src/components/BottomSheet';
@@ -918,7 +919,9 @@ function AccountDetailsDrawer({
         <View style={styles.detailRowDivider} />
         <View style={styles.detailInfoRow}>
           <Text style={styles.detailInfoLabel}>到期时间</Text>
-          <Text selectable style={styles.detailInfoValue}>{account.expiresAt || '未设置'}</Text>
+          <Text selectable style={styles.detailInfoValue}>
+            {earliestExpirationDate(account.expiresAt, account.usage.apiExpiresAt) || '未设置'}
+          </Text>
         </View>
         <View style={styles.detailRowDivider} />
         <View style={styles.detailInfoRow}>
@@ -1240,7 +1243,9 @@ function AppContent() {
     try {
       const usage = await fetchAccountUsage(account);
       setAccounts((current) => current.map((candidate) => (
-        candidate.id === accountId ? { ...candidate, usage } : candidate
+        candidate.id === accountId
+          ? { ...candidate, plan: usage.plan ?? candidate.plan, usage }
+          : candidate
       )));
       Toast.success('当前账号用量已刷新');
     } catch (error) {

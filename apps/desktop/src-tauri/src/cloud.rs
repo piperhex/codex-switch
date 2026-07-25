@@ -589,18 +589,24 @@ fn collect_local_accounts<R: Runtime>(
         let mut auth = read_json(&auth_path)?;
         let repaired = canonicalize_chatgpt_auth(&mut auth)?;
         validate_auth(&auth)?;
-        let (email, plan, account_id, id) = account_fields(&auth)?;
+        let (email, auth_plan, account_id, id) = account_fields(&auth)?;
         if repaired {
             write_managed_auth_if_changed(&paths, &id, &auth)?;
         }
         let field_modified_at = load_or_init_account_field_modified_at(&paths, &id)?;
         let last_modified_at = load_or_init_last_modified(&paths, &id)?.to_rfc3339();
+        let usage = load_usage(&usage_path(&paths, &id));
+        let plan = usage
+            .plan
+            .clone()
+            .filter(|value| !value.trim().is_empty())
+            .unwrap_or(auth_plan);
         accounts.push(CloudAccountPayload {
             active: active_id.as_deref() == Some(&id),
             auto_switch_priority: load_auto_switch_priority(&auto_switch_priority_path(
                 &paths, &id,
             )),
-            usage: load_usage(&usage_path(&paths, &id)),
+            usage,
             note: load_note(&note_path(&paths, &id)),
             expires_at: load_expiration(&expiration_path(&paths, &id)),
             last_modified_at,

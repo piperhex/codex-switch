@@ -1,4 +1,4 @@
-use chrono::Utc;
+use chrono::{DateTime, NaiveDate, Utc};
 use reqwest::blocking::{Client, Response};
 use serde_json::{json, Value};
 
@@ -134,9 +134,13 @@ fn authorized_get(
 fn normalized_timestamp(value: Option<&Value>) -> Option<String> {
     let value = value?;
     if let Some(timestamp) = value.as_str() {
-        return chrono::DateTime::parse_from_rfc3339(timestamp)
-            .ok()
-            .map(|value| value.with_timezone(&Utc).to_rfc3339());
+        if let Ok(value) = DateTime::parse_from_rfc3339(timestamp) {
+            return Some(value.with_timezone(&Utc).to_rfc3339());
+        }
+        return NaiveDate::parse_from_str(timestamp, "%Y-%m-%d")
+            .ok()?
+            .and_hms_opt(0, 0, 0)
+            .map(|value| value.and_utc().to_rfc3339());
     }
 
     let raw = value.as_i64()?;
@@ -146,6 +150,48 @@ fn normalized_timestamp(value: Option<&Value>) -> Option<String> {
         raw
     };
     chrono::DateTime::<Utc>::from_timestamp(seconds, 0).map(|value| value.to_rfc3339())
+}
+
+fn is_expiration_key(key: &str) -> bool {
+    let key = key.to_ascii_lowercase().replace('-', "_");
+    let compact = key.replace('_', "");
+    key.contains("expir")
+        || compact.ends_with("until")
+        || compact.ends_with("end")
+        || compact.ends_with("endat")
+        || compact.ends_with("endsat")
+        || compact.ends_with("enddate")
+        || compact.ends_with("endson")
+}
+
+fn collect_expiration_timestamps(value: &Value, result: &mut Vec<DateTime<Utc>>) {
+    match value {
+        Value::Object(object) => {
+            for (key, nested) in object {
+                if is_expiration_key(key) {
+                    if let Some(timestamp) = normalized_timestamp(Some(nested))
+                        .and_then(|value| DateTime::parse_from_rfc3339(&value).ok())
+                    {
+                        result.push(timestamp.with_timezone(&Utc));
+                    }
+                }
+                collect_expiration_timestamps(nested, result);
+            }
+        }
+        Value::Array(values) => {
+            for nested in values {
+                collect_expiration_timestamps(nested, result);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn promo_expiration(payload: &Value) -> Option<String> {
+    let promo = payload.get("promo").filter(|value| !value.is_null())?;
+    let mut timestamps = Vec::new();
+    collect_expiration_timestamps(promo, &mut timestamps);
+    timestamps.into_iter().min().map(|value| value.to_rfc3339())
 }
 
 pub(crate) fn parse_reset_credits(payload: &Value) -> Result<ResetCreditsSummary, String> {
@@ -188,6 +234,13 @@ pub(crate) fn parse_usage(payload: &Value) -> UsageSummary {
     UsageSummary {
         primary: window_from(rate_limit.and_then(|value| value.get("primary_window"))),
         secondary: window_from(rate_limit.and_then(|value| value.get("secondary_window"))),
+        api_expires_at: promo_expiration(payload),
+        plan: payload
+            .get("plan_type")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_string),
         fetched_at: Some(Utc::now().to_rfc3339()),
         error: None,
     }
@@ -201,13 +254,36 @@ mod tests {
     #[test]
     fn maps_used_quota_to_remaining_quota() {
         let usage = parse_usage(&json!({
+            "plan_type": "pro",
+            "promo": {
+                "details": {
+                    "valid_until": "2026-08-31T12:30:00Z",
+                    "ends_at": "2026-09-30T12:30:00Z"
+                }
+            },
             "rate_limit": {
                 "primary_window": { "used_percent": 42, "limit_window_seconds": 18000, "reset_at": 123 },
                 "secondary_window": { "used_percent": 5, "limit_window_seconds": 604800, "reset_at": 456 }
             }
         }));
+        assert_eq!(usage.plan.as_deref(), Some("pro"));
+        assert_eq!(
+            usage.api_expires_at.as_deref(),
+            Some("2026-08-31T12:30:00+00:00")
+        );
         assert_eq!(usage.primary.unwrap().remaining_percent, 58.0);
         assert_eq!(usage.secondary.unwrap().window_minutes, Some(10080));
+    }
+
+    #[test]
+    fn ignores_expiration_fields_outside_promo_and_clears_null_promo() {
+        let usage = parse_usage(&json!({
+            "plan_type": "",
+            "expires_at": "2026-01-01T00:00:00Z",
+            "promo": null
+        }));
+        assert_eq!(usage.api_expires_at, None);
+        assert_eq!(usage.plan, None);
     }
 
     #[test]

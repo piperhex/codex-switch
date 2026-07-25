@@ -8,6 +8,8 @@ export interface UsageWindow {
 export interface UsageSummary {
   primary?: UsageWindow | null;
   secondary?: UsageWindow | null;
+  apiExpiresAt?: string | null;
+  plan?: string | null;
   fetchedAt?: string | null;
   error?: string | null;
 }
