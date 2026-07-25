@@ -99,6 +99,14 @@ html.codex-dream-skin aside.app-shell-left-panel nav {
   background: transparent !important;
 }
 
+/* Codex 26.721+ places a locally scoped foreground token on the navigation
+   wrapper. Without rebinding it, project and chat action icons keep the native
+   light-shell ink even when the Dream Skin itself uses a dark palette. */
+html.codex-dream-skin.dream-theme-dark
+  aside.app-shell-left-panel .sidebar-foreground-muted {
+  --color-token-foreground: var(--dream-text);
+}
+
 html.codex-dream-skin aside.app-shell-left-panel button {
   color: var(--dream-text) !important;
   transition: background-color 180ms cubic-bezier(.22, 1, .36, 1), color 180ms cubic-bezier(.22, 1, .36, 1) !important;
@@ -453,6 +461,31 @@ html.codex-dream-skin button[class~="bg-token-foreground"] {
 html.codex-dream-skin [data-message-author-role],
 html.codex-dream-skin article {
   color: var(--dream-text);
+}
+
+/* Completed turn diffs are resource cards whose native surface tokens follow
+   Codex's shell appearance. A dark Dream Skin can run over a light shell, so
+   scope the dark surface and control tokens to this card instead of globally
+   recoloring dialogs and other native overlays. */
+html.codex-dream-skin.dream-theme-dark main.main-surface
+  *:has(> [class~="group/turn-diff-header"]) {
+  --color-token-bg-secondary: color-mix(in oklab, var(--dream-text) 8%, var(--dream-surface-raised));
+  --color-token-bg-fog: color-mix(in oklab, var(--dream-surface-raised) 92%, transparent);
+  --color-token-dropdown-background: var(--dream-surface-raised);
+  --color-token-foreground: var(--dream-text);
+  --color-token-text-primary: var(--dream-text);
+  --color-token-text-secondary: var(--dream-text-muted);
+  --color-token-text-tertiary: var(--dream-text-muted);
+  --color-token-description-foreground: var(--dream-text-muted);
+  --color-token-icon-foreground: var(--dream-text);
+  --color-token-button-tertiary-foreground: var(--dream-text);
+  --color-token-list-hover-background: var(--dream-accent-soft);
+  --color-token-border: var(--dream-line);
+  color: var(--dream-text) !important;
+  background: color-mix(in oklab, var(--dream-surface-raised) 86%, transparent) !important;
+  border: 1px solid var(--dream-line) !important;
+  box-shadow: var(--dream-shadow) !important;
+  backdrop-filter: blur(12px) saturate(1.04) !important;
 }
 
 /* A 16:9 or wider image is painted once on the native window. The sidebar,

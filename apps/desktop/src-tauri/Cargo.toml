@@ -43,6 +43,7 @@ rusqlite = { version = "0.32.1", default-features = false, features = ["bundled"
 sysinfo = "0.37"
 
 [target.'cfg(windows)'.dependencies]
+windows-version = "0.1.7"
 windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Networking_WinHttp", "Win32_Storage_FileSystem"] }
 windows = { version = "0.61", features = [
   "ApplicationModel",

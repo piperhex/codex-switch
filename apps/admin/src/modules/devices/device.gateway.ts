@@ -168,6 +168,13 @@ export class DeviceGateway implements OnGatewayConnection, OnGatewayDisconnect {
       && session.ownerId === ownerId;
   }
 
+  notifyDeviceRemoved(ownerId: string, deviceId: string) {
+    this.broadcastToDeviceSubscribers(ownerId, {
+      type: 'device-removed',
+      deviceId,
+    });
+  }
+
   async pushAccountSwitch(ownerId: string, deviceId: string, accountId: string) {
     const socket = this.sockets.get(this.socketKey(ownerId, deviceId));
     const session = socket ? this.sessions.get(socket) : undefined;

@@ -2,6 +2,7 @@ import { Button, Space, Table, Tabs, Tag, Tooltip, Typography } from "antd";
 import type { TableColumnsType } from "antd";
 import { Edit3, Plus, RefreshCw, ShieldCheck, Trash2 } from "lucide-react";
 import { useI18n } from "../i18n-context";
+import { localizePermission } from "../permission-localization";
 import type { PermissionDefinition, RbacRole } from "../types";
 
 interface RolesPageProps {
@@ -31,8 +32,9 @@ export function RolesPage({
   permissions,
   roles,
 }: RolesPageProps) {
-  const { t } = useI18n();
+  const { language, t } = useI18n();
   const canEditRole = (role: RbacRole) => !role.system || role.code === "user";
+  const localizedPermissions = permissions.map((permission) => localizePermission(permission, language));
   const columns: TableColumnsType<RbacRole> = [
     {
       title: t("roles.name"),
@@ -193,7 +195,7 @@ export function RolesPage({
                     rowKey="code"
                     loading={loading}
                     columns={permissionColumns}
-                    dataSource={permissions}
+                    dataSource={localizedPermissions}
                     pagination={false}
                     scroll={{ x: 980 }}
                   />

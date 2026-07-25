@@ -45,6 +45,8 @@ const LOCAL_PROXY_CONVERSATION_PROVIDER: &str = "codex-switch-local";
 const LEGACY_CODEX_COMMAND: &str = "codex";
 #[cfg(target_os = "windows")]
 const CREATE_NO_WINDOW: u32 = 0x08000000;
+#[cfg(target_os = "windows")]
+const WINDOWS_11_FIRST_BUILD: u32 = 22_000;
 
 static ACCOUNT_AUTO_SWITCH_STATE_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 static ACCOUNT_SWITCH_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
@@ -1678,11 +1680,20 @@ fn official_default_chatgpt_target() -> Option<ChatGptLaunchTarget> {
             .then(|| target.as_os_str().to_string_lossy().into_owned())
     })
     .map(ChatGptLaunchTarget::Executable)
+    .or_else(|| official_chatgpt_shell_app_id().map(ChatGptLaunchTarget::ShellApp))
+}
+
+#[cfg(target_os = "windows")]
+fn official_chatgpt_shell_app_id() -> Option<String> {
+    // Reading the package manifest avoids depending on the localized Start menu
+    // display name. Get-StartApps remains a fallback for older package layouts.
+    windows_powershell_line(
+        "$package = Get-AppxPackage -Name OpenAI.Codex -ErrorAction SilentlyContinue | Select-Object -First 1; if ($package) { $manifest = Get-AppxPackageManifest -Package $package.PackageFullName -ErrorAction SilentlyContinue; $application = @($manifest.Package.Applications.Application) | Select-Object -First 1; if ($application) { \"$($package.PackageFamilyName)!$($application.Id)\" } }",
+    )
     .or_else(|| {
         windows_powershell_line(
-            "$app = Get-StartApps | Where-Object { $_.Name -eq 'ChatGPT' -and $_.AppID -like 'OpenAI.Codex_*' } | Select-Object -First 1; if ($app) { $app.AppID }",
+            "$app = Get-StartApps | Where-Object { $_.AppID -like 'OpenAI.Codex_*!*' } | Select-Object -First 1; if ($app) { $app.AppID }",
         )
-        .map(ChatGptLaunchTarget::ShellApp)
     })
 }
 
@@ -1806,39 +1817,148 @@ fn stop_unix_process(name: &str) -> Result<(), String> {
 
 #[cfg(target_os = "windows")]
 pub(crate) fn start_chatgpt(target: Option<&ChatGptLaunchTarget>) -> Result<(), String> {
+    if is_windows_10() {
+        return start_chatgpt_windows_10(target);
+    }
+    start_chatgpt_windows_default(target)
+}
+
+#[cfg(target_os = "windows")]
+fn start_chatgpt_windows_default(target: Option<&ChatGptLaunchTarget>) -> Result<(), String> {
     match target {
-        Some(ChatGptLaunchTarget::ShellApp(app_id)) => {
-            let app_uri = format!("shell:AppsFolder\\{app_id}");
-            windows_hidden_command("explorer.exe")
-                .arg(app_uri)
-                .spawn()
-                .map(|_| ())
-                .map_err(|error| format!("启动 ChatGPT 失败：{error}"))
-        }
+        Some(ChatGptLaunchTarget::ShellApp(app_id)) => start_windows_shell_app(app_id),
         Some(ChatGptLaunchTarget::Executable(target)) => start_windows_executable(target)
             .or_else(|recorded_error| start_official_windows_chatgpt(recorded_error)),
         None => Err("未找到本地 ChatGPT/Codex 路径，且官方默认安装路径不可用".to_string()),
     }
 }
 
+/// Windows 10 cannot reliably execute the full-trust entry point from the
+/// protected WindowsApps directory with CreateProcess. Activate the Store app
+/// by its application user model id instead, which lets the shell apply the
+/// package identity and the current user's package permissions.
+#[cfg(target_os = "windows")]
+fn start_chatgpt_windows_10(target: Option<&ChatGptLaunchTarget>) -> Result<(), String> {
+    match target {
+        Some(ChatGptLaunchTarget::ShellApp(app_id)) => {
+            activate_windows_store_app(app_id).or_else(|native_error| {
+                start_windows_shell_app(app_id).map_err(|shell_error| {
+                    format!(
+                        "Windows 10 原生应用激活失败：{native_error}；Shell 回退也失败：{shell_error}"
+                    )
+                })
+            })
+        }
+        Some(ChatGptLaunchTarget::Executable(target))
+            if is_windows_store_package_executable(target) =>
+        {
+            start_official_windows_10_chatgpt()
+        }
+        Some(ChatGptLaunchTarget::Executable(target)) => start_windows_executable(target)
+            .or_else(|recorded_error| {
+                start_official_windows_10_chatgpt().map_err(|official_error| {
+                    format!(
+                        "启动已记录的 ChatGPT/Codex 路径失败：{recorded_error}；Windows 10 应用包激活也失败：{official_error}"
+                    )
+                })
+            }),
+        None => start_official_windows_10_chatgpt(),
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn start_official_windows_10_chatgpt() -> Result<(), String> {
+    let app_id = official_chatgpt_shell_app_id()
+        .ok_or_else(|| "Windows 10 未找到已安装的 ChatGPT 应用包身份".to_string())?;
+    activate_windows_store_app(&app_id).or_else(|native_error| {
+        start_windows_shell_app(&app_id).map_err(|shell_error| {
+            format!("Windows 10 原生应用激活失败：{native_error}；Shell 回退也失败：{shell_error}")
+        })
+    })
+}
+
+#[cfg(target_os = "windows")]
+fn activate_windows_store_app(app_id: &str) -> Result<(), String> {
+    use windows::{
+        core::HSTRING,
+        Win32::{
+            Foundation::RPC_E_CHANGED_MODE,
+            System::Com::{
+                CoCreateInstance, CoInitializeEx, CoUninitialize, CLSCTX_LOCAL_SERVER,
+                COINIT_APARTMENTTHREADED,
+            },
+            UI::Shell::{ApplicationActivationManager, IApplicationActivationManager, AO_NONE},
+        },
+    };
+
+    struct ComGuard(bool);
+    impl Drop for ComGuard {
+        fn drop(&mut self) {
+            if self.0 {
+                unsafe { CoUninitialize() };
+            }
+        }
+    }
+
+    let initialized_here = match unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED) }.ok() {
+        Ok(()) => true,
+        // A Tauri worker may already have initialized COM with another apartment
+        // model. COM is available in that case and must not be uninitialized here.
+        Err(error) if error.code() == RPC_E_CHANGED_MODE => false,
+        Err(error) => return Err(format!("初始化 Windows 10 应用激活环境失败：{error}")),
+    };
+    let _com = ComGuard(initialized_here);
+    let manager: IApplicationActivationManager =
+        unsafe { CoCreateInstance(&ApplicationActivationManager, None, CLSCTX_LOCAL_SERVER) }
+            .map_err(|error| format!("创建 Windows 10 应用激活器失败：{error}"))?;
+
+    unsafe { manager.ActivateApplication(&HSTRING::from(app_id), &HSTRING::new(), AO_NONE) }
+        .map(|_| ())
+        .map_err(|error| format!("按应用包身份启动 ChatGPT 失败：{error}"))
+}
+
+#[cfg(target_os = "windows")]
+fn start_windows_shell_app(app_id: &str) -> Result<(), String> {
+    let app_uri = format!("shell:AppsFolder\\{app_id}");
+    windows_hidden_command("explorer.exe")
+        .arg(app_uri)
+        .spawn()
+        .map(|_| ())
+        .map_err(|error| format!("通过 Windows Shell 启动 ChatGPT 失败：{error}"))
+}
+
 #[cfg(target_os = "windows")]
 fn start_official_windows_chatgpt(recorded_error: String) -> Result<(), String> {
     let official_target = official_default_chatgpt_target().ok_or(recorded_error.clone())?;
     let result = match official_target {
-        ChatGptLaunchTarget::ShellApp(app_id) => {
-            let app_uri = format!("shell:AppsFolder\\{app_id}");
-            windows_hidden_command("explorer.exe")
-                .arg(app_uri)
-                .spawn()
-                .map(|_| ())
-                .map_err(|error| format!("Failed to start official ChatGPT: {error}"))
-        }
+        ChatGptLaunchTarget::ShellApp(app_id) => start_windows_shell_app(&app_id),
         ChatGptLaunchTarget::Executable(path) => start_windows_executable(&path),
     };
     result.map_err(|official_error| {
         format!(
             "Failed to start the recorded ChatGPT/Codex path: {recorded_error}; the official installation also failed: {official_error}"
         )
+    })
+}
+
+#[cfg(target_os = "windows")]
+fn is_windows_10() -> bool {
+    let version = windows_version::OsVersion::current();
+    !windows_version::is_server() && is_windows_10_version(version.major, version.build)
+}
+
+#[cfg(target_os = "windows")]
+fn is_windows_10_version(major: u32, build: u32) -> bool {
+    major == 10 && build < WINDOWS_11_FIRST_BUILD
+}
+
+#[cfg(target_os = "windows")]
+fn is_windows_store_package_executable(target: &str) -> bool {
+    Path::new(target).components().any(|component| {
+        component
+            .as_os_str()
+            .to_string_lossy()
+            .eq_ignore_ascii_case("WindowsApps")
     })
 }
 
@@ -2013,6 +2133,28 @@ fn status_error(action: &str, status: std::process::ExitStatus) -> String {
     match status.code() {
         Some(code) => format!("{action}（退出码：{code}）"),
         None => format!("{action}（进程被信号终止）"),
+    }
+}
+
+#[cfg(all(test, target_os = "windows"))]
+mod windows_chatgpt_launch_tests {
+    use super::{is_windows_10_version, is_windows_store_package_executable};
+
+    #[test]
+    fn selects_the_windows_10_launcher_only_for_windows_10_builds() {
+        assert!(is_windows_10_version(10, 19_045));
+        assert!(!is_windows_10_version(10, 22_000));
+        assert!(!is_windows_10_version(11, 22_000));
+    }
+
+    #[test]
+    fn detects_executables_inside_the_protected_windows_apps_directory() {
+        assert!(is_windows_store_package_executable(
+            r"C:\Program Files\WindowsApps\OpenAI.Codex_1.0.0.0_x64__example\app\ChatGPT.exe"
+        ));
+        assert!(!is_windows_store_package_executable(
+            r"C:\Users\Example\Apps\ChatGPT.exe"
+        ));
     }
 }
 

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { App as AntApp, Form, Input, Modal, Select } from "antd";
 import { useI18n } from "../../i18n-context";
+import { localizePermission } from "../../permission-localization";
 import type { ApiClient, Permission, PermissionDefinition, RbacRole } from "../../types";
 
 interface RoleModalProps {
@@ -30,7 +31,7 @@ export function RoleModal({
   role,
 }: RoleModalProps) {
   const { message } = AntApp.useApp();
-  const { t } = useI18n();
+  const { language, t } = useI18n();
   const [form] = Form.useForm<RoleFormValues>();
   const [saving, setSaving] = useState(false);
   const grantable = useMemo(() => new Set(grantablePermissions), [grantablePermissions]);
@@ -38,9 +39,10 @@ export function RoleModal({
   const permissionOptions = useMemo(() => {
     const grouped = new Map<string, PermissionDefinition[]>();
     for (const permission of permissions) {
-      const group = grouped.get(permission.group) ?? [];
-      group.push(permission);
-      grouped.set(permission.group, group);
+      const localizedPermission = localizePermission(permission, language);
+      const group = grouped.get(localizedPermission.group) ?? [];
+      group.push(localizedPermission);
+      grouped.set(localizedPermission.group, group);
     }
     return [...grouped.entries()].map(([group, entries]) => ({
       label: group,
@@ -50,7 +52,7 @@ export function RoleModal({
         disabled: !grantable.has(permission.code) && !selected.has(permission.code),
       })),
     }));
-  }, [grantable, permissions, selected]);
+  }, [grantable, language, permissions, selected]);
 
   useEffect(() => {
     if (!open) {

@@ -186,10 +186,14 @@ export async function loadDashboard(): Promise<{ accounts: Account[]; info: AppI
   return { accounts, info };
 }
 
+function previewFloatingBubbleEnabled() {
+  return window.localStorage.getItem(FLOATING_BUBBLE_PREVIEW_KEY) !== "false";
+}
+
 export async function loadAppSettings(): Promise<AppSettings> {
   if (!isDesktopApp) {
     return {
-      floatingBubbleEnabled: window.localStorage.getItem(FLOATING_BUBBLE_PREVIEW_KEY) === "true",
+      floatingBubbleEnabled: previewFloatingBubbleEnabled(),
       privacyMode: window.localStorage.getItem(PRIVACY_MODE_PREVIEW_KEY) !== "false",
       bubbleResetDisplay: window.localStorage.getItem(BUBBLE_RESET_DISPLAY_PREVIEW_KEY) === "resetAt" ? "resetAt" : "countdown",
       themeColor: normalizeThemeColor(window.localStorage.getItem(THEME_COLOR_PREVIEW_KEY) ?? DEFAULT_THEME_COLOR),
@@ -481,7 +485,7 @@ export async function updatePrivacyMode(enabled: boolean): Promise<AppSettings> 
   if (!isDesktopApp) {
     window.localStorage.setItem(PRIVACY_MODE_PREVIEW_KEY, String(enabled));
     return {
-      floatingBubbleEnabled: window.localStorage.getItem(FLOATING_BUBBLE_PREVIEW_KEY) === "true",
+      floatingBubbleEnabled: previewFloatingBubbleEnabled(),
       privacyMode: enabled,
       bubbleResetDisplay: window.localStorage.getItem(BUBBLE_RESET_DISPLAY_PREVIEW_KEY) === "resetAt" ? "resetAt" : "countdown",
       themeColor: normalizeThemeColor(window.localStorage.getItem(THEME_COLOR_PREVIEW_KEY) ?? DEFAULT_THEME_COLOR),
@@ -507,7 +511,7 @@ export async function updateBubbleResetDisplay(display: BubbleResetDisplay): Pro
     window.localStorage.setItem(BUBBLE_RESET_DISPLAY_PREVIEW_KEY, display);
     window.dispatchEvent(new CustomEvent<BubbleResetDisplay>(BUBBLE_RESET_DISPLAY_EVENT, { detail: display }));
     return {
-      floatingBubbleEnabled: window.localStorage.getItem(FLOATING_BUBBLE_PREVIEW_KEY) === "true",
+      floatingBubbleEnabled: previewFloatingBubbleEnabled(),
       privacyMode: window.localStorage.getItem(PRIVACY_MODE_PREVIEW_KEY) !== "false",
       bubbleResetDisplay: display,
       themeColor: normalizeThemeColor(window.localStorage.getItem(THEME_COLOR_PREVIEW_KEY) ?? DEFAULT_THEME_COLOR),
@@ -522,7 +526,7 @@ export async function updateThemeColor(color: string): Promise<AppSettings> {
     window.localStorage.setItem(THEME_COLOR_PREVIEW_KEY, themeColor);
     window.dispatchEvent(new CustomEvent<string>(THEME_COLOR_EVENT, { detail: themeColor }));
     return {
-      floatingBubbleEnabled: window.localStorage.getItem(FLOATING_BUBBLE_PREVIEW_KEY) === "true",
+      floatingBubbleEnabled: previewFloatingBubbleEnabled(),
       privacyMode: window.localStorage.getItem(PRIVACY_MODE_PREVIEW_KEY) !== "false",
       bubbleResetDisplay: window.localStorage.getItem(BUBBLE_RESET_DISPLAY_PREVIEW_KEY) === "resetAt" ? "resetAt" : "countdown",
       themeColor,

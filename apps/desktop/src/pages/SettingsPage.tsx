@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Button, ColorPicker, Input, InputNumber, Segmented, Space, Switch } from "antd";
+import { Button, ColorPicker, Input, InputNumber, Segmented, Space, Switch, TimePicker } from "antd";
+import dayjs, { type Dayjs } from "dayjs";
 import { CalendarDays, CircleGauge, Cloud, EyeOff, FileDown, FolderKey, FolderOpen, KeyRound, Languages, LayoutGrid, Palette, RefreshCw, ShieldCheck, TableProperties } from "lucide-react";
 import { MAX_AUTO_REFRESH_SECONDS, MIN_AUTO_REFRESH_SECONDS } from "../hooks/useAutoRefresh";
 import { MAX_TOKEN_USAGE_REFRESH_SECONDS, MAX_TOKEN_USAGE_WEEKS, MIN_TOKEN_USAGE_REFRESH_SECONDS, MIN_TOKEN_USAGE_WEEKS } from "../hooks/useTokenUsagePreferences";
@@ -7,6 +8,66 @@ import type { AccountDisplayMode } from "../hooks/useAccountDisplayMode";
 import { DEFAULT_CLOUD_BASE_URL } from "../api/backend";
 import { LANGUAGE_OPTIONS, type Language, type Translate } from "../i18n";
 import type { AppInfo, BubbleResetDisplay } from "../types";
+
+const DURATION_FORMAT = "HH:mm:ss";
+
+function range(end: number) {
+  return Array.from({ length: end }, (_, index) => index);
+}
+
+function secondsToDuration(seconds: number) {
+  return dayjs().startOf("day").add(seconds, "second");
+}
+
+function durationToSeconds(value: Dayjs) {
+  return value.hour() * 3600 + value.minute() * 60 + value.second();
+}
+
+function DurationTimePicker({
+  id,
+  value,
+  disabled,
+  onChange,
+}: {
+  id: string;
+  value: number;
+  disabled: boolean;
+  onChange: (value: number | string | null) => void;
+}) {
+  const disabledTime = () => ({
+    disabledHours: () => range(24).filter((hour) => {
+      const firstSecond = hour * 3600;
+      const lastSecond = firstSecond + 3599;
+      return firstSecond > MAX_AUTO_REFRESH_SECONDS || lastSecond < MIN_AUTO_REFRESH_SECONDS;
+    }),
+    disabledMinutes: (hour: number) => range(60).filter((minute) => {
+      const firstSecond = hour * 3600 + minute * 60;
+      const lastSecond = firstSecond + 59;
+      return firstSecond > MAX_AUTO_REFRESH_SECONDS || lastSecond < MIN_AUTO_REFRESH_SECONDS;
+    }),
+    disabledSeconds: (hour: number, minute: number) => range(60).filter((second) => {
+      const duration = hour * 3600 + minute * 60 + second;
+      return duration < MIN_AUTO_REFRESH_SECONDS || duration > MAX_AUTO_REFRESH_SECONDS;
+    }),
+  });
+
+  return (
+    <TimePicker
+      id={id}
+      className="duration-time-picker"
+      value={secondsToDuration(value)}
+      format={DURATION_FORMAT}
+      placeholder="00:00:00"
+      allowClear={false}
+      showNow={false}
+      disabled={disabled}
+      disabledTime={disabledTime}
+      onChange={(nextValue) => {
+        if (nextValue) onChange(durationToSeconds(nextValue));
+      }}
+    />
+  );
+}
 
 export function SettingsPage({
   info,
@@ -232,11 +293,8 @@ export function SettingsPage({
             <Switch id="auto-refresh-enabled" checked={autoRefreshEnabled} checkedChildren={t("settings.autoRefresh.on")} unCheckedChildren={t("settings.autoRefresh.off")}
               onChange={onEnabledChange} />
             <label htmlFor="auto-refresh-interval">{t("settings.autoRefresh.interval")}</label>
-            <Space.Compact>
-              <InputNumber id="auto-refresh-interval" min={MIN_AUTO_REFRESH_SECONDS} max={MAX_AUTO_REFRESH_SECONDS}
-                step={1} value={autoRefreshSeconds} disabled={!autoRefreshEnabled} onChange={onSecondsChange} />
-              <Button disabled>{t("settings.autoRefresh.seconds")}</Button>
-            </Space.Compact>
+            <DurationTimePicker id="auto-refresh-interval" value={autoRefreshSeconds}
+              disabled={!autoRefreshEnabled} onChange={onSecondsChange} />
           </div>
         </div>
       </section>
@@ -256,13 +314,9 @@ export function SettingsPage({
               disabled={!currentAccountEmail} checkedChildren={t("settings.autoRefresh.on")}
               unCheckedChildren={t("settings.autoRefresh.off")} onChange={onAccountAutoRefreshEnabledChange} />
             <label htmlFor="account-auto-refresh-interval">{t("settings.autoRefresh.interval")}</label>
-            <Space.Compact>
-              <InputNumber id="account-auto-refresh-interval" min={MIN_AUTO_REFRESH_SECONDS}
-                max={MAX_AUTO_REFRESH_SECONDS} step={1} value={accountAutoRefreshSeconds}
-                disabled={!currentAccountEmail || !accountAutoRefreshEnabled}
-                onChange={onAccountAutoRefreshSecondsChange} />
-              <Button disabled>{t("settings.autoRefresh.seconds")}</Button>
-            </Space.Compact>
+            <DurationTimePicker id="account-auto-refresh-interval" value={accountAutoRefreshSeconds}
+              disabled={!currentAccountEmail || !accountAutoRefreshEnabled}
+              onChange={onAccountAutoRefreshSecondsChange} />
           </div>
         </div>
       </section>
