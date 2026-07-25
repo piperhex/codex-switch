@@ -2133,6 +2133,18 @@ mod tests {
         assert_eq!(value["runtime"], "rust-native");
     }
 
+    #[test]
+    fn bundled_css_collapses_the_codex_26_721_home_banner_wrapper() {
+        let windows_css = include_str!("../resources/dream-skin/assets/windows/dream-skin.css");
+        let macos_css = include_str!("../resources/dream-skin/assets/macos/dream-skin.css");
+
+        for css in [windows_css, macos_css] {
+            assert!(css.contains("div:first-child:has(> .home-banners)"));
+            assert!(css.contains("flex: 0 1 auto !important;"));
+            assert!(css.contains("min-height: 0 !important;"));
+        }
+    }
+
     #[cfg(target_os = "macos")]
     #[test]
     fn macos_payload_replaces_all_renderer_placeholders() {
