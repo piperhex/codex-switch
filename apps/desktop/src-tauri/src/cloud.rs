@@ -685,6 +685,10 @@ fn remote_field_is_newer(local: &str, remote: &str) -> bool {
     }
 }
 
+fn should_apply_remote_field(local_usable: bool, local: &str, remote: &str) -> bool {
+    !local_usable || remote_field_is_newer(local, remote)
+}
+
 fn apply_remote_account<R: Runtime>(
     app: &tauri::AppHandle<R>,
     account: &CloudAccountPayload,
@@ -711,28 +715,33 @@ fn apply_remote_account<R: Runtime>(
         account.field_modified_at.clone(),
         &account.last_modified_at,
     );
-    let apply_auth = !local_usable
-        || remote_field_is_newer(
-            &local_field_modified_at.auth,
-            &remote_field_modified_at.auth,
-        );
-    let apply_note = remote_field_is_newer(
+    let apply_auth = should_apply_remote_field(
+        local_usable,
+        &local_field_modified_at.auth,
+        &remote_field_modified_at.auth,
+    );
+    let apply_note = should_apply_remote_field(
+        local_usable,
         &local_field_modified_at.note,
         &remote_field_modified_at.note,
     );
-    let apply_expires_at = remote_field_is_newer(
+    let apply_expires_at = should_apply_remote_field(
+        local_usable,
         &local_field_modified_at.expires_at,
         &remote_field_modified_at.expires_at,
     );
-    let apply_usage = remote_field_is_newer(
+    let apply_usage = should_apply_remote_field(
+        local_usable,
         &local_field_modified_at.usage,
         &remote_field_modified_at.usage,
     );
-    let apply_active = remote_field_is_newer(
+    let apply_active = should_apply_remote_field(
+        local_usable,
         &local_field_modified_at.active,
         &remote_field_modified_at.active,
     );
-    let apply_auto_switch_priority = remote_field_is_newer(
+    let apply_auto_switch_priority = should_apply_remote_field(
+        local_usable,
         &local_field_modified_at.auto_switch_priority,
         &remote_field_modified_at.auto_switch_priority,
     );
@@ -1585,7 +1594,7 @@ async fn cloud_authenticate<R: Runtime>(
         let tokens: CloudTokenResponse = response
             .json()
             .map_err(|error| format!("{action} response is invalid: {error}"))?;
-        let mut credentials = CloudCredentials {
+        let credentials = CloudCredentials {
             access_token: Some(tokens.access_token),
             refresh_token: Some(tokens.refresh_token),
             device_id: Some(read_or_create_installation_state(&app)?.device_id),
@@ -1595,20 +1604,8 @@ async fn cloud_authenticate<R: Runtime>(
             settings.cloud_user_email = Some(user.email);
         }
         settings.cloud_session_expired = false;
-        // A returning device may hold an older local copy. Merge the cloud state first so a
-        // login cannot immediately publish that stale copy over newer cloud fields.
-        let remote_accounts = get_remote_accounts(&app, &client, &mut settings, &mut credentials)?;
-        for account_id in &remote_accounts.deleted_account_ids {
-            apply_remote_account_deletion(&app, account_id)?;
-        }
-        for account in remote_accounts.accounts {
-            apply_remote_account(&app, &account)?;
-        }
-        for provider in get_remote_providers(&app, &client, &mut settings, &mut credentials)? {
-            apply_remote_provider(&app, &provider)?;
-        }
-        let _ = put_remote_accounts(&app, &client, &mut settings, &mut credentials)?;
-        let _ = put_remote_providers(&app, &client, &mut settings, &mut credentials)?;
+        // Authentication must not mutate either local or cloud sync data. The user explicitly
+        // starts the first merge with "Sync now" after signing in.
         let (password_saved, credential_storage_updated) = if remember_password {
             match update_saved_cloud_login(&settings, Some(&saved_login)) {
                 Ok(()) => (true, true),
@@ -1861,8 +1858,8 @@ pub(crate) async fn cloud_sync_accounts<R: Runtime>(
 mod tests {
     use super::{
         cloud_state, persist_cloud_token_response, refresh_rejection_expires_cloud_session,
-        saved_cloud_login_service, CloudAccountsResponse, CloudCredentials, CloudTokenResponse,
-        CloudUserResponse,
+        saved_cloud_login_service, should_apply_remote_field, CloudAccountsResponse,
+        CloudCredentials, CloudTokenResponse, CloudUserResponse,
     };
     use crate::models::AppSettings;
     use reqwest::StatusCode;
@@ -1874,6 +1871,29 @@ mod tests {
 
         assert!(response.accounts.is_empty());
         assert_eq!(response.deleted_account_ids, ["account-1"]);
+    }
+
+    #[test]
+    fn remote_fields_win_when_the_account_does_not_exist_locally() {
+        assert!(should_apply_remote_field(
+            false,
+            "2026-07-26T04:00:00Z",
+            "2026-07-25T04:00:00Z",
+        ));
+    }
+
+    #[test]
+    fn existing_local_fields_still_use_last_write_wins() {
+        assert!(!should_apply_remote_field(
+            true,
+            "2026-07-26T04:00:00Z",
+            "2026-07-25T04:00:00Z",
+        ));
+        assert!(should_apply_remote_field(
+            true,
+            "2026-07-25T04:00:00Z",
+            "2026-07-26T04:00:00Z",
+        ));
     }
 
     #[test]
