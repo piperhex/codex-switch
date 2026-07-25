@@ -52,6 +52,12 @@ import { AdminArea } from './src/admin/AdminArea';
 import { AppToastHost, Toast } from './src/components/AppToast';
 import { BottomSheet } from './src/components/BottomSheet';
 import {
+  applyDeviceStatusSocketMessage,
+  deviceStatusSubscriptionMessage,
+  deviceStatusWebSocketUrl,
+  parseDeviceStatusSocketMessage,
+} from './src/realtime/deviceStatus';
+import {
   checkForAppUpdate,
   CURRENT_APP_VERSION,
   CURRENT_BUILD_VERSION,
@@ -1331,6 +1337,109 @@ function AppContent() {
       subscription.remove();
     };
   }, [globalRefreshMinutes, refreshAll, session]);
+
+  useEffect(() => {
+    if (!session) return undefined;
+    let stopped = false;
+    let foreground = AppState.currentState === 'active';
+    let socket: WebSocket | null = null;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let reconnectAttempt = 0;
+    let recoveringSession = false;
+
+    const clearReconnectTimer = () => {
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    };
+    const scheduleReconnect = () => {
+      if (stopped || !foreground || reconnectTimer || recoveringSession) return;
+      const delay = Math.min(15_000, 1_000 * (2 ** reconnectAttempt));
+      reconnectAttempt += 1;
+      reconnectTimer = setTimeout(() => {
+        reconnectTimer = null;
+        connect();
+      }, delay);
+    };
+    const recoverSessionAndReconnect = async () => {
+      if (recoveringSession || stopped) return;
+      recoveringSession = true;
+      try {
+        const nextDevices = await fetchRemoteDevices(session);
+        if (stopped) return;
+        setDevices(nextDevices);
+        reconnectAttempt = 0;
+      } catch (error) {
+        if (isSessionExpiredError(error)) {
+          await clearSession();
+          if (!stopped) {
+            setSession(null);
+            setProfile(null);
+            setAccounts([]);
+            setDevices([]);
+            setActivePage('accounts');
+          }
+        }
+      } finally {
+        recoveringSession = false;
+        scheduleReconnect();
+      }
+    };
+    const connect = () => {
+      if (stopped || !foreground || socket) return;
+      let nextSocket: WebSocket;
+      try {
+        nextSocket = new WebSocket(deviceStatusWebSocketUrl(session.baseUrl));
+      } catch {
+        scheduleReconnect();
+        return;
+      }
+      socket = nextSocket;
+      nextSocket.onopen = () => {
+        if (stopped || !foreground || socket !== nextSocket) {
+          nextSocket.close(1000, 'Connection is no longer needed');
+          return;
+        }
+        reconnectAttempt = 0;
+        nextSocket.send(deviceStatusSubscriptionMessage(session));
+      };
+      nextSocket.onmessage = (event) => {
+        if (stopped || socket !== nextSocket) return;
+        const message = parseDeviceStatusSocketMessage(event.data);
+        if (!message) return;
+        setDevices((current) => applyDeviceStatusSocketMessage(current, message));
+      };
+      nextSocket.onerror = () => undefined;
+      nextSocket.onclose = (event) => {
+        if (socket === nextSocket) socket = null;
+        if (stopped || !foreground) return;
+        if (event.code === 4001) void recoverSessionAndReconnect();
+        else scheduleReconnect();
+      };
+    };
+
+    connect();
+    const subscription = AppState.addEventListener('change', (state) => {
+      foreground = state === 'active';
+      if (foreground) {
+        reconnectAttempt = 0;
+        connect();
+        return;
+      }
+      clearReconnectTimer();
+      const activeSocket = socket;
+      socket = null;
+      activeSocket?.close(1000, 'App moved to background');
+    });
+    return () => {
+      stopped = true;
+      foreground = false;
+      clearReconnectTimer();
+      subscription.remove();
+      const activeSocket = socket;
+      socket = null;
+      activeSocket?.close(1000, 'Session ended');
+    };
+  }, [session]);
 
   useEffect(() => {
     // Android's system Back action also covers the edge-swipe gesture. Keep

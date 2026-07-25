@@ -28,6 +28,11 @@ interface AuthMessage {
   activeAccountId?: string | null;
 }
 
+interface SubscribeDevicesMessage {
+  type: 'subscribe-devices';
+  accessToken: string;
+}
+
 interface SwitchResultMessage {
   type: 'switch-result';
   commandId: string;
@@ -35,9 +40,27 @@ interface SwitchResultMessage {
   error?: string;
 }
 
-interface ClientSession {
+interface DeviceSession {
+  kind: 'device';
   ownerId: string;
   deviceId: string;
+}
+
+interface DeviceSubscriberSession {
+  kind: 'device-subscriber';
+  ownerId: string;
+}
+
+type ClientSession = DeviceSession | DeviceSubscriberSession;
+
+interface RemoteDeviceStatus {
+  deviceId: string;
+  name: string;
+  platform: string;
+  appVersion?: string | null;
+  activeAccountId?: string | null;
+  lastSeenAt: string;
+  online: boolean;
 }
 
 interface PendingSwitch {
@@ -54,6 +77,9 @@ export class DeviceGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly sockets = new Map<string, WebSocket>();
   private readonly pending = new Map<string, PendingSwitch>();
   private readonly authTimers = new Map<WebSocket, NodeJS.Timeout>();
+  private readonly deviceSubscribers = new Map<string, Set<WebSocket>>();
+  private readonly heartbeatTimers = new Map<WebSocket, NodeJS.Timeout>();
+  private readonly heartbeatClients = new Set<WebSocket>();
 
   constructor(
     private readonly jwt: JwtService,
@@ -65,23 +91,69 @@ export class DeviceGateway implements OnGatewayConnection, OnGatewayDisconnect {
   handleConnection(client: WebSocket) {
     const authTimer = setTimeout(() => client.close(4001, 'Authentication timed out'), 10_000);
     this.authTimers.set(client, authTimer);
+    this.heartbeatClients.add(client);
+    client.on('pong', () => this.heartbeatClients.add(client));
+    const heartbeatTimer = setInterval(() => {
+      if (!this.heartbeatClients.delete(client)) {
+        client.terminate();
+        return;
+      }
+      if (client.readyState === WebSocket.OPEN) {
+        try {
+          client.ping();
+        } catch {
+          client.terminate();
+        }
+      }
+    }, 25_000);
+    heartbeatTimer.unref();
+    this.heartbeatTimers.set(client, heartbeatTimer);
     client.on('message', (raw) => {
       void this.handleMessage(client, raw).catch(() => client.close(4001, 'Invalid message'));
     });
-    client.once('close', () => clearTimeout(authTimer));
+    client.once('close', () => {
+      clearTimeout(authTimer);
+      clearInterval(heartbeatTimer);
+      this.heartbeatTimers.delete(client);
+      this.heartbeatClients.delete(client);
+    });
   }
 
   handleDisconnect(client: WebSocket) {
     const session = this.sessions.get(client);
     const authTimer = this.authTimers.get(client);
+    const heartbeatTimer = this.heartbeatTimers.get(client);
     if (authTimer) clearTimeout(authTimer);
+    if (heartbeatTimer) clearInterval(heartbeatTimer);
     this.authTimers.delete(client);
+    this.heartbeatTimers.delete(client);
+    this.heartbeatClients.delete(client);
     this.sessions.delete(client);
-    if (session && this.sockets.get(this.socketKey(session.ownerId, session.deviceId)) === client) {
+    if (session?.kind === 'device-subscriber') {
+      const subscribers = this.deviceSubscribers.get(session.ownerId);
+      subscribers?.delete(client);
+      if (subscribers?.size === 0) this.deviceSubscribers.delete(session.ownerId);
+      return;
+    }
+    if (
+      session?.kind === 'device'
+      && this.sockets.get(this.socketKey(session.ownerId, session.deviceId)) === client
+    ) {
       this.sockets.delete(this.socketKey(session.ownerId, session.deviceId));
+      const lastSeenAt = new Date().toISOString();
+      void this.devices.touch(session.deviceId).catch(() => undefined);
+      this.broadcastToDeviceSubscribers(session.ownerId, {
+        type: 'device-offline',
+        deviceId: session.deviceId,
+        lastSeenAt,
+      });
     }
     for (const [commandId, pending] of this.pending) {
-      if (pending.ownerId !== session?.ownerId || pending.deviceId !== session.deviceId) continue;
+      if (
+        session?.kind !== 'device'
+        || pending.ownerId !== session.ownerId
+        || pending.deviceId !== session.deviceId
+      ) continue;
       clearTimeout(pending.timer);
       pending.reject(new Error('Device disconnected before the account was switched'));
       this.pending.delete(commandId);
@@ -91,13 +163,20 @@ export class DeviceGateway implements OnGatewayConnection, OnGatewayDisconnect {
   isOnline(ownerId: string, deviceId: string) {
     const socket = this.sockets.get(this.socketKey(ownerId, deviceId));
     const session = socket ? this.sessions.get(socket) : undefined;
-    return socket?.readyState === WebSocket.OPEN && session?.ownerId === ownerId;
+    return socket?.readyState === WebSocket.OPEN
+      && session?.kind === 'device'
+      && session.ownerId === ownerId;
   }
 
   async pushAccountSwitch(ownerId: string, deviceId: string, accountId: string) {
     const socket = this.sockets.get(this.socketKey(ownerId, deviceId));
     const session = socket ? this.sessions.get(socket) : undefined;
-    if (!socket || socket.readyState !== WebSocket.OPEN || session?.ownerId !== ownerId) {
+    if (
+      !socket
+      || socket.readyState !== WebSocket.OPEN
+      || session?.kind !== 'device'
+      || session.ownerId !== ownerId
+    ) {
       throw new Error('Device is offline');
     }
 
@@ -114,18 +193,28 @@ export class DeviceGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   private async handleMessage(client: WebSocket, raw: RawData) {
-    const message = JSON.parse(raw.toString()) as AuthMessage | SwitchResultMessage;
+    const message = JSON.parse(raw.toString()) as
+      AuthMessage | SubscribeDevicesMessage | SwitchResultMessage;
     if (!this.sessions.has(client)) {
-      if (message.type !== 'authenticate') throw new Error('Authentication required');
-      await this.authenticate(client, message);
+      if (message.type === 'authenticate') {
+        await this.authenticateDevice(client, message);
+        return;
+      }
+      if (message.type === 'subscribe-devices') {
+        await this.authenticateDeviceSubscriber(client, message);
+        return;
+      }
+      throw new Error('Authentication required');
+    }
+    const session = this.sessions.get(client);
+    if (session?.kind !== 'device') {
       return;
     }
     if (message.type === 'switch-result') {
       const pending = this.pending.get(message.commandId);
-      const session = this.sessions.get(client);
       if (
         !pending
-        || pending.ownerId !== session?.ownerId
+        || pending.ownerId !== session.ownerId
         || pending.deviceId !== session.deviceId
       ) return;
       clearTimeout(pending.timer);
@@ -136,21 +225,16 @@ export class DeviceGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
-  private async authenticate(client: WebSocket, message: AuthMessage) {
-    const payload = await this.jwt.verifyAsync<AccessPayload>(message.accessToken, {
-      secret: getKongJwtSecret(this.config),
-    });
-    const user = await this.users.findActiveById(payload.sub);
-    if (!user) throw new Error('User is disabled or no longer exists');
+  private async authenticateDevice(client: WebSocket, message: AuthMessage) {
+    const ownerId = await this.authenticateUser(message.accessToken);
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
       .test(message.deviceId)) {
       throw new Error('Device id is invalid');
     }
 
-    const key = this.socketKey(user.id, message.deviceId);
+    const key = this.socketKey(ownerId, message.deviceId);
     const previous = this.sockets.get(key);
-    if (previous && previous !== client) previous.close(4000, 'Replaced by a newer connection');
-    await this.devices.register(user.id, {
+    const device = await this.devices.register(ownerId, {
       deviceId: message.deviceId,
       name: message.name,
       platform: message.platform,
@@ -160,9 +244,83 @@ export class DeviceGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const authTimer = this.authTimers.get(client);
     if (authTimer) clearTimeout(authTimer);
     this.authTimers.delete(client);
-    this.sessions.set(client, { ownerId: user.id, deviceId: message.deviceId });
+    this.sessions.set(client, { kind: 'device', ownerId, deviceId: message.deviceId });
     this.sockets.set(key, client);
+    if (previous && previous !== client) previous.close(4000, 'Replaced by a newer connection');
     client.send(JSON.stringify({ type: 'authenticated', deviceId: message.deviceId }));
+    this.broadcastToDeviceSubscribers(ownerId, {
+      type: 'device-online',
+      device: this.deviceStatus(device ?? message, true),
+    });
+  }
+
+  private async authenticateDeviceSubscriber(
+    client: WebSocket,
+    message: SubscribeDevicesMessage,
+  ) {
+    const ownerId = await this.authenticateUser(message.accessToken);
+    const authTimer = this.authTimers.get(client);
+    if (authTimer) clearTimeout(authTimer);
+    this.authTimers.delete(client);
+    this.sessions.set(client, { kind: 'device-subscriber', ownerId });
+    const subscribers = this.deviceSubscribers.get(ownerId) ?? new Set<WebSocket>();
+    subscribers.add(client);
+    this.deviceSubscribers.set(ownerId, subscribers);
+
+    const devices = await this.devices.list(ownerId);
+    client.send(JSON.stringify({
+      type: 'devices-snapshot',
+      devices: devices.map((device) => this.deviceStatus(
+        device,
+        this.isOnline(ownerId, device.deviceId),
+      )),
+    }));
+  }
+
+  private async authenticateUser(accessToken: string) {
+    const payload = await this.jwt.verifyAsync<AccessPayload>(accessToken, {
+      secret: getKongJwtSecret(this.config),
+    });
+    const user = await this.users.findActiveById(payload.sub);
+    if (!user) throw new Error('User is disabled or no longer exists');
+    return user.id;
+  }
+
+  private deviceStatus(
+    device: {
+      deviceId: string;
+      name: string;
+      platform: string;
+      appVersion?: string | null;
+      activeAccountId?: string | null;
+      lastSeenAt?: Date | string;
+    },
+    online: boolean,
+  ): RemoteDeviceStatus {
+    const lastSeenAt = device.lastSeenAt
+      ? new Date(device.lastSeenAt).toISOString()
+      : new Date().toISOString();
+    return {
+      deviceId: device.deviceId,
+      name: device.name,
+      platform: device.platform,
+      appVersion: device.appVersion,
+      activeAccountId: device.activeAccountId,
+      lastSeenAt,
+      online,
+    };
+  }
+
+  private broadcastToDeviceSubscribers(ownerId: string, message: object) {
+    const payload = JSON.stringify(message);
+    for (const subscriber of this.deviceSubscribers.get(ownerId) ?? []) {
+      if (subscriber.readyState !== WebSocket.OPEN) continue;
+      try {
+        subscriber.send(payload);
+      } catch {
+        subscriber.terminate();
+      }
+    }
   }
 
   private socketKey(ownerId: string, deviceId: string) {
