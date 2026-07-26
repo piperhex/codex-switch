@@ -16,12 +16,17 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { loadTokenUsageEntries } from "../../api/backend";
+import { loadTokenUsageEntries, subscribeToTokenUsageChanges } from "../../api/backend";
 import type { Language, Translate } from "../../i18n";
 import type { AccountDisplayMode } from "../../hooks/useAccountDisplayMode";
 import type { Account, ResetCreditsLoadState, TokenUsageEntry } from "../../types";
 import { earliestExpirationDate } from "../../utils/expiration";
 import { initials } from "../../utils/format";
+import {
+  formatCompactTokenCount,
+  latestTokenContextForAccount,
+  type TokenContextUsage,
+} from "../../utils/tokenContext";
 import { AccountNoteModal } from "../modals/AccountNoteModal";
 import { ResetCreditsPanel } from "./ResetCreditsPanel";
 import { UsageMeter } from "./UsageMeter";
@@ -146,25 +151,31 @@ function entryAccountKeys(entry: TokenUsageEntry) {
   ].filter(Boolean);
 }
 
-function formatCompactTokenCount(value: number, language: Language) {
-  const locale = language === "zh" ? "zh-CN" : "en-US";
-  if (value >= 1_000_000) {
-    return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(value / 1_000_000)}M`;
-  }
-  if (value >= 1_000) {
-    return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(value / 1_000)}K`;
-  }
-  return new Intl.NumberFormat(locale).format(value);
-}
-
-function CompactModelTokenChart({ model, totals, language }: {
+function CompactModelTokenChart({ model, totals, context, language }: {
   model: string;
   totals: TokenTypeTotals;
+  context: TokenContextUsage | null;
   language: Language;
 }) {
   const labels = language === "zh"
-    ? { title: "当前模型 Token 类型累计", input: "输入", output: "输出", reasoning: "推理", cached: "缓存" }
-    : { title: "Current model token totals", input: "Input", output: "Output", reasoning: "Reasoning", cached: "Cached" };
+    ? {
+      title: "当前模型 Token 类型累计",
+      input: "输入",
+      output: "输出",
+      reasoning: "推理",
+      cached: "缓存",
+      availableContext: "可用上下文",
+      totalContext: "总上下文",
+    }
+    : {
+      title: "Current model token totals",
+      input: "Input",
+      output: "Output",
+      reasoning: "Reasoning",
+      cached: "Cached",
+      availableContext: "Available context",
+      totalContext: "Total context",
+    };
   const values = [totals.input, totals.output, totals.reasoning, totals.cached];
   const maximum = Math.max(...values, 1);
   const total = totals.input + totals.output;
@@ -179,6 +190,16 @@ function CompactModelTokenChart({ model, totals, language }: {
           <b>{formatCompactTokenCount(value, language)}</b>
         </span>
       ))}
+      <div className="compact-token-context">
+        <span>
+          <i>{labels.availableContext}</i>
+          <b>{context ? formatCompactTokenCount(context.availableTokens, language) : "--"}</b>
+        </span>
+        <span>
+          <i>{labels.totalContext}</i>
+          <b>{context ? formatCompactTokenCount(context.totalTokens, language) : "--"}</b>
+        </span>
+      </div>
     </div>
   );
   return (
@@ -363,9 +384,11 @@ export function AccountTable({
     };
     void refresh();
     const timer = window.setInterval(() => void refresh(), Math.max(1, tokenUsageRefreshSeconds) * 1000);
+    const unsubscribe = subscribeToTokenUsageChanges(() => void refresh());
     return () => {
       active = false;
       window.clearInterval(timer);
+      unsubscribe();
     };
   }, [hotSwitchEnabled, tokenUsageRefreshSeconds]);
   useEffect(() => {
@@ -508,7 +531,9 @@ export function AccountTable({
         <div className="account-token-chart-cell">
           {hotSwitchEnabled ? (
             <CompactModelTokenChart model={effectiveCurrentModel}
-              totals={totalsForAccount(tokenTotalsByAccount, account)} language={language} />
+              totals={totalsForAccount(tokenTotalsByAccount, account)}
+              context={latestTokenContextForAccount(tokenUsageEntries, account, effectiveCurrentModel)}
+              language={language} />
           ) : (
             <Tooltip title={t("table.tokenTotalsProxyOnly")}>
               <span className="account-token-chart-unavailable">--</span>

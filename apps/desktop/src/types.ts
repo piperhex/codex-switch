@@ -110,6 +110,7 @@ export interface TokenUsageEntry {
   reasoningTokens?: number | null;
   cachedTokens?: number | null;
   totalTokens?: number | null;
+  modelContextWindow?: number | null;
 }
 
 export interface DailyTokenUsage {

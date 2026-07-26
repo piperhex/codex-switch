@@ -157,6 +157,8 @@ pub(crate) struct TokenUsageEntry {
     pub(crate) reasoning_tokens: Option<u64>,
     pub(crate) cached_tokens: Option<u64>,
     pub(crate) total_tokens: Option<u64>,
+    #[serde(default)]
+    pub(crate) model_context_window: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
