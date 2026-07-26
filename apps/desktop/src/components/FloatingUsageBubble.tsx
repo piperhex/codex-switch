@@ -3,16 +3,19 @@ import {
   dragFloatingBubble,
   loadAppSettings,
   loadDashboard,
+  loadTokenUsageEntries,
   refreshAccountUsage,
   showDashboardFromBubble,
   showFloatingBubbleMenu,
   subscribeToBubbleResetDisplayChanges,
   subscribeToBackendEvents,
+  subscribeToTokenUsageChanges,
 } from "../api/backend";
 import { useLanguage } from "../hooks/useLanguage";
 import { useThemeColor } from "../hooks/useThemeColor";
-import type { Account, BubbleResetDisplay } from "../types";
+import type { Account, BubbleResetDisplay, TokenUsageEntry } from "../types";
 import { remainingTone, resetClockTime } from "../utils/format";
+import { formatCompactTokenCount, latestTokenContextForAccount } from "../utils/tokenContext";
 
 function usageColor(remaining: number) {
   const tone = remainingTone(remaining);
@@ -85,6 +88,7 @@ export function FloatingUsageBubble() {
   const { language } = useLanguage();
   useThemeColor(ignoreThemeError);
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [tokenUsageEntries, setTokenUsageEntries] = useState<TokenUsageEntry[]>([]);
   const [resetDisplay, setResetDisplay] = useState<BubbleResetDisplay>("countdown");
   const [refreshing, setRefreshing] = useState(false);
   const [waterSettling, setWaterSettling] = useState(false);
@@ -108,6 +112,17 @@ export function FloatingUsageBubble() {
     return subscribeToBackendEvents(load, load);
   }, [load]);
 
+  const loadTokenContext = useCallback(() => {
+    void loadTokenUsageEntries()
+      .then(setTokenUsageEntries)
+      .catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    loadTokenContext();
+    return subscribeToTokenUsageChanges(loadTokenContext);
+  }, [loadTokenContext]);
+
   useEffect(() => {
     loadResetDisplay();
   }, [loadResetDisplay]);
@@ -115,6 +130,10 @@ export function FloatingUsageBubble() {
   useEffect(() => subscribeToBubbleResetDisplayChanges(loadResetDisplay), [loadResetDisplay]);
 
   const account = useMemo(() => accounts.find((item) => item.active), [accounts]);
+  const tokenContext = useMemo(
+    () => account ? latestTokenContextForAccount(tokenUsageEntries, account) : null,
+    [account, tokenUsageEntries],
+  );
   const primary = account?.usage.primary;
   const secondary = account?.usage.secondary;
   const remaining = primary ? clampPercent(primary.remainingPercent) : null;
@@ -123,6 +142,9 @@ export function FloatingUsageBubble() {
   const bubbleLabel = language === "zh"
     ? (refreshing ? "正在刷新当前账号额度" : "点击刷新当前账号额度")
     : (refreshing ? "Refreshing current account quota" : "Click to refresh current account quota");
+  const bubbleHover = language === "zh"
+    ? `${bubbleLabel}\n可用上下文：${tokenContext ? formatCompactTokenCount(tokenContext.availableTokens, language) : "--"}\n总上下文：${tokenContext ? formatCompactTokenCount(tokenContext.totalTokens, language) : "--"}`
+    : `${bubbleLabel}\nAvailable context: ${tokenContext ? formatCompactTokenCount(tokenContext.availableTokens, language) : "--"}\nTotal context: ${tokenContext ? formatCompactTokenCount(tokenContext.totalTokens, language) : "--"}`;
   const ringStyle = {
     "--bubble-progress": `${weeklyRemaining ?? 0}%`,
     "--bubble-color": weeklyRemaining === null ? "#7b8780" : usageColor(weeklyRemaining),
@@ -215,7 +237,7 @@ export function FloatingUsageBubble() {
     <div className="floating-usage-window" onContextMenu={openContextMenu}>
       <button type="button" className={`floating-bubble ${waterSettling ? "is-water-settling" : ""} ${refreshing ? "is-refreshing" : ""}`} style={ringStyle}
         aria-label={bubbleLabel}
-        title={bubbleLabel}
+        title={bubbleHover}
         aria-busy={refreshing}
         onPointerDown={startPointerGesture}
         onPointerMove={continuePointerGesture}

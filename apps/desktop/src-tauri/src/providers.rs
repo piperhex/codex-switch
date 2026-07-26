@@ -28,7 +28,7 @@ const LOCAL_PROXY_PROVIDER_ID: &str = "codex-switch-local";
 const LOCAL_PROXY_PROVIDER_NAME: &str = "Codex Switch Local Proxy";
 pub(crate) const DEFAULT_OFFICIAL_MODEL: &str = "gpt-5.6-sol";
 const MODEL_CATALOG_FILENAME: &str = "codex-switch-model-catalog.json";
-const DEFAULT_MODEL_CONTEXT_WINDOW: u64 = 128_000;
+pub(crate) const DEFAULT_MODEL_CONTEXT_WINDOW: u64 = 128_000;
 
 fn emit_providers_changed<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<(), String> {
     app.emit("providers-changed", ())

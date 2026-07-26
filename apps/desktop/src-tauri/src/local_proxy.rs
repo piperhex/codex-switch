@@ -48,6 +48,7 @@ const TOKEN_USAGE_DB_FILE_NAME: &str = "token-usage.sqlite3";
 const TOKEN_USAGE_DB_KEEP_ROWS: i64 = 10_000;
 const TOKEN_USAGE_LIST_LIMIT: usize = 500;
 const TOKEN_USAGE_CAPTURE_MAX_BYTES: usize = 4 * 1024 * 1024;
+const DEFAULT_EFFECTIVE_CONTEXT_WINDOW_PERCENT: u64 = 95;
 pub(crate) const TOKEN_USAGE_WINDOW_LABEL: &str = "token-usage";
 const CUSTOM_TOOL_INPUT_DESCRIPTION: &str =
     "Raw string input for the original custom tool. Preserve formatting exactly.";
@@ -581,7 +582,23 @@ pub(crate) fn list_token_usage_entries<R: Runtime>(
     app: tauri::AppHandle<R>,
 ) -> Result<Vec<TokenUsageEntry>, String> {
     let connection = open_token_usage_db(&app)?;
-    list_token_usage_entries_from_db(&connection, TOKEN_USAGE_LIST_LIMIT)
+    let mut entries = list_token_usage_entries_from_db(&connection, TOKEN_USAGE_LIST_LIMIT)?;
+    let official_context_windows = resolve_paths(&app)
+        .ok()
+        .map(|paths| official_model_context_windows(&paths))
+        .unwrap_or_default();
+    for entry in &mut entries {
+        entry.model_context_window = if entry.provider == "Official Codex" {
+            official_context_windows.get(&entry.model).copied()
+        } else {
+            Some(
+                providers::DEFAULT_MODEL_CONTEXT_WINDOW
+                    .saturating_mul(DEFAULT_EFFECTIVE_CONTEXT_WINDOW_PERCENT)
+                    / 100,
+            )
+        };
+    }
+    Ok(entries)
 }
 
 #[tauri::command]
@@ -1855,9 +1872,12 @@ fn record_token_usage_entry<R: Runtime>(
         reasoning_tokens: usage.reasoning_tokens,
         cached_tokens: usage.cached_tokens,
         total_tokens: usage.total_tokens,
+        model_context_window: None,
     };
     if let Err(error) = append_token_usage_entry(app, &entry) {
         eprintln!("failed to write token usage entry: {error}");
+    } else {
+        let _ = app.emit("token-usage-updated", ());
     }
 }
 
@@ -2114,6 +2134,37 @@ fn append_token_usage_entry<R: Runtime>(
     prune_token_usage_entries(&connection)
 }
 
+fn official_model_context_windows(paths: &Paths) -> HashMap<String, u64> {
+    read_json(&paths.codex_home.join("models_cache.json"))
+        .ok()
+        .map(|catalog| model_context_windows_from_catalog(&catalog))
+        .unwrap_or_default()
+}
+
+fn model_context_windows_from_catalog(catalog: &Value) -> HashMap<String, u64> {
+    catalog
+        .get("models")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|model| {
+            let slug = model.get("slug").and_then(Value::as_str)?;
+            let context_window = model
+                .get("context_window")
+                .and_then(Value::as_u64)
+                .or_else(|| model.get("max_context_window").and_then(Value::as_u64))?;
+            let effective_percent = model
+                .get("effective_context_window_percent")
+                .and_then(Value::as_u64)
+                .unwrap_or(DEFAULT_EFFECTIVE_CONTEXT_WINDOW_PERCENT);
+            Some((
+                slug.to_string(),
+                context_window.saturating_mul(effective_percent) / 100,
+            ))
+        })
+        .collect()
+}
+
 fn open_token_usage_db<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<Connection, String> {
     let _guard = token_usage_db_lock()
         .lock()
@@ -2335,6 +2386,7 @@ fn list_token_usage_entries_from_db(
                 reasoning_tokens: opt_i64_to_u64(row.get(9)?),
                 cached_tokens: opt_i64_to_u64(row.get(10)?),
                 total_tokens: opt_i64_to_u64(row.get(11)?),
+                model_context_window: None,
             })
         })
         .map_err(|error| format!("Failed to read token usage entries: {error}"))?;
@@ -5409,6 +5461,7 @@ mod tests {
                     reasoning_tokens: Some(0),
                     cached_tokens: Some(0),
                     total_tokens: Some(index as u64 + 1),
+                    model_context_window: None,
                 },
             )
             .unwrap();
@@ -5426,6 +5479,33 @@ mod tests {
         );
         assert_eq!(entries[TOKEN_USAGE_LIST_LIMIT - 1].id, "entry-002");
         assert!(entries.iter().all(|entry| entry.id != "entry-001"));
+    }
+
+    #[test]
+    fn model_context_windows_match_codex_effective_window_calculation() {
+        let catalog = json!({
+            "models": [
+                {
+                    "slug": "gpt-effective",
+                    "context_window": 272_000,
+                    "max_context_window": 1_000_000,
+                    "effective_context_window_percent": 95
+                },
+                {
+                    "slug": "gpt-max-fallback",
+                    "context_window": null,
+                    "max_context_window": 128_000
+                }
+            ]
+        });
+
+        assert_eq!(
+            model_context_windows_from_catalog(&catalog),
+            HashMap::from([
+                ("gpt-effective".to_string(), 258_400),
+                ("gpt-max-fallback".to_string(), 121_600),
+            ])
+        );
     }
 
     #[test]

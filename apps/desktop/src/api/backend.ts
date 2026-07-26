@@ -321,11 +321,12 @@ export async function loadTokenUsageEntries(): Promise<TokenUsageEntry[]> {
         accountEmail: "alex.chen@example.com",
         model: "gpt-5-codex",
         durationMs: 16720,
-        inputTokens: 2_000_088,
-        outputTokens: 1_376_000,
-        reasoningTokens: 1_344_000,
-        cachedTokens: 1_945_600,
-        totalTokens: 3_376_088,
+        inputTokens: 72_088,
+        outputTokens: 13_760,
+        reasoningTokens: 13_440,
+        cachedTokens: 69_456,
+        totalTokens: 85_848,
+        modelContextWindow: 258_400,
       },
       {
         id: "preview-token-2",
@@ -338,6 +339,7 @@ export async function loadTokenUsageEntries(): Promise<TokenUsageEntry[]> {
         reasoningTokens: 0,
         cachedTokens: 19012,
         totalTokens: 19580,
+        modelContextWindow: 121_600,
       },
     ];
   }
@@ -1227,6 +1229,12 @@ export function subscribeToBackendEvents(
     listen<LoginStatus>("login-status", ({ payload }) => onLoginStatus(payload)),
   ];
   return () => subscriptions.forEach((subscription) => void subscription.then((unlisten) => unlisten()));
+}
+
+export function subscribeToTokenUsageChanges(onChange: () => void): () => void {
+  if (!isDesktopApp) return () => undefined;
+  const subscription = listen("token-usage-updated", onChange);
+  return () => void subscription.then((unlisten) => unlisten());
 }
 
 export function subscribeToCloudSessionExpired(onExpired: () => void): () => void {

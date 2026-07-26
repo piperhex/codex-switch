@@ -245,6 +245,10 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .compact-token-tooltip > span { display: grid; grid-template-columns: 7px minmax(0, 1fr) auto; align-items: center; gap: 6px; color: rgba(255,255,255,.82); font-size: 10px; }
 .compact-token-tooltip > span i { width: 7px; height: 7px; border-radius: 2px; }
 .compact-token-tooltip > span b { color: #fff; font-weight: 700; }
+.compact-token-context { padding-top: 5px; display: grid; gap: 4px; border-top: 1px solid rgba(255,255,255,.18); }
+.compact-token-context > span { display: flex; align-items: center; justify-content: space-between; gap: 14px; color: rgba(255,255,255,.82); font-size: 10px; }
+.compact-token-context > span i { color: rgba(255,255,255,.72); font-style: normal; }
+.compact-token-context > span b { color: #fff; font-weight: 700; }
 .compact-token-tooltip .token-type-0 { background: #3b82f6; }
 .compact-token-tooltip .token-type-1 { background: #10b981; }
 .compact-token-tooltip .token-type-2 { background: #8b5cf6; }
