@@ -186,6 +186,8 @@ pub(crate) struct AppSettings {
     #[serde(default)]
     pub(crate) bubble_reset_display: BubbleResetDisplay,
     #[serde(default)]
+    pub(crate) bubble_style: BubbleStyle,
+    #[serde(default)]
     pub(crate) bubble_x: Option<f64>,
     #[serde(default)]
     pub(crate) bubble_y: Option<f64>,
@@ -210,6 +212,19 @@ pub(crate) struct AppSettings {
 pub(crate) enum BubbleResetDisplay {
     Countdown,
     ResetAt,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) enum BubbleStyle {
+    Classic,
+    Glass,
+}
+
+impl Default for BubbleStyle {
+    fn default() -> Self {
+        Self::Classic
+    }
 }
 
 impl Default for BubbleResetDisplay {
@@ -251,6 +266,7 @@ impl Default for AppSettings {
             language: None,
             privacy_mode: default_privacy_mode(),
             bubble_reset_display: BubbleResetDisplay::default(),
+            bubble_style: BubbleStyle::default(),
             bubble_x: None,
             bubble_y: None,
             cloud_base_url: default_cloud_base_url(),
@@ -396,5 +412,14 @@ mod tests {
         assert!(defaults.floating_bubble_enabled);
         assert!(migrated.floating_bubble_enabled);
         assert!(!explicitly_disabled.floating_bubble_enabled);
+    }
+
+    #[test]
+    fn app_settings_default_the_bubble_style_to_classic() {
+        let migrated: AppSettings = serde_json::from_str("{}").unwrap();
+        let glass: AppSettings = serde_json::from_str(r#"{"bubbleStyle":"glass"}"#).unwrap();
+
+        assert!(matches!(migrated.bubble_style, BubbleStyle::Classic));
+        assert!(matches!(glass.bubble_style, BubbleStyle::Glass));
     }
 }

@@ -20,6 +20,7 @@ import { useAccountManager } from "./hooks/useAccountManager";
 import { useAccountAutoRefresh, useAutoRefresh } from "./hooks/useAutoRefresh";
 import { useAccountDisplayMode } from "./hooks/useAccountDisplayMode";
 import { useBubbleResetDisplay } from "./hooks/useBubbleResetDisplay";
+import { useBubbleStyle } from "./hooks/useBubbleStyle";
 import { useCloudAuth } from "./hooks/useCloudAuth";
 import { useLanguage } from "./hooks/useLanguage";
 import { useFloatingBubble } from "./hooks/useFloatingBubble";
@@ -34,7 +35,7 @@ import { DreamSkinPage } from "./pages/DreamSkinPage";
 import { ProvidersPage } from "./pages/ProvidersPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { formatRefreshTime } from "./utils/format";
-import type { BubbleResetDisplay, CloudAnnouncement, CloudFaq, CloudNotification, UpdateInfo } from "./types";
+import type { BubbleResetDisplay, BubbleStyle, CloudAnnouncement, CloudFaq, CloudNotification, UpdateInfo } from "./types";
 
 const LAST_REFRESH_ALL_KEY = "codex-switch:last-refresh-all-at";
 const LAST_NOTIFICATION_SEEN_KEY = "codex-switch:last-notification-seen-at";
@@ -132,6 +133,7 @@ function DashboardApp() {
   }), [cloud.deleteProviderQuietly, cloud.pushProviderQuietly]);
   const floatingBubble = useFloatingBubble(notify);
   const bubbleResetDisplay = useBubbleResetDisplay(notify);
+  const bubbleStyle = useBubbleStyle(notify);
   const privacyMode = usePrivacyMode(notify);
   const accountDisplayMode = useAccountDisplayMode();
   const themeColor = useThemeColor(notify);
@@ -306,6 +308,9 @@ function DashboardApp() {
   const changeBubbleResetDisplay = useCallback((display: BubbleResetDisplay) => {
     void bubbleResetDisplay.setDisplay(display);
   }, [bubbleResetDisplay.setDisplay]);
+  const changeBubbleStyle = useCallback((style: BubbleStyle) => {
+    void bubbleStyle.setStyle(style);
+  }, [bubbleStyle.setStyle]);
   const changePrivacyMode = useCallback((enabled: boolean) => {
     void privacyMode.setEnabled(enabled);
   }, [privacyMode.setEnabled]);
@@ -964,6 +969,8 @@ function DashboardApp() {
               floatingBubbleLoading={floatingBubble.loading} onFloatingBubbleChange={changeFloatingBubble}
               bubbleResetDisplay={bubbleResetDisplay.display} bubbleResetDisplayLoading={bubbleResetDisplay.loading}
               onBubbleResetDisplayChange={changeBubbleResetDisplay}
+              bubbleStyle={bubbleStyle.style} bubbleStyleLoading={bubbleStyle.loading}
+              onBubbleStyleChange={changeBubbleStyle}
               privacyModeEnabled={privacyMode.enabled} privacyModeLoading={privacyMode.loading}
               onPrivacyModeChange={changePrivacyMode}
               accountDisplayMode={accountDisplayMode.displayMode}
