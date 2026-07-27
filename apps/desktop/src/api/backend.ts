@@ -30,6 +30,7 @@ import type {
   LoginStatus,
   LocalProxyStatus,
   ProxySession,
+  ProxySessionRequest,
   Provider,
   ProviderInput,
   ResetCreditsSummary,
@@ -327,6 +328,7 @@ export async function loadProxySessions(): Promise<ProxySession[]> {
     return [
       {
         id: "019fa2da-d120-7e20-8e5a-079639b2d3ae",
+        title: "Refine the provider switching flow",
         client: "codex_cli_rs/0.1.0",
         remoteAddress: "127.0.0.1:51742",
         connectedAt: now - 864,
@@ -338,9 +340,15 @@ export async function loadProxySessions(): Promise<ProxySession[]> {
         model: "gpt-5.6-sol",
         contextTokens: 85_848,
         modelContextWindow: 258_400,
+        totalTokens: 428_610,
+        inputTokens: 397_842,
+        outputTokens: 30_768,
+        reasoningTokens: 21_442,
+        cachedTokens: 312_960,
       },
       {
         id: "window-7c03b91e",
+        title: "Investigate desktop startup",
         client: "Codex Desktop",
         remoteAddress: "127.0.0.1:51809",
         connectedAt: now - 292,
@@ -351,10 +359,50 @@ export async function loadProxySessions(): Promise<ProxySession[]> {
         model: "gpt-5.6-terra",
         contextTokens: 19_580,
         modelContextWindow: 121_600,
+        totalTokens: 96_420,
+        inputTokens: 88_105,
+        outputTokens: 8_315,
+        reasoningTokens: 4_126,
+        cachedTokens: 67_504,
       },
     ];
   }
   return invoke<ProxySession[]>("list_proxy_sessions");
+}
+
+export async function loadProxySessionRequests(sessionId: string): Promise<ProxySessionRequest[]> {
+  if (!isDesktopApp) {
+    const now = Math.floor(Date.now() / 1000);
+    const preview: Record<string, ProxySessionRequest[]> = {
+      "019fa2da-d120-7e20-8e5a-079639b2d3ae": [
+        {
+          id: 18,
+          startedAt: now - 3,
+          model: "gpt-5.6-sol",
+          reasoningEffort: "high",
+          responseTimeMs: null,
+        },
+        {
+          id: 17,
+          startedAt: now - 92,
+          model: "gpt-5.6-sol",
+          reasoningEffort: "xhigh",
+          responseTimeMs: 16_720,
+        },
+      ],
+      "window-7c03b91e": [
+        {
+          id: 7,
+          startedAt: now - 27,
+          model: "gpt-5.6-terra",
+          reasoningEffort: "medium",
+          responseTimeMs: 3_280,
+        },
+      ],
+    };
+    return preview[sessionId] || [];
+  }
+  return invoke<ProxySessionRequest[]>("list_proxy_session_requests", { sessionId });
 }
 
 export async function loadTokenUsageEntries(): Promise<TokenUsageEntry[]> {

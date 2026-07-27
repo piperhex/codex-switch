@@ -13,6 +13,7 @@ const device: RemoteDevice = {
   platform: 'windows',
   appVersion: '1.2.3',
   activeAccountId: 'account-1',
+  openaiAuthAccountId: 'account-2',
   lastSeenAt: '2026-07-26T01:00:00.000Z',
   online: true,
 };

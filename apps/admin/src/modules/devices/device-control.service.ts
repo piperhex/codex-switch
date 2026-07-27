@@ -10,6 +10,7 @@ export interface RegisterRemoteDevice {
   platform: string;
   appVersion?: string | null;
   activeAccountId?: string | null;
+  openaiAuthAccountId?: string | null;
 }
 
 @Injectable()
@@ -32,6 +33,7 @@ export class DeviceControlService {
       platform: input.platform.trim().slice(0, 20) || 'unknown',
       appVersion: input.appVersion?.trim().slice(0, 50) || null,
       activeAccountId: input.activeAccountId ?? existing?.activeAccountId ?? null,
+      openaiAuthAccountId: input.openaiAuthAccountId ?? existing?.openaiAuthAccountId ?? null,
       lastSeenAt: new Date(),
     });
     return this.devices.save(device);
@@ -70,6 +72,14 @@ export class DeviceControlService {
     await this.devices.update(
       { ownerId, deviceId },
       { activeAccountId: accountId, lastSeenAt: new Date() },
+    );
+    return this.getOwned(ownerId, deviceId);
+  }
+
+  async setOpenAiAuthAccount(ownerId: string, deviceId: string, accountId: string) {
+    await this.devices.update(
+      { ownerId, deviceId },
+      { openaiAuthAccountId: accountId, lastSeenAt: new Date() },
     );
     return this.getOwned(ownerId, deviceId);
   }

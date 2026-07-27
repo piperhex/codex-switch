@@ -106,6 +106,19 @@ export interface ProxySession {
   model?: string | null;
   contextTokens?: number | null;
   modelContextWindow?: number | null;
+  totalTokens: number;
+  inputTokens: number;
+  outputTokens: number;
+  reasoningTokens: number;
+  cachedTokens: number;
+}
+
+export interface ProxySessionRequest {
+  id: number;
+  startedAt: number;
+  model?: string | null;
+  reasoningEffort?: string | null;
+  responseTimeMs?: number | null;
 }
 
 export interface DirectConversationSyncResult {

@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, HashMap, HashSet},
+    collections::{BTreeMap, HashMap, HashSet, VecDeque},
     fs::{self, OpenOptions},
     io::{self, BufRead, BufReader, Read, Write},
     path::{Path, PathBuf},
@@ -22,8 +22,8 @@ use crate::{
     codex_api::{refresh_tokens, token_expiring, ORIGINATOR},
     models::{
         AccountSummary, AccountTokenUsageTotals, DailyTokenUsage, LocalProxyStatus,
-        ManagerStateFile, ProviderApiFormat, ProviderProfile, ProxySessionSummary, TokenUsageEntry,
-        UsageSummary,
+        ManagerStateFile, ProviderApiFormat, ProviderProfile, ProxySessionRequestSummary,
+        ProxySessionSummary, TokenUsageEntry, UsageSummary,
     },
     providers::{
         self, LOCAL_PROXY_ACTOR_AUTHORIZATION_HEADER, LOCAL_PROXY_BASE_URL, LOCAL_PROXY_HOST,
@@ -49,6 +49,7 @@ const TOKEN_USAGE_DB_FILE_NAME: &str = "token-usage.sqlite3";
 const TOKEN_USAGE_DB_KEEP_ROWS: i64 = 10_000;
 const TOKEN_USAGE_LIST_LIMIT: usize = 500;
 const TOKEN_USAGE_CAPTURE_MAX_BYTES: usize = 4 * 1024 * 1024;
+const PROXY_SESSION_REQUEST_KEEP_ROWS: usize = 500;
 const DEFAULT_EFFECTIVE_CONTEXT_WINDOW_PERCENT: u64 = 95;
 pub(crate) const TOKEN_USAGE_WINDOW_LABEL: &str = "token-usage";
 const CUSTOM_TOOL_INPUT_DESCRIPTION: &str =
@@ -74,21 +75,71 @@ struct ProxySessionState {
     account_email: Option<String>,
     model: Option<String>,
     context_tokens: Option<u64>,
+    token_totals: ProxySessionTokenTotals,
+    requests: VecDeque<ProxySessionRequestState>,
+}
+
+#[derive(Clone)]
+struct ProxySessionRequestState {
+    id: u64,
+    started_at: u64,
+    model: Option<String>,
+    reasoning_effort: Option<String>,
+    response_time_ms: Option<u64>,
+}
+
+#[derive(Clone, Default)]
+struct ProxySessionTokenTotals {
+    total_tokens: u64,
+    input_tokens: u64,
+    output_tokens: u64,
+    reasoning_tokens: u64,
+    cached_tokens: u64,
+}
+
+impl ProxySessionTokenTotals {
+    fn add_usage(&mut self, usage: &TokenUsageValues) {
+        self.total_tokens = self
+            .total_tokens
+            .saturating_add(token_usage_total(usage).unwrap_or(0));
+        self.input_tokens = self
+            .input_tokens
+            .saturating_add(usage.input_tokens.unwrap_or(0));
+        self.output_tokens = self
+            .output_tokens
+            .saturating_add(usage.output_tokens.unwrap_or(0));
+        self.reasoning_tokens = self
+            .reasoning_tokens
+            .saturating_add(usage.reasoning_tokens.unwrap_or(0));
+        self.cached_tokens = self
+            .cached_tokens
+            .saturating_add(usage.cached_tokens.unwrap_or(0));
+    }
 }
 
 struct ProxySessionRequestGuard {
-    id: String,
+    session_id: String,
+    request_id: u64,
+    started_at: Instant,
 }
 
 impl ProxySessionRequestGuard {
-    fn id(&self) -> &str {
-        &self.id
+    fn session_id(&self) -> &str {
+        &self.session_id
+    }
+
+    fn request_id(&self) -> u64 {
+        self.request_id
     }
 }
 
 impl Drop for ProxySessionRequestGuard {
     fn drop(&mut self) {
-        finish_proxy_session_request(&self.id);
+        finish_proxy_session_request(
+            &self.session_id,
+            self.request_id,
+            self.started_at.elapsed().as_millis() as u64,
+        );
     }
 }
 
@@ -527,22 +578,35 @@ fn auto_switch_coordinator() -> &'static AutoSwitchCoordinator {
     AUTO_SWITCH_COORDINATOR.get_or_init(AutoSwitchCoordinator::default)
 }
 
-fn proxy_session_header(headers: &[(String, String)]) -> Option<&str> {
-    ["session_id", "x-codex-window-id"]
-        .into_iter()
-        .find_map(|name| {
-            header_value(headers, name)
-                .map(str::trim)
-                .filter(|value| !value.is_empty())
+fn proxy_session_id(headers: &[(String, String)]) -> Option<String> {
+    for name in ["thread-id", "session-id", "session_id"] {
+        if let Some(value) = header_value(headers, name)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        {
+            return Some(value.to_string());
+        }
+    }
+
+    header_value(headers, "x-codex-window-id")
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(|window_id| {
+            window_id
+                .rsplit_once(':')
+                .filter(|(_, generation)| generation.parse::<u64>().is_ok())
+                .map(|(thread_id, _)| thread_id)
+                .unwrap_or(window_id)
+                .to_string()
         })
 }
 
 fn begin_proxy_session_request(
     headers: &[(String, String)],
     remote_address: Option<String>,
+    body: &[u8],
 ) -> ProxySessionRequestGuard {
-    let id = proxy_session_header(headers)
-        .map(ToString::to_string)
+    let id = proxy_session_id(headers)
         .or_else(|| {
             remote_address
                 .clone()
@@ -555,6 +619,9 @@ fn begin_proxy_session_request(
         .unwrap_or("Codex client")
         .to_string();
     let now = unix_now();
+    let (model, reasoning_effort) = proxy_request_metadata(body);
+    let started_at = Instant::now();
+    let mut request_id = 1;
     if let Ok(mut sessions) = proxy_sessions().lock() {
         let session = sessions
             .entry(id.clone())
@@ -570,6 +637,8 @@ fn begin_proxy_session_request(
                 account_email: None,
                 model: None,
                 context_tokens: None,
+                token_totals: ProxySessionTokenTotals::default(),
+                requests: VecDeque::new(),
             });
         session.client = client;
         if remote_address.is_some() {
@@ -578,11 +647,46 @@ fn begin_proxy_session_request(
         session.last_seen_at = now;
         session.active_requests = session.active_requests.saturating_add(1);
         session.request_count = session.request_count.saturating_add(1);
+        request_id = session.request_count;
+        session.requests.push_back(ProxySessionRequestState {
+            id: request_id,
+            started_at: now,
+            model,
+            reasoning_effort,
+            response_time_ms: None,
+        });
+        while session.requests.len() > PROXY_SESSION_REQUEST_KEEP_ROWS {
+            session.requests.pop_front();
+        }
     }
-    ProxySessionRequestGuard { id }
+    ProxySessionRequestGuard {
+        session_id: id,
+        request_id,
+        started_at,
+    }
 }
 
-fn update_proxy_session_target(session_id: Option<&str>, provider: &str, model: &str) {
+fn proxy_request_metadata(body: &[u8]) -> (Option<String>, Option<String>) {
+    let Ok(value) = serde_json::from_slice::<Value>(body) else {
+        return (None, None);
+    };
+    let model = requested_model(&value).map(ToString::to_string);
+    let reasoning_effort = value
+        .pointer("/reasoning/effort")
+        .or_else(|| value.get("reasoning_effort"))
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|effort| !effort.is_empty())
+        .map(ToString::to_string);
+    (model, reasoning_effort)
+}
+
+fn update_proxy_session_target(
+    session_id: Option<&str>,
+    request_id: Option<u64>,
+    provider: &str,
+    model: &str,
+) {
     let Some(session_id) = session_id else {
         return;
     };
@@ -590,6 +694,14 @@ fn update_proxy_session_target(session_id: Option<&str>, provider: &str, model: 
         if let Some(session) = sessions.get_mut(session_id) {
             session.provider = Some(provider.to_string());
             session.model = Some(model.to_string());
+            if let Some(request) = request_id.and_then(|request_id| {
+                session
+                    .requests
+                    .iter_mut()
+                    .find(|request| request.id == request_id)
+            }) {
+                request.model = Some(model.to_string());
+            }
             session.last_seen_at = unix_now();
         }
     }
@@ -598,7 +710,7 @@ fn update_proxy_session_target(session_id: Option<&str>, provider: &str, model: 
 fn update_proxy_session_usage(
     session_id: Option<&str>,
     account_email: Option<&str>,
-    context_tokens: Option<u64>,
+    usage: Option<&TokenUsageValues>,
 ) {
     let Some(session_id) = session_id else {
         return;
@@ -608,18 +720,28 @@ fn update_proxy_session_usage(
             if let Some(account_email) = account_email {
                 session.account_email = Some(account_email.to_string());
             }
-            if context_tokens.is_some() {
-                session.context_tokens = context_tokens;
+            if let Some(usage) = usage {
+                if let Some(context_tokens) = token_usage_total(usage) {
+                    session.context_tokens = Some(context_tokens);
+                }
+                session.token_totals.add_usage(usage);
             }
             session.last_seen_at = unix_now();
         }
     }
 }
 
-fn finish_proxy_session_request(session_id: &str) {
+fn finish_proxy_session_request(session_id: &str, request_id: u64, response_time_ms: u64) {
     if let Ok(mut sessions) = proxy_sessions().lock() {
         if let Some(session) = sessions.get_mut(session_id) {
             session.active_requests = session.active_requests.saturating_sub(1);
+            if let Some(request) = session
+                .requests
+                .iter_mut()
+                .find(|request| request.id == request_id)
+            {
+                request.response_time_ms = Some(response_time_ms);
+            }
             session.last_seen_at = unix_now();
         }
     }
@@ -733,6 +855,11 @@ pub(crate) fn list_proxy_sessions<R: Runtime>(
                 model: session.model.clone(),
                 context_tokens: session.context_tokens,
                 model_context_window,
+                total_tokens: session.token_totals.total_tokens,
+                input_tokens: session.token_totals.input_tokens,
+                output_tokens: session.token_totals.output_tokens,
+                reasoning_tokens: session.token_totals.reasoning_tokens,
+                cached_tokens: session.token_totals.cached_tokens,
             }
         })
         .collect::<Vec<_>>();
@@ -744,6 +871,30 @@ pub(crate) fn list_proxy_sessions<R: Runtime>(
             .then_with(|| left.id.cmp(&right.id))
     });
     Ok(summaries)
+}
+
+#[tauri::command]
+pub(crate) fn list_proxy_session_requests(
+    session_id: String,
+) -> Result<Vec<ProxySessionRequestSummary>, String> {
+    let sessions = proxy_sessions()
+        .lock()
+        .map_err(|_| "Proxy session registry lock is poisoned".to_string())?;
+    let Some(session) = sessions.get(&session_id) else {
+        return Ok(Vec::new());
+    };
+    Ok(session
+        .requests
+        .iter()
+        .rev()
+        .map(|request| ProxySessionRequestSummary {
+            id: request.id,
+            started_at: request.started_at,
+            model: request.model.clone(),
+            reasoning_effort: request.reasoning_effort.clone(),
+            response_time_ms: request.response_time_ms,
+        })
+        .collect())
 }
 
 #[tauri::command]
@@ -1120,7 +1271,7 @@ pub(crate) async fn set_local_proxy_openai_auth_account<R: Runtime + 'static>(
     .map_err(|error| format!("OpenAI login update task failed: {error}"))?
 }
 
-fn set_local_proxy_openai_auth_account_blocking<R: Runtime>(
+pub(crate) fn set_local_proxy_openai_auth_account_blocking<R: Runtime>(
     app: tauri::AppHandle<R>,
     account_id: Option<String>,
 ) -> Result<LocalProxyStatus, String> {
@@ -1303,14 +1454,15 @@ fn handle_request<R: Runtime>(app: tauri::AppHandle<R>, mut request: Request) {
     }
 
     let session = (method == Method::Post && is_responses_endpoint(request_path(&url)))
-        .then(|| begin_proxy_session_request(&headers, remote_address));
+        .then(|| begin_proxy_session_request(&headers, remote_address, &body));
     let result = handle_proxy_request(
         &app,
         &method,
         &url,
         &headers,
         body,
-        session.as_ref().map(ProxySessionRequestGuard::id),
+        session.as_ref().map(ProxySessionRequestGuard::session_id),
+        session.as_ref().map(ProxySessionRequestGuard::request_id),
     );
     match result {
         Ok(payload) => respond_payload(request, payload),
@@ -1325,6 +1477,7 @@ fn handle_proxy_request<R: Runtime>(
     headers: &[(String, String)],
     body: Vec<u8>,
     session_id: Option<&str>,
+    session_request_id: Option<u64>,
 ) -> Result<UpstreamPayload, String> {
     let path = request_path(url);
     let started_at = Instant::now();
@@ -1401,6 +1554,7 @@ fn handle_proxy_request<R: Runtime>(
     if let Some(context) = usage_context.as_ref() {
         update_proxy_session_target(
             context.session_id.as_deref(),
+            session_request_id,
             &context.provider,
             &context.model,
         );
@@ -2089,20 +2243,13 @@ fn record_token_usage_entry<R: Runtime>(
     usage: Option<TokenUsageValues>,
 ) {
     let usage = usage.unwrap_or_default();
-    let context_tokens =
-        usage
-            .total_tokens
-            .or_else(|| match (usage.input_tokens, usage.output_tokens) {
-                (None, None) => None,
-                (input, output) => Some(input.unwrap_or(0).saturating_add(output.unwrap_or(0))),
-            });
     update_proxy_session_usage(
         context.session_id.as_deref(),
         context
             .account
             .as_ref()
             .map(|account| account.account_email.as_str()),
-        context_tokens,
+        Some(&usage),
     );
     let duration_ms = context.started_at.elapsed().as_millis() as u64;
     let id = short_hash_str(&format!(
@@ -2146,7 +2293,9 @@ fn diagnostic_header_summary(headers: &[(String, String)]) -> Value {
     json!({
         "xClientRequestId": diagnostic_header_value(headers, "x-client-request-id"),
         "xCodexWindowId": diagnostic_header_value(headers, "x-codex-window-id"),
-        "sessionId": diagnostic_header_value(headers, "session_id"),
+        "threadId": diagnostic_header_value(headers, "thread-id"),
+        "sessionId": diagnostic_header_value(headers, "session-id"),
+        "legacySessionId": diagnostic_header_value(headers, "session_id"),
         "contentType": diagnostic_header_value(headers, "content-type"),
         "accept": diagnostic_header_value(headers, "accept"),
         "authorizationPresent": header_value(headers, "authorization").is_some(),
@@ -2155,6 +2304,15 @@ fn diagnostic_header_summary(headers: &[(String, String)]) -> Value {
             || header_value(headers, "api-key").is_some(),
         "chatgptAccountIdPresent": header_value(headers, "chatgpt-account-id").is_some()
     })
+}
+
+fn token_usage_total(usage: &TokenUsageValues) -> Option<u64> {
+    usage
+        .total_tokens
+        .or_else(|| match (usage.input_tokens, usage.output_tokens) {
+            (None, None) => None,
+            (input, output) => Some(input.unwrap_or(0).saturating_add(output.unwrap_or(0))),
+        })
 }
 
 fn diagnostic_header_value(headers: &[(String, String)], name: &str) -> Value {
@@ -4787,6 +4945,87 @@ mod tests {
     fn proxy_bind_host_uses_loopback_unless_lan_listening_is_enabled() {
         assert_eq!(proxy_bind_host(false), LOCAL_PROXY_HOST);
         assert_eq!(proxy_bind_host(true), LOCAL_PROXY_LAN_HOST);
+    }
+
+    #[test]
+    fn proxy_session_id_prefers_the_codex_thread_header() {
+        let headers = vec![
+            ("session-id".to_string(), "session-1".to_string()),
+            ("thread-id".to_string(), "thread-1".to_string()),
+            (
+                "x-codex-window-id".to_string(),
+                "window-thread:3".to_string(),
+            ),
+        ];
+
+        assert_eq!(proxy_session_id(&headers).as_deref(), Some("thread-1"));
+    }
+
+    #[test]
+    fn proxy_session_id_removes_the_window_generation_fallback() {
+        let headers = vec![(
+            "x-codex-window-id".to_string(),
+            "019fa39d-dee7-7302-9d27-c5755e29b926:4".to_string(),
+        )];
+
+        assert_eq!(
+            proxy_session_id(&headers).as_deref(),
+            Some("019fa39d-dee7-7302-9d27-c5755e29b926")
+        );
+    }
+
+    #[test]
+    fn proxy_request_metadata_reads_codex_model_and_reasoning_effort() {
+        let body = br#"{
+            "model": "gpt-5.6-sol",
+            "reasoning": { "effort": "xhigh", "summary": "auto" }
+        }"#;
+
+        assert_eq!(
+            proxy_request_metadata(body),
+            (Some("gpt-5.6-sol".to_string()), Some("xhigh".to_string()))
+        );
+    }
+
+    #[test]
+    fn proxy_request_metadata_supports_legacy_reasoning_effort() {
+        let body = br#"{
+            "model": "gpt-5.6-terra",
+            "reasoning_effort": "medium"
+        }"#;
+
+        assert_eq!(
+            proxy_request_metadata(body),
+            (
+                Some("gpt-5.6-terra".to_string()),
+                Some("medium".to_string())
+            )
+        );
+    }
+
+    #[test]
+    fn proxy_session_token_totals_accumulate_completed_responses() {
+        let mut totals = ProxySessionTokenTotals::default();
+        totals.add_usage(&TokenUsageValues {
+            input_tokens: Some(120),
+            output_tokens: Some(30),
+            reasoning_tokens: Some(12),
+            cached_tokens: Some(80),
+            total_tokens: Some(150),
+        });
+        totals.add_usage(&TokenUsageValues {
+            input_tokens: Some(40),
+            output_tokens: Some(10),
+            reasoning_tokens: Some(3),
+            cached_tokens: Some(20),
+            total_tokens: None,
+        });
+
+        assert_eq!(totals.total_tokens, 200);
+        assert_eq!(totals.input_tokens, 160);
+        assert_eq!(totals.output_tokens, 40);
+        assert_eq!(totals.reasoning_tokens, 15);
+        assert_eq!(totals.cached_tokens, 100);
     }
 
     #[test]

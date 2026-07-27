@@ -42,6 +42,7 @@ export interface RemoteDevice {
   platform: string;
   appVersion?: string | null;
   activeAccountId?: string | null;
+  openaiAuthAccountId?: string | null;
   lastSeenAt: string;
   online: boolean;
 }
