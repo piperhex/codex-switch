@@ -114,11 +114,16 @@ export interface ProxySession {
 }
 
 export interface ProxySessionRequest {
-  id: number;
-  startedAt: number;
-  model?: string | null;
-  reasoningEffort?: string | null;
-  responseTimeMs?: number | null;
+    id: number;
+    startedAt: number;
+    model?: string | null;
+    reasoningEffort?: string | null;
+    responseTimeMs?: number | null;
+    totalTokens?: number | null;
+    inputTokens?: number | null;
+    outputTokens?: number | null;
+    reasoningTokens?: number | null;
+    cachedTokens?: number | null;
 }
 
 export interface DirectConversationSyncResult {

@@ -58,11 +58,7 @@ function maskEmail(value?: string | null) {
 }
 
 function formatResponseTime(value: number) {
-  if (value < 1_000) return `${value} ms`;
-  if (value < 60_000) return `${(value / 1_000).toFixed(value < 10_000 ? 2 : 1)} s`;
-  const minutes = Math.floor(value / 60_000);
-  const seconds = Math.round((value % 60_000) / 1_000);
-  return `${minutes}m ${seconds}s`;
+  return `${(value / 1_000).toFixed(1)}s`;
 }
 
 function SessionTokenChart({ session, t }: { session: ProxySession; t: Translate }) {
@@ -107,6 +103,47 @@ function SessionTokenChart({ session, t }: { session: ProxySession; t: Translate
         </svg>
         <small>{formatTokens(session.totalTokens)}</small>
       </div>
+    </Tooltip>
+  );
+}
+
+function RequestTokenUsage({ request, t }: { request: ProxySessionRequest; t: Translate }) {
+  if (request.totalTokens == null) {
+    return (
+      <span className="proxy-session-muted">
+        {request.responseTimeMs == null
+          ? t("providers.proxy.sessionsRequestTokensCalculating")
+          : t("providers.proxy.sessionsRequestUnknown")}
+      </span>
+    );
+  }
+  const values = [
+    request.inputTokens,
+    request.outputTokens,
+    request.reasoningTokens,
+    request.cachedTokens,
+  ];
+  const labels = [
+    t("tokenUsage.input"),
+    t("tokenUsage.output"),
+    t("tokenUsage.reasoning"),
+    t("tokenUsage.cached"),
+  ];
+  const tooltip = (
+    <div className="compact-token-tooltip">
+      <strong>{t("providers.proxy.sessionsRequestTokensTooltip")}</strong>
+      {values.map((value, index) => (
+        <span key={labels[index]}>
+          <i className={`token-type-${index}`} />
+          {labels[index]}
+          <b>{value == null ? "—" : formatTokens(value)}</b>
+        </span>
+      ))}
+    </div>
+  );
+  return (
+    <Tooltip title={tooltip} placement="top">
+      <strong className="proxy-session-request-tokens">{formatTokens(request.totalTokens)}</strong>
     </Tooltip>
   );
 }
@@ -338,11 +375,23 @@ export function ProxySessionManager({ t }: ProxySessionManagerProps) {
       key: "responseTimeMs",
       width: 120,
       align: "right",
-      render: (responseTimeMs?: number | null) => (
-        responseTimeMs == null
-          ? <Tag color="processing">{t("providers.proxy.sessionsRequestResponding")}</Tag>
-          : <strong>{formatResponseTime(responseTimeMs)}</strong>
-      ),
+      render: (responseTimeMs: number | null | undefined, request) => {
+        const elapsedMs = responseTimeMs
+          ?? Math.max(0, Date.now() - request.startedAt * 1_000);
+        const label = t("providers.proxy.sessionsRequestResponded", {
+          time: formatResponseTime(elapsedMs),
+        });
+        return responseTimeMs == null
+          ? <Tag color="processing">{label}</Tag>
+          : <strong>{label}</strong>;
+      },
+    },
+    {
+      title: t("providers.proxy.sessionsRequestTokens"),
+      key: "tokens",
+      width: 110,
+      align: "right",
+      render: (_, request) => <RequestTokenUsage request={request} t={t} />,
     },
   ], [t]);
 
@@ -409,7 +458,7 @@ export function ProxySessionManager({ t }: ProxySessionManagerProps) {
         className="proxy-session-request-modal"
         open={detailsSession != null}
         centered
-        width={760}
+        width={880}
         title={t("providers.proxy.sessionsRequestDetailsTitle", {
           conversation: detailsSession?.title
             || (detailsSession ? shortSessionId(detailsSession.id) : ""),
@@ -447,7 +496,7 @@ export function ProxySessionManager({ t }: ProxySessionManagerProps) {
           dataSource={requestDetails}
           pagination={requestDetails.length > 10 ? { pageSize: 10, size: "small" } : false}
           locale={{ emptyText: t("providers.proxy.sessionsRequestDetailsEmpty") }}
-          scroll={{ x: 700, y: "min(48vh, 420px)" }}
+          scroll={{ x: 800, y: "calc(80vh - 260px)" }}
         />
       </Modal>
     </>
