@@ -197,6 +197,7 @@ pub(crate) struct RemoteControlConfig {
     pub(crate) platform: String,
     pub(crate) app_version: String,
     pub(crate) active_account_id: Option<String>,
+    pub(crate) openai_auth_account_id: Option<String>,
 }
 
 fn cloud_credentials_path<R: Runtime>(
@@ -534,7 +535,7 @@ pub(crate) fn remote_control_config<R: Runtime>(
     url.set_fragment(None);
 
     let installation = read_or_create_installation_state(app)?;
-    let active_account_id = read_state(&resolve_paths(app)?).active_account_id;
+    let manager_state = read_state(&resolve_paths(app)?);
     Ok(Some(RemoteControlConfig {
         websocket_url: url.to_string(),
         access_token,
@@ -542,7 +543,8 @@ pub(crate) fn remote_control_config<R: Runtime>(
         device_name: sysinfo::System::host_name().unwrap_or_else(|| "Codex Switch".to_string()),
         platform: installation.platform,
         app_version: app.package_info().version.to_string(),
-        active_account_id,
+        active_account_id: manager_state.active_account_id,
+        openai_auth_account_id: manager_state.local_proxy_openai_auth_account_id,
     }))
 }
 

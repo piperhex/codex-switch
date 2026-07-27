@@ -103,6 +103,9 @@ function remoteDevice(value: unknown): RemoteDevice | null {
     platform: device.platform,
     appVersion: typeof device.appVersion === 'string' ? device.appVersion : null,
     activeAccountId: typeof device.activeAccountId === 'string' ? device.activeAccountId : null,
+    openaiAuthAccountId: typeof device.openaiAuthAccountId === 'string'
+      ? device.openaiAuthAccountId
+      : null,
     lastSeenAt: device.lastSeenAt,
     online: device.online,
   };

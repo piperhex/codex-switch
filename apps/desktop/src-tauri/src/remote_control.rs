@@ -25,6 +25,12 @@ enum ServerMessage {
         #[serde(rename = "accountId")]
         account_id: String,
     },
+    SetOpenaiAuthAccount {
+        #[serde(rename = "commandId")]
+        command_id: String,
+        #[serde(rename = "accountId")]
+        account_id: String,
+    },
 }
 
 pub(crate) fn start<R: Runtime>(app: tauri::AppHandle<R>) {
@@ -59,6 +65,7 @@ fn run_connection<R: Runtime>(
                 "platform": config.platform,
                 "appVersion": config.app_version,
                 "activeAccountId": config.active_account_id,
+                "openaiAuthAccountId": config.openai_auth_account_id,
             })
             .to_string()
             .into(),
@@ -71,12 +78,16 @@ fn run_connection<R: Runtime>(
             Ok(Message::Text(text)) => {
                 let message = serde_json::from_str::<ServerMessage>(&text)
                     .map_err(|error| format!("Invalid remote control message: {error}"))?;
-                if let ServerMessage::SwitchAccount {
-                    command_id,
-                    account_id,
-                } = message
-                {
-                    handle_switch(app, &mut socket, command_id, account_id)?;
+                match message {
+                    ServerMessage::SwitchAccount {
+                        command_id,
+                        account_id,
+                    } => handle_switch(app, &mut socket, command_id, account_id)?,
+                    ServerMessage::SetOpenaiAuthAccount {
+                        command_id,
+                        account_id,
+                    } => handle_openai_auth_switch(app, &mut socket, command_id, account_id)?,
+                    ServerMessage::Authenticated { .. } => {}
                 }
             }
             Ok(Message::Ping(payload)) => {
@@ -100,7 +111,10 @@ fn run_connection<R: Runtime>(
 
         let next = crate::cloud::remote_control_config(app)?;
         if next.as_ref().is_none_or(|next| {
-            next.websocket_url != config.websocket_url || next.access_token != config.access_token
+            next.websocket_url != config.websocket_url
+                || next.access_token != config.access_token
+                || next.active_account_id != config.active_account_id
+                || next.openai_auth_account_id != config.openai_auth_account_id
         }) {
             let _ = socket.close(None);
             return Ok(());
@@ -132,6 +146,34 @@ fn handle_switch<R: Runtime>(
     socket
         .send(Message::Text(response.to_string().into()))
         .map_err(|error| format!("Could not send account switch result: {error}"))
+}
+
+fn handle_openai_auth_switch<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    socket: &mut WebSocket<MaybeTlsStream<TcpStream>>,
+    command_id: String,
+    account_id: String,
+) -> Result<(), String> {
+    let result = crate::local_proxy::set_local_proxy_openai_auth_account_blocking(
+        app.clone(),
+        Some(account_id),
+    );
+    let response = match result {
+        Ok(_) => json!({
+            "type": "switch-result",
+            "commandId": command_id,
+            "success": true,
+        }),
+        Err(error) => json!({
+            "type": "switch-result",
+            "commandId": command_id,
+            "success": false,
+            "error": error,
+        }),
+    };
+    socket
+        .send(Message::Text(response.to_string().into()))
+        .map_err(|error| format!("Could not send OpenAI login account result: {error}"))
 }
 
 fn set_read_timeout(

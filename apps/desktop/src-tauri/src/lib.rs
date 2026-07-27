@@ -129,6 +129,7 @@ pub fn run() {
             providers::delete_provider,
             local_proxy::get_local_proxy_status,
             local_proxy::list_proxy_sessions,
+            local_proxy::list_proxy_session_requests,
             local_proxy::export_diagnostic_logs,
             local_proxy::list_token_usage_entries,
             local_proxy::list_daily_token_usage,

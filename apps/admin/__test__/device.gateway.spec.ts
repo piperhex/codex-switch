@@ -50,6 +50,7 @@ describe('DeviceGateway', () => {
       platform: 'windows',
       appVersion: '1.2.3',
       activeAccountId: 'account-1',
+      openaiAuthAccountId: 'account-3',
     })));
     await tick();
 
@@ -57,6 +58,7 @@ describe('DeviceGateway', () => {
     expect(devices.register).toHaveBeenCalledWith('user-1', expect.objectContaining({
       deviceId,
       activeAccountId: 'account-1',
+      openaiAuthAccountId: 'account-3',
     }));
     expect(JSON.parse(socket.sent[0])).toEqual({ type: 'authenticated', deviceId });
 
@@ -76,6 +78,27 @@ describe('DeviceGateway', () => {
     await expect(switchCompletion).resolves.toBeUndefined();
     await tick();
     expect(devices.touch).toHaveBeenCalledWith(deviceId);
+
+    const loginSwitchCompletion = gateway.pushOpenAiAuthAccountSwitch(
+      'user-1',
+      deviceId,
+      'account-3',
+    );
+    const loginCommand = JSON.parse(socket.sent[2]) as {
+      type: string;
+      commandId: string;
+      accountId: string;
+    };
+    expect(loginCommand).toMatchObject({
+      type: 'set-openai-auth-account',
+      accountId: 'account-3',
+    });
+    socket.emit('message', Buffer.from(JSON.stringify({
+      type: 'switch-result',
+      commandId: loginCommand.commandId,
+      success: true,
+    })));
+    await expect(loginSwitchCompletion).resolves.toBeUndefined();
     gateway.handleDisconnect(socket as unknown as WebSocket);
   });
 
@@ -87,6 +110,7 @@ describe('DeviceGateway', () => {
       platform: 'windows',
       appVersion: '1.2.3',
       activeAccountId: 'account-1',
+      openaiAuthAccountId: 'account-2',
       lastSeenAt: new Date('2026-07-26T01:00:00.000Z'),
     };
     const jwt = { verifyAsync: vi.fn().mockResolvedValue({ sub: 'user-1' }) };
@@ -127,6 +151,7 @@ describe('DeviceGateway', () => {
       platform: registeredDevice.platform,
       appVersion: registeredDevice.appVersion,
       activeAccountId: registeredDevice.activeAccountId,
+      openaiAuthAccountId: registeredDevice.openaiAuthAccountId,
     })));
     await tick();
 

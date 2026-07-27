@@ -482,6 +482,28 @@ export async function switchRemoteDeviceAccount(
   return response.json() as Promise<{ deviceId: string; activeAccountId: string; online: boolean }>;
 }
 
+export async function setRemoteDeviceOpenAiAuthAccount(
+  session: AuthSession,
+  deviceId: string,
+  accountId: string,
+): Promise<{ deviceId: string; openaiAuthAccountId: string; online: boolean }> {
+  const response = await authorizedRequest(
+    session,
+    `/devices/${encodeURIComponent(deviceId)}/openai-auth-account`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accountId }),
+    },
+  );
+  if (!response.ok) throw new ApiError(await parseError(response), response.status);
+  return response.json() as Promise<{
+    deviceId: string;
+    openaiAuthAccountId: string;
+    online: boolean;
+  }>;
+}
+
 export async function fetchUserProfile(session: AuthSession): Promise<UserProfile> {
   const response = await authorizedRequest(session, '/auth/me');
   if (!response.ok) throw new ApiError(await parseError(response), response.status);

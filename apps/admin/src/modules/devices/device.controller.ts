@@ -33,6 +33,7 @@ export class DeviceController {
         platform: device.platform,
         appVersion: device.appVersion,
         activeAccountId: device.activeAccountId,
+        openaiAuthAccountId: device.openaiAuthAccountId,
         lastSeenAt: device.lastSeenAt,
         online: this.gateway.isOnline(user.id, device.deviceId),
       })),
@@ -70,6 +71,33 @@ export class DeviceController {
     return {
       deviceId: device.deviceId,
       activeAccountId: device.activeAccountId,
+      online: true,
+    };
+  }
+
+  @Post(':deviceId/openai-auth-account')
+  async setOpenAiAuthAccount(
+    @CurrentUser() user: AuthUser,
+    @Param('deviceId') deviceId: string,
+    @Body() dto: SwitchDeviceAccountDto,
+  ) {
+    await this.devices.getOwned(user.id, deviceId);
+    await this.devices.assertAccountAvailable(user.id, dto.accountId);
+    try {
+      await this.gateway.pushOpenAiAuthAccountSwitch(user.id, deviceId, dto.accountId);
+    } catch (error) {
+      throw new ConflictException(
+        error instanceof Error ? error.message : 'OpenAI login account switch failed',
+      );
+    }
+    const device = await this.devices.setOpenAiAuthAccount(
+      user.id,
+      deviceId,
+      dto.accountId,
+    );
+    return {
+      deviceId: device.deviceId,
+      openaiAuthAccountId: device.openaiAuthAccountId,
       online: true,
     };
   }

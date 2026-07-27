@@ -6,13 +6,14 @@ import {
   Progress,
   Table,
   Tag,
+  Tooltip,
   type TableColumnsType,
   type TableProps,
 } from "antd";
-import { Cable, RefreshCw } from "lucide-react";
-import { loadProxySessions } from "../api/backend";
+import { Cable, Eye, RefreshCw } from "lucide-react";
+import { loadProxySessionRequests, loadProxySessions } from "../api/backend";
 import type { Translate } from "../i18n";
-import type { ProxySession } from "../types";
+import type { ProxySession, ProxySessionRequest } from "../types";
 
 interface ProxySessionManagerProps {
   t: Translate;
@@ -56,12 +57,70 @@ function maskEmail(value?: string | null) {
   return `${visible}${local.length > visible.length ? "•••" : ""}@${domain}`;
 }
 
+function formatResponseTime(value: number) {
+  if (value < 1_000) return `${value} ms`;
+  if (value < 60_000) return `${(value / 1_000).toFixed(value < 10_000 ? 2 : 1)} s`;
+  const minutes = Math.floor(value / 60_000);
+  const seconds = Math.round((value % 60_000) / 1_000);
+  return `${minutes}m ${seconds}s`;
+}
+
+function SessionTokenChart({ session, t }: { session: ProxySession; t: Translate }) {
+  const values = [
+    session.inputTokens,
+    session.outputTokens,
+    session.reasoningTokens,
+    session.cachedTokens,
+  ];
+  const labels = [
+    t("tokenUsage.input"),
+    t("tokenUsage.output"),
+    t("tokenUsage.reasoning"),
+    t("tokenUsage.cached"),
+  ];
+  const maximum = Math.max(...values, 1);
+  const tooltip = (
+    <div className="compact-token-tooltip">
+      <strong>{t("providers.proxy.sessionsTokensTooltip")}</strong>
+      {values.map((value, index) => (
+        <span key={labels[index]}>
+          <i className={`token-type-${index}`} />
+          {labels[index]}
+          <b>{formatTokens(value)}</b>
+        </span>
+      ))}
+    </div>
+  );
+  return (
+    <Tooltip title={tooltip} placement="top">
+      <div className="compact-model-token-chart" role="img"
+        aria-label={t("providers.proxy.sessionsTokensAria", {
+          tokens: formatTokens(session.totalTokens),
+        })}>
+        <span>{t("providers.proxy.sessionsTokensCaption")}</span>
+        <svg viewBox="0 0 48 26" aria-hidden="true">
+          {values.map((value, index) => {
+            const height = value > 0 ? Math.max(3, Math.round((value / maximum) * 22)) : 2;
+            return <rect key={labels[index]} className={`token-type-${index}`}
+              x={index * 12 + 2} y={24 - height} width="8" height={height} rx="2" />;
+          })}
+        </svg>
+        <small>{formatTokens(session.totalTokens)}</small>
+      </div>
+    </Tooltip>
+  );
+}
+
 export function ProxySessionManager({ t }: ProxySessionManagerProps) {
   const [open, setOpen] = useState(false);
   const [sessions, setSessions] = useState<ProxySession[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [activityFilter, setActivityFilter] = useState<ActivityFilter[]>(loadActivityFilter);
+  const [detailsSession, setDetailsSession] = useState<ProxySession | null>(null);
+  const [requestDetails, setRequestDetails] = useState<ProxySessionRequest[]>([]);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [detailsError, setDetailsError] = useState("");
 
   const refresh = useCallback(async (showLoading = false) => {
     if (showLoading) setLoading(true);
@@ -82,6 +141,38 @@ export function ProxySessionManager({ t }: ProxySessionManagerProps) {
     const timer = window.setInterval(() => void refresh(), 2_000);
     return () => window.clearInterval(timer);
   }, [open, refresh]);
+
+  const refreshRequestDetails = useCallback(async (
+    session: ProxySession,
+    showLoading = false,
+  ) => {
+    if (showLoading) setDetailsLoading(true);
+    try {
+      setRequestDetails(await loadProxySessionRequests(session.id));
+      setDetailsError("");
+    } catch (cause) {
+      const detail = cause instanceof Error ? cause.message : String(cause);
+      setDetailsError(`${t("providers.proxy.sessionsRequestDetailsLoadError")}: ${detail}`);
+    } finally {
+      if (showLoading) setDetailsLoading(false);
+    }
+  }, [t]);
+
+  useEffect(() => {
+    if (!detailsSession) return;
+    void refreshRequestDetails(detailsSession, true);
+    const timer = window.setInterval(
+      () => void refreshRequestDetails(detailsSession),
+      2_000,
+    );
+    return () => window.clearInterval(timer);
+  }, [detailsSession, refreshRequestDetails]);
+
+  const openRequestDetails = useCallback((session: ProxySession) => {
+    setRequestDetails([]);
+    setDetailsError("");
+    setDetailsSession(session);
+  }, []);
 
   const columns = useMemo<TableColumnsType<ProxySession>>(() => [
     {
@@ -150,10 +241,21 @@ export function ProxySessionManager({ t }: ProxySessionManagerProps) {
       },
     },
     {
+      title: t("providers.proxy.sessionsTokens"),
+      key: "tokens",
+      width: 120,
+      align: "center",
+      render: (_, session) => (
+        <div className="proxy-session-token-chart">
+          <SessionTokenChart session={session} t={t} />
+        </div>
+      ),
+    },
+    {
       title: t("providers.proxy.sessionsActivity"),
       dataIndex: "activity",
       key: "activity",
-      width: 170,
+      width: 220,
       filters: [
         { text: t("providers.proxy.sessionsActive"), value: "active" },
         { text: t("providers.proxy.sessionsIdle"), value: "idle" },
@@ -171,6 +273,15 @@ export function ProxySessionManager({ t }: ProxySessionManagerProps) {
                 : t("providers.proxy.sessionsIdle")}
             </Tag>
             <span>{t("providers.proxy.sessionsRequests", { count: session.requestCount })}</span>
+            <Button
+              className="proxy-session-request-details-button"
+              type="link"
+              size="small"
+              icon={<Eye size={12} />}
+              onClick={() => openRequestDetails(session)}
+            >
+              {t("providers.proxy.sessionsRequestDetails")}
+            </Button>
           </div>
           <span title={new Date(session.lastSeenAt * 1000).toLocaleString()}>
             {t("providers.proxy.sessionsLastSeen", {
@@ -180,7 +291,60 @@ export function ProxySessionManager({ t }: ProxySessionManagerProps) {
         </div>
       ),
     },
-  ], [activityFilter, t]);
+  ], [activityFilter, openRequestDetails, t]);
+
+  const requestDetailColumns = useMemo<TableColumnsType<ProxySessionRequest>>(() => [
+    {
+      title: t("providers.proxy.sessionsRequestNumber"),
+      dataIndex: "id",
+      key: "id",
+      width: 80,
+      render: (id: number) => <strong>#{id}</strong>,
+    },
+    {
+      title: t("providers.proxy.sessionsRequestStartedAt"),
+      dataIndex: "startedAt",
+      key: "startedAt",
+      width: 150,
+      render: (startedAt: number) => (
+        <span title={new Date(startedAt * 1000).toLocaleString()}>
+          {new Date(startedAt * 1000).toLocaleTimeString()}
+        </span>
+      ),
+    },
+    {
+      title: t("providers.proxy.sessionsRequestModel"),
+      dataIndex: "model",
+      key: "model",
+      ellipsis: true,
+      render: (model?: string | null) => (
+        model || <span className="proxy-session-muted">{t("providers.proxy.sessionsRequestUnknown")}</span>
+      ),
+    },
+    {
+      title: t("providers.proxy.sessionsRequestReasoning"),
+      dataIndex: "reasoningEffort",
+      key: "reasoningEffort",
+      width: 120,
+      render: (reasoningEffort?: string | null) => (
+        reasoningEffort
+          ? <Tag>{reasoningEffort}</Tag>
+          : <span className="proxy-session-muted">{t("providers.proxy.sessionsRequestUnknown")}</span>
+      ),
+    },
+    {
+      title: t("providers.proxy.sessionsRequestResponseTime"),
+      dataIndex: "responseTimeMs",
+      key: "responseTimeMs",
+      width: 120,
+      align: "right",
+      render: (responseTimeMs?: number | null) => (
+        responseTimeMs == null
+          ? <Tag color="processing">{t("providers.proxy.sessionsRequestResponding")}</Tag>
+          : <strong>{formatResponseTime(responseTimeMs)}</strong>
+      ),
+    },
+  ], [t]);
 
   const handleTableChange: TableProps<ProxySession>["onChange"] = (_, filters) => {
     const nextFilter = (filters.activity || []).filter(
@@ -197,6 +361,11 @@ export function ProxySessionManager({ t }: ProxySessionManagerProps) {
     }
   };
 
+  const closeManager = () => {
+    setDetailsSession(null);
+    setOpen(false);
+  };
+
   return (
     <>
       <Button size="small" icon={<Cable size={14} />} onClick={() => setOpen(true)}>
@@ -208,14 +377,14 @@ export function ProxySessionManager({ t }: ProxySessionManagerProps) {
         centered
         width="80vw"
         title={t("providers.proxy.sessionsTitle")}
-        onCancel={() => setOpen(false)}
+        onCancel={closeManager}
         footer={(
           <>
             <Button icon={<RefreshCw size={14} />} loading={loading}
               onClick={() => void refresh(true)}>
               {t("providers.proxy.sessionsRefresh")}
             </Button>
-            <Button type="primary" onClick={() => setOpen(false)}>
+            <Button type="primary" onClick={closeManager}>
               {t("providers.proxy.sessionsClose")}
             </Button>
           </>
@@ -233,7 +402,52 @@ export function ProxySessionManager({ t }: ProxySessionManagerProps) {
           pagination={false}
           onChange={handleTableChange}
           locale={{ emptyText: t("providers.proxy.sessionsEmpty") }}
-          scroll={{ x: 1090, y: "calc(80vh - 238px)" }}
+          scroll={{ x: 1260, y: "calc(80vh - 238px)" }}
+        />
+      </Modal>
+      <Modal
+        className="proxy-session-request-modal"
+        open={detailsSession != null}
+        centered
+        width={760}
+        title={t("providers.proxy.sessionsRequestDetailsTitle", {
+          conversation: detailsSession?.title
+            || (detailsSession ? shortSessionId(detailsSession.id) : ""),
+        })}
+        onCancel={() => setDetailsSession(null)}
+        footer={(
+          <>
+            <Button
+              icon={<RefreshCw size={14} />}
+              loading={detailsLoading}
+              onClick={() => {
+                if (detailsSession) void refreshRequestDetails(detailsSession, true);
+              }}
+            >
+              {t("providers.proxy.sessionsRefresh")}
+            </Button>
+            <Button type="primary" onClick={() => setDetailsSession(null)}>
+              {t("providers.proxy.sessionsClose")}
+            </Button>
+          </>
+        )}
+      >
+        <p className="proxy-session-description">
+          {t("providers.proxy.sessionsRequestDetailsDescription", {
+            count: detailsSession?.requestCount || 0,
+          })}
+        </p>
+        {detailsError ? <Alert type="error" showIcon message={detailsError} /> : null}
+        <Table<ProxySessionRequest>
+          className="proxy-session-request-table"
+          rowKey="id"
+          size="small"
+          loading={detailsLoading}
+          columns={requestDetailColumns}
+          dataSource={requestDetails}
+          pagination={requestDetails.length > 10 ? { pageSize: 10, size: "small" } : false}
+          locale={{ emptyText: t("providers.proxy.sessionsRequestDetailsEmpty") }}
+          scroll={{ x: 700, y: "min(48vh, 420px)" }}
         />
       </Modal>
     </>

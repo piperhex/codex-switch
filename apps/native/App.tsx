@@ -37,6 +37,7 @@ import {
   loadSession,
   login,
   saveGlobalRefreshMinutes,
+  setRemoteDeviceOpenAiAuthAccount,
   switchRemoteDeviceAccount,
 } from './src/api/client';
 import type {
@@ -278,6 +279,25 @@ function CompactPrimaryUsage({ usage }: { usage?: UsageWindow | null }) {
   </>;
 }
 
+function AccountCardContent({
+  account,
+  privateMode,
+}: {
+  account: AccountSummary;
+  privateMode: boolean;
+}) {
+  const email = privateMode ? maskEmail(account.email) : account.email;
+  return <View style={styles.compactAccountContent}>
+    <View style={styles.compactAccountHeader}>
+      <View style={styles.compactPlanBadge}>
+        <Text style={styles.compactPlanText} numberOfLines={1}>{account.plan || 'ChatGPT'}</Text>
+      </View>
+      <Text style={styles.compactAccountEmail} numberOfLines={1}>{email}</Text>
+    </View>
+    <CompactPrimaryUsage usage={account.usage.primary} />
+  </View>;
+}
+
 function AccountCard({ account, privateMode, switchBusy, switching, onOpenDetails, onOpenSwitch }: {
   account: AccountSummary;
   privateMode: boolean;
@@ -286,7 +306,6 @@ function AccountCard({ account, privateMode, switchBusy, switching, onOpenDetail
   onOpenDetails: (account: AccountSummary) => void;
   onOpenSwitch: (account: AccountSummary) => void;
 }) {
-  const email = privateMode ? maskEmail(account.email) : account.email;
   return <Pressable
     accessibilityRole="button"
     accessibilityLabel={`${account.email} 的账号信息`}
@@ -294,15 +313,7 @@ function AccountCard({ account, privateMode, switchBusy, switching, onOpenDetail
     onPress={() => onOpenDetails(account)}
     style={({ pressed }) => [styles.accountCard, pressed && styles.accountCardPressed]}
   >
-    <View style={styles.compactAccountContent}>
-      <View style={styles.compactAccountHeader}>
-        <View style={styles.compactPlanBadge}>
-          <Text style={styles.compactPlanText} numberOfLines={1}>{account.plan || 'ChatGPT'}</Text>
-        </View>
-        <Text style={styles.compactAccountEmail} numberOfLines={1}>{email}</Text>
-      </View>
-      <CompactPrimaryUsage usage={account.usage.primary} />
-    </View>
+    <AccountCardContent account={account} privateMode={privateMode} />
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`切换到账号 ${account.email}`}
@@ -652,26 +663,109 @@ function AboutPage({ onBack }: { onBack: () => void }) {
   </ScrollView>;
 }
 
+function OpenAiAuthAccountDrawer({
+  accounts,
+  device,
+  switchingAccountId,
+  onClose,
+  onSelect,
+}: {
+  accounts: AccountSummary[];
+  device: RemoteDevice | null;
+  switchingAccountId: string | null;
+  onClose: () => void;
+  onSelect: (deviceId: string, accountId: string) => Promise<boolean>;
+}) {
+  const handleSelect = useCallback(async (accountId: string) => {
+    if (
+      !device
+      || !device.online
+      || switchingAccountId
+      || device.openaiAuthAccountId === accountId
+    ) return;
+    const switched = await onSelect(device.deviceId, accountId);
+    if (switched) onClose();
+  }, [device, onClose, onSelect, switchingAccountId]);
+
+  return <BottomSheet
+    visible={Boolean(device)}
+    title="选择代理登录态账号"
+    subtitle={device
+      ? `${device.name} · 选择后会更新 PC 代理登录态并重启 ChatGPT/Codex`
+      : undefined}
+    onClose={onClose}
+    dismissible={!switchingAccountId}
+    tall
+  >
+    <ScrollView
+      style={styles.openAiAuthAccountScroll}
+      contentContainerStyle={styles.openAiAuthAccountScrollContent}
+      showsVerticalScrollIndicator={false}
+    >
+      {!accounts.length ? <View style={styles.switchDeviceEmpty}>
+        <Text style={styles.switchDeviceEmptyTitle}>暂无可选账号</Text>
+        <Text style={styles.switchDeviceEmptyText}>请先在桌面端添加并同步账号。</Text>
+      </View> : accounts.map((account) => {
+        const current = device?.openaiAuthAccountId === account.id;
+        const switching = switchingAccountId === account.id;
+        const disabled = Boolean(switchingAccountId) || !device?.online || current;
+        return <Pressable
+          key={account.id}
+          accessibilityRole="button"
+          accessibilityLabel={`${account.email}${current ? '，当前代理登录态账号' : ''}`}
+          accessibilityHint={current ? undefined : '设为这台设备的代理登录态账号'}
+          accessibilityState={{ disabled, selected: current }}
+          disabled={disabled}
+          onPress={() => void handleSelect(account.id)}
+          style={({ pressed }) => [
+            styles.accountCard,
+            current && styles.openAiAuthAccountCardCurrent,
+            pressed && styles.accountCardPressed,
+            disabled && !current && styles.disabled,
+          ]}
+        >
+          <AccountCardContent account={account} privateMode={false} />
+          {switching
+            ? <ActivityIndicator color={COLORS.green} size="small" />
+            : current
+              ? <View style={styles.openAiAuthAccountCurrentBadge}>
+                <Text style={styles.openAiAuthAccountCurrentText}>当前</Text>
+              </View>
+              : null}
+        </Pressable>;
+      })}
+    </ScrollView>
+  </BottomSheet>;
+}
+
 function DeviceManagementPage({
   accounts,
   devices,
   refreshing,
   deletingDeviceId,
+  switchingOpenAiAuth,
   onRefresh,
   onDelete,
+  onSetOpenAiAuthAccount,
 }: {
   accounts: AccountSummary[];
   devices: RemoteDevice[];
   refreshing: boolean;
   deletingDeviceId: string | null;
+  switchingOpenAiAuth: { deviceId: string; accountId: string } | null;
   onRefresh: () => Promise<void>;
   onDelete: (deviceId: string) => Promise<void>;
+  onSetOpenAiAuthAccount: (deviceId: string, accountId: string) => Promise<boolean>;
 }) {
+  const [openAiAuthDeviceId, setOpenAiAuthDeviceId] = useState<string | null>(null);
   const sortedDevices = useMemo(() => [...devices].sort((left, right) => {
     if (left.online !== right.online) return left.online ? -1 : 1;
     return new Date(right.lastSeenAt).getTime() - new Date(left.lastSeenAt).getTime();
   }), [devices]);
   const onlineCount = devices.filter((device) => device.online).length;
+  const openAiAuthDevice = devices.find(
+    (device) => device.deviceId === openAiAuthDeviceId,
+  ) ?? null;
 
   const confirmDelete = useCallback((device: RemoteDevice) => {
     if (device.online || deletingDeviceId) return;
@@ -689,140 +783,188 @@ function DeviceManagementPage({
     );
   }, [deletingDeviceId, onDelete]);
 
-  return <ScrollView
-    style={styles.flex}
-    contentContainerStyle={styles.devicePageScroll}
-    refreshControl={<RefreshControl
-      refreshing={refreshing}
-      onRefresh={() => void onRefresh()}
-      tintColor={COLORS.green}
-    />}
-  >
-    <View style={styles.devicePageHeader}>
-      <View style={styles.devicePageHeaderText}>
-        <Text style={styles.settingsTitle}>设备管理</Text>
-        <Text style={styles.settingsSubtitle}>查看 PC 设备在线状态并清理旧设备</Text>
-      </View>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="刷新设备列表"
-        disabled={refreshing}
-        onPress={() => void onRefresh()}
-        style={({ pressed }) => [
-          styles.deviceRefreshButton,
-          pressed && styles.pressed,
-          refreshing && styles.disabled,
-        ]}
-      >
-        {refreshing
-          ? <ActivityIndicator color={COLORS.green} size="small" />
-          : <Text style={styles.deviceRefreshIcon}>↻</Text>}
-      </Pressable>
-    </View>
-
-    <View style={styles.deviceSummaryCard}>
-      <View style={styles.deviceSummaryStat}>
-        <Text style={styles.deviceSummaryValue}>{onlineCount}</Text>
-        <Text style={styles.deviceSummaryLabel}>当前在线</Text>
-      </View>
-      <View style={styles.deviceSummaryDivider} />
-      <View style={styles.deviceSummaryStat}>
-        <Text style={styles.deviceSummaryValue}>{devices.length}</Text>
-        <Text style={styles.deviceSummaryLabel}>全部设备</Text>
-      </View>
-      <View style={styles.deviceLivePill}>
-        <View style={styles.deviceLiveDot} />
-        <Text style={styles.deviceLiveText}>实时更新</Text>
-      </View>
-    </View>
-
-    <View style={styles.deviceListHeading}>
-      <Text style={styles.sectionLabel}>已登录设备</Text>
-      <Text style={styles.deviceListCount}>{onlineCount} 台在线</Text>
-    </View>
-
-    {!devices.length ? <View style={styles.devicePageEmpty}>
-      <View style={styles.devicePageEmptyIcon}><Text style={styles.devicePageEmptyGlyph}>PC</Text></View>
-      <Text style={styles.devicePageEmptyTitle}>暂无 PC 设备</Text>
-      <Text style={styles.devicePageEmptyText}>在桌面端登录同一个云端账号后，设备会自动出现在这里。</Text>
-    </View> : sortedDevices.map((device) => {
-      const activeAccount = accounts.find((account) => account.id === device.activeAccountId);
-      const deleting = deletingDeviceId === device.deviceId;
-      const deleteDisabled = device.online || Boolean(deletingDeviceId);
-      return <View
-        key={device.deviceId}
-        style={[styles.deviceCard, device.online && styles.deviceCardOnline]}
-      >
-        <View style={styles.deviceCardTop}>
-          <View style={[styles.devicePlatformIcon, device.online && styles.devicePlatformIconOnline]}>
-            <Text style={[styles.devicePlatformGlyph, device.online && styles.devicePlatformGlyphOnline]}>
-              {platformGlyph(device.platform)}
-            </Text>
-          </View>
-          <View style={styles.deviceCardIdentity}>
-            <View style={styles.deviceCardTitleRow}>
-              <Text style={styles.deviceCardName} numberOfLines={1}>{device.name}</Text>
-              <View style={[
-                styles.deviceStatusBadge,
-                device.online ? styles.deviceStatusBadgeOnline : styles.deviceStatusBadgeOffline,
-              ]}>
-                <View style={[styles.deviceStatusDot, device.online ? styles.deviceOnline : styles.deviceOffline]} />
-                <Text style={[
-                  styles.deviceStatusBadgeText,
-                  device.online ? styles.deviceStatusBadgeTextOnline : styles.deviceStatusBadgeTextOffline,
-                ]}>
-                  {device.online ? '在线' : '离线'}
-                </Text>
-              </View>
-            </View>
-            <Text style={styles.deviceCardMeta}>
-              {platformLabel(device.platform)}
-              {device.appVersion ? ` · v${device.appVersion}` : ''}
-            </Text>
-          </View>
-        </View>
-        <View style={styles.deviceCardDivider} />
-        <View style={styles.deviceDetailRow}>
-          <Text style={styles.deviceDetailLabel}>当前账号</Text>
-          <Text style={styles.deviceDetailValue} numberOfLines={1}>
-            {activeAccount?.email ?? (device.activeAccountId ? '账号信息未同步' : '未选择')}
-          </Text>
-        </View>
-        <View style={styles.deviceDetailRow}>
-          <Text style={styles.deviceDetailLabel}>最后在线</Text>
-          <Text style={styles.deviceDetailValue}>
-            {device.online ? '当前在线' : displayFullDate(device.lastSeenAt)}
-          </Text>
+  return <>
+    <ScrollView
+      style={styles.flex}
+      contentContainerStyle={styles.devicePageScroll}
+      refreshControl={<RefreshControl
+        refreshing={refreshing}
+        onRefresh={() => void onRefresh()}
+        tintColor={COLORS.green}
+      />}
+    >
+      <View style={styles.devicePageHeader}>
+        <View style={styles.devicePageHeaderText}>
+          <Text style={styles.settingsTitle}>设备管理</Text>
+          <Text style={styles.settingsSubtitle}>查看 PC 设备状态并控制代理登录态账号</Text>
         </View>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`删除设备 ${device.name}`}
-          accessibilityState={{ disabled: deleteDisabled }}
-          disabled={deleteDisabled}
-          onPress={() => confirmDelete(device)}
+          accessibilityLabel="刷新设备列表"
+          disabled={refreshing}
+          onPress={() => void onRefresh()}
           style={({ pressed }) => [
-            styles.deviceDeleteButton,
-            device.online && styles.deviceDeleteButtonOnline,
+            styles.deviceRefreshButton,
             pressed && styles.pressed,
-            deleting && styles.disabled,
+            refreshing && styles.disabled,
           ]}
         >
-          {deleting
-            ? <ActivityIndicator color={COLORS.danger} size="small" />
-            : <Text style={[
-              styles.deviceDeleteButtonText,
-              device.online && styles.deviceDeleteButtonTextOnline,
-            ]}>
-              {device.online ? '在线设备不可删除' : '删除设备'}
-            </Text>}
+          {refreshing
+            ? <ActivityIndicator color={COLORS.green} size="small" />
+            : <Text style={styles.deviceRefreshIcon}>↻</Text>}
         </Pressable>
-      </View>;
-    })}
+      </View>
 
-    {devices.length ? <Text style={styles.devicePageHint}>
-      为避免正在连接的设备被立即重新注册，请先退出桌面端，再删除不再使用的离线设备。
-    </Text> : null}
-  </ScrollView>;
+      <View style={styles.deviceSummaryCard}>
+        <View style={styles.deviceSummaryStat}>
+          <Text style={styles.deviceSummaryValue}>{onlineCount}</Text>
+          <Text style={styles.deviceSummaryLabel}>当前在线</Text>
+        </View>
+        <View style={styles.deviceSummaryDivider} />
+        <View style={styles.deviceSummaryStat}>
+          <Text style={styles.deviceSummaryValue}>{devices.length}</Text>
+          <Text style={styles.deviceSummaryLabel}>全部设备</Text>
+        </View>
+        <View style={styles.deviceLivePill}>
+          <View style={styles.deviceLiveDot} />
+          <Text style={styles.deviceLiveText}>实时更新</Text>
+        </View>
+      </View>
+
+      <View style={styles.deviceListHeading}>
+        <Text style={styles.sectionLabel}>已登录设备</Text>
+        <Text style={styles.deviceListCount}>{onlineCount} 台在线</Text>
+      </View>
+
+      {!devices.length ? <View style={styles.devicePageEmpty}>
+        <View style={styles.devicePageEmptyIcon}><Text style={styles.devicePageEmptyGlyph}>PC</Text></View>
+        <Text style={styles.devicePageEmptyTitle}>暂无 PC 设备</Text>
+        <Text style={styles.devicePageEmptyText}>在桌面端登录同一个云端账号后，设备会自动出现在这里。</Text>
+      </View> : sortedDevices.map((device) => {
+        const activeAccount = accounts.find((account) => account.id === device.activeAccountId);
+        const openAiAuthAccount = accounts.find(
+          (account) => account.id === device.openaiAuthAccountId,
+        );
+        const deleting = deletingDeviceId === device.deviceId;
+        const deleteDisabled = device.online || Boolean(deletingDeviceId);
+        const switchingOpenAiAuthForDevice = switchingOpenAiAuth?.deviceId === device.deviceId;
+        const openAiAuthDisabled = !device.online || Boolean(switchingOpenAiAuth);
+        return <View
+          key={device.deviceId}
+          style={[styles.deviceCard, device.online && styles.deviceCardOnline]}
+        >
+          <View style={styles.deviceCardTop}>
+            <View style={[styles.devicePlatformIcon, device.online && styles.devicePlatformIconOnline]}>
+              <Text style={[styles.devicePlatformGlyph, device.online && styles.devicePlatformGlyphOnline]}>
+                {platformGlyph(device.platform)}
+              </Text>
+            </View>
+            <View style={styles.deviceCardIdentity}>
+              <View style={styles.deviceCardTitleRow}>
+                <Text style={styles.deviceCardName} numberOfLines={1}>{device.name}</Text>
+                <View style={[
+                  styles.deviceStatusBadge,
+                  device.online ? styles.deviceStatusBadgeOnline : styles.deviceStatusBadgeOffline,
+                ]}>
+                  <View style={[styles.deviceStatusDot, device.online ? styles.deviceOnline : styles.deviceOffline]} />
+                  <Text style={[
+                    styles.deviceStatusBadgeText,
+                    device.online ? styles.deviceStatusBadgeTextOnline : styles.deviceStatusBadgeTextOffline,
+                  ]}>
+                    {device.online ? '在线' : '离线'}
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.deviceCardMeta}>
+                {platformLabel(device.platform)}
+                {device.appVersion ? ` · v${device.appVersion}` : ''}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.deviceCardDivider} />
+          <View style={styles.deviceDetailRow}>
+            <Text style={styles.deviceDetailLabel}>当前账号</Text>
+            <Text style={styles.deviceDetailValue} numberOfLines={1}>
+              {activeAccount?.email ?? (device.activeAccountId ? '账号信息未同步' : '未选择')}
+            </Text>
+          </View>
+          <View style={styles.deviceDetailRow}>
+            <Text style={styles.deviceDetailLabel}>代理登录态</Text>
+            <Text style={styles.deviceDetailValue} numberOfLines={1}>
+              {openAiAuthAccount?.email
+                ?? (device.openaiAuthAccountId ? '账号信息未同步' : '未选择')}
+            </Text>
+          </View>
+          <View style={styles.deviceDetailRow}>
+            <Text style={styles.deviceDetailLabel}>最后在线</Text>
+            <Text style={styles.deviceDetailValue}>
+              {device.online ? '当前在线' : displayFullDate(device.lastSeenAt)}
+            </Text>
+          </View>
+          <View style={styles.deviceActionRow}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`删除设备 ${device.name}`}
+              accessibilityState={{ disabled: deleteDisabled }}
+              disabled={deleteDisabled}
+              onPress={() => confirmDelete(device)}
+              style={({ pressed }) => [
+                styles.deviceDeleteButton,
+                device.online && styles.deviceDeleteButtonOnline,
+                pressed && styles.pressed,
+                deleting && styles.disabled,
+              ]}
+            >
+              {deleting
+                ? <ActivityIndicator color={COLORS.danger} size="small" />
+                : <Text style={[
+                  styles.deviceDeleteButtonText,
+                  device.online && styles.deviceDeleteButtonTextOnline,
+                ]}>
+                  {device.online ? '在线不可删除' : '删除设备'}
+                </Text>}
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`控制 ${device.name} 的代理登录态账号`}
+              accessibilityHint="打开可选账号列表"
+              accessibilityState={{ disabled: openAiAuthDisabled }}
+              disabled={openAiAuthDisabled}
+              onPress={() => setOpenAiAuthDeviceId(device.deviceId)}
+              style={({ pressed }) => [
+                styles.deviceOpenAiAuthButton,
+                pressed && styles.pressed,
+                openAiAuthDisabled && styles.deviceOpenAiAuthButtonDisabled,
+              ]}
+            >
+              {switchingOpenAiAuthForDevice
+                ? <ActivityIndicator color={COLORS.green} size="small" />
+                : <Text style={[
+                  styles.deviceOpenAiAuthButtonText,
+                  openAiAuthDisabled && styles.deviceOpenAiAuthButtonTextDisabled,
+                ]}>
+                  {device.online ? '代理登录态账号' : '设备离线'}
+                </Text>}
+            </Pressable>
+          </View>
+        </View>;
+      })}
+
+      {devices.length ? <Text style={styles.devicePageHint}>
+        为避免正在连接的设备被立即重新注册，请先退出桌面端，再删除不再使用的离线设备。
+      </Text> : null}
+    </ScrollView>
+    <OpenAiAuthAccountDrawer
+      accounts={accounts}
+      device={openAiAuthDevice}
+      switchingAccountId={switchingOpenAiAuth
+        && switchingOpenAiAuth.deviceId === openAiAuthDevice?.deviceId
+        ? switchingOpenAiAuth.accountId
+        : null}
+      onClose={() => setOpenAiAuthDeviceId(null)}
+      onSelect={onSetOpenAiAuthAccount}
+    />
+  </>;
 }
 
 function SettingsPage({ session, profile, globalRefreshMinutes, onGlobalRefreshMinutesChange, onOpenAbout, onLogout }: {
@@ -1403,6 +1545,10 @@ function AppContent() {
   const [devices, setDevices] = useState<RemoteDevice[]>([]);
   const [deletingDeviceId, setDeletingDeviceId] = useState<string | null>(null);
   const [switchingAccountId, setSwitchingAccountId] = useState<string | null>(null);
+  const [switchingOpenAiAuth, setSwitchingOpenAiAuth] = useState<{
+    deviceId: string;
+    accountId: string;
+  } | null>(null);
   const [globalRefreshMinutes, setGlobalRefreshMinutes] = useState(DEFAULT_GLOBAL_REFRESH_MINUTES);
   const refreshingRef = useRef(false);
   const refreshingAccountIdRef = useRef<string | null>(null);
@@ -1722,6 +1868,48 @@ function AppContent() {
     }
   }, [session, switchingAccountId]);
 
+  const handleSetOpenAiAuthAccount = useCallback(async (
+    deviceId: string,
+    accountId: string,
+  ): Promise<boolean> => {
+    if (!session || switchingOpenAiAuth) return false;
+    const device = devices.find((candidate) => candidate.deviceId === deviceId);
+    if (!device?.online) {
+      Toast.fail('设备已离线，暂时无法控制代理登录态账号');
+      return false;
+    }
+
+    setSwitchingOpenAiAuth({ deviceId, accountId });
+    try {
+      const result = await setRemoteDeviceOpenAiAuthAccount(session, deviceId, accountId);
+      setDevices((current) => current.map((candidate) => candidate.deviceId === deviceId
+        ? {
+          ...candidate,
+          openaiAuthAccountId: result.openaiAuthAccountId,
+          online: result.online,
+          lastSeenAt: new Date().toISOString(),
+        }
+        : candidate));
+      Toast.success('PC 端代理登录态账号已更新');
+      return true;
+    } catch (error) {
+      if (isSessionExpiredError(error)) {
+        await clearSession();
+        setSession(null);
+        setProfile(null);
+        setAccounts([]);
+        setDevices([]);
+        setActivePage('accounts');
+      } else {
+        Toast.fail(`更新代理登录态失败：${errorMessage(error)}`);
+        void fetchRemoteDevices(session).then(setDevices).catch(() => undefined);
+      }
+      return false;
+    } finally {
+      setSwitchingOpenAiAuth(null);
+    }
+  }, [devices, session, switchingOpenAiAuth]);
+
   const handleLogout = useCallback(() => {
     void clearSession();
     setSession(null);
@@ -1729,6 +1917,7 @@ function AppContent() {
     setAccounts([]);
     setDevices([]);
     setDeletingDeviceId(null);
+    setSwitchingOpenAiAuth(null);
     setActivePage('accounts');
   }, []);
 
@@ -1744,7 +1933,9 @@ function AppContent() {
         onRefresh={refreshAll} onRefreshAccount={refreshAccount} onSwitch={handleRemoteSwitch} />
       : activePage === 'devices'
         ? <DeviceManagementPage accounts={accounts} devices={devices} refreshing={refreshing}
-          deletingDeviceId={deletingDeviceId} onRefresh={refreshAll} onDelete={handleDeleteDevice} />
+          deletingDeviceId={deletingDeviceId} switchingOpenAiAuth={switchingOpenAiAuth}
+          onRefresh={refreshAll} onDelete={handleDeleteDevice}
+          onSetOpenAiAuthAccount={handleSetOpenAiAuthAccount} />
       : activePage === 'admin' && profile?.role === 'admin'
         ? <AdminArea session={session} profile={profile} />
         : activePage === 'about'
@@ -1809,13 +2000,23 @@ const styles = StyleSheet.create({
   deviceStatusBadgeTextOffline: { color: '#75877d' },
   deviceCardDivider: { height: 1, backgroundColor: '#edf2ee', marginVertical: 13 },
   deviceDetailRow: { minHeight: 29, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  deviceDetailLabel: { width: 58, color: COLORS.muted, fontSize: 11 },
+  deviceDetailLabel: { width: 64, color: COLORS.muted, fontSize: 11 },
   deviceDetailValue: { flex: 1, minWidth: 0, color: COLORS.ink, fontSize: 11, fontWeight: '700', textAlign: 'right' },
-  deviceDeleteButton: { height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 10, borderWidth: 1, borderColor: '#efc3bf', backgroundColor: '#fff8f7', marginTop: 12 },
+  deviceActionRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 },
+  deviceDeleteButton: { flex: 1, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 10, borderWidth: 1, borderColor: '#efc3bf', backgroundColor: '#fff8f7', paddingHorizontal: 8 },
   deviceDeleteButtonOnline: { borderColor: '#e1e9e3', backgroundColor: '#f5f8f6' },
   deviceDeleteButtonText: { color: '#bd3c35', fontSize: 12, fontWeight: '800' },
   deviceDeleteButtonTextOnline: { color: '#91a198' },
+  deviceOpenAiAuthButton: { flex: 1, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 10, borderWidth: 1, borderColor: '#bde8d8', backgroundColor: COLORS.paleGreen, paddingHorizontal: 8 },
+  deviceOpenAiAuthButtonDisabled: { borderColor: '#e1e9e3', backgroundColor: '#f5f8f6' },
+  deviceOpenAiAuthButtonText: { color: '#14806f', fontSize: 12, fontWeight: '800' },
+  deviceOpenAiAuthButtonTextDisabled: { color: '#91a198' },
   devicePageHint: { color: COLORS.muted, fontSize: 11, lineHeight: 17, textAlign: 'center', marginHorizontal: 12, marginTop: 5 },
+  openAiAuthAccountScroll: { maxHeight: 610 },
+  openAiAuthAccountScrollContent: { paddingBottom: 8 },
+  openAiAuthAccountCardCurrent: { borderColor: '#7fd1ba', backgroundColor: '#f0faf6' },
+  openAiAuthAccountCurrentBadge: { flexShrink: 0, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 10, backgroundColor: COLORS.paleGreen, borderWidth: 1, borderColor: '#bde8d8' },
+  openAiAuthAccountCurrentText: { color: '#128368', fontSize: 11, fontWeight: '900' },
   accountCard: { minHeight: 102, flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: COLORS.card, borderColor: COLORS.border, borderWidth: 1, borderRadius: 16, paddingVertical: 14, paddingLeft: 16, paddingRight: 14, marginBottom: 12, shadowColor: '#456152', shadowOpacity: 0.04, shadowRadius: 8, elevation: 1 },
   accountCardPressed: { backgroundColor: '#f2f8f4', borderColor: '#bcd7c5' },
   compactAccountContent: { flex: 1, minWidth: 0, justifyContent: 'center' },

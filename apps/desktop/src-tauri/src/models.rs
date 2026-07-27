@@ -158,6 +158,21 @@ pub(crate) struct ProxySessionSummary {
     pub(crate) model: Option<String>,
     pub(crate) context_tokens: Option<u64>,
     pub(crate) model_context_window: Option<u64>,
+    pub(crate) total_tokens: u64,
+    pub(crate) input_tokens: u64,
+    pub(crate) output_tokens: u64,
+    pub(crate) reasoning_tokens: u64,
+    pub(crate) cached_tokens: u64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ProxySessionRequestSummary {
+    pub(crate) id: u64,
+    pub(crate) started_at: u64,
+    pub(crate) model: Option<String>,
+    pub(crate) reasoning_effort: Option<String>,
+    pub(crate) response_time_ms: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

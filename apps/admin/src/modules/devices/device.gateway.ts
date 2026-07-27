@@ -26,6 +26,7 @@ interface AuthMessage {
   platform: string;
   appVersion?: string;
   activeAccountId?: string | null;
+  openaiAuthAccountId?: string | null;
 }
 
 interface SubscribeDevicesMessage {
@@ -59,6 +60,7 @@ interface RemoteDeviceStatus {
   platform: string;
   appVersion?: string | null;
   activeAccountId?: string | null;
+  openaiAuthAccountId?: string | null;
   lastSeenAt: string;
   online: boolean;
 }
@@ -176,6 +178,19 @@ export class DeviceGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   async pushAccountSwitch(ownerId: string, deviceId: string, accountId: string) {
+    await this.pushSwitchCommand(ownerId, deviceId, 'switch-account', accountId);
+  }
+
+  async pushOpenAiAuthAccountSwitch(ownerId: string, deviceId: string, accountId: string) {
+    await this.pushSwitchCommand(ownerId, deviceId, 'set-openai-auth-account', accountId);
+  }
+
+  private async pushSwitchCommand(
+    ownerId: string,
+    deviceId: string,
+    type: 'switch-account' | 'set-openai-auth-account',
+    accountId: string,
+  ) {
     const socket = this.sockets.get(this.socketKey(ownerId, deviceId));
     const session = socket ? this.sessions.get(socket) : undefined;
     if (
@@ -195,7 +210,7 @@ export class DeviceGateway implements OnGatewayConnection, OnGatewayDisconnect {
       }, 25_000);
       this.pending.set(commandId, { ownerId, deviceId, resolve, reject, timer });
     });
-    socket.send(JSON.stringify({ type: 'switch-account', commandId, accountId }));
+    socket.send(JSON.stringify({ type, commandId, accountId }));
     await completion;
   }
 
@@ -247,6 +262,7 @@ export class DeviceGateway implements OnGatewayConnection, OnGatewayDisconnect {
       platform: message.platform,
       appVersion: message.appVersion,
       activeAccountId: message.activeAccountId,
+      openaiAuthAccountId: message.openaiAuthAccountId,
     });
     const authTimer = this.authTimers.get(client);
     if (authTimer) clearTimeout(authTimer);
@@ -300,6 +316,7 @@ export class DeviceGateway implements OnGatewayConnection, OnGatewayDisconnect {
       platform: string;
       appVersion?: string | null;
       activeAccountId?: string | null;
+      openaiAuthAccountId?: string | null;
       lastSeenAt?: Date | string;
     },
     online: boolean,
@@ -313,6 +330,7 @@ export class DeviceGateway implements OnGatewayConnection, OnGatewayDisconnect {
       platform: device.platform,
       appVersion: device.appVersion,
       activeAccountId: device.activeAccountId,
+      openaiAuthAccountId: device.openaiAuthAccountId,
       lastSeenAt,
       online,
     };
