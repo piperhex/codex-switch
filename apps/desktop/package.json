@@ -12,9 +12,9 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "dev:app": "tauri dev",
-    "build:app": "tauri build",
-    "build:app:mac": "tauri build --target universal-apple-darwin",
-    "build:app:win-arm64": "tauri build --target aarch64-pc-windows-msvc"
+    "build:app": "node ../../scripts/build-desktop-app.mjs",
+    "build:app:mac": "node ../../scripts/build-desktop-app.mjs --target universal-apple-darwin",
+    "build:app:win-arm64": "node ../../scripts/build-desktop-app.mjs --target aarch64-pc-windows-msvc"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.8.0",
