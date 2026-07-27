@@ -6,7 +6,7 @@ use tauri::{
 use crate::{
     commands,
     models::{
-        AppSettings, BubbleResetDisplay, UsageWindow, MAX_TOKEN_USAGE_REFRESH_SECONDS,
+        AppSettings, BubbleResetDisplay, BubbleStyle, UsageWindow, MAX_TOKEN_USAGE_REFRESH_SECONDS,
         MAX_TOKEN_USAGE_WEEKS, MIN_TOKEN_USAGE_REFRESH_SECONDS, MIN_TOKEN_USAGE_WEEKS,
     },
     providers,
@@ -14,8 +14,10 @@ use crate::{
 };
 
 pub(crate) const BUBBLE_LABEL: &str = "usage-bubble";
-const COLLAPSED_WIDTH: f64 = 108.0;
-const COLLAPSED_HEIGHT: f64 = 108.0;
+const CLASSIC_WIDTH: f64 = 108.0;
+const CLASSIC_HEIGHT: f64 = 108.0;
+const GLASS_WIDTH: f64 = 232.0;
+const GLASS_HEIGHT: f64 = 112.0;
 const EXPANDED_WIDTH: f64 = 304.0;
 const EXPANDED_HEIGHT: f64 = 298.0;
 const SCREEN_MARGIN: f64 = 22.0;
@@ -47,7 +49,10 @@ fn create<R: Runtime>(app: &AppHandle<R>, settings: &AppSettings) -> Result<(), 
         WebviewUrl::App("index.html#bubble".into()),
     )
     .title("Codex Usage")
-    .inner_size(COLLAPSED_WIDTH, COLLAPSED_HEIGHT)
+    .inner_size(
+        bubble_size(&settings.bubble_style).0,
+        bubble_size(&settings.bubble_style).1,
+    )
     .position(x, y)
     .resizable(false)
     .maximizable(false)
@@ -89,8 +94,8 @@ fn restored_or_default_position<R: Runtime>(
     let position = area.position.to_logical::<f64>(monitor.scale_factor());
     let size = area.size.to_logical::<f64>(monitor.scale_factor());
     (
-        position.x + size.width - COLLAPSED_WIDTH - SCREEN_MARGIN,
-        position.y + size.height - COLLAPSED_HEIGHT - SCREEN_MARGIN,
+        position.x + size.width - bubble_size(&settings.bubble_style).0 - SCREEN_MARGIN,
+        position.y + size.height - bubble_size(&settings.bubble_style).1 - SCREEN_MARGIN,
     )
 }
 
@@ -100,9 +105,9 @@ fn position_is_visible<R: Runtime>(app: &AppHandle<R>, x: f64, y: f64) -> bool {
             let area = monitor.work_area();
             let position = area.position.to_logical::<f64>(monitor.scale_factor());
             let size = area.size.to_logical::<f64>(monitor.scale_factor());
-            x + COLLAPSED_WIDTH > position.x
+            x + CLASSIC_WIDTH > position.x
                 && x < position.x + size.width
-                && y + COLLAPSED_HEIGHT > position.y
+                && y + CLASSIC_HEIGHT > position.y
                 && y < position.y + size.height
         })
     })
@@ -188,6 +193,28 @@ pub(crate) fn set_bubble_reset_display<R: Runtime>(
 }
 
 #[tauri::command]
+pub(crate) fn set_bubble_style<R: Runtime>(
+    app: AppHandle<R>,
+    style: BubbleStyle,
+) -> Result<AppSettings, String> {
+    let mut settings = read_app_settings(&app)?;
+    settings.bubble_style = style;
+    write_app_settings(&app, &settings)?;
+    resize_window_for_style(&app, &settings.bubble_style)?;
+
+    let event_name = "bubble-style-changed";
+    let event_payload = settings.bubble_style.clone();
+    app.emit(event_name, event_payload.clone())
+        .map_err(|error| error.to_string())?;
+    if let Some(window) = app.get_webview_window(BUBBLE_LABEL) {
+        window
+            .emit(event_name, event_payload)
+            .map_err(|error| error.to_string())?;
+    }
+    Ok(settings)
+}
+
+#[tauri::command]
 pub(crate) fn set_theme_color<R: Runtime>(
     app: AppHandle<R>,
     color: String,
@@ -242,12 +269,12 @@ pub(crate) fn resize_floating_bubble<R: Runtime>(
         .inner_size()
         .map_err(|error| error.to_string())?
         .to_logical::<f64>(scale);
-    let anchor_x = position.x + size.width - COLLAPSED_WIDTH;
-    let anchor_y = position.y + size.height - COLLAPSED_HEIGHT;
+    let anchor_x = position.x + size.width - CLASSIC_WIDTH;
+    let anchor_y = position.y + size.height - CLASSIC_HEIGHT;
     let (width, height) = if expanded {
         (EXPANDED_WIDTH, EXPANDED_HEIGHT)
     } else {
-        (COLLAPSED_WIDTH, COLLAPSED_HEIGHT)
+        (CLASSIC_WIDTH, CLASSIC_HEIGHT)
     };
 
     window
@@ -255,8 +282,43 @@ pub(crate) fn resize_floating_bubble<R: Runtime>(
         .map_err(|error| error.to_string())?;
     window
         .set_position(LogicalPosition::new(
-            anchor_x - (width - COLLAPSED_WIDTH),
-            anchor_y - (height - COLLAPSED_HEIGHT),
+            anchor_x - (width - CLASSIC_WIDTH),
+            anchor_y - (height - CLASSIC_HEIGHT),
+        ))
+        .map_err(|error| error.to_string())
+}
+
+fn bubble_size(style: &BubbleStyle) -> (f64, f64) {
+    match style {
+        BubbleStyle::Classic => (CLASSIC_WIDTH, CLASSIC_HEIGHT),
+        BubbleStyle::Glass => (GLASS_WIDTH, GLASS_HEIGHT),
+    }
+}
+
+fn resize_window_for_style<R: Runtime>(
+    app: &AppHandle<R>,
+    style: &BubbleStyle,
+) -> Result<(), String> {
+    let Some(window) = app.get_webview_window(BUBBLE_LABEL) else {
+        return Ok(());
+    };
+    let scale = window.scale_factor().map_err(|error| error.to_string())?;
+    let position = window
+        .outer_position()
+        .map_err(|error| error.to_string())?
+        .to_logical::<f64>(scale);
+    let size = window
+        .inner_size()
+        .map_err(|error| error.to_string())?
+        .to_logical::<f64>(scale);
+    let (width, height) = bubble_size(style);
+    window
+        .set_size(LogicalSize::new(width, height))
+        .map_err(|error| error.to_string())?;
+    window
+        .set_position(LogicalPosition::new(
+            position.x + size.width - width,
+            position.y + size.height - height,
         ))
         .map_err(|error| error.to_string())
 }
@@ -408,7 +470,7 @@ pub(crate) fn remember_position<R: Runtime>(window: &Window<R>) {
     let Ok(mut settings) = read_app_settings(window.app_handle()) else {
         return;
     };
-    settings.bubble_x = Some(position.x + size.width - COLLAPSED_WIDTH);
-    settings.bubble_y = Some(position.y + size.height - COLLAPSED_HEIGHT);
+    settings.bubble_x = Some(position.x + size.width - CLASSIC_WIDTH);
+    settings.bubble_y = Some(position.y + size.height - CLASSIC_HEIGHT);
     let _ = write_app_settings(window.app_handle(), &settings);
 }

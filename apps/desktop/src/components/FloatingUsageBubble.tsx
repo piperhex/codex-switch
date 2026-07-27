@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent } from "react";
 import {
   dragFloatingBubble,
+  fetchResetCredits,
   loadAppSettings,
   loadDashboard,
   loadTokenUsageEntries,
@@ -8,12 +9,13 @@ import {
   showDashboardFromBubble,
   showFloatingBubbleMenu,
   subscribeToBubbleResetDisplayChanges,
+  subscribeToBubbleStyleChanges,
   subscribeToBackendEvents,
   subscribeToTokenUsageChanges,
 } from "../api/backend";
 import { useLanguage } from "../hooks/useLanguage";
 import { useThemeColor } from "../hooks/useThemeColor";
-import type { Account, BubbleResetDisplay, TokenUsageEntry } from "../types";
+import type { Account, BubbleResetDisplay, BubbleStyle, TokenUsageEntry } from "../types";
 import { remainingTone, resetClockTime } from "../utils/format";
 import { formatCompactTokenCount, latestTokenContextForAccount } from "../utils/tokenContext";
 
@@ -45,10 +47,12 @@ function clampPercent(value: number) {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
-function BubbleResetLabel({ timestamp, language, display }: {
+function BubbleResetLabel({ timestamp, language, display, className, compact = false }: {
   timestamp?: number | null;
   language: "en" | "zh";
   display: BubbleResetDisplay;
+  className?: string;
+  compact?: boolean;
 }) {
   const [now, setNow] = useState(() => Date.now());
 
@@ -61,8 +65,15 @@ function BubbleResetLabel({ timestamp, language, display }: {
 
   if (display === "resetAt") {
     const clock = resetClockTime(timestamp);
+    if (compact) {
+      return (
+        <small className={`floating-bubble-reset ${className ?? ""}`}>
+          <span>{clock ?? (language === "zh" ? "未知" : "unknown")}</span>
+        </small>
+      );
+    }
     return (
-      <small className="floating-bubble-reset floating-bubble-reset-stacked">
+      <small className={`floating-bubble-reset floating-bubble-reset-stacked ${className ?? ""}`}>
         <span>{language === "zh" ? (clock ? "重置于" : "重置时间") : (clock ? "Resets at" : "Reset time")}</span>
         <span>{clock ?? (language === "zh" ? "未知" : "unknown")}</span>
       </small>
@@ -77,8 +88,15 @@ function BubbleResetLabel({ timestamp, language, display }: {
   const time = hours === null || minutes === null || seconds === null
     ? null
     : `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  if (compact) {
+    return (
+      <small className={`floating-bubble-reset ${className ?? ""}`}>
+        <span>{time ? `${days}${language === "zh" ? "天" : "d"}\u00a0${time}` : "--"}</span>
+      </small>
+    );
+  }
   return (
-    <small className="floating-bubble-reset floating-bubble-reset-stacked">
+    <small className={`floating-bubble-reset floating-bubble-reset-stacked ${className ?? ""}`}>
       {time ? <><span>{days}{language === "zh" ? "天" : "d"}</span><span>{time}</span></> : <span>--</span>}
     </small>
   );
@@ -90,6 +108,8 @@ export function FloatingUsageBubble() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [tokenUsageEntries, setTokenUsageEntries] = useState<TokenUsageEntry[]>([]);
   const [resetDisplay, setResetDisplay] = useState<BubbleResetDisplay>("countdown");
+  const [bubbleStyle, setBubbleStyle] = useState<BubbleStyle>("classic");
+  const [resetCreditsRemaining, setResetCreditsRemaining] = useState<number | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [waterSettling, setWaterSettling] = useState(false);
   const lastPrimaryPointerDownAt = useRef(0);
@@ -103,7 +123,10 @@ export function FloatingUsageBubble() {
   }, []);
   const loadResetDisplay = useCallback(() => {
     void loadAppSettings()
-      .then((settings) => setResetDisplay(settings.bubbleResetDisplay))
+      .then((settings) => {
+        setResetDisplay(settings.bubbleResetDisplay);
+        setBubbleStyle(settings.bubbleStyle);
+      })
       .catch(() => undefined);
   }, []);
 
@@ -128,8 +151,26 @@ export function FloatingUsageBubble() {
   }, [loadResetDisplay]);
 
   useEffect(() => subscribeToBubbleResetDisplayChanges(loadResetDisplay), [loadResetDisplay]);
+  useEffect(() => subscribeToBubbleStyleChanges(setBubbleStyle), []);
 
   const account = useMemo(() => accounts.find((item) => item.active), [accounts]);
+  const accountId = account?.id ?? null;
+  useEffect(() => {
+    let active = true;
+    if (!accountId) {
+      setResetCreditsRemaining(null);
+      return () => { active = false; };
+    }
+    setResetCreditsRemaining(null);
+    void fetchResetCredits(accountId)
+      .then((summary) => {
+        if (active) setResetCreditsRemaining(summary.credits.length);
+      })
+      .catch(() => {
+        if (active) setResetCreditsRemaining(null);
+    });
+    return () => { active = false; };
+  }, [accountId]);
   const tokenContext = useMemo(
     () => account ? latestTokenContextForAccount(tokenUsageEntries, account) : null,
     [account, tokenUsageEntries],
@@ -138,7 +179,16 @@ export function FloatingUsageBubble() {
   const secondary = account?.usage.secondary;
   const remaining = primary ? clampPercent(primary.remainingPercent) : null;
   const weeklyRemaining = secondary ? clampPercent(secondary.remainingPercent) : null;
+  const ringRemaining = bubbleStyle === "glass" ? remaining : weeklyRemaining;
   const water = waterColors(remaining);
+  const secondaryUsed = weeklyRemaining === null ? null : 100 - weeklyRemaining;
+  const status = remaining === null
+    ? "--"
+    : remainingTone(remaining) === "danger"
+      ? (language === "zh" ? "额度较低" : "Low quota")
+      : remainingTone(remaining) === "warning"
+        ? (language === "zh" ? "额度注意" : "Quota warning")
+        : (language === "zh" ? "额度充足" : "Quota healthy");
   const bubbleLabel = language === "zh"
     ? (refreshing ? "正在刷新当前账号额度" : "点击刷新当前账号额度")
     : (refreshing ? "Refreshing current account quota" : "Click to refresh current account quota");
@@ -146,8 +196,8 @@ export function FloatingUsageBubble() {
     ? `${bubbleLabel}\n可用上下文：${tokenContext ? formatCompactTokenCount(tokenContext.availableTokens, language) : "--"}\n总上下文：${tokenContext ? formatCompactTokenCount(tokenContext.totalTokens, language) : "--"}`
     : `${bubbleLabel}\nAvailable context: ${tokenContext ? formatCompactTokenCount(tokenContext.availableTokens, language) : "--"}\nTotal context: ${tokenContext ? formatCompactTokenCount(tokenContext.totalTokens, language) : "--"}`;
   const ringStyle = {
-    "--bubble-progress": `${weeklyRemaining ?? 0}%`,
-    "--bubble-color": weeklyRemaining === null ? "#7b8780" : usageColor(weeklyRemaining),
+    "--bubble-progress": `${ringRemaining ?? 0}%`,
+    "--bubble-color": ringRemaining === null ? "#7b8780" : usageColor(ringRemaining),
     "--bubble-water-level": `${remaining ?? 0}%`,
     "--bubble-water-top": water.top,
     "--bubble-water-color": water.main,
@@ -235,7 +285,7 @@ export function FloatingUsageBubble() {
 
   return (
     <div className="floating-usage-window" onContextMenu={openContextMenu}>
-      <button type="button" className={`floating-bubble ${waterSettling ? "is-water-settling" : ""} ${refreshing ? "is-refreshing" : ""}`} style={ringStyle}
+      <button type="button" className={`floating-bubble ${bubbleStyle === "glass" ? "floating-bubble-glass" : ""} ${waterSettling ? "is-water-settling" : ""} ${refreshing ? "is-refreshing" : ""}`} style={ringStyle}
         aria-label={bubbleLabel}
         title={bubbleHover}
         aria-busy={refreshing}
@@ -250,6 +300,14 @@ export function FloatingUsageBubble() {
         </span>
         <span className="floating-bubble-value">{remaining === null ? "--" : `${remaining}%`}</span>
         <BubbleResetLabel timestamp={primary?.resetsAt} language={language} display={resetDisplay} />
+        <span className="floating-glass-ring" aria-hidden="true"><span>{remaining === null ? "--" : `${remaining}%`}</span><small>{language === "zh" ? "主用量剩余" : "Primary left"}</small></span>
+        <span className="floating-glass-brand">Codex</span>
+        <span className="floating-glass-details">
+          <span><b>{language === "zh" ? "距离重置" : "Until reset"}</b><BubbleResetLabel timestamp={primary?.resetsAt} language={language} display={resetDisplay} className="floating-glass-reset" compact /></span>
+          <span><b>{language === "zh" ? "剩余重置" : "Resets left"}</b><strong>{resetCreditsRemaining === null ? "--" : `${resetCreditsRemaining}${language === "zh" ? " 次" : ""}`}</strong></span>
+          <span><b>{language === "zh" ? "次用量已使用" : "Secondary used"}</b><strong>{secondaryUsed === null ? "--" : `${secondaryUsed}%`}</strong></span>
+          <span><b>{language === "zh" ? "额度状态" : "Quota status"}</b><strong className={`floating-glass-status ${remaining === null ? "" : remainingTone(remaining)}`}>{status}</strong></span>
+        </span>
       </button>
     </div>
   );

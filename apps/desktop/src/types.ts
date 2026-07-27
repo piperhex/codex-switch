@@ -134,6 +134,7 @@ export interface AppSettings {
   floatingBubbleEnabled: boolean;
   privacyMode: boolean;
   bubbleResetDisplay: BubbleResetDisplay;
+  bubbleStyle: BubbleStyle;
   themeColor?: string | null;
   bubbleX?: number | null;
   bubbleY?: number | null;
@@ -234,6 +235,7 @@ export interface AccountArchiveImportResult {
 }
 
 export type BubbleResetDisplay = "countdown" | "resetAt";
+export type BubbleStyle = "classic" | "glass";
 
 export interface DreamSkinThemeSummary {
   id: string;

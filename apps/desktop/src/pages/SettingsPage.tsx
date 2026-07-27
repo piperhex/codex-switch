@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Button, ColorPicker, Input, InputNumber, Segmented, Space, Switch, TimePicker } from "antd";
+import { useEffect, useState, type CSSProperties } from "react";
+import { Button, ColorPicker, Input, InputNumber, Modal, Segmented, Space, Switch, TimePicker } from "antd";
 import dayjs, { type Dayjs } from "dayjs";
 import { CalendarDays, CircleGauge, Cloud, EyeOff, FileDown, FolderKey, FolderOpen, KeyRound, Languages, LayoutGrid, Palette, RefreshCw, ShieldCheck, TableProperties } from "lucide-react";
 import { MAX_AUTO_REFRESH_SECONDS, MIN_AUTO_REFRESH_SECONDS } from "../hooks/useAutoRefresh";
@@ -7,9 +7,17 @@ import { MAX_TOKEN_USAGE_REFRESH_SECONDS, MAX_TOKEN_USAGE_WEEKS, MIN_TOKEN_USAGE
 import type { AccountDisplayMode } from "../hooks/useAccountDisplayMode";
 import { DEFAULT_CLOUD_BASE_URL } from "../api/backend";
 import { LANGUAGE_OPTIONS, type Language, type Translate } from "../i18n";
-import type { AppInfo, BubbleResetDisplay } from "../types";
+import type { AppInfo, BubbleResetDisplay, BubbleStyle } from "../types";
 
 const DURATION_FORMAT = "HH:mm:ss";
+const CLASSIC_BUBBLE_PREVIEW_STYLE = {
+  "--bubble-progress": "57%",
+  "--bubble-color": "#35ada7",
+  "--bubble-water-level": "65%",
+  "--bubble-water-top": "#20b7ed",
+  "--bubble-water-color": "#0b93d9",
+  "--bubble-water-bottom": "#0873d5",
+} as CSSProperties;
 
 function range(end: number) {
   return Array.from({ length: end }, (_, index) => index);
@@ -93,6 +101,9 @@ export function SettingsPage({
   bubbleResetDisplay,
   bubbleResetDisplayLoading,
   onBubbleResetDisplayChange,
+  bubbleStyle,
+  bubbleStyleLoading,
+  onBubbleStyleChange,
   privacyModeEnabled,
   privacyModeLoading,
   onPrivacyModeChange,
@@ -134,6 +145,9 @@ export function SettingsPage({
   bubbleResetDisplay: BubbleResetDisplay;
   bubbleResetDisplayLoading: boolean;
   onBubbleResetDisplayChange: (display: BubbleResetDisplay) => void;
+  bubbleStyle: BubbleStyle;
+  bubbleStyleLoading: boolean;
+  onBubbleStyleChange: (style: BubbleStyle) => void;
   privacyModeEnabled: boolean;
   privacyModeLoading: boolean;
   onPrivacyModeChange: (enabled: boolean) => void;
@@ -153,6 +167,7 @@ export function SettingsPage({
   t: Translate;
 }) {
   const [cloudBaseUrlDraft, setCloudBaseUrlDraft] = useState(cloudBaseUrl);
+  const [bubbleStyleModalOpen, setBubbleStyleModalOpen] = useState(false);
   const usingOfficialCloudServer = cloudBaseUrlDraft.trim().replace(/\/+$/, "").toLowerCase()
     === DEFAULT_CLOUD_BASE_URL.toLowerCase();
 
@@ -232,9 +247,52 @@ export function SettingsPage({
                 { value: "resetAt", label: t("settings.floatingBubble.resetAt") },
               ]}
               onChange={(value) => onBubbleResetDisplayChange(value as BubbleResetDisplay)} />
+            <label>{t("settings.floatingBubble.style")}</label>
+            <Button className="floating-bubble-style-trigger" onClick={() => setBubbleStyleModalOpen(true)}>
+              {t("settings.floatingBubble.chooseStyle")}
+            </Button>
           </div>
         </div>
       </section>
+      <Modal
+        open={bubbleStyleModalOpen}
+        footer={null}
+        width={760}
+        title={t("settings.floatingBubble.styleModalTitle")}
+        onCancel={() => setBubbleStyleModalOpen(false)}
+      >
+        <p className="floating-bubble-style-modal-description">{t("settings.floatingBubble.styleModalDescription")}</p>
+        <div className="floating-bubble-style-options">
+          <button type="button" className={`floating-bubble-style-option ${bubbleStyle === "classic" ? "is-selected" : ""}`}
+            disabled={bubbleStyleLoading} onClick={() => onBubbleStyleChange("classic")}>
+            <span className="floating-bubble-style-preview classic" aria-hidden="true">
+              <span className="floating-bubble floating-bubble-demo" style={CLASSIC_BUBBLE_PREVIEW_STYLE}>
+                <span className="floating-bubble-water" />
+                <span className="floating-bubble-weekly">{t("settings.floatingBubble.weekShort")} 57%</span>
+                <span className="floating-bubble-value">65%</span>
+                <small className="floating-bubble-reset floating-bubble-reset-stacked">
+                  <span>0{t("settings.floatingBubble.dayShort")}</span>
+                  <span>01:28:39</span>
+                </small>
+              </span>
+            </span>
+            <span className="floating-bubble-style-option-copy"><strong>{t("settings.floatingBubble.classic")}</strong><small>{t("settings.floatingBubble.classicDescription")}</small></span>
+          </button>
+          <button type="button" className={`floating-bubble-style-option ${bubbleStyle === "glass" ? "is-selected" : ""}`}
+            disabled={bubbleStyleLoading} onClick={() => onBubbleStyleChange("glass")}>
+            <span className="floating-bubble-style-preview glass" aria-hidden="true">
+              <span className="glass-preview-ring"><b>5%</b><small>{t("settings.floatingBubble.primaryRemaining")}</small></span>
+              <span className="glass-preview-stats">
+                <span>{t("settings.floatingBubble.distanceToReset")}<b>3d 18h</b></span>
+                <span>{t("settings.floatingBubble.remainingResets")}<b>0</b></span>
+                <span>{t("settings.floatingBubble.secondaryUsed")}<b>95%</b></span>
+                <span>{t("settings.floatingBubble.quotaStatus")}<b>{t("settings.floatingBubble.lowQuota")}</b></span>
+              </span>
+            </span>
+            <span className="floating-bubble-style-option-copy"><strong>{t("settings.floatingBubble.glass")}</strong><small>{t("settings.floatingBubble.glassDescription")}</small></span>
+          </button>
+        </div>
+      </Modal>
       <section className="settings-card">
         <div className="settings-icon"><EyeOff size={23} /></div>
         <div className="settings-card-content">
