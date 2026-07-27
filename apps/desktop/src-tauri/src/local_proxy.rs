@@ -21,8 +21,9 @@ use crate::{
     auth::{account_fields, is_agent_identity_auth, token_string, validate_auth},
     codex_api::{refresh_tokens, token_expiring, ORIGINATOR},
     models::{
-        AccountSummary, DailyTokenUsage, LocalProxyStatus, ManagerStateFile, ProviderApiFormat,
-        ProviderProfile, TokenUsageEntry, UsageSummary,
+        AccountSummary, AccountTokenUsageTotals, DailyTokenUsage, LocalProxyStatus,
+        ManagerStateFile, ProviderApiFormat, ProviderProfile, ProxySessionSummary, TokenUsageEntry,
+        UsageSummary,
     },
     providers::{
         self, LOCAL_PROXY_ACTOR_AUTHORIZATION_HEADER, LOCAL_PROXY_BASE_URL, LOCAL_PROXY_HOST,
@@ -58,6 +59,37 @@ const LOCAL_PROXY_LAN_HOST: &str = "0.0.0.0";
 struct ProxyRuntime {
     server: Arc<Server>,
     handle: Option<JoinHandle<()>>,
+}
+
+#[derive(Clone)]
+struct ProxySessionState {
+    id: String,
+    client: String,
+    remote_address: Option<String>,
+    connected_at: u64,
+    last_seen_at: u64,
+    active_requests: u64,
+    request_count: u64,
+    provider: Option<String>,
+    account_email: Option<String>,
+    model: Option<String>,
+    context_tokens: Option<u64>,
+}
+
+struct ProxySessionRequestGuard {
+    id: String,
+}
+
+impl ProxySessionRequestGuard {
+    fn id(&self) -> &str {
+        &self.id
+    }
+}
+
+impl Drop for ProxySessionRequestGuard {
+    fn drop(&mut self) {
+        finish_proxy_session_request(&self.id);
+    }
 }
 
 struct UpstreamPayload {
@@ -106,6 +138,7 @@ struct TokenUsageContext {
     content_type: Option<String>,
     expects_event_stream: bool,
     account: Option<TokenUsageAccount>,
+    session_id: Option<String>,
 }
 
 #[derive(Clone, Copy)]
@@ -325,6 +358,7 @@ impl CodexToolContext {
 static RUNTIME: OnceLock<Mutex<Option<ProxyRuntime>>> = OnceLock::new();
 static TOKEN_USAGE_DB_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 static AUTO_SWITCH_COORDINATOR: OnceLock<AutoSwitchCoordinator> = OnceLock::new();
+static PROXY_SESSIONS: OnceLock<Mutex<HashMap<String, ProxySessionState>>> = OnceLock::new();
 
 #[derive(Default)]
 struct AutoSwitchCoordinator {
@@ -485,8 +519,116 @@ fn token_usage_db_lock() -> &'static Mutex<()> {
     TOKEN_USAGE_DB_LOCK.get_or_init(|| Mutex::new(()))
 }
 
+fn proxy_sessions() -> &'static Mutex<HashMap<String, ProxySessionState>> {
+    PROXY_SESSIONS.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
 fn auto_switch_coordinator() -> &'static AutoSwitchCoordinator {
     AUTO_SWITCH_COORDINATOR.get_or_init(AutoSwitchCoordinator::default)
+}
+
+fn proxy_session_header(headers: &[(String, String)]) -> Option<&str> {
+    ["session_id", "x-codex-window-id"]
+        .into_iter()
+        .find_map(|name| {
+            header_value(headers, name)
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+        })
+}
+
+fn begin_proxy_session_request(
+    headers: &[(String, String)],
+    remote_address: Option<String>,
+) -> ProxySessionRequestGuard {
+    let id = proxy_session_header(headers)
+        .map(ToString::to_string)
+        .or_else(|| {
+            remote_address
+                .clone()
+                .map(|address| format!("client:{address}"))
+        })
+        .unwrap_or_else(|| "local-client".to_string());
+    let client = header_value(headers, "user-agent")
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or("Codex client")
+        .to_string();
+    let now = unix_now();
+    if let Ok(mut sessions) = proxy_sessions().lock() {
+        let session = sessions
+            .entry(id.clone())
+            .or_insert_with(|| ProxySessionState {
+                id: id.clone(),
+                client: client.clone(),
+                remote_address: remote_address.clone(),
+                connected_at: now,
+                last_seen_at: now,
+                active_requests: 0,
+                request_count: 0,
+                provider: None,
+                account_email: None,
+                model: None,
+                context_tokens: None,
+            });
+        session.client = client;
+        if remote_address.is_some() {
+            session.remote_address = remote_address;
+        }
+        session.last_seen_at = now;
+        session.active_requests = session.active_requests.saturating_add(1);
+        session.request_count = session.request_count.saturating_add(1);
+    }
+    ProxySessionRequestGuard { id }
+}
+
+fn update_proxy_session_target(session_id: Option<&str>, provider: &str, model: &str) {
+    let Some(session_id) = session_id else {
+        return;
+    };
+    if let Ok(mut sessions) = proxy_sessions().lock() {
+        if let Some(session) = sessions.get_mut(session_id) {
+            session.provider = Some(provider.to_string());
+            session.model = Some(model.to_string());
+            session.last_seen_at = unix_now();
+        }
+    }
+}
+
+fn update_proxy_session_usage(
+    session_id: Option<&str>,
+    account_email: Option<&str>,
+    context_tokens: Option<u64>,
+) {
+    let Some(session_id) = session_id else {
+        return;
+    };
+    if let Ok(mut sessions) = proxy_sessions().lock() {
+        if let Some(session) = sessions.get_mut(session_id) {
+            if let Some(account_email) = account_email {
+                session.account_email = Some(account_email.to_string());
+            }
+            if context_tokens.is_some() {
+                session.context_tokens = context_tokens;
+            }
+            session.last_seen_at = unix_now();
+        }
+    }
+}
+
+fn finish_proxy_session_request(session_id: &str) {
+    if let Ok(mut sessions) = proxy_sessions().lock() {
+        if let Some(session) = sessions.get_mut(session_id) {
+            session.active_requests = session.active_requests.saturating_sub(1);
+            session.last_seen_at = unix_now();
+        }
+    }
+}
+
+fn clear_proxy_sessions() {
+    if let Ok(mut sessions) = proxy_sessions().lock() {
+        sessions.clear();
+    }
 }
 
 pub(crate) fn is_running() -> bool {
@@ -536,6 +678,72 @@ pub(crate) fn get_local_proxy_status<R: Runtime>(
     app: tauri::AppHandle<R>,
 ) -> Result<LocalProxyStatus, String> {
     Ok(status(&app))
+}
+
+#[tauri::command]
+pub(crate) fn list_proxy_sessions<R: Runtime>(
+    app: tauri::AppHandle<R>,
+) -> Result<Vec<ProxySessionSummary>, String> {
+    let sessions = proxy_sessions()
+        .lock()
+        .map_err(|_| "Proxy session registry lock is poisoned".to_string())?
+        .values()
+        .cloned()
+        .collect::<Vec<_>>();
+    let paths = resolve_paths(&app).ok();
+    let official_context_windows = paths
+        .as_ref()
+        .map(|paths| official_model_context_windows(paths))
+        .unwrap_or_default();
+    let session_ids = sessions
+        .iter()
+        .map(|session| session.id.clone())
+        .collect::<HashSet<_>>();
+    let conversation_titles = paths
+        .as_ref()
+        .and_then(|paths| {
+            crate::commands::conversation_titles_by_id(&paths.codex_home, &session_ids).ok()
+        })
+        .unwrap_or_default();
+    let provider_context_window = providers::DEFAULT_MODEL_CONTEXT_WINDOW
+        .saturating_mul(DEFAULT_EFFECTIVE_CONTEXT_WINDOW_PERCENT)
+        / 100;
+    let mut summaries = sessions
+        .iter()
+        .map(|session| {
+            let model_context_window = match (session.provider.as_deref(), session.model.as_deref())
+            {
+                (Some("Official Codex"), Some(model)) => {
+                    official_context_windows.get(model).copied()
+                }
+                (Some(_), Some(_)) => Some(provider_context_window),
+                _ => None,
+            };
+            ProxySessionSummary {
+                id: session.id.clone(),
+                title: conversation_titles.get(&session.id).cloned(),
+                client: session.client.clone(),
+                remote_address: session.remote_address.clone(),
+                connected_at: session.connected_at,
+                last_seen_at: session.last_seen_at,
+                active_requests: session.active_requests,
+                request_count: session.request_count,
+                provider: session.provider.clone(),
+                account_email: session.account_email.clone(),
+                model: session.model.clone(),
+                context_tokens: session.context_tokens,
+                model_context_window,
+            }
+        })
+        .collect::<Vec<_>>();
+    summaries.sort_by(|left, right| {
+        right
+            .active_requests
+            .cmp(&left.active_requests)
+            .then_with(|| right.last_seen_at.cmp(&left.last_seen_at))
+            .then_with(|| left.id.cmp(&right.id))
+    });
+    Ok(summaries)
 }
 
 #[tauri::command]
@@ -608,6 +816,15 @@ pub(crate) fn list_daily_token_usage<R: Runtime>(
 ) -> Result<Vec<DailyTokenUsage>, String> {
     let connection = open_token_usage_db(&app)?;
     list_daily_token_usage_from_db(&connection, start_ts)
+}
+
+#[tauri::command]
+pub(crate) fn list_account_token_usage<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    start_ts: u64,
+) -> Result<Vec<AccountTokenUsageTotals>, String> {
+    let connection = open_token_usage_db(&app)?;
+    list_account_token_usage_from_db(&connection, start_ts)
 }
 
 #[tauri::command]
@@ -1057,11 +1274,13 @@ fn stop_server() {
             let _ = handle.join();
         }
     }
+    clear_proxy_sessions();
 }
 
 fn handle_request<R: Runtime>(app: tauri::AppHandle<R>, mut request: Request) {
     let method = request.method().clone();
     let url = request.url().to_string();
+    let remote_address = request.remote_addr().map(|address| address.to_string());
     let headers = request
         .headers()
         .iter()
@@ -1083,7 +1302,16 @@ fn handle_request<R: Runtime>(app: tauri::AppHandle<R>, mut request: Request) {
         return;
     }
 
-    let result = handle_proxy_request(&app, &method, &url, &headers, body);
+    let session = (method == Method::Post && is_responses_endpoint(request_path(&url)))
+        .then(|| begin_proxy_session_request(&headers, remote_address));
+    let result = handle_proxy_request(
+        &app,
+        &method,
+        &url,
+        &headers,
+        body,
+        session.as_ref().map(ProxySessionRequestGuard::id),
+    );
     match result {
         Ok(payload) => respond_payload(request, payload),
         Err(error) => respond_error(request, 502, error),
@@ -1096,6 +1324,7 @@ fn handle_proxy_request<R: Runtime>(
     url: &str,
     headers: &[(String, String)],
     body: Vec<u8>,
+    session_id: Option<&str>,
 ) -> Result<UpstreamPayload, String> {
     let path = request_path(url);
     let started_at = Instant::now();
@@ -1168,7 +1397,14 @@ fn handle_proxy_request<R: Runtime>(
     };
     let route = proxy_diagnostic_route(path, &target);
     let diagnostic = proxy_diagnostic_entry(method, url, headers, &body, Some(&target), route);
-    let usage_context = token_usage_context(method, path, &body, &target, started_at);
+    let usage_context = token_usage_context(method, path, &body, &target, started_at, session_id);
+    if let Some(context) = usage_context.as_ref() {
+        update_proxy_session_target(
+            context.session_id.as_deref(),
+            &context.provider,
+            &context.model,
+        );
+    }
     let result = match target {
         ActiveTarget::Official { model } => {
             let response = forward_official(app, method, url, headers, body.clone(), &model);
@@ -1549,6 +1785,7 @@ fn token_usage_context(
     body: &[u8],
     target: &ActiveTarget,
     started_at: Instant,
+    session_id: Option<&str>,
 ) -> Option<TokenUsageContext> {
     if *method != Method::Post || !is_responses_endpoint(path) {
         return None;
@@ -1585,6 +1822,7 @@ fn token_usage_context(
             .and_then(Value::as_bool)
             .unwrap_or(false),
         account: None,
+        session_id: session_id.map(ToString::to_string),
     })
 }
 
@@ -1602,6 +1840,14 @@ fn attach_token_usage_capture<R: Runtime + 'static>(
     }
     context.content_type = payload.content_type.clone();
     context.account = payload.token_usage_account.clone();
+    update_proxy_session_usage(
+        context.session_id.as_deref(),
+        context
+            .account
+            .as_ref()
+            .map(|account| account.account_email.as_str()),
+        None,
+    );
     payload.body = match payload.body {
         UpstreamBody::Buffered(body) => {
             let usage = extract_token_usage_from_bytes(
@@ -1843,6 +2089,21 @@ fn record_token_usage_entry<R: Runtime>(
     usage: Option<TokenUsageValues>,
 ) {
     let usage = usage.unwrap_or_default();
+    let context_tokens =
+        usage
+            .total_tokens
+            .or_else(|| match (usage.input_tokens, usage.output_tokens) {
+                (None, None) => None,
+                (input, output) => Some(input.unwrap_or(0).saturating_add(output.unwrap_or(0))),
+            });
+    update_proxy_session_usage(
+        context.session_id.as_deref(),
+        context
+            .account
+            .as_ref()
+            .map(|account| account.account_email.as_str()),
+        context_tokens,
+    );
     let duration_ms = context.started_at.elapsed().as_millis() as u64;
     let id = short_hash_str(&format!(
         "{}:{}:{}:{}:{}:{}",
@@ -2463,6 +2724,44 @@ fn list_daily_token_usage_from_db(
             },
         )
         .collect())
+}
+
+fn list_account_token_usage_from_db(
+    connection: &Connection,
+    start_ts: u64,
+) -> Result<Vec<AccountTokenUsageTotals>, String> {
+    let mut statement = connection
+        .prepare(
+            r#"
+            SELECT account_id, account_email,
+                   SUM(COALESCE(total_tokens, COALESCE(input_tokens, 0) + COALESCE(output_tokens, 0))),
+                   SUM(COALESCE(input_tokens, 0)),
+                   SUM(COALESCE(output_tokens, 0)),
+                   SUM(COALESCE(reasoning_tokens, 0)),
+                   SUM(COALESCE(cached_tokens, 0))
+            FROM token_usage_entries
+            WHERE ts >= ?1
+              AND (account_id IS NOT NULL OR account_email IS NOT NULL)
+            GROUP BY account_id, account_email
+            ORDER BY 3 DESC
+            "#,
+        )
+        .map_err(|error| format!("Failed to query account token usage: {error}"))?;
+    let rows = statement
+        .query_map(params![u64_to_i64(start_ts)], |row| {
+            Ok(AccountTokenUsageTotals {
+                account_id: row.get(0)?,
+                account_email: row.get(1)?,
+                total_tokens: i64_to_u64(row.get::<_, i64>(2)?),
+                input_tokens: i64_to_u64(row.get::<_, i64>(3)?),
+                output_tokens: i64_to_u64(row.get::<_, i64>(4)?),
+                reasoning_tokens: i64_to_u64(row.get::<_, i64>(5)?),
+                cached_tokens: i64_to_u64(row.get::<_, i64>(6)?),
+            })
+        })
+        .map_err(|error| format!("Failed to read account token usage: {error}"))?;
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|error| format!("Failed to parse account token usage: {error}"))
 }
 
 fn prune_token_usage_entries(connection: &Connection) -> Result<(), String> {
@@ -5183,10 +5482,12 @@ mod tests {
             &body,
             &target,
             Instant::now(),
+            Some("session-test"),
         )
         .unwrap();
 
         assert_eq!(context.model, "gpt-5.6-sol");
+        assert_eq!(context.session_id.as_deref(), Some("session-test"));
     }
 
     #[test]
@@ -5206,6 +5507,7 @@ mod tests {
             &body,
             &target,
             Instant::now(),
+            None,
         )
         .unwrap();
         let sse = concat!(
@@ -5479,6 +5781,76 @@ mod tests {
         );
         assert_eq!(entries[TOKEN_USAGE_LIST_LIMIT - 1].id, "entry-002");
         assert!(entries.iter().all(|entry| entry.id != "entry-001"));
+    }
+
+    #[test]
+    fn token_usage_database_aggregates_all_account_entries_since_start() {
+        let connection = Connection::open_in_memory().unwrap();
+        init_token_usage_schema(&connection).unwrap();
+        for entry in [
+            TokenUsageEntry {
+                id: "before".to_string(),
+                ts: 99,
+                provider: "Official Codex".to_string(),
+                account_id: Some("account-123".to_string()),
+                account_email: Some("person@example.com".to_string()),
+                model: "gpt-old".to_string(),
+                duration_ms: None,
+                input_tokens: Some(900),
+                output_tokens: Some(100),
+                reasoning_tokens: Some(0),
+                cached_tokens: Some(0),
+                total_tokens: Some(1_000),
+                model_context_window: None,
+            },
+            TokenUsageEntry {
+                id: "today-model-a".to_string(),
+                ts: 100,
+                provider: "Official Codex".to_string(),
+                account_id: Some("account-123".to_string()),
+                account_email: Some("person@example.com".to_string()),
+                model: "gpt-a".to_string(),
+                duration_ms: None,
+                input_tokens: Some(80),
+                output_tokens: Some(20),
+                reasoning_tokens: Some(5),
+                cached_tokens: Some(50),
+                total_tokens: Some(100),
+                model_context_window: None,
+            },
+            TokenUsageEntry {
+                id: "today-model-b".to_string(),
+                ts: 101,
+                provider: "Official Codex".to_string(),
+                account_id: Some("account-123".to_string()),
+                account_email: Some("person@example.com".to_string()),
+                model: "gpt-b".to_string(),
+                duration_ms: None,
+                input_tokens: Some(40),
+                output_tokens: Some(10),
+                reasoning_tokens: Some(3),
+                cached_tokens: Some(20),
+                total_tokens: None,
+                model_context_window: None,
+            },
+        ] {
+            insert_token_usage_entry(&connection, &entry).unwrap();
+        }
+
+        let totals = list_account_token_usage_from_db(&connection, 100).unwrap();
+
+        assert_eq!(
+            totals,
+            vec![AccountTokenUsageTotals {
+                account_id: Some("account-123".to_string()),
+                account_email: Some("person@example.com".to_string()),
+                total_tokens: 150,
+                input_tokens: 120,
+                output_tokens: 30,
+                reasoning_tokens: 8,
+                cached_tokens: 70,
+            }]
+        );
     }
 
     #[test]

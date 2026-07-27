@@ -39,7 +39,6 @@ export function AccountsPage({
   onListenOnAllInterfacesChange,
   privacyMode,
   displayMode,
-  currentModel,
   tokenUsageRefreshSeconds,
   language,
   t,
@@ -77,7 +76,6 @@ export function AccountsPage({
   onListenOnAllInterfacesChange: (enabled: boolean) => void;
   privacyMode: boolean;
   displayMode: AccountDisplayMode;
-  currentModel: string;
   tokenUsageRefreshSeconds: number;
   language: Language;
   t: Translate;
@@ -138,7 +136,7 @@ export function AccountsPage({
         hotSwitchEnabled={hotSwitchEnabled} privacyMode={privacyMode} displayMode={displayMode}
         openaiAuthAccountId={localProxy?.openaiAuthAccountId ?? null} openaiAuthBusy={proxyBusy}
         onOpenaiAuthAccountChange={onOpenaiAuthAccountChange}
-        currentModel={currentModel} tokenUsageRefreshSeconds={tokenUsageRefreshSeconds}
+        tokenUsageRefreshSeconds={tokenUsageRefreshSeconds}
         language={language} t={t} />
     </div>
   );

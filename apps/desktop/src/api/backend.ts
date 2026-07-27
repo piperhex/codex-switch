@@ -9,6 +9,7 @@ import { LANGUAGE_STORAGE_KEY, isLanguage, type Language } from "../i18n";
 import type {
   Account,
   AccountArchiveImportResult,
+  AccountTokenUsageTotals,
   AppInfo,
   AppSettings,
   BubbleResetDisplay,
@@ -28,6 +29,7 @@ import type {
   LoginStart,
   LoginStatus,
   LocalProxyStatus,
+  ProxySession,
   Provider,
   ProviderInput,
   ResetCreditsSummary,
@@ -318,6 +320,43 @@ export async function loadLocalProxyStatus(): Promise<LocalProxyStatus> {
   return invoke<LocalProxyStatus>("get_local_proxy_status");
 }
 
+export async function loadProxySessions(): Promise<ProxySession[]> {
+  if (!isDesktopApp) {
+    if (!previewLocalProxyStatus().running) return [];
+    const now = Math.floor(Date.now() / 1000);
+    return [
+      {
+        id: "019fa2da-d120-7e20-8e5a-079639b2d3ae",
+        client: "codex_cli_rs/0.1.0",
+        remoteAddress: "127.0.0.1:51742",
+        connectedAt: now - 864,
+        lastSeenAt: now - 3,
+        activeRequests: 1,
+        requestCount: 18,
+        provider: "Official Codex",
+        accountEmail: "alex.chen@example.com",
+        model: "gpt-5.6-sol",
+        contextTokens: 85_848,
+        modelContextWindow: 258_400,
+      },
+      {
+        id: "window-7c03b91e",
+        client: "Codex Desktop",
+        remoteAddress: "127.0.0.1:51809",
+        connectedAt: now - 292,
+        lastSeenAt: now - 27,
+        activeRequests: 0,
+        requestCount: 7,
+        provider: "AICoding.sh",
+        model: "gpt-5.6-terra",
+        contextTokens: 19_580,
+        modelContextWindow: 121_600,
+      },
+    ];
+  }
+  return invoke<ProxySession[]>("list_proxy_sessions");
+}
+
 export async function loadTokenUsageEntries(): Promise<TokenUsageEntry[]> {
   if (!isDesktopApp) {
     const now = Math.floor(Date.now() / 1000);
@@ -353,6 +392,36 @@ export async function loadTokenUsageEntries(): Promise<TokenUsageEntry[]> {
     ];
   }
   return invoke<TokenUsageEntry[]>("list_token_usage_entries");
+}
+
+export async function loadAccountTokenUsage(startTs: number): Promise<AccountTokenUsageTotals[]> {
+  if (!isDesktopApp) {
+    const totals = new Map<string, AccountTokenUsageTotals>();
+    for (const entry of await loadTokenUsageEntries()) {
+      if (entry.ts < startTs || (!entry.accountId && !entry.accountEmail)) continue;
+      const key = entry.accountId
+        ? `id:${entry.accountId}`
+        : `email:${entry.accountEmail?.trim().toLowerCase()}`;
+      const current = totals.get(key) ?? {
+        accountId: entry.accountId,
+        accountEmail: entry.accountEmail,
+        totalTokens: 0,
+        inputTokens: 0,
+        outputTokens: 0,
+        reasoningTokens: 0,
+        cachedTokens: 0,
+      };
+      current.totalTokens += entry.totalTokens
+        ?? (entry.inputTokens ?? 0) + (entry.outputTokens ?? 0);
+      current.inputTokens += entry.inputTokens ?? 0;
+      current.outputTokens += entry.outputTokens ?? 0;
+      current.reasoningTokens += entry.reasoningTokens ?? 0;
+      current.cachedTokens += entry.cachedTokens ?? 0;
+      totals.set(key, current);
+    }
+    return [...totals.values()];
+  }
+  return invoke<AccountTokenUsageTotals[]>("list_account_token_usage", { startTs });
 }
 
 export async function loadDailyTokenUsage(startTs: number): Promise<DailyTokenUsage[]> {

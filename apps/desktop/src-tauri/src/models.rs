@@ -142,6 +142,24 @@ pub(crate) struct LocalProxyStatus {
     pub(crate) openai_auth_account_id: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ProxySessionSummary {
+    pub(crate) id: String,
+    pub(crate) title: Option<String>,
+    pub(crate) client: String,
+    pub(crate) remote_address: Option<String>,
+    pub(crate) connected_at: u64,
+    pub(crate) last_seen_at: u64,
+    pub(crate) active_requests: u64,
+    pub(crate) request_count: u64,
+    pub(crate) provider: Option<String>,
+    pub(crate) account_email: Option<String>,
+    pub(crate) model: Option<String>,
+    pub(crate) context_tokens: Option<u64>,
+    pub(crate) model_context_window: Option<u64>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct TokenUsageEntry {
@@ -159,6 +177,18 @@ pub(crate) struct TokenUsageEntry {
     pub(crate) total_tokens: Option<u64>,
     #[serde(default)]
     pub(crate) model_context_window: Option<u64>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct AccountTokenUsageTotals {
+    pub(crate) account_id: Option<String>,
+    pub(crate) account_email: Option<String>,
+    pub(crate) total_tokens: u64,
+    pub(crate) input_tokens: u64,
+    pub(crate) output_tokens: u64,
+    pub(crate) reasoning_tokens: u64,
+    pub(crate) cached_tokens: u64,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]

@@ -244,15 +244,10 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .compact-model-token-chart .token-type-2 { fill: #8b5cf6; }
 .compact-model-token-chart .token-type-3 { fill: #f59e0b; }
 .compact-token-tooltip { min-width: 170px; display: grid; gap: 5px; }
-.compact-token-tooltip > strong { max-width: 220px; overflow: hidden; color: #fff; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
-.compact-token-tooltip > small { padding-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,.18); color: rgba(255,255,255,.68); font-size: 9px; }
+.compact-token-tooltip > strong { max-width: 220px; padding-bottom: 4px; overflow: hidden; border-bottom: 1px solid rgba(255,255,255,.18); color: #fff; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .compact-token-tooltip > span { display: grid; grid-template-columns: 7px minmax(0, 1fr) auto; align-items: center; gap: 6px; color: rgba(255,255,255,.82); font-size: 10px; }
 .compact-token-tooltip > span i { width: 7px; height: 7px; border-radius: 2px; }
 .compact-token-tooltip > span b { color: #fff; font-weight: 700; }
-.compact-token-context { padding-top: 5px; display: grid; gap: 4px; border-top: 1px solid rgba(255,255,255,.18); }
-.compact-token-context > span { display: flex; align-items: center; justify-content: space-between; gap: 14px; color: rgba(255,255,255,.82); font-size: 10px; }
-.compact-token-context > span i { color: rgba(255,255,255,.72); font-style: normal; }
-.compact-token-context > span b { color: #fff; font-weight: 700; }
 .compact-token-tooltip .token-type-0 { background: #3b82f6; }
 .compact-token-tooltip .token-type-1 { background: #10b981; }
 .compact-token-tooltip .token-type-2 { background: #8b5cf6; }
@@ -618,6 +613,22 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .proxy-auto-switch-menu { min-width: 210px; display: grid; gap: 4px; }
 .proxy-auto-switch-menu-item { min-height: 30px; display: flex; align-items: center; justify-content: space-between; gap: 24px; color: #46534b; font-size: 12px; font-weight: 600; white-space: nowrap; }
 .proxy-image-account { width: 210px; }
+.proxy-session-description { margin: 0 0 14px; color: #68756d; font-size: 12px; line-height: 1.6; }
+.proxy-session-modal .ant-modal-content { height: 80vh; display: flex; flex-direction: column; }
+.proxy-session-modal .ant-modal-body { min-height: 0; flex: 1; display: flex; flex-direction: column; }
+.proxy-session-modal .ant-alert { margin-bottom: 12px; }
+.proxy-session-table { min-height: 0; flex: 1; overflow: hidden; border: 1px solid var(--line); border-radius: 8px; }
+.proxy-session-table .ant-table { font-size: 12px; }
+.proxy-session-table .ant-table-thead > tr > th { background: #f6f8f5; color: #5d6a62; font-size: 11px; }
+.proxy-session-cell { min-width: 0; display: grid; gap: 3px; }
+.proxy-session-cell strong { overflow: hidden; color: var(--ink); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.proxy-session-cell span, .proxy-session-muted { overflow: hidden; color: #718078; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.proxy-session-title strong { font-size: 13px; }
+.proxy-session-context { display: grid; gap: 4px; color: #46534b; font-size: 11px; font-weight: 700; }
+.proxy-session-context .ant-progress { margin: 0; line-height: 1; }
+.proxy-session-activity { display: grid; gap: 5px; color: #718078; font-size: 10px; white-space: nowrap; }
+.proxy-session-activity > div { display: flex; align-items: center; gap: 3px; }
+.proxy-session-activity .ant-tag { margin-inline-end: 3px; font-size: 10px; line-height: 18px; }
 .proxy-start-confirm-description,
 .sync-direct-confirm-description { display: block; max-width: 320px; line-height: 1.6; white-space: normal; overflow-wrap: anywhere; }
 .provider-avatar { width: 30px; height: 30px; flex: 0 0 auto; border-radius: 8px; display: grid; place-items: center; color: var(--green-dark); background: var(--green-soft); }
