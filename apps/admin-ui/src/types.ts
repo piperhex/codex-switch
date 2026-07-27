@@ -70,6 +70,20 @@ export interface AppNotification {
 
 export type AppNotificationInput = Omit<AppNotification, "id" | "updatedAt">;
 
+export interface AppFaq {
+  id: string;
+  questionZh: string;
+  questionEn: string;
+  answerZh: string;
+  answerEn: string;
+  enabled: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type AppFaqInput = Omit<AppFaq, "id" | "createdAt" | "updatedAt">;
+
 export interface EmailTemplateVariable {
   key: string;
   description: string;

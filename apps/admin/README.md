@@ -42,9 +42,10 @@ If production uses `POSTGRES_DB_SYNCHRONIZE=false`, apply `sql/20260704-admin-ma
 `sql/20260718-dynamic-rbac.sql`, `sql/20260720-sync-account-field-modified-at.sql`,
 `sql/20260722-sync-account-soft-delete.sql`, `sql/20260722-email-templates.sql`,
 `sql/20260722-auto-switch-priority.sql`, and
-`sql/20260723-remote-device-account-switching.sql` before using
+`sql/20260723-remote-device-account-switching.sql`, `sql/20260724-app-notifications.sql`,
+and `sql/20260727-app-faqs.sql` before using
 the expanded admin console, provider sync, official account pool, reusable invitations,
-announcements, email templates, telemetry, and feedback management.
+announcements, desktop FAQs, email templates, telemetry, and feedback management.
 The RBAC migration must be applied before starting this version because application startup
 synchronizes the permission catalog and protected system roles.
 
@@ -128,7 +129,7 @@ curl -s -X POST http://KONG_ADMIN:8001/consumers/codex-switch-client/jwt \
   --data algorithm=HS256
 ```
 
-Create routes so the client-facing `/auth`, `/admin`, `/feedback`, `/announcements`, `/telemetry`, and `/device-switch` paths remain public, while `/sync`, `/devices`, and `/admin/api` are protected by the JWT plugin. The WebSocket authenticates its first message in NestJS. Authenticated sub-routes on a public prefix still enforce JWTs in NestJS:
+Create routes so the client-facing `/auth`, `/admin`, `/feedback`, `/announcements`, `/notifications`, `/faqs`, `/telemetry`, and `/device-switch` paths remain public, while `/sync`, `/devices`, and `/admin/api` are protected by the JWT plugin. The WebSocket authenticates its first message in NestJS. Authenticated sub-routes on a public prefix still enforce JWTs in NestJS:
 
 ```bash
 curl -s -X POST http://KONG_ADMIN:8001/services \
@@ -141,6 +142,8 @@ curl -s -X POST http://KONG_ADMIN:8001/services/codex-switch-backend/routes \
   --data 'paths[]=/admin' \
   --data 'paths[]=/feedback' \
   --data 'paths[]=/announcements' \
+  --data 'paths[]=/notifications' \
+  --data 'paths[]=/faqs' \
   --data 'paths[]=/telemetry' \
   --data 'paths[]=/device-switch' \
   --data strip_path=false
@@ -204,6 +207,8 @@ tokens remain valid when a signed link is copied for an invitation created by an
 - `GET /announcements/current`
 - `POST /announcements/clicks`
 - `POST /announcements/clicks/authenticated`
+- `GET /notifications/recent`
+- `GET /faqs`
 - `POST /telemetry/installations`
 - `WS /device-switch`
 - `GET /devices`
@@ -242,6 +247,10 @@ devices can remove their local copy.
 - `POST /admin/api/official-accounts/oauth/:sessionId/poll`
 - `PATCH /admin/api/official-accounts/:id`
 - `DELETE /admin/api/official-accounts/:id`
+- `GET /admin/api/faqs`
+- `POST /admin/api/faqs`
+- `PATCH /admin/api/faqs/:id`
+- `DELETE /admin/api/faqs/:id`
 - `GET /admin/api/official-accounts/:id/bindings`
 - `POST /admin/api/official-accounts/bind`
 - `POST /admin/api/official-accounts/unbind`

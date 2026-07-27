@@ -7,6 +7,7 @@ import { AnnouncementController } from './announcement.controller';
 import { AnnouncementService } from './announcement.service';
 import { AnnouncementLinkClickEntity } from './entities/announcement-link-click.entity';
 import { AppAnnouncementEntity } from './entities/app-announcement.entity';
+import { AppFaqEntity } from './entities/app-faq.entity';
 import { AppNotificationEntity } from './entities/app-notification.entity';
 
 @Module({
@@ -15,6 +16,7 @@ import { AppNotificationEntity } from './entities/app-notification.entity';
     RbacModule,
     TypeOrmModule.forFeature([
       AppAnnouncementEntity,
+      AppFaqEntity,
       AppNotificationEntity,
       AnnouncementLinkClickEntity,
       AdminAuditLogEntity,

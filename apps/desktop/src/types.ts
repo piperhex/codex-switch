@@ -206,6 +206,18 @@ export interface CloudNotification {
   updatedAt: string;
 }
 
+export interface CloudFaq {
+  id: string;
+  questionZh: string;
+  questionEn: string;
+  answerZh: string;
+  answerEn: string;
+  enabled: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface FeedbackImageInput {
   fileName: string;
   mimeType: string;

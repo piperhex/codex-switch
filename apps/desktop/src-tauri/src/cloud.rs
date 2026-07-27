@@ -117,6 +117,20 @@ pub(crate) struct CloudNotification {
     updated_at: String,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CloudFaq {
+    id: String,
+    question_zh: String,
+    question_en: String,
+    answer_zh: String,
+    answer_en: String,
+    enabled: bool,
+    sort_order: i32,
+    created_at: String,
+    updated_at: String,
+}
+
 fn default_announcement_scroll_duration_seconds() -> u16 {
     22
 }
@@ -1312,6 +1326,29 @@ pub(crate) async fn fetch_cloud_notifications<R: Runtime>(
     })
     .await
     .map_err(|error| format!("Notification request task failed: {error}"))?
+}
+
+#[tauri::command]
+pub(crate) async fn fetch_cloud_faqs<R: Runtime>(
+    app: tauri::AppHandle<R>,
+) -> Result<Vec<CloudFaq>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let client = api_client()?;
+        let settings = read_app_settings(&app)?;
+        let response = client
+            .get(endpoint(&settings, "/faqs")?)
+            .header("Accept", "application/json")
+            .send()
+            .map_err(|error| format!("FAQ request failed: {error}"))?;
+        if !response.status().is_success() {
+            return Err(response_error("FAQ request", response));
+        }
+        response
+            .json()
+            .map_err(|error| format!("FAQ response is invalid: {error}"))
+    })
+    .await
+    .map_err(|error| format!("FAQ request task failed: {error}"))?
 }
 
 #[tauri::command]

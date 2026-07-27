@@ -35,6 +35,8 @@ import type {
   AnnouncementClickFilters,
   AnnouncementClickOverview,
   AnnouncementConfig,
+  AppFaq,
+  AppFaqInput,
   AppNotification,
   AppNotificationInput,
   AuditLog,
@@ -190,6 +192,9 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [notificationSaving, setNotificationSaving] = useState(false);
+  const [faqs, setFaqs] = useState<AppFaq[]>([]);
+  const [faqsLoading, setFaqsLoading] = useState(false);
+  const [faqSaving, setFaqSaving] = useState(false);
   const [announcementClickOverview, setAnnouncementClickOverview] = useState(
     emptyAnnouncementClickOverview,
   );
@@ -584,6 +589,48 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
     }
   }, [api, loadNotifications, message, t]);
 
+  const loadFaqs = useCallback(async () => {
+    setFaqsLoading(true);
+    try {
+      setFaqs(await api<AppFaq[]>("/admin/api/faqs"));
+    } catch (error) {
+      message.error((error as Error).message);
+    } finally {
+      setFaqsLoading(false);
+    }
+  }, [api, message]);
+
+  const saveFaq = useCallback(async (id: string | null, input: AppFaqInput) => {
+    setFaqSaving(true);
+    try {
+      await api<AppFaq>(id ? `/admin/api/faqs/${id}` : "/admin/api/faqs", {
+        method: id ? "PATCH" : "POST",
+        body: JSON.stringify(input),
+      });
+      message.success(t("faq.saved"));
+      await loadFaqs();
+    } catch (error) {
+      message.error((error as Error).message);
+      throw error;
+    } finally {
+      setFaqSaving(false);
+    }
+  }, [api, loadFaqs, message, t]);
+
+  const deleteFaq = useCallback(async (id: string) => {
+    setFaqSaving(true);
+    try {
+      await api(`/admin/api/faqs/${id}`, { method: "DELETE" });
+      message.success(t("faq.deleted"));
+      await loadFaqs();
+    } catch (error) {
+      message.error((error as Error).message);
+      throw error;
+    } finally {
+      setFaqSaving(false);
+    }
+  }, [api, loadFaqs, message, t]);
+
   const loadAnnouncementClickOverview = useCallback(async () => {
     setAnnouncementClickOverviewLoading(true);
     try {
@@ -691,6 +738,7 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
     if (activeKey === "announcement") {
       void loadAnnouncement();
       void loadNotifications();
+      void loadFaqs();
       void loadAnnouncementClickOverview();
       void loadAnnouncementClicks();
     }
@@ -715,6 +763,7 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
     loadDashboard,
     loadAnnouncement,
     loadNotifications,
+    loadFaqs,
     loadAnnouncementClickOverview,
     loadAnnouncementClicks,
     loadOwnAccounts,
@@ -941,10 +990,13 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
         <AnnouncementPage
           announcement={announcement}
           notifications={notifications}
+          faqs={faqs}
           loading={announcementLoading}
           notificationsLoading={notificationsLoading}
+          faqsLoading={faqsLoading}
           saving={announcementSaving}
           notificationSaving={notificationSaving}
+          faqSaving={faqSaving}
           clickOverview={announcementClickOverview}
           clicks={announcementClicks}
           clickOverviewLoading={announcementClickOverviewLoading}
@@ -956,12 +1008,15 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
           onRefresh={() => {
             void loadAnnouncement();
             void loadNotifications();
+            void loadFaqs();
             void loadAnnouncementClickOverview();
             void loadAnnouncementClicks();
           }}
           onSave={saveAnnouncement}
           onSaveNotification={saveNotification}
           onDeleteNotification={deleteNotification}
+          onSaveFaq={saveFaq}
+          onDeleteFaq={deleteFaq}
         />
       );
     }
