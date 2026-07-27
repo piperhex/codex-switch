@@ -86,6 +86,7 @@ struct ProxySessionRequestState {
     model: Option<String>,
     reasoning_effort: Option<String>,
     response_time_ms: Option<u64>,
+    usage: Option<TokenUsageValues>,
 }
 
 #[derive(Clone, Default)]
@@ -190,6 +191,7 @@ struct TokenUsageContext {
     expects_event_stream: bool,
     account: Option<TokenUsageAccount>,
     session_id: Option<String>,
+    session_request_id: Option<u64>,
 }
 
 #[derive(Clone, Copy)]
@@ -654,6 +656,7 @@ fn begin_proxy_session_request(
             model,
             reasoning_effort,
             response_time_ms: None,
+            usage: None,
         });
         while session.requests.len() > PROXY_SESSION_REQUEST_KEEP_ROWS {
             session.requests.pop_front();
@@ -727,6 +730,26 @@ fn update_proxy_session_usage(
                 session.token_totals.add_usage(usage);
             }
             session.last_seen_at = unix_now();
+        }
+    }
+}
+
+fn update_proxy_session_request_usage(
+    session_id: Option<&str>,
+    request_id: Option<u64>,
+    usage: &TokenUsageValues,
+) {
+    let (Some(session_id), Some(request_id)) = (session_id, request_id) else {
+        return;
+    };
+    if let Ok(mut sessions) = proxy_sessions().lock() {
+        if let Some(request) = sessions.get_mut(session_id).and_then(|session| {
+            session
+                .requests
+                .iter_mut()
+                .find(|request| request.id == request_id)
+        }) {
+            request.usage = Some(usage.clone());
         }
     }
 }
@@ -893,6 +916,14 @@ pub(crate) fn list_proxy_session_requests(
             model: request.model.clone(),
             reasoning_effort: request.reasoning_effort.clone(),
             response_time_ms: request.response_time_ms,
+            total_tokens: request.usage.as_ref().and_then(token_usage_total),
+            input_tokens: request.usage.as_ref().and_then(|usage| usage.input_tokens),
+            output_tokens: request.usage.as_ref().and_then(|usage| usage.output_tokens),
+            reasoning_tokens: request
+                .usage
+                .as_ref()
+                .and_then(|usage| usage.reasoning_tokens),
+            cached_tokens: request.usage.as_ref().and_then(|usage| usage.cached_tokens),
         })
         .collect())
 }
@@ -1550,7 +1581,15 @@ fn handle_proxy_request<R: Runtime>(
     };
     let route = proxy_diagnostic_route(path, &target);
     let diagnostic = proxy_diagnostic_entry(method, url, headers, &body, Some(&target), route);
-    let usage_context = token_usage_context(method, path, &body, &target, started_at, session_id);
+    let usage_context = token_usage_context(
+        method,
+        path,
+        &body,
+        &target,
+        started_at,
+        session_id,
+        session_request_id,
+    );
     if let Some(context) = usage_context.as_ref() {
         update_proxy_session_target(
             context.session_id.as_deref(),
@@ -1940,6 +1979,7 @@ fn token_usage_context(
     target: &ActiveTarget,
     started_at: Instant,
     session_id: Option<&str>,
+    session_request_id: Option<u64>,
 ) -> Option<TokenUsageContext> {
     if *method != Method::Post || !is_responses_endpoint(path) {
         return None;
@@ -1977,6 +2017,7 @@ fn token_usage_context(
             .unwrap_or(false),
         account: None,
         session_id: session_id.map(ToString::to_string),
+        session_request_id,
     })
 }
 
@@ -2243,6 +2284,11 @@ fn record_token_usage_entry<R: Runtime>(
     usage: Option<TokenUsageValues>,
 ) {
     let usage = usage.unwrap_or_default();
+    update_proxy_session_request_usage(
+        context.session_id.as_deref(),
+        context.session_request_id,
+        &usage,
+    );
     update_proxy_session_usage(
         context.session_id.as_deref(),
         context
@@ -5722,6 +5768,7 @@ mod tests {
             &target,
             Instant::now(),
             Some("session-test"),
+            None,
         )
         .unwrap();
 
@@ -5746,6 +5793,7 @@ mod tests {
             &body,
             &target,
             Instant::now(),
+            None,
             None,
         )
         .unwrap();

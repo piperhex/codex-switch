@@ -173,6 +173,11 @@ pub(crate) struct ProxySessionRequestSummary {
     pub(crate) model: Option<String>,
     pub(crate) reasoning_effort: Option<String>,
     pub(crate) response_time_ms: Option<u64>,
+    pub(crate) total_tokens: Option<u64>,
+    pub(crate) input_tokens: Option<u64>,
+    pub(crate) output_tokens: Option<u64>,
+    pub(crate) reasoning_tokens: Option<u64>,
+    pub(crate) cached_tokens: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
