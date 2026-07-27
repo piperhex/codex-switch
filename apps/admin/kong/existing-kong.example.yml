@@ -14,6 +14,8 @@ services:
           - /admin
           - /feedback
           - /announcements
+          - /notifications
+          - /faqs
           - /telemetry
           - /device-switch
         strip_path: false

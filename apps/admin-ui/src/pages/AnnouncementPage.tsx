@@ -26,6 +26,8 @@ import type {
   AnnouncementClickFilters,
   AnnouncementClickOverview,
   AnnouncementConfig,
+  AppFaq,
+  AppFaqInput,
   AppNotification,
   AppNotificationInput,
   PageResult,
@@ -74,10 +76,13 @@ function isValidAnnouncementLink(link: string) {
 interface AnnouncementPageProps {
   announcement: AnnouncementConfig;
   notifications: AppNotification[];
+  faqs: AppFaq[];
   loading: boolean;
   notificationsLoading: boolean;
+  faqsLoading: boolean;
   saving: boolean;
   notificationSaving: boolean;
+  faqSaving: boolean;
   clickOverview: AnnouncementClickOverview;
   clicks: PageResult<AnnouncementClick>;
   clickOverviewLoading: boolean;
@@ -93,12 +98,16 @@ interface AnnouncementPageProps {
   >) => Promise<void>;
   onSaveNotification: (id: string | null, notification: AppNotificationInput) => Promise<void>;
   onDeleteNotification: (id: string) => Promise<void>;
+  onSaveFaq: (id: string | null, faq: AppFaqInput) => Promise<void>;
+  onDeleteFaq: (id: string) => Promise<void>;
   canManage: boolean;
 }
 
 type NotificationFormValues = Omit<AppNotificationInput, "publishedAt"> & {
   publishedAt: Dayjs;
 };
+
+type FaqFormValues = AppFaqInput;
 
 const platforms: TelemetryPlatform[] = ["windows", "macos", "linux", "android", "ios"];
 
@@ -113,10 +122,13 @@ const platformColors: Record<TelemetryPlatform, string> = {
 export function AnnouncementPage({
   announcement,
   notifications,
+  faqs,
   loading,
   notificationsLoading,
+  faqsLoading,
   saving,
   notificationSaving,
+  faqSaving,
   clickOverview,
   clicks,
   clickOverviewLoading,
@@ -128,6 +140,8 @@ export function AnnouncementPage({
   onSave,
   onSaveNotification,
   onDeleteNotification,
+  onSaveFaq,
+  onDeleteFaq,
   canManage,
 }: AnnouncementPageProps) {
   const { message } = App.useApp();
@@ -144,6 +158,9 @@ export function AnnouncementPage({
   const [notificationModalOpen, setNotificationModalOpen] = useState(false);
   const [editingNotification, setEditingNotification] = useState<AppNotification | null>(null);
   const [notificationForm] = Form.useForm<NotificationFormValues>();
+  const [faqModalOpen, setFaqModalOpen] = useState(false);
+  const [editingFaq, setEditingFaq] = useState<AppFaq | null>(null);
+  const [faqForm] = Form.useForm<FaqFormValues>();
   const lastSubmitted = useRef<EditableAnnouncement>(editableAnnouncement(announcement));
   const pendingSaves = useRef(0);
   const saveQueue = useRef<Promise<void>>(Promise.resolve());
@@ -266,6 +283,65 @@ export function AnnouncementPage({
       ),
     },
   ];
+  const faqColumns: TableColumnsType<AppFaq> = [
+    {
+      title: t("faq.questionColumn"),
+      key: "question",
+      render: (_, row) => language === "zh" ? row.questionZh : row.questionEn,
+    },
+    {
+      title: t("faq.sortOrder"),
+      dataIndex: "sortOrder",
+      width: 100,
+    },
+    {
+      title: t("faq.status"),
+      dataIndex: "enabled",
+      width: 100,
+      render: (value: boolean) => (
+        <Tag color={value ? "green" : "default"}>
+          {t(value ? "faq.enabled" : "faq.disabled")}
+        </Tag>
+      ),
+    },
+    {
+      title: t("common.actions"),
+      key: "actions",
+      width: 150,
+      render: (_, row) => (
+        <Space>
+          <Button
+            size="small"
+            icon={<Pencil size={14} />}
+            disabled={!canManage}
+            onClick={() => {
+              setEditingFaq(row);
+              faqForm.setFieldsValue({
+                questionZh: row.questionZh,
+                questionEn: row.questionEn,
+                answerZh: row.answerZh,
+                answerEn: row.answerEn,
+                enabled: row.enabled,
+                sortOrder: row.sortOrder,
+              });
+              setFaqModalOpen(true);
+            }}
+          >
+            {t("common.edit")}
+          </Button>
+          <Popconfirm
+            title={t("faq.deleteConfirm")}
+            okText={t("common.delete")}
+            cancelText={t("common.cancel")}
+            disabled={!canManage}
+            onConfirm={() => onDeleteFaq(row.id)}
+          >
+            <Button size="small" danger icon={<Trash2 size={14} />} disabled={!canManage} />
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
 
   const autoSave = (overrides: Partial<EditableAnnouncement> = {}) => {
     const next = editableAnnouncement({
@@ -376,6 +452,55 @@ export function AnnouncementPage({
                     dataSource={notifications}
                     pagination={{ pageSize: 10, showSizeChanger: true }}
                     scroll={{ x: 860 }}
+                  />
+                </div>
+              </>
+            ),
+          },
+          {
+            key: "faqs",
+            label: t("faq.tab"),
+            children: (
+              <>
+                <Typography.Paragraph type="secondary">
+                  {t("faq.description")}
+                </Typography.Paragraph>
+                <div className="toolbar">
+                  <div className="toolbar-left">
+                    <Typography.Text type="secondary">{t("faq.emptyByDefault")}</Typography.Text>
+                  </div>
+                  <div className="toolbar-right">
+                    <Button
+                      type="primary"
+                      icon={<Plus size={15} />}
+                      disabled={!canManage}
+                      onClick={() => {
+                        setEditingFaq(null);
+                        faqForm.resetFields();
+                        faqForm.setFieldsValue({
+                          questionZh: "",
+                          questionEn: "",
+                          answerZh: "",
+                          answerEn: "",
+                          enabled: true,
+                          sortOrder: faqs.length,
+                        });
+                        setFaqModalOpen(true);
+                      }}
+                    >
+                      {t("faq.create")}
+                    </Button>
+                  </div>
+                </div>
+                <div className="panel telemetry-panel">
+                  <Table
+                    rowKey="id"
+                    loading={faqsLoading || faqSaving}
+                    columns={faqColumns}
+                    dataSource={faqs}
+                    locale={{ emptyText: t("faq.empty") }}
+                    pagination={{ pageSize: 10, showSizeChanger: true }}
+                    scroll={{ x: 700 }}
                   />
                 </div>
               </>
@@ -665,6 +790,77 @@ export function AnnouncementPage({
               <Input maxLength={80} placeholder={t("notification.linkLabelEnPlaceholder")} />
             </Form.Item>
           </Space>
+        </Form>
+      </Modal>
+      <Modal
+        open={faqModalOpen}
+        title={t(editingFaq ? "faq.edit" : "faq.create")}
+        okText={t("common.save")}
+        cancelText={t("common.cancel")}
+        confirmLoading={faqSaving}
+        destroyOnClose
+        onCancel={() => setFaqModalOpen(false)}
+        onOk={() => faqForm.submit()}
+      >
+        <Form<FaqFormValues>
+          form={faqForm}
+          layout="vertical"
+          preserve={false}
+          onFinish={async (values) => {
+            await onSaveFaq(editingFaq?.id ?? null, {
+              ...values,
+              questionZh: values.questionZh.trim(),
+              questionEn: values.questionEn.trim(),
+              answerZh: values.answerZh.trim(),
+              answerEn: values.answerEn.trim(),
+            });
+            setFaqModalOpen(false);
+          }}
+        >
+          <Space align="start" size="middle" className="notification-form-row">
+            <Form.Item
+              name="enabled"
+              label={t("faq.publish")}
+              valuePropName="checked"
+            >
+              <Switch />
+            </Form.Item>
+            <Form.Item
+              name="sortOrder"
+              label={t("faq.sortOrder")}
+              rules={[{ required: true }]}
+            >
+              <InputNumber min={-100000} max={100000} precision={0} />
+            </Form.Item>
+          </Space>
+          <Form.Item
+            name="questionZh"
+            label={t("faq.questionZh")}
+            rules={[{ required: true, whitespace: true }]}
+          >
+            <Input maxLength={300} showCount />
+          </Form.Item>
+          <Form.Item
+            name="answerZh"
+            label={t("faq.answerZh")}
+            rules={[{ required: true, whitespace: true }]}
+          >
+            <Input.TextArea rows={4} maxLength={8000} showCount />
+          </Form.Item>
+          <Form.Item
+            name="questionEn"
+            label={t("faq.questionEn")}
+            rules={[{ required: true, whitespace: true }]}
+          >
+            <Input maxLength={300} showCount />
+          </Form.Item>
+          <Form.Item
+            name="answerEn"
+            label={t("faq.answerEn")}
+            rules={[{ required: true, whitespace: true }]}
+          >
+            <Input.TextArea rows={4} maxLength={8000} showCount />
+          </Form.Item>
         </Form>
       </Modal>
     </>

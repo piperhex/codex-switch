@@ -4,7 +4,7 @@ import enUS from "antd/locale/en_US";
 import zhCN from "antd/locale/zh_CN";
 import { Archive, BarChart3, Bell, CalendarClock, Check, CircleHelp, Cloud, Download, Github, LogIn, LogOut, Megaphone, MessageSquareText, Palette, Play, Plus, RefreshCw, RotateCcw, Server, Settings, ShieldCheck, Upload, UploadCloud, UserRound } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { checkForUpdate, chooseAndExportDiagnosticLogs, consumeResetCredit, DEFAULT_CLOUD_BASE_URL, downloadAvailableUpdate, fetchCloudAnnouncement, fetchCloudNotifications, installDownloadedUpdate, isDesktopApp, launchChatGpt, openManagedFolder, reportAnnouncementClick, reportBaseUrlChange, reportFirstInstallation, restartChatGpt, showTokenUsageWindow, submitFeedback, subscribeToCloudSessionExpired } from "./api/backend";
+import { checkForUpdate, chooseAndExportDiagnosticLogs, consumeResetCredit, DEFAULT_CLOUD_BASE_URL, downloadAvailableUpdate, fetchCloudAnnouncement, fetchCloudFaqs, fetchCloudNotifications, installDownloadedUpdate, isDesktopApp, launchChatGpt, openManagedFolder, reportAnnouncementClick, reportBaseUrlChange, reportFirstInstallation, restartChatGpt, showTokenUsageWindow, submitFeedback, subscribeToCloudSessionExpired } from "./api/backend";
 import { AboutModal } from "./components/modals/AboutModal";
 import { HelpModal, type HelpVersionState } from "./components/modals/HelpModal";
 import { FeedbackModal } from "./components/modals/FeedbackModal";
@@ -34,7 +34,7 @@ import { DreamSkinPage } from "./pages/DreamSkinPage";
 import { ProvidersPage } from "./pages/ProvidersPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { formatRefreshTime } from "./utils/format";
-import type { BubbleResetDisplay, CloudAnnouncement, CloudNotification, UpdateInfo } from "./types";
+import type { BubbleResetDisplay, CloudAnnouncement, CloudFaq, CloudNotification, UpdateInfo } from "./types";
 
 const LAST_REFRESH_ALL_KEY = "codex-switch:last-refresh-all-at";
 const LAST_NOTIFICATION_SEEN_KEY = "codex-switch:last-notification-seen-at";
@@ -87,6 +87,7 @@ function DashboardApp() {
   const [resetCreditBusyAccountId, setResetCreditBusyAccountId] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState<CloudAnnouncement | null>(null);
   const [notifications, setNotifications] = useState<CloudNotification[]>([]);
+  const [faqs, setFaqs] = useState<CloudFaq[]>([]);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [lastNotificationSeenAt, setLastNotificationSeenAt] = useState(
     () => window.localStorage.getItem(LAST_NOTIFICATION_SEEN_KEY),
@@ -94,6 +95,7 @@ function DashboardApp() {
   const helpVersionRequestId = useRef(0);
   const announcementRequestId = useRef(0);
   const notificationRequestId = useRef(0);
+  const faqRequestId = useRef(0);
   const availableUpdateRef = useRef<UpdateInfo | null>(null);
   const downloadingUpdateRef = useRef(false);
   const updateDownloadedRef = useRef(false);
@@ -160,6 +162,15 @@ function DashboardApp() {
       // Keep the last successful result during a transient server failure.
     }
   }, []);
+  const loadFaqs = useCallback(async () => {
+    const requestId = ++faqRequestId.current;
+    try {
+      const result = await fetchCloudFaqs();
+      if (faqRequestId.current === requestId) setFaqs(result);
+    } catch {
+      // Keep the last successful result during a transient server failure.
+    }
+  }, []);
   const markRefreshAll = useCallback(() => {
     const refreshedAt = new Date().toISOString();
     window.localStorage.setItem(LAST_REFRESH_ALL_KEY, refreshedAt);
@@ -172,9 +183,10 @@ function DashboardApp() {
         manager.refreshAll({ quiet: true, showSpinner: false }),
         loadAnnouncement(),
         loadNotifications(),
+        loadFaqs(),
       ]);
     },
-    [loadAnnouncement, loadNotifications, manager.refreshAll, markRefreshAll],
+    [loadAnnouncement, loadFaqs, loadNotifications, manager.refreshAll, markRefreshAll],
   );
   const autoRefresh = useAutoRefresh(true, automaticRefresh);
   const accountAutoRefresh = useAccountAutoRefresh(
@@ -325,6 +337,7 @@ function DashboardApp() {
   const openHelp = useCallback(() => {
     const requestId = ++helpVersionRequestId.current;
     setShowHelp(true);
+    void loadFaqs();
     setHelpVersionState({ status: "checking" });
     void checkForUpdate({ force: true })
       .then((update) => {
@@ -340,7 +353,7 @@ function DashboardApp() {
       .catch(() => {
         if (helpVersionRequestId.current === requestId) setHelpVersionState({ status: "error" });
       });
-  }, []);
+  }, [loadFaqs]);
 
   const sendFeedback = useCallback(async (content: string, contactEmail: string | null, images: File[]) => {
     await submitFeedback(content, manager.info?.version ?? "0.1.0", contactEmail, images);
@@ -350,15 +363,18 @@ function DashboardApp() {
   useEffect(() => {
     setAnnouncement(null);
     setNotifications([]);
+    setFaqs([]);
     void loadAnnouncement();
     void loadNotifications();
+    void loadFaqs();
     const timer = window.setInterval(() => void loadAnnouncement(), 60 * 60 * 1000);
     return () => {
       announcementRequestId.current += 1;
       notificationRequestId.current += 1;
+      faqRequestId.current += 1;
       window.clearInterval(timer);
     };
-  }, [cloud.state.baseUrl, loadAnnouncement, loadNotifications]);
+  }, [cloud.state.baseUrl, loadAnnouncement, loadFaqs, loadNotifications]);
 
   useEffect(() => {
     void reportFirstInstallation().catch(() => undefined);
@@ -381,6 +397,7 @@ function DashboardApp() {
     void manager.refreshAll();
     void loadAnnouncement();
     void loadNotifications();
+    void loadFaqs();
   };
   const restartChatGptProcess = useCallback(async () => {
     setChatGptOperation("restart");
@@ -1039,7 +1056,11 @@ function DashboardApp() {
           }} t={t} />}
         {showHelp && <HelpModal onClose={() => setShowHelp(false)} onUpdate={openHelpUpdate}
           onFeedback={() => setShowFeedback(true)} version={manager.info?.version ?? "0.1.0"}
-          versionState={helpVersionState} t={t} />}
+          versionState={helpVersionState} faq={faqs.map((item) => ({
+            id: item.id,
+            question: language === "zh" ? item.questionZh : item.questionEn,
+            answer: language === "zh" ? item.answerZh : item.answerEn,
+          }))} t={t} />}
         {showAbout && <AboutModal logoUrl={APP_LOGO_URL} onClose={() => setShowAbout(false)}
           onOpenRepository={openRepository} onUpdate={openHelpUpdate}
           onFeedback={() => setShowFeedback(true)} version={manager.info?.version ?? "0.1.0"}

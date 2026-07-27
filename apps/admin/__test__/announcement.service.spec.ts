@@ -6,6 +6,7 @@ import { AnnouncementService } from '@/modules/announcement/announcement.service
 import type { AppAnnouncementEntity } from '@/modules/announcement/entities/app-announcement.entity';
 import type { AnnouncementLinkClickEntity } from '@/modules/announcement/entities/announcement-link-click.entity';
 import type { AppNotificationEntity } from '@/modules/announcement/entities/app-notification.entity';
+import type { AppFaqEntity } from '@/modules/announcement/entities/app-faq.entity';
 import type { AdminAuditLogEntity } from '@/modules/admin/entities/admin-audit-log.entity';
 
 function createService() {
@@ -31,13 +32,21 @@ function createService() {
     save: vi.fn(),
     remove: vi.fn(),
   };
+  const faqs = {
+    find: vi.fn(),
+    findOne: vi.fn(),
+    create: vi.fn((value = {}) => value),
+    save: vi.fn(),
+    remove: vi.fn(),
+  };
   const service = new AnnouncementService(
     announcements as unknown as Repository<AppAnnouncementEntity>,
     auditLogs as unknown as Repository<AdminAuditLogEntity>,
     clicks as unknown as Repository<AnnouncementLinkClickEntity>,
     notifications as unknown as Repository<AppNotificationEntity>,
+    faqs as unknown as Repository<AppFaqEntity>,
   );
-  return { service, announcements, auditLogs, clicks, notifications };
+  return { service, announcements, auditLogs, clicks, notifications, faqs };
 }
 
 describe('AnnouncementService', () => {
@@ -223,6 +232,54 @@ describe('AnnouncementService', () => {
       take: 20,
     });
   });
+
+  it('returns an empty FAQ list by default and only queries published entries', async () => {
+    const { service, faqs } = createService();
+    faqs.find.mockResolvedValue([]);
+
+    await expect(service.listPublicFaqs()).resolves.toEqual([]);
+    expect(faqs.find).toHaveBeenCalledWith({
+      where: { enabled: true },
+      order: { sortOrder: 'ASC', createdAt: 'ASC' },
+    });
+  });
+
+  it('creates a localized FAQ and records its publication order', async () => {
+    const { service, faqs, auditLogs } = createService();
+    const createdAt = new Date('2026-07-27T01:00:00.000Z');
+    const updatedAt = new Date('2026-07-27T01:00:00.000Z');
+    faqs.save.mockImplementation(async (value) => ({
+      ...value,
+      id: 'faq-1',
+      createdAt,
+      updatedAt,
+    }));
+
+    await expect(service.createFaq(actor, {
+      questionZh: '  如何添加账户？ ',
+      questionEn: ' How do I add an account? ',
+      answerZh: ' 点击添加账户。 ',
+      answerEn: ' Select Add account. ',
+      enabled: true,
+      sortOrder: 2,
+    })).resolves.toEqual({
+      id: 'faq-1',
+      questionZh: '如何添加账户？',
+      questionEn: 'How do I add an account?',
+      answerZh: '点击添加账户。',
+      answerEn: 'Select Add account.',
+      enabled: true,
+      sortOrder: 2,
+      createdAt: createdAt.toISOString(),
+      updatedAt: updatedAt.toISOString(),
+    });
+    expect(auditLogs.save).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'faq.create',
+      targetType: 'faq',
+      targetId: 'faq-1',
+      metadata: { enabled: true, sortOrder: 2 },
+    }));
+  });
 });
 
 describe('AnnouncementController', () => {
@@ -239,6 +296,11 @@ describe('AnnouncementController', () => {
       createNotification: vi.fn().mockResolvedValue('created-notification'),
       updateNotification: vi.fn().mockResolvedValue('updated-notification'),
       deleteNotification: vi.fn().mockResolvedValue({ ok: true }),
+      listPublicFaqs: vi.fn().mockResolvedValue('public-faqs'),
+      listAdminFaqs: vi.fn().mockResolvedValue('admin-faqs'),
+      createFaq: vi.fn().mockResolvedValue('created-faq'),
+      updateFaq: vi.fn().mockResolvedValue('updated-faq'),
+      deleteFaq: vi.fn().mockResolvedValue({ ok: true }),
     };
     const controller = new AnnouncementController(announcements as unknown as AnnouncementService);
     const actor: AuthUser = { id: 'admin-1', email: 'admin@example.com', role: 'admin' };
@@ -260,8 +322,10 @@ describe('AnnouncementController', () => {
 
     await expect(controller.getCurrent()).resolves.toBe('public-announcement');
     await expect(controller.getRecentNotifications()).resolves.toBe('public-notifications');
+    await expect(controller.listPublicFaqs()).resolves.toBe('public-faqs');
     await expect(controller.getAdminConfig()).resolves.toBe('admin-announcement');
     await expect(controller.listNotifications()).resolves.toBe('admin-notifications');
+    await expect(controller.listFaqs()).resolves.toBe('admin-faqs');
     await expect(controller.recordPublicClick(clickDto)).resolves.toEqual({ ok: true });
     await expect(controller.recordAuthenticatedClick(actor, clickDto)).resolves.toEqual({ ok: true });
     await expect(controller.getClickOverview()).resolves.toBe('click-overview');
@@ -283,6 +347,17 @@ describe('AnnouncementController', () => {
     await expect(controller.updateNotification(actor, 'notification-1', notificationDto))
       .resolves.toBe('updated-notification');
     await expect(controller.deleteNotification(actor, 'notification-1')).resolves.toEqual({ ok: true });
+    const faqDto = {
+      questionZh: '如何添加账户？',
+      questionEn: 'How do I add an account?',
+      answerZh: '点击添加账户。',
+      answerEn: 'Select Add account.',
+      enabled: true,
+      sortOrder: 0,
+    };
+    await expect(controller.createFaq(actor, faqDto)).resolves.toBe('created-faq');
+    await expect(controller.updateFaq(actor, 'faq-1', faqDto)).resolves.toBe('updated-faq');
+    await expect(controller.deleteFaq(actor, 'faq-1')).resolves.toEqual({ ok: true });
     expect(announcements.recordClick).toHaveBeenNthCalledWith(1, clickDto);
     expect(announcements.recordClick).toHaveBeenNthCalledWith(2, clickDto, actor);
     expect(announcements.listClicks).toHaveBeenCalledWith(clickQuery);
@@ -294,5 +369,8 @@ describe('AnnouncementController', () => {
       notificationDto,
     );
     expect(announcements.deleteNotification).toHaveBeenCalledWith(actor, 'notification-1');
+    expect(announcements.createFaq).toHaveBeenCalledWith(actor, faqDto);
+    expect(announcements.updateFaq).toHaveBeenCalledWith(actor, 'faq-1', faqDto);
+    expect(announcements.deleteFaq).toHaveBeenCalledWith(actor, 'faq-1');
   });
 });

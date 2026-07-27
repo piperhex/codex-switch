@@ -27,6 +27,7 @@ interface HelpModalProps {
   onFeedback: () => void;
   version: string;
   versionState: HelpVersionState;
+  faq: Array<{ id: string; question: string; answer: string }>;
   t: Translate;
 }
 
@@ -37,7 +38,15 @@ function versionStatusLabel(state: HelpVersionState, t: Translate) {
   return t("help.version.checking");
 }
 
-export function HelpModal({ onClose, onUpdate, onFeedback, version, versionState, t }: HelpModalProps) {
+export function HelpModal({
+  onClose,
+  onUpdate,
+  onFeedback,
+  version,
+  versionState,
+  faq,
+  t,
+}: HelpModalProps) {
   const features = [
     { icon: <UserRound size={19} />, title: t("help.multi.title"), description: t("help.multi.description"), tone: "mint" },
     { icon: <RotateCcw size={19} />, title: t("help.switch.title"), description: t("help.switch.description"), tone: "blue" },
@@ -51,14 +60,6 @@ export function HelpModal({ onClose, onUpdate, onFeedback, version, versionState
     t("help.quickStart.step2"),
     t("help.quickStart.step3"),
   ];
-  const faq = [
-    { question: t("help.faq.add.question"), answer: t("help.faq.add.answer") },
-    { question: t("help.faq.switch.question"), answer: t("help.faq.switch.answer") },
-    { question: t("help.faq.usage.question"), answer: t("help.faq.usage.answer") },
-    { question: t("help.faq.storage.question"), answer: t("help.faq.storage.answer") },
-    { question: t("help.faq.cloud.question"), answer: t("help.faq.cloud.answer") },
-  ];
-
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <section className="modal help-modal" role="dialog" aria-modal="true" aria-labelledby="help-modal-title"
@@ -114,26 +115,28 @@ export function HelpModal({ onClose, onUpdate, onFeedback, version, versionState
             </span>
           </aside>
 
-          <section className="help-section help-faq-section">
-            <div className="help-section-heading">
-              <div>
-                <span>FAQ</span>
-                <h3>{t("help.faq.title")}</h3>
+          {faq.length > 0 && (
+            <section className="help-section help-faq-section">
+              <div className="help-section-heading">
+                <div>
+                  <span>FAQ</span>
+                  <h3>{t("help.faq.title")}</h3>
+                </div>
+                <small>{t("help.faq.description")}</small>
               </div>
-              <small>{t("help.faq.description")}</small>
-            </div>
-            <div className="help-faq-list">
-              {faq.map((item, index) => (
-                <details key={item.question} open={index === 0}>
-                  <summary>
-                    <span><b>{String(index + 1).padStart(2, "0")}</b>{item.question}</span>
-                    <ChevronDown size={17} />
-                  </summary>
-                  <p>{item.answer}</p>
-                </details>
-              ))}
-            </div>
-          </section>
+              <div className="help-faq-list">
+                {faq.map((item, index) => (
+                  <details key={item.id} open={index === 0}>
+                    <summary>
+                      <span><b>{String(index + 1).padStart(2, "0")}</b>{item.question}</span>
+                      <ChevronDown size={17} />
+                    </summary>
+                    <p>{item.answer}</p>
+                  </details>
+                ))}
+              </div>
+            </section>
+          )}
         </div>
 
         <footer className="help-version">

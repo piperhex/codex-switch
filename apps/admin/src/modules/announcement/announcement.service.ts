@@ -8,9 +8,11 @@ import type {
   ListAnnouncementClicksQueryDto,
 } from './dto/announcement-click.dto';
 import type { UpdateAnnouncementDto } from './dto/update-announcement.dto';
+import type { UpsertFaqDto } from './dto/upsert-faq.dto';
 import type { UpsertNotificationDto } from './dto/upsert-notification.dto';
 import { AnnouncementLinkClickEntity } from './entities/announcement-link-click.entity';
 import { AppAnnouncementEntity } from './entities/app-announcement.entity';
+import { AppFaqEntity } from './entities/app-faq.entity';
 import { AppNotificationEntity } from './entities/app-notification.entity';
 
 const CURRENT_ANNOUNCEMENT_ID = 'current';
@@ -42,6 +44,18 @@ export interface NotificationResponse {
   updatedAt: string;
 }
 
+export interface FaqResponse {
+  id: string;
+  questionZh: string;
+  questionEn: string;
+  answerZh: string;
+  answerEn: string;
+  enabled: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 const DEFAULT_TEXT_COLOR = '#C4D7C8';
 const DEFAULT_BACKGROUND_COLOR = '#203128';
 const DEFAULT_SCROLL_DURATION_SECONDS = 22;
@@ -63,6 +77,8 @@ export class AnnouncementService {
     private readonly clicks: Repository<AnnouncementLinkClickEntity>,
     @InjectRepository(AppNotificationEntity)
     private readonly notifications: Repository<AppNotificationEntity>,
+    @InjectRepository(AppFaqEntity)
+    private readonly faqs: Repository<AppFaqEntity>,
   ) {}
 
   async getPublic(): Promise<AnnouncementResponse> {
@@ -152,6 +168,57 @@ export class AnnouncementService {
       targetType: 'notification',
       targetId: id,
       metadata: { titleZh: notification.titleZh, titleEn: notification.titleEn },
+    }));
+    return { ok: true };
+  }
+
+  async listPublicFaqs(): Promise<FaqResponse[]> {
+    const faqs = await this.faqs.find({
+      where: { enabled: true },
+      order: { sortOrder: 'ASC', createdAt: 'ASC' },
+    });
+    return faqs.map((faq) => this.faqResponse(faq));
+  }
+
+  async listAdminFaqs(): Promise<FaqResponse[]> {
+    const faqs = await this.faqs.find({
+      order: { sortOrder: 'ASC', createdAt: 'ASC' },
+    });
+    return faqs.map((faq) => this.faqResponse(faq));
+  }
+
+  async createFaq(actor: AuthUser, dto: UpsertFaqDto): Promise<FaqResponse> {
+    const faq = this.faqs.create();
+    this.applyFaq(faq, actor, dto);
+    const saved = await this.faqs.save(faq);
+    await this.auditFaq(actor, 'faq.create', saved.id, saved);
+    return this.faqResponse(saved);
+  }
+
+  async updateFaq(
+    actor: AuthUser,
+    id: string,
+    dto: UpsertFaqDto,
+  ): Promise<FaqResponse> {
+    const faq = await this.faqs.findOne({ where: { id } });
+    if (!faq) throw new NotFoundException('FAQ not found');
+    this.applyFaq(faq, actor, dto);
+    const saved = await this.faqs.save(faq);
+    await this.auditFaq(actor, 'faq.update', saved.id, saved);
+    return this.faqResponse(saved);
+  }
+
+  async deleteFaq(actor: AuthUser, id: string) {
+    const faq = await this.faqs.findOne({ where: { id } });
+    if (!faq) throw new NotFoundException('FAQ not found');
+    await this.faqs.remove(faq);
+    await this.auditLogs.save(this.auditLogs.create({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: 'faq.delete',
+      targetType: 'faq',
+      targetId: id,
+      metadata: { questionZh: faq.questionZh, questionEn: faq.questionEn },
     }));
     return { ok: true };
   }
@@ -307,6 +374,44 @@ export class AnnouncementService {
     };
   }
 
+  private applyFaq(
+    faq: AppFaqEntity,
+    actor: AuthUser,
+    dto: UpsertFaqDto,
+  ) {
+    const questionZh = dto.questionZh.trim();
+    const questionEn = dto.questionEn.trim();
+    const answerZh = dto.answerZh.trim();
+    const answerEn = dto.answerEn.trim();
+    if (!questionZh || !questionEn || !answerZh || !answerEn) {
+      throw new BadRequestException(
+        'Chinese and English FAQ questions and answers are required',
+      );
+    }
+    faq.questionZh = questionZh;
+    faq.questionEn = questionEn;
+    faq.answerZh = answerZh;
+    faq.answerEn = answerEn;
+    faq.enabled = dto.enabled;
+    faq.sortOrder = dto.sortOrder;
+    faq.updatedById = actor.id;
+    faq.updatedByEmail = actor.email;
+  }
+
+  private faqResponse(faq: AppFaqEntity): FaqResponse {
+    return {
+      id: faq.id,
+      questionZh: faq.questionZh,
+      questionEn: faq.questionEn,
+      answerZh: faq.answerZh,
+      answerEn: faq.answerEn,
+      enabled: faq.enabled,
+      sortOrder: faq.sortOrder,
+      createdAt: faq.createdAt.toISOString(),
+      updatedAt: faq.updatedAt.toISOString(),
+    };
+  }
+
   private async auditNotification(
     actor: AuthUser,
     action: 'notification.create' | 'notification.update',
@@ -322,6 +427,25 @@ export class AnnouncementService {
       metadata: {
         enabled: notification.enabled,
         publishedAt: notification.publishedAt.toISOString(),
+      },
+    }));
+  }
+
+  private async auditFaq(
+    actor: AuthUser,
+    action: 'faq.create' | 'faq.update',
+    id: string,
+    faq: AppFaqEntity,
+  ) {
+    await this.auditLogs.save(this.auditLogs.create({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action,
+      targetType: 'faq',
+      targetId: id,
+      metadata: {
+        enabled: faq.enabled,
+        sortOrder: faq.sortOrder,
       },
     }));
   }

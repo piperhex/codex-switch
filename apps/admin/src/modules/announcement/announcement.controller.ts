@@ -22,6 +22,7 @@ import {
   ListAnnouncementClicksQueryDto,
 } from './dto/announcement-click.dto';
 import { UpdateAnnouncementDto } from './dto/update-announcement.dto';
+import { UpsertFaqDto } from './dto/upsert-faq.dto';
 import { UpsertNotificationDto } from './dto/upsert-notification.dto';
 
 @Controller()
@@ -38,6 +39,12 @@ export class AnnouncementController {
   @Header('Cache-Control', 'no-store')
   getRecentNotifications() {
     return this.announcements.listPublicNotifications();
+  }
+
+  @Get('faqs')
+  @Header('Cache-Control', 'no-store')
+  listPublicFaqs() {
+    return this.announcements.listPublicFaqs();
   }
 
   @Post('announcements/clicks')
@@ -99,6 +106,44 @@ export class AnnouncementController {
     @Param('id') id: string,
   ) {
     return this.announcements.deleteNotification(user, id);
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.AnnouncementsRead)
+  @Get('admin/api/faqs')
+  listFaqs() {
+    return this.announcements.listAdminFaqs();
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.AnnouncementsManage)
+  @Post('admin/api/faqs')
+  createFaq(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: UpsertFaqDto,
+  ) {
+    return this.announcements.createFaq(user, dto);
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.AnnouncementsManage)
+  @Patch('admin/api/faqs/:id')
+  updateFaq(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: UpsertFaqDto,
+  ) {
+    return this.announcements.updateFaq(user, id, dto);
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.AnnouncementsManage)
+  @Delete('admin/api/faqs/:id')
+  deleteFaq(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+  ) {
+    return this.announcements.deleteFaq(user, id);
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)

@@ -15,6 +15,7 @@ import type {
   CloudAuthenticationResult,
   CloudAuthState,
   CloudAnnouncement,
+  CloudFaq,
   CloudNotification,
   CloudSyncResult,
   DreamSkinImportOptions,
@@ -692,6 +693,18 @@ export async function fetchCloudNotifications(): Promise<CloudNotification[]> {
   });
   if (!response.ok) throw new Error(`Notification request failed with HTTP ${response.status}`);
   return response.json() as Promise<CloudNotification[]>;
+}
+
+export async function fetchCloudFaqs(): Promise<CloudFaq[]> {
+  if (isDesktopApp) return invoke<CloudFaq[]>("fetch_cloud_faqs");
+  const { baseUrl } = previewCloudState();
+  if (!baseUrl) return [];
+  const response = await fetch(`${baseUrl.replace(/\/+$/, "")}/faqs`, {
+    headers: { Accept: "application/json" },
+    cache: "no-store",
+  });
+  if (!response.ok) throw new Error(`FAQ request failed with HTTP ${response.status}`);
+  return response.json() as Promise<CloudFaq[]>;
 }
 
 export async function changeCloudPassword(currentPassword: string, newPassword: string): Promise<void> {
