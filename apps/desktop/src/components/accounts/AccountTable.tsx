@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Button, Dropdown, InputNumber, Popconfirm, Space, Table, Tag, Tooltip } from "antd";
+import { Button, Checkbox, Dropdown, InputNumber, Popconfirm, Space, Table, Tag, Tooltip } from "antd";
 import type { TableProps } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import {
   CalendarClock,
   Check,
+  Columns3,
   LogIn,
   LogOut,
   MoreHorizontal,
@@ -64,9 +65,19 @@ interface AccountTableProps {
 }
 
 const USAGE_SORT_STORAGE_KEY = "codex-switch:account-table-usage-sort";
+const HIDDEN_COLUMNS_STORAGE_KEY = "codex-switch:account-table-hidden-columns";
 
 type UsageSortColumn = "fiveHours" | "oneWeek";
 type UsageSortOrder = "ascend" | "descend";
+const ACCOUNT_TABLE_COLUMN_KEYS = [
+  "account",
+  "fiveHours",
+  "oneWeek",
+  "tokenTotals",
+  "autoSwitchPriority",
+  "actions",
+] as const;
+type AccountTableColumnKey = typeof ACCOUNT_TABLE_COLUMN_KEYS[number];
 
 interface UsageSortPreference {
   column: UsageSortColumn;
@@ -110,6 +121,25 @@ function persistUsageSortPreference(preference: UsageSortPreference | null) {
     return;
   }
   window.localStorage.setItem(USAGE_SORT_STORAGE_KEY, JSON.stringify(preference));
+}
+
+function isAccountTableColumnKey(value: unknown): value is AccountTableColumnKey {
+  return typeof value === "string"
+    && (ACCOUNT_TABLE_COLUMN_KEYS as readonly string[]).includes(value);
+}
+
+function loadHiddenColumns(): AccountTableColumnKey[] {
+  try {
+    const parsed: unknown = JSON.parse(window.localStorage.getItem(HIDDEN_COLUMNS_STORAGE_KEY) ?? "[]");
+    if (!Array.isArray(parsed)) return [];
+    return [...new Set(parsed.filter(isAccountTableColumnKey))];
+  } catch {
+    return [];
+  }
+}
+
+function persistHiddenColumns(columns: AccountTableColumnKey[]) {
+  window.localStorage.setItem(HIDDEN_COLUMNS_STORAGE_KEY, JSON.stringify(columns));
 }
 
 function usageRemainingSortValue(window: Account["usage"]["primary"]) {
@@ -344,6 +374,7 @@ export function AccountTable({
   const [bulkDisableBusy, setBulkDisableBusy] = useState(false);
   const [openaiAuthPendingAccountId, setOpenaiAuthPendingAccountId] = useState<string | null>(null);
   const [usageSort, setUsageSort] = useState<UsageSortPreference | null>(loadUsageSortPreference);
+  const [hiddenColumns, setHiddenColumns] = useState<AccountTableColumnKey[]>(loadHiddenColumns);
   const [tableScrollY, setTableScrollY] = useState(0);
   const [tokenUsageEntries, setTokenUsageEntries] = useState<TokenUsageEntry[]>([]);
   useEffect(() => {
@@ -454,7 +485,7 @@ export function AccountTable({
   const columns: ColumnsType<Account> = [
     Table.EXPAND_COLUMN as ColumnsType<Account>[number],
     {
-      title: t("table.account"), dataIndex: "email", width: 280, fixed: "left",
+      title: t("table.account"), key: "account", dataIndex: "email", width: 280, fixed: "left",
       sorter: (left, right, sortOrder) => compareKeepingAttentionLast(
         left,
         right,
@@ -552,7 +583,7 @@ export function AccountTable({
       ),
     }] : []),
     {
-      title: t("table.actions"), width: 300, align: "center", fixed: "right",
+      title: t("table.actions"), key: "actions", width: 300, align: "center", fixed: "right",
       render: (_, account) => {
         const waiting = busyAccountId === account.id;
         const resetWaiting = resetCreditBusyAccountId === account.id;
@@ -668,6 +699,35 @@ export function AccountTable({
       },
     },
   ];
+  const hiddenColumnSet = new Set(hiddenColumns);
+  const visibleColumns = columns.filter((column) =>
+    !isAccountTableColumnKey(column.key) || !hiddenColumnSet.has(column.key));
+  const columnSettings: { key: AccountTableColumnKey; label: string }[] = [
+    { key: "account", label: t("table.account") },
+    { key: "fiveHours", label: t("table.fiveHours") },
+    { key: "oneWeek", label: t("table.oneWeek") },
+    { key: "tokenTotals", label: t("table.tokenTotals") },
+    ...(customPriorityActive
+      ? [{ key: "autoSwitchPriority" as const, label: t("table.autoSwitchPriority") }]
+      : []),
+    { key: "actions", label: t("table.actions") },
+  ];
+  const visibleConfigurableColumnCount = columnSettings
+    .filter(({ key }) => !hiddenColumnSet.has(key)).length;
+  const tableScrollX = 68 + visibleColumns.reduce(
+    (total, column) => total + (typeof column.width === "number" ? column.width : 0),
+    0,
+  );
+  const setColumnVisible = (key: AccountTableColumnKey, visible: boolean) => {
+    setHiddenColumns((current) => {
+      if (!visible && !current.includes(key) && visibleConfigurableColumnCount <= 1) return current;
+      const next = visible
+        ? current.filter((column) => column !== key)
+        : [...new Set([...current, key])];
+      persistHiddenColumns(next);
+      return next;
+    });
+  };
 
   const tableContextAccount = contextMenu
     ? accounts.find((account) => account.id === contextMenu.accountId) ?? null
@@ -968,8 +1028,31 @@ export function AccountTable({
             {t("table.batchDisable", { count: disableableSelectedAccountIds.length })}
           </Button>
         )}
+        <Dropdown trigger={["click"]} placement="bottomRight"
+          dropdownRender={() => (
+            <div className="account-column-settings" onClick={(event) => event.stopPropagation()}>
+              <strong>{t("table.columnSettings")}</strong>
+              <div className="account-column-settings-list">
+                {columnSettings.map(({ key, label }) => {
+                  const checked = !hiddenColumnSet.has(key);
+                  return (
+                    <Checkbox key={key} checked={checked}
+                      disabled={checked && visibleConfigurableColumnCount <= 1}
+                      onChange={(event) => setColumnVisible(key, event.target.checked)}>
+                      {label}
+                    </Checkbox>
+                  );
+                })}
+              </div>
+            </div>
+          )}>
+          <Tooltip title={t("table.columnSettings")}>
+            <Button size="small" className="table-icon-button"
+              aria-label={t("table.columnSettings")} icon={<Columns3 size={15} />} />
+          </Tooltip>
+        </Dropdown>
       </div>
-      <Table rowKey="id" size="small" tableLayout="fixed" columns={columns} dataSource={orderedAccounts} pagination={false}
+      <Table rowKey="id" size="small" tableLayout="fixed" columns={visibleColumns} dataSource={orderedAccounts} pagination={false}
         onChange={handleTableChange}
         rowSelection={{
           fixed: true,
@@ -1006,9 +1089,7 @@ export function AccountTable({
             onRetry={() => onLoadResetCredits(account.id, true)} language={language} t={t} />,
           onExpand: (expanded, account) => { if (expanded) onLoadResetCredits(account.id); },
         }}
-        scroll={tableScrollY
-          ? { x: customPriorityActive ? 1380 : 1230, y: tableScrollY }
-          : { x: customPriorityActive ? 1380 : 1230 }} />
+        scroll={tableScrollY ? { x: tableScrollX, y: tableScrollY } : { x: tableScrollX }} />
     </div>
     {tableContextMenu}
     {editingAccount && <AccountNoteModal key={editingAccount.id} account={editingAccount}
