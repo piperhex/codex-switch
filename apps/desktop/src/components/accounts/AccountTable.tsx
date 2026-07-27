@@ -17,17 +17,13 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { loadTokenUsageEntries, subscribeToTokenUsageChanges } from "../../api/backend";
+import { loadAccountTokenUsage, subscribeToTokenUsageChanges } from "../../api/backend";
 import type { Language, Translate } from "../../i18n";
 import type { AccountDisplayMode } from "../../hooks/useAccountDisplayMode";
-import type { Account, ResetCreditsLoadState, TokenUsageEntry } from "../../types";
+import type { Account, AccountTokenUsageTotals, ResetCreditsLoadState } from "../../types";
 import { earliestExpirationDate } from "../../utils/expiration";
 import { initials } from "../../utils/format";
-import {
-  formatCompactTokenCount,
-  latestTokenContextForAccount,
-  type TokenContextUsage,
-} from "../../utils/tokenContext";
+import { formatCompactTokenCount } from "../../utils/tokenContext";
 import { AccountNoteModal } from "../modals/AccountNoteModal";
 import { ResetCreditsPanel } from "./ResetCreditsPanel";
 import { UsageMeter } from "./UsageMeter";
@@ -58,7 +54,6 @@ interface AccountTableProps {
   onOpenaiAuthAccountChange: (accountId: string | null) => void;
   privacyMode: boolean;
   displayMode: AccountDisplayMode;
-  currentModel: string;
   tokenUsageRefreshSeconds: number;
   language: Language;
   t: Translate;
@@ -159,60 +154,54 @@ function resetCreditsCount(state?: ResetCreditsLoadState) {
 }
 
 interface TokenTypeTotals {
+  total: number;
   input: number;
   output: number;
   reasoning: number;
   cached: number;
 }
 
-const EMPTY_TOKEN_TOTALS: TokenTypeTotals = { input: 0, output: 0, reasoning: 0, cached: 0 };
+const EMPTY_TOKEN_TOTALS: TokenTypeTotals = {
+  total: 0,
+  input: 0,
+  output: 0,
+  reasoning: 0,
+  cached: 0,
+};
 
-function tokenAccountKeys(account: Account) {
-  return [
-    account.accountId?.trim() ? `id:${account.accountId.trim()}` : "",
-    account.email.trim() ? `email:${account.email.trim().toLowerCase()}` : "",
-  ].filter(Boolean);
+function tokenUsageMatchesAccount(usage: AccountTokenUsageTotals, account: Account) {
+  const accountId = account.accountId?.trim();
+  const usageAccountId = usage.accountId?.trim();
+  if (accountId && usageAccountId && accountId === usageAccountId) return true;
+  const email = account.email.trim().toLowerCase();
+  const usageEmail = usage.accountEmail?.trim().toLowerCase();
+  return Boolean(email && usageEmail && email === usageEmail);
 }
 
-function entryAccountKeys(entry: TokenUsageEntry) {
-  return [
-    entry.accountId?.trim() ? `id:${entry.accountId.trim()}` : "",
-    entry.accountEmail?.trim() ? `email:${entry.accountEmail.trim().toLowerCase()}` : "",
-  ].filter(Boolean);
-}
-
-function CompactModelTokenChart({ model, totals, context, language }: {
-  model: string;
+function CompactDailyTokenChart({ totals, language }: {
   totals: TokenTypeTotals;
-  context: TokenContextUsage | null;
   language: Language;
 }) {
   const labels = language === "zh"
     ? {
-      title: "当前模型 Token 类型累计",
+      title: "今日 Token 用量",
       input: "输入",
       output: "输出",
       reasoning: "推理",
       cached: "缓存",
-      availableContext: "可用上下文",
-      totalContext: "总上下文",
     }
     : {
-      title: "Current model token totals",
+      title: "Today's Token usage",
       input: "Input",
       output: "Output",
       reasoning: "Reasoning",
       cached: "Cached",
-      availableContext: "Available context",
-      totalContext: "Total context",
     };
   const values = [totals.input, totals.output, totals.reasoning, totals.cached];
   const maximum = Math.max(...values, 1);
-  const total = totals.input + totals.output;
   const tooltip = (
     <div className="compact-token-tooltip">
-      <strong>{model || "--"}</strong>
-      <small>{labels.title}</small>
+      <strong>{labels.title}</strong>
       {values.map((value, index) => (
         <span key={index}>
           <i className={`token-type-${index}`} />
@@ -220,22 +209,13 @@ function CompactModelTokenChart({ model, totals, context, language }: {
           <b>{formatCompactTokenCount(value, language)}</b>
         </span>
       ))}
-      <div className="compact-token-context">
-        <span>
-          <i>{labels.availableContext}</i>
-          <b>{context ? formatCompactTokenCount(context.availableTokens, language) : "--"}</b>
-        </span>
-        <span>
-          <i>{labels.totalContext}</i>
-          <b>{context ? formatCompactTokenCount(context.totalTokens, language) : "--"}</b>
-        </span>
-      </div>
     </div>
   );
   return (
     <Tooltip title={tooltip} placement="top">
-      <div className="compact-model-token-chart" role="img" aria-label={`${labels.title}: ${model || "--"}`}>
-        <span>TOKEN</span>
+      <div className="compact-model-token-chart" role="img"
+        aria-label={`${labels.title}: ${formatCompactTokenCount(totals.total, language)}`}>
+        <span>{language === "zh" ? "今日" : "TODAY"}</span>
         <svg viewBox="0 0 48 26" aria-hidden="true">
           {values.map((value, index) => {
             const height = value > 0 ? Math.max(3, Math.round((value / maximum) * 22)) : 2;
@@ -243,18 +223,14 @@ function CompactModelTokenChart({ model, totals, context, language }: {
               y={24 - height} width="8" height={height} rx="2" />;
           })}
         </svg>
-        <small>{formatCompactTokenCount(total, language)}</small>
+        <small>{formatCompactTokenCount(totals.total, language)}</small>
       </div>
     </Tooltip>
   );
 }
 
 function totalsForAccount(totalsByAccount: Map<string, TokenTypeTotals>, account: Account) {
-  for (const key of tokenAccountKeys(account)) {
-    const totals = totalsByAccount.get(key);
-    if (totals) return totals;
-  }
-  return EMPTY_TOKEN_TOTALS;
+  return totalsByAccount.get(account.id) ?? EMPTY_TOKEN_TOTALS;
 }
 
 function isAccountDisabled(account: Account, hotSwitchEnabled: boolean) {
@@ -357,7 +333,6 @@ export function AccountTable({
   onOpenaiAuthAccountChange,
   privacyMode,
   displayMode,
-  currentModel,
   tokenUsageRefreshSeconds,
   language,
   t,
@@ -376,7 +351,7 @@ export function AccountTable({
   const [usageSort, setUsageSort] = useState<UsageSortPreference | null>(loadUsageSortPreference);
   const [hiddenColumns, setHiddenColumns] = useState<AccountTableColumnKey[]>(loadHiddenColumns);
   const [tableScrollY, setTableScrollY] = useState(0);
-  const [tokenUsageEntries, setTokenUsageEntries] = useState<TokenUsageEntry[]>([]);
+  const [accountTokenUsage, setAccountTokenUsage] = useState<AccountTokenUsageTotals[]>([]);
   useEffect(() => {
     const tableWrap = tableWrapRef.current;
     if (!tableWrap) return undefined;
@@ -401,14 +376,20 @@ export function AccountTable({
   }, []);
   useEffect(() => {
     if (!hotSwitchEnabled) {
-      setTokenUsageEntries([]);
+      setAccountTokenUsage([]);
       return undefined;
     }
     let active = true;
     const refresh = async () => {
       try {
-        const entries = await loadTokenUsageEntries();
-        if (active) setTokenUsageEntries(entries);
+        const today = new Date();
+        const startTs = new Date(
+          today.getFullYear(),
+          today.getMonth(),
+          today.getDate(),
+        ).getTime() / 1_000;
+        const totals = await loadAccountTokenUsage(startTs);
+        if (active) setAccountTokenUsage(totals);
       } catch {
         // Keep the last successful totals; quota rendering must not fail with token statistics.
       }
@@ -432,26 +413,24 @@ export function AccountTable({
   useEffect(() => {
     if (!openaiAuthBusy) setOpenaiAuthPendingAccountId(null);
   }, [openaiAuthBusy]);
-  const effectiveCurrentModel = currentModel.trim() || tokenUsageEntries[0]?.model || "";
   const customPriorityActive = hotSwitchEnabled
     && autoSwitchOnQuotaExhaustion
     && customAutoSwitchPriorityEnabled;
-  const tokenTotalsByAccount = useMemo(() => {
+  const todayTokenTotalsByAccount = useMemo(() => {
     const totals = new Map<string, TokenTypeTotals>();
-    if (!effectiveCurrentModel) return totals;
-    tokenUsageEntries.forEach((entry) => {
-      if (entry.model !== effectiveCurrentModel) return;
-      entryAccountKeys(entry).forEach((key) => {
-        const current = totals.get(key) ?? { ...EMPTY_TOKEN_TOTALS };
-        current.input += entry.inputTokens ?? 0;
-        current.output += entry.outputTokens ?? 0;
-        current.reasoning += entry.reasoningTokens ?? 0;
-        current.cached += entry.cachedTokens ?? 0;
-        totals.set(key, current);
-      });
+    accountTokenUsage.forEach((usage) => {
+      const account = accounts.find((candidate) => tokenUsageMatchesAccount(usage, candidate));
+      if (!account) return;
+      const current = totals.get(account.id) ?? { ...EMPTY_TOKEN_TOTALS };
+      current.total += usage.totalTokens;
+      current.input += usage.inputTokens;
+      current.output += usage.outputTokens;
+      current.reasoning += usage.reasoningTokens;
+      current.cached += usage.cachedTokens;
+      totals.set(account.id, current);
     });
     return totals;
-  }, [effectiveCurrentModel, tokenUsageEntries]);
+  }, [accountTokenUsage, accounts]);
   const orderedAccounts = useMemo(() => [...accounts].sort(
     (left, right) => Number(needsAccountAttention(left, hotSwitchEnabled))
       - Number(needsAccountAttention(right, hotSwitchEnabled)),
@@ -561,9 +540,8 @@ export function AccountTable({
       render: (_: unknown, account: Account) => (
         <div className="account-token-chart-cell">
           {hotSwitchEnabled ? (
-            <CompactModelTokenChart model={effectiveCurrentModel}
-              totals={totalsForAccount(tokenTotalsByAccount, account)}
-              context={latestTokenContextForAccount(tokenUsageEntries, account, effectiveCurrentModel)}
+            <CompactDailyTokenChart
+              totals={totalsForAccount(todayTokenTotalsByAccount, account)}
               language={language} />
           ) : (
             <Tooltip title={t("table.tokenTotalsProxyOnly")}>

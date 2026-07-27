@@ -2,6 +2,7 @@ import { Button, Popconfirm, Popover, Select, Switch, Tag, Tooltip } from "antd"
 import { ChevronDown, History, Power, PowerOff, RadioTower, Shuffle } from "lucide-react";
 import type { Translate } from "../i18n";
 import type { Account, LocalProxyStatus } from "../types";
+import { ProxySessionManager } from "./ProxySessionManager";
 
 interface LocalProxyCardProps {
   localProxy: LocalProxyStatus | null;
@@ -113,6 +114,7 @@ export function LocalProxyCard({
             {actionButton}
           </Popconfirm>
         )}
+        {proxyRunning && <ProxySessionManager t={t} />}
         {proxyRunning && (
           <>
             <Popover trigger="hover" placement="bottom" mouseEnterDelay={0.08} mouseLeaveDelay={0.12}

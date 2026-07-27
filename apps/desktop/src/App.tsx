@@ -1039,7 +1039,6 @@ function DashboardApp() {
               onListenOnAllInterfacesChange={providerManager.setProxyListenOnAllInterfaces}
               privacyMode={privacyMode.enabled}
               displayMode={accountDisplayMode.displayMode}
-              currentModel={providerManager.activeProvider?.model ?? ""}
               tokenUsageRefreshSeconds={tokenUsagePreferences.refreshSeconds}
               language={language} t={t} />
           </section>

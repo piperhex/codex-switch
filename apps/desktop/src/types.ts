@@ -92,6 +92,22 @@ export interface LocalProxyStatus {
   openaiAuthAccountId?: string | null;
 }
 
+export interface ProxySession {
+  id: string;
+  title?: string | null;
+  client: string;
+  remoteAddress?: string | null;
+  connectedAt: number;
+  lastSeenAt: number;
+  activeRequests: number;
+  requestCount: number;
+  provider?: string | null;
+  accountEmail?: string | null;
+  model?: string | null;
+  contextTokens?: number | null;
+  modelContextWindow?: number | null;
+}
+
 export interface DirectConversationSyncResult {
   conversationsUpdated: number;
   rolloutFilesUpdated: number;
@@ -111,6 +127,16 @@ export interface TokenUsageEntry {
   cachedTokens?: number | null;
   totalTokens?: number | null;
   modelContextWindow?: number | null;
+}
+
+export interface AccountTokenUsageTotals {
+  accountId?: string | null;
+  accountEmail?: string | null;
+  totalTokens: number;
+  inputTokens: number;
+  outputTokens: number;
+  reasoningTokens: number;
+  cachedTokens: number;
 }
 
 export interface DailyTokenUsage {
