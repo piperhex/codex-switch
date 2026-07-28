@@ -64,6 +64,14 @@ pub(crate) struct ProviderInput {
     balance_query_token: Option<String>,
     #[serde(default)]
     balance_query_uses_api_key: bool,
+    #[serde(default)]
+    wallet_query_url: Option<String>,
+    #[serde(default)]
+    wallet_query_token: Option<String>,
+    #[serde(default)]
+    wallet_username: Option<String>,
+    #[serde(default)]
+    wallet_password: Option<String>,
 }
 
 #[tauri::command]
@@ -127,6 +135,15 @@ pub(crate) fn save_provider<R: Runtime>(
         provider.balance_query_uses_api_key,
         existing.as_ref(),
     )?;
+    let (wallet_query_url, wallet_query_token, wallet_username, wallet_password) =
+        normalize_wallet_settings(
+            balance_platform,
+            provider.wallet_query_url,
+            provider.wallet_query_token,
+            provider.wallet_username,
+            provider.wallet_password,
+            existing.as_ref(),
+        )?;
 
     let profile = ProviderProfile {
         id,
@@ -140,6 +157,10 @@ pub(crate) fn save_provider<R: Runtime>(
         balance_platform,
         balance_query_url,
         balance_query_token,
+        wallet_query_url,
+        wallet_query_token,
+        wallet_username,
+        wallet_password,
     };
     write_provider(&paths, &profile)?;
 
@@ -192,35 +213,176 @@ fn query_provider_balance_blocking<R: Runtime>(
         .user_agent("Codex-Switch")
         .build()
         .map_err(|error| format!("Failed to create balance query client: {error}"))?;
-    let response = client
-        .get(query_url)
-        .bearer_auth(token)
+    let payload = query_balance_payload(&client, query_url, token, None, "API balance")?;
+    let parsed = parse_provider_api_balance(platform, &payload)?;
+    let mut wallet_amount = parsed.embedded_wallet_amount;
+    let mut wallet_unit = parsed.embedded_wallet_unit;
+    let mut wallet_error = None;
+
+    if let Some(wallet_url) = provider.wallet_query_url.as_deref() {
+        let wallet_result = match (
+            platform,
+            provider.wallet_username.as_deref(),
+            provider.wallet_password.as_deref(),
+            provider.wallet_query_token.as_deref(),
+        ) {
+            (ProviderBalancePlatform::NewApi, Some(username), Some(password), _) => Some(
+                query_new_api_wallet_with_login(&client, wallet_url, username, password),
+            ),
+            (_, _, _, Some(wallet_token)) => Some(
+                query_balance_payload(
+                    &client,
+                    wallet_url,
+                    wallet_token.trim(),
+                    None,
+                    "Wallet balance",
+                )
+                .and_then(|payload| parse_provider_wallet_balance(platform, &payload)),
+            ),
+            _ => None,
+        };
+        if let Some(wallet_result) = wallet_result {
+            match wallet_result {
+                Ok((amount, unit)) => {
+                    wallet_amount = Some(amount);
+                    wallet_unit = unit;
+                }
+                Err(error) => wallet_error = Some(error),
+            }
+        }
+    }
+
+    Ok(ProviderBalance {
+        api_amount: parsed.amount,
+        api_unit: parsed.unit,
+        api_unlimited: parsed.unlimited,
+        wallet_amount,
+        wallet_unit,
+        wallet_error,
+        queried_at: chrono::Utc::now().timestamp(),
+    })
+}
+
+fn query_balance_payload(
+    client: &Client,
+    query_url: &str,
+    token: &str,
+    user_id: Option<&str>,
+    label: &str,
+) -> Result<Value, String> {
+    if token.is_empty() {
+        return Err(format!("{label} query token is empty"));
+    }
+    let mut request = client.get(query_url).bearer_auth(token);
+    if let Some(user_id) = user_id {
+        request = request.header("New-Api-User", user_id);
+    }
+    let response = request
         .send()
-        .map_err(|error| format!("Provider balance query failed: {error}"))?;
+        .map_err(|error| format!("{label} query failed: {error}"))?;
+    read_balance_response(response, label)
+}
+
+fn read_balance_response(
+    response: reqwest::blocking::Response,
+    label: &str,
+) -> Result<Value, String> {
     let status = response.status();
     if !status.is_success() {
-        return Err(format!(
-            "Provider balance query returned HTTP {}",
-            status.as_u16()
-        ));
+        return Err(format!("{label} query returned HTTP {}", status.as_u16()));
     }
     if response
         .content_length()
         .is_some_and(|length| length > MAX_BALANCE_RESPONSE_BYTES)
     {
-        return Err("Provider balance response is too large".to_string());
+        return Err(format!("{label} response is too large"));
     }
     let mut bytes = Vec::new();
     response
         .take(MAX_BALANCE_RESPONSE_BYTES + 1)
         .read_to_end(&mut bytes)
-        .map_err(|error| format!("Failed to read provider balance response: {error}"))?;
+        .map_err(|error| format!("Failed to read {label} response: {error}"))?;
     if bytes.len() as u64 > MAX_BALANCE_RESPONSE_BYTES {
-        return Err("Provider balance response is too large".to_string());
+        return Err(format!("{label} response is too large"));
     }
-    let payload: Value = serde_json::from_slice(&bytes)
-        .map_err(|error| format!("Provider balance response is invalid JSON: {error}"))?;
-    parse_provider_balance(platform, &payload)
+    serde_json::from_slice(&bytes)
+        .map_err(|error| format!("{label} response is invalid JSON: {error}"))
+}
+
+fn new_api_login_url(wallet_url: &str) -> Result<Url, String> {
+    let mut url = Url::parse(wallet_url)
+        .map_err(|error| format!("New API wallet URL is invalid: {error}"))?;
+    url.set_path("/api/user/login");
+    url.set_query(None);
+    url.set_fragment(None);
+    Ok(url)
+}
+
+fn json_id(value: &Value) -> Option<String> {
+    value
+        .as_str()
+        .map(str::to_string)
+        .or_else(|| value.as_i64().map(|id| id.to_string()))
+        .or_else(|| value.as_u64().map(|id| id.to_string()))
+}
+
+fn parse_new_api_login_auth(payload: &Value) -> Result<(String, String), String> {
+    if payload.get("success").and_then(Value::as_bool) == Some(false) {
+        let message = payload
+            .get("message")
+            .and_then(Value::as_str)
+            .filter(|message| !message.trim().is_empty())
+            .unwrap_or("username or password was rejected");
+        return Err(format!("New API wallet login failed: {message}"));
+    }
+    let data = payload
+        .get("data")
+        .ok_or_else(|| "New API wallet login response is missing data".to_string())?;
+    let user = data.get("user").unwrap_or(data);
+    let access_token = data
+        .get("access_token")
+        .or_else(|| data.get("accessToken"))
+        .or_else(|| user.get("access_token"))
+        .or_else(|| user.get("accessToken"))
+        .and_then(Value::as_str)
+        .filter(|token| !token.trim().is_empty())
+        .ok_or_else(|| {
+            "New API wallet login response is missing an access token; 2FA or another login step may be required"
+                .to_string()
+        })?;
+    let user_id = user
+        .get("id")
+        .and_then(json_id)
+        .or_else(|| data.get("id").and_then(json_id))
+        .ok_or_else(|| "New API wallet login response is missing the user id".to_string())?;
+    Ok((access_token.to_string(), user_id))
+}
+
+fn query_new_api_wallet_with_login(
+    client: &Client,
+    wallet_url: &str,
+    username: &str,
+    password: &str,
+) -> Result<(f64, String), String> {
+    if username.trim().is_empty() || password.is_empty() {
+        return Err("New API wallet username or password is empty".to_string());
+    }
+    let login_url = new_api_login_url(wallet_url)?;
+    let response = client
+        .post(login_url)
+        .json(&json!({ "username": username.trim(), "password": password }))
+        .send()
+        .map_err(|error| format!("New API wallet login failed: {error}"))?;
+    let payload = read_balance_response(response, "New API wallet login")?;
+    let (access_token, user_id) = parse_new_api_login_auth(&payload)?;
+    query_balance_payload(
+        client,
+        wallet_url,
+        &access_token,
+        Some(&user_id),
+        "Wallet balance",
+    )
+    .and_then(|payload| parse_provider_wallet_balance(ProviderBalancePlatform::NewApi, &payload))
 }
 
 #[tauri::command]
@@ -547,6 +709,20 @@ fn provider_summary(provider: &ProviderProfile, active: bool) -> ProviderSummary
             .balance_query_token
             .as_deref()
             .is_some_and(|value| !value.trim().is_empty()),
+        wallet_query_url: provider.wallet_query_url.clone(),
+        has_wallet_query_token: provider
+            .wallet_query_token
+            .as_deref()
+            .is_some_and(|value| !value.trim().is_empty()),
+        wallet_username: provider.wallet_username.clone(),
+        has_wallet_login_credentials: provider
+            .wallet_username
+            .as_deref()
+            .is_some_and(|value| !value.trim().is_empty())
+            && provider
+                .wallet_password
+                .as_deref()
+                .is_some_and(|value| !value.is_empty()),
     }
 }
 
@@ -587,6 +763,85 @@ fn normalize_balance_settings(
     Ok((Some(platform), Some(query_url), query_token))
 }
 
+fn normalize_wallet_settings(
+    platform: Option<ProviderBalancePlatform>,
+    query_url: Option<String>,
+    supplied_token: Option<String>,
+    supplied_username: Option<String>,
+    supplied_password: Option<String>,
+    existing: Option<&ProviderProfile>,
+) -> Result<
+    (
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+    ),
+    String,
+> {
+    if platform.is_none() {
+        return Ok((None, None, None, None));
+    }
+    let query_url = query_url
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .map(|value| normalize_balance_query_url(&value))
+        .transpose()?;
+    let supplied_token = supplied_token.unwrap_or_default().trim().to_string();
+    let query_token = if !supplied_token.is_empty() {
+        Some(supplied_token)
+    } else {
+        existing
+            .filter(|profile| {
+                profile.balance_platform == platform && profile.wallet_query_url == query_url
+            })
+            .and_then(|profile| profile.wallet_query_token.clone())
+            .filter(|token| !token.trim().is_empty())
+    };
+    if query_token.is_some() && query_url.is_none() {
+        return Err("Provider wallet query URL is required when a wallet token is set".to_string());
+    }
+    let supplied_username = supplied_username.unwrap_or_default().trim().to_string();
+    let supplied_password = supplied_password.unwrap_or_default();
+    let existing_login = existing
+        .filter(|profile| {
+            profile.balance_platform == platform && profile.wallet_query_url == query_url
+        })
+        .map(|profile| {
+            (
+                profile.wallet_username.clone(),
+                profile.wallet_password.clone(),
+            )
+        })
+        .unwrap_or((None, None));
+    let (wallet_username, wallet_password) =
+        if platform == Some(ProviderBalancePlatform::NewApi) && !supplied_password.is_empty() {
+            if supplied_username.is_empty() {
+                return Err(
+                    "New API wallet username and password must be provided together".to_string(),
+                );
+            }
+            (Some(supplied_username), Some(supplied_password))
+        } else if platform == Some(ProviderBalancePlatform::NewApi) {
+            if !supplied_username.is_empty()
+                && existing_login.0.as_deref() != Some(supplied_username.as_str())
+            {
+                return Err(
+                    "New API wallet password is required when changing the username".to_string(),
+                );
+            }
+            existing_login
+        } else {
+            (None, None)
+        };
+    if (wallet_username.is_some() || wallet_password.is_some()) && query_url.is_none() {
+        return Err(
+            "Provider wallet query URL is required when wallet login is configured".to_string(),
+        );
+    }
+    Ok((query_url, query_token, wallet_username, wallet_password))
+}
+
 fn normalize_balance_query_url(value: &str) -> Result<String, String> {
     let trimmed = value.trim();
     if trimmed.is_empty() {
@@ -602,11 +857,19 @@ fn normalize_balance_query_url(value: &str) -> Result<String, String> {
     Ok(trimmed.to_string())
 }
 
-fn parse_provider_balance(
+struct ParsedProviderApiBalance {
+    amount: Option<f64>,
+    unit: String,
+    unlimited: bool,
+    embedded_wallet_amount: Option<f64>,
+    embedded_wallet_unit: String,
+}
+
+fn parse_provider_api_balance(
     platform: ProviderBalancePlatform,
     payload: &Value,
-) -> Result<ProviderBalance, String> {
-    let (amount, unit, unlimited) = match platform {
+) -> Result<ParsedProviderApiBalance, String> {
+    let (amount, unit, unlimited, embedded_wallet_amount, embedded_wallet_unit) = match platform {
         ProviderBalancePlatform::NewApi => {
             let data = payload
                 .get("data")
@@ -625,9 +888,12 @@ fn parse_provider_balance(
                 (!unlimited).then_some((available / NEW_API_QUOTA_PER_USD).max(0.0)),
                 "USD".to_string(),
                 unlimited,
+                None,
+                "USD".to_string(),
             )
         }
         ProviderBalancePlatform::Sub2Api => {
+            let mode = payload.get("mode").and_then(Value::as_str);
             let remaining = payload
                 .get("remaining")
                 .and_then(Value::as_f64)
@@ -638,7 +904,9 @@ fn parse_provider_balance(
                         .and_then(Value::as_f64)
                 })
                 .ok_or_else(|| "Sub2API balance response is missing remaining".to_string())?;
-            let unlimited = remaining < 0.0;
+            let embedded_wallet_amount = payload.get("balance").and_then(Value::as_f64);
+            let is_wallet_mode = mode == Some("unrestricted") && embedded_wallet_amount.is_some();
+            let unlimited = is_wallet_mode || remaining < 0.0;
             (
                 (!unlimited).then_some(remaining.max(0.0)),
                 payload
@@ -647,15 +915,46 @@ fn parse_provider_balance(
                     .unwrap_or("USD")
                     .to_string(),
                 unlimited,
+                embedded_wallet_amount,
+                payload
+                    .get("unit")
+                    .and_then(Value::as_str)
+                    .unwrap_or("USD")
+                    .to_string(),
             )
         }
     };
-    Ok(ProviderBalance {
+    Ok(ParsedProviderApiBalance {
         amount,
         unit,
         unlimited,
-        queried_at: chrono::Utc::now().timestamp(),
+        embedded_wallet_amount,
+        embedded_wallet_unit,
     })
+}
+
+fn parse_provider_wallet_balance(
+    platform: ProviderBalancePlatform,
+    payload: &Value,
+) -> Result<(f64, String), String> {
+    match platform {
+        ProviderBalancePlatform::NewApi => {
+            let quota = payload
+                .get("data")
+                .and_then(|data| data.get("quota"))
+                .and_then(Value::as_f64)
+                .ok_or_else(|| "New API wallet response is missing data.quota".to_string())?;
+            Ok(((quota / NEW_API_QUOTA_PER_USD).max(0.0), "USD".to_string()))
+        }
+        ProviderBalancePlatform::Sub2Api => {
+            let balance = payload
+                .get("data")
+                .and_then(|data| data.get("balance"))
+                .and_then(Value::as_f64)
+                .ok_or_else(|| "Sub2API wallet response is missing data.balance".to_string())?;
+            Ok((balance.max(0.0), "USD".to_string()))
+        }
+    }
 }
 
 fn require_non_empty(label: &str, value: &str) -> Result<String, String> {
@@ -694,10 +993,33 @@ fn normalize_provider_profile(mut provider: ProviderProfile) -> Result<ProviderP
                 .take()
                 .map(|token| token.trim().to_string())
                 .filter(|token| !token.is_empty());
+            provider.wallet_query_url = provider
+                .wallet_query_url
+                .take()
+                .map(|url| normalize_balance_query_url(&url))
+                .transpose()?;
+            provider.wallet_query_token = provider
+                .wallet_query_token
+                .take()
+                .map(|token| token.trim().to_string())
+                .filter(|token| !token.is_empty());
+            provider.wallet_username = provider
+                .wallet_username
+                .take()
+                .map(|username| username.trim().to_string())
+                .filter(|username| !username.is_empty());
+            provider.wallet_password = provider
+                .wallet_password
+                .take()
+                .filter(|password| !password.is_empty());
         }
         None => {
             provider.balance_query_url = None;
             provider.balance_query_token = None;
+            provider.wallet_query_url = None;
+            provider.wallet_query_token = None;
+            provider.wallet_username = None;
+            provider.wallet_password = None;
         }
     }
     Ok(provider)
@@ -1295,12 +1617,16 @@ mod tests {
             balance_platform: None,
             balance_query_url: None,
             balance_query_token: None,
+            wallet_query_url: None,
+            wallet_query_token: None,
+            wallet_username: None,
+            wallet_password: None,
         }
     }
 
     #[test]
     fn parses_new_api_remaining_quota_as_usd() {
-        let balance = parse_provider_balance(
+        let balance = parse_provider_api_balance(
             ProviderBalancePlatform::NewApi,
             &json!({
                 "data": {
@@ -1317,7 +1643,7 @@ mod tests {
 
     #[test]
     fn parses_sub2api_remaining_balance() {
-        let balance = parse_provider_balance(
+        let balance = parse_provider_api_balance(
             ProviderBalancePlatform::Sub2Api,
             &json!({
                 "mode": "quota_limited",
@@ -1329,6 +1655,76 @@ mod tests {
         assert_eq!(balance.amount, Some(12.5));
         assert_eq!(balance.unit, "USD");
         assert!(!balance.unlimited);
+    }
+
+    #[test]
+    fn parses_sub2api_unrestricted_key_as_api_unlimited_and_wallet_balance() {
+        let balance = parse_provider_api_balance(
+            ProviderBalancePlatform::Sub2Api,
+            &json!({
+                "mode": "unrestricted",
+                "remaining": 21.75,
+                "balance": 21.75,
+                "unit": "USD"
+            }),
+        )
+        .unwrap();
+        assert_eq!(balance.amount, None);
+        assert!(balance.unlimited);
+        assert_eq!(balance.embedded_wallet_amount, Some(21.75));
+        assert_eq!(balance.embedded_wallet_unit, "USD");
+    }
+
+    #[test]
+    fn parses_new_api_wallet_quota_as_usd() {
+        let (amount, unit) = parse_provider_wallet_balance(
+            ProviderBalancePlatform::NewApi,
+            &json!({ "data": { "quota": 6_250_000 } }),
+        )
+        .unwrap();
+        assert_eq!(amount, 12.5);
+        assert_eq!(unit, "USD");
+    }
+
+    #[test]
+    fn parses_current_new_api_login_bundle() {
+        let (token, user_id) = parse_new_api_login_auth(&json!({
+            "success": true,
+            "data": {
+                "access_token": "login-token",
+                "user": { "id": 42 }
+            }
+        }))
+        .unwrap();
+
+        assert_eq!(token, "login-token");
+        assert_eq!(user_id, "42");
+    }
+
+    #[test]
+    fn parses_legacy_new_api_login_user() {
+        let (token, user_id) = parse_new_api_login_auth(&json!({
+            "success": true,
+            "data": {
+                "id": 7,
+                "access_token": "legacy-token"
+            }
+        }))
+        .unwrap();
+
+        assert_eq!(token, "legacy-token");
+        assert_eq!(user_id, "7");
+    }
+
+    #[test]
+    fn parses_sub2api_wallet_balance() {
+        let (amount, unit) = parse_provider_wallet_balance(
+            ProviderBalancePlatform::Sub2Api,
+            &json!({ "code": 0, "data": { "balance": 8.25 } }),
+        )
+        .unwrap();
+        assert_eq!(amount, 8.25);
+        assert_eq!(unit, "USD");
     }
 
     fn test_auth() -> Value {
@@ -1573,6 +1969,10 @@ sandbox_mode = "workspace-write"
             balance_platform: None,
             balance_query_url: None,
             balance_query_token: None,
+            wallet_query_url: None,
+            wallet_query_token: None,
+            wallet_username: None,
+            wallet_password: None,
         })
         .unwrap();
 

@@ -4,7 +4,7 @@ import enUS from "antd/locale/en_US";
 import zhCN from "antd/locale/zh_CN";
 import { Archive, BarChart3, Bell, CalendarClock, Check, CircleHelp, Cloud, Download, Github, LogIn, LogOut, Megaphone, MessageSquareText, PackageOpen, Palette, Play, Plus, RefreshCw, RotateCcw, Server, Settings, ShieldCheck, Upload, UploadCloud, UserRound } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { checkForUpdate, chooseAndExportDiagnosticLogs, consumeResetCredit, DEFAULT_CLOUD_BASE_URL, downloadAvailableUpdate, fetchCloudAnnouncement, fetchCloudFaqs, fetchCloudNotifications, installDownloadedUpdate, isDesktopApp, launchChatGpt, openManagedFolder, reportAnnouncementClick, reportBaseUrlChange, reportDeviceActivity, reportFirstInstallation, restartChatGpt, showTokenUsageWindow, submitFeedback, subscribeToCloudSessionExpired } from "./api/backend";
+import { checkForUpdate, chooseAndExportDiagnosticLogs, consumeResetCredit, DEFAULT_CLOUD_BASE_URL, downloadAvailableUpdate, fetchCloudAnnouncement, fetchCloudFaqs, fetchCloudNotifications, installDownloadedUpdate, isDesktopApp, launchChatGpt, openManagedFolder, queryProviderBalance, reportAnnouncementClick, reportBaseUrlChange, reportDeviceActivity, reportFirstInstallation, restartChatGpt, showTokenUsageWindow, submitFeedback, subscribeToCloudSessionExpired } from "./api/backend";
 import { AboutModal } from "./components/modals/AboutModal";
 import { HelpModal, type HelpVersionState } from "./components/modals/HelpModal";
 import { FeedbackModal } from "./components/modals/FeedbackModal";
@@ -36,7 +36,7 @@ import { ProvidersPage } from "./pages/ProvidersPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { SkillsMarketPage } from "./pages/SkillsMarketPage";
 import { formatRefreshTime } from "./utils/format";
-import type { BubbleResetDisplay, BubbleStyle, CloudAnnouncement, CloudFaq, CloudNotification, UpdateInfo } from "./types";
+import type { BubbleResetDisplay, BubbleStyle, CloudAnnouncement, CloudFaq, CloudNotification, Provider, UpdateInfo } from "./types";
 
 const LAST_REFRESH_ALL_KEY = "codex-switch:last-refresh-all-at";
 const LAST_NOTIFICATION_SEEN_KEY = "codex-switch:last-notification-seen-at";
@@ -65,6 +65,14 @@ function normalizeHttpUrl(value: string | undefined) {
   }
 }
 
+async function refreshProviderBalances(providers: Provider[]) {
+  await Promise.allSettled(
+    providers
+      .filter((provider) => Boolean(provider.balancePlatform))
+      .map((provider) => queryProviderBalance(provider.id)),
+  );
+}
+
 function DashboardApp() {
   const [page, setPage] = useState<"accounts" | "providers" | "tokens" | "dreamSkin" | "skills" | "settings">("accounts");
   const [showLogin, setShowLogin] = useState(false);
@@ -88,6 +96,7 @@ function DashboardApp() {
   const [chatGptOperation, setChatGptOperation] = useState<"start" | "restart" | null>(null);
   const [exportingLogs, setExportingLogs] = useState(false);
   const [resetCreditBusyAccountId, setResetCreditBusyAccountId] = useState<string | null>(null);
+  const [refreshingProviderBalances, setRefreshingProviderBalances] = useState(false);
   const [announcement, setAnnouncement] = useState<CloudAnnouncement | null>(null);
   const [notifications, setNotifications] = useState<CloudNotification[]>([]);
   const [faqs, setFaqs] = useState<CloudFaq[]>([]);
@@ -105,6 +114,7 @@ function DashboardApp() {
   const downloadedUpdateUserInitiatedRef = useRef(false);
   const installAfterDownloadRequestedRef = useRef(false);
   const cloudSessionPromptedRef = useRef(false);
+  const providerBalanceRefreshCountRef = useRef(0);
   const { message: toast, notify } = useToast();
   const { language, setLanguage, t } = useLanguage();
   const cloud = useCloudAuth(notify, t);
@@ -144,6 +154,42 @@ function DashboardApp() {
   const providerManager = useProviderManager(notify, t, providerCloudSync);
   const resetCredits = useResetCredits(manager.accounts, notify, t);
   const activeAccount = manager.accounts.find((account) => account.active) ?? null;
+  const activeProvider = providerManager.activeProvider;
+  const configuredBalanceProviders = useMemo(
+    () => providerManager.providers.filter((provider) => Boolean(provider.balancePlatform)),
+    [providerManager.providers],
+  );
+  const refreshConfiguredProviderBalances = useCallback(async () => {
+    if (!configuredBalanceProviders.length) return;
+    providerBalanceRefreshCountRef.current += 1;
+    setRefreshingProviderBalances(true);
+    try {
+      await refreshProviderBalances(configuredBalanceProviders);
+    } finally {
+      providerBalanceRefreshCountRef.current -= 1;
+      if (providerBalanceRefreshCountRef.current === 0) {
+        setRefreshingProviderBalances(false);
+      }
+    }
+  }, [configuredBalanceProviders]);
+  const refreshCurrentSelection = useCallback(async () => {
+    const tasks: Promise<unknown>[] = [];
+    if (activeProvider?.balancePlatform) {
+      tasks.push(queryProviderBalance(activeProvider.id));
+    }
+    if (activeAccount) {
+      tasks.push(manager.refreshUsage(activeAccount.id, true, false));
+    }
+    await Promise.allSettled(tasks);
+  }, [activeAccount, activeProvider, manager.refreshUsage]);
+  const currentAutoRefreshTargetId = activeProvider?.balancePlatform
+    ? `provider:${activeProvider.id}`
+    : activeAccount
+      ? `account:${activeAccount.id}`
+      : null;
+  const currentAutoRefreshTarget = activeProvider?.balancePlatform
+    ? activeProvider.name
+    : activeAccount?.email ?? null;
   const loadAnnouncement = useCallback(async () => {
     const requestId = ++announcementRequestId.current;
     try {
@@ -185,17 +231,18 @@ function DashboardApp() {
       markRefreshAll();
       await Promise.all([
         manager.refreshAll({ quiet: true, showSpinner: false }),
+        refreshConfiguredProviderBalances(),
         loadAnnouncement(),
         loadNotifications(),
         loadFaqs(),
       ]);
     },
-    [loadAnnouncement, loadFaqs, loadNotifications, manager.refreshAll, markRefreshAll],
+    [loadAnnouncement, loadFaqs, loadNotifications, manager.refreshAll, markRefreshAll, refreshConfiguredProviderBalances],
   );
   const autoRefresh = useAutoRefresh(true, automaticRefresh);
   const accountAutoRefresh = useAccountAutoRefresh(
-    activeAccount?.id ?? null,
-    (accountId) => manager.refreshUsage(accountId, true, false),
+    currentAutoRefreshTargetId,
+    () => refreshCurrentSelection(),
   );
   const openLogin = useCallback(() => setShowLogin(true), []);
   const openCloudLogin = useCallback(() => {
@@ -403,6 +450,7 @@ function DashboardApp() {
   const refreshAll = () => {
     markRefreshAll();
     void manager.refreshAll();
+    void refreshConfiguredProviderBalances();
     void loadAnnouncement();
     void loadNotifications();
     void loadFaqs();
@@ -733,9 +781,11 @@ function DashboardApp() {
           items: [
             {
               key: "usage",
-              icon: <RefreshCw className={manager.refreshingAll ? "spin" : undefined} size={15} />,
+              icon: <RefreshCw className={manager.refreshingAll || refreshingProviderBalances ? "spin" : undefined} size={15} />,
               label: t("actions.refreshAll"),
-              disabled: manager.refreshingAll || !manager.accounts.length,
+              disabled: manager.refreshingAll
+                || refreshingProviderBalances
+                || (!manager.accounts.length && !configuredBalanceProviders.length),
             },
             {
               key: "resetCredits",
@@ -750,8 +800,9 @@ function DashboardApp() {
           },
         }}
       >
-        <button type="button" className="refresh-all" disabled={!manager.accounts.length}>
-          <RefreshCw className={manager.refreshingAll || resetCredits.refreshingAll ? "spin" : undefined} size={17} />
+        <button type="button" className="refresh-all"
+          disabled={!manager.accounts.length && !configuredBalanceProviders.length}>
+          <RefreshCw className={manager.refreshingAll || refreshingProviderBalances || resetCredits.refreshingAll ? "spin" : undefined} size={17} />
           {t("actions.refresh")}
         </button>
       </Dropdown>
@@ -960,7 +1011,8 @@ function DashboardApp() {
           <section className="page-panel" hidden={page !== "settings"}>
             <MemoSettingsPage info={manager.info} autoRefreshEnabled={autoRefresh.enabled}
               autoRefreshSeconds={autoRefresh.seconds} onEnabledChange={autoRefresh.setEnabled}
-              onSecondsChange={autoRefresh.updateSeconds} currentAccountEmail={activeAccount?.email ?? null}
+              onSecondsChange={autoRefresh.updateSeconds}
+              currentAutoRefreshTarget={currentAutoRefreshTarget}
               accountAutoRefreshEnabled={accountAutoRefresh.enabled}
               accountAutoRefreshSeconds={accountAutoRefresh.seconds}
               onAccountAutoRefreshEnabledChange={accountAutoRefresh.setEnabled}

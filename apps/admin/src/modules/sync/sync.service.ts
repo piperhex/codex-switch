@@ -524,6 +524,10 @@ export class SyncService {
           balancePlatform: provider.balancePlatform ?? null,
           balanceQueryUrl: provider.balanceQueryUrl ?? null,
           balanceQueryToken: provider.balanceQueryToken ?? null,
+          walletQueryUrl: provider.walletQueryUrl ?? null,
+          walletQueryToken: provider.walletQueryToken ?? null,
+          walletUsername: provider.walletUsername ?? null,
+          walletPassword: provider.walletPassword ?? null,
           lastModifiedAt: incomingLastModifiedAt,
         }));
       }
@@ -555,6 +559,10 @@ export class SyncService {
         balancePlatform: provider.balancePlatform ?? null,
         balanceQueryUrl: provider.balanceQueryUrl ?? null,
         balanceQueryToken: provider.balanceQueryToken ?? null,
+        walletQueryUrl: provider.walletQueryUrl ?? null,
+        walletQueryToken: provider.walletQueryToken ?? null,
+        walletUsername: provider.walletUsername ?? null,
+        walletPassword: provider.walletPassword ?? null,
         lastModifiedAt: incomingLastModifiedAt,
       }));
     });
@@ -801,6 +809,10 @@ export class SyncService {
       balancePlatform: row.balancePlatform,
       balanceQueryUrl: row.balanceQueryUrl,
       balanceQueryToken: row.balanceQueryToken,
+      walletQueryUrl: row.walletQueryUrl,
+      walletQueryToken: row.walletQueryToken,
+      walletUsername: row.walletUsername,
+      walletPassword: row.walletPassword,
       lastModifiedAt: this.formatLastModifiedAt(row.lastModifiedAt ?? row.updatedAt),
     };
   }

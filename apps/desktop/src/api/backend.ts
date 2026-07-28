@@ -75,6 +75,7 @@ const BUBBLE_RESET_DISPLAY_EVENT = "bubble-reset-display-changed";
 const BUBBLE_STYLE_EVENT = "bubble-style-changed";
 const LANGUAGE_EVENT = "codex-switch:language-changed";
 const PROVIDERS_EVENT = "codex-switch:providers-changed";
+const PROVIDER_BALANCE_EVENT = "codex-switch:provider-balance-refreshed";
 const DREAM_SKIN_INSTALLED_PREVIEW_KEY = "codex-switch:dream-skin-installed";
 const DREAM_SKIN_SESSION_PREVIEW_KEY = "codex-switch:dream-skin-session";
 const DREAM_SKIN_THEME_PREVIEW_KEY = "codex-switch:dream-skin-theme";
@@ -86,6 +87,12 @@ const DREAM_SKIN_PREVIEW_THEME_APPEARANCES: Record<string, DreamSkinAppearance> 
   BUILT_IN_DREAM_SKIN_THEMES.map((theme) => [theme.id, theme.appearance]),
 );
 let updateCheckPromise: Promise<UpdateInfo | null> | null = null;
+const providerBalanceRequests = new Map<string, Promise<ProviderBalance>>();
+
+interface ProviderBalanceEventDetail {
+  id: string;
+  balance: ProviderBalance;
+}
 
 function previewDreamSkinStatus(): DreamSkinStatus {
   const installed = window.localStorage.getItem(DREAM_SKIN_INSTALLED_PREVIEW_KEY) === "true";
@@ -160,6 +167,10 @@ function readPreviewProviders(): Provider[] {
         balanceQueryUrl: provider.balanceQueryUrl ?? null,
         balanceQueryUsesApiKey: provider.balanceQueryUsesApiKey !== false,
         hasBalanceQueryToken: Boolean(provider.hasBalanceQueryToken),
+        walletQueryUrl: provider.walletQueryUrl ?? null,
+        hasWalletQueryToken: Boolean(provider.hasWalletQueryToken),
+        walletUsername: provider.walletUsername ?? null,
+        hasWalletLoginCredentials: Boolean(provider.hasWalletLoginCredentials),
       };
     });
   } catch {
@@ -264,6 +275,18 @@ export async function saveProviderProfile(provider: ProviderInput): Promise<Prov
       hasBalanceQueryToken: Boolean(provider.balanceQueryToken?.trim() || (
         existing?.hasBalanceQueryToken && provider.balanceQueryUsesApiKey === false
       )),
+      walletQueryUrl: provider.walletQueryUrl ?? null,
+      hasWalletQueryToken: Boolean(provider.walletQueryToken?.trim() || (
+        existing?.hasWalletQueryToken && provider.walletQueryUrl === existing.walletQueryUrl
+      )),
+      walletUsername: provider.walletUsername?.trim() || existing?.walletUsername || null,
+      hasWalletLoginCredentials: Boolean(
+        (provider.walletUsername?.trim() && provider.walletPassword)
+        || (existing?.hasWalletLoginCredentials
+          && (!provider.walletUsername?.trim()
+            || provider.walletUsername.trim() === existing.walletUsername)
+          && provider.walletQueryUrl === existing.walletQueryUrl),
+      ),
     };
     if (index >= 0) providers[index] = next;
     else providers.push(next);
@@ -273,19 +296,51 @@ export async function saveProviderProfile(provider: ProviderInput): Promise<Prov
   return invoke<Provider>("save_provider", { provider });
 }
 
-export async function queryProviderBalance(id: string): Promise<ProviderBalance> {
+async function performProviderBalanceQuery(id: string): Promise<ProviderBalance> {
   if (!isDesktopApp) {
     const provider = readPreviewProviders().find((item) => item.id === id);
     if (!provider) throw new Error("Provider does not exist");
     if (!provider.balancePlatform) throw new Error("Provider balance query is not enabled");
     return {
-      amount: provider.balancePlatform === "newApi" ? 108.08 : 42.5,
-      unit: "USD",
-      unlimited: false,
+      apiAmount: provider.balancePlatform === "newApi" ? 108.08 : 42.5,
+      apiUnit: "USD",
+      apiUnlimited: false,
+      walletAmount: provider.hasWalletQueryToken || provider.hasWalletLoginCredentials ? 66.6 : null,
+      walletUnit: "USD",
+      walletError: null,
       queriedAt: Math.floor(Date.now() / 1000),
     };
   }
   return invoke<ProviderBalance>("query_provider_balance", { id });
+}
+
+export function queryProviderBalance(id: string): Promise<ProviderBalance> {
+  const pending = providerBalanceRequests.get(id);
+  if (pending) return pending;
+
+  const request = performProviderBalanceQuery(id)
+    .then((balance) => {
+      window.dispatchEvent(new CustomEvent<ProviderBalanceEventDetail>(
+        PROVIDER_BALANCE_EVENT,
+        { detail: { id, balance } },
+      ));
+      return balance;
+    })
+    .finally(() => providerBalanceRequests.delete(id));
+  providerBalanceRequests.set(id, request);
+  return request;
+}
+
+export function subscribeToProviderBalance(
+  id: string,
+  onBalance: (balance: ProviderBalance) => void,
+): () => void {
+  const handleBalance = (event: Event) => {
+    const detail = (event as CustomEvent<ProviderBalanceEventDetail>).detail;
+    if (detail?.id === id) onBalance(detail.balance);
+  };
+  window.addEventListener(PROVIDER_BALANCE_EVENT, handleBalance);
+  return () => window.removeEventListener(PROVIDER_BALANCE_EVENT, handleBalance);
 }
 
 export async function activateProvider(id: string): Promise<void> {

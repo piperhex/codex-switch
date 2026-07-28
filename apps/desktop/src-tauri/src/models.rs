@@ -123,6 +123,14 @@ pub(crate) struct ProviderProfile {
     pub(crate) balance_query_url: Option<String>,
     #[serde(default)]
     pub(crate) balance_query_token: Option<String>,
+    #[serde(default)]
+    pub(crate) wallet_query_url: Option<String>,
+    #[serde(default)]
+    pub(crate) wallet_query_token: Option<String>,
+    #[serde(default)]
+    pub(crate) wallet_username: Option<String>,
+    #[serde(default)]
+    pub(crate) wallet_password: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -142,14 +150,21 @@ pub(crate) struct ProviderSummary {
     pub(crate) balance_query_url: Option<String>,
     pub(crate) balance_query_uses_api_key: bool,
     pub(crate) has_balance_query_token: bool,
+    pub(crate) wallet_query_url: Option<String>,
+    pub(crate) has_wallet_query_token: bool,
+    pub(crate) wallet_username: Option<String>,
+    pub(crate) has_wallet_login_credentials: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ProviderBalance {
-    pub(crate) amount: Option<f64>,
-    pub(crate) unit: String,
-    pub(crate) unlimited: bool,
+    pub(crate) api_amount: Option<f64>,
+    pub(crate) api_unit: String,
+    pub(crate) api_unlimited: bool,
+    pub(crate) wallet_amount: Option<f64>,
+    pub(crate) wallet_unit: String,
+    pub(crate) wallet_error: Option<String>,
     pub(crate) queried_at: i64,
 }
 
@@ -455,6 +470,14 @@ pub(crate) struct ProviderSyncPayload {
     pub(crate) balance_query_url: Option<String>,
     #[serde(default)]
     pub(crate) balance_query_token: Option<String>,
+    #[serde(default)]
+    pub(crate) wallet_query_url: Option<String>,
+    #[serde(default)]
+    pub(crate) wallet_query_token: Option<String>,
+    #[serde(default)]
+    pub(crate) wallet_username: Option<String>,
+    #[serde(default)]
+    pub(crate) wallet_password: Option<String>,
     pub(crate) last_modified_at: String,
 }
 

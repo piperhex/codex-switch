@@ -3,6 +3,7 @@ import {
   activateProvider,
   loadLocalProxyStatus,
   loadProviders,
+  queryProviderBalance,
   removeProvider,
   restoreNonProxyConversations,
   saveProviderProfile,
@@ -58,6 +59,12 @@ function providerErrorMessage(error: unknown, t: Translate) {
     return t("providers.error.balanceUrlInvalid", {
       error: message.slice("Provider balance query URL is invalid:".length).trim(),
     });
+  }
+  if (message.includes("New API wallet username and password must be provided together")) {
+    return t("providers.error.walletLoginRequired");
+  }
+  if (message.includes("New API wallet password is required when changing the username")) {
+    return t("providers.error.walletPasswordRequired");
   }
   if (message.includes("Image generation account must use an OAuth token")) {
     return t("providers.error.imageAccountOAuthRequired");
@@ -128,15 +135,23 @@ export function useProviderManager(
     setBusyProviderId(id);
     try {
       const hotSwitch = Boolean(localProxy?.running);
+      const refreshesBalance = providers.some(
+        (provider) => provider.id === id && Boolean(provider.balancePlatform),
+      );
       await activateProvider(id);
       notify(t(hotSwitch ? "toast.providerSwitchedHot" : "toast.providerSwitched"));
-      await load();
+      await Promise.all([
+        load(),
+        refreshesBalance
+          ? queryProviderBalance(id).catch(() => undefined)
+          : Promise.resolve(),
+      ]);
     } catch (error) {
       notify(providerErrorMessage(error, t));
     } finally {
       setBusyProviderId(null);
     }
-  }, [load, localProxy?.running, notify, t]);
+  }, [load, localProxy?.running, notify, providers, t]);
 
   const switchModel = useCallback(async (id: string, model: string) => {
     setBusyProviderId(id);

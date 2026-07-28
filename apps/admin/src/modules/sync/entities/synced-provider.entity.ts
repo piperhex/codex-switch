@@ -55,6 +55,18 @@ export class SyncedProviderEntity {
   @Column({ type: 'text', nullable: true })
   balanceQueryToken: string | null;
 
+  @Column({ type: 'varchar', length: 1000, nullable: true })
+  walletQueryUrl: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  walletQueryToken: string | null;
+
+  @Column({ type: 'varchar', length: 320, nullable: true })
+  walletUsername: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  walletPassword: string | null;
+
   @Column({ type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
   lastModifiedAt: Date;
 

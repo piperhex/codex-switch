@@ -49,8 +49,14 @@ export interface InvitationForRegistration {
   role: UserEntity['role'];
 }
 
-export type AdminSyncedProviderDto = Omit<SyncProviderDto, 'apiKey'> & {
+export type AdminSyncedProviderDto = Omit<
+  SyncProviderDto,
+  'apiKey' | 'balanceQueryToken' | 'walletQueryToken' | 'walletUsername' | 'walletPassword'
+> & {
   hasApiKey: boolean;
+  hasBalanceQueryToken: boolean;
+  hasWalletQueryToken: boolean;
+  hasWalletLoginCredentials: boolean;
 };
 
 @Injectable()
@@ -591,10 +597,20 @@ export class AdminService {
   }
 
   private presentSyncedProvider(provider: SyncProviderDto): AdminSyncedProviderDto {
-    const { apiKey, ...safeProvider } = provider;
+    const {
+      apiKey,
+      balanceQueryToken,
+      walletQueryToken,
+      walletUsername,
+      walletPassword,
+      ...safeProvider
+    } = provider;
     return {
       ...safeProvider,
       hasApiKey: Boolean(apiKey?.trim()),
+      hasBalanceQueryToken: Boolean(balanceQueryToken?.trim()),
+      hasWalletQueryToken: Boolean(walletQueryToken?.trim()),
+      hasWalletLoginCredentials: Boolean(walletUsername?.trim() && walletPassword),
     };
   }
 }
