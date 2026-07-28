@@ -375,7 +375,6 @@ export function ProxySessionManager({ t }: ProxySessionManagerProps) {
       dataIndex: "activity",
       key: "activity",
       width: 220,
-      fixed: "right",
       filters: [
         { text: t("providers.proxy.sessionsActive"), value: "active" },
         { text: t("providers.proxy.sessionsIdle"), value: "idle" },
@@ -611,7 +610,7 @@ export function ProxySessionManager({ t }: ProxySessionManagerProps) {
         className="proxy-session-modal"
         open={open}
         centered
-        width="80vw"
+        width="95vw"
         title={t("providers.proxy.sessionsTitle")}
         onCancel={closeManager}
         footer={(

@@ -12,6 +12,7 @@ import {
   Pencil,
   RefreshCw,
   RotateCcw,
+  Signal,
   ToggleLeft,
   ToggleRight,
   Trash2,
@@ -186,6 +187,16 @@ const EMPTY_PROXY_SESSION_LATENCY: ProxySessionLatencySummary = {
 function formatAverageConversationLatency(summary: ProxySessionLatencySummary) {
   if (!summary.requestCount) return "—";
   return `${(summary.totalFirstResponseTimeMs / summary.requestCount / 1_000).toFixed(1)}s`;
+}
+
+type ConversationLatencyLevel = "good" | "warning" | "poor" | "unknown";
+
+function conversationLatencyLevel(summary: ProxySessionLatencySummary): ConversationLatencyLevel {
+  if (!summary.requestCount) return "unknown";
+  const averageSeconds = summary.totalFirstResponseTimeMs / summary.requestCount / 1_000;
+  if (averageSeconds < 2) return "good";
+  if (averageSeconds < 3) return "warning";
+  return "poor";
 }
 
 function tokenUsageMatchesAccount(usage: AccountTokenUsageTotals, account: Account) {
@@ -995,8 +1006,14 @@ export function AccountTable({
           <Tooltip title={t("table.averageConversationLatencyTooltip", {
             requests: proxySessionLatency.requestCount,
           })}>
-            <span>
-              {t("table.averageConversationLatencyLabel")}{language === "zh" ? "：" : ": "}
+            <span
+              className={`conversation-latency-indicator is-${conversationLatencyLevel(proxySessionLatency)}`}
+              aria-label={`${t("table.averageConversationLatencyLabel")}: ${formatAverageConversationLatency(proxySessionLatency)}`}
+            >
+              <span className="conversation-latency-label">
+                {t("table.averageConversationLatencyLabel")}{language === "zh" ? "：" : ": "}
+              </span>
+              <Signal size={16} strokeWidth={2.5} aria-hidden="true" />
               <strong>{formatAverageConversationLatency(proxySessionLatency)}</strong>
             </span>
           </Tooltip>
