@@ -55,6 +55,25 @@ export class SyncProviderDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(1000)
+  walletQueryUrl?: string | null;
+
+  @IsOptional()
+  @IsString()
+  walletQueryToken?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(320)
+  walletUsername?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  walletPassword?: string | null;
+
+  @IsOptional()
+  @IsString()
   @MaxLength(40)
   lastModifiedAt?: string;
 }

@@ -5820,6 +5820,10 @@ mod tests {
             balance_platform: None,
             balance_query_url: None,
             balance_query_token: None,
+            wallet_query_url: None,
+            wallet_query_token: None,
+            wallet_username: None,
+            wallet_password: None,
         };
         let body = serde_json::to_vec(&json!({
             "model": "gpt-4.1",
@@ -5862,6 +5866,10 @@ mod tests {
             balance_platform: None,
             balance_query_url: None,
             balance_query_token: None,
+            wallet_query_url: None,
+            wallet_query_token: None,
+            wallet_username: None,
+            wallet_password: None,
         };
         let body = serde_json::to_vec(&json!({
             "model": "deepseek-chat",
@@ -6031,6 +6039,10 @@ mod tests {
             balance_platform: None,
             balance_query_url: None,
             balance_query_token: None,
+            wallet_query_url: None,
+            wallet_query_token: None,
+            wallet_username: None,
+            wallet_password: None,
         };
         let catalog = providers::model_catalog_for_models(&provider_models_for_codex(&provider));
         let models = catalog["models"].as_array().unwrap();
@@ -6430,6 +6442,10 @@ mod tests {
             balance_platform: None,
             balance_query_url: None,
             balance_query_token: None,
+            wallet_query_url: None,
+            wallet_query_token: None,
+            wallet_username: None,
+            wallet_password: None,
         };
         let body = serde_json::to_vec(&json!({
             "model": "gpt-image-2",
@@ -6609,6 +6625,10 @@ mod tests {
             balance_platform: None,
             balance_query_url: None,
             balance_query_token: None,
+            wallet_query_url: None,
+            wallet_query_token: None,
+            wallet_username: None,
+            wallet_password: None,
         };
         let body = json!({ "model": "deepseek-reasoner", "input": "ping" });
 
@@ -6677,6 +6697,10 @@ mod tests {
             balance_platform: None,
             balance_query_url: None,
             balance_query_token: None,
+            wallet_query_url: None,
+            wallet_query_token: None,
+            wallet_username: None,
+            wallet_password: None,
         };
         let body = serde_json::to_vec(&json!({
             "model": "client-placeholder",

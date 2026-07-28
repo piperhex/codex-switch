@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Button, Input, Popconfirm, Segmented, Select, Space, Switch, Table, Tag, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { Check, Pencil, Plus, RefreshCw, RotateCcw, Save, Server, Trash2, WalletCards, X } from "lucide-react";
-import { queryProviderBalance } from "../api/backend";
+import { queryProviderBalance, subscribeToProviderBalance } from "../api/backend";
 import { LocalProxyCard } from "../components/LocalProxyCard";
 import type { AccountDisplayMode } from "../hooks/useAccountDisplayMode";
 import type { Translate } from "../i18n";
@@ -84,6 +84,12 @@ function defaultBalanceUrl(value: string, platform: ProviderBalancePlatform) {
   return platform === "newApi" ? `${root}/api/usage/token/` : `${root}/v1/usage`;
 }
 
+function defaultWalletUrl(value: string, platform: ProviderBalancePlatform) {
+  const root = relayRoot(value);
+  if (!root) return "";
+  return platform === "newApi" ? `${root}/api/user/self` : `${root}/api/v1/user/profile`;
+}
+
 function relayName(value: string) {
   try {
     return new URL(relayRoot(value)).hostname;
@@ -121,6 +127,10 @@ function ProviderModal({ provider, saving, onClose, onSave, t }: ProviderModalPr
   const [balanceQueryUrl, setBalanceQueryUrl] = useState("");
   const [balanceQueryUsesApiKey, setBalanceQueryUsesApiKey] = useState(true);
   const [balanceQueryToken, setBalanceQueryToken] = useState("");
+  const [walletQueryUrl, setWalletQueryUrl] = useState("");
+  const [walletQueryToken, setWalletQueryToken] = useState("");
+  const [walletUsername, setWalletUsername] = useState("");
+  const [walletPassword, setWalletPassword] = useState("");
   const apiFormatOptions: { label: string; value: ProviderApiFormat }[] = [
     { label: t("providers.api.responses"), value: "openaiResponses" },
     { label: t("providers.api.chatCompletions"), value: "openaiChat" },
@@ -138,6 +148,11 @@ function ProviderModal({ provider, saving, onClose, onSave, t }: ProviderModalPr
     setBalanceQueryUrl(provider?.balanceQueryUrl ?? "");
     setBalanceQueryUsesApiKey(provider?.balanceQueryUsesApiKey ?? true);
     setBalanceQueryToken("");
+    setWalletQueryUrl(provider?.walletQueryUrl
+      ?? (provider?.balancePlatform ? defaultWalletUrl(provider.baseUrl, provider.balancePlatform) : ""));
+    setWalletQueryToken("");
+    setWalletUsername(provider?.walletUsername ?? "");
+    setWalletPassword("");
   }, [provider]);
 
   const normalizedModels = normalizeModels(model, models);
@@ -171,6 +186,10 @@ function ProviderModal({ provider, saving, onClose, onSave, t }: ProviderModalPr
       balanceQueryUrl: balancePlatform === "none" ? null : balanceQueryUrl,
       balanceQueryToken: balanceQueryToken.trim() || undefined,
       balanceQueryUsesApiKey,
+      walletQueryUrl: balancePlatform === "none" ? null : walletQueryUrl || null,
+      walletQueryToken: walletQueryToken.trim() || undefined,
+      walletUsername: walletUsername.trim() || undefined,
+      walletPassword: walletPassword || undefined,
     });
     if (saved) onClose();
   };
@@ -214,6 +233,9 @@ function ProviderModal({ provider, saving, onClose, onSave, t }: ProviderModalPr
               if (value !== "none" && !balanceQueryUrl.trim()) {
                 setBalanceQueryUrl(defaultBalanceUrl(baseUrl, value));
               }
+              if (value !== "none" && !walletQueryUrl.trim()) {
+                setWalletQueryUrl(defaultWalletUrl(baseUrl, value));
+              }
             }} />
           {balancePlatform !== "none" && <>
             <label htmlFor="provider-balance-url">{t("providers.form.balanceQueryUrl")}</label>
@@ -235,6 +257,31 @@ function ProviderModal({ provider, saving, onClose, onSave, t }: ProviderModalPr
                   ? t("providers.form.keepBalanceToken")
                   : t("providers.form.newApiKey")}
                 onChange={(event) => setBalanceQueryToken(event.target.value)} />
+            </>}
+            <label htmlFor="provider-wallet-url">{t("providers.form.walletQueryUrl")}</label>
+            <Input id="provider-wallet-url" value={walletQueryUrl} disabled={saving}
+              placeholder={defaultWalletUrl(baseUrl, balancePlatform)}
+              onChange={(event) => setWalletQueryUrl(event.target.value)} />
+            {balancePlatform === "newApi" ? <>
+              <label htmlFor="provider-wallet-username">{t("providers.form.walletUsername")}</label>
+              <Input id="provider-wallet-username" value={walletUsername} disabled={saving}
+                placeholder={t("providers.form.walletUsernamePlaceholder")}
+                onChange={(event) => setWalletUsername(event.target.value)} />
+              <label htmlFor="provider-wallet-password">{t("providers.form.walletPassword")}</label>
+              <Input.Password id="provider-wallet-password" value={walletPassword} disabled={saving}
+                placeholder={provider?.hasWalletLoginCredentials
+                  ? t("providers.form.keepWalletPassword")
+                  : t("providers.form.walletPasswordPlaceholder")}
+                onChange={(event) => setWalletPassword(event.target.value)} />
+              <small>{t("providers.form.walletLoginHint")}</small>
+            </> : <>
+              <label htmlFor="provider-wallet-token">{t("providers.form.walletToken")}</label>
+              <Input.Password id="provider-wallet-token" value={walletQueryToken} disabled={saving}
+                placeholder={provider?.hasWalletQueryToken
+                  ? t("providers.form.keepWalletToken")
+                  : t("providers.form.walletTokenPlaceholder")}
+                onChange={(event) => setWalletQueryToken(event.target.value)} />
+              <small>{t("providers.form.walletTokenHint")}</small>
             </>}
           </>}
         </div>
@@ -264,16 +311,24 @@ function RelayStationModal({
   const [balanceQueryUrl, setBalanceQueryUrl] = useState("");
   const [balanceQueryUsesApiKey, setBalanceQueryUsesApiKey] = useState(true);
   const [balanceQueryToken, setBalanceQueryToken] = useState("");
+  const [walletQueryUrl, setWalletQueryUrl] = useState("");
+  const [walletQueryToken, setWalletQueryToken] = useState("");
+  const [walletUsername, setWalletUsername] = useState("");
+  const [walletPassword, setWalletPassword] = useState("");
 
   const updateStation = (value: string) => {
     setStationUrl(value);
     setBaseUrl(relayApiUrl(value));
     if (!nameTouched) setName(relayName(value));
-    if (platform) setBalanceQueryUrl(defaultBalanceUrl(value, platform));
+    if (platform) {
+      setBalanceQueryUrl(defaultBalanceUrl(value, platform));
+      setWalletQueryUrl(defaultWalletUrl(value, platform));
+    }
   };
   const updatePlatform = (value: ProviderBalancePlatform) => {
     setPlatform(value);
     setBalanceQueryUrl(defaultBalanceUrl(stationUrl, value));
+    setWalletQueryUrl(defaultWalletUrl(stationUrl, value));
   };
   const canSave = Boolean(
     platform
@@ -299,6 +354,10 @@ function RelayStationModal({
       balanceQueryUrl,
       balanceQueryToken: balanceQueryToken.trim() || undefined,
       balanceQueryUsesApiKey,
+      walletQueryUrl: walletQueryUrl || null,
+      walletQueryToken: walletQueryToken.trim() || undefined,
+      walletUsername: walletUsername.trim() || undefined,
+      walletPassword: walletPassword || undefined,
     });
     if (saved) onClose();
   };
@@ -360,6 +419,26 @@ function RelayStationModal({
                   placeholder={t("providers.form.newApiKey")}
                   onChange={(event) => setBalanceQueryToken(event.target.value)} />
               </>}
+              <label htmlFor="relay-wallet-url">{t("providers.form.walletQueryUrl")}</label>
+              <Input id="relay-wallet-url" value={walletQueryUrl} disabled={saving}
+                onChange={(event) => setWalletQueryUrl(event.target.value)} />
+              {platform === "newApi" ? <>
+                <label htmlFor="relay-wallet-username">{t("providers.form.walletUsername")}</label>
+                <Input id="relay-wallet-username" value={walletUsername} disabled={saving}
+                  placeholder={t("providers.form.walletUsernamePlaceholder")}
+                  onChange={(event) => setWalletUsername(event.target.value)} />
+                <label htmlFor="relay-wallet-password">{t("providers.form.walletPassword")}</label>
+                <Input.Password id="relay-wallet-password" value={walletPassword} disabled={saving}
+                  placeholder={t("providers.form.walletPasswordPlaceholder")}
+                  onChange={(event) => setWalletPassword(event.target.value)} />
+                <small>{t("providers.form.walletLoginHint")}</small>
+              </> : <>
+                <label htmlFor="relay-wallet-token">{t("providers.form.walletToken")}</label>
+                <Input.Password id="relay-wallet-token" value={walletQueryToken} disabled={saving}
+                  placeholder={t("providers.form.walletTokenPlaceholder")}
+                  onChange={(event) => setWalletQueryToken(event.target.value)} />
+                <small>{t("providers.form.walletTokenHint")}</small>
+              </>}
             </div>
           </details>
         </div>
@@ -396,6 +475,12 @@ function ProviderBalanceCell({ provider, t }: { provider: Provider; t: Translate
     }
   };
 
+  useEffect(() => subscribeToProviderBalance(provider.id, (result) => {
+    setBalance(result);
+    setError("");
+    setLoading(false);
+  }), [provider.id]);
+
   useEffect(() => {
     let active = true;
     if (!provider.balancePlatform) {
@@ -416,27 +501,35 @@ function ProviderBalanceCell({ provider, t }: { provider: Provider; t: Translate
         if (active) setLoading(false);
       });
     return () => { active = false; };
-  }, [provider.id, provider.balancePlatform, provider.balanceQueryUrl]);
+  }, [provider.id, provider.balancePlatform, provider.balanceQueryUrl, provider.walletQueryUrl]);
 
   if (!provider.balancePlatform) {
     return <span className="provider-balance-disabled">{t("providers.balance.disabled")}</span>;
   }
-  const value = balance?.unlimited
+  const apiValue = balance?.apiUnlimited
     ? t("providers.balance.unlimited")
-    : balance?.amount != null
-      ? `${balance.amount.toFixed(2)} ${balance.unit}`
+    : balance?.apiAmount != null
+      ? `${balance.apiAmount.toFixed(2)} ${balance.apiUnit}`
       : error
         ? t("providers.balance.failed")
         : t("providers.balance.loading");
+  const walletValue = balance?.walletAmount != null
+    ? `${balance.walletAmount.toFixed(2)} ${balance.walletUnit}`
+    : balance?.walletError
+      ? t("providers.balance.failed")
+      : provider.hasWalletQueryToken || provider.hasWalletLoginCredentials
+        ? t("providers.balance.loading")
+        : t("providers.balance.notConfigured");
   return (
     <div className="provider-balance">
-      <Tooltip title={error || t("providers.balance.refresh")}>
+      <Tooltip title={error || balance?.walletError || t("providers.balance.refresh")}>
         <Button type="text" size="small" className="provider-balance-refresh"
           loading={loading} icon={!loading ? <RefreshCw size={13} /> : undefined}
           onClick={() => void refresh()} />
       </Tooltip>
-      <div>
-        <strong>{value}</strong>
+      <div className="provider-balance-values">
+        <strong><span>{t("providers.balance.api")}</span>{apiValue}</strong>
+        <strong><span>{t("providers.balance.wallet")}</span>{walletValue}</strong>
         {balance && <span>{t("providers.balance.justNow")}</span>}
       </div>
     </div>
@@ -576,6 +669,11 @@ export function ProvidersPage({
           : <Tag color="gold">{t("providers.status.bridgeRequired")}</Tag>,
     },
     {
+      title: t("providers.table.balance"),
+      width: 155,
+      render: (_, provider) => <ProviderBalanceCell provider={provider} t={t} />,
+    },
+    {
       title: t("providers.table.actions"),
       width: 180,
       align: "right",
@@ -610,11 +708,6 @@ export function ProvidersPage({
           </Space>
         );
       },
-    },
-    {
-      title: t("providers.table.balance"),
-      width: 155,
-      render: (_, provider) => <ProviderBalanceCell provider={provider} t={t} />,
     },
   ];
 

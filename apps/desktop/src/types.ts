@@ -71,6 +71,10 @@ export interface Provider {
   balanceQueryUrl?: string | null;
   balanceQueryUsesApiKey: boolean;
   hasBalanceQueryToken: boolean;
+  walletQueryUrl?: string | null;
+  hasWalletQueryToken: boolean;
+  walletUsername?: string | null;
+  hasWalletLoginCredentials: boolean;
 }
 
 export interface ProviderInput {
@@ -86,12 +90,19 @@ export interface ProviderInput {
   balanceQueryUrl?: string | null;
   balanceQueryToken?: string;
   balanceQueryUsesApiKey?: boolean;
+  walletQueryUrl?: string | null;
+  walletQueryToken?: string;
+  walletUsername?: string;
+  walletPassword?: string;
 }
 
 export interface ProviderBalance {
-  amount?: number | null;
-  unit: string;
-  unlimited: boolean;
+  apiAmount?: number | null;
+  apiUnit: string;
+  apiUnlimited: boolean;
+  walletAmount?: number | null;
+  walletUnit: string;
+  walletError?: string | null;
   queriedAt: number;
 }
 

@@ -253,9 +253,15 @@ describe('AdminService', () => {
       .toHaveBeenCalledWith(['user-3', 'user-2']);
   });
 
-  it('lists synced providers for an existing user without exposing API keys', async () => {
+  it('lists synced providers for an existing user without exposing provider tokens', async () => {
     const owner = makeUser({ id: 'owner-1' });
-    const provider = makeProvider({ apiKey: 'sk-secret' });
+    const provider = makeProvider({
+      apiKey: 'sk-secret',
+      balanceQueryToken: 'balance-secret',
+      walletQueryToken: 'wallet-secret',
+      walletUsername: 'wallet-user',
+      walletPassword: 'wallet-password',
+    });
     users.findById.mockResolvedValue(owner);
     sync.listProviders.mockResolvedValue({ providers: [provider] });
 
@@ -270,6 +276,9 @@ describe('AdminService', () => {
         apiFormat: provider.apiFormat,
         lastModifiedAt: provider.lastModifiedAt,
         hasApiKey: true,
+        hasBalanceQueryToken: true,
+        hasWalletQueryToken: true,
+        hasWalletLoginCredentials: true,
       }],
     });
 

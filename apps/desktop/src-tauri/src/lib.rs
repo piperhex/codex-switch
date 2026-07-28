@@ -23,6 +23,9 @@ use oauth::AppState;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            system_tray::show_dashboard(app);
+        }))
         .manage(AppState::default())
         .manage(main_window::MainWindowStateCache::default())
         .plugin(tauri_plugin_dialog::init())

@@ -83,7 +83,7 @@ export function SettingsPage({
   autoRefreshSeconds,
   onEnabledChange,
   onSecondsChange,
-  currentAccountEmail,
+  currentAutoRefreshTarget,
   accountAutoRefreshEnabled,
   accountAutoRefreshSeconds,
   onAccountAutoRefreshEnabledChange,
@@ -127,7 +127,7 @@ export function SettingsPage({
   autoRefreshSeconds: number;
   onEnabledChange: (enabled: boolean) => void;
   onSecondsChange: (value: number | string | null) => void;
-  currentAccountEmail: string | null;
+  currentAutoRefreshTarget: string | null;
   accountAutoRefreshEnabled: boolean;
   accountAutoRefreshSeconds: number;
   onAccountAutoRefreshEnabledChange: (enabled: boolean) => void;
@@ -332,19 +332,19 @@ export function SettingsPage({
         <div className="settings-card-content">
           <div className="settings-card-copy"><h3>{t("settings.accountAutoRefresh.title")}</h3><p>{t("settings.accountAutoRefresh.description")}</p>
             <p className="settings-current-account">
-              {currentAccountEmail
-                ? t("settings.accountAutoRefresh.current", { email: currentAccountEmail })
+              {currentAutoRefreshTarget
+                ? t("settings.accountAutoRefresh.current", { email: currentAutoRefreshTarget })
                 : t("settings.accountAutoRefresh.none")}
             </p>
           </div>
           <div className="settings-field">
             <label htmlFor="account-auto-refresh-enabled">{t("settings.autoRefresh.enabled")}</label>
             <Switch id="account-auto-refresh-enabled" checked={accountAutoRefreshEnabled}
-              disabled={!currentAccountEmail} checkedChildren={t("settings.autoRefresh.on")}
+              disabled={!currentAutoRefreshTarget} checkedChildren={t("settings.autoRefresh.on")}
               unCheckedChildren={t("settings.autoRefresh.off")} onChange={onAccountAutoRefreshEnabledChange} />
             <label htmlFor="account-auto-refresh-interval">{t("settings.autoRefresh.interval")}</label>
             <DurationTimePicker id="account-auto-refresh-interval" value={accountAutoRefreshSeconds}
-              disabled={!currentAccountEmail || !accountAutoRefreshEnabled}
+              disabled={!currentAutoRefreshTarget || !accountAutoRefreshEnabled}
               onChange={onAccountAutoRefreshSecondsChange} />
           </div>
         </div>

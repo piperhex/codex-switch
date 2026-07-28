@@ -341,6 +341,10 @@ fn provider_payload_from_profile(
         balance_platform: provider.balance_platform,
         balance_query_url: provider.balance_query_url,
         balance_query_token: provider.balance_query_token,
+        wallet_query_url: provider.wallet_query_url,
+        wallet_query_token: provider.wallet_query_token,
+        wallet_username: provider.wallet_username,
+        wallet_password: provider.wallet_password,
         last_modified_at,
     }
 }
@@ -358,6 +362,10 @@ fn provider_payload_to_profile(provider: &ProviderSyncPayload) -> Result<Provide
         balance_platform: provider.balance_platform,
         balance_query_url: provider.balance_query_url.clone(),
         balance_query_token: provider.balance_query_token.clone(),
+        wallet_query_url: provider.wallet_query_url.clone(),
+        wallet_query_token: provider.wallet_query_token.clone(),
+        wallet_username: provider.wallet_username.clone(),
+        wallet_password: provider.wallet_password.clone(),
     })
 }
 
@@ -510,6 +518,10 @@ mod tests {
                 balance_platform: None,
                 balance_query_url: None,
                 balance_query_token: None,
+                wallet_query_url: None,
+                wallet_query_token: None,
+                wallet_username: None,
+                wallet_password: None,
                 last_modified_at: "2026-07-04T00:00:00Z".to_string(),
             }],
         };
