@@ -52,6 +52,7 @@ let pendingAppUpdate: Update | null = null;
 let appUpdateDownloaded = false;
 let updateDownloadPromise: Promise<void> | null = null;
 let updateInstallInProgress = false;
+const UPDATE_CHECK_RETRY_DELAYS_MS = [500, 1_500] as const;
 const FLOATING_BUBBLE_PREVIEW_KEY = "codex-switch:floating-bubble";
 const PRIVACY_MODE_PREVIEW_KEY = "codex-switch:privacy-mode";
 const BUBBLE_RESET_DISPLAY_PREVIEW_KEY = "codex-switch:bubble-reset-display";
@@ -1383,10 +1384,36 @@ function trackUpdateCheck(request: Promise<UpdateInfo | null>) {
 }
 
 async function getAvailableAppUpdate(): Promise<UpdateInfo | null> {
-  const update = await check();
+  const update = await checkAvailableAppUpdate();
   pendingAppUpdate = update;
   if (!update) return null;
   return toUpdateInfo(update);
+}
+
+function isRetryableUpdateCheckError(error: unknown): boolean {
+  const message = String(error).toLowerCase();
+  return [
+    "error sending request",
+    "network",
+    "timed out",
+    "timeout",
+    "connection",
+    "dns",
+    "tcp",
+    "tls",
+  ].some((fragment) => message.includes(fragment));
+}
+
+async function checkAvailableAppUpdate(): Promise<Update | null> {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await check();
+    } catch (error) {
+      const retryDelay = UPDATE_CHECK_RETRY_DELAYS_MS[attempt];
+      if (retryDelay === undefined || !isRetryableUpdateCheckError(error)) throw error;
+      await new Promise<void>((resolve) => window.setTimeout(resolve, retryDelay));
+    }
+  }
 }
 
 function toUpdateInfo(update: Update): UpdateInfo {
@@ -1403,7 +1430,7 @@ async function refreshPendingAppUpdate(): Promise<UpdateInfo | null> {
   const currentUpdate = pendingAppUpdate;
   if (!currentUpdate) return getAvailableAppUpdate();
 
-  const candidate = await check();
+  const candidate = await checkAvailableAppUpdate();
   if (!candidate) return toUpdateInfo(currentUpdate);
 
   if (
