@@ -263,6 +263,14 @@ function ProviderModal({ provider, saving, onClose, onSave, t }: ProviderModalPr
               placeholder={defaultWalletUrl(baseUrl, balancePlatform)}
               onChange={(event) => setWalletQueryUrl(event.target.value)} />
             {balancePlatform === "newApi" ? <>
+              <label htmlFor="provider-wallet-token">{t("providers.form.walletToken")}</label>
+              <Input.Password id="provider-wallet-token" value={walletQueryToken} disabled={saving}
+                placeholder={provider?.hasWalletQueryToken
+                  ? t("providers.form.keepWalletToken")
+                  : t("providers.form.walletTokenPlaceholder")}
+                onChange={(event) => setWalletQueryToken(event.target.value)} />
+              <small>{t("providers.form.walletNewApiTokenAutoIdHint")}</small>
+              <div className="provider-auth-divider">{t("providers.form.walletLoginAlternative")}</div>
               <label htmlFor="provider-wallet-username">{t("providers.form.walletUsername")}</label>
               <Input id="provider-wallet-username" value={walletUsername} disabled={saving}
                 placeholder={t("providers.form.walletUsernamePlaceholder")}
@@ -423,6 +431,12 @@ function RelayStationModal({
               <Input id="relay-wallet-url" value={walletQueryUrl} disabled={saving}
                 onChange={(event) => setWalletQueryUrl(event.target.value)} />
               {platform === "newApi" ? <>
+                <label htmlFor="relay-wallet-token">{t("providers.form.walletToken")}</label>
+                <Input.Password id="relay-wallet-token" value={walletQueryToken} disabled={saving}
+                  placeholder={t("providers.form.walletTokenPlaceholder")}
+                  onChange={(event) => setWalletQueryToken(event.target.value)} />
+                <small>{t("providers.form.walletNewApiTokenAutoIdHint")}</small>
+                <div className="provider-auth-divider">{t("providers.form.walletLoginAlternative")}</div>
                 <label htmlFor="relay-wallet-username">{t("providers.form.walletUsername")}</label>
                 <Input id="relay-wallet-username" value={walletUsername} disabled={saving}
                   placeholder={t("providers.form.walletUsernamePlaceholder")}
