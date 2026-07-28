@@ -521,6 +521,9 @@ export class SyncService {
           models: provider.models ?? [],
           modelSelectionControlledByCodex: provider.modelSelectionControlledByCodex ?? false,
           apiFormat: provider.apiFormat,
+          balancePlatform: provider.balancePlatform ?? null,
+          balanceQueryUrl: provider.balanceQueryUrl ?? null,
+          balanceQueryToken: provider.balanceQueryToken ?? null,
           lastModifiedAt: incomingLastModifiedAt,
         }));
       }
@@ -549,6 +552,9 @@ export class SyncService {
         models: provider.models ?? [],
         modelSelectionControlledByCodex: provider.modelSelectionControlledByCodex ?? false,
         apiFormat: provider.apiFormat,
+        balancePlatform: provider.balancePlatform ?? null,
+        balanceQueryUrl: provider.balanceQueryUrl ?? null,
+        balanceQueryToken: provider.balanceQueryToken ?? null,
         lastModifiedAt: incomingLastModifiedAt,
       }));
     });
@@ -792,6 +798,9 @@ export class SyncService {
       models: row.models ?? [],
       modelSelectionControlledByCodex: row.modelSelectionControlledByCodex,
       apiFormat: row.apiFormat,
+      balancePlatform: row.balancePlatform,
+      balanceQueryUrl: row.balanceQueryUrl,
+      balanceQueryToken: row.balanceQueryToken,
       lastModifiedAt: this.formatLastModifiedAt(row.lastModifiedAt ?? row.updatedAt),
     };
   }

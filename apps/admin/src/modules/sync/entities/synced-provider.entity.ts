@@ -46,6 +46,15 @@ export class SyncedProviderEntity {
   @Column({ type: 'varchar', length: 24 })
   apiFormat: 'openaiResponses' | 'openaiChat';
 
+  @Column({ type: 'varchar', length: 24, nullable: true })
+  balancePlatform: 'newApi' | 'sub2Api' | null;
+
+  @Column({ type: 'varchar', length: 1000, nullable: true })
+  balanceQueryUrl: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  balanceQueryToken: string | null;
+
   @Column({ type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
   lastModifiedAt: Date;
 

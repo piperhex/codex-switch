@@ -54,6 +54,7 @@ export interface AppInfo {
 }
 
 export type ProviderApiFormat = "openaiResponses" | "openaiChat";
+export type ProviderBalancePlatform = "newApi" | "sub2Api";
 
 export interface Provider {
   id: string;
@@ -66,6 +67,10 @@ export interface Provider {
   active: boolean;
   hasApiKey: boolean;
   supportsDirectSwitch: boolean;
+  balancePlatform?: ProviderBalancePlatform | null;
+  balanceQueryUrl?: string | null;
+  balanceQueryUsesApiKey: boolean;
+  hasBalanceQueryToken: boolean;
 }
 
 export interface ProviderInput {
@@ -77,6 +82,17 @@ export interface ProviderInput {
   modelSelectionControlledByCodex: boolean;
   apiKey?: string;
   apiFormat: ProviderApiFormat;
+  balancePlatform?: ProviderBalancePlatform | null;
+  balanceQueryUrl?: string | null;
+  balanceQueryToken?: string;
+  balanceQueryUsesApiKey?: boolean;
+}
+
+export interface ProviderBalance {
+  amount?: number | null;
+  unit: string;
+  unlimited: boolean;
+  queriedAt: number;
 }
 
 export interface LocalProxyStatus {

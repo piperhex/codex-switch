@@ -97,6 +97,13 @@ pub(crate) enum ProviderApiFormat {
     OpenaiChat,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) enum ProviderBalancePlatform {
+    NewApi,
+    Sub2Api,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ProviderProfile {
@@ -110,6 +117,12 @@ pub(crate) struct ProviderProfile {
     #[serde(default)]
     pub(crate) model_selection_controlled_by_codex: bool,
     pub(crate) api_format: ProviderApiFormat,
+    #[serde(default)]
+    pub(crate) balance_platform: Option<ProviderBalancePlatform>,
+    #[serde(default)]
+    pub(crate) balance_query_url: Option<String>,
+    #[serde(default)]
+    pub(crate) balance_query_token: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -125,6 +138,19 @@ pub(crate) struct ProviderSummary {
     pub(crate) active: bool,
     pub(crate) has_api_key: bool,
     pub(crate) supports_direct_switch: bool,
+    pub(crate) balance_platform: Option<ProviderBalancePlatform>,
+    pub(crate) balance_query_url: Option<String>,
+    pub(crate) balance_query_uses_api_key: bool,
+    pub(crate) has_balance_query_token: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ProviderBalance {
+    pub(crate) amount: Option<f64>,
+    pub(crate) unit: String,
+    pub(crate) unlimited: bool,
+    pub(crate) queried_at: i64,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -420,6 +446,12 @@ pub(crate) struct ProviderSyncPayload {
     #[serde(default)]
     pub(crate) model_selection_controlled_by_codex: bool,
     pub(crate) api_format: ProviderApiFormat,
+    #[serde(default)]
+    pub(crate) balance_platform: Option<ProviderBalancePlatform>,
+    #[serde(default)]
+    pub(crate) balance_query_url: Option<String>,
+    #[serde(default)]
+    pub(crate) balance_query_token: Option<String>,
     pub(crate) last_modified_at: String,
 }
 

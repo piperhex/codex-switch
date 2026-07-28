@@ -5779,6 +5779,9 @@ mod tests {
             models: vec!["gpt-4.1".to_string()],
             model_selection_controlled_by_codex: false,
             api_format: ProviderApiFormat::OpenaiResponses,
+            balance_platform: None,
+            balance_query_url: None,
+            balance_query_token: None,
         };
         let body = serde_json::to_vec(&json!({
             "model": "gpt-4.1",
@@ -5818,6 +5821,9 @@ mod tests {
             models: vec!["deepseek-chat".to_string()],
             model_selection_controlled_by_codex: false,
             api_format: ProviderApiFormat::OpenaiChat,
+            balance_platform: None,
+            balance_query_url: None,
+            balance_query_token: None,
         };
         let body = serde_json::to_vec(&json!({
             "model": "deepseek-chat",
@@ -5984,6 +5990,9 @@ mod tests {
             models: vec!["deepseek-chat".to_string(), "deepseek-reasoner".to_string()],
             model_selection_controlled_by_codex: true,
             api_format: ProviderApiFormat::OpenaiResponses,
+            balance_platform: None,
+            balance_query_url: None,
+            balance_query_token: None,
         };
         let catalog = providers::model_catalog_for_models(&provider_models_for_codex(&provider));
         let models = catalog["models"].as_array().unwrap();
@@ -6380,6 +6389,9 @@ mod tests {
             models: vec!["provider-text-model".to_string()],
             model_selection_controlled_by_codex: false,
             api_format: ProviderApiFormat::OpenaiResponses,
+            balance_platform: None,
+            balance_query_url: None,
+            balance_query_token: None,
         };
         let body = serde_json::to_vec(&json!({
             "model": "gpt-image-2",
@@ -6544,6 +6556,9 @@ mod tests {
             models: vec!["deepseek-chat".to_string(), "deepseek-reasoner".to_string()],
             model_selection_controlled_by_codex: true,
             api_format: ProviderApiFormat::OpenaiChat,
+            balance_platform: None,
+            balance_query_url: None,
+            balance_query_token: None,
         };
         let body = json!({ "model": "deepseek-reasoner", "input": "ping" });
 
@@ -6609,6 +6624,9 @@ mod tests {
             models: vec!["deepseek-v4-flash".to_string()],
             model_selection_controlled_by_codex: false,
             api_format: ProviderApiFormat::OpenaiChat,
+            balance_platform: None,
+            balance_query_url: None,
+            balance_query_token: None,
         };
         let body = serde_json::to_vec(&json!({
             "model": "client-placeholder",

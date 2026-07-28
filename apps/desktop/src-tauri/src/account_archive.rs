@@ -338,6 +338,9 @@ fn provider_payload_from_profile(
         models: provider.models,
         model_selection_controlled_by_codex: provider.model_selection_controlled_by_codex,
         api_format: provider.api_format,
+        balance_platform: provider.balance_platform,
+        balance_query_url: provider.balance_query_url,
+        balance_query_token: provider.balance_query_token,
         last_modified_at,
     }
 }
@@ -352,6 +355,9 @@ fn provider_payload_to_profile(provider: &ProviderSyncPayload) -> Result<Provide
         models: provider.models.clone(),
         model_selection_controlled_by_codex: provider.model_selection_controlled_by_codex,
         api_format: provider.api_format,
+        balance_platform: provider.balance_platform,
+        balance_query_url: provider.balance_query_url.clone(),
+        balance_query_token: provider.balance_query_token.clone(),
     })
 }
 
@@ -501,6 +507,9 @@ mod tests {
                 models: vec!["gpt-4.1".to_string()],
                 model_selection_controlled_by_codex: false,
                 api_format: ProviderApiFormat::OpenaiResponses,
+                balance_platform: None,
+                balance_query_url: None,
+                balance_query_token: None,
                 last_modified_at: "2026-07-04T00:00:00Z".to_string(),
             }],
         };

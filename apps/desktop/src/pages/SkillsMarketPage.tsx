@@ -48,6 +48,22 @@ interface PublishModalProps {
   t: Translate;
 }
 
+interface SkillInstallButtonProps {
+  busy: boolean;
+  onInstall: (skill: SkillMarketItem) => Promise<void>;
+  skill: SkillMarketItem;
+  t: Translate;
+}
+
+interface SkillDetailModalProps extends SkillInstallButtonProps {
+  isPublisher: boolean;
+  onClose: () => void;
+  onEdit: (skill: SkillMarketItem) => void;
+  onPreviewError: (skillId: string) => void;
+  preview: string | null;
+  previewBroken: boolean;
+}
+
 interface PreparedPreview {
   file: File;
   url: string;
@@ -76,6 +92,98 @@ function packageLabel(selection: SkillPackageSelection, t: Translate) {
 function nextVersion(version: string) {
   const match = version.match(/^(\d+)\.(\d+)\.(\d+)$/);
   return match ? `${match[1]}.${match[2]}.${Number(match[3]) + 1}` : version;
+}
+
+function SkillInstallButton({ busy, onInstall, skill, t }: SkillInstallButtonProps) {
+  return (
+    <button type="button"
+      className={`skill-install-button${skill.installed ? " installed" : ""}`}
+      disabled={busy || skill.installed} onClick={(event) => {
+        event.stopPropagation();
+        void onInstall(skill);
+      }}>
+      {busy
+        ? <LoaderCircle className="spin" size={16} />
+        : skill.installed
+          ? <Check size={16} />
+          : skill.installedVersion
+            ? <RefreshCw size={16} />
+            : <Download size={16} />}
+      {busy
+        ? t("skills.installing")
+        : skill.installed
+          ? t("skills.installed")
+          : skill.installedVersion
+            ? t("skills.update", { version: skill.installedVersion })
+            : t("skills.install")}
+    </button>
+  );
+}
+
+function SkillDetailModal({
+  busy,
+  isPublisher,
+  onClose,
+  onEdit,
+  onInstall,
+  onPreviewError,
+  preview,
+  previewBroken,
+  skill,
+  t,
+}: SkillDetailModalProps) {
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [onClose]);
+
+  return (
+    <div className="modal-backdrop skills-detail-backdrop" role="presentation" onMouseDown={(event) => {
+      if (event.target === event.currentTarget) onClose();
+    }}>
+      <div className="modal skills-detail-modal" role="dialog" aria-modal="true"
+        aria-labelledby="skills-detail-title">
+        <button autoFocus type="button" className="modal-close"
+          aria-label={t("skills.detail.close")} onClick={onClose}><X size={18} /></button>
+        <div className="skills-detail-scroll">
+          <div className="skills-detail-preview">
+            {preview && !previewBroken ? (
+              <img src={preview} alt="" onError={() => onPreviewError(skill.id)} />
+            ) : (
+              <div className="skill-card-default-preview">
+                <PackageOpen size={58} />
+                <span>SKILL</span>
+              </div>
+            )}
+            {skill.official && <span className="skill-official-badge">{t("skills.official")}</span>}
+            <span className="skill-version">v{skill.version}</span>
+          </div>
+          <div className="skills-detail-content">
+            <h2 id="skills-detail-title">{skill.title}</h2>
+            <div className="skills-detail-meta">
+              <span><PackageOpen size={15} />{t("skills.publisher")}</span>
+              <span><Download size={15} />{t("skills.downloads", { count: skill.installCount })}</span>
+            </div>
+            <section>
+              <h3>{t("skills.field.description")}</h3>
+              <p>{skill.description}</p>
+            </section>
+          </div>
+        </div>
+        <div className="skills-detail-actions">
+          {isPublisher && (
+            <button type="button" className="skills-detail-edit" onClick={() => onEdit(skill)}>
+              <Edit3 size={16} />{t("skills.edit")}
+            </button>
+          )}
+          <SkillInstallButton busy={busy} onInstall={onInstall} skill={skill} t={t} />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function SkillPublishModal({ editing, onClose, onPublished, t }: PublishModalProps) {
@@ -253,6 +361,7 @@ export function SkillsMarketPage({
   const [query, setQuery] = useState("");
   const [publishing, setPublishing] = useState(false);
   const [editing, setEditing] = useState<SkillMarketItem | null>(null);
+  const [detailSkillId, setDetailSkillId] = useState<string | null>(null);
   const [busySkillId, setBusySkillId] = useState<string | null>(null);
   const [brokenPreviews, setBrokenPreviews] = useState<Set<string>>(() => new Set());
 
@@ -276,6 +385,9 @@ export function SkillsMarketPage({
     return items.filter((item) => `${item.title}\n${item.description}`
       .toLocaleLowerCase().includes(needle));
   }, [items, query]);
+  const detailSkill = detailSkillId
+    ? items.find((item) => item.id === detailSkillId) ?? null
+    : null;
 
   const openPublish = () => {
     if (!authenticated) {
@@ -345,6 +457,8 @@ export function SkillsMarketPage({
             const busy = busySkillId === skill.id;
             return (
               <article className="skill-card" key={skill.id}>
+                <button type="button" className="skill-card-open"
+                  aria-label={skill.title} onClick={() => setDetailSkillId(skill.id)} />
                 <div className="skill-card-preview">
                   {preview && !brokenPreviews.has(skill.id) ? (
                     <img src={preview} alt="" onError={() => setBrokenPreviews((current) => {
@@ -362,7 +476,9 @@ export function SkillsMarketPage({
                   <div className="skill-card-title">
                     <h3>{skill.title}</h3>
                     {isPublisher && (
-                      <button type="button" aria-label={t("skills.edit")} onClick={() => setEditing(skill)}>
+                      <button type="button" aria-label={t("skills.edit")} onClick={() => {
+                        setEditing(skill);
+                      }}>
                         <Edit3 size={15} />
                       </button>
                     )}
@@ -377,29 +493,38 @@ export function SkillsMarketPage({
                       <Download size={13} />{skill.installCount.toLocaleString()}
                     </span>
                   </div>
-                  <button type="button"
-                    className={`skill-install-button${skill.installed ? " installed" : ""}`}
-                    disabled={busy || skill.installed} onClick={() => void install(skill)}>
-                    {busy
-                      ? <LoaderCircle className="spin" size={16} />
-                      : skill.installed
-                        ? <Check size={16} />
-                        : skill.installedVersion
-                          ? <RefreshCw size={16} />
-                          : <Download size={16} />}
-                    {busy
-                      ? t("skills.installing")
-                      : skill.installed
-                        ? t("skills.installed")
-                        : skill.installedVersion
-                          ? t("skills.update", { version: skill.installedVersion })
-                          : t("skills.install")}
-                  </button>
+                  <SkillInstallButton busy={busy} onInstall={install} skill={skill} t={t} />
                 </div>
               </article>
             );
           })}
         </div>
+      )}
+
+      {detailSkill && (
+        <SkillDetailModal
+          busy={busySkillId === detailSkill.id}
+          isPublisher={Boolean(
+            authenticated
+            && currentUserId
+            && detailSkill.uploaderId === currentUserId,
+          )}
+          onClose={() => setDetailSkillId(null)}
+          onEdit={(skill) => {
+            setDetailSkillId(null);
+            setEditing(skill);
+          }}
+          onInstall={install}
+          onPreviewError={(skillId) => setBrokenPreviews((current) => {
+            const next = new Set(current);
+            next.add(skillId);
+            return next;
+          })}
+          preview={skillPreviewUrl(baseUrl, detailSkill)}
+          previewBroken={brokenPreviews.has(detailSkill.id)}
+          skill={detailSkill}
+          t={t}
+        />
       )}
 
       {(publishing || editing) && (
