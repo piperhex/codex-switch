@@ -1040,8 +1040,6 @@ main.tokens-main { overflow: hidden; padding-bottom: 0; }
 }
 
 @media (max-width: 1260px) {
-  .announcement-slot { display: none; }
-  .app-menu { gap: 12px; }
   .dream-skin-hero { grid-template-columns: minmax(260px, .75fr) minmax(480px, 1.25fr); }
   .dream-skin-status-card { grid-template-columns: 116px minmax(130px, 1fr) 190px; }
   .dream-tools-actions { justify-content: flex-start; }
