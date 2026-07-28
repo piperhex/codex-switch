@@ -1,4 +1,5 @@
 export const MAX_FEEDBACK_IMAGE_BYTES = 5 * 1024 * 1024;
+export const MAX_SKILL_PREVIEW_BYTES = 1024 * 1024;
 export const MAX_FEEDBACK_IMAGES = 4;
 export const FEEDBACK_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
 
@@ -27,11 +28,15 @@ function canvasBlob(canvas: HTMLCanvasElement, quality: number) {
   });
 }
 
-export async function prepareFeedbackImage(file: File): Promise<{ file: File; compressed: boolean }> {
+async function prepareImage(
+  file: File,
+  maxBytes: number,
+  outputName: string,
+): Promise<{ file: File; compressed: boolean }> {
   if (!(FEEDBACK_IMAGE_TYPES as readonly string[]).includes(file.type)) {
     throw new Error("unsupported");
   }
-  if (file.size <= MAX_FEEDBACK_IMAGE_BYTES) return { file, compressed: false };
+  if (file.size <= maxBytes) return { file, compressed: false };
 
   const source = await loadImage(file);
   const maxSourceSide = Math.max(source.naturalWidth, source.naturalHeight);
@@ -49,8 +54,8 @@ export async function prepareFeedbackImage(file: File): Promise<{ file: File; co
     context.drawImage(source, 0, 0, canvas.width, canvas.height);
 
     const blob = await canvasBlob(canvas, quality);
-    if (blob.size <= MAX_FEEDBACK_IMAGE_BYTES) {
-      const baseName = file.name.replace(/\.[^.]+$/, "") || "feedback-image";
+    if (blob.size <= maxBytes) {
+      const baseName = file.name.replace(/\.[^.]+$/, "") || outputName;
       return {
         file: new File([blob], `${baseName}-compressed.jpg`, {
           type: "image/jpeg",
@@ -63,5 +68,13 @@ export async function prepareFeedbackImage(file: File): Promise<{ file: File; co
     if (quality > 0.58) quality -= 0.1;
     else scale *= 0.8;
   }
-  throw new Error("Unable to compress image below 5 MB");
+  throw new Error(`Unable to compress image below ${Math.round(maxBytes / 1024 / 1024)} MB`);
+}
+
+export function prepareFeedbackImage(file: File): Promise<{ file: File; compressed: boolean }> {
+  return prepareImage(file, MAX_FEEDBACK_IMAGE_BYTES, "feedback-image");
+}
+
+export function prepareSkillPreview(file: File): Promise<{ file: File; compressed: boolean }> {
+  return prepareImage(file, MAX_SKILL_PREVIEW_BYTES, "skill-preview");
 }

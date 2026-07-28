@@ -2,7 +2,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProper
 import { ConfigProvider, Dropdown, Modal, Popover, Tooltip, theme as antdTheme } from "antd";
 import enUS from "antd/locale/en_US";
 import zhCN from "antd/locale/zh_CN";
-import { Archive, BarChart3, Bell, CalendarClock, Check, CircleHelp, Cloud, Download, Github, LogIn, LogOut, Megaphone, MessageSquareText, Palette, Play, Plus, RefreshCw, RotateCcw, Server, Settings, ShieldCheck, Upload, UploadCloud, UserRound } from "lucide-react";
+import { Archive, BarChart3, Bell, CalendarClock, Check, CircleHelp, Cloud, Download, Github, LogIn, LogOut, Megaphone, MessageSquareText, PackageOpen, Palette, Play, Plus, RefreshCw, RotateCcw, Server, Settings, ShieldCheck, Upload, UploadCloud, UserRound } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { checkForUpdate, chooseAndExportDiagnosticLogs, consumeResetCredit, DEFAULT_CLOUD_BASE_URL, downloadAvailableUpdate, fetchCloudAnnouncement, fetchCloudFaqs, fetchCloudNotifications, installDownloadedUpdate, isDesktopApp, launchChatGpt, openManagedFolder, reportAnnouncementClick, reportBaseUrlChange, reportDeviceActivity, reportFirstInstallation, restartChatGpt, showTokenUsageWindow, submitFeedback, subscribeToCloudSessionExpired } from "./api/backend";
 import { AboutModal } from "./components/modals/AboutModal";
@@ -34,6 +34,7 @@ import { AccountsPage } from "./pages/AccountsPage";
 import { DreamSkinPage } from "./pages/DreamSkinPage";
 import { ProvidersPage } from "./pages/ProvidersPage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { SkillsMarketPage } from "./pages/SkillsMarketPage";
 import { formatRefreshTime } from "./utils/format";
 import type { BubbleResetDisplay, BubbleStyle, CloudAnnouncement, CloudFaq, CloudNotification, UpdateInfo } from "./types";
 
@@ -46,6 +47,7 @@ const MemoAccountsPage = memo(AccountsPage);
 const MemoDreamSkinPage = memo(DreamSkinPage);
 const MemoProvidersPage = memo(ProvidersPage);
 const MemoSettingsPage = memo(SettingsPage);
+const MemoSkillsMarketPage = memo(SkillsMarketPage);
 
 function storedRefreshAllTime() {
   const value = window.localStorage.getItem(LAST_REFRESH_ALL_KEY);
@@ -64,7 +66,7 @@ function normalizeHttpUrl(value: string | undefined) {
 }
 
 function DashboardApp() {
-  const [page, setPage] = useState<"accounts" | "providers" | "tokens" | "dreamSkin" | "settings">("accounts");
+  const [page, setPage] = useState<"accounts" | "providers" | "tokens" | "dreamSkin" | "skills" | "settings">("accounts");
   const [showLogin, setShowLogin] = useState(false);
   const [showCloudLogin, setShowCloudLogin] = useState(false);
   const [cloudSessionExpired, setCloudSessionExpired] = useState(false);
@@ -796,8 +798,8 @@ function DashboardApp() {
               <BarChart3 size={19} />{t("nav.tokenUsage")}</button>
             <button className={page === "dreamSkin" ? "selected" : ""} onClick={() => setPage("dreamSkin")}>
               <Palette size={19} />{t("nav.dreamSkin")}</button>
-            <button className={page === "settings" ? "selected" : ""} onClick={() => setPage("settings")}>
-              <Settings size={19} />{t("nav.settings")}</button>
+            <button className={page === "skills" ? "selected" : ""} onClick={() => setPage("skills")}>
+              <PackageOpen size={19} />{t("nav.skills")}</button>
           </nav>
           <div className="menu-tools">
             {cloud.state.enabled ? (
@@ -811,6 +813,7 @@ function DashboardApp() {
                       { type: "divider" },
                       { key: "logout", icon: <LogOut size={15} />, label: t("cloud.logout"), disabled: cloud.loading },
                       { type: "divider" },
+                      { key: "settings", icon: <Settings size={15} />, label: t("nav.settings") },
                       { key: "checkUpdate", icon: <RefreshCw size={15} />, label: t("update.check"), disabled: checkingForUpdate },
                       { key: "feedback", icon: <MessageSquareText size={15} />, label: t("feedback.title") },
                       { key: "repository", icon: <Github size={15} />, label: t("help.github") },
@@ -820,6 +823,7 @@ function DashboardApp() {
                     : [
                       { key: "login", icon: <LogIn size={15} />, label: t("cloud.login"), disabled: cloud.loading },
                       { type: "divider" },
+                      { key: "settings", icon: <Settings size={15} />, label: t("nav.settings") },
                       { key: "checkUpdate", icon: <RefreshCw size={15} />, label: t("update.check"), disabled: checkingForUpdate },
                       { key: "feedback", icon: <MessageSquareText size={15} />, label: t("feedback.title") },
                       { key: "repository", icon: <Github size={15} />, label: t("help.github") },
@@ -830,6 +834,7 @@ function DashboardApp() {
                     if (key === "account") openCloudAccount();
                     if (key === "logout") void cloud.logout();
                     if (key === "login") openCloudLogin();
+                    if (key === "settings") setPage("settings");
                     if (key === "checkUpdate") void checkForUpdates();
                     if (key === "feedback") setShowFeedback(true);
                     if (key === "help") openHelp();
@@ -898,9 +903,15 @@ function DashboardApp() {
               <TokenUsageHeatmap weeks={tokenUsagePreferences.weeks}
                 refreshSeconds={tokenUsagePreferences.refreshSeconds} language={language} t={t} />
             ) : (
-              <div><span className="eyebrow">{page === "providers" ? t("topbar.providersEyebrow") : t("topbar.eyebrow")}</span>
+              <div><span className="eyebrow">{page === "providers"
+                ? t("topbar.providersEyebrow")
+                : page === "skills"
+                  ? t("topbar.skillsEyebrow")
+                  : t("topbar.eyebrow")}</span>
                 <h1>{page === "settings"
                   ? t("topbar.settings")
+                  : page === "skills"
+                    ? t("topbar.skills")
                   : page === "providers"
                     ? t("topbar.providers", { count: providerManager.providers.length })
                     : t("topbar.accounts", { count: manager.accounts.length })}</h1></div>
@@ -984,6 +995,11 @@ function DashboardApp() {
               onOpenCodexHome={openCodexHome} onOpenAccountStore={openAccountStore} language={language}
               onExportLogs={() => void exportLogs()} exportingLogs={exportingLogs}
               onLanguageChange={setLanguage} t={t} />
+          </section>
+          <section className="page-panel" hidden={page !== "skills"}>
+            <MemoSkillsMarketPage baseUrl={cloud.state.baseUrl}
+              authenticated={cloud.state.authenticated} currentUserId={cloud.state.userId}
+              onLogin={openCloudLogin} notify={notify} t={t} />
           </section>
           <section className="page-panel" hidden={page !== "providers"}>
             <MemoProvidersPage providers={providerManager.providers} accounts={manager.accounts}

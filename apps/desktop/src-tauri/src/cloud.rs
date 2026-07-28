@@ -29,6 +29,7 @@ use crate::{
         AccountFieldModifiedAt, AppSettings, CloudAccountPayload, CloudAuthState, CloudSyncResult,
         ProviderProfile, ProviderSyncPayload,
     },
+    skills_market::{SkillMarketItem, SkillMarketResponse, SkillPreview},
     storage::{
         auto_switch_priority_path, expiration_path, load_auto_switch_priority, load_expiration,
         load_note, load_or_init_account_field_modified_at, load_or_init_last_modified, load_usage,
@@ -1376,6 +1377,122 @@ pub(crate) async fn fetch_cloud_faqs<R: Runtime>(
     })
     .await
     .map_err(|error| format!("FAQ request task failed: {error}"))?
+}
+
+pub(crate) fn fetch_skill_market_items<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+) -> Result<Vec<SkillMarketItem>, String> {
+    let client = api_client()?;
+    let settings = read_app_settings(app)?;
+    let response = client
+        .get(endpoint(&settings, "/skills")?)
+        .header("Accept", "application/json")
+        .send()
+        .map_err(|error| format!("Skill market request failed: {error}"))?;
+    if !response.status().is_success() {
+        return Err(response_error("Skill market request", response));
+    }
+    response
+        .json::<SkillMarketResponse>()
+        .map(|response| response.items)
+        .map_err(|error| format!("Skill market response is invalid: {error}"))
+}
+
+pub(crate) fn upload_skill_market_item<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    title: &str,
+    description: &str,
+    version: &str,
+    skill_id: Option<&str>,
+    archive_file_name: &str,
+    archive: &[u8],
+    preview: Option<&SkillPreview>,
+) -> Result<SkillMarketItem, String> {
+    let _credentials_guard = lock_cloud_credentials()?;
+    let client = feedback_client()?;
+    let mut settings = read_app_settings(app)?;
+    let mut credentials = read_cloud_credentials(app);
+    if credentials.access_token.is_none() || credentials.refresh_token.is_none() {
+        return Err("Please sign in before publishing a skill".to_string());
+    }
+    let method = if skill_id.is_some() {
+        Method::PATCH
+    } else {
+        Method::POST
+    };
+    let path = skill_id
+        .map(|id| format!("/skills/{id}"))
+        .unwrap_or_else(|| "/skills".to_string());
+    let mut final_response = None;
+    for attempt in 0..2 {
+        let archive_part = multipart::Part::bytes(archive.to_vec())
+            .file_name(archive_file_name.to_string())
+            .mime_str("application/zip")
+            .map_err(|error| format!("Could not prepare skill archive upload: {error}"))?;
+        let mut form = multipart::Form::new()
+            .text("title", title.to_string())
+            .text("description", description.to_string())
+            .text("version", version.to_string())
+            .part("archive", archive_part);
+        if let Some(preview) = preview {
+            let preview_part = multipart::Part::bytes(preview.data.clone())
+                .file_name(preview.file_name.clone())
+                .mime_str(&preview.mime_type)
+                .map_err(|error| format!("Could not prepare skill preview upload: {error}"))?;
+            form = form.part("preview", preview_part);
+        }
+        let access_token = credentials
+            .access_token
+            .as_deref()
+            .ok_or_else(|| "Cloud access token is missing. Please log in again.".to_string())?;
+        let response = client
+            .request(method.clone(), endpoint(&settings, &path)?)
+            .bearer_auth(access_token)
+            .header("Accept", "application/json")
+            .multipart(form)
+            .send()
+            .map_err(|error| format!("Skill upload failed: {error}"))?;
+        if response.status() != StatusCode::UNAUTHORIZED || attempt == 1 {
+            final_response = Some(response);
+            break;
+        }
+        refresh_cloud_token(app, &client, &mut settings, &mut credentials)?;
+    }
+    write_app_settings(app, &settings)?;
+    write_cloud_credentials(app, &credentials)?;
+    let response = final_response.ok_or_else(|| "Skill upload failed".to_string())?;
+    if !response.status().is_success() {
+        return Err(response_error("Skill upload", response));
+    }
+    response
+        .json()
+        .map_err(|error| format!("Skill upload response is invalid: {error}"))
+}
+
+pub(crate) fn download_skill_market_archive<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    skill_id: &str,
+) -> Result<Vec<u8>, String> {
+    let client = api_client()?;
+    let settings = read_app_settings(app)?;
+    let response = client
+        .get(endpoint(
+            &settings,
+            &format!("/skills/{skill_id}/download"),
+        )?)
+        .header("Accept", "application/zip")
+        .send()
+        .map_err(|error| format!("Skill download failed: {error}"))?;
+    if !response.status().is_success() {
+        return Err(response_error("Skill download", response));
+    }
+    let bytes = response
+        .bytes()
+        .map_err(|error| format!("Could not read skill download: {error}"))?;
+    if bytes.len() > crate::skills_market::MAX_SKILL_ARCHIVE_BYTES {
+        return Err("Downloaded skill archive exceeds the 1 MB limit".to_string());
+    }
+    Ok(bytes.to_vec())
 }
 
 #[tauri::command]
