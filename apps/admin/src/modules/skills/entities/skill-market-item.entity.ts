@@ -53,6 +53,9 @@ export class SkillMarketItemEntity {
   @Column({ type: 'varchar', length: 160 })
   uploaderEmail: string;
 
+  @Column({ type: 'boolean', default: false })
+  official: boolean;
+
   @Column({ type: 'integer', default: 0 })
   installCount: number;
 

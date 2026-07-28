@@ -12,7 +12,7 @@ import {
   type TableColumnsType,
   type TableProps,
 } from "antd";
-import { Cable, Columns3, Eye, RefreshCw } from "lucide-react";
+import { Cable, Columns3, Eye, GripVertical, Lock, RefreshCw } from "lucide-react";
 import { loadProxySessionRequests, loadProxySessions } from "../api/backend";
 import type { Translate } from "../i18n";
 import type { ProxySession, ProxySessionRequest } from "../types";
@@ -32,6 +32,7 @@ type ProxySessionColumnKey =
 
 const ACTIVITY_FILTER_STORAGE_KEY = "codex-switch.proxy-session-activity-filter";
 const HIDDEN_COLUMNS_STORAGE_KEY = "codex-switch:proxy-session-hidden-columns";
+const COLUMN_ORDER_STORAGE_KEY = "codex-switch:proxy-session-column-order";
 const PROXY_SESSION_COLUMN_KEYS: ProxySessionColumnKey[] = [
   "conversation",
   "connection",
@@ -40,6 +41,10 @@ const PROXY_SESSION_COLUMN_KEYS: ProxySessionColumnKey[] = [
   "tokens",
   "activity",
 ];
+const REORDERABLE_COLUMN_KEYS = PROXY_SESSION_COLUMN_KEYS.filter(
+  (key): key is Exclude<ProxySessionColumnKey, "activity"> => key !== "activity",
+);
+type ReorderableColumnKey = typeof REORDERABLE_COLUMN_KEYS[number];
 
 function isProxySessionColumnKey(value: unknown): value is ProxySessionColumnKey {
   return typeof value === "string"
@@ -64,6 +69,35 @@ function persistHiddenColumns(columns: ProxySessionColumnKey[]) {
     window.localStorage.setItem(HIDDEN_COLUMNS_STORAGE_KEY, JSON.stringify(columns));
   } catch {
     // Keep the in-memory selection when local storage is unavailable.
+  }
+}
+
+function isReorderableColumnKey(value: unknown): value is ReorderableColumnKey {
+  return isProxySessionColumnKey(value) && value !== "activity";
+}
+
+function loadColumnOrder(): ReorderableColumnKey[] {
+  try {
+    const parsed: unknown = JSON.parse(
+      window.localStorage.getItem(COLUMN_ORDER_STORAGE_KEY) ?? "[]",
+    );
+    const stored = Array.isArray(parsed)
+      ? [...new Set(parsed.filter(isReorderableColumnKey))]
+      : [];
+    return [
+      ...stored,
+      ...REORDERABLE_COLUMN_KEYS.filter((key) => !stored.includes(key)),
+    ];
+  } catch {
+    return [...REORDERABLE_COLUMN_KEYS];
+  }
+}
+
+function persistColumnOrder(columns: ReorderableColumnKey[]) {
+  try {
+    window.localStorage.setItem(COLUMN_ORDER_STORAGE_KEY, JSON.stringify(columns));
+  } catch {
+    // Keep the in-memory order when local storage is unavailable.
   }
 }
 
@@ -199,6 +233,9 @@ export function ProxySessionManager({ t }: ProxySessionManagerProps) {
   const [error, setError] = useState("");
   const [activityFilter, setActivityFilter] = useState<ActivityFilter[]>(loadActivityFilter);
   const [hiddenColumns, setHiddenColumns] = useState<ProxySessionColumnKey[]>(loadHiddenColumns);
+  const [columnOrder, setColumnOrder] = useState<ReorderableColumnKey[]>(loadColumnOrder);
+  const [draggedColumn, setDraggedColumn] = useState<ReorderableColumnKey | null>(null);
+  const [dragTargetColumn, setDragTargetColumn] = useState<ReorderableColumnKey | null>(null);
   const [detailsSession, setDetailsSession] = useState<ProxySession | null>(null);
   const [requestDetails, setRequestDetails] = useState<ProxySessionRequest[]>([]);
   const [detailsLoading, setDetailsLoading] = useState(false);
@@ -377,20 +414,37 @@ export function ProxySessionManager({ t }: ProxySessionManagerProps) {
   ], [activityFilter, openRequestDetails, t]);
 
   const hiddenColumnSet = useMemo(() => new Set(hiddenColumns), [hiddenColumns]);
+  const columnLabels = useMemo<Record<ProxySessionColumnKey, string>>(() => ({
+    conversation: t("providers.proxy.sessionsConversation"),
+    connection: t("providers.proxy.sessionsConnection"),
+    target: t("providers.proxy.sessionsTarget"),
+    context: t("providers.proxy.sessionsContext"),
+    tokens: t("providers.proxy.sessionsTokens"),
+    activity: t("providers.proxy.sessionsActivity"),
+  }), [t]);
+  const orderedColumns = useMemo(() => {
+    const columnsByKey = new Map(
+      columns
+        .filter((column) => isProxySessionColumnKey(column.key))
+        .map((column) => [column.key as ProxySessionColumnKey, column]),
+    );
+    return [...columnOrder, "activity" as const]
+      .map((key) => columnsByKey.get(key))
+      .filter((column): column is NonNullable<typeof column> => column != null);
+  }, [columnOrder, columns]);
   const visibleColumns = useMemo(
-    () => columns.filter(
+    () => orderedColumns.filter(
       (column) => !isProxySessionColumnKey(column.key) || !hiddenColumnSet.has(column.key),
     ),
-    [columns, hiddenColumnSet],
+    [hiddenColumnSet, orderedColumns],
   );
-  const columnSettings = useMemo<{ key: ProxySessionColumnKey; label: string }[]>(() => [
-    { key: "conversation", label: t("providers.proxy.sessionsConversation") },
-    { key: "connection", label: t("providers.proxy.sessionsConnection") },
-    { key: "target", label: t("providers.proxy.sessionsTarget") },
-    { key: "context", label: t("providers.proxy.sessionsContext") },
-    { key: "tokens", label: t("providers.proxy.sessionsTokens") },
-    { key: "activity", label: t("providers.proxy.sessionsActivity") },
-  ], [t]);
+  const columnSettings = useMemo<{ key: ProxySessionColumnKey; label: string }[]>(
+    () => [...columnOrder, "activity" as const].map((key) => ({
+      key,
+      label: columnLabels[key],
+    })),
+    [columnLabels, columnOrder],
+  );
   const visibleColumnCount = columnSettings.filter(
     ({ key }) => !hiddenColumnSet.has(key),
   ).length;
@@ -402,6 +456,32 @@ export function ProxySessionManager({ t }: ProxySessionManagerProps) {
         ? current.filter((column) => column !== key)
         : [...new Set([...current, key])];
       persistHiddenColumns(next);
+      return next;
+    });
+  };
+
+  const reorderColumn = (
+    source: ReorderableColumnKey,
+    target: ReorderableColumnKey,
+  ) => {
+    if (source === target) return;
+    setColumnOrder((current) => {
+      const next = current.filter((key) => key !== source);
+      next.splice(current.indexOf(target), 0, source);
+      persistColumnOrder(next);
+      return next;
+    });
+  };
+
+  const moveColumn = (key: ReorderableColumnKey, offset: number) => {
+    setColumnOrder((current) => {
+      const sourceIndex = current.indexOf(key);
+      const targetIndex = Math.max(0, Math.min(current.length - 1, sourceIndex + offset));
+      if (sourceIndex === targetIndex) return current;
+      const next = [...current];
+      next.splice(sourceIndex, 1);
+      next.splice(targetIndex, 0, key);
+      persistColumnOrder(next);
       return next;
     });
   };
@@ -446,6 +526,28 @@ export function ProxySessionManager({ t }: ProxySessionManagerProps) {
       ),
     },
     {
+      title: t("providers.proxy.sessionsRequestFirstResponseTime"),
+      dataIndex: "firstResponseTimeMs",
+      key: "firstResponseTimeMs",
+      width: 130,
+      align: "right",
+      render: (firstResponseTimeMs: number | null | undefined, request) => {
+        if (firstResponseTimeMs != null) {
+          return <strong>{formatResponseTime(firstResponseTimeMs)}</strong>;
+        }
+        if (request.responseTimeMs != null) {
+          return <span className="proxy-session-muted">—</span>;
+        }
+        return (
+          <Tag color="processing">
+            {t("providers.proxy.sessionsRequestAwaitingFirstResponse", {
+              time: formatResponseTime(Math.max(0, Date.now() - request.startedAt * 1_000)),
+            })}
+          </Tag>
+        );
+      },
+    },
+    {
       title: t("providers.proxy.sessionsRequestResponseTime"),
       dataIndex: "responseTimeMs",
       key: "responseTimeMs",
@@ -454,12 +556,21 @@ export function ProxySessionManager({ t }: ProxySessionManagerProps) {
       render: (responseTimeMs: number | null | undefined, request) => {
         const elapsedMs = responseTimeMs
           ?? Math.max(0, Date.now() - request.startedAt * 1_000);
-        const label = t("providers.proxy.sessionsRequestResponded", {
-          time: formatResponseTime(elapsedMs),
-        });
         return responseTimeMs == null
-          ? <Tag color="processing">{label}</Tag>
-          : <strong>{label}</strong>;
+          ? (
+              <Tag color="processing">
+                {t("providers.proxy.sessionsRequestInProgress", {
+                  time: formatResponseTime(elapsedMs),
+                })}
+              </Tag>
+            )
+          : (
+              <strong>
+                {t("providers.proxy.sessionsRequestResponded", {
+                  time: formatResponseTime(elapsedMs),
+                })}
+              </strong>
+            );
       },
     },
     {
@@ -529,15 +640,70 @@ export function ProxySessionManager({ t }: ProxySessionManagerProps) {
                 <div className="proxy-session-column-settings-list">
                   {columnSettings.map(({ key, label }) => {
                     const checked = !hiddenColumnSet.has(key);
+                    const reorderable = isReorderableColumnKey(key);
                     return (
-                      <Checkbox
+                      <div
                         key={key}
-                        checked={checked}
-                        disabled={checked && visibleColumnCount <= 1}
-                        onChange={(event) => setColumnVisible(key, event.target.checked)}
+                        className={[
+                          "proxy-session-column-setting-item",
+                          draggedColumn === key ? "is-dragging" : "",
+                          dragTargetColumn === key ? "is-drag-target" : "",
+                        ].filter(Boolean).join(" ")}
+                        onDragOver={reorderable ? (event) => {
+                          event.preventDefault();
+                          event.dataTransfer.dropEffect = "move";
+                          setDragTargetColumn(key);
+                        } : undefined}
+                        onDragLeave={reorderable ? () => {
+                          setDragTargetColumn((current) => current === key ? null : current);
+                        } : undefined}
+                        onDrop={reorderable ? (event) => {
+                          event.preventDefault();
+                          if (draggedColumn) reorderColumn(draggedColumn, key);
+                          setDraggedColumn(null);
+                          setDragTargetColumn(null);
+                        } : undefined}
                       >
-                        {label}
-                      </Checkbox>
+                        {reorderable ? (
+                          <span
+                            className="proxy-session-column-drag-handle"
+                            role="button"
+                            tabIndex={0}
+                            draggable
+                            title={t("table.columnOrderDrag", { column: label })}
+                            aria-label={t("table.columnOrderDrag", { column: label })}
+                            onDragStart={(event) => {
+                              event.dataTransfer.effectAllowed = "move";
+                              event.dataTransfer.setData("text/plain", key);
+                              setDraggedColumn(key);
+                            }}
+                            onDragEnd={() => {
+                              setDraggedColumn(null);
+                              setDragTargetColumn(null);
+                            }}
+                            onKeyDown={(event) => {
+                              if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+                              event.preventDefault();
+                              moveColumn(key, event.key === "ArrowUp" ? -1 : 1);
+                            }}
+                          >
+                            <GripVertical size={14} aria-hidden="true" />
+                          </span>
+                        ) : (
+                          <Tooltip title={t("table.columnOrderFixedLast")}>
+                            <span className="proxy-session-column-fixed-icon">
+                              <Lock size={12} aria-hidden="true" />
+                            </span>
+                          </Tooltip>
+                        )}
+                        <Checkbox
+                          checked={checked}
+                          disabled={checked && visibleColumnCount <= 1}
+                          onChange={(event) => setColumnVisible(key, event.target.checked)}
+                        >
+                          {label}
+                        </Checkbox>
+                      </div>
                     );
                   })}
                 </div>
@@ -610,7 +776,7 @@ export function ProxySessionManager({ t }: ProxySessionManagerProps) {
           dataSource={requestDetails}
           pagination={requestDetails.length > 10 ? { pageSize: 10, size: "small" } : false}
           locale={{ emptyText: t("providers.proxy.sessionsRequestDetailsEmpty") }}
-          scroll={{ x: 800, y: "calc(80vh - 260px)" }}
+          scroll={{ x: 930, y: "calc(80vh - 260px)" }}
         />
       </Modal>
     </>

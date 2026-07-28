@@ -355,6 +355,7 @@ export function SkillsMarketPage({
                   ) : (
                     <div className="skill-card-default-preview"><PackageOpen size={34} /><span>SKILL</span></div>
                   )}
+                  {skill.official && <span className="skill-official-badge">{t("skills.official")}</span>}
                   <span className="skill-version">v{skill.version}</span>
                 </div>
                 <div className="skill-card-body">

@@ -29,6 +29,8 @@ pub(crate) struct SkillMarketItem {
     pub(crate) archive_sha256: String,
     pub(crate) has_preview: bool,
     pub(crate) uploader_id: Option<String>,
+    #[serde(default)]
+    pub(crate) official: bool,
     pub(crate) install_count: u64,
     pub(crate) created_at: String,
     pub(crate) updated_at: String,

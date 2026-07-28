@@ -157,6 +157,17 @@ h1 { margin: 5px 0 0; font: 700 26px/1.1 Manrope, sans-serif; letter-spacing: -.
 .proxy-session-column-settings-list { display: grid; gap: 7px; }
 .account-column-settings-list .ant-checkbox-wrapper,
 .proxy-session-column-settings-list .ant-checkbox-wrapper { margin-inline-start: 0; color: var(--ink); font-size: 11px; }
+.proxy-session-column-setting-item { min-width: 0; height: 24px; display: flex; align-items: center; gap: 5px; margin: 0 -4px; padding: 0 4px; border: 1px solid transparent; border-radius: 6px; transition: border-color .15s ease, background .15s ease, opacity .15s ease; }
+.proxy-session-column-setting-item.is-dragging { opacity: .42; }
+.proxy-session-column-setting-item.is-drag-target { border-color: rgba(var(--green-rgb), .55); background: var(--green-soft); }
+.proxy-session-column-setting-item .ant-checkbox-wrapper { min-width: 0; flex: 1; }
+.proxy-session-column-drag-handle,
+.proxy-session-column-fixed-icon { width: 17px; height: 22px; flex: 0 0 auto; display: grid; place-items: center; color: #93a098; }
+.proxy-session-column-drag-handle { border-radius: 4px; cursor: grab; }
+.proxy-session-column-drag-handle:hover,
+.proxy-session-column-drag-handle:focus-visible { color: var(--green-dark); background: var(--green-selection); outline: none; }
+.proxy-session-column-drag-handle:active { cursor: grabbing; }
+.proxy-session-column-fixed-icon { color: #aab3ad; }
 main.accounts-main .accounts-page { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; padding: 8px 0 16px; }
 main.accounts-main .accounts-page .home-proxy-wrap { flex: 0 0 auto; margin: 0 16px; }
 main.accounts-main .accounts-page .account-table-wrap { flex: 1; min-height: 0; margin: 0 16px; }
@@ -1407,6 +1418,7 @@ html.floating-usage-page #root {
 .skill-card-preview > img { width: 100%; height: 100%; display: block; object-fit: cover; }
 .skill-card-default-preview { width: 100%; height: 100%; display: grid; place-content: center; justify-items: center; gap: 7px; color: rgba(255,255,255,.88); background: radial-gradient(circle at 80% 12%, rgba(255,255,255,.32), transparent 28%), linear-gradient(135deg, var(--green-dark), var(--green-highlight)); }
 .skill-card-default-preview span { font: 750 9px/1 Manrope, sans-serif; letter-spacing: .18em; }
+.skill-official-badge { position: absolute; left: 10px; top: 9px; padding: 4px 8px; border: 1px solid rgba(255,255,255,.5); border-radius: 999px; color: #fff; background: rgba(var(--green-rgb), .9); box-shadow: 0 3px 10px rgba(15,35,25,.16); backdrop-filter: blur(8px); font-size: 9px; font-weight: 750; letter-spacing: .04em; }
 .skill-version { position: absolute; right: 10px; bottom: 9px; padding: 4px 7px; border: 1px solid rgba(255,255,255,.38); border-radius: 999px; color: #fff; background: rgba(15, 35, 25, .68); backdrop-filter: blur(8px); font-size: 9px; font-weight: 700; }
 .skill-card-body { padding: 15px; display: grid; gap: 11px; }
 .skill-card-title { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
