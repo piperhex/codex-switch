@@ -802,9 +802,7 @@ function DashboardApp() {
               <PackageOpen size={19} />{t("nav.skills")}</button>
           </nav>
           <div className="menu-tools">
-            {cloud.state.enabled ? (
-              <>
-              <Dropdown
+            <Dropdown
                 trigger={["click"]}
                 menu={{
                   items: cloud.state.authenticated
@@ -850,11 +848,7 @@ function DashboardApp() {
                     ? <span>{(cloud.state.userEmail ?? t("cloud.signedIn")).slice(0, 4).toUpperCase()}</span>
                     : <UserRound size={18} />}
                 </button>
-              </Dropdown>
-              </>
-            ) : (
-              <div className="security-chip"><ShieldCheck size={16} /><span><b>{t("chip.title")}</b><small>{t("chip.description")}</small></span></div>
-            )}
+            </Dropdown>
             <Popover
               placement="bottomRight"
               trigger="click"

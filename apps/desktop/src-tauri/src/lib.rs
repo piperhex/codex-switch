@@ -9,6 +9,7 @@ mod dream_skin;
 mod dream_skin_native;
 mod floating_bubble;
 mod local_proxy;
+mod main_window;
 mod models;
 mod oauth;
 mod providers;
@@ -19,37 +20,18 @@ mod system_proxy;
 mod system_tray;
 
 use oauth::AppState;
-use tauri::{LogicalSize, Manager, Runtime};
-
-const MAIN_WINDOW_HEIGHT: f64 = 760.0;
-const MAIN_WINDOW_WIDTH_RATIO: f64 = 0.8;
-
-fn size_main_window_to_screen<R: Runtime>(app: &tauri::App<R>) -> tauri::Result<()> {
-    let Some(window) = app.get_webview_window("main") else {
-        return Ok(());
-    };
-    let Some(monitor) = window.current_monitor()?.or(app.primary_monitor()?) else {
-        return Ok(());
-    };
-    let work_area = monitor.work_area();
-    let screen_size = work_area.size.to_logical::<f64>(monitor.scale_factor());
-    let width = (screen_size.width * MAIN_WINDOW_WIDTH_RATIO).max(960.0);
-
-    window.set_size(LogicalSize::new(width, MAIN_WINDOW_HEIGHT))?;
-    window.center()?;
-    Ok(())
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .manage(AppState::default())
+        .manage(main_window::MainWindowStateCache::default())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
-            size_main_window_to_screen(app)?;
+            storage::migrate_app_settings_for_version(app.handle())?;
+            main_window::restore_or_set_default(app)?;
             commands::initialize_local_state(app.handle());
             if let Err(error) = dream_skin::setup(app.handle()) {
                 eprintln!("failed to restore Dream Skin monitor: {error}");
@@ -69,7 +51,14 @@ pub fn run() {
         })
         .on_window_event(|window, event| {
             if window.label() == "main" {
+                if matches!(
+                    event,
+                    tauri::WindowEvent::Moved(_) | tauri::WindowEvent::Resized(_)
+                ) {
+                    main_window::remember(window);
+                }
                 if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    main_window::remember_and_save(window);
                     api.prevent_close();
                     let _ = window.hide();
                 }
@@ -186,6 +175,13 @@ pub fn run() {
             skills_market::upload_market_skill,
             skills_market::install_market_skill,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running Codex Switch");
+        .build(tauri::generate_context!())
+        .expect("error while building Codex Switch")
+        .run(|app, event| {
+            if matches!(event, tauri::RunEvent::ExitRequested { .. }) {
+                if let Err(error) = main_window::save_current(app) {
+                    eprintln!("failed to save main window state before exit: {error}");
+                }
+            }
+        });
 }

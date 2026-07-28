@@ -4256,15 +4256,33 @@ fn chat_to_responses_json(chat: &Value, tool_context: &CodexToolContext) -> Valu
             output.push(chat_tool_call_to_response_item(call, index, tool_context));
         }
     }
-    json!({
+    let mut response = json!({
         "id": id,
         "object": "response",
         "created_at": unix_now(),
         "status": "completed",
         "model": model,
-        "output": output,
-        "usage": chat.get("usage").cloned().unwrap_or_else(|| json!(null))
-    })
+        "output": output
+    });
+    if let Some(usage) = chat.get("usage").and_then(chat_usage_to_responses_usage) {
+        response["usage"] = usage;
+    }
+    response
+}
+
+fn chat_usage_to_responses_usage(usage: &Value) -> Option<Value> {
+    let usage = token_usage_values_from_usage(usage);
+    Some(json!({
+        "input_tokens": usage.input_tokens?,
+        "input_tokens_details": {
+            "cached_tokens": usage.cached_tokens.unwrap_or(0)
+        },
+        "output_tokens": usage.output_tokens?,
+        "output_tokens_details": {
+            "reasoning_tokens": usage.reasoning_tokens.unwrap_or(0)
+        },
+        "total_tokens": usage.total_tokens?
+    }))
 }
 
 fn chat_tool_call_to_response_item(
@@ -4565,8 +4583,12 @@ impl<R: BufRead> ChatSseReader<R> {
         let Ok(value) = serde_json::from_str::<Value>(&data) else {
             return;
         };
-        if let Some(usage) = value.get("usage").filter(|usage| !usage.is_null()) {
-            self.usage = Some(usage.clone());
+        if let Some(usage) = value
+            .get("usage")
+            .filter(|usage| !usage.is_null())
+            .and_then(chat_usage_to_responses_usage)
+        {
+            self.usage = Some(usage);
         }
         if let Some(delta) = chat_stream_delta_text(&value) {
             if !delta.is_empty() {
@@ -5109,6 +5131,22 @@ mod tests {
         atomic::{AtomicUsize, Ordering as AtomicOrdering},
         mpsc,
     };
+
+    fn sse_event(output: &str, event_type: &str) -> Value {
+        output
+            .split("\n\n")
+            .filter_map(|block| {
+                let data = block
+                    .lines()
+                    .filter_map(|line| line.trim_start().strip_prefix("data:"))
+                    .map(str::trim_start)
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                serde_json::from_str::<Value>(&data).ok()
+            })
+            .find(|value| value.get("type").and_then(Value::as_str) == Some(event_type))
+            .unwrap_or_else(|| panic!("missing SSE event {event_type}"))
+    }
 
     #[test]
     fn proxy_bind_host_uses_loopback_unless_lan_listening_is_enabled() {
@@ -6516,6 +6554,7 @@ mod tests {
         let sse = concat!(
             "data: {\"choices\":[{\"delta\":{\"reasoning_content\":\"thinking\"}}]}\n\n",
             "data: {\"choices\":[{\"delta\":{\"content\":\" done\"}}]}\n\n",
+            "data: {\"choices\":[],\"usage\":{\"prompt_tokens\":12,\"completion_tokens\":4,\"total_tokens\":16,\"prompt_cache_hit_tokens\":7,\"completion_tokens_details\":{\"reasoning_tokens\":3}}}\n\n",
             "data: [DONE]\n\n"
         );
         let mut reader = ChatSseReader::new(
@@ -6532,6 +6571,17 @@ mod tests {
         assert!(output.contains(" done"));
         assert!(output.contains("response.completed"));
         assert!(output.ends_with("data: [DONE]\n\n"));
+        let completed = sse_event(&output, "response.completed");
+        assert_eq!(
+            completed["response"]["usage"],
+            json!({
+                "input_tokens": 12,
+                "input_tokens_details": { "cached_tokens": 7 },
+                "output_tokens": 4,
+                "output_tokens_details": { "reasoning_tokens": 3 },
+                "total_tokens": 16
+            })
+        );
     }
 
     #[test]
@@ -6653,5 +6703,15 @@ mod tests {
         };
         let response_json: Value = serde_json::from_slice(&response_body).unwrap();
         assert_eq!(response_json["output"][0]["content"][0]["text"], "ok");
+        assert_eq!(
+            response_json["usage"],
+            json!({
+                "input_tokens": 1,
+                "input_tokens_details": { "cached_tokens": 0 },
+                "output_tokens": 1,
+                "output_tokens_details": { "reasoning_tokens": 0 },
+                "total_tokens": 2
+            })
+        );
     }
 }

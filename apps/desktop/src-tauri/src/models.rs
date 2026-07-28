@@ -289,6 +289,8 @@ pub(crate) struct AppSettings {
     pub(crate) token_usage_weeks: u16,
     #[serde(default = "default_token_usage_refresh_seconds")]
     pub(crate) token_usage_refresh_seconds: u64,
+    #[serde(default)]
+    pub(crate) last_started_version: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -360,6 +362,7 @@ impl Default for AppSettings {
             cloud_session_expired: false,
             token_usage_weeks: default_token_usage_weeks(),
             token_usage_refresh_seconds: default_token_usage_refresh_seconds(),
+            last_started_version: None,
         }
     }
 }
