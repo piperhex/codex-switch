@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS skill_market_items (
   "previewData" bytea NULL,
   "uploaderId" uuid NULL,
   "uploaderEmail" varchar(160) NOT NULL,
+  "official" boolean NOT NULL DEFAULT false,
   "installCount" integer NOT NULL DEFAULT 0,
   "createdAt" timestamptz NOT NULL DEFAULT now(),
   "updatedAt" timestamptz NOT NULL DEFAULT now(),

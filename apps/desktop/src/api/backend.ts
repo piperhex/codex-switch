@@ -384,6 +384,7 @@ export async function loadProxySessionRequests(sessionId: string): Promise<Proxy
           startedAt: now - 3,
           model: "gpt-5.6-sol",
           reasoningEffort: "high",
+          firstResponseTimeMs: 1_460,
           responseTimeMs: null,
           totalTokens: null,
           inputTokens: null,
@@ -396,6 +397,7 @@ export async function loadProxySessionRequests(sessionId: string): Promise<Proxy
           startedAt: now - 92,
           model: "gpt-5.6-sol",
           reasoningEffort: "xhigh",
+          firstResponseTimeMs: 2_310,
           responseTimeMs: 16_720,
           totalTokens: 85_848,
           inputTokens: 72_088,
@@ -410,6 +412,7 @@ export async function loadProxySessionRequests(sessionId: string): Promise<Proxy
           startedAt: now - 27,
           model: "gpt-5.6-terra",
           reasoningEffort: "medium",
+          firstResponseTimeMs: 840,
           responseTimeMs: 3_280,
           totalTokens: 19_580,
           inputTokens: 17_204,
@@ -431,11 +434,11 @@ export async function loadRecentProxySessionLatency(): Promise<ProxySessionLaten
       .slice(0, 5);
     const requests = await Promise.all(sessions.map((session) => loadProxySessionRequests(session.id)));
     return requests.flat().reduce<ProxySessionLatencySummary>((summary, request) => {
-      if (request.responseTimeMs == null) return summary;
-      summary.totalResponseTimeMs += request.responseTimeMs;
+      if (request.firstResponseTimeMs == null) return summary;
+      summary.totalFirstResponseTimeMs += request.firstResponseTimeMs;
       summary.requestCount += 1;
       return summary;
-    }, { totalResponseTimeMs: 0, requestCount: 0 });
+    }, { totalFirstResponseTimeMs: 0, requestCount: 0 });
   }
   return invoke<ProxySessionLatencySummary>("get_recent_proxy_session_latency");
 }

@@ -179,13 +179,13 @@ const EMPTY_TOKEN_TOTALS: TokenTypeTotals = {
 };
 
 const EMPTY_PROXY_SESSION_LATENCY: ProxySessionLatencySummary = {
-  totalResponseTimeMs: 0,
+  totalFirstResponseTimeMs: 0,
   requestCount: 0,
 };
 
 function formatAverageConversationLatency(summary: ProxySessionLatencySummary) {
   if (!summary.requestCount) return "—";
-  return `${(summary.totalResponseTimeMs / summary.requestCount / 1_000).toFixed(1)}s`;
+  return `${(summary.totalFirstResponseTimeMs / summary.requestCount / 1_000).toFixed(1)}s`;
 }
 
 function tokenUsageMatchesAccount(usage: AccountTokenUsageTotals, account: Account) {

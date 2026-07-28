@@ -85,6 +85,7 @@ struct ProxySessionRequestState {
     started_at: u64,
     model: Option<String>,
     reasoning_effort: Option<String>,
+    first_response_time_ms: Option<u64>,
     response_time_ms: Option<u64>,
     usage: Option<TokenUsageValues>,
 }
@@ -132,6 +133,14 @@ impl ProxySessionRequestGuard {
     fn request_id(&self) -> u64 {
         self.request_id
     }
+
+    fn first_response_context(&self) -> ProxySessionFirstResponseContext {
+        ProxySessionFirstResponseContext {
+            session_id: self.session_id.clone(),
+            request_id: self.request_id,
+            started_at: self.started_at,
+        }
+    }
 }
 
 impl Drop for ProxySessionRequestGuard {
@@ -141,6 +150,39 @@ impl Drop for ProxySessionRequestGuard {
             self.request_id,
             self.started_at.elapsed().as_millis() as u64,
         );
+    }
+}
+
+struct ProxySessionFirstResponseContext {
+    session_id: String,
+    request_id: u64,
+    started_at: Instant,
+}
+
+impl ProxySessionFirstResponseContext {
+    fn record(&self) {
+        record_proxy_session_first_response(
+            &self.session_id,
+            self.request_id,
+            self.started_at.elapsed().as_millis() as u64,
+        );
+    }
+}
+
+struct FirstResponseCaptureReader {
+    inner: Box<dyn Read + Send>,
+    context: Option<ProxySessionFirstResponseContext>,
+}
+
+impl Read for FirstResponseCaptureReader {
+    fn read(&mut self, target: &mut [u8]) -> io::Result<usize> {
+        let count = self.inner.read(target)?;
+        if count > 0 {
+            if let Some(context) = self.context.take() {
+                context.record();
+            }
+        }
+        Ok(count)
     }
 }
 
@@ -655,6 +697,7 @@ fn begin_proxy_session_request(
             started_at: now,
             model,
             reasoning_effort,
+            first_response_time_ms: None,
             response_time_ms: None,
             usage: None,
         });
@@ -750,6 +793,25 @@ fn update_proxy_session_request_usage(
                 .find(|request| request.id == request_id)
         }) {
             request.usage = Some(usage.clone());
+        }
+    }
+}
+
+fn record_proxy_session_first_response(
+    session_id: &str,
+    request_id: u64,
+    first_response_time_ms: u64,
+) {
+    if let Ok(mut sessions) = proxy_sessions().lock() {
+        if let Some(request) = sessions.get_mut(session_id).and_then(|session| {
+            session
+                .requests
+                .iter_mut()
+                .find(|request| request.id == request_id)
+        }) {
+            request
+                .first_response_time_ms
+                .get_or_insert(first_response_time_ms);
         }
     }
 }
@@ -915,6 +977,7 @@ pub(crate) fn list_proxy_session_requests(
             started_at: request.started_at,
             model: request.model.clone(),
             reasoning_effort: request.reasoning_effort.clone(),
+            first_response_time_ms: request.first_response_time_ms,
             response_time_ms: request.response_time_ms,
             total_tokens: request.usage.as_ref().and_then(token_usage_total),
             input_tokens: request.usage.as_ref().and_then(|usage| usage.input_tokens),
@@ -943,20 +1006,20 @@ pub(crate) fn get_recent_proxy_session_latency() -> Result<ProxySessionLatencySu
             .then_with(|| left.id.cmp(&right.id))
     });
 
-    let (total_response_time_ms, request_count) = sessions
+    let (total_first_response_time_ms, request_count) = sessions
         .into_iter()
         .take(5)
         .flat_map(|session| session.requests.into_iter())
-        .filter_map(|request| request.response_time_ms)
-        .fold((0_u64, 0_u64), |(total, count), response_time_ms| {
+        .filter_map(|request| request.first_response_time_ms)
+        .fold((0_u64, 0_u64), |(total, count), first_response_time_ms| {
             (
-                total.saturating_add(response_time_ms),
+                total.saturating_add(first_response_time_ms),
                 count.saturating_add(1),
             )
         });
 
     Ok(ProxySessionLatencySummary {
-        total_response_time_ms,
+        total_first_response_time_ms,
         request_count,
     })
 }
@@ -1528,10 +1591,14 @@ fn handle_request<R: Runtime>(app: tauri::AppHandle<R>, mut request: Request) {
         session.as_ref().map(ProxySessionRequestGuard::session_id),
         session.as_ref().map(ProxySessionRequestGuard::request_id),
     );
-    match result {
-        Ok(payload) => respond_payload(request, payload),
-        Err(error) => respond_error(request, 502, error),
-    }
+    let payload = match result {
+        Ok(payload) => payload,
+        Err(error) => json_payload(502, json!({ "error": { "message": error } })),
+    };
+    respond_payload(
+        request,
+        attach_first_response_capture(payload, session.as_ref()),
+    );
 }
 
 fn handle_proxy_request<R: Runtime>(
@@ -3655,6 +3722,28 @@ fn json_payload(status: u16, value: Value) -> UpstreamPayload {
     }
 }
 
+fn attach_first_response_capture(
+    mut payload: UpstreamPayload,
+    session: Option<&ProxySessionRequestGuard>,
+) -> UpstreamPayload {
+    let Some(context) = session.map(ProxySessionRequestGuard::first_response_context) else {
+        return payload;
+    };
+    payload.body = match payload.body {
+        UpstreamBody::Buffered(body) => {
+            context.record();
+            UpstreamBody::Buffered(body)
+        }
+        UpstreamBody::Streaming(inner) => {
+            UpstreamBody::Streaming(Box::new(FirstResponseCaptureReader {
+                inner,
+                context: Some(context),
+            }))
+        }
+    };
+    payload
+}
+
 fn respond_payload(request: Request, payload: UpstreamPayload) {
     let UpstreamPayload {
         status,
@@ -5106,6 +5195,40 @@ mod tests {
         assert_eq!(totals.output_tokens, 40);
         assert_eq!(totals.reasoning_tokens, 15);
         assert_eq!(totals.cached_tokens, 100);
+    }
+
+    #[test]
+    fn proxy_session_records_the_first_streamed_response_chunk() {
+        let session_id = format!("first-response-{}", uuid::Uuid::new_v4());
+        let headers = vec![("thread-id".to_string(), session_id.clone())];
+        let guard = begin_proxy_session_request(&headers, None, br#"{"model":"gpt-5.6-sol"}"#);
+        let payload = attach_first_response_capture(
+            UpstreamPayload {
+                status: 200,
+                content_type: Some("text/event-stream".to_string()),
+                response_headers: Vec::new(),
+                body: UpstreamBody::Streaming(Box::new(Cursor::new(b"data: hello\n\n"))),
+                token_usage_account: None,
+            },
+            Some(&guard),
+        );
+
+        assert_eq!(
+            list_proxy_session_requests(session_id.clone()).unwrap()[0].first_response_time_ms,
+            None
+        );
+        let UpstreamBody::Streaming(mut reader) = payload.body else {
+            panic!("expected a streaming response");
+        };
+        let mut body = Vec::new();
+        reader.read_to_end(&mut body).unwrap();
+
+        assert_eq!(body, b"data: hello\n\n");
+        assert!(list_proxy_session_requests(session_id.clone()).unwrap()[0]
+            .first_response_time_ms
+            .is_some());
+        drop(guard);
+        proxy_sessions().lock().unwrap().remove(&session_id);
     }
 
     #[test]

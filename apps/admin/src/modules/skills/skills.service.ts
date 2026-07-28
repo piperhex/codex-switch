@@ -149,6 +149,7 @@ export class SkillsService {
       previewData: preview?.buffer ?? null,
       uploaderId: actor.id,
       uploaderEmail: actor.email,
+      official: actor.role === 'admin',
     });
     return this.present(await this.skills.save(entity));
   }
@@ -342,6 +343,7 @@ export class SkillsService {
       archiveSha256: skill.archiveSha256,
       hasPreview: Boolean(skill.previewMimeType && skill.previewSize),
       uploaderId: skill.uploaderId,
+      official: skill.official,
       installCount: skill.installCount,
       createdAt: skill.createdAt.toISOString(),
       updatedAt: skill.updatedAt.toISOString(),

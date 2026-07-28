@@ -118,6 +118,7 @@ export interface ProxySessionRequest {
     startedAt: number;
     model?: string | null;
     reasoningEffort?: string | null;
+    firstResponseTimeMs?: number | null;
     responseTimeMs?: number | null;
     totalTokens?: number | null;
     inputTokens?: number | null;
@@ -127,7 +128,7 @@ export interface ProxySessionRequest {
 }
 
 export interface ProxySessionLatencySummary {
-  totalResponseTimeMs: number;
+  totalFirstResponseTimeMs: number;
   requestCount: number;
 }
 
@@ -277,6 +278,7 @@ export interface SkillMarketItem {
   archiveSha256: string;
   hasPreview: boolean;
   uploaderId?: string | null;
+  official: boolean;
   installCount: number;
   createdAt: string;
   updatedAt: string;

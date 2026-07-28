@@ -95,7 +95,27 @@ describe('SkillsService', () => {
       version: '1.2.0',
       uploaderId: actor.id,
       uploaderEmail: actor.email,
+      official: false,
       archiveSha256: expect.stringMatching(/^[a-f0-9]{64}$/),
+    }));
+  });
+
+  it('marks skills published by an administrator as official', async () => {
+    const { service, skills } = createService();
+
+    await service.create({
+      id: 'admin-1',
+      email: 'admin@example.com',
+      role: 'admin',
+    }, {
+      title: 'Official helper',
+      description: 'Maintained by the Codex Switch team',
+      version: '1.0.0',
+    }, archive(), undefined);
+
+    expect(skills.create).toHaveBeenCalledWith(expect.objectContaining({
+      uploaderId: 'admin-1',
+      official: true,
     }));
   });
 
@@ -148,6 +168,7 @@ describe('SkillsService', () => {
       previewSize: null,
       uploaderId: 'publisher-1',
       uploaderEmail: 'publisher@example.com',
+      official: true,
       installCount: 42,
       createdAt: new Date('2026-07-28T01:00:00.000Z'),
       updatedAt: new Date('2026-07-28T02:00:00.000Z'),
@@ -156,7 +177,7 @@ describe('SkillsService', () => {
     skills.findAndCount.mockResolvedValue([[item], 1]);
 
     await expect(service.list()).resolves.toMatchObject({
-      items: [{ id: 'skill-1', installCount: 42 }],
+      items: [{ id: 'skill-1', official: true, installCount: 42 }],
     });
     await expect(service.listForAdmin({ page: 1, pageSize: 20 })).resolves.toMatchObject({
       items: [{
