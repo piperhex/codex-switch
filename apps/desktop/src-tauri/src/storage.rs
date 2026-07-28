@@ -10,7 +10,9 @@ use tauri::{Manager, Runtime};
 
 use crate::{
     auth::{account_fields, canonicalize_chatgpt_auth, validate_auth},
-    models::{AccountFieldModifiedAt, AppSettings, ManagerStateFile, UsageSummary},
+    models::{
+        AccountFieldModifiedAt, AppSettings, ManagerStateFile, UsageSummary, DEFAULT_CLOUD_BASE_URL,
+    },
 };
 
 #[derive(Clone, Copy)]
@@ -423,6 +425,32 @@ pub(crate) fn write_app_settings<R: Runtime>(
     write_json_atomic(&path, &value)
 }
 
+fn apply_app_settings_version_migration(settings: &mut AppSettings, current_version: &str) -> bool {
+    if settings.last_started_version.as_deref() == Some(current_version) {
+        return false;
+    }
+    if settings
+        .cloud_base_url
+        .as_deref()
+        .is_none_or(|value| value.trim().is_empty())
+    {
+        settings.cloud_base_url = Some(DEFAULT_CLOUD_BASE_URL.to_string());
+    }
+    settings.last_started_version = Some(current_version.to_string());
+    true
+}
+
+pub(crate) fn migrate_app_settings_for_version<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+) -> Result<(), String> {
+    let mut settings = read_app_settings(app)?;
+    let current_version = app.package_info().version.to_string();
+    if apply_app_settings_version_migration(&mut settings, &current_version) {
+        write_app_settings(app, &settings)?;
+    }
+    Ok(())
+}
+
 fn should_activate_import(
     state: &ManagerStateFile,
     activate: bool,
@@ -523,8 +551,11 @@ pub(crate) fn save_usage(path: &Path, usage: &UsageSummary) -> Result<(), String
 mod tests {
     use std::fs;
 
-    use super::{should_activate_import, should_sync_current_as_active, write_text_if_changed};
-    use crate::models::ManagerStateFile;
+    use super::{
+        apply_app_settings_version_migration, should_activate_import,
+        should_sync_current_as_active, write_text_if_changed,
+    };
+    use crate::models::{AppSettings, ManagerStateFile, DEFAULT_CLOUD_BASE_URL};
 
     #[test]
     fn text_is_only_replaced_when_contents_change() {
@@ -542,6 +573,55 @@ mod tests {
         assert_eq!(fs::read_to_string(&path).unwrap(), "model = \"second\"\n");
 
         fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn new_app_version_defaults_an_unconfigured_cloud_server() {
+        let mut settings: AppSettings =
+            serde_json::from_str(r#"{"cloudBaseUrl":null,"lastStartedVersion":"1.1.19"}"#).unwrap();
+
+        assert!(apply_app_settings_version_migration(
+            &mut settings,
+            "1.1.20"
+        ));
+        assert_eq!(
+            settings.cloud_base_url.as_deref(),
+            Some(DEFAULT_CLOUD_BASE_URL)
+        );
+        assert_eq!(settings.last_started_version.as_deref(), Some("1.1.20"));
+    }
+
+    #[test]
+    fn version_migration_preserves_a_custom_cloud_server() {
+        let mut settings = AppSettings {
+            cloud_base_url: Some("https://cloud.example.com".to_string()),
+            last_started_version: Some("1.1.19".to_string()),
+            ..AppSettings::default()
+        };
+
+        assert!(apply_app_settings_version_migration(
+            &mut settings,
+            "1.1.20"
+        ));
+        assert_eq!(
+            settings.cloud_base_url.as_deref(),
+            Some("https://cloud.example.com")
+        );
+    }
+
+    #[test]
+    fn version_migration_only_runs_once_per_version() {
+        let mut settings = AppSettings {
+            cloud_base_url: None,
+            last_started_version: Some("1.1.20".to_string()),
+            ..AppSettings::default()
+        };
+
+        assert!(!apply_app_settings_version_migration(
+            &mut settings,
+            "1.1.20"
+        ));
+        assert!(settings.cloud_base_url.is_none());
     }
 
     #[test]
