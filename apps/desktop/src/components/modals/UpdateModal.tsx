@@ -29,6 +29,11 @@ export function UpdateModal({
   error,
   t,
 }: UpdateModalProps) {
+  const handleDownload = () => {
+    onDownload();
+    onClose();
+  };
+
   return (
     <div className="modal-backdrop" onClick={installing ? undefined : onClose}>
       <section className="modal update-modal" role="dialog" aria-modal="true"
@@ -61,7 +66,7 @@ export function UpdateModal({
               <Download size={17} />{installing ? t("update.installing") : t("update.download")}
             </button>
           ) : (
-            <button type="button" className="primary-button" disabled={downloadRequested} onClick={onDownload}>
+            <button type="button" className="primary-button" disabled={downloadRequested} onClick={handleDownload}>
               <Download size={17} />{downloadRequested ? t("update.waitingToInstall") : t("update.downloadAndInstall")}
             </button>
           )}
