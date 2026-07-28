@@ -1,7 +1,7 @@
 export type Role = string;
 export type UserStatus = "active" | "disabled";
 export type Permission = string;
-export type MenuKey = "dashboard" | "myAccounts" | "users" | "roles" | "officialAccounts" | "announcement" | "emailTemplates" | "feedback" | "telemetry" | "audit" | "invitations" | "approvals";
+export type MenuKey = "dashboard" | "myAccounts" | "users" | "roles" | "officialAccounts" | "announcement" | "emailTemplates" | "skills" | "feedback" | "telemetry" | "audit" | "invitations" | "approvals";
 
 export interface AuthTokens {
   accessToken: string;
@@ -167,6 +167,28 @@ export interface FeedbackRow {
   lastRepliedAt?: string | null;
   lastRepliedByEmail?: string | null;
   createdAt: string;
+}
+
+export interface AdminSkillRow {
+  id: string;
+  title: string;
+  description: string;
+  version: string;
+  archiveFileName: string;
+  archiveSize: number;
+  archiveSha256: string;
+  hasPreview: boolean;
+  uploaderId?: string | null;
+  uploaderEmail: string;
+  installCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminSkillUpdate {
+  title: string;
+  description: string;
+  version: string;
 }
 
 export type TelemetryPlatform = "windows" | "macos" | "linux" | "android" | "ios";

@@ -369,7 +369,12 @@ export function SkillsMarketPage({
                   <p>{skill.description}</p>
                   <div className="skill-card-meta">
                     <span>{t("skills.publisher")}</span>
-                    <span><Download size={13} />{skill.installCount}</span>
+                    <span
+                      aria-label={t("skills.downloads", { count: skill.installCount })}
+                      title={t("skills.downloads", { count: skill.installCount })}
+                    >
+                      <Download size={13} />{skill.installCount.toLocaleString()}
+                    </span>
                   </div>
                   <button type="button"
                     className={`skill-install-button${skill.installed ? " installed" : ""}`}

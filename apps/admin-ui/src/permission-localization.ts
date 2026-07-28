@@ -129,6 +129,16 @@ const BUILT_IN_PERMISSION_ZH: Record<string, PermissionMetadata> = {
     name: "管理问题反馈",
     description: "回复用户的问题反馈。",
   },
+  "admin.skills.read": {
+    group: "社区 Skills",
+    name: "查看社区 Skills",
+    description: "查看用户发布的 Skills 及其下载数据。",
+  },
+  "admin.skills.manage": {
+    group: "社区 Skills",
+    name: "管理社区 Skills",
+    description: "编辑或删除用户发布的 Skills。",
+  },
   "admin.telemetry.read": {
     group: "设备统计",
     name: "查看设备统计",

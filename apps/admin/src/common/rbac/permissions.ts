@@ -24,6 +24,8 @@ export enum Permission {
   MailServicesManage = 'admin.mail-services.manage',
   FeedbackRead = 'admin.feedback.read',
   FeedbackManage = 'admin.feedback.manage',
+  SkillsRead = 'admin.skills.read',
+  SkillsManage = 'admin.skills.manage',
   TelemetryRead = 'admin.telemetry.read',
   DashboardRead = 'admin.dashboard.read',
 }
@@ -61,6 +63,8 @@ export const PERMISSION_CATALOG: readonly PermissionDefinition[] = [
   { code: Permission.MailServicesManage, group: 'content', name: 'Manage mail services', description: 'Create, update, and delete custom SMTP sending services.' },
   { code: Permission.FeedbackRead, group: 'feedback', name: 'Read feedback', description: 'View feedback and its attachments.' },
   { code: Permission.FeedbackManage, group: 'feedback', name: 'Manage feedback', description: 'Reply to user feedback.' },
+  { code: Permission.SkillsRead, group: 'skills', name: 'Read community skills', description: 'View skills published by users and their download metrics.' },
+  { code: Permission.SkillsManage, group: 'skills', name: 'Manage community skills', description: 'Edit or remove skills published by users.' },
   { code: Permission.TelemetryRead, group: 'telemetry', name: 'Read telemetry', description: 'View installation and telemetry analytics.' },
   { code: Permission.DashboardRead, group: 'analytics', name: 'Read dashboard', description: 'View cross-system operational metrics and trends.' },
 ] as const;
@@ -92,6 +96,7 @@ const PERMISSION_DEPENDENCIES: Partial<Record<Permission, readonly Permission[]>
   [Permission.EmailTemplatesManage]: [Permission.EmailTemplatesRead, Permission.MailServicesManage],
   [Permission.MailServicesManage]: [Permission.MailServicesRead],
   [Permission.FeedbackManage]: [Permission.FeedbackRead, Permission.MailServicesRead],
+  [Permission.SkillsManage]: [Permission.SkillsRead],
 };
 
 export function expandPermissionDependencies(permissions: readonly string[]): string[] {
