@@ -12,6 +12,6 @@ export class CreateInstallationEventDto {
   @MaxLength(50)
   appVersion?: string;
 
-  @IsIn(['installation', 'base_url_changed'])
-  eventType: 'installation' | 'base_url_changed';
+  @IsIn(['installation', 'base_url_changed', 'activity'])
+  eventType: 'installation' | 'base_url_changed' | 'activity';
 }

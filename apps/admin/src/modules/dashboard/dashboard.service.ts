@@ -18,6 +18,7 @@ interface NamedCountRow extends CountRow {
 interface SummaryRow {
   totalUsers: string;
   activeUsers: string;
+  dailyActiveUsers: string;
   newUsers: string;
   totalInstallations: string;
   newInstallations: string;
@@ -44,6 +45,9 @@ export class DashboardService {
         SELECT
           (SELECT COUNT(*) FROM users)::text AS "totalUsers",
           (SELECT COUNT(*) FROM users WHERE disabled = false)::text AS "activeUsers",
+          (SELECT COUNT(DISTINCT "deviceId") FROM device_telemetry_events
+            WHERE "eventType" = 'activity'
+              AND "createdAt" >= (date_trunc('day', NOW() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'))::text AS "dailyActiveUsers",
           (SELECT COUNT(*) FROM users WHERE "createdAt" >= $1)::text AS "newUsers",
           (SELECT COUNT(*) FROM device_installations)::text AS "totalInstallations",
           (SELECT COUNT(*) FROM device_installations WHERE "firstSeenAt" >= $1)::text AS "newInstallations",
@@ -87,7 +91,7 @@ export class DashboardService {
     ]);
 
     const summary = summaryRows[0] ?? {
-      totalUsers: '0', activeUsers: '0', newUsers: '0',
+      totalUsers: '0', activeUsers: '0', dailyActiveUsers: '0', newUsers: '0',
       totalInstallations: '0', newInstallations: '0', officialAccounts: '0',
       boundOfficialAccounts: '0', totalBindings: '0', pendingFeedback: '0',
       repliedFeedback: '0', pendingApprovals: '0',

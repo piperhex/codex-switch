@@ -32,7 +32,7 @@ export class TelemetryService {
       platform: dto.platform,
       ...(appVersion ? { appVersion } : {}),
     }, ['deviceId']);
-    if (dto.eventType === 'base_url_changed') {
+    if (dto.eventType !== 'installation') {
       await this.events.save(this.events.create({
         deviceId: dto.deviceId,
         platform: dto.platform,

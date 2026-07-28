@@ -39,6 +39,6 @@ export class ListDeviceInstallationsQueryDto extends TelemetryPageQueryDto {
 
 export class ListTelemetryEventsQueryDto extends ListDeviceInstallationsQueryDto {
   @IsOptional()
-  @IsIn(['base_url_changed'])
-  eventType?: 'base_url_changed';
+  @IsIn(['base_url_changed', 'activity'])
+  eventType?: 'base_url_changed' | 'activity';
 }

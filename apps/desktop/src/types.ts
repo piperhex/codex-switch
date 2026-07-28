@@ -126,6 +126,11 @@ export interface ProxySessionRequest {
     cachedTokens?: number | null;
 }
 
+export interface ProxySessionLatencySummary {
+  totalResponseTimeMs: number;
+  requestCount: number;
+}
+
 export interface DirectConversationSyncResult {
   conversationsUpdated: number;
   rolloutFilesUpdated: number;

@@ -1,7 +1,10 @@
 use std::{
     collections::HashSet,
     fs,
-    sync::{Mutex, MutexGuard, OnceLock},
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Mutex, MutexGuard, OnceLock,
+    },
     time::Duration,
 };
 
@@ -161,6 +164,8 @@ const CLOUD_SESSION_EXPIRED_EVENT: &str = "cloud-session-expired";
 // slower request can overwrite a newly rotated token with the revoked one it
 // read before the refresh completed.
 static CLOUD_CREDENTIALS_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+const ACTIVITY_REPORT_USAGE_INTERVAL: usize = 50;
+static USAGE_SINCE_LAST_ACTIVITY_REPORT: AtomicUsize = AtomicUsize::new(0);
 
 fn lock_cloud_credentials() -> Result<MutexGuard<'static, ()>, String> {
     CLOUD_CREDENTIALS_LOCK
@@ -1284,6 +1289,26 @@ fn post_device_event<R: Runtime>(
     Ok(())
 }
 
+fn report_device_activity_blocking<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<(), String> {
+    let installation = read_or_create_installation_state(app)?;
+    post_device_event(app, &installation, "activity")
+}
+
+/// Marks this device active after every fixed number of completed global usage records.
+/// Reporting happens in the background so it cannot delay proxy responses.
+pub(crate) fn report_device_activity_after_usage<R: Runtime>(app: tauri::AppHandle<R>) {
+    let usage_count = USAGE_SINCE_LAST_ACTIVITY_REPORT.fetch_add(1, Ordering::Relaxed) + 1;
+    if usage_count % ACTIVITY_REPORT_USAGE_INTERVAL != 0 {
+        return;
+    }
+
+    std::thread::spawn(move || {
+        if let Err(error) = report_device_activity_blocking(&app) {
+            eprintln!("failed to report device activity: {error}");
+        }
+    });
+}
+
 #[tauri::command]
 pub(crate) async fn fetch_cloud_announcement<R: Runtime>(
     app: tauri::AppHandle<R>,
@@ -1502,6 +1527,15 @@ pub(crate) async fn report_first_installation<R: Runtime>(
     })
     .await
     .map_err(|error| format!("Installation report task failed: {error}"))?
+}
+
+#[tauri::command]
+pub(crate) async fn report_device_activity<R: Runtime>(
+    app: tauri::AppHandle<R>,
+) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || report_device_activity_blocking(&app))
+        .await
+        .map_err(|error| format!("Device activity report task failed: {error}"))?
 }
 
 #[tauri::command]

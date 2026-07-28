@@ -3,6 +3,7 @@ import { Button, Empty, Progress, Segmented, Skeleton, Tag, Typography } from "a
 import type { EChartsCoreOption } from "echarts/core";
 import {
   ArrowRight,
+  Activity,
   BadgeCheck,
   CircleAlert,
   MessageSquareText,
@@ -193,6 +194,14 @@ export function DashboardPage({
       note: t("dashboard.userMetricNote", { active: summary?.activeUsers ?? 0, newCount: summary?.newUsers ?? 0, period: periodLabel }),
       icon: <Users size={20} />,
       tone: "blue",
+    },
+    {
+      key: "daily-active-users",
+      label: t("dashboard.dailyActiveUsers"),
+      value: summary?.dailyActiveUsers ?? 0,
+      note: t("dashboard.dailyActiveUsersNote"),
+      icon: <Activity size={20} />,
+      tone: "cyan",
     },
     {
       key: "devices",

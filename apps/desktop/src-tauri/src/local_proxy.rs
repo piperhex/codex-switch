@@ -22,8 +22,8 @@ use crate::{
     codex_api::{refresh_tokens, token_expiring, ORIGINATOR},
     models::{
         AccountSummary, AccountTokenUsageTotals, DailyTokenUsage, LocalProxyStatus,
-        ManagerStateFile, ProviderApiFormat, ProviderProfile, ProxySessionRequestSummary,
-        ProxySessionSummary, TokenUsageEntry, UsageSummary,
+        ManagerStateFile, ProviderApiFormat, ProviderProfile, ProxySessionLatencySummary,
+        ProxySessionRequestSummary, ProxySessionSummary, TokenUsageEntry, UsageSummary,
     },
     providers::{
         self, LOCAL_PROXY_ACTOR_AUTHORIZATION_HEADER, LOCAL_PROXY_BASE_URL, LOCAL_PROXY_HOST,
@@ -926,6 +926,39 @@ pub(crate) fn list_proxy_session_requests(
             cached_tokens: request.usage.as_ref().and_then(|usage| usage.cached_tokens),
         })
         .collect())
+}
+
+#[tauri::command]
+pub(crate) fn get_recent_proxy_session_latency() -> Result<ProxySessionLatencySummary, String> {
+    let mut sessions = proxy_sessions()
+        .lock()
+        .map_err(|_| "Proxy session registry lock is poisoned".to_string())?
+        .values()
+        .cloned()
+        .collect::<Vec<_>>();
+    sessions.sort_by(|left, right| {
+        right
+            .last_seen_at
+            .cmp(&left.last_seen_at)
+            .then_with(|| left.id.cmp(&right.id))
+    });
+
+    let (total_response_time_ms, request_count) = sessions
+        .into_iter()
+        .take(5)
+        .flat_map(|session| session.requests.into_iter())
+        .filter_map(|request| request.response_time_ms)
+        .fold((0_u64, 0_u64), |(total, count), response_time_ms| {
+            (
+                total.saturating_add(response_time_ms),
+                count.saturating_add(1),
+            )
+        });
+
+    Ok(ProxySessionLatencySummary {
+        total_response_time_ms,
+        request_count,
+    })
 }
 
 #[tauri::command]
@@ -2332,6 +2365,7 @@ fn record_token_usage_entry<R: Runtime>(
         eprintln!("failed to write token usage entry: {error}");
     } else {
         let _ = app.emit("token-usage-updated", ());
+        crate::cloud::report_device_activity_after_usage(app.clone());
     }
 }
 
