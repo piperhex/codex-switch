@@ -442,7 +442,7 @@ body {
 
 .dashboard-kpi-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -475,6 +475,7 @@ body {
 .dashboard-kpi-teal { color: #0f9f80; }
 .dashboard-kpi-violet { color: #7c3aed; }
 .dashboard-kpi-amber { color: #d97706; }
+.dashboard-kpi-cyan { color: #0891b2; }
 
 .dashboard-kpi-top {
   display: flex;
@@ -657,7 +658,7 @@ body {
 
 @media (max-width: 1180px) {
   .dashboard-kpi-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .dashboard-chart-grid {
@@ -720,7 +721,7 @@ body {
   }
 
   .dashboard-kpi-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .dashboard-controls {

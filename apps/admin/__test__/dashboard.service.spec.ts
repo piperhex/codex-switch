@@ -15,6 +15,7 @@ describe('DashboardService', () => {
       .mockResolvedValueOnce([{
         totalUsers: '12',
         activeUsers: '10',
+        dailyActiveUsers: '6',
         newUsers: '2',
         totalInstallations: '30',
         newInstallations: '5',
@@ -50,6 +51,7 @@ describe('DashboardService', () => {
     expect(result.summary).toMatchObject({
       totalUsers: 12,
       activeUsers: 10,
+      dailyActiveUsers: 6,
       totalInstallations: 30,
       pendingFeedback: 3,
     });

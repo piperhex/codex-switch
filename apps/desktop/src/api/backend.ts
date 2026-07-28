@@ -31,6 +31,7 @@ import type {
   LocalProxyStatus,
   ProxySession,
   ProxySessionRequest,
+  ProxySessionLatencySummary,
   Provider,
   ProviderInput,
   ResetCreditsSummary,
@@ -420,6 +421,22 @@ export async function loadProxySessionRequests(sessionId: string): Promise<Proxy
   return invoke<ProxySessionRequest[]>("list_proxy_session_requests", { sessionId });
 }
 
+export async function loadRecentProxySessionLatency(): Promise<ProxySessionLatencySummary> {
+  if (!isDesktopApp) {
+    const sessions = (await loadProxySessions())
+      .sort((left, right) => right.lastSeenAt - left.lastSeenAt)
+      .slice(0, 5);
+    const requests = await Promise.all(sessions.map((session) => loadProxySessionRequests(session.id)));
+    return requests.flat().reduce<ProxySessionLatencySummary>((summary, request) => {
+      if (request.responseTimeMs == null) return summary;
+      summary.totalResponseTimeMs += request.responseTimeMs;
+      summary.requestCount += 1;
+      return summary;
+    }, { totalResponseTimeMs: 0, requestCount: 0 });
+  }
+  return invoke<ProxySessionLatencySummary>("get_recent_proxy_session_latency");
+}
+
 export async function loadTokenUsageEntries(): Promise<TokenUsageEntry[]> {
   if (!isDesktopApp) {
     const now = Math.floor(Date.now() / 1000);
@@ -805,6 +822,11 @@ export async function submitFeedback(
 export async function reportFirstInstallation(): Promise<boolean> {
   if (!isDesktopApp) return false;
   return invoke<boolean>("report_first_installation");
+}
+
+export async function reportDeviceActivity(): Promise<void> {
+  if (!isDesktopApp) return;
+  return invoke<void>("report_device_activity");
 }
 
 export async function reportBaseUrlChange(): Promise<void> {

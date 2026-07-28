@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Button,
+  Checkbox,
+  Dropdown,
   Modal,
   Progress,
   Table,
@@ -10,7 +12,7 @@ import {
   type TableColumnsType,
   type TableProps,
 } from "antd";
-import { Cable, Eye, RefreshCw } from "lucide-react";
+import { Cable, Columns3, Eye, RefreshCw } from "lucide-react";
 import { loadProxySessionRequests, loadProxySessions } from "../api/backend";
 import type { Translate } from "../i18n";
 import type { ProxySession, ProxySessionRequest } from "../types";
@@ -20,8 +22,50 @@ interface ProxySessionManagerProps {
 }
 
 type ActivityFilter = "active" | "idle";
+type ProxySessionColumnKey =
+  | "conversation"
+  | "connection"
+  | "target"
+  | "context"
+  | "tokens"
+  | "activity";
 
 const ACTIVITY_FILTER_STORAGE_KEY = "codex-switch.proxy-session-activity-filter";
+const HIDDEN_COLUMNS_STORAGE_KEY = "codex-switch:proxy-session-hidden-columns";
+const PROXY_SESSION_COLUMN_KEYS: ProxySessionColumnKey[] = [
+  "conversation",
+  "connection",
+  "target",
+  "context",
+  "tokens",
+  "activity",
+];
+
+function isProxySessionColumnKey(value: unknown): value is ProxySessionColumnKey {
+  return typeof value === "string"
+    && PROXY_SESSION_COLUMN_KEYS.includes(value as ProxySessionColumnKey);
+}
+
+function loadHiddenColumns(): ProxySessionColumnKey[] {
+  try {
+    const parsed: unknown = JSON.parse(
+      window.localStorage.getItem(HIDDEN_COLUMNS_STORAGE_KEY) ?? "[]",
+    );
+    if (!Array.isArray(parsed)) return [];
+    const hiddenColumns = parsed.filter(isProxySessionColumnKey);
+    return hiddenColumns.length < PROXY_SESSION_COLUMN_KEYS.length ? hiddenColumns : [];
+  } catch {
+    return [];
+  }
+}
+
+function persistHiddenColumns(columns: ProxySessionColumnKey[]) {
+  try {
+    window.localStorage.setItem(HIDDEN_COLUMNS_STORAGE_KEY, JSON.stringify(columns));
+  } catch {
+    // Keep the in-memory selection when local storage is unavailable.
+  }
+}
 
 function loadActivityFilter(): ActivityFilter[] {
   try {
@@ -154,6 +198,7 @@ export function ProxySessionManager({ t }: ProxySessionManagerProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [activityFilter, setActivityFilter] = useState<ActivityFilter[]>(loadActivityFilter);
+  const [hiddenColumns, setHiddenColumns] = useState<ProxySessionColumnKey[]>(loadHiddenColumns);
   const [detailsSession, setDetailsSession] = useState<ProxySession | null>(null);
   const [requestDetails, setRequestDetails] = useState<ProxySessionRequest[]>([]);
   const [detailsLoading, setDetailsLoading] = useState(false);
@@ -293,6 +338,7 @@ export function ProxySessionManager({ t }: ProxySessionManagerProps) {
       dataIndex: "activity",
       key: "activity",
       width: 220,
+      fixed: "right",
       filters: [
         { text: t("providers.proxy.sessionsActive"), value: "active" },
         { text: t("providers.proxy.sessionsIdle"), value: "idle" },
@@ -329,6 +375,36 @@ export function ProxySessionManager({ t }: ProxySessionManagerProps) {
       ),
     },
   ], [activityFilter, openRequestDetails, t]);
+
+  const hiddenColumnSet = useMemo(() => new Set(hiddenColumns), [hiddenColumns]);
+  const visibleColumns = useMemo(
+    () => columns.filter(
+      (column) => !isProxySessionColumnKey(column.key) || !hiddenColumnSet.has(column.key),
+    ),
+    [columns, hiddenColumnSet],
+  );
+  const columnSettings = useMemo<{ key: ProxySessionColumnKey; label: string }[]>(() => [
+    { key: "conversation", label: t("providers.proxy.sessionsConversation") },
+    { key: "connection", label: t("providers.proxy.sessionsConnection") },
+    { key: "target", label: t("providers.proxy.sessionsTarget") },
+    { key: "context", label: t("providers.proxy.sessionsContext") },
+    { key: "tokens", label: t("providers.proxy.sessionsTokens") },
+    { key: "activity", label: t("providers.proxy.sessionsActivity") },
+  ], [t]);
+  const visibleColumnCount = columnSettings.filter(
+    ({ key }) => !hiddenColumnSet.has(key),
+  ).length;
+
+  const setColumnVisible = (key: ProxySessionColumnKey, visible: boolean) => {
+    setHiddenColumns((current) => {
+      if (!visible && !current.includes(key) && visibleColumnCount <= 1) return current;
+      const next = visible
+        ? current.filter((column) => column !== key)
+        : [...new Set([...current, key])];
+      persistHiddenColumns(next);
+      return next;
+    });
+  };
 
   const requestDetailColumns = useMemo<TableColumnsType<ProxySessionRequest>>(() => [
     {
@@ -439,14 +515,52 @@ export function ProxySessionManager({ t }: ProxySessionManagerProps) {
           </>
         )}
       >
-        <p className="proxy-session-description">{t("providers.proxy.sessionsDescription")}</p>
+        <div className="proxy-session-table-heading">
+          <p className="proxy-session-description">{t("providers.proxy.sessionsDescription")}</p>
+          <Dropdown
+            trigger={["click"]}
+            placement="bottomRight"
+            dropdownRender={() => (
+              <div
+                className="proxy-session-column-settings"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <strong>{t("table.columnSettings")}</strong>
+                <div className="proxy-session-column-settings-list">
+                  {columnSettings.map(({ key, label }) => {
+                    const checked = !hiddenColumnSet.has(key);
+                    return (
+                      <Checkbox
+                        key={key}
+                        checked={checked}
+                        disabled={checked && visibleColumnCount <= 1}
+                        onChange={(event) => setColumnVisible(key, event.target.checked)}
+                      >
+                        {label}
+                      </Checkbox>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          >
+            <Tooltip title={t("table.columnSettings")}>
+              <Button
+                size="small"
+                className="table-icon-button"
+                aria-label={t("table.columnSettings")}
+                icon={<Columns3 size={15} />}
+              />
+            </Tooltip>
+          </Dropdown>
+        </div>
         {error ? <Alert type="error" showIcon message={error} /> : null}
         <Table<ProxySession>
           className="proxy-session-table"
           rowKey="id"
           size="small"
           loading={loading}
-          columns={columns}
+          columns={visibleColumns}
           dataSource={sessions}
           pagination={false}
           onChange={handleTableChange}

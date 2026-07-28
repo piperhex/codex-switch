@@ -4,7 +4,7 @@ import enUS from "antd/locale/en_US";
 import zhCN from "antd/locale/zh_CN";
 import { Archive, BarChart3, Bell, CalendarClock, Check, CircleHelp, Cloud, Download, Github, LogIn, LogOut, Megaphone, MessageSquareText, Palette, Play, Plus, RefreshCw, RotateCcw, Server, Settings, ShieldCheck, Upload, UploadCloud, UserRound } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { checkForUpdate, chooseAndExportDiagnosticLogs, consumeResetCredit, DEFAULT_CLOUD_BASE_URL, downloadAvailableUpdate, fetchCloudAnnouncement, fetchCloudFaqs, fetchCloudNotifications, installDownloadedUpdate, isDesktopApp, launchChatGpt, openManagedFolder, reportAnnouncementClick, reportBaseUrlChange, reportFirstInstallation, restartChatGpt, showTokenUsageWindow, submitFeedback, subscribeToCloudSessionExpired } from "./api/backend";
+import { checkForUpdate, chooseAndExportDiagnosticLogs, consumeResetCredit, DEFAULT_CLOUD_BASE_URL, downloadAvailableUpdate, fetchCloudAnnouncement, fetchCloudFaqs, fetchCloudNotifications, installDownloadedUpdate, isDesktopApp, launchChatGpt, openManagedFolder, reportAnnouncementClick, reportBaseUrlChange, reportDeviceActivity, reportFirstInstallation, restartChatGpt, showTokenUsageWindow, submitFeedback, subscribeToCloudSessionExpired } from "./api/backend";
 import { AboutModal } from "./components/modals/AboutModal";
 import { HelpModal, type HelpVersionState } from "./components/modals/HelpModal";
 import { FeedbackModal } from "./components/modals/FeedbackModal";
@@ -383,6 +383,7 @@ function DashboardApp() {
 
   useEffect(() => {
     void reportFirstInstallation().catch(() => undefined);
+    void reportDeviceActivity().catch(() => undefined);
   }, [cloud.state.baseUrl]);
 
   const startLogin = (embedded: boolean) => {

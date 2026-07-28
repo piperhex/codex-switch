@@ -72,6 +72,23 @@ describe('TelemetryService', () => {
     expect(events.save).toHaveBeenCalledWith(event);
   });
 
+  it('records device activity events for daily active user reporting', async () => {
+    const installations = { upsert: vi.fn().mockResolvedValue({}) };
+    const events = { create: vi.fn((value) => value), save: vi.fn().mockResolvedValue({}) };
+    const service = new TelemetryService(
+      installations as unknown as Repository<DeviceInstallationEntity>,
+      events as unknown as Repository<DeviceTelemetryEventEntity>,
+    );
+    const event = {
+      deviceId: '18f72fe6-1ec1-4d68-b5c1-f1b52b67503f',
+      platform: 'windows' as const,
+      eventType: 'activity' as const,
+    };
+
+    await expect(service.recordInstallation(event)).resolves.toEqual({ ok: true });
+    expect(events.save).toHaveBeenCalledWith(event);
+  });
+
   it('summarizes installations, recent activity and platform totals', async () => {
     const platformBuilder = makeQueryBuilder();
     platformBuilder.getRawMany.mockResolvedValue([

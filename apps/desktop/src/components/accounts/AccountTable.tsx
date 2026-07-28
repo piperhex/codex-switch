@@ -17,10 +17,19 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { loadAccountTokenUsage, subscribeToTokenUsageChanges } from "../../api/backend";
+import {
+  loadAccountTokenUsage,
+  loadRecentProxySessionLatency,
+  subscribeToTokenUsageChanges,
+} from "../../api/backend";
 import type { Language, Translate } from "../../i18n";
 import type { AccountDisplayMode } from "../../hooks/useAccountDisplayMode";
-import type { Account, AccountTokenUsageTotals, ResetCreditsLoadState } from "../../types";
+import type {
+  Account,
+  AccountTokenUsageTotals,
+  ProxySessionLatencySummary,
+  ResetCreditsLoadState,
+} from "../../types";
 import { earliestExpirationDate } from "../../utils/expiration";
 import { initials } from "../../utils/format";
 import { formatCompactTokenCount } from "../../utils/tokenContext";
@@ -168,6 +177,16 @@ const EMPTY_TOKEN_TOTALS: TokenTypeTotals = {
   reasoning: 0,
   cached: 0,
 };
+
+const EMPTY_PROXY_SESSION_LATENCY: ProxySessionLatencySummary = {
+  totalResponseTimeMs: 0,
+  requestCount: 0,
+};
+
+function formatAverageConversationLatency(summary: ProxySessionLatencySummary) {
+  if (!summary.requestCount) return "—";
+  return `${(summary.totalResponseTimeMs / summary.requestCount / 1_000).toFixed(1)}s`;
+}
 
 function tokenUsageMatchesAccount(usage: AccountTokenUsageTotals, account: Account) {
   const accountId = account.accountId?.trim();
@@ -352,6 +371,9 @@ export function AccountTable({
   const [hiddenColumns, setHiddenColumns] = useState<AccountTableColumnKey[]>(loadHiddenColumns);
   const [tableScrollY, setTableScrollY] = useState(0);
   const [accountTokenUsage, setAccountTokenUsage] = useState<AccountTokenUsageTotals[]>([]);
+  const [proxySessionLatency, setProxySessionLatency] = useState<ProxySessionLatencySummary>(
+    EMPTY_PROXY_SESSION_LATENCY,
+  );
   useEffect(() => {
     const tableWrap = tableWrapRef.current;
     if (!tableWrap) return undefined;
@@ -403,6 +425,23 @@ export function AccountTable({
       unsubscribe();
     };
   }, [hotSwitchEnabled, tokenUsageRefreshSeconds]);
+  useEffect(() => {
+    let active = true;
+    const refresh = async () => {
+      try {
+        const summary = await loadRecentProxySessionLatency();
+        if (active) setProxySessionLatency(summary);
+      } catch {
+        if (active) setProxySessionLatency(EMPTY_PROXY_SESSION_LATENCY);
+      }
+    };
+    void refresh();
+    const timer = window.setInterval(() => void refresh(), 2_000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, []);
   useEffect(() => {
     const accountIds = new Set(accounts.map((account) => account.id));
     setSelectedAccountIds((current) => {
@@ -953,6 +992,14 @@ export function AccountTable({
               {accountSummaryLabel(officialAuthAccount)}
             </strong>
           </span>
+          <Tooltip title={t("table.averageConversationLatencyTooltip", {
+            requests: proxySessionLatency.requestCount,
+          })}>
+            <span>
+              {t("table.averageConversationLatencyLabel")}{language === "zh" ? "：" : ": "}
+              <strong>{formatAverageConversationLatency(proxySessionLatency)}</strong>
+            </span>
+          </Tooltip>
         </div>
         <Popconfirm title={t("table.batchDeleteConfirmTitle", { count: deletableSelectedAccountIds.length })}
           description={t("table.batchDeleteConfirmDescription")}

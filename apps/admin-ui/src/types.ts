@@ -208,6 +208,7 @@ export interface DashboardOverview {
   summary: {
     totalUsers: number;
     activeUsers: number;
+    dailyActiveUsers: number;
     newUsers: number;
     totalInstallations: number;
     newInstallations: number;

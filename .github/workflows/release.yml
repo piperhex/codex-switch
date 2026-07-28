@@ -96,23 +96,28 @@ jobs:
         include:
           - name: macos-aarch64
             platform: macos-latest
+            releasePlatform: macos
             args: "--target aarch64-apple-darwin"
             rustTargets: "aarch64-apple-darwin,x86_64-apple-darwin"
           - name: macos-x86_64
             platform: macos-latest
+            releasePlatform: macos
             args: "--target x86_64-apple-darwin"
             rustTargets: "aarch64-apple-darwin,x86_64-apple-darwin"
           - name: ubuntu-x86_64
             platform: ubuntu-22.04
+            releasePlatform: linux
             args: ""
             rustTargets: ""
           - name: windows-x86_64
             platform: windows-latest
+            releasePlatform: windows
             args: ""
             rustTargets: ""
             msvcArch: "amd64"
           - name: windows-aarch64
             platform: windows-latest
+            releasePlatform: windows
             args: "--target aarch64-pc-windows-msvc"
             rustTargets: "aarch64-pc-windows-msvc"
             msvcArch: "amd64_arm64"
@@ -167,6 +172,7 @@ jobs:
           releaseId: ${{ needs.create-release.outputs.release_id }}
           tagName: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
           args: ${{ matrix.args }}
+          releaseAssetNamePattern: "[name]_[version]_${{ matrix.releasePlatform }}-[arch][setup][ext]"
           updaterJsonPreferNsis: true
 
   native-android:
