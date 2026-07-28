@@ -26,6 +26,7 @@ import { EmailTemplatesPage } from "./pages/EmailTemplatesPage";
 import { InvitationsPage } from "./pages/InvitationsPage";
 import { MyAccountsPage } from "./pages/MyAccountsPage";
 import { OfficialAccountsPage } from "./pages/OfficialAccountsPage";
+import { SkillsPage } from "./pages/SkillsPage";
 import { TelemetryPage } from "./pages/TelemetryPage";
 import { UsersPage } from "./pages/UsersPage";
 import { RolesPage } from "./pages/RolesPage";
@@ -35,6 +36,8 @@ import type {
   AnnouncementClickFilters,
   AnnouncementClickOverview,
   AnnouncementConfig,
+  AdminSkillRow,
+  AdminSkillUpdate,
   AppFaq,
   AppFaqInput,
   AppNotification,
@@ -81,6 +84,7 @@ const emptyAuditLogs: PageResult<AuditLog> = { items: [], total: 0, page: 1, pag
 const emptyInvitations: PageResult<Invitation> = { items: [], total: 0, page: 1, pageSize: 20 };
 const emptyApprovals: PageResult<ApprovalRequest> = { items: [], total: 0, page: 1, pageSize: 20 };
 const emptyFeedback: PageResult<FeedbackRow> = { items: [], total: 0, page: 1, pageSize: 20 };
+const emptySkills: PageResult<AdminSkillRow> = { items: [], total: 0, page: 1, pageSize: 20 };
 const emptyInstallations: PageResult<DeviceInstallation> = { items: [], total: 0, page: 1, pageSize: 20 };
 const emptyTelemetryEvents: PageResult<TelemetryEvent> = { items: [], total: 0, page: 1, pageSize: 20 };
 const emptySystemAccounts: PageResult<SystemAccount> = { items: [], total: 0, page: 1, pageSize: 20 };
@@ -118,6 +122,7 @@ const menuPermissions: Record<MenuKey, Permission> = {
   officialAccounts: "admin.official-accounts.read",
   announcement: "admin.announcements.read",
   emailTemplates: "admin.email-templates.read",
+  skills: "admin.skills.read",
   feedback: "admin.feedback.read",
   telemetry: "admin.telemetry.read",
   audit: "admin.audit-logs.read",
@@ -133,6 +138,7 @@ const menuOrder: MenuKey[] = [
   "officialAccounts",
   "announcement",
   "emailTemplates",
+  "skills",
   "feedback",
   "telemetry",
   "audit",
@@ -165,6 +171,9 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
   const [auditLoading, setAuditLoading] = useState(false);
   const [feedback, setFeedback] = useState<PageResult<FeedbackRow>>(emptyFeedback);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [skills, setSkills] = useState<PageResult<AdminSkillRow>>(emptySkills);
+  const [skillSearch, setSkillSearch] = useState("");
+  const [skillsLoading, setSkillsLoading] = useState(false);
   const [emailTemplates, setEmailTemplates] = useState<EmailTemplate[]>([]);
   const [emailTemplatesLoading, setEmailTemplatesLoading] = useState(false);
   const [emailTemplateSaving, setEmailTemplateSaving] = useState(false);
@@ -328,6 +337,33 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
       setFeedbackLoading(false);
     }
   }, [api, feedback.page, feedback.pageSize, message]);
+
+  const loadSkills = useCallback(async (page = skills.page, pageSize = skills.pageSize) => {
+    setSkillsLoading(true);
+    try {
+      const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+      if (skillSearch.trim()) params.set("search", skillSearch.trim());
+      setSkills(await api<PageResult<AdminSkillRow>>(`/admin/api/skills?${params}`));
+    } catch (error) {
+      message.error((error as Error).message);
+    } finally {
+      setSkillsLoading(false);
+    }
+  }, [api, message, skillSearch, skills.page, skills.pageSize]);
+
+  const updateSkill = useCallback(async (id: string, values: AdminSkillUpdate) => {
+    try {
+      await api<AdminSkillRow>(`/admin/api/skills/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        body: JSON.stringify(values),
+      });
+      message.success(t("common.updated"));
+      await loadSkills();
+    } catch (error) {
+      message.error((error as Error).message);
+      throw error;
+    }
+  }, [api, loadSkills, message, t]);
 
   const loadEmailTemplates = useCallback(async () => {
     setEmailTemplatesLoading(true);
@@ -743,6 +779,7 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
       void loadAnnouncementClicks();
     }
     if (activeKey === "feedback") void loadFeedback();
+    if (activeKey === "skills") void loadSkills();
     if (activeKey === "feedback") void loadMailServices();
     if (activeKey === "emailTemplates") {
       void loadEmailTemplates();
@@ -758,6 +795,7 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
     loadAuditLogs,
     loadInvitations,
     loadFeedback,
+    loadSkills,
     loadEmailTemplates,
     loadMailServices,
     loadDashboard,
@@ -792,6 +830,7 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
   const canManageApprovals = Boolean(profile?.permissions?.includes("admin.approvals.manage"));
   const canManageAnnouncements = Boolean(profile?.permissions?.includes("admin.announcements.manage"));
   const canManageFeedback = Boolean(profile?.permissions?.includes("admin.feedback.manage"));
+  const canManageSkills = Boolean(profile?.permissions?.includes("admin.skills.manage"));
   const canManageEmailTemplates = Boolean(profile?.permissions?.includes("admin.email-templates.manage"));
   const canManageMailServices = Boolean(profile?.permissions?.includes("admin.mail-services.manage"));
   const canManageOwnAccounts = Boolean(profile?.permissions?.includes("self.accounts.write"));
@@ -1031,6 +1070,38 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
           onLoadAttachment={loadFeedbackAttachment}
           onSendEmail={sendFeedbackEmail}
           mailServices={mailServices}
+        />
+      );
+    }
+
+    if (activeKey === "skills") {
+      return (
+        <SkillsPage
+          skills={skills}
+          loading={skillsLoading}
+          search={skillSearch}
+          canManage={canManageSkills}
+          onSearchChange={setSkillSearch}
+          onLoad={loadSkills}
+          onUpdate={updateSkill}
+          onDelete={(skill) => {
+            modal.confirm({
+              title: t("skills.deleteTitle"),
+              content: t("skills.deleteDescription", {
+                title: skill.title,
+                email: skill.uploaderEmail,
+              }),
+              okText: t("common.delete"),
+              okButtonProps: { danger: true },
+              onOk: async () => {
+                await api(`/admin/api/skills/${encodeURIComponent(skill.id)}`, {
+                  method: "DELETE",
+                });
+                message.success(t("common.deleted"));
+                await loadSkills();
+              },
+            });
+          }}
         />
       );
     }

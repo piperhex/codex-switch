@@ -588,6 +588,7 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .settings-field-wide label { align-self: center; flex: 0 0 auto; }
 .settings-field-wide .ant-input-affix-wrapper { width: clamp(210px, 28vw, 430px); }
 .cloud-settings-status { display: inline-block; padding: 5px 8px; border-radius: 6px; color: #456052 !important; background: #eef4ee; font-weight: 600; }
+.cloud-settings-card { display: none; }
 .settings-field .ant-space-compact { width: 150px; }
 .settings-field .ant-input-number { width: 108px; }
 .settings-field .duration-time-picker.ant-picker { width: 112px; }

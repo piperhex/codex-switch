@@ -6,8 +6,13 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { ILike, Repository } from 'typeorm';
 import type { AuthUser } from '@/common/decorators/user.decorator';
+import { AdminAuditLogEntity } from '@/modules/admin/entities/admin-audit-log.entity';
+import type {
+  ListAdminSkillsQueryDto,
+  UpdateAdminSkillDto,
+} from './dto/admin-skill.dto';
 import type { CreateSkillDto } from './dto/create-skill.dto';
 import { SkillMarketItemEntity } from './entities/skill-market-item.entity';
 
@@ -109,6 +114,8 @@ export class SkillsService {
   constructor(
     @InjectRepository(SkillMarketItemEntity)
     private readonly skills: Repository<SkillMarketItemEntity>,
+    @InjectRepository(AdminAuditLogEntity)
+    private readonly auditLogs: Repository<AdminAuditLogEntity>,
   ) {}
 
   async create(
@@ -196,6 +203,83 @@ export class SkillsService {
     return { items: items.map((item) => this.present(item)) };
   }
 
+  async listForAdmin(query: ListAdminSkillsQueryDto) {
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 20;
+    const search = query.search?.trim();
+    const where = search
+      ? [
+        { title: ILike(`%${search}%`) },
+        { description: ILike(`%${search}%`) },
+        { uploaderEmail: ILike(`%${search}%`) },
+      ]
+      : {};
+    const [items, total] = await this.skills.findAndCount({
+      where,
+      order: { createdAt: 'DESC' },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    });
+    return {
+      items: items.map((item) => this.presentForAdmin(item)),
+      total,
+      page,
+      pageSize,
+    };
+  }
+
+  async updateForAdmin(actor: AuthUser, id: string, dto: UpdateAdminSkillDto) {
+    const skill = await this.skills.findOne({ where: { id } });
+    if (!skill) throw new NotFoundException('Skill does not exist');
+    const fields = Object.keys(dto);
+    if (!fields.length) throw new BadRequestException('At least one skill field is required');
+
+    if (dto.title !== undefined) {
+      const title = dto.title.trim();
+      if (!title) throw new BadRequestException('Skill title is required');
+      skill.title = title;
+    }
+    if (dto.description !== undefined) {
+      const description = dto.description.trim();
+      if (!description) throw new BadRequestException('Skill description is required');
+      skill.description = description;
+    }
+    if (dto.version !== undefined) skill.version = this.validateVersion(dto.version);
+
+    const saved = await this.skills.save(skill);
+    await this.auditLogs.save(this.auditLogs.create({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: 'skill.update',
+      targetType: 'skill',
+      targetId: skill.id,
+      targetEmail: skill.uploaderEmail,
+      metadata: { fields },
+    }));
+    return this.presentForAdmin(saved);
+  }
+
+  async deleteForAdmin(actor: AuthUser, id: string) {
+    const skill = await this.skills.findOne({ where: { id } });
+    if (!skill) throw new NotFoundException('Skill does not exist');
+    await this.skills.delete({ id });
+    await this.auditLogs.save(this.auditLogs.create({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: 'skill.delete',
+      targetType: 'skill',
+      targetId: skill.id,
+      targetEmail: skill.uploaderEmail,
+      metadata: {
+        title: skill.title,
+        version: skill.version,
+        uploaderId: skill.uploaderId ?? null,
+        installCount: skill.installCount,
+      },
+    }));
+    return { ok: true };
+  }
+
   async getPreview(id: string) {
     const skill = await this.skills.createQueryBuilder('skill')
       .addSelect('skill.previewData')
@@ -261,6 +345,14 @@ export class SkillsService {
       installCount: skill.installCount,
       createdAt: skill.createdAt.toISOString(),
       updatedAt: skill.updatedAt.toISOString(),
+    };
+  }
+
+  private presentForAdmin(skill: SkillMarketItemEntity) {
+    return {
+      ...this.present(skill),
+      uploaderEmail: skill.uploaderEmail,
+      archiveFileName: skill.archiveFileName,
     };
   }
 }

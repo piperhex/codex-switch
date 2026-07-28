@@ -189,35 +189,6 @@ export function SettingsPage({
         </div>
       </section>
       <section className="settings-card">
-        <div className="settings-icon"><Cloud size={23} /></div>
-        <div className="settings-card-content">
-          <div className="settings-card-copy"><h3>{t("settings.cloud.title")}</h3><p>{t("settings.cloud.description")}</p>
-            <p className="cloud-settings-status">
-              {cloudBaseUrl
-                ? cloudAuthenticated ? t("settings.cloud.signedIn") : t("settings.cloud.enabled")
-                : t("settings.cloud.localMode")}
-            </p>
-          </div>
-          <div className="settings-field settings-field-wide">
-            <label htmlFor="cloud-base-url">{t("settings.cloud.label")}</label>
-            <Input id="cloud-base-url" value={cloudBaseUrlDraft} disabled={cloudBaseUrlLoading}
-              allowClear placeholder={t("settings.cloud.placeholder")}
-              onChange={(event) => setCloudBaseUrlDraft(event.target.value)}
-              onBlur={() => {
-                if (cloudBaseUrlDraft !== cloudBaseUrl) void onCloudBaseUrlSave(cloudBaseUrlDraft);
-              }} />
-            {!usingOfficialCloudServer && (
-              <Button size="small" disabled={cloudBaseUrlLoading} onMouseDown={(event) => event.preventDefault()} onClick={() => {
-                setCloudBaseUrlDraft(DEFAULT_CLOUD_BASE_URL);
-                void onCloudBaseUrlSave(DEFAULT_CLOUD_BASE_URL);
-              }}>
-                {t("settings.cloud.useOfficial")}
-              </Button>
-            )}
-          </div>
-        </div>
-      </section>
-      <section className="settings-card">
         <div className="settings-icon"><Palette size={23} /></div>
         <div className="settings-card-content">
           <div className="settings-card-copy"><h3>{t("settings.theme.title")}</h3><p>{t("settings.theme.description")}</p></div>
@@ -404,6 +375,35 @@ export function SettingsPage({
           <Button size="small" icon={<FileDown size={14} />} loading={exportingLogs}
             onClick={onExportLogs}>{t("settings.logs.export")}</Button>
         </div></section>
+      <section className="settings-card cloud-settings-card">
+        <div className="settings-icon"><Cloud size={23} /></div>
+        <div className="settings-card-content">
+          <div className="settings-card-copy"><h3>{t("settings.cloud.title")}</h3><p>{t("settings.cloud.description")}</p>
+            <p className="cloud-settings-status">
+              {cloudBaseUrl
+                ? cloudAuthenticated ? t("settings.cloud.signedIn") : t("settings.cloud.enabled")
+                : t("settings.cloud.localMode")}
+            </p>
+          </div>
+          <div className="settings-field settings-field-wide">
+            <label htmlFor="cloud-base-url">{t("settings.cloud.label")}</label>
+            <Input id="cloud-base-url" value={cloudBaseUrlDraft} disabled={cloudBaseUrlLoading}
+              allowClear placeholder={t("settings.cloud.placeholder")}
+              onChange={(event) => setCloudBaseUrlDraft(event.target.value)}
+              onBlur={() => {
+                if (cloudBaseUrlDraft !== cloudBaseUrl) void onCloudBaseUrlSave(cloudBaseUrlDraft);
+              }} />
+            {!usingOfficialCloudServer && (
+              <Button size="small" disabled={cloudBaseUrlLoading} onMouseDown={(event) => event.preventDefault()} onClick={() => {
+                setCloudBaseUrlDraft(DEFAULT_CLOUD_BASE_URL);
+                void onCloudBaseUrlSave(DEFAULT_CLOUD_BASE_URL);
+              }}>
+                {t("settings.cloud.useOfficial")}
+              </Button>
+            )}
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

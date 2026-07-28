@@ -2,6 +2,7 @@ import type { Repository } from 'typeorm';
 import { describe, expect, it, vi } from 'vitest';
 import type { AuthUser } from '@/common/decorators/user.decorator';
 import type { SkillMarketItemEntity } from '@/modules/skills/entities/skill-market-item.entity';
+import type { AdminAuditLogEntity } from '@/modules/admin/entities/admin-audit-log.entity';
 import {
   MAX_SKILL_ARCHIVE_BYTES,
   SkillsService,
@@ -47,13 +48,23 @@ function createService() {
       updatedAt: new Date('2026-07-28T01:00:00.000Z'),
     })),
     find: vi.fn(),
+    findAndCount: vi.fn(),
     findOne: vi.fn(),
     increment: vi.fn(),
+    delete: vi.fn(),
     createQueryBuilder: vi.fn(),
   };
+  const auditLogs = {
+    create: vi.fn((value) => value),
+    save: vi.fn(async (value) => value),
+  };
   return {
-    service: new SkillsService(skills as unknown as Repository<SkillMarketItemEntity>),
+    service: new SkillsService(
+      skills as unknown as Repository<SkillMarketItemEntity>,
+      auditLogs as unknown as Repository<AdminAuditLogEntity>,
+    ),
     skills,
+    auditLogs,
   };
 }
 
@@ -121,5 +132,103 @@ describe('SkillsService', () => {
       undefined,
     )).rejects.toThrow('must use a different version');
     expect(skills.save).not.toHaveBeenCalled();
+  });
+
+  it('returns download totals in both market and admin list results', async () => {
+    const { service, skills } = createService();
+    const item = {
+      id: 'skill-1',
+      title: 'Demo',
+      description: 'Demo skill',
+      version: '1.0.0',
+      archiveFileName: 'demo.zip',
+      archiveSize: 123,
+      archiveSha256: 'a'.repeat(64),
+      previewMimeType: null,
+      previewSize: null,
+      uploaderId: 'publisher-1',
+      uploaderEmail: 'publisher@example.com',
+      installCount: 42,
+      createdAt: new Date('2026-07-28T01:00:00.000Z'),
+      updatedAt: new Date('2026-07-28T02:00:00.000Z'),
+    };
+    skills.find.mockResolvedValue([item]);
+    skills.findAndCount.mockResolvedValue([[item], 1]);
+
+    await expect(service.list()).resolves.toMatchObject({
+      items: [{ id: 'skill-1', installCount: 42 }],
+    });
+    await expect(service.listForAdmin({ page: 1, pageSize: 20 })).resolves.toMatchObject({
+      items: [{
+        id: 'skill-1',
+        installCount: 42,
+        uploaderEmail: 'publisher@example.com',
+      }],
+      total: 1,
+    });
+  });
+
+  it('increments the download total when an archive is downloaded', async () => {
+    const { service, skills } = createService();
+    const builder = {
+      addSelect: vi.fn(),
+      where: vi.fn(),
+      getOne: vi.fn().mockResolvedValue({
+        id: 'skill-1',
+        archiveData: Buffer.from('archive'),
+        archiveFileName: 'demo.zip',
+        archiveSha256: 'a'.repeat(64),
+      }),
+    };
+    builder.addSelect.mockReturnValue(builder);
+    builder.where.mockReturnValue(builder);
+    skills.createQueryBuilder.mockReturnValue(builder);
+
+    await expect(service.download('skill-1')).resolves.toMatchObject({
+      fileName: 'demo.zip',
+    });
+    expect(skills.increment).toHaveBeenCalledWith({ id: 'skill-1' }, 'installCount', 1);
+  });
+
+  it('allows administrators to edit metadata and delete published skills with audit logs', async () => {
+    const { service, skills, auditLogs } = createService();
+    const skill = {
+      id: 'skill-1',
+      title: 'Old title',
+      description: 'Old description',
+      version: '1.0.0',
+      archiveFileName: 'demo.zip',
+      archiveSize: 123,
+      archiveSha256: 'a'.repeat(64),
+      previewMimeType: null,
+      previewSize: null,
+      uploaderId: 'publisher-1',
+      uploaderEmail: 'publisher@example.com',
+      installCount: 7,
+      createdAt: new Date('2026-07-28T01:00:00.000Z'),
+      updatedAt: new Date('2026-07-28T02:00:00.000Z'),
+    };
+    skills.findOne.mockResolvedValue(skill);
+    const actor: AuthUser = { id: 'admin-1', email: 'admin@example.com', role: 'admin' };
+
+    await service.updateForAdmin(actor, 'skill-1', {
+      title: ' Curated title ',
+      description: ' Curated description ',
+    });
+    expect(skills.save).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Curated title',
+      description: 'Curated description',
+    }));
+    expect(auditLogs.create).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'skill.update',
+      targetId: 'skill-1',
+    }));
+
+    await expect(service.deleteForAdmin(actor, 'skill-1')).resolves.toEqual({ ok: true });
+    expect(skills.delete).toHaveBeenCalledWith({ id: 'skill-1' });
+    expect(auditLogs.create).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'skill.delete',
+      targetEmail: 'publisher@example.com',
+    }));
   });
 });
