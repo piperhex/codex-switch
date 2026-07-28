@@ -210,6 +210,7 @@ fn query_provider_balance_blocking<R: Runtime>(
     let client = Client::builder()
         .timeout(Duration::from_secs(15))
         .redirect(reqwest::redirect::Policy::limited(5))
+        .cookie_store(true)
         .user_agent("Codex-Switch")
         .build()
         .map_err(|error| format!("Failed to create balance query client: {error}"))?;
@@ -220,26 +221,28 @@ fn query_provider_balance_blocking<R: Runtime>(
     let mut wallet_error = None;
 
     if let Some(wallet_url) = provider.wallet_query_url.as_deref() {
-        let wallet_result = match (
-            platform,
-            provider.wallet_username.as_deref(),
-            provider.wallet_password.as_deref(),
-            provider.wallet_query_token.as_deref(),
-        ) {
-            (ProviderBalancePlatform::NewApi, Some(username), Some(password), _) => Some(
-                query_new_api_wallet_with_login(&client, wallet_url, username, password),
+        let wallet_result = match platform {
+            ProviderBalancePlatform::NewApi => query_new_api_wallet(
+                &client,
+                wallet_url,
+                provider.wallet_query_token.as_deref(),
+                provider.wallet_username.as_deref(),
+                provider.wallet_password.as_deref(),
             ),
-            (_, _, _, Some(wallet_token)) => Some(
-                query_balance_payload(
-                    &client,
-                    wallet_url,
-                    wallet_token.trim(),
-                    None,
-                    "Wallet balance",
-                )
-                .and_then(|payload| parse_provider_wallet_balance(platform, &payload)),
-            ),
-            _ => None,
+            ProviderBalancePlatform::Sub2Api => {
+                provider.wallet_query_token.as_deref().map(|wallet_token| {
+                    query_balance_payload(
+                        &client,
+                        wallet_url,
+                        wallet_token.trim(),
+                        None,
+                        "Wallet balance",
+                    )
+                    .and_then(|payload| {
+                        parse_provider_wallet_balance(ProviderBalancePlatform::Sub2Api, &payload)
+                    })
+                })
+            }
         };
         if let Some(wallet_result) = wallet_result {
             match wallet_result {
@@ -278,6 +281,18 @@ fn query_balance_payload(
         request = request.header("New-Api-User", user_id);
     }
     let response = request
+        .send()
+        .map_err(|error| format!("{label} query failed: {error}"))?;
+    read_balance_response(response, label)
+}
+
+fn query_session_balance_payload(
+    client: &Client,
+    query_url: &str,
+    label: &str,
+) -> Result<Value, String> {
+    let response = client
+        .get(query_url)
         .send()
         .map_err(|error| format!("{label} query failed: {error}"))?;
     read_balance_response(response, label)
@@ -326,7 +341,12 @@ fn json_id(value: &Value) -> Option<String> {
         .or_else(|| value.as_u64().map(|id| id.to_string()))
 }
 
-fn parse_new_api_login_auth(payload: &Value) -> Result<(String, String), String> {
+struct NewApiLoginAuth {
+    access_token: Option<String>,
+    user_id: String,
+}
+
+fn parse_new_api_login_auth(payload: &Value) -> Result<NewApiLoginAuth, String> {
     if payload.get("success").and_then(Value::as_bool) == Some(false) {
         let message = payload
             .get("message")
@@ -346,16 +366,16 @@ fn parse_new_api_login_auth(payload: &Value) -> Result<(String, String), String>
         .or_else(|| user.get("accessToken"))
         .and_then(Value::as_str)
         .filter(|token| !token.trim().is_empty())
-        .ok_or_else(|| {
-            "New API wallet login response is missing an access token; 2FA or another login step may be required"
-                .to_string()
-        })?;
+        .map(str::to_string);
     let user_id = user
         .get("id")
         .and_then(json_id)
         .or_else(|| data.get("id").and_then(json_id))
         .ok_or_else(|| "New API wallet login response is missing the user id".to_string())?;
-    Ok((access_token.to_string(), user_id))
+    Ok(NewApiLoginAuth {
+        access_token,
+        user_id,
+    })
 }
 
 fn query_new_api_wallet_with_login(
@@ -363,6 +383,7 @@ fn query_new_api_wallet_with_login(
     wallet_url: &str,
     username: &str,
     password: &str,
+    preferred_wallet_token: Option<&str>,
 ) -> Result<(f64, String), String> {
     if username.trim().is_empty() || password.is_empty() {
         return Err("New API wallet username or password is empty".to_string());
@@ -374,15 +395,78 @@ fn query_new_api_wallet_with_login(
         .send()
         .map_err(|error| format!("New API wallet login failed: {error}"))?;
     let payload = read_balance_response(response, "New API wallet login")?;
-    let (access_token, user_id) = parse_new_api_login_auth(&payload)?;
-    query_balance_payload(
-        client,
-        wallet_url,
-        &access_token,
-        Some(&user_id),
-        "Wallet balance",
-    )
-    .and_then(|payload| parse_provider_wallet_balance(ProviderBalancePlatform::NewApi, &payload))
+    let auth = parse_new_api_login_auth(&payload)?;
+    let mut prior_error = None;
+    if let Some(wallet_token) = preferred_wallet_token.filter(|token| !token.trim().is_empty()) {
+        match query_balance_payload(
+            client,
+            wallet_url,
+            wallet_token.trim(),
+            Some(&auth.user_id),
+            "Wallet balance",
+        )
+        .and_then(|payload| {
+            parse_provider_wallet_balance(ProviderBalancePlatform::NewApi, &payload)
+        }) {
+            Ok(balance) => return Ok(balance),
+            Err(error) => prior_error = Some(format!("Wallet token query failed: {error}")),
+        }
+    }
+    if let Some(access_token) = auth
+        .access_token
+        .as_deref()
+        .filter(|token| Some(*token) != preferred_wallet_token)
+    {
+        match query_balance_payload(
+            client,
+            wallet_url,
+            access_token,
+            Some(&auth.user_id),
+            "Wallet balance",
+        )
+        .and_then(|payload| {
+            parse_provider_wallet_balance(ProviderBalancePlatform::NewApi, &payload)
+        }) {
+            Ok(balance) => return Ok(balance),
+            Err(error) => prior_error = Some(format!("Login token query failed: {error}")),
+        }
+    }
+    query_session_balance_payload(client, wallet_url, "Wallet balance")
+        .and_then(|payload| {
+            parse_provider_wallet_balance(ProviderBalancePlatform::NewApi, &payload)
+        })
+        .map_err(|session_error| match prior_error {
+            Some(prior_error) => {
+                format!("{prior_error}; session fallback failed: {session_error}")
+            }
+            None => format!("Session wallet query failed: {session_error}"),
+        })
+}
+
+fn query_new_api_wallet(
+    client: &Client,
+    wallet_url: &str,
+    wallet_token: Option<&str>,
+    username: Option<&str>,
+    password: Option<&str>,
+) -> Option<Result<(f64, String), String>> {
+    match (username, password) {
+        (Some(username), Some(password)) => Some(query_new_api_wallet_with_login(
+            client,
+            wallet_url,
+            username,
+            password,
+            wallet_token,
+        )),
+        _ => wallet_token
+            .filter(|token| !token.trim().is_empty())
+            .map(|token| {
+                query_balance_payload(client, wallet_url, token.trim(), None, "Wallet balance")
+                    .and_then(|payload| {
+                        parse_provider_wallet_balance(ProviderBalancePlatform::NewApi, &payload)
+                    })
+            }),
+    }
 }
 
 #[tauri::command]
@@ -1603,6 +1687,7 @@ mod tests {
     use super::*;
     use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
     use serde_json::json;
+    use tiny_http::{Header, Response, Server};
 
     fn provider() -> ProviderProfile {
         ProviderProfile {
@@ -1688,7 +1773,7 @@ mod tests {
 
     #[test]
     fn parses_current_new_api_login_bundle() {
-        let (token, user_id) = parse_new_api_login_auth(&json!({
+        let auth = parse_new_api_login_auth(&json!({
             "success": true,
             "data": {
                 "access_token": "login-token",
@@ -1697,13 +1782,13 @@ mod tests {
         }))
         .unwrap();
 
-        assert_eq!(token, "login-token");
-        assert_eq!(user_id, "42");
+        assert_eq!(auth.access_token.as_deref(), Some("login-token"));
+        assert_eq!(auth.user_id, "42");
     }
 
     #[test]
     fn parses_legacy_new_api_login_user() {
-        let (token, user_id) = parse_new_api_login_auth(&json!({
+        let auth = parse_new_api_login_auth(&json!({
             "success": true,
             "data": {
                 "id": 7,
@@ -1712,8 +1797,107 @@ mod tests {
         }))
         .unwrap();
 
-        assert_eq!(token, "legacy-token");
-        assert_eq!(user_id, "7");
+        assert_eq!(auth.access_token.as_deref(), Some("legacy-token"));
+        assert_eq!(auth.user_id, "7");
+    }
+
+    #[test]
+    fn new_api_wallet_login_falls_back_to_session_cookie() {
+        let server = Server::http("127.0.0.1:0").unwrap();
+        let wallet_url = format!("http://{}/api/user/self", server.server_addr());
+        let worker = std::thread::spawn(move || {
+            let login = server.recv().unwrap();
+            assert_eq!(login.url(), "/api/user/login");
+            login
+                .respond(
+                    Response::from_string(r#"{"success":true,"data":{"id":42}}"#)
+                        .with_header(
+                            Header::from_bytes(
+                                "Set-Cookie",
+                                "session=test-session; Path=/; HttpOnly",
+                            )
+                            .unwrap(),
+                        )
+                        .with_header(
+                            Header::from_bytes("Content-Type", "application/json").unwrap(),
+                        ),
+                )
+                .unwrap();
+
+            let wallet = server.recv().unwrap();
+            assert_eq!(wallet.url(), "/api/user/self");
+            assert!(wallet
+                .headers()
+                .iter()
+                .any(|header| header.field.equiv("Cookie")
+                    && header.value.as_str().contains("session=test-session")));
+            wallet
+                .respond(
+                    Response::from_string(r#"{"success":true,"data":{"quota":6250000}}"#)
+                        .with_header(
+                            Header::from_bytes("Content-Type", "application/json").unwrap(),
+                        ),
+                )
+                .unwrap();
+        });
+        let client = Client::builder().cookie_store(true).build().unwrap();
+
+        let (amount, unit) =
+            query_new_api_wallet_with_login(&client, &wallet_url, "user", "password", None)
+                .unwrap();
+
+        assert_eq!(amount, 12.5);
+        assert_eq!(unit, "USD");
+        worker.join().unwrap();
+    }
+
+    #[test]
+    fn new_api_wallet_login_supplies_user_id_to_saved_token() {
+        let server = Server::http("127.0.0.1:0").unwrap();
+        let wallet_url = format!("http://{}/api/user/self", server.server_addr());
+        let worker = std::thread::spawn(move || {
+            let login = server.recv().unwrap();
+            assert_eq!(login.url(), "/api/user/login");
+            login
+                .respond(
+                    Response::from_string(r#"{"success":true,"data":{"id":42}}"#).with_header(
+                        Header::from_bytes("Content-Type", "application/json").unwrap(),
+                    ),
+                )
+                .unwrap();
+
+            let wallet = server.recv().unwrap();
+            assert_eq!(wallet.url(), "/api/user/self");
+            assert!(wallet.headers().iter().any(|header| {
+                header.field.equiv("Authorization")
+                    && header.value.as_str() == "Bearer saved-wallet-token"
+            }));
+            assert!(wallet.headers().iter().any(|header| {
+                header.field.equiv("New-Api-User") && header.value.as_str() == "42"
+            }));
+            wallet
+                .respond(
+                    Response::from_string(r#"{"success":true,"data":{"quota":6250000}}"#)
+                        .with_header(
+                            Header::from_bytes("Content-Type", "application/json").unwrap(),
+                        ),
+                )
+                .unwrap();
+        });
+        let client = Client::builder().cookie_store(true).build().unwrap();
+
+        let (amount, unit) = query_new_api_wallet_with_login(
+            &client,
+            &wallet_url,
+            "user",
+            "password",
+            Some("saved-wallet-token"),
+        )
+        .unwrap();
+
+        assert_eq!(amount, 12.5);
+        assert_eq!(unit, "USD");
+        worker.join().unwrap();
     }
 
     #[test]
