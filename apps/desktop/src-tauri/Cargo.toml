@@ -38,7 +38,7 @@ tiny_http = "0.12"
 tungstenite = { version = "0.28", default-features = false, features = ["handshake", "rustls-tls-webpki-roots"] }
 url = "2"
 uuid = { version = "1", features = ["v4"] }
-zip = { version = "2", default-features = false }
+zip = { version = "2", default-features = false, features = ["deflate"] }
 rusqlite = { version = "0.32.1", default-features = false, features = ["bundled"] }
 sysinfo = "0.37"
 

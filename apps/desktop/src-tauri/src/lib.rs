@@ -13,6 +13,7 @@ mod models;
 mod oauth;
 mod providers;
 mod remote_control;
+mod skills_market;
 mod storage;
 mod system_proxy;
 mod system_tray;
@@ -180,6 +181,9 @@ pub fn run() {
             cloud::cloud_delete_account,
             cloud::cloud_delete_provider,
             cloud::cloud_sync_accounts,
+            skills_market::list_market_skills,
+            skills_market::upload_market_skill,
+            skills_market::install_market_skill,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Codex Switch");

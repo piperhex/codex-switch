@@ -36,6 +36,9 @@ import type {
   ProviderInput,
   ResetCreditsSummary,
   SavedCloudLogin,
+  SkillMarketItem,
+  SkillPackageSelection,
+  SkillPublishInput,
   TokenUsageEntry,
   UpdateInfo,
 } from "../types";
@@ -880,6 +883,86 @@ export async function fetchCloudFaqs(): Promise<CloudFaq[]> {
   });
   if (!response.ok) throw new Error(`FAQ request failed with HTTP ${response.status}`);
   return response.json() as Promise<CloudFaq[]>;
+}
+
+const SKILL_MARKET_INSTALLED_PREVIEW_KEY = "codex-switch:skill-market-installed";
+
+function previewInstalledSkills(): Record<string, string> {
+  try {
+    const value = JSON.parse(window.localStorage.getItem(SKILL_MARKET_INSTALLED_PREVIEW_KEY) ?? "{}") as unknown;
+    return value && typeof value === "object" && !Array.isArray(value)
+      ? value as Record<string, string>
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+export async function fetchSkillMarket(): Promise<SkillMarketItem[]> {
+  if (isDesktopApp) return invoke<SkillMarketItem[]>("list_market_skills");
+  const { baseUrl } = previewCloudState();
+  if (!baseUrl) return [];
+  const response = await fetch(`${baseUrl.replace(/\/+$/, "")}/skills`, {
+    headers: { Accept: "application/json" },
+    cache: "no-store",
+  });
+  if (!response.ok) throw new Error(`Skill market request failed with HTTP ${response.status}`);
+  const payload = await response.json() as { items: SkillMarketItem[] };
+  const installed = previewInstalledSkills();
+  return payload.items.map((item) => ({
+    ...item,
+    installedVersion: installed[item.id] ?? null,
+    installed: installed[item.id] === item.version,
+  }));
+}
+
+function selectedPackage(path: string, kind: SkillPackageSelection["kind"]): SkillPackageSelection {
+  const name = path.split(/[\\/]/).filter(Boolean).at(-1) ?? (kind === "folder" ? "skill-folder" : "skill.zip");
+  return { path, kind, name };
+}
+
+export async function chooseSkillArchive(): Promise<SkillPackageSelection | null> {
+  if (!isDesktopApp) return null;
+  const path = await open({
+    multiple: false,
+    directory: false,
+    filters: [{ name: "Skill ZIP archive", extensions: ["zip"] }],
+  });
+  return typeof path === "string" ? selectedPackage(path, "archive") : null;
+}
+
+export async function chooseSkillFolder(): Promise<SkillPackageSelection | null> {
+  if (!isDesktopApp) return null;
+  const path = await open({ multiple: false, directory: true });
+  return typeof path === "string" ? selectedPackage(path, "folder") : null;
+}
+
+export async function publishSkill(input: SkillPublishInput): Promise<SkillMarketItem> {
+  if (!isDesktopApp) throw new Error("Skill publishing is available in the desktop app");
+  return invoke<SkillMarketItem>("upload_market_skill", {
+    title: input.title,
+    description: input.description,
+    version: input.version,
+    skillId: input.skillId ?? null,
+    packagePath: input.package.path,
+    packageKind: input.package.kind,
+    preview: input.preview ?? null,
+  });
+}
+
+export async function installMarketSkill(skill: SkillMarketItem): Promise<void> {
+  if (!isDesktopApp) {
+    const installed = previewInstalledSkills();
+    installed[skill.id] = skill.version;
+    window.localStorage.setItem(SKILL_MARKET_INSTALLED_PREVIEW_KEY, JSON.stringify(installed));
+    return;
+  }
+  await invoke("install_market_skill", { skill });
+}
+
+export function skillPreviewUrl(baseUrl: string | null | undefined, skill: SkillMarketItem) {
+  if (!skill.hasPreview || !baseUrl) return null;
+  return `${baseUrl.replace(/\/+$/, "")}/skills/${encodeURIComponent(skill.id)}/preview`;
 }
 
 export async function changeCloudPassword(currentPassword: string, newPassword: string): Promise<void> {

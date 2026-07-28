@@ -15,6 +15,7 @@ import { UserModule } from '@/modules/user/user.module';
 import { RbacModule } from '@/common/rbac/rbac.module';
 import { DashboardModule } from '@/modules/dashboard/dashboard.module';
 import { DeviceModule } from '@/modules/devices/device.module';
+import { SkillsModule } from '@/modules/skills/skills.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { DeviceModule } from '@/modules/devices/device.module';
     FeedbackModule,
     DashboardModule,
     DeviceModule,
+    SkillsModule,
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'public'),
       // API misses must remain API 404 responses. Without these exclusions,
@@ -50,6 +52,7 @@ import { DeviceModule } from '@/modules/devices/device.module';
         '/telemetry/{*any}',
         '/devices/{*any}',
         '/device-switch/{*any}',
+        '/skills/{*any}',
       ],
     }),
   ],

@@ -268,6 +268,39 @@ export interface CloudFaq {
   updatedAt: string;
 }
 
+export interface SkillMarketItem {
+  id: string;
+  title: string;
+  description: string;
+  version: string;
+  archiveSize: number;
+  archiveSha256: string;
+  hasPreview: boolean;
+  uploaderId?: string | null;
+  installCount: number;
+  createdAt: string;
+  updatedAt: string;
+  installed: boolean;
+  installedVersion?: string | null;
+}
+
+export type SkillPackageKind = "archive" | "folder";
+
+export interface SkillPackageSelection {
+  path: string;
+  kind: SkillPackageKind;
+  name: string;
+}
+
+export interface SkillPublishInput {
+  skillId?: string | null;
+  title: string;
+  description: string;
+  version: string;
+  package: SkillPackageSelection;
+  preview?: FeedbackImageInput | null;
+}
+
 export interface FeedbackImageInput {
   fileName: string;
   mimeType: string;
