@@ -45,6 +45,20 @@ function providerErrorMessage(error: unknown, t: Translate) {
   }
   if (message.includes("Official Codex local proxy requires")) return t("providers.error.officialProxyAuthRequired");
   if (message.includes("Provider id is invalid")) return t("providers.error.providerIdInvalid");
+  if (message.includes("Provider balance query token is required")) {
+    return t("providers.error.balanceTokenRequired");
+  }
+  if (message.includes("Provider balance query URL is required")) {
+    return t("providers.error.balanceUrlRequired");
+  }
+  if (message.includes("Provider balance query URL must be an http:// or https:// URL with a host")) {
+    return t("providers.error.balanceUrlHttp");
+  }
+  if (message.startsWith("Provider balance query URL is invalid:")) {
+    return t("providers.error.balanceUrlInvalid", {
+      error: message.slice("Provider balance query URL is invalid:".length).trim(),
+    });
+  }
   if (message.includes("Image generation account must use an OAuth token")) {
     return t("providers.error.imageAccountOAuthRequired");
   }

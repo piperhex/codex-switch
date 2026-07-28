@@ -33,6 +33,7 @@ import type {
   ProxySessionRequest,
   ProxySessionLatencySummary,
   Provider,
+  ProviderBalance,
   ProviderInput,
   ResetCreditsSummary,
   SavedCloudLogin,
@@ -154,6 +155,10 @@ function readPreviewProviders(): Provider[] {
         model: models.includes(provider.model.trim()) ? provider.model.trim() : (models[0] ?? ""),
         models,
         modelSelectionControlledByCodex: Boolean(provider.modelSelectionControlledByCodex),
+        balancePlatform: provider.balancePlatform ?? null,
+        balanceQueryUrl: provider.balanceQueryUrl ?? null,
+        balanceQueryUsesApiKey: provider.balanceQueryUsesApiKey !== false,
+        hasBalanceQueryToken: Boolean(provider.hasBalanceQueryToken),
       };
     });
   } catch {
@@ -252,6 +257,12 @@ export async function saveProviderProfile(provider: ProviderInput): Promise<Prov
       active: existing?.active ?? false,
       hasApiKey,
       supportsDirectSwitch: provider.apiFormat === "openaiResponses" || previewLocalProxyStatus().running,
+      balancePlatform: provider.balancePlatform ?? null,
+      balanceQueryUrl: provider.balanceQueryUrl ?? null,
+      balanceQueryUsesApiKey: provider.balanceQueryUsesApiKey !== false,
+      hasBalanceQueryToken: Boolean(provider.balanceQueryToken?.trim() || (
+        existing?.hasBalanceQueryToken && provider.balanceQueryUsesApiKey === false
+      )),
     };
     if (index >= 0) providers[index] = next;
     else providers.push(next);
@@ -259,6 +270,21 @@ export async function saveProviderProfile(provider: ProviderInput): Promise<Prov
     return next;
   }
   return invoke<Provider>("save_provider", { provider });
+}
+
+export async function queryProviderBalance(id: string): Promise<ProviderBalance> {
+  if (!isDesktopApp) {
+    const provider = readPreviewProviders().find((item) => item.id === id);
+    if (!provider) throw new Error("Provider does not exist");
+    if (!provider.balancePlatform) throw new Error("Provider balance query is not enabled");
+    return {
+      amount: provider.balancePlatform === "newApi" ? 108.08 : 42.5,
+      unit: "USD",
+      unlimited: false,
+      queriedAt: Math.floor(Date.now() / 1000),
+    };
+  }
+  return invoke<ProviderBalance>("query_provider_balance", { id });
 }
 
 export async function activateProvider(id: string): Promise<void> {

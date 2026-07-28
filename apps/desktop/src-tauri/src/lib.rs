@@ -123,6 +123,7 @@ pub fn run() {
             dream_skin::get_dream_skin_theme_preview,
             providers::list_providers,
             providers::save_provider,
+            providers::query_provider_balance,
             providers::switch_provider,
             providers::switch_provider_model,
             providers::set_provider_model_control,

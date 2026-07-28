@@ -96,7 +96,7 @@ export function LocalProxyCard({
             )}
             okText={t("providers.proxy.restoreConversations")} cancelText={t("providers.proxy.cancel")}
             disabled={proxyBusy || conversationRestoreBusy} onConfirm={onRestoreConversations}>
-            <Button size="small" icon={<History size={14} />} loading={conversationRestoreBusy}
+            <Button danger size="small" icon={<History size={14} />} loading={conversationRestoreBusy}
               disabled={proxyBusy}>{t("providers.proxy.restoreConversations")}</Button>
           </Popconfirm>
         )}

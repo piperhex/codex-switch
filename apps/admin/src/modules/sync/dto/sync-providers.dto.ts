@@ -41,6 +41,19 @@ export class SyncProviderDto {
   apiFormat: 'openaiResponses' | 'openaiChat';
 
   @IsOptional()
+  @IsIn(['newApi', 'sub2Api'])
+  balancePlatform?: 'newApi' | 'sub2Api' | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  balanceQueryUrl?: string | null;
+
+  @IsOptional()
+  @IsString()
+  balanceQueryToken?: string | null;
+
+  @IsOptional()
   @IsString()
   @MaxLength(40)
   lastModifiedAt?: string;

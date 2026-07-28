@@ -1,5 +1,6 @@
-use std::{fs, path::PathBuf};
+use std::{fs, io::Read, path::PathBuf, time::Duration};
 
+use reqwest::blocking::Client;
 use serde::Deserialize;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -8,7 +9,10 @@ use url::Url;
 
 use crate::{
     auth::{is_agent_identity_auth, validate_auth},
-    models::{ProviderApiFormat, ProviderProfile, ProviderSummary},
+    models::{
+        ProviderApiFormat, ProviderBalance, ProviderBalancePlatform, ProviderProfile,
+        ProviderSummary,
+    },
     storage::{
         managed_auth_path, read_json, read_state, resolve_paths, write_json_atomic,
         write_json_if_changed, write_state, write_text_atomic, write_text_if_changed, Paths,
@@ -29,6 +33,8 @@ const LOCAL_PROXY_PROVIDER_NAME: &str = "Codex Switch Local Proxy";
 pub(crate) const DEFAULT_OFFICIAL_MODEL: &str = "gpt-5.6-sol";
 const MODEL_CATALOG_FILENAME: &str = "codex-switch-model-catalog.json";
 pub(crate) const DEFAULT_MODEL_CONTEXT_WINDOW: u64 = 128_000;
+const NEW_API_QUOTA_PER_USD: f64 = 500_000.0;
+const MAX_BALANCE_RESPONSE_BYTES: u64 = 1024 * 1024;
 
 fn emit_providers_changed<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<(), String> {
     app.emit("providers-changed", ())
@@ -50,6 +56,14 @@ pub(crate) struct ProviderInput {
     #[serde(default)]
     model_selection_controlled_by_codex: bool,
     api_format: ProviderApiFormat,
+    #[serde(default)]
+    balance_platform: Option<ProviderBalancePlatform>,
+    #[serde(default)]
+    balance_query_url: Option<String>,
+    #[serde(default)]
+    balance_query_token: Option<String>,
+    #[serde(default)]
+    balance_query_uses_api_key: bool,
 }
 
 #[tauri::command]
@@ -106,6 +120,13 @@ pub(crate) fn save_provider<R: Runtime>(
     if api_key.is_empty() {
         return Err("API key is required for a new provider".to_string());
     }
+    let (balance_platform, balance_query_url, balance_query_token) = normalize_balance_settings(
+        provider.balance_platform,
+        provider.balance_query_url,
+        provider.balance_query_token,
+        provider.balance_query_uses_api_key,
+        existing.as_ref(),
+    )?;
 
     let profile = ProviderProfile {
         id,
@@ -116,6 +137,9 @@ pub(crate) fn save_provider<R: Runtime>(
         models,
         model_selection_controlled_by_codex: provider.model_selection_controlled_by_codex,
         api_format: provider.api_format,
+        balance_platform,
+        balance_query_url,
+        balance_query_token,
     };
     write_provider(&paths, &profile)?;
 
@@ -128,6 +152,75 @@ pub(crate) fn save_provider<R: Runtime>(
         &profile,
         active_provider_id.as_deref() == Some(&profile.id),
     ))
+}
+
+#[tauri::command]
+pub(crate) async fn query_provider_balance<R: Runtime + 'static>(
+    app: tauri::AppHandle<R>,
+    id: String,
+) -> Result<ProviderBalance, String> {
+    tauri::async_runtime::spawn_blocking(move || query_provider_balance_blocking(app, id))
+        .await
+        .map_err(|error| format!("Provider balance query task failed: {error}"))?
+}
+
+fn query_provider_balance_blocking<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    id: String,
+) -> Result<ProviderBalance, String> {
+    let paths = resolve_paths(&app)?;
+    let provider = read_provider(&paths, &id)?;
+    let platform = provider
+        .balance_platform
+        .ok_or_else(|| "Provider balance query is not enabled".to_string())?;
+    let query_url = provider
+        .balance_query_url
+        .as_deref()
+        .ok_or_else(|| "Provider balance query URL is empty".to_string())?;
+    let token = provider
+        .balance_query_token
+        .as_deref()
+        .unwrap_or(&provider.api_key)
+        .trim();
+    if token.is_empty() {
+        return Err("Provider balance query token is empty".to_string());
+    }
+
+    let client = Client::builder()
+        .timeout(Duration::from_secs(15))
+        .redirect(reqwest::redirect::Policy::limited(5))
+        .user_agent("Codex-Switch")
+        .build()
+        .map_err(|error| format!("Failed to create balance query client: {error}"))?;
+    let response = client
+        .get(query_url)
+        .bearer_auth(token)
+        .send()
+        .map_err(|error| format!("Provider balance query failed: {error}"))?;
+    let status = response.status();
+    if !status.is_success() {
+        return Err(format!(
+            "Provider balance query returned HTTP {}",
+            status.as_u16()
+        ));
+    }
+    if response
+        .content_length()
+        .is_some_and(|length| length > MAX_BALANCE_RESPONSE_BYTES)
+    {
+        return Err("Provider balance response is too large".to_string());
+    }
+    let mut bytes = Vec::new();
+    response
+        .take(MAX_BALANCE_RESPONSE_BYTES + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|error| format!("Failed to read provider balance response: {error}"))?;
+    if bytes.len() as u64 > MAX_BALANCE_RESPONSE_BYTES {
+        return Err("Provider balance response is too large".to_string());
+    }
+    let payload: Value = serde_json::from_slice(&bytes)
+        .map_err(|error| format!("Provider balance response is invalid JSON: {error}"))?;
+    parse_provider_balance(platform, &payload)
 }
 
 #[tauri::command]
@@ -447,7 +540,122 @@ fn provider_summary(provider: &ProviderProfile, active: bool) -> ProviderSummary
         has_api_key: !provider.api_key.trim().is_empty(),
         supports_direct_switch: provider.api_format == ProviderApiFormat::OpenaiResponses
             || crate::local_proxy::is_running(),
+        balance_platform: provider.balance_platform,
+        balance_query_url: provider.balance_query_url.clone(),
+        balance_query_uses_api_key: provider.balance_query_token.is_none(),
+        has_balance_query_token: provider
+            .balance_query_token
+            .as_deref()
+            .is_some_and(|value| !value.trim().is_empty()),
     }
+}
+
+fn normalize_balance_settings(
+    platform: Option<ProviderBalancePlatform>,
+    query_url: Option<String>,
+    supplied_token: Option<String>,
+    uses_api_key: bool,
+    existing: Option<&ProviderProfile>,
+) -> Result<
+    (
+        Option<ProviderBalancePlatform>,
+        Option<String>,
+        Option<String>,
+    ),
+    String,
+> {
+    let Some(platform) = platform else {
+        return Ok((None, None, None));
+    };
+    let query_url = normalize_balance_query_url(query_url.as_deref().unwrap_or_default())?;
+    let query_token = if uses_api_key {
+        None
+    } else {
+        let supplied = supplied_token.unwrap_or_default().trim().to_string();
+        if !supplied.is_empty() {
+            Some(supplied)
+        } else {
+            existing
+                .filter(|profile| profile.balance_platform == Some(platform))
+                .and_then(|profile| profile.balance_query_token.clone())
+                .filter(|token| !token.trim().is_empty())
+        }
+    };
+    if !uses_api_key && query_token.is_none() {
+        return Err("Provider balance query token is required".to_string());
+    }
+    Ok((Some(platform), Some(query_url), query_token))
+}
+
+fn normalize_balance_query_url(value: &str) -> Result<String, String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return Err("Provider balance query URL is required".to_string());
+    }
+    let url = Url::parse(trimmed)
+        .map_err(|error| format!("Provider balance query URL is invalid: {error}"))?;
+    if !matches!(url.scheme(), "http" | "https") || url.host_str().is_none() {
+        return Err(
+            "Provider balance query URL must be an http:// or https:// URL with a host".to_string(),
+        );
+    }
+    Ok(trimmed.to_string())
+}
+
+fn parse_provider_balance(
+    platform: ProviderBalancePlatform,
+    payload: &Value,
+) -> Result<ProviderBalance, String> {
+    let (amount, unit, unlimited) = match platform {
+        ProviderBalancePlatform::NewApi => {
+            let data = payload
+                .get("data")
+                .ok_or_else(|| "New API balance response is missing data".to_string())?;
+            let unlimited = data
+                .get("unlimited_quota")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+            let available = data
+                .get("total_available")
+                .and_then(Value::as_f64)
+                .ok_or_else(|| {
+                    "New API balance response is missing data.total_available".to_string()
+                })?;
+            (
+                (!unlimited).then_some((available / NEW_API_QUOTA_PER_USD).max(0.0)),
+                "USD".to_string(),
+                unlimited,
+            )
+        }
+        ProviderBalancePlatform::Sub2Api => {
+            let remaining = payload
+                .get("remaining")
+                .and_then(Value::as_f64)
+                .or_else(|| {
+                    payload
+                        .get("quota")
+                        .and_then(|quota| quota.get("remaining"))
+                        .and_then(Value::as_f64)
+                })
+                .ok_or_else(|| "Sub2API balance response is missing remaining".to_string())?;
+            let unlimited = remaining < 0.0;
+            (
+                (!unlimited).then_some(remaining.max(0.0)),
+                payload
+                    .get("unit")
+                    .and_then(Value::as_str)
+                    .unwrap_or("USD")
+                    .to_string(),
+                unlimited,
+            )
+        }
+    };
+    Ok(ProviderBalance {
+        amount,
+        unit,
+        unlimited,
+        queried_at: chrono::Utc::now().timestamp(),
+    })
 }
 
 fn require_non_empty(label: &str, value: &str) -> Result<String, String> {
@@ -476,6 +684,22 @@ fn normalize_provider_profile(mut provider: ProviderProfile) -> Result<ProviderP
     let (model, models) = normalize_model_selection(&provider.model, provider.models)?;
     provider.model = model;
     provider.models = models;
+    match provider.balance_platform {
+        Some(_) => {
+            provider.balance_query_url = Some(normalize_balance_query_url(
+                provider.balance_query_url.as_deref().unwrap_or_default(),
+            )?);
+            provider.balance_query_token = provider
+                .balance_query_token
+                .take()
+                .map(|token| token.trim().to_string())
+                .filter(|token| !token.is_empty());
+        }
+        None => {
+            provider.balance_query_url = None;
+            provider.balance_query_token = None;
+        }
+    }
     Ok(provider)
 }
 
@@ -1068,7 +1292,43 @@ mod tests {
             models: vec!["gpt-4.1".to_string()],
             model_selection_controlled_by_codex: false,
             api_format: ProviderApiFormat::OpenaiResponses,
+            balance_platform: None,
+            balance_query_url: None,
+            balance_query_token: None,
         }
+    }
+
+    #[test]
+    fn parses_new_api_remaining_quota_as_usd() {
+        let balance = parse_provider_balance(
+            ProviderBalancePlatform::NewApi,
+            &json!({
+                "data": {
+                    "total_available": 54_040_000,
+                    "unlimited_quota": false
+                }
+            }),
+        )
+        .unwrap();
+        assert_eq!(balance.amount, Some(108.08));
+        assert_eq!(balance.unit, "USD");
+        assert!(!balance.unlimited);
+    }
+
+    #[test]
+    fn parses_sub2api_remaining_balance() {
+        let balance = parse_provider_balance(
+            ProviderBalancePlatform::Sub2Api,
+            &json!({
+                "mode": "quota_limited",
+                "remaining": 12.5,
+                "unit": "USD"
+            }),
+        )
+        .unwrap();
+        assert_eq!(balance.amount, Some(12.5));
+        assert_eq!(balance.unit, "USD");
+        assert!(!balance.unlimited);
     }
 
     fn test_auth() -> Value {
@@ -1310,6 +1570,9 @@ sandbox_mode = "workspace-write"
             models: Vec::new(),
             model_selection_controlled_by_codex: false,
             api_format: ProviderApiFormat::OpenaiResponses,
+            balance_platform: None,
+            balance_query_url: None,
+            balance_query_token: None,
         })
         .unwrap();
 
