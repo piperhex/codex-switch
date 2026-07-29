@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-jade-terrace-waterfall",
+  "name": "翠阶飞瀑 / Jade Terrace Waterfall",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Clear cascades step across luminous jade mineral pools.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE JADE TERRACE WATERFALL ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.78,
+    "focusY": 0.44,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#2a9d8f"
+  }
+}

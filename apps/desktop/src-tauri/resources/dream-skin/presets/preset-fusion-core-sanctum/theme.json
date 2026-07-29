@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-fusion-core-sanctum",
+  "name": "聚变核心圣室 / Fusion Core Sanctum",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Hold a small sun in perfect silence.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "FUSION CORE SANCTUM ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.77,
+    "focusY": 0.45,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#e86a2b"
+  }
+}

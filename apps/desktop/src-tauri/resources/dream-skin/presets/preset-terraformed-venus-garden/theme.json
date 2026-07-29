@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-terraformed-venus-garden",
+  "name": "金星改造花园 / Terraformed Venus Garden",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "A new garden blooms under amber clouds.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "TERRAFORMED VENUS GARDEN ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.82,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#9c763c"
+  }
+}

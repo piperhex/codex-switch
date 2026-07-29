@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-event-horizon-ribbons",
+  "name": "事件视界光带 / Event Horizon Ribbons",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Spacetime folds into a quiet ring of fire.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "EVENT HORIZON RIBBONS ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.76,
+    "focusY": 0.44,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#d85ac8"
+  }
+}

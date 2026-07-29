@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-sulfur-fumarole-valley",
+  "name": "硫磺雾谷 / Sulfur Fumarole Valley",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Steam drifts across the mineral colors of a living earth.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE SULFUR FUMAROLE VALLEY ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.78,
+    "focusY": 0.51,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#bd8d25"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-aurora-dyson-bloom",
+  "name": "极光戴森花 / Aurora Dyson Bloom",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "A star unfolds in petals of light.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "AURORA DYSON BLOOM ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.76,
+    "focusY": 0.44,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#1d3158"
+  }
+}

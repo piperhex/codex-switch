@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-tufa-lake",
+  "name": "凝灰岩湖 / Tufa Lake",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Mineral towers hold the color of dawn.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE TUFA LAKE ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.75,
+    "focusY": 0.45,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#d28b6b"
+  }
+}

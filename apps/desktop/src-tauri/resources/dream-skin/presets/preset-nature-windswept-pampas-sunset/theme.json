@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-windswept-pampas-sunset",
+  "name": "Windswept Pampas Sunset",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Silver plumes carry the evening glow.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE WINDSWEPT PAMPAS SUNSET ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.82,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#c86f5c"
+  }
+}

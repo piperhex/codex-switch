@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-pulsar-archive",
+  "name": "脉冲星档案馆 / Pulsar Archive",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Memory keeps time with the stars.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "PULSAR ARCHIVE ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.77,
+    "focusY": 0.43,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#10215b"
+  }
+}

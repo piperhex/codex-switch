@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-jade-cloudforest-falls",
+  "name": "翡翠云林瀑布 / Jade Cloudforest Falls",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "A hidden cascade glows among giant ferns and jade water.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE JADE CLOUDFOREST FALLS ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.78,
+    "focusY": 0.42,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#4f9c72"
+  }
+}

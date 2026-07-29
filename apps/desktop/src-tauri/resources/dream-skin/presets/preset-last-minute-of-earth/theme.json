@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-last-minute-of-earth",
+  "name": "地球最后一分钟 / Last Minute of Earth",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "One blue world beneath the final horizon.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "LAST MINUTE OF EARTH ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.77,
+    "focusY": 0.45,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#4cb8e8"
+  }
+}

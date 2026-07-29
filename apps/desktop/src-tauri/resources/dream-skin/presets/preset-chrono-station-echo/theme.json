@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-chrono-station-echo",
+  "name": "回声时间站 / Chrono Station Echo",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Every departure leaves another station behind.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "CHRONO STATION ECHO ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.75,
+    "focusY": 0.45,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#32b6e6"
+  }
+}

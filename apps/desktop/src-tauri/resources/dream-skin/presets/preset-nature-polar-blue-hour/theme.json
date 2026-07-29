@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-polar-blue-hour",
+  "name": "极地蓝时 / Polar Blue Hour",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Rose light rests on an untouched polar plain.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE POLAR BLUE HOUR ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.8,
+    "focusY": 0.58,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#7268c7"
+  }
+}

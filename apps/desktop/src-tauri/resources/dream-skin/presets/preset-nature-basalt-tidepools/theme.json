@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-basalt-tidepools",
+  "name": "玄武潮池 / Basalt Tidepools",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Still water rests in volcanic stone.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE BASALT TIDEPOOLS ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.79,
+    "focusY": 0.52,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#5e93b8"
+  }
+}

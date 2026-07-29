@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-void-sail-observatory",
+  "name": "虚空帆天文台 / Void Sail Observatory",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "A silver sail listens beyond the mapped stars.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "VOID SAIL OBSERVATORY ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.77,
+    "focusY": 0.42,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#d2ad72"
+  }
+}

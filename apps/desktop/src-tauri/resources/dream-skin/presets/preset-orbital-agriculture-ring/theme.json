@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-orbital-agriculture-ring",
+  "name": "轨道农业环 / Orbital Agriculture Ring",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Harvest sunlight beyond the horizon.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "ORBITAL AGRICULTURE RING ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.8,
+    "focusY": 0.45,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#797141"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-blue-glacier-valley",
+  "name": "蓝冰川谷 / Blue Glacier Valley",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Cobalt ice flows beneath immense graphite mountain walls.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE BLUE GLACIER VALLEY ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.78,
+    "focusY": 0.54,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#248fc2"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-silicon-bamboo-grove",
+  "name": "硅竹林 / Silicon Bamboo Grove",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Light pulses quietly through a glass-grown forest.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "SILICON BAMBOO GROVE ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.75,
+    "focusY": 0.45,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#78a395"
+  }
+}

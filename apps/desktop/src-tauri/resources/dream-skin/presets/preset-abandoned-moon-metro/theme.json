@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-abandoned-moon-metro",
+  "name": "废弃月球地铁 / Abandoned Moon Metro",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "The last train waits beneath a silent world.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "ABANDONED MOON METRO ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.75,
+    "focusY": 0.45,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#4f8f82"
+  }
+}

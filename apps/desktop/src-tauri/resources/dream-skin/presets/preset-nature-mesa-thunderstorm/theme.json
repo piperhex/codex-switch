@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-mesa-thunderstorm",
+  "name": "台地雷云 / Mesa Thunderstorm",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "A vast violet storm gathers above a solitary red mesa.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE MESA THUNDERSTORM ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.78,
+    "focusY": 0.57,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#9b6ac2"
+  }
+}

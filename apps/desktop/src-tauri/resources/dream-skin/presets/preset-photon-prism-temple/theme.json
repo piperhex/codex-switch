@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-photon-prism-temple",
+  "name": "光子棱镜神殿 / Photon Prism Temple",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "One starbeam becomes a sanctuary of color.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "PHOTON PRISM TEMPLE ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.43,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#7e61df"
+  }
+}

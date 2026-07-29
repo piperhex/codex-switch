@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-eclipse-plateau",
+  "name": "高原日蚀 / Eclipse Plateau",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Totality quiets the high desert horizon.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE ECLIPSE PLATEAU ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.76,
+    "focusY": 0.37,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#d48a38"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-jade-orbit-palace",
+  "name": "玉衡轨道宫 / Jade Orbit Palace",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "JADE LIGHT KEEPS THE QUIET HEAVENS",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "JADE ORBIT PALACE ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.75,
+    "focusY": 0.44,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#152833"
+  }
+}

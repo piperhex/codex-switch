@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-noctilucent-river",
+  "name": "夜光云河 / Noctilucent River",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Silver-blue clouds drift above a northern twilight river.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE NOCTILUCENT RIVER ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.77,
+    "focusY": 0.36,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#4da5cf"
+  }
+}

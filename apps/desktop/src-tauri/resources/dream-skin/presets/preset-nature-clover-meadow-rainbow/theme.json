@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-clover-meadow-rainbow",
+  "name": "Clover Meadow Rainbow",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "The meadow shines as the rain moves on.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE CLOVER MEADOW RAINBOW ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.82,
+    "focusY": 0.44,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#4b9360"
+  }
+}

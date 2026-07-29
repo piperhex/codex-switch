@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-alpine-glow",
+  "name": "曙光群峰 / Alpine Glow",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Golden alpenglow rises over a silent sea of mist.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE ALPINE GLOW ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.82,
+    "focusY": 0.33,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#d4934f"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-desert-canyon-stars",
+  "name": "星河峡谷 / Desert Canyon Stars",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "The Milky Way rises over an ancient shadowed canyon.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE DESERT CANYON STARS ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.8,
+    "focusY": 0.32,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#b86b42"
+  }
+}

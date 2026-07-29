@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-prismatic-geyser-basin",
+  "name": "虹彩泉谷 / Prismatic Geyser Basin",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Mineral color gathers where the earth exhales.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE PRISMATIC GEYSER BASIN ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.79,
+    "focusY": 0.52,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#178da7"
+  }
+}

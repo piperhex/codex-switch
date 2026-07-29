@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-sunlit-robot-village",
+  "name": "阳光机器人村 / Sunlit Robot Village",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Small machines tend a generous morning.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "SUNLIT ROBOT VILLAGE ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.75,
+    "focusY": 0.45,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#84652d"
+  }
+}

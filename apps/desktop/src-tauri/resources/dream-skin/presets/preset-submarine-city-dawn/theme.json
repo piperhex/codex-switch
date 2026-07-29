@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-submarine-city-dawn",
+  "name": "潜海城黎明 / Submarine City Dawn",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "A radiant future beneath the waves.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "SUBMARINE CITY DAWN ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.75,
+    "focusY": 0.45,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#4bc6d7"
+  }
+}

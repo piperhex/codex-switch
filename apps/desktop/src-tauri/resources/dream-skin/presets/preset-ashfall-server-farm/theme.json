@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-ashfall-server-farm",
+  "name": "落灰服务器农场 / Ashfall Server Farm",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "The last machines remember through the ash.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "ASHFALL SERVER FARM ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.75,
+    "focusY": 0.45,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#4f8f82"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-blackout-megacity",
+  "name": "断电巨城 / Blackout Megacity",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "When the city sleeps, one blue light remains.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "BLACKOUT MEGACITY ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.75,
+    "focusY": 0.45,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#1d3858"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-yardang-stormlight",
+  "name": "雅丹风暴光 / Yardang Stormlight",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "A narrow amber light finds the wind-carved earth.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE YARDANG STORMLIGHT ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.78,
+    "focusY": 0.49,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#bd7433"
+  }
+}

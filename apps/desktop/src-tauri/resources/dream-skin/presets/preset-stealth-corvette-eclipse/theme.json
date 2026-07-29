@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-stealth-corvette-eclipse",
+  "name": "隐形护卫舰日蚀 / Stealth Corvette Eclipse",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "在恒星闭眼时，穿过绝对静默。",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "STEALTH CORVETTE ECLIPSE ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.77,
+    "focusY": 0.43,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#6581a2"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-deep-space-searchlight",
+  "name": "深空搜救灯 / Deep Space Searchlight",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "ONE LIGHT KEEPS WATCH BEYOND THE STARS",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "DEEP SPACE SEARCHLIGHT ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.76,
+    "focusY": 0.42,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#32689a"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-moonbase-reading-nook",
+  "name": "月球基地阅读角 / Moonbase Reading Nook",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "A quiet chapter beneath Earthlight.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "MOONBASE READING NOOK ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.75,
+    "focusY": 0.45,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#c77946"
+  }
+}

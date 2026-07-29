@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-volcanic-lava-night",
+  "name": "熔岩之夜 / Volcanic Lava Night",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Molten rivers redraw the midnight earth.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE VOLCANIC LAVA NIGHT ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.79,
+    "focusY": 0.49,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#e85a25"
+  }
+}

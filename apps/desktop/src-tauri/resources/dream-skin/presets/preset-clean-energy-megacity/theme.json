@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-clean-energy-megacity",
+  "name": "清洁能源巨城 / Clean Energy Megacity",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "A brighter civilization, powered by the elements.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "CLEAN ENERGY MEGACITY ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.8,
+    "focusY": 0.43,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#5a6b48"
+  }
+}

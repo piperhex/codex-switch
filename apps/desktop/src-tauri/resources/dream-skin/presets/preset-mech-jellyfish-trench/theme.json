@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-mech-jellyfish-trench",
+  "name": "机械水母海沟 / Mech Jellyfish Trench",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Cold lights drift where oceans forget the sky.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "MECH JELLYFISH TRENCH ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.76,
+    "focusY": 0.43,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#1c5b94"
+  }
+}

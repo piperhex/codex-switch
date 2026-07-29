@@ -648,7 +648,9 @@ export async function stopLocalProxy(): Promise<LocalProxyStatus> {
     })));
     return previewLocalProxyStatus();
   }
-  return invoke<LocalProxyStatus>("stop_local_proxy");
+  const status = await invoke<LocalProxyStatus>("stop_local_proxy");
+  await relaunch();
+  return status;
 }
 
 export async function restoreNonProxyConversations(): Promise<DirectConversationSyncResult> {

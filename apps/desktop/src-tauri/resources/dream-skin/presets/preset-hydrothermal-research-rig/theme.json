@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-hydrothermal-research-rig",
+  "name": "热液研究平台 / Hydrothermal Research Rig",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Science descends where a new world exhales.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "HYDROTHERMAL RESEARCH RIG ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.76,
+    "focusY": 0.45,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#0e4653"
+  }
+}

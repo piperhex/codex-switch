@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-coastal-tulip-breeze",
+  "name": "Coastal Tulip Breeze",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Soft petals meet the salt-bright air.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE COASTAL TULIP BREEZE ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.82,
+    "focusY": 0.58,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#d66d62"
+  }
+}

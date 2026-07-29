@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-wildflower-riverbend",
+  "name": "Wildflower Riverbend",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Summer color follows the quiet water.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE WILDFLOWER RIVERBEND ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.82,
+    "focusY": 0.57,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#cf5538"
+  }
+}

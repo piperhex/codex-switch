@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-neutrino-lab-night",
+  "name": "中微子实验室之夜 / Neutrino Lab Night",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Listen for the universe passing through.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NEUTRINO LAB NIGHT ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.76,
+    "focusY": 0.46,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#4b7cff"
+  }
+}

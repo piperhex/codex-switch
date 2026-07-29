@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-limestone-cathedral-cave",
+  "name": "石灰岩穹洞 / Limestone Cathedral Cave",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Daylight finds the columns of an ancient cavern.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE LIMESTONE CATHEDRAL CAVE ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.77,
+    "focusY": 0.47,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#b78a54"
+  }
+}

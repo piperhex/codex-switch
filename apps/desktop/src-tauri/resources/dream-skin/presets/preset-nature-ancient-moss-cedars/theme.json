@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-ancient-moss-cedars",
+  "name": "Ancient Moss Cedars",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Rain rests beneath roots older than memory.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE ANCIENT MOSS CEDARS ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.78,
+    "focusY": 0.56,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#5a9e45"
+  }
+}

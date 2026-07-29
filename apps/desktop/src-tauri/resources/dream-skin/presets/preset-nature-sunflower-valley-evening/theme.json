@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-sunflower-valley-evening",
+  "name": "Sunflower Valley Evening",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "A thousand suns hold the final glow.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE SUNFLOWER VALLEY EVENING ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.82,
+    "focusY": 0.55,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#d69a24"
+  }
+}

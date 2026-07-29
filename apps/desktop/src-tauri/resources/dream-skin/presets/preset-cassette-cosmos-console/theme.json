@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-cassette-cosmos-console",
+  "name": "磁带宇宙控制台 / Cassette Cosmos Console",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Record the signal beyond the stars.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "CASSETTE COSMOS CONSOLE ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.78,
+    "focusY": 0.43,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#d94dbb"
+  }
+}

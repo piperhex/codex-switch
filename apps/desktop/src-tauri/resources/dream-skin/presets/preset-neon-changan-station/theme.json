@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-neon-changan-station",
+  "name": "霓虹长安站 / Neon Chang'an Station",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Ancient rhythm, interstellar arrival.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NEON CHANGAN STATION ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.75,
+    "focusY": 0.45,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#092c3d"
+  }
+}

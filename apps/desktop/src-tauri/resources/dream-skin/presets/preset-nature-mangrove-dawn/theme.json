@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-mangrove-dawn",
+  "name": "红树林晨雾 / Mangrove Dawn",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "First light finds the roots of the tide.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE MANGROVE DAWN ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.79,
+    "focusY": 0.47,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#b88642"
+  }
+}

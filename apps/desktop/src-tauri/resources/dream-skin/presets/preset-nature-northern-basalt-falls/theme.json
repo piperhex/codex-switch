@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-northern-basalt-falls",
+  "name": "玄武岩瀑布 / Northern Basalt Falls",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Silver water descends through a cathedral of black basalt.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE NORTHERN BASALT FALLS ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.75,
+    "focusY": 0.43,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#5e9c72"
+  }
+}

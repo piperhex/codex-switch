@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-dandelion-downs-morning",
+  "name": "Dandelion Downs Morning",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Small wishes ride the bright spring air.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE DANDELION DOWNS MORNING ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.82,
+    "focusY": 0.54,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#c69b27"
+  }
+}

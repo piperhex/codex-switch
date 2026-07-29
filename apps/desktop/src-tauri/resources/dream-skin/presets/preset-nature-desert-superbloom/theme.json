@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-desert-superbloom",
+  "name": "荒漠花潮 / Desert Superbloom",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Rare rain wakes color across the desert floor.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE DESERT SUPERBLOOM ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.79,
+    "focusY": 0.57,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#8b58b5"
+  }
+}

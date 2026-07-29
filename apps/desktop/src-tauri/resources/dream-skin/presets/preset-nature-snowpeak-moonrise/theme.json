@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-snowpeak-moonrise",
+  "name": "雪峰月升 / Snowpeak Moonrise",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Cold moonlight traces a solitary summit above silent snow.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE SNOWPEAK MOONRISE ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.8,
+    "focusY": 0.42,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#6fa8d6"
+  }
+}

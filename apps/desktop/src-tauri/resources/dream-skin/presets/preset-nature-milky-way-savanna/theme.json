@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-milky-way-savanna",
+  "name": "银河草原 / Milky Way Savanna",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "The galaxy rises over an ancient open plain.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE MILKY WAY SAVANNA ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.77,
+    "focusY": 0.43,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#a56d77"
+  }
+}

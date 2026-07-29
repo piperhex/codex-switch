@@ -41,7 +41,7 @@ import type { BubbleResetDisplay, BubbleStyle, CloudAnnouncement, CloudFaq, Clou
 const LAST_REFRESH_ALL_KEY = "codex-switch:last-refresh-all-at";
 const LAST_NOTIFICATION_SEEN_KEY = "codex-switch:last-notification-seen-at";
 const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
-const REPOSITORY_URL = "https://github.com/piperhex/codex-switch.git";
+const REPOSITORY_URL = "https://github.com/piperhex/codex-switch";
 const APP_LOGO_URL = new URL("../src-tauri/icons/128x128.png", import.meta.url).href;
 const MemoAccountsPage = memo(AccountsPage);
 const MemoDreamSkinPage = memo(DreamSkinPage);
@@ -817,8 +817,11 @@ function DashboardApp() {
     }}>
       <div className="app-shell">
         <header className="app-menu">
-          <div className="brand"><img className="brand-logo" src={APP_LOGO_URL} alt="" />
-            <span>Codex<br /><b>Switch</b></span></div>
+          <button type="button" className="brand" onClick={openRepository}
+            aria-label={t("help.github")} title={t("help.github")}>
+            <img className="brand-logo" src={APP_LOGO_URL} alt="" />
+            <span>Codex<br /><b>Switch</b></span>
+          </button>
           <div className="announcement-slot" aria-live="polite">
             {announcementLink ? (
               <button

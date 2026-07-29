@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-neon-orbital-citadel",
+  "name": "霓虹轨道城塞 / Neon Orbital Citadel",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "A radiant bastion keeps watch above the endless night.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NEON ORBITAL CITADEL ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.76,
+    "focusY": 0.44,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#29c9e8"
+  }
+}

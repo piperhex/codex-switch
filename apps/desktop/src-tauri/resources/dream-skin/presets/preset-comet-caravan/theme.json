@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-comet-caravan",
+  "name": "彗星商队 / Comet Caravan",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Trade winds shimmer along the comet road.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "COMET CARAVAN ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.76,
+    "focusY": 0.44,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#132333"
+  }
+}

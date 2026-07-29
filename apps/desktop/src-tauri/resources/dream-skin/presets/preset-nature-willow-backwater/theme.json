@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-willow-backwater",
+  "name": "柳影回水 / Willow Backwater",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Morning mist settles under willow shade.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE WILLOW BACKWATER ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.8,
+    "focusY": 0.43,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#78a344"
+  }
+}

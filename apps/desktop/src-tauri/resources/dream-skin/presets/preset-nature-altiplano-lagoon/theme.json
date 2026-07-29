@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-altiplano-lagoon",
+  "name": "高原蓝湖 / Altiplano Lagoon",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "A cobalt lagoon rests beneath an ochre volcanic summit.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE ALTIPLANO LAGOON ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.8,
+    "focusY": 0.42,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#2f70a1"
+  }
+}

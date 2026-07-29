@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-turquoise-atoll",
+  "name": "绿松石环礁 / Turquoise Atoll",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "A coral ring holds a luminous lagoon.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE TURQUOISE ATOLL ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.79,
+    "focusY": 0.43,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#22b8c2"
+  }
+}

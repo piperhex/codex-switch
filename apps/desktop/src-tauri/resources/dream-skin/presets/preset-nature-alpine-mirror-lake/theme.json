@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-alpine-mirror-lake",
+  "name": "高山镜湖 / Alpine Mirror Lake",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Golden larches gather beside still water.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE ALPINE MIRROR LAKE ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.78,
+    "focusY": 0.42,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#c28a2c"
+  }
+}

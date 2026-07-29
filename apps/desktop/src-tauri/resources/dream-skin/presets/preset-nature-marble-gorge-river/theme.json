@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-marble-gorge-river",
+  "name": "大理石峡流 / Marble Gorge River",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Turquoise water carves through pale veined marble.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE MARBLE GORGE RIVER ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.78,
+    "focusY": 0.47,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#2b9ba5"
+  }
+}

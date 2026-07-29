@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-salt-flat-mirror",
+  "name": "盐湖天镜 / Salt Flat Mirror",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "After rain, earth and sky become one.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE SALT FLAT MIRROR ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.79,
+    "focusY": 0.44,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#b5658e"
+  }
+}

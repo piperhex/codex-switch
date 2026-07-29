@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-robot-workshop-evening",
+  "name": "机器人修理铺夜晚 / Robot Workshop Evening",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Every small machine deserves a warm light.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "ROBOT WORKSHOP EVENING ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.75,
+    "focusY": 0.46,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#39b9c9"
+  }
+}

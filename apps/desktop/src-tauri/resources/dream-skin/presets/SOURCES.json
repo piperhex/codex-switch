@@ -410,6 +410,1612 @@
       "nameEn": "Shao Siming Leaves",
       "nameZh": "少司命·万叶飞花",
       "promptSummary": "Shao Siming summons luminous leaves in an ethereal forest."
+    },
+    {
+      "id": "preset-nature-alpine-glow",
+      "category": "nature-mountain",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Alpine Glow",
+      "nameZh": "曙光群峰",
+      "promptSummary": "Golden alpine peaks at first light, with calm mist reserved across the left."
+    },
+    {
+      "id": "preset-nature-granite-crown-mist",
+      "category": "nature-mountain",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Granite Crown Mist",
+      "nameZh": "雾隐花岗岩王冠",
+      "promptSummary": "A monumental granite crown emerging from silver storm mist on the right."
+    },
+    {
+      "id": "preset-nature-emerald-canyon-river",
+      "category": "nature-mountain",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Emerald Canyon River",
+      "nameZh": "翡翠峡谷之河",
+      "promptSummary": "An emerald forest canyon and turquoise river bend, with misty air on the left."
+    },
+    {
+      "id": "preset-nature-red-rock-chasm",
+      "category": "nature-mountain",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Red Rock Chasm",
+      "nameZh": "赤岩深谷",
+      "promptSummary": "A glowing red sandstone wall above a deep sunset chasm."
+    },
+    {
+      "id": "preset-nature-patagonian-spires-dawn",
+      "category": "nature-mountain",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Patagonian Spires Dawn",
+      "nameZh": "巴塔哥尼亚晨塔",
+      "promptSummary": "Rose-lit granite spires and a blue glacier above a fog-softened valley."
+    },
+    {
+      "id": "preset-nature-northern-basalt-falls",
+      "category": "nature-mountain",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Northern Basalt Falls",
+      "nameZh": "玄武岩瀑布",
+      "promptSummary": "A northern waterfall over black basalt columns, with cool spray on the left."
+    },
+    {
+      "id": "preset-nature-angel-veil-cliff",
+      "category": "nature-mountain",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Angel Veil Cliff",
+      "nameZh": "天使轻纱绝壁",
+      "promptSummary": "An ethereal veil waterfall falling from a high tropical cliff into cloud."
+    },
+    {
+      "id": "preset-nature-jade-cloudforest-falls",
+      "category": "nature-mountain",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Jade Cloudforest Falls",
+      "nameZh": "翡翠云林瀑布",
+      "promptSummary": "A tiered cloud-forest cascade above a secluded jade pool."
+    },
+    {
+      "id": "preset-nature-snowpeak-moonrise",
+      "category": "nature-mountain",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Snowpeak Moonrise",
+      "nameZh": "雪峰月升",
+      "promptSummary": "A moonlit snow peak rising above a silent midnight basin."
+    },
+    {
+      "id": "preset-nature-volcanic-caldera-dawn",
+      "category": "nature-mountain",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Volcanic Caldera Dawn",
+      "nameZh": "火山湖晨曦",
+      "promptSummary": "A sapphire volcanic caldera lake warmed by first light."
+    },
+    {
+      "id": "preset-nature-karst-ridge-rain",
+      "category": "nature-mountain",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Karst Ridge Rain",
+      "nameZh": "峰林听雨",
+      "promptSummary": "Forest karst pinnacles fading through warm monsoon rain."
+    },
+    {
+      "id": "preset-nature-highland-heather-valley",
+      "category": "nature-mountain",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Highland Heather Valley",
+      "nameZh": "石南高地",
+      "promptSummary": "A purple heather highland valley under soft post-rain light."
+    },
+    {
+      "id": "preset-nature-sandstone-arches-sunrise",
+      "category": "nature-mountain",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Sandstone Arches Sunrise",
+      "nameZh": "砂岩拱门晨光",
+      "promptSummary": "Monumental sandstone arches glowing at sunrise above an open desert basin."
+    },
+    {
+      "id": "preset-nature-blue-glacier-valley",
+      "category": "nature-mountain",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Blue Glacier Valley",
+      "nameZh": "蓝冰川谷",
+      "promptSummary": "A vivid blue glacier flowing between immense dark mountain walls."
+    },
+    {
+      "id": "preset-nature-jade-terrace-waterfall",
+      "category": "nature-mountain",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Jade Terrace Waterfall",
+      "nameZh": "翠阶飞瀑",
+      "promptSummary": "A mountain waterfall stepping across luminous jade mineral terraces."
+    },
+    {
+      "id": "preset-nature-altiplano-lagoon",
+      "category": "nature-mountain",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Altiplano Lagoon",
+      "nameZh": "高原蓝湖",
+      "promptSummary": "A cobalt high-altitude lagoon beneath ochre volcanic peaks."
+    },
+    {
+      "id": "preset-nature-fjord-cliff-waterfalls",
+      "category": "nature-mountain",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Fjord Cliff Waterfalls",
+      "nameZh": "峡湾悬瀑",
+      "promptSummary": "Many slender waterfalls tracing a towering green cliff above dark fjord water."
+    },
+    {
+      "id": "preset-nature-rhododendron-snow-pass",
+      "category": "nature-mountain",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Rhododendron Snow Pass",
+      "nameZh": "杜鹃雪岭",
+      "promptSummary": "Rhododendron blooms beneath immense clear snow summits."
+    },
+    {
+      "id": "preset-nature-mesa-thunderstorm",
+      "category": "nature-mountain",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Mesa Thunderstorm",
+      "nameZh": "台地雷云",
+      "promptSummary": "A colossal twilight thunderstorm gathering above a lone red mesa."
+    },
+    {
+      "id": "preset-nature-marble-gorge-river",
+      "category": "nature-mountain",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Marble Gorge River",
+      "nameZh": "大理石峡流",
+      "promptSummary": "A clear turquoise river carving through sculpted pale marble."
+    },
+    {
+      "id": "preset-nature-aurora-mountain-lake",
+      "category": "nature-mountain",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Aurora Mountain Lake",
+      "nameZh": "极光山湖",
+      "promptSummary": "Green aurora and snow peaks reflected in a silent mountain lake."
+    },
+    {
+      "id": "preset-nature-desert-canyon-stars",
+      "category": "nature-mountain",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Desert Canyon Stars",
+      "nameZh": "星河峡谷",
+      "promptSummary": "The Milky Way above layered sandstone canyon walls at night."
+    },
+    {
+      "id": "preset-nature-autumn-alpine-valley",
+      "category": "nature-mountain",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Autumn Alpine Valley",
+      "nameZh": "金色秋谷",
+      "promptSummary": "Golden larches and a turquoise river beneath snow-lined alpine peaks."
+    },
+    {
+      "id": "preset-nature-rainbow-mist-falls",
+      "category": "nature-mountain",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Rainbow Mist Falls",
+      "nameZh": "虹雾飞瀑",
+      "promptSummary": "A powerful waterfall and understated rainbow above a vast mist-filled gorge."
+    },
+    {
+      "id": "preset-nature-cloud-sea-plateau",
+      "category": "nature-mountain",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Cloud Sea Plateau",
+      "nameZh": "云海高原",
+      "promptSummary": "A frost-touched golden plateau floating above a dawn sea of clouds."
+    },
+    {
+      "id": "preset-nature-azure-archipelago",
+      "category": "nature-water",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Azure Archipelago",
+      "nameZh": "蔚蓝群岛",
+      "promptSummary": "A serene aerial azure archipelago with calm open water on the left and limestone islets on the right."
+    },
+    {
+      "id": "preset-nature-basalt-tidepools",
+      "category": "nature-water",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Basalt Tidepools",
+      "nameZh": "玄武潮池",
+      "promptSummary": "Blue-hour basalt tide pools and curling sea foam, with misty open ocean reserved on the left."
+    },
+    {
+      "id": "preset-nature-coral-lagoon",
+      "category": "nature-water",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Coral Lagoon",
+      "nameZh": "珊瑚浅泻湖",
+      "promptSummary": "A sunlit coral lagoon with open clear water on the left and reef detail on the right."
+    },
+    {
+      "id": "preset-nature-mangrove-dawn",
+      "category": "nature-water",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Mangrove Dawn",
+      "nameZh": "红树林晨雾",
+      "promptSummary": "A misty mangrove estuary at dawn with open reflective water on the left and sculptural roots on the right."
+    },
+    {
+      "id": "preset-nature-alpine-mirror-lake",
+      "category": "nature-water",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Alpine Mirror Lake",
+      "nameZh": "高山镜湖",
+      "promptSummary": "A secluded alpine mirror lake with calm shadowed water on the left and sunlit autumn peaks on the right."
+    },
+    {
+      "id": "preset-nature-glacial-fjord",
+      "category": "nature-water",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Glacial Fjord",
+      "nameZh": "冰川峡湾",
+      "promptSummary": "A remote glacier face and snowbound fjord with dark misty water reserved on the left."
+    },
+    {
+      "id": "preset-nature-river-canyon",
+      "category": "nature-water",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "River Canyon",
+      "nameZh": "赤岩河谷",
+      "promptSummary": "An emerald river through a red-stone canyon, with shaded water and haze on the left."
+    },
+    {
+      "id": "preset-nature-moonlit-estuary",
+      "category": "nature-water",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Moonlit Estuary",
+      "nameZh": "月照河口",
+      "promptSummary": "A moonlit tidal estuary with dark low-detail sky and water on the left and silver channels on the right."
+    },
+    {
+      "id": "preset-nature-kelp-cathedral",
+      "category": "nature-water",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Kelp Cathedral",
+      "nameZh": "海藻穹林",
+      "promptSummary": "An underwater kelp corridor with open deep teal water on the left and sunlit amber fronds on the right."
+    },
+    {
+      "id": "preset-nature-ocean-blue-hole",
+      "category": "nature-water",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Ocean Blue Hole",
+      "nameZh": "深海蓝洞",
+      "promptSummary": "An oblique aerial blue hole with calm cobalt sea on the left and a turquoise geological ring on the right."
+    },
+    {
+      "id": "preset-nature-limestone-cenote",
+      "category": "nature-water",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Limestone Cenote",
+      "nameZh": "石灰岩清潭",
+      "promptSummary": "A secluded limestone cenote with a shadowed calm left side and luminous water and roots on the right."
+    },
+    {
+      "id": "preset-nature-braided-delta",
+      "category": "nature-water",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Braided Delta",
+      "nameZh": "辫状三角洲",
+      "promptSummary": "A high aerial braided delta with broad pale water on the left and intricate channels on the right."
+    },
+    {
+      "id": "preset-nature-willow-backwater",
+      "category": "nature-water",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Willow Backwater",
+      "nameZh": "柳影回水",
+      "promptSummary": "A quiet willow backwater with misty open water on the left and cascading branches on the right."
+    },
+    {
+      "id": "preset-nature-tufa-lake",
+      "category": "nature-water",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Tufa Lake",
+      "nameZh": "凝灰岩湖",
+      "promptSummary": "A pastel sunrise over a tufa lake with open reflective water on the left and mineral towers on the right."
+    },
+    {
+      "id": "preset-nature-silver-salt-marsh",
+      "category": "nature-water",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Silver Salt Marsh",
+      "nameZh": "银色盐沼",
+      "promptSummary": "A luminous coastal salt marsh with silvery open water on the left and winding tidal curves on the right."
+    },
+    {
+      "id": "preset-nature-sea-cave-light",
+      "category": "nature-water",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Sea Cave Light",
+      "nameZh": "海蚀洞光",
+      "promptSummary": "A remote sea cave with a quiet dark left wall and radiant turquoise opening on the right."
+    },
+    {
+      "id": "preset-nature-volcanic-island-bay",
+      "category": "nature-water",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Volcanic Island Bay",
+      "nameZh": "火山岛湾",
+      "promptSummary": "A young volcanic island bay with open sapphire sea on the left and black sand and green crater slopes on the right."
+    },
+    {
+      "id": "preset-nature-lotus-wetland",
+      "category": "nature-water",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Lotus Wetland",
+      "nameZh": "晨雾莲泽",
+      "promptSummary": "A misty wild lotus wetland with calm open water on the left and blossoms and foliage on the right."
+    },
+    {
+      "id": "preset-nature-cloudforest-cascade",
+      "category": "nature-water",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Cloudforest Cascade",
+      "nameZh": "云林飞瀑",
+      "promptSummary": "A pristine cloud-forest cascade with mist and calm shadowed pool on the left and fern-covered falls on the right."
+    },
+    {
+      "id": "preset-nature-turquoise-atoll",
+      "category": "nature-water",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Turquoise Atoll",
+      "nameZh": "绿松石环礁",
+      "promptSummary": "A remote atoll from high oblique aerial view with calm deep ocean on the left and a bright coral ring on the right."
+    },
+    {
+      "id": "preset-nature-arctic-polynya",
+      "category": "nature-water",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Arctic Polynya",
+      "nameZh": "北极冰间湖",
+      "promptSummary": "A natural arctic polynya with calm blue-gray sky and water on the left and frost ridges and sunrise on the right."
+    },
+    {
+      "id": "preset-nature-cypress-swamp",
+      "category": "nature-water",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Cypress Swamp",
+      "nameZh": "古柏沼泽",
+      "promptSummary": "An old-growth cypress swamp with open misty water on the left and amber trunks and knees on the right."
+    },
+    {
+      "id": "preset-nature-desert-river-sandbar",
+      "category": "nature-water",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Desert River Sandbar",
+      "nameZh": "沙漠河洲",
+      "promptSummary": "A high aerial desert river with broad hazy water on the left and glowing sandbars and mesas on the right."
+    },
+    {
+      "id": "preset-nature-underwater-ridge",
+      "category": "nature-water",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Underwater Ridge",
+      "nameZh": "水下山脊",
+      "promptSummary": "A deep-ocean volcanic ridge with open navy water on the left and illuminated basalt geology on the right."
+    },
+    {
+      "id": "preset-nature-bioluminescent-shore",
+      "category": "nature-water",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Bioluminescent Shore",
+      "nameZh": "荧光海岸",
+      "promptSummary": "A moonless bioluminescent coast with quiet midnight sea on the left and electric-blue tide lines on the right."
+    },
+    {
+      "id": "preset-nature-emerald-fern-ravine",
+      "category": "nature-forest",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Emerald Fern Ravine",
+      "nameZh": "翡翠蕨谷",
+      "promptSummary": "An emerald fern ravine at dawn with a mossy stream, quiet mist on the left and detailed foliage on the right."
+    },
+    {
+      "id": "preset-nature-misty-redwood-morning",
+      "category": "nature-forest",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Misty Redwood Morning",
+      "nameZh": "雾晨红杉",
+      "promptSummary": "Towering redwoods in blue morning fog with warm sun shafts on the right."
+    },
+    {
+      "id": "preset-nature-birch-grove-sunshower",
+      "category": "nature-forest",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Birch Grove Sunshower",
+      "nameZh": "白桦晴雨",
+      "promptSummary": "A fresh birch grove during a sunshower, softly hazed on the left and sparkling on the right."
+    },
+    {
+      "id": "preset-nature-ancient-moss-cedars",
+      "category": "nature-forest",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Ancient Moss Cedars",
+      "nameZh": "古杉苔境",
+      "promptSummary": "An ancient rain-soaked cedar rooted in luminous moss, with deep misty negative space on the left."
+    },
+    {
+      "id": "preset-nature-luminous-beech-autumn",
+      "category": "nature-forest",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Luminous Beech Autumn",
+      "nameZh": "流光秋榉",
+      "promptSummary": "A luminous amber beech woodland with a calm warm bokeh safe area and golden trees on the right."
+    },
+    {
+      "id": "preset-nature-alpine-meadow-dawn",
+      "category": "nature-forest",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Alpine Meadow Dawn",
+      "nameZh": "高山花甸晨光",
+      "promptSummary": "An alpine flower meadow at dawn above mist and clouds, with the sunrise ridge on the right."
+    },
+    {
+      "id": "preset-nature-windswept-pampas-sunset",
+      "category": "nature-forest",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Windswept Pampas Sunset",
+      "nameZh": "风拂芒草落日",
+      "promptSummary": "Backlit silver pampas grass in a coral sunset, with open sky for UI on the left."
+    },
+    {
+      "id": "preset-nature-bluebell-woodland",
+      "category": "nature-forest",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Bluebell Woodland",
+      "nameZh": "蓝铃花林",
+      "promptSummary": "A spring bluebell woodland with cool shadowed negative space and sunlit flowers on the right."
+    },
+    {
+      "id": "preset-nature-lavender-field-twilight",
+      "category": "nature-forest",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Lavender Field Twilight",
+      "nameZh": "薰衣草暮野",
+      "promptSummary": "Lavender-covered hills at blue hour with indigo negative space and a soft horizon glow."
+    },
+    {
+      "id": "preset-nature-wildflower-riverbend",
+      "category": "nature-forest",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Wildflower Riverbend",
+      "nameZh": "野花河湾",
+      "promptSummary": "A clear riverbend bordered by colorful wildflowers, with quiet reflective water on the left."
+    },
+    {
+      "id": "preset-nature-rapeseed-hills-spring",
+      "category": "nature-forest",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Rapeseed Hills in Spring",
+      "nameZh": "油菜花春丘",
+      "promptSummary": "Golden rapeseed hills in spring mist with luminous rolling fields on the right."
+    },
+    {
+      "id": "preset-nature-coastal-tulip-breeze",
+      "category": "nature-forest",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Coastal Tulip Breeze",
+      "nameZh": "海风郁金香",
+      "promptSummary": "A pastel coastal tulip field beside grass-covered dunes, detailed on the right."
+    },
+    {
+      "id": "preset-nature-heather-moor-sunrise",
+      "category": "nature-forest",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Heather Moor Sunrise",
+      "nameZh": "石南荒原日出",
+      "promptSummary": "A purple highland heather moor at sunrise with cool mist on the left."
+    },
+    {
+      "id": "preset-nature-camellia-garden-rain",
+      "category": "nature-forest",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Camellia Garden Rain",
+      "nameZh": "雨中山茶",
+      "promptSummary": "Rain-soaked red camellias in a deep green natural grove with dark negative space."
+    },
+    {
+      "id": "preset-nature-sunflower-valley-evening",
+      "category": "nature-forest",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Sunflower Valley Evening",
+      "nameZh": "向日葵谷暮色",
+      "promptSummary": "A sunflower valley at golden hour, softly blurred on the left and luminous on the right."
+    },
+    {
+      "id": "preset-nature-cherry-orchard-mist",
+      "category": "nature-forest",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Cherry Orchard Mist",
+      "nameZh": "樱园春雾",
+      "promptSummary": "A misty old cherry orchard with pearl negative space and a flowering tree on the right."
+    },
+    {
+      "id": "preset-nature-maple-glade-first-frost",
+      "category": "nature-forest",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Maple Glade First Frost",
+      "nameZh": "枫林初霜",
+      "promptSummary": "Frost-edged crimson maple leaves glowing against a dark burgundy woodland."
+    },
+    {
+      "id": "preset-nature-summer-oak-pasture",
+      "category": "nature-forest",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Summer Oak Pasture",
+      "nameZh": "夏日古橡草场",
+      "promptSummary": "A magnificent ancient oak on a bright summer pasture, with soft open meadow on the left."
+    },
+    {
+      "id": "preset-nature-winter-pine-clearing",
+      "category": "nature-forest",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Winter Pine Clearing",
+      "nameZh": "冬雪松林空地",
+      "promptSummary": "A snowy pine clearing with blue-gray snowfall on the left and crystalline boughs on the right."
+    },
+    {
+      "id": "preset-nature-spring-tea-terraces",
+      "category": "nature-forest",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Spring Tea Terraces",
+      "nameZh": "春茶云梯",
+      "promptSummary": "Misty spring tea terraces after rain with jade rows and sunlight on the right."
+    },
+    {
+      "id": "preset-nature-golden-wheat-breeze",
+      "category": "nature-forest",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Golden Wheat Breeze",
+      "nameZh": "金麦风原",
+      "promptSummary": "A rolling ripe wheat field at golden hour with textured grain and sunset on the right."
+    },
+    {
+      "id": "preset-nature-clover-meadow-rainbow",
+      "category": "nature-forest",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Clover Meadow Rainbow",
+      "nameZh": "彩虹三叶草甸",
+      "promptSummary": "A dew-bright clover meadow after rain with a subtle rainbow on the right."
+    },
+    {
+      "id": "preset-nature-dandelion-downs-morning",
+      "category": "nature-forest",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Dandelion Downs Morning",
+      "nameZh": "蒲公英晨丘",
+      "promptSummary": "A bright hillside of dandelion blooms and seed heads with drifting seeds on the right."
+    },
+    {
+      "id": "preset-nature-cosmos-flower-sea",
+      "category": "nature-forest",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Cosmos Flower Sea",
+      "nameZh": "波斯菊花海",
+      "promptSummary": "A sea of pink and white cosmos flowers glowing at a soft rose dawn."
+    },
+    {
+      "id": "preset-nature-apple-orchard-after-rain",
+      "category": "nature-forest",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Apple Orchard After Rain",
+      "nameZh": "雨后苹果园",
+      "promptSummary": "A rain-washed apple orchard with fruiting branches and clear sunlight on the right."
+    },
+    {
+      "id": "preset-nature-aurora-icefjord",
+      "category": "nature-extreme",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Aurora Icefjord",
+      "nameZh": "极光冰峡",
+      "promptSummary": "Emerald aurora above a quiet Arctic ice fjord with the focal iceberg on the right."
+    },
+    {
+      "id": "preset-nature-polar-blue-hour",
+      "category": "nature-extreme",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Polar Blue Hour",
+      "nameZh": "极地蓝时",
+      "promptSummary": "Pastel polar blue hour with wind-sculpted snow ridges on the right."
+    },
+    {
+      "id": "preset-nature-glacier-crystal-cave",
+      "category": "nature-extreme",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Glacier Crystal Cave",
+      "nameZh": "冰晶洞窟",
+      "promptSummary": "Translucent blue glacier cave with a daylight opening and ice arch on the right."
+    },
+    {
+      "id": "preset-nature-snowfield-moonrise",
+      "category": "nature-extreme",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Snowfield Moonrise",
+      "nameZh": "雪原月升",
+      "promptSummary": "Full moon above a pristine subarctic snowfield with the focal rock on the right."
+    },
+    {
+      "id": "preset-nature-iceberg-dawn",
+      "category": "nature-extreme",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Iceberg Dawn",
+      "nameZh": "冰山曙光",
+      "promptSummary": "Antarctic iceberg catching soft peach dawn light on calm reflective water."
+    },
+    {
+      "id": "preset-nature-sahara-star-dunes",
+      "category": "nature-extreme",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Sahara Star Dunes",
+      "nameZh": "撒哈拉星沙",
+      "promptSummary": "Milky Way and amber-lit crescent dune across a vast untouched Sahara night."
+    },
+    {
+      "id": "preset-nature-namib-sunrise",
+      "category": "nature-extreme",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Namib Sunrise",
+      "nameZh": "纳米布晨沙",
+      "promptSummary": "Towering red Namib dune with a golden ridge and cool shadow at sunrise."
+    },
+    {
+      "id": "preset-nature-white-desert-moon",
+      "category": "nature-extreme",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "White Desert Moon",
+      "nameZh": "白漠月影",
+      "promptSummary": "Moonlit white desert with natural mushroom-shaped chalk formations on the right."
+    },
+    {
+      "id": "preset-nature-salt-flat-mirror",
+      "category": "nature-extreme",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Salt Flat Mirror",
+      "nameZh": "盐湖天镜",
+      "promptSummary": "Flooded salt flat reflecting pastel clouds and distant volcanic silhouettes."
+    },
+    {
+      "id": "preset-nature-desert-oasis-dusk",
+      "category": "nature-extreme",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Desert Oasis Dusk",
+      "nameZh": "绿洲暮光",
+      "promptSummary": "Untouched desert oasis with a reflective spring and palms at coral-violet dusk."
+    },
+    {
+      "id": "preset-nature-volcanic-lava-night",
+      "category": "nature-extreme",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Volcanic Lava Night",
+      "nameZh": "熔岩之夜",
+      "promptSummary": "Slow natural lava channels crossing a remote black basalt field at night."
+    },
+    {
+      "id": "preset-nature-sulfur-fumarole-valley",
+      "category": "nature-extreme",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Sulfur Fumarole Valley",
+      "nameZh": "硫磺雾谷",
+      "promptSummary": "Remote sulfur fumarole valley with mineral pools and steam at dawn."
+    },
+    {
+      "id": "preset-nature-prismatic-geyser-basin",
+      "category": "nature-extreme",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Prismatic Geyser Basin",
+      "nameZh": "虹彩泉谷",
+      "promptSummary": "Wild prismatic hot spring and geyser basin on a clear volcanic plateau morning."
+    },
+    {
+      "id": "preset-nature-yardang-stormlight",
+      "category": "nature-extreme",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Yardang Stormlight",
+      "nameZh": "雅丹风暴光",
+      "promptSummary": "Wind-carved yardang formations lit by amber light beneath an approaching storm."
+    },
+    {
+      "id": "preset-nature-limestone-cathedral-cave",
+      "category": "nature-extreme",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Limestone Cathedral Cave",
+      "nameZh": "石灰岩穹洞",
+      "promptSummary": "Immense limestone cavern with natural skylight and calcite columns on the right."
+    },
+    {
+      "id": "preset-nature-frozen-lake-bubbles",
+      "category": "nature-extreme",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Frozen Lake Bubbles",
+      "nameZh": "冰湖气泡",
+      "promptSummary": "Clear frozen lake with natural stacks of trapped ice bubbles at violet twilight."
+    },
+    {
+      "id": "preset-nature-prairie-supercell",
+      "category": "nature-extreme",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Prairie Supercell",
+      "nameZh": "草原雷云",
+      "promptSummary": "Sculptural supercell and one lightning strike crossing an empty prairie at blue hour."
+    },
+    {
+      "id": "preset-nature-monsoon-double-rainbow",
+      "category": "nature-extreme",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Monsoon Double Rainbow",
+      "nameZh": "季风双虹",
+      "promptSummary": "Natural double rainbow beside a retreating monsoon rain shaft over wet tropical grassland."
+    },
+    {
+      "id": "preset-nature-milky-way-savanna",
+      "category": "nature-extreme",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Milky Way Savanna",
+      "nameZh": "银河草原",
+      "promptSummary": "Milky Way above a wild moonless savanna with acacia silhouettes on the right."
+    },
+    {
+      "id": "preset-nature-eclipse-plateau",
+      "category": "nature-extreme",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Eclipse Plateau",
+      "nameZh": "高原日蚀",
+      "promptSummary": "Scientifically plausible total solar eclipse above a remote high-altitude plateau."
+    },
+    {
+      "id": "preset-nature-perseid-tundra",
+      "category": "nature-extreme",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Perseid Tundra",
+      "nameZh": "苔原流星雨",
+      "promptSummary": "Natural Perseid meteor shower above empty Arctic tundra and a reflective pond."
+    },
+    {
+      "id": "preset-nature-noctilucent-river",
+      "category": "nature-extreme",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Noctilucent River",
+      "nameZh": "夜光云河",
+      "promptSummary": "Scientifically plausible noctilucent cloud waves above tundra and a still river."
+    },
+    {
+      "id": "preset-nature-frost-sun-pillar",
+      "category": "nature-extreme",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Frost Sun Pillar",
+      "nameZh": "霜原日柱",
+      "promptSummary": "Natural vertical sun pillar over a frost-covered northern plain at dawn."
+    },
+    {
+      "id": "preset-nature-desert-superbloom",
+      "category": "nature-extreme",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Desert Superbloom",
+      "nameZh": "荒漠花潮",
+      "promptSummary": "Rare desert superbloom spreading across a sandy basin beneath sunlit ridges."
+    },
+    {
+      "id": "preset-nature-mammatus-afterglow",
+      "category": "nature-extreme",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Mammatus Afterglow",
+      "nameZh": "乳状云霞",
+      "promptSummary": "Naturally sculpted mammatus clouds glowing coral over an empty post-storm steppe."
+    },
+    {
+      "id": "preset-neon-orbital-citadel",
+      "category": "science-fiction-orbital",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Neon Orbital Citadel",
+      "nameZh": "霓虹轨道城塞",
+      "promptSummary": "A neon orbital citadel above a cobalt planet."
+    },
+    {
+      "id": "preset-cryo-moon-harbor",
+      "category": "science-fiction-planetary",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Cryo Moon Harbor",
+      "nameZh": "冰月港",
+      "promptSummary": "A frozen moon harbor lit by cyan docking beacons."
+    },
+    {
+      "id": "preset-quantum-desert-relay",
+      "category": "science-fiction-frontier",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Quantum Desert Relay",
+      "nameZh": "量子荒漠中继站",
+      "promptSummary": "A quantum relay rising from a silent alien desert."
+    },
+    {
+      "id": "preset-bioluminescent-star-garden",
+      "category": "science-fiction-biotech",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Bioluminescent Star Garden",
+      "nameZh": "星海荧光花园",
+      "promptSummary": "A bioluminescent garden blooming beneath the stars."
+    },
+    {
+      "id": "preset-void-sail-observatory",
+      "category": "science-fiction-orbital",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Void Sail Observatory",
+      "nameZh": "虚空帆天文台",
+      "promptSummary": "A solar-sail observatory poised at the edge of darkness."
+    },
+    {
+      "id": "preset-titan-methane-foundry",
+      "category": "science-fiction-industrial",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Titan Methane Foundry",
+      "nameZh": "土卫六甲烷铸造厂",
+      "promptSummary": "An amber methane foundry beneath Titan's haze."
+    },
+    {
+      "id": "preset-aurora-dyson-bloom",
+      "category": "science-fiction-megastructure",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Aurora Dyson Bloom",
+      "nameZh": "极光戴森花",
+      "promptSummary": "A flower-like Dyson array opening around a young star."
+    },
+    {
+      "id": "preset-mars-glass-canyon",
+      "category": "science-fiction-planetary",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Mars Glass Canyon",
+      "nameZh": "火星玻璃峡谷",
+      "promptSummary": "A glass habitat spanning a wind-carved Martian canyon."
+    },
+    {
+      "id": "preset-pulsar-archive",
+      "category": "science-fiction-cosmic",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Pulsar Archive",
+      "nameZh": "脉冲星档案馆",
+      "promptSummary": "A deep-space archive synchronized to a blue pulsar."
+    },
+    {
+      "id": "preset-europa-subsea-beacon",
+      "category": "science-fiction-oceanic",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Europa Subsea Beacon",
+      "nameZh": "木卫二深海信标",
+      "promptSummary": "A research beacon glowing beneath Europa's ice."
+    },
+    {
+      "id": "preset-cybernetic-monsoon-city",
+      "category": "science-fiction-cyber-city",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Cybernetic Monsoon City",
+      "nameZh": "赛博季风城",
+      "promptSummary": "A rain-washed cybernetic city under violet monsoon clouds."
+    },
+    {
+      "id": "preset-solar-wind-monastery",
+      "category": "science-fiction-spiritual",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Solar Wind Monastery",
+      "nameZh": "太阳风修道院",
+      "promptSummary": "A serene monastery collecting ribbons of solar wind."
+    },
+    {
+      "id": "preset-antimatter-cathedral",
+      "category": "science-fiction-cosmic",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Antimatter Cathedral",
+      "nameZh": "反物质圣殿",
+      "promptSummary": "A monumental antimatter chamber with sacred geometry."
+    },
+    {
+      "id": "preset-cobalt-warp-gate",
+      "category": "science-fiction-megastructure",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Cobalt Warp Gate",
+      "nameZh": "钴蓝跃迁门",
+      "promptSummary": "A cobalt warp gate awakening above a remote outpost."
+    },
+    {
+      "id": "preset-lunar-rice-terrace",
+      "category": "science-fiction-solarpunk",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Lunar Rice Terrace",
+      "nameZh": "月海稻田",
+      "promptSummary": "Luminous lunar rice terraces beneath a pale Earth."
+    },
+    {
+      "id": "preset-singularity-lighthouse",
+      "category": "science-fiction-cosmic",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Singularity Lighthouse",
+      "nameZh": "奇点灯塔",
+      "promptSummary": "A lone lighthouse guiding ships around a black hole."
+    },
+    {
+      "id": "preset-comet-caravan",
+      "category": "science-fiction-frontier",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Comet Caravan",
+      "nameZh": "彗星商队",
+      "promptSummary": "A caravan of small craft surfing a comet's luminous tail."
+    },
+    {
+      "id": "preset-exoplanet-cloud-port",
+      "category": "science-fiction-planetary",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Exoplanet Cloud Port",
+      "nameZh": "系外云港",
+      "promptSummary": "A floating port above an exoplanet's endless cloud sea."
+    },
+    {
+      "id": "preset-nebula-forge",
+      "category": "science-fiction-industrial",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Nebula Forge",
+      "nameZh": "星云熔炉",
+      "promptSummary": "A stellar forge shaping metal inside a crimson nebula."
+    },
+    {
+      "id": "preset-dark-matter-orchard",
+      "category": "science-fiction-cosmic",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Dark Matter Orchard",
+      "nameZh": "暗物质果园",
+      "promptSummary": "An impossible orchard tended in a dark-matter field."
+    },
+    {
+      "id": "preset-chrome-forest-sentinel",
+      "category": "science-fiction-robotic",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Chrome Forest Sentinel",
+      "nameZh": "铬林守望者",
+      "promptSummary": "A gentle chrome sentinel watching an artificial forest."
+    },
+    {
+      "id": "preset-porcelain-android-dawn",
+      "category": "science-fiction-robotic",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Porcelain Android Dawn",
+      "nameZh": "瓷白仿生人黎明",
+      "promptSummary": "A porcelain android greeting dawn on a quiet station."
+    },
+    {
+      "id": "preset-mech-jellyfish-trench",
+      "category": "science-fiction-robotic",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Mech Jellyfish Trench",
+      "nameZh": "机械水母海沟",
+      "promptSummary": "Mechanical jellyfish exploring a cobalt ocean trench."
+    },
+    {
+      "id": "preset-repair-drone-sanctuary",
+      "category": "science-fiction-robotic",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Repair Drone Sanctuary",
+      "nameZh": "维修无人机圣所",
+      "promptSummary": "Tiny repair drones resting in a warm machine sanctuary."
+    },
+    {
+      "id": "preset-quantum-fox-companion",
+      "category": "science-fiction-robotic",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Quantum Fox Companion",
+      "nameZh": "量子狐伴侣",
+      "promptSummary": "An original fox-shaped quantum companion on a starship deck."
+    },
+    {
+      "id": "preset-starship-drydock-zero",
+      "category": "science-fiction-starship",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Starship Drydock Zero",
+      "nameZh": "零号星舰船坞",
+      "promptSummary": "A colossal starship suspended inside an orbital drydock."
+    },
+    {
+      "id": "preset-ion-sail-regatta",
+      "category": "science-fiction-starship",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Ion Sail Regatta",
+      "nameZh": "离子帆竞赛",
+      "promptSummary": "Luminous ion sails racing across a turquoise gas giant."
+    },
+    {
+      "id": "preset-generation-ship-atrium",
+      "category": "science-fiction-starship",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Generation Ship Atrium",
+      "nameZh": "世代飞船中庭",
+      "promptSummary": "A vast green atrium at the heart of a generation ship."
+    },
+    {
+      "id": "preset-stealth-corvette-eclipse",
+      "category": "science-fiction-starship",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Stealth Corvette Eclipse",
+      "nameZh": "隐形护卫舰日蚀",
+      "promptSummary": "A matte-black corvette crossing a ringed eclipse."
+    },
+    {
+      "id": "preset-asteroid-mining-barge",
+      "category": "science-fiction-industrial",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Asteroid Mining Barge",
+      "nameZh": "小行星采矿驳船",
+      "promptSummary": "An industrial mining barge working a luminous asteroid."
+    },
+    {
+      "id": "preset-crystal-spore-valley",
+      "category": "science-fiction-xenobiology",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Crystal Spore Valley",
+      "nameZh": "晶孢谷",
+      "promptSummary": "Crystal spores drifting through an alien twilight valley."
+    },
+    {
+      "id": "preset-floating-coral-moon",
+      "category": "science-fiction-xenobiology",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Floating Coral Moon",
+      "nameZh": "浮珊瑚月",
+      "promptSummary": "Floating coral islands orbiting a warm ocean moon."
+    },
+    {
+      "id": "preset-plasma-whale-migration",
+      "category": "science-fiction-xenobiology",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Plasma Whale Migration",
+      "nameZh": "等离子鲸迁徙",
+      "promptSummary": "Vast original plasma whales migrating through a nebula."
+    },
+    {
+      "id": "preset-silicon-bamboo-grove",
+      "category": "science-fiction-xenobiology",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Silicon Bamboo Grove",
+      "nameZh": "硅竹林",
+      "promptSummary": "A shimmering silicon bamboo grove beneath twin suns."
+    },
+    {
+      "id": "preset-gravity-lily-lagoon",
+      "category": "science-fiction-xenobiology",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Gravity Lily Lagoon",
+      "nameZh": "重力睡莲湖",
+      "promptSummary": "Giant gravity lilies floating above an alien lagoon."
+    },
+    {
+      "id": "preset-chrono-station-echo",
+      "category": "science-fiction-temporal",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Chrono Station Echo",
+      "nameZh": "回声时间站",
+      "promptSummary": "A time station repeating itself along a frozen horizon."
+    },
+    {
+      "id": "preset-retrocausal-library",
+      "category": "science-fiction-temporal",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Retrocausal Library",
+      "nameZh": "逆因果图书馆",
+      "promptSummary": "An impossible library where light arrives before its source."
+    },
+    {
+      "id": "preset-last-minute-of-earth",
+      "category": "science-fiction-temporal",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Last Minute of Earth",
+      "nameZh": "地球最后一分钟",
+      "promptSummary": "A quiet orbital view of Earth under a stopped cosmic clock."
+    },
+    {
+      "id": "preset-temporal-tea-house",
+      "category": "science-fiction-temporal",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Temporal Tea House",
+      "nameZh": "时序茶馆",
+      "promptSummary": "A peaceful futuristic tea house suspended between eras."
+    },
+    {
+      "id": "preset-aeon-clockwork-plain",
+      "category": "science-fiction-temporal",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Aeon Clockwork Plain",
+      "nameZh": "亿万年钟表原野",
+      "promptSummary": "Ancient clockwork mechanisms crossing an endless alien plain."
+    },
+    {
+      "id": "preset-neutrino-lab-night",
+      "category": "science-fiction-laboratory",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Neutrino Lab Night",
+      "nameZh": "中微子实验室之夜",
+      "promptSummary": "A subterranean neutrino detector glowing in the night."
+    },
+    {
+      "id": "preset-holographic-botany-deck",
+      "category": "science-fiction-laboratory",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Holographic Botany Deck",
+      "nameZh": "全息植物甲板",
+      "promptSummary": "A starship botany deck filled with holographic plants."
+    },
+    {
+      "id": "preset-fusion-core-sanctum",
+      "category": "science-fiction-laboratory",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Fusion Core Sanctum",
+      "nameZh": "聚变核心圣室",
+      "promptSummary": "A pristine fusion core suspended in a circular chamber."
+    },
+    {
+      "id": "preset-xenobiology-greenhouse",
+      "category": "science-fiction-laboratory",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Xenobiology Greenhouse",
+      "nameZh": "异星生物温室",
+      "promptSummary": "A research greenhouse cultivating gentle alien flora."
+    },
+    {
+      "id": "preset-quantum-computing-vault",
+      "category": "science-fiction-laboratory",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Quantum Computing Vault",
+      "nameZh": "量子计算穹窖",
+      "promptSummary": "A cryogenic quantum vault beneath violet light."
+    },
+    {
+      "id": "preset-clean-energy-megacity",
+      "category": "science-fiction-utopian",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Clean Energy Megacity",
+      "nameZh": "清洁能源巨城",
+      "promptSummary": "A hopeful megacity powered by sun, wind, and fusion."
+    },
+    {
+      "id": "preset-ocean-skybridge",
+      "category": "science-fiction-utopian",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Ocean Skybridge",
+      "nameZh": "海洋天桥",
+      "promptSummary": "An elegant skybridge linking ocean arcologies at sunrise."
+    },
+    {
+      "id": "preset-orbital-agriculture-ring",
+      "category": "science-fiction-utopian",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Orbital Agriculture Ring",
+      "nameZh": "轨道农业环",
+      "promptSummary": "A green agricultural ring encircling a blue planet."
+    },
+    {
+      "id": "preset-lunar-library-plaza",
+      "category": "science-fiction-utopian",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Lunar Library Plaza",
+      "nameZh": "月球图书馆广场",
+      "promptSummary": "A quiet lunar library plaza beneath the Earth."
+    },
+    {
+      "id": "preset-terraformed-venus-garden",
+      "category": "science-fiction-utopian",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Terraformed Venus Garden",
+      "nameZh": "金星改造花园",
+      "promptSummary": "A garden city flourishing on a cooled, terraformed Venus."
+    },
+    {
+      "id": "preset-acid-rain-data-bazaar",
+      "category": "science-fiction-dystopian",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Acid Rain Data Bazaar",
+      "nameZh": "酸雨数据集市",
+      "promptSummary": "A shadowy data bazaar under corrosive green rain."
+    },
+    {
+      "id": "preset-abandoned-moon-metro",
+      "category": "science-fiction-dystopian",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Abandoned Moon Metro",
+      "nameZh": "废弃月球地铁",
+      "promptSummary": "An abandoned lunar metro reclaimed by frost and silence."
+    },
+    {
+      "id": "preset-red-signal-quarantine",
+      "category": "science-fiction-dystopian",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Red Signal Quarantine",
+      "nameZh": "红色信号隔离区",
+      "promptSummary": "A remote quarantine station under a single red beacon."
+    },
+    {
+      "id": "preset-ashfall-server-farm",
+      "category": "science-fiction-dystopian",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Ashfall Server Farm",
+      "nameZh": "落灰服务器农场",
+      "promptSummary": "A server farm glowing through ashfall on a dying world."
+    },
+    {
+      "id": "preset-blackout-megacity",
+      "category": "science-fiction-dystopian",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Blackout Megacity",
+      "nameZh": "断电巨城",
+      "promptSummary": "A powerless megacity with one surviving blue district."
+    },
+    {
+      "id": "preset-photosynthetic-tower",
+      "category": "science-fiction-solarpunk",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Photosynthetic Tower",
+      "nameZh": "光合塔",
+      "promptSummary": "A living tower harvesting sunlight above a green city."
+    },
+    {
+      "id": "preset-sunlit-robot-village",
+      "category": "science-fiction-solarpunk",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Sunlit Robot Village",
+      "nameZh": "阳光机器人村",
+      "promptSummary": "Friendly original robots tending a sunlit future village."
+    },
+    {
+      "id": "preset-algae-canal-district",
+      "category": "science-fiction-solarpunk",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Algae Canal District",
+      "nameZh": "藻类运河区",
+      "promptSummary": "A calm canal district powered by luminous algae."
+    },
+    {
+      "id": "preset-wind-harvester-steppe",
+      "category": "science-fiction-solarpunk",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Wind Harvester Steppe",
+      "nameZh": "风能采集草原",
+      "promptSummary": "Graceful wind harvesters crossing a golden future steppe."
+    },
+    {
+      "id": "preset-seedship-nursery",
+      "category": "science-fiction-solarpunk",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Seedship Nursery",
+      "nameZh": "种子飞船育苗舱",
+      "promptSummary": "A warm seedship nursery preserving Earth's plants."
+    },
+    {
+      "id": "preset-atomic-age-space-lounge",
+      "category": "science-fiction-retrofuture",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Atomic Age Space Lounge",
+      "nameZh": "原子时代太空酒廊",
+      "promptSummary": "A polished retrofuturist lounge overlooking Saturn."
+    },
+    {
+      "id": "preset-cassette-cosmos-console",
+      "category": "science-fiction-retrofuture",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Cassette Cosmos Console",
+      "nameZh": "磁带宇宙控制台",
+      "promptSummary": "An analog space console with tactile cassette mechanisms."
+    },
+    {
+      "id": "preset-analog-mission-control",
+      "category": "science-fiction-retrofuture",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Analog Mission Control",
+      "nameZh": "模拟任务控制中心",
+      "promptSummary": "A warm analog mission control room facing the stars."
+    },
+    {
+      "id": "preset-chrome-rocket-motel",
+      "category": "science-fiction-retrofuture",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Chrome Rocket Motel",
+      "nameZh": "铬火箭汽车旅馆",
+      "promptSummary": "A chrome rocket motel beneath a lavender alien sky."
+    },
+    {
+      "id": "preset-vacuum-tube-star-map",
+      "category": "science-fiction-retrofuture",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Vacuum Tube Star Map",
+      "nameZh": "电子管星图",
+      "promptSummary": "A glowing star map built from vacuum tubes and brass."
+    },
+    {
+      "id": "preset-event-horizon-ribbons",
+      "category": "science-fiction-abstract",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Event Horizon Ribbons",
+      "nameZh": "事件视界光带",
+      "promptSummary": "Abstract ribbons of light wrapping an event horizon."
+    },
+    {
+      "id": "preset-gravitational-wave-sea",
+      "category": "science-fiction-abstract",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Gravitational Wave Sea",
+      "nameZh": "引力波之海",
+      "promptSummary": "A cosmic sea shaped by passing gravitational waves."
+    },
+    {
+      "id": "preset-quantum-foam-cavern",
+      "category": "science-fiction-abstract",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Quantum Foam Cavern",
+      "nameZh": "量子泡沫洞窟",
+      "promptSummary": "A luminous cavern visualizing the texture of spacetime."
+    },
+    {
+      "id": "preset-photon-prism-temple",
+      "category": "science-fiction-abstract",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Photon Prism Temple",
+      "nameZh": "光子棱镜神殿",
+      "promptSummary": "A geometric prism temple splitting stellar light."
+    },
+    {
+      "id": "preset-entangled-light-garden",
+      "category": "science-fiction-abstract",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Entangled Light Garden",
+      "nameZh": "纠缠光花园",
+      "promptSummary": "Paired flowers of entangled light across a dark garden."
+    },
+    {
+      "id": "preset-orbital-rescue-wing",
+      "category": "science-fiction-rescue",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Orbital Rescue Wing",
+      "nameZh": "轨道救援联队",
+      "promptSummary": "Rescue craft approaching a damaged orbital habitat."
+    },
+    {
+      "id": "preset-frontier-peacekeeper-outpost",
+      "category": "science-fiction-rescue",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Frontier Peacekeeper Outpost",
+      "nameZh": "边疆维和前哨",
+      "promptSummary": "A calm frontier outpost watching a distant settlement."
+    },
+    {
+      "id": "preset-asteroid-defense-grid",
+      "category": "science-fiction-rescue",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Asteroid Defense Grid",
+      "nameZh": "小行星防御网",
+      "promptSummary": "A planetary defense grid redirecting incoming asteroids."
+    },
+    {
+      "id": "preset-humanitarian-mech-convoy",
+      "category": "science-fiction-rescue",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Humanitarian Mech Convoy",
+      "nameZh": "人道机甲车队",
+      "promptSummary": "Utility mechs carrying relief supplies across an alien plain."
+    },
+    {
+      "id": "preset-deep-space-searchlight",
+      "category": "science-fiction-rescue",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Deep Space Searchlight",
+      "nameZh": "深空搜救灯",
+      "promptSummary": "A powerful searchlight scanning a silent debris field."
+    },
+    {
+      "id": "preset-jade-orbit-palace",
+      "category": "science-fiction-chinese-scifi",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Jade Orbit Palace",
+      "nameZh": "玉衡轨道宫",
+      "promptSummary": "A jade-and-gold orbital palace inspired by Chinese architecture."
+    },
+    {
+      "id": "preset-neon-changan-station",
+      "category": "science-fiction-chinese-scifi",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Neon Chang'an Station",
+      "nameZh": "霓虹长安站",
+      "promptSummary": "A grand future station blending Chang'an geometry and neon."
+    },
+    {
+      "id": "preset-celestial-silk-road",
+      "category": "science-fiction-chinese-scifi",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Celestial Silk Road",
+      "nameZh": "天际丝路",
+      "promptSummary": "Merchant starships following a luminous celestial trade route."
+    },
+    {
+      "id": "preset-moon-rabbit-rover",
+      "category": "science-fiction-chinese-scifi",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Moon Rabbit Rover",
+      "nameZh": "月兔探测车",
+      "promptSummary": "An original rabbit-shaped rover crossing a tranquil lunar plain."
+    },
+    {
+      "id": "preset-red-lantern-starport",
+      "category": "science-fiction-chinese-scifi",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Red Lantern Starport",
+      "nameZh": "红灯笼星港",
+      "promptSummary": "A festive starport glowing with abstract red orbital lanterns."
+    },
+    {
+      "id": "preset-abyssal-data-center",
+      "category": "science-fiction-oceanic",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Abyssal Data Center",
+      "nameZh": "深渊数据中心",
+      "promptSummary": "A pressure-hardened data center in the midnight ocean."
+    },
+    {
+      "id": "preset-submarine-city-dawn",
+      "category": "science-fiction-oceanic",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Submarine City Dawn",
+      "nameZh": "潜海城黎明",
+      "promptSummary": "A transparent submarine city greeting blue ocean dawn."
+    },
+    {
+      "id": "preset-hydrothermal-research-rig",
+      "category": "science-fiction-oceanic",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Hydrothermal Research Rig",
+      "nameZh": "热液研究平台",
+      "promptSummary": "A research rig studying radiant hydrothermal vents."
+    },
+    {
+      "id": "preset-ocean-planet-arcology",
+      "category": "science-fiction-oceanic",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Ocean Planet Arcology",
+      "nameZh": "海洋行星生态城",
+      "promptSummary": "A self-sufficient arcology floating on a global ocean."
+    },
+    {
+      "id": "preset-tidal-energy-cathedral",
+      "category": "science-fiction-oceanic",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Tidal Energy Cathedral",
+      "nameZh": "潮汐能源圣殿",
+      "promptSummary": "A monumental tidal generator beneath turquoise waves."
+    },
+    {
+      "id": "preset-polar-aurora-array",
+      "category": "science-fiction-arctic",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Polar Aurora Array",
+      "nameZh": "极地极光阵列",
+      "promptSummary": "A scientific antenna array beneath sweeping auroras."
+    },
+    {
+      "id": "preset-icebound-robot-caravan",
+      "category": "science-fiction-arctic",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Icebound Robot Caravan",
+      "nameZh": "冰原机器人商队",
+      "promptSummary": "Original utility robots crossing a luminous ice plain."
+    },
+    {
+      "id": "preset-cryogenic-seed-vault",
+      "category": "science-fiction-arctic",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Cryogenic Seed Vault",
+      "nameZh": "低温种子库",
+      "promptSummary": "A futuristic seed vault embedded in a blue glacier."
+    },
+    {
+      "id": "preset-glacier-quantum-lab",
+      "category": "science-fiction-arctic",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Glacier Quantum Lab",
+      "nameZh": "冰川量子实验室",
+      "promptSummary": "A crystalline quantum laboratory inside ancient ice."
+    },
+    {
+      "id": "preset-snowfield-sky-elevator",
+      "category": "science-fiction-arctic",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Snowfield Sky Elevator",
+      "nameZh": "雪原太空电梯",
+      "promptSummary": "A sky elevator rising from a quiet polar snowfield."
+    },
+    {
+      "id": "preset-first-contact-horizon",
+      "category": "science-fiction-mystery",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "First Contact Horizon",
+      "nameZh": "初次接触地平线",
+      "promptSummary": "Two distant civilizations meeting at a luminous horizon."
+    },
+    {
+      "id": "preset-alien-megastructure-dusk",
+      "category": "science-fiction-mystery",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Alien Megastructure Dusk",
+      "nameZh": "异星巨构黄昏",
+      "promptSummary": "An unknowable alien megastructure emerging at dusk."
+    },
+    {
+      "id": "preset-silent-radio-telescope",
+      "category": "science-fiction-mystery",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Silent Radio Telescope",
+      "nameZh": "寂静射电望远镜",
+      "promptSummary": "A lone radio telescope listening beneath an impossible sky."
+    },
+    {
+      "id": "preset-ancient-probe-awakening",
+      "category": "science-fiction-mystery",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Ancient Probe Awakening",
+      "nameZh": "远古探测器苏醒",
+      "promptSummary": "An ancient interstellar probe awakening under starlight."
+    },
+    {
+      "id": "preset-interstellar-ruin-garden",
+      "category": "science-fiction-mystery",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Interstellar Ruin Garden",
+      "nameZh": "星际遗迹花园",
+      "promptSummary": "Alien flowers growing through a forgotten starship ruin."
+    },
+    {
+      "id": "preset-spaceship-window-cafe",
+      "category": "science-fiction-cozy",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Spaceship Window Café",
+      "nameZh": "飞船舷窗咖啡馆",
+      "promptSummary": "A cozy café beside a starship window and drifting nebula."
+    },
+    {
+      "id": "preset-moonbase-reading-nook",
+      "category": "science-fiction-cozy",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Moonbase Reading Nook",
+      "nameZh": "月球基地阅读角",
+      "promptSummary": "A warm reading nook overlooking the lunar night."
+    },
+    {
+      "id": "preset-robot-workshop-evening",
+      "category": "science-fiction-cozy",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Robot Workshop Evening",
+      "nameZh": "机器人修理铺夜晚",
+      "promptSummary": "A cozy evening workshop for small original service robots."
+    },
+    {
+      "id": "preset-orbital-rainy-bedroom",
+      "category": "science-fiction-cozy",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Orbital Rainy Bedroom",
+      "nameZh": "轨道雨夜卧室",
+      "promptSummary": "A quiet orbital bedroom with simulated rain on the glass."
+    },
+    {
+      "id": "preset-starlight-noodle-stall",
+      "category": "science-fiction-cozy",
+      "rightsStatus": "projectOriginal",
+      "nameEn": "Starlight Noodle Stall",
+      "nameZh": "星光面摊",
+      "promptSummary": "A tiny futuristic noodle stall beneath a crowded starfield."
     }
-  ]
+  ],
+  "naturePromptPolicy": {
+    "scope": "Entries whose category starts with nature-.",
+    "style": "Premium photorealistic cinematic landscape photography with believable geology, weather, water, flora, and atmospheric depth.",
+    "composition": "Wide 16:9 desktop theme with the left 40% kept calm and low-detail for UI, while the natural focal subject stays on the right third.",
+    "avoid": "No people, third-party characters, readable text, logo, watermark, border, UI mockup, recognizable private property, or implausible fantasy object."
+  }
 }

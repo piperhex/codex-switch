@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-asteroid-mining-barge",
+  "name": "小行星采矿驳船 / Asteroid Mining Barge",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "从沉默岩层中，提炼下一次远航。",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "ASTEROID MINING BARGE ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.75,
+    "focusY": 0.47,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#4c3626"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-emerald-fern-ravine",
+  "name": "Emerald Fern Ravine",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Where morning light finds the green silence.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE EMERALD FERN RAVINE ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.78,
+    "focusY": 0.5,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#62a84f"
+  }
+}

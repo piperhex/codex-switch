@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-apple-orchard-after-rain",
+  "name": "Apple Orchard After Rain",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Clear light returns to the fruiting branches.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE APPLE ORCHARD AFTER RAIN ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.82,
+    "focusY": 0.46,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#b54e3f"
+  }
+}

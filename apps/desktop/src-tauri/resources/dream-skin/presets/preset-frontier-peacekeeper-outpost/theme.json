@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-frontier-peacekeeper-outpost",
+  "name": "边疆维和前哨 / Frontier Peacekeeper Outpost",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "A QUIET HARBOR FOR DISTANT WORLDS",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "FRONTIER PEACEKEEPER OUTPOST ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.75,
+    "focusY": 0.46,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#0e1736"
+  }
+}

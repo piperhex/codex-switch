@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-rapeseed-hills-spring",
+  "name": "Rapeseed Hills in Spring",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Golden spring rolls beyond the morning mist.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE RAPESEED HILLS SPRING ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.8,
+    "focusY": 0.5,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#b6a52a"
+  }
+}

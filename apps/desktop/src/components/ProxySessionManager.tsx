@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Button,
@@ -234,6 +234,7 @@ export function ProxySessionManager({ t }: ProxySessionManagerProps) {
   const [activityFilter, setActivityFilter] = useState<ActivityFilter[]>(loadActivityFilter);
   const [hiddenColumns, setHiddenColumns] = useState<ProxySessionColumnKey[]>(loadHiddenColumns);
   const [columnOrder, setColumnOrder] = useState<ReorderableColumnKey[]>(loadColumnOrder);
+  const draggedColumnRef = useRef<ReorderableColumnKey | null>(null);
   const [draggedColumn, setDraggedColumn] = useState<ReorderableColumnKey | null>(null);
   const [dragTargetColumn, setDragTargetColumn] = useState<ReorderableColumnKey | null>(null);
   const [detailsSession, setDetailsSession] = useState<ProxySession | null>(null);
@@ -643,40 +644,55 @@ export function ProxySessionManager({ t }: ProxySessionManagerProps) {
                     return (
                       <div
                         key={key}
+                        data-proxy-session-column-key={key}
                         className={[
                           "proxy-session-column-setting-item",
                           draggedColumn === key ? "is-dragging" : "",
                           dragTargetColumn === key ? "is-drag-target" : "",
                         ].filter(Boolean).join(" ")}
-                        onDragOver={reorderable ? (event) => {
-                          event.preventDefault();
-                          event.dataTransfer.dropEffect = "move";
-                          setDragTargetColumn(key);
-                        } : undefined}
-                        onDragLeave={reorderable ? () => {
-                          setDragTargetColumn((current) => current === key ? null : current);
-                        } : undefined}
-                        onDrop={reorderable ? (event) => {
-                          event.preventDefault();
-                          if (draggedColumn) reorderColumn(draggedColumn, key);
-                          setDraggedColumn(null);
-                          setDragTargetColumn(null);
-                        } : undefined}
                       >
                         {reorderable ? (
                           <span
                             className="proxy-session-column-drag-handle"
                             role="button"
                             tabIndex={0}
-                            draggable
                             title={t("table.columnOrderDrag", { column: label })}
                             aria-label={t("table.columnOrderDrag", { column: label })}
-                            onDragStart={(event) => {
-                              event.dataTransfer.effectAllowed = "move";
-                              event.dataTransfer.setData("text/plain", key);
+                            onPointerDown={(event) => {
+                              if (event.button !== 0) return;
+                              event.preventDefault();
+                              event.currentTarget.setPointerCapture(event.pointerId);
+                              draggedColumnRef.current = key;
                               setDraggedColumn(key);
                             }}
-                            onDragEnd={() => {
+                            onPointerMove={(event) => {
+                              if (!draggedColumnRef.current) return;
+                              const item = document
+                                .elementFromPoint(event.clientX, event.clientY)
+                                ?.closest<HTMLElement>("[data-proxy-session-column-key]");
+                              const target = item?.dataset.proxySessionColumnKey;
+                              setDragTargetColumn(
+                                isReorderableColumnKey(target) ? target : null,
+                              );
+                            }}
+                            onPointerUp={(event) => {
+                              const source = draggedColumnRef.current;
+                              const item = document
+                                .elementFromPoint(event.clientX, event.clientY)
+                                ?.closest<HTMLElement>("[data-proxy-session-column-key]");
+                              const target = item?.dataset.proxySessionColumnKey;
+                              if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                                event.currentTarget.releasePointerCapture(event.pointerId);
+                              }
+                              draggedColumnRef.current = null;
+                              setDraggedColumn(null);
+                              setDragTargetColumn(null);
+                              if (source && isReorderableColumnKey(target)) {
+                                reorderColumn(source, target);
+                              }
+                            }}
+                            onPointerCancel={() => {
+                              draggedColumnRef.current = null;
                               setDraggedColumn(null);
                               setDragTargetColumn(null);
                             }}

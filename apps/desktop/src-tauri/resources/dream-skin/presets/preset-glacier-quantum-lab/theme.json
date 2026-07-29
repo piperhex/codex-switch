@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-glacier-quantum-lab",
+  "name": "冰川量子实验室 / Glacier Quantum Lab",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Quantum clarity beneath ancient ice.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "GLACIER QUANTUM LAB ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.75,
+    "focusY": 0.45,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#065b9e"
+  }
+}

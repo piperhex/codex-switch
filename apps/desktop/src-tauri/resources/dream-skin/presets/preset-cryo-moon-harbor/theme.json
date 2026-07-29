@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-cryo-moon-harbor",
+  "name": "冰月港 / Cryo Moon Harbor",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Silent vessels return through the polar glow.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "CRYO MOON HARBOR ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.76,
+    "focusY": 0.46,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#52d7e2"
+  }
+}

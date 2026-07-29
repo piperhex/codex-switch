@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-tidal-energy-cathedral",
+  "name": "潮汐能源圣殿 / Tidal Energy Cathedral",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "The moon pulls; the great engines answer.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "TIDAL ENERGY CATHEDRAL ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.75,
+    "focusY": 0.45,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#33586e"
+  }
+}

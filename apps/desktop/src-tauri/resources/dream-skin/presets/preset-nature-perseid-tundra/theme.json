@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-perseid-tundra",
+  "name": "苔原流星雨 / Perseid Tundra",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Brief silver trails cross the quiet northern sky.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE PERSEID TUNDRA ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.78,
+    "focusY": 0.39,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#6e91bc"
+  }
+}

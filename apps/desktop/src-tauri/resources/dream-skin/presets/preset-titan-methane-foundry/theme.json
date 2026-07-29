@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-titan-methane-foundry",
+  "name": "土卫六甲烷铸造厂 / Titan Methane Foundry",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Amber industry beneath a methane sky.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "TITAN METHANE FOUNDRY ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.75,
+    "focusY": 0.45,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#ab6821"
+  }
+}

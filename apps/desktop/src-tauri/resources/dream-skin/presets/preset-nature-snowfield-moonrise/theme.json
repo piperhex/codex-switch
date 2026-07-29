@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-snowfield-moonrise",
+  "name": "雪原月升 / Snowfield Moonrise",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Silver moonlight crosses an untouched winter plain.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE SNOWFIELD MOONRISE ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.77,
+    "focusY": 0.42,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#799ac7"
+  }
+}

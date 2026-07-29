@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-generation-ship-atrium",
+  "name": "世代飞船中庭 / Generation Ship Atrium",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "让一片森林，陪文明穿越星海。",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "GENERATION SHIP ATRIUM ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.45,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#828558"
+  }
+}

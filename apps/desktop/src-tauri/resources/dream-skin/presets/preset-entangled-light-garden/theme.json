@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-entangled-light-garden",
+  "name": "纠缠光花园 / Entangled Light Garden",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Paired blossoms answer across the quantum dark.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "ENTANGLED LIGHT GARDEN ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.75,
+    "focusY": 0.45,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#c06acb"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-analog-mission-control",
+  "name": "模拟任务控制中心 / Analog Mission Control",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Hold the course by signal and instinct.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "ANALOG MISSION CONTROL ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.44,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#83b65b"
+  }
+}

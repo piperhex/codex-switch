@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-orbital-rescue-wing",
+  "name": "轨道救援联队 / Orbital Rescue Wing",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "BEACONS OF MERCY ABOVE THE BLUE WORLD",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "ORBITAL RESCUE WING ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.76,
+    "focusY": 0.44,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#053466"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-acid-rain-data-bazaar",
+  "name": "酸雨数据集市 / Acid Rain Data Bazaar",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Signals glow where the night never dries.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "ACID RAIN DATA BAZAAR ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.8,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#1f3e46"
+  }
+}

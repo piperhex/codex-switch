@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-starlight-noodle-stall",
+  "name": "星光面摊 / Starlight Noodle Stall",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "A warm bowl at the edge of night.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "STARLIGHT NOODLE STALL ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.76,
+    "focusY": 0.46,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#e06f4e"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-iceberg-dawn",
+  "name": "冰山曙光 / Iceberg Dawn",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "First light warms a silent southern ocean.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE ICEBERG DAWN ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.78,
+    "focusY": 0.46,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#4a91bb"
+  }
+}

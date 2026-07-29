@@ -14,6 +14,7 @@ use crate::{
 const TRAY_ID: &str = "main-tray";
 const DASHBOARD_ID: &str = "tray:dashboard";
 const RESTART_CHATGPT_ID: &str = "tray:restart-chatgpt";
+const RESTART_APP_ID: &str = "tray:restart-app";
 const QUIT_ID: &str = "tray:quit";
 const ACCOUNT_PREFIX: &str = "tray:account:";
 const PROVIDER_PREFIX: &str = "tray:provider:";
@@ -82,6 +83,10 @@ pub(crate) fn handle_menu_event<R: Runtime>(app: &AppHandle<R>, event: MenuEvent
                 eprintln!("failed to restart ChatGPT from menu: {error}");
             }
         });
+        return;
+    }
+    if id == RESTART_APP_ID {
+        app.request_restart();
         return;
     }
     if id == QUIT_ID {
@@ -178,6 +183,17 @@ pub(crate) fn build_menu<R: Runtime>(
             "重启 ChatGPT"
         } else {
             "Restart ChatGPT"
+        },
+        true,
+        None::<&str>,
+    )?)?;
+    menu.append(&MenuItem::with_id(
+        app,
+        RESTART_APP_ID,
+        if chinese {
+            "重启 Codex Switch"
+        } else {
+            "Restart Codex Switch"
         },
         true,
         None::<&str>,

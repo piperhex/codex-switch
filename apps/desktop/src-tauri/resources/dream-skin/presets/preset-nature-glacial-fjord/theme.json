@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-glacial-fjord",
+  "name": "冰川峡湾 / Glacial Fjord",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Blue ice meets the silence of deep water.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE GLACIAL FJORD ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.79,
+    "focusY": 0.5,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#55b8d8"
+  }
+}

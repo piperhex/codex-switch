@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-kelp-cathedral",
+  "name": "海藻穹林 / Kelp Cathedral",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Amber fronds rise through quiet teal light.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE KELP CATHEDRAL ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.79,
+    "focusY": 0.43,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#c09b34"
+  }
+}

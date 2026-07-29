@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-namib-sunrise",
+  "name": "纳米布晨沙 / Namib Sunrise",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "First light traces the ridge of an ancient dune.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE NAMIB SUNRISE ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.78,
+    "focusY": 0.43,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#c86432"
+  }
+}

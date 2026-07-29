@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-birch-grove-sunshower",
+  "name": "Birch Grove Sunshower",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Silver rain glows in young green light.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE BIRCH GROVE SUNSHOWER ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.78,
+    "focusY": 0.45,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#6d9b3c"
+  }
+}

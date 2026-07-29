@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-cloudforest-cascade",
+  "name": "云林飞瀑 / Cloudforest Cascade",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "A cool cascade wakes beneath the mist.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE CLOUDFOREST CASCADE ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.78,
+    "focusY": 0.43,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#5a9a48"
+  }
+}
