@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-starship-drydock-zero",
+  "name": "零号星舰船坞 / Starship Drydock Zero",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "在群星苏醒前，为远航点亮第一束焊光。",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "STARSHIP DRYDOCK ZERO ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.76,
+    "focusY": 0.45,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#182838"
+  }
+}

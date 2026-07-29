@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-orbital-rainy-bedroom",
+  "name": "轨道雨夜卧室 / Orbital Rainy Bedroom",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Drift to sleep above the storm.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "ORBITAL RAINY BEDROOM ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.76,
+    "focusY": 0.45,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#4d8edb"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-ancient-probe-awakening",
+  "name": "远古探测器苏醒 / Ancient Probe Awakening",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "A signal returns from forgotten stone.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "ANCIENT PROBE AWAKENING ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.76,
+    "focusY": 0.47,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#4bb7ad"
+  }
+}

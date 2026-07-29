@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-temporal-tea-house",
+  "name": "时序茶馆 / Temporal Tea House",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Steep a quiet moment between centuries.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "TEMPORAL TEA HOUSE ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.76,
+    "focusY": 0.45,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#4b9a8a"
+  }
+}

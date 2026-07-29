@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-polar-aurora-array",
+  "name": "极地极光阵列 / Polar Aurora Array",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Cold instruments listen to a sky made visible.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "POLAR AURORA ARRAY ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.76,
+    "focusY": 0.44,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#051f3a"
+  }
+}

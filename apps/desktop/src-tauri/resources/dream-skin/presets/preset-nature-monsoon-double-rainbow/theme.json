@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-monsoon-double-rainbow",
+  "name": "季风双虹 / Monsoon Double Rainbow",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Sunlight returns through the last curtain of rain.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE MONSOON DOUBLE RAINBOW ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.78,
+    "focusY": 0.42,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#5d8f3d"
+  }
+}

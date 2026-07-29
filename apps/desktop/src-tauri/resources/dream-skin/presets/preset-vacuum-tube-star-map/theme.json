@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-vacuum-tube-star-map",
+  "name": "电子管星图 / Vacuum Tube Star Map",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Amber filaments chart a silent midnight cosmos.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "VACUUM TUBE STAR MAP ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.75,
+    "focusY": 0.45,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#d98526"
+  }
+}

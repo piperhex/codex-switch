@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-golden-wheat-breeze",
+  "name": "Golden Wheat Breeze",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Harvest light rolls across the open fields.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE GOLDEN WHEAT BREEZE ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.82,
+    "focusY": 0.53,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#ce902b"
+  }
+}

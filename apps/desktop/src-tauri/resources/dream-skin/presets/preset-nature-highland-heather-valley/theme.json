@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-highland-heather-valley",
+  "name": "石南高地 / Highland Heather Valley",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Purple heather follows a silver river through softened hills.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE HIGHLAND HEATHER VALLEY ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.78,
+    "focusY": 0.45,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#9b5c91"
+  }
+}

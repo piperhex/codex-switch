@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-photosynthetic-tower",
+  "name": "光合塔 / Photosynthetic Tower",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "A city that turns sunlight into tomorrow.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "PHOTOSYNTHETIC TOWER ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.75,
+    "focusY": 0.45,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#7eacbd"
+  }
+}

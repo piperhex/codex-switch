@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-silent-radio-telescope",
+  "name": "寂静射电望远镜 / Silent Radio Telescope",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Listening where the stars are quiet.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "SILENT RADIO TELESCOPE ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.77,
+    "focusY": 0.44,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#55c8d8"
+  }
+}

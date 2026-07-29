@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-aurora-mountain-lake",
+  "name": "极光山湖 / Aurora Mountain Lake",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Green aurora flows above a silent lake and snow peaks.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE AURORA MOUNTAIN LAKE ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.79,
+    "focusY": 0.33,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#22b88a"
+  }
+}

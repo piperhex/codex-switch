@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-abyssal-data-center",
+  "name": "深渊数据中心 / Abyssal Data Center",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Cold intelligence beneath the last light.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "ABYSSAL DATA CENTER ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.75,
+    "focusY": 0.45,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#2b7194"
+  }
+}

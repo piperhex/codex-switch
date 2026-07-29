@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-quantum-foam-cavern",
+  "name": "量子泡沫洞窟 / Quantum Foam Cavern",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "The smallest scales open into impossible halls.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "QUANTUM FOAM CAVERN ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.77,
+    "focusY": 0.47,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#63c8c5"
+  }
+}

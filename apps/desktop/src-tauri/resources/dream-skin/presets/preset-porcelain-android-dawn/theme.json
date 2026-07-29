@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-porcelain-android-dawn",
+  "name": "瓷白仿生人黎明 / Porcelain Android Dawn",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "A new mind greets the quiet sun.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "PORCELAIN ANDROID DAWN ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.75,
+    "focusY": 0.44,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#958271"
+  }
+}

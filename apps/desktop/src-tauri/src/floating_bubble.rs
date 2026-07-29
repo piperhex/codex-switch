@@ -429,11 +429,11 @@ fn estimated_floating_menu_size<R: Runtime>(app: &AppHandle<R>) -> (f64, f64) {
     let max_chars = labels
         .iter()
         .map(|label| label.chars().count())
-        .chain([9, 8, 8])
+        .chain([9, 15, 20, 4])
         .max()
         .unwrap_or(20);
     let width = ((max_chars as f64) * 8.8 + 92.0).clamp(230.0, 520.0);
-    let height = ((labels.len() + 3) as f64) * 32.0 + 26.0;
+    let height = ((labels.len() + 4) as f64) * 32.0 + 26.0;
     (width, height)
 }
 

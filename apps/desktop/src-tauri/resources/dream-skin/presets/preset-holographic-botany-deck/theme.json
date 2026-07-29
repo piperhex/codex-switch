@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-holographic-botany-deck",
+  "name": "全息植物甲板 / Holographic Botany Deck",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Cultivate light between the stars.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "HOLOGRAPHIC BOTANY DECK ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.76,
+    "focusY": 0.44,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#2fc7bc"
+  }
+}

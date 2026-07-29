@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-bluebell-woodland",
+  "name": "Bluebell Woodland",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Spring light drifts across a violet floor.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE BLUEBELL WOODLAND ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.78,
+    "focusY": 0.51,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#656dce"
+  }
+}

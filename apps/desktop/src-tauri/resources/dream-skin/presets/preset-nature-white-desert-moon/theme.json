@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-white-desert-moon",
+  "name": "白漠月影 / White Desert Moon",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Moonlight shapes a silent garden of chalk.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE WHITE DESERT MOON ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.76,
+    "focusY": 0.47,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#6689c7"
+  }
+}

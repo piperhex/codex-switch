@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-patagonian-spires-dawn",
+  "name": "巴塔哥尼亚晨塔 / Patagonian Spires Dawn",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Rose dawn touches remote granite towers above blue ice.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE PATAGONIAN SPIRES DAWN ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.78,
+    "focusY": 0.33,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#d98291"
+  }
+}

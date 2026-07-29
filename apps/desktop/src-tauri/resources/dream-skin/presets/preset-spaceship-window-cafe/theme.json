@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-spaceship-window-cafe",
+  "name": "飞船舷窗咖啡馆 / Spaceship Window Café",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Warm cups beneath an endless sky.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "SPACESHIP WINDOW CAFE ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.76,
+    "focusY": 0.45,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#42a9ae"
+  }
+}

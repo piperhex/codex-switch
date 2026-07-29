@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-mammatus-afterglow",
+  "name": "乳状云霞 / Mammatus Afterglow",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "The storm leaves warm sculpture across the open sky.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE MAMMATUS AFTERGLOW ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.77,
+    "focusY": 0.34,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#c66d62"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-rhododendron-snow-pass",
+  "name": "杜鹃雪岭 / Rhododendron Snow Pass",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Crimson spring blooms rise toward a luminous snow range.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE RHODODENDRON SNOW PASS ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.8,
+    "focusY": 0.36,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#c03b61"
+  }
+}

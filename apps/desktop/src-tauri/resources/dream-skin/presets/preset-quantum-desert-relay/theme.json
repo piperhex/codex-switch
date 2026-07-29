@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-quantum-desert-relay",
+  "name": "量子荒漠中继站 / Quantum Desert Relay",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "A lone signal bends the horizons of possibility.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "QUANTUM DESERT RELAY ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.75,
+    "focusY": 0.43,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#b47af2"
+  }
+}

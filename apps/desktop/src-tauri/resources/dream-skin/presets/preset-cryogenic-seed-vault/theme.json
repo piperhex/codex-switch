@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-cryogenic-seed-vault",
+  "name": "低温种子库 / Cryogenic Seed Vault",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Tomorrow waits in a chamber of blue silence.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "CRYOGENIC SEED VAULT ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.76,
+    "focusY": 0.45,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#154563"
+  }
+}

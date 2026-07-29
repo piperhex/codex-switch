@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-maple-glade-first-frost",
+  "name": "Maple Glade First Frost",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Crimson leaves meet the silver morning.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE MAPLE GLADE FIRST FROST ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.8,
+    "focusY": 0.45,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#c7433c"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-ocean-blue-hole",
+  "name": "深海蓝洞 / Ocean Blue Hole",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Turquoise shelves ring an ancient depth.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE OCEAN BLUE HOLE ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.79,
+    "focusY": 0.46,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#18b9c7"
+  }
+}

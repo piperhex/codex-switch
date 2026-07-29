@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-crystal-spore-valley",
+  "name": "晶孢谷 / Crystal Spore Valley",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Luminous spores awaken beneath a crystalline night.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "CRYSTAL SPORE VALLEY ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.75,
+    "focusY": 0.45,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#2c42a8"
+  }
+}

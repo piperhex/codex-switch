@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-frozen-lake-bubbles",
+  "name": "冰湖气泡 / Frozen Lake Bubbles",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Winter holds a thousand quiet circles beneath the ice.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE FROZEN LAKE BUBBLES ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.78,
+    "focusY": 0.58,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#7776d0"
+  }
+}

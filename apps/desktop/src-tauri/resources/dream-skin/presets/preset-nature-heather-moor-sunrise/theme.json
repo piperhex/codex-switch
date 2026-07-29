@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-heather-moor-sunrise",
+  "name": "Heather Moor Sunrise",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "First light warms the purple highlands.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE HEATHER MOOR SUNRISE ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.8,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#9a5fb2"
+  }
+}

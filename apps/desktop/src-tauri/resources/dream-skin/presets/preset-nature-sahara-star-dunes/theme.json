@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-sahara-star-dunes",
+  "name": "撒哈拉星沙 / Sahara Star Dunes",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "The Milky Way rises over a silent sea of sand.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE SAHARA STAR DUNES ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.76,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#c5794b"
+  }
+}

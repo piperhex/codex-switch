@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-braided-delta",
+  "name": "辫状三角洲 / Braided Delta",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Silver channels stitch a mineral plain.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE BRAIDED DELTA ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.79,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#9e8d2b"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-glacier-crystal-cave",
+  "name": "冰晶洞窟 / Glacier Crystal Cave",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Daylight refracts through the ancient blue ice.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE GLACIER CRYSTAL CAVE ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.79,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#43a8d1"
+  }
+}

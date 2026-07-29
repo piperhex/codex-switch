@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-red-signal-quarantine",
+  "name": "红色信号隔离区 / Red Signal Quarantine",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Beyond the barrier, every red pulse counts.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "RED SIGNAL QUARANTINE ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.75,
+    "focusY": 0.45,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#691b20"
+  }
+}

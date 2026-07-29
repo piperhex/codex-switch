@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-first-contact-horizon",
+  "name": "初次接触地平线 / First Contact Horizon",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Two lights meet without fear.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "FIRST CONTACT HORIZON ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.46,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#5fd7e6"
+  }
+}

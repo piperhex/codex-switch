@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-quantum-computing-vault",
+  "name": "量子计算穹窖 / Quantum Computing Vault",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Where impossible states become architecture.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "QUANTUM COMPUTING VAULT ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.78,
+    "focusY": 0.42,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#194a90"
+  }
+}

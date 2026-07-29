@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-snowfield-sky-elevator",
+  "name": "雪原太空电梯 / Snowfield Sky Elevator",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "A bright ascent beyond the winter horizon.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "SNOWFIELD SKY ELEVATOR ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.76,
+    "focusY": 0.43,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#2c5580"
+  }
+}

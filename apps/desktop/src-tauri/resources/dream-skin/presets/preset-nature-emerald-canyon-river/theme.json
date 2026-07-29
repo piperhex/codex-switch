@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-emerald-canyon-river",
+  "name": "翡翠峡谷之河 / Emerald Canyon River",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "A turquoise river threads through forested emerald cliffs.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE EMERALD CANYON RIVER ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.8,
+    "focusY": 0.53,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#28a6a0"
+  }
+}

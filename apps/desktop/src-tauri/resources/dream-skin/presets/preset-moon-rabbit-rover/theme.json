@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-moon-rabbit-rover",
+  "name": "月兔探测车 / Moon Rabbit Rover",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "A bright trail across the quiet moon.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "MOON RABBIT ROVER ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.75,
+    "focusY": 0.45,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#8db1ce"
+  }
+}

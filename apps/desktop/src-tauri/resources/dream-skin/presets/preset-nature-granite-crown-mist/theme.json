@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-granite-crown-mist",
+  "name": "雾隐花岗岩王冠 / Granite Crown Mist",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Silver storm mist folds around a monumental granite crown.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE GRANITE CROWN MIST ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.78,
+    "focusY": 0.3,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#7d9aa5"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-lunar-rice-terrace",
+  "name": "月海稻田 / Lunar Rice Terrace",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Green tides awaken under quiet gravity.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "LUNAR RICE TERRACE ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.77,
+    "focusY": 0.58,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#4f8f82"
+  }
+}

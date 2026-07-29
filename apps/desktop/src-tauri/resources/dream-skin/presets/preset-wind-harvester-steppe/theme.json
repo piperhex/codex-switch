@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-wind-harvester-steppe",
+  "name": "风能采集草原 / Wind Harvester Steppe",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Harvest the bright winds of tomorrow.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "WIND HARVESTER STEPPE ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.76,
+    "focusY": 0.44,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#29b8c7"
+  }
+}

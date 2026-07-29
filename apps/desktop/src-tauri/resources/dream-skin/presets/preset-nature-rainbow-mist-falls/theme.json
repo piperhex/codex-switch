@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-rainbow-mist-falls",
+  "name": "虹雾飞瀑 / Rainbow Mist Falls",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Sunlit spray draws a quiet rainbow across a deep gorge.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE RAINBOW MIST FALLS ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.8,
+    "focusY": 0.45,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#65afc4"
+  }
+}

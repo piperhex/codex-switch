@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-quantum-fox-companion",
+  "name": "量子狐伴侣 / Quantum Fox Companion",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "A faithful light waits beyond the known.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "QUANTUM FOX COMPANION ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.75,
+    "focusY": 0.47,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#273579"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-karst-ridge-rain",
+  "name": "峰林听雨 / Karst Ridge Rain",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Monsoon rain veils a labyrinth of forested limestone peaks.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE KARST RIDGE RAIN ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.79,
+    "focusY": 0.42,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#668f7a"
+  }
+}

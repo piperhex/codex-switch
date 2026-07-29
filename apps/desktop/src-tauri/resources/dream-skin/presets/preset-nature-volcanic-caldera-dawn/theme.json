@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-volcanic-caldera-dawn",
+  "name": "火山湖晨曦 / Volcanic Caldera Dawn",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "First light circles a sapphire crater lake and quiet steam.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE VOLCANIC CALDERA DAWN ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.76,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#c7773c"
+  }
+}

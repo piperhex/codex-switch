@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-volcanic-island-bay",
+  "name": "火山岛湾 / Volcanic Island Bay",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Black sand curves beneath an emerald crater.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE VOLCANIC ISLAND BAY ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.79,
+    "focusY": 0.45,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#1a91b6"
+  }
+}

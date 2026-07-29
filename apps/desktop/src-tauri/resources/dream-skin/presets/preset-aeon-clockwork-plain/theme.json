@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-aeon-clockwork-plain",
+  "name": "亿万年钟表原野 / Aeon Clockwork Plain",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Time outlives every maker.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "AEON CLOCKWORK PLAIN ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.75,
+    "focusY": 0.44,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#3d79e8"
+  }
+}

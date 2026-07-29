@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-arctic-polynya",
+  "name": "北极冰间湖 / Arctic Polynya",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Rose light warms a seam in the ice.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE ARCTIC POLYNYA ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.77,
+    "focusY": 0.36,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#e99b88"
+  }
+}

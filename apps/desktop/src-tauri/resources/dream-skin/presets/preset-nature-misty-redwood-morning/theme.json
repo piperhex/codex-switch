@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-misty-redwood-morning",
+  "name": "Misty Redwood Morning",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Ancient trunks rise through a quiet dawn.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE MISTY REDWOOD MORNING ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.79,
+    "focusY": 0.44,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#c58a52"
+  }
+}

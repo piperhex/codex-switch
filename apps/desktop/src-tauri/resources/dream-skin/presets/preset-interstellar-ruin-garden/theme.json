@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-interstellar-ruin-garden",
+  "name": "星际遗迹花园 / Interstellar Ruin Garden",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Where ancient stars bloom again.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "INTERSTELLAR RUIN GARDEN ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.75,
+    "focusY": 0.45,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#6c7be8"
+  }
+}

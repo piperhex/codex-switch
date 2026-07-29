@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-moonlit-estuary",
+  "name": "月照河口 / Moonlit Estuary",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Silver channels wander beneath the moon.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE MOONLIT ESTUARY ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.79,
+    "focusY": 0.38,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#7da9d8"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-spring-tea-terraces",
+  "name": "Spring Tea Terraces",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Rain-bright jade follows the mountain curves.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE SPRING TEA TERRACES ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.82,
+    "focusY": 0.53,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#3b9362"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-dark-matter-orchard",
+  "name": "暗物质果园 / Dark Matter Orchard",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Galaxies ripen in the silent dark.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "DARK MATTER ORCHARD ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.76,
+    "focusY": 0.45,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#132142"
+  }
+}

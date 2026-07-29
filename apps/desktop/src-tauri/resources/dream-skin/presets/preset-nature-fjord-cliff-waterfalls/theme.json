@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-fjord-cliff-waterfalls",
+  "name": "峡湾悬瀑 / Fjord Cliff Waterfalls",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Silver falls lace a green cliff above a midnight fjord.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE FJORD CLIFF WATERFALLS ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.79,
+    "focusY": 0.44,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#669b86"
+  }
+}

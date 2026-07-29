@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-chrome-forest-sentinel",
+  "name": "铬林守望者 / Chrome Forest Sentinel",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "The silver woods remember every star.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "CHROME FOREST SENTINEL ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.76,
+    "focusY": 0.45,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#12282e"
+  }
+}

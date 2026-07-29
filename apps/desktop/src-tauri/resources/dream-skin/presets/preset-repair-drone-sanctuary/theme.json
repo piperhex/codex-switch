@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-repair-drone-sanctuary",
+  "name": "维修无人机圣所 / Repair Drone Sanctuary",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Even tired machines deserve a quiet harbor.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "REPAIR DRONE SANCTUARY ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.75,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#694a36"
+  }
+}

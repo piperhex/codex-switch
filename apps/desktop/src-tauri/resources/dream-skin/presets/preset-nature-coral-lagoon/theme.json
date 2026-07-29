@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-coral-lagoon",
+  "name": "珊瑚浅泻湖 / Coral Lagoon",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Sunlit shallows reveal a quiet reef.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE CORAL LAGOON ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.78,
+    "focusY": 0.62,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#29b8b5"
+  }
+}

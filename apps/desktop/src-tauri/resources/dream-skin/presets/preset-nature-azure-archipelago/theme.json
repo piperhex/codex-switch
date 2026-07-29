@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-azure-archipelago",
+  "name": "蔚蓝群岛 / Azure Archipelago",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Quiet islands drift through luminous blue.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE AZURE ARCHIPELAGO ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.78,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#159fc1"
+  }
+}

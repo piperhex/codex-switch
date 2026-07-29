@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-antimatter-cathedral",
+  "name": "反物质圣殿 / Antimatter Cathedral",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Silence gathers around impossible light.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "ANTIMATTER CATHEDRAL ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.78,
+    "focusY": 0.56,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#8b5cf6"
+  }
+}

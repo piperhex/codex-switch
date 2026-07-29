@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-bioluminescent-shore",
+  "name": "荧光海岸 / Bioluminescent Shore",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Living blue light traces the midnight tide.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE BIOLUMINESCENT SHORE ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.79,
+    "focusY": 0.63,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#1e9eff"
+  }
+}

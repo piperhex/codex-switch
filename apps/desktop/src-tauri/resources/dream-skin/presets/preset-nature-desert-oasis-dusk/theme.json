@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-desert-oasis-dusk",
+  "name": "绿洲暮光 / Desert Oasis Dusk",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Evening settles beside a secluded desert spring.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE DESERT OASIS DUSK ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.79,
+    "focusY": 0.52,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#b96258"
+  }
+}

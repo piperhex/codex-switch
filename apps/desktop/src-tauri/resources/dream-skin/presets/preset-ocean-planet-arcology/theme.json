@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-ocean-planet-arcology",
+  "name": "海洋行星生态城 / Ocean Planet Arcology",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "A city learns the patient rhythm of an alien sea.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "OCEAN PLANET ARCOLOGY ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.76,
+    "focusY": 0.45,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#118695"
+  }
+}

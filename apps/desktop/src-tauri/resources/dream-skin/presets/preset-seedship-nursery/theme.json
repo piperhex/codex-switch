@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-seedship-nursery",
+  "name": "种子飞船育苗舱 / Seedship Nursery",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Carry a living future between the stars.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "SEEDSHIP NURSERY ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.78,
+    "focusY": 0.45,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#49b99f"
+  }
+}

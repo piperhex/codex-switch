@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-red-lantern-starport",
+  "name": "红灯笼星港 / Red Lantern Starport",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Warm beacons at the edge of night.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "RED LANTERN STARPORT ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.75,
+    "focusY": 0.45,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#5d221f"
+  }
+}

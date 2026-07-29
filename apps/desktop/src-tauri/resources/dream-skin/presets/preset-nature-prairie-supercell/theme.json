@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-prairie-supercell",
+  "name": "草原雷云 / Prairie Supercell",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Storm light turns above the open prairie.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE PRAIRIE SUPERCELL ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.79,
+    "focusY": 0.42,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#b4854f"
+  }
+}

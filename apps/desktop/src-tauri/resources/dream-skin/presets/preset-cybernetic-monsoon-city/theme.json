@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-cybernetic-monsoon-city",
+  "name": "赛博季风城 / Cybernetic Monsoon City",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Rain rewires the midnight skyline.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "CYBERNETIC MONSOON CITY ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.78,
+    "focusY": 0.46,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#4f8cc9"
+  }
+}

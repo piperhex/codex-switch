@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-alien-megastructure-dusk",
+  "name": "异星巨构黄昏 / Alien Megastructure Dusk",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Ancient geometry holds the last light.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "ALIEN MEGASTRUCTURE DUSK ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.76,
+    "focusY": 0.45,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#cb674f"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-retrocausal-library",
+  "name": "逆因果图书馆 / Retrocausal Library",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "The archive remembers tomorrow first.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "RETROCAUSAL LIBRARY ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.75,
+    "focusY": 0.45,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#d99a45"
+  }
+}

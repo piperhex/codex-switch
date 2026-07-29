@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-chrome-rocket-motel",
+  "name": "铬火箭汽车旅馆 / Chrome Rocket Motel",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Check in at the edge of tomorrow.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "CHROME ROCKET MOTEL ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.76,
+    "focusY": 0.43,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#35c8d0"
+  }
+}

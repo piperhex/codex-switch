@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-camellia-garden-rain",
+  "name": "Camellia Garden Rain",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Red petals brighten the quiet rain.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE CAMELLIA GARDEN RAIN ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.82,
+    "focusY": 0.49,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#c53c58"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-icebound-robot-caravan",
+  "name": "冰原机器人商队 / Icebound Robot Caravan",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Machines keep moving where no road remains.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "ICEBOUND ROBOT CARAVAN ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#345176"
+  }
+}

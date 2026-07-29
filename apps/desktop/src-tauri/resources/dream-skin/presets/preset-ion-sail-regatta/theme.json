@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-ion-sail-regatta",
+  "name": "离子帆竞赛 / Ion Sail Regatta",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "借恒星之风，划过无垠赛道。",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "ION SAIL REGATTA ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.76,
+    "focusY": 0.43,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#2b48ab"
+  }
+}

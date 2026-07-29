@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-mars-glass-canyon",
+  "name": "火星玻璃峡谷 / Mars Glass Canyon",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Survey the glass horizon.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "MARS GLASS CANYON ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.47,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#691615"
+  }
+}

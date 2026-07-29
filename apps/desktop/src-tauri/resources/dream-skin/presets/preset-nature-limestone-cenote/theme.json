@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-limestone-cenote",
+  "name": "石灰岩清潭 / Limestone Cenote",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Jade water glows beneath ancient stone.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE LIMESTONE CENOTE ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.78,
+    "focusY": 0.46,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#18a98d"
+  }
+}

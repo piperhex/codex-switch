@@ -35,8 +35,9 @@ button:focus-visible { outline: 3px solid rgba(45, 131, 87, .24); outline-offset
 
 .app-shell { width: 100%; max-width: 100%; height: 100vh; overflow: hidden; display: grid; grid-template-rows: auto minmax(0, 1fr); }
 .app-menu { position: relative; z-index: 20; width: 100%; min-width: 0; max-width: 100%; min-height: 64px; display: flex; align-items: center; gap: 20px; padding: 10px var(--page-x); border-bottom: 1px solid #dfe6df; background: rgba(248,250,247,.96); color: var(--ink); box-shadow: 0 4px 18px rgba(24,45,31,.07); backdrop-filter: blur(16px); }
-.brand { flex: 0 0 auto; display: flex; align-items: center; gap: 11px; line-height: 1.05; font-family: Manrope, sans-serif; letter-spacing: 0; }
-.brand-logo { width: 40px; height: 40px; object-fit: contain; flex: 0 0 auto; filter: drop-shadow(0 5px 10px rgba(41, 84, 54, .16)); }
+.brand { flex: 0 0 auto; display: flex; align-items: center; gap: 11px; padding: 0; border: 0; border-radius: 8px; line-height: 1.05; font-family: Manrope, sans-serif; letter-spacing: 0; background: transparent; cursor: pointer; }
+.brand-logo { width: 40px; height: 40px; object-fit: contain; flex: 0 0 auto; filter: drop-shadow(0 5px 10px rgba(41, 84, 54,.16)); transition: transform .18s ease; }
+.brand:hover .brand-logo { transform: translateY(-1px); }
 .brand span { font-size: 15px; color: #66756c; }
 .brand b { color: #213028; font-weight: 700; }
 .announcement-slot { min-width: 0; flex: 1 1 0; overflow: hidden; }
@@ -169,7 +170,7 @@ h1 { margin: 5px 0 0; font: 700 26px/1.1 Manrope, sans-serif; letter-spacing: -.
 .proxy-session-column-setting-item .ant-checkbox-wrapper { min-width: 0; flex: 1; }
 .proxy-session-column-drag-handle,
 .proxy-session-column-fixed-icon { width: 17px; height: 22px; flex: 0 0 auto; display: grid; place-items: center; color: #93a098; }
-.proxy-session-column-drag-handle { border-radius: 4px; cursor: grab; }
+.proxy-session-column-drag-handle { border-radius: 4px; cursor: grab; touch-action: none; user-select: none; }
 .proxy-session-column-drag-handle:hover,
 .proxy-session-column-drag-handle:focus-visible { color: var(--green-dark); background: var(--green-selection); outline: none; }
 .proxy-session-column-drag-handle:active { cursor: grabbing; }

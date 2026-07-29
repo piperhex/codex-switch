@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-lavender-field-twilight",
+  "name": "Lavender Field Twilight",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Violet rows settle into the blue hour.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE LAVENDER FIELD TWILIGHT ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.79,
+    "focusY": 0.54,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#8066c7"
+  }
+}

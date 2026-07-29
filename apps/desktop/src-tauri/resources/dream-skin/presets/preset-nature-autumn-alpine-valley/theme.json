@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-nature-autumn-alpine-valley",
+  "name": "金色秋谷 / Autumn Alpine Valley",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Golden larches frame a turquoise river beneath new snow.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "NATURE AUTUMN ALPINE VALLEY ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.79,
+    "focusY": 0.39,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#d79827"
+  }
+}

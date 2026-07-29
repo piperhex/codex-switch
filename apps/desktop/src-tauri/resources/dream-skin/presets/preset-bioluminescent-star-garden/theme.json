@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-bioluminescent-star-garden",
+  "name": "星海荧光花园 / Bioluminescent Star Garden",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Living light flowers at the edge of infinity.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "BIOLUMINESCENT STAR GARDEN ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.75,
+    "focusY": 0.47,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#52d9cf"
+  }
+}
