@@ -2,7 +2,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProper
 import { ConfigProvider, Dropdown, Modal, Popconfirm, Popover, Switch, Tooltip, theme as antdTheme, type MenuProps } from "antd";
 import enUS from "antd/locale/en_US";
 import zhCN from "antd/locale/zh_CN";
-import { Archive, BarChart3, Bell, CalendarClock, Check, ChevronDown, CircleHelp, Cloud, Copy, Download, Github, LogIn, LogOut, Megaphone, MessageSquareText, Minus, PackageOpen, Palette, Play, Plus, RefreshCw, RotateCcw, Search, Server, Settings, ShieldCheck, Shuffle, Square, Upload, UploadCloud, UserRound, X } from "lucide-react";
+import { BarChart3, Bell, CalendarClock, Check, ChevronDown, CircleHelp, Cloud, Copy, Download, Github, LogIn, LogOut, Megaphone, MessageSquareText, Minus, PackageOpen, Palette, Play, Plus, RefreshCw, RotateCcw, Search, Server, Settings, ShieldCheck, Shuffle, Square, UploadCloud, UserRound, X } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { checkForUpdate, chooseAndExportDiagnosticLogs, consumeResetCredit, DEFAULT_CLOUD_BASE_URL, downloadAvailableUpdate, fetchCloudAnnouncement, fetchCloudFaqs, fetchCloudNotifications, installDownloadedUpdate, isDesktopApp, launchChatGpt, loadAppSettings, openManagedFolder, queryProviderBalance, quitApplication, reportAnnouncementClick, reportBaseUrlChange, reportDeviceActivity, reportFirstInstallation, restartApplication, restartChatGpt, showTokenUsageWindow, submitFeedback, subscribeToCloudSessionExpired, updateWebProxyPort } from "./api/backend";
@@ -919,38 +919,6 @@ function DashboardApp() {
       </button>
     </Dropdown>
   );
-  const backupActionMenu = (
-    <Dropdown
-      trigger={["hover"]}
-      menu={{
-        items: [
-          {
-            key: "import",
-            icon: <Upload className={manager.archiveOperation === "import" ? "spin" : undefined} size={15} />,
-            label: t("actions.importArchive"),
-            disabled: manager.archiveOperation !== null,
-          },
-          {
-            key: "export",
-            icon: <Download className={manager.archiveOperation === "export" ? "spin" : undefined} size={15} />,
-            label: t("actions.exportArchive"),
-            disabled: manager.archiveOperation !== null
-              || (!manager.accounts.length && !providerManager.providers.length),
-          },
-        ],
-        onClick: ({ key }) => {
-          if (key === "import") void manager.importAccountArchive();
-          if (key === "export") void manager.exportAccountArchive();
-        },
-      }}
-    >
-      <button type="button" className="topbar-icon-button" aria-label={t("actions.backup")}
-        disabled={manager.archiveOperation !== null}>
-        <Archive className={manager.archiveOperation ? "spin" : undefined} size={17} />
-        <span>{t("actions.backup")}</span>
-      </button>
-    </Dropdown>
-  );
   const refreshActionMenu = (
     <div className="refresh-all-wrap">
       <Dropdown
@@ -1213,6 +1181,12 @@ function DashboardApp() {
           items: cloud.state.authenticated
             ? [
               { key: "account", icon: <Cloud size={15} />, label: t("cloud.accountDetails") },
+              {
+                key: "sync",
+                icon: <UploadCloud className={cloud.syncing ? "spin" : ""} size={15} />,
+                label: t("cloud.sync"),
+                disabled: cloud.syncing,
+              },
               { type: "divider" },
               { key: "logout", icon: <LogOut size={15} />, label: t("cloud.logout"), disabled: cloud.loading },
               { type: "divider" },
@@ -1235,6 +1209,7 @@ function DashboardApp() {
             ],
           onClick: ({ key }) => {
             if (key === "account") openCloudAccount();
+            if (key === "sync") void syncCloud();
             if (key === "logout") void cloud.logout();
             if (key === "login") openCloudLogin();
             if (key === "settings") setPage("settings");
@@ -1254,6 +1229,19 @@ function DashboardApp() {
           <ChevronDown size={14} />
         </button>
       </Dropdown>
+      {cloud.state.authenticated && (
+        <Tooltip title={t("cloud.syncDescription")}>
+          <button
+            type="button"
+            className="cloud-sync-menu-button"
+            aria-label={t("cloud.sync")}
+            disabled={cloud.syncing}
+            onClick={() => void syncCloud()}
+          >
+            <UploadCloud className={cloud.syncing ? "spin" : ""} size={18} />
+          </button>
+        </Tooltip>
+      )}
       <Popover
         placement="bottomRight"
         trigger="click"
@@ -1408,17 +1396,8 @@ function DashboardApp() {
             {page === "accounts" && (
               <div className="topbar-actions">
                 <button className="primary-button" onClick={openLogin}><Plus size={18} />{t("actions.addAccount")}</button>
-                {backupActionMenu}
                 {refreshActionMenu}
                 {chatGptActionMenu}
-                {cloud.state.authenticated && (
-                  <Tooltip title={t("cloud.syncDescription")}>
-                    <button type="button" className="refresh-all cloud-sync-action" disabled={cloud.syncing}
-                      onClick={() => void syncCloud()}>
-                      <UploadCloud className={cloud.syncing ? "spin" : ""} size={17} />{t("cloud.sync")}
-                    </button>
-                  </Tooltip>
-                )}
                 {proxyTopbarActions}
               </div>
             )}
@@ -1430,14 +1409,6 @@ function DashboardApp() {
                   </button>
                 </Tooltip>
                 {chatGptActionMenu}
-                {cloud.state.authenticated && (
-                  <Tooltip title={t("cloud.syncDescription")}>
-                    <button type="button" className="refresh-all cloud-sync-action" disabled={cloud.syncing}
-                      onClick={() => void syncCloud()}>
-                      <UploadCloud className={cloud.syncing ? "spin" : ""} size={17} />{t("cloud.sync")}
-                    </button>
-                  </Tooltip>
-                )}
                 {proxyTopbarActions}
               </div>
             )}

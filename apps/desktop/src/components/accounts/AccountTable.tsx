@@ -209,7 +209,7 @@ function tokenUsageMatchesAccount(usage: AccountTokenUsageTotals, account: Accou
   return Boolean(email && usageEmail && email === usageEmail);
 }
 
-function CompactDailyTokenChart({ totals, language }: {
+function DailyTokenUsageTooltip({ totals, language }: {
   totals: TokenTypeTotals;
   language: Language;
 }) {
@@ -229,8 +229,8 @@ function CompactDailyTokenChart({ totals, language }: {
       cached: "Cached",
     };
   const values = [totals.input, totals.output, totals.reasoning, totals.cached];
-  const maximum = Math.max(...values, 1);
-  const tooltip = (
+
+  return (
     <div className="compact-token-tooltip">
       <strong>{labels.title}</strong>
       {values.map((value, index) => (
@@ -242,10 +242,19 @@ function CompactDailyTokenChart({ totals, language }: {
       ))}
     </div>
   );
+}
+
+function CompactDailyTokenChart({ totals, language }: {
+  totals: TokenTypeTotals;
+  language: Language;
+}) {
+  const values = [totals.input, totals.output, totals.reasoning, totals.cached];
+  const maximum = Math.max(...values, 1);
+  const title = language === "zh" ? "今日 Token 用量" : "Today's Token usage";
   return (
-    <Tooltip title={tooltip} placement="top">
+    <Tooltip title={<DailyTokenUsageTooltip totals={totals} language={language} />} placement="top">
       <div className="compact-model-token-chart" role="img"
-        aria-label={`${labels.title}: ${formatCompactTokenCount(totals.total, language)}`}>
+        aria-label={`${title}: ${formatCompactTokenCount(totals.total, language)}`}>
         <span>{language === "zh" ? "今日" : "TODAY"}</span>
         <svg viewBox="0 0 48 26" aria-hidden="true">
           {values.map((value, index) => {
@@ -483,8 +492,14 @@ export function AccountTable({
     });
     return totals;
   }, [accountTokenUsage, accounts]);
-  const todayTokenTotal = useMemo(
-    () => accountTokenUsage.reduce((total, usage) => total + usage.totalTokens, 0),
+  const todayTokenTotals = useMemo(
+    () => accountTokenUsage.reduce<TokenTypeTotals>((totals, usage) => ({
+      total: totals.total + usage.totalTokens,
+      input: totals.input + usage.inputTokens,
+      output: totals.output + usage.outputTokens,
+      reasoning: totals.reasoning + usage.reasoningTokens,
+      cached: totals.cached + usage.cachedTokens,
+    }), EMPTY_TOKEN_TOTALS),
     [accountTokenUsage],
   );
   const orderedAccounts = useMemo(() => [...accounts].sort(
@@ -1023,19 +1038,28 @@ export function AccountTable({
               <strong>{formatAverageConversationLatency(proxySessionLatency)}</strong>
             </span>
           </Tooltip>
-          <Tooltip title={hotSwitchEnabled ? undefined : t("table.tokenTotalsProxyOnly")}>
-            <span
-              className="today-token-usage-summary"
-              aria-label={`${t("table.todayTokenUsageLabel")}: ${
-                hotSwitchEnabled ? formatCompactTokenCount(todayTokenTotal, language) : "--"
-              }`}
-            >
-              {t("table.todayTokenUsageLabel")}{language === "zh" ? "：" : ": "}
-              <strong>
-                {hotSwitchEnabled ? formatCompactTokenCount(todayTokenTotal, language) : "--"}
-              </strong>
-            </span>
-          </Tooltip>
+          <span
+            className="today-token-usage-summary"
+            aria-label={`${t("table.todayTokenUsageLabel")}: ${
+              hotSwitchEnabled ? formatCompactTokenCount(todayTokenTotals.total, language) : "--"
+            }`}
+          >
+            {t("table.todayTokenUsageLabel")}{language === "zh" ? "：" : ": "}
+            {hotSwitchEnabled ? (
+              <Tooltip
+                title={<DailyTokenUsageTooltip totals={todayTokenTotals} language={language} />}
+                placement="top"
+              >
+                <strong className="today-token-usage-value">
+                  {formatCompactTokenCount(todayTokenTotals.total, language)}
+                </strong>
+              </Tooltip>
+            ) : (
+              <Tooltip title={t("table.tokenTotalsProxyOnly")}>
+                <strong className="today-token-usage-value">--</strong>
+              </Tooltip>
+            )}
+          </span>
           {proxyControls}
         </div>
         <Popconfirm title={t("table.batchDeleteConfirmTitle", { count: deletableSelectedAccountIds.length })}
