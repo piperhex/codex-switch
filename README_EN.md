@@ -93,6 +93,15 @@ The browser preview uses demo data and never accesses real credentials. The mobi
 3. Select **Switch** to atomically replace the `auth.json` currently used by Codex.
 4. If a running ChatGPT/Codex process may have cached the old credentials, use **Restart ChatGPT** from the dashboard or tray.
 
+An installed desktop client can also start the web version without creating a window, tray icon, or floating bubble. The command-line port applies only to that process:
+
+```powershell
+codex-switch.exe --headless --port=18080
+# Also supported: codex-switch.exe --headless --port 18080
+```
+
+Open `http://127.0.0.1:18080` after startup. `--headless` requires `--port`, whose valid range is `1-65535`.
+
 The **Providers** page manages OpenAI Responses or Chat Completions-compatible endpoints, API keys, models, and model-control policy. Without the proxy, switching writes a managed section to `$CODEX_HOME/config.toml`; active sessions may need a restart. The proxy listens on `127.0.0.1:15722`, directs Codex to it, and enables hot switching.
 
 ## More documentation

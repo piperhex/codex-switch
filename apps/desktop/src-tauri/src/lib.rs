@@ -8,6 +8,7 @@ mod dream_skin;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 mod dream_skin_native;
 mod floating_bubble;
+mod launch_options;
 mod local_proxy;
 mod main_window;
 mod models;
@@ -18,13 +19,36 @@ mod skills_market;
 mod storage;
 mod system_proxy;
 mod system_tray;
+mod web_server;
 
 use oauth::AppState;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let launch_options = match launch_options::LaunchOptions::from_environment() {
+        Ok(options) => options,
+        Err(error) => {
+            eprintln!("{error}\nUsage: codex-switch --headless --port=<1-65535>");
+            std::process::exit(2);
+        }
+    };
+    let mut context = tauri::generate_context!();
+    if launch_options.headless {
+        context.config_mut().app.windows.clear();
+    }
+
     tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            system_tray::show_dashboard(app);
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            match launch_options::LaunchOptions::parse(args) {
+                Ok(options) if options.headless => {
+                    if let Some(port) = options.port {
+                        if let Err(error) = web_server::restart_at_port(app, port) {
+                            eprintln!("failed to apply headless launch request: {error}");
+                        }
+                    }
+                }
+                Ok(_) => system_tray::show_dashboard(app),
+                Err(error) => eprintln!("invalid launch request: {error}"),
+            }
         }))
         .manage(AppState::default())
         .manage(main_window::MainWindowStateCache::default())
@@ -32,12 +56,16 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .setup(|app| {
+        .setup(move |app| {
             storage::migrate_app_settings_for_version(app.handle())?;
-            main_window::restore_or_set_default(app)?;
+            if !launch_options.headless {
+                main_window::restore_or_set_default(app)?;
+            }
             commands::initialize_local_state(app.handle());
-            if let Err(error) = dream_skin::setup(app.handle()) {
-                eprintln!("failed to restore Dream Skin monitor: {error}");
+            if !launch_options.headless {
+                if let Err(error) = dream_skin::setup(app.handle()) {
+                    eprintln!("failed to restore Dream Skin monitor: {error}");
+                }
             }
             match local_proxy::restore_local_proxy_if_enabled(app.handle()) {
                 Ok(true) => {}
@@ -47,8 +75,16 @@ pub fn run() {
                     providers::cleanup_stale_local_proxy_config(app.handle())?;
                 }
             }
-            system_tray::setup(app)?;
-            floating_bubble::setup(app.handle())?;
+            if !launch_options.headless {
+                system_tray::setup(app)?;
+                floating_bubble::setup(app.handle())?;
+            }
+            if let Err(error) = web_server::setup(app.handle(), launch_options.port) {
+                if launch_options.headless {
+                    return Err(std::io::Error::other(error).into());
+                }
+                eprintln!("failed to restore web version server: {error}");
+            }
             remote_control::start(app.handle().clone());
             Ok(())
         })
@@ -146,6 +182,7 @@ pub fn run() {
             floating_bubble::set_bubble_style,
             floating_bubble::set_theme_color,
             floating_bubble::set_app_language,
+            web_server::set_web_proxy_port,
             floating_bubble::resize_floating_bubble,
             floating_bubble::drag_floating_bubble,
             floating_bubble::show_floating_bubble_menu,
@@ -178,10 +215,14 @@ pub fn run() {
             skills_market::upload_market_skill,
             skills_market::install_market_skill,
         ])
-        .build(tauri::generate_context!())
-        .expect("error while building Codex Switch")
+        .build(context)
+        .unwrap_or_else(|error| {
+            eprintln!("failed to start Codex Switch: {error}");
+            std::process::exit(1);
+        })
         .run(|app, event| {
             if matches!(event, tauri::RunEvent::ExitRequested { .. }) {
+                web_server::shutdown();
                 if let Err(error) = main_window::save_current(app) {
                     eprintln!("failed to save main window state before exit: {error}");
                 }

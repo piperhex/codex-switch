@@ -656,7 +656,7 @@ export async function startLocalProxy(): Promise<LocalProxyStatus> {
 }
 
 export async function updateWebProxyPort(port: number | null): Promise<AppSettings> {
-  if (isDesktopApp) return loadAppSettings();
+  if (isDesktopApp) return invoke<AppSettings>("set_web_proxy_port", { port });
   if (port === null) {
     window.localStorage.removeItem(LOCAL_PROXY_PORT_PREVIEW_KEY);
     window.localStorage.removeItem(LOCAL_PROXY_PREVIEW_KEY);

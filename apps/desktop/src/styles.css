@@ -683,6 +683,8 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .cloud-settings-card { display: none; }
 .settings-field .ant-space-compact { width: 150px; }
 .settings-field .ant-input-number { width: 108px; }
+.web-proxy-settings-field .ant-space-compact { width: 180px; }
+.web-proxy-settings-field .ant-input-number { width: 112px; }
 .settings-field .duration-time-picker.ant-picker { width: 112px; }
 .token-usage-settings-field { flex-wrap: wrap; }
 .token-usage-settings-field .ant-space-compact { width: 132px; }

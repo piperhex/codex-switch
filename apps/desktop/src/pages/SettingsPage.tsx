@@ -173,6 +173,7 @@ export function SettingsPage({
   t: Translate;
 }) {
   const [cloudBaseUrlDraft, setCloudBaseUrlDraft] = useState(cloudBaseUrl);
+  const [webProxyPortDraft, setWebProxyPortDraft] = useState<number | null>(webProxyPort ?? null);
   const [bubbleStyleModalOpen, setBubbleStyleModalOpen] = useState(false);
   const usingOfficialCloudServer = cloudBaseUrlDraft.trim().replace(/\/+$/, "").toLowerCase()
     === DEFAULT_CLOUD_BASE_URL.toLowerCase();
@@ -180,6 +181,10 @@ export function SettingsPage({
   useEffect(() => {
     setCloudBaseUrlDraft(cloudBaseUrl);
   }, [cloudBaseUrl]);
+
+  useEffect(() => {
+    setWebProxyPortDraft(webProxyPort ?? null);
+  }, [webProxyPort]);
 
   return (
     <div className="settings-page">
@@ -324,11 +329,19 @@ export function SettingsPage({
           <div className="settings-icon"><Network size={23} /></div>
           <div className="settings-card-content">
             <div className="settings-card-copy"><h3>{t("settings.webProxy.title")}</h3><p>{t("settings.webProxy.description")}</p></div>
-            <div className="settings-field">
+            <div className="settings-field web-proxy-settings-field">
               <label htmlFor="web-proxy-port">{t("settings.webProxy.port")}</label>
-              <InputNumber id="web-proxy-port" min={1} max={65535} step={1} value={webProxyPort ?? null}
-                disabled={webProxyPortLoading} placeholder={t("settings.webProxy.disabled")}
-                onChange={(value) => onWebProxyPortChange(typeof value === "number" ? value : null)} />
+              <Space.Compact>
+                <InputNumber id="web-proxy-port" min={1} max={65535} step={1} precision={0} value={webProxyPortDraft}
+                  disabled={webProxyPortLoading} placeholder={t("settings.webProxy.disabled")}
+                  onChange={(value) => setWebProxyPortDraft(typeof value === "number" ? value : null)}
+                  onPressEnter={() => onWebProxyPortChange(webProxyPortDraft)} />
+                <Button type="primary" loading={webProxyPortLoading}
+                  disabled={webProxyPortDraft === (webProxyPort ?? null)}
+                  onClick={() => onWebProxyPortChange(webProxyPortDraft)}>
+                  {t("settings.webProxy.save")}
+                </Button>
+              </Space.Compact>
             </div>
           </div>
         </section>

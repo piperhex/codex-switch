@@ -218,7 +218,6 @@ function DashboardApp() {
   const manager = useAccountManager(notify, t, accountCloudSync);
   const providerManager = useProviderManager(notify, t, providerCloudSync);
   useEffect(() => {
-    if (isDesktopApp) return;
     void loadAppSettings()
       .then((settings) => setWebProxyPort(settings.webProxyPort ?? null))
       .catch((error) => notify(String(error)));
@@ -367,18 +366,20 @@ function DashboardApp() {
     }
   }, [manager.refreshUsage, notify, resetCredits.refreshAccount, t]);
   const changeWebProxyPort = useCallback(async (port: number | null) => {
-    if (isDesktopApp) return;
     setWebProxyPortLoading(true);
     try {
       const settings = await updateWebProxyPort(port);
       setWebProxyPort(settings.webProxyPort ?? null);
-      await providerManager.reload();
+      if (!isDesktopApp) await providerManager.reload();
+      notify(t(port === null ? "toast.webServerDisabled" : "toast.webServerStarted", {
+        port: port ?? "",
+      }));
     } catch (error) {
       notify(String(error));
     } finally {
       setWebProxyPortLoading(false);
     }
-  }, [notify, providerManager.reload]);
+  }, [notify, providerManager.reload, t]);
   const changeThemeColor = useCallback((color: string) => {
     void themeColor.setColor(color);
   }, [themeColor.setColor]);
@@ -1453,9 +1454,9 @@ function DashboardApp() {
               tokenUsageWeeks={tokenUsagePreferences.weeks}
               tokenUsageRefreshSeconds={tokenUsagePreferences.refreshSeconds}
               tokenUsagePreferencesLoading={tokenUsagePreferences.loading}
-              webProxyPort={!isDesktopApp ? webProxyPort : undefined}
-              webProxyPortLoading={!isDesktopApp ? webProxyPortLoading : undefined}
-              onWebProxyPortChange={!isDesktopApp ? changeWebProxyPort : undefined}
+              webProxyPort={webProxyPort}
+              webProxyPortLoading={webProxyPortLoading}
+              onWebProxyPortChange={changeWebProxyPort}
               onTokenUsageWeeksChange={tokenUsagePreferences.updateWeeks}
               onTokenUsageRefreshSecondsChange={tokenUsagePreferences.updateRefreshSeconds}
               onOpenCodexHome={openCodexHome} onOpenAccountStore={openAccountStore} language={language}

@@ -305,6 +305,8 @@ pub(crate) struct AppSettings {
     #[serde(default = "default_token_usage_refresh_seconds")]
     pub(crate) token_usage_refresh_seconds: u64,
     #[serde(default)]
+    pub(crate) web_proxy_port: Option<u16>,
+    #[serde(default)]
     pub(crate) last_started_version: Option<String>,
 }
 
@@ -377,6 +379,7 @@ impl Default for AppSettings {
             cloud_session_expired: false,
             token_usage_weeks: default_token_usage_weeks(),
             token_usage_refresh_seconds: default_token_usage_refresh_seconds(),
+            web_proxy_port: None,
             last_started_version: None,
         }
     }
@@ -537,5 +540,16 @@ mod tests {
 
         assert!(matches!(migrated.bubble_style, BubbleStyle::Classic));
         assert!(matches!(glass.bubble_style, BubbleStyle::Glass));
+    }
+
+    #[test]
+    fn app_settings_default_the_web_version_to_disabled() {
+        let defaults = AppSettings::default();
+        let migrated: AppSettings = serde_json::from_str("{}").unwrap();
+        let enabled: AppSettings = serde_json::from_str(r#"{"webProxyPort":18765}"#).unwrap();
+
+        assert!(defaults.web_proxy_port.is_none());
+        assert!(migrated.web_proxy_port.is_none());
+        assert_eq!(enabled.web_proxy_port, Some(18_765));
     }
 }
