@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-little-carp-dragon-gate",
+  "name": "跃向龙门 / Leap Toward Dragon Gate",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Paopao and friends leap toward a glowing Dragon Gate through golden spray.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "LEAP TOWARD DRAGON GATE ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#39a59b"
+  }
+}
+

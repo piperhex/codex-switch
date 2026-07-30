@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-doraemon-cloud-kingdom",
+  "name": "云朵王国 / Cloud Kingdom",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Doraemon and friends ride a small flying craft through a soft candy-colored cloud kingdom.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "CLOUD KINGDOM ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#319ed1"
+  }
+}
+

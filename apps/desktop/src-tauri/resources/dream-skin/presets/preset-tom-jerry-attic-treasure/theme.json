@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-tom-jerry-attic-treasure",
+  "name": "阁楼寻宝 / Attic Treasure Hunt",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Tom and Jerry explore a warm attic treasure chest with a magnifying glass and golden dust.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "ATTIC TREASURE HUNT ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#d89035"
+  }
+}
+

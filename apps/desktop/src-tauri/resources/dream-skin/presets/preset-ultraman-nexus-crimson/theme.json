@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-ultraman-nexus-crimson",
+  "name": "奈克瑟斯·赤色风暴 / Ultraman Nexus Crimson",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Ultraman Nexus emerges through a crimson storm above a futuristic city.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "ULTRAMAN NEXUS CRIMSON ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#596ee2"
+  }
+}
+

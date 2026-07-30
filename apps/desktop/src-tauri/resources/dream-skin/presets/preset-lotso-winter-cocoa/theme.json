@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-lotso-winter-cocoa",
+  "name": "冬日热可可 / Winter Cocoa",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Lotso wears a knitted scarf and shares cocoa beside a snowy cottage window.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "WINTER COCOA ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#e76f91"
+  }
+}
+

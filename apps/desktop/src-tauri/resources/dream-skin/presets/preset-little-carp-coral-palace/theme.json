@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-little-carp-coral-palace",
+  "name": "珊瑚宫殿 / Coral Palace",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Paopao and friends discover a jewel-bright coral palace beneath the lake.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "CORAL PALACE ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#39a59b"
+  }
+}
+

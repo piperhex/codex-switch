@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-pleasant-goat-moon-castle",
+  "name": "月亮城堡 / Moon Castle",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Pleasant Goat and friends explore a glowing moon castle in the clouds.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "MOON CASTLE ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#64bda9"
+  }
+}
+

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-hongmao-lantu-rainbow-cliff",
+  "name": "虹崖之约 / Rainbow Cliff Promise",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Hongmao and Lantu stand together above a brilliant rainbow valley at dawn.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "RAINBOW CLIFF PROMISE ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#d94f5c"
+  }
+}

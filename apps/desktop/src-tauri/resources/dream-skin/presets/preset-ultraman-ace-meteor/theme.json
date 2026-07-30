@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-ultraman-ace-meteor",
+  "name": "艾斯·流星之刃 / Ultraman Ace Meteor",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Ultraman Ace cuts through a shower of golden meteors in deep space.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "ULTRAMAN ACE METEOR ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#596ee2"
+  }
+}

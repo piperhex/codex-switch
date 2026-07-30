@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-boonie-bears-rainy-cabin",
+  "name": "雨屋游戏夜 / Rainy Cabin Games",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "The friends play board games in a warm cabin while rain taps the windows.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "RAINY CABIN GAMES ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#c77b38"
+  }
+}

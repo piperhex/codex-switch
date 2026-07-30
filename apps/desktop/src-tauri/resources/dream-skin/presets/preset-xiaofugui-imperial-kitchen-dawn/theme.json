@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-xiaofugui-imperial-kitchen-dawn",
+  "name": "御膳房晨光 / Imperial Kitchen Dawn",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Xiao Fugui prepares a radiant breakfast feast in the imperial kitchen at dawn.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "IMPERIAL KITCHEN DAWN ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#d9822b"
+  }
+}

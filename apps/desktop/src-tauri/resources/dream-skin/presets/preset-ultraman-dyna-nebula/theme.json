@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-ultraman-dyna-nebula",
+  "name": "戴拿·星云守望 / Ultraman Dyna Nebula",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Ultraman Dyna stands heroically in a blue-violet nebula above a distant planet.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "ULTRAMAN DYNA NEBULA ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#596ee2"
+  }
+}
+

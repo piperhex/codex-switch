@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-lotso-seaside-sundae",
+  "name": "海边圣代 / Seaside Sundae",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Lotso holds a giant strawberry sundae beside a dreamy pastel sea.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "SEASIDE SUNDAE ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#e76f91"
+  }
+}
+

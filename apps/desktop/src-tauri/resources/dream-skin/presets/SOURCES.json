@@ -132,34 +132,6 @@
       "promptSummary": "Spring old-street walk with an analog camera."
     },
     {
-      "id": "preset-west-lake-morning",
-      "category": "china-landscape",
-      "nameEn": "West Lake Morning",
-      "nameZh": "西湖晨雾",
-      "promptSummary": "Lotus leaves, long bridge, pavilion, and misty lake mountains."
-    },
-    {
-      "id": "preset-guilin-cloud-sea",
-      "category": "china-landscape",
-      "nameEn": "Guilin Cloud Sea",
-      "nameZh": "桂林云海",
-      "promptSummary": "Karst peaks, a tiny fishing boat, and clear morning mist."
-    },
-    {
-      "id": "preset-huangshan-sunrise",
-      "category": "china-landscape",
-      "nameEn": "Huangshan Sunrise",
-      "nameZh": "黄山日出",
-      "promptSummary": "Ancient pines above a golden sea of clouds."
-    },
-    {
-      "id": "preset-jiangnan-rain-town",
-      "category": "china-landscape",
-      "nameEn": "Jiangnan Rain Town",
-      "nameZh": "江南烟雨",
-      "promptSummary": "White walls, dark tiles, stone bridge, and a quiet rainy canal."
-    },
-    {
       "id": "preset-ultraman-tiga-sky",
       "category": "ultraman",
       "franchise": "Ultraman",
@@ -2010,6 +1982,1074 @@
       "nameEn": "Starlight Noodle Stall",
       "nameZh": "星光面摊",
       "promptSummary": "A tiny futuristic noodle stall beneath a crowded starfield."
+      "id": "preset-tom-jerry-attic-treasure",
+      "category": "tom-jerry",
+      "franchise": "Tom and Jerry",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Attic Treasure Hunt",
+      "nameZh": "阁楼寻宝",
+      "promptSummary": "Tom and Jerry explore a warm attic treasure chest with a magnifying glass and golden dust."
+    },
+    {
+      "id": "preset-tom-jerry-beach-sandcastle",
+      "category": "tom-jerry",
+      "franchise": "Tom and Jerry",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Beach Sandcastle",
+      "nameZh": "海滩沙堡",
+      "promptSummary": "Tom and Jerry build an extravagant sandcastle among seashells on a breezy beach."
+    },
+    {
+      "id": "preset-tom-jerry-magic-theater",
+      "category": "tom-jerry",
+      "franchise": "Tom and Jerry",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Magic Theater",
+      "nameZh": "魔法剧场",
+      "promptSummary": "Tom and Jerry perform comic magic tricks on a velvet theater stage."
+    },
+    {
+      "id": "preset-tom-jerry-rainy-window-truce",
+      "category": "tom-jerry",
+      "franchise": "Tom and Jerry",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Rainy Window Truce",
+      "nameZh": "雨窗停战",
+      "promptSummary": "Tom and Jerry share warm cocoa beside a rainy window during a rare cozy truce."
+    },
+    {
+      "id": "preset-tom-jerry-winter-ice-skating",
+      "category": "tom-jerry",
+      "franchise": "Tom and Jerry",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Winter Ice Skating",
+      "nameZh": "冬日冰舞",
+      "promptSummary": "Tom and Jerry twirl and chase on a sparkling frozen pond with scarves."
+    },
+    {
+      "id": "preset-tom-jerry-train-compartment",
+      "category": "tom-jerry",
+      "franchise": "Tom and Jerry",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Express Train Chase",
+      "nameZh": "列车追逐",
+      "promptSummary": "Tom and Jerry race through a vintage express train compartment with flying tickets."
+    },
+    {
+      "id": "preset-tom-jerry-candy-workshop",
+      "category": "tom-jerry",
+      "franchise": "Tom and Jerry",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Candy Workshop",
+      "nameZh": "糖果工坊",
+      "promptSummary": "Tom and Jerry tumble through a colorful candy workshop of lollipops and caramel gears."
+    },
+    {
+      "id": "preset-tom-jerry-museum-midnight",
+      "category": "tom-jerry",
+      "franchise": "Tom and Jerry",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Museum at Midnight",
+      "nameZh": "午夜博物馆",
+      "promptSummary": "Tom and Jerry sneak through a moonlit museum with dinosaur bones and playful shadows."
+    },
+    {
+      "id": "preset-tom-jerry-moonlit-carnival",
+      "category": "tom-jerry",
+      "franchise": "Tom and Jerry",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Moonlit Carnival",
+      "nameZh": "月光游园会",
+      "promptSummary": "Tom and Jerry ride a tiny carnival cart under a glowing moon and festive lights."
+    },
+    {
+      "id": "preset-tom-jerry-autumn-leaf-race",
+      "category": "tom-jerry",
+      "franchise": "Tom and Jerry",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Autumn Leaf Race",
+      "nameZh": "秋叶竞速",
+      "promptSummary": "Tom and Jerry race handmade leaf boats along an autumn garden stream."
+    },
+    {
+      "id": "preset-doraemon-gadget-workshop",
+      "category": "doraemon",
+      "franchise": "Doraemon",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Gadget Workshop",
+      "nameZh": "未来道具工坊",
+      "promptSummary": "Doraemon and Nobita repair tiny whimsical gadgets in a mint-blue future workshop."
+    },
+    {
+      "id": "preset-doraemon-cloud-kingdom",
+      "category": "doraemon",
+      "franchise": "Doraemon",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Cloud Kingdom",
+      "nameZh": "云朵王国",
+      "promptSummary": "Doraemon and friends ride a small flying craft through a soft candy-colored cloud kingdom."
+    },
+    {
+      "id": "preset-doraemon-moon-rabbit-picnic",
+      "category": "doraemon",
+      "franchise": "Doraemon",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Moon Rabbit Picnic",
+      "nameZh": "月兔野餐",
+      "promptSummary": "Doraemon and friends enjoy a moon-rabbit picnic among silver grass and glowing dumplings."
+    },
+    {
+      "id": "preset-doraemon-ocean-submarine",
+      "category": "doraemon",
+      "franchise": "Doraemon",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Ocean Submarine",
+      "nameZh": "海底潜航",
+      "promptSummary": "Doraemon and Nobita explore a luminous coral city in a round yellow submarine."
+    },
+    {
+      "id": "preset-doraemon-snowman-festival",
+      "category": "doraemon",
+      "franchise": "Doraemon",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Snowman Festival",
+      "nameZh": "雪人庆典",
+      "promptSummary": "Doraemon and friends decorate funny snowmen beneath warm festival lanterns."
+    },
+    {
+      "id": "preset-doraemon-dinosaur-valley",
+      "category": "doraemon",
+      "franchise": "Doraemon",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Dinosaur Valley",
+      "nameZh": "恐龙谷奇遇",
+      "promptSummary": "Doraemon and Nobita befriend a gentle baby dinosaur in a lush prehistoric valley."
+    },
+    {
+      "id": "preset-doraemon-space-train",
+      "category": "doraemon",
+      "franchise": "Doraemon",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Space Train",
+      "nameZh": "银河列车",
+      "promptSummary": "Doraemon and friends wave from a cheerful glass-roof train crossing a colorful galaxy."
+    },
+    {
+      "id": "preset-doraemon-sakura-classroom",
+      "category": "doraemon",
+      "franchise": "Doraemon",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Sakura Classroom",
+      "nameZh": "樱花教室",
+      "promptSummary": "Doraemon and friends fill a sunny classroom with handmade spring decorations and petals."
+    },
+    {
+      "id": "preset-doraemon-desert-time-portal",
+      "category": "doraemon",
+      "franchise": "Doraemon",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Desert Time Portal",
+      "nameZh": "沙海时空门",
+      "promptSummary": "Doraemon and Nobita discover a glowing time portal among golden desert ruins."
+    },
+    {
+      "id": "preset-doraemon-miniature-city",
+      "category": "doraemon",
+      "franchise": "Doraemon",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Miniature City",
+      "nameZh": "迷你城市",
+      "promptSummary": "Doraemon and Nobita become tiny explorers among toy-like rooftops and garden trains."
+    },
+    {
+      "id": "preset-spongebob-seashell-carousel",
+      "category": "spongebob",
+      "franchise": "SpongeBob SquarePants",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Seashell Carousel",
+      "nameZh": "贝壳旋转木马",
+      "promptSummary": "SpongeBob and Patrick wave from a whimsical seashell carousel carnival."
+    },
+    {
+      "id": "preset-spongebob-coral-library",
+      "category": "spongebob",
+      "franchise": "SpongeBob SquarePants",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Coral Library",
+      "nameZh": "珊瑚图书馆",
+      "promptSummary": "SpongeBob and Patrick read a giant picture book in a dreamy coral library."
+    },
+    {
+      "id": "preset-spongebob-beach-band",
+      "category": "spongebob",
+      "franchise": "SpongeBob SquarePants",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Beach Band",
+      "nameZh": "海滩乐队",
+      "promptSummary": "SpongeBob and Patrick play a funny seaside band concert with shells and drums."
+    },
+    {
+      "id": "preset-spongebob-snail-birthday",
+      "category": "spongebob",
+      "franchise": "SpongeBob SquarePants",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Gary's Birthday",
+      "nameZh": "小蜗生日会",
+      "promptSummary": "SpongeBob and Patrick throw Gary a sweet undersea birthday party."
+    },
+    {
+      "id": "preset-spongebob-kelp-garden",
+      "category": "spongebob",
+      "franchise": "SpongeBob SquarePants",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Glowing Kelp Garden",
+      "nameZh": "发光海藻花园",
+      "promptSummary": "SpongeBob and Patrick water jewel-colored coral in a glowing kelp garden."
+    },
+    {
+      "id": "preset-spongebob-moon-jelly-cafe",
+      "category": "spongebob",
+      "franchise": "SpongeBob SquarePants",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Moon Jelly Cafe",
+      "nameZh": "月光水母咖啡屋",
+      "promptSummary": "SpongeBob and Patrick serve glowing jelly treats in a moonlit reef cafe."
+    },
+    {
+      "id": "preset-spongebob-coral-art-studio",
+      "category": "spongebob",
+      "franchise": "SpongeBob SquarePants",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Coral Art Studio",
+      "nameZh": "珊瑚艺术工坊",
+      "promptSummary": "SpongeBob and Patrick paint colorful seashells in a whimsical coral art studio."
+    },
+    {
+      "id": "preset-spongebob-rainbow-reef",
+      "category": "spongebob",
+      "franchise": "SpongeBob SquarePants",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Rainbow Reef",
+      "nameZh": "彩虹珊瑚礁",
+      "promptSummary": "SpongeBob and Patrick surf a colorful current across a brilliant rainbow reef."
+    },
+    {
+      "id": "preset-spongebob-pearl-observatory",
+      "category": "spongebob",
+      "franchise": "SpongeBob SquarePants",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Pearl Observatory",
+      "nameZh": "珍珠天文台",
+      "promptSummary": "SpongeBob and Patrick discover glowing jellyfish constellations through a bubble telescope at a pearl observatory."
+    },
+    {
+      "id": "preset-spongebob-pirate-parade",
+      "category": "spongebob",
+      "franchise": "SpongeBob SquarePants",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Pirate Parade",
+      "nameZh": "海盗巡游",
+      "promptSummary": "SpongeBob and Patrick lead a cheerful pirate parade with a tiny shell ship."
+    },
+    {
+      "id": "preset-ultraman-dyna-nebula",
+      "category": "ultraman",
+      "franchise": "Ultraman",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Ultraman Dyna Nebula",
+      "nameZh": "戴拿·星云守望",
+      "promptSummary": "Ultraman Dyna stands heroically in a blue-violet nebula above a distant planet."
+    },
+    {
+      "id": "preset-ultraman-gaia-earth",
+      "category": "ultraman",
+      "franchise": "Ultraman",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Ultraman Gaia Earth",
+      "nameZh": "盖亚·大地晨光",
+      "promptSummary": "Ultraman Gaia guards a green Earth canyon in dramatic red-gold morning light."
+    },
+    {
+      "id": "preset-ultraman-nexus-crimson",
+      "category": "ultraman",
+      "franchise": "Ultraman",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Ultraman Nexus Crimson",
+      "nameZh": "奈克瑟斯·赤色风暴",
+      "promptSummary": "Ultraman Nexus emerges through a crimson storm above a futuristic city."
+    },
+    {
+      "id": "preset-ultraman-orb-galaxy",
+      "category": "ultraman",
+      "franchise": "Ultraman",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Ultraman Orb Galaxy",
+      "nameZh": "欧布·银河之环",
+      "promptSummary": "Ultraman Orb raises a radiant energy ring amid sapphire galaxy currents."
+    },
+    {
+      "id": "preset-ultraman-geed-city-night",
+      "category": "ultraman",
+      "franchise": "Ultraman",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Ultraman Geed City Night",
+      "nameZh": "捷德·霓虹守夜",
+      "promptSummary": "Ultraman Geed protects a rain-washed neon city under a deep indigo sky."
+    },
+    {
+      "id": "preset-ultraman-taiga-sunrise",
+      "category": "ultraman",
+      "franchise": "Ultraman",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Ultraman Taiga Sunrise",
+      "nameZh": "泰迦·曙光出击",
+      "promptSummary": "Ultraman Taiga launches into battle above a golden sunrise skyline."
+    },
+    {
+      "id": "preset-ultraman-trigger-ruins",
+      "category": "ultraman",
+      "franchise": "Ultraman",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Ultraman Trigger Ruins",
+      "nameZh": "特利迦·远古之光",
+      "promptSummary": "Ultraman Trigger awakens among ancient luminous ruins and floating crystals."
+    },
+    {
+      "id": "preset-ultraman-decker-ocean",
+      "category": "ultraman",
+      "franchise": "Ultraman",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Ultraman Decker Ocean",
+      "nameZh": "德凯·深蓝海岸",
+      "promptSummary": "Ultraman Decker stands beside a storm-bright ocean with silver-blue energy."
+    },
+    {
+      "id": "preset-ultraman-blazar-thunder",
+      "category": "ultraman",
+      "franchise": "Ultraman",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Ultraman Blazar Thunder",
+      "nameZh": "布莱泽·雷霆荒原",
+      "promptSummary": "Ultraman Blazar crosses a wild thunder plain beneath electric purple clouds."
+    },
+    {
+      "id": "preset-ultraman-ace-meteor",
+      "category": "ultraman",
+      "franchise": "Ultraman",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Ultraman Ace Meteor",
+      "nameZh": "艾斯·流星之刃",
+      "promptSummary": "Ultraman Ace cuts through a shower of golden meteors in deep space."
+    },
+    {
+      "id": "preset-lotso-strawberry-bedroom",
+      "category": "lotso",
+      "franchise": "Toy Story / Lotso",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Strawberry Milk Bedroom",
+      "nameZh": "草莓牛奶卧室",
+      "promptSummary": "Lotso hugs a heart pillow in a strawberry-milk bedroom with plush textures."
+    },
+    {
+      "id": "preset-lotso-cake-shop",
+      "category": "lotso",
+      "franchise": "Toy Story / Lotso",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Strawberry Cake Shop",
+      "nameZh": "草莓蛋糕店",
+      "promptSummary": "Lotso serves a tiny strawberry cake in a cream-white boutique bakery."
+    },
+    {
+      "id": "preset-lotso-cherry-picnic",
+      "category": "lotso",
+      "franchise": "Toy Story / Lotso",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Cherry Blossom Picnic",
+      "nameZh": "樱花野餐",
+      "promptSummary": "Lotso enjoys a pink picnic beneath drifting cherry blossoms."
+    },
+    {
+      "id": "preset-lotso-cloud-swing",
+      "category": "lotso",
+      "franchise": "Toy Story / Lotso",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Cloud Swing",
+      "nameZh": "云端秋千",
+      "promptSummary": "Lotso swings among peach-colored clouds with tiny stars and ribbons."
+    },
+    {
+      "id": "preset-lotso-seaside-sundae",
+      "category": "lotso",
+      "franchise": "Toy Story / Lotso",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Seaside Sundae",
+      "nameZh": "海边圣代",
+      "promptSummary": "Lotso holds a giant strawberry sundae beside a dreamy pastel sea."
+    },
+    {
+      "id": "preset-lotso-winter-cocoa",
+      "category": "lotso",
+      "franchise": "Toy Story / Lotso",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Winter Cocoa",
+      "nameZh": "冬日热可可",
+      "promptSummary": "Lotso wears a knitted scarf and shares cocoa beside a snowy cottage window."
+    },
+    {
+      "id": "preset-lotso-flower-greenhouse",
+      "category": "lotso",
+      "franchise": "Toy Story / Lotso",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Flower Greenhouse",
+      "nameZh": "花房小憩",
+      "promptSummary": "Lotso waters strawberries and roses inside a sunlit glass greenhouse."
+    },
+    {
+      "id": "preset-lotso-moonlit-dream",
+      "category": "lotso",
+      "franchise": "Toy Story / Lotso",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Moonlit Plush Dream",
+      "nameZh": "月光绒绒梦",
+      "promptSummary": "Lotso sleeps on a crescent cushion beneath a soft lavender moon."
+    },
+    {
+      "id": "preset-lotso-rainbow-candy",
+      "category": "lotso",
+      "franchise": "Toy Story / Lotso",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Rainbow Candy Day",
+      "nameZh": "彩虹糖果日",
+      "promptSummary": "Lotso rides a tiny candy cart along a pastel rainbow path."
+    },
+    {
+      "id": "preset-lotso-autumn-knit",
+      "category": "lotso",
+      "franchise": "Toy Story / Lotso",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Autumn Knitting",
+      "nameZh": "秋日织梦",
+      "promptSummary": "Lotso knits a strawberry scarf among warm autumn leaves and yarn balls."
+    },
+    {
+      "id": "preset-teletubbies-sunrise-meadow",
+      "category": "teletubbies",
+      "franchise": "Teletubbies",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Sunrise Meadow",
+      "nameZh": "日出草坡",
+      "promptSummary": "Tinky Winky, Dipsy, Laa-Laa and Po wave on a dewy sunrise meadow."
+    },
+    {
+      "id": "preset-teletubbies-rainbow-puddles",
+      "category": "teletubbies",
+      "franchise": "Teletubbies",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Rainbow Puddles",
+      "nameZh": "彩虹水洼",
+      "promptSummary": "The four Teletubbies splash through rainbow puddles in colorful rain boots."
+    },
+    {
+      "id": "preset-teletubbies-snowy-hill",
+      "category": "teletubbies",
+      "franchise": "Teletubbies",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Snowy Hill",
+      "nameZh": "雪坡滚雪球",
+      "promptSummary": "The Teletubbies roll cheerful snowballs down a sparkling soft hill."
+    },
+    {
+      "id": "preset-teletubbies-bubble-dance",
+      "category": "teletubbies",
+      "franchise": "Teletubbies",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Bubble Dance",
+      "nameZh": "泡泡舞会",
+      "promptSummary": "The Teletubbies dance among giant iridescent bubbles and pastel lights."
+    },
+    {
+      "id": "preset-teletubbies-flower-train",
+      "category": "teletubbies",
+      "franchise": "Teletubbies",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Flower Train",
+      "nameZh": "花朵小火车",
+      "promptSummary": "The Teletubbies ride a tiny flower train across rolling green hills."
+    },
+    {
+      "id": "preset-teletubbies-moon-lantern",
+      "category": "teletubbies",
+      "franchise": "Teletubbies",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Moon Lantern Night",
+      "nameZh": "月灯晚安",
+      "promptSummary": "The Teletubbies carry glowing moon lanterns beneath a gentle indigo sky."
+    },
+    {
+      "id": "preset-teletubbies-kite-day",
+      "category": "teletubbies",
+      "franchise": "Teletubbies",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Kite Day",
+      "nameZh": "风筝日",
+      "promptSummary": "The Teletubbies fly bright animal-shaped kites in a breezy meadow."
+    },
+    {
+      "id": "preset-teletubbies-picnic-blanket",
+      "category": "teletubbies",
+      "franchise": "Teletubbies",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Picnic Blanket",
+      "nameZh": "格纹野餐",
+      "promptSummary": "The Teletubbies share toast and fruit on a gingham picnic blanket."
+    },
+    {
+      "id": "preset-teletubbies-seaside-shells",
+      "category": "teletubbies",
+      "franchise": "Teletubbies",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Seaside Shells",
+      "nameZh": "海边拾贝",
+      "promptSummary": "The Teletubbies collect pearly shells along a calm candy-colored shore."
+    },
+    {
+      "id": "preset-teletubbies-star-sleepover",
+      "category": "teletubbies",
+      "franchise": "Teletubbies",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Star Sleepover",
+      "nameZh": "星星睡衣派对",
+      "promptSummary": "The Teletubbies hold a cozy starry sleepover inside their round home."
+    },
+    {
+      "id": "preset-little-carp-dragon-gate",
+      "category": "little-carp",
+      "franchise": "小鲤鱼历险记",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Leap Toward Dragon Gate",
+      "nameZh": "跃向龙门",
+      "promptSummary": "Paopao and friends leap toward a glowing Dragon Gate through golden spray."
+    },
+    {
+      "id": "preset-little-carp-lotus-meimei",
+      "category": "little-carp",
+      "franchise": "小鲤鱼历险记",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Meimei's Lotus Pond",
+      "nameZh": "小美美荷塘",
+      "promptSummary": "Meimei, Paopao and Double-Face Turtle play on floating lotus leaves."
+    },
+    {
+      "id": "preset-little-carp-volcano-courage",
+      "category": "little-carp",
+      "franchise": "小鲤鱼历险记",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Volcano Courage",
+      "nameZh": "火山勇气",
+      "promptSummary": "Aku and the little carp friends cross a glowing volcanic river with courage."
+    },
+    {
+      "id": "preset-little-carp-moon-river-turtle",
+      "category": "little-carp",
+      "franchise": "小鲤鱼历险记",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Moon River Journey",
+      "nameZh": "月河同行",
+      "promptSummary": "Double-Face Turtle guides the friends along a silver moonlit river."
+    },
+    {
+      "id": "preset-little-carp-rainbow-waterfall",
+      "category": "little-carp",
+      "franchise": "小鲤鱼历险记",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Rainbow Waterfall",
+      "nameZh": "彩虹瀑布",
+      "promptSummary": "The little carp friends race beneath a brilliant rainbow waterfall."
+    },
+    {
+      "id": "preset-little-carp-coral-palace",
+      "category": "little-carp",
+      "franchise": "小鲤鱼历险记",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Coral Palace",
+      "nameZh": "珊瑚宫殿",
+      "promptSummary": "Paopao and friends discover a jewel-bright coral palace beneath the lake."
+    },
+    {
+      "id": "preset-little-carp-bamboo-stream",
+      "category": "little-carp",
+      "franchise": "小鲤鱼历险记",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Bamboo Stream",
+      "nameZh": "竹溪冒险",
+      "promptSummary": "The little carp friends glide through a jade bamboo stream with fireflies."
+    },
+    {
+      "id": "preset-little-carp-snow-pearl",
+      "category": "little-carp",
+      "franchise": "小鲤鱼历险记",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Snow Mountain Pearl",
+      "nameZh": "雪山明珠",
+      "promptSummary": "Paopao protects a luminous pearl beside a crystal snow mountain spring."
+    },
+    {
+      "id": "preset-little-carp-lantern-village",
+      "category": "little-carp",
+      "franchise": "小鲤鱼历险记",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Lantern Water Village",
+      "nameZh": "水乡灯会",
+      "promptSummary": "The little carp friends swim through a warm lantern festival water village."
+    },
+    {
+      "id": "preset-little-carp-star-lake-promise",
+      "category": "little-carp",
+      "franchise": "小鲤鱼历险记",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Star Lake Promise",
+      "nameZh": "星湖约定",
+      "promptSummary": "Paopao and friends make a brave promise beneath a lake full of stars."
+    },
+    {
+      "id": "preset-cute-girl-strawberry-pajama",
+      "category": "cute-girl",
+      "rightsStatus": "originalArtwork",
+      "nameEn": "Strawberry Pajama Morning",
+      "nameZh": "草莓睡衣晨光",
+      "promptSummary": "An original cute Chinese donghua girl in strawberry pajamas hugs a white kitten."
+    },
+    {
+      "id": "preset-cute-girl-lavender-cat-cafe",
+      "category": "cute-girl",
+      "rightsStatus": "originalArtwork",
+      "nameEn": "Lavender Cat Cafe",
+      "nameZh": "薰衣草猫咖",
+      "promptSummary": "An original cute Chinese donghua girl enjoys a dreamy lavender cafe with fluffy cats."
+    },
+    {
+      "id": "preset-cute-girl-mint-seaside-bicycle",
+      "category": "cute-girl",
+      "rightsStatus": "originalArtwork",
+      "nameEn": "Mint Seaside Bicycle",
+      "nameZh": "薄荷海风单车",
+      "promptSummary": "An original cute Chinese donghua girl rides a mint bicycle along a pastel seaside."
+    },
+    {
+      "id": "preset-cute-girl-peach-book-nook",
+      "category": "cute-girl",
+      "rightsStatus": "originalArtwork",
+      "nameEn": "Peach Blossom Book Nook",
+      "nameZh": "桃花书角",
+      "promptSummary": "An original cute Chinese donghua girl reads in a peach-blossom window nook."
+    },
+    {
+      "id": "preset-cute-girl-moon-rabbit-dream",
+      "category": "cute-girl",
+      "rightsStatus": "originalArtwork",
+      "nameEn": "Moon Rabbit Dream",
+      "nameZh": "月兔绒梦",
+      "promptSummary": "An original cute Chinese donghua girl in moon-rabbit pajamas rests among cloud pillows."
+    },
+    {
+      "id": "preset-cute-girl-cherry-soda-arcade",
+      "category": "cute-girl",
+      "rightsStatus": "originalArtwork",
+      "nameEn": "Cherry Soda Arcade",
+      "nameZh": "樱桃汽水游戏厅",
+      "promptSummary": "An original cute Chinese donghua girl plays in a retro cherry-soda pastel arcade."
+    },
+    {
+      "id": "preset-cute-girl-cream-bakery",
+      "category": "cute-girl",
+      "rightsStatus": "originalArtwork",
+      "nameEn": "Cream Bakery Morning",
+      "nameZh": "奶油烘焙晨光",
+      "promptSummary": "An original cute Chinese donghua baker decorates tiny animal-shaped pastries."
+    },
+    {
+      "id": "preset-cute-girl-sky-music-room",
+      "category": "cute-girl",
+      "rightsStatus": "originalArtwork",
+      "nameEn": "Sky Blue Music Room",
+      "nameZh": "晴空音乐室",
+      "promptSummary": "An original cute Chinese donghua girl plays a crystal harp in a sky-blue music room."
+    },
+    {
+      "id": "preset-cute-girl-hydrangea-rain",
+      "category": "cute-girl",
+      "rightsStatus": "originalArtwork",
+      "nameEn": "Hydrangea Rain",
+      "nameZh": "绣球花雨",
+      "promptSummary": "An original cute Chinese donghua girl carries a clear umbrella through hydrangea rain."
+    },
+    {
+      "id": "preset-cute-girl-snow-fox-cocoa",
+      "category": "cute-girl",
+      "rightsStatus": "originalArtwork",
+      "nameEn": "Snow Fox Cocoa",
+      "nameZh": "雪狐热可可",
+      "promptSummary": "An original cute Chinese donghua girl cuddles a white fox beside a snowy cabin fire."
+    },
+    {
+      "id": "preset-boonie-bears-honey-workshop",
+      "category": "boonie-bears",
+      "franchise": "Boonie Bears",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Honey Workshop",
+      "nameZh": "森林蜂蜜工坊",
+      "promptSummary": "Briar, Bramble and Logger Vick make glowing honey together in a woodland workshop."
+    },
+    {
+      "id": "preset-boonie-bears-river-rafting",
+      "category": "boonie-bears",
+      "franchise": "Boonie Bears",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "River Rafting",
+      "nameZh": "峡谷漂流",
+      "promptSummary": "Briar, Bramble and Logger Vick laugh through a turquoise canyon rafting adventure."
+    },
+    {
+      "id": "preset-boonie-bears-sunflower-farm",
+      "category": "boonie-bears",
+      "franchise": "Boonie Bears",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Sunflower Farm",
+      "nameZh": "向日葵农场",
+      "promptSummary": "The Boonie Bears friends harvest giant sunflowers beneath a bright summer sky."
+    },
+    {
+      "id": "preset-boonie-bears-moon-campground",
+      "category": "boonie-bears",
+      "franchise": "Boonie Bears",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Moon Campground",
+      "nameZh": "月色露营地",
+      "promptSummary": "Briar, Bramble and Logger Vick share stories beside a moonlit forest tent."
+    },
+    {
+      "id": "preset-boonie-bears-autumn-train",
+      "category": "boonie-bears",
+      "franchise": "Boonie Bears",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Autumn Forest Train",
+      "nameZh": "秋日森林列车",
+      "promptSummary": "The friends ride a tiny red train through a forest of golden autumn leaves."
+    },
+    {
+      "id": "preset-boonie-bears-seaside-rescue",
+      "category": "boonie-bears",
+      "franchise": "Boonie Bears",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Seaside Rescue",
+      "nameZh": "海边救援",
+      "promptSummary": "Briar, Bramble and Logger Vick rescue baby turtles on a sparkling shore."
+    },
+    {
+      "id": "preset-boonie-bears-bamboo-festival",
+      "category": "boonie-bears",
+      "franchise": "Boonie Bears",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Bamboo Festival",
+      "nameZh": "竹林庆典",
+      "promptSummary": "The friends celebrate among bamboo lanterns, drums and green ribbons."
+    },
+    {
+      "id": "preset-boonie-bears-crystal-cave",
+      "category": "boonie-bears",
+      "franchise": "Boonie Bears",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Crystal Cave",
+      "nameZh": "水晶洞穴",
+      "promptSummary": "Briar, Bramble and Logger Vick discover a magical blue crystal cave."
+    },
+    {
+      "id": "preset-boonie-bears-fruit-orchard",
+      "category": "boonie-bears",
+      "franchise": "Boonie Bears",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Fruit Orchard",
+      "nameZh": "缤纷果园",
+      "promptSummary": "The Boonie Bears friends gather colorful fruit in a sunny orchard."
+    },
+    {
+      "id": "preset-boonie-bears-rainy-cabin",
+      "category": "boonie-bears",
+      "franchise": "Boonie Bears",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Rainy Cabin Games",
+      "nameZh": "雨屋游戏夜",
+      "promptSummary": "The friends play board games in a warm cabin while rain taps the windows."
+    },
+    {
+      "id": "preset-pleasant-goat-science-fair",
+      "category": "pleasant-goat",
+      "franchise": "Pleasant Goat and Big Big Wolf",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Sheep Village Science Fair",
+      "nameZh": "羊村科学展",
+      "promptSummary": "Pleasant Goat and friends present whimsical inventions while Wolffy reacts comically."
+    },
+    {
+      "id": "preset-pleasant-goat-candy-carnival",
+      "category": "pleasant-goat",
+      "franchise": "Pleasant Goat and Big Big Wolf",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Candy Carnival",
+      "nameZh": "糖果游园会",
+      "promptSummary": "Pleasant Goat, sheep friends and the wolf family enjoy a pastel candy carnival."
+    },
+    {
+      "id": "preset-pleasant-goat-seaside-volleyball",
+      "category": "pleasant-goat",
+      "franchise": "Pleasant Goat and Big Big Wolf",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Seaside Volleyball",
+      "nameZh": "海边排球赛",
+      "promptSummary": "The sheep friends and Wolffy play a cheerful volleyball match by the sea."
+    },
+    {
+      "id": "preset-pleasant-goat-moon-castle",
+      "category": "pleasant-goat",
+      "franchise": "Pleasant Goat and Big Big Wolf",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Moon Castle",
+      "nameZh": "月亮城堡",
+      "promptSummary": "Pleasant Goat and friends explore a glowing moon castle in the clouds."
+    },
+    {
+      "id": "preset-pleasant-goat-winter-hotpot",
+      "category": "pleasant-goat",
+      "franchise": "Pleasant Goat and Big Big Wolf",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Winter Hotpot",
+      "nameZh": "雪屋小火锅",
+      "promptSummary": "The sheep friends and wolf family share a warm hotpot inside a snowy cottage."
+    },
+    {
+      "id": "preset-pleasant-goat-rainbow-sports",
+      "category": "pleasant-goat",
+      "franchise": "Pleasant Goat and Big Big Wolf",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Rainbow Sports Day",
+      "nameZh": "彩虹运动会",
+      "promptSummary": "Pleasant Goat and friends race through a rainbow obstacle course."
+    },
+    {
+      "id": "preset-pleasant-goat-music-festival",
+      "category": "pleasant-goat",
+      "franchise": "Pleasant Goat and Big Big Wolf",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Grassland Music Festival",
+      "nameZh": "草原音乐节",
+      "promptSummary": "The sheep friends and wolf family perform together beneath colorful stage lights."
+    },
+    {
+      "id": "preset-pleasant-goat-cloud-airplane",
+      "category": "pleasant-goat",
+      "franchise": "Pleasant Goat and Big Big Wolf",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Cloud Airplane",
+      "nameZh": "云朵飞行队",
+      "promptSummary": "Pleasant Goat pilots a tiny cloud plane while friends wave from the sky."
+    },
+    {
+      "id": "preset-pleasant-goat-fruit-harvest",
+      "category": "pleasant-goat",
+      "franchise": "Pleasant Goat and Big Big Wolf",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Fruit Harvest",
+      "nameZh": "果香丰收节",
+      "promptSummary": "The sheep friends gather oversized fruit while Wolffy pushes a funny cart."
+    },
+    {
+      "id": "preset-pleasant-goat-detective-mystery",
+      "category": "pleasant-goat",
+      "franchise": "Pleasant Goat and Big Big Wolf",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Little Detectives",
+      "nameZh": "羊村小侦探",
+      "promptSummary": "Pleasant Goat and friends solve a playful lantern-lit mystery with Wolffy."
+    },
+    {
+      "id": "preset-hongmao-lantu-rainbow-cliff",
+      "category": "hongmao-lantu",
+      "franchise": "Hongmao and Lantu: Seven Swords",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Rainbow Cliff Promise",
+      "nameZh": "虹崖之约",
+      "promptSummary": "Hongmao and Lantu stand together above a brilliant rainbow valley at dawn."
+    },
+    {
+      "id": "preset-hongmao-lantu-bamboo-sword-dance",
+      "category": "hongmao-lantu",
+      "franchise": "Hongmao and Lantu: Seven Swords",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Bamboo Sword Dance",
+      "nameZh": "竹海剑舞",
+      "promptSummary": "Hongmao and Lantu practice an elegant paired sword dance in a misty bamboo sea."
+    },
+    {
+      "id": "preset-hongmao-lantu-ice-palace-lanterns",
+      "category": "hongmao-lantu",
+      "franchise": "Hongmao and Lantu: Seven Swords",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Ice Palace Lanterns",
+      "nameZh": "冰宫灯影",
+      "promptSummary": "Lantu and Hongmao walk through a luminous ice palace filled with floating lanterns."
+    },
+    {
+      "id": "preset-hongmao-lantu-seven-heroes-sunrise",
+      "category": "hongmao-lantu",
+      "franchise": "Hongmao and Lantu: Seven Swords",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Seven Heroes Sunrise",
+      "nameZh": "七侠朝阳",
+      "promptSummary": "The Seven Swords heroes reunite on a cloud-wrapped peak beneath a golden sunrise."
+    },
+    {
+      "id": "preset-hongmao-lantu-moonlit-waterfall",
+      "category": "hongmao-lantu",
+      "franchise": "Hongmao and Lantu: Seven Swords",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Moonlit Waterfall",
+      "nameZh": "月瀑星河",
+      "promptSummary": "Hongmao and Lantu rest beside a silver waterfall under a peaceful starry moon."
+    },
+    {
+      "id": "preset-big-ear-tutu-rainbow-kindergarten",
+      "category": "big-ear-tutu",
+      "franchise": "Big-Eared Tutu",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Rainbow Kindergarten",
+      "nameZh": "彩虹幼儿园",
+      "promptSummary": "Tutu and his friends paint a cheerful rainbow together in a sunny kindergarten garden."
+    },
+    {
+      "id": "preset-big-ear-tutu-dumpling-night",
+      "category": "big-ear-tutu",
+      "franchise": "Big-Eared Tutu",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Family Dumpling Night",
+      "nameZh": "全家饺子夜",
+      "promptSummary": "Tutu makes funny dumplings with Mom and Dad in a warm family kitchen."
+    },
+    {
+      "id": "preset-big-ear-tutu-seaside-bubbles",
+      "category": "big-ear-tutu",
+      "franchise": "Big-Eared Tutu",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Seaside Bubble Day",
+      "nameZh": "海边泡泡日",
+      "promptSummary": "Tutu chases giant rainbow bubbles with friends along a bright seaside promenade."
+    },
+    {
+      "id": "preset-big-ear-tutu-snowy-neighborhood",
+      "category": "big-ear-tutu",
+      "franchise": "Big-Eared Tutu",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Snowy Neighborhood",
+      "nameZh": "雪夜小区",
+      "promptSummary": "Tutu builds a playful snow friend beneath warm apartment lights with Xiao Guai."
+    },
+    {
+      "id": "preset-big-ear-tutu-starry-rooftop",
+      "category": "big-ear-tutu",
+      "franchise": "Big-Eared Tutu",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Starry Rooftop",
+      "nameZh": "屋顶星愿",
+      "promptSummary": "Tutu and Xiao Guai watch a gentle meteor shower from a cozy rooftop tent."
+    },
+    {
+      "id": "preset-sanmao-spring-newspaper-lane",
+      "category": "sanmao",
+      "franchise": "The Wanderings of Sanmao",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Spring Newspaper Lane",
+      "nameZh": "春风报童巷",
+      "promptSummary": "Sanmao pedals through a sunlit old Shanghai lane as spring petals drift around him."
+    },
+    {
+      "id": "preset-sanmao-riverside-paper-boat",
+      "category": "sanmao",
+      "franchise": "The Wanderings of Sanmao",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Riverside Paper Boat",
+      "nameZh": "河畔纸船",
+      "promptSummary": "Sanmao and kind young friends launch colorful paper boats beside a golden riverside."
+    },
+    {
+      "id": "preset-sanmao-warm-noodle-stall",
+      "category": "sanmao",
+      "franchise": "The Wanderings of Sanmao",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Warm Noodle Stall",
+      "nameZh": "暖汤面摊",
+      "promptSummary": "Sanmao shares a steaming bowl of noodles with friends at a glowing winter street stall."
+    },
+    {
+      "id": "preset-sanmao-lantern-wish",
+      "category": "sanmao",
+      "franchise": "The Wanderings of Sanmao",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Lantern Wish",
+      "nameZh": "灯会心愿",
+      "promptSummary": "Sanmao smiles beneath glowing festival lanterns and a sky full of gentle wishes."
+    },
+    {
+      "id": "preset-sanmao-seaside-kite",
+      "category": "sanmao",
+      "franchise": "The Wanderings of Sanmao",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Seaside Kite",
+      "nameZh": "海风纸鸢",
+      "promptSummary": "Sanmao runs happily with a bright swallow kite on a breezy seaside afternoon."
+    },
+    {
+      "id": "preset-xiaofugui-imperial-kitchen-dawn",
+      "category": "xiaofugui",
+      "franchise": "The Little Master Chef",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Imperial Kitchen Dawn",
+      "nameZh": "御膳房晨光",
+      "promptSummary": "Xiao Fugui prepares a radiant breakfast feast in the imperial kitchen at dawn."
+    },
+    {
+      "id": "preset-xiaofugui-lotus-feast",
+      "category": "xiaofugui",
+      "franchise": "The Little Master Chef",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Lotus Lake Feast",
+      "nameZh": "荷塘雅宴",
+      "promptSummary": "Xiao Fugui and Xiao Feidie present a delicate summer feast beside a blooming lotus lake."
+    },
+    {
+      "id": "preset-xiaofugui-lantern-market-snacks",
+      "category": "xiaofugui",
+      "franchise": "The Little Master Chef",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Lantern Market Snacks",
+      "nameZh": "灯市百味",
+      "promptSummary": "Xiao Fugui serves colorful festival snacks with Xiao Feidie in a lively lantern market."
+    },
+    {
+      "id": "preset-xiaofugui-snowy-hotpot",
+      "category": "xiaofugui",
+      "franchise": "The Little Master Chef",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Snowy Hotpot",
+      "nameZh": "雪夜暖锅",
+      "promptSummary": "Xiao Fugui and friends gather around a glowing hotpot during a peaceful snowy night."
+    },
+    {
+      "id": "preset-xiaofugui-peach-blossom-picnic",
+      "category": "xiaofugui",
+      "franchise": "The Little Master Chef",
+      "rightsStatus": "thirdPartyFanArt",
+      "nameEn": "Peach Blossom Picnic",
+      "nameZh": "桃花春宴",
+      "promptSummary": "Xiao Fugui creates a playful spring picnic beneath drifting peach blossoms."
     }
   ],
   "naturePromptPolicy": {

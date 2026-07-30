@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-little-carp-snow-pearl",
+  "name": "雪山明珠 / Snow Mountain Pearl",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Paopao protects a luminous pearl beside a crystal snow mountain spring.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "SNOW MOUNTAIN PEARL ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#39a59b"
+  }
+}

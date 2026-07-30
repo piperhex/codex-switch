@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-cute-girl-snow-fox-cocoa",
+  "name": "雪狐热可可 / Snow Fox Cocoa",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "An original cute Chinese donghua girl cuddles a white fox beside a snowy cabin fire.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "SNOW FOX COCOA ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#df82aa"
+  }
+}

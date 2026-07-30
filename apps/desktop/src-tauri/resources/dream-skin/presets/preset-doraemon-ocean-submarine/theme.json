@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-doraemon-ocean-submarine",
+  "name": "海底潜航 / Ocean Submarine",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Doraemon and Nobita explore a luminous coral city in a round yellow submarine.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "OCEAN SUBMARINE ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#319ed1"
+  }
+}
+

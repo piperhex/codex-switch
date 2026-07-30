@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-sanmao-seaside-kite",
+  "name": "海风纸鸢 / Seaside Kite",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Sanmao runs happily with a bright swallow kite on a breezy seaside afternoon.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "SEASIDE KITE ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#c69b5d"
+  }
+}

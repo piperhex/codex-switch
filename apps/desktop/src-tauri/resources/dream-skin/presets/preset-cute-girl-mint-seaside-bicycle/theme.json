@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-cute-girl-mint-seaside-bicycle",
+  "name": "薄荷海风单车 / Mint Seaside Bicycle",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "An original cute Chinese donghua girl rides a mint bicycle along a pastel seaside.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "MINT SEASIDE BICYCLE ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#df82aa"
+  }
+}
+

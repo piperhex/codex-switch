@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-spongebob-coral-library",
+  "name": "珊瑚图书馆 / Coral Library",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "SpongeBob and Patrick read a giant picture book in a dreamy coral library.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "CORAL LIBRARY ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#e7b93d"
+  }
+}
+

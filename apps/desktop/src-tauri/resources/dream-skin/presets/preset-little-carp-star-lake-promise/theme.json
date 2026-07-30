@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-little-carp-star-lake-promise",
+  "name": "星湖约定 / Star Lake Promise",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Paopao and friends make a brave promise beneath a lake full of stars.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "STAR LAKE PROMISE ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#39a59b"
+  }
+}

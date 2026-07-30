@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-sanmao-riverside-paper-boat",
+  "name": "河畔纸船 / Riverside Paper Boat",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Sanmao and kind young friends launch colorful paper boats beside a golden riverside.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "RIVERSIDE PAPER BOAT ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#c69b5d"
+  }
+}

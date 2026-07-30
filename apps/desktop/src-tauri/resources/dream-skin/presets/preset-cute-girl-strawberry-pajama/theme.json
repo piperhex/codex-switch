@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-cute-girl-strawberry-pajama",
+  "name": "草莓睡衣晨光 / Strawberry Pajama Morning",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "An original cute Chinese donghua girl in strawberry pajamas hugs a white kitten.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "STRAWBERRY PAJAMA MORNING ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#df82aa"
+  }
+}
+

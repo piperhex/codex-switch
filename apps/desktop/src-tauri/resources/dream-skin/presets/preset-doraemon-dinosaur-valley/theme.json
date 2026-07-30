@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-doraemon-dinosaur-valley",
+  "name": "恐龙谷奇遇 / Dinosaur Valley",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Doraemon and Nobita befriend a gentle baby dinosaur in a lush prehistoric valley.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "DINOSAUR VALLEY ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#319ed1"
+  }
+}
+

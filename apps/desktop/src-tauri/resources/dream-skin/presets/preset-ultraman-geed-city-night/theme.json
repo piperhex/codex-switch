@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-ultraman-geed-city-night",
+  "name": "捷德·霓虹守夜 / Ultraman Geed City Night",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Ultraman Geed protects a rain-washed neon city under a deep indigo sky.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "ULTRAMAN GEED CITY NIGHT ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#596ee2"
+  }
+}
+

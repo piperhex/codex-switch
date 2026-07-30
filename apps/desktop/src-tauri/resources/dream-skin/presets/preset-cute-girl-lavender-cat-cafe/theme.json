@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-cute-girl-lavender-cat-cafe",
+  "name": "薰衣草猫咖 / Lavender Cat Cafe",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "An original cute Chinese donghua girl enjoys a dreamy lavender cafe with fluffy cats.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "LAVENDER CAT CAFE ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#df82aa"
+  }
+}
+

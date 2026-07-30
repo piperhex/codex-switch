@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-doraemon-snowman-festival",
+  "name": "雪人庆典 / Snowman Festival",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Doraemon and friends decorate funny snowmen beneath warm festival lanterns.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "SNOWMAN FESTIVAL ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#319ed1"
+  }
+}
+

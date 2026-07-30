@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-spongebob-coral-art-studio",
+  "name": "珊瑚艺术工坊 / Coral Art Studio",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "SpongeBob and Patrick paint colorful seashells in a whimsical coral art studio.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "CORAL ART STUDIO ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#e7b93d"
+  }
+}

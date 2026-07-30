@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-sanmao-warm-noodle-stall",
+  "name": "暖汤面摊 / Warm Noodle Stall",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Sanmao shares a steaming bowl of noodles with friends at a glowing winter street stall.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "WARM NOODLE STALL ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#c69b5d"
+  }
+}

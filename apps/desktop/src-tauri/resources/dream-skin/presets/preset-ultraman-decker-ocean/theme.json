@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-ultraman-decker-ocean",
+  "name": "德凯·深蓝海岸 / Ultraman Decker Ocean",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Ultraman Decker stands beside a storm-bright ocean with silver-blue energy.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "ULTRAMAN DECKER OCEAN ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#596ee2"
+  }
+}

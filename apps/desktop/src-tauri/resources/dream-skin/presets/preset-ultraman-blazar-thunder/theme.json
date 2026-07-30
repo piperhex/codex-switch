@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-ultraman-blazar-thunder",
+  "name": "布莱泽·雷霆荒原 / Ultraman Blazar Thunder",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Ultraman Blazar crosses a wild thunder plain beneath electric purple clouds.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "ULTRAMAN BLAZAR THUNDER ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#596ee2"
+  }
+}

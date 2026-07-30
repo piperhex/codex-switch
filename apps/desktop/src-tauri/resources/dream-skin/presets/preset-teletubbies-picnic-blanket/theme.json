@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-teletubbies-picnic-blanket",
+  "name": "格纹野餐 / Picnic Blanket",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "The Teletubbies share toast and fruit on a gingham picnic blanket.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "PICNIC BLANKET ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#7a62d5"
+  }
+}

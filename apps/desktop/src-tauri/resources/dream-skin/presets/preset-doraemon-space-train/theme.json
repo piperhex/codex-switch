@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-doraemon-space-train",
+  "name": "银河列车 / Space Train",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Doraemon and friends wave from a cheerful glass-roof train crossing a colorful galaxy.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "SPACE TRAIN ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#319ed1"
+  }
+}

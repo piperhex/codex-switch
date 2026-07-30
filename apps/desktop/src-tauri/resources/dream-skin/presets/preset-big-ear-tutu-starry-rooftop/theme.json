@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-big-ear-tutu-starry-rooftop",
+  "name": "屋顶星愿 / Starry Rooftop",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Tutu and Xiao Guai watch a gentle meteor shower from a cozy rooftop tent.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "STARRY ROOFTOP ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#55a9e8"
+  }
+}

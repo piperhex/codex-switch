@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-little-carp-lotus-meimei",
+  "name": "小美美荷塘 / Meimei's Lotus Pond",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Meimei, Paopao and Double-Face Turtle play on floating lotus leaves.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "MEIMEI S LOTUS POND ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#39a59b"
+  }
+}
+

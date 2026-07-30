@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-tom-jerry-winter-ice-skating",
+  "name": "冬日冰舞 / Winter Ice Skating",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Tom and Jerry twirl and chase on a sparkling frozen pond with scarves.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "WINTER ICE SKATING ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#d89035"
+  }
+}
+

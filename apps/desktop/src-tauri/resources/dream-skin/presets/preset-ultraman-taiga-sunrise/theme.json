@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-ultraman-taiga-sunrise",
+  "name": "泰迦·曙光出击 / Ultraman Taiga Sunrise",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Ultraman Taiga launches into battle above a golden sunrise skyline.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "ULTRAMAN TAIGA SUNRISE ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#596ee2"
+  }
+}
+

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-teletubbies-moon-lantern",
+  "name": "月灯晚安 / Moon Lantern Night",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "The Teletubbies carry glowing moon lanterns beneath a gentle indigo sky.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "MOON LANTERN NIGHT ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#7a62d5"
+  }
+}
+

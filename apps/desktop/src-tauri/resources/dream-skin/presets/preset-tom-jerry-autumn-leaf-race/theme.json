@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-tom-jerry-autumn-leaf-race",
+  "name": "秋叶竞速 / Autumn Leaf Race",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Tom and Jerry race handmade leaf boats along an autumn garden stream.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "AUTUMN LEAF RACE ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#d89035"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-little-carp-rainbow-waterfall",
+  "name": "彩虹瀑布 / Rainbow Waterfall",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "The little carp friends race beneath a brilliant rainbow waterfall.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "RAINBOW WATERFALL ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#39a59b"
+  }
+}
+

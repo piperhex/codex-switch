@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-xiaofugui-lantern-market-snacks",
+  "name": "灯市百味 / Lantern Market Snacks",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Xiao Fugui serves colorful festival snacks with Xiao Feidie in a lively lantern market.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "LANTERN MARKET SNACKS ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#d9822b"
+  }
+}

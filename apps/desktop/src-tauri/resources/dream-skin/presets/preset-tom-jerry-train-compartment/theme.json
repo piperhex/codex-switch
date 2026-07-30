@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-tom-jerry-train-compartment",
+  "name": "列车追逐 / Express Train Chase",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Tom and Jerry race through a vintage express train compartment with flying tickets.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "EXPRESS TRAIN CHASE ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#d89035"
+  }
+}
+
