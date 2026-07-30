@@ -1104,7 +1104,7 @@ function DashboardApp() {
       </Popconfirm>
     );
   const proxyStatusControls = (
-    <div className={`window-titlebar-proxy${!isDesktopApp ? " web-proxy-controls" : ""}${titlebarProxyRunning ? " is-running" : ""}`}>
+    <div className={`window-titlebar-proxy${!CUSTOM_TITLEBAR_ENABLED ? " web-proxy-controls" : ""}${titlebarProxyRunning ? " is-running" : ""}`}>
       <button type="button" className="window-titlebar-proxy-endpoint"
         disabled={!providerManager.localProxy?.port}
         aria-label={t("providers.proxy.copyEndpoint")}
@@ -1507,7 +1507,7 @@ function DashboardApp() {
               privacyMode={privacyMode.enabled}
               displayMode={accountDisplayMode.displayMode}
               tokenUsageRefreshSeconds={tokenUsagePreferences.refreshSeconds}
-              proxyControls={!isDesktopApp ? proxyStatusControls : undefined}
+              proxyControls={!CUSTOM_TITLEBAR_ENABLED ? proxyStatusControls : undefined}
               language={language} t={t} />
           </section>
         </main>

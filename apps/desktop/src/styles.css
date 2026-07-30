@@ -1046,11 +1046,7 @@ main.tokens-main { overflow: hidden; padding-bottom: 0; }
   max-width: calc(100% - 32px);
   min-height: 118px;
   margin: 0 16px;
-  padding: 14px 16px;
-  display: grid;
-  grid-template-columns: minmax(280px, .82fr) minmax(560px, 1.4fr);
-  align-items: center;
-  gap: 24px;
+  padding: 14px 18px;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -1059,8 +1055,7 @@ main.tokens-main { overflow: hidden; padding-bottom: 0; }
   box-shadow: 0 5px 18px rgba(24,45,31,.035);
 }
 .dream-skin-hero::after { content: ""; position: absolute; inset: 0 auto 0 0; width: 4px; pointer-events: none; background: var(--green-accent); }
-.dream-skin-hero-copy { position: relative; z-index: 2; min-width: 0; max-width: 620px; }
-.dream-skin-kicker, .dream-section-heading span, .dream-tools-copy > span {
+.dream-section-heading span, .dream-tools-copy > span {
   display: inline-flex;
   align-items: center;
   gap: 7px;
@@ -1069,12 +1064,8 @@ main.tokens-main { overflow: hidden; padding-bottom: 0; }
   letter-spacing: .13em;
   text-transform: uppercase;
 }
-.dream-skin-hero h2 { max-width: 600px; margin: 4px 0 5px; color: var(--ink); font: 750 clamp(18px, 2vw, 24px)/1.15 Manrope, sans-serif; letter-spacing: -.03em; }
-.dream-skin-hero-copy > p { max-width: 620px; margin: 0; overflow: hidden; color: #718078; font-size: 10px; line-height: 1.55; text-overflow: ellipsis; white-space: nowrap; }
-.dream-skin-safety { margin-top: 6px; display: flex; align-items: center; gap: 6px; color: #536b5e; font-size: 9px; }
-.dream-skin-safety svg { width: 13px; height: 13px; flex: 0 0 auto; color: var(--green-dark); }
 .dream-skin-console { position: relative; z-index: 2; min-width: 0; display: grid; gap: 9px; }
-.dream-skin-status-card { min-width: 0; padding-bottom: 9px; display: grid; grid-template-columns: 130px minmax(150px, 1fr) 220px; align-items: end; gap: 14px; border-bottom: 1px solid var(--line); }
+.dream-skin-status-card { min-width: 0; padding: 0 2px 10px; display: grid; grid-template-columns: minmax(130px, .7fr) minmax(240px, 1.4fr) minmax(260px, .9fr); align-items: end; gap: 28px; border-bottom: 1px solid var(--line); }
 .dream-status-item { min-width: 0; display: grid; gap: 4px; }
 .dream-status-item > span, .dream-appearance-control > span { color: #7b8980; font-size: 8px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .dream-status-item > b { overflow: hidden; color: var(--ink); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
@@ -1117,7 +1108,9 @@ main.tokens-main { overflow: hidden; padding-bottom: 0; }
 .dream-import-trigger small { max-width: 300px; color: #78857d; font-size: 10px; line-height: 1.55; }
 .dream-import-trigger em { padding: 7px 11px; display: inline-flex; align-items: center; gap: 6px; border-radius: 8px; color: #fff; background: var(--green-dark); font-size: 10px; font-style: normal; font-weight: 700; }
 .dream-tools-copy p { margin-top: 8px; text-align: left; }
-.dream-tools-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.dream-tools-actions { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.dream-tool-group { min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.dream-tool-group-theme { justify-content: flex-end; }
 .dream-tools-actions .ant-btn { height: 28px; padding-inline: 9px; font-size: 10px; }
 .dream-import-form, .dream-save-form { display: grid; gap: 10px; }
 .dream-import-form > p, .dream-save-form > p { margin: 0 0 4px; color: #6e7b73; font-size: 12px; line-height: 1.6; }
@@ -1160,14 +1153,14 @@ main.tokens-main { overflow: hidden; padding-bottom: 0; }
 }
 
 @media (max-width: 1260px) {
-  .dream-skin-hero { grid-template-columns: minmax(260px, .75fr) minmax(480px, 1.25fr); }
-  .dream-skin-status-card { grid-template-columns: 116px minmax(130px, 1fr) 190px; }
-  .dream-tools-actions { justify-content: flex-start; }
+  .dream-skin-status-card { grid-template-columns: minmax(116px, .65fr) minmax(180px, 1.2fr) minmax(220px, .9fr); gap: 20px; }
+  .dream-tools-actions { align-items: flex-start; }
 }
 
 @media (max-width: 860px) {
-  .dream-skin-hero { grid-template-columns: 1fr; }
-  .dream-skin-status-card { grid-template-columns: 116px minmax(130px, 1fr) 190px; }
+  .dream-skin-status-card { grid-template-columns: 116px minmax(130px, 1fr) 190px; gap: 14px; }
+  .dream-tools-actions { flex-direction: column; gap: 6px; }
+  .dream-tool-group-theme { justify-content: flex-start; }
   .dream-section-heading { align-items: flex-start; flex-direction: column; gap: 7px; }
   .dream-section-heading > p { text-align: left; }
 }

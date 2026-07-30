@@ -6,7 +6,6 @@ import {
   CirclePlay,
   FolderOpen,
   ImagePlus,
-  Palette,
   RefreshCw,
   RotateCcw,
   Save,
@@ -266,12 +265,6 @@ export function DreamSkinPage({ t, notify }: DreamSkinPageProps) {
         message={t("dreamSkin.error")} description={error} onClose={() => setError(null)} />}
 
       <section className="dream-skin-hero">
-        <div className="dream-skin-hero-copy">
-          <span className="dream-skin-kicker"><Palette size={15} />CODEX DREAM SKIN</span>
-          <h2>{t("dreamSkin.hero.title")}</h2>
-          <p>{t("dreamSkin.hero.description")}</p>
-          <div className="dream-skin-safety"><ShieldCheck size={16} />{t("dreamSkin.hero.safety")}</div>
-        </div>
         <div className="dream-skin-console">
           <div className="dream-skin-status-card">
             <div className="dream-status-item">
@@ -295,48 +288,52 @@ export function DreamSkinPage({ t, notify }: DreamSkinPageProps) {
             </div>
           </div>
           <div className="dream-tools-actions">
-            <Button type={status?.installed ? "default" : "primary"} icon={<Sparkles size={14} />}
-              loading={busy === "install"} disabled={isBusy && busy !== "install"}
-              onClick={() => confirmChatGptRestart(() => runStatusOperation(
-                "install", installDreamSkin, t("dreamSkin.toast.installed"),
-              ))}>
-              {status?.installed ? t("dreamSkin.updateRuntime") : t("dreamSkin.install")}
-            </Button>
-            <Tooltip title={t("dreamSkin.refresh")}><Button aria-label={t("dreamSkin.refresh")}
-              icon={<RefreshCw className={loading ? "spin" : ""} size={15} />} disabled={isBusy}
-              onClick={() => void refresh()} /></Tooltip>
-            <Button icon={status?.session === "paused" ? <CirclePlay size={15} /> : <CirclePause size={15} />}
-              disabled={!status?.installed || isBusy} loading={busy === "pause"}
-              onClick={() => {
-                const operation = () => runStatusOperation("pause", () => setDreamSkinPaused(status?.session !== "paused"),
-                  status?.session === "paused" ? t("dreamSkin.toast.resumed") : t("dreamSkin.toast.paused"));
-                if (status?.session === "paused") confirmChatGptRestart(operation);
-                else void operation();
-              }}>
-              {status?.session === "paused" ? t("dreamSkin.resume") : t("dreamSkin.pause")}
-            </Button>
-            <Button icon={<RefreshCw size={15} />} disabled={!status?.installed || isBusy}
-              loading={busy === "reapply"} onClick={() => confirmChatGptRestart(() => runStatusOperation(
-                "reapply", reapplyDreamSkin, t("dreamSkin.toast.reapplied")))}>{t("dreamSkin.reapply")}</Button>
-            <Button icon={<Save size={15} />} disabled={!status?.installed || !status.activeThemeId || isBusy}
-              onClick={() => { setSaveName(status?.activeThemeName ?? ""); setSaveOpen(true); }}>
-              {t("dreamSkin.saveCurrent")}</Button>
-            <Button icon={<ShieldCheck size={15} />} disabled={!status?.installed || isBusy}
-              loading={busy === "verify"} onClick={() => {
-                setBusy("verify"); setError(null);
-                void verifyDreamSkin().then(() => notify(t("dreamSkin.toast.verified")))
-                  .catch((verifyError) => setError(String(verifyError))).finally(() => setBusy(null));
-              }}>{t("dreamSkin.verify")}</Button>
-            <Button icon={<FolderOpen size={15} />} disabled={isBusy}
-              onClick={() => void openDreamSkinFolder().catch((folderError) => setError(String(folderError)))}>
-              {t("dreamSkin.openFolder")}</Button>
-            <Popconfirm title={t("dreamSkin.restore.confirmTitle")}
-              description={t("dreamSkin.restore.confirmDescription")} okText={t("dreamSkin.restore")}
-              cancelText={t("table.cancel")} okButtonProps={{ danger: true }}
-              onConfirm={() => void runStatusOperation("restore", restoreDreamSkin, t("dreamSkin.toast.restored"))}>
-              <Button danger icon={<RotateCcw size={15} />} disabled={!status?.runtimeInstalled || isBusy}
-                loading={busy === "restore"}>{t("dreamSkin.restore")}</Button>
-            </Popconfirm>
+            <div className="dream-tool-group dream-tool-group-runtime">
+              <Button type={status?.installed ? "default" : "primary"} icon={<Sparkles size={14} />}
+                loading={busy === "install"} disabled={isBusy && busy !== "install"}
+                onClick={() => confirmChatGptRestart(() => runStatusOperation(
+                  "install", installDreamSkin, t("dreamSkin.toast.installed"),
+                ))}>
+                {status?.installed ? t("dreamSkin.updateRuntime") : t("dreamSkin.install")}
+              </Button>
+              <Tooltip title={t("dreamSkin.refresh")}><Button aria-label={t("dreamSkin.refresh")}
+                icon={<RefreshCw className={loading ? "spin" : ""} size={15} />} disabled={isBusy}
+                onClick={() => void refresh()} /></Tooltip>
+              <Button icon={status?.session === "paused" ? <CirclePlay size={15} /> : <CirclePause size={15} />}
+                disabled={!status?.installed || isBusy} loading={busy === "pause"}
+                onClick={() => {
+                  const operation = () => runStatusOperation("pause", () => setDreamSkinPaused(status?.session !== "paused"),
+                    status?.session === "paused" ? t("dreamSkin.toast.resumed") : t("dreamSkin.toast.paused"));
+                  if (status?.session === "paused") confirmChatGptRestart(operation);
+                  else void operation();
+                }}>
+                {status?.session === "paused" ? t("dreamSkin.resume") : t("dreamSkin.pause")}
+              </Button>
+              <Button icon={<RefreshCw size={15} />} disabled={!status?.installed || isBusy}
+                loading={busy === "reapply"} onClick={() => confirmChatGptRestart(() => runStatusOperation(
+                  "reapply", reapplyDreamSkin, t("dreamSkin.toast.reapplied")))}>{t("dreamSkin.reapply")}</Button>
+            </div>
+            <div className="dream-tool-group dream-tool-group-theme">
+              <Button icon={<Save size={15} />} disabled={!status?.installed || !status.activeThemeId || isBusy}
+                onClick={() => { setSaveName(status?.activeThemeName ?? ""); setSaveOpen(true); }}>
+                {t("dreamSkin.saveCurrent")}</Button>
+              <Button icon={<ShieldCheck size={15} />} disabled={!status?.installed || isBusy}
+                loading={busy === "verify"} onClick={() => {
+                  setBusy("verify"); setError(null);
+                  void verifyDreamSkin().then(() => notify(t("dreamSkin.toast.verified")))
+                    .catch((verifyError) => setError(String(verifyError))).finally(() => setBusy(null));
+                }}>{t("dreamSkin.verify")}</Button>
+              <Button icon={<FolderOpen size={15} />} disabled={isBusy}
+                onClick={() => void openDreamSkinFolder().catch((folderError) => setError(String(folderError)))}>
+                {t("dreamSkin.openFolder")}</Button>
+              <Popconfirm title={t("dreamSkin.restore.confirmTitle")}
+                description={t("dreamSkin.restore.confirmDescription")} okText={t("dreamSkin.restore")}
+                cancelText={t("table.cancel")} okButtonProps={{ danger: true }}
+                onConfirm={() => void runStatusOperation("restore", restoreDreamSkin, t("dreamSkin.toast.restored"))}>
+                <Button danger icon={<RotateCcw size={15} />} disabled={!status?.runtimeInstalled || isBusy}
+                  loading={busy === "restore"}>{t("dreamSkin.restore")}</Button>
+              </Popconfirm>
+            </div>
           </div>
         </div>
       </section>
