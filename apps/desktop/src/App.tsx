@@ -4,7 +4,7 @@ import enUS from "antd/locale/en_US";
 import zhCN from "antd/locale/zh_CN";
 import { Archive, BarChart3, Bell, CalendarClock, Check, CircleHelp, Cloud, Download, Github, LogIn, LogOut, Megaphone, MessageSquareText, PackageOpen, Palette, Play, Plus, RefreshCw, RotateCcw, Server, Settings, ShieldCheck, Upload, UploadCloud, UserRound } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { checkForUpdate, chooseAndExportDiagnosticLogs, consumeResetCredit, DEFAULT_CLOUD_BASE_URL, downloadAvailableUpdate, fetchCloudAnnouncement, fetchCloudFaqs, fetchCloudNotifications, installDownloadedUpdate, isDesktopApp, launchChatGpt, openManagedFolder, queryProviderBalance, reportAnnouncementClick, reportBaseUrlChange, reportDeviceActivity, reportFirstInstallation, restartChatGpt, showTokenUsageWindow, submitFeedback, subscribeToCloudSessionExpired } from "./api/backend";
+import { checkForUpdate, chooseAndExportDiagnosticLogs, consumeResetCredit, DEFAULT_CLOUD_BASE_URL, downloadAvailableUpdate, fetchCloudAnnouncement, fetchCloudFaqs, fetchCloudNotifications, installDownloadedUpdate, isDesktopApp, launchChatGpt, openManagedFolder, queryProviderBalance, reportAnnouncementClick, reportBaseUrlChange, reportDeviceActivity, reportFirstInstallation, restartChatGpt, showTokenUsageWindow, submitFeedback, subscribeToCloudSessionExpired, subscribeToSystemMenuActions, type SystemMenuAction } from "./api/backend";
 import { AboutModal } from "./components/modals/AboutModal";
 import { HelpModal, type HelpVersionState } from "./components/modals/HelpModal";
 import { FeedbackModal } from "./components/modals/FeedbackModal";
@@ -115,6 +115,7 @@ function DashboardApp() {
   const installAfterDownloadRequestedRef = useRef(false);
   const cloudSessionPromptedRef = useRef(false);
   const providerBalanceRefreshCountRef = useRef(0);
+  const systemMenuActionHandlerRef = useRef<(action: SystemMenuAction) => void>(() => undefined);
   const { message: toast, notify } = useToast();
   const { language, setLanguage, t } = useLanguage();
   const cloud = useCloudAuth(notify, t);
@@ -627,6 +628,98 @@ function DashboardApp() {
     setShowHelp(false);
     setShowUpdatePrompt(true);
   }, []);
+  systemMenuActionHandlerRef.current = (action) => {
+    switch (action) {
+      case "add-account":
+        openLogin();
+        break;
+      case "import-archive":
+        void manager.importAccountArchive();
+        break;
+      case "export-archive":
+        void manager.exportAccountArchive();
+        break;
+      case "open-codex-home":
+        openCodexHome();
+        break;
+      case "open-account-store":
+        openAccountStore();
+        break;
+      case "accounts":
+        setPage("accounts");
+        break;
+      case "providers":
+        setPage("providers");
+        break;
+      case "token-usage":
+        setPage("tokens");
+        break;
+      case "dream-skin":
+        setPage("dreamSkin");
+        break;
+      case "skills":
+        setPage("skills");
+        break;
+      case "settings":
+        setPage("settings");
+        break;
+      case "refresh-all":
+        refreshAll();
+        break;
+      case "refresh-reset-credits":
+        void resetCredits.refreshAll();
+        break;
+      case "open-token-window":
+        void openTokenUsage();
+        break;
+      case "start-chatgpt":
+        void launchChatGptProcess();
+        break;
+      case "restart-chatgpt":
+        confirmRestartChatGpt();
+        break;
+      case "export-logs":
+        void exportLogs();
+        break;
+      case "cloud-account":
+        if (cloud.state.authenticated) openCloudAccount();
+        else openCloudLogin();
+        break;
+      case "cloud-sync":
+        if (cloud.state.authenticated) void syncCloud();
+        else openCloudLogin();
+        break;
+      case "cloud-logout":
+        if (cloud.state.authenticated) void cloud.logout();
+        break;
+      case "notifications": {
+        const seenAt = new Date().toISOString();
+        window.localStorage.setItem(LAST_NOTIFICATION_SEEN_KEY, seenAt);
+        setLastNotificationSeenAt(seenAt);
+        setNotificationsOpen(true);
+        break;
+      }
+      case "help":
+        openHelp();
+        break;
+      case "check-update":
+        void checkForUpdates();
+        break;
+      case "feedback":
+        setShowFeedback(true);
+        break;
+      case "repository":
+        openRepository();
+        break;
+      case "about":
+        openAbout();
+        break;
+    }
+  };
+  useEffect(
+    () => subscribeToSystemMenuActions((action) => systemMenuActionHandlerRef.current(action)),
+    [],
+  );
 
   const localizedAnnouncementContent = announcement
     ? (language === "zh" ? announcement.contentZh : announcement.contentEn)?.trim()
