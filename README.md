@@ -2,7 +2,7 @@
 
 > For English documentation, please see [README_EN.md](README_EN.md).
 
-Codex Switch 是一款以本地优先为原则的 Codex / ChatGPT 多账号工作台。它以 Tauri 2 桌面应用为完整管理入口，也可在本机启动网页版；除账号登录、用量查看和快捷切换外，还集成第三方 Provider、本地热切换代理、Token 分析、Skills 市场、一键换肤，以及可选的自建后端和移动端协同。
+Codex Switch 是一款面向 Codex / ChatGPT 用户的多账号管理工作台，以 Tauri 2 桌面应用为完整管理入口，并支持在本机启动网页版。它集账号登录、用量查看、快捷切换、第三方 Provider、本地热切换代理、Token 分析、Skills 市场和一键换肤于一体，同时支持连接自建后端与移动端，实现跨设备协同管理。
 
 [![许可证](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE) [![发布版本](https://img.shields.io/github/v/release/piperhex/codex-switch)](https://github.com/piperhex/codex-switch/releases)
 
