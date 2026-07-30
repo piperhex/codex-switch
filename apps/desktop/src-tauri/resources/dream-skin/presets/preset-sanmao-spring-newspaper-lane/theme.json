@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-sanmao-spring-newspaper-lane",
+  "name": "春风报童巷 / Spring Newspaper Lane",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Sanmao pedals through a sunlit old Shanghai lane as spring petals drift around him.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "SPRING NEWSPAPER LANE ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#c69b5d"
+  }
+}

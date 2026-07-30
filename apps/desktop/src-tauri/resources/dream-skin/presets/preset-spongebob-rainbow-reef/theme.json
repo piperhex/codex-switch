@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-spongebob-rainbow-reef",
+  "name": "彩虹珊瑚礁 / Rainbow Reef",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "SpongeBob and Patrick surf a colorful current across a brilliant rainbow reef.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "RAINBOW REEF ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#e7b93d"
+  }
+}

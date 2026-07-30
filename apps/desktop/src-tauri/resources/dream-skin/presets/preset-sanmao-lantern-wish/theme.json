@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-sanmao-lantern-wish",
+  "name": "灯会心愿 / Lantern Wish",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Sanmao smiles beneath glowing festival lanterns and a sky full of gentle wishes.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "LANTERN WISH ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#c69b5d"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-lotso-rainbow-candy",
+  "name": "彩虹糖果日 / Rainbow Candy Day",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Lotso rides a tiny candy cart along a pastel rainbow path.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "RAINBOW CANDY DAY ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#e76f91"
+  }
+}

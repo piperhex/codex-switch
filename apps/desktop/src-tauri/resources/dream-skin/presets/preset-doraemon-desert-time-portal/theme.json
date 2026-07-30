@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-doraemon-desert-time-portal",
+  "name": "沙海时空门 / Desert Time Portal",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Doraemon and Nobita discover a glowing time portal among golden desert ruins.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "DESERT TIME PORTAL ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#319ed1"
+  }
+}

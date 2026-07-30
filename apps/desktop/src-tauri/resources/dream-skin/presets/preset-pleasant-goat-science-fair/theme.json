@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-pleasant-goat-science-fair",
+  "name": "羊村科学展 / Sheep Village Science Fair",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Pleasant Goat and friends present whimsical inventions while Wolffy reacts comically.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "SHEEP VILLAGE SCIENCE FAIR ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#64bda9"
+  }
+}
+

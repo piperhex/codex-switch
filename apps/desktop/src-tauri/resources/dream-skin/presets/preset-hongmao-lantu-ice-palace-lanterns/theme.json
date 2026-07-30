@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-hongmao-lantu-ice-palace-lanterns",
+  "name": "冰宫灯影 / Ice Palace Lanterns",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Lantu and Hongmao walk through a luminous ice palace filled with floating lanterns.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "ICE PALACE LANTERNS ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#d94f5c"
+  }
+}

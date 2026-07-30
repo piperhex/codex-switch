@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-boonie-bears-bamboo-festival",
+  "name": "竹林庆典 / Bamboo Festival",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "The friends celebrate among bamboo lanterns, drums and green ribbons.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "BAMBOO FESTIVAL ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#c77b38"
+  }
+}

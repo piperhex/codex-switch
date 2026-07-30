@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-tom-jerry-museum-midnight",
+  "name": "午夜博物馆 / Museum at Midnight",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Tom and Jerry sneak through a moonlit museum with dinosaur bones and playful shadows.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "MUSEUM AT MIDNIGHT ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#d89035"
+  }
+}

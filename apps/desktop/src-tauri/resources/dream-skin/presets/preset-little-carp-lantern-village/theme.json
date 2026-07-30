@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-little-carp-lantern-village",
+  "name": "水乡灯会 / Lantern Water Village",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "The little carp friends swim through a warm lantern festival water village.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "LANTERN WATER VILLAGE ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#39a59b"
+  }
+}

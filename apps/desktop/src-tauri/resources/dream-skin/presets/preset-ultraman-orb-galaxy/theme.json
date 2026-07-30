@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-ultraman-orb-galaxy",
+  "name": "欧布·银河之环 / Ultraman Orb Galaxy",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Ultraman Orb raises a radiant energy ring amid sapphire galaxy currents.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "ULTRAMAN ORB GALAXY ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#596ee2"
+  }
+}
+

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-lotso-strawberry-bedroom",
+  "name": "草莓牛奶卧室 / Strawberry Milk Bedroom",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Lotso hugs a heart pillow in a strawberry-milk bedroom with plush textures.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "STRAWBERRY MILK BEDROOM ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#e76f91"
+  }
+}
+

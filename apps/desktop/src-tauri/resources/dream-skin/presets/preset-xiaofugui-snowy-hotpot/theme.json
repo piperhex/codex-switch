@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-xiaofugui-snowy-hotpot",
+  "name": "雪夜暖锅 / Snowy Hotpot",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Xiao Fugui and friends gather around a glowing hotpot during a peaceful snowy night.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "SNOWY HOTPOT ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#d9822b"
+  }
+}

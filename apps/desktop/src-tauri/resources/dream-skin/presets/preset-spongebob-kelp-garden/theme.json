@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-spongebob-kelp-garden",
+  "name": "发光海藻花园 / Glowing Kelp Garden",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "SpongeBob and Patrick water jewel-colored coral in a glowing kelp garden.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "GLOWING KELP GARDEN ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#e7b93d"
+  }
+}
+

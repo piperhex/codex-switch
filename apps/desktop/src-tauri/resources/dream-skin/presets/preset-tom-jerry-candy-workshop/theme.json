@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-tom-jerry-candy-workshop",
+  "name": "糖果工坊 / Candy Workshop",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Tom and Jerry tumble through a colorful candy workshop of lollipops and caramel gears.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "CANDY WORKSHOP ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#d89035"
+  }
+}

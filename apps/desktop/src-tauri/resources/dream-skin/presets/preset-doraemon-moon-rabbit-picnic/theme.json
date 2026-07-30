@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-doraemon-moon-rabbit-picnic",
+  "name": "月兔野餐 / Moon Rabbit Picnic",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Doraemon and friends enjoy a moon-rabbit picnic among silver grass and glowing dumplings.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "MOON RABBIT PICNIC ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#319ed1"
+  }
+}
+

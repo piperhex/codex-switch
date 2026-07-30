@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-boonie-bears-autumn-train",
+  "name": "秋日森林列车 / Autumn Forest Train",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "The friends ride a tiny red train through a forest of golden autumn leaves.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "AUTUMN FOREST TRAIN ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#c77b38"
+  }
+}
+

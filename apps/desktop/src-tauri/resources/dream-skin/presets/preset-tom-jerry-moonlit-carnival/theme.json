@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-tom-jerry-moonlit-carnival",
+  "name": "月光游园会 / Moonlit Carnival",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Tom and Jerry ride a tiny carnival cart under a glowing moon and festive lights.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "MOONLIT CARNIVAL ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#d89035"
+  }
+}

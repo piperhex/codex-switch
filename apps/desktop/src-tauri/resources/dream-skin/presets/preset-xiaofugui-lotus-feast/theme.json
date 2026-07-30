@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-xiaofugui-lotus-feast",
+  "name": "荷塘雅宴 / Lotus Lake Feast",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Xiao Fugui and Xiao Feidie present a delicate summer feast beside a blooming lotus lake.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "LOTUS LAKE FEAST ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#d9822b"
+  }
+}

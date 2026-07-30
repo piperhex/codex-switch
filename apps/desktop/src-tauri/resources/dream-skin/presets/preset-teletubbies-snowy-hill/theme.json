@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-teletubbies-snowy-hill",
+  "name": "雪坡滚雪球 / Snowy Hill",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "The Teletubbies roll cheerful snowballs down a sparkling soft hill.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "SNOWY HILL ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#7a62d5"
+  }
+}
+

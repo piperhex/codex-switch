@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-teletubbies-seaside-shells",
+  "name": "海边拾贝 / Seaside Shells",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "The Teletubbies collect pearly shells along a calm candy-colored shore.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "SEASIDE SHELLS ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#7a62d5"
+  }
+}

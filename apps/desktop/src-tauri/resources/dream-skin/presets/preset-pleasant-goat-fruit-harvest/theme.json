@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-pleasant-goat-fruit-harvest",
+  "name": "果香丰收节 / Fruit Harvest",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "The sheep friends gather oversized fruit while Wolffy pushes a funny cart.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "FRUIT HARVEST ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#64bda9"
+  }
+}

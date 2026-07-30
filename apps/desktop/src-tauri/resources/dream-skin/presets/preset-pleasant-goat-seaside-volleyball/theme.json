@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-pleasant-goat-seaside-volleyball",
+  "name": "海边排球赛 / Seaside Volleyball",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "The sheep friends and Wolffy play a cheerful volleyball match by the sea.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "SEASIDE VOLLEYBALL ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#64bda9"
+  }
+}
+
