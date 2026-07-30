@@ -1,7 +1,7 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { Button, ColorPicker, Input, InputNumber, Modal, Segmented, Space, Switch, TimePicker } from "antd";
 import dayjs, { type Dayjs } from "dayjs";
-import { CalendarDays, CircleGauge, Cloud, EyeOff, FileDown, FolderKey, FolderOpen, KeyRound, Languages, LayoutGrid, Palette, RefreshCw, ShieldCheck, TableProperties } from "lucide-react";
+import { CalendarDays, CircleGauge, Cloud, EyeOff, FileDown, FolderKey, FolderOpen, KeyRound, Languages, LayoutGrid, Network, Palette, RefreshCw, ShieldCheck, TableProperties } from "lucide-react";
 import { MAX_AUTO_REFRESH_SECONDS, MIN_AUTO_REFRESH_SECONDS } from "../hooks/useAutoRefresh";
 import { MAX_TOKEN_USAGE_REFRESH_SECONDS, MAX_TOKEN_USAGE_WEEKS, MIN_TOKEN_USAGE_REFRESH_SECONDS, MIN_TOKEN_USAGE_WEEKS } from "../hooks/useTokenUsagePreferences";
 import type { AccountDisplayMode } from "../hooks/useAccountDisplayMode";
@@ -112,6 +112,9 @@ export function SettingsPage({
   tokenUsageWeeks,
   tokenUsageRefreshSeconds,
   tokenUsagePreferencesLoading,
+  webProxyPort,
+  webProxyPortLoading,
+  onWebProxyPortChange,
   onTokenUsageWeeksChange,
   onTokenUsageRefreshSecondsChange,
   onOpenCodexHome,
@@ -156,6 +159,9 @@ export function SettingsPage({
   tokenUsageWeeks: number;
   tokenUsageRefreshSeconds: number;
   tokenUsagePreferencesLoading: boolean;
+  webProxyPort?: number | null;
+  webProxyPortLoading?: boolean;
+  onWebProxyPortChange?: (port: number | null) => void;
   onTokenUsageWeeksChange: (value: number | string | null) => void;
   onTokenUsageRefreshSecondsChange: (value: number | string | null) => void;
   onOpenCodexHome: () => void;
@@ -313,6 +319,20 @@ export function SettingsPage({
           </div>
         </div>
       </section>
+      {onWebProxyPortChange && (
+        <section className="settings-card">
+          <div className="settings-icon"><Network size={23} /></div>
+          <div className="settings-card-content">
+            <div className="settings-card-copy"><h3>{t("settings.webProxy.title")}</h3><p>{t("settings.webProxy.description")}</p></div>
+            <div className="settings-field">
+              <label htmlFor="web-proxy-port">{t("settings.webProxy.port")}</label>
+              <InputNumber id="web-proxy-port" min={1} max={65535} step={1} value={webProxyPort ?? null}
+                disabled={webProxyPortLoading} placeholder={t("settings.webProxy.disabled")}
+                onChange={(value) => onWebProxyPortChange(typeof value === "number" ? value : null)} />
+            </div>
+          </div>
+        </section>
+      )}
       <section className="settings-card">
         <div className="settings-icon"><RefreshCw size={23} /></div>
         <div className="settings-card-content">

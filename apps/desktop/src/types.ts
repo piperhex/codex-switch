@@ -218,6 +218,7 @@ export interface AppSettings {
   cloudBaseUrl?: string | null;
   tokenUsageWeeks?: number;
   tokenUsageRefreshSeconds?: number;
+  webProxyPort?: number | null;
 }
 
 export interface LoginStart {

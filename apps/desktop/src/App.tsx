@@ -5,7 +5,7 @@ import zhCN from "antd/locale/zh_CN";
 import { Archive, BarChart3, Bell, CalendarClock, Check, ChevronDown, CircleHelp, Cloud, Copy, Download, Github, LogIn, LogOut, Megaphone, MessageSquareText, Minus, PackageOpen, Palette, Play, Plus, RefreshCw, RotateCcw, Search, Server, Settings, ShieldCheck, Shuffle, Square, Upload, UploadCloud, UserRound, X } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { checkForUpdate, chooseAndExportDiagnosticLogs, consumeResetCredit, DEFAULT_CLOUD_BASE_URL, downloadAvailableUpdate, fetchCloudAnnouncement, fetchCloudFaqs, fetchCloudNotifications, installDownloadedUpdate, isDesktopApp, launchChatGpt, openManagedFolder, queryProviderBalance, quitApplication, reportAnnouncementClick, reportBaseUrlChange, reportDeviceActivity, reportFirstInstallation, restartApplication, restartChatGpt, showTokenUsageWindow, submitFeedback, subscribeToCloudSessionExpired } from "./api/backend";
+import { checkForUpdate, chooseAndExportDiagnosticLogs, consumeResetCredit, DEFAULT_CLOUD_BASE_URL, downloadAvailableUpdate, fetchCloudAnnouncement, fetchCloudFaqs, fetchCloudNotifications, installDownloadedUpdate, isDesktopApp, launchChatGpt, loadAppSettings, openManagedFolder, queryProviderBalance, quitApplication, reportAnnouncementClick, reportBaseUrlChange, reportDeviceActivity, reportFirstInstallation, restartApplication, restartChatGpt, showTokenUsageWindow, submitFeedback, subscribeToCloudSessionExpired, updateWebProxyPort } from "./api/backend";
 import { AboutModal } from "./components/modals/AboutModal";
 import { HelpModal, type HelpVersionState } from "./components/modals/HelpModal";
 import { FeedbackModal } from "./components/modals/FeedbackModal";
@@ -132,6 +132,8 @@ function DashboardApp() {
   const [exportingLogs, setExportingLogs] = useState(false);
   const [resetCreditBusyAccountId, setResetCreditBusyAccountId] = useState<string | null>(null);
   const [refreshingProviderBalances, setRefreshingProviderBalances] = useState(false);
+  const [webProxyPort, setWebProxyPort] = useState<number | null>(null);
+  const [webProxyPortLoading, setWebProxyPortLoading] = useState(false);
   const [announcement, setAnnouncement] = useState<CloudAnnouncement | null>(null);
   const [notifications, setNotifications] = useState<CloudNotification[]>([]);
   const [faqs, setFaqs] = useState<CloudFaq[]>([]);
@@ -215,6 +217,12 @@ function DashboardApp() {
   const tokenUsagePreferences = useTokenUsagePreferences(notify);
   const manager = useAccountManager(notify, t, accountCloudSync);
   const providerManager = useProviderManager(notify, t, providerCloudSync);
+  useEffect(() => {
+    if (isDesktopApp) return;
+    void loadAppSettings()
+      .then((settings) => setWebProxyPort(settings.webProxyPort ?? null))
+      .catch((error) => notify(String(error)));
+  }, [notify]);
   const resetCredits = useResetCredits(manager.accounts, notify, t);
   const activeAccount = manager.accounts.find((account) => account.active) ?? null;
   const activeProvider = providerManager.activeProvider;
@@ -358,6 +366,19 @@ function DashboardApp() {
       setResetCreditBusyAccountId(null);
     }
   }, [manager.refreshUsage, notify, resetCredits.refreshAccount, t]);
+  const changeWebProxyPort = useCallback(async (port: number | null) => {
+    if (isDesktopApp) return;
+    setWebProxyPortLoading(true);
+    try {
+      const settings = await updateWebProxyPort(port);
+      setWebProxyPort(settings.webProxyPort ?? null);
+      await providerManager.reload();
+    } catch (error) {
+      notify(String(error));
+    } finally {
+      setWebProxyPortLoading(false);
+    }
+  }, [notify, providerManager.reload]);
   const changeThemeColor = useCallback((color: string) => {
     void themeColor.setColor(color);
   }, [themeColor.setColor]);
@@ -1070,7 +1091,7 @@ function DashboardApp() {
   const toggleWindowMaximized = () => {
     void getCurrentWindow().toggleMaximize().catch((error) => notify(String(error)));
   };
-  const titlebarProxyBaseUrl = providerManager.localProxy
+  const titlebarProxyBaseUrl = providerManager.localProxy?.port
     ? `http://${providerManager.localProxy.address}:${providerManager.localProxy.port}/v1`
     : "--";
   const copyTitlebarProxyBaseUrl = () => {
@@ -1080,9 +1101,11 @@ function DashboardApp() {
       .catch((error) => notify(String(error)));
   };
   const titlebarProxyRunning = Boolean(providerManager.localProxy?.running);
-  const titlebarProxyStartDisabledReason = activeAccount && !activeAccount.localProxyCompatible
-    ? t("providers.proxy.agentIdentityUnsupported")
-    : undefined;
+  const titlebarProxyStartDisabledReason = !isDesktopApp && !providerManager.localProxy?.port
+    ? t("providers.proxy.webPortRequired")
+    : activeAccount && !activeAccount.localProxyCompatible
+      ? t("providers.proxy.agentIdentityUnsupported")
+      : undefined;
   const titlebarProxyToggleDisabled = providerManager.proxyBusy
     || (!titlebarProxyRunning && Boolean(titlebarProxyStartDisabledReason));
   const titlebarProxyStatusSwitch = (
@@ -1112,6 +1135,76 @@ function DashboardApp() {
         {titlebarProxyStatusSwitch}
       </Popconfirm>
     );
+  const proxyStatusControls = (
+    <div className={`window-titlebar-proxy${!isDesktopApp ? " web-proxy-controls" : ""}${titlebarProxyRunning ? " is-running" : ""}`}>
+      <button type="button" className="window-titlebar-proxy-endpoint"
+        disabled={!providerManager.localProxy?.port}
+        aria-label={t("providers.proxy.copyEndpoint")}
+        title={t("providers.proxy.copyEndpoint")}
+        onClick={copyTitlebarProxyBaseUrl}>
+        <span>{t("providers.proxy.baseUrl", { url: titlebarProxyBaseUrl })}</span>
+        <Copy size={11} aria-hidden="true" />
+      </button>
+      {titlebarProxyStatusControl}
+      {titlebarProxyRunning && (
+        <Tooltip title="0.0.0.0">
+          <span className="window-titlebar-proxy-lan">
+            <span>{t("providers.proxy.listenLan")}</span>
+            <Switch className="window-titlebar-proxy-lan-switch" size="small"
+              checked={providerManager.localProxy?.listenOnAllInterfaces ?? false}
+              loading={providerManager.proxyBusy}
+              disabled={providerManager.proxyBusy}
+              aria-label={t("providers.proxy.listenLan")}
+              onChange={(enabled) => void providerManager.setProxyListenOnAllInterfaces(enabled)} />
+          </span>
+        </Tooltip>
+      )}
+    </div>
+  );
+  const proxyTopbarActions = titlebarProxyRunning ? (
+    <>
+      <Popover trigger="hover" placement="bottom" mouseEnterDelay={0.08} mouseLeaveDelay={0.12}
+        content={(
+          <div className="proxy-auto-switch-menu">
+            <div className="proxy-auto-switch-menu-item"
+              title={t("providers.proxy.autoSwitchTooltip")}>
+              <span>{t("providers.proxy.autoSwitch")}</span>
+              <Switch size="small"
+                checked={providerManager.localProxy?.autoSwitchOnQuotaExhaustion ?? false}
+                disabled={providerManager.proxyBusy}
+                onChange={(enabled) => void providerManager.setProxyAutoSwitch(enabled)} />
+            </div>
+            <div className="proxy-auto-switch-menu-item"
+              title={t("table.customPriorityTooltip")}>
+              <span>{t("table.customPriorityEnabled")}</span>
+              <Switch size="small"
+                checked={providerManager.localProxy?.customAutoSwitchPriorityEnabled ?? false}
+                disabled={providerManager.proxyBusy
+                  || !providerManager.localProxy?.autoSwitchOnQuotaExhaustion}
+                onChange={(enabled) => void providerManager.setProxyCustomPriority(enabled)} />
+            </div>
+            <div className="proxy-auto-switch-menu-item"
+              title={t("providers.proxy.autoDisableUnreachableTooltip")}>
+              <span>{t("providers.proxy.autoDisableUnreachable")}</span>
+              <Switch size="small"
+                checked={providerManager.localProxy?.autoDisableUnreachableAccounts ?? false}
+                disabled={providerManager.proxyBusy
+                  || !providerManager.localProxy?.autoSwitchOnQuotaExhaustion}
+                onChange={(enabled) => void providerManager.setProxyAutoDisableUnreachable(enabled)} />
+            </div>
+          </div>
+        )}>
+        <button type="button"
+          className={`refresh-all proxy-topbar-action${providerManager.localProxy?.autoSwitchOnQuotaExhaustion ? " active" : ""}`}
+          aria-label={t("providers.proxy.autoSwitch")}>
+          <Shuffle size={14} />
+          <span>{t("providers.proxy.autoSwitch")}</span>
+          <ChevronDown size={12} />
+        </button>
+      </Popover>
+      <ProxySessionManager t={t} triggerClassName="refresh-all proxy-topbar-action" />
+    </>
+  ) : null;
   const menuTools = (
     <div className="menu-tools">
       <Dropdown
@@ -1230,74 +1323,7 @@ function DashboardApp() {
             </nav>
             <div className="window-titlebar-drag-region" data-tauri-drag-region />
             <div className="window-titlebar-tools">
-              <div className={`window-titlebar-proxy${titlebarProxyRunning ? " is-running" : ""}`}>
-                {titlebarProxyRunning && (
-                  <>
-                    <ProxySessionManager t={t} triggerClassName="window-titlebar-proxy-entry" />
-                    <Popover trigger="hover" placement="bottom" mouseEnterDelay={0.08} mouseLeaveDelay={0.12}
-                      content={(
-                        <div className="proxy-auto-switch-menu">
-                          <div className="proxy-auto-switch-menu-item"
-                            title={t("providers.proxy.autoSwitchTooltip")}>
-                            <span>{t("providers.proxy.autoSwitch")}</span>
-                            <Switch size="small"
-                              checked={providerManager.localProxy?.autoSwitchOnQuotaExhaustion ?? false}
-                              disabled={providerManager.proxyBusy}
-                              onChange={(enabled) => void providerManager.setProxyAutoSwitch(enabled)} />
-                          </div>
-                          <div className="proxy-auto-switch-menu-item"
-                            title={t("table.customPriorityTooltip")}>
-                            <span>{t("table.customPriorityEnabled")}</span>
-                            <Switch size="small"
-                              checked={providerManager.localProxy?.customAutoSwitchPriorityEnabled ?? false}
-                              disabled={providerManager.proxyBusy
-                                || !providerManager.localProxy?.autoSwitchOnQuotaExhaustion}
-                              onChange={(enabled) => void providerManager.setProxyCustomPriority(enabled)} />
-                          </div>
-                          <div className="proxy-auto-switch-menu-item"
-                            title={t("providers.proxy.autoDisableUnreachableTooltip")}>
-                            <span>{t("providers.proxy.autoDisableUnreachable")}</span>
-                            <Switch size="small"
-                              checked={providerManager.localProxy?.autoDisableUnreachableAccounts ?? false}
-                              disabled={providerManager.proxyBusy
-                                || !providerManager.localProxy?.autoSwitchOnQuotaExhaustion}
-                              onChange={(enabled) => void providerManager.setProxyAutoDisableUnreachable(enabled)} />
-                          </div>
-                        </div>
-                      )}>
-                      <button type="button"
-                        className={`window-titlebar-proxy-entry window-titlebar-proxy-auto-switch${providerManager.localProxy?.autoSwitchOnQuotaExhaustion ? " active" : ""}`}
-                        aria-label={t("providers.proxy.autoSwitch")}>
-                        <Shuffle size={13} />
-                        <span>{t("providers.proxy.autoSwitch")}</span>
-                        <ChevronDown size={11} />
-                      </button>
-                    </Popover>
-                  </>
-                )}
-                <button type="button" className="window-titlebar-proxy-endpoint"
-                  disabled={!providerManager.localProxy}
-                  aria-label={t("providers.proxy.copyEndpoint")}
-                  title={t("providers.proxy.copyEndpoint")}
-                  onClick={copyTitlebarProxyBaseUrl}>
-                  <span>{t("providers.proxy.baseUrl", { url: titlebarProxyBaseUrl })}</span>
-                  <Copy size={11} aria-hidden="true" />
-                </button>
-                {titlebarProxyStatusControl}
-                {titlebarProxyRunning && (
-                  <Tooltip title="0.0.0.0">
-                    <span className="window-titlebar-proxy-lan">
-                      <span>{t("providers.proxy.listenLan")}</span>
-                      <Switch className="window-titlebar-proxy-lan-switch" size="small"
-                        checked={providerManager.localProxy?.listenOnAllInterfaces ?? false}
-                        loading={providerManager.proxyBusy}
-                        disabled={providerManager.proxyBusy}
-                        aria-label={t("providers.proxy.listenLan")}
-                        onChange={(enabled) => void providerManager.setProxyListenOnAllInterfaces(enabled)} />
-                    </span>
-                  </Tooltip>
-                )}
-              </div>
+              {proxyStatusControls}
               {menuTools}
             </div>
             <div className="window-controls">
@@ -1393,6 +1419,7 @@ function DashboardApp() {
                     </button>
                   </Tooltip>
                 )}
+                {proxyTopbarActions}
               </div>
             )}
             {page === "providers" && (
@@ -1411,6 +1438,7 @@ function DashboardApp() {
                     </button>
                   </Tooltip>
                 )}
+                {proxyTopbarActions}
               </div>
             )}
             {page === "settings" && (
@@ -1454,6 +1482,9 @@ function DashboardApp() {
               tokenUsageWeeks={tokenUsagePreferences.weeks}
               tokenUsageRefreshSeconds={tokenUsagePreferences.refreshSeconds}
               tokenUsagePreferencesLoading={tokenUsagePreferences.loading}
+              webProxyPort={!isDesktopApp ? webProxyPort : undefined}
+              webProxyPortLoading={!isDesktopApp ? webProxyPortLoading : undefined}
+              onWebProxyPortChange={!isDesktopApp ? changeWebProxyPort : undefined}
               onTokenUsageWeeksChange={tokenUsagePreferences.updateWeeks}
               onTokenUsageRefreshSecondsChange={tokenUsagePreferences.updateRefreshSeconds}
               onOpenCodexHome={openCodexHome} onOpenAccountStore={openAccountStore} language={language}
@@ -1505,6 +1536,7 @@ function DashboardApp() {
               privacyMode={privacyMode.enabled}
               displayMode={accountDisplayMode.displayMode}
               tokenUsageRefreshSeconds={tokenUsagePreferences.refreshSeconds}
+              proxyControls={!isDesktopApp ? proxyStatusControls : undefined}
               language={language} t={t} />
           </section>
         </main>

@@ -74,6 +74,7 @@ const LOCAL_PROXY_AUTO_SWITCH_PREVIEW_KEY = "codex-switch:local-proxy-auto-switc
 const LOCAL_PROXY_CUSTOM_PRIORITY_PREVIEW_KEY = "codex-switch:local-proxy-custom-priority";
 const LOCAL_PROXY_AUTO_DISABLE_UNREACHABLE_PREVIEW_KEY = "codex-switch:local-proxy-auto-disable-unreachable";
 const LOCAL_PROXY_LISTEN_ALL_INTERFACES_PREVIEW_KEY = "codex-switch:local-proxy-listen-all-interfaces";
+const LOCAL_PROXY_PORT_PREVIEW_KEY = "codex-switch:local-proxy-port";
 const LOCAL_PROXY_IMAGE_ACCOUNT_PREVIEW_KEY = "codex-switch:image-generation-account";
 const LOCAL_PROXY_OPENAI_AUTH_ACCOUNT_PREVIEW_KEY = "codex-switch:proxy-openai-auth-account";
 const TOKEN_USAGE_WEEKS_PREVIEW_KEY = "codex-switch:token-usage-weeks";
@@ -197,11 +198,15 @@ function previewProviderId() {
 }
 
 function previewLocalProxyStatus(): LocalProxyStatus {
+  const configuredPort = Number(window.localStorage.getItem(LOCAL_PROXY_PORT_PREVIEW_KEY));
+  const port = Number.isInteger(configuredPort) && configuredPort >= 1 && configuredPort <= 65_535
+    ? configuredPort
+    : 0;
   return {
-    running: window.localStorage.getItem(LOCAL_PROXY_PREVIEW_KEY) === "true",
+    running: port > 0 && window.localStorage.getItem(LOCAL_PROXY_PREVIEW_KEY) === "true",
     address: window.localStorage.getItem(LOCAL_PROXY_LISTEN_ALL_INTERFACES_PREVIEW_KEY) === "true" ? "0.0.0.0" : "127.0.0.1",
-    port: 15722,
-    baseUrl: "http://127.0.0.1:15722/v1",
+    port,
+    baseUrl: port > 0 ? `http://127.0.0.1:${port}/v1` : "",
     autoSwitchOnQuotaExhaustion: window.localStorage.getItem(LOCAL_PROXY_AUTO_SWITCH_PREVIEW_KEY) === "true",
     customAutoSwitchPriorityEnabled: window.localStorage.getItem(LOCAL_PROXY_CUSTOM_PRIORITY_PREVIEW_KEY) === "true",
     autoDisableUnreachableAccounts: window.localStorage.getItem(LOCAL_PROXY_AUTO_DISABLE_UNREACHABLE_PREVIEW_KEY) === "true",
@@ -241,6 +246,7 @@ export async function loadAppSettings(): Promise<AppSettings> {
       cloudBaseUrl: window.localStorage.getItem(CLOUD_BASE_URL_PREVIEW_KEY) ?? DEFAULT_CLOUD_BASE_URL,
       tokenUsageWeeks: Number(window.localStorage.getItem(TOKEN_USAGE_WEEKS_PREVIEW_KEY)) || 20,
       tokenUsageRefreshSeconds: Number(window.localStorage.getItem(TOKEN_USAGE_REFRESH_PREVIEW_KEY)) || 60,
+      webProxyPort: previewLocalProxyStatus().port || null,
     };
   }
   return invoke<AppSettings>("get_app_settings");
@@ -636,6 +642,9 @@ export async function showTokenUsageWindow(): Promise<void> {
 
 export async function startLocalProxy(): Promise<LocalProxyStatus> {
   if (!isDesktopApp) {
+    if (!previewLocalProxyStatus().port) {
+      throw new Error("Configure the web proxy listening port in Settings before starting the proxy");
+    }
     window.localStorage.setItem(LOCAL_PROXY_PREVIEW_KEY, "true");
     writePreviewProviders(readPreviewProviders().map((provider) => ({
       ...provider,
@@ -644,6 +653,21 @@ export async function startLocalProxy(): Promise<LocalProxyStatus> {
     return previewLocalProxyStatus();
   }
   return invoke<LocalProxyStatus>("start_local_proxy");
+}
+
+export async function updateWebProxyPort(port: number | null): Promise<AppSettings> {
+  if (isDesktopApp) return loadAppSettings();
+  if (port === null) {
+    window.localStorage.removeItem(LOCAL_PROXY_PORT_PREVIEW_KEY);
+    window.localStorage.removeItem(LOCAL_PROXY_PREVIEW_KEY);
+  } else {
+    if (!Number.isInteger(port) || port < 1 || port > 65_535) {
+      throw new Error("Web proxy listening port must be between 1 and 65535");
+    }
+    window.localStorage.setItem(LOCAL_PROXY_PORT_PREVIEW_KEY, String(port));
+  }
+  window.dispatchEvent(new CustomEvent(PROVIDERS_EVENT));
+  return loadAppSettings();
 }
 
 export async function stopLocalProxy(): Promise<LocalProxyStatus> {

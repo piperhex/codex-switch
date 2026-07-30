@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Button, Checkbox, Dropdown, InputNumber, Popconfirm, Space, Table, Tag, Tooltip } from "antd";
 import type { TableProps } from "antd";
 import type { ColumnsType } from "antd/es/table";
@@ -65,6 +65,7 @@ interface AccountTableProps {
   privacyMode: boolean;
   displayMode: AccountDisplayMode;
   tokenUsageRefreshSeconds: number;
+  proxyControls?: ReactNode;
   language: Language;
   t: Translate;
 }
@@ -364,6 +365,7 @@ export function AccountTable({
   privacyMode,
   displayMode,
   tokenUsageRefreshSeconds,
+  proxyControls,
   language,
   t,
 }: AccountTableProps) {
@@ -1034,6 +1036,7 @@ export function AccountTable({
               </strong>
             </span>
           </Tooltip>
+          {proxyControls}
         </div>
         <Popconfirm title={t("table.batchDeleteConfirmTitle", { count: deletableSelectedAccountIds.length })}
           description={t("table.batchDeleteConfirmDescription")}

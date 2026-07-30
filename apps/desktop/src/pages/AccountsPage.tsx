@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { ArrowRight, LogIn, RefreshCw } from "lucide-react";
 import type { Language, Translate } from "../i18n";
 import type { AccountDisplayMode } from "../hooks/useAccountDisplayMode";
@@ -30,6 +31,7 @@ export function AccountsPage({
   privacyMode,
   displayMode,
   tokenUsageRefreshSeconds,
+  proxyControls,
   language,
   t,
 }: {
@@ -58,6 +60,7 @@ export function AccountsPage({
   privacyMode: boolean;
   displayMode: AccountDisplayMode;
   tokenUsageRefreshSeconds: number;
+  proxyControls?: ReactNode;
   language: Language;
   t: Translate;
 }) {
@@ -97,6 +100,7 @@ export function AccountsPage({
         openaiAuthAccountId={localProxy?.openaiAuthAccountId ?? null} openaiAuthBusy={proxyBusy}
         onOpenaiAuthAccountChange={onOpenaiAuthAccountChange}
         tokenUsageRefreshSeconds={tokenUsageRefreshSeconds}
+        proxyControls={proxyControls}
         language={language} t={t} />
     </div>
   );
