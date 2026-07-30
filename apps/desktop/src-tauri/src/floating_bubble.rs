@@ -242,7 +242,6 @@ pub(crate) fn set_app_language<R: Runtime>(
     let mut settings = read_app_settings(&app)?;
     settings.language = Some(language);
     write_app_settings(&app, &settings)?;
-    crate::system_menu::refresh_menu(&app);
     crate::system_tray::refresh_menu(&app);
     Ok(())
 }

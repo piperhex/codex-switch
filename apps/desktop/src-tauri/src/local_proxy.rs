@@ -1267,12 +1267,18 @@ fn stop_local_proxy_blocking<R: Runtime>(
     state.active_provider_id = None;
     state.local_proxy_enabled = false;
     write_state(&paths, &state)?;
+    let conversation_restore_result =
+        crate::commands::restore_conversation_metadata_if_present(&paths.codex_home);
     app.emit("providers-changed", ())
         .map_err(|error| error.to_string())?;
     crate::system_tray::refresh_menu(&app);
     let proxy_status = status(&app);
     if !client_was_running {
-        return Ok(proxy_status);
+        return conversation_restore_result.map(|_| proxy_status).map_err(|error| {
+            format!(
+                "Local proxy was stopped, but non-proxy conversations could not be restored ({error})."
+            )
+        });
     }
 
     let restart_result = crate::dream_skin::restart_active_session().and_then(|restarted| {
@@ -1282,12 +1288,18 @@ fn stop_local_proxy_blocking<R: Runtime>(
             crate::commands::start_chatgpt(launch_target.as_ref())
         }
     });
-    restart_result.map_err(|error| {
-        format!(
-            "Local proxy was stopped and the selected auth.json was restored, but ChatGPT/Codex could not be restarted ({error}). Please start ChatGPT or Codex manually."
-        )
-    })?;
-    Ok(proxy_status)
+    match (conversation_restore_result, restart_result) {
+        (Ok(_), Ok(())) => Ok(proxy_status),
+        (Err(restore_error), Ok(())) => Err(format!(
+            "Local proxy was stopped, but non-proxy conversations could not be restored ({restore_error})."
+        )),
+        (Ok(_), Err(restart_error)) => Err(format!(
+            "Local proxy was stopped, the selected auth.json and non-proxy conversations were restored, but ChatGPT/Codex could not be restarted ({restart_error}). Please start ChatGPT or Codex manually."
+        )),
+        (Err(restore_error), Err(restart_error)) => Err(format!(
+            "Local proxy was stopped, but non-proxy conversations could not be restored ({restore_error}) and ChatGPT/Codex could not be restarted ({restart_error}). Please start ChatGPT or Codex manually."
+        )),
+    }
 }
 
 fn ensure_proxy_can_stop_with_auth(auth: &Value) -> Result<(), String> {

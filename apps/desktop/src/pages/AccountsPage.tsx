@@ -1,5 +1,4 @@
 import { ArrowRight, LogIn, RefreshCw } from "lucide-react";
-import { LocalProxyCard } from "../components/LocalProxyCard";
 import type { Language, Translate } from "../i18n";
 import type { AccountDisplayMode } from "../hooks/useAccountDisplayMode";
 import type { Account, LocalProxyStatus, ResetCreditsLoadState } from "../types";
@@ -11,7 +10,6 @@ export function AccountsPage({
   busyAccountId,
   localProxy,
   proxyBusy,
-  conversationRestoreBusy,
   resetCredits,
   onAdd,
   onSwitch,
@@ -24,19 +22,11 @@ export function AccountsPage({
   autoSwitchBusyAccountId,
   onAutoSwitchPriorityChange,
   autoSwitchPriorityBusyAccountId,
-  onCustomAutoSwitchPriorityEnabledChange,
   onSaveNote,
   onLoadResetCredits,
   onUseResetCredit,
   resetCreditBusyAccountId,
-  onStartProxy,
-  onStopProxy,
-  onRestoreConversations,
-  onAutoSwitchChange,
-  onAutoDisableUnreachableChange,
-  onImageAccountChange,
   onOpenaiAuthAccountChange,
-  onListenOnAllInterfacesChange,
   privacyMode,
   displayMode,
   tokenUsageRefreshSeconds,
@@ -48,7 +38,6 @@ export function AccountsPage({
   busyAccountId: string | null;
   localProxy: LocalProxyStatus | null;
   proxyBusy: boolean;
-  conversationRestoreBusy: boolean;
   resetCredits: Record<string, ResetCreditsLoadState>;
   onAdd: () => void;
   onSwitch: (id: string) => void;
@@ -61,19 +50,11 @@ export function AccountsPage({
   autoSwitchBusyAccountId: string | null;
   onAutoSwitchPriorityChange: (id: string, priority: number) => Promise<boolean>;
   autoSwitchPriorityBusyAccountId: string | null;
-  onCustomAutoSwitchPriorityEnabledChange: (enabled: boolean) => void;
   onSaveNote: (id: string, note: string, expiresAt: string) => Promise<boolean>;
   onLoadResetCredits: (id: string, force?: boolean) => void;
   onUseResetCredit: (id: string) => void;
   resetCreditBusyAccountId: string | null;
-  onStartProxy: () => void;
-  onStopProxy: () => void;
-  onRestoreConversations: () => void;
-  onAutoSwitchChange: (enabled: boolean) => void;
-  onAutoDisableUnreachableChange: (enabled: boolean) => void;
-  onImageAccountChange: (accountId: string | null) => void;
   onOpenaiAuthAccountChange: (accountId: string | null) => void;
-  onListenOnAllInterfacesChange: (enabled: boolean) => void;
   privacyMode: boolean;
   displayMode: AccountDisplayMode;
   tokenUsageRefreshSeconds: number;
@@ -81,28 +62,9 @@ export function AccountsPage({
   t: Translate;
 }) {
   const hotSwitchEnabled = Boolean(localProxy?.running);
-  const activeAccount = accounts.find((account) => account.active);
-  const proxyStartDisabledReason = activeAccount && !activeAccount.localProxyCompatible
-    ? t("providers.proxy.agentIdentityUnsupported")
-    : undefined;
-  const proxyCard = (
-    <div className="home-proxy-wrap">
-      <LocalProxyCard localProxy={localProxy} accounts={accounts} proxyBusy={proxyBusy}
-        conversationRestoreBusy={conversationRestoreBusy}
-        startDisabledReason={proxyStartDisabledReason}
-        onStartProxy={onStartProxy} onStopProxy={onStopProxy}
-        onRestoreConversations={onRestoreConversations}
-        onAutoSwitchChange={onAutoSwitchChange}
-        onCustomAutoSwitchPriorityEnabledChange={onCustomAutoSwitchPriorityEnabledChange}
-        onAutoDisableUnreachableChange={onAutoDisableUnreachableChange}
-        onImageAccountChange={onImageAccountChange}
-        onListenOnAllInterfacesChange={onListenOnAllInterfacesChange} t={t} />
-    </div>
-  );
   if (loading) {
     return (
       <div className="accounts-page">
-        {proxyCard}
         <div className="loading-state"><RefreshCw className="spin" />{t("accounts.loading")}</div>
       </div>
     );
@@ -110,7 +72,6 @@ export function AccountsPage({
   if (!accounts.length) {
     return (
       <div className="accounts-page">
-        {proxyCard}
         <div className="empty-state">
           <div><LogIn size={28} /></div><h2>{t("accounts.empty.title")}</h2>
           <p>{t("accounts.empty.description")}</p>
@@ -121,7 +82,6 @@ export function AccountsPage({
   }
   return (
     <div className="accounts-page">
-      {proxyCard}
       <AccountTable accounts={accounts} busyAccountId={busyAccountId}
         onSwitch={onSwitch} onRefresh={onRefresh} onDelete={onDelete}
         onDeleteMany={onDeleteMany} onEnableMany={onEnableMany} onDisableMany={onDisableMany}

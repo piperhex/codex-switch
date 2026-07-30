@@ -5,7 +5,6 @@ import {
   loadProviders,
   queryProviderBalance,
   removeProvider,
-  restoreNonProxyConversations,
   saveProviderProfile,
   setLocalProxyAutoDisableUnreachable,
   setLocalProxyCustomPriority,
@@ -95,7 +94,6 @@ export function useProviderManager(
   const [busyProviderId, setBusyProviderId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [proxyBusy, setProxyBusy] = useState(false);
-  const [conversationRestoreBusy, setConversationRestoreBusy] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -227,20 +225,6 @@ export function useProviderManager(
     }
   }, [load, notify, t]);
 
-  const restoreConversations = useCallback(async () => {
-    setConversationRestoreBusy(true);
-    try {
-      const result = await restoreNonProxyConversations();
-      notify(t(result.conversationsUpdated > 0
-        ? "toast.nonProxyConversationsRestored"
-        : "toast.nonProxyConversationsAlreadyOfficial", { count: result.conversationsUpdated }));
-    } catch (error) {
-      notify(providerErrorMessage(error, t));
-    } finally {
-      setConversationRestoreBusy(false);
-    }
-  }, [notify, t]);
-
   const setProxyAutoSwitch = useCallback(async (enabled: boolean) => {
     setProxyBusy(true);
     try {
@@ -328,7 +312,6 @@ export function useProviderManager(
     busyProviderId,
     saving,
     proxyBusy,
-    conversationRestoreBusy,
     activeProvider: providers.find((provider) => provider.active) ?? null,
     saveProvider,
     switchProvider,
@@ -337,7 +320,6 @@ export function useProviderManager(
     deleteProvider,
     startProxy,
     stopProxy,
-    restoreConversations,
     setProxyAutoSwitch,
     setProxyAutoDisableUnreachable,
     setProxyCustomPriority,

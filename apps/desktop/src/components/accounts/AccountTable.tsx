@@ -481,6 +481,10 @@ export function AccountTable({
     });
     return totals;
   }, [accountTokenUsage, accounts]);
+  const todayTokenTotal = useMemo(
+    () => accountTokenUsage.reduce((total, usage) => total + usage.totalTokens, 0),
+    [accountTokenUsage],
+  );
   const orderedAccounts = useMemo(() => [...accounts].sort(
     (left, right) => Number(needsAccountAttention(left, hotSwitchEnabled))
       - Number(needsAccountAttention(right, hotSwitchEnabled)),
@@ -1015,6 +1019,19 @@ export function AccountTable({
               </span>
               <Signal size={16} strokeWidth={2.5} aria-hidden="true" />
               <strong>{formatAverageConversationLatency(proxySessionLatency)}</strong>
+            </span>
+          </Tooltip>
+          <Tooltip title={hotSwitchEnabled ? undefined : t("table.tokenTotalsProxyOnly")}>
+            <span
+              className="today-token-usage-summary"
+              aria-label={`${t("table.todayTokenUsageLabel")}: ${
+                hotSwitchEnabled ? formatCompactTokenCount(todayTokenTotal, language) : "--"
+              }`}
+            >
+              {t("table.todayTokenUsageLabel")}{language === "zh" ? "：" : ": "}
+              <strong>
+                {hotSwitchEnabled ? formatCompactTokenCount(todayTokenTotal, language) : "--"}
+              </strong>
             </span>
           </Tooltip>
         </div>

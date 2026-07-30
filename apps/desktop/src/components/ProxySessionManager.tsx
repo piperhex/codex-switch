@@ -19,6 +19,7 @@ import type { ProxySession, ProxySessionRequest } from "../types";
 
 interface ProxySessionManagerProps {
   t: Translate;
+  triggerClassName?: string;
 }
 
 type ActivityFilter = "active" | "idle";
@@ -226,7 +227,7 @@ function RequestTokenUsage({ request, t }: { request: ProxySessionRequest; t: Tr
   );
 }
 
-export function ProxySessionManager({ t }: ProxySessionManagerProps) {
+export function ProxySessionManager({ t, triggerClassName }: ProxySessionManagerProps) {
   const [open, setOpen] = useState(false);
   const [sessions, setSessions] = useState<ProxySession[]>([]);
   const [loading, setLoading] = useState(false);
@@ -604,7 +605,8 @@ export function ProxySessionManager({ t }: ProxySessionManagerProps) {
 
   return (
     <>
-      <Button size="small" icon={<Cable size={14} />} onClick={() => setOpen(true)}>
+      <Button className={triggerClassName} size="small" icon={<Cable size={14} />}
+        onClick={() => setOpen(true)}>
         {t("providers.proxy.sessions")}
       </Button>
       <Modal

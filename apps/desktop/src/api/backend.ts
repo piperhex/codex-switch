@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { emit, listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { open, save } from "@tauri-apps/plugin-dialog";
-import { relaunch } from "@tauri-apps/plugin-process";
+import { exit as exitApp, relaunch } from "@tauri-apps/plugin-process";
 import { check, type DownloadEvent, type Update } from "@tauri-apps/plugin-updater";
 import { DEMO_ACCOUNTS, DEMO_INFO } from "../demo";
 import { BUILT_IN_DREAM_SKIN_THEMES } from "../dreamSkinBuiltIns";
@@ -46,6 +46,14 @@ import type {
 import { DEFAULT_THEME_COLOR, normalizeThemeColor } from "../utils/theme";
 
 export const isDesktopApp = "__TAURI_INTERNALS__" in window;
+
+export async function restartApplication(): Promise<void> {
+  if (isDesktopApp) await relaunch();
+}
+
+export async function quitApplication(): Promise<void> {
+  if (isDesktopApp) await exitApp(0);
+}
 export const DEFAULT_CLOUD_BASE_URL = "https://codex.onepiper.cloud";
 const RELEASES_URL = "https://github.com/piperhex/codex-switch/releases/latest";
 let pendingAppUpdate: Update | null = null;
@@ -1624,42 +1632,6 @@ export function subscribeToTokenUsageChanges(onChange: () => void): () => void {
 export function subscribeToCloudSessionExpired(onExpired: () => void): () => void {
   if (!isDesktopApp) return () => undefined;
   const subscription = listen("cloud-session-expired", onExpired);
-  return () => void subscription.then((unlisten) => unlisten());
-}
-
-export type SystemMenuAction =
-  | "add-account"
-  | "import-archive"
-  | "export-archive"
-  | "open-codex-home"
-  | "open-account-store"
-  | "accounts"
-  | "providers"
-  | "token-usage"
-  | "dream-skin"
-  | "skills"
-  | "settings"
-  | "refresh-all"
-  | "refresh-reset-credits"
-  | "open-token-window"
-  | "start-chatgpt"
-  | "restart-chatgpt"
-  | "export-logs"
-  | "cloud-account"
-  | "cloud-sync"
-  | "cloud-logout"
-  | "notifications"
-  | "help"
-  | "check-update"
-  | "feedback"
-  | "repository"
-  | "about";
-
-export function subscribeToSystemMenuActions(
-  onAction: (action: SystemMenuAction) => void,
-): () => void {
-  if (!isDesktopApp) return () => undefined;
-  const subscription = listen<SystemMenuAction>("system-menu-action", ({ payload }) => onAction(payload));
   return () => void subscription.then((unlisten) => unlisten());
 }
 

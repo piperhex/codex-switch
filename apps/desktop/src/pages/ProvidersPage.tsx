@@ -3,11 +3,9 @@ import { Button, Input, Popconfirm, Segmented, Select, Space, Switch, Table, Tag
 import type { ColumnsType } from "antd/es/table";
 import { Check, Pencil, Plus, RefreshCw, RotateCcw, Save, Server, Trash2, WalletCards, X } from "lucide-react";
 import { queryProviderBalance, subscribeToProviderBalance } from "../api/backend";
-import { LocalProxyCard } from "../components/LocalProxyCard";
 import type { AccountDisplayMode } from "../hooks/useAccountDisplayMode";
 import type { Translate } from "../i18n";
 import type {
-  Account,
   AppInfo,
   LocalProxyStatus,
   Provider,
@@ -19,27 +17,16 @@ import type {
 
 interface ProvidersPageProps {
   providers: Provider[];
-  accounts: Account[];
   loading: boolean;
   busyProviderId: string | null;
   saving: boolean;
   localProxy: LocalProxyStatus | null;
-  proxyBusy: boolean;
-  conversationRestoreBusy: boolean;
   info: AppInfo | null;
   onSave: (provider: ProviderInput) => Promise<Provider | null>;
   onSwitch: (id: string) => void;
   onSwitchModel: (id: string, model: string) => void;
   onModelControlChange: (id: string, controlledByCodex: boolean) => void;
   onDelete: (id: string) => void;
-  onStartProxy: () => void;
-  onStopProxy: () => void;
-  onRestoreConversations: () => void;
-  onAutoSwitchChange: (enabled: boolean) => void;
-  onCustomAutoSwitchPriorityEnabledChange: (enabled: boolean) => void;
-  onAutoDisableUnreachableChange: (enabled: boolean) => void;
-  onImageAccountChange: (accountId: string | null) => void;
-  onListenOnAllInterfacesChange: (enabled: boolean) => void;
   displayMode: AccountDisplayMode;
   t: Translate;
 }
@@ -602,27 +589,16 @@ function ProviderModelControlCell({
 
 export function ProvidersPage({
   providers,
-  accounts,
   loading,
   busyProviderId,
   saving,
   localProxy,
-  proxyBusy,
-  conversationRestoreBusy,
   info,
   onSave,
   onSwitch,
   onSwitchModel,
   onModelControlChange,
   onDelete,
-  onStartProxy,
-  onStopProxy,
-  onRestoreConversations,
-  onAutoSwitchChange,
-  onCustomAutoSwitchPriorityEnabledChange,
-  onAutoDisableUnreachableChange,
-  onImageAccountChange,
-  onListenOnAllInterfacesChange,
   displayMode,
   t,
 }: ProvidersPageProps) {
@@ -729,16 +705,6 @@ export function ProvidersPage({
 
   return (
     <div className="provider-page">
-      <LocalProxyCard localProxy={localProxy} accounts={accounts} proxyBusy={proxyBusy}
-        conversationRestoreBusy={conversationRestoreBusy}
-        onStartProxy={onStartProxy} onStopProxy={onStopProxy}
-        onRestoreConversations={onRestoreConversations}
-        onAutoSwitchChange={onAutoSwitchChange}
-        onCustomAutoSwitchPriorityEnabledChange={onCustomAutoSwitchPriorityEnabledChange}
-        onAutoDisableUnreachableChange={onAutoDisableUnreachableChange}
-        onImageAccountChange={onImageAccountChange}
-        onListenOnAllInterfacesChange={onListenOnAllInterfacesChange} t={t} />
-
       <div className="provider-toolbar">
         <div>
           <strong>{t("providers.section.title")}</strong>

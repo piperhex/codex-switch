@@ -1,10 +1,11 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { ConfigProvider, Dropdown, Modal, Popover, Tooltip, theme as antdTheme } from "antd";
+import { ConfigProvider, Dropdown, Modal, Popconfirm, Popover, Switch, Tooltip, theme as antdTheme, type MenuProps } from "antd";
 import enUS from "antd/locale/en_US";
 import zhCN from "antd/locale/zh_CN";
-import { Archive, BarChart3, Bell, CalendarClock, Check, CircleHelp, Cloud, Download, Github, LogIn, LogOut, Megaphone, MessageSquareText, PackageOpen, Palette, Play, Plus, RefreshCw, RotateCcw, Server, Settings, ShieldCheck, Upload, UploadCloud, UserRound } from "lucide-react";
+import { Archive, BarChart3, Bell, CalendarClock, Check, ChevronDown, CircleHelp, Cloud, Copy, Download, Github, LogIn, LogOut, Megaphone, MessageSquareText, Minus, PackageOpen, Palette, Play, Plus, RefreshCw, RotateCcw, Search, Server, Settings, ShieldCheck, Shuffle, Square, Upload, UploadCloud, UserRound, X } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { checkForUpdate, chooseAndExportDiagnosticLogs, consumeResetCredit, DEFAULT_CLOUD_BASE_URL, downloadAvailableUpdate, fetchCloudAnnouncement, fetchCloudFaqs, fetchCloudNotifications, installDownloadedUpdate, isDesktopApp, launchChatGpt, openManagedFolder, queryProviderBalance, reportAnnouncementClick, reportBaseUrlChange, reportDeviceActivity, reportFirstInstallation, restartChatGpt, showTokenUsageWindow, submitFeedback, subscribeToCloudSessionExpired, subscribeToSystemMenuActions, type SystemMenuAction } from "./api/backend";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { checkForUpdate, chooseAndExportDiagnosticLogs, consumeResetCredit, DEFAULT_CLOUD_BASE_URL, downloadAvailableUpdate, fetchCloudAnnouncement, fetchCloudFaqs, fetchCloudNotifications, installDownloadedUpdate, isDesktopApp, launchChatGpt, openManagedFolder, queryProviderBalance, quitApplication, reportAnnouncementClick, reportBaseUrlChange, reportDeviceActivity, reportFirstInstallation, restartApplication, restartChatGpt, showTokenUsageWindow, submitFeedback, subscribeToCloudSessionExpired } from "./api/backend";
 import { AboutModal } from "./components/modals/AboutModal";
 import { HelpModal, type HelpVersionState } from "./components/modals/HelpModal";
 import { FeedbackModal } from "./components/modals/FeedbackModal";
@@ -16,6 +17,8 @@ import { CloudLoginModal } from "./components/modals/CloudLoginModal";
 import { CloudAccountModal } from "./components/modals/CloudAccountModal";
 import { LoginModal } from "./components/modals/LoginModal";
 import { UpdateModal } from "./components/modals/UpdateModal";
+import { MenuSearchModal, type MenuSearchItem } from "./components/MenuSearchModal";
+import { ProxySessionManager } from "./components/ProxySessionManager";
 import { useAccountManager } from "./hooks/useAccountManager";
 import { useAccountAutoRefresh, useAutoRefresh } from "./hooks/useAutoRefresh";
 import { useAccountDisplayMode } from "./hooks/useAccountDisplayMode";
@@ -43,11 +46,42 @@ const LAST_NOTIFICATION_SEEN_KEY = "codex-switch:last-notification-seen-at";
 const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 const REPOSITORY_URL = "https://github.com/piperhex/codex-switch";
 const APP_LOGO_URL = new URL("../src-tauri/icons/128x128.png", import.meta.url).href;
+const CUSTOM_TITLEBAR_ENABLED = isDesktopApp && navigator.userAgent.includes("Windows");
 const MemoAccountsPage = memo(AccountsPage);
 const MemoDreamSkinPage = memo(DreamSkinPage);
 const MemoProvidersPage = memo(ProvidersPage);
 const MemoSettingsPage = memo(SettingsPage);
 const MemoSkillsMarketPage = memo(SkillsMarketPage);
+
+type SystemMenuAction =
+  | "add-account"
+  | "import-archive"
+  | "export-archive"
+  | "open-codex-home"
+  | "open-account-store"
+  | "restart-app"
+  | "quit-app"
+  | "accounts"
+  | "providers"
+  | "token-usage"
+  | "dream-skin"
+  | "skills"
+  | "settings"
+  | "refresh-all"
+  | "refresh-reset-credits"
+  | "open-token-window"
+  | "start-chatgpt"
+  | "restart-chatgpt"
+  | "export-logs"
+  | "cloud-account"
+  | "cloud-sync"
+  | "cloud-logout"
+  | "notifications"
+  | "help"
+  | "check-update"
+  | "feedback"
+  | "repository"
+  | "about";
 
 function storedRefreshAllTime() {
   const value = window.localStorage.getItem(LAST_REFRESH_ALL_KEY);
@@ -81,6 +115,7 @@ function DashboardApp() {
   const [showCloudAccount, setShowCloudAccount] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [showMenuSearch, setShowMenuSearch] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   const [helpVersionState, setHelpVersionState] = useState<HelpVersionState>({ status: "checking" });
   const [availableUpdate, setAvailableUpdate] = useState<UpdateInfo | null>(null);
@@ -115,7 +150,6 @@ function DashboardApp() {
   const installAfterDownloadRequestedRef = useRef(false);
   const cloudSessionPromptedRef = useRef(false);
   const providerBalanceRefreshCountRef = useRef(0);
-  const systemMenuActionHandlerRef = useRef<(action: SystemMenuAction) => void>(() => undefined);
   const { message: toast, notify } = useToast();
   const { language, setLanguage, t } = useLanguage();
   const cloud = useCloudAuth(notify, t);
@@ -135,6 +169,34 @@ function DashboardApp() {
   useEffect(() => {
     if (cloud.state.sessionExpired) promptCloudRelogin(false);
   }, [cloud.state.sessionExpired, promptCloudRelogin]);
+  useEffect(() => {
+    const shouldKeepCopyBehavior = (target: EventTarget | null) => {
+      const element = target instanceof HTMLElement ? target : null;
+      return Boolean(
+        element?.closest("input, textarea, select, [contenteditable='true']")
+        || window.getSelection()?.toString(),
+      );
+    };
+    const openMenuSearch = (event: KeyboardEvent) => {
+      if ((!event.ctrlKey && !event.metaKey) || event.altKey || event.shiftKey || event.key.toLocaleLowerCase() !== "c") {
+        return;
+      }
+      if (shouldKeepCopyBehavior(event.target)) return;
+      event.preventDefault();
+      setShowMenuSearch(true);
+    };
+    const openMenuSearchFromCopy = (event: ClipboardEvent) => {
+      if (shouldKeepCopyBehavior(event.target)) return;
+      event.preventDefault();
+      setShowMenuSearch(true);
+    };
+    window.addEventListener("keydown", openMenuSearch);
+    window.addEventListener("copy", openMenuSearchFromCopy);
+    return () => {
+      window.removeEventListener("keydown", openMenuSearch);
+      window.removeEventListener("copy", openMenuSearchFromCopy);
+    };
+  }, []);
   const accountCloudSync = useMemo(() => ({
     pushAll: cloud.pushQuietly,
     pushAccount: cloud.pushAccountQuietly,
@@ -628,7 +690,7 @@ function DashboardApp() {
     setShowHelp(false);
     setShowUpdatePrompt(true);
   }, []);
-  systemMenuActionHandlerRef.current = (action) => {
+  const handleSystemMenuAction = (action: SystemMenuAction) => {
     switch (action) {
       case "add-account":
         openLogin();
@@ -644,6 +706,12 @@ function DashboardApp() {
         break;
       case "open-account-store":
         openAccountStore();
+        break;
+      case "restart-app":
+        void restartApplication();
+        break;
+      case "quit-app":
+        void quitApplication();
         break;
       case "accounts":
         setPage("accounts");
@@ -716,10 +784,6 @@ function DashboardApp() {
         break;
     }
   };
-  useEffect(
-    () => subscribeToSystemMenuActions((action) => systemMenuActionHandlerRef.current(action)),
-    [],
-  );
 
   const localizedAnnouncementContent = announcement
     ? (language === "zh" ? announcement.contentZh : announcement.contentEn)?.trim()
@@ -902,13 +966,357 @@ function DashboardApp() {
       <small className="last-auto-refresh">{t("actions.lastUpdated", { time: formatRefreshTime(lastRefreshAllAt, language) })}</small>
     </div>
   );
+  const fileMenuItems: MenuProps["items"] = [
+    { key: "add-account", label: t("actions.addAccount") },
+    { type: "divider" },
+    { key: "import-archive", label: t("actions.importArchive") },
+    { key: "export-archive", label: t("actions.exportArchive") },
+    { type: "divider" },
+    { key: "open-codex-home", label: t("windowMenu.openCodexHome") },
+    { key: "open-account-store", label: t("windowMenu.openAccountStore") },
+    { type: "divider" },
+    { key: "restart-app", label: t("windowMenu.restartApp") },
+    { key: "quit-app", label: t("windowMenu.quit") },
+  ];
+  const navigateMenuItems: MenuProps["items"] = [
+    { key: "accounts", label: t("nav.accounts") },
+    { key: "providers", label: t("nav.providers") },
+    { key: "token-usage", label: t("nav.tokenUsage") },
+    { type: "divider" },
+    { key: "dream-skin", label: t("nav.dreamSkin") },
+    { key: "skills", label: t("nav.skills") },
+    { type: "divider" },
+    { key: "settings", label: t("nav.settings") },
+  ];
+  const toolsMenuItems: MenuProps["items"] = [
+    { key: "refresh-all", label: t("actions.refreshAll") },
+    { key: "refresh-reset-credits", label: t("actions.refreshResetCredits") },
+    { key: "open-token-window", label: t("windowMenu.openTokenWindow") },
+    { type: "divider" },
+    { key: "start-chatgpt", label: t("actions.startChatGpt") },
+    { key: "restart-chatgpt", label: t("actions.restartChatGpt") },
+    { type: "divider" },
+    { key: "export-logs", label: t("settings.logs.export") },
+  ];
+  const cloudMenuItems: MenuProps["items"] = [
+    {
+      key: "cloud-account",
+      label: cloud.state.authenticated ? t("cloud.accountDetails") : t("cloud.login"),
+    },
+    { key: "cloud-sync", label: t("cloud.sync") },
+    { key: "cloud-logout", label: t("cloud.logout"), disabled: !cloud.state.authenticated },
+  ];
+  const helpMenuItems: MenuProps["items"] = [
+    { key: "notifications", label: t("notification.title") },
+    { key: "help", label: t("help.open") },
+    { key: "check-update", label: t("update.check") },
+    { key: "feedback", label: t("feedback.title") },
+    { type: "divider" },
+    { key: "repository", label: t("help.github") },
+    { key: "about", label: t("about.open") },
+  ];
+  const menuSearchItems: MenuSearchItem[] = [
+    { id: "add-account", label: t("actions.addAccount"), group: t("windowMenu.file") },
+    { id: "import-archive", label: t("actions.importArchive"), group: t("windowMenu.file") },
+    { id: "export-archive", label: t("actions.exportArchive"), group: t("windowMenu.file") },
+    { id: "open-codex-home", label: t("windowMenu.openCodexHome"), group: t("windowMenu.file") },
+    { id: "open-account-store", label: t("windowMenu.openAccountStore"), group: t("windowMenu.file") },
+    { id: "restart-app", label: t("windowMenu.restartApp"), group: t("windowMenu.file") },
+    { id: "quit-app", label: t("windowMenu.quit"), group: t("windowMenu.file") },
+    { id: "accounts", label: t("nav.accounts"), group: t("windowMenu.navigate") },
+    { id: "providers", label: t("nav.providers"), group: t("windowMenu.navigate") },
+    { id: "token-usage", label: t("nav.tokenUsage"), group: t("windowMenu.navigate") },
+    { id: "dream-skin", label: t("nav.dreamSkin"), group: t("windowMenu.navigate") },
+    { id: "skills", label: t("nav.skills"), group: t("windowMenu.navigate") },
+    { id: "settings", label: t("nav.settings"), group: t("windowMenu.navigate") },
+    { id: "refresh-all", label: t("actions.refreshAll"), group: t("windowMenu.tools") },
+    { id: "refresh-reset-credits", label: t("actions.refreshResetCredits"), group: t("windowMenu.tools") },
+    { id: "open-token-window", label: t("windowMenu.openTokenWindow"), group: t("windowMenu.tools") },
+    { id: "start-chatgpt", label: t("actions.startChatGpt"), group: t("windowMenu.tools") },
+    { id: "restart-chatgpt", label: t("actions.restartChatGpt"), group: t("windowMenu.tools") },
+    { id: "export-logs", label: t("settings.logs.export"), group: t("windowMenu.tools") },
+    {
+      id: "cloud-account",
+      label: cloud.state.authenticated ? t("cloud.accountDetails") : t("cloud.login"),
+      group: t("windowMenu.cloud"),
+    },
+    { id: "cloud-sync", label: t("cloud.sync"), group: t("windowMenu.cloud") },
+    {
+      id: "cloud-logout",
+      label: t("cloud.logout"),
+      group: t("windowMenu.cloud"),
+      disabled: !cloud.state.authenticated,
+    },
+    { id: "notifications", label: t("notification.title"), group: t("windowMenu.help") },
+    { id: "help", label: t("help.open"), group: t("windowMenu.help") },
+    { id: "check-update", label: t("update.check"), group: t("windowMenu.help") },
+    { id: "feedback", label: t("feedback.title"), group: t("windowMenu.help") },
+    { id: "repository", label: t("help.github"), group: t("windowMenu.help") },
+    { id: "about", label: t("about.open"), group: t("windowMenu.help") },
+  ];
+  const windowMenu = (label: string, items: MenuProps["items"]) => (
+    <Dropdown
+      trigger={["click"]}
+      placement="bottomLeft"
+      overlayClassName="window-menu-dropdown"
+      menu={{
+        items,
+        onClick: ({ key }) => handleSystemMenuAction(key as SystemMenuAction),
+      }}
+    >
+      <button type="button" className="window-menu-trigger">{label}</button>
+    </Dropdown>
+  );
+  const toggleWindowMaximized = () => {
+    void getCurrentWindow().toggleMaximize().catch((error) => notify(String(error)));
+  };
+  const titlebarProxyBaseUrl = providerManager.localProxy
+    ? `http://${providerManager.localProxy.address}:${providerManager.localProxy.port}/v1`
+    : "--";
+  const copyTitlebarProxyBaseUrl = () => {
+    if (!providerManager.localProxy) return;
+    void navigator.clipboard.writeText(titlebarProxyBaseUrl)
+      .then(() => notify(t("providers.proxy.endpointCopied")))
+      .catch((error) => notify(String(error)));
+  };
+  const titlebarProxyRunning = Boolean(providerManager.localProxy?.running);
+  const titlebarProxyStartDisabledReason = activeAccount && !activeAccount.localProxyCompatible
+    ? t("providers.proxy.agentIdentityUnsupported")
+    : undefined;
+  const titlebarProxyToggleDisabled = providerManager.proxyBusy
+    || (!titlebarProxyRunning && Boolean(titlebarProxyStartDisabledReason));
+  const titlebarProxyStatusSwitch = (
+    <span className="window-titlebar-proxy-status"
+      title={t(titlebarProxyRunning ? "providers.proxy.stop" : "providers.proxy.start")}>
+      <span>{t(titlebarProxyRunning ? "providers.proxy.running" : "providers.proxy.stopped")}</span>
+      <Switch className="window-titlebar-proxy-switch" size="small"
+        checked={titlebarProxyRunning} loading={providerManager.proxyBusy}
+        disabled={titlebarProxyToggleDisabled}
+        aria-label={t(titlebarProxyRunning ? "providers.proxy.stop" : "providers.proxy.start")}
+        onChange={(checked) => {
+          if (!checked && titlebarProxyRunning) void providerManager.stopProxy();
+        }} />
+    </span>
+  );
+  const titlebarProxyStatusControl = titlebarProxyRunning ? titlebarProxyStatusSwitch
+    : titlebarProxyStartDisabledReason ? (
+      <Tooltip title={titlebarProxyStartDisabledReason}>
+        <span className="window-titlebar-proxy-status-wrap">{titlebarProxyStatusSwitch}</span>
+      </Tooltip>
+    ) : (
+      <Popconfirm title={t("providers.proxy.startConfirmTitle")}
+        description={<span className="proxy-start-confirm-description">{t("providers.proxy.description")}</span>}
+        okText={t("providers.proxy.start")} cancelText={t("providers.proxy.cancel")}
+        disabled={providerManager.proxyBusy}
+        onConfirm={() => void providerManager.startProxy()}>
+        {titlebarProxyStatusSwitch}
+      </Popconfirm>
+    );
+  const menuTools = (
+    <div className="menu-tools">
+      <Dropdown
+        trigger={["click"]}
+        menu={{
+          items: cloud.state.authenticated
+            ? [
+              { key: "account", icon: <Cloud size={15} />, label: t("cloud.accountDetails") },
+              { type: "divider" },
+              { key: "logout", icon: <LogOut size={15} />, label: t("cloud.logout"), disabled: cloud.loading },
+              { type: "divider" },
+              { key: "settings", icon: <Settings size={15} />, label: t("nav.settings") },
+              { key: "checkUpdate", icon: <RefreshCw size={15} />, label: t("update.check"), disabled: checkingForUpdate },
+              { key: "feedback", icon: <MessageSquareText size={15} />, label: t("feedback.title") },
+              { key: "repository", icon: <Github size={15} />, label: t("help.github") },
+              { key: "help", icon: <CircleHelp size={15} />, label: t("help.open") },
+              { key: "about", icon: <ShieldCheck size={15} />, label: t("about.open") },
+            ]
+            : [
+              { key: "login", icon: <LogIn size={15} />, label: t("cloud.login"), disabled: cloud.loading },
+              { type: "divider" },
+              { key: "settings", icon: <Settings size={15} />, label: t("nav.settings") },
+              { key: "checkUpdate", icon: <RefreshCw size={15} />, label: t("update.check"), disabled: checkingForUpdate },
+              { key: "feedback", icon: <MessageSquareText size={15} />, label: t("feedback.title") },
+              { key: "repository", icon: <Github size={15} />, label: t("help.github") },
+              { key: "help", icon: <CircleHelp size={15} />, label: t("help.open") },
+              { key: "about", icon: <ShieldCheck size={15} />, label: t("about.open") },
+            ],
+          onClick: ({ key }) => {
+            if (key === "account") openCloudAccount();
+            if (key === "logout") void cloud.logout();
+            if (key === "login") openCloudLogin();
+            if (key === "settings") setPage("settings");
+            if (key === "checkUpdate") void checkForUpdates();
+            if (key === "feedback") setShowFeedback(true);
+            if (key === "help") openHelp();
+            if (key === "about") openAbout();
+            if (key === "repository") openRepository();
+          },
+        }}
+      >
+        <button type="button" className={`cloud-avatar-button${cloud.state.authenticated ? " authenticated" : ""}`}
+          aria-label={cloud.state.authenticated ? t("cloud.accountDetails") : t("cloud.login")}
+          title={cloud.state.authenticated ? (cloud.state.userEmail ?? t("cloud.signedIn")) : t("cloud.login")}
+          disabled={cloud.loading}>
+          <span>{cloud.state.authenticated ? (cloud.state.userEmail ?? t("cloud.signedIn")) : t("cloud.login")}</span>
+          <ChevronDown size={14} />
+        </button>
+      </Dropdown>
+      <Popover
+        placement="bottomRight"
+        trigger="click"
+        open={notificationsOpen}
+        content={notificationPanel}
+        onOpenChange={(open) => {
+          setNotificationsOpen(open);
+          if (!open) return;
+          const seenAt = new Date().toISOString();
+          window.localStorage.setItem(LAST_NOTIFICATION_SEEN_KEY, seenAt);
+          setLastNotificationSeenAt(seenAt);
+        }}
+      >
+        <button type="button" className="notification-button" aria-label={t("notification.title")}>
+          <Bell size={18} />
+          {unreadNotificationCount > 0 && (
+            <span className="notification-unread-badge" aria-hidden="true" />
+          )}
+        </button>
+      </Popover>
+      {availableUpdate && (updateDownloaded || (downloadingUpdate && installAfterDownloadRequested)) && (
+        <Tooltip title={downloadingUpdate
+          ? (updateProgress === null
+            ? t("update.backgroundDownloading")
+            : t("update.downloading", { progress: updateProgress }))
+          : t("update.ready")}>
+          <button type="button" className={`update-ready-button${downloadingUpdate ? " downloading" : ""}`}
+            style={downloadingUpdate
+              ? { "--update-progress": `${updateProgress ?? 0}%` } as CSSProperties
+              : undefined}
+            aria-label={downloadingUpdate ? t("update.backgroundDownloading") : t("update.ready")}
+            onClick={() => setShowUpdatePrompt(true)}>
+            {downloadingUpdate ? <RefreshCw className="spin" size={18} /> : <Download size={18} />}
+            {updateDownloaded && !downloadingUpdate && <span className="update-install-badge" aria-hidden="true" />}
+          </button>
+        </Tooltip>
+      )}
+    </div>
+  );
 
   return (
     <ConfigProvider locale={language === "zh" ? zhCN : enUS} theme={{
       algorithm: antdTheme.compactAlgorithm,
       token: { colorPrimary: themeColor.color, borderRadius: 6, fontFamily: "\"DM Sans\", \"Microsoft YaHei UI\", sans-serif" },
     }}>
-      <div className="app-shell">
+      <div className={`app-shell${CUSTOM_TITLEBAR_ENABLED ? " custom-titlebar-shell" : ""}`}>
+        {CUSTOM_TITLEBAR_ENABLED && (
+          <header className="window-titlebar">
+            <div className="window-titlebar-icon-zone" data-tauri-drag-region>
+              <img src={APP_LOGO_URL} alt="" data-tauri-drag-region />
+            </div>
+            <nav className="window-menu-bar" aria-label={t("windowMenu.aria")}>
+              {windowMenu(t("windowMenu.file"), fileMenuItems)}
+              {windowMenu(t("windowMenu.navigate"), navigateMenuItems)}
+              {windowMenu(t("windowMenu.tools"), toolsMenuItems)}
+              {windowMenu(t("windowMenu.cloud"), cloudMenuItems)}
+              {windowMenu(t("windowMenu.help"), helpMenuItems)}
+              <button
+                type="button"
+                className="window-menu-search-trigger"
+                aria-label={`${t("menuSearch.label")} (${t("menuSearch.shortcut")})`}
+                title={`${t("menuSearch.label")} (${t("menuSearch.shortcut")})`}
+                onClick={() => setShowMenuSearch(true)}
+              >
+                <Search size={14} />
+              </button>
+            </nav>
+            <div className="window-titlebar-drag-region" data-tauri-drag-region />
+            <div className="window-titlebar-tools">
+              <div className={`window-titlebar-proxy${titlebarProxyRunning ? " is-running" : ""}`}>
+                {titlebarProxyRunning && (
+                  <>
+                    <ProxySessionManager t={t} triggerClassName="window-titlebar-proxy-entry" />
+                    <Popover trigger="hover" placement="bottom" mouseEnterDelay={0.08} mouseLeaveDelay={0.12}
+                      content={(
+                        <div className="proxy-auto-switch-menu">
+                          <div className="proxy-auto-switch-menu-item"
+                            title={t("providers.proxy.autoSwitchTooltip")}>
+                            <span>{t("providers.proxy.autoSwitch")}</span>
+                            <Switch size="small"
+                              checked={providerManager.localProxy?.autoSwitchOnQuotaExhaustion ?? false}
+                              disabled={providerManager.proxyBusy}
+                              onChange={(enabled) => void providerManager.setProxyAutoSwitch(enabled)} />
+                          </div>
+                          <div className="proxy-auto-switch-menu-item"
+                            title={t("table.customPriorityTooltip")}>
+                            <span>{t("table.customPriorityEnabled")}</span>
+                            <Switch size="small"
+                              checked={providerManager.localProxy?.customAutoSwitchPriorityEnabled ?? false}
+                              disabled={providerManager.proxyBusy
+                                || !providerManager.localProxy?.autoSwitchOnQuotaExhaustion}
+                              onChange={(enabled) => void providerManager.setProxyCustomPriority(enabled)} />
+                          </div>
+                          <div className="proxy-auto-switch-menu-item"
+                            title={t("providers.proxy.autoDisableUnreachableTooltip")}>
+                            <span>{t("providers.proxy.autoDisableUnreachable")}</span>
+                            <Switch size="small"
+                              checked={providerManager.localProxy?.autoDisableUnreachableAccounts ?? false}
+                              disabled={providerManager.proxyBusy
+                                || !providerManager.localProxy?.autoSwitchOnQuotaExhaustion}
+                              onChange={(enabled) => void providerManager.setProxyAutoDisableUnreachable(enabled)} />
+                          </div>
+                        </div>
+                      )}>
+                      <button type="button"
+                        className={`window-titlebar-proxy-entry window-titlebar-proxy-auto-switch${providerManager.localProxy?.autoSwitchOnQuotaExhaustion ? " active" : ""}`}
+                        aria-label={t("providers.proxy.autoSwitch")}>
+                        <Shuffle size={13} />
+                        <span>{t("providers.proxy.autoSwitch")}</span>
+                        <ChevronDown size={11} />
+                      </button>
+                    </Popover>
+                  </>
+                )}
+                <button type="button" className="window-titlebar-proxy-endpoint"
+                  disabled={!providerManager.localProxy}
+                  aria-label={t("providers.proxy.copyEndpoint")}
+                  title={t("providers.proxy.copyEndpoint")}
+                  onClick={copyTitlebarProxyBaseUrl}>
+                  <span>{t("providers.proxy.baseUrl", { url: titlebarProxyBaseUrl })}</span>
+                  <Copy size={11} aria-hidden="true" />
+                </button>
+                {titlebarProxyStatusControl}
+                {titlebarProxyRunning && (
+                  <Tooltip title="0.0.0.0">
+                    <span className="window-titlebar-proxy-lan">
+                      <span>{t("providers.proxy.listenLan")}</span>
+                      <Switch className="window-titlebar-proxy-lan-switch" size="small"
+                        checked={providerManager.localProxy?.listenOnAllInterfaces ?? false}
+                        loading={providerManager.proxyBusy}
+                        disabled={providerManager.proxyBusy}
+                        aria-label={t("providers.proxy.listenLan")}
+                        onChange={(enabled) => void providerManager.setProxyListenOnAllInterfaces(enabled)} />
+                    </span>
+                  </Tooltip>
+                )}
+              </div>
+              {menuTools}
+            </div>
+            <div className="window-controls">
+              <button type="button" className="window-control" aria-label={t("windowMenu.minimize")}
+                onClick={() => void getCurrentWindow().minimize().catch((error) => notify(String(error)))}>
+                <Minus size={16} />
+              </button>
+              <button type="button" className="window-control" aria-label={t("windowMenu.maximize")}
+                onClick={toggleWindowMaximized}>
+                <Square size={13} />
+              </button>
+              <button type="button" className="window-control window-control-close"
+                aria-label={t("windowMenu.close")}
+                onClick={() => void getCurrentWindow().close().catch((error) => notify(String(error)))}>
+                <X size={17} />
+              </button>
+            </div>
+          </header>
+        )}
         <header className="app-menu">
           <button type="button" className="brand" onClick={openRepository}
             aria-label={t("help.github")} title={t("help.github")}>
@@ -948,93 +1356,7 @@ function DashboardApp() {
             <button className={page === "skills" ? "selected" : ""} onClick={() => setPage("skills")}>
               <PackageOpen size={19} />{t("nav.skills")}</button>
           </nav>
-          <div className="menu-tools">
-            <Dropdown
-                trigger={["click"]}
-                menu={{
-                  items: cloud.state.authenticated
-                    ? [
-                      { key: "account", icon: <Cloud size={15} />, label: t("cloud.accountDetails") },
-                      { type: "divider" },
-                      { key: "logout", icon: <LogOut size={15} />, label: t("cloud.logout"), disabled: cloud.loading },
-                      { type: "divider" },
-                      { key: "settings", icon: <Settings size={15} />, label: t("nav.settings") },
-                      { key: "checkUpdate", icon: <RefreshCw size={15} />, label: t("update.check"), disabled: checkingForUpdate },
-                      { key: "feedback", icon: <MessageSquareText size={15} />, label: t("feedback.title") },
-                      { key: "repository", icon: <Github size={15} />, label: t("help.github") },
-                      { key: "help", icon: <CircleHelp size={15} />, label: t("help.open") },
-                      { key: "about", icon: <ShieldCheck size={15} />, label: t("about.open") },
-                    ]
-                    : [
-                      { key: "login", icon: <LogIn size={15} />, label: t("cloud.login"), disabled: cloud.loading },
-                      { type: "divider" },
-                      { key: "settings", icon: <Settings size={15} />, label: t("nav.settings") },
-                      { key: "checkUpdate", icon: <RefreshCw size={15} />, label: t("update.check"), disabled: checkingForUpdate },
-                      { key: "feedback", icon: <MessageSquareText size={15} />, label: t("feedback.title") },
-                      { key: "repository", icon: <Github size={15} />, label: t("help.github") },
-                      { key: "help", icon: <CircleHelp size={15} />, label: t("help.open") },
-                      { key: "about", icon: <ShieldCheck size={15} />, label: t("about.open") },
-                    ],
-                  onClick: ({ key }) => {
-                    if (key === "account") openCloudAccount();
-                    if (key === "logout") void cloud.logout();
-                    if (key === "login") openCloudLogin();
-                    if (key === "settings") setPage("settings");
-                    if (key === "checkUpdate") void checkForUpdates();
-                    if (key === "feedback") setShowFeedback(true);
-                    if (key === "help") openHelp();
-                    if (key === "about") openAbout();
-                    if (key === "repository") openRepository();
-                  },
-                }}
-              >
-                <button type="button" className={`cloud-avatar-button${cloud.state.authenticated ? " authenticated" : ""}`}
-                  aria-label={cloud.state.authenticated ? t("cloud.accountDetails") : t("cloud.login")}
-                  disabled={cloud.loading}>
-                  {cloud.state.authenticated
-                    ? <span>{(cloud.state.userEmail ?? t("cloud.signedIn")).slice(0, 4).toUpperCase()}</span>
-                    : <UserRound size={18} />}
-                </button>
-            </Dropdown>
-            <Popover
-              placement="bottomRight"
-              trigger="click"
-              open={notificationsOpen}
-              content={notificationPanel}
-              onOpenChange={(open) => {
-                setNotificationsOpen(open);
-                if (!open) return;
-                const seenAt = new Date().toISOString();
-                window.localStorage.setItem(LAST_NOTIFICATION_SEEN_KEY, seenAt);
-                setLastNotificationSeenAt(seenAt);
-              }}
-            >
-              <button type="button" className="notification-button" aria-label={t("notification.title")}>
-                <Bell size={18} />
-                {unreadNotificationCount > 0 && (
-                  <span className="notification-unread-badge">
-                    {unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}
-                  </span>
-                )}
-              </button>
-            </Popover>
-            {availableUpdate && (updateDownloaded || (downloadingUpdate && installAfterDownloadRequested)) && (
-              <Tooltip title={downloadingUpdate
-                ? (updateProgress === null
-                  ? t("update.backgroundDownloading")
-                  : t("update.downloading", { progress: updateProgress }))
-                : t("update.ready")}>
-                <button type="button" className={`update-ready-button${downloadingUpdate ? " downloading" : ""}`}
-                  style={downloadingUpdate
-                    ? { "--update-progress": `${updateProgress ?? 0}%` } as CSSProperties
-                    : undefined}
-                  aria-label={downloadingUpdate ? t("update.backgroundDownloading") : t("update.ready")}
-                  onClick={() => setShowUpdatePrompt(true)}>
-                  {downloadingUpdate ? <RefreshCw className="spin" size={18} /> : <Download size={18} />}
-                </button>
-              </Tooltip>
-            )}
-          </div>
+          {!CUSTOM_TITLEBAR_ENABLED && menuTools}
         </header>
 
         <main className={page === "accounts" ? "accounts-main" : page === "tokens" ? "tokens-main" : page === "dreamSkin" ? "dream-skin-main" : undefined}>
@@ -1144,21 +1466,13 @@ function DashboardApp() {
               onLogin={openCloudLogin} notify={notify} t={t} />
           </section>
           <section className="page-panel" hidden={page !== "providers"}>
-            <MemoProvidersPage providers={providerManager.providers} accounts={manager.accounts}
+            <MemoProvidersPage providers={providerManager.providers}
               loading={providerManager.loading}
               busyProviderId={providerManager.busyProviderId} saving={providerManager.saving}
-              localProxy={providerManager.localProxy} proxyBusy={providerManager.proxyBusy}
-              conversationRestoreBusy={providerManager.conversationRestoreBusy}
+              localProxy={providerManager.localProxy}
               info={manager.info} onSave={providerManager.saveProvider}
               onSwitch={switchProvider} onSwitchModel={switchProviderModel}
               onModelControlChange={setProviderModelControl} onDelete={deleteProvider}
-              onStartProxy={providerManager.startProxy} onStopProxy={providerManager.stopProxy}
-              onRestoreConversations={providerManager.restoreConversations}
-              onAutoSwitchChange={providerManager.setProxyAutoSwitch}
-              onCustomAutoSwitchPriorityEnabledChange={providerManager.setProxyCustomPriority}
-              onAutoDisableUnreachableChange={providerManager.setProxyAutoDisableUnreachable}
-              onImageAccountChange={providerManager.setProxyImageAccount}
-              onListenOnAllInterfacesChange={providerManager.setProxyListenOnAllInterfaces}
               displayMode={accountDisplayMode.displayMode} t={t} />
           </section>
           <section className="page-panel token-dashboard-page" hidden={page !== "tokens"}>
@@ -1172,7 +1486,6 @@ function DashboardApp() {
             <MemoAccountsPage accounts={manager.accounts} loading={manager.loading}
               busyAccountId={manager.busyAccountId} onAdd={openLogin}
               localProxy={providerManager.localProxy} proxyBusy={providerManager.proxyBusy}
-              conversationRestoreBusy={providerManager.conversationRestoreBusy}
               onSwitch={switchAccount}
               onRefresh={refreshUsage}
               onDelete={deleteAccount}
@@ -1183,19 +1496,12 @@ function DashboardApp() {
               autoSwitchBusyAccountId={manager.autoSwitchBusyAccountId}
               onAutoSwitchPriorityChange={manager.setAutoSwitchPriority}
               autoSwitchPriorityBusyAccountId={manager.autoSwitchPriorityBusyAccountId}
-              onCustomAutoSwitchPriorityEnabledChange={providerManager.setProxyCustomPriority}
               onSaveNote={saveAccountNote}
               resetCredits={resetCredits.states}
               onLoadResetCredits={loadResetCredits}
               onUseResetCredit={(id) => void useResetCredit(id)}
               resetCreditBusyAccountId={resetCreditBusyAccountId}
-              onStartProxy={providerManager.startProxy} onStopProxy={providerManager.stopProxy}
-              onRestoreConversations={providerManager.restoreConversations}
-              onAutoSwitchChange={providerManager.setProxyAutoSwitch}
-              onAutoDisableUnreachableChange={providerManager.setProxyAutoDisableUnreachable}
-              onImageAccountChange={providerManager.setProxyImageAccount}
               onOpenaiAuthAccountChange={providerManager.setProxyOpenaiAuthAccount}
-              onListenOnAllInterfacesChange={providerManager.setProxyListenOnAllInterfaces}
               privacyMode={privacyMode.enabled}
               displayMode={accountDisplayMode.displayMode}
               tokenUsageRefreshSeconds={tokenUsagePreferences.refreshSeconds}
@@ -1205,6 +1511,11 @@ function DashboardApp() {
 
         {showLogin && <LoginModal onClose={() => setShowLogin(false)} onStart={startLogin}
           onImport={importAccountJson} onImportClipboard={importAccountJsonFromClipboard} t={t} />}
+        {showMenuSearch && <MenuSearchModal items={menuSearchItems} onClose={() => setShowMenuSearch(false)}
+          onSelect={(action) => {
+            setShowMenuSearch(false);
+            handleSystemMenuAction(action as SystemMenuAction);
+          }} t={t} />}
         {showCloudLogin && <CloudLoginModal loading={cloud.loading} onClose={() => {
           setShowCloudLogin(false);
           setCloudSessionExpired(false);

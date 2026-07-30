@@ -1003,7 +1003,7 @@ fn restore_non_proxy_conversations_blocking<R: Runtime>(
     }
 }
 
-fn restore_conversation_metadata_if_present(
+pub(crate) fn restore_conversation_metadata_if_present(
     codex_home: &Path,
 ) -> Result<DirectConversationSyncResult, String> {
     if !has_codex_state_database(codex_home)? {

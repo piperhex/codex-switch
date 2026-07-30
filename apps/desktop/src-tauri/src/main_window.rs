@@ -39,6 +39,9 @@ pub(crate) fn restore_or_set_default<R: Runtime>(app: &App<R>) -> tauri::Result<
         return Ok(());
     };
 
+    #[cfg(target_os = "windows")]
+    window.set_decorations(false)?;
+
     let restored = load(app.handle())
         .and_then(|state| fit_to_available_screens(state, &window.available_monitors().ok()?));
 
