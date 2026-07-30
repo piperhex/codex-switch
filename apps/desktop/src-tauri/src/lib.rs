@@ -16,7 +16,6 @@ mod providers;
 mod remote_control;
 mod skills_market;
 mod storage;
-mod system_menu;
 mod system_proxy;
 mod system_tray;
 
@@ -33,10 +32,8 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .on_menu_event(system_menu::handle_menu_event)
         .setup(|app| {
             storage::migrate_app_settings_for_version(app.handle())?;
-            system_menu::setup(app)?;
             main_window::restore_or_set_default(app)?;
             commands::initialize_local_state(app.handle());
             if let Err(error) = dream_skin::setup(app.handle()) {
