@@ -1,16 +1,30 @@
 # Codex Switch
 
-## 为多 Codex 账户而生的本地桌面管理工具
+## 为多 Codex 账户而生的本地优先工作台
 
-集中管理多个 Codex / ChatGPT 账户，快速切换当前 Codex 身份，并在一个界面中查看各账户的用量周期与重置时间。
+集中管理多个 Codex / ChatGPT 账户，快速切换当前身份，并在桌面端或本机网页中查看用量、Provider、代理会话与 Token 趋势。
 
-**本地优先 · Windows / macOS / Linux · 中文 / English**
+**本地优先 · 桌面端 + 本机网页 · Windows / macOS / Linux · 中文 / English**
 
 [下载最新版本](https://github.com/piperhex/codex-switch/releases/latest) · [查看全部版本](https://github.com/piperhex/codex-switch/releases) · [访问 GitHub 仓库](https://github.com/piperhex/codex-switch)
 
-> Codex Switch 是面向 Codex 多账户用户的桌面工具。它将账户登录、凭据导入、用量查看、身份切换和第三方 Provider 管理集中在一个清晰的工作台中，并可选连接自部署后端与移动端。
+> Codex Switch 将账户登录、凭据导入、用量查看、身份切换、第三方 Provider、本地代理、Skills 市场与一键换肤集中在一个工作台中，并可选连接自部署后端与移动端。
 
 ![Codex Switch 账户管理界面](https://raw.githubusercontent.com/piperhex/codex-switch/master/docs/assets/codex-switch-dashboard.png)
+
+### 第三方 Provider
+
+![Codex Switch 第三方 Provider 界面](https://raw.githubusercontent.com/piperhex/codex-switch/master/docs/assets/codex-switch-providers.png)
+
+### Token 消耗分析
+
+![Codex Switch Token 消耗分析界面](https://raw.githubusercontent.com/piperhex/codex-switch/master/docs/assets/codex-switch-token-usage.png)
+
+### 一键换肤与 Skills 市场
+
+![Codex Switch 一键换肤界面](https://raw.githubusercontent.com/piperhex/codex-switch/master/docs/assets/codex-switch-dream-skin.png)
+
+![Codex Switch Skills 市场](https://raw.githubusercontent.com/piperhex/codex-switch/master/docs/assets/codex-switch-skills.png)
 
 ---
 
@@ -34,7 +48,7 @@ Codex Switch 将这些操作整合到一个本地桌面应用中：添加账户�
 
 ### 用量状态清晰可见
 
-查看账户套餐、主/次用量窗口、剩余比例、重置时间与重置卡信息，也可使用可用的重置卡，无需逐个账户反复确认。
+查看账户套餐与到期时间、主/次用量窗口、剩余比例、重置时间、重置卡和当日 Token；账号表格还可按需要显示或隐藏列。
 
 ### 灵活的自动刷新
 
@@ -42,15 +56,27 @@ Codex Switch 将这些操作整合到一个本地桌面应用中：添加账户�
 
 ### 系统托盘与悬浮球
 
-从系统托盘快速打开面板、切换账户、重启 ChatGPT 或退出程序；启用悬浮球后，无需停下当前工作也能关注用量状态，右键还可打开同一组快捷操作。
+从顶部菜单、入口搜索或系统托盘快速打开功能、切换账户、重启 ChatGPT 或退出程序。悬浮用量组件可选择紧凑圆形或玻璃信息面板样式，并展示额度状态与重置倒计时。
 
 ### Provider、热切换与自动切号
 
-管理兼容 OpenAI Responses 或 Chat Completions 的第三方 Provider、API Key 与模型列表。本地代理运行后可在官方账号和 Provider 间热切换；官方额度耗尽时，还可刷新所有账号、自动切到主用量最低的可用账号并重试一次。
+管理兼容 OpenAI Responses 或 Chat Completions 的第三方 Provider、API Key、模型列表和模型控制策略，并可查询常见中转站余额。本地代理运行后可在官方账号和 Provider 间热切换；官方额度耗尽时，还可刷新所有账号、自动切到主用量最低的可用账号并重试一次。
 
-### 备份、Token 汇总与可选云同步
+### 代理会话与 Token 分析
 
-通过 `.cs` 文件备份和恢复本地账号与 Provider；本地代理可汇总请求返回的 Token 用量并导出结构化诊断（分享前仍应自行检查）。需要跨设备时，可连接自部署后端同步数据，并通过 Android / iOS 伴侣端直接向 Codex 查询用量和重置卡。
+查看代理会话、消息详情、上下文占用与响应延迟；Token 面板提供按周热力图、每日趋势，以及 Token 类型、Provider、模型和账号排行。还可导出结构化诊断，分享前仍应自行检查。
+
+### Skills 市场与一键换肤
+
+从 Skills 市场搜索并安装社区 Skill；登录云端账号后，还可发布或更新自己的版本化 Skill 包。内置 300+ 套 Dream Skin 主题预设，支持一键应用、自定义背景、外观调整和恢复。
+
+### 桌面端与本机网页版
+
+网页版只监听 `127.0.0.1`，既可附加在正在运行的桌面客户端中，也可通过 `--headless --port` 无界面启动。桌面端仍负责托盘、悬浮球和其他系统集成功能。
+
+### 备份与可选云同步
+
+通过 `.cs` 文件备份和恢复本地账号与 Provider。需要跨设备时，可连接自部署后端同步数据；Android / iOS 伴侣端可直接向 Codex 查询用量和重置卡，并切换指定在线 PC 的当前账号。
 
 ### 中英文界面
 
@@ -106,7 +132,7 @@ Codex Switch 采用 Tauri 2 构建。认证令牌和 Provider API Key 由 Rust �
 
 ## 持续迭代，稳定交付
 
-从多平台构建、国际化与账户切换，到 Provider 热切换、额度耗尽自动切号、Token 汇总、云同步、管理后台和移动端，Codex Switch 正在围绕真实的多账户工作流持续演进。
+从多平台构建、国际化与账户切换，到 Provider 热切换、代理会话、Token 分析、Skills 市场、主题库、本机网页版、云同步和移动端，Codex Switch 正在围绕真实的多账户工作流持续演进。
 
 版本通过 GitHub Actions 自动构建并发布，Windows、macOS、Linux、Android 与 iOS 验证构建均可在 Releases 页面获取。你可以随时查看历史版本、发布日期与对应构建产物。
 
@@ -127,6 +153,10 @@ Codex Switch 采用 Tauri 2 构建。认证令牌和 Provider API Key 由 Rust �
 ### 本地代理和自动切号什么时候生效？
 
 本地代理启动后会监听 `127.0.0.1:15722` 并让 Codex 通过它访问当前官方账号或 Provider，因此后续切换通常无需重启。自动切号只在代理运行且当前使用官方账号时生效；命中额度错误后会刷新已保存账号，选择主用量最低且仍有剩余额度的账号，并只重试当前请求一次。
+
+### 如何启动网页版？
+
+在已安装客户端的命令行中运行 `codex-switch.exe --headless --port=18080`，然后访问 `http://127.0.0.1:18080`。如果桌面客户端已经运行，这条命令会为当前实例附加启动网页版；单独无界面运行时不会创建主窗口、托盘或悬浮球。端口只监听本机，`--headless` 必须和 `--port` 一起使用。
 
 ### 切换账户后为什么当前 Codex 会话没有变化？
 
@@ -156,4 +186,4 @@ Codex Switch 采用 Tauri 2 构建。认证令牌和 Provider API Key 由 Rust �
 
 ---
 
-<small>Codex Switch 是采用 Apache License 2.0 的开源项目，以桌面端为完整管理入口，并提供可选的自部署后端和只读移动伴侣端。请遵守相关服务条款，并仅管理你有权使用的账户。</small>
+<small>Codex Switch 是采用 Apache License 2.0 的开源项目，以桌面端为完整管理入口，并提供本机网页版、可选的自部署后端和移动伴侣端。请遵守相关服务条款，并仅管理你有权使用的账户。</small>

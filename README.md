@@ -2,7 +2,7 @@
 
 > For English documentation, please see [README_EN.md](README_EN.md).
 
-Codex Switch 是一款以本地优先为原则的 Tauri 2 桌面应用，用于登录、保存和切换多个 Codex / ChatGPT 账号。它还支持管理第三方模型服务商、可选的本地热切换代理，以及与自建后端同步以供管理后台和移动端使用。
+Codex Switch 是一款以本地优先为原则的 Codex / ChatGPT 多账号工作台。它以 Tauri 2 桌面应用为完整管理入口，也可在本机启动网页版；除账号登录、用量查看和快捷切换外，还集成第三方 Provider、本地热切换代理、Token 分析、Skills 市场、一键换肤，以及可选的自建后端和移动端协同。
 
 [![许可证](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE) [![发布版本](https://img.shields.io/github/v/release/piperhex/codex-switch)](https://github.com/piperhex/codex-switch/releases)
 
@@ -18,23 +18,27 @@ QQ 技术交流群：`1051213898`。
 
 ![Codex Switch 第三方模型服务商界面](docs/assets/codex-switch-providers.png)
 
-### Token 消耗汇总
+### Token 消耗分析
 
-![Codex Switch Token 消耗汇总界面](docs/assets/codex-switch-token-usage.png)
+![Codex Switch Token 消耗分析界面](docs/assets/codex-switch-token-usage.png)
 
-### 设置
+### 一键换肤
 
-![Codex Switch 设置界面](docs/assets/codex-switch-settings.png)
+内置 300+ 套主题预设，并兼容 [Fei-Away/Codex-Dream-Skin](https://github.com/Fei-Away/Codex-Dream-Skin)。
+
+![Codex Switch 一键换肤界面](docs/assets/codex-switch-dream-skin.png)
+
+### Skills 市场
+
+![Codex Switch Skills 市场](docs/assets/codex-switch-skills.png)
 
 ### 悬浮用量球
 
-![Codex Switch 悬浮用量球](docs/assets/codex-switch-floating-usage.png)
-
-### Dream Skin 换肤
-
-Dream Skin 项目仓库：[Fei-Away/Codex-Dream-Skin](https://github.com/Fei-Away/Codex-Dream-Skin)
-
-![Codex Switch Dream Skin 换肤界面](docs/assets/codex-switch-dream-skin.png)
+<p align="center">
+  <img src="docs/assets/codex-switch-floating-usage.png" alt="Codex Switch 紧凑悬浮用量球" width="146">
+  &nbsp;&nbsp;&nbsp;
+  <img src="docs/assets/codex-switch-floating-usage-expanded.png" alt="Codex Switch 玻璃悬浮用量面板" width="345">
+</p>
 
 ## 功能
 
@@ -43,14 +47,20 @@ Dream Skin 项目仓库：[Fei-Away/Codex-Dream-Skin](https://github.com/Fei-Awa
 - 支持导入和管理多个 `auth.json`，包括常见第三方 JSON 导出及多账号 JSON 文件。
 - 原子化切换 `$CODEX_HOME/auth.json`（默认是 `~/.codex/auth.json`）。
 - 通过 `.cs` 备份包导出和恢复本地账号与服务商配置。
-- 展示账号邮箱、套餐、主/次用量窗口和重置卡，并可使用可用重置卡。
+- 展示账号邮箱、套餐与到期时间、主/次用量窗口、重置卡和当日 Token，并支持自定义账号表格列。
 - 支持手动或定时刷新单个账号及全部账号。
 - 可从控制台和托盘执行尽力而为的“重启 ChatGPT”操作。
-- 支持系统托盘快捷切号，以及可选的置顶悬浮用量球。
-- 支持 OpenAI Responses、兼容 Chat Completions 的第三方服务商、多模型，以及直接切换配置或通过本地代理热切换。
-- 记录经本地代理转发请求的 Token 用量，并可导出结构化代理诊断信息。
+- 提供顶部功能菜单、入口搜索和系统托盘快捷操作。
+- 支持可选的置顶悬浮用量球，可切换紧凑圆形或玻璃信息面板样式，并显示用量、重置倒计时和额度状态。
+- 支持 OpenAI Responses、兼容 Chat Completions 的第三方 Provider、多模型、模型控制策略和常见中转站余额查询。
+- 可直接写入配置切换 Provider，也可通过监听 `127.0.0.1:15722` 的本地代理在官方账号与 Provider 间热切换。
+- 记录经本地代理转发请求的 Token 用量；支持查看代理会话、消息与上下文占用、响应延迟，并可导出结构化诊断信息。
+- 提供按周热力图和趋势图，以及 Token 类型、Provider、模型和账号消耗排行。
 - 在官方账号模式下，可在额度耗尽后刷新账号、选择主用量窗口使用率最低的可用账号、切换凭据并重试一次请求。
-- 支持界面语言、主题色、隐私模式和悬浮球偏好的本地设置。
+- 桌面客户端可在运行界面的同时启动仅监听本机的网页版，也支持 `--headless --port` 无界面运行。
+- 内置 Skills 市场，可搜索、安装社区 Skill；登录云端账号后可发布或更新自己的版本化 Skill 包。
+- 内置 300+ 套 Dream Skin 主题预设，支持一键应用、自定义背景、外观调整和恢复。
+- 支持界面语言、主题色、隐私模式、悬浮球、账号刷新和 Token 统计范围等本地设置。
 - 可选同步到自建 NestJS 后端；Expo 移动端读取账号摘要与短期 Codex access token，直接向 Codex 刷新用量和重置卡，并可通过 WebSocket 切换指定 PC 的账号。
 - 账号和服务商密钥仅保存在 Rust 后端，不会暴露给桌面端 React 界面或应用日志。
 
@@ -154,7 +164,7 @@ npm run check
 
 设置页可配置界面语言、主题色、隐私模式、悬浮用量球、全部账号的全局自动刷新、当前账号的独立刷新、云端后端地址、本地数据目录快捷入口，以及代理诊断导出。
 
-已安装的桌面客户端也可以无界面启动网页版服务；该模式不会创建主窗口、托盘或悬浮球，命令行端口只对本次运行生效：
+已安装的桌面客户端可以在桌面界面运行时附加启动仅监听 `127.0.0.1` 的网页版，也可以无界面启动网页版服务。无界面模式不会创建主窗口、托盘或悬浮球，命令行端口只对本次运行生效：
 
 ```powershell
 codex-switch.exe --headless --port=18080

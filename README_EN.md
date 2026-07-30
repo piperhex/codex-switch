@@ -2,7 +2,7 @@
 
 > Chinese is the default documentation language. For the Chinese README, see [README.md](README.md).
 
-Codex Switch is a local-first Tauri 2 desktop application for signing in to, storing, and switching between multiple Codex / ChatGPT accounts. It also manages third-party model providers, offers an optional local hot-switching proxy, and can sync with a self-hosted backend for administration and read-only mobile access.
+Codex Switch is a local-first multi-account workspace for Codex / ChatGPT. Its Tauri 2 desktop app is the full management surface and can also serve a local browser UI. Alongside sign-in, usage monitoring, and account switching, it includes third-party Providers, a hot-switching proxy, token analytics, a Skills Market, one-click themes, and optional self-hosted backend/mobile coordination.
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE) [![Release](https://img.shields.io/github/v/release/piperhex/codex-switch)](https://github.com/piperhex/codex-switch/releases)
 
@@ -16,34 +16,46 @@ Codex Switch is a local-first Tauri 2 desktop application for signing in to, sto
 
 ![Codex Switch providers](docs/assets/codex-switch-providers.png)
 
-### Token usage
+### Token analytics
 
-![Codex Switch token usage](docs/assets/codex-switch-token-usage.png)
+![Codex Switch token analytics](docs/assets/codex-switch-token-usage.png)
 
-### Settings
+### One-click themes
 
-![Codex Switch settings](docs/assets/codex-switch-settings.png)
+Includes 300+ presets and integrates with [Fei-Away/Codex-Dream-Skin](https://github.com/Fei-Away/Codex-Dream-Skin).
 
-### Floating usage bubble
+![Codex Switch one-click themes](docs/assets/codex-switch-dream-skin.png)
 
-![Codex Switch floating usage bubble](docs/assets/codex-switch-floating-usage.png)
+### Skills Market
 
-### Dream Skin
+![Codex Switch Skills Market](docs/assets/codex-switch-skills.png)
 
-Dream Skin repository: [Fei-Away/Codex-Dream-Skin](https://github.com/Fei-Away/Codex-Dream-Skin)
+### Floating usage widgets
 
-![Codex Switch Dream Skin](docs/assets/codex-switch-dream-skin.png)
+<p align="center">
+  <img src="docs/assets/codex-switch-floating-usage.png" alt="Codex Switch compact floating usage widget" width="146">
+  &nbsp;&nbsp;&nbsp;
+  <img src="docs/assets/codex-switch-floating-usage-expanded.png" alt="Codex Switch glass floating usage panel" width="345">
+</p>
 
 ## Features
 
 - Reuses the Codex CLI OAuth 2.0 + PKCE login flow, with both in-app and system-browser login.
 - Imports and manages multiple `auth.json` files, including common third-party JSON exports and multi-account files.
 - Atomically switches `$CODEX_HOME/auth.json` (default: `~/.codex/auth.json`) and supports `.cs` account/provider backups.
-- Displays account plans, usage windows, reset credits, and supports manual or scheduled refreshes.
-- Provides system-tray switching, a floating usage bubble, and a best-effort **Restart ChatGPT** action.
-- Supports OpenAI Responses and Chat Completions-compatible providers, multiple models, direct config switching, and a loopback proxy for hot switching.
-- Records token usage for requests routed through the local proxy and exports structured proxy diagnostics.
+- Displays plan and expiration details, primary/secondary usage windows, reset credits, daily tokens, and configurable account-table columns.
+- Supports manual or scheduled account refreshes, top-menu navigation and search, system-tray switching, and a best-effort **Restart ChatGPT** action.
+- Offers compact and glass-style always-on-top usage widgets with quota, reset, and status details.
+- Supports OpenAI Responses and Chat Completions-compatible Providers, multiple models, model-control policies, and balance queries for common relay platforms.
+- Supports direct config switching or a loopback proxy on `127.0.0.1:15722` for hot switching between official accounts and Providers.
+- Records proxy token usage, displays conversation/message details, context consumption and latency, and exports structured diagnostics.
+- Provides weekly heatmaps and trends plus token-type, Provider, model, and account rankings.
 - Can refresh accounts after quota exhaustion, select an eligible account with the lowest primary-window usage, switch credentials, and retry once.
+- Can serve a browser UI on localhost alongside the desktop app, or run it without desktop UI through `--headless --port`.
+- Includes a Skills Market for searching and installing community Skills; cloud-signed-in users can publish versioned packages and updates.
+- Includes 300+ Dream Skin presets with one-click apply, custom backgrounds, appearance controls, and restore support.
+- Stores local preferences for language, accent color, privacy mode, usage widgets, account refresh, and token analytics.
+- Optionally syncs with a self-hosted NestJS backend. The Expo mobile app can refresh official usage/reset credits and switch the active account on a selected online PC.
 - Keeps account credentials and Provider secrets in the Rust backend, out of the React UI and application logs.
 
 > [!IMPORTANT]
@@ -84,7 +96,7 @@ npm run build:app
 npm run check
 ```
 
-The browser preview uses demo data and never accesses real credentials. The mobile companion requires a deployed cloud backend and only displays synchronized, redacted account summaries. See [the mobile README](apps/native/README.md) and [the admin backend README](apps/admin/README.md).
+The development browser preview uses demo data and never accesses real credentials. The mobile companion requires a deployed cloud backend; it receives redacted summaries plus a short-lived Codex access token for direct usage/reset-credit refreshes, and can switch the account used by a selected online PC. See [the mobile README](apps/native/README.md) and [the admin backend README](apps/admin/README.md).
 
 ## Usage
 
@@ -93,7 +105,7 @@ The browser preview uses demo data and never accesses real credentials. The mobi
 3. Select **Switch** to atomically replace the `auth.json` currently used by Codex.
 4. If a running ChatGPT/Codex process may have cached the old credentials, use **Restart ChatGPT** from the dashboard or tray.
 
-An installed desktop client can also start the web version without creating a window, tray icon, or floating bubble. The command-line port applies only to that process:
+An installed client can start the localhost-only browser UI alongside the desktop interface, or run it without creating a window, tray icon, or floating widget. In headless mode the command-line port applies only to that process:
 
 ```powershell
 codex-switch.exe --headless --port=18080
@@ -103,6 +115,8 @@ codex-switch.exe --headless --port=18080
 Open `http://127.0.0.1:18080` after startup. `--headless` requires `--port`, whose valid range is `1-65535`.
 
 The **Providers** page manages OpenAI Responses or Chat Completions-compatible endpoints, API keys, models, and model-control policy. Without the proxy, switching writes a managed section to `$CODEX_HOME/config.toml`; active sessions may need a restart. The proxy listens on `127.0.0.1:15722`, directs Codex to it, and enables hot switching.
+
+The **Skills** page can browse, search, and install community Skills locally. Publishing or updating a versioned Skill package requires a signed-in cloud account. The **One-click themes** page provides 300+ bundled Dream Skin presets plus custom-background and restore controls.
 
 ## More documentation
 
