@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-boonie-bears-sunflower-farm",
+  "name": "向日葵农场 / Sunflower Farm",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "The Boonie Bears friends harvest giant sunflowers beneath a bright summer sky.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "SUNFLOWER FARM ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#c77b38"
+  }
+}
+

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-teletubbies-sunrise-meadow",
+  "name": "日出草坡 / Sunrise Meadow",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Tinky Winky, Dipsy, Laa-Laa and Po wave on a dewy sunrise meadow.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "SUNRISE MEADOW ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#7a62d5"
+  }
+}
+

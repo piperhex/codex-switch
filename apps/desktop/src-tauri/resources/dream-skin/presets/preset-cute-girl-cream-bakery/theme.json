@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-cute-girl-cream-bakery",
+  "name": "奶油烘焙晨光 / Cream Bakery Morning",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "An original cute Chinese donghua baker decorates tiny animal-shaped pastries.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "CREAM BAKERY MORNING ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#df82aa"
+  }
+}

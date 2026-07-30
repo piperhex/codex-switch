@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-big-ear-tutu-snowy-neighborhood",
+  "name": "雪夜小区 / Snowy Neighborhood",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Tutu builds a playful snow friend beneath warm apartment lights with Xiao Guai.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "SNOWY NEIGHBORHOOD ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#55a9e8"
+  }
+}

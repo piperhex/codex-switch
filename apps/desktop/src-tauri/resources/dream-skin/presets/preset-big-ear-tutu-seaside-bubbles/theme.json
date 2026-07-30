@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-big-ear-tutu-seaside-bubbles",
+  "name": "海边泡泡日 / Seaside Bubble Day",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Tutu chases giant rainbow bubbles with friends along a bright seaside promenade.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "SEASIDE BUBBLE DAY ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#55a9e8"
+  }
+}

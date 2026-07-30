@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-doraemon-sakura-classroom",
+  "name": "樱花教室 / Sakura Classroom",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Doraemon and friends fill a sunny classroom with handmade spring decorations and petals.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "SAKURA CLASSROOM ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#319ed1"
+  }
+}

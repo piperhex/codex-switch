@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-lotso-cherry-picnic",
+  "name": "樱花野餐 / Cherry Blossom Picnic",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Lotso enjoys a pink picnic beneath drifting cherry blossoms.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "CHERRY BLOSSOM PICNIC ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#e76f91"
+  }
+}
+

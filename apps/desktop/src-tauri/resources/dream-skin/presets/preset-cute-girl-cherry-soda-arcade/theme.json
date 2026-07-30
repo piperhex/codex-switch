@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-cute-girl-cherry-soda-arcade",
+  "name": "樱桃汽水游戏厅 / Cherry Soda Arcade",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "An original cute Chinese donghua girl plays in a retro cherry-soda pastel arcade.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "CHERRY SODA ARCADE ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#df82aa"
+  }
+}
+

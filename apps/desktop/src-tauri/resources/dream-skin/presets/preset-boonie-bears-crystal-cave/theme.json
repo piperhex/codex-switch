@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-boonie-bears-crystal-cave",
+  "name": "水晶洞穴 / Crystal Cave",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Briar, Bramble and Logger Vick discover a magical blue crystal cave.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "CRYSTAL CAVE ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#c77b38"
+  }
+}

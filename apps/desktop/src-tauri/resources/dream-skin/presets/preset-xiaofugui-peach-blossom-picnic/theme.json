@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-xiaofugui-peach-blossom-picnic",
+  "name": "桃花春宴 / Peach Blossom Picnic",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Xiao Fugui creates a playful spring picnic beneath drifting peach blossoms.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "PEACH BLOSSOM PICNIC ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#d9822b"
+  }
+}

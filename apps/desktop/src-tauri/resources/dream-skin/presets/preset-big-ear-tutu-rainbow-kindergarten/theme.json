@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-big-ear-tutu-rainbow-kindergarten",
+  "name": "彩虹幼儿园 / Rainbow Kindergarten",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Tutu and his friends paint a cheerful rainbow together in a sunny kindergarten garden.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "RAINBOW KINDERGARTEN ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#55a9e8"
+  }
+}

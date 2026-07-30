@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-hongmao-lantu-bamboo-sword-dance",
+  "name": "竹海剑舞 / Bamboo Sword Dance",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Hongmao and Lantu practice an elegant paired sword dance in a misty bamboo sea.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "BAMBOO SWORD DANCE ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#d94f5c"
+  }
+}

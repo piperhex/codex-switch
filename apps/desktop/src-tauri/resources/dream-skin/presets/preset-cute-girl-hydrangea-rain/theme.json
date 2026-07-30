@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-cute-girl-hydrangea-rain",
+  "name": "绣球花雨 / Hydrangea Rain",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "An original cute Chinese donghua girl carries a clear umbrella through hydrangea rain.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "HYDRANGEA RAIN ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#df82aa"
+  }
+}

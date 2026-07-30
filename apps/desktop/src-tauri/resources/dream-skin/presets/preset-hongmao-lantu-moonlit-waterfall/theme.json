@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-hongmao-lantu-moonlit-waterfall",
+  "name": "月瀑星河 / Moonlit Waterfall",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Hongmao and Lantu rest beside a silver waterfall under a peaceful starry moon.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "MOONLIT WATERFALL ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#d94f5c"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-tom-jerry-magic-theater",
+  "name": "魔法剧场 / Magic Theater",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Tom and Jerry perform comic magic tricks on a velvet theater stage.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "MAGIC THEATER ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#d89035"
+  }
+}
+

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-little-carp-volcano-courage",
+  "name": "火山勇气 / Volcano Courage",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Aku and the little carp friends cross a glowing volcanic river with courage.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "VOLCANO COURAGE ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#39a59b"
+  }
+}
+

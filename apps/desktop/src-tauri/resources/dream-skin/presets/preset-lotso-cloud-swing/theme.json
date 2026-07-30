@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-lotso-cloud-swing",
+  "name": "云端秋千 / Cloud Swing",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Lotso swings among peach-colored clouds with tiny stars and ribbons.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "CLOUD SWING ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#e76f91"
+  }
+}
+

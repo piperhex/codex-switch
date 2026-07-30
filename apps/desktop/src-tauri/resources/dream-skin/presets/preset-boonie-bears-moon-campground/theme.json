@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-boonie-bears-moon-campground",
+  "name": "月色露营地 / Moon Campground",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Briar, Bramble and Logger Vick share stories beside a moonlit forest tent.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "MOON CAMPGROUND ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#c77b38"
+  }
+}
+

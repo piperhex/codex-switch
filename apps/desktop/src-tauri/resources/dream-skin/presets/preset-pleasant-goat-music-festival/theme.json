@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-pleasant-goat-music-festival",
+  "name": "草原音乐节 / Grassland Music Festival",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "The sheep friends and wolf family perform together beneath colorful stage lights.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "GRASSLAND MUSIC FESTIVAL ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#64bda9"
+  }
+}

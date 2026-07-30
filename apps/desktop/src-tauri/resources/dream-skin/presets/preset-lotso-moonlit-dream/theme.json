@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-lotso-moonlit-dream",
+  "name": "月光绒绒梦 / Moonlit Plush Dream",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Lotso sleeps on a crescent cushion beneath a soft lavender moon.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "MOONLIT PLUSH DREAM ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#e76f91"
+  }
+}

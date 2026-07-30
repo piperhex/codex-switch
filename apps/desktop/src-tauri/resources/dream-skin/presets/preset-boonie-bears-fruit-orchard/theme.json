@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-boonie-bears-fruit-orchard",
+  "name": "缤纷果园 / Fruit Orchard",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "The Boonie Bears friends gather colorful fruit in a sunny orchard.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "FRUIT ORCHARD ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#c77b38"
+  }
+}

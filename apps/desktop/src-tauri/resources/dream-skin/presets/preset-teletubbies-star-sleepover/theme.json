@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-teletubbies-star-sleepover",
+  "name": "星星睡衣派对 / Star Sleepover",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "The Teletubbies hold a cozy starry sleepover inside their round home.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "STAR SLEEPOVER ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#7a62d5"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-cute-girl-sky-music-room",
+  "name": "晴空音乐室 / Sky Blue Music Room",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "An original cute Chinese donghua girl plays a crystal harp in a sky-blue music room.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "SKY BLUE MUSIC ROOM ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#df82aa"
+  }
+}

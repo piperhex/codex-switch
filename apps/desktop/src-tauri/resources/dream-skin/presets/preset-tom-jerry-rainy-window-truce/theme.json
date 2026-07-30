@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-tom-jerry-rainy-window-truce",
+  "name": "雨窗停战 / Rainy Window Truce",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Tom and Jerry share warm cocoa beside a rainy window during a rare cozy truce.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "RAINY WINDOW TRUCE ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#d89035"
+  }
+}
+

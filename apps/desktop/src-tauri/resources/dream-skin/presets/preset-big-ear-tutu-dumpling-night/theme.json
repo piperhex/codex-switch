@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-big-ear-tutu-dumpling-night",
+  "name": "全家饺子夜 / Family Dumpling Night",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Tutu makes funny dumplings with Mom and Dad in a warm family kitchen.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "FAMILY DUMPLING NIGHT ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#55a9e8"
+  }
+}

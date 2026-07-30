@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-lotso-cake-shop",
+  "name": "草莓蛋糕店 / Strawberry Cake Shop",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Lotso serves a tiny strawberry cake in a cream-white boutique bakery.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "STRAWBERRY CAKE SHOP ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#e76f91"
+  }
+}
+

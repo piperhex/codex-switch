@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-hongmao-lantu-seven-heroes-sunrise",
+  "name": "七侠朝阳 / Seven Heroes Sunrise",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "The Seven Swords heroes reunite on a cloud-wrapped peak beneath a golden sunrise.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "SEVEN HEROES SUNRISE ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "light",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#d94f5c"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-spongebob-moon-jelly-cafe",
+  "name": "月光水母咖啡屋 / Moon Jelly Cafe",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "SpongeBob and Patrick serve glowing jelly treats in a moonlit reef cafe.",
+  "projectPrefix": "Select project · ",
+  "projectLabel": "Select project",
+  "statusText": "MOON JELLY CAFE ONLINE",
+  "quote": "LET IMAGINATION GLOW",
+  "image": "background.jpg",
+  "appearance": "dark",
+  "art": {
+    "focusX": 0.74,
+    "focusY": 0.48,
+    "safeArea": "left",
+    "taskMode": "ambient"
+  },
+  "palette": {
+    "accent": "#e7b93d"
+  }
+}
+
