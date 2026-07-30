@@ -1627,6 +1627,42 @@ export function subscribeToCloudSessionExpired(onExpired: () => void): () => voi
   return () => void subscription.then((unlisten) => unlisten());
 }
 
+export type SystemMenuAction =
+  | "add-account"
+  | "import-archive"
+  | "export-archive"
+  | "open-codex-home"
+  | "open-account-store"
+  | "accounts"
+  | "providers"
+  | "token-usage"
+  | "dream-skin"
+  | "skills"
+  | "settings"
+  | "refresh-all"
+  | "refresh-reset-credits"
+  | "open-token-window"
+  | "start-chatgpt"
+  | "restart-chatgpt"
+  | "export-logs"
+  | "cloud-account"
+  | "cloud-sync"
+  | "cloud-logout"
+  | "notifications"
+  | "help"
+  | "check-update"
+  | "feedback"
+  | "repository"
+  | "about";
+
+export function subscribeToSystemMenuActions(
+  onAction: (action: SystemMenuAction) => void,
+): () => void {
+  if (!isDesktopApp) return () => undefined;
+  const subscription = listen<SystemMenuAction>("system-menu-action", ({ payload }) => onAction(payload));
+  return () => void subscription.then((unlisten) => unlisten());
+}
+
 export function subscribeToThemeColorChanges(onChange: (color: string) => void): () => void {
   if (!isDesktopApp) {
     const handleThemeChange = (event: Event) => {
