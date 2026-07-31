@@ -223,7 +223,10 @@ pub fn run() {
         .run(|app, event| {
             if matches!(event, tauri::RunEvent::ExitRequested { .. }) {
                 web_server::shutdown();
-                if let Err(error) = main_window::save_current(app) {
+                // Window move/resize events keep this cache current. Reading the
+                // native window again while macOS is tearing it down can return a
+                // transient, much smaller frame and corrupt the persisted size.
+                if let Err(error) = main_window::save_cached(app) {
                     eprintln!("failed to save main window state before exit: {error}");
                 }
             }

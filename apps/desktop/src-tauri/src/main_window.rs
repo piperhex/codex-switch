@@ -135,26 +135,6 @@ pub(crate) fn save_cached<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> 
     crate::storage::write_json_atomic(&state_path(app)?, &value)
 }
 
-pub(crate) fn save_current<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
-    if let Some(window) = app.get_webview_window("main") {
-        if !window.is_minimized().unwrap_or(false) {
-            let cache = app.state::<MainWindowStateCache>();
-            let mut cached = cache
-                .0
-                .lock()
-                .unwrap_or_else(|poisoned| poisoned.into_inner());
-            if window.is_maximized().unwrap_or(false) {
-                if let Some(state) = cached.as_mut() {
-                    state.maximized = true;
-                }
-            } else if let Some(state) = capture_webview_window(&window) {
-                *cached = Some(state);
-            }
-        }
-    }
-    save_cached(app)
-}
-
 fn load<R: Runtime>(app: &AppHandle<R>) -> Option<MainWindowState> {
     let bytes = fs::read(state_path(app).ok()?).ok()?;
     let state = serde_json::from_slice::<MainWindowState>(&bytes).ok()?;
@@ -195,7 +175,8 @@ fn capture_webview_window<R: Runtime>(window: &tauri::WebviewWindow<R>) -> Optio
 }
 
 fn is_sane(state: MainWindowState) -> bool {
-    (320..=32_768).contains(&state.width) && (240..=32_768).contains(&state.height)
+    (MIN_WIDTH as u32..=32_768).contains(&state.width)
+        && (MIN_HEIGHT as u32..=32_768).contains(&state.height)
 }
 
 fn fit_to_available_screens(
@@ -302,7 +283,7 @@ mod tests {
                 height: 1040,
             },
         ];
-        let saved = state(1600, 100, 800, 700);
+        let saved = state(1500, 100, 1000, 700);
 
         assert_eq!(fit_to_work_areas(saved, &screens), Some(saved));
     }
@@ -334,6 +315,34 @@ mod tests {
 
         assert_eq!(
             fit_to_work_areas(state(2500, 100, 1000, 700), &screens),
+            None
+        );
+    }
+
+    #[test]
+    fn rejects_a_window_smaller_than_the_configured_minimum() {
+        assert_eq!(
+            fit_to_work_areas(
+                state(100, 100, MIN_WIDTH as u32 - 1, MIN_HEIGHT as u32),
+                &[WorkArea {
+                    x: 0,
+                    y: 0,
+                    width: 1920,
+                    height: 1040,
+                }],
+            ),
+            None
+        );
+        assert_eq!(
+            fit_to_work_areas(
+                state(100, 100, MIN_WIDTH as u32, MIN_HEIGHT as u32 - 1),
+                &[WorkArea {
+                    x: 0,
+                    y: 0,
+                    width: 1920,
+                    height: 1040,
+                }],
+            ),
             None
         );
     }

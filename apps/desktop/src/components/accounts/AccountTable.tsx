@@ -552,7 +552,7 @@ export function AccountTable({
         : !needsAccountAttention(account, hotSwitchEnabled),
       render: (_, account) => (
         <div className="account-cell">
-          <div className="table-avatar">
+          <div className={`table-avatar${isAccountDisabled(account, hotSwitchEnabled) ? " disabled-avatar" : ""}`}>
             {isAccountDisabled(account, hotSwitchEnabled) ? t("table.disabled") : initials(account.email)}
           </div>
           <div className="account-primary">
@@ -929,7 +929,9 @@ export function AccountTable({
             }}>
             <div className="card-topline" />
             <header className="account-head">
-              <div className="avatar">{isDisabled ? t("table.disabled") : initials(account.email)}</div>
+              <div className={`avatar${isDisabled ? " disabled-avatar" : ""}`}>
+                {isDisabled ? t("table.disabled") : initials(account.email)}
+              </div>
               <div className="identity">
                 <div className="identity-line">
                   <h3 title={privacyMode ? undefined : account.email}>{privacyMode ? maskAccountEmail(account.email) : account.email}</h3>

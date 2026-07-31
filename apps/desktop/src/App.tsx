@@ -474,24 +474,8 @@ function DashboardApp() {
     }
   }, [notify, t]);
   const openHelp = useCallback(() => {
-    const requestId = ++helpVersionRequestId.current;
     setShowHelp(true);
     void loadFaqs();
-    setHelpVersionState({ status: "checking" });
-    void checkForUpdate({ force: true })
-      .then((update) => {
-        if (helpVersionRequestId.current !== requestId) return;
-        if (update) {
-          setAvailableUpdate(update);
-          availableUpdateRef.current = update;
-          setHelpVersionState({ status: "available", latestVersion: update.latestVersion });
-        } else {
-          setHelpVersionState({ status: "latest" });
-        }
-      })
-      .catch(() => {
-        if (helpVersionRequestId.current === requestId) setHelpVersionState({ status: "error" });
-      });
   }, [loadFaqs]);
 
   const sendFeedback = useCallback(async (content: string, contactEmail: string | null, images: File[]) => {
@@ -1534,9 +1518,7 @@ function DashboardApp() {
             setShowCloudAccount(false);
             openCloudPasswordReset();
           }} t={t} />}
-        {showHelp && <HelpModal onClose={() => setShowHelp(false)} onUpdate={openHelpUpdate}
-          onFeedback={() => setShowFeedback(true)} version={manager.info?.version ?? "0.1.0"}
-          versionState={helpVersionState} faq={faqs.map((item) => ({
+        {showHelp && <HelpModal onClose={() => setShowHelp(false)} faq={faqs.map((item) => ({
             id: item.id,
             question: language === "zh" ? item.questionZh : item.questionEn,
             answer: language === "zh" ? item.answerZh : item.answerEn,
