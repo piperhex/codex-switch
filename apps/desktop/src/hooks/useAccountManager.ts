@@ -6,6 +6,7 @@ import {
   importAccountJsonFromClipboard as importAccountJsonClipboard,
   chooseAndExportAccountArchive,
   chooseAndImportAccountArchive,
+  hasLocalBackend,
   isDesktopApp,
   loadDashboard,
   refreshAccountUsage,
@@ -154,11 +155,11 @@ export function useAccountManager(
     setBusyAccountId(id);
     try {
       await activateAccount(id);
-      if (!isDesktopApp) {
+      if (!hasLocalBackend) {
         setAccounts((items) => items.map((item) => ({ ...item, active: item.id === id })));
       }
       notify(t("toast.switched"));
-      if (isDesktopApp) await load();
+      if (hasLocalBackend) await load();
       await cloudSync?.pushAccount?.(id);
     } catch (error) {
       notify(String(error));
@@ -171,14 +172,14 @@ export function useAccountManager(
     if (showSpinner) setBusyAccountId(id);
     try {
       await refreshAccountUsage(id);
-      if (!isDesktopApp) {
+      if (!hasLocalBackend) {
         const fetchedAt = new Date().toISOString();
         setAccounts((items) => items.map((item) => item.id === id
           ? { ...item, usage: { ...item.usage, fetchedAt } }
           : item));
       }
       if (!quiet) notify(t("toast.usageRefreshed"));
-      if (isDesktopApp) await load();
+      if (hasLocalBackend) await load();
       await cloudSync?.pushAccount?.(id);
     } catch (error) {
       if (!quiet) notify(String(error));
@@ -193,7 +194,7 @@ export function useAccountManager(
     if (showSpinner) setRefreshingAll(true);
     try {
       await Promise.allSettled(accounts.map((account) => refreshAccountUsage(account.id)));
-      if (isDesktopApp) await load();
+      if (hasLocalBackend) await load();
       else {
         const fetchedAt = new Date().toISOString();
         setAccounts((items) => items.map((item) => ({ ...item, usage: { ...item.usage, fetchedAt } })));
@@ -209,9 +210,9 @@ export function useAccountManager(
   const deleteAccount = useCallback(async (id: string) => {
     try {
       await removeAccount(id);
-      if (!isDesktopApp) setAccounts((items) => items.filter((item) => item.id !== id));
+      if (!hasLocalBackend) setAccounts((items) => items.filter((item) => item.id !== id));
       notify(t("toast.deleted"));
-      if (isDesktopApp) await load();
+      if (hasLocalBackend) await load();
       await cloudSync?.deleteAccount?.(id);
     } catch (error) {
       notify(String(error));
@@ -233,7 +234,7 @@ export function useAccountManager(
     }
 
     if (deletedIds.length) {
-      if (isDesktopApp) await load();
+      if (hasLocalBackend) await load();
       else setAccounts((items) => items.filter((item) => !deletedIds.includes(item.id)));
       await Promise.allSettled(deletedIds.map((id) => cloudSync?.deleteAccount?.(id)));
       notify(t("toast.batchDeleted", { count: deletedIds.length }));
@@ -249,7 +250,7 @@ export function useAccountManager(
       setAccounts((items) => items.map((item) => item.id === id
         ? { ...item, autoSwitchEnabled: enabled }
         : item));
-      if (isDesktopApp) await load();
+      if (hasLocalBackend) await load();
     } catch (error) {
       notify(String(error));
     } finally {
@@ -277,7 +278,7 @@ export function useAccountManager(
         setAccounts((items) => items.map((item) => updatedIds.includes(item.id)
           ? { ...item, autoSwitchEnabled: enabled }
           : item));
-        if (isDesktopApp) await load();
+        if (hasLocalBackend) await load();
         notify(t(enabled ? "toast.batchEnabled" : "toast.batchDisabled", { count: updatedIds.length }));
       }
       if (failedCount) {
@@ -318,7 +319,7 @@ export function useAccountManager(
         ? { ...item, autoSwitchPriority: priority }
         : item));
       await cloudSync?.pushAccount?.(id);
-      if (isDesktopApp) await load();
+      if (hasLocalBackend) await load();
       return true;
     } catch (error) {
       notify(String(error));

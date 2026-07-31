@@ -652,8 +652,11 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .cloud-settings-card { display: none; }
 .settings-field .ant-space-compact { width: 150px; }
 .settings-field .ant-input-number { width: 108px; }
+.web-proxy-settings-field { flex-wrap: wrap; }
 .web-proxy-settings-field .ant-space-compact { width: 180px; }
 .web-proxy-settings-field .ant-input-number { width: 112px; }
+.web-proxy-address { max-width: min(280px, 30vw); padding: 0; overflow: hidden; border: 0; color: var(--green-dark); background: transparent; cursor: pointer; font: 650 11px/1.4 "DM Sans", sans-serif; text-decoration: underline; text-overflow: ellipsis; white-space: nowrap; }
+.web-proxy-address:hover { color: var(--green); }
 .settings-field .duration-time-picker.ant-picker { width: 112px; }
 .token-usage-settings-field { flex-wrap: wrap; }
 .token-usage-settings-field .ant-space-compact { width: 132px; }

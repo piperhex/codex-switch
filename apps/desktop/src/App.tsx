@@ -5,7 +5,7 @@ import zhCN from "antd/locale/zh_CN";
 import { BarChart3, Bell, CalendarClock, Check, ChevronDown, CircleHelp, Cloud, Copy, Download, Github, LogIn, LogOut, Megaphone, MessageSquareText, Minus, PackageOpen, Palette, Play, Plus, RefreshCw, RotateCcw, Search, Server, Settings, ShieldCheck, Shuffle, Square, UploadCloud, UserRound, X } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { checkForUpdate, chooseAndExportDiagnosticLogs, consumeResetCredit, DEFAULT_CLOUD_BASE_URL, downloadAvailableUpdate, fetchCloudAnnouncement, fetchCloudFaqs, fetchCloudNotifications, installDownloadedUpdate, isDesktopApp, launchChatGpt, loadAppSettings, openManagedFolder, queryProviderBalance, quitApplication, reportAnnouncementClick, reportBaseUrlChange, reportDeviceActivity, reportFirstInstallation, restartApplication, restartChatGpt, showTokenUsageWindow, submitFeedback, subscribeToCloudSessionExpired, updateWebProxyPort } from "./api/backend";
+import { checkForUpdate, chooseAndExportDiagnosticLogs, consumeResetCredit, DEFAULT_CLOUD_BASE_URL, downloadAvailableUpdate, fetchCloudAnnouncement, fetchCloudFaqs, fetchCloudNotifications, hasLocalBackend, installDownloadedUpdate, isDesktopApp, launchChatGpt, loadAppSettings, openManagedFolder, queryProviderBalance, quitApplication, reportAnnouncementClick, reportBaseUrlChange, reportDeviceActivity, reportFirstInstallation, restartApplication, restartChatGpt, showTokenUsageWindow, submitFeedback, subscribeToCloudSessionExpired, updateWebProxyPort } from "./api/backend";
 import { AboutModal } from "./components/modals/AboutModal";
 import { HelpModal, type HelpVersionState } from "./components/modals/HelpModal";
 import { FeedbackModal } from "./components/modals/FeedbackModal";
@@ -370,7 +370,7 @@ function DashboardApp() {
     try {
       const settings = await updateWebProxyPort(port);
       setWebProxyPort(settings.webProxyPort ?? null);
-      if (!isDesktopApp) await providerManager.reload();
+      if (!hasLocalBackend) await providerManager.reload();
       notify(t(port === null ? "toast.webServerDisabled" : "toast.webServerStarted", {
         port: port ?? "",
       }));
@@ -380,6 +380,13 @@ function DashboardApp() {
       setWebProxyPortLoading(false);
     }
   }, [notify, providerManager.reload, t]);
+  const openWebVersion = useCallback((url: string) => {
+    if (isDesktopApp) {
+      void openUrl(url).catch((error) => notify(String(error)));
+      return;
+    }
+    window.open(url, "_blank", "noopener,noreferrer");
+  }, [notify]);
   const changeThemeColor = useCallback((color: string) => {
     void themeColor.setColor(color);
   }, [themeColor.setColor]);
@@ -449,7 +456,7 @@ function DashboardApp() {
     void privacyMode.setEnabled(enabled);
   }, [privacyMode.setEnabled]);
   const openFolder = useCallback((target: "codexHome" | "accountStore") => {
-    if (!isDesktopApp) {
+    if (!hasLocalBackend) {
       notify(t("toast.previewOpenFolder"));
       return;
     }
@@ -528,7 +535,7 @@ function DashboardApp() {
     setChatGptOperation("restart");
     try {
       await restartChatGpt();
-      notify(isDesktopApp ? t("toast.chatGptRestarted") : t("toast.previewRestartChatGpt"));
+      notify(hasLocalBackend ? t("toast.chatGptRestarted") : t("toast.previewRestartChatGpt"));
     } catch (error) {
       notify(String(error));
     } finally {
@@ -539,7 +546,7 @@ function DashboardApp() {
     setChatGptOperation("start");
     try {
       const started = await launchChatGpt();
-      notify(isDesktopApp
+      notify(hasLocalBackend
         ? t(started ? "toast.chatGptStarted" : "toast.chatGptAlreadyRunning")
         : t("toast.previewStartChatGpt"));
     } catch (error) {
@@ -1054,7 +1061,7 @@ function DashboardApp() {
       .catch((error) => notify(String(error)));
   };
   const titlebarProxyRunning = Boolean(providerManager.localProxy?.running);
-  const titlebarProxyStartDisabledReason = !isDesktopApp && !providerManager.localProxy?.port
+  const titlebarProxyStartDisabledReason = !hasLocalBackend && !providerManager.localProxy?.port
     ? t("providers.proxy.webPortRequired")
     : activeAccount && !activeAccount.localProxyCompatible
       ? t("providers.proxy.agentIdentityUnsupported")
@@ -1441,6 +1448,7 @@ function DashboardApp() {
               webProxyPort={webProxyPort}
               webProxyPortLoading={webProxyPortLoading}
               onWebProxyPortChange={changeWebProxyPort}
+              onOpenWebVersion={openWebVersion}
               onTokenUsageWeeksChange={tokenUsagePreferences.updateWeeks}
               onTokenUsageRefreshSecondsChange={tokenUsagePreferences.updateRefreshSeconds}
               onOpenCodexHome={openCodexHome} onOpenAccountStore={openAccountStore} language={language}

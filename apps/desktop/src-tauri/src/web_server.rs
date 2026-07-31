@@ -1,9 +1,12 @@
 use std::{
+    io::Read,
     sync::{Arc, Mutex, OnceLock},
     thread::{self, JoinHandle},
 };
 
-use tauri::{AppHandle, Runtime};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde_json::{json, Value};
+use tauri::AppHandle;
 use tiny_http::{Header, Method, Request, Response, Server, StatusCode};
 
 use crate::{
@@ -15,6 +18,25 @@ const WEB_SERVER_HOST: &str = "127.0.0.1";
 const WEB_SERVER_THREAD_NAME: &str = "codex-switch-web-server";
 const WEB_REQUEST_THREAD_NAME: &str = "codex-switch-web-request";
 const WEB_CONTENT_SECURITY_POLICY: &str = "default-src 'self'; img-src 'self' data: http: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http: https: ws: wss:";
+const WEB_INVOKE_PATH: &str = "/__codex_switch__/api/invoke";
+const HOSTED_RUNTIME_MARKER: &str = r#"<meta name="codex-switch-runtime" content="hosted">"#;
+const MAX_INVOKE_BODY_BYTES: usize = 8 * 1024 * 1024;
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct WebInvokeRequest {
+    command: String,
+    #[serde(default)]
+    args: Value,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct WebInvokeResponse {
+    ok: bool,
+    result: Option<Value>,
+    error: Option<String>,
+}
 
 struct WebServerRuntime {
     port: u16,
@@ -27,10 +49,7 @@ fn runtime() -> &'static Mutex<Option<WebServerRuntime>> {
     RUNTIME.get_or_init(|| Mutex::new(None))
 }
 
-pub(crate) fn setup<R: Runtime>(
-    app: &AppHandle<R>,
-    port_override: Option<u16>,
-) -> Result<(), String> {
+pub(crate) fn setup(app: &AppHandle, port_override: Option<u16>) -> Result<(), String> {
     let port = match port_override {
         Some(port) => Some(port),
         None => read_app_settings(app)?.web_proxy_port,
@@ -42,7 +61,7 @@ pub(crate) fn setup<R: Runtime>(
     Ok(())
 }
 
-pub(crate) fn restart_at_port<R: Runtime>(app: &AppHandle<R>, port: u16) -> Result<(), String> {
+pub(crate) fn restart_at_port(app: &AppHandle, port: u16) -> Result<(), String> {
     validate_port(port)?;
     let previous_port = running_port();
     if previous_port == Some(port) {
@@ -62,10 +81,7 @@ pub(crate) fn shutdown() {
 }
 
 #[tauri::command]
-pub(crate) fn set_web_proxy_port<R: Runtime>(
-    app: AppHandle<R>,
-    port: Option<u16>,
-) -> Result<AppSettings, String> {
+pub(crate) fn set_web_proxy_port(app: AppHandle, port: Option<u16>) -> Result<AppSettings, String> {
     if let Some(port) = port {
         validate_port(port)?;
     }
@@ -113,7 +129,7 @@ fn configuration_error(error: String, restore_error: Option<String>) -> String {
     }
 }
 
-fn restore_server<R: Runtime>(app: &AppHandle<R>, port: Option<u16>) -> Option<String> {
+fn restore_server(app: &AppHandle, port: Option<u16>) -> Option<String> {
     port.and_then(|port| start_server(app.clone(), port).err())
 }
 
@@ -124,7 +140,7 @@ fn running_port() -> Option<u16> {
         .and_then(|guard| guard.as_ref().map(|runtime| runtime.port))
 }
 
-fn start_server<R: Runtime>(app: AppHandle<R>, port: u16) -> Result<(), String> {
+fn start_server(app: AppHandle, port: u16) -> Result<(), String> {
     let mut guard = runtime()
         .lock()
         .map_err(|_| "Web server runtime lock is poisoned".to_string())?;
@@ -174,7 +190,12 @@ fn stop_server() {
     }
 }
 
-fn handle_request<R: Runtime>(app: AppHandle<R>, request: Request) {
+fn handle_request(app: AppHandle, request: Request) {
+    if request.url().split('?').next() == Some(WEB_INVOKE_PATH) {
+        handle_invoke_request(app, request);
+        return;
+    }
+
     if !matches!(request.method(), Method::Get | Method::Head) {
         respond_text(request, StatusCode(405), "Method not allowed");
         return;
@@ -195,7 +216,12 @@ fn handle_request<R: Runtime>(app: AppHandle<R>, request: Request) {
         return;
     };
 
-    let mut response = Response::from_data(asset.bytes).with_status_code(StatusCode(200));
+    let bytes = if is_index {
+        inject_hosted_runtime_marker(asset.bytes.as_ref())
+    } else {
+        asset.bytes
+    };
+    let mut response = Response::from_data(bytes).with_status_code(StatusCode(200));
     response.add_header(header("Content-Type", &asset.mime_type));
     response.add_header(header(
         "Content-Security-Policy",
@@ -213,6 +239,349 @@ fn handle_request<R: Runtime>(app: AppHandle<R>, request: Request) {
         },
     ));
     let _ = request.respond(response);
+}
+
+fn handle_invoke_request(app: AppHandle, mut request: Request) {
+    if request.method() != &Method::Post {
+        respond_text(request, StatusCode(405), "Method not allowed");
+        return;
+    }
+    if !request.headers().iter().any(|header| {
+        header.field.equiv("Content-Type") && header.value.as_str().starts_with("application/json")
+    }) {
+        respond_text(
+            request,
+            StatusCode(415),
+            "Expected an application/json request",
+        );
+        return;
+    }
+    if request
+        .body_length()
+        .is_some_and(|length| length > MAX_INVOKE_BODY_BYTES)
+    {
+        respond_text(request, StatusCode(413), "Request body is too large");
+        return;
+    }
+
+    let mut body = String::new();
+    let read_result = request
+        .as_reader()
+        .take((MAX_INVOKE_BODY_BYTES + 1) as u64)
+        .read_to_string(&mut body);
+    if read_result.is_err() || body.len() > MAX_INVOKE_BODY_BYTES {
+        respond_text(request, StatusCode(400), "Could not read the request body");
+        return;
+    }
+    let invocation = match serde_json::from_str::<WebInvokeRequest>(&body) {
+        Ok(invocation) => invocation,
+        Err(error) => {
+            respond_text(
+                request,
+                StatusCode(400),
+                &format!("Invalid invoke request: {error}"),
+            );
+            return;
+        }
+    };
+    let response = match dispatch_command(app, &invocation.command, invocation.args) {
+        Ok(result) => WebInvokeResponse {
+            ok: true,
+            result: Some(result),
+            error: None,
+        },
+        Err(error) => WebInvokeResponse {
+            ok: false,
+            result: None,
+            error: Some(error),
+        },
+    };
+    respond_json(request, StatusCode(200), &response);
+}
+
+fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value, String> {
+    match command {
+        "get_app_info" => serialize(crate::commands::get_app_info(app)),
+        "list_accounts" => serialize(crate::commands::list_accounts(app)),
+        "get_app_settings" => serialize(crate::floating_bubble::get_app_settings(app)),
+        "set_web_proxy_port" => serialize(set_web_proxy_port(app, argument(&args, "port")?)),
+        "list_providers" => serialize(crate::providers::list_providers(app)),
+        "save_provider" => serialize(crate::providers::save_provider(
+            app,
+            argument(&args, "provider")?,
+        )),
+        "query_provider_balance" => serialize(block_on(crate::providers::query_provider_balance(
+            app,
+            argument(&args, "id")?,
+        ))),
+        "switch_provider" => serialize(block_on(crate::providers::switch_provider(
+            app,
+            argument(&args, "id")?,
+        ))),
+        "switch_provider_model" => serialize(crate::providers::switch_provider_model(
+            app,
+            argument(&args, "id")?,
+            argument(&args, "model")?,
+        )),
+        "set_provider_model_control" => serialize(crate::providers::set_provider_model_control(
+            app,
+            argument(&args, "id")?,
+            argument(&args, "controlledByCodex")?,
+        )),
+        "disable_provider" => serialize(crate::providers::disable_provider(app)),
+        "delete_provider" => serialize(crate::providers::delete_provider(
+            app,
+            argument(&args, "id")?,
+        )),
+        "get_local_proxy_status" => serialize(crate::local_proxy::get_local_proxy_status(app)),
+        "list_proxy_sessions" => serialize(crate::local_proxy::list_proxy_sessions(app)),
+        "list_proxy_session_requests" => serialize(
+            crate::local_proxy::list_proxy_session_requests(argument(&args, "sessionId")?),
+        ),
+        "get_recent_proxy_session_latency" => {
+            serialize(crate::local_proxy::get_recent_proxy_session_latency())
+        }
+        "list_token_usage_entries" => serialize(crate::local_proxy::list_token_usage_entries(app)),
+        "list_daily_token_usage" => serialize(crate::local_proxy::list_daily_token_usage(
+            app,
+            argument(&args, "startTs")?,
+        )),
+        "list_account_token_usage" => serialize(crate::local_proxy::list_account_token_usage(
+            app,
+            argument(&args, "startTs")?,
+        )),
+        "start_local_proxy" => serialize(block_on(crate::local_proxy::start_local_proxy(app))),
+        "stop_local_proxy" => serialize(block_on(crate::local_proxy::stop_local_proxy(app))),
+        "restore_non_proxy_conversations" => serialize(block_on(
+            crate::commands::restore_non_proxy_conversations(app),
+        )),
+        "set_auto_switch_on_quota_exhaustion" => {
+            serialize(crate::local_proxy::set_auto_switch_on_quota_exhaustion(
+                app,
+                argument(&args, "enabled")?,
+            ))
+        }
+        "set_auto_disable_unreachable_accounts" => {
+            serialize(crate::local_proxy::set_auto_disable_unreachable_accounts(
+                app,
+                argument(&args, "enabled")?,
+            ))
+        }
+        "set_custom_auto_switch_priority_enabled" => {
+            serialize(crate::local_proxy::set_custom_auto_switch_priority_enabled(
+                app,
+                argument(&args, "enabled")?,
+            ))
+        }
+        "set_image_generation_account" => serialize(
+            crate::local_proxy::set_image_generation_account(app, argument(&args, "accountId")?),
+        ),
+        "set_local_proxy_openai_auth_account" => serialize(block_on(
+            crate::local_proxy::set_local_proxy_openai_auth_account(
+                app,
+                argument(&args, "accountId")?,
+            ),
+        )),
+        "set_local_proxy_listen_on_all_interfaces" => serialize(
+            crate::local_proxy::set_local_proxy_listen_on_all_interfaces(
+                app,
+                argument(&args, "enabled")?,
+            ),
+        ),
+        "set_floating_bubble" => serialize(block_on(crate::floating_bubble::set_floating_bubble(
+            app,
+            argument(&args, "enabled")?,
+        ))),
+        "set_privacy_mode" => serialize(crate::floating_bubble::set_privacy_mode(
+            app,
+            argument(&args, "enabled")?,
+        )),
+        "set_token_usage_preferences" => {
+            serialize(crate::floating_bubble::set_token_usage_preferences(
+                app,
+                argument(&args, "weeks")?,
+                argument(&args, "refreshSeconds")?,
+            ))
+        }
+        "set_bubble_reset_display" => serialize(crate::floating_bubble::set_bubble_reset_display(
+            app,
+            argument(&args, "display")?,
+        )),
+        "set_bubble_style" => serialize(crate::floating_bubble::set_bubble_style(
+            app,
+            argument(&args, "style")?,
+        )),
+        "set_theme_color" => serialize(crate::floating_bubble::set_theme_color(
+            app,
+            argument(&args, "color")?,
+        )),
+        "set_app_language" => serialize(crate::floating_bubble::set_app_language(
+            app,
+            argument(&args, "language")?,
+        )),
+        "get_cloud_auth_state" => serialize(crate::cloud::get_cloud_auth_state(app)),
+        "get_saved_cloud_login" => serialize(block_on(crate::cloud::get_saved_cloud_login(app))),
+        "set_cloud_base_url" => serialize(crate::cloud::set_cloud_base_url(
+            app,
+            argument(&args, "baseUrl")?,
+        )),
+        "cloud_login" => serialize(block_on(crate::cloud::cloud_login(
+            app,
+            argument(&args, "email")?,
+            argument(&args, "password")?,
+            argument(&args, "rememberPassword")?,
+        ))),
+        "fetch_cloud_announcement" => {
+            serialize(block_on(crate::cloud::fetch_cloud_announcement(app)))
+        }
+        "fetch_cloud_notifications" => {
+            serialize(block_on(crate::cloud::fetch_cloud_notifications(app)))
+        }
+        "fetch_cloud_faqs" => serialize(block_on(crate::cloud::fetch_cloud_faqs(app))),
+        "cloud_request_registration_code" => serialize(block_on(
+            crate::cloud::cloud_request_registration_code(app, argument(&args, "email")?),
+        )),
+        "cloud_register" => serialize(block_on(crate::cloud::cloud_register(
+            app,
+            argument(&args, "email")?,
+            argument(&args, "password")?,
+            argument(&args, "verificationCode")?,
+            argument(&args, "rememberPassword")?,
+        ))),
+        "cloud_change_password" => serialize(block_on(crate::cloud::cloud_change_password(
+            app,
+            argument(&args, "currentPassword")?,
+            argument(&args, "newPassword")?,
+        ))),
+        "cloud_logout" => serialize(block_on(crate::cloud::cloud_logout(app))),
+        "cloud_sync_accounts" => serialize(block_on(crate::cloud::cloud_sync_accounts(app))),
+        "cloud_push_accounts" => serialize(block_on(crate::cloud::cloud_push_accounts(app))),
+        "cloud_push_account" => serialize(block_on(crate::cloud::cloud_push_account(
+            app,
+            argument(&args, "id")?,
+        ))),
+        "cloud_push_providers" => serialize(block_on(crate::cloud::cloud_push_providers(app))),
+        "cloud_push_provider" => serialize(block_on(crate::cloud::cloud_push_provider(
+            app,
+            argument(&args, "id")?,
+        ))),
+        "cloud_delete_account" => serialize(block_on(crate::cloud::cloud_delete_account(
+            app,
+            argument(&args, "id")?,
+        ))),
+        "cloud_delete_provider" => serialize(block_on(crate::cloud::cloud_delete_provider(
+            app,
+            argument(&args, "id")?,
+        ))),
+        "list_market_skills" => serialize(block_on(crate::skills_market::list_market_skills(app))),
+        "install_market_skill" => serialize(block_on(crate::skills_market::install_market_skill(
+            app,
+            argument(&args, "skill")?,
+        ))),
+        "switch_account_and_restart_chatgpt" => serialize(block_on(
+            crate::commands::switch_account_and_restart_chatgpt(app, argument(&args, "id")?),
+        )),
+        "set_account_auto_switch_enabled" => {
+            serialize(crate::commands::set_account_auto_switch_enabled(
+                app,
+                argument(&args, "id")?,
+                argument(&args, "enabled")?,
+            ))
+        }
+        "set_account_auto_switch_priority" => {
+            serialize(crate::commands::set_account_auto_switch_priority(
+                app,
+                argument(&args, "id")?,
+                argument(&args, "priority")?,
+            ))
+        }
+        "refresh_usage" => serialize(block_on(crate::commands::refresh_usage(
+            app,
+            argument(&args, "id")?,
+        ))),
+        "delete_account" => serialize(crate::commands::delete_account(app, argument(&args, "id")?)),
+        "update_account_note" => serialize(crate::commands::update_account_note(
+            app,
+            argument(&args, "id")?,
+            argument(&args, "note")?,
+            argument(&args, "expiresAt")?,
+        )),
+        "fetch_reset_credits" => serialize(block_on(crate::commands::fetch_reset_credits(
+            app,
+            argument(&args, "id")?,
+        ))),
+        "consume_reset_credit" => serialize(block_on(crate::commands::consume_reset_credit(
+            app,
+            argument(&args, "id")?,
+        ))),
+        "restart_chatgpt" => serialize(block_on(crate::commands::restart_chatgpt(app))),
+        "launch_chatgpt" => serialize(block_on(crate::commands::launch_chatgpt(app))),
+        "open_managed_folder" => serialize(crate::commands::open_managed_folder(
+            app,
+            argument(&args, "target")?,
+        )),
+        "get_dream_skin_status" => serialize(Ok(crate::dream_skin::get_dream_skin_status())),
+        "install_dream_skin" => serialize(block_on(crate::dream_skin::install_dream_skin(app))),
+        "apply_dream_skin_theme" => serialize(block_on(crate::dream_skin::apply_dream_skin_theme(
+            app,
+            argument(&args, "themeId")?,
+        ))),
+        "save_dream_skin_theme" => serialize(block_on(crate::dream_skin::save_dream_skin_theme(
+            app,
+            argument(&args, "name")?,
+        ))),
+        "set_dream_skin_appearance" => serialize(block_on(
+            crate::dream_skin::set_dream_skin_appearance(app, argument(&args, "appearance")?),
+        )),
+        "set_dream_skin_paused" => serialize(block_on(crate::dream_skin::set_dream_skin_paused(
+            app,
+            argument(&args, "paused")?,
+        ))),
+        "reapply_dream_skin" => serialize(block_on(crate::dream_skin::reapply_dream_skin(app))),
+        "verify_dream_skin" => serialize(block_on(crate::dream_skin::verify_dream_skin(app))),
+        "restore_dream_skin" => serialize(block_on(crate::dream_skin::restore_dream_skin(app))),
+        "open_dream_skin_folder" => serialize(crate::dream_skin::open_dream_skin_folder(app)),
+        "get_dream_skin_theme_preview" => serialize(
+            crate::dream_skin::get_dream_skin_theme_preview(argument(&args, "themeId")?),
+        ),
+        _ => Err(format!(
+            "Command is not available in the web version: {command}"
+        )),
+    }
+}
+
+fn argument<T: DeserializeOwned>(args: &Value, name: &str) -> Result<T, String> {
+    serde_json::from_value(args.get(name).cloned().unwrap_or(Value::Null))
+        .map_err(|error| format!("Invalid argument {name}: {error}"))
+}
+
+fn serialize<T: Serialize>(result: Result<T, String>) -> Result<Value, String> {
+    result.and_then(|value| {
+        serde_json::to_value(value)
+            .map_err(|error| format!("Could not serialize web command result: {error}"))
+    })
+}
+
+fn block_on<T>(future: impl std::future::Future<Output = Result<T, String>>) -> Result<T, String> {
+    tauri::async_runtime::block_on(future)
+}
+
+fn inject_hosted_runtime_marker(bytes: &[u8]) -> Vec<u8> {
+    let Ok(html) = std::str::from_utf8(bytes) else {
+        return bytes.to_vec();
+    };
+    if html.contains(HOSTED_RUNTIME_MARKER) {
+        return bytes.to_vec();
+    }
+    if let Some(index) = html.find("<head>") {
+        let insert_at = index + "<head>".len();
+        let mut output = String::with_capacity(html.len() + HOSTED_RUNTIME_MARKER.len());
+        output.push_str(&html[..insert_at]);
+        output.push_str(HOSTED_RUNTIME_MARKER);
+        output.push_str(&html[insert_at..]);
+        return output.into_bytes();
+    }
+    bytes.to_vec()
 }
 
 fn asset_path(url: &str) -> Option<String> {
@@ -235,6 +604,22 @@ fn respond_text(request: Request, status: StatusCode, message: &str) {
         .with_status_code(status)
         .with_header(header("Content-Type", "text/plain; charset=utf-8"))
         .with_header(header("Cache-Control", "no-store"));
+    let _ = request.respond(response);
+}
+
+fn respond_json<T: Serialize>(request: Request, status: StatusCode, value: &T) {
+    let body = serde_json::to_vec(value).unwrap_or_else(|_| {
+        serde_json::to_vec(&json!({
+            "ok": false,
+            "error": "Could not serialize the response"
+        }))
+        .expect("static JSON response must serialize")
+    });
+    let response = Response::from_data(body)
+        .with_status_code(status)
+        .with_header(header("Content-Type", "application/json; charset=utf-8"))
+        .with_header(header("Cache-Control", "no-store"))
+        .with_header(header("X-Content-Type-Options", "nosniff"));
     let _ = request.respond(response);
 }
 
@@ -268,5 +653,15 @@ mod tests {
         assert!(validate_port(0).is_err());
         assert!(validate_port(1).is_ok());
         assert!(AppSettings::default().web_proxy_port.is_none());
+    }
+
+    #[test]
+    fn hosted_index_includes_the_runtime_marker_once() {
+        let source = b"<!doctype html><html><head></head><body></body></html>";
+        let injected = inject_hosted_runtime_marker(source);
+        let injected_again = inject_hosted_runtime_marker(&injected);
+        let html = String::from_utf8(injected_again).unwrap();
+
+        assert_eq!(html.matches(HOSTED_RUNTIME_MARKER).count(), 1);
     }
 }

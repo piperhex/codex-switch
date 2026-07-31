@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Button, ColorPicker, Input, InputNumber, Modal, Segmented, Space, Switch, TimePicker } from "antd";
 import dayjs, { type Dayjs } from "dayjs";
 import { CalendarDays, CircleGauge, Cloud, EyeOff, FileDown, FolderKey, FolderOpen, KeyRound, Languages, LayoutGrid, Network, Palette, RefreshCw, ShieldCheck, TableProperties } from "lucide-react";
@@ -115,6 +115,7 @@ export function SettingsPage({
   webProxyPort,
   webProxyPortLoading,
   onWebProxyPortChange,
+  onOpenWebVersion,
   onTokenUsageWeeksChange,
   onTokenUsageRefreshSecondsChange,
   onOpenCodexHome,
@@ -162,6 +163,7 @@ export function SettingsPage({
   webProxyPort?: number | null;
   webProxyPortLoading?: boolean;
   onWebProxyPortChange?: (port: number | null) => void;
+  onOpenWebVersion?: (url: string) => void;
   onTokenUsageWeeksChange: (value: number | string | null) => void;
   onTokenUsageRefreshSecondsChange: (value: number | string | null) => void;
   onOpenCodexHome: () => void;
@@ -174,7 +176,9 @@ export function SettingsPage({
 }) {
   const [cloudBaseUrlDraft, setCloudBaseUrlDraft] = useState(cloudBaseUrl);
   const [webProxyPortDraft, setWebProxyPortDraft] = useState<number | null>(webProxyPort ?? null);
+  const closingWebProxyRef = useRef(false);
   const [bubbleStyleModalOpen, setBubbleStyleModalOpen] = useState(false);
+  const webVersionUrl = webProxyPort ? `http://127.0.0.1:${webProxyPort}` : null;
   const usingOfficialCloudServer = cloudBaseUrlDraft.trim().replace(/\/+$/, "").toLowerCase()
     === DEFAULT_CLOUD_BASE_URL.toLowerCase();
 
@@ -331,15 +335,37 @@ export function SettingsPage({
             <div className="settings-card-copy"><h3>{t("settings.webProxy.title")}</h3><p>{t("settings.webProxy.description")}</p></div>
             <div className="settings-field web-proxy-settings-field">
               <label htmlFor="web-proxy-port">{t("settings.webProxy.port")}</label>
+              {webVersionUrl && (
+                <a className="web-proxy-address" href={webVersionUrl} target="_blank" rel="noreferrer"
+                  onClick={(event) => {
+                    if (!onOpenWebVersion) return;
+                    event.preventDefault();
+                    onOpenWebVersion(webVersionUrl);
+                  }}>
+                  {webVersionUrl}
+                </a>
+              )}
               <Space.Compact>
                 <InputNumber id="web-proxy-port" min={1} max={65535} step={1} precision={0} value={webProxyPortDraft}
                   disabled={webProxyPortLoading} placeholder={t("settings.webProxy.disabled")}
                   onChange={(value) => setWebProxyPortDraft(typeof value === "number" ? value : null)}
-                  onPressEnter={() => onWebProxyPortChange(webProxyPortDraft)} />
-                <Button type="primary" loading={webProxyPortLoading}
-                  disabled={webProxyPortDraft === (webProxyPort ?? null)}
-                  onClick={() => onWebProxyPortChange(webProxyPortDraft)}>
-                  {t("settings.webProxy.save")}
+                  onBlur={(event) => {
+                    const closing = closingWebProxyRef.current
+                      || (event.relatedTarget as HTMLElement | null)?.dataset.webProxyClose === "true";
+                    if (!closing && webProxyPortDraft !== (webProxyPort ?? null)) {
+                      onWebProxyPortChange(webProxyPortDraft);
+                    }
+                  }}
+                  onPressEnter={(event) => event.currentTarget.blur()} />
+                <Button danger data-web-proxy-close="true" loading={webProxyPortLoading}
+                  disabled={!webProxyPort}
+                  onMouseDown={() => { closingWebProxyRef.current = true; }}
+                  onClick={() => {
+                    setWebProxyPortDraft(null);
+                    onWebProxyPortChange(null);
+                    closingWebProxyRef.current = false;
+                  }}>
+                  {t("settings.webProxy.close")}
                 </Button>
               </Space.Compact>
             </div>

@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke as invokeTauri } from "@tauri-apps/api/core";
 import { emit, listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { exit as exitApp, relaunch } from "@tauri-apps/plugin-process";
@@ -46,6 +46,37 @@ import type {
 import { DEFAULT_THEME_COLOR, normalizeThemeColor } from "../utils/theme";
 
 export const isDesktopApp = "__TAURI_INTERNALS__" in window;
+export const isHostedWebApp = document
+  .querySelector('meta[name="codex-switch-runtime"]')
+  ?.getAttribute("content") === "hosted";
+export const hasLocalBackend = isDesktopApp || isHostedWebApp;
+
+interface HostedInvokeResponse<T> {
+  ok: boolean;
+  result?: T;
+  error?: string;
+}
+
+async function invoke<T = void>(command: string, args: Record<string, unknown> = {}): Promise<T> {
+  if (isDesktopApp) return invokeTauri<T>(command, args);
+  if (!isHostedWebApp) throw new Error(`Native command is unavailable in browser preview: ${command}`);
+
+  const response = await fetch("/__codex_switch__/api/invoke", {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    cache: "no-store",
+    body: JSON.stringify({ command, args }),
+  });
+  if (!response.ok) {
+    throw new Error((await response.text().catch(() => "")) || `Web command failed with HTTP ${response.status}`);
+  }
+  const payload = await response.json() as HostedInvokeResponse<T>;
+  if (!payload.ok) throw new Error(payload.error || `Web command failed: ${command}`);
+  return payload.result as T;
+}
 
 export async function restartApplication(): Promise<void> {
   if (isDesktopApp) await relaunch();
@@ -217,7 +248,7 @@ function previewLocalProxyStatus(): LocalProxyStatus {
 }
 
 export async function loadDashboard(): Promise<{ accounts: Account[]; info: AppInfo }> {
-  if (!isDesktopApp) {
+  if (!hasLocalBackend) {
     return { accounts: structuredClone(DEMO_ACCOUNTS), info: DEMO_INFO };
   }
   const [accounts, info] = await Promise.all([
@@ -236,7 +267,7 @@ function previewBubbleStyle(): BubbleStyle {
 }
 
 export async function loadAppSettings(): Promise<AppSettings> {
-  if (!isDesktopApp) {
+  if (!hasLocalBackend) {
     return {
       floatingBubbleEnabled: previewFloatingBubbleEnabled(),
       privacyMode: window.localStorage.getItem(PRIVACY_MODE_PREVIEW_KEY) !== "false",
@@ -253,7 +284,7 @@ export async function loadAppSettings(): Promise<AppSettings> {
 }
 
 export async function loadProviders(): Promise<Provider[]> {
-  if (!isDesktopApp) {
+  if (!hasLocalBackend) {
     const proxyRunning = previewLocalProxyStatus().running;
     return readPreviewProviders().map((provider) => ({
       ...provider,
@@ -264,7 +295,7 @@ export async function loadProviders(): Promise<Provider[]> {
 }
 
 export async function saveProviderProfile(provider: ProviderInput): Promise<Provider> {
-  if (!isDesktopApp) {
+  if (!hasLocalBackend) {
     const providers = readPreviewProviders();
     const index = provider.id ? providers.findIndex((item) => item.id === provider.id) : -1;
     const existing = index >= 0 ? providers[index] : null;
@@ -311,7 +342,7 @@ export async function saveProviderProfile(provider: ProviderInput): Promise<Prov
 }
 
 async function performProviderBalanceQuery(id: string): Promise<ProviderBalance> {
-  if (!isDesktopApp) {
+  if (!hasLocalBackend) {
     const provider = readPreviewProviders().find((item) => item.id === id);
     if (!provider) throw new Error("Provider does not exist");
     if (!provider.balancePlatform) throw new Error("Provider balance query is not enabled");
@@ -358,7 +389,7 @@ export function subscribeToProviderBalance(
 }
 
 export async function activateProvider(id: string): Promise<void> {
-  if (!isDesktopApp) {
+  if (!hasLocalBackend) {
     const providers = readPreviewProviders();
     const selected = providers.find((provider) => provider.id === id);
     if (!selected) throw new Error("Provider does not exist");
@@ -370,7 +401,7 @@ export async function activateProvider(id: string): Promise<void> {
 }
 
 export async function switchProviderModel(id: string, model: string): Promise<Provider> {
-  if (!isDesktopApp) {
+  if (!hasLocalBackend) {
     const providers = readPreviewProviders();
     const index = providers.findIndex((provider) => provider.id === id);
     if (index < 0) throw new Error("Provider does not exist");
@@ -386,7 +417,7 @@ export async function switchProviderModel(id: string, model: string): Promise<Pr
 }
 
 export async function setProviderModelControl(id: string, controlledByCodex: boolean): Promise<Provider> {
-  if (!isDesktopApp) {
+  if (!hasLocalBackend) {
     const providers = readPreviewProviders();
     const index = providers.findIndex((provider) => provider.id === id);
     if (index < 0) throw new Error("Provider does not exist");
@@ -401,7 +432,7 @@ export async function setProviderModelControl(id: string, controlledByCodex: boo
 }
 
 export async function deactivateProvider(): Promise<void> {
-  if (!isDesktopApp) {
+  if (!hasLocalBackend) {
     writePreviewProviders(readPreviewProviders().map((provider) => ({ ...provider, active: false })));
     return;
   }
@@ -409,7 +440,7 @@ export async function deactivateProvider(): Promise<void> {
 }
 
 export async function removeProvider(id: string): Promise<void> {
-  if (!isDesktopApp) {
+  if (!hasLocalBackend) {
     writePreviewProviders(readPreviewProviders().filter((provider) => provider.id !== id));
     return;
   }
@@ -417,12 +448,12 @@ export async function removeProvider(id: string): Promise<void> {
 }
 
 export async function loadLocalProxyStatus(): Promise<LocalProxyStatus> {
-  if (!isDesktopApp) return previewLocalProxyStatus();
+  if (!hasLocalBackend) return previewLocalProxyStatus();
   return invoke<LocalProxyStatus>("get_local_proxy_status");
 }
 
 export async function loadProxySessions(): Promise<ProxySession[]> {
-  if (!isDesktopApp) {
+  if (!hasLocalBackend) {
     if (!previewLocalProxyStatus().running) return [];
     const now = Math.floor(Date.now() / 1000);
     return [
@@ -471,7 +502,7 @@ export async function loadProxySessions(): Promise<ProxySession[]> {
 }
 
 export async function loadProxySessionRequests(sessionId: string): Promise<ProxySessionRequest[]> {
-  if (!isDesktopApp) {
+  if (!hasLocalBackend) {
     const now = Math.floor(Date.now() / 1000);
     const preview: Record<string, ProxySessionRequest[]> = {
       "019fa2da-d120-7e20-8e5a-079639b2d3ae": [
@@ -524,7 +555,7 @@ export async function loadProxySessionRequests(sessionId: string): Promise<Proxy
 }
 
 export async function loadRecentProxySessionLatency(): Promise<ProxySessionLatencySummary> {
-  if (!isDesktopApp) {
+  if (!hasLocalBackend) {
     const sessions = (await loadProxySessions())
       .sort((left, right) => right.lastSeenAt - left.lastSeenAt)
       .slice(0, 5);
@@ -540,7 +571,7 @@ export async function loadRecentProxySessionLatency(): Promise<ProxySessionLaten
 }
 
 export async function loadTokenUsageEntries(): Promise<TokenUsageEntry[]> {
-  if (!isDesktopApp) {
+  if (!hasLocalBackend) {
     const now = Math.floor(Date.now() / 1000);
     return [
       {
@@ -577,7 +608,7 @@ export async function loadTokenUsageEntries(): Promise<TokenUsageEntry[]> {
 }
 
 export async function loadAccountTokenUsage(startTs: number): Promise<AccountTokenUsageTotals[]> {
-  if (!isDesktopApp) {
+  if (!hasLocalBackend) {
     const totals = new Map<string, AccountTokenUsageTotals>();
     for (const entry of await loadTokenUsageEntries()) {
       if (entry.ts < startTs || (!entry.accountId && !entry.accountEmail)) continue;
@@ -607,7 +638,7 @@ export async function loadAccountTokenUsage(startTs: number): Promise<AccountTok
 }
 
 export async function loadDailyTokenUsage(startTs: number): Promise<DailyTokenUsage[]> {
-  if (!isDesktopApp) {
+  if (!hasLocalBackend) {
     const entries: DailyTokenUsage[] = [];
     const date = new Date(startTs * 1000);
     date.setHours(12, 0, 0, 0);
@@ -641,7 +672,7 @@ export async function showTokenUsageWindow(): Promise<void> {
 }
 
 export async function startLocalProxy(): Promise<LocalProxyStatus> {
-  if (!isDesktopApp) {
+  if (!hasLocalBackend) {
     if (!previewLocalProxyStatus().port) {
       throw new Error("Configure the web proxy listening port in Settings before starting the proxy");
     }
@@ -656,7 +687,7 @@ export async function startLocalProxy(): Promise<LocalProxyStatus> {
 }
 
 export async function updateWebProxyPort(port: number | null): Promise<AppSettings> {
-  if (isDesktopApp) return invoke<AppSettings>("set_web_proxy_port", { port });
+  if (hasLocalBackend) return invoke<AppSettings>("set_web_proxy_port", { port });
   if (port === null) {
     window.localStorage.removeItem(LOCAL_PROXY_PORT_PREVIEW_KEY);
     window.localStorage.removeItem(LOCAL_PROXY_PREVIEW_KEY);
@@ -671,7 +702,7 @@ export async function updateWebProxyPort(port: number | null): Promise<AppSettin
 }
 
 export async function stopLocalProxy(): Promise<LocalProxyStatus> {
-  if (!isDesktopApp) {
+  if (!hasLocalBackend) {
     window.localStorage.removeItem(LOCAL_PROXY_PREVIEW_KEY);
     writePreviewProviders(readPreviewProviders().map((provider) => ({
       ...provider,
@@ -681,17 +712,17 @@ export async function stopLocalProxy(): Promise<LocalProxyStatus> {
     return previewLocalProxyStatus();
   }
   const status = await invoke<LocalProxyStatus>("stop_local_proxy");
-  await relaunch();
+  if (isDesktopApp) await relaunch();
   return status;
 }
 
 export async function restoreNonProxyConversations(): Promise<DirectConversationSyncResult> {
-  if (!isDesktopApp) return { conversationsUpdated: 0, rolloutFilesUpdated: 0 };
+  if (!hasLocalBackend) return { conversationsUpdated: 0, rolloutFilesUpdated: 0 };
   return invoke<DirectConversationSyncResult>("restore_non_proxy_conversations");
 }
 
 export async function setLocalProxyAutoSwitch(enabled: boolean): Promise<LocalProxyStatus> {
-  if (!isDesktopApp) {
+  if (!hasLocalBackend) {
     if (enabled && !previewLocalProxyStatus().running) {
       throw new Error("Start the local proxy before enabling automatic account switching");
     }
@@ -702,7 +733,7 @@ export async function setLocalProxyAutoSwitch(enabled: boolean): Promise<LocalPr
 }
 
 export async function setLocalProxyAutoDisableUnreachable(enabled: boolean): Promise<LocalProxyStatus> {
-  if (!isDesktopApp) {
+  if (!hasLocalBackend) {
     const status = previewLocalProxyStatus();
     if (enabled && (!status.running || !status.autoSwitchOnQuotaExhaustion)) {
       throw new Error("Enable automatic account switching before enabling automatic disabling of unreachable accounts");
@@ -714,7 +745,7 @@ export async function setLocalProxyAutoDisableUnreachable(enabled: boolean): Pro
 }
 
 export async function setLocalProxyCustomPriority(enabled: boolean): Promise<LocalProxyStatus> {
-  if (!isDesktopApp) {
+  if (!hasLocalBackend) {
     const status = previewLocalProxyStatus();
     if (enabled && (!status.running || !status.autoSwitchOnQuotaExhaustion)) {
       throw new Error("Enable automatic account switching before enabling custom priorities");
@@ -727,7 +758,7 @@ export async function setLocalProxyCustomPriority(enabled: boolean): Promise<Loc
 }
 
 export async function setLocalProxyImageAccount(accountId: string | null): Promise<LocalProxyStatus> {
-  if (!isDesktopApp) {
+  if (!hasLocalBackend) {
     if (!previewLocalProxyStatus().running) {
       throw new Error("Start the local proxy before selecting an image generation account");
     }
@@ -739,7 +770,7 @@ export async function setLocalProxyImageAccount(accountId: string | null): Promi
 }
 
 export async function setLocalProxyOpenaiAuthAccount(accountId: string | null): Promise<LocalProxyStatus> {
-  if (!isDesktopApp) {
+  if (!hasLocalBackend) {
     if (!previewLocalProxyStatus().running) {
       throw new Error("Start the local proxy before selecting an OpenAI login account");
     }
@@ -751,7 +782,7 @@ export async function setLocalProxyOpenaiAuthAccount(accountId: string | null): 
 }
 
 export async function updateFloatingBubble(enabled: boolean): Promise<AppSettings> {
-  if (!isDesktopApp) {
+  if (!hasLocalBackend) {
     window.localStorage.setItem(FLOATING_BUBBLE_PREVIEW_KEY, String(enabled));
     return {
       floatingBubbleEnabled: enabled,
@@ -765,7 +796,7 @@ export async function updateFloatingBubble(enabled: boolean): Promise<AppSetting
 }
 
 export async function updatePrivacyMode(enabled: boolean): Promise<AppSettings> {
-  if (!isDesktopApp) {
+  if (!hasLocalBackend) {
     window.localStorage.setItem(PRIVACY_MODE_PREVIEW_KEY, String(enabled));
     return {
       floatingBubbleEnabled: previewFloatingBubbleEnabled(),
@@ -782,7 +813,7 @@ export async function updateTokenUsagePreferences(
   weeks: number,
   refreshSeconds: number,
 ): Promise<AppSettings> {
-  if (!isDesktopApp) {
+  if (!hasLocalBackend) {
     window.localStorage.setItem(TOKEN_USAGE_WEEKS_PREVIEW_KEY, String(weeks));
     window.localStorage.setItem(TOKEN_USAGE_REFRESH_PREVIEW_KEY, String(refreshSeconds));
     return loadAppSettings();
@@ -791,7 +822,7 @@ export async function updateTokenUsagePreferences(
 }
 
 export async function updateBubbleResetDisplay(display: BubbleResetDisplay): Promise<AppSettings> {
-  if (!isDesktopApp) {
+  if (!hasLocalBackend) {
     window.localStorage.setItem(BUBBLE_RESET_DISPLAY_PREVIEW_KEY, display);
     window.dispatchEvent(new CustomEvent<BubbleResetDisplay>(BUBBLE_RESET_DISPLAY_EVENT, { detail: display }));
     return {
@@ -806,7 +837,7 @@ export async function updateBubbleResetDisplay(display: BubbleResetDisplay): Pro
 }
 
 export async function updateBubbleStyle(style: BubbleStyle): Promise<AppSettings> {
-  if (!isDesktopApp) {
+  if (!hasLocalBackend) {
     window.localStorage.setItem(BUBBLE_STYLE_PREVIEW_KEY, style);
     window.dispatchEvent(new CustomEvent<BubbleStyle>(BUBBLE_STYLE_EVENT, { detail: style }));
     return loadAppSettings();
@@ -816,7 +847,7 @@ export async function updateBubbleStyle(style: BubbleStyle): Promise<AppSettings
 
 export async function updateThemeColor(color: string): Promise<AppSettings> {
   const themeColor = normalizeThemeColor(color);
-  if (!isDesktopApp) {
+  if (!hasLocalBackend) {
     window.localStorage.setItem(THEME_COLOR_PREVIEW_KEY, themeColor);
     window.dispatchEvent(new CustomEvent<string>(THEME_COLOR_EVENT, { detail: themeColor }));
     return {
@@ -831,17 +862,17 @@ export async function updateThemeColor(color: string): Promise<AppSettings> {
 }
 
 export async function loadCloudAuthState(): Promise<CloudAuthState> {
-  if (!isDesktopApp) return previewCloudState();
+  if (!hasLocalBackend) return previewCloudState();
   return invoke<CloudAuthState>("get_cloud_auth_state");
 }
 
 export async function loadSavedCloudLogin(): Promise<SavedCloudLogin | null> {
-  if (!isDesktopApp) return null;
+  if (!hasLocalBackend) return null;
   return invoke<SavedCloudLogin | null>("get_saved_cloud_login");
 }
 
 export async function updateCloudBaseUrl(baseUrl: string): Promise<CloudAuthState> {
-  if (!isDesktopApp) {
+  if (!hasLocalBackend) {
     const normalized = baseUrl.trim().replace(/\/+$/, "");
     window.localStorage.setItem(CLOUD_BASE_URL_PREVIEW_KEY, normalized);
     if (!normalized) {
@@ -857,7 +888,7 @@ export async function loginCloud(
   password: string,
   rememberPassword: boolean,
 ): Promise<CloudAuthenticationResult> {
-  if (!isDesktopApp) {
+  if (!hasLocalBackend) {
     if (!previewCloudState().baseUrl) throw new Error("Cloud server base URL is not configured");
     if (!email || !password) throw new Error("Email and password are required");
     window.localStorage.setItem(CLOUD_USER_PREVIEW_KEY, email);
@@ -871,7 +902,7 @@ export async function loginCloud(
 }
 
 export async function fetchCloudAnnouncement(): Promise<CloudAnnouncement> {
-  if (isDesktopApp) return invoke<CloudAnnouncement>("fetch_cloud_announcement");
+  if (hasLocalBackend) return invoke<CloudAnnouncement>("fetch_cloud_announcement");
   const { baseUrl } = previewCloudState();
   if (!baseUrl) return {
     content: "",
@@ -957,7 +988,7 @@ export async function reportBaseUrlChange(): Promise<void> {
 }
 
 export async function requestCloudRegistrationCode(email: string): Promise<void> {
-  if (!isDesktopApp) {
+  if (!hasLocalBackend) {
     if (!previewCloudState().baseUrl) throw new Error("Cloud server base URL is not configured");
     if (!email) throw new Error("Email is required");
     return;
@@ -971,7 +1002,7 @@ export async function registerCloud(
   verificationCode: string,
   rememberPassword: boolean,
 ): Promise<CloudAuthenticationResult> {
-  if (!isDesktopApp) return loginCloud(email, password, rememberPassword);
+  if (!hasLocalBackend) return loginCloud(email, password, rememberPassword);
   return invoke<CloudAuthenticationResult>("cloud_register", {
     email,
     password,
@@ -981,7 +1012,7 @@ export async function registerCloud(
 }
 
 export async function fetchCloudNotifications(): Promise<CloudNotification[]> {
-  if (isDesktopApp) return invoke<CloudNotification[]>("fetch_cloud_notifications");
+  if (hasLocalBackend) return invoke<CloudNotification[]>("fetch_cloud_notifications");
   const { baseUrl } = previewCloudState();
   if (!baseUrl) return [];
   const response = await fetch(`${baseUrl.replace(/\/+$/, "")}/notifications/recent`, {
@@ -993,7 +1024,7 @@ export async function fetchCloudNotifications(): Promise<CloudNotification[]> {
 }
 
 export async function fetchCloudFaqs(): Promise<CloudFaq[]> {
-  if (isDesktopApp) return invoke<CloudFaq[]>("fetch_cloud_faqs");
+  if (hasLocalBackend) return invoke<CloudFaq[]>("fetch_cloud_faqs");
   const { baseUrl } = previewCloudState();
   if (!baseUrl) return [];
   const response = await fetch(`${baseUrl.replace(/\/+$/, "")}/faqs`, {
@@ -1018,7 +1049,7 @@ function previewInstalledSkills(): Record<string, string> {
 }
 
 export async function fetchSkillMarket(): Promise<SkillMarketItem[]> {
-  if (isDesktopApp) return invoke<SkillMarketItem[]>("list_market_skills");
+  if (hasLocalBackend) return invoke<SkillMarketItem[]>("list_market_skills");
   const { baseUrl } = previewCloudState();
   if (!baseUrl) return [];
   const response = await fetch(`${baseUrl.replace(/\/+$/, "")}/skills`, {
@@ -1070,7 +1101,7 @@ export async function publishSkill(input: SkillPublishInput): Promise<SkillMarke
 }
 
 export async function installMarketSkill(skill: SkillMarketItem): Promise<void> {
-  if (!isDesktopApp) {
+  if (!hasLocalBackend) {
     const installed = previewInstalledSkills();
     installed[skill.id] = skill.version;
     window.localStorage.setItem(SKILL_MARKET_INSTALLED_PREVIEW_KEY, JSON.stringify(installed));
@@ -1085,7 +1116,7 @@ export function skillPreviewUrl(baseUrl: string | null | undefined, skill: Skill
 }
 
 export async function changeCloudPassword(currentPassword: string, newPassword: string): Promise<void> {
-  if (!isDesktopApp) {
+  if (!hasLocalBackend) {
     if (!previewCloudState().authenticated) throw new Error("Cloud account is not signed in");
     if (currentPassword.length < 6) throw new Error("Current password must be at least 6 characters");
     if (newPassword.length < 8) throw new Error("New password must be at least 8 characters");
@@ -1095,7 +1126,7 @@ export async function changeCloudPassword(currentPassword: string, newPassword: 
 }
 
 export async function logoutCloud(): Promise<CloudAuthState> {
-  if (!isDesktopApp) {
+  if (!hasLocalBackend) {
     window.localStorage.removeItem(CLOUD_USER_PREVIEW_KEY);
     return previewCloudState();
   }
@@ -1103,37 +1134,37 @@ export async function logoutCloud(): Promise<CloudAuthState> {
 }
 
 export async function syncCloudAccounts(): Promise<CloudSyncResult> {
-  if (!isDesktopApp) return { uploaded: 0, downloaded: 0 };
+  if (!hasLocalBackend) return { uploaded: 0, downloaded: 0 };
   return invoke<CloudSyncResult>("cloud_sync_accounts");
 }
 
 export async function pushCloudAccounts(): Promise<CloudSyncResult> {
-  if (!isDesktopApp) return { uploaded: 0, downloaded: 0 };
+  if (!hasLocalBackend) return { uploaded: 0, downloaded: 0 };
   return invoke<CloudSyncResult>("cloud_push_accounts");
 }
 
 export async function pushCloudAccount(id: string): Promise<CloudSyncResult> {
-  if (!isDesktopApp) return { uploaded: 0, downloaded: 0 };
+  if (!hasLocalBackend) return { uploaded: 0, downloaded: 0 };
   return invoke<CloudSyncResult>("cloud_push_account", { id });
 }
 
 export async function pushCloudProviders(): Promise<CloudSyncResult> {
-  if (!isDesktopApp) return { uploaded: 0, downloaded: 0 };
+  if (!hasLocalBackend) return { uploaded: 0, downloaded: 0 };
   return invoke<CloudSyncResult>("cloud_push_providers");
 }
 
 export async function pushCloudProvider(id: string): Promise<CloudSyncResult> {
-  if (!isDesktopApp) return { uploaded: 0, downloaded: 0 };
+  if (!hasLocalBackend) return { uploaded: 0, downloaded: 0 };
   return invoke<CloudSyncResult>("cloud_push_provider", { id });
 }
 
 export async function deleteCloudAccount(id: string): Promise<CloudSyncResult> {
-  if (!isDesktopApp) return { uploaded: 0, downloaded: 0 };
+  if (!hasLocalBackend) return { uploaded: 0, downloaded: 0 };
   return invoke<CloudSyncResult>("cloud_delete_account", { id });
 }
 
 export async function deleteCloudProvider(id: string): Promise<CloudSyncResult> {
-  if (!isDesktopApp) return { uploaded: 0, downloaded: 0 };
+  if (!hasLocalBackend) return { uploaded: 0, downloaded: 0 };
   return invoke<CloudSyncResult>("cloud_delete_provider", { id });
 }
 
@@ -1226,7 +1257,7 @@ export async function chooseAndImportCompatibleJson(): Promise<CompatibleJsonImp
 }
 
 export async function setLocalProxyListenOnAllInterfaces(enabled: boolean): Promise<LocalProxyStatus> {
-  if (!isDesktopApp) {
+  if (!hasLocalBackend) {
     if (!previewLocalProxyStatus().running) {
       throw new Error("Start the local proxy before changing its listening address");
     }
@@ -1281,32 +1312,32 @@ export async function chooseAndExportDiagnosticLogs(): Promise<ExportDiagnosticL
 }
 
 export async function activateAccount(id: string): Promise<void> {
-  if (isDesktopApp) await invoke("switch_account_and_restart_chatgpt", { id });
+  if (hasLocalBackend) await invoke("switch_account_and_restart_chatgpt", { id });
 }
 
 export async function setAccountAutoSwitchEnabled(id: string, enabled: boolean): Promise<void> {
-  if (isDesktopApp) await invoke("set_account_auto_switch_enabled", { id, enabled });
+  if (hasLocalBackend) await invoke("set_account_auto_switch_enabled", { id, enabled });
 }
 
 export async function setAccountAutoSwitchPriority(id: string, priority: number): Promise<void> {
   if (!Number.isInteger(priority)) throw new Error("Auto-switch priority must be an integer");
-  if (isDesktopApp) await invoke("set_account_auto_switch_priority", { id, priority });
+  if (hasLocalBackend) await invoke("set_account_auto_switch_priority", { id, priority });
 }
 
 export async function refreshAccountUsage(id: string): Promise<void> {
-  if (isDesktopApp) await invoke("refresh_usage", { id });
+  if (hasLocalBackend) await invoke("refresh_usage", { id });
 }
 
 export async function removeAccount(id: string): Promise<void> {
-  if (isDesktopApp) await invoke("delete_account", { id });
+  if (hasLocalBackend) await invoke("delete_account", { id });
 }
 
 export async function updateAccountNote(id: string, note: string, expiresAt: string): Promise<void> {
-  if (isDesktopApp) await invoke("update_account_note", { id, note, expiresAt });
+  if (hasLocalBackend) await invoke("update_account_note", { id, note, expiresAt });
 }
 
 export async function fetchResetCredits(id: string): Promise<ResetCreditsSummary> {
-  if (isDesktopApp) return invoke<ResetCreditsSummary>("fetch_reset_credits", { id });
+  if (hasLocalBackend) return invoke<ResetCreditsSummary>("fetch_reset_credits", { id });
   return {
     credits: [{
       issuedAt: new Date(Date.now() - 3 * 24 * 60 * 60_000).toISOString(),
@@ -1316,29 +1347,29 @@ export async function fetchResetCredits(id: string): Promise<ResetCreditsSummary
 }
 
 export async function consumeResetCredit(id: string): Promise<void> {
-  if (isDesktopApp) await invoke("consume_reset_credit", { id });
+  if (hasLocalBackend) await invoke("consume_reset_credit", { id });
 }
 
 export async function restartChatGpt(): Promise<void> {
-  if (isDesktopApp) await invoke("restart_chatgpt");
+  if (hasLocalBackend) await invoke("restart_chatgpt");
 }
 
 export async function launchChatGpt(): Promise<boolean> {
-  if (isDesktopApp) return invoke<boolean>("launch_chatgpt");
+  if (hasLocalBackend) return invoke<boolean>("launch_chatgpt");
   return false;
 }
 
 export async function openManagedFolder(target: "codexHome" | "accountStore"): Promise<void> {
-  if (isDesktopApp) await invoke("open_managed_folder", { target });
+  if (hasLocalBackend) await invoke("open_managed_folder", { target });
 }
 
 export async function loadDreamSkinStatus(): Promise<DreamSkinStatus> {
-  if (!isDesktopApp) return previewDreamSkinStatus();
+  if (!hasLocalBackend) return previewDreamSkinStatus();
   return invoke<DreamSkinStatus>("get_dream_skin_status");
 }
 
 export async function installDreamSkin(): Promise<DreamSkinStatus> {
-  if (!isDesktopApp) {
+  if (!hasLocalBackend) {
     window.localStorage.setItem(DREAM_SKIN_INSTALLED_PREVIEW_KEY, "true");
     return previewDreamSkinStatus();
   }
@@ -1346,7 +1377,7 @@ export async function installDreamSkin(): Promise<DreamSkinStatus> {
 }
 
 export async function applyDreamSkinTheme(themeId: string): Promise<DreamSkinStatus> {
-  if (!isDesktopApp) {
+  if (!hasLocalBackend) {
     window.localStorage.setItem(DREAM_SKIN_INSTALLED_PREVIEW_KEY, "true");
     window.localStorage.setItem(DREAM_SKIN_SESSION_PREVIEW_KEY, "active");
     window.localStorage.setItem(DREAM_SKIN_THEME_PREVIEW_KEY, themeId);
@@ -1391,12 +1422,12 @@ export async function importDreamSkinImage(
 }
 
 export async function saveDreamSkinTheme(name: string): Promise<DreamSkinStatus> {
-  if (!isDesktopApp) return previewDreamSkinStatus();
+  if (!hasLocalBackend) return previewDreamSkinStatus();
   return invoke<DreamSkinStatus>("save_dream_skin_theme", { name });
 }
 
 export async function setDreamSkinAppearance(appearance: DreamSkinAppearance): Promise<DreamSkinStatus> {
-  if (!isDesktopApp) {
+  if (!hasLocalBackend) {
     window.localStorage.setItem(DREAM_SKIN_APPEARANCE_PREVIEW_KEY, appearance);
     return previewDreamSkinStatus();
   }
@@ -1404,7 +1435,7 @@ export async function setDreamSkinAppearance(appearance: DreamSkinAppearance): P
 }
 
 export async function setDreamSkinPaused(paused: boolean): Promise<DreamSkinStatus> {
-  if (!isDesktopApp) {
+  if (!hasLocalBackend) {
     window.localStorage.setItem(DREAM_SKIN_SESSION_PREVIEW_KEY, paused ? "paused" : "active");
     return previewDreamSkinStatus();
   }
@@ -1412,7 +1443,7 @@ export async function setDreamSkinPaused(paused: boolean): Promise<DreamSkinStat
 }
 
 export async function reapplyDreamSkin(): Promise<DreamSkinStatus> {
-  if (!isDesktopApp) {
+  if (!hasLocalBackend) {
     window.localStorage.setItem(DREAM_SKIN_SESSION_PREVIEW_KEY, "active");
     return previewDreamSkinStatus();
   }
@@ -1420,12 +1451,12 @@ export async function reapplyDreamSkin(): Promise<DreamSkinStatus> {
 }
 
 export async function verifyDreamSkin(): Promise<string> {
-  if (!isDesktopApp) return "Preview verification completed.";
+  if (!hasLocalBackend) return "Preview verification completed.";
   return invoke<string>("verify_dream_skin");
 }
 
 export async function restoreDreamSkin(): Promise<DreamSkinStatus> {
-  if (!isDesktopApp) {
+  if (!hasLocalBackend) {
     window.localStorage.removeItem(DREAM_SKIN_INSTALLED_PREVIEW_KEY);
     window.localStorage.removeItem(DREAM_SKIN_SESSION_PREVIEW_KEY);
     window.localStorage.removeItem(DREAM_SKIN_THEME_PREVIEW_KEY);
@@ -1436,11 +1467,11 @@ export async function restoreDreamSkin(): Promise<DreamSkinStatus> {
 }
 
 export async function openDreamSkinFolder(): Promise<void> {
-  if (isDesktopApp) await invoke("open_dream_skin_folder");
+  if (hasLocalBackend) await invoke("open_dream_skin_folder");
 }
 
 export async function loadDreamSkinThemePreview(themeId: string): Promise<string | null> {
-  if (!isDesktopApp) return null;
+  if (!hasLocalBackend) return null;
   return invoke<string | null>("get_dream_skin_theme_preview", { themeId });
 }
 
@@ -1634,10 +1665,30 @@ export async function installDownloadedUpdate(): Promise<void> {
   }
 }
 
+const HOSTED_BACKEND_POLL_INTERVAL_MS = 2_500;
+
+function pollHostedBackend(callback: () => void | Promise<void>): () => void {
+  let running = false;
+  const poll = async () => {
+    if (running) return;
+    running = true;
+    try {
+      await callback();
+    } catch {
+      // A later poll will retry after transient local-server errors.
+    } finally {
+      running = false;
+    }
+  };
+  const timer = window.setInterval(() => void poll(), HOSTED_BACKEND_POLL_INTERVAL_MS);
+  return () => window.clearInterval(timer);
+}
+
 export function subscribeToBackendEvents(
   onAccountsChanged: () => void,
   onLoginStatus: (status: LoginStatus) => void,
 ): () => void {
+  if (isHostedWebApp) return pollHostedBackend(onAccountsChanged);
   if (!isDesktopApp) return () => undefined;
 
   const subscriptions: Promise<UnlistenFn>[] = [
@@ -1648,18 +1699,35 @@ export function subscribeToBackendEvents(
 }
 
 export function subscribeToTokenUsageChanges(onChange: () => void): () => void {
+  if (isHostedWebApp) return pollHostedBackend(onChange);
   if (!isDesktopApp) return () => undefined;
   const subscription = listen("token-usage-updated", onChange);
   return () => void subscription.then((unlisten) => unlisten());
 }
 
 export function subscribeToCloudSessionExpired(onExpired: () => void): () => void {
+  if (isHostedWebApp) {
+    let expired = false;
+    return pollHostedBackend(async () => {
+      const state = await loadCloudAuthState();
+      if (state.sessionExpired && !expired) onExpired();
+      expired = state.sessionExpired;
+    });
+  }
   if (!isDesktopApp) return () => undefined;
   const subscription = listen("cloud-session-expired", onExpired);
   return () => void subscription.then((unlisten) => unlisten());
 }
 
 export function subscribeToThemeColorChanges(onChange: (color: string) => void): () => void {
+  if (isHostedWebApp) {
+    let previous: string | null = null;
+    return pollHostedBackend(async () => {
+      const color = normalizeThemeColor((await loadAppSettings()).themeColor ?? DEFAULT_THEME_COLOR);
+      if (previous !== null && color !== previous) onChange(color);
+      previous = color;
+    });
+  }
   if (!isDesktopApp) {
     const handleThemeChange = (event: Event) => {
       onChange(normalizeThemeColor((event as CustomEvent<string>).detail));
@@ -1687,6 +1755,14 @@ export function subscribeToBubbleResetDisplayChanges(
   const handleChange = (value: unknown) => {
     if (value === "countdown" || value === "resetAt") onChange(value);
   };
+  if (isHostedWebApp) {
+    let previous: BubbleResetDisplay | null = null;
+    return pollHostedBackend(async () => {
+      const display = (await loadAppSettings()).bubbleResetDisplay;
+      if (previous !== null && display !== previous) handleChange(display);
+      previous = display;
+    });
+  }
   if (!isDesktopApp) {
     const handleDisplayChange = (event: Event) => {
       handleChange((event as CustomEvent<BubbleResetDisplay>).detail);
@@ -1712,6 +1788,14 @@ export function subscribeToBubbleStyleChanges(onChange: (style: BubbleStyle) => 
   const handleChange = (value: unknown) => {
     if (value === "classic" || value === "glass") onChange(value);
   };
+  if (isHostedWebApp) {
+    let previous: BubbleStyle | null = null;
+    return pollHostedBackend(async () => {
+      const style = (await loadAppSettings()).bubbleStyle;
+      if (previous !== null && style !== previous) handleChange(style);
+      previous = style;
+    });
+  }
   if (!isDesktopApp) {
     const handleStyleChange = (event: Event) => handleChange((event as CustomEvent<BubbleStyle>).detail);
     const handleStorage = (event: StorageEvent) => {
@@ -1729,6 +1813,7 @@ export function subscribeToBubbleStyleChanges(onChange: (style: BubbleStyle) => 
 }
 
 export function subscribeToProviderEvents(onProvidersChanged: () => void): () => void {
+  if (isHostedWebApp) return pollHostedBackend(onProvidersChanged);
   if (!isDesktopApp) {
     window.addEventListener(PROVIDERS_EVENT, onProvidersChanged);
     return () => window.removeEventListener(PROVIDERS_EVENT, onProvidersChanged);
@@ -1739,12 +1824,13 @@ export function subscribeToProviderEvents(onProvidersChanged: () => void): () =>
 
 export async function publishLanguageChange(language: Language): Promise<void> {
   window.localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
-  if (!isDesktopApp) {
+  if (!hasLocalBackend) {
     window.dispatchEvent(new CustomEvent<Language>(LANGUAGE_EVENT, { detail: language }));
     return;
   }
   await invoke("set_app_language", { language });
-  await emit(LANGUAGE_EVENT, language);
+  if (isDesktopApp) await emit(LANGUAGE_EVENT, language);
+  else window.dispatchEvent(new CustomEvent<Language>(LANGUAGE_EVENT, { detail: language }));
 }
 
 export function subscribeToLanguageChanges(onChange: (language: Language) => void): () => void {

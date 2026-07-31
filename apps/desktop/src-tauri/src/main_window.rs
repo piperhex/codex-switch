@@ -45,7 +45,7 @@ pub(crate) fn restore_or_set_default<R: Runtime>(app: &App<R>) -> tauri::Result<
     window.set_decorations(false)?;
 
     #[cfg(target_os = "macos")]
-    let restored = None;
+    let restored: Option<MainWindowState> = None;
     #[cfg(not(target_os = "macos"))]
     let restored = load(app.handle())
         .and_then(|state| fit_to_available_screens(state, &window.available_monitors().ok()?));
@@ -63,7 +63,7 @@ pub(crate) fn restore_or_set_default<R: Runtime>(app: &App<R>) -> tauri::Result<
             x: 0,
             y: 0,
             width: MIN_WIDTH as u32,
-            height: DEFAULT_HEIGHT as u32,
+            height: MIN_HEIGHT as u32,
             maximized: false,
         })
     };
