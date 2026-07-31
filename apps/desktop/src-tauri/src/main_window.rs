@@ -6,8 +6,10 @@ use tauri::{
 };
 
 const STATE_FILE_NAME: &str = "main-window-state.json";
+#[cfg(not(target_os = "macos"))]
 const DEFAULT_HEIGHT: f64 = 760.0;
 const DEFAULT_WIDTH_RATIO: f64 = 0.8;
+#[cfg(not(target_os = "macos"))]
 const MAX_DEFAULT_WIDTH: f64 = 1600.0;
 const MIN_WIDTH: f64 = 960.0;
 const MIN_HEIGHT: f64 = 680.0;
@@ -42,6 +44,9 @@ pub(crate) fn restore_or_set_default<R: Runtime>(app: &App<R>) -> tauri::Result<
     #[cfg(target_os = "windows")]
     window.set_decorations(false)?;
 
+    #[cfg(target_os = "macos")]
+    let restored = None;
+    #[cfg(not(target_os = "macos"))]
     let restored = load(app.handle())
         .and_then(|state| fit_to_available_screens(state, &window.available_monitors().ok()?));
 
@@ -53,7 +58,7 @@ pub(crate) fn restore_or_set_default<R: Runtime>(app: &App<R>) -> tauri::Result<
         }
         state
     } else {
-        set_default_size(app, &window)?;
+        set_default_size(app.handle(), &window)?;
         capture_webview_window(&window).unwrap_or(MainWindowState {
             x: 0,
             y: 0,
@@ -71,7 +76,7 @@ pub(crate) fn restore_or_set_default<R: Runtime>(app: &App<R>) -> tauri::Result<
 }
 
 fn set_default_size<R: Runtime>(
-    app: &App<R>,
+    app: &AppHandle<R>,
     window: &tauri::WebviewWindow<R>,
 ) -> tauri::Result<()> {
     let Some(monitor) = window.current_monitor()?.or(app.primary_monitor()?) else {
@@ -79,15 +84,41 @@ fn set_default_size<R: Runtime>(
     };
     let work_area = monitor.work_area();
     let screen = work_area.size.to_logical::<f64>(monitor.scale_factor());
-    let max_width = (screen.width - SCREEN_MARGIN * 2.0).max(MIN_WIDTH);
-    let max_height = (screen.height - SCREEN_MARGIN * 2.0).max(MIN_HEIGHT);
-    let width = (screen.width * DEFAULT_WIDTH_RATIO)
-        .clamp(MIN_WIDTH, max_width)
-        .min(MAX_DEFAULT_WIDTH);
-    let height = DEFAULT_HEIGHT.min(max_height);
+    #[cfg(target_os = "macos")]
+    let (width, height) = proportional_default_size(screen.width, screen.height);
+    #[cfg(not(target_os = "macos"))]
+    let (width, height) = {
+        let max_width = (screen.width - SCREEN_MARGIN * 2.0).max(MIN_WIDTH);
+        let max_height = (screen.height - SCREEN_MARGIN * 2.0).max(MIN_HEIGHT);
+        (
+            (screen.width * DEFAULT_WIDTH_RATIO)
+                .clamp(MIN_WIDTH, max_width)
+                .min(MAX_DEFAULT_WIDTH),
+            DEFAULT_HEIGHT.min(max_height),
+        )
+    };
 
     window.set_size(LogicalSize::new(width, height))?;
     window.center()
+}
+
+#[cfg(target_os = "macos")]
+pub(crate) fn reset_to_default_size<R: Runtime>(app: &AppHandle<R>) {
+    if let Some(window) = app.get_webview_window("main") {
+        if let Err(error) = set_default_size(app, &window) {
+            eprintln!("failed to reset main window size: {error}");
+        }
+    }
+}
+
+#[cfg(any(target_os = "macos", test))]
+fn proportional_default_size(screen_width: f64, screen_height: f64) -> (f64, f64) {
+    let max_width = (screen_width - SCREEN_MARGIN * 2.0).max(MIN_WIDTH);
+    let max_height = (screen_height - SCREEN_MARGIN * 2.0).max(MIN_HEIGHT);
+    (
+        (screen_width * DEFAULT_WIDTH_RATIO).clamp(MIN_WIDTH, max_width),
+        (screen_height * DEFAULT_WIDTH_RATIO).clamp(MIN_HEIGHT, max_height),
+    )
 }
 
 pub(crate) fn remember<R: Runtime>(window: &Window<R>) {
@@ -345,5 +376,10 @@ mod tests {
             ),
             None
         );
+    }
+
+    #[test]
+    fn uses_eighty_percent_of_the_screen_for_the_macos_default() {
+        assert_eq!(proportional_default_size(1440.0, 900.0), (1152.0, 720.0));
     }
 }

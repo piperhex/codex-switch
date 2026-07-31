@@ -221,6 +221,10 @@ pub fn run() {
             std::process::exit(1);
         })
         .run(|app, event| {
+            #[cfg(target_os = "macos")]
+            if matches!(event, tauri::RunEvent::Reopen { .. }) {
+                system_tray::show_dashboard(app);
+            }
             if matches!(event, tauri::RunEvent::ExitRequested { .. }) {
                 web_server::shutdown();
                 // Window move/resize events keep this cache current. Reading the

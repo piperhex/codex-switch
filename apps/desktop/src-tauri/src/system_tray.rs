@@ -64,6 +64,8 @@ pub(crate) fn refresh_menu<R: Runtime>(app: &AppHandle<R>) {
 
 pub(crate) fn show_dashboard<R: Runtime>(app: &AppHandle<R>) {
     if let Some(window) = app.get_webview_window("main") {
+        #[cfg(target_os = "macos")]
+        crate::main_window::reset_to_default_size(app);
         let _ = window.unminimize();
         let _ = window.show();
         let _ = window.set_focus();
