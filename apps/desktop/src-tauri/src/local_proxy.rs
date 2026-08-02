@@ -902,6 +902,10 @@ pub(crate) fn list_proxy_sessions<R: Runtime>(
         .as_ref()
         .map(|paths| official_model_context_windows(paths))
         .unwrap_or_default();
+    let upstream_official_provider_names = paths
+        .as_ref()
+        .map(|paths| upstream_official_provider_names(paths))
+        .unwrap_or_default();
     let session_ids = sessions
         .iter()
         .map(|session| session.id.clone())
@@ -920,7 +924,9 @@ pub(crate) fn list_proxy_sessions<R: Runtime>(
         .map(|session| {
             let model_context_window = match (session.provider.as_deref(), session.model.as_deref())
             {
-                (Some("Official Codex"), Some(model)) => {
+                (Some(provider), Some(model))
+                    if uses_official_model_context(provider, &upstream_official_provider_names) =>
+                {
                     official_context_windows.get(model).copied()
                 }
                 (Some(_), Some(_)) => Some(provider_context_window),
@@ -1069,20 +1075,26 @@ pub(crate) fn list_token_usage_entries<R: Runtime>(
 ) -> Result<Vec<TokenUsageEntry>, String> {
     let connection = open_token_usage_db(&app)?;
     let mut entries = list_token_usage_entries_from_db(&connection, TOKEN_USAGE_LIST_LIMIT)?;
-    let official_context_windows = resolve_paths(&app)
-        .ok()
-        .map(|paths| official_model_context_windows(&paths))
+    let paths = resolve_paths(&app).ok();
+    let official_context_windows = paths
+        .as_ref()
+        .map(|paths| official_model_context_windows(paths))
+        .unwrap_or_default();
+    let upstream_official_provider_names = paths
+        .as_ref()
+        .map(|paths| upstream_official_provider_names(paths))
         .unwrap_or_default();
     for entry in &mut entries {
-        entry.model_context_window = if entry.provider == "Official Codex" {
-            official_context_windows.get(&entry.model).copied()
-        } else {
-            Some(
-                providers::DEFAULT_MODEL_CONTEXT_WINDOW
-                    .saturating_mul(DEFAULT_EFFECTIVE_CONTEXT_WINDOW_PERCENT)
-                    / 100,
-            )
-        };
+        entry.model_context_window =
+            if uses_official_model_context(&entry.provider, &upstream_official_provider_names) {
+                official_context_windows.get(&entry.model).copied()
+            } else {
+                Some(
+                    providers::DEFAULT_MODEL_CONTEXT_WINDOW
+                        .saturating_mul(DEFAULT_EFFECTIVE_CONTEXT_WINDOW_PERCENT)
+                        / 100,
+                )
+            };
     }
     Ok(entries)
 }
@@ -1665,6 +1677,11 @@ fn handle_proxy_request<R: Runtime>(
         let result = match &target {
             ActiveTarget::Official { model } => {
                 forward_official(app, method, url, headers, body, model)
+            }
+            ActiveTarget::Provider(provider)
+                if providers::uses_upstream_official_models(provider) =>
+            {
+                forward_provider(method, url, headers, body, provider)
             }
             ActiveTarget::Provider(provider) => Ok(json_payload(
                 200,
@@ -2719,6 +2736,22 @@ fn official_model_context_windows(paths: &Paths) -> HashMap<String, u64> {
         .unwrap_or_default()
 }
 
+fn upstream_official_provider_names(paths: &Paths) -> HashSet<String> {
+    providers::list_provider_profiles(paths)
+        .unwrap_or_default()
+        .into_iter()
+        .filter(providers::uses_upstream_official_models)
+        .map(|provider| provider.name)
+        .collect()
+}
+
+fn uses_official_model_context(
+    provider: &str,
+    upstream_official_provider_names: &HashSet<String>,
+) -> bool {
+    provider == "Official Codex" || upstream_official_provider_names.contains(provider)
+}
+
 fn model_context_windows_from_catalog(catalog: &Value) -> HashMap<String, u64> {
     catalog
         .get("models")
@@ -3302,6 +3335,9 @@ fn provider_body_for_upstream(
     body: Vec<u8>,
     provider: &ProviderProfile,
 ) -> Vec<u8> {
+    if providers::uses_upstream_official_models(provider) {
+        return official_body_for_upstream(method, url, body, &provider.model);
+    }
     if *method != Method::Post || !is_responses_endpoint(request_path(url)) {
         return body;
     }
@@ -3386,6 +3422,9 @@ fn forward_chat_bridge(
 }
 
 fn selected_provider_model(body: &Value, provider: &ProviderProfile) -> String {
+    if providers::uses_upstream_official_models(provider) {
+        return selected_official_model(body, &provider.model);
+    }
     if !provider.model_selection_controlled_by_codex {
         return provider.model.clone();
     }
@@ -5136,7 +5175,7 @@ fn unix_millis() -> u128 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::UsageWindow;
+    use crate::models::{ProviderKind, UsageWindow};
     use serde_json::json;
     use std::io::{Cursor, Read};
     use std::sync::{
@@ -5158,6 +5197,27 @@ mod tests {
             })
             .find(|value| value.get("type").and_then(Value::as_str) == Some(event_type))
             .unwrap_or_else(|| panic!("missing SSE event {event_type}"))
+    }
+
+    fn openai_provider(base_url: String) -> ProviderProfile {
+        ProviderProfile {
+            id: "openai".to_string(),
+            kind: ProviderKind::OpenAi,
+            name: "OpenAI".to_string(),
+            base_url,
+            api_key: "sk-upstream".to_string(),
+            model: "gpt-5.6-sol".to_string(),
+            models: vec!["gpt-5.6-sol".to_string()],
+            model_selection_controlled_by_codex: true,
+            api_format: ProviderApiFormat::OpenaiResponses,
+            balance_platform: None,
+            balance_query_url: None,
+            balance_query_token: None,
+            wallet_query_url: None,
+            wallet_query_token: None,
+            wallet_username: None,
+            wallet_password: None,
+        }
     }
 
     #[test]
@@ -5822,6 +5882,7 @@ mod tests {
     fn proxy_diagnostic_entry_redacts_response_body_content() {
         let provider = ProviderProfile {
             id: "responses".to_string(),
+            kind: ProviderKind::Custom,
             name: "Responses Gateway".to_string(),
             base_url: "https://gateway.example.com/v1".to_string(),
             api_key: "sk-provider-test".to_string(),
@@ -5868,6 +5929,7 @@ mod tests {
     fn proxy_diagnostic_entry_redacts_non_responses_body_content() {
         let provider = ProviderProfile {
             id: "chat".to_string(),
+            kind: ProviderKind::Custom,
             name: "Chat Gateway".to_string(),
             base_url: "https://gateway.example.com/v1".to_string(),
             api_key: "sk-provider-test".to_string(),
@@ -5972,6 +6034,77 @@ mod tests {
     }
 
     #[test]
+    fn openai_provider_preserves_codex_selected_model() {
+        let provider = openai_provider("https://upstream.example.com/v1".to_string());
+        let body = serde_json::to_vec(&json!({
+            "model": "gpt-5.6-terra",
+            "input": "ping"
+        }))
+        .unwrap();
+
+        let forwarded =
+            provider_body_for_upstream(&Method::Post, "/v1/responses", body.clone(), &provider);
+
+        assert_eq!(forwarded, body);
+        let parsed: Value = serde_json::from_slice(&forwarded).unwrap();
+        assert_eq!(selected_provider_model(&parsed, &provider), "gpt-5.6-terra");
+    }
+
+    #[test]
+    fn openai_provider_uses_default_model_when_request_has_none() {
+        let provider = openai_provider("https://upstream.example.com/v1".to_string());
+        let body = serde_json::to_vec(&json!({ "input": "ping" })).unwrap();
+
+        let forwarded = provider_body_for_upstream(&Method::Post, "/v1/responses", body, &provider);
+        let parsed: Value = serde_json::from_slice(&forwarded).unwrap();
+
+        assert_eq!(parsed["model"], "gpt-5.6-sol");
+    }
+
+    #[test]
+    fn openai_provider_models_request_is_forwarded_with_api_key() {
+        let catalog = json!({ "models": [{ "slug": "gpt-5.6-sol", "context_window": 372000 }] });
+        let expected = serde_json::to_vec(&catalog).unwrap();
+        let server = Server::http("127.0.0.1:0").unwrap();
+        let addr = server.server_addr().to_ip().unwrap();
+        let upstream_body = expected.clone();
+        let handle = thread::spawn(move || {
+            let request = server.recv().unwrap();
+            assert_eq!(request.url(), "/v1/models?client_version=0.144.0");
+            assert!(request.headers().iter().any(|header| {
+                header.field.equiv("Authorization") && header.value.as_str() == "Bearer sk-upstream"
+            }));
+            request
+                .respond(
+                    Response::from_data(upstream_body).with_header(
+                        Header::from_bytes("Content-Type", "application/json").unwrap(),
+                    ),
+                )
+                .unwrap();
+        });
+        let provider = openai_provider(format!("http://{addr}/v1"));
+
+        let mut payload = forward_provider(
+            &Method::Get,
+            "/v1/models?client_version=0.144.0",
+            &[],
+            Vec::new(),
+            &provider,
+        )
+        .unwrap();
+        let mut actual = Vec::new();
+        match &mut payload.body {
+            UpstreamBody::Buffered(body) => actual.extend_from_slice(body),
+            UpstreamBody::Streaming(reader) => {
+                reader.read_to_end(&mut actual).unwrap();
+            }
+        }
+        handle.join().unwrap();
+
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
     fn official_token_usage_tracks_codex_selected_model() {
         let target = ActiveTarget::Official {
             model: "gpt-5.5".to_string(),
@@ -6041,6 +6174,7 @@ mod tests {
     fn provider_models_response_matches_codex_model_info_shape() {
         let provider = ProviderProfile {
             id: "deepseek".to_string(),
+            kind: ProviderKind::Custom,
             name: "DeepSeek".to_string(),
             base_url: "https://api.deepseek.com/v1".to_string(),
             api_key: "sk-provider-test".to_string(),
@@ -6444,6 +6578,7 @@ mod tests {
     fn provider_image_generation_request_preserves_gpt_image_model() {
         let provider = ProviderProfile {
             id: "images".to_string(),
+            kind: ProviderKind::Custom,
             name: "Images".to_string(),
             base_url: "https://images.example.com/v1".to_string(),
             api_key: "sk-provider-test".to_string(),
@@ -6627,6 +6762,7 @@ mod tests {
     fn chat_bridge_honors_codex_selected_provider_model() {
         let provider = ProviderProfile {
             id: "deepseek".to_string(),
+            kind: ProviderKind::Custom,
             name: "DeepSeek".to_string(),
             base_url: "https://api.deepseek.com/v1".to_string(),
             api_key: "sk-provider-test".to_string(),
@@ -6699,6 +6835,7 @@ mod tests {
 
         let provider = ProviderProfile {
             id: "deepseek".to_string(),
+            kind: ProviderKind::Custom,
             name: "DeepSeek".to_string(),
             base_url,
             api_key: "sk-provider-test".to_string(),

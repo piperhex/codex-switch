@@ -118,8 +118,12 @@ export function AccountDrawer({
       title: t("providers.apiFormat"),
       dataIndex: "apiFormat",
       width: 150,
-      render: (value: SyncProvider["apiFormat"]) => (
-        value === "openaiResponses" ? t("providers.openaiResponses") : t("providers.openaiChat")
+      render: (value: SyncProvider["apiFormat"], provider) => (
+        provider.kind === "openai"
+          ? t("providers.openai")
+          : value === "openaiResponses"
+            ? t("providers.openaiResponses")
+            : t("providers.openaiChat")
       ),
     },
     {

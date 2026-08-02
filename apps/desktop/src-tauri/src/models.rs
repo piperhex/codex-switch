@@ -97,6 +97,15 @@ pub(crate) enum ProviderApiFormat {
     OpenaiChat,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) enum ProviderKind {
+    #[default]
+    Custom,
+    #[serde(rename = "openai")]
+    OpenAi,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) enum ProviderBalancePlatform {
@@ -108,6 +117,8 @@ pub(crate) enum ProviderBalancePlatform {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ProviderProfile {
     pub(crate) id: String,
+    #[serde(default)]
+    pub(crate) kind: ProviderKind,
     pub(crate) name: String,
     pub(crate) base_url: String,
     pub(crate) api_key: String,
@@ -137,6 +148,7 @@ pub(crate) struct ProviderProfile {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ProviderSummary {
     pub(crate) id: String,
+    pub(crate) kind: ProviderKind,
     pub(crate) name: String,
     pub(crate) base_url: String,
     pub(crate) model: String,
@@ -458,6 +470,8 @@ pub(crate) struct CloudAccountPayload {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ProviderSyncPayload {
     pub(crate) id: String,
+    #[serde(default)]
+    pub(crate) kind: ProviderKind,
     pub(crate) name: String,
     pub(crate) base_url: String,
     pub(crate) api_key: String,

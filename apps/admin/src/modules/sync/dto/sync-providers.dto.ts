@@ -14,6 +14,10 @@ export class SyncProviderDto {
   @MaxLength(64)
   id: string;
 
+  @IsOptional()
+  @IsIn(['custom', 'openai'])
+  kind?: 'custom' | 'openai' = 'custom';
+
   @IsString()
   @MaxLength(160)
   name: string;

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button, Input, Popconfirm, Segmented, Select, Space, Switch, Table, Tag, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { Check, Pencil, Plus, RefreshCw, RotateCcw, Save, Server, Trash2, WalletCards, X } from "lucide-react";
+import { Bot, Check, Pencil, Plus, RefreshCw, RotateCcw, Save, Server, Trash2, WalletCards, X } from "lucide-react";
 import { queryProviderBalance, subscribeToProviderBalance } from "../api/backend";
 import type { AccountDisplayMode } from "../hooks/useAccountDisplayMode";
 import type { Translate } from "../i18n";
@@ -162,6 +162,7 @@ function ProviderModal({ provider, saving, onClose, onSave, t }: ProviderModalPr
     if (!canSave) return;
     const saved = await onSave({
       id: provider?.id,
+      kind: "custom",
       name,
       baseUrl,
       model: activeModel,
@@ -290,6 +291,76 @@ function ProviderModal({ provider, saving, onClose, onSave, t }: ProviderModalPr
   );
 }
 
+function OpenAiProviderModal({ provider, saving, onClose, onSave, t }: ProviderModalProps) {
+  const [name, setName] = useState("OpenAI");
+  const [baseUrl, setBaseUrl] = useState("");
+  const [apiKey, setApiKey] = useState("");
+
+  useEffect(() => {
+    setName(provider?.name ?? "OpenAI");
+    setBaseUrl(provider?.baseUrl ?? "");
+    setApiKey("");
+  }, [provider]);
+
+  const canSave = Boolean(
+    name.trim()
+    && baseUrl.trim()
+    && (provider?.hasApiKey || apiKey.trim()),
+  );
+  const submit = async () => {
+    if (!canSave) return;
+    const saved = await onSave({
+      id: provider?.id,
+      kind: "openai",
+      name,
+      baseUrl,
+      model: provider?.model ?? "",
+      models: provider?.models ?? [],
+      modelSelectionControlledByCodex: true,
+      apiKey: apiKey.trim() || undefined,
+      apiFormat: "openaiResponses",
+      balancePlatform: null,
+      balanceQueryUrl: null,
+      balanceQueryUsesApiKey: true,
+      walletQueryUrl: null,
+    });
+    if (saved) onClose();
+  };
+
+  return (
+    <div className="modal-backdrop">
+      <div className="modal provider-modal">
+        <button className="modal-close" disabled={saving} onClick={onClose}
+          aria-label={t("providers.openai.close")}>
+          <X size={17} />
+        </button>
+        <div className="modal-icon"><Bot size={22} /></div>
+        <h2>{provider ? t("providers.openai.editTitle") : t("providers.openai.addTitle")}</h2>
+        <p>{t("providers.openai.description")}</p>
+        <div className="provider-form">
+          <label htmlFor="openai-provider-name">{t("providers.form.name")}</label>
+          <Input id="openai-provider-name" value={name} disabled={saving} placeholder="OpenAI"
+            onChange={(event) => setName(event.target.value)} />
+          <label htmlFor="openai-provider-base-url">{t("providers.openai.baseUrl")}</label>
+          <Input id="openai-provider-base-url" value={baseUrl} disabled={saving}
+            placeholder="https://upstream-codex-switch.example.com/v1"
+            onChange={(event) => setBaseUrl(event.target.value)} />
+          <small>{t("providers.openai.baseUrlHint")}</small>
+          <label htmlFor="openai-provider-api-key">{t("providers.form.apiKey")}</label>
+          <Input.Password id="openai-provider-api-key" value={apiKey} disabled={saving}
+            placeholder={provider?.hasApiKey ? t("providers.form.keepApiKey") : t("providers.form.newApiKey")}
+            onChange={(event) => setApiKey(event.target.value)} />
+        </div>
+        <div className="provider-modal-footer">
+          <Button onClick={onClose} disabled={saving}>{t("providers.form.cancel")}</Button>
+          <Button type="primary" icon={<Save size={14} />} loading={saving} disabled={!canSave}
+            onClick={() => void submit()}>{t("providers.form.save")}</Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function RelayStationModal({
   saving,
   onClose,
@@ -338,6 +409,7 @@ function RelayStationModal({
   const submit = async () => {
     if (!canSave || !platform) return;
     const saved = await onSave({
+      kind: "custom",
       name,
       baseUrl,
       model,
@@ -454,6 +526,7 @@ function RelayStationModal({
 }
 
 function apiFormatTag(provider: Provider, t: Translate) {
+  if (provider.kind === "openai") return <Tag color="blue">{t("providers.tag.openai")}</Tag>;
   if (provider.apiFormat === "openaiResponses") return <Tag color="green">{t("providers.tag.responses")}</Tag>;
   return <Tag color="gold">{t("providers.tag.chatBridge")}</Tag>;
 }
@@ -576,10 +649,11 @@ function ProviderModelControlCell({
   t: Translate;
 }) {
   const codexControlled = provider.modelSelectionControlledByCodex;
+  const fixedToCodex = provider.kind === "openai";
   return (
     <div className="provider-model-owner">
       <Tooltip title={codexControlled ? t("providers.tooltip.codexModelControl") : t("providers.tooltip.appModelControl")}>
-        <Switch size="small" checked={codexControlled} disabled={busy}
+        <Switch size="small" checked={codexControlled} disabled={busy || fixedToCodex}
           onChange={(checked) => onModelControlChange(provider.id, checked)} />
       </Tooltip>
       <span>{codexControlled ? t("providers.control.codex") : t("providers.control.app")}</span>
@@ -604,6 +678,7 @@ export function ProvidersPage({
 }: ProvidersPageProps) {
   const [editingProvider, setEditingProvider] = useState<Provider | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [showOpenAiModal, setShowOpenAiModal] = useState(false);
   const [showRelayModal, setShowRelayModal] = useState(false);
   const proxyRunning = Boolean(localProxy?.running);
 
@@ -611,9 +686,17 @@ export function ProvidersPage({
     setEditingProvider(null);
     setShowModal(true);
   };
+  const openCreateOpenAi = () => {
+    setEditingProvider(null);
+    setShowOpenAiModal(true);
+  };
   const openEdit = (provider: Provider) => {
     setEditingProvider(provider);
-    setShowModal(true);
+    if (provider.kind === "openai") {
+      setShowOpenAiModal(true);
+    } else {
+      setShowModal(true);
+    }
   };
 
   const columns: ColumnsType<Provider> = [
@@ -711,7 +794,10 @@ export function ProvidersPage({
           <span>{info?.configPath ?? "~/.codex/config.toml"}</span>
         </div>
         <Space size={8} className="provider-toolbar-actions">
-          <Button type="primary" icon={<Plus size={14} />} onClick={openCreate}>
+          <Button type="primary" icon={<Bot size={14} />} onClick={openCreateOpenAi}>
+            {t("providers.action.addOpenAi")}
+          </Button>
+          <Button icon={<Plus size={14} />} onClick={openCreate}>
             {t("providers.action.add")}
           </Button>
           <Button icon={<WalletCards size={14} />} onClick={() => setShowRelayModal(true)}>
@@ -769,12 +855,19 @@ export function ProvidersPage({
         <div className="provider-empty">
           <Server size={24} />
           <strong>{t("providers.empty.title")}</strong>
-          <Button type="primary" icon={<Plus size={14} />} onClick={openCreate}>{t("providers.action.add")}</Button>
+          <Space size={8}>
+            <Button type="primary" icon={<Bot size={14} />} onClick={openCreateOpenAi}>
+              {t("providers.action.addOpenAi")}
+            </Button>
+            <Button icon={<Plus size={14} />} onClick={openCreate}>{t("providers.action.add")}</Button>
+          </Space>
         </div>
       )}
 
       {showModal && <ProviderModal provider={editingProvider} saving={saving}
         onClose={() => setShowModal(false)} onSave={onSave} t={t} />}
+      {showOpenAiModal && <OpenAiProviderModal provider={editingProvider} saving={saving}
+        onClose={() => setShowOpenAiModal(false)} onSave={onSave} t={t} />}
       {showRelayModal && <RelayStationModal saving={saving}
         onClose={() => setShowRelayModal(false)} onSave={onSave} t={t} />}
     </div>

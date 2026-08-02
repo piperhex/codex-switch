@@ -100,6 +100,7 @@ const THEME_COLOR_PREVIEW_KEY = "codex-switch:theme-color";
 const CLOUD_BASE_URL_PREVIEW_KEY = "codex-switch:cloud-base-url";
 const CLOUD_USER_PREVIEW_KEY = "codex-switch:cloud-user-email";
 const PROVIDERS_PREVIEW_KEY = "codex-switch:providers";
+const DEFAULT_OPENAI_PROVIDER_MODEL = "gpt-5.6-sol";
 const LOCAL_PROXY_PREVIEW_KEY = "codex-switch:local-proxy-running";
 const LOCAL_PROXY_AUTO_SWITCH_PREVIEW_KEY = "codex-switch:local-proxy-auto-switch";
 const LOCAL_PROXY_CUSTOM_PRIORITY_PREVIEW_KEY = "codex-switch:local-proxy-custom-priority";
@@ -197,12 +198,21 @@ function readPreviewProviders(): Provider[] {
       && "baseUrl" in provider
       && "model" in provider,
     )).map((provider) => {
-      const models = normalizeModels(provider.model, provider.models);
+      const kind = provider.kind === "openai" ? "openai" : "custom";
+      const storedModel = provider.model.trim();
+      const selectedModel = kind === "openai" && !storedModel
+        ? DEFAULT_OPENAI_PROVIDER_MODEL
+        : storedModel;
+      const models = normalizeModels(selectedModel, provider.models);
       return {
         ...provider,
-        model: models.includes(provider.model.trim()) ? provider.model.trim() : (models[0] ?? ""),
+        kind,
+        model: models.includes(selectedModel) ? selectedModel : (models[0] ?? ""),
         models,
-        modelSelectionControlledByCodex: Boolean(provider.modelSelectionControlledByCodex),
+        modelSelectionControlledByCodex: kind === "openai"
+          ? true
+          : Boolean(provider.modelSelectionControlledByCodex),
+        apiFormat: kind === "openai" ? "openaiResponses" : provider.apiFormat,
         balancePlatform: provider.balancePlatform ?? null,
         balanceQueryUrl: provider.balanceQueryUrl ?? null,
         balanceQueryUsesApiKey: provider.balanceQueryUsesApiKey !== false,
@@ -301,19 +311,28 @@ export async function saveProviderProfile(provider: ProviderInput): Promise<Prov
     const existing = index >= 0 ? providers[index] : null;
     const hasApiKey = Boolean(provider.apiKey?.trim() || existing?.hasApiKey);
     if (!hasApiKey) throw new Error("API key is required for a new provider");
-    const models = normalizeModels(provider.model, provider.models);
-    const model = provider.model.trim() || (models[0] ?? "");
+    const kind = provider.kind === "openai" ? "openai" : "custom";
+    const requestedModel = provider.model.trim();
+    const selectedModel = kind === "openai" && !requestedModel
+      ? DEFAULT_OPENAI_PROVIDER_MODEL
+      : requestedModel;
+    const models = normalizeModels(selectedModel, provider.models);
+    const model = selectedModel || (models[0] ?? "");
+    const apiFormat = kind === "openai" ? "openaiResponses" : provider.apiFormat;
     const next: Provider = {
       id: existing?.id ?? provider.id ?? previewProviderId(),
+      kind,
       name: provider.name.trim(),
       baseUrl: provider.baseUrl.trim().replace(/\/+$/, ""),
       model,
       models,
-      modelSelectionControlledByCodex: provider.modelSelectionControlledByCodex,
-      apiFormat: provider.apiFormat,
+      modelSelectionControlledByCodex: kind === "openai"
+        ? true
+        : provider.modelSelectionControlledByCodex,
+      apiFormat,
       active: existing?.active ?? false,
       hasApiKey,
-      supportsDirectSwitch: provider.apiFormat === "openaiResponses" || previewLocalProxyStatus().running,
+      supportsDirectSwitch: apiFormat === "openaiResponses" || previewLocalProxyStatus().running,
       balancePlatform: provider.balancePlatform ?? null,
       balanceQueryUrl: provider.balanceQueryUrl ?? null,
       balanceQueryUsesApiKey: provider.balanceQueryUsesApiKey !== false,
@@ -423,7 +442,7 @@ export async function setProviderModelControl(id: string, controlledByCodex: boo
     if (index < 0) throw new Error("Provider does not exist");
     providers[index] = {
       ...providers[index],
-      modelSelectionControlledByCodex: controlledByCodex,
+      modelSelectionControlledByCodex: providers[index].kind === "openai" ? true : controlledByCodex,
     };
     writePreviewProviders(providers);
     return providers[index];

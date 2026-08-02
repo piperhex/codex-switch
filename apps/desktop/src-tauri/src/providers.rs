@@ -10,7 +10,7 @@ use url::Url;
 use crate::{
     auth::{is_agent_identity_auth, validate_auth},
     models::{
-        ProviderApiFormat, ProviderBalance, ProviderBalancePlatform, ProviderProfile,
+        ProviderApiFormat, ProviderBalance, ProviderBalancePlatform, ProviderKind, ProviderProfile,
         ProviderSummary,
     },
     storage::{
@@ -47,6 +47,8 @@ fn emit_providers_changed<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<(), S
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ProviderInput {
     id: Option<String>,
+    #[serde(default)]
+    kind: ProviderKind,
     name: String,
     base_url: String,
     api_key: Option<String>,
@@ -113,9 +115,15 @@ pub(crate) fn save_provider<R: Runtime>(
         }
         None => unique_provider_id(&paths, &provider.name, &provider.base_url, &provider.model),
     };
+    let kind = provider.kind;
     let name = require_non_empty("Provider name", &provider.name)?;
     let base_url = normalize_base_url(&provider.base_url)?;
-    let (model, models) = normalize_model_selection(&provider.model, provider.models)?;
+    let model = if kind == ProviderKind::OpenAi && provider.model.trim().is_empty() {
+        DEFAULT_OFFICIAL_MODEL
+    } else {
+        &provider.model
+    };
+    let (model, models) = normalize_model_selection(model, provider.models)?;
     let supplied_key = provider.api_key.unwrap_or_default().trim().to_string();
     let api_key = if supplied_key.is_empty() {
         existing
@@ -145,8 +153,9 @@ pub(crate) fn save_provider<R: Runtime>(
             existing.as_ref(),
         )?;
 
-    let profile = ProviderProfile {
+    let profile = normalize_provider_profile(ProviderProfile {
         id,
+        kind,
         name,
         base_url,
         api_key,
@@ -161,7 +170,7 @@ pub(crate) fn save_provider<R: Runtime>(
         wallet_query_token,
         wallet_username,
         wallet_password,
-    };
+    })?;
     write_provider(&paths, &profile)?;
 
     let active_provider_id = read_state(&paths).active_provider_id;
@@ -545,6 +554,7 @@ pub(crate) fn set_provider_model_control<R: Runtime>(
     let paths = resolve_paths(&app)?;
     let mut provider = read_provider(&paths, &id)?;
     provider.model_selection_controlled_by_codex = controlled_by_codex;
+    provider = normalize_provider_profile(provider)?;
     write_provider(&paths, &provider)?;
 
     let active_provider_id = read_state(&paths).active_provider_id;
@@ -776,6 +786,7 @@ pub(crate) fn provider_modified_at(
 fn provider_summary(provider: &ProviderProfile, active: bool) -> ProviderSummary {
     ProviderSummary {
         id: provider.id.clone(),
+        kind: provider.kind,
         name: provider.name.clone(),
         base_url: provider.base_url.clone(),
         model: provider.model.clone(),
@@ -1064,6 +1075,13 @@ fn normalize_model_selection(
 }
 
 fn normalize_provider_profile(mut provider: ProviderProfile) -> Result<ProviderProfile, String> {
+    if provider.kind == ProviderKind::OpenAi {
+        if provider.model.trim().is_empty() {
+            provider.model = DEFAULT_OFFICIAL_MODEL.to_string();
+        }
+        provider.model_selection_controlled_by_codex = true;
+        provider.api_format = ProviderApiFormat::OpenaiResponses;
+    }
     let (model, models) = normalize_model_selection(&provider.model, provider.models)?;
     provider.model = model;
     provider.models = models;
@@ -1107,6 +1125,14 @@ fn normalize_provider_profile(mut provider: ProviderProfile) -> Result<ProviderP
         }
     }
     Ok(provider)
+}
+
+pub(crate) fn uses_upstream_official_models(provider: &ProviderProfile) -> bool {
+    provider.kind == ProviderKind::OpenAi
+}
+
+fn uses_local_model_catalog(provider: &ProviderProfile) -> bool {
+    provider.model_selection_controlled_by_codex && !uses_upstream_official_models(provider)
 }
 
 fn normalize_synced_provider(mut provider: ProviderProfile) -> Result<ProviderProfile, String> {
@@ -1280,7 +1306,7 @@ fn backup_codex_config_if_needed(paths: &Paths, entering_provider: bool) -> Resu
 }
 
 fn write_provider_config(paths: &Paths, provider: &ProviderProfile) -> Result<(), String> {
-    if provider.model_selection_controlled_by_codex {
+    if uses_local_model_catalog(provider) {
         write_provider_model_catalog(paths, provider)?;
     }
     let existing = if paths.current_config.exists() {
@@ -1302,14 +1328,14 @@ fn write_provider_local_proxy_config(
     paths: &Paths,
     provider: &ProviderProfile,
 ) -> Result<(), String> {
-    if provider.model_selection_controlled_by_codex {
+    if uses_local_model_catalog(provider) {
         write_provider_model_catalog(paths, provider)?;
     }
     write_local_proxy_config(
         paths,
         &provider.name,
         Some(&provider.model),
-        provider.model_selection_controlled_by_codex,
+        uses_local_model_catalog(provider),
     )
 }
 
@@ -1415,7 +1441,7 @@ fn merge_provider_config(existing: &str, provider: &ProviderProfile) -> String {
     config.push('\n');
     config.push_str("model_provider = \"custom\"\n");
     config.push_str(&format!("model = {}\n", toml_string(&provider.model)));
-    if provider.model_selection_controlled_by_codex {
+    if uses_local_model_catalog(provider) {
         config.push_str(&format!(
             "model_catalog_json = {}\n",
             toml_string(MODEL_CATALOG_FILENAME)
@@ -1692,6 +1718,7 @@ mod tests {
     fn provider() -> ProviderProfile {
         ProviderProfile {
             id: "p".to_string(),
+            kind: ProviderKind::Custom,
             name: "Gateway".to_string(),
             base_url: "https://gateway.example.com/v1".to_string(),
             api_key: "sk-test".to_string(),
@@ -2140,9 +2167,38 @@ sandbox_mode = "workspace-write"
     }
 
     #[test]
+    fn openai_provider_config_uses_upstream_model_catalog() {
+        let mut provider = provider();
+        provider.kind = ProviderKind::OpenAi;
+        provider.model_selection_controlled_by_codex = true;
+
+        let merged = merge_provider_config("", &provider);
+
+        assert!(!merged.contains("model_catalog_json"));
+    }
+
+    #[test]
+    fn normalize_openai_provider_enforces_official_behavior() {
+        let mut provider = provider();
+        provider.kind = ProviderKind::OpenAi;
+        provider.model.clear();
+        provider.models.clear();
+        provider.model_selection_controlled_by_codex = false;
+        provider.api_format = ProviderApiFormat::OpenaiChat;
+
+        let profile = normalize_provider_profile(provider).unwrap();
+
+        assert_eq!(profile.model, DEFAULT_OFFICIAL_MODEL);
+        assert_eq!(profile.models, vec![DEFAULT_OFFICIAL_MODEL]);
+        assert!(profile.model_selection_controlled_by_codex);
+        assert_eq!(profile.api_format, ProviderApiFormat::OpenaiResponses);
+    }
+
+    #[test]
     fn normalize_provider_profile_keeps_legacy_model_as_model_list() {
         let profile = normalize_provider_profile(ProviderProfile {
             id: "p".to_string(),
+            kind: ProviderKind::Custom,
             name: "Gateway".to_string(),
             base_url: "https://gateway.example.com/v1".to_string(),
             api_key: "sk-test".to_string(),

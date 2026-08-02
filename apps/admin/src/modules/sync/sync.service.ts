@@ -514,6 +514,7 @@ export class SyncService {
           id: existing?.id,
           ownerId,
           providerId: provider.id,
+          kind: provider.kind ?? 'custom',
           name: provider.name,
           baseUrl: provider.baseUrl,
           apiKey: provider.apiKey,
@@ -549,6 +550,7 @@ export class SyncService {
         id: existing?.id,
         ownerId,
         providerId: provider.id,
+        kind: provider.kind ?? 'custom',
         name: provider.name,
         baseUrl: provider.baseUrl,
         apiKey: provider.apiKey,
@@ -799,6 +801,7 @@ export class SyncService {
   private toProviderDto(row: SyncedProviderEntity): SyncProviderDto {
     return {
       id: row.providerId,
+      kind: row.kind ?? 'custom',
       name: row.name,
       baseUrl: row.baseUrl,
       apiKey: row.apiKey,

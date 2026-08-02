@@ -21,6 +21,7 @@ export function makeUser(overrides: Partial<UserEntity> = {}): UserEntity {
 export function makeProvider(overrides: Partial<SyncProviderDto> = {}): SyncProviderDto {
   return {
     id: 'provider-1',
+    kind: 'custom',
     name: 'Gateway',
     baseUrl: 'https://gateway.example.com/v1',
     apiKey: 'sk-provider-secret',

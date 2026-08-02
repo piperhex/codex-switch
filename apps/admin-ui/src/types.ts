@@ -302,6 +302,7 @@ export interface SystemAccount {
 
 export interface SyncProvider {
   id: string;
+  kind: "custom" | "openai";
   name: string;
   baseUrl: string;
   model: string;

@@ -54,10 +54,12 @@ export interface AppInfo {
 }
 
 export type ProviderApiFormat = "openaiResponses" | "openaiChat";
+export type ProviderKind = "custom" | "openai";
 export type ProviderBalancePlatform = "newApi" | "sub2Api";
 
 export interface Provider {
   id: string;
+  kind: ProviderKind;
   name: string;
   baseUrl: string;
   model: string;
@@ -79,6 +81,7 @@ export interface Provider {
 
 export interface ProviderInput {
   id?: string;
+  kind: ProviderKind;
   name: string;
   baseUrl: string;
   model: string;

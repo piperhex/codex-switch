@@ -866,6 +866,7 @@ fn provider_payload_from_profile(
 ) -> ProviderSyncPayload {
     ProviderSyncPayload {
         id: provider.id,
+        kind: provider.kind,
         name: provider.name,
         base_url: provider.base_url,
         api_key: provider.api_key,
@@ -887,6 +888,7 @@ fn provider_payload_from_profile(
 fn provider_payload_to_profile(provider: &ProviderSyncPayload) -> ProviderProfile {
     ProviderProfile {
         id: provider.id.clone(),
+        kind: provider.kind,
         name: provider.name.clone(),
         base_url: provider.base_url.clone(),
         api_key: provider.api_key.clone(),

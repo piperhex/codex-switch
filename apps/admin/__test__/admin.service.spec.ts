@@ -268,6 +268,7 @@ describe('AdminService', () => {
     await expect(service.listUserProviders(owner.id)).resolves.toEqual({
       providers: [{
         id: provider.id,
+        kind: provider.kind,
         name: provider.name,
         baseUrl: provider.baseUrl,
         model: provider.model,

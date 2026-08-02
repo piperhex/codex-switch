@@ -331,6 +331,7 @@ fn provider_payload_from_profile(
 ) -> ProviderSyncPayload {
     ProviderSyncPayload {
         id: provider.id,
+        kind: provider.kind,
         name: provider.name,
         base_url: provider.base_url,
         api_key: provider.api_key,
@@ -352,6 +353,7 @@ fn provider_payload_from_profile(
 fn provider_payload_to_profile(provider: &ProviderSyncPayload) -> Result<ProviderProfile, String> {
     Ok(ProviderProfile {
         id: provider.id.clone(),
+        kind: provider.kind,
         name: provider.name.clone(),
         base_url: provider.base_url.clone(),
         api_key: provider.api_key.clone(),
@@ -483,7 +485,7 @@ fn decrypt_payload(bytes: &[u8]) -> Result<Vec<u8>, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::ProviderApiFormat;
+    use crate::models::{ProviderApiFormat, ProviderKind};
     use serde_json::json;
 
     #[test]
@@ -508,6 +510,7 @@ mod tests {
             }],
             providers: vec![ProviderSyncPayload {
                 id: "provider-1".to_string(),
+                kind: ProviderKind::Custom,
                 name: "Gateway".to_string(),
                 base_url: "https://gateway.example.com/v1".to_string(),
                 api_key: "plain-secret-provider-key".to_string(),

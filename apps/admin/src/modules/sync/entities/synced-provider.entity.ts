@@ -25,6 +25,9 @@ export class SyncedProviderEntity {
   @Column({ type: 'varchar', length: 64 })
   providerId: string;
 
+  @Column({ type: 'varchar', length: 24, default: 'custom' })
+  kind: 'custom' | 'openai';
+
   @Column({ type: 'varchar', length: 160 })
   name: string;
 
