@@ -6,7 +6,6 @@ export type BuiltInDreamSkinTheme = {
   englishName: string;
   nameKey: `dreamSkin.theme.${string}.name`;
   descriptionKey: `dreamSkin.theme.${string}.description`;
-  preview: string;
   tone: string;
   appearance: DreamSkinAppearance;
 };
@@ -17,10 +16,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Gothic Void Crusade",
     nameKey: "dreamSkin.theme.gothic.name",
     descriptionKey: "dreamSkin.theme.gothic.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-gothic-void-crusade/background.jpg",
-      import.meta.url
-    ).href,
     tone: "gothic",
     appearance: "dark",
   },
@@ -29,10 +24,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Rose Reverie",
     nameKey: "dreamSkin.theme.roseReverie.name",
     descriptionKey: "dreamSkin.theme.roseReverie.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-rose-reverie/background.jpg",
-      import.meta.url
-    ).href,
     tone: "rose-reverie",
     appearance: "light",
   },
@@ -41,10 +32,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Fortune at Work",
     nameKey: "dreamSkin.theme.fortuneAtWork.name",
     descriptionKey: "dreamSkin.theme.fortuneAtWork.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-fortune-at-work/background.jpg",
-      import.meta.url
-    ).href,
     tone: "fortune",
     appearance: "light",
   },
@@ -53,10 +40,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Coral Horizon",
     nameKey: "dreamSkin.theme.coralHorizon.name",
     descriptionKey: "dreamSkin.theme.coralHorizon.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-coral-horizon/background.jpg",
-      import.meta.url
-    ).href,
     tone: "coral",
     appearance: "light",
   },
@@ -65,10 +48,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Sage Daylight",
     nameKey: "dreamSkin.theme.sageDaylight.name",
     descriptionKey: "dreamSkin.theme.sageDaylight.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-sage-daylight/background.jpg",
-      import.meta.url
-    ).href,
     tone: "sage",
     appearance: "light",
   },
@@ -77,10 +56,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Spark Studio",
     nameKey: "dreamSkin.theme.sparkStudio.name",
     descriptionKey: "dreamSkin.theme.sparkStudio.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-spark-studio/background.jpg",
-      import.meta.url
-    ).href,
     tone: "spark",
     appearance: "light",
   },
@@ -89,10 +64,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Cosmic Violet",
     nameKey: "dreamSkin.theme.cosmicViolet.name",
     descriptionKey: "dreamSkin.theme.cosmicViolet.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-cosmic-violet/background.jpg",
-      import.meta.url
-    ).href,
     tone: "cosmic",
     appearance: "dark",
   },
@@ -101,10 +72,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Aqua Resonance",
     nameKey: "dreamSkin.theme.aquaResonance.name",
     descriptionKey: "dreamSkin.theme.aquaResonance.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-aqua-resonance/background.jpg",
-      import.meta.url
-    ).href,
     tone: "aqua",
     appearance: "light",
   },
@@ -113,10 +80,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Midnight Gold",
     nameKey: "dreamSkin.theme.midnightGold.name",
     descriptionKey: "dreamSkin.theme.midnightGold.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-midnight-gold/background.jpg",
-      import.meta.url
-    ).href,
     tone: "midnight",
     appearance: "dark",
   },
@@ -125,10 +88,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Celadon Sword Lord",
     nameKey: "dreamSkin.theme.celadonSwordLord.name",
     descriptionKey: "dreamSkin.theme.celadonSwordLord.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-celadon-sword-lord/background.jpg",
-      import.meta.url
-    ).href,
     tone: "ancient-male",
     appearance: "light",
   },
@@ -137,10 +96,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Bamboo Flute Scholar",
     nameKey: "dreamSkin.theme.bambooFluteScholar.name",
     descriptionKey: "dreamSkin.theme.bambooFluteScholar.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-bamboo-flute-scholar/background.jpg",
-      import.meta.url
-    ).href,
     tone: "ancient-male",
     appearance: "light",
   },
@@ -149,10 +104,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Crimson Cloud General",
     nameKey: "dreamSkin.theme.crimsonCloudGeneral.name",
     descriptionKey: "dreamSkin.theme.crimsonCloudGeneral.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-crimson-cloud-general/background.jpg",
-      import.meta.url
-    ).href,
     tone: "ancient-male",
     appearance: "dark",
   },
@@ -161,10 +112,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "White Fox Scholar",
     nameKey: "dreamSkin.theme.whiteFoxScholar.name",
     descriptionKey: "dreamSkin.theme.whiteFoxScholar.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-white-fox-scholar/background.jpg",
-      import.meta.url
-    ).href,
     tone: "ancient-male",
     appearance: "light",
   },
@@ -173,10 +120,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Jade Dragon Prince",
     nameKey: "dreamSkin.theme.jadeDragonPrince.name",
     descriptionKey: "dreamSkin.theme.jadeDragonPrince.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-jade-dragon-prince/background.jpg",
-      import.meta.url
-    ).href,
     tone: "ancient-male",
     appearance: "light",
   },
@@ -185,10 +128,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Lantern Night Guard",
     nameKey: "dreamSkin.theme.lanternNightGuard.name",
     descriptionKey: "dreamSkin.theme.lanternNightGuard.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-lantern-night-guard/background.jpg",
-      import.meta.url
-    ).href,
     tone: "ancient-male",
     appearance: "dark",
   },
@@ -197,10 +136,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Snow Crane Swordsman",
     nameKey: "dreamSkin.theme.snowCraneSwordsman.name",
     descriptionKey: "dreamSkin.theme.snowCraneSwordsman.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-snow-crane-swordsman/background.jpg",
-      import.meta.url
-    ).href,
     tone: "ancient-male",
     appearance: "light",
   },
@@ -209,10 +144,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Lotus Spring Healer",
     nameKey: "dreamSkin.theme.lotusSpringHealer.name",
     descriptionKey: "dreamSkin.theme.lotusSpringHealer.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-lotus-spring-healer/background.jpg",
-      import.meta.url
-    ).href,
     tone: "ancient-female",
     appearance: "light",
   },
@@ -221,10 +152,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Tea Mountain Youth",
     nameKey: "dreamSkin.theme.teaMountainYouth.name",
     descriptionKey: "dreamSkin.theme.teaMountainYouth.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-tea-mountain-youth/background.jpg",
-      import.meta.url
-    ).href,
     tone: "ancient-male",
     appearance: "light",
   },
@@ -233,10 +160,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Dunhuang Lotus Dancer",
     nameKey: "dreamSkin.theme.dunhuangLotusDancer.name",
     descriptionKey: "dreamSkin.theme.dunhuangLotusDancer.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-dunhuang-lotus-dancer/background.jpg",
-      import.meta.url
-    ).href,
     tone: "ancient-female",
     appearance: "light",
   },
@@ -245,10 +168,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "White Fox Maiden",
     nameKey: "dreamSkin.theme.whiteFoxMaiden.name",
     descriptionKey: "dreamSkin.theme.whiteFoxMaiden.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-white-fox-maiden/background.jpg",
-      import.meta.url
-    ).href,
     tone: "ancient-female",
     appearance: "light",
   },
@@ -257,10 +176,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Bamboo Qin Muse",
     nameKey: "dreamSkin.theme.bambooQinMuse.name",
     descriptionKey: "dreamSkin.theme.bambooQinMuse.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-bamboo-qin-muse/background.jpg",
-      import.meta.url
-    ).href,
     tone: "ancient-female",
     appearance: "light",
   },
@@ -269,10 +184,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Cream Cardigan Girl",
     nameKey: "dreamSkin.theme.campusCardiganGirl.name",
     descriptionKey: "dreamSkin.theme.campusCardiganGirl.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-campus-cardigan-girl/background.jpg",
-      import.meta.url
-    ).href,
     tone: "modern-female",
     appearance: "light",
   },
@@ -281,10 +192,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Bookstore Spring",
     nameKey: "dreamSkin.theme.bookstoreSpringGirl.name",
     descriptionKey: "dreamSkin.theme.bookstoreSpringGirl.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-bookstore-spring-girl/background.jpg",
-      import.meta.url
-    ).href,
     tone: "modern-female",
     appearance: "light",
   },
@@ -293,10 +200,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Strawberry Café Girl",
     nameKey: "dreamSkin.theme.cafeStrawberryGirl.name",
     descriptionKey: "dreamSkin.theme.cafeStrawberryGirl.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-cafe-strawberry-girl/background.jpg",
-      import.meta.url
-    ).href,
     tone: "modern-female",
     appearance: "light",
   },
@@ -305,10 +208,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Film Camera Girl",
     nameKey: "dreamSkin.theme.filmCameraGirl.name",
     descriptionKey: "dreamSkin.theme.filmCameraGirl.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-film-camera-girl/background.jpg",
-      import.meta.url
-    ).href,
     tone: "modern-female",
     appearance: "light",
   },
@@ -317,10 +216,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Ultraman Tiga Sky",
     nameKey: "dreamSkin.theme.ultramanTigaSky.name",
     descriptionKey: "dreamSkin.theme.ultramanTigaSky.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-ultraman-tiga-sky/background.jpg",
-      import.meta.url
-    ).href,
     tone: "ultraman",
     appearance: "light",
   },
@@ -329,10 +224,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Ultraman Zero Cosmos",
     nameKey: "dreamSkin.theme.ultramanZeroCosmos.name",
     descriptionKey: "dreamSkin.theme.ultramanZeroCosmos.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-ultraman-zero-cosmos/background.jpg",
-      import.meta.url
-    ).href,
     tone: "ultraman",
     appearance: "dark",
   },
@@ -341,10 +232,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Ultraman Mebius Dawn",
     nameKey: "dreamSkin.theme.ultramanMebiusDawn.name",
     descriptionKey: "dreamSkin.theme.ultramanMebiusDawn.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-ultraman-mebius-dawn/background.jpg",
-      import.meta.url
-    ).href,
     tone: "ultraman",
     appearance: "light",
   },
@@ -353,10 +240,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Ultraman Z Starlight",
     nameKey: "dreamSkin.theme.ultramanZStarlight.name",
     descriptionKey: "dreamSkin.theme.ultramanZStarlight.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-ultraman-z-starlight/background.jpg",
-      import.meta.url
-    ).href,
     tone: "ultraman",
     appearance: "dark",
   },
@@ -365,10 +248,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Anywhere Door Day",
     nameKey: "dreamSkin.theme.doraemonAnywhereDoor.name",
     descriptionKey: "dreamSkin.theme.doraemonAnywhereDoor.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-doraemon-anywhere-door/background.jpg",
-      import.meta.url
-    ).href,
     tone: "doraemon",
     appearance: "light",
   },
@@ -377,10 +256,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Bamboo-Copter Flight",
     nameKey: "dreamSkin.theme.doraemonBambooCopter.name",
     descriptionKey: "dreamSkin.theme.doraemonBambooCopter.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-doraemon-bamboo-copter/background.jpg",
-      import.meta.url
-    ).href,
     tone: "doraemon",
     appearance: "light",
   },
@@ -389,10 +264,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Time Machine Voyage",
     nameKey: "dreamSkin.theme.doraemonTimeMachine.name",
     descriptionKey: "dreamSkin.theme.doraemonTimeMachine.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-doraemon-time-machine/background.jpg",
-      import.meta.url
-    ).href,
     tone: "doraemon",
     appearance: "dark",
   },
@@ -401,10 +272,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Doraemon Summer Night",
     nameKey: "dreamSkin.theme.doraemonNobitaNight.name",
     descriptionKey: "dreamSkin.theme.doraemonNobitaNight.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-doraemon-nobita-night/background.jpg",
-      import.meta.url
-    ).href,
     tone: "doraemon",
     appearance: "dark",
   },
@@ -413,10 +280,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Kitchen Chase",
     nameKey: "dreamSkin.theme.tomJerryKitchenChase.name",
     descriptionKey: "dreamSkin.theme.tomJerryKitchenChase.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-tom-jerry-kitchen-chase/background.jpg",
-      import.meta.url
-    ).href,
     tone: "tom-jerry",
     appearance: "light",
   },
@@ -425,10 +288,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Piano Mischief",
     nameKey: "dreamSkin.theme.tomJerryPianoDuet.name",
     descriptionKey: "dreamSkin.theme.tomJerryPianoDuet.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-tom-jerry-piano-duet/background.jpg",
-      import.meta.url
-    ).href,
     tone: "tom-jerry",
     appearance: "light",
   },
@@ -437,10 +296,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Garden Picnic",
     nameKey: "dreamSkin.theme.tomJerryGardenPicnic.name",
     descriptionKey: "dreamSkin.theme.tomJerryGardenPicnic.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-tom-jerry-garden-picnic/background.jpg",
-      import.meta.url
-    ).href,
     tone: "tom-jerry",
     appearance: "light",
   },
@@ -449,10 +304,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Rooftop Stars",
     nameKey: "dreamSkin.theme.tomJerryStarryNight.name",
     descriptionKey: "dreamSkin.theme.tomJerryStarryNight.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-tom-jerry-starry-night/background.jpg",
-      import.meta.url
-    ).href,
     tone: "tom-jerry",
     appearance: "dark",
   },
@@ -461,10 +312,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Jellyfish Fields",
     nameKey: "dreamSkin.theme.spongebobPatrickJellyfish.name",
     descriptionKey: "dreamSkin.theme.spongebobPatrickJellyfish.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-spongebob-patrick-jellyfish/background.jpg",
-      import.meta.url
-    ).href,
     tone: "spongebob",
     appearance: "light",
   },
@@ -473,10 +320,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Pineapple House Friends",
     nameKey: "dreamSkin.theme.spongebobPatrickPineapple.name",
     descriptionKey: "dreamSkin.theme.spongebobPatrickPineapple.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-spongebob-patrick-pineapple/background.jpg",
-      import.meta.url
-    ).href,
     tone: "spongebob",
     appearance: "light",
   },
@@ -485,10 +328,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Krusty Krab Fun",
     nameKey: "dreamSkin.theme.spongebobPatrickKrustyKrab.name",
     descriptionKey: "dreamSkin.theme.spongebobPatrickKrustyKrab.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-spongebob-patrick-krusty-krab/background.jpg",
-      import.meta.url
-    ).href,
     tone: "spongebob",
     appearance: "light",
   },
@@ -497,10 +336,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Bikini Bottom Stars",
     nameKey: "dreamSkin.theme.spongebobPatrickStarrySea.name",
     descriptionKey: "dreamSkin.theme.spongebobPatrickStarrySea.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-spongebob-patrick-starry-sea/background.jpg",
-      import.meta.url
-    ).href,
     tone: "spongebob",
     appearance: "dark",
   },
@@ -509,10 +344,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Forest Friends Day",
     nameKey: "dreamSkin.theme.boonieBearsForestDay.name",
     descriptionKey: "dreamSkin.theme.boonieBearsForestDay.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-boonie-bears-forest-day/background.jpg",
-      import.meta.url
-    ).href,
     tone: "boonie-bears",
     appearance: "light",
   },
@@ -521,10 +352,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Snow Adventure",
     nameKey: "dreamSkin.theme.boonieBearsSnowAdventure.name",
     descriptionKey: "dreamSkin.theme.boonieBearsSnowAdventure.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-boonie-bears-snow-adventure/background.jpg",
-      import.meta.url
-    ).href,
     tone: "boonie-bears",
     appearance: "light",
   },
@@ -533,10 +360,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Woodland Cabin",
     nameKey: "dreamSkin.theme.boonieBearsTreehouse.name",
     descriptionKey: "dreamSkin.theme.boonieBearsTreehouse.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-boonie-bears-treehouse/background.jpg",
-      import.meta.url
-    ).href,
     tone: "boonie-bears",
     appearance: "light",
   },
@@ -545,10 +368,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Spring Picnic",
     nameKey: "dreamSkin.theme.boonieBearsSpringPicnic.name",
     descriptionKey: "dreamSkin.theme.boonieBearsSpringPicnic.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-boonie-bears-spring-picnic/background.jpg",
-      import.meta.url
-    ).href,
     tone: "boonie-bears",
     appearance: "light",
   },
@@ -557,10 +376,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Green Grassland Day",
     nameKey: "dreamSkin.theme.pleasantGoatGrassland.name",
     descriptionKey: "dreamSkin.theme.pleasantGoatGrassland.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-pleasant-goat-grassland/background.jpg",
-      import.meta.url
-    ).href,
     tone: "pleasant-goat",
     appearance: "light",
   },
@@ -569,10 +384,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Grassland Chase",
     nameKey: "dreamSkin.theme.pleasantGoatWolffyChase.name",
     descriptionKey: "dreamSkin.theme.pleasantGoatWolffyChase.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-pleasant-goat-wolffy-chase/background.jpg",
-      import.meta.url
-    ).href,
     tone: "pleasant-goat",
     appearance: "light",
   },
@@ -581,10 +392,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Grassland Lantern Night",
     nameKey: "dreamSkin.theme.pleasantGoatLanternNight.name",
     descriptionKey: "dreamSkin.theme.pleasantGoatLanternNight.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-pleasant-goat-lantern-night/background.jpg",
-      import.meta.url
-    ).href,
     tone: "pleasant-goat",
     appearance: "dark",
   },
@@ -593,10 +400,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Sheep Village Picnic",
     nameKey: "dreamSkin.theme.pleasantGoatFriendsPicnic.name",
     descriptionKey: "dreamSkin.theme.pleasantGoatFriendsPicnic.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-pleasant-goat-friends-picnic/background.jpg",
-      import.meta.url
-    ).href,
     tone: "pleasant-goat",
     appearance: "light",
   },
@@ -605,10 +408,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Tianming & Shaoyu",
     nameKey: "dreamSkin.theme.qinMoonTianmingShaoyu.name",
     descriptionKey: "dreamSkin.theme.qinMoonTianmingShaoyu.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-qin-moon-tianming-shaoyu/background.jpg",
-      import.meta.url
-    ).href,
     tone: "qin-moon",
     appearance: "light",
   },
@@ -617,10 +416,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Gai Nie Sword Intent",
     nameKey: "dreamSkin.theme.qinMoonGaiNie.name",
     descriptionKey: "dreamSkin.theme.qinMoonGaiNie.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-qin-moon-gai-nie/background.jpg",
-      import.meta.url
-    ).href,
     tone: "qin-moon",
     appearance: "dark",
   },
@@ -629,10 +424,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Wei Zhuang Cold Edge",
     nameKey: "dreamSkin.theme.qinMoonWeiZhuang.name",
     descriptionKey: "dreamSkin.theme.qinMoonWeiZhuang.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-qin-moon-wei-zhuang/background.jpg",
-      import.meta.url
-    ).href,
     tone: "qin-moon",
     appearance: "dark",
   },
@@ -641,10 +432,6 @@ export const BUILT_IN_DREAM_SKIN_THEMES = [
     englishName: "Shao Siming Leaves",
     nameKey: "dreamSkin.theme.qinMoonShaosiming.name",
     descriptionKey: "dreamSkin.theme.qinMoonShaosiming.description",
-    preview: new URL(
-      "../src-tauri/resources/dream-skin/presets/preset-qin-moon-shaosiming/background.jpg",
-      import.meta.url
-    ).href,
     tone: "qin-moon",
     appearance: "light",
   },

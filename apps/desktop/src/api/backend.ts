@@ -22,6 +22,7 @@ import type {
   CloudSyncResult,
   DreamSkinImportOptions,
   DreamSkinAppearance,
+  DreamSkinResourcesStatus,
   DreamSkinStatus,
   DailyTokenUsage,
   DirectConversationSyncResult,
@@ -1841,6 +1842,24 @@ export function subscribeToProviderEvents(onProvidersChanged: () => void): () =>
   }
   const subscription = listen("providers-changed", onProvidersChanged);
   return () => void subscription.then((unlisten) => unlisten());
+}
+
+export async function loadDreamSkinResourcesStatus(): Promise<DreamSkinResourcesStatus> {
+  if (!hasLocalBackend) return {
+    phase: "ready",
+    installed: true,
+    installedVersion: "preview",
+    availableVersion: "preview",
+    downloadedBytes: 1,
+    totalBytes: 1,
+    error: null,
+  };
+  return invoke<DreamSkinResourcesStatus>("get_dream_skin_resources_status");
+}
+
+export async function retryDreamSkinResources(): Promise<DreamSkinResourcesStatus> {
+  if (!hasLocalBackend) return loadDreamSkinResourcesStatus();
+  return invoke<DreamSkinResourcesStatus>("retry_dream_skin_resources");
 }
 
 export function subscribeToLocalProxyStopProgress(

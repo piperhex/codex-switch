@@ -387,6 +387,18 @@ export interface DreamSkinThemeSummary {
   name: string;
 }
 
+export type DreamSkinResourcesPhase = "idle" | "checking" | "downloading" | "ready" | "error" | "unsupported";
+
+export interface DreamSkinResourcesStatus {
+  phase: DreamSkinResourcesPhase;
+  installed: boolean;
+  installedVersion?: string | null;
+  availableVersion?: string | null;
+  downloadedBytes: number;
+  totalBytes?: number | null;
+  error?: string | null;
+}
+
 export type DreamSkinSession = "unsupported" | "notInstalled" | "ready" | "active" | "paused";
 export type DreamSkinAppearance = "auto" | "light" | "dark";
 

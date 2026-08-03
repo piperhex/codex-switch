@@ -38,7 +38,7 @@ const CDP_COMMAND_TIMEOUT: Duration = Duration::from_secs(10);
 const MAX_ART_BYTES: u64 = 16 * 1024 * 1024;
 const MAX_ART_DIMENSION: u32 = 16_384;
 const MAX_ART_PIXELS: u64 = 50_000_000;
-const BUILT_IN_THEME_IDS: [&str; 173] = [
+pub(crate) const BUILT_IN_THEME_IDS: [&str; 173] = [
     "preset-gothic-void-crusade",
     "preset-rose-reverie",
     "preset-fortune-at-work",
@@ -351,7 +351,6 @@ fn bundled_root(app: &AppHandle) -> Result<PathBuf, String> {
                     .join("macos")
                     .join("renderer-inject.js")
                     .is_file()
-                && path.join("presets").is_dir()
         })
         .ok_or_else(|| "The bundled Dream Skin assets are missing.".to_string())
 }
@@ -736,7 +735,7 @@ fn saved_theme_directory(theme_id: &str) -> Result<PathBuf, String> {
     Ok(canonical_directory)
 }
 
-fn initialize_store(root: &Path) -> Result<(), String> {
+fn initialize_store() -> Result<(), String> {
     let state = state_root()?;
     ensure_directory(&state)?;
     ensure_directory(&active_theme_root()?)?;
@@ -750,7 +749,9 @@ fn initialize_store(root: &Path) -> Result<(), String> {
             .is_some_and(|id| RETIRED_THEME_IDS.contains(&id))
     });
     if active.is_none() || retired_active {
-        copy_theme_to_active(&built_in_theme_directory(root, "preset-rose-reverie")?)?;
+        if let Ok(root) = crate::dream_skin_resources::installed_pack_root() {
+            copy_theme_to_active(&built_in_theme_directory(&root, "preset-rose-reverie")?)?;
+        }
     }
     Ok(())
 }
@@ -1840,7 +1841,7 @@ pub(crate) fn setup(app: &AppHandle) -> Result<(), String> {
         return Ok(());
     }
     let root = bundled_root(app)?;
-    initialize_store(&root)?;
+    initialize_store()?;
     ensure_monitor(RuntimePaths { bundled_root: root });
     Ok(())
 }
@@ -1868,7 +1869,13 @@ pub(crate) fn restart_active_session() -> Result<bool, String> {
 
 fn install_unlocked(app: &AppHandle, restart_chatgpt: bool) -> Result<(), String> {
     let root = bundled_root(app)?;
-    initialize_store(&root)?;
+    initialize_store()?;
+    if restart_chatgpt {
+        load_theme(&active_theme_root()?).map_err(|_| {
+            "Dream Skin preset resources are still downloading; choose a theme after they are ready."
+                .to_string()
+        })?;
+    }
     write_json(
         &marker_path()?,
         &InstallationMarker {
@@ -1903,7 +1910,7 @@ fn ensure_installed(app: &AppHandle) -> Result<RuntimePaths, String> {
     let paths = RuntimePaths {
         bundled_root: bundled_root(app)?,
     };
-    initialize_store(&paths.bundled_root)?;
+    initialize_store()?;
     ensure_monitor(paths.clone());
     Ok(paths)
 }
@@ -1921,7 +1928,8 @@ pub(crate) fn apply_theme(app: &AppHandle, theme_id: &str) -> Result<(), String>
     let already_installed = marker_path()?.is_file();
     let paths = ensure_installed(app)?;
     let directory = if BUILT_IN_THEME_IDS.contains(&theme_id) {
-        built_in_theme_directory(&paths.bundled_root, theme_id)?
+        let resource_root = crate::dream_skin_resources::installed_pack_root()?;
+        built_in_theme_directory(&resource_root, theme_id)?
     } else {
         saved_theme_directory(theme_id)?
     };
@@ -2229,7 +2237,13 @@ pub(crate) fn theme_preview(theme_id: &str) -> Result<Option<String>, String> {
         return Err("Theme id is invalid.".to_string());
     }
     if BUILT_IN_THEME_IDS.contains(&theme_id) {
-        return Ok(None);
+        let root = crate::dream_skin_resources::installed_pack_root()?;
+        let theme = load_theme(&built_in_theme_directory(&root, theme_id)?)?;
+        return Ok(Some(format!(
+            "data:{};base64,{}",
+            theme.mime,
+            BASE64.encode(theme.image_bytes)
+        )));
     }
     let theme = load_theme(&saved_theme_directory(theme_id)?)?;
     Ok(Some(format!(
@@ -2482,7 +2496,7 @@ mod tests {
         let bundled_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("resources")
             .join("dream-skin");
-        initialize_store(&bundled_root).expect("theme store should initialize");
+        initialize_store().expect("theme store should initialize");
         write_json(
             &marker_path().unwrap(),
             &InstallationMarker {

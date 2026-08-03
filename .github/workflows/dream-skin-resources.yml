@@ -1,0 +1,128 @@
+name: Dream Skin Resources
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+    paths:
+      - "apps/desktop/src-tauri/resources/dream-skin/presets/**"
+      - "apps/desktop/src-tauri/src/dream_skin_native.rs"
+      - "scripts/prepare-dream-skin-release.mjs"
+      - ".github/workflows/dream-skin-resources.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: dream-skin-resources
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish versioned resource pack
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+
+      - name: Prepare registered presets
+        run: node scripts/prepare-dream-skin-release.mjs "$RUNNER_TEMP/dream-skin-release"
+
+      - name: Create deterministic ZIP and MD5 version
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+          staging="$RUNNER_TEMP/dream-skin-release"
+          archive="$RUNNER_TEMP/dream-skin-resources.zip"
+          (
+            cd "$staging"
+            find presets -type f -print | LC_ALL=C sort | zip -X -0 -q "$archive" -@
+          )
+          version="$(md5sum "$archive" | cut -d ' ' -f 1)"
+          versioned_archive="$RUNNER_TEMP/dream-skin-resources-$version.zip"
+          mv "$archive" "$versioned_archive"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=dream-skin-$version" >> "$GITHUB_OUTPUT"
+          echo "asset=$versioned_archive" >> "$GITHUB_OUTPUT"
+
+      - name: Create or update independent release
+        uses: actions/github-script@v9
+        env:
+          RESOURCE_VERSION: ${{ steps.package.outputs.version }}
+          RESOURCE_TAG: ${{ steps.package.outputs.tag }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { owner, repo } = context.repo;
+            const tag = process.env.RESOURCE_TAG;
+            const name = `Dream Skin Resources ${process.env.RESOURCE_VERSION}`;
+            const body = [
+              "Independent Dream Skin preset resource pack.",
+              "",
+              `Version and archive MD5: \`${process.env.RESOURCE_VERSION}\``,
+              "",
+              "Codex Switch downloads this pack silently after startup; it is not included in the application installer.",
+            ].join("\n");
+            try {
+              const { data: release } = await github.rest.repos.getReleaseByTag({ owner, repo, tag });
+              await github.rest.repos.updateRelease({
+                owner,
+                repo,
+                release_id: release.id,
+                name,
+                body,
+                draft: false,
+                prerelease: false,
+                make_latest: "false",
+              });
+              return;
+            } catch (error) {
+              if (error.status !== 404) throw error;
+            }
+            await github.rest.repos.createRelease({
+              owner,
+              repo,
+              tag_name: tag,
+              target_commitish: context.sha,
+              name,
+              body,
+              draft: true,
+              prerelease: false,
+              make_latest: "false",
+            });
+
+      - name: Upload resource archive
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RESOURCE_TAG: ${{ steps.package.outputs.tag }}
+          RESOURCE_ASSET: ${{ steps.package.outputs.asset }}
+        run: gh release upload "$RESOURCE_TAG" "$RESOURCE_ASSET" --clobber
+
+      - name: Publish resource release
+        uses: actions/github-script@v9
+        env:
+          RESOURCE_TAG: ${{ steps.package.outputs.tag }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { owner, repo } = context.repo;
+            const { data: release } = await github.rest.repos.getReleaseByTag({
+              owner,
+              repo,
+              tag: process.env.RESOURCE_TAG,
+            });
+            await github.rest.repos.updateRelease({
+              owner,
+              repo,
+              release_id: release.id,
+              draft: false,
+              prerelease: false,
+              make_latest: "false",
+            });

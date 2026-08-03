@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, Button, Input, InputNumber, Modal, Popconfirm, Segmented, Select, Tooltip } from "antd";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Alert, Button, Input, InputNumber, Modal, Popconfirm, Progress, Segmented, Select, Tooltip } from "antd";
 import {
   Check,
   CirclePause,
   CirclePlay,
+  CloudDownload,
   FolderOpen,
   ImagePlus,
   RefreshCw,
@@ -18,11 +19,13 @@ import {
   chooseDreamSkinImage,
   importDreamSkinImage,
   installDreamSkin,
+  loadDreamSkinResourcesStatus,
   loadDreamSkinStatus,
   loadDreamSkinThemePreview,
   openDreamSkinFolder,
   reapplyDreamSkin,
   restoreDreamSkin,
+  retryDreamSkinResources,
   saveDreamSkinTheme,
   setDreamSkinAppearance,
   setDreamSkinPaused,
@@ -30,7 +33,13 @@ import {
 } from "../api/backend";
 import { BUILT_IN_DREAM_SKIN_IDS, BUILT_IN_DREAM_SKIN_THEMES } from "../dreamSkinBuiltIns";
 import type { Translate } from "../i18n";
-import type { DreamSkinAppearance, DreamSkinImportOptions, DreamSkinStatus, DreamSkinThemeSummary } from "../types";
+import type {
+  DreamSkinAppearance,
+  DreamSkinImportOptions,
+  DreamSkinResourcesStatus,
+  DreamSkinStatus,
+  DreamSkinThemeSummary,
+} from "../types";
 
 const APPEARANCE_OPTIONS = [
   { value: "auto", labelKey: "dreamSkin.option.auto" },
@@ -60,20 +69,66 @@ type ThemeCardProps = {
   active: boolean;
   busy: boolean;
   description: string;
+  disabled?: boolean;
   id: string;
   name: string;
   preview?: string | null;
+  previewEnabled?: boolean;
   tone?: string;
   onApply: () => void;
   t: Translate;
 };
 
-function ThemeCard({ active, busy, description, id, name, preview, tone, onApply, t }: ThemeCardProps) {
+function ThemeCard({
+  active,
+  busy,
+  description,
+  disabled = false,
+  id,
+  name,
+  preview,
+  previewEnabled = false,
+  tone,
+  onApply,
+  t,
+}: ThemeCardProps) {
+  const cardRef = useRef<HTMLElement | null>(null);
+  const previewRequested = useRef(false);
+  const [visible, setVisible] = useState(false);
+  const [lazyPreview, setLazyPreview] = useState<string | null>(null);
+
+  useEffect(() => {
+    const element = cardRef.current;
+    if (!element || typeof IntersectionObserver === "undefined") {
+      setVisible(true);
+      return;
+    }
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        setVisible(true);
+        observer.disconnect();
+      }
+    }, { rootMargin: "240px" });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!previewEnabled || !visible || previewRequested.current || preview) return;
+    previewRequested.current = true;
+    let cancelled = false;
+    void loadDreamSkinThemePreview(id)
+      .then((value) => { if (!cancelled) setLazyPreview(value); })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [id, preview, previewEnabled, visible]);
+
+  const resolvedPreview = preview ?? lazyPreview;
   return (
-    <article className={`dream-theme-card${active ? " is-active" : ""}`}>
+    <article ref={cardRef} className={`dream-theme-card${active ? " is-active" : ""}`}>
       <div
         className={`dream-theme-preview dream-theme-preview-${tone ?? "saved"}`}
-        style={preview ? { backgroundImage: `url("${preview}")` } : undefined}
+        style={resolvedPreview ? { backgroundImage: `url("${resolvedPreview}")` } : undefined}
       >
         <div className="dream-theme-preview-shade" />
         <span className="dream-theme-id">{id}</span>
@@ -81,7 +136,7 @@ function ThemeCard({ active, busy, description, id, name, preview, tone, onApply
       </div>
       <div className="dream-theme-copy">
         <div><h3>{name}</h3><p>{description}</p></div>
-        <Button type={active ? "default" : "primary"} disabled={active || busy}
+        <Button type={active ? "default" : "primary"} disabled={active || busy || disabled}
           loading={busy && !active} icon={active ? <Check size={14} /> : <WandSparkles size={14} />}
           onClick={onApply}>
           {active ? t("dreamSkin.applied") : t("dreamSkin.apply")}
@@ -98,18 +153,14 @@ function SavedThemeCard({ theme, status, busy, onApply, t }: {
   onApply: () => void;
   t: Translate;
 }) {
-  const [preview, setPreview] = useState<string | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    void loadDreamSkinThemePreview(theme.id)
-      .then((value) => { if (!cancelled) setPreview(value); })
-      .catch(() => undefined);
-    return () => { cancelled = true; };
-  }, [theme.id]);
-
   return <ThemeCard active={status.activeThemeId === theme.id} busy={busy}
     description={t("dreamSkin.saved.description")} id={theme.id} name={theme.name}
-    preview={preview} onApply={onApply} t={t} />;
+    previewEnabled onApply={onApply} t={t} />;
+}
+
+function formatResourceBytes(bytes?: number | null): string {
+  if (!bytes) return "0 MB";
+  return `${(bytes / 1024 / 1024).toFixed(bytes >= 100 * 1024 * 1024 ? 0 : 1)} MB`;
 }
 
 const DEFAULT_IMPORT_OPTIONS: DreamSkinImportOptions = {
@@ -123,6 +174,7 @@ const DEFAULT_IMPORT_OPTIONS: DreamSkinImportOptions = {
 
 export function DreamSkinPage({ t, notify }: DreamSkinPageProps) {
   const [status, setStatus] = useState<DreamSkinStatus | null>(null);
+  const [resources, setResources] = useState<DreamSkinResourcesStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -145,6 +197,33 @@ export function DreamSkinPage({ t, notify }: DreamSkinPageProps) {
   }, []);
 
   useEffect(() => { void refresh(); }, [refresh]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const poll = () => {
+      void loadDreamSkinResourcesStatus()
+        .then((next) => { if (!cancelled) setResources(next); })
+        .catch((resourceError) => {
+          if (!cancelled) {
+            setResources((current) => ({
+              phase: "error",
+              installed: current?.installed ?? false,
+              installedVersion: current?.installedVersion,
+              availableVersion: current?.availableVersion,
+              downloadedBytes: current?.downloadedBytes ?? 0,
+              totalBytes: current?.totalBytes,
+              error: String(resourceError),
+            }));
+          }
+        });
+    };
+    poll();
+    const timer = window.setInterval(poll, 750);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, []);
 
   const runStatusOperation = useCallback(async (
     key: string,
@@ -249,6 +328,10 @@ export function DreamSkinPage({ t, notify }: DreamSkinPageProps) {
   const sessionLabel = status ? t(`dreamSkin.session.${status.session}`) : t("dreamSkin.session.loading");
   const activeThemeName = status?.activeThemeName || t("dreamSkin.noActiveTheme");
   const isBusy = busy !== null;
+  const resourcesReady = resources?.installed === true;
+  const resourcePercent = resources?.totalBytes
+    ? Math.min(100, Math.round(resources.downloadedBytes / resources.totalBytes * 100))
+    : 0;
 
   if (loading && !status) {
     return <div className="dream-skin-loading"><Sparkles className="spin" size={24} />{t("dreamSkin.loading")}</div>;
@@ -263,6 +346,38 @@ export function DreamSkinPage({ t, notify }: DreamSkinPageProps) {
     <div className="dream-skin-page">
       {error && <Alert className="dream-skin-error" type="error" showIcon closable
         message={t("dreamSkin.error")} description={error} onClose={() => setError(null)} />}
+
+      {resources?.phase !== "ready" && resources?.phase !== "unsupported" && (
+        <Alert
+          className="dream-skin-error"
+          type={resources?.phase === "error" ? "error" : "info"}
+          showIcon
+          icon={<CloudDownload size={18} />}
+          message={t(
+            resources?.phase === "downloading"
+              ? "dreamSkin.resources.downloading"
+              : resources?.phase === "error"
+                ? "dreamSkin.resources.failed"
+                : "dreamSkin.resources.checking",
+          )}
+          description={resources?.phase === "downloading" ? (
+            <div>
+              <p>{t("dreamSkin.resources.progress", {
+                downloaded: formatResourceBytes(resources.downloadedBytes),
+                total: formatResourceBytes(resources.totalBytes),
+              })}</p>
+              <Progress percent={resourcePercent} size="small" status="active" />
+            </div>
+          ) : resources?.phase === "error" ? (
+            <div>
+              <p>{resources.error || t("dreamSkin.resources.failedDescription")}</p>
+              <Button size="small" onClick={() => void retryDreamSkinResources().then(setResources)}>
+                {t("dreamSkin.resources.retry")}
+              </Button>
+            </div>
+          ) : t("dreamSkin.resources.checkingDescription")}
+        />
+      )}
 
       <section className="dream-skin-hero">
         <div className="dream-skin-console">
@@ -290,7 +405,8 @@ export function DreamSkinPage({ t, notify }: DreamSkinPageProps) {
           <div className="dream-tools-actions">
             <div className="dream-tool-group dream-tool-group-runtime">
               <Button type={status?.installed ? "default" : "primary"} icon={<Sparkles size={14} />}
-                loading={busy === "install"} disabled={isBusy && busy !== "install"}
+                loading={busy === "install"}
+                disabled={(isBusy && busy !== "install") || (!resourcesReady && !status?.activeThemeId)}
                 onClick={() => confirmChatGptRestart(() => runStatusOperation(
                   "install", installDreamSkin, t("dreamSkin.toast.installed"),
                 ))}>
@@ -348,8 +464,9 @@ export function DreamSkinPage({ t, notify }: DreamSkinPageProps) {
         <div className="dream-theme-grid">
           {BUILT_IN_DREAM_SKIN_THEMES.map((theme) => <ThemeCard key={theme.id}
             active={status?.activeThemeId === theme.id} busy={busy === `apply:${theme.id}`}
+            disabled={!resourcesReady}
             description={t(theme.descriptionKey)} id={theme.id} name={t(theme.nameKey)}
-            preview={theme.preview} tone={theme.tone} onApply={() => applyTheme(theme.id)} t={t} />)}
+            previewEnabled={resourcesReady} tone={theme.tone} onApply={() => applyTheme(theme.id)} t={t} />)}
           <article className="dream-theme-card dream-theme-import-card">
             <button type="button" className="dream-import-trigger" disabled={isBusy} onClick={() => void chooseCustomImage()}>
               <span className="dream-import-icon"><ImagePlus size={28} /></span>

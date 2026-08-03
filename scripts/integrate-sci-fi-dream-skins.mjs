@@ -149,7 +149,6 @@ const builtInEntries = themes
     englishName: ${JSON.stringify(theme.englishName)},
     nameKey: "dreamSkin.theme.${theme.key}.name",
     descriptionKey: "dreamSkin.theme.${theme.key}.description",
-    preview: new URL("../src-tauri/resources/dream-skin/presets/${theme.id}/background.jpg", import.meta.url).href,
     tone: "${theme.tone}",
     appearance: "${theme.appearance}",
   },
@@ -161,7 +160,7 @@ fs.writeFileSync(builtInsPath, builtIns, "utf8");
 
 const rustPath = path.join(desktop, "src-tauri", "src", "dream_skin_native.rs");
 let rust = fs.readFileSync(rustPath, "utf8");
-const arrayPattern = /const BUILT_IN_THEME_IDS: \[&str; \d+\] = \[(?<body>[\s\S]*?)\n\];/;
+const arrayPattern = /(?:pub\(crate\) )?const BUILT_IN_THEME_IDS: \[&str; \d+\] = \[(?<body>[\s\S]*?)\n\];/;
 const arrayMatch = rust.match(arrayPattern);
 if (!arrayMatch?.groups) throw new Error("Cannot find Rust built-in theme array");
 const ids = [...arrayMatch.groups.body.matchAll(/"([^"]+)"/g)].map((match) => match[1]);

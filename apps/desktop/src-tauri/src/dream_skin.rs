@@ -26,6 +26,18 @@ pub(crate) struct DreamSkinStatus {
     pub(crate) saved_themes: Vec<DreamSkinThemeSummary>,
 }
 
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct DreamSkinResourcesStatus {
+    pub(crate) phase: String,
+    pub(crate) installed: bool,
+    pub(crate) installed_version: Option<String>,
+    pub(crate) available_version: Option<String>,
+    pub(crate) downloaded_bytes: u64,
+    pub(crate) total_bytes: Option<u64>,
+    pub(crate) error: Option<String>,
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct DreamSkinImportOptions {
@@ -88,12 +100,49 @@ fn unsupported_status() -> DreamSkinStatus {
 
 pub(crate) fn setup(app: &AppHandle) -> Result<(), String> {
     #[cfg(any(target_os = "windows", target_os = "macos"))]
-    return crate::dream_skin_native::setup(app);
+    {
+        crate::dream_skin_resources::start_background_update();
+        return crate::dream_skin_native::setup(app);
+    }
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     {
         let _ = app;
         Ok(())
     }
+}
+
+#[tauri::command]
+pub(crate) fn get_dream_skin_resources_status() -> DreamSkinResourcesStatus {
+    #[cfg(any(target_os = "windows", target_os = "macos"))]
+    {
+        let current = crate::dream_skin_resources::status();
+        if current.phase == "idle" {
+            crate::dream_skin_resources::start_background_update();
+            return crate::dream_skin_resources::status();
+        }
+        return current;
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    DreamSkinResourcesStatus {
+        phase: "unsupported".to_string(),
+        installed: false,
+        installed_version: None,
+        available_version: None,
+        downloaded_bytes: 0,
+        total_bytes: None,
+        error: None,
+    }
+}
+
+#[tauri::command]
+pub(crate) fn retry_dream_skin_resources() -> DreamSkinResourcesStatus {
+    #[cfg(any(target_os = "windows", target_os = "macos"))]
+    {
+        crate::dream_skin_resources::start_background_update();
+        return crate::dream_skin_resources::status();
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    get_dream_skin_resources_status()
 }
 
 /// Starts ChatGPT/Codex through the Dream Skin launcher when the skin is

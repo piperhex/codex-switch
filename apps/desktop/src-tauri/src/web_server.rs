@@ -521,6 +521,12 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
             argument(&args, "target")?,
         )),
         "get_dream_skin_status" => serialize(Ok(crate::dream_skin::get_dream_skin_status())),
+        "get_dream_skin_resources_status" => {
+            serialize(Ok(crate::dream_skin::get_dream_skin_resources_status()))
+        }
+        "retry_dream_skin_resources" => {
+            serialize(Ok(crate::dream_skin::retry_dream_skin_resources()))
+        }
         "install_dream_skin" => serialize(block_on(crate::dream_skin::install_dream_skin(app))),
         "apply_dream_skin_theme" => serialize(block_on(crate::dream_skin::apply_dream_skin_theme(
             app,

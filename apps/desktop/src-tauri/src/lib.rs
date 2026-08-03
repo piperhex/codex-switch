@@ -7,6 +7,8 @@ mod commands;
 mod dream_skin;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 mod dream_skin_native;
+#[cfg(any(target_os = "windows", target_os = "macos"))]
+mod dream_skin_resources;
 mod floating_bubble;
 mod launch_options;
 mod local_proxy;
@@ -138,6 +140,8 @@ pub fn run() {
             commands::launch_chatgpt,
             commands::restore_non_proxy_conversations,
             dream_skin::get_dream_skin_status,
+            dream_skin::get_dream_skin_resources_status,
+            dream_skin::retry_dream_skin_resources,
             dream_skin::install_dream_skin,
             dream_skin::apply_dream_skin_theme,
             dream_skin::import_dream_skin_image,

@@ -144,7 +144,6 @@ mutateLatest(builtInsPath, (source) => {
     englishName: ${JSON.stringify(theme.nameEn)},
     nameKey: "dreamSkin.theme.${theme.localizationKey}.name",
     descriptionKey: "dreamSkin.theme.${theme.localizationKey}.description",
-    preview: new URL("../src-tauri/resources/dream-skin/presets/${theme.id}/background.jpg", import.meta.url).href,
     tone: "${theme.tone}",
     appearance: "${theme.appearance}",
   },
@@ -157,7 +156,7 @@ mutateLatest(builtInsPath, (source) => {
 const rustPath = path.join(desktop, "src-tauri", "src", "dream_skin_native.rs");
 mutateLatest(rustPath, (source) => {
   const arrayPattern =
-    /const BUILT_IN_THEME_IDS: \[&str; \d+\] = \[(?<body>[\s\S]*?)\n\];/;
+    /(?:pub\(crate\) )?const BUILT_IN_THEME_IDS: \[&str; \d+\] = \[(?<body>[\s\S]*?)\n\];/;
   const match = source.match(arrayPattern);
   if (!match?.groups) {
     throw new Error("Cannot find Rust built-in theme array");

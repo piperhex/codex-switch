@@ -1431,7 +1431,7 @@ function DashboardApp() {
           )}
 
           <section className="page-panel" hidden={page !== "dreamSkin"}>
-            <MemoDreamSkinPage t={t} notify={notify} />
+            {page === "dreamSkin" && <MemoDreamSkinPage t={t} notify={notify} />}
           </section>
           <section className="page-panel" hidden={page !== "settings"}>
             <MemoSettingsPage info={manager.info} autoRefreshEnabled={autoRefresh.enabled}

@@ -41,7 +41,9 @@
     "createUpdaterArtifacts": true,
     "targets": "all",
     "resources": [
-      "resources/dream-skin/**/*"
+      "resources/dream-skin/assets/**/*",
+      "resources/dream-skin/LICENSE",
+      "resources/dream-skin/NOTICE.md"
     ],
     "icon": [
       "icons/32x32.png",
