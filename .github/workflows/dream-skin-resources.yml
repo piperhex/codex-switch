@@ -2,14 +2,17 @@ name: Dream Skin Resources
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - master
-    paths:
-      - "apps/desktop/src-tauri/resources/dream-skin/presets/**"
-      - "apps/desktop/src-tauri/src/dream_skin_native.rs"
-      - "scripts/prepare-dream-skin-release.mjs"
-      - ".github/workflows/dream-skin-resources.yml"
+    inputs:
+      ref:
+        description: "Git ref containing the resource registry"
+        required: false
+        type: string
+  workflow_call:
+    inputs:
+      ref:
+        description: "Git ref containing the resource registry"
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -25,6 +28,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref || github.ref }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -53,12 +58,14 @@ jobs:
           echo "asset=$versioned_archive" >> "$GITHUB_OUTPUT"
 
       - name: Create or update independent release
+        id: resource_release
         uses: actions/github-script@v9
         env:
           RESOURCE_VERSION: ${{ steps.package.outputs.version }}
           RESOURCE_TAG: ${{ steps.package.outputs.tag }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          result-encoding: string
           script: |
             const { owner, repo } = context.repo;
             const tag = process.env.RESOURCE_TAG;
@@ -70,23 +77,26 @@ jobs:
               "",
               "Codex Switch downloads this pack silently after startup; it is not included in the application installer.",
             ].join("\n");
-            try {
-              const { data: release } = await github.rest.repos.getReleaseByTag({ owner, repo, tag });
+            const releases = await github.paginate(github.rest.repos.listReleases, {
+              owner,
+              repo,
+              per_page: 100,
+            });
+            const existing = releases.find((release) => release.tag_name === tag);
+            if (existing) {
               await github.rest.repos.updateRelease({
                 owner,
                 repo,
-                release_id: release.id,
+                release_id: existing.id,
                 name,
                 body,
-                draft: false,
+                draft: existing.draft,
                 prerelease: false,
                 make_latest: "false",
               });
-              return;
-            } catch (error) {
-              if (error.status !== 404) throw error;
+              return existing.id.toString();
             }
-            await github.rest.repos.createRelease({
+            const { data: created } = await github.rest.repos.createRelease({
               owner,
               repo,
               tag_name: tag,
@@ -97,31 +107,33 @@ jobs:
               prerelease: false,
               make_latest: "false",
             });
+            return created.id.toString();
 
       - name: Upload resource archive
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RESOURCE_TAG: ${{ steps.package.outputs.tag }}
           RESOURCE_ASSET: ${{ steps.package.outputs.asset }}
-        run: gh release upload "$RESOURCE_TAG" "$RESOURCE_ASSET" --clobber
+          RESOURCE_LICENSE: ${{ runner.temp }}/dream-skin-release/LICENSE
+          RESOURCE_NOTICE: ${{ runner.temp }}/dream-skin-release/NOTICE.md
+          RESOURCE_SOURCES: ${{ runner.temp }}/dream-skin-release/SOURCES.json
+        run: >-
+          gh release upload "$RESOURCE_TAG"
+          "$RESOURCE_ASSET" "$RESOURCE_LICENSE" "$RESOURCE_NOTICE" "$RESOURCE_SOURCES"
+          --clobber
 
       - name: Publish resource release
         uses: actions/github-script@v9
         env:
-          RESOURCE_TAG: ${{ steps.package.outputs.tag }}
+          RESOURCE_RELEASE_ID: ${{ steps.resource_release.outputs.result }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const { owner, repo } = context.repo;
-            const { data: release } = await github.rest.repos.getReleaseByTag({
-              owner,
-              repo,
-              tag: process.env.RESOURCE_TAG,
-            });
             await github.rest.repos.updateRelease({
               owner,
               repo,
-              release_id: release.id,
+              release_id: Number(process.env.RESOURCE_RELEASE_ID),
               draft: false,
               prerelease: false,
               make_latest: "false",

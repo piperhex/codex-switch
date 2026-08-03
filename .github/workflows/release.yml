@@ -334,6 +334,12 @@ jobs:
           tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
           files: apps/native/CodexSwitch-ios-unsigned.app.zip
 
+  dream-skin-resources:
+    name: Publish Dream Skin resources
+    uses: ./.github/workflows/dream-skin-resources.yml
+    with:
+      ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+
   publish-release:
     name: Publish GitHub Release
     needs:
@@ -341,6 +347,7 @@ jobs:
       - release
       - native-android
       - native-ios
+      - dream-skin-resources
     runs-on: ubuntu-latest
     steps:
       - name: Publish release
