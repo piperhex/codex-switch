@@ -11,6 +11,7 @@ use std::{
 use chrono::{Local, TimeZone};
 use reqwest::blocking::{Client, Response as ReqwestResponse};
 use rusqlite::{params, Connection, OptionalExtension};
+use serde::Serialize;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use tauri::{Emitter, Manager, Runtime, WebviewUrl, WebviewWindowBuilder};
@@ -56,6 +57,34 @@ const CUSTOM_TOOL_INPUT_DESCRIPTION: &str =
     "Raw string input for the original custom tool. Preserve formatting exactly.";
 const CUSTOM_TOOL_PRESERVED_METADATA_HEADING: &str = "Original tool definition:";
 const LOCAL_PROXY_LAN_HOST: &str = "0.0.0.0";
+const LOCAL_PROXY_STOP_PROGRESS_EVENT: &str = "local-proxy-stop-progress";
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct LocalProxyStopProgress {
+    phase: &'static str,
+    percent: u8,
+    processed_files: Option<usize>,
+    total_files: Option<usize>,
+}
+
+fn emit_stop_progress<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    phase: &'static str,
+    percent: u8,
+    processed_files: Option<usize>,
+    total_files: Option<usize>,
+) {
+    let _ = app.emit(
+        LOCAL_PROXY_STOP_PROGRESS_EVENT,
+        LocalProxyStopProgress {
+            phase,
+            percent,
+            processed_files,
+            total_files,
+        },
+    );
+}
 
 struct ProxyRuntime {
     server: Arc<Server>,
@@ -1252,7 +1281,8 @@ fn stop_local_proxy_blocking<R: Runtime>(
         .lock()
         .map_err(|_| "Account switch lock is poisoned".to_string())?;
     let paths = resolve_paths(&app)?;
-    let selected_account_id = read_state(&paths).active_account_id;
+    let original_state = read_state(&paths);
+    let selected_account_id = original_state.active_account_id.clone();
 
     // Validate the selected credential before interrupting the client. The managed
     // copy is loaded again after shutdown so auth.json receives the latest tokens.
@@ -1265,34 +1295,78 @@ fn stop_local_proxy_blocking<R: Runtime>(
     let launch_target = client_was_running
         .then(|| crate::commands::refresh_and_get_chatgpt_launch_target(&app))
         .flatten();
+    emit_stop_progress(&app, "stoppingClient", 5, None, None);
     if client_was_running {
         crate::commands::stop_chatgpt_processes()?;
         crate::commands::wait_for_chatgpt_processes_to_exit(Duration::from_secs(10))?;
     }
 
     stop_server();
-    if let Some(account_id) = selected_account_id.as_deref() {
-        crate::commands::write_managed_auth_to_current(&paths, account_id)?;
-    }
-    providers::restore_official_config(&paths)?;
-    let mut state = read_state(&paths);
-    state.active_provider_id = None;
-    state.local_proxy_enabled = false;
-    write_state(&paths, &state)?;
+    emit_stop_progress(&app, "restoringConversations", 12, Some(0), None);
     let conversation_restore_result =
-        crate::commands::restore_conversation_metadata_if_present(&paths.codex_home);
-    app.emit("providers-changed", ())
-        .map_err(|error| error.to_string())?;
+        crate::commands::restore_conversation_metadata_if_present_with_progress(
+            &paths.codex_home,
+            &mut |processed, total| {
+                let percent = if total == 0 {
+                    88
+                } else {
+                    12 + ((processed.saturating_mul(76) / total).min(76) as u8)
+                };
+                emit_stop_progress(
+                    &app,
+                    "restoringConversations",
+                    percent,
+                    Some(processed),
+                    Some(total),
+                );
+            },
+        );
+    if let Err(restore_error) = conversation_restore_result {
+        let recovery_errors = recover_proxy_after_failed_stop(
+            &app,
+            &paths,
+            &original_state,
+            client_was_running,
+            launch_target.as_ref(),
+            false,
+        );
+        emit_stop_progress(&app, "failed", 88, None, None);
+        return Err(stop_cancelled_error(restore_error, recovery_errors));
+    }
+
+    emit_stop_progress(&app, "restoringConfiguration", 90, None, None);
+    let commit_result = (|| -> Result<(), String> {
+        if let Some(account_id) = selected_account_id.as_deref() {
+            crate::commands::write_managed_auth_to_current(&paths, account_id)?;
+        }
+        providers::restore_official_config(&paths)?;
+        let mut state = read_state(&paths);
+        state.active_provider_id = None;
+        state.local_proxy_enabled = false;
+        write_state(&paths, &state)
+    })();
+    if let Err(commit_error) = commit_result {
+        let recovery_errors = recover_proxy_after_failed_stop(
+            &app,
+            &paths,
+            &original_state,
+            client_was_running,
+            launch_target.as_ref(),
+            true,
+        );
+        emit_stop_progress(&app, "failed", 90, None, None);
+        return Err(stop_cancelled_error(commit_error, recovery_errors));
+    }
+
+    let _ = app.emit("providers-changed", ());
     crate::system_tray::refresh_menu(&app);
     let proxy_status = status(&app);
     if !client_was_running {
-        return conversation_restore_result.map(|_| proxy_status).map_err(|error| {
-            format!(
-                "Local proxy was stopped, but non-proxy conversations could not be restored ({error})."
-            )
-        });
+        emit_stop_progress(&app, "complete", 100, None, None);
+        return Ok(proxy_status);
     }
 
+    emit_stop_progress(&app, "restartingClient", 95, None, None);
     let restart_result = crate::dream_skin::restart_active_session().and_then(|restarted| {
         if restarted {
             Ok(())
@@ -1300,17 +1374,71 @@ fn stop_local_proxy_blocking<R: Runtime>(
             crate::commands::start_chatgpt(launch_target.as_ref())
         }
     });
-    match (conversation_restore_result, restart_result) {
-        (Ok(_), Ok(())) => Ok(proxy_status),
-        (Err(restore_error), Ok(())) => Err(format!(
-            "Local proxy was stopped, but non-proxy conversations could not be restored ({restore_error})."
-        )),
-        (Ok(_), Err(restart_error)) => Err(format!(
-            "Local proxy was stopped, the selected auth.json and non-proxy conversations were restored, but ChatGPT/Codex could not be restarted ({restart_error}). Please start ChatGPT or Codex manually."
-        )),
-        (Err(restore_error), Err(restart_error)) => Err(format!(
-            "Local proxy was stopped, but non-proxy conversations could not be restored ({restore_error}) and ChatGPT/Codex could not be restarted ({restart_error}). Please start ChatGPT or Codex manually."
-        )),
+    match restart_result {
+        Ok(()) => {
+            emit_stop_progress(&app, "complete", 100, None, None);
+            Ok(proxy_status)
+        }
+        Err(restart_error) => {
+            emit_stop_progress(&app, "complete", 100, None, None);
+            Err(format!(
+                "Local proxy was stopped, the selected auth.json and non-proxy conversations were restored, but ChatGPT/Codex could not be restarted ({restart_error}). Please start ChatGPT or Codex manually."
+            ))
+        }
+    }
+}
+
+fn recover_proxy_after_failed_stop<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    paths: &Paths,
+    original_state: &ManagerStateFile,
+    client_was_running: bool,
+    launch_target: Option<&crate::commands::ChatGptLaunchTarget>,
+    restore_proxy_conversations: bool,
+) -> Vec<String> {
+    let mut errors = Vec::new();
+    if restore_proxy_conversations {
+        if let Err(error) =
+            crate::commands::sync_conversation_metadata_if_present(&paths.codex_home)
+        {
+            errors.push(format!("conversation rollback failed: {error}"));
+        }
+    }
+    if let Err(error) = write_state(paths, original_state) {
+        errors.push(format!("state rollback failed: {error}"));
+    }
+    if let Err(error) = start_server(app.clone()) {
+        errors.push(format!("proxy restart failed: {error}"));
+    } else if let Err(error) = providers::apply_local_proxy_config_for_state(app) {
+        errors.push(format!("proxy configuration rollback failed: {error}"));
+    }
+    if client_was_running {
+        let restart_result = crate::dream_skin::restart_active_session().and_then(|restarted| {
+            if restarted {
+                Ok(())
+            } else {
+                crate::commands::start_chatgpt(launch_target)
+            }
+        });
+        if let Err(error) = restart_result {
+            errors.push(format!("client restart failed: {error}"));
+        }
+    }
+    let _ = app.emit("providers-changed", ());
+    crate::system_tray::refresh_menu(app);
+    errors
+}
+
+fn stop_cancelled_error(error: String, recovery_errors: Vec<String>) -> String {
+    if recovery_errors.is_empty() {
+        format!(
+            "Proxy stop was cancelled because conversation history could not be restored safely. Proxy mode remains enabled; you can retry. Details: {error}"
+        )
+    } else {
+        format!(
+            "Proxy stop failed and automatic recovery was incomplete ({} recovery errors). Export diagnostic logs before retrying. Details: {error}",
+            recovery_errors.len()
+        )
     }
 }
 
@@ -3309,9 +3437,12 @@ fn forward_provider(
     let upstream_endpoint = upstream_endpoint_for_codex_request(url);
     let upstream_url = build_upstream_url(&provider.base_url, &upstream_endpoint);
     let body = provider_body_for_upstream(method, &upstream_endpoint, body, provider);
-    let request = client
-        .request(reqwest_method(method)?, upstream_url)
-        .bearer_auth(provider.api_key.trim());
+    let request = client.request(reqwest_method(method)?, upstream_url);
+    let request = if provider.api_key.trim().is_empty() {
+        request
+    } else {
+        request.bearer_auth(provider.api_key.trim())
+    };
     let request = apply_forward_headers(request, headers, true);
     stream_response(
         request
@@ -3371,10 +3502,13 @@ fn forward_chat_bridge(
 
     let client = http_client()?;
     let upstream_url = build_upstream_url(&provider.base_url, "/chat/completions");
-    let request = client
-        .post(upstream_url)
-        .bearer_auth(provider.api_key.trim())
-        .json(&chat_body);
+    let request = client.post(upstream_url);
+    let request = if provider.api_key.trim().is_empty() {
+        request
+    } else {
+        request.bearer_auth(provider.api_key.trim())
+    }
+    .json(&chat_body);
     let request = apply_forward_headers(request, headers, true);
     let response = request
         .send()
@@ -6092,6 +6226,43 @@ mod tests {
             &provider,
         )
         .unwrap();
+        let mut actual = Vec::new();
+        match &mut payload.body {
+            UpstreamBody::Buffered(body) => actual.extend_from_slice(body),
+            UpstreamBody::Streaming(reader) => {
+                reader.read_to_end(&mut actual).unwrap();
+            }
+        }
+        handle.join().unwrap();
+
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn openai_provider_request_without_api_key_omits_authorization() {
+        let catalog = json!({ "models": [] });
+        let expected = serde_json::to_vec(&catalog).unwrap();
+        let server = Server::http("127.0.0.1:0").unwrap();
+        let addr = server.server_addr().to_ip().unwrap();
+        let upstream_body = expected.clone();
+        let handle =
+            thread::spawn(move || {
+                let request = server.recv().unwrap();
+                assert!(!request
+                    .headers()
+                    .iter()
+                    .any(|header| header.field.equiv("Authorization")));
+                request
+                    .respond(Response::from_data(upstream_body).with_header(
+                        Header::from_bytes("Content-Type", "application/json").unwrap(),
+                    ))
+                    .unwrap();
+            });
+        let mut provider = openai_provider(format!("http://{addr}/v1"));
+        provider.api_key.clear();
+
+        let mut payload =
+            forward_provider(&Method::Get, "/v1/models", &[], Vec::new(), &provider).unwrap();
         let mut actual = Vec::new();
         match &mut payload.body {
             UpstreamBody::Buffered(body) => actual.extend_from_slice(body),

@@ -1,4 +1,10 @@
 ((cssText, artDataUrl, themeConfig) => {
+  const SHELL_MAIN_SELECTOR = 'main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"])';
+  const compatibleCssText = cssText
+    .replaceAll("main.main-surface", SHELL_MAIN_SELECTOR)
+    .replaceAll("header.app-header-tint", 'header:is(.app-header-tint, [data-app-shell-header-edge-scroll], [class*="_Header_"])')
+    .replaceAll(".app-shell-main-content-top-fade", ':is(.app-shell-main-content-top-fade, [data-app-shell-main-content-top-fade], [class*="_MainContentTopFade_"])')
+    .replaceAll("[data-message-author-role]", ':is([data-message-author-role], [data-local-conversation-user-anchor], [data-local-conversation-final-assistant])');
   const STATE_KEY = "__CODEX_DREAM_SKIN_STATE__";
   const DISABLED_KEY = "__CODEX_DREAM_SKIN_DISABLED__";
   const STYLE_ID = "codex-dream-skin-style";
@@ -235,7 +241,7 @@
     if (!root.classList.contains("codex-dream-skin")) {
       const samples = [
         body,
-        document.querySelector("main.main-surface"),
+        document.querySelector(SHELL_MAIN_SELECTOR),
         document.querySelector("aside.app-shell-left-panel"),
       ].filter(Boolean);
       let votesLight = 0;
@@ -533,11 +539,11 @@
     if (!style) {
       style = document.createElement("style");
       style.id = STYLE_ID;
-      style.textContent = cssText;
+      style.textContent = compatibleCssText;
       style.dataset.dreamSkinVersion = VERSION;
       (document.head || root).appendChild(style);
     } else if (style.dataset.dreamSkinStyleRevision !== STYLE_REVISION) {
-      style.textContent = cssText;
+      style.textContent = compatibleCssText;
     }
     style.dataset.dreamSkinVersion = VERSION;
     style.dataset.dreamSkinStyleRevision = STYLE_REVISION;
@@ -561,7 +567,7 @@
     const root = document.documentElement;
     if (!root) return;
     shell ||= root.getAttribute(SHELL_ATTR) || resolvedShell();
-    const shellMain = document.querySelector("main.main-surface") || document.querySelector("main");
+    const shellMain = document.querySelector(SHELL_MAIN_SELECTOR) || document.querySelector("main");
     const homeIndicator = document.querySelector('[data-testid="home-icon"]');
     const home = homeIndicator?.closest('[role="main"]') ||
       [...document.querySelectorAll('[role="main"]')].find((candidate) =>

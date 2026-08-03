@@ -133,7 +133,7 @@ pub(crate) fn save_provider<R: Runtime>(
     } else {
         supplied_key
     };
-    if api_key.is_empty() {
+    if kind != ProviderKind::OpenAi && api_key.is_empty() {
         return Err("API key is required for a new provider".to_string());
     }
     let (balance_platform, balance_query_url, balance_query_token) = normalize_balance_settings(
@@ -502,7 +502,7 @@ pub(crate) fn switch_provider_blocking<R: Runtime>(
                 .to_string(),
         );
     }
-    if provider.api_key.trim().is_empty() {
+    if provider.kind != ProviderKind::OpenAi && provider.api_key.trim().is_empty() {
         return Err("Provider API key is empty".to_string());
     }
 
@@ -644,7 +644,7 @@ pub(crate) fn ensure_local_proxy_compatible_for_state(paths: &Paths) -> Result<(
 pub(crate) fn activate_provider_for_sync(paths: &Paths, id: &str) -> Result<bool, String> {
     let provider = read_provider(paths, id)?;
     ensure_not_local_proxy_base_url(&provider.base_url)?;
-    if provider.api_key.trim().is_empty() {
+    if provider.kind != ProviderKind::OpenAi && provider.api_key.trim().is_empty() {
         return Ok(false);
     }
     let proxy_running = crate::local_proxy::is_running();
@@ -1140,7 +1140,7 @@ fn normalize_synced_provider(mut provider: ProviderProfile) -> Result<ProviderPr
     provider.name = require_non_empty("Provider name", &provider.name)?;
     provider.base_url = normalize_base_url(&provider.base_url)?;
     provider.api_key = provider.api_key.trim().to_string();
-    if provider.api_key.is_empty() {
+    if provider.kind != ProviderKind::OpenAi && provider.api_key.is_empty() {
         return Err("Provider API key is empty".to_string());
     }
     normalize_provider_profile(provider)
@@ -1463,10 +1463,12 @@ fn merge_provider_config(existing: &str, provider: &ProviderProfile) -> String {
     config.push_str(&format!("name = {}\n", toml_string(&provider.name)));
     config.push_str(&format!("base_url = {}\n", toml_string(&provider.base_url)));
     config.push_str("wire_api = \"responses\"\n");
-    config.push_str(&format!(
-        "experimental_bearer_token = {}\n",
-        toml_string(&provider.api_key)
-    ));
+    if !provider.api_key.trim().is_empty() {
+        config.push_str(&format!(
+            "experimental_bearer_token = {}\n",
+            toml_string(&provider.api_key)
+        ));
+    }
     config.push_str(PROVIDER_TABLE_END);
     config.push('\n');
     config
@@ -2175,6 +2177,38 @@ sandbox_mode = "workspace-write"
         let merged = merge_provider_config("", &provider);
 
         assert!(!merged.contains("model_catalog_json"));
+    }
+
+    #[test]
+    fn openai_provider_config_omits_empty_api_key() {
+        let mut provider = provider();
+        provider.kind = ProviderKind::OpenAi;
+        provider.api_key.clear();
+
+        let merged = merge_provider_config("", &provider);
+
+        assert!(!merged.contains("experimental_bearer_token"));
+    }
+
+    #[test]
+    fn synced_openai_provider_allows_empty_api_key() {
+        let mut provider = provider();
+        provider.kind = ProviderKind::OpenAi;
+        provider.api_key = "  ".to_string();
+
+        let profile = normalize_synced_provider(provider).unwrap();
+
+        assert!(profile.api_key.is_empty());
+    }
+
+    #[test]
+    fn synced_custom_provider_still_requires_api_key() {
+        let mut provider = provider();
+        provider.api_key.clear();
+
+        let error = normalize_synced_provider(provider).unwrap_err();
+
+        assert_eq!(error, "Provider API key is empty");
     }
 
     #[test]

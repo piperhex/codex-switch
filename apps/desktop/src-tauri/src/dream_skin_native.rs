@@ -32,7 +32,7 @@ use crate::dream_skin::{
 };
 
 const NATIVE_RUNTIME_VERSION: &str = "2.0.0";
-const SKIN_VERSION: &str = "1.2.0";
+const SKIN_VERSION: &str = "1.2.1";
 const DEFAULT_CDP_PORT: u16 = 9335;
 const CDP_COMMAND_TIMEOUT: Duration = Duration::from_secs(10);
 const MAX_ART_BYTES: u64 = 16 * 1024 * 1024;
@@ -784,13 +784,16 @@ fn render_payload(
     let css_json = serde_json::to_string(&css).map_err(|error| error.to_string())?;
     let art_json = serde_json::to_string(&art_data_url).map_err(|error| error.to_string())?;
     let theme_json = serde_json::to_string(theme).map_err(|error| error.to_string())?;
+    let version_json = serde_json::to_string(SKIN_VERSION).map_err(|error| error.to_string())?;
     let source = template
         .replace("__DREAM_CSS_JSON__", &css_json)
         .replace("__DREAM_ART_JSON__", &art_json)
-        .replace("__DREAM_THEME_JSON__", &theme_json);
+        .replace("__DREAM_THEME_JSON__", &theme_json)
+        .replace("__DREAM_SKIN_VERSION_JSON__", &version_json);
     if source.contains("__DREAM_CSS_JSON__")
         || source.contains("__DREAM_ART_JSON__")
         || source.contains("__DREAM_THEME_JSON__")
+        || source.contains("__DREAM_SKIN_VERSION_JSON__")
     {
         return Err("Dream Skin renderer template contains unresolved placeholders.".to_string());
     }
@@ -860,14 +863,18 @@ fn early_payload(payload: &LoadedPayload) -> String {
           const generationKey = "__CODEX_DREAM_SKIN_EARLY_GENERATION__";
           const appliedKey = "__CODEX_DREAM_SKIN_EARLY_APPLIED__";
           const generation = {generation};
+          const shellSelector = 'main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"])';
+          const settingsSelector = '[data-settings-panel-slug="general-settings"], input[name="appearance-theme"], [data-testid="theme-preview"]';
           window[generationKey] = generation;
           let observer = null;
           let timeout = null;
           const stop = () => {{ observer?.disconnect(); observer = null; if (timeout) clearTimeout(timeout); timeout = null; }};
           const install = () => {{
             if (window[generationKey] !== generation) {{ stop(); return true; }}
-            if (!document.documentElement || !document.body) return false;
-            if (!document.querySelector('main.main-surface') || !document.querySelector('aside.app-shell-left-panel')) return false;
+            if (!document.documentElement || !document.body || location.protocol !== 'app:') return false;
+            const primarySurface = document.querySelector(shellSelector) &&
+              document.querySelector('aside.app-shell-left-panel');
+            if (!primarySurface && !document.querySelector(settingsSelector)) return false;
             stop();
             {};
             window[appliedKey] = generation;
@@ -909,24 +916,30 @@ const REMOVE_PAYLOAD: &str = r#"(() => {
 })()"#;
 
 const VERIFY_PAYLOAD: &str = r#"(() => {
+  const settingsPresent = Boolean(document.querySelector(
+    '[data-settings-panel-slug="general-settings"], input[name="appearance-theme"], [data-testid="theme-preview"]'
+  ));
   const result = {
     installed: document.documentElement.classList.contains('codex-dream-skin'),
     version: window.__CODEX_DREAM_SKIN_STATE__?.version ?? null,
-    expectedVersion: '1.2.0',
+    expectedVersion: '1.2.1',
     stylePresent: Boolean(document.getElementById('codex-dream-skin-style')),
     chromePresent: Boolean(document.getElementById('codex-dream-skin-chrome')),
     sidebarPresent: Boolean(document.querySelector('aside.app-shell-left-panel')),
     composerPresent: Boolean(document.querySelector('.composer-surface-chrome')),
+    settingsPresent,
   };
+  const primarySurface = result.chromePresent && result.sidebarPresent && result.composerPresent;
   result.pass = result.installed && result.version === result.expectedVersion &&
-    result.stylePresent && result.chromePresent && result.sidebarPresent && result.composerPresent;
+    result.stylePresent && (primarySurface || result.settingsPresent);
   return result;
 })()"#;
 
 const CODEX_PROBE_PAYLOAD: &str = r#"(() => ({
-  codex: Boolean(
-    document.querySelector('main.main-surface') &&
-    document.querySelector('aside.app-shell-left-panel')
+  codex: location.protocol === 'app:' && Boolean(
+    (document.querySelector('main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"])') &&
+      document.querySelector('aside.app-shell-left-panel')) ||
+    document.querySelector('[data-settings-panel-slug="general-settings"], input[name="appearance-theme"], [data-testid="theme-preview"]')
   )
 }))()"#;
 
@@ -2329,6 +2342,61 @@ mod tests {
         assert!(verification_succeeded(&[auxiliary.clone(), primary]));
         assert!(!verification_succeeded(&[auxiliary]));
         assert!(!verification_succeeded(&[]));
+    }
+
+    #[test]
+    fn codex_26_727_renderer_contract_is_bundled() {
+        let windows = include_str!("../resources/dream-skin/assets/windows/renderer-inject.js");
+        let macos = include_str!("../resources/dream-skin/assets/macos/renderer-inject.js");
+
+        for renderer in [windows, macos] {
+            assert!(renderer.contains("[data-app-shell-main-surface]"));
+            assert!(renderer.contains("[data-app-shell-header-edge-scroll]"));
+            assert!(renderer.contains("[data-app-shell-main-content-top-fade]"));
+            assert!(renderer.contains("[data-local-conversation-user-anchor]"));
+            assert!(renderer.contains("[data-local-conversation-final-assistant]"));
+        }
+        assert!(windows.contains("[data-settings-panel-slug=\"general-settings\"]"));
+    }
+
+    #[test]
+    fn codex_26_727_bootstrap_accepts_shell_and_settings_surfaces() {
+        let payload = LoadedPayload {
+            source: "window.__dreamSkinTest = true;".to_string(),
+            revision: "codex-26-727".to_string(),
+        };
+        let early = early_payload(&payload);
+
+        for source in [early.as_str(), CODEX_PROBE_PAYLOAD] {
+            assert!(source.contains("[data-app-shell-main-surface]"));
+            assert!(source.contains("[data-settings-panel-slug=\"general-settings\"]"));
+            assert!(source.contains("location.protocol"));
+        }
+        assert!(VERIFY_PAYLOAD.contains("settingsPresent"));
+        assert!(VERIFY_PAYLOAD.contains(SKIN_VERSION));
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn windows_payload_replaces_the_runtime_version_placeholder() {
+        let template = include_str!("../resources/dream-skin/assets/windows/renderer-inject.js");
+        let payload = render_payload(
+            template,
+            "html { color: red; }",
+            "data:image/png;base64,AA==",
+            &json!({ "id": "test-theme" }),
+        )
+        .unwrap();
+
+        for placeholder in [
+            "__DREAM_CSS_JSON__",
+            "__DREAM_ART_JSON__",
+            "__DREAM_THEME_JSON__",
+            "__DREAM_SKIN_VERSION_JSON__",
+        ] {
+            assert!(!payload.source.contains(placeholder));
+        }
+        assert!(payload.source.contains(SKIN_VERSION));
     }
 
     #[test]

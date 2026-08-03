@@ -53,7 +53,7 @@ pub(crate) struct ResetCreditsSummary {
     pub(crate) credits: Vec<ResetCredit>,
 }
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Clone, Default, Serialize, Deserialize)]
 pub(crate) struct ManagerStateFile {
     pub(crate) active_account_id: Option<String>,
     pub(crate) active_provider_id: Option<String>,

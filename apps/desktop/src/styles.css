@@ -1586,6 +1586,13 @@ html.floating-usage-page #root {
 .skills-preview-selection button { width: 28px; height: 28px; display: grid; place-items: center; border: 0; border-radius: 7px; color: #8c9991; background: transparent; cursor: pointer; }
 .skills-preview-selection button:hover { color: #b74e45; background: #fff0ee; }
 
+.proxy-stop-progress-modal .ant-modal-content { border-radius: 16px; }
+.proxy-stop-progress-modal .ant-modal-header { margin-bottom: 18px; }
+.proxy-stop-progress-content { display: grid; gap: 10px; }
+.proxy-stop-progress-content p { margin: 0; color: var(--ink); font-size: 12px; line-height: 1.55; }
+.proxy-stop-progress-content span { color: var(--green-dark); font-size: 10px; font-weight: 700; }
+.proxy-stop-progress-content small { padding-top: 9px; border-top: 1px solid var(--line); color: var(--muted); font-size: 10px; line-height: 1.6; }
+
 @media (max-width: 1080px) {
   .skills-market-toolbar { align-items: stretch; flex-direction: column; }
   .skills-market-toolbar-actions { justify-content: flex-end; }

@@ -1006,16 +1006,24 @@ fn restore_non_proxy_conversations_blocking<R: Runtime>(
 pub(crate) fn restore_conversation_metadata_if_present(
     codex_home: &Path,
 ) -> Result<DirectConversationSyncResult, String> {
+    restore_conversation_metadata_if_present_with_progress(codex_home, &mut |_, _| {})
+}
+
+pub(crate) fn restore_conversation_metadata_if_present_with_progress(
+    codex_home: &Path,
+    progress: &mut dyn FnMut(usize, usize),
+) -> Result<DirectConversationSyncResult, String> {
     if !has_codex_state_database(codex_home)? {
         return Ok(DirectConversationSyncResult {
             conversations_updated: 0,
             rollout_files_updated: 0,
         });
     }
-    replace_conversation_provider(
+    replace_conversation_provider_with_progress(
         codex_home,
         LOCAL_PROXY_CONVERSATION_PROVIDER,
         OFFICIAL_CONVERSATION_PROVIDER,
+        progress,
     )
 }
 
@@ -1060,6 +1068,20 @@ fn replace_conversation_provider(
     source_provider: &str,
     target_provider: &str,
 ) -> Result<DirectConversationSyncResult, String> {
+    replace_conversation_provider_with_progress(
+        codex_home,
+        source_provider,
+        target_provider,
+        &mut |_, _| {},
+    )
+}
+
+fn replace_conversation_provider_with_progress(
+    codex_home: &Path,
+    source_provider: &str,
+    target_provider: &str,
+    progress: &mut dyn FnMut(usize, usize),
+) -> Result<DirectConversationSyncResult, String> {
     let state_database = latest_codex_state_database(codex_home)?;
     let mut connection = open_conversation_database(&state_database)?;
     if !sqlite_table_has_column(&connection, "threads", "model_provider")? {
@@ -1069,18 +1091,23 @@ fn replace_conversation_provider(
         ));
     }
 
-    let conversation_rollouts =
+    let conversation_rows =
         conversation_rollouts_for_provider(&connection, &state_database, source_provider)?;
-    let mut rollout_files_updated = 0;
+    let conversation_ids = conversation_rows
+        .iter()
+        .map(|(id, _)| id.clone())
+        .collect::<Vec<_>>();
     let mut unique_rollout_paths = HashSet::new();
-    for rollout_path in conversation_rollouts {
-        if unique_rollout_paths.insert(rollout_path.clone())
-            && update_rollout_provider(&rollout_path, source_provider, target_provider)?
-        {
-            rollout_files_updated += 1;
-        }
-    }
+    let conversation_rollouts = conversation_rows
+        .into_iter()
+        .filter_map(|(_, path)| unique_rollout_paths.insert(path.clone()).then_some(path))
+        .collect::<Vec<_>>();
+    let total_rollouts = conversation_rollouts.len();
+    progress(0, total_rollouts);
 
+    // Keep the primary database update uncommitted until every rollout and
+    // desktop catalog has been updated. If any file fails, all completed file
+    // changes are compensated before the error is returned.
     let transaction = connection
         .transaction()
         .map_err(|error| format!("无法开始更新 {}：{error}", state_database.display()))?;
@@ -1090,16 +1117,96 @@ fn replace_conversation_provider(
             params![target_provider, source_provider],
         )
         .map_err(|error| format!("更新 {} 失败：{error}", state_database.display()))?;
-    transaction
-        .commit()
-        .map_err(|error| format!("提交 {} 失败：{error}", state_database.display()))?;
 
-    update_desktop_thread_catalogs(codex_home, source_provider, target_provider)?;
+    let mut rollout_files_updated = 0;
+    let mut updated_rollout_paths = Vec::new();
+    for (index, rollout_path) in conversation_rollouts.iter().enumerate() {
+        match update_rollout_provider(rollout_path, source_provider, target_provider) {
+            Ok(true) => {
+                rollout_files_updated += 1;
+                updated_rollout_paths.push(rollout_path.clone());
+            }
+            Ok(false) => {}
+            Err(error) => {
+                let _ = transaction.rollback();
+                let rollback_errors = rollback_rollout_providers(
+                    &updated_rollout_paths,
+                    target_provider,
+                    source_provider,
+                );
+                return Err(conversation_transition_error(error, rollback_errors));
+            }
+        }
+        progress(index + 1, total_rollouts);
+    }
+
+    if let Err(error) = update_desktop_thread_catalogs(
+        codex_home,
+        source_provider,
+        target_provider,
+        &conversation_ids,
+    ) {
+        let _ = transaction.rollback();
+        let mut rollback_errors =
+            rollback_rollout_providers(&updated_rollout_paths, target_provider, source_provider);
+        if let Err(rollback_error) = update_desktop_thread_catalogs(
+            codex_home,
+            target_provider,
+            source_provider,
+            &conversation_ids,
+        ) {
+            rollback_errors.push(rollback_error);
+        }
+        return Err(conversation_transition_error(error, rollback_errors));
+    }
+
+    if let Err(error) = transaction.commit() {
+        let mut rollback_errors =
+            rollback_rollout_providers(&updated_rollout_paths, target_provider, source_provider);
+        if let Err(rollback_error) = update_desktop_thread_catalogs(
+            codex_home,
+            target_provider,
+            source_provider,
+            &conversation_ids,
+        ) {
+            rollback_errors.push(rollback_error);
+        }
+        return Err(conversation_transition_error(
+            format!("提交 {} 失败：{error}", state_database.display()),
+            rollback_errors,
+        ));
+    }
 
     Ok(DirectConversationSyncResult {
         conversations_updated,
         rollout_files_updated,
     })
+}
+
+fn rollback_rollout_providers(
+    rollout_paths: &[PathBuf],
+    source_provider: &str,
+    target_provider: &str,
+) -> Vec<String> {
+    rollout_paths
+        .iter()
+        .filter_map(|path| {
+            update_rollout_provider(path, source_provider, target_provider)
+                .err()
+                .map(|error| format!("{}：{error}", path.display()))
+        })
+        .collect()
+}
+
+fn conversation_transition_error(error: String, rollback_errors: Vec<String>) -> String {
+    if rollback_errors.is_empty() {
+        format!("对话记录切换失败，已恢复原状态：{error}")
+    } else {
+        format!(
+            "对话记录切换失败：{error}；自动恢复时仍有 {} 个文件失败，请重试或导出诊断日志",
+            rollback_errors.len()
+        )
+    }
 }
 
 fn latest_codex_state_database(codex_home: &Path) -> Result<PathBuf, String> {
@@ -1195,15 +1302,17 @@ fn conversation_rollouts_for_provider(
     connection: &Connection,
     database_path: &Path,
     provider: &str,
-) -> Result<Vec<PathBuf>, String> {
+) -> Result<Vec<(String, PathBuf)>, String> {
     let mut statement = connection
-        .prepare("SELECT rollout_path FROM threads WHERE model_provider = ?1")
+        .prepare("SELECT id, rollout_path FROM threads WHERE model_provider = ?1")
         .map_err(|error| format!("无法查询 {}：{error}", database_path.display()))?;
     let rows = statement
-        .query_map(params![provider], |row| row.get::<_, String>(0))
+        .query_map(params![provider], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })
         .map_err(|error| format!("无法读取 {} 中的对话：{error}", database_path.display()))?;
     rows.map(|row| {
-        row.map(PathBuf::from)
+        row.map(|(id, path)| (id, PathBuf::from(path)))
             .map_err(|error| format!("无法解析 Codex 对话文件路径：{error}"))
     })
     .collect()
@@ -1280,7 +1389,11 @@ fn update_desktop_thread_catalogs(
     codex_home: &Path,
     source_provider: &str,
     target_provider: &str,
+    conversation_ids: &[String],
 ) -> Result<(), String> {
+    if conversation_ids.is_empty() {
+        return Ok(());
+    }
     let catalog_dir = codex_home.join("sqlite");
     if !catalog_dir.exists() {
         return Ok(());
@@ -1293,16 +1406,33 @@ fn update_desktop_thread_catalogs(
         if path.extension().and_then(|value| value.to_str()) != Some("db") {
             continue;
         }
-        let connection = open_conversation_database(&path)?;
+        let mut connection = open_conversation_database(&path)?;
         if !sqlite_table_has_column(&connection, "local_thread_catalog", "model_provider")? {
             continue;
         }
-        connection
-            .execute(
-                "UPDATE local_thread_catalog SET model_provider = ?1 WHERE model_provider = ?2",
-                params![target_provider, source_provider],
-            )
-            .map_err(|error| format!("更新 Codex 对话目录 {} 失败：{error}", path.display()))?;
+        let transaction = connection
+            .transaction()
+            .map_err(|error| format!("无法开始更新 Codex 对话目录 {}：{error}", path.display()))?;
+        {
+            let mut statement = transaction
+                .prepare(
+                    "UPDATE local_thread_catalog SET model_provider = ?1 \
+                     WHERE model_provider = ?2 AND thread_id = ?3",
+                )
+                .map_err(|error| {
+                    format!("准备更新 Codex 对话目录 {} 失败：{error}", path.display())
+                })?;
+            for id in conversation_ids {
+                statement
+                    .execute(params![target_provider, source_provider, id])
+                    .map_err(|error| {
+                        format!("更新 Codex 对话目录 {} 失败：{error}", path.display())
+                    })?;
+            }
+        }
+        transaction
+            .commit()
+            .map_err(|error| format!("提交 Codex 对话目录 {} 失败：{error}", path.display()))?;
     }
     Ok(())
 }
@@ -2630,6 +2760,112 @@ mod compatible_json_import_tests {
                 .pointer("/payload/model_provider")
                 .and_then(Value::as_str),
             Some(OFFICIAL_CONVERSATION_PROVIDER)
+        );
+
+        drop(catalog);
+        drop(state);
+        fs::remove_dir_all(&codex_home).expect("remove test directory");
+    }
+
+    #[test]
+    fn rolls_back_conversation_transition_when_a_rollout_cannot_be_updated() {
+        let codex_home = temporary_sync_test_dir();
+        let rollout_path = codex_home.join("rollout.jsonl");
+        fs::write(
+            &rollout_path,
+            format!(
+                "{}\n{}\n",
+                json!({
+                    "type": "session_meta",
+                    "payload": { "model_provider": LOCAL_PROXY_CONVERSATION_PROVIDER }
+                }),
+                json!({ "type": "event_msg", "payload": { "type": "task_started" } })
+            ),
+        )
+        .expect("write rollout");
+        let missing_rollout_path = codex_home.join("missing-rollout.jsonl");
+
+        let state_path = codex_home.join("state_5.sqlite");
+        let state = Connection::open(&state_path).expect("open state database");
+        state
+            .execute_batch(
+                "CREATE TABLE threads (
+                    id TEXT PRIMARY KEY,
+                    rollout_path TEXT NOT NULL,
+                    model_provider TEXT NOT NULL
+                );",
+            )
+            .expect("create threads table");
+        for (id, path) in [
+            ("thread-1", &rollout_path),
+            ("thread-2", &missing_rollout_path),
+        ] {
+            state
+                .execute(
+                    "INSERT INTO threads (id, rollout_path, model_provider) VALUES (?1, ?2, ?3)",
+                    (
+                        id,
+                        path.to_string_lossy().as_ref(),
+                        LOCAL_PROXY_CONVERSATION_PROVIDER,
+                    ),
+                )
+                .expect("insert thread");
+        }
+        drop(state);
+
+        let catalog_dir = codex_home.join("sqlite");
+        fs::create_dir_all(&catalog_dir).expect("create catalog directory");
+        let catalog_path = catalog_dir.join("codex-dev.db");
+        let catalog = Connection::open(&catalog_path).expect("open catalog database");
+        catalog
+            .execute_batch(&format!(
+                "CREATE TABLE local_thread_catalog (
+                    thread_id TEXT PRIMARY KEY,
+                    model_provider TEXT NOT NULL
+                );
+                INSERT INTO local_thread_catalog VALUES ('thread-1', '{LOCAL_PROXY_CONVERSATION_PROVIDER}');
+                INSERT INTO local_thread_catalog VALUES ('thread-2', '{LOCAL_PROXY_CONVERSATION_PROVIDER}');"
+            ))
+            .expect("create catalog");
+        drop(catalog);
+
+        let error = restore_conversation_metadata_if_present(&codex_home)
+            .expect_err("missing rollout should fail the transition");
+        assert!(error.contains("已恢复原状态"));
+
+        let state = Connection::open(&state_path).expect("reopen state database");
+        let non_proxy_rows: i64 = state
+            .query_row(
+                "SELECT COUNT(*) FROM threads WHERE model_provider = 'openai'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("count restored state rows");
+        assert_eq!(non_proxy_rows, 0);
+
+        let catalog = Connection::open(&catalog_path).expect("reopen catalog database");
+        let non_proxy_catalog_rows: i64 = catalog
+            .query_row(
+                "SELECT COUNT(*) FROM local_thread_catalog WHERE model_provider = 'openai'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("count restored catalog rows");
+        assert_eq!(non_proxy_catalog_rows, 0);
+
+        let metadata: Value = serde_json::from_str(
+            fs::read_to_string(&rollout_path)
+                .expect("read rolled back rollout")
+                .lines()
+                .next()
+                .expect("rollout metadata"),
+        )
+        .expect("parse rollout metadata");
+        assert_eq!(
+            metadata
+                .pointer("/payload/model_provider")
+                .and_then(Value::as_str),
+            Some(LOCAL_PROXY_CONVERSATION_PROVIDER)
         );
 
         drop(catalog);

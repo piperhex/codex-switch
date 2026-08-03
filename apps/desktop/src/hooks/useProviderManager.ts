@@ -15,11 +15,17 @@ import {
   setProviderModelControl,
   startLocalProxy,
   stopLocalProxy,
+  subscribeToLocalProxyStopProgress,
   subscribeToProviderEvents,
   switchProviderModel,
 } from "../api/backend";
 import type { Translate } from "../i18n";
-import type { LocalProxyStatus, Provider, ProviderInput } from "../types";
+import type {
+  LocalProxyStatus,
+  LocalProxyStopProgress,
+  Provider,
+  ProviderInput,
+} from "../types";
 
 interface ProviderCloudSync {
   pushProvider?: (id: string) => Promise<void> | void;
@@ -28,6 +34,15 @@ interface ProviderCloudSync {
 
 function providerErrorMessage(error: unknown, t: Translate) {
   const message = String(error);
+  if (message.includes("Proxy stop was cancelled because conversation history could not be restored safely")) {
+    return t("providers.error.proxyStopCancelled");
+  }
+  if (message.includes("Proxy stop failed and automatic recovery was incomplete")) {
+    return t("providers.error.proxyStopRecoveryIncomplete");
+  }
+  if (message.includes("Local proxy was stopped, the selected auth.json and non-proxy conversations were restored")) {
+    return t("providers.error.proxyStoppedRestartFailed");
+  }
   if (message.includes("API key is required for a new provider")) return t("providers.error.apiKeyRequired");
   if (message.includes("Provider does not exist")) return t("providers.error.notFound");
   if (message.includes("Chat Completions providers need a local Responses bridge")) {
@@ -94,6 +109,7 @@ export function useProviderManager(
   const [busyProviderId, setBusyProviderId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [proxyBusy, setProxyBusy] = useState(false);
+  const [proxyStopProgress, setProxyStopProgress] = useState<LocalProxyStopProgress | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -211,16 +227,42 @@ export function useProviderManager(
 
   const stopProxy = useCallback(async () => {
     setProxyBusy(true);
+    setProxyStopProgress({ phase: "stoppingClient", percent: 3 });
+    const unsubscribeProgress = subscribeToLocalProxyStopProgress((progress) => {
+      setProxyStopProgress(progress);
+    });
+    const fakeProgressTimer = window.setInterval(() => {
+      setProxyStopProgress((current) => {
+        if (!current || current.phase === "complete" || current.phase === "failed") return current;
+        const ceiling = current.phase === "stoppingClient" ? 10
+          : current.phase === "restoringConversations" ? 88
+            : current.phase === "restoringConfiguration" ? 94
+              : 98;
+        if (current.percent >= ceiling) return current;
+        return { ...current, percent: Math.min(ceiling, current.percent + 1) };
+      });
+    }, 700);
     try {
       setLocalProxy(await stopLocalProxy());
+      setProxyStopProgress({ phase: "complete", percent: 100 });
       notify(t("toast.localProxyStopped"));
       await load();
+      await new Promise((resolve) => window.setTimeout(resolve, 650));
     } catch (error) {
+      const stopCompleted = String(error).includes(
+        "Local proxy was stopped, the selected auth.json and non-proxy conversations were restored",
+      );
+      setProxyStopProgress((current) => ({
+        phase: stopCompleted ? "complete" : "failed",
+        percent: stopCompleted ? 100 : Math.max(current?.percent ?? 0, 3),
+      }));
       notify(providerErrorMessage(error, t));
-      // Stopping the proxy is committed before the client relaunch. Refresh the
-      // card even when only the relaunch fails.
       await load();
+      await new Promise((resolve) => window.setTimeout(resolve, 1_000));
     } finally {
+      window.clearInterval(fakeProgressTimer);
+      unsubscribeProgress();
+      setProxyStopProgress(null);
       setProxyBusy(false);
     }
   }, [load, notify, t]);
@@ -312,6 +354,7 @@ export function useProviderManager(
     busyProviderId,
     saving,
     proxyBusy,
+    proxyStopProgress,
     activeProvider: providers.find((provider) => provider.active) ?? null,
     saveProvider,
     switchProvider,

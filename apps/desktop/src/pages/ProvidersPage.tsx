@@ -304,8 +304,7 @@ function OpenAiProviderModal({ provider, saving, onClose, onSave, t }: ProviderM
 
   const canSave = Boolean(
     name.trim()
-    && baseUrl.trim()
-    && (provider?.hasApiKey || apiKey.trim()),
+    && baseUrl.trim(),
   );
   const submit = async () => {
     if (!canSave) return;
@@ -346,9 +345,11 @@ function OpenAiProviderModal({ provider, saving, onClose, onSave, t }: ProviderM
             placeholder="https://upstream-codex-switch.example.com/v1"
             onChange={(event) => setBaseUrl(event.target.value)} />
           <small>{t("providers.openai.baseUrlHint")}</small>
-          <label htmlFor="openai-provider-api-key">{t("providers.form.apiKey")}</label>
+          <label htmlFor="openai-provider-api-key">{t("providers.openai.apiKeyOptional")}</label>
           <Input.Password id="openai-provider-api-key" value={apiKey} disabled={saving}
-            placeholder={provider?.hasApiKey ? t("providers.form.keepApiKey") : t("providers.form.newApiKey")}
+            placeholder={provider?.hasApiKey
+              ? t("providers.form.keepApiKey")
+              : t("providers.openai.apiKeyPlaceholder")}
             onChange={(event) => setApiKey(event.target.value)} />
         </div>
         <div className="provider-modal-footer">

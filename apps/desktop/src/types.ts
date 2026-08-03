@@ -122,6 +122,21 @@ export interface LocalProxyStatus {
   openaiAuthAccountId?: string | null;
 }
 
+export type LocalProxyStopPhase =
+  | "stoppingClient"
+  | "restoringConversations"
+  | "restoringConfiguration"
+  | "restartingClient"
+  | "complete"
+  | "failed";
+
+export interface LocalProxyStopProgress {
+  phase: LocalProxyStopPhase;
+  percent: number;
+  processedFiles?: number | null;
+  totalFiles?: number | null;
+}
+
 export interface ProxySession {
   id: string;
   title?: string | null;

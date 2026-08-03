@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { ConfigProvider, Dropdown, Modal, Popconfirm, Popover, Switch, Tooltip, theme as antdTheme, type MenuProps } from "antd";
+import { ConfigProvider, Dropdown, Modal, Popconfirm, Popover, Progress, Switch, Tooltip, theme as antdTheme, type MenuProps } from "antd";
 import enUS from "antd/locale/en_US";
 import zhCN from "antd/locale/zh_CN";
 import { BarChart3, Bell, CalendarClock, Check, ChevronDown, CircleHelp, Cloud, Copy, Download, Github, LogIn, LogOut, Megaphone, MessageSquareText, Minus, PackageOpen, Palette, Play, Plus, RefreshCw, RotateCcw, Search, Server, Settings, ShieldCheck, Shuffle, Square, UploadCloud, UserRound, X } from "lucide-react";
@@ -52,6 +52,14 @@ const MemoDreamSkinPage = memo(DreamSkinPage);
 const MemoProvidersPage = memo(ProvidersPage);
 const MemoSettingsPage = memo(SettingsPage);
 const MemoSkillsMarketPage = memo(SkillsMarketPage);
+const PROXY_STOP_PHASE_KEYS = {
+  stoppingClient: "providers.proxy.stopProgress.stoppingClient",
+  restoringConversations: "providers.proxy.stopProgress.restoringConversations",
+  restoringConfiguration: "providers.proxy.stopProgress.restoringConfiguration",
+  restartingClient: "providers.proxy.stopProgress.restartingClient",
+  complete: "providers.proxy.stopProgress.complete",
+  failed: "providers.proxy.stopProgress.failed",
+} as const;
 
 type SystemMenuAction =
   | "add-account"
@@ -1543,6 +1551,28 @@ function DashboardApp() {
           onInstall={() => void installUpdate()} downloading={downloadingUpdate}
           downloadRequested={installAfterDownloadRequested} downloaded={updateDownloaded}
           installing={installingUpdate} progress={updateProgress} error={updateInstallError} t={t} />}
+        <Modal className="proxy-stop-progress-modal"
+          open={Boolean(providerManager.proxyStopProgress)} footer={null} closable={false}
+          maskClosable={false} keyboard={false} centered
+          title={t("providers.proxy.stopProgressTitle")}>
+          {providerManager.proxyStopProgress && <div className="proxy-stop-progress-content">
+            <Progress
+              percent={Math.round(providerManager.proxyStopProgress.percent)}
+              status={providerManager.proxyStopProgress.phase === "failed" ? "exception"
+                : providerManager.proxyStopProgress.phase === "complete" ? "success" : "active"}
+              strokeColor="var(--green)" />
+            <p role="status" aria-live="polite">
+              {t(PROXY_STOP_PHASE_KEYS[providerManager.proxyStopProgress.phase])}
+            </p>
+            {providerManager.proxyStopProgress.totalFiles != null
+              && providerManager.proxyStopProgress.processedFiles != null
+              && <span>{t("providers.proxy.stopProgressFiles", {
+                processed: providerManager.proxyStopProgress.processedFiles,
+                total: providerManager.proxyStopProgress.totalFiles,
+              })}</span>}
+            <small>{t("providers.proxy.stopProgressHint")}</small>
+          </div>}
+        </Modal>
         {toast && <div className="toast"><Check size={17} />{toast}</div>}
       </div>
     </ConfigProvider>

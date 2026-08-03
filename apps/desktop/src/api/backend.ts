@@ -29,6 +29,7 @@ import type {
   LoginStart,
   LoginStatus,
   LocalProxyStatus,
+  LocalProxyStopProgress,
   ProxySession,
   ProxySessionRequest,
   ProxySessionLatencySummary,
@@ -310,8 +311,10 @@ export async function saveProviderProfile(provider: ProviderInput): Promise<Prov
     const index = provider.id ? providers.findIndex((item) => item.id === provider.id) : -1;
     const existing = index >= 0 ? providers[index] : null;
     const hasApiKey = Boolean(provider.apiKey?.trim() || existing?.hasApiKey);
-    if (!hasApiKey) throw new Error("API key is required for a new provider");
     const kind = provider.kind === "openai" ? "openai" : "custom";
+    if (kind === "custom" && !hasApiKey) {
+      throw new Error("API key is required for a new provider");
+    }
     const requestedModel = provider.model.trim();
     const selectedModel = kind === "openai" && !requestedModel
       ? DEFAULT_OPENAI_PROVIDER_MODEL
@@ -730,9 +733,7 @@ export async function stopLocalProxy(): Promise<LocalProxyStatus> {
     })));
     return previewLocalProxyStatus();
   }
-  const status = await invoke<LocalProxyStatus>("stop_local_proxy");
-  if (isDesktopApp) await relaunch();
-  return status;
+  return invoke<LocalProxyStatus>("stop_local_proxy");
 }
 
 export async function restoreNonProxyConversations(): Promise<DirectConversationSyncResult> {
@@ -1838,6 +1839,17 @@ export function subscribeToProviderEvents(onProvidersChanged: () => void): () =>
     return () => window.removeEventListener(PROVIDERS_EVENT, onProvidersChanged);
   }
   const subscription = listen("providers-changed", onProvidersChanged);
+  return () => void subscription.then((unlisten) => unlisten());
+}
+
+export function subscribeToLocalProxyStopProgress(
+  onProgress: (progress: LocalProxyStopProgress) => void,
+): () => void {
+  if (!isDesktopApp) return () => undefined;
+  const subscription = listen<LocalProxyStopProgress>(
+    "local-proxy-stop-progress",
+    ({ payload }) => onProgress(payload),
+  );
   return () => void subscription.then((unlisten) => unlisten());
 }
 

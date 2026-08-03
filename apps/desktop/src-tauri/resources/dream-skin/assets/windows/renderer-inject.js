@@ -1,4 +1,12 @@
 ((cssText, artDataUrl, rawConfig) => {
+  const SHELL_MAIN_SELECTOR = 'main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"])';
+  const SETTINGS_SURFACE_SELECTOR = '[data-settings-panel-slug="general-settings"], input[name="appearance-theme"], [data-testid="theme-preview"]';
+  const compatibleCssText = cssText
+    .replaceAll("main.main-surface", SHELL_MAIN_SELECTOR)
+    .replaceAll("header.app-header-tint", 'header:is(.app-header-tint, [data-app-shell-header-edge-scroll], [class*="_Header_"])')
+    .replaceAll(".app-shell-main-content-top-fade", ':is(.app-shell-main-content-top-fade, [data-app-shell-main-content-top-fade], [class*="_MainContentTopFade_"])')
+    .replaceAll("[data-message-author-role]", ':is([data-message-author-role], [data-local-conversation-user-anchor], [data-local-conversation-final-assistant])');
+  const VERSION = __DREAM_SKIN_VERSION_JSON__;
   const STATE_KEY = "__CODEX_DREAM_SKIN_STATE__";
   const STYLE_ID = "codex-dream-skin-style";
   const CHROME_ID = "codex-dream-skin-chrome";
@@ -326,9 +334,10 @@
     const root = document.documentElement;
     if (!root || !document.body) return;
 
-    const shellMain = document.querySelector("main.main-surface");
+    const shellMain = document.querySelector(SHELL_MAIN_SELECTOR);
     const shellSidebar = document.querySelector("aside.app-shell-left-panel");
-    if (!shellMain || !shellSidebar) {
+    const settingsSurface = document.querySelector(SETTINGS_SURFACE_SELECTOR);
+    if ((!shellMain || !shellSidebar) && !settingsSurface) {
       clearSkinDom();
       return;
     }
@@ -343,9 +352,13 @@
       (document.head || root).appendChild(style);
     }
     if (style.dataset.dreamVersion !== "3") {
-      style.textContent = cssText;
+      style.textContent = compatibleCssText;
       style.dataset.dreamVersion = "3";
     }
+
+    // Codex 26.727 renders Settings in its own surface without the primary
+    // shell/sidebar pair. The root theme and stylesheet are still valid there.
+    if (!shellMain || !shellSidebar) return;
 
     const home = document.querySelector('[role="main"]:has([data-testid="home-icon"])');
     for (const candidate of document.querySelectorAll('[role="main"]')) {
@@ -407,7 +420,7 @@
   });
   const timer = setInterval(ensure, 1000);
   window[STATE_KEY] = {
-    ensure, cleanup, observer, timer, scheduler, artUrl, profile, config, installToken, version: "1.2.0",
+    ensure, cleanup, observer, timer, scheduler, artUrl, profile, config, installToken, version: VERSION,
   };
   ensure();
   analyzeArt().then((result) => {
@@ -417,5 +430,5 @@
     state.profile = result;
     ensure();
   });
-  return { installed: true, version: "1.2.0", adaptive: true };
+  return { installed: true, version: VERSION, adaptive: true };
 })(__DREAM_CSS_JSON__, __DREAM_ART_JSON__, __DREAM_THEME_JSON__)
