@@ -154,14 +154,19 @@ describe('UserService', () => {
   });
 
   it('changes a password only when the current password is valid', async () => {
-    const user = makeUser({ passwordHash: await import('bcryptjs').then((bcrypt) => bcrypt.hash('old-pass', 12)) });
+    const user = makeUser();
+    const validatePassword = vi.spyOn(service, 'validatePassword')
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(false);
     repository.findOne.mockResolvedValue(user);
     await expect(service.changePassword(user.id, 'old-pass', 'new-password')).resolves.toEqual({ ok: true });
-    await expect(service.validatePassword(user, 'new-password')).resolves.toBe(true);
+    expect(repository.save).toHaveBeenCalledWith(user);
+    expect(validatePassword).toHaveBeenNthCalledWith(1, user, 'old-pass');
 
     repository.findOne.mockResolvedValue(user);
     await expect(service.changePassword(user.id, 'wrong-pass', 'newer-password'))
       .rejects.toThrow('Current password is invalid');
+    expect(validatePassword).toHaveBeenNthCalledWith(2, user, 'wrong-pass');
   });
 
   it('sets a verified user password without requiring the old password again', async () => {
