@@ -1494,15 +1494,48 @@ fn select_port() -> Result<u16, String> {
 
 fn path_eq(left: &Path, right: &Path) -> bool {
     #[cfg(target_os = "windows")]
-    return left
-        .to_string_lossy()
-        .eq_ignore_ascii_case(&right.to_string_lossy());
+    return windows_path_key(left).eq_ignore_ascii_case(&windows_path_key(right));
     #[cfg(not(target_os = "windows"))]
     return left == right;
 }
 
+#[cfg(target_os = "windows")]
+fn windows_path_key(path: &Path) -> String {
+    let value = path.to_string_lossy().replace('/', "\\");
+    if let Some(value) = value.strip_prefix(r"\\?\UNC\") {
+        return format!(r"\\{value}");
+    }
+    value.strip_prefix(r"\\?\").unwrap_or(&value).to_string()
+}
+
 fn same_install(left: &CodexInstall, right: &CodexInstall) -> bool {
     path_eq(&left.executable, &right.executable)
+}
+
+#[cfg(target_os = "windows")]
+fn attach_matching_package_identity(
+    mut install: CodexInstall,
+    packaged_installs: &[((u16, u16, u16, u16), CodexInstall)],
+) -> CodexInstall {
+    if install.app_user_model_id.is_none() {
+        install.app_user_model_id = packaged_installs
+            .iter()
+            .map(|(_, packaged)| packaged)
+            .find(|packaged| same_install(&install, packaged))
+            .and_then(|packaged| packaged.app_user_model_id.clone());
+    }
+    install
+}
+
+#[cfg(target_os = "windows")]
+fn restore_package_identity(install: CodexInstall) -> CodexInstall {
+    if install.app_user_model_id.is_some() {
+        return install;
+    }
+    let Ok(packaged_installs) = find_codex_installs() else {
+        return install;
+    };
+    attach_matching_package_identity(install, &packaged_installs)
 }
 
 fn stop_codex(install: &CodexInstall) -> Result<(), String> {
@@ -1542,19 +1575,33 @@ fn find_codex_installs() -> Result<Vec<((u16, u16, u16, u16), CodexInstall)>, St
     use windows::{
         core::HSTRING,
         Management::Deployment::PackageManager,
-        Win32::System::WinRT::{RoInitialize, RoUninitialize, RO_INIT_MULTITHREADED},
+        Win32::{
+            Foundation::RPC_E_CHANGED_MODE,
+            System::WinRT::{RoInitialize, RoUninitialize, RO_INIT_MULTITHREADED},
+        },
     };
 
-    struct RuntimeGuard;
+    struct RuntimeGuard(bool);
     impl Drop for RuntimeGuard {
         fn drop(&mut self) {
-            unsafe { RoUninitialize() };
+            if self.0 {
+                unsafe { RoUninitialize() };
+            }
         }
     }
 
-    unsafe { RoInitialize(RO_INIT_MULTITHREADED) }
-        .map_err(|error| format!("Failed to initialize the Windows package runtime: {error}"))?;
-    let _runtime = RuntimeGuard;
+    let initialized_here = match unsafe { RoInitialize(RO_INIT_MULTITHREADED) } {
+        Ok(()) => true,
+        // The worker can already have a COM apartment. PackageManager remains
+        // usable, but this call must not balance initialization it did not own.
+        Err(error) if error.code() == RPC_E_CHANGED_MODE => false,
+        Err(error) => {
+            return Err(format!(
+                "Failed to initialize the Windows package runtime: {error}"
+            ))
+        }
+    };
+    let _runtime = RuntimeGuard(initialized_here);
     let manager = PackageManager::new()
         .map_err(|error| format!("Failed to open the Windows package manager: {error}"))?;
     let packages = manager
@@ -1645,10 +1692,10 @@ fn find_running_codex_install() -> Option<CodexInstall> {
                 && app_dir.join("resources").join("codex.exe").is_file()
         });
         if is_codex_shell {
-            return Some(CodexInstall {
+            return Some(restore_package_identity(CodexInstall {
                 executable,
                 app_user_model_id: None,
-            });
+            }));
         }
     }
     None
@@ -1677,10 +1724,10 @@ fn remembered_codex_install() -> Option<CodexInstall> {
         return None;
     }
     #[cfg(target_os = "windows")]
-    return Some(CodexInstall {
+    return Some(restore_package_identity(CodexInstall {
         executable,
         app_user_model_id: None,
-    });
+    }));
     #[cfg(target_os = "macos")]
     Some(CodexInstall { executable })
 }
@@ -1696,6 +1743,7 @@ fn launch_codex(install: &CodexInstall, arguments: &str) -> Result<u32, String> 
     use windows::{
         core::HSTRING,
         Win32::{
+            Foundation::RPC_E_CHANGED_MODE,
             System::Com::{
                 CoCreateInstance, CoInitializeEx, CoUninitialize, CLSCTX_LOCAL_SERVER,
                 COINIT_APARTMENTTHREADED,
@@ -1704,18 +1752,33 @@ fn launch_codex(install: &CodexInstall, arguments: &str) -> Result<u32, String> 
         },
     };
 
-    if let Some(app_user_model_id) = &install.app_user_model_id {
-        struct ComGuard;
+    // A running or remembered Store install only gives us its executable path.
+    // Reattach the package identity before launch so Windows 10 does not try to
+    // CreateProcess the protected WindowsApps executable and fail with error 5.
+    let resolved_install = restore_package_identity(install.clone());
+    if let Some(app_user_model_id) = &resolved_install.app_user_model_id {
+        struct ComGuard(bool);
         impl Drop for ComGuard {
             fn drop(&mut self) {
-                unsafe { CoUninitialize() };
+                if self.0 {
+                    unsafe { CoUninitialize() };
+                }
             }
         }
 
-        unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED) }
-            .ok()
-            .map_err(|error| format!("Failed to initialize Windows app activation: {error}"))?;
-        let _com = ComGuard;
+        let initialized_here = match unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED) }.ok()
+        {
+            Ok(()) => true,
+            // Tauri workers can already be initialized as MTA. COM remains
+            // available in that case and must not be uninitialized by us.
+            Err(error) if error.code() == RPC_E_CHANGED_MODE => false,
+            Err(error) => {
+                return Err(format!(
+                    "Failed to initialize Windows app activation: {error}"
+                ))
+            }
+        };
+        let _com = ComGuard(initialized_here);
         let manager: IApplicationActivationManager = unsafe {
             CoCreateInstance(&ApplicationActivationManager, None, CLSCTX_LOCAL_SERVER)
         }
@@ -2413,6 +2476,62 @@ mod tests {
         assert!(payload.source.contains(SKIN_VERSION));
     }
 
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn restores_store_identity_for_a_running_or_remembered_executable() {
+        let packaged_executable = PathBuf::from(
+            r"C:\Program Files\WindowsApps\OpenAI.Codex_1.0.0.0_x64__example\app\ChatGPT.exe",
+        );
+        let direct_install = CodexInstall {
+            // std::fs::canonicalize and process inspection can return this
+            // verbatim form even though PackageManager returns a DOS path.
+            executable: PathBuf::from(
+                r"\\?\C:\Program Files\WindowsApps\OpenAI.Codex_1.0.0.0_x64__example\app\ChatGPT.exe",
+            ),
+            app_user_model_id: None,
+        };
+        let packaged_installs = vec![(
+            (1, 0, 0, 0),
+            CodexInstall {
+                executable: packaged_executable,
+                app_user_model_id: Some("OpenAI.Codex_example!App".to_string()),
+            },
+        )];
+
+        let resolved = attach_matching_package_identity(direct_install, &packaged_installs);
+
+        assert_eq!(
+            resolved.app_user_model_id.as_deref(),
+            Some("OpenAI.Codex_example!App")
+        );
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn keeps_an_existing_store_identity_when_matching_packages_change() {
+        let executable = PathBuf::from(
+            r"C:\Program Files\WindowsApps\OpenAI.Codex_1.0.0.0_x64__example\app\ChatGPT.exe",
+        );
+        let identified_install = CodexInstall {
+            executable: executable.clone(),
+            app_user_model_id: Some("OpenAI.Codex_example!App".to_string()),
+        };
+        let packaged_installs = vec![(
+            (2, 0, 0, 0),
+            CodexInstall {
+                executable,
+                app_user_model_id: Some("replacement!App".to_string()),
+            },
+        )];
+
+        let resolved = attach_matching_package_identity(identified_install, &packaged_installs);
+
+        assert_eq!(
+            resolved.app_user_model_id.as_deref(),
+            Some("OpenAI.Codex_example!App")
+        );
+    }
+
     #[test]
     fn bundled_themes_are_loadable() {
         let bundled_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -2485,6 +2604,16 @@ mod tests {
     fn discovers_official_codex_package() {
         let install =
             find_default_codex_install().expect("official Codex package should be discoverable");
+        assert!(install.executable.ends_with("app\\ChatGPT.exe"));
+        assert!(install.app_user_model_id.is_some_and(|id| id.contains('!')));
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    #[ignore = "requires a running official Codex Store app"]
+    fn restores_identity_for_the_running_codex_package() {
+        let install =
+            find_running_codex_install().expect("the running Codex package should be discoverable");
         assert!(install.executable.ends_with("app\\ChatGPT.exe"));
         assert!(install.app_user_model_id.is_some_and(|id| id.contains('!')));
     }
