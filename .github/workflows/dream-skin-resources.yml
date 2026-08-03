@@ -48,7 +48,7 @@ jobs:
           archive="$RUNNER_TEMP/dream-skin-resources.zip"
           (
             cd "$staging"
-            find presets -type f -print | LC_ALL=C sort | zip -X -0 -q "$archive" -@
+            find presets -type f -print | LC_ALL=C sort | zip -X -9 -q "$archive" -@
           )
           version="$(md5sum "$archive" | cut -d ' ' -f 1)"
           versioned_archive="$RUNNER_TEMP/dream-skin-resources-$version.zip"
@@ -65,11 +65,22 @@ jobs:
           RESOURCE_TAG: ${{ steps.package.outputs.tag }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          result-encoding: string
           script: |
             const { owner, repo } = context.repo;
             const tag = process.env.RESOURCE_TAG;
             const name = `Dream Skin Resources ${process.env.RESOURCE_VERSION}`;
+            const assetNames = [
+              `dream-skin-resources-${process.env.RESOURCE_VERSION}.zip`,
+              "LICENSE",
+              "NOTICE.md",
+              "SOURCES.json",
+            ];
+            const assetOutputs = new Map([
+              [assetNames[0], "upload_archive"],
+              [assetNames[1], "upload_license"],
+              [assetNames[2], "upload_notice"],
+              [assetNames[3], "upload_sources"],
+            ]);
             const body = [
               "Independent Dream Skin preset resource pack.",
               "",
@@ -94,7 +105,36 @@ jobs:
                 prerelease: false,
                 make_latest: "false",
               });
-              return existing.id.toString();
+
+              const assets = await github.paginate(github.rest.repos.listReleaseAssets, {
+                owner,
+                repo,
+                release_id: existing.id,
+                per_page: 100,
+              });
+              const assetsByName = new Map(assets.map((asset) => [asset.name, asset]));
+
+              if (existing.draft) {
+                for (const assetName of assetNames) {
+                  const asset = assetsByName.get(assetName);
+                  if (!asset) continue;
+                  await github.rest.repos.deleteReleaseAsset({
+                    owner,
+                    repo,
+                    asset_id: asset.id,
+                  });
+                  assetsByName.delete(assetName);
+                  core.info(`Deleted stale draft asset ${assetName}.`);
+                }
+              } else {
+                core.info(`Resource release ${existing.id} is already published; existing assets will be preserved.`);
+              }
+
+              core.setOutput("release_id", existing.id.toString());
+              for (const assetName of assetNames) {
+                core.setOutput(assetOutputs.get(assetName), (!assetsByName.has(assetName)).toString());
+              }
+              return;
             }
             const { data: created } = await github.rest.repos.createRelease({
               owner,
@@ -107,25 +147,62 @@ jobs:
               prerelease: false,
               make_latest: "false",
             });
-            return created.id.toString();
+            core.setOutput("release_id", created.id.toString());
+            for (const assetName of assetNames) {
+              core.setOutput(assetOutputs.get(assetName), "true");
+            }
 
       - name: Upload resource archive
+        shell: bash
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RESOURCE_TAG: ${{ steps.package.outputs.tag }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RESOURCE_RELEASE_ID: ${{ steps.resource_release.outputs.release_id }}
           RESOURCE_ASSET: ${{ steps.package.outputs.asset }}
           RESOURCE_LICENSE: ${{ runner.temp }}/dream-skin-release/LICENSE
           RESOURCE_NOTICE: ${{ runner.temp }}/dream-skin-release/NOTICE.md
           RESOURCE_SOURCES: ${{ runner.temp }}/dream-skin-release/SOURCES.json
-        run: >-
-          gh release upload "$RESOURCE_TAG"
-          "$RESOURCE_ASSET" "$RESOURCE_LICENSE" "$RESOURCE_NOTICE" "$RESOURCE_SOURCES"
-          --clobber
+          UPLOAD_ARCHIVE: ${{ steps.resource_release.outputs.upload_archive }}
+          UPLOAD_LICENSE: ${{ steps.resource_release.outputs.upload_license }}
+          UPLOAD_NOTICE: ${{ steps.resource_release.outputs.upload_notice }}
+          UPLOAD_SOURCES: ${{ steps.resource_release.outputs.upload_sources }}
+        run: |
+          set -euo pipefail
+
+          upload_asset() {
+            local file="$1"
+            local content_type="$2"
+            local asset_name
+            asset_name="$(basename "$file")"
+
+            curl --fail-with-body --show-error --silent \
+              --retry 3 --retry-all-errors \
+              --request POST \
+              --header "Authorization: Bearer $GITHUB_TOKEN" \
+              --header "Accept: application/vnd.github+json" \
+              --header "X-GitHub-Api-Version: 2022-11-28" \
+              --header "Content-Type: $content_type" \
+              --data-binary "@$file" \
+              "https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$RESOURCE_RELEASE_ID/assets?name=$asset_name" \
+              >/dev/null
+          }
+
+          if [[ "$UPLOAD_ARCHIVE" == "true" ]]; then
+            upload_asset "$RESOURCE_ASSET" application/zip
+          fi
+          if [[ "$UPLOAD_LICENSE" == "true" ]]; then
+            upload_asset "$RESOURCE_LICENSE" text/plain
+          fi
+          if [[ "$UPLOAD_NOTICE" == "true" ]]; then
+            upload_asset "$RESOURCE_NOTICE" text/markdown
+          fi
+          if [[ "$UPLOAD_SOURCES" == "true" ]]; then
+            upload_asset "$RESOURCE_SOURCES" application/json
+          fi
 
       - name: Publish resource release
         uses: actions/github-script@v9
         env:
-          RESOURCE_RELEASE_ID: ${{ steps.resource_release.outputs.result }}
+          RESOURCE_RELEASE_ID: ${{ steps.resource_release.outputs.release_id }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
