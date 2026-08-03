@@ -74,7 +74,7 @@ pub(crate) enum ChatGptLaunchTarget {
 }
 
 #[cfg(not(target_os = "windows"))]
-type ChatGptLaunchTarget = String;
+pub(crate) type ChatGptLaunchTarget = String;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -940,13 +940,25 @@ pub(crate) struct DirectConversationSyncResult {
 pub(crate) fn sync_conversation_metadata_if_present(
     codex_home: &Path,
 ) -> Result<DirectConversationSyncResult, String> {
+    sync_conversation_metadata_if_present_with_progress(codex_home, &mut |_, _| {})
+}
+
+pub(crate) fn sync_conversation_metadata_if_present_with_progress(
+    codex_home: &Path,
+    progress: &mut dyn FnMut(usize, usize),
+) -> Result<DirectConversationSyncResult, String> {
     if !has_codex_state_database(codex_home)? {
         return Ok(DirectConversationSyncResult {
             conversations_updated: 0,
             rollout_files_updated: 0,
         });
     }
-    sync_conversation_metadata(codex_home)
+    replace_conversation_provider_with_progress(
+        codex_home,
+        OFFICIAL_CONVERSATION_PROVIDER,
+        LOCAL_PROXY_CONVERSATION_PROVIDER,
+        progress,
+    )
 }
 
 #[tauri::command]
@@ -1053,27 +1065,6 @@ fn has_codex_state_database(codex_home: &Path) -> Result<bool, String> {
         }
     }
     Ok(false)
-}
-
-fn sync_conversation_metadata(codex_home: &Path) -> Result<DirectConversationSyncResult, String> {
-    replace_conversation_provider(
-        codex_home,
-        OFFICIAL_CONVERSATION_PROVIDER,
-        LOCAL_PROXY_CONVERSATION_PROVIDER,
-    )
-}
-
-fn replace_conversation_provider(
-    codex_home: &Path,
-    source_provider: &str,
-    target_provider: &str,
-) -> Result<DirectConversationSyncResult, String> {
-    replace_conversation_provider_with_progress(
-        codex_home,
-        source_provider,
-        target_provider,
-        &mut |_, _| {},
-    )
 }
 
 fn replace_conversation_provider_with_progress(
@@ -2329,7 +2320,7 @@ mod compatible_json_import_tests {
         ensure_account_switch_allowed, normalize_compatible_json_auth, normalize_sub2api_auth,
         parse_compatible_json_auth_values, parse_sub2api_auth_values,
         restore_conversation_metadata_if_present, should_disable_account_auto_switch,
-        sync_conversation_metadata, sync_current_auth_with_client_state,
+        sync_conversation_metadata_if_present_with_progress, sync_current_auth_with_client_state,
         update_disabled_account_ids, write_managed_auth_to_current,
         LOCAL_PROXY_CONVERSATION_PROVIDER, OFFICIAL_CONVERSATION_PROVIDER,
     };
@@ -2680,9 +2671,15 @@ mod compatible_json_import_tests {
             .expect("create catalog");
         drop(catalog);
 
-        let result = sync_conversation_metadata(&codex_home).expect("sync conversations");
+        let mut progress_updates = Vec::new();
+        let result = sync_conversation_metadata_if_present_with_progress(
+            &codex_home,
+            &mut |processed, total| progress_updates.push((processed, total)),
+        )
+        .expect("sync conversations");
         assert_eq!(result.conversations_updated, 1);
         assert_eq!(result.rollout_files_updated, 1);
+        assert_eq!(progress_updates, vec![(0, 1), (1, 1)]);
 
         let state = Connection::open(&state_path).expect("reopen state database");
         let state_provider: String = state

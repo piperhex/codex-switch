@@ -28,6 +28,7 @@ import type {
   FeedbackImageInput,
   LoginStart,
   LoginStatus,
+  LocalProxyStartProgress,
   LocalProxyStatus,
   LocalProxyStopProgress,
   ProxySession,
@@ -1848,6 +1849,17 @@ export function subscribeToLocalProxyStopProgress(
   if (!isDesktopApp) return () => undefined;
   const subscription = listen<LocalProxyStopProgress>(
     "local-proxy-stop-progress",
+    ({ payload }) => onProgress(payload),
+  );
+  return () => void subscription.then((unlisten) => unlisten());
+}
+
+export function subscribeToLocalProxyStartProgress(
+  onProgress: (progress: LocalProxyStartProgress) => void,
+): () => void {
+  if (!isDesktopApp) return () => undefined;
+  const subscription = listen<LocalProxyStartProgress>(
+    "local-proxy-start-progress",
     ({ payload }) => onProgress(payload),
   );
   return () => void subscription.then((unlisten) => unlisten());

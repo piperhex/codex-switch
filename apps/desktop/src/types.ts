@@ -137,6 +137,21 @@ export interface LocalProxyStopProgress {
   totalFiles?: number | null;
 }
 
+export type LocalProxyStartPhase =
+  | "preparingClient"
+  | "startingProxy"
+  | "syncingConversations"
+  | "restartingClient"
+  | "complete"
+  | "failed";
+
+export interface LocalProxyStartProgress {
+  phase: LocalProxyStartPhase;
+  percent: number;
+  processedFiles?: number | null;
+  totalFiles?: number | null;
+}
+
 export interface ProxySession {
   id: string;
   title?: string | null;

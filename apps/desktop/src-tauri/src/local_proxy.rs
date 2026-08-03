@@ -57,11 +57,12 @@ const CUSTOM_TOOL_INPUT_DESCRIPTION: &str =
     "Raw string input for the original custom tool. Preserve formatting exactly.";
 const CUSTOM_TOOL_PRESERVED_METADATA_HEADING: &str = "Original tool definition:";
 const LOCAL_PROXY_LAN_HOST: &str = "0.0.0.0";
+const LOCAL_PROXY_START_PROGRESS_EVENT: &str = "local-proxy-start-progress";
 const LOCAL_PROXY_STOP_PROGRESS_EVENT: &str = "local-proxy-stop-progress";
 
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct LocalProxyStopProgress {
+struct LocalProxyTransitionProgress {
     phase: &'static str,
     percent: u8,
     processed_files: Option<usize>,
@@ -77,7 +78,25 @@ fn emit_stop_progress<R: Runtime>(
 ) {
     let _ = app.emit(
         LOCAL_PROXY_STOP_PROGRESS_EVENT,
-        LocalProxyStopProgress {
+        LocalProxyTransitionProgress {
+            phase,
+            percent,
+            processed_files,
+            total_files,
+        },
+    );
+}
+
+fn emit_start_progress<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    phase: &'static str,
+    percent: u8,
+    processed_files: Option<usize>,
+    total_files: Option<usize>,
+) {
+    let _ = app.emit(
+        LOCAL_PROXY_START_PROGRESS_EVENT,
+        LocalProxyTransitionProgress {
             phase,
             percent,
             processed_files,
@@ -1211,6 +1230,7 @@ fn start_local_proxy_blocking<R: Runtime>(
     // Validate the selected official credential before interrupting a running client.
     // The local proxy supports both OAuth and Agent Identity authentication.
     providers::ensure_local_proxy_compatible_for_state(&paths)?;
+    emit_start_progress(&app, "preparingClient", 5, None, None);
     // Only interrupt and relaunch a client that is actually running. When no
     // client is open, proxy mode can be enabled by updating its configuration
     // directly, without treating the absence of a process as a stop failure.
@@ -1225,6 +1245,7 @@ fn start_local_proxy_blocking<R: Runtime>(
         crate::commands::wait_for_chatgpt_processes_to_exit(std::time::Duration::from_secs(10))?;
     }
 
+    emit_start_progress(&app, "startingProxy", 18, None, None);
     let started = start_server(app.clone())?;
     if let Err(error) = providers::apply_local_proxy_config_for_state(&app) {
         if started {
@@ -1237,31 +1258,62 @@ fn start_local_proxy_blocking<R: Runtime>(
         .map_err(|error| error.to_string())?;
     crate::system_tray::refresh_menu(&app);
     let proxy_status = status(&app);
-    if !client_was_running {
-        return Ok(proxy_status);
-    }
     // Update direct-history metadata while the desktop client is completely
     // stopped, then only launch it once the old conversations are ready for
     // local-proxy mode.
-    let sync_result = crate::commands::sync_conversation_metadata_if_present(&paths.codex_home);
-    let start_result = crate::dream_skin::restart_active_session().and_then(|restarted| {
-        if restarted {
-            Ok(())
-        } else {
-            crate::commands::start_chatgpt(launch_target.as_ref())
-        }
-    });
+    emit_start_progress(&app, "syncingConversations", 38, Some(0), None);
+    let sync_result = crate::commands::sync_conversation_metadata_if_present_with_progress(
+        &paths.codex_home,
+        &mut |processed, total| {
+            let percent = if total == 0 {
+                88
+            } else {
+                38 + ((processed.saturating_mul(50) / total).min(50) as u8)
+            };
+            emit_start_progress(
+                &app,
+                "syncingConversations",
+                percent,
+                Some(processed),
+                Some(total),
+            );
+        },
+    );
+    let start_result = if client_was_running {
+        emit_start_progress(&app, "restartingClient", 92, None, None);
+        crate::dream_skin::restart_active_session().and_then(|restarted| {
+            if restarted {
+                Ok(())
+            } else {
+                crate::commands::start_chatgpt(launch_target.as_ref())
+            }
+        })
+    } else {
+        Ok(())
+    };
     match (sync_result, start_result) {
-        (Ok(_), Ok(())) => Ok(proxy_status),
-        (Err(sync_error), Ok(())) => Err(format!(
-            "代理模式已启动，ChatGPT/Codex 已重启，但此前对话记录同步失败：{sync_error}"
-        )),
-        (Ok(_), Err(start_error)) => Err(format!(
-            "代理模式已启动，但无法自动启动 ChatGPT/Codex（{start_error}）。请手动启动 ChatGPT 或 Codex。"
-        )),
-        (Err(sync_error), Err(start_error)) => Err(format!(
-            "代理模式已启动，但此前对话记录同步失败（{sync_error}），且无法自动启动 ChatGPT/Codex（{start_error}）。请手动启动 ChatGPT 或 Codex。"
-        )),
+        (Ok(_), Ok(())) => {
+            emit_start_progress(&app, "complete", 100, None, None);
+            Ok(proxy_status)
+        }
+        (Err(sync_error), Ok(())) => {
+            emit_start_progress(&app, "failed", 88, None, None);
+            Err(format!(
+                "Local proxy was started, but conversation history could not be synchronized: {sync_error}"
+            ))
+        }
+        (Ok(_), Err(start_error)) => {
+            emit_start_progress(&app, "complete", 100, None, None);
+            Err(format!(
+                "Local proxy was started and conversation history was synchronized, but ChatGPT/Codex could not be restarted ({start_error}). Please start ChatGPT or Codex manually."
+            ))
+        }
+        (Err(sync_error), Err(start_error)) => {
+            emit_start_progress(&app, "failed", 92, None, None);
+            Err(format!(
+                "Local proxy was started, but conversation history could not be synchronized ({sync_error}) and ChatGPT/Codex could not be restarted ({start_error}). Please start ChatGPT or Codex manually."
+            ))
+        }
     }
 }
 

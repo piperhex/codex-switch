@@ -15,12 +15,14 @@ import {
   setProviderModelControl,
   startLocalProxy,
   stopLocalProxy,
+  subscribeToLocalProxyStartProgress,
   subscribeToLocalProxyStopProgress,
   subscribeToProviderEvents,
   switchProviderModel,
 } from "../api/backend";
 import type { Translate } from "../i18n";
 import type {
+  LocalProxyStartProgress,
   LocalProxyStatus,
   LocalProxyStopProgress,
   Provider,
@@ -34,6 +36,16 @@ interface ProviderCloudSync {
 
 function providerErrorMessage(error: unknown, t: Translate) {
   const message = String(error);
+  if (message.includes("conversation history could not be synchronized")
+    && message.includes("ChatGPT/Codex could not be restarted")) {
+    return t("providers.error.proxyStartSyncAndRestartFailed");
+  }
+  if (message.includes("Local proxy was started, but conversation history could not be synchronized")) {
+    return t("providers.error.proxyStartSyncFailed");
+  }
+  if (message.includes("Local proxy was started and conversation history was synchronized")) {
+    return t("providers.error.proxyStartedRestartFailed");
+  }
   if (message.includes("Proxy stop was cancelled because conversation history could not be restored safely")) {
     return t("providers.error.proxyStopCancelled");
   }
@@ -109,6 +121,7 @@ export function useProviderManager(
   const [busyProviderId, setBusyProviderId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [proxyBusy, setProxyBusy] = useState(false);
+  const [proxyStartProgress, setProxyStartProgress] = useState<LocalProxyStartProgress | null>(null);
   const [proxyStopProgress, setProxyStopProgress] = useState<LocalProxyStopProgress | null>(null);
 
   const load = useCallback(async () => {
@@ -211,16 +224,44 @@ export function useProviderManager(
 
   const startProxy = useCallback(async () => {
     setProxyBusy(true);
+    setProxyStartProgress({ phase: "preparingClient", percent: 3 });
+    const unsubscribeProgress = subscribeToLocalProxyStartProgress((progress) => {
+      setProxyStartProgress(progress);
+    });
+    const fakeProgressTimer = window.setInterval(() => {
+      setProxyStartProgress((current) => {
+        if (!current || current.phase === "complete" || current.phase === "failed") return current;
+        const ceiling = current.phase === "preparingClient" ? 12
+          : current.phase === "startingProxy" ? 35
+            : current.phase === "syncingConversations" ? 88
+              : 98;
+        if (current.percent >= ceiling) return current;
+        return { ...current, percent: Math.min(ceiling, current.percent + 1) };
+      });
+    }, 700);
     try {
       setLocalProxy(await startLocalProxy());
+      setProxyStartProgress({ phase: "complete", percent: 100 });
       notify(t("toast.localProxyStarted"));
       await load();
+      await new Promise((resolve) => window.setTimeout(resolve, 650));
     } catch (error) {
+      const startCompleted = String(error).includes(
+        "Local proxy was started and conversation history was synchronized",
+      );
+      setProxyStartProgress((current) => ({
+        phase: startCompleted ? "complete" : "failed",
+        percent: startCompleted ? 100 : Math.max(current?.percent ?? 0, 3),
+      }));
       notify(providerErrorMessage(error, t));
       // Configuration is kept when only the client relaunch fails, so ensure the
       // card reflects the running proxy before the user starts it manually.
       await load();
+      await new Promise((resolve) => window.setTimeout(resolve, 1_000));
     } finally {
+      window.clearInterval(fakeProgressTimer);
+      unsubscribeProgress();
+      setProxyStartProgress(null);
       setProxyBusy(false);
     }
   }, [load, notify, t]);
@@ -354,6 +395,7 @@ export function useProviderManager(
     busyProviderId,
     saving,
     proxyBusy,
+    proxyStartProgress,
     proxyStopProgress,
     activeProvider: providers.find((provider) => provider.active) ?? null,
     saveProvider,

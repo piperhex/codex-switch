@@ -52,6 +52,14 @@ const MemoDreamSkinPage = memo(DreamSkinPage);
 const MemoProvidersPage = memo(ProvidersPage);
 const MemoSettingsPage = memo(SettingsPage);
 const MemoSkillsMarketPage = memo(SkillsMarketPage);
+const PROXY_START_PHASE_KEYS = {
+  preparingClient: "providers.proxy.startProgress.preparingClient",
+  startingProxy: "providers.proxy.startProgress.startingProxy",
+  syncingConversations: "providers.proxy.startProgress.syncingConversations",
+  restartingClient: "providers.proxy.startProgress.restartingClient",
+  complete: "providers.proxy.startProgress.complete",
+  failed: "providers.proxy.startProgress.failed",
+} as const;
 const PROXY_STOP_PHASE_KEYS = {
   stoppingClient: "providers.proxy.stopProgress.stoppingClient",
   restoringConversations: "providers.proxy.stopProgress.restoringConversations",
@@ -1551,6 +1559,28 @@ function DashboardApp() {
           onInstall={() => void installUpdate()} downloading={downloadingUpdate}
           downloadRequested={installAfterDownloadRequested} downloaded={updateDownloaded}
           installing={installingUpdate} progress={updateProgress} error={updateInstallError} t={t} />}
+        <Modal className="proxy-stop-progress-modal"
+          open={Boolean(providerManager.proxyStartProgress)} footer={null} closable={false}
+          maskClosable={false} keyboard={false} centered
+          title={t("providers.proxy.startProgressTitle")}>
+          {providerManager.proxyStartProgress && <div className="proxy-stop-progress-content">
+            <Progress
+              percent={Math.round(providerManager.proxyStartProgress.percent)}
+              status={providerManager.proxyStartProgress.phase === "failed" ? "exception"
+                : providerManager.proxyStartProgress.phase === "complete" ? "success" : "active"}
+              strokeColor="var(--green)" />
+            <p role="status" aria-live="polite">
+              {t(PROXY_START_PHASE_KEYS[providerManager.proxyStartProgress.phase])}
+            </p>
+            {providerManager.proxyStartProgress.totalFiles != null
+              && providerManager.proxyStartProgress.processedFiles != null
+              && <span>{t("providers.proxy.startProgressFiles", {
+                processed: providerManager.proxyStartProgress.processedFiles,
+                total: providerManager.proxyStartProgress.totalFiles,
+              })}</span>}
+            <small>{t("providers.proxy.startProgressHint")}</small>
+          </div>}
+        </Modal>
         <Modal className="proxy-stop-progress-modal"
           open={Boolean(providerManager.proxyStopProgress)} footer={null} closable={false}
           maskClosable={false} keyboard={false} centered
