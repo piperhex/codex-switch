@@ -388,6 +388,7 @@ export function AccountTable({
   const [contextMenu, setContextMenu] = useState<AccountContextMenu | null>(null);
   const [tableActionMenuAccountId, setTableActionMenuAccountId] = useState<string | null>(null);
   const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
+  const [bulkConsumeQuotaConfirmOpen, setBulkConsumeQuotaConfirmOpen] = useState(false);
   const [bulkConsumeQuotaBusy, setBulkConsumeQuotaBusy] = useState(false);
   const [bulkDeleteBusy, setBulkDeleteBusy] = useState(false);
   const [bulkEnableBusy, setBulkEnableBusy] = useState(false);
@@ -1077,9 +1078,9 @@ export function AccountTable({
           title={t("table.batchConsumeQuotaConfirmTitle", {
             count: consumableSelectedAccountIds.length,
           })}
-          description={t("table.batchConsumeQuotaConfirmDescription")}
           okText={t("table.batchConsumeQuotaOk")}
           cancelText={t("table.cancel")}
+          onOpenChange={setBulkConsumeQuotaConfirmOpen}
           disabled={!consumableSelectedAccountIds.length || bulkConsumeQuotaBusy
             || bulkDeleteBusy || bulkEnableBusy || bulkDisableBusy
             || autoSwitchBusyAccountId !== null}
@@ -1092,11 +1093,13 @@ export function AccountTable({
               setBulkConsumeQuotaBusy(false);
             }
           }}>
-          <Button size="small" icon={<Gauge size={14} />} loading={bulkConsumeQuotaBusy}
-            disabled={!consumableSelectedAccountIds.length || bulkDeleteBusy
-              || bulkEnableBusy || bulkDisableBusy || autoSwitchBusyAccountId !== null}>
-            {t("table.batchConsumeQuota")}
-          </Button>
+          <Tooltip title={bulkConsumeQuotaConfirmOpen ? null : t("table.batchConsumeQuotaTooltip")}>
+            <Button size="small" icon={<Gauge size={14} />} loading={bulkConsumeQuotaBusy}
+              disabled={!consumableSelectedAccountIds.length || bulkDeleteBusy
+                || bulkEnableBusy || bulkDisableBusy || autoSwitchBusyAccountId !== null}>
+              {t("table.batchConsumeQuota")}
+            </Button>
+          </Tooltip>
         </Popconfirm>
         <Popconfirm title={t("table.batchDeleteConfirmTitle", { count: deletableSelectedAccountIds.length })}
           description={t("table.batchDeleteConfirmDescription")}
