@@ -661,6 +661,12 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .token-usage-settings-field { flex-wrap: wrap; }
 .token-usage-settings-field .ant-space-compact { width: 132px; }
 .token-usage-settings-field .ant-input-number { width: 88px; }
+.auto-disable-status-codes-field .ant-select { width: clamp(260px, 32vw, 430px); }
+.http-status-option { min-width: 0; display: flex; align-items: flex-start; gap: 9px; padding: 3px 0; }
+.http-status-option .ant-checkbox-wrapper, .http-status-option .ant-checkbox { pointer-events: none; }
+.http-status-option > span:last-child { min-width: 0; display: grid; gap: 2px; white-space: normal; }
+.http-status-option strong { color: var(--text); font-size: 11px; }
+.http-status-option small { color: var(--muted); font-size: 10px; line-height: 1.35; }
 .note-card { border-color: #c8dccd; background: #f8fbf7; }
 
 .provider-page { width: calc(100% - 32px); max-width: none; min-width: 0; margin: 30px 16px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }

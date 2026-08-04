@@ -403,6 +403,9 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
                 argument(&args, "refreshSeconds")?,
             ))
         }
+        "set_auto_disable_status_codes" => serialize(
+            crate::commands::set_auto_disable_status_codes(app, argument(&args, "statusCodes")?),
+        ),
         "set_bubble_reset_display" => serialize(crate::floating_bubble::set_bubble_reset_display(
             app,
             argument(&args, "display")?,

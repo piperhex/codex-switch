@@ -131,6 +131,7 @@ pub fn run() {
             commands::switch_account_and_restart_chatgpt,
             commands::set_account_auto_switch_enabled,
             commands::set_account_auto_switch_priority,
+            commands::set_auto_disable_status_codes,
             commands::update_account_note,
             commands::delete_account,
             commands::refresh_usage,

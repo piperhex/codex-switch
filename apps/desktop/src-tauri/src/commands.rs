@@ -26,14 +26,16 @@ use crate::{
         consume_reset_credit_request, parse_reset_credits, parse_usage, refresh_tokens,
         reset_credits_request, token_expiring, usage_request,
     },
-    models::{AccountSummary, AppInfo, ManagerStateFile, ResetCreditsSummary, UsageSummary},
+    models::{
+        AccountSummary, AppInfo, AppSettings, ManagerStateFile, ResetCreditsSummary, UsageSummary,
+    },
     storage::{
         account_dir, auto_switch_priority_path, expiration_path, import_value,
         load_auto_switch_priority, load_expiration, load_note, load_usage, managed_auth_path,
-        note_path, read_json, read_state, resolve_paths, save_auto_switch_priority,
-        save_expiration, save_note, save_usage, sync_current_into_store, touch_account_field,
-        usage_path, write_json_atomic, write_json_if_changed, write_managed_auth_if_changed,
-        write_state, AccountSyncField, Paths,
+        note_path, read_app_settings, read_json, read_state, resolve_paths,
+        save_auto_switch_priority, save_expiration, save_note, save_usage, sync_current_into_store,
+        touch_account_field, usage_path, write_app_settings, write_json_atomic,
+        write_json_if_changed, write_managed_auth_if_changed, write_state, AccountSyncField, Paths,
     },
 };
 
@@ -768,6 +770,26 @@ pub(crate) fn set_account_auto_switch_enabled<R: Runtime>(
     app.emit("accounts-changed", ())
         .map_err(|error| error.to_string())?;
     Ok(())
+}
+
+#[tauri::command]
+pub(crate) fn set_auto_disable_status_codes<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    mut status_codes: Vec<u16>,
+) -> Result<AppSettings, String> {
+    if status_codes
+        .iter()
+        .any(|status| !(100..=599).contains(status))
+    {
+        return Err("automatic disable status codes must be between 100 and 599".to_string());
+    }
+    status_codes.sort_unstable();
+    status_codes.dedup();
+
+    let mut settings = read_app_settings(&app)?;
+    settings.auto_disable_status_codes = status_codes;
+    write_app_settings(&app, &settings)?;
+    Ok(settings)
 }
 
 #[tauri::command]
@@ -1528,14 +1550,15 @@ pub(crate) fn refresh_usage_blocking<R: Runtime>(
                     let _ = touch_account_field(&paths, &id, AccountSyncField::Usage);
                 }
                 // A usage refresh can fail for temporary reasons (for example, a network
-                // disconnect or timeout). Do not turn a transient failure into a persisted
-                // account exclusion. Only disable accounts after an explicit authentication
-                // rejection from the upstream API.
+                // disconnect or timeout). Only an explicitly configured upstream HTTP status
+                // can turn a failure into a persisted account exclusion.
                 let state = read_state(&paths);
+                let settings = read_app_settings(&app).unwrap_or_default();
                 let disable_error = if should_disable_account_auto_switch(
                     &error,
                     state.auto_switch_on_quota_exhaustion
                         && state.auto_disable_unreachable_accounts,
+                    &settings.auto_disable_status_codes,
                 ) {
                     set_account_auto_switch_enabled_for_paths(&paths, &id, false).err()
                 } else {
@@ -1554,27 +1577,16 @@ pub(crate) fn refresh_usage_blocking<R: Runtime>(
 
 fn should_disable_account_auto_switch(
     error: &str,
-    auto_disable_unreachable_accounts: bool,
+    auto_disable_enabled: bool,
+    status_codes: &[u16],
 ) -> bool {
-    // `try_refresh_usage_blocking` includes the upstream HTTP status in these errors.
-    // Treat only definite account access failures as permanent enough to
-    // remove the account from automatic switching. Network errors, timeouts, 5xx, parsing
-    // errors, and refresh-token endpoint failures remain retryable unless the user has opted
-    // in to automatically disabling unreachable accounts.
-    error.contains("HTTP 401")
-        || error.contains("HTTP 403")
-        || error.contains("HTTP 402")
-        || (auto_disable_unreachable_accounts && is_unreachable_usage_error(error))
-}
-
-fn is_unreachable_usage_error(error: &str) -> bool {
-    let error = error.to_ascii_lowercase();
-    error.contains("error sending request")
-        || error.contains("timed out")
-        || error.contains("timeout")
-        || error.contains("dns error")
-        || error.contains("connection")
-        || error.contains("network")
+    // Usage and token-refresh failures include their upstream HTTP status in the error.
+    // Only statuses selected by the user are eligible for automatic exclusion. Network errors,
+    // timeouts, unmatched HTTP responses, and parsing failures always remain retryable.
+    auto_disable_enabled
+        && status_codes
+            .iter()
+            .any(|status| error.contains(&format!("HTTP {status}")))
 }
 
 fn try_refresh_usage_blocking<R: Runtime>(
@@ -2587,35 +2599,62 @@ mod compatible_json_import_tests {
     }
 
     #[test]
-    fn usage_refresh_failures_only_disable_for_explicit_auth_rejections() {
+    fn usage_refresh_failures_only_disable_enabled_access_rejections() {
         assert!(should_disable_account_auto_switch(
             "Codex usage endpoint returned HTTP 401 Unauthorized",
-            false,
+            true,
+            &[401, 402, 403],
         ));
         assert!(should_disable_account_auto_switch(
             "Codex usage endpoint returned HTTP 403 Forbidden",
-            false,
+            true,
+            &[401, 402, 403],
         ));
         assert!(should_disable_account_auto_switch(
             "Codex usage endpoint returned HTTP 402 Payment Required",
-            false,
+            true,
+            &[401, 402, 403],
         ));
 
         assert!(!should_disable_account_auto_switch(
-            "failed to read Codex usage: error sending request",
+            "Codex usage endpoint returned HTTP 401 Unauthorized",
             false,
+            &[401, 402, 403],
+        ));
+        assert!(!should_disable_account_auto_switch(
+            "Codex usage endpoint returned HTTP 403 Forbidden",
+            false,
+            &[401, 402, 403],
+        ));
+        assert!(!should_disable_account_auto_switch(
+            "Codex usage endpoint returned HTTP 402 Payment Required",
+            false,
+            &[401, 402, 403],
+        ));
+        assert!(!should_disable_account_auto_switch(
+            "failed to read Codex usage: error sending request",
+            true,
+            &[401, 402, 403],
         ));
         assert!(!should_disable_account_auto_switch(
             "failed to read Codex usage: operation timed out",
-            false,
+            true,
+            &[401, 402, 403],
         ));
         assert!(!should_disable_account_auto_switch(
             "Codex usage endpoint returned HTTP 503 Service Unavailable",
-            false,
+            true,
+            &[401, 402, 403],
         ));
         assert!(should_disable_account_auto_switch(
-            "failed to read Codex usage: error sending request",
+            "Codex usage endpoint returned HTTP 429 Too Many Requests",
             true,
+            &[429],
+        ));
+        assert!(!should_disable_account_auto_switch(
+            "Codex usage endpoint returned HTTP 401 Unauthorized",
+            true,
+            &[429],
         ));
     }
 

@@ -5,7 +5,7 @@ import zhCN from "antd/locale/zh_CN";
 import { BarChart3, Bell, CalendarClock, Check, ChevronDown, CircleHelp, Cloud, Copy, Download, Github, LogIn, LogOut, Megaphone, MessageSquareText, Minus, PackageOpen, Palette, Play, Plus, RefreshCw, RotateCcw, Search, Server, Settings, ShieldCheck, Shuffle, Square, UploadCloud, UserRound, X } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { checkForUpdate, chooseAndExportDiagnosticLogs, consumeResetCredit, DEFAULT_CLOUD_BASE_URL, downloadAvailableUpdate, fetchCloudAnnouncement, fetchCloudFaqs, fetchCloudNotifications, hasLocalBackend, installDownloadedUpdate, isDesktopApp, launchChatGpt, loadAppSettings, openManagedFolder, queryProviderBalance, quitApplication, reportAnnouncementClick, reportBaseUrlChange, reportDeviceActivity, reportFirstInstallation, restartApplication, restartChatGpt, showTokenUsageWindow, submitFeedback, subscribeToCloudSessionExpired, updateWebProxyPort } from "./api/backend";
+import { checkForUpdate, chooseAndExportDiagnosticLogs, consumeResetCredit, DEFAULT_AUTO_DISABLE_STATUS_CODES, DEFAULT_CLOUD_BASE_URL, downloadAvailableUpdate, fetchCloudAnnouncement, fetchCloudFaqs, fetchCloudNotifications, hasLocalBackend, installDownloadedUpdate, isDesktopApp, launchChatGpt, loadAppSettings, openManagedFolder, queryProviderBalance, quitApplication, reportAnnouncementClick, reportBaseUrlChange, reportDeviceActivity, reportFirstInstallation, restartApplication, restartChatGpt, showTokenUsageWindow, submitFeedback, subscribeToCloudSessionExpired, updateAutoDisableStatusCodes, updateWebProxyPort } from "./api/backend";
 import { AboutModal } from "./components/modals/AboutModal";
 import { HelpModal, type HelpVersionState } from "./components/modals/HelpModal";
 import { FeedbackModal } from "./components/modals/FeedbackModal";
@@ -150,6 +150,10 @@ function DashboardApp() {
   const [refreshingProviderBalances, setRefreshingProviderBalances] = useState(false);
   const [webProxyPort, setWebProxyPort] = useState<number | null>(null);
   const [webProxyPortLoading, setWebProxyPortLoading] = useState(false);
+  const [autoDisableStatusCodes, setAutoDisableStatusCodes] = useState<number[]>(
+    [...DEFAULT_AUTO_DISABLE_STATUS_CODES],
+  );
+  const [autoDisableStatusCodesLoading, setAutoDisableStatusCodesLoading] = useState(false);
   const [announcement, setAnnouncement] = useState<CloudAnnouncement | null>(null);
   const [notifications, setNotifications] = useState<CloudNotification[]>([]);
   const [faqs, setFaqs] = useState<CloudFaq[]>([]);
@@ -235,7 +239,12 @@ function DashboardApp() {
   const providerManager = useProviderManager(notify, t, providerCloudSync);
   useEffect(() => {
     void loadAppSettings()
-      .then((settings) => setWebProxyPort(settings.webProxyPort ?? null))
+      .then((settings) => {
+        setWebProxyPort(settings.webProxyPort ?? null);
+        setAutoDisableStatusCodes(
+          settings.autoDisableStatusCodes ?? [...DEFAULT_AUTO_DISABLE_STATUS_CODES],
+        );
+      })
       .catch((error) => notify(String(error)));
   }, [notify]);
   const resetCredits = useResetCredits(manager.accounts, notify, t);
@@ -396,6 +405,29 @@ function DashboardApp() {
       setWebProxyPortLoading(false);
     }
   }, [notify, providerManager.reload, t]);
+
+  const changeAutoDisableStatusCodes = useCallback(async (statusCodes: number[]) => {
+    setAutoDisableStatusCodes(statusCodes);
+    setAutoDisableStatusCodesLoading(true);
+    try {
+      const settings = await updateAutoDisableStatusCodes(statusCodes);
+      setAutoDisableStatusCodes(
+        settings.autoDisableStatusCodes ?? [...DEFAULT_AUTO_DISABLE_STATUS_CODES],
+      );
+    } catch (error) {
+      notify(String(error));
+      try {
+        const settings = await loadAppSettings();
+        setAutoDisableStatusCodes(
+          settings.autoDisableStatusCodes ?? [...DEFAULT_AUTO_DISABLE_STATUS_CODES],
+        );
+      } catch {
+        // Keep the last known saved value when settings cannot be reloaded.
+      }
+    } finally {
+      setAutoDisableStatusCodesLoading(false);
+    }
+  }, [notify]);
   const openWebVersion = useCallback((url: string) => {
     if (isDesktopApp) {
       void openUrl(url).catch((error) => notify(String(error)));
@@ -1461,6 +1493,9 @@ function DashboardApp() {
               tokenUsageWeeks={tokenUsagePreferences.weeks}
               tokenUsageRefreshSeconds={tokenUsagePreferences.refreshSeconds}
               tokenUsagePreferencesLoading={tokenUsagePreferences.loading}
+              autoDisableStatusCodes={autoDisableStatusCodes}
+              autoDisableStatusCodesLoading={autoDisableStatusCodesLoading}
+              onAutoDisableStatusCodesChange={changeAutoDisableStatusCodes}
               webProxyPort={webProxyPort}
               webProxyPortLoading={webProxyPortLoading}
               onWebProxyPortChange={changeWebProxyPort}

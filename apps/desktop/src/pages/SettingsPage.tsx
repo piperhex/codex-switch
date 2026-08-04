@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { Button, ColorPicker, Input, InputNumber, Modal, Segmented, Space, Switch, TimePicker } from "antd";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { Button, Checkbox, ColorPicker, Input, InputNumber, Modal, Segmented, Select, Space, Switch, TimePicker } from "antd";
 import dayjs, { type Dayjs } from "dayjs";
 import { CalendarDays, CircleGauge, Cloud, EyeOff, FileDown, FolderKey, FolderOpen, KeyRound, Languages, LayoutGrid, Network, Palette, RefreshCw, ShieldCheck, TableProperties } from "lucide-react";
 import { MAX_AUTO_REFRESH_SECONDS, MIN_AUTO_REFRESH_SECONDS } from "../hooks/useAutoRefresh";
@@ -8,6 +8,7 @@ import type { AccountDisplayMode } from "../hooks/useAccountDisplayMode";
 import { DEFAULT_CLOUD_BASE_URL } from "../api/backend";
 import { LANGUAGE_OPTIONS, type Language, type Translate } from "../i18n";
 import type { AppInfo, BubbleResetDisplay, BubbleStyle } from "../types";
+import { httpStatusOptions } from "../utils/httpStatusOptions";
 
 const DURATION_FORMAT = "HH:mm:ss";
 const CLASSIC_BUBBLE_PREVIEW_STYLE = {
@@ -112,6 +113,9 @@ export function SettingsPage({
   tokenUsageWeeks,
   tokenUsageRefreshSeconds,
   tokenUsagePreferencesLoading,
+  autoDisableStatusCodes,
+  autoDisableStatusCodesLoading,
+  onAutoDisableStatusCodesChange,
   webProxyPort,
   webProxyPortLoading,
   onWebProxyPortChange,
@@ -160,6 +164,9 @@ export function SettingsPage({
   tokenUsageWeeks: number;
   tokenUsageRefreshSeconds: number;
   tokenUsagePreferencesLoading: boolean;
+  autoDisableStatusCodes: number[];
+  autoDisableStatusCodesLoading: boolean;
+  onAutoDisableStatusCodesChange: (statusCodes: number[]) => Promise<void> | void;
   webProxyPort?: number | null;
   webProxyPortLoading?: boolean;
   onWebProxyPortChange?: (port: number | null) => void;
@@ -178,6 +185,7 @@ export function SettingsPage({
   const [webProxyPortDraft, setWebProxyPortDraft] = useState<number | null>(webProxyPort ?? null);
   const closingWebProxyRef = useRef(false);
   const [bubbleStyleModalOpen, setBubbleStyleModalOpen] = useState(false);
+  const autoDisableHttpStatusOptions = useMemo(() => httpStatusOptions(language), [language]);
   const webVersionUrl = webProxyPort ? `http://127.0.0.1:${webProxyPort}` : null;
   const usingOfficialCloudServer = cloudBaseUrlDraft.trim().replace(/\/+$/, "").toLowerCase()
     === DEFAULT_CLOUD_BASE_URL.toLowerCase();
@@ -325,6 +333,40 @@ export function SettingsPage({
                 disabled={tokenUsagePreferencesLoading} onChange={onTokenUsageRefreshSecondsChange} />
               <Button disabled>{t("settings.autoRefresh.seconds")}</Button>
             </Space.Compact>
+          </div>
+        </div>
+      </section>
+      <section className="settings-card">
+        <div className="settings-icon"><ShieldCheck size={23} /></div>
+        <div className="settings-card-content">
+          <div className="settings-card-copy">
+            <h3>{t("settings.autoDisableStatusCodes.title")}</h3>
+            <p>{t("settings.autoDisableStatusCodes.description")}</p>
+          </div>
+          <div className="settings-field settings-field-wide auto-disable-status-codes-field">
+            <label htmlFor="auto-disable-status-codes">{t("settings.autoDisableStatusCodes.label")}</label>
+            <Select id="auto-disable-status-codes" mode="multiple" value={autoDisableStatusCodes}
+              disabled={autoDisableStatusCodesLoading}
+              loading={autoDisableStatusCodesLoading}
+              placeholder={t("settings.autoDisableStatusCodes.placeholder")}
+              maxTagCount="responsive" showSearch popupMatchSelectWidth={460}
+              options={autoDisableHttpStatusOptions.map(({ value, label }) => ({ value, label }))}
+              filterOption={(input, option) => autoDisableHttpStatusOptions
+                .find((status) => status.value === option?.value)
+                ?.searchText.includes(input.trim().toLowerCase()) ?? false}
+              optionRender={(option) => {
+                const status = autoDisableHttpStatusOptions.find((item) => item.value === option.value);
+                if (!status) return option.label;
+                return (
+                  <div className="http-status-option">
+                    <Checkbox checked={autoDisableStatusCodes.includes(status.value)} tabIndex={-1} />
+                    <span><strong>{status.label}</strong><small>{status.description}</small></span>
+                  </div>
+                );
+              }}
+              onChange={(statusCodes) => void onAutoDisableStatusCodesChange(
+                [...statusCodes].sort((left, right) => left - right),
+              )} />
           </div>
         </div>
       </section>

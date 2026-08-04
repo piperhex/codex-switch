@@ -89,6 +89,7 @@ export async function quitApplication(): Promise<void> {
   if (isDesktopApp) await exitApp(0);
 }
 export const DEFAULT_CLOUD_BASE_URL = "https://codex.onepiper.cloud";
+export const DEFAULT_AUTO_DISABLE_STATUS_CODES = [401, 402, 403] as const;
 const RELEASES_URL = "https://github.com/piperhex/codex-switch/releases/latest";
 let pendingAppUpdate: Update | null = null;
 let appUpdateDownloaded = false;
@@ -114,6 +115,7 @@ const LOCAL_PROXY_IMAGE_ACCOUNT_PREVIEW_KEY = "codex-switch:image-generation-acc
 const LOCAL_PROXY_OPENAI_AUTH_ACCOUNT_PREVIEW_KEY = "codex-switch:proxy-openai-auth-account";
 const TOKEN_USAGE_WEEKS_PREVIEW_KEY = "codex-switch:token-usage-weeks";
 const TOKEN_USAGE_REFRESH_PREVIEW_KEY = "codex-switch:token-usage-refresh-seconds";
+const AUTO_DISABLE_STATUS_CODES_PREVIEW_KEY = "codex-switch:auto-disable-status-codes";
 const THEME_COLOR_EVENT = "codex-switch:theme-color-changed";
 const BUBBLE_RESET_DISPLAY_EVENT = "bubble-reset-display-changed";
 const BUBBLE_STYLE_EVENT = "bubble-style-changed";
@@ -279,6 +281,20 @@ function previewBubbleStyle(): BubbleStyle {
   return window.localStorage.getItem(BUBBLE_STYLE_PREVIEW_KEY) === "glass" ? "glass" : "classic";
 }
 
+function previewAutoDisableStatusCodes() {
+  const saved = window.localStorage.getItem(AUTO_DISABLE_STATUS_CODES_PREVIEW_KEY);
+  if (saved === null) return [...DEFAULT_AUTO_DISABLE_STATUS_CODES];
+  try {
+    const parsed = JSON.parse(saved);
+    if (!Array.isArray(parsed)) return [...DEFAULT_AUTO_DISABLE_STATUS_CODES];
+    return [...new Set(parsed.filter((status): status is number => (
+      Number.isInteger(status) && status >= 100 && status <= 599
+    )))].sort((left, right) => left - right);
+  } catch {
+    return [...DEFAULT_AUTO_DISABLE_STATUS_CODES];
+  }
+}
+
 export async function loadAppSettings(): Promise<AppSettings> {
   if (!hasLocalBackend) {
     return {
@@ -290,6 +306,7 @@ export async function loadAppSettings(): Promise<AppSettings> {
       cloudBaseUrl: window.localStorage.getItem(CLOUD_BASE_URL_PREVIEW_KEY) ?? DEFAULT_CLOUD_BASE_URL,
       tokenUsageWeeks: Number(window.localStorage.getItem(TOKEN_USAGE_WEEKS_PREVIEW_KEY)) || 20,
       tokenUsageRefreshSeconds: Number(window.localStorage.getItem(TOKEN_USAGE_REFRESH_PREVIEW_KEY)) || 60,
+      autoDisableStatusCodes: previewAutoDisableStatusCodes(),
       webProxyPort: previewLocalProxyStatus().port || null,
     };
   }
@@ -758,7 +775,7 @@ export async function setLocalProxyAutoDisableUnreachable(enabled: boolean): Pro
   if (!hasLocalBackend) {
     const status = previewLocalProxyStatus();
     if (enabled && (!status.running || !status.autoSwitchOnQuotaExhaustion)) {
-      throw new Error("Enable automatic account switching before enabling automatic disabling of unreachable accounts");
+      throw new Error("Enable automatic account switching before enabling automatic disabling by HTTP status");
     }
     window.localStorage.setItem(LOCAL_PROXY_AUTO_DISABLE_UNREACHABLE_PREVIEW_KEY, String(enabled));
     return previewLocalProxyStatus();
@@ -841,6 +858,14 @@ export async function updateTokenUsagePreferences(
     return loadAppSettings();
   }
   return invoke<AppSettings>("set_token_usage_preferences", { weeks, refreshSeconds });
+}
+
+export async function updateAutoDisableStatusCodes(statusCodes: number[]): Promise<AppSettings> {
+  if (!hasLocalBackend) {
+    window.localStorage.setItem(AUTO_DISABLE_STATUS_CODES_PREVIEW_KEY, JSON.stringify(statusCodes));
+    return loadAppSettings();
+  }
+  return invoke<AppSettings>("set_auto_disable_status_codes", { statusCodes });
 }
 
 export async function updateBubbleResetDisplay(display: BubbleResetDisplay): Promise<AppSettings> {

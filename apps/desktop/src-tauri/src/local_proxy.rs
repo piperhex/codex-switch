@@ -1551,7 +1551,7 @@ pub(crate) fn set_auto_disable_unreachable_accounts<R: Runtime>(
     let mut state = read_state(&paths);
     if enabled && (!is_running() || !state.auto_switch_on_quota_exhaustion) {
         return Err(
-            "Enable automatic account switching before enabling automatic disabling of unreachable accounts"
+            "Enable automatic account switching before enabling automatic disabling by HTTP status"
                 .to_string(),
         );
     }

@@ -1,9 +1,10 @@
 import { useMemo, type ReactNode } from "react";
-import { Avatar, Button, Dropdown, Layout, Menu, Segmented, Space, Tooltip, Typography } from "antd";
+import { App as AntApp, Avatar, Button, Dropdown, Layout, Menu, Segmented, Space, Tooltip, Typography } from "antd";
 import type { MenuProps } from "antd";
 import {
   Activity,
   ChartNoAxesCombined,
+  Download,
   FileClock,
   BadgeCheck,
   BellRing,
@@ -25,6 +26,7 @@ import {
 import { LANGUAGE_OPTIONS, type Language, type TranslationKey } from "../../i18n";
 import { useI18n } from "../../i18n-context";
 import type { MenuKey, Permission, Profile } from "../../types";
+import { getLatestAndroidApkUrl } from "../../utils/releaseDownloads";
 
 interface AdminShellProps {
   activeKey: MenuKey;
@@ -81,6 +83,7 @@ export function AdminShell({
   onSignOut,
   onThemeChange,
 }: AdminShellProps) {
+  const { message } = AntApp.useApp();
   const { language, setLanguage, t } = useI18n();
   const menuItems = useMemo<MenuProps["items"]>(() => {
     const permissions = new Set(profile?.permissions ?? []);
@@ -105,6 +108,8 @@ export function AdminShell({
   const avatarMenu = useMemo<MenuProps["items"]>(() => [
     { key: "profile", icon: <UserRound size={15} />, label: t("header.profile") },
     { key: "password", icon: <KeyRound size={15} />, label: t("header.password") },
+    { type: "divider" },
+    { key: "androidApp", icon: <Download size={15} />, label: t("header.androidApp") },
     { type: "divider" },
     { key: "logout", icon: <LogOut size={15} />, label: t("header.logout") },
   ], [t]);
@@ -156,6 +161,13 @@ export function AdminShell({
                 onClick: async ({ key }) => {
                   if (key === "profile") onOpenProfile();
                   if (key === "password") onOpenPassword();
+                  if (key === "androidApp") {
+                    try {
+                      window.location.assign(await getLatestAndroidApkUrl());
+                    } catch {
+                      message.error(t("header.androidAppDownloadFailed"));
+                    }
+                  }
                   if (key === "logout") await onSignOut();
                 },
               }}

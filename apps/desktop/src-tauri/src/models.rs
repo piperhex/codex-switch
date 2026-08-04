@@ -316,6 +316,8 @@ pub(crate) struct AppSettings {
     pub(crate) token_usage_weeks: u16,
     #[serde(default = "default_token_usage_refresh_seconds")]
     pub(crate) token_usage_refresh_seconds: u64,
+    #[serde(default = "default_auto_disable_status_codes")]
+    pub(crate) auto_disable_status_codes: Vec<u16>,
     #[serde(default)]
     pub(crate) web_proxy_port: Option<u16>,
     #[serde(default)]
@@ -373,6 +375,10 @@ fn default_token_usage_refresh_seconds() -> u64 {
     60
 }
 
+fn default_auto_disable_status_codes() -> Vec<u16> {
+    vec![401, 402, 403]
+}
+
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
@@ -391,6 +397,7 @@ impl Default for AppSettings {
             cloud_session_expired: false,
             token_usage_weeks: default_token_usage_weeks(),
             token_usage_refresh_seconds: default_token_usage_refresh_seconds(),
+            auto_disable_status_codes: default_auto_disable_status_codes(),
             web_proxy_port: None,
             last_started_version: None,
         }
@@ -565,5 +572,17 @@ mod tests {
         assert!(defaults.web_proxy_port.is_none());
         assert!(migrated.web_proxy_port.is_none());
         assert_eq!(enabled.web_proxy_port, Some(18_765));
+    }
+
+    #[test]
+    fn app_settings_default_auto_disable_status_codes_to_access_rejections() {
+        let defaults = AppSettings::default();
+        let migrated: AppSettings = serde_json::from_str("{}").unwrap();
+        let customized: AppSettings =
+            serde_json::from_str(r#"{"autoDisableStatusCodes":[401,429]}"#).unwrap();
+
+        assert_eq!(defaults.auto_disable_status_codes, [401, 402, 403]);
+        assert_eq!(migrated.auto_disable_status_codes, [401, 402, 403]);
+        assert_eq!(customized.auto_disable_status_codes, [401, 429]);
     }
 }
