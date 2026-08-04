@@ -10,6 +10,8 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import Redis from 'ioredis';
 import { DataSource, ILike, In, IsNull, Repository } from 'typeorm';
+import { MODULE_OPTIONS_TOKEN } from '@/config/configurable';
+import type { ConfigModuleOptions } from '@/config/config.types';
 import { REDIS_CLIENT } from '@/modules/redis/redis.constants';
 import { PutSyncAccountsDto, SyncAccountDto } from './dto/sync-accounts.dto';
 import { PutSyncProvidersDto, SyncProviderDto } from './dto/sync-providers.dto';
@@ -18,6 +20,10 @@ import { SyncedProviderEntity } from './entities/synced-provider.entity';
 import { SystemAccountBindingEntity } from './entities/system-account-binding.entity';
 import { SystemAccountEntity } from './entities/system-account.entity';
 import { RemoteDeviceEntity } from '@/modules/devices/entities/remote-device.entity';
+import {
+  createCodexOutboundDispatcher,
+  withCodexOutboundDispatcher,
+} from './codex-outbound-proxy';
 
 const DEVICE_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -116,6 +122,8 @@ export interface CreatedSystemAccountBinding {
 
 @Injectable()
 export class SyncService {
+  private readonly codexOutboundDispatcher: ReturnType<typeof createCodexOutboundDispatcher>;
+
   constructor(
     @InjectRepository(SyncedAccountEntity)
     private readonly accounts: Repository<SyncedAccountEntity>,
@@ -129,7 +137,10 @@ export class SyncService {
     private readonly remoteDevices: Repository<RemoteDeviceEntity>,
     private readonly dataSource: DataSource,
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
-  ) {}
+    @Inject(MODULE_OPTIONS_TOKEN) config: ConfigModuleOptions,
+  ) {
+    this.codexOutboundDispatcher = createCodexOutboundDispatcher(config.CODEX_OUTBOUND_PROXY);
+  }
 
   async list(ownerId: string, deviceId?: string) {
     const cacheKey = this.cacheKey(ownerId);
@@ -1133,12 +1144,18 @@ export class SyncService {
     if (init.body) headers['Content-Type'] = 'application/json';
 
     try {
-      return await fetch(url, {
-        method: init.method ?? 'GET',
-        headers,
-        body: init.body,
-        signal: AbortSignal.timeout(20_000),
-      });
+      return await fetch(
+        url,
+        withCodexOutboundDispatcher(
+          {
+            method: init.method ?? 'GET',
+            headers,
+            body: init.body,
+            signal: AbortSignal.timeout(20_000),
+          },
+          this.codexOutboundDispatcher,
+        ),
+      );
     } catch {
       throw new BadGatewayException('无法连接 Codex 服务');
     }
@@ -1153,19 +1170,25 @@ export class SyncService {
 
     let response: Response;
     try {
-      response = await fetch(OPENAI_TOKEN_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          originator: CODEX_ORIGINATOR,
-        },
-        body: JSON.stringify({
-          client_id: OPENAI_CLIENT_ID,
-          grant_type: 'refresh_token',
-          refresh_token: refreshToken,
-        }),
-        signal: AbortSignal.timeout(20_000),
-      });
+      response = await fetch(
+        OPENAI_TOKEN_URL,
+        withCodexOutboundDispatcher(
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              originator: CODEX_ORIGINATOR,
+            },
+            body: JSON.stringify({
+              client_id: OPENAI_CLIENT_ID,
+              grant_type: 'refresh_token',
+              refresh_token: refreshToken,
+            }),
+            signal: AbortSignal.timeout(20_000),
+          },
+          this.codexOutboundDispatcher,
+        ),
+      );
     } catch {
       throw new BadGatewayException('无法连接 Codex 登录服务刷新账号凭据');
     }

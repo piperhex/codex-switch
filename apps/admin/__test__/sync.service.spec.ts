@@ -79,6 +79,7 @@ describe('SyncService', () => {
       remoteDevices as unknown as Repository<import('@/modules/devices/entities/remote-device.entity').RemoteDeviceEntity>,
       dataSource as unknown as DataSource,
       redis as unknown as Redis,
+      {},
     );
   });
 

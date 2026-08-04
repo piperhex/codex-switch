@@ -17,6 +17,7 @@ export interface ConfigModuleOptions {
   KONG_JWT_SECRET?: string;
   CODEX_OAUTH_CLIENT_ID?: string;
   CODEX_OAUTH_ISSUER?: string;
+  CODEX_OUTBOUND_PROXY?: string;
   mail__transport?: string;
   mail__options__host?: string;
   mail__options__port?: string;

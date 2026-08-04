@@ -38,6 +38,7 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "typeorm": "^0.3.28",
+    "undici": "^6.28.0",
     "ws": "^8.18.3"
   },
   "devDependencies": {

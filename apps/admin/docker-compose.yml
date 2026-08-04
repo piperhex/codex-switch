@@ -32,6 +32,9 @@ services:
     environment:
       POSTGRES_HOST: postgres
       REDIS_HOST: redis
+      CODEX_OUTBOUND_PROXY: "${CODEX_OUTBOUND_PROXY:-http://host.docker.internal:7890}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       - postgres
       - redis
