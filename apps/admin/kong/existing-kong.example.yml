@@ -5,6 +5,14 @@ _transform: true
 # For DB-backed Kong, use the Admin API commands in ../README.md instead.
 
 services:
+  - name: codex-switch-web
+    url: http://codex-switch-web:80
+    routes:
+      - name: codex-switch-web
+        paths:
+          - /web
+        strip_path: true
+
   - name: codex-switch-backend
     url: http://codex-switch-backend:8080
     routes:
@@ -29,6 +37,7 @@ services:
           - name: jwt
             config:
               key_claim_name: iss
+              run_on_preflight: false
               claims_to_verify:
                 - exp
 

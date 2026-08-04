@@ -1535,6 +1535,7 @@ function DashboardApp() {
               onSwitch={switchAccount}
               onRefresh={refreshUsage}
               onDelete={deleteAccount}
+              onConsumeQuotaMany={manager.consumeAccountsQuota}
               onDeleteMany={manager.deleteAccounts}
               onEnableMany={manager.enableAutoSwitchAccounts}
               onDisableMany={manager.disableAutoSwitchAccounts}

@@ -43,6 +43,19 @@ services:
         aliases:
           - codex-switch-backend
 
+  web:
+    build:
+      context: ../..
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_WEB_BASE_PATH: /web/
+    depends_on:
+      - backend
+    networks:
+      kong-net:
+        aliases:
+          - codex-switch-web
+
 networks:
   backend-internal:
   kong-net:

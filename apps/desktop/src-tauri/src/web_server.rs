@@ -502,6 +502,10 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
             app,
             argument(&args, "id")?,
         ))),
+        "consume_account_quota" => serialize(block_on(crate::commands::consume_account_quota(
+            app,
+            argument(&args, "id")?,
+        ))),
         "delete_account" => serialize(crate::commands::delete_account(app, argument(&args, "id")?)),
         "update_account_note" => serialize(crate::commands::update_account_note(
             app,

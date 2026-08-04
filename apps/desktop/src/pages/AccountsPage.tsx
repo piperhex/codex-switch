@@ -16,6 +16,7 @@ export function AccountsPage({
   onSwitch,
   onRefresh,
   onDelete,
+  onConsumeQuotaMany,
   onDeleteMany,
   onEnableMany,
   onDisableMany,
@@ -45,6 +46,7 @@ export function AccountsPage({
   onSwitch: (id: string) => void;
   onRefresh: (id: string) => void;
   onDelete: (id: string) => void;
+  onConsumeQuotaMany: (ids: string[]) => Promise<string[]>;
   onDeleteMany: (ids: string[]) => Promise<string[]>;
   onEnableMany: (ids: string[]) => Promise<string[]>;
   onDisableMany: (ids: string[]) => Promise<string[]>;
@@ -87,7 +89,8 @@ export function AccountsPage({
     <div className="accounts-page">
       <AccountTable accounts={accounts} busyAccountId={busyAccountId}
         onSwitch={onSwitch} onRefresh={onRefresh} onDelete={onDelete}
-        onDeleteMany={onDeleteMany} onEnableMany={onEnableMany} onDisableMany={onDisableMany}
+        onConsumeQuotaMany={onConsumeQuotaMany} onDeleteMany={onDeleteMany}
+        onEnableMany={onEnableMany} onDisableMany={onDisableMany}
         onAutoSwitchEnabledChange={onAutoSwitchEnabledChange} autoSwitchBusyAccountId={autoSwitchBusyAccountId}
         onAutoSwitchPriorityChange={onAutoSwitchPriorityChange}
         autoSwitchPriorityBusyAccountId={autoSwitchPriorityBusyAccountId}

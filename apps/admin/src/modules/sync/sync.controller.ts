@@ -31,6 +31,20 @@ export class SyncController {
     return this.sync.listSummary(user.id);
   }
 
+  @Get('accounts/web-summary')
+  @Header('Cache-Control', 'no-store')
+  @RequirePermissions(Permission.SelfAccountsRead)
+  listWebSummary(@CurrentUser() user: AuthUser) {
+    return this.sync.listWebSummary(user.id);
+  }
+
+  @Get('accounts/:id/usage')
+  @Header('Cache-Control', 'no-store')
+  @RequirePermissions(Permission.SelfAccountsRead)
+  usage(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.sync.fetchUsage(user.id, id);
+  }
+
   @Get('accounts/:id/reset-credits')
   @RequirePermissions(Permission.SelfAccountsRead)
   resetCredits(@CurrentUser() user: AuthUser, @Param('id') id: string) {

@@ -512,6 +512,54 @@ describe('SyncService', () => {
     expect(redis.get).not.toHaveBeenCalled();
   });
 
+  it('returns a web account overview without any Codex credentials', async () => {
+    accounts.find.mockResolvedValue([{
+      ownerId: 'owner-1', accountId: 'account-1', email: 'a@example.com', note: 'primary',
+      expiresAt: '', plan: 'Plus', codexAccountId: 'workspace-1', active: true,
+      usage: { primary: { remainingPercent: 80 } },
+      lastModifiedAt: new Date('2026-07-05T00:00:00.000Z'),
+      auth: { tokens: { access_token: 'must-stay-server-side', refresh_token: 'also-secret' } },
+    }]);
+
+    const result = await service.listWebSummary('owner-1');
+
+    expect(result.accounts).toEqual([expect.objectContaining({
+      id: 'account-1', email: 'a@example.com', accountId: 'workspace-1',
+    })]);
+    expect(result.accounts[0]).not.toHaveProperty('auth');
+    expect(result.accounts[0]).not.toHaveProperty('codexAccessToken');
+    expect(JSON.stringify(result)).not.toContain('must-stay-server-side');
+  });
+
+  it('fetches and normalizes live Codex usage for the web client', async () => {
+    accounts.findOne.mockResolvedValue({
+      ownerId: 'owner-1', accountId: 'account-1', codexAccountId: 'workspace-1',
+      auth: { tokens: { access_token: 'access-token' } },
+    });
+    const apiFetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      plan_type: 'plus',
+      rate_limit: {
+        primary_window: { used_percent: 21.5, reset_at: 1_785_000_000, limit_window_seconds: 18_000 },
+        secondary_window: { used_percent: 40, reset_at: 1_786_000_000, limit_window_seconds: 604_800 },
+      },
+      promo: { expires_at: '2026-09-01T00:00:00.000Z' },
+    }), { status: 200 }));
+    vi.stubGlobal('fetch', apiFetch);
+
+    await expect(service.fetchUsage('owner-1', 'account-1')).resolves.toEqual({
+      primary: { usedPercent: 21.5, remainingPercent: 78.5, resetsAt: 1_785_000_000, windowMinutes: 300 },
+      secondary: { usedPercent: 40, remainingPercent: 60, resetsAt: 1_786_000_000, windowMinutes: 10_080 },
+      apiExpiresAt: '2026-09-01T00:00:00.000Z',
+      plan: 'plus',
+      fetchedAt: expect.any(String),
+      error: null,
+    });
+    expect(apiFetch).toHaveBeenCalledWith(
+      'https://chatgpt.com/backend-api/wham/usage',
+      expect.objectContaining({ headers: expect.objectContaining({ Authorization: 'Bearer access-token' }) }),
+    );
+  });
+
   it('reads and normalizes reset cards for an owner-scoped personal account', async () => {
     accounts.findOne.mockResolvedValue({
       ownerId: 'owner-1',

@@ -6,6 +6,7 @@ import {
   CalendarClock,
   Check,
   Columns3,
+  Gauge,
   LogIn,
   LogOut,
   MoreHorizontal,
@@ -44,6 +45,7 @@ interface AccountTableProps {
   onSwitch: (id: string) => void;
   onRefresh: (id: string) => void;
   onDelete: (id: string) => void;
+  onConsumeQuotaMany: (ids: string[]) => Promise<string[]>;
   onDeleteMany: (ids: string[]) => Promise<string[]>;
   onEnableMany: (ids: string[]) => Promise<string[]>;
   onDisableMany: (ids: string[]) => Promise<string[]>;
@@ -353,6 +355,7 @@ export function AccountTable({
   onSwitch,
   onRefresh,
   onDelete,
+  onConsumeQuotaMany,
   onDeleteMany,
   onEnableMany,
   onDisableMany,
@@ -385,6 +388,7 @@ export function AccountTable({
   const [contextMenu, setContextMenu] = useState<AccountContextMenu | null>(null);
   const [tableActionMenuAccountId, setTableActionMenuAccountId] = useState<string | null>(null);
   const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
+  const [bulkConsumeQuotaBusy, setBulkConsumeQuotaBusy] = useState(false);
   const [bulkDeleteBusy, setBulkDeleteBusy] = useState(false);
   const [bulkEnableBusy, setBulkEnableBusy] = useState(false);
   const [bulkDisableBusy, setBulkDisableBusy] = useState(false);
@@ -507,6 +511,9 @@ export function AccountTable({
       - Number(needsAccountAttention(right, hotSwitchEnabled)),
   ), [accounts, hotSwitchEnabled]);
   const selectedAccountIdSet = new Set(selectedAccountIds);
+  const consumableSelectedAccountIds = accounts
+    .filter((account) => selectedAccountIdSet.has(account.id) && account.autoSwitchEnabled)
+    .map((account) => account.id);
   const deletableSelectedAccountIds = accounts
     .filter((account) => selectedAccountIdSet.has(account.id) && !account.active)
     .map((account) => account.id);
@@ -1066,10 +1073,36 @@ export function AccountTable({
           </span>
           {proxyControls}
         </div>
+        <Popconfirm
+          title={t("table.batchConsumeQuotaConfirmTitle", {
+            count: consumableSelectedAccountIds.length,
+          })}
+          description={t("table.batchConsumeQuotaConfirmDescription")}
+          okText={t("table.batchConsumeQuotaOk")}
+          cancelText={t("table.cancel")}
+          disabled={!consumableSelectedAccountIds.length || bulkConsumeQuotaBusy
+            || bulkDeleteBusy || bulkEnableBusy || bulkDisableBusy
+            || autoSwitchBusyAccountId !== null}
+          onConfirm={async () => {
+            const ids = [...consumableSelectedAccountIds];
+            setBulkConsumeQuotaBusy(true);
+            try {
+              await onConsumeQuotaMany(ids);
+            } finally {
+              setBulkConsumeQuotaBusy(false);
+            }
+          }}>
+          <Button size="small" icon={<Gauge size={14} />} loading={bulkConsumeQuotaBusy}
+            disabled={!consumableSelectedAccountIds.length || bulkDeleteBusy
+              || bulkEnableBusy || bulkDisableBusy || autoSwitchBusyAccountId !== null}>
+            {t("table.batchConsumeQuota")}
+          </Button>
+        </Popconfirm>
         <Popconfirm title={t("table.batchDeleteConfirmTitle", { count: deletableSelectedAccountIds.length })}
           description={t("table.batchDeleteConfirmDescription")}
           okText={t("table.delete")} cancelText={t("table.cancel")} okButtonProps={{ danger: true }}
-          disabled={!deletableSelectedAccountIds.length || bulkDeleteBusy || bulkEnableBusy || bulkDisableBusy}
+          disabled={!deletableSelectedAccountIds.length || bulkConsumeQuotaBusy
+            || bulkDeleteBusy || bulkEnableBusy || bulkDisableBusy}
           onConfirm={async () => {
             const ids = [...deletableSelectedAccountIds];
             setBulkDeleteBusy(true);
@@ -1082,13 +1115,15 @@ export function AccountTable({
             }
           }}>
           <Button danger size="small" icon={<Trash2 size={14} />} loading={bulkDeleteBusy}
-            disabled={!deletableSelectedAccountIds.length || bulkEnableBusy || bulkDisableBusy}>
+            disabled={!deletableSelectedAccountIds.length || bulkConsumeQuotaBusy
+              || bulkEnableBusy || bulkDisableBusy}>
             {t("table.batchDelete", { count: deletableSelectedAccountIds.length })}
           </Button>
         </Popconfirm>
         {hotSwitchEnabled && (
           <Button type="primary" size="small" icon={<ToggleRight size={14} />} loading={bulkEnableBusy}
-            disabled={!enableableSelectedAccountIds.length || bulkDeleteBusy || bulkDisableBusy
+            disabled={!enableableSelectedAccountIds.length || bulkConsumeQuotaBusy
+              || bulkDeleteBusy || bulkDisableBusy
               || autoSwitchBusyAccountId !== null}
             onClick={async () => {
               const ids = [...enableableSelectedAccountIds];
@@ -1104,7 +1139,8 @@ export function AccountTable({
         )}
         {hotSwitchEnabled && (
           <Button size="small" icon={<ToggleLeft size={14} />} loading={bulkDisableBusy}
-            disabled={!disableableSelectedAccountIds.length || bulkDeleteBusy || bulkEnableBusy
+            disabled={!disableableSelectedAccountIds.length || bulkConsumeQuotaBusy
+              || bulkDeleteBusy || bulkEnableBusy
               || autoSwitchBusyAccountId !== null}
             onClick={async () => {
               const ids = [...disableableSelectedAccountIds];

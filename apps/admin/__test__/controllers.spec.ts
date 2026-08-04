@@ -57,6 +57,8 @@ describe('HTTP controllers', () => {
     const sync = {
       list: vi.fn().mockResolvedValue('list'), replace: vi.fn().mockResolvedValue('replace'),
       listSummary: vi.fn().mockResolvedValue('summary'),
+      listWebSummary: vi.fn().mockResolvedValue('web-summary'),
+      fetchUsage: vi.fn().mockResolvedValue('usage'),
       fetchResetCredits: vi.fn().mockResolvedValue('reset-credits'),
       consumeResetCredit: vi.fn().mockResolvedValue('reset-consumed'),
       upsert: vi.fn().mockResolvedValue('upsert'), delete: vi.fn().mockResolvedValue('delete'),
@@ -72,6 +74,8 @@ describe('HTTP controllers', () => {
 
     await expect(controller.list(user)).resolves.toBe('list');
     await expect(controller.listSummary(user)).resolves.toBe('summary');
+    await expect(controller.listWebSummary(user)).resolves.toBe('web-summary');
+    await expect(controller.usage(user, account.id)).resolves.toBe('usage');
     await expect(controller.resetCredits(user, account.id)).resolves.toBe('reset-credits');
     await expect(controller.consumeResetCredit(user, account.id)).resolves.toBe('reset-consumed');
     await expect(controller.replace(user, { accounts: [account] })).resolves.toBe('replace');
@@ -84,6 +88,8 @@ describe('HTTP controllers', () => {
 
     expect(sync.list).toHaveBeenCalledWith(user.id, undefined);
     expect(sync.listSummary).toHaveBeenCalledWith(user.id);
+    expect(sync.listWebSummary).toHaveBeenCalledWith(user.id);
+    expect(sync.fetchUsage).toHaveBeenCalledWith(user.id, account.id);
     expect(sync.fetchResetCredits).toHaveBeenCalledWith(user.id, account.id);
     expect(sync.consumeResetCredit).toHaveBeenCalledWith(user.id, account.id);
     expect(sync.replace).toHaveBeenCalledWith(user.id, { accounts: [account] }, undefined);

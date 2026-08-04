@@ -12,7 +12,7 @@ use std::{
 use std::os::windows::process::CommandExt;
 
 use chrono::{NaiveDate, Utc};
-use reqwest::blocking::Client;
+use reqwest::blocking::{Client, Response};
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -21,10 +21,14 @@ use tauri_plugin_opener::OpenerExt;
 
 use crate::{
     agent_identity,
-    auth::{account_fields, canonicalize_chatgpt_auth, is_agent_identity_auth, validate_auth},
+    auth::{
+        account_fields, canonicalize_chatgpt_auth, is_agent_identity_auth, token_string,
+        validate_auth,
+    },
     codex_api::{
-        consume_reset_credit_request, parse_reset_credits, parse_usage, refresh_tokens,
-        reset_credits_request, token_expiring, usage_request,
+        consume_reset_credit_request, parse_reset_credits, parse_usage, quota_consumption_request,
+        quota_consumption_response_completed, refresh_tokens, reset_credits_request,
+        token_expiring, usage_request,
     },
     models::{
         AccountSummary, AppInfo, AppSettings, ManagerStateFile, ResetCreditsSummary, UsageSummary,
@@ -1507,6 +1511,109 @@ pub(crate) async fn refresh_usage<R: Runtime>(
     tauri::async_runtime::spawn_blocking(move || refresh_usage_blocking(app, id))
         .await
         .map_err(|error| format!("刷新用量任务失败：{error}"))?
+}
+
+#[tauri::command]
+pub(crate) async fn consume_account_quota<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    id: String,
+) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || consume_account_quota_blocking(app, id))
+        .await
+        .map_err(|error| format!("消耗额度任务失败：{error}"))?
+}
+
+fn consume_account_quota_blocking<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    id: String,
+) -> Result<(), String> {
+    let paths = resolve_paths(&app)?;
+    if read_state(&paths)
+        .disabled_account_ids
+        .iter()
+        .any(|account_id| account_id == &id)
+    {
+        return Err("Account is disabled; quota consumption was skipped".to_string());
+    }
+    let mut auth = load_auth_for_request(&app, &paths, &id)?;
+    let client = quota_consumption_client()?;
+    refresh_auth_if_needed(&client, &mut auth, &paths, &id)?;
+
+    let response = if is_agent_identity_auth(&auth) {
+        if agent_identity::ensure_task(&client, &mut auth)? {
+            persist_request_auth(&paths, &id, &auth)?;
+        }
+        let response = send_quota_consumption_request(&client, &auth)?;
+        if response.status() == reqwest::StatusCode::UNAUTHORIZED {
+            let status = response.status();
+            let body = response
+                .text()
+                .map_err(|error| format!("读取 Agent Identity 鉴权失败响应失败：{error}"))?;
+            if !agent_identity::is_invalid_task_response(status, &body) {
+                return Err(format!("Codex 对话接口返回 HTTP {status}"));
+            }
+            agent_identity::register_task(&client, &mut auth)?;
+            persist_request_auth(&paths, &id, &auth)?;
+            send_quota_consumption_request(&client, &auth)?
+        } else {
+            response
+        }
+    } else {
+        let mut response = send_quota_consumption_request(&client, &auth)?;
+        if response.status() == reqwest::StatusCode::UNAUTHORIZED {
+            refresh_tokens(&client, &mut auth)?;
+            persist_request_auth(&paths, &id, &auth)?;
+            response = send_quota_consumption_request(&client, &auth)?;
+        }
+        response
+    };
+
+    ensure_quota_consumption_completed(response)?;
+    persist_request_auth(&paths, &id, &auth)
+}
+
+fn quota_consumption_client() -> Result<Client, String> {
+    crate::system_proxy::apply(Client::builder())
+        .connect_timeout(Duration::from_secs(20))
+        .timeout(Duration::from_secs(120))
+        .build()
+        .map_err(|error| format!("创建额度消耗网络客户端失败：{error}"))
+}
+
+fn send_quota_consumption_request(client: &Client, auth: &Value) -> Result<Response, String> {
+    if is_agent_identity_auth(auth) {
+        let authentication = agent_identity::request_authentication(auth)?;
+        return quota_consumption_request(
+            client,
+            &authentication.authorization,
+            Some(&authentication.account_id),
+            authentication.is_fedramp,
+        );
+    }
+
+    let access_token = token_string(auth, "access_token")
+        .ok_or_else(|| "auth.json 缺少 access_token".to_string())?;
+    let (_, _, account_id, _) = account_fields(auth)?;
+    quota_consumption_request(
+        client,
+        &format!("Bearer {access_token}"),
+        account_id.as_deref(),
+        false,
+    )
+}
+
+fn ensure_quota_consumption_completed(response: Response) -> Result<(), String> {
+    let status = response.status();
+    let body = response
+        .text()
+        .map_err(|error| format!("读取 Codex 对话响应失败：{error}"))?;
+    if !status.is_success() {
+        return Err(format!("Codex 对话接口返回 HTTP {status}"));
+    }
+    if !quota_consumption_response_completed(&body) {
+        return Err("Codex 对话流未正常完成".to_string());
+    }
+    Ok(())
 }
 
 #[tauri::command]

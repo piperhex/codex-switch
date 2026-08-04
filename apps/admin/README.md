@@ -101,7 +101,9 @@ the received code as `verificationCode` when calling `POST /auth/register`.
 
 ## Existing Kong Integration
 
-This backend does not run Kong. Deploy it as an upstream service behind your existing Kong gateway.
+This stack does not run Kong. Deploy the backend and the independent Web container as upstream
+services behind your existing Kong gateway. The Compose service names available on `kong-net` are
+`codex-switch-backend:8080` and `codex-switch-web:80`.
 
 Generate independent secrets before configuring the backend:
 
@@ -115,7 +117,8 @@ and use the same `KONG_JWT_SECRET` for the Kong JWT credential.
 
 Production startup fails if either secret is missing or still uses the development default.
 
-The backend signs access tokens with `iss=KONG_JWT_KEY`. Kong's JWT plugin should use `key_claim_name=iss` and `claims_to_verify=exp`.
+The backend signs access tokens with `iss=KONG_JWT_KEY`. Kong's JWT plugin should use
+`key_claim_name=iss`, `claims_to_verify=exp`, and `run_on_preflight=false`.
 
 For DB-backed Kong, create or reuse a Consumer and JWT credential:
 
@@ -129,7 +132,7 @@ curl -s -X POST http://KONG_ADMIN:8001/consumers/codex-switch-client/jwt \
   --data algorithm=HS256
 ```
 
-Create routes so the client-facing `/auth`, `/admin`, `/feedback`, `/announcements`, `/notifications`, `/faqs`, `/telemetry`, and `/device-switch` paths remain public, while `/sync`, `/devices`, and `/admin/api` are protected by the JWT plugin. The WebSocket authenticates its first message in NestJS. Authenticated sub-routes on a public prefix still enforce JWTs in NestJS:
+Create routes so the client-facing `/auth`, `/admin`, `/feedback`, `/announcements`, `/notifications`, `/faqs`, `/telemetry`, and `/device-switch` paths remain public, while `/sync`, `/devices`, and `/admin/api` are protected by the JWT plugin. Route `/web` to the independent `codex-switch-web` service with `strip_path=true`; static browser navigation cannot carry an Authorization header, so JWT is enforced on its protected API calls rather than on HTML and asset requests. The WebSocket authenticates its first message in NestJS. Authenticated sub-routes on a public prefix still enforce JWTs in NestJS:
 
 ```bash
 curl -s -X POST http://KONG_ADMIN:8001/services \
@@ -158,7 +161,17 @@ curl -s -X POST http://KONG_ADMIN:8001/services/codex-switch-backend/routes \
 curl -s -X POST http://KONG_ADMIN:8001/routes/codex-switch-protected/plugins \
   --data name=jwt \
   --data config.key_claim_name=iss \
+  --data config.run_on_preflight=false \
   --data 'config.claims_to_verify[]=exp'
+
+curl -s -X POST http://KONG_ADMIN:8001/services \
+  --data name=codex-switch-web \
+  --data url=http://codex-switch-web:80
+
+curl -s -X POST http://KONG_ADMIN:8001/services/codex-switch-web/routes \
+  --data name=codex-switch-web \
+  --data 'paths[]=/web' \
+  --data strip_path=true
 ```
 
 If your Kong is declarative or DB-less, adapt `kong/existing-kong.example.yml` into your existing config.

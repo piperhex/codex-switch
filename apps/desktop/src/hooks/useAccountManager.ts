@@ -3,6 +3,7 @@ import {
   activateAccount,
   beginLogin,
   chooseAndImportAccountJson,
+  consumeAccountQuota,
   importAccountJsonFromClipboard as importAccountJsonClipboard,
   chooseAndExportAccountArchive,
   chooseAndImportAccountArchive,
@@ -207,6 +208,39 @@ export function useAccountManager(
     }
   }, [accounts, cloudSync, load, notify, t]);
 
+  const consumeAccountsQuota = useCallback(async (ids: string[]) => {
+    const enabledAccountIds = new Set(
+      accounts.filter((account) => account.autoSwitchEnabled).map((account) => account.id),
+    );
+    const uniqueIds = [...new Set(ids)].filter((id) => enabledAccountIds.has(id));
+    const consumedIds: string[] = [];
+
+    for (const id of uniqueIds) {
+      try {
+        await consumeAccountQuota(id);
+        consumedIds.push(id);
+      } catch {
+        // Continue sequentially so one unavailable account does not block the remaining selection.
+      }
+    }
+
+    const failedCount = uniqueIds.length - consumedIds.length;
+    if (consumedIds.length) {
+      await Promise.allSettled(consumedIds.map((id) => refreshAccountUsage(id)));
+      if (hasLocalBackend) await load();
+      else {
+        const fetchedAt = new Date().toISOString();
+        setAccounts((items) => items.map((item) => consumedIds.includes(item.id)
+          ? { ...item, usage: { ...item.usage, fetchedAt } }
+          : item));
+      }
+      await Promise.allSettled(consumedIds.map((id) => cloudSync?.pushAccount?.(id)));
+      notify(t("toast.batchQuotaConsumed", { count: consumedIds.length }));
+    }
+    if (failedCount) notify(t("toast.batchQuotaConsumeFailed", { count: failedCount }));
+    return consumedIds;
+  }, [accounts, cloudSync, load, notify, t]);
+
   const deleteAccount = useCallback(async (id: string) => {
     try {
       await removeAccount(id);
@@ -346,6 +380,7 @@ export function useAccountManager(
     switchAccount,
     refreshUsage,
     refreshAll,
+    consumeAccountsQuota,
     deleteAccount,
     deleteAccounts,
     setAutoSwitchEnabled,

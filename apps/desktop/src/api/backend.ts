@@ -1375,6 +1375,10 @@ export async function refreshAccountUsage(id: string): Promise<void> {
   if (hasLocalBackend) await invoke("refresh_usage", { id });
 }
 
+export async function consumeAccountQuota(id: string): Promise<void> {
+  if (hasLocalBackend) await invoke("consume_account_quota", { id });
+}
+
 export async function removeAccount(id: string): Promise<void> {
   if (hasLocalBackend) await invoke("delete_account", { id });
 }

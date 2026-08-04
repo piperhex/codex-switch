@@ -22,6 +22,7 @@ import { RemoteDeviceEntity } from '@/modules/devices/entities/remote-device.ent
 const DEVICE_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const CODEX_ORIGINATOR = 'codex_cli_rs';
+const CODEX_USAGE_URL = 'https://chatgpt.com/backend-api/wham/usage';
 const RESET_CREDITS_URL = 'https://chatgpt.com/backend-api/wham/rate-limit-reset-credits';
 const RESET_CREDIT_CONSUME_URL =
   'https://chatgpt.com/backend-api/wham/rate-limit-reset-credits/consume';
@@ -35,6 +36,22 @@ export interface ResetCreditDto {
 
 export interface ResetCreditsSummaryDto {
   credits: ResetCreditDto[];
+}
+
+export interface UsageWindowDto {
+  usedPercent: number;
+  remainingPercent: number;
+  resetsAt?: number | null;
+  windowMinutes?: number | null;
+}
+
+export interface UsageSummaryDto {
+  primary?: UsageWindowDto | null;
+  secondary?: UsageWindowDto | null;
+  apiExpiresAt?: string | null;
+  plan?: string | null;
+  fetchedAt: string;
+  error: null;
 }
 
 type StoredResetCreditAccount =
@@ -221,6 +238,33 @@ export class SyncService {
           ...(codexAccessToken ? { codexAccessToken } : {}),
         };
       }),
+    };
+  }
+
+  async listWebSummary(ownerId: string) {
+    return {
+      accounts: (await this.loadEffectiveAccountState(ownerId)).accounts.map((row) => {
+        const { auth: _auth, ...account } = row;
+        return account;
+      }),
+    };
+  }
+
+  async fetchUsage(ownerId: string, accountId: string): Promise<UsageSummaryDto> {
+    const account = await this.resolveResetCreditAccount(ownerId, accountId);
+    const response = await this.codexAccountRequest(ownerId, account, CODEX_USAGE_URL);
+    if (!response.ok) {
+      throw new BadGatewayException(`Codex 用量接口返回 HTTP ${response.status}`);
+    }
+    const payload = await this.responseObject(response, '解析 Codex 用量响应失败');
+    const rateLimit = this.objectValue(payload.rate_limit);
+    return {
+      primary: this.usageWindow(rateLimit?.primary_window),
+      secondary: this.usageWindow(rateLimit?.secondary_window),
+      apiExpiresAt: this.promoExpiration(payload.promo),
+      plan: this.stringValue(payload.plan_type)?.trim() || null,
+      fetchedAt: new Date().toISOString(),
+      error: null,
     };
   }
 
@@ -1076,7 +1120,7 @@ export class SyncService {
     const tokens = this.objectValue(account.account.auth.tokens);
     const accessToken = this.stringValue(tokens?.access_token);
     if (!accessToken) {
-      throw new BadRequestException('当前账号的登录方式不支持重置卡');
+      throw new BadRequestException('当前账号没有可用的 Codex 登录凭据');
     }
     const headers: Record<string, string> = {
       Authorization: `Bearer ${accessToken}`,
@@ -1096,7 +1140,7 @@ export class SyncService {
         signal: AbortSignal.timeout(20_000),
       });
     } catch {
-      throw new BadGatewayException('无法连接 Codex 重置卡服务');
+      throw new BadGatewayException('无法连接 Codex 服务');
     }
   }
 
@@ -1194,6 +1238,57 @@ export class SyncService {
     return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
   }
 
+  private usageWindow(value: unknown): UsageWindowDto | null {
+    const window = this.objectValue(value);
+    const usedPercent = this.numberValue(window?.used_percent);
+    if (usedPercent === undefined) return null;
+    const used = Math.max(0, Math.min(100, usedPercent));
+    const resetAt = this.numberValue(window?.reset_at);
+    const windowSeconds = this.numberValue(window?.limit_window_seconds);
+    return {
+      usedPercent: used,
+      remainingPercent: Math.max(0, Math.min(100, 100 - used)),
+      resetsAt: resetAt ?? null,
+      windowMinutes: windowSeconds && windowSeconds > 0
+        ? Math.floor(windowSeconds / 60)
+        : null,
+    };
+  }
+
+  private promoExpiration(value: unknown) {
+    if (value == null) return null;
+    const timestamps: string[] = [];
+    this.collectExpirationTimestamps(value, timestamps);
+    timestamps.sort((left, right) => Date.parse(left) - Date.parse(right));
+    return timestamps[0] ?? null;
+  }
+
+  private collectExpirationTimestamps(value: unknown, result: string[]) {
+    if (Array.isArray(value)) {
+      value.forEach((nested) => this.collectExpirationTimestamps(nested, result));
+      return;
+    }
+    const object = this.objectValue(value);
+    if (!object) return;
+    for (const [key, nested] of Object.entries(object)) {
+      const normalized = key.toLowerCase().replace(/-/g, '_');
+      const compact = normalized.replace(/_/g, '');
+      if (
+        normalized.includes('expir')
+        || compact.endsWith('until')
+        || compact.endsWith('end')
+        || compact.endsWith('endat')
+        || compact.endsWith('endsat')
+        || compact.endsWith('enddate')
+        || compact.endsWith('endson')
+      ) {
+        const timestamp = this.normalizedResetCreditTimestamp(nested);
+        if (timestamp) result.push(timestamp);
+      }
+      this.collectExpirationTimestamps(nested, result);
+    }
+  }
+
   private objectValue(value: unknown): Record<string, unknown> | undefined {
     return value && typeof value === 'object' && !Array.isArray(value)
       ? value as Record<string, unknown>
@@ -1202,6 +1297,10 @@ export class SyncService {
 
   private stringValue(value: unknown) {
     return typeof value === 'string' && value.length ? value : undefined;
+  }
+
+  private numberValue(value: unknown) {
+    return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
   }
 
   private async requireSystemAccounts(ids: string[]) {

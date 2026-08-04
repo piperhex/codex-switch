@@ -135,6 +135,7 @@ pub fn run() {
             commands::update_account_note,
             commands::delete_account,
             commands::refresh_usage,
+            commands::consume_account_quota,
             commands::fetch_reset_credits,
             commands::consume_reset_credit,
             commands::restart_chatgpt,

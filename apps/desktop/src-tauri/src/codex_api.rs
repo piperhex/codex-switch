@@ -5,6 +5,7 @@ use serde_json::{json, Value};
 use crate::{
     auth::{account_fields, decode_jwt, token_string},
     models::{ResetCredit, ResetCreditsSummary, UsageSummary, UsageWindow},
+    providers::DEFAULT_OFFICIAL_MODEL,
 };
 
 pub(crate) const CLIENT_ID: &str = "app_EMoamEEZ73f0CkXaXp7hrann";
@@ -14,6 +15,8 @@ const USAGE_URL: &str = "https://chatgpt.com/backend-api/wham/usage";
 const RESET_CREDITS_URL: &str = "https://chatgpt.com/backend-api/wham/rate-limit-reset-credits";
 const RESET_CREDIT_CONSUME_URL: &str =
     "https://chatgpt.com/backend-api/wham/rate-limit-reset-credits/consume";
+const RESPONSES_URL: &str = "https://chatgpt.com/backend-api/codex/responses";
+pub(crate) const QUOTA_CONSUMPTION_PROMPT: &str = "今天天气如何？";
 
 pub(crate) fn token_expiring(auth: &Value) -> bool {
     let Some(token) = token_string(auth, "access_token") else {
@@ -107,6 +110,83 @@ pub(crate) fn consume_reset_credit_request(
     request
         .send()
         .map_err(|error| format!("使用 Codex 重置卡失败：{error}"))
+}
+
+pub(crate) fn quota_consumption_request(
+    client: &Client,
+    authorization: &str,
+    account_id: Option<&str>,
+    is_fedramp: bool,
+) -> Result<Response, String> {
+    let conversation_id = uuid::Uuid::new_v4().to_string();
+    let mut request = client
+        .post(RESPONSES_URL)
+        .header("Authorization", authorization)
+        .header("originator", ORIGINATOR)
+        .header("User-Agent", "codex_cli_rs/0.1.0")
+        .header("Accept", "text/event-stream")
+        .header("session-id", &conversation_id)
+        .header("thread-id", &conversation_id)
+        .header("x-openai-internal-codex-responses-lite", "true")
+        .json(&quota_consumption_body());
+    if let Some(account_id) = account_id {
+        request = request.header("ChatGPT-Account-Id", account_id);
+    }
+    if is_fedramp {
+        request = request.header("x-openai-fedramp", "true");
+    }
+    request
+        .send()
+        .map_err(|error| format!("发送 Codex 对话失败：{error}"))
+}
+
+fn quota_consumption_body() -> Value {
+    json!({
+        "model": DEFAULT_OFFICIAL_MODEL,
+        "instructions": "",
+        "input": [
+            {
+                "type": "additional_tools",
+                "role": "developer",
+                "tools": []
+            },
+            {
+                "type": "message",
+                "role": "developer",
+                "content": [{
+                    "type": "input_text",
+                    "text": "Answer the user's question briefly."
+                }]
+            },
+            {
+                "type": "message",
+                "role": "user",
+                "content": [{
+                    "type": "input_text",
+                    "text": QUOTA_CONSUMPTION_PROMPT
+                }]
+            }
+        ],
+        "tool_choice": "auto",
+        "parallel_tool_calls": false,
+        "reasoning": {
+            "effort": "low",
+            "context": "all_turns"
+        },
+        "store": false,
+        "stream": true,
+        "include": ["reasoning.encrypted_content"],
+        "text": { "verbosity": "low" }
+    })
+}
+
+pub(crate) fn quota_consumption_response_completed(body: &str) -> bool {
+    body.lines()
+        .filter_map(|line| line.trim().strip_prefix("data:"))
+        .map(str::trim)
+        .filter(|data| !data.is_empty() && *data != "[DONE]")
+        .filter_map(|data| serde_json::from_str::<Value>(data).ok())
+        .any(|event| event.get("type").and_then(Value::as_str) == Some("response.completed"))
 }
 
 fn authorized_get(
@@ -336,5 +416,38 @@ mod tests {
             "2026-07-30T03:04:05+00:00"
         );
         assert!(serialized.to_string().find("must-not-leave-rust").is_none());
+    }
+
+    #[test]
+    fn quota_consumption_body_matches_current_codex_responses_shape() {
+        let body = quota_consumption_body();
+
+        assert_eq!(body["model"], DEFAULT_OFFICIAL_MODEL);
+        assert_eq!(body["stream"], true);
+        assert_eq!(body["store"], false);
+        assert_eq!(body["reasoning"]["effort"], "low");
+        assert_eq!(body["reasoning"]["context"], "all_turns");
+        assert_eq!(body["input"][0]["type"], "additional_tools");
+        assert_eq!(body["input"][2]["role"], "user");
+        assert_eq!(
+            body["input"][2]["content"][0]["text"],
+            QUOTA_CONSUMPTION_PROMPT
+        );
+    }
+
+    #[test]
+    fn recognizes_a_completed_quota_consumption_stream() {
+        let stream = concat!(
+            "event: response.created\n",
+            "data: {\"type\":\"response.created\"}\n\n",
+            "event: response.completed\n",
+            "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp-1\"}}\n\n",
+            "data: [DONE]\n\n"
+        );
+
+        assert!(quota_consumption_response_completed(stream));
+        assert!(!quota_consumption_response_completed(
+            "data: {\"type\":\"response.failed\"}\n\n"
+        ));
     }
 }
