@@ -137,6 +137,8 @@ h1, h2, h3, .brand-lockup { font-family: "Manrope", "PingFang SC", "Microsoft Ya
 .usage-orb.low { border-color: #f5d9d8; border-top-color: var(--danger); color: var(--danger); }
 .usage-orb strong { font-family: "Manrope", sans-serif; font-size: 18px; line-height: 1; }.usage-orb span { font-size: 9px; font-weight: 800; }
 .account-usage-copy { min-width: 0; }.account-usage-copy > span { color: #6f7f77; font-size: 10px; font-weight: 700; }.account-usage-copy p { overflow: hidden; margin-top: 5px; color: #88958f; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.account-refresh-error { display: grid; grid-template-columns: 14px minmax(0, 1fr); gap: 8px; margin: -7px 0 15px; padding: 9px 10px; border: 1px solid #f4d0cd; border-radius: 9px; color: #aa423c; background: #fff4f3; }
+.account-refresh-error > svg { margin-top: 1px; }.account-refresh-error strong, .account-refresh-error span { display: block; }.account-refresh-error strong { font-size: 10px; }.account-refresh-error span { margin-top: 2px; font-size: 9px; line-height: 1.45; overflow-wrap: anywhere; }
 .account-card-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 15px; border-top: 1px solid #edf2ef; }
 .account-card-footer > span { color: #9aa59f; font-size: 9px; }.account-card-footer .active-account { color: var(--green); font-weight: 700; }
 .account-card-footer .adm-button { border-radius: 8px; font-size: 10px; font-weight: 700; }

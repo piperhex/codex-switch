@@ -205,7 +205,18 @@ const dataSlice = createSlice({
     })
     .addCase(refreshOneAccount.rejected, (state, action) => {
       state.refreshingAccountId = null;
-      state.error = messageOf(action.error);
+      const refreshError = messageOf(action.error);
+      state.accounts = state.accounts.map((account) => account.id === action.meta.arg
+        ? {
+          ...account,
+          usage: {
+            ...account.usage,
+            fetchedAt: new Date().toISOString(),
+            error: refreshError,
+          },
+        }
+        : account);
+      state.error = refreshError;
     })
     .addCase(removeDevice.pending, (state, action) => { state.deletingDeviceId = action.meta.arg; })
     .addCase(removeDevice.fulfilled, (state, action) => {

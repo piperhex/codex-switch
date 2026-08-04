@@ -18,6 +18,7 @@ import {
 import { Dropdown, Grid, Modal, Tooltip, type MenuProps } from "antd";
 import {
   ChevronRight,
+  CircleAlert,
   CircleGauge,
   ExternalLink,
   Eye,
@@ -66,6 +67,12 @@ import type { AccountSummary, AppPage, RemoteDevice, ResetCredit, UsageWindow } 
 
 const { useBreakpoint } = Grid;
 const REFRESH_INTERVAL_KEY = "codex-switch.web.refresh-minutes.v1";
+const PULL_REFRESH_TEXT = {
+  pulling: "下拉刷新",
+  canRelease: "释放立即刷新",
+  refreshing: "正在刷新…",
+  complete: "刷新完成",
+} as const;
 
 function messageOf(error: unknown) {
   return error instanceof Error ? error.message : "操作失败，请稍后重试";
@@ -241,9 +248,13 @@ function AccountCard({ account, privateMode, onOpen, onSwitch }: {
       </div>
       <div className="account-usage-copy">
         <span>主窗口剩余</span>
-        <p>{account.usage.primary ? resetLabel(account.usage.primary.resetsAt) : account.usage.error || "暂无实时数据"}</p>
+        <p>{account.usage.primary ? resetLabel(account.usage.primary.resetsAt) : "暂无实时数据"}</p>
       </div>
     </div>
+    {account.usage.error ? <div className="account-refresh-error" role="alert">
+      <CircleAlert size={14} />
+      <div><strong>刷新失败</strong><span>{account.usage.error}</span></div>
+    </div> : null}
     <div className="account-card-footer">
       <span className={account.active ? "active-account" : ""}>{account.active ? "当前活跃" : formatDate(account.usage.fetchedAt)}</span>
       <Button size="mini" color="primary" loading={switching} onClick={(event) => { event.stopPropagation(); onSwitch(); }}>切换到设备</Button>
@@ -329,7 +340,7 @@ function AccountsPage() {
   </div>;
 
   return <>
-    <PullToRefresh onRefresh={performRefresh}>{content}</PullToRefresh>
+    <PullToRefresh onRefresh={performRefresh} renderText={(status) => PULL_REFRESH_TEXT[status]}>{content}</PullToRefresh>
     <AdaptiveSheet open={Boolean(detail)} title="账号详情" subtitle={detail?.email} onClose={() => setDetailId(null)}>
       {detail ? <div className="account-detail">
         <div className="detail-identity"><span className="plan-badge">{detail.plan || "ChatGPT"}</span><h3>{detail.email}</h3><p>{detail.source === "system" ? "官方账号池绑定" : "个人同步账号"}</p></div>
@@ -365,6 +376,10 @@ function DevicesPage() {
   const sorted = useMemo(() => [...devices].sort((left, right) => Number(right.online) - Number(left.online)
     || Date.parse(right.lastSeenAt) - Date.parse(left.lastSeenAt)), [devices]);
   const onlineCount = devices.filter((item) => item.online).length;
+  const performRefresh = useCallback(async () => {
+    try { await dispatch(refreshAll()).unwrap(); }
+    catch { /* The global error toast reports the failure. */ }
+  }, [dispatch]);
 
   const deleteDevice = async (device: RemoteDevice) => {
     const confirmed = await Dialog.confirm({
@@ -380,7 +395,7 @@ function DevicesPage() {
   };
 
   return <>
-    <div className="page-body devices-page">
+    <PullToRefresh onRefresh={performRefresh} renderText={(status) => PULL_REFRESH_TEXT[status]}><div className="page-body devices-page">
       <header className="page-heading"><div><span>实时连接</span><h1>设备管理</h1></div>
         <button className="icon-button" type="button" onClick={() => void dispatch(refreshAll())} aria-label="刷新设备"><RefreshCw size={19} className={refreshing ? "spin" : ""} /></button>
       </header>
@@ -401,7 +416,7 @@ function DevicesPage() {
               <Button block size="small" color="primary" disabled={!device.online} loading={switchingOpenAiAuth?.deviceId === device.deviceId} onClick={() => setAuthDeviceId(device.deviceId)}>代理登录态</Button></div>
           </Card>;
         })}</div>}
-    </div>
+    </div></PullToRefresh>
     <AdaptiveSheet open={Boolean(authDevice)} title="代理登录态账号" subtitle={authDevice ? `${authDevice.name} · 选择后会重启 ChatGPT/Codex` : undefined} onClose={() => setAuthDeviceId(null)}>
       <div className="select-list account-select-list">{accounts.map((account) => {
         const current = authDevice?.openaiAuthAccountId === account.id;
