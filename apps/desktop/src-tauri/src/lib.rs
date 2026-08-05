@@ -54,6 +54,7 @@ pub fn run() {
         }))
         .manage(AppState::default())
         .manage(main_window::MainWindowStateCache::default())
+        .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_process::init())
@@ -120,6 +121,7 @@ pub fn run() {
             commands::get_app_info,
             commands::open_managed_folder,
             commands::list_accounts,
+            commands::copy_account_auth_json,
             commands::import_auth_file,
             commands::import_account_json_file,
             commands::import_account_json_text,

@@ -53,6 +53,7 @@ export function UsersPage({
   const activeVisibleUsers = users.items.filter((item) => !item.disabled).length;
   const adminVisibleUsers = users.items.filter((item) => item.role === "admin").length;
   const roleName = (code: string) => roles.find((role) => role.code === code)?.name ?? labelForRole(code, t);
+  const canOpenSyncedData = canManage || canBindOfficialAccounts;
 
   const columns: TableColumnsType<UserRow> = [
     {
@@ -90,9 +91,11 @@ export function UsersPage({
       width: 350,
       render: (_, row) => (
         <div className="table-actions">
-          <Tooltip title={t("users.syncAccounts")}>
-            <Button className="icon-button" icon={<Database size={15} />} onClick={() => onOpenAccounts(row)} />
-          </Tooltip>
+          {canOpenSyncedData && (
+            <Tooltip title={t("users.syncAccounts")}>
+              <Button className="icon-button" icon={<Database size={15} />} onClick={() => onOpenAccounts(row)} />
+            </Tooltip>
+          )}
           <Tooltip title={t("users.bindOfficialAccount")}>
             <Button
               className="icon-button"

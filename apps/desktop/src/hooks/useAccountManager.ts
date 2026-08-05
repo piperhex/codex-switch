@@ -3,6 +3,7 @@ import {
   activateAccount,
   beginLogin,
   chooseAndImportAccountJson,
+  copyAccountAuthJson,
   consumeAccountQuota,
   importAccountJsonFromClipboard as importAccountJsonClipboard,
   chooseAndExportAccountArchive,
@@ -188,6 +189,19 @@ export function useAccountManager(
       if (showSpinner) setBusyAccountId(null);
     }
   }, [cloudSync, load, notify, t]);
+
+  const copyAuthJson = useCallback(async (id: string) => {
+    if (!isDesktopApp) {
+      notify(t("toast.previewCopyAuthJson"));
+      return;
+    }
+    try {
+      await copyAccountAuthJson(id);
+      notify(t("toast.authJsonCopied"));
+    } catch (error) {
+      notify(String(error));
+    }
+  }, [notify, t]);
 
   const refreshAll = useCallback(async ({ quiet = false, showSpinner = true }: RefreshAllOptions = {}) => {
     if (!accounts.length || refreshingAllRef.current) return;
@@ -378,6 +392,7 @@ export function useAccountManager(
     exportAccountArchive,
     importAccountArchive,
     switchAccount,
+    copyAuthJson,
     refreshUsage,
     refreshAll,
     consumeAccountsQuota,

@@ -1589,6 +1589,7 @@ function DashboardApp() {
               busyAccountId={manager.busyAccountId} onAdd={openLogin}
               localProxy={providerManager.localProxy} proxyBusy={providerManager.proxyBusy}
               onSwitch={switchAccount}
+              onCopyAuthJson={manager.copyAuthJson}
               onRefresh={refreshUsage}
               onDelete={deleteAccount}
               onConsumeQuotaMany={manager.consumeAccountsQuota}

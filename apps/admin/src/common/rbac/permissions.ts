@@ -45,7 +45,7 @@ export const PERMISSION_CATALOG: readonly PermissionDefinition[] = [
   { code: Permission.SelfProvidersRead, group: 'self-service', name: 'Read own providers', description: 'View providers synchronized by the current user.' },
   { code: Permission.SelfProvidersWrite, group: 'self-service', name: 'Manage own providers', description: 'Create, update, and delete providers owned by the current user.' },
   { code: Permission.SelfPasswordUpdate, group: 'self-service', name: 'Change own password', description: 'Change the current user password.' },
-  { code: Permission.UsersRead, group: 'users', name: 'Read users', description: 'View users and their synchronized data.' },
+  { code: Permission.UsersRead, group: 'users', name: 'Read users', description: 'View user profiles and account status.' },
   { code: Permission.UsersManage, group: 'users', name: 'Manage users', description: 'Create, update, disable, and delete users.' },
   { code: Permission.RolesRead, group: 'security', name: 'Read roles', description: 'View roles and the permission catalog.' },
   { code: Permission.RolesManage, group: 'security', name: 'Manage roles', description: 'Create, update, and delete custom roles.' },

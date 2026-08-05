@@ -397,6 +397,10 @@ export class SyncService {
     addedByUserId?: string,
   ) {
     const normalizedSearch = search?.trim();
+    const boundUserCountSearch = normalizedSearch && /^\d+$/.test(normalizedSearch)
+      && Number.isSafeInteger(Number(normalizedSearch))
+      ? Number(normalizedSearch)
+      : undefined;
     const scope = addedByUserId ? { addedByUserId } : {};
     const where = normalizedSearch
       ? [
@@ -407,30 +411,58 @@ export class SyncService {
       ]
       : (addedByUserId ? scope : undefined);
 
-    if (sortBy === 'boundUserCount') {
+    if (sortBy === 'boundUserCount' || boundUserCountSearch !== undefined) {
       const query = this.systemAccounts
         .createQueryBuilder('account')
         .select('account.id', 'id')
         .addSelect('COUNT(binding.userId)', 'boundUserCount')
         .leftJoin('account.bindings', 'binding')
-        .groupBy('account.id')
-        .orderBy('"boundUserCount"', sortOrder === 'asc' ? 'ASC' : 'DESC')
-        .addOrderBy('account.createdAt', 'DESC')
-        .offset((page - 1) * pageSize)
-        .limit(pageSize);
+        .groupBy('account.id');
+      if (sortBy === 'boundUserCount') {
+        query
+          .orderBy('"boundUserCount"', sortOrder === 'asc' ? 'ASC' : 'DESC')
+          .addOrderBy('account.createdAt', 'DESC');
+      } else {
+        query.orderBy('account.createdAt', sortOrder === 'asc' ? 'ASC' : 'DESC');
+      }
+      query.offset((page - 1) * pageSize).limit(pageSize);
       if (normalizedSearch) {
+        const boundUserCountCondition = boundUserCountSearch === undefined
+          ? ''
+          : ` OR (
+            SELECT COUNT(*)
+            FROM "system_account_bindings" "searchBinding"
+            WHERE "searchBinding"."systemAccountId" = account.id
+          ) = :boundUserCountSearch`;
         query.where(
-          '(account.email ILIKE :search OR account.note ILIKE :search OR account.plan ILIKE :search OR account.addedByEmail ILIKE :search)',
-          { search: `%${normalizedSearch}%` },
+          `(account.email ILIKE :search OR account.note ILIKE :search OR account.plan ILIKE :search OR account.addedByEmail ILIKE :search${boundUserCountCondition})`,
+          { search: `%${normalizedSearch}%`, boundUserCountSearch },
         );
       }
       if (addedByUserId) {
         query.andWhere('account.addedByUserId = :addedByUserId', { addedByUserId });
       }
 
+      const totalQuery = boundUserCountSearch === undefined
+        ? this.systemAccounts.count({ where })
+        : (() => {
+          const countQuery = this.systemAccounts.createQueryBuilder('account');
+          countQuery.where(
+            `(account.email ILIKE :search OR account.note ILIKE :search OR account.plan ILIKE :search OR account.addedByEmail ILIKE :search OR (
+              SELECT COUNT(*)
+              FROM "system_account_bindings" "searchBinding"
+              WHERE "searchBinding"."systemAccountId" = account.id
+            ) = :boundUserCountSearch)`,
+            { search: `%${normalizedSearch}%`, boundUserCountSearch },
+          );
+          if (addedByUserId) {
+            countQuery.andWhere('account.addedByUserId = :addedByUserId', { addedByUserId });
+          }
+          return countQuery.getCount();
+        })();
       const [rows, total] = await Promise.all([
         query.getRawMany<{ id: string }>(),
-        this.systemAccounts.count({ where }),
+        totalQuery,
       ]);
       const ids = rows.map((row) => row.id);
       if (!ids.length) return { items: [], total, page, pageSize };

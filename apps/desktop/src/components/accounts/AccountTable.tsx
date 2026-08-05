@@ -6,6 +6,7 @@ import {
   CalendarClock,
   Check,
   Columns3,
+  Copy,
   Gauge,
   LogIn,
   LogOut,
@@ -44,6 +45,7 @@ interface AccountTableProps {
   accounts: Account[];
   busyAccountId: string | null;
   onSwitch: (id: string) => void;
+  onCopyAuthJson: (id: string) => void;
   onRefresh: (id: string) => void;
   onDelete: (id: string) => void;
   onConsumeQuotaMany: (ids: string[]) => Promise<string[]>;
@@ -357,6 +359,7 @@ export function AccountTable({
   accounts,
   busyAccountId,
   onSwitch,
+  onCopyAuthJson,
   onRefresh,
   onDelete,
   onConsumeQuotaMany,
@@ -728,6 +731,13 @@ export function AccountTable({
                     <RefreshCw size={14} />
                     {t("table.refreshUsage")}
                   </button>
+                  <button type="button" onClick={() => {
+                    setTableActionMenuAccountId(null);
+                    onCopyAuthJson(account.id);
+                  }}>
+                    <Copy size={14} />
+                    {t("table.copyAuthJson")}
+                  </button>
                   {hotSwitchEnabled && (
                     <Tooltip title={t("table.autoSwitchTooltip")} placement="left">
                       <button type="button"
@@ -889,6 +899,13 @@ export function AccountTable({
         </button>
         <button type="button" onClick={() => {
           setContextMenu(null);
+          onCopyAuthJson(account.id);
+        }}>
+          <Copy size={14} />
+          {t("table.copyAuthJson")}
+        </button>
+        <button type="button" onClick={() => {
+          setContextMenu(null);
           setEditingAccount(account);
         }}>
           <Pencil size={14} />
@@ -937,7 +954,7 @@ export function AccountTable({
               if ((event.target as HTMLElement).closest("button, a, input, textarea, summary, details")) return;
               event.preventDefault();
               const menuWidth = 180;
-              const menuHeight = hotSwitchEnabled ? 132 : 92;
+              const menuHeight = hotSwitchEnabled ? 164 : 124;
               setContextMenu({
                 accountId: account.id,
                 x: Math.max(8, Math.min(event.clientX, window.innerWidth - menuWidth - 8)),
@@ -991,6 +1008,10 @@ export function AccountTable({
                     setResetCreditsAccount(account);
                     onLoadResetCredits(account.id);
                   }}><CalendarClock size={14} />{t("table.viewResetCredits")}</button>
+                  <button type="button" onClick={() => {
+                    setContextMenu(null);
+                    onCopyAuthJson(account.id);
+                  }}><Copy size={14} />{t("table.copyAuthJson")}</button>
                   {hotSwitchEnabled && <Tooltip title={switchBlocked ? switchBlockedReason : t("table.autoSwitchTooltip")}>
                     <button type="button" disabled={switchBlocked || autoSwitchBusyAccountId !== null}
                       onClick={() => {
@@ -1208,7 +1229,7 @@ export function AccountTable({
           onContextMenu: (event) => {
             event.preventDefault();
             const menuWidth = 220;
-            const menuHeight = hotSwitchEnabled ? 286 : 210;
+            const menuHeight = hotSwitchEnabled ? 318 : 242;
             setTableActionMenuAccountId(null);
             setContextMenu({
               accountId: account.id,

@@ -14,6 +14,7 @@ export function AccountsPage({
   resetCredits,
   onAdd,
   onSwitch,
+  onCopyAuthJson,
   onRefresh,
   onDelete,
   onConsumeQuotaMany,
@@ -45,6 +46,7 @@ export function AccountsPage({
   resetCredits: Record<string, ResetCreditsLoadState>;
   onAdd: () => void;
   onSwitch: (id: string) => void;
+  onCopyAuthJson: (id: string) => void;
   onRefresh: (id: string) => void;
   onDelete: (id: string) => void;
   onConsumeQuotaMany: (ids: string[]) => Promise<string[]>;
@@ -90,7 +92,7 @@ export function AccountsPage({
   return (
     <div className="accounts-page">
       <AccountTable accounts={accounts} busyAccountId={busyAccountId}
-        onSwitch={onSwitch} onRefresh={onRefresh} onDelete={onDelete}
+        onSwitch={onSwitch} onCopyAuthJson={onCopyAuthJson} onRefresh={onRefresh} onDelete={onDelete}
         onConsumeQuotaMany={onConsumeQuotaMany} onDeleteMany={onDeleteMany}
         onEnableMany={onEnableMany} onDisableMany={onDisableMany}
         onAutoSwitchEnabledChange={onAutoSwitchEnabledChange} autoSwitchBusyAccountId={autoSwitchBusyAccountId}

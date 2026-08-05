@@ -32,7 +32,7 @@ const BUILT_IN_PERMISSION_ZH: Record<string, PermissionMetadata> = {
   "admin.users.read": {
     group: "用户管理",
     name: "查看用户",
-    description: "查看用户及其同步数据。",
+    description: "查看用户资料和账号状态。",
   },
   "admin.users.manage": {
     group: "用户管理",

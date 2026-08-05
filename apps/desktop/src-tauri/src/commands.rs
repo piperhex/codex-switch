@@ -17,6 +17,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::{Emitter, Runtime};
+use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri_plugin_opener::OpenerExt;
 
 use crate::{
@@ -176,6 +177,24 @@ pub(crate) fn list_accounts<R: Runtime>(
     }
     accounts.sort_by(|left, right| left.email.cmp(&right.email));
     Ok(accounts)
+}
+
+#[tauri::command]
+pub(crate) fn copy_account_auth_json<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    id: String,
+) -> Result<(), String> {
+    if id.len() != 24 || !id.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err("Account does not exist".to_string());
+    }
+
+    let paths = resolve_paths(&app)?;
+    let auth = load_validated_managed_auth(&paths, &id)?;
+    let content = serde_json::to_string_pretty(&auth)
+        .map_err(|error| format!("Failed to serialize auth.json: {error}"))?;
+    app.clipboard()
+        .write_text(content)
+        .map_err(|error| format!("Failed to copy auth.json: {error}"))
 }
 
 #[tauri::command]

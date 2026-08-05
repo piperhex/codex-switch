@@ -195,6 +195,11 @@ export class AdminController {
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermissions(Permission.UsersRead)
+  @RequireAnyPermissions(
+    Permission.UsersManage,
+    Permission.OfficialAccountsManage,
+    Permission.OfficialAccountsManageOwn,
+  )
   @Get('api/users/:id/accounts')
   listUserAccounts(@Param('id') id: string) {
     return this.admin.listUserAccounts(id);
@@ -202,6 +207,11 @@ export class AdminController {
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermissions(Permission.UsersRead)
+  @RequireAnyPermissions(
+    Permission.UsersManage,
+    Permission.OfficialAccountsManage,
+    Permission.OfficialAccountsManageOwn,
+  )
   @Get('api/users/:id/providers')
   listUserProviders(@Param('id') id: string) {
     return this.admin.listUserProviders(id);

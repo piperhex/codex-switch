@@ -143,6 +143,47 @@ describe('SyncService', () => {
     });
   });
 
+  it('searches official accounts by their exact assigned user count', async () => {
+    const makeQueryBuilder = () => ({
+      select: vi.fn().mockReturnThis(),
+      addSelect: vi.fn().mockReturnThis(),
+      leftJoin: vi.fn().mockReturnThis(),
+      groupBy: vi.fn().mockReturnThis(),
+      orderBy: vi.fn().mockReturnThis(),
+      addOrderBy: vi.fn().mockReturnThis(),
+      offset: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockReturnThis(),
+      where: vi.fn().mockReturnThis(),
+      andWhere: vi.fn().mockReturnThis(),
+      getRawMany: vi.fn().mockResolvedValue([]),
+      getCount: vi.fn().mockResolvedValue(0),
+    });
+    const pageQuery = makeQueryBuilder();
+    const countQuery = makeQueryBuilder();
+    const createQueryBuilder = vi.fn()
+      .mockReturnValueOnce(pageQuery)
+      .mockReturnValueOnce(countQuery);
+    (systemAccounts as unknown as { createQueryBuilder: typeof createQueryBuilder })
+      .createQueryBuilder = createQueryBuilder;
+
+    await expect(service.listSystemAccounts(1, 20, '2', 'createdAt', 'desc', 'operator-1'))
+      .resolves.toEqual({ items: [], total: 0, page: 1, pageSize: 20 });
+
+    expect(pageQuery.where).toHaveBeenCalledWith(
+      expect.stringContaining('system_account_bindings'),
+      { search: '%2%', boundUserCountSearch: 2 },
+    );
+    expect(pageQuery.andWhere).toHaveBeenCalledWith(
+      'account.addedByUserId = :addedByUserId',
+      { addedByUserId: 'operator-1' },
+    );
+    expect(countQuery.where).toHaveBeenCalledWith(
+      expect.stringContaining('system_account_bindings'),
+      { search: '%2%', boundUserCountSearch: 2 },
+    );
+    expect(countQuery.getCount).toHaveBeenCalledOnce();
+  });
+
   it('loads, maps, sorts and caches a cache miss', async () => {
     redis.get.mockResolvedValue(null);
     accounts.find.mockResolvedValue([{

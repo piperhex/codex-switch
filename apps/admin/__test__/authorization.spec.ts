@@ -12,6 +12,7 @@ import {
   expandPermissionDependencies,
 } from '@/common/rbac/permissions';
 import { JwtStrategy } from '@/modules/jwt/jwt.strategy';
+import { AdminController } from '@/modules/admin/admin.controller';
 import type { UserService } from '@/modules/user/user.service';
 import type { AuthUser } from '@/common/decorators/user.decorator';
 import type { RbacService } from '@/modules/rbac/rbac.service';
@@ -84,6 +85,21 @@ describe('authorization boundaries', () => {
       REQUIRED_ANY_PERMISSIONS,
       expect.any(Array),
     );
+  });
+
+  it('keeps synchronized user data unavailable to user-list-only roles', () => {
+    for (const method of ['listUserAccounts', 'listUserProviders'] as const) {
+      const handler = AdminController.prototype[method];
+
+      expect(Reflect.getMetadata(REQUIRED_PERMISSIONS, handler)).toEqual([
+        Permission.UsersRead,
+      ]);
+      expect(Reflect.getMetadata(REQUIRED_ANY_PERMISSIONS, handler)).toEqual([
+        Permission.UsersManage,
+        Permission.OfficialAccountsManage,
+        Permission.OfficialAccountsManageOwn,
+      ]);
+    }
   });
 
   it('expands own-account management into own-read and user-list access', () => {
