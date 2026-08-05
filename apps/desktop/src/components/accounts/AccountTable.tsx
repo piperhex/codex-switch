@@ -287,6 +287,17 @@ function isAccountDisabled(account: Account, hotSwitchEnabled: boolean) {
   return hotSwitchEnabled && !account.autoSwitchEnabled;
 }
 
+function canReceiveConcurrentConversation(account: Account) {
+  return account.autoSwitchEnabled
+    && !(account.usage.primary && account.usage.primary.remainingPercent <= 0);
+}
+
+function isAccountHighlighted(account: Account, concurrentRoutingActive: boolean) {
+  return concurrentRoutingActive
+    ? canReceiveConcurrentConversation(account)
+    : account.active;
+}
+
 function needsAccountAttention(account: Account, hotSwitchEnabled: boolean, showUsageNetworkErrors: boolean) {
   return shouldShowUsageError(account.usage.error, showUsageNetworkErrors)
     || isAccountDisabled(account, hotSwitchEnabled);
@@ -1004,7 +1015,7 @@ export function AccountTable({
           ? t("providers.proxy.agentIdentityUnsupported")
           : t("providers.proxy.agentIdentityProxyOnly");
         return (
-          <article key={account.id} className={`account-card${account.active ? " active" : ""}${isDisabled ? " account-alert-card" : ""}`}
+          <article key={account.id} className={`account-card${isAccountHighlighted(account, concurrentRoutingActive) ? " active" : ""}${isDisabled ? " account-alert-card" : ""}`}
             title={switchBlocked ? switchBlockedReason : undefined}
             aria-disabled={switchBlocked}
             onClick={(event) => {
@@ -1303,7 +1314,7 @@ export function AccountTable({
           onChange: (keys) => setSelectedAccountIds(keys.map(String)),
         }}
         rowClassName={(account) => [
-          account.active ? "active-row" : "",
+          isAccountHighlighted(account, concurrentRoutingActive) ? "active-row" : "",
           isAccountDisabled(account, hotSwitchEnabled) ? "account-alert-row" : "",
         ].filter(Boolean).join(" ")}
         onRow={(account) => ({
