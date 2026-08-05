@@ -389,6 +389,9 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
                 argument(&args, "apiKey")?,
             ),
         ),
+        "copy_local_proxy_lan_api_key" => {
+            serialize(crate::local_proxy::copy_local_proxy_lan_api_key(app))
+        }
         "set_floating_bubble" => serialize(block_on(crate::floating_bubble::set_floating_bubble(
             app,
             argument(&args, "enabled")?,

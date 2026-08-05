@@ -1211,8 +1211,7 @@ function DashboardApp() {
       </button>
       {titlebarProxyStatusControl}
       {titlebarProxyRunning && (
-        <Tooltip title="0.0.0.0">
-          <span className="window-titlebar-proxy-lan">
+          <span className="window-titlebar-proxy-lan" title="0.0.0.0">
             <span>{t("providers.proxy.listenLan")}</span>
             <Switch className="window-titlebar-proxy-lan-switch" size="small"
               checked={providerManager.localProxy?.listenOnAllInterfaces ?? false}
@@ -1220,8 +1219,19 @@ function DashboardApp() {
               disabled={providerManager.proxyBusy}
               aria-label={t("providers.proxy.listenLan")}
               onChange={changeLanListening} />
+            <Tooltip title={providerManager.localProxy?.hasLanApiKey
+              ? t("providers.proxy.copyLanApiKey")
+              : t("providers.proxy.copyLanApiKeyUnavailable")}>
+              <span className="window-titlebar-proxy-lan-copy-wrap">
+                <button type="button" className="window-titlebar-proxy-lan-copy"
+                  disabled={providerManager.proxyBusy || !providerManager.localProxy?.hasLanApiKey}
+                  aria-label={t("providers.proxy.copyLanApiKey")}
+                  onClick={() => void providerManager.copyProxyLanApiKey()}>
+                  <Copy size={12} aria-hidden="true" />
+                </button>
+              </span>
+            </Tooltip>
           </span>
-        </Tooltip>
       )}
     </div>
   );

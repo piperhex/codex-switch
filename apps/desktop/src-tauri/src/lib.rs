@@ -182,6 +182,7 @@ pub fn run() {
             local_proxy::set_image_generation_account,
             local_proxy::set_local_proxy_openai_auth_account,
             local_proxy::set_local_proxy_listen_on_all_interfaces,
+            local_proxy::copy_local_proxy_lan_api_key,
             floating_bubble::get_app_settings,
             floating_bubble::set_floating_bubble,
             floating_bubble::set_privacy_mode,

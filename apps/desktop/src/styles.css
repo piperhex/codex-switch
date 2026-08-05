@@ -70,6 +70,10 @@ button:focus-visible { outline: 3px solid rgba(45, 131, 87, .24); outline-offset
 .window-titlebar-proxy .window-titlebar-proxy-lan-switch.ant-switch { min-width: 32px; }
 .window-titlebar-proxy .window-titlebar-proxy-lan-switch.ant-switch-checked { background: var(--green); box-shadow: 0 0 0 2px rgba(var(--green-rgb), .12); }
 .window-titlebar-proxy .window-titlebar-proxy-lan-switch.ant-switch-checked:hover:not(.ant-switch-disabled) { background: var(--green-dark); }
+.window-titlebar-proxy-lan-copy-wrap { display: inline-flex; }
+.window-titlebar-proxy-lan-copy { width: 22px; height: 22px; padding: 0; border: 0; border-radius: 5px; display: inline-grid; place-items: center; color: var(--muted); background: transparent; cursor: pointer; }
+.window-titlebar-proxy-lan-copy:hover:not(:disabled) { color: var(--green-dark); background: var(--green-soft); }
+.window-titlebar-proxy-lan-copy:disabled { opacity: .38; cursor: not-allowed; }
 .window-titlebar-tools .notification-button,
 .window-titlebar-tools .cloud-sync-menu-button,
 .window-titlebar-tools .update-ready-button { width: 27px; height: 27px; }
@@ -819,6 +823,11 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .lan-access-form p { margin: 0 0 4px; color: #66756c; font-size: 12px; line-height: 1.6; }
 .lan-access-form label { color: #526259; font-size: 11px; font-weight: 700; }
 .lan-access-form small { color: #718078; font-size: 10px; line-height: 1.5; }
+.lan-api-key-row { display: flex; align-items: center; gap: 6px; }
+.lan-api-key-row .ant-input-affix-wrapper { min-width: 0; flex: 1; }
+.lan-api-key-row .ant-btn { flex: 0 0 auto; white-space: nowrap; }
+.lan-api-key-copy-status { margin-top: -2px; color: var(--green); font-size: 10px; }
+.lan-api-key-copy-status.failed { color: #b95c49; }
 
 @media (max-height: 720px) {
   .modal-backdrop { padding-block: 12px; }

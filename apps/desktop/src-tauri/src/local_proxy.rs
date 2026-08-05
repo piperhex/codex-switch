@@ -2,6 +2,7 @@ use std::{
     collections::{BTreeMap, HashMap, HashSet, VecDeque},
     fs::{self, OpenOptions},
     io::{self, BufRead, BufReader, Read, Write},
+    net::{IpAddr, Ipv4Addr, Ipv6Addr, Shutdown, SocketAddr, TcpStream},
     path::{Path, PathBuf},
     sync::{Arc, Mutex, MutexGuard, OnceLock, TryLockError},
     thread::{self, JoinHandle},
@@ -15,6 +16,7 @@ use serde::Serialize;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use tauri::{Emitter, Manager, Runtime, WebviewUrl, WebviewWindowBuilder};
+use tauri_plugin_clipboard_manager::ClipboardExt;
 use tiny_http::{Header, Method, Request, Response, Server, StatusCode};
 
 use crate::{
@@ -59,6 +61,8 @@ const CUSTOM_TOOL_PRESERVED_METADATA_HEADING: &str = "Original tool definition:"
 const LOCAL_PROXY_LAN_HOST: &str = "0.0.0.0";
 const LOCAL_PROXY_START_PROGRESS_EVENT: &str = "local-proxy-start-progress";
 const LOCAL_PROXY_STOP_PROGRESS_EVENT: &str = "local-proxy-stop-progress";
+const LOCAL_PROXY_REBIND_RETRY_TIMEOUT: Duration = Duration::from_secs(1);
+const LOCAL_PROXY_REBIND_RETRY_INTERVAL: Duration = Duration::from_millis(25);
 
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -1731,6 +1735,18 @@ pub(crate) fn set_local_proxy_listen_on_all_interfaces<R: Runtime>(
     Ok(status(&app))
 }
 
+#[tauri::command]
+pub(crate) fn copy_local_proxy_lan_api_key<R: Runtime>(
+    app: tauri::AppHandle<R>,
+) -> Result<(), String> {
+    let state = read_state(&resolve_paths(&app)?);
+    let api_key = configured_lan_api_key(&state)
+        .ok_or_else(|| "Local network API key is not configured".to_string())?;
+    app.clipboard()
+        .write_text(api_key)
+        .map_err(|error| format!("Failed to copy local network API key: {error}"))
+}
+
 fn set_local_proxy_enabled(paths: &Paths, enabled: bool) -> Result<(), String> {
     let mut state = read_state(paths);
     state.local_proxy_enabled = enabled;
@@ -1750,10 +1766,7 @@ fn start_server<R: Runtime>(app: tauri::AppHandle<R>) -> Result<bool, String> {
         "{}:{LOCAL_PROXY_PORT}",
         proxy_bind_host(lan_listening_enabled(&state))
     );
-    let server = Arc::new(
-        Server::http(&bind_addr)
-            .map_err(|error| format!("Failed to start local proxy at {bind_addr}: {error}"))?,
-    );
+    let server = Arc::new(bind_http_server(&bind_addr)?);
     let server_for_thread = server.clone();
     let handle = thread::Builder::new()
         .name("codex-switch-local-proxy".to_string())
@@ -1793,13 +1806,86 @@ fn lan_listening_enabled(state: &ManagerStateFile) -> bool {
     state.local_proxy_listen_on_all_interfaces && configured_lan_api_key(state).is_some()
 }
 
+fn bind_http_server(bind_addr: &str) -> Result<Server, String> {
+    let deadline = Instant::now() + LOCAL_PROXY_REBIND_RETRY_TIMEOUT;
+    loop {
+        match Server::http(bind_addr) {
+            Ok(server) => return Ok(server),
+            Err(error) => {
+                let address_in_use = is_address_in_use(error.as_ref());
+                if !address_in_use || Instant::now() >= deadline {
+                    return Err(format!(
+                        "Failed to start local proxy at {bind_addr}: {error}"
+                    ));
+                }
+                thread::sleep(LOCAL_PROXY_REBIND_RETRY_INTERVAL);
+            }
+        }
+    }
+}
+
+fn is_address_in_use(error: &(dyn std::error::Error + 'static)) -> bool {
+    let mut current = Some(error);
+    while let Some(error) = current {
+        if error
+            .downcast_ref::<io::Error>()
+            .is_some_and(|error| error.kind() == io::ErrorKind::AddrInUse)
+        {
+            return true;
+        }
+        current = error.source();
+    }
+    false
+}
+
+fn listener_wake_address(server: &Server) -> Option<SocketAddr> {
+    server.server_addr().to_ip().map(|address| {
+        let ip = match address.ip() {
+            IpAddr::V4(ip) if ip.is_unspecified() => IpAddr::V4(Ipv4Addr::LOCALHOST),
+            IpAddr::V6(ip) if ip.is_unspecified() => IpAddr::V6(Ipv6Addr::LOCALHOST),
+            ip => ip,
+        };
+        SocketAddr::new(ip, address.port())
+    })
+}
+
+fn stop_proxy_runtime(mut proxy_runtime: ProxyRuntime) {
+    proxy_runtime.server.unblock();
+    if let Some(handle) = proxy_runtime.handle.take() {
+        let _ = handle.join();
+    }
+
+    // tiny_http owns the listening socket in an internal accept thread. Its
+    // Server::drop wake-up connects to the bound address, which does not
+    // reliably wake a 0.0.0.0 listener on Windows. Arrange an explicit
+    // loopback connection after drop sets the close flag, then wait for it.
+    let wake = listener_wake_address(&proxy_runtime.server).and_then(|address| {
+        let (sender, receiver) = std::sync::mpsc::channel();
+        thread::Builder::new()
+            .name("codex-switch-local-proxy-shutdown".to_string())
+            .spawn(move || {
+                if receiver.recv().is_ok() {
+                    if let Ok(stream) =
+                        TcpStream::connect_timeout(&address, Duration::from_millis(100))
+                    {
+                        let _ = stream.shutdown(Shutdown::Both);
+                    }
+                }
+            })
+            .ok()
+            .map(|handle| (sender, handle))
+    });
+    drop(proxy_runtime.server);
+    if let Some((sender, handle)) = wake {
+        let _ = sender.send(());
+        let _ = handle.join();
+    }
+}
+
 fn stop_server() {
     let runtime = runtime().lock().ok().and_then(|mut guard| guard.take());
-    if let Some(mut runtime) = runtime {
-        runtime.server.unblock();
-        if let Some(handle) = runtime.handle.take() {
-            let _ = handle.join();
-        }
+    if let Some(proxy_runtime) = runtime {
+        stop_proxy_runtime(proxy_runtime);
     }
     clear_proxy_sessions();
 }
@@ -5548,6 +5634,28 @@ mod tests {
         assert!(request_has_valid_api_key(&header, "lan-secret"));
         assert!(!request_has_valid_api_key(&invalid, "lan-secret"));
         assert!(!request_has_valid_api_key(&bearer, "different"));
+    }
+
+    #[test]
+    fn stopped_unspecified_listener_can_immediately_rebind_on_loopback() {
+        let server = Arc::new(Server::http("0.0.0.0:0").unwrap());
+        let address = server.server_addr().to_ip().unwrap();
+        let server_for_thread = server.clone();
+        let handle = thread::spawn(move || for _ in server_for_thread.incoming_requests() {});
+        stop_proxy_runtime(ProxyRuntime {
+            server,
+            handle: Some(handle),
+        });
+
+        let bind_addr = format!("127.0.0.1:{}", address.port());
+        let rebound = Arc::new(bind_http_server(&bind_addr).unwrap());
+        let rebound_for_thread = rebound.clone();
+        let rebound_handle =
+            thread::spawn(move || for _ in rebound_for_thread.incoming_requests() {});
+        stop_proxy_runtime(ProxyRuntime {
+            server: rebound,
+            handle: Some(rebound_handle),
+        });
     }
 
     #[test]

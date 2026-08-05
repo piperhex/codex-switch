@@ -1338,6 +1338,16 @@ export async function setLocalProxyListenOnAllInterfaces(
   return invoke<LocalProxyStatus>("set_local_proxy_listen_on_all_interfaces", { enabled, apiKey });
 }
 
+export async function copyLocalProxyLanApiKey(): Promise<void> {
+  if (!hasLocalBackend) {
+    const apiKey = window.localStorage.getItem(LOCAL_PROXY_LAN_API_KEY_PREVIEW_KEY);
+    if (!apiKey) throw new Error("Local network API key is not configured");
+    await navigator.clipboard.writeText(apiKey);
+    return;
+  }
+  await invoke("copy_local_proxy_lan_api_key");
+}
+
 export async function chooseAndImportSub2apiJson(): Promise<CompatibleJsonImportResult> {
   if (!isDesktopApp) return { status: "preview" };
   const selected = await open({

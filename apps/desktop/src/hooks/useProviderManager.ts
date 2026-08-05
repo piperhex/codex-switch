@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   activateProvider,
+  copyLocalProxyLanApiKey,
   loadLocalProxyStatus,
   loadProviders,
   queryProviderBalance,
@@ -393,6 +394,17 @@ export function useProviderManager(
     }
   }, [load, notify, t]);
 
+  const copyProxyLanApiKey = useCallback(async () => {
+    try {
+      await copyLocalProxyLanApiKey();
+      notify(t("toast.proxyLanApiKeyCopied"));
+    } catch (error) {
+      notify(String(error).includes("Local network API key is not configured")
+        ? t("providers.error.lanApiKeyRequired")
+        : String(error));
+    }
+  }, [notify, t]);
+
   return {
     providers,
     localProxy,
@@ -416,6 +428,7 @@ export function useProviderManager(
     setProxyImageAccount,
     setProxyOpenaiAuthAccount,
     setProxyListenOnAllInterfaces,
+    copyProxyLanApiKey,
     reload: load,
   };
 }
