@@ -7,6 +7,7 @@ import {
   ChangeSystemAccountBindingsDto,
   CreateSystemAccountDto,
   ImportSystemAccountsDto,
+  ListSystemAccountsQueryDto,
   CreateInvitationDto,
   ReviewApprovalRequestDto,
   UpdateAdminSyncedAccountDto,
@@ -37,6 +38,23 @@ async function messages<T extends object>(type: new () => T, value: object) {
 }
 
 describe('request DTO validation', () => {
+  it('validates separate official-account filters', async () => {
+    await expect(messages(ListSystemAccountsQueryDto, {
+      email: 'pool@example.com',
+      plan: 'plus',
+      note: 'shared',
+      addedByEmail: 'operator@example.com',
+      boundUserCount: '2',
+    })).resolves.toEqual([]);
+    await expect(messages(ListSystemAccountsQueryDto, {
+      email: 'x'.repeat(241),
+      boundUserCount: '-1',
+    })).resolves.toEqual(expect.arrayContaining([
+      'email must be shorter than or equal to 240 characters',
+      'boundUserCount must not be less than 0',
+    ]));
+  });
+
   it('enforces authentication email, password and token contracts', async () => {
     await expect(messages(RegisterDto, { email: 'bad', password: 'short', verificationCode: '12ab' }))
       .resolves.toEqual(expect.arrayContaining([

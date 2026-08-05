@@ -205,6 +205,7 @@ h1 { margin: 5px 0 0; font: 700 26px/1.1 Manrope, sans-serif; letter-spacing: -.
 .account-table-toolbar-summary { min-width: 0; margin-right: auto; display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; color: var(--muted); font-size: 11px; }
 .account-table-toolbar-summary span { min-width: 0; display: inline-flex; align-items: center; white-space: nowrap; }
 .account-table-toolbar-summary strong { max-width: 180px; overflow: hidden; text-overflow: ellipsis; color: var(--ink); font-weight: 600; }
+.account-concurrent-routing-control { min-height: 24px; display: inline-flex; align-items: center; gap: 6px; color: var(--ink); font-size: 11px; font-weight: 600; white-space: nowrap; }
 .today-token-usage-value { cursor: help; }
 .web-proxy-controls { margin: 0; padding: 0 0 0 16px; border-right: 0; border-left: 1px solid rgba(var(--green-rgb), .18); gap: 7px; }
 .web-proxy-controls .window-titlebar-proxy-endpoint { max-width: min(260px, 22vw); }
@@ -296,8 +297,10 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .reset-credits-error { color: #a25046; }
 .reset-credits-error .ant-btn { margin-left: auto; }
 .account-cell { min-width: 0; display: flex; align-items: center; gap: 10px; }
-.table-avatar { width: 28px; height: 28px; border-radius: 7px; display: grid; place-items: center; flex: 0 0 auto; color: var(--green-dark); background: var(--green-soft); font: 700 10px Manrope, sans-serif; }
+.table-avatar-wrap { position: relative; flex: 0 0 auto; }
+.table-avatar { width: 28px; height: 28px; border-radius: 7px; display: grid; place-items: center; color: var(--green-dark); background: var(--green-soft); font: 700 10px Manrope, sans-serif; }
 .table-avatar.disabled-avatar { color: #b42318; background: #ffd8d3; }
+.account-conversation-count { position: absolute; top: -7px; right: -9px; min-width: 17px; height: 17px; padding: 0 4px; border: 2px solid var(--panel); border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; color: #fff; background: var(--green); font: 700 9px/1 Manrope, sans-serif; box-sizing: border-box; }
 .account-primary { min-width: 0; display: grid; gap: 2px; }
 .account-email { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
 .account-note-preview { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #53675a; font-size: 10px; }

@@ -306,6 +306,14 @@ export interface SystemAccount {
   updatedAt: string;
 }
 
+export interface SystemAccountFilters {
+  email?: string;
+  plan?: string;
+  note?: string;
+  addedByEmail?: string;
+  boundUserCount?: string;
+}
+
 export interface SyncProvider {
   id: string;
   kind: "custom" | "openai";

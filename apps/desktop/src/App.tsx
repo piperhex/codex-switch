@@ -1625,6 +1625,7 @@ function DashboardApp() {
               onUseResetCredit={(id) => void useResetCredit(id)}
               resetCreditBusyAccountId={resetCreditBusyAccountId}
               onOpenaiAuthAccountChange={providerManager.setProxyOpenaiAuthAccount}
+              onConcurrentRoutingChange={providerManager.setProxyConcurrentRouting}
               privacyMode={privacyMode.enabled}
               showUsageNetworkErrors={showUsageNetworkErrors}
               displayMode={accountDisplayMode.displayMode}

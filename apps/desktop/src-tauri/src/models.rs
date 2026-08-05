@@ -68,6 +68,8 @@ pub(crate) struct ManagerStateFile {
     #[serde(default)]
     pub(crate) auto_switch_on_quota_exhaustion: bool,
     #[serde(default)]
+    pub(crate) concurrent_account_routing_enabled: bool,
+    #[serde(default)]
     pub(crate) custom_auto_switch_priority_enabled: bool,
     #[serde(default)]
     pub(crate) auto_disable_unreachable_accounts: bool,
@@ -195,6 +197,7 @@ pub(crate) struct LocalProxyStatus {
     pub(crate) port: u16,
     pub(crate) base_url: String,
     pub(crate) auto_switch_on_quota_exhaustion: bool,
+    pub(crate) concurrent_account_routing_enabled: bool,
     pub(crate) custom_auto_switch_priority_enabled: bool,
     pub(crate) auto_disable_unreachable_accounts: bool,
     pub(crate) listen_on_all_interfaces: bool,
@@ -215,6 +218,8 @@ pub(crate) struct ProxySessionSummary {
     pub(crate) active_requests: u64,
     pub(crate) request_count: u64,
     pub(crate) provider: Option<String>,
+    pub(crate) concurrent_routed: bool,
+    pub(crate) account_id: Option<String>,
     pub(crate) account_email: Option<String>,
     pub(crate) model: Option<String>,
     pub(crate) context_tokens: Option<u64>,
@@ -534,6 +539,7 @@ mod tests {
         assert_eq!(state.active_account_id.as_deref(), Some("account-1"));
         assert!(!state.local_proxy_enabled);
         assert!(!state.auto_switch_on_quota_exhaustion);
+        assert!(!state.concurrent_account_routing_enabled);
         assert!(!state.custom_auto_switch_priority_enabled);
         assert!(!state.auto_disable_unreachable_accounts);
         assert!(!state.local_proxy_listen_on_all_interfaces);

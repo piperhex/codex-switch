@@ -10,7 +10,8 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import Redis from 'ioredis';
-import { DataSource, ILike, In, IsNull, Repository } from 'typeorm';
+import { DataSource, In, IsNull, Repository } from 'typeorm';
+import type { SelectQueryBuilder } from 'typeorm';
 import { MODULE_OPTIONS_TOKEN } from '@/config/configurable';
 import type { ConfigModuleOptions } from '@/config/config.types';
 import { REDIS_CLIENT } from '@/modules/redis/redis.constants';
@@ -123,6 +124,16 @@ export interface SystemAccountOrigin {
   addedByUserId: string;
   addedByEmail: string;
   sourceAccountId?: string;
+}
+
+export interface SystemAccountListFilters {
+  /** Former combined search, retained for backward compatibility. */
+  search?: string;
+  email?: string;
+  plan?: string;
+  note?: string;
+  addedByEmail?: string;
+  boundUserCount?: number;
 }
 
 export interface SystemAccountPatch {
@@ -435,27 +446,26 @@ export class SyncService {
   async listSystemAccounts(
     page = 1,
     pageSize = 20,
-    search?: string,
+    filters: SystemAccountListFilters = {},
     sortBy: 'createdAt' | 'boundUserCount' = 'createdAt',
     sortOrder: 'asc' | 'desc' = 'desc',
     addedByUserId?: string,
   ) {
-    const normalizedSearch = search?.trim();
-    const boundUserCountSearch = normalizedSearch && /^\d+$/.test(normalizedSearch)
-      && Number.isSafeInteger(Number(normalizedSearch))
-      ? Number(normalizedSearch)
+    const normalizedFilters = {
+      search: filters.search?.trim(),
+      email: filters.email?.trim(),
+      plan: filters.plan?.trim(),
+      note: filters.note?.trim(),
+      addedByEmail: filters.addedByEmail?.trim(),
+      boundUserCount: filters.boundUserCount,
+    };
+    const legacyBoundUserCount = normalizedFilters.search && /^\d+$/.test(normalizedFilters.search)
+      && Number.isSafeInteger(Number(normalizedFilters.search))
+      ? Number(normalizedFilters.search)
       : undefined;
-    const scope = addedByUserId ? { addedByUserId } : {};
-    const where = normalizedSearch
-      ? [
-        { ...scope, email: ILike(`%${normalizedSearch}%`) },
-        { ...scope, note: ILike(`%${normalizedSearch}%`) },
-        { ...scope, plan: ILike(`%${normalizedSearch}%`) },
-        { ...scope, addedByEmail: ILike(`%${normalizedSearch}%`) },
-      ]
-      : (addedByUserId ? scope : undefined);
+    const hasFilters = Object.values(normalizedFilters).some((value) => value !== undefined && value !== '');
 
-    if (sortBy === 'boundUserCount' || boundUserCountSearch !== undefined) {
+    if (sortBy === 'boundUserCount' || hasFilters) {
       const query = this.systemAccounts
         .createQueryBuilder('account')
         .select('account.id', 'id')
@@ -470,43 +480,56 @@ export class SyncService {
         query.orderBy('account.createdAt', sortOrder === 'asc' ? 'ASC' : 'DESC');
       }
       query.offset((page - 1) * pageSize).limit(pageSize);
-      if (normalizedSearch) {
-        const boundUserCountCondition = boundUserCountSearch === undefined
-          ? ''
-          : ` OR (
-            SELECT COUNT(*)
-            FROM "system_account_bindings" "searchBinding"
-            WHERE "searchBinding"."systemAccountId" = account.id
-          ) = :boundUserCountSearch`;
-        query.where(
-          `(account.email ILIKE :search OR account.note ILIKE :search OR account.plan ILIKE :search OR account.addedByEmail ILIKE :search${boundUserCountCondition})`,
-          { search: `%${normalizedSearch}%`, boundUserCountSearch },
-        );
-      }
-      if (addedByUserId) {
-        query.andWhere('account.addedByUserId = :addedByUserId', { addedByUserId });
-      }
 
-      const totalQuery = boundUserCountSearch === undefined
-        ? this.systemAccounts.count({ where })
-        : (() => {
-          const countQuery = this.systemAccounts.createQueryBuilder('account');
-          countQuery.where(
-            `(account.email ILIKE :search OR account.note ILIKE :search OR account.plan ILIKE :search OR account.addedByEmail ILIKE :search OR (
+      const applyFilters = (target: SelectQueryBuilder<SystemAccountEntity>) => {
+        if (normalizedFilters.search) {
+          const boundUserCountCondition = legacyBoundUserCount === undefined
+            ? ''
+            : ` OR (
               SELECT COUNT(*)
               FROM "system_account_bindings" "searchBinding"
               WHERE "searchBinding"."systemAccountId" = account.id
-            ) = :boundUserCountSearch)`,
-            { search: `%${normalizedSearch}%`, boundUserCountSearch },
+            ) = :legacyBoundUserCount`;
+          target.andWhere(
+            `(account.email ILIKE :search OR account.note ILIKE :search OR account.plan ILIKE :search OR account.addedByEmail ILIKE :search${boundUserCountCondition})`,
+            {
+              search: `%${normalizedFilters.search}%`,
+              ...(legacyBoundUserCount === undefined ? {} : { legacyBoundUserCount }),
+            },
           );
-          if (addedByUserId) {
-            countQuery.andWhere('account.addedByUserId = :addedByUserId', { addedByUserId });
-          }
-          return countQuery.getCount();
-        })();
+        }
+        if (normalizedFilters.email) {
+          target.andWhere('account.email ILIKE :email', { email: `%${normalizedFilters.email}%` });
+        }
+        if (normalizedFilters.plan) {
+          target.andWhere('account.plan ILIKE :plan', { plan: `%${normalizedFilters.plan}%` });
+        }
+        if (normalizedFilters.note) {
+          target.andWhere('account.note ILIKE :note', { note: `%${normalizedFilters.note}%` });
+        }
+        if (normalizedFilters.addedByEmail) {
+          target.andWhere('account.addedByEmail ILIKE :addedByEmail', {
+            addedByEmail: `%${normalizedFilters.addedByEmail}%`,
+          });
+        }
+        if (normalizedFilters.boundUserCount !== undefined) {
+          target.andWhere(`(
+            SELECT COUNT(*)
+            FROM "system_account_bindings" "filterBinding"
+            WHERE "filterBinding"."systemAccountId" = account.id
+          ) = :boundUserCount`, { boundUserCount: normalizedFilters.boundUserCount });
+        }
+        if (addedByUserId) {
+          target.andWhere('account.addedByUserId = :addedByUserId', { addedByUserId });
+        }
+        return target;
+      };
+      applyFilters(query);
+
+      const countQuery = applyFilters(this.systemAccounts.createQueryBuilder('account'));
       const [rows, total] = await Promise.all([
         query.getRawMany<{ id: string }>(),
-        totalQuery,
+        countQuery.getCount(),
       ]);
       const ids = rows.map((row) => row.id);
       if (!ids.length) return { items: [], total, page, pageSize };
@@ -528,7 +551,7 @@ export class SyncService {
     }
 
     const [items, total] = await this.systemAccounts.findAndCount({
-      where,
+      where: addedByUserId ? { addedByUserId } : undefined,
       relations: { bindings: true },
       order: { createdAt: sortOrder === 'asc' ? 'ASC' : 'DESC' },
       skip: (page - 1) * pageSize,

@@ -3,14 +3,14 @@ import { Badge, Button, Input, Table, Tag, Tooltip, Typography } from "antd";
 import type { TableColumnsType, TablePaginationConfig } from "antd";
 import { Edit3, Files, Link2, LogIn, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
 import { useI18n } from "../i18n-context";
-import type { PageResult, SystemAccount } from "../types";
+import type { PageResult, SystemAccount, SystemAccountFilters } from "../types";
 import { formatDate } from "../utils/format";
 
 interface OfficialAccountsPageProps {
   accounts: PageResult<SystemAccount>;
   loading: boolean;
-  search: string;
-  onSearchChange: (value: string) => void;
+  filters: SystemAccountFilters;
+  onFiltersChange: (value: SystemAccountFilters) => void;
   onLoadAccounts: (page?: number, pageSize?: number) => void | Promise<void>;
   onCreate: () => void;
   onCompatibleCreate: () => void;
@@ -27,7 +27,7 @@ interface OfficialAccountsPageProps {
 export function OfficialAccountsPage({
   accounts,
   loading,
-  search,
+  filters,
   onBind,
   onBatchBind,
   onBatchDelete,
@@ -38,11 +38,14 @@ export function OfficialAccountsPage({
   onDelete,
   onEdit,
   onLoadAccounts,
-  onSearchChange,
+  onFiltersChange,
   canManage,
 }: OfficialAccountsPageProps) {
   const { language, t } = useI18n();
   const [selectedAccounts, setSelectedAccounts] = useState<SystemAccount[]>([]);
+  const updateFilter = (key: keyof SystemAccountFilters, value: string) => {
+    onFiltersChange({ ...filters, [key]: value });
+  };
   useEffect(() => {
     const visibleIds = new Set(accounts.items.map((account) => account.id));
     setSelectedAccounts((current) => current.filter((account) => visibleIds.has(account.id)));
@@ -130,15 +133,19 @@ export function OfficialAccountsPage({
       <h1 className="page-title">{t("officialAccounts.title")}</h1>
       <div className="toolbar">
         <div className="toolbar-left">
-          <Input
-            allowClear
-            prefix={<Search size={15} />}
-            placeholder={t("officialAccounts.searchPlaceholder")}
-            value={search}
-            onChange={(event) => onSearchChange(event.target.value)}
-            onPressEnter={() => onLoadAccounts(1)}
-            style={{ width: 280 }}
-          />
+          {(["email", "plan", "note", "addedByEmail", "boundUserCount"] as const).map((key) => (
+            <Input
+              key={key}
+              allowClear
+              type={key === "boundUserCount" ? "number" : "text"}
+              min={key === "boundUserCount" ? 0 : undefined}
+              placeholder={t(`officialAccounts.filter.${key}`)}
+              value={filters[key]}
+              onChange={(event) => updateFilter(key, event.target.value)}
+              onPressEnter={() => onLoadAccounts(1)}
+              style={{ width: key === "boundUserCount" ? 150 : 180 }}
+            />
+          ))}
           <Button icon={<Search size={15} />} onClick={() => onLoadAccounts(1)}>{t("common.search")}</Button>
         </div>
         <div className="toolbar-right">

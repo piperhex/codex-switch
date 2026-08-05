@@ -61,6 +61,7 @@ import type {
   SyncAccount,
   SyncProvider,
   SystemAccount,
+  SystemAccountFilters,
   TelemetryEvent,
   TelemetryFilters,
   TelemetryOverview,
@@ -168,7 +169,7 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
   const [userFilters, setUserFilters] = useState<UserFilters>({});
   const [usersLoading, setUsersLoading] = useState(false);
   const [systemAccounts, setSystemAccounts] = useState<PageResult<SystemAccount>>(emptySystemAccounts);
-  const [systemAccountSearch, setSystemAccountSearch] = useState("");
+  const [systemAccountFilters, setSystemAccountFilters] = useState<SystemAccountFilters>({});
   const [systemAccountsLoading, setSystemAccountsLoading] = useState(false);
   const [auditLogs, setAuditLogs] = useState<PageResult<AuditLog>>(emptyAuditLogs);
   const [auditSearch, setAuditSearch] = useState("");
@@ -547,14 +548,16 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
     setSystemAccountsLoading(true);
     try {
       const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
-      if (systemAccountSearch.trim()) params.set("search", systemAccountSearch.trim());
+      for (const [key, value] of Object.entries(systemAccountFilters)) {
+        if (value?.trim()) params.set(key, value.trim());
+      }
       setSystemAccounts(await api<PageResult<SystemAccount>>(`/admin/api/official-accounts?${params}`));
     } catch (error) {
       message.error((error as Error).message);
     } finally {
       setSystemAccountsLoading(false);
     }
-  }, [api, message, systemAccountSearch, systemAccounts.page, systemAccounts.pageSize]);
+  }, [api, message, systemAccountFilters, systemAccounts.page, systemAccounts.pageSize]);
 
   const loadInvitations = useCallback(async (page = invitations.page, pageSize = invitations.pageSize) => {
     setInvitationLoading(true);
@@ -1019,8 +1022,8 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
           accounts={systemAccounts}
           loading={systemAccountsLoading}
           canManage={canManageOfficialAccounts}
-          search={systemAccountSearch}
-          onSearchChange={setSystemAccountSearch}
+          filters={systemAccountFilters}
+          onFiltersChange={setSystemAccountFilters}
           onLoadAccounts={loadSystemAccounts}
           onCreate={() => {
             setEditingSystemAccount(null);

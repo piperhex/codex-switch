@@ -518,6 +518,7 @@ pub(crate) fn switch_provider_blocking<R: Runtime>(
     }
     state.active_provider_id = Some(provider.id);
     state.active_account_id = None;
+    state.concurrent_account_routing_enabled = false;
     write_state(&paths, &state)?;
     emit_providers_changed(&app)?;
     Ok(())
@@ -664,6 +665,7 @@ pub(crate) fn activate_provider_for_sync(paths: &Paths, id: &str) -> Result<bool
     }
     state.active_provider_id = Some(provider.id);
     state.active_account_id = None;
+    state.concurrent_account_routing_enabled = false;
     write_state(paths, &state)?;
     Ok(true)
 }

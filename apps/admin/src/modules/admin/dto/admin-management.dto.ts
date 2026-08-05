@@ -47,10 +47,37 @@ export class ListAuditLogsQueryDto extends PageQueryDto {
 }
 
 export class ListSystemAccountsQueryDto extends PageQueryDto {
+  /** Kept for compatibility with clients that still use the former combined search. */
   @IsOptional()
   @IsString()
   @MaxLength(160)
   search?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(240)
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  plan?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  note?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(240)
+  addedByEmail?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  boundUserCount?: number;
 
   @IsOptional()
   @IsIn(['createdAt', 'boundUserCount'])

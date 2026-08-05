@@ -180,7 +180,14 @@ export class AdminService {
     return this.sync.listSystemAccounts(
       page,
       pageSize,
-      query.search,
+      {
+        search: query.search,
+        email: query.email,
+        plan: query.plan,
+        note: query.note,
+        addedByEmail: query.addedByEmail,
+        boundUserCount: query.boundUserCount,
+      },
       query.sortBy,
       query.sortOrder,
       canReadAll ? undefined : actor.id,

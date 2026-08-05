@@ -150,7 +150,7 @@ describe('SyncService', () => {
     });
   });
 
-  it('searches official accounts by their exact assigned user count', async () => {
+  it('combines separate official-account filters and matches assigned user count exactly', async () => {
     const makeQueryBuilder = () => ({
       select: vi.fn().mockReturnThis(),
       addSelect: vi.fn().mockReturnThis(),
@@ -173,20 +173,42 @@ describe('SyncService', () => {
     (systemAccounts as unknown as { createQueryBuilder: typeof createQueryBuilder })
       .createQueryBuilder = createQueryBuilder;
 
-    await expect(service.listSystemAccounts(1, 20, '2', 'createdAt', 'desc', 'operator-1'))
+    await expect(service.listSystemAccounts(1, 20, {
+      email: 'pool@example.com',
+      plan: 'plus',
+      note: 'shared',
+      addedByEmail: 'operator@example.com',
+      boundUserCount: 2,
+    }, 'createdAt', 'desc', 'operator-1'))
       .resolves.toEqual({ items: [], total: 0, page: 1, pageSize: 20 });
 
-    expect(pageQuery.where).toHaveBeenCalledWith(
+    expect(pageQuery.andWhere).toHaveBeenCalledWith(
+      'account.email ILIKE :email',
+      { email: '%pool@example.com%' },
+    );
+    expect(pageQuery.andWhere).toHaveBeenCalledWith(
+      'account.plan ILIKE :plan',
+      { plan: '%plus%' },
+    );
+    expect(pageQuery.andWhere).toHaveBeenCalledWith(
+      'account.note ILIKE :note',
+      { note: '%shared%' },
+    );
+    expect(pageQuery.andWhere).toHaveBeenCalledWith(
+      'account.addedByEmail ILIKE :addedByEmail',
+      { addedByEmail: '%operator@example.com%' },
+    );
+    expect(pageQuery.andWhere).toHaveBeenCalledWith(
       expect.stringContaining('system_account_bindings'),
-      { search: '%2%', boundUserCountSearch: 2 },
+      { boundUserCount: 2 },
     );
     expect(pageQuery.andWhere).toHaveBeenCalledWith(
       'account.addedByUserId = :addedByUserId',
       { addedByUserId: 'operator-1' },
     );
-    expect(countQuery.where).toHaveBeenCalledWith(
+    expect(countQuery.andWhere).toHaveBeenCalledWith(
       expect.stringContaining('system_account_bindings'),
-      { search: '%2%', boundUserCountSearch: 2 },
+      { boundUserCount: 2 },
     );
     expect(countQuery.getCount).toHaveBeenCalledOnce();
   });

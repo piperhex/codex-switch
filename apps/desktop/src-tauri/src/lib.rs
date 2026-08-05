@@ -177,6 +177,7 @@ pub fn run() {
             local_proxy::start_local_proxy,
             local_proxy::stop_local_proxy,
             local_proxy::set_auto_switch_on_quota_exhaustion,
+            local_proxy::set_concurrent_account_routing_enabled,
             local_proxy::set_custom_auto_switch_priority_enabled,
             local_proxy::set_auto_disable_unreachable_accounts,
             local_proxy::set_image_generation_account,

@@ -107,6 +107,7 @@ const PROVIDERS_PREVIEW_KEY = "codex-switch:providers";
 const DEFAULT_OPENAI_PROVIDER_MODEL = "gpt-5.6-sol";
 const LOCAL_PROXY_PREVIEW_KEY = "codex-switch:local-proxy-running";
 const LOCAL_PROXY_AUTO_SWITCH_PREVIEW_KEY = "codex-switch:local-proxy-auto-switch";
+const LOCAL_PROXY_CONCURRENT_ROUTING_PREVIEW_KEY = "codex-switch:local-proxy-concurrent-routing";
 const LOCAL_PROXY_CUSTOM_PRIORITY_PREVIEW_KEY = "codex-switch:local-proxy-custom-priority";
 const LOCAL_PROXY_AUTO_DISABLE_UNREACHABLE_PREVIEW_KEY = "codex-switch:local-proxy-auto-disable-unreachable";
 const LOCAL_PROXY_LISTEN_ALL_INTERFACES_PREVIEW_KEY = "codex-switch:local-proxy-listen-all-interfaces";
@@ -257,6 +258,7 @@ function previewLocalProxyStatus(): LocalProxyStatus {
     port,
     baseUrl: port > 0 ? `http://127.0.0.1:${port}/v1` : "",
     autoSwitchOnQuotaExhaustion: window.localStorage.getItem(LOCAL_PROXY_AUTO_SWITCH_PREVIEW_KEY) === "true",
+    concurrentAccountRoutingEnabled: window.localStorage.getItem(LOCAL_PROXY_CONCURRENT_ROUTING_PREVIEW_KEY) === "true",
     customAutoSwitchPriorityEnabled: window.localStorage.getItem(LOCAL_PROXY_CUSTOM_PRIORITY_PREVIEW_KEY) === "true",
     autoDisableUnreachableAccounts: window.localStorage.getItem(LOCAL_PROXY_AUTO_DISABLE_UNREACHABLE_PREVIEW_KEY) === "true",
     listenOnAllInterfaces: window.localStorage.getItem(LOCAL_PROXY_LISTEN_ALL_INTERFACES_PREVIEW_KEY) === "true",
@@ -441,6 +443,7 @@ export async function activateProvider(id: string): Promise<void> {
     const selected = providers.find((provider) => provider.id === id);
     if (!selected) throw new Error("Provider does not exist");
     if (!selected.supportsDirectSwitch && !previewLocalProxyStatus().running) throw new Error("Chat Completions providers need a local Responses bridge");
+    window.localStorage.setItem(LOCAL_PROXY_CONCURRENT_ROUTING_PREVIEW_KEY, "false");
     writePreviewProviders(providers.map((provider) => ({ ...provider, active: provider.id === id })));
     return;
   }
@@ -514,6 +517,8 @@ export async function loadProxySessions(): Promise<ProxySession[]> {
         activeRequests: 1,
         requestCount: 18,
         provider: "Official Codex",
+        concurrentRouted: true,
+        accountId: DEMO_ACCOUNTS[0]?.id ?? null,
         accountEmail: "alex.chen@example.com",
         model: "gpt-5.6-sol",
         contextTokens: 85_848,
@@ -864,6 +869,17 @@ export async function updateTokenUsagePreferences(
     return loadAppSettings();
   }
   return invoke<AppSettings>("set_token_usage_preferences", { weeks, refreshSeconds });
+}
+
+export async function setLocalProxyConcurrentRouting(enabled: boolean): Promise<LocalProxyStatus> {
+  if (!hasLocalBackend) {
+    if (enabled && !previewLocalProxyStatus().running) {
+      throw new Error("Start the local proxy before enabling concurrent account routing");
+    }
+    window.localStorage.setItem(LOCAL_PROXY_CONCURRENT_ROUTING_PREVIEW_KEY, String(enabled));
+    return previewLocalProxyStatus();
+  }
+  return invoke<LocalProxyStatus>("set_concurrent_account_routing_enabled", { enabled });
 }
 
 export async function updateAutoDisableStatusCodes(statusCodes: number[]): Promise<AppSettings> {

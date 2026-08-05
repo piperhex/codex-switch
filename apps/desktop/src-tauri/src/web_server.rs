@@ -361,6 +361,12 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
                 argument(&args, "enabled")?,
             ))
         }
+        "set_concurrent_account_routing_enabled" => {
+            serialize(crate::local_proxy::set_concurrent_account_routing_enabled(
+                app,
+                argument(&args, "enabled")?,
+            ))
+        }
         "set_auto_disable_unreachable_accounts" => {
             serialize(crate::local_proxy::set_auto_disable_unreachable_accounts(
                 app,

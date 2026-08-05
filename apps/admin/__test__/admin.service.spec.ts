@@ -390,15 +390,45 @@ describe('AdminService', () => {
     sync.listSystemAccounts.mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 });
     const ownReader = { ...actor, permissions: [Permission.OfficialAccountsReadOwn] };
 
-    await service.listSystemAccounts(ownReader, { page: 1, pageSize: 20, search: 'self' });
+    await service.listSystemAccounts(ownReader, {
+      page: 1,
+      pageSize: 20,
+      email: 'pool@example.com',
+      plan: 'plus',
+      boundUserCount: 2,
+    });
     expect(sync.listSystemAccounts).toHaveBeenLastCalledWith(
-      1, 20, 'self', undefined, undefined, actor.id,
+      1,
+      20,
+      {
+        search: undefined,
+        email: 'pool@example.com',
+        plan: 'plus',
+        note: undefined,
+        addedByEmail: undefined,
+        boundUserCount: 2,
+      },
+      undefined,
+      undefined,
+      actor.id,
     );
 
     const fullReader = { ...actor, permissions: [Permission.OfficialAccountsRead] };
     await service.listSystemAccounts(fullReader, { page: 1, pageSize: 20 });
     expect(sync.listSystemAccounts).toHaveBeenLastCalledWith(
-      1, 20, undefined, undefined, undefined, undefined,
+      1,
+      20,
+      {
+        search: undefined,
+        email: undefined,
+        plan: undefined,
+        note: undefined,
+        addedByEmail: undefined,
+        boundUserCount: undefined,
+      },
+      undefined,
+      undefined,
+      undefined,
     );
   });
 

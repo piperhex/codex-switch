@@ -13,6 +13,7 @@ import {
   setLocalProxyOpenaiAuthAccount,
   setLocalProxyListenOnAllInterfaces,
   setLocalProxyAutoSwitch,
+  setLocalProxyConcurrentRouting,
   setProviderModelControl,
   startLocalProxy,
   stopLocalProxy,
@@ -104,6 +105,9 @@ function providerErrorMessage(error: unknown, t: Translate) {
   }
   if (message.includes("Start the local proxy before selecting an OpenAI login account")) {
     return t("providers.error.openaiAuthAccountProxyRequired");
+  }
+  if (message.includes("Enable at least one official account")) {
+    return t("providers.error.concurrentRoutingAccountRequired");
   }
   if (message.includes("API key is required before listening on the local network")) {
     return t("providers.error.lanApiKeyRequired");
@@ -394,6 +398,21 @@ export function useProviderManager(
     }
   }, [load, notify, t]);
 
+  const setProxyConcurrentRouting = useCallback(async (enabled: boolean) => {
+    setProxyBusy(true);
+    try {
+      setLocalProxy(await setLocalProxyConcurrentRouting(enabled));
+      notify(t(enabled
+        ? "toast.proxyConcurrentRoutingEnabled"
+        : "toast.proxyConcurrentRoutingDisabled"));
+      await load();
+    } catch (error) {
+      notify(providerErrorMessage(error, t));
+    } finally {
+      setProxyBusy(false);
+    }
+  }, [load, notify, t]);
+
   const copyProxyLanApiKey = useCallback(async () => {
     try {
       await copyLocalProxyLanApiKey();
@@ -423,6 +442,7 @@ export function useProviderManager(
     startProxy,
     stopProxy,
     setProxyAutoSwitch,
+    setProxyConcurrentRouting,
     setProxyAutoDisableUnreachable,
     setProxyCustomPriority,
     setProxyImageAccount,

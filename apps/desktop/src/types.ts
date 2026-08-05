@@ -119,6 +119,7 @@ export interface LocalProxyStatus {
   port: number;
   baseUrl: string;
   autoSwitchOnQuotaExhaustion: boolean;
+  concurrentAccountRoutingEnabled: boolean;
   customAutoSwitchPriorityEnabled: boolean;
   autoDisableUnreachableAccounts: boolean;
   listenOnAllInterfaces: boolean;
@@ -167,6 +168,8 @@ export interface ProxySession {
   activeRequests: number;
   requestCount: number;
   provider?: string | null;
+  concurrentRouted?: boolean;
+  accountId?: string | null;
   accountEmail?: string | null;
   model?: string | null;
   contextTokens?: number | null;

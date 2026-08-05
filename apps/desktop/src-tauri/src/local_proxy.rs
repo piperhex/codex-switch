@@ -124,6 +124,8 @@ struct ProxySessionState {
     active_requests: u64,
     request_count: u64,
     provider: Option<String>,
+    concurrent_routed: bool,
+    account_id: Option<String>,
     account_email: Option<String>,
     model: Option<String>,
     context_tokens: Option<u64>,
@@ -506,6 +508,59 @@ static RUNTIME: OnceLock<Mutex<Option<ProxyRuntime>>> = OnceLock::new();
 static TOKEN_USAGE_DB_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 static AUTO_SWITCH_COORDINATOR: OnceLock<AutoSwitchCoordinator> = OnceLock::new();
 static PROXY_SESSIONS: OnceLock<Mutex<HashMap<String, ProxySessionState>>> = OnceLock::new();
+static CONCURRENT_ACCOUNT_ROUTER: OnceLock<Mutex<ConcurrentAccountRouter>> = OnceLock::new();
+
+#[derive(Default)]
+struct ConcurrentAccountRouter {
+    assignments: HashMap<String, String>,
+}
+
+impl ConcurrentAccountRouter {
+    fn account_for_session(
+        &mut self,
+        session_id: &str,
+        enabled_account_ids: &[String],
+    ) -> Option<String> {
+        if let Some(account_id) = self.assignments.get(session_id) {
+            if enabled_account_ids
+                .iter()
+                .any(|candidate| candidate == account_id)
+            {
+                return Some(account_id.clone());
+            }
+        }
+        if enabled_account_ids.is_empty() {
+            self.assignments.remove(session_id);
+            return None;
+        }
+        self.assignments.remove(session_id);
+        let mut conversation_counts = enabled_account_ids
+            .iter()
+            .map(|account_id| (account_id.as_str(), 0_usize))
+            .collect::<HashMap<_, _>>();
+        for account_id in self.assignments.values() {
+            if let Some(count) = conversation_counts.get_mut(account_id.as_str()) {
+                *count = count.saturating_add(1);
+            }
+        }
+        let account_id = enabled_account_ids
+            .iter()
+            .min_by_key(|account_id| {
+                conversation_counts
+                    .get(account_id.as_str())
+                    .copied()
+                    .unwrap_or(0)
+            })?
+            .clone();
+        self.assignments
+            .insert(session_id.to_string(), account_id.clone());
+        Some(account_id)
+    }
+
+    fn clear(&mut self) {
+        self.assignments.clear();
+    }
+}
 
 #[derive(Default)]
 struct AutoSwitchCoordinator {
@@ -670,6 +725,10 @@ fn proxy_sessions() -> &'static Mutex<HashMap<String, ProxySessionState>> {
     PROXY_SESSIONS.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
+fn concurrent_account_router() -> &'static Mutex<ConcurrentAccountRouter> {
+    CONCURRENT_ACCOUNT_ROUTER.get_or_init(|| Mutex::new(ConcurrentAccountRouter::default()))
+}
+
 fn auto_switch_coordinator() -> &'static AutoSwitchCoordinator {
     AUTO_SWITCH_COORDINATOR.get_or_init(AutoSwitchCoordinator::default)
 }
@@ -730,6 +789,8 @@ fn begin_proxy_session_request(
                 active_requests: 0,
                 request_count: 0,
                 provider: None,
+                concurrent_routed: false,
+                account_id: None,
                 account_email: None,
                 model: None,
                 context_tokens: None,
@@ -807,6 +868,7 @@ fn update_proxy_session_target(
 
 fn update_proxy_session_usage(
     session_id: Option<&str>,
+    account_id: Option<&str>,
     account_email: Option<&str>,
     usage: Option<&TokenUsageValues>,
 ) {
@@ -815,6 +877,9 @@ fn update_proxy_session_usage(
     };
     if let Ok(mut sessions) = proxy_sessions().lock() {
         if let Some(session) = sessions.get_mut(session_id) {
+            if let Some(account_id) = account_id {
+                session.account_id = Some(account_id.to_string());
+            }
             if let Some(account_email) = account_email {
                 session.account_email = Some(account_email.to_string());
             }
@@ -825,6 +890,23 @@ fn update_proxy_session_usage(
                 session.token_totals.add_usage(usage);
             }
             session.last_seen_at = unix_now();
+        }
+    }
+}
+
+fn mark_proxy_session_concurrent_account(
+    session_id: Option<&str>,
+    account_id: &str,
+    account_email: &str,
+) {
+    let Some(session_id) = session_id else {
+        return;
+    };
+    if let Ok(mut sessions) = proxy_sessions().lock() {
+        if let Some(session) = sessions.get_mut(session_id) {
+            session.concurrent_routed = true;
+            session.account_id = Some(account_id.to_string());
+            session.account_email = Some(account_email.to_string());
         }
     }
 }
@@ -888,6 +970,9 @@ fn clear_proxy_sessions() {
     if let Ok(mut sessions) = proxy_sessions().lock() {
         sessions.clear();
     }
+    if let Ok(mut router) = concurrent_account_router().lock() {
+        router.clear();
+    }
 }
 
 pub(crate) fn is_running() -> bool {
@@ -900,6 +985,7 @@ pub(crate) fn is_running() -> bool {
 fn status<R: Runtime>(app: &tauri::AppHandle<R>) -> LocalProxyStatus {
     let (
         auto_switch_on_quota_exhaustion,
+        concurrent_account_routing_enabled,
         custom_auto_switch_priority_enabled,
         auto_disable_unreachable_accounts,
         listen_on_all_interfaces,
@@ -911,6 +997,7 @@ fn status<R: Runtime>(app: &tauri::AppHandle<R>) -> LocalProxyStatus {
             let state = read_state(&paths);
             (
                 state.auto_switch_on_quota_exhaustion,
+                state.concurrent_account_routing_enabled,
                 state.custom_auto_switch_priority_enabled,
                 state.auto_disable_unreachable_accounts,
                 lan_listening_enabled(&state),
@@ -919,13 +1006,14 @@ fn status<R: Runtime>(app: &tauri::AppHandle<R>) -> LocalProxyStatus {
                 state.local_proxy_openai_auth_account_id,
             )
         })
-        .unwrap_or((false, false, false, false, false, None, None));
+        .unwrap_or((false, false, false, false, false, false, None, None));
     LocalProxyStatus {
         running: is_running(),
         address: proxy_bind_host(listen_on_all_interfaces).to_string(),
         port: LOCAL_PROXY_PORT,
         base_url: LOCAL_PROXY_BASE_URL.to_string(),
         auto_switch_on_quota_exhaustion,
+        concurrent_account_routing_enabled,
         custom_auto_switch_priority_enabled,
         auto_disable_unreachable_accounts,
         listen_on_all_interfaces,
@@ -1006,6 +1094,8 @@ pub(crate) fn list_proxy_sessions<R: Runtime>(
                 active_requests: session.active_requests,
                 request_count: session.request_count,
                 provider: session.provider.clone(),
+                concurrent_routed: session.concurrent_routed,
+                account_id: session.account_id.clone(),
                 account_email: session.account_email.clone(),
                 model: session.model.clone(),
                 context_tokens: session.context_tokens,
@@ -1549,6 +1639,52 @@ pub(crate) fn set_auto_switch_on_quota_exhaustion<R: Runtime>(
 }
 
 #[tauri::command]
+pub(crate) fn set_concurrent_account_routing_enabled<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    enabled: bool,
+) -> Result<LocalProxyStatus, String> {
+    if enabled && !is_running() {
+        return Err("Start the local proxy before enabling concurrent account routing".to_string());
+    }
+    let paths = resolve_paths(&app)?;
+    let mut state = read_state(&paths);
+    if enabled {
+        let enabled_account_ids = enabled_concurrent_account_ids(&paths, &state)?;
+        let first_account_id = enabled_account_ids.first().ok_or_else(|| {
+            "Enable at least one official account before enabling concurrent routing".to_string()
+        })?;
+        if state.active_provider_id.take().is_some() {
+            providers::write_official_local_proxy_config(&paths)?;
+        }
+        if state
+            .active_account_id
+            .as_ref()
+            .is_none_or(|account_id| !enabled_account_ids.contains(account_id))
+        {
+            state.active_account_id = Some(first_account_id.clone());
+        }
+    }
+    state.concurrent_account_routing_enabled = enabled;
+    write_state(&paths, &state)?;
+    if enabled {
+        providers::sync_local_proxy_openai_auth(&paths)?;
+    }
+    if let Ok(mut router) = concurrent_account_router().lock() {
+        router.clear();
+    }
+    if let Ok(mut sessions) = proxy_sessions().lock() {
+        sessions
+            .values_mut()
+            .for_each(|session| session.concurrent_routed = false);
+    }
+    app.emit("accounts-changed", ())
+        .map_err(|error| error.to_string())?;
+    app.emit("providers-changed", ())
+        .map_err(|error| error.to_string())?;
+    Ok(status(&app))
+}
+
+#[tauri::command]
 pub(crate) fn set_custom_auto_switch_priority_enabled<R: Runtime>(
     app: tauri::AppHandle<R>,
     enabled: bool,
@@ -2036,7 +2172,7 @@ fn handle_proxy_request<R: Runtime>(
         );
         let result = match &target {
             ActiveTarget::Official { model } => {
-                forward_official(app, method, url, headers, body, model)
+                forward_official(app, method, url, headers, body, model, None)
             }
             ActiveTarget::Provider(provider)
                 if providers::uses_upstream_official_models(provider) =>
@@ -2092,9 +2228,10 @@ fn handle_proxy_request<R: Runtime>(
     }
     let result = match target {
         ActiveTarget::Official { model } => {
-            let response = forward_official(app, method, url, headers, body.clone(), &model);
+            let response =
+                forward_official(app, method, url, headers, body.clone(), &model, session_id);
             retry_official_request_after_quota_switch(app, response, || {
-                forward_official(app, method, url, headers, body, &model)
+                forward_official(app, method, url, headers, body, &model, session_id)
             })
         }
         ActiveTarget::Provider(provider) => {
@@ -2532,6 +2669,10 @@ fn attach_token_usage_capture<R: Runtime + 'static>(
         context
             .account
             .as_ref()
+            .map(|account| account.account_id.as_str()),
+        context
+            .account
+            .as_ref()
             .map(|account| account.account_email.as_str()),
         None,
     );
@@ -2783,6 +2924,10 @@ fn record_token_usage_entry<R: Runtime>(
     );
     update_proxy_session_usage(
         context.session_id.as_deref(),
+        context
+            .account
+            .as_ref()
+            .map(|account| account.account_id.as_str()),
         context
             .account
             .as_ref()
@@ -3580,6 +3725,7 @@ fn forward_official<R: Runtime>(
     headers: &[(String, String)],
     body: Vec<u8>,
     model: &str,
+    session_id: Option<&str>,
 ) -> Result<UpstreamPayload, String> {
     let client = http_client()?;
     let upstream_endpoint = upstream_endpoint_for_codex_request(url);
@@ -3588,7 +3734,7 @@ fn forward_official<R: Runtime>(
     } else {
         OfficialCredentialPurpose::Default
     };
-    let mut credentials = official_credentials(app, &client, credential_purpose)?;
+    let mut credentials = official_credentials(app, &client, credential_purpose, session_id)?;
     let upstream_url = official_url(&upstream_endpoint);
     let body = official_body_for_upstream(method, &upstream_endpoint, body, model);
     let mut payload = send_official_request(
@@ -3831,10 +3977,43 @@ fn selected_official_model(body: &Value, fallback: &str) -> String {
         .to_string()
 }
 
+fn enabled_concurrent_account_ids(
+    paths: &Paths,
+    state: &ManagerStateFile,
+) -> Result<Vec<String>, String> {
+    let mut account_ids = fs::read_dir(&paths.accounts)
+        .map_err(|error| format!("Failed to read account directory: {error}"))?
+        .filter_map(Result::ok)
+        .filter(|entry| entry.path().is_dir() && entry.path().join("auth.json").is_file())
+        .filter_map(|entry| entry.file_name().into_string().ok())
+        .filter(|account_id| !state.disabled_account_ids.contains(account_id))
+        .collect::<Vec<_>>();
+    account_ids.sort();
+    Ok(account_ids)
+}
+
+fn concurrent_account_for_session(
+    paths: &Paths,
+    state: &ManagerStateFile,
+    session_id: Option<&str>,
+) -> Result<Option<String>, String> {
+    let Some(session_id) = session_id else {
+        return Ok(None);
+    };
+    let enabled_account_ids = enabled_concurrent_account_ids(paths, state)?;
+    let account_id = concurrent_account_router()
+        .lock()
+        .map_err(|_| "Concurrent account router lock is poisoned".to_string())?
+        .account_for_session(session_id, &enabled_account_ids)
+        .ok_or_else(|| "Enable at least one official account for concurrent routing".to_string())?;
+    Ok(Some(account_id))
+}
+
 fn official_credentials<R: Runtime>(
     app: &tauri::AppHandle<R>,
     client: &Client,
     purpose: OfficialCredentialPurpose,
+    session_id: Option<&str>,
 ) -> Result<OfficialProxyCredentials, String> {
     let paths = resolve_paths(app)?;
     // Bind the selected account to both coordinator generations. Requests that start
@@ -3846,11 +4025,26 @@ fn official_credentials<R: Runtime>(
         .active_account_id
         .as_deref()
         .ok_or_else(|| "Select an official account before using the local proxy".to_string())?;
-    let active_auth = read_json(&managed_auth_path(&paths, active_account_id))?;
+    let concurrent_account_id = if state.concurrent_account_routing_enabled
+        && matches!(purpose, OfficialCredentialPurpose::Default)
+    {
+        concurrent_account_for_session(&paths, &state, session_id)?
+    } else {
+        None
+    };
+    let selected_account_id = concurrent_account_id
+        .as_deref()
+        .unwrap_or(active_account_id);
+    let active_auth = read_json(&managed_auth_path(&paths, selected_account_id))?;
     validate_auth(&active_auth)?;
-    let credential_account_id = credential_account_id(&state, &active_auth, purpose)?;
-    let auto_switch_eligible = credential_account_id == active_account_id;
-    let mut auth = if auto_switch_eligible {
+    let credential_account_id = if concurrent_account_id.is_some() {
+        selected_account_id.to_string()
+    } else {
+        credential_account_id(&state, &active_auth, purpose)?
+    };
+    let auto_switch_eligible =
+        concurrent_account_id.is_none() && credential_account_id == active_account_id;
+    let mut auth = if credential_account_id == selected_account_id {
         active_auth
     } else {
         read_json(&managed_auth_path(&paths, &credential_account_id))?
@@ -3864,6 +4058,9 @@ fn official_credentials<R: Runtime>(
         ));
     }
     let (email, _, account_id, id) = account_fields(&auth)?;
+    if concurrent_account_id.is_some() {
+        mark_proxy_session_concurrent_account(session_id, &id, &email);
+    }
     let token_usage_account = TokenUsageAccount {
         account_id: id,
         account_email: email,
@@ -5670,6 +5867,50 @@ mod tests {
         ];
 
         assert_eq!(proxy_session_id(&headers).as_deref(), Some("thread-1"));
+    }
+
+    #[test]
+    fn concurrent_router_uses_the_least_loaded_account_and_keeps_sessions_sticky() {
+        let mut router = ConcurrentAccountRouter::default();
+        let enabled = vec!["account-a".to_string(), "account-b".to_string()];
+
+        assert_eq!(
+            router.account_for_session("thread-1", &enabled).as_deref(),
+            Some("account-a")
+        );
+        assert_eq!(
+            router.account_for_session("thread-2", &enabled).as_deref(),
+            Some("account-b")
+        );
+        assert_eq!(
+            router.account_for_session("thread-1", &enabled).as_deref(),
+            Some("account-a")
+        );
+        assert_eq!(
+            router.account_for_session("thread-3", &enabled).as_deref(),
+            Some("account-a")
+        );
+        assert_eq!(
+            router.account_for_session("thread-4", &enabled).as_deref(),
+            Some("account-b")
+        );
+    }
+
+    #[test]
+    fn concurrent_router_reassigns_a_session_after_its_account_is_disabled() {
+        let mut router = ConcurrentAccountRouter::default();
+        let enabled = vec!["account-a".to_string(), "account-b".to_string()];
+        assert_eq!(
+            router.account_for_session("thread-1", &enabled).as_deref(),
+            Some("account-a")
+        );
+
+        assert_eq!(
+            router
+                .account_for_session("thread-1", &["account-b".to_string()])
+                .as_deref(),
+            Some("account-b")
+        );
     }
 
     #[test]

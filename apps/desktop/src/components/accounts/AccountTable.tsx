@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Button, Checkbox, Dropdown, InputNumber, Popconfirm, Space, Table, Tag, Tooltip } from "antd";
+import { Button, Checkbox, Dropdown, InputNumber, Popconfirm, Space, Switch, Table, Tag, Tooltip } from "antd";
 import type { TableProps } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import {
@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import {
   loadAccountTokenUsage,
+  loadProxySessions,
   loadRecentProxySessionLatency,
   subscribeToTokenUsageChanges,
 } from "../../api/backend";
@@ -64,6 +65,9 @@ interface AccountTableProps {
   onUseResetCredit: (id: string) => void;
   resetCreditBusyAccountId: string | null;
   hotSwitchEnabled: boolean;
+  concurrentAccountRoutingEnabled: boolean;
+  concurrentAccountRoutingBusy: boolean;
+  onConcurrentAccountRoutingChange: (enabled: boolean) => void;
   openaiAuthAccountId: string | null;
   openaiAuthBusy: boolean;
   onOpenaiAuthAccountChange: (accountId: string | null) => void;
@@ -382,6 +386,9 @@ export function AccountTable({
   onUseResetCredit,
   resetCreditBusyAccountId,
   hotSwitchEnabled,
+  concurrentAccountRoutingEnabled,
+  concurrentAccountRoutingBusy,
+  onConcurrentAccountRoutingChange,
   openaiAuthAccountId,
   openaiAuthBusy,
   onOpenaiAuthAccountChange,
@@ -393,6 +400,7 @@ export function AccountTable({
   language,
   t,
 }: AccountTableProps) {
+  const concurrentRoutingActive = hotSwitchEnabled && concurrentAccountRoutingEnabled;
   const tableWrapRef = useRef<HTMLDivElement>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
@@ -410,6 +418,7 @@ export function AccountTable({
   const [hiddenColumns, setHiddenColumns] = useState<AccountTableColumnKey[]>(loadHiddenColumns);
   const [tableScrollY, setTableScrollY] = useState(0);
   const [accountTokenUsage, setAccountTokenUsage] = useState<AccountTokenUsageTotals[]>([]);
+  const [accountConversationCounts, setAccountConversationCounts] = useState<Record<string, number>>({});
   const [proxySessionLatency, setProxySessionLatency] = useState<ProxySessionLatencySummary>(
     EMPTY_PROXY_SESSION_LATENCY,
   );
@@ -481,6 +490,34 @@ export function AccountTable({
       window.clearInterval(timer);
     };
   }, []);
+  useEffect(() => {
+    if (!concurrentRoutingActive) {
+      setAccountConversationCounts({});
+      return undefined;
+    }
+    let active = true;
+    const refresh = async () => {
+      try {
+        const accountIds = new Set(accounts.map((account) => account.id));
+        const counts: Record<string, number> = {};
+        (await loadProxySessions()).forEach((session) => {
+          const accountId = session.accountId;
+          if (session.concurrentRouted && accountId && accountIds.has(accountId)) {
+            counts[accountId] = (counts[accountId] ?? 0) + 1;
+          }
+        });
+        if (active) setAccountConversationCounts(counts);
+      } catch {
+        // Keep the last successful counts while the proxy session list is unavailable.
+      }
+    };
+    void refresh();
+    const timer = window.setInterval(() => void refresh(), 2_000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [accounts, concurrentRoutingActive]);
   useEffect(() => {
     const accountIds = new Set(accounts.map((account) => account.id));
     setSelectedAccountIds((current) => {
@@ -573,8 +610,18 @@ export function AccountTable({
         : !needsAccountAttention(account, hotSwitchEnabled, showUsageNetworkErrors),
       render: (_, account) => (
         <div className="account-cell">
-          <div className={`table-avatar${isAccountDisabled(account, hotSwitchEnabled) ? " disabled-avatar" : ""}`}>
-            {isAccountDisabled(account, hotSwitchEnabled) ? t("table.disabled") : initials(account.email)}
+          <div className="table-avatar-wrap">
+            <div className={`table-avatar${isAccountDisabled(account, hotSwitchEnabled) ? " disabled-avatar" : ""}`}>
+              {isAccountDisabled(account, hotSwitchEnabled) ? t("table.disabled") : initials(account.email)}
+            </div>
+            {concurrentRoutingActive && account.autoSwitchEnabled
+              && (accountConversationCounts[account.id] ?? 0) > 0 && (
+              <span className="account-conversation-count"
+                title={t("table.conversationCount", { count: accountConversationCounts[account.id] })}
+                aria-label={t("table.conversationCount", { count: accountConversationCounts[account.id] })}>
+                {accountConversationCounts[account.id] > 99 ? "99+" : accountConversationCounts[account.id]}
+              </span>
+            )}
           </div>
           <div className="account-primary">
             <div className="account-email" title={privacyMode ? undefined : account.email}>
@@ -676,16 +723,18 @@ export function AccountTable({
           : t("providers.proxy.agentIdentityProxyOnly");
         return (
           <Space size={4} className="table-actions">
-            <Tooltip title={switchBlocked ? switchBlockedReason : undefined}>
-              <span>
-                <Button size="small" type={account.active ? "default" : "primary"}
-                  disabled={account.active || switchBlocked}
-                  loading={waiting} icon={account.active ? <Check size={14} /> : <RotateCcw size={14} />}
-                  onClick={() => onSwitch(account.id)}>
-                  {account.active ? t("table.inUse") : hotSwitchEnabled ? t("table.hotSwitch") : t("table.switch")}
-                </Button>
-              </span>
-            </Tooltip>
+            {!concurrentRoutingActive && (
+              <Tooltip title={switchBlocked ? switchBlockedReason : undefined}>
+                <span>
+                  <Button size="small" type={account.active ? "default" : "primary"}
+                    disabled={account.active || switchBlocked}
+                    loading={waiting} icon={account.active ? <Check size={14} /> : <RotateCcw size={14} />}
+                    onClick={() => onSwitch(account.id)}>
+                    {account.active ? t("table.inUse") : hotSwitchEnabled ? t("table.hotSwitch") : t("table.switch")}
+                  </Button>
+                </span>
+              </Tooltip>
+            )}
             {hotSwitchEnabled && (
               <Tooltip placement="top" classNames={{ root: "openai-auth-action-tooltip" }} title={(
                 <div className="openai-auth-action-tooltip-content">
@@ -835,16 +884,18 @@ export function AccountTable({
       <div ref={contextMenuRef} className="context-menu account-row-context-menu"
         style={{ left: contextMenu.x, top: contextMenu.y }}
         onClick={(event) => event.stopPropagation()}>
-        <Tooltip title={switchBlocked ? switchBlockedReason : undefined} placement="left">
-          <button type="button" disabled={account.active || switchBlocked || waiting}
-            onClick={() => {
-              setContextMenu(null);
-              onSwitch(account.id);
-            }}>
-            {account.active ? <Check size={14} /> : <RotateCcw size={14} />}
-            {account.active ? t("table.inUse") : hotSwitchEnabled ? t("table.hotSwitch") : t("table.switch")}
-          </button>
-        </Tooltip>
+        {!concurrentRoutingActive && (
+          <Tooltip title={switchBlocked ? switchBlockedReason : undefined} placement="left">
+            <button type="button" disabled={account.active || switchBlocked || waiting}
+              onClick={() => {
+                setContextMenu(null);
+                onSwitch(account.id);
+              }}>
+              {account.active ? <Check size={14} /> : <RotateCcw size={14} />}
+              {account.active ? t("table.inUse") : hotSwitchEnabled ? t("table.hotSwitch") : t("table.switch")}
+            </button>
+          </Tooltip>
+        )}
         {hotSwitchEnabled && (
           <Tooltip placement="left" classNames={{ root: "openai-auth-action-tooltip" }} title={(
             <div className="openai-auth-action-tooltip-content">
@@ -958,7 +1009,7 @@ export function AccountTable({
             onClick={(event) => {
               if ((event.target as HTMLElement).closest("button, a, input, textarea, summary, details, .account-note-trigger")) return;
               setContextMenu(null);
-              if (!account.active && !switchBlocked) onSwitch(account.id);
+              if (!concurrentRoutingActive && !account.active && !switchBlocked) onSwitch(account.id);
             }}
             onContextMenu={(event) => {
               if ((event.target as HTMLElement).closest("button, a, input, textarea, summary, details")) return;
@@ -1124,6 +1175,17 @@ export function AccountTable({
           </span>
           {proxyControls}
         </div>
+        <Tooltip title={t("table.concurrentRoutingTooltip")} styles={{ root: { maxWidth: 400 } }}>
+          <span className="account-concurrent-routing-control">
+            <span>{t("table.concurrentRouting")}</span>
+            <Switch size="small"
+              checked={concurrentAccountRoutingEnabled}
+              loading={concurrentAccountRoutingBusy}
+              disabled={!hotSwitchEnabled || concurrentAccountRoutingBusy}
+              aria-label={t("table.concurrentRouting")}
+              onChange={onConcurrentAccountRoutingChange} />
+          </span>
+        </Tooltip>
         <Popconfirm
           title={t("table.batchConsumeQuotaConfirmTitle", {
             count: consumableSelectedAccountIds.length,
