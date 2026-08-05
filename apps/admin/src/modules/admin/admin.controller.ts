@@ -36,6 +36,7 @@ import {
   UpdateAdminUserDto,
 } from './dto/admin-user.dto';
 import {
+  AddOwnAccountsToPoolDto,
   CreateApprovalRequestDto,
   ChangeSystemAccountBindingsDto,
   CreateSystemAccountDto,
@@ -173,7 +174,10 @@ export class AdminController {
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(Permission.SelfAccountsWrite)
+  @RequireAnyPermissions(
+    Permission.SelfAccountsWrite,
+    Permission.OfficialAccountMetadataWrite,
+  )
   @Patch('api/profile/accounts/:accountId')
   updateOwnAccount(
     @CurrentUser() user: AuthUser,
@@ -184,7 +188,23 @@ export class AdminController {
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(Permission.SelfAccountsWrite)
+  @RequireAnyPermissions(
+    Permission.OfficialAccountsManage,
+    Permission.OfficialAccountsManageOwn,
+  )
+  @Post('api/profile/accounts/add-to-pool')
+  addOwnAccountsToSystemPool(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: AddOwnAccountsToPoolDto,
+  ) {
+    return this.admin.addOwnAccountsToSystemPool(user, dto.accountIds);
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequireAnyPermissions(
+    Permission.OfficialAccountsManage,
+    Permission.OfficialAccountsManageOwn,
+  )
   @Post('api/profile/accounts/:accountId/add-to-pool')
   addOwnAccountToSystemPool(
     @CurrentUser() user: AuthUser,

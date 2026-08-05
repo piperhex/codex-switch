@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Header, Headers, Param, Post, Put, UseGuards } from '@nestjs/common';
 import { CurrentUser, type AuthUser } from '@/common/decorators/user.decorator';
-import { RequirePermissions } from '@/common/decorators/permissions.decorator';
+import { RequireAnyPermissions, RequirePermissions } from '@/common/decorators/permissions.decorator';
 import { PermissionsGuard } from '@/common/guards/permissions.guard';
 import { Permission } from '@/common/rbac/permissions';
 import { JwtAuthGuard } from '@/modules/jwt/jwt-auth.guard';
@@ -16,7 +16,11 @@ export class SyncController {
   @Get('accounts')
   @RequirePermissions(Permission.SelfAccountsRead)
   list(@CurrentUser() user: AuthUser, @Headers('x-device-id') deviceId?: string) {
-    return this.sync.list(user.id, deviceId);
+    return this.sync.list(
+      user.id,
+      deviceId,
+      user.permissions?.includes(Permission.OfficialAccountMetadataWrite) ?? false,
+    );
   }
 
   /**
@@ -58,24 +62,41 @@ export class SyncController {
   }
 
   @Put('accounts')
-  @RequirePermissions(Permission.SelfAccountsWrite)
+  @RequireAnyPermissions(
+    Permission.SelfAccountsWrite,
+    Permission.OfficialAccountMetadataWrite,
+  )
   replace(
     @CurrentUser() user: AuthUser,
     @Body() dto: PutSyncAccountsDto,
     @Headers('x-device-id') deviceId?: string,
   ) {
-    return this.sync.replace(user.id, dto, deviceId);
+    return this.sync.replace(
+      user.id,
+      dto,
+      deviceId,
+      user.permissions?.includes(Permission.OfficialAccountMetadataWrite) ?? false,
+    );
   }
 
   @Put('accounts/:id')
-  @RequirePermissions(Permission.SelfAccountsWrite)
+  @RequireAnyPermissions(
+    Permission.SelfAccountsWrite,
+    Permission.OfficialAccountMetadataWrite,
+  )
   upsert(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,
     @Body() dto: SyncAccountDto,
     @Headers('x-device-id') deviceId?: string,
   ) {
-    return this.sync.upsert(user.id, id, dto, deviceId);
+    return this.sync.upsert(
+      user.id,
+      id,
+      dto,
+      deviceId,
+      user.permissions?.includes(Permission.OfficialAccountMetadataWrite) ?? false,
+    );
   }
 
   @Delete('accounts/:id')

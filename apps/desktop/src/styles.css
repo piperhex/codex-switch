@@ -236,10 +236,13 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .account-card.account-alert-card { border-color: #efc3be; background: #fff1f0; }
 .account-card.account-alert-card:hover { background: #ffe4e1; }
 .account-card .current-tag { margin: 0; color: var(--green-dark); border-color: var(--green-accent); background: var(--green-selection); }
+.ant-tag.official-account-tag { margin: 0; color: #fff; border-color: var(--green); background: var(--green); font-weight: 600; }
 .account-card { cursor: pointer; }
 .account-card button, .account-card input, .account-card summary { cursor: auto; }
 .account-note-trigger { max-width: 240px; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-radius: 5px; color: #53675a; cursor: pointer; font-size: 10px; }
 .account-note-trigger:hover { color: var(--green); background: var(--green-soft); }
+.account-note-trigger.read-only { cursor: default; }
+.account-note-trigger.read-only:hover { color: #53675a; background: transparent; }
 .account-card .plan-line .ant-tag { margin: 0; }
 .reset-credits-badge { color: var(--green-dark); font-weight: 700; white-space: nowrap; }
 .card-header-actions { position: relative; flex: 0 0 auto; align-self: flex-start; }

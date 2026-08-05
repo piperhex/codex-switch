@@ -10,6 +10,7 @@ interface SystemAccountModalProps {
   account: SystemAccount | null;
   mode?: "standard" | "compatible" | "sub2api";
   api: ApiClient;
+  canEditMetadata: boolean;
   onClose: () => void;
   onSaved: () => void | Promise<void>;
 }
@@ -29,6 +30,7 @@ const MAX_IMPORT_FILE_SIZE = 5 * 1024 * 1024;
 export function SystemAccountModal({
   account,
   api,
+  canEditMetadata,
   mode = "standard",
   onClose,
   onSaved,
@@ -54,10 +56,11 @@ export function SystemAccountModal({
 
   async function save(values: FormValues) {
     const content = values.authJson?.trim() ?? "";
-    const body: Record<string, unknown> = {
-      note: values.note ?? "",
-      expiresAt: values.expiresAt?.format("YYYY-MM-DD") ?? "",
-    };
+    const body: Record<string, unknown> = {};
+    if (!account || canEditMetadata) {
+      body.note = values.note ?? "";
+      body.expiresAt = values.expiresAt?.format("YYYY-MM-DD") ?? "";
+    }
     if (content && !isBatchImport) {
       try {
         const auth = JSON.parse(content.replace(/^\uFEFF/, ""));
@@ -189,11 +192,16 @@ export function SystemAccountModal({
                 : '{"tokens":{"access_token":"..."}}'}
           />
         </Form.Item>
-        <Form.Item name="note" label={t("common.note")}>
-          <Input maxLength={1000} />
+        <Form.Item
+          name="note"
+          label={t("common.note")}
+          extra={account && !canEditMetadata ? t("accounts.systemMetadataPermissionRequired") : undefined}
+        >
+          <Input maxLength={1000} disabled={Boolean(account) && !canEditMetadata} />
         </Form.Item>
         <Form.Item name="expiresAt" label={t("common.expiresAt")}>
           <DatePicker
+            disabled={Boolean(account) && !canEditMetadata}
             format="YYYY-MM-DD"
             placeholder={t("officialAccounts.expiresAtPlaceholder")}
             style={{ width: "100%" }}

@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import type { Repository } from 'typeorm';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminService } from '@/modules/admin/admin.service';
@@ -294,7 +294,7 @@ describe('AdminService', () => {
     sync.listForPortal.mockResolvedValue(result);
 
     await expect(service.listOwnAccounts(actor)).resolves.toBe(result);
-    expect(sync.listForPortal).toHaveBeenCalledWith(actor.id);
+    expect(sync.listForPortal).toHaveBeenCalledWith(actor.id, false);
   });
 
   it('updates current-user account metadata and records an audit log', async () => {
@@ -304,7 +304,7 @@ describe('AdminService', () => {
 
     await expect(service.updateOwnAccount(actor, account.id, dto)).resolves.toBe(account);
 
-    expect(sync.updateForAdmin).toHaveBeenCalledWith(actor.id, account.id, dto);
+    expect(sync.updateForAdmin).toHaveBeenCalledWith(actor.id, account.id, dto, false);
     expect(auditLogs.save).toHaveBeenCalledWith(expect.objectContaining({
       action: 'sync-account.update',
       targetId: account.id,
@@ -365,6 +365,23 @@ describe('AdminService', () => {
         addedByEmail: actor.email,
         sourceAccountId: 'personal-account-2',
       },
+    );
+  });
+
+  it('adds multiple current-user accounts to the pool', async () => {
+    sync.createSystemAccountFromPersonal
+      .mockResolvedValueOnce({ id: 'system-1', syncAccountId: 'sync-1', email: 'one@example.com' })
+      .mockResolvedValueOnce({ id: 'system-2', syncAccountId: 'sync-2', email: 'two@example.com' });
+
+    await expect(service.addOwnAccountsToSystemPool(actor, ['personal-1', 'personal-2']))
+      .resolves.toMatchObject({ count: 2 });
+
+    expect(sync.createSystemAccountFromPersonal).toHaveBeenCalledTimes(2);
+    expect(sync.createSystemAccountFromPersonal).toHaveBeenNthCalledWith(
+      2,
+      actor.id,
+      'personal-2',
+      expect.objectContaining({ sourceAccountId: 'personal-2' }),
     );
   });
 
@@ -435,7 +452,10 @@ describe('AdminService', () => {
   it('does not scope writes for operators with full official-account management', async () => {
     const fullManager: AuthUser = {
       ...actor,
-      permissions: [Permission.OfficialAccountsManage],
+      permissions: [
+        Permission.OfficialAccountsManage,
+        Permission.OfficialAccountMetadataWrite,
+      ],
     };
     sync.updateSystemAccount.mockResolvedValue({ id: 'account-1', email: 'official@example.com' });
 
@@ -446,6 +466,20 @@ describe('AdminService', () => {
       { note: 'updated' },
       undefined,
     );
+  });
+
+  it('rejects official account metadata updates without the dedicated permission', async () => {
+    const managerWithoutMetadataPermission: AuthUser = {
+      ...actor,
+      permissions: [Permission.OfficialAccountsManage],
+    };
+
+    await expect(service.updateSystemAccount(
+      managerWithoutMetadataPermission,
+      'account-1',
+      { note: 'updated' },
+    )).rejects.toBeInstanceOf(ForbiddenException);
+    expect(sync.updateSystemAccount).not.toHaveBeenCalled();
   });
 
   it('requires a different admin to approve privileged requests and applies approved changes', async () => {

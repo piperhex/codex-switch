@@ -17,6 +17,8 @@ pub(crate) struct AccountSummary {
     pub(crate) local_proxy_compatible: bool,
     pub(crate) direct_switch_compatible: bool,
     pub(crate) agent_identity: bool,
+    pub(crate) official: bool,
+    pub(crate) metadata_editable: bool,
     pub(crate) usage: UsageSummary,
 }
 
@@ -474,6 +476,10 @@ pub(crate) struct CloudAccountPayload {
     #[serde(default)]
     pub(crate) field_modified_at: AccountFieldModifiedAt,
     pub(crate) auth: serde_json::Value,
+    #[serde(default, skip_serializing)]
+    pub(crate) official: bool,
+    #[serde(default, skip_serializing)]
+    pub(crate) metadata_editable: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

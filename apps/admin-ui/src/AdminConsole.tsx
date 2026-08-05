@@ -162,6 +162,7 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
   const [activeKey, setActiveKey] = useState<MenuKey>(() => firstAccessibleMenu(auth?.user));
   const [ownAccounts, setOwnAccounts] = useState<SyncAccount[]>([]);
   const [ownAccountsLoading, setOwnAccountsLoading] = useState(false);
+  const [ownAccountsRecording, setOwnAccountsRecording] = useState(false);
   const [editingOwnAccount, setEditingOwnAccount] = useState<SyncAccount | null>(null);
   const [users, setUsers] = useState<PageResult<UserRow>>(emptyUsers);
   const [userFilters, setUserFilters] = useState<UserFilters>({});
@@ -847,6 +848,9 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
   const canManageEmailTemplates = Boolean(profile?.permissions?.includes("admin.email-templates.manage"));
   const canManageMailServices = Boolean(profile?.permissions?.includes("admin.mail-services.manage"));
   const canManageOwnAccounts = Boolean(profile?.permissions?.includes("self.accounts.write"));
+  const canEditOfficialAccountMetadata = Boolean(
+    profile?.permissions?.includes("self.official-accounts.metadata.write"),
+  );
 
   async function openApprovalModal() {
     const data = await api<PageResult<UserRow>>("/admin/api/users?page=1&pageSize=100&role=user&status=active");
@@ -957,18 +961,49 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
         <MyAccountsPage
           accounts={ownAccounts}
           loading={ownAccountsLoading}
-          canManage={canManageOwnAccounts}
+          canEditPersonal={canManageOwnAccounts}
+          canEditOfficial={canEditOfficialAccountMetadata}
+          canRecordToPool={canManageOfficialAccounts}
+          recordingToPool={ownAccountsRecording}
+          onAddAccountsToPool={(accounts, mode) => {
+            modal.confirm({
+              title: t(mode === "all"
+                ? "accounts.recordAllToPoolTitle"
+                : "accounts.recordSelectedToPoolTitle"),
+              content: t(mode === "all"
+                ? "accounts.recordAllToPoolDescription"
+                : "accounts.recordSelectedToPoolDescription", { count: accounts.length }),
+              onOk: async () => {
+                setOwnAccountsRecording(true);
+                try {
+                  await api("/admin/api/profile/accounts/add-to-pool", {
+                    method: "POST",
+                    body: JSON.stringify({ accountIds: accounts.map((account) => account.id) }),
+                  });
+                  message.success(t("accounts.recordedAccountsToPool", { count: accounts.length }));
+                  await Promise.all([loadOwnAccounts(), loadSystemAccounts(1)]);
+                } finally {
+                  setOwnAccountsRecording(false);
+                }
+              },
+            });
+          }}
           onAddToPool={(account) => {
             modal.confirm({
               title: t("accounts.recordToPoolTitle"),
               content: t("accounts.recordToPoolDescription", { email: account.email }),
               onOk: async () => {
-                await api(
-                  `/admin/api/profile/accounts/${encodeURIComponent(account.id)}/add-to-pool`,
-                  { method: "POST" },
-                );
-                message.success(t("accounts.recordedToPool"));
-                await Promise.all([loadOwnAccounts(), loadSystemAccounts(1)]);
+                setOwnAccountsRecording(true);
+                try {
+                  await api(
+                    `/admin/api/profile/accounts/${encodeURIComponent(account.id)}/add-to-pool`,
+                    { method: "POST" },
+                  );
+                  message.success(t("accounts.recordedToPool"));
+                  await Promise.all([loadOwnAccounts(), loadSystemAccounts(1)]);
+                } finally {
+                  setOwnAccountsRecording(false);
+                }
               },
             });
           }}
@@ -1427,6 +1462,7 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
         account={editingSystemAccount}
         mode={systemAccountImportMode}
         api={api}
+        canEditMetadata={canEditOfficialAccountMetadata}
         onClose={() => {
           setSystemAccountModalOpen(false);
           setEditingSystemAccount(null);

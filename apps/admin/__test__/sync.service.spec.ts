@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import type Redis from 'ioredis';
 import type { DataSource, Repository } from 'typeorm';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -90,7 +90,10 @@ describe('SyncService', () => {
   it('returns a cache hit without querying PostgreSQL', async () => {
     const cached = { accounts: [makeAccount()] };
     redis.get.mockResolvedValue(JSON.stringify(cached));
-    await expect(service.list('owner-1')).resolves.toEqual({ ...cached, deletedAccountIds: [] });
+    await expect(service.list('owner-1')).resolves.toEqual({
+      accounts: [{ ...cached.accounts[0], metadataEditable: true }],
+      deletedAccountIds: [],
+    });
     expect(redis.get).toHaveBeenCalledWith('sync:accounts:owner-1');
     expect(accounts.find).not.toHaveBeenCalled();
   });
@@ -125,7 +128,11 @@ describe('SyncService', () => {
 
     const result = await service.listForPortal('owner-1');
 
-    expect(result.accounts).toEqual([{ ...account, auth: undefined }].map(({ auth: _auth, ...row }) => row));
+    expect(result.accounts).toEqual([{
+      ...account,
+      metadataEditable: true,
+      auth: undefined,
+    }].map(({ auth: _auth, ...row }) => row));
     expect(result.accounts[0]).not.toHaveProperty('auth');
   });
 
@@ -192,10 +199,14 @@ describe('SyncService', () => {
       usage: { used: 2 }, lastModifiedAt: new Date('2026-07-05T00:00:00.000Z'),
       auth: { token: 'x' },
     }]);
-    const expected = { accounts: [makeAccount({
-      email: 'a@example.com', note: '', expiresAt: '', accountId: null,
-      active: false, usage: { used: 2 }, auth: { token: 'x' },
-    })], deletedAccountIds: [] };
+    const expected = { accounts: [{
+      ...makeAccount({
+        email: 'a@example.com', note: '', expiresAt: '', accountId: null,
+        active: false, usage: { used: 2 }, auth: { token: 'x' },
+      }),
+      official: false,
+      metadataEditable: true,
+    }], deletedAccountIds: [] };
     await expect(service.list('owner-1')).resolves.toEqual(expected);
     expect(accounts.find).toHaveBeenCalledWith({ where: { ownerId: 'owner-1' }, order: { email: 'ASC' } });
     expect(redis.set).toHaveBeenCalledWith(
@@ -552,6 +563,39 @@ describe('SyncService', () => {
     expect(JSON.stringify(result)).not.toContain('must-not-leave-the-server');
     expect(accounts.find).toHaveBeenCalledWith({ where: { ownerId: 'owner-1' }, order: { email: 'ASC' } });
     expect(redis.get).not.toHaveBeenCalled();
+  });
+
+  it('requires metadata permission before updating an assigned official account', async () => {
+    const binding = {
+      systemAccountId: '10000000-0000-4000-8000-000000000001',
+      userId: 'owner-1',
+      account: {
+        id: '10000000-0000-4000-8000-000000000001',
+        syncAccountId: 'account-1',
+        note: 'Official note',
+        expiresAt: '2026-08-01',
+      },
+    };
+    systemBindings.find.mockResolvedValue([binding]);
+    const incoming = makeAccount({ note: 'Updated note', expiresAt: '2026-09-01' });
+
+    await expect(service.upsert('owner-1', 'account-1', incoming))
+      .rejects.toBeInstanceOf(ForbiddenException);
+
+    systemAccounts.findOne.mockResolvedValue({
+      ...binding.account,
+      email: 'official@example.com',
+      plan: 'Plus',
+      auth: {},
+      usage: {},
+      bindings: [],
+    });
+    await expect(service.upsert('owner-1', 'account-1', incoming, undefined, true))
+      .resolves.toEqual({ id: 'account-1' });
+    expect(systemAccounts.save).toHaveBeenCalledWith(expect.objectContaining({
+      note: 'Updated note',
+      expiresAt: '2026-09-01',
+    }));
   });
 
   it('returns a web account overview without any Codex credentials', async () => {

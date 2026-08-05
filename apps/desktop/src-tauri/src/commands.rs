@@ -23,8 +23,8 @@ use tauri_plugin_opener::OpenerExt;
 use crate::{
     agent_identity,
     auth::{
-        account_fields, canonicalize_chatgpt_auth, is_agent_identity_auth, token_string,
-        validate_auth,
+        account_fields, canonicalize_chatgpt_auth, is_agent_identity_auth,
+        subscription_active_until, token_string, validate_auth,
     },
     codex_api::{
         consume_reset_credit_request, parse_reset_credits, parse_usage, quota_consumption_request,
@@ -36,11 +36,12 @@ use crate::{
     },
     storage::{
         account_dir, auto_switch_priority_path, expiration_path, import_value,
-        load_auto_switch_priority, load_expiration, load_note, load_usage, managed_auth_path,
-        note_path, read_app_settings, read_json, read_state, resolve_paths,
-        save_auto_switch_priority, save_expiration, save_note, save_usage, sync_current_into_store,
-        touch_account_field, usage_path, write_app_settings, write_json_atomic,
-        write_json_if_changed, write_managed_auth_if_changed, write_state, AccountSyncField, Paths,
+        load_auto_switch_priority, load_expiration, load_note, load_official_account_access,
+        load_usage, managed_auth_path, note_path, read_app_settings, read_json, read_state,
+        resolve_paths, save_auto_switch_priority, save_expiration, save_note, save_usage,
+        sync_current_into_store, touch_account_field, usage_path, write_app_settings,
+        write_json_atomic, write_json_if_changed, write_managed_auth_if_changed, write_state,
+        AccountSyncField, Paths,
     },
 };
 
@@ -153,7 +154,9 @@ pub(crate) fn list_accounts<R: Runtime>(
         let auto_switch_enabled = !state.disabled_account_ids.contains(&id);
         let auto_switch_priority =
             load_auto_switch_priority(&auto_switch_priority_path(&paths, &id));
-        let usage = load_usage(&usage_path(&paths, &id));
+        let mut usage = load_usage(&usage_path(&paths, &id));
+        usage.api_expires_at = subscription_active_until(&auth);
+        let (official, metadata_editable) = load_official_account_access(&paths, &id);
         let plan = usage
             .plan
             .clone()
@@ -173,6 +176,8 @@ pub(crate) fn list_accounts<R: Runtime>(
             local_proxy_compatible,
             direct_switch_compatible,
             agent_identity,
+            official,
+            metadata_editable,
         });
     }
     accounts.sort_by(|left, right| left.email.cmp(&right.email));
@@ -1646,6 +1651,13 @@ pub(crate) fn update_account_note<R: Runtime>(
     if !managed_auth_path(&paths, &id).exists() {
         return Err("Account does not exist".to_string());
     }
+    let (official, metadata_editable) = load_official_account_access(&paths, &id);
+    if official && !metadata_editable {
+        return Err(
+            "You do not have permission to edit this official account's note or expiration date"
+                .to_string(),
+        );
+    }
     if !expires_at.is_empty() {
         NaiveDate::parse_from_str(&expires_at, "%Y-%m-%d")
             .map_err(|_| "Expiration date must use YYYY-MM-DD format".to_string())?;
@@ -1789,7 +1801,8 @@ fn try_refresh_usage_blocking<R: Runtime>(
     let payload: Value = response
         .json()
         .map_err(|error| format!("解析用量响应失败：{error}"))?;
-    let usage = parse_usage(&payload);
+    let mut usage = parse_usage(&payload);
+    usage.api_expires_at = subscription_active_until(&auth);
     save_usage(&usage_path(&paths, id), &usage)?;
     touch_account_field(&paths, id, AccountSyncField::Usage)?;
     persist_request_auth(&paths, id, &auth)?;

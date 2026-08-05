@@ -5553,6 +5553,8 @@ mod tests {
             local_proxy_compatible: true,
             direct_switch_compatible: true,
             agent_identity: false,
+            official: false,
+            metadata_editable: true,
             usage: UsageSummary {
                 primary: Some(UsageWindow {
                     used_percent: 100.0 - primary,

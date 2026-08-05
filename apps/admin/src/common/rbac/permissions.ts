@@ -1,6 +1,7 @@
 export enum Permission {
   SelfAccountsRead = 'self.accounts.read',
   SelfAccountsWrite = 'self.accounts.write',
+  OfficialAccountMetadataWrite = 'self.official-accounts.metadata.write',
   SelfProvidersRead = 'self.providers.read',
   SelfProvidersWrite = 'self.providers.write',
   SelfPasswordUpdate = 'self.password.update',
@@ -42,6 +43,7 @@ export interface PermissionDefinition {
 export const PERMISSION_CATALOG: readonly PermissionDefinition[] = [
   { code: Permission.SelfAccountsRead, group: 'self-service', name: 'Read own accounts', description: 'View accounts assigned or synchronized to the current user.' },
   { code: Permission.SelfAccountsWrite, group: 'self-service', name: 'Manage own accounts', description: 'Update account metadata owned by the current user.' },
+  { code: Permission.OfficialAccountMetadataWrite, group: 'official-accounts', name: 'Edit official account metadata', description: 'Update notes and expiration dates for official pool accounts assigned to the current user.' },
   { code: Permission.SelfProvidersRead, group: 'self-service', name: 'Read own providers', description: 'View providers synchronized by the current user.' },
   { code: Permission.SelfProvidersWrite, group: 'self-service', name: 'Manage own providers', description: 'Create, update, and delete providers owned by the current user.' },
   { code: Permission.SelfPasswordUpdate, group: 'self-service', name: 'Change own password', description: 'Change the current user password.' },
@@ -88,6 +90,7 @@ export const SYSTEM_ROLE_CODES = {
 
 const PERMISSION_DEPENDENCIES: Partial<Record<Permission, readonly Permission[]>> = {
   [Permission.SelfAccountsWrite]: [Permission.SelfAccountsRead],
+  [Permission.OfficialAccountMetadataWrite]: [Permission.SelfAccountsRead],
   [Permission.SelfProvidersWrite]: [Permission.SelfProvidersRead],
   [Permission.UsersManage]: [Permission.UsersRead, Permission.RolesRead],
   [Permission.RolesManage]: [Permission.RolesRead],

@@ -86,14 +86,14 @@ describe('HTTP controllers', () => {
     await expect(controller.upsertProvider(user, provider.id, provider)).resolves.toBe('provider-upsert');
     await expect(controller.deleteProvider(user, provider.id)).resolves.toBe('provider-delete');
 
-    expect(sync.list).toHaveBeenCalledWith(user.id, undefined);
+    expect(sync.list).toHaveBeenCalledWith(user.id, undefined, false);
     expect(sync.listSummary).toHaveBeenCalledWith(user.id);
     expect(sync.listWebSummary).toHaveBeenCalledWith(user.id);
     expect(sync.fetchUsage).toHaveBeenCalledWith(user.id, account.id);
     expect(sync.fetchResetCredits).toHaveBeenCalledWith(user.id, account.id);
     expect(sync.consumeResetCredit).toHaveBeenCalledWith(user.id, account.id);
-    expect(sync.replace).toHaveBeenCalledWith(user.id, { accounts: [account] }, undefined);
-    expect(sync.upsert).toHaveBeenCalledWith(user.id, account.id, account, undefined);
+    expect(sync.replace).toHaveBeenCalledWith(user.id, { accounts: [account] }, undefined, false);
+    expect(sync.upsert).toHaveBeenCalledWith(user.id, account.id, account, undefined, false);
     expect(sync.delete).toHaveBeenCalledWith(user.id, account.id);
     expect(sync.listProviders).toHaveBeenCalledWith(user.id);
     expect(sync.replaceProviders).toHaveBeenCalledWith(user.id, { providers: [provider] });
@@ -109,6 +109,7 @@ describe('HTTP controllers', () => {
       listOwnAccounts: vi.fn().mockResolvedValue('own-accounts'),
       updateOwnAccount: vi.fn().mockResolvedValue('own-account-updated'),
       addOwnAccountToSystemPool: vi.fn().mockResolvedValue('own-system-account'),
+      addOwnAccountsToSystemPool: vi.fn().mockResolvedValue('own-system-accounts'),
       listUserAccounts: vi.fn().mockResolvedValue('accounts'),
       listUserProviders: vi.fn().mockResolvedValue('providers'),
       addUserAccountToSystemPool: vi.fn().mockResolvedValue('system-account-from-user'),
@@ -167,6 +168,8 @@ describe('HTTP controllers', () => {
     })).resolves.toBe('own-account-updated');
     await expect(controller.addOwnAccountToSystemPool(actor, 'account-1'))
       .resolves.toBe('own-system-account');
+    await expect(controller.addOwnAccountsToSystemPool(actor, { accountIds: ['account-1', 'account-2'] }))
+      .resolves.toBe('own-system-accounts');
     await expect(controller.listUserAccounts('user-1')).resolves.toBe('accounts');
     await expect(controller.listUserProviders('user-1')).resolves.toBe('providers');
     await expect(controller.addUserAccountToSystemPool(actor, 'user-1', 'account-1'))

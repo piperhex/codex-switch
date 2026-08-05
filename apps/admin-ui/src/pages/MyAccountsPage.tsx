@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Badge, Button, Modal, Table, Tag, Tooltip, Typography } from "antd";
 import type { TableColumnsType } from "antd";
-import { DatabaseZap, Pencil, RefreshCw } from "lucide-react";
+import type { Key } from "react";
+import { DatabaseZap, ListChecks, Pencil, RefreshCw } from "lucide-react";
 import { useI18n } from "../i18n-context";
 import type { SyncAccount } from "../types";
 import { formatDate } from "../utils/format";
@@ -11,20 +12,46 @@ interface MyAccountsPageProps {
   loading: boolean;
   onEdit: (account: SyncAccount) => void;
   onAddToPool: (account: SyncAccount) => void;
+  onAddAccountsToPool: (accounts: SyncAccount[], mode: "all" | "selected") => void;
   onRefresh: () => void | Promise<void>;
-  canManage: boolean;
+  canEditPersonal: boolean;
+  canEditOfficial: boolean;
+  canRecordToPool: boolean;
+  recordingToPool: boolean;
 }
 
 export function MyAccountsPage({
   accounts,
-  canManage,
+  canEditOfficial,
+  canEditPersonal,
+  canRecordToPool,
   loading,
+  onAddAccountsToPool,
   onAddToPool,
   onEdit,
   onRefresh,
+  recordingToPool,
 }: MyAccountsPageProps) {
   const { language, t } = useI18n();
   const [noteAccount, setNoteAccount] = useState<SyncAccount | null>(null);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<Key[]>([]);
+  const recordableAccounts = useMemo(
+    () => accounts.filter((account) => account.source === "personal" && !account.inSystemPool),
+    [accounts],
+  );
+  const recordableAccountIds = useMemo(
+    () => new Set(recordableAccounts.map((account) => account.id)),
+    [recordableAccounts],
+  );
+  const selectedAccounts = useMemo(
+    () => recordableAccounts.filter((account) => selectedRowKeys.includes(account.id)),
+    [recordableAccounts, selectedRowKeys],
+  );
+
+  useEffect(() => {
+    setSelectedRowKeys((current) => current.filter((key) => recordableAccountIds.has(String(key))));
+  }, [recordableAccountIds]);
+
   const columns: TableColumnsType<SyncAccount> = [
     {
       title: t("common.email"),
@@ -96,28 +123,30 @@ export function MyAccountsPage({
       fixed: "right",
       align: "center",
       render: (_, account) => {
+        const canEdit = account.source === "system" ? canEditOfficial : canEditPersonal;
         const editButton = (
           <Button
             type="link"
             size="small"
             icon={<Pencil size={14} />}
-            disabled={!canManage || account.source === "system"}
+            disabled={!canEdit}
             onClick={() => onEdit(account)}
           >
             {t("common.edit")}
           </Button>
         );
-        return account.source === "system" ? (
-          <Tooltip title={t("accounts.systemManaged")}>
+        return account.source === "system" && !canEdit ? (
+          <Tooltip title={t("accounts.systemMetadataPermissionRequired")}>
             <span>{editButton}</span>
           </Tooltip>
         ) : (
           <div className="table-actions">
-            {canManage && !account.inSystemPool && (
+            {canRecordToPool && !account.inSystemPool && (
               <Button
                 type="link"
                 size="small"
                 icon={<DatabaseZap size={14} />}
+                disabled={recordingToPool}
                 onClick={() => onAddToPool(account)}
               >
                 {t("accounts.recordToPool")}
@@ -136,9 +165,31 @@ export function MyAccountsPage({
       <h1 className="page-title">{t("myAccounts.title")}</h1>
       <div className="toolbar">
         <div />
-        <Button icon={<RefreshCw size={15} />} onClick={() => onRefresh()}>
-          {t("common.refresh")}
-        </Button>
+        <div className="toolbar-right">
+          <Button icon={<RefreshCw size={15} />} onClick={() => onRefresh()}>
+            {t("common.refresh")}
+          </Button>
+          {canRecordToPool && (
+            <>
+              <Button
+                icon={<DatabaseZap size={15} />}
+                disabled={!recordableAccounts.length || recordingToPool}
+                loading={recordingToPool}
+                onClick={() => onAddAccountsToPool(recordableAccounts, "all")}
+              >
+                {t("accounts.recordAllToPool")}
+              </Button>
+              <Button
+                type="primary"
+                icon={<ListChecks size={15} />}
+                disabled={!selectedAccounts.length || recordingToPool}
+                onClick={() => onAddAccountsToPool(selectedAccounts, "selected")}
+              >
+                {t("accounts.recordSelectedToPool", { count: selectedAccounts.length })}
+              </Button>
+            </>
+          )}
+        </div>
       </div>
       <div className="panel">
         <Table
@@ -146,6 +197,13 @@ export function MyAccountsPage({
           loading={loading}
           columns={columns}
           dataSource={accounts}
+          rowSelection={canRecordToPool ? {
+            selectedRowKeys,
+            onChange: setSelectedRowKeys,
+            getCheckboxProps: (account) => ({
+              disabled: account.source === "system" || Boolean(account.inSystemPool) || recordingToPool,
+            }),
+          } : undefined}
           pagination={false}
           scroll={{ x: 1120 }}
         />

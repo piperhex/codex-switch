@@ -24,7 +24,7 @@ use tauri::{Emitter, Manager, Runtime};
 use uuid::Uuid;
 
 use crate::{
-    auth::{account_fields, canonicalize_chatgpt_auth, validate_auth},
+    auth::{account_fields, canonicalize_chatgpt_auth, subscription_active_until, validate_auth},
     models::{
         AccountFieldModifiedAt, AppSettings, CloudAccountPayload, CloudAuthState, CloudSyncResult,
         ProviderProfile, ProviderSyncPayload,
@@ -32,8 +32,9 @@ use crate::{
     skills_market::{SkillMarketItem, SkillMarketResponse, SkillPreview},
     storage::{
         auto_switch_priority_path, expiration_path, load_auto_switch_priority, load_expiration,
-        load_note, load_or_init_account_field_modified_at, load_or_init_last_modified, load_usage,
-        managed_auth_path, note_path, parse_last_modified, read_app_settings, read_json,
+        load_note, load_official_account_access, load_or_init_account_field_modified_at,
+        load_or_init_last_modified, load_usage, managed_auth_path, note_path,
+        official_account_access_path, parse_last_modified, read_app_settings, read_json,
         read_state, resolve_paths, save_account_field_modified_at, save_auto_switch_priority,
         save_expiration, save_note, save_usage, usage_path, write_app_settings, write_json_atomic,
         write_json_if_changed, write_managed_auth_if_changed, write_state,
@@ -617,12 +618,14 @@ fn collect_local_accounts<R: Runtime>(
         }
         let field_modified_at = load_or_init_account_field_modified_at(&paths, &id)?;
         let last_modified_at = load_or_init_last_modified(&paths, &id)?.to_rfc3339();
-        let usage = load_usage(&usage_path(&paths, &id));
+        let mut usage = load_usage(&usage_path(&paths, &id));
+        usage.api_expires_at = subscription_active_until(&auth);
         let plan = usage
             .plan
             .clone()
             .filter(|value| !value.trim().is_empty())
             .unwrap_or(auth_plan);
+        let (official, metadata_editable) = load_official_account_access(&paths, &id);
         accounts.push(CloudAccountPayload {
             active: active_id.as_deref() == Some(&id),
             auto_switch_priority: load_auto_switch_priority(&auto_switch_priority_path(
@@ -638,6 +641,8 @@ fn collect_local_accounts<R: Runtime>(
             plan,
             account_id,
             auth,
+            official,
+            metadata_editable,
         });
     }
     accounts.sort_by(|left, right| left.email.cmp(&right.email));
@@ -726,6 +731,13 @@ fn apply_remote_account<R: Runtime>(
         ));
     }
     let paths = resolve_paths(app)?;
+    let access_changed = write_json_if_changed(
+        &official_account_access_path(&paths, &account.id),
+        &json!({
+            "official": account.official,
+            "metadataEditable": account.metadata_editable,
+        }),
+    )?;
     let auth_path = managed_auth_path(&paths, &account.id);
     let local_auth = read_json(&auth_path).ok();
     let local_usable = local_auth.as_ref().is_some_and(|auth| {
@@ -828,7 +840,8 @@ fn apply_remote_account<R: Runtime>(
             }
         }
     }
-    Ok(apply_auth
+    Ok(access_changed
+        || apply_auth
         || apply_note
         || apply_expires_at
         || apply_usage

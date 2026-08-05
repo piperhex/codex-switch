@@ -27,6 +27,8 @@ export interface Account {
   localProxyCompatible: boolean;
   directSwitchCompatible: boolean;
   agentIdentity: boolean;
+  official: boolean;
+  metadataEditable: boolean;
   usage: UsageSummary;
 }
 

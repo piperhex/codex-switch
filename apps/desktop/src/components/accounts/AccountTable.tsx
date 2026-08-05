@@ -33,7 +33,7 @@ import type {
   ProxySessionLatencySummary,
   ResetCreditsLoadState,
 } from "../../types";
-import { earliestExpirationDate } from "../../utils/expiration";
+import { accountExpirationDate } from "../../utils/expiration";
 import { initials } from "../../utils/format";
 import { formatCompactTokenCount } from "../../utils/tokenContext";
 import { shouldShowUsageError } from "../../utils/usageErrors";
@@ -286,6 +286,10 @@ function isAccountDisabled(account: Account, hotSwitchEnabled: boolean) {
 function needsAccountAttention(account: Account, hotSwitchEnabled: boolean, showUsageNetworkErrors: boolean) {
   return shouldShowUsageError(account.usage.error, showUsageNetworkErrors)
     || isAccountDisabled(account, hotSwitchEnabled);
+}
+
+function canEditAccountMetadata(account: Account) {
+  return !account.official || account.metadataEditable;
 }
 
 function compareKeepingAttentionLast(
@@ -576,17 +580,21 @@ export function AccountTable({
             <div className="account-email" title={privacyMode ? undefined : account.email}>
               {privacyMode ? maskAccountEmail(account.email) : account.email}
             </div>
-            <div className={`account-note-preview${account.note ? "" : " empty"}`} title={privacyMode ? undefined : account.note || t("note.doubleClick")}>
-              {privacyMode && account.note ? "**********" : account.note || t("note.doubleClick")}
+            <div className={`account-note-preview${account.note ? "" : " empty"}`}
+              title={privacyMode ? undefined : account.note || (canEditAccountMetadata(account)
+                ? t("note.doubleClick") : t("table.noNote"))}>
+              {privacyMode && account.note ? "**********" : account.note || (canEditAccountMetadata(account)
+                ? t("note.doubleClick") : t("table.noNote"))}
             </div>
             <div className="account-meta">
               <Tooltip title={account.accountId ? t("table.workspace", { id: account.accountId }) : t("table.personal")}>
                 <Tag className="plan-tag">{account.plan || "ChatGPT"}</Tag>
               </Tooltip>
+              {account.official && <Tag className="official-account-tag">{t("table.official")}</Tag>}
               <div className="updated-cell">
-                {earliestExpirationDate(account.expiresAt, account.usage.apiExpiresAt) && (
+                {accountExpirationDate(account.expiresAt, account.usage.apiExpiresAt) && (
                   <span className="plan-expiration">{t("table.expiresAt", {
-                    date: earliestExpirationDate(account.expiresAt, account.usage.apiExpiresAt) ?? "",
+                    date: accountExpirationDate(account.expiresAt, account.usage.apiExpiresAt) ?? "",
                   })}</span>
                 )}
                 {shouldShowUsageError(account.usage.error, showUsageNetworkErrors)
@@ -904,7 +912,9 @@ export function AccountTable({
           <Copy size={14} />
           {t("table.copyAuthJson")}
         </button>
-        <button type="button" onClick={() => {
+        <button type="button" disabled={!canEditAccountMetadata(account)}
+          title={!canEditAccountMetadata(account) ? t("table.officialMetadataReadOnly") : undefined}
+          onClick={() => {
           setContextMenu(null);
           setEditingAccount(account);
         }}>
@@ -972,17 +982,26 @@ export function AccountTable({
                   <Tooltip title={account.accountId ? t("table.workspace", { id: account.accountId }) : t("table.personal")}>
                     <Tag className="plan-tag">{account.plan || "ChatGPT"}</Tag>
                   </Tooltip>
+                  {account.official && <Tag className="official-account-tag">{t("table.official")}</Tag>}
                 </div>
-                <Tooltip title={privacyMode ? "**********" : account.note || t("note.doubleClick")}>
-                  <div className="account-note-trigger" onClick={(event) => event.stopPropagation()}
-                    onDoubleClick={() => setEditingAccount(account)} aria-label={t("note.doubleClick")}>
-                    {privacyMode ? "**********" : account.note || t("note.doubleClick")}
+                <Tooltip title={!canEditAccountMetadata(account)
+                  ? t("table.officialMetadataReadOnly")
+                  : privacyMode ? "**********" : account.note || t("note.doubleClick")}>
+                  <div className={`account-note-trigger${canEditAccountMetadata(account) ? "" : " read-only"}`}
+                    onClick={(event) => event.stopPropagation()}
+                    onDoubleClick={() => {
+                      if (canEditAccountMetadata(account)) setEditingAccount(account);
+                    }} aria-label={canEditAccountMetadata(account)
+                      ? t("note.doubleClick")
+                      : t("table.officialMetadataReadOnly")}>
+                    {privacyMode && account.note ? "**********" : account.note || (canEditAccountMetadata(account)
+                      ? t("note.doubleClick") : t("table.noNote"))}
                   </div>
                 </Tooltip>
                 <div className="plan-line">
-                  {earliestExpirationDate(account.expiresAt, account.usage.apiExpiresAt) && (
+                  {accountExpirationDate(account.expiresAt, account.usage.apiExpiresAt) && (
                     <span>{t("table.expiresAt", {
-                      date: earliestExpirationDate(account.expiresAt, account.usage.apiExpiresAt) ?? "",
+                      date: accountExpirationDate(account.expiresAt, account.usage.apiExpiresAt) ?? "",
                     })}</span>
                   )}
                   {shouldShowUsageError(account.usage.error, showUsageNetworkErrors)
@@ -1225,7 +1244,9 @@ export function AccountTable({
           isAccountDisabled(account, hotSwitchEnabled) ? "account-alert-row" : "",
         ].filter(Boolean).join(" ")}
         onRow={(account) => ({
-          title: t("note.doubleClick"),
+          title: canEditAccountMetadata(account)
+            ? t("note.doubleClick")
+            : t("table.officialMetadataReadOnly"),
           onContextMenu: (event) => {
             event.preventDefault();
             const menuWidth = 220;
@@ -1239,7 +1260,7 @@ export function AccountTable({
           },
           onDoubleClick: (event) => {
             if ((event.target as HTMLElement).closest("button, a, input, textarea")) return;
-            setEditingAccount(account);
+            if (canEditAccountMetadata(account)) setEditingAccount(account);
           },
         })}
         expandable={{

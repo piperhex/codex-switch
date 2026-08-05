@@ -1,6 +1,7 @@
 import { createHash, createHmac, timingSafeEqual } from 'crypto';
 import {
   BadRequestException,
+  ForbiddenException,
   Inject,
   Injectable,
   NotFoundException,
@@ -114,7 +115,10 @@ export class AdminService {
   }
 
   listOwnAccounts(actor: AuthUser) {
-    return this.sync.listForPortal(actor.id);
+    return this.sync.listForPortal(
+      actor.id,
+      actor.permissions?.includes(Permission.OfficialAccountMetadataWrite) ?? false,
+    );
   }
 
   async updateOwnAccount(
@@ -122,7 +126,12 @@ export class AdminService {
     accountId: string,
     dto: UpdateOwnSyncedAccountDto,
   ) {
-    const account = await this.sync.updateForAdmin(actor.id, accountId, dto);
+    const account = await this.sync.updateForAdmin(
+      actor.id,
+      accountId,
+      dto,
+      actor.permissions?.includes(Permission.OfficialAccountMetadataWrite) ?? false,
+    );
     await this.record(actor, 'sync-account.update', 'sync-account', accountId, account.email, {
       ownerId: actor.id,
       fields: Object.keys(dto),
@@ -225,7 +234,21 @@ export class AdminService {
     return account;
   }
 
+  async addOwnAccountsToSystemPool(actor: AuthUser, accountIds: string[]) {
+    const accounts = [];
+    for (const accountId of accountIds) {
+      accounts.push(await this.addOwnAccountToSystemPool(actor, accountId));
+    }
+    return { accounts, count: accounts.length };
+  }
+
   async updateSystemAccount(actor: AuthUser, id: string, dto: UpdateSystemAccountDto) {
+    if (
+      (dto.note !== undefined || dto.expiresAt !== undefined)
+      && !actor.permissions?.includes(Permission.OfficialAccountMetadataWrite)
+    ) {
+      throw new ForbiddenException('You cannot edit official account notes or expiration dates');
+    }
     const account = await this.sync.updateSystemAccount(id, dto, this.officialAccountManageScope(actor));
     await this.record(actor, 'official-account.update', 'official-account', id, account.email, {
       fields: Object.keys(dto),

@@ -232,48 +232,6 @@ fn normalized_timestamp(value: Option<&Value>) -> Option<String> {
     chrono::DateTime::<Utc>::from_timestamp(seconds, 0).map(|value| value.to_rfc3339())
 }
 
-fn is_expiration_key(key: &str) -> bool {
-    let key = key.to_ascii_lowercase().replace('-', "_");
-    let compact = key.replace('_', "");
-    key.contains("expir")
-        || compact.ends_with("until")
-        || compact.ends_with("end")
-        || compact.ends_with("endat")
-        || compact.ends_with("endsat")
-        || compact.ends_with("enddate")
-        || compact.ends_with("endson")
-}
-
-fn collect_expiration_timestamps(value: &Value, result: &mut Vec<DateTime<Utc>>) {
-    match value {
-        Value::Object(object) => {
-            for (key, nested) in object {
-                if is_expiration_key(key) {
-                    if let Some(timestamp) = normalized_timestamp(Some(nested))
-                        .and_then(|value| DateTime::parse_from_rfc3339(&value).ok())
-                    {
-                        result.push(timestamp.with_timezone(&Utc));
-                    }
-                }
-                collect_expiration_timestamps(nested, result);
-            }
-        }
-        Value::Array(values) => {
-            for nested in values {
-                collect_expiration_timestamps(nested, result);
-            }
-        }
-        _ => {}
-    }
-}
-
-fn promo_expiration(payload: &Value) -> Option<String> {
-    let promo = payload.get("promo").filter(|value| !value.is_null())?;
-    let mut timestamps = Vec::new();
-    collect_expiration_timestamps(promo, &mut timestamps);
-    timestamps.into_iter().min().map(|value| value.to_rfc3339())
-}
-
 pub(crate) fn parse_reset_credits(payload: &Value) -> Result<ResetCreditsSummary, String> {
     let credits = payload
         .get("credits")
@@ -314,7 +272,7 @@ pub(crate) fn parse_usage(payload: &Value) -> UsageSummary {
     UsageSummary {
         primary: window_from(rate_limit.and_then(|value| value.get("primary_window"))),
         secondary: window_from(rate_limit.and_then(|value| value.get("secondary_window"))),
-        api_expires_at: promo_expiration(payload),
+        api_expires_at: None,
         plan: payload
             .get("plan_type")
             .and_then(Value::as_str)
@@ -347,10 +305,7 @@ mod tests {
             }
         }));
         assert_eq!(usage.plan.as_deref(), Some("pro"));
-        assert_eq!(
-            usage.api_expires_at.as_deref(),
-            Some("2026-08-31T12:30:00+00:00")
-        );
+        assert_eq!(usage.api_expires_at, None);
         assert_eq!(usage.primary.unwrap().remaining_percent, 58.0);
         assert_eq!(usage.secondary.unwrap().window_minutes, Some(10080));
     }

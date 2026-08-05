@@ -284,6 +284,7 @@ export interface SyncAccount {
   source?: "personal" | "system";
   systemAccountId?: string;
   inSystemPool?: boolean;
+  metadataEditable?: boolean;
 }
 
 export interface SystemAccount {

@@ -34,6 +34,11 @@ const BUILT_IN_PERMISSION_ZH: Record<string, PermissionMetadata> = {
     name: "查看用户",
     description: "查看用户资料和账号状态。",
   },
+  "self.official-accounts.metadata.write": {
+    group: "官方账号",
+    name: "修改号池账号备注和到期时间",
+    description: "修改分配给当前用户的号池账号备注和到期时间。",
+  },
   "admin.users.manage": {
     group: "用户管理",
     name: "管理用户",

@@ -13,6 +13,8 @@ export const DEMO_ACCOUNTS: Account[] = [
     localProxyCompatible: true,
     directSwitchCompatible: false,
     agentIdentity: true,
+    official: true,
+    metadataEditable: false,
     accountId: "workspace-personal",
     usage: {
       primary: { usedPercent: 28, remainingPercent: 72, resetsAt: Date.now() / 1000 + 8200 },
@@ -32,6 +34,8 @@ export const DEMO_ACCOUNTS: Account[] = [
     localProxyCompatible: true,
     directSwitchCompatible: true,
     agentIdentity: false,
+    official: false,
+    metadataEditable: true,
     accountId: "workspace-studio",
     usage: {
       primary: { usedPercent: 64, remainingPercent: 36, resetsAt: Date.now() / 1000 + 4500 },

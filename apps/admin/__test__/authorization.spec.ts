@@ -62,6 +62,7 @@ describe('authorization boundaries', () => {
     ]);
     expect(USER_ROLE_PERMISSIONS).not.toContain(Permission.UsersRead);
     expect(USER_ROLE_PERMISSIONS).not.toContain(Permission.TelemetryRead);
+    expect(USER_ROLE_PERMISSIONS).not.toContain(Permission.OfficialAccountMetadataWrite);
   });
 
   it('allows routes configured with any one of multiple read permissions', () => {
@@ -96,6 +97,18 @@ describe('authorization boundaries', () => {
       ]);
       expect(Reflect.getMetadata(REQUIRED_ANY_PERMISSIONS, handler)).toEqual([
         Permission.UsersManage,
+        Permission.OfficialAccountsManage,
+        Permission.OfficialAccountsManageOwn,
+      ]);
+    }
+  });
+
+  it('requires official-pool management permission to record own accounts', () => {
+    for (const method of ['addOwnAccountToSystemPool', 'addOwnAccountsToSystemPool'] as const) {
+      const handler = AdminController.prototype[method];
+
+      expect(Reflect.getMetadata(REQUIRED_PERMISSIONS, handler)).toBeUndefined();
+      expect(Reflect.getMetadata(REQUIRED_ANY_PERMISSIONS, handler)).toEqual([
         Permission.OfficialAccountsManage,
         Permission.OfficialAccountsManageOwn,
       ]);

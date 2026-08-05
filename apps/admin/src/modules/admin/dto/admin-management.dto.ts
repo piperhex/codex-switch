@@ -1,6 +1,7 @@
 import { Type } from 'class-transformer';
 import {
   ArrayNotEmpty,
+  ArrayUnique,
   IsArray,
   IsEmail,
   IsBoolean,
@@ -133,6 +134,15 @@ export class DeleteSystemAccountsDto {
   @ArrayNotEmpty()
   @IsUUID('4', { each: true })
   systemAccountIds: string[];
+}
+
+export class AddOwnAccountsToPoolDto {
+  @IsArray()
+  @ArrayNotEmpty()
+  @ArrayUnique()
+  @IsString({ each: true })
+  @MaxLength(64, { each: true })
+  accountIds: string[];
 }
 
 export class CreateInvitationDto {

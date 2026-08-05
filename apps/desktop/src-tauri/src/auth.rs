@@ -37,6 +37,16 @@ fn nested_auth(claims: &Value) -> Option<&Value> {
     claims.get("https://api.openai.com/auth")
 }
 
+pub(crate) fn subscription_active_until(auth: &Value) -> Option<String> {
+    let claims = decode_jwt(token_string(auth, "id_token")?).ok()?;
+    let value = nested_auth(&claims)?
+        .get("chatgpt_subscription_active_until")?
+        .as_str()?;
+    DateTime::parse_from_rfc3339(value)
+        .ok()
+        .map(|value| value.with_timezone(&Utc).to_rfc3339())
+}
+
 fn token_metadata<'a>(auth: &'a Value, key: &str) -> Option<&'a str> {
     auth.get("tokens")?
         .get(key)?
@@ -290,6 +300,41 @@ mod tests {
         assert_eq!(plan, "plus");
         assert_eq!(account_id.as_deref(), Some("account-1"));
         assert_eq!(id.len(), 24);
+    }
+
+    #[test]
+    fn reads_subscription_active_until_from_id_token() {
+        let auth = json!({
+            "tokens": {
+                "id_token": jwt(json!({
+                    "https://api.openai.com/auth": {
+                        "chatgpt_subscription_active_until": "2026-09-04T15:23:39+00:00"
+                    }
+                }))
+            }
+        });
+
+        assert_eq!(
+            subscription_active_until(&auth).as_deref(),
+            Some("2026-09-04T15:23:39+00:00")
+        );
+    }
+
+    #[test]
+    fn ignores_missing_or_invalid_subscription_active_until() {
+        let missing = json!({ "tokens": { "id_token": jwt(json!({})) } });
+        let invalid = json!({
+            "tokens": {
+                "id_token": jwt(json!({
+                    "https://api.openai.com/auth": {
+                        "chatgpt_subscription_active_until": "not-a-date"
+                    }
+                }))
+            }
+        });
+
+        assert_eq!(subscription_active_until(&missing), None);
+        assert_eq!(subscription_active_until(&invalid), None);
     }
 
     #[test]

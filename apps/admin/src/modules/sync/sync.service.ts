@@ -3,6 +3,7 @@ import {
   BadGatewayException,
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Inject,
   Injectable,
   NotFoundException,
@@ -71,6 +72,11 @@ export type AdminSyncAccountDto = SyncAccountDto & {
 };
 
 export type PortalSyncAccountDto = Omit<AdminSyncAccountDto, 'auth'>;
+
+type EffectiveSyncAccountDto = SyncAccountDto & {
+  official: boolean;
+  metadataEditable: boolean;
+};
 
 type AccountFieldModifiedAt = {
   auth: string;
@@ -154,28 +160,46 @@ export class SyncService {
     this.codexOutboundDispatcher = createCodexOutboundDispatcher(config.CODEX_OUTBOUND_PROXY);
   }
 
-  async list(ownerId: string, deviceId?: string) {
+  async list(ownerId: string, deviceId?: string, canEditOfficialMetadata = false) {
     const cacheKey = this.cacheKey(ownerId);
     const cached = await this.redis.get(cacheKey);
     if (cached) {
       const parsed = JSON.parse(cached) as {
-        accounts: SyncAccountDto[];
+        accounts: EffectiveSyncAccountDto[];
         deletedAccountIds?: string[];
       };
-      return this.withDeviceActiveAccount(
+      const projected = await this.withDeviceActiveAccount(
         ownerId,
         deviceId,
         { ...parsed, deletedAccountIds: parsed.deletedAccountIds ?? [] },
       );
+      return this.withOfficialMetadataAccess(projected, canEditOfficialMetadata);
     }
 
     const payload = await this.loadEffectiveAccountState(ownerId);
     await this.redis.set(cacheKey, JSON.stringify(payload), 'EX', 60);
-    return this.withDeviceActiveAccount(ownerId, deviceId, payload);
+    return this.withOfficialMetadataAccess(
+      await this.withDeviceActiveAccount(ownerId, deviceId, payload),
+      canEditOfficialMetadata,
+    );
   }
 
-  async replace(ownerId: string, dto: PutSyncAccountsDto, deviceId?: string) {
+  async replace(
+    ownerId: string,
+    dto: PutSyncAccountsDto,
+    deviceId?: string,
+    canEditOfficialMetadata = false,
+  ) {
     const managedIds = await this.boundSystemSyncIds(ownerId);
+    for (const account of dto.accounts) {
+      if (!managedIds.has(account.id)) continue;
+      await this.updateBoundSystemAccountMetadata(
+        ownerId,
+        account,
+        canEditOfficialMetadata,
+        false,
+      );
+    }
     await this.dataSource.transaction(async (manager) => {
       const repo = manager.getRepository(SyncedAccountEntity);
       if (!dto.accounts.length) return;
@@ -195,11 +219,23 @@ export class SyncService {
     return { count: dto.accounts.length };
   }
 
-  async upsert(ownerId: string, accountId: string, account: SyncAccountDto, deviceId?: string) {
+  async upsert(
+    ownerId: string,
+    accountId: string,
+    account: SyncAccountDto,
+    deviceId?: string,
+    canEditOfficialMetadata = false,
+  ) {
     if (account.id !== accountId) {
       throw new BadRequestException('Route account id does not match request body');
     }
     if (await this.isSystemAccountBound(ownerId, accountId)) {
+      await this.updateBoundSystemAccountMetadata(
+        ownerId,
+        account,
+        canEditOfficialMetadata,
+        true,
+      );
       await this.updateDeviceActiveAccount(ownerId, deviceId, [account]);
       return { id: accountId };
     }
@@ -367,10 +403,18 @@ export class SyncService {
     };
   }
 
-  async listForPortal(ownerId: string): Promise<{ accounts: PortalSyncAccountDto[] }> {
+  async listForPortal(
+    ownerId: string,
+    canEditOfficialMetadata = false,
+  ): Promise<{ accounts: PortalSyncAccountDto[] }> {
     const data = await this.listForAdmin(ownerId);
     return {
-      accounts: data.accounts.map(({ auth: _auth, ...account }) => account),
+      accounts: data.accounts.map(({ auth: _auth, ...account }) => ({
+        ...account,
+        metadataEditable: account.source === 'system'
+          ? canEditOfficialMetadata
+          : true,
+      })),
     };
   }
 
@@ -736,9 +780,18 @@ export class SyncService {
     ownerId: string,
     accountId: string,
     patch: Partial<SyncAccountDto>,
+    canEditOfficialMetadata = false,
   ) {
-    if (await this.isSystemAccountBound(ownerId, accountId)) {
-      throw new BadRequestException('System pool accounts must be edited from the official account pool');
+    const bindings = await this.loadSystemBindings(ownerId);
+    const binding = bindings.find((item) => item.account.syncAccountId === accountId);
+    if (binding) {
+      if (!canEditOfficialMetadata) {
+        throw new ForbiddenException('You cannot edit official account notes or expiration dates');
+      }
+      return this.updateSystemAccount(binding.systemAccountId, {
+        ...(patch.note !== undefined ? { note: patch.note ?? '' } : {}),
+        ...(patch.expiresAt !== undefined ? { expiresAt: patch.expiresAt ?? '' } : {}),
+      });
     }
     const account = await this.accounts.findOne({
       where: { ownerId, accountId, deletedAt: IsNull() },
@@ -982,13 +1035,22 @@ export class SyncService {
     const deletedAccountIds = new Set(personalRows
       .filter((row) => Boolean(row.deletedAt))
       .map((row) => row.accountId));
-    const effective = new Map(personalRows.filter((row) => !row.deletedAt).map((row) => {
+    const effective = new Map<string, EffectiveSyncAccountDto>(personalRows
+      .filter((row) => !row.deletedAt).map((row) => {
       const account = this.toDto(row);
-      return [account.id, account] as const;
+      return [account.id, {
+        ...account,
+        official: false,
+        metadataEditable: true,
+      }] as const;
     }));
     for (const binding of bindings) {
       const account = this.systemAccountToSyncDto(binding.account);
-      effective.set(account.id, account);
+      effective.set(account.id, {
+        ...account,
+        official: true,
+        metadataEditable: false,
+      });
       deletedAccountIds.delete(account.id);
     }
     return {
@@ -1362,6 +1424,44 @@ export class SyncService {
     const milliseconds = Math.abs(value) >= 100_000_000_000 ? value : value * 1000;
     const parsed = new Date(milliseconds);
     return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+  }
+
+  private withOfficialMetadataAccess<T extends { accounts: EffectiveSyncAccountDto[] }>(
+    payload: T,
+    canEditOfficialMetadata: boolean,
+  ): T {
+    return {
+      ...payload,
+      accounts: payload.accounts.map((account) => ({
+        ...account,
+        metadataEditable: account.official ? canEditOfficialMetadata : true,
+      })),
+    };
+  }
+
+  private async updateBoundSystemAccountMetadata(
+    ownerId: string,
+    incoming: SyncAccountDto,
+    canEdit: boolean,
+    rejectUnauthorizedChange: boolean,
+  ) {
+    const bindings = await this.loadSystemBindings(ownerId);
+    const binding = bindings.find((item) => item.account.syncAccountId === incoming.id);
+    if (!binding) return false;
+    const changed = (binding.account.note ?? incoming.note) !== incoming.note
+      || (binding.account.expiresAt ?? incoming.expiresAt) !== incoming.expiresAt;
+    if (!changed) return false;
+    if (!canEdit) {
+      if (rejectUnauthorizedChange) {
+        throw new ForbiddenException('You cannot edit official account notes or expiration dates');
+      }
+      return false;
+    }
+    await this.updateSystemAccount(binding.systemAccountId, {
+      note: incoming.note,
+      expiresAt: incoming.expiresAt,
+    });
+    return true;
   }
 
   private usageWindow(value: unknown): UsageWindowDto | null {

@@ -173,6 +173,25 @@ pub(crate) fn expiration_path(paths: &Paths, id: &str) -> PathBuf {
     account_dir(paths, id).join("expires-at.txt")
 }
 
+pub(crate) fn official_account_access_path(paths: &Paths, id: &str) -> PathBuf {
+    account_dir(paths, id).join("official-account-access.json")
+}
+
+pub(crate) fn load_official_account_access(paths: &Paths, id: &str) -> (bool, bool) {
+    let Ok(value) = read_json(&official_account_access_path(paths, id)) else {
+        return (false, true);
+    };
+    let official = value
+        .get("official")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let metadata_editable = value
+        .get("metadataEditable")
+        .and_then(Value::as_bool)
+        .unwrap_or(!official);
+    (official, metadata_editable)
+}
+
 pub(crate) fn auto_switch_priority_path(paths: &Paths, id: &str) -> PathBuf {
     account_dir(paths, id).join("auto-switch-priority.txt")
 }
