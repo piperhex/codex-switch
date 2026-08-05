@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Button, Checkbox, Dropdown, InputNumber, Popconfirm, Space, Switch, Table, Tag, Tooltip } from "antd";
+import { Button, Checkbox, Dropdown, InputNumber, Popconfirm, Select, Space, Switch, Table, Tag, Tooltip } from "antd";
 import type { TableProps } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import {
@@ -68,6 +68,9 @@ interface AccountTableProps {
   concurrentAccountRoutingEnabled: boolean;
   concurrentAccountRoutingBusy: boolean;
   onConcurrentAccountRoutingChange: (enabled: boolean) => void;
+  imageGenerationAccountId: string | null;
+  imageAccountBusy: boolean;
+  onImageAccountChange: (accountId: string | null) => void;
   openaiAuthAccountId: string | null;
   openaiAuthBusy: boolean;
   onOpenaiAuthAccountChange: (accountId: string | null) => void;
@@ -401,6 +404,9 @@ export function AccountTable({
   concurrentAccountRoutingEnabled,
   concurrentAccountRoutingBusy,
   onConcurrentAccountRoutingChange,
+  imageGenerationAccountId,
+  imageAccountBusy,
+  onImageAccountChange,
   openaiAuthAccountId,
   openaiAuthBusy,
   onOpenaiAuthAccountChange,
@@ -588,6 +594,12 @@ export function AccountTable({
     .filter((account) => selectedAccountIdSet.has(account.id) && account.autoSwitchEnabled)
     .map((account) => account.id);
   const activeAccount = accounts.find((account) => account.active) ?? null;
+  const imageAccounts = accounts.filter((account) => !account.agentIdentity);
+  const showImageAccountSelect = hotSwitchEnabled && (
+    Boolean(activeAccount?.agentIdentity) || concurrentAccountRoutingEnabled
+  );
+  const effectiveImageAccountId = imageGenerationAccountId
+    ?? (!activeAccount?.agentIdentity ? activeAccount?.id : undefined);
   const officialAuthAccount = accounts.find((account) => account.id === openaiAuthAccountId) ?? null;
   const accountSummaryLabel = (account: Account | null) => {
     if (!account) return "-";
@@ -1189,6 +1201,27 @@ export function AccountTable({
           </span>
           {proxyControls}
         </div>
+        {showImageAccountSelect && (
+          <Tooltip title={t("providers.proxy.imageAccountTooltip")} styles={{ root: { maxWidth: 400 } }}>
+            <Select
+              className="proxy-image-account"
+              size="small"
+              aria-label={t("providers.proxy.imageAccount")}
+              value={effectiveImageAccountId}
+              options={imageAccounts.map((account) => ({
+                label: privacyMode ? maskAccountEmail(account.email) : account.email,
+                value: account.id,
+              }))}
+              placeholder={t(imageAccounts.length
+                ? "providers.proxy.imageAccountPlaceholder"
+                : "providers.proxy.imageAccountEmpty")}
+              disabled={imageAccountBusy || imageAccounts.length === 0}
+              showSearch
+              optionFilterProp="label"
+              onChange={onImageAccountChange}
+            />
+          </Tooltip>
+        )}
         <Tooltip title={t("table.concurrentRoutingTooltip")} styles={{ root: { maxWidth: 400 } }}>
           <span className="account-concurrent-routing-control">
             <span>{t("table.concurrentRouting")}</span>

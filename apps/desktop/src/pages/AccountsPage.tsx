@@ -29,6 +29,7 @@ export function AccountsPage({
   onLoadResetCredits,
   onUseResetCredit,
   resetCreditBusyAccountId,
+  onImageAccountChange,
   onOpenaiAuthAccountChange,
   onConcurrentRoutingChange,
   privacyMode,
@@ -63,6 +64,7 @@ export function AccountsPage({
   onLoadResetCredits: (id: string, force?: boolean) => void;
   onUseResetCredit: (id: string) => void;
   resetCreditBusyAccountId: string | null;
+  onImageAccountChange: (accountId: string | null) => void;
   onOpenaiAuthAccountChange: (accountId: string | null) => void;
   onConcurrentRoutingChange: (enabled: boolean) => void;
   privacyMode: boolean;
@@ -112,6 +114,9 @@ export function AccountsPage({
         concurrentAccountRoutingEnabled={localProxy?.concurrentAccountRoutingEnabled ?? false}
         concurrentAccountRoutingBusy={proxyBusy}
         onConcurrentAccountRoutingChange={onConcurrentRoutingChange}
+        imageGenerationAccountId={localProxy?.imageGenerationAccountId ?? null}
+        imageAccountBusy={proxyBusy}
+        onImageAccountChange={onImageAccountChange}
         showUsageNetworkErrors={showUsageNetworkErrors} displayMode={displayMode}
         openaiAuthAccountId={localProxy?.openaiAuthAccountId ?? null} openaiAuthBusy={proxyBusy}
         onOpenaiAuthAccountChange={onOpenaiAuthAccountChange}
