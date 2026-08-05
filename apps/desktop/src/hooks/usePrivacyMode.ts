@@ -1,15 +1,19 @@
 import { useCallback, useEffect, useState } from "react";
-import { loadAppSettings, updatePrivacyMode } from "../api/backend";
+import { loadAppSettings, updateHideAccountNotes, updatePrivacyMode } from "../api/backend";
 
 export function usePrivacyMode(notify: (message: string) => void) {
   const [enabled, setEnabled] = useState(true);
+  const [hideAccountNotes, setHideAccountNotes] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let active = true;
     void loadAppSettings()
       .then((settings) => {
-        if (active) setEnabled(settings.privacyMode);
+        if (active) {
+          setEnabled(settings.privacyMode);
+          setHideAccountNotes(settings.hideAccountNotes);
+        }
       })
       .catch((error) => notify(String(error)))
       .finally(() => {
@@ -33,5 +37,26 @@ export function usePrivacyMode(notify: (message: string) => void) {
     }
   }, [enabled, notify]);
 
-  return { enabled, loading, setEnabled: updateEnabled };
+  const updateNotesHidden = useCallback(async (nextEnabled: boolean) => {
+    const previous = hideAccountNotes;
+    setHideAccountNotes(nextEnabled);
+    setLoading(true);
+    try {
+      const settings = await updateHideAccountNotes(nextEnabled);
+      setHideAccountNotes(settings.hideAccountNotes);
+    } catch (error) {
+      setHideAccountNotes(previous);
+      notify(String(error));
+    } finally {
+      setLoading(false);
+    }
+  }, [hideAccountNotes, notify]);
+
+  return {
+    enabled,
+    hideAccountNotes,
+    loading,
+    setEnabled: updateEnabled,
+    setHideAccountNotes: updateNotesHidden,
+  };
 }

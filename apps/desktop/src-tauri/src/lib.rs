@@ -187,6 +187,7 @@ pub fn run() {
             floating_bubble::get_app_settings,
             floating_bubble::set_floating_bubble,
             floating_bubble::set_privacy_mode,
+            floating_bubble::set_hide_account_notes,
             floating_bubble::set_show_usage_network_errors,
             floating_bubble::set_token_usage_preferences,
             floating_bubble::set_bubble_reset_display,

@@ -406,6 +406,10 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
             app,
             argument(&args, "enabled")?,
         )),
+        "set_hide_account_notes" => serialize(crate::floating_bubble::set_hide_account_notes(
+            app,
+            argument(&args, "enabled")?,
+        )),
         "set_show_usage_network_errors" => serialize(
             crate::floating_bubble::set_show_usage_network_errors(app, argument(&args, "enabled")?),
         ),

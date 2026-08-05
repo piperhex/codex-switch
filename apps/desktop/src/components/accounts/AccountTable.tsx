@@ -72,6 +72,7 @@ interface AccountTableProps {
   openaiAuthBusy: boolean;
   onOpenaiAuthAccountChange: (accountId: string | null) => void;
   privacyMode: boolean;
+  hideAccountNotes: boolean;
   showUsageNetworkErrors: boolean;
   displayMode: AccountDisplayMode;
   tokenUsageRefreshSeconds: number;
@@ -404,6 +405,7 @@ export function AccountTable({
   openaiAuthBusy,
   onOpenaiAuthAccountChange,
   privacyMode,
+  hideAccountNotes,
   showUsageNetworkErrors,
   displayMode,
   tokenUsageRefreshSeconds,
@@ -640,9 +642,9 @@ export function AccountTable({
               {privacyMode ? maskAccountEmail(account.email) : account.email}
             </div>
             <div className={`account-note-preview${account.note ? "" : " empty"}`}
-              title={privacyMode ? undefined : account.note || (canEditAccountMetadata(account)
+              title={hideAccountNotes ? undefined : account.note || (canEditAccountMetadata(account)
                 ? t("note.doubleClick") : t("table.noNote"))}>
-              {privacyMode && account.note ? "**********" : account.note || (canEditAccountMetadata(account)
+              {hideAccountNotes && account.note ? "**********" : account.note || (canEditAccountMetadata(account)
                 ? t("note.doubleClick") : t("table.noNote"))}
             </div>
             <div className="account-meta">
@@ -1049,7 +1051,7 @@ export function AccountTable({
                 </div>
                 <Tooltip title={!canEditAccountMetadata(account)
                   ? t("table.officialMetadataReadOnly")
-                  : privacyMode ? "**********" : account.note || t("note.doubleClick")}>
+                  : hideAccountNotes ? "**********" : account.note || t("note.doubleClick")}>
                   <div className={`account-note-trigger${canEditAccountMetadata(account) ? "" : " read-only"}`}
                     onClick={(event) => event.stopPropagation()}
                     onDoubleClick={() => {
@@ -1057,7 +1059,7 @@ export function AccountTable({
                     }} aria-label={canEditAccountMetadata(account)
                       ? t("note.doubleClick")
                       : t("table.officialMetadataReadOnly")}>
-                    {privacyMode && account.note ? "**********" : account.note || (canEditAccountMetadata(account)
+                    {hideAccountNotes && account.note ? "**********" : account.note || (canEditAccountMetadata(account)
                       ? t("note.doubleClick") : t("table.noNote"))}
                   </div>
                 </Tooltip>

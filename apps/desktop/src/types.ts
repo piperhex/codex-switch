@@ -251,6 +251,7 @@ export interface UpdateInfo {
 export interface AppSettings {
   floatingBubbleEnabled: boolean;
   privacyMode: boolean;
+  hideAccountNotes: boolean;
   bubbleResetDisplay: BubbleResetDisplay;
   bubbleStyle: BubbleStyle;
   themeColor?: string | null;

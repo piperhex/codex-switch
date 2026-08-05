@@ -308,6 +308,8 @@ pub(crate) struct AppSettings {
     #[serde(default = "default_privacy_mode")]
     pub(crate) privacy_mode: bool,
     #[serde(default)]
+    pub(crate) hide_account_notes: bool,
+    #[serde(default)]
     pub(crate) bubble_reset_display: BubbleResetDisplay,
     #[serde(default)]
     pub(crate) bubble_style: BubbleStyle,
@@ -401,6 +403,7 @@ impl Default for AppSettings {
             theme_color: None,
             language: None,
             privacy_mode: default_privacy_mode(),
+            hide_account_notes: false,
             bubble_reset_display: BubbleResetDisplay::default(),
             bubble_style: BubbleStyle::default(),
             bubble_x: None,
@@ -576,6 +579,18 @@ mod tests {
         assert!(defaults.floating_bubble_enabled);
         assert!(migrated.floating_bubble_enabled);
         assert!(!explicitly_disabled.floating_bubble_enabled);
+    }
+
+    #[test]
+    fn app_settings_show_account_notes_by_default() {
+        let defaults = AppSettings::default();
+        let migrated: AppSettings = serde_json::from_str("{}").unwrap();
+        let explicitly_hidden: AppSettings =
+            serde_json::from_str(r#"{"hideAccountNotes":true}"#).unwrap();
+
+        assert!(!defaults.hide_account_notes);
+        assert!(!migrated.hide_account_notes);
+        assert!(explicitly_hidden.hide_account_notes);
     }
 
     #[test]

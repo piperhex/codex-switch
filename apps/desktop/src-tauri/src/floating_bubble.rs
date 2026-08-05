@@ -147,6 +147,17 @@ pub(crate) fn set_privacy_mode<R: Runtime>(
 }
 
 #[tauri::command]
+pub(crate) fn set_hide_account_notes<R: Runtime>(
+    app: AppHandle<R>,
+    enabled: bool,
+) -> Result<AppSettings, String> {
+    let mut settings = read_app_settings(&app)?;
+    settings.hide_account_notes = enabled;
+    write_app_settings(&app, &settings)?;
+    Ok(settings)
+}
+
+#[tauri::command]
 pub(crate) fn set_show_usage_network_errors<R: Runtime>(
     app: AppHandle<R>,
     enabled: bool,

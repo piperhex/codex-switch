@@ -106,8 +106,10 @@ export function SettingsPage({
   bubbleStyleLoading,
   onBubbleStyleChange,
   privacyModeEnabled,
+  hideAccountNotes,
   privacyModeLoading,
   onPrivacyModeChange,
+  onHideAccountNotesChange,
   accountDisplayMode,
   onAccountDisplayModeChange,
   tokenUsageWeeks,
@@ -160,8 +162,10 @@ export function SettingsPage({
   bubbleStyleLoading: boolean;
   onBubbleStyleChange: (style: BubbleStyle) => void;
   privacyModeEnabled: boolean;
+  hideAccountNotes: boolean;
   privacyModeLoading: boolean;
   onPrivacyModeChange: (enabled: boolean) => void;
+  onHideAccountNotesChange: (enabled: boolean) => void;
   accountDisplayMode: AccountDisplayMode;
   onAccountDisplayModeChange: (mode: AccountDisplayMode) => void;
   tokenUsageWeeks: number;
@@ -302,6 +306,10 @@ export function SettingsPage({
             <Switch id="privacy-mode-enabled" checked={privacyModeEnabled} loading={privacyModeLoading}
               checkedChildren={t("settings.autoRefresh.on")} unCheckedChildren={t("settings.autoRefresh.off")}
               onChange={onPrivacyModeChange} />
+            <label htmlFor="hide-account-notes">{t("settings.privacy.hideNotes")}</label>
+            <Switch id="hide-account-notes" checked={hideAccountNotes} loading={privacyModeLoading}
+              checkedChildren={t("settings.autoRefresh.on")} unCheckedChildren={t("settings.autoRefresh.off")}
+              onChange={onHideAccountNotesChange} />
           </div>
         </div>
       </section>

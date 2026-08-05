@@ -98,6 +98,7 @@ let updateInstallInProgress = false;
 const UPDATE_CHECK_RETRY_DELAYS_MS = [500, 1_500] as const;
 const FLOATING_BUBBLE_PREVIEW_KEY = "codex-switch:floating-bubble";
 const PRIVACY_MODE_PREVIEW_KEY = "codex-switch:privacy-mode";
+const HIDE_ACCOUNT_NOTES_PREVIEW_KEY = "codex-switch:hide-account-notes";
 const BUBBLE_RESET_DISPLAY_PREVIEW_KEY = "codex-switch:bubble-reset-display";
 const BUBBLE_STYLE_PREVIEW_KEY = "codex-switch:bubble-style";
 const THEME_COLOR_PREVIEW_KEY = "codex-switch:theme-color";
@@ -306,6 +307,7 @@ export async function loadAppSettings(): Promise<AppSettings> {
     return {
       floatingBubbleEnabled: previewFloatingBubbleEnabled(),
       privacyMode: window.localStorage.getItem(PRIVACY_MODE_PREVIEW_KEY) !== "false",
+      hideAccountNotes: window.localStorage.getItem(HIDE_ACCOUNT_NOTES_PREVIEW_KEY) === "true",
       bubbleResetDisplay: window.localStorage.getItem(BUBBLE_RESET_DISPLAY_PREVIEW_KEY) === "resetAt" ? "resetAt" : "countdown",
       bubbleStyle: previewBubbleStyle(),
       themeColor: normalizeThemeColor(window.localStorage.getItem(THEME_COLOR_PREVIEW_KEY) ?? DEFAULT_THEME_COLOR),
@@ -837,6 +839,7 @@ export async function updateFloatingBubble(enabled: boolean): Promise<AppSetting
     return {
       floatingBubbleEnabled: enabled,
       privacyMode: window.localStorage.getItem(PRIVACY_MODE_PREVIEW_KEY) !== "false",
+      hideAccountNotes: window.localStorage.getItem(HIDE_ACCOUNT_NOTES_PREVIEW_KEY) === "true",
       bubbleResetDisplay: window.localStorage.getItem(BUBBLE_RESET_DISPLAY_PREVIEW_KEY) === "resetAt" ? "resetAt" : "countdown",
       bubbleStyle: previewBubbleStyle(),
       themeColor: normalizeThemeColor(window.localStorage.getItem(THEME_COLOR_PREVIEW_KEY) ?? DEFAULT_THEME_COLOR),
@@ -851,12 +854,21 @@ export async function updatePrivacyMode(enabled: boolean): Promise<AppSettings> 
     return {
       floatingBubbleEnabled: previewFloatingBubbleEnabled(),
       privacyMode: enabled,
+      hideAccountNotes: window.localStorage.getItem(HIDE_ACCOUNT_NOTES_PREVIEW_KEY) === "true",
       bubbleResetDisplay: window.localStorage.getItem(BUBBLE_RESET_DISPLAY_PREVIEW_KEY) === "resetAt" ? "resetAt" : "countdown",
       bubbleStyle: previewBubbleStyle(),
       themeColor: normalizeThemeColor(window.localStorage.getItem(THEME_COLOR_PREVIEW_KEY) ?? DEFAULT_THEME_COLOR),
     };
   }
   return invoke<AppSettings>("set_privacy_mode", { enabled });
+}
+
+export async function updateHideAccountNotes(enabled: boolean): Promise<AppSettings> {
+  if (!hasLocalBackend) {
+    window.localStorage.setItem(HIDE_ACCOUNT_NOTES_PREVIEW_KEY, String(enabled));
+    return loadAppSettings();
+  }
+  return invoke<AppSettings>("set_hide_account_notes", { enabled });
 }
 
 export async function updateTokenUsagePreferences(
@@ -905,6 +917,7 @@ export async function updateBubbleResetDisplay(display: BubbleResetDisplay): Pro
     return {
       floatingBubbleEnabled: previewFloatingBubbleEnabled(),
       privacyMode: window.localStorage.getItem(PRIVACY_MODE_PREVIEW_KEY) !== "false",
+      hideAccountNotes: window.localStorage.getItem(HIDE_ACCOUNT_NOTES_PREVIEW_KEY) === "true",
       bubbleResetDisplay: display,
       bubbleStyle: previewBubbleStyle(),
       themeColor: normalizeThemeColor(window.localStorage.getItem(THEME_COLOR_PREVIEW_KEY) ?? DEFAULT_THEME_COLOR),
@@ -930,6 +943,7 @@ export async function updateThemeColor(color: string): Promise<AppSettings> {
     return {
       floatingBubbleEnabled: previewFloatingBubbleEnabled(),
       privacyMode: window.localStorage.getItem(PRIVACY_MODE_PREVIEW_KEY) !== "false",
+      hideAccountNotes: window.localStorage.getItem(HIDE_ACCOUNT_NOTES_PREVIEW_KEY) === "true",
       bubbleResetDisplay: window.localStorage.getItem(BUBBLE_RESET_DISPLAY_PREVIEW_KEY) === "resetAt" ? "resetAt" : "countdown",
       bubbleStyle: previewBubbleStyle(),
       themeColor,

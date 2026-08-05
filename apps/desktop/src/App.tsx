@@ -549,6 +549,9 @@ function DashboardApp() {
   const changePrivacyMode = useCallback((enabled: boolean) => {
     void privacyMode.setEnabled(enabled);
   }, [privacyMode.setEnabled]);
+  const changeHideAccountNotes = useCallback((enabled: boolean) => {
+    void privacyMode.setHideAccountNotes(enabled);
+  }, [privacyMode.setHideAccountNotes]);
   const openFolder = useCallback((target: "codexHome" | "accountStore") => {
     if (!hasLocalBackend) {
       notify(t("toast.previewOpenFolder"));
@@ -1582,6 +1585,8 @@ function DashboardApp() {
               onBubbleStyleChange={changeBubbleStyle}
               privacyModeEnabled={privacyMode.enabled} privacyModeLoading={privacyMode.loading}
               onPrivacyModeChange={changePrivacyMode}
+              hideAccountNotes={privacyMode.hideAccountNotes}
+              onHideAccountNotesChange={changeHideAccountNotes}
               accountDisplayMode={accountDisplayMode.displayMode}
               onAccountDisplayModeChange={accountDisplayMode.setDisplayMode}
               tokenUsageWeeks={tokenUsagePreferences.weeks}
@@ -1649,6 +1654,7 @@ function DashboardApp() {
               onOpenaiAuthAccountChange={providerManager.setProxyOpenaiAuthAccount}
               onConcurrentRoutingChange={providerManager.setProxyConcurrentRouting}
               privacyMode={privacyMode.enabled}
+              hideAccountNotes={privacyMode.hideAccountNotes}
               showUsageNetworkErrors={showUsageNetworkErrors}
               displayMode={accountDisplayMode.displayMode}
               tokenUsageRefreshSeconds={tokenUsagePreferences.refreshSeconds}

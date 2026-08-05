@@ -32,6 +32,7 @@ export function AccountsPage({
   onOpenaiAuthAccountChange,
   onConcurrentRoutingChange,
   privacyMode,
+  hideAccountNotes,
   showUsageNetworkErrors,
   displayMode,
   tokenUsageRefreshSeconds,
@@ -65,6 +66,7 @@ export function AccountsPage({
   onOpenaiAuthAccountChange: (accountId: string | null) => void;
   onConcurrentRoutingChange: (enabled: boolean) => void;
   privacyMode: boolean;
+  hideAccountNotes: boolean;
   showUsageNetworkErrors: boolean;
   displayMode: AccountDisplayMode;
   tokenUsageRefreshSeconds: number;
@@ -106,6 +108,7 @@ export function AccountsPage({
         resetCredits={resetCredits} onLoadResetCredits={onLoadResetCredits}
         onUseResetCredit={onUseResetCredit} resetCreditBusyAccountId={resetCreditBusyAccountId}
         hotSwitchEnabled={hotSwitchEnabled} privacyMode={privacyMode}
+        hideAccountNotes={hideAccountNotes}
         concurrentAccountRoutingEnabled={localProxy?.concurrentAccountRoutingEnabled ?? false}
         concurrentAccountRoutingBusy={proxyBusy}
         onConcurrentAccountRoutingChange={onConcurrentRoutingChange}
