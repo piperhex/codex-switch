@@ -5,7 +5,7 @@ import zhCN from "antd/locale/zh_CN";
 import { BarChart3, Bell, CalendarClock, Check, ChevronDown, CircleHelp, Cloud, Copy, Download, Github, Globe2, LogIn, LogOut, Megaphone, MessageSquareText, Minus, PackageOpen, Palette, Play, Plus, RefreshCw, RotateCcw, Search, Server, Settings, ShieldCheck, Shuffle, Square, UploadCloud, UserRound, X } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { checkForUpdate, chooseAndExportDiagnosticLogs, consumeResetCredit, DEFAULT_AUTO_DISABLE_STATUS_CODES, DEFAULT_CLOUD_BASE_URL, downloadAvailableUpdate, fetchCloudAnnouncement, fetchCloudFaqs, fetchCloudNotifications, hasLocalBackend, installDownloadedUpdate, isDesktopApp, launchChatGpt, loadAppSettings, openManagedFolder, queryProviderBalance, quitApplication, reportAnnouncementClick, reportBaseUrlChange, reportDeviceActivity, reportFirstInstallation, restartApplication, restartChatGpt, showTokenUsageWindow, submitFeedback, subscribeToCloudSessionExpired, updateAutoDisableStatusCodes, updateWebProxyPort } from "./api/backend";
+import { checkForUpdate, chooseAndExportDiagnosticLogs, consumeResetCredit, DEFAULT_AUTO_DISABLE_STATUS_CODES, DEFAULT_CLOUD_BASE_URL, downloadAvailableUpdate, fetchCloudAnnouncement, fetchCloudFaqs, fetchCloudNotifications, hasLocalBackend, installDownloadedUpdate, isDesktopApp, launchChatGpt, loadAppSettings, openManagedFolder, queryProviderBalance, quitApplication, reportAnnouncementClick, reportBaseUrlChange, reportDeviceActivity, reportFirstInstallation, restartApplication, restartChatGpt, showTokenUsageWindow, submitFeedback, subscribeToCloudSessionExpired, updateAutoDisableStatusCodes, updateShowUsageNetworkErrors, updateWebProxyPort } from "./api/backend";
 import { AboutModal } from "./components/modals/AboutModal";
 import { HelpModal, type HelpVersionState } from "./components/modals/HelpModal";
 import { FeedbackModal } from "./components/modals/FeedbackModal";
@@ -155,6 +155,8 @@ function DashboardApp() {
     [...DEFAULT_AUTO_DISABLE_STATUS_CODES],
   );
   const [autoDisableStatusCodesLoading, setAutoDisableStatusCodesLoading] = useState(false);
+  const [showUsageNetworkErrors, setShowUsageNetworkErrors] = useState(false);
+  const [showUsageNetworkErrorsLoading, setShowUsageNetworkErrorsLoading] = useState(false);
   const [announcement, setAnnouncement] = useState<CloudAnnouncement | null>(null);
   const [notifications, setNotifications] = useState<CloudNotification[]>([]);
   const [faqs, setFaqs] = useState<CloudFaq[]>([]);
@@ -245,6 +247,7 @@ function DashboardApp() {
         setAutoDisableStatusCodes(
           settings.autoDisableStatusCodes ?? [...DEFAULT_AUTO_DISABLE_STATUS_CODES],
         );
+        setShowUsageNetworkErrors(settings.showUsageNetworkErrors ?? false);
       })
       .catch((error) => notify(String(error)));
   }, [notify]);
@@ -427,6 +430,24 @@ function DashboardApp() {
       }
     } finally {
       setAutoDisableStatusCodesLoading(false);
+    }
+  }, [notify]);
+  const changeShowUsageNetworkErrors = useCallback(async (enabled: boolean) => {
+    setShowUsageNetworkErrors(enabled);
+    setShowUsageNetworkErrorsLoading(true);
+    try {
+      const settings = await updateShowUsageNetworkErrors(enabled);
+      setShowUsageNetworkErrors(settings.showUsageNetworkErrors ?? false);
+    } catch (error) {
+      notify(String(error));
+      try {
+        const settings = await loadAppSettings();
+        setShowUsageNetworkErrors(settings.showUsageNetworkErrors ?? false);
+      } catch {
+        // Keep the last known saved value when settings cannot be reloaded.
+      }
+    } finally {
+      setShowUsageNetworkErrorsLoading(false);
     }
   }, [notify]);
   const openWebVersion = useCallback((url: string) => {
@@ -1528,6 +1549,9 @@ function DashboardApp() {
               autoDisableStatusCodes={autoDisableStatusCodes}
               autoDisableStatusCodesLoading={autoDisableStatusCodesLoading}
               onAutoDisableStatusCodesChange={changeAutoDisableStatusCodes}
+              showUsageNetworkErrors={showUsageNetworkErrors}
+              showUsageNetworkErrorsLoading={showUsageNetworkErrorsLoading}
+              onShowUsageNetworkErrorsChange={changeShowUsageNetworkErrors}
               webProxyPort={webProxyPort}
               webProxyPortLoading={webProxyPortLoading}
               onWebProxyPortChange={changeWebProxyPort}
@@ -1582,6 +1606,7 @@ function DashboardApp() {
               resetCreditBusyAccountId={resetCreditBusyAccountId}
               onOpenaiAuthAccountChange={providerManager.setProxyOpenaiAuthAccount}
               privacyMode={privacyMode.enabled}
+              showUsageNetworkErrors={showUsageNetworkErrors}
               displayMode={accountDisplayMode.displayMode}
               tokenUsageRefreshSeconds={tokenUsagePreferences.refreshSeconds}
               proxyControls={!CUSTOM_TITLEBAR_ENABLED ? proxyStatusControls : undefined}

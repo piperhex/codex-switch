@@ -6,7 +6,11 @@ import {
   REQUIRED_ANY_PERMISSIONS,
   REQUIRED_PERMISSIONS,
 } from '@/common/decorators/permissions.decorator';
-import { Permission, USER_ROLE_PERMISSIONS } from '@/common/rbac/permissions';
+import {
+  Permission,
+  USER_ROLE_PERMISSIONS,
+  expandPermissionDependencies,
+} from '@/common/rbac/permissions';
 import { JwtStrategy } from '@/modules/jwt/jwt.strategy';
 import type { UserService } from '@/modules/user/user.service';
 import type { AuthUser } from '@/common/decorators/user.decorator';
@@ -80,6 +84,20 @@ describe('authorization boundaries', () => {
       REQUIRED_ANY_PERMISSIONS,
       expect.any(Array),
     );
+  });
+
+  it('expands own-account management into own-read and user-list access', () => {
+    const permissions = expandPermissionDependencies([
+      Permission.OfficialAccountsManageOwn,
+    ]);
+
+    expect(permissions).toEqual(expect.arrayContaining([
+      Permission.OfficialAccountsManageOwn,
+      Permission.OfficialAccountsReadOwn,
+      Permission.UsersRead,
+    ]));
+    expect(permissions).not.toContain(Permission.OfficialAccountsRead);
+    expect(permissions).not.toContain(Permission.OfficialAccountsManage);
   });
 
   it('JwtStrategy rehydrates identity from current database state', async () => {

@@ -319,6 +319,8 @@ pub(crate) struct AppSettings {
     #[serde(default = "default_auto_disable_status_codes")]
     pub(crate) auto_disable_status_codes: Vec<u16>,
     #[serde(default)]
+    pub(crate) show_usage_network_errors: bool,
+    #[serde(default)]
     pub(crate) web_proxy_port: Option<u16>,
     #[serde(default)]
     pub(crate) last_started_version: Option<String>,
@@ -398,6 +400,7 @@ impl Default for AppSettings {
             token_usage_weeks: default_token_usage_weeks(),
             token_usage_refresh_seconds: default_token_usage_refresh_seconds(),
             auto_disable_status_codes: default_auto_disable_status_codes(),
+            show_usage_network_errors: false,
             web_proxy_port: None,
             last_started_version: None,
         }
@@ -584,5 +587,17 @@ mod tests {
         assert_eq!(defaults.auto_disable_status_codes, [401, 402, 403]);
         assert_eq!(migrated.auto_disable_status_codes, [401, 402, 403]);
         assert_eq!(customized.auto_disable_status_codes, [401, 429]);
+    }
+
+    #[test]
+    fn app_settings_hide_usage_network_errors_by_default() {
+        let defaults = AppSettings::default();
+        let migrated: AppSettings = serde_json::from_str("{}").unwrap();
+        let enabled: AppSettings =
+            serde_json::from_str(r#"{"showUsageNetworkErrors":true}"#).unwrap();
+
+        assert!(!defaults.show_usage_network_errors);
+        assert!(!migrated.show_usage_network_errors);
+        assert!(enabled.show_usage_network_errors);
     }
 }

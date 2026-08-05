@@ -116,6 +116,7 @@ const LOCAL_PROXY_OPENAI_AUTH_ACCOUNT_PREVIEW_KEY = "codex-switch:proxy-openai-a
 const TOKEN_USAGE_WEEKS_PREVIEW_KEY = "codex-switch:token-usage-weeks";
 const TOKEN_USAGE_REFRESH_PREVIEW_KEY = "codex-switch:token-usage-refresh-seconds";
 const AUTO_DISABLE_STATUS_CODES_PREVIEW_KEY = "codex-switch:auto-disable-status-codes";
+const SHOW_USAGE_NETWORK_ERRORS_PREVIEW_KEY = "codex-switch:show-usage-network-errors";
 const THEME_COLOR_EVENT = "codex-switch:theme-color-changed";
 const BUBBLE_RESET_DISPLAY_EVENT = "bubble-reset-display-changed";
 const BUBBLE_STYLE_EVENT = "bubble-style-changed";
@@ -307,6 +308,7 @@ export async function loadAppSettings(): Promise<AppSettings> {
       tokenUsageWeeks: Number(window.localStorage.getItem(TOKEN_USAGE_WEEKS_PREVIEW_KEY)) || 20,
       tokenUsageRefreshSeconds: Number(window.localStorage.getItem(TOKEN_USAGE_REFRESH_PREVIEW_KEY)) || 60,
       autoDisableStatusCodes: previewAutoDisableStatusCodes(),
+      showUsageNetworkErrors: window.localStorage.getItem(SHOW_USAGE_NETWORK_ERRORS_PREVIEW_KEY) === "true",
       webProxyPort: previewLocalProxyStatus().port || null,
     };
   }
@@ -866,6 +868,14 @@ export async function updateAutoDisableStatusCodes(statusCodes: number[]): Promi
     return loadAppSettings();
   }
   return invoke<AppSettings>("set_auto_disable_status_codes", { statusCodes });
+}
+
+export async function updateShowUsageNetworkErrors(enabled: boolean): Promise<AppSettings> {
+  if (!hasLocalBackend) {
+    window.localStorage.setItem(SHOW_USAGE_NETWORK_ERRORS_PREVIEW_KEY, String(enabled));
+    return loadAppSettings();
+  }
+  return invoke<AppSettings>("set_show_usage_network_errors", { enabled });
 }
 
 export async function updateBubbleResetDisplay(display: BubbleResetDisplay): Promise<AppSettings> {

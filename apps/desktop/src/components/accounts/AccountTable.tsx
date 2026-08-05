@@ -35,6 +35,7 @@ import type {
 import { earliestExpirationDate } from "../../utils/expiration";
 import { initials } from "../../utils/format";
 import { formatCompactTokenCount } from "../../utils/tokenContext";
+import { shouldShowUsageError } from "../../utils/usageErrors";
 import { AccountNoteModal } from "../modals/AccountNoteModal";
 import { ResetCreditsPanel } from "./ResetCreditsPanel";
 import { UsageMeter } from "./UsageMeter";
@@ -65,6 +66,7 @@ interface AccountTableProps {
   openaiAuthBusy: boolean;
   onOpenaiAuthAccountChange: (accountId: string | null) => void;
   privacyMode: boolean;
+  showUsageNetworkErrors: boolean;
   displayMode: AccountDisplayMode;
   tokenUsageRefreshSeconds: number;
   proxyControls?: ReactNode;
@@ -279,19 +281,21 @@ function isAccountDisabled(account: Account, hotSwitchEnabled: boolean) {
   return hotSwitchEnabled && !account.autoSwitchEnabled;
 }
 
-function needsAccountAttention(account: Account, hotSwitchEnabled: boolean) {
-  return Boolean(account.usage.error) || isAccountDisabled(account, hotSwitchEnabled);
+function needsAccountAttention(account: Account, hotSwitchEnabled: boolean, showUsageNetworkErrors: boolean) {
+  return shouldShowUsageError(account.usage.error, showUsageNetworkErrors)
+    || isAccountDisabled(account, hotSwitchEnabled);
 }
 
 function compareKeepingAttentionLast(
   left: Account,
   right: Account,
   hotSwitchEnabled: boolean,
+  showUsageNetworkErrors: boolean,
   sortOrder: UsageSortOrder | null | undefined,
   compare: (left: Account, right: Account) => number,
 ) {
-  const attentionOrder = Number(needsAccountAttention(left, hotSwitchEnabled))
-    - Number(needsAccountAttention(right, hotSwitchEnabled));
+  const attentionOrder = Number(needsAccountAttention(left, hotSwitchEnabled, showUsageNetworkErrors))
+    - Number(needsAccountAttention(right, hotSwitchEnabled, showUsageNetworkErrors));
   if (attentionOrder !== 0) return sortOrder === "descend" ? -attentionOrder : attentionOrder;
   return compare(left, right);
 }
@@ -375,6 +379,7 @@ export function AccountTable({
   openaiAuthBusy,
   onOpenaiAuthAccountChange,
   privacyMode,
+  showUsageNetworkErrors,
   displayMode,
   tokenUsageRefreshSeconds,
   proxyControls,
@@ -508,9 +513,9 @@ export function AccountTable({
     [accountTokenUsage],
   );
   const orderedAccounts = useMemo(() => [...accounts].sort(
-    (left, right) => Number(needsAccountAttention(left, hotSwitchEnabled))
-      - Number(needsAccountAttention(right, hotSwitchEnabled)),
-  ), [accounts, hotSwitchEnabled]);
+    (left, right) => Number(needsAccountAttention(left, hotSwitchEnabled, showUsageNetworkErrors))
+      - Number(needsAccountAttention(right, hotSwitchEnabled, showUsageNetworkErrors)),
+  ), [accounts, hotSwitchEnabled, showUsageNetworkErrors]);
   const selectedAccountIdSet = new Set(selectedAccountIds);
   const consumableSelectedAccountIds = accounts
     .filter((account) => selectedAccountIdSet.has(account.id) && account.autoSwitchEnabled)
@@ -548,6 +553,7 @@ export function AccountTable({
         left,
         right,
         hotSwitchEnabled,
+        showUsageNetworkErrors,
         sortOrder,
         (first, second) => first.email.localeCompare(second.email),
       ),
@@ -556,8 +562,8 @@ export function AccountTable({
         { text: t("table.filterError"), value: "error" },
       ],
       onFilter: (value, account) => value === "error"
-        ? needsAccountAttention(account, hotSwitchEnabled)
-        : !needsAccountAttention(account, hotSwitchEnabled),
+        ? needsAccountAttention(account, hotSwitchEnabled, showUsageNetworkErrors)
+        : !needsAccountAttention(account, hotSwitchEnabled, showUsageNetworkErrors),
       render: (_, account) => (
         <div className="account-cell">
           <div className={`table-avatar${isAccountDisabled(account, hotSwitchEnabled) ? " disabled-avatar" : ""}`}>
@@ -580,7 +586,8 @@ export function AccountTable({
                     date: earliestExpirationDate(account.expiresAt, account.usage.apiExpiresAt) ?? "",
                   })}</span>
                 )}
-                {account.usage.error && <Tooltip title={account.usage.error}><Tag color="error">{t("table.error")}</Tag></Tooltip>}
+                {shouldShowUsageError(account.usage.error, showUsageNetworkErrors)
+                  && <Tooltip title={account.usage.error}><Tag color="error">{t("table.error")}</Tag></Tooltip>}
               </div>
             </div>
           </div>
@@ -593,6 +600,7 @@ export function AccountTable({
         left,
         right,
         hotSwitchEnabled,
+        showUsageNetworkErrors,
         sortOrder,
         (first, second) => compareUsageRemaining(first, second, "primary"),
       ),
@@ -609,6 +617,7 @@ export function AccountTable({
         left,
         right,
         hotSwitchEnabled,
+        showUsageNetworkErrors,
         sortOrder,
         (first, second) => compareUsageRemaining(first, second, "secondary"),
       ),
@@ -959,7 +968,8 @@ export function AccountTable({
                       date: earliestExpirationDate(account.expiresAt, account.usage.apiExpiresAt) ?? "",
                     })}</span>
                   )}
-                  {account.usage.error && <Tooltip title={account.usage.error}><Tag color="error">{t("table.error")}</Tag></Tooltip>}
+                  {shouldShowUsageError(account.usage.error, showUsageNetworkErrors)
+                    && <Tooltip title={account.usage.error}><Tag color="error">{t("table.error")}</Tag></Tooltip>}
                 </div>
               </div>
               <div className="card-header-actions">

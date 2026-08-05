@@ -226,7 +226,7 @@ export class AdminService {
   }
 
   async updateSystemAccount(actor: AuthUser, id: string, dto: UpdateSystemAccountDto) {
-    const account = await this.sync.updateSystemAccount(id, dto);
+    const account = await this.sync.updateSystemAccount(id, dto, this.officialAccountManageScope(actor));
     await this.record(actor, 'official-account.update', 'official-account', id, account.email, {
       fields: Object.keys(dto),
       authChanged: dto.auth !== undefined,
@@ -235,13 +235,13 @@ export class AdminService {
   }
 
   async deleteSystemAccount(actor: AuthUser, id: string) {
-    const result = await this.sync.deleteSystemAccount(id);
+    const result = await this.sync.deleteSystemAccount(id, this.officialAccountManageScope(actor));
     await this.record(actor, 'official-account.delete', 'official-account', id);
     return result;
   }
 
   async deleteSystemAccounts(actor: AuthUser, ids: string[]) {
-    const result = await this.sync.deleteSystemAccounts(ids);
+    const result = await this.sync.deleteSystemAccounts(ids, this.officialAccountManageScope(actor));
     await this.record(actor, 'official-account.batch-delete', 'official-account', null, null, {
       systemAccountIds: result.ids,
       deletedAccounts: result.count,
@@ -256,7 +256,11 @@ export class AdminService {
 
   async bindSystemAccounts(actor: AuthUser, dto: ChangeSystemAccountBindingsDto) {
     const targetUsers = await this.ensureUsers(dto.userIds);
-    const result = await this.sync.bindSystemAccounts(dto.systemAccountIds, dto.userIds);
+    const result = await this.sync.bindSystemAccounts(
+      dto.systemAccountIds,
+      dto.userIds,
+      this.officialAccountManageScope(actor),
+    );
     await this.record(actor, 'official-account.bind', 'official-account', null, null, {
       systemAccountIds: dto.systemAccountIds,
       userIds: dto.userIds,
@@ -290,7 +294,11 @@ export class AdminService {
 
   async unbindSystemAccounts(actor: AuthUser, dto: ChangeSystemAccountBindingsDto) {
     await this.ensureUsers(dto.userIds);
-    const result = await this.sync.unbindSystemAccounts(dto.systemAccountIds, dto.userIds);
+    const result = await this.sync.unbindSystemAccounts(
+      dto.systemAccountIds,
+      dto.userIds,
+      this.officialAccountManageScope(actor),
+    );
     await this.record(actor, 'official-account.unbind', 'official-account', null, null, {
       systemAccountIds: dto.systemAccountIds,
       userIds: dto.userIds,
@@ -596,6 +604,12 @@ export class AdminService {
       page: Math.max(1, Number(query.page ?? 1)),
       pageSize: Math.min(100, Math.max(1, Number(query.pageSize ?? 20))),
     };
+  }
+
+  private officialAccountManageScope(actor: AuthUser) {
+    return actor.permissions?.includes(Permission.OfficialAccountsManage)
+      ? undefined
+      : actor.id;
   }
 
   private hashToken(token: string) {

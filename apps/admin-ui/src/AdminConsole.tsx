@@ -835,7 +835,10 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
   const canManageUsers = Boolean(profile?.permissions?.includes("admin.users.manage"));
   const canManageRoles = Boolean(profile?.permissions?.includes("admin.roles.manage"));
   const canManagePermissions = Boolean(profile?.permissions?.includes("admin.permissions.manage"));
-  const canManageOfficialAccounts = Boolean(profile?.permissions?.includes("admin.official-accounts.manage"));
+  const canManageOfficialAccounts = Boolean(
+    profile?.permissions?.includes("admin.official-accounts.manage")
+    || profile?.permissions?.includes("admin.official-accounts.manage-own"),
+  );
   const canManageInvitations = Boolean(profile?.permissions?.includes("admin.invitations.manage"));
   const canManageApprovals = Boolean(profile?.permissions?.includes("admin.approvals.manage"));
   const canManageAnnouncements = Boolean(profile?.permissions?.includes("admin.announcements.manage"));

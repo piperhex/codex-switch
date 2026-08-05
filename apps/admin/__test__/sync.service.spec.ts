@@ -879,6 +879,26 @@ describe('SyncService', () => {
     );
   });
 
+  it('limits own-manager updates and bindings to accounts added by that operator', async () => {
+    const accountId = '10000000-0000-4000-8000-000000000001';
+    const operatorId = '20000000-0000-4000-8000-000000000001';
+    systemAccounts.findOne.mockResolvedValue(null);
+
+    await expect(service.updateSystemAccount(accountId, { note: 'blocked' }, operatorId))
+      .rejects.toThrow('Official account not found');
+    expect(systemAccounts.findOne).toHaveBeenCalledWith({
+      where: { id: accountId, addedByUserId: operatorId },
+      relations: { bindings: true },
+    });
+
+    systemAccounts.find.mockResolvedValue([]);
+    await expect(service.bindSystemAccounts([accountId], [operatorId], operatorId))
+      .rejects.toThrow('Official account not found');
+    expect(systemAccounts.find).toHaveBeenLastCalledWith({
+      where: expect.objectContaining({ addedByUserId: operatorId }),
+    });
+  });
+
   it('upserts a provider when the incoming profile is newer', async () => {
     const provider = makeProvider();
     transactionRepository.findOne.mockResolvedValue({

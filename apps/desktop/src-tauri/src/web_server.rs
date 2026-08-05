@@ -396,6 +396,9 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
             app,
             argument(&args, "enabled")?,
         )),
+        "set_show_usage_network_errors" => serialize(
+            crate::floating_bubble::set_show_usage_network_errors(app, argument(&args, "enabled")?),
+        ),
         "set_token_usage_preferences" => {
             serialize(crate::floating_bubble::set_token_usage_preferences(
                 app,

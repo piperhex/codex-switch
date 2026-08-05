@@ -1648,8 +1648,11 @@ pub(crate) fn refresh_usage_blocking<R: Runtime>(
         Ok(usage) => Ok(usage),
         Err(error) => {
             if let Ok(paths) = resolve_paths(&app) {
+                let settings = read_app_settings(&app).unwrap_or_default();
+                let should_report_error =
+                    settings.show_usage_network_errors || !is_usage_network_error(&error);
                 let cached = UsageSummary {
-                    error: Some(error.clone()),
+                    error: should_report_error.then(|| error.clone()),
                     fetched_at: Some(Utc::now().to_rfc3339()),
                     ..load_usage(&usage_path(&paths, &id))
                 };
@@ -1660,7 +1663,6 @@ pub(crate) fn refresh_usage_blocking<R: Runtime>(
                 // disconnect or timeout). Only an explicitly configured upstream HTTP status
                 // can turn a failure into a persisted account exclusion.
                 let state = read_state(&paths);
-                let settings = read_app_settings(&app).unwrap_or_default();
                 let disable_error = if should_disable_account_auto_switch(
                     &error,
                     state.auto_switch_on_quota_exhaustion
@@ -1676,10 +1678,37 @@ pub(crate) fn refresh_usage_blocking<R: Runtime>(
                 if let Some(disable_error) = disable_error {
                     return Err(format!("{error}；自动禁用账号失败：{disable_error}"));
                 }
+                if !should_report_error {
+                    return Ok(cached);
+                }
             }
             Err(error)
         }
     }
+}
+
+fn is_usage_network_error(error: &str) -> bool {
+    if (100..=599).any(|status| error.contains(&format!("HTTP {status}"))) {
+        return false;
+    }
+
+    let normalized = error.to_ascii_lowercase();
+    [
+        "error sending request",
+        "failed to send request",
+        "network",
+        "timed out",
+        "timeout",
+        "connection",
+        "dns",
+        "tcp",
+        "tls",
+        "请求超时",
+        "连接失败",
+        "网络错误",
+    ]
+    .iter()
+    .any(|fragment| normalized.contains(fragment))
 }
 
 fn should_disable_account_auto_switch(
@@ -2436,8 +2465,8 @@ mod windows_chatgpt_launch_tests {
 #[cfg(test)]
 mod compatible_json_import_tests {
     use super::{
-        ensure_account_switch_allowed, normalize_compatible_json_auth, normalize_sub2api_auth,
-        parse_compatible_json_auth_values, parse_sub2api_auth_values,
+        ensure_account_switch_allowed, is_usage_network_error, normalize_compatible_json_auth,
+        normalize_sub2api_auth, parse_compatible_json_auth_values, parse_sub2api_auth_values,
         restore_conversation_metadata_if_present, should_disable_account_auto_switch,
         sync_conversation_metadata_if_present_with_progress, sync_current_auth_with_client_state,
         update_disabled_account_ids, write_managed_auth_to_current,
@@ -2763,6 +2792,21 @@ mod compatible_json_import_tests {
             true,
             &[429],
         ));
+    }
+
+    #[test]
+    fn usage_network_errors_exclude_explicit_http_statuses() {
+        assert!(is_usage_network_error(
+            "failed to read Codex usage: error sending request for url"
+        ));
+        assert!(is_usage_network_error(
+            "failed to read Codex usage: operation timed out"
+        ));
+        assert!(is_usage_network_error("DNS lookup failed"));
+        assert!(!is_usage_network_error(
+            "Codex usage endpoint returned HTTP 503 Service Unavailable"
+        ));
+        assert!(!is_usage_network_error("failed to parse Codex usage"));
     }
 
     #[test]

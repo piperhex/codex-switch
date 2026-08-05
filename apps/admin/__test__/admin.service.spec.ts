@@ -403,7 +403,11 @@ describe('AdminService', () => {
     await expect(service.bindSystemAccounts(actor, dto)).resolves.toEqual({ count: 1 });
 
     expect(users.findById).toHaveBeenCalledWith(target.id);
-    expect(sync.bindSystemAccounts).toHaveBeenCalledWith(dto.systemAccountIds, dto.userIds);
+    expect(sync.bindSystemAccounts).toHaveBeenCalledWith(
+      dto.systemAccountIds,
+      dto.userIds,
+      actor.id,
+    );
     expect(auditLogs.save).toHaveBeenCalledWith(expect.objectContaining({
       action: 'official-account.bind',
       metadata: expect.objectContaining({ createdBindings: 1, userIds: dto.userIds }),
@@ -426,6 +430,22 @@ describe('AdminService', () => {
     })).resolves.toEqual({ count: 0 });
 
     expect(emailTemplates.sendOfficialAccountBound).not.toHaveBeenCalled();
+  });
+
+  it('does not scope writes for operators with full official-account management', async () => {
+    const fullManager: AuthUser = {
+      ...actor,
+      permissions: [Permission.OfficialAccountsManage],
+    };
+    sync.updateSystemAccount.mockResolvedValue({ id: 'account-1', email: 'official@example.com' });
+
+    await service.updateSystemAccount(fullManager, 'account-1', { note: 'updated' });
+
+    expect(sync.updateSystemAccount).toHaveBeenCalledWith(
+      'account-1',
+      { note: 'updated' },
+      undefined,
+    );
   });
 
   it('requires a different admin to approve privileged requests and applies approved changes', async () => {

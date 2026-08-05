@@ -116,6 +116,9 @@ export function SettingsPage({
   autoDisableStatusCodes,
   autoDisableStatusCodesLoading,
   onAutoDisableStatusCodesChange,
+  showUsageNetworkErrors,
+  showUsageNetworkErrorsLoading,
+  onShowUsageNetworkErrorsChange,
   webProxyPort,
   webProxyPortLoading,
   onWebProxyPortChange,
@@ -167,6 +170,9 @@ export function SettingsPage({
   autoDisableStatusCodes: number[];
   autoDisableStatusCodesLoading: boolean;
   onAutoDisableStatusCodesChange: (statusCodes: number[]) => Promise<void> | void;
+  showUsageNetworkErrors: boolean;
+  showUsageNetworkErrorsLoading: boolean;
+  onShowUsageNetworkErrorsChange: (enabled: boolean) => Promise<void> | void;
   webProxyPort?: number | null;
   webProxyPortLoading?: boolean;
   onWebProxyPortChange?: (port: number | null) => void;
@@ -333,6 +339,22 @@ export function SettingsPage({
                 disabled={tokenUsagePreferencesLoading} onChange={onTokenUsageRefreshSecondsChange} />
               <Button disabled>{t("settings.autoRefresh.seconds")}</Button>
             </Space.Compact>
+          </div>
+        </div>
+      </section>
+      <section className="settings-card">
+        <div className="settings-icon"><Network size={23} /></div>
+        <div className="settings-card-content">
+          <div className="settings-card-copy">
+            <h3>{t("settings.usageNetworkErrors.title")}</h3>
+            <p>{t("settings.usageNetworkErrors.description")}</p>
+          </div>
+          <div className="settings-field">
+            <label htmlFor="show-usage-network-errors">{t("settings.usageNetworkErrors.label")}</label>
+            <Switch id="show-usage-network-errors" checked={showUsageNetworkErrors}
+              loading={showUsageNetworkErrorsLoading}
+              checkedChildren={t("settings.autoRefresh.on")} unCheckedChildren={t("settings.autoRefresh.off")}
+              onChange={(enabled) => void onShowUsageNetworkErrorsChange(enabled)} />
           </div>
         </div>
       </section>

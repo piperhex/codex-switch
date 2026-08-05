@@ -30,6 +30,7 @@ export function AccountsPage({
   resetCreditBusyAccountId,
   onOpenaiAuthAccountChange,
   privacyMode,
+  showUsageNetworkErrors,
   displayMode,
   tokenUsageRefreshSeconds,
   proxyControls,
@@ -60,6 +61,7 @@ export function AccountsPage({
   resetCreditBusyAccountId: string | null;
   onOpenaiAuthAccountChange: (accountId: string | null) => void;
   privacyMode: boolean;
+  showUsageNetworkErrors: boolean;
   displayMode: AccountDisplayMode;
   tokenUsageRefreshSeconds: number;
   proxyControls?: ReactNode;
@@ -99,7 +101,8 @@ export function AccountsPage({
         onSaveNote={onSaveNote}
         resetCredits={resetCredits} onLoadResetCredits={onLoadResetCredits}
         onUseResetCredit={onUseResetCredit} resetCreditBusyAccountId={resetCreditBusyAccountId}
-        hotSwitchEnabled={hotSwitchEnabled} privacyMode={privacyMode} displayMode={displayMode}
+        hotSwitchEnabled={hotSwitchEnabled} privacyMode={privacyMode}
+        showUsageNetworkErrors={showUsageNetworkErrors} displayMode={displayMode}
         openaiAuthAccountId={localProxy?.openaiAuthAccountId ?? null} openaiAuthBusy={proxyBusy}
         onOpenaiAuthAccountChange={onOpenaiAuthAccountChange}
         tokenUsageRefreshSeconds={tokenUsageRefreshSeconds}

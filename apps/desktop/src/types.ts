@@ -252,6 +252,7 @@ export interface AppSettings {
   tokenUsageWeeks?: number;
   tokenUsageRefreshSeconds?: number;
   autoDisableStatusCodes?: number[];
+  showUsageNetworkErrors?: boolean;
   webProxyPort?: number | null;
 }
 

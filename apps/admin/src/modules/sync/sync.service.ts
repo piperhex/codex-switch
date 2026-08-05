@@ -505,9 +505,9 @@ export class SyncService {
     }, origin);
   }
 
-  async updateSystemAccount(id: string, patch: SystemAccountPatch) {
+  async updateSystemAccount(id: string, patch: SystemAccountPatch, addedByUserId?: string) {
     const account = await this.systemAccounts.findOne({
-      where: { id },
+      where: { id, ...(addedByUserId ? { addedByUserId } : {}) },
       relations: { bindings: true },
     });
     if (!account) throw new NotFoundException('Official account not found');
@@ -534,9 +534,9 @@ export class SyncService {
     return this.presentSystemAccount(saved);
   }
 
-  async deleteSystemAccount(id: string) {
+  async deleteSystemAccount(id: string, addedByUserId?: string) {
     const account = await this.systemAccounts.findOne({
-      where: { id },
+      where: { id, ...(addedByUserId ? { addedByUserId } : {}) },
       relations: { bindings: true },
     });
     if (!account) throw new NotFoundException('Official account not found');
@@ -546,10 +546,10 @@ export class SyncService {
     return { id };
   }
 
-  async deleteSystemAccounts(ids: string[]) {
+  async deleteSystemAccounts(ids: string[], addedByUserId?: string) {
     const accountIds = [...new Set(ids)];
     const accounts = await this.systemAccounts.find({
-      where: { id: In(accountIds) },
+      where: { id: In(accountIds), ...(addedByUserId ? { addedByUserId } : {}) },
       relations: { bindings: true },
     });
     if (accounts.length !== accountIds.length) {
@@ -575,10 +575,14 @@ export class SyncService {
     return { userIds: bindings.map((binding) => binding.userId) };
   }
 
-  async bindSystemAccounts(systemAccountIds: string[], userIds: string[]) {
+  async bindSystemAccounts(
+    systemAccountIds: string[],
+    userIds: string[],
+    addedByUserId?: string,
+  ) {
     const accountIds = [...new Set(systemAccountIds)];
     const targetUserIds = [...new Set(userIds)];
-    const accounts = await this.requireSystemAccounts(accountIds);
+    const accounts = await this.requireSystemAccounts(accountIds, addedByUserId);
     const accountEmails = new Map(accounts.map((account) => [account.id, account.email]));
     const existing = await this.systemBindings.find({
       where: {
@@ -604,10 +608,14 @@ export class SyncService {
     };
   }
 
-  async unbindSystemAccounts(systemAccountIds: string[], userIds: string[]) {
+  async unbindSystemAccounts(
+    systemAccountIds: string[],
+    userIds: string[],
+    addedByUserId?: string,
+  ) {
     const accountIds = [...new Set(systemAccountIds)];
     const targetUserIds = [...new Set(userIds)];
-    await this.requireSystemAccounts(accountIds);
+    await this.requireSystemAccounts(accountIds, addedByUserId);
     const result = await this.systemBindings.delete({
       systemAccountId: In(accountIds),
       userId: In(targetUserIds),
@@ -1389,8 +1397,10 @@ export class SyncService {
     return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
   }
 
-  private async requireSystemAccounts(ids: string[]) {
-    const accounts = await this.systemAccounts.find({ where: { id: In(ids) } });
+  private async requireSystemAccounts(ids: string[], addedByUserId?: string) {
+    const accounts = await this.systemAccounts.find({
+      where: { id: In(ids), ...(addedByUserId ? { addedByUserId } : {}) },
+    });
     if (accounts.length !== ids.length) throw new NotFoundException('Official account not found');
     return accounts;
   }

@@ -208,7 +208,11 @@ export class AdminController {
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(Permission.UsersRead, Permission.OfficialAccountsManage)
+  @RequirePermissions(Permission.UsersRead)
+  @RequireAnyPermissions(
+    Permission.OfficialAccountsManage,
+    Permission.OfficialAccountsManageOwn,
+  )
   @Post('api/users/:id/accounts/:accountId/add-to-pool')
   addUserAccountToSystemPool(
     @CurrentUser() user: AuthUser,
@@ -252,35 +256,50 @@ export class AdminController {
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(Permission.OfficialAccountsManage)
+  @RequireAnyPermissions(
+    Permission.OfficialAccountsManage,
+    Permission.OfficialAccountsManageOwn,
+  )
   @Post('api/official-accounts')
   createSystemAccount(@CurrentUser() user: AuthUser, @Body() dto: CreateSystemAccountDto) {
     return this.admin.createSystemAccount(user, dto);
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(Permission.OfficialAccountsManage)
+  @RequireAnyPermissions(
+    Permission.OfficialAccountsManage,
+    Permission.OfficialAccountsManageOwn,
+  )
   @Post('api/official-accounts/import')
   importSystemAccounts(@CurrentUser() user: AuthUser, @Body() dto: ImportSystemAccountsDto) {
     return this.officialAccountImport.import(user, dto);
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(Permission.OfficialAccountsManage)
+  @RequireAnyPermissions(
+    Permission.OfficialAccountsManage,
+    Permission.OfficialAccountsManageOwn,
+  )
   @Post('api/official-accounts/import/sub2api')
   importSub2apiSystemAccounts(@CurrentUser() user: AuthUser, @Body() dto: ImportSystemAccountsDto) {
     return this.officialAccountImport.importSub2api(user, dto);
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(Permission.OfficialAccountsManage)
+  @RequireAnyPermissions(
+    Permission.OfficialAccountsManage,
+    Permission.OfficialAccountsManageOwn,
+  )
   @Post('api/official-accounts/oauth/start')
   startSystemAccountOAuth(@CurrentUser() user: AuthUser) {
     return this.officialAccountOAuth.start(user);
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(Permission.OfficialAccountsManage)
+  @RequireAnyPermissions(
+    Permission.OfficialAccountsManage,
+    Permission.OfficialAccountsManageOwn,
+  )
   @Post('api/official-accounts/oauth/:sessionId/poll')
   pollSystemAccountOAuth(
     @CurrentUser() user: AuthUser,
@@ -290,7 +309,10 @@ export class AdminController {
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(Permission.OfficialAccountsManage)
+  @RequireAnyPermissions(
+    Permission.OfficialAccountsManage,
+    Permission.OfficialAccountsManageOwn,
+  )
   @Patch('api/official-accounts/:id')
   updateSystemAccount(
     @CurrentUser() user: AuthUser,
@@ -301,7 +323,10 @@ export class AdminController {
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(Permission.OfficialAccountsManage)
+  @RequireAnyPermissions(
+    Permission.OfficialAccountsManage,
+    Permission.OfficialAccountsManageOwn,
+  )
   @Post('api/official-accounts/batch-delete')
   deleteSystemAccounts(
     @CurrentUser() user: AuthUser,
@@ -311,7 +336,10 @@ export class AdminController {
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(Permission.OfficialAccountsManage)
+  @RequireAnyPermissions(
+    Permission.OfficialAccountsManage,
+    Permission.OfficialAccountsManageOwn,
+  )
   @Delete('api/official-accounts/:id')
   deleteSystemAccount(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.admin.deleteSystemAccount(user, id);
@@ -328,7 +356,10 @@ export class AdminController {
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(Permission.OfficialAccountsManage)
+  @RequireAnyPermissions(
+    Permission.OfficialAccountsManage,
+    Permission.OfficialAccountsManageOwn,
+  )
   @Post('api/official-accounts/bind')
   bindSystemAccounts(
     @CurrentUser() user: AuthUser,
@@ -338,7 +369,10 @@ export class AdminController {
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(Permission.OfficialAccountsManage)
+  @RequireAnyPermissions(
+    Permission.OfficialAccountsManage,
+    Permission.OfficialAccountsManageOwn,
+  )
   @Post('api/official-accounts/unbind')
   unbindSystemAccounts(
     @CurrentUser() user: AuthUser,

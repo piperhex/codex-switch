@@ -64,6 +64,11 @@ const BUILT_IN_PERMISSION_ZH: Record<string, PermissionMetadata> = {
     name: "仅查看自己录入的号池账号",
     description: "只能查看由当前用户录入官方号池的账号。",
   },
+  "admin.official-accounts.manage-own": {
+    group: "官方账号",
+    name: "仅管理自己录入的号池账号",
+    description: "可录入账号，并且只能编辑、删除及绑定由当前用户录入号池的账号。",
+  },
   "admin.official-accounts.manage": {
     group: "官方账号",
     name: "管理官方账号",
