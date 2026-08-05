@@ -4136,9 +4136,16 @@ fn credential_account_id(
         .active_account_id
         .as_deref()
         .ok_or_else(|| "Select an official account before using the local proxy".to_string())?;
-    if !matches!(purpose, OfficialCredentialPurpose::ImageGeneration)
-        || !is_agent_identity_auth(active_auth)
-    {
+    if !matches!(purpose, OfficialCredentialPurpose::ImageGeneration) {
+        return Ok(active_account_id.to_string());
+    }
+    if state.concurrent_account_routing_enabled {
+        return Ok(state
+            .image_generation_account_id
+            .clone()
+            .unwrap_or_else(|| active_account_id.to_string()));
+    }
+    if !is_agent_identity_auth(active_auth) {
         return Ok(active_account_id.to_string());
     }
     state
@@ -6554,10 +6561,40 @@ mod tests {
     }
 
     #[test]
-    fn image_requests_keep_using_an_active_oauth_account() {
-        let state = ManagerStateFile {
+    fn image_requests_keep_using_an_active_oauth_account_outside_concurrent_mode() {
+        let mut state = ManagerStateFile {
             active_account_id: Some("active-oauth".to_string()),
             image_generation_account_id: Some("备用-oauth".to_string()),
+            ..ManagerStateFile::default()
+        };
+
+        assert_eq!(
+            credential_account_id(
+                &state,
+                &json!({ "auth_mode": "chatgpt" }),
+                OfficialCredentialPurpose::ImageGeneration
+            )
+            .unwrap(),
+            "active-oauth"
+        );
+
+        state.concurrent_account_routing_enabled = true;
+        assert_eq!(
+            credential_account_id(
+                &state,
+                &json!({ "auth_mode": "chatgpt" }),
+                OfficialCredentialPurpose::ImageGeneration
+            )
+            .unwrap(),
+            "备用-oauth"
+        );
+    }
+
+    #[test]
+    fn concurrent_image_requests_fall_back_to_the_active_oauth_account() {
+        let state = ManagerStateFile {
+            active_account_id: Some("active-oauth".to_string()),
+            concurrent_account_routing_enabled: true,
             ..ManagerStateFile::default()
         };
 

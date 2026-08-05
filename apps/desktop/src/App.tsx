@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { ConfigProvider, Dropdown, Modal, Popconfirm, Popover, Progress, Switch, Tooltip, theme as antdTheme, type MenuProps } from "antd";
+import { ConfigProvider, Dropdown, Modal, Popconfirm, Popover, Progress, Select, Switch, Tooltip, theme as antdTheme, type MenuProps } from "antd";
 import enUS from "antd/locale/en_US";
 import zhCN from "antd/locale/zh_CN";
 import { BarChart3, Bell, CalendarClock, Check, ChevronDown, CircleHelp, Cloud, Copy, Download, Github, Globe2, LogIn, LogOut, Megaphone, MessageSquareText, Minus, PackageOpen, Palette, Play, Plus, RefreshCw, RotateCcw, Search, Server, Settings, ShieldCheck, Shuffle, Square, UploadCloud, UserRound, X } from "lucide-react";
@@ -1183,6 +1183,13 @@ function DashboardApp() {
       .catch((error) => notify(String(error)));
   };
   const titlebarProxyRunning = Boolean(providerManager.localProxy?.running);
+  const imageAccounts = manager.accounts.filter((account) => !account.agentIdentity);
+  const showImageAccountSelect = titlebarProxyRunning && (
+    Boolean(activeAccount?.agentIdentity)
+    || Boolean(providerManager.localProxy?.concurrentAccountRoutingEnabled)
+  );
+  const effectiveImageAccountId = providerManager.localProxy?.imageGenerationAccountId
+    ?? (!activeAccount?.agentIdentity ? activeAccount?.id : undefined);
   const changeLanListening = (enabled: boolean) => {
     if (enabled) {
       setShowLanAccess(true);
@@ -1262,6 +1269,27 @@ function DashboardApp() {
   );
   const proxyTopbarActions = titlebarProxyRunning ? (
     <>
+      {showImageAccountSelect && (
+        <Tooltip title={t("providers.proxy.imageAccountTooltip")} styles={{ root: { maxWidth: 400 } }}>
+          <Select
+            className="proxy-image-account"
+            size="small"
+            aria-label={t("providers.proxy.imageAccount")}
+            value={effectiveImageAccountId}
+            options={imageAccounts.map((account) => ({
+              label: account.email,
+              value: account.id,
+            }))}
+            placeholder={t(imageAccounts.length
+              ? "providers.proxy.imageAccountPlaceholder"
+              : "providers.proxy.imageAccountEmpty")}
+            disabled={providerManager.proxyBusy || imageAccounts.length === 0}
+            showSearch
+            optionFilterProp="label"
+            onChange={(value) => void providerManager.setProxyImageAccount(value)}
+          />
+        </Tooltip>
+      )}
       <Popover trigger="hover" placement="bottom" mouseEnterDelay={0.08} mouseLeaveDelay={0.12}
         content={(
           <div className="proxy-auto-switch-menu">

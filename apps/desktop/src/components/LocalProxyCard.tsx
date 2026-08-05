@@ -36,7 +36,10 @@ export function LocalProxyCard({
   const proxyRunning = Boolean(localProxy?.running);
   const activeAccount = accounts.find((account) => account.active);
   const imageAccounts = accounts.filter((account) => !account.agentIdentity);
-  const showImageAccountSelect = proxyRunning && Boolean(activeAccount?.agentIdentity);
+  const showImageAccountSelect = proxyRunning && (
+    Boolean(activeAccount?.agentIdentity)
+    || Boolean(localProxy?.concurrentAccountRoutingEnabled)
+  );
   const proxyBaseUrl = localProxy
     ? `http://${localProxy.address}:${localProxy.port}/v1`
     : "http://127.0.0.1:15722/v1";
