@@ -74,9 +74,9 @@ export function AccountDrawer({
         <div className="table-actions">
           <Button
             className="icon-button"
-            title={t("accounts.addToPool")}
+            title={t(row.inSystemPool ? "accounts.recordedInPool" : "accounts.addToPool")}
             icon={<PackagePlus size={15} />}
-            disabled={!canManageOfficialAccounts}
+            disabled={!canManageOfficialAccounts || row.inSystemPool}
             onClick={() => onAddToPool(row)}
           />
           <Button disabled={!canManageUsers} className="icon-button" icon={<Edit3 size={15} />} onClick={() => onEditAccount(row)} />

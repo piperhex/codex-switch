@@ -67,6 +67,7 @@ type StoredResetCreditAccount =
 export type AdminSyncAccountDto = SyncAccountDto & {
   source: 'personal' | 'system';
   systemAccountId?: string;
+  inSystemPool?: boolean;
 };
 
 export type PortalSyncAccountDto = Omit<AdminSyncAccountDto, 'auth'>;
@@ -96,6 +97,10 @@ export interface SystemAccountDto {
   usage: Record<string, unknown>;
   lastModifiedAt: string;
   boundUserCount: number;
+  source: 'admin' | 'desktop';
+  addedByUserId?: string | null;
+  addedByEmail?: string | null;
+  sourceAccountId?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -105,6 +110,13 @@ export interface SystemAccountInput {
   note?: string;
   expiresAt?: string;
   usage?: Record<string, unknown>;
+}
+
+export interface SystemAccountOrigin {
+  source: 'admin' | 'desktop';
+  addedByUserId: string;
+  addedByEmail: string;
+  sourceAccountId?: string;
 }
 
 export interface SystemAccountPatch {
@@ -324,10 +336,22 @@ export class SyncService {
       this.accounts.find({ where: { ownerId, deletedAt: IsNull() }, order: { email: 'ASC' } }),
       this.loadSystemBindings(ownerId),
     ]);
+    const pooledPersonalAccounts = personalRows.length
+      ? await this.systemAccounts.find({
+        where: { syncAccountId: In(personalRows.map((row) => row.accountId)) },
+      })
+      : [];
+    const pooledSyncAccountIds = new Set(
+      pooledPersonalAccounts.map((account) => account.syncAccountId),
+    );
     const effective = new Map<string, AdminSyncAccountDto>();
     for (const row of personalRows) {
       const account = this.toDto(row);
-      effective.set(account.id, { ...account, source: 'personal' });
+      effective.set(account.id, {
+        ...account,
+        source: 'personal',
+        inSystemPool: pooledSyncAccountIds.has(account.id),
+      });
     }
     for (const binding of bindings) {
       const account = this.systemAccountToSyncDto(binding.account);
@@ -335,6 +359,7 @@ export class SyncService {
         ...account,
         source: 'system',
         systemAccountId: binding.systemAccountId,
+        inSystemPool: true,
       });
     }
     return {
@@ -369,15 +394,18 @@ export class SyncService {
     search?: string,
     sortBy: 'createdAt' | 'boundUserCount' = 'createdAt',
     sortOrder: 'asc' | 'desc' = 'desc',
+    addedByUserId?: string,
   ) {
     const normalizedSearch = search?.trim();
+    const scope = addedByUserId ? { addedByUserId } : {};
     const where = normalizedSearch
       ? [
-        { email: ILike(`%${normalizedSearch}%`) },
-        { note: ILike(`%${normalizedSearch}%`) },
-        { plan: ILike(`%${normalizedSearch}%`) },
+        { ...scope, email: ILike(`%${normalizedSearch}%`) },
+        { ...scope, note: ILike(`%${normalizedSearch}%`) },
+        { ...scope, plan: ILike(`%${normalizedSearch}%`) },
+        { ...scope, addedByEmail: ILike(`%${normalizedSearch}%`) },
       ]
-      : undefined;
+      : (addedByUserId ? scope : undefined);
 
     if (sortBy === 'boundUserCount') {
       const query = this.systemAccounts
@@ -392,9 +420,12 @@ export class SyncService {
         .limit(pageSize);
       if (normalizedSearch) {
         query.where(
-          '(account.email ILIKE :search OR account.note ILIKE :search OR account.plan ILIKE :search)',
+          '(account.email ILIKE :search OR account.note ILIKE :search OR account.plan ILIKE :search OR account.addedByEmail ILIKE :search)',
           { search: `%${normalizedSearch}%` },
         );
+      }
+      if (addedByUserId) {
+        query.andWhere('account.addedByUserId = :addedByUserId', { addedByUserId });
       }
 
       const [rows, total] = await Promise.all([
@@ -435,7 +466,7 @@ export class SyncService {
     };
   }
 
-  async createSystemAccount(input: SystemAccountInput) {
+  async createSystemAccount(input: SystemAccountInput, origin?: SystemAccountOrigin) {
     const identity = this.systemAccountIdentity(input.auth);
     const existing = await this.systemAccounts.findOne({
       where: { syncAccountId: identity.syncAccountId },
@@ -447,13 +478,21 @@ export class SyncService {
       note: input.note?.trim() ?? '',
       expiresAt: input.expiresAt?.trim() ?? '',
       usage: input.usage ?? {},
+      source: origin?.source ?? 'admin',
+      addedByUserId: origin?.addedByUserId ?? null,
+      addedByEmail: origin?.addedByEmail ?? null,
+      sourceAccountId: origin?.sourceAccountId ?? null,
       lastModifiedAt: new Date(),
     });
     const saved = await this.systemAccounts.save(account);
     return this.presentSystemAccount({ ...saved, bindings: [] });
   }
 
-  async createSystemAccountFromPersonal(ownerId: string, accountId: string) {
+  async createSystemAccountFromPersonal(
+    ownerId: string,
+    accountId: string,
+    origin?: SystemAccountOrigin,
+  ) {
     const account = await this.accounts.findOne({
       where: { ownerId, accountId, deletedAt: IsNull() },
     });
@@ -463,7 +502,7 @@ export class SyncService {
       note: account.note,
       expiresAt: account.expiresAt,
       usage: account.usage,
-    });
+    }, origin);
   }
 
   async updateSystemAccount(id: string, patch: SystemAccountPatch) {
@@ -507,8 +546,28 @@ export class SyncService {
     return { id };
   }
 
-  async listSystemAccountBindingIds(id: string) {
-    await this.requireSystemAccounts([id]);
+  async deleteSystemAccounts(ids: string[]) {
+    const accountIds = [...new Set(ids)];
+    const accounts = await this.systemAccounts.find({
+      where: { id: In(accountIds) },
+      relations: { bindings: true },
+    });
+    if (accounts.length !== accountIds.length) {
+      throw new NotFoundException('Official account not found');
+    }
+    const userIds = accounts.flatMap((account) => (
+      account.bindings.map((binding) => binding.userId)
+    ));
+    await this.systemAccounts.delete({ id: In(accountIds) });
+    await this.invalidateAccountCaches(userIds);
+    return { ids: accountIds, count: accountIds.length };
+  }
+
+  async listSystemAccountBindingIds(id: string, addedByUserId?: string) {
+    const account = await this.systemAccounts.findOne({
+      where: { id, ...(addedByUserId ? { addedByUserId } : {}) },
+    });
+    if (!account) throw new NotFoundException('Official account not found');
     const bindings = await this.systemBindings.find({
       where: { systemAccountId: id },
       order: { createdAt: 'ASC' },
@@ -976,6 +1035,10 @@ export class SyncService {
       usage: account.usage,
       lastModifiedAt: this.formatLastModifiedAt(account.lastModifiedAt ?? account.updatedAt),
       boundUserCount: account.bindings?.length ?? 0,
+      source: account.source ?? 'admin',
+      addedByUserId: account.addedByUserId ?? null,
+      addedByEmail: account.addedByEmail ?? null,
+      sourceAccountId: account.sourceAccountId ?? null,
       createdAt: account.createdAt,
       updatedAt: account.updatedAt,
     };

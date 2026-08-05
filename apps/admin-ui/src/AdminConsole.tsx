@@ -148,7 +148,10 @@ const menuOrder: MenuKey[] = [
 
 function firstAccessibleMenu(profile: Profile | null | undefined): MenuKey {
   const permissions = new Set(profile?.permissions ?? []);
-  return menuOrder.find((key) => permissions.has(menuPermissions[key])) ?? "myAccounts";
+  return menuOrder.find((key) => (
+    permissions.has(menuPermissions[key])
+    || (key === "officialAccounts" && permissions.has("admin.official-accounts.read-own"))
+  )) ?? "myAccounts";
 }
 
 export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
@@ -227,6 +230,7 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
   const [systemAccountOAuthOpen, setSystemAccountOAuthOpen] = useState(false);
   const [editingSystemAccount, setEditingSystemAccount] = useState<SystemAccount | null>(null);
   const [bindingSystemAccount, setBindingSystemAccount] = useState<SystemAccount | null>(null);
+  const [batchBindingSystemAccounts, setBatchBindingSystemAccounts] = useState<SystemAccount[]>([]);
   const [bindingUsers, setBindingUsers] = useState<UserRow[]>([]);
   const [boundUserIds, setBoundUserIds] = useState<string[]>([]);
   const [bindingsLoading, setBindingsLoading] = useState(false);
@@ -260,7 +264,13 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
       const data = await api<Profile>("/auth/me");
       setProfile(data);
       setActiveKey((current) => (
-        data.permissions?.includes(menuPermissions[current]) ? current : firstAccessibleMenu(data)
+        (
+          data.permissions?.includes(menuPermissions[current])
+          || (
+            current === "officialAccounts"
+            && data.permissions?.includes("admin.official-accounts.read-own")
+          )
+        ) ? current : firstAccessibleMenu(data)
       ));
     } catch (error) {
       message.error((error as Error).message);
@@ -892,6 +902,21 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
     }
   }
 
+  async function openBatchSystemAccountBindings(accounts: SystemAccount[]) {
+    if (!accounts.length) return;
+    setBatchBindingSystemAccounts(accounts);
+    setBindingsLoading(true);
+    try {
+      setBindingUsers(await loadEveryUser());
+      setBoundUserIds([]);
+    } catch (error) {
+      message.error((error as Error).message);
+      setBatchBindingSystemAccounts([]);
+    } finally {
+      setBindingsLoading(false);
+    }
+  }
+
   async function openBatchBinding(selectedUsers: UserRow[]) {
     if (!selectedUsers.length) return;
     setBatchBindingUsers(selectedUsers);
@@ -930,6 +955,20 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
           accounts={ownAccounts}
           loading={ownAccountsLoading}
           canManage={canManageOwnAccounts}
+          onAddToPool={(account) => {
+            modal.confirm({
+              title: t("accounts.recordToPoolTitle"),
+              content: t("accounts.recordToPoolDescription", { email: account.email }),
+              onOk: async () => {
+                await api(
+                  `/admin/api/profile/accounts/${encodeURIComponent(account.id)}/add-to-pool`,
+                  { method: "POST" },
+                );
+                message.success(t("accounts.recordedToPool"));
+                await Promise.all([loadOwnAccounts(), loadSystemAccounts(1)]);
+              },
+            });
+          }}
           onEdit={setEditingOwnAccount}
           onRefresh={loadOwnAccounts}
         />
@@ -967,6 +1006,22 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
             setSystemAccountModalOpen(true);
           }}
           onBind={(account) => void openSystemAccountBindings(account)}
+          onBatchBind={(accounts) => void openBatchSystemAccountBindings(accounts)}
+          onBatchDelete={(accounts) => {
+            modal.confirm({
+              title: t("officialAccounts.batchDeleteTitle", { count: accounts.length }),
+              content: t("officialAccounts.batchDeleteDescription"),
+              okButtonProps: { danger: true },
+              onOk: async () => {
+                await api("/admin/api/official-accounts/batch-delete", {
+                  method: "POST",
+                  body: JSON.stringify({ systemAccountIds: accounts.map((account) => account.id) }),
+                });
+                message.success(t("officialAccounts.batchDeleted", { count: accounts.length }));
+                await loadSystemAccounts();
+              },
+            });
+          }}
           onDelete={(account) => {
             modal.confirm({
               title: t("officialAccounts.deleteTitle"),
@@ -1313,7 +1368,7 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
                 { method: "POST" },
               );
               message.success(t("accounts.addedToPool"));
-              await loadSystemAccounts(1);
+              await Promise.all([loadSystemAccounts(1), loadAccounts(accountUser)]);
             },
           });
         }}
@@ -1384,6 +1439,7 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
       />
       <SystemAccountBindingModal
         account={bindingSystemAccount}
+        batchAccounts={batchBindingSystemAccounts}
         api={api}
         users={bindingUsers}
         boundUserIds={boundUserIds}
@@ -1392,6 +1448,7 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
           setBindingSystemAccount(null);
           setBindingUsers([]);
           setBoundUserIds([]);
+          setBatchBindingSystemAccounts([]);
         }}
         onSaved={loadSystemAccounts}
       />

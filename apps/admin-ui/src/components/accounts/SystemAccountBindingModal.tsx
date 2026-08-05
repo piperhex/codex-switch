@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import { App as AntApp, Modal, Table, Tag, Typography } from "antd";
+import { App as AntApp, Input, Modal, Table, Tag, Typography } from "antd";
 import type { TableColumnsType } from "antd";
+import { Search } from "lucide-react";
 import { labelForRole } from "../../i18n";
 import { useI18n } from "../../i18n-context";
 import type { ApiClient, SystemAccount, UserRow } from "../../types";
 
 interface SystemAccountBindingModalProps {
   account: SystemAccount | null;
+  batchAccounts?: SystemAccount[];
   api: ApiClient;
   users: UserRow[];
   boundUserIds: string[];
@@ -17,6 +19,7 @@ interface SystemAccountBindingModalProps {
 
 export function SystemAccountBindingModal({
   account,
+  batchAccounts = [],
   api,
   boundUserIds,
   loading,
@@ -28,8 +31,23 @@ export function SystemAccountBindingModal({
   const { t } = useI18n();
   const [selectedIds, setSelectedIds] = useState<React.Key[]>([]);
   const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState("");
+  const targetAccounts = batchAccounts.length ? batchAccounts : (account ? [account] : []);
+  const isBatch = batchAccounts.length > 0;
 
-  useEffect(() => setSelectedIds(boundUserIds), [account?.id, boundUserIds]);
+  useEffect(() => {
+    setSelectedIds(isBatch ? [] : boundUserIds);
+    setSearch("");
+  }, [account?.id, batchAccounts, boundUserIds, isBatch]);
+
+  const filteredUsers = useMemo(() => {
+    const term = search.trim().toLocaleLowerCase();
+    if (!term) return users;
+    return users.filter((user) => (
+      user.email.toLocaleLowerCase().includes(term)
+      || user.role.toLocaleLowerCase().includes(term)
+    ));
+  }, [search, users]);
 
   const columns = useMemo<TableColumnsType<UserRow>>(() => [
     { title: t("common.email"), dataIndex: "email" },
@@ -52,23 +70,30 @@ export function SystemAccountBindingModal({
   ], [t]);
 
   async function save() {
-    if (!account) return;
+    if (!targetAccounts.length) return;
+    if (isBatch && !selectedIds.length) {
+      message.warning(t("officialAccounts.selectUser"));
+      return;
+    }
     const before = new Set(boundUserIds);
     const after = new Set(selectedIds.map(String));
-    const added = [...after].filter((id) => !before.has(id));
-    const removed = [...before].filter((id) => !after.has(id));
+    const added = isBatch ? [...after] : [...after].filter((id) => !before.has(id));
+    const removed = isBatch ? [] : [...before].filter((id) => !after.has(id));
     setSaving(true);
     try {
       if (added.length) {
         await api("/admin/api/official-accounts/bind", {
           method: "POST",
-          body: JSON.stringify({ systemAccountIds: [account.id], userIds: added }),
+          body: JSON.stringify({
+            systemAccountIds: targetAccounts.map((target) => target.id),
+            userIds: added,
+          }),
         });
       }
       if (removed.length) {
         await api("/admin/api/official-accounts/unbind", {
           method: "POST",
-          body: JSON.stringify({ systemAccountIds: [account.id], userIds: removed }),
+          body: JSON.stringify({ systemAccountIds: [account!.id], userIds: removed }),
         });
       }
       message.success(t("officialAccounts.bindingsUpdated"));
@@ -83,19 +108,29 @@ export function SystemAccountBindingModal({
 
   return (
     <Modal
-      title={account ? t("officialAccounts.bindingTitle", { email: account.email }) : t("officialAccounts.bindUsers")}
-      open={Boolean(account)}
+      title={isBatch
+        ? t("officialAccounts.batchBindingUsersTitle", { count: targetAccounts.length })
+        : (account ? t("officialAccounts.bindingTitle", { email: account.email }) : t("officialAccounts.bindUsers"))}
+      open={targetAccounts.length > 0}
       onCancel={onClose}
       onOk={save}
       confirmLoading={saving}
       width={760}
       destroyOnClose
     >
+      <Input
+        allowClear
+        prefix={<Search size={15} />}
+        placeholder={t("officialAccounts.searchUsersPlaceholder")}
+        value={search}
+        onChange={(event) => setSearch(event.target.value)}
+        style={{ marginBottom: 12 }}
+      />
       <Table
         rowKey="id"
         loading={loading}
         columns={columns}
-        dataSource={users}
+        dataSource={filteredUsers}
         rowSelection={{
           selectedRowKeys: selectedIds,
           onChange: setSelectedIds,

@@ -10,6 +10,7 @@ import type { UserService } from '@/modules/user/user.service';
 import type { RbacService } from '@/modules/rbac/rbac.service';
 import type { EmailTemplateService } from '@/modules/email-template/email-template.service';
 import type { AuthUser } from '@/common/decorators/user.decorator';
+import { Permission } from '@/common/rbac/permissions';
 import { makeProvider, makeUser } from './fixtures';
 
 describe('AdminService', () => {
@@ -26,7 +27,8 @@ describe('AdminService', () => {
     listForPortal: ReturnType<typeof vi.fn>;
     createSystemAccount: ReturnType<typeof vi.fn>; createSystemAccountFromPersonal: ReturnType<typeof vi.fn>;
     updateSystemAccount: ReturnType<typeof vi.fn>;
-    deleteSystemAccount: ReturnType<typeof vi.fn>; listSystemAccountBindingIds: ReturnType<typeof vi.fn>;
+    deleteSystemAccount: ReturnType<typeof vi.fn>; deleteSystemAccounts: ReturnType<typeof vi.fn>;
+    listSystemAccountBindingIds: ReturnType<typeof vi.fn>;
     bindSystemAccounts: ReturnType<typeof vi.fn>; unbindSystemAccounts: ReturnType<typeof vi.fn>;
     countSystemAccountBindingsByUserIds: ReturnType<typeof vi.fn>;
   };
@@ -64,7 +66,7 @@ describe('AdminService', () => {
       listForAdmin: vi.fn(), listSystemAccounts: vi.fn(), createSystemAccount: vi.fn(),
       createSystemAccountFromPersonal: vi.fn(),
       listForPortal: vi.fn(),
-      updateSystemAccount: vi.fn(), deleteSystemAccount: vi.fn(),
+      updateSystemAccount: vi.fn(), deleteSystemAccount: vi.fn(), deleteSystemAccounts: vi.fn(),
       listSystemAccountBindingIds: vi.fn(), bindSystemAccounts: vi.fn(),
       unbindSystemAccounts: vi.fn(),
       countSystemAccountBindingsByUserIds: vi.fn().mockResolvedValue(new Map()),
@@ -324,7 +326,12 @@ describe('AdminService', () => {
       .resolves.toBe(pooled);
 
     expect(sync.createSystemAccountFromPersonal)
-      .toHaveBeenCalledWith(owner.id, 'personal-account-1');
+      .toHaveBeenCalledWith(owner.id, 'personal-account-1', {
+        source: 'admin',
+        addedByUserId: actor.id,
+        addedByEmail: actor.email,
+        sourceAccountId: 'personal-account-1',
+      });
     expect(auditLogs.save).toHaveBeenCalledWith(expect.objectContaining({
       action: 'official-account.create-from-user',
       targetId: pooled.id,
@@ -336,6 +343,45 @@ describe('AdminService', () => {
         sourceAccountId: 'personal-account-1',
       },
     }));
+  });
+
+  it('adds the current user account to the pool with PC source metadata', async () => {
+    const pooled = {
+      id: 'system-account-2',
+      syncAccountId: 'sync-account-2',
+      email: 'self@example.com',
+    };
+    sync.createSystemAccountFromPersonal.mockResolvedValue(pooled);
+
+    await expect(service.addOwnAccountToSystemPool(actor, 'personal-account-2'))
+      .resolves.toBe(pooled);
+
+    expect(sync.createSystemAccountFromPersonal).toHaveBeenCalledWith(
+      actor.id,
+      'personal-account-2',
+      {
+        source: 'desktop',
+        addedByUserId: actor.id,
+        addedByEmail: actor.email,
+        sourceAccountId: 'personal-account-2',
+      },
+    );
+  });
+
+  it('scopes official pool reads to the operator unless full-read permission is granted', async () => {
+    sync.listSystemAccounts.mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 });
+    const ownReader = { ...actor, permissions: [Permission.OfficialAccountsReadOwn] };
+
+    await service.listSystemAccounts(ownReader, { page: 1, pageSize: 20, search: 'self' });
+    expect(sync.listSystemAccounts).toHaveBeenLastCalledWith(
+      1, 20, 'self', undefined, undefined, actor.id,
+    );
+
+    const fullReader = { ...actor, permissions: [Permission.OfficialAccountsRead] };
+    await service.listSystemAccounts(fullReader, { page: 1, pageSize: 20 });
+    expect(sync.listSystemAccounts).toHaveBeenLastCalledWith(
+      1, 20, undefined, undefined, undefined, undefined,
+    );
   });
 
   it('validates target users, binds official pool accounts, and records an audit log', async () => {

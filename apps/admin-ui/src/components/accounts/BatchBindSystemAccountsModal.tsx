@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { App as AntApp, Modal, Table, Tag, Typography } from "antd";
+import { App as AntApp, Input, Modal, Table, Tag, Typography } from "antd";
 import type { TableColumnsType } from "antd";
+import { Search } from "lucide-react";
 import { useI18n } from "../../i18n-context";
 import type { ApiClient, SystemAccount, UserRow } from "../../types";
 
@@ -25,8 +26,21 @@ export function BatchBindSystemAccountsModal({
   const { t } = useI18n();
   const [selectedIds, setSelectedIds] = useState<React.Key[]>([]);
   const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState("");
 
-  useEffect(() => setSelectedIds([]), [users]);
+  useEffect(() => {
+    setSelectedIds([]);
+    setSearch("");
+  }, [users]);
+  const filteredAccounts = useMemo(() => {
+    const term = search.trim().toLocaleLowerCase();
+    if (!term) return accounts;
+    return accounts.filter((account) => (
+      account.email.toLocaleLowerCase().includes(term)
+      || account.plan.toLocaleLowerCase().includes(term)
+      || account.note.toLocaleLowerCase().includes(term)
+    ));
+  }, [accounts, search]);
   const columns = useMemo<TableColumnsType<SystemAccount>>(() => [
     { title: t("common.email"), dataIndex: "email" },
     { title: t("common.plan"), dataIndex: "plan", width: 120, render: (value) => <Tag>{value}</Tag> },
@@ -71,12 +85,24 @@ export function BatchBindSystemAccountsModal({
       <Typography.Paragraph type="secondary">
         {users.map((user) => user.email).join(", ")}
       </Typography.Paragraph>
+      <Input
+        allowClear
+        prefix={<Search size={15} />}
+        placeholder={t("officialAccounts.searchAccountsPlaceholder")}
+        value={search}
+        onChange={(event) => setSearch(event.target.value)}
+        style={{ marginBottom: 12 }}
+      />
       <Table
         rowKey="id"
         loading={loading}
         columns={columns}
-        dataSource={accounts}
-        rowSelection={{ selectedRowKeys: selectedIds, onChange: setSelectedIds }}
+        dataSource={filteredAccounts}
+        rowSelection={{
+          selectedRowKeys: selectedIds,
+          onChange: setSelectedIds,
+          preserveSelectedRowKeys: true,
+        }}
         pagination={{ pageSize: 10, showSizeChanger: true }}
         scroll={{ y: 380 }}
       />

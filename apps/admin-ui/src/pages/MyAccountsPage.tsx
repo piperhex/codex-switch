@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Badge, Button, Modal, Table, Tag, Tooltip, Typography } from "antd";
 import type { TableColumnsType } from "antd";
-import { Pencil, RefreshCw } from "lucide-react";
+import { DatabaseZap, Pencil, RefreshCw } from "lucide-react";
 import { useI18n } from "../i18n-context";
 import type { SyncAccount } from "../types";
 import { formatDate } from "../utils/format";
@@ -10,11 +10,19 @@ interface MyAccountsPageProps {
   accounts: SyncAccount[];
   loading: boolean;
   onEdit: (account: SyncAccount) => void;
+  onAddToPool: (account: SyncAccount) => void;
   onRefresh: () => void | Promise<void>;
   canManage: boolean;
 }
 
-export function MyAccountsPage({ accounts, canManage, loading, onEdit, onRefresh }: MyAccountsPageProps) {
+export function MyAccountsPage({
+  accounts,
+  canManage,
+  loading,
+  onAddToPool,
+  onEdit,
+  onRefresh,
+}: MyAccountsPageProps) {
   const { language, t } = useI18n();
   const [noteAccount, setNoteAccount] = useState<SyncAccount | null>(null);
   const columns: TableColumnsType<SyncAccount> = [
@@ -84,11 +92,11 @@ export function MyAccountsPage({ accounts, canManage, loading, onEdit, onRefresh
     {
       title: t("common.actions"),
       key: "actions",
-      width: 100,
+      width: 220,
       fixed: "right",
       align: "center",
       render: (_, account) => {
-        const button = (
+        const editButton = (
           <Button
             type="link"
             size="small"
@@ -101,9 +109,24 @@ export function MyAccountsPage({ accounts, canManage, loading, onEdit, onRefresh
         );
         return account.source === "system" ? (
           <Tooltip title={t("accounts.systemManaged")}>
-            <span>{button}</span>
+            <span>{editButton}</span>
           </Tooltip>
-        ) : button;
+        ) : (
+          <div className="table-actions">
+            {canManage && !account.inSystemPool && (
+              <Button
+                type="link"
+                size="small"
+                icon={<DatabaseZap size={14} />}
+                onClick={() => onAddToPool(account)}
+              >
+                {t("accounts.recordToPool")}
+              </Button>
+            )}
+            {account.inSystemPool && <Tag color="green">{t("accounts.recordedInPool")}</Tag>}
+            {editButton}
+          </div>
+        );
       },
     },
   ];

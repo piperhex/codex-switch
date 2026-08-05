@@ -283,6 +283,7 @@ export interface SyncAccount {
   lastModifiedAt?: string;
   source?: "personal" | "system";
   systemAccountId?: string;
+  inSystemPool?: boolean;
 }
 
 export interface SystemAccount {
@@ -296,6 +297,10 @@ export interface SystemAccount {
   usage: Record<string, unknown>;
   lastModifiedAt: string;
   boundUserCount: number;
+  source: "admin" | "desktop";
+  addedByUserId?: string | null;
+  addedByEmail?: string | null;
+  sourceAccountId?: string | null;
   createdAt: string;
   updatedAt: string;
 }

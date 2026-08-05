@@ -108,6 +108,7 @@ describe('HTTP controllers', () => {
       changePassword: vi.fn().mockResolvedValue({ ok: true }),
       listOwnAccounts: vi.fn().mockResolvedValue('own-accounts'),
       updateOwnAccount: vi.fn().mockResolvedValue('own-account-updated'),
+      addOwnAccountToSystemPool: vi.fn().mockResolvedValue('own-system-account'),
       listUserAccounts: vi.fn().mockResolvedValue('accounts'),
       listUserProviders: vi.fn().mockResolvedValue('providers'),
       addUserAccountToSystemPool: vi.fn().mockResolvedValue('system-account-from-user'),
@@ -117,6 +118,7 @@ describe('HTTP controllers', () => {
       createSystemAccount: vi.fn().mockResolvedValue('system-account-created'),
       updateSystemAccount: vi.fn().mockResolvedValue('system-account-updated'),
       deleteSystemAccount: vi.fn().mockResolvedValue('system-account-deleted'),
+      deleteSystemAccounts: vi.fn().mockResolvedValue('system-accounts-deleted'),
       listSystemAccountBindings: vi.fn().mockResolvedValue('system-account-bindings'),
       bindSystemAccounts: vi.fn().mockResolvedValue('system-account-bound'),
       unbindSystemAccounts: vi.fn().mockResolvedValue('system-account-unbound'),
@@ -163,6 +165,8 @@ describe('HTTP controllers', () => {
     await expect(controller.updateOwnAccount(actor, 'account-1', {
       note: 'Personal note', expiresAt: '2026-07-31',
     })).resolves.toBe('own-account-updated');
+    await expect(controller.addOwnAccountToSystemPool(actor, 'account-1'))
+      .resolves.toBe('own-system-account');
     await expect(controller.listUserAccounts('user-1')).resolves.toBe('accounts');
     await expect(controller.listUserProviders('user-1')).resolves.toBe('providers');
     await expect(controller.addUserAccountToSystemPool(actor, 'user-1', 'account-1'))
@@ -171,7 +175,7 @@ describe('HTTP controllers', () => {
       .resolves.toBe('account-updated');
     await expect(controller.deleteUserAccount(actor, 'user-1', 'account-1'))
       .resolves.toBe('account-deleted');
-    await expect(controller.listSystemAccounts({ page: 1 })).resolves.toBe('system-accounts');
+    await expect(controller.listSystemAccounts(actor, { page: 1 })).resolves.toBe('system-accounts');
     await expect(controller.createSystemAccount(actor, { auth: { tokens: {} } }))
       .resolves.toBe('system-account-created');
     await expect(controller.importSystemAccounts(actor, { content: '{"tokens":{}}' }))
@@ -183,7 +187,10 @@ describe('HTTP controllers', () => {
       .resolves.toBe('system-account-updated');
     await expect(controller.deleteSystemAccount(actor, 'system-account-1'))
       .resolves.toBe('system-account-deleted');
-    await expect(controller.listSystemAccountBindings('system-account-1'))
+    await expect(controller.deleteSystemAccounts(actor, {
+      systemAccountIds: ['10000000-0000-4000-8000-000000000001'],
+    })).resolves.toBe('system-accounts-deleted');
+    await expect(controller.listSystemAccountBindings(actor, 'system-account-1'))
       .resolves.toBe('system-account-bindings');
     const bindingDto = {
       systemAccountIds: ['10000000-0000-4000-8000-000000000001'],

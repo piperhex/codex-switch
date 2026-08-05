@@ -86,9 +86,16 @@ export function RoleModal({
           setSaving(true);
           try {
             const path = role ? `/admin/api/roles/${encodeURIComponent(role.code)}` : "/admin/api/roles";
+            const body = role
+              ? {
+                name: values.name,
+                description: values.description,
+                permissions: values.permissions,
+              }
+              : values;
             await api(path, {
               method: role ? "PATCH" : "POST",
-              body: JSON.stringify(values),
+              body: JSON.stringify(body),
             });
             message.success(t(role ? "common.updated" : "common.created"));
             onClose();

@@ -2,6 +2,10 @@ import { ForbiddenException, UnauthorizedException, type ExecutionContext } from
 import type { Reflector } from '@nestjs/core';
 import { describe, expect, it, vi } from 'vitest';
 import { PermissionsGuard } from '@/common/guards/permissions.guard';
+import {
+  REQUIRED_ANY_PERMISSIONS,
+  REQUIRED_PERMISSIONS,
+} from '@/common/decorators/permissions.decorator';
 import { Permission, USER_ROLE_PERMISSIONS } from '@/common/rbac/permissions';
 import { JwtStrategy } from '@/modules/jwt/jwt.strategy';
 import type { UserService } from '@/modules/user/user.service';
@@ -53,6 +57,29 @@ describe('authorization boundaries', () => {
     ]);
     expect(USER_ROLE_PERMISSIONS).not.toContain(Permission.UsersRead);
     expect(USER_ROLE_PERMISSIONS).not.toContain(Permission.TelemetryRead);
+  });
+
+  it('allows routes configured with any one of multiple read permissions', () => {
+    const reflector = {
+      getAllAndOverride: vi.fn((key: string) => (
+        key === REQUIRED_PERMISSIONS
+          ? []
+          : [Permission.OfficialAccountsRead, Permission.OfficialAccountsReadOwn]
+      )),
+    };
+    const guard = new PermissionsGuard(reflector as unknown as Reflector);
+    const ownReader: AuthUser = {
+      id: 'user-1',
+      email: 'user@example.com',
+      role: 'pool-reader',
+      permissions: [Permission.OfficialAccountsReadOwn],
+    };
+
+    expect(guard.canActivate(contextWithUser(ownReader))).toBe(true);
+    expect(reflector.getAllAndOverride).toHaveBeenCalledWith(
+      REQUIRED_ANY_PERMISSIONS,
+      expect.any(Array),
+    );
   });
 
   it('JwtStrategy rehydrates identity from current database state', async () => {

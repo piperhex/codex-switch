@@ -128,6 +128,13 @@ export class ChangeSystemAccountBindingsDto {
   userIds: string[];
 }
 
+export class DeleteSystemAccountsDto {
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsUUID('4', { each: true })
+  systemAccountIds: string[];
+}
+
 export class CreateInvitationDto {
   @IsOptional()
   @IsEmail()

@@ -9,6 +9,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, ILike, IsNull, Repository } from 'typeorm';
 import type { AuthUser } from '@/common/decorators/user.decorator';
+import { Permission } from '@/common/rbac/permissions';
 import { getKongJwtSecret } from '@/config/auth-secrets';
 import { MODULE_OPTIONS_TOKEN } from '@/config/configurable';
 import type { ConfigModuleOptions } from '@/config/config.types';
@@ -164,19 +165,25 @@ export class AdminService {
     return result;
   }
 
-  listSystemAccounts(query: ListSystemAccountsQueryDto) {
+  listSystemAccounts(actor: AuthUser, query: ListSystemAccountsQueryDto) {
     const { page, pageSize } = this.page(query);
+    const canReadAll = actor.permissions?.includes(Permission.OfficialAccountsRead) ?? false;
     return this.sync.listSystemAccounts(
       page,
       pageSize,
       query.search,
       query.sortBy,
       query.sortOrder,
+      canReadAll ? undefined : actor.id,
     );
   }
 
   async createSystemAccount(actor: AuthUser, dto: CreateSystemAccountDto) {
-    const account = await this.sync.createSystemAccount(dto);
+    const account = await this.sync.createSystemAccount(dto, {
+      source: 'admin',
+      addedByUserId: actor.id,
+      addedByEmail: actor.email,
+    });
     await this.record(actor, 'official-account.create', 'official-account', account.id, account.email, {
       syncAccountId: account.syncAccountId,
     });
@@ -185,13 +192,36 @@ export class AdminService {
 
   async addUserAccountToSystemPool(actor: AuthUser, ownerId: string, accountId: string) {
     const owner = await this.ensureUser(ownerId);
-    const account = await this.sync.createSystemAccountFromPersonal(ownerId, accountId);
+    const account = await this.sync.createSystemAccountFromPersonal(ownerId, accountId, {
+      source: 'admin',
+      addedByUserId: actor.id,
+      addedByEmail: actor.email,
+      sourceAccountId: accountId,
+    });
     await this.record(actor, 'official-account.create-from-user', 'official-account', account.id, account.email, {
       syncAccountId: account.syncAccountId,
       sourceOwnerId: owner.id,
       sourceOwnerEmail: owner.email,
       sourceAccountId: accountId,
     });
+    return account;
+  }
+
+  async addOwnAccountToSystemPool(actor: AuthUser, accountId: string) {
+    const account = await this.sync.createSystemAccountFromPersonal(actor.id, accountId, {
+      source: 'desktop',
+      addedByUserId: actor.id,
+      addedByEmail: actor.email,
+      sourceAccountId: accountId,
+    });
+    await this.record(
+      actor,
+      'official-account.create-from-own-account',
+      'official-account',
+      account.id,
+      account.email,
+      { syncAccountId: account.syncAccountId, sourceAccountId: accountId },
+    );
     return account;
   }
 
@@ -210,8 +240,18 @@ export class AdminService {
     return result;
   }
 
-  listSystemAccountBindings(id: string) {
-    return this.sync.listSystemAccountBindingIds(id);
+  async deleteSystemAccounts(actor: AuthUser, ids: string[]) {
+    const result = await this.sync.deleteSystemAccounts(ids);
+    await this.record(actor, 'official-account.batch-delete', 'official-account', null, null, {
+      systemAccountIds: result.ids,
+      deletedAccounts: result.count,
+    });
+    return result;
+  }
+
+  listSystemAccountBindings(actor: AuthUser, id: string) {
+    const canReadAll = actor.permissions?.includes(Permission.OfficialAccountsRead) ?? false;
+    return this.sync.listSystemAccountBindingIds(id, canReadAll ? undefined : actor.id);
   }
 
   async bindSystemAccounts(actor: AuthUser, dto: ChangeSystemAccountBindingsDto) {

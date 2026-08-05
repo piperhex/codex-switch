@@ -59,6 +59,11 @@ const BUILT_IN_PERMISSION_ZH: Record<string, PermissionMetadata> = {
     name: "查看官方账号",
     description: "查看官方账号池及其绑定关系。",
   },
+  "admin.official-accounts.read-own": {
+    group: "官方账号",
+    name: "仅查看自己录入的号池账号",
+    description: "只能查看由当前用户录入官方号池的账号。",
+  },
   "admin.official-accounts.manage": {
     group: "官方账号",
     name: "管理官方账号",

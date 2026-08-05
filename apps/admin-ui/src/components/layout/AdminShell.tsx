@@ -102,7 +102,13 @@ export function AdminShell({
       { key: "invitations" as const, icon: <MailPlus size={17} />, label: t("nav.invitations") },
       { key: "approvals" as const, icon: <GitPullRequest size={17} />, label: t("nav.approvals") },
     ];
-    return items.filter((item) => permissions.has(menuPermissions[item.key]));
+    return items.filter((item) => (
+      permissions.has(menuPermissions[item.key])
+      || (
+        item.key === "officialAccounts"
+        && permissions.has("admin.official-accounts.read-own")
+      )
+    ));
   }, [profile?.permissions, t]);
 
   const avatarMenu = useMemo<MenuProps["items"]>(() => [

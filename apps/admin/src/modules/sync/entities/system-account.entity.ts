@@ -41,6 +41,18 @@ export class SystemAccountEntity {
   @Column({ type: 'jsonb' })
   auth: Record<string, unknown>;
 
+  @Column({ type: 'varchar', length: 20, default: 'admin' })
+  source: 'admin' | 'desktop';
+
+  @Column({ type: 'uuid', nullable: true })
+  addedByUserId?: string | null;
+
+  @Column({ type: 'varchar', length: 240, nullable: true })
+  addedByEmail?: string | null;
+
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  sourceAccountId?: string | null;
+
   @Column({ type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
   lastModifiedAt: Date;
 

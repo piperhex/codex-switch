@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Badge, Button, Input, Table, Tag, Tooltip, Typography } from "antd";
 import type { TableColumnsType, TablePaginationConfig } from "antd";
 import { Edit3, Files, Link2, LogIn, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
@@ -18,6 +19,8 @@ interface OfficialAccountsPageProps {
   onEdit: (account: SystemAccount) => void;
   onBind: (account: SystemAccount) => void;
   onDelete: (account: SystemAccount) => void;
+  onBatchBind: (accounts: SystemAccount[]) => void;
+  onBatchDelete: (accounts: SystemAccount[]) => void;
   canManage: boolean;
 }
 
@@ -26,6 +29,8 @@ export function OfficialAccountsPage({
   loading,
   search,
   onBind,
+  onBatchBind,
+  onBatchDelete,
   onCreate,
   onCompatibleCreate,
   onSub2apiCreate,
@@ -37,6 +42,11 @@ export function OfficialAccountsPage({
   canManage,
 }: OfficialAccountsPageProps) {
   const { language, t } = useI18n();
+  const [selectedAccounts, setSelectedAccounts] = useState<SystemAccount[]>([]);
+  useEffect(() => {
+    const visibleIds = new Set(accounts.items.map((account) => account.id));
+    setSelectedAccounts((current) => current.filter((account) => visibleIds.has(account.id)));
+  }, [accounts.items]);
   const columns: TableColumnsType<SystemAccount> = [
     {
       title: t("common.email"),
@@ -52,6 +62,34 @@ export function OfficialAccountsPage({
       ),
     },
     { title: t("common.plan"), dataIndex: "plan", width: 120, render: (value) => <Tag>{value}</Tag> },
+    {
+      title: t("officialAccounts.source"),
+      dataIndex: "source",
+      width: 120,
+      render: (source: SystemAccount["source"]) => (
+        <Tag color={source === "desktop" ? "cyan" : "purple"}>
+          {t(source === "desktop" ? "officialAccounts.sourceDesktop" : "officialAccounts.sourceAdmin")}
+        </Tag>
+      ),
+    },
+    {
+      title: t("officialAccounts.addedBy"),
+      dataIndex: "addedByEmail",
+      width: 220,
+      render: (email: string | null, row) => email ? (
+        <div>
+          <Typography.Text>{email}</Typography.Text>
+          {row.addedByUserId && (
+            <>
+              <br />
+              <Typography.Text type="secondary" copyable={{ text: row.addedByUserId }}>
+                {row.addedByUserId}
+              </Typography.Text>
+            </>
+          )}
+        </div>
+      ) : "-",
+    },
     { title: t("common.note"), dataIndex: "note", ellipsis: true, render: (value) => value || "-" },
     {
       title: t("officialAccounts.boundUsers"),
@@ -107,6 +145,21 @@ export function OfficialAccountsPage({
           <Button icon={<RefreshCw size={15} />} onClick={() => onLoadAccounts()}>{t("common.refresh")}</Button>
           {canManage && (
             <>
+              <Button
+                icon={<Link2 size={15} />}
+                disabled={!selectedAccounts.length}
+                onClick={() => onBatchBind(selectedAccounts)}
+              >
+                {t("officialAccounts.batchBind", { count: selectedAccounts.length })}
+              </Button>
+              <Button
+                danger
+                icon={<Trash2 size={15} />}
+                disabled={!selectedAccounts.length}
+                onClick={() => onBatchDelete(selectedAccounts)}
+              >
+                {t("officialAccounts.batchDelete", { count: selectedAccounts.length })}
+              </Button>
               <Button icon={<Plus size={15} />} onClick={onCreate}>
                 {t("officialAccounts.createWithAuthJson")}
               </Button>
@@ -129,6 +182,10 @@ export function OfficialAccountsPage({
           loading={loading}
           columns={columns}
           dataSource={accounts.items}
+          rowSelection={canManage ? {
+            selectedRowKeys: selectedAccounts.map((account) => account.id),
+            onChange: (_keys, rows) => setSelectedAccounts(rows),
+          } : undefined}
           pagination={{
             current: accounts.page,
             pageSize: accounts.pageSize,
@@ -136,7 +193,7 @@ export function OfficialAccountsPage({
             showSizeChanger: true,
           }}
           onChange={(pagination: TablePaginationConfig) => onLoadAccounts(pagination.current, pagination.pageSize)}
-          scroll={{ x: 980 }}
+          scroll={{ x: 1340 }}
         />
       </div>
     </>

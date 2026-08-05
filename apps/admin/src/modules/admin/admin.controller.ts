@@ -13,7 +13,10 @@ import {
 import { Response } from 'express';
 import { join } from 'path';
 import { CurrentUser, type AuthUser } from '@/common/decorators/user.decorator';
-import { RequirePermissions } from '@/common/decorators/permissions.decorator';
+import {
+  RequireAnyPermissions,
+  RequirePermissions,
+} from '@/common/decorators/permissions.decorator';
 import { PermissionsGuard } from '@/common/guards/permissions.guard';
 import { Permission } from '@/common/rbac/permissions';
 import {
@@ -36,6 +39,7 @@ import {
   CreateApprovalRequestDto,
   ChangeSystemAccountBindingsDto,
   CreateSystemAccountDto,
+  DeleteSystemAccountsDto,
   ImportSystemAccountsDto,
   CreateInvitationDto,
   ListAuditLogsQueryDto,
@@ -180,6 +184,16 @@ export class AdminController {
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.SelfAccountsWrite)
+  @Post('api/profile/accounts/:accountId/add-to-pool')
+  addOwnAccountToSystemPool(
+    @CurrentUser() user: AuthUser,
+    @Param('accountId') accountId: string,
+  ) {
+    return this.admin.addOwnAccountToSystemPool(user, accountId);
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermissions(Permission.UsersRead)
   @Get('api/users/:id/accounts')
   listUserAccounts(@Param('id') id: string) {
@@ -228,10 +242,13 @@ export class AdminController {
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(Permission.OfficialAccountsRead)
+  @RequireAnyPermissions(
+    Permission.OfficialAccountsRead,
+    Permission.OfficialAccountsReadOwn,
+  )
   @Get('api/official-accounts')
-  listSystemAccounts(@Query() query: ListSystemAccountsQueryDto) {
-    return this.admin.listSystemAccounts(query);
+  listSystemAccounts(@CurrentUser() user: AuthUser, @Query() query: ListSystemAccountsQueryDto) {
+    return this.admin.listSystemAccounts(user, query);
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -285,16 +302,29 @@ export class AdminController {
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermissions(Permission.OfficialAccountsManage)
+  @Post('api/official-accounts/batch-delete')
+  deleteSystemAccounts(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: DeleteSystemAccountsDto,
+  ) {
+    return this.admin.deleteSystemAccounts(user, dto.systemAccountIds);
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.OfficialAccountsManage)
   @Delete('api/official-accounts/:id')
   deleteSystemAccount(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.admin.deleteSystemAccount(user, id);
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions(Permission.OfficialAccountsRead)
+  @RequireAnyPermissions(
+    Permission.OfficialAccountsRead,
+    Permission.OfficialAccountsReadOwn,
+  )
   @Get('api/official-accounts/:id/bindings')
-  listSystemAccountBindings(@Param('id') id: string) {
-    return this.admin.listSystemAccountBindings(id);
+  listSystemAccountBindings(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.admin.listSystemAccountBindings(user, id);
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
