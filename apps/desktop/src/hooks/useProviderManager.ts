@@ -104,6 +104,9 @@ function providerErrorMessage(error: unknown, t: Translate) {
   if (message.includes("Start the local proxy before selecting an OpenAI login account")) {
     return t("providers.error.openaiAuthAccountProxyRequired");
   }
+  if (message.includes("API key is required before listening on the local network")) {
+    return t("providers.error.lanApiKeyRequired");
+  }
   if (message.startsWith("Base URL is invalid:")) {
     return t("providers.error.baseUrlInvalid", { error: message.slice("Base URL is invalid:".length).trim() });
   }
@@ -374,15 +377,17 @@ export function useProviderManager(
     }
   }, [load, notify, t]);
 
-  const setProxyListenOnAllInterfaces = useCallback(async (enabled: boolean) => {
+  const setProxyListenOnAllInterfaces = useCallback(async (enabled: boolean, apiKey?: string) => {
     setProxyBusy(true);
     try {
-      setLocalProxy(await setLocalProxyListenOnAllInterfaces(enabled));
+      setLocalProxy(await setLocalProxyListenOnAllInterfaces(enabled, apiKey));
       notify(t(enabled ? "toast.proxyLanListeningEnabled" : "toast.proxyLanListeningDisabled"));
       await load();
+      return true;
     } catch (error) {
       notify(providerErrorMessage(error, t));
       await load();
+      return false;
     } finally {
       setProxyBusy(false);
     }

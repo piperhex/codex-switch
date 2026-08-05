@@ -273,6 +273,7 @@ describe('request DTO validation', () => {
         ...makeProvider(),
         apiFormat: 'unsupported',
         models: ['ok', 123],
+        contextWindow: 0,
         modelSelectionControlledByCodex: 'yes',
       }],
     });
@@ -280,7 +281,9 @@ describe('request DTO validation', () => {
     expect(errors).toHaveLength(1);
     expect(errors[0].property).toBe('providers');
     expect(errors[0].children?.[0].children?.map((error) => error.property))
-      .toEqual(expect.arrayContaining(['models', 'modelSelectionControlledByCodex', 'apiFormat']));
+      .toEqual(expect.arrayContaining([
+        'models', 'contextWindow', 'modelSelectionControlledByCodex', 'apiFormat',
+      ]));
   });
 
   it('applies provider DTO defaults', async () => {

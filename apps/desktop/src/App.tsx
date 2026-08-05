@@ -16,6 +16,7 @@ import { TokenUsageWindow } from "./components/TokenUsageWindow";
 import { CloudLoginModal } from "./components/modals/CloudLoginModal";
 import { CloudAccountModal } from "./components/modals/CloudAccountModal";
 import { LoginModal } from "./components/modals/LoginModal";
+import { LanAccessModal } from "./components/modals/LanAccessModal";
 import { UpdateModal } from "./components/modals/UpdateModal";
 import { MenuSearchModal, type MenuSearchItem } from "./components/MenuSearchModal";
 import { ProxySessionManager } from "./components/ProxySessionManager";
@@ -134,6 +135,7 @@ function DashboardApp() {
   const [showHelp, setShowHelp] = useState(false);
   const [showMenuSearch, setShowMenuSearch] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [showLanAccess, setShowLanAccess] = useState(false);
   const [helpVersionState, setHelpVersionState] = useState<HelpVersionState>({ status: "checking" });
   const [availableUpdate, setAvailableUpdate] = useState<UpdateInfo | null>(null);
   const [showUpdatePrompt, setShowUpdatePrompt] = useState(false);
@@ -1156,6 +1158,13 @@ function DashboardApp() {
       .catch((error) => notify(String(error)));
   };
   const titlebarProxyRunning = Boolean(providerManager.localProxy?.running);
+  const changeLanListening = (enabled: boolean) => {
+    if (enabled) {
+      setShowLanAccess(true);
+      return;
+    }
+    void providerManager.setProxyListenOnAllInterfaces(false);
+  };
   const titlebarProxyStartDisabledReason = !hasLocalBackend && !providerManager.localProxy?.port
     ? t("providers.proxy.webPortRequired")
     : activeAccount && !activeAccount.localProxyCompatible
@@ -1210,7 +1219,7 @@ function DashboardApp() {
               loading={providerManager.proxyBusy}
               disabled={providerManager.proxyBusy}
               aria-label={t("providers.proxy.listenLan")}
-              onChange={(enabled) => void providerManager.setProxyListenOnAllInterfaces(enabled)} />
+              onChange={changeLanListening} />
           </span>
         </Tooltip>
       )}
@@ -1653,6 +1662,12 @@ function DashboardApp() {
           onInstall={() => void installUpdate()} downloading={downloadingUpdate}
           downloadRequested={installAfterDownloadRequested} downloaded={updateDownloaded}
           installing={installingUpdate} progress={updateProgress} error={updateInstallError} t={t} />}
+        <LanAccessModal open={showLanAccess}
+          hasConfiguredKey={providerManager.localProxy?.hasLanApiKey ?? false}
+          loading={providerManager.proxyBusy}
+          onClose={() => setShowLanAccess(false)}
+          onConfirm={(apiKey) => providerManager.setProxyListenOnAllInterfaces(true, apiKey)}
+          t={t} />
         <Modal className="proxy-stop-progress-modal"
           open={Boolean(providerManager.proxyStartProgress)} footer={null} closable={false}
           maskClosable={false} keyboard={false} centered

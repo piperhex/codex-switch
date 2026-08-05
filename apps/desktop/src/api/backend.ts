@@ -110,6 +110,7 @@ const LOCAL_PROXY_AUTO_SWITCH_PREVIEW_KEY = "codex-switch:local-proxy-auto-switc
 const LOCAL_PROXY_CUSTOM_PRIORITY_PREVIEW_KEY = "codex-switch:local-proxy-custom-priority";
 const LOCAL_PROXY_AUTO_DISABLE_UNREACHABLE_PREVIEW_KEY = "codex-switch:local-proxy-auto-disable-unreachable";
 const LOCAL_PROXY_LISTEN_ALL_INTERFACES_PREVIEW_KEY = "codex-switch:local-proxy-listen-all-interfaces";
+const LOCAL_PROXY_LAN_API_KEY_PREVIEW_KEY = "codex-switch:local-proxy-lan-api-key";
 const LOCAL_PROXY_PORT_PREVIEW_KEY = "codex-switch:local-proxy-port";
 const LOCAL_PROXY_IMAGE_ACCOUNT_PREVIEW_KEY = "codex-switch:image-generation-account";
 const LOCAL_PROXY_OPENAI_AUTH_ACCOUNT_PREVIEW_KEY = "codex-switch:proxy-openai-auth-account";
@@ -215,6 +216,7 @@ function readPreviewProviders(): Provider[] {
         kind,
         model: models.includes(selectedModel) ? selectedModel : (models[0] ?? ""),
         models,
+        contextWindow: provider.contextWindow ?? null,
         modelSelectionControlledByCodex: kind === "openai"
           ? true
           : Boolean(provider.modelSelectionControlledByCodex),
@@ -258,6 +260,7 @@ function previewLocalProxyStatus(): LocalProxyStatus {
     customAutoSwitchPriorityEnabled: window.localStorage.getItem(LOCAL_PROXY_CUSTOM_PRIORITY_PREVIEW_KEY) === "true",
     autoDisableUnreachableAccounts: window.localStorage.getItem(LOCAL_PROXY_AUTO_DISABLE_UNREACHABLE_PREVIEW_KEY) === "true",
     listenOnAllInterfaces: window.localStorage.getItem(LOCAL_PROXY_LISTEN_ALL_INTERFACES_PREVIEW_KEY) === "true",
+    hasLanApiKey: Boolean(window.localStorage.getItem(LOCAL_PROXY_LAN_API_KEY_PREVIEW_KEY)),
     imageGenerationAccountId: window.localStorage.getItem(LOCAL_PROXY_IMAGE_ACCOUNT_PREVIEW_KEY),
     openaiAuthAccountId: window.localStorage.getItem(LOCAL_PROXY_OPENAI_AUTH_ACCOUNT_PREVIEW_KEY),
   };
@@ -350,6 +353,7 @@ export async function saveProviderProfile(provider: ProviderInput): Promise<Prov
       baseUrl: provider.baseUrl.trim().replace(/\/+$/, ""),
       model,
       models,
+      contextWindow: provider.contextWindow ?? null,
       modelSelectionControlledByCodex: kind === "openai"
         ? true
         : provider.modelSelectionControlledByCodex,
@@ -1313,15 +1317,25 @@ export async function chooseAndImportCompatibleJson(): Promise<CompatibleJsonImp
   return { status: "imported", ids: result.importedIds };
 }
 
-export async function setLocalProxyListenOnAllInterfaces(enabled: boolean): Promise<LocalProxyStatus> {
+export async function setLocalProxyListenOnAllInterfaces(
+  enabled: boolean,
+  apiKey?: string,
+): Promise<LocalProxyStatus> {
   if (!hasLocalBackend) {
     if (!previewLocalProxyStatus().running) {
       throw new Error("Start the local proxy before changing its listening address");
     }
+    const normalizedApiKey = apiKey?.trim();
+    if (enabled && !normalizedApiKey && !previewLocalProxyStatus().hasLanApiKey) {
+      throw new Error("API key is required before listening on the local network");
+    }
+    if (normalizedApiKey) {
+      window.localStorage.setItem(LOCAL_PROXY_LAN_API_KEY_PREVIEW_KEY, normalizedApiKey);
+    }
     window.localStorage.setItem(LOCAL_PROXY_LISTEN_ALL_INTERFACES_PREVIEW_KEY, String(enabled));
     return previewLocalProxyStatus();
   }
-  return invoke<LocalProxyStatus>("set_local_proxy_listen_on_all_interfaces", { enabled });
+  return invoke<LocalProxyStatus>("set_local_proxy_listen_on_all_interfaces", { enabled, apiKey });
 }
 
 export async function chooseAndImportSub2apiJson(): Promise<CompatibleJsonImportResult> {

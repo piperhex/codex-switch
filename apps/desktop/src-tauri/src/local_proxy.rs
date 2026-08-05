@@ -899,6 +899,7 @@ fn status<R: Runtime>(app: &tauri::AppHandle<R>) -> LocalProxyStatus {
         custom_auto_switch_priority_enabled,
         auto_disable_unreachable_accounts,
         listen_on_all_interfaces,
+        has_lan_api_key,
         image_generation_account_id,
         openai_auth_account_id,
     ) = resolve_paths(app)
@@ -908,12 +909,13 @@ fn status<R: Runtime>(app: &tauri::AppHandle<R>) -> LocalProxyStatus {
                 state.auto_switch_on_quota_exhaustion,
                 state.custom_auto_switch_priority_enabled,
                 state.auto_disable_unreachable_accounts,
-                state.local_proxy_listen_on_all_interfaces,
+                lan_listening_enabled(&state),
+                configured_lan_api_key(&state).is_some(),
                 state.image_generation_account_id,
                 state.local_proxy_openai_auth_account_id,
             )
         })
-        .unwrap_or((false, false, false, false, None, None));
+        .unwrap_or((false, false, false, false, false, None, None));
     LocalProxyStatus {
         running: is_running(),
         address: proxy_bind_host(listen_on_all_interfaces).to_string(),
@@ -923,6 +925,7 @@ fn status<R: Runtime>(app: &tauri::AppHandle<R>) -> LocalProxyStatus {
         custom_auto_switch_priority_enabled,
         auto_disable_unreachable_accounts,
         listen_on_all_interfaces,
+        has_lan_api_key,
         image_generation_account_id,
         openai_auth_account_id,
     }
@@ -954,6 +957,10 @@ pub(crate) fn list_proxy_sessions<R: Runtime>(
         .as_ref()
         .map(|paths| upstream_official_provider_names(paths))
         .unwrap_or_default();
+    let provider_context_windows = paths
+        .as_ref()
+        .map(|paths| provider_context_windows(paths))
+        .unwrap_or_default();
     let session_ids = sessions
         .iter()
         .map(|session| session.id.clone())
@@ -964,7 +971,7 @@ pub(crate) fn list_proxy_sessions<R: Runtime>(
             crate::commands::conversation_titles_by_id(&paths.codex_home, &session_ids).ok()
         })
         .unwrap_or_default();
-    let provider_context_window = providers::DEFAULT_MODEL_CONTEXT_WINDOW
+    let default_provider_context_window = providers::DEFAULT_MODEL_CONTEXT_WINDOW
         .saturating_mul(DEFAULT_EFFECTIVE_CONTEXT_WINDOW_PERCENT)
         / 100;
     let mut summaries = sessions
@@ -977,7 +984,12 @@ pub(crate) fn list_proxy_sessions<R: Runtime>(
                 {
                     official_context_windows.get(model).copied()
                 }
-                (Some(_), Some(_)) => Some(provider_context_window),
+                (Some(provider), Some(_)) => Some(
+                    provider_context_windows
+                        .get(provider)
+                        .copied()
+                        .unwrap_or(default_provider_context_window),
+                ),
                 _ => None,
             };
             ProxySessionSummary {
@@ -1132,15 +1144,24 @@ pub(crate) fn list_token_usage_entries<R: Runtime>(
         .as_ref()
         .map(|paths| upstream_official_provider_names(paths))
         .unwrap_or_default();
+    let provider_context_windows = paths
+        .as_ref()
+        .map(|paths| provider_context_windows(paths))
+        .unwrap_or_default();
     for entry in &mut entries {
         entry.model_context_window =
             if uses_official_model_context(&entry.provider, &upstream_official_provider_names) {
                 official_context_windows.get(&entry.model).copied()
             } else {
                 Some(
-                    providers::DEFAULT_MODEL_CONTEXT_WINDOW
-                        .saturating_mul(DEFAULT_EFFECTIVE_CONTEXT_WINDOW_PERCENT)
-                        / 100,
+                    provider_context_windows
+                        .get(&entry.provider)
+                        .copied()
+                        .unwrap_or(
+                            providers::DEFAULT_MODEL_CONTEXT_WINDOW
+                                .saturating_mul(DEFAULT_EFFECTIVE_CONTEXT_WINDOW_PERCENT)
+                                / 100,
+                        ),
                 )
             };
     }
@@ -1664,6 +1685,7 @@ struct OfficialProxyCredentials {
 pub(crate) fn set_local_proxy_listen_on_all_interfaces<R: Runtime>(
     app: tauri::AppHandle<R>,
     enabled: bool,
+    api_key: Option<String>,
 ) -> Result<LocalProxyStatus, String> {
     if !is_running() {
         return Err("Start the local proxy before changing its listening address".to_string());
@@ -1671,16 +1693,27 @@ pub(crate) fn set_local_proxy_listen_on_all_interfaces<R: Runtime>(
 
     let paths = resolve_paths(&app)?;
     let mut state = read_state(&paths);
-    let previous = state.local_proxy_listen_on_all_interfaces;
-    if previous == enabled {
+    let previous_enabled = lan_listening_enabled(&state);
+    if let Some(api_key) = api_key.map(|value| value.trim().to_string()) {
+        if !api_key.is_empty() {
+            state.local_proxy_lan_api_key = Some(api_key);
+        }
+    }
+    if enabled && configured_lan_api_key(&state).is_none() {
+        return Err("API key is required before listening on the local network".to_string());
+    }
+    state.local_proxy_listen_on_all_interfaces = enabled;
+    let next_enabled = lan_listening_enabled(&state);
+    write_state(&paths, &state)?;
+    if previous_enabled == next_enabled {
+        app.emit("providers-changed", ())
+            .map_err(|error| error.to_string())?;
         return Ok(status(&app));
     }
 
-    state.local_proxy_listen_on_all_interfaces = enabled;
-    write_state(&paths, &state)?;
     stop_server();
     if let Err(error) = start_server(app.clone()) {
-        state.local_proxy_listen_on_all_interfaces = previous;
+        state.local_proxy_listen_on_all_interfaces = previous_enabled;
         let _ = write_state(&paths, &state);
         let restore_error = start_server(app.clone()).err();
         return Err(match restore_error {
@@ -1715,7 +1748,7 @@ fn start_server<R: Runtime>(app: tauri::AppHandle<R>) -> Result<bool, String> {
     let state = read_state(&resolve_paths(&app)?);
     let bind_addr = format!(
         "{}:{LOCAL_PROXY_PORT}",
-        proxy_bind_host(state.local_proxy_listen_on_all_interfaces)
+        proxy_bind_host(lan_listening_enabled(&state))
     );
     let server = Arc::new(
         Server::http(&bind_addr)
@@ -1748,6 +1781,18 @@ fn proxy_bind_host(listen_on_all_interfaces: bool) -> &'static str {
     }
 }
 
+fn configured_lan_api_key(state: &ManagerStateFile) -> Option<&str> {
+    state
+        .local_proxy_lan_api_key
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+}
+
+fn lan_listening_enabled(state: &ManagerStateFile) -> bool {
+    state.local_proxy_listen_on_all_interfaces && configured_lan_api_key(state).is_some()
+}
+
 fn stop_server() {
     let runtime = runtime().lock().ok().and_then(|mut guard| guard.take());
     if let Some(mut runtime) = runtime {
@@ -1773,6 +1818,24 @@ fn handle_request<R: Runtime>(app: tauri::AppHandle<R>, mut request: Request) {
             )
         })
         .collect::<Vec<_>>();
+
+    let is_loopback = request
+        .remote_addr()
+        .map(|address| address.ip().is_loopback())
+        .unwrap_or(false);
+    if !is_loopback {
+        let configured_key = resolve_paths(&app)
+            .ok()
+            .map(|paths| read_state(&paths))
+            .and_then(|state| configured_lan_api_key(&state).map(str::to_string));
+        if !configured_key
+            .as_deref()
+            .is_some_and(|expected| request_has_valid_api_key(&headers, expected))
+        {
+            respond_error(request, 401, "A valid API key is required".to_string());
+            return;
+        }
+    }
 
     let mut body = Vec::new();
     if let Err(error) = request.as_reader().read_to_end(&mut body) {
@@ -1803,6 +1866,37 @@ fn handle_request<R: Runtime>(app: tauri::AppHandle<R>, mut request: Request) {
         request,
         attach_first_response_capture(payload, session.as_ref()),
     );
+}
+
+fn request_has_valid_api_key(headers: &[(String, String)], expected: &str) -> bool {
+    let header_key_matches = ["x-api-key", "openai-api-key", "api-key"]
+        .into_iter()
+        .filter_map(|name| header_value(headers, name).map(str::trim))
+        .any(|actual| !actual.is_empty() && api_keys_equal(expected, actual));
+    let bearer_key_matches = header_value(headers, "authorization")
+        .map(str::trim)
+        .and_then(|value| {
+            value
+                .get(..7)
+                .filter(|prefix| prefix.eq_ignore_ascii_case("bearer "))
+                .map(|_| value[7..].trim())
+        })
+        .filter(|value| !value.is_empty())
+        .is_some_and(|actual| api_keys_equal(expected, actual));
+    header_key_matches || bearer_key_matches
+}
+
+fn api_keys_equal(expected: &str, actual: &str) -> bool {
+    let expected = expected.as_bytes();
+    let actual = actual.as_bytes();
+    expected.len() == actual.len()
+        && expected
+            .iter()
+            .zip(actual)
+            .fold(0_u8, |difference, (left, right)| {
+                difference | (left ^ right)
+            })
+            == 0
 }
 
 fn handle_proxy_request<R: Runtime>(
@@ -1865,7 +1959,10 @@ fn handle_proxy_request<R: Runtime>(
             }
             ActiveTarget::Provider(provider) => Ok(json_payload(
                 200,
-                providers::model_catalog_for_models(&provider_models_for_codex(provider)),
+                providers::model_catalog_for_models(
+                    &provider_models_for_codex(provider),
+                    providers::provider_context_window(provider),
+                ),
             )),
         };
         append_proxy_diagnostic_result(app, diagnostic, &result, started_at.elapsed());
@@ -2922,6 +3019,19 @@ fn upstream_official_provider_names(paths: &Paths) -> HashSet<String> {
         .into_iter()
         .filter(providers::uses_upstream_official_models)
         .map(|provider| provider.name)
+        .collect()
+}
+
+fn provider_context_windows(paths: &Paths) -> HashMap<String, u64> {
+    providers::list_provider_profiles(paths)
+        .unwrap_or_default()
+        .into_iter()
+        .map(|provider| {
+            (
+                provider.name.clone(),
+                providers::effective_provider_context_window(&provider),
+            )
+        })
         .collect()
 }
 
@@ -5394,6 +5504,7 @@ mod tests {
             api_key: "sk-upstream".to_string(),
             model: "gpt-5.6-sol".to_string(),
             models: vec!["gpt-5.6-sol".to_string()],
+            context_window: None,
             model_selection_controlled_by_codex: true,
             api_format: ProviderApiFormat::OpenaiResponses,
             balance_platform: None,
@@ -5410,6 +5521,33 @@ mod tests {
     fn proxy_bind_host_uses_loopback_unless_lan_listening_is_enabled() {
         assert_eq!(proxy_bind_host(false), LOCAL_PROXY_HOST);
         assert_eq!(proxy_bind_host(true), LOCAL_PROXY_LAN_HOST);
+    }
+
+    #[test]
+    fn lan_listening_requires_a_configured_api_key() {
+        let mut state = ManagerStateFile {
+            local_proxy_listen_on_all_interfaces: true,
+            ..ManagerStateFile::default()
+        };
+        assert!(!lan_listening_enabled(&state));
+
+        state.local_proxy_lan_api_key = Some("  lan-secret  ".to_string());
+        assert!(lan_listening_enabled(&state));
+    }
+
+    #[test]
+    fn lan_api_key_accepts_supported_headers_and_bearer_tokens() {
+        let bearer = vec![("Authorization".to_string(), "Bearer lan-secret".to_string())];
+        let header = vec![
+            ("Authorization".to_string(), "Bearer wrong".to_string()),
+            ("X-API-Key".to_string(), "lan-secret".to_string()),
+        ];
+        let invalid = vec![("Authorization".to_string(), "Basic lan-secret".to_string())];
+
+        assert!(request_has_valid_api_key(&bearer, "lan-secret"));
+        assert!(request_has_valid_api_key(&header, "lan-secret"));
+        assert!(!request_has_valid_api_key(&invalid, "lan-secret"));
+        assert!(!request_has_valid_api_key(&bearer, "different"));
     }
 
     #[test]
@@ -6076,6 +6214,7 @@ mod tests {
             api_key: "sk-provider-test".to_string(),
             model: "gpt-4.1".to_string(),
             models: vec!["gpt-4.1".to_string()],
+            context_window: None,
             model_selection_controlled_by_codex: false,
             api_format: ProviderApiFormat::OpenaiResponses,
             balance_platform: None,
@@ -6123,6 +6262,7 @@ mod tests {
             api_key: "sk-provider-test".to_string(),
             model: "deepseek-chat".to_string(),
             models: vec!["deepseek-chat".to_string()],
+            context_window: None,
             model_selection_controlled_by_codex: false,
             api_format: ProviderApiFormat::OpenaiChat,
             balance_platform: None,
@@ -6405,6 +6545,7 @@ mod tests {
             api_key: "sk-provider-test".to_string(),
             model: "deepseek-chat".to_string(),
             models: vec!["deepseek-chat".to_string(), "deepseek-reasoner".to_string()],
+            context_window: Some(256_000),
             model_selection_controlled_by_codex: true,
             api_format: ProviderApiFormat::OpenaiResponses,
             balance_platform: None,
@@ -6415,12 +6556,16 @@ mod tests {
             wallet_username: None,
             wallet_password: None,
         };
-        let catalog = providers::model_catalog_for_models(&provider_models_for_codex(&provider));
+        let catalog = providers::model_catalog_for_models(
+            &provider_models_for_codex(&provider),
+            providers::provider_context_window(&provider),
+        );
         let models = catalog["models"].as_array().unwrap();
 
         assert_eq!(models.len(), 2);
         assert_eq!(models[0]["slug"], "deepseek-chat");
         assert_eq!(models[1]["slug"], "deepseek-reasoner");
+        assert_eq!(models[0]["context_window"], 256_000);
         for model in models {
             for key in [
                 "supported_reasoning_levels",
@@ -6809,6 +6954,7 @@ mod tests {
             api_key: "sk-provider-test".to_string(),
             model: "provider-text-model".to_string(),
             models: vec!["provider-text-model".to_string()],
+            context_window: None,
             model_selection_controlled_by_codex: false,
             api_format: ProviderApiFormat::OpenaiResponses,
             balance_platform: None,
@@ -6993,6 +7139,7 @@ mod tests {
             api_key: "sk-provider-test".to_string(),
             model: "deepseek-chat".to_string(),
             models: vec!["deepseek-chat".to_string(), "deepseek-reasoner".to_string()],
+            context_window: None,
             model_selection_controlled_by_codex: true,
             api_format: ProviderApiFormat::OpenaiChat,
             balance_platform: None,
@@ -7066,6 +7213,7 @@ mod tests {
             api_key: "sk-provider-test".to_string(),
             model: "deepseek-v4-flash".to_string(),
             models: vec!["deepseek-v4-flash".to_string()],
+            context_window: None,
             model_selection_controlled_by_codex: false,
             api_format: ProviderApiFormat::OpenaiChat,
             balance_platform: None,

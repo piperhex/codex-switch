@@ -56,6 +56,8 @@ pub(crate) struct ProviderInput {
     #[serde(default)]
     models: Vec<String>,
     #[serde(default)]
+    context_window: Option<u64>,
+    #[serde(default)]
     model_selection_controlled_by_codex: bool,
     api_format: ProviderApiFormat,
     #[serde(default)]
@@ -161,6 +163,7 @@ pub(crate) fn save_provider<R: Runtime>(
         api_key,
         model,
         models,
+        context_window: provider.context_window,
         model_selection_controlled_by_codex: provider.model_selection_controlled_by_codex,
         api_format: provider.api_format,
         balance_platform,
@@ -791,6 +794,7 @@ fn provider_summary(provider: &ProviderProfile, active: bool) -> ProviderSummary
         base_url: provider.base_url.clone(),
         model: provider.model.clone(),
         models: provider.models.clone(),
+        context_window: provider.context_window,
         model_selection_controlled_by_codex: provider.model_selection_controlled_by_codex,
         api_format: provider.api_format,
         active,
@@ -1075,6 +1079,9 @@ fn normalize_model_selection(
 }
 
 fn normalize_provider_profile(mut provider: ProviderProfile) -> Result<ProviderProfile, String> {
+    if provider.context_window == Some(0) {
+        return Err("Context window must be greater than zero".to_string());
+    }
     if provider.kind == ProviderKind::OpenAi {
         if provider.model.trim().is_empty() {
             provider.model = DEFAULT_OFFICIAL_MODEL.to_string();
@@ -1132,7 +1139,8 @@ pub(crate) fn uses_upstream_official_models(provider: &ProviderProfile) -> bool 
 }
 
 fn uses_local_model_catalog(provider: &ProviderProfile) -> bool {
-    provider.model_selection_controlled_by_codex && !uses_upstream_official_models(provider)
+    !uses_upstream_official_models(provider)
+        && (provider.model_selection_controlled_by_codex || provider.context_window.is_some())
 }
 
 fn normalize_synced_provider(mut provider: ProviderProfile) -> Result<ProviderProfile, String> {
@@ -1353,19 +1361,34 @@ fn write_provider_model_catalog(paths: &Paths, provider: &ProviderProfile) -> Re
 }
 
 fn provider_model_catalog(provider: &ProviderProfile) -> Value {
-    model_catalog_for_models(&provider.models)
+    let models = if provider.model_selection_controlled_by_codex {
+        provider.models.as_slice()
+    } else {
+        std::slice::from_ref(&provider.model)
+    };
+    model_catalog_for_models(models, provider_context_window(provider))
 }
 
-pub(crate) fn model_catalog_for_models(models: &[String]) -> Value {
+pub(crate) fn provider_context_window(provider: &ProviderProfile) -> u64 {
+    provider
+        .context_window
+        .unwrap_or(DEFAULT_MODEL_CONTEXT_WINDOW)
+}
+
+pub(crate) fn effective_provider_context_window(provider: &ProviderProfile) -> u64 {
+    provider_context_window(provider).saturating_mul(95) / 100
+}
+
+pub(crate) fn model_catalog_for_models(models: &[String], context_window: u64) -> Value {
     let entries = models
         .iter()
         .enumerate()
-        .map(|(index, model)| provider_model_catalog_entry(model, index))
+        .map(|(index, model)| provider_model_catalog_entry(model, index, context_window))
         .collect::<Vec<_>>();
     json!({ "models": entries })
 }
 
-fn provider_model_catalog_entry(model: &str, index: usize) -> Value {
+fn provider_model_catalog_entry(model: &str, index: usize, context_window: u64) -> Value {
     json!({
         "slug": model,
         "display_name": model,
@@ -1389,8 +1412,8 @@ fn provider_model_catalog_entry(model: &str, index: usize) -> Value {
         "truncation_policy": { "mode": "bytes", "limit": 10000 },
         "supports_parallel_tool_calls": false,
         "supports_image_detail_original": false,
-        "context_window": DEFAULT_MODEL_CONTEXT_WINDOW,
-        "max_context_window": DEFAULT_MODEL_CONTEXT_WINDOW,
+        "context_window": context_window,
+        "max_context_window": context_window,
         "auto_compact_token_limit": null,
         "comp_hash": null,
         "effective_context_window_percent": 95,
@@ -1726,6 +1749,7 @@ mod tests {
             api_key: "sk-test".to_string(),
             model: "gpt-4.1".to_string(),
             models: vec!["gpt-4.1".to_string()],
+            context_window: None,
             model_selection_controlled_by_codex: false,
             api_format: ProviderApiFormat::OpenaiResponses,
             balance_platform: None,
@@ -2169,6 +2193,16 @@ sandbox_mode = "workspace-write"
     }
 
     #[test]
+    fn provider_config_adds_model_catalog_for_a_custom_context_window() {
+        let mut provider = provider();
+        provider.context_window = Some(256_000);
+
+        let merged = merge_provider_config("", &provider);
+
+        assert!(merged.contains("model_catalog_json = \"codex-switch-model-catalog.json\""));
+    }
+
+    #[test]
     fn openai_provider_config_uses_upstream_model_catalog() {
         let mut provider = provider();
         provider.kind = ProviderKind::OpenAi;
@@ -2238,6 +2272,7 @@ sandbox_mode = "workspace-write"
             api_key: "sk-test".to_string(),
             model: "gpt-4.1".to_string(),
             models: Vec::new(),
+            context_window: None,
             model_selection_controlled_by_codex: false,
             api_format: ProviderApiFormat::OpenaiResponses,
             balance_platform: None,
@@ -2275,6 +2310,8 @@ sandbox_mode = "workspace-write"
     fn provider_model_catalog_contains_codex_visible_models() {
         let mut provider = provider();
         provider.models = vec!["deepseek-chat".to_string(), "deepseek-reasoner".to_string()];
+        provider.context_window = Some(256_000);
+        provider.model_selection_controlled_by_codex = true;
         let catalog = provider_model_catalog(&provider);
         let models = catalog["models"].as_array().unwrap();
 
@@ -2290,7 +2327,25 @@ sandbox_mode = "workspace-write"
         assert_eq!(models[0]["use_responses_lite"], false);
         assert!(models[0].get("tool_mode").is_some());
         assert!(models[0].get("multi_agent_version").is_some());
+        assert_eq!(models[0]["context_window"], 256_000);
+        assert_eq!(models[0]["max_context_window"], 256_000);
         assert_eq!(models[1]["slug"], "deepseek-reasoner");
+    }
+
+    #[test]
+    fn provider_context_window_defaults_and_rejects_zero() {
+        let provider = provider();
+        assert_eq!(
+            provider_context_window(&provider),
+            DEFAULT_MODEL_CONTEXT_WINDOW
+        );
+
+        let mut invalid = provider;
+        invalid.context_window = Some(0);
+        assert_eq!(
+            normalize_provider_profile(invalid).unwrap_err(),
+            "Context window must be greater than zero"
+        );
     }
 
     #[test]

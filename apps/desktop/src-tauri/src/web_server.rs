@@ -386,6 +386,7 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
             crate::local_proxy::set_local_proxy_listen_on_all_interfaces(
                 app,
                 argument(&args, "enabled")?,
+                argument(&args, "apiKey")?,
             ),
         ),
         "set_floating_bubble" => serialize(block_on(crate::floating_bubble::set_floating_bubble(

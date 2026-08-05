@@ -74,6 +74,8 @@ pub(crate) struct ManagerStateFile {
     #[serde(default)]
     pub(crate) local_proxy_listen_on_all_interfaces: bool,
     #[serde(default)]
+    pub(crate) local_proxy_lan_api_key: Option<String>,
+    #[serde(default)]
     pub(crate) image_generation_account_id: Option<String>,
     #[serde(default)]
     pub(crate) local_proxy_openai_auth_account_id: Option<String>,
@@ -127,6 +129,8 @@ pub(crate) struct ProviderProfile {
     pub(crate) model: String,
     #[serde(default)]
     pub(crate) models: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) context_window: Option<u64>,
     #[serde(default)]
     pub(crate) model_selection_controlled_by_codex: bool,
     pub(crate) api_format: ProviderApiFormat,
@@ -155,6 +159,7 @@ pub(crate) struct ProviderSummary {
     pub(crate) base_url: String,
     pub(crate) model: String,
     pub(crate) models: Vec<String>,
+    pub(crate) context_window: Option<u64>,
     pub(crate) model_selection_controlled_by_codex: bool,
     pub(crate) api_format: ProviderApiFormat,
     pub(crate) active: bool,
@@ -193,6 +198,7 @@ pub(crate) struct LocalProxyStatus {
     pub(crate) custom_auto_switch_priority_enabled: bool,
     pub(crate) auto_disable_unreachable_accounts: bool,
     pub(crate) listen_on_all_interfaces: bool,
+    pub(crate) has_lan_api_key: bool,
     pub(crate) image_generation_account_id: Option<String>,
     pub(crate) openai_auth_account_id: Option<String>,
 }
@@ -494,6 +500,8 @@ pub(crate) struct ProviderSyncPayload {
     pub(crate) model: String,
     #[serde(default)]
     pub(crate) models: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) context_window: Option<u64>,
     #[serde(default)]
     pub(crate) model_selection_controlled_by_codex: bool,
     pub(crate) api_format: ProviderApiFormat,
@@ -529,6 +537,7 @@ mod tests {
         assert!(!state.custom_auto_switch_priority_enabled);
         assert!(!state.auto_disable_unreachable_accounts);
         assert!(!state.local_proxy_listen_on_all_interfaces);
+        assert!(state.local_proxy_lan_api_key.is_none());
         assert!(state.image_generation_account_id.is_none());
         assert!(state.disabled_account_ids.is_empty());
     }

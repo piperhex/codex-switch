@@ -41,9 +41,9 @@ If production uses `POSTGRES_DB_SYNCHRONIZE=false`, apply `sql/20260704-admin-ma
 `sql/20260718-device-installation-app-version.sql`, `sql/20260718-user-feedback.sql`,
 `sql/20260718-dynamic-rbac.sql`, `sql/20260720-sync-account-field-modified-at.sql`,
 `sql/20260722-sync-account-soft-delete.sql`, `sql/20260722-email-templates.sql`,
-`sql/20260722-auto-switch-priority.sql`, and
+`sql/20260722-auto-switch-priority.sql`,
 `sql/20260723-remote-device-account-switching.sql`, `sql/20260724-app-notifications.sql`,
-and `sql/20260727-app-faqs.sql` before using
+`sql/20260727-app-faqs.sql`, and `sql/20260805-sync-provider-context-window.sql` before using
 the expanded admin console, provider sync, official account pool, reusable invitations,
 announcements, desktop FAQs, email templates, telemetry, and feedback management.
 The RBAC migration must be applied before starting this version because application startup

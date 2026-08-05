@@ -66,6 +66,7 @@ export interface Provider {
   baseUrl: string;
   model: string;
   models: string[];
+  contextWindow?: number | null;
   modelSelectionControlledByCodex: boolean;
   apiFormat: ProviderApiFormat;
   active: boolean;
@@ -88,6 +89,7 @@ export interface ProviderInput {
   baseUrl: string;
   model: string;
   models: string[];
+  contextWindow?: number | null;
   modelSelectionControlledByCodex: boolean;
   apiKey?: string;
   apiFormat: ProviderApiFormat;
@@ -120,6 +122,7 @@ export interface LocalProxyStatus {
   customAutoSwitchPriorityEnabled: boolean;
   autoDisableUnreachableAccounts: boolean;
   listenOnAllInterfaces: boolean;
+  hasLanApiKey: boolean;
   imageGenerationAccountId?: string | null;
   openaiAuthAccountId?: string | null;
 }

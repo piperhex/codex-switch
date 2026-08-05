@@ -3,6 +3,8 @@ import {
   IsArray,
   IsBoolean,
   IsIn,
+  IsInt,
+  Min,
   IsOptional,
   IsString,
   MaxLength,
@@ -37,6 +39,12 @@ export class SyncProviderDto {
   @IsString({ each: true })
   @MaxLength(160, { each: true })
   models: string[] = [];
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  contextWindow?: number | null;
 
   @IsBoolean()
   modelSelectionControlledByCodex: boolean = false;

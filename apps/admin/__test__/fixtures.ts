@@ -27,6 +27,7 @@ export function makeProvider(overrides: Partial<SyncProviderDto> = {}): SyncProv
     apiKey: 'sk-provider-secret',
     model: 'gpt-4.1',
     models: ['gpt-4.1'],
+    contextWindow: 256_000,
     modelSelectionControlledByCodex: false,
     apiFormat: 'openaiResponses',
     lastModifiedAt: '2026-07-05T00:00:00.000Z',

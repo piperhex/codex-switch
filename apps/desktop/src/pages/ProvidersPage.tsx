@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Button, Input, Popconfirm, Segmented, Select, Space, Switch, Table, Tag, Tooltip } from "antd";
+import { AutoComplete, Button, Input, Popconfirm, Segmented, Select, Space, Switch, Table, Tag, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { Bot, Check, Pencil, Plus, RefreshCw, RotateCcw, Save, Server, Trash2, WalletCards, X } from "lucide-react";
 import { queryProviderBalance, subscribeToProviderBalance } from "../api/backend";
@@ -44,6 +44,20 @@ function normalizeModels(activeModel: string, values: string[]) {
 
 function modelOptions(models: string[]) {
   return models.map((model) => ({ label: model, value: model }));
+}
+
+const CONTEXT_WINDOW_OPTIONS = [128, 256, 400, 1000].map((value) => ({
+  label: `${value}K`,
+  value: String(value),
+}));
+
+function parseContextWindowK(value: string): number | null | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (!/^\d+$/.test(trimmed)) return undefined;
+  const contextWindowK = Number(trimmed);
+  const contextWindow = contextWindowK * 1000;
+  return Number.isSafeInteger(contextWindow) && contextWindowK > 0 ? contextWindow : undefined;
 }
 
 function relayRoot(value: string) {
@@ -108,6 +122,7 @@ function ProviderModal({ provider, saving, onClose, onSave, t }: ProviderModalPr
   const [baseUrl, setBaseUrl] = useState("");
   const [model, setModel] = useState("");
   const [models, setModels] = useState<string[]>([]);
+  const [contextWindowK, setContextWindowK] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [apiFormat, setApiFormat] = useState<ProviderApiFormat>("openaiResponses");
   const [balancePlatform, setBalancePlatform] = useState<ProviderBalancePlatform | "none">("none");
@@ -129,6 +144,7 @@ function ProviderModal({ provider, saving, onClose, onSave, t }: ProviderModalPr
     const nextModels = normalizeModels(provider?.model ?? "", provider?.models ?? []);
     setModels(nextModels);
     setModel(provider?.model ?? nextModels[0] ?? "");
+    setContextWindowK(provider?.contextWindow ? String(provider.contextWindow / 1000) : "");
     setApiKey("");
     setApiFormat(provider?.apiFormat ?? "openaiResponses");
     setBalancePlatform(provider?.balancePlatform ?? "none");
@@ -144,12 +160,14 @@ function ProviderModal({ provider, saving, onClose, onSave, t }: ProviderModalPr
 
   const normalizedModels = normalizeModels(model, models);
   const activeModel = model.trim() || (normalizedModels[0] ?? "");
+  const contextWindow = parseContextWindowK(contextWindowK);
   const hasBalanceToken = balanceQueryUsesApiKey
     || Boolean(balanceQueryToken.trim() || provider?.hasBalanceQueryToken);
   const canSave = Boolean(
     name.trim()
     && baseUrl.trim()
     && activeModel
+    && contextWindow !== undefined
     && (provider?.hasApiKey || apiKey.trim())
     && (balancePlatform === "none" || (balanceQueryUrl.trim() && hasBalanceToken)),
   );
@@ -167,6 +185,7 @@ function ProviderModal({ provider, saving, onClose, onSave, t }: ProviderModalPr
       baseUrl,
       model: activeModel,
       models: normalizedModels,
+      contextWindow,
       modelSelectionControlledByCodex: provider?.modelSelectionControlledByCodex ?? false,
       apiKey: apiKey.trim() || undefined,
       apiFormat,
@@ -206,6 +225,11 @@ function ProviderModal({ provider, saving, onClose, onSave, t }: ProviderModalPr
           <Select id="provider-active-model" value={activeModel || undefined} disabled={saving || !normalizedModels.length}
             placeholder="openai/gpt-4.1" options={modelOptions(normalizedModels)}
             onChange={(value) => setModel(value)} />
+          <label htmlFor="provider-context-window">{t("providers.form.contextWindow")}</label>
+          <AutoComplete id="provider-context-window" value={contextWindowK} disabled={saving}
+            options={CONTEXT_WINDOW_OPTIONS} placeholder="128" allowClear
+            onChange={setContextWindowK} />
+          <small>{t("providers.form.contextWindowHint")}</small>
           <label htmlFor="provider-api-key">{t("providers.form.apiKey")}</label>
           <Input.Password id="provider-api-key" value={apiKey} disabled={saving}
             placeholder={provider?.hasApiKey ? t("providers.form.keepApiKey") : t("providers.form.newApiKey")}
@@ -292,12 +316,12 @@ function ProviderModal({ provider, saving, onClose, onSave, t }: ProviderModalPr
 }
 
 function OpenAiProviderModal({ provider, saving, onClose, onSave, t }: ProviderModalProps) {
-  const [name, setName] = useState("OpenAI");
+  const [name, setName] = useState("Codex Switch");
   const [baseUrl, setBaseUrl] = useState("");
   const [apiKey, setApiKey] = useState("");
 
   useEffect(() => {
-    setName(provider?.name ?? "OpenAI");
+    setName(provider?.name ?? "Codex Switch");
     setBaseUrl(provider?.baseUrl ?? "");
     setApiKey("");
   }, [provider]);
@@ -338,7 +362,7 @@ function OpenAiProviderModal({ provider, saving, onClose, onSave, t }: ProviderM
         <p>{t("providers.openai.description")}</p>
         <div className="provider-form">
           <label htmlFor="openai-provider-name">{t("providers.form.name")}</label>
-          <Input id="openai-provider-name" value={name} disabled={saving} placeholder="OpenAI"
+          <Input id="openai-provider-name" value={name} disabled={saving} placeholder="Codex Switch"
             onChange={(event) => setName(event.target.value)} />
           <label htmlFor="openai-provider-base-url">{t("providers.openai.baseUrl")}</label>
           <Input id="openai-provider-base-url" value={baseUrl} disabled={saving}
@@ -374,6 +398,7 @@ function RelayStationModal({
   const [name, setName] = useState("");
   const [nameTouched, setNameTouched] = useState(false);
   const [model, setModel] = useState("gpt-5.6-sol");
+  const [contextWindowK, setContextWindowK] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
   const [balanceQueryUrl, setBalanceQueryUrl] = useState("");
   const [balanceQueryUsesApiKey, setBalanceQueryUsesApiKey] = useState(true);
@@ -405,7 +430,8 @@ function RelayStationModal({
     && model.trim()
     && baseUrl.trim()
     && balanceQueryUrl.trim()
-    && (balanceQueryUsesApiKey || balanceQueryToken.trim()),
+    && (balanceQueryUsesApiKey || balanceQueryToken.trim())
+    && parseContextWindowK(contextWindowK) !== undefined,
   );
   const submit = async () => {
     if (!canSave || !platform) return;
@@ -415,6 +441,7 @@ function RelayStationModal({
       baseUrl,
       model,
       models: [model],
+      contextWindow: parseContextWindowK(contextWindowK),
       modelSelectionControlledByCodex: false,
       apiKey,
       apiFormat: "openaiResponses",
@@ -454,6 +481,11 @@ function RelayStationModal({
           <Input.Password id="relay-token" value={apiKey} disabled={saving}
             placeholder="sk-..."
             onChange={(event) => setApiKey(event.target.value)} />
+          <label htmlFor="relay-context-window">{t("providers.form.contextWindow")}</label>
+          <AutoComplete id="relay-context-window" value={contextWindowK} disabled={saving}
+            options={CONTEXT_WINDOW_OPTIONS} placeholder="128" allowClear
+            onChange={setContextWindowK} />
+          <small>{t("providers.form.contextWindowHint")}</small>
           <details className="provider-advanced">
             <summary>{t("providers.relay.advanced")}</summary>
             <div className="provider-advanced-fields">

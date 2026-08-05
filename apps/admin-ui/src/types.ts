@@ -313,6 +313,7 @@ export interface SyncProvider {
   baseUrl: string;
   model: string;
   models: string[];
+  contextWindow?: number | null;
   modelSelectionControlledByCodex: boolean;
   apiFormat: "openaiResponses" | "openaiChat";
   lastModifiedAt?: string;
