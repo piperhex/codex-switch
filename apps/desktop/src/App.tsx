@@ -2,7 +2,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProper
 import { ConfigProvider, Dropdown, Modal, Popconfirm, Popover, Progress, Switch, Tooltip, theme as antdTheme, type MenuProps } from "antd";
 import enUS from "antd/locale/en_US";
 import zhCN from "antd/locale/zh_CN";
-import { BarChart3, Bell, CalendarClock, Check, ChevronDown, CircleHelp, Cloud, Copy, Download, Github, LogIn, LogOut, Megaphone, MessageSquareText, Minus, PackageOpen, Palette, Play, Plus, RefreshCw, RotateCcw, Search, Server, Settings, ShieldCheck, Shuffle, Square, UploadCloud, UserRound, X } from "lucide-react";
+import { BarChart3, Bell, CalendarClock, Check, ChevronDown, CircleHelp, Cloud, Copy, Download, Github, Globe2, LogIn, LogOut, Megaphone, MessageSquareText, Minus, PackageOpen, Palette, Play, Plus, RefreshCw, RotateCcw, Search, Server, Settings, ShieldCheck, Shuffle, Square, UploadCloud, UserRound, X } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { checkForUpdate, chooseAndExportDiagnosticLogs, consumeResetCredit, DEFAULT_AUTO_DISABLE_STATUS_CODES, DEFAULT_CLOUD_BASE_URL, downloadAvailableUpdate, fetchCloudAnnouncement, fetchCloudFaqs, fetchCloudNotifications, hasLocalBackend, installDownloadedUpdate, isDesktopApp, launchChatGpt, loadAppSettings, openManagedFolder, queryProviderBalance, quitApplication, reportAnnouncementClick, reportBaseUrlChange, reportDeviceActivity, reportFirstInstallation, restartApplication, restartChatGpt, showTokenUsageWindow, submitFeedback, subscribeToCloudSessionExpired, updateAutoDisableStatusCodes, updateWebProxyPort } from "./api/backend";
@@ -45,6 +45,7 @@ const LAST_REFRESH_ALL_KEY = "codex-switch:last-refresh-all-at";
 const LAST_NOTIFICATION_SEEN_KEY = "codex-switch:last-notification-seen-at";
 const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 const REPOSITORY_URL = "https://github.com/piperhex/codex-switch";
+const LATEST_RELEASE_API_URL = "https://api.github.com/repos/piperhex/codex-switch/releases/latest";
 const APP_LOGO_URL = new URL("../src-tauri/icons/128x128.png", import.meta.url).href;
 const CUSTOM_TITLEBAR_ENABLED = isDesktopApp && navigator.userAgent.includes("Windows");
 const MemoAccountsPage = memo(AccountsPage);
@@ -620,13 +621,38 @@ function DashboardApp() {
       notify(String(error));
     }
   }, [notify]);
-  const openRepository = () => {
-    if ("__TAURI_INTERNALS__" in window) {
-      void openUrl(REPOSITORY_URL).catch((error) => notify(String(error)));
+  const openExternalUrl = useCallback((url: string) => {
+    if (isDesktopApp) {
+      void openUrl(url).catch((error) => notify(String(error)));
       return;
     }
-    window.open(REPOSITORY_URL, "_blank", "noopener,noreferrer");
-  };
+    window.open(url, "_blank", "noopener,noreferrer");
+  }, [notify]);
+  const openRepository = useCallback(() => {
+    openExternalUrl(REPOSITORY_URL);
+  }, [openExternalUrl]);
+  const downloadAndroidApk = useCallback(async () => {
+    const releasePageUrl = `${REPOSITORY_URL}/releases/latest`;
+    try {
+      const response = await fetch(LATEST_RELEASE_API_URL, {
+        headers: { Accept: "application/vnd.github+json" },
+      });
+      if (!response.ok) throw new Error(response.statusText);
+      const release = await response.json() as {
+        assets?: Array<{ name?: string; browser_download_url?: string }>;
+      };
+      const apkUrl = release.assets?.find((asset) => (
+        /^CodexSwitch-android-.+\.apk$/i.test(asset.name ?? "")
+      ))?.browser_download_url;
+      openExternalUrl(apkUrl ?? releasePageUrl);
+    } catch {
+      openExternalUrl(releasePageUrl);
+    }
+  }, [openExternalUrl]);
+  const openCloudWebVersion = useCallback(() => {
+    const baseUrl = (cloud.state.baseUrl?.trim() || DEFAULT_CLOUD_BASE_URL).replace(/\/+$/, "");
+    openExternalUrl(`${baseUrl}/web`);
+  }, [cloud.state.baseUrl, openExternalUrl]);
   const downloadUpdate = useCallback(async (update: UpdateInfo, promptWhenReady: boolean) => {
     if (promptWhenReady) {
       installAfterDownloadRequestedRef.current = true;
@@ -1232,6 +1258,8 @@ function DashboardApp() {
               { type: "divider" },
               { key: "settings", icon: <Settings size={15} />, label: t("nav.settings") },
               { key: "checkUpdate", icon: <RefreshCw size={15} />, label: t("update.check"), disabled: checkingForUpdate },
+              { key: "downloadAndroidApk", icon: <Download size={15} />, label: t("help.downloadAndroidApk") },
+              { key: "openCloudWeb", icon: <Globe2 size={15} />, label: t("help.openCloudWeb") },
               { key: "feedback", icon: <MessageSquareText size={15} />, label: t("feedback.title") },
               { key: "repository", icon: <Github size={15} />, label: t("help.github") },
               { key: "help", icon: <CircleHelp size={15} />, label: t("help.open") },
@@ -1242,6 +1270,8 @@ function DashboardApp() {
               { type: "divider" },
               { key: "settings", icon: <Settings size={15} />, label: t("nav.settings") },
               { key: "checkUpdate", icon: <RefreshCw size={15} />, label: t("update.check"), disabled: checkingForUpdate },
+              { key: "downloadAndroidApk", icon: <Download size={15} />, label: t("help.downloadAndroidApk") },
+              { key: "openCloudWeb", icon: <Globe2 size={15} />, label: t("help.openCloudWeb") },
               { key: "feedback", icon: <MessageSquareText size={15} />, label: t("feedback.title") },
               { key: "repository", icon: <Github size={15} />, label: t("help.github") },
               { key: "help", icon: <CircleHelp size={15} />, label: t("help.open") },
@@ -1254,6 +1284,8 @@ function DashboardApp() {
             if (key === "login") openCloudLogin();
             if (key === "settings") setPage("settings");
             if (key === "checkUpdate") void checkForUpdates();
+            if (key === "downloadAndroidApk") void downloadAndroidApk();
+            if (key === "openCloudWeb") openCloudWebVersion();
             if (key === "feedback") setShowFeedback(true);
             if (key === "help") openHelp();
             if (key === "about") openAbout();
