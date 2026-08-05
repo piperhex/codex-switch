@@ -25,6 +25,7 @@ import type { Account, AppInfo } from "../types";
 interface RefreshAllOptions {
   quiet?: boolean;
   showSpinner?: boolean;
+  enabledOnly?: boolean;
 }
 
 interface AccountCloudSync {
@@ -203,19 +204,29 @@ export function useAccountManager(
     }
   }, [notify, t]);
 
-  const refreshAll = useCallback(async ({ quiet = false, showSpinner = true }: RefreshAllOptions = {}) => {
-    if (!accounts.length || refreshingAllRef.current) return;
+  const refreshAll = useCallback(async ({
+    quiet = false,
+    showSpinner = true,
+    enabledOnly = false,
+  }: RefreshAllOptions = {}) => {
+    const targetAccounts = enabledOnly
+      ? accounts.filter((account) => account.autoSwitchEnabled)
+      : accounts;
+    if (!targetAccounts.length || refreshingAllRef.current) return;
     refreshingAllRef.current = true;
     if (showSpinner) setRefreshingAll(true);
     try {
-      await Promise.allSettled(accounts.map((account) => refreshAccountUsage(account.id)));
+      await Promise.allSettled(targetAccounts.map((account) => refreshAccountUsage(account.id)));
       if (hasLocalBackend) await load();
       else {
         const fetchedAt = new Date().toISOString();
-        setAccounts((items) => items.map((item) => ({ ...item, usage: { ...item.usage, fetchedAt } })));
+        const refreshedIds = new Set(targetAccounts.map((account) => account.id));
+        setAccounts((items) => items.map((item) => refreshedIds.has(item.id)
+          ? { ...item, usage: { ...item.usage, fetchedAt } }
+          : item));
       }
       if (!quiet) notify(t("toast.allUsageRefreshed"));
-      await Promise.allSettled(accounts.map((account) => cloudSync?.pushAccount?.(account.id)));
+      await Promise.allSettled(targetAccounts.map((account) => cloudSync?.pushAccount?.(account.id)));
     } finally {
       if (showSpinner) setRefreshingAll(false);
       refreshingAllRef.current = false;

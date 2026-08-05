@@ -256,6 +256,16 @@ function DashboardApp() {
   const resetCredits = useResetCredits(manager.accounts, notify, t);
   const activeAccount = manager.accounts.find((account) => account.active) ?? null;
   const activeProvider = providerManager.activeProvider;
+  const concurrentRoutingActive = Boolean(
+    providerManager.localProxy?.running
+      && providerManager.localProxy.concurrentAccountRoutingEnabled,
+  );
+  const concurrentAutoRefreshAccountIds = useMemo(
+    () => manager.accounts
+      .filter((account) => account.autoSwitchEnabled)
+      .map((account) => account.id),
+    [manager.accounts],
+  );
   const configuredBalanceProviders = useMemo(
     () => providerManager.providers.filter((provider) => Boolean(provider.balancePlatform)),
     [providerManager.providers],
@@ -274,6 +284,10 @@ function DashboardApp() {
     }
   }, [configuredBalanceProviders]);
   const refreshCurrentSelection = useCallback(async () => {
+    if (concurrentRoutingActive) {
+      await manager.refreshAll({ quiet: true, showSpinner: false, enabledOnly: true });
+      return;
+    }
     const tasks: Promise<unknown>[] = [];
     if (activeProvider?.balancePlatform) {
       tasks.push(queryProviderBalance(activeProvider.id));
@@ -282,15 +296,23 @@ function DashboardApp() {
       tasks.push(manager.refreshUsage(activeAccount.id, true, false));
     }
     await Promise.allSettled(tasks);
-  }, [activeAccount, activeProvider, manager.refreshUsage]);
-  const currentAutoRefreshTargetId = activeProvider?.balancePlatform
-    ? `provider:${activeProvider.id}`
-    : activeAccount
-      ? `account:${activeAccount.id}`
-      : null;
-  const currentAutoRefreshTarget = activeProvider?.balancePlatform
-    ? activeProvider.name
-    : activeAccount?.email ?? null;
+  }, [activeAccount, activeProvider, concurrentRoutingActive, manager.refreshAll, manager.refreshUsage]);
+  const currentAutoRefreshTargetId = concurrentRoutingActive
+    ? concurrentAutoRefreshAccountIds.length
+      ? `concurrent:${concurrentAutoRefreshAccountIds.join(",")}`
+      : null
+    : activeProvider?.balancePlatform
+      ? `provider:${activeProvider.id}`
+      : activeAccount
+        ? `account:${activeAccount.id}`
+        : null;
+  const currentAutoRefreshTarget = concurrentRoutingActive
+    ? concurrentAutoRefreshAccountIds.length
+      ? t("settings.accountAutoRefresh.concurrent", { count: concurrentAutoRefreshAccountIds.length })
+      : null
+    : activeProvider?.balancePlatform
+      ? activeProvider.name
+      : activeAccount?.email ?? null;
   const loadAnnouncement = useCallback(async () => {
     const requestId = ++announcementRequestId.current;
     try {

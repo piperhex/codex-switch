@@ -33,8 +33,8 @@ use crate::{
         LOCAL_PROXY_PORT,
     },
     storage::{
-        managed_auth_path, read_json, read_state, resolve_paths, write_managed_auth_if_changed,
-        write_state, Paths,
+        load_usage, managed_auth_path, read_json, read_state, resolve_paths, usage_path,
+        write_managed_auth_if_changed, write_state, Paths,
     },
 };
 
@@ -3992,6 +3992,27 @@ fn enabled_concurrent_account_ids(
     Ok(account_ids)
 }
 
+fn primary_quota_available_for_concurrent_routing(usage: &UsageSummary) -> bool {
+    !usage
+        .primary
+        .as_ref()
+        .is_some_and(|primary| primary.remaining_percent <= 0.0)
+}
+
+fn available_concurrent_account_ids(
+    paths: &Paths,
+    state: &ManagerStateFile,
+) -> Result<Vec<String>, String> {
+    Ok(enabled_concurrent_account_ids(paths, state)?
+        .into_iter()
+        .filter(|account_id| {
+            primary_quota_available_for_concurrent_routing(&load_usage(&usage_path(
+                paths, account_id,
+            )))
+        })
+        .collect())
+}
+
 fn concurrent_account_for_session(
     paths: &Paths,
     state: &ManagerStateFile,
@@ -4000,12 +4021,14 @@ fn concurrent_account_for_session(
     let Some(session_id) = session_id else {
         return Ok(None);
     };
-    let enabled_account_ids = enabled_concurrent_account_ids(paths, state)?;
+    let enabled_account_ids = available_concurrent_account_ids(paths, state)?;
     let account_id = concurrent_account_router()
         .lock()
         .map_err(|_| "Concurrent account router lock is poisoned".to_string())?
         .account_for_session(session_id, &enabled_account_ids)
-        .ok_or_else(|| "Enable at least one official account for concurrent routing".to_string())?;
+        .ok_or_else(|| {
+            "No enabled official account currently has primary quota available".to_string()
+        })?;
     Ok(Some(account_id))
 }
 
@@ -5911,6 +5934,34 @@ mod tests {
                 .as_deref(),
             Some("account-b")
         );
+    }
+
+    #[test]
+    fn concurrent_routing_excludes_accounts_without_primary_quota() {
+        let exhausted = UsageSummary {
+            primary: Some(UsageWindow {
+                used_percent: 100.0,
+                remaining_percent: 0.0,
+                resets_at: None,
+                window_minutes: None,
+            }),
+            ..UsageSummary::default()
+        };
+        let available = UsageSummary {
+            primary: Some(UsageWindow {
+                used_percent: 99.0,
+                remaining_percent: 1.0,
+                resets_at: None,
+                window_minutes: None,
+            }),
+            ..UsageSummary::default()
+        };
+
+        assert!(!primary_quota_available_for_concurrent_routing(&exhausted));
+        assert!(primary_quota_available_for_concurrent_routing(&available));
+        assert!(primary_quota_available_for_concurrent_routing(
+            &UsageSummary::default()
+        ));
     }
 
     #[test]

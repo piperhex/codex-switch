@@ -502,7 +502,8 @@ export function AccountTable({
         const counts: Record<string, number> = {};
         (await loadProxySessions()).forEach((session) => {
           const accountId = session.accountId;
-          if (session.concurrentRouted && accountId && accountIds.has(accountId)) {
+          if (session.concurrentRouted && session.activeRequests > 0
+            && accountId && accountIds.has(accountId)) {
             counts[accountId] = (counts[accountId] ?? 0) + 1;
           }
         });
