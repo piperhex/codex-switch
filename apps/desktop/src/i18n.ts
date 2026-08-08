@@ -12,8 +12,11 @@ export const DEFAULT_LANGUAGE: Language = "zh";
 const translations = {
   en: {
     "nav.skills": "Skills",
+    "nav.sessions": "Sessions",
     "topbar.skillsEyebrow": "CODEX / SKILLS",
     "topbar.skills": "Skills Market",
+    "topbar.sessionsEyebrow": "CODEX / LOCAL SESSIONS",
+    "topbar.sessions": "Session Management",
     "skills.kicker": "COMMUNITY SKILLS",
     "skills.heading": "Discover and install new capabilities",
     "skills.description": "Install community skills locally, or publish your own versioned skill package.",
@@ -1643,8 +1646,11 @@ const translations = {
   },
   zh: {
     "nav.skills": "Skills",
+    "nav.sessions": "会话管理",
     "topbar.skillsEyebrow": "CODEX / SKILLS",
     "topbar.skills": "Skills 市场",
+    "topbar.sessionsEyebrow": "CODEX / 本地会话",
+    "topbar.sessions": "会话管理",
     "skills.kicker": "社区 SKILLS",
     "skills.heading": "发现并安装新的能力",
     "skills.description": "将社区 Skill 安装到本地，或发布你自己的版本化 Skill 包。",

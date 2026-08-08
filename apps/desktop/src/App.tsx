@@ -2,7 +2,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProper
 import { ConfigProvider, Dropdown, Modal, Popconfirm, Popover, Progress, Switch, Tooltip, theme as antdTheme, type MenuProps } from "antd";
 import enUS from "antd/locale/en_US";
 import zhCN from "antd/locale/zh_CN";
-import { BarChart3, Bell, CalendarClock, Check, ChevronDown, CircleHelp, Cloud, Copy, Download, Github, Globe2, LogIn, LogOut, Megaphone, MessageSquareText, Minus, PackageOpen, Palette, Play, Plus, RefreshCw, RotateCcw, Search, Server, Settings, ShieldCheck, Shuffle, Square, UploadCloud, UserRound, X } from "lucide-react";
+import { BarChart3, Bell, CalendarClock, Check, ChevronDown, CircleHelp, Cloud, Copy, Download, FolderOpen, Github, Globe2, LogIn, LogOut, Megaphone, MessageSquareText, Minus, PackageOpen, Palette, Play, Plus, RefreshCw, RotateCcw, Search, Server, Settings, ShieldCheck, Shuffle, Square, UploadCloud, UserRound, X } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { checkForUpdate, chooseAndExportDiagnosticLogs, consumeResetCredit, DEFAULT_AUTO_DISABLE_STATUS_CODES, DEFAULT_CLOUD_BASE_URL, downloadAvailableUpdate, fetchCloudAnnouncement, fetchCloudFaqs, fetchCloudNotifications, hasLocalBackend, installDownloadedUpdate, isDesktopApp, launchChatGpt, loadAppSettings, openManagedFolder, queryProviderBalance, quitApplication, reportAnnouncementClick, reportBaseUrlChange, reportDeviceActivity, reportFirstInstallation, restartApplication, restartChatGpt, showTokenUsageWindow, submitFeedback, subscribeToCloudSessionExpired, updateAutoDisableStatusCodes, updateShowUsageNetworkErrors, updateWebProxyPort } from "./api/backend";
@@ -39,6 +39,7 @@ import { DreamSkinPage } from "./pages/DreamSkinPage";
 import { ProvidersPage } from "./pages/ProvidersPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { SkillsMarketPage } from "./pages/SkillsMarketPage";
+import { CodexThreadsPage } from "./pages/CodexThreadsPage";
 import { formatRefreshTime } from "./utils/format";
 import type { BubbleResetDisplay, BubbleStyle, CloudAnnouncement, CloudFaq, CloudNotification, Provider, UpdateInfo } from "./types";
 
@@ -54,6 +55,7 @@ const MemoDreamSkinPage = memo(DreamSkinPage);
 const MemoProvidersPage = memo(ProvidersPage);
 const MemoSettingsPage = memo(SettingsPage);
 const MemoSkillsMarketPage = memo(SkillsMarketPage);
+const MemoCodexThreadsPage = memo(CodexThreadsPage);
 const PROXY_START_PHASE_KEYS = {
   preparingClient: "providers.proxy.startProgress.preparingClient",
   startingProxy: "providers.proxy.startProgress.startingProxy",
@@ -84,6 +86,7 @@ type SystemMenuAction =
   | "token-usage"
   | "dream-skin"
   | "skills"
+  | "sessions"
   | "settings"
   | "refresh-all"
   | "refresh-reset-credits"
@@ -126,7 +129,7 @@ async function refreshProviderBalances(providers: Provider[]) {
 }
 
 function DashboardApp() {
-  const [page, setPage] = useState<"accounts" | "providers" | "tokens" | "dreamSkin" | "skills" | "settings">("accounts");
+  const [page, setPage] = useState<"accounts" | "providers" | "tokens" | "dreamSkin" | "skills" | "sessions" | "settings">("accounts");
   const [showLogin, setShowLogin] = useState(false);
   const [showCloudLogin, setShowCloudLogin] = useState(false);
   const [cloudSessionExpired, setCloudSessionExpired] = useState(false);
@@ -863,6 +866,9 @@ function DashboardApp() {
       case "skills":
         setPage("skills");
         break;
+      case "sessions":
+        setPage("sessions");
+        break;
       case "settings":
         setPage("settings");
         break;
@@ -1088,6 +1094,7 @@ function DashboardApp() {
     { type: "divider" },
     { key: "dream-skin", label: t("nav.dreamSkin") },
     { key: "skills", label: t("nav.skills") },
+    { key: "sessions", label: t("nav.sessions") },
     { type: "divider" },
     { key: "settings", label: t("nav.settings") },
   ];
@@ -1131,6 +1138,7 @@ function DashboardApp() {
     { id: "token-usage", label: t("nav.tokenUsage"), group: t("windowMenu.navigate") },
     { id: "dream-skin", label: t("nav.dreamSkin"), group: t("windowMenu.navigate") },
     { id: "skills", label: t("nav.skills"), group: t("windowMenu.navigate") },
+    { id: "sessions", label: t("nav.sessions"), group: t("windowMenu.navigate") },
     { id: "settings", label: t("nav.settings"), group: t("windowMenu.navigate") },
     { id: "refresh-all", label: t("actions.refreshAll"), group: t("windowMenu.tools") },
     { id: "refresh-reset-credits", label: t("actions.refreshResetCredits"), group: t("windowMenu.tools") },
@@ -1498,6 +1506,8 @@ function DashboardApp() {
           <nav className="top-tabs" aria-label={t("nav.aria")}>
             <button className={page === "accounts" ? "selected" : ""} onClick={() => setPage("accounts")}>
               <UserRound size={19} />{t("nav.accounts")}</button>
+            <button className={page === "sessions" ? "selected" : ""} onClick={() => setPage("sessions")}>
+              <FolderOpen size={19} />{t("nav.sessions")}</button>
             <button className={page === "providers" ? "selected" : ""} onClick={() => setPage("providers")}>
               <Server size={19} />{t("nav.providers")}</button>
             <button className={page === "tokens" ? "selected" : ""} onClick={() => setPage("tokens")}>
@@ -1521,11 +1531,15 @@ function DashboardApp() {
                 ? t("topbar.providersEyebrow")
                 : page === "skills"
                   ? t("topbar.skillsEyebrow")
+                  : page === "sessions"
+                    ? t("topbar.sessionsEyebrow")
                   : t("topbar.eyebrow")}</span>
                 <h1>{page === "settings"
                   ? t("topbar.settings")
                   : page === "skills"
                     ? t("topbar.skills")
+                    : page === "sessions"
+                      ? t("topbar.sessions")
                   : page === "providers"
                     ? t("topbar.providers", { count: providerManager.providers.length })
                     : t("topbar.accounts", { count: manager.accounts.length })}</h1></div>
@@ -1556,6 +1570,7 @@ function DashboardApp() {
                 </button>
               </div>
             )}
+            {page === "sessions" && <div id="codex-thread-topbar-actions" className="topbar-actions" />}
           </header>
           )}
 
@@ -1612,6 +1627,9 @@ function DashboardApp() {
             <MemoSkillsMarketPage baseUrl={cloud.state.baseUrl}
               authenticated={cloud.state.authenticated} currentUserId={cloud.state.userId}
               onLogin={openCloudLogin} notify={notify} t={t} />
+          </section>
+          <section className="page-panel" hidden={page !== "sessions"}>
+            {page === "sessions" && <MemoCodexThreadsPage language={language} notify={notify} />}
           </section>
           <section className="page-panel" hidden={page !== "providers"}>
             <MemoProvidersPage providers={providerManager.providers}

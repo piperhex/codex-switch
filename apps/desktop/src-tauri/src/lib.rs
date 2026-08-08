@@ -4,6 +4,7 @@ mod auth;
 mod cloud;
 mod codex_api;
 mod commands;
+mod conversation_hub;
 mod dream_skin;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 mod dream_skin_native;
@@ -143,6 +144,20 @@ pub fn run() {
             commands::restart_chatgpt,
             commands::launch_chatgpt,
             commands::restore_non_proxy_conversations,
+            conversation_hub::browse_codex_threads,
+            conversation_hub::measure_codex_thread_tokens,
+            conversation_hub::discard_codex_threads,
+            conversation_hub::browse_codex_thread_bin,
+            conversation_hub::recover_codex_threads,
+            conversation_hub::purge_codex_threads,
+            conversation_hub::empty_codex_thread_bin,
+            conversation_hub::inspect_codex_thread_export,
+            conversation_hub::pack_codex_threads,
+            conversation_hub::inspect_codex_thread_import,
+            conversation_hub::unpack_codex_threads,
+            conversation_hub::reconcile_codex_thread_visibility,
+            conversation_hub::rebuild_codex_thread_index,
+            conversation_hub::open_codex_thread_file,
             dream_skin::get_dream_skin_status,
             dream_skin::get_dream_skin_resources_status,
             dream_skin::retry_dream_skin_resources,

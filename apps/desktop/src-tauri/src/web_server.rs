@@ -355,6 +355,71 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
         "restore_non_proxy_conversations" => serialize(block_on(
             crate::commands::restore_non_proxy_conversations(app),
         )),
+        "browse_codex_threads" => serialize(crate::conversation_hub::browse_codex_threads(
+            app,
+            argument(&args, "titleQuery")?,
+            argument(&args, "contentQuery")?,
+        )),
+        "measure_codex_thread_tokens" => {
+            serialize(crate::conversation_hub::measure_codex_thread_tokens(
+                app,
+                argument(&args, "sessionIds")?,
+            ))
+        }
+        "discard_codex_threads" => serialize(crate::conversation_hub::discard_codex_threads(
+            app,
+            argument(&args, "sessionIds")?,
+        )),
+        "browse_codex_thread_bin" => {
+            serialize(crate::conversation_hub::browse_codex_thread_bin(app))
+        }
+        "recover_codex_threads" => serialize(crate::conversation_hub::recover_codex_threads(
+            app,
+            argument(&args, "sessionIds")?,
+        )),
+        "purge_codex_threads" => serialize(crate::conversation_hub::purge_codex_threads(
+            app,
+            argument(&args, "sessionIds")?,
+        )),
+        "empty_codex_thread_bin" => serialize(crate::conversation_hub::empty_codex_thread_bin(app)),
+        "inspect_codex_thread_export" => {
+            serialize(crate::conversation_hub::inspect_codex_thread_export(
+                app,
+                argument(&args, "sessionIds")?,
+            ))
+        }
+        "pack_codex_threads" => serialize(crate::conversation_hub::pack_codex_threads(
+            app,
+            argument(&args, "sessionIds")?,
+            argument(&args, "exportPath")?,
+        )),
+        "inspect_codex_thread_import" => {
+            serialize(crate::conversation_hub::inspect_codex_thread_import(
+                app,
+                argument(&args, "importPath")?,
+            ))
+        }
+        "unpack_codex_threads" => serialize(crate::conversation_hub::unpack_codex_threads(
+            app,
+            argument(&args, "importPath")?,
+            argument(&args, "sessionIds")?,
+        )),
+        "reconcile_codex_thread_visibility" => {
+            serialize(crate::conversation_hub::reconcile_codex_thread_visibility(
+                app,
+                argument(&args, "mode")?,
+                argument(&args, "sessionIds")?,
+                argument(&args, "dryRun")?,
+            ))
+        }
+        "rebuild_codex_thread_index" => {
+            serialize(crate::conversation_hub::rebuild_codex_thread_index(app))
+        }
+        "open_codex_thread_file" => serialize(crate::conversation_hub::open_codex_thread_file(
+            app,
+            argument(&args, "sessionId")?,
+            argument(&args, "folderOnly")?,
+        )),
         "set_auto_switch_on_quota_exhaustion" => {
             serialize(crate::local_proxy::set_auto_switch_on_quota_exhaustion(
                 app,

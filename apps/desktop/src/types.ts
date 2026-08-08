@@ -205,6 +205,79 @@ export interface DirectConversationSyncResult {
   rolloutFilesUpdated: number;
 }
 
+export type CodexThreadKind = "conversation" | "external" | "subagent";
+
+export interface CodexThreadEntry {
+  sessionId: string;
+  sessionKind: CodexThreadKind;
+  title: string;
+  cwd: string;
+  updatedAt: number | null;
+  sizeBytes: number;
+  matchExcerpt: string | null;
+}
+
+export interface CodexThreadTokenTotals {
+  sessionId: string;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+}
+
+export interface CodexThreadBinEntry {
+  sessionId: string;
+  title: string;
+  cwd: string;
+  deletedAt: number | null;
+  sizeBytes: number;
+}
+
+export interface CodexThreadMutationReport {
+  requestedCount: number;
+  affectedCount: number;
+  releasedBytes: number;
+  message: string;
+}
+
+export interface CodexThreadBundleItem {
+  sessionId: string;
+  title: string;
+  cwd: string;
+  updatedAt: number | null;
+  sizeBytes: number;
+  status: "ready" | "duplicate" | "conflict" | "invalid";
+  reason: string | null;
+}
+
+export interface CodexThreadBundlePreview {
+  packageVersion: number;
+  exportedAt: string | null;
+  totalCount: number;
+  readyCount: number;
+  totalSizeBytes: number;
+  items: CodexThreadBundleItem[];
+}
+
+export interface CodexThreadBundleResult {
+  requestedCount: number;
+  completedCount: number;
+  skippedCount: number;
+  path: string;
+  message: string;
+}
+
+export interface CodexThreadVisibilityReport {
+  mode: "quick" | "deep" | "sync";
+  scannedCount: number;
+  rolloutCount: number;
+  databaseRowCount: number;
+  catalogRowCount: number;
+  indexEntryCount: number;
+  backupDir: string | null;
+  dryRun: boolean;
+  message: string;
+}
+
 export interface TokenUsageEntry {
   id: string;
   ts: number;
