@@ -45,6 +45,7 @@ import type {
   Provider,
   ProviderBalance,
   ProviderInput,
+  ProviderTokenUsageTotals,
   ResetCreditsSummary,
   SavedCloudLogin,
   SkillMarketItem,
@@ -696,6 +697,28 @@ export async function loadAccountTokenUsage(startTs: number): Promise<AccountTok
     return [...totals.values()];
   }
   return invoke<AccountTokenUsageTotals[]>("list_account_token_usage", { startTs });
+}
+
+export async function loadProviderTokenUsage(startTs: number): Promise<ProviderTokenUsageTotals[]> {
+  if (!hasLocalBackend) {
+    const totals = new Map<string, ProviderTokenUsageTotals>();
+    for (const entry of await loadTokenUsageEntries()) {
+      const provider = entry.provider.trim();
+      if (!provider) continue;
+      const current = totals.get(provider) ?? {
+        provider,
+        providerId: entry.providerId,
+        todayTokens: 0,
+        totalTokens: 0,
+      };
+      const tokens = entry.totalTokens ?? (entry.inputTokens ?? 0) + (entry.outputTokens ?? 0);
+      current.totalTokens += tokens;
+      if (entry.ts >= startTs) current.todayTokens += tokens;
+      totals.set(provider, current);
+    }
+    return [...totals.values()];
+  }
+  return invoke<ProviderTokenUsageTotals[]>("list_provider_token_usage", { startTs });
 }
 
 export async function loadDailyTokenUsage(startTs: number): Promise<DailyTokenUsage[]> {

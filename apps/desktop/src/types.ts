@@ -282,6 +282,7 @@ export interface TokenUsageEntry {
   id: string;
   ts: number;
   provider: string;
+  providerId?: string | null;
   accountId?: string | null;
   accountEmail?: string | null;
   model: string;
@@ -302,6 +303,13 @@ export interface AccountTokenUsageTotals {
   outputTokens: number;
   reasoningTokens: number;
   cachedTokens: number;
+}
+
+export interface ProviderTokenUsageTotals {
+  provider: string;
+  providerId?: string | null;
+  todayTokens: number;
+  totalTokens: number;
 }
 
 export interface DailyTokenUsage {

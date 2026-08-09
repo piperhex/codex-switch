@@ -300,13 +300,17 @@ h1 { margin: 5px 0 0; font: 700 26px/1.1 Manrope, sans-serif; letter-spacing: -.
 .conversation-latency-indicator.is-poor svg { color: #d14343; }
 .conversation-latency-indicator.is-unknown svg { color: #9aa5a0; }
 .account-column-settings,
-.proxy-session-column-settings { width: 190px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); box-shadow: 0 12px 30px rgba(22,36,27,.14); }
+.proxy-session-column-settings,
+.provider-column-settings { width: 190px; max-width: 400px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); box-shadow: 0 12px 30px rgba(22,36,27,.14); }
 .account-column-settings > strong,
-.proxy-session-column-settings > strong { display: block; margin-bottom: 8px; color: var(--ink); font-size: 11px; }
+.proxy-session-column-settings > strong,
+.provider-column-settings > strong { display: block; margin-bottom: 8px; color: var(--ink); font-size: 11px; }
 .account-column-settings-list,
-.proxy-session-column-settings-list { display: grid; gap: 7px; }
+.proxy-session-column-settings-list,
+.provider-column-settings-list { display: grid; gap: 7px; }
 .account-column-settings-list .ant-checkbox-wrapper,
-.proxy-session-column-settings-list .ant-checkbox-wrapper { margin-inline-start: 0; color: var(--ink); font-size: 11px; }
+.proxy-session-column-settings-list .ant-checkbox-wrapper,
+.provider-column-settings-list .ant-checkbox-wrapper { margin-inline-start: 0; color: var(--ink); font-size: 11px; }
 .proxy-session-column-setting-item { min-width: 0; height: 24px; display: flex; align-items: center; gap: 5px; margin: 0 -4px; padding: 0 4px; border: 1px solid transparent; border-radius: 6px; transition: border-color .15s ease, background .15s ease, opacity .15s ease; }
 .proxy-session-column-setting-item.is-dragging { opacity: .42; }
 .proxy-session-column-setting-item.is-drag-target { border-color: rgba(var(--green-rgb), .55); background: var(--green-soft); }
@@ -828,6 +832,7 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .provider-table-wrap .ant-table-tbody > tr.active-row > td:first-child { box-shadow: inset 4px 0 0 var(--green-accent); }
 .provider-table-wrap .ant-table-tbody > tr:hover > td { background: #f6faf7; }
 .provider-table-wrap .ant-table-cell { padding: 8px 16px !important; }
+.provider-token-value { color: var(--ink); font: 700 12px Manrope, sans-serif; }
 .provider-card-grid { min-width: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(390px, 1fr)); gap: 14px; }
 .provider-card { position: relative; overflow: hidden; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); box-shadow: 0 5px 18px rgba(24,45,31,.035); }
 .provider-card.switchable { cursor: pointer; }

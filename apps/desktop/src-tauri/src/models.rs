@@ -260,6 +260,8 @@ pub(crate) struct TokenUsageEntry {
     pub(crate) id: String,
     pub(crate) ts: u64,
     pub(crate) provider: String,
+    #[serde(default)]
+    pub(crate) provider_id: Option<String>,
     pub(crate) account_id: Option<String>,
     pub(crate) account_email: Option<String>,
     pub(crate) model: String,
@@ -283,6 +285,15 @@ pub(crate) struct AccountTokenUsageTotals {
     pub(crate) output_tokens: u64,
     pub(crate) reasoning_tokens: u64,
     pub(crate) cached_tokens: u64,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ProviderTokenUsageTotals {
+    pub(crate) provider: String,
+    pub(crate) provider_id: Option<String>,
+    pub(crate) today_tokens: u64,
+    pub(crate) total_tokens: u64,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]

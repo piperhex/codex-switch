@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
-import { AutoComplete, Button, Input, Popconfirm, Segmented, Select, Space, Switch, Table, Tag, Tooltip } from "antd";
+import { useEffect, useMemo, useState } from "react";
+import { AutoComplete, Button, Checkbox, Dropdown, Input, Popconfirm, Segmented, Select, Space, Switch, Table, Tag, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { Bot, Check, Pencil, Plus, RefreshCw, RotateCcw, Save, Server, Trash2, WalletCards, X } from "lucide-react";
-import { queryProviderBalance, subscribeToProviderBalance } from "../api/backend";
+import { Bot, Check, Columns3, Pencil, Plus, RefreshCw, RotateCcw, Save, Server, Trash2, WalletCards, X } from "lucide-react";
+import { loadProviderTokenUsage, queryProviderBalance, subscribeToProviderBalance, subscribeToTokenUsageChanges } from "../api/backend";
 import type { AccountDisplayMode } from "../hooks/useAccountDisplayMode";
-import type { Translate } from "../i18n";
+import type { Language, Translate } from "../i18n";
 import type {
   AppInfo,
   LocalProxyStatus,
@@ -13,7 +13,9 @@ import type {
   ProviderBalance,
   ProviderBalancePlatform,
   ProviderInput,
+  ProviderTokenUsageTotals,
 } from "../types";
+import { formatCompactTokenCount } from "../utils/tokenContext";
 
 interface ProvidersPageProps {
   providers: Provider[];
@@ -27,8 +29,44 @@ interface ProvidersPageProps {
   onSwitchModel: (id: string, model: string) => void;
   onModelControlChange: (id: string, controlledByCodex: boolean) => void;
   onDelete: (id: string) => void;
+  onDeleteMany: (ids: string[]) => Promise<string[]>;
   displayMode: AccountDisplayMode;
+  tokenUsageRefreshSeconds: number;
+  language: Language;
   t: Translate;
+}
+
+const HIDDEN_COLUMNS_STORAGE_KEY = "codex-switch:provider-table-hidden-columns";
+const PROVIDER_TABLE_COLUMN_KEYS = [
+  "provider",
+  "model",
+  "api",
+  "modelControl",
+  "status",
+  "balance",
+  "todayTokens",
+  "totalTokens",
+  "actions",
+] as const;
+type ProviderTableColumnKey = typeof PROVIDER_TABLE_COLUMN_KEYS[number];
+
+function isProviderTableColumnKey(value: unknown): value is ProviderTableColumnKey {
+  return typeof value === "string"
+    && (PROVIDER_TABLE_COLUMN_KEYS as readonly string[]).includes(value);
+}
+
+function loadHiddenColumns(): ProviderTableColumnKey[] {
+  try {
+    const parsed: unknown = JSON.parse(window.localStorage.getItem(HIDDEN_COLUMNS_STORAGE_KEY) ?? "[]");
+    if (!Array.isArray(parsed)) return [];
+    return [...new Set(parsed.filter(isProviderTableColumnKey))];
+  } catch {
+    return [];
+  }
+}
+
+function persistHiddenColumns(columns: ProviderTableColumnKey[]) {
+  window.localStorage.setItem(HIDDEN_COLUMNS_STORAGE_KEY, JSON.stringify(columns));
 }
 
 function normalizeModels(activeModel: string, values: string[]) {
@@ -694,6 +732,30 @@ function ProviderModelControlCell({
   );
 }
 
+function ProviderTokenCell({
+  provider,
+  usage,
+  period,
+  language,
+  t,
+}: {
+  provider: Provider;
+  usage?: ProviderTokenUsageTotals;
+  period: "today" | "total";
+  language: Language;
+  t: Translate;
+}) {
+  if (!provider.balancePlatform) {
+    return <Tooltip title={t("providers.tokenUsage.relayOnly")}><span>--</span></Tooltip>;
+  }
+  const tokens = period === "today" ? usage?.todayTokens ?? 0 : usage?.totalTokens ?? 0;
+  return (
+    <Tooltip title={t("providers.tokenUsage.proxyHint")} styles={{ root: { maxWidth: 400 } }}>
+      <strong className="provider-token-value">{formatCompactTokenCount(tokens, language)}</strong>
+    </Tooltip>
+  );
+}
+
 export function ProvidersPage({
   providers,
   loading,
@@ -706,14 +768,73 @@ export function ProvidersPage({
   onSwitchModel,
   onModelControlChange,
   onDelete,
+  onDeleteMany,
   displayMode,
+  tokenUsageRefreshSeconds,
+  language,
   t,
 }: ProvidersPageProps) {
   const [editingProvider, setEditingProvider] = useState<Provider | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [showOpenAiModal, setShowOpenAiModal] = useState(false);
   const [showRelayModal, setShowRelayModal] = useState(false);
+  const [selectedProviderIds, setSelectedProviderIds] = useState<string[]>([]);
+  const [bulkDeleteBusy, setBulkDeleteBusy] = useState(false);
+  const [hiddenColumns, setHiddenColumns] = useState<ProviderTableColumnKey[]>(loadHiddenColumns);
+  const [providerTokenUsage, setProviderTokenUsage] = useState<ProviderTokenUsageTotals[]>([]);
   const proxyRunning = Boolean(localProxy?.running);
+
+  useEffect(() => {
+    const providerIds = new Set(providers.map((provider) => provider.id));
+    setSelectedProviderIds((current) => current.filter((id) => providerIds.has(id)));
+  }, [providers]);
+
+  useEffect(() => {
+    let active = true;
+    const refresh = async () => {
+      const today = new Date();
+      const startTs = Math.floor(new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate(),
+      ).getTime() / 1_000);
+      try {
+        const totals = await loadProviderTokenUsage(startTs);
+        if (active) setProviderTokenUsage(totals);
+      } catch {
+        // Keep the last successful values when token statistics are temporarily unavailable.
+      }
+    };
+    void refresh();
+    const timer = window.setInterval(() => void refresh(), Math.max(1, tokenUsageRefreshSeconds) * 1_000);
+    const unsubscribe = subscribeToTokenUsageChanges(() => void refresh());
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+      unsubscribe();
+    };
+  }, [tokenUsageRefreshSeconds]);
+
+  const tokenUsageIndex = useMemo(() => {
+    const byId = new Map<string, ProviderTokenUsageTotals>();
+    const legacyByName = new Map<string, ProviderTokenUsageTotals>();
+    providerTokenUsage.forEach((usage) => {
+      if (usage.providerId) byId.set(usage.providerId, usage);
+      else legacyByName.set(usage.provider.trim().toLocaleLowerCase(), usage);
+    });
+    return { byId, legacyByName };
+  }, [providerTokenUsage]);
+  const usageForProvider = (provider: Provider) => {
+    const current = tokenUsageIndex.byId.get(provider.id);
+    const legacy = tokenUsageIndex.legacyByName.get(provider.name.trim().toLocaleLowerCase());
+    if (!current) return legacy;
+    if (!legacy) return current;
+    return {
+      ...current,
+      todayTokens: current.todayTokens + legacy.todayTokens,
+      totalTokens: current.totalTokens + legacy.totalTokens,
+    };
+  };
 
   const openCreate = () => {
     setEditingProvider(null);
@@ -735,6 +856,7 @@ export function ProvidersPage({
   const columns: ColumnsType<Provider> = [
     {
       title: t("providers.table.provider"),
+      key: "provider",
       dataIndex: "name",
       width: 240,
       render: (_, provider) => (
@@ -749,6 +871,7 @@ export function ProvidersPage({
     },
     {
       title: t("providers.table.model"),
+      key: "model",
       dataIndex: "model",
       width: 260,
       render: (_, provider) => <ProviderModelCell provider={provider}
@@ -756,17 +879,20 @@ export function ProvidersPage({
     },
     {
       title: t("providers.table.api"),
+      key: "api",
       width: 120,
       render: (_, provider) => apiFormatTag(provider, t),
     },
     {
       title: t("providers.table.modelControl"),
+      key: "modelControl",
       width: 130,
       render: (_, provider) => <ProviderModelControlCell provider={provider}
         busy={busyProviderId === provider.id} onModelControlChange={onModelControlChange} t={t} />,
     },
     {
       title: t("providers.table.status"),
+      key: "status",
       width: 120,
       render: (_, provider) => provider.active
         ? <Tag className="current-tag">{t("providers.status.current")}</Tag>
@@ -776,11 +902,29 @@ export function ProvidersPage({
     },
     {
       title: t("providers.table.balance"),
+      key: "balance",
       width: 155,
       render: (_, provider) => <ProviderBalanceCell provider={provider} t={t} />,
     },
     {
+      title: t("providers.table.todayTokens"),
+      key: "todayTokens",
+      width: 105,
+      align: "center",
+      render: (_, provider) => <ProviderTokenCell provider={provider}
+        usage={usageForProvider(provider)} period="today" language={language} t={t} />,
+    },
+    {
+      title: t("providers.table.totalTokens"),
+      key: "totalTokens",
+      width: 105,
+      align: "center",
+      render: (_, provider) => <ProviderTokenCell provider={provider}
+        usage={usageForProvider(provider)} period="total" language={language} t={t} />,
+    },
+    {
       title: t("providers.table.actions"),
+      key: "actions",
       width: 180,
       align: "right",
       render: (_, provider) => {
@@ -817,6 +961,37 @@ export function ProvidersPage({
     },
   ];
 
+  const hiddenColumnSet = new Set(hiddenColumns);
+  const visibleColumns = columns.filter((column) =>
+    !isProviderTableColumnKey(column.key) || !hiddenColumnSet.has(column.key));
+  const columnSettings: { key: ProviderTableColumnKey; label: string }[] = [
+    { key: "provider", label: t("providers.table.provider") },
+    { key: "model", label: t("providers.table.model") },
+    { key: "api", label: t("providers.table.api") },
+    { key: "modelControl", label: t("providers.table.modelControl") },
+    { key: "status", label: t("providers.table.status") },
+    { key: "balance", label: t("providers.table.balance") },
+    { key: "todayTokens", label: t("providers.table.todayTokens") },
+    { key: "totalTokens", label: t("providers.table.totalTokens") },
+    { key: "actions", label: t("providers.table.actions") },
+  ];
+  const visibleConfigurableColumnCount = columnSettings
+    .filter(({ key }) => !hiddenColumnSet.has(key)).length;
+  const tableScrollX = 36 + visibleColumns.reduce(
+    (total, column) => total + (typeof column.width === "number" ? column.width : 0),
+    0,
+  );
+  const setColumnVisible = (key: ProviderTableColumnKey, visible: boolean) => {
+    setHiddenColumns((current) => {
+      if (!visible && !current.includes(key) && visibleConfigurableColumnCount <= 1) return current;
+      const next = visible
+        ? current.filter((column) => column !== key)
+        : [...new Set([...current, key])];
+      persistHiddenColumns(next);
+      return next;
+    });
+  };
+
   if (loading) return <div className="loading-state"><RefreshCw className="spin" />{t("providers.loading")}</div>;
 
   return (
@@ -827,6 +1002,48 @@ export function ProvidersPage({
           <span>{info?.configPath ?? "~/.codex/config.toml"}</span>
         </div>
         <Space size={8} className="provider-toolbar-actions">
+          {displayMode === "table" && <Popconfirm
+            title={t("providers.batchDelete.title", { count: selectedProviderIds.length })}
+            description={t("providers.batchDelete.description")}
+            okText={t("providers.delete.ok")} cancelText={t("providers.delete.cancel")}
+            okButtonProps={{ danger: true }} disabled={!selectedProviderIds.length || bulkDeleteBusy}
+            onConfirm={async () => {
+              const ids = [...selectedProviderIds];
+              setBulkDeleteBusy(true);
+              try {
+                const deletedIds = await onDeleteMany(ids);
+                const deletedIdSet = new Set(deletedIds);
+                setSelectedProviderIds((current) => current.filter((id) => !deletedIdSet.has(id)));
+              } finally {
+                setBulkDeleteBusy(false);
+              }
+            }}>
+            <Button danger size="small" icon={<Trash2 size={14} />} loading={bulkDeleteBusy}
+              disabled={!selectedProviderIds.length}>
+              {t("providers.batchDelete.action", { count: selectedProviderIds.length })}
+            </Button>
+          </Popconfirm>}
+          {displayMode === "table" && <Dropdown trigger={["click"]} placement="bottomRight"
+            dropdownRender={() => (
+              <div className="provider-column-settings" onClick={(event) => event.stopPropagation()}>
+                <strong>{t("table.columnSettings")}</strong>
+                <div className="provider-column-settings-list">
+                  {columnSettings.map(({ key, label }) => {
+                    const checked = !hiddenColumnSet.has(key);
+                    return <Checkbox key={key} checked={checked}
+                      disabled={checked && visibleConfigurableColumnCount <= 1}
+                      onChange={(event) => setColumnVisible(key, event.target.checked)}>
+                      {label}
+                    </Checkbox>;
+                  })}
+                </div>
+              </div>
+            )}>
+            <Tooltip title={t("table.columnSettings")}>
+              <Button size="small" className="table-icon-button"
+                aria-label={t("table.columnSettings")} icon={<Columns3 size={15} />} />
+            </Tooltip>
+          </Dropdown>}
           <Button type="primary" icon={<Bot size={14} />} onClick={openCreateOpenAi}>
             {t("providers.action.addOpenAi")}
           </Button>
@@ -841,9 +1058,15 @@ export function ProvidersPage({
 
       {providers.length ? displayMode === "table" ? (
         <div className="provider-table-wrap">
-          <Table rowKey="id" size="small" columns={columns} dataSource={providers}
+          <Table rowKey="id" size="small" columns={visibleColumns} dataSource={providers}
+            rowSelection={{
+              fixed: true,
+              columnWidth: 36,
+              selectedRowKeys: selectedProviderIds,
+              onChange: (keys) => setSelectedProviderIds(keys.map(String)),
+            }}
             rowClassName={(provider) => (provider.active ? "active-row" : "")}
-            pagination={false} scroll={{ x: 1215 }} />
+            pagination={false} scroll={{ x: tableScrollX }} />
         </div>
       ) : (
         <div className="provider-card-grid">
@@ -880,6 +1103,10 @@ export function ProvidersPage({
                 <div><span>{t("providers.table.modelControl")}</span><ProviderModelControlCell provider={provider}
                   busy={waiting} onModelControlChange={onModelControlChange} t={t} /></div>
                 <div><span>{t("providers.table.balance")}</span><ProviderBalanceCell provider={provider} t={t} /></div>
+                <div><span>{t("providers.table.todayTokens")}</span><ProviderTokenCell provider={provider}
+                  usage={usageForProvider(provider)} period="today" language={language} t={t} /></div>
+                <div><span>{t("providers.table.totalTokens")}</span><ProviderTokenCell provider={provider}
+                  usage={usageForProvider(provider)} period="total" language={language} t={t} /></div>
               </div>
             </article>;
           })}

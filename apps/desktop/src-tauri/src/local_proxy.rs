@@ -25,8 +25,9 @@ use crate::{
     codex_api::{refresh_tokens, token_expiring, ORIGINATOR},
     models::{
         AccountSummary, AccountTokenUsageTotals, DailyTokenUsage, LocalProxyStatus,
-        ManagerStateFile, ProviderApiFormat, ProviderProfile, ProxySessionLatencySummary,
-        ProxySessionRequestSummary, ProxySessionSummary, TokenUsageEntry, UsageSummary,
+        ManagerStateFile, ProviderApiFormat, ProviderProfile, ProviderTokenUsageTotals,
+        ProxySessionLatencySummary, ProxySessionRequestSummary, ProxySessionSummary,
+        TokenUsageEntry, UsageSummary,
     },
     providers::{
         self, LOCAL_PROXY_ACTOR_AUTHORIZATION_HEADER, LOCAL_PROXY_BASE_URL, LOCAL_PROXY_HOST,
@@ -280,6 +281,7 @@ struct TokenUsageAccount {
 struct TokenUsageContext {
     ts: u64,
     provider: String,
+    provider_id: Option<String>,
     model: String,
     request_hash: String,
     started_at: Instant,
@@ -1278,6 +1280,15 @@ pub(crate) fn list_account_token_usage<R: Runtime>(
 ) -> Result<Vec<AccountTokenUsageTotals>, String> {
     let connection = open_token_usage_db(&app)?;
     list_account_token_usage_from_db(&connection, start_ts)
+}
+
+#[tauri::command]
+pub(crate) fn list_provider_token_usage<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    start_ts: u64,
+) -> Result<Vec<ProviderTokenUsageTotals>, String> {
+    let connection = open_token_usage_db(&app)?;
+    list_provider_token_usage_from_db(&connection, start_ts)
 }
 
 #[tauri::command]
@@ -2615,26 +2626,27 @@ fn token_usage_context(
     }
 
     let request_body = serde_json::from_slice::<Value>(body).ok();
-    let (provider, model) = match target {
+    let (provider, provider_id, model) = match target {
         ActiveTarget::Official { model } => {
             let selected_model = request_body
                 .as_ref()
                 .map(|value| selected_official_model(value, model))
                 .unwrap_or_else(|| model.clone());
-            ("Official Codex".to_string(), selected_model)
+            ("Official Codex".to_string(), None, selected_model)
         }
         ActiveTarget::Provider(provider) => {
             let model = request_body
                 .as_ref()
                 .map(|value| selected_provider_model(value, provider))
                 .unwrap_or_else(|| provider.model.clone());
-            (provider.name.clone(), model)
+            (provider.name.clone(), Some(provider.id.clone()), model)
         }
     };
 
     Some(TokenUsageContext {
         ts: unix_now(),
         provider,
+        provider_id,
         model,
         request_hash: short_hash_bytes(body),
         started_at,
@@ -2948,6 +2960,7 @@ fn record_token_usage_entry<R: Runtime>(
         id,
         ts: context.ts,
         provider: context.provider.clone(),
+        provider_id: context.provider_id.clone(),
         account_id: context
             .account
             .as_ref()
@@ -3316,6 +3329,7 @@ fn open_token_usage_db<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<Connecti
     init_token_usage_schema(&connection)?;
     let jsonl_path = token_usage_jsonl_path(app)?;
     migrate_token_usage_jsonl_if_needed(&mut connection, &jsonl_path)?;
+    seed_provider_token_usage_totals(&connection)?;
     Ok(connection)
 }
 
@@ -3328,6 +3342,7 @@ fn init_token_usage_schema(connection: &Connection) -> Result<(), String> {
                 id TEXT PRIMARY KEY,
                 ts INTEGER NOT NULL,
                 provider TEXT NOT NULL,
+                provider_id TEXT,
                 account_id TEXT,
                 account_email TEXT,
                 model TEXT NOT NULL,
@@ -3345,6 +3360,12 @@ fn init_token_usage_schema(connection: &Connection) -> Result<(), String> {
                 key TEXT PRIMARY KEY,
                 value TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS provider_token_usage_totals (
+                identity TEXT PRIMARY KEY,
+                provider TEXT NOT NULL,
+                provider_id TEXT,
+                total_tokens INTEGER NOT NULL
+            );
             "#,
         )
         .map_err(|error| format!("Failed to initialize token usage database: {error}"))?;
@@ -3354,6 +3375,10 @@ fn init_token_usage_schema(connection: &Connection) -> Result<(), String> {
 fn ensure_token_usage_account_columns(connection: &Connection) -> Result<(), String> {
     let columns = token_usage_table_columns(connection)?;
     for (name, sql) in [
+        (
+            "provider_id",
+            "ALTER TABLE token_usage_entries ADD COLUMN provider_id TEXT",
+        ),
         (
             "account_id",
             "ALTER TABLE token_usage_entries ADD COLUMN account_id TEXT",
@@ -3430,10 +3455,10 @@ fn import_token_usage_jsonl(connection: &mut Connection, path: &Path) -> Result<
             .prepare(
                 r#"
                 INSERT OR IGNORE INTO token_usage_entries (
-                    id, ts, provider, account_id, account_email, model, duration_ms,
+                    id, ts, provider, provider_id, account_id, account_email, model, duration_ms,
                     input_tokens, output_tokens, reasoning_tokens, cached_tokens,
                     total_tokens, created_at_ms
-                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
                 "#,
             )
             .map_err(|error| format!("Failed to prepare token usage migration: {error}"))?;
@@ -3464,19 +3489,22 @@ fn insert_token_usage_entry(
     connection: &Connection,
     entry: &TokenUsageEntry,
 ) -> Result<(), String> {
-    connection
+    let inserted = connection
         .execute(
             r#"
             INSERT OR IGNORE INTO token_usage_entries (
-                id, ts, provider, account_id, account_email, model, duration_ms,
+                id, ts, provider, provider_id, account_id, account_email, model, duration_ms,
                 input_tokens, output_tokens, reasoning_tokens, cached_tokens,
                 total_tokens, created_at_ms
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
             "#,
             token_usage_params(entry),
         )
-        .map(|_| ())
-        .map_err(|error| format!("Failed to insert token usage entry: {error}"))
+        .map_err(|error| format!("Failed to insert token usage entry: {error}"))?;
+    if inserted > 0 {
+        add_provider_token_usage_total(connection, entry)?;
+    }
+    Ok(())
 }
 
 fn insert_token_usage_entry_with_statement(
@@ -3495,7 +3523,7 @@ fn list_token_usage_entries_from_db(
     let mut statement = connection
         .prepare(
             r#"
-            SELECT id, ts, provider, account_id, account_email, model, duration_ms,
+            SELECT id, ts, provider, provider_id, account_id, account_email, model, duration_ms,
                    input_tokens, output_tokens, reasoning_tokens, cached_tokens, total_tokens
             FROM token_usage_entries
             ORDER BY ts DESC, id DESC
@@ -3509,15 +3537,16 @@ fn list_token_usage_entries_from_db(
                 id: row.get(0)?,
                 ts: i64_to_u64(row.get::<_, i64>(1)?),
                 provider: row.get(2)?,
-                account_id: row.get(3)?,
-                account_email: row.get(4)?,
-                model: row.get(5)?,
-                duration_ms: opt_i64_to_u64(row.get(6)?),
-                input_tokens: opt_i64_to_u64(row.get(7)?),
-                output_tokens: opt_i64_to_u64(row.get(8)?),
-                reasoning_tokens: opt_i64_to_u64(row.get(9)?),
-                cached_tokens: opt_i64_to_u64(row.get(10)?),
-                total_tokens: opt_i64_to_u64(row.get(11)?),
+                provider_id: row.get(3)?,
+                account_id: row.get(4)?,
+                account_email: row.get(5)?,
+                model: row.get(6)?,
+                duration_ms: opt_i64_to_u64(row.get(7)?),
+                input_tokens: opt_i64_to_u64(row.get(8)?),
+                output_tokens: opt_i64_to_u64(row.get(9)?),
+                reasoning_tokens: opt_i64_to_u64(row.get(10)?),
+                cached_tokens: opt_i64_to_u64(row.get(11)?),
+                total_tokens: opt_i64_to_u64(row.get(12)?),
                 model_context_window: None,
             })
         })
@@ -3635,6 +3664,111 @@ fn list_account_token_usage_from_db(
         .map_err(|error| format!("Failed to parse account token usage: {error}"))
 }
 
+fn list_provider_token_usage_from_db(
+    connection: &Connection,
+    start_ts: u64,
+) -> Result<Vec<ProviderTokenUsageTotals>, String> {
+    seed_provider_token_usage_totals(connection)?;
+    let mut statement = connection
+        .prepare(
+            r#"
+            SELECT totals.provider, totals.provider_id,
+                   COALESCE((
+                       SELECT SUM(COALESCE(entry.total_tokens,
+                           COALESCE(entry.input_tokens, 0) + COALESCE(entry.output_tokens, 0)))
+                       FROM token_usage_entries entry
+                       WHERE entry.ts >= ?1
+                         AND (
+                           (totals.provider_id IS NOT NULL AND entry.provider_id = totals.provider_id)
+                           OR (totals.provider_id IS NULL AND entry.provider_id IS NULL
+                               AND entry.provider = totals.provider)
+                         )
+                   ), 0),
+                   totals.total_tokens
+            FROM provider_token_usage_totals totals
+            ORDER BY totals.total_tokens DESC
+            "#,
+        )
+        .map_err(|error| format!("Failed to query provider token usage: {error}"))?;
+    let rows = statement
+        .query_map(params![u64_to_i64(start_ts)], |row| {
+            Ok(ProviderTokenUsageTotals {
+                provider: row.get(0)?,
+                provider_id: row.get(1)?,
+                today_tokens: i64_to_u64(row.get::<_, i64>(2)?),
+                total_tokens: i64_to_u64(row.get::<_, i64>(3)?),
+            })
+        })
+        .map_err(|error| format!("Failed to read provider token usage: {error}"))?;
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|error| format!("Failed to parse provider token usage: {error}"))
+}
+
+fn seed_provider_token_usage_totals(connection: &Connection) -> Result<(), String> {
+    connection
+        .execute(
+            r#"
+            INSERT OR IGNORE INTO provider_token_usage_totals (
+                identity, provider, provider_id, total_tokens
+            )
+            SELECT CASE
+                   WHEN provider_id IS NOT NULL THEN 'id:' || provider_id
+                       ELSE 'name:' || provider
+                   END,
+                   MAX(provider),
+                   provider_id,
+                   SUM(COALESCE(total_tokens,
+                       COALESCE(input_tokens, 0) + COALESCE(output_tokens, 0)))
+            FROM token_usage_entries
+            GROUP BY CASE
+                         WHEN provider_id IS NOT NULL THEN 'id:' || provider_id
+                         ELSE 'name:' || provider
+                     END,
+                     provider_id
+            "#,
+            [],
+        )
+        .map(|_| ())
+        .map_err(|error| format!("Failed to initialize provider token usage totals: {error}"))
+}
+
+fn add_provider_token_usage_total(
+    connection: &Connection,
+    entry: &TokenUsageEntry,
+) -> Result<(), String> {
+    let identity = entry
+        .provider_id
+        .as_deref()
+        .map(|id| format!("id:{id}"))
+        .unwrap_or_else(|| format!("name:{}", entry.provider));
+    let total_tokens = entry.total_tokens.unwrap_or_else(|| {
+        entry
+            .input_tokens
+            .unwrap_or(0)
+            .saturating_add(entry.output_tokens.unwrap_or(0))
+    });
+    connection
+        .execute(
+            r#"
+            INSERT INTO provider_token_usage_totals (
+                identity, provider, provider_id, total_tokens
+            ) VALUES (?1, ?2, ?3, ?4)
+            ON CONFLICT(identity) DO UPDATE SET
+                provider = excluded.provider,
+                provider_id = excluded.provider_id,
+                total_tokens = provider_token_usage_totals.total_tokens + excluded.total_tokens
+            "#,
+            params![
+                identity,
+                entry.provider,
+                entry.provider_id,
+                u64_to_i64(total_tokens),
+            ],
+        )
+        .map(|_| ())
+        .map_err(|error| format!("Failed to update provider token usage total: {error}"))
+}
+
 fn prune_token_usage_entries(connection: &Connection) -> Result<(), String> {
     connection
         .execute(
@@ -3652,11 +3786,12 @@ fn prune_token_usage_entries(connection: &Connection) -> Result<(), String> {
         .map_err(|error| format!("Failed to prune token usage entries: {error}"))
 }
 
-fn token_usage_params(entry: &TokenUsageEntry) -> [rusqlite::types::Value; 13] {
+fn token_usage_params(entry: &TokenUsageEntry) -> [rusqlite::types::Value; 14] {
     [
         rusqlite::types::Value::Text(entry.id.clone()),
         rusqlite::types::Value::Integer(u64_to_i64(entry.ts)),
         rusqlite::types::Value::Text(entry.provider.clone()),
+        optional_string_value(entry.provider_id.as_deref()),
         optional_string_value(entry.account_id.as_deref()),
         optional_string_value(entry.account_email.as_deref()),
         rusqlite::types::Value::Text(entry.model.clone()),
@@ -7210,6 +7345,7 @@ mod tests {
                     id: format!("entry-{index:03}"),
                     ts: index as u64,
                     provider: "Provider".to_string(),
+                    provider_id: Some("provider-1".to_string()),
                     account_id: Some("account-123".to_string()),
                     account_email: Some("person@example.com".to_string()),
                     model: "gpt-test".to_string(),
@@ -7248,6 +7384,7 @@ mod tests {
                 id: "before".to_string(),
                 ts: 99,
                 provider: "Official Codex".to_string(),
+                provider_id: None,
                 account_id: Some("account-123".to_string()),
                 account_email: Some("person@example.com".to_string()),
                 model: "gpt-old".to_string(),
@@ -7263,6 +7400,7 @@ mod tests {
                 id: "today-model-a".to_string(),
                 ts: 100,
                 provider: "Official Codex".to_string(),
+                provider_id: None,
                 account_id: Some("account-123".to_string()),
                 account_email: Some("person@example.com".to_string()),
                 model: "gpt-a".to_string(),
@@ -7278,6 +7416,7 @@ mod tests {
                 id: "today-model-b".to_string(),
                 ts: 101,
                 provider: "Official Codex".to_string(),
+                provider_id: None,
                 account_id: Some("account-123".to_string()),
                 account_email: Some("person@example.com".to_string()),
                 model: "gpt-b".to_string(),
@@ -7306,6 +7445,64 @@ mod tests {
                 reasoning_tokens: 8,
                 cached_tokens: 70,
             }]
+        );
+    }
+
+    #[test]
+    fn token_usage_database_aggregates_provider_today_and_total() {
+        let connection = Connection::open_in_memory().unwrap();
+        init_token_usage_schema(&connection).unwrap();
+        for (id, ts, provider, total_tokens) in [
+            ("relay-before", 99, "Relay A", Some(1_000)),
+            ("relay-today", 100, "Relay A", Some(150)),
+            ("relay-fallback", 101, "Relay B", None),
+        ] {
+            insert_token_usage_entry(
+                &connection,
+                &TokenUsageEntry {
+                    id: id.to_string(),
+                    ts,
+                    provider: provider.to_string(),
+                    provider_id: Some(provider.to_lowercase().replace(' ', "-")),
+                    account_id: None,
+                    account_email: None,
+                    model: "gpt-test".to_string(),
+                    duration_ms: None,
+                    input_tokens: Some(40),
+                    output_tokens: Some(10),
+                    reasoning_tokens: Some(0),
+                    cached_tokens: Some(0),
+                    total_tokens,
+                    model_context_window: None,
+                },
+            )
+            .unwrap();
+        }
+        connection
+            .execute(
+                "DELETE FROM token_usage_entries WHERE id = 'relay-before'",
+                [],
+            )
+            .unwrap();
+
+        let totals = list_provider_token_usage_from_db(&connection, 100).unwrap();
+
+        assert_eq!(
+            totals,
+            vec![
+                ProviderTokenUsageTotals {
+                    provider: "Relay A".to_string(),
+                    provider_id: Some("relay-a".to_string()),
+                    today_tokens: 150,
+                    total_tokens: 1_150,
+                },
+                ProviderTokenUsageTotals {
+                    provider: "Relay B".to_string(),
+                    provider_id: Some("relay-b".to_string()),
+                    today_tokens: 50,
+                    total_tokens: 50,
+                },
+            ]
         );
     }
 
@@ -7362,6 +7559,7 @@ mod tests {
         init_token_usage_schema(&connection).unwrap();
 
         let columns = token_usage_table_columns(&connection).unwrap();
+        assert!(columns.contains("provider_id"));
         assert!(columns.contains("account_id"));
         assert!(columns.contains("account_email"));
     }

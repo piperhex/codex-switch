@@ -230,6 +230,31 @@ export function useProviderManager(
     }
   }, [cloudSync, load, notify, t]);
 
+  const deleteProviders = useCallback(async (ids: string[]) => {
+    const uniqueIds = [...new Set(ids)];
+    const deletedIds: string[] = [];
+    setBusyProviderId(uniqueIds[0] ?? null);
+    try {
+      for (const id of uniqueIds) {
+        setBusyProviderId(id);
+        try {
+          await removeProvider(id);
+          deletedIds.push(id);
+          await cloudSync?.deleteProvider?.(id);
+        } catch (error) {
+          notify(providerErrorMessage(error, t));
+        }
+      }
+      if (deletedIds.length) {
+        notify(t("toast.providersDeleted", { count: deletedIds.length }));
+        await load();
+      }
+      return deletedIds;
+    } finally {
+      setBusyProviderId(null);
+    }
+  }, [cloudSync, load, notify, t]);
+
   const startProxy = useCallback(async () => {
     setProxyBusy(true);
     setProxyStartProgress({ phase: "preparingClient", percent: 3 });
@@ -439,6 +464,7 @@ export function useProviderManager(
     switchModel,
     setModelControl,
     deleteProvider,
+    deleteProviders,
     startProxy,
     stopProxy,
     setProxyAutoSwitch,

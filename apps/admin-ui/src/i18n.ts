@@ -842,7 +842,7 @@ const zh: Record<TranslationKey, string> = {
   "sync.title": "同步数据",
   "sync.drawerTitle": "{email} / 同步数据",
   "sync.accountsTab": "账号",
-  "sync.providersTab": "三方 Provider",
+  "sync.providersTab": "三方模型及中转",
   "providers.models": "模型列表",
   "providers.apiFormat": "API 格式",
   "providers.apiKey": "API Key",

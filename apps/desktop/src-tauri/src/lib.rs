@@ -188,6 +188,7 @@ pub fn run() {
             local_proxy::list_token_usage_entries,
             local_proxy::list_daily_token_usage,
             local_proxy::list_account_token_usage,
+            local_proxy::list_provider_token_usage,
             local_proxy::show_token_usage_window,
             local_proxy::start_local_proxy,
             local_proxy::stop_local_proxy,

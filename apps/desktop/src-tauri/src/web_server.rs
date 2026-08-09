@@ -350,6 +350,10 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
             app,
             argument(&args, "startTs")?,
         )),
+        "list_provider_token_usage" => serialize(crate::local_proxy::list_provider_token_usage(
+            app,
+            argument(&args, "startTs")?,
+        )),
         "start_local_proxy" => serialize(block_on(crate::local_proxy::start_local_proxy(app))),
         "stop_local_proxy" => serialize(block_on(crate::local_proxy::stop_local_proxy(app))),
         "restore_non_proxy_conversations" => serialize(block_on(

@@ -1639,7 +1639,10 @@ function DashboardApp() {
               info={manager.info} onSave={providerManager.saveProvider}
               onSwitch={switchProvider} onSwitchModel={switchProviderModel}
               onModelControlChange={setProviderModelControl} onDelete={deleteProvider}
-              displayMode={accountDisplayMode.displayMode} t={t} />
+              onDeleteMany={providerManager.deleteProviders}
+              displayMode={accountDisplayMode.displayMode}
+              tokenUsageRefreshSeconds={tokenUsagePreferences.refreshSeconds}
+              language={language} t={t} />
           </section>
           <section className="page-panel token-dashboard-page" hidden={page !== "tokens"}>
             <TokenUsageDashboard language={language} themeColor={themeColor.color}
