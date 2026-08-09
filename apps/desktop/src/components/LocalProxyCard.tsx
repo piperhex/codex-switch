@@ -1,8 +1,9 @@
-import { Button, Popconfirm, Popover, Select, Switch, Tag, Tooltip } from "antd";
+import { Button, Popconfirm, Popover, Switch, Tag, Tooltip } from "antd";
 import { ChevronDown, Power, PowerOff, RadioTower, Shuffle } from "lucide-react";
 import type { Translate } from "../i18n";
 import type { Account, LocalProxyStatus } from "../types";
 import { ProxySessionManager } from "./ProxySessionManager";
+import { ImageAccountSelect } from "./ImageAccountSelect";
 
 interface LocalProxyCardProps {
   localProxy: LocalProxyStatus | null;
@@ -35,7 +36,6 @@ export function LocalProxyCard({
 }: LocalProxyCardProps) {
   const proxyRunning = Boolean(localProxy?.running);
   const activeAccount = accounts.find((account) => account.active);
-  const imageAccounts = accounts.filter((account) => !account.agentIdentity);
   const showImageAccountSelect = proxyRunning && (
     Boolean(activeAccount?.agentIdentity)
     || Boolean(localProxy?.concurrentAccountRoutingEnabled)
@@ -63,25 +63,9 @@ export function LocalProxyCard({
       </div>
       <div className="provider-official-actions">
         {showImageAccountSelect && (
-          <Tooltip title={t("providers.proxy.imageAccountTooltip")}>
-            <Select
-              className="proxy-image-account"
-              size="small"
-              aria-label={t("providers.proxy.imageAccount")}
-              value={localProxy?.imageGenerationAccountId ?? undefined}
-              options={imageAccounts.map((account) => ({
-                label: account.email,
-                value: account.id,
-              }))}
-              placeholder={t(imageAccounts.length
-                ? "providers.proxy.imageAccountPlaceholder"
-                : "providers.proxy.imageAccountEmpty")}
-              disabled={proxyBusy || imageAccounts.length === 0}
-              showSearch
-              optionFilterProp="label"
-              onChange={(value) => onImageAccountChange(value)}
-            />
-          </Tooltip>
+          <ImageAccountSelect accounts={accounts}
+            accountId={localProxy?.imageGenerationAccountId}
+            busy={proxyBusy} onChange={onImageAccountChange} t={t} />
         )}
         <Tag className={proxyRunning ? "current-tag" : undefined}>
           {proxyRunning ? t("providers.proxy.running") : t("providers.proxy.stopped")}

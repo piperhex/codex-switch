@@ -2202,7 +2202,7 @@ fn handle_proxy_request<R: Runtime>(
         return result;
     }
 
-    let target = match active_target(app) {
+    let target = match active_target_for_request(app, path) {
         Ok(target) => target,
         Err(error) => {
             let diagnostic = proxy_diagnostic_entry(
@@ -2502,8 +2502,21 @@ fn primary_remaining_quota_score(usage: &UsageSummary) -> Option<f64> {
 }
 
 fn active_target<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<ActiveTarget, String> {
+    active_target_for_request(app, "")
+}
+
+fn active_target_for_request<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    path: &str,
+) -> Result<ActiveTarget, String> {
     let paths = resolve_paths(app)?;
-    if let Some(id) = read_state(&paths).active_provider_id {
+    let state = read_state(&paths);
+    if should_route_image_request_to_official(&state, path) {
+        return Ok(ActiveTarget::Official {
+            model: providers::preferred_official_model(&paths),
+        });
+    }
+    if let Some(id) = state.active_provider_id {
         let provider = providers::read_provider(&paths, &id)?;
         providers::ensure_not_local_proxy_base_url(&provider.base_url)?;
         return Ok(ActiveTarget::Provider(provider));
@@ -2511,6 +2524,12 @@ fn active_target<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<ActiveTarget, 
     Ok(ActiveTarget::Official {
         model: providers::preferred_official_model(&paths),
     })
+}
+
+fn should_route_image_request_to_official(state: &ManagerStateFile, path: &str) -> bool {
+    state.active_provider_id.is_some()
+        && state.image_generation_account_id.is_some()
+        && is_image_generation_endpoint(path)
 }
 
 fn proxy_diagnostic_route(path: &str, target: &ActiveTarget) -> ProxyDiagnosticRoute {
@@ -4274,7 +4293,7 @@ fn credential_account_id(
     if !matches!(purpose, OfficialCredentialPurpose::ImageGeneration) {
         return Ok(active_account_id.to_string());
     }
-    if state.concurrent_account_routing_enabled {
+    if state.concurrent_account_routing_enabled || state.active_provider_id.is_some() {
         return Ok(state
             .image_generation_account_id
             .clone()
@@ -6655,6 +6674,30 @@ mod tests {
     }
 
     #[test]
+    fn configured_provider_image_account_routes_image_requests_to_official() {
+        let mut state = ManagerStateFile {
+            active_provider_id: Some("third-party".to_string()),
+            image_generation_account_id: Some("oauth-account".to_string()),
+            ..ManagerStateFile::default()
+        };
+
+        assert!(should_route_image_request_to_official(
+            &state,
+            "/v1/images/generations"
+        ));
+        assert!(!should_route_image_request_to_official(
+            &state,
+            "/v1/responses"
+        ));
+
+        state.image_generation_account_id = None;
+        assert!(!should_route_image_request_to_official(
+            &state,
+            "/v1/images/generations"
+        ));
+    }
+
+    #[test]
     fn image_requests_use_the_configured_oauth_account_for_agent_identity() {
         let mut state = ManagerStateFile {
             active_account_id: Some("agent-identity".to_string()),
@@ -6714,6 +6757,18 @@ mod tests {
         );
 
         state.concurrent_account_routing_enabled = true;
+        assert_eq!(
+            credential_account_id(
+                &state,
+                &json!({ "auth_mode": "chatgpt" }),
+                OfficialCredentialPurpose::ImageGeneration
+            )
+            .unwrap(),
+            "备用-oauth"
+        );
+
+        state.concurrent_account_routing_enabled = false;
+        state.active_provider_id = Some("third-party".to_string());
         assert_eq!(
             credential_account_id(
                 &state,

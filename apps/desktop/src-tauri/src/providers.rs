@@ -498,24 +498,14 @@ pub(crate) fn switch_provider_blocking<R: Runtime>(
     let paths = resolve_paths(&app)?;
     let provider = read_provider(&paths, &id)?;
     ensure_not_local_proxy_base_url(&provider.base_url)?;
-    let proxy_running = crate::local_proxy::is_running();
-    if !proxy_running && provider.api_format != ProviderApiFormat::OpenaiResponses {
-        return Err(
-            "Chat Completions providers need a local Responses bridge. This build supports direct Responses-compatible providers only."
-                .to_string(),
-        );
-    }
+    ensure_local_proxy_running_for_provider()?;
     if provider.kind != ProviderKind::OpenAi && provider.api_key.trim().is_empty() {
         return Err("Provider API key is empty".to_string());
     }
 
     let mut state = read_state(&paths);
     backup_codex_config_if_needed(&paths, state.active_provider_id.is_none())?;
-    if proxy_running {
-        write_provider_local_proxy_config(&paths, &provider)?;
-    } else {
-        write_provider_config(&paths, &provider)?;
-    }
+    write_provider_local_proxy_config(&paths, &provider)?;
     state.active_provider_id = Some(provider.id);
     state.active_account_id = None;
     state.concurrent_account_routing_enabled = false;
@@ -651,18 +641,13 @@ pub(crate) fn activate_provider_for_sync(paths: &Paths, id: &str) -> Result<bool
     if provider.kind != ProviderKind::OpenAi && provider.api_key.trim().is_empty() {
         return Ok(false);
     }
-    let proxy_running = crate::local_proxy::is_running();
-    if !proxy_running && provider.api_format != ProviderApiFormat::OpenaiResponses {
+    if !crate::local_proxy::is_running() {
         return Ok(false);
     }
 
     let mut state = read_state(paths);
     backup_codex_config_if_needed(paths, state.active_provider_id.is_none())?;
-    if proxy_running {
-        write_provider_local_proxy_config(paths, &provider)?;
-    } else {
-        write_provider_config(paths, &provider)?;
-    }
+    write_provider_local_proxy_config(paths, &provider)?;
     state.active_provider_id = Some(provider.id);
     state.active_account_id = None;
     state.concurrent_account_routing_enabled = false;
@@ -674,19 +659,25 @@ pub(crate) fn cleanup_stale_local_proxy_config<R: Runtime>(
     app: &tauri::AppHandle<R>,
 ) -> Result<(), String> {
     let paths = resolve_paths(app)?;
-    if !paths.current_config.exists() {
+    cleanup_non_proxy_provider_state(&paths)
+}
+
+fn cleanup_non_proxy_provider_state(paths: &Paths) -> Result<(), String> {
+    let mut state = read_state(paths);
+    let has_managed_proxy_config = if paths.current_config.exists() {
+        let current = fs::read_to_string(&paths.current_config)
+            .map_err(|error| format!("Failed to read Codex config: {error}"))?;
+        config_contains_local_proxy(&current)
+    } else {
+        false
+    };
+    if state.active_provider_id.is_none() && !has_managed_proxy_config {
         return Ok(());
     }
-    let current = fs::read_to_string(&paths.current_config)
-        .map_err(|error| format!("Failed to read Codex config: {error}"))?;
-    if !config_contains_local_proxy(&current) {
-        return Ok(());
-    }
-    restore_official_config(&paths)?;
-    let mut state = read_state(&paths);
+    restore_official_config(paths)?;
     state.active_provider_id = None;
     state.local_proxy_enabled = false;
-    write_state(&paths, &state)
+    write_state(paths, &state)
 }
 
 pub(crate) fn restore_official_config(paths: &Paths) -> Result<(), String> {
@@ -801,8 +792,7 @@ fn provider_summary(provider: &ProviderProfile, active: bool) -> ProviderSummary
         api_format: provider.api_format,
         active,
         has_api_key: !provider.api_key.trim().is_empty(),
-        supports_direct_switch: provider.api_format == ProviderApiFormat::OpenaiResponses
-            || crate::local_proxy::is_running(),
+        supports_direct_switch: provider_switch_supported(crate::local_proxy::is_running()),
         balance_platform: provider.balance_platform,
         balance_query_url: provider.balance_query_url.clone(),
         balance_query_uses_api_key: provider.balance_query_token.is_none(),
@@ -1315,20 +1305,6 @@ fn backup_codex_config_if_needed(paths: &Paths, entering_provider: bool) -> Resu
     write_text_atomic(&paths.config_backup, &backup)
 }
 
-fn write_provider_config(paths: &Paths, provider: &ProviderProfile) -> Result<(), String> {
-    if uses_local_model_catalog(provider) {
-        write_provider_model_catalog(paths, provider)?;
-    }
-    let existing = if paths.current_config.exists() {
-        fs::read_to_string(&paths.current_config)
-            .map_err(|error| format!("Failed to read Codex config: {error}"))?
-    } else {
-        String::new()
-    };
-    let merged = merge_provider_config(&existing, provider);
-    write_text_if_changed(&paths.current_config, &merged).map(|_| ())
-}
-
 pub(crate) fn write_official_local_proxy_config(paths: &Paths) -> Result<(), String> {
     let model = preferred_official_model(paths);
     write_local_proxy_config(paths, LOCAL_PROXY_PROVIDER_NAME, Some(&model), false)
@@ -1350,10 +1326,20 @@ fn write_provider_local_proxy_config(
 }
 
 fn write_active_provider_config(paths: &Paths, provider: &ProviderProfile) -> Result<(), String> {
+    ensure_local_proxy_running_for_provider()?;
+    write_provider_local_proxy_config(paths, provider)
+}
+
+fn provider_switch_supported(proxy_running: bool) -> bool {
+    proxy_running
+}
+
+fn ensure_local_proxy_running_for_provider() -> Result<(), String> {
     if crate::local_proxy::is_running() {
-        write_provider_local_proxy_config(paths, provider)
+        Ok(())
     } else {
-        write_provider_config(paths, provider)
+        Err("Third-party Providers require the local proxy. Start the local proxy before switching Provider."
+            .to_string())
     }
 }
 
@@ -2018,6 +2004,45 @@ mod tests {
             config_backup: app_data.join("config-before-provider.toml"),
             state_file: app_data.join("state.json"),
         }
+    }
+
+    #[test]
+    fn providers_can_only_switch_while_proxy_is_running() {
+        assert!(!provider_switch_supported(false));
+        assert!(provider_switch_supported(true));
+    }
+
+    #[test]
+    fn startup_restores_legacy_direct_provider_config() {
+        let paths = test_paths();
+        let official_config = "model = \"gpt-5.5\"\n";
+        write_text_atomic(&paths.config_backup, official_config).unwrap();
+        write_text_atomic(
+            &paths.current_config,
+            &merge_provider_config(official_config, &provider()),
+        )
+        .unwrap();
+        write_state(
+            &paths,
+            &crate::models::ManagerStateFile {
+                active_account_id: Some("official-account".to_string()),
+                active_provider_id: Some("p".to_string()),
+                ..crate::models::ManagerStateFile::default()
+            },
+        )
+        .unwrap();
+
+        cleanup_non_proxy_provider_state(&paths).unwrap();
+
+        assert_eq!(
+            fs::read_to_string(&paths.current_config).unwrap(),
+            official_config
+        );
+        assert!(!paths.config_backup.exists());
+        let state = read_state(&paths);
+        assert_eq!(state.active_account_id.as_deref(), Some("official-account"));
+        assert!(state.active_provider_id.is_none());
+        fs::remove_dir_all(paths.codex_home.parent().unwrap()).unwrap();
     }
 
     #[test]

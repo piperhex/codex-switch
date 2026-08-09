@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Button, Checkbox, Dropdown, InputNumber, Popconfirm, Select, Space, Switch, Table, Tag, Tooltip } from "antd";
+import { Button, Checkbox, Dropdown, InputNumber, Popconfirm, Space, Switch, Table, Tag, Tooltip } from "antd";
 import type { TableProps } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import {
@@ -39,6 +39,7 @@ import { initials } from "../../utils/format";
 import { formatCompactTokenCount } from "../../utils/tokenContext";
 import { shouldShowUsageError } from "../../utils/usageErrors";
 import { AccountNoteModal } from "../modals/AccountNoteModal";
+import { ImageAccountSelect } from "../ImageAccountSelect";
 import { ResetCreditsPanel } from "./ResetCreditsPanel";
 import { UsageMeter } from "./UsageMeter";
 
@@ -594,7 +595,6 @@ export function AccountTable({
     .filter((account) => selectedAccountIdSet.has(account.id) && account.autoSwitchEnabled)
     .map((account) => account.id);
   const activeAccount = accounts.find((account) => account.active) ?? null;
-  const imageAccounts = accounts.filter((account) => !account.agentIdentity);
   const showImageAccountSelect = hotSwitchEnabled && (
     Boolean(activeAccount?.agentIdentity) || concurrentAccountRoutingEnabled
   );
@@ -1202,25 +1202,9 @@ export function AccountTable({
           {proxyControls}
         </div>
         {showImageAccountSelect && (
-          <Tooltip title={t("providers.proxy.imageAccountTooltip")} styles={{ root: { maxWidth: 400 } }}>
-            <Select
-              className="proxy-image-account"
-              size="small"
-              aria-label={t("providers.proxy.imageAccount")}
-              value={effectiveImageAccountId}
-              options={imageAccounts.map((account) => ({
-                label: privacyMode ? maskAccountEmail(account.email) : account.email,
-                value: account.id,
-              }))}
-              placeholder={t(imageAccounts.length
-                ? "providers.proxy.imageAccountPlaceholder"
-                : "providers.proxy.imageAccountEmpty")}
-              disabled={imageAccountBusy || imageAccounts.length === 0}
-              showSearch
-              optionFilterProp="label"
-              onChange={onImageAccountChange}
-            />
-          </Tooltip>
+          <ImageAccountSelect accounts={accounts} accountId={effectiveImageAccountId}
+            busy={imageAccountBusy} onChange={onImageAccountChange}
+            privacyMode={privacyMode} t={t} />
         )}
         <Tooltip title={t("table.concurrentRoutingTooltip")} styles={{ root: { maxWidth: 400 } }}>
           <span className="account-concurrent-routing-control">

@@ -62,6 +62,9 @@ function providerErrorMessage(error: unknown, t: Translate) {
   if (message.includes("Chat Completions providers need a local Responses bridge")) {
     return t("providers.error.chatBridgeRequired");
   }
+  if (message.includes("Third-party Providers require the local proxy")) {
+    return t("providers.error.proxyRequired");
+  }
   if (message.includes("Provider API key is empty")) return t("providers.error.apiKeyEmpty");
   if (message.includes("Provider name is required")) return t("providers.error.nameRequired");
   if (message.includes("Model is required")) return t("providers.error.modelRequired");
@@ -169,12 +172,11 @@ export function useProviderManager(
   const switchProvider = useCallback(async (id: string) => {
     setBusyProviderId(id);
     try {
-      const hotSwitch = Boolean(localProxy?.running);
       const refreshesBalance = providers.some(
         (provider) => provider.id === id && Boolean(provider.balancePlatform),
       );
       await activateProvider(id);
-      notify(t(hotSwitch ? "toast.providerSwitchedHot" : "toast.providerSwitched"));
+      notify(t("toast.providerSwitchedHot"));
       await Promise.all([
         load(),
         refreshesBalance
@@ -186,7 +188,7 @@ export function useProviderManager(
     } finally {
       setBusyProviderId(null);
     }
-  }, [load, localProxy?.running, notify, providers, t]);
+  }, [load, notify, providers, t]);
 
   const switchModel = useCallback(async (id: string, model: string) => {
     setBusyProviderId(id);

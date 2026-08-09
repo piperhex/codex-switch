@@ -41,7 +41,7 @@ Recommended minimum coverage:
 - Storage: missing target directory, invalid JSON, and atomic replacement failures
 - Authentication: missing fields, malformed JWTs, and different account IDs
 - Network: success, refresh after `401`, unsuccessful status codes, and invalid responses
-- Provider/proxy: direct and hot switching, Responses and Chat Completions formats, config restoration, and structured diagnostics that omit request content and credentials
+- Provider/proxy: proxy-only Provider switching, Responses and Chat Completions formats, config restoration, and structured diagnostics that omit request content and credentials
 - Cloud sync: first-login merge, last-modified conflict handling, full desktop payloads, and redacted mobile summaries
 - Database entities: synchronized-schema coverage plus a dated SQL migration for deployments with `POSTGRES_DB_SYNCHRONIZE=false`
 

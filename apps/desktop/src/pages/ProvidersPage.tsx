@@ -6,6 +6,7 @@ import { loadProviderTokenUsage, queryProviderBalance, subscribeToProviderBalanc
 import type { AccountDisplayMode } from "../hooks/useAccountDisplayMode";
 import type { Language, Translate } from "../i18n";
 import type {
+  Account,
   AppInfo,
   LocalProxyStatus,
   Provider,
@@ -16,13 +17,16 @@ import type {
   ProviderTokenUsageTotals,
 } from "../types";
 import { formatCompactTokenCount } from "../utils/tokenContext";
+import { ImageAccountSelect } from "../components/ImageAccountSelect";
 
 interface ProvidersPageProps {
   providers: Provider[];
+  accounts: Account[];
   loading: boolean;
   busyProviderId: string | null;
   saving: boolean;
   localProxy: LocalProxyStatus | null;
+  proxyBusy: boolean;
   info: AppInfo | null;
   onSave: (provider: ProviderInput) => Promise<Provider | null>;
   onSwitch: (id: string) => void;
@@ -30,6 +34,8 @@ interface ProvidersPageProps {
   onModelControlChange: (id: string, controlledByCodex: boolean) => void;
   onDelete: (id: string) => void;
   onDeleteMany: (ids: string[]) => Promise<string[]>;
+  onImageAccountChange: (accountId: string | null) => void;
+  privacyMode: boolean;
   displayMode: AccountDisplayMode;
   tokenUsageRefreshSeconds: number;
   language: Language;
@@ -758,10 +764,12 @@ function ProviderTokenCell({
 
 export function ProvidersPage({
   providers,
+  accounts,
   loading,
   busyProviderId,
   saving,
   localProxy,
+  proxyBusy,
   info,
   onSave,
   onSwitch,
@@ -769,6 +777,8 @@ export function ProvidersPage({
   onModelControlChange,
   onDelete,
   onDeleteMany,
+  onImageAccountChange,
+  privacyMode,
   displayMode,
   tokenUsageRefreshSeconds,
   language,
@@ -783,6 +793,7 @@ export function ProvidersPage({
   const [hiddenColumns, setHiddenColumns] = useState<ProviderTableColumnKey[]>(loadHiddenColumns);
   const [providerTokenUsage, setProviderTokenUsage] = useState<ProviderTokenUsageTotals[]>([]);
   const proxyRunning = Boolean(localProxy?.running);
+  const showImageAccountSelect = proxyRunning && providers.some((provider) => provider.active);
 
   useEffect(() => {
     const providerIds = new Set(providers.map((provider) => provider.id));
@@ -1002,6 +1013,12 @@ export function ProvidersPage({
           <span>{info?.configPath ?? "~/.codex/config.toml"}</span>
         </div>
         <Space size={8} className="provider-toolbar-actions">
+          {showImageAccountSelect && (
+            <ImageAccountSelect accounts={accounts}
+              accountId={localProxy?.imageGenerationAccountId}
+              busy={proxyBusy} onChange={onImageAccountChange}
+              privacyMode={privacyMode} t={t} />
+          )}
           {displayMode === "table" && <Popconfirm
             title={t("providers.batchDelete.title", { count: selectedProviderIds.length })}
             description={t("providers.batchDelete.description")}

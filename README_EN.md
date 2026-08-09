@@ -47,7 +47,7 @@ Includes 300+ presets and integrates with [Fei-Away/Codex-Dream-Skin](https://gi
 - Supports manual or scheduled account refreshes, top-menu navigation and search, system-tray switching, and a best-effort **Restart ChatGPT** action.
 - Offers compact and glass-style always-on-top usage widgets with quota, reset, and status details.
 - Supports OpenAI Responses and Chat Completions-compatible Providers, multiple models, model-control policies, and balance queries for common relay platforms.
-- Supports direct config switching or a loopback proxy on `127.0.0.1:15722` for hot switching between official accounts and Providers.
+- Routes third-party Providers through the loopback proxy on `127.0.0.1:15722` and supports hot switching between official accounts and Providers.
 - Records proxy token usage, displays conversation/message details, context consumption and latency, and exports structured diagnostics.
 - Provides weekly heatmaps and trends plus token-type, Provider, model, and account rankings.
 - Can refresh accounts after quota exhaustion, select an eligible account with the lowest primary-window usage, switch credentials, and retry once.
@@ -114,7 +114,7 @@ codex-switch.exe --headless --port=18080
 
 Open `http://127.0.0.1:18080` after startup. `--headless` requires `--port`, whose valid range is `1-65535`.
 
-The **Providers** page manages OpenAI Responses or Chat Completions-compatible endpoints, API keys, models, and model-control policy. Without the proxy, switching writes a managed section to `$CODEX_HOME/config.toml`; active sessions may need a restart. The proxy listens on `127.0.0.1:15722`, directs Codex to it, and enables hot switching.
+The **Providers** page manages OpenAI Responses or Chat Completions-compatible endpoints, API keys, models, and model-control policy. Third-party Providers can be used only while the local proxy is running. The proxy listens on `127.0.0.1:15722`, directs Codex to it, and enables hot switching.
 
 The **Skills** page can browse, search, and install community Skills locally. Publishing or updating a versioned Skill package requires a signed-in cloud account. The **One-click themes** page provides 300+ bundled Dream Skin presets plus custom-background and restore controls.
 

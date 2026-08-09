@@ -7,7 +7,7 @@ use std::{
 };
 
 use chrono::{DateTime, Utc};
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{params, params_from_iter, types::Value as SqlValue, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -117,9 +117,12 @@ struct RolloutSnapshot {
     cwd: String,
     updated_at: Option<i64>,
     path: PathBuf,
+    physical_paths: Vec<PathBuf>,
     relative_path: PathBuf,
     index_value: Value,
     size_bytes: u64,
+    history_base_thread_id: Option<String>,
+    parent_thread_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -145,6 +148,34 @@ struct PackageItem {
     session_index_entry: Value,
     #[serde(default)]
     source_instance: Option<Value>,
+    #[serde(default)]
+    state_row: Option<SqliteRowSnapshot>,
+    #[serde(default)]
+    related_state: Vec<SqliteTableSnapshot>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct SqliteRowSnapshot {
+    columns: Vec<String>,
+    values: Vec<SqliteCell>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SqliteTableSnapshot {
+    database: String,
+    table: String,
+    rows: Vec<SqliteRowSnapshot>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", content = "value", rename_all = "snake_case")]
+enum SqliteCell {
+    Null,
+    Integer(i64),
+    Real(f64),
+    Text(String),
+    Blob(Vec<u8>),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -157,13 +188,23 @@ struct BinManifest {
     relative_rollout_path: String,
     session_index_entry: Value,
     deleted_at: String,
+    #[serde(default)]
+    state_visibility: Option<StateVisibilitySnapshot>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct StateVisibilitySnapshot {
+    rollout_path: String,
+    archived: i64,
+    archived_at: Option<i64>,
+    preview: String,
 }
 
 #[derive(Debug, Clone)]
 struct BinSnapshot {
     folder: PathBuf,
     manifest: BinManifest,
-    rollout: PathBuf,
+    rollouts: Vec<PathBuf>,
 }
 
 fn normalized_ids(values: Vec<String>) -> HashSet<String> {
@@ -246,6 +287,53 @@ fn index_timestamp(value: Option<&Value>) -> Option<i64> {
     .find_map(unix_seconds)
 }
 
+fn compressed_rollout_path(path: &Path) -> PathBuf {
+    path.with_extension("jsonl.zst")
+}
+
+fn logical_rollout_path(path: &Path) -> Option<PathBuf> {
+    let name = path.file_name()?.to_str()?;
+    if name.starts_with("rollout-") && name.ends_with(".jsonl") {
+        return Some(path.to_path_buf());
+    }
+    if name.starts_with("rollout-") && name.ends_with(".jsonl.zst") {
+        return Some(path.with_file_name(name.trim_end_matches(".zst")));
+    }
+    None
+}
+
+fn rollout_physical_paths(logical_path: &Path) -> Vec<PathBuf> {
+    [
+        logical_path.to_path_buf(),
+        compressed_rollout_path(logical_path),
+    ]
+    .into_iter()
+    .filter(|path| path.is_file())
+    .collect()
+}
+
+fn preferred_rollout_path(logical_path: &Path) -> Option<PathBuf> {
+    logical_path
+        .is_file()
+        .then(|| logical_path.to_path_buf())
+        .or_else(|| {
+            let compressed = compressed_rollout_path(logical_path);
+            compressed.is_file().then_some(compressed)
+        })
+}
+
+fn rollout_reader(path: &Path) -> Result<Box<dyn BufRead>, String> {
+    let file = File::open(path)
+        .map_err(|error| format!("无法打开会话文件 {}：{error}", path.display()))?;
+    if path.extension().and_then(|value| value.to_str()) == Some("zst") {
+        let decoder = zstd::stream::read::Decoder::new(file)
+            .map_err(|error| format!("无法解压会话文件 {}：{error}", path.display()))?;
+        Ok(Box::new(BufReader::new(decoder)))
+    } else {
+        Ok(Box::new(BufReader::new(file)))
+    }
+}
+
 fn collect_rollout_paths(root: &Path, result: &mut Vec<PathBuf>) -> Result<(), String> {
     if !root.exists() {
         return Ok(());
@@ -261,21 +349,15 @@ fn collect_rollout_paths(root: &Path, result: &mut Vec<PathBuf>) -> Result<(), S
             .is_dir()
         {
             collect_rollout_paths(&path, result)?;
-        } else if path
-            .file_name()
-            .and_then(|name| name.to_str())
-            .is_some_and(|name| name.starts_with("rollout-") && name.ends_with(".jsonl"))
-        {
-            result.push(path);
+        } else if let Some(logical) = logical_rollout_path(&path) {
+            result.push(logical);
         }
     }
     Ok(())
 }
 
 fn first_rollout_value(path: &Path) -> Result<Option<Value>, String> {
-    let file = File::open(path)
-        .map_err(|error| format!("无法打开会话文件 {}：{error}", path.display()))?;
-    for line in BufReader::new(file).lines() {
+    for line in rollout_reader(path)?.lines() {
         let line = line.map_err(|error| format!("无法读取会话文件 {}：{error}", path.display()))?;
         if line.trim().is_empty() {
             continue;
@@ -307,6 +389,16 @@ fn snapshot_cwd(meta: &Value) -> Option<String> {
         .map(str::to_string)
 }
 
+fn snapshot_reference_id(meta: &Value, field: &str) -> Option<String> {
+    meta.pointer(&format!("/payload/{field}/thread_id"))
+        .or_else(|| meta.pointer(&format!("/payload/{field}/threadId")))
+        .or_else(|| meta.pointer(&format!("/payload/{field}")))
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+}
+
 fn gather_snapshots(codex_home: &Path) -> Result<Vec<RolloutSnapshot>, String> {
     let index = index_values(codex_home)?;
     let mut files = Vec::new();
@@ -314,8 +406,13 @@ fn gather_snapshots(codex_home: &Path) -> Result<Vec<RolloutSnapshot>, String> {
         collect_rollout_paths(&codex_home.join(folder), &mut files)?;
     }
     files.sort();
+    files.dedup();
     let mut snapshots = Vec::new();
-    for path in files {
+    for logical_path in files {
+        let Some(path) = preferred_rollout_path(&logical_path) else {
+            continue;
+        };
+        let physical_paths = rollout_physical_paths(&logical_path);
         let Some(meta) = first_rollout_value(&path)? else {
             continue;
         };
@@ -332,16 +429,26 @@ fn gather_snapshots(codex_home: &Path) -> Result<Vec<RolloutSnapshot>, String> {
         let index_value = indexed
             .cloned()
             .unwrap_or_else(|| json!({ "id": session_id, "thread_name": title }));
-        let size_bytes = fs::metadata(&path).map(|item| item.len()).unwrap_or(0);
+        let size_bytes = physical_paths
+            .iter()
+            .filter_map(|path| fs::metadata(path).ok())
+            .map(|item| item.len())
+            .sum();
+        let history_base_thread_id = snapshot_reference_id(&meta, "history_base");
+        let parent_thread_id = snapshot_reference_id(&meta, "parent_thread_id")
+            .or_else(|| snapshot_reference_id(&meta, "parent_thread"));
         snapshots.push(RolloutSnapshot {
             session_id,
             title,
             cwd,
             updated_at,
             path,
+            physical_paths,
             relative_path,
             index_value,
             size_bytes,
+            history_base_thread_id,
+            parent_thread_id,
         });
     }
     Ok(snapshots)
@@ -408,9 +515,7 @@ fn matching_json_text(value: &Value, needle: &str) -> Option<String> {
 }
 
 fn locate_rollout_text(path: &Path, needle: &str) -> Result<Option<String>, String> {
-    let file = File::open(path)
-        .map_err(|error| format!("无法打开会话文件 {}：{error}", path.display()))?;
-    for line in BufReader::new(file).lines() {
+    for line in rollout_reader(path)?.lines() {
         let line = line.map_err(|error| format!("无法搜索会话文件 {}：{error}", path.display()))?;
         let Ok(value) = serde_json::from_str::<Value>(&line) else {
             continue;
@@ -482,9 +587,8 @@ pub(crate) fn browse_codex_threads<R: Runtime>(
 }
 
 fn token_totals(path: &Path) -> Option<(u64, u64, u64)> {
-    let file = File::open(path).ok()?;
     let mut latest = None;
-    for line in BufReader::new(file).lines().map_while(Result::ok) {
+    for line in rollout_reader(path).ok()?.lines().map_while(Result::ok) {
         if !line.contains("\"token_count\"") || !line.contains("\"total_token_usage\"") {
             continue;
         }
@@ -576,6 +680,525 @@ fn rewrite_index(codex_home: &Path, removed: &HashSet<String>) -> Result<(), Str
     write_text_atomic(&path, &next_content)
 }
 
+fn state_visibility_snapshot(
+    state_db: Option<&Path>,
+    session_id: &str,
+) -> Result<Option<StateVisibilitySnapshot>, String> {
+    let Some(state_db) = state_db else {
+        return Ok(None);
+    };
+    let connection =
+        Connection::open(state_db).map_err(|error| format!("无法打开 Codex state DB：{error}"))?;
+    connection
+        .busy_timeout(std::time::Duration::from_secs(5))
+        .map_err(|error| error.to_string())?;
+    connection
+        .query_row(
+            "SELECT rollout_path, archived, archived_at, preview FROM threads WHERE id = ?1",
+            params![session_id],
+            |row| {
+                Ok(StateVisibilitySnapshot {
+                    rollout_path: row.get(0)?,
+                    archived: row.get(1)?,
+                    archived_at: row.get(2)?,
+                    preview: row.get(3)?,
+                })
+            },
+        )
+        .optional()
+        .map_err(|error| error.to_string())
+}
+
+fn sqlite_cell(value: rusqlite::types::ValueRef<'_>) -> SqliteCell {
+    match value {
+        rusqlite::types::ValueRef::Null => SqliteCell::Null,
+        rusqlite::types::ValueRef::Integer(value) => SqliteCell::Integer(value),
+        rusqlite::types::ValueRef::Real(value) => SqliteCell::Real(value),
+        rusqlite::types::ValueRef::Text(value) => {
+            SqliteCell::Text(String::from_utf8_lossy(value).to_string())
+        }
+        rusqlite::types::ValueRef::Blob(value) => SqliteCell::Blob(value.to_vec()),
+    }
+}
+
+fn sql_value(value: &SqliteCell) -> SqlValue {
+    match value {
+        SqliteCell::Null => SqlValue::Null,
+        SqliteCell::Integer(value) => SqlValue::Integer(*value),
+        SqliteCell::Real(value) => SqlValue::Real(*value),
+        SqliteCell::Text(value) => SqlValue::Text(value.clone()),
+        SqliteCell::Blob(value) => SqlValue::Blob(value.clone()),
+    }
+}
+
+fn sqlite_row_text<'a>(row: &'a SqliteRowSnapshot, column: &str) -> Option<&'a str> {
+    row.columns
+        .iter()
+        .zip(&row.values)
+        .find_map(|(name, value)| {
+            (name == column)
+                .then_some(value)
+                .and_then(|value| match value {
+                    SqliteCell::Text(value) => Some(value.as_str()),
+                    _ => None,
+                })
+        })
+}
+
+fn quote_identifier(value: &str) -> String {
+    format!("\"{}\"", value.replace('"', "\"\""))
+}
+
+fn snapshot_thread_row(
+    state_db: Option<&Path>,
+    session_id: &str,
+) -> Result<Option<SqliteRowSnapshot>, String> {
+    let Some(state_db) = state_db else {
+        return Ok(None);
+    };
+    let connection =
+        Connection::open(state_db).map_err(|error| format!("无法打开 Codex state DB：{error}"))?;
+    let mut statement = connection
+        .prepare("SELECT * FROM threads WHERE id = ?1")
+        .map_err(|error| error.to_string())?;
+    let columns = statement
+        .column_names()
+        .into_iter()
+        .map(str::to_string)
+        .collect::<Vec<_>>();
+    statement
+        .query_row(params![session_id], |row| {
+            let values = (0..columns.len())
+                .map(|index| row.get_ref(index).map(sqlite_cell))
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            Ok(SqliteRowSnapshot {
+                columns: columns.clone(),
+                values,
+            })
+        })
+        .optional()
+        .map_err(|error| error.to_string())
+}
+
+fn snapshot_table_rows(
+    database_path: Option<&Path>,
+    database: &str,
+    table: &str,
+    predicate: &str,
+    session_id: &str,
+) -> Result<Option<SqliteTableSnapshot>, String> {
+    let Some(database_path) = database_path else {
+        return Ok(None);
+    };
+    let connection = Connection::open(database_path)
+        .map_err(|error| format!("无法打开 Codex 数据库 {}：{error}", database_path.display()))?;
+    connection
+        .busy_timeout(std::time::Duration::from_secs(5))
+        .map_err(|error| error.to_string())?;
+    if !table_exists(&connection, table)? {
+        return Ok(None);
+    }
+    let sql = format!(
+        "SELECT * FROM {} WHERE {predicate}",
+        quote_identifier(table)
+    );
+    let mut statement = connection
+        .prepare(&sql)
+        .map_err(|error| error.to_string())?;
+    let columns = statement
+        .column_names()
+        .into_iter()
+        .map(str::to_string)
+        .collect::<Vec<_>>();
+    let rows = statement
+        .query_map(params![session_id], |row| {
+            let values = (0..columns.len())
+                .map(|index| row.get_ref(index).map(sqlite_cell))
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            Ok(SqliteRowSnapshot {
+                columns: columns.clone(),
+                values,
+            })
+        })
+        .map_err(|error| error.to_string())?
+        .collect::<rusqlite::Result<Vec<_>>>()
+        .map_err(|error| error.to_string())?;
+    Ok((!rows.is_empty()).then(|| SqliteTableSnapshot {
+        database: database.to_string(),
+        table: table.to_string(),
+        rows,
+    }))
+}
+
+fn snapshot_related_state(
+    codex_home: &Path,
+    session_id: &str,
+    included_ids: &HashSet<String>,
+) -> Result<Vec<SqliteTableSnapshot>, String> {
+    let state = latest_state_db(codex_home);
+    let history = latest_versioned_db(codex_home, "thread_history_");
+    let queue = latest_versioned_db(codex_home, "queue_");
+    let goals = latest_versioned_db(codex_home, "goals_");
+    let memories = latest_versioned_db(codex_home, "memories_");
+    let specs = [
+        (
+            state.as_deref(),
+            "state",
+            "thread_dynamic_tools",
+            "thread_id = ?1",
+        ),
+        (
+            state.as_deref(),
+            "state",
+            "thread_spawn_edges",
+            "parent_thread_id = ?1 OR child_thread_id = ?1",
+        ),
+        (
+            history.as_deref(),
+            "thread_history",
+            "thread_turns",
+            "thread_id = ?1",
+        ),
+        (
+            history.as_deref(),
+            "thread_history",
+            "thread_items",
+            "thread_id = ?1",
+        ),
+        (
+            history.as_deref(),
+            "thread_history",
+            "thread_history_projection_state",
+            "thread_id = ?1",
+        ),
+        (queue.as_deref(), "queue", "queued_items", "thread_id = ?1"),
+        (goals.as_deref(), "goals", "thread_goals", "thread_id = ?1"),
+        (
+            goals.as_deref(),
+            "goals",
+            "thread_goal_continuation_deferrals",
+            "thread_id = ?1",
+        ),
+        (
+            memories.as_deref(),
+            "memories",
+            "stage1_outputs",
+            "thread_id = ?1",
+        ),
+    ];
+    let mut snapshots = Vec::new();
+    for (path, database, table, predicate) in specs {
+        if let Some(mut snapshot) =
+            snapshot_table_rows(path, database, table, predicate, session_id)?
+        {
+            if snapshot.table == "thread_spawn_edges" {
+                snapshot.rows.retain(|row| {
+                    sqlite_row_text(row, "parent_thread_id")
+                        .is_some_and(|id| included_ids.contains(id))
+                        && sqlite_row_text(row, "child_thread_id")
+                            .is_some_and(|id| included_ids.contains(id))
+                });
+            }
+            if snapshot.rows.is_empty() {
+                continue;
+            }
+            snapshots.push(snapshot);
+        }
+    }
+    Ok(snapshots)
+}
+
+fn restore_thread_row(
+    state_db: Option<&Path>,
+    snapshot: Option<&SqliteRowSnapshot>,
+    rollout_path: &Path,
+    session_id: &str,
+) -> Result<(), String> {
+    let (Some(state_db), Some(snapshot)) = (state_db, snapshot) else {
+        return Ok(());
+    };
+    let connection =
+        Connection::open(state_db).map_err(|error| format!("无法打开 Codex state DB：{error}"))?;
+    connection
+        .busy_timeout(std::time::Duration::from_secs(5))
+        .map_err(|error| error.to_string())?;
+    let mut info = connection
+        .prepare("PRAGMA table_info(threads)")
+        .map_err(|error| error.to_string())?;
+    let available = info
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|error| error.to_string())?
+        .collect::<rusqlite::Result<HashSet<_>>>()
+        .map_err(|error| error.to_string())?;
+    drop(info);
+
+    let mut columns = Vec::new();
+    let mut values = Vec::new();
+    let logical_rollout =
+        logical_rollout_path(rollout_path).unwrap_or_else(|| rollout_path.to_path_buf());
+    for (column, value) in snapshot.columns.iter().zip(&snapshot.values) {
+        if !available.contains(column) {
+            continue;
+        }
+        columns.push(column.clone());
+        values.push(match column.as_str() {
+            "id" => SqlValue::Text(session_id.to_string()),
+            "rollout_path" => SqlValue::Text(logical_rollout.to_string_lossy().to_string()),
+            _ => sql_value(value),
+        });
+    }
+    if columns.is_empty() {
+        return Ok(());
+    }
+    let placeholders = (1..=columns.len())
+        .map(|index| format!("?{index}"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let sql = format!(
+        "INSERT OR REPLACE INTO threads ({}) VALUES ({placeholders})",
+        columns
+            .iter()
+            .map(|column| quote_identifier(column))
+            .collect::<Vec<_>>()
+            .join(", ")
+    );
+    connection
+        .execute(&sql, params_from_iter(values))
+        .map_err(|error| format!("无法恢复 Codex 会话索引：{error}"))?;
+    Ok(())
+}
+
+fn related_database_path(codex_home: &Path, database: &str) -> Option<PathBuf> {
+    match database {
+        "state" => latest_state_db(codex_home),
+        "thread_history" => latest_versioned_db(codex_home, "thread_history_"),
+        "queue" => latest_versioned_db(codex_home, "queue_"),
+        "goals" => latest_versioned_db(codex_home, "goals_"),
+        "memories" => latest_versioned_db(codex_home, "memories_"),
+        _ => None,
+    }
+}
+
+fn valid_related_table(database: &str, table: &str) -> bool {
+    matches!(
+        (database, table),
+        ("state", "thread_dynamic_tools")
+            | ("state", "thread_spawn_edges")
+            | ("thread_history", "thread_turns")
+            | ("thread_history", "thread_items")
+            | ("thread_history", "thread_history_projection_state")
+            | ("queue", "queued_items")
+            | ("goals", "thread_goals")
+            | ("goals", "thread_goal_continuation_deferrals")
+            | ("memories", "stage1_outputs")
+    )
+}
+
+fn restore_table_snapshot(
+    codex_home: &Path,
+    snapshot: &SqliteTableSnapshot,
+    session_id: &str,
+) -> Result<(), String> {
+    if !valid_related_table(&snapshot.database, &snapshot.table) {
+        return Err("会话包包含不支持的 Codex 状态表".to_string());
+    }
+    let Some(path) = related_database_path(codex_home, &snapshot.database) else {
+        return Ok(());
+    };
+    let mut connection = Connection::open(&path)
+        .map_err(|error| format!("无法打开 Codex 数据库 {}：{error}", path.display()))?;
+    connection
+        .busy_timeout(std::time::Duration::from_secs(5))
+        .map_err(|error| error.to_string())?;
+    if !table_exists(&connection, &snapshot.table)? {
+        return Ok(());
+    }
+    let info_sql = format!("PRAGMA table_info({})", quote_identifier(&snapshot.table));
+    let mut info = connection
+        .prepare(&info_sql)
+        .map_err(|error| error.to_string())?;
+    let available = info
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|error| error.to_string())?
+        .collect::<rusqlite::Result<HashSet<_>>>()
+        .map_err(|error| error.to_string())?;
+    drop(info);
+
+    let transaction = connection
+        .transaction()
+        .map_err(|error| error.to_string())?;
+    for row in &snapshot.rows {
+        if snapshot.table == "thread_spawn_edges" {
+            let references_session = row.columns.iter().zip(&row.values).any(|(column, value)| {
+                matches!(column.as_str(), "parent_thread_id" | "child_thread_id")
+                    && matches!(value, SqliteCell::Text(value) if value == session_id)
+            });
+            if !references_session {
+                return Err("会话包包含无关的分叉关系".to_string());
+            }
+        }
+        let mut columns = Vec::new();
+        let mut values = Vec::new();
+        for (column, value) in row.columns.iter().zip(&row.values) {
+            if available.contains(column) {
+                columns.push(column.clone());
+                values.push(if column == "thread_id" {
+                    SqlValue::Text(session_id.to_string())
+                } else {
+                    sql_value(value)
+                });
+            }
+        }
+        if columns.is_empty() {
+            continue;
+        }
+        let placeholders = (1..=columns.len())
+            .map(|index| format!("?{index}"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let sql = format!(
+            "INSERT OR REPLACE INTO {} ({}) VALUES ({placeholders})",
+            quote_identifier(&snapshot.table),
+            columns
+                .iter()
+                .map(|column| quote_identifier(column))
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+        transaction
+            .execute(&sql, params_from_iter(values))
+            .map_err(|error| format!("无法恢复 Codex 状态表 {}：{error}", snapshot.table))?;
+    }
+    transaction.commit().map_err(|error| error.to_string())
+}
+
+fn restore_related_state(
+    codex_home: &Path,
+    snapshots: &[SqliteTableSnapshot],
+    session_id: &str,
+) -> Result<(), String> {
+    for snapshot in snapshots {
+        restore_table_snapshot(codex_home, snapshot, session_id)?;
+    }
+    Ok(())
+}
+
+fn hide_thread_in_state(
+    state_db: Option<&Path>,
+    session_id: &str,
+    recycle_path: &Path,
+) -> Result<(), String> {
+    let Some(state_db) = state_db else {
+        return Ok(());
+    };
+    let connection =
+        Connection::open(state_db).map_err(|error| format!("无法打开 Codex state DB：{error}"))?;
+    connection
+        .busy_timeout(std::time::Duration::from_secs(5))
+        .map_err(|error| error.to_string())?;
+    connection
+        .execute(
+            "UPDATE threads SET archived = 1, archived_at = ?1, preview = '', rollout_path = ?2 WHERE id = ?3",
+            params![
+                Utc::now().timestamp_millis(),
+                recycle_path.to_string_lossy(),
+                session_id
+            ],
+        )
+        .map_err(|error| format!("无法同步 Codex 会话状态：{error}"))?;
+    Ok(())
+}
+
+fn restore_thread_visibility(
+    state_db: Option<&Path>,
+    session_id: &str,
+    snapshot: Option<&StateVisibilitySnapshot>,
+) -> Result<(), String> {
+    let (Some(state_db), Some(snapshot)) = (state_db, snapshot) else {
+        return Ok(());
+    };
+    let connection =
+        Connection::open(state_db).map_err(|error| format!("无法打开 Codex state DB：{error}"))?;
+    connection
+        .busy_timeout(std::time::Duration::from_secs(5))
+        .map_err(|error| error.to_string())?;
+    connection
+        .execute(
+            "UPDATE threads SET archived = ?1, archived_at = ?2, preview = ?3, rollout_path = ?4 WHERE id = ?5",
+            params![
+                snapshot.archived,
+                snapshot.archived_at,
+                snapshot.preview,
+                snapshot.rollout_path,
+                session_id
+            ],
+        )
+        .map_err(|error| format!("无法恢复 Codex 会话状态：{error}"))?;
+    Ok(())
+}
+
+fn ensure_threads_are_not_referenced(
+    snapshots: &[RolloutSnapshot],
+    requested: &HashSet<String>,
+    state_db: Option<&Path>,
+) -> Result<(), String> {
+    for item in snapshots {
+        if requested.contains(&item.session_id) {
+            continue;
+        }
+        let referenced = [
+            item.history_base_thread_id.as_deref(),
+            item.parent_thread_id.as_deref(),
+        ]
+        .into_iter()
+        .flatten()
+        .find(|id| requested.contains(*id));
+        if let Some(parent) = referenced {
+            return Err(format!(
+                "会话 {parent} 仍被会话 {} 引用，请同时选择相关会话后再移入回收站",
+                item.session_id
+            ));
+        }
+    }
+
+    let Some(state_db) = state_db else {
+        return Ok(());
+    };
+    let connection =
+        Connection::open(state_db).map_err(|error| format!("无法打开 Codex state DB：{error}"))?;
+    let mut statement = match connection
+        .prepare("SELECT parent_thread_id, child_thread_id FROM thread_spawn_edges")
+    {
+        Ok(statement) => statement,
+        Err(_) => return Ok(()),
+    };
+    let rows = statement
+        .query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })
+        .map_err(|error| error.to_string())?;
+    for row in rows {
+        let (parent, child) = row.map_err(|error| error.to_string())?;
+        if requested.contains(&parent) && !requested.contains(&child) {
+            return Err(format!(
+                "会话 {parent} 仍有未选择的子会话 {child}，请同时选择后再移入回收站"
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn restore_moved_files(moved: &[(PathBuf, PathBuf)]) {
+    for (source, target) in moved.iter().rev() {
+        if target.exists() {
+            if let Some(parent) = source.parent() {
+                let _ = fs::create_dir_all(parent);
+            }
+            let _ = fs::rename(target, source);
+        }
+    }
+}
+
 #[tauri::command]
 pub(crate) fn discard_codex_threads<R: Runtime>(
     app: tauri::AppHandle<R>,
@@ -586,7 +1209,10 @@ pub(crate) fn discard_codex_threads<R: Runtime>(
         return Err("请至少选择一条会话".to_string());
     }
     let paths = resolve_paths(&app)?;
-    let snapshots = gather_snapshots(&paths.codex_home)?
+    let all_snapshots = gather_snapshots(&paths.codex_home)?;
+    let state_db = latest_state_db(&paths.codex_home);
+    ensure_threads_are_not_referenced(&all_snapshots, &requested, state_db.as_deref())?;
+    let snapshots = all_snapshots
         .into_iter()
         .filter(|item| requested.contains(&item.session_id))
         .collect::<Vec<_>>();
@@ -608,8 +1234,8 @@ pub(crate) fn discard_codex_threads<R: Runtime>(
             Uuid::new_v4()
         ));
         let target = folder.join("files").join(&snapshot.relative_path);
-        fs::create_dir_all(target.parent().unwrap_or(&folder))
-            .map_err(|error| format!("无法创建回收站条目：{error}"))?;
+        let state_visibility =
+            state_visibility_snapshot(state_db.as_deref(), &snapshot.session_id)?;
         let manifest = BinManifest {
             session_id: snapshot.session_id.clone(),
             title: snapshot.title,
@@ -618,13 +1244,37 @@ pub(crate) fn discard_codex_threads<R: Runtime>(
             relative_rollout_path: snapshot.relative_path.to_string_lossy().to_string(),
             session_index_entry: snapshot.index_value,
             deleted_at: Utc::now().to_rfc3339(),
+            state_visibility,
         };
         let manifest_text = serde_json::to_string_pretty(&manifest)
             .map_err(|error| format!("无法生成回收站清单：{error}"))?;
         write_text_atomic(&folder.join("manifest.json"), &format!("{manifest_text}\n"))?;
-        fs::rename(&snapshot.path, &target).map_err(|error| {
-            format!("无法将会话移入回收站 {}：{error}", snapshot.path.display())
-        })?;
+        let mut moved_files = Vec::new();
+        for source in &snapshot.physical_paths {
+            let relative = source.strip_prefix(&paths.codex_home).unwrap_or(source);
+            let target = folder.join("files").join(relative);
+            fs::create_dir_all(target.parent().unwrap_or(&folder))
+                .map_err(|error| format!("无法创建回收站条目：{error}"))?;
+            if let Err(error) = fs::rename(source, &target) {
+                restore_moved_files(&moved_files);
+                return Err(format!(
+                    "无法将会话移入回收站 {}：{error}",
+                    source.display()
+                ));
+            }
+            moved_files.push((source.clone(), target));
+        }
+        let recycle_path = moved_files
+            .iter()
+            .find(|(source, _)| *source == snapshot.path)
+            .map(|(_, target)| target.as_path())
+            .unwrap_or(target.as_path());
+        if let Err(error) =
+            hide_thread_in_state(state_db.as_deref(), &snapshot.session_id, recycle_path)
+        {
+            restore_moved_files(&moved_files);
+            return Err(error);
+        }
         moved.insert(snapshot.session_id);
     }
     rewrite_index(&paths.codex_home, &moved)?;
@@ -658,17 +1308,40 @@ fn collect_bin_entries<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<Vec<BinS
                 &fs::read(&manifest_path).map_err(|error| error.to_string())?,
             )
             .map_err(|error| format!("回收站清单损坏 {}：{error}", manifest_path.display()))?;
-            let rollout = folder.join("files").join(&manifest.relative_rollout_path);
-            if rollout.is_file() {
+            let files_root = folder.join("files");
+            let mut rollouts = Vec::new();
+            collect_physical_rollouts(&files_root, &mut rollouts)?;
+            if !rollouts.is_empty() {
                 result.push(BinSnapshot {
                     folder,
                     manifest,
-                    rollout,
+                    rollouts,
                 });
             }
         }
     }
     Ok(result)
+}
+
+fn collect_physical_rollouts(root: &Path, result: &mut Vec<PathBuf>) -> Result<(), String> {
+    if !root.exists() {
+        return Ok(());
+    }
+    for entry in fs::read_dir(root).map_err(|error| error.to_string())? {
+        let entry = entry.map_err(|error| error.to_string())?;
+        let path = entry.path();
+        if entry
+            .file_type()
+            .map_err(|error| error.to_string())?
+            .is_dir()
+        {
+            collect_physical_rollouts(&path, result)?;
+        } else if logical_rollout_path(&path).is_some() {
+            result.push(path);
+        }
+    }
+    result.sort();
+    Ok(())
 }
 
 fn directory_size(path: &Path) -> u64 {
@@ -682,6 +1355,128 @@ fn directory_size(path: &Path) -> u64 {
         .filter_map(Result::ok)
         .map(|entry| directory_size(&entry.path()))
         .sum()
+}
+
+fn latest_versioned_db(codex_home: &Path, prefix: &str) -> Option<PathBuf> {
+    fs::read_dir(codex_home)
+        .ok()?
+        .filter_map(Result::ok)
+        .filter_map(|entry| {
+            let name = entry.file_name().to_string_lossy().to_string();
+            let version = name
+                .strip_prefix(prefix)?
+                .strip_suffix(".sqlite")?
+                .parse::<u64>()
+                .ok()?;
+            Some((version, entry.path()))
+        })
+        .max_by_key(|(version, _)| *version)
+        .map(|(_, path)| path)
+}
+
+fn table_exists(connection: &Connection, table: &str) -> Result<bool, String> {
+    connection
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?1)",
+            params![table],
+            |row| row.get(0),
+        )
+        .map_err(|error| error.to_string())
+}
+
+fn delete_thread_rows(
+    path: Option<PathBuf>,
+    session_id: &str,
+    operations: &[(&str, &str)],
+) -> Result<(), String> {
+    let Some(path) = path else {
+        return Ok(());
+    };
+    let mut connection = Connection::open(&path)
+        .map_err(|error| format!("无法打开 Codex 数据库 {}：{error}", path.display()))?;
+    connection
+        .busy_timeout(std::time::Duration::from_secs(5))
+        .map_err(|error| error.to_string())?;
+    let transaction = connection
+        .transaction()
+        .map_err(|error| error.to_string())?;
+    for (table, sql) in operations {
+        if table_exists(&transaction, table)? {
+            transaction
+                .execute(sql, params![session_id])
+                .map_err(|error| format!("无法清理 Codex 数据库 {}：{error}", path.display()))?;
+        }
+    }
+    transaction.commit().map_err(|error| error.to_string())
+}
+
+fn purge_thread_state(codex_home: &Path, session_id: &str) -> Result<(), String> {
+    delete_thread_rows(
+        latest_state_db(codex_home),
+        session_id,
+        &[
+            ("thread_dynamic_tools", "DELETE FROM thread_dynamic_tools WHERE thread_id = ?1"),
+            ("thread_spawn_edges", "DELETE FROM thread_spawn_edges WHERE child_thread_id = ?1 OR parent_thread_id = ?1"),
+            ("thread_goal_continuation_deferrals", "DELETE FROM thread_goal_continuation_deferrals WHERE thread_id = ?1"),
+            ("thread_goals", "DELETE FROM thread_goals WHERE thread_id = ?1"),
+            ("stage1_outputs", "DELETE FROM stage1_outputs WHERE thread_id = ?1"),
+            ("logs", "DELETE FROM logs WHERE thread_id = ?1"),
+            ("threads", "DELETE FROM threads WHERE id = ?1"),
+        ],
+    )?;
+    delete_thread_rows(
+        latest_versioned_db(codex_home, "thread_history_"),
+        session_id,
+        &[
+            (
+                "thread_items",
+                "DELETE FROM thread_items WHERE thread_id = ?1",
+            ),
+            (
+                "thread_turns",
+                "DELETE FROM thread_turns WHERE thread_id = ?1",
+            ),
+            (
+                "thread_history_projection_state",
+                "DELETE FROM thread_history_projection_state WHERE thread_id = ?1",
+            ),
+        ],
+    )?;
+    delete_thread_rows(
+        latest_versioned_db(codex_home, "queue_"),
+        session_id,
+        &[(
+            "queued_items",
+            "DELETE FROM queued_items WHERE thread_id = ?1",
+        )],
+    )?;
+    delete_thread_rows(
+        latest_versioned_db(codex_home, "goals_"),
+        session_id,
+        &[
+            (
+                "thread_goal_continuation_deferrals",
+                "DELETE FROM thread_goal_continuation_deferrals WHERE thread_id = ?1",
+            ),
+            (
+                "thread_goals",
+                "DELETE FROM thread_goals WHERE thread_id = ?1",
+            ),
+        ],
+    )?;
+    delete_thread_rows(
+        latest_versioned_db(codex_home, "memories_"),
+        session_id,
+        &[(
+            "stage1_outputs",
+            "DELETE FROM stage1_outputs WHERE thread_id = ?1",
+        )],
+    )?;
+    delete_thread_rows(
+        latest_versioned_db(codex_home, "logs_"),
+        session_id,
+        &[("logs", "DELETE FROM logs WHERE thread_id = ?1")],
+    )
 }
 
 #[tauri::command]
@@ -744,23 +1539,47 @@ pub(crate) fn recover_codex_threads<R: Runtime>(
         return Err("请至少选择一条待恢复会话".to_string());
     }
     let codex_home = resolve_paths(&app)?.codex_home;
+    let state_db = latest_state_db(&codex_home);
     let mut restored = HashSet::new();
     for item in collect_bin_entries(&app)?
         .into_iter()
         .filter(|item| requested.contains(&item.manifest.session_id))
     {
-        let target = if item.manifest.original_rollout_path.starts_with(&codex_home) {
-            item.manifest.original_rollout_path.clone()
-        } else {
-            codex_home.join(&item.manifest.relative_rollout_path)
-        };
-        if target.exists() {
+        let files_root = item.folder.join("files");
+        let targets = item
+            .rollouts
+            .iter()
+            .filter_map(|source| {
+                source
+                    .strip_prefix(&files_root)
+                    .ok()
+                    .map(|relative| (source.clone(), codex_home.join(relative)))
+            })
+            .collect::<Vec<_>>();
+        if targets.is_empty() || targets.iter().any(|(_, target)| target.exists()) {
             continue;
         }
-        fs::create_dir_all(target.parent().unwrap_or(&codex_home))
-            .map_err(|error| format!("无法创建会话目录：{error}"))?;
-        fs::rename(&item.rollout, &target)
-            .map_err(|error| format!("无法恢复会话 {}：{error}", item.manifest.session_id))?;
+        let mut moved = Vec::new();
+        for (source, target) in &targets {
+            fs::create_dir_all(target.parent().unwrap_or(&codex_home))
+                .map_err(|error| format!("无法创建会话目录：{error}"))?;
+            if let Err(error) = fs::rename(source, target) {
+                restore_moved_files(&moved);
+                return Err(format!(
+                    "无法恢复会话 {}：{error}",
+                    item.manifest.session_id
+                ));
+            }
+            moved.push((source.clone(), target.clone()));
+        }
+        if let Err(error) = restore_thread_visibility(
+            state_db.as_deref(),
+            &item.manifest.session_id,
+            item.manifest.state_visibility.as_ref(),
+        ) {
+            restore_moved_files(&moved);
+            return Err(error);
+        }
         append_index_entry(
             &codex_home,
             &item.manifest.session_id,
@@ -782,6 +1601,20 @@ fn delete_bin_items<R: Runtime>(
     requested: Option<&HashSet<String>>,
 ) -> Result<MutationReport, String> {
     let entries = collect_bin_entries(app)?;
+    let codex_home = resolve_paths(app)?.codex_home;
+    let target_ids = entries
+        .iter()
+        .filter(|item| requested.is_none_or(|values| values.contains(&item.manifest.session_id)))
+        .map(|item| item.manifest.session_id.clone())
+        .collect::<HashSet<_>>();
+    ensure_threads_are_not_referenced(
+        &gather_snapshots(&codex_home)?,
+        &target_ids,
+        latest_state_db(&codex_home).as_deref(),
+    )?;
+    for id in &target_ids {
+        purge_thread_state(&codex_home, id)?;
+    }
     let mut ids = HashSet::new();
     let mut released = 0u64;
     for item in entries
@@ -845,6 +1678,30 @@ fn selected_snapshots(
         .collect())
 }
 
+fn ensure_export_dependencies(snapshots: &[RolloutSnapshot]) -> Result<HashSet<String>, String> {
+    let included = snapshots
+        .iter()
+        .map(|item| item.session_id.clone())
+        .collect::<HashSet<_>>();
+    for item in snapshots {
+        for dependency in [
+            item.history_base_thread_id.as_deref(),
+            item.parent_thread_id.as_deref(),
+        ]
+        .into_iter()
+        .flatten()
+        {
+            if !included.contains(dependency) {
+                return Err(format!(
+                    "会话 {} 依赖会话 {dependency}，请一起选择后再导出",
+                    item.session_id
+                ));
+            }
+        }
+    }
+    Ok(included)
+}
+
 #[tauri::command]
 pub(crate) fn inspect_codex_thread_export<R: Runtime>(
     app: tauri::AppHandle<R>,
@@ -854,7 +1711,9 @@ pub(crate) fn inspect_codex_thread_export<R: Runtime>(
     if requested.is_empty() {
         return Err("请至少选择一条会话".to_string());
     }
-    let items = selected_snapshots(&resolve_paths(&app)?.codex_home, &requested)?
+    let snapshots = selected_snapshots(&resolve_paths(&app)?.codex_home, &requested)?;
+    ensure_export_dependencies(&snapshots)?;
+    let items = snapshots
         .into_iter()
         .map(|item| BundlePreviewItem {
             session_id: item.session_id,
@@ -888,6 +1747,8 @@ pub(crate) fn pack_codex_threads<R: Runtime>(
     }
     let codex_home = resolve_paths(&app)?.codex_home;
     let snapshots = selected_snapshots(&codex_home, &requested)?;
+    let included_ids = ensure_export_dependencies(&snapshots)?;
+    let state_db = latest_state_db(&codex_home);
     let destination = PathBuf::from(export_path.trim());
     if destination.as_os_str().is_empty() {
         return Err("请选择导出位置".to_string());
@@ -922,6 +1783,12 @@ pub(crate) fn pack_codex_threads<R: Runtime>(
             sha256: sha256(&snapshot.path)?,
             session_index_entry: snapshot.index_value.clone(),
             source_instance: Some(json!({ "id": "__default__", "name": "默认实例" })),
+            state_row: snapshot_thread_row(state_db.as_deref(), &snapshot.session_id)?,
+            related_state: snapshot_related_state(
+                &codex_home,
+                &snapshot.session_id,
+                &included_ids,
+            )?,
         });
     }
     let manifest = PackageManifest {
@@ -1033,6 +1900,7 @@ pub(crate) fn unpack_codex_threads<R: Runtime>(
     let path = PathBuf::from(import_path.trim());
     let manifest = read_package(&path)?;
     let codex_home = resolve_paths(&app)?.codex_home;
+    let state_db = latest_state_db(&codex_home);
     let mut existing = gather_snapshots(&codex_home)?
         .into_iter()
         .map(|item| item.session_id)
@@ -1067,6 +1935,22 @@ pub(crate) fn unpack_codex_threads<R: Runtime>(
             return Err(format!("会话 {} 校验失败", item.session_id));
         }
         replace_file(&temporary, &target).map_err(|error| error.to_string())?;
+        if let Err(error) = restore_thread_row(
+            state_db.as_deref(),
+            item.state_row.as_ref(),
+            &target,
+            &item.session_id,
+        ) {
+            let _ = fs::remove_file(&target);
+            return Err(error);
+        }
+        if let Err(error) =
+            restore_related_state(&codex_home, &item.related_state, &item.session_id)
+        {
+            let _ = purge_thread_state(&codex_home, &item.session_id);
+            let _ = fs::remove_file(&target);
+            return Err(error);
+        }
         append_index_entry(&codex_home, &item.session_id, &item.session_index_entry)?;
         existing.insert(item.session_id.clone());
         imported += 1;
@@ -1176,8 +2060,7 @@ fn create_visibility_checkpoint<R: Runtime>(
 }
 
 fn rewrite_rollout_provider(path: &Path, target_provider: &str) -> Result<bool, String> {
-    let source = File::open(path).map_err(|error| error.to_string())?;
-    let mut reader = BufReader::new(source);
+    let mut reader = rollout_reader(path)?;
     let mut first = String::new();
     reader
         .read_line(&mut first)
@@ -1192,11 +2075,30 @@ fn rewrite_rollout_provider(path: &Path, target_provider: &str) -> Result<bool, 
     }
     *provider = Value::String(target_provider.to_string());
     let temporary = path.with_extension(format!("visibility-{}.tmp", Uuid::new_v4()));
-    let mut output = File::create(&temporary).map_err(|error| error.to_string())?;
-    serde_json::to_writer(&mut output, &meta).map_err(|error| error.to_string())?;
-    output.write_all(b"\n").map_err(|error| error.to_string())?;
-    std::io::copy(&mut reader, &mut output).map_err(|error| error.to_string())?;
-    output.sync_all().map_err(|error| error.to_string())?;
+    if path.extension().and_then(|value| value.to_str()) == Some("zst") {
+        let output = File::create(&temporary).map_err(|error| error.to_string())?;
+        let mut encoder =
+            zstd::stream::write::Encoder::new(output, 3).map_err(|error| error.to_string())?;
+        serde_json::to_writer(&mut encoder, &meta).map_err(|error| error.to_string())?;
+        encoder
+            .write_all(b"\n")
+            .map_err(|error| error.to_string())?;
+        std::io::copy(&mut reader, &mut encoder).map_err(|error| error.to_string())?;
+        encoder
+            .finish()
+            .map_err(|error| error.to_string())?
+            .sync_all()
+            .map_err(|error| error.to_string())?;
+    } else {
+        let mut output = File::create(&temporary).map_err(|error| error.to_string())?;
+        serde_json::to_writer(&mut output, &meta).map_err(|error| error.to_string())?;
+        output.write_all(b"\n").map_err(|error| error.to_string())?;
+        std::io::copy(&mut reader, &mut output).map_err(|error| error.to_string())?;
+        output.sync_all().map_err(|error| error.to_string())?;
+    }
+    // Windows does not allow replacing the rollout while its decoder still owns
+    // an open handle to the original file.
+    drop(reader);
     replace_file(&temporary, path).map_err(|error| error.to_string())?;
     Ok(true)
 }
@@ -1516,5 +2418,233 @@ mod tests {
         assert!(safe_relative_path("sessions/2026/rollout-a.jsonl").is_some());
         assert!(safe_relative_path("../auth.json").is_none());
         assert!(safe_relative_path("C:/outside/rollout.jsonl").is_none());
+    }
+
+    #[test]
+    fn scans_searches_and_rewrites_compressed_rollouts() {
+        let root = test_root("compressed");
+        let session_dir = root.join("sessions/2026/08/09");
+        fs::create_dir_all(&session_dir).unwrap();
+        let rollout = session_dir.join("rollout-thread-z.jsonl.zst");
+        let source = r#"{"timestamp":"2026-08-09T10:00:00Z","type":"session_meta","payload":{"id":"thread-z","cwd":"F:\\projects\\zeta","model_provider":"openai"}}
+{"type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":20,"output_tokens":7,"total_tokens":27}}}}
+{"type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"Compressed Zeta history"}]}}
+"#;
+        let output = File::create(&rollout).unwrap();
+        let mut encoder = zstd::stream::write::Encoder::new(output, 3).unwrap();
+        encoder.write_all(source.as_bytes()).unwrap();
+        encoder.finish().unwrap();
+
+        let snapshots = gather_snapshots(&root).unwrap();
+        assert_eq!(snapshots.len(), 1);
+        assert_eq!(snapshots[0].path, rollout);
+        assert_eq!(token_totals(&snapshots[0].path), Some((20, 7, 27)));
+        assert_eq!(
+            locate_rollout_text(&snapshots[0].path, "zeta")
+                .unwrap()
+                .as_deref(),
+            Some("Compressed Zeta history")
+        );
+
+        assert!(rewrite_rollout_provider(&snapshots[0].path, "custom").unwrap());
+        let meta = first_rollout_value(&snapshots[0].path).unwrap().unwrap();
+        assert_eq!(meta["payload"]["model_provider"], "custom");
+        assert!(locate_rollout_text(&snapshots[0].path, "compressed")
+            .unwrap()
+            .is_some());
+
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn recycle_visibility_roundtrips_the_codex_state_row() {
+        let root = test_root("state-visibility");
+        fs::create_dir_all(&root).unwrap();
+        let state_db = root.join("state_5.sqlite");
+        let connection = Connection::open(&state_db).unwrap();
+        connection
+            .execute_batch(
+                "CREATE TABLE threads (
+                    id TEXT PRIMARY KEY,
+                    rollout_path TEXT NOT NULL,
+                    archived INTEGER NOT NULL,
+                    archived_at INTEGER,
+                    preview TEXT NOT NULL
+                );",
+            )
+            .unwrap();
+        connection
+            .execute(
+                "INSERT INTO threads (id, rollout_path, archived, archived_at, preview) VALUES (?1, ?2, 0, NULL, ?3)",
+                params!["thread-a", "sessions/rollout-thread-a.jsonl", "Visible thread"],
+            )
+            .unwrap();
+        drop(connection);
+
+        let visibility = state_visibility_snapshot(Some(&state_db), "thread-a")
+            .unwrap()
+            .unwrap();
+        hide_thread_in_state(
+            Some(&state_db),
+            "thread-a",
+            &root.join("bin/rollout-thread-a.jsonl"),
+        )
+        .unwrap();
+        let hidden = state_visibility_snapshot(Some(&state_db), "thread-a")
+            .unwrap()
+            .unwrap();
+        assert_eq!(hidden.archived, 1);
+        assert!(hidden.preview.is_empty());
+
+        restore_thread_visibility(Some(&state_db), "thread-a", Some(&visibility)).unwrap();
+        let restored = state_visibility_snapshot(Some(&state_db), "thread-a")
+            .unwrap()
+            .unwrap();
+        assert_eq!(restored.archived, 0);
+        assert_eq!(restored.preview, "Visible thread");
+        assert_eq!(restored.rollout_path, "sessions/rollout-thread-a.jsonl");
+
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn related_sqlite_state_roundtrips_for_import() {
+        let source = test_root("related-state-source");
+        let target = test_root("related-state-target");
+        fs::create_dir_all(&source).unwrap();
+        fs::create_dir_all(&target).unwrap();
+
+        for root in [&source, &target] {
+            Connection::open(root.join("state_2.sqlite"))
+                .unwrap()
+                .execute_batch(
+                    "CREATE TABLE threads (id TEXT PRIMARY KEY, rollout_path TEXT NOT NULL);
+                     CREATE TABLE thread_dynamic_tools (
+                         thread_id TEXT NOT NULL, position INTEGER NOT NULL, name TEXT NOT NULL,
+                         PRIMARY KEY (thread_id, position)
+                     );
+                     CREATE TABLE thread_spawn_edges (
+                         parent_thread_id TEXT NOT NULL, child_thread_id TEXT PRIMARY KEY, status TEXT NOT NULL
+                     );",
+                )
+                .unwrap();
+            Connection::open(root.join("thread_history_3.sqlite"))
+                .unwrap()
+                .execute_batch(
+                    "CREATE TABLE thread_turns (
+                         thread_id TEXT NOT NULL, turn_id TEXT NOT NULL,
+                         PRIMARY KEY (thread_id, turn_id)
+                     );
+                     CREATE TABLE thread_items (
+                         thread_id TEXT NOT NULL, turn_id TEXT NOT NULL, item_id TEXT NOT NULL,
+                         PRIMARY KEY (thread_id, turn_id, item_id)
+                     );
+                     CREATE TABLE thread_history_projection_state (
+                         thread_id TEXT PRIMARY KEY, next_rollout_ordinal INTEGER NOT NULL
+                     );",
+                )
+                .unwrap();
+            Connection::open(root.join("queue_1.sqlite"))
+                .unwrap()
+                .execute_batch(
+                    "CREATE TABLE queued_items (
+                         id TEXT PRIMARY KEY, thread_id TEXT NOT NULL, payload_json TEXT NOT NULL
+                     );",
+                )
+                .unwrap();
+        }
+
+        Connection::open(source.join("state_2.sqlite"))
+            .unwrap()
+            .execute_batch(
+                "INSERT INTO threads VALUES ('thread-a', 'sessions/source.jsonl');
+                 INSERT INTO thread_dynamic_tools VALUES ('thread-a', 0, 'tool-a');
+                 INSERT INTO thread_spawn_edges VALUES ('thread-a', 'thread-b', 'completed');",
+            )
+            .unwrap();
+        Connection::open(source.join("thread_history_3.sqlite"))
+            .unwrap()
+            .execute_batch(
+                "INSERT INTO thread_turns VALUES ('thread-a', 'turn-a');
+                 INSERT INTO thread_items VALUES ('thread-a', 'turn-a', 'item-a');
+                 INSERT INTO thread_history_projection_state VALUES ('thread-a', 7);",
+            )
+            .unwrap();
+        Connection::open(source.join("queue_1.sqlite"))
+            .unwrap()
+            .execute(
+                "INSERT INTO queued_items VALUES ('queue-a', 'thread-a', '{}')",
+                [],
+            )
+            .unwrap();
+
+        let thread_row =
+            snapshot_thread_row(latest_state_db(&source).as_deref(), "thread-a").unwrap();
+        restore_thread_row(
+            latest_state_db(&target).as_deref(),
+            thread_row.as_ref(),
+            &target.join("sessions/rollout-thread-a.jsonl.zst"),
+            "thread-a",
+        )
+        .unwrap();
+        let included = HashSet::from(["thread-a".to_string(), "thread-b".to_string()]);
+        let related = snapshot_related_state(&source, "thread-a", &included).unwrap();
+        restore_related_state(&target, &related, "thread-a").unwrap();
+
+        let state = Connection::open(target.join("state_2.sqlite")).unwrap();
+        let restored_path: String = state
+            .query_row(
+                "SELECT rollout_path FROM threads WHERE id = 'thread-a'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(restored_path.ends_with("rollout-thread-a.jsonl"));
+        assert_eq!(
+            state
+                .query_row(
+                    "SELECT COUNT(*) FROM thread_dynamic_tools WHERE thread_id = 'thread-a'",
+                    [],
+                    |row| row.get::<_, i64>(0),
+                )
+                .unwrap(),
+            1
+        );
+        assert_eq!(
+            state
+                .query_row(
+                    "SELECT COUNT(*) FROM thread_spawn_edges WHERE parent_thread_id = 'thread-a'",
+                    [],
+                    |row| row.get::<_, i64>(0),
+                )
+                .unwrap(),
+            1
+        );
+        assert_eq!(
+            Connection::open(target.join("thread_history_3.sqlite"))
+                .unwrap()
+                .query_row(
+                    "SELECT COUNT(*) FROM thread_items WHERE thread_id = 'thread-a'",
+                    [],
+                    |row| row.get::<_, i64>(0),
+                )
+                .unwrap(),
+            1
+        );
+        assert_eq!(
+            Connection::open(target.join("queue_1.sqlite"))
+                .unwrap()
+                .query_row(
+                    "SELECT COUNT(*) FROM queued_items WHERE thread_id = 'thread-a'",
+                    [],
+                    |row| row.get::<_, i64>(0),
+                )
+                .unwrap(),
+            1
+        );
+
+        drop(state);
+        fs::remove_dir_all(source).unwrap();
+        fs::remove_dir_all(target).unwrap();
     }
 }

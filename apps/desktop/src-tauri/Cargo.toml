@@ -42,6 +42,7 @@ tungstenite = { version = "0.28", default-features = false, features = ["handsha
 url = "2"
 uuid = { version = "1", features = ["v4"] }
 zip = { version = "2", default-features = false, features = ["deflate"] }
+zstd = "0.13"
 rusqlite = { version = "0.32.1", default-features = false, features = ["bundled"] }
 sysinfo = "0.37"
 

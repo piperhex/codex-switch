@@ -333,10 +333,16 @@ export async function loadAppSettings(): Promise<AppSettings> {
 export async function loadProviders(): Promise<Provider[]> {
   if (!hasLocalBackend) {
     const proxyRunning = previewLocalProxyStatus().running;
-    return readPreviewProviders().map((provider) => ({
+    const providers = readPreviewProviders();
+    const normalized = providers.map((provider) => ({
       ...provider,
-      supportsDirectSwitch: provider.apiFormat === "openaiResponses" || proxyRunning,
+      active: proxyRunning && provider.active,
+      supportsDirectSwitch: proxyRunning,
     }));
+    if (!proxyRunning && providers.some((provider) => provider.active)) {
+      writePreviewProviders(normalized);
+    }
+    return normalized;
   }
   return invoke<Provider[]>("list_providers");
 }
@@ -372,7 +378,7 @@ export async function saveProviderProfile(provider: ProviderInput): Promise<Prov
       apiFormat,
       active: existing?.active ?? false,
       hasApiKey,
-      supportsDirectSwitch: apiFormat === "openaiResponses" || previewLocalProxyStatus().running,
+      supportsDirectSwitch: previewLocalProxyStatus().running,
       balancePlatform: provider.balancePlatform ?? null,
       balanceQueryUrl: provider.balanceQueryUrl ?? null,
       balanceQueryUsesApiKey: provider.balanceQueryUsesApiKey !== false,
@@ -452,7 +458,9 @@ export async function activateProvider(id: string): Promise<void> {
     const providers = readPreviewProviders();
     const selected = providers.find((provider) => provider.id === id);
     if (!selected) throw new Error("Provider does not exist");
-    if (!selected.supportsDirectSwitch && !previewLocalProxyStatus().running) throw new Error("Chat Completions providers need a local Responses bridge");
+    if (!previewLocalProxyStatus().running) {
+      throw new Error("Third-party Providers require the local proxy. Start the local proxy before switching Provider.");
+    }
     window.localStorage.setItem(LOCAL_PROXY_CONCURRENT_ROUTING_PREVIEW_KEY, "false");
     writePreviewProviders(providers.map((provider) => ({ ...provider, active: provider.id === id })));
     return;
@@ -791,7 +799,7 @@ export async function stopLocalProxy(): Promise<LocalProxyStatus> {
     writePreviewProviders(readPreviewProviders().map((provider) => ({
       ...provider,
       active: false,
-      supportsDirectSwitch: provider.apiFormat === "openaiResponses",
+      supportsDirectSwitch: false,
     })));
     return previewLocalProxyStatus();
   }
