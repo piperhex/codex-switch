@@ -1,11 +1,16 @@
 ((cssText, artDataUrl, rawConfig) => {
   const SHELL_MAIN_SELECTOR = 'main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"])';
   const SETTINGS_SURFACE_SELECTOR = '[data-settings-panel-slug="general-settings"], input[name="appearance-theme"], [data-testid="theme-preview"]';
+  const COMPOSER_SURFACE_SELECTOR =
+    ':is(.composer-surface-chrome, :where([data-codex-composer-root] [data-composer-layout][data-composer-surface-variant]))';
+  const HOME_UTILITY_SELECTOR =
+    '[class*="_homeUtilityBar_"], [data-composer-home-utility-bar-position]';
   const compatibleCssText = cssText
     .replaceAll("main.main-surface", SHELL_MAIN_SELECTOR)
     .replaceAll("header.app-header-tint", 'header:is(.app-header-tint, [data-app-shell-header-edge-scroll], [class*="_Header_"])')
     .replaceAll(".app-shell-main-content-top-fade", ':is(.app-shell-main-content-top-fade, [data-app-shell-main-content-top-fade], [class*="_MainContentTopFade_"])')
-    .replaceAll("[data-message-author-role]", ':is([data-message-author-role], [data-local-conversation-user-anchor], [data-local-conversation-final-assistant])');
+    .replaceAll("[data-message-author-role]", ':is([data-message-author-role], [data-local-conversation-user-anchor], [data-local-conversation-final-assistant])')
+    .replaceAll(".composer-surface-chrome", COMPOSER_SURFACE_SELECTOR);
   const VERSION = __DREAM_SKIN_VERSION_JSON__;
   const STATE_KEY = "__CODEX_DREAM_SKIN_STATE__";
   const STYLE_ID = "codex-dream-skin-style";
@@ -113,7 +118,7 @@
   };
   const existingStyle = document.getElementById(STYLE_ID);
   if (existingStyle) {
-    existingStyle.textContent = cssText;
+    existingStyle.textContent = compatibleCssText;
     existingStyle.dataset.dreamVersion = "3";
   }
 
@@ -365,7 +370,7 @@
       candidate.classList.toggle("dream-home", candidate === home);
       candidate.classList.toggle("dream-task", candidate !== home);
     }
-    const utilityBars = new Set(home ? home.querySelectorAll('[class*="_homeUtilityBar_"]') : []);
+    const utilityBars = new Set(home ? home.querySelectorAll(HOME_UTILITY_SELECTOR) : []);
     for (const candidate of document.querySelectorAll(`.${HOME_UTILITY_CLASS}`)) {
       if (!utilityBars.has(candidate)) candidate.classList.remove(HOME_UTILITY_CLASS);
     }

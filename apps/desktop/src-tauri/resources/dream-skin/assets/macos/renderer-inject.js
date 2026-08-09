@@ -1,10 +1,15 @@
 ((cssText, artDataUrl, themeConfig) => {
   const SHELL_MAIN_SELECTOR = 'main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"])';
+  const COMPOSER_SURFACE_SELECTOR =
+    ':is(.composer-surface-chrome, :where([data-codex-composer-root] [data-composer-layout][data-composer-surface-variant]))';
+  const HOME_UTILITY_SELECTOR =
+    '[class*="_homeUtilityBar_"], [data-composer-home-utility-bar-position]';
   const compatibleCssText = cssText
     .replaceAll("main.main-surface", SHELL_MAIN_SELECTOR)
     .replaceAll("header.app-header-tint", 'header:is(.app-header-tint, [data-app-shell-header-edge-scroll], [class*="_Header_"])')
     .replaceAll(".app-shell-main-content-top-fade", ':is(.app-shell-main-content-top-fade, [data-app-shell-main-content-top-fade], [class*="_MainContentTopFade_"])')
-    .replaceAll("[data-message-author-role]", ':is([data-message-author-role], [data-local-conversation-user-anchor], [data-local-conversation-final-assistant])');
+    .replaceAll("[data-message-author-role]", ':is([data-message-author-role], [data-local-conversation-user-anchor], [data-local-conversation-final-assistant])')
+    .replaceAll(".composer-surface-chrome", COMPOSER_SURFACE_SELECTOR);
   const STATE_KEY = "__CODEX_DREAM_SKIN_STATE__";
   const DISABLED_KEY = "__CODEX_DREAM_SKIN_DISABLED__";
   const STYLE_ID = "codex-dream-skin-style";
@@ -542,7 +547,8 @@
       style.textContent = compatibleCssText;
       style.dataset.dreamSkinVersion = VERSION;
       (document.head || root).appendChild(style);
-    } else if (style.dataset.dreamSkinStyleRevision !== STYLE_REVISION) {
+    } else if (style.dataset.dreamSkinVersion !== VERSION ||
+      style.dataset.dreamSkinStyleRevision !== STYLE_REVISION) {
       style.textContent = compatibleCssText;
     }
     style.dataset.dreamSkinVersion = VERSION;
@@ -578,7 +584,7 @@
     }
     if (home) home.classList.add("dream-skin-home");
     const homeUtilityBars = new Set(home
-      ? home.querySelectorAll('[class*="_homeUtilityBar_"]')
+      ? home.querySelectorAll(HOME_UTILITY_SELECTOR)
       : []);
     for (const candidate of document.querySelectorAll(".dream-skin-home-utility")) {
       if (!homeUtilityBars.has(candidate)) candidate.classList.remove("dream-skin-home-utility");

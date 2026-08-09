@@ -32,7 +32,7 @@ use crate::dream_skin::{
 };
 
 const NATIVE_RUNTIME_VERSION: &str = "2.0.0";
-const SKIN_VERSION: &str = "1.2.1";
+const SKIN_VERSION: &str = "1.2.2";
 const DEFAULT_CDP_PORT: u16 = 9335;
 const CDP_COMMAND_TIMEOUT: Duration = Duration::from_secs(10);
 const MAX_ART_BYTES: u64 = 16 * 1024 * 1024;
@@ -816,7 +816,12 @@ fn render_payload(
     let theme_json = serde_json::to_string(theme).map_err(|error| error.to_string())?;
 
     let mut style_hasher = Sha256::new();
+    // Renderer compatibility rewrites are part of the effective stylesheet.
+    // Include the renderer and version so an already-open window refreshes
+    // when those rewrites change even if the raw CSS file does not.
+    style_hasher.update(SKIN_VERSION.as_bytes());
     style_hasher.update(css.as_bytes());
+    style_hasher.update(template.as_bytes());
     let style_revision = format!("{:x}", style_hasher.finalize())[..20].to_string();
 
     let mut payload_hasher = Sha256::new();
@@ -923,14 +928,22 @@ const VERIFY_PAYLOAD: &str = r#"(() => {
   const result = {
     installed: document.documentElement.classList.contains('codex-dream-skin'),
     version: window.__CODEX_DREAM_SKIN_STATE__?.version ?? null,
-    expectedVersion: '1.2.1',
+    expectedVersion: '1.2.2',
     stylePresent: Boolean(document.getElementById('codex-dream-skin-style')),
     chromePresent: Boolean(document.getElementById('codex-dream-skin-chrome')),
+    shellPresent: Boolean(document.querySelector(
+      'main:is(.main-surface, [data-app-shell-main-surface], [class*="_MainContentSurface_"])'
+    )),
     sidebarPresent: Boolean(document.querySelector('aside.app-shell-left-panel')),
-    composerPresent: Boolean(document.querySelector('.composer-surface-chrome')),
+    composerPresent: Boolean(document.querySelector(
+      '.composer-surface-chrome, [data-codex-composer-root] [data-composer-layout][data-composer-surface-variant]'
+    )),
     settingsPresent,
   };
-  const primarySurface = result.chromePresent && result.sidebarPresent && result.composerPresent;
+  // Composer markup is route- and version-dependent. Codex 26.803 replaced
+  // .composer-surface-chrome with semantic data attributes, and some valid
+  // detail routes have no composer at all. Verify the stable shell instead.
+  const primarySurface = result.chromePresent && result.shellPresent && result.sidebarPresent;
   result.pass = result.installed && result.version === result.expectedVersion &&
     result.stylePresent && (primarySurface || result.settingsPresent);
   return result;
@@ -1127,11 +1140,15 @@ fn list_targets(port: u16) -> Result<Vec<CdpTarget>, String> {
         .collect())
 }
 
+fn codex_probe_succeeded(probe: &Value) -> bool {
+    probe.get("codex").and_then(Value::as_bool) == Some(true)
+}
+
 fn wait_for_codex_probe(session: &mut CdpSession, timeout: Duration) -> Result<bool, String> {
     let deadline = Instant::now() + timeout;
     loop {
         let probe = session.evaluate(CODEX_PROBE_PAYLOAD)?;
-        if probe.get("codex").and_then(Value::as_bool) == Some(true) {
+        if codex_probe_succeeded(&probe) {
             return Ok(true);
         }
         if Instant::now() >= deadline {
@@ -1449,6 +1466,16 @@ fn verification_succeeded(results: &[Value]) -> bool {
     })
 }
 
+fn verification_timeout_reason(last_error: &str, results: &[Value]) -> String {
+    if results.iter().any(|entry| entry.get("result").is_some()) {
+        "the skin could not be confirmed in the Codex window".to_string()
+    } else if !last_error.is_empty() {
+        last_error.to_string()
+    } else {
+        "no Codex main window was ready for verification".to_string()
+    }
+}
+
 fn wait_for_verified(port: u16, timeout: Duration) -> Result<Vec<Value>, String> {
     let deadline = Instant::now() + timeout;
     let mut last_results = Vec::new();
@@ -1457,14 +1484,21 @@ fn wait_for_verified(port: u16, timeout: Duration) -> Result<Vec<Value>, String>
         match list_targets(port) {
             Ok(targets) => {
                 last_results.clear();
+                last_error.clear();
                 for target in targets {
                     match CdpSession::connect(&target, port).and_then(|mut session| {
                         session.enable()?;
-                        session.evaluate(VERIFY_PAYLOAD)
-                    }) {
-                        Ok(value) => {
-                            last_results.push(json!({ "targetId": target.id, "result": value }))
+                        let probe = session.evaluate(CODEX_PROBE_PAYLOAD)?;
+                        if !codex_probe_succeeded(&probe) {
+                            return Ok(None);
                         }
+                        session.evaluate(VERIFY_PAYLOAD).map(Some)
+                    }) {
+                        Ok(Some(value)) => last_results.push(json!({
+                            "targetId": target.id,
+                            "result": value,
+                        })),
+                        Ok(None) => {}
                         Err(error) => last_error = error,
                     }
                 }
@@ -1476,9 +1510,10 @@ fn wait_for_verified(port: u16, timeout: Duration) -> Result<Vec<Value>, String>
         }
         thread::sleep(Duration::from_millis(400));
     }
+    let reason = verification_timeout_reason(&last_error, &last_results);
     Err(format!(
         "Dream Skin verification timed out: {}; last result: {}",
-        last_error,
+        reason,
         serde_json::to_string(&last_results).unwrap_or_default()
     ))
 }
@@ -2422,6 +2457,31 @@ mod tests {
     }
 
     #[test]
+    fn codex_probe_rejects_auxiliary_renderer_targets() {
+        assert!(codex_probe_succeeded(&json!({ "codex": true })));
+        assert!(!codex_probe_succeeded(&json!({ "codex": false })));
+        assert!(!codex_probe_succeeded(&json!({})));
+    }
+
+    #[test]
+    fn verification_timeout_reason_is_never_empty() {
+        let failed_main = vec![json!({ "result": { "pass": false } })];
+
+        assert_eq!(
+            verification_timeout_reason("", &failed_main),
+            "the skin could not be confirmed in the Codex window"
+        );
+        assert_eq!(
+            verification_timeout_reason("CDP unavailable", &[]),
+            "CDP unavailable"
+        );
+        assert_eq!(
+            verification_timeout_reason("", &[]),
+            "no Codex main window was ready for verification"
+        );
+    }
+
+    #[test]
     fn codex_26_727_renderer_contract_is_bundled() {
         let windows = include_str!("../resources/dream-skin/assets/windows/renderer-inject.js");
         let macos = include_str!("../resources/dream-skin/assets/macos/renderer-inject.js");
@@ -2451,6 +2511,27 @@ mod tests {
         }
         assert!(VERIFY_PAYLOAD.contains("settingsPresent"));
         assert!(VERIFY_PAYLOAD.contains(SKIN_VERSION));
+    }
+
+    #[test]
+    fn codex_26_803_composer_contract_is_bundled() {
+        let windows = include_str!("../resources/dream-skin/assets/windows/renderer-inject.js");
+        let macos = include_str!("../resources/dream-skin/assets/macos/renderer-inject.js");
+
+        for renderer in [windows, macos] {
+            assert!(renderer.contains("[data-composer-surface-variant]"));
+            assert!(renderer.contains("[data-codex-composer-root] [data-composer-layout]"));
+            assert!(renderer.contains("[data-composer-home-utility-bar-position]"));
+            assert!(renderer.contains(".replaceAll(\".composer-surface-chrome\""));
+        }
+        assert!(windows.contains("existingStyle.textContent = compatibleCssText"));
+        assert!(macos.contains("style.dataset.dreamSkinVersion !== VERSION"));
+        assert!(VERIFY_PAYLOAD.contains("[data-codex-composer-root]"));
+        assert!(VERIFY_PAYLOAD.contains("shellPresent"));
+        assert!(VERIFY_PAYLOAD
+            .contains("result.chromePresent && result.shellPresent && result.sidebarPresent"));
+        assert!(!VERIFY_PAYLOAD
+            .contains("result.chromePresent && result.sidebarPresent && result.composerPresent"));
     }
 
     #[cfg(target_os = "windows")]
