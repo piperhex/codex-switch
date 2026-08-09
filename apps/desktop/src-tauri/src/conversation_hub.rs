@@ -1879,8 +1879,15 @@ pub(crate) fn inspect_codex_thread_import<R: Runtime>(
 
 fn safe_relative_path(value: &str) -> Option<PathBuf> {
     let normalized = value.replace('\\', "/");
+    let bytes = normalized.as_bytes();
+    let has_windows_drive_prefix = matches!(
+        (bytes.first(), bytes.get(1)),
+        (Some(drive), Some(b':')) if drive.is_ascii_alphabetic()
+    );
     let path = PathBuf::from(normalized);
-    (!path.is_absolute()
+    (!path.as_os_str().is_empty()
+        && !has_windows_drive_prefix
+        && !path.is_absolute()
         && path
             .components()
             .all(|part| matches!(part, std::path::Component::Normal(_))))
@@ -2416,8 +2423,13 @@ mod tests {
     #[test]
     fn package_paths_cannot_escape_codex_home() {
         assert!(safe_relative_path("sessions/2026/rollout-a.jsonl").is_some());
+        assert!(safe_relative_path("").is_none());
         assert!(safe_relative_path("../auth.json").is_none());
+        assert!(safe_relative_path("/outside/rollout.jsonl").is_none());
         assert!(safe_relative_path("C:/outside/rollout.jsonl").is_none());
+        assert!(safe_relative_path(r"C:\outside\rollout.jsonl").is_none());
+        assert!(safe_relative_path("C:outside/rollout.jsonl").is_none());
+        assert!(safe_relative_path(r"\\server\share\rollout.jsonl").is_none());
     }
 
     #[test]
