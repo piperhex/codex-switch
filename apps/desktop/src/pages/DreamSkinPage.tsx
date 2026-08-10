@@ -1,24 +1,30 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Button, Input, InputNumber, Modal, Popconfirm, Progress, Segmented, Select, Tooltip } from "antd";
+import { Alert, Button, Input, InputNumber, Modal, Popconfirm, Progress, Segmented, Select, Tabs, Tooltip } from "antd";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   Check,
   CirclePause,
   CirclePlay,
   CloudDownload,
   FolderOpen,
+  Github,
   ImagePlus,
   RefreshCw,
   RotateCcw,
   Save,
+  Search,
   ShieldCheck,
   Sparkles,
+  Store,
   WandSparkles,
 } from "lucide-react";
 import {
   applyDreamSkinTheme,
   chooseDreamSkinImage,
   importDreamSkinImage,
+  installDreamSkinMarketTheme,
   installDreamSkin,
+  loadDreamSkinMarket,
   loadDreamSkinResourcesStatus,
   loadDreamSkinStatus,
   loadDreamSkinThemePreview,
@@ -36,6 +42,8 @@ import type { Translate } from "../i18n";
 import type {
   DreamSkinAppearance,
   DreamSkinImportOptions,
+  DreamSkinMarketResult,
+  DreamSkinMarketTheme,
   DreamSkinResourcesStatus,
   DreamSkinStatus,
   DreamSkinThemeSummary,
@@ -158,6 +166,52 @@ function SavedThemeCard({ theme, status, busy, onApply, t }: {
     previewEnabled onApply={onApply} t={t} />;
 }
 
+function MarketThemeCard({ theme, active, busy, onInstall, t }: {
+  theme: DreamSkinMarketTheme;
+  active: boolean;
+  busy: boolean;
+  onInstall: () => void;
+  t: Translate;
+}) {
+  const needsInstall = !theme.installed || theme.updateAvailable;
+  return (
+    <article className={`dream-theme-card dream-market-card${active ? " is-active" : ""}`}>
+      <div className="dream-theme-preview" style={{ backgroundImage: `url("${theme.previewUrl}")` }}>
+        <div className="dream-theme-preview-shade" />
+        <span className="dream-market-version">v{theme.version}</span>
+        {active && <span className="dream-theme-current"><Check size={13} />{t("dreamSkin.current")}</span>}
+      </div>
+      <div className="dream-market-copy">
+        <div className="dream-market-title-row">
+          <div><h3>{theme.name}</h3><small>{t("dreamSkin.market.by", { author: theme.author })}</small></div>
+          <Tooltip title={t("dreamSkin.market.source")}>
+            <Button aria-label={t("dreamSkin.market.source")} size="small" type="text" icon={<Github size={15} />}
+              onClick={() => void openUrl(theme.sourceUrl)} />
+          </Tooltip>
+        </div>
+        <p>{theme.description}</p>
+        <div className="dream-market-tags">
+          {theme.tags.map((tag) => <span key={tag}>{tag}</span>)}
+        </div>
+        <div className="dream-market-footer">
+          <small>{theme.license}</small>
+          <Button type={needsInstall ? "primary" : "default"} disabled={active && !theme.updateAvailable}
+            loading={busy} icon={active && !theme.updateAvailable ? <Check size={14} /> : <CloudDownload size={14} />}
+            onClick={onInstall}>
+            {active && !theme.updateAvailable
+              ? t("dreamSkin.applied")
+              : theme.updateAvailable
+                ? t("dreamSkin.market.updateApply")
+                : theme.installed
+                  ? t("dreamSkin.apply")
+                  : t("dreamSkin.market.installApply")}
+          </Button>
+        </div>
+      </div>
+    </article>
+  );
+}
+
 function formatResourceBytes(bytes?: number | null): string {
   if (!bytes) return "0 MB";
   return `${(bytes / 1024 / 1024).toFixed(bytes >= 100 * 1024 * 1024 ? 0 : 1)} MB`;
@@ -183,6 +237,11 @@ export function DreamSkinPage({ t, notify }: DreamSkinPageProps) {
   const [importOptions, setImportOptions] = useState<DreamSkinImportOptions>(DEFAULT_IMPORT_OPTIONS);
   const [saveOpen, setSaveOpen] = useState(false);
   const [saveName, setSaveName] = useState("");
+  const [themeTab, setThemeTab] = useState<"builtIn" | "market">("builtIn");
+  const [market, setMarket] = useState<DreamSkinMarketResult | null>(null);
+  const [marketLoading, setMarketLoading] = useState(false);
+  const [marketError, setMarketError] = useState<string | null>(null);
+  const [marketQuery, setMarketQuery] = useState("");
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -197,6 +256,22 @@ export function DreamSkinPage({ t, notify }: DreamSkinPageProps) {
   }, []);
 
   useEffect(() => { void refresh(); }, [refresh]);
+
+  const refreshMarket = useCallback(async () => {
+    setMarketLoading(true);
+    setMarketError(null);
+    try {
+      setMarket(await loadDreamSkinMarket());
+    } catch (loadError) {
+      setMarketError(String(loadError));
+    } finally {
+      setMarketLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (themeTab === "market" && !market && !marketLoading) void refreshMarket();
+  }, [market, marketLoading, refreshMarket, themeTab]);
 
   useEffect(() => {
     let cancelled = false;
@@ -324,6 +399,37 @@ export function DreamSkinPage({ t, notify }: DreamSkinPageProps) {
   const savedThemes = useMemo(() => (
     status?.savedThemes.filter((theme) => !BUILT_IN_DREAM_SKIN_IDS.has(theme.id)) ?? []
   ), [status?.savedThemes]);
+
+  const filteredMarketThemes = useMemo(() => {
+    const query = marketQuery.trim().toLocaleLowerCase();
+    if (!query) return market?.themes ?? [];
+    return (market?.themes ?? []).filter((theme) => (
+      [theme.name, theme.author, theme.description, theme.id, ...theme.tags]
+        .some((value) => value.toLocaleLowerCase().includes(query))
+    ));
+  }, [market?.themes, marketQuery]);
+
+  const installAndApplyMarketTheme = useCallback((theme: DreamSkinMarketTheme) => {
+    if (theme.installed && !theme.updateAvailable) {
+      applyTheme(theme.id);
+      return;
+    }
+    const operation = async () => {
+      const ok = await runStatusOperation(
+        `market:${theme.id}`,
+        async () => {
+          await installDreamSkinMarketTheme(theme.id);
+          const next = await applyDreamSkinTheme(theme.id);
+          void refreshMarket();
+          return next;
+        },
+        t(theme.updateAvailable ? "dreamSkin.market.toast.updated" : "dreamSkin.market.toast.installed"),
+      );
+      return ok;
+    };
+    if (status?.installed) void operation();
+    else confirmChatGptRestart(operation);
+  }, [applyTheme, confirmChatGptRestart, refreshMarket, runStatusOperation, status?.installed, t]);
 
   const sessionLabel = status ? t(`dreamSkin.session.${status.session}`) : t("dreamSkin.session.loading");
   const activeThemeName = status?.activeThemeName || t("dreamSkin.noActiveTheme");
@@ -457,24 +563,59 @@ export function DreamSkinPage({ t, notify }: DreamSkinPageProps) {
       {!status?.installed && <Alert className="dream-skin-prerequisite" type="info" showIcon
         message={t("dreamSkin.installHint.title")} description={t("dreamSkin.installHint.description")} />}
 
-      <section className="dream-skin-section">
-        <div className="dream-section-heading"><div><span>{t("dreamSkin.presets.eyebrow")}</span>
-          <h2>{t("dreamSkin.presets.title")}</h2></div>
-          <p>{t("dreamSkin.presets.description")}</p></div>
-        <div className="dream-theme-grid">
-          {BUILT_IN_DREAM_SKIN_THEMES.map((theme) => <ThemeCard key={theme.id}
-            active={status?.activeThemeId === theme.id} busy={busy === `apply:${theme.id}`}
-            disabled={!resourcesReady}
-            description={t(theme.descriptionKey)} id={theme.id} name={t(theme.nameKey)}
-            previewEnabled={resourcesReady} tone={theme.tone} onApply={() => applyTheme(theme.id)} t={t} />)}
-          <article className="dream-theme-card dream-theme-import-card">
-            <button type="button" className="dream-import-trigger" disabled={isBusy} onClick={() => void chooseCustomImage()}>
-              <span className="dream-import-icon"><ImagePlus size={28} /></span>
-              <span><b>{t("dreamSkin.import.title")}</b><small>{t("dreamSkin.import.description")}</small></span>
-              <em><WandSparkles size={15} />{t("dreamSkin.import.action")}</em>
-            </button>
-          </article>
-        </div>
+      <section className="dream-skin-section dream-theme-browser">
+        <Tabs activeKey={themeTab} onChange={(key) => setThemeTab(key as "builtIn" | "market")} items={[
+          {
+            key: "builtIn",
+            label: <span className="dream-theme-tab-label"><Sparkles size={15} />{t("dreamSkin.tabs.builtIn")}</span>,
+            children: <>
+              <div className="dream-tab-summary">{t("dreamSkin.presets.description")}</div>
+              <div className="dream-theme-grid">
+                {BUILT_IN_DREAM_SKIN_THEMES.map((theme) => <ThemeCard key={theme.id}
+                  active={status?.activeThemeId === theme.id} busy={busy === `apply:${theme.id}`}
+                  disabled={!resourcesReady}
+                  description={t(theme.descriptionKey)} id={theme.id} name={t(theme.nameKey)}
+                  previewEnabled={resourcesReady} tone={theme.tone} onApply={() => applyTheme(theme.id)} t={t} />)}
+                <article className="dream-theme-card dream-theme-import-card">
+                  <button type="button" className="dream-import-trigger" disabled={isBusy} onClick={() => void chooseCustomImage()}>
+                    <span className="dream-import-icon"><ImagePlus size={28} /></span>
+                    <span><b>{t("dreamSkin.import.title")}</b><small>{t("dreamSkin.import.description")}</small></span>
+                    <em><WandSparkles size={15} />{t("dreamSkin.import.action")}</em>
+                  </button>
+                </article>
+              </div>
+            </>,
+          },
+          {
+            key: "market",
+            label: <span className="dream-theme-tab-label"><Store size={15} />{t("dreamSkin.tabs.market")}</span>,
+            children: <div className="dream-market-pane">
+              <div className="dream-market-toolbar">
+                <Input allowClear value={marketQuery} prefix={<Search size={14} />} placeholder={t("dreamSkin.market.search")}
+                  onChange={(event) => setMarketQuery(event.target.value)} />
+                <Button icon={<RefreshCw className={marketLoading ? "spin" : ""} size={14} />} loading={marketLoading}
+                  onClick={() => void refreshMarket()}>{t("dreamSkin.market.refresh")}</Button>
+                <Button icon={<Github size={14} />} onClick={() => void openUrl(market?.repositoryUrl
+                  || "https://github.com/BigPizzaV3/CodexPlusPlus-Themes")}>{t("dreamSkin.market.contribute")}</Button>
+              </div>
+              {market?.updatedAt && <div className="dream-tab-summary">
+                {t("dreamSkin.market.updatedAt", { date: market.updatedAt })}
+              </div>}
+              {(market?.cached || market?.warning) && <Alert showIcon type="warning"
+                message={t("dreamSkin.market.cached")} description={market.warning} />}
+              {marketError && <Alert showIcon type="error" message={t("dreamSkin.market.failed")} description={marketError}
+                action={<Button size="small" onClick={() => void refreshMarket()}>{t("dreamSkin.market.retry")}</Button>} />}
+              {marketLoading && !market ? <div className="dream-market-loading"><RefreshCw className="spin" size={20} />
+                {t("dreamSkin.market.loading")}</div> : filteredMarketThemes.length > 0 ? (
+                <div className="dream-theme-grid dream-market-grid">
+                  {filteredMarketThemes.map((theme) => <MarketThemeCard key={theme.id} theme={theme}
+                    active={status?.activeThemeId === theme.id} busy={busy === `market:${theme.id}`}
+                    onInstall={() => installAndApplyMarketTheme(theme)} t={t} />)}
+                </div>
+              ) : !marketError && <div className="dream-market-empty">{t("dreamSkin.market.empty")}</div>}
+            </div>,
+          },
+        ]} />
       </section>
 
       {savedThemes.length > 0 && <section className="dream-skin-section">

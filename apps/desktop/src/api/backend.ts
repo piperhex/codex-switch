@@ -29,6 +29,7 @@ import type {
   CodexThreadVisibilityReport,
   DreamSkinImportOptions,
   DreamSkinAppearance,
+  DreamSkinMarketResult,
   DreamSkinResourcesStatus,
   DreamSkinStatus,
   DailyTokenUsage,
@@ -139,6 +140,9 @@ const DREAM_SKIN_INSTALLED_PREVIEW_KEY = "codex-switch:dream-skin-installed";
 const DREAM_SKIN_SESSION_PREVIEW_KEY = "codex-switch:dream-skin-session";
 const DREAM_SKIN_THEME_PREVIEW_KEY = "codex-switch:dream-skin-theme";
 const DREAM_SKIN_APPEARANCE_PREVIEW_KEY = "codex-switch:dream-skin-appearance";
+const DREAM_SKIN_MARKET_INDEX_URL = "https://raw.githubusercontent.com/BigPizzaV3/CodexPlusPlus-Themes/main/index.json";
+const DREAM_SKIN_MARKET_ASSET_ROOT = "https://raw.githubusercontent.com/BigPizzaV3/CodexPlusPlus-Themes/main/";
+const DREAM_SKIN_MARKET_REPOSITORY_URL = "https://github.com/BigPizzaV3/CodexPlusPlus-Themes";
 const DREAM_SKIN_PREVIEW_THEME_NAMES: Record<string, string> = Object.fromEntries(
   BUILT_IN_DREAM_SKIN_THEMES.map((theme) => [theme.id, theme.englishName]),
 );
@@ -1733,6 +1737,45 @@ export async function openDreamSkinFolder(): Promise<void> {
 export async function loadDreamSkinThemePreview(themeId: string): Promise<string | null> {
   if (!hasLocalBackend) return null;
   return invoke<string | null>("get_dream_skin_theme_preview", { themeId });
+}
+
+export async function loadDreamSkinMarket(): Promise<DreamSkinMarketResult> {
+  if (hasLocalBackend) return invoke<DreamSkinMarketResult>("get_dream_skin_market");
+  const response = await fetch(DREAM_SKIN_MARKET_INDEX_URL, { cache: "no-store" });
+  if (!response.ok) throw new Error(`Community theme market returned HTTP ${response.status}`);
+  const manifest = await response.json() as {
+    schemaVersion: number;
+    updated_at?: string;
+    updatedAt?: string;
+    themes: Array<Omit<DreamSkinMarketResult["themes"][number],
+      "sourceUrl" | "themeSha256" | "imageSha256" | "previewUrl" | "installed" | "installedVersion" | "updateAvailable"> & {
+        source_url: string;
+        theme_sha256: string;
+        image_sha256: string;
+      }>;
+  };
+  return {
+    schemaVersion: manifest.schemaVersion,
+    updatedAt: manifest.updatedAt || manifest.updated_at || "",
+    repositoryUrl: DREAM_SKIN_MARKET_REPOSITORY_URL,
+    cached: false,
+    warning: null,
+    themes: manifest.themes.map((theme) => ({
+      ...theme,
+      sourceUrl: theme.source_url,
+      themeSha256: theme.theme_sha256,
+      imageSha256: theme.image_sha256,
+      previewUrl: new URL(theme.preview, DREAM_SKIN_MARKET_ASSET_ROOT).href,
+      installed: false,
+      installedVersion: null,
+      updateAvailable: false,
+    })),
+  };
+}
+
+export async function installDreamSkinMarketTheme(themeId: string): Promise<DreamSkinStatus> {
+  if (!hasLocalBackend) return previewDreamSkinStatus();
+  return invoke<DreamSkinStatus>("install_dream_skin_market_theme", { themeId });
 }
 
 export function checkForUpdate({

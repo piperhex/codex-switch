@@ -337,26 +337,27 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
             app,
             argument(&args, "id")?,
         )),
-        "get_local_proxy_status" => serialize(crate::local_proxy::get_local_proxy_status(app)),
-        "list_proxy_sessions" => serialize(crate::local_proxy::list_proxy_sessions(app)),
-        "list_proxy_session_requests" => serialize(
-            crate::local_proxy::list_proxy_session_requests(argument(&args, "sessionId")?),
-        ),
-        "get_recent_proxy_session_latency" => {
-            serialize(crate::local_proxy::get_recent_proxy_session_latency())
+        "get_local_proxy_status" => {
+            serialize(block_on(crate::local_proxy::get_local_proxy_status(app)))
         }
-        "list_token_usage_entries" => serialize(crate::local_proxy::list_token_usage_entries(app)),
-        "list_daily_token_usage" => serialize(crate::local_proxy::list_daily_token_usage(
-            app,
-            argument(&args, "startTs")?,
+        "list_proxy_sessions" => serialize(block_on(crate::local_proxy::list_proxy_sessions(app))),
+        "list_proxy_session_requests" => serialize(block_on(
+            crate::local_proxy::list_proxy_session_requests(argument(&args, "sessionId")?),
         )),
-        "list_account_token_usage" => serialize(crate::local_proxy::list_account_token_usage(
-            app,
-            argument(&args, "startTs")?,
+        "get_recent_proxy_session_latency" => serialize(block_on(
+            crate::local_proxy::get_recent_proxy_session_latency(),
         )),
-        "list_provider_token_usage" => serialize(crate::local_proxy::list_provider_token_usage(
-            app,
-            argument(&args, "startTs")?,
+        "list_token_usage_entries" => {
+            serialize(block_on(crate::local_proxy::list_token_usage_entries(app)))
+        }
+        "list_daily_token_usage" => serialize(block_on(
+            crate::local_proxy::list_daily_token_usage(app, argument(&args, "startTs")?),
+        )),
+        "list_account_token_usage" => serialize(block_on(
+            crate::local_proxy::list_account_token_usage(app, argument(&args, "startTs")?),
+        )),
+        "list_provider_token_usage" => serialize(block_on(
+            crate::local_proxy::list_provider_token_usage(app, argument(&args, "startTs")?),
         )),
         "start_local_proxy" => serialize(block_on(crate::local_proxy::start_local_proxy(app))),
         "stop_local_proxy" => serialize(block_on(crate::local_proxy::stop_local_proxy(app))),
@@ -512,12 +513,12 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
             app,
             argument(&args, "language")?,
         )),
-        "get_cloud_auth_state" => serialize(crate::cloud::get_cloud_auth_state(app)),
+        "get_cloud_auth_state" => serialize(block_on(crate::cloud::get_cloud_auth_state(app))),
         "get_saved_cloud_login" => serialize(block_on(crate::cloud::get_saved_cloud_login(app))),
-        "set_cloud_base_url" => serialize(crate::cloud::set_cloud_base_url(
+        "set_cloud_base_url" => serialize(block_on(crate::cloud::set_cloud_base_url(
             app,
             argument(&args, "baseUrl")?,
-        )),
+        ))),
         "cloud_login" => serialize(block_on(crate::cloud::cloud_login(
             app,
             argument(&args, "email")?,
@@ -647,6 +648,10 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
         "get_dream_skin_theme_preview" => serialize(
             crate::dream_skin::get_dream_skin_theme_preview(argument(&args, "themeId")?),
         ),
+        "get_dream_skin_market" => serialize(block_on(crate::dream_skin::get_dream_skin_market())),
+        "install_dream_skin_market_theme" => serialize(block_on(
+            crate::dream_skin::install_dream_skin_market_theme(argument(&args, "themeId")?),
+        )),
         _ => Err(format!(
             "Command is not available in the web version: {command}"
         )),

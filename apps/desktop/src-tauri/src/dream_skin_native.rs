@@ -717,6 +717,51 @@ fn save_current_theme(name: &str) -> Result<String, String> {
     Ok(id)
 }
 
+pub(crate) fn install_market_theme(
+    document: Value,
+    image_bytes: &[u8],
+    extension: &str,
+) -> Result<(), String> {
+    let id = document
+        .get("id")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "Community theme id is missing.".to_string())?
+        .to_string();
+    if !valid_theme_id(&id) || BUILT_IN_THEME_IDS.contains(&id.as_str()) {
+        return Err("Community theme id conflicts with a built-in theme.".to_string());
+    }
+    if !matches!(extension, "png" | "jpg" | "webp") {
+        return Err("Community theme image format is not supported.".to_string());
+    }
+
+    let mut document = normalize_theme_document(document, &id)?;
+    let destination = themes_root()?.join(&id);
+    ensure_directory(&destination)?;
+    let old_image = load_theme(&destination).ok().map(|theme| theme.image_path);
+    let image_name = format!("art-{}.{}", Uuid::new_v4().simple(), extension);
+    let image_path = destination.join(&image_name);
+    fs::write(&image_path, image_bytes)
+        .map_err(|error| format!("Failed to save the community theme image: {error}"))?;
+    if let Err(error) = image_details(&image_path) {
+        let _ = fs::remove_file(&image_path);
+        return Err(error);
+    }
+    document
+        .as_object_mut()
+        .expect("normalized theme is an object")
+        .insert("image".to_string(), Value::String(image_name));
+    if let Err(error) = write_json(&destination.join("theme.json"), &document) {
+        let _ = fs::remove_file(&image_path);
+        return Err(error);
+    }
+    if let Some(old_image) =
+        old_image.filter(|path| path != &image_path && path.starts_with(&destination))
+    {
+        let _ = fs::remove_file(old_image);
+    }
+    Ok(())
+}
+
 fn saved_theme_directory(theme_id: &str) -> Result<PathBuf, String> {
     if !valid_theme_id(theme_id) {
         return Err("Theme id is invalid.".to_string());

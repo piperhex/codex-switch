@@ -35,12 +35,14 @@ function waterColors(remaining: number | null) {
 
 const ignoreThemeError = () => undefined;
 const DRAG_THRESHOLD_PX = 5;
+const DOUBLE_CLICK_DELAY_MS = 350;
 
 interface BubblePointerGesture {
   pointerId: number;
   startX: number;
   startY: number;
   dragging: boolean;
+  doubleClick: boolean;
 }
 
 function clampPercent(value: number) {
@@ -114,6 +116,7 @@ export function FloatingUsageBubble() {
   const [refreshing, setRefreshing] = useState(false);
   const [waterSettling, setWaterSettling] = useState(false);
   const lastPrimaryPointerDownAt = useRef(0);
+  const pendingClickRefresh = useRef<number | null>(null);
   const pointerGesture = useRef<BubblePointerGesture | null>(null);
   const refreshingRef = useRef(false);
   const previousRemaining = useRef<number | null>(null);
@@ -243,21 +246,31 @@ export function FloatingUsageBubble() {
     }
   }, [account, activeUpstreamProvider, load]);
 
+  useEffect(() => () => {
+    if (pendingClickRefresh.current !== null) {
+      window.clearTimeout(pendingClickRefresh.current);
+    }
+  }, []);
+
   const startPointerGesture = (event: PointerEvent<HTMLButtonElement>) => {
     if (event.button !== 0) return;
     const now = Date.now();
-    if (now - lastPrimaryPointerDownAt.current < 350) {
+    const doubleClick = now - lastPrimaryPointerDownAt.current < DOUBLE_CLICK_DELAY_MS;
+    if (doubleClick) {
       lastPrimaryPointerDownAt.current = 0;
-      pointerGesture.current = null;
-      void showDashboardFromBubble();
-      return;
+      if (pendingClickRefresh.current !== null) {
+        window.clearTimeout(pendingClickRefresh.current);
+        pendingClickRefresh.current = null;
+      }
+    } else {
+      lastPrimaryPointerDownAt.current = now;
     }
-    lastPrimaryPointerDownAt.current = now;
     pointerGesture.current = {
       pointerId: event.pointerId,
       startX: event.clientX,
       startY: event.clientY,
       dragging: false,
+      doubleClick,
     };
     event.currentTarget.setPointerCapture(event.pointerId);
   };
@@ -279,7 +292,15 @@ export function FloatingUsageBubble() {
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
-    if (!gesture.dragging) void refreshCurrentUsage();
+    if (gesture.dragging) return;
+    if (gesture.doubleClick) {
+      void showDashboardFromBubble();
+      return;
+    }
+    pendingClickRefresh.current = window.setTimeout(() => {
+      pendingClickRefresh.current = null;
+      void refreshCurrentUsage();
+    }, DOUBLE_CLICK_DELAY_MS);
   };
 
   const cancelPointerGesture = (event: PointerEvent<HTMLButtonElement>) => {

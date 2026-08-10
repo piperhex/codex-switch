@@ -1166,6 +1166,11 @@ main.tokens-main { overflow: hidden; padding-bottom: 0; }
 .dream-appearance-control .ant-segmented-item-selected { color: #15331f; background: #fff; box-shadow: 0 1px 4px rgba(24,45,31,.08); }
 .dream-skin-prerequisite { border-radius: 8px; }
 .dream-skin-section { display: grid; gap: 16px; }
+.dream-theme-browser .ant-tabs-nav { margin: 0 0 14px; }
+.dream-theme-browser .ant-tabs-tab { padding: 8px 2px 10px; font-size: 13px; font-weight: 680; }
+.dream-theme-browser .ant-tabs-ink-bar { height: 3px; border-radius: 3px 3px 0 0; }
+.dream-theme-tab-label { display: inline-flex; align-items: center; gap: 7px; }
+.dream-tab-summary { margin: -2px 0 12px; color: #738078; font-size: 11px; line-height: 1.6; }
 .dream-section-heading { display: flex; align-items: end; justify-content: space-between; gap: 24px; }
 .dream-section-heading h2, .dream-tools-copy h2 { margin: 6px 0 0; color: #1b2a20; font: 740 21px/1.2 Manrope, sans-serif; letter-spacing: -.025em; }
 .dream-section-heading > p, .dream-tools-copy p { max-width: 570px; margin: 0; color: #738078; font-size: 11px; line-height: 1.6; text-align: right; }
@@ -1187,6 +1192,24 @@ main.tokens-main { overflow: hidden; padding-bottom: 0; }
 .dream-theme-copy h3 { margin: 0 0 6px; color: #1a2920; font: 720 14px/1.25 Manrope, sans-serif; }
 .dream-theme-copy p { margin: 0; color: #7a877f; font-size: 10px; line-height: 1.5; }
 .dream-theme-copy .ant-btn { flex: 0 0 auto; }
+.dream-market-pane { display: grid; gap: 12px; }
+.dream-market-toolbar { display: grid; grid-template-columns: minmax(220px, 1fr) auto auto; gap: 8px; }
+.dream-market-toolbar .ant-input-affix-wrapper { max-width: 520px; }
+.dream-market-card .dream-theme-preview { background-color: #e8eee9; }
+.dream-market-version { position: absolute; right: 11px; bottom: 10px; padding: 4px 7px; border-radius: 6px; color: #fff; background: rgba(10,20,13,.64); font: 700 9px/1 Manrope, sans-serif; backdrop-filter: blur(8px); }
+.dream-market-copy { min-height: 156px; padding: 12px; display: grid; align-content: start; gap: 9px; }
+.dream-market-title-row { min-width: 0; display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.dream-market-title-row > div { min-width: 0; }
+.dream-market-title-row h3 { margin: 0 0 3px; overflow: hidden; color: #1a2920; font: 720 14px/1.25 Manrope, sans-serif; text-overflow: ellipsis; white-space: nowrap; }
+.dream-market-title-row small, .dream-market-footer > small { color: #859087; font-size: 9px; }
+.dream-market-copy > p { min-height: 30px; margin: 0; color: #6f7d74; font-size: 10px; line-height: 1.5; }
+.dream-market-tags { min-height: 20px; display: flex; flex-wrap: wrap; gap: 5px; }
+.dream-market-tags span { padding: 3px 6px; border: 1px solid #dfe7e0; border-radius: 5px; color: #59675e; background: #f5f8f5; font-size: 9px; line-height: 1.2; }
+.dream-market-footer { margin-top: auto; padding-top: 2px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.dream-market-footer > small { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dream-market-footer .ant-btn { flex: 0 0 auto; }
+.dream-market-loading, .dream-market-empty { min-height: 180px; display: flex; align-items: center; justify-content: center; gap: 8px; color: #748178; font-size: 12px; }
+.dream-market-pane .ant-alert-message, .dream-market-pane .ant-alert-description { max-width: 400px; }
 .dream-theme-import-card { min-height: 242px; border-style: dashed; background: linear-gradient(145deg, rgba(var(--green-rgb), .055), rgba(255,255,255,.86)); }
 .dream-import-trigger { width: 100%; height: 100%; min-height: 242px; padding: 24px; border: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: #223128; background: transparent; cursor: pointer; text-align: center; }
 .dream-import-trigger:disabled { opacity: .55; cursor: default; }
@@ -1251,6 +1274,8 @@ main.tokens-main { overflow: hidden; padding-bottom: 0; }
   .dream-tool-group-theme { justify-content: flex-start; }
   .dream-section-heading { align-items: flex-start; flex-direction: column; gap: 7px; }
   .dream-section-heading > p { text-align: left; }
+  .dream-market-toolbar { grid-template-columns: minmax(0, 1fr) auto; }
+  .dream-market-toolbar .ant-input-affix-wrapper { grid-column: 1 / -1; max-width: none; }
 }
 
 @media (max-width: 900px) {

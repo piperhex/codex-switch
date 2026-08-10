@@ -479,6 +479,35 @@ export interface DreamSkinThemeSummary {
   name: string;
 }
 
+export interface DreamSkinMarketTheme {
+  id: string;
+  name: string;
+  version: string;
+  author: string;
+  description: string;
+  license: string;
+  sourceUrl: string;
+  tags: string[];
+  theme: string;
+  image: string;
+  preview: string;
+  themeSha256: string;
+  imageSha256: string;
+  previewUrl: string;
+  installed: boolean;
+  installedVersion?: string | null;
+  updateAvailable: boolean;
+}
+
+export interface DreamSkinMarketResult {
+  schemaVersion: number;
+  updatedAt: string;
+  repositoryUrl: string;
+  cached: boolean;
+  warning?: string | null;
+  themes: DreamSkinMarketTheme[];
+}
+
 export type DreamSkinResourcesPhase = "idle" | "checking" | "downloading" | "ready" | "error" | "unsupported";
 
 export interface DreamSkinResourcesStatus {

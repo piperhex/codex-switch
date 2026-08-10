@@ -6,6 +6,7 @@ mod codex_api;
 mod commands;
 mod conversation_hub;
 mod dream_skin;
+mod dream_skin_market;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 mod dream_skin_native;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
@@ -172,6 +173,8 @@ pub fn run() {
             dream_skin::restore_dream_skin,
             dream_skin::open_dream_skin_folder,
             dream_skin::get_dream_skin_theme_preview,
+            dream_skin::get_dream_skin_market,
+            dream_skin::install_dream_skin_market_theme,
             providers::list_providers,
             providers::save_provider,
             providers::query_provider_balance,

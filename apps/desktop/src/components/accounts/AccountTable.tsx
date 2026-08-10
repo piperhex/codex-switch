@@ -470,7 +470,10 @@ export function AccountTable({
       return undefined;
     }
     let active = true;
+    let refreshing = false;
     const refresh = async () => {
+      if (refreshing) return;
+      refreshing = true;
       try {
         const today = new Date();
         const startTs = new Date(
@@ -482,6 +485,8 @@ export function AccountTable({
         if (active) setAccountTokenUsage(totals);
       } catch {
         // Keep the last successful totals; quota rendering must not fail with token statistics.
+      } finally {
+        refreshing = false;
       }
     };
     void refresh();
@@ -495,12 +500,17 @@ export function AccountTable({
   }, [hotSwitchEnabled, tokenUsageRefreshSeconds]);
   useEffect(() => {
     let active = true;
+    let refreshing = false;
     const refresh = async () => {
+      if (refreshing) return;
+      refreshing = true;
       try {
         const summary = await loadRecentProxySessionLatency();
         if (active) setProxySessionLatency(summary);
       } catch {
         if (active) setProxySessionLatency(EMPTY_PROXY_SESSION_LATENCY);
+      } finally {
+        refreshing = false;
       }
     };
     void refresh();
@@ -516,7 +526,10 @@ export function AccountTable({
       return undefined;
     }
     let active = true;
+    let refreshing = false;
     const refresh = async () => {
+      if (refreshing) return;
+      refreshing = true;
       try {
         const accountIds = new Set(accounts.map((account) => account.id));
         const counts: Record<string, number> = {};
@@ -530,6 +543,8 @@ export function AccountTable({
         if (active) setAccountConversationCounts(counts);
       } catch {
         // Keep the last successful counts while the proxy session list is unavailable.
+      } finally {
+        refreshing = false;
       }
     };
     void refresh();

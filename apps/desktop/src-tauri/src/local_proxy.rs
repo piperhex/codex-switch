@@ -3,6 +3,7 @@ use std::{
     fs::{self, OpenOptions},
     io::{self, BufRead, BufReader, Read, Write},
     net::{IpAddr, Ipv4Addr, Ipv6Addr, Shutdown, SocketAddr, TcpStream},
+    ops::Deref,
     path::{Path, PathBuf},
     sync::{Arc, Mutex, MutexGuard, OnceLock, TryLockError},
     thread::{self, JoinHandle},
@@ -723,6 +724,19 @@ fn token_usage_db_lock() -> &'static Mutex<()> {
     TOKEN_USAGE_DB_LOCK.get_or_init(|| Mutex::new(()))
 }
 
+struct LockedTokenUsageConnection {
+    _guard: MutexGuard<'static, ()>,
+    connection: Connection,
+}
+
+impl Deref for LockedTokenUsageConnection {
+    type Target = Connection;
+
+    fn deref(&self) -> &Self::Target {
+        &self.connection
+    }
+}
+
 fn proxy_sessions() -> &'static Mutex<HashMap<String, ProxySessionState>> {
     PROXY_SESSIONS.get_or_init(|| Mutex::new(HashMap::new()))
 }
@@ -1026,15 +1040,25 @@ fn status<R: Runtime>(app: &tauri::AppHandle<R>) -> LocalProxyStatus {
 }
 
 #[tauri::command]
-pub(crate) fn get_local_proxy_status<R: Runtime>(
+pub(crate) async fn get_local_proxy_status<R: Runtime + 'static>(
     app: tauri::AppHandle<R>,
 ) -> Result<LocalProxyStatus, String> {
-    Ok(status(&app))
+    tauri::async_runtime::spawn_blocking(move || Ok(status(&app)))
+        .await
+        .map_err(|error| format!("Local proxy status task failed: {error}"))?
 }
 
 #[tauri::command]
-pub(crate) fn list_proxy_sessions<R: Runtime>(
+pub(crate) async fn list_proxy_sessions<R: Runtime + 'static>(
     app: tauri::AppHandle<R>,
+) -> Result<Vec<ProxySessionSummary>, String> {
+    tauri::async_runtime::spawn_blocking(move || list_proxy_sessions_blocking(&app))
+        .await
+        .map_err(|error| format!("Proxy session list task failed: {error}"))?
+}
+
+fn list_proxy_sessions_blocking<R: Runtime>(
+    app: &tauri::AppHandle<R>,
 ) -> Result<Vec<ProxySessionSummary>, String> {
     let sessions = proxy_sessions()
         .lock()
@@ -1042,7 +1066,7 @@ pub(crate) fn list_proxy_sessions<R: Runtime>(
         .values()
         .cloned()
         .collect::<Vec<_>>();
-    let paths = resolve_paths(&app).ok();
+    let paths = resolve_paths(app).ok();
     let official_context_windows = paths
         .as_ref()
         .map(|paths| official_model_context_windows(paths))
@@ -1121,13 +1145,21 @@ pub(crate) fn list_proxy_sessions<R: Runtime>(
 }
 
 #[tauri::command]
-pub(crate) fn list_proxy_session_requests(
+pub(crate) async fn list_proxy_session_requests(
     session_id: String,
+) -> Result<Vec<ProxySessionRequestSummary>, String> {
+    tauri::async_runtime::spawn_blocking(move || list_proxy_session_requests_blocking(&session_id))
+        .await
+        .map_err(|error| format!("Proxy session request list task failed: {error}"))?
+}
+
+fn list_proxy_session_requests_blocking(
+    session_id: &str,
 ) -> Result<Vec<ProxySessionRequestSummary>, String> {
     let sessions = proxy_sessions()
         .lock()
         .map_err(|_| "Proxy session registry lock is poisoned".to_string())?;
-    let Some(session) = sessions.get(&session_id) else {
+    let Some(session) = sessions.get(session_id) else {
         return Ok(Vec::new());
     };
     Ok(session
@@ -1154,7 +1186,14 @@ pub(crate) fn list_proxy_session_requests(
 }
 
 #[tauri::command]
-pub(crate) fn get_recent_proxy_session_latency() -> Result<ProxySessionLatencySummary, String> {
+pub(crate) async fn get_recent_proxy_session_latency() -> Result<ProxySessionLatencySummary, String>
+{
+    tauri::async_runtime::spawn_blocking(get_recent_proxy_session_latency_blocking)
+        .await
+        .map_err(|error| format!("Proxy session latency task failed: {error}"))?
+}
+
+fn get_recent_proxy_session_latency_blocking() -> Result<ProxySessionLatencySummary, String> {
     let mut sessions = proxy_sessions()
         .lock()
         .map_err(|_| "Proxy session registry lock is poisoned".to_string())?
@@ -1226,12 +1265,20 @@ pub(crate) fn export_diagnostic_logs<R: Runtime>(
 }
 
 #[tauri::command]
-pub(crate) fn list_token_usage_entries<R: Runtime>(
+pub(crate) async fn list_token_usage_entries<R: Runtime + 'static>(
     app: tauri::AppHandle<R>,
 ) -> Result<Vec<TokenUsageEntry>, String> {
-    let connection = open_token_usage_db(&app)?;
+    tauri::async_runtime::spawn_blocking(move || list_token_usage_entries_blocking(&app))
+        .await
+        .map_err(|error| format!("Token usage list task failed: {error}"))?
+}
+
+fn list_token_usage_entries_blocking<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+) -> Result<Vec<TokenUsageEntry>, String> {
+    let connection = open_token_usage_db(app)?;
     let mut entries = list_token_usage_entries_from_db(&connection, TOKEN_USAGE_LIST_LIMIT)?;
-    let paths = resolve_paths(&app).ok();
+    let paths = resolve_paths(app).ok();
     let official_context_windows = paths
         .as_ref()
         .map(|paths| official_model_context_windows(paths))
@@ -1265,30 +1312,42 @@ pub(crate) fn list_token_usage_entries<R: Runtime>(
 }
 
 #[tauri::command]
-pub(crate) fn list_daily_token_usage<R: Runtime>(
+pub(crate) async fn list_daily_token_usage<R: Runtime + 'static>(
     app: tauri::AppHandle<R>,
     start_ts: u64,
 ) -> Result<Vec<DailyTokenUsage>, String> {
-    let connection = open_token_usage_db(&app)?;
-    list_daily_token_usage_from_db(&connection, start_ts)
+    tauri::async_runtime::spawn_blocking(move || {
+        let connection = open_token_usage_db(&app)?;
+        list_daily_token_usage_from_db(&connection, start_ts)
+    })
+    .await
+    .map_err(|error| format!("Daily token usage task failed: {error}"))?
 }
 
 #[tauri::command]
-pub(crate) fn list_account_token_usage<R: Runtime>(
+pub(crate) async fn list_account_token_usage<R: Runtime + 'static>(
     app: tauri::AppHandle<R>,
     start_ts: u64,
 ) -> Result<Vec<AccountTokenUsageTotals>, String> {
-    let connection = open_token_usage_db(&app)?;
-    list_account_token_usage_from_db(&connection, start_ts)
+    tauri::async_runtime::spawn_blocking(move || {
+        let connection = open_token_usage_db(&app)?;
+        list_account_token_usage_from_db(&connection, start_ts)
+    })
+    .await
+    .map_err(|error| format!("Account token usage task failed: {error}"))?
 }
 
 #[tauri::command]
-pub(crate) fn list_provider_token_usage<R: Runtime>(
+pub(crate) async fn list_provider_token_usage<R: Runtime + 'static>(
     app: tauri::AppHandle<R>,
     start_ts: u64,
 ) -> Result<Vec<ProviderTokenUsageTotals>, String> {
-    let connection = open_token_usage_db(&app)?;
-    list_provider_token_usage_from_db(&connection, start_ts)
+    tauri::async_runtime::spawn_blocking(move || {
+        let connection = open_token_usage_db(&app)?;
+        list_provider_token_usage_from_db(&connection, start_ts)
+    })
+    .await
+    .map_err(|error| format!("Provider token usage task failed: {error}"))?
 }
 
 #[tauri::command]
@@ -3348,8 +3407,10 @@ fn model_context_windows_from_catalog(catalog: &Value) -> HashMap<String, u64> {
         .collect()
 }
 
-fn open_token_usage_db<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<Connection, String> {
-    let _guard = token_usage_db_lock()
+fn open_token_usage_db<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+) -> Result<LockedTokenUsageConnection, String> {
+    let guard = token_usage_db_lock()
         .lock()
         .map_err(|error| format!("Failed to lock token usage database: {error}"))?;
     let path = token_usage_db_path(app)?;
@@ -3368,7 +3429,10 @@ fn open_token_usage_db<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<Connecti
     let jsonl_path = token_usage_jsonl_path(app)?;
     migrate_token_usage_jsonl_if_needed(&mut connection, &jsonl_path)?;
     seed_provider_token_usage_totals(&connection)?;
-    Ok(connection)
+    Ok(LockedTokenUsageConnection {
+        _guard: guard,
+        connection,
+    })
 }
 
 fn init_token_usage_schema(connection: &Connection) -> Result<(), String> {
@@ -6228,7 +6292,7 @@ mod tests {
         );
 
         assert_eq!(
-            list_proxy_session_requests(session_id.clone()).unwrap()[0].first_response_time_ms,
+            list_proxy_session_requests_blocking(&session_id).unwrap()[0].first_response_time_ms,
             None
         );
         let UpstreamBody::Streaming(mut reader) = payload.body else {
@@ -6238,9 +6302,11 @@ mod tests {
         reader.read_to_end(&mut body).unwrap();
 
         assert_eq!(body, b"data: hello\n\n");
-        assert!(list_proxy_session_requests(session_id.clone()).unwrap()[0]
-            .first_response_time_ms
-            .is_some());
+        assert!(
+            list_proxy_session_requests_blocking(&session_id).unwrap()[0]
+                .first_response_time_ms
+                .is_some()
+        );
         drop(guard);
         proxy_sessions().lock().unwrap().remove(&session_id);
     }

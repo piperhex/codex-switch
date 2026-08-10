@@ -1139,12 +1139,20 @@ fn delete_remote_provider<R: Runtime>(
 }
 
 #[tauri::command]
-pub(crate) fn get_cloud_auth_state<R: Runtime>(
+pub(crate) async fn get_cloud_auth_state<R: Runtime + 'static>(
     app: tauri::AppHandle<R>,
 ) -> Result<CloudAuthState, String> {
+    tauri::async_runtime::spawn_blocking(move || get_cloud_auth_state_blocking(&app))
+        .await
+        .map_err(|error| format!("Cloud auth state task failed: {error}"))?
+}
+
+fn get_cloud_auth_state_blocking<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+) -> Result<CloudAuthState, String> {
     let _credentials_guard = lock_cloud_credentials()?;
-    let settings = read_app_settings(&app)?;
-    let credentials = read_cloud_credentials(&app);
+    let settings = read_app_settings(app)?;
+    let credentials = read_cloud_credentials(app);
     Ok(cloud_state(&settings, &credentials))
 }
 
@@ -1161,26 +1169,35 @@ pub(crate) async fn get_saved_cloud_login<R: Runtime>(
 }
 
 #[tauri::command]
-pub(crate) fn set_cloud_base_url<R: Runtime>(
+pub(crate) async fn set_cloud_base_url<R: Runtime + 'static>(
     app: tauri::AppHandle<R>,
     base_url: String,
 ) -> Result<CloudAuthState, String> {
+    tauri::async_runtime::spawn_blocking(move || set_cloud_base_url_blocking(&app, base_url))
+        .await
+        .map_err(|error| format!("Cloud base URL task failed: {error}"))?
+}
+
+fn set_cloud_base_url_blocking<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    base_url: String,
+) -> Result<CloudAuthState, String> {
     let _credentials_guard = lock_cloud_credentials()?;
-    let mut settings = read_app_settings(&app)?;
+    let mut settings = read_app_settings(app)?;
     let normalized = normalize_base_url(&base_url)?;
     if settings.cloud_base_url != normalized {
         clear_cloud_profile(&mut settings);
         settings.cloud_session_expired = false;
-        clear_cloud_credentials(&app)?;
+        clear_cloud_credentials(app)?;
     }
     settings.cloud_base_url = normalized;
     if settings.cloud_base_url.is_none() {
         clear_cloud_profile(&mut settings);
         settings.cloud_session_expired = false;
-        clear_cloud_credentials(&app)?;
+        clear_cloud_credentials(app)?;
     }
-    write_app_settings(&app, &settings)?;
-    let credentials = read_cloud_credentials(&app);
+    write_app_settings(app, &settings)?;
+    let credentials = read_cloud_credentials(app);
     Ok(cloud_state(&settings, &credentials))
 }
 

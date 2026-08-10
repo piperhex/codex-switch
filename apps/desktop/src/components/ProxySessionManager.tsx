@@ -242,8 +242,12 @@ export function ProxySessionManager({ t, triggerClassName }: ProxySessionManager
   const [requestDetails, setRequestDetails] = useState<ProxySessionRequest[]>([]);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [detailsError, setDetailsError] = useState("");
+  const refreshingRef = useRef(false);
+  const detailsRefreshingRef = useRef(false);
 
   const refresh = useCallback(async (showLoading = false) => {
+    if (refreshingRef.current) return;
+    refreshingRef.current = true;
     if (showLoading) setLoading(true);
     try {
       setSessions(await loadProxySessions());
@@ -252,6 +256,7 @@ export function ProxySessionManager({ t, triggerClassName }: ProxySessionManager
       const detail = cause instanceof Error ? cause.message : String(cause);
       setError(`${t("providers.proxy.sessionsLoadError")}: ${detail}`);
     } finally {
+      refreshingRef.current = false;
       if (showLoading) setLoading(false);
     }
   }, [t]);
@@ -267,6 +272,8 @@ export function ProxySessionManager({ t, triggerClassName }: ProxySessionManager
     session: ProxySession,
     showLoading = false,
   ) => {
+    if (detailsRefreshingRef.current) return;
+    detailsRefreshingRef.current = true;
     if (showLoading) setDetailsLoading(true);
     try {
       setRequestDetails(await loadProxySessionRequests(session.id));
@@ -275,6 +282,7 @@ export function ProxySessionManager({ t, triggerClassName }: ProxySessionManager
       const detail = cause instanceof Error ? cause.message : String(cause);
       setDetailsError(`${t("providers.proxy.sessionsRequestDetailsLoadError")}: ${detail}`);
     } finally {
+      detailsRefreshingRef.current = false;
       if (showLoading) setDetailsLoading(false);
     }
   }, [t]);

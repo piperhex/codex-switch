@@ -790,7 +790,10 @@ export function ProvidersPage({
 
   useEffect(() => {
     let active = true;
+    let refreshing = false;
     const refresh = async () => {
+      if (refreshing) return;
+      refreshing = true;
       const today = new Date();
       const startTs = Math.floor(new Date(
         today.getFullYear(),
@@ -802,6 +805,8 @@ export function ProvidersPage({
         if (active) setProviderTokenUsage(totals);
       } catch {
         // Keep the last successful values when token statistics are temporarily unavailable.
+      } finally {
+        refreshing = false;
       }
     };
     void refresh();

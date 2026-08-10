@@ -316,3 +316,20 @@ pub(crate) fn get_dream_skin_theme_preview(theme_id: String) -> Result<Option<St
         Err("Codex Dream Skin currently supports Windows and macOS.".to_string())
     }
 }
+
+#[tauri::command]
+pub(crate) async fn get_dream_skin_market(
+) -> Result<crate::dream_skin_market::DreamSkinMarketResult, String> {
+    run_blocking(crate::dream_skin_market::load).await
+}
+
+#[tauri::command]
+pub(crate) async fn install_dream_skin_market_theme(
+    theme_id: String,
+) -> Result<DreamSkinStatus, String> {
+    run_blocking(move || {
+        crate::dream_skin_market::install(&theme_id)?;
+        Ok(get_dream_skin_status())
+    })
+    .await
+}
