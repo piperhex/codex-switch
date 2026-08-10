@@ -29,6 +29,7 @@ import type {
   CodexThreadVisibilityReport,
   DreamSkinImportOptions,
   DreamSkinAppearance,
+  DreamSkinCommunityPage,
   DreamSkinMarketResult,
   DreamSkinResourcesStatus,
   DreamSkinStatus,
@@ -143,6 +144,7 @@ const DREAM_SKIN_APPEARANCE_PREVIEW_KEY = "codex-switch:dream-skin-appearance";
 const DREAM_SKIN_MARKET_INDEX_URL = "https://raw.githubusercontent.com/BigPizzaV3/CodexPlusPlus-Themes/main/index.json";
 const DREAM_SKIN_MARKET_ASSET_ROOT = "https://raw.githubusercontent.com/BigPizzaV3/CodexPlusPlus-Themes/main/";
 const DREAM_SKIN_MARKET_REPOSITORY_URL = "https://github.com/BigPizzaV3/CodexPlusPlus-Themes";
+const DREAM_SKIN_COMMUNITY_API_ORIGIN = "https://api.dreamskin.cc";
 const DREAM_SKIN_PREVIEW_THEME_NAMES: Record<string, string> = Object.fromEntries(
   BUILT_IN_DREAM_SKIN_THEMES.map((theme) => [theme.id, theme.englishName]),
 );
@@ -1776,6 +1778,38 @@ export async function loadDreamSkinMarket(): Promise<DreamSkinMarketResult> {
 export async function installDreamSkinMarketTheme(themeId: string): Promise<DreamSkinStatus> {
   if (!hasLocalBackend) return previewDreamSkinStatus();
   return invoke<DreamSkinStatus>("install_dream_skin_market_theme", { themeId });
+}
+
+export async function loadDreamSkinCommunityPage(offset: number, limit: number): Promise<DreamSkinCommunityPage> {
+  if (hasLocalBackend) {
+    return invoke<DreamSkinCommunityPage>("get_dream_skin_community_page", { offset, limit });
+  }
+  const url = new URL("/v1/themes", DREAM_SKIN_COMMUNITY_API_ORIGIN);
+  url.searchParams.set("limit", String(limit));
+  url.searchParams.set("offset", String(offset));
+  url.searchParams.set("sort", "recent");
+  const response = await fetch(url, { cache: "no-store", headers: { Accept: "application/json" } });
+  if (!response.ok) throw new Error(`DreamSkin community returned HTTP ${response.status}`);
+  const result = await response.json() as Pick<DreamSkinCommunityPage, "items" | "total">;
+  return {
+    ...result,
+    offset,
+    limit,
+    cached: false,
+    warning: null,
+    items: result.items.map((item) => ({
+      ...item,
+      previewUrl: `${DREAM_SKIN_COMMUNITY_API_ORIGIN}/v1/themes/${encodeURIComponent(item.id)}/preview/thumbnail`,
+      installed: false,
+      installedVersion: null,
+      updateAvailable: false,
+    })),
+  };
+}
+
+export async function installDreamSkinCommunityTheme(versionId: string): Promise<DreamSkinStatus> {
+  if (!hasLocalBackend) return previewDreamSkinStatus();
+  return invoke<DreamSkinStatus>("install_dream_skin_community_theme", { versionId });
 }
 
 export function checkForUpdate({

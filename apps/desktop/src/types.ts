@@ -508,6 +508,37 @@ export interface DreamSkinMarketResult {
   themes: DreamSkinMarketTheme[];
 }
 
+export interface DreamSkinCommunityTheme {
+  applyCompatible: boolean;
+  authorDisplayName: string;
+  authorUserId: string;
+  displayMeta: Record<string, unknown>;
+  downloadCount: number;
+  id: string;
+  license: string;
+  name: string;
+  packageBytes: number;
+  packageSha256: string;
+  reviewedAt: string;
+  slug: string;
+  submittedAt: string;
+  themeId: string;
+  version: string;
+  previewUrl: string;
+  installed: boolean;
+  installedVersion?: string | null;
+  updateAvailable: boolean;
+}
+
+export interface DreamSkinCommunityPage {
+  items: DreamSkinCommunityTheme[];
+  total: number;
+  offset: number;
+  limit: number;
+  cached: boolean;
+  warning?: string | null;
+}
+
 export type DreamSkinResourcesPhase = "idle" | "checking" | "downloading" | "ready" | "error" | "unsupported";
 
 export interface DreamSkinResourcesStatus {

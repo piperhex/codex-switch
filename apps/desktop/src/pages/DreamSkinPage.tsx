@@ -6,6 +6,7 @@ import {
   CirclePause,
   CirclePlay,
   CloudDownload,
+  Eye,
   FolderOpen,
   Github,
   ImagePlus,
@@ -22,9 +23,11 @@ import {
   applyDreamSkinTheme,
   chooseDreamSkinImage,
   importDreamSkinImage,
+  installDreamSkinCommunityTheme,
   installDreamSkinMarketTheme,
   installDreamSkin,
   loadDreamSkinMarket,
+  loadDreamSkinCommunityPage,
   loadDreamSkinResourcesStatus,
   loadDreamSkinStatus,
   loadDreamSkinThemePreview,
@@ -41,6 +44,7 @@ import { BUILT_IN_DREAM_SKIN_IDS, BUILT_IN_DREAM_SKIN_THEMES } from "../dreamSki
 import type { Translate } from "../i18n";
 import type {
   DreamSkinAppearance,
+  DreamSkinCommunityTheme,
   DreamSkinImportOptions,
   DreamSkinMarketResult,
   DreamSkinMarketTheme,
@@ -67,6 +71,9 @@ const TASK_MODE_OPTIONS = [
   { value: "banner", labelKey: "dreamSkin.option.banner" },
   { value: "off", labelKey: "dreamSkin.option.off" },
 ] as const;
+
+const COMMUNITY_PAGE_SIZE = 48;
+const COMMUNITY_CATALOG_LIMIT = 500;
 
 type DreamSkinPageProps = {
   t: Translate;
@@ -212,6 +219,61 @@ function MarketThemeCard({ theme, active, busy, onInstall, t }: {
   );
 }
 
+function CommunityThemeCard({ theme, active, busy, onInstall, t }: {
+  theme: DreamSkinCommunityTheme;
+  active: boolean;
+  busy: boolean;
+  onInstall: () => void;
+  t: Translate;
+}) {
+  const needsInstall = !theme.installed || theme.updateAvailable;
+  const previewUrl = `https://dreamskin.cc/preview?themeVersion=${encodeURIComponent(theme.id)}`;
+  return (
+    <article className={`dream-theme-card dream-market-card dream-community-card${active ? " is-active" : ""}`}>
+      <div className="dream-theme-preview" style={{ backgroundImage: `url("${theme.previewUrl}")` }}>
+        <div className="dream-theme-preview-shade" />
+        <span className="dream-community-source">DreamSkin.cc</span>
+        <span className="dream-market-version">v{theme.version}</span>
+        {active && <span className="dream-theme-current"><Check size={13} />{t("dreamSkin.current")}</span>}
+      </div>
+      <div className="dream-market-copy">
+        <div className="dream-market-title-row">
+          <div><h3 title={theme.name}>{theme.name}</h3>
+            <small>{t("dreamSkin.market.by", { author: theme.authorDisplayName })}</small></div>
+        </div>
+        <div className="dream-community-meta">
+          <span>{theme.license}</span>
+          <span>{t("dreamSkin.market.downloads", { count: theme.downloadCount.toLocaleString() })}</span>
+          <span>{t("dreamSkin.market.packageSize", { size: formatPackageBytes(theme.packageBytes) })}</span>
+        </div>
+        {!theme.applyCompatible && <p>{t("dreamSkin.market.previewOnly")}</p>}
+        <div className="dream-community-actions">
+          {theme.applyCompatible && <Button type={needsInstall ? "primary" : "default"}
+            disabled={active && !theme.updateAvailable} loading={busy}
+            icon={active && !theme.updateAvailable ? <Check size={14} /> : <CloudDownload size={14} />}
+            onClick={onInstall}>
+            {active && !theme.updateAvailable
+              ? t("dreamSkin.applied")
+              : theme.updateAvailable
+                ? t("dreamSkin.market.updateApply")
+                : theme.installed
+                  ? t("dreamSkin.apply")
+                  : t("dreamSkin.market.installApply")}
+          </Button>}
+          <Button icon={<Eye size={14} />} onClick={() => void openUrl(previewUrl)}>
+            {t("dreamSkin.market.onlinePreview")}
+          </Button>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function formatPackageBytes(bytes: number): string {
+  if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  return `${Math.ceil(bytes / 1024)} KB`;
+}
+
 function formatResourceBytes(bytes?: number | null): string {
   if (!bytes) return "0 MB";
   return `${(bytes / 1024 / 1024).toFixed(bytes >= 100 * 1024 * 1024 ? 0 : 1)} MB`;
@@ -242,6 +304,16 @@ export function DreamSkinPage({ t, notify }: DreamSkinPageProps) {
   const [marketLoading, setMarketLoading] = useState(false);
   const [marketError, setMarketError] = useState<string | null>(null);
   const [marketQuery, setMarketQuery] = useState("");
+  const [communityThemes, setCommunityThemes] = useState<DreamSkinCommunityTheme[]>([]);
+  const [communityTotal, setCommunityTotal] = useState<number | null>(null);
+  const [communityInitialized, setCommunityInitialized] = useState(false);
+  const [communityLoading, setCommunityLoading] = useState(false);
+  const [communityError, setCommunityError] = useState<string | null>(null);
+  const [communityWarning, setCommunityWarning] = useState<string | null>(null);
+  const communityLoadingRef = useRef(false);
+  const communityOffsetRef = useRef(0);
+  const communityTotalRef = useRef<number | null>(null);
+  const communitySentinelRef = useRef<HTMLDivElement | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -269,9 +341,73 @@ export function DreamSkinPage({ t, notify }: DreamSkinPageProps) {
     }
   }, []);
 
+  const loadCommunityThemes = useCallback(async (reset = false) => {
+    if (communityLoadingRef.current) return;
+    const offset = reset ? 0 : communityOffsetRef.current;
+    const knownTotal = communityTotalRef.current;
+    if (!reset && knownTotal !== null && offset >= Math.min(knownTotal, COMMUNITY_CATALOG_LIMIT)) return;
+
+    communityLoadingRef.current = true;
+    setCommunityLoading(true);
+    setCommunityError(null);
+    if (reset) setCommunityWarning(null);
+    try {
+      const page = await loadDreamSkinCommunityPage(offset, COMMUNITY_PAGE_SIZE);
+      const total = Math.min(page.total, COMMUNITY_CATALOG_LIMIT);
+      const nextOffset = Math.min(COMMUNITY_CATALOG_LIMIT, page.offset + page.items.length);
+      const effectiveTotal = page.items.length === 0 ? Math.min(total, offset) : total;
+      communityOffsetRef.current = nextOffset;
+      communityTotalRef.current = effectiveTotal;
+      setCommunityTotal(effectiveTotal);
+      setCommunityWarning(page.warning ?? null);
+      setCommunityThemes((current) => {
+        const merged = reset ? [] : [...current];
+        const positions = new Map(merged.map((theme, index) => [theme.id, index]));
+        for (const theme of page.items) {
+          const position = positions.get(theme.id);
+          if (position === undefined) {
+            positions.set(theme.id, merged.length);
+            merged.push(theme);
+          } else {
+            merged[position] = theme;
+          }
+        }
+        return merged;
+      });
+    } catch (loadError) {
+      setCommunityError(String(loadError));
+    } finally {
+      setCommunityInitialized(true);
+      setCommunityLoading(false);
+      communityLoadingRef.current = false;
+    }
+  }, []);
+
+  const refreshThemeMarket = useCallback(() => {
+    void refreshMarket();
+    void loadCommunityThemes(true);
+  }, [loadCommunityThemes, refreshMarket]);
+
   useEffect(() => {
-    if (themeTab === "market" && !market && !marketLoading) void refreshMarket();
-  }, [market, marketLoading, refreshMarket, themeTab]);
+    if (themeTab !== "market") return;
+    if (!market && !marketLoading) void refreshMarket();
+    if (!communityInitialized && !communityLoadingRef.current) void loadCommunityThemes();
+  }, [communityInitialized, loadCommunityThemes, market, marketLoading, refreshMarket, themeTab]);
+
+  const communityHasMore = communityTotal === null
+    || communityOffsetRef.current < Math.min(communityTotal, COMMUNITY_CATALOG_LIMIT);
+
+  useEffect(() => {
+    const sentinel = communitySentinelRef.current;
+    if (themeTab !== "market" || !sentinel || !communityInitialized || communityLoading
+      || communityError || !communityHasMore) return;
+    if (typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) void loadCommunityThemes();
+    }, { rootMargin: "400px 0px" });
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [communityError, communityHasMore, communityInitialized, communityLoading, loadCommunityThemes, themeTab]);
 
   useEffect(() => {
     let cancelled = false;
@@ -409,6 +545,16 @@ export function DreamSkinPage({ t, notify }: DreamSkinPageProps) {
     ));
   }, [market?.themes, marketQuery]);
 
+  const filteredCommunityThemes = useMemo(() => {
+    const staticThemeIds = new Set((market?.themes ?? []).map((theme) => theme.id));
+    const query = marketQuery.trim().toLocaleLowerCase();
+    return communityThemes.filter((theme) => (
+      !staticThemeIds.has(theme.themeId)
+      && (!query || [theme.name, theme.authorDisplayName, theme.themeId, theme.license, theme.version]
+        .some((value) => value.toLocaleLowerCase().includes(query)))
+    ));
+  }, [communityThemes, market?.themes, marketQuery]);
+
   const installAndApplyMarketTheme = useCallback((theme: DreamSkinMarketTheme) => {
     if (theme.installed && !theme.updateAvailable) {
       applyTheme(theme.id);
@@ -430,6 +576,30 @@ export function DreamSkinPage({ t, notify }: DreamSkinPageProps) {
     if (status?.installed) void operation();
     else confirmChatGptRestart(operation);
   }, [applyTheme, confirmChatGptRestart, refreshMarket, runStatusOperation, status?.installed, t]);
+
+  const installAndApplyCommunityTheme = useCallback((theme: DreamSkinCommunityTheme) => {
+    if (theme.installed && !theme.updateAvailable) {
+      applyTheme(theme.themeId);
+      return;
+    }
+    const operation = async () => {
+      const ok = await runStatusOperation(
+        `community:${theme.id}`,
+        async () => {
+          await installDreamSkinCommunityTheme(theme.id);
+          const next = await applyDreamSkinTheme(theme.themeId);
+          setCommunityThemes((current) => current.map((item) => item.themeId === theme.themeId
+            ? { ...item, installed: true, installedVersion: item.version, updateAvailable: false }
+            : item));
+          return next;
+        },
+        t(theme.updateAvailable ? "dreamSkin.market.toast.updated" : "dreamSkin.market.toast.installed"),
+      );
+      return ok;
+    };
+    if (status?.installed) void operation();
+    else confirmChatGptRestart(operation);
+  }, [applyTheme, confirmChatGptRestart, runStatusOperation, status?.installed, t]);
 
   const sessionLabel = status ? t(`dreamSkin.session.${status.session}`) : t("dreamSkin.session.loading");
   const activeThemeName = status?.activeThemeName || t("dreamSkin.noActiveTheme");
@@ -593,26 +763,51 @@ export function DreamSkinPage({ t, notify }: DreamSkinPageProps) {
               <div className="dream-market-toolbar">
                 <Input allowClear value={marketQuery} prefix={<Search size={14} />} placeholder={t("dreamSkin.market.search")}
                   onChange={(event) => setMarketQuery(event.target.value)} />
-                <Button icon={<RefreshCw className={marketLoading ? "spin" : ""} size={14} />} loading={marketLoading}
-                  onClick={() => void refreshMarket()}>{t("dreamSkin.market.refresh")}</Button>
-                <Button icon={<Github size={14} />} onClick={() => void openUrl(market?.repositoryUrl
-                  || "https://github.com/BigPizzaV3/CodexPlusPlus-Themes")}>{t("dreamSkin.market.contribute")}</Button>
+                <Button icon={<RefreshCw className={marketLoading || communityLoading ? "spin" : ""} size={14} />}
+                  loading={marketLoading || communityLoading} onClick={refreshThemeMarket}>{t("dreamSkin.market.refresh")}</Button>
+                <Button icon={<Eye size={14} />} onClick={() => void openUrl("https://dreamskin.cc/gallery")}>
+                  {t("dreamSkin.market.gallery")}</Button>
               </div>
-              {market?.updatedAt && <div className="dream-tab-summary">
-                {t("dreamSkin.market.updatedAt", { date: market.updatedAt })}
+              {(market?.updatedAt || communityInitialized) && <div className="dream-tab-summary dream-market-summary">
+                {market?.updatedAt && <span>{t("dreamSkin.market.updatedAt", { date: market.updatedAt })}</span>}
+                {communityInitialized && (!communityError || communityThemes.length > 0) && <span>{t("dreamSkin.market.loadedCount", {
+                  loaded: communityThemes.length,
+                  total: communityTotal ?? communityThemes.length,
+                })}</span>}
               </div>}
               {(market?.cached || market?.warning) && <Alert showIcon type="warning"
                 message={t("dreamSkin.market.cached")} description={market.warning} />}
+              {communityWarning && <Alert showIcon type="warning" message={t("dreamSkin.market.communityCached")}
+                description={communityWarning} />}
               {marketError && <Alert showIcon type="error" message={t("dreamSkin.market.failed")} description={marketError}
                 action={<Button size="small" onClick={() => void refreshMarket()}>{t("dreamSkin.market.retry")}</Button>} />}
-              {marketLoading && !market ? <div className="dream-market-loading"><RefreshCw className="spin" size={20} />
-                {t("dreamSkin.market.loading")}</div> : filteredMarketThemes.length > 0 ? (
+              {communityError && <Alert showIcon type="error" message={t("dreamSkin.market.communityFailed")}
+                description={communityError} action={<Button size="small" onClick={() => void loadCommunityThemes()}>
+                  {t("dreamSkin.market.retry")}</Button>} />}
+              {(marketLoading && !market) && (communityLoading && !communityInitialized)
+                ? <div className="dream-market-loading"><RefreshCw className="spin" size={20} />
+                  {t("dreamSkin.market.loading")}</div>
+                : filteredMarketThemes.length + filteredCommunityThemes.length > 0 ? (
                 <div className="dream-theme-grid dream-market-grid">
                   {filteredMarketThemes.map((theme) => <MarketThemeCard key={theme.id} theme={theme}
                     active={status?.activeThemeId === theme.id} busy={busy === `market:${theme.id}`}
                     onInstall={() => installAndApplyMarketTheme(theme)} t={t} />)}
+                  {filteredCommunityThemes.map((theme) => <CommunityThemeCard key={theme.id} theme={theme}
+                    active={status?.activeThemeId === theme.themeId} busy={busy === `community:${theme.id}`}
+                    onInstall={() => installAndApplyCommunityTheme(theme)} t={t} />)}
                 </div>
-              ) : !marketError && <div className="dream-market-empty">{t("dreamSkin.market.empty")}</div>}
+                ) : <div className="dream-market-empty">{t("dreamSkin.market.empty")}</div>}
+              <div ref={communitySentinelRef} className="dream-market-sentinel" aria-live="polite">
+                {communityLoading
+                  ? <><RefreshCw className="spin" size={15} />{t("dreamSkin.market.loadingMore")}</>
+                  : communityError
+                    ? <Button size="small" onClick={() => void loadCommunityThemes()}>{t("dreamSkin.market.retryApi")}</Button>
+                    : communityInitialized && communityHasMore
+                      ? t("dreamSkin.market.scrollForMore")
+                      : communityInitialized
+                        ? t("dreamSkin.market.allLoaded", { count: communityThemes.length })
+                        : null}
+              </div>
             </div>,
           },
         ]} />

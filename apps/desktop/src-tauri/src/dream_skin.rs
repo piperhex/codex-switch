@@ -333,3 +333,22 @@ pub(crate) async fn install_dream_skin_market_theme(
     })
     .await
 }
+
+#[tauri::command]
+pub(crate) async fn get_dream_skin_community_page(
+    offset: usize,
+    limit: usize,
+) -> Result<crate::dream_skin_community::DreamSkinCommunityPage, String> {
+    run_blocking(move || crate::dream_skin_community::load_page(offset, limit)).await
+}
+
+#[tauri::command]
+pub(crate) async fn install_dream_skin_community_theme(
+    version_id: String,
+) -> Result<DreamSkinStatus, String> {
+    run_blocking(move || {
+        crate::dream_skin_community::install(&version_id)?;
+        Ok(get_dream_skin_status())
+    })
+    .await
+}

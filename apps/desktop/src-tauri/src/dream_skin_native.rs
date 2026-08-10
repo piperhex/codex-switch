@@ -367,11 +367,14 @@ fn built_in_theme_directory(root: &Path, theme_id: &str) -> Result<PathBuf, Stri
 }
 
 fn valid_theme_id(value: &str) -> bool {
-    !value.is_empty()
+    value
+        .bytes()
+        .next()
+        .is_some_and(|byte| byte.is_ascii_alphanumeric())
         && value.len() <= 80
         && value
             .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_')
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.'))
 }
 
 fn validate_name(value: &str) -> Result<&str, String> {

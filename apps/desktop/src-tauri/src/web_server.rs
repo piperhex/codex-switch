@@ -652,6 +652,15 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
         "install_dream_skin_market_theme" => serialize(block_on(
             crate::dream_skin::install_dream_skin_market_theme(argument(&args, "themeId")?),
         )),
+        "get_dream_skin_community_page" => {
+            serialize(block_on(crate::dream_skin::get_dream_skin_community_page(
+                argument(&args, "offset")?,
+                argument(&args, "limit")?,
+            )))
+        }
+        "install_dream_skin_community_theme" => serialize(block_on(
+            crate::dream_skin::install_dream_skin_community_theme(argument(&args, "versionId")?),
+        )),
         _ => Err(format!(
             "Command is not available in the web version: {command}"
         )),

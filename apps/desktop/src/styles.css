@@ -1129,7 +1129,10 @@ main.tokens-main { overflow: hidden; padding-bottom: 0; }
 }
 .dream-skin-error { border-radius: 8px; }
 .dream-skin-hero {
-  position: relative;
+  position: sticky;
+  top: 8px;
+  z-index: 12;
+  align-self: start;
   width: calc(100% - 32px);
   max-width: calc(100% - 32px);
   min-height: 118px;
@@ -1195,8 +1198,10 @@ main.tokens-main { overflow: hidden; padding-bottom: 0; }
 .dream-market-pane { display: grid; gap: 12px; }
 .dream-market-toolbar { display: grid; grid-template-columns: minmax(220px, 1fr) auto auto; gap: 8px; }
 .dream-market-toolbar .ant-input-affix-wrapper { max-width: 520px; }
+.dream-market-summary { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 16px; }
 .dream-market-card .dream-theme-preview { background-color: #e8eee9; }
 .dream-market-version { position: absolute; right: 11px; bottom: 10px; padding: 4px 7px; border-radius: 6px; color: #fff; background: rgba(10,20,13,.64); font: 700 9px/1 Manrope, sans-serif; backdrop-filter: blur(8px); }
+.dream-community-source { position: absolute; top: 11px; left: 11px; padding: 4px 7px; border: 1px solid rgba(255,255,255,.3); border-radius: 999px; color: #fff; background: rgba(10,20,13,.55); font-size: 9px; font-weight: 700; backdrop-filter: blur(8px); }
 .dream-market-copy { min-height: 156px; padding: 12px; display: grid; align-content: start; gap: 9px; }
 .dream-market-title-row { min-width: 0; display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
 .dream-market-title-row > div { min-width: 0; }
@@ -1208,7 +1213,14 @@ main.tokens-main { overflow: hidden; padding-bottom: 0; }
 .dream-market-footer { margin-top: auto; padding-top: 2px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .dream-market-footer > small { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dream-market-footer .ant-btn { flex: 0 0 auto; }
+.dream-community-card .dream-market-copy { min-height: 164px; }
+.dream-community-meta { min-height: 34px; display: flex; align-content: flex-start; flex-wrap: wrap; gap: 5px; }
+.dream-community-meta span { padding: 3px 6px; border-radius: 5px; color: #5d6b62; background: #f2f6f3; font-size: 9px; line-height: 1.25; }
+.dream-community-card .dream-market-copy > p { min-height: auto; }
+.dream-community-actions { margin-top: auto; display: flex; flex-wrap: wrap; gap: 6px; }
+.dream-community-actions .ant-btn { min-width: 0; flex: 1 1 110px; }
 .dream-market-loading, .dream-market-empty { min-height: 180px; display: flex; align-items: center; justify-content: center; gap: 8px; color: #748178; font-size: 12px; }
+.dream-market-sentinel { min-height: 38px; display: flex; align-items: center; justify-content: center; gap: 7px; color: #7b887f; font-size: 10px; }
 .dream-market-pane .ant-alert-message, .dream-market-pane .ant-alert-description { max-width: 400px; }
 .dream-theme-import-card { min-height: 242px; border-style: dashed; background: linear-gradient(145deg, rgba(var(--green-rgb), .055), rgba(255,255,255,.86)); }
 .dream-import-trigger { width: 100%; height: 100%; min-height: 242px; padding: 24px; border: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: #223128; background: transparent; cursor: pointer; text-align: center; }
