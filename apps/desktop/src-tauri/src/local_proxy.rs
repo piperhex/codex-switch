@@ -2156,6 +2156,9 @@ fn handle_proxy_request<R: Runtime>(
         append_proxy_diagnostic_result(app, diagnostic, &result, started_at.elapsed());
         return result;
     }
+    if *method == Method::Get && matches!(path, "/usage" | "/v1/usage") {
+        return current_usage_payload(app);
+    }
     if *method == Method::Get && matches!(path, "/models" | "/v1/models") {
         let target = match active_target(app) {
             Ok(target) => target,
@@ -2256,6 +2259,22 @@ fn handle_proxy_request<R: Runtime>(
     let result = attach_token_usage_capture(app, usage_context, result);
     append_proxy_diagnostic_result(app, diagnostic, &result, started_at.elapsed());
     result
+}
+
+fn current_usage_payload<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<UpstreamPayload, String> {
+    let paths = resolve_paths(app)?;
+    let state = read_state(&paths);
+    let usage = if let Some(provider_id) = state.active_provider_id {
+        providers::query_provider_usage_blocking(app.clone(), provider_id)?
+    } else {
+        let account_id = state
+            .active_account_id
+            .ok_or_else(|| "No active account is available for usage sync".to_string())?;
+        crate::commands::refresh_usage_blocking(app.clone(), account_id)?
+    };
+    let payload = serde_json::to_value(usage)
+        .map_err(|error| format!("Failed to serialize current usage: {error}"))?;
+    Ok(json_payload(200, payload))
 }
 
 fn retry_official_request_after_quota_switch<R: Runtime, F>(

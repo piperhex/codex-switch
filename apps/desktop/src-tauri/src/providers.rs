@@ -11,7 +11,7 @@ use crate::{
     auth::{is_agent_identity_auth, validate_auth},
     models::{
         ProviderApiFormat, ProviderBalance, ProviderBalancePlatform, ProviderKind, ProviderProfile,
-        ProviderSummary,
+        ProviderSummary, UsageSummary,
     },
     storage::{
         managed_auth_path, read_json, read_state, resolve_paths, write_json_atomic,
@@ -195,6 +195,54 @@ pub(crate) async fn query_provider_balance<R: Runtime + 'static>(
     tauri::async_runtime::spawn_blocking(move || query_provider_balance_blocking(app, id))
         .await
         .map_err(|error| format!("Provider balance query task failed: {error}"))?
+}
+
+#[tauri::command]
+pub(crate) async fn query_provider_usage<R: Runtime + 'static>(
+    app: tauri::AppHandle<R>,
+    id: String,
+) -> Result<UsageSummary, String> {
+    tauri::async_runtime::spawn_blocking(move || query_provider_usage_blocking(app, id))
+        .await
+        .map_err(|error| format!("Provider usage query task failed: {error}"))?
+}
+
+pub(crate) fn query_provider_usage_blocking<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    id: String,
+) -> Result<UsageSummary, String> {
+    let paths = resolve_paths(&app)?;
+    let provider = read_provider(&paths, &id)?;
+    if provider.kind != ProviderKind::OpenAi {
+        return Err("Usage sync is only available for upstream Codex Switch providers".to_string());
+    }
+    let query_url = provider_usage_url(&provider.base_url)?;
+    let client = Client::builder()
+        .timeout(Duration::from_secs(15))
+        .redirect(reqwest::redirect::Policy::limited(5))
+        .user_agent("Codex-Switch")
+        .build()
+        .map_err(|error| format!("Failed to create usage query client: {error}"))?;
+    let mut request = client.get(query_url);
+    if !provider.api_key.trim().is_empty() {
+        request = request.bearer_auth(provider.api_key.trim());
+    }
+    let response = request
+        .send()
+        .map_err(|error| format!("Provider usage query failed: {error}"))?;
+    let payload = read_balance_response(response, "Provider usage")?;
+    serde_json::from_value(payload)
+        .map_err(|error| format!("Provider usage response is invalid: {error}"))
+}
+
+fn provider_usage_url(base_url: &str) -> Result<Url, String> {
+    let mut url =
+        Url::parse(base_url).map_err(|error| format!("Provider Base URL is invalid: {error}"))?;
+    let path = url.path().trim_end_matches('/').to_string();
+    url.set_path(&format!("{path}/usage"));
+    url.set_query(None);
+    url.set_fragment(None);
+    Ok(url)
 }
 
 fn query_provider_balance_blocking<R: Runtime>(
@@ -2389,6 +2437,22 @@ sandbox_mode = "workspace-write"
             .unwrap_err()
             .contains("local proxy"));
         assert!(normalize_base_url("https://api.deepseek.com/v1").is_ok());
+    }
+
+    #[test]
+    fn provider_usage_url_follows_the_configured_proxy_base_path() {
+        assert_eq!(
+            provider_usage_url("https://switch.example.com/v1")
+                .unwrap()
+                .as_str(),
+            "https://switch.example.com/v1/usage"
+        );
+        assert_eq!(
+            provider_usage_url("https://switch.example.com/codex/v1/?ignored=true")
+                .unwrap()
+                .as_str(),
+            "https://switch.example.com/codex/v1/usage"
+        );
     }
 
     #[test]

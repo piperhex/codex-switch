@@ -732,21 +732,16 @@ function ProviderModelControlCell({
 }
 
 function ProviderTokenCell({
-  provider,
   usage,
   period,
   language,
   t,
 }: {
-  provider: Provider;
   usage?: ProviderTokenUsageTotals;
   period: "today" | "total";
   language: Language;
   t: Translate;
 }) {
-  if (!provider.balancePlatform) {
-    return <Tooltip title={t("providers.tokenUsage.relayOnly")}><span>--</span></Tooltip>;
-  }
   const tokens = period === "today" ? usage?.todayTokens ?? 0 : usage?.totalTokens ?? 0;
   return (
     <Tooltip title={t("providers.tokenUsage.proxyHint")} styles={{ root: { maxWidth: 400 } }}>
@@ -905,7 +900,7 @@ export function ProvidersPage({
       key: "todayTokens",
       width: 105,
       align: "center",
-      render: (_, provider) => <ProviderTokenCell provider={provider}
+      render: (_, provider) => <ProviderTokenCell
         usage={usageForProvider(provider)} period="today" language={language} t={t} />,
     },
     {
@@ -913,7 +908,7 @@ export function ProvidersPage({
       key: "totalTokens",
       width: 105,
       align: "center",
-      render: (_, provider) => <ProviderTokenCell provider={provider}
+      render: (_, provider) => <ProviderTokenCell
         usage={usageForProvider(provider)} period="total" language={language} t={t} />,
     },
     {
@@ -1099,9 +1094,9 @@ export function ProvidersPage({
                 <div><span>{t("providers.table.modelControl")}</span><ProviderModelControlCell provider={provider}
                   busy={waiting} onModelControlChange={onModelControlChange} t={t} /></div>
                 <div><span>{t("providers.table.balance")}</span><ProviderBalanceCell provider={provider} t={t} /></div>
-                <div><span>{t("providers.table.todayTokens")}</span><ProviderTokenCell provider={provider}
+                <div><span>{t("providers.table.todayTokens")}</span><ProviderTokenCell
                   usage={usageForProvider(provider)} period="today" language={language} t={t} /></div>
-                <div><span>{t("providers.table.totalTokens")}</span><ProviderTokenCell provider={provider}
+                <div><span>{t("providers.table.totalTokens")}</span><ProviderTokenCell
                   usage={usageForProvider(provider)} period="total" language={language} t={t} /></div>
               </div>
             </article>;

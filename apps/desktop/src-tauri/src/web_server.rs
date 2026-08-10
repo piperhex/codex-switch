@@ -314,6 +314,10 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
             app,
             argument(&args, "id")?,
         ))),
+        "query_provider_usage" => serialize(block_on(crate::providers::query_provider_usage(
+            app,
+            argument(&args, "id")?,
+        ))),
         "switch_provider" => serialize(block_on(crate::providers::switch_provider(
             app,
             argument(&args, "id")?,

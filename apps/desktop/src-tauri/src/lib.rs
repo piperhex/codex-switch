@@ -175,6 +175,7 @@ pub fn run() {
             providers::list_providers,
             providers::save_provider,
             providers::query_provider_balance,
+            providers::query_provider_usage,
             providers::switch_provider,
             providers::switch_provider_model,
             providers::set_provider_model_control,

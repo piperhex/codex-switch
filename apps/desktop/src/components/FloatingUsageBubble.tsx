@@ -4,16 +4,19 @@ import {
   fetchResetCredits,
   loadAppSettings,
   loadDashboard,
+  loadProviders,
+  queryProviderUsage,
   refreshAccountUsage,
   showDashboardFromBubble,
   showFloatingBubbleMenu,
   subscribeToBubbleResetDisplayChanges,
   subscribeToBubbleStyleChanges,
   subscribeToBackendEvents,
+  subscribeToProviderEvents,
 } from "../api/backend";
 import { useLanguage } from "../hooks/useLanguage";
 import { useThemeColor } from "../hooks/useThemeColor";
-import type { Account, BubbleResetDisplay, BubbleStyle } from "../types";
+import type { Account, BubbleResetDisplay, BubbleStyle, Provider, UsageSummary } from "../types";
 import { remainingTone, resetClockTime } from "../utils/format";
 
 function usageColor(remaining: number) {
@@ -103,6 +106,8 @@ export function FloatingUsageBubble() {
   const { language } = useLanguage();
   useThemeColor(ignoreThemeError);
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [activeUpstreamProvider, setActiveUpstreamProvider] = useState<Provider | null>(null);
+  const [providerUsage, setProviderUsage] = useState<UsageSummary | null>(null);
   const [resetDisplay, setResetDisplay] = useState<BubbleResetDisplay>("countdown");
   const [bubbleStyle, setBubbleStyle] = useState<BubbleStyle>("classic");
   const [resetCreditsRemaining, setResetCreditsRemaining] = useState<number | null>(null);
@@ -112,10 +117,28 @@ export function FloatingUsageBubble() {
   const pointerGesture = useRef<BubblePointerGesture | null>(null);
   const refreshingRef = useRef(false);
   const previousRemaining = useRef<number | null>(null);
+  const providerUsageRequest = useRef(0);
 
   const load = useCallback(async () => {
-    const { accounts: nextAccounts } = await loadDashboard();
+    const [{ accounts: nextAccounts }, providers] = await Promise.all([
+      loadDashboard(),
+      loadProviders(),
+    ]);
     setAccounts(nextAccounts);
+    const provider = providers.find((item) => item.active && item.kind === "openai") ?? null;
+    setActiveUpstreamProvider(provider);
+    const request = ++providerUsageRequest.current;
+    if (!provider) {
+      setProviderUsage(null);
+      return;
+    }
+    setProviderUsage(null);
+    try {
+      const usage = await queryProviderUsage(provider.id);
+      if (providerUsageRequest.current === request) setProviderUsage(usage);
+    } catch {
+      // Keep the bubble available when an older upstream does not expose usage sync yet.
+    }
   }, []);
   const loadResetDisplay = useCallback(() => {
     void loadAppSettings()
@@ -130,6 +153,8 @@ export function FloatingUsageBubble() {
     void load();
     return subscribeToBackendEvents(load, load);
   }, [load]);
+
+  useEffect(() => subscribeToProviderEvents(() => void load()), [load]);
 
   useEffect(() => {
     loadResetDisplay();
@@ -156,8 +181,9 @@ export function FloatingUsageBubble() {
     });
     return () => { active = false; };
   }, [accountId]);
-  const primary = account?.usage.primary;
-  const secondary = account?.usage.secondary;
+  const usage = providerUsage ?? account?.usage;
+  const primary = usage?.primary;
+  const secondary = usage?.secondary;
   const remaining = primary ? clampPercent(primary.remainingPercent) : null;
   const weeklyRemaining = secondary ? clampPercent(secondary.remainingPercent) : null;
   const ringRemaining = bubbleStyle === "glass" ? remaining : weeklyRemaining;
@@ -171,8 +197,8 @@ export function FloatingUsageBubble() {
         ? (language === "zh" ? "额度注意" : "Quota warning")
         : (language === "zh" ? "额度充足" : "Quota healthy");
   const bubbleLabel = language === "zh"
-    ? (refreshing ? "正在刷新当前账号额度" : "点击刷新当前账号额度")
-    : (refreshing ? "Refreshing current account quota" : "Click to refresh current account quota");
+    ? (refreshing ? "正在刷新当前额度" : "点击刷新当前额度")
+    : (refreshing ? "Refreshing current quota" : "Click to refresh current quota");
   const ringStyle = {
     "--bubble-progress": `${ringRemaining ?? 0}%`,
     "--bubble-color": ringRemaining === null ? "#7b8780" : usageColor(ringRemaining),
@@ -197,20 +223,25 @@ export function FloatingUsageBubble() {
     }
   }, [remaining]);
 
-  const refreshCurrentAccount = useCallback(async () => {
-    if (!account || refreshingRef.current) return;
+  const refreshCurrentUsage = useCallback(async () => {
+    if ((!account && !activeUpstreamProvider) || refreshingRef.current) return;
     refreshingRef.current = true;
     setRefreshing(true);
     try {
-      await refreshAccountUsage(account.id);
-      await load();
+      if (activeUpstreamProvider) {
+        const usage = await queryProviderUsage(activeUpstreamProvider.id);
+        setProviderUsage(usage);
+      } else if (account) {
+        await refreshAccountUsage(account.id);
+        await load();
+      }
     } catch {
       await load().catch(() => undefined);
     } finally {
       refreshingRef.current = false;
       setRefreshing(false);
     }
-  }, [account, load]);
+  }, [account, activeUpstreamProvider, load]);
 
   const startPointerGesture = (event: PointerEvent<HTMLButtonElement>) => {
     if (event.button !== 0) return;
@@ -248,7 +279,7 @@ export function FloatingUsageBubble() {
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
-    if (!gesture.dragging) void refreshCurrentAccount();
+    if (!gesture.dragging) void refreshCurrentUsage();
   };
 
   const cancelPointerGesture = (event: PointerEvent<HTMLButtonElement>) => {
@@ -271,7 +302,7 @@ export function FloatingUsageBubble() {
         onPointerMove={continuePointerGesture}
         onPointerUp={finishPointerGesture}
         onPointerCancel={cancelPointerGesture}
-        onClick={(event) => { if (event.detail === 0) void refreshCurrentAccount(); }}>
+        onClick={(event) => { if (event.detail === 0) void refreshCurrentUsage(); }}>
         <span className="floating-bubble-water" aria-hidden="true" />
         <span className="floating-bubble-weekly" aria-hidden="true">
           {language === "zh" ? "周" : "W"} {weeklyRemaining === null ? "--" : `${weeklyRemaining}%`}

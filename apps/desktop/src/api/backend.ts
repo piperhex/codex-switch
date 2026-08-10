@@ -53,6 +53,7 @@ import type {
   SkillPublishInput,
   TokenUsageEntry,
   UpdateInfo,
+  UsageSummary,
 } from "../types";
 import { DEFAULT_THEME_COLOR, normalizeThemeColor } from "../utils/theme";
 
@@ -439,6 +440,18 @@ export function queryProviderBalance(id: string): Promise<ProviderBalance> {
     .finally(() => providerBalanceRequests.delete(id));
   providerBalanceRequests.set(id, request);
   return request;
+}
+
+export async function queryProviderUsage(id: string): Promise<UsageSummary> {
+  if (!hasLocalBackend) {
+    return {
+      primary: { usedPercent: 18, remainingPercent: 82, resetsAt: Math.floor(Date.now() / 1000) + 3_600, windowMinutes: 300 },
+      secondary: { usedPercent: 34, remainingPercent: 66, resetsAt: Math.floor(Date.now() / 1000) + 86_400, windowMinutes: 10_080 },
+      fetchedAt: new Date().toISOString(),
+      error: null,
+    };
+  }
+  return invoke<UsageSummary>("query_provider_usage", { id });
 }
 
 export function subscribeToProviderBalance(
