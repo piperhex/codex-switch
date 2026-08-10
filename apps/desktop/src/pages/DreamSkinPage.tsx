@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Button, Input, InputNumber, Modal, Popconfirm, Progress, Segmented, Select, Tabs, Tooltip } from "antd";
+import { Alert, Button, Input, InputNumber, Modal, Popconfirm, Popover, Progress, Segmented, Select, Tabs, Tooltip } from "antd";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   Check,
@@ -10,6 +10,7 @@ import {
   FolderOpen,
   Github,
   ImagePlus,
+  MoreHorizontal,
   RefreshCw,
   RotateCcw,
   Save,
@@ -299,6 +300,7 @@ export function DreamSkinPage({ t, notify }: DreamSkinPageProps) {
   const [importOptions, setImportOptions] = useState<DreamSkinImportOptions>(DEFAULT_IMPORT_OPTIONS);
   const [saveOpen, setSaveOpen] = useState(false);
   const [saveName, setSaveName] = useState("");
+  const [toolsOpen, setToolsOpen] = useState(false);
   const [themeTab, setThemeTab] = useState<"builtIn" | "market">("builtIn");
   const [market, setMarket] = useState<DreamSkinMarketResult | null>(null);
   const [marketLoading, setMarketLoading] = useState(false);
@@ -657,17 +659,17 @@ export function DreamSkinPage({ t, notify }: DreamSkinPageProps) {
 
       <div className="dream-skin-sticky-stack">
         <section className="dream-skin-hero">
-        <div className="dream-skin-console">
-          <div className="dream-skin-status-card">
-            <div className="dream-status-item">
-              <span>{t("dreamSkin.status")}</span>
-              <strong className={`dream-session dream-session-${status?.session ?? "ready"}`}><i />{sessionLabel}</strong>
-            </div>
-            <div className="dream-status-item dream-active-theme">
+          <div className="dream-skin-console">
+            <strong className={`dream-session dream-session-pill dream-session-${status?.session ?? "ready"}`}>
+              <i />{sessionLabel}
+            </strong>
+
+            <div className="dream-toolbar-theme">
               <span>{t("dreamSkin.activeTheme")}</span>
               <b title={activeThemeName}>{activeThemeName}</b>
             </div>
-            <div className="dream-appearance-control">
+
+            <div className="dream-toolbar-appearance">
               <span>{t("dreamSkin.import.appearance")}</span>
               <Segmented
                 block
@@ -678,9 +680,10 @@ export function DreamSkinPage({ t, notify }: DreamSkinPageProps) {
                 onChange={(appearance) => changeAppearance(appearance as DreamSkinAppearance)}
               />
             </div>
-          </div>
-          <div className="dream-tools-actions">
-            <div className="dream-tool-group dream-tool-group-runtime">
+
+            <div className="dream-toolbar-spacer" />
+
+            <div className="dream-toolbar-actions">
               <Button type={status?.installed ? "default" : "primary"} icon={<Sparkles size={14} />}
                 loading={busy === "install"}
                 disabled={(isBusy && busy !== "install") || (!resourcesReady && !status?.activeThemeId)}
@@ -692,44 +695,71 @@ export function DreamSkinPage({ t, notify }: DreamSkinPageProps) {
               <Tooltip title={t("dreamSkin.refresh")}><Button aria-label={t("dreamSkin.refresh")}
                 icon={<RefreshCw className={loading ? "spin" : ""} size={15} />} disabled={isBusy}
                 onClick={() => void refresh()} /></Tooltip>
-              <Button icon={status?.session === "paused" ? <CirclePlay size={15} /> : <CirclePause size={15} />}
-                disabled={!status?.installed || isBusy} loading={busy === "pause"}
-                onClick={() => {
-                  const operation = () => runStatusOperation("pause", () => setDreamSkinPaused(status?.session !== "paused"),
-                    status?.session === "paused" ? t("dreamSkin.toast.resumed") : t("dreamSkin.toast.paused"));
-                  if (status?.session === "paused") confirmChatGptRestart(operation);
-                  else void operation();
-                }}>
-                {status?.session === "paused" ? t("dreamSkin.resume") : t("dreamSkin.pause")}
-              </Button>
-              <Button icon={<RefreshCw size={15} />} disabled={!status?.installed || isBusy}
-                loading={busy === "reapply"} onClick={() => confirmChatGptRestart(() => runStatusOperation(
-                  "reapply", reapplyDreamSkin, t("dreamSkin.toast.reapplied")))}>{t("dreamSkin.reapply")}</Button>
-            </div>
-            <div className="dream-tool-group dream-tool-group-theme">
-              <Button icon={<Save size={15} />} disabled={!status?.installed || !status.activeThemeId || isBusy}
-                onClick={() => { setSaveName(status?.activeThemeName ?? ""); setSaveOpen(true); }}>
-                {t("dreamSkin.saveCurrent")}</Button>
-              <Button icon={<ShieldCheck size={15} />} disabled={!status?.installed || isBusy}
-                loading={busy === "verify"} onClick={() => {
-                  setBusy("verify"); setError(null);
-                  void verifyDreamSkin().then(() => notify(t("dreamSkin.toast.verified")))
-                    .catch((verifyError) => setError(String(verifyError))).finally(() => setBusy(null));
-                }}>{t("dreamSkin.verify")}</Button>
-              <Button icon={<FolderOpen size={15} />} disabled={isBusy}
-                onClick={() => void openDreamSkinFolder().catch((folderError) => setError(String(folderError)))}>
-                {t("dreamSkin.openFolder")}</Button>
-              <Popconfirm title={t("dreamSkin.restore.confirmTitle")}
-                description={t("dreamSkin.restore.confirmDescription")} okText={t("dreamSkin.restore")}
-                cancelText={t("table.cancel")} okButtonProps={{ danger: true }}
-                onConfirm={() => void runStatusOperation("restore", restoreDreamSkin, t("dreamSkin.toast.restored"))}>
-                <Button danger icon={<RotateCcw size={15} />} disabled={!status?.runtimeInstalled || isBusy}
-                  loading={busy === "restore"}>{t("dreamSkin.restore")}</Button>
-              </Popconfirm>
+              <Popover
+                trigger="click"
+                placement="bottomRight"
+                open={toolsOpen}
+                onOpenChange={setToolsOpen}
+                content={(
+                  <div className="dream-tools-more-panel">
+                    <Button type="text"
+                      icon={status?.session === "paused" ? <CirclePlay size={15} /> : <CirclePause size={15} />}
+                      disabled={!status?.installed || isBusy} loading={busy === "pause"}
+                      onClick={() => {
+                        setToolsOpen(false);
+                        const operation = () => runStatusOperation("pause", () => setDreamSkinPaused(status?.session !== "paused"),
+                          status?.session === "paused" ? t("dreamSkin.toast.resumed") : t("dreamSkin.toast.paused"));
+                        if (status?.session === "paused") confirmChatGptRestart(operation);
+                        else void operation();
+                      }}>
+                      {status?.session === "paused" ? t("dreamSkin.resume") : t("dreamSkin.pause")}
+                    </Button>
+                    <Button type="text" icon={<RefreshCw size={15} />} disabled={!status?.installed || isBusy}
+                      loading={busy === "reapply"} onClick={() => {
+                        setToolsOpen(false);
+                        confirmChatGptRestart(() => runStatusOperation(
+                          "reapply", reapplyDreamSkin, t("dreamSkin.toast.reapplied")));
+                      }}>{t("dreamSkin.reapply")}</Button>
+                    <Button type="text" icon={<Save size={15} />}
+                      disabled={!status?.installed || !status.activeThemeId || isBusy}
+                      onClick={() => {
+                        setToolsOpen(false);
+                        setSaveName(status?.activeThemeName ?? "");
+                        setSaveOpen(true);
+                      }}>{t("dreamSkin.saveCurrent")}</Button>
+                    <Button type="text" icon={<ShieldCheck size={15} />} disabled={!status?.installed || isBusy}
+                      loading={busy === "verify"} onClick={() => {
+                        setToolsOpen(false);
+                        setBusy("verify");
+                        setError(null);
+                        void verifyDreamSkin().then(() => notify(t("dreamSkin.toast.verified")))
+                          .catch((verifyError) => setError(String(verifyError))).finally(() => setBusy(null));
+                      }}>{t("dreamSkin.verify")}</Button>
+                    <Button type="text" icon={<FolderOpen size={15} />} disabled={isBusy}
+                      onClick={() => {
+                        setToolsOpen(false);
+                        void openDreamSkinFolder().catch((folderError) => setError(String(folderError)));
+                      }}>{t("dreamSkin.openFolder")}</Button>
+                    <Popconfirm title={t("dreamSkin.restore.confirmTitle")}
+                      description={t("dreamSkin.restore.confirmDescription")} okText={t("dreamSkin.restore")}
+                      cancelText={t("table.cancel")} okButtonProps={{ danger: true }}
+                      onConfirm={() => {
+                        setToolsOpen(false);
+                        void runStatusOperation("restore", restoreDreamSkin, t("dreamSkin.toast.restored"));
+                      }}>
+                      <Button block type="text" danger icon={<RotateCcw size={15} />}
+                        disabled={!status?.runtimeInstalled || isBusy} loading={busy === "restore"}>
+                        {t("dreamSkin.restore")}
+                      </Button>
+                    </Popconfirm>
+                  </div>
+                )}
+              >
+                <Button icon={<MoreHorizontal size={15} />}>{t("table.moreActions")}</Button>
+              </Popover>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
         <div className="dream-theme-browser-header">
           <Tabs activeKey={themeTab} onChange={(key) => setThemeTab(key as "builtIn" | "market")}
