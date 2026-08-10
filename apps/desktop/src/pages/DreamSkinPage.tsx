@@ -655,7 +655,8 @@ export function DreamSkinPage({ t, notify }: DreamSkinPageProps) {
         />
       )}
 
-      <section className="dream-skin-hero">
+      <div className="dream-skin-sticky-stack">
+        <section className="dream-skin-hero">
         <div className="dream-skin-console">
           <div className="dream-skin-status-card">
             <div className="dream-status-item">
@@ -730,44 +731,32 @@ export function DreamSkinPage({ t, notify }: DreamSkinPageProps) {
         </div>
       </section>
 
-      {!status?.installed && <Alert className="dream-skin-prerequisite" type="info" showIcon
-        message={t("dreamSkin.installHint.title")} description={t("dreamSkin.installHint.description")} />}
-
-      <section className="dream-skin-section dream-theme-browser">
-        <Tabs activeKey={themeTab} onChange={(key) => setThemeTab(key as "builtIn" | "market")} items={[
-          {
-            key: "builtIn",
-            label: <span className="dream-theme-tab-label"><Sparkles size={15} />{t("dreamSkin.tabs.builtIn")}</span>,
-            children: <>
-              <div className="dream-tab-summary">{t("dreamSkin.presets.description")}</div>
-              <div className="dream-theme-grid">
-                {BUILT_IN_DREAM_SKIN_THEMES.map((theme) => <ThemeCard key={theme.id}
-                  active={status?.activeThemeId === theme.id} busy={busy === `apply:${theme.id}`}
-                  disabled={!resourcesReady}
-                  description={t(theme.descriptionKey)} id={theme.id} name={t(theme.nameKey)}
-                  previewEnabled={resourcesReady} tone={theme.tone} onApply={() => applyTheme(theme.id)} t={t} />)}
-                <article className="dream-theme-card dream-theme-import-card">
-                  <button type="button" className="dream-import-trigger" disabled={isBusy} onClick={() => void chooseCustomImage()}>
-                    <span className="dream-import-icon"><ImagePlus size={28} /></span>
-                    <span><b>{t("dreamSkin.import.title")}</b><small>{t("dreamSkin.import.description")}</small></span>
-                    <em><WandSparkles size={15} />{t("dreamSkin.import.action")}</em>
-                  </button>
-                </article>
-              </div>
-            </>,
-          },
-          {
-            key: "market",
-            label: <span className="dream-theme-tab-label"><Store size={15} />{t("dreamSkin.tabs.market")}</span>,
-            children: <div className="dream-market-pane">
-              <div className="dream-market-toolbar">
-                <Input allowClear value={marketQuery} prefix={<Search size={14} />} placeholder={t("dreamSkin.market.search")}
-                  onChange={(event) => setMarketQuery(event.target.value)} />
+        <div className="dream-theme-browser-header">
+          <Tabs activeKey={themeTab} onChange={(key) => setThemeTab(key as "builtIn" | "market")}
+            tabBarExtraContent={themeTab === "market" ? (
+              <div className="dream-market-tab-actions">
+                <Input className="dream-market-search" allowClear value={marketQuery} prefix={<Search size={14} />}
+                  placeholder={t("dreamSkin.market.search")} onChange={(event) => setMarketQuery(event.target.value)} />
                 <Button icon={<RefreshCw className={marketLoading || communityLoading ? "spin" : ""} size={14} />}
                   loading={marketLoading || communityLoading} onClick={refreshThemeMarket}>{t("dreamSkin.market.refresh")}</Button>
                 <Button icon={<Eye size={14} />} onClick={() => void openUrl("https://dreamskin.cc/gallery")}>
                   {t("dreamSkin.market.gallery")}</Button>
               </div>
+            ) : null}
+            items={[
+              {
+                key: "builtIn",
+                label: <span className="dream-theme-tab-label"><Sparkles size={15} />{t("dreamSkin.tabs.builtIn")}</span>,
+              },
+              {
+                key: "market",
+                label: <span className="dream-theme-tab-label"><Store size={15} />{t("dreamSkin.tabs.market")}</span>,
+              },
+            ]} />
+          {themeTab === "builtIn" ? (
+            <div className="dream-tab-summary">{t("dreamSkin.presets.description")}</div>
+          ) : (
+            <>
               {(market?.updatedAt || communityInitialized) && <div className="dream-tab-summary dream-market-summary">
                 {market?.updatedAt && <span>{t("dreamSkin.market.updatedAt", { date: market.updatedAt })}</span>}
                 {communityInitialized && (!communityError || communityThemes.length > 0) && <span>{t("dreamSkin.market.loadedCount", {
@@ -775,43 +764,68 @@ export function DreamSkinPage({ t, notify }: DreamSkinPageProps) {
                   total: communityTotal ?? communityThemes.length,
                 })}</span>}
               </div>}
-              {(market?.cached || market?.warning) && <Alert showIcon type="warning"
+            </>
+          )}
+        </div>
+      </div>
+
+      {!status?.installed && <Alert className="dream-skin-prerequisite" type="info" showIcon
+        message={t("dreamSkin.installHint.title")} description={t("dreamSkin.installHint.description")} />}
+
+      <section className="dream-skin-section dream-theme-browser">
+        {themeTab === "builtIn" ? (
+          <div className="dream-theme-grid" role="tabpanel" aria-label={t("dreamSkin.tabs.builtIn")}>
+            {BUILT_IN_DREAM_SKIN_THEMES.map((theme) => <ThemeCard key={theme.id}
+              active={status?.activeThemeId === theme.id} busy={busy === `apply:${theme.id}`}
+              disabled={!resourcesReady}
+              description={t(theme.descriptionKey)} id={theme.id} name={t(theme.nameKey)}
+              previewEnabled={resourcesReady} tone={theme.tone} onApply={() => applyTheme(theme.id)} t={t} />)}
+            <article className="dream-theme-card dream-theme-import-card">
+              <button type="button" className="dream-import-trigger" disabled={isBusy} onClick={() => void chooseCustomImage()}>
+                <span className="dream-import-icon"><ImagePlus size={28} /></span>
+                <span><b>{t("dreamSkin.import.title")}</b><small>{t("dreamSkin.import.description")}</small></span>
+                <em><WandSparkles size={15} />{t("dreamSkin.import.action")}</em>
+              </button>
+            </article>
+          </div>
+        ) : (
+          <div className="dream-market-pane" role="tabpanel" aria-label={t("dreamSkin.tabs.market")}>
+            {(market?.cached || market?.warning) && <Alert showIcon type="warning"
                 message={t("dreamSkin.market.cached")} description={market.warning} />}
-              {communityWarning && <Alert showIcon type="warning" message={t("dreamSkin.market.communityCached")}
-                description={communityWarning} />}
-              {marketError && <Alert showIcon type="error" message={t("dreamSkin.market.failed")} description={marketError}
-                action={<Button size="small" onClick={() => void refreshMarket()}>{t("dreamSkin.market.retry")}</Button>} />}
-              {communityError && <Alert showIcon type="error" message={t("dreamSkin.market.communityFailed")}
-                description={communityError} action={<Button size="small" onClick={() => void loadCommunityThemes()}>
-                  {t("dreamSkin.market.retry")}</Button>} />}
-              {(marketLoading && !market) && (communityLoading && !communityInitialized)
-                ? <div className="dream-market-loading"><RefreshCw className="spin" size={20} />
-                  {t("dreamSkin.market.loading")}</div>
-                : filteredMarketThemes.length + filteredCommunityThemes.length > 0 ? (
-                <div className="dream-theme-grid dream-market-grid">
-                  {filteredMarketThemes.map((theme) => <MarketThemeCard key={theme.id} theme={theme}
-                    active={status?.activeThemeId === theme.id} busy={busy === `market:${theme.id}`}
-                    onInstall={() => installAndApplyMarketTheme(theme)} t={t} />)}
-                  {filteredCommunityThemes.map((theme) => <CommunityThemeCard key={theme.id} theme={theme}
-                    active={status?.activeThemeId === theme.themeId} busy={busy === `community:${theme.id}`}
-                    onInstall={() => installAndApplyCommunityTheme(theme)} t={t} />)}
-                </div>
-                ) : <div className="dream-market-empty">{t("dreamSkin.market.empty")}</div>}
-              <div ref={communitySentinelRef} className="dream-market-sentinel" aria-live="polite">
-                {communityLoading
-                  ? <><RefreshCw className="spin" size={15} />{t("dreamSkin.market.loadingMore")}</>
-                  : communityError
-                    ? <Button size="small" onClick={() => void loadCommunityThemes()}>{t("dreamSkin.market.retryApi")}</Button>
-                    : communityInitialized && communityHasMore
-                      ? t("dreamSkin.market.scrollForMore")
-                      : communityInitialized
-                        ? t("dreamSkin.market.allLoaded", { count: communityThemes.length })
-                        : null}
+            {communityWarning && <Alert showIcon type="warning" message={t("dreamSkin.market.communityCached")}
+              description={communityWarning} />}
+            {marketError && <Alert showIcon type="error" message={t("dreamSkin.market.failed")} description={marketError}
+              action={<Button size="small" onClick={() => void refreshMarket()}>{t("dreamSkin.market.retry")}</Button>} />}
+            {communityError && <Alert showIcon type="error" message={t("dreamSkin.market.communityFailed")}
+              description={communityError} action={<Button size="small" onClick={() => void loadCommunityThemes()}>
+                {t("dreamSkin.market.retry")}</Button>} />}
+            {(marketLoading && !market) && (communityLoading && !communityInitialized)
+              ? <div className="dream-market-loading"><RefreshCw className="spin" size={20} />
+                {t("dreamSkin.market.loading")}</div>
+              : filteredMarketThemes.length + filteredCommunityThemes.length > 0 ? (
+              <div className="dream-theme-grid dream-market-grid">
+                {filteredMarketThemes.map((theme) => <MarketThemeCard key={theme.id} theme={theme}
+                  active={status?.activeThemeId === theme.id} busy={busy === `market:${theme.id}`}
+                  onInstall={() => installAndApplyMarketTheme(theme)} t={t} />)}
+                {filteredCommunityThemes.map((theme) => <CommunityThemeCard key={theme.id} theme={theme}
+                  active={status?.activeThemeId === theme.themeId} busy={busy === `community:${theme.id}`}
+                  onInstall={() => installAndApplyCommunityTheme(theme)} t={t} />)}
               </div>
-            </div>,
-          },
-        ]} />
-      </section>
+              ) : <div className="dream-market-empty">{t("dreamSkin.market.empty")}</div>}
+            <div ref={communitySentinelRef} className="dream-market-sentinel" aria-live="polite">
+              {communityLoading
+                ? <><RefreshCw className="spin" size={15} />{t("dreamSkin.market.loadingMore")}</>
+                : communityError
+                  ? <Button size="small" onClick={() => void loadCommunityThemes()}>{t("dreamSkin.market.retryApi")}</Button>
+                  : communityInitialized && communityHasMore
+                    ? t("dreamSkin.market.scrollForMore")
+                    : communityInitialized
+                      ? t("dreamSkin.market.allLoaded", { count: communityThemes.length })
+                      : null}
+            </div>
+          </div>
+        )}
+        </section>
 
       {savedThemes.length > 0 && <section className="dream-skin-section">
         <div className="dream-section-heading"><div><span>{t("dreamSkin.saved.eyebrow")}</span>
