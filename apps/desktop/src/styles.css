@@ -236,6 +236,7 @@ main.dream-skin-main { padding-bottom: 0; }
 main.accounts-main .accounts-page-panel { flex: 1; display: flex; flex-direction: column; }
 .topbar { width: 100%; height: 110px; padding: 25px var(--page-x); border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; gap: 18px; background: rgba(248,250,247,.82); backdrop-filter: blur(16px); }
 .topbar-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; }
+.provider-topbar-action-slot { display: flex; align-items: center; gap: 10px; }
 .accounts-topbar { height: 136px; padding: 16px; }
 .token-heatmap { min-width: 0; flex: 1 1 auto; display: flex; align-items: center; gap: 18px; overflow: hidden; }
 .token-heatmap-summary { min-width: 158px; display: grid; gap: 5px; }
@@ -821,9 +822,8 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .provider-avatar { width: 30px; height: 30px; flex: 0 0 auto; border-radius: 8px; display: grid; place-items: center; color: var(--green-dark); background: var(--green-soft); }
 .provider-avatar.official { color: #234f34; background: #dcebdd; }
 .provider-avatar.proxy { color: #334a62; background: #e7edf3; }
-.provider-toolbar { min-width: 0; min-height: 46px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
-.provider-toolbar > .provider-toolbar-actions { display: flex; align-items: center; gap: 8px; }
 .provider-table-wrap { min-width: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: white; box-shadow: 0 5px 18px rgba(24,45,31,.035); }
+.provider-table-toolbar { min-height: 40px; padding: 6px 10px; display: flex; align-items: center; justify-content: flex-end; gap: 8px; border-bottom: 1px solid var(--line); background: #fbfcfa; }
 .provider-table-wrap .ant-table { color: var(--ink); font-size: 12px; }
 .provider-table-wrap .ant-table-thead > tr > th { background: #f6f8f5; color: #5d6a62; font-size: 11px; font-weight: 700; }
 .provider-table-wrap .ant-table-tbody > tr > td { background: #fff; }

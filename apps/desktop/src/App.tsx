@@ -1554,11 +1554,7 @@ function DashboardApp() {
             )}
             {page === "providers" && (
               <div className="topbar-actions">
-                <Tooltip title="Token 消耗汇总">
-                  <button className="refresh-all" onClick={() => void openTokenUsage()}>
-                    <BarChart3 size={17} />Token 汇总
-                  </button>
-                </Tooltip>
+                <div id="provider-topbar-actions" className="provider-topbar-action-slot" />
                 {chatGptActionMenu}
                 {proxyTopbarActions}
               </div>
@@ -1632,16 +1628,13 @@ function DashboardApp() {
             {page === "sessions" && <MemoCodexThreadsPage language={language} notify={notify} />}
           </section>
           <section className="page-panel" hidden={page !== "providers"}>
-            <MemoProvidersPage providers={providerManager.providers} accounts={manager.accounts}
+            <MemoProvidersPage providers={providerManager.providers} active={page === "providers"}
               loading={providerManager.loading}
               busyProviderId={providerManager.busyProviderId} saving={providerManager.saving}
-              localProxy={providerManager.localProxy} proxyBusy={providerManager.proxyBusy}
-              info={manager.info} onSave={providerManager.saveProvider}
+              localProxy={providerManager.localProxy} onSave={providerManager.saveProvider}
               onSwitch={switchProvider} onSwitchModel={switchProviderModel}
               onModelControlChange={setProviderModelControl} onDelete={deleteProvider}
               onDeleteMany={providerManager.deleteProviders}
-              onImageAccountChange={providerManager.setProxyImageAccount}
-              privacyMode={privacyMode.enabled}
               displayMode={accountDisplayMode.displayMode}
               tokenUsageRefreshSeconds={tokenUsagePreferences.refreshSeconds}
               language={language} t={t} />

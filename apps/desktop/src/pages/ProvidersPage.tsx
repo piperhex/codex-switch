@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { AutoComplete, Button, Checkbox, Dropdown, Input, Popconfirm, Segmented, Select, Space, Switch, Table, Tag, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { Bot, Check, Columns3, Pencil, Plus, RefreshCw, RotateCcw, Save, Server, Trash2, WalletCards, X } from "lucide-react";
@@ -6,8 +7,6 @@ import { loadProviderTokenUsage, queryProviderBalance, subscribeToProviderBalanc
 import type { AccountDisplayMode } from "../hooks/useAccountDisplayMode";
 import type { Language, Translate } from "../i18n";
 import type {
-  Account,
-  AppInfo,
   LocalProxyStatus,
   Provider,
   ProviderApiFormat,
@@ -17,25 +16,20 @@ import type {
   ProviderTokenUsageTotals,
 } from "../types";
 import { formatCompactTokenCount } from "../utils/tokenContext";
-import { ImageAccountSelect } from "../components/ImageAccountSelect";
 
 interface ProvidersPageProps {
   providers: Provider[];
-  accounts: Account[];
+  active: boolean;
   loading: boolean;
   busyProviderId: string | null;
   saving: boolean;
   localProxy: LocalProxyStatus | null;
-  proxyBusy: boolean;
-  info: AppInfo | null;
   onSave: (provider: ProviderInput) => Promise<Provider | null>;
   onSwitch: (id: string) => void;
   onSwitchModel: (id: string, model: string) => void;
   onModelControlChange: (id: string, controlledByCodex: boolean) => void;
   onDelete: (id: string) => void;
   onDeleteMany: (ids: string[]) => Promise<string[]>;
-  onImageAccountChange: (accountId: string | null) => void;
-  privacyMode: boolean;
   displayMode: AccountDisplayMode;
   tokenUsageRefreshSeconds: number;
   language: Language;
@@ -48,7 +42,6 @@ const PROVIDER_TABLE_COLUMN_KEYS = [
   "model",
   "api",
   "modelControl",
-  "status",
   "balance",
   "todayTokens",
   "totalTokens",
@@ -764,21 +757,17 @@ function ProviderTokenCell({
 
 export function ProvidersPage({
   providers,
-  accounts,
+  active,
   loading,
   busyProviderId,
   saving,
   localProxy,
-  proxyBusy,
-  info,
   onSave,
   onSwitch,
   onSwitchModel,
   onModelControlChange,
   onDelete,
   onDeleteMany,
-  onImageAccountChange,
-  privacyMode,
   displayMode,
   tokenUsageRefreshSeconds,
   language,
@@ -792,8 +781,12 @@ export function ProvidersPage({
   const [bulkDeleteBusy, setBulkDeleteBusy] = useState(false);
   const [hiddenColumns, setHiddenColumns] = useState<ProviderTableColumnKey[]>(loadHiddenColumns);
   const [providerTokenUsage, setProviderTokenUsage] = useState<ProviderTokenUsageTotals[]>([]);
+  const [topbarHost, setTopbarHost] = useState<HTMLElement | null>(null);
   const proxyRunning = Boolean(localProxy?.running);
-  const showImageAccountSelect = proxyRunning && providers.some((provider) => provider.active);
+
+  useEffect(() => {
+    setTopbarHost(active ? document.getElementById("provider-topbar-actions") : null);
+  }, [active]);
 
   useEffect(() => {
     const providerIds = new Set(providers.map((provider) => provider.id));
@@ -902,16 +895,6 @@ export function ProvidersPage({
         busy={busyProviderId === provider.id} onModelControlChange={onModelControlChange} t={t} />,
     },
     {
-      title: t("providers.table.status"),
-      key: "status",
-      width: 120,
-      render: (_, provider) => provider.active
-        ? <Tag className="current-tag">{t("providers.status.current")}</Tag>
-        : provider.supportsDirectSwitch
-          ? <Tag>{t("providers.status.ready")}</Tag>
-          : <Tag color="gold">{t("providers.status.bridgeRequired")}</Tag>,
-    },
-    {
       title: t("providers.table.balance"),
       key: "balance",
       width: 155,
@@ -938,6 +921,7 @@ export function ProvidersPage({
       key: "actions",
       width: 180,
       align: "right",
+      fixed: "right",
       render: (_, provider) => {
         const waiting = busyProviderId === provider.id;
         return (
@@ -980,7 +964,6 @@ export function ProvidersPage({
     { key: "model", label: t("providers.table.model") },
     { key: "api", label: t("providers.table.api") },
     { key: "modelControl", label: t("providers.table.modelControl") },
-    { key: "status", label: t("providers.table.status") },
     { key: "balance", label: t("providers.table.balance") },
     { key: "todayTokens", label: t("providers.table.todayTokens") },
     { key: "totalTokens", label: t("providers.table.totalTokens") },
@@ -1006,61 +989,9 @@ export function ProvidersPage({
   if (loading) return <div className="loading-state"><RefreshCw className="spin" />{t("providers.loading")}</div>;
 
   return (
-    <div className="provider-page">
-      <div className="provider-toolbar">
-        <div>
-          <strong>{t("providers.section.title")}</strong>
-          <span>{info?.configPath ?? "~/.codex/config.toml"}</span>
-        </div>
-        <Space size={8} className="provider-toolbar-actions">
-          {showImageAccountSelect && (
-            <ImageAccountSelect accounts={accounts}
-              accountId={localProxy?.imageGenerationAccountId}
-              busy={proxyBusy} onChange={onImageAccountChange}
-              privacyMode={privacyMode} t={t} />
-          )}
-          {displayMode === "table" && <Popconfirm
-            title={t("providers.batchDelete.title", { count: selectedProviderIds.length })}
-            description={t("providers.batchDelete.description")}
-            okText={t("providers.delete.ok")} cancelText={t("providers.delete.cancel")}
-            okButtonProps={{ danger: true }} disabled={!selectedProviderIds.length || bulkDeleteBusy}
-            onConfirm={async () => {
-              const ids = [...selectedProviderIds];
-              setBulkDeleteBusy(true);
-              try {
-                const deletedIds = await onDeleteMany(ids);
-                const deletedIdSet = new Set(deletedIds);
-                setSelectedProviderIds((current) => current.filter((id) => !deletedIdSet.has(id)));
-              } finally {
-                setBulkDeleteBusy(false);
-              }
-            }}>
-            <Button danger size="small" icon={<Trash2 size={14} />} loading={bulkDeleteBusy}
-              disabled={!selectedProviderIds.length}>
-              {t("providers.batchDelete.action", { count: selectedProviderIds.length })}
-            </Button>
-          </Popconfirm>}
-          {displayMode === "table" && <Dropdown trigger={["click"]} placement="bottomRight"
-            dropdownRender={() => (
-              <div className="provider-column-settings" onClick={(event) => event.stopPropagation()}>
-                <strong>{t("table.columnSettings")}</strong>
-                <div className="provider-column-settings-list">
-                  {columnSettings.map(({ key, label }) => {
-                    const checked = !hiddenColumnSet.has(key);
-                    return <Checkbox key={key} checked={checked}
-                      disabled={checked && visibleConfigurableColumnCount <= 1}
-                      onChange={(event) => setColumnVisible(key, event.target.checked)}>
-                      {label}
-                    </Checkbox>;
-                  })}
-                </div>
-              </div>
-            )}>
-            <Tooltip title={t("table.columnSettings")}>
-              <Button size="small" className="table-icon-button"
-                aria-label={t("table.columnSettings")} icon={<Columns3 size={15} />} />
-            </Tooltip>
-          </Dropdown>}
+    <>
+      {topbarHost && createPortal(
+        <>
           <Button type="primary" icon={<Bot size={14} />} onClick={openCreateOpenAi}>
             {t("providers.action.addOpenAi")}
           </Button>
@@ -1070,11 +1001,59 @@ export function ProvidersPage({
           <Button icon={<WalletCards size={14} />} onClick={() => setShowRelayModal(true)}>
             {t("providers.action.addRelay")}
           </Button>
-        </Space>
-      </div>
+        </>,
+        topbarHost,
+      )}
+      <div className="provider-page">
 
       {providers.length ? displayMode === "table" ? (
         <div className="provider-table-wrap">
+          <div className="provider-table-toolbar">
+            <Popconfirm
+              title={t("providers.batchDelete.title", { count: selectedProviderIds.length })}
+              description={t("providers.batchDelete.description")}
+              okText={t("providers.delete.ok")} cancelText={t("providers.delete.cancel")}
+              okButtonProps={{ danger: true }} disabled={!selectedProviderIds.length || bulkDeleteBusy}
+              onConfirm={async () => {
+                const ids = [...selectedProviderIds];
+                setBulkDeleteBusy(true);
+                try {
+                  const deletedIds = await onDeleteMany(ids);
+                  const deletedIdSet = new Set(deletedIds);
+                  setSelectedProviderIds((current) => current.filter((id) => !deletedIdSet.has(id)));
+                } finally {
+                  setBulkDeleteBusy(false);
+                }
+              }}
+            >
+              <Button danger size="small" icon={<Trash2 size={14} />} loading={bulkDeleteBusy}
+                disabled={!selectedProviderIds.length}>
+                {t("providers.batchDelete.action", { count: selectedProviderIds.length })}
+              </Button>
+            </Popconfirm>
+            <Dropdown trigger={["click"]} placement="bottomRight"
+              dropdownRender={() => (
+                <div className="provider-column-settings" onClick={(event) => event.stopPropagation()}>
+                  <strong>{t("table.columnSettings")}</strong>
+                  <div className="provider-column-settings-list">
+                    {columnSettings.map(({ key, label }) => {
+                      const checked = !hiddenColumnSet.has(key);
+                      return <Checkbox key={key} checked={checked}
+                        disabled={checked && visibleConfigurableColumnCount <= 1}
+                        onChange={(event) => setColumnVisible(key, event.target.checked)}>
+                        {label}
+                      </Checkbox>;
+                    })}
+                  </div>
+                </div>
+              )}
+            >
+              <Tooltip title={t("table.columnSettings")}>
+                <Button size="small" className="table-icon-button"
+                  aria-label={t("table.columnSettings")} icon={<Columns3 size={15} />} />
+              </Tooltip>
+            </Dropdown>
+          </div>
           <Table rowKey="id" size="small" columns={visibleColumns} dataSource={providers}
             rowSelection={{
               fixed: true,
@@ -1147,6 +1126,7 @@ export function ProvidersPage({
         onClose={() => setShowOpenAiModal(false)} onSave={onSave} t={t} />}
       {showRelayModal && <RelayStationModal saving={saving}
         onClose={() => setShowRelayModal(false)} onSave={onSave} t={t} />}
-    </div>
+      </div>
+    </>
   );
 }
