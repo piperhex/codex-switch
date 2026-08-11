@@ -5,6 +5,7 @@ import {
   chooseAndImportAccountJson,
   copyAccountAuthJson,
   consumeAccountQuota,
+  deactivateAccount as deactivateActiveAccount,
   importAccountJsonFromClipboard as importAccountJsonClipboard,
   chooseAndExportAccountArchive,
   chooseAndImportAccountArchive,
@@ -162,6 +163,23 @@ export function useAccountManager(
         setAccounts((items) => items.map((item) => ({ ...item, active: item.id === id })));
       }
       notify(t("toast.switched"));
+      if (hasLocalBackend) await load();
+      await cloudSync?.pushAccount?.(id);
+    } catch (error) {
+      notify(String(error));
+    } finally {
+      setBusyAccountId(null);
+    }
+  }, [cloudSync, load, notify, t]);
+
+  const deactivateAccount = useCallback(async (id: string) => {
+    setBusyAccountId(id);
+    try {
+      await deactivateActiveAccount();
+      if (!hasLocalBackend) {
+        setAccounts((items) => items.map((item) => ({ ...item, active: false })));
+      }
+      notify(t("toast.accountDeactivated"));
       if (hasLocalBackend) await load();
       await cloudSync?.pushAccount?.(id);
     } catch (error) {
@@ -403,6 +421,7 @@ export function useAccountManager(
     exportAccountArchive,
     importAccountArchive,
     switchAccount,
+    deactivateAccount,
     copyAuthJson,
     refreshUsage,
     refreshAll,

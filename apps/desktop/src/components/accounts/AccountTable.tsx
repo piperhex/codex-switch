@@ -4,7 +4,6 @@ import type { TableProps } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import {
   CalendarClock,
-  Check,
   Columns3,
   Copy,
   Gauge,
@@ -47,6 +46,7 @@ interface AccountTableProps {
   accounts: Account[];
   busyAccountId: string | null;
   onSwitch: (id: string) => void;
+  onDeactivate: (id: string) => void;
   onCopyAuthJson: (id: string) => void;
   onRefresh: (id: string) => void;
   onDelete: (id: string) => void;
@@ -383,6 +383,7 @@ export function AccountTable({
   accounts,
   busyAccountId,
   onSwitch,
+  onDeactivate,
   onCopyAuthJson,
   onRefresh,
   onDelete,
@@ -765,14 +766,26 @@ export function AccountTable({
         return (
           <Space size={4} className="table-actions">
             {!concurrentRoutingActive && (
-              <Tooltip title={switchBlocked ? switchBlockedReason : undefined}>
+              <Tooltip title={!account.active && switchBlocked ? switchBlockedReason : undefined}>
                 <span>
-                  <Button size="small" type={account.active ? "default" : "primary"}
-                    disabled={account.active || switchBlocked}
-                    loading={waiting} icon={account.active ? <Check size={14} /> : <RotateCcw size={14} />}
-                    onClick={() => onSwitch(account.id)}>
-                    {account.active ? t("table.inUse") : hotSwitchEnabled ? t("table.hotSwitch") : t("table.switch")}
-                  </Button>
+                  {account.active ? (
+                    <Popconfirm title={t("table.deactivateConfirmTitle")}
+                      description={<span>{t("table.deactivateConfirmDescription")}</span>}
+                      okText={t("table.deactivate")} cancelText={t("table.cancel")}
+                      okButtonProps={{ danger: true }}
+                      styles={{ root: { maxWidth: 400 } }}
+                      onConfirm={() => onDeactivate(account.id)}>
+                      <Button danger size="small" loading={waiting} icon={<X size={14} />}>
+                        {t("table.deactivate")}
+                      </Button>
+                    </Popconfirm>
+                  ) : (
+                    <Button size="small" type="primary" disabled={switchBlocked}
+                      loading={waiting} icon={<RotateCcw size={14} />}
+                      onClick={() => onSwitch(account.id)}>
+                      {hotSwitchEnabled ? t("table.hotSwitch") : t("table.switch")}
+                    </Button>
+                  )}
                 </span>
               </Tooltip>
             )}
@@ -926,15 +939,31 @@ export function AccountTable({
         style={{ left: contextMenu.x, top: contextMenu.y }}
         onClick={(event) => event.stopPropagation()}>
         {!concurrentRoutingActive && (
-          <Tooltip title={switchBlocked ? switchBlockedReason : undefined} placement="left">
-            <button type="button" disabled={account.active || switchBlocked || waiting}
-              onClick={() => {
-                setContextMenu(null);
-                onSwitch(account.id);
-              }}>
-              {account.active ? <Check size={14} /> : <RotateCcw size={14} />}
-              {account.active ? t("table.inUse") : hotSwitchEnabled ? t("table.hotSwitch") : t("table.switch")}
-            </button>
+          <Tooltip title={!account.active && switchBlocked ? switchBlockedReason : undefined} placement="left">
+            {account.active ? (
+              <Popconfirm title={t("table.deactivateConfirmTitle")}
+                description={<span>{t("table.deactivateConfirmDescription")}</span>}
+                okText={t("table.deactivate")} cancelText={t("table.cancel")}
+                okButtonProps={{ danger: true }} styles={{ root: { maxWidth: 400 } }}
+                onConfirm={() => {
+                  setContextMenu(null);
+                  onDeactivate(account.id);
+                }}>
+                <button type="button" className="destructive" disabled={waiting}>
+                  <X size={14} />
+                  {t("table.deactivate")}
+                </button>
+              </Popconfirm>
+            ) : (
+              <button type="button" disabled={switchBlocked || waiting}
+                onClick={() => {
+                  setContextMenu(null);
+                  onSwitch(account.id);
+                }}>
+                <RotateCcw size={14} />
+                {hotSwitchEnabled ? t("table.hotSwitch") : t("table.switch")}
+              </button>
+            )}
           </Tooltip>
         )}
         {hotSwitchEnabled && (
@@ -1105,6 +1134,20 @@ export function AccountTable({
                   icon={<RefreshCw size={14} />} onClick={() => onRefresh(account.id)} /></Tooltip>
                 {contextMenu?.accountId === account.id && <div ref={contextMenuRef} className="context-menu"
                   style={{ left: contextMenu.x, top: contextMenu.y }} onClick={(event) => event.stopPropagation()}>
+                  {!concurrentRoutingActive && account.active && (
+                    <Popconfirm title={t("table.deactivateConfirmTitle")}
+                      description={<span>{t("table.deactivateConfirmDescription")}</span>}
+                      okText={t("table.deactivate")} cancelText={t("table.cancel")}
+                      okButtonProps={{ danger: true }} styles={{ root: { maxWidth: 400 } }}
+                      onConfirm={() => {
+                        setContextMenu(null);
+                        onDeactivate(account.id);
+                      }}>
+                      <button type="button" className="destructive" disabled={waiting}>
+                        <X size={14} />{t("table.deactivate")}
+                      </button>
+                    </Popconfirm>
+                  )}
                   <Popconfirm title={t("table.useResetCreditConfirmTitle")}
                     description={<span className="reset-credit-confirm-description">{t("table.useResetCreditConfirmDescription")}</span>}
                     okText={t("table.useResetCreditOk")} cancelText={t("table.cancel")}

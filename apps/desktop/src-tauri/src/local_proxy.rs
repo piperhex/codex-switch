@@ -1717,14 +1717,16 @@ pub(crate) fn set_concurrent_account_routing_enabled<R: Runtime>(
         return Err("Start the local proxy before enabling concurrent account routing".to_string());
     }
     let paths = resolve_paths(&app)?;
-    let mut state = read_state(&paths);
+    let original_state = read_state(&paths);
+    let mut state = original_state.clone();
+    let mut switched_from_provider = false;
     if enabled {
         let enabled_account_ids = enabled_concurrent_account_ids(&paths, &state)?;
         let first_account_id = enabled_account_ids.first().ok_or_else(|| {
             "Enable at least one official account before enabling concurrent routing".to_string()
         })?;
         if state.active_provider_id.take().is_some() {
-            providers::write_official_local_proxy_config(&paths)?;
+            switched_from_provider = true;
         }
         if state
             .active_account_id
@@ -1736,8 +1738,17 @@ pub(crate) fn set_concurrent_account_routing_enabled<R: Runtime>(
     }
     state.concurrent_account_routing_enabled = enabled;
     write_state(&paths, &state)?;
+    if switched_from_provider {
+        if let Err(error) = providers::write_official_local_proxy_config(&paths) {
+            let _ = write_state(&paths, &original_state);
+            return Err(error);
+        }
+    }
     if enabled {
-        providers::sync_local_proxy_openai_auth(&paths)?;
+        if let Err(error) = providers::sync_local_proxy_openai_auth(&paths) {
+            let _ = write_state(&paths, &original_state);
+            return Err(error);
+        }
     }
     if let Ok(mut router) = concurrent_account_router().lock() {
         router.clear();

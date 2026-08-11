@@ -551,13 +551,17 @@ pub(crate) fn switch_provider_blocking<R: Runtime>(
         return Err("Provider API key is empty".to_string());
     }
 
-    let mut state = read_state(&paths);
-    backup_codex_config_if_needed(&paths, state.active_provider_id.is_none())?;
-    write_provider_local_proxy_config(&paths, &provider)?;
-    state.active_provider_id = Some(provider.id);
+    let original_state = read_state(&paths);
+    backup_codex_config_if_needed(&paths, original_state.active_provider_id.is_none())?;
+    let mut state = original_state.clone();
+    state.active_provider_id = Some(provider.id.clone());
     state.active_account_id = None;
     state.concurrent_account_routing_enabled = false;
     write_state(&paths, &state)?;
+    if let Err(error) = write_provider_local_proxy_config(&paths, &provider) {
+        let _ = write_state(&paths, &original_state);
+        return Err(error);
+    }
     emit_providers_changed(&app)?;
     Ok(())
 }
@@ -611,15 +615,20 @@ pub(crate) fn set_provider_model_control<R: Runtime>(
 #[tauri::command]
 pub(crate) fn disable_provider<R: Runtime>(app: tauri::AppHandle<R>) -> Result<(), String> {
     let paths = resolve_paths(&app)?;
-    let mut state = read_state(&paths);
+    let original_state = read_state(&paths);
+    let mut state = original_state.clone();
+    state.active_provider_id = None;
     if crate::local_proxy::is_running() {
-        backup_codex_config_if_needed(&paths, state.active_provider_id.is_none())?;
-        write_official_local_proxy_config(&paths)?;
+        backup_codex_config_if_needed(&paths, original_state.active_provider_id.is_none())?;
+        write_state(&paths, &state)?;
+        if let Err(error) = write_official_local_proxy_config(&paths) {
+            let _ = write_state(&paths, &original_state);
+            return Err(error);
+        }
     } else {
         restore_official_config(&paths)?;
+        write_state(&paths, &state)?;
     }
-    state.active_provider_id = None;
-    write_state(&paths, &state)?;
     emit_providers_changed(&app)?;
     Ok(())
 }
@@ -631,15 +640,20 @@ pub(crate) fn delete_provider<R: Runtime>(
 ) -> Result<(), String> {
     let paths = resolve_paths(&app)?;
     validate_provider_id(&id)?;
-    let mut state = read_state(&paths);
-    if state.active_provider_id.as_deref() == Some(&id) {
+    let original_state = read_state(&paths);
+    if original_state.active_provider_id.as_deref() == Some(&id) {
+        let mut state = original_state.clone();
+        state.active_provider_id = None;
         if crate::local_proxy::is_running() {
-            write_official_local_proxy_config(&paths)?;
+            write_state(&paths, &state)?;
+            if let Err(error) = write_official_local_proxy_config(&paths) {
+                let _ = write_state(&paths, &original_state);
+                return Err(error);
+            }
         } else {
             restore_official_config(&paths)?;
+            write_state(&paths, &state)?;
         }
-        state.active_provider_id = None;
-        write_state(&paths, &state)?;
     }
     let path = provider_path(&paths, &id);
     if path.exists() {
@@ -665,7 +679,6 @@ pub(crate) fn apply_local_proxy_config_for_paths(paths: &Paths) -> Result<(), St
         ensure_not_local_proxy_base_url(&provider.base_url)?;
         write_provider_local_proxy_config(paths, &provider)
     } else {
-        ensure_official_auth_for_local_proxy(paths)?;
         write_official_local_proxy_config(paths)
     }
 }
@@ -679,7 +692,10 @@ pub(crate) fn ensure_local_proxy_compatible_for_state(paths: &Paths) -> Result<(
     if state.active_provider_id.is_some() {
         return Ok(());
     }
-    let auth = selected_official_auth_for_local_proxy(paths, state.active_account_id.as_deref())?;
+    let Some(account_id) = state.active_account_id.as_deref() else {
+        return Ok(());
+    };
+    let auth = read_json(&managed_auth_path(paths, account_id))?;
     validate_official_auth_for_local_proxy(&auth)
 }
 
@@ -693,13 +709,17 @@ pub(crate) fn activate_provider_for_sync(paths: &Paths, id: &str) -> Result<bool
         return Ok(false);
     }
 
-    let mut state = read_state(paths);
-    backup_codex_config_if_needed(paths, state.active_provider_id.is_none())?;
-    write_provider_local_proxy_config(paths, &provider)?;
-    state.active_provider_id = Some(provider.id);
+    let original_state = read_state(paths);
+    backup_codex_config_if_needed(paths, original_state.active_provider_id.is_none())?;
+    let mut state = original_state.clone();
+    state.active_provider_id = Some(provider.id.clone());
     state.active_account_id = None;
     state.concurrent_account_routing_enabled = false;
     write_state(paths, &state)?;
+    if let Err(error) = write_provider_local_proxy_config(paths, &provider) {
+        let _ = write_state(paths, &original_state);
+        return Err(error);
+    }
     Ok(true)
 }
 
@@ -732,13 +752,22 @@ pub(crate) fn restore_official_config(paths: &Paths) -> Result<(), String> {
     if paths.config_backup.exists() {
         let backup = fs::read_to_string(&paths.config_backup)
             .map_err(|error| format!("Failed to read Codex config backup: {error}"))?;
-        if backup.is_empty() {
+        // Older interrupted/direct Provider switches could leave Codex Switch's
+        // managed blocks inside the backup itself. Never restore those blocks when
+        // returning to an official account.
+        let official_config =
+            if backup.contains(PROVIDER_ROOT_START) || backup.contains(PROVIDER_TABLE_START) {
+                remove_marked_blocks(&backup)
+            } else {
+                backup
+            };
+        if official_config.trim().is_empty() {
             if paths.current_config.exists() {
                 fs::remove_file(&paths.current_config)
                     .map_err(|error| format!("Failed to remove managed Codex config: {error}"))?;
             }
         } else {
-            write_text_if_changed(&paths.current_config, &backup)?;
+            write_text_if_changed(&paths.current_config, &official_config)?;
         }
         fs::remove_file(&paths.config_backup)
             .map_err(|error| format!("Failed to clear Codex config backup: {error}"))?;
@@ -1235,14 +1264,6 @@ fn is_local_proxy_url(url: &Url) -> bool {
         && url.port_or_known_default() == Some(LOCAL_PROXY_PORT)
 }
 
-fn ensure_official_auth_for_local_proxy(paths: &Paths) -> Result<(), String> {
-    let state = read_state(paths);
-    let account_id = state.active_account_id.as_deref();
-    let auth = selected_official_auth_for_local_proxy(paths, account_id)?;
-    validate_official_auth_for_local_proxy(&auth)?;
-    Ok(())
-}
-
 pub(crate) fn validate_local_proxy_openai_auth_account(
     paths: &Paths,
     account_id: Option<&str>,
@@ -1284,19 +1305,6 @@ fn sync_local_proxy_openai_auth_for_state(
             paths.current_auth.display()
         )),
     }
-}
-
-fn selected_official_auth_for_local_proxy(
-    paths: &Paths,
-    active_account_id: Option<&str>,
-) -> Result<Value, String> {
-    if let Some(account_id) = active_account_id {
-        return read_json(&managed_auth_path(paths, account_id));
-    }
-    read_json(&paths.current_auth).map_err(|_| {
-        "Official Codex local proxy requires a signed-in official Codex account. Add or switch to an official account before starting proxy."
-            .to_string()
-    })
 }
 
 fn validate_official_auth_for_local_proxy(auth: &Value) -> Result<(), String> {
@@ -1663,7 +1671,7 @@ pub(crate) fn preferred_official_model(paths: &Paths) -> String {
 
 fn preferred_official_model_from_configs(current: Option<&str>, backup: Option<&str>) -> String {
     backup
-        .and_then(extract_root_model)
+        .and_then(|config| extract_root_model(&remove_marked_blocks(config)))
         .or_else(|| {
             current.and_then(|config| {
                 let cleaned = remove_marked_blocks(config);
@@ -2120,6 +2128,39 @@ mod tests {
     }
 
     #[test]
+    fn official_proxy_can_start_without_any_account() {
+        let paths = test_paths();
+
+        ensure_local_proxy_compatible_for_state(&paths).unwrap();
+        apply_local_proxy_config_for_paths(&paths).unwrap();
+
+        assert!(!paths.current_auth.exists());
+        assert!(fs::read_to_string(&paths.current_config)
+            .unwrap()
+            .contains("requires_openai_auth = false"));
+        fs::remove_dir_all(paths.codex_home.parent().unwrap()).unwrap();
+    }
+
+    #[test]
+    fn restoring_official_config_removes_managed_provider_blocks_from_backup() {
+        let paths = test_paths();
+        let official_setting = "model_reasoning_effort = \"high\"\n";
+        let stale_backup = merge_provider_config(official_setting, &provider());
+        write_text_atomic(&paths.config_backup, &stale_backup).unwrap();
+        write_text_atomic(&paths.current_config, &stale_backup).unwrap();
+
+        restore_official_config(&paths).unwrap();
+
+        let restored = fs::read_to_string(&paths.current_config).unwrap();
+        assert!(restored.contains(official_setting.trim()));
+        assert!(!restored.contains(PROVIDER_ROOT_START));
+        assert!(!restored.contains("[model_providers.custom]"));
+        assert!(!restored.contains("https://gateway.example.com/v1"));
+        assert!(!paths.config_backup.exists());
+        fs::remove_dir_all(paths.codex_home.parent().unwrap()).unwrap();
+    }
+
+    #[test]
     fn official_proxy_keeps_agent_identity_out_of_current_auth() {
         let paths = test_paths();
         let auth = test_agent_identity_auth();
@@ -2496,6 +2537,16 @@ model_reasoning_effort = "xhigh"
 
         assert_eq!(
             preferred_official_model_from_configs(Some(&provider_proxy), None),
+            DEFAULT_OFFICIAL_MODEL
+        );
+    }
+
+    #[test]
+    fn official_model_does_not_reuse_managed_provider_model_from_stale_backup() {
+        let managed_provider = merge_provider_config("", &provider());
+
+        assert_eq!(
+            preferred_official_model_from_configs(None, Some(&managed_provider)),
             DEFAULT_OFFICIAL_MODEL
         );
     }

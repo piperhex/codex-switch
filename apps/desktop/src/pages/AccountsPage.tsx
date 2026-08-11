@@ -14,6 +14,7 @@ export function AccountsPage({
   resetCredits,
   onAdd,
   onSwitch,
+  onDeactivate,
   onCopyAuthJson,
   onRefresh,
   onDelete,
@@ -49,6 +50,7 @@ export function AccountsPage({
   resetCredits: Record<string, ResetCreditsLoadState>;
   onAdd: () => void;
   onSwitch: (id: string) => void;
+  onDeactivate: (id: string) => void;
   onCopyAuthJson: (id: string) => void;
   onRefresh: (id: string) => void;
   onDelete: (id: string) => void;
@@ -87,6 +89,7 @@ export function AccountsPage({
   if (!accounts.length) {
     return (
       <div className="accounts-page">
+        {proxyControls && <div className="account-empty-proxy-toolbar">{proxyControls}</div>}
         <div className="empty-state">
           <div><LogIn size={28} /></div><h2>{t("accounts.empty.title")}</h2>
           <p>{t("accounts.empty.description")}</p>
@@ -98,7 +101,8 @@ export function AccountsPage({
   return (
     <div className="accounts-page">
       <AccountTable accounts={accounts} busyAccountId={busyAccountId}
-        onSwitch={onSwitch} onCopyAuthJson={onCopyAuthJson} onRefresh={onRefresh} onDelete={onDelete}
+        onSwitch={onSwitch} onDeactivate={onDeactivate}
+        onCopyAuthJson={onCopyAuthJson} onRefresh={onRefresh} onDelete={onDelete}
         onConsumeQuotaMany={onConsumeQuotaMany} onDeleteMany={onDeleteMany}
         onEnableMany={onEnableMany} onDisableMany={onDisableMany}
         onAutoSwitchEnabledChange={onAutoSwitchEnabledChange} autoSwitchBusyAccountId={autoSwitchBusyAccountId}

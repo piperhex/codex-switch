@@ -687,6 +687,96 @@ pub(crate) async fn switch_account_and_restart_chatgpt<R: Runtime + 'static>(
     .map_err(|error| format!("Account switch task failed: {error}"))?
 }
 
+#[tauri::command]
+pub(crate) async fn deactivate_account_and_restart_chatgpt<R: Runtime + 'static>(
+    app: tauri::AppHandle<R>,
+) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        deactivate_account_and_restart_chatgpt_blocking(app)
+    })
+    .await
+    .map_err(|error| format!("Account deactivation task failed: {error}"))?
+}
+
+fn deactivate_account_and_restart_chatgpt_blocking<R: Runtime>(
+    app: tauri::AppHandle<R>,
+) -> Result<(), String> {
+    let _switch_guard = account_switch_lock()
+        .lock()
+        .map_err(|_| "Account switch lock is poisoned".to_string())?;
+    refresh_local_codex_path(&app);
+
+    let proxy_running = crate::local_proxy::is_running();
+    let client_was_running = !proxy_running && chatgpt_or_codex_is_running()?;
+    let launch_target = client_was_running
+        .then(|| refresh_and_get_chatgpt_launch_target(&app))
+        .flatten();
+    if client_was_running {
+        stop_chatgpt_processes()?;
+        wait_for_chatgpt_processes_to_exit(Duration::from_secs(10))?;
+    }
+
+    let deactivate_result = deactivate_account_unlocked(&app, proxy_running);
+    if !client_was_running {
+        return deactivate_result.map(|_| ());
+    }
+
+    let restart_result = crate::dream_skin::restart_active_session().and_then(|restarted| {
+        if restarted {
+            Ok(())
+        } else {
+            start_chatgpt(launch_target.as_ref())
+        }
+    });
+    match (deactivate_result, restart_result) {
+        (Ok(_), Ok(())) => Ok(()),
+        (Err(error), Ok(())) => Err(error),
+        (Ok(_), Err(error)) => Err(format!(
+            "Official account was deactivated, but ChatGPT/Codex could not be restarted ({error}). Please start ChatGPT or Codex manually."
+        )),
+        (Err(deactivate_error), Err(restart_error)) => Err(format!(
+            "Official account could not be deactivated ({deactivate_error}), and ChatGPT/Codex could not be restarted ({restart_error})."
+        )),
+    }
+}
+
+fn deactivate_account_unlocked<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    proxy_running: bool,
+) -> Result<Option<String>, String> {
+    let paths = resolve_paths(app)?;
+    let original_state = read_state(&paths);
+    let Some(account_id) = original_state.active_account_id.clone() else {
+        return Ok(None);
+    };
+    let mut state = original_state.clone();
+    state.active_account_id = None;
+    state.concurrent_account_routing_enabled = false;
+    write_state(&paths, &state)?;
+
+    let auth_result = if proxy_running {
+        crate::providers::sync_local_proxy_openai_auth(&paths)
+    } else {
+        match fs::remove_file(&paths.current_auth) {
+            Ok(()) => Ok(()),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(error) => Err(format!("Failed to remove current auth.json: {error}")),
+        }
+    };
+    if let Err(error) = auth_result {
+        let _ = write_state(&paths, &original_state);
+        return Err(error);
+    }
+
+    touch_account_field(&paths, &account_id, AccountSyncField::Active)?;
+    app.emit("accounts-changed", ())
+        .map_err(|error| error.to_string())?;
+    app.emit("providers-changed", ())
+        .map_err(|error| error.to_string())?;
+    crate::system_tray::refresh_menu(app);
+    Ok(Some(account_id))
+}
+
 pub(crate) fn switch_account_and_restart_chatgpt_blocking<R: Runtime>(
     app: tauri::AppHandle<R>,
     id: String,
@@ -732,24 +822,33 @@ fn switch_account_unlocked<R: Runtime>(app: &tauri::AppHandle<R>, id: &str) -> R
     let paths = resolve_paths(app)?;
     let selected = load_validated_managed_auth(&paths, id)?;
     ensure_account_switch_allowed(&selected, proxy_running)?;
-    if !proxy_running {
+    let original_state = read_state(&paths);
+    let mut state = original_state.clone();
+    state.active_provider_id = None;
+    state.active_account_id = Some(id.to_string());
+    state.concurrent_account_routing_enabled = false;
+
+    if proxy_running {
+        // Publish the official route before changing config.toml. Codex watches that
+        // file and may reconnect immediately; writing the config first would let the
+        // reconnect race through the previously selected third-party Provider.
+        write_state(&paths, &state)?;
+        if let Err(error) = crate::providers::write_official_local_proxy_config(&paths) {
+            let _ = write_state(&paths, &original_state);
+            return Err(error);
+        }
+        if let Err(error) = crate::providers::sync_local_proxy_openai_auth(&paths) {
+            let _ = write_state(&paths, &original_state);
+            return Err(error);
+        }
+    } else {
         // The local proxy reads the selected managed credential.  Avoid modifying the
         // authentication file watched by the already-running Codex application.
         write_json_atomic(&paths.current_auth, &selected)?;
-    }
-    let mut state = read_state(&paths);
-    let was_using_provider = state.active_provider_id.take().is_some();
-    if was_using_provider {
-        if proxy_running {
-            crate::providers::write_official_local_proxy_config(&paths)?;
-        } else {
-            crate::providers::restore_official_config(&paths)?;
-        }
-    }
-    state.active_account_id = Some(id.to_string());
-    write_state(&paths, &state)?;
-    if proxy_running {
-        crate::providers::sync_local_proxy_openai_auth(&paths)?;
+        // Always remove a stale managed Provider block, even if an older or partially
+        // completed switch left active_provider_id out of sync with config.toml.
+        crate::providers::restore_official_config(&paths)?;
+        write_state(&paths, &state)?;
     }
     touch_account_field(&paths, id, AccountSyncField::Active)?;
     app.emit("accounts-changed", ())

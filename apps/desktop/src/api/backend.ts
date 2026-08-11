@@ -1572,6 +1572,10 @@ export async function activateAccount(id: string): Promise<void> {
   if (hasLocalBackend) await invoke("switch_account_and_restart_chatgpt", { id });
 }
 
+export async function deactivateAccount(): Promise<void> {
+  if (hasLocalBackend) await invoke("deactivate_account_and_restart_chatgpt");
+}
+
 export async function copyAccountAuthJson(id: string): Promise<void> {
   if (!isDesktopApp) throw new Error("Copying auth.json requires the desktop app");
   await invoke("copy_account_auth_json", { id });

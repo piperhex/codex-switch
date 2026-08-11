@@ -575,6 +575,9 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
         "switch_account_and_restart_chatgpt" => serialize(block_on(
             crate::commands::switch_account_and_restart_chatgpt(app, argument(&args, "id")?),
         )),
+        "deactivate_account_and_restart_chatgpt" => serialize(block_on(
+            crate::commands::deactivate_account_and_restart_chatgpt(app),
+        )),
         "set_account_auto_switch_enabled" => {
             serialize(crate::commands::set_account_auto_switch_enabled(
                 app,

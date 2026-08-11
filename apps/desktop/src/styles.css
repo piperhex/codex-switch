@@ -933,6 +933,8 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .empty-state > div { width: 52px; height: 52px; border-radius: 15px; display: grid; place-items: center; color: var(--green); background: var(--green-soft); }
 .empty-state h2 { margin: 6px 0 -4px; font: 700 17px Manrope, sans-serif; color: var(--ink); }
 .empty-state p { margin: 0 0 10px; }
+.account-empty-proxy-toolbar { margin: 18px var(--page-x) -12px; display: flex; justify-content: flex-end; }
+.account-empty-proxy-toolbar .window-titlebar-proxy { margin-right: 0; padding-right: 0; border-right: 0; }
 .toast { position: fixed; z-index: 60; right: 28px; bottom: 26px; max-width: 470px; padding: 11px 15px; display: flex; align-items: center; gap: 8px; border: 1px solid #c2d6c7; border-radius: 10px; color: #244c35; background: rgba(247,252,247,.96); box-shadow: 0 14px 35px rgba(18,41,26,.15); font-size: 13px; font-weight: 700; animation: rise .2s ease; }
 .spin { animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }

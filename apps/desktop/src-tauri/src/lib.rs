@@ -134,6 +134,7 @@ pub fn run() {
             account_archive::import_accounts_archive,
             commands::switch_account,
             commands::switch_account_and_restart_chatgpt,
+            commands::deactivate_account_and_restart_chatgpt,
             commands::set_account_auto_switch_enabled,
             commands::set_account_auto_switch_priority,
             commands::set_auto_disable_status_codes,
