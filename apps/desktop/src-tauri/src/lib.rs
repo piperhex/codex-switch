@@ -29,6 +29,10 @@ mod web_server;
 use oauth::AppState;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    if std::env::args_os().any(|argument| argument == "--print-local-proxy-token") {
+        println!("{}", providers::LOCAL_PROXY_TOKEN);
+        return;
+    }
     let launch_options = match launch_options::LaunchOptions::from_environment() {
         Ok(options) => options,
         Err(error) => {
@@ -181,6 +185,7 @@ pub fn run() {
             dream_skin::install_dream_skin_community_theme,
             providers::list_providers,
             providers::save_provider,
+            providers::fetch_deepseek_models,
             providers::query_provider_balance,
             providers::query_provider_usage,
             providers::switch_provider,

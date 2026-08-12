@@ -310,6 +310,12 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
             app,
             argument(&args, "provider")?,
         )),
+        "fetch_deepseek_models" => serialize(block_on(crate::providers::fetch_deepseek_models(
+            app,
+            argument(&args, "baseUrl")?,
+            argument(&args, "apiKey")?,
+            argument(&args, "providerId")?,
+        ))),
         "query_provider_balance" => serialize(block_on(crate::providers::query_provider_balance(
             app,
             argument(&args, "id")?,

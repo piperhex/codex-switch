@@ -57,7 +57,7 @@ export interface AppInfo {
 
 export type ProviderApiFormat = "openaiResponses" | "openaiChat";
 export type ProviderKind = "custom" | "openai";
-export type ProviderBalancePlatform = "newApi" | "sub2Api";
+export type ProviderBalancePlatform = "newApi" | "sub2Api" | "deepSeek";
 
 export interface Provider {
   id: string;
@@ -111,7 +111,13 @@ export interface ProviderBalance {
   walletAmount?: number | null;
   walletUnit: string;
   walletError?: string | null;
+  balanceItems?: ProviderBalanceItem[];
   queriedAt: number;
+}
+
+export interface ProviderBalanceItem {
+  amount: number;
+  unit: string;
 }
 
 export interface LocalProxyStatus {

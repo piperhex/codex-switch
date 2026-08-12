@@ -26,9 +26,9 @@ use crate::{
     codex_api::{refresh_tokens, token_expiring, ORIGINATOR},
     models::{
         AccountSummary, AccountTokenUsageTotals, DailyTokenUsage, LocalProxyStatus,
-        ManagerStateFile, ProviderApiFormat, ProviderKind, ProviderProfile,
-        ProviderTokenUsageTotals, ProxySessionLatencySummary, ProxySessionRequestSummary,
-        ProxySessionSummary, TokenUsageEntry, UsageSummary,
+        ManagerStateFile, ProviderApiFormat, ProviderBalancePlatform, ProviderKind,
+        ProviderProfile, ProviderTokenUsageTotals, ProxySessionLatencySummary,
+        ProxySessionRequestSummary, ProxySessionSummary, TokenUsageEntry, UsageSummary,
     },
     providers::{
         self, LOCAL_PROXY_ACTOR_AUTHORIZATION_HEADER, LOCAL_PROXY_BASE_URL, LOCAL_PROXY_HOST,
@@ -2263,13 +2263,7 @@ fn handle_proxy_request<R: Runtime>(
             {
                 forward_provider(method, url, headers, body, provider)
             }
-            ActiveTarget::Provider(provider) => Ok(json_payload(
-                200,
-                providers::model_catalog_for_models(
-                    &provider_models_for_codex(provider),
-                    providers::provider_context_window(provider),
-                ),
-            )),
+            ActiveTarget::Provider(provider) => Ok(provider_models_payload(provider)),
         };
         append_proxy_diagnostic_result(app, diagnostic, &result, started_at.elapsed());
         return result;
@@ -2310,6 +2304,12 @@ fn handle_proxy_request<R: Runtime>(
             &context.model,
         );
     }
+    let provider_models_etag = match &target {
+        ActiveTarget::Provider(provider) if !providers::uses_upstream_official_models(provider) => {
+            Some(provider_models_etag(provider))
+        }
+        _ => None,
+    };
     let result = match target {
         ActiveTarget::Official { model } => {
             let response =
@@ -2326,6 +2326,17 @@ fn handle_proxy_request<R: Runtime>(
             }
         }
     };
+    let result = result.map(|mut payload| {
+        if let Some(etag) = provider_models_etag {
+            payload
+                .response_headers
+                .retain(|(name, _)| !name.eq_ignore_ascii_case("x-models-etag"));
+            payload
+                .response_headers
+                .push(("x-models-etag".to_string(), etag));
+        }
+        payload
+    });
     let result = attach_token_usage_capture(app, usage_context, result);
     append_proxy_diagnostic_result(app, diagnostic, &result, started_at.elapsed());
     result
@@ -4187,6 +4198,31 @@ fn provider_models_for_codex(provider: &ProviderProfile) -> Vec<String> {
     }
 }
 
+fn provider_models_payload(provider: &ProviderProfile) -> UpstreamPayload {
+    let catalog = providers::model_catalog_for_models(
+        &provider_models_for_codex(provider),
+        providers::provider_context_window(provider),
+    );
+    let body = serde_json::to_vec(&catalog).unwrap_or_else(|_| b"{}".to_vec());
+    let etag = provider_models_etag(provider);
+    UpstreamPayload {
+        status: 200,
+        content_type: Some("application/json; charset=utf-8".to_string()),
+        response_headers: vec![("ETag".to_string(), etag)],
+        body: UpstreamBody::Buffered(body),
+        token_usage_account: None,
+    }
+}
+
+fn provider_models_etag(provider: &ProviderProfile) -> String {
+    let catalog = providers::model_catalog_for_models(
+        &provider_models_for_codex(provider),
+        providers::provider_context_window(provider),
+    );
+    let body = serde_json::to_vec(&catalog).unwrap_or_default();
+    format!("\"codex-switch-{}\"", short_hash_bytes(&body))
+}
+
 fn provider_body_for_upstream(
     method: &Method,
     url: &str,
@@ -4228,7 +4264,11 @@ fn forward_chat_bridge(
         .unwrap_or(false);
 
     let client = http_client()?;
-    let upstream_url = build_upstream_url(&provider.base_url, "/chat/completions");
+    let upstream_url = if provider.balance_platform == Some(ProviderBalancePlatform::DeepSeek) {
+        providers::deepseek_endpoint_url(&provider.base_url, "/chat/completions")?.to_string()
+    } else {
+        build_upstream_url(&provider.base_url, "/chat/completions")
+    };
     let request = client.post(upstream_url);
     let request = if provider.api_key.trim().is_empty() {
         request
@@ -7427,6 +7467,34 @@ mod tests {
                 assert!(model.get(key).is_some(), "missing Codex model field {key}");
             }
         }
+    }
+
+    #[test]
+    fn provider_models_payload_etag_changes_with_the_model_list() {
+        let mut provider = ProviderProfile {
+            id: "deepseek".to_string(),
+            kind: ProviderKind::Custom,
+            name: "DeepSeek".to_string(),
+            base_url: "https://api.deepseek.com/v1".to_string(),
+            api_key: "sk-provider-test".to_string(),
+            model: "deepseek-chat".to_string(),
+            models: vec!["deepseek-chat".to_string()],
+            context_window: None,
+            model_selection_controlled_by_codex: true,
+            api_format: ProviderApiFormat::OpenaiChat,
+            balance_platform: Some(ProviderBalancePlatform::DeepSeek),
+            balance_query_url: Some("https://api.deepseek.com/user/balance".to_string()),
+            balance_query_token: None,
+            wallet_query_url: None,
+            wallet_query_token: None,
+            wallet_username: None,
+            wallet_password: None,
+        };
+        let first = provider_models_payload(&provider);
+        provider.models.push("deepseek-reasoner".to_string());
+        let second = provider_models_payload(&provider);
+        assert_ne!(first.response_headers, second.response_headers);
+        assert!(first.response_headers[0].1.starts_with("\"codex-switch-"));
     }
 
     #[test]

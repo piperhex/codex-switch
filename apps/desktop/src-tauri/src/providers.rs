@@ -10,8 +10,8 @@ use url::Url;
 use crate::{
     auth::{is_agent_identity_auth, validate_auth},
     models::{
-        ProviderApiFormat, ProviderBalance, ProviderBalancePlatform, ProviderFieldModifiedAt,
-        ProviderKind, ProviderProfile, ProviderSummary, UsageSummary,
+        ProviderApiFormat, ProviderBalance, ProviderBalanceItem, ProviderBalancePlatform,
+        ProviderFieldModifiedAt, ProviderKind, ProviderProfile, ProviderSummary, UsageSummary,
     },
     storage::{
         managed_auth_path, read_json, read_state, resolve_paths, write_json_atomic,
@@ -31,16 +31,61 @@ pub(crate) const LOCAL_PROXY_ACTOR_AUTHORIZATION_HEADER: &str = "x-openai-actor-
 const LOCAL_PROXY_PROVIDER_ID: &str = "codex-switch-local";
 const LOCAL_PROXY_PROVIDER_NAME: &str = "Codex Switch Local Proxy";
 pub(crate) const DEFAULT_OFFICIAL_MODEL: &str = "gpt-5.6-sol";
-const MODEL_CATALOG_FILENAME: &str = "codex-switch-model-catalog.json";
 pub(crate) const DEFAULT_MODEL_CONTEXT_WINDOW: u64 = 128_000;
 const NEW_API_QUOTA_PER_USD: f64 = 500_000.0;
 const MAX_BALANCE_RESPONSE_BYTES: u64 = 1024 * 1024;
+const MAX_MODEL_RESPONSE_BYTES: u64 = 1024 * 1024;
 
 fn emit_providers_changed<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<(), String> {
     app.emit("providers-changed", ())
         .map_err(|error| error.to_string())?;
     crate::system_tray::refresh_menu(app);
     Ok(())
+}
+
+fn refresh_codex_models_best_effort(provider: &ProviderProfile) {
+    if !crate::local_proxy::is_running() {
+        return;
+    }
+    let models = if provider.model_selection_controlled_by_codex {
+        provider.models.clone()
+    } else {
+        vec![provider.model.clone()]
+    };
+    crate::dream_skin::refresh_codex_models(models, provider.model.clone());
+}
+
+pub(crate) fn refresh_active_codex_models_for_paths(paths: &Paths) {
+    if !crate::local_proxy::is_running() {
+        return;
+    }
+    let state = read_state(paths);
+    let Some(id) = state.active_provider_id.as_deref() else {
+        return;
+    };
+    if let Ok(provider) = read_provider(paths, id) {
+        refresh_codex_models_best_effort(&provider);
+    }
+}
+
+pub(crate) fn refresh_official_codex_models_for_paths(paths: &Paths) {
+    if !crate::local_proxy::is_running() {
+        return;
+    }
+    let catalog = read_json(&paths.codex_home.join("models_cache.json")).ok();
+    let models = catalog
+        .as_ref()
+        .and_then(|value| value.get("models"))
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter(|value| value.get("visibility").and_then(Value::as_str) != Some("hide"))
+        .filter_map(|value| value.get("slug").and_then(Value::as_str))
+        .map(str::to_string)
+        .collect::<Vec<_>>();
+    if !models.is_empty() {
+        crate::dream_skin::refresh_codex_models(models, preferred_official_model(paths));
+    }
 }
 
 #[derive(Deserialize)]
@@ -180,6 +225,7 @@ pub(crate) fn save_provider<R: Runtime>(
     let state = read_state(&paths);
     if state.active_provider_id.as_deref() == Some(&profile.id) {
         write_active_provider_config(&paths, &profile)?;
+        refresh_codex_models_best_effort(&profile);
     }
     emit_providers_changed(&app)?;
     Ok(provider_summary(
@@ -197,6 +243,63 @@ pub(crate) async fn query_provider_balance<R: Runtime + 'static>(
     tauri::async_runtime::spawn_blocking(move || query_provider_balance_blocking(app, id))
         .await
         .map_err(|error| format!("Provider balance query task failed: {error}"))?
+}
+
+#[tauri::command]
+pub(crate) async fn fetch_deepseek_models<R: Runtime + 'static>(
+    app: tauri::AppHandle<R>,
+    base_url: String,
+    api_key: Option<String>,
+    provider_id: Option<String>,
+) -> Result<Vec<String>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        fetch_deepseek_models_blocking(app, base_url, api_key, provider_id)
+    })
+    .await
+    .map_err(|error| format!("DeepSeek model query task failed: {error}"))?
+}
+
+fn fetch_deepseek_models_blocking<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    base_url: String,
+    api_key: Option<String>,
+    provider_id: Option<String>,
+) -> Result<Vec<String>, String> {
+    let base_url = normalize_base_url(&base_url)?;
+    let supplied_key = api_key.unwrap_or_default().trim().to_string();
+    let token = if supplied_key.is_empty() {
+        match provider_id {
+            Some(id) => {
+                let provider = read_provider(&resolve_paths(&app)?, &id)?;
+                if provider.balance_platform != Some(ProviderBalancePlatform::DeepSeek) {
+                    return Err("The selected provider is not a DeepSeek preset".to_string());
+                }
+                provider.api_key
+            }
+            None => String::new(),
+        }
+    } else {
+        supplied_key
+    };
+    if token.trim().is_empty() {
+        return Err("DeepSeek API key is required before fetching models".to_string());
+    }
+
+    let query_url = deepseek_endpoint_url(&base_url, "/models")?;
+    let client = Client::builder()
+        .timeout(Duration::from_secs(15))
+        .redirect(reqwest::redirect::Policy::limited(5))
+        .user_agent("Codex-Switch")
+        .build()
+        .map_err(|error| format!("Failed to create DeepSeek model query client: {error}"))?;
+    let response = client
+        .get(query_url)
+        .bearer_auth(token.trim())
+        .header(reqwest::header::ACCEPT, "application/json")
+        .send()
+        .map_err(|error| format!("DeepSeek model query failed: {error}"))?;
+    let payload = read_limited_json_response(response, "DeepSeek model", MAX_MODEL_RESPONSE_BYTES)?;
+    parse_deepseek_models(&payload)
 }
 
 #[tauri::command]
@@ -305,6 +408,7 @@ fn query_provider_balance_blocking<R: Runtime>(
                     })
                 })
             }
+            ProviderBalancePlatform::DeepSeek => None,
         };
         if let Some(wallet_result) = wallet_result {
             match wallet_result {
@@ -324,6 +428,7 @@ fn query_provider_balance_blocking<R: Runtime>(
         wallet_amount,
         wallet_unit,
         wallet_error,
+        balance_items: parsed.balance_items,
         queried_at: chrono::Utc::now().timestamp(),
     })
 }
@@ -364,22 +469,30 @@ fn read_balance_response(
     response: reqwest::blocking::Response,
     label: &str,
 ) -> Result<Value, String> {
+    read_limited_json_response(response, label, MAX_BALANCE_RESPONSE_BYTES)
+}
+
+fn read_limited_json_response(
+    response: reqwest::blocking::Response,
+    label: &str,
+    max_bytes: u64,
+) -> Result<Value, String> {
     let status = response.status();
     if !status.is_success() {
         return Err(format!("{label} query returned HTTP {}", status.as_u16()));
     }
     if response
         .content_length()
-        .is_some_and(|length| length > MAX_BALANCE_RESPONSE_BYTES)
+        .is_some_and(|length| length > max_bytes)
     {
         return Err(format!("{label} response is too large"));
     }
     let mut bytes = Vec::new();
     response
-        .take(MAX_BALANCE_RESPONSE_BYTES + 1)
+        .take(max_bytes + 1)
         .read_to_end(&mut bytes)
         .map_err(|error| format!("Failed to read {label} response: {error}"))?;
-    if bytes.len() as u64 > MAX_BALANCE_RESPONSE_BYTES {
+    if bytes.len() as u64 > max_bytes {
         return Err(format!("{label} response is too large"));
     }
     serde_json::from_slice(&bytes)
@@ -564,6 +677,7 @@ pub(crate) fn switch_provider_blocking<R: Runtime>(
         let _ = write_state(&paths, &original_state);
         return Err(error);
     }
+    refresh_codex_models_best_effort(&provider);
     emit_providers_changed(&app)?;
     Ok(())
 }
@@ -588,6 +702,7 @@ pub(crate) fn switch_provider_model<R: Runtime>(
     let active = state.active_provider_id.as_deref() == Some(&provider.id);
     if active {
         write_active_provider_config(&paths, &provider)?;
+        refresh_codex_models_best_effort(&provider);
     }
     emit_providers_changed(&app)?;
     Ok(provider_summary(
@@ -613,6 +728,7 @@ pub(crate) fn set_provider_model_control<R: Runtime>(
     let active = state.active_provider_id.as_deref() == Some(&provider.id);
     if active {
         write_active_provider_config(&paths, &provider)?;
+        refresh_codex_models_best_effort(&provider);
     }
     emit_providers_changed(&app)?;
     Ok(provider_summary(
@@ -713,7 +829,9 @@ pub(crate) fn apply_local_proxy_config_for_state<R: Runtime>(
     app: &tauri::AppHandle<R>,
 ) -> Result<(), String> {
     let paths = resolve_paths(app)?;
-    apply_local_proxy_config_for_paths(&paths)
+    apply_local_proxy_config_for_paths(&paths)?;
+    refresh_active_codex_models_for_paths(&paths);
+    Ok(())
 }
 
 pub(crate) fn apply_local_proxy_config_for_paths(paths: &Paths) -> Result<(), String> {
@@ -766,6 +884,7 @@ pub(crate) fn activate_provider_for_sync(paths: &Paths, id: &str) -> Result<bool
         let _ = write_state(paths, &original_state);
         return Err(error);
     }
+    refresh_codex_models_best_effort(&provider);
     Ok(true)
 }
 
@@ -1083,6 +1202,9 @@ fn normalize_balance_settings(
         return Ok((None, None, None));
     };
     let query_url = normalize_balance_query_url(query_url.as_deref().unwrap_or_default())?;
+    if platform == ProviderBalancePlatform::DeepSeek {
+        validate_deepseek_balance_query_url(&query_url)?;
+    }
     let query_token = if uses_api_key {
         None
     } else {
@@ -1119,6 +1241,9 @@ fn normalize_wallet_settings(
     String,
 > {
     if platform.is_none() {
+        return Ok((None, None, None, None));
+    }
+    if platform == Some(ProviderBalancePlatform::DeepSeek) {
         return Ok((None, None, None, None));
     }
     let query_url = query_url
@@ -1202,74 +1327,193 @@ struct ParsedProviderApiBalance {
     unlimited: bool,
     embedded_wallet_amount: Option<f64>,
     embedded_wallet_unit: String,
+    balance_items: Vec<ProviderBalanceItem>,
 }
 
 fn parse_provider_api_balance(
     platform: ProviderBalancePlatform,
     payload: &Value,
 ) -> Result<ParsedProviderApiBalance, String> {
-    let (amount, unit, unlimited, embedded_wallet_amount, embedded_wallet_unit) = match platform {
-        ProviderBalancePlatform::NewApi => {
-            let data = payload
-                .get("data")
-                .ok_or_else(|| "New API balance response is missing data".to_string())?;
-            let unlimited = data
-                .get("unlimited_quota")
-                .and_then(Value::as_bool)
-                .unwrap_or(false);
-            let available = data
-                .get("total_available")
-                .and_then(Value::as_f64)
-                .ok_or_else(|| {
-                    "New API balance response is missing data.total_available".to_string()
-                })?;
-            (
-                (!unlimited).then_some((available / NEW_API_QUOTA_PER_USD).max(0.0)),
-                "USD".to_string(),
-                unlimited,
-                None,
-                "USD".to_string(),
-            )
-        }
-        ProviderBalancePlatform::Sub2Api => {
-            let mode = payload.get("mode").and_then(Value::as_str);
-            let remaining = payload
-                .get("remaining")
-                .and_then(Value::as_f64)
-                .or_else(|| {
+    let (amount, unit, unlimited, embedded_wallet_amount, embedded_wallet_unit, balance_items) =
+        match platform {
+            ProviderBalancePlatform::NewApi => {
+                let data = payload
+                    .get("data")
+                    .ok_or_else(|| "New API balance response is missing data".to_string())?;
+                let unlimited = data
+                    .get("unlimited_quota")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false);
+                let available = data
+                    .get("total_available")
+                    .and_then(Value::as_f64)
+                    .ok_or_else(|| {
+                        "New API balance response is missing data.total_available".to_string()
+                    })?;
+                (
+                    (!unlimited).then_some((available / NEW_API_QUOTA_PER_USD).max(0.0)),
+                    "USD".to_string(),
+                    unlimited,
+                    None,
+                    "USD".to_string(),
+                    Vec::new(),
+                )
+            }
+            ProviderBalancePlatform::Sub2Api => {
+                let mode = payload.get("mode").and_then(Value::as_str);
+                let remaining = payload
+                    .get("remaining")
+                    .and_then(Value::as_f64)
+                    .or_else(|| {
+                        payload
+                            .get("quota")
+                            .and_then(|quota| quota.get("remaining"))
+                            .and_then(Value::as_f64)
+                    })
+                    .ok_or_else(|| "Sub2API balance response is missing remaining".to_string())?;
+                let embedded_wallet_amount = payload.get("balance").and_then(Value::as_f64);
+                let is_wallet_mode =
+                    mode == Some("unrestricted") && embedded_wallet_amount.is_some();
+                let unlimited = is_wallet_mode || remaining < 0.0;
+                (
+                    (!unlimited).then_some(remaining.max(0.0)),
                     payload
-                        .get("quota")
-                        .and_then(|quota| quota.get("remaining"))
-                        .and_then(Value::as_f64)
-                })
-                .ok_or_else(|| "Sub2API balance response is missing remaining".to_string())?;
-            let embedded_wallet_amount = payload.get("balance").and_then(Value::as_f64);
-            let is_wallet_mode = mode == Some("unrestricted") && embedded_wallet_amount.is_some();
-            let unlimited = is_wallet_mode || remaining < 0.0;
-            (
-                (!unlimited).then_some(remaining.max(0.0)),
-                payload
-                    .get("unit")
-                    .and_then(Value::as_str)
-                    .unwrap_or("USD")
-                    .to_string(),
-                unlimited,
-                embedded_wallet_amount,
-                payload
-                    .get("unit")
-                    .and_then(Value::as_str)
-                    .unwrap_or("USD")
-                    .to_string(),
-            )
-        }
-    };
+                        .get("unit")
+                        .and_then(Value::as_str)
+                        .unwrap_or("USD")
+                        .to_string(),
+                    unlimited,
+                    embedded_wallet_amount,
+                    payload
+                        .get("unit")
+                        .and_then(Value::as_str)
+                        .unwrap_or("USD")
+                        .to_string(),
+                    Vec::new(),
+                )
+            }
+            ProviderBalancePlatform::DeepSeek => {
+                let available = payload
+                    .get("is_available")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false);
+                let mut balance_items = Vec::new();
+                for item in payload
+                    .get("balance_infos")
+                    .and_then(Value::as_array)
+                    .into_iter()
+                    .flatten()
+                {
+                    let unit = item
+                        .get("currency")
+                        .and_then(Value::as_str)
+                        .map(str::trim)
+                        .filter(|unit| !unit.is_empty())
+                        .unwrap_or("CNY")
+                        .to_string();
+                    let amount =
+                        item.get("total_balance")
+                            .and_then(json_number)
+                            .ok_or_else(|| {
+                                "DeepSeek balance response contains an invalid total_balance"
+                                    .to_string()
+                            })?;
+                    balance_items.push(ProviderBalanceItem { amount, unit });
+                }
+                if available && balance_items.is_empty() {
+                    return Err("DeepSeek balance response is missing balance_infos".to_string());
+                }
+                let primary = balance_items.first();
+                (
+                    primary.map(|item| item.amount),
+                    primary
+                        .map(|item| item.unit.clone())
+                        .unwrap_or_else(|| "CNY".to_string()),
+                    !available,
+                    None,
+                    "CNY".to_string(),
+                    balance_items,
+                )
+            }
+        };
     Ok(ParsedProviderApiBalance {
         amount,
         unit,
         unlimited,
         embedded_wallet_amount,
         embedded_wallet_unit,
+        balance_items,
     })
+}
+
+fn json_number(value: &Value) -> Option<f64> {
+    value
+        .as_f64()
+        .or_else(|| value.as_str().and_then(|value| value.trim().parse().ok()))
+}
+
+fn parse_deepseek_models(payload: &Value) -> Result<Vec<String>, String> {
+    let data = payload
+        .get("data")
+        .and_then(Value::as_array)
+        .ok_or_else(|| "DeepSeek model response is missing data".to_string())?;
+    let mut models = Vec::new();
+    for item in data {
+        if let Some(model) = item
+            .get("id")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|model| !model.is_empty())
+        {
+            push_model_once(&mut models, model.to_string());
+        }
+    }
+    if models.is_empty() {
+        Err("DeepSeek did not return any available models".to_string())
+    } else {
+        Ok(models)
+    }
+}
+
+pub(crate) fn deepseek_endpoint_url(base_url: &str, endpoint: &str) -> Result<Url, String> {
+    let mut url =
+        Url::parse(base_url).map_err(|error| format!("DeepSeek Base URL is invalid: {error}"))?;
+    if url.scheme() != "https"
+        || url.host_str() != Some("api.deepseek.com")
+        || url.port_or_known_default() != Some(443)
+    {
+        return Err(
+            "DeepSeek Base URL must use the official https://api.deepseek.com endpoint".to_string(),
+        );
+    }
+    let mut path = url.path().trim_end_matches('/').to_string();
+    if !path.is_empty() && path != "/v1" {
+        return Err(
+            "DeepSeek Base URL must use the official https://api.deepseek.com endpoint".to_string(),
+        );
+    }
+    if path.ends_with("/v1") {
+        path.truncate(path.len() - 3);
+    }
+    url.set_path(&format!(
+        "{}/{}",
+        path.trim_end_matches('/'),
+        endpoint.trim_start_matches('/')
+    ));
+    url.set_query(None);
+    url.set_fragment(None);
+    Ok(url)
+}
+
+fn validate_deepseek_balance_query_url(value: &str) -> Result<(), String> {
+    let expected = deepseek_endpoint_url("https://api.deepseek.com", "/user/balance")?;
+    let actual = Url::parse(value)
+        .map_err(|error| format!("Provider balance query URL is invalid: {error}"))?;
+    if actual == expected {
+        Ok(())
+    } else {
+        Err("DeepSeek balance queries must use the official endpoint".to_string())
+    }
 }
 
 fn parse_provider_wallet_balance(
@@ -1292,6 +1536,9 @@ fn parse_provider_wallet_balance(
                 .and_then(Value::as_f64)
                 .ok_or_else(|| "Sub2API wallet response is missing data.balance".to_string())?;
             Ok((balance.max(0.0), "USD".to_string()))
+        }
+        ProviderBalancePlatform::DeepSeek => {
+            Err("DeepSeek does not use a separate wallet balance endpoint".to_string())
         }
     }
 }
@@ -1328,6 +1575,22 @@ fn normalize_provider_profile(mut provider: ProviderProfile) -> Result<ProviderP
         }
         provider.model_selection_controlled_by_codex = true;
         provider.api_format = ProviderApiFormat::OpenaiResponses;
+    }
+    if provider.balance_platform == Some(ProviderBalancePlatform::DeepSeek) {
+        if provider.kind != ProviderKind::Custom {
+            return Err("DeepSeek presets must be third-party proxy providers".to_string());
+        }
+        deepseek_endpoint_url(&provider.base_url, "/chat/completions")?;
+        validate_deepseek_balance_query_url(
+            provider.balance_query_url.as_deref().unwrap_or_default(),
+        )?;
+        provider.api_format = ProviderApiFormat::OpenaiChat;
+        provider.model_selection_controlled_by_codex = true;
+        provider.balance_query_token = None;
+        provider.wallet_query_url = None;
+        provider.wallet_query_token = None;
+        provider.wallet_username = None;
+        provider.wallet_password = None;
     }
     let (model, models) = normalize_model_selection(&provider.model, provider.models)?;
     provider.model = model;
@@ -1376,11 +1639,6 @@ fn normalize_provider_profile(mut provider: ProviderProfile) -> Result<ProviderP
 
 pub(crate) fn uses_upstream_official_models(provider: &ProviderProfile) -> bool {
     provider.kind == ProviderKind::OpenAi
-}
-
-fn uses_local_model_catalog(provider: &ProviderProfile) -> bool {
-    !uses_upstream_official_models(provider)
-        && (provider.model_selection_controlled_by_codex || provider.context_window.is_some())
 }
 
 fn normalize_synced_provider(mut provider: ProviderProfile) -> Result<ProviderProfile, String> {
@@ -1534,22 +1792,14 @@ fn backup_codex_config_if_needed(paths: &Paths, entering_provider: bool) -> Resu
 
 pub(crate) fn write_official_local_proxy_config(paths: &Paths) -> Result<(), String> {
     let model = preferred_official_model(paths);
-    write_local_proxy_config(paths, LOCAL_PROXY_PROVIDER_NAME, Some(&model), false)
+    write_local_proxy_config(paths, LOCAL_PROXY_PROVIDER_NAME, Some(&model))
 }
 
 fn write_provider_local_proxy_config(
     paths: &Paths,
     provider: &ProviderProfile,
 ) -> Result<(), String> {
-    if uses_local_model_catalog(provider) {
-        write_provider_model_catalog(paths, provider)?;
-    }
-    write_local_proxy_config(
-        paths,
-        &provider.name,
-        Some(&provider.model),
-        uses_local_model_catalog(provider),
-    )
+    write_local_proxy_config(paths, &provider.name, Some(&provider.model))
 }
 
 fn write_active_provider_config(paths: &Paths, provider: &ProviderProfile) -> Result<(), String> {
@@ -1568,20 +1818,6 @@ fn ensure_local_proxy_running_for_provider() -> Result<(), String> {
         Err("Third-party Providers require the local proxy. Start the local proxy before switching Provider."
             .to_string())
     }
-}
-
-fn write_provider_model_catalog(paths: &Paths, provider: &ProviderProfile) -> Result<(), String> {
-    let value = provider_model_catalog(provider);
-    write_json_if_changed(&paths.codex_home.join(MODEL_CATALOG_FILENAME), &value).map(|_| ())
-}
-
-fn provider_model_catalog(provider: &ProviderProfile) -> Value {
-    let models = if provider.model_selection_controlled_by_codex {
-        provider.models.as_slice()
-    } else {
-        std::slice::from_ref(&provider.model)
-    };
-    model_catalog_for_models(models, provider_context_window(provider))
 }
 
 pub(crate) fn provider_context_window(provider: &ProviderProfile) -> u64 {
@@ -1647,12 +1883,7 @@ fn provider_model_catalog_entry(model: &str, index: usize, context_window: u64) 
     })
 }
 
-fn write_local_proxy_config(
-    paths: &Paths,
-    name: &str,
-    model: Option<&str>,
-    include_model_catalog: bool,
-) -> Result<(), String> {
+fn write_local_proxy_config(paths: &Paths, name: &str, model: Option<&str>) -> Result<(), String> {
     let existing = if paths.current_config.exists() {
         fs::read_to_string(&paths.current_config)
             .map_err(|error| format!("Failed to read Codex config: {error}"))?
@@ -1662,16 +1893,16 @@ fn write_local_proxy_config(
     let requires_openai_auth = read_state(paths)
         .local_proxy_openai_auth_account_id
         .is_some();
-    let merged = merge_local_proxy_config(
-        &existing,
-        name,
-        model,
-        include_model_catalog,
-        requires_openai_auth,
-    );
+    let token_command = std::env::current_exe()
+        .map_err(|error| format!("Failed to locate Codex Switch for local proxy auth: {error}"))?
+        .display()
+        .to_string();
+    let merged =
+        merge_local_proxy_config(&existing, name, model, requires_openai_auth, &token_command);
     write_text_if_changed(&paths.current_config, &merged).map(|_| ())
 }
 
+#[cfg(test)]
 fn merge_provider_config(existing: &str, provider: &ProviderProfile) -> String {
     let cleaned = remove_provider_conflicts(&remove_marked_blocks(existing));
     let mut config = String::new();
@@ -1679,12 +1910,6 @@ fn merge_provider_config(existing: &str, provider: &ProviderProfile) -> String {
     config.push('\n');
     config.push_str("model_provider = \"custom\"\n");
     config.push_str(&format!("model = {}\n", toml_string(&provider.model)));
-    if uses_local_model_catalog(provider) {
-        config.push_str(&format!(
-            "model_catalog_json = {}\n",
-            toml_string(MODEL_CATALOG_FILENAME)
-        ));
-    }
     config.push_str("disable_response_storage = true\n");
     config.push_str(PROVIDER_ROOT_END);
     config.push_str("\n\n");
@@ -1716,8 +1941,8 @@ fn merge_local_proxy_config(
     existing: &str,
     name: &str,
     model: Option<&str>,
-    include_model_catalog: bool,
     requires_openai_auth: bool,
+    token_command: &str,
 ) -> String {
     let cleaned = remove_provider_conflicts(&remove_marked_blocks(existing));
     let model = model.map(str::trim).filter(|value| !value.is_empty());
@@ -1730,12 +1955,6 @@ fn merge_local_proxy_config(
     ));
     if let Some(model) = model {
         config.push_str(&format!("model = {}\n", toml_string(model)));
-    }
-    if include_model_catalog {
-        config.push_str(&format!(
-            "model_catalog_json = {}\n",
-            toml_string(MODEL_CATALOG_FILENAME)
-        ));
     }
     config.push_str("disable_response_storage = true\n");
     config.push_str(PROVIDER_ROOT_END);
@@ -1757,13 +1976,20 @@ fn merge_local_proxy_config(
     ));
     config.push_str("wire_api = \"responses\"\n");
     config.push_str(&format!("requires_openai_auth = {requires_openai_auth}\n"));
+    if requires_openai_auth {
+        config.push_str(&format!(
+            "experimental_bearer_token = {}\n",
+            toml_string(LOCAL_PROXY_TOKEN)
+        ));
+    } else {
+        config.push_str(&format!(
+            "auth = {{ command = {}, args = [\"--print-local-proxy-token\"], timeout_ms = 5000, refresh_interval_ms = 300000 }}\n",
+            toml_string(token_command)
+        ));
+    }
     config.push_str(&format!(
         "http_headers = {{ {} = {} }}\n",
         toml_string(LOCAL_PROXY_ACTOR_AUTHORIZATION_HEADER),
-        toml_string(LOCAL_PROXY_TOKEN)
-    ));
-    config.push_str(&format!(
-        "experimental_bearer_token = {}\n",
         toml_string(LOCAL_PROXY_TOKEN)
     ));
     config.push_str(PROVIDER_TABLE_END);
@@ -2008,6 +2234,62 @@ mod tests {
         assert_eq!(balance.amount, Some(12.5));
         assert_eq!(balance.unit, "USD");
         assert!(!balance.unlimited);
+    }
+
+    #[test]
+    fn parses_deepseek_multi_currency_balance() {
+        let balance = parse_provider_api_balance(
+            ProviderBalancePlatform::DeepSeek,
+            &json!({
+                "is_available": true,
+                "balance_infos": [
+                    { "currency": "CNY", "total_balance": "88.80" },
+                    { "currency": "USD", "total_balance": "12.50" }
+                ]
+            }),
+        )
+        .unwrap();
+
+        assert_eq!(balance.amount, Some(88.8));
+        assert_eq!(balance.unit, "CNY");
+        assert!(!balance.unlimited);
+        assert_eq!(balance.balance_items.len(), 2);
+        assert_eq!(balance.balance_items[1].unit, "USD");
+        assert_eq!(balance.balance_items[1].amount, 12.5);
+    }
+
+    #[test]
+    fn parses_and_deduplicates_deepseek_models() {
+        let models = parse_deepseek_models(&json!({
+            "object": "list",
+            "data": [
+                { "id": "deepseek-v4-flash", "object": "model" },
+                { "id": "deepseek-v4-pro", "object": "model" },
+                { "id": "deepseek-v4-flash", "object": "model" }
+            ]
+        }))
+        .unwrap();
+
+        assert_eq!(models, vec!["deepseek-v4-flash", "deepseek-v4-pro"]);
+    }
+
+    #[test]
+    fn deepseek_endpoints_strip_optional_v1_prefix() {
+        assert_eq!(
+            deepseek_endpoint_url("https://api.deepseek.com/v1", "/models")
+                .unwrap()
+                .as_str(),
+            "https://api.deepseek.com/models"
+        );
+        assert_eq!(
+            deepseek_endpoint_url("https://api.deepseek.com", "/models")
+                .unwrap()
+                .as_str(),
+            "https://api.deepseek.com/models"
+        );
+        assert!(deepseek_endpoint_url("https://example.com", "/models").is_err());
+        assert!(deepseek_endpoint_url("https://api.deepseek.com:444", "/models").is_err());
+        assert!(deepseek_endpoint_url("https://api.deepseek.com/custom", "/models").is_err());
     }
 
     #[test]
@@ -2431,18 +2713,21 @@ mod tests {
             "model = \"old\"",
             "Proxy",
             Some("deepseek-chat"),
-            true,
             false,
+            r"C:\Program Files\Codex Switch\codex-switch.exe",
         );
         assert!(merged.contains("model_provider = \"codex-switch-local\""));
         assert!(merged.contains("model = \"deepseek-chat\""));
-        assert!(merged.contains("model_catalog_json = \"codex-switch-model-catalog.json\""));
+        assert!(!merged.contains("model_catalog_json"));
         assert!(merged.contains("base_url = \"http://127.0.0.1:15722/v1\""));
         assert!(merged.contains("requires_openai_auth = false"));
         assert!(merged.contains(
             "http_headers = { \"x-openai-actor-authorization\" = \"CODEX_SWITCH_LOCAL_PROXY\" }"
         ));
-        assert!(merged.contains("experimental_bearer_token = \"CODEX_SWITCH_LOCAL_PROXY\""));
+        assert!(merged.contains("--print-local-proxy-token"));
+        assert!(merged.contains(
+            "auth = { command = \"C:\\\\Program Files\\\\Codex Switch\\\\codex-switch.exe\""
+        ));
         assert!(!merged.contains("model = \"old\""));
     }
 
@@ -2470,23 +2755,23 @@ sandbox_mode = "workspace-write"
     }
 
     #[test]
-    fn provider_config_adds_model_catalog_when_codex_controls_models() {
+    fn provider_config_uses_dynamic_models_when_codex_controls_models() {
         let mut provider = provider();
         provider.model_selection_controlled_by_codex = true;
 
         let merged = merge_provider_config("", &provider);
 
-        assert!(merged.contains("model_catalog_json = \"codex-switch-model-catalog.json\""));
+        assert!(!merged.contains("model_catalog_json"));
     }
 
     #[test]
-    fn provider_config_adds_model_catalog_for_a_custom_context_window() {
+    fn provider_config_keeps_dynamic_models_for_a_custom_context_window() {
         let mut provider = provider();
         provider.context_window = Some(256_000);
 
         let merged = merge_provider_config("", &provider);
 
-        assert!(merged.contains("model_catalog_json = \"codex-switch-model-catalog.json\""));
+        assert!(!merged.contains("model_catalog_json"));
     }
 
     #[test]
@@ -2577,6 +2862,33 @@ sandbox_mode = "workspace-write"
     }
 
     #[test]
+    fn normalize_deepseek_preset_enforces_proxy_bridge_settings() {
+        let mut profile = provider();
+        profile.name = "DeepSeek".to_string();
+        profile.base_url = "https://api.deepseek.com".to_string();
+        profile.model = "deepseek-v4-pro".to_string();
+        profile.models = vec!["deepseek-v4-pro".to_string()];
+        profile.api_format = ProviderApiFormat::OpenaiResponses;
+        profile.model_selection_controlled_by_codex = false;
+        profile.balance_platform = Some(ProviderBalancePlatform::DeepSeek);
+        profile.balance_query_url = Some("https://api.deepseek.com/user/balance".to_string());
+
+        let profile = normalize_provider_profile(profile).unwrap();
+
+        assert_eq!(profile.api_format, ProviderApiFormat::OpenaiChat);
+        assert!(profile.model_selection_controlled_by_codex);
+    }
+
+    #[test]
+    fn normalize_deepseek_preset_rejects_non_official_upstream() {
+        let mut profile = provider();
+        profile.balance_platform = Some(ProviderBalancePlatform::DeepSeek);
+        profile.balance_query_url = Some("https://api.deepseek.com/user/balance".to_string());
+
+        assert!(normalize_provider_profile(profile).is_err());
+    }
+
+    #[test]
     fn normalize_model_selection_trims_and_deduplicates_models() {
         let (model, models) = normalize_model_selection(
             " deepseek-chat ",
@@ -2599,7 +2911,8 @@ sandbox_mode = "workspace-write"
         provider.models = vec!["deepseek-chat".to_string(), "deepseek-reasoner".to_string()];
         provider.context_window = Some(256_000);
         provider.model_selection_controlled_by_codex = true;
-        let catalog = provider_model_catalog(&provider);
+        let catalog =
+            model_catalog_for_models(&provider.models, provider_context_window(&provider));
         let models = catalog["models"].as_array().unwrap();
 
         assert_eq!(models.len(), 2);
@@ -2673,8 +2986,13 @@ sandbox_mode = "workspace-write"
 model = "gpt-5.5"
 model_reasoning_effort = "xhigh"
 "#;
-        let provider_proxy =
-            merge_local_proxy_config(backup, "DeepSeek", Some("deepseek-v4-flash"), true, false);
+        let provider_proxy = merge_local_proxy_config(
+            backup,
+            "DeepSeek",
+            Some("deepseek-v4-flash"),
+            false,
+            "codex-switch",
+        );
 
         assert_eq!(
             preferred_official_model_from_configs(Some(&provider_proxy), Some(backup)),
@@ -2688,7 +3006,7 @@ model_reasoning_effort = "xhigh"
             LOCAL_PROXY_PROVIDER_NAME,
             Some(&official_model),
             false,
-            false,
+            "codex-switch",
         );
         let first_model = extract_root_model(&official_proxy).unwrap();
 
@@ -2702,8 +3020,8 @@ model_reasoning_effort = "xhigh"
             r#"model = "gpt-5.5""#,
             "DeepSeek",
             Some("deepseek-v4-flash"),
-            true,
             false,
+            "codex-switch",
         );
 
         assert_eq!(

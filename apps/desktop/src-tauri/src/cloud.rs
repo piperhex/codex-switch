@@ -912,6 +912,12 @@ fn apply_remote_provider<R: Runtime>(
     merge_field!(wallet_password);
     if changed {
         crate::providers::write_synced_provider(&paths, merged, &local_versions)?;
+        if crate::local_proxy::is_running()
+            && read_state(&paths).active_provider_id.as_deref() == Some(&provider.id)
+        {
+            crate::providers::apply_local_proxy_config_for_paths(&paths)?;
+            crate::providers::refresh_active_codex_models_for_paths(&paths);
+        }
     }
     Ok(changed)
 }

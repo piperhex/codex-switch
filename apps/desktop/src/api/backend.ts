@@ -416,18 +416,36 @@ export async function saveProviderProfile(provider: ProviderInput): Promise<Prov
   return invoke<Provider>("save_provider", { provider });
 }
 
+export async function fetchDeepSeekModels(
+  baseUrl: string,
+  apiKey?: string,
+  providerId?: string,
+): Promise<string[]> {
+  if (!hasLocalBackend) {
+    return ["deepseek-v4-flash", "deepseek-v4-pro"];
+  }
+  return invoke<string[]>("fetch_deepseek_models", {
+    baseUrl,
+    apiKey: apiKey?.trim() || null,
+    providerId: providerId ?? null,
+  });
+}
+
 async function performProviderBalanceQuery(id: string): Promise<ProviderBalance> {
   if (!hasLocalBackend) {
     const provider = readPreviewProviders().find((item) => item.id === id);
     if (!provider) throw new Error("Provider does not exist");
     if (!provider.balancePlatform) throw new Error("Provider balance query is not enabled");
     return {
-      apiAmount: provider.balancePlatform === "newApi" ? 108.08 : 42.5,
-      apiUnit: "USD",
+      apiAmount: provider.balancePlatform === "newApi" ? 108.08 : provider.balancePlatform === "deepSeek" ? 88.8 : 42.5,
+      apiUnit: provider.balancePlatform === "deepSeek" ? "CNY" : "USD",
       apiUnlimited: false,
-      walletAmount: provider.hasWalletQueryToken || provider.hasWalletLoginCredentials ? 66.6 : null,
+      walletAmount: provider.balancePlatform !== "deepSeek" && (provider.hasWalletQueryToken || provider.hasWalletLoginCredentials) ? 66.6 : null,
       walletUnit: "USD",
       walletError: null,
+      balanceItems: provider.balancePlatform === "deepSeek"
+        ? [{ amount: 88.8, unit: "CNY" }, { amount: 12.5, unit: "USD" }]
+        : [],
       queriedAt: Math.floor(Date.now() / 1000),
     };
   }

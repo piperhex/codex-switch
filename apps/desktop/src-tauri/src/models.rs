@@ -119,6 +119,7 @@ pub(crate) enum ProviderKind {
 pub(crate) enum ProviderBalancePlatform {
     NewApi,
     Sub2Api,
+    DeepSeek,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -189,7 +190,15 @@ pub(crate) struct ProviderBalance {
     pub(crate) wallet_amount: Option<f64>,
     pub(crate) wallet_unit: String,
     pub(crate) wallet_error: Option<String>,
+    pub(crate) balance_items: Vec<ProviderBalanceItem>,
     pub(crate) queried_at: i64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ProviderBalanceItem {
+    pub(crate) amount: f64,
+    pub(crate) unit: String,
 }
 
 #[derive(Debug, Clone, Serialize)]

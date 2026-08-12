@@ -1005,6 +1005,104 @@ const CODEX_PROBE_PAYLOAD: &str = r#"(() => ({
   )
 }))()"#;
 
+#[cfg(test)]
+const CODEX_MODEL_QUERY_PREFIX: [&str; 2] = ["models", "list"];
+
+fn codex_model_refresh_expression(
+    models: &[String],
+    selected_model: &str,
+) -> Result<String, String> {
+    let models = serde_json::to_string(models)
+        .map_err(|error| format!("Failed to prepare the Codex model list: {error}"))?;
+    let selected_model = serde_json::to_string(selected_model)
+        .map_err(|error| format!("Failed to prepare the selected Codex model: {error}"))?;
+    Ok(format!(
+        r#"(async () => {{
+  const expectedModels = {models};
+  const selectedModel = {selected_model};
+  const root = window.__codexRoot;
+  if (!root || !Array.isArray(expectedModels)) {{
+    return {{ refreshed: false, reason: "unavailable" }};
+  }}
+  const queue = [root._internalRoot?.current ?? root];
+  const seen = new Set();
+  let queryClient = null;
+  while (queue.length && seen.size < 50000) {{
+    const fiber = queue.shift();
+    if (!fiber || typeof fiber !== "object" || seen.has(fiber)) continue;
+    seen.add(fiber);
+    const candidates = [
+      fiber.memoizedProps?.client,
+      fiber.pendingProps?.client,
+      fiber.memoizedState?.client,
+    ];
+    queryClient = candidates.find(candidate =>
+      candidate && typeof candidate.getQueryCache === "function" &&
+      typeof candidate.invalidateQueries === "function" &&
+      typeof candidate.setQueryData === "function"
+    ) ?? null;
+    if (queryClient) break;
+    if (fiber.child) queue.push(fiber.child);
+    if (fiber.sibling) queue.push(fiber.sibling);
+  }}
+  if (!queryClient) return {{ refreshed: false, reason: "query-client-not-found" }};
+
+  const matchesModelsQuery = query => Array.isArray(query.queryKey) &&
+    query.queryKey[0] === "models" && query.queryKey[1] === "list";
+  await queryClient.invalidateQueries({{
+    predicate: matchesModelsQuery,
+    refetchType: "active",
+  }});
+
+  const currentQueries = queryClient.getQueryCache().getAll().filter(matchesModelsQuery);
+  if (expectedModels.length === 0) {{
+    return {{ refreshed: currentQueries.length > 0, injected: false, count: 0 }};
+  }}
+  const currentIds = currentQueries.flatMap(query =>
+    Array.isArray(query.state?.data?.data)
+      ? query.state.data.data.map(model => model?.model ?? model?.id).filter(Boolean)
+      : []
+  );
+  const expected = new Set(expectedModels);
+  const matches = expectedModels.length === currentIds.length &&
+    currentIds.every(model => expected.has(model));
+  if (matches) return {{ refreshed: true, injected: false, count: currentIds.length }};
+
+  const injectedModels = expectedModels.map((model, index) => ({{
+    id: model,
+    model,
+    upgrade: null,
+    upgradeInfo: null,
+    availabilityNux: null,
+    displayName: model,
+    description: model,
+    modelSpecialty: null,
+    hidden: false,
+    supportedReasoningEfforts: [
+      {{ reasoningEffort: "none", description: "Disable Thinking" }},
+      {{ reasoningEffort: "high", description: "Enabled Thinking" }},
+    ],
+    defaultReasoningEffort: "high",
+    inputModalities: ["text"],
+    supportsPersonality: false,
+    multiAgentVersion: null,
+    additionalSpeedTiers: [],
+    serviceTiers: [],
+    defaultServiceTier: null,
+    isDefault: model === selectedModel || (!expected.has(selectedModel) && index === 0),
+  }}));
+  for (const query of currentQueries) {{
+    queryClient.setQueryData(query.queryKey, current => ({{
+      ...(current && typeof current === "object" ? current : {{}}),
+      data: injectedModels,
+      nextCursor: null,
+    }}));
+  }}
+  return {{ refreshed: currentQueries.length > 0, injected: true, count: injectedModels.length }};
+}})()"#
+    ))
+}
+
 struct CdpSession {
     socket: WebSocket<TcpStream>,
     next_id: u64,
@@ -1186,6 +1284,38 @@ fn list_targets(port: u16) -> Result<Vec<CdpTarget>, String> {
         .into_iter()
         .filter(|target| validate_target(target, port).is_ok())
         .collect())
+}
+
+#[cfg(test)]
+fn is_codex_model_query_key(value: &Value) -> bool {
+    value.as_array().is_some_and(|items| {
+        CODEX_MODEL_QUERY_PREFIX
+            .iter()
+            .enumerate()
+            .all(|(index, expected)| items.get(index).and_then(Value::as_str) == Some(*expected))
+    })
+}
+
+pub(crate) fn refresh_codex_models(
+    models: &[String],
+    selected_model: &str,
+) -> Result<bool, String> {
+    let state = read_session();
+    let Some(port) = state.port else {
+        return Ok(false);
+    };
+    let target = list_targets(port)?
+        .into_iter()
+        .find(|target| target.url == "app://-/index.html")
+        .ok_or_else(|| "The Codex main window is not available.".to_string())?;
+    let expression = codex_model_refresh_expression(models, selected_model)?;
+    let mut session = CdpSession::connect(&target, port)?;
+    session.enable()?;
+    let result = session.evaluate(&expression)?;
+    Ok(result
+        .get("refreshed")
+        .and_then(Value::as_bool)
+        .unwrap_or(false))
 }
 
 fn codex_probe_succeeded(probe: &Value) -> bool {
@@ -2509,6 +2639,23 @@ mod tests {
         assert!(codex_probe_succeeded(&json!({ "codex": true })));
         assert!(!codex_probe_succeeded(&json!({ "codex": false })));
         assert!(!codex_probe_succeeded(&json!({})));
+    }
+
+    #[test]
+    fn codex_model_refresh_only_matches_model_list_queries() {
+        assert!(is_codex_model_query_key(&json!([
+            "models", "list", "local", "chatgpt", 100
+        ])));
+        assert!(!is_codex_model_query_key(&json!(["models", "details"])));
+        assert!(!is_codex_model_query_key(&json!(["threads", "list"])));
+        let expression = codex_model_refresh_expression(
+            &["deepseek-chat".to_string(), "deepseek-reasoner".to_string()],
+            "deepseek-chat",
+        )
+        .unwrap();
+        assert!(expression.contains("query.queryKey[0] === \"models\""));
+        assert!(expression.contains("query.queryKey[1] === \"list\""));
+        assert!(expression.contains("deepseek-reasoner"));
     }
 
     #[test]
