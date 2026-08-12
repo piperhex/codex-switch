@@ -264,6 +264,13 @@ function DashboardApp() {
     providerManager.localProxy?.running
       && providerManager.localProxy.concurrentAccountRoutingEnabled,
   );
+  const currentModelSource: "official" | "provider" | null = activeProvider
+    ? "provider"
+    : activeAccount || concurrentRoutingActive
+      ? "official"
+      : null;
+  const lastModelSourceRef = useRef<typeof currentModelSource>(null);
+  const modelSourceTrackingReadyRef = useRef(false);
   const concurrentAutoRefreshAccountIds = useMemo(
     () => manager.accounts
       .filter((account) => account.autoSwitchEnabled)
@@ -378,8 +385,8 @@ function DashboardApp() {
   }, []);
   const openCloudAccount = useCallback(() => setShowCloudAccount(true), []);
   const switchAccount = useCallback((id: string) => {
-    void manager.switchAccount(id);
-  }, [manager.switchAccount]);
+    void manager.switchAccount(id, Boolean(providerManager.localProxy?.running));
+  }, [manager.switchAccount, providerManager.localProxy?.running]);
   const refreshUsage = useCallback((id: string) => {
     void manager.refreshUsage(id);
   }, [manager.refreshUsage]);
@@ -666,6 +673,38 @@ function DashboardApp() {
       onOk: restartChatGptProcess,
     });
   }, [restartChatGptProcess, t]);
+  useEffect(() => {
+    if (manager.loading || providerManager.loading) return;
+    if (!modelSourceTrackingReadyRef.current) {
+      lastModelSourceRef.current = currentModelSource;
+      modelSourceTrackingReadyRef.current = true;
+      return;
+    }
+    if (!currentModelSource) return;
+
+    const previousModelSource = lastModelSourceRef.current;
+    lastModelSourceRef.current = currentModelSource;
+    if (!previousModelSource
+      || previousModelSource === currentModelSource
+      || !providerManager.localProxy?.running) return;
+
+    Modal.confirm({
+      title: t("actions.restartToLoadModelTitle"),
+      content: t("actions.restartToLoadModelDescription"),
+      okText: t("actions.restartChatGpt"),
+      cancelText: t("update.later"),
+      okButtonProps: { danger: true },
+      width: 400,
+      onOk: restartChatGptProcess,
+    });
+  }, [
+    currentModelSource,
+    manager.loading,
+    providerManager.loading,
+    providerManager.localProxy?.running,
+    restartChatGptProcess,
+    t,
+  ]);
   const openTokenUsage = useCallback(async () => {
     try {
       await showTokenUsageWindow();

@@ -1601,7 +1601,11 @@ export async function chooseAndExportDiagnosticLogs(): Promise<ExportDiagnosticL
 }
 
 export async function activateAccount(id: string): Promise<void> {
-  if (hasLocalBackend) await invoke("switch_account_and_restart_chatgpt", { id });
+  if (!hasLocalBackend) {
+    writePreviewProviders(readPreviewProviders().map((provider) => ({ ...provider, active: false })));
+    return;
+  }
+  await invoke("switch_account_and_restart_chatgpt", { id });
 }
 
 export async function deactivateAccount(): Promise<void> {
