@@ -660,7 +660,19 @@ fn first_compatible_json_string(value: &Value, paths: &[&[&str]]) -> Option<Stri
 }
 
 #[tauri::command]
-pub(crate) fn switch_account<R: Runtime>(
+pub(crate) async fn switch_account<R: Runtime + 'static>(
+    app: tauri::AppHandle<R>,
+    id: String,
+) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || switch_account_blocking(app, id))
+        .await
+        .map_err(|error| format!("Account switch task failed: {error}"))?
+}
+
+/// Blocking account switch that must run off the UI thread. The switch spawns
+/// PowerShell subprocesses and performs file I/O, so it is invoked through
+/// `switch_account` on the desktop and directly from proxy request threads.
+pub(crate) fn switch_account_blocking<R: Runtime>(
     app: tauri::AppHandle<R>,
     id: String,
 ) -> Result<(), String> {
