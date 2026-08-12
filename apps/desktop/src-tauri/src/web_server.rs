@@ -364,57 +364,57 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
         "restore_non_proxy_conversations" => serialize(block_on(
             crate::commands::restore_non_proxy_conversations(app),
         )),
-        "browse_codex_threads" => serialize(crate::conversation_hub::browse_codex_threads(
+        "browse_codex_threads" => serialize(crate::conversation_hub::browse_codex_threads_blocking(
             app,
             argument(&args, "titleQuery")?,
             argument(&args, "contentQuery")?,
         )),
         "measure_codex_thread_tokens" => {
-            serialize(crate::conversation_hub::measure_codex_thread_tokens(
+            serialize(crate::conversation_hub::measure_codex_thread_tokens_blocking(
                 app,
                 argument(&args, "sessionIds")?,
             ))
         }
-        "discard_codex_threads" => serialize(crate::conversation_hub::discard_codex_threads(
+        "discard_codex_threads" => serialize(crate::conversation_hub::discard_codex_threads_blocking(
             app,
             argument(&args, "sessionIds")?,
         )),
         "browse_codex_thread_bin" => {
-            serialize(crate::conversation_hub::browse_codex_thread_bin(app))
+            serialize(crate::conversation_hub::browse_codex_thread_bin_blocking(app))
         }
-        "recover_codex_threads" => serialize(crate::conversation_hub::recover_codex_threads(
+        "recover_codex_threads" => serialize(crate::conversation_hub::recover_codex_threads_blocking(
             app,
             argument(&args, "sessionIds")?,
         )),
-        "purge_codex_threads" => serialize(crate::conversation_hub::purge_codex_threads(
+        "purge_codex_threads" => serialize(crate::conversation_hub::purge_codex_threads_blocking(
             app,
             argument(&args, "sessionIds")?,
         )),
-        "empty_codex_thread_bin" => serialize(crate::conversation_hub::empty_codex_thread_bin(app)),
+        "empty_codex_thread_bin" => serialize(crate::conversation_hub::empty_codex_thread_bin_blocking(app)),
         "inspect_codex_thread_export" => {
-            serialize(crate::conversation_hub::inspect_codex_thread_export(
+            serialize(crate::conversation_hub::inspect_codex_thread_export_blocking(
                 app,
                 argument(&args, "sessionIds")?,
             ))
         }
-        "pack_codex_threads" => serialize(crate::conversation_hub::pack_codex_threads(
+        "pack_codex_threads" => serialize(crate::conversation_hub::pack_codex_threads_blocking(
             app,
             argument(&args, "sessionIds")?,
             argument(&args, "exportPath")?,
         )),
         "inspect_codex_thread_import" => {
-            serialize(crate::conversation_hub::inspect_codex_thread_import(
+            serialize(crate::conversation_hub::inspect_codex_thread_import_blocking(
                 app,
                 argument(&args, "importPath")?,
             ))
         }
-        "unpack_codex_threads" => serialize(crate::conversation_hub::unpack_codex_threads(
+        "unpack_codex_threads" => serialize(crate::conversation_hub::unpack_codex_threads_blocking(
             app,
             argument(&args, "importPath")?,
             argument(&args, "sessionIds")?,
         )),
         "reconcile_codex_thread_visibility" => {
-            serialize(crate::conversation_hub::reconcile_codex_thread_visibility(
+            serialize(crate::conversation_hub::reconcile_codex_thread_visibility_blocking(
                 app,
                 argument(&args, "mode")?,
                 argument(&args, "sessionIds")?,
@@ -422,9 +422,9 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
             ))
         }
         "rebuild_codex_thread_index" => {
-            serialize(crate::conversation_hub::rebuild_codex_thread_index(app))
+            serialize(crate::conversation_hub::rebuild_codex_thread_index_blocking(app))
         }
-        "open_codex_thread_file" => serialize(crate::conversation_hub::open_codex_thread_file(
+        "open_codex_thread_file" => serialize(crate::conversation_hub::open_codex_thread_file_blocking(
             app,
             argument(&args, "sessionId")?,
             argument(&args, "folderOnly")?,

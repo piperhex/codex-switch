@@ -530,8 +530,7 @@ fn locate_rollout_text(path: &Path, needle: &str) -> Result<Option<String>, Stri
     Ok(None)
 }
 
-#[tauri::command]
-pub(crate) fn browse_codex_threads<R: Runtime>(
+pub(crate) fn browse_codex_threads_blocking<R: Runtime>(
     app: tauri::AppHandle<R>,
     title_query: Option<String>,
     content_query: Option<String>,
@@ -612,8 +611,7 @@ fn token_totals(path: &Path) -> Option<(u64, u64, u64)> {
     latest
 }
 
-#[tauri::command]
-pub(crate) fn measure_codex_thread_tokens<R: Runtime>(
+pub(crate) fn measure_codex_thread_tokens_blocking<R: Runtime>(
     app: tauri::AppHandle<R>,
     session_ids: Vec<String>,
 ) -> Result<Vec<ThreadTokenTotals>, String> {
@@ -1199,8 +1197,7 @@ fn restore_moved_files(moved: &[(PathBuf, PathBuf)]) {
     }
 }
 
-#[tauri::command]
-pub(crate) fn discard_codex_threads<R: Runtime>(
+pub(crate) fn discard_codex_threads_blocking<R: Runtime>(
     app: tauri::AppHandle<R>,
     session_ids: Vec<String>,
 ) -> Result<MutationReport, String> {
@@ -1479,8 +1476,7 @@ fn purge_thread_state(codex_home: &Path, session_id: &str) -> Result<(), String>
     )
 }
 
-#[tauri::command]
-pub(crate) fn browse_codex_thread_bin<R: Runtime>(
+pub(crate) fn browse_codex_thread_bin_blocking<R: Runtime>(
     app: tauri::AppHandle<R>,
 ) -> Result<Vec<BinEntry>, String> {
     let mut grouped = HashMap::<String, BinEntry>::new();
@@ -1529,8 +1525,7 @@ fn append_index_entry(codex_home: &Path, session_id: &str, entry: &Value) -> Res
     write_text_atomic(&codex_home.join(INDEX_NAME), &output)
 }
 
-#[tauri::command]
-pub(crate) fn recover_codex_threads<R: Runtime>(
+pub(crate) fn recover_codex_threads_blocking<R: Runtime>(
     app: tauri::AppHandle<R>,
     session_ids: Vec<String>,
 ) -> Result<MutationReport, String> {
@@ -1634,8 +1629,7 @@ fn delete_bin_items<R: Runtime>(
     })
 }
 
-#[tauri::command]
-pub(crate) fn purge_codex_threads<R: Runtime>(
+pub(crate) fn purge_codex_threads_blocking<R: Runtime>(
     app: tauri::AppHandle<R>,
     session_ids: Vec<String>,
 ) -> Result<MutationReport, String> {
@@ -1646,8 +1640,7 @@ pub(crate) fn purge_codex_threads<R: Runtime>(
     delete_bin_items(&app, Some(&requested))
 }
 
-#[tauri::command]
-pub(crate) fn empty_codex_thread_bin<R: Runtime>(
+pub(crate) fn empty_codex_thread_bin_blocking<R: Runtime>(
     app: tauri::AppHandle<R>,
 ) -> Result<MutationReport, String> {
     delete_bin_items(&app, None)
@@ -1702,8 +1695,7 @@ fn ensure_export_dependencies(snapshots: &[RolloutSnapshot]) -> Result<HashSet<S
     Ok(included)
 }
 
-#[tauri::command]
-pub(crate) fn inspect_codex_thread_export<R: Runtime>(
+pub(crate) fn inspect_codex_thread_export_blocking<R: Runtime>(
     app: tauri::AppHandle<R>,
     session_ids: Vec<String>,
 ) -> Result<BundlePreview, String> {
@@ -1735,8 +1727,7 @@ pub(crate) fn inspect_codex_thread_export<R: Runtime>(
     })
 }
 
-#[tauri::command]
-pub(crate) fn pack_codex_threads<R: Runtime>(
+pub(crate) fn pack_codex_threads_blocking<R: Runtime>(
     app: tauri::AppHandle<R>,
     session_ids: Vec<String>,
     export_path: String,
@@ -1840,8 +1831,7 @@ fn read_package(path: &Path) -> Result<PackageManifest, String> {
     Ok(manifest)
 }
 
-#[tauri::command]
-pub(crate) fn inspect_codex_thread_import<R: Runtime>(
+pub(crate) fn inspect_codex_thread_import_blocking<R: Runtime>(
     app: tauri::AppHandle<R>,
     import_path: String,
 ) -> Result<BundlePreview, String> {
@@ -1894,8 +1884,7 @@ fn safe_relative_path(value: &str) -> Option<PathBuf> {
     .then_some(path)
 }
 
-#[tauri::command]
-pub(crate) fn unpack_codex_threads<R: Runtime>(
+pub(crate) fn unpack_codex_threads_blocking<R: Runtime>(
     app: tauri::AppHandle<R>,
     import_path: String,
     session_ids: Vec<String>,
@@ -2243,8 +2232,7 @@ fn update_catalogs(
     Ok(changed)
 }
 
-#[tauri::command]
-pub(crate) fn reconcile_codex_thread_visibility<R: Runtime>(
+pub(crate) fn reconcile_codex_thread_visibility_blocking<R: Runtime>(
     app: tauri::AppHandle<R>,
     mode: String,
     session_ids: Option<Vec<String>>,
@@ -2328,8 +2316,7 @@ pub(crate) fn reconcile_codex_thread_visibility<R: Runtime>(
     })
 }
 
-#[tauri::command]
-pub(crate) fn rebuild_codex_thread_index<R: Runtime>(
+pub(crate) fn rebuild_codex_thread_index_blocking<R: Runtime>(
     app: tauri::AppHandle<R>,
 ) -> Result<VisibilityReport, String> {
     let paths = resolve_paths(&app)?;
@@ -2349,8 +2336,7 @@ pub(crate) fn rebuild_codex_thread_index<R: Runtime>(
     })
 }
 
-#[tauri::command]
-pub(crate) fn open_codex_thread_file<R: Runtime>(
+pub(crate) fn open_codex_thread_file_blocking<R: Runtime>(
     app: tauri::AppHandle<R>,
     session_id: String,
     folder_only: bool,
@@ -2368,6 +2354,171 @@ pub(crate) fn open_codex_thread_file<R: Runtime>(
     app.opener()
         .open_path(path.to_string_lossy().to_string(), None::<&str>)
         .map_err(|error| format!("无法打开 {}：{error}", path.display()))
+}
+
+#[tauri::command]
+pub(crate) async fn browse_codex_threads<R: Runtime + 'static>(
+    app: tauri::AppHandle<R>,
+    title_query: Option<String>,
+    content_query: Option<String>,
+) -> Result<Vec<ThreadEntry>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        browse_codex_threads_blocking(app, title_query, content_query)
+    })
+    .await
+    .map_err(|error| format!("Browse conversations task failed: {error}"))?
+}
+
+#[tauri::command]
+pub(crate) async fn measure_codex_thread_tokens<R: Runtime + 'static>(
+    app: tauri::AppHandle<R>,
+    session_ids: Vec<String>,
+) -> Result<Vec<ThreadTokenTotals>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        measure_codex_thread_tokens_blocking(app, session_ids)
+    })
+    .await
+    .map_err(|error| format!("Measure conversation tokens task failed: {error}"))?
+}
+
+#[tauri::command]
+pub(crate) async fn discard_codex_threads<R: Runtime + 'static>(
+    app: tauri::AppHandle<R>,
+    session_ids: Vec<String>,
+) -> Result<MutationReport, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        discard_codex_threads_blocking(app, session_ids)
+    })
+    .await
+    .map_err(|error| format!("Discard conversations task failed: {error}"))?
+}
+
+#[tauri::command]
+pub(crate) async fn browse_codex_thread_bin<R: Runtime + 'static>(
+    app: tauri::AppHandle<R>,
+) -> Result<Vec<BinEntry>, String> {
+    tauri::async_runtime::spawn_blocking(move || browse_codex_thread_bin_blocking(app))
+        .await
+        .map_err(|error| format!("Browse conversation bin task failed: {error}"))?
+}
+
+#[tauri::command]
+pub(crate) async fn recover_codex_threads<R: Runtime + 'static>(
+    app: tauri::AppHandle<R>,
+    session_ids: Vec<String>,
+) -> Result<MutationReport, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        recover_codex_threads_blocking(app, session_ids)
+    })
+    .await
+    .map_err(|error| format!("Recover conversations task failed: {error}"))?
+}
+
+#[tauri::command]
+pub(crate) async fn purge_codex_threads<R: Runtime + 'static>(
+    app: tauri::AppHandle<R>,
+    session_ids: Vec<String>,
+) -> Result<MutationReport, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        purge_codex_threads_blocking(app, session_ids)
+    })
+    .await
+    .map_err(|error| format!("Purge conversations task failed: {error}"))?
+}
+
+#[tauri::command]
+pub(crate) async fn empty_codex_thread_bin<R: Runtime + 'static>(
+    app: tauri::AppHandle<R>,
+) -> Result<MutationReport, String> {
+    tauri::async_runtime::spawn_blocking(move || empty_codex_thread_bin_blocking(app))
+        .await
+        .map_err(|error| format!("Empty conversation bin task failed: {error}"))?
+}
+
+#[tauri::command]
+pub(crate) async fn inspect_codex_thread_export<R: Runtime + 'static>(
+    app: tauri::AppHandle<R>,
+    session_ids: Vec<String>,
+) -> Result<BundlePreview, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        inspect_codex_thread_export_blocking(app, session_ids)
+    })
+    .await
+    .map_err(|error| format!("Inspect conversation export task failed: {error}"))?
+}
+
+#[tauri::command]
+pub(crate) async fn pack_codex_threads<R: Runtime + 'static>(
+    app: tauri::AppHandle<R>,
+    session_ids: Vec<String>,
+    export_path: String,
+) -> Result<BundleResult, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        pack_codex_threads_blocking(app, session_ids, export_path)
+    })
+    .await
+    .map_err(|error| format!("Pack conversations task failed: {error}"))?
+}
+
+#[tauri::command]
+pub(crate) async fn inspect_codex_thread_import<R: Runtime + 'static>(
+    app: tauri::AppHandle<R>,
+    import_path: String,
+) -> Result<BundlePreview, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        inspect_codex_thread_import_blocking(app, import_path)
+    })
+    .await
+    .map_err(|error| format!("Inspect conversation import task failed: {error}"))?
+}
+
+#[tauri::command]
+pub(crate) async fn unpack_codex_threads<R: Runtime + 'static>(
+    app: tauri::AppHandle<R>,
+    import_path: String,
+    session_ids: Vec<String>,
+) -> Result<BundleResult, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        unpack_codex_threads_blocking(app, import_path, session_ids)
+    })
+    .await
+    .map_err(|error| format!("Unpack conversations task failed: {error}"))?
+}
+
+#[tauri::command]
+pub(crate) async fn reconcile_codex_thread_visibility<R: Runtime + 'static>(
+    app: tauri::AppHandle<R>,
+    mode: String,
+    session_ids: Option<Vec<String>>,
+    dry_run: bool,
+) -> Result<VisibilityReport, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        reconcile_codex_thread_visibility_blocking(app, mode, session_ids, dry_run)
+    })
+    .await
+    .map_err(|error| format!("Reconcile conversation visibility task failed: {error}"))?
+}
+
+#[tauri::command]
+pub(crate) async fn rebuild_codex_thread_index<R: Runtime + 'static>(
+    app: tauri::AppHandle<R>,
+) -> Result<VisibilityReport, String> {
+    tauri::async_runtime::spawn_blocking(move || rebuild_codex_thread_index_blocking(app))
+        .await
+        .map_err(|error| format!("Rebuild conversation index task failed: {error}"))?
+}
+
+#[tauri::command]
+pub(crate) async fn open_codex_thread_file<R: Runtime + 'static>(
+    app: tauri::AppHandle<R>,
+    session_id: String,
+    folder_only: bool,
+) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        open_codex_thread_file_blocking(app, session_id, folder_only)
+    })
+    .await
+    .map_err(|error| format!("Open conversation file task failed: {error}"))?
 }
 
 #[cfg(test)]
