@@ -1020,12 +1020,72 @@ describe('SyncService', () => {
       where: expect.objectContaining({ ownerId: 'owner-1', accountId: 'personal-account-1' }),
     });
     expect(systemAccounts.create).toHaveBeenCalledWith(expect.objectContaining({
-      auth,
+      auth: {
+        tokens: {
+          ...auth.tokens,
+          email: 'personal@example.com',
+          plan_type: 'pro',
+        },
+      },
       note: 'source note',
       expiresAt: '2026-08-01',
     }));
+    expect(auth).toEqual({
+      tokens: { id_token: token, access_token: token, refresh_token: 'secret' },
+    });
     expect(accounts.save).not.toHaveBeenCalled();
     expect(accounts.delete).not.toHaveBeenCalled();
+  });
+
+  it('hydrates identity metadata when copying a historical opaque-token account into the pool', async () => {
+    const auth = {
+      auth_mode: 'chatgpt',
+      OPENAI_API_KEY: null,
+      tokens: {
+        access_token: 'at-opaque-personal-access-token',
+        id_token: 'opaque-id-token-without-identity-claims',
+        refresh_token: '',
+      },
+    };
+    accounts.findOne.mockResolvedValue({
+      ownerId: 'owner-1',
+      accountId: '0838022fa3f2f862b6e4a6c3',
+      email: 'historical@example.com',
+      note: 'historical source',
+      expiresAt: '',
+      plan: 'team',
+      codexAccountId: '3c79605a-480b-4f4c-828b-ff2d35c122f5',
+      active: false,
+      usage: {},
+      auth,
+    });
+    systemAccounts.findOne.mockResolvedValue(null);
+    systemAccounts.save.mockImplementationOnce(async (value) => ({
+      id: '10000000-0000-4000-8000-000000000013',
+      createdAt: new Date('2026-08-12T00:00:00.000Z'),
+      updatedAt: new Date('2026-08-12T00:00:00.000Z'),
+      bindings: [],
+      ...value,
+    }));
+
+    await expect(service.createSystemAccountFromPersonal('owner-1', '0838022fa3f2f862b6e4a6c3'))
+      .resolves.toMatchObject({
+        email: 'historical@example.com',
+        plan: 'team',
+        accountId: '3c79605a-480b-4f4c-828b-ff2d35c122f5',
+      });
+    expect(systemAccounts.create).toHaveBeenCalledWith(expect.objectContaining({
+      auth: {
+        ...auth,
+        tokens: {
+          ...auth.tokens,
+          email: 'historical@example.com',
+          plan_type: 'team',
+          account_id: '3c79605a-480b-4f4c-828b-ff2d35c122f5',
+        },
+      },
+    }));
+    expect(accounts.save).not.toHaveBeenCalled();
   });
 
   it('bulk binds pool accounts idempotently and invalidates every affected user cache', async () => {

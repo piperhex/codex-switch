@@ -598,7 +598,7 @@ export class SyncService {
     });
     if (!account) throw new NotFoundException('Synced account not found');
     return this.createSystemAccount({
-      auth: account.auth,
+      auth: this.hydratePersonalSystemAccountAuth(account),
       note: account.note,
       expiresAt: account.expiresAt,
       usage: account.usage,
@@ -1509,6 +1509,28 @@ export class SyncService {
       tokens,
       last_refresh: new Date().toISOString(),
     };
+  }
+
+  private hydratePersonalSystemAccountAuth(account: SyncedAccountEntity) {
+    const auth = this.normalizeSystemAccountAuth(account.auth);
+    const tokens = this.objectValue(auth.tokens);
+    if (!tokens) return auth;
+
+    const hydratedTokens: Record<string, unknown> = { ...tokens };
+    if (!this.stringValue(hydratedTokens.email) && this.stringValue(account.email)) {
+      hydratedTokens.email = account.email;
+    }
+    if (!this.stringValue(hydratedTokens.plan_type) && this.stringValue(account.plan)) {
+      hydratedTokens.plan_type = account.plan;
+    }
+    if (
+      !this.stringValue(hydratedTokens.account_id)
+      && !this.stringValue(hydratedTokens.chatgpt_account_id)
+      && this.stringValue(account.codexAccountId)
+    ) {
+      hydratedTokens.account_id = account.codexAccountId;
+    }
+    return { ...auth, tokens: hydratedTokens };
   }
 
   private withOfficialMetadataAccess<T extends { accounts: EffectiveSyncAccountDto[] }>(
