@@ -55,11 +55,76 @@ describe('OfficialAccountImportService', () => {
         id_token: token,
         access_token: token,
         refresh_token: 'refresh-token',
+        chatgpt_user_id: 'compatible-user',
       },
     });
     expect(normalizeCompatibleAuth({
       session_json: JSON.stringify({ accessToken: token }),
-    })).toEqual({ tokens: { access_token: token } });
+    })).toEqual({ tokens: {
+      access_token: token,
+      chatgpt_user_id: 'compatible-user',
+    } });
+  });
+
+  it('recursively finds wrapped accounts and preserves explicit opaque-token identity', () => {
+    const [account] = parseCompatibleJsonAccounts(JSON.stringify({
+      data: {
+        items: [{
+          session: {
+            token: { accessToken: 'at-opaque-personal-access-token' },
+            user: { id: 'user-1', email: 'person@example.com' },
+            account: { id: 'workspace-1', planType: 'team' },
+          },
+        }],
+      },
+    }));
+
+    expect(normalizeCompatibleAuth(account)).toEqual({
+      tokens: {
+        access_token: 'at-opaque-personal-access-token',
+        account_id: 'workspace-1',
+        chatgpt_user_id: 'user-1',
+        email: 'person@example.com',
+        plan_type: 'team',
+      },
+    });
+  });
+
+  it('accepts headerless sub2api account exports', () => {
+    const [account] = parseSub2apiJsonAccounts(JSON.stringify({
+      exported_at: '2026-08-12T06:34:28Z',
+      proxies: [],
+      accounts: [{
+        name: 'person@example.com',
+        platform: 'openai',
+        type: 'oauth',
+        credentials: {
+          chatgpt_account_id: 'workspace-1',
+          chatgpt_user_id: 'user-1',
+          plan_type: 'team',
+          access_token: 'at-opaque-personal-access-token',
+          auth_mode: 'personalAccessToken',
+          email: 'person@example.com',
+        },
+      }],
+    }));
+
+    expect(normalizeSub2apiAuth(account)).toMatchObject({
+      tokens: {
+        access_token: 'at-opaque-personal-access-token',
+        account_id: 'workspace-1',
+        chatgpt_user_id: 'user-1',
+        email: 'person@example.com',
+      },
+    });
+  });
+
+  it('discards the AxonHub missing-refresh-token placeholder', () => {
+    const token = jwt({ sub: 'axon-user' });
+    expect(normalizeCompatibleAuth({
+      access_token: token,
+      refresh_token: '__missing_refresh_token__',
+    })).toEqual({ tokens: { access_token: token, chatgpt_user_id: 'axon-user' } });
   });
 
   it('parses and normalizes sub2api Agent Identity exports', () => {
@@ -191,7 +256,11 @@ describe('OfficialAccountImportService', () => {
       expiresAt: '2026-07-18T12:00:00.000Z',
     })).resolves.toMatchObject({ importedCount: 2, accounts: [{ id: token }, { id: `${token}2` }] });
     expect(admin.createSystemAccount).toHaveBeenNthCalledWith(1, actor, {
-      auth: { tokens: { access_token: token, refresh_token: 'refresh-one' } },
+      auth: { tokens: {
+        access_token: token,
+        refresh_token: 'refresh-one',
+        chatgpt_user_id: 'compatible-user',
+      } },
       note: 'shared note',
       expiresAt: '2026-07-18T12:00:00.000Z',
     });
@@ -229,11 +298,22 @@ describe('OfficialAccountImportService', () => {
     });
   });
 
-  it('reports which item failed during a batch import', async () => {
+  it('ignores unrelated objects and reports failures for discovered accounts', async () => {
     const admin = { createSystemAccount: vi.fn() };
     const service = new OfficialAccountImportService({}, admin as unknown as AdminService);
     await expect(service.import(actor, {
       content: '[{"accessToken":"token"},{"email":"missing-token@example.com"}]',
-    })).rejects.toThrow('Account 2 could not be imported');
+    })).resolves.toMatchObject({ importedCount: 1, skippedCount: 0 });
+
+    admin.createSystemAccount
+      .mockResolvedValueOnce({ id: 'first' })
+      .mockRejectedValueOnce(new BadRequestException('invalid account'));
+    await expect(service.import(actor, {
+      content: '[{"accessToken":"one"},{"accessToken":"two"}]',
+    })).resolves.toMatchObject({
+      importedCount: 1,
+      skippedCount: 1,
+      skipped: [expect.stringContaining('invalid account')],
+    });
   });
 });

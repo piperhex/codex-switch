@@ -1432,7 +1432,7 @@ export type ImportAuthResult =
   | { status: "preview" };
 
 export type CompatibleJsonImportResult =
-  | { status: "imported"; ids: string[] }
+  | { status: "imported"; ids: string[]; skipped: string[] }
   | { status: "cancelled" }
   | { status: "preview" };
 
@@ -1469,8 +1469,8 @@ export async function chooseAndImportAccountJson(): Promise<CompatibleJsonImport
     filters: [{ name: "Codex account JSON", extensions: ["json", "jsonl", "ndjson"] }],
   });
   if (!selected) return { status: "cancelled" };
-  const result = await invoke<{ importedIds: string[] }>("import_account_json_file", { path: selected });
-  return { status: "imported", ids: result.importedIds };
+  const result = await invoke<{ importedIds: string[]; skipped: string[] }>("import_account_json_file", { path: selected });
+  return { status: "imported", ids: result.importedIds, skipped: result.skipped };
 }
 
 export async function importAccountJsonFromClipboard(): Promise<CompatibleJsonImportResult> {
@@ -1478,8 +1478,8 @@ export async function importAccountJsonFromClipboard(): Promise<CompatibleJsonIm
   if (!navigator.clipboard?.readText) throw new Error("Clipboard text access is unavailable");
   const content = await navigator.clipboard.readText();
   if (!content.trim()) throw new Error("Clipboard does not contain account JSON");
-  const result = await invoke<{ importedIds: string[] }>("import_account_json_text", { content });
-  return { status: "imported", ids: result.importedIds };
+  const result = await invoke<{ importedIds: string[]; skipped: string[] }>("import_account_json_text", { content });
+  return { status: "imported", ids: result.importedIds, skipped: result.skipped };
 }
 
 export async function chooseAndImportCompatibleJson(): Promise<CompatibleJsonImportResult> {
@@ -1489,8 +1489,8 @@ export async function chooseAndImportCompatibleJson(): Promise<CompatibleJsonImp
     filters: [{ name: "Compatible Codex JSON", extensions: ["json"] }],
   });
   if (!selected) return { status: "cancelled" };
-  const result = await invoke<{ importedIds: string[] }>("import_compatible_json_file", { path: selected });
-  return { status: "imported", ids: result.importedIds };
+  const result = await invoke<{ importedIds: string[]; skipped: string[] }>("import_compatible_json_file", { path: selected });
+  return { status: "imported", ids: result.importedIds, skipped: result.skipped };
 }
 
 export async function setLocalProxyListenOnAllInterfaces(
@@ -1531,8 +1531,8 @@ export async function chooseAndImportSub2apiJson(): Promise<CompatibleJsonImport
     filters: [{ name: "sub2api export JSON", extensions: ["json"] }],
   });
   if (!selected) return { status: "cancelled" };
-  const result = await invoke<{ importedIds: string[] }>("import_sub2api_json_file", { path: selected });
-  return { status: "imported", ids: result.importedIds };
+  const result = await invoke<{ importedIds: string[]; skipped: string[] }>("import_sub2api_json_file", { path: selected });
+  return { status: "imported", ids: result.importedIds, skipped: result.skipped };
 }
 
 export async function chooseAndExportAccountArchive(): Promise<ExportAccountArchiveResult> {

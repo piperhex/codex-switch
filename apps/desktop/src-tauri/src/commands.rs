@@ -11,7 +11,7 @@ use std::{
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
 
-use chrono::{NaiveDate, Utc};
+use chrono::{NaiveDate, TimeZone, Utc};
 use reqwest::blocking::{Client, Response};
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
@@ -250,6 +250,7 @@ pub(crate) fn import_account_json_text<R: Runtime>(
         crate::system_tray::refresh_menu(&app);
         return Ok(CompatibleJsonImportResult {
             imported_ids: vec![id],
+            skipped: Vec::new(),
         });
     }
 
@@ -258,11 +259,22 @@ pub(crate) fn import_account_json_text<R: Runtime>(
 }
 
 fn is_sub2api_export(value: &Value) -> bool {
-    value
-        .as_object()
-        .and_then(|object| object.get("type"))
-        .and_then(Value::as_str)
-        == Some("sub2api-data")
+    let Some(object) = value.as_object() else {
+        return false;
+    };
+    if object.get("type").and_then(Value::as_str) == Some("sub2api-data") {
+        return true;
+    }
+    object
+        .get("accounts")
+        .and_then(Value::as_array)
+        .is_some_and(|accounts| !accounts.is_empty() && accounts.iter().all(is_sub2api_account))
+}
+
+fn is_sub2api_account(value: &Value) -> bool {
+    value.get("platform").and_then(Value::as_str) == Some("openai")
+        && value.get("type").and_then(Value::as_str) == Some("oauth")
+        && value.get("credentials").is_some_and(Value::is_object)
 }
 
 fn is_valid_auth_json(value: &Value) -> bool {
@@ -276,6 +288,15 @@ fn is_valid_auth_json(value: &Value) -> bool {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct CompatibleJsonImportResult {
     pub(crate) imported_ids: Vec<String>,
+    pub(crate) skipped: Vec<String>,
+}
+
+#[derive(Default)]
+struct CompatibleJsonAccountMetadata {
+    note: Option<String>,
+    expires_at: Option<String>,
+    auto_switch_priority: Option<i32>,
+    disabled: Option<bool>,
 }
 
 #[derive(Default)]
@@ -283,11 +304,15 @@ struct CompatibleJsonAuthTokens {
     id_token: Option<String>,
     access_token: Option<String>,
     refresh_token: Option<String>,
+    session_token: Option<String>,
 }
 
 impl CompatibleJsonAuthTokens {
     fn has_any(&self) -> bool {
-        self.id_token.is_some() || self.access_token.is_some() || self.refresh_token.is_some()
+        self.id_token.is_some()
+            || self.access_token.is_some()
+            || self.refresh_token.is_some()
+            || self.session_token.is_some()
     }
 }
 
@@ -309,21 +334,54 @@ fn import_normalized_json_auth_values<R: Runtime>(
     auth_values: &[Value],
     normalize: fn(&Value) -> Result<Value, String>,
 ) -> Result<CompatibleJsonImportResult, String> {
-    let mut imported_ids = Vec::new();
-
+    let mut normalized = Vec::new();
+    let mut skipped = Vec::new();
     for (index, value) in auth_values.iter().enumerate() {
-        let auth = normalize(value)
-            .map_err(|error| format!("第 {} 个账号无法导入：{error}", index + 1))?;
+        match normalize(value) {
+            Ok(auth) => normalized.push((auth, compatible_json_account_metadata(value))),
+            Err(error) => skipped.push(format!("第 {} 个账号：{error}", index + 1)),
+        }
+    }
+    if normalized.is_empty() {
+        return Err(skipped
+            .first()
+            .cloned()
+            .unwrap_or_else(|| "没有找到可导入的账号".to_string()));
+    }
+
+    let mut imported_ids = Vec::new();
+    let paths = resolve_paths(app)?;
+    let mut state = read_state(&paths);
+    let mut state_changed = false;
+    for (auth, metadata) in normalized {
         let id = import_value(app, auth, false)?;
+        if let Some(note) = metadata.note {
+            save_note(&note_path(&paths, &id), &note)?;
+        }
+        if let Some(expires_at) = metadata.expires_at {
+            save_expiration(&expiration_path(&paths, &id), &expires_at)?;
+        }
+        if let Some(priority) = metadata.auto_switch_priority {
+            save_auto_switch_priority(&auto_switch_priority_path(&paths, &id), priority)?;
+        }
+        if metadata.disabled == Some(true) {
+            state_changed |= update_disabled_account_ids(&mut state, &id, false);
+        }
         if !imported_ids.contains(&id) {
             imported_ids.push(id);
         }
+    }
+    if state_changed {
+        write_state(&paths, &state)?;
     }
 
     app.emit("accounts-changed", ())
         .map_err(|error| error.to_string())?;
     crate::system_tray::refresh_menu(app);
-    Ok(CompatibleJsonImportResult { imported_ids })
+    Ok(CompatibleJsonImportResult {
+        imported_ids,
+        skipped,
+    })
 }
 
 /// Imports the explicit `sub2api-data` export format and converts each supported
@@ -349,10 +407,16 @@ fn parse_sub2api_auth_values(content: &str) -> Result<Vec<Value>, String> {
     let object = value
         .as_object()
         .ok_or_else(|| "sub2api 导出文件顶层必须是 JSON 对象".to_string())?;
-    if object.get("type").and_then(Value::as_str) != Some("sub2api-data") {
-        return Err("不是有效的 sub2api-data 导出文件".to_string());
+    if object
+        .get("type")
+        .is_some_and(|value| value.as_str() != Some("sub2api-data"))
+    {
+        return Err("不是有效的 sub2api 账号文件".to_string());
     }
-    if object.get("version").and_then(Value::as_i64) != Some(1) {
+    if object
+        .get("version")
+        .is_some_and(|value| value.as_i64() != Some(1))
+    {
         return Err("仅支持 version=1 的 sub2api 导出文件".to_string());
     }
     let accounts = object
@@ -493,48 +557,160 @@ fn parse_compatible_json_auth_values(content: &str) -> Result<Vec<Value>, String
     }
 
     match serde_json::from_str::<Value>(content) {
-        Ok(Value::Array(items)) if !items.is_empty() => Ok(items),
-        Ok(Value::Array(_)) => Err("导入文件中没有账号".to_string()),
-        Ok(Value::Object(object)) => {
-            if let Some(accounts) = object.get("accounts").and_then(Value::as_array) {
-                if accounts.is_empty() {
-                    return Err("导入文件中没有账号".to_string());
-                }
-                return Ok(accounts.clone());
-            }
-            Ok(vec![Value::Object(object)])
-        }
-        Ok(_) => Err("导入文件顶层必须是 JSON 对象或数组".to_string()),
-        Err(parse_error) => parse_line_delimited_compatible_json(content)
-            .map_err(|line_error| format!("JSON 格式无效：{parse_error}；{line_error}")),
+        Ok(value) => collect_compatible_json_accounts(&value),
+        Err(parse_error) => parse_embedded_compatible_json(content)
+            .map_err(|detail| format!("JSON 格式无效：{parse_error}；{detail}")),
     }
 }
 
-fn parse_line_delimited_compatible_json(content: &str) -> Result<Vec<Value>, String> {
-    let lines: Vec<(usize, &str)> = content
-        .lines()
-        .enumerate()
-        .filter_map(|(index, line)| {
-            let trimmed = line.trim();
-            (!trimmed.is_empty()).then_some((index + 1, trimmed))
-        })
-        .collect();
-    if lines.len() <= 1 {
-        return Err("请提供完整 JSON，或每行一个 JSON 对象".to_string());
+fn collect_compatible_json_accounts(value: &Value) -> Result<Vec<Value>, String> {
+    let mut found = Vec::new();
+    collect_compatible_json_accounts_at(value, 0, &mut found);
+    if found.is_empty() {
+        return Err("没有找到包含 Codex token 的账号对象".to_string());
     }
+    if found.len() > 1000 {
+        return Err("单次最多导入 1000 个账号".to_string());
+    }
+    Ok(found)
+}
 
-    lines
-        .into_iter()
-        .map(|(line_number, line)| {
-            let value = serde_json::from_str::<Value>(line)
-                .map_err(|error| format!("第 {line_number} 行不是有效 JSON：{error}"))?;
-            if value.is_object() {
-                Ok(value)
-            } else {
-                Err(format!("第 {line_number} 行必须是 JSON 对象"))
+fn collect_compatible_json_accounts_at(value: &Value, depth: usize, found: &mut Vec<Value>) {
+    if depth > 12 || found.len() > 1000 {
+        return;
+    }
+    match value {
+        Value::Array(items) => {
+            for item in items {
+                collect_compatible_json_accounts_at(item, depth + 1, found);
             }
-        })
-        .collect()
+        }
+        Value::Object(object) => {
+            if has_direct_compatible_json_token(value) {
+                found.push(value.clone());
+                return;
+            }
+            for (key, nested) in object {
+                if matches!(
+                    key.as_str(),
+                    "accessToken" | "access_token" | "sessionToken"
+                ) {
+                    continue;
+                }
+                if let Value::String(raw) = nested {
+                    if [
+                        "auth",
+                        "auth_json",
+                        "authJson",
+                        "session",
+                        "session_json",
+                        "sessionJson",
+                    ]
+                    .contains(&key.as_str())
+                    {
+                        if let Ok(parsed) = serde_json::from_str::<Value>(raw) {
+                            collect_compatible_json_accounts_at(&parsed, depth + 1, found);
+                        }
+                    }
+                } else {
+                    collect_compatible_json_accounts_at(nested, depth + 1, found);
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+fn has_direct_compatible_json_token(value: &Value) -> bool {
+    first_compatible_json_string(
+        value,
+        &[
+            &["id_token"],
+            &["idToken"],
+            &["access_token"],
+            &["accessToken"],
+            &["refresh_token"],
+            &["refreshToken"],
+            &["tokens", "id_token"],
+            &["tokens", "idToken"],
+            &["tokens", "access_token"],
+            &["tokens", "accessToken"],
+            &["tokens", "refresh_token"],
+            &["tokens", "refreshToken"],
+            &["token", "id_token"],
+            &["token", "idToken"],
+            &["token", "access_token"],
+            &["token", "accessToken"],
+            &["token", "refresh_token"],
+            &["token", "refreshToken"],
+            &["credentials", "id_token"],
+            &["credentials", "idToken"],
+            &["credentials", "access_token"],
+            &["credentials", "accessToken"],
+            &["credentials", "refresh_token"],
+            &["credentials", "refreshToken"],
+        ],
+    )
+    .is_some()
+}
+
+fn parse_embedded_compatible_json(content: &str) -> Result<Vec<Value>, String> {
+    let mut values = Vec::new();
+    for slice in extract_json_slices(content) {
+        if let Ok(value) = serde_json::from_str::<Value>(slice) {
+            values.extend(collect_compatible_json_accounts(&value).unwrap_or_default());
+        }
+    }
+    if values.is_empty() {
+        return Err("未找到可解析的账号 JSON".to_string());
+    }
+    if values.len() > 1000 {
+        return Err("单次最多导入 1000 个账号".to_string());
+    }
+    Ok(values)
+}
+
+fn extract_json_slices(content: &str) -> Vec<&str> {
+    let mut slices = Vec::new();
+    let mut stack = Vec::new();
+    let mut start = None;
+    let mut in_string = false;
+    let mut escaped = false;
+    for (index, character) in content.char_indices() {
+        if in_string {
+            if escaped {
+                escaped = false;
+            } else if character == '\\' {
+                escaped = true;
+            } else if character == '"' {
+                in_string = false;
+            }
+            continue;
+        }
+        if character == '"' {
+            if !stack.is_empty() {
+                in_string = true;
+            }
+        } else if matches!(character, '{' | '[') {
+            if stack.is_empty() {
+                start = Some(index);
+            }
+            stack.push(character);
+        } else if matches!(character, '}' | ']') {
+            let Some(open) = stack.pop() else {
+                continue;
+            };
+            if !matches!((open, character), ('{', '}') | ('[', ']')) {
+                stack.clear();
+                start = None;
+            } else if stack.is_empty() {
+                if let Some(start) = start.take() {
+                    slices.push(&content[start..index + character.len_utf8()]);
+                }
+            }
+        }
+    }
+    slices
 }
 
 fn normalize_compatible_json_auth(value: &Value) -> Result<Value, String> {
@@ -553,9 +729,130 @@ fn normalize_compatible_json_auth(value: &Value) -> Result<Value, String> {
     {
         token_object.insert("id_token".to_string(), Value::String(id_token));
     }
-    if let Some(refresh_token) = tokens.refresh_token {
+    if let Some(refresh_token) = tokens
+        .refresh_token
+        .filter(|token| token != "__missing_refresh_token__")
+    {
         token_object.insert("refresh_token".to_string(), Value::String(refresh_token));
     }
+    if let Some(session_token) = tokens.session_token {
+        token_object.insert("session_token".to_string(), Value::String(session_token));
+    }
+    for (target, paths) in [
+        (
+            "account_id",
+            &[
+                &["account", "id"][..],
+                &["account_id"][..],
+                &["chatgptAccountId"][..],
+                &["chatgpt_account_id"][..],
+                &["tokens", "accountId"][..],
+                &["tokens", "account_id"][..],
+                &["tokens", "chatgptAccountId"][..],
+                &["tokens", "chatgpt_account_id"][..],
+                &["token", "accountId"][..],
+                &["token", "account_id"][..],
+                &["token", "chatgptAccountId"][..],
+                &["token", "chatgpt_account_id"][..],
+                &["credentials", "chatgpt_account_id"][..],
+                &["providerSpecificData", "chatgptAccountId"][..],
+                &["providerSpecificData", "chatgpt_account_id"][..],
+                &["meta", "chatgptAccountId"][..],
+                &["meta", "chatgpt_account_id"][..],
+            ][..],
+        ),
+        (
+            "chatgpt_user_id",
+            &[
+                &["user", "id"][..],
+                &["user_id"][..],
+                &["chatgptUserId"][..],
+                &["chatgpt_user_id"][..],
+                &["tokens", "userId"][..],
+                &["tokens", "user_id"][..],
+                &["tokens", "chatgptUserId"][..],
+                &["tokens", "chatgpt_user_id"][..],
+                &["token", "userId"][..],
+                &["token", "user_id"][..],
+                &["token", "chatgptUserId"][..],
+                &["token", "chatgpt_user_id"][..],
+                &["credentials", "chatgpt_user_id"][..],
+                &["providerSpecificData", "chatgptUserId"][..],
+                &["providerSpecificData", "chatgpt_user_id"][..],
+            ][..],
+        ),
+        (
+            "email",
+            &[
+                &["user", "email"][..],
+                &["email"][..],
+                &["label"][..],
+                &["meta", "label"][..],
+                &["credentials", "email"][..],
+                &["providerSpecificData", "email"][..],
+            ][..],
+        ),
+        (
+            "plan_type",
+            &[
+                &["account", "planType"][..],
+                &["account", "plan_type"][..],
+                &["planType"][..],
+                &["plan_type"][..],
+                &["credentials", "plan_type"][..],
+                &["providerSpecificData", "chatgptPlanType"][..],
+                &["providerSpecificData", "chatgpt_plan_type"][..],
+            ][..],
+        ),
+        (
+            "organization_id",
+            &[
+                &["organizationId"][..],
+                &["organization_id"][..],
+                &["meta", "organizationId"][..],
+                &["meta", "organization_id"][..],
+                &["credentials", "organization_id"][..],
+                &["providerSpecificData", "organizationId"][..],
+                &["providerSpecificData", "organization_id"][..],
+            ][..],
+        ),
+        (
+            "expires_at",
+            &[
+                &["expires"][..],
+                &["expiresAt"][..],
+                &["expires_at"][..],
+                &["expired"][..],
+                &["credentials", "expires_at"][..],
+            ][..],
+        ),
+        (
+            "workspace_id",
+            &[
+                &["account", "workspaceId"][..],
+                &["account", "workspace_id"][..],
+                &["workspaceId"][..],
+                &["workspace_id"][..],
+                &["meta", "workspaceId"][..],
+                &["meta", "workspace_id"][..],
+                &["credentials", "workspace_id"][..],
+                &["providerSpecificData", "workspaceId"][..],
+                &["providerSpecificData", "workspace_id"][..],
+            ][..],
+        ),
+    ] {
+        if let Some(value) = first_compatible_json_string(value, paths) {
+            token_object.insert(target.to_string(), Value::String(value));
+        }
+    }
+    if value.get("provider").and_then(Value::as_str) == Some("codex") {
+        if let Some(id) = first_compatible_json_string(value, &[&["id"]]) {
+            token_object
+                .entry("account_id".to_string())
+                .or_insert(Value::String(id));
+        }
+    }
+    enrich_compatible_token_metadata(&mut token_object);
 
     let mut auth_object = serde_json::Map::new();
     auth_object.insert("tokens".to_string(), Value::Object(token_object));
@@ -584,6 +881,8 @@ fn extract_compatible_json_tokens(value: &Value, depth: usize) -> Option<Compati
                 &["idToken"],
                 &["tokens", "id_token"],
                 &["tokens", "idToken"],
+                &["token", "id_token"],
+                &["token", "idToken"],
                 &["credentials", "id_token"],
                 &["credentials", "idToken"],
             ],
@@ -595,6 +894,8 @@ fn extract_compatible_json_tokens(value: &Value, depth: usize) -> Option<Compati
                 &["accessToken"],
                 &["tokens", "access_token"],
                 &["tokens", "accessToken"],
+                &["token", "access_token"],
+                &["token", "accessToken"],
                 &["credentials", "access_token"],
                 &["credentials", "accessToken"],
             ],
@@ -606,8 +907,22 @@ fn extract_compatible_json_tokens(value: &Value, depth: usize) -> Option<Compati
                 &["refreshToken"],
                 &["tokens", "refresh_token"],
                 &["tokens", "refreshToken"],
+                &["token", "refresh_token"],
+                &["token", "refreshToken"],
                 &["credentials", "refresh_token"],
                 &["credentials", "refreshToken"],
+            ],
+        ),
+        session_token: first_compatible_json_string(
+            value,
+            &[
+                &["session_token"],
+                &["sessionToken"],
+                &["tokens", "session_token"],
+                &["tokens", "sessionToken"],
+                &["token", "session_token"],
+                &["token", "sessionToken"],
+                &["credentials", "session_token"],
             ],
         ),
     };
@@ -657,6 +972,200 @@ fn first_compatible_json_string(value: &Value, paths: &[&[&str]]) -> Option<Stri
             .filter(|item| !item.is_empty())
             .map(ToOwned::to_owned)
     })
+}
+
+fn enrich_compatible_token_metadata(tokens: &mut serde_json::Map<String, Value>) {
+    let token = tokens
+        .get("id_token")
+        .or_else(|| tokens.get("access_token"))
+        .and_then(Value::as_str)
+        .and_then(|token| crate::auth::decode_jwt(token).ok());
+    let Some(claims) = token else {
+        return;
+    };
+    let nested = claims
+        .get("https://api.openai.com/auth")
+        .and_then(Value::as_object);
+    let profile = claims
+        .get("https://api.openai.com/profile")
+        .and_then(Value::as_object);
+    for (target, value) in [
+        (
+            "account_id",
+            nested.and_then(|value| value.get("chatgpt_account_id")),
+        ),
+        (
+            "chatgpt_user_id",
+            nested
+                .and_then(|value| {
+                    value
+                        .get("chatgpt_user_id")
+                        .or_else(|| value.get("user_id"))
+                })
+                .or_else(|| claims.get("sub")),
+        ),
+        (
+            "email",
+            claims
+                .get("email")
+                .or_else(|| profile.and_then(|value| value.get("email"))),
+        ),
+        (
+            "plan_type",
+            nested.and_then(|value| value.get("chatgpt_plan_type")),
+        ),
+        (
+            "organization_id",
+            nested
+                .and_then(|value| value.get("organization_id"))
+                .or_else(|| {
+                    nested?
+                        .get("organizations")?
+                        .as_array()?
+                        .iter()
+                        .find_map(|value| value.get("id"))
+                }),
+        ),
+        ("workspace_id", claims.get("workspace_id")),
+    ] {
+        if !tokens.contains_key(target) {
+            if let Some(value) = value
+                .and_then(Value::as_str)
+                .filter(|value| !value.is_empty())
+            {
+                tokens.insert(target.to_string(), Value::String(value.to_string()));
+            }
+        }
+    }
+}
+
+fn compatible_json_account_metadata(value: &Value) -> CompatibleJsonAccountMetadata {
+    let note = first_compatible_json_string(
+        value,
+        &[
+            &["account_note"],
+            &["accountInfo"],
+            &["account_info"],
+            &["note"],
+            &["notes"],
+            &["remark"],
+        ],
+    );
+    let expires_at = compatible_json_expiration(value);
+    let auto_switch_priority = value
+        .get("priority")
+        .and_then(Value::as_i64)
+        .and_then(|priority| i32::try_from(priority).ok());
+    let disabled = value.get("disabled").and_then(Value::as_bool).or_else(|| {
+        value
+            .get("isActive")
+            .and_then(Value::as_bool)
+            .map(|active| !active)
+    });
+    CompatibleJsonAccountMetadata {
+        note,
+        expires_at,
+        auto_switch_priority,
+        disabled,
+    }
+}
+
+fn compatible_json_expiration(value: &Value) -> Option<String> {
+    for path in [
+        &["expires"][..],
+        &["expiresAt"][..],
+        &["expires_at"][..],
+        &["expired"][..],
+        &["credentials", "expires_at"][..],
+    ] {
+        let mut current = value;
+        let mut present = true;
+        for key in path {
+            let Some(nested) = current.get(*key) else {
+                present = false;
+                break;
+            };
+            current = nested;
+        }
+        if present {
+            if let Some(date) = normalize_compatible_expiration(current) {
+                return Some(date);
+            }
+        }
+    }
+    for token in [
+        first_compatible_json_string(
+            value,
+            &[
+                &["access_token"],
+                &["accessToken"],
+                &["tokens", "access_token"],
+                &["tokens", "accessToken"],
+                &["token", "access_token"],
+                &["token", "accessToken"],
+                &["credentials", "access_token"],
+                &["credentials", "accessToken"],
+            ],
+        ),
+        first_compatible_json_string(
+            value,
+            &[
+                &["id_token"],
+                &["idToken"],
+                &["tokens", "id_token"],
+                &["tokens", "idToken"],
+                &["token", "id_token"],
+                &["token", "idToken"],
+                &["credentials", "id_token"],
+                &["credentials", "idToken"],
+            ],
+        ),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        if let Ok(claims) = crate::auth::decode_jwt(&token) {
+            if let Some(exp) = claims.get("exp").and_then(Value::as_i64) {
+                return Utc
+                    .timestamp_opt(exp, 0)
+                    .single()
+                    .map(|date| date.date_naive().to_string());
+            }
+        }
+    }
+    None
+}
+
+fn normalize_compatible_expiration(value: &Value) -> Option<String> {
+    if let Some(number) = value.as_i64() {
+        let seconds = if number > 100_000_000_000 {
+            number / 1000
+        } else {
+            number
+        };
+        return Utc
+            .timestamp_opt(seconds, 0)
+            .single()
+            .map(|date| date.date_naive().to_string());
+    }
+    let raw = value.as_str()?.trim();
+    if let Ok(number) = raw.parse::<i64>() {
+        let seconds = if number > 100_000_000_000 {
+            number / 1000
+        } else {
+            number
+        };
+        return Utc
+            .timestamp_opt(seconds, 0)
+            .single()
+            .map(|date| date.date_naive().to_string());
+    }
+    if let Ok(date) = NaiveDate::parse_from_str(raw, "%Y-%m-%d") {
+        return Some(date.to_string());
+    }
+    chrono::DateTime::parse_from_rfc3339(raw)
+        .ok()
+        .map(|date| date.date_naive().to_string())
 }
 
 #[tauri::command]
@@ -2608,8 +3117,9 @@ mod windows_chatgpt_launch_tests {
 #[cfg(test)]
 mod compatible_json_import_tests {
     use super::{
-        ensure_account_switch_allowed, is_usage_network_error, normalize_compatible_json_auth,
-        normalize_sub2api_auth, parse_compatible_json_auth_values, parse_sub2api_auth_values,
+        compatible_json_account_metadata, ensure_account_switch_allowed, is_sub2api_export,
+        is_usage_network_error, normalize_compatible_json_auth, normalize_sub2api_auth,
+        parse_compatible_json_auth_values, parse_sub2api_auth_values,
         restore_conversation_metadata_if_present, should_disable_account_auto_switch,
         sync_conversation_metadata_if_present_with_progress, sync_current_auth_with_client_state,
         update_disabled_account_ids, write_managed_auth_to_current,
@@ -2798,6 +3308,129 @@ mod compatible_json_import_tests {
         assert_eq!(auth["tokens"]["plan_type"], "team");
         assert_eq!(auth["tokens"]["refresh_token"], "");
         crate::auth::validate_auth(&auth).unwrap();
+    }
+
+    #[test]
+    fn accepts_headerless_sub2api_account_exports() {
+        let input = json!({
+            "exported_at": "2026-08-12T06:34:28Z",
+            "proxies": [],
+            "accounts": [{
+                "name": "person@example.com",
+                "platform": "openai",
+                "type": "oauth",
+                "credentials": {
+                    "chatgpt_account_id": "workspace-1",
+                    "chatgpt_account_is_fedramp": false,
+                    "chatgpt_user_id": "user-1",
+                    "plan_type": "team",
+                    "access_token": "at-opaque-personal-access-token",
+                    "auth_mode": "personalAccessToken",
+                    "email": "person@example.com",
+                    "openai_auth_mode": "personal_access_token",
+                    "token_type": "Bearer"
+                },
+                "concurrency": 10,
+                "priority": 1
+            }]
+        });
+
+        assert!(is_sub2api_export(&input));
+        let values = parse_sub2api_auth_values(&input.to_string())
+            .expect("parse headerless sub2api account export");
+        let auth = normalize_sub2api_auth(&values[0]).expect("normalize personal access token");
+
+        assert_eq!(auth["auth_mode"], "chatgpt");
+        assert_eq!(auth["tokens"]["account_id"], "workspace-1");
+        assert_eq!(auth["tokens"]["chatgpt_user_id"], "user-1");
+        assert_eq!(auth["tokens"]["email"], "person@example.com");
+        assert_eq!(auth["tokens"]["plan_type"], "team");
+        assert_eq!(auth["tokens"]["refresh_token"], "");
+        crate::auth::validate_auth(&auth).unwrap();
+    }
+
+    #[test]
+    fn preserves_explicit_identity_from_compatible_access_only_accounts() {
+        let input = json!({
+            "token": {
+                "accessToken": "at-opaque-personal-access-token"
+            },
+            "user": {
+                "id": "user-1",
+                "email": "person@example.com"
+            },
+            "account": {
+                "id": "workspace-1",
+                "planType": "team"
+            }
+        });
+
+        let auth = normalize_compatible_json_auth(&input).expect("normalize access-only account");
+
+        assert_eq!(
+            auth["tokens"]["access_token"],
+            "at-opaque-personal-access-token"
+        );
+        assert_eq!(auth["tokens"]["account_id"], "workspace-1");
+        assert_eq!(auth["tokens"]["chatgpt_user_id"], "user-1");
+        assert_eq!(auth["tokens"]["email"], "person@example.com");
+        assert_eq!(auth["tokens"]["plan_type"], "team");
+        crate::auth::validate_auth(&auth).unwrap();
+    }
+
+    #[test]
+    fn recursively_finds_accounts_and_parses_json_embedded_in_text() {
+        let token = access_token();
+        let nested = json!({
+            "data": {
+                "items": [{
+                    "session": {
+                        "accessToken": token,
+                        "user": { "id": "nested-user", "email": "nested@example.com" },
+                        "account": { "id": "nested-account" }
+                    }
+                }]
+            }
+        });
+        let values = parse_compatible_json_auth_values(&nested.to_string()).unwrap();
+        assert_eq!(values.len(), 1);
+        assert_eq!(values[0]["user"]["id"], "nested-user");
+
+        let mixed = format!("card data: {} trailing text", nested);
+        let values = parse_compatible_json_auth_values(&mixed).unwrap();
+        assert_eq!(values.len(), 1);
+    }
+
+    #[test]
+    fn imports_reference_page_metadata_aliases() {
+        let token = jwt(json!({ "sub": "metadata-user", "exp": 1_800_000_000_i64 }));
+        let input = json!({
+            "provider": "codex",
+            "id": "router-account",
+            "accessToken": token,
+            "remark": "imported note",
+            "priority": 42,
+            "isActive": false
+        });
+        let auth = normalize_compatible_json_auth(&input).unwrap();
+        let metadata = compatible_json_account_metadata(&input);
+
+        assert_eq!(auth["tokens"]["account_id"], "router-account");
+        assert_eq!(metadata.note.as_deref(), Some("imported note"));
+        assert_eq!(metadata.expires_at.as_deref(), Some("2027-01-15"));
+        assert_eq!(metadata.auto_switch_priority, Some(42));
+        assert_eq!(metadata.disabled, Some(true));
+    }
+
+    #[test]
+    fn discards_axonhub_refresh_token_placeholder() {
+        let token = access_token();
+        let auth = normalize_compatible_json_auth(&json!({
+            "access_token": token,
+            "refresh_token": "__missing_refresh_token__"
+        }))
+        .unwrap();
+        assert_eq!(auth["tokens"]["refresh_token"], "");
     }
 
     #[test]

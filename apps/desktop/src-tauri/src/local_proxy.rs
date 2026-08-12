@@ -2532,9 +2532,7 @@ fn try_auto_switch_official_account<R: Runtime>(
         return Ok(AutoSwitchAttempt::Unchanged);
     };
     let target_id = target.id.clone();
-    if let Err(error) =
-        crate::commands::switch_account_blocking(app.clone(), target_id.clone())
-    {
+    if let Err(error) = crate::commands::switch_account_blocking(app.clone(), target_id.clone()) {
         // switch_account writes the selected account before emitting UI events. If a
         // post-switch side effect failed, the new account is still active and concurrent
         // quota responses must be released to retry against it.

@@ -566,14 +566,15 @@ export class SyncService {
   }
 
   async createSystemAccount(input: SystemAccountInput, origin?: SystemAccountOrigin) {
-    const identity = this.systemAccountIdentity(input.auth);
+    const auth = this.normalizeSystemAccountAuth(input.auth);
+    const identity = this.systemAccountIdentity(auth);
     const existing = await this.systemAccounts.findOne({
       where: { syncAccountId: identity.syncAccountId },
     });
     if (existing) throw new ConflictException('Official account already exists in the system pool');
     const account = this.systemAccounts.create({
       ...identity,
-      auth: input.auth,
+      auth,
       note: input.note?.trim() ?? '',
       expiresAt: input.expiresAt?.trim() ?? '',
       usage: input.usage ?? {},
@@ -611,14 +612,15 @@ export class SyncService {
     });
     if (!account) throw new NotFoundException('Official account not found');
     if (patch.auth !== undefined) {
-      const identity = this.systemAccountIdentity(patch.auth);
+      const auth = this.normalizeSystemAccountAuth(patch.auth);
+      const identity = this.systemAccountIdentity(auth);
       const duplicate = await this.systemAccounts.findOne({
         where: { syncAccountId: identity.syncAccountId },
       });
       if (duplicate && duplicate.id !== id) {
         throw new ConflictException('Official account already exists in the system pool');
       }
-      account.auth = patch.auth;
+      account.auth = auth;
       account.syncAccountId = identity.syncAccountId;
       account.email = identity.email;
       account.plan = identity.plan;
@@ -1450,6 +1452,63 @@ export class SyncService {
     const milliseconds = Math.abs(value) >= 100_000_000_000 ? value : value * 1000;
     const parsed = new Date(milliseconds);
     return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+  }
+
+  private normalizeSystemAccountAuth(auth: Record<string, unknown>): Record<string, unknown> {
+    const wrappedAccounts = Array.isArray(auth.accounts) ? auth.accounts : undefined;
+    if (wrappedAccounts) {
+      if (wrappedAccounts.length !== 1 || !this.objectValue(wrappedAccounts[0])) {
+        throw new BadRequestException(
+          'Use compatible JSON import when the file contains multiple accounts',
+        );
+      }
+      return this.normalizeSystemAccountAuth(this.objectValue(wrappedAccounts[0])!);
+    }
+    if (auth.platform !== 'openai' || auth.type !== 'oauth') return auth;
+    const credentials = this.objectValue(auth.credentials);
+    if (!credentials) return auth;
+    const authMode = this.stringValue(credentials.auth_mode);
+    if (authMode?.toLowerCase() === 'agentidentity') {
+      const agentIdentity: Record<string, unknown> = {};
+      for (const key of [
+        'agent_runtime_id',
+        'agent_private_key',
+        'account_id',
+        'chatgpt_user_id',
+        'task_id',
+        'email',
+        'plan_type',
+      ]) {
+        const value = this.stringValue(credentials[key]);
+        if (value) agentIdentity[key] = value;
+      }
+      agentIdentity.chatgpt_account_is_fedramp = credentials.chatgpt_account_is_fedramp === true;
+      return { auth_mode: 'agentIdentity', agent_identity: agentIdentity };
+    }
+    const accessToken = this.stringValue(credentials.access_token);
+    if (!accessToken) return auth;
+    const tokens: Record<string, unknown> = {
+      access_token: accessToken,
+      id_token: this.stringValue(credentials.id_token) ?? '',
+      refresh_token: this.stringValue(credentials.refresh_token) ?? '',
+    };
+    for (const [source, target] of [
+      ['chatgpt_account_id', 'account_id'],
+      ['chatgpt_user_id', 'chatgpt_user_id'],
+      ['email', 'email'],
+      ['plan_type', 'plan_type'],
+      ['organization_id', 'organization_id'],
+      ['expires_at', 'expires_at'],
+    ]) {
+      const value = this.stringValue(credentials[source]);
+      if (value) tokens[target] = value;
+    }
+    return {
+      auth_mode: 'chatgpt',
+      OPENAI_API_KEY: null,
+      tokens,
+      last_refresh: new Date().toISOString(),
+    };
   }
 
   private withOfficialMetadataAccess<T extends { accounts: EffectiveSyncAccountDto[] }>(

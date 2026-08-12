@@ -23,6 +23,7 @@ interface FormValues {
 
 interface CompatibleImportResult {
   importedCount: number;
+  skippedCount?: number;
 }
 
 const MAX_IMPORT_FILE_SIZE = 5 * 1024 * 1024;
@@ -96,9 +97,15 @@ export function SystemAccountModal({
           method: "POST",
           body: JSON.stringify({ ...body, content }),
         });
-        message.success(t(mode === "sub2api"
-          ? "officialAccounts.sub2apiImported"
-          : "officialAccounts.compatibleImported", { count: result.importedCount }));
+        const messageKey = result.skippedCount
+          ? "officialAccounts.importedWithSkipped"
+          : mode === "sub2api"
+            ? "officialAccounts.sub2apiImported"
+            : "officialAccounts.compatibleImported";
+        message.success(t(messageKey, {
+          count: result.importedCount,
+          skipped: result.skippedCount ?? 0,
+        }));
       } else {
         await api(account ? `/admin/api/official-accounts/${account.id}` : "/admin/api/official-accounts", {
           method: account ? "PATCH" : "POST",

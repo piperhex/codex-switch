@@ -301,7 +301,7 @@ export function DreamSkinPage({ t, notify }: DreamSkinPageProps) {
   const [saveOpen, setSaveOpen] = useState(false);
   const [saveName, setSaveName] = useState("");
   const [toolsOpen, setToolsOpen] = useState(false);
-  const [themeTab, setThemeTab] = useState<"builtIn" | "market">("builtIn");
+  const [themeTab, setThemeTab] = useState<"builtIn" | "market" | "saved">("builtIn");
   const [market, setMarket] = useState<DreamSkinMarketResult | null>(null);
   const [marketLoading, setMarketLoading] = useState(false);
   const [marketError, setMarketError] = useState<string | null>(null);
@@ -762,7 +762,7 @@ export function DreamSkinPage({ t, notify }: DreamSkinPageProps) {
         </section>
 
         <div className="dream-theme-browser-header">
-          <Tabs activeKey={themeTab} onChange={(key) => setThemeTab(key as "builtIn" | "market")}
+          <Tabs activeKey={themeTab} onChange={(key) => setThemeTab(key as "builtIn" | "market" | "saved")}
             tabBarExtraContent={themeTab === "market" ? (
               <div className="dream-market-tab-actions">
                 <Input className="dream-market-search" allowClear value={marketQuery} prefix={<Search size={14} />}
@@ -782,10 +782,14 @@ export function DreamSkinPage({ t, notify }: DreamSkinPageProps) {
                 key: "market",
                 label: <span className="dream-theme-tab-label"><Store size={15} />{t("dreamSkin.tabs.market")}</span>,
               },
+              {
+                key: "saved",
+                label: <span className="dream-theme-tab-label"><Save size={15} />{t("dreamSkin.tabs.savedCommunity")}</span>,
+              },
             ]} />
           {themeTab === "builtIn" ? (
             <div className="dream-tab-summary">{t("dreamSkin.presets.description")}</div>
-          ) : (
+          ) : themeTab === "market" ? (
             <>
               {(market?.updatedAt || communityInitialized) && <div className="dream-tab-summary dream-market-summary">
                 {market?.updatedAt && <span>{t("dreamSkin.market.updatedAt", { date: market.updatedAt })}</span>}
@@ -795,6 +799,8 @@ export function DreamSkinPage({ t, notify }: DreamSkinPageProps) {
                 })}</span>}
               </div>}
             </>
+          ) : (
+            <div className="dream-tab-summary">{t("dreamSkin.saved.subtitle")}</div>
           )}
         </div>
       </div>
@@ -818,7 +824,7 @@ export function DreamSkinPage({ t, notify }: DreamSkinPageProps) {
               </button>
             </article>
           </div>
-        ) : (
+        ) : themeTab === "market" ? (
           <div className="dream-market-pane" role="tabpanel" aria-label={t("dreamSkin.tabs.market")}>
             {(market?.cached || market?.warning) && <Alert showIcon type="warning"
                 message={t("dreamSkin.market.cached")} description={market.warning} />}
@@ -854,17 +860,18 @@ export function DreamSkinPage({ t, notify }: DreamSkinPageProps) {
                       : null}
             </div>
           </div>
+        ) : savedThemes.length > 0 ? (
+          <div className="dream-theme-grid dream-saved-grid" role="tabpanel"
+            aria-label={t("dreamSkin.tabs.savedCommunity")}>
+            {savedThemes.map((theme) => <SavedThemeCard key={theme.id} theme={theme} status={status!}
+              busy={busy === `apply:${theme.id}`} onApply={() => applyTheme(theme.id)} t={t} />)}
+          </div>
+        ) : (
+          <div className="dream-market-empty" role="tabpanel" aria-label={t("dreamSkin.tabs.savedCommunity")}>
+            {t("dreamSkin.saved.empty")}
+          </div>
         )}
         </section>
-
-      {savedThemes.length > 0 && <section className="dream-skin-section">
-        <div className="dream-section-heading"><div><span>{t("dreamSkin.saved.eyebrow")}</span>
-          <h2>{t("dreamSkin.saved.title")}</h2></div><p>{t("dreamSkin.saved.subtitle")}</p></div>
-        <div className="dream-theme-grid dream-saved-grid">
-          {savedThemes.map((theme) => <SavedThemeCard key={theme.id} theme={theme} status={status!}
-            busy={busy === `apply:${theme.id}`} onApply={() => applyTheme(theme.id)} t={t} />)}
-        </div>
-      </section>}
 
       <Modal title={t("dreamSkin.import.modalTitle")} open={importOpen} confirmLoading={busy === "import"}
         okText={t("dreamSkin.import.apply")} cancelText={t("table.cancel")} onOk={() => void submitImport()}

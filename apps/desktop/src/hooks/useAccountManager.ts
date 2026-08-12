@@ -96,7 +96,10 @@ export function useAccountManager(
         for (const id of result.ids) {
           await cloudSync?.pushAccount?.(id);
         }
-        notify(t("toast.accountJsonImported", { count: result.ids.length }));
+        notify(t(result.skipped.length ? "toast.accountJsonImportedWithSkipped" : "toast.accountJsonImported", {
+          count: result.ids.length,
+          skipped: result.skipped.length,
+        }));
       }
     } catch (error) {
       notify(String(error));
@@ -112,7 +115,10 @@ export function useAccountManager(
         for (const id of result.ids) {
           await cloudSync?.pushAccount?.(id);
         }
-        notify(t("toast.accountJsonImported", { count: result.ids.length }));
+        notify(t(result.skipped.length ? "toast.accountJsonImportedWithSkipped" : "toast.accountJsonImported", {
+          count: result.ids.length,
+          skipped: result.skipped.length,
+        }));
       }
     } catch (error) {
       notify(String(error));

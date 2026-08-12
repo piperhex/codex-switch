@@ -29,6 +29,7 @@ interface CompatibleTokens {
   idToken?: string;
   accessToken?: string;
   refreshToken?: string;
+  sessionToken?: string;
 }
 
 type JsonObject = Record<string, unknown>;
@@ -41,12 +42,21 @@ export function parseCompatibleJsonAccounts(content: string): unknown[] {
     return unpackTopLevel(JSON.parse(normalized) as unknown);
   } catch (error) {
     if (!(error instanceof SyntaxError)) throw error;
+    const embedded = extractJsonSlices(normalized).flatMap((slice) => {
+      try {
+        return unpackTopLevel(JSON.parse(slice) as unknown);
+      } catch {
+        return [];
+      }
+    });
+    if (embedded.length) return embedded;
     return parseLineDelimitedAccounts(normalized, error);
   }
 }
 
 export function normalizeCompatibleAuth(value: unknown): JsonObject {
-  const tokens = extractCompatibleTokens(value, 0);
+  const account = findCompatibleAccount(value);
+  const tokens = account ? extractCompatibleTokens(account, 0) : undefined;
   if (!tokens) {
     throw new BadRequestException(
       'No Codex token found; supported fields include access_token/accessToken, tokens, credentials, session/session_json, and refresh_token',
@@ -56,8 +66,18 @@ export function normalizeCompatibleAuth(value: unknown): JsonObject {
   const normalizedTokens: JsonObject = {};
   if (tokens.accessToken) normalizedTokens.access_token = tokens.accessToken;
   if (tokens.idToken && isDecodableJwt(tokens.idToken)) normalizedTokens.id_token = tokens.idToken;
-  if (tokens.refreshToken) normalizedTokens.refresh_token = tokens.refreshToken;
+  if (tokens.refreshToken && tokens.refreshToken !== '__missing_refresh_token__') {
+    normalizedTokens.refresh_token = tokens.refreshToken;
+  }
+  if (tokens.sessionToken) normalizedTokens.session_token = tokens.sessionToken;
+  if (account) copyCompatibleIdentity(account, normalizedTokens);
+  enrichTokenIdentity(normalizedTokens);
   return { tokens: normalizedTokens };
+}
+
+interface CompatibleMetadata {
+  note?: string;
+  expiresAt?: string;
 }
 
 export function parseSub2apiJsonAccounts(content: string): unknown[] {
@@ -73,10 +93,10 @@ export function parseSub2apiJsonAccounts(content: string): unknown[] {
   if (!isObject(value)) {
     throw new BadRequestException('sub2api export must contain a JSON object at the top level');
   }
-  if (value.type !== 'sub2api-data') {
-    throw new BadRequestException('The selected file is not a sub2api-data export');
+  if (value.type !== undefined && value.type !== 'sub2api-data') {
+    throw new BadRequestException('The selected file is not a sub2api account export');
   }
-  if (value.version !== 1) {
+  if (value.version !== undefined && value.version !== 1) {
     throw new BadRequestException('Only version 1 sub2api exports are supported');
   }
   if (!Array.isArray(value.accounts) || !value.accounts.length) {
@@ -148,18 +168,15 @@ export function normalizeSub2apiAuth(value: unknown): JsonObject {
 }
 
 function unpackTopLevel(value: unknown): unknown[] {
-  if (Array.isArray(value)) {
-    if (!value.length) throw new BadRequestException('Import file does not contain any accounts');
-    if (value.length > MAX_IMPORT_ACCOUNTS) {
-      throw new BadRequestException(`A single import supports at most ${MAX_IMPORT_ACCOUNTS} accounts`);
-    }
-    return value;
-  }
-  if (!isObject(value)) {
+  if (!isObject(value) && !Array.isArray(value)) {
     throw new BadRequestException('Import file must contain a JSON object or array at the top level');
   }
-  if (Array.isArray(value.accounts)) return unpackTopLevel(value.accounts);
-  return [value];
+  const found = collectCompatibleAccounts(value);
+  if (!found.length) throw new BadRequestException('Import file does not contain any accounts');
+  if (found.length > MAX_IMPORT_ACCOUNTS) {
+    throw new BadRequestException(`A single import supports at most ${MAX_IMPORT_ACCOUNTS} accounts`);
+  }
+  return found;
 }
 
 function parseLineDelimitedAccounts(content: string, parseError: SyntaxError): unknown[] {
@@ -193,18 +210,25 @@ function extractCompatibleTokens(value: unknown, depth: number): CompatibleToken
   const tokens = {
     idToken: firstString(value, [
       ['id_token'], ['idToken'], ['tokens', 'id_token'], ['tokens', 'idToken'],
+      ['token', 'id_token'], ['token', 'idToken'],
       ['credentials', 'id_token'], ['credentials', 'idToken'],
     ]),
     accessToken: firstString(value, [
       ['access_token'], ['accessToken'], ['tokens', 'access_token'], ['tokens', 'accessToken'],
+      ['token', 'access_token'], ['token', 'accessToken'],
       ['credentials', 'access_token'], ['credentials', 'accessToken'],
     ]),
     refreshToken: firstString(value, [
       ['refresh_token'], ['refreshToken'], ['tokens', 'refresh_token'], ['tokens', 'refreshToken'],
+      ['token', 'refresh_token'], ['token', 'refreshToken'],
       ['credentials', 'refresh_token'], ['credentials', 'refreshToken'],
     ]),
+    sessionToken: firstString(value, [
+      ['session_token'], ['sessionToken'], ['tokens', 'session_token'], ['tokens', 'sessionToken'],
+      ['token', 'session_token'], ['token', 'sessionToken'], ['credentials', 'session_token'],
+    ]),
   };
-  if (tokens.idToken || tokens.accessToken || tokens.refreshToken) return tokens;
+  if (tokens.idToken || tokens.accessToken || tokens.refreshToken || tokens.sessionToken) return tokens;
 
   for (const key of NESTED_AUTH_KEYS) {
     const nested = value[key];
@@ -221,6 +245,207 @@ function extractCompatibleTokens(value: unknown, depth: number): CompatibleToken
     }
   }
   return undefined;
+}
+
+function findCompatibleAccount(value: unknown) {
+  return collectCompatibleAccounts(value)[0];
+}
+
+function collectCompatibleAccounts(value: unknown, depth = 0, found: JsonObject[] = []) {
+  if (depth > 12 || found.length > MAX_IMPORT_ACCOUNTS) return found;
+  if (Array.isArray(value)) {
+    for (const item of value) collectCompatibleAccounts(item, depth + 1, found);
+    return found;
+  }
+  if (!isObject(value)) return found;
+  if (hasDirectCompatibleToken(value)) {
+    found.push(value);
+    return found;
+  }
+  for (const [key, nested] of Object.entries(value)) {
+    if (['accessToken', 'access_token', 'sessionToken'].includes(key)) continue;
+    if (typeof nested === 'string' && NESTED_AUTH_KEYS.includes(key as typeof NESTED_AUTH_KEYS[number])) {
+      try {
+        collectCompatibleAccounts(JSON.parse(nested) as unknown, depth + 1, found);
+      } catch {
+        // Continue scanning other supported wrappers.
+      }
+    } else {
+      collectCompatibleAccounts(nested, depth + 1, found);
+    }
+  }
+  return found;
+}
+
+function hasDirectCompatibleToken(value: JsonObject) {
+  return Boolean(firstString(value, [
+    ['id_token'], ['idToken'], ['access_token'], ['accessToken'], ['refresh_token'], ['refreshToken'],
+    ['tokens', 'id_token'], ['tokens', 'idToken'], ['tokens', 'access_token'], ['tokens', 'accessToken'],
+    ['tokens', 'refresh_token'], ['tokens', 'refreshToken'],
+    ['token', 'id_token'], ['token', 'idToken'], ['token', 'access_token'], ['token', 'accessToken'],
+    ['token', 'refresh_token'], ['token', 'refreshToken'],
+    ['credentials', 'id_token'], ['credentials', 'idToken'],
+    ['credentials', 'access_token'], ['credentials', 'accessToken'],
+    ['credentials', 'refresh_token'], ['credentials', 'refreshToken'],
+  ]));
+}
+
+function copyCompatibleIdentity(value: JsonObject, tokens: JsonObject) {
+  const mappings: Array<[string, string[][]]> = [
+    ['account_id', [
+      ['account', 'id'], ['account_id'], ['chatgptAccountId'], ['chatgpt_account_id'],
+      ['tokens', 'accountId'], ['tokens', 'account_id'], ['tokens', 'chatgptAccountId'],
+      ['tokens', 'chatgpt_account_id'], ['token', 'accountId'], ['token', 'account_id'],
+      ['token', 'chatgptAccountId'], ['token', 'chatgpt_account_id'],
+      ['credentials', 'chatgpt_account_id'], ['providerSpecificData', 'chatgptAccountId'],
+      ['providerSpecificData', 'chatgpt_account_id'], ['meta', 'chatgptAccountId'],
+      ['meta', 'chatgpt_account_id'],
+    ]],
+    ['chatgpt_user_id', [
+      ['user', 'id'], ['user_id'], ['chatgptUserId'], ['chatgpt_user_id'],
+      ['tokens', 'userId'], ['tokens', 'user_id'], ['tokens', 'chatgptUserId'],
+      ['tokens', 'chatgpt_user_id'], ['token', 'userId'], ['token', 'user_id'],
+      ['token', 'chatgptUserId'], ['token', 'chatgpt_user_id'], ['credentials', 'chatgpt_user_id'],
+      ['providerSpecificData', 'chatgptUserId'], ['providerSpecificData', 'chatgpt_user_id'],
+    ]],
+    ['email', [
+      ['user', 'email'], ['email'], ['label'], ['meta', 'label'],
+      ['credentials', 'email'], ['providerSpecificData', 'email'],
+    ]],
+    ['plan_type', [
+      ['account', 'planType'], ['account', 'plan_type'], ['planType'], ['plan_type'],
+      ['credentials', 'plan_type'], ['providerSpecificData', 'chatgptPlanType'],
+      ['providerSpecificData', 'chatgpt_plan_type'],
+    ]],
+    ['organization_id', [
+      ['organizationId'], ['organization_id'], ['meta', 'organizationId'], ['meta', 'organization_id'],
+      ['credentials', 'organization_id'], ['providerSpecificData', 'organizationId'],
+      ['providerSpecificData', 'organization_id'],
+    ]],
+    ['expires_at', [
+      ['expires'], ['expiresAt'], ['expires_at'], ['expired'], ['credentials', 'expires_at'],
+    ]],
+    ['workspace_id', [
+      ['account', 'workspaceId'], ['account', 'workspace_id'], ['workspaceId'], ['workspace_id'],
+      ['meta', 'workspaceId'], ['meta', 'workspace_id'], ['credentials', 'workspace_id'],
+      ['providerSpecificData', 'workspaceId'], ['providerSpecificData', 'workspace_id'],
+    ]],
+  ];
+  for (const [target, paths] of mappings) {
+    const field = firstString(value, paths);
+    if (field) tokens[target] = field;
+  }
+  if (value.provider === 'codex' && !tokens.account_id) {
+    const id = firstString(value, [['id']]);
+    if (id) tokens.account_id = id;
+  }
+}
+
+function enrichTokenIdentity(tokens: JsonObject) {
+  const token = firstString(tokens, [['id_token'], ['access_token']]);
+  if (!token) return;
+  const payloadPart = token.split('.')[1];
+  if (!payloadPart) return;
+  let claims: JsonObject;
+  try {
+    const decoded = JSON.parse(Buffer.from(payloadPart, 'base64url').toString('utf8')) as unknown;
+    claims = isObject(decoded) ? decoded : {};
+  } catch {
+    return;
+  }
+  const auth = isObject(claims['https://api.openai.com/auth'])
+    ? claims['https://api.openai.com/auth'] as JsonObject
+    : {};
+  const profile = isObject(claims['https://api.openai.com/profile'])
+    ? claims['https://api.openai.com/profile'] as JsonObject
+    : {};
+  const organization = Array.isArray(auth.organizations)
+    ? auth.organizations.find((value) => isObject(value) && firstString(value, [['id']]))
+    : undefined;
+  const values: Array<[string, string | undefined]> = [
+    ['account_id', firstString(auth, [['chatgpt_account_id']])],
+    ['chatgpt_user_id', firstString(auth, [['chatgpt_user_id'], ['user_id']])
+      ?? firstString(claims, [['sub']])],
+    ['email', firstString(claims, [['email']]) ?? firstString(profile, [['email']])],
+    ['plan_type', firstString(auth, [['chatgpt_plan_type']])],
+    ['organization_id', firstString(auth, [['organization_id']])
+      ?? (isObject(organization) ? firstString(organization, [['id']]) : undefined)],
+    ['workspace_id', firstString(claims, [['workspace_id']])],
+  ];
+  for (const [key, value] of values) {
+    if (value && !tokens[key]) tokens[key] = value;
+  }
+}
+
+function compatibleMetadata(value: unknown): CompatibleMetadata {
+  if (!isObject(value)) return {};
+  const note = firstString(value, [
+    ['account_note'], ['accountInfo'], ['account_info'], ['note'], ['notes'], ['remark'],
+  ]);
+  const rawExpiresAt = firstValue(value, [
+    ['expires'], ['expiresAt'], ['expires_at'], ['expired'], ['credentials', 'expires_at'],
+  ]);
+  return { note, expiresAt: normalizeExpiration(rawExpiresAt) };
+}
+
+function firstValue(value: JsonObject, paths: string[][]) {
+  for (const path of paths) {
+    let current: unknown = value;
+    for (const key of path) {
+      if (!isObject(current)) {
+        current = undefined;
+        break;
+      }
+      current = current[key];
+    }
+    if (current !== undefined && current !== null && current !== '') return current;
+  }
+  return undefined;
+}
+
+function normalizeExpiration(value: unknown) {
+  if (value === undefined) return undefined;
+  const parsedNumeric = typeof value === 'string' && /^\d+$/.test(value.trim())
+    ? Number(value.trim())
+    : Number.NaN;
+  const numeric = typeof value === 'number' ? value : parsedNumeric;
+  const date = Number.isFinite(numeric)
+    ? new Date(numeric > 1e11 ? numeric : numeric * 1000)
+    : new Date(String(value));
+  return Number.isNaN(date.getTime()) ? undefined : date.toISOString().slice(0, 10);
+}
+
+function extractJsonSlices(content: string) {
+  const slices: string[] = [];
+  const stack: string[] = [];
+  let start = -1;
+  let inString = false;
+  let escaped = false;
+  for (let index = 0; index < content.length; index += 1) {
+    const character = content[index];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (character === '\\') escaped = true;
+      else if (character === '"') inString = false;
+      continue;
+    }
+    if (character === '"') {
+      if (stack.length) inString = true;
+    } else if (character === '{' || character === '[') {
+      if (!stack.length) start = index;
+      stack.push(character);
+    } else if (character === '}' || character === ']') {
+      const open = stack.pop();
+      if (!open || (character === '}' ? open !== '{' : open !== '[')) {
+        stack.length = 0;
+        start = -1;
+      } else if (!stack.length && start >= 0) {
+        slices.push(content.slice(start, index + 1));
+        start = -1;
+      }
+    }
+  }
+  return slices;
 }
 
 function firstString(value: JsonObject, paths: string[][]) {
@@ -269,40 +494,50 @@ export class OfficialAccountImportService {
   async import(actor: AuthUser, dto: ImportSystemAccountsDto) {
     const values = parseCompatibleJsonAccounts(dto.content);
     const accounts = [];
+    const skipped: string[] = [];
     for (const [index, value] of values.entries()) {
       try {
         let auth = normalizeCompatibleAuth(value);
         if (!this.token(auth, 'access_token')) auth = await this.refresh(auth);
+        const metadata = compatibleMetadata(value);
         accounts.push(await this.admin.createSystemAccount(actor, {
           auth,
-          note: dto.note,
-          expiresAt: dto.expiresAt,
+          note: dto.note ?? metadata.note,
+          expiresAt: dto.expiresAt ?? metadata.expiresAt,
         }));
       } catch (error) {
         const detail = error instanceof HttpException ? error.message : 'Unable to import account';
-        throw new BadRequestException(`Account ${index + 1} could not be imported: ${detail}`);
+        skipped.push(`Account ${index + 1}: ${detail}`);
       }
     }
-    return { accounts, importedCount: accounts.length };
+    if (!accounts.length) {
+      throw new BadRequestException(skipped[0] ?? 'No accounts could be imported');
+    }
+    return { accounts, importedCount: accounts.length, skippedCount: skipped.length, skipped };
   }
 
   async importSub2api(actor: AuthUser, dto: ImportSystemAccountsDto) {
     const values = parseSub2apiJsonAccounts(dto.content);
     const accounts = [];
+    const skipped: string[] = [];
     for (const [index, value] of values.entries()) {
       try {
         const auth = normalizeSub2apiAuth(value);
+        const metadata = compatibleMetadata(value);
         accounts.push(await this.admin.createSystemAccount(actor, {
           auth,
-          note: dto.note,
-          expiresAt: dto.expiresAt,
+          note: dto.note ?? metadata.note,
+          expiresAt: dto.expiresAt ?? metadata.expiresAt,
         }));
       } catch (error) {
         const detail = error instanceof HttpException ? error.message : 'Unable to import account';
-        throw new BadRequestException(`Account ${index + 1} could not be imported: ${detail}`);
+        skipped.push(`Account ${index + 1}: ${detail}`);
       }
     }
-    return { accounts, importedCount: accounts.length };
+    if (!accounts.length) {
+      throw new BadRequestException(skipped[0] ?? 'No accounts could be imported');
+    }
+    return { accounts, importedCount: accounts.length, skippedCount: skipped.length, skipped };
   }
 
   private async refresh(auth: JsonObject) {

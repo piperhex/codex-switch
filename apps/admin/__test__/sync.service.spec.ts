@@ -878,6 +878,75 @@ describe('SyncService', () => {
     expect(systemAccounts.create).toHaveBeenCalledWith(expect.objectContaining({ auth }));
   });
 
+  it('accepts personal access tokens whose identity was normalized from an account export', async () => {
+    const auth = {
+      tokens: {
+        access_token: 'at-opaque-personal-access-token',
+        account_id: 'workspace-personal-access-token',
+        chatgpt_user_id: 'user-personal-access-token',
+        email: 'pat@example.com',
+        plan_type: 'team',
+      },
+    };
+    systemAccounts.findOne.mockResolvedValue(null);
+    systemAccounts.save.mockImplementationOnce(async (value) => ({
+      id: '10000000-0000-4000-8000-000000000011',
+      createdAt: new Date('2026-08-12T00:00:00.000Z'),
+      updatedAt: new Date('2026-08-12T00:00:00.000Z'),
+      bindings: [],
+      ...value,
+    }));
+
+    await expect(service.createSystemAccount({ auth })).resolves.toMatchObject({
+      email: 'pat@example.com',
+      plan: 'team',
+      accountId: 'workspace-personal-access-token',
+    });
+  });
+
+  it('normalizes a single headerless sub2api account pasted into the standard pool form', async () => {
+    const auth = {
+      exported_at: '2026-08-12T06:34:28Z',
+      proxies: [],
+      accounts: [{
+        name: 'person@example.com',
+        platform: 'openai',
+        type: 'oauth',
+        credentials: {
+          access_token: 'at-opaque-personal-access-token',
+          chatgpt_account_id: 'workspace-standard-form',
+          chatgpt_user_id: 'user-standard-form',
+          email: 'standard-form@example.com',
+          plan_type: 'team',
+          auth_mode: 'personalAccessToken',
+        },
+      }],
+    };
+    systemAccounts.findOne.mockResolvedValue(null);
+    systemAccounts.save.mockImplementationOnce(async (value) => ({
+      id: '10000000-0000-4000-8000-000000000012',
+      createdAt: new Date('2026-08-12T00:00:00.000Z'),
+      updatedAt: new Date('2026-08-12T00:00:00.000Z'),
+      bindings: [],
+      ...value,
+    }));
+
+    await expect(service.createSystemAccount({ auth })).resolves.toMatchObject({
+      email: 'standard-form@example.com',
+      plan: 'team',
+      accountId: 'workspace-standard-form',
+    });
+    expect(systemAccounts.create).toHaveBeenCalledWith(expect.objectContaining({
+      auth: expect.objectContaining({
+        auth_mode: 'chatgpt',
+        tokens: expect.objectContaining({
+          access_token: 'at-opaque-personal-access-token',
+          chatgpt_user_id: 'user-standard-form',
+        }),
+      }),
+    }));
+  });
+
   it('derives official account identity from Agent Identity auth.json', async () => {
     const auth = {
       auth_mode: 'agentIdentity',

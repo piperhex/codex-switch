@@ -2386,11 +2386,9 @@ pub(crate) async fn discard_codex_threads<R: Runtime + 'static>(
     app: tauri::AppHandle<R>,
     session_ids: Vec<String>,
 ) -> Result<MutationReport, String> {
-    tauri::async_runtime::spawn_blocking(move || {
-        discard_codex_threads_blocking(app, session_ids)
-    })
-    .await
-    .map_err(|error| format!("Discard conversations task failed: {error}"))?
+    tauri::async_runtime::spawn_blocking(move || discard_codex_threads_blocking(app, session_ids))
+        .await
+        .map_err(|error| format!("Discard conversations task failed: {error}"))?
 }
 
 #[tauri::command]
@@ -2407,11 +2405,9 @@ pub(crate) async fn recover_codex_threads<R: Runtime + 'static>(
     app: tauri::AppHandle<R>,
     session_ids: Vec<String>,
 ) -> Result<MutationReport, String> {
-    tauri::async_runtime::spawn_blocking(move || {
-        recover_codex_threads_blocking(app, session_ids)
-    })
-    .await
-    .map_err(|error| format!("Recover conversations task failed: {error}"))?
+    tauri::async_runtime::spawn_blocking(move || recover_codex_threads_blocking(app, session_ids))
+        .await
+        .map_err(|error| format!("Recover conversations task failed: {error}"))?
 }
 
 #[tauri::command]
@@ -2419,11 +2415,9 @@ pub(crate) async fn purge_codex_threads<R: Runtime + 'static>(
     app: tauri::AppHandle<R>,
     session_ids: Vec<String>,
 ) -> Result<MutationReport, String> {
-    tauri::async_runtime::spawn_blocking(move || {
-        purge_codex_threads_blocking(app, session_ids)
-    })
-    .await
-    .map_err(|error| format!("Purge conversations task failed: {error}"))?
+    tauri::async_runtime::spawn_blocking(move || purge_codex_threads_blocking(app, session_ids))
+        .await
+        .map_err(|error| format!("Purge conversations task failed: {error}"))?
 }
 
 #[tauri::command]
