@@ -83,13 +83,14 @@ pub(crate) fn list_providers<R: Runtime>(
     app: tauri::AppHandle<R>,
 ) -> Result<Vec<ProviderSummary>, String> {
     let paths = resolve_paths(&app)?;
-    let active_provider_id = read_state(&paths).active_provider_id;
+    let state = read_state(&paths);
     let mut providers = list_provider_profiles(&paths)?
         .into_iter()
         .map(|provider| {
             provider_summary(
                 &provider,
-                active_provider_id.as_deref() == Some(&provider.id),
+                state.active_provider_id.as_deref() == Some(&provider.id),
+                state.auto_switch_provider_id.as_deref() == Some(&provider.id),
             )
         })
         .collect::<Vec<_>>();
@@ -176,14 +177,15 @@ pub(crate) fn save_provider<R: Runtime>(
     })?;
     write_local_provider(&paths, &profile, existing.as_ref())?;
 
-    let active_provider_id = read_state(&paths).active_provider_id;
-    if active_provider_id.as_deref() == Some(&profile.id) {
+    let state = read_state(&paths);
+    if state.active_provider_id.as_deref() == Some(&profile.id) {
         write_active_provider_config(&paths, &profile)?;
     }
     emit_providers_changed(&app)?;
     Ok(provider_summary(
         &profile,
-        active_provider_id.as_deref() == Some(&profile.id),
+        state.active_provider_id.as_deref() == Some(&profile.id),
+        state.auto_switch_provider_id.as_deref() == Some(&profile.id),
     ))
 }
 
@@ -582,13 +584,17 @@ pub(crate) fn switch_provider_model<R: Runtime>(
     provider = normalize_provider_profile(provider)?;
     write_local_provider(&paths, &provider, None)?;
 
-    let active_provider_id = read_state(&paths).active_provider_id;
-    let active = active_provider_id.as_deref() == Some(&provider.id);
+    let state = read_state(&paths);
+    let active = state.active_provider_id.as_deref() == Some(&provider.id);
     if active {
         write_active_provider_config(&paths, &provider)?;
     }
     emit_providers_changed(&app)?;
-    Ok(provider_summary(&provider, active))
+    Ok(provider_summary(
+        &provider,
+        active,
+        state.auto_switch_provider_id.as_deref() == Some(&provider.id),
+    ))
 }
 
 #[tauri::command]
@@ -603,13 +609,39 @@ pub(crate) fn set_provider_model_control<R: Runtime>(
     provider = normalize_provider_profile(provider)?;
     write_local_provider(&paths, &provider, None)?;
 
-    let active_provider_id = read_state(&paths).active_provider_id;
-    let active = active_provider_id.as_deref() == Some(&provider.id);
+    let state = read_state(&paths);
+    let active = state.active_provider_id.as_deref() == Some(&provider.id);
     if active {
         write_active_provider_config(&paths, &provider)?;
     }
     emit_providers_changed(&app)?;
-    Ok(provider_summary(&provider, active))
+    Ok(provider_summary(
+        &provider,
+        active,
+        state.auto_switch_provider_id.as_deref() == Some(&provider.id),
+    ))
+}
+
+#[tauri::command]
+pub(crate) fn set_provider_auto_switch_enabled<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    id: String,
+    enabled: bool,
+) -> Result<(), String> {
+    let paths = resolve_paths(&app)?;
+    let provider = read_provider(&paths, &id)?;
+    if provider.kind != ProviderKind::Custom {
+        return Err("Automatic fallback is only available for third-party Providers".to_string());
+    }
+
+    let mut state = read_state(&paths);
+    let next_provider_id = if enabled { Some(id.clone()) } else { None };
+    if enabled || state.auto_switch_provider_id.as_deref() == Some(&id) {
+        state.auto_switch_provider_id = next_provider_id;
+        write_state(&paths, &state)?;
+        emit_providers_changed(&app)?;
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -641,17 +673,26 @@ pub(crate) fn delete_provider<R: Runtime>(
     let paths = resolve_paths(&app)?;
     validate_provider_id(&id)?;
     let original_state = read_state(&paths);
-    if original_state.active_provider_id.as_deref() == Some(&id) {
+    let was_active = original_state.active_provider_id.as_deref() == Some(&id);
+    let was_auto_switch_provider = original_state.auto_switch_provider_id.as_deref() == Some(&id);
+    if was_active || was_auto_switch_provider {
         let mut state = original_state.clone();
-        state.active_provider_id = None;
-        if crate::local_proxy::is_running() {
-            write_state(&paths, &state)?;
-            if let Err(error) = write_official_local_proxy_config(&paths) {
-                let _ = write_state(&paths, &original_state);
-                return Err(error);
+        if was_auto_switch_provider {
+            state.auto_switch_provider_id = None;
+        }
+        if was_active {
+            state.active_provider_id = None;
+            if crate::local_proxy::is_running() {
+                write_state(&paths, &state)?;
+                if let Err(error) = write_official_local_proxy_config(&paths) {
+                    let _ = write_state(&paths, &original_state);
+                    return Err(error);
+                }
+            } else {
+                restore_official_config(&paths)?;
+                write_state(&paths, &state)?;
             }
         } else {
-            restore_official_config(&paths)?;
             write_state(&paths, &state)?;
         }
     }
@@ -981,7 +1022,11 @@ pub(crate) fn provider_modified_at(
         })
 }
 
-fn provider_summary(provider: &ProviderProfile, active: bool) -> ProviderSummary {
+fn provider_summary(
+    provider: &ProviderProfile,
+    active: bool,
+    auto_switch_enabled: bool,
+) -> ProviderSummary {
     ProviderSummary {
         id: provider.id.clone(),
         kind: provider.kind,
@@ -993,6 +1038,7 @@ fn provider_summary(provider: &ProviderProfile, active: bool) -> ProviderSummary
         model_selection_controlled_by_codex: provider.model_selection_controlled_by_codex,
         api_format: provider.api_format,
         active,
+        auto_switch_enabled: auto_switch_enabled && provider.kind == ProviderKind::Custom,
         has_api_key: !provider.api_key.trim().is_empty(),
         supports_direct_switch: provider_switch_supported(crate::local_proxy::is_running()),
         balance_platform: provider.balance_platform,

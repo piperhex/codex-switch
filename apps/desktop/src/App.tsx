@@ -1639,7 +1639,9 @@ function DashboardApp() {
               busyProviderId={providerManager.busyProviderId} saving={providerManager.saving}
               localProxy={providerManager.localProxy} onSave={providerManager.saveProvider}
               onSwitch={switchProvider} onSwitchModel={switchProviderModel}
-              onModelControlChange={setProviderModelControl} onDelete={deleteProvider}
+              onModelControlChange={setProviderModelControl}
+              onAutoSwitchChange={providerManager.setProviderAutoSwitch}
+              onDelete={deleteProvider}
               onDeleteMany={providerManager.deleteProviders}
               displayMode={accountDisplayMode.displayMode}
               tokenUsageRefreshSeconds={tokenUsagePreferences.refreshSeconds}

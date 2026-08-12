@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { AutoComplete, Button, Checkbox, Dropdown, Input, Popconfirm, Segmented, Select, Space, Switch, Table, Tag, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { Bot, Check, Columns3, Pencil, Plus, RefreshCw, RotateCcw, Save, Server, Trash2, WalletCards, X } from "lucide-react";
+import { Bot, Check, Columns3, Pencil, Plus, RefreshCw, RotateCcw, Save, Server, Shuffle, Trash2, WalletCards, X } from "lucide-react";
 import { loadProviderTokenUsage, queryProviderBalance, subscribeToProviderBalance, subscribeToTokenUsageChanges } from "../api/backend";
 import type { AccountDisplayMode } from "../hooks/useAccountDisplayMode";
 import type { Language, Translate } from "../i18n";
@@ -28,6 +28,7 @@ interface ProvidersPageProps {
   onSwitch: (id: string) => void;
   onSwitchModel: (id: string, model: string) => void;
   onModelControlChange: (id: string, controlledByCodex: boolean) => void;
+  onAutoSwitchChange: (id: string, enabled: boolean) => void;
   onDelete: (id: string) => void;
   onDeleteMany: (ids: string[]) => Promise<string[]>;
   displayMode: AccountDisplayMode;
@@ -761,6 +762,7 @@ export function ProvidersPage({
   onSwitch,
   onSwitchModel,
   onModelControlChange,
+  onAutoSwitchChange,
   onDelete,
   onDeleteMany,
   displayMode,
@@ -919,13 +921,24 @@ export function ProvidersPage({
     {
       title: t("providers.table.actions"),
       key: "actions",
-      width: 180,
+      width: 285,
       align: "right",
       fixed: "right",
       render: (_, provider) => {
         const waiting = busyProviderId === provider.id;
         return (
           <Space size={4} className="table-actions">
+            {provider.kind === "custom" && (
+              <Tooltip title={t(provider.autoSwitchEnabled
+                ? "providers.tooltip.autoSwitchEnabled"
+                : "providers.tooltip.autoSwitch")}>
+                <Button size="small" type={provider.autoSwitchEnabled ? "primary" : "default"}
+                  loading={waiting} icon={<Shuffle size={14} />}
+                  onClick={() => onAutoSwitchChange(provider.id, !provider.autoSwitchEnabled)}>
+                  {t("providers.action.autoSwitch")}
+                </Button>
+              </Tooltip>
+            )}
             <Tooltip title={provider.supportsDirectSwitch ? t("providers.tooltip.switch") : t("providers.tooltip.requiresBridge")}>
               <Button size="small" type={provider.active ? "default" : "primary"}
                 disabled={provider.active || !provider.supportsDirectSwitch}
@@ -1082,6 +1095,16 @@ export function ProvidersPage({
                   : provider.supportsDirectSwitch ? <Tag>{t("providers.status.ready")}</Tag>
                     : <Tag color="gold">{t("providers.status.bridgeRequired")}</Tag>}
                 <div className="provider-card-top-actions">
+                  {provider.kind === "custom" && (
+                    <Tooltip title={t(provider.autoSwitchEnabled
+                      ? "providers.tooltip.autoSwitchEnabled"
+                      : "providers.tooltip.autoSwitch")}>
+                      <Button size="small" type={provider.autoSwitchEnabled ? "primary" : "default"}
+                        className="table-icon-button" loading={waiting}
+                        aria-label={t("providers.action.autoSwitch")} icon={<Shuffle size={14} />}
+                        onClick={() => onAutoSwitchChange(provider.id, !provider.autoSwitchEnabled)} />
+                    </Tooltip>
+                  )}
                   <Popconfirm title={t("providers.delete.title")} description={t("providers.delete.description")}
                     okText={t("providers.delete.ok")} cancelText={t("providers.delete.cancel")} okButtonProps={{ danger: true }}
                     onConfirm={() => onDelete(provider.id)}>

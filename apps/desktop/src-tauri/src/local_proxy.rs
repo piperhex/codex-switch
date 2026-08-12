@@ -26,9 +26,9 @@ use crate::{
     codex_api::{refresh_tokens, token_expiring, ORIGINATOR},
     models::{
         AccountSummary, AccountTokenUsageTotals, DailyTokenUsage, LocalProxyStatus,
-        ManagerStateFile, ProviderApiFormat, ProviderProfile, ProviderTokenUsageTotals,
-        ProxySessionLatencySummary, ProxySessionRequestSummary, ProxySessionSummary,
-        TokenUsageEntry, UsageSummary,
+        ManagerStateFile, ProviderApiFormat, ProviderKind, ProviderProfile,
+        ProviderTokenUsageTotals, ProxySessionLatencySummary, ProxySessionRequestSummary,
+        ProxySessionSummary, TokenUsageEntry, UsageSummary,
     },
     providers::{
         self, LOCAL_PROXY_ACTOR_AUTHORIZATION_HEADER, LOCAL_PROXY_BASE_URL, LOCAL_PROXY_HOST,
@@ -2315,7 +2315,7 @@ fn handle_proxy_request<R: Runtime>(
             let response =
                 forward_official(app, method, url, headers, body.clone(), &model, session_id);
             retry_official_request_after_quota_switch(app, response, || {
-                forward_official(app, method, url, headers, body, &model, session_id)
+                forward_active_request(app, method, url, headers, body, path, session_id)
             })
         }
         ActiveTarget::Provider(provider) => {
@@ -2329,6 +2329,29 @@ fn handle_proxy_request<R: Runtime>(
     let result = attach_token_usage_capture(app, usage_context, result);
     append_proxy_diagnostic_result(app, diagnostic, &result, started_at.elapsed());
     result
+}
+
+fn forward_active_request<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    method: &Method,
+    url: &str,
+    headers: &[(String, String)],
+    body: Vec<u8>,
+    path: &str,
+    session_id: Option<&str>,
+) -> Result<UpstreamPayload, String> {
+    match active_target_for_request(app, path)? {
+        ActiveTarget::Official { model } => {
+            forward_official(app, method, url, headers, body, &model, session_id)
+        }
+        ActiveTarget::Provider(provider)
+            if is_responses_endpoint(path)
+                && provider.api_format == ProviderApiFormat::OpenaiChat =>
+        {
+            forward_chat_bridge(method, url, headers, body, &provider)
+        }
+        ActiveTarget::Provider(provider) => forward_provider(method, url, headers, body, &provider),
+    }
 }
 
 fn current_usage_payload<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<UpstreamPayload, String> {
@@ -2454,11 +2477,10 @@ fn auto_switch_official_account<R: Runtime>(
         return Ok(false);
     }
 
-    // The retry closure is intentionally official-only. If the user selected a Provider
-    // while this request was waiting, keep the original quota response instead of sending
-    // the retry through stale official routing.
+    // The retry resolves the active target again. A successful automatic fallback may now
+    // point at either another official account or the configured third-party Provider.
     let state = read_state(&resolve_paths(app)?);
-    Ok(state.active_provider_id.is_none() && state.active_account_id.is_some())
+    Ok(state.active_provider_id.is_some() || state.active_account_id.is_some())
 }
 
 fn try_auto_switch_official_account<R: Runtime>(
@@ -2489,29 +2511,30 @@ fn try_auto_switch_official_account<R: Runtime>(
     {
         return Ok(AutoSwitchAttempt::Unchanged);
     }
-    let refreshed_accounts = accounts
+    let mut refreshed_accounts = Vec::new();
+    let mut backup_usage_unknown = false;
+    for mut account in accounts
         .into_iter()
         .filter(|account| account.auto_switch_enabled)
-        .filter_map(|mut account| {
-            match crate::commands::refresh_usage_blocking(app.clone(), account.id.clone()) {
-                Ok(usage) => {
-                    account.usage = usage;
-                    Some(account)
-                }
-                Err(error) => {
-                    eprintln!(
-                        "failed to refresh usage for {} during automatic switch: {error}",
-                        account.id
-                    );
-                    None
-                }
+    {
+        match crate::commands::refresh_usage_blocking(app.clone(), account.id.clone()) {
+            Ok(usage) => {
+                account.usage = usage;
+                refreshed_accounts.push(account);
             }
-        })
-        .collect::<Vec<_>>();
+            Err(error) => {
+                if account.id != current_id {
+                    backup_usage_unknown = true;
+                }
+                eprintln!(
+                    "failed to refresh usage for {} during automatic switch: {error}",
+                    account.id
+                );
+            }
+        }
+    }
 
-    // Do not overwrite a manual switch or a Provider switch made while usage was refreshing.
-    // A new official account can service one retry, while a Provider requires rerouting the
-    // whole request and therefore leaves the original response unchanged here.
+    // Do not overwrite a manual account or Provider switch made while usage was refreshing.
     let state = read_state(&paths);
     if !state.auto_switch_on_quota_exhaustion || state.active_provider_id.is_some() {
         return Ok(AutoSwitchAttempt::Unchanged);
@@ -2524,30 +2547,71 @@ fn try_auto_switch_official_account<R: Runtime>(
         });
     }
 
-    let Some(target) = account_with_lowest_remaining_primary_quota(
+    if let Some(target) = account_with_lowest_remaining_primary_quota(
         &refreshed_accounts,
         &current_id,
         state.custom_auto_switch_priority_enabled,
-    ) else {
+    ) {
+        let target_id = target.id.clone();
+        if let Err(error) = crate::commands::switch_account_blocking(app.clone(), target_id.clone())
+        {
+            // switch_account writes the selected account before emitting UI events. If a
+            // post-switch side effect failed, the new account is still active and concurrent
+            // quota responses must be released to retry against it.
+            let state = read_state(&paths);
+            if state.active_provider_id.is_none()
+                && state.active_account_id.as_deref() == Some(&target_id)
+            {
+                eprintln!(
+                    "automatic account switch to {target_id} completed with a post-switch error: {error}"
+                );
+                return Ok(AutoSwitchAttempt::Switched);
+            }
+            return Err(error);
+        }
+        return Ok(AutoSwitchAttempt::Switched);
+    }
+
+    if backup_usage_unknown
+        || !all_backup_accounts_have_exhausted_primary_quota(&refreshed_accounts, &current_id)
+    {
+        return Ok(AutoSwitchAttempt::Unchanged);
+    }
+    let Some(provider_id) = state.auto_switch_provider_id else {
         return Ok(AutoSwitchAttempt::Unchanged);
     };
-    let target_id = target.id.clone();
-    if let Err(error) = crate::commands::switch_account_blocking(app.clone(), target_id.clone()) {
-        // switch_account writes the selected account before emitting UI events. If a
-        // post-switch side effect failed, the new account is still active and concurrent
-        // quota responses must be released to retry against it.
+    let provider = providers::read_provider(&paths, &provider_id)?;
+    if provider.kind != ProviderKind::Custom {
+        return Ok(AutoSwitchAttempt::Unchanged);
+    }
+    if let Err(error) = providers::switch_provider_blocking(app.clone(), provider_id.clone()) {
         let state = read_state(&paths);
-        if state.active_provider_id.is_none()
-            && state.active_account_id.as_deref() == Some(&target_id)
-        {
+        if state.active_provider_id.as_deref() == Some(&provider_id) {
             eprintln!(
-                "automatic account switch to {target_id} completed with a post-switch error: {error}"
+                "automatic fallback to Provider {provider_id} completed with a post-switch error: {error}"
             );
             return Ok(AutoSwitchAttempt::Switched);
         }
         return Err(error);
     }
     Ok(AutoSwitchAttempt::Switched)
+}
+
+fn all_backup_accounts_have_exhausted_primary_quota(
+    accounts: &[AccountSummary],
+    current_id: &str,
+) -> bool {
+    accounts
+        .iter()
+        .filter(|account| account.id != current_id && account.auto_switch_enabled)
+        .all(|account| {
+            account.usage.error.is_none()
+                && account
+                    .usage
+                    .primary
+                    .as_ref()
+                    .is_some_and(|primary| primary.remaining_percent <= 0.0)
+        })
 }
 
 fn account_with_lowest_remaining_primary_quota<'a>(
@@ -2781,6 +2845,27 @@ fn attach_token_usage_capture<R: Runtime + 'static>(
     };
     if !status_ok(payload.status) {
         return Ok(payload);
+    }
+    if context.provider_id.is_none() && payload.token_usage_account.is_none() {
+        if let Ok(paths) = resolve_paths(app) {
+            if let Some(provider_id) = read_state(&paths).active_provider_id {
+                if let Ok(provider) = providers::read_provider(&paths, &provider_id) {
+                    context.provider = provider.name.clone();
+                    context.provider_id = Some(provider.id.clone());
+                    if !provider.model_selection_controlled_by_codex
+                        || !provider.models.iter().any(|model| model == &context.model)
+                    {
+                        context.model = provider.model.clone();
+                    }
+                    update_proxy_session_target(
+                        context.session_id.as_deref(),
+                        context.session_request_id,
+                        &context.provider,
+                        &context.model,
+                    );
+                }
+            }
+        }
     }
     context.content_type = payload.content_type.clone();
     context.account = payload.token_usage_account.clone();
@@ -6032,7 +6117,7 @@ fn unix_millis() -> u128 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{ProviderKind, UsageWindow};
+    use crate::models::UsageWindow;
     use serde_json::json;
     use std::io::{Cursor, Read};
     use std::sync::{
@@ -6452,6 +6537,42 @@ mod tests {
             account_with_lowest_remaining_primary_quota(&accounts, "current", true).unwrap();
 
         assert_eq!(selected.id, "lower-usage");
+    }
+
+    #[test]
+    fn provider_fallback_requires_every_backup_primary_quota_to_be_exhausted() {
+        let exhausted = vec![
+            account_with_usage("current", 0.0, 80.0),
+            account_with_usage("backup-1", 0.0, 90.0),
+            account_with_usage("backup-2", 0.0, 50.0),
+        ];
+        assert!(all_backup_accounts_have_exhausted_primary_quota(
+            &exhausted, "current"
+        ));
+
+        let available = vec![
+            account_with_usage("current", 0.0, 80.0),
+            account_with_usage("backup-1", 0.0, 90.0),
+            account_with_usage("available", 1.0, 0.0),
+        ];
+        assert!(!all_backup_accounts_have_exhausted_primary_quota(
+            &available, "current"
+        ));
+
+        let mut unknown = account_with_usage("unknown", 0.0, 0.0);
+        unknown.usage.error = Some("network error".to_string());
+        assert!(!all_backup_accounts_have_exhausted_primary_quota(
+            &[account_with_usage("current", 0.0, 80.0), unknown],
+            "current"
+        ));
+    }
+
+    #[test]
+    fn provider_fallback_is_available_when_there_are_no_backup_accounts() {
+        assert!(all_backup_accounts_have_exhausted_primary_quota(
+            &[account_with_usage("current", 0.0, 80.0)],
+            "current"
+        ));
     }
 
     #[test]

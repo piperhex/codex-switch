@@ -239,6 +239,7 @@ function readPreviewProviders(): Provider[] {
           ? true
           : Boolean(provider.modelSelectionControlledByCodex),
         apiFormat: kind === "openai" ? "openaiResponses" : provider.apiFormat,
+        autoSwitchEnabled: kind === "custom" && Boolean(provider.autoSwitchEnabled),
         balancePlatform: provider.balancePlatform ?? null,
         balanceQueryUrl: provider.balanceQueryUrl ?? null,
         balanceQueryUsesApiKey: provider.balanceQueryUsesApiKey !== false,
@@ -385,6 +386,7 @@ export async function saveProviderProfile(provider: ProviderInput): Promise<Prov
         : provider.modelSelectionControlledByCodex,
       apiFormat,
       active: existing?.active ?? false,
+      autoSwitchEnabled: kind === "custom" && Boolean(existing?.autoSwitchEnabled),
       hasApiKey,
       supportsDirectSwitch: previewLocalProxyStatus().running,
       balancePlatform: provider.balancePlatform ?? null,
@@ -517,6 +519,25 @@ export async function setProviderModelControl(id: string, controlledByCodex: boo
     return providers[index];
   }
   return invoke<Provider>("set_provider_model_control", { id, controlledByCodex });
+}
+
+export async function setProviderAutoSwitchEnabled(id: string, enabled: boolean): Promise<void> {
+  if (!hasLocalBackend) {
+    const providers = readPreviewProviders();
+    const selected = providers.find((provider) => provider.id === id);
+    if (!selected) throw new Error("Provider does not exist");
+    if (selected.kind !== "custom") {
+      throw new Error("Automatic fallback is only available for third-party Providers");
+    }
+    writePreviewProviders(providers.map((provider) => ({
+      ...provider,
+      autoSwitchEnabled: provider.kind === "custom" && (
+        enabled ? provider.id === id : provider.id !== id && provider.autoSwitchEnabled
+      ),
+    })));
+    return;
+  }
+  await invoke("set_provider_auto_switch_enabled", { id, enabled });
 }
 
 export async function deactivateProvider(): Promise<void> {

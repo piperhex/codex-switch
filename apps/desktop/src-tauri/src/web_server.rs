@@ -332,6 +332,13 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
             argument(&args, "id")?,
             argument(&args, "controlledByCodex")?,
         )),
+        "set_provider_auto_switch_enabled" => {
+            serialize(crate::providers::set_provider_auto_switch_enabled(
+                app,
+                argument(&args, "id")?,
+                argument(&args, "enabled")?,
+            ))
+        }
         "disable_provider" => serialize(crate::providers::disable_provider(app)),
         "delete_provider" => serialize(crate::providers::delete_provider(
             app,

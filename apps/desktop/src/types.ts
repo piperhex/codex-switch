@@ -70,6 +70,7 @@ export interface Provider {
   modelSelectionControlledByCodex: boolean;
   apiFormat: ProviderApiFormat;
   active: boolean;
+  autoSwitchEnabled: boolean;
   hasApiKey: boolean;
   supportsDirectSwitch: boolean;
   balancePlatform?: ProviderBalancePlatform | null;

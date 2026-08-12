@@ -186,6 +186,7 @@ pub fn run() {
             providers::switch_provider,
             providers::switch_provider_model,
             providers::set_provider_model_control,
+            providers::set_provider_auto_switch_enabled,
             providers::disable_provider,
             providers::delete_provider,
             local_proxy::get_local_proxy_status,
