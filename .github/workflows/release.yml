@@ -24,6 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       release_id: ${{ steps.release.outputs.result }}
+      release_draft: ${{ steps.release.outputs.release_draft }}
     steps:
       - name: Create or find release
         id: release
@@ -67,6 +68,7 @@ jobs:
                 });
                 core.info(`Updated existing release ${release.id}.`);
               }
+              core.setOutput("release_draft", String(release.draft));
               core.info(`Using existing release ${release.id} for ${tag}.`);
               return release.id.toString();
             } catch (error) {
@@ -83,6 +85,7 @@ jobs:
               prerelease: process.env.PRERELEASE === "true",
               generate_release_notes: true,
             });
+            core.setOutput("release_draft", "true");
             core.info(`Created draft release ${release.id} for ${tag}.`);
             return release.id.toString();
 
@@ -173,6 +176,9 @@ jobs:
           tagName: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
           args: ${{ matrix.args }}
           releaseAssetNamePattern: "[name]_[version]_${{ matrix.releasePlatform }}-[arch][setup][ext]"
+          # Each matrix runner only knows about its own artifacts. Upload one
+          # complete updater manifest after every platform has finished.
+          uploadUpdaterJson: false
           updaterJsonPreferNsis: true
 
   native-android:
@@ -270,7 +276,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          draft: ${{ needs.create-release.outputs.release_draft }}
           files: apps/native/CodexSwitch-android-*.apk
+          fail_on_unmatched_files: true
 
   native-ios:
     name: Build iOS app
@@ -332,7 +340,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          draft: ${{ needs.create-release.outputs.release_draft }}
           files: apps/native/CodexSwitch-ios-unsigned.app.zip
+          fail_on_unmatched_files: true
 
   dream-skin-resources:
     name: Publish Dream Skin resources
@@ -350,6 +360,31 @@ jobs:
       - dream-skin-resources
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+
+      - name: Test updater manifest generator
+        run: node --test scripts/generate-updater-manifest.test.mjs
+
+      - name: Generate and validate updater manifest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_ID: ${{ needs.create-release.outputs.release_id }}
+          TAG_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+        run: node scripts/generate-updater-manifest.mjs
+
+      - name: Upload updater manifest
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          draft: ${{ needs.create-release.outputs.release_draft }}
+          files: latest.json
+          fail_on_unmatched_files: true
+
       - name: Publish release
         uses: actions/github-script@v9
         env:
