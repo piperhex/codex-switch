@@ -34,6 +34,7 @@ import type {
   DreamSkinResourcesStatus,
   DreamSkinStatus,
   DailyTokenUsage,
+  DeletedCloudAccount,
   DirectConversationSyncResult,
   FeedbackImageInput,
   LoginStart,
@@ -1398,6 +1399,16 @@ export async function pushCloudProvider(id: string): Promise<CloudSyncResult> {
 export async function deleteCloudAccount(id: string): Promise<CloudSyncResult> {
   if (!hasLocalBackend) return { uploaded: 0, downloaded: 0 };
   return invoke<CloudSyncResult>("cloud_delete_account", { id });
+}
+
+export async function loadDeletedCloudAccounts(): Promise<DeletedCloudAccount[]> {
+  if (!hasLocalBackend) return [];
+  return invoke<DeletedCloudAccount[]>("cloud_list_deleted_accounts");
+}
+
+export async function restoreDeletedCloudAccount(id: string): Promise<CloudSyncResult> {
+  if (!hasLocalBackend) return { uploaded: 0, downloaded: 1 };
+  return invoke<CloudSyncResult>("cloud_restore_deleted_account", { id });
 }
 
 export async function deleteCloudProvider(id: string): Promise<CloudSyncResult> {

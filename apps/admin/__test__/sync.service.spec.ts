@@ -17,6 +17,7 @@ describe('SyncService', () => {
   let providers: {
     find: ReturnType<typeof vi.fn>; findOne: ReturnType<typeof vi.fn>;
     save: ReturnType<typeof vi.fn>; delete: ReturnType<typeof vi.fn>;
+    update: ReturnType<typeof vi.fn>;
   };
   let systemAccounts: {
     find: ReturnType<typeof vi.fn>; findAndCount: ReturnType<typeof vi.fn>;
@@ -44,7 +45,7 @@ describe('SyncService', () => {
     };
     providers = {
       find: vi.fn(), findOne: vi.fn(),
-      save: vi.fn(async (value) => value), delete: vi.fn(),
+      save: vi.fn(async (value) => value), delete: vi.fn(), update: vi.fn(),
     };
     systemAccounts = {
       find: vi.fn().mockResolvedValue([]),
@@ -507,6 +508,45 @@ describe('SyncService', () => {
     expect(redis.del).toHaveBeenCalledWith('sync:accounts:owner-1');
   });
 
+  it('lists only owner-scoped deleted accounts without credentials', async () => {
+    accounts.find.mockResolvedValue([{
+      ownerId: 'owner-1', accountId: 'account-1', email: 'deleted@example.com',
+      note: 'old account', expiresAt: '2027-01-01', plan: 'Plus',
+      auth: { token: 'must-stay-hidden' },
+      deletedAt: new Date('2026-08-12T09:30:00.000Z'),
+    }]);
+
+    await expect(service.listDeletedAccounts('owner-1')).resolves.toEqual({
+      accounts: [{
+        id: 'account-1', email: 'deleted@example.com', note: 'old account',
+        expiresAt: '2027-01-01', plan: 'Plus', deletedAt: '2026-08-12T09:30:00.000Z',
+      }],
+    });
+    expect(accounts.find).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ ownerId: 'owner-1' }),
+      order: { deletedAt: 'DESC' },
+    }));
+  });
+
+  it('restores an owner-scoped deleted account as inactive and invalidates the cache', async () => {
+    const deletedAccount = {
+      ...makeAccount(),
+      accountId: 'account-1',
+      codexAccountId: 'codex-1',
+      lastModifiedAt: new Date('2026-07-05T00:00:00.000Z'),
+      deletedAt: new Date('2026-08-12T09:30:00.000Z'),
+    };
+    accounts.findOne.mockResolvedValue(deletedAccount);
+
+    await expect(service.restoreDeletedAccount('owner-1', 'account-1'))
+      .resolves.toMatchObject({ id: 'account-1', active: false });
+    expect(accounts.save).toHaveBeenCalledWith(expect.objectContaining({
+      deletedAt: null,
+      active: false,
+    }));
+    expect(redis.del).toHaveBeenCalledWith('sync:accounts:owner-1');
+  });
+
   it('does not let an assigned user overwrite a system-pool account, but unbinds it on delete', async () => {
     systemBindings.find.mockResolvedValue([{
       systemAccountId: '10000000-0000-4000-8000-000000000001',
@@ -547,7 +587,10 @@ describe('SyncService', () => {
       apiFormat: 'openaiResponses',
       lastModifiedAt: new Date('2026-07-05T00:00:00.000Z'),
     }]);
-    const expected = { providers: [makeProvider({ apiKey: 'sk-secret' })] };
+    const expected = {
+      providers: [makeProvider({ apiKey: 'sk-secret' })],
+      deletedProviderIds: [],
+    };
 
     await expect(service.listProviders('owner-1')).resolves.toEqual(expected);
 
@@ -1037,6 +1080,18 @@ describe('SyncService', () => {
     expect(accounts.delete).not.toHaveBeenCalled();
   });
 
+  it('returns soft-deleted provider ids as tombstones', async () => {
+    redis.get.mockResolvedValue(null);
+    providers.find.mockResolvedValue([{
+      ownerId: 'owner-1', providerId: 'deleted-provider', deletedAt: new Date(),
+    }]);
+
+    await expect(service.listProviders('owner-1')).resolves.toEqual({
+      providers: [],
+      deletedProviderIds: ['deleted-provider'],
+    });
+  });
+
   it('hydrates identity metadata when copying a historical opaque-token account into the pool', async () => {
     const auth = {
       auth_mode: 'chatgpt',
@@ -1176,6 +1231,72 @@ describe('SyncService', () => {
     expect(redis.del).toHaveBeenCalledWith('sync:providers:owner-1');
   });
 
+  it('merges provider fields independently by their modification times', async () => {
+    const provider = makeProvider({
+      name: 'New name',
+      model: 'stale-model',
+      fieldModifiedAt: {
+        ...makeProvider().fieldModifiedAt!,
+        name: '2026-07-06T00:00:00.000Z',
+        model: '2026-07-04T00:00:00.000Z',
+      },
+    });
+    transactionRepository.findOne.mockResolvedValue({
+      id: 'database-id', ownerId: 'owner-1', providerId: provider.id,
+      kind: 'custom', name: 'Old name', baseUrl: provider.baseUrl, apiKey: provider.apiKey,
+      model: 'server-model', models: provider.models, contextWindow: provider.contextWindow,
+      modelSelectionControlledByCodex: false, apiFormat: provider.apiFormat,
+      balancePlatform: null, balanceQueryUrl: null, balanceQueryToken: null,
+      walletQueryUrl: null, walletQueryToken: null, walletUsername: null, walletPassword: null,
+      deletedAt: null, lastModifiedAt: new Date('2026-07-05T00:00:00.000Z'),
+      fieldModifiedAt: makeProvider().fieldModifiedAt,
+    });
+
+    await service.upsertProvider('owner-1', provider.id, provider);
+
+    expect(transactionRepository.create).toHaveBeenCalledWith(expect.objectContaining({
+      name: 'New name',
+      model: 'server-model',
+      fieldModifiedAt: expect.objectContaining({
+        name: '2026-07-06T00:00:00.000Z',
+        model: '2026-07-05T00:00:00.000Z',
+      }),
+    }));
+  });
+
+  it('does not resurrect a soft-deleted provider from another device', async () => {
+    const provider = makeProvider({ lastModifiedAt: '2026-08-01T00:00:00.000Z' });
+    transactionRepository.findOne.mockResolvedValue({
+      id: 'database-id', deletedAt: new Date('2026-07-31T00:00:00.000Z'),
+    });
+
+    await service.upsertProvider('owner-1', provider.id, provider);
+
+    expect(transactionRepository.save).not.toHaveBeenCalled();
+  });
+
+  it('does not let a legacy provider payload overwrite field-versioned data', async () => {
+    const provider = makeProvider({
+      name: 'Legacy overwrite',
+      lastModifiedAt: '2026-07-10T00:00:00.000Z',
+      fieldModifiedAt: undefined,
+    });
+    transactionRepository.findOne.mockResolvedValue({
+      id: 'database-id', ownerId: 'owner-1', providerId: provider.id,
+      kind: 'custom', name: 'Versioned name', baseUrl: provider.baseUrl, apiKey: provider.apiKey,
+      model: provider.model, models: provider.models, contextWindow: provider.contextWindow,
+      modelSelectionControlledByCodex: false, apiFormat: provider.apiFormat,
+      balancePlatform: null, balanceQueryUrl: null, balanceQueryToken: null,
+      walletQueryUrl: null, walletQueryToken: null, walletUsername: null, walletPassword: null,
+      deletedAt: null, lastModifiedAt: new Date('2026-07-05T00:00:00.000Z'),
+      fieldModifiedAt: makeProvider().fieldModifiedAt,
+    });
+
+    await service.upsertProvider('owner-1', provider.id, provider);
+
+    expect(transactionRepository.save).not.toHaveBeenCalled();
+  });
+
   it('rejects a provider upsert when route and body ids differ', async () => {
     await expect(service.upsertProvider('owner-1', 'route-id', makeProvider({ id: 'body-id' })))
       .rejects.toBeInstanceOf(BadRequestException);
@@ -1185,7 +1306,10 @@ describe('SyncService', () => {
 
   it('deletes only the owner-scoped provider and invalidates that owner cache', async () => {
     await expect(service.deleteProvider('owner-1', 'provider-1')).resolves.toEqual({ id: 'provider-1' });
-    expect(providers.delete).toHaveBeenCalledWith({ ownerId: 'owner-1', providerId: 'provider-1' });
+    expect(providers.update).toHaveBeenCalledWith(
+      { ownerId: 'owner-1', providerId: 'provider-1' },
+      { deletedAt: expect.any(Date) },
+    );
     expect(redis.del).toHaveBeenCalledWith('sync:providers:owner-1');
   });
 

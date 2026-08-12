@@ -121,6 +121,18 @@ export class AdminService {
     );
   }
 
+  listOwnDeletedAccounts(actor: AuthUser) {
+    return this.sync.listDeletedAccounts(actor.id);
+  }
+
+  async restoreOwnDeletedAccount(actor: AuthUser, accountId: string) {
+    const account = await this.sync.restoreDeletedAccount(actor.id, accountId);
+    await this.record(actor, 'sync-account.restore', 'sync-account', accountId, account.email, {
+      ownerId: actor.id,
+    });
+    return { id: account.id };
+  }
+
   async updateOwnAccount(
     actor: AuthUser,
     accountId: string,

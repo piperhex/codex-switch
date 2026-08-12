@@ -4,12 +4,32 @@ import {
   IsBoolean,
   IsIn,
   IsInt,
+  IsObject,
   Min,
   IsOptional,
   IsString,
   MaxLength,
   ValidateNested,
 } from 'class-validator';
+
+export class ProviderFieldModifiedAtDto {
+  @IsOptional() @IsString() @MaxLength(40) kind?: string;
+  @IsOptional() @IsString() @MaxLength(40) name?: string;
+  @IsOptional() @IsString() @MaxLength(40) baseUrl?: string;
+  @IsOptional() @IsString() @MaxLength(40) apiKey?: string;
+  @IsOptional() @IsString() @MaxLength(40) model?: string;
+  @IsOptional() @IsString() @MaxLength(40) models?: string;
+  @IsOptional() @IsString() @MaxLength(40) contextWindow?: string;
+  @IsOptional() @IsString() @MaxLength(40) modelSelectionControlledByCodex?: string;
+  @IsOptional() @IsString() @MaxLength(40) apiFormat?: string;
+  @IsOptional() @IsString() @MaxLength(40) balancePlatform?: string;
+  @IsOptional() @IsString() @MaxLength(40) balanceQueryUrl?: string;
+  @IsOptional() @IsString() @MaxLength(40) balanceQueryToken?: string;
+  @IsOptional() @IsString() @MaxLength(40) walletQueryUrl?: string;
+  @IsOptional() @IsString() @MaxLength(40) walletQueryToken?: string;
+  @IsOptional() @IsString() @MaxLength(40) walletUsername?: string;
+  @IsOptional() @IsString() @MaxLength(40) walletPassword?: string;
+}
 
 export class SyncProviderDto {
   @IsString()
@@ -88,6 +108,12 @@ export class SyncProviderDto {
   @IsString()
   @MaxLength(40)
   lastModifiedAt?: string;
+
+  @IsOptional()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => ProviderFieldModifiedAtDto)
+  fieldModifiedAt?: ProviderFieldModifiedAtDto;
 }
 
 export class PutSyncProvidersDto {

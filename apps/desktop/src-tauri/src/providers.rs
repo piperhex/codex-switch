@@ -10,8 +10,8 @@ use url::Url;
 use crate::{
     auth::{is_agent_identity_auth, validate_auth},
     models::{
-        ProviderApiFormat, ProviderBalance, ProviderBalancePlatform, ProviderKind, ProviderProfile,
-        ProviderSummary, UsageSummary,
+        ProviderApiFormat, ProviderBalance, ProviderBalancePlatform, ProviderFieldModifiedAt,
+        ProviderKind, ProviderProfile, ProviderSummary, UsageSummary,
     },
     storage::{
         managed_auth_path, read_json, read_state, resolve_paths, write_json_atomic,
@@ -174,7 +174,7 @@ pub(crate) fn save_provider<R: Runtime>(
         wallet_username,
         wallet_password,
     })?;
-    write_provider(&paths, &profile)?;
+    write_local_provider(&paths, &profile, existing.as_ref())?;
 
     let active_provider_id = read_state(&paths).active_provider_id;
     if active_provider_id.as_deref() == Some(&profile.id) {
@@ -580,7 +580,7 @@ pub(crate) fn switch_provider_model<R: Runtime>(
     }
     provider.model = selected_model;
     provider = normalize_provider_profile(provider)?;
-    write_provider(&paths, &provider)?;
+    write_local_provider(&paths, &provider, None)?;
 
     let active_provider_id = read_state(&paths).active_provider_id;
     let active = active_provider_id.as_deref() == Some(&provider.id);
@@ -601,7 +601,7 @@ pub(crate) fn set_provider_model_control<R: Runtime>(
     let mut provider = read_provider(&paths, &id)?;
     provider.model_selection_controlled_by_codex = controlled_by_codex;
     provider = normalize_provider_profile(provider)?;
-    write_provider(&paths, &provider)?;
+    write_local_provider(&paths, &provider, None)?;
 
     let active_provider_id = read_state(&paths).active_provider_id;
     let active = active_provider_id.as_deref() == Some(&provider.id);
@@ -658,6 +658,11 @@ pub(crate) fn delete_provider<R: Runtime>(
     let path = provider_path(&paths, &id);
     if path.exists() {
         fs::remove_file(&path).map_err(|error| format!("Failed to delete provider: {error}"))?;
+    }
+    let versions_path = provider_field_modified_at_path(&paths, &id);
+    if versions_path.exists() {
+        fs::remove_file(&versions_path)
+            .map_err(|error| format!("Failed to delete provider field versions: {error}"))?;
     }
     emit_providers_changed(&app)?;
     Ok(())
@@ -792,6 +797,10 @@ fn provider_path(paths: &Paths, id: &str) -> PathBuf {
     paths.providers.join(format!("{id}.json"))
 }
 
+fn provider_field_modified_at_path(paths: &Paths, id: &str) -> PathBuf {
+    paths.providers.join(format!("{id}.field-modified-at.json"))
+}
+
 pub(crate) fn list_provider_profiles(paths: &Paths) -> Result<Vec<ProviderProfile>, String> {
     fs::create_dir_all(&paths.providers)
         .map_err(|error| format!("Failed to create provider store: {error}"))?;
@@ -804,7 +813,12 @@ pub(crate) fn list_provider_profiles(paths: &Paths) -> Result<Vec<ProviderProfil
         if !entry.path().is_file() {
             continue;
         }
-        if entry.path().extension().and_then(|value| value.to_str()) != Some("json") {
+        if entry.path().extension().and_then(|value| value.to_str()) != Some("json")
+            || entry
+                .file_name()
+                .to_string_lossy()
+                .ends_with(".field-modified-at.json")
+        {
             continue;
         }
         providers.push(read_provider_file(entry.path())?);
@@ -831,12 +845,123 @@ fn write_provider(paths: &Paths, provider: &ProviderProfile) -> Result<(), Strin
     write_json_atomic(&provider_path(paths, &provider.id), &value)
 }
 
+fn provider_field_values(provider: &ProviderProfile) -> Vec<serde_json::Value> {
+    vec![
+        json!(provider.kind),
+        json!(provider.name),
+        json!(provider.base_url),
+        json!(provider.api_key),
+        json!(provider.model),
+        json!(provider.models),
+        json!(provider.context_window),
+        json!(provider.model_selection_controlled_by_codex),
+        json!(provider.api_format),
+        json!(provider.balance_platform),
+        json!(provider.balance_query_url),
+        json!(provider.balance_query_token),
+        json!(provider.wallet_query_url),
+        json!(provider.wallet_query_token),
+        json!(provider.wallet_username),
+        json!(provider.wallet_password),
+    ]
+}
+
+fn provider_field_versions_mut(values: &mut ProviderFieldModifiedAt) -> [&mut String; 16] {
+    [
+        &mut values.kind,
+        &mut values.name,
+        &mut values.base_url,
+        &mut values.api_key,
+        &mut values.model,
+        &mut values.models,
+        &mut values.context_window,
+        &mut values.model_selection_controlled_by_codex,
+        &mut values.api_format,
+        &mut values.balance_platform,
+        &mut values.balance_query_url,
+        &mut values.balance_query_token,
+        &mut values.wallet_query_url,
+        &mut values.wallet_query_token,
+        &mut values.wallet_username,
+        &mut values.wallet_password,
+    ]
+}
+
+pub(crate) fn load_or_init_provider_field_modified_at(
+    paths: &Paths,
+    id: &str,
+) -> Result<ProviderFieldModifiedAt, String> {
+    let fallback = provider_modified_at(paths, id)
+        .unwrap_or_else(|_| chrono::Utc::now())
+        .to_rfc3339();
+    let path = provider_field_modified_at_path(paths, id);
+    let mut values = fs::read(&path)
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .unwrap_or_default();
+    let mut changed = false;
+    for value in provider_field_versions_mut(&mut values) {
+        if value.trim().is_empty() {
+            *value = fallback.clone();
+            changed = true;
+        }
+    }
+    if changed {
+        save_provider_field_modified_at(paths, id, &values)?;
+    }
+    Ok(values)
+}
+
+pub(crate) fn save_provider_field_modified_at(
+    paths: &Paths,
+    id: &str,
+    values: &ProviderFieldModifiedAt,
+) -> Result<(), String> {
+    write_json_atomic(
+        &provider_field_modified_at_path(paths, id),
+        &serde_json::to_value(values).map_err(|error| error.to_string())?,
+    )
+}
+
+fn write_local_provider(
+    paths: &Paths,
+    provider: &ProviderProfile,
+    known_existing: Option<&ProviderProfile>,
+) -> Result<(), String> {
+    let existing = known_existing
+        .cloned()
+        .or_else(|| read_provider(paths, &provider.id).ok());
+    let mut versions = if existing.is_some() {
+        load_or_init_provider_field_modified_at(paths, &provider.id)?
+    } else {
+        ProviderFieldModifiedAt::default()
+    };
+    let now = chrono::Utc::now().to_rfc3339();
+    let old_values = existing.as_ref().map(provider_field_values);
+    let new_values = provider_field_values(provider);
+    for (index, version) in provider_field_versions_mut(&mut versions)
+        .into_iter()
+        .enumerate()
+    {
+        if old_values
+            .as_ref()
+            .map_or(true, |values| values[index] != new_values[index])
+        {
+            *version = now.clone();
+        }
+    }
+    write_provider(paths, provider)?;
+    save_provider_field_modified_at(paths, &provider.id, &versions)
+}
+
 pub(crate) fn write_synced_provider(
     paths: &Paths,
     provider: ProviderProfile,
+    field_modified_at: &ProviderFieldModifiedAt,
 ) -> Result<ProviderProfile, String> {
     let profile = normalize_synced_provider(provider)?;
     write_provider(paths, &profile)?;
+    save_provider_field_modified_at(paths, &profile.id, field_modified_at)?;
     Ok(profile)
 }
 

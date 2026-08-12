@@ -27,7 +27,7 @@ use crate::{
     auth::{account_fields, canonicalize_chatgpt_auth, subscription_active_until, validate_auth},
     models::{
         AccountFieldModifiedAt, AppSettings, CloudAccountPayload, CloudAuthState, CloudSyncResult,
-        ProviderProfile, ProviderSyncPayload,
+        DeletedCloudAccount, ProviderFieldModifiedAt, ProviderProfile, ProviderSyncPayload,
     },
     skills_market::{SkillMarketItem, SkillMarketResponse, SkillPreview},
     storage::{
@@ -81,8 +81,16 @@ struct CloudAccountsResponse {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
+struct DeletedCloudAccountsResponse {
+    accounts: Vec<DeletedCloudAccount>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct CloudProvidersResponse {
     providers: Vec<ProviderSyncPayload>,
+    #[serde(default)]
+    deleted_provider_ids: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -666,9 +674,14 @@ fn collect_local_providers<R: Runtime>(
     let mut providers = crate::providers::list_provider_profiles(&paths)?
         .into_iter()
         .map(|provider| {
-            let last_modified_at =
-                crate::providers::provider_modified_at(&paths, &provider.id)?.to_rfc3339();
-            Ok(provider_payload_from_profile(provider, last_modified_at))
+            let field_modified_at =
+                crate::providers::load_or_init_provider_field_modified_at(&paths, &provider.id)?;
+            let last_modified_at = latest_provider_field_modified_at(&field_modified_at);
+            Ok(provider_payload_from_profile(
+                provider,
+                last_modified_at,
+                field_modified_at,
+            ))
         })
         .collect::<Result<Vec<_>, String>>()?;
     providers.sort_by(|left, right| left.id.cmp(&right.id));
@@ -854,28 +867,126 @@ fn apply_remote_provider<R: Runtime>(
     provider: &ProviderSyncPayload,
 ) -> Result<bool, String> {
     let paths = resolve_paths(app)?;
-    let profile = provider_payload_to_profile(provider);
+    let remote_profile = provider_payload_to_profile(provider);
     let local_profile = crate::providers::read_provider(&paths, &provider.id).ok();
-    let local_modified_at = local_profile
-        .as_ref()
-        .and_then(|_| crate::providers::provider_modified_at(&paths, &provider.id).ok());
-    let remote_modified_at = parse_last_modified(&provider.last_modified_at);
-    let should_apply_remote = local_profile.is_none()
-        || match (local_modified_at.as_ref(), remote_modified_at.as_ref()) {
-            (Some(local), Some(remote)) => remote > local,
-            (None, _) => true,
-            (Some(_), None) => false,
+    let mut merged = local_profile
+        .clone()
+        .unwrap_or_else(|| remote_profile.clone());
+    let mut local_versions = if local_profile.is_some() {
+        crate::providers::load_or_init_provider_field_modified_at(&paths, &provider.id)?
+    } else {
+        ProviderFieldModifiedAt::default()
+    };
+    let remote_versions = normalize_provider_field_modified_at(
+        provider.field_modified_at.clone(),
+        &provider.last_modified_at,
+    );
+    let local_exists = local_profile.is_some();
+    let mut changed = !local_exists;
+    macro_rules! merge_field {
+        ($field:ident) => {
+            if !local_exists
+                || remote_field_is_newer(&local_versions.$field, &remote_versions.$field)
+            {
+                merged.$field = remote_profile.$field.clone();
+                local_versions.$field = remote_versions.$field.clone();
+                changed = true;
+            }
         };
-
-    if should_apply_remote {
-        crate::providers::write_synced_provider(&paths, profile)?;
     }
-    Ok(should_apply_remote)
+    merge_field!(kind);
+    merge_field!(name);
+    merge_field!(base_url);
+    merge_field!(api_key);
+    merge_field!(model);
+    merge_field!(models);
+    merge_field!(context_window);
+    merge_field!(model_selection_controlled_by_codex);
+    merge_field!(api_format);
+    merge_field!(balance_platform);
+    merge_field!(balance_query_url);
+    merge_field!(balance_query_token);
+    merge_field!(wallet_query_url);
+    merge_field!(wallet_query_token);
+    merge_field!(wallet_username);
+    merge_field!(wallet_password);
+    if changed {
+        crate::providers::write_synced_provider(&paths, merged, &local_versions)?;
+    }
+    Ok(changed)
+}
+
+fn apply_remote_provider_deletion<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    provider_id: &str,
+) -> Result<bool, String> {
+    let paths = resolve_paths(app)?;
+    let existed = crate::providers::read_provider(&paths, provider_id).is_ok();
+    if existed {
+        crate::providers::delete_provider(app.clone(), provider_id.to_string())?;
+    }
+    Ok(existed)
+}
+
+fn normalize_provider_field_modified_at(
+    mut values: ProviderFieldModifiedAt,
+    fallback: &str,
+) -> ProviderFieldModifiedAt {
+    for value in [
+        &mut values.kind,
+        &mut values.name,
+        &mut values.base_url,
+        &mut values.api_key,
+        &mut values.model,
+        &mut values.models,
+        &mut values.context_window,
+        &mut values.model_selection_controlled_by_codex,
+        &mut values.api_format,
+        &mut values.balance_platform,
+        &mut values.balance_query_url,
+        &mut values.balance_query_token,
+        &mut values.wallet_query_url,
+        &mut values.wallet_query_token,
+        &mut values.wallet_username,
+        &mut values.wallet_password,
+    ] {
+        if value.trim().is_empty() {
+            *value = fallback.to_string();
+        }
+    }
+    values
+}
+
+fn latest_provider_field_modified_at(values: &ProviderFieldModifiedAt) -> String {
+    [
+        &values.kind,
+        &values.name,
+        &values.base_url,
+        &values.api_key,
+        &values.model,
+        &values.models,
+        &values.context_window,
+        &values.model_selection_controlled_by_codex,
+        &values.api_format,
+        &values.balance_platform,
+        &values.balance_query_url,
+        &values.balance_query_token,
+        &values.wallet_query_url,
+        &values.wallet_query_token,
+        &values.wallet_username,
+        &values.wallet_password,
+    ]
+    .into_iter()
+    .filter_map(|value| parse_last_modified(value))
+    .max()
+    .unwrap_or_else(Utc::now)
+    .to_rfc3339()
 }
 
 fn provider_payload_from_profile(
     provider: ProviderProfile,
     last_modified_at: String,
+    field_modified_at: ProviderFieldModifiedAt,
 ) -> ProviderSyncPayload {
     ProviderSyncPayload {
         id: provider.id,
@@ -896,6 +1007,7 @@ fn provider_payload_from_profile(
         wallet_username: provider.wallet_username,
         wallet_password: provider.wallet_password,
         last_modified_at,
+        field_modified_at,
     }
 }
 
@@ -975,7 +1087,7 @@ fn get_remote_providers<R: Runtime>(
     client: &Client,
     settings: &mut AppSettings,
     credentials: &mut CloudCredentials,
-) -> Result<Vec<ProviderSyncPayload>, String> {
+) -> Result<CloudProvidersResponse, String> {
     let response = cloud_request(
         app,
         client,
@@ -991,7 +1103,7 @@ fn get_remote_providers<R: Runtime>(
     let payload: CloudProvidersResponse = response
         .json()
         .map_err(|error| format!("Cloud provider download response is invalid: {error}"))?;
-    Ok(payload.providers)
+    Ok(payload)
 }
 
 fn put_remote_accounts<R: Runtime>(
@@ -1851,7 +1963,12 @@ async fn cloud_authenticate<R: Runtime>(
         for account in remote_accounts.accounts {
             apply_remote_account(&app, &account)?;
         }
-        for provider in get_remote_providers(&app, &client, &mut settings, &mut credentials)? {
+        let remote_providers =
+            get_remote_providers(&app, &client, &mut settings, &mut credentials)?;
+        for provider_id in &remote_providers.deleted_provider_ids {
+            apply_remote_provider_deletion(&app, provider_id)?;
+        }
+        for provider in remote_providers.providers {
             apply_remote_provider(&app, &provider)?;
         }
         let _ = put_remote_accounts(&app, &client, &mut settings, &mut credentials)?;
@@ -2020,6 +2137,85 @@ pub(crate) async fn cloud_delete_account<R: Runtime>(
 }
 
 #[tauri::command]
+pub(crate) async fn cloud_list_deleted_accounts<R: Runtime>(
+    app: tauri::AppHandle<R>,
+) -> Result<Vec<DeletedCloudAccount>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let _credentials_guard = lock_cloud_credentials()?;
+        let client = api_client()?;
+        let mut settings = read_app_settings(&app)?;
+        let mut credentials = read_cloud_credentials(&app);
+        let response = cloud_request(
+            &app,
+            &client,
+            &mut settings,
+            &mut credentials,
+            Method::GET,
+            "/admin/api/profile/accounts/deleted",
+            None,
+        )?;
+        if !response.status().is_success() {
+            return Err(response_error("Cloud recycle bin download", response));
+        }
+        let payload: DeletedCloudAccountsResponse = response
+            .json()
+            .map_err(|error| format!("Cloud recycle bin response is invalid: {error}"))?;
+        write_app_settings(&app, &settings)?;
+        write_cloud_credentials(&app, &credentials)?;
+        Ok(payload.accounts)
+    })
+    .await
+    .map_err(|error| format!("Cloud recycle bin task failed: {error}"))?
+}
+
+#[tauri::command]
+pub(crate) async fn cloud_restore_deleted_account<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    id: String,
+) -> Result<CloudSyncResult, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let _credentials_guard = lock_cloud_credentials()?;
+        let client = api_client()?;
+        let mut settings = read_app_settings(&app)?;
+        let mut credentials = read_cloud_credentials(&app);
+        let response = cloud_request(
+            &app,
+            &client,
+            &mut settings,
+            &mut credentials,
+            Method::POST,
+            &format!(
+                "/admin/api/profile/accounts/deleted/{}/restore",
+                url::form_urlencoded::byte_serialize(id.as_bytes()).collect::<String>()
+            ),
+            None,
+        )?;
+        if !response.status().is_success() {
+            return Err(response_error("Cloud account restore", response));
+        }
+        let remote_accounts = get_remote_accounts(&app, &client, &mut settings, &mut credentials)?;
+        let account = remote_accounts
+            .accounts
+            .into_iter()
+            .find(|account| account.id == id)
+            .ok_or_else(|| "The restored account is not available for download".to_string())?;
+        apply_remote_account(&app, &account)?;
+        settings.cloud_last_sync_at = Some(Utc::now().to_rfc3339());
+        write_app_settings(&app, &settings)?;
+        write_cloud_credentials(&app, &credentials)?;
+        app.emit("accounts-changed", ())
+            .map_err(|error| error.to_string())?;
+        crate::system_tray::refresh_menu(&app);
+        Ok(CloudSyncResult {
+            uploaded: 0,
+            downloaded: 1,
+        })
+    })
+    .await
+    .map_err(|error| format!("Cloud account restore task failed: {error}"))?
+}
+
+#[tauri::command]
 pub(crate) async fn cloud_delete_provider<R: Runtime>(
     app: tauri::AppHandle<R>,
     id: String,
@@ -2073,7 +2269,14 @@ pub(crate) async fn cloud_sync_accounts<R: Runtime>(
             }
         }
         let mut providers_downloaded = 0;
-        for provider in get_remote_providers(&app, &client, &mut settings, &mut credentials)? {
+        let remote_providers =
+            get_remote_providers(&app, &client, &mut settings, &mut credentials)?;
+        for provider_id in &remote_providers.deleted_provider_ids {
+            if apply_remote_provider_deletion(&app, provider_id)? {
+                providers_downloaded += 1;
+            }
+        }
+        for provider in remote_providers.providers {
             let is_new = !local_provider_ids.contains(&provider.id);
             let applied = apply_remote_provider(&app, &provider)?;
             if is_new || applied {
@@ -2109,7 +2312,7 @@ mod tests {
     use super::{
         cloud_state, persist_cloud_token_response, refresh_rejection_expires_cloud_session,
         saved_cloud_login_service, should_apply_remote_field, CloudAccountsResponse,
-        CloudCredentials, CloudTokenResponse, CloudUserResponse,
+        CloudCredentials, CloudProvidersResponse, CloudTokenResponse, CloudUserResponse,
     };
     use crate::models::AppSettings;
     use reqwest::StatusCode;
@@ -2121,6 +2324,16 @@ mod tests {
 
         assert!(response.accounts.is_empty());
         assert_eq!(response.deleted_account_ids, ["account-1"]);
+    }
+
+    #[test]
+    fn cloud_provider_response_accepts_soft_delete_tombstones() {
+        let response: CloudProvidersResponse =
+            serde_json::from_str(r#"{"providers":[],"deletedProviderIds":["provider-1"]}"#)
+                .unwrap();
+
+        assert!(response.providers.is_empty());
+        assert_eq!(response.deleted_provider_ids, ["provider-1"]);
     }
 
     #[test]

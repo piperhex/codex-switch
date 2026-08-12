@@ -795,6 +795,8 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .proxy-session-modal .ant-modal-content { height: 80vh; display: flex; flex-direction: column; }
 .proxy-session-modal .ant-modal-body { min-height: 0; flex: 1; display: flex; flex-direction: column; }
 .proxy-session-modal .ant-alert { margin-bottom: 12px; }
+.account-recycle-bin-modal .ant-alert { max-width: 400px; margin-bottom: 12px; }
+.account-recycle-bin-modal .proxy-session-description { max-width: 400px; }
 .proxy-session-table { min-height: 0; flex: 1; overflow: hidden; border: 1px solid var(--line); border-radius: 8px; }
 .proxy-session-table .ant-table { font-size: 12px; }
 .proxy-session-table .ant-table-thead > tr > th { background: #f6f8f5; color: #5d6a62; font-size: 11px; }

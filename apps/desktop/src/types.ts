@@ -479,6 +479,15 @@ export interface DreamSkinThemeSummary {
   name: string;
 }
 
+export interface DeletedCloudAccount {
+  id: string;
+  email: string;
+  note: string;
+  expiresAt: string;
+  plan: string;
+  deletedAt: string;
+}
+
 export interface DreamSkinMarketTheme {
   id: string;
   name: string;

@@ -25,6 +25,7 @@ describe('AdminService', () => {
     delete: ReturnType<typeof vi.fn>; listProviders: ReturnType<typeof vi.fn>;
     listForAdmin: ReturnType<typeof vi.fn>; listSystemAccounts: ReturnType<typeof vi.fn>;
     listForPortal: ReturnType<typeof vi.fn>;
+    listDeletedAccounts: ReturnType<typeof vi.fn>; restoreDeletedAccount: ReturnType<typeof vi.fn>;
     createSystemAccount: ReturnType<typeof vi.fn>; createSystemAccountFromPersonal: ReturnType<typeof vi.fn>;
     updateSystemAccount: ReturnType<typeof vi.fn>;
     deleteSystemAccount: ReturnType<typeof vi.fn>; deleteSystemAccounts: ReturnType<typeof vi.fn>;
@@ -66,6 +67,7 @@ describe('AdminService', () => {
       listForAdmin: vi.fn(), listSystemAccounts: vi.fn(), createSystemAccount: vi.fn(),
       createSystemAccountFromPersonal: vi.fn(),
       listForPortal: vi.fn(),
+      listDeletedAccounts: vi.fn(), restoreDeletedAccount: vi.fn(),
       updateSystemAccount: vi.fn(), deleteSystemAccount: vi.fn(), deleteSystemAccounts: vi.fn(),
       listSystemAccountBindingIds: vi.fn(), bindSystemAccounts: vi.fn(),
       unbindSystemAccounts: vi.fn(),
@@ -279,6 +281,7 @@ describe('AdminService', () => {
         modelSelectionControlledByCodex: provider.modelSelectionControlledByCodex,
         apiFormat: provider.apiFormat,
         lastModifiedAt: provider.lastModifiedAt,
+        fieldModifiedAt: provider.fieldModifiedAt,
         hasApiKey: true,
         hasBalanceQueryToken: true,
         hasWalletQueryToken: true,

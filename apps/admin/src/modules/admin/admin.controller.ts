@@ -174,6 +174,23 @@ export class AdminController {
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.SelfAccountsRead)
+  @Get('api/profile/accounts/deleted')
+  listOwnDeletedAccounts(@CurrentUser() user: AuthUser) {
+    return this.admin.listOwnDeletedAccounts(user);
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.SelfAccountsWrite)
+  @Post('api/profile/accounts/deleted/:accountId/restore')
+  restoreOwnDeletedAccount(
+    @CurrentUser() user: AuthUser,
+    @Param('accountId') accountId: string,
+  ) {
+    return this.admin.restoreOwnDeletedAccount(user, accountId);
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequireAnyPermissions(
     Permission.SelfAccountsWrite,
     Permission.OfficialAccountMetadataWrite,

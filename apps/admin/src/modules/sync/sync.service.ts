@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import Redis from 'ioredis';
-import { DataSource, In, IsNull, Repository } from 'typeorm';
+import { DataSource, In, IsNull, Not, Repository } from 'typeorm';
 import type { SelectQueryBuilder } from 'typeorm';
 import { MODULE_OPTIONS_TOKEN } from '@/config/configurable';
 import type { ConfigModuleOptions } from '@/config/config.types';
@@ -74,6 +74,15 @@ export type AdminSyncAccountDto = SyncAccountDto & {
 
 export type PortalSyncAccountDto = Omit<AdminSyncAccountDto, 'auth'>;
 
+export interface DeletedSyncAccountDto {
+  id: string;
+  email: string;
+  note: string;
+  expiresAt: string;
+  plan: string;
+  deletedAt: string;
+}
+
 type EffectiveSyncAccountDto = SyncAccountDto & {
   official: boolean;
   metadataEditable: boolean;
@@ -92,6 +101,25 @@ interface AccountMergeResult {
   account: Partial<SyncedAccountEntity>;
   activeApplied: boolean;
 }
+
+type ProviderFieldModifiedAt = {
+  kind: string;
+  name: string;
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+  models: string;
+  contextWindow: string;
+  modelSelectionControlledByCodex: string;
+  apiFormat: string;
+  balancePlatform: string;
+  balanceQueryUrl: string;
+  balanceQueryToken: string;
+  walletQueryUrl: string;
+  walletQueryToken: string;
+  walletUsername: string;
+  walletPassword: string;
+};
 
 export interface SystemAccountDto {
   id: string;
@@ -283,16 +311,54 @@ export class SyncService {
     return { id: accountId };
   }
 
+  async listDeletedAccounts(ownerId: string): Promise<{ accounts: DeletedSyncAccountDto[] }> {
+    const rows = await this.accounts.find({
+      where: { ownerId, deletedAt: Not(IsNull()) },
+      order: { deletedAt: 'DESC' },
+    });
+    return {
+      accounts: rows.map((row) => ({
+        id: row.accountId,
+        email: row.email,
+        note: row.note,
+        expiresAt: row.expiresAt,
+        plan: row.plan,
+        deletedAt: row.deletedAt!.toISOString(),
+      })),
+    };
+  }
+
+  async restoreDeletedAccount(ownerId: string, accountId: string) {
+    const account = await this.accounts.findOne({
+      where: { ownerId, accountId, deletedAt: Not(IsNull()) },
+    });
+    if (!account) throw new NotFoundException('Deleted account not found');
+    account.deletedAt = null;
+    account.active = false;
+    const saved = await this.accounts.save(account);
+    await this.redis.del(this.cacheKey(ownerId));
+    return this.toDto(saved);
+  }
+
   async listProviders(ownerId: string) {
     const cacheKey = this.providerCacheKey(ownerId);
     const cached = await this.redis.get(cacheKey);
-    if (cached) return JSON.parse(cached) as { providers: SyncProviderDto[] };
+    if (cached) {
+      const parsed = JSON.parse(cached) as {
+        providers: SyncProviderDto[];
+        deletedProviderIds?: string[];
+      };
+      return { ...parsed, deletedProviderIds: parsed.deletedProviderIds ?? [] };
+    }
 
     const rows = await this.providers.find({
       where: { ownerId },
       order: { name: 'ASC' },
     });
-    const payload = { providers: rows.map((row) => this.toProviderDto(row)) };
+    const payload = {
+      providers: rows.filter((row) => !row.deletedAt).map((row) => this.toProviderDto(row)),
+      deletedProviderIds: rows.filter((row) => Boolean(row.deletedAt)).map((row) => row.providerId),
+    };
     await this.redis.set(cacheKey, JSON.stringify(payload), 'EX', 60);
     return payload;
   }
@@ -731,30 +797,8 @@ export class SyncService {
       if (!dto.providers.length) return;
       for (const provider of dto.providers) {
         const existing = await repo.findOne({ where: { ownerId, providerId: provider.id } });
-        const incomingLastModifiedAt = this.parseLastModifiedAt(provider.lastModifiedAt);
-        if (!this.shouldApplyProviderIncoming(existing, incomingLastModifiedAt)) continue;
-        await repo.save(repo.create({
-          id: existing?.id,
-          ownerId,
-          providerId: provider.id,
-          kind: provider.kind ?? 'custom',
-          name: provider.name,
-          baseUrl: provider.baseUrl,
-          apiKey: provider.apiKey,
-          model: provider.model,
-          models: provider.models ?? [],
-          contextWindow: provider.contextWindow ?? null,
-          modelSelectionControlledByCodex: provider.modelSelectionControlledByCodex ?? false,
-          apiFormat: provider.apiFormat,
-          balancePlatform: provider.balancePlatform ?? null,
-          balanceQueryUrl: provider.balanceQueryUrl ?? null,
-          balanceQueryToken: provider.balanceQueryToken ?? null,
-          walletQueryUrl: provider.walletQueryUrl ?? null,
-          walletQueryToken: provider.walletQueryToken ?? null,
-          walletUsername: provider.walletUsername ?? null,
-          walletPassword: provider.walletPassword ?? null,
-          lastModifiedAt: incomingLastModifiedAt,
-        }));
+        const merged = this.mergeIncomingProvider(existing, ownerId, provider);
+        if (merged) await repo.save(repo.create(merged));
       }
     });
     await this.redis.del(this.providerCacheKey(ownerId));
@@ -768,37 +812,15 @@ export class SyncService {
     await this.dataSource.transaction(async (manager) => {
       const repo = manager.getRepository(SyncedProviderEntity);
       const existing = await repo.findOne({ where: { ownerId, providerId } });
-      const incomingLastModifiedAt = this.parseLastModifiedAt(provider.lastModifiedAt);
-      if (!this.shouldApplyProviderIncoming(existing, incomingLastModifiedAt)) return;
-      await repo.save(repo.create({
-        id: existing?.id,
-        ownerId,
-        providerId: provider.id,
-        kind: provider.kind ?? 'custom',
-        name: provider.name,
-        baseUrl: provider.baseUrl,
-        apiKey: provider.apiKey,
-        model: provider.model,
-        models: provider.models ?? [],
-        contextWindow: provider.contextWindow ?? null,
-        modelSelectionControlledByCodex: provider.modelSelectionControlledByCodex ?? false,
-        apiFormat: provider.apiFormat,
-        balancePlatform: provider.balancePlatform ?? null,
-        balanceQueryUrl: provider.balanceQueryUrl ?? null,
-        balanceQueryToken: provider.balanceQueryToken ?? null,
-        walletQueryUrl: provider.walletQueryUrl ?? null,
-        walletQueryToken: provider.walletQueryToken ?? null,
-        walletUsername: provider.walletUsername ?? null,
-        walletPassword: provider.walletPassword ?? null,
-        lastModifiedAt: incomingLastModifiedAt,
-      }));
+      const merged = this.mergeIncomingProvider(existing, ownerId, provider);
+      if (merged) await repo.save(repo.create(merged));
     });
     await this.redis.del(this.providerCacheKey(ownerId));
     return { id: providerId };
   }
 
   async deleteProvider(ownerId: string, providerId: string) {
-    await this.providers.delete({ ownerId, providerId });
+    await this.providers.update({ ownerId, providerId }, { deletedAt: new Date() });
     await this.redis.del(this.providerCacheKey(ownerId));
     return { id: providerId };
   }
@@ -1033,6 +1055,7 @@ export class SyncService {
   }
 
   private toProviderDto(row: SyncedProviderEntity): SyncProviderDto {
+    const fallback = this.formatLastModifiedAt(row.lastModifiedAt ?? row.updatedAt);
     return {
       id: row.providerId,
       kind: row.kind ?? 'custom',
@@ -1051,8 +1074,120 @@ export class SyncService {
       walletQueryToken: row.walletQueryToken,
       walletUsername: row.walletUsername,
       walletPassword: row.walletPassword,
-      lastModifiedAt: this.formatLastModifiedAt(row.lastModifiedAt ?? row.updatedAt),
+      lastModifiedAt: fallback,
+      fieldModifiedAt: this.normalizeProviderFieldModifiedAt(row.fieldModifiedAt, fallback),
     };
+  }
+
+  private mergeIncomingProvider(
+    existing: SyncedProviderEntity | null,
+    ownerId: string,
+    incoming: SyncProviderDto,
+  ): Partial<SyncedProviderEntity> | null {
+    if (existing?.deletedAt) return null;
+    const incomingVersions = this.normalizeProviderFieldModifiedAt(
+      incoming.fieldModifiedAt,
+      incoming.lastModifiedAt,
+    );
+    const incomingValues: Record<keyof ProviderFieldModifiedAt, unknown> = {
+      kind: incoming.kind ?? 'custom',
+      name: incoming.name,
+      baseUrl: incoming.baseUrl,
+      apiKey: incoming.apiKey,
+      model: incoming.model,
+      models: incoming.models ?? [],
+      contextWindow: incoming.contextWindow ?? null,
+      modelSelectionControlledByCodex: incoming.modelSelectionControlledByCodex ?? false,
+      apiFormat: incoming.apiFormat,
+      balancePlatform: incoming.balancePlatform ?? null,
+      balanceQueryUrl: incoming.balanceQueryUrl ?? null,
+      balanceQueryToken: incoming.balanceQueryToken ?? null,
+      walletQueryUrl: incoming.walletQueryUrl ?? null,
+      walletQueryToken: incoming.walletQueryToken ?? null,
+      walletUsername: incoming.walletUsername ?? null,
+      walletPassword: incoming.walletPassword ?? null,
+    };
+    if (!existing) {
+      return {
+        ownerId,
+        providerId: incoming.id,
+        ...(incomingValues as Omit<Partial<SyncedProviderEntity>, 'id'>),
+        deletedAt: null,
+        fieldModifiedAt: incomingVersions,
+        lastModifiedAt: this.latestProviderFieldModifiedAt(incomingVersions),
+      };
+    }
+
+    const existingFallback = this.formatLastModifiedAt(existing.lastModifiedAt ?? existing.updatedAt);
+    const existingVersions = this.normalizeProviderFieldModifiedAt(
+      existing.fieldModifiedAt,
+      existingFallback,
+    );
+    const incomingHasFieldVersions = Object.values(incoming.fieldModifiedAt ?? {})
+      .some((value) => typeof value === 'string' && value.trim().length > 0);
+    const existingHasFieldVersions = Object.values(existing.fieldModifiedAt ?? {})
+      .some((value) => typeof value === 'string' && value.trim().length > 0);
+    const mergedValues: Record<keyof ProviderFieldModifiedAt, unknown> = {
+      kind: existing.kind,
+      name: existing.name,
+      baseUrl: existing.baseUrl,
+      apiKey: existing.apiKey,
+      model: existing.model,
+      models: existing.models,
+      contextWindow: existing.contextWindow,
+      modelSelectionControlledByCodex: existing.modelSelectionControlledByCodex,
+      apiFormat: existing.apiFormat,
+      balancePlatform: existing.balancePlatform,
+      balanceQueryUrl: existing.balanceQueryUrl,
+      balanceQueryToken: existing.balanceQueryToken,
+      walletQueryUrl: existing.walletQueryUrl,
+      walletQueryToken: existing.walletQueryToken,
+      walletUsername: existing.walletUsername,
+      walletPassword: existing.walletPassword,
+    };
+    const mergedVersions = { ...existingVersions };
+    let changed = false;
+    for (const key of Object.keys(incomingVersions) as (keyof ProviderFieldModifiedAt)[]) {
+      if (!incomingHasFieldVersions && existingHasFieldVersions) continue;
+      if (!this.isIncomingFieldNewer(existingVersions[key], incomingVersions[key])) continue;
+      mergedValues[key] = incomingValues[key];
+      mergedVersions[key] = incomingVersions[key];
+      changed = true;
+    }
+    if (!changed) return null;
+    return {
+      id: existing.id,
+      ownerId,
+      providerId: incoming.id,
+      ...(mergedValues as Omit<Partial<SyncedProviderEntity>, 'id'>),
+      deletedAt: null,
+      fieldModifiedAt: mergedVersions,
+      lastModifiedAt: this.latestProviderFieldModifiedAt(mergedVersions),
+    };
+  }
+
+  private normalizeProviderFieldModifiedAt(
+    value: Partial<ProviderFieldModifiedAt> | undefined,
+    fallback: string | undefined,
+  ): ProviderFieldModifiedAt {
+    const defaultValue = this.formatLastModifiedAt(this.parseLastModifiedAt(fallback));
+    const normalized = {} as ProviderFieldModifiedAt;
+    for (const key of [
+      'kind', 'name', 'baseUrl', 'apiKey', 'model', 'models', 'contextWindow',
+      'modelSelectionControlledByCodex', 'apiFormat', 'balancePlatform',
+      'balanceQueryUrl', 'balanceQueryToken', 'walletQueryUrl', 'walletQueryToken',
+      'walletUsername', 'walletPassword',
+    ] as (keyof ProviderFieldModifiedAt)[]) {
+      normalized[key] = this.formatLastModifiedAt(
+        this.parseLastModifiedAt(value?.[key] ?? defaultValue),
+      );
+    }
+    return normalized;
+  }
+
+  private latestProviderFieldModifiedAt(values: ProviderFieldModifiedAt) {
+    return new Date(Math.max(...Object.values(values)
+      .map((value) => this.parseLastModifiedAt(value).getTime())));
   }
 
   private async loadEffectiveAccountState(ownerId: string) {
@@ -1661,21 +1796,8 @@ export class SyncService {
     return incomingLastModifiedAt > existingLastModifiedAt;
   }
 
-  private shouldApplyProviderIncoming(
-    existing: SyncedProviderEntity | null,
-    incomingLastModifiedAt: Date,
-  ) {
-    if (!existing) return true;
-    const existingLastModifiedAt = this.existingProviderLastModifiedAt(existing);
-    return incomingLastModifiedAt > existingLastModifiedAt;
-  }
-
   private existingLastModifiedAt(account: SyncedAccountEntity) {
     return this.parseDateOrEpoch(account.lastModifiedAt ?? account.updatedAt);
-  }
-
-  private existingProviderLastModifiedAt(provider: SyncedProviderEntity) {
-    return this.parseDateOrEpoch(provider.lastModifiedAt ?? provider.updatedAt);
   }
 
   private parseDateOrEpoch(value: Date | string | undefined) {

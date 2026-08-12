@@ -285,7 +285,7 @@ fn apply_archive<R: Runtime>(
             };
 
         if should_apply_archive {
-            crate::providers::write_synced_provider(&paths, profile)?;
+            crate::providers::write_synced_provider(&paths, profile, &provider.field_modified_at)?;
         }
         if !provider_ids.contains(&provider.id) {
             provider_ids.push(provider.id);
@@ -318,9 +318,15 @@ fn collect_providers(paths: &crate::storage::Paths) -> Result<Vec<ProviderSyncPa
     crate::providers::list_provider_profiles(paths)?
         .into_iter()
         .map(|provider| {
+            let field_modified_at =
+                crate::providers::load_or_init_provider_field_modified_at(paths, &provider.id)?;
             let last_modified_at =
                 crate::providers::provider_modified_at(paths, &provider.id)?.to_rfc3339();
-            Ok(provider_payload_from_profile(provider, last_modified_at))
+            Ok(provider_payload_from_profile(
+                provider,
+                last_modified_at,
+                field_modified_at,
+            ))
         })
         .collect()
 }
@@ -328,6 +334,7 @@ fn collect_providers(paths: &crate::storage::Paths) -> Result<Vec<ProviderSyncPa
 fn provider_payload_from_profile(
     provider: ProviderProfile,
     last_modified_at: String,
+    field_modified_at: crate::models::ProviderFieldModifiedAt,
 ) -> ProviderSyncPayload {
     ProviderSyncPayload {
         id: provider.id,
@@ -348,6 +355,7 @@ fn provider_payload_from_profile(
         wallet_username: provider.wallet_username,
         wallet_password: provider.wallet_password,
         last_modified_at,
+        field_modified_at,
     }
 }
 
@@ -529,6 +537,7 @@ mod tests {
                 wallet_username: None,
                 wallet_password: None,
                 last_modified_at: "2026-07-04T00:00:00Z".to_string(),
+                field_modified_at: Default::default(),
             }],
         };
 

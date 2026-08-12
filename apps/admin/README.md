@@ -43,7 +43,8 @@ If production uses `POSTGRES_DB_SYNCHRONIZE=false`, apply `sql/20260704-admin-ma
 `sql/20260722-sync-account-soft-delete.sql`, `sql/20260722-email-templates.sql`,
 `sql/20260722-auto-switch-priority.sql`,
 `sql/20260723-remote-device-account-switching.sql`, `sql/20260724-app-notifications.sql`,
-`sql/20260727-app-faqs.sql`, and `sql/20260805-sync-provider-context-window.sql` before using
+`sql/20260727-app-faqs.sql`, `sql/20260805-sync-provider-context-window.sql`, and
+`sql/20260812-sync-provider-field-versions-soft-delete.sql` before using
 the expanded admin console, provider sync, official account pool, reusable invitations,
 announcements, desktop FAQs, email templates, telemetry, and feedback management.
 The RBAC migration must be applied before starting this version because application startup
@@ -239,6 +240,10 @@ tokens remain valid when a signed link is copied for an invitation created by an
 Account deletion is soft: the synchronized row is retained with `deletedAt`, omitted from active
 account views, and returned by `GET /sync/accounts` through `deletedAccountIds` so other desktop
 devices can remove their local copy.
+
+Provider deletion uses the same tombstone model. Deleted providers are omitted from active views
+and returned through `deletedProviderIds`. Provider fields carry independent modification times so
+changes made to different fields on different devices merge without overwriting one another.
 
 - `GET /admin`
 - `GET /admin/reset-password`

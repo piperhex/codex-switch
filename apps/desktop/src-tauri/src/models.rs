@@ -484,6 +484,43 @@ pub(crate) struct AccountFieldModifiedAt {
     pub(crate) auto_switch_priority: String,
 }
 
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ProviderFieldModifiedAt {
+    #[serde(default)]
+    pub(crate) kind: String,
+    #[serde(default)]
+    pub(crate) name: String,
+    #[serde(default)]
+    pub(crate) base_url: String,
+    #[serde(default)]
+    pub(crate) api_key: String,
+    #[serde(default)]
+    pub(crate) model: String,
+    #[serde(default)]
+    pub(crate) models: String,
+    #[serde(default)]
+    pub(crate) context_window: String,
+    #[serde(default)]
+    pub(crate) model_selection_controlled_by_codex: String,
+    #[serde(default)]
+    pub(crate) api_format: String,
+    #[serde(default)]
+    pub(crate) balance_platform: String,
+    #[serde(default)]
+    pub(crate) balance_query_url: String,
+    #[serde(default)]
+    pub(crate) balance_query_token: String,
+    #[serde(default)]
+    pub(crate) wallet_query_url: String,
+    #[serde(default)]
+    pub(crate) wallet_query_token: String,
+    #[serde(default)]
+    pub(crate) wallet_username: String,
+    #[serde(default)]
+    pub(crate) wallet_password: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct CloudAccountPayload {
@@ -505,6 +542,17 @@ pub(crate) struct CloudAccountPayload {
     pub(crate) official: bool,
     #[serde(default, skip_serializing)]
     pub(crate) metadata_editable: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct DeletedCloudAccount {
+    pub(crate) id: String,
+    pub(crate) email: String,
+    pub(crate) note: String,
+    pub(crate) expires_at: String,
+    pub(crate) plan: String,
+    pub(crate) deleted_at: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -539,6 +587,8 @@ pub(crate) struct ProviderSyncPayload {
     #[serde(default)]
     pub(crate) wallet_password: Option<String>,
     pub(crate) last_modified_at: String,
+    #[serde(default)]
+    pub(crate) field_modified_at: ProviderFieldModifiedAt,
 }
 
 #[cfg(test)]

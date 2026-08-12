@@ -20,6 +20,7 @@ import { LanAccessModal } from "./components/modals/LanAccessModal";
 import { UpdateModal } from "./components/modals/UpdateModal";
 import { MenuSearchModal, type MenuSearchItem } from "./components/MenuSearchModal";
 import { ProxySessionManager } from "./components/ProxySessionManager";
+import { AccountRecycleBin } from "./components/AccountRecycleBin";
 import { useAccountManager } from "./hooks/useAccountManager";
 import { useAccountAutoRefresh, useAutoRefresh } from "./hooks/useAutoRefresh";
 import { useAccountDisplayMode } from "./hooks/useAccountDisplayMode";
@@ -1310,6 +1311,11 @@ function DashboardApp() {
         </button>
       </Popover>
       <ProxySessionManager t={t} triggerClassName="refresh-all proxy-topbar-action" />
+      <AccountRecycleBin
+        t={t}
+        disabled={!cloud.state.authenticated}
+        triggerClassName="refresh-all proxy-topbar-action"
+      />
     </>
   ) : null;
   const menuTools = (

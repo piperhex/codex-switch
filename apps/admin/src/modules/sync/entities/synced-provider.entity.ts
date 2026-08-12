@@ -76,6 +76,12 @@ export class SyncedProviderEntity {
   @Column({ type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
   lastModifiedAt: Date;
 
+  @Column({ type: 'jsonb', default: {} })
+  fieldModifiedAt: Record<string, string>;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  deletedAt?: Date | null;
+
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 
