@@ -1462,11 +1462,28 @@ fn start_local_proxy_blocking<R: Runtime>(
         if started {
             stop_server();
         }
+        // The Codex config already points at the local proxy. Roll it back to the
+        // official direct configuration before restoring the client, otherwise the
+        // "restored" client would still target the now-stopped proxy and remain
+        // unusable.
+        let mut rollback_errors = Vec::new();
+        if let Err(rollback_error) = providers::restore_official_config(&paths) {
+            rollback_errors.push(format!("Codex config rollback failed: {rollback_error}"));
+        }
         let client_note =
             recover_client_after_failed_start(&app, client_was_running, launch_target.as_ref());
+        if !client_note.is_empty() {
+            rollback_errors.push(client_note);
+        }
         emit_start_progress(&app, "failed", 18, None, None);
+        if rollback_errors.is_empty() {
+            return Err(format!(
+                "Local proxy state could not be saved ({error}). The original Codex configuration and ChatGPT/Codex were restored."
+            ));
+        }
         return Err(format!(
-            "Local proxy state could not be saved ({error}).{client_note}"
+            "Local proxy state could not be saved ({error}). {}",
+            rollback_errors.join(" ")
         ));
     }
     app.emit("providers-changed", ())
