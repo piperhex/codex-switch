@@ -1431,14 +1431,44 @@ fn start_local_proxy_blocking<R: Runtime>(
     }
 
     emit_start_progress(&app, "startingProxy", 18, None, None);
-    let started = start_server(app.clone())?;
+    // Every failure after the client was stopped must restore the client, or
+    // the user is left without a working ChatGPT/Codex and no way to recover.
+    let started = match start_server(app.clone()) {
+        Ok(value) => value,
+        Err(error) => {
+            let client_note = recover_client_after_failed_start(
+                &app,
+                client_was_running,
+                launch_target.as_ref(),
+            );
+            emit_start_progress(&app, "failed", 18, None, None);
+            return Err(format!(
+                "Local proxy could not be started on port {LOCAL_PROXY_PORT} ({error}).{client_note}"
+            ));
+        }
+    };
     if let Err(error) = providers::apply_local_proxy_config_for_state(&app) {
         if started {
             stop_server();
         }
-        return Err(error);
+        let client_note =
+            recover_client_after_failed_start(&app, client_was_running, launch_target.as_ref());
+        emit_start_progress(&app, "failed", 18, None, None);
+        return Err(format!(
+            "Local proxy configuration could not be applied ({error}).{client_note}"
+        ));
     }
-    set_local_proxy_enabled(&paths, true)?;
+    if let Err(error) = set_local_proxy_enabled(&paths, true) {
+        if started {
+            stop_server();
+        }
+        let client_note =
+            recover_client_after_failed_start(&app, client_was_running, launch_target.as_ref());
+        emit_start_progress(&app, "failed", 18, None, None);
+        return Err(format!(
+            "Local proxy state could not be saved ({error}).{client_note}"
+        ));
+    }
     app.emit("providers-changed", ())
         .map_err(|error| error.to_string())?;
     crate::system_tray::refresh_menu(&app);
@@ -1499,6 +1529,32 @@ fn start_local_proxy_blocking<R: Runtime>(
                 "Local proxy was started, but conversation history could not be synchronized ({sync_error}) and ChatGPT/Codex could not be restarted ({start_error}). Please start ChatGPT or Codex manually."
             ))
         }
+    }
+}
+
+/// Restart the ChatGPT/Codex client that proxy startup stopped, so a startup
+/// failure never leaves the user without a working client. Returns a message
+/// describing the restart failure, or an empty string when the client is fine.
+fn recover_client_after_failed_start<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    client_was_running: bool,
+    launch_target: Option<&crate::commands::ChatGptLaunchTarget>,
+) -> String {
+    if !client_was_running {
+        return String::new();
+    }
+    let restart_result = crate::dream_skin::restart_active_session().and_then(|restarted| {
+        if restarted {
+            Ok(())
+        } else {
+            crate::commands::start_chatgpt(launch_target)
+        }
+    });
+    match restart_result {
+        Ok(()) => String::new(),
+        Err(error) => format!(
+            " ChatGPT/Codex could not be restarted ({error}). Please start ChatGPT or Codex manually."
+        ),
     }
 }
 
