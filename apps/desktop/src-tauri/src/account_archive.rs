@@ -109,7 +109,7 @@ pub(crate) fn import_accounts_archive<R: Runtime>(
         app.emit("providers-changed", ())
             .map_err(|error| error.to_string())?;
         if let Ok(paths) = resolve_paths(&app) {
-            crate::providers::refresh_active_codex_models_for_paths(&paths);
+            crate::providers::refresh_codex_models_for_current_target(&paths);
         }
     }
     crate::system_tray::refresh_menu(&app);

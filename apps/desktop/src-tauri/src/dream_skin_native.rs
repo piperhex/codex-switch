@@ -1052,8 +1052,13 @@ fn codex_model_refresh_expression(
 
   const matchesModelsQuery = query => Array.isArray(query.queryKey) &&
     query.queryKey[0] === "models" && query.queryKey[1] === "list";
+  const matchesConfigQuery = query => Array.isArray(query.queryKey) && (
+    query.queryKey[0] === "user-saved-config" ||
+    (query.queryKey[0] === "config" &&
+      (query.queryKey[1] === "user" || query.queryKey[1] === "read-response"))
+  );
   await queryClient.invalidateQueries({{
-    predicate: matchesModelsQuery,
+    predicate: query => matchesModelsQuery(query) || matchesConfigQuery(query),
     refetchType: "active",
   }});
 
@@ -1061,23 +1066,14 @@ fn codex_model_refresh_expression(
   if (expectedModels.length === 0) {{
     return {{ refreshed: currentQueries.length > 0, injected: false, count: 0 }};
   }}
-  const currentIds = currentQueries.flatMap(query =>
-    Array.isArray(query.state?.data?.data)
-      ? query.state.data.data.map(model => model?.model ?? model?.id).filter(Boolean)
-      : []
-  );
   const expected = new Set(expectedModels);
-  const matches = expectedModels.length === currentIds.length &&
-    currentIds.every(model => expected.has(model));
-  if (matches) return {{ refreshed: true, injected: false, count: currentIds.length }};
-
   const injectedModels = expectedModels.map((model, index) => ({{
     id: model,
     model,
     upgrade: null,
     upgradeInfo: null,
     availabilityNux: null,
-    displayName: model,
+    displayName: model === "codex switch control" ? "Codex Switch Control" : model,
     description: model,
     modelSpecialty: null,
     hidden: false,
@@ -1094,14 +1090,32 @@ fn codex_model_refresh_expression(
     defaultServiceTier: null,
     isDefault: model === selectedModel || (!expected.has(selectedModel) && index === 0),
   }}));
+  let injected = false;
   for (const query of currentQueries) {{
-    queryClient.setQueryData(query.queryKey, current => ({{
-      ...(current && typeof current === "object" ? current : {{}}),
-      data: injectedModels,
-      nextCursor: null,
-    }}));
+    queryClient.setQueryData(query.queryKey, current => {{
+      const currentModels = Array.isArray(current?.data) ? current.data : [];
+      const currentIds = currentModels.map(model => model?.model ?? model?.id).filter(Boolean);
+      const matches = expectedModels.length === currentIds.length &&
+        currentIds.every(model => expected.has(model));
+      if (!matches) injected = true;
+      const data = matches
+        ? currentModels.map((model, index) => ({{
+            ...model,
+            displayName: (model.model ?? model.id) === "codex switch control"
+              ? "Codex Switch Control"
+              : model.displayName,
+            isDefault: (model.model ?? model.id) === selectedModel ||
+              (!expected.has(selectedModel) && index === 0),
+          }}))
+        : injectedModels;
+      return {{
+        ...(current && typeof current === "object" ? current : {{}}),
+        data,
+        nextCursor: null,
+      }};
+    }});
   }}
-  return {{ refreshed: currentQueries.length > 0, injected: true, count: injectedModels.length }};
+  return {{ refreshed: currentQueries.length > 0, injected, count: injectedModels.length }};
 }})()"#
     ))
 }
@@ -2658,7 +2672,20 @@ mod tests {
         .unwrap();
         assert!(expression.contains("query.queryKey[0] === \"models\""));
         assert!(expression.contains("query.queryKey[1] === \"list\""));
+        assert!(expression.contains("query.queryKey[0] === \"user-saved-config\""));
         assert!(expression.contains("deepseek-reasoner"));
+    }
+
+    #[test]
+    fn codex_model_refresh_normalizes_switch_control_display() {
+        let expression = codex_model_refresh_expression(
+            &[crate::providers::CODEX_SWITCH_CONTROL_MODEL.to_string()],
+            crate::providers::CODEX_SWITCH_CONTROL_MODEL,
+        )
+        .unwrap();
+
+        assert!(expression.contains("Codex Switch Control"));
+        assert!(expression.contains("isDefault:"));
     }
 
     #[test]

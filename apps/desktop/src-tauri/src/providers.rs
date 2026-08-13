@@ -65,12 +65,13 @@ fn codex_model_for_provider(provider: &ProviderProfile) -> &str {
     }
 }
 
-pub(crate) fn refresh_active_codex_models_for_paths(paths: &Paths) {
+pub(crate) fn refresh_codex_models_for_current_target(paths: &Paths) {
     if !crate::local_proxy::is_running() {
         return;
     }
     let state = read_state(paths);
     let Some(id) = state.active_provider_id.as_deref() else {
+        refresh_official_codex_models_for_paths(paths);
         return;
     };
     if let Ok(provider) = read_provider(paths, id) {
@@ -82,20 +83,7 @@ pub(crate) fn refresh_official_codex_models_for_paths(paths: &Paths) {
     if !crate::local_proxy::is_running() {
         return;
     }
-    let catalog = read_json(&paths.codex_home.join("models_cache.json")).ok();
-    let models = catalog
-        .as_ref()
-        .and_then(|value| value.get("models"))
-        .and_then(Value::as_array)
-        .into_iter()
-        .flatten()
-        .filter(|value| value.get("visibility").and_then(Value::as_str) != Some("hide"))
-        .filter_map(|value| value.get("slug").and_then(Value::as_str))
-        .map(str::to_string)
-        .collect::<Vec<_>>();
-    if !models.is_empty() {
-        crate::dream_skin::refresh_codex_models(models, preferred_official_model(paths));
-    }
+    crate::dream_skin::refresh_codex_models(Vec::new(), preferred_official_model(paths));
 }
 
 #[derive(Deserialize)]
@@ -787,6 +775,7 @@ pub(crate) fn disable_provider<R: Runtime>(app: tauri::AppHandle<R>) -> Result<(
         restore_official_config(&paths)?;
         write_state(&paths, &state)?;
     }
+    refresh_codex_models_for_current_target(&paths);
     emit_providers_changed(&app)?;
     Ok(())
 }
@@ -831,6 +820,9 @@ pub(crate) fn delete_provider<R: Runtime>(
         fs::remove_file(&versions_path)
             .map_err(|error| format!("Failed to delete provider field versions: {error}"))?;
     }
+    if was_active {
+        refresh_codex_models_for_current_target(&paths);
+    }
     emit_providers_changed(&app)?;
     Ok(())
 }
@@ -840,7 +832,7 @@ pub(crate) fn apply_local_proxy_config_for_state<R: Runtime>(
 ) -> Result<(), String> {
     let paths = resolve_paths(app)?;
     apply_local_proxy_config_for_paths(&paths)?;
-    refresh_active_codex_models_for_paths(&paths);
+    refresh_codex_models_for_current_target(&paths);
     Ok(())
 }
 
