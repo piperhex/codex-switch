@@ -11,6 +11,7 @@ import {
   relayApiUrl,
   relayName,
 } from "./providerUtils";
+import { RelayModelPicker } from "./RelayModelPicker";
 import type { ProviderModalProps } from "./ProviderModal";
 export function RelayStationModal({
   saving,
@@ -24,6 +25,7 @@ export function RelayStationModal({
   const [name, setName] = useState("");
   const [nameTouched, setNameTouched] = useState(false);
   const [model, setModel] = useState("gpt-5.6-sol");
+  const [models, setModels] = useState(["gpt-5.6-sol"]);
   const [contextWindowK, setContextWindowK] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
   const [balanceQueryUrl, setBalanceQueryUrl] = useState("");
@@ -66,7 +68,7 @@ export function RelayStationModal({
       name,
       baseUrl,
       model,
-      models: [model],
+      models,
       contextWindow: parseContextWindowK(contextWindowK),
       modelSelectionControlledByCodex: false,
       apiKey,
@@ -107,6 +109,9 @@ export function RelayStationModal({
           <Input.Password id="relay-token" value={apiKey} disabled={saving}
             placeholder="sk-..."
             onChange={(event) => setApiKey(event.target.value)} />
+          <RelayModelPicker baseUrl={baseUrl} apiKey={apiKey} enabled={Boolean(platform)}
+            disabled={saving} models={models} activeModel={model}
+            onModelsChange={setModels} onActiveModelChange={setModel} t={t} />
           <label htmlFor="relay-context-window">{t("providers.form.contextWindow")}</label>
           <AutoComplete id="relay-context-window" value={contextWindowK} disabled={saving}
             options={CONTEXT_WINDOW_OPTIONS} placeholder="128" allowClear
@@ -122,9 +127,6 @@ export function RelayStationModal({
                   setNameTouched(true);
                   setName(event.target.value);
                 }} />
-              <label htmlFor="relay-model">{t("providers.form.activeModel")}</label>
-              <Input id="relay-model" value={model} disabled={saving}
-                onChange={(event) => setModel(event.target.value)} />
               <label htmlFor="relay-base-url">{t("providers.form.baseUrl")}</label>
               <Input id="relay-base-url" value={baseUrl} disabled={saving}
                 onChange={(event) => setBaseUrl(event.target.value)} />

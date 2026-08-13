@@ -18,6 +18,7 @@ mod local_proxy;
 mod main_window;
 mod models;
 mod oauth;
+mod provider_models;
 mod providers;
 mod remote_control;
 mod skills_market;
@@ -185,6 +186,7 @@ pub fn run() {
             dream_skin::install_dream_skin_community_theme,
             providers::list_providers,
             providers::save_provider,
+            provider_models::fetch_relay_models,
             providers::fetch_deepseek_models,
             providers::query_provider_balance,
             providers::query_provider_usage,

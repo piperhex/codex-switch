@@ -431,6 +431,16 @@ export async function fetchDeepSeekModels(
   });
 }
 
+export async function fetchRelayModels(baseUrl: string, apiKey: string): Promise<string[]> {
+  if (!hasLocalBackend) {
+    return ["gpt-5.6-sol", "gpt-5.4"];
+  }
+  return invoke<string[]>("fetch_relay_models", {
+    baseUrl,
+    apiKey: apiKey.trim(),
+  });
+}
+
 async function performProviderBalanceQuery(id: string): Promise<ProviderBalance> {
   if (!hasLocalBackend) {
     const provider = readPreviewProviders().find((item) => item.id === id);
