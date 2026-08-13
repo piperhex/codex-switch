@@ -37,6 +37,12 @@ const NEW_API_QUOTA_PER_USD: f64 = 500_000.0;
 const MAX_BALANCE_RESPONSE_BYTES: u64 = 1024 * 1024;
 const MAX_MODEL_RESPONSE_BYTES: u64 = 1024 * 1024;
 
+#[derive(Clone, Copy)]
+pub(crate) enum ReasoningEffortProfile {
+    Standard,
+    DeepSeek,
+}
+
 fn emit_providers_changed<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<(), String> {
     app.emit("providers-changed", ())
         .map_err(|error| error.to_string())?;
@@ -54,7 +60,19 @@ fn refresh_codex_models_best_effort(provider: &ProviderProfile) {
         vec![CODEX_SWITCH_CONTROL_MODEL.to_string()]
     };
     let selected_model = codex_model_for_provider(provider).to_string();
-    crate::codex_runtime::refresh_models(models, selected_model);
+    crate::codex_runtime::refresh_models(
+        models,
+        selected_model,
+        reasoning_effort_profile(provider),
+    );
+}
+
+pub(crate) fn reasoning_effort_profile(provider: &ProviderProfile) -> ReasoningEffortProfile {
+    if provider.balance_platform == Some(ProviderBalancePlatform::DeepSeek) {
+        ReasoningEffortProfile::DeepSeek
+    } else {
+        ReasoningEffortProfile::Standard
+    }
 }
 
 fn codex_model_for_provider(provider: &ProviderProfile) -> &str {
@@ -83,7 +101,11 @@ pub(crate) fn refresh_official_codex_models_for_paths(paths: &Paths) {
     if !crate::local_proxy::is_running() {
         return;
     }
-    crate::codex_runtime::refresh_models(Vec::new(), preferred_official_model(paths));
+    crate::codex_runtime::refresh_models(
+        Vec::new(),
+        preferred_official_model(paths),
+        ReasoningEffortProfile::Standard,
+    );
 }
 
 #[derive(Deserialize)]
@@ -1834,26 +1856,52 @@ pub(crate) fn effective_provider_context_window(provider: &ProviderProfile) -> u
     provider_context_window(provider).saturating_mul(95) / 100
 }
 
-pub(crate) fn model_catalog_for_models(models: &[String], context_window: u64) -> Value {
+pub(crate) fn model_catalog_for_models(
+    models: &[String],
+    context_window: u64,
+    reasoning_profile: ReasoningEffortProfile,
+) -> Value {
     let entries = models
         .iter()
         .enumerate()
-        .map(|(index, model)| provider_model_catalog_entry(model, index, context_window))
+        .map(|(index, model)| {
+            provider_model_catalog_entry(model, index, context_window, reasoning_profile)
+        })
         .collect::<Vec<_>>();
     json!({ "models": entries })
 }
 
-fn provider_model_catalog_entry(model: &str, index: usize, context_window: u64) -> Value {
+pub(crate) fn supported_reasoning_levels(profile: ReasoningEffortProfile) -> Value {
+    let levels = match profile {
+        ReasoningEffortProfile::Standard => vec![
+            json!({ "effort": "none", "description": "Disable Thinking" }),
+            json!({ "effort": "high", "description": "Enabled Thinking" }),
+        ],
+        ReasoningEffortProfile::DeepSeek => vec![
+            json!({ "effort": "none", "description": "Disable Thinking" }),
+            json!({ "effort": "low", "description": "Low Thinking" }),
+            json!({ "effort": "medium", "description": "Standard Thinking" }),
+            json!({ "effort": "high", "description": "High Thinking" }),
+            json!({ "effort": "xhigh", "description": "Extended Thinking" }),
+            json!({ "effort": "max", "description": "Maximum Thinking" }),
+        ],
+    };
+    Value::Array(levels)
+}
+
+fn provider_model_catalog_entry(
+    model: &str,
+    index: usize,
+    context_window: u64,
+    reasoning_profile: ReasoningEffortProfile,
+) -> Value {
     json!({
         "slug": model,
         "display_name": model,
         "description": model,
         "base_instructions": "You are Codex, a coding agent. You and the user share the same workspace and collaborate to achieve the user's goals.",
         "default_reasoning_level": "high",
-        "supported_reasoning_levels": [
-            { "effort": "none", "description": "Disable Thinking" },
-            { "effort": "high", "description": "Enabled Thinking" }
-        ],
+        "supported_reasoning_levels": supported_reasoning_levels(reasoning_profile),
         "shell_type": "shell_command",
         "visibility": "list",
         "supported_in_api": true,
@@ -2933,8 +2981,11 @@ sandbox_mode = "workspace-write"
         provider.models = vec!["deepseek-chat".to_string(), "deepseek-reasoner".to_string()];
         provider.context_window = Some(256_000);
         provider.model_selection_controlled_by_codex = true;
-        let catalog =
-            model_catalog_for_models(&provider.models, provider_context_window(&provider));
+        let catalog = model_catalog_for_models(
+            &provider.models,
+            provider_context_window(&provider),
+            ReasoningEffortProfile::DeepSeek,
+        );
         let models = catalog["models"].as_array().unwrap();
 
         assert_eq!(models.len(), 2);
@@ -2951,6 +3002,15 @@ sandbox_mode = "workspace-write"
         assert!(models[0].get("multi_agent_version").is_some());
         assert_eq!(models[0]["context_window"], 256_000);
         assert_eq!(models[0]["max_context_window"], 256_000);
+        assert_eq!(
+            models[0]["supported_reasoning_levels"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|level| level["effort"].as_str().unwrap())
+                .collect::<Vec<_>>(),
+            vec!["none", "low", "medium", "high", "xhigh", "max"]
+        );
         assert_eq!(models[1]["slug"], "deepseek-reasoner");
     }
 

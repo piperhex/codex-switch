@@ -34,7 +34,11 @@ pub(crate) fn restart_managed_session() -> Result<bool, String> {
 }
 
 /// Refreshes Codex's model and config caches through the managed renderer channel.
-pub(crate) fn refresh_models(models: Vec<String>, selected_model: String) {
+pub(crate) fn refresh_models(
+    models: Vec<String>,
+    selected_model: String,
+    reasoning_profile: crate::providers::ReasoningEffortProfile,
+) {
     #[cfg(any(target_os = "windows", target_os = "macos"))]
     {
         static GENERATION: AtomicU64 = AtomicU64::new(0);
@@ -50,15 +54,17 @@ pub(crate) fn refresh_models(models: Vec<String>, selected_model: String) {
                 if GENERATION.load(Ordering::Acquire) != generation {
                     return;
                 }
-                if let Err(error) =
-                    crate::dream_skin_native::refresh_codex_models(&models, &selected_model)
-                {
+                if let Err(error) = crate::dream_skin_native::refresh_codex_models(
+                    &models,
+                    &selected_model,
+                    reasoning_profile,
+                ) {
                     eprintln!("Codex model picker refresh was skipped: {error}");
                 }
             });
     }
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     {
-        let _ = (models, selected_model);
+        let _ = (models, selected_model, reasoning_profile);
     }
 }

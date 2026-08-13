@@ -4213,6 +4213,7 @@ fn provider_models_payload(provider: &ProviderProfile) -> UpstreamPayload {
     let catalog = providers::model_catalog_for_models(
         &provider_models_for_codex(provider),
         providers::provider_context_window(provider),
+        providers::reasoning_effort_profile(provider),
     );
     let body = serde_json::to_vec(&catalog).unwrap_or_else(|_| b"{}".to_vec());
     let etag = provider_models_etag(provider);
@@ -4229,6 +4230,7 @@ fn provider_models_etag(provider: &ProviderProfile) -> String {
     let catalog = providers::model_catalog_for_models(
         &provider_models_for_codex(provider),
         providers::provider_context_window(provider),
+        providers::reasoning_effort_profile(provider),
     );
     let body = serde_json::to_vec(&catalog).unwrap_or_default();
     format!("\"codex-switch-{}\"", short_hash_bytes(&body))
@@ -4268,7 +4270,10 @@ fn forward_chat_bridge(
     let selected_model = selected_provider_model(&responses_body, provider);
     responses_body["model"] = Value::String(selected_model.clone());
     let tool_context = build_codex_tool_context_from_request(&responses_body);
-    let chat_body = responses_to_chat_completions_with_context(&responses_body, &tool_context);
+    let mut chat_body = responses_to_chat_completions_with_context(&responses_body, &tool_context);
+    if provider.balance_platform == Some(ProviderBalancePlatform::DeepSeek) {
+        apply_deepseek_reasoning(&responses_body, &mut chat_body);
+    }
     let stream = chat_body
         .get("stream")
         .and_then(Value::as_bool)
@@ -4904,6 +4909,24 @@ fn responses_to_chat_completions_with_context(
         result["stream_options"] = json!({ "include_usage": true });
     }
     result
+}
+
+fn apply_deepseek_reasoning(responses_body: &Value, chat_body: &mut Value) {
+    let effort = responses_body
+        .pointer("/reasoning/effort")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+    let Some(effort) = effort else {
+        return;
+    };
+    let thinking_type = if effort == "none" {
+        "disabled"
+    } else {
+        chat_body["reasoning_effort"] = Value::String(effort.to_string());
+        "enabled"
+    };
+    chat_body["thinking"] = json!({ "type": thinking_type });
 }
 
 fn append_input_messages(
@@ -7466,6 +7489,7 @@ mod tests {
         let catalog = providers::model_catalog_for_models(
             &provider_models_for_codex(&provider),
             providers::provider_context_window(&provider),
+            providers::reasoning_effort_profile(&provider),
         );
         let models = catalog["models"].as_array().unwrap();
 
@@ -7975,6 +7999,30 @@ mod tests {
         assert_eq!(chat["messages"][0]["role"], "system");
         assert_eq!(chat["messages"][1]["content"], "Hi");
         assert_eq!(chat["stream_options"]["include_usage"], true);
+    }
+
+    #[test]
+    fn deepseek_reasoning_preserves_all_codex_effort_levels() {
+        for effort in ["low", "medium", "high", "xhigh", "max"] {
+            let responses = json!({ "reasoning": { "effort": effort } });
+            let mut chat = json!({});
+
+            apply_deepseek_reasoning(&responses, &mut chat);
+
+            assert_eq!(chat["reasoning_effort"], effort);
+            assert_eq!(chat["thinking"]["type"], "enabled");
+        }
+    }
+
+    #[test]
+    fn deepseek_none_disables_thinking_without_effort() {
+        let responses = json!({ "reasoning": { "effort": "none" } });
+        let mut chat = json!({});
+
+        apply_deepseek_reasoning(&responses, &mut chat);
+
+        assert_eq!(chat["thinking"]["type"], "disabled");
+        assert!(chat.get("reasoning_effort").is_none());
     }
 
     #[test]

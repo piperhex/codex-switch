@@ -1014,15 +1014,31 @@ const CODEX_MODEL_QUERY_PREFIX: [&str; 2] = ["models", "list"];
 fn codex_model_refresh_expression(
     models: &[String],
     selected_model: &str,
+    reasoning_profile: crate::providers::ReasoningEffortProfile,
 ) -> Result<String, String> {
     let models = serde_json::to_string(models)
         .map_err(|error| format!("Failed to prepare the Codex model list: {error}"))?;
     let selected_model = serde_json::to_string(selected_model)
         .map_err(|error| format!("Failed to prepare the selected Codex model: {error}"))?;
+    let reasoning_levels = crate::providers::supported_reasoning_levels(reasoning_profile);
+    let reasoning_efforts = reasoning_levels
+        .as_array()
+        .into_iter()
+        .flatten()
+        .map(|level| {
+            json!({
+                "reasoningEffort": level["effort"],
+                "description": level["description"],
+            })
+        })
+        .collect::<Vec<_>>();
+    let reasoning_efforts = serde_json::to_string(&reasoning_efforts)
+        .map_err(|error| format!("Failed to prepare reasoning efforts: {error}"))?;
     Ok(format!(
         r#"(async () => {{
   const expectedModels = {models};
   const selectedModel = {selected_model};
+  const supportedReasoningEfforts = {reasoning_efforts};
   const root = window.__codexRoot;
   if (!root || !Array.isArray(expectedModels)) {{
     return {{ refreshed: false, reason: "unavailable" }};
@@ -1077,10 +1093,7 @@ fn codex_model_refresh_expression(
     description: model,
     modelSpecialty: null,
     hidden: false,
-    supportedReasoningEfforts: [
-      {{ reasoningEffort: "none", description: "Disable Thinking" }},
-      {{ reasoningEffort: "high", description: "Enabled Thinking" }},
-    ],
+    supportedReasoningEfforts,
     defaultReasoningEffort: "high",
     inputModalities: ["text"],
     supportsPersonality: false,
@@ -1316,6 +1329,7 @@ fn is_codex_model_query_key(value: &Value) -> bool {
 pub(crate) fn refresh_codex_models(
     models: &[String],
     selected_model: &str,
+    reasoning_profile: crate::providers::ReasoningEffortProfile,
 ) -> Result<bool, String> {
     let state = read_session();
     let Some(port) = state.port else {
@@ -1325,7 +1339,7 @@ pub(crate) fn refresh_codex_models(
         .into_iter()
         .find(|target| target.url == "app://-/index.html")
         .ok_or_else(|| "The Codex main window is not available.".to_string())?;
-    let expression = codex_model_refresh_expression(models, selected_model)?;
+    let expression = codex_model_refresh_expression(models, selected_model, reasoning_profile)?;
     let mut session = CdpSession::connect(&target, port)?;
     session.enable()?;
     let result = session.evaluate(&expression)?;
@@ -2666,12 +2680,17 @@ mod tests {
         let expression = codex_model_refresh_expression(
             &["deepseek-chat".to_string(), "deepseek-reasoner".to_string()],
             "deepseek-chat",
+            crate::providers::ReasoningEffortProfile::DeepSeek,
         )
         .unwrap();
         assert!(expression.contains("query.queryKey[0] === \"models\""));
         assert!(expression.contains("query.queryKey[1] === \"list\""));
         assert!(expression.contains("query.queryKey[0] === \"user-saved-config\""));
         assert!(expression.contains("deepseek-reasoner"));
+        assert!(expression.contains("\"reasoningEffort\":\"low\""));
+        assert!(expression.contains("\"reasoningEffort\":\"medium\""));
+        assert!(expression.contains("\"reasoningEffort\":\"xhigh\""));
+        assert!(expression.contains("\"reasoningEffort\":\"max\""));
     }
 
     #[test]
@@ -2679,6 +2698,7 @@ mod tests {
         let expression = codex_model_refresh_expression(
             &[crate::providers::CODEX_SWITCH_CONTROL_MODEL.to_string()],
             crate::providers::CODEX_SWITCH_CONTROL_MODEL,
+            crate::providers::ReasoningEffortProfile::Standard,
         )
         .unwrap();
 
