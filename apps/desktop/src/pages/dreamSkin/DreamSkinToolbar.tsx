@@ -1,0 +1,205 @@
+import { useState } from "react";
+import { Button, Input, Popconfirm, Popover, Segmented, Tabs, Tooltip } from "antd";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import {
+  CirclePause,
+  CirclePlay,
+  Eye,
+  FolderOpen,
+  MoreHorizontal,
+  RefreshCw,
+  RotateCcw,
+  Save,
+  Search,
+  ShieldCheck,
+  Sparkles,
+  Store,
+} from "lucide-react";
+import {
+  installDreamSkin,
+  openDreamSkinFolder,
+  reapplyDreamSkin,
+  restoreDreamSkin,
+  setDreamSkinPaused,
+  verifyDreamSkin,
+} from "../../api/backend";
+import type { Translate } from "../../i18n";
+import type { DreamSkinAppearance, DreamSkinStatus } from "../../types";
+import { APPEARANCE_OPTIONS } from "./constants";
+import type { RunStatusOperation, ThemeTab } from "./types";
+
+type Props = {
+  busy: string | null;
+  catalog: {
+    communityError: string | null;
+    communityInitialized: boolean;
+    communityLoading: boolean;
+    communityThemesLength: number;
+    communityTotal: number | null;
+    marketLoading: boolean;
+    marketQuery: string;
+    updatedAt?: string;
+    refresh: () => void;
+    setQuery: (query: string) => void;
+  };
+  changeAppearance: (appearance: DreamSkinAppearance) => void;
+  confirmChatGptRestart: (operation: () => Promise<unknown>) => void;
+  isBusy: boolean;
+  loading: boolean;
+  notify: (message: string) => void;
+  refresh: () => Promise<void>;
+  resourcesReady: boolean;
+  runStatusOperation: RunStatusOperation;
+  setBusy: (busy: string | null) => void;
+  setError: (error: string | null) => void;
+  setSaveName: (name: string) => void;
+  setSaveOpen: (open: boolean) => void;
+  setThemeTab: (tab: ThemeTab) => void;
+  status: DreamSkinStatus | null;
+  t: Translate;
+  themeTab: ThemeTab;
+};
+
+export function DreamSkinToolbar(props: Props) {
+  const { busy, catalog, changeAppearance, confirmChatGptRestart, isBusy, loading, notify } = props;
+  const { refresh, resourcesReady, runStatusOperation, setBusy, setError, setSaveName, setSaveOpen } = props;
+  const { setThemeTab, status, t, themeTab } = props;
+  const [toolsOpen, setToolsOpen] = useState(false);
+  const sessionLabel = status ? t(`dreamSkin.session.${status.session}`) : t("dreamSkin.session.loading");
+  const activeThemeName = status?.activeThemeName || t("dreamSkin.noActiveTheme");
+  const tools = { ...props, setToolsOpen, toolsOpen };
+  return <div className="dream-skin-sticky-stack">
+    <section className="dream-skin-hero">
+      <div className="dream-skin-console">
+        <strong className={`dream-session dream-session-pill dream-session-${status?.session ?? "ready"}`}>
+          <i />{sessionLabel}
+        </strong>
+        <div className="dream-toolbar-theme">
+          <span>{t("dreamSkin.activeTheme")}</span><b title={activeThemeName}>{activeThemeName}</b>
+        </div>
+        <div className="dream-toolbar-appearance">
+          <span>{t("dreamSkin.import.appearance")}</span>
+          <Segmented block size="small" value={status?.activeThemeAppearance ?? "auto"}
+            disabled={!status?.installed || !status.activeThemeId || isBusy}
+            options={APPEARANCE_OPTIONS.map((option) => ({ value: option.value, label: t(option.labelKey) }))}
+            onChange={(appearance) => changeAppearance(appearance as DreamSkinAppearance)} />
+        </div>
+        <div className="dream-toolbar-spacer" />
+        <div className="dream-toolbar-actions">
+          <Button type={status?.installed ? "default" : "primary"} icon={<Sparkles size={14} />}
+            loading={busy === "install"}
+            disabled={(isBusy && busy !== "install") || (!resourcesReady && !status?.activeThemeId)}
+            onClick={() => confirmChatGptRestart(() => runStatusOperation(
+              "install", installDreamSkin, t("dreamSkin.toast.installed"),
+            ))}>
+            {status?.installed ? t("dreamSkin.updateRuntime") : t("dreamSkin.install")}
+          </Button>
+          <Tooltip title={t("dreamSkin.refresh")}><Button aria-label={t("dreamSkin.refresh")}
+            icon={<RefreshCw className={loading ? "spin" : ""} size={15} />} disabled={isBusy}
+            onClick={() => void refresh()} /></Tooltip>
+          <ToolsPopover {...tools} />
+        </div>
+      </div>
+    </section>
+    <BrowserHeader catalog={catalog} setThemeTab={setThemeTab} t={t} themeTab={themeTab} />
+  </div>;
+}
+
+type ToolsProps = Props & { toolsOpen: boolean; setToolsOpen: (open: boolean) => void };
+
+function ToolsPopover(props: ToolsProps) {
+  const { busy, confirmChatGptRestart, isBusy, notify, runStatusOperation, setBusy } = props;
+  const { setError, setSaveName, setSaveOpen, setToolsOpen, status, t, toolsOpen } = props;
+  const closeAndRun = (operation: () => void) => { setToolsOpen(false); operation(); };
+  return <Popover trigger="click" placement="bottomRight" open={toolsOpen} onOpenChange={setToolsOpen}
+    content={<div className="dream-tools-more-panel">
+      <Button type="text" icon={status?.session === "paused"
+        ? <CirclePlay size={15} /> : <CirclePause size={15} />}
+        disabled={!status?.installed || isBusy} loading={busy === "pause"} onClick={() => closeAndRun(() => {
+          const operation = () => runStatusOperation(
+            "pause",
+            () => setDreamSkinPaused(status?.session !== "paused"),
+            status?.session === "paused" ? t("dreamSkin.toast.resumed") : t("dreamSkin.toast.paused"),
+          );
+          if (status?.session === "paused") confirmChatGptRestart(operation);
+          else void operation();
+        })}>{status?.session === "paused" ? t("dreamSkin.resume") : t("dreamSkin.pause")}</Button>
+      <Button type="text" icon={<RefreshCw size={15} />} disabled={!status?.installed || isBusy}
+        loading={busy === "reapply"} onClick={() => closeAndRun(() => confirmChatGptRestart(
+          () => runStatusOperation("reapply", reapplyDreamSkin, t("dreamSkin.toast.reapplied")),
+        ))}>{t("dreamSkin.reapply")}</Button>
+      <Button type="text" icon={<Save size={15} />} disabled={!status?.installed || !status.activeThemeId || isBusy}
+        onClick={() => closeAndRun(() => {
+          setSaveName(status?.activeThemeName ?? "");
+          setSaveOpen(true);
+        })}>{t("dreamSkin.saveCurrent")}</Button>
+      <Button type="text" icon={<ShieldCheck size={15} />} disabled={!status?.installed || isBusy}
+        loading={busy === "verify"} onClick={() => closeAndRun(() => {
+          setBusy("verify");
+          setError(null);
+          void verifyDreamSkin().then(() => notify(t("dreamSkin.toast.verified")))
+            .catch((error) => setError(String(error))).finally(() => setBusy(null));
+        })}>{t("dreamSkin.verify")}</Button>
+      <Button type="text" icon={<FolderOpen size={15} />} disabled={isBusy}
+        onClick={() => closeAndRun(() => {
+          void openDreamSkinFolder().catch((error) => setError(String(error)));
+        })}>{t("dreamSkin.openFolder")}</Button>
+      <Popconfirm title={t("dreamSkin.restore.confirmTitle")} description={t("dreamSkin.restore.confirmDescription")}
+        okText={t("dreamSkin.restore")} cancelText={t("table.cancel")} okButtonProps={{ danger: true }}
+        onConfirm={() => closeAndRun(() => {
+          void runStatusOperation("restore", restoreDreamSkin, t("dreamSkin.toast.restored"));
+        })}>
+        <Button block type="text" danger icon={<RotateCcw size={15} />}
+          disabled={!status?.runtimeInstalled || isBusy} loading={busy === "restore"}>
+          {t("dreamSkin.restore")}
+        </Button>
+      </Popconfirm>
+    </div>}>
+    <Button icon={<MoreHorizontal size={15} />}>{t("table.moreActions")}</Button>
+  </Popover>;
+}
+
+function BrowserHeader(props: Pick<Props, "catalog" | "setThemeTab" | "t" | "themeTab">) {
+  const { catalog, setThemeTab, t, themeTab } = props;
+  const marketActions = <div className="dream-market-tab-actions">
+    <Input className="dream-market-search" allowClear value={catalog.marketQuery} prefix={<Search size={14} />}
+      placeholder={t("dreamSkin.market.search")} onChange={(event) => catalog.setQuery(event.target.value)} />
+    <Button icon={<RefreshCw className={catalog.marketLoading || catalog.communityLoading ? "spin" : ""}
+      size={14} />} loading={catalog.marketLoading || catalog.communityLoading} onClick={catalog.refresh}>
+      {t("dreamSkin.market.refresh")}
+    </Button>
+    <Button icon={<Eye size={14} />} onClick={() => void openUrl("https://dreamskin.cc/gallery")}>
+      {t("dreamSkin.market.gallery")}
+    </Button>
+  </div>;
+  return <div className="dream-theme-browser-header">
+    <Tabs activeKey={themeTab} onChange={(key) => setThemeTab(key as ThemeTab)}
+      tabBarExtraContent={themeTab === "market" ? marketActions : null} items={tabItems(t)} />
+    <TabSummary catalog={catalog} t={t} themeTab={themeTab} />
+  </div>;
+}
+
+function tabItems(t: Translate) {
+  return [
+    { key: "builtIn", label: <span className="dream-theme-tab-label"><Sparkles size={15} />
+      {t("dreamSkin.tabs.builtIn")}</span> },
+    { key: "market", label: <span className="dream-theme-tab-label"><Store size={15} />
+      {t("dreamSkin.tabs.market")}</span> },
+    { key: "saved", label: <span className="dream-theme-tab-label"><Save size={15} />
+      {t("dreamSkin.tabs.savedCommunity")}</span> },
+  ];
+}
+
+function TabSummary({ catalog, t, themeTab }: Pick<Props, "catalog" | "t" | "themeTab">) {
+  if (themeTab === "builtIn") return <div className="dream-tab-summary">{t("dreamSkin.presets.description")}</div>;
+  if (themeTab === "saved") return <div className="dream-tab-summary">{t("dreamSkin.saved.subtitle")}</div>;
+  if (!catalog.updatedAt && !catalog.communityInitialized) return null;
+  return <div className="dream-tab-summary dream-market-summary">
+    {catalog.updatedAt && <span>{t("dreamSkin.market.updatedAt", { date: catalog.updatedAt })}</span>}
+    {catalog.communityInitialized && (!catalog.communityError || catalog.communityThemesLength > 0)
+      && <span>{t("dreamSkin.market.loadedCount", {
+        loaded: catalog.communityThemesLength,
+        total: catalog.communityTotal ?? catalog.communityThemesLength,
+      })}</span>}
+  </div>;
+}

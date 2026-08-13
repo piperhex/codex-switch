@@ -93,7 +93,9 @@ export function AccountsPage({
         <div className="empty-state">
           <div><LogIn size={28} /></div><h2>{t("accounts.empty.title")}</h2>
           <p>{t("accounts.empty.description")}</p>
-          <button className="primary-button" onClick={onAdd}>{t("accounts.empty.addFirst")}<ArrowRight size={17} /></button>
+          <button className="primary-button" onClick={onAdd}>
+            {t("accounts.empty.addFirst")}<ArrowRight size={17} />
+          </button>
         </div>
       </div>
     );

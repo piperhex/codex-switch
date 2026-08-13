@@ -1,0 +1,307 @@
+import type { CSSProperties } from "react";
+import { Button, ColorPicker, Modal, Segmented, Switch } from "antd";
+import { CircleGauge, EyeOff, Languages, LayoutGrid, Palette, TableProperties } from "lucide-react";
+import { LANGUAGE_OPTIONS, type Language } from "../../i18n";
+import type { BubbleResetDisplay } from "../../types";
+import type { SettingsPageProps } from "./types";
+
+const CLASSIC_BUBBLE_PREVIEW_STYLE = {
+  "--bubble-progress": "57%",
+  "--bubble-color": "#35ada7",
+  "--bubble-water-level": "65%",
+  "--bubble-water-top": "#20b7ed",
+  "--bubble-water-color": "#0b93d9",
+  "--bubble-water-bottom": "#0873d5",
+} as CSSProperties;
+
+interface BasicSettingsCardsProps {
+  bubbleStyleModalOpen: boolean;
+  onBubbleStyleModalOpenChange: (open: boolean) => void;
+  settings: SettingsPageProps;
+}
+
+function LanguageCard({ settings }: { settings: SettingsPageProps }) {
+  const { language, onLanguageChange, t } = settings;
+  return (
+    <section className="settings-card">
+      <div className="settings-icon"><Languages size={23} /></div>
+      <div className="settings-card-content">
+        <div className="settings-card-copy">
+          <h3>{t("settings.language.title")}</h3><p>{t("settings.language.description")}</p>
+        </div>
+        <div className="settings-field">
+          <label htmlFor="language-selector">{t("settings.language.label")}</label>
+          <Segmented
+            id="language-selector"
+            value={language}
+            options={[...LANGUAGE_OPTIONS]}
+            onChange={(value) => onLanguageChange(value as Language)}
+          />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ThemeCard({ settings }: { settings: SettingsPageProps }) {
+  const { onThemeColorChange, t, themeColor, themeColorLoading } = settings;
+  return (
+    <section className="settings-card">
+      <div className="settings-icon"><Palette size={23} /></div>
+      <div className="settings-card-content">
+        <div className="settings-card-copy">
+          <h3>{t("settings.theme.title")}</h3><p>{t("settings.theme.description")}</p>
+        </div>
+        <div className="settings-field">
+          <label htmlFor="theme-color-picker">{t("settings.theme.label")}</label>
+          <span id="theme-color-picker" className="theme-color-picker">
+            <ColorPicker
+              value={themeColor}
+              disabled={themeColorLoading}
+              showText
+              disabledAlpha
+              format="hex"
+              onChangeComplete={(color) => onThemeColorChange(color.toHexString())}
+            />
+          </span>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function FloatingBubbleCard({
+  onOpen,
+  settings,
+}: {
+  onOpen: () => void;
+  settings: SettingsPageProps;
+}) {
+  const {
+    bubbleResetDisplay,
+    bubbleResetDisplayLoading,
+    floatingBubbleEnabled,
+    floatingBubbleLoading,
+    onBubbleResetDisplayChange,
+    onFloatingBubbleChange,
+    t,
+  } = settings;
+  return (
+    <section className="settings-card">
+      <div className="settings-icon"><CircleGauge size={23} /></div>
+      <div className="settings-card-content">
+        <div className="settings-card-copy">
+          <h3>{t("settings.floatingBubble.title")}</h3>
+          <p>{t("settings.floatingBubble.description")}</p>
+        </div>
+        <div className="settings-field">
+          <label htmlFor="floating-bubble-enabled">{t("settings.floatingBubble.enabled")}</label>
+          <Switch
+            id="floating-bubble-enabled"
+            checked={floatingBubbleEnabled}
+            loading={floatingBubbleLoading}
+            checkedChildren={t("settings.autoRefresh.on")}
+            unCheckedChildren={t("settings.autoRefresh.off")}
+            onChange={onFloatingBubbleChange}
+          />
+          <label htmlFor="floating-bubble-reset-display">
+            {t("settings.floatingBubble.resetDisplay")}
+          </label>
+          <Segmented
+            id="floating-bubble-reset-display"
+            value={bubbleResetDisplay}
+            disabled={bubbleResetDisplayLoading}
+            options={[
+              { value: "countdown", label: t("settings.floatingBubble.countdown") },
+              { value: "resetAt", label: t("settings.floatingBubble.resetAt") },
+            ]}
+            onChange={(value) => onBubbleResetDisplayChange(value as BubbleResetDisplay)}
+          />
+          <label>{t("settings.floatingBubble.style")}</label>
+          <Button className="floating-bubble-style-trigger" onClick={onOpen}>
+            {t("settings.floatingBubble.chooseStyle")}
+          </Button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function BubbleStyleModal({
+  onClose,
+  open,
+  settings,
+}: {
+  onClose: () => void;
+  open: boolean;
+  settings: SettingsPageProps;
+}) {
+  const { bubbleStyle, bubbleStyleLoading, onBubbleStyleChange, t } = settings;
+  return (
+    <Modal
+      open={open}
+      footer={null}
+      width={760}
+      title={t("settings.floatingBubble.styleModalTitle")}
+      onCancel={onClose}
+    >
+      <p className="floating-bubble-style-modal-description">
+        {t("settings.floatingBubble.styleModalDescription")}
+      </p>
+      <div className="floating-bubble-style-options">
+        <button
+          type="button"
+          className={`floating-bubble-style-option ${bubbleStyle === "classic" ? "is-selected" : ""}`}
+          disabled={bubbleStyleLoading}
+          onClick={() => onBubbleStyleChange("classic")}
+        >
+          <span className="floating-bubble-style-preview classic" aria-hidden="true">
+            <span className="floating-bubble floating-bubble-demo" style={CLASSIC_BUBBLE_PREVIEW_STYLE}>
+              <span className="floating-bubble-water" />
+              <span className="floating-bubble-weekly">
+                {t("settings.floatingBubble.weekShort")} 57%
+              </span>
+              <span className="floating-bubble-value">65%</span>
+              <small className="floating-bubble-reset floating-bubble-reset-stacked">
+                <span>0{t("settings.floatingBubble.dayShort")}</span>
+                <span>01:28:39</span>
+              </small>
+            </span>
+          </span>
+          <span className="floating-bubble-style-option-copy">
+            <strong>{t("settings.floatingBubble.classic")}</strong>
+            <small>{t("settings.floatingBubble.classicDescription")}</small>
+          </span>
+        </button>
+        <button
+          type="button"
+          className={`floating-bubble-style-option ${bubbleStyle === "glass" ? "is-selected" : ""}`}
+          disabled={bubbleStyleLoading}
+          onClick={() => onBubbleStyleChange("glass")}
+        >
+          <span className="floating-bubble-style-preview glass" aria-hidden="true">
+            <span className="glass-preview-ring">
+              <b>5%</b><small>{t("settings.floatingBubble.primaryRemaining")}</small>
+            </span>
+            <span className="glass-preview-stats">
+              <span>{t("settings.floatingBubble.distanceToReset")}<b>3d 18h</b></span>
+              <span>{t("settings.floatingBubble.remainingResets")}<b>0</b></span>
+              <span>{t("settings.floatingBubble.secondaryUsed")}<b>95%</b></span>
+              <span>
+                {t("settings.floatingBubble.quotaStatus")}
+                <b>{t("settings.floatingBubble.lowQuota")}</b>
+              </span>
+            </span>
+          </span>
+          <span className="floating-bubble-style-option-copy">
+            <strong>{t("settings.floatingBubble.glass")}</strong>
+            <small>{t("settings.floatingBubble.glassDescription")}</small>
+          </span>
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+function PrivacyCard({ settings }: { settings: SettingsPageProps }) {
+  const {
+    hideAccountNotes,
+    onHideAccountNotesChange,
+    onPrivacyModeChange,
+    privacyModeEnabled,
+    privacyModeLoading,
+    t,
+  } = settings;
+  return (
+    <section className="settings-card">
+      <div className="settings-icon"><EyeOff size={23} /></div>
+      <div className="settings-card-content">
+        <div className="settings-card-copy">
+          <h3>{t("settings.privacy.title")}</h3><p>{t("settings.privacy.description")}</p>
+        </div>
+        <div className="settings-field">
+          <label htmlFor="privacy-mode-enabled">{t("settings.privacy.enabled")}</label>
+          <Switch
+            id="privacy-mode-enabled"
+            checked={privacyModeEnabled}
+            loading={privacyModeLoading}
+            checkedChildren={t("settings.autoRefresh.on")}
+            unCheckedChildren={t("settings.autoRefresh.off")}
+            onChange={onPrivacyModeChange}
+          />
+          <label htmlFor="hide-account-notes">{t("settings.privacy.hideNotes")}</label>
+          <Switch
+            id="hide-account-notes"
+            checked={hideAccountNotes}
+            loading={privacyModeLoading}
+            checkedChildren={t("settings.autoRefresh.on")}
+            unCheckedChildren={t("settings.autoRefresh.off")}
+            onChange={onHideAccountNotesChange}
+          />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function AccountDisplayCard({ settings }: { settings: SettingsPageProps }) {
+  const { accountDisplayMode, onAccountDisplayModeChange, t } = settings;
+  return (
+    <section className="settings-card">
+      <div className="settings-icon"><LayoutGrid size={23} /></div>
+      <div className="settings-card-content">
+        <div className="settings-card-copy">
+          <h3>{t("settings.accountDisplay.title")}</h3>
+          <p>{t("settings.accountDisplay.description")}</p>
+        </div>
+        <div className="settings-field">
+          <label htmlFor="account-display-mode">{t("settings.accountDisplay.label")}</label>
+          <Segmented
+            id="account-display-mode"
+            value={accountDisplayMode}
+            options={[
+              {
+                value: "table",
+                label: (
+                  <span className="segmented-option-label">
+                    <TableProperties size={14} />{t("settings.accountDisplay.table")}
+                  </span>
+                ),
+              },
+              {
+                value: "cards",
+                label: (
+                  <span className="segmented-option-label">
+                    <LayoutGrid size={14} />{t("settings.accountDisplay.cards")}
+                  </span>
+                ),
+              },
+            ]}
+            onChange={(value) => onAccountDisplayModeChange(value as typeof accountDisplayMode)}
+          />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+export function BasicSettingsCards({
+  bubbleStyleModalOpen,
+  onBubbleStyleModalOpenChange,
+  settings,
+}: BasicSettingsCardsProps) {
+  return (
+    <>
+      <LanguageCard settings={settings} />
+      <ThemeCard settings={settings} />
+      <FloatingBubbleCard onOpen={() => onBubbleStyleModalOpenChange(true)} settings={settings} />
+      <BubbleStyleModal
+        onClose={() => onBubbleStyleModalOpenChange(false)}
+        open={bubbleStyleModalOpen}
+        settings={settings}
+      />
+      <PrivacyCard settings={settings} />
+      <AccountDisplayCard settings={settings} />
+    </>
+  );
+}
