@@ -1,5 +1,10 @@
 # Agent Notes
 
+## Automatic Commit and Push
+
+- After completing the requested changes and verifying them successfully, automatically commit the changes made for the current task and push the current branch to its configured upstream. Do not wait for a separate request to commit or push.
+- Never include unrelated existing changes in the commit. If verification fails, the branch has no configured upstream, or the push is blocked, report the issue instead of bypassing checks or rewriting history.
+
 ## User-Facing Prompts and Copy
 
 - Write all user-facing prompts and copy in natural, clear, and easy-to-understand language. Do not mention implementation details, internal processes, or other technical details.
