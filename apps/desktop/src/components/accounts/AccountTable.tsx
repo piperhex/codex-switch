@@ -614,8 +614,6 @@ export function AccountTable({
   const showImageAccountSelect = hotSwitchEnabled && (
     Boolean(activeAccount?.agentIdentity) || concurrentAccountRoutingEnabled
   );
-  const effectiveImageAccountId = imageGenerationAccountId
-    ?? (!activeAccount?.agentIdentity ? activeAccount?.id : undefined);
   const officialAuthAccount = accounts.find((account) => account.id === openaiAuthAccountId) ?? null;
   const accountSummaryLabel = (account: Account | null) => {
     if (!account) return "-";
@@ -1260,7 +1258,7 @@ export function AccountTable({
           {proxyControls}
         </div>
         {showImageAccountSelect && (
-          <ImageAccountSelect accounts={accounts} accountId={effectiveImageAccountId}
+          <ImageAccountSelect accounts={accounts} accountId={imageGenerationAccountId}
             busy={imageAccountBusy} onChange={onImageAccountChange}
             privacyMode={privacyMode} t={t} />
         )}

@@ -6,7 +6,7 @@ interface ImageAccountSelectProps {
   accounts: Account[];
   accountId: string | null | undefined;
   busy: boolean;
-  onChange: (accountId: string) => void;
+  onChange: (accountId: string | null) => void;
   privacyMode?: boolean;
   t: Translate;
 }
@@ -45,9 +45,10 @@ export function ImageAccountSelect({
           ? "providers.proxy.imageAccountPlaceholder"
           : "providers.proxy.imageAccountEmpty")}
         disabled={busy || imageAccounts.length === 0}
+        allowClear
         showSearch
         optionFilterProp="label"
-        onChange={(option) => onChange(option.value)}
+        onChange={(option) => onChange(option?.value ?? null)}
       />
     </Tooltip>
   );
