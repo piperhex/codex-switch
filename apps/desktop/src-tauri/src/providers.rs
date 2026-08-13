@@ -32,6 +32,7 @@ pub(crate) const CODEX_SWITCH_CONTROL_MODEL: &str = "codex switch control";
 const LOCAL_PROXY_PROVIDER_ID: &str = "codex-switch-local";
 const LOCAL_PROXY_PROVIDER_NAME: &str = "Codex Switch Local Proxy";
 pub(crate) const DEFAULT_OFFICIAL_MODEL: &str = "gpt-5.6-sol";
+const MODEL_CATALOG_FILENAME: &str = "codex-switch-model-catalog.json";
 pub(crate) const DEFAULT_MODEL_CONTEXT_WINDOW: u64 = 128_000;
 const NEW_API_QUOTA_PER_USD: f64 = 500_000.0;
 const MAX_BALANCE_RESPONSE_BYTES: u64 = 1024 * 1024;
@@ -54,17 +55,21 @@ fn refresh_codex_models_best_effort(provider: &ProviderProfile) {
     if !crate::local_proxy::is_running() {
         return;
     }
-    let models = if provider.model_selection_controlled_by_codex {
-        provider.models.clone()
-    } else {
-        vec![CODEX_SWITCH_CONTROL_MODEL.to_string()]
-    };
+    let models = codex_visible_models(provider);
     let selected_model = codex_model_for_provider(provider).to_string();
     crate::codex_runtime::refresh_models(
         models,
         selected_model,
         reasoning_effort_profile(provider),
     );
+}
+
+fn codex_visible_models(provider: &ProviderProfile) -> Vec<String> {
+    if provider.model_selection_controlled_by_codex {
+        provider.models.clone()
+    } else {
+        vec![CODEX_SWITCH_CONTROL_MODEL.to_string()]
+    }
 }
 
 pub(crate) fn reasoning_effort_profile(provider: &ProviderProfile) -> ReasoningEffortProfile {
@@ -1607,7 +1612,6 @@ fn normalize_provider_profile(mut provider: ProviderProfile) -> Result<ProviderP
             provider.balance_query_url.as_deref().unwrap_or_default(),
         )?;
         provider.api_format = ProviderApiFormat::OpenaiChat;
-        provider.model_selection_controlled_by_codex = true;
         provider.balance_query_token = None;
         provider.wallet_query_url = None;
         provider.wallet_query_token = None;
@@ -1814,17 +1818,22 @@ fn backup_codex_config_if_needed(paths: &Paths, entering_provider: bool) -> Resu
 
 pub(crate) fn write_official_local_proxy_config(paths: &Paths) -> Result<(), String> {
     let model = preferred_official_model(paths);
-    write_local_proxy_config(paths, LOCAL_PROXY_PROVIDER_NAME, Some(&model))
+    write_local_proxy_config(paths, LOCAL_PROXY_PROVIDER_NAME, Some(&model), false)
 }
 
 fn write_provider_local_proxy_config(
     paths: &Paths,
     provider: &ProviderProfile,
 ) -> Result<(), String> {
+    let uses_local_catalog = !uses_upstream_official_models(provider);
+    if uses_local_catalog {
+        write_provider_model_catalog(paths, provider)?;
+    }
     write_local_proxy_config(
         paths,
         &provider.name,
         Some(codex_model_for_provider(provider)),
+        uses_local_catalog,
     )
 }
 
@@ -1935,7 +1944,21 @@ fn provider_model_catalog_entry(
     })
 }
 
-fn write_local_proxy_config(paths: &Paths, name: &str, model: Option<&str>) -> Result<(), String> {
+fn write_provider_model_catalog(paths: &Paths, provider: &ProviderProfile) -> Result<(), String> {
+    let catalog = model_catalog_for_models(
+        &codex_visible_models(provider),
+        provider_context_window(provider),
+        reasoning_effort_profile(provider),
+    );
+    write_json_if_changed(&paths.codex_home.join(MODEL_CATALOG_FILENAME), &catalog).map(|_| ())
+}
+
+fn write_local_proxy_config(
+    paths: &Paths,
+    name: &str,
+    model: Option<&str>,
+    include_model_catalog: bool,
+) -> Result<(), String> {
     let existing = if paths.current_config.exists() {
         fs::read_to_string(&paths.current_config)
             .map_err(|error| format!("Failed to read Codex config: {error}"))?
@@ -1949,8 +1972,14 @@ fn write_local_proxy_config(paths: &Paths, name: &str, model: Option<&str>) -> R
         .map_err(|error| format!("Failed to locate Codex Switch for local proxy auth: {error}"))?
         .display()
         .to_string();
-    let merged =
-        merge_local_proxy_config(&existing, name, model, requires_openai_auth, &token_command);
+    let options = LocalProxyConfigOptions {
+        name,
+        model,
+        include_model_catalog,
+        requires_openai_auth,
+        token_command: &token_command,
+    };
+    let merged = merge_local_proxy_config(&existing, &options);
     write_text_if_changed(&paths.current_config, &merged).map(|_| ())
 }
 
@@ -1989,15 +2018,20 @@ fn merge_provider_config(existing: &str, provider: &ProviderProfile) -> String {
     config
 }
 
-fn merge_local_proxy_config(
-    existing: &str,
-    name: &str,
-    model: Option<&str>,
+struct LocalProxyConfigOptions<'a> {
+    name: &'a str,
+    model: Option<&'a str>,
+    include_model_catalog: bool,
     requires_openai_auth: bool,
-    token_command: &str,
-) -> String {
+    token_command: &'a str,
+}
+
+fn merge_local_proxy_config(existing: &str, options: &LocalProxyConfigOptions<'_>) -> String {
     let cleaned = remove_provider_conflicts(&remove_marked_blocks(existing));
-    let model = model.map(str::trim).filter(|value| !value.is_empty());
+    let model = options
+        .model
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
     let mut config = String::new();
     config.push_str(PROVIDER_ROOT_START);
     config.push('\n');
@@ -2007,6 +2041,12 @@ fn merge_local_proxy_config(
     ));
     if let Some(model) = model {
         config.push_str(&format!("model = {}\n", toml_string(model)));
+    }
+    if options.include_model_catalog {
+        config.push_str(&format!(
+            "model_catalog_json = {}\n",
+            toml_string(MODEL_CATALOG_FILENAME)
+        ));
     }
     config.push_str("disable_response_storage = true\n");
     config.push_str(PROVIDER_ROOT_END);
@@ -2021,14 +2061,17 @@ fn merge_local_proxy_config(
     config.push_str(PROVIDER_TABLE_START);
     config.push('\n');
     config.push_str(&format!("[model_providers.{LOCAL_PROXY_PROVIDER_ID}]\n"));
-    config.push_str(&format!("name = {}\n", toml_string(name)));
+    config.push_str(&format!("name = {}\n", toml_string(options.name)));
     config.push_str(&format!(
         "base_url = {}\n",
         toml_string(LOCAL_PROXY_BASE_URL)
     ));
     config.push_str("wire_api = \"responses\"\n");
-    config.push_str(&format!("requires_openai_auth = {requires_openai_auth}\n"));
-    if requires_openai_auth {
+    config.push_str(&format!(
+        "requires_openai_auth = {}\n",
+        options.requires_openai_auth
+    ));
+    if options.requires_openai_auth {
         config.push_str(&format!(
             "experimental_bearer_token = {}\n",
             toml_string(LOCAL_PROXY_TOKEN)
@@ -2036,7 +2079,7 @@ fn merge_local_proxy_config(
     } else {
         config.push_str(&format!(
             "auth = {{ command = {}, args = [\"--print-local-proxy-token\"], timeout_ms = 5000, refresh_interval_ms = 300000 }}\n",
-            toml_string(token_command)
+            toml_string(options.token_command)
         ));
     }
     config.push_str(&format!(
@@ -2761,16 +2804,17 @@ mod tests {
 
     #[test]
     fn local_proxy_config_points_codex_to_local_responses() {
-        let merged = merge_local_proxy_config(
-            "model = \"old\"",
-            "Proxy",
-            Some("deepseek-chat"),
-            false,
-            r"C:\Program Files\Codex Switch\codex-switch.exe",
-        );
+        let options = LocalProxyConfigOptions {
+            name: "Proxy",
+            model: Some("deepseek-chat"),
+            include_model_catalog: true,
+            requires_openai_auth: false,
+            token_command: r"C:\Program Files\Codex Switch\codex-switch.exe",
+        };
+        let merged = merge_local_proxy_config("model = \"old\"", &options);
         assert!(merged.contains("model_provider = \"codex-switch-local\""));
         assert!(merged.contains("model = \"deepseek-chat\""));
-        assert!(!merged.contains("model_catalog_json"));
+        assert!(merged.contains("model_catalog_json = \"codex-switch-model-catalog.json\""));
         assert!(merged.contains("base_url = \"http://127.0.0.1:15722/v1\""));
         assert!(merged.contains("requires_openai_auth = false"));
         assert!(merged.contains(
@@ -2932,7 +2976,7 @@ sandbox_mode = "workspace-write"
     }
 
     #[test]
-    fn normalize_deepseek_preset_enforces_proxy_bridge_settings() {
+    fn normalize_deepseek_preset_keeps_model_control_setting() {
         let mut profile = provider();
         profile.name = "DeepSeek".to_string();
         profile.base_url = "https://api.deepseek.com".to_string();
@@ -2946,7 +2990,7 @@ sandbox_mode = "workspace-write"
         let profile = normalize_provider_profile(profile).unwrap();
 
         assert_eq!(profile.api_format, ProviderApiFormat::OpenaiChat);
-        assert!(profile.model_selection_controlled_by_codex);
+        assert!(!profile.model_selection_controlled_by_codex);
     }
 
     #[test]
@@ -3068,13 +3112,14 @@ sandbox_mode = "workspace-write"
 model = "gpt-5.5"
 model_reasoning_effort = "xhigh"
 "#;
-        let provider_proxy = merge_local_proxy_config(
-            backup,
-            "DeepSeek",
-            Some("deepseek-v4-flash"),
-            false,
-            "codex-switch",
-        );
+        let provider_options = LocalProxyConfigOptions {
+            name: "DeepSeek",
+            model: Some("deepseek-v4-flash"),
+            include_model_catalog: true,
+            requires_openai_auth: false,
+            token_command: "codex-switch",
+        };
+        let provider_proxy = merge_local_proxy_config(backup, &provider_options);
 
         assert_eq!(
             preferred_official_model_from_configs(Some(&provider_proxy), Some(backup)),
@@ -3083,13 +3128,14 @@ model_reasoning_effort = "xhigh"
 
         let official_model =
             preferred_official_model_from_configs(Some(&provider_proxy), Some(backup));
-        let official_proxy = merge_local_proxy_config(
-            &provider_proxy,
-            LOCAL_PROXY_PROVIDER_NAME,
-            Some(&official_model),
-            false,
-            "codex-switch",
-        );
+        let official_options = LocalProxyConfigOptions {
+            name: LOCAL_PROXY_PROVIDER_NAME,
+            model: Some(&official_model),
+            include_model_catalog: false,
+            requires_openai_auth: false,
+            token_command: "codex-switch",
+        };
+        let official_proxy = merge_local_proxy_config(&provider_proxy, &official_options);
         let first_model = extract_root_model(&official_proxy).unwrap();
 
         assert_eq!(first_model, "gpt-5.5");
@@ -3098,13 +3144,14 @@ model_reasoning_effort = "xhigh"
 
     #[test]
     fn official_model_does_not_reuse_managed_provider_model_without_backup() {
-        let provider_proxy = merge_local_proxy_config(
-            r#"model = "gpt-5.5""#,
-            "DeepSeek",
-            Some("deepseek-v4-flash"),
-            false,
-            "codex-switch",
-        );
+        let provider_options = LocalProxyConfigOptions {
+            name: "DeepSeek",
+            model: Some("deepseek-v4-flash"),
+            include_model_catalog: true,
+            requires_openai_auth: false,
+            token_command: "codex-switch",
+        };
+        let provider_proxy = merge_local_proxy_config(r#"model = "gpt-5.5""#, &provider_options);
 
         assert_eq!(
             preferred_official_model_from_configs(Some(&provider_proxy), None),

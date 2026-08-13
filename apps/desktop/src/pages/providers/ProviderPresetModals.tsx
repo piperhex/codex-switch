@@ -162,7 +162,7 @@ export function DeepSeekProviderModal({ provider, saving, onClose, onSave, t }: 
       model: activeModel,
       models: normalizedModels,
       contextWindow,
-      modelSelectionControlledByCodex: true,
+      modelSelectionControlledByCodex: provider?.modelSelectionControlledByCodex ?? true,
       apiKey: apiKey.trim() || undefined,
       apiFormat: "openaiChat",
       balancePlatform: "deepSeek",
