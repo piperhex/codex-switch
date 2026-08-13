@@ -62,15 +62,21 @@ export function useAccountManager(
     }
   }, [notify]);
 
+  const refreshAddedAccounts = useCallback(async (ids: string[]) => {
+    await Promise.allSettled(ids.map((id) => refreshAccountUsage(id)));
+    await load();
+    await Promise.allSettled(ids.map((id) => cloudSync?.pushAccount?.(id)));
+  }, [cloudSync, load]);
+
   useEffect(() => { void load(); }, [load]);
   useEffect(() => subscribeToBackendEvents(
     () => void load(),
     (status) => {
       notify(status.message);
       void load();
-      if (status.ok && status.accountId) void cloudSync?.pushAccount?.(status.accountId);
+      if (status.ok && status.accountId) void refreshAddedAccounts([status.accountId]);
     },
-  ), [cloudSync, load, notify]);
+  ), [load, notify, refreshAddedAccounts]);
   useEffect(() => subscribeToProviderEvents(() => void load()), [load]);
 
   const startLogin = useCallback(async (embedded: boolean) => {
@@ -92,10 +98,7 @@ export function useAccountManager(
     try {
       const result = await chooseAndImportAccountJson();
       if (result.status === "imported") {
-        await load();
-        for (const id of result.ids) {
-          await cloudSync?.pushAccount?.(id);
-        }
+        await refreshAddedAccounts(result.ids);
         notify(t(result.skipped.length ? "toast.accountJsonImportedWithSkipped" : "toast.accountJsonImported", {
           count: result.ids.length,
           skipped: result.skipped.length,
@@ -104,17 +107,14 @@ export function useAccountManager(
     } catch (error) {
       notify(String(error));
     }
-  }, [cloudSync, load, notify, t]);
+  }, [notify, refreshAddedAccounts, t]);
 
   const importAccountJsonFromClipboard = useCallback(async () => {
     notify(isDesktopApp ? t("toast.clipboardImportPrompt") : t("toast.previewNoFile"));
     try {
       const result = await importAccountJsonClipboard();
       if (result.status === "imported") {
-        await load();
-        for (const id of result.ids) {
-          await cloudSync?.pushAccount?.(id);
-        }
+        await refreshAddedAccounts(result.ids);
         notify(t(result.skipped.length ? "toast.accountJsonImportedWithSkipped" : "toast.accountJsonImported", {
           count: result.ids.length,
           skipped: result.skipped.length,
@@ -123,7 +123,7 @@ export function useAccountManager(
     } catch (error) {
       notify(String(error));
     }
-  }, [cloudSync, load, notify, t]);
+  }, [notify, refreshAddedAccounts, t]);
 
   const exportAccountArchive = useCallback(async () => {
     notify(isDesktopApp ? t("toast.exportArchivePrompt") : t("toast.previewNoFile"));
