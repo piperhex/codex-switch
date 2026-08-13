@@ -51,7 +51,6 @@ const DIAGNOSTIC_LOG_FILE_NAME: &str = "local-proxy-diagnostics.jsonl";
 const DIAGNOSTIC_RESPONSE_BODY_MAX_CHARS: usize = 4_000;
 const TOKEN_USAGE_JSONL_FILE_NAME: &str = "token-usage.jsonl";
 const TOKEN_USAGE_DB_FILE_NAME: &str = "token-usage.sqlite3";
-const TOKEN_USAGE_DB_KEEP_ROWS: i64 = 10_000;
 const TOKEN_USAGE_LIST_LIMIT: usize = 500;
 const TOKEN_USAGE_CAPTURE_MAX_BYTES: usize = 4 * 1024 * 1024;
 const PROXY_SESSION_REQUEST_KEEP_ROWS: usize = 500;
@@ -3461,8 +3460,7 @@ fn append_token_usage_entry<R: Runtime>(
     entry: &TokenUsageEntry,
 ) -> Result<(), String> {
     let connection = open_token_usage_db(app)?;
-    insert_token_usage_entry(&connection, entry)?;
-    prune_token_usage_entries(&connection)
+    insert_token_usage_entry(&connection, entry)
 }
 
 fn official_model_context_windows(paths: &Paths) -> HashMap<String, u64> {
@@ -3647,7 +3645,6 @@ fn migrate_token_usage_jsonl_if_needed(
 
     if path.exists() {
         import_token_usage_jsonl(connection, path)?;
-        prune_token_usage_entries(connection)?;
     }
     connection
         .execute(
@@ -3987,23 +3984,6 @@ fn add_provider_token_usage_total(
         )
         .map(|_| ())
         .map_err(|error| format!("Failed to update provider token usage total: {error}"))
-}
-
-fn prune_token_usage_entries(connection: &Connection) -> Result<(), String> {
-    connection
-        .execute(
-            r#"
-            DELETE FROM token_usage_entries
-            WHERE id IN (
-                SELECT id FROM token_usage_entries
-                ORDER BY ts DESC, id DESC
-                LIMIT -1 OFFSET ?1
-            )
-            "#,
-            params![TOKEN_USAGE_DB_KEEP_ROWS],
-        )
-        .map(|_| ())
-        .map_err(|error| format!("Failed to prune token usage entries: {error}"))
 }
 
 fn token_usage_params(entry: &TokenUsageEntry) -> [rusqlite::types::Value; 14] {
