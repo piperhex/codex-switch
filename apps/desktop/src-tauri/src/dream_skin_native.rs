@@ -487,6 +487,20 @@ fn write_session(state: &NativeSessionState) -> Result<(), String> {
     write_json(&session_path()?, state)
 }
 
+#[cfg(target_os = "windows")]
+pub(crate) fn record_runtime_executable(executable: &Path) -> Result<(), String> {
+    if !executable.is_file() {
+        return Err("The recorded ChatGPT executable is no longer available.".to_string());
+    }
+    let executable = executable.display().to_string();
+    let mut state = read_session();
+    if state.codex_executable.as_deref() == Some(executable.as_str()) {
+        return Ok(());
+    }
+    state.codex_executable = Some(executable);
+    write_session(&state)
+}
+
 fn image_details(path: &Path) -> Result<(&'static str, u32, u32), String> {
     let metadata = fs::metadata(path)
         .map_err(|error| format!("Failed to inspect {}: {error}", path.display()))?;
@@ -2491,7 +2505,7 @@ fn list_saved_themes() -> Vec<DreamSkinThemeSummary> {
             name: name.to_string(),
         });
     }
-    themes.sort_by(|left, right| left.name.to_lowercase().cmp(&right.name.to_lowercase()));
+    themes.sort_by_key(|theme| theme.name.to_lowercase());
     themes
 }
 

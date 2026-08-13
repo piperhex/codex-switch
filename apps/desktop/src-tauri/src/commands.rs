@@ -9,7 +9,7 @@ use std::{
 };
 
 #[cfg(target_os = "windows")]
-use std::os::windows::process::CommandExt;
+use std::{os::windows::process::CommandExt, thread, time::Instant};
 
 use chrono::{NaiveDate, TimeZone, Utc};
 use reqwest::blocking::{Client, Response};
@@ -1563,11 +1563,7 @@ pub(crate) fn restart_chatgpt_unlocked<R: Runtime>(
     stop_chatgpt_processes()?;
     wait_for_chatgpt_processes_to_exit(Duration::from_secs(10))?;
     sync_active_proxy_auth_for_restart(app)?;
-    if crate::codex_runtime::restart_managed_session()? {
-        Ok(())
-    } else {
-        start_chatgpt(launch_target.as_ref())
-    }
+    restart_chatgpt_from_target(app, launch_target.as_ref())
 }
 
 #[tauri::command]
@@ -1589,13 +1585,49 @@ fn launch_chatgpt_blocking<R: Runtime>(app: tauri::AppHandle<R>) -> Result<bool,
 
     let launch_target = refresh_and_get_chatgpt_launch_target(&app);
     sync_active_proxy_auth_for_restart(&app)?;
-    if crate::codex_runtime::restart_managed_session()? {
-        Ok(true)
-    } else {
-        start_chatgpt(launch_target.as_ref())?;
-        Ok(true)
+    restart_chatgpt_from_target(&app, launch_target.as_ref())?;
+    Ok(true)
+}
+
+pub(crate) fn restart_chatgpt_from_target<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    launch_target: Option<&ChatGptLaunchTarget>,
+) -> Result<(), String> {
+    record_managed_launch_target(launch_target)?;
+    if !crate::codex_runtime::restart_managed_session()? {
+        start_chatgpt(launch_target)?;
+    }
+    refresh_local_codex_path_after_restart(app);
+    Ok(())
+}
+
+#[cfg(target_os = "windows")]
+fn record_managed_launch_target(target: Option<&ChatGptLaunchTarget>) -> Result<(), String> {
+    let Some(ChatGptLaunchTarget::Executable(path)) = target else {
+        return Ok(());
+    };
+    crate::codex_runtime::record_launch_executable(path)
+}
+
+#[cfg(not(target_os = "windows"))]
+fn record_managed_launch_target(_target: Option<&ChatGptLaunchTarget>) -> Result<(), String> {
+    Ok(())
+}
+
+#[cfg(target_os = "windows")]
+fn refresh_local_codex_path_after_restart<R: Runtime>(app: &tauri::AppHandle<R>) {
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while Instant::now() < deadline {
+        if discover_running_chatgpt_or_codex_path().is_some() {
+            refresh_local_codex_path(app);
+            return;
+        }
+        thread::sleep(Duration::from_millis(100));
     }
 }
+
+#[cfg(not(target_os = "windows"))]
+fn refresh_local_codex_path_after_restart<R: Runtime>(_app: &tauri::AppHandle<R>) {}
 
 fn sync_active_proxy_auth_for_restart<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<(), String> {
     if !crate::local_proxy::is_running() {
@@ -2593,9 +2625,10 @@ fn refresh_local_codex_path<R: Runtime>(app: &tauri::AppHandle<R>) {
     };
     let mut state = read_state(&paths);
     if state.local_codex_path.as_deref() != Some(path.as_str()) {
-        state.local_codex_path = Some(path);
+        state.local_codex_path = Some(path.clone());
         let _ = write_state(&paths, &state);
     }
+    let _ = crate::codex_runtime::record_launch_executable(&path);
 }
 
 #[cfg(not(target_os = "windows"))]

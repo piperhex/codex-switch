@@ -1449,11 +1449,11 @@ fn start_local_proxy_blocking<R: Runtime>(
     let sync_result = crate::commands::sync_conversation_metadata_if_present_with_progress(
         &paths.codex_home,
         &mut |processed, total| {
-            let percent = if total == 0 {
-                88
-            } else {
-                38 + ((processed.saturating_mul(50) / total).min(50) as u8)
-            };
+            let percent = processed
+                .saturating_mul(50)
+                .checked_div(total)
+                .map(|progress| 38 + progress.min(50) as u8)
+                .unwrap_or(88);
             emit_start_progress(
                 &app,
                 "syncingConversations",
@@ -1465,13 +1465,7 @@ fn start_local_proxy_blocking<R: Runtime>(
     );
     let start_result = if client_was_running {
         emit_start_progress(&app, "restartingClient", 92, None, None);
-        crate::codex_runtime::restart_managed_session().and_then(|restarted| {
-            if restarted {
-                Ok(())
-            } else {
-                crate::commands::start_chatgpt(launch_target.as_ref())
-            }
-        })
+        crate::commands::restart_chatgpt_from_target(&app, launch_target.as_ref())
     } else {
         Ok(())
     };
@@ -1544,11 +1538,11 @@ fn stop_local_proxy_blocking<R: Runtime>(
         crate::commands::restore_conversation_metadata_if_present_with_progress(
             &paths.codex_home,
             &mut |processed, total| {
-                let percent = if total == 0 {
-                    88
-                } else {
-                    12 + ((processed.saturating_mul(76) / total).min(76) as u8)
-                };
+                let percent = processed
+                    .saturating_mul(76)
+                    .checked_div(total)
+                    .map(|progress| 12 + progress.min(76) as u8)
+                    .unwrap_or(88);
                 emit_stop_progress(
                     &app,
                     "restoringConversations",
@@ -1604,13 +1598,7 @@ fn stop_local_proxy_blocking<R: Runtime>(
     }
 
     emit_stop_progress(&app, "restartingClient", 95, None, None);
-    let restart_result = crate::codex_runtime::restart_managed_session().and_then(|restarted| {
-        if restarted {
-            Ok(())
-        } else {
-            crate::commands::start_chatgpt(launch_target.as_ref())
-        }
-    });
+    let restart_result = crate::commands::restart_chatgpt_from_target(&app, launch_target.as_ref());
     match restart_result {
         Ok(()) => {
             emit_stop_progress(&app, "complete", 100, None, None);
@@ -1650,14 +1638,7 @@ fn recover_proxy_after_failed_stop<R: Runtime>(
         errors.push(format!("proxy configuration rollback failed: {error}"));
     }
     if client_was_running {
-        let restart_result =
-            crate::codex_runtime::restart_managed_session().and_then(|restarted| {
-                if restarted {
-                    Ok(())
-                } else {
-                    crate::commands::start_chatgpt(launch_target)
-                }
-            });
+        let restart_result = crate::commands::restart_chatgpt_from_target(app, launch_target);
         if let Err(error) = restart_result {
             errors.push(format!("client restart failed: {error}"));
         }
