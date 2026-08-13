@@ -34,6 +34,8 @@ type ProxySessionColumnKey =
 const ACTIVITY_FILTER_STORAGE_KEY = "codex-switch.proxy-session-activity-filter";
 const HIDDEN_COLUMNS_STORAGE_KEY = "codex-switch:proxy-session-hidden-columns";
 const COLUMN_ORDER_STORAGE_KEY = "codex-switch:proxy-session-column-order";
+const REQUEST_DETAIL_DEFAULT_PAGE_SIZE = 50;
+const REQUEST_DETAIL_PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 const PROXY_SESSION_COLUMN_KEYS: ProxySessionColumnKey[] = [
   "conversation",
   "connection",
@@ -763,7 +765,7 @@ export function ProxySessionManager({ t, triggerClassName }: ProxySessionManager
         className="proxy-session-request-modal"
         open={detailsSession != null}
         centered
-        width={880}
+        width="95vw"
         title={t("providers.proxy.sessionsRequestDetailsTitle", {
           conversation: detailsSession?.title
             || (detailsSession ? shortSessionId(detailsSession.id) : ""),
@@ -799,7 +801,12 @@ export function ProxySessionManager({ t, triggerClassName }: ProxySessionManager
           loading={detailsLoading}
           columns={requestDetailColumns}
           dataSource={requestDetails}
-          pagination={requestDetails.length > 10 ? { pageSize: 10, size: "small" } : false}
+          pagination={requestDetails.length > 10 ? {
+            defaultPageSize: REQUEST_DETAIL_DEFAULT_PAGE_SIZE,
+            pageSizeOptions: REQUEST_DETAIL_PAGE_SIZE_OPTIONS,
+            showSizeChanger: true,
+            size: "small",
+          } : false}
           locale={{ emptyText: t("providers.proxy.sessionsRequestDetailsEmpty") }}
           scroll={{ x: 930, y: "calc(80vh - 260px)" }}
         />

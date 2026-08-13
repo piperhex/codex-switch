@@ -798,6 +798,12 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .account-recycle-bin-modal .ant-alert { max-width: 400px; margin-bottom: 12px; }
 .account-recycle-bin-modal .proxy-session-description { max-width: 400px; }
 .proxy-session-table { min-height: 0; flex: 1; overflow: hidden; border: 1px solid var(--line); border-radius: 8px; }
+.proxy-session-table > .ant-spin-nested-loading,
+.proxy-session-table > .ant-spin-nested-loading > .ant-spin-container,
+.proxy-session-table .ant-table,
+.proxy-session-table .ant-table-container { height: 100%; }
+.proxy-session-table .ant-table-container { display: flex; min-height: 0; flex-direction: column; }
+.proxy-session-table .ant-table-body { min-height: 0; max-height: none !important; flex: 1; }
 .proxy-session-table .ant-table { font-size: 12px; }
 .proxy-session-table .ant-table-thead > tr > th { background: #f6f8f5; color: #5d6a62; font-size: 11px; }
 .proxy-session-cell { min-width: 0; display: grid; gap: 3px; }
@@ -816,6 +822,26 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .proxy-session-request-modal .ant-modal-body { min-height: 0; flex: 1; display: flex; flex-direction: column; }
 .proxy-session-request-modal .ant-alert { margin-bottom: 12px; }
 .proxy-session-request-table { min-height: 0; flex: 1; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.proxy-session-request-table > .ant-spin-nested-loading,
+.proxy-session-request-table > .ant-spin-nested-loading > .ant-spin-container { height: 100%; }
+.proxy-session-request-table > .ant-spin-nested-loading > .ant-spin-container {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+}
+.proxy-session-request-table .ant-table { min-height: 0; flex: 1; }
+.proxy-session-request-table .ant-table-container { height: 100%; }
+.proxy-session-request-table .ant-table-container {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+}
+.proxy-session-request-table .ant-table-body {
+  min-height: 0;
+  max-height: none !important;
+  flex: 1;
+}
+.proxy-session-request-table .ant-pagination { flex: 0 0 auto; }
 .proxy-session-request-table .ant-table { font-size: 12px; }
 .proxy-session-request-table .ant-table-thead > tr > th { background: #f6f8f5; color: #5d6a62; font-size: 11px; }
 .proxy-session-request-tokens { color: var(--green-dark); cursor: help; }
