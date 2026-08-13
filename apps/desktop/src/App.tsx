@@ -1243,7 +1243,11 @@ function DashboardApp() {
     : activeAccount && !activeAccount.localProxyCompatible
       ? t("providers.proxy.agentIdentityUnsupported")
       : undefined;
+  const titlebarProxyStopDisabledReason = titlebarProxyRunning && activeProvider
+    ? t("providers.error.proxyStopProviderActive")
+    : undefined;
   const titlebarProxyToggleDisabled = providerManager.proxyBusy
+    || Boolean(titlebarProxyStopDisabledReason)
     || (!titlebarProxyRunning && Boolean(titlebarProxyStartDisabledReason));
   const titlebarProxyStatusSwitch = (
     <span className="window-titlebar-proxy-status"
@@ -1258,7 +1262,11 @@ function DashboardApp() {
         }} />
     </span>
   );
-  const titlebarProxyStatusControl = titlebarProxyRunning ? titlebarProxyStatusSwitch
+  const titlebarProxyStatusControl = titlebarProxyStopDisabledReason ? (
+    <Tooltip title={titlebarProxyStopDisabledReason}>
+      <span className="window-titlebar-proxy-status-wrap">{titlebarProxyStatusSwitch}</span>
+    </Tooltip>
+  ) : titlebarProxyRunning ? titlebarProxyStatusSwitch
     : titlebarProxyStartDisabledReason ? (
       <Tooltip title={titlebarProxyStartDisabledReason}>
         <span className="window-titlebar-proxy-status-wrap">{titlebarProxyStatusSwitch}</span>

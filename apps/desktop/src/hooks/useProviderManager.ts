@@ -58,6 +58,9 @@ function providerErrorMessage(error: unknown, t: Translate) {
   if (message.includes("Local proxy was stopped, the selected auth.json and non-proxy conversations were restored")) {
     return t("providers.error.proxyStoppedRestartFailed");
   }
+  if (message.includes("The local proxy cannot be stopped while a third-party Provider is active")) {
+    return t("providers.error.proxyStopProviderActive");
+  }
   if (message.includes("API key is required for a new provider")) return t("providers.error.apiKeyRequired");
   if (message.includes("Provider does not exist")) return t("providers.error.notFound");
   if (message.includes("Chat Completions providers need a local Responses bridge")) {
@@ -318,6 +321,10 @@ export function useProviderManager(
   }, [load, notify, t]);
 
   const stopProxy = useCallback(async () => {
+    if (providers.some((provider) => provider.active)) {
+      notify(t("providers.error.proxyStopProviderActive"));
+      return;
+    }
     setProxyBusy(true);
     setProxyStopProgress({ phase: "stoppingClient", percent: 3 });
     const unsubscribeProgress = subscribeToLocalProxyStopProgress((progress) => {
@@ -357,7 +364,7 @@ export function useProviderManager(
       setProxyStopProgress(null);
       setProxyBusy(false);
     }
-  }, [load, notify, t]);
+  }, [load, notify, providers, t]);
 
   const setProxyAutoSwitch = useCallback(async (enabled: boolean) => {
     setProxyBusy(true);

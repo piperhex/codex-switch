@@ -1519,6 +1519,7 @@ fn stop_local_proxy_blocking<R: Runtime>(
         .map_err(|_| "Account switch lock is poisoned".to_string())?;
     let paths = resolve_paths(&app)?;
     let original_state = read_state(&paths);
+    ensure_proxy_can_stop_with_state(&original_state)?;
     let selected_account_id = original_state.active_account_id.clone();
 
     // Validate the selected credential before interrupting the client. The managed
@@ -1684,6 +1685,15 @@ fn ensure_proxy_can_stop_with_auth(auth: &Value) -> Result<(), String> {
         return Err(
             "当前账号使用 Agent Identity，只能在本地代理模式下使用。请先在代理模式中切换到 OAuth Token 或其他非 Agent Identity 账号，再停止代理"
                 .to_string(),
+        );
+    }
+    Ok(())
+}
+
+fn ensure_proxy_can_stop_with_state(state: &ManagerStateFile) -> Result<(), String> {
+    if state.active_provider_id.is_some() {
+        return Err(
+            "The local proxy cannot be stopped while a third-party Provider is active".to_string(),
         );
     }
     Ok(())
@@ -6457,6 +6467,18 @@ mod tests {
 
         assert!(error.contains("先在代理模式中切换"));
         ensure_proxy_can_stop_with_auth(&json!({ "auth_mode": "chatgpt" })).unwrap();
+    }
+
+    #[test]
+    fn proxy_cannot_stop_while_a_third_party_provider_is_active() {
+        let provider_state = ManagerStateFile {
+            active_provider_id: Some("third-party".to_string()),
+            ..ManagerStateFile::default()
+        };
+
+        let error = ensure_proxy_can_stop_with_state(&provider_state).unwrap_err();
+        assert!(error.contains("third-party Provider is active"));
+        ensure_proxy_can_stop_with_state(&ManagerStateFile::default()).unwrap();
     }
 
     fn account_with_usage(id: &str, primary: f64, secondary: f64) -> AccountSummary {
