@@ -3,6 +3,7 @@ mod agent_identity;
 mod auth;
 mod cloud;
 mod codex_api;
+mod codex_runtime;
 mod commands;
 mod conversation_hub;
 mod dream_skin;
@@ -74,8 +75,9 @@ pub fn run() {
             }
             commands::initialize_local_state(app.handle());
             if !launch_options.headless {
-                if let Err(error) = dream_skin::setup(app.handle()) {
-                    eprintln!("failed to restore Dream Skin monitor: {error}");
+                dream_skin::start_background_updates();
+                if let Err(error) = codex_runtime::setup(app.handle()) {
+                    eprintln!("failed to initialize the Codex renderer channel: {error}");
                 }
             }
             match local_proxy::restore_local_proxy_if_enabled(app.handle()) {

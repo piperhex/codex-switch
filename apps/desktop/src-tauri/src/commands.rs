@@ -1242,7 +1242,7 @@ fn deactivate_account_and_restart_chatgpt_blocking<R: Runtime>(
         return deactivate_result.map(|_| ());
     }
 
-    let restart_result = crate::dream_skin::restart_active_session().and_then(|restarted| {
+    let restart_result = crate::codex_runtime::restart_managed_session().and_then(|restarted| {
         if restarted {
             Ok(())
         } else {
@@ -1330,7 +1330,7 @@ pub(crate) fn switch_account_and_restart_chatgpt_blocking<R: Runtime>(
     // When no client is running, write the replacement credential immediately.
     // When one is running, the preceding shutdown gives the same guarantee.
     switch_account_unlocked(&app, &id)?;
-    if crate::dream_skin::restart_active_session()? {
+    if crate::codex_runtime::restart_managed_session()? {
         return Ok(());
     }
 
@@ -1563,7 +1563,7 @@ pub(crate) fn restart_chatgpt_unlocked<R: Runtime>(
     stop_chatgpt_processes()?;
     wait_for_chatgpt_processes_to_exit(Duration::from_secs(10))?;
     sync_active_proxy_auth_for_restart(app)?;
-    if crate::dream_skin::restart_active_session()? {
+    if crate::codex_runtime::restart_managed_session()? {
         Ok(())
     } else {
         start_chatgpt(launch_target.as_ref())
@@ -1589,7 +1589,7 @@ fn launch_chatgpt_blocking<R: Runtime>(app: tauri::AppHandle<R>) -> Result<bool,
 
     let launch_target = refresh_and_get_chatgpt_launch_target(&app);
     sync_active_proxy_auth_for_restart(&app)?;
-    if crate::dream_skin::restart_active_session()? {
+    if crate::codex_runtime::restart_managed_session()? {
         Ok(true)
     } else {
         start_chatgpt(launch_target.as_ref())?;
@@ -1668,7 +1668,7 @@ fn restore_non_proxy_conversations_blocking<R: Runtime>(
 
     let restore_result = restore_conversation_metadata_if_present(&paths.codex_home);
     let restart_result = if client_was_running {
-        crate::dream_skin::restart_active_session().and_then(|restarted| {
+        crate::codex_runtime::restart_managed_session().and_then(|restarted| {
             if restarted {
                 Ok(())
             } else {

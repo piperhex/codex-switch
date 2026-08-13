@@ -54,7 +54,7 @@ fn refresh_codex_models_best_effort(provider: &ProviderProfile) {
         vec![CODEX_SWITCH_CONTROL_MODEL.to_string()]
     };
     let selected_model = codex_model_for_provider(provider).to_string();
-    crate::dream_skin::refresh_codex_models(models, selected_model);
+    crate::codex_runtime::refresh_models(models, selected_model);
 }
 
 fn codex_model_for_provider(provider: &ProviderProfile) -> &str {
@@ -83,7 +83,7 @@ pub(crate) fn refresh_official_codex_models_for_paths(paths: &Paths) {
     if !crate::local_proxy::is_running() {
         return;
     }
-    crate::dream_skin::refresh_codex_models(Vec::new(), preferred_official_model(paths));
+    crate::codex_runtime::refresh_models(Vec::new(), preferred_official_model(paths));
 }
 
 #[derive(Deserialize)]

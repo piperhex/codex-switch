@@ -1466,7 +1466,7 @@ fn start_local_proxy_blocking<R: Runtime>(
     );
     let start_result = if client_was_running {
         emit_start_progress(&app, "restartingClient", 92, None, None);
-        crate::dream_skin::restart_active_session().and_then(|restarted| {
+        crate::codex_runtime::restart_managed_session().and_then(|restarted| {
             if restarted {
                 Ok(())
             } else {
@@ -1605,7 +1605,7 @@ fn stop_local_proxy_blocking<R: Runtime>(
     }
 
     emit_stop_progress(&app, "restartingClient", 95, None, None);
-    let restart_result = crate::dream_skin::restart_active_session().and_then(|restarted| {
+    let restart_result = crate::codex_runtime::restart_managed_session().and_then(|restarted| {
         if restarted {
             Ok(())
         } else {
@@ -1651,13 +1651,14 @@ fn recover_proxy_after_failed_stop<R: Runtime>(
         errors.push(format!("proxy configuration rollback failed: {error}"));
     }
     if client_was_running {
-        let restart_result = crate::dream_skin::restart_active_session().and_then(|restarted| {
-            if restarted {
-                Ok(())
-            } else {
-                crate::commands::start_chatgpt(launch_target)
-            }
-        });
+        let restart_result =
+            crate::codex_runtime::restart_managed_session().and_then(|restarted| {
+                if restarted {
+                    Ok(())
+                } else {
+                    crate::commands::start_chatgpt(launch_target)
+                }
+            });
         if let Err(error) = restart_result {
             errors.push(format!("client restart failed: {error}"));
         }

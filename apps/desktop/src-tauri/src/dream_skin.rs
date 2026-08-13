@@ -1,12 +1,4 @@
-use std::{
-    env, fs,
-    path::PathBuf,
-    sync::{
-        atomic::{AtomicU64, Ordering},
-        Mutex, OnceLock,
-    },
-    thread,
-};
+use std::{env, fs, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 use tauri::AppHandle;
@@ -106,17 +98,9 @@ fn unsupported_status() -> DreamSkinStatus {
     }
 }
 
-pub(crate) fn setup(app: &AppHandle) -> Result<(), String> {
+pub(crate) fn start_background_updates() {
     #[cfg(any(target_os = "windows", target_os = "macos"))]
-    {
-        crate::dream_skin_resources::start_background_update();
-        crate::dream_skin_native::setup(app)
-    }
-    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
-    {
-        let _ = app;
-        Ok(())
-    }
+    crate::dream_skin_resources::start_background_update();
 }
 
 #[tauri::command]
@@ -151,48 +135,6 @@ pub(crate) fn retry_dream_skin_resources() -> DreamSkinResourcesStatus {
     }
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     get_dream_skin_resources_status()
-}
-
-/// Starts ChatGPT/Codex through the Dream Skin launcher when the skin is
-/// currently enabled.  Regular account-management restarts use this so they
-/// keep the CDP arguments required for renderer injection.
-pub(crate) fn restart_active_session() -> Result<bool, String> {
-    #[cfg(any(target_os = "windows", target_os = "macos"))]
-    return crate::dream_skin_native::restart_active_session();
-    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
-    Ok(false)
-}
-
-/// Refreshes Codex's model picker through the managed renderer channel. This is
-/// deliberately best-effort: Provider routing must keep working when Codex is
-/// closed, Dream Skin is not installed, or a future Codex build changes its UI.
-pub(crate) fn refresh_codex_models(models: Vec<String>, selected_model: String) {
-    #[cfg(any(target_os = "windows", target_os = "macos"))]
-    {
-        static GENERATION: AtomicU64 = AtomicU64::new(0);
-        static REFRESH_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-        let generation = GENERATION.fetch_add(1, Ordering::AcqRel) + 1;
-        let _ = thread::Builder::new()
-            .name("codex-model-picker-refresh".to_string())
-            .spawn(move || {
-                let _guard = REFRESH_LOCK
-                    .get_or_init(|| Mutex::new(()))
-                    .lock()
-                    .unwrap_or_else(|error| error.into_inner());
-                if GENERATION.load(Ordering::Acquire) != generation {
-                    return;
-                }
-                if let Err(error) =
-                    crate::dream_skin_native::refresh_codex_models(&models, &selected_model)
-                {
-                    eprintln!("Codex model picker refresh was skipped: {error}");
-                }
-            });
-    }
-    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
-    {
-        let _ = (models, selected_model);
-    }
 }
 
 async fn run_blocking<T, F>(operation: F) -> Result<T, String>

@@ -217,7 +217,7 @@ const RETIRED_THEME_IDS: [&str; 1] = ["preset-arina-hashimoto"];
 
 static OPERATION_LOCK: Mutex<()> = Mutex::new(());
 static MONITOR: OnceLock<Arc<MonitorControl>> = OnceLock::new();
-static SKIN_LAUNCHING: AtomicBool = AtomicBool::new(false);
+static RUNTIME_LAUNCHING: AtomicBool = AtomicBool::new(false);
 
 #[derive(Clone)]
 struct RuntimePaths {
@@ -229,18 +229,18 @@ struct MonitorControl {
     wake: Condvar,
 }
 
-struct SkinLaunchGuard;
+struct RuntimeLaunchGuard;
 
-impl SkinLaunchGuard {
+impl RuntimeLaunchGuard {
     fn acquire() -> Self {
-        SKIN_LAUNCHING.store(true, Ordering::Release);
+        RUNTIME_LAUNCHING.store(true, Ordering::Release);
         Self
     }
 }
 
-impl Drop for SkinLaunchGuard {
+impl Drop for RuntimeLaunchGuard {
     fn drop(&mut self) {
-        SKIN_LAUNCHING.store(false, Ordering::Release);
+        RUNTIME_LAUNCHING.store(false, Ordering::Release);
     }
 }
 
@@ -1440,12 +1440,7 @@ fn monitor_iteration(
     last_port: &mut Option<u16>,
     unavailable_iterations: &mut u8,
 ) -> Result<(), String> {
-    if !marker_path()?.is_file() {
-        injected.clear();
-        *last_port = None;
-        *unavailable_iterations = 0;
-        return Ok(());
-    }
+    let skin_enabled = marker_path()?.is_file();
     let state = read_session();
     let Some(port) = state.port else {
         injected.clear();
@@ -1457,7 +1452,7 @@ fn monitor_iteration(
         injected.clear();
         *last_port = Some(port);
     }
-    let paused = pause_path()?.is_file();
+    let paused = !skin_enabled || pause_path()?.is_file();
     let payload = if paused {
         None
     } else {
@@ -1469,23 +1464,20 @@ fn monitor_iteration(
             targets
         }
         Err(error) if error.contains("CDP is unavailable") => {
-            if SKIN_LAUNCHING.load(Ordering::Acquire) {
+            if RUNTIME_LAUNCHING.load(Ordering::Acquire) {
                 *unavailable_iterations = 0;
                 return Ok(());
             }
             *unavailable_iterations = unavailable_iterations.saturating_add(1);
-            // A manually started ChatGPT process has no remote-debugging port,
-            // so it cannot receive the renderer payload.  Take it over as soon
-            // as the process appears; SKIN_LAUNCHING already prevents this path
-            // from racing a managed launch.  Pausing the skin remains an
-            // explicit opt out, and closing ChatGPT does not relaunch it because
-            // no process is detected.
-            if *unavailable_iterations >= 1 && has_running_codex_install() {
+            // A manually started Codex process has no renderer channel. Recover
+            // it only when Dream Skin or proxy model synchronization needs that
+            // channel; ordinary app startup must not interrupt the user.
+            let runtime_required =
+                renderer_recovery_required(skin_enabled, crate::local_proxy::is_running());
+            if runtime_required && *unavailable_iterations >= 1 && has_running_codex_install() {
                 *unavailable_iterations = 0;
                 if let Err(restart_error) = recover_running_codex(paths) {
-                    eprintln!(
-                        "Dream Skin could not recover a manual ChatGPT restart: {restart_error}"
-                    );
+                    eprintln!("Codex renderer channel recovery failed: {restart_error}");
                 }
             }
             return Ok(());
@@ -1541,11 +1533,15 @@ fn monitor_iteration(
     Ok(())
 }
 
+fn renderer_recovery_required(skin_enabled: bool, proxy_running: bool) -> bool {
+    skin_enabled || proxy_running
+}
+
 fn recover_running_codex(paths: &RuntimePaths) -> Result<(), String> {
     let _operation = OPERATION_LOCK
         .lock()
-        .map_err(|_| "Dream Skin operation lock is unavailable.".to_string())?;
-    if SKIN_LAUNCHING.load(Ordering::Acquire) {
+        .map_err(|_| "Codex runtime operation lock is unavailable.".to_string())?;
+    if RUNTIME_LAUNCHING.load(Ordering::Acquire) {
         return Ok(());
     }
     // A normal launch can leave renderer/helper processes alive after its
@@ -1553,7 +1549,7 @@ fn recover_running_codex(paths: &RuntimePaths) -> Result<(), String> {
     // the OS to start the managed instance with the debugging arguments.
     crate::commands::stop_chatgpt_processes()?;
     crate::commands::wait_for_chatgpt_processes_to_exit(Duration::from_secs(10))?;
-    restart_with_skin(paths)
+    restart_managed_runtime(paths)
 }
 
 fn monitor_loop(control: Arc<MonitorControl>) {
@@ -1582,7 +1578,7 @@ fn monitor_loop(control: Arc<MonitorControl>) {
             &mut unavailable_iterations,
         ) {
             if !error.contains("CDP is unavailable") {
-                eprintln!("Dream Skin native monitor: {error}");
+                eprintln!("Codex renderer monitor: {error}");
             }
         }
     }
@@ -1617,9 +1613,9 @@ fn ensure_monitor(paths: RuntimePaths) {
         });
         let background = Arc::clone(&control);
         thread::Builder::new()
-            .name("dream-skin-native-monitor".to_string())
+            .name("codex-renderer-monitor".to_string())
             .spawn(move || monitor_loop(background))
-            .expect("failed to start Dream Skin native monitor");
+            .expect("failed to start Codex renderer monitor");
         control
     });
     *control
@@ -1962,7 +1958,7 @@ fn remembered_codex_install() -> Option<CodexInstall> {
     Some(CodexInstall { executable })
 }
 
-fn find_skin_launch_install() -> Result<CodexInstall, String> {
+fn find_runtime_launch_install() -> Result<CodexInstall, String> {
     remembered_codex_install()
         .map(Ok)
         .unwrap_or_else(find_codex_install)
@@ -2085,8 +2081,8 @@ fn launch_codex(install: &CodexInstall, arguments: &str) -> Result<u32, String> 
         .map_err(|error| format!("Failed to launch Codex: {error}"))
 }
 
-fn start_with_skin(paths: &RuntimePaths, install: &CodexInstall) -> Result<(), String> {
-    let _launch = SkinLaunchGuard::acquire();
+fn start_managed_runtime(paths: &RuntimePaths, install: &CodexInstall) -> Result<(), String> {
+    let _launch = RuntimeLaunchGuard::acquire();
     stop_codex(install)?;
     let port = select_port()?;
     let arguments = format!("--remote-debugging-address=127.0.0.1 --remote-debugging-port={port}");
@@ -2099,27 +2095,33 @@ fn start_with_skin(paths: &RuntimePaths, install: &CodexInstall) -> Result<(), S
     ensure_monitor(paths.clone());
     wake_monitor();
     wait_for_targets(port, Duration::from_secs(30))?;
-    wake_monitor();
-    wait_for_verified(port, Duration::from_secs(30))?;
+    if skin_verification_required(marker_path()?.is_file(), pause_path()?.is_file()) {
+        wake_monitor();
+        wait_for_verified(port, Duration::from_secs(30))?;
+    }
     Ok(())
 }
 
-fn restart_with_skin(paths: &RuntimePaths) -> Result<(), String> {
+fn skin_verification_required(skin_installed: bool, skin_paused: bool) -> bool {
+    skin_installed && !skin_paused
+}
+
+fn restart_managed_runtime(paths: &RuntimePaths) -> Result<(), String> {
     // The current process is often already gone on a normal restart.  Prefer
-    // the executable that originally activated the skin instead of falling
+    // the executable that originally activated the runtime instead of falling
     // back to whichever Store installation happens to be discoverable.
-    let install = find_skin_launch_install()?;
+    let install = find_runtime_launch_install()?;
     let fallback = find_default_codex_install()
         .ok()
         .filter(|fallback| !same_install(&install, fallback));
-    match start_with_skin(paths, &install) {
+    match start_managed_runtime(paths, &install) {
         Ok(()) => Ok(()),
         Err(primary_error) if fallback.is_some() => {
             let _ = stop_codex(&install);
             let fallback = fallback.expect("checked above");
-            start_with_skin(paths, &fallback).map_err(|fallback_error| {
+            start_managed_runtime(paths, &fallback).map_err(|fallback_error| {
                 format!(
-                    "Dream Skin could not start from the running ChatGPT path ({}): {primary_error}; fallback path ({}) also failed: {fallback_error}",
+                    "Codex could not start from the running ChatGPT path ({}): {primary_error}; fallback path ({}) also failed: {fallback_error}",
                     install.executable.display(),
                     fallback.executable.display(),
                 )
@@ -2129,23 +2131,22 @@ fn restart_with_skin(paths: &RuntimePaths) -> Result<(), String> {
     }
 }
 
-pub(crate) fn setup(app: &AppHandle) -> Result<(), String> {
-    if !marker_path()?.is_file() {
-        return Ok(());
-    }
+pub(crate) fn setup_runtime(app: &AppHandle) -> Result<(), String> {
     let root = bundled_root(app)?;
-    initialize_store()?;
+    if marker_path()?.is_file() {
+        initialize_store()?;
+    }
+    if !session_path()?.is_file() {
+        write_session(&NativeSessionState::default())?;
+    }
     ensure_monitor(RuntimePaths { bundled_root: root });
     Ok(())
 }
 
-pub(crate) fn restart_active_session() -> Result<bool, String> {
-    if !marker_path()?.is_file() || pause_path()?.is_file() {
-        return Ok(false);
-    }
+pub(crate) fn restart_runtime_session() -> Result<(), String> {
     let _operation = OPERATION_LOCK
         .lock()
-        .map_err(|_| "Dream Skin operation lock is unavailable.".to_string())?;
+        .map_err(|_| "Codex runtime operation lock is unavailable.".to_string())?;
     let paths = MONITOR
         .get()
         .and_then(|control| {
@@ -2155,9 +2156,8 @@ pub(crate) fn restart_active_session() -> Result<bool, String> {
                 .unwrap_or_else(|error| error.into_inner())
                 .clone()
         })
-        .ok_or_else(|| "Dream Skin runtime is not initialized.".to_string())?;
-    restart_with_skin(&paths)?;
-    Ok(true)
+        .ok_or_else(|| "Codex runtime is not initialized.".to_string())?;
+    restart_managed_runtime(&paths)
 }
 
 fn install_unlocked(app: &AppHandle, restart_chatgpt: bool) -> Result<(), String> {
@@ -2182,7 +2182,7 @@ fn install_unlocked(app: &AppHandle, restart_chatgpt: bool) -> Result<(), String
     }
     let paths = RuntimePaths { bundled_root: root };
     if restart_chatgpt {
-        restart_with_skin(&paths)
+        restart_managed_runtime(&paths)
     } else {
         ensure_monitor(paths);
         Ok(())
@@ -2233,7 +2233,7 @@ pub(crate) fn apply_theme(app: &AppHandle, theme_id: &str) -> Result<(), String>
         wake_monitor();
         Ok(())
     } else {
-        restart_with_skin(&paths)
+        restart_managed_runtime(&paths)
     }
 }
 
@@ -2316,7 +2316,7 @@ pub(crate) fn import_image(
         wake_monitor();
         Ok(())
     } else {
-        restart_with_skin(&paths)
+        restart_managed_runtime(&paths)
     }
 }
 
@@ -2376,7 +2376,7 @@ pub(crate) fn set_paused(app: &AppHandle, paused: bool) -> Result<(), String> {
         Ok(())
     } else {
         let _ = fs::remove_file(pause_path()?);
-        restart_with_skin(&paths)
+        restart_managed_runtime(&paths)
     }
 }
 
@@ -2386,7 +2386,7 @@ pub(crate) fn reapply(app: &AppHandle) -> Result<(), String> {
         .map_err(|_| "Dream Skin operation lock is unavailable.".to_string())?;
     let paths = ensure_installed(app)?;
     let _ = fs::remove_file(pause_path()?);
-    restart_with_skin(&paths)
+    restart_managed_runtime(&paths)
 }
 
 pub(crate) fn verify(app: &AppHandle) -> Result<String, String> {
@@ -2425,19 +2425,17 @@ pub(crate) fn restore(app: &AppHandle) -> Result<(), String> {
             }
         }
     }
-    let install = find_codex_install()?;
-    stop_codex(&install)?;
-    for path in [marker_path()?, session_path()?, pause_path()?] {
+    for path in [marker_path()?, pause_path()?] {
         match fs::remove_file(&path) {
             Ok(()) => {}
             Err(error) if error.kind() == ErrorKind::NotFound => {}
             Err(error) => return Err(format!("Failed to remove {}: {error}", path.display())),
         }
     }
-    launch_codex(&install, "")?;
     wake_monitor();
-    let _ = app;
-    Ok(())
+    restart_managed_runtime(&RuntimePaths {
+        bundled_root: bundled_root(app)?,
+    })
 }
 
 fn list_saved_themes() -> Vec<DreamSkinThemeSummary> {
@@ -2686,6 +2684,20 @@ mod tests {
 
         assert!(expression.contains("Codex Switch Control"));
         assert!(expression.contains("isDefault:"));
+    }
+
+    #[test]
+    fn renderer_recovery_does_not_depend_on_dream_skin() {
+        assert!(renderer_recovery_required(false, true));
+        assert!(renderer_recovery_required(true, false));
+        assert!(!renderer_recovery_required(false, false));
+    }
+
+    #[test]
+    fn skin_verification_is_only_required_for_an_active_skin() {
+        assert!(skin_verification_required(true, false));
+        assert!(!skin_verification_required(false, false));
+        assert!(!skin_verification_required(true, true));
     }
 
     #[test]
@@ -2942,7 +2954,7 @@ mod tests {
         )
         .unwrap();
         write_session(&NativeSessionState::default()).unwrap();
-        restart_with_skin(&RuntimePaths { bundled_root })
+        restart_managed_runtime(&RuntimePaths { bundled_root })
             .expect("native runtime should launch and inject Codex");
     }
 }
