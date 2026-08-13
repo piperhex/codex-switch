@@ -53,7 +53,6 @@
 18. Do not keep commented-out code, dead code, unused variables, or unused dependencies.
 19. Modules should communicate through public interfaces. Do not depend on another module's internal implementation details.
 20. When modifying existing code, prioritize local consistency and avoid unrelated large-scale refactoring for small changes.
-    对，**Tauri 项目最好再加一组 Rust / Tauri 专项约束**。否则前端控制得很干净，`src-tauri` 里仍然可能出现一个几百行的 `commands.rs` 或 `main.rs`。
 21. Rust source files should generally not exceed **500 lines**. Split large files by domain or responsibility.
 22. A single Rust function should generally not exceed **50 lines**. Complex logic should be extracted into smaller functions or dedicated modules.
 23. Tauri `command` functions should remain thin. They should primarily handle input validation, permission checks, state access, and delegation to service-layer logic.
