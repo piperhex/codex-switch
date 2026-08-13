@@ -310,6 +310,12 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
             app,
             argument(&args, "provider")?,
         )),
+        "fetch_deepseek_models" => serialize(block_on(crate::providers::fetch_deepseek_models(
+            app,
+            argument(&args, "baseUrl")?,
+            argument(&args, "apiKey")?,
+            argument(&args, "providerId")?,
+        ))),
         "query_provider_balance" => serialize(block_on(crate::providers::query_provider_balance(
             app,
             argument(&args, "id")?,
@@ -332,6 +338,13 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
             argument(&args, "id")?,
             argument(&args, "controlledByCodex")?,
         )),
+        "set_provider_auto_switch_enabled" => {
+            serialize(crate::providers::set_provider_auto_switch_enabled(
+                app,
+                argument(&args, "id")?,
+                argument(&args, "enabled")?,
+            ))
+        }
         "disable_provider" => serialize(crate::providers::disable_provider(app)),
         "delete_provider" => serialize(crate::providers::delete_provider(
             app,

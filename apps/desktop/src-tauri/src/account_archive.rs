@@ -108,6 +108,9 @@ pub(crate) fn import_accounts_archive<R: Runtime>(
     if !result.provider_ids.is_empty() {
         app.emit("providers-changed", ())
             .map_err(|error| error.to_string())?;
+        if let Ok(paths) = resolve_paths(&app) {
+            crate::providers::refresh_active_codex_models_for_paths(&paths);
+        }
     }
     crate::system_tray::refresh_menu(&app);
     Ok(result)

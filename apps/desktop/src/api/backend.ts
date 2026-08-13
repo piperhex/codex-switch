@@ -239,6 +239,7 @@ function readPreviewProviders(): Provider[] {
           ? true
           : Boolean(provider.modelSelectionControlledByCodex),
         apiFormat: kind === "openai" ? "openaiResponses" : provider.apiFormat,
+        autoSwitchEnabled: kind === "custom" && Boolean(provider.autoSwitchEnabled),
         balancePlatform: provider.balancePlatform ?? null,
         balanceQueryUrl: provider.balanceQueryUrl ?? null,
         balanceQueryUsesApiKey: provider.balanceQueryUsesApiKey !== false,
@@ -385,6 +386,7 @@ export async function saveProviderProfile(provider: ProviderInput): Promise<Prov
         : provider.modelSelectionControlledByCodex,
       apiFormat,
       active: existing?.active ?? false,
+      autoSwitchEnabled: kind === "custom" && Boolean(existing?.autoSwitchEnabled),
       hasApiKey,
       supportsDirectSwitch: previewLocalProxyStatus().running,
       balancePlatform: provider.balancePlatform ?? null,
@@ -414,18 +416,36 @@ export async function saveProviderProfile(provider: ProviderInput): Promise<Prov
   return invoke<Provider>("save_provider", { provider });
 }
 
+export async function fetchDeepSeekModels(
+  baseUrl: string,
+  apiKey?: string,
+  providerId?: string,
+): Promise<string[]> {
+  if (!hasLocalBackend) {
+    return ["deepseek-v4-flash", "deepseek-v4-pro"];
+  }
+  return invoke<string[]>("fetch_deepseek_models", {
+    baseUrl,
+    apiKey: apiKey?.trim() || null,
+    providerId: providerId ?? null,
+  });
+}
+
 async function performProviderBalanceQuery(id: string): Promise<ProviderBalance> {
   if (!hasLocalBackend) {
     const provider = readPreviewProviders().find((item) => item.id === id);
     if (!provider) throw new Error("Provider does not exist");
     if (!provider.balancePlatform) throw new Error("Provider balance query is not enabled");
     return {
-      apiAmount: provider.balancePlatform === "newApi" ? 108.08 : 42.5,
-      apiUnit: "USD",
+      apiAmount: provider.balancePlatform === "newApi" ? 108.08 : provider.balancePlatform === "deepSeek" ? 88.8 : 42.5,
+      apiUnit: provider.balancePlatform === "deepSeek" ? "CNY" : "USD",
       apiUnlimited: false,
-      walletAmount: provider.hasWalletQueryToken || provider.hasWalletLoginCredentials ? 66.6 : null,
+      walletAmount: provider.balancePlatform !== "deepSeek" && (provider.hasWalletQueryToken || provider.hasWalletLoginCredentials) ? 66.6 : null,
       walletUnit: "USD",
       walletError: null,
+      balanceItems: provider.balancePlatform === "deepSeek"
+        ? [{ amount: 88.8, unit: "CNY" }, { amount: 12.5, unit: "USD" }]
+        : [],
       queriedAt: Math.floor(Date.now() / 1000),
     };
   }
@@ -517,6 +537,25 @@ export async function setProviderModelControl(id: string, controlledByCodex: boo
     return providers[index];
   }
   return invoke<Provider>("set_provider_model_control", { id, controlledByCodex });
+}
+
+export async function setProviderAutoSwitchEnabled(id: string, enabled: boolean): Promise<void> {
+  if (!hasLocalBackend) {
+    const providers = readPreviewProviders();
+    const selected = providers.find((provider) => provider.id === id);
+    if (!selected) throw new Error("Provider does not exist");
+    if (selected.kind !== "custom") {
+      throw new Error("Automatic fallback is only available for third-party Providers");
+    }
+    writePreviewProviders(providers.map((provider) => ({
+      ...provider,
+      autoSwitchEnabled: provider.kind === "custom" && (
+        enabled ? provider.id === id : provider.id !== id && provider.autoSwitchEnabled
+      ),
+    })));
+    return;
+  }
+  await invoke("set_provider_auto_switch_enabled", { id, enabled });
 }
 
 export async function deactivateProvider(): Promise<void> {
@@ -1580,7 +1619,11 @@ export async function chooseAndExportDiagnosticLogs(): Promise<ExportDiagnosticL
 }
 
 export async function activateAccount(id: string): Promise<void> {
-  if (hasLocalBackend) await invoke("switch_account_and_restart_chatgpt", { id });
+  if (!hasLocalBackend) {
+    writePreviewProviders(readPreviewProviders().map((provider) => ({ ...provider, active: false })));
+    return;
+  }
+  await invoke("switch_account_and_restart_chatgpt", { id });
 }
 
 export async function deactivateAccount(): Promise<void> {

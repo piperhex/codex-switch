@@ -15,6 +15,7 @@ import {
   setLocalProxyAutoSwitch,
   setLocalProxyConcurrentRouting,
   setProviderModelControl,
+  setProviderAutoSwitchEnabled,
   startLocalProxy,
   stopLocalProxy,
   subscribeToLocalProxyStartProgress,
@@ -217,6 +218,21 @@ export function useProviderManager(
       setBusyProviderId(null);
     }
   }, [cloudSync, load, notify, t]);
+
+  const setProviderAutoSwitch = useCallback(async (id: string, enabled: boolean) => {
+    setBusyProviderId(id);
+    try {
+      await setProviderAutoSwitchEnabled(id, enabled);
+      notify(t(enabled
+        ? "toast.providerAutoSwitchEnabled"
+        : "toast.providerAutoSwitchDisabled"));
+      await load();
+    } catch (error) {
+      notify(providerErrorMessage(error, t));
+    } finally {
+      setBusyProviderId(null);
+    }
+  }, [load, notify, t]);
 
   const deleteProvider = useCallback(async (id: string) => {
     setBusyProviderId(id);
@@ -465,6 +481,7 @@ export function useProviderManager(
     switchProvider,
     switchModel,
     setModelControl,
+    setProviderAutoSwitch,
     deleteProvider,
     deleteProviders,
     startProxy,

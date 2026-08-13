@@ -59,6 +59,8 @@ pub(crate) struct ResetCreditsSummary {
 pub(crate) struct ManagerStateFile {
     pub(crate) active_account_id: Option<String>,
     pub(crate) active_provider_id: Option<String>,
+    #[serde(default)]
+    pub(crate) auto_switch_provider_id: Option<String>,
     /// Last known executable used by the local ChatGPT/Codex desktop app. This is
     /// intentionally only a local launch hint; it is never synced with accounts.
     #[serde(default)]
@@ -117,6 +119,7 @@ pub(crate) enum ProviderKind {
 pub(crate) enum ProviderBalancePlatform {
     NewApi,
     Sub2Api,
+    DeepSeek,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -165,6 +168,7 @@ pub(crate) struct ProviderSummary {
     pub(crate) model_selection_controlled_by_codex: bool,
     pub(crate) api_format: ProviderApiFormat,
     pub(crate) active: bool,
+    pub(crate) auto_switch_enabled: bool,
     pub(crate) has_api_key: bool,
     pub(crate) supports_direct_switch: bool,
     pub(crate) balance_platform: Option<ProviderBalancePlatform>,
@@ -186,7 +190,15 @@ pub(crate) struct ProviderBalance {
     pub(crate) wallet_amount: Option<f64>,
     pub(crate) wallet_unit: String,
     pub(crate) wallet_error: Option<String>,
+    pub(crate) balance_items: Vec<ProviderBalanceItem>,
     pub(crate) queried_at: i64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ProviderBalanceItem {
+    pub(crate) amount: f64,
+    pub(crate) unit: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -601,6 +613,7 @@ mod tests {
             serde_json::from_str(r#"{"active_account_id":"account-1"}"#).unwrap();
 
         assert_eq!(state.active_account_id.as_deref(), Some("account-1"));
+        assert!(state.auto_switch_provider_id.is_none());
         assert!(!state.local_proxy_enabled);
         assert!(!state.auto_switch_on_quota_exhaustion);
         assert!(!state.concurrent_account_routing_enabled);
