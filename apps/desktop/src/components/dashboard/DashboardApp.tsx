@@ -1160,16 +1160,20 @@ export function DashboardApp() {
             {page === "sessions" && <MemoCodexThreadsPage language={language} notify={notify} />}
           </section>
           <section className="page-panel" hidden={page !== "providers"}>
-            <MemoProvidersPage providers={providerManager.providers} active={page === "providers"}
+            <MemoProvidersPage providers={providerManager.providers} accounts={manager.accounts}
+              active={page === "providers"}
               loading={providerManager.loading}
               busyProviderId={providerManager.busyProviderId} saving={providerManager.saving}
-              localProxy={providerManager.localProxy} onSave={providerManager.saveProvider}
+              localProxy={providerManager.localProxy} proxyBusy={providerManager.proxyBusy}
+              onSave={providerManager.saveProvider}
               onSwitch={switchProvider} onSwitchModel={switchProviderModel}
               onModelControlChange={setProviderModelControl}
               onAutoSwitchChange={providerManager.setProviderAutoSwitch}
               onDelete={deleteProvider}
               onDeleteMany={providerManager.deleteProviders}
+              onImageAccountChange={providerManager.setProxyImageAccount}
               displayMode={accountDisplayMode.displayMode}
+              privacyMode={privacyMode.enabled}
               tokenUsageRefreshSeconds={tokenUsagePreferences.refreshSeconds}
               language={language} t={t} />
           </section>

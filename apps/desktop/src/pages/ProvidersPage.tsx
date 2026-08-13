@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import type { AccountDisplayMode } from "../hooks/useAccountDisplayMode";
 import type { Language, Translate } from "../i18n";
-import type { LocalProxyStatus, Provider, ProviderInput } from "../types";
+import type { Account, LocalProxyStatus, Provider, ProviderInput } from "../types";
 import { ProviderModal } from "./providers/ProviderModal";
 import { DeepSeekProviderModal, OpenAiProviderModal, ProviderPresetModal } from "./providers/ProviderPresetModals";
 import { RelayStationModal } from "./providers/RelayStationModal";
@@ -16,11 +16,13 @@ import { useProviderTokenUsage } from "./providers/useProviderTokenUsage";
 
 interface ProvidersPageProps {
   providers: Provider[];
+  accounts: Account[];
   active: boolean;
   loading: boolean;
   busyProviderId: string | null;
   saving: boolean;
   localProxy: LocalProxyStatus | null;
+  proxyBusy: boolean;
   onSave: (provider: ProviderInput) => Promise<Provider | null>;
   onSwitch: (id: string) => void;
   onSwitchModel: (id: string, model: string) => void;
@@ -28,18 +30,22 @@ interface ProvidersPageProps {
   onAutoSwitchChange: (id: string, enabled: boolean) => void;
   onDelete: (id: string) => void;
   onDeleteMany: (ids: string[]) => Promise<string[]>;
+  onImageAccountChange: (accountId: string | null) => void;
   displayMode: AccountDisplayMode;
+  privacyMode: boolean;
   tokenUsageRefreshSeconds: number;
   language: Language;
   t: Translate;
 }
 export function ProvidersPage({
   providers,
+  accounts,
   active,
   loading,
   busyProviderId,
   saving,
   localProxy,
+  proxyBusy,
   onSave,
   onSwitch,
   onSwitchModel,
@@ -47,7 +53,9 @@ export function ProvidersPage({
   onAutoSwitchChange,
   onDelete,
   onDeleteMany,
+  onImageAccountChange,
   displayMode,
+  privacyMode,
   tokenUsageRefreshSeconds,
   language,
   t,
@@ -127,7 +135,10 @@ export function ProvidersPage({
       {providers.length ? displayMode === "table"
         ? <ProviderTableView {...providerViewProps} onDeleteMany={onDeleteMany}
           selectedProviderIds={selectedProviderIds} setSelectedProviderIds={setSelectedProviderIds}
-          bulkDeleteBusy={bulkDeleteBusy} setBulkDeleteBusy={setBulkDeleteBusy} />
+          bulkDeleteBusy={bulkDeleteBusy} setBulkDeleteBusy={setBulkDeleteBusy}
+          accounts={accounts} imageGenerationAccountId={localProxy?.imageGenerationAccountId ?? null}
+          imageAccountBusy={proxyBusy} onImageAccountChange={onImageAccountChange}
+          privacyMode={privacyMode} />
         : <ProviderCardView {...providerViewProps} /> : (
         <div className="provider-empty">
           <Server size={24} />

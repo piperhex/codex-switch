@@ -3,8 +3,9 @@ import type { Dispatch, SetStateAction } from "react";
 import { Button, Checkbox, Dropdown, Popconfirm, Space, Table, Tag, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { Check, Columns3, Pencil, RotateCcw, Server, Shuffle, Trash2 } from "lucide-react";
+import { ImageAccountSelect } from "../../components/ImageAccountSelect";
 import type { Language, Translate } from "../../i18n";
-import type { Provider, ProviderTokenUsageTotals } from "../../types";
+import type { Account, Provider, ProviderTokenUsageTotals } from "../../types";
 import {
   apiFormatTag,
   ProviderBalanceCell,
@@ -35,6 +36,11 @@ interface ProviderViewProps {
 }
 
 interface ProviderTableProps extends ProviderViewProps {
+  accounts: Account[];
+  imageGenerationAccountId: string | null;
+  imageAccountBusy: boolean;
+  onImageAccountChange: (accountId: string | null) => void;
+  privacyMode: boolean;
   onDeleteMany: (ids: string[]) => Promise<string[]>;
   selectedProviderIds: string[];
   setSelectedProviderIds: Dispatch<SetStateAction<string[]>>;
@@ -137,6 +143,11 @@ function buildColumns(options: ProviderViewProps): ColumnsType<Provider> {
 export function ProviderTableView(options: ProviderTableProps) {
   const {
     providers,
+    accounts,
+    imageGenerationAccountId,
+    imageAccountBusy,
+    onImageAccountChange,
+    privacyMode,
     onDeleteMany,
     selectedProviderIds,
     setSelectedProviderIds,
@@ -181,6 +192,11 @@ export function ProviderTableView(options: ProviderTableProps) {
   };
   return <div className="provider-table-wrap">
     <div className="provider-table-toolbar">
+      {options.proxyRunning && (
+        <ImageAccountSelect accounts={accounts} accountId={imageGenerationAccountId}
+          busy={imageAccountBusy} onChange={onImageAccountChange}
+          privacyMode={privacyMode} t={t} />
+      )}
       <Popconfirm title={t("providers.batchDelete.title", { count: selectedProviderIds.length })}
         description={t("providers.batchDelete.description")} okText={t("providers.delete.ok")}
         cancelText={t("providers.delete.cancel")} okButtonProps={{ danger: true }}
