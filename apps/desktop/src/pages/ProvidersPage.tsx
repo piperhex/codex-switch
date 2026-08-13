@@ -914,13 +914,19 @@ function ProviderModelControlCell({
 }) {
   const codexControlled = provider.modelSelectionControlledByCodex;
   const fixedToCodex = provider.kind === "openai";
+  const options = fixedToCodex
+    ? [{ value: true, label: t("providers.control.byCodex") }]
+    : [
+        { value: true, label: t("providers.control.byCodex") },
+        { value: false, label: t("providers.control.byApp") },
+      ];
   return (
     <div className="provider-model-owner">
       <Tooltip title={codexControlled ? t("providers.tooltip.codexModelControl") : t("providers.tooltip.appModelControl")}>
-        <Switch size="small" checked={codexControlled} disabled={busy || fixedToCodex}
-          onChange={(checked) => onModelControlChange(provider.id, checked)} />
+        <Select size="small" value={codexControlled} disabled={busy || fixedToCodex}
+          options={options} popupMatchSelectWidth={false}
+          onChange={(value) => onModelControlChange(provider.id, value)} />
       </Tooltip>
-      <span>{codexControlled ? t("providers.control.codex") : t("providers.control.app")}</span>
     </div>
   );
 }
@@ -1094,7 +1100,7 @@ export function ProvidersPage({
     {
       title: t("providers.table.modelControl"),
       key: "modelControl",
-      width: 130,
+      width: 190,
       render: (_, provider) => <ProviderModelControlCell provider={provider}
         busy={busyProviderId === provider.id} onModelControlChange={onModelControlChange} t={t} />,
     },

@@ -28,6 +28,7 @@ pub(crate) const LOCAL_PROXY_PORT: u16 = 15722;
 pub(crate) const LOCAL_PROXY_BASE_URL: &str = "http://127.0.0.1:15722/v1";
 pub(crate) const LOCAL_PROXY_TOKEN: &str = "CODEX_SWITCH_LOCAL_PROXY";
 pub(crate) const LOCAL_PROXY_ACTOR_AUTHORIZATION_HEADER: &str = "x-openai-actor-authorization";
+pub(crate) const CODEX_SWITCH_CONTROL_MODEL: &str = "codex switch control";
 const LOCAL_PROXY_PROVIDER_ID: &str = "codex-switch-local";
 const LOCAL_PROXY_PROVIDER_NAME: &str = "Codex Switch Local Proxy";
 pub(crate) const DEFAULT_OFFICIAL_MODEL: &str = "gpt-5.6-sol";
@@ -50,9 +51,18 @@ fn refresh_codex_models_best_effort(provider: &ProviderProfile) {
     let models = if provider.model_selection_controlled_by_codex {
         provider.models.clone()
     } else {
-        vec![provider.model.clone()]
+        vec![CODEX_SWITCH_CONTROL_MODEL.to_string()]
     };
-    crate::dream_skin::refresh_codex_models(models, provider.model.clone());
+    let selected_model = codex_model_for_provider(provider).to_string();
+    crate::dream_skin::refresh_codex_models(models, selected_model);
+}
+
+fn codex_model_for_provider(provider: &ProviderProfile) -> &str {
+    if provider.model_selection_controlled_by_codex {
+        &provider.model
+    } else {
+        CODEX_SWITCH_CONTROL_MODEL
+    }
 }
 
 pub(crate) fn refresh_active_codex_models_for_paths(paths: &Paths) {
@@ -1799,7 +1809,11 @@ fn write_provider_local_proxy_config(
     paths: &Paths,
     provider: &ProviderProfile,
 ) -> Result<(), String> {
-    write_local_proxy_config(paths, &provider.name, Some(&provider.model))
+    write_local_proxy_config(
+        paths,
+        &provider.name,
+        Some(codex_model_for_provider(provider)),
+    )
 }
 
 fn write_active_provider_config(paths: &Paths, provider: &ProviderProfile) -> Result<(), String> {
@@ -2762,6 +2776,24 @@ sandbox_mode = "workspace-write"
         let merged = merge_provider_config("", &provider);
 
         assert!(!merged.contains("model_catalog_json"));
+    }
+
+    #[test]
+    fn switch_control_uses_fixed_model_name_for_codex() {
+        let provider = provider();
+
+        assert_eq!(
+            codex_model_for_provider(&provider),
+            CODEX_SWITCH_CONTROL_MODEL
+        );
+    }
+
+    #[test]
+    fn codex_control_keeps_selected_provider_model() {
+        let mut provider = provider();
+        provider.model_selection_controlled_by_codex = true;
+
+        assert_eq!(codex_model_for_provider(&provider), "gpt-4.1");
     }
 
     #[test]

@@ -4204,7 +4204,7 @@ fn provider_models_for_codex(provider: &ProviderProfile) -> Vec<String> {
     if provider.model_selection_controlled_by_codex {
         provider.models.clone()
     } else {
-        vec![provider.model.clone()]
+        vec![providers::CODEX_SWITCH_CONTROL_MODEL.to_string()]
     }
 }
 
@@ -7489,6 +7489,41 @@ mod tests {
                 assert!(model.get(key).is_some(), "missing Codex model field {key}");
             }
         }
+    }
+
+    #[test]
+    fn switch_control_catalog_exposes_only_fixed_model_name() {
+        let provider = ProviderProfile {
+            id: "deepseek".to_string(),
+            kind: ProviderKind::Custom,
+            name: "DeepSeek".to_string(),
+            base_url: "https://api.deepseek.com/v1".to_string(),
+            api_key: "sk-provider-test".to_string(),
+            model: "deepseek-chat".to_string(),
+            models: vec!["deepseek-chat".to_string(), "deepseek-reasoner".to_string()],
+            context_window: None,
+            model_selection_controlled_by_codex: false,
+            api_format: ProviderApiFormat::OpenaiResponses,
+            balance_platform: None,
+            balance_query_url: None,
+            balance_query_token: None,
+            wallet_query_url: None,
+            wallet_query_token: None,
+            wallet_username: None,
+            wallet_password: None,
+        };
+
+        assert_eq!(
+            provider_models_for_codex(&provider),
+            vec![providers::CODEX_SWITCH_CONTROL_MODEL.to_string()]
+        );
+        assert_eq!(
+            selected_provider_model(
+                &json!({ "model": providers::CODEX_SWITCH_CONTROL_MODEL }),
+                &provider,
+            ),
+            "deepseek-chat"
+        );
     }
 
     #[test]
