@@ -35,6 +35,8 @@ const NATIVE_RUNTIME_VERSION: &str = "2.0.0";
 const SKIN_VERSION: &str = "1.2.2";
 const DEFAULT_CDP_PORT: u16 = 9335;
 const CDP_COMMAND_TIMEOUT: Duration = Duration::from_secs(10);
+const CODEX_RENDERER_START_TIMEOUT: Duration = Duration::from_secs(30);
+const DREAM_SKIN_START_VERIFICATION_TIMEOUT: Duration = Duration::from_secs(90);
 const MAX_ART_BYTES: u64 = 16 * 1024 * 1024;
 const MAX_ART_DIMENSION: u32 = 16_384;
 const MAX_ART_PIXELS: u64 = 50_000_000;
@@ -230,6 +232,12 @@ struct MonitorControl {
 }
 
 struct RuntimeLaunchGuard;
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum SkinVerificationMode {
+    Background,
+    Required,
+}
 
 impl RuntimeLaunchGuard {
     fn acquire() -> Self {
@@ -1577,7 +1585,7 @@ fn recover_running_codex(paths: &RuntimePaths) -> Result<(), String> {
     // the OS to start the managed instance with the debugging arguments.
     crate::commands::stop_chatgpt_processes()?;
     crate::commands::wait_for_chatgpt_processes_to_exit(Duration::from_secs(10))?;
-    restart_managed_runtime(paths)
+    restart_managed_runtime(paths, SkinVerificationMode::Background)
 }
 
 fn monitor_loop(control: Arc<MonitorControl>) {
@@ -2109,7 +2117,11 @@ fn launch_codex(install: &CodexInstall, arguments: &str) -> Result<u32, String> 
         .map_err(|error| format!("Failed to launch Codex: {error}"))
 }
 
-fn start_managed_runtime(paths: &RuntimePaths, install: &CodexInstall) -> Result<(), String> {
+fn start_managed_runtime(
+    paths: &RuntimePaths,
+    install: &CodexInstall,
+    verification_mode: SkinVerificationMode,
+) -> Result<(), String> {
     let _launch = RuntimeLaunchGuard::acquire();
     stop_codex(install)?;
     let port = select_port()?;
@@ -2122,10 +2134,14 @@ fn start_managed_runtime(paths: &RuntimePaths, install: &CodexInstall) -> Result
     launch_codex(install, &arguments)?;
     ensure_monitor(paths.clone());
     wake_monitor();
-    wait_for_targets(port, Duration::from_secs(30))?;
-    if skin_verification_required(marker_path()?.is_file(), pause_path()?.is_file()) {
+    wait_for_targets(port, CODEX_RENDERER_START_TIMEOUT)?;
+    let skin_installed = marker_path()?.is_file();
+    let skin_paused = pause_path()?.is_file();
+    if skin_verification_required(skin_installed, skin_paused) {
         wake_monitor();
-        wait_for_verified(port, Duration::from_secs(30))?;
+        if wait_for_skin_verification(skin_installed, skin_paused, verification_mode) {
+            wait_for_verified(port, DREAM_SKIN_START_VERIFICATION_TIMEOUT)?;
+        }
     }
     Ok(())
 }
@@ -2134,7 +2150,19 @@ fn skin_verification_required(skin_installed: bool, skin_paused: bool) -> bool {
     skin_installed && !skin_paused
 }
 
-fn restart_managed_runtime(paths: &RuntimePaths) -> Result<(), String> {
+fn wait_for_skin_verification(
+    skin_installed: bool,
+    skin_paused: bool,
+    verification_mode: SkinVerificationMode,
+) -> bool {
+    skin_verification_required(skin_installed, skin_paused)
+        && verification_mode == SkinVerificationMode::Required
+}
+
+fn restart_managed_runtime(
+    paths: &RuntimePaths,
+    verification_mode: SkinVerificationMode,
+) -> Result<(), String> {
     // The current process is often already gone on a normal restart.  Prefer
     // the executable that originally activated the runtime instead of falling
     // back to whichever Store installation happens to be discoverable.
@@ -2142,12 +2170,12 @@ fn restart_managed_runtime(paths: &RuntimePaths) -> Result<(), String> {
     let fallback = find_default_codex_install()
         .ok()
         .filter(|fallback| !same_install(&install, fallback));
-    match start_managed_runtime(paths, &install) {
+    match start_managed_runtime(paths, &install, verification_mode) {
         Ok(()) => Ok(()),
         Err(primary_error) if fallback.is_some() => {
             let _ = stop_codex(&install);
             let fallback = fallback.expect("checked above");
-            start_managed_runtime(paths, &fallback).map_err(|fallback_error| {
+            start_managed_runtime(paths, &fallback, verification_mode).map_err(|fallback_error| {
                 format!(
                     "Codex could not start from the running ChatGPT path ({}): {primary_error}; fallback path ({}) also failed: {fallback_error}",
                     install.executable.display(),
@@ -2185,7 +2213,7 @@ pub(crate) fn restart_runtime_session() -> Result<(), String> {
                 .clone()
         })
         .ok_or_else(|| "Codex runtime is not initialized.".to_string())?;
-    restart_managed_runtime(&paths)
+    restart_managed_runtime(&paths, SkinVerificationMode::Background)
 }
 
 fn install_unlocked(app: &AppHandle, restart_chatgpt: bool) -> Result<(), String> {
@@ -2210,7 +2238,7 @@ fn install_unlocked(app: &AppHandle, restart_chatgpt: bool) -> Result<(), String
     }
     let paths = RuntimePaths { bundled_root: root };
     if restart_chatgpt {
-        restart_managed_runtime(&paths)
+        restart_managed_runtime(&paths, SkinVerificationMode::Required)
     } else {
         ensure_monitor(paths);
         Ok(())
@@ -2261,7 +2289,7 @@ pub(crate) fn apply_theme(app: &AppHandle, theme_id: &str) -> Result<(), String>
         wake_monitor();
         Ok(())
     } else {
-        restart_managed_runtime(&paths)
+        restart_managed_runtime(&paths, SkinVerificationMode::Required)
     }
 }
 
@@ -2344,7 +2372,7 @@ pub(crate) fn import_image(
         wake_monitor();
         Ok(())
     } else {
-        restart_managed_runtime(&paths)
+        restart_managed_runtime(&paths, SkinVerificationMode::Required)
     }
 }
 
@@ -2404,7 +2432,7 @@ pub(crate) fn set_paused(app: &AppHandle, paused: bool) -> Result<(), String> {
         Ok(())
     } else {
         let _ = fs::remove_file(pause_path()?);
-        restart_managed_runtime(&paths)
+        restart_managed_runtime(&paths, SkinVerificationMode::Required)
     }
 }
 
@@ -2414,7 +2442,7 @@ pub(crate) fn reapply(app: &AppHandle) -> Result<(), String> {
         .map_err(|_| "Dream Skin operation lock is unavailable.".to_string())?;
     let paths = ensure_installed(app)?;
     let _ = fs::remove_file(pause_path()?);
-    restart_managed_runtime(&paths)
+    restart_managed_runtime(&paths, SkinVerificationMode::Required)
 }
 
 pub(crate) fn verify(app: &AppHandle) -> Result<String, String> {
@@ -2461,9 +2489,12 @@ pub(crate) fn restore(app: &AppHandle) -> Result<(), String> {
         }
     }
     wake_monitor();
-    restart_managed_runtime(&RuntimePaths {
-        bundled_root: bundled_root(app)?,
-    })
+    restart_managed_runtime(
+        &RuntimePaths {
+            bundled_root: bundled_root(app)?,
+        },
+        SkinVerificationMode::Required,
+    )
 }
 
 fn list_saved_themes() -> Vec<DreamSkinThemeSummary> {
@@ -2735,6 +2766,25 @@ mod tests {
     }
 
     #[test]
+    fn ordinary_restarts_leave_skin_verification_to_the_monitor() {
+        assert!(!wait_for_skin_verification(
+            true,
+            false,
+            SkinVerificationMode::Background,
+        ));
+        assert!(wait_for_skin_verification(
+            true,
+            false,
+            SkinVerificationMode::Required,
+        ));
+        assert!(!wait_for_skin_verification(
+            false,
+            false,
+            SkinVerificationMode::Required,
+        ));
+    }
+
+    #[test]
     fn verification_timeout_reason_is_never_empty() {
         let failed_main = vec![json!({ "result": { "pass": false } })];
 
@@ -2988,7 +3038,10 @@ mod tests {
         )
         .unwrap();
         write_session(&NativeSessionState::default()).unwrap();
-        restart_managed_runtime(&RuntimePaths { bundled_root })
-            .expect("native runtime should launch and inject Codex");
+        restart_managed_runtime(
+            &RuntimePaths { bundled_root },
+            SkinVerificationMode::Required,
+        )
+        .expect("native runtime should launch and inject Codex");
     }
 }
