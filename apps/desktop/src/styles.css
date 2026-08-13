@@ -237,6 +237,13 @@ main.accounts-main .accounts-page-panel { flex: 1; display: flex; flex-direction
 .topbar { width: 100%; height: 110px; padding: 25px var(--page-x); border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; gap: 18px; background: rgba(248,250,247,.82); backdrop-filter: blur(16px); }
 .topbar-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; }
 .provider-topbar-action-slot { display: flex; align-items: center; gap: 10px; }
+.provider-add-menu-button.ant-btn {
+  height: auto;
+  padding: 9px 13px;
+  border-radius: 9px;
+  font-size: 12px;
+  line-height: normal;
+}
 .accounts-topbar { height: 136px; padding: 16px; }
 .token-heatmap { min-width: 0; flex: 1 1 auto; display: flex; align-items: center; gap: 18px; overflow: hidden; }
 .token-heatmap-summary { min-width: 158px; display: grid; gap: 5px; }
