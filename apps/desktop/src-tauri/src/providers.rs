@@ -1115,7 +1115,7 @@ fn write_local_provider(
     {
         if old_values
             .as_ref()
-            .map_or(true, |values| values[index] != new_values[index])
+            .is_none_or(|values| values[index] != new_values[index])
         {
             *version = now.clone();
         }
@@ -1194,20 +1194,26 @@ fn provider_summary(
     }
 }
 
+type NormalizedBalanceSettings = (
+    Option<ProviderBalancePlatform>,
+    Option<String>,
+    Option<String>,
+);
+
+type NormalizedWalletSettings = (
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+);
+
 fn normalize_balance_settings(
     platform: Option<ProviderBalancePlatform>,
     query_url: Option<String>,
     supplied_token: Option<String>,
     uses_api_key: bool,
     existing: Option<&ProviderProfile>,
-) -> Result<
-    (
-        Option<ProviderBalancePlatform>,
-        Option<String>,
-        Option<String>,
-    ),
-    String,
-> {
+) -> Result<NormalizedBalanceSettings, String> {
     let Some(platform) = platform else {
         return Ok((None, None, None));
     };
@@ -1241,15 +1247,7 @@ fn normalize_wallet_settings(
     supplied_username: Option<String>,
     supplied_password: Option<String>,
     existing: Option<&ProviderProfile>,
-) -> Result<
-    (
-        Option<String>,
-        Option<String>,
-        Option<String>,
-        Option<String>,
-    ),
-    String,
-> {
+) -> Result<NormalizedWalletSettings, String> {
     if platform.is_none() {
         return Ok((None, None, None, None));
     }

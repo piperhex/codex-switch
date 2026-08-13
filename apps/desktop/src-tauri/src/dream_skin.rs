@@ -69,10 +69,10 @@ fn platform_name() -> &'static str {
 pub(crate) fn state_root() -> Result<PathBuf, String> {
     #[cfg(target_os = "windows")]
     {
-        return env::var_os("LOCALAPPDATA")
+        env::var_os("LOCALAPPDATA")
             .map(PathBuf::from)
             .map(|path| path.join("CodexDreamSkin"))
-            .ok_or_else(|| "LOCALAPPDATA is unavailable.".to_string());
+            .ok_or_else(|| "LOCALAPPDATA is unavailable.".to_string())
     }
     #[cfg(target_os = "macos")]
     {
@@ -110,7 +110,7 @@ pub(crate) fn setup(app: &AppHandle) -> Result<(), String> {
     #[cfg(any(target_os = "windows", target_os = "macos"))]
     {
         crate::dream_skin_resources::start_background_update();
-        return crate::dream_skin_native::setup(app);
+        crate::dream_skin_native::setup(app)
     }
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     {
@@ -128,7 +128,7 @@ pub(crate) fn get_dream_skin_resources_status() -> DreamSkinResourcesStatus {
             crate::dream_skin_resources::start_background_update();
             return crate::dream_skin_resources::status();
         }
-        return current;
+        current
     }
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     DreamSkinResourcesStatus {
@@ -147,7 +147,7 @@ pub(crate) fn retry_dream_skin_resources() -> DreamSkinResourcesStatus {
     #[cfg(any(target_os = "windows", target_os = "macos"))]
     {
         crate::dream_skin_resources::start_background_update();
-        return crate::dream_skin_resources::status();
+        crate::dream_skin_resources::status()
     }
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     get_dream_skin_resources_status()

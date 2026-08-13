@@ -1465,7 +1465,7 @@ fn report_device_activity_blocking<R: Runtime>(app: &tauri::AppHandle<R>) -> Res
 /// Reporting happens in the background so it cannot delay proxy responses.
 pub(crate) fn report_device_activity_after_usage<R: Runtime>(app: tauri::AppHandle<R>) {
     let usage_count = USAGE_SINCE_LAST_ACTIVITY_REPORT.fetch_add(1, Ordering::Relaxed) + 1;
-    if usage_count % ACTIVITY_REPORT_USAGE_INTERVAL != 0 {
+    if !usage_count.is_multiple_of(ACTIVITY_REPORT_USAGE_INTERVAL) {
         return;
     }
 
@@ -1564,15 +1564,19 @@ pub(crate) fn fetch_skill_market_items<R: Runtime>(
         .map_err(|error| format!("Skill market response is invalid: {error}"))
 }
 
+pub(crate) struct SkillMarketUpload<'a> {
+    pub(crate) title: &'a str,
+    pub(crate) description: &'a str,
+    pub(crate) version: &'a str,
+    pub(crate) skill_id: Option<&'a str>,
+    pub(crate) archive_file_name: &'a str,
+    pub(crate) archive: &'a [u8],
+    pub(crate) preview: Option<&'a SkillPreview>,
+}
+
 pub(crate) fn upload_skill_market_item<R: Runtime>(
     app: &tauri::AppHandle<R>,
-    title: &str,
-    description: &str,
-    version: &str,
-    skill_id: Option<&str>,
-    archive_file_name: &str,
-    archive: &[u8],
-    preview: Option<&SkillPreview>,
+    upload: SkillMarketUpload<'_>,
 ) -> Result<SkillMarketItem, String> {
     let _credentials_guard = lock_cloud_credentials()?;
     let client = feedback_client()?;
@@ -1581,26 +1585,27 @@ pub(crate) fn upload_skill_market_item<R: Runtime>(
     if credentials.access_token.is_none() || credentials.refresh_token.is_none() {
         return Err("Please sign in before publishing a skill".to_string());
     }
-    let method = if skill_id.is_some() {
+    let method = if upload.skill_id.is_some() {
         Method::PATCH
     } else {
         Method::POST
     };
-    let path = skill_id
+    let path = upload
+        .skill_id
         .map(|id| format!("/skills/{id}"))
         .unwrap_or_else(|| "/skills".to_string());
     let mut final_response = None;
     for attempt in 0..2 {
-        let archive_part = multipart::Part::bytes(archive.to_vec())
-            .file_name(archive_file_name.to_string())
+        let archive_part = multipart::Part::bytes(upload.archive.to_vec())
+            .file_name(upload.archive_file_name.to_string())
             .mime_str("application/zip")
             .map_err(|error| format!("Could not prepare skill archive upload: {error}"))?;
         let mut form = multipart::Form::new()
-            .text("title", title.to_string())
-            .text("description", description.to_string())
-            .text("version", version.to_string())
+            .text("title", upload.title.to_string())
+            .text("description", upload.description.to_string())
+            .text("version", upload.version.to_string())
             .part("archive", archive_part);
-        if let Some(preview) = preview {
+        if let Some(preview) = upload.preview {
             let preview_part = multipart::Part::bytes(preview.data.clone())
                 .file_name(preview.file_name.clone())
                 .mime_str(&preview.mime_type)
@@ -2429,10 +2434,14 @@ mod tests {
 
     #[test]
     fn saved_logins_are_isolated_by_cloud_server() {
-        let mut first = AppSettings::default();
-        first.cloud_base_url = Some("https://cloud-one.example".to_string());
-        let mut second = AppSettings::default();
-        second.cloud_base_url = Some("https://cloud-two.example".to_string());
+        let first = AppSettings {
+            cloud_base_url: Some("https://cloud-one.example".to_string()),
+            ..AppSettings::default()
+        };
+        let second = AppSettings {
+            cloud_base_url: Some("https://cloud-two.example".to_string()),
+            ..AppSettings::default()
+        };
 
         let first_service = saved_cloud_login_service(&first).unwrap();
         let second_service = saved_cloud_login_service(&second).unwrap();
@@ -2454,8 +2463,10 @@ mod tests {
             StatusCode::SERVICE_UNAVAILABLE
         ));
 
-        let mut settings = AppSettings::default();
-        settings.cloud_session_expired = true;
+        let settings = AppSettings {
+            cloud_session_expired: true,
+            ..AppSettings::default()
+        };
         let state = cloud_state(&settings, &CloudCredentials::default());
         assert!(state.session_expired);
         assert!(!state.authenticated);

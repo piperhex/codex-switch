@@ -304,6 +304,9 @@ struct CodexInstall {
     app_user_model_id: Option<String>,
 }
 
+#[cfg(target_os = "windows")]
+type VersionedCodexInstall = ((u16, u16, u16, u16), CodexInstall);
+
 #[derive(Clone)]
 struct InjectedTarget {
     revision: String,
@@ -1728,7 +1731,7 @@ fn same_install(left: &CodexInstall, right: &CodexInstall) -> bool {
 #[cfg(target_os = "windows")]
 fn attach_matching_package_identity(
     mut install: CodexInstall,
-    packaged_installs: &[((u16, u16, u16, u16), CodexInstall)],
+    packaged_installs: &[VersionedCodexInstall],
 ) -> CodexInstall {
     if install.app_user_model_id.is_none() {
         install.app_user_model_id = packaged_installs
@@ -1784,7 +1787,7 @@ fn stop_codex(install: &CodexInstall) -> Result<(), String> {
 }
 
 #[cfg(target_os = "windows")]
-fn find_codex_installs() -> Result<Vec<((u16, u16, u16, u16), CodexInstall)>, String> {
+fn find_codex_installs() -> Result<Vec<VersionedCodexInstall>, String> {
     use windows::{
         core::HSTRING,
         Management::Deployment::PackageManager,
@@ -2070,7 +2073,7 @@ fn launch_codex(install: &CodexInstall, arguments: &str) -> Result<u32, String> 
 
 fn start_with_skin(paths: &RuntimePaths, install: &CodexInstall) -> Result<(), String> {
     let _launch = SkinLaunchGuard::acquire();
-    stop_codex(&install)?;
+    stop_codex(install)?;
     let port = select_port()?;
     let arguments = format!("--remote-debugging-address=127.0.0.1 --remote-debugging-port={port}");
     let mut state = read_session();
@@ -2078,7 +2081,7 @@ fn start_with_skin(paths: &RuntimePaths, install: &CodexInstall) -> Result<(), S
     state.port = Some(port);
     state.codex_executable = Some(install.executable.display().to_string());
     write_session(&state)?;
-    launch_codex(&install, &arguments)?;
+    launch_codex(install, &arguments)?;
     ensure_monitor(paths.clone());
     wake_monitor();
     wait_for_targets(port, Duration::from_secs(30))?;

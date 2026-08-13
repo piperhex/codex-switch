@@ -1382,7 +1382,7 @@ fn switch_account_unlocked<R: Runtime>(app: &tauri::AppHandle<R>, id: &str) -> R
     if proxy_running {
         crate::providers::refresh_official_codex_models_for_paths(&paths);
     }
-    crate::system_tray::refresh_menu(&app);
+    crate::system_tray::refresh_menu(app);
     Ok(())
 }
 
@@ -1491,7 +1491,7 @@ fn set_account_auto_switch_enabled_for_paths(
     let _guard = account_auto_switch_state_lock()
         .lock()
         .map_err(|_| "Account auto-switch state lock is poisoned".to_string())?;
-    let mut state = read_state(&paths);
+    let mut state = read_state(paths);
     let changed = update_disabled_account_ids(&mut state, id, enabled);
     if changed {
         write_state(paths, &state)?;
@@ -2789,8 +2789,9 @@ pub(crate) fn start_chatgpt(target: Option<&ChatGptLaunchTarget>) -> Result<(), 
 fn start_chatgpt_windows_default(target: Option<&ChatGptLaunchTarget>) -> Result<(), String> {
     match target {
         Some(ChatGptLaunchTarget::ShellApp(app_id)) => start_windows_shell_app(app_id),
-        Some(ChatGptLaunchTarget::Executable(target)) => start_windows_executable(target)
-            .or_else(|recorded_error| start_official_windows_chatgpt(recorded_error)),
+        Some(ChatGptLaunchTarget::Executable(target)) => {
+            start_windows_executable(target).or_else(start_official_windows_chatgpt)
+        }
         None => Err("未找到本地 ChatGPT/Codex 路径，且官方默认安装路径不可用".to_string()),
     }
 }

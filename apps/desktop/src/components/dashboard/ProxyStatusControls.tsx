@@ -1,0 +1,108 @@
+import { Popconfirm, Switch, Tooltip } from "antd";
+import { Copy } from "lucide-react";
+import { hasLocalBackend } from "../../api/backend";
+import type { Translate } from "../../i18n";
+import type { Account, Provider } from "../../types";
+import type { useProviderManager } from "../../hooks/useProviderManager";
+
+type ProviderManager = ReturnType<typeof useProviderManager>;
+
+interface ProxyStatusControlsProps {
+  activeAccount: Account | null;
+  activeProvider: Provider | null;
+  customTitlebarEnabled: boolean;
+  manager: ProviderManager;
+  notify: (message: string) => void;
+  onRequestLanAccess: () => void;
+  t: Translate;
+}
+
+function startDisabledReason(options: ProxyStatusControlsProps) {
+  const { activeAccount, manager, t } = options;
+  if (!hasLocalBackend && !manager.localProxy?.port) return t("providers.proxy.webPortRequired");
+  if (activeAccount && !activeAccount.localProxyCompatible) {
+    return t("providers.proxy.agentIdentityUnsupported");
+  }
+  return undefined;
+}
+
+export function ProxyStatusControls(options: ProxyStatusControlsProps) {
+  const { activeProvider, customTitlebarEnabled, manager, notify, onRequestLanAccess, t } = options;
+  const running = Boolean(manager.localProxy?.running);
+  const baseUrl = manager.localProxy?.port
+    ? `http://${manager.localProxy.address}:${manager.localProxy.port}/v1`
+    : "--";
+  const startReason = startDisabledReason(options);
+  const stopReason = running && activeProvider ? t("providers.error.proxyStopProviderActive") : undefined;
+  const toggleDisabled = manager.proxyBusy || Boolean(stopReason) || (!running && Boolean(startReason));
+
+  const copyBaseUrl = () => {
+    if (!manager.localProxy) return;
+    void navigator.clipboard.writeText(baseUrl)
+      .then(() => notify(t("providers.proxy.endpointCopied")))
+      .catch((error) => notify(String(error)));
+  };
+  const changeLanListening = (enabled: boolean) => {
+    if (enabled) onRequestLanAccess();
+    else void manager.setProxyListenOnAllInterfaces(false);
+  };
+  const statusSwitch = (
+    <span className="window-titlebar-proxy-status"
+      title={t(running ? "providers.proxy.stop" : "providers.proxy.start")}>
+      <span>{t(running ? "providers.proxy.running" : "providers.proxy.stopped")}</span>
+      <Switch className="window-titlebar-proxy-switch" size="small" checked={running}
+        loading={manager.proxyBusy} disabled={toggleDisabled}
+        aria-label={t(running ? "providers.proxy.stop" : "providers.proxy.start")}
+        onChange={(checked) => {
+          if (!checked && running) void manager.stopProxy();
+        }} />
+    </span>
+  );
+  const disabledReason = stopReason ?? (running ? undefined : startReason);
+  const statusControl = disabledReason ? (
+    <Tooltip title={disabledReason}>
+      <span className="window-titlebar-proxy-status-wrap">{statusSwitch}</span>
+    </Tooltip>
+  ) : running ? statusSwitch : (
+    <Popconfirm title={t("providers.proxy.startConfirmTitle")}
+      description={<span className="proxy-start-confirm-description">{t("providers.proxy.description")}</span>}
+      okText={t("providers.proxy.start")} cancelText={t("providers.proxy.cancel")}
+      disabled={manager.proxyBusy} onConfirm={() => void manager.startProxy()}>
+      {statusSwitch}
+    </Popconfirm>
+  );
+
+  return (
+    <div className={`window-titlebar-proxy${
+      !customTitlebarEnabled ? " web-proxy-controls" : ""
+    }${running ? " is-running" : ""}`}>
+      <button type="button" className="window-titlebar-proxy-endpoint" disabled={!manager.localProxy?.port}
+        aria-label={t("providers.proxy.copyEndpoint")} title={t("providers.proxy.copyEndpoint")}
+        onClick={copyBaseUrl}>
+        <span>{t("providers.proxy.baseUrl", { url: baseUrl })}</span>
+        <Copy size={11} aria-hidden="true" />
+      </button>
+      {statusControl}
+      {running && (
+        <span className="window-titlebar-proxy-lan" title="0.0.0.0">
+          <span>{t("providers.proxy.listenLan")}</span>
+          <Switch className="window-titlebar-proxy-lan-switch" size="small"
+            checked={manager.localProxy?.listenOnAllInterfaces ?? false} loading={manager.proxyBusy}
+            disabled={manager.proxyBusy} aria-label={t("providers.proxy.listenLan")}
+            onChange={changeLanListening} />
+          <Tooltip title={manager.localProxy?.hasLanApiKey
+            ? t("providers.proxy.copyLanApiKey") : t("providers.proxy.copyLanApiKeyUnavailable")}>
+            <span className="window-titlebar-proxy-lan-copy-wrap">
+              <button type="button" className="window-titlebar-proxy-lan-copy"
+                disabled={manager.proxyBusy || !manager.localProxy?.hasLanApiKey}
+                aria-label={t("providers.proxy.copyLanApiKey")}
+                onClick={() => void manager.copyProxyLanApiKey()}>
+                <Copy size={12} aria-hidden="true" />
+              </button>
+            </span>
+          </Tooltip>
+        </span>
+      )}
+    </div>
+  );
+}

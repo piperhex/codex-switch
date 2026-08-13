@@ -54,6 +54,18 @@ pub(crate) struct SkillPreviewInput {
     data_base64: String,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct SkillPublishRequest {
+    title: String,
+    description: String,
+    version: String,
+    skill_id: Option<String>,
+    package_path: String,
+    package_kind: String,
+    preview: Option<SkillPreviewInput>,
+}
+
 #[derive(Debug)]
 pub(crate) struct SkillPreview {
     pub(crate) file_name: String,
@@ -389,18 +401,12 @@ pub(crate) async fn list_market_skills<R: Runtime>(
 #[tauri::command]
 pub(crate) async fn upload_market_skill<R: Runtime>(
     app: tauri::AppHandle<R>,
-    title: String,
-    description: String,
-    version: String,
-    skill_id: Option<String>,
-    package_path: String,
-    package_kind: String,
-    preview: Option<SkillPreviewInput>,
+    request: SkillPublishRequest,
 ) -> Result<SkillMarketItem, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let title = title.trim();
-        let description = description.trim();
-        let version = version.trim();
+        let title = request.title.trim();
+        let description = request.description.trim();
+        let version = request.version.trim();
         if title.is_empty() || title.chars().count() > 120 {
             return Err("Skill title must contain 1-120 characters".to_string());
         }
@@ -415,8 +421,8 @@ pub(crate) async fn upload_market_skill<R: Runtime>(
         {
             return Err("Skill version contains unsupported characters".to_string());
         }
-        let path = Path::new(&package_path);
-        let archive = match package_kind.as_str() {
+        let path = Path::new(&request.package_path);
+        let archive = match request.package_kind.as_str() {
             "archive" => read_archive(path)?,
             "folder" => zip_folder(path)?,
             _ => return Err("Unsupported skill package type".to_string()),
@@ -433,16 +439,18 @@ pub(crate) async fn upload_market_skill<R: Runtime>(
                 }
             })
             .unwrap_or_else(|| "skill.zip".to_string());
-        let preview = decode_preview(preview)?;
+        let preview = decode_preview(request.preview)?;
         cloud::upload_skill_market_item(
             &app,
-            title,
-            description,
-            version,
-            skill_id.as_deref(),
-            &file_name,
-            &archive,
-            preview.as_ref(),
+            cloud::SkillMarketUpload {
+                title,
+                description,
+                version,
+                skill_id: request.skill_id.as_deref(),
+                archive_file_name: &file_name,
+                archive: &archive,
+                preview: preview.as_ref(),
+            },
         )
     })
     .await

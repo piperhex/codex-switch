@@ -364,30 +364,20 @@ pub(crate) struct AppSettings {
     pub(crate) last_started_version: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) enum BubbleResetDisplay {
+    #[default]
     Countdown,
     ResetAt,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) enum BubbleStyle {
+    #[default]
     Classic,
     Glass,
-}
-
-impl Default for BubbleStyle {
-    fn default() -> Self {
-        Self::Classic
-    }
-}
-
-impl Default for BubbleResetDisplay {
-    fn default() -> Self {
-        Self::Countdown
-    }
 }
 
 fn default_privacy_mode() -> bool {

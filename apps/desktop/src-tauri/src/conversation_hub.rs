@@ -549,10 +549,7 @@ pub(crate) fn browse_codex_threads_blocking<R: Runtime>(
             .is_some_and(|query| snapshot.title.to_lowercase().contains(query));
         let match_excerpt = match content_query.as_deref() {
             Some(_) if title_query.is_some() && title_matches => None,
-            Some(query) => match locate_rollout_text(&snapshot.path, query)? {
-                Some(value) => Some(value),
-                None => None,
-            },
+            Some(query) => locate_rollout_text(&snapshot.path, query)?,
             None => None,
         };
         let matches = match (title_query.is_some(), content_query.is_some()) {

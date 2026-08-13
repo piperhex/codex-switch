@@ -1370,13 +1370,15 @@ export async function chooseSkillFolder(): Promise<SkillPackageSelection | null>
 export async function publishSkill(input: SkillPublishInput): Promise<SkillMarketItem> {
   if (!isDesktopApp) throw new Error("Skill publishing is available in the desktop app");
   return invoke<SkillMarketItem>("upload_market_skill", {
-    title: input.title,
-    description: input.description,
-    version: input.version,
-    skillId: input.skillId ?? null,
-    packagePath: input.package.path,
-    packageKind: input.package.kind,
-    preview: input.preview ?? null,
+    request: {
+      title: input.title,
+      description: input.description,
+      version: input.version,
+      skillId: input.skillId ?? null,
+      packagePath: input.package.path,
+      packageKind: input.package.kind,
+      preview: input.preview ?? null,
+    },
   });
 }
 

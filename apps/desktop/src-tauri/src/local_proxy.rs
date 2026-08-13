@@ -257,7 +257,7 @@ enum UpstreamBody {
 
 enum ActiveTarget {
     Official { model: String },
-    Provider(ProviderProfile),
+    Provider(Box<ProviderProfile>),
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -1069,15 +1069,15 @@ fn list_proxy_sessions_blocking<R: Runtime>(
     let paths = resolve_paths(app).ok();
     let official_context_windows = paths
         .as_ref()
-        .map(|paths| official_model_context_windows(paths))
+        .map(official_model_context_windows)
         .unwrap_or_default();
     let upstream_official_provider_names = paths
         .as_ref()
-        .map(|paths| upstream_official_provider_names(paths))
+        .map(upstream_official_provider_names)
         .unwrap_or_default();
     let provider_context_windows = paths
         .as_ref()
-        .map(|paths| provider_context_windows(paths))
+        .map(provider_context_windows)
         .unwrap_or_default();
     let session_ids = sessions
         .iter()
@@ -1281,15 +1281,15 @@ fn list_token_usage_entries_blocking<R: Runtime>(
     let paths = resolve_paths(app).ok();
     let official_context_windows = paths
         .as_ref()
-        .map(|paths| official_model_context_windows(paths))
+        .map(official_model_context_windows)
         .unwrap_or_default();
     let upstream_official_provider_names = paths
         .as_ref()
-        .map(|paths| upstream_official_provider_names(paths))
+        .map(upstream_official_provider_names)
         .unwrap_or_default();
     let provider_context_windows = paths
         .as_ref()
-        .map(|paths| provider_context_windows(paths))
+        .map(provider_context_windows)
         .unwrap_or_default();
     for entry in &mut entries {
         entry.model_context_window =
@@ -2693,7 +2693,7 @@ fn active_target_for_request<R: Runtime>(
     if let Some(id) = state.active_provider_id {
         let provider = providers::read_provider(&paths, &id)?;
         providers::ensure_not_local_proxy_base_url(&provider.base_url)?;
-        return Ok(ActiveTarget::Provider(provider));
+        return Ok(ActiveTarget::Provider(Box::new(provider)));
     }
     Ok(ActiveTarget::Official {
         model: providers::preferred_official_model(&paths),
@@ -4998,7 +4998,7 @@ fn flush_pending_tool_calls(messages: &mut Vec<Value>, pending_tool_calls: &mut 
     messages.push(json!({
         "role": "assistant",
         "content": Value::Null,
-        "tool_calls": pending_tool_calls.drain(..).collect::<Vec<_>>()
+        "tool_calls": std::mem::take(pending_tool_calls)
     }));
 }
 
@@ -6140,7 +6140,7 @@ fn response_failed_sse(response_id: &str, model: &str, message: &str) -> String 
 fn push_sse(output: &mut String, event: &str, value: Value) {
     output.push_str("event: ");
     output.push_str(event);
-    output.push_str("\n");
+    output.push('\n');
     output.push_str("data: ");
     output.push_str(&value.to_string());
     output.push_str("\n\n");
@@ -7140,7 +7140,7 @@ mod tests {
         }))
         .unwrap();
 
-        let target = ActiveTarget::Provider(provider);
+        let target = ActiveTarget::Provider(Box::new(provider));
         let entry = proxy_diagnostic_entry(
             &Method::Post,
             "/v1/responses",
@@ -7187,7 +7187,7 @@ mod tests {
         }))
         .unwrap();
 
-        let target = ActiveTarget::Provider(provider);
+        let target = ActiveTarget::Provider(Box::new(provider));
         let entry = proxy_diagnostic_entry(
             &Method::Post,
             "/v1/chat/completions",
