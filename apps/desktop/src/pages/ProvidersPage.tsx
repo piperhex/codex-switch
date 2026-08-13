@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Button, Space } from "antd";
+import { Space } from "antd";
 import {
-  Bot, Plus, RefreshCw, Server, Sparkles, WalletCards,
+  RefreshCw, Server,
 } from "lucide-react";
 import type { AccountDisplayMode } from "../hooks/useAccountDisplayMode";
 import type { Language, Translate } from "../i18n";
@@ -11,6 +11,7 @@ import { ProviderModal } from "./providers/ProviderModal";
 import { DeepSeekProviderModal, OpenAiProviderModal, ProviderPresetModal } from "./providers/ProviderPresetModals";
 import { RelayStationModal } from "./providers/RelayStationModal";
 import { ProviderCardView, ProviderTableView } from "./providers/ProviderViews";
+import { ProviderAddMenu } from "./providers/ProviderAddMenu";
 import { useProviderTokenUsage } from "./providers/useProviderTokenUsage";
 
 interface ProvidersPageProps {
@@ -117,20 +118,8 @@ export function ProvidersPage({
   return (
     <>
       {topbarHost && createPortal(
-        <>
-          <Button type="primary" icon={<Sparkles size={14} />} onClick={() => setShowPresetModal(true)}>
-            {t("providers.action.addPreset")}
-          </Button>
-          <Button type="primary" icon={<Bot size={14} />} onClick={openCreateOpenAi}>
-            {t("providers.action.addOpenAi")}
-          </Button>
-          <Button icon={<Plus size={14} />} onClick={openCreate}>
-            {t("providers.action.add")}
-          </Button>
-          <Button icon={<WalletCards size={14} />} onClick={() => setShowRelayModal(true)}>
-            {t("providers.action.addRelay")}
-          </Button>
-        </>,
+        <ProviderAddMenu onAddPreset={() => setShowPresetModal(true)} onAddOpenAi={openCreateOpenAi}
+          onAddProvider={openCreate} onAddRelay={() => setShowRelayModal(true)} t={t} />,
         topbarHost,
       )}
       <div className="provider-page">
@@ -144,13 +133,8 @@ export function ProvidersPage({
           <Server size={24} />
           <strong>{t("providers.empty.title")}</strong>
           <Space size={8}>
-            <Button type="primary" icon={<Sparkles size={14} />} onClick={() => setShowPresetModal(true)}>
-              {t("providers.action.addPreset")}
-            </Button>
-            <Button type="primary" icon={<Bot size={14} />} onClick={openCreateOpenAi}>
-              {t("providers.action.addOpenAi")}
-            </Button>
-            <Button icon={<Plus size={14} />} onClick={openCreate}>{t("providers.action.add")}</Button>
+            <ProviderAddMenu onAddPreset={() => setShowPresetModal(true)} onAddOpenAi={openCreateOpenAi}
+              onAddProvider={openCreate} onAddRelay={() => setShowRelayModal(true)} t={t} />
           </Space>
         </div>
       )}
