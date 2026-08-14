@@ -20,6 +20,7 @@
   --green-rgb: 53, 173, 167;
   --panel: #fbfcfa;
   --page-x: clamp(32px, 5vw, 72px);
+  --window-titlebar-height: 38px;
 }
 
 * { box-sizing: border-box; scrollbar-width: thin; scrollbar-color: #9eaca2 #edf1ed; }
@@ -34,8 +35,8 @@ button { font: inherit; }
 button:focus-visible { outline: 3px solid rgba(45, 131, 87, .24); outline-offset: 2px; }
 
 .app-shell { width: 100%; max-width: 100%; height: 100vh; overflow: hidden; display: grid; grid-template-rows: auto minmax(0, 1fr); }
-.app-shell.custom-titlebar-shell { grid-template-rows: 38px auto minmax(0, 1fr); }
-.window-titlebar { position: relative; z-index: 1000; min-width: 0; height: 38px; display: flex; align-items: stretch; color: #1f2c24; background: #f5fafc; border-bottom: 1px solid #d7e2e5; user-select: none; }
+.app-shell.custom-titlebar-shell { grid-template-rows: var(--window-titlebar-height) auto minmax(0, 1fr); }
+.window-titlebar { position: relative; z-index: 1000; min-width: 0; height: var(--window-titlebar-height); display: flex; align-items: stretch; color: #1f2c24; background: #f5fafc; border-bottom: 1px solid #d7e2e5; user-select: none; }
 .window-titlebar-icon-zone { width: 38px; flex: 0 0 38px; display: grid; place-items: center; }
 .window-titlebar-icon-zone img { width: 18px; height: 18px; object-fit: contain; pointer-events: none; transform: translateY(-1px); }
 .window-menu-bar { min-width: 0; flex: 0 0 auto; display: flex; align-items: stretch; }
@@ -897,13 +898,20 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .provider-empty { min-height: 170px; border: 1px dashed #ced8d0; border-radius: 8px; display: grid; place-items: center; align-content: center; gap: 9px; color: #718078; background: rgba(255,255,255,.45); font-size: 12px; }
 .provider-empty svg { color: var(--green); }
 .provider-empty strong { color: var(--ink); font: 700 13px Manrope, sans-serif; }
+.provider-modal-backdrop { --provider-modal-vertical-inset: 60px; }
 .provider-modal {
   width: 70vw;
   max-width: 95vw;
-  max-height: calc(100dvh - 48px);
+  max-height: calc(100dvh - var(--provider-modal-vertical-inset));
   display: grid;
   grid-template-rows: auto auto auto minmax(0, 1fr) auto;
   overflow: hidden;
+}
+.custom-titlebar-shell .provider-modal-backdrop {
+  inset-block-start: var(--window-titlebar-height);
+}
+.custom-titlebar-shell .provider-modal {
+  max-height: calc(100dvh - var(--window-titlebar-height) - var(--provider-modal-vertical-inset));
 }
 .provider-form {
   min-height: 0;
@@ -989,7 +997,8 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 
 @media (max-height: 720px) {
   .modal-backdrop { padding-block: 12px; }
-  .provider-modal { max-height: calc(100dvh - 24px); padding-block: 20px; }
+  .provider-modal-backdrop { --provider-modal-vertical-inset: 24px; }
+  .provider-modal { padding-block: 20px; }
   .provider-modal h2 { margin-top: 12px; }
   .provider-modal > p { margin-bottom: 14px; }
 }

@@ -155,7 +155,7 @@ export function ProviderModal({ provider, saving, onClose, onSave, t }: Provider
   </>;
 
   return (
-    <div className="modal-backdrop">
+    <div className="modal-backdrop provider-modal-backdrop">
       <div className="modal provider-modal">
         <button className="modal-close" disabled={saving} onClick={onClose} aria-label={t("providers.modal.close")}>
           <X size={17} />
