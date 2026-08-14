@@ -139,7 +139,7 @@ export function RelayStationModal({
           <small>{t("providers.form.imageInputModelsHint")}</small>
           <label htmlFor="relay-context-window">{t("providers.form.contextWindow")}</label>
           <AutoComplete id="relay-context-window" value={contextWindowK} disabled={saving}
-            options={CONTEXT_WINDOW_OPTIONS} placeholder="128" allowClear
+            options={CONTEXT_WINDOW_OPTIONS} placeholder="256" allowClear
             onChange={setContextWindowK} />
           <small>{t("providers.form.contextWindowHint")}</small>
           <details className="provider-advanced">

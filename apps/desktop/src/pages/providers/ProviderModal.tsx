@@ -183,7 +183,7 @@ export function ProviderModal({ provider, saving, onClose, onSave, t }: Provider
           <small>{t("providers.form.imageInputModelsHint")}</small>
           <label htmlFor="provider-context-window">{t("providers.form.contextWindow")}</label>
           <AutoComplete id="provider-context-window" value={contextWindowK} disabled={saving}
-            options={CONTEXT_WINDOW_OPTIONS} placeholder="128" allowClear
+            options={CONTEXT_WINDOW_OPTIONS} placeholder="256" allowClear
             onChange={setContextWindowK} />
           <small>{t("providers.form.contextWindowHint")}</small>
           <label htmlFor="provider-api-key">{t("providers.form.apiKey")}</label>
