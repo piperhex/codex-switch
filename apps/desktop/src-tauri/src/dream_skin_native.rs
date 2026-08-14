@@ -1032,6 +1032,28 @@ const CODEX_PROBE_PAYLOAD: &str = r#"(() => ({
 
 #[cfg(test)]
 const CODEX_MODEL_QUERY_PREFIX: [&str; 2] = ["models", "list"];
+// Codex Desktop keys an unauthenticated model query with authMethod ?? "no-auth".
+// Seeding that exact cache entry lets a picker mounted after this refresh reuse the injected models.
+const CODEX_MODEL_QUERY_HOST: &str = "local";
+const CODEX_MODEL_QUERY_NO_AUTH: &str = "no-auth";
+const CODEX_MODEL_QUERY_LIMIT: u16 = 100;
+
+/// Outcome reported by the Codex renderer after refreshing its model cache.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct CodexModelRefreshResult {
+    pub(crate) refreshed: bool,
+    pub(crate) reason: Option<String>,
+}
+
+fn codex_model_fallback_query_key() -> Value {
+    json!([
+        "models",
+        "list",
+        CODEX_MODEL_QUERY_HOST,
+        CODEX_MODEL_QUERY_NO_AUTH,
+        CODEX_MODEL_QUERY_LIMIT,
+    ])
+}
 
 fn codex_model_refresh_expression(
     models: &[String],
@@ -1056,6 +1078,8 @@ fn codex_model_refresh_expression(
         .collect::<Vec<_>>();
     let reasoning_efforts = serde_json::to_string(&reasoning_efforts)
         .map_err(|error| format!("Failed to prepare reasoning efforts: {error}"))?;
+    let fallback_query_key = serde_json::to_string(&codex_model_fallback_query_key())
+        .map_err(|error| format!("Failed to prepare the fallback model query: {error}"))?;
     Ok(format!(
         r#"(async () => {{
   const expectedModels = {models};
@@ -1102,7 +1126,12 @@ fn codex_model_refresh_expression(
 
   const currentQueries = queryClient.getQueryCache().getAll().filter(matchesModelsQuery);
   if (expectedModels.length === 0) {{
-    return {{ refreshed: currentQueries.length > 0, injected: false, count: 0 }};
+    return {{
+      refreshed: currentQueries.length > 0,
+      reason: currentQueries.length > 0 ? "existing-model-queries-refreshed" : "models-query-not-found",
+      injected: false,
+      count: 0,
+    }};
   }}
   const expected = new Set(expectedModels);
   const injectedModels = expectedModels.map((model, index) => ({{
@@ -1125,9 +1154,12 @@ fn codex_model_refresh_expression(
     defaultServiceTier: null,
     isDefault: model === selectedModel || (!expected.has(selectedModel) && index === 0),
   }}));
+  const targetQueryKeys = currentQueries.length > 0
+    ? currentQueries.map(query => query.queryKey)
+    : [{fallback_query_key}];
   let injected = false;
-  for (const query of currentQueries) {{
-    queryClient.setQueryData(query.queryKey, current => {{
+  for (const queryKey of targetQueryKeys) {{
+    queryClient.setQueryData(queryKey, current => {{
       const currentModels = Array.isArray(current?.data) ? current.data : [];
       const currentIds = currentModels.map(model => model?.model ?? model?.id).filter(Boolean);
       const matches = expectedModels.length === currentIds.length &&
@@ -1150,7 +1182,15 @@ fn codex_model_refresh_expression(
       }};
     }});
   }}
-  return {{ refreshed: currentQueries.length > 0, injected, count: injectedModels.length }};
+  return {{
+    refreshed: true,
+    reason: currentQueries.length > 0
+      ? "existing-model-queries-refreshed"
+      : "no-auth-model-query-created",
+    queryKeys: targetQueryKeys,
+    injected,
+    count: injectedModels.length,
+  }};
 }})()"#
     ))
 }
@@ -1352,10 +1392,13 @@ pub(crate) fn refresh_codex_models(
     models: &[String],
     selected_model: &str,
     reasoning_profile: crate::providers::ReasoningEffortProfile,
-) -> Result<bool, String> {
+) -> Result<CodexModelRefreshResult, String> {
     let state = read_session();
     let Some(port) = state.port else {
-        return Ok(false);
+        return Ok(CodexModelRefreshResult {
+            refreshed: false,
+            reason: Some("runtime-not-initialized".to_string()),
+        });
     };
     let target = list_targets(port)?
         .into_iter()
@@ -1365,10 +1408,16 @@ pub(crate) fn refresh_codex_models(
     let mut session = CdpSession::connect(&target, port)?;
     session.enable()?;
     let result = session.evaluate(&expression)?;
-    Ok(result
-        .get("refreshed")
-        .and_then(Value::as_bool)
-        .unwrap_or(false))
+    Ok(CodexModelRefreshResult {
+        refreshed: result
+            .get("refreshed")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
+        reason: result
+            .get("reason")
+            .and_then(Value::as_str)
+            .map(str::to_string),
+    })
 }
 
 fn codex_probe_succeeded(probe: &Value) -> bool {
@@ -2731,11 +2780,33 @@ mod tests {
         assert!(expression.contains("query.queryKey[0] === \"models\""));
         assert!(expression.contains("query.queryKey[1] === \"list\""));
         assert!(expression.contains("query.queryKey[0] === \"user-saved-config\""));
+        assert!(expression.contains("no-auth-model-query-created"));
+        assert!(expression.contains("models-query-not-found"));
         assert!(expression.contains("deepseek-reasoner"));
         assert!(expression.contains("\"reasoningEffort\":\"low\""));
         assert!(expression.contains("\"reasoningEffort\":\"medium\""));
         assert!(expression.contains("\"reasoningEffort\":\"xhigh\""));
         assert!(expression.contains("\"reasoningEffort\":\"max\""));
+    }
+
+    #[test]
+    fn codex_model_refresh_falls_back_to_the_no_auth_query() {
+        assert_eq!(
+            codex_model_fallback_query_key(),
+            json!(["models", "list", "local", "no-auth", 100])
+        );
+
+        let expression = codex_model_refresh_expression(
+            &["deepseek-chat".to_string()],
+            "deepseek-chat",
+            crate::providers::ReasoningEffortProfile::DeepSeek,
+        )
+        .unwrap();
+
+        assert!(expression.contains(
+            "currentQueries.length > 0\n    ? currentQueries.map(query => query.queryKey)"
+        ));
+        assert!(expression.contains("[\"models\",\"list\",\"local\",\"no-auth\",100]"));
     }
 
     #[test]

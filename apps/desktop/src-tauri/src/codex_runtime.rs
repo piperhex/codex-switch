@@ -65,12 +65,19 @@ pub(crate) fn refresh_models(
                 if GENERATION.load(Ordering::Acquire) != generation {
                     return;
                 }
-                if let Err(error) = crate::dream_skin_native::refresh_codex_models(
+                match crate::dream_skin_native::refresh_codex_models(
                     &models,
                     &selected_model,
                     reasoning_profile,
                 ) {
-                    eprintln!("Codex model picker refresh was skipped: {error}");
+                    Ok(result) if result.refreshed => {}
+                    Ok(result) => eprintln!(
+                        "Codex model picker refresh was skipped: {}",
+                        result.reason.as_deref().unwrap_or("unknown reason")
+                    ),
+                    Err(error) => {
+                        eprintln!("Codex model picker refresh failed: {error}");
+                    }
                 }
             });
     }
