@@ -11,6 +11,7 @@ import { SkillsMarketToolbar } from "./SkillsMarketToolbar";
 import type { OfficialPluginsMarketProps } from "./types";
 
 export function OfficialPluginsMarket({
+  active,
   activeTab,
   notify,
   onTabChange,
@@ -75,6 +76,7 @@ export function OfficialPluginsMarket({
   return (
     <div className="skills-market-page">
       <SkillsMarketToolbar
+        active={active}
         activeTab={activeTab}
         loading={loading}
         onQueryChange={setQuery}

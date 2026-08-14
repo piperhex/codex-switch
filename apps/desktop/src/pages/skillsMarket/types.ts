@@ -9,6 +9,7 @@ export interface SkillsMarketNavigationProps {
 }
 
 export interface SkillsMarketPageProps {
+  active: boolean;
   baseUrl?: string | null;
   authenticated: boolean;
   currentUserId?: string | null;
@@ -21,11 +22,13 @@ export interface CommunitySkillsMarketProps
   extends SkillsMarketPageProps, SkillsMarketNavigationProps {}
 
 export interface OfficialPluginsMarketProps extends SkillsMarketNavigationProps {
+  active: boolean;
   notify: (message: string) => void;
   t: Translate;
 }
 
 export interface SkillsMarketToolbarProps extends SkillsMarketNavigationProps {
+  active: boolean;
   loading: boolean;
   onPublish?: () => void;
   onQueryChange: (query: string) => void;

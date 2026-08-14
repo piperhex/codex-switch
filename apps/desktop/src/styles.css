@@ -1716,16 +1716,14 @@ html.floating-usage-page #root {
 }
 
 .skills-market-page { padding: 28px var(--page-x) 56px; display: grid; gap: 22px; }
-.skills-market-toolbar { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; }
-.skills-market-intro { min-width: 0; }
-.skills-market-intro > span { color: var(--green-dark); font-size: 9px; font-weight: 750; letter-spacing: .12em; }
-.skills-market-intro h2 { margin: 5px 0 6px; color: var(--ink); font: 750 21px/1.2 Manrope, sans-serif; letter-spacing: -.025em; }
-.skills-market-intro p { max-width: 620px; margin: 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
-.skills-market-heading-row {
+.skills-market-topbar-actions { min-width: 0; }
+.skills-market-topbar-controls {
+  min-width: 0;
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   flex-wrap: wrap;
-  gap: 8px 16px;
+  gap: 10px;
 }
 .skills-market-tabs {
   display: inline-flex;
@@ -1871,8 +1869,6 @@ html.floating-usage-page #root {
 .proxy-stop-progress-content small { padding-top: 9px; border-top: 1px solid var(--line); color: var(--muted); font-size: 10px; line-height: 1.6; }
 
 @media (max-width: 1080px) {
-  .skills-market-toolbar { align-items: stretch; flex-direction: column; }
-  .skills-market-toolbar-actions { justify-content: flex-end; }
   .skills-market-search { width: min(280px, 35vw); }
 }
 

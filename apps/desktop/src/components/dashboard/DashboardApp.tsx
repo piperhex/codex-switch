@@ -1098,6 +1098,9 @@ export function DashboardApp() {
                 </button>
               </div>
             )}
+            {page === "skills" && (
+              <div id="skills-market-topbar-actions" className="topbar-actions skills-market-topbar-actions" />
+            )}
             {page === "sessions" && <div id="codex-thread-topbar-actions" className="topbar-actions" />}
           </header>
           )}
@@ -1152,7 +1155,7 @@ export function DashboardApp() {
               onLanguageChange={setLanguage} t={t} />
           </section>
           <section className="page-panel" hidden={page !== "skills"}>
-            <MemoSkillsMarketPage baseUrl={cloud.state.baseUrl}
+            <MemoSkillsMarketPage active={page === "skills"} baseUrl={cloud.state.baseUrl}
               authenticated={cloud.state.authenticated} currentUserId={cloud.state.userId}
               onLogin={openCloudLogin} notify={notify} t={t} />
           </section>

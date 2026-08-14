@@ -9,6 +9,7 @@ import { SkillsMarketToolbar } from "./SkillsMarketToolbar";
 import type { CommunitySkillsMarketProps } from "./types";
 
 export function CommunitySkillsMarket({
+  active,
   activeTab,
   authenticated,
   baseUrl,
@@ -82,6 +83,7 @@ export function CommunitySkillsMarket({
   return (
     <div className="skills-market-page">
       <SkillsMarketToolbar
+        active={active}
         activeTab={activeTab}
         loading={loading}
         onPublish={openPublish}

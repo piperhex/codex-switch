@@ -8,7 +8,7 @@ export function SkillsMarketPage(props: SkillsMarketPageProps) {
   const navigation = { activeTab, onTabChange: setActiveTab };
 
   if (activeTab === "official") {
-    return <OfficialPluginsMarket {...navigation} notify={props.notify} t={props.t} />;
+    return <OfficialPluginsMarket {...navigation} active={props.active} notify={props.notify} t={props.t} />;
   }
 
   return <CommunitySkillsMarket {...props} {...navigation} />;
