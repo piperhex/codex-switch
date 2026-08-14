@@ -265,6 +265,7 @@ pub fn run() {
             skills_market::install_market_skill,
             official_plugins::list_official_plugins,
             official_plugins::install_official_plugin,
+            official_plugins::remove_official_plugin,
         ])
         .build(context)
         .unwrap_or_else(|error| {

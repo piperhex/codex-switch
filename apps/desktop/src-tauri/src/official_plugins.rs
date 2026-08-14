@@ -315,6 +315,24 @@ fn install_official_plugin_blocking(plugin_id: &str) -> Result<(), String> {
     Ok(())
 }
 
+fn remove_official_plugin_blocking(plugin_id: &str) -> Result<(), String> {
+    let name = official_plugin_name(plugin_id).ok_or_else(|| {
+        "This official plugin selection is invalid. Refresh the catalog and try again.".to_string()
+    })?;
+    run_codex(
+        &[
+            "plugin",
+            "remove",
+            name,
+            "--marketplace",
+            OFFICIAL_MARKETPLACE,
+            "--json",
+        ],
+        "The official plugin could not be uninstalled. Update Codex and try again.",
+    )?;
+    Ok(())
+}
+
 #[tauri::command]
 pub(crate) async fn list_official_plugins() -> Result<Vec<OfficialPluginItem>, String> {
     tauri::async_runtime::spawn_blocking(list_official_plugins_blocking)
@@ -327,6 +345,13 @@ pub(crate) async fn install_official_plugin(plugin_id: String) -> Result<(), Str
     tauri::async_runtime::spawn_blocking(move || install_official_plugin_blocking(&plugin_id))
         .await
         .map_err(|_| "The official plugin installation stopped. Please try again.".to_string())?
+}
+
+#[tauri::command]
+pub(crate) async fn remove_official_plugin(plugin_id: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || remove_official_plugin_blocking(&plugin_id))
+        .await
+        .map_err(|_| "The official plugin uninstall stopped. Please try again.".to_string())?
 }
 
 #[cfg(test)]

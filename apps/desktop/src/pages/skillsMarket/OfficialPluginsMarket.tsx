@@ -4,6 +4,7 @@ import {
   fetchOfficialPlugins,
   hasLocalBackend,
   installOfficialPlugin,
+  removeOfficialPlugin,
 } from "../../api/backend";
 import type { OfficialPluginItem } from "../../types";
 import { OfficialPluginGrid } from "./OfficialPluginGrid";
@@ -46,12 +47,17 @@ export function OfficialPluginsMarket({
       .join("\n").toLocaleLowerCase().includes(needle));
   }, [items, query]);
 
-  const install = async (plugin: OfficialPluginItem) => {
+  const changeInstallation = async (plugin: OfficialPluginItem) => {
     setBusyPluginId(plugin.id);
     setError(null);
     try {
-      await installOfficialPlugin(plugin.id);
-      notify(t("skills.official.toast.installed", { name: plugin.title }));
+      if (plugin.installed) {
+        await removeOfficialPlugin(plugin.id);
+        notify(t("skills.official.toast.uninstalled", { name: plugin.title }));
+      } else {
+        await installOfficialPlugin(plugin.id);
+        notify(t("skills.official.toast.installed", { name: plugin.title }));
+      }
       await load();
     } catch (caught) {
       setError(String(caught instanceof Error ? caught.message : caught));
@@ -60,7 +66,14 @@ export function OfficialPluginsMarket({
     }
   };
 
-  let content = <OfficialPluginGrid items={filtered} busyPluginId={busyPluginId} onInstall={install} t={t} />;
+  let content = (
+    <OfficialPluginGrid
+      items={filtered}
+      busyPluginId={busyPluginId}
+      onAction={changeInstallation}
+      t={t}
+    />
+  );
   if (!hasLocalBackend) {
     content = <div className="skills-market-state"><Puzzle size={26} />{t("skills.official.localOnly")}</div>;
   } else if (loading && items.length === 0) {

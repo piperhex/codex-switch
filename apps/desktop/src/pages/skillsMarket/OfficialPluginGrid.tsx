@@ -1,4 +1,4 @@
-import { Check, Download, LoaderCircle, Puzzle } from "lucide-react";
+import { Download, LoaderCircle, Puzzle, Trash2 } from "lucide-react";
 import { useState } from "react";
 import type { OfficialPluginItem } from "../../types";
 import type { OfficialPluginGridProps } from "./types";
@@ -13,19 +13,21 @@ function PluginIcon({ plugin }: { plugin: OfficialPluginItem }) {
 
 function InstallIcon({ busy, installed }: { busy: boolean; installed: boolean }) {
   if (busy) return <LoaderCircle className="spin" size={16} />;
-  if (installed) return <Check size={16} />;
+  if (installed) return <Trash2 size={16} />;
   return <Download size={16} />;
 }
 
 function installLabel(plugin: OfficialPluginItem, busy: boolean, t: OfficialPluginGridProps["t"]) {
-  if (busy) return t("skills.official.installing");
-  if (plugin.installed) return t("skills.official.installed");
+  if (busy) {
+    return t(plugin.installed ? "skills.official.uninstalling" : "skills.official.installing");
+  }
+  if (plugin.installed) return t("skills.official.uninstall");
   return t("skills.official.install");
 }
 
 function OfficialPluginCard({
   busyPluginId,
-  onInstall,
+  onAction,
   plugin,
   t,
 }: Omit<OfficialPluginGridProps, "items"> & { plugin: OfficialPluginItem }) {
@@ -49,9 +51,9 @@ function OfficialPluginCard({
         </div>
         <button
           type="button"
-          className={`skill-install-button${plugin.installed ? " installed" : ""}`}
-          disabled={busy || plugin.installed}
-          onClick={() => void onInstall(plugin)}
+          className={`skill-install-button${plugin.installed ? " uninstall" : ""}`}
+          disabled={busy}
+          onClick={() => void onAction(plugin)}
         >
           <InstallIcon busy={busy} installed={plugin.installed} />
           {installLabel(plugin, busy, t)}
@@ -68,7 +70,7 @@ export function OfficialPluginGrid(props: OfficialPluginGridProps) {
         <OfficialPluginCard
           key={plugin.id}
           busyPluginId={props.busyPluginId}
-          onInstall={props.onInstall}
+          onAction={props.onAction}
           plugin={plugin}
           t={props.t}
         />

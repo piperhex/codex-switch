@@ -1789,6 +1789,8 @@ html.floating-usage-page #root {
 .skill-install-button { width: 100%; height: 34px; display: flex; align-items: center; justify-content: center; gap: 7px; border: 1px solid rgba(var(--green-rgb), .46); border-radius: 8px; color: #fff; background: var(--green-dark); cursor: pointer; font-size: 11px; font-weight: 700; }
 .skill-install-button:hover:not(:disabled) { background: var(--green); }
 .skill-install-button.installed { color: var(--green-dark); background: var(--green-soft); }
+.skill-install-button.uninstall { color: #a8483f; border-color: #efc9c5; background: #fff1ef; }
+.skill-install-button.uninstall:hover:not(:disabled) { color: #913b34; background: #ffe5e1; }
 .skill-install-button:disabled { cursor: default; opacity: .8; }
 .official-plugin-card .skill-card-body { min-height: 179px; }
 .official-plugin-preview {

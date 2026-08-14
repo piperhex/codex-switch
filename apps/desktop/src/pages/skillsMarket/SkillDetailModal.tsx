@@ -53,7 +53,7 @@ export function SkillDetailModal({
             ) : (
               <div className="skill-card-default-preview">
                 <PackageOpen size={58} />
-                <span>SKILL</span>
+                <span>PLUGIN</span>
               </div>
             )}
             {skill.official && <span className="skill-official-badge">{t("skills.official")}</span>}

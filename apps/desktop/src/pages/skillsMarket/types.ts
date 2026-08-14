@@ -40,7 +40,7 @@ export interface SkillsMarketToolbarProps extends SkillsMarketNavigationProps {
 export interface OfficialPluginGridProps {
   busyPluginId: string | null;
   items: OfficialPluginItem[];
-  onInstall: (plugin: OfficialPluginItem) => Promise<void>;
+  onAction: (plugin: OfficialPluginItem) => Promise<void>;
   t: Translate;
 }
 

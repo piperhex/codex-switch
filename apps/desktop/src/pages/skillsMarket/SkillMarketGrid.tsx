@@ -12,7 +12,7 @@ function SkillCardPreview({ options, skill }: { options: SkillMarketGridProps; s
       {preview && !brokenPreviews.has(skill.id) ? (
         <img src={preview} alt="" onError={() => onPreviewError(skill.id)} />
       ) : (
-        <div className="skill-card-default-preview"><PackageOpen size={34} /><span>SKILL</span></div>
+        <div className="skill-card-default-preview"><PackageOpen size={34} /><span>PLUGIN</span></div>
       )}
       {skill.official && <span className="skill-official-badge">{t("skills.official")}</span>}
       <span className="skill-version">v{skill.version}</span>
