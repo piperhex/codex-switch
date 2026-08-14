@@ -304,6 +304,10 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
         "get_app_info" => serialize(crate::commands::get_app_info(app)),
         "list_accounts" => serialize(crate::commands::list_accounts(app)),
         "get_app_settings" => serialize(crate::floating_bubble::get_app_settings(app)),
+        "set_launch_at_startup" => serialize(block_on(crate::autostart::set_launch_at_startup(
+            app,
+            argument(&args, "enabled")?,
+        ))),
         "set_web_proxy_port" => serialize(set_web_proxy_port(app, argument(&args, "port")?)),
         "list_providers" => serialize(crate::providers::list_providers(app)),
         "save_provider" => serialize(crate::providers::save_provider(

@@ -346,6 +346,7 @@ export interface UpdateInfo {
 }
 
 export interface AppSettings {
+  launchAtStartup?: boolean;
   floatingBubbleEnabled: boolean;
   privacyMode: boolean;
   hideAccountNotes: boolean;

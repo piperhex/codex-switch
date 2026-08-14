@@ -348,6 +348,8 @@ pub(crate) struct DailyTokenUsage {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct AppSettings {
+    #[serde(default = "default_launch_at_startup")]
+    pub(crate) launch_at_startup: bool,
     #[serde(default = "default_floating_bubble_enabled")]
     pub(crate) floating_bubble_enabled: bool,
     #[serde(default)]
@@ -410,6 +412,10 @@ fn default_privacy_mode() -> bool {
     true
 }
 
+fn default_launch_at_startup() -> bool {
+    true
+}
+
 fn default_floating_bubble_enabled() -> bool {
     true
 }
@@ -438,6 +444,7 @@ fn default_auto_disable_status_codes() -> Vec<u16> {
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
+            launch_at_startup: default_launch_at_startup(),
             floating_bubble_enabled: default_floating_bubble_enabled(),
             theme_color: None,
             language: None,
@@ -681,6 +688,18 @@ mod tests {
         assert!(defaults.floating_bubble_enabled);
         assert!(migrated.floating_bubble_enabled);
         assert!(!explicitly_disabled.floating_bubble_enabled);
+    }
+
+    #[test]
+    fn app_settings_enable_launch_at_startup_by_default() {
+        let defaults = AppSettings::default();
+        let migrated: AppSettings = serde_json::from_str("{}").unwrap();
+        let explicitly_disabled: AppSettings =
+            serde_json::from_str(r#"{"launchAtStartup":false}"#).unwrap();
+
+        assert!(defaults.launch_at_startup);
+        assert!(migrated.launch_at_startup);
+        assert!(!explicitly_disabled.launch_at_startup);
     }
 
     #[test]

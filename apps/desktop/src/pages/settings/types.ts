@@ -4,6 +4,9 @@ import type { AppInfo, BubbleResetDisplay, BubbleStyle } from "../../types";
 
 export interface SettingsPageProps {
   info: AppInfo | null;
+  launchAtStartupEnabled: boolean;
+  launchAtStartupLoading: boolean;
+  onLaunchAtStartupChange: (enabled: boolean) => void;
   autoRefreshEnabled: boolean;
   autoRefreshSeconds: number;
   onEnabledChange: (enabled: boolean) => void;

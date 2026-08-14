@@ -69,6 +69,7 @@ import { useBubbleStyle } from "../../hooks/useBubbleStyle";
 import { useCloudAuth } from "../../hooks/useCloudAuth";
 import { useCloudContent, useCloudContentLifecycle } from "../../hooks/useCloudContent";
 import { useLanguage } from "../../hooks/useLanguage";
+import { useLaunchAtStartup } from "../../hooks/useLaunchAtStartup";
 import { useFloatingBubble } from "../../hooks/useFloatingBubble";
 import { useProviderManager } from "../../hooks/useProviderManager";
 import { usePrivacyMode } from "../../hooks/usePrivacyMode";
@@ -255,6 +256,7 @@ export function DashboardApp() {
     deleteProvider: cloud.deleteProviderQuietly,
   }), [cloud.deleteProviderQuietly, cloud.pushProviderQuietly]);
   const floatingBubble = useFloatingBubble(notify);
+  const launchAtStartup = useLaunchAtStartup(notify);
   const bubbleResetDisplay = useBubbleResetDisplay(notify);
   const bubbleStyle = useBubbleStyle(notify);
   const privacyMode = usePrivacyMode(notify);
@@ -544,6 +546,9 @@ export function DashboardApp() {
   const changeFloatingBubble = useCallback((enabled: boolean) => {
     void floatingBubble.setEnabled(enabled);
   }, [floatingBubble.setEnabled]);
+  const changeLaunchAtStartup = useCallback((enabled: boolean) => {
+    void launchAtStartup.setEnabled(enabled);
+  }, [launchAtStartup.setEnabled]);
   const changeBubbleResetDisplay = useCallback((display: BubbleResetDisplay) => {
     void bubbleResetDisplay.setDisplay(display);
   }, [bubbleResetDisplay.setDisplay]);
@@ -1115,6 +1120,9 @@ export function DashboardApp() {
           </section>
           <section className="page-panel" hidden={page !== "settings"}>
             <MemoSettingsPage info={manager.info} autoRefreshEnabled={autoRefresh.enabled}
+              launchAtStartupEnabled={launchAtStartup.enabled}
+              launchAtStartupLoading={launchAtStartup.loading}
+              onLaunchAtStartupChange={changeLaunchAtStartup}
               autoRefreshSeconds={autoRefresh.seconds} onEnabledChange={autoRefresh.setEnabled}
               onSecondsChange={autoRefresh.updateSeconds}
               currentAutoRefreshTarget={currentAutoRefreshTarget}

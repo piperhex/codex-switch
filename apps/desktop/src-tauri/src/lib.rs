@@ -1,6 +1,7 @@
 mod account_archive;
 mod agent_identity;
 mod auth;
+mod autostart;
 mod cloud;
 mod codex_api;
 mod codex_runtime;
@@ -64,6 +65,10 @@ pub fn run() {
         }))
         .manage(AppState::default())
         .manage(main_window::MainWindowStateCache::default())
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            None,
+        ))
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
@@ -71,6 +76,9 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(move |app| {
             storage::migrate_app_settings_for_version(app.handle())?;
+            if let Err(error) = autostart::restore_preference(app.handle()) {
+                eprintln!("failed to restore the startup setting: {error}");
+            }
             if !launch_options.headless {
                 main_window::restore_or_set_default(app)?;
             }
@@ -220,6 +228,7 @@ pub fn run() {
             local_proxy::set_local_proxy_listen_on_all_interfaces,
             local_proxy::copy_local_proxy_lan_api_key,
             floating_bubble::get_app_settings,
+            autostart::set_launch_at_startup,
             floating_bubble::set_floating_bubble,
             floating_bubble::set_privacy_mode,
             floating_bubble::set_hide_account_notes,

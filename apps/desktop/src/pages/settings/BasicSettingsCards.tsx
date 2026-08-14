@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import { Button, ColorPicker, Modal, Segmented, Switch } from "antd";
-import { CircleGauge, EyeOff, Languages, LayoutGrid, Palette, TableProperties } from "lucide-react";
+import { CircleGauge, EyeOff, Languages, LayoutGrid, Palette, Power, TableProperties } from "lucide-react";
 import { LANGUAGE_OPTIONS, type Language } from "../../i18n";
 import type { BubbleResetDisplay } from "../../types";
 import type { SettingsPageProps } from "./types";
@@ -64,6 +64,32 @@ function ThemeCard({ settings }: { settings: SettingsPageProps }) {
               onChangeComplete={(color) => onThemeColorChange(color.toHexString())}
             />
           </span>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function LaunchAtStartupCard({ settings }: { settings: SettingsPageProps }) {
+  const { launchAtStartupEnabled, launchAtStartupLoading, onLaunchAtStartupChange, t } = settings;
+  return (
+    <section className="settings-card">
+      <div className="settings-icon"><Power size={23} /></div>
+      <div className="settings-card-content">
+        <div className="settings-card-copy">
+          <h3>{t("settings.launchAtStartup.title")}</h3>
+          <p>{t("settings.launchAtStartup.description")}</p>
+        </div>
+        <div className="settings-field">
+          <label htmlFor="launch-at-startup-enabled">{t("settings.launchAtStartup.label")}</label>
+          <Switch
+            id="launch-at-startup-enabled"
+            checked={launchAtStartupEnabled}
+            loading={launchAtStartupLoading}
+            checkedChildren={t("settings.autoRefresh.on")}
+            unCheckedChildren={t("settings.autoRefresh.off")}
+            onChange={onLaunchAtStartupChange}
+          />
         </div>
       </div>
     </section>
@@ -294,6 +320,7 @@ export function BasicSettingsCards({
     <>
       <LanguageCard settings={settings} />
       <ThemeCard settings={settings} />
+      <LaunchAtStartupCard settings={settings} />
       <FloatingBubbleCard onOpen={() => onBubbleStyleModalOpenChange(true)} settings={settings} />
       <BubbleStyleModal
         onClose={() => onBubbleStyleModalOpenChange(false)}
