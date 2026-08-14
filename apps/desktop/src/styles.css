@@ -1716,34 +1716,37 @@ html.floating-usage-page #root {
 }
 
 .skills-market-page { padding: 28px var(--page-x) 56px; display: grid; gap: 22px; }
-.skills-market-topbar-actions { min-width: 0; }
-.skills-market-topbar-controls {
+.skills-market-heading { min-width: 0; flex: 0 0 auto; }
+.skills-market-title-row {
   min-width: 0;
+  margin-top: 5px;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: 10px;
+  gap: 20px;
 }
+.skills-market-title-row h1 { margin: 0; white-space: nowrap; }
+.skills-market-tabs-slot { min-width: 0; display: flex; align-items: center; }
+.skills-market-topbar-actions { min-width: 0; }
 .skills-market-tabs {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  padding: 3px;
+  gap: 4px;
+  padding: 4px;
   border: 1px solid var(--line);
-  border-radius: 9px;
+  border-radius: 11px;
   background: #f2f5f2;
 }
 .skills-market-tabs button {
-  height: 26px;
-  padding: 0 11px;
+  height: 34px;
+  padding: 0 18px;
   border: 0;
-  border-radius: 6px;
+  border-radius: 8px;
   color: #718078;
   background: transparent;
   cursor: pointer;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
+  white-space: nowrap;
 }
 .skills-market-tabs button:hover { color: var(--green-dark); }
 .skills-market-tabs button.active {

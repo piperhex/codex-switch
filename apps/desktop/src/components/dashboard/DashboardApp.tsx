@@ -1057,22 +1057,27 @@ export function DashboardApp() {
               <TokenUsageHeatmap weeks={tokenUsagePreferences.weeks}
                 refreshSeconds={tokenUsagePreferences.refreshSeconds} language={language} t={t} />
             ) : (
-              <div><span className="eyebrow">{page === "providers"
+              <div className={page === "skills" ? "skills-market-heading" : undefined}>
+                <span className="eyebrow">{page === "providers"
                 ? t("topbar.providersEyebrow")
                 : page === "skills"
                   ? t("topbar.skillsEyebrow")
                   : page === "sessions"
                     ? t("topbar.sessionsEyebrow")
                   : t("topbar.eyebrow")}</span>
-                <h1>{page === "settings"
-                  ? t("topbar.settings")
-                  : page === "skills"
-                    ? t("topbar.skills")
-                    : page === "sessions"
-                      ? t("topbar.sessions")
-                  : page === "providers"
-                    ? t("topbar.providers", { count: providerManager.providers.length })
-                    : t("topbar.accounts", { count: manager.accounts.length })}</h1></div>
+                <div className={page === "skills" ? "skills-market-title-row" : undefined}>
+                  <h1>{page === "settings"
+                    ? t("topbar.settings")
+                    : page === "skills"
+                      ? t("topbar.skills")
+                      : page === "sessions"
+                        ? t("topbar.sessions")
+                    : page === "providers"
+                      ? t("topbar.providers", { count: providerManager.providers.length })
+                      : t("topbar.accounts", { count: manager.accounts.length })}</h1>
+                  {page === "skills" && <div id="skills-market-tabs" className="skills-market-tabs-slot" />}
+                </div>
+              </div>
             )}
             {page === "accounts" && (
               <div className="topbar-actions">

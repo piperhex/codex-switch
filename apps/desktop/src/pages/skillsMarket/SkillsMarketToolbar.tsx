@@ -8,14 +8,24 @@ const SEARCH_COPY = {
   official: "skills.official.search",
 } as const satisfies Record<SkillsMarketTab, string>;
 
-function useTopbarHost(active: boolean) {
-  const [host, setHost] = useState<HTMLElement | null>(null);
+interface TopbarHosts {
+  actions: HTMLElement | null;
+  tabs: HTMLElement | null;
+}
+
+const EMPTY_HOSTS: TopbarHosts = { actions: null, tabs: null };
+
+function useTopbarHosts(active: boolean) {
+  const [hosts, setHosts] = useState<TopbarHosts>(EMPTY_HOSTS);
 
   useEffect(() => {
-    setHost(active ? document.getElementById("skills-market-topbar-actions") : null);
+    setHosts(active ? {
+      actions: document.getElementById("skills-market-topbar-actions"),
+      tabs: document.getElementById("skills-market-tabs"),
+    } : EMPTY_HOSTS);
   }, [active]);
 
-  return host;
+  return hosts;
 }
 
 function SkillsMarketTabs({ activeTab, onTabChange, t }: Pick<SkillsMarketToolbarProps,
@@ -62,14 +72,13 @@ function SkillsMarketActions(props: SkillsMarketToolbarProps) {
 }
 
 export function SkillsMarketToolbar(props: SkillsMarketToolbarProps) {
-  const topbarHost = useTopbarHost(props.active);
-  if (!topbarHost) return null;
+  const hosts = useTopbarHosts(props.active);
+  if (!hosts.actions || !hosts.tabs) return null;
 
-  return createPortal(
-    <div className="skills-market-topbar-controls">
-      <SkillsMarketTabs {...props} />
-      <SkillsMarketActions {...props} />
-    </div>,
-    topbarHost,
+  return (
+    <>
+      {createPortal(<SkillsMarketTabs {...props} />, hosts.tabs)}
+      {createPortal(<SkillsMarketActions {...props} />, hosts.actions)}
+    </>
   );
 }
