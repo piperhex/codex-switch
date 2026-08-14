@@ -1,13 +1,14 @@
 import { useState } from "react";
-import { AutoComplete, Button, Input, Select, Switch } from "antd";
+import { Button, Input, Select, Switch } from "antd";
 import { Save, WalletCards, X } from "lucide-react";
 import type { ProviderBalancePlatform } from "../../types";
 import {
   balancePlatformOptions,
-  CONTEXT_WINDOW_OPTIONS,
+  DEFAULT_CONTEXT_WINDOW_K,
   defaultBalanceUrl,
   defaultWalletUrl,
   defaultReasoningEfforts,
+  modelContextWindows,
   modelReasoningEfforts,
   type ModelReasoningConfig,
   parseContextWindowK,
@@ -31,9 +32,9 @@ export function RelayStationModal({
   const [modelConfigs, setModelConfigs] = useState<ModelReasoningConfig[]>([{
     model: "gpt-5.6-sol",
     reasoningEfforts: defaultReasoningEfforts("gpt-5.6-sol"),
+    contextWindowK: DEFAULT_CONTEXT_WINDOW_K,
   }]);
   const [imageInputModels, setImageInputModels] = useState<string[]>([]);
-  const [contextWindowK, setContextWindowK] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
   const [balanceQueryUrl, setBalanceQueryUrl] = useState("");
   const [balanceQueryUsesApiKey, setBalanceQueryUsesApiKey] = useState(true);
@@ -60,7 +61,9 @@ export function RelayStationModal({
   const models = modelConfigs.map((config) => config.model.trim()).filter(Boolean);
   const modelsAreValid = models.length === modelConfigs.length
     && new Set(models).size === models.length
-    && modelConfigs.every((config) => config.reasoningEfforts.length > 0);
+    && modelConfigs.every((config) => (
+      config.reasoningEfforts.length > 0 && Boolean(parseContextWindowK(config.contextWindowK))
+    ));
   const canSave = Boolean(
     platform
     && stationUrl.trim()
@@ -70,8 +73,7 @@ export function RelayStationModal({
     && baseUrl.trim()
     && balanceQueryUrl.trim()
     && modelsAreValid
-    && (balanceQueryUsesApiKey || balanceQueryToken.trim())
-    && parseContextWindowK(contextWindowK) !== undefined,
+    && (balanceQueryUsesApiKey || balanceQueryToken.trim()),
   );
   const submit = async () => {
     if (!canSave || !platform) return;
@@ -82,8 +84,9 @@ export function RelayStationModal({
       model,
       models,
       modelReasoningEfforts: modelReasoningEfforts(modelConfigs),
+      modelContextWindows: modelContextWindows(modelConfigs),
       imageInputModels: imageInputModels.filter((value) => models.includes(value)),
-      contextWindow: parseContextWindowK(contextWindowK),
+      contextWindow: null,
       modelSelectionControlledByCodex: false,
       apiKey,
       apiFormat: "openaiResponses",
@@ -137,11 +140,6 @@ export function RelayStationModal({
             options={models.map((value) => ({ label: value, value }))}
             onChange={setImageInputModels} />
           <small>{t("providers.form.imageInputModelsHint")}</small>
-          <label htmlFor="relay-context-window">{t("providers.form.contextWindow")}</label>
-          <AutoComplete id="relay-context-window" value={contextWindowK} disabled={saving}
-            options={CONTEXT_WINDOW_OPTIONS} placeholder="256" allowClear
-            onChange={setContextWindowK} />
-          <small>{t("providers.form.contextWindowHint")}</small>
           <details className="provider-advanced">
             <summary>{t("providers.relay.advanced")}</summary>
             <div className="provider-advanced-fields">

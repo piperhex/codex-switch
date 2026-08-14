@@ -1,8 +1,10 @@
-import { Button, Input, Select } from "antd";
+import { AutoComplete, Button, Input, Select } from "antd";
 import { Plus, Trash2 } from "lucide-react";
 import type { Translate } from "../../i18n";
 import type { ReasoningEffort } from "../../types";
 import {
+  CONTEXT_WINDOW_OPTIONS,
+  DEFAULT_CONTEXT_WINDOW_K,
   defaultReasoningEfforts,
   type ModelReasoningConfig,
   reasoningEffortOptions,
@@ -33,7 +35,7 @@ export function ModelReasoningEditor({
       const reasoningEfforts = !config.model.trim() || usesDefaults(config)
         ? defaultReasoningEfforts(model)
         : config.reasoningEfforts;
-      return { model, reasoningEfforts };
+      return { ...config, model, reasoningEfforts };
     }));
   };
   const updateEfforts = (index: number, reasoningEfforts: ReasoningEffort[]) => {
@@ -41,13 +43,23 @@ export function ModelReasoningEditor({
       rowIndex === index ? { ...config, reasoningEfforts } : config
     )));
   };
+  const updateContextWindow = (index: number, contextWindowK: string) => {
+    onChange(value.map((config, rowIndex) => (
+      rowIndex === index ? { ...config, contextWindowK } : config
+    )));
+  };
   const remove = (index: number) => onChange(value.filter((_, rowIndex) => rowIndex !== index));
-  const add = () => onChange([...value, { model: "", reasoningEfforts: [] }]);
+  const add = () => onChange([...value, {
+    model: "",
+    reasoningEfforts: [],
+    contextWindowK: DEFAULT_CONTEXT_WINDOW_K,
+  }]);
 
   return <div className="provider-model-editor">
     <div className="provider-model-editor-head">
       <span>{t("providers.form.modelName")}</span>
       <span>{t("providers.form.reasoningEfforts")}</span>
+      <span>{t("providers.form.contextWindow")}</span>
       <span />
     </div>
     {value.map((config, index) => <div className="provider-model-editor-row" key={index}>
@@ -57,6 +69,9 @@ export function ModelReasoningEditor({
         maxTagCount="responsive" options={reasoningEffortOptions(config.model, t)}
         placeholder={t("providers.form.reasoningEffortsPlaceholder")}
         onChange={(efforts) => updateEfforts(index, efforts as ReasoningEffort[])} />
+      <AutoComplete value={config.contextWindowK} disabled={disabled}
+        options={CONTEXT_WINDOW_OPTIONS} placeholder={DEFAULT_CONTEXT_WINDOW_K} allowClear
+        onChange={(contextWindowK) => updateContextWindow(index, contextWindowK)} />
       <Button type="text" danger icon={<Trash2 size={14} />} disabled={disabled || value.length === 1}
         aria-label={t("providers.form.removeModel")} onClick={() => remove(index)} />
     </div>)}

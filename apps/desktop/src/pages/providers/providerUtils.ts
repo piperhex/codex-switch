@@ -1,5 +1,6 @@
 import type { Translate, TranslationKey } from "../../i18n";
 import type {
+  ModelContextWindows,
   ModelReasoningEfforts,
   ProviderBalancePlatform,
   ReasoningEffort,
@@ -24,6 +25,8 @@ export const CONTEXT_WINDOW_OPTIONS = [128, 256, 400, 1000].map((value) => ({
   label: `${value}K`,
   value: String(value),
 }));
+
+export const DEFAULT_CONTEXT_WINDOW_K = "256";
 
 export function isProviderTableColumnKey(value: unknown): value is ProviderTableColumnKey {
   return typeof value === "string"
@@ -63,6 +66,7 @@ export function modelOptions(models: string[]) {
 export interface ModelReasoningConfig {
   model: string;
   reasoningEfforts: ReasoningEffort[];
+  contextWindowK: string;
 }
 
 export const REASONING_EFFORTS: ReasoningEffort[] = [
@@ -100,13 +104,23 @@ export function reasoningEffortOptions(model: string, t: Translate) {
 
 export function modelReasoningConfigs(
   models: string[],
-  configured: ModelReasoningEfforts = {},
+  options: {
+    reasoningEfforts?: ModelReasoningEfforts;
+    contextWindows?: ModelContextWindows;
+    fallbackContextWindow?: number | null;
+  } = {},
 ): ModelReasoningConfig[] {
+  const fallbackContextWindowK = options.fallbackContextWindow
+    ? String(options.fallbackContextWindow / 1000)
+    : DEFAULT_CONTEXT_WINDOW_K;
   return models.map((model) => ({
     model,
-    reasoningEfforts: configured[model]?.length
-      ? [...configured[model]]
+    reasoningEfforts: options.reasoningEfforts?.[model]?.length
+      ? [...options.reasoningEfforts[model]]
       : defaultReasoningEfforts(model),
+    contextWindowK: options.contextWindows?.[model]
+      ? String(options.contextWindows[model] / 1000)
+      : fallbackContextWindowK,
   }));
 }
 
@@ -115,6 +129,13 @@ export function modelReasoningEfforts(configs: ModelReasoningConfig[]): ModelRea
     model.trim(),
     reasoningEfforts,
   ]).filter(([model]) => Boolean(model)));
+}
+
+export function modelContextWindows(configs: ModelReasoningConfig[]): ModelContextWindows {
+  return Object.fromEntries(configs.flatMap(({ model, contextWindowK }) => {
+    const contextWindow = parseContextWindowK(contextWindowK);
+    return model.trim() && contextWindow ? [[model.trim(), contextWindow]] : [];
+  }));
 }
 
 export function parseContextWindowK(value: string): number | null | undefined {

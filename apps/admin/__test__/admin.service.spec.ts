@@ -278,6 +278,7 @@ describe('AdminService', () => {
         model: provider.model,
         models: provider.models,
         modelReasoningEfforts: provider.modelReasoningEfforts,
+        modelContextWindows: provider.modelContextWindows,
         imageInputModels: provider.imageInputModels,
         contextWindow: provider.contextWindow,
         modelSelectionControlledByCodex: provider.modelSelectionControlledByCodex,

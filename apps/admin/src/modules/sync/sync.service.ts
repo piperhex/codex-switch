@@ -110,6 +110,7 @@ type ProviderFieldModifiedAt = {
   model: string;
   models: string;
   modelReasoningEfforts: string;
+  modelContextWindows: string;
   imageInputModels: string;
   contextWindow: string;
   modelSelectionControlledByCodex: string;
@@ -1074,6 +1075,7 @@ export class SyncService {
         row.modelReasoningEfforts,
         row.models,
       ),
+      modelContextWindows: this.normalizeModelContextWindows(row.modelContextWindows, row.models),
       imageInputModels: row.imageInputModels ?? [],
       contextWindow: row.contextWindow,
       modelSelectionControlledByCodex: row.modelSelectionControlledByCodex,
@@ -1109,6 +1111,10 @@ export class SyncService {
       models: incoming.models ?? [],
       modelReasoningEfforts: this.normalizeModelReasoningEfforts(
         incoming.modelReasoningEfforts,
+        incoming.models,
+      ),
+      modelContextWindows: this.normalizeModelContextWindows(
+        incoming.modelContextWindows,
         incoming.models,
       ),
       imageInputModels: incoming.imageInputModels ?? [],
@@ -1151,6 +1157,7 @@ export class SyncService {
       model: existing.model,
       models: existing.models,
       modelReasoningEfforts: existing.modelReasoningEfforts,
+      modelContextWindows: existing.modelContextWindows,
       imageInputModels: existing.imageInputModels,
       contextWindow: existing.contextWindow,
       modelSelectionControlledByCodex: existing.modelSelectionControlledByCodex,
@@ -1192,6 +1199,7 @@ export class SyncService {
     const normalized = {} as ProviderFieldModifiedAt;
     for (const key of [
       'kind', 'name', 'baseUrl', 'apiKey', 'model', 'models', 'modelReasoningEfforts',
+      'modelContextWindows',
       'imageInputModels', 'contextWindow',
       'modelSelectionControlledByCodex', 'apiFormat', 'balancePlatform',
       'balanceQueryUrl', 'balanceQueryToken', 'walletQueryUrl', 'walletQueryToken',
@@ -1215,6 +1223,22 @@ export class SyncService {
         typeof effort === 'string' && PROVIDER_REASONING_EFFORTS.has(effort)
       )))];
       if (valid.length) normalized[model] = valid;
+    }
+    return normalized;
+  }
+
+  private normalizeModelContextWindows(value: unknown, models: string[]) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+    const configured = value as Record<string, unknown>;
+    const normalized: Record<string, number> = {};
+    for (const model of models) {
+      const contextWindow = configured[model];
+      const isValid = typeof contextWindow === 'number'
+        && Number.isSafeInteger(contextWindow)
+        && contextWindow > 0;
+      if (isValid) {
+        normalized[model] = contextWindow;
+      }
     }
     return normalized;
   }

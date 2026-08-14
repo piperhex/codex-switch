@@ -583,6 +583,7 @@ describe('SyncService', () => {
       model: 'gpt-4.1',
       models: ['gpt-4.1'],
       modelReasoningEfforts: { 'gpt-4.1': ['low', 'medium', 'high', 'xhigh'] },
+      modelContextWindows: { 'gpt-4.1': 256_000 },
       imageInputModels: ['gpt-4.1'],
       contextWindow: 256_000,
       modelSelectionControlledByCodex: false,
@@ -1213,6 +1214,7 @@ describe('SyncService', () => {
       apiKey: provider.apiKey,
       models: provider.models,
       modelReasoningEfforts: provider.modelReasoningEfforts,
+      modelContextWindows: provider.modelContextWindows,
       contextWindow: provider.contextWindow,
       lastModifiedAt: new Date(provider.lastModifiedAt!),
     }));
@@ -1233,6 +1235,23 @@ describe('SyncService', () => {
 
     expect(transactionRepository.create).toHaveBeenCalledWith(expect.objectContaining({
       modelReasoningEfforts: { 'gpt-4.1': ['low', 'high'] },
+    }));
+  });
+
+  it('keeps only valid context lengths for known provider models', async () => {
+    const provider = makeProvider({
+      modelContextWindows: {
+        'gpt-4.1': 400_000,
+        missing: 128_000,
+        invalid: 0,
+      },
+    });
+    transactionRepository.findOne.mockResolvedValue(null);
+
+    await service.upsertProvider('owner-1', provider.id, provider);
+
+    expect(transactionRepository.create).toHaveBeenCalledWith(expect.objectContaining({
+      modelContextWindows: { 'gpt-4.1': 400_000 },
     }));
   });
 

@@ -60,6 +60,7 @@ export type ProviderKind = "custom" | "openai";
 export type ProviderBalancePlatform = "newApi" | "sub2Api" | "deepSeek";
 export type ReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh" | "max" | "ultra";
 export type ModelReasoningEfforts = Record<string, ReasoningEffort[]>;
+export type ModelContextWindows = Record<string, number>;
 
 export interface Provider {
   id: string;
@@ -69,6 +70,7 @@ export interface Provider {
   model: string;
   models: string[];
   modelReasoningEfforts: ModelReasoningEfforts;
+  modelContextWindows: ModelContextWindows;
   imageInputModels: string[];
   contextWindow?: number | null;
   modelSelectionControlledByCodex: boolean;
@@ -95,6 +97,7 @@ export interface ProviderInput {
   model: string;
   models: string[];
   modelReasoningEfforts: ModelReasoningEfforts;
+  modelContextWindows: ModelContextWindows;
   imageInputModels: string[];
   contextWindow?: number | null;
   modelSelectionControlledByCodex: boolean;

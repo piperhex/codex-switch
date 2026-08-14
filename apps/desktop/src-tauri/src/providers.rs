@@ -10,9 +10,9 @@ use url::Url;
 use crate::{
     auth::{is_agent_identity_auth, validate_auth},
     models::{
-        ModelReasoningEfforts, ProviderApiFormat, ProviderBalance, ProviderBalanceItem,
-        ProviderBalancePlatform, ProviderFieldModifiedAt, ProviderKind, ProviderProfile,
-        ProviderSummary, ReasoningEffort, UsageSummary,
+        ModelContextWindows, ModelReasoningEfforts, ProviderApiFormat, ProviderBalance,
+        ProviderBalanceItem, ProviderBalancePlatform, ProviderFieldModifiedAt, ProviderKind,
+        ProviderProfile, ProviderSummary, ReasoningEffort, UsageSummary,
     },
     storage::{
         managed_auth_path, read_json, read_state, resolve_paths, write_json_atomic,
@@ -103,6 +103,18 @@ pub(crate) fn codex_model_reasoning_efforts(provider: &ProviderProfile) -> Model
         .unwrap_or_default()
 }
 
+pub(crate) fn codex_model_context_windows(provider: &ProviderProfile) -> ModelContextWindows {
+    if provider.model_selection_controlled_by_codex {
+        return provider.model_context_windows.clone();
+    }
+    provider
+        .model_context_windows
+        .get(&provider.model)
+        .copied()
+        .map(|context_window| [(CODEX_SWITCH_CONTROL_MODEL.to_string(), context_window)].into())
+        .unwrap_or_default()
+}
+
 pub(crate) fn reasoning_effort_profile(provider: &ProviderProfile) -> ReasoningEffortProfile {
     if provider.balance_platform == Some(ProviderBalancePlatform::DeepSeek) {
         ReasoningEffortProfile::DeepSeek
@@ -185,6 +197,8 @@ pub(crate) struct ProviderInput {
     #[serde(default)]
     model_reasoning_efforts: ModelReasoningEfforts,
     #[serde(default)]
+    model_context_windows: ModelContextWindows,
+    #[serde(default)]
     image_input_models: Vec<String>,
     #[serde(default)]
     context_window: Option<u64>,
@@ -260,6 +274,8 @@ pub(crate) fn save_provider<R: Runtime>(
     let (model, models) = normalize_model_selection(model, provider.models)?;
     let model_reasoning_efforts =
         normalize_model_reasoning_efforts(&models, provider.model_reasoning_efforts);
+    let model_context_windows =
+        normalize_model_context_windows(&models, provider.model_context_windows);
     let image_input_models = normalize_model_subset(&models, provider.image_input_models);
     let supplied_key = provider.api_key.unwrap_or_default().trim().to_string();
     let api_key = if supplied_key.is_empty() {
@@ -299,6 +315,7 @@ pub(crate) fn save_provider<R: Runtime>(
         model,
         models,
         model_reasoning_efforts,
+        model_context_windows,
         image_input_models,
         context_window: provider.context_window,
         model_selection_controlled_by_codex: provider.model_selection_controlled_by_codex,
@@ -1109,6 +1126,7 @@ fn provider_field_values(provider: &ProviderProfile) -> Vec<serde_json::Value> {
         json!(provider.model),
         json!(provider.models),
         json!(provider.model_reasoning_efforts),
+        json!(provider.model_context_windows),
         json!(provider.image_input_models),
         json!(provider.context_window),
         json!(provider.model_selection_controlled_by_codex),
@@ -1123,7 +1141,7 @@ fn provider_field_values(provider: &ProviderProfile) -> Vec<serde_json::Value> {
     ]
 }
 
-fn provider_field_versions_mut(values: &mut ProviderFieldModifiedAt) -> [&mut String; 18] {
+fn provider_field_versions_mut(values: &mut ProviderFieldModifiedAt) -> [&mut String; 19] {
     [
         &mut values.kind,
         &mut values.name,
@@ -1132,6 +1150,7 @@ fn provider_field_versions_mut(values: &mut ProviderFieldModifiedAt) -> [&mut St
         &mut values.model,
         &mut values.models,
         &mut values.model_reasoning_efforts,
+        &mut values.model_context_windows,
         &mut values.image_input_models,
         &mut values.context_window,
         &mut values.model_selection_controlled_by_codex,
@@ -1253,6 +1272,7 @@ fn provider_summary(
         model: provider.model.clone(),
         models: provider.models.clone(),
         model_reasoning_efforts: provider.model_reasoning_efforts.clone(),
+        model_context_windows: provider.model_context_windows.clone(),
         image_input_models: provider.image_input_models.clone(),
         context_window: provider.context_window,
         model_selection_controlled_by_codex: provider.model_selection_controlled_by_codex,
@@ -1698,6 +1718,20 @@ fn normalize_model_reasoning_efforts(
     normalized
 }
 
+fn normalize_model_context_windows(
+    models: &[String],
+    configured: ModelContextWindows,
+) -> ModelContextWindows {
+    configured
+        .into_iter()
+        .filter_map(|(configured_model, context_window)| {
+            let model = configured_model.trim();
+            let is_known = models.iter().any(|candidate| candidate == model);
+            (is_known && context_window > 0).then(|| (model.to_string(), context_window))
+        })
+        .collect()
+}
+
 fn normalize_provider_profile(mut provider: ProviderProfile) -> Result<ProviderProfile, String> {
     if provider.context_window == Some(0) {
         return Err("Context window must be greater than zero".to_string());
@@ -1729,6 +1763,8 @@ fn normalize_provider_profile(mut provider: ProviderProfile) -> Result<ProviderP
     provider.models = models;
     provider.model_reasoning_efforts =
         normalize_model_reasoning_efforts(&provider.models, provider.model_reasoning_efforts);
+    provider.model_context_windows =
+        normalize_model_context_windows(&provider.models, provider.model_context_windows);
     provider.image_input_models =
         normalize_model_subset(&provider.models, provider.image_input_models);
     match provider.balance_platform {
@@ -1975,30 +2011,50 @@ pub(crate) fn effective_provider_context_window(provider: &ProviderProfile) -> u
     provider_context_window(provider).saturating_mul(95) / 100
 }
 
-pub(crate) fn model_catalog_for_models(
-    models: &[String],
-    image_input_models: &[String],
-    model_reasoning_efforts: &ModelReasoningEfforts,
-    context_window: u64,
+pub(crate) fn effective_provider_context_window_for_model(
+    provider: &ProviderProfile,
+    model: &str,
+) -> u64 {
+    provider
+        .model_context_windows
+        .get(model)
+        .copied()
+        .unwrap_or_else(|| provider_context_window(provider))
+        .saturating_mul(95)
+        / 100
+}
+
+struct ModelCatalogOptions<'a> {
+    image_input_models: &'a [String],
+    reasoning_efforts: &'a ModelReasoningEfforts,
+    context_windows: &'a ModelContextWindows,
+    default_context_window: u64,
     reasoning_profile: ReasoningEffortProfile,
-) -> Value {
+}
+
+fn model_catalog_for_models(models: &[String], options: ModelCatalogOptions<'_>) -> Value {
     let entries = models
         .iter()
         .enumerate()
         .map(|(index, model)| {
             let model_reasoning_profile =
-                reasoning_effort_profile_for_model(model, reasoning_profile);
+                reasoning_effort_profile_for_model(model, options.reasoning_profile);
             let reasoning_levels = supported_reasoning_levels_for_model(
                 model,
                 model_reasoning_profile,
-                model_reasoning_efforts,
+                options.reasoning_efforts,
             );
+            let model_context_window = options
+                .context_windows
+                .get(model)
+                .copied()
+                .unwrap_or(options.default_context_window);
             provider_model_catalog_entry(
                 model,
                 index,
-                context_window,
+                model_context_window,
                 reasoning_levels,
-                image_input_models.contains(model),
+                options.image_input_models.contains(model),
             )
         })
         .collect::<Vec<_>>();
@@ -2134,14 +2190,25 @@ fn provider_model_catalog_entry(
 }
 
 fn write_provider_model_catalog(paths: &Paths, provider: &ProviderProfile) -> Result<(), String> {
-    let catalog = model_catalog_for_models(
-        &codex_visible_models(provider),
-        &codex_image_input_models(provider),
-        &codex_model_reasoning_efforts(provider),
-        provider_context_window(provider),
-        reasoning_effort_profile(provider),
-    );
+    let catalog = model_catalog_for_provider(provider);
     write_json_if_changed(&paths.codex_home.join(MODEL_CATALOG_FILENAME), &catalog).map(|_| ())
+}
+
+pub(crate) fn model_catalog_for_provider(provider: &ProviderProfile) -> Value {
+    let models = codex_visible_models(provider);
+    let image_input_models = codex_image_input_models(provider);
+    let reasoning_efforts = codex_model_reasoning_efforts(provider);
+    let context_windows = codex_model_context_windows(provider);
+    model_catalog_for_models(
+        &models,
+        ModelCatalogOptions {
+            image_input_models: &image_input_models,
+            reasoning_efforts: &reasoning_efforts,
+            context_windows: &context_windows,
+            default_context_window: provider_context_window(provider),
+            reasoning_profile: reasoning_effort_profile(provider),
+        },
+    )
 }
 
 fn write_local_proxy_config(
@@ -2477,6 +2544,7 @@ mod tests {
             model: "gpt-4.1".to_string(),
             models: vec!["gpt-4.1".to_string()],
             model_reasoning_efforts: ModelReasoningEfforts::new(),
+            model_context_windows: ModelContextWindows::new(),
             image_input_models: Vec::new(),
             context_window: None,
             model_selection_controlled_by_codex: false,
@@ -3152,6 +3220,7 @@ sandbox_mode = "workspace-write"
             model: "gpt-4.1".to_string(),
             models: Vec::new(),
             model_reasoning_efforts: ModelReasoningEfforts::new(),
+            model_context_windows: ModelContextWindows::new(),
             image_input_models: vec!["missing-model".to_string()],
             context_window: None,
             model_selection_controlled_by_codex: false,
@@ -3249,10 +3318,13 @@ sandbox_mode = "workspace-write"
         ];
         let catalog = model_catalog_for_models(
             &models,
-            &[],
-            &ModelReasoningEfforts::new(),
-            DEFAULT_MODEL_CONTEXT_WINDOW,
-            ReasoningEffortProfile::Standard,
+            ModelCatalogOptions {
+                image_input_models: &[],
+                reasoning_efforts: &ModelReasoningEfforts::new(),
+                context_windows: &ModelContextWindows::new(),
+                default_context_window: DEFAULT_MODEL_CONTEXT_WINDOW,
+                reasoning_profile: ReasoningEffortProfile::Standard,
+            },
         );
         let entries = catalog["models"].as_array().unwrap();
         let efforts = |index: usize| {
@@ -3291,10 +3363,13 @@ sandbox_mode = "workspace-write"
             normalize_model_reasoning_efforts(&["gpt-5.6-sol".to_string()], configured);
         let catalog = model_catalog_for_models(
             &["gpt-5.6-sol".to_string()],
-            &[],
-            &normalized,
-            DEFAULT_MODEL_CONTEXT_WINDOW,
-            ReasoningEffortProfile::Standard,
+            ModelCatalogOptions {
+                image_input_models: &[],
+                reasoning_efforts: &normalized,
+                context_windows: &ModelContextWindows::new(),
+                default_context_window: DEFAULT_MODEL_CONTEXT_WINDOW,
+                reasoning_profile: ReasoningEffortProfile::Standard,
+            },
         );
         let efforts = catalog["models"][0]["supported_reasoning_levels"]
             .as_array()
@@ -3311,12 +3386,19 @@ sandbox_mode = "workspace-write"
     fn switch_control_inherits_the_selected_gpt_model_reasoning_levels() {
         let mut provider = provider();
         provider.model = "GPT-5.6-SOL".to_string();
+        provider
+            .model_context_windows
+            .insert(provider.model.clone(), 400_000);
+        let model_context_windows = codex_model_context_windows(&provider);
         let catalog = model_catalog_for_models(
             &[CODEX_SWITCH_CONTROL_MODEL.to_string()],
-            &[],
-            &ModelReasoningEfforts::new(),
-            provider_context_window(&provider),
-            reasoning_effort_profile(&provider),
+            ModelCatalogOptions {
+                image_input_models: &[],
+                reasoning_efforts: &ModelReasoningEfforts::new(),
+                context_windows: &model_context_windows,
+                default_context_window: provider_context_window(&provider),
+                reasoning_profile: reasoning_effort_profile(&provider),
+            },
         );
         let efforts = catalog["models"][0]["supported_reasoning_levels"]
             .as_array()
@@ -3329,6 +3411,7 @@ sandbox_mode = "workspace-write"
             efforts,
             vec!["low", "medium", "high", "xhigh", "max", "ultra"]
         );
+        assert_eq!(catalog["models"][0]["context_window"], 400_000);
     }
 
     #[test]
@@ -3337,13 +3420,19 @@ sandbox_mode = "workspace-write"
         provider.models = vec!["deepseek-chat".to_string(), "deepseek-reasoner".to_string()];
         provider.image_input_models = vec!["deepseek-reasoner".to_string()];
         provider.context_window = Some(256_000);
+        provider
+            .model_context_windows
+            .insert("deepseek-reasoner".to_string(), 400_000);
         provider.model_selection_controlled_by_codex = true;
         let catalog = model_catalog_for_models(
             &provider.models,
-            &provider.image_input_models,
-            &ModelReasoningEfforts::new(),
-            provider_context_window(&provider),
-            ReasoningEffortProfile::DeepSeek,
+            ModelCatalogOptions {
+                image_input_models: &provider.image_input_models,
+                reasoning_efforts: &ModelReasoningEfforts::new(),
+                context_windows: &provider.model_context_windows,
+                default_context_window: provider_context_window(&provider),
+                reasoning_profile: ReasoningEffortProfile::DeepSeek,
+            },
         );
         let models = catalog["models"].as_array().unwrap();
 
@@ -3361,6 +3450,8 @@ sandbox_mode = "workspace-write"
         assert!(models[0].get("multi_agent_version").is_some());
         assert_eq!(models[0]["context_window"], 256_000);
         assert_eq!(models[0]["max_context_window"], 256_000);
+        assert_eq!(models[1]["context_window"], 400_000);
+        assert_eq!(models[1]["max_context_window"], 400_000);
         assert_eq!(models[0]["input_modalities"], json!(["text"]));
         assert_eq!(models[1]["input_modalities"], json!(["text", "image"]));
         assert_eq!(

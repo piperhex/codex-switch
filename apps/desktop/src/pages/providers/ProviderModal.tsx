@@ -1,14 +1,15 @@
 import { useEffect, useState } from "react";
-import { AutoComplete, Button, Input, Segmented, Select, Switch } from "antd";
+import { Button, Input, Segmented, Select, Switch } from "antd";
 import { Save, Server, X } from "lucide-react";
 import type { Translate } from "../../i18n";
 import type { Provider, ProviderApiFormat, ProviderBalancePlatform, ProviderInput } from "../../types";
 import { ModelReasoningEditor } from "./ModelReasoningEditor";
 import {
   balancePlatformOptions,
-  CONTEXT_WINDOW_OPTIONS,
+  DEFAULT_CONTEXT_WINDOW_K,
   defaultBalanceUrl,
   defaultWalletUrl,
+  modelContextWindows,
   modelReasoningConfigs,
   modelReasoningEfforts,
   modelOptions,
@@ -30,7 +31,6 @@ export function ProviderModal({ provider, saving, onClose, onSave, t }: Provider
   const [model, setModel] = useState("");
   const [modelConfigs, setModelConfigs] = useState<ModelReasoningConfig[]>([]);
   const [imageInputModels, setImageInputModels] = useState<string[]>([]);
-  const [contextWindowK, setContextWindowK] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [apiFormat, setApiFormat] = useState<ProviderApiFormat>("openaiResponses");
   const [balancePlatform, setBalancePlatform] = useState<ProviderBalancePlatform | "none">("none");
@@ -51,11 +51,14 @@ export function ProviderModal({ provider, saving, onClose, onSave, t }: Provider
     setBaseUrl(provider?.baseUrl ?? "");
     const nextModels = normalizeModels(provider?.model ?? "", provider?.models ?? []);
     setModelConfigs(nextModels.length
-      ? modelReasoningConfigs(nextModels, provider?.modelReasoningEfforts)
-      : [{ model: "", reasoningEfforts: [] }]);
+      ? modelReasoningConfigs(nextModels, {
+        reasoningEfforts: provider?.modelReasoningEfforts,
+        contextWindows: provider?.modelContextWindows,
+        fallbackContextWindow: provider?.contextWindow,
+      })
+      : [{ model: "", reasoningEfforts: [], contextWindowK: DEFAULT_CONTEXT_WINDOW_K }]);
     setImageInputModels(provider?.imageInputModels?.filter((value) => nextModels.includes(value)) ?? []);
     setModel(provider?.model ?? nextModels[0] ?? "");
-    setContextWindowK(provider?.contextWindow ? String(provider.contextWindow / 1000) : "");
     setApiKey("");
     setApiFormat(provider?.apiFormat ?? "openaiResponses");
     setBalancePlatform(provider?.balancePlatform ?? "none");
@@ -73,9 +76,10 @@ export function ProviderModal({ provider, saving, onClose, onSave, t }: Provider
   const normalizedModels = normalizeModels(model, rowModels);
   const modelsAreValid = rowModels.length === modelConfigs.length
     && new Set(rowModels).size === rowModels.length
-    && modelConfigs.every((config) => config.reasoningEfforts.length > 0);
+    && modelConfigs.every((config) => (
+      config.reasoningEfforts.length > 0 && Boolean(parseContextWindowK(config.contextWindowK))
+    ));
   const activeModel = model.trim() || (normalizedModels[0] ?? "");
-  const contextWindow = parseContextWindowK(contextWindowK);
   const hasBalanceToken = balanceQueryUsesApiKey
     || Boolean(balanceQueryToken.trim() || provider?.hasBalanceQueryToken);
   const canSave = Boolean(
@@ -83,7 +87,6 @@ export function ProviderModal({ provider, saving, onClose, onSave, t }: Provider
     && baseUrl.trim()
     && activeModel
     && modelsAreValid
-    && contextWindow !== undefined
     && (provider?.hasApiKey || apiKey.trim())
     && (balancePlatform === "none" || (balanceQueryUrl.trim() && hasBalanceToken)),
   );
@@ -103,8 +106,9 @@ export function ProviderModal({ provider, saving, onClose, onSave, t }: Provider
       model: activeModel,
       models: normalizedModels,
       modelReasoningEfforts: modelReasoningEfforts(modelConfigs),
+      modelContextWindows: modelContextWindows(modelConfigs),
       imageInputModels: imageInputModels.filter((value) => normalizedModels.includes(value)),
-      contextWindow,
+      contextWindow: null,
       modelSelectionControlledByCodex: provider?.modelSelectionControlledByCodex ?? false,
       apiKey: apiKey.trim() || undefined,
       apiFormat,
@@ -181,11 +185,6 @@ export function ProviderModal({ provider, saving, onClose, onSave, t }: Provider
             placeholder={t("providers.form.imageInputModelsPlaceholder")}
             options={modelOptions(normalizedModels)} onChange={setImageInputModels} />
           <small>{t("providers.form.imageInputModelsHint")}</small>
-          <label htmlFor="provider-context-window">{t("providers.form.contextWindow")}</label>
-          <AutoComplete id="provider-context-window" value={contextWindowK} disabled={saving}
-            options={CONTEXT_WINDOW_OPTIONS} placeholder="256" allowClear
-            onChange={setContextWindowK} />
-          <small>{t("providers.form.contextWindowHint")}</small>
           <label htmlFor="provider-api-key">{t("providers.form.apiKey")}</label>
           <Input.Password id="provider-api-key" value={apiKey} disabled={saving}
             placeholder={provider?.hasApiKey ? t("providers.form.keepApiKey") : t("providers.form.newApiKey")}

@@ -46,6 +46,9 @@ export class SyncedProviderEntity {
   @Column({ type: 'jsonb', default: {} })
   modelReasoningEfforts: Record<string, string[]>;
 
+  @Column({ type: 'jsonb', default: {} })
+  modelContextWindows: Record<string, number>;
+
   @Column({ type: 'jsonb', default: [] })
   imageInputModels: string[];
 

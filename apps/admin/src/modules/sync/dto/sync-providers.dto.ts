@@ -21,6 +21,7 @@ export class ProviderFieldModifiedAtDto {
   @IsOptional() @IsString() @MaxLength(40) model?: string;
   @IsOptional() @IsString() @MaxLength(40) models?: string;
   @IsOptional() @IsString() @MaxLength(40) modelReasoningEfforts?: string;
+  @IsOptional() @IsString() @MaxLength(40) modelContextWindows?: string;
   @IsOptional() @IsString() @MaxLength(40) imageInputModels?: string;
   @IsOptional() @IsString() @MaxLength(40) contextWindow?: string;
   @IsOptional() @IsString() @MaxLength(40) modelSelectionControlledByCodex?: string;
@@ -67,6 +68,10 @@ export class SyncProviderDto {
   @IsOptional()
   @IsObject()
   modelReasoningEfforts: Record<string, string[]> = {};
+
+  @IsOptional()
+  @IsObject()
+  modelContextWindows: Record<string, number> = {};
 
   @IsArray()
   @ArrayMaxSize(500)

@@ -901,6 +901,7 @@ fn apply_remote_provider<R: Runtime>(
     merge_field!(model);
     merge_field!(models);
     merge_field!(model_reasoning_efforts);
+    merge_field!(model_context_windows);
     merge_field!(image_input_models);
     merge_field!(context_window);
     merge_field!(model_selection_controlled_by_codex);
@@ -948,6 +949,7 @@ fn normalize_provider_field_modified_at(
         &mut values.model,
         &mut values.models,
         &mut values.model_reasoning_efforts,
+        &mut values.model_context_windows,
         &mut values.image_input_models,
         &mut values.context_window,
         &mut values.model_selection_controlled_by_codex,
@@ -976,6 +978,7 @@ fn latest_provider_field_modified_at(values: &ProviderFieldModifiedAt) -> String
         &values.model,
         &values.models,
         &values.model_reasoning_efforts,
+        &values.model_context_windows,
         &values.image_input_models,
         &values.context_window,
         &values.model_selection_controlled_by_codex,
@@ -1009,6 +1012,7 @@ fn provider_payload_from_profile(
         model: provider.model,
         models: provider.models,
         model_reasoning_efforts: provider.model_reasoning_efforts,
+        model_context_windows: provider.model_context_windows,
         image_input_models: provider.image_input_models,
         context_window: provider.context_window,
         model_selection_controlled_by_codex: provider.model_selection_controlled_by_codex,
@@ -1035,6 +1039,7 @@ fn provider_payload_to_profile(provider: &ProviderSyncPayload) -> ProviderProfil
         model: provider.model.clone(),
         models: provider.models.clone(),
         model_reasoning_efforts: provider.model_reasoning_efforts.clone(),
+        model_context_windows: provider.model_context_windows.clone(),
         image_input_models: provider.image_input_models.clone(),
         context_window: provider.context_window,
         model_selection_controlled_by_codex: provider.model_selection_controlled_by_codex,

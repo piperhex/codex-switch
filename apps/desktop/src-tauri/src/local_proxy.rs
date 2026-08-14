@@ -1101,10 +1101,10 @@ fn list_proxy_sessions_blocking<R: Runtime>(
                 {
                     official_context_windows.get(model).copied()
                 }
-                (Some(provider), Some(_)) => Some(
+                (Some(provider), Some(model)) => Some(
                     provider_context_windows
                         .get(provider)
-                        .copied()
+                        .map(|windows| windows.for_model(model))
                         .unwrap_or(default_provider_context_window),
                 ),
                 _ => None,
@@ -1298,7 +1298,7 @@ fn list_token_usage_entries_blocking<R: Runtime>(
                 Some(
                     provider_context_windows
                         .get(&entry.provider)
-                        .copied()
+                        .map(|windows| windows.for_model(&entry.model))
                         .unwrap_or(
                             providers::DEFAULT_MODEL_CONTEXT_WINDOW
                                 .saturating_mul(DEFAULT_EFFECTIVE_CONTEXT_WINDOW_PERCENT)
@@ -3460,15 +3460,41 @@ fn upstream_official_provider_names(paths: &Paths) -> HashSet<String> {
         .collect()
 }
 
-fn provider_context_windows(paths: &Paths) -> HashMap<String, u64> {
+struct ProviderContextWindowLookup {
+    default: u64,
+    models: HashMap<String, u64>,
+}
+
+impl ProviderContextWindowLookup {
+    fn for_model(&self, model: &str) -> u64 {
+        self.models.get(model).copied().unwrap_or(self.default)
+    }
+}
+
+fn provider_context_windows(paths: &Paths) -> HashMap<String, ProviderContextWindowLookup> {
     providers::list_provider_profiles(paths)
         .unwrap_or_default()
         .into_iter()
         .map(|provider| {
-            (
-                provider.name.clone(),
-                providers::effective_provider_context_window(&provider),
-            )
+            let mut models = provider
+                .models
+                .iter()
+                .map(|model| {
+                    (
+                        model.clone(),
+                        providers::effective_provider_context_window_for_model(&provider, model),
+                    )
+                })
+                .collect::<HashMap<_, _>>();
+            models.insert(
+                providers::CODEX_SWITCH_CONTROL_MODEL.to_string(),
+                providers::effective_provider_context_window_for_model(&provider, &provider.model),
+            );
+            let windows = ProviderContextWindowLookup {
+                default: providers::effective_provider_context_window(&provider),
+                models,
+            };
+            (provider.name.clone(), windows)
         })
         .collect()
 }
@@ -4162,22 +4188,8 @@ fn forward_provider(
     )
 }
 
-fn provider_models_for_codex(provider: &ProviderProfile) -> Vec<String> {
-    if provider.model_selection_controlled_by_codex {
-        provider.models.clone()
-    } else {
-        vec![providers::CODEX_SWITCH_CONTROL_MODEL.to_string()]
-    }
-}
-
 fn provider_models_payload(provider: &ProviderProfile) -> UpstreamPayload {
-    let catalog = providers::model_catalog_for_models(
-        &provider_models_for_codex(provider),
-        &providers::codex_image_input_models(provider),
-        &providers::codex_model_reasoning_efforts(provider),
-        providers::provider_context_window(provider),
-        providers::reasoning_effort_profile(provider),
-    );
+    let catalog = providers::model_catalog_for_provider(provider);
     let body = serde_json::to_vec(&catalog).unwrap_or_else(|_| b"{}".to_vec());
     let etag = provider_models_etag(provider);
     UpstreamPayload {
@@ -4190,13 +4202,7 @@ fn provider_models_payload(provider: &ProviderProfile) -> UpstreamPayload {
 }
 
 fn provider_models_etag(provider: &ProviderProfile) -> String {
-    let catalog = providers::model_catalog_for_models(
-        &provider_models_for_codex(provider),
-        &providers::codex_image_input_models(provider),
-        &providers::codex_model_reasoning_efforts(provider),
-        providers::provider_context_window(provider),
-        providers::reasoning_effort_profile(provider),
-    );
+    let catalog = providers::model_catalog_for_provider(provider);
     let body = serde_json::to_vec(&catalog).unwrap_or_default();
     format!("\"codex-switch-{}\"", short_hash_bytes(&body))
 }
@@ -6261,6 +6267,7 @@ mod tests {
             model: "gpt-5.6-sol".to_string(),
             models: vec!["gpt-5.6-sol".to_string()],
             model_reasoning_efforts: Default::default(),
+            model_context_windows: Default::default(),
             image_input_models: vec!["gpt-5.6-sol".to_string()],
             context_window: None,
             model_selection_controlled_by_codex: true,
@@ -7183,6 +7190,7 @@ mod tests {
             model: "gpt-4.1".to_string(),
             models: vec!["gpt-4.1".to_string()],
             model_reasoning_efforts: Default::default(),
+            model_context_windows: Default::default(),
             image_input_models: Vec::new(),
             context_window: None,
             model_selection_controlled_by_codex: false,
@@ -7233,6 +7241,7 @@ mod tests {
             model: "deepseek-chat".to_string(),
             models: vec!["deepseek-chat".to_string()],
             model_reasoning_efforts: Default::default(),
+            model_context_windows: Default::default(),
             image_input_models: Vec::new(),
             context_window: None,
             model_selection_controlled_by_codex: false,
@@ -7518,6 +7527,7 @@ mod tests {
             model: "deepseek-chat".to_string(),
             models: vec!["deepseek-chat".to_string(), "deepseek-reasoner".to_string()],
             model_reasoning_efforts: Default::default(),
+            model_context_windows: Default::default(),
             image_input_models: vec!["deepseek-reasoner".to_string()],
             context_window: Some(256_000),
             model_selection_controlled_by_codex: true,
@@ -7530,13 +7540,7 @@ mod tests {
             wallet_username: None,
             wallet_password: None,
         };
-        let catalog = providers::model_catalog_for_models(
-            &provider_models_for_codex(&provider),
-            &providers::codex_image_input_models(&provider),
-            &providers::codex_model_reasoning_efforts(&provider),
-            providers::provider_context_window(&provider),
-            providers::reasoning_effort_profile(&provider),
-        );
+        let catalog = providers::model_catalog_for_provider(&provider);
         let models = catalog["models"].as_array().unwrap();
 
         assert_eq!(models.len(), 2);
@@ -7573,6 +7577,7 @@ mod tests {
             model: "deepseek-chat".to_string(),
             models: vec!["deepseek-chat".to_string(), "deepseek-reasoner".to_string()],
             model_reasoning_efforts: Default::default(),
+            model_context_windows: Default::default(),
             image_input_models: Vec::new(),
             context_window: None,
             model_selection_controlled_by_codex: false,
@@ -7586,9 +7591,10 @@ mod tests {
             wallet_password: None,
         };
 
+        let catalog = providers::model_catalog_for_provider(&provider);
         assert_eq!(
-            provider_models_for_codex(&provider),
-            vec![providers::CODEX_SWITCH_CONTROL_MODEL.to_string()]
+            catalog["models"][0]["slug"],
+            providers::CODEX_SWITCH_CONTROL_MODEL
         );
         assert_eq!(
             selected_provider_model(
@@ -7610,6 +7616,7 @@ mod tests {
             model: "deepseek-chat".to_string(),
             models: vec!["deepseek-chat".to_string()],
             model_reasoning_efforts: Default::default(),
+            model_context_windows: Default::default(),
             image_input_models: Vec::new(),
             context_window: None,
             model_selection_controlled_by_codex: true,
@@ -8117,6 +8124,7 @@ mod tests {
             model: "provider-text-model".to_string(),
             models: vec!["provider-text-model".to_string()],
             model_reasoning_efforts: Default::default(),
+            model_context_windows: Default::default(),
             image_input_models: Vec::new(),
             context_window: None,
             model_selection_controlled_by_codex: false,
@@ -8304,6 +8312,7 @@ mod tests {
             model: "deepseek-chat".to_string(),
             models: vec!["deepseek-chat".to_string(), "deepseek-reasoner".to_string()],
             model_reasoning_efforts: Default::default(),
+            model_context_windows: Default::default(),
             image_input_models: Vec::new(),
             context_window: None,
             model_selection_controlled_by_codex: true,
@@ -8380,6 +8389,7 @@ mod tests {
             model: "deepseek-v4-flash".to_string(),
             models: vec!["deepseek-v4-flash".to_string()],
             model_reasoning_efforts: Default::default(),
+            model_context_windows: Default::default(),
             image_input_models: Vec::new(),
             context_window: None,
             model_selection_controlled_by_codex: false,

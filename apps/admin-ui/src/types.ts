@@ -322,6 +322,7 @@ export interface SyncProvider {
   model: string;
   models: string[];
   modelReasoningEfforts: Record<string, string[]>;
+  modelContextWindows: Record<string, number>;
   imageInputModels: string[];
   contextWindow?: number | null;
   modelSelectionControlledByCodex: boolean;

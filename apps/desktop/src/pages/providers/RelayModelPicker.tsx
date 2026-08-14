@@ -6,6 +6,7 @@ import type { Translate } from "../../i18n";
 import { ModelReasoningEditor } from "./ModelReasoningEditor";
 import {
   modelOptions,
+  modelContextWindows,
   modelReasoningConfigs,
   modelReasoningEfforts,
   type ModelReasoningConfig,
@@ -53,8 +54,10 @@ export function RelayModelPicker({
     try {
       const latest = await fetchRelayModels(baseUrl, apiKey);
       if (currentRequestId !== requestId.current) return;
-      const configured = modelReasoningEfforts(modelConfigs);
-      onModelConfigsChange(modelReasoningConfigs(latest, configured));
+      onModelConfigsChange(modelReasoningConfigs(latest, {
+        reasoningEfforts: modelReasoningEfforts(modelConfigs),
+        contextWindows: modelContextWindows(modelConfigs),
+      }));
       onActiveModelChange(latest.includes(activeModel) ? activeModel : latest[0] ?? "");
       setLoaded(true);
     } catch {

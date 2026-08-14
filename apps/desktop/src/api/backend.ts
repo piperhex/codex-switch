@@ -234,6 +234,18 @@ function normalizeModelReasoningEfforts(models: string[], value: unknown): Provi
   return normalized;
 }
 
+function normalizeModelContextWindows(models: string[], value: unknown): Provider["modelContextWindows"] {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const normalized: Provider["modelContextWindows"] = {};
+  for (const model of models) {
+    const contextWindow = (value as Record<string, unknown>)[model];
+    if (typeof contextWindow === "number" && Number.isSafeInteger(contextWindow) && contextWindow > 0) {
+      normalized[model] = contextWindow;
+    }
+  }
+  return normalized;
+}
+
 function readPreviewProviders(): Provider[] {
   try {
     const parsed: unknown = JSON.parse(window.localStorage.getItem(PROVIDERS_PREVIEW_KEY) ?? "[]");
@@ -258,6 +270,7 @@ function readPreviewProviders(): Provider[] {
         model: models.includes(selectedModel) ? selectedModel : (models[0] ?? ""),
         models,
         modelReasoningEfforts: normalizeModelReasoningEfforts(models, provider.modelReasoningEfforts),
+        modelContextWindows: normalizeModelContextWindows(models, provider.modelContextWindows),
         imageInputModels: normalizeModelSubset(models, provider.imageInputModels),
         contextWindow: provider.contextWindow ?? null,
         modelSelectionControlledByCodex: kind === "openai"
@@ -406,6 +419,7 @@ export async function saveProviderProfile(provider: ProviderInput): Promise<Prov
       model,
       models,
       modelReasoningEfforts: normalizeModelReasoningEfforts(models, provider.modelReasoningEfforts),
+      modelContextWindows: normalizeModelContextWindows(models, provider.modelContextWindows),
       imageInputModels: normalizeModelSubset(models, provider.imageInputModels),
       contextWindow: provider.contextWindow ?? null,
       modelSelectionControlledByCodex: kind === "openai"
