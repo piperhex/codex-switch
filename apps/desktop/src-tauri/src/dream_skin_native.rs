@@ -1055,6 +1055,88 @@ fn codex_model_fallback_query_key() -> Value {
     ])
 }
 
+const CODEX_MODEL_OBSERVER_PATCH_HELPERS: &str = r#"
+  const patchStateKey = "__CODEX_SWITCH_MODEL_QUERY_PATCH__";
+  const queryPatchSymbol = Symbol.for("codex-switch.models.query-patch");
+  const observerPatchSymbol = Symbol.for("codex-switch.models.observer-patch");
+  const wrappedSelectSymbol = Symbol.for("codex-switch.models.wrapped-select");
+  const restoreObserver = observer => {
+    const patch = observer?.[observerPatchSymbol];
+    if (!patch) return;
+    patch.originalSetOptions({ ...observer.options, select: patch.originalSelect });
+    delete observer.setOptions;
+    delete observer[observerPatchSymbol];
+  };
+  const restoreQuery = query => {
+    for (const observer of query?.observers ?? []) restoreObserver(observer);
+    if (!query?.[queryPatchSymbol]) return;
+    delete query.addObserver;
+    delete query[queryPatchSymbol];
+  };
+  const clearModelQueryPatch = () => {
+    const state = window[patchStateKey];
+    if (!state) return;
+    state.unsubscribe?.();
+    for (const query of state.queries ?? []) restoreQuery(query);
+    delete window[patchStateKey];
+  };
+  const wrapSelect = originalSelect => {
+    const wrappedSelect = input => {
+      const base = typeof originalSelect === "function" ? originalSelect(input) : input;
+      const state = window[patchStateKey];
+      if (!state?.active || !Array.isArray(state.models)) return base;
+      const models = state.models;
+      const supportsEffort = effort => models.some(model =>
+        model.supportedReasoningEfforts?.some(item => item.reasoningEffort === effort)
+      );
+      return {
+        ...(base && typeof base === "object" ? base : {}),
+        models,
+        defaultModel: models.find(model => model.isDefault) ?? models[0] ?? null,
+        hasModelSupportingMaxReasoningEffort: supportsEffort("max"),
+        hasModelSupportingUltraReasoningEffort: supportsEffort("ultra"),
+      };
+    };
+    wrappedSelect[wrappedSelectSymbol] = true;
+    return wrappedSelect;
+  };
+  const patchObserver = observer => {
+    if (!observer || typeof observer.setOptions !== "function") return;
+    let patch = observer[observerPatchSymbol];
+    if (!patch) {
+      patch = {
+        originalSelect: observer.options?.select ?? null,
+        originalSetOptions: observer.setOptions.bind(observer),
+      };
+      observer[observerPatchSymbol] = patch;
+      observer.setOptions = options => {
+        if (!options?.select?.[wrappedSelectSymbol]) {
+          patch.originalSelect = options?.select ?? null;
+        }
+        return patch.originalSetOptions({
+          ...options,
+          select: wrapSelect(patch.originalSelect),
+        });
+      };
+    }
+    observer.setOptions(observer.options);
+  };
+  const patchQuery = query => {
+    if (!matchesModelsQuery(query)) return;
+    patchState.queries.add(query);
+    if (!query[queryPatchSymbol]) {
+      const originalAddObserver = query.addObserver.bind(query);
+      query[queryPatchSymbol] = { originalAddObserver };
+      query.addObserver = observer => {
+        const result = originalAddObserver(observer);
+        patchObserver(observer);
+        return result;
+      };
+    }
+    for (const observer of query.observers ?? []) patchObserver(observer);
+  };
+"#;
+
 fn codex_model_refresh_expression(
     models: &[String],
     selected_model: &str,
@@ -1080,6 +1162,7 @@ fn codex_model_refresh_expression(
         .map_err(|error| format!("Failed to prepare reasoning efforts: {error}"))?;
     let fallback_query_key = serde_json::to_string(&codex_model_fallback_query_key())
         .map_err(|error| format!("Failed to prepare the fallback model query: {error}"))?;
+    let observer_patch_helpers = CODEX_MODEL_OBSERVER_PATCH_HELPERS;
     Ok(format!(
         r#"(async () => {{
   const expectedModels = {models};
@@ -1119,6 +1202,8 @@ fn codex_model_refresh_expression(
     (query.queryKey[0] === "config" &&
       (query.queryKey[1] === "user" || query.queryKey[1] === "read-response"))
   );
+{observer_patch_helpers}
+  if (expectedModels.length === 0) clearModelQueryPatch();
   await queryClient.invalidateQueries({{
     predicate: query => matchesModelsQuery(query) || matchesConfigQuery(query),
     refetchType: "active",
@@ -1154,6 +1239,27 @@ fn codex_model_refresh_expression(
     defaultServiceTier: null,
     isDefault: model === selectedModel || (!expected.has(selectedModel) && index === 0),
   }}));
+  const previousPatchState = window[patchStateKey];
+  if (previousPatchState?.queryClient && previousPatchState.queryClient !== queryClient) {{
+    clearModelQueryPatch();
+  }}
+  const patchState = window[patchStateKey] ?? {{
+    active: true,
+    models: [],
+    queries: new Set(),
+    queryClient,
+    unsubscribe: null,
+  }};
+  patchState.active = true;
+  patchState.models = injectedModels;
+  patchState.queryClient = queryClient;
+  window[patchStateKey] = patchState;
+  if (!patchState.unsubscribe) {{
+    patchState.unsubscribe = queryClient.getQueryCache().subscribe(event => {{
+      if (event?.type === "added") patchQuery(event.query);
+    }});
+  }}
+  for (const query of currentQueries) patchQuery(query);
   const targetQueryKeys = currentQueries.length > 0
     ? currentQueries.map(query => query.queryKey)
     : [{fallback_query_key}];
@@ -1182,6 +1288,12 @@ fn codex_model_refresh_expression(
       }};
     }});
   }}
+  for (const query of queryClient.getQueryCache().getAll().filter(matchesModelsQuery)) {{
+    patchQuery(query);
+  }}
+  const patchedObservers = [...patchState.queries]
+    .flatMap(query => query.observers ?? [])
+    .filter(observer => Boolean(observer[observerPatchSymbol])).length;
   return {{
     refreshed: true,
     reason: currentQueries.length > 0
@@ -1190,6 +1302,7 @@ fn codex_model_refresh_expression(
     queryKeys: targetQueryKeys,
     injected,
     count: injectedModels.length,
+    patchedObservers,
   }};
 }})()"#
     ))
@@ -2807,6 +2920,22 @@ mod tests {
             "currentQueries.length > 0\n    ? currentQueries.map(query => query.queryKey)"
         ));
         assert!(expression.contains("[\"models\",\"list\",\"local\",\"no-auth\",100]"));
+    }
+
+    #[test]
+    fn codex_model_refresh_bypasses_the_renderer_available_model_filter() {
+        let expression = codex_model_refresh_expression(
+            &["deepseek-chat".to_string()],
+            "deepseek-chat",
+            crate::providers::ReasoningEffortProfile::DeepSeek,
+        )
+        .unwrap();
+
+        assert!(expression.contains("__CODEX_SWITCH_MODEL_QUERY_PATCH__"));
+        assert!(expression.contains("observer.setOptions = options =>"));
+        assert!(expression.contains("query.addObserver = observer =>"));
+        assert!(expression.contains("models,\n        defaultModel:"));
+        assert!(expression.contains("if (expectedModels.length === 0) clearModelQueryPatch()"));
     }
 
     #[test]
