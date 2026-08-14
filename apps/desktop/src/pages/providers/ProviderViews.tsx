@@ -57,17 +57,6 @@ function ProviderActions({ provider, options }: {
   const waiting = busyProviderId === provider.id;
   return (
     <Space size={4} className="table-actions">
-      {provider.kind === "custom" && (
-        <Tooltip title={t(provider.autoSwitchEnabled
-          ? "providers.tooltip.autoSwitchEnabled"
-          : "providers.tooltip.autoSwitch")}>
-          <Button size="small" type={provider.autoSwitchEnabled ? "primary" : "default"}
-            loading={waiting} icon={<Shuffle size={14} />}
-            onClick={() => onAutoSwitchChange(provider.id, !provider.autoSwitchEnabled)}>
-            {t("providers.action.autoSwitch")}
-          </Button>
-        </Tooltip>
-      )}
       <Tooltip title={provider.supportsDirectSwitch
         ? t("providers.tooltip.switch")
         : t("providers.tooltip.requiresBridge")}>
@@ -82,6 +71,17 @@ function ProviderActions({ provider, options }: {
               : t("providers.action.switch")}
         </Button>
       </Tooltip>
+      {proxyRunning && provider.kind === "custom" && (
+        <Tooltip title={t(provider.autoSwitchEnabled
+          ? "providers.tooltip.autoSwitchEnabled"
+          : "providers.tooltip.autoSwitch")}>
+          <Button size="small" type={provider.autoSwitchEnabled ? "primary" : "default"}
+            loading={waiting} icon={<Shuffle size={14} />}
+            onClick={() => onAutoSwitchChange(provider.id, !provider.autoSwitchEnabled)}>
+            {t("providers.action.autoSwitch")}
+          </Button>
+        </Tooltip>
+      )}
       <Tooltip title={t("providers.tooltip.edit")}>
         <Button size="small" className="table-icon-button" icon={<Pencil size={14} />}
           onClick={() => onEdit(provider)} />
@@ -258,7 +258,7 @@ function ProviderCard({ provider, options }: { provider: Provider; options: Prov
           ? <Tag>{t("providers.status.ready")}</Tag>
           : <Tag color="gold">{t("providers.status.bridgeRequired")}</Tag>}
       <div className="provider-card-top-actions">
-        {provider.kind === "custom" && (
+        {options.proxyRunning && provider.kind === "custom" && (
           <Tooltip title={t(provider.autoSwitchEnabled
             ? "providers.tooltip.autoSwitchEnabled"
             : "providers.tooltip.autoSwitch")}>
