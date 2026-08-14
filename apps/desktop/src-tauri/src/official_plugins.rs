@@ -101,8 +101,8 @@ struct PluginInterface {
     composer_icon: Option<String>,
 }
 
-fn codex_command() -> Command {
-    let mut command = Command::new("codex");
+fn codex_command(executable: &Path) -> Command {
+    let mut command = Command::new(executable);
     command.env("NO_COLOR", "1");
     #[cfg(target_os = "windows")]
     {
@@ -112,10 +112,38 @@ fn codex_command() -> Command {
     command
 }
 
+fn execute_codex(executable: &Path, args: &[&str]) -> std::io::Result<Output> {
+    codex_command(executable).args(args).output()
+}
+
+#[cfg(target_os = "windows")]
+fn execute_official_codex(args: &[&str]) -> Option<std::io::Result<Output>> {
+    crate::dream_skin_native::find_codex_cli_executable()
+        .map(|executable| execute_codex(&executable, args))
+}
+
+#[cfg(not(target_os = "windows"))]
+fn execute_official_codex(_args: &[&str]) -> Option<std::io::Result<Output>> {
+    None
+}
+
 fn run_codex(args: &[&str], failure_message: &str) -> Result<Output, String> {
-    let output = codex_command().args(args).output().map_err(|error| {
+    let output = match execute_official_codex(args) {
+        Some(Ok(output)) => Ok(output),
+        Some(Err(error))
+            if matches!(
+                error.kind(),
+                std::io::ErrorKind::NotFound | std::io::ErrorKind::PermissionDenied
+            ) =>
+        {
+            execute_codex(Path::new("codex"), args)
+        }
+        Some(Err(error)) => Err(error),
+        None => execute_codex(Path::new("codex"), args),
+    }
+    .map_err(|error| {
         if error.kind() == std::io::ErrorKind::NotFound {
-            return "Codex plugins are unavailable. Install or update the official Codex app, then try again."
+            return "Codex plugin support is unavailable. Update Codex, restart Codex Switch, and try again."
                 .to_string();
         }
         failure_message.to_string()

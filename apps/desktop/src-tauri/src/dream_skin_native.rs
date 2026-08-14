@@ -2155,6 +2155,23 @@ fn find_codex_install() -> Result<CodexInstall, String> {
     find_default_codex_install()
 }
 
+#[cfg(target_os = "windows")]
+fn bundled_codex_cli_path(shell_executable: &Path) -> Option<PathBuf> {
+    Some(
+        shell_executable
+            .parent()?
+            .join("resources")
+            .join("codex.exe"),
+    )
+}
+
+#[cfg(target_os = "windows")]
+pub(crate) fn find_codex_cli_executable() -> Option<PathBuf> {
+    let shell_executable = find_codex_install().ok()?.executable;
+    let cli_executable = bundled_codex_cli_path(&shell_executable)?;
+    cli_executable.is_file().then_some(cli_executable)
+}
+
 fn remembered_codex_install() -> Option<CodexInstall> {
     let executable = read_session().codex_executable.map(PathBuf::from)?;
     if !executable.is_file() {
@@ -3125,6 +3142,21 @@ mod tests {
         assert_eq!(
             resolved.app_user_model_id.as_deref(),
             Some("OpenAI.Codex_example!App")
+        );
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn resolves_the_cli_bundled_with_the_official_app() {
+        let shell = Path::new(
+            r"C:\Program Files\WindowsApps\OpenAI.Codex_1.0.0.0_x64__example\app\ChatGPT.exe",
+        );
+
+        assert_eq!(
+            bundled_codex_cli_path(shell),
+            Some(PathBuf::from(
+                r"C:\Program Files\WindowsApps\OpenAI.Codex_1.0.0.0_x64__example\app\resources\codex.exe",
+            ))
         );
     }
 
