@@ -1,5 +1,12 @@
 import type { Translate } from "../../i18n";
-import type { SkillMarketItem } from "../../types";
+import type { OfficialPluginItem, SkillMarketItem } from "../../types";
+
+export type SkillsMarketTab = "community" | "official";
+
+export interface SkillsMarketNavigationProps {
+  activeTab: SkillsMarketTab;
+  onTabChange: (tab: SkillsMarketTab) => void;
+}
 
 export interface SkillsMarketPageProps {
   baseUrl?: string | null;
@@ -7,6 +14,30 @@ export interface SkillsMarketPageProps {
   currentUserId?: string | null;
   onLogin: () => void;
   notify: (message: string) => void;
+  t: Translate;
+}
+
+export interface CommunitySkillsMarketProps
+  extends SkillsMarketPageProps, SkillsMarketNavigationProps {}
+
+export interface OfficialPluginsMarketProps extends SkillsMarketNavigationProps {
+  notify: (message: string) => void;
+  t: Translate;
+}
+
+export interface SkillsMarketToolbarProps extends SkillsMarketNavigationProps {
+  loading: boolean;
+  onPublish?: () => void;
+  onQueryChange: (query: string) => void;
+  onRefresh: () => void;
+  query: string;
+  t: Translate;
+}
+
+export interface OfficialPluginGridProps {
+  busyPluginId: string | null;
+  items: OfficialPluginItem[];
+  onInstall: (plugin: OfficialPluginItem) => Promise<void>;
   t: Translate;
 }
 

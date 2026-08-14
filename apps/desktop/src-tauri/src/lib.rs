@@ -19,6 +19,7 @@ mod local_proxy;
 mod main_window;
 mod models;
 mod oauth;
+mod official_plugins;
 mod provider_models;
 mod providers;
 mod remote_control;
@@ -262,6 +263,8 @@ pub fn run() {
             skills_market::list_market_skills,
             skills_market::upload_market_skill,
             skills_market::install_market_skill,
+            official_plugins::list_official_plugins,
+            official_plugins::install_official_plugin,
         ])
         .build(context)
         .unwrap_or_else(|error| {

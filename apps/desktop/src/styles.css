@@ -1721,6 +1721,42 @@ html.floating-usage-page #root {
 .skills-market-intro > span { color: var(--green-dark); font-size: 9px; font-weight: 750; letter-spacing: .12em; }
 .skills-market-intro h2 { margin: 5px 0 6px; color: var(--ink); font: 750 21px/1.2 Manrope, sans-serif; letter-spacing: -.025em; }
 .skills-market-intro p { max-width: 620px; margin: 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
+.skills-market-heading-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+.skills-market-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #f2f5f2;
+}
+.skills-market-tabs button {
+  height: 26px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 6px;
+  color: #718078;
+  background: transparent;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 700;
+}
+.skills-market-tabs button:hover { color: var(--green-dark); }
+.skills-market-tabs button.active {
+  color: var(--green-dark);
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(18, 42, 27, .09);
+}
+.skills-market-tabs button:focus-visible {
+  outline: 2px solid rgba(var(--green-rgb), .55);
+  outline-offset: 1px;
+}
 .skills-market-toolbar-actions { flex: 0 0 auto; display: flex; align-items: center; gap: 9px; }
 .skills-market-search { width: min(230px, 22vw); height: 34px; display: flex; align-items: center; gap: 8px; padding: 0 11px; border: 1px solid var(--line); border-radius: 8px; color: #829087; background: #fff; }
 .skills-market-search:focus-within { border-color: var(--green); box-shadow: 0 0 0 3px rgba(var(--green-rgb), .12); }
@@ -1756,6 +1792,30 @@ html.floating-usage-page #root {
 .skill-install-button:hover:not(:disabled) { background: var(--green); }
 .skill-install-button.installed { color: var(--green-dark); background: var(--green-soft); }
 .skill-install-button:disabled { cursor: default; opacity: .8; }
+.official-plugin-card .skill-card-body { min-height: 179px; }
+.official-plugin-preview {
+  display: grid;
+  place-items: center;
+  background: linear-gradient(145deg, #f1f5f2, #dce8e0);
+}
+.official-plugin-icon {
+  width: 70px;
+  height: 70px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .72);
+  border-radius: 18px;
+  color: var(--green-dark);
+  background: rgba(255, 255, 255, .9);
+  box-shadow: 0 12px 28px rgba(18, 42, 27, .15);
+}
+.official-plugin-icon img {
+  width: 52px;
+  height: 52px;
+  display: block;
+  object-fit: contain;
+}
 
 .skills-detail-modal { width: 80vw; max-width: none; height: 80vh; padding: 0; overflow: hidden; display: flex; flex-direction: column; }
 .skills-detail-modal > .modal-close { z-index: 2; color: rgba(255,255,255,.9); background: rgba(15,35,25,.34); backdrop-filter: blur(8px); }

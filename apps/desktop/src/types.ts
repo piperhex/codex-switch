@@ -448,6 +448,20 @@ export interface SkillMarketItem {
   installedVersion?: string | null;
 }
 
+export interface OfficialPluginItem {
+  id: string;
+  name: string;
+  title: string;
+  description: string;
+  version: string;
+  category: string;
+  developer: string;
+  brandColor?: string | null;
+  iconUrl?: string | null;
+  installed: boolean;
+  enabled: boolean;
+}
+
 export type SkillPackageKind = "archive" | "folder";
 
 export interface SkillPackageSelection {

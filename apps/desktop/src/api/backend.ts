@@ -49,6 +49,7 @@ import type {
   ProviderBalance,
   ProviderInput,
   ProviderTokenUsageTotals,
+  OfficialPluginItem,
   ResetCreditsSummary,
   SavedCloudLogin,
   SkillMarketItem,
@@ -1407,6 +1408,18 @@ export async function installMarketSkill(skill: SkillMarketItem): Promise<void> 
     return;
   }
   await invoke("install_market_skill", { skill });
+}
+
+export async function fetchOfficialPlugins(): Promise<OfficialPluginItem[]> {
+  if (!hasLocalBackend) return [];
+  return invoke<OfficialPluginItem[]>("list_official_plugins");
+}
+
+export async function installOfficialPlugin(pluginId: string): Promise<void> {
+  if (!hasLocalBackend) {
+    throw new Error("Official plugins are available when Codex Switch is running locally");
+  }
+  await invoke("install_official_plugin", { pluginId });
 }
 
 export function skillPreviewUrl(baseUrl: string | null | undefined, skill: SkillMarketItem) {

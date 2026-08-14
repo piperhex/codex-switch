@@ -607,6 +607,12 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
             app,
             argument(&args, "skill")?,
         ))),
+        "list_official_plugins" => {
+            serialize(block_on(crate::official_plugins::list_official_plugins()))
+        }
+        "install_official_plugin" => serialize(block_on(
+            crate::official_plugins::install_official_plugin(argument(&args, "pluginId")?),
+        )),
         "switch_account_and_restart_chatgpt" => serialize(block_on(
             crate::commands::switch_account_and_restart_chatgpt(app, argument(&args, "id")?),
         )),
