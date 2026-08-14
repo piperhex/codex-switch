@@ -109,6 +109,7 @@ type ProviderFieldModifiedAt = {
   apiKey: string;
   model: string;
   models: string;
+  modelReasoningEfforts: string;
   imageInputModels: string;
   contextWindow: string;
   modelSelectionControlledByCodex: string;
@@ -121,6 +122,10 @@ type ProviderFieldModifiedAt = {
   walletUsername: string;
   walletPassword: string;
 };
+
+const PROVIDER_REASONING_EFFORTS = new Set([
+  'none', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra',
+]);
 
 export interface SystemAccountDto {
   id: string;
@@ -1065,6 +1070,10 @@ export class SyncService {
       apiKey: row.apiKey,
       model: row.model,
       models: row.models ?? [],
+      modelReasoningEfforts: this.normalizeModelReasoningEfforts(
+        row.modelReasoningEfforts,
+        row.models,
+      ),
       imageInputModels: row.imageInputModels ?? [],
       contextWindow: row.contextWindow,
       modelSelectionControlledByCodex: row.modelSelectionControlledByCodex,
@@ -1098,6 +1107,10 @@ export class SyncService {
       apiKey: incoming.apiKey,
       model: incoming.model,
       models: incoming.models ?? [],
+      modelReasoningEfforts: this.normalizeModelReasoningEfforts(
+        incoming.modelReasoningEfforts,
+        incoming.models,
+      ),
       imageInputModels: incoming.imageInputModels ?? [],
       contextWindow: incoming.contextWindow ?? null,
       modelSelectionControlledByCodex: incoming.modelSelectionControlledByCodex ?? false,
@@ -1137,6 +1150,7 @@ export class SyncService {
       apiKey: existing.apiKey,
       model: existing.model,
       models: existing.models,
+      modelReasoningEfforts: existing.modelReasoningEfforts,
       imageInputModels: existing.imageInputModels,
       contextWindow: existing.contextWindow,
       modelSelectionControlledByCodex: existing.modelSelectionControlledByCodex,
@@ -1177,7 +1191,8 @@ export class SyncService {
     const defaultValue = this.formatLastModifiedAt(this.parseLastModifiedAt(fallback));
     const normalized = {} as ProviderFieldModifiedAt;
     for (const key of [
-      'kind', 'name', 'baseUrl', 'apiKey', 'model', 'models', 'imageInputModels', 'contextWindow',
+      'kind', 'name', 'baseUrl', 'apiKey', 'model', 'models', 'modelReasoningEfforts',
+      'imageInputModels', 'contextWindow',
       'modelSelectionControlledByCodex', 'apiFormat', 'balancePlatform',
       'balanceQueryUrl', 'balanceQueryToken', 'walletQueryUrl', 'walletQueryToken',
       'walletUsername', 'walletPassword',
@@ -1185,6 +1200,21 @@ export class SyncService {
       normalized[key] = this.formatLastModifiedAt(
         this.parseLastModifiedAt(value?.[key] ?? defaultValue),
       );
+    }
+    return normalized;
+  }
+
+  private normalizeModelReasoningEfforts(value: unknown, models: string[]) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+    const configured = value as Record<string, unknown>;
+    const normalized: Record<string, string[]> = {};
+    for (const model of models) {
+      const efforts = configured[model];
+      if (!Array.isArray(efforts)) continue;
+      const valid = [...new Set(efforts.filter((effort): effort is string => (
+        typeof effort === 'string' && PROVIDER_REASONING_EFFORTS.has(effort)
+      )))];
+      if (valid.length) normalized[model] = valid;
     }
     return normalized;
   }

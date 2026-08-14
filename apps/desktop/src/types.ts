@@ -58,6 +58,8 @@ export interface AppInfo {
 export type ProviderApiFormat = "openaiResponses" | "openaiChat";
 export type ProviderKind = "custom" | "openai";
 export type ProviderBalancePlatform = "newApi" | "sub2Api" | "deepSeek";
+export type ReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh" | "max" | "ultra";
+export type ModelReasoningEfforts = Record<string, ReasoningEffort[]>;
 
 export interface Provider {
   id: string;
@@ -66,6 +68,7 @@ export interface Provider {
   baseUrl: string;
   model: string;
   models: string[];
+  modelReasoningEfforts: ModelReasoningEfforts;
   imageInputModels: string[];
   contextWindow?: number | null;
   modelSelectionControlledByCodex: boolean;
@@ -91,6 +94,7 @@ export interface ProviderInput {
   baseUrl: string;
   model: string;
   models: string[];
+  modelReasoningEfforts: ModelReasoningEfforts;
   imageInputModels: string[];
   contextWindow?: number | null;
   modelSelectionControlledByCodex: boolean;

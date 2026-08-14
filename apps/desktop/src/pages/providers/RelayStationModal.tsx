@@ -7,6 +7,9 @@ import {
   CONTEXT_WINDOW_OPTIONS,
   defaultBalanceUrl,
   defaultWalletUrl,
+  defaultReasoningEfforts,
+  modelReasoningEfforts,
+  type ModelReasoningConfig,
   parseContextWindowK,
   relayApiUrl,
   relayName,
@@ -25,7 +28,10 @@ export function RelayStationModal({
   const [name, setName] = useState("");
   const [nameTouched, setNameTouched] = useState(false);
   const [model, setModel] = useState("gpt-5.6-sol");
-  const [models, setModels] = useState(["gpt-5.6-sol"]);
+  const [modelConfigs, setModelConfigs] = useState<ModelReasoningConfig[]>([{
+    model: "gpt-5.6-sol",
+    reasoningEfforts: defaultReasoningEfforts("gpt-5.6-sol"),
+  }]);
   const [imageInputModels, setImageInputModels] = useState<string[]>([]);
   const [contextWindowK, setContextWindowK] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
@@ -51,6 +57,10 @@ export function RelayStationModal({
     setBalanceQueryUrl(defaultBalanceUrl(stationUrl, value));
     setWalletQueryUrl(defaultWalletUrl(stationUrl, value));
   };
+  const models = modelConfigs.map((config) => config.model.trim()).filter(Boolean);
+  const modelsAreValid = models.length === modelConfigs.length
+    && new Set(models).size === models.length
+    && modelConfigs.every((config) => config.reasoningEfforts.length > 0);
   const canSave = Boolean(
     platform
     && stationUrl.trim()
@@ -59,6 +69,7 @@ export function RelayStationModal({
     && model.trim()
     && baseUrl.trim()
     && balanceQueryUrl.trim()
+    && modelsAreValid
     && (balanceQueryUsesApiKey || balanceQueryToken.trim())
     && parseContextWindowK(contextWindowK) !== undefined,
   );
@@ -70,6 +81,7 @@ export function RelayStationModal({
       baseUrl,
       model,
       models,
+      modelReasoningEfforts: modelReasoningEfforts(modelConfigs),
       imageInputModels: imageInputModels.filter((value) => models.includes(value)),
       contextWindow: parseContextWindowK(contextWindowK),
       modelSelectionControlledByCodex: false,
@@ -112,9 +124,10 @@ export function RelayStationModal({
             placeholder="sk-..."
             onChange={(event) => setApiKey(event.target.value)} />
           <RelayModelPicker baseUrl={baseUrl} apiKey={apiKey} enabled={Boolean(platform)}
-            disabled={saving} models={models} activeModel={model}
-            onModelsChange={(values) => {
-              setModels(values);
+            disabled={saving} modelConfigs={modelConfigs} activeModel={model}
+            onModelConfigsChange={(configs) => {
+              setModelConfigs(configs);
+              const values = configs.map((config) => config.model.trim()).filter(Boolean);
               setImageInputModels((current) => current.filter((value) => values.includes(value)));
             }} onActiveModelChange={setModel} t={t} />
           <label htmlFor="relay-image-input-models">{t("providers.form.imageInputModels")}</label>

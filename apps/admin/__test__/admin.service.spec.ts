@@ -277,6 +277,7 @@ describe('AdminService', () => {
         baseUrl: provider.baseUrl,
         model: provider.model,
         models: provider.models,
+        modelReasoningEfforts: provider.modelReasoningEfforts,
         imageInputModels: provider.imageInputModels,
         contextWindow: provider.contextWindow,
         modelSelectionControlledByCodex: provider.modelSelectionControlledByCodex,

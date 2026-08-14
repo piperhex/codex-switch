@@ -1,5 +1,9 @@
-import type { Translate } from "../../i18n";
-import type { ProviderBalancePlatform } from "../../types";
+import type { Translate, TranslationKey } from "../../i18n";
+import type {
+  ModelReasoningEfforts,
+  ProviderBalancePlatform,
+  ReasoningEffort,
+} from "../../types";
 
 const HIDDEN_COLUMNS_STORAGE_KEY = "codex-switch:provider-table-hidden-columns";
 
@@ -54,6 +58,63 @@ export function normalizeModels(activeModel: string, values: string[]) {
 
 export function modelOptions(models: string[]) {
   return models.map((model) => ({ label: model, value: model }));
+}
+
+export interface ModelReasoningConfig {
+  model: string;
+  reasoningEfforts: ReasoningEffort[];
+}
+
+export const REASONING_EFFORTS: ReasoningEffort[] = [
+  "none", "low", "medium", "high", "xhigh", "max", "ultra",
+];
+
+const REASONING_EFFORT_LABELS: Record<ReasoningEffort, TranslationKey> = {
+  none: "providers.reasoning.none",
+  low: "providers.reasoning.low",
+  medium: "providers.reasoning.medium",
+  high: "providers.reasoning.high",
+  xhigh: "providers.reasoning.xhigh",
+  max: "providers.reasoning.max",
+  ultra: "providers.reasoning.ultra",
+};
+
+export function defaultReasoningEfforts(model: string): ReasoningEffort[] {
+  const normalized = model.trim().toLowerCase();
+  if (!normalized) return [];
+  if (!normalized.startsWith("gpt-")) return ["none", "high"];
+  const efforts: ReasoningEffort[] = ["low", "medium", "high", "xhigh"];
+  if (normalized.startsWith("gpt-5.6")) efforts.push("max");
+  if (normalized.startsWith("gpt-5.6-sol") || normalized.startsWith("gpt-5.6-terra")) {
+    efforts.push("ultra");
+  }
+  return efforts;
+}
+
+export function reasoningEffortOptions(model: string, t: Translate) {
+  const values = model.trim().toLowerCase().startsWith("gpt-")
+    ? defaultReasoningEfforts(model)
+    : REASONING_EFFORTS;
+  return values.map((value) => ({ label: t(REASONING_EFFORT_LABELS[value]), value }));
+}
+
+export function modelReasoningConfigs(
+  models: string[],
+  configured: ModelReasoningEfforts = {},
+): ModelReasoningConfig[] {
+  return models.map((model) => ({
+    model,
+    reasoningEfforts: configured[model]?.length
+      ? [...configured[model]]
+      : defaultReasoningEfforts(model),
+  }));
+}
+
+export function modelReasoningEfforts(configs: ModelReasoningConfig[]): ModelReasoningEfforts {
+  return Object.fromEntries(configs.map(({ model, reasoningEfforts }) => [
+    model.trim(),
+    reasoningEfforts,
+  ]).filter(([model]) => Boolean(model)));
 }
 
 export function parseContextWindowK(value: string): number | null | undefined {

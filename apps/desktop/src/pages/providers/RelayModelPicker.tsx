@@ -3,16 +3,22 @@ import { Button, Select } from "antd";
 import { RefreshCw } from "lucide-react";
 import { fetchRelayModels } from "../../api/backend";
 import type { Translate } from "../../i18n";
-import { modelOptions, normalizeModels } from "./providerUtils";
+import { ModelReasoningEditor } from "./ModelReasoningEditor";
+import {
+  modelOptions,
+  modelReasoningConfigs,
+  modelReasoningEfforts,
+  type ModelReasoningConfig,
+} from "./providerUtils";
 
 interface RelayModelPickerProps {
   baseUrl: string;
   apiKey: string;
   enabled: boolean;
   disabled: boolean;
-  models: string[];
+  modelConfigs: ModelReasoningConfig[];
   activeModel: string;
-  onModelsChange: (models: string[]) => void;
+  onModelConfigsChange: (configs: ModelReasoningConfig[]) => void;
   onActiveModelChange: (model: string) => void;
   t: Translate;
 }
@@ -24,9 +30,9 @@ export function RelayModelPicker({
   apiKey,
   enabled,
   disabled,
-  models,
+  modelConfigs,
   activeModel,
-  onModelsChange,
+  onModelConfigsChange,
   onActiveModelChange,
   t,
 }: RelayModelPickerProps) {
@@ -47,7 +53,8 @@ export function RelayModelPicker({
     try {
       const latest = await fetchRelayModels(baseUrl, apiKey);
       if (currentRequestId !== requestId.current) return;
-      onModelsChange(latest);
+      const configured = modelReasoningEfforts(modelConfigs);
+      onModelConfigsChange(modelReasoningConfigs(latest, configured));
       onActiveModelChange(latest.includes(activeModel) ? activeModel : latest[0] ?? "");
       setLoaded(true);
     } catch {
@@ -73,31 +80,33 @@ export function RelayModelPicker({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [baseUrl, apiKey, enabled]);
 
-  const updateModels = (values: string[]) => {
-    const nextModels = normalizeModels("", values);
-    onModelsChange(nextModels);
+  const updateModels = (configs: ModelReasoningConfig[]) => {
+    onModelConfigsChange(configs);
+    const nextModels = configs.map(({ model }) => model.trim()).filter(Boolean);
     if (!nextModels.includes(activeModel)) onActiveModelChange(nextModels[0] ?? "");
   };
   const status = error
     ? <small className="provider-form-error">{error}</small>
     : <small>{loaded
-      ? t("providers.relay.modelsUpdated", { count: models.length })
+      ? t("providers.relay.modelsUpdated", { count: modelConfigs.length })
       : t("providers.relay.modelsAutoHint")}</small>;
 
   return <>
     <div className="provider-form-label-row">
-      <label htmlFor="relay-models">{t("providers.relay.models")}</label>
+      <label>{t("providers.relay.models")}</label>
       <Button size="small" icon={<RefreshCw size={13} />} loading={loading}
         disabled={disabled || !canFetch} onClick={() => void loadModels()}>
         {t("providers.relay.refreshModels")}
       </Button>
     </div>
-    <Select id="relay-models" mode="tags" value={models} disabled={disabled || loading}
-      options={modelOptions(models)} tokenSeparators={[","]} onChange={updateModels} />
+    <ModelReasoningEditor value={modelConfigs} disabled={disabled || loading}
+      onChange={updateModels} t={t} />
+    <small>{t("providers.form.modelRowsHint")}</small>
     {status}
     <label htmlFor="relay-active-model">{t("providers.form.activeModel")}</label>
     <Select id="relay-active-model" value={activeModel || undefined}
-      disabled={disabled || !models.length} options={modelOptions(models)}
+      disabled={disabled || !modelConfigs.length}
+      options={modelOptions(modelConfigs.map(({ model }) => model.trim()).filter(Boolean))}
       onChange={onActiveModelChange} />
   </>;
 }

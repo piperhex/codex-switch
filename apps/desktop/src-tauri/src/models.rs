@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
 pub(crate) const DEFAULT_CLOUD_BASE_URL: &str = "https://codex.onepiper.cloud";
@@ -122,6 +124,20 @@ pub(crate) enum ProviderBalancePlatform {
     DeepSeek,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum ReasoningEffort {
+    None,
+    Low,
+    Medium,
+    High,
+    Xhigh,
+    Max,
+    Ultra,
+}
+
+pub(crate) type ModelReasoningEfforts = BTreeMap<String, Vec<ReasoningEffort>>;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ProviderProfile {
@@ -134,6 +150,8 @@ pub(crate) struct ProviderProfile {
     pub(crate) model: String,
     #[serde(default)]
     pub(crate) models: Vec<String>,
+    #[serde(default)]
+    pub(crate) model_reasoning_efforts: ModelReasoningEfforts,
     #[serde(default)]
     pub(crate) image_input_models: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -166,6 +184,7 @@ pub(crate) struct ProviderSummary {
     pub(crate) base_url: String,
     pub(crate) model: String,
     pub(crate) models: Vec<String>,
+    pub(crate) model_reasoning_efforts: ModelReasoningEfforts,
     pub(crate) image_input_models: Vec<String>,
     pub(crate) context_window: Option<u64>,
     pub(crate) model_selection_controlled_by_codex: bool,
@@ -505,6 +524,8 @@ pub(crate) struct ProviderFieldModifiedAt {
     #[serde(default)]
     pub(crate) models: String,
     #[serde(default)]
+    pub(crate) model_reasoning_efforts: String,
+    #[serde(default)]
     pub(crate) image_input_models: String,
     #[serde(default)]
     pub(crate) context_window: String,
@@ -574,6 +595,8 @@ pub(crate) struct ProviderSyncPayload {
     pub(crate) model: String,
     #[serde(default)]
     pub(crate) models: Vec<String>,
+    #[serde(default)]
+    pub(crate) model_reasoning_efforts: ModelReasoningEfforts,
     #[serde(default)]
     pub(crate) image_input_models: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

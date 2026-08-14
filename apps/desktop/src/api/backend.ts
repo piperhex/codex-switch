@@ -49,6 +49,7 @@ import type {
   ProviderBalance,
   ProviderInput,
   ProviderTokenUsageTotals,
+  ReasoningEffort,
   OfficialPluginItem,
   ResetCreditsSummary,
   SavedCloudLogin,
@@ -217,6 +218,22 @@ function normalizeModelSubset(models: string[], selected: unknown): string[] {
   return normalizeModels("", selected).filter((model) => models.includes(model));
 }
 
+const REASONING_EFFORTS = new Set(["none", "low", "medium", "high", "xhigh", "max", "ultra"]);
+
+function normalizeModelReasoningEfforts(models: string[], value: unknown): Provider["modelReasoningEfforts"] {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const normalized: Provider["modelReasoningEfforts"] = {};
+  for (const model of models) {
+    const efforts = (value as Record<string, unknown>)[model];
+    if (!Array.isArray(efforts)) continue;
+    const valid = [...new Set(efforts.filter((effort): effort is ReasoningEffort => (
+      typeof effort === "string" && REASONING_EFFORTS.has(effort)
+    )))];
+    if (valid.length) normalized[model] = valid;
+  }
+  return normalized;
+}
+
 function readPreviewProviders(): Provider[] {
   try {
     const parsed: unknown = JSON.parse(window.localStorage.getItem(PROVIDERS_PREVIEW_KEY) ?? "[]");
@@ -240,6 +257,7 @@ function readPreviewProviders(): Provider[] {
         kind,
         model: models.includes(selectedModel) ? selectedModel : (models[0] ?? ""),
         models,
+        modelReasoningEfforts: normalizeModelReasoningEfforts(models, provider.modelReasoningEfforts),
         imageInputModels: normalizeModelSubset(models, provider.imageInputModels),
         contextWindow: provider.contextWindow ?? null,
         modelSelectionControlledByCodex: kind === "openai"
@@ -387,6 +405,7 @@ export async function saveProviderProfile(provider: ProviderInput): Promise<Prov
       baseUrl: provider.baseUrl.trim().replace(/\/+$/, ""),
       model,
       models,
+      modelReasoningEfforts: normalizeModelReasoningEfforts(models, provider.modelReasoningEfforts),
       imageInputModels: normalizeModelSubset(models, provider.imageInputModels),
       contextWindow: provider.contextWindow ?? null,
       modelSelectionControlledByCodex: kind === "openai"

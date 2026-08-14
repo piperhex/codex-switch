@@ -920,6 +920,17 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .provider-form-error { max-width: 400px; color: #b45145 !important; }
 .provider-form .ant-select { width: 100%; }
 .provider-form .ant-segmented { justify-self: start; }
+.provider-model-editor { display: grid; gap: 6px; }
+.provider-model-editor-head, .provider-model-editor-row {
+  display: grid;
+  grid-template-columns: minmax(150px, .9fr) minmax(210px, 1.2fr) 32px;
+  align-items: center;
+  gap: 7px;
+}
+.provider-model-editor-head { padding-inline: 4px; color: #718078; font-size: 10px; font-weight: 700; }
+.provider-model-editor-row { padding: 7px; border: 1px solid #e3e8e3; border-radius: 8px; background: #f7f9f6; }
+.provider-model-editor-row .ant-btn { width: 30px; padding-inline: 0; }
+.provider-model-add { justify-self: start; }
 .provider-form-switch { min-height: 34px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 7px 10px; border: 1px solid #e3e8e3; border-radius: 7px; background: #f7f9f6; }
 .provider-form-switch > div { min-width: 0; display: grid; gap: 2px; }
 .provider-form-switch small { color: #718078; font-size: 10px; }

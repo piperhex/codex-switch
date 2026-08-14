@@ -1140,6 +1140,7 @@ const CODEX_MODEL_OBSERVER_PATCH_HELPERS: &str = r#"
 fn codex_model_refresh_expression(
     models: &[String],
     image_input_models: &[String],
+    model_reasoning_efforts: &crate::models::ModelReasoningEfforts,
     selected_model: &str,
     reasoning_profile: crate::providers::ReasoningEffortProfile,
 ) -> Result<String, String> {
@@ -1148,17 +1149,21 @@ fn codex_model_refresh_expression(
         .map(|model| {
             let profile =
                 crate::providers::reasoning_effort_profile_for_model(model, reasoning_profile);
-            let efforts = crate::providers::supported_reasoning_levels(profile)
-                .as_array()
-                .into_iter()
-                .flatten()
-                .map(|level| {
-                    json!({
-                        "reasoningEffort": level["effort"],
-                        "description": level["description"],
-                    })
+            let efforts = crate::providers::supported_reasoning_levels_for_model(
+                model,
+                profile,
+                model_reasoning_efforts,
+            )
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(|level| {
+                json!({
+                    "reasoningEffort": level["effort"],
+                    "description": level["description"],
                 })
-                .collect::<Vec<_>>();
+            })
+            .collect::<Vec<_>>();
             (model.clone(), Value::Array(efforts))
         })
         .collect::<Map<String, Value>>();
@@ -1518,6 +1523,7 @@ fn is_codex_model_query_key(value: &Value) -> bool {
 pub(crate) fn refresh_codex_models(
     models: &[String],
     image_input_models: &[String],
+    model_reasoning_efforts: &crate::models::ModelReasoningEfforts,
     selected_model: &str,
     reasoning_profile: crate::providers::ReasoningEffortProfile,
 ) -> Result<CodexModelRefreshResult, String> {
@@ -1535,6 +1541,7 @@ pub(crate) fn refresh_codex_models(
     let expression = codex_model_refresh_expression(
         models,
         image_input_models,
+        model_reasoning_efforts,
         selected_model,
         reasoning_profile,
     )?;
@@ -2924,6 +2931,7 @@ mod tests {
         let expression = codex_model_refresh_expression(
             &["deepseek-chat".to_string(), "deepseek-reasoner".to_string()],
             &["deepseek-reasoner".to_string()],
+            &Default::default(),
             "deepseek-chat",
             crate::providers::ReasoningEffortProfile::DeepSeek,
         )
@@ -2948,6 +2956,7 @@ mod tests {
         let expression = codex_model_refresh_expression(
             &["gpt-5.6-sol".to_string(), "claude-sonnet".to_string()],
             &[],
+            &Default::default(),
             "gpt-5.6-sol",
             crate::providers::ReasoningEffortProfile::Standard,
         )
@@ -2960,6 +2969,30 @@ mod tests {
     }
 
     #[test]
+    fn codex_model_refresh_uses_configured_reasoning_efforts() {
+        let configured = [(
+            "gpt-5.6-sol".to_string(),
+            vec![
+                crate::models::ReasoningEffort::Low,
+                crate::models::ReasoningEffort::High,
+            ],
+        )]
+        .into();
+        let expression = codex_model_refresh_expression(
+            &["gpt-5.6-sol".to_string()],
+            &[],
+            &configured,
+            "gpt-5.6-sol",
+            crate::providers::ReasoningEffortProfile::Standard,
+        )
+        .unwrap();
+
+        assert!(expression.contains("\"reasoningEffort\":\"low\""));
+        assert!(expression.contains("\"reasoningEffort\":\"high\""));
+        assert!(!expression.contains("\"reasoningEffort\":\"ultra\""));
+    }
+
+    #[test]
     fn codex_model_refresh_falls_back_to_the_no_auth_query() {
         assert_eq!(
             codex_model_fallback_query_key(),
@@ -2969,6 +3002,7 @@ mod tests {
         let expression = codex_model_refresh_expression(
             &["deepseek-chat".to_string()],
             &[],
+            &Default::default(),
             "deepseek-chat",
             crate::providers::ReasoningEffortProfile::DeepSeek,
         )
@@ -2985,6 +3019,7 @@ mod tests {
         let expression = codex_model_refresh_expression(
             &["deepseek-chat".to_string()],
             &[],
+            &Default::default(),
             "deepseek-chat",
             crate::providers::ReasoningEffortProfile::DeepSeek,
         )
@@ -3002,6 +3037,7 @@ mod tests {
         let expression = codex_model_refresh_expression(
             &[crate::providers::CODEX_SWITCH_CONTROL_MODEL.to_string()],
             &[crate::providers::CODEX_SWITCH_CONTROL_MODEL.to_string()],
+            &Default::default(),
             crate::providers::CODEX_SWITCH_CONTROL_MODEL,
             crate::providers::ReasoningEffortProfile::Standard,
         )

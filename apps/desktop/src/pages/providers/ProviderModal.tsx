@@ -3,14 +3,18 @@ import { AutoComplete, Button, Input, Segmented, Select, Switch } from "antd";
 import { Save, Server, X } from "lucide-react";
 import type { Translate } from "../../i18n";
 import type { Provider, ProviderApiFormat, ProviderBalancePlatform, ProviderInput } from "../../types";
+import { ModelReasoningEditor } from "./ModelReasoningEditor";
 import {
   balancePlatformOptions,
   CONTEXT_WINDOW_OPTIONS,
   defaultBalanceUrl,
   defaultWalletUrl,
+  modelReasoningConfigs,
+  modelReasoningEfforts,
   modelOptions,
   normalizeModels,
   parseContextWindowK,
+  type ModelReasoningConfig,
 } from "./providerUtils";
 
 export interface ProviderModalProps {
@@ -24,7 +28,7 @@ export function ProviderModal({ provider, saving, onClose, onSave, t }: Provider
   const [name, setName] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
   const [model, setModel] = useState("");
-  const [models, setModels] = useState<string[]>([]);
+  const [modelConfigs, setModelConfigs] = useState<ModelReasoningConfig[]>([]);
   const [imageInputModels, setImageInputModels] = useState<string[]>([]);
   const [contextWindowK, setContextWindowK] = useState("");
   const [apiKey, setApiKey] = useState("");
@@ -46,7 +50,9 @@ export function ProviderModal({ provider, saving, onClose, onSave, t }: Provider
     setName(provider?.name ?? "");
     setBaseUrl(provider?.baseUrl ?? "");
     const nextModels = normalizeModels(provider?.model ?? "", provider?.models ?? []);
-    setModels(nextModels);
+    setModelConfigs(nextModels.length
+      ? modelReasoningConfigs(nextModels, provider?.modelReasoningEfforts)
+      : [{ model: "", reasoningEfforts: [] }]);
     setImageInputModels(provider?.imageInputModels?.filter((value) => nextModels.includes(value)) ?? []);
     setModel(provider?.model ?? nextModels[0] ?? "");
     setContextWindowK(provider?.contextWindow ? String(provider.contextWindow / 1000) : "");
@@ -63,7 +69,11 @@ export function ProviderModal({ provider, saving, onClose, onSave, t }: Provider
     setWalletPassword("");
   }, [provider]);
 
-  const normalizedModels = normalizeModels(model, models);
+  const rowModels = modelConfigs.map((config) => config.model.trim()).filter(Boolean);
+  const normalizedModels = normalizeModels(model, rowModels);
+  const modelsAreValid = rowModels.length === modelConfigs.length
+    && new Set(rowModels).size === rowModels.length
+    && modelConfigs.every((config) => config.reasoningEfforts.length > 0);
   const activeModel = model.trim() || (normalizedModels[0] ?? "");
   const contextWindow = parseContextWindowK(contextWindowK);
   const hasBalanceToken = balanceQueryUsesApiKey
@@ -72,13 +82,14 @@ export function ProviderModal({ provider, saving, onClose, onSave, t }: Provider
     name.trim()
     && baseUrl.trim()
     && activeModel
+    && modelsAreValid
     && contextWindow !== undefined
     && (provider?.hasApiKey || apiKey.trim())
     && (balancePlatform === "none" || (balanceQueryUrl.trim() && hasBalanceToken)),
   );
-  const updateModels = (values: string[]) => {
-    const nextModels = normalizeModels("", values);
-    setModels(nextModels);
+  const updateModels = (configs: ModelReasoningConfig[]) => {
+    const nextModels = configs.map((config) => config.model.trim()).filter(Boolean);
+    setModelConfigs(configs);
     setImageInputModels((current) => current.filter((value) => nextModels.includes(value)));
     if (!nextModels.includes(model.trim())) setModel(nextModels[0] ?? "");
   };
@@ -91,6 +102,7 @@ export function ProviderModal({ provider, saving, onClose, onSave, t }: Provider
       baseUrl,
       model: activeModel,
       models: normalizedModels,
+      modelReasoningEfforts: modelReasoningEfforts(modelConfigs),
       imageInputModels: imageInputModels.filter((value) => normalizedModels.includes(value)),
       contextWindow,
       modelSelectionControlledByCodex: provider?.modelSelectionControlledByCodex ?? false,
@@ -154,10 +166,10 @@ export function ProviderModal({ provider, saving, onClose, onSave, t }: Provider
           <label htmlFor="provider-base-url">{t("providers.form.baseUrl")}</label>
           <Input id="provider-base-url" value={baseUrl} disabled={saving} placeholder="https://openrouter.ai/api/v1"
             onChange={(event) => setBaseUrl(event.target.value)} />
-          <label htmlFor="provider-model">{t("providers.form.model")}</label>
-          <Select id="provider-model" mode="tags" value={models} disabled={saving}
-            placeholder={t("providers.form.modelsPlaceholder")} tokenSeparators={[","]}
-            options={modelOptions(models)} onChange={updateModels} />
+          <label>{t("providers.form.models")}</label>
+          <ModelReasoningEditor value={modelConfigs} disabled={saving}
+            onChange={updateModels} t={t} />
+          <small>{t("providers.form.modelRowsHint")}</small>
           <label htmlFor="provider-active-model">{t("providers.form.activeModel")}</label>
           <Select id="provider-active-model" value={activeModel || undefined}
             disabled={saving || !normalizedModels.length}

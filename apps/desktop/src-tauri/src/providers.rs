@@ -10,8 +10,9 @@ use url::Url;
 use crate::{
     auth::{is_agent_identity_auth, validate_auth},
     models::{
-        ProviderApiFormat, ProviderBalance, ProviderBalanceItem, ProviderBalancePlatform,
-        ProviderFieldModifiedAt, ProviderKind, ProviderProfile, ProviderSummary, UsageSummary,
+        ModelReasoningEfforts, ProviderApiFormat, ProviderBalance, ProviderBalanceItem,
+        ProviderBalancePlatform, ProviderFieldModifiedAt, ProviderKind, ProviderProfile,
+        ProviderSummary, ReasoningEffort, UsageSummary,
     },
     storage::{
         managed_auth_path, read_json, read_state, resolve_paths, write_json_atomic,
@@ -60,10 +61,12 @@ fn refresh_codex_models_best_effort(provider: &ProviderProfile) {
     }
     let models = codex_visible_models(provider);
     let image_input_models = codex_image_input_models(provider);
+    let model_reasoning_efforts = codex_model_reasoning_efforts(provider);
     let selected_model = codex_model_for_provider(provider).to_string();
     crate::codex_runtime::refresh_models(
         models,
         image_input_models,
+        model_reasoning_efforts,
         selected_model,
         reasoning_effort_profile(provider),
     );
@@ -86,6 +89,18 @@ pub(crate) fn codex_image_input_models(provider: &ProviderProfile) -> Vec<String
     } else {
         Vec::new()
     }
+}
+
+pub(crate) fn codex_model_reasoning_efforts(provider: &ProviderProfile) -> ModelReasoningEfforts {
+    if provider.model_selection_controlled_by_codex {
+        return provider.model_reasoning_efforts.clone();
+    }
+    provider
+        .model_reasoning_efforts
+        .get(&provider.model)
+        .cloned()
+        .map(|efforts| [(CODEX_SWITCH_CONTROL_MODEL.to_string(), efforts)].into())
+        .unwrap_or_default()
 }
 
 pub(crate) fn reasoning_effort_profile(provider: &ProviderProfile) -> ReasoningEffortProfile {
@@ -149,6 +164,7 @@ pub(crate) fn refresh_official_codex_models_for_paths(paths: &Paths) {
     crate::codex_runtime::refresh_models(
         Vec::new(),
         Vec::new(),
+        ModelReasoningEfforts::new(),
         preferred_official_model(paths),
         ReasoningEffortProfile::Standard,
     );
@@ -166,6 +182,8 @@ pub(crate) struct ProviderInput {
     model: String,
     #[serde(default)]
     models: Vec<String>,
+    #[serde(default)]
+    model_reasoning_efforts: ModelReasoningEfforts,
     #[serde(default)]
     image_input_models: Vec<String>,
     #[serde(default)]
@@ -240,6 +258,8 @@ pub(crate) fn save_provider<R: Runtime>(
         &provider.model
     };
     let (model, models) = normalize_model_selection(model, provider.models)?;
+    let model_reasoning_efforts =
+        normalize_model_reasoning_efforts(&models, provider.model_reasoning_efforts);
     let image_input_models = normalize_model_subset(&models, provider.image_input_models);
     let supplied_key = provider.api_key.unwrap_or_default().trim().to_string();
     let api_key = if supplied_key.is_empty() {
@@ -278,6 +298,7 @@ pub(crate) fn save_provider<R: Runtime>(
         api_key,
         model,
         models,
+        model_reasoning_efforts,
         image_input_models,
         context_window: provider.context_window,
         model_selection_controlled_by_codex: provider.model_selection_controlled_by_codex,
@@ -1087,6 +1108,7 @@ fn provider_field_values(provider: &ProviderProfile) -> Vec<serde_json::Value> {
         json!(provider.api_key),
         json!(provider.model),
         json!(provider.models),
+        json!(provider.model_reasoning_efforts),
         json!(provider.image_input_models),
         json!(provider.context_window),
         json!(provider.model_selection_controlled_by_codex),
@@ -1101,7 +1123,7 @@ fn provider_field_values(provider: &ProviderProfile) -> Vec<serde_json::Value> {
     ]
 }
 
-fn provider_field_versions_mut(values: &mut ProviderFieldModifiedAt) -> [&mut String; 17] {
+fn provider_field_versions_mut(values: &mut ProviderFieldModifiedAt) -> [&mut String; 18] {
     [
         &mut values.kind,
         &mut values.name,
@@ -1109,6 +1131,7 @@ fn provider_field_versions_mut(values: &mut ProviderFieldModifiedAt) -> [&mut St
         &mut values.api_key,
         &mut values.model,
         &mut values.models,
+        &mut values.model_reasoning_efforts,
         &mut values.image_input_models,
         &mut values.context_window,
         &mut values.model_selection_controlled_by_codex,
@@ -1229,6 +1252,7 @@ fn provider_summary(
         base_url: provider.base_url.clone(),
         model: provider.model.clone(),
         models: provider.models.clone(),
+        model_reasoning_efforts: provider.model_reasoning_efforts.clone(),
         image_input_models: provider.image_input_models.clone(),
         context_window: provider.context_window,
         model_selection_controlled_by_codex: provider.model_selection_controlled_by_codex,
@@ -1653,6 +1677,27 @@ fn normalize_model_subset(models: &[String], selected: Vec<String>) -> Vec<Strin
     normalized
 }
 
+fn normalize_model_reasoning_efforts(
+    models: &[String],
+    configured: ModelReasoningEfforts,
+) -> ModelReasoningEfforts {
+    let mut normalized = ModelReasoningEfforts::new();
+    for (configured_model, efforts) in configured {
+        let model = configured_model.trim();
+        if efforts.is_empty() || !models.iter().any(|candidate| candidate == model) {
+            continue;
+        }
+        let mut unique = Vec::new();
+        for effort in efforts {
+            if !unique.contains(&effort) {
+                unique.push(effort);
+            }
+        }
+        normalized.insert(model.to_string(), unique);
+    }
+    normalized
+}
+
 fn normalize_provider_profile(mut provider: ProviderProfile) -> Result<ProviderProfile, String> {
     if provider.context_window == Some(0) {
         return Err("Context window must be greater than zero".to_string());
@@ -1682,6 +1727,8 @@ fn normalize_provider_profile(mut provider: ProviderProfile) -> Result<ProviderP
     let (model, models) = normalize_model_selection(&provider.model, provider.models)?;
     provider.model = model;
     provider.models = models;
+    provider.model_reasoning_efforts =
+        normalize_model_reasoning_efforts(&provider.models, provider.model_reasoning_efforts);
     provider.image_input_models =
         normalize_model_subset(&provider.models, provider.image_input_models);
     match provider.balance_platform {
@@ -1931,6 +1978,7 @@ pub(crate) fn effective_provider_context_window(provider: &ProviderProfile) -> u
 pub(crate) fn model_catalog_for_models(
     models: &[String],
     image_input_models: &[String],
+    model_reasoning_efforts: &ModelReasoningEfforts,
     context_window: u64,
     reasoning_profile: ReasoningEffortProfile,
 ) -> Value {
@@ -1940,11 +1988,16 @@ pub(crate) fn model_catalog_for_models(
         .map(|(index, model)| {
             let model_reasoning_profile =
                 reasoning_effort_profile_for_model(model, reasoning_profile);
+            let reasoning_levels = supported_reasoning_levels_for_model(
+                model,
+                model_reasoning_profile,
+                model_reasoning_efforts,
+            );
             provider_model_catalog_entry(
                 model,
                 index,
                 context_window,
-                model_reasoning_profile,
+                reasoning_levels,
                 image_input_models.contains(model),
             )
         })
@@ -1971,6 +2024,33 @@ pub(crate) fn supported_reasoning_levels(profile: ReasoningEffortProfile) -> Val
         ],
     };
     Value::Array(levels)
+}
+
+pub(crate) fn supported_reasoning_levels_for_model(
+    model: &str,
+    fallback: ReasoningEffortProfile,
+    configured: &ModelReasoningEfforts,
+) -> Value {
+    configured.get(model).map_or_else(
+        || supported_reasoning_levels(fallback),
+        |efforts| Value::Array(efforts.iter().map(reasoning_level).collect()),
+    )
+}
+
+fn reasoning_level(effort: &ReasoningEffort) -> Value {
+    let (effort, description) = match effort {
+        ReasoningEffort::None => ("none", "Disable thinking"),
+        ReasoningEffort::Low => ("low", "Fast responses with lighter reasoning"),
+        ReasoningEffort::Medium => (
+            "medium",
+            "Balances speed and reasoning depth for everyday tasks",
+        ),
+        ReasoningEffort::High => ("high", "Greater reasoning depth for complex problems"),
+        ReasoningEffort::Xhigh => ("xhigh", "Extra high reasoning depth for complex problems"),
+        ReasoningEffort::Max => ("max", "Maximum reasoning depth for the hardest problems"),
+        ReasoningEffort::Ultra => ("ultra", "Maximum reasoning with automatic task delegation"),
+    };
+    json!({ "effort": effort, "description": description })
 }
 
 fn openai_reasoning_levels(include_max: bool, include_ultra: bool) -> Vec<Value> {
@@ -2005,7 +2085,7 @@ fn provider_model_catalog_entry(
     model: &str,
     index: usize,
     context_window: u64,
-    reasoning_profile: ReasoningEffortProfile,
+    reasoning_levels: Value,
     supports_image_input: bool,
 ) -> Value {
     let input_modalities = if supports_image_input {
@@ -2019,7 +2099,7 @@ fn provider_model_catalog_entry(
         "description": model,
         "base_instructions": "You are Codex, a coding agent. You and the user share the same workspace and collaborate to achieve the user's goals.",
         "default_reasoning_level": "high",
-        "supported_reasoning_levels": supported_reasoning_levels(reasoning_profile),
+        "supported_reasoning_levels": reasoning_levels,
         "shell_type": "shell_command",
         "visibility": "list",
         "supported_in_api": true,
@@ -2057,6 +2137,7 @@ fn write_provider_model_catalog(paths: &Paths, provider: &ProviderProfile) -> Re
     let catalog = model_catalog_for_models(
         &codex_visible_models(provider),
         &codex_image_input_models(provider),
+        &codex_model_reasoning_efforts(provider),
         provider_context_window(provider),
         reasoning_effort_profile(provider),
     );
@@ -2395,6 +2476,7 @@ mod tests {
             api_key: "sk-test".to_string(),
             model: "gpt-4.1".to_string(),
             models: vec!["gpt-4.1".to_string()],
+            model_reasoning_efforts: ModelReasoningEfforts::new(),
             image_input_models: Vec::new(),
             context_window: None,
             model_selection_controlled_by_codex: false,
@@ -3069,6 +3151,7 @@ sandbox_mode = "workspace-write"
             api_key: "sk-test".to_string(),
             model: "gpt-4.1".to_string(),
             models: Vec::new(),
+            model_reasoning_efforts: ModelReasoningEfforts::new(),
             image_input_models: vec!["missing-model".to_string()],
             context_window: None,
             model_selection_controlled_by_codex: false,
@@ -3167,6 +3250,7 @@ sandbox_mode = "workspace-write"
         let catalog = model_catalog_for_models(
             &models,
             &[],
+            &ModelReasoningEfforts::new(),
             DEFAULT_MODEL_CONTEXT_WINDOW,
             ReasoningEffortProfile::Standard,
         );
@@ -3190,12 +3274,47 @@ sandbox_mode = "workspace-write"
     }
 
     #[test]
+    fn configured_reasoning_levels_override_defaults_and_are_normalized() {
+        let configured = [
+            (
+                " gpt-5.6-sol ".to_string(),
+                vec![
+                    ReasoningEffort::Low,
+                    ReasoningEffort::High,
+                    ReasoningEffort::High,
+                ],
+            ),
+            ("missing".to_string(), vec![ReasoningEffort::Ultra]),
+        ]
+        .into();
+        let normalized =
+            normalize_model_reasoning_efforts(&["gpt-5.6-sol".to_string()], configured);
+        let catalog = model_catalog_for_models(
+            &["gpt-5.6-sol".to_string()],
+            &[],
+            &normalized,
+            DEFAULT_MODEL_CONTEXT_WINDOW,
+            ReasoningEffortProfile::Standard,
+        );
+        let efforts = catalog["models"][0]["supported_reasoning_levels"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|level| level["effort"].as_str().unwrap())
+            .collect::<Vec<_>>();
+
+        assert_eq!(efforts, vec!["low", "high"]);
+        assert!(!normalized.contains_key("missing"));
+    }
+
+    #[test]
     fn switch_control_inherits_the_selected_gpt_model_reasoning_levels() {
         let mut provider = provider();
         provider.model = "GPT-5.6-SOL".to_string();
         let catalog = model_catalog_for_models(
             &[CODEX_SWITCH_CONTROL_MODEL.to_string()],
             &[],
+            &ModelReasoningEfforts::new(),
             provider_context_window(&provider),
             reasoning_effort_profile(&provider),
         );
@@ -3222,6 +3341,7 @@ sandbox_mode = "workspace-write"
         let catalog = model_catalog_for_models(
             &provider.models,
             &provider.image_input_models,
+            &ModelReasoningEfforts::new(),
             provider_context_window(&provider),
             ReasoningEffortProfile::DeepSeek,
         );

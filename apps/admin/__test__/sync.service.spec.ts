@@ -582,6 +582,7 @@ describe('SyncService', () => {
       apiKey: 'sk-secret',
       model: 'gpt-4.1',
       models: ['gpt-4.1'],
+      modelReasoningEfforts: { 'gpt-4.1': ['low', 'medium', 'high', 'xhigh'] },
       imageInputModels: ['gpt-4.1'],
       contextWindow: 256_000,
       modelSelectionControlledByCodex: false,
@@ -1211,11 +1212,28 @@ describe('SyncService', () => {
       providerId: provider.id,
       apiKey: provider.apiKey,
       models: provider.models,
+      modelReasoningEfforts: provider.modelReasoningEfforts,
       contextWindow: provider.contextWindow,
       lastModifiedAt: new Date(provider.lastModifiedAt!),
     }));
     expect(transactionRepository.save).toHaveBeenCalled();
     expect(redis.del).toHaveBeenCalledWith('sync:providers:owner-1');
+  });
+
+  it('keeps only valid reasoning strengths for known provider models', async () => {
+    const provider = makeProvider({
+      modelReasoningEfforts: {
+        'gpt-4.1': ['low', 'invalid', 'high', 'high'],
+        missing: ['ultra'],
+      },
+    });
+    transactionRepository.findOne.mockResolvedValue(null);
+
+    await service.upsertProvider('owner-1', provider.id, provider);
+
+    expect(transactionRepository.create).toHaveBeenCalledWith(expect.objectContaining({
+      modelReasoningEfforts: { 'gpt-4.1': ['low', 'high'] },
+    }));
   });
 
   it('keeps an existing provider when an incoming profile is older', async () => {

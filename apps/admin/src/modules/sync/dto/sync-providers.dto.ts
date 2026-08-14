@@ -1,6 +1,7 @@
 import { Type } from 'class-transformer';
 import {
   IsArray,
+  ArrayMaxSize,
   IsBoolean,
   IsIn,
   IsInt,
@@ -19,6 +20,7 @@ export class ProviderFieldModifiedAtDto {
   @IsOptional() @IsString() @MaxLength(40) apiKey?: string;
   @IsOptional() @IsString() @MaxLength(40) model?: string;
   @IsOptional() @IsString() @MaxLength(40) models?: string;
+  @IsOptional() @IsString() @MaxLength(40) modelReasoningEfforts?: string;
   @IsOptional() @IsString() @MaxLength(40) imageInputModels?: string;
   @IsOptional() @IsString() @MaxLength(40) contextWindow?: string;
   @IsOptional() @IsString() @MaxLength(40) modelSelectionControlledByCodex?: string;
@@ -57,11 +59,17 @@ export class SyncProviderDto {
   model: string;
 
   @IsArray()
+  @ArrayMaxSize(500)
   @IsString({ each: true })
   @MaxLength(160, { each: true })
   models: string[] = [];
 
+  @IsOptional()
+  @IsObject()
+  modelReasoningEfforts: Record<string, string[]> = {};
+
   @IsArray()
+  @ArrayMaxSize(500)
   @IsString({ each: true })
   @MaxLength(160, { each: true })
   imageInputModels: string[] = [];

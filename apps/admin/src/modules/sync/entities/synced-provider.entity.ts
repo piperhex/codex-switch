@@ -43,6 +43,9 @@ export class SyncedProviderEntity {
   @Column({ type: 'jsonb', default: [] })
   models: string[];
 
+  @Column({ type: 'jsonb', default: {} })
+  modelReasoningEfforts: Record<string, string[]>;
+
   @Column({ type: 'jsonb', default: [] })
   imageInputModels: string[];
 
