@@ -109,6 +109,7 @@ type ProviderFieldModifiedAt = {
   apiKey: string;
   model: string;
   models: string;
+  imageInputModels: string;
   contextWindow: string;
   modelSelectionControlledByCodex: string;
   apiFormat: string;
@@ -1064,6 +1065,7 @@ export class SyncService {
       apiKey: row.apiKey,
       model: row.model,
       models: row.models ?? [],
+      imageInputModels: row.imageInputModels ?? [],
       contextWindow: row.contextWindow,
       modelSelectionControlledByCodex: row.modelSelectionControlledByCodex,
       apiFormat: row.apiFormat,
@@ -1096,6 +1098,7 @@ export class SyncService {
       apiKey: incoming.apiKey,
       model: incoming.model,
       models: incoming.models ?? [],
+      imageInputModels: incoming.imageInputModels ?? [],
       contextWindow: incoming.contextWindow ?? null,
       modelSelectionControlledByCodex: incoming.modelSelectionControlledByCodex ?? false,
       apiFormat: incoming.apiFormat,
@@ -1134,6 +1137,7 @@ export class SyncService {
       apiKey: existing.apiKey,
       model: existing.model,
       models: existing.models,
+      imageInputModels: existing.imageInputModels,
       contextWindow: existing.contextWindow,
       modelSelectionControlledByCodex: existing.modelSelectionControlledByCodex,
       apiFormat: existing.apiFormat,
@@ -1173,7 +1177,7 @@ export class SyncService {
     const defaultValue = this.formatLastModifiedAt(this.parseLastModifiedAt(fallback));
     const normalized = {} as ProviderFieldModifiedAt;
     for (const key of [
-      'kind', 'name', 'baseUrl', 'apiKey', 'model', 'models', 'contextWindow',
+      'kind', 'name', 'baseUrl', 'apiKey', 'model', 'models', 'imageInputModels', 'contextWindow',
       'modelSelectionControlledByCodex', 'apiFormat', 'balancePlatform',
       'balanceQueryUrl', 'balanceQueryToken', 'walletQueryUrl', 'walletQueryToken',
       'walletUsername', 'walletPassword',

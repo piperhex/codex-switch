@@ -321,6 +321,7 @@ export interface SyncProvider {
   baseUrl: string;
   model: string;
   models: string[];
+  imageInputModels: string[];
   contextWindow?: number | null;
   modelSelectionControlledByCodex: boolean;
   apiFormat: "openaiResponses" | "openaiChat";

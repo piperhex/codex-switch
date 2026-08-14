@@ -19,6 +19,7 @@ export class ProviderFieldModifiedAtDto {
   @IsOptional() @IsString() @MaxLength(40) apiKey?: string;
   @IsOptional() @IsString() @MaxLength(40) model?: string;
   @IsOptional() @IsString() @MaxLength(40) models?: string;
+  @IsOptional() @IsString() @MaxLength(40) imageInputModels?: string;
   @IsOptional() @IsString() @MaxLength(40) contextWindow?: string;
   @IsOptional() @IsString() @MaxLength(40) modelSelectionControlledByCodex?: string;
   @IsOptional() @IsString() @MaxLength(40) apiFormat?: string;
@@ -59,6 +60,11 @@ export class SyncProviderDto {
   @IsString({ each: true })
   @MaxLength(160, { each: true })
   models: string[] = [];
+
+  @IsArray()
+  @IsString({ each: true })
+  @MaxLength(160, { each: true })
+  imageInputModels: string[] = [];
 
   @IsOptional()
   @Type(() => Number)

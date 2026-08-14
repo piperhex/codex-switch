@@ -47,6 +47,7 @@ pub(crate) fn record_launch_executable(path: &str) -> Result<(), String> {
 /// Refreshes Codex's model and config caches through the managed renderer channel.
 pub(crate) fn refresh_models(
     models: Vec<String>,
+    image_input_models: Vec<String>,
     selected_model: String,
     reasoning_profile: crate::providers::ReasoningEffortProfile,
 ) {
@@ -67,6 +68,7 @@ pub(crate) fn refresh_models(
                 }
                 match crate::dream_skin_native::refresh_codex_models(
                     &models,
+                    &image_input_models,
                     &selected_model,
                     reasoning_profile,
                 ) {
@@ -83,6 +85,11 @@ pub(crate) fn refresh_models(
     }
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     {
-        let _ = (models, selected_model, reasoning_profile);
+        let _ = (
+            models,
+            image_input_models,
+            selected_model,
+            reasoning_profile,
+        );
     }
 }

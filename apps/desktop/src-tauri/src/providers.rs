@@ -56,9 +56,11 @@ fn refresh_codex_models_best_effort(provider: &ProviderProfile) {
         return;
     }
     let models = codex_visible_models(provider);
+    let image_input_models = codex_image_input_models(provider);
     let selected_model = codex_model_for_provider(provider).to_string();
     crate::codex_runtime::refresh_models(
         models,
+        image_input_models,
         selected_model,
         reasoning_effort_profile(provider),
     );
@@ -69,6 +71,17 @@ fn codex_visible_models(provider: &ProviderProfile) -> Vec<String> {
         provider.models.clone()
     } else {
         vec![CODEX_SWITCH_CONTROL_MODEL.to_string()]
+    }
+}
+
+pub(crate) fn codex_image_input_models(provider: &ProviderProfile) -> Vec<String> {
+    if provider.model_selection_controlled_by_codex {
+        return provider.image_input_models.clone();
+    }
+    if provider.image_input_models.contains(&provider.model) {
+        vec![CODEX_SWITCH_CONTROL_MODEL.to_string()]
+    } else {
+        Vec::new()
     }
 }
 
@@ -108,6 +121,7 @@ pub(crate) fn refresh_official_codex_models_for_paths(paths: &Paths) {
     }
     crate::codex_runtime::refresh_models(
         Vec::new(),
+        Vec::new(),
         preferred_official_model(paths),
         ReasoningEffortProfile::Standard,
     );
@@ -125,6 +139,8 @@ pub(crate) struct ProviderInput {
     model: String,
     #[serde(default)]
     models: Vec<String>,
+    #[serde(default)]
+    image_input_models: Vec<String>,
     #[serde(default)]
     context_window: Option<u64>,
     #[serde(default)]
@@ -197,6 +213,7 @@ pub(crate) fn save_provider<R: Runtime>(
         &provider.model
     };
     let (model, models) = normalize_model_selection(model, provider.models)?;
+    let image_input_models = normalize_model_subset(&models, provider.image_input_models);
     let supplied_key = provider.api_key.unwrap_or_default().trim().to_string();
     let api_key = if supplied_key.is_empty() {
         existing
@@ -234,6 +251,7 @@ pub(crate) fn save_provider<R: Runtime>(
         api_key,
         model,
         models,
+        image_input_models,
         context_window: provider.context_window,
         model_selection_controlled_by_codex: provider.model_selection_controlled_by_codex,
         api_format: provider.api_format,
@@ -1042,6 +1060,7 @@ fn provider_field_values(provider: &ProviderProfile) -> Vec<serde_json::Value> {
         json!(provider.api_key),
         json!(provider.model),
         json!(provider.models),
+        json!(provider.image_input_models),
         json!(provider.context_window),
         json!(provider.model_selection_controlled_by_codex),
         json!(provider.api_format),
@@ -1055,7 +1074,7 @@ fn provider_field_values(provider: &ProviderProfile) -> Vec<serde_json::Value> {
     ]
 }
 
-fn provider_field_versions_mut(values: &mut ProviderFieldModifiedAt) -> [&mut String; 16] {
+fn provider_field_versions_mut(values: &mut ProviderFieldModifiedAt) -> [&mut String; 17] {
     [
         &mut values.kind,
         &mut values.name,
@@ -1063,6 +1082,7 @@ fn provider_field_versions_mut(values: &mut ProviderFieldModifiedAt) -> [&mut St
         &mut values.api_key,
         &mut values.model,
         &mut values.models,
+        &mut values.image_input_models,
         &mut values.context_window,
         &mut values.model_selection_controlled_by_codex,
         &mut values.api_format,
@@ -1182,6 +1202,7 @@ fn provider_summary(
         base_url: provider.base_url.clone(),
         model: provider.model.clone(),
         models: provider.models.clone(),
+        image_input_models: provider.image_input_models.clone(),
         context_window: provider.context_window,
         model_selection_controlled_by_codex: provider.model_selection_controlled_by_codex,
         api_format: provider.api_format,
@@ -1592,6 +1613,19 @@ fn normalize_model_selection(
     Ok((selected, normalized))
 }
 
+fn normalize_model_subset(models: &[String], selected: Vec<String>) -> Vec<String> {
+    let mut normalized = Vec::new();
+    for model in selected {
+        let trimmed = model.trim();
+        if models.iter().any(|candidate| candidate == trimmed)
+            && !normalized.iter().any(|candidate| candidate == trimmed)
+        {
+            normalized.push(trimmed.to_string());
+        }
+    }
+    normalized
+}
+
 fn normalize_provider_profile(mut provider: ProviderProfile) -> Result<ProviderProfile, String> {
     if provider.context_window == Some(0) {
         return Err("Context window must be greater than zero".to_string());
@@ -1621,6 +1655,8 @@ fn normalize_provider_profile(mut provider: ProviderProfile) -> Result<ProviderP
     let (model, models) = normalize_model_selection(&provider.model, provider.models)?;
     provider.model = model;
     provider.models = models;
+    provider.image_input_models =
+        normalize_model_subset(&provider.models, provider.image_input_models);
     match provider.balance_platform {
         Some(_) => {
             provider.balance_query_url = Some(normalize_balance_query_url(
@@ -1867,6 +1903,7 @@ pub(crate) fn effective_provider_context_window(provider: &ProviderProfile) -> u
 
 pub(crate) fn model_catalog_for_models(
     models: &[String],
+    image_input_models: &[String],
     context_window: u64,
     reasoning_profile: ReasoningEffortProfile,
 ) -> Value {
@@ -1874,7 +1911,13 @@ pub(crate) fn model_catalog_for_models(
         .iter()
         .enumerate()
         .map(|(index, model)| {
-            provider_model_catalog_entry(model, index, context_window, reasoning_profile)
+            provider_model_catalog_entry(
+                model,
+                index,
+                context_window,
+                reasoning_profile,
+                image_input_models.contains(model),
+            )
         })
         .collect::<Vec<_>>();
     json!({ "models": entries })
@@ -1903,7 +1946,13 @@ fn provider_model_catalog_entry(
     index: usize,
     context_window: u64,
     reasoning_profile: ReasoningEffortProfile,
+    supports_image_input: bool,
 ) -> Value {
+    let input_modalities = if supports_image_input {
+        json!(["text", "image"])
+    } else {
+        json!(["text"])
+    };
     json!({
         "slug": model,
         "display_name": model,
@@ -1930,7 +1979,7 @@ fn provider_model_catalog_entry(
         "comp_hash": null,
         "effective_context_window_percent": 95,
         "experimental_supported_tools": [],
-        "input_modalities": ["text"],
+        "input_modalities": input_modalities,
         "supports_search_tool": false,
         "use_responses_lite": false,
         "auto_review_model_override": null,
@@ -1947,6 +1996,7 @@ fn provider_model_catalog_entry(
 fn write_provider_model_catalog(paths: &Paths, provider: &ProviderProfile) -> Result<(), String> {
     let catalog = model_catalog_for_models(
         &codex_visible_models(provider),
+        &codex_image_input_models(provider),
         provider_context_window(provider),
         reasoning_effort_profile(provider),
     );
@@ -2285,6 +2335,7 @@ mod tests {
             api_key: "sk-test".to_string(),
             model: "gpt-4.1".to_string(),
             models: vec!["gpt-4.1".to_string()],
+            image_input_models: Vec::new(),
             context_window: None,
             model_selection_controlled_by_codex: false,
             api_format: ProviderApiFormat::OpenaiResponses,
@@ -2958,6 +3009,7 @@ sandbox_mode = "workspace-write"
             api_key: "sk-test".to_string(),
             model: "gpt-4.1".to_string(),
             models: Vec::new(),
+            image_input_models: vec!["missing-model".to_string()],
             context_window: None,
             model_selection_controlled_by_codex: false,
             api_format: ProviderApiFormat::OpenaiResponses,
@@ -2973,6 +3025,7 @@ sandbox_mode = "workspace-write"
 
         assert_eq!(profile.model, "gpt-4.1");
         assert_eq!(profile.models, vec!["gpt-4.1"]);
+        assert!(profile.image_input_models.is_empty());
     }
 
     #[test]
@@ -3023,10 +3076,12 @@ sandbox_mode = "workspace-write"
     fn provider_model_catalog_contains_codex_visible_models() {
         let mut provider = provider();
         provider.models = vec!["deepseek-chat".to_string(), "deepseek-reasoner".to_string()];
+        provider.image_input_models = vec!["deepseek-reasoner".to_string()];
         provider.context_window = Some(256_000);
         provider.model_selection_controlled_by_codex = true;
         let catalog = model_catalog_for_models(
             &provider.models,
+            &provider.image_input_models,
             provider_context_window(&provider),
             ReasoningEffortProfile::DeepSeek,
         );
@@ -3046,6 +3101,8 @@ sandbox_mode = "workspace-write"
         assert!(models[0].get("multi_agent_version").is_some());
         assert_eq!(models[0]["context_window"], 256_000);
         assert_eq!(models[0]["max_context_window"], 256_000);
+        assert_eq!(models[0]["input_modalities"], json!(["text"]));
+        assert_eq!(models[1]["input_modalities"], json!(["text", "image"]));
         assert_eq!(
             models[0]["supported_reasoning_levels"]
                 .as_array()
@@ -3056,6 +3113,20 @@ sandbox_mode = "workspace-write"
             vec!["none", "low", "medium", "high", "xhigh", "max"]
         );
         assert_eq!(models[1]["slug"], "deepseek-reasoner");
+    }
+
+    #[test]
+    fn switch_control_uses_the_active_models_image_capability() {
+        let mut provider = provider();
+        provider.image_input_models = vec![provider.model.clone()];
+
+        assert_eq!(
+            codex_image_input_models(&provider),
+            vec![CODEX_SWITCH_CONTROL_MODEL.to_string()]
+        );
+
+        provider.image_input_models.clear();
+        assert!(codex_image_input_models(&provider).is_empty());
     }
 
     #[test]

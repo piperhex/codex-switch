@@ -900,6 +900,7 @@ fn apply_remote_provider<R: Runtime>(
     merge_field!(api_key);
     merge_field!(model);
     merge_field!(models);
+    merge_field!(image_input_models);
     merge_field!(context_window);
     merge_field!(model_selection_controlled_by_codex);
     merge_field!(api_format);
@@ -945,6 +946,7 @@ fn normalize_provider_field_modified_at(
         &mut values.api_key,
         &mut values.model,
         &mut values.models,
+        &mut values.image_input_models,
         &mut values.context_window,
         &mut values.model_selection_controlled_by_codex,
         &mut values.api_format,
@@ -971,6 +973,7 @@ fn latest_provider_field_modified_at(values: &ProviderFieldModifiedAt) -> String
         &values.api_key,
         &values.model,
         &values.models,
+        &values.image_input_models,
         &values.context_window,
         &values.model_selection_controlled_by_codex,
         &values.api_format,
@@ -1002,6 +1005,7 @@ fn provider_payload_from_profile(
         api_key: provider.api_key,
         model: provider.model,
         models: provider.models,
+        image_input_models: provider.image_input_models,
         context_window: provider.context_window,
         model_selection_controlled_by_codex: provider.model_selection_controlled_by_codex,
         api_format: provider.api_format,
@@ -1026,6 +1030,7 @@ fn provider_payload_to_profile(provider: &ProviderSyncPayload) -> ProviderProfil
         api_key: provider.api_key.clone(),
         model: provider.model.clone(),
         models: provider.models.clone(),
+        image_input_models: provider.image_input_models.clone(),
         context_window: provider.context_window,
         model_selection_controlled_by_codex: provider.model_selection_controlled_by_codex,
         api_format: provider.api_format,

@@ -26,6 +26,7 @@ export function RelayStationModal({
   const [nameTouched, setNameTouched] = useState(false);
   const [model, setModel] = useState("gpt-5.6-sol");
   const [models, setModels] = useState(["gpt-5.6-sol"]);
+  const [imageInputModels, setImageInputModels] = useState<string[]>([]);
   const [contextWindowK, setContextWindowK] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
   const [balanceQueryUrl, setBalanceQueryUrl] = useState("");
@@ -69,6 +70,7 @@ export function RelayStationModal({
       baseUrl,
       model,
       models,
+      imageInputModels: imageInputModels.filter((value) => models.includes(value)),
       contextWindow: parseContextWindowK(contextWindowK),
       modelSelectionControlledByCodex: false,
       apiKey,
@@ -111,7 +113,17 @@ export function RelayStationModal({
             onChange={(event) => setApiKey(event.target.value)} />
           <RelayModelPicker baseUrl={baseUrl} apiKey={apiKey} enabled={Boolean(platform)}
             disabled={saving} models={models} activeModel={model}
-            onModelsChange={setModels} onActiveModelChange={setModel} t={t} />
+            onModelsChange={(values) => {
+              setModels(values);
+              setImageInputModels((current) => current.filter((value) => values.includes(value)));
+            }} onActiveModelChange={setModel} t={t} />
+          <label htmlFor="relay-image-input-models">{t("providers.form.imageInputModels")}</label>
+          <Select id="relay-image-input-models" mode="multiple" value={imageInputModels}
+            disabled={saving || !models.length}
+            placeholder={t("providers.form.imageInputModelsPlaceholder")}
+            options={models.map((value) => ({ label: value, value }))}
+            onChange={setImageInputModels} />
+          <small>{t("providers.form.imageInputModelsHint")}</small>
           <label htmlFor="relay-context-window">{t("providers.form.contextWindow")}</label>
           <AutoComplete id="relay-context-window" value={contextWindowK} disabled={saving}
             options={CONTEXT_WINDOW_OPTIONS} placeholder="128" allowClear

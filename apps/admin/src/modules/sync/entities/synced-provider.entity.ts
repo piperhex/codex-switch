@@ -43,6 +43,9 @@ export class SyncedProviderEntity {
   @Column({ type: 'jsonb', default: [] })
   models: string[];
 
+  @Column({ type: 'jsonb', default: [] })
+  imageInputModels: string[];
+
   @Column({ type: 'integer', nullable: true })
   contextWindow: number | null;
 

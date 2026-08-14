@@ -134,6 +134,8 @@ pub(crate) struct ProviderProfile {
     pub(crate) model: String,
     #[serde(default)]
     pub(crate) models: Vec<String>,
+    #[serde(default)]
+    pub(crate) image_input_models: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) context_window: Option<u64>,
     #[serde(default)]
@@ -164,6 +166,7 @@ pub(crate) struct ProviderSummary {
     pub(crate) base_url: String,
     pub(crate) model: String,
     pub(crate) models: Vec<String>,
+    pub(crate) image_input_models: Vec<String>,
     pub(crate) context_window: Option<u64>,
     pub(crate) model_selection_controlled_by_codex: bool,
     pub(crate) api_format: ProviderApiFormat,
@@ -502,6 +505,8 @@ pub(crate) struct ProviderFieldModifiedAt {
     #[serde(default)]
     pub(crate) models: String,
     #[serde(default)]
+    pub(crate) image_input_models: String,
+    #[serde(default)]
     pub(crate) context_window: String,
     #[serde(default)]
     pub(crate) model_selection_controlled_by_codex: String,
@@ -569,6 +574,8 @@ pub(crate) struct ProviderSyncPayload {
     pub(crate) model: String,
     #[serde(default)]
     pub(crate) models: Vec<String>,
+    #[serde(default)]
+    pub(crate) image_input_models: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) context_window: Option<u64>,
     #[serde(default)]

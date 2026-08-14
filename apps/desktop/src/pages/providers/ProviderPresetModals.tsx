@@ -30,6 +30,7 @@ export function OpenAiProviderModal({ provider, saving, onClose, onSave, t }: Pr
       baseUrl,
       model: provider?.model ?? "",
       models: provider?.models ?? [],
+      imageInputModels: provider?.imageInputModels ?? [],
       modelSelectionControlledByCodex: true,
       apiKey: apiKey.trim() || undefined,
       apiFormat: "openaiResponses",
@@ -161,6 +162,7 @@ export function DeepSeekProviderModal({ provider, saving, onClose, onSave, t }: 
       baseUrl: DEEPSEEK_BASE_URL,
       model: activeModel,
       models: normalizedModels,
+      imageInputModels: [],
       contextWindow,
       modelSelectionControlledByCodex: provider?.modelSelectionControlledByCodex ?? true,
       apiKey: apiKey.trim() || undefined,
@@ -218,6 +220,7 @@ export function DeepSeekProviderModal({ provider, saving, onClose, onSave, t }: 
           <div className="deepseek-integration-note">
             <strong>{t("providers.deepSeek.proxyOnly")}</strong>
             <span>{t("providers.deepSeek.balanceHint")}</span>
+            <span>{t("providers.deepSeek.imageInputUnsupported")}</span>
           </div>
         </div>
         <div className="provider-modal-footer">

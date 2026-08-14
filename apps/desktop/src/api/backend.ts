@@ -211,6 +211,11 @@ function normalizeModels(model: string, models: unknown): string[] {
   return normalized;
 }
 
+function normalizeModelSubset(models: string[], selected: unknown): string[] {
+  if (!Array.isArray(selected)) return [];
+  return normalizeModels("", selected).filter((model) => models.includes(model));
+}
+
 function readPreviewProviders(): Provider[] {
   try {
     const parsed: unknown = JSON.parse(window.localStorage.getItem(PROVIDERS_PREVIEW_KEY) ?? "[]");
@@ -234,6 +239,7 @@ function readPreviewProviders(): Provider[] {
         kind,
         model: models.includes(selectedModel) ? selectedModel : (models[0] ?? ""),
         models,
+        imageInputModels: normalizeModelSubset(models, provider.imageInputModels),
         contextWindow: provider.contextWindow ?? null,
         modelSelectionControlledByCodex: kind === "openai"
           ? true
@@ -380,6 +386,7 @@ export async function saveProviderProfile(provider: ProviderInput): Promise<Prov
       baseUrl: provider.baseUrl.trim().replace(/\/+$/, ""),
       model,
       models,
+      imageInputModels: normalizeModelSubset(models, provider.imageInputModels),
       contextWindow: provider.contextWindow ?? null,
       modelSelectionControlledByCodex: kind === "openai"
         ? true

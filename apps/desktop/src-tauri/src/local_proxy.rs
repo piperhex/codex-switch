@@ -4173,6 +4173,7 @@ fn provider_models_for_codex(provider: &ProviderProfile) -> Vec<String> {
 fn provider_models_payload(provider: &ProviderProfile) -> UpstreamPayload {
     let catalog = providers::model_catalog_for_models(
         &provider_models_for_codex(provider),
+        &providers::codex_image_input_models(provider),
         providers::provider_context_window(provider),
         providers::reasoning_effort_profile(provider),
     );
@@ -4190,6 +4191,7 @@ fn provider_models_payload(provider: &ProviderProfile) -> UpstreamPayload {
 fn provider_models_etag(provider: &ProviderProfile) -> String {
     let catalog = providers::model_catalog_for_models(
         &provider_models_for_codex(provider),
+        &providers::codex_image_input_models(provider),
         providers::provider_context_window(provider),
         providers::reasoning_effort_profile(provider),
     );
@@ -5005,12 +5007,18 @@ fn append_tool_output_message(item: &Value, messages: &mut Vec<Value>) {
 
 fn append_regular_input_message(item: &Value, messages: &mut Vec<Value>) {
     if let Value::Object(map) = item {
+        if map.get("type").and_then(Value::as_str) == Some("input_image") {
+            if let Some(content) = responses_content_to_chat(item) {
+                messages.push(json!({ "role": "user", "content": content }));
+            }
+            return;
+        }
         let role = map
             .get("role")
             .and_then(Value::as_str)
             .map(normalize_chat_role)
             .unwrap_or("user");
-        if let Some(content) = map.get("content").and_then(value_to_text) {
+        if let Some(content) = map.get("content").and_then(responses_content_to_chat) {
             messages.push(json!({ "role": role, "content": content }));
         } else if matches!(
             map.get("type").and_then(Value::as_str),
@@ -5021,6 +5029,71 @@ fn append_regular_input_message(item: &Value, messages: &mut Vec<Value>) {
             }
         }
     }
+}
+
+fn responses_content_to_chat(value: &Value) -> Option<Value> {
+    if !contains_input_image(value) {
+        return value_to_text(value).map(Value::String);
+    }
+    let mut parts = Vec::new();
+    append_chat_content_parts(value, &mut parts);
+    (!parts.is_empty()).then_some(Value::Array(parts))
+}
+
+fn contains_input_image(value: &Value) -> bool {
+    match value {
+        Value::Array(items) => items.iter().any(contains_input_image),
+        Value::Object(map) => {
+            map.get("type").and_then(Value::as_str) == Some("input_image")
+                || map.get("content").is_some_and(contains_input_image)
+        }
+        _ => false,
+    }
+}
+
+fn append_chat_content_parts(value: &Value, parts: &mut Vec<Value>) {
+    match value {
+        Value::String(text) => parts.push(json!({ "type": "text", "text": text })),
+        Value::Array(items) => {
+            for item in items {
+                append_chat_content_parts(item, parts);
+            }
+        }
+        Value::Object(map) => append_chat_content_object(map, parts),
+        _ => {}
+    }
+}
+
+fn append_chat_content_object(map: &serde_json::Map<String, Value>, parts: &mut Vec<Value>) {
+    match map.get("type").and_then(Value::as_str) {
+        Some("input_image") => {
+            if let Some(part) = responses_image_to_chat(map) {
+                parts.push(part);
+            }
+        }
+        Some("input_text" | "output_text" | "text") => {
+            if let Some(text) = map.get("text").and_then(Value::as_str) {
+                parts.push(json!({ "type": "text", "text": text }));
+            }
+        }
+        _ => {
+            if let Some(content) = map.get("content") {
+                append_chat_content_parts(content, parts);
+            }
+        }
+    }
+}
+
+fn responses_image_to_chat(map: &serde_json::Map<String, Value>) -> Option<Value> {
+    let image_url = map.get("image_url")?;
+    let url = image_url
+        .as_str()
+        .or_else(|| image_url.get("url").and_then(Value::as_str))?;
+    let mut descriptor = json!({ "url": url });
+    if let Some(detail) = map.get("detail").and_then(Value::as_str) {
+        descriptor["detail"] = Value::String(detail.to_string());
+    }
+    Some(json!({ "type": "image_url", "image_url": descriptor }))
 }
 
 fn normalize_chat_role(role: &str) -> &'static str {
@@ -6185,6 +6258,7 @@ mod tests {
             api_key: "sk-upstream".to_string(),
             model: "gpt-5.6-sol".to_string(),
             models: vec!["gpt-5.6-sol".to_string()],
+            image_input_models: vec!["gpt-5.6-sol".to_string()],
             context_window: None,
             model_selection_controlled_by_codex: true,
             api_format: ProviderApiFormat::OpenaiResponses,
@@ -7105,6 +7179,7 @@ mod tests {
             api_key: "sk-provider-test".to_string(),
             model: "gpt-4.1".to_string(),
             models: vec!["gpt-4.1".to_string()],
+            image_input_models: Vec::new(),
             context_window: None,
             model_selection_controlled_by_codex: false,
             api_format: ProviderApiFormat::OpenaiResponses,
@@ -7153,6 +7228,7 @@ mod tests {
             api_key: "sk-provider-test".to_string(),
             model: "deepseek-chat".to_string(),
             models: vec!["deepseek-chat".to_string()],
+            image_input_models: Vec::new(),
             context_window: None,
             model_selection_controlled_by_codex: false,
             api_format: ProviderApiFormat::OpenaiChat,
@@ -7436,6 +7512,7 @@ mod tests {
             api_key: "sk-provider-test".to_string(),
             model: "deepseek-chat".to_string(),
             models: vec!["deepseek-chat".to_string(), "deepseek-reasoner".to_string()],
+            image_input_models: vec!["deepseek-reasoner".to_string()],
             context_window: Some(256_000),
             model_selection_controlled_by_codex: true,
             api_format: ProviderApiFormat::OpenaiResponses,
@@ -7449,6 +7526,7 @@ mod tests {
         };
         let catalog = providers::model_catalog_for_models(
             &provider_models_for_codex(&provider),
+            &providers::codex_image_input_models(&provider),
             providers::provider_context_window(&provider),
             providers::reasoning_effort_profile(&provider),
         );
@@ -7487,6 +7565,7 @@ mod tests {
             api_key: "sk-provider-test".to_string(),
             model: "deepseek-chat".to_string(),
             models: vec!["deepseek-chat".to_string(), "deepseek-reasoner".to_string()],
+            image_input_models: Vec::new(),
             context_window: None,
             model_selection_controlled_by_codex: false,
             api_format: ProviderApiFormat::OpenaiResponses,
@@ -7522,6 +7601,7 @@ mod tests {
             api_key: "sk-provider-test".to_string(),
             model: "deepseek-chat".to_string(),
             models: vec!["deepseek-chat".to_string()],
+            image_input_models: Vec::new(),
             context_window: None,
             model_selection_controlled_by_codex: true,
             api_format: ProviderApiFormat::OpenaiChat,
@@ -7963,6 +8043,37 @@ mod tests {
     }
 
     #[test]
+    fn responses_request_converts_image_input_to_chat_content() {
+        let body = json!({
+            "model": "vision-model",
+            "input": [{
+                "role": "user",
+                "content": [
+                    { "type": "input_text", "text": "Describe this image" },
+                    {
+                        "type": "input_image",
+                        "image_url": "data:image/png;base64,AA==",
+                        "detail": "high"
+                    }
+                ]
+            }]
+        });
+
+        let chat = responses_to_chat_completions(&body);
+
+        assert_eq!(chat["messages"][0]["content"][0]["type"], "text");
+        assert_eq!(chat["messages"][0]["content"][1]["type"], "image_url");
+        assert_eq!(
+            chat["messages"][0]["content"][1]["image_url"]["url"],
+            "data:image/png;base64,AA=="
+        );
+        assert_eq!(
+            chat["messages"][0]["content"][1]["image_url"]["detail"],
+            "high"
+        );
+    }
+
+    #[test]
     fn deepseek_reasoning_preserves_all_codex_effort_levels() {
         for effort in ["low", "medium", "high", "xhigh", "max"] {
             let responses = json!({ "reasoning": { "effort": effort } });
@@ -7996,6 +8107,7 @@ mod tests {
             api_key: "sk-provider-test".to_string(),
             model: "provider-text-model".to_string(),
             models: vec!["provider-text-model".to_string()],
+            image_input_models: Vec::new(),
             context_window: None,
             model_selection_controlled_by_codex: false,
             api_format: ProviderApiFormat::OpenaiResponses,
@@ -8181,6 +8293,7 @@ mod tests {
             api_key: "sk-provider-test".to_string(),
             model: "deepseek-chat".to_string(),
             models: vec!["deepseek-chat".to_string(), "deepseek-reasoner".to_string()],
+            image_input_models: Vec::new(),
             context_window: None,
             model_selection_controlled_by_codex: true,
             api_format: ProviderApiFormat::OpenaiChat,
@@ -8255,6 +8368,7 @@ mod tests {
             api_key: "sk-provider-test".to_string(),
             model: "deepseek-v4-flash".to_string(),
             models: vec!["deepseek-v4-flash".to_string()],
+            image_input_models: Vec::new(),
             context_window: None,
             model_selection_controlled_by_codex: false,
             api_format: ProviderApiFormat::OpenaiChat,

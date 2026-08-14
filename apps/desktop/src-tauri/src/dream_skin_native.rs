@@ -1139,11 +1139,14 @@ const CODEX_MODEL_OBSERVER_PATCH_HELPERS: &str = r#"
 
 fn codex_model_refresh_expression(
     models: &[String],
+    image_input_models: &[String],
     selected_model: &str,
     reasoning_profile: crate::providers::ReasoningEffortProfile,
 ) -> Result<String, String> {
     let models = serde_json::to_string(models)
         .map_err(|error| format!("Failed to prepare the Codex model list: {error}"))?;
+    let image_input_models = serde_json::to_string(image_input_models)
+        .map_err(|error| format!("Failed to prepare image-capable models: {error}"))?;
     let selected_model = serde_json::to_string(selected_model)
         .map_err(|error| format!("Failed to prepare the selected Codex model: {error}"))?;
     let reasoning_levels = crate::providers::supported_reasoning_levels(reasoning_profile);
@@ -1166,6 +1169,7 @@ fn codex_model_refresh_expression(
     Ok(format!(
         r#"(async () => {{
   const expectedModels = {models};
+  const imageInputModels = new Set({image_input_models});
   const selectedModel = {selected_model};
   const supportedReasoningEfforts = {reasoning_efforts};
   const root = window.__codexRoot;
@@ -1231,7 +1235,7 @@ fn codex_model_refresh_expression(
     hidden: false,
     supportedReasoningEfforts,
     defaultReasoningEffort: "high",
-    inputModalities: ["text"],
+    inputModalities: imageInputModels.has(model) ? ["text", "image"] : ["text"],
     supportsPersonality: false,
     multiAgentVersion: null,
     additionalSpeedTiers: [],
@@ -1274,6 +1278,9 @@ fn codex_model_refresh_expression(
       const data = matches
         ? currentModels.map((model, index) => ({{
             ...model,
+            inputModalities: imageInputModels.has(model.model ?? model.id)
+              ? ["text", "image"]
+              : ["text"],
             displayName: (model.model ?? model.id) === "codex switch control"
               ? "Codex Switch Control"
               : model.displayName,
@@ -1503,6 +1510,7 @@ fn is_codex_model_query_key(value: &Value) -> bool {
 
 pub(crate) fn refresh_codex_models(
     models: &[String],
+    image_input_models: &[String],
     selected_model: &str,
     reasoning_profile: crate::providers::ReasoningEffortProfile,
 ) -> Result<CodexModelRefreshResult, String> {
@@ -1517,7 +1525,12 @@ pub(crate) fn refresh_codex_models(
         .into_iter()
         .find(|target| target.url == "app://-/index.html")
         .ok_or_else(|| "The Codex main window is not available.".to_string())?;
-    let expression = codex_model_refresh_expression(models, selected_model, reasoning_profile)?;
+    let expression = codex_model_refresh_expression(
+        models,
+        image_input_models,
+        selected_model,
+        reasoning_profile,
+    )?;
     let mut session = CdpSession::connect(&target, port)?;
     session.enable()?;
     let result = session.evaluate(&expression)?;
@@ -2886,6 +2899,7 @@ mod tests {
         assert!(!is_codex_model_query_key(&json!(["threads", "list"])));
         let expression = codex_model_refresh_expression(
             &["deepseek-chat".to_string(), "deepseek-reasoner".to_string()],
+            &["deepseek-reasoner".to_string()],
             "deepseek-chat",
             crate::providers::ReasoningEffortProfile::DeepSeek,
         )
@@ -2896,6 +2910,9 @@ mod tests {
         assert!(expression.contains("no-auth-model-query-created"));
         assert!(expression.contains("models-query-not-found"));
         assert!(expression.contains("deepseek-reasoner"));
+        assert!(
+            expression.contains("imageInputModels.has(model) ? [\"text\", \"image\"] : [\"text\"]")
+        );
         assert!(expression.contains("\"reasoningEffort\":\"low\""));
         assert!(expression.contains("\"reasoningEffort\":\"medium\""));
         assert!(expression.contains("\"reasoningEffort\":\"xhigh\""));
@@ -2911,6 +2928,7 @@ mod tests {
 
         let expression = codex_model_refresh_expression(
             &["deepseek-chat".to_string()],
+            &[],
             "deepseek-chat",
             crate::providers::ReasoningEffortProfile::DeepSeek,
         )
@@ -2926,6 +2944,7 @@ mod tests {
     fn codex_model_refresh_bypasses_the_renderer_available_model_filter() {
         let expression = codex_model_refresh_expression(
             &["deepseek-chat".to_string()],
+            &[],
             "deepseek-chat",
             crate::providers::ReasoningEffortProfile::DeepSeek,
         )
@@ -2941,6 +2960,7 @@ mod tests {
     #[test]
     fn codex_model_refresh_normalizes_switch_control_display() {
         let expression = codex_model_refresh_expression(
+            &[crate::providers::CODEX_SWITCH_CONTROL_MODEL.to_string()],
             &[crate::providers::CODEX_SWITCH_CONTROL_MODEL.to_string()],
             crate::providers::CODEX_SWITCH_CONTROL_MODEL,
             crate::providers::ReasoningEffortProfile::Standard,

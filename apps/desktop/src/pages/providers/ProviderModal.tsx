@@ -25,6 +25,7 @@ export function ProviderModal({ provider, saving, onClose, onSave, t }: Provider
   const [baseUrl, setBaseUrl] = useState("");
   const [model, setModel] = useState("");
   const [models, setModels] = useState<string[]>([]);
+  const [imageInputModels, setImageInputModels] = useState<string[]>([]);
   const [contextWindowK, setContextWindowK] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [apiFormat, setApiFormat] = useState<ProviderApiFormat>("openaiResponses");
@@ -46,6 +47,7 @@ export function ProviderModal({ provider, saving, onClose, onSave, t }: Provider
     setBaseUrl(provider?.baseUrl ?? "");
     const nextModels = normalizeModels(provider?.model ?? "", provider?.models ?? []);
     setModels(nextModels);
+    setImageInputModels(provider?.imageInputModels?.filter((value) => nextModels.includes(value)) ?? []);
     setModel(provider?.model ?? nextModels[0] ?? "");
     setContextWindowK(provider?.contextWindow ? String(provider.contextWindow / 1000) : "");
     setApiKey("");
@@ -77,6 +79,7 @@ export function ProviderModal({ provider, saving, onClose, onSave, t }: Provider
   const updateModels = (values: string[]) => {
     const nextModels = normalizeModels("", values);
     setModels(nextModels);
+    setImageInputModels((current) => current.filter((value) => nextModels.includes(value)));
     if (!nextModels.includes(model.trim())) setModel(nextModels[0] ?? "");
   };
   const submit = async () => {
@@ -88,6 +91,7 @@ export function ProviderModal({ provider, saving, onClose, onSave, t }: Provider
       baseUrl,
       model: activeModel,
       models: normalizedModels,
+      imageInputModels: imageInputModels.filter((value) => normalizedModels.includes(value)),
       contextWindow,
       modelSelectionControlledByCodex: provider?.modelSelectionControlledByCodex ?? false,
       apiKey: apiKey.trim() || undefined,
@@ -159,6 +163,12 @@ export function ProviderModal({ provider, saving, onClose, onSave, t }: Provider
             disabled={saving || !normalizedModels.length}
             placeholder="openai/gpt-4.1" options={modelOptions(normalizedModels)}
             onChange={(value) => setModel(value)} />
+          <label htmlFor="provider-image-input-models">{t("providers.form.imageInputModels")}</label>
+          <Select id="provider-image-input-models" mode="multiple" value={imageInputModels}
+            disabled={saving || !normalizedModels.length}
+            placeholder={t("providers.form.imageInputModelsPlaceholder")}
+            options={modelOptions(normalizedModels)} onChange={setImageInputModels} />
+          <small>{t("providers.form.imageInputModelsHint")}</small>
           <label htmlFor="provider-context-window">{t("providers.form.contextWindow")}</label>
           <AutoComplete id="provider-context-window" value={contextWindowK} disabled={saving}
             options={CONTEXT_WINDOW_OPTIONS} placeholder="128" allowClear

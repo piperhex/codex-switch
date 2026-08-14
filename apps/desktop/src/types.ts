@@ -66,6 +66,7 @@ export interface Provider {
   baseUrl: string;
   model: string;
   models: string[];
+  imageInputModels: string[];
   contextWindow?: number | null;
   modelSelectionControlledByCodex: boolean;
   apiFormat: ProviderApiFormat;
@@ -90,6 +91,7 @@ export interface ProviderInput {
   baseUrl: string;
   model: string;
   models: string[];
+  imageInputModels: string[];
   contextWindow?: number | null;
   modelSelectionControlledByCodex: boolean;
   apiKey?: string;
