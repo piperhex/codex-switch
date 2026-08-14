@@ -5,11 +5,23 @@ import {
   hasLocalBackend,
   installOfficialPlugin,
   removeOfficialPlugin,
+  setOfficialPluginEnabled,
 } from "../../api/backend";
 import type { OfficialPluginItem } from "../../types";
 import { OfficialPluginGrid } from "./OfficialPluginGrid";
 import { SkillsMarketToolbar } from "./SkillsMarketToolbar";
-import type { OfficialPluginsMarketProps } from "./types";
+import type {
+  OfficialPluginAction,
+  OfficialPluginBusyAction,
+  OfficialPluginsMarketProps,
+} from "./types";
+
+const ACTION_TOAST = {
+  disable: "skills.official.toast.disabled",
+  enable: "skills.official.toast.enabled",
+  install: "skills.official.toast.installed",
+  remove: "skills.official.toast.uninstalled",
+} as const;
 
 export function OfficialPluginsMarket({
   active,
@@ -22,7 +34,7 @@ export function OfficialPluginsMarket({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [busyPluginId, setBusyPluginId] = useState<string | null>(null);
+  const [busyAction, setBusyAction] = useState<OfficialPluginBusyAction | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -47,30 +59,31 @@ export function OfficialPluginsMarket({
       .join("\n").toLocaleLowerCase().includes(needle));
   }, [items, query]);
 
-  const changeInstallation = async (plugin: OfficialPluginItem) => {
-    setBusyPluginId(plugin.id);
+  const runAction = async (plugin: OfficialPluginItem, action: OfficialPluginAction) => {
+    setBusyAction({ pluginId: plugin.id, action });
     setError(null);
     try {
-      if (plugin.installed) {
-        await removeOfficialPlugin(plugin.id);
-        notify(t("skills.official.toast.uninstalled", { name: plugin.title }));
-      } else {
+      if (action === "install") {
         await installOfficialPlugin(plugin.id);
-        notify(t("skills.official.toast.installed", { name: plugin.title }));
+      } else if (action === "remove") {
+        await removeOfficialPlugin(plugin.id);
+      } else {
+        await setOfficialPluginEnabled(plugin.id, action === "enable");
       }
+      notify(t(ACTION_TOAST[action], { name: plugin.title }));
       await load();
     } catch (caught) {
       setError(String(caught instanceof Error ? caught.message : caught));
     } finally {
-      setBusyPluginId(null);
+      setBusyAction(null);
     }
   };
 
   let content = (
     <OfficialPluginGrid
       items={filtered}
-      busyPluginId={busyPluginId}
-      onAction={changeInstallation}
+      busyAction={busyAction}
+      onAction={runAction}
       t={t}
     />
   );

@@ -1,7 +1,7 @@
-import { Download, LoaderCircle, Puzzle, Trash2 } from "lucide-react";
+import { Download, LoaderCircle, Power, Puzzle, Trash2 } from "lucide-react";
 import { useState } from "react";
 import type { OfficialPluginItem } from "../../types";
-import type { OfficialPluginGridProps } from "./types";
+import type { OfficialPluginAction, OfficialPluginGridProps } from "./types";
 
 function PluginIcon({ plugin }: { plugin: OfficialPluginItem }) {
   const [failed, setFailed] = useState(false);
@@ -11,27 +11,56 @@ function PluginIcon({ plugin }: { plugin: OfficialPluginItem }) {
   return <img src={plugin.iconUrl} alt="" onError={() => setFailed(true)} />;
 }
 
-function InstallIcon({ busy, installed }: { busy: boolean; installed: boolean }) {
+function InstallIcon({ busy }: { busy: boolean }) {
   if (busy) return <LoaderCircle className="spin" size={16} />;
-  if (installed) return <Trash2 size={16} />;
   return <Download size={16} />;
 }
 
-function installLabel(plugin: OfficialPluginItem, busy: boolean, t: OfficialPluginGridProps["t"]) {
-  if (busy) {
-    return t(plugin.installed ? "skills.official.uninstalling" : "skills.official.installing");
-  }
-  if (plugin.installed) return t("skills.official.uninstall");
-  return t("skills.official.install");
+function toggleLabel(plugin: OfficialPluginItem, busy: boolean, t: OfficialPluginGridProps["t"]) {
+  if (busy) return t(plugin.enabled ? "skills.official.disabling" : "skills.official.enabling");
+  return t(plugin.enabled ? "skills.official.disable" : "skills.official.enable");
 }
 
-function OfficialPluginCard({
-  busyPluginId,
-  onAction,
-  plugin,
-  t,
-}: Omit<OfficialPluginGridProps, "items"> & { plugin: OfficialPluginItem }) {
-  const busy = busyPluginId === plugin.id;
+function installedActions(
+  plugin: OfficialPluginItem,
+  options: Omit<OfficialPluginGridProps, "items">,
+) {
+  const toggleAction: OfficialPluginAction = plugin.enabled ? "disable" : "enable";
+  const toggleBusy = options.busyAction?.pluginId === plugin.id
+    && options.busyAction.action === toggleAction;
+  const removeBusy = options.busyAction?.pluginId === plugin.id
+    && options.busyAction.action === "remove";
+  const busy = options.busyAction?.pluginId === plugin.id;
+  return (
+    <div className="official-plugin-actions">
+      <button
+        type="button"
+        className={`official-plugin-toggle${plugin.enabled ? " active" : ""}`}
+        disabled={busy}
+        onClick={() => void options.onAction(plugin, toggleAction)}
+      >
+        {toggleBusy ? <LoaderCircle className="spin" size={16} /> : <Power size={16} />}
+        {toggleLabel(plugin, toggleBusy, options.t)}
+      </button>
+      <button
+        type="button"
+        className="skill-install-button uninstall"
+        disabled={busy}
+        onClick={() => void options.onAction(plugin, "remove")}
+      >
+        {removeBusy ? <LoaderCircle className="spin" size={16} /> : <Trash2 size={16} />}
+        {options.t(removeBusy ? "skills.official.uninstalling" : "skills.official.uninstall")}
+      </button>
+    </div>
+  );
+}
+
+function OfficialPluginCard(options: Omit<OfficialPluginGridProps, "items"> & {
+  plugin: OfficialPluginItem;
+}) {
+  const { plugin, t } = options;
+  const installBusy = options.busyAction?.pluginId === plugin.id
+    && options.busyAction.action === "install";
   const previewStyle = plugin.brandColor
     ? { background: `linear-gradient(145deg, ${plugin.brandColor}22, ${plugin.brandColor}66)` }
     : undefined;
@@ -49,15 +78,17 @@ function OfficialPluginCard({
           <span>{plugin.developer}</span>
           <span>{plugin.category}</span>
         </div>
-        <button
-          type="button"
-          className={`skill-install-button${plugin.installed ? " uninstall" : ""}`}
-          disabled={busy}
-          onClick={() => void onAction(plugin)}
-        >
-          <InstallIcon busy={busy} installed={plugin.installed} />
-          {installLabel(plugin, busy, t)}
-        </button>
+        {plugin.installed ? installedActions(plugin, options) : (
+          <button
+            type="button"
+            className="skill-install-button"
+            disabled={installBusy}
+            onClick={() => void options.onAction(plugin, "install")}
+          >
+            <InstallIcon busy={installBusy} />
+            {t(installBusy ? "skills.official.installing" : "skills.official.install")}
+          </button>
+        )}
       </div>
     </article>
   );
@@ -69,7 +100,7 @@ export function OfficialPluginGrid(props: OfficialPluginGridProps) {
       {props.items.map((plugin) => (
         <OfficialPluginCard
           key={plugin.id}
-          busyPluginId={props.busyPluginId}
+          busyAction={props.busyAction}
           onAction={props.onAction}
           plugin={plugin}
           t={props.t}

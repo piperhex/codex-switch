@@ -1429,6 +1429,13 @@ export async function removeOfficialPlugin(pluginId: string): Promise<void> {
   await invoke("remove_official_plugin", { pluginId });
 }
 
+export async function setOfficialPluginEnabled(pluginId: string, enabled: boolean): Promise<void> {
+  if (!hasLocalBackend) {
+    throw new Error("Official plugins are available when Codex Switch is running locally");
+  }
+  await invoke("set_official_plugin_enabled", { pluginId, enabled });
+}
+
 export function skillPreviewUrl(baseUrl: string | null | undefined, skill: SkillMarketItem) {
   if (!skill.hasPreview || !baseUrl) return null;
   return `${baseUrl.replace(/\/+$/, "")}/skills/${encodeURIComponent(skill.id)}/preview`;

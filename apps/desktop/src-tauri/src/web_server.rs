@@ -616,6 +616,13 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
         "remove_official_plugin" => serialize(block_on(
             crate::official_plugins::remove_official_plugin(argument(&args, "pluginId")?),
         )),
+        "set_official_plugin_enabled" => serialize(block_on(
+            crate::official_plugins::set_official_plugin_enabled(
+                app,
+                argument(&args, "pluginId")?,
+                argument(&args, "enabled")?,
+            ),
+        )),
         "switch_account_and_restart_chatgpt" => serialize(block_on(
             crate::commands::switch_account_and_restart_chatgpt(app, argument(&args, "id")?),
         )),

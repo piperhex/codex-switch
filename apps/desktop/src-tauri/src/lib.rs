@@ -266,6 +266,7 @@ pub fn run() {
             official_plugins::list_official_plugins,
             official_plugins::install_official_plugin,
             official_plugins::remove_official_plugin,
+            official_plugins::set_official_plugin_enabled,
         ])
         .build(context)
         .unwrap_or_else(|error| {

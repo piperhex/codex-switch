@@ -1795,6 +1795,31 @@ html.floating-usage-page #root {
 .skill-install-button.uninstall { color: #a8483f; border-color: #efc9c5; background: #fff1ef; }
 .skill-install-button.uninstall:hover:not(:disabled) { color: #913b34; background: #ffe5e1; }
 .skill-install-button:disabled { cursor: default; opacity: .8; }
+.official-plugin-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.official-plugin-toggle {
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: #65736b;
+  background: #f5f7f5;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+}
+.official-plugin-toggle:hover:not(:disabled) {
+  border-color: var(--green);
+  background: var(--green-soft);
+}
+.official-plugin-toggle.active {
+  color: var(--green-dark);
+  border-color: rgba(var(--green-rgb), .38);
+  background: var(--green-soft);
+}
+.official-plugin-toggle:disabled { cursor: default; opacity: .8; }
 .official-plugin-card .skill-card-body { min-height: 179px; }
 .official-plugin-preview {
   display: grid;

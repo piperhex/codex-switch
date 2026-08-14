@@ -6,6 +6,7 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
+use toml_edit::{value, DocumentMut};
 use url::Url;
 
 const OFFICIAL_MARKETPLACE: &str = "openai-curated";
@@ -333,6 +334,40 @@ fn remove_official_plugin_blocking(plugin_id: &str) -> Result<(), String> {
     Ok(())
 }
 
+fn update_plugin_enabled_text(
+    config: &str,
+    plugin_id: &str,
+    enabled: bool,
+) -> Result<String, String> {
+    let mut document = config.parse::<DocumentMut>().map_err(|_| {
+        "The Codex plugin setting could not be read. Check your Codex settings and try again."
+            .to_string()
+    })?;
+    document["plugins"][plugin_id]["enabled"] = value(enabled);
+    Ok(document.to_string())
+}
+
+fn set_official_plugin_enabled_blocking(
+    app: &tauri::AppHandle,
+    plugin_id: &str,
+    enabled: bool,
+) -> Result<(), String> {
+    official_plugin_name(plugin_id).ok_or_else(|| {
+        "This official plugin selection is invalid. Refresh the catalog and try again.".to_string()
+    })?;
+    let paths = crate::storage::resolve_paths(app)?;
+    let current = match fs::read_to_string(&paths.current_config) {
+        Ok(config) => config,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => String::new(),
+        Err(_) => {
+            return Err("The Codex plugin setting could not be read. Please try again.".to_string())
+        }
+    };
+    let updated = update_plugin_enabled_text(&current, plugin_id, enabled)?;
+    crate::storage::write_text_atomic(&paths.current_config, &updated)
+        .map_err(|_| "The Codex plugin setting could not be saved. Please try again.".to_string())
+}
+
 #[tauri::command]
 pub(crate) async fn list_official_plugins() -> Result<Vec<OfficialPluginItem>, String> {
     tauri::async_runtime::spawn_blocking(list_official_plugins_blocking)
@@ -352,6 +387,19 @@ pub(crate) async fn remove_official_plugin(plugin_id: String) -> Result<(), Stri
     tauri::async_runtime::spawn_blocking(move || remove_official_plugin_blocking(&plugin_id))
         .await
         .map_err(|_| "The official plugin uninstall stopped. Please try again.".to_string())?
+}
+
+#[tauri::command]
+pub(crate) async fn set_official_plugin_enabled(
+    app: tauri::AppHandle,
+    plugin_id: String,
+    enabled: bool,
+) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        set_official_plugin_enabled_blocking(&app, &plugin_id, enabled)
+    })
+    .await
+    .map_err(|_| "The official plugin setting stopped updating. Please try again.".to_string())?
 }
 
 #[cfg(test)]
@@ -411,5 +459,40 @@ mod tests {
         let items = parse_official_plugins(data).expect("catalog should parse");
         assert_eq!(items.len(), 1);
         assert_eq!(items[0].id, "linear@openai-curated");
+    }
+
+    #[test]
+    fn updates_only_the_selected_plugin_state() {
+        let config = r#"model = "gpt-5"
+
+[plugins."gmail@openai-curated"]
+enabled = true
+
+[plugins."browser@openai-bundled"]
+enabled = true
+"#;
+        let updated = update_plugin_enabled_text(config, "gmail@openai-curated", false).unwrap();
+        let document = updated.parse::<DocumentMut>().unwrap();
+
+        assert_eq!(document["model"].as_str(), Some("gpt-5"));
+        assert_eq!(
+            document["plugins"]["gmail@openai-curated"]["enabled"].as_bool(),
+            Some(false)
+        );
+        assert_eq!(
+            document["plugins"]["browser@openai-bundled"]["enabled"].as_bool(),
+            Some(true)
+        );
+    }
+
+    #[test]
+    fn creates_plugin_state_in_an_empty_config() {
+        let updated = update_plugin_enabled_text("", "gmail@openai-curated", true).unwrap();
+        let document = updated.parse::<DocumentMut>().unwrap();
+
+        assert_eq!(
+            document["plugins"]["gmail@openai-curated"]["enabled"].as_bool(),
+            Some(true)
+        );
     }
 }

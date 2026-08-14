@@ -38,10 +38,17 @@ export interface SkillsMarketToolbarProps extends SkillsMarketNavigationProps {
 }
 
 export interface OfficialPluginGridProps {
-  busyPluginId: string | null;
+  busyAction: OfficialPluginBusyAction | null;
   items: OfficialPluginItem[];
-  onAction: (plugin: OfficialPluginItem) => Promise<void>;
+  onAction: (plugin: OfficialPluginItem, action: OfficialPluginAction) => Promise<void>;
   t: Translate;
+}
+
+export type OfficialPluginAction = "disable" | "enable" | "install" | "remove";
+
+export interface OfficialPluginBusyAction {
+  action: OfficialPluginAction;
+  pluginId: string;
 }
 
 export interface PublishModalProps {
