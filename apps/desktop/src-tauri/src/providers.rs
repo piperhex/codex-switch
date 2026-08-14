@@ -38,9 +38,12 @@ const NEW_API_QUOTA_PER_USD: f64 = 500_000.0;
 const MAX_BALANCE_RESPONSE_BYTES: u64 = 1024 * 1024;
 const MAX_MODEL_RESPONSE_BYTES: u64 = 1024 * 1024;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum ReasoningEffortProfile {
     Standard,
+    OpenAi,
+    OpenAiMax,
+    OpenAiUltra,
     DeepSeek,
 }
 
@@ -89,8 +92,32 @@ pub(crate) fn reasoning_effort_profile(provider: &ProviderProfile) -> ReasoningE
     if provider.balance_platform == Some(ProviderBalancePlatform::DeepSeek) {
         ReasoningEffortProfile::DeepSeek
     } else {
-        ReasoningEffortProfile::Standard
+        reasoning_effort_profile_for_model(&provider.model, ReasoningEffortProfile::Standard)
     }
+}
+
+pub(crate) fn reasoning_effort_profile_for_model(
+    model: &str,
+    fallback: ReasoningEffortProfile,
+) -> ReasoningEffortProfile {
+    if fallback == ReasoningEffortProfile::DeepSeek {
+        return fallback;
+    }
+    if model.eq_ignore_ascii_case(CODEX_SWITCH_CONTROL_MODEL) {
+        return fallback;
+    }
+
+    let normalized = model.trim().to_ascii_lowercase();
+    if !normalized.starts_with("gpt-") {
+        return ReasoningEffortProfile::Standard;
+    }
+    if normalized.starts_with("gpt-5.6-sol") || normalized.starts_with("gpt-5.6-terra") {
+        return ReasoningEffortProfile::OpenAiUltra;
+    }
+    if normalized.starts_with("gpt-5.6") {
+        return ReasoningEffortProfile::OpenAiMax;
+    }
+    ReasoningEffortProfile::OpenAi
 }
 
 fn codex_model_for_provider(provider: &ProviderProfile) -> &str {
@@ -1911,11 +1938,13 @@ pub(crate) fn model_catalog_for_models(
         .iter()
         .enumerate()
         .map(|(index, model)| {
+            let model_reasoning_profile =
+                reasoning_effort_profile_for_model(model, reasoning_profile);
             provider_model_catalog_entry(
                 model,
                 index,
                 context_window,
-                reasoning_profile,
+                model_reasoning_profile,
                 image_input_models.contains(model),
             )
         })
@@ -1929,6 +1958,9 @@ pub(crate) fn supported_reasoning_levels(profile: ReasoningEffortProfile) -> Val
             json!({ "effort": "none", "description": "Disable Thinking" }),
             json!({ "effort": "high", "description": "Enabled Thinking" }),
         ],
+        ReasoningEffortProfile::OpenAi => openai_reasoning_levels(false, false),
+        ReasoningEffortProfile::OpenAiMax => openai_reasoning_levels(true, false),
+        ReasoningEffortProfile::OpenAiUltra => openai_reasoning_levels(true, true),
         ReasoningEffortProfile::DeepSeek => vec![
             json!({ "effort": "none", "description": "Disable Thinking" }),
             json!({ "effort": "low", "description": "Low Thinking" }),
@@ -1939,6 +1971,34 @@ pub(crate) fn supported_reasoning_levels(profile: ReasoningEffortProfile) -> Val
         ],
     };
     Value::Array(levels)
+}
+
+fn openai_reasoning_levels(include_max: bool, include_ultra: bool) -> Vec<Value> {
+    let mut levels = vec![
+        json!({ "effort": "low", "description": "Fast responses with lighter reasoning" }),
+        json!({
+            "effort": "medium",
+            "description": "Balances speed and reasoning depth for everyday tasks"
+        }),
+        json!({ "effort": "high", "description": "Greater reasoning depth for complex problems" }),
+        json!({
+            "effort": "xhigh",
+            "description": "Extra high reasoning depth for complex problems"
+        }),
+    ];
+    if include_max {
+        levels.push(json!({
+            "effort": "max",
+            "description": "Maximum reasoning depth for the hardest problems"
+        }));
+    }
+    if include_ultra {
+        levels.push(json!({
+            "effort": "ultra",
+            "description": "Maximum reasoning with automatic task delegation"
+        }));
+    }
+    levels
 }
 
 fn provider_model_catalog_entry(
@@ -3070,6 +3130,86 @@ sandbox_mode = "workspace-write"
 
         assert_eq!(model, "deepseek-chat");
         assert_eq!(models, vec!["deepseek-chat", "deepseek-reasoner"]);
+    }
+
+    #[test]
+    fn gpt_reasoning_profiles_match_official_model_families_case_insensitively() {
+        assert_eq!(
+            reasoning_effort_profile_for_model("GPT-5.4", ReasoningEffortProfile::Standard),
+            ReasoningEffortProfile::OpenAi
+        );
+        assert_eq!(
+            reasoning_effort_profile_for_model("gpt-5.6-luna", ReasoningEffortProfile::Standard),
+            ReasoningEffortProfile::OpenAiMax
+        );
+        assert_eq!(
+            reasoning_effort_profile_for_model("GPT-5.6-SOL", ReasoningEffortProfile::Standard),
+            ReasoningEffortProfile::OpenAiUltra
+        );
+        assert_eq!(
+            reasoning_effort_profile_for_model("claude-sonnet", ReasoningEffortProfile::Standard),
+            ReasoningEffortProfile::Standard
+        );
+        assert_eq!(
+            reasoning_effort_profile_for_model("gpt-5.6-sol", ReasoningEffortProfile::DeepSeek),
+            ReasoningEffortProfile::DeepSeek
+        );
+    }
+
+    #[test]
+    fn provider_model_catalog_uses_model_specific_reasoning_levels() {
+        let models = vec![
+            "gpt-5.6-sol".to_string(),
+            "GPT-5.6-LUNA".to_string(),
+            "gpt-5.4".to_string(),
+            "claude-sonnet".to_string(),
+        ];
+        let catalog = model_catalog_for_models(
+            &models,
+            &[],
+            DEFAULT_MODEL_CONTEXT_WINDOW,
+            ReasoningEffortProfile::Standard,
+        );
+        let entries = catalog["models"].as_array().unwrap();
+        let efforts = |index: usize| {
+            entries[index]["supported_reasoning_levels"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|level| level["effort"].as_str().unwrap())
+                .collect::<Vec<_>>()
+        };
+
+        assert_eq!(
+            efforts(0),
+            vec!["low", "medium", "high", "xhigh", "max", "ultra"]
+        );
+        assert_eq!(efforts(1), vec!["low", "medium", "high", "xhigh", "max"]);
+        assert_eq!(efforts(2), vec!["low", "medium", "high", "xhigh"]);
+        assert_eq!(efforts(3), vec!["none", "high"]);
+    }
+
+    #[test]
+    fn switch_control_inherits_the_selected_gpt_model_reasoning_levels() {
+        let mut provider = provider();
+        provider.model = "GPT-5.6-SOL".to_string();
+        let catalog = model_catalog_for_models(
+            &[CODEX_SWITCH_CONTROL_MODEL.to_string()],
+            &[],
+            provider_context_window(&provider),
+            reasoning_effort_profile(&provider),
+        );
+        let efforts = catalog["models"][0]["supported_reasoning_levels"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|level| level["effort"].as_str().unwrap())
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            efforts,
+            vec!["low", "medium", "high", "xhigh", "max", "ultra"]
+        );
     }
 
     #[test]

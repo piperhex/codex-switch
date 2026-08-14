@@ -1143,24 +1143,31 @@ fn codex_model_refresh_expression(
     selected_model: &str,
     reasoning_profile: crate::providers::ReasoningEffortProfile,
 ) -> Result<String, String> {
+    let reasoning_efforts = models
+        .iter()
+        .map(|model| {
+            let profile =
+                crate::providers::reasoning_effort_profile_for_model(model, reasoning_profile);
+            let efforts = crate::providers::supported_reasoning_levels(profile)
+                .as_array()
+                .into_iter()
+                .flatten()
+                .map(|level| {
+                    json!({
+                        "reasoningEffort": level["effort"],
+                        "description": level["description"],
+                    })
+                })
+                .collect::<Vec<_>>();
+            (model.clone(), Value::Array(efforts))
+        })
+        .collect::<Map<String, Value>>();
     let models = serde_json::to_string(models)
         .map_err(|error| format!("Failed to prepare the Codex model list: {error}"))?;
     let image_input_models = serde_json::to_string(image_input_models)
         .map_err(|error| format!("Failed to prepare image-capable models: {error}"))?;
     let selected_model = serde_json::to_string(selected_model)
         .map_err(|error| format!("Failed to prepare the selected Codex model: {error}"))?;
-    let reasoning_levels = crate::providers::supported_reasoning_levels(reasoning_profile);
-    let reasoning_efforts = reasoning_levels
-        .as_array()
-        .into_iter()
-        .flatten()
-        .map(|level| {
-            json!({
-                "reasoningEffort": level["effort"],
-                "description": level["description"],
-            })
-        })
-        .collect::<Vec<_>>();
     let reasoning_efforts = serde_json::to_string(&reasoning_efforts)
         .map_err(|error| format!("Failed to prepare reasoning efforts: {error}"))?;
     let fallback_query_key = serde_json::to_string(&codex_model_fallback_query_key())
@@ -1171,7 +1178,7 @@ fn codex_model_refresh_expression(
   const expectedModels = {models};
   const imageInputModels = new Set({image_input_models});
   const selectedModel = {selected_model};
-  const supportedReasoningEfforts = {reasoning_efforts};
+  const supportedReasoningEffortsByModel = {reasoning_efforts};
   const root = window.__codexRoot;
   if (!root || !Array.isArray(expectedModels)) {{
     return {{ refreshed: false, reason: "unavailable" }};
@@ -1233,7 +1240,7 @@ fn codex_model_refresh_expression(
     description: model,
     modelSpecialty: null,
     hidden: false,
-    supportedReasoningEfforts,
+    supportedReasoningEfforts: supportedReasoningEffortsByModel[model] ?? [],
     defaultReasoningEffort: "high",
     inputModalities: imageInputModels.has(model) ? ["text", "image"] : ["text"],
     supportsPersonality: false,
@@ -2934,6 +2941,22 @@ mod tests {
         assert!(expression.contains("\"reasoningEffort\":\"medium\""));
         assert!(expression.contains("\"reasoningEffort\":\"xhigh\""));
         assert!(expression.contains("\"reasoningEffort\":\"max\""));
+    }
+
+    #[test]
+    fn codex_model_refresh_uses_model_specific_reasoning_efforts() {
+        let expression = codex_model_refresh_expression(
+            &["gpt-5.6-sol".to_string(), "claude-sonnet".to_string()],
+            &[],
+            "gpt-5.6-sol",
+            crate::providers::ReasoningEffortProfile::Standard,
+        )
+        .unwrap();
+
+        assert!(expression.contains("supportedReasoningEffortsByModel[model]"));
+        assert!(expression.contains("\"gpt-5.6-sol\":[{\"description\""));
+        assert!(expression.contains("\"reasoningEffort\":\"ultra\""));
+        assert!(expression.contains("\"claude-sonnet\":[{\"description\":\"Disable Thinking\""));
     }
 
     #[test]
