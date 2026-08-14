@@ -2,20 +2,18 @@ use std::{
     collections::HashSet,
     fs,
     path::{Component, Path, PathBuf},
-    process::{Command, Output},
 };
 
 use serde::{Deserialize, Serialize};
 use toml_edit::{value, DocumentMut};
 use url::Url;
 
+mod cli;
+
 const OFFICIAL_MARKETPLACE: &str = "openai-curated";
 const MAX_MANIFEST_BYTES: u64 = 256 * 1024;
 const OFFICIAL_PLUGIN_RAW_BASE: &str =
     "https://raw.githubusercontent.com/openai/plugins/main/plugins/";
-
-#[cfg(target_os = "windows")]
-const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -100,60 +98,6 @@ struct PluginInterface {
     logo: Option<String>,
     #[serde(rename = "composerIcon")]
     composer_icon: Option<String>,
-}
-
-fn codex_command(executable: &Path) -> Command {
-    let mut command = Command::new(executable);
-    command.env("NO_COLOR", "1");
-    #[cfg(target_os = "windows")]
-    {
-        use std::os::windows::process::CommandExt;
-        command.creation_flags(CREATE_NO_WINDOW);
-    }
-    command
-}
-
-fn execute_codex(executable: &Path, args: &[&str]) -> std::io::Result<Output> {
-    codex_command(executable).args(args).output()
-}
-
-#[cfg(target_os = "windows")]
-fn execute_official_codex(args: &[&str]) -> Option<std::io::Result<Output>> {
-    crate::dream_skin_native::find_codex_cli_executable()
-        .map(|executable| execute_codex(&executable, args))
-}
-
-#[cfg(not(target_os = "windows"))]
-fn execute_official_codex(_args: &[&str]) -> Option<std::io::Result<Output>> {
-    None
-}
-
-fn run_codex(args: &[&str], failure_message: &str) -> Result<Output, String> {
-    let output = match execute_official_codex(args) {
-        Some(Ok(output)) => Ok(output),
-        Some(Err(error))
-            if matches!(
-                error.kind(),
-                std::io::ErrorKind::NotFound | std::io::ErrorKind::PermissionDenied
-            ) =>
-        {
-            execute_codex(Path::new("codex"), args)
-        }
-        Some(Err(error)) => Err(error),
-        None => execute_codex(Path::new("codex"), args),
-    }
-    .map_err(|error| {
-        if error.kind() == std::io::ErrorKind::NotFound {
-            return "Codex plugin support is unavailable. Update Codex, restart Codex Switch, and try again."
-                .to_string();
-        }
-        failure_message.to_string()
-    })?;
-    if output.status.success() {
-        Ok(output)
-    } else {
-        Err(failure_message.to_string())
-    }
 }
 
 fn read_manifest(plugin: &CliPlugin) -> PluginManifest {
@@ -281,7 +225,7 @@ fn parse_official_plugins(data: &[u8]) -> Result<Vec<OfficialPluginItem>, String
 }
 
 fn list_official_plugins_blocking() -> Result<Vec<OfficialPluginItem>, String> {
-    let output = run_codex(
+    let output = cli::run(
         &["plugin", "list", "--available", "--json"],
         "Could not load the official plugin catalog. Update Codex and try again.",
     )?;
@@ -302,7 +246,7 @@ fn install_official_plugin_blocking(plugin_id: &str) -> Result<(), String> {
     let name = official_plugin_name(plugin_id).ok_or_else(|| {
         "This official plugin selection is invalid. Refresh the catalog and try again.".to_string()
     })?;
-    run_codex(
+    cli::run(
         &[
             "plugin",
             "add",
@@ -320,7 +264,7 @@ fn remove_official_plugin_blocking(plugin_id: &str) -> Result<(), String> {
     let name = official_plugin_name(plugin_id).ok_or_else(|| {
         "This official plugin selection is invalid. Refresh the catalog and try again.".to_string()
     })?;
-    run_codex(
+    cli::run(
         &[
             "plugin",
             "remove",
@@ -405,6 +349,15 @@ pub(crate) async fn set_official_plugin_enabled(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    #[ignore = "requires the current Codex desktop plugin runtime"]
+    fn loads_official_plugins_from_the_desktop_runtime() {
+        let plugins = list_official_plugins_blocking().unwrap();
+
+        assert!(!plugins.is_empty());
+    }
 
     #[test]
     fn accepts_only_official_plugin_ids() {

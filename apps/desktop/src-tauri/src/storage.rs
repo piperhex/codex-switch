@@ -46,12 +46,16 @@ fn atomic_temp_path(path: &Path) -> PathBuf {
     ))
 }
 
-pub(crate) fn resolve_paths<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<Paths, String> {
-    let codex_home = std::env::var_os("CODEX_HOME")
+pub(crate) fn resolve_codex_home() -> Result<PathBuf, String> {
+    std::env::var_os("CODEX_HOME")
         .filter(|value| !value.is_empty())
         .map(PathBuf::from)
         .or_else(|| dirs::home_dir().map(|home| home.join(".codex")))
-        .ok_or_else(|| "无法定位用户 Home 目录".to_string())?;
+        .ok_or_else(|| "无法定位用户 Home 目录".to_string())
+}
+
+pub(crate) fn resolve_paths<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<Paths, String> {
+    let codex_home = resolve_codex_home()?;
     let app_data = app
         .path()
         .app_data_dir()
