@@ -811,7 +811,6 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .cloud-recycle-bin-filters { width: 100%; max-width: 400px; display: flex; gap: 8px; margin-bottom: 12px; }
 .cloud-recycle-bin-filters .ant-select { width: 120px; flex: 0 0 auto; }
 .cloud-recycle-bin-filters .ant-input-affix-wrapper { min-width: 0; flex: 1; }
-.totp-manager-modal .ant-modal-body { max-height: 68vh; overflow-y: auto; }
 .totp-manager-intro {
   display: flex;
   align-items: center;
@@ -1119,11 +1118,43 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 
 html.token-usage-page,
 html.token-usage-page body,
-html.token-usage-page #root {
+html.token-usage-page #root,
+html.totp-window-page,
+html.totp-window-page body,
+html.totp-window-page #root {
   min-width: 0;
   overflow: hidden;
   background: #f3f5f1;
 }
+
+html.totp-window-page,
+html.totp-window-page body,
+html.totp-window-page #root {
+  width: 100%;
+  height: 100%;
+}
+
+.totp-window-shell {
+  width: 100vw;
+  height: 100vh;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #f3f5f1;
+}
+
+.totp-window-header { flex: 0 0 auto; padding: 22px 22px 10px; }
+.totp-window-header span {
+  color: #819087;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .14em;
+}
+.totp-window-header h1 { margin: 5px 0 0; font-size: 24px; }
+.totp-window-content { min-height: 0; flex: 1; padding: 10px 22px 22px; overflow-y: auto; }
+.totp-window-shell .toast { max-width: 400px; }
 
 main.tokens-main { overflow: hidden; padding-bottom: 0; }
 .token-dashboard-page { height: 100%; min-height: 0; }

@@ -6,7 +6,7 @@ import { check, type DownloadEvent, type Update } from "@tauri-apps/plugin-updat
 import { DEMO_ACCOUNTS, DEMO_INFO } from "../demo";
 import { BUILT_IN_DREAM_SKIN_THEMES } from "../dreamSkinBuiltIns";
 import { LANGUAGE_STORAGE_KEY, isLanguage, type Language } from "../i18n";
-import type { TotpVault } from "../utils/totp";
+import { isTotpEntry, TOTP_STORAGE_KEY, type TotpVault } from "../utils/totp";
 import type {
   Account,
   AccountArchiveImportResult,
@@ -145,6 +145,7 @@ const THEME_COLOR_EVENT = "codex-switch:theme-color-changed";
 const BUBBLE_RESET_DISPLAY_EVENT = "bubble-reset-display-changed";
 const BUBBLE_STYLE_EVENT = "bubble-style-changed";
 const LANGUAGE_EVENT = "codex-switch:language-changed";
+const TOTP_EVENT = "codex-switch:totp-changed";
 const PROVIDERS_EVENT = "codex-switch:providers-changed";
 const PROVIDER_BALANCE_EVENT = "codex-switch:provider-balance-refreshed";
 const DREAM_SKIN_INSTALLED_PREVIEW_KEY = "codex-switch:dream-skin-installed";
@@ -879,6 +880,14 @@ export async function showTokenUsageWindow(): Promise<void> {
     return;
   }
   await invoke("show_token_usage_window");
+}
+
+export async function showTotpWindow(): Promise<void> {
+  if (!isDesktopApp) {
+    window.open(`${window.location.pathname}?cache=${Date.now()}#totp`, "_blank", "noopener,noreferrer");
+    return;
+  }
+  await invoke("show_totp_window");
 }
 
 export async function startLocalProxy(): Promise<LocalProxyStatus> {
@@ -2218,6 +2227,44 @@ export function subscribeToTokenUsageChanges(onChange: () => void): () => void {
   if (!isDesktopApp) return () => undefined;
   const subscription = listen("token-usage-updated", onChange);
   return () => void subscription.then((unlisten) => unlisten());
+}
+
+export async function publishTotpChange(vault: TotpVault): Promise<void> {
+  if (isDesktopApp) {
+    await emit(TOTP_EVENT, vault);
+    return;
+  }
+  window.dispatchEvent(new CustomEvent<TotpVault>(TOTP_EVENT, { detail: vault }));
+}
+
+function validatedTotpVault(value: unknown): TotpVault | null {
+  if (!value || typeof value !== "object") return null;
+  const candidate = value as Partial<TotpVault>;
+  if (!Array.isArray(candidate.entries) || typeof candidate.modifiedAt !== "string") return null;
+  if (Number.isNaN(Date.parse(candidate.modifiedAt))) return null;
+  return { entries: candidate.entries.filter(isTotpEntry), modifiedAt: candidate.modifiedAt };
+}
+
+export function subscribeToTotpChanges(onChange: (vault: TotpVault) => void): () => void {
+  const handleVault = (value: unknown) => {
+    const vault = validatedTotpVault(value);
+    if (vault) onChange(vault);
+  };
+  if (isDesktopApp) {
+    const subscription = listen<TotpVault>(TOTP_EVENT, ({ payload }) => handleVault(payload));
+    return () => void subscription.then((unlisten) => unlisten());
+  }
+  const handleEvent = (event: Event) => handleVault((event as CustomEvent<TotpVault>).detail);
+  const handleStorage = (event: StorageEvent) => {
+    if (event.key !== TOTP_STORAGE_KEY || !event.newValue) return;
+    try { handleVault(JSON.parse(event.newValue)); } catch { /* Ignore invalid external storage values. */ }
+  };
+  window.addEventListener(TOTP_EVENT, handleEvent);
+  window.addEventListener("storage", handleStorage);
+  return () => {
+    window.removeEventListener(TOTP_EVENT, handleEvent);
+    window.removeEventListener("storage", handleStorage);
+  };
 }
 
 export function subscribeToCloudSessionExpired(onExpired: () => void): () => void {

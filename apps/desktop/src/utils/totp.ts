@@ -1,5 +1,8 @@
 export type TotpAlgorithm = "SHA1" | "SHA256" | "SHA512";
 
+export const TOTP_STORAGE_KEY = "codex-switch:totp-entries:v1";
+export const TOTP_CLOUD_SYNC_KEY = "codex-switch:totp-cloud-sync-enabled";
+
 export interface TotpEntry {
   id: string;
   issuer: string;

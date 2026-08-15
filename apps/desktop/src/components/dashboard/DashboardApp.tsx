@@ -47,7 +47,7 @@ import { HelpModal } from "../modals/HelpModal";
 import { FeedbackModal } from "../modals/FeedbackModal";
 import { TokenUsageHeatmap } from "../TokenUsageHeatmap";
 import { TokenUsageDashboard } from "../TokenUsageDashboard";
-import { TotpManager } from "../TotpManager";
+import { TotpWindowButton } from "../TotpWindowButton";
 import { CloudLoginModal } from "../modals/CloudLoginModal";
 import { CloudAccountModal } from "../modals/CloudAccountModal";
 import { LoginModal } from "../modals/LoginModal";
@@ -989,7 +989,7 @@ export function DashboardApp() {
   );
   const accountProxyTopbarActions = (
     <ProxyTopbarActions cloudAuthenticated={cloud.state.authenticated}
-      manager={providerManager} trailingAction={<TotpManager manager={totpManager} t={t} />} t={t} />
+      manager={providerManager} trailingAction={<TotpWindowButton notify={notify} t={t} />} t={t} />
   );
   const menuTools = (
     <DashboardMenuTools actions={{

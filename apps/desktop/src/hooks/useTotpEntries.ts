@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { syncCloudTotp } from "../api/backend";
+import { publishTotpChange, subscribeToTotpChanges, syncCloudTotp } from "../api/backend";
 import type { Translate } from "../i18n";
 import {
   createTotpEntry,
   isTotpEntry,
+  TOTP_CLOUD_SYNC_KEY,
+  TOTP_STORAGE_KEY,
   type TotpDraft,
   type TotpEntry,
   type TotpVault,
 } from "../utils/totp";
 
-const TOTP_STORAGE_KEY = "codex-switch:totp-entries:v1";
-const TOTP_CLOUD_SYNC_KEY = "codex-switch:totp-cloud-sync-enabled";
 const EMPTY_VAULT_MODIFIED_AT = "1970-01-01T00:00:00.000Z";
 
 function loadVault(): TotpVault {
@@ -54,7 +54,15 @@ export function useTotpEntries({ cloudAuthenticated, notify, t }: TotpEntriesOpt
 
   useEffect(() => {
     window.localStorage.setItem(TOTP_STORAGE_KEY, JSON.stringify(vault));
+    void publishTotpChange(vault).catch(() => undefined);
   }, [vault]);
+
+  useEffect(() => subscribeToTotpChanges((nextVault) => {
+    if (nextVault.modifiedAt === vaultRef.current.modifiedAt) return;
+    if (Date.parse(nextVault.modifiedAt) < Date.parse(vaultRef.current.modifiedAt)) return;
+    vaultRef.current = nextVault;
+    setVault(nextVault);
+  }), []);
 
   const syncVault = useCallback((snapshot: TotpVault) => {
     activeSyncCountRef.current += 1;
