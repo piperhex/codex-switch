@@ -878,6 +878,44 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .web-proxy-settings-field { flex-wrap: wrap; }
 .web-proxy-settings-field .ant-space-compact { width: 180px; }
 .web-proxy-settings-field .ant-input-number { width: 112px; }
+.network-proxy-settings-card .settings-card-content { align-items: flex-start; }
+.network-proxy-editor {
+  width: clamp(330px, 42vw, 520px);
+  display: grid;
+  gap: 10px;
+}
+.network-proxy-toggle {
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.network-proxy-toggle > span,
+.network-proxy-fields label { color: #5d6a62; font-size: 11px; font-weight: 700; }
+.network-proxy-fields {
+  display: grid;
+  grid-template-columns: auto minmax(150px, 1fr) auto 100px;
+  align-items: center;
+  gap: 8px;
+}
+.network-proxy-fields .ant-input-number { width: 100%; }
+.network-proxy-editor > .ant-btn { justify-self: end; }
+.network-proxy-error { margin: 0 !important; color: #b64f45 !important; }
+.network-proxy-modal-copy {
+  max-width: 400px;
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.ant-modal .network-proxy-editor { width: 100%; }
+.ant-modal .network-proxy-fields { grid-template-columns: 1fr 100px; }
+.ant-modal .network-proxy-fields label { grid-column: auto; }
+.ant-modal .network-proxy-fields label:first-child { grid-column: 1; grid-row: 1; }
+.ant-modal .network-proxy-fields .network-proxy-url-input { grid-column: 1; grid-row: 2; }
+.ant-modal .network-proxy-fields label:nth-of-type(2) { grid-column: 2; grid-row: 1; }
+.ant-modal .network-proxy-fields .ant-input-number { grid-column: 2; grid-row: 2; }
 .web-proxy-address { max-width: min(280px, 30vw); padding: 0; overflow: hidden; border: 0; color: var(--green-dark); background: transparent; cursor: pointer; font: 650 11px/1.4 "DM Sans", sans-serif; text-decoration: underline; text-overflow: ellipsis; white-space: nowrap; }
 .web-proxy-address:hover { color: var(--green); }
 .settings-field .duration-time-picker.ant-picker { width: 112px; }
@@ -1658,6 +1696,12 @@ main.tokens-main { overflow: hidden; padding-bottom: 0; }
   .settings-card-content { align-items: flex-start; flex-direction: column; gap: 10px; }
   .settings-field { flex-wrap: wrap; justify-content: flex-start; white-space: normal; }
   .settings-field-wide .ant-input-affix-wrapper { width: min(430px, 100%); }
+  .network-proxy-editor { width: 100%; }
+  .network-proxy-fields { grid-template-columns: 1fr 100px; }
+  .network-proxy-fields label:first-child { grid-column: 1; grid-row: 1; }
+  .network-proxy-fields .network-proxy-url-input { grid-column: 1; grid-row: 2; }
+  .network-proxy-fields label:nth-of-type(2) { grid-column: 2; grid-row: 1; }
+  .network-proxy-fields .ant-input-number { grid-column: 2; grid-row: 2; }
 }
 
 html.floating-usage-page,

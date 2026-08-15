@@ -223,7 +223,7 @@ fn validate_theme(theme: &DreamSkinMarketTheme) -> Result<(), String> {
 }
 
 fn client() -> Result<Client, String> {
-    Client::builder()
+    crate::system_proxy::apply(Client::builder())
         .user_agent(concat!("Codex-Switch/", env!("CARGO_PKG_VERSION")))
         .connect_timeout(Duration::from_secs(8))
         .timeout(Duration::from_secs(30))

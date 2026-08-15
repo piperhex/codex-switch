@@ -1,4 +1,10 @@
+use std::sync::{OnceLock, RwLock};
+
 use reqwest::{blocking::ClientBuilder, Proxy, Url};
+
+use crate::models::NetworkProxySettings;
+
+static NETWORK_PROXY: OnceLock<RwLock<Option<Url>>> = OnceLock::new();
 
 #[derive(Clone, Debug, Default, PartialEq)]
 struct SystemProxyConfig {
@@ -57,10 +63,96 @@ impl SystemProxyConfig {
 }
 
 pub(crate) fn apply(builder: ClientBuilder) -> ClientBuilder {
+    if let Some(proxy_url) = configured_network_proxy() {
+        return builder.no_proxy().proxy(Proxy::custom(move |target| {
+            should_proxy_target(target).then(|| proxy_url.clone())
+        }));
+    }
     let Some(config) = current_system_proxy() else {
         return builder;
     };
     builder.proxy(Proxy::custom(move |target| config.proxy_for(target)))
+}
+
+pub(crate) fn configure(settings: &NetworkProxySettings) -> Result<(), String> {
+    let proxy_url = network_proxy_url(settings)?;
+    let mut configured = NETWORK_PROXY
+        .get_or_init(|| RwLock::new(None))
+        .write()
+        .map_err(|_| "Network proxy settings are temporarily unavailable".to_string())?;
+    *configured = proxy_url;
+    Ok(())
+}
+
+pub(crate) fn normalize_settings(
+    mut settings: NetworkProxySettings,
+) -> Result<NetworkProxySettings, String> {
+    settings.proxy_url = settings.proxy_url.trim().trim_end_matches('/').to_string();
+    if !settings.enabled {
+        return Ok(settings);
+    }
+    let normalized_url = parse_network_proxy_base_url(&settings.proxy_url)?;
+    if settings.proxy_port.is_none_or(|port| port == 0) {
+        return Err("Enter a proxy port between 1 and 65535".to_string());
+    }
+    settings.proxy_url = normalized_url;
+    Ok(settings)
+}
+
+fn configured_network_proxy() -> Option<Url> {
+    let settings = NETWORK_PROXY.get()?;
+    match settings.read() {
+        Ok(proxy_url) => proxy_url.clone(),
+        Err(error) => {
+            eprintln!("network proxy settings lock was poisoned; using the last saved value");
+            error.into_inner().clone()
+        }
+    }
+}
+
+fn network_proxy_url(settings: &NetworkProxySettings) -> Result<Option<Url>, String> {
+    if !settings.enabled {
+        return Ok(None);
+    }
+    let normalized = normalize_settings(settings.clone())?;
+    let mut url = Url::parse(&normalized.proxy_url)
+        .map_err(|_| "Enter a valid HTTP proxy address".to_string())?;
+    url.set_port(normalized.proxy_port)
+        .map_err(|_| "Enter a valid proxy port".to_string())?;
+    Ok(Some(url))
+}
+
+fn parse_network_proxy_base_url(value: &str) -> Result<String, String> {
+    if value.is_empty() {
+        return Err("Enter a proxy address".to_string());
+    }
+    let candidate = if value.contains("://") {
+        value.to_string()
+    } else {
+        format!("http://{value}")
+    };
+    let url = Url::parse(&candidate).map_err(|_| "Enter a valid HTTP proxy address".to_string())?;
+    let valid = matches!(url.scheme(), "http" | "https")
+        && url.host_str().is_some()
+        && url.port().is_none()
+        && url.path() == "/"
+        && url.query().is_none()
+        && url.fragment().is_none();
+    if !valid {
+        return Err("Use an HTTP proxy address without a port or path".to_string());
+    }
+    Ok(url.as_str().trim_end_matches('/').to_string())
+}
+
+fn should_proxy_target(target: &Url) -> bool {
+    let Some(host) = target.host_str() else {
+        return false;
+    };
+    let host = host.trim_matches(['[', ']']);
+    host != "localhost"
+        && !host
+            .parse::<std::net::IpAddr>()
+            .is_ok_and(|address| address.is_loopback())
 }
 
 fn parse_windows_proxy(
@@ -256,7 +348,63 @@ fn current_system_proxy() -> Option<SystemProxyConfig> {
 mod tests {
     use reqwest::Url;
 
-    use super::{bypass_rule_matches, parse_windows_proxy, wildcard_matches};
+    use crate::models::NetworkProxySettings;
+
+    use super::{
+        bypass_rule_matches, network_proxy_url, normalize_settings, parse_windows_proxy,
+        should_proxy_target, wildcard_matches,
+    };
+
+    #[test]
+    fn normalizes_enabled_network_proxy() {
+        let normalized = normalize_settings(NetworkProxySettings {
+            enabled: true,
+            proxy_url: " 127.0.0.1/ ".to_string(),
+            proxy_port: Some(7897),
+        })
+        .expect("proxy should normalize");
+
+        assert_eq!(normalized.proxy_url, "http://127.0.0.1");
+        assert_eq!(
+            network_proxy_url(&normalized)
+                .expect("proxy should parse")
+                .map(|url| url.to_string()),
+            Some("http://127.0.0.1:7897/".to_string())
+        );
+    }
+
+    #[test]
+    fn rejects_enabled_network_proxy_without_port() {
+        let error = normalize_settings(NetworkProxySettings {
+            enabled: true,
+            proxy_url: "http://127.0.0.1".to_string(),
+            proxy_port: None,
+        })
+        .expect_err("missing port should fail");
+
+        assert!(error.contains("proxy port"));
+
+        let zero_port_error = normalize_settings(NetworkProxySettings {
+            enabled: true,
+            proxy_url: "http://127.0.0.1".to_string(),
+            proxy_port: Some(0),
+        })
+        .expect_err("zero port should fail");
+        assert!(zero_port_error.contains("proxy port"));
+    }
+
+    #[test]
+    fn explicit_network_proxy_bypasses_loopback_targets() {
+        assert!(!should_proxy_target(
+            &Url::parse("http://localhost:1455/callback").unwrap()
+        ));
+        assert!(!should_proxy_target(
+            &Url::parse("http://127.0.0.1:3000/api").unwrap()
+        ));
+        assert!(should_proxy_target(
+            &Url::parse("https://api.openai.com/v1/models").unwrap()
+        ));
+    }
 
     #[test]
     fn parses_clash_style_single_proxy_for_http_and_https() {

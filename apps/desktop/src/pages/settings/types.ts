@@ -1,6 +1,11 @@
 import type { AccountDisplayMode } from "../../hooks/useAccountDisplayMode";
 import type { Language, Translate } from "../../i18n";
-import type { AppInfo, BubbleResetDisplay, BubbleStyle } from "../../types";
+import type {
+  AppInfo,
+  BubbleResetDisplay,
+  BubbleStyle,
+  NetworkProxySettings,
+} from "../../types";
 
 export interface SettingsPageProps {
   info: AppInfo | null;
@@ -55,6 +60,9 @@ export interface SettingsPageProps {
   webProxyPortLoading?: boolean;
   onWebProxyPortChange?: (port: number | null) => void;
   onOpenWebVersion?: (url: string) => void;
+  networkProxy: NetworkProxySettings;
+  networkProxyLoading: boolean;
+  onNetworkProxySave: (settings: NetworkProxySettings) => Promise<boolean>;
   onTokenUsageWeeksChange: (value: number | string | null) => void;
   onTokenUsageRefreshSecondsChange: (value: number | string | null) => void;
   onOpenCodexHome: () => void;

@@ -394,7 +394,7 @@ fn fetch_deepseek_models_blocking<R: Runtime>(
     }
 
     let query_url = deepseek_endpoint_url(&base_url, "/models")?;
-    let client = Client::builder()
+    let client = crate::system_proxy::apply(Client::builder())
         .timeout(Duration::from_secs(15))
         .redirect(reqwest::redirect::Policy::limited(5))
         .user_agent("Codex-Switch")
@@ -430,7 +430,7 @@ pub(crate) fn query_provider_usage_blocking<R: Runtime>(
         return Err("Usage sync is only available for upstream Codex Switch providers".to_string());
     }
     let query_url = provider_usage_url(&provider.base_url)?;
-    let client = Client::builder()
+    let client = crate::system_proxy::apply(Client::builder())
         .timeout(Duration::from_secs(15))
         .redirect(reqwest::redirect::Policy::limited(5))
         .user_agent("Codex-Switch")
@@ -480,7 +480,7 @@ fn query_provider_balance_blocking<R: Runtime>(
         return Err("Provider balance query token is empty".to_string());
     }
 
-    let client = Client::builder()
+    let client = crate::system_proxy::apply(Client::builder())
         .timeout(Duration::from_secs(15))
         .redirect(reqwest::redirect::Policy::limited(5))
         .cookie_store(true)

@@ -5,6 +5,7 @@ import { LocalSettingsCards } from "./settings/LocalSettingsCards";
 import type { SettingsPageProps } from "./settings/types";
 import { UsageSettingsCards } from "./settings/UsageSettingsCards";
 import { TotpSyncSettingsCard } from "./settings/TotpSyncSettingsCard";
+import { NetworkProxySettingsCard } from "./settings/NetworkProxySettings";
 
 export function SettingsPage(settings: SettingsPageProps) {
   const [bubbleStyleModalOpen, setBubbleStyleModalOpen] = useState(false);
@@ -18,6 +19,8 @@ export function SettingsPage(settings: SettingsPageProps) {
       />
       <UsageSettingsCards settings={settings} />
       <WebProxySettingsCard settings={settings} />
+      <NetworkProxySettingsCard loading={settings.networkProxyLoading}
+        onSave={settings.onNetworkProxySave} t={settings.t} value={settings.networkProxy} />
       <LocalSettingsCards settings={settings} />
       <CloudSettingsCard settings={settings} />
       <TotpSyncSettingsCard settings={settings} />

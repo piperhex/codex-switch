@@ -169,7 +169,7 @@ pub(crate) fn start_background_update() {
 }
 
 fn run_update() -> Result<(), String> {
-    let client = Client::builder()
+    let client = crate::system_proxy::apply(Client::builder())
         .connect_timeout(Duration::from_secs(15))
         .timeout(Duration::from_secs(30 * 60))
         .user_agent("codex-switch-dream-skin-resources")

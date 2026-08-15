@@ -45,6 +45,7 @@ import type {
   LocalProxyStartProgress,
   LocalProxyStatus,
   LocalProxyStopProgress,
+  NetworkProxySettings,
   ProxySession,
   ProxySessionRequest,
   ProxySessionLatencySummary,
@@ -127,6 +128,9 @@ const BUBBLE_RESET_DISPLAY_PREVIEW_KEY = "codex-switch:bubble-reset-display";
 const BUBBLE_STYLE_PREVIEW_KEY = "codex-switch:bubble-style";
 const THEME_COLOR_PREVIEW_KEY = "codex-switch:theme-color";
 const CLOUD_BASE_URL_PREVIEW_KEY = "codex-switch:cloud-base-url";
+const NETWORK_PROXY_ENABLED_PREVIEW_KEY = "codex-switch:network-proxy-enabled";
+const NETWORK_PROXY_URL_PREVIEW_KEY = "codex-switch:network-proxy-url";
+const NETWORK_PROXY_PORT_PREVIEW_KEY = "codex-switch:network-proxy-port";
 const CLOUD_USER_PREVIEW_KEY = "codex-switch:cloud-user-email";
 const PROVIDERS_PREVIEW_KEY = "codex-switch:providers";
 const DEFAULT_OPENAI_PROVIDER_MODEL = "gpt-5.6-sol";
@@ -384,6 +388,11 @@ export async function loadAppSettings(): Promise<AppSettings> {
       autoDisableStatusCodes: previewAutoDisableStatusCodes(),
       showUsageNetworkErrors: window.localStorage.getItem(SHOW_USAGE_NETWORK_ERRORS_PREVIEW_KEY) === "true",
       webProxyPort: previewLocalProxyStatus().port || null,
+      networkProxy: {
+        enabled: window.localStorage.getItem(NETWORK_PROXY_ENABLED_PREVIEW_KEY) === "true",
+        proxyUrl: window.localStorage.getItem(NETWORK_PROXY_URL_PREVIEW_KEY) ?? "",
+        proxyPort: Number(window.localStorage.getItem(NETWORK_PROXY_PORT_PREVIEW_KEY)) || null,
+      },
     };
   }
   return invoke<AppSettings>("get_app_settings");
@@ -1096,6 +1105,15 @@ export async function setLocalProxyOpenaiAuthAccount(accountId: string | null): 
     return previewLocalProxyStatus();
   }
   return invoke<LocalProxyStatus>("set_local_proxy_openai_auth_account", { accountId });
+}
+
+export async function updateNetworkProxy(settings: NetworkProxySettings): Promise<AppSettings> {
+  if (hasLocalBackend) return invoke<AppSettings>("set_network_proxy", { settings });
+  window.localStorage.setItem(NETWORK_PROXY_ENABLED_PREVIEW_KEY, String(settings.enabled));
+  window.localStorage.setItem(NETWORK_PROXY_URL_PREVIEW_KEY, settings.proxyUrl.trim());
+  if (settings.proxyPort === null) window.localStorage.removeItem(NETWORK_PROXY_PORT_PREVIEW_KEY);
+  else window.localStorage.setItem(NETWORK_PROXY_PORT_PREVIEW_KEY, String(settings.proxyPort));
+  return loadAppSettings();
 }
 
 export async function updateLaunchAtStartup(enabled: boolean): Promise<AppSettings> {

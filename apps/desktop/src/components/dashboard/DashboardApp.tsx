@@ -39,6 +39,7 @@ import {
   submitFeedback,
   subscribeToCloudSessionExpired,
   updateAutoDisableStatusCodes,
+  updateNetworkProxy,
   updateShowUsageNetworkErrors,
   updateWebProxyPort,
 } from "../../api/backend";
@@ -85,8 +86,15 @@ import { ProvidersPage } from "../../pages/ProvidersPage";
 import { SettingsPage } from "../../pages/SettingsPage";
 import { SkillsMarketPage } from "../../pages/SkillsMarketPage";
 import { CodexThreadsPage } from "../../pages/CodexThreadsPage";
+import { NetworkProxySettingsModal } from "../../pages/settings/NetworkProxySettings";
 import { formatRefreshTime } from "../../utils/format";
-import type { AccountDetailsDraft, BubbleResetDisplay, BubbleStyle, Provider } from "../../types";
+import type {
+  AccountDetailsDraft,
+  BubbleResetDisplay,
+  BubbleStyle,
+  NetworkProxySettings,
+  Provider,
+} from "../../types";
 
 const LAST_REFRESH_ALL_KEY = "codex-switch:last-refresh-all-at";
 const REPOSITORY_URL = "https://github.com/piperhex/codex-switch";
@@ -115,6 +123,11 @@ const PROXY_STOP_PHASE_KEYS = {
   complete: "providers.proxy.stopProgress.complete",
   failed: "providers.proxy.stopProgress.failed",
 } as const;
+const DEFAULT_NETWORK_PROXY: NetworkProxySettings = {
+  enabled: false,
+  proxyUrl: "",
+  proxyPort: null,
+};
 
 type SystemMenuAction =
   | "add-account"
@@ -134,6 +147,7 @@ type SystemMenuAction =
   | "refresh-all"
   | "refresh-reset-credits"
   | "open-token-window"
+  | "network-proxy"
   | "start-chatgpt"
   | "restart-chatgpt"
   | "export-logs"
@@ -180,6 +194,7 @@ export function DashboardApp() {
   const [showMenuSearch, setShowMenuSearch] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   const [showLanAccess, setShowLanAccess] = useState(false);
+  const [showNetworkProxy, setShowNetworkProxy] = useState(false);
   const [lastRefreshAllAt, setLastRefreshAllAt] = useState<string | null>(storedRefreshAllTime);
   const [chatGptOperation, setChatGptOperation] = useState<"start" | "restart" | null>(null);
   const [exportingLogs, setExportingLogs] = useState(false);
@@ -187,6 +202,8 @@ export function DashboardApp() {
   const [refreshingProviderBalances, setRefreshingProviderBalances] = useState(false);
   const [webProxyPort, setWebProxyPort] = useState<number | null>(null);
   const [webProxyPortLoading, setWebProxyPortLoading] = useState(false);
+  const [networkProxy, setNetworkProxy] = useState(DEFAULT_NETWORK_PROXY);
+  const [networkProxyLoading, setNetworkProxyLoading] = useState(false);
   const [autoDisableStatusCodes, setAutoDisableStatusCodes] = useState<number[]>(
     [...DEFAULT_AUTO_DISABLE_STATUS_CODES],
   );
@@ -282,6 +299,7 @@ export function DashboardApp() {
     void loadAppSettings()
       .then((settings) => {
         setWebProxyPort(settings.webProxyPort ?? null);
+        setNetworkProxy(settings.networkProxy ?? DEFAULT_NETWORK_PROXY);
         setAutoDisableStatusCodes(
           settings.autoDisableStatusCodes ?? [...DEFAULT_AUTO_DISABLE_STATUS_CODES],
         );
@@ -452,6 +470,21 @@ export function DashboardApp() {
       setWebProxyPortLoading(false);
     }
   }, [notify, providerManager.reload, t]);
+
+  const saveNetworkProxy = useCallback(async (settings: NetworkProxySettings) => {
+    setNetworkProxyLoading(true);
+    try {
+      const saved = await updateNetworkProxy(settings);
+      setNetworkProxy(saved.networkProxy ?? DEFAULT_NETWORK_PROXY);
+      notify(t(settings.enabled ? "toast.networkProxyEnabled" : "toast.networkProxyDisabled"));
+      return true;
+    } catch (error) {
+      notify(String(error));
+      return false;
+    } finally {
+      setNetworkProxyLoading(false);
+    }
+  }, [notify, t]);
 
   const changeAutoDisableStatusCodes = useCallback(async (statusCodes: number[]) => {
     setAutoDisableStatusCodes(statusCodes);
@@ -810,6 +843,9 @@ export function DashboardApp() {
         break;
       case "open-token-window":
         void openTokenUsage();
+        break;
+      case "network-proxy":
+        setShowNetworkProxy(true);
         break;
       case "start-chatgpt":
         void launchChatGptProcess();
@@ -1188,6 +1224,9 @@ export function DashboardApp() {
               webProxyPortLoading={webProxyPortLoading}
               onWebProxyPortChange={changeWebProxyPort}
               onOpenWebVersion={openWebVersion}
+              networkProxy={networkProxy}
+              networkProxyLoading={networkProxyLoading}
+              onNetworkProxySave={saveNetworkProxy}
               onTokenUsageWeeksChange={tokenUsagePreferences.updateWeeks}
               onTokenUsageRefreshSecondsChange={tokenUsagePreferences.updateRefreshSeconds}
               onOpenCodexHome={openCodexHome} onOpenAccountStore={openAccountStore} language={language}
@@ -1308,6 +1347,9 @@ export function DashboardApp() {
           onClose={() => setShowLanAccess(false)}
           onConfirm={(apiKey) => providerManager.setProxyListenOnAllInterfaces(true, apiKey)}
           t={t} />
+        <NetworkProxySettingsModal open={showNetworkProxy} value={networkProxy}
+          loading={networkProxyLoading} onSave={saveNetworkProxy}
+          onClose={() => setShowNetworkProxy(false)} t={t} />
         <ProxyProgressModal progress={providerManager.proxyStartProgress}
           phaseKeys={PROXY_START_PHASE_KEYS} titleKey="providers.proxy.startProgressTitle"
           fileLabelKey="providers.proxy.startProgressFiles"

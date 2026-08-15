@@ -19,6 +19,7 @@ mod launch_options;
 mod local_proxy;
 mod main_window;
 mod models;
+mod network_proxy;
 mod oauth;
 mod official_plugins;
 mod provider_models;
@@ -78,6 +79,10 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(move |app| {
             storage::migrate_app_settings_for_version(app.handle())?;
+            let settings = storage::read_app_settings(app.handle())?;
+            if let Err(error) = system_proxy::configure(&settings.network_proxy) {
+                eprintln!("failed to restore the network proxy setting: {error}");
+            }
             if let Err(error) = autostart::restore_preference(app.handle()) {
                 eprintln!("failed to restore the startup setting: {error}");
             }
@@ -249,6 +254,7 @@ pub fn run() {
             floating_bubble::set_bubble_style,
             floating_bubble::set_theme_color,
             floating_bubble::set_app_language,
+            network_proxy::set_network_proxy,
             web_server::set_web_proxy_port,
             floating_bubble::resize_floating_bubble,
             floating_bubble::resize_floating_bubble_for_provider_card,

@@ -309,6 +309,10 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
             argument(&args, "enabled")?,
         ))),
         "set_web_proxy_port" => serialize(set_web_proxy_port(app, argument(&args, "port")?)),
+        "set_network_proxy" => serialize(block_on(crate::network_proxy::set_network_proxy(
+            app,
+            argument(&args, "settings")?,
+        ))),
         "list_providers" => serialize(crate::providers::list_providers(app)),
         "save_provider" => serialize(crate::providers::save_provider(
             app,

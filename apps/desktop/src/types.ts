@@ -374,6 +374,13 @@ export interface AppSettings {
   autoDisableStatusCodes?: number[];
   showUsageNetworkErrors?: boolean;
   webProxyPort?: number | null;
+  networkProxy?: NetworkProxySettings;
+}
+
+export interface NetworkProxySettings {
+  enabled: boolean;
+  proxyUrl: string;
+  proxyPort: number | null;
 }
 
 export interface LoginStart {

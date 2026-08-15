@@ -23,7 +23,7 @@ fn fetch_relay_models_blocking(base_url: &str, api_key: &str) -> Result<Vec<Stri
         return Err("Relay API key is required before fetching models".to_string());
     }
     let query_url = relay_models_url(base_url)?;
-    let client = Client::builder()
+    let client = crate::system_proxy::apply(Client::builder())
         .timeout(MODEL_QUERY_TIMEOUT)
         .redirect(reqwest::redirect::Policy::limited(5))
         .user_agent("Codex-Switch")

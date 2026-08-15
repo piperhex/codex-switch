@@ -549,7 +549,7 @@ fn package_file_limit(name: &str) -> Result<usize, String> {
 }
 
 fn client(timeout_seconds: u64) -> Result<Client, String> {
-    Client::builder()
+    crate::system_proxy::apply(Client::builder())
         .user_agent(concat!(
             "Codex-Switch/",
             env!("CARGO_PKG_VERSION"),

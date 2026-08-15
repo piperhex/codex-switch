@@ -440,7 +440,20 @@ pub(crate) struct AppSettings {
     #[serde(default)]
     pub(crate) web_proxy_port: Option<u16>,
     #[serde(default)]
+    pub(crate) network_proxy: NetworkProxySettings,
+    #[serde(default)]
     pub(crate) last_started_version: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct NetworkProxySettings {
+    #[serde(default)]
+    pub(crate) enabled: bool,
+    #[serde(default)]
+    pub(crate) proxy_url: String,
+    #[serde(default)]
+    pub(crate) proxy_port: Option<u16>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -515,6 +528,7 @@ impl Default for AppSettings {
             auto_disable_status_codes: default_auto_disable_status_codes(),
             show_usage_network_errors: false,
             web_proxy_port: None,
+            network_proxy: NetworkProxySettings::default(),
             last_started_version: None,
         }
     }
@@ -797,6 +811,15 @@ mod tests {
         assert!(defaults.web_proxy_port.is_none());
         assert!(migrated.web_proxy_port.is_none());
         assert_eq!(enabled.web_proxy_port, Some(18_765));
+    }
+
+    #[test]
+    fn app_settings_default_the_network_proxy_to_disabled() {
+        let defaults = AppSettings::default();
+        let migrated: AppSettings = serde_json::from_str("{}").unwrap();
+
+        assert_eq!(defaults.network_proxy, NetworkProxySettings::default());
+        assert_eq!(migrated.network_proxy, NetworkProxySettings::default());
     }
 
     #[test]
