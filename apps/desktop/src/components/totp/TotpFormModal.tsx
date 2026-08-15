@@ -8,7 +8,7 @@ import {
   type TotpDraft,
   type TotpEntry,
 } from "../../utils/totp";
-import { decodeQrImage } from "./qr";
+import { decodeQrImage, QrImageError } from "./qr";
 
 interface TotpFormModalProps {
   entry: TotpEntry | null;
@@ -26,6 +26,13 @@ const DEFAULT_DRAFT: TotpDraft = {
   digits: 6,
   period: 30,
 };
+
+function qrImportError(cause: unknown, t: Translate) {
+  if (!(cause instanceof QrImageError)) return t("totp.qrInvalid");
+  if (cause.code === "unsupported-image") return t("totp.qrUnsupported");
+  if (cause.code === "qr-not-found") return t("totp.qrNotFound");
+  return t("totp.qrReadFailed");
+}
 
 export function TotpFormModal({ entry, onCancel, onSave, open, t }: TotpFormModalProps) {
   const [form] = Form.useForm<TotpDraft>();
@@ -55,9 +62,9 @@ export function TotpFormModal({ entry, onCancel, onSave, open, t }: TotpFormModa
       form.setFieldsValue(draft);
       setError("");
       setImported(true);
-    } catch {
+    } catch (cause) {
       setImported(false);
-      setError(t("totp.qrInvalid"));
+      setError(qrImportError(cause, t));
     } finally {
       setReadingQr(false);
     }
