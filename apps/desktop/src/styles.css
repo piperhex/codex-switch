@@ -1229,7 +1229,10 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
   gap: 9px;
 }
 .provider-preset-modal { width: min(520px, 95vw); }
-.provider-preset-modal > p, .deepseek-provider-modal > p { max-width: 400px; }
+.provider-preset-modal > p,
+.deepseek-provider-modal > p,
+.antigravity-provider-modal > p { max-width: 400px; }
+.provider-preset-list { display: grid; gap: 10px; }
 .provider-preset-card { width: 100%; padding: 14px; border: 1px solid #d9e3da; border-radius: 11px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; color: var(--ink); background: #fff; text-align: left; cursor: pointer; }
 .provider-preset-card:hover { border-color: var(--green); background: var(--green-soft); box-shadow: 0 8px 20px rgba(var(--green-rgb), .1); }
 .provider-preset-icon { width: 42px; height: 42px; border-radius: 10px; display: grid; place-items: center; color: #3157c8; background: #eef3ff; }
@@ -1237,8 +1240,19 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .provider-preset-card strong { font-size: 13px; }
 .provider-preset-card small { color: #718078; font-size: 10px; line-height: 1.5; }
 .provider-preset-card .ant-tag { margin-inline-end: 0; }
-.deepseek-integration-note { max-width: 400px; padding: 10px 11px; border: 1px solid #dce6ef; border-radius: 8px; display: grid; gap: 3px; color: #49606f; background: #f4f8fb; font-size: 10px; line-height: 1.5; }
-.deepseek-integration-note strong { color: #31546b; font-size: 11px; }
+.provider-integration-note {
+  max-width: 400px;
+  padding: 10px 11px;
+  border: 1px solid #dce6ef;
+  border-radius: 8px;
+  display: grid;
+  gap: 3px;
+  color: #49606f;
+  background: #f4f8fb;
+  font-size: 10px;
+  line-height: 1.5;
+}
+.provider-integration-note strong { color: #31546b; font-size: 11px; }
 .lan-access-form { display: grid; gap: 8px; max-width: 400px; }
 .lan-access-form p { margin: 0 0 4px; color: #66756c; font-size: 12px; line-height: 1.6; }
 .lan-access-form label { color: #526259; font-size: 11px; font-weight: 700; }

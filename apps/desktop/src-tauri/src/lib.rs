@@ -1,5 +1,6 @@
 mod account_archive;
 mod agent_identity;
+mod antigravity_provider;
 mod auth;
 mod autostart;
 mod cloud;
@@ -212,6 +213,7 @@ pub fn run() {
             dream_skin::install_dream_skin_community_theme,
             providers::list_providers,
             providers::save_provider,
+            antigravity_provider::fetch_antigravity_models,
             provider_models::fetch_relay_models,
             providers::fetch_deepseek_models,
             providers::query_provider_balance,

@@ -286,7 +286,15 @@ pub(crate) fn save_provider<R: Runtime>(
     } else {
         supplied_key
     };
-    if kind != ProviderKind::OpenAi && api_key.is_empty() {
+    if kind != ProviderKind::OpenAi
+        && api_key.is_empty()
+        && !crate::antigravity_provider::is_antigravity_identity(
+            kind,
+            &name,
+            &base_url,
+            provider.api_format,
+        )
+    {
         return Err("API key is required for a new provider".to_string());
     }
     let (balance_platform, balance_query_url, balance_query_token) = normalize_balance_settings(
@@ -818,7 +826,10 @@ fn activate_provider_profile<R: Runtime>(
 fn validate_provider_activation(provider: &ProviderProfile) -> Result<(), String> {
     ensure_not_local_proxy_base_url(&provider.base_url)?;
     ensure_local_proxy_running_for_provider()?;
-    if provider.kind != ProviderKind::OpenAi && provider.api_key.trim().is_empty() {
+    if provider.kind != ProviderKind::OpenAi
+        && provider.api_key.trim().is_empty()
+        && !crate::antigravity_provider::allows_missing_api_key(provider)
+    {
         return Err("Provider API key is empty".to_string());
     }
     Ok(())
@@ -1012,7 +1023,10 @@ pub(crate) fn ensure_local_proxy_compatible_for_state(paths: &Paths) -> Result<(
 pub(crate) fn activate_provider_for_sync(paths: &Paths, id: &str) -> Result<bool, String> {
     let provider = read_provider(paths, id)?;
     ensure_not_local_proxy_base_url(&provider.base_url)?;
-    if provider.kind != ProviderKind::OpenAi && provider.api_key.trim().is_empty() {
+    if provider.kind != ProviderKind::OpenAi
+        && provider.api_key.trim().is_empty()
+        && !crate::antigravity_provider::allows_missing_api_key(&provider)
+    {
         return Ok(false);
     }
     if !crate::local_proxy::is_running() {
@@ -1852,7 +1866,10 @@ fn normalize_synced_provider(mut provider: ProviderProfile) -> Result<ProviderPr
     provider.name = require_non_empty("Provider name", &provider.name)?;
     provider.base_url = normalize_base_url(&provider.base_url)?;
     provider.api_key = provider.api_key.trim().to_string();
-    if provider.kind != ProviderKind::OpenAi && provider.api_key.is_empty() {
+    if provider.kind != ProviderKind::OpenAi
+        && provider.api_key.is_empty()
+        && !crate::antigravity_provider::allows_missing_api_key(&provider)
+    {
         return Err("Provider API key is empty".to_string());
     }
     normalize_provider_profile(provider)
@@ -3209,6 +3226,18 @@ sandbox_mode = "workspace-write"
         let mut provider = provider();
         provider.kind = ProviderKind::OpenAi;
         provider.api_key = "  ".to_string();
+
+        let profile = normalize_synced_provider(provider).unwrap();
+
+        assert!(profile.api_key.is_empty());
+    }
+
+    #[test]
+    fn synced_antigravity_preset_allows_empty_api_key() {
+        let mut provider = provider();
+        provider.name = "Google Antigravity".to_string();
+        provider.base_url = "http://localhost:51122/v1".to_string();
+        provider.api_key.clear();
 
         let profile = normalize_synced_provider(provider).unwrap();
 

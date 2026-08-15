@@ -6,6 +6,10 @@ import { check, type DownloadEvent, type Update } from "@tauri-apps/plugin-updat
 import { DEMO_ACCOUNTS, DEMO_INFO } from "../demo";
 import { BUILT_IN_DREAM_SKIN_THEMES } from "../dreamSkinBuiltIns";
 import { LANGUAGE_STORAGE_KEY, isLanguage, type Language } from "../i18n";
+import {
+  ANTIGRAVITY_FALLBACK_MODELS,
+  isAntigravityProvider,
+} from "../utils/antigravityProvider";
 import { isTotpEntry, TOTP_STORAGE_KEY, type TotpVault } from "../utils/totp";
 import type {
   Account,
@@ -423,7 +427,7 @@ export async function saveProviderProfile(provider: ProviderInput): Promise<Prov
     const existing = index >= 0 ? providers[index] : null;
     const hasApiKey = Boolean(provider.apiKey?.trim() || existing?.hasApiKey);
     const kind = provider.kind === "openai" ? "openai" : "custom";
-    if (kind === "custom" && !hasApiKey) {
+    if (kind === "custom" && !hasApiKey && !isAntigravityProvider(provider)) {
       throw new Error("API key is required for a new provider");
     }
     const requestedModel = provider.model.trim();
@@ -488,6 +492,21 @@ export async function fetchDeepSeekModels(
     return ["deepseek-v4-flash", "deepseek-v4-pro"];
   }
   return invoke<string[]>("fetch_deepseek_models", {
+    baseUrl,
+    apiKey: apiKey?.trim() || null,
+    providerId: providerId ?? null,
+  });
+}
+
+export async function fetchAntigravityModels(
+  baseUrl: string,
+  apiKey?: string,
+  providerId?: string,
+): Promise<string[]> {
+  if (!hasLocalBackend) {
+    return ANTIGRAVITY_FALLBACK_MODELS;
+  }
+  return invoke<string[]>("fetch_antigravity_models", {
     baseUrl,
     apiKey: apiKey?.trim() || null,
     providerId: providerId ?? null,

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { AutoComplete, Button, Input, Select, Tag } from "antd";
-import { Bot, RefreshCw, Save, Sparkles, X } from "lucide-react";
+import { Bot, Orbit, RefreshCw, Save, Sparkles, X } from "lucide-react";
 import { fetchDeepSeekModels } from "../../api/backend";
 import type { Translate } from "../../i18n";
 import type { Provider, ProviderInput } from "../../types";
@@ -221,7 +221,7 @@ export function DeepSeekProviderModal({ provider, saving, onClose, onSave, t }: 
             options={CONTEXT_WINDOW_OPTIONS} placeholder="1000" allowClear
             onChange={setContextWindowK} />
           <small>{t("providers.deepSeek.contextHint")}</small>
-          <div className="deepseek-integration-note">
+          <div className="provider-integration-note">
             <strong>{t("providers.deepSeek.proxyOnly")}</strong>
             <span>{t("providers.deepSeek.balanceHint")}</span>
             <span>{t("providers.deepSeek.imageInputUnsupported")}</span>
@@ -237,8 +237,9 @@ export function DeepSeekProviderModal({ provider, saving, onClose, onSave, t }: 
   );
 }
 
-export function ProviderPresetModal({ onClose, onSelectDeepSeek, t }: {
+export function ProviderPresetModal({ onClose, onSelectAntigravity, onSelectDeepSeek, t }: {
   onClose: () => void;
+  onSelectAntigravity: () => void;
   onSelectDeepSeek: () => void;
   t: Translate;
 }) {
@@ -251,14 +252,24 @@ export function ProviderPresetModal({ onClose, onSelectDeepSeek, t }: {
         <div className="modal-icon"><Sparkles size={22} /></div>
         <h2>{t("providers.presets.title")}</h2>
         <p>{t("providers.presets.description")}</p>
-        <button className="provider-preset-card" onClick={onSelectDeepSeek}>
-          <span className="provider-preset-icon"><Bot size={20} /></span>
-          <span>
-            <strong>DeepSeek</strong>
-            <small>{t("providers.presets.deepSeekDescription")}</small>
-          </span>
-          <Tag color="blue">{t("providers.presets.official")}</Tag>
-        </button>
+        <div className="provider-preset-list">
+          <button className="provider-preset-card" onClick={onSelectAntigravity}>
+            <span className="provider-preset-icon"><Orbit size={20} /></span>
+            <span>
+              <strong>Google Antigravity</strong>
+              <small>{t("providers.presets.antigravityDescription")}</small>
+            </span>
+            <Tag color="purple">{t("providers.presets.localService")}</Tag>
+          </button>
+          <button className="provider-preset-card" onClick={onSelectDeepSeek}>
+            <span className="provider-preset-icon"><Bot size={20} /></span>
+            <span>
+              <strong>DeepSeek</strong>
+              <small>{t("providers.presets.deepSeekDescription")}</small>
+            </span>
+            <Tag color="blue">{t("providers.presets.official")}</Tag>
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -7,6 +7,8 @@ import {
 import type { AccountDisplayMode } from "../hooks/useAccountDisplayMode";
 import type { Language, Translate } from "../i18n";
 import type { Account, LocalProxyStatus, Provider, ProviderInput } from "../types";
+import { isAntigravityProvider } from "../utils/antigravityProvider";
+import { AntigravityProviderModal } from "./providers/AntigravityProviderModal";
 import { ProviderModal } from "./providers/ProviderModal";
 import { DeepSeekProviderModal, OpenAiProviderModal, ProviderPresetModal } from "./providers/ProviderPresetModals";
 import { RelayStationModal } from "./providers/RelayStationModal";
@@ -70,6 +72,7 @@ export function ProvidersPage({
   const [showRelayModal, setShowRelayModal] = useState(false);
   const [showPresetModal, setShowPresetModal] = useState(false);
   const [showDeepSeekModal, setShowDeepSeekModal] = useState(false);
+  const [showAntigravityModal, setShowAntigravityModal] = useState(false);
   const [selectedProviderIds, setSelectedProviderIds] = useState<string[]>([]);
   const [bulkDeleteBusy, setBulkDeleteBusy] = useState(false);
   const [topbarHost, setTopbarHost] = useState<HTMLElement | null>(null);
@@ -99,10 +102,17 @@ export function ProvidersPage({
     setShowPresetModal(false);
     setShowDeepSeekModal(true);
   };
+  const openAntigravityPreset = () => {
+    setEditingProvider(null);
+    setShowPresetModal(false);
+    setShowAntigravityModal(true);
+  };
   const openEdit = (provider: Provider) => {
     setEditingProvider(provider);
     if (provider.kind === "openai") {
       setShowOpenAiModal(true);
+    } else if (isAntigravityProvider(provider)) {
+      setShowAntigravityModal(true);
     } else if (provider.balancePlatform === "deepSeek") {
       setShowDeepSeekModal(true);
     } else {
@@ -164,9 +174,11 @@ export function ProvidersPage({
       {showRelayModal && <RelayStationModal saving={saving}
         onClose={() => setShowRelayModal(false)} onSave={onSave} t={t} />}
       {showPresetModal && <ProviderPresetModal onClose={() => setShowPresetModal(false)}
-        onSelectDeepSeek={openDeepSeekPreset} t={t} />}
+        onSelectAntigravity={openAntigravityPreset} onSelectDeepSeek={openDeepSeekPreset} t={t} />}
       {showDeepSeekModal && <DeepSeekProviderModal provider={editingProvider} saving={saving}
         onClose={() => setShowDeepSeekModal(false)} onSave={onSave} t={t} />}
+      {showAntigravityModal && <AntigravityProviderModal provider={editingProvider} saving={saving}
+        onClose={() => setShowAntigravityModal(false)} onSave={onSave} t={t} />}
       </div>
     </>
   );
