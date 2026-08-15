@@ -28,6 +28,7 @@ mod skills_market;
 mod storage;
 mod system_proxy;
 mod system_tray;
+mod totp_qr;
 mod web_server;
 
 use oauth::AppState;
@@ -273,6 +274,7 @@ pub fn run() {
             cloud::cloud_delete_provider,
             cloud::cloud_sync_accounts,
             cloud::cloud_sync_totp,
+            totp_qr::decode_totp_qr_image,
             skills_market::list_market_skills,
             skills_market::upload_market_skill,
             skills_market::install_market_skill,

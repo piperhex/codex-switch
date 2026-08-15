@@ -97,6 +97,10 @@ async function invoke<T = void>(command: string, args: Record<string, unknown> =
   return payload.result as T;
 }
 
+export function decodeTotpQrImage(dataBase64: string) {
+  return invoke<string>("decode_totp_qr_image", { input: { dataBase64 } });
+}
+
 export async function restartApplication(): Promise<void> {
   if (isDesktopApp) await relaunch();
 }

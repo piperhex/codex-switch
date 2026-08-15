@@ -1,4 +1,5 @@
 import jsQR from "jsqr";
+import { decodeTotpQrImage, isDesktopApp } from "../../api/backend";
 
 const MAX_QR_IMAGE_BYTES = 10 * 1024 * 1024;
 const PRIMARY_CANVAS_EDGE = 2_000;
@@ -60,6 +61,32 @@ function isSupportedImage(file: File) {
   const recognizedType = file.type.startsWith("image/");
   const recognizedExtension = IMAGE_FILE_EXTENSION.test(file.name);
   return file.size <= MAX_QR_IMAGE_BYTES && (recognizedType || recognizedExtension);
+}
+
+function readFileAsBase64(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(",", 2)[1] ?? "");
+    reader.onerror = () => reject(new QrImageError("image-load-failed"));
+    reader.readAsDataURL(file);
+  });
+}
+
+function nativeErrorCode(cause: unknown): QrImageErrorCode {
+  const message = String(cause);
+  if (message.includes("unsupported-image")) return "unsupported-image";
+  if (message.includes("qr-not-found")) return "qr-not-found";
+  if (message.includes("image-load-failed")) return "image-load-failed";
+  return "image-read-failed";
+}
+
+async function decodeNativeImage(file: File) {
+  try {
+    return await decodeTotpQrImage(await readFileAsBase64(file));
+  } catch (cause) {
+    if (cause instanceof QrImageError) throw cause;
+    throw new QrImageError(nativeErrorCode(cause));
+  }
 }
 
 function loadImage(file: File) {
@@ -127,6 +154,7 @@ async function scanImage(image: HTMLImageElement) {
 
 export async function decodeQrImage(file: File) {
   if (!isSupportedImage(file)) throw new QrImageError("unsupported-image");
+  if (isDesktopApp) return decodeNativeImage(file);
   const loaded = await loadImage(file);
   try {
     return await scanImage(loaded.element);
