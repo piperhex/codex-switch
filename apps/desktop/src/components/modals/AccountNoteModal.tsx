@@ -249,9 +249,11 @@ export function AccountNoteModal({
                   }} />
                   <Button size="small" icon={<ScanQrCode size={14} />} loading={readingQr} disabled={saving}
                     onClick={() => qrFileInputRef.current?.click()}>{t("totp.scanQr")}</Button>
-                  <span className={`account-private-hint${totpError ? " error" : totpImported ? " success" : ""}`}>
-                    {totpError || (totpImported ? t("totp.qrImported") : t("note.totpHint"))}
-                  </span>
+                  {(totpError || totpImported) && (
+                    <span className={`account-private-hint${totpError ? " error" : " success"}`}>
+                      {totpError || t("totp.qrImported")}
+                    </span>
+                  )}
                 </div>
                 {previewSecret && <AccountTotpPreview accountName={account.email} secret={previewSecret} t={t} />}
               </div>

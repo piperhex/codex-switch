@@ -924,14 +924,19 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .cloud-recycle-bin-filters { width: 100%; max-width: 400px; display: flex; gap: 8px; margin-bottom: 12px; }
 .cloud-recycle-bin-filters .ant-select { width: 120px; flex: 0 0 auto; }
 .cloud-recycle-bin-filters .ant-input-affix-wrapper { min-width: 0; flex: 1; }
-.totp-manager-intro {
+.totp-manager-actions {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  justify-content: flex-end;
   margin-bottom: 16px;
 }
-.totp-manager-intro p { max-width: 400px; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+.totp-manager-filters {
+  margin-bottom: 14px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, .55fr);
+  gap: 10px;
+}
+.totp-manager-filters .ant-select { width: 100%; }
 .totp-code-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .totp-code-card {
   min-width: 0;
@@ -984,13 +989,11 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .totp-form-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .totp-form-options { display: grid; grid-template-columns: 1fr 1fr 1.35fr; gap: 12px; }
 .totp-form-options .ant-input-number { width: 100%; }
-.totp-sync-warning { max-width: 400px; color: #9a6c17 !important; }
-
 @media (max-width: 760px) {
   .totp-code-grid,
   .totp-form-row { grid-template-columns: 1fr; }
   .totp-form-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .totp-manager-intro { align-items: flex-start; flex-direction: column; }
+  .totp-manager-filters { grid-template-columns: 1fr; }
 }
 .proxy-session-table { min-height: 0; flex: 1; overflow: hidden; border: 1px solid var(--line); border-radius: 8px; }
 .proxy-session-table > .ant-spin-nested-loading,

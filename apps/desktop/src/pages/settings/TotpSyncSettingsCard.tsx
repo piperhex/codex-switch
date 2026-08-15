@@ -18,7 +18,6 @@ export function TotpSyncSettingsCard({ settings }: { settings: SettingsPageProps
         <div className="settings-card-copy">
           <h3>{t("settings.totpSync.title")}</h3>
           <p>{t("settings.totpSync.description")}</p>
-          <p className="totp-sync-warning">{t("settings.totpSync.warning")}</p>
         </div>
         <div className="settings-field">
           <label htmlFor="totp-cloud-sync-enabled">{t("settings.totpSync.label")}</label>
