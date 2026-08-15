@@ -684,6 +684,7 @@ dependencies = [
  "windows",
  "windows-sys 0.61.2",
  "windows-version",
+ "winreg 0.55.0",
  "zip 2.4.2",
  "zstd",
 ]

@@ -51,6 +51,7 @@ sysinfo = "0.37"
 [target.'cfg(windows)'.dependencies]
 windows-version = "0.1.7"
 windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Networking_WinHttp", "Win32_Storage_FileSystem"] }
+winreg = "0.55"
 windows = { version = "0.61", features = [
   "ApplicationModel",
   "ApplicationModel_Core",

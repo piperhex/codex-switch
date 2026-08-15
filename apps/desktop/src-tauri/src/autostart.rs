@@ -1,5 +1,7 @@
 use tauri::{AppHandle, Runtime};
 use tauri_plugin_autostart::ManagerExt;
+#[cfg(windows)]
+use winreg::{enums::HKEY_CURRENT_USER, RegKey};
 
 use crate::{
     models::AppSettings,
@@ -7,6 +9,8 @@ use crate::{
 };
 
 const UPDATE_ERROR: &str = "Unable to update the startup setting.";
+#[cfg(windows)]
+const WINDOWS_RUN_KEY: &str = "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run";
 
 pub(crate) fn restore_preference<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
     let settings = read_app_settings(app)?;
@@ -43,11 +47,57 @@ fn update_preference<R: Runtime>(app: &AppHandle<R>, enabled: bool) -> Result<Ap
 }
 
 fn apply_preference<R: Runtime>(app: &AppHandle<R>, enabled: bool) -> Result<(), String> {
-    let manager = app.autolaunch();
     if enabled {
-        manager.enable()
-    } else {
-        manager.disable()
+        return app.autolaunch().enable().map_err(|error| error.to_string());
     }
-    .map_err(|error| error.to_string())
+    disable_preference(app)
+}
+
+#[cfg(windows)]
+fn disable_preference<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
+    let current_user = RegKey::predef(HKEY_CURRENT_USER);
+    let run_key =
+        match current_user.open_subkey_with_flags(WINDOWS_RUN_KEY, winreg::enums::KEY_SET_VALUE) {
+            Ok(key) => key,
+            Err(error) => return ignore_missing_registry_value(error),
+        };
+    match run_key.delete_value(&app.package_info().name) {
+        Ok(()) => Ok(()),
+        Err(error) => ignore_missing_registry_value(error),
+    }
+}
+
+#[cfg(windows)]
+fn ignore_missing_registry_value(error: std::io::Error) -> Result<(), String> {
+    if error.kind() == std::io::ErrorKind::NotFound {
+        return Ok(());
+    }
+    Err(error.to_string())
+}
+
+#[cfg(not(windows))]
+fn disable_preference<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
+    app.autolaunch()
+        .disable()
+        .map_err(|error| error.to_string())
+}
+
+#[cfg(all(test, windows))]
+mod tests {
+    use super::ignore_missing_registry_value;
+    use std::io::{Error, ErrorKind};
+
+    #[test]
+    fn missing_registry_value_is_already_disabled() {
+        let result = ignore_missing_registry_value(Error::from(ErrorKind::NotFound));
+
+        assert_eq!(result, Ok(()));
+    }
+
+    #[test]
+    fn other_registry_errors_are_preserved() {
+        let result = ignore_missing_registry_value(Error::from(ErrorKind::PermissionDenied));
+
+        assert!(result.is_err());
+    }
 }
