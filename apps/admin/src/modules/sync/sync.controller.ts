@@ -6,6 +6,7 @@ import { Permission } from '@/common/rbac/permissions';
 import { JwtAuthGuard } from '@/modules/jwt/jwt-auth.guard';
 import { PutSyncAccountsDto, SyncAccountDto } from './dto/sync-accounts.dto';
 import { PutSyncProvidersDto, SyncProviderDto } from './dto/sync-providers.dto';
+import { PutSyncTotpVaultDto } from './dto/sync-totp.dto';
 import { SyncService } from './sync.service';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -131,5 +132,19 @@ export class SyncController {
   @RequirePermissions(Permission.SelfProvidersWrite)
   deleteProvider(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.sync.deleteProvider(user.id, id);
+  }
+
+  @Get('totp')
+  @Header('Cache-Control', 'no-store')
+  @RequirePermissions(Permission.SelfAccountsRead)
+  getTotpVault(@CurrentUser() user: AuthUser) {
+    return this.sync.getTotpVault(user.id);
+  }
+
+  @Put('totp')
+  @Header('Cache-Control', 'no-store')
+  @RequirePermissions(Permission.SelfAccountsWrite)
+  putTotpVault(@CurrentUser() user: AuthUser, @Body() dto: PutSyncTotpVaultDto) {
+    return this.sync.putTotpVault(user.id, dto);
   }
 }

@@ -47,6 +47,7 @@ import { HelpModal } from "../modals/HelpModal";
 import { FeedbackModal } from "../modals/FeedbackModal";
 import { TokenUsageHeatmap } from "../TokenUsageHeatmap";
 import { TokenUsageDashboard } from "../TokenUsageDashboard";
+import { TotpManager } from "../TotpManager";
 import { CloudLoginModal } from "../modals/CloudLoginModal";
 import { CloudAccountModal } from "../modals/CloudAccountModal";
 import { LoginModal } from "../modals/LoginModal";
@@ -77,6 +78,7 @@ import { useResetCredits } from "../../hooks/useResetCredits";
 import { useThemeColor } from "../../hooks/useThemeColor";
 import { useTokenUsagePreferences } from "../../hooks/useTokenUsagePreferences";
 import { useToast } from "../../hooks/useToast";
+import { useTotpEntries } from "../../hooks/useTotpEntries";
 import { AccountsPage } from "../../pages/AccountsPage";
 import { DreamSkinPage } from "../../pages/DreamSkinPage";
 import { ProvidersPage } from "../../pages/ProvidersPage";
@@ -196,6 +198,11 @@ export function DashboardApp() {
   const { message: toast, notify } = useToast();
   const { language, setLanguage, t } = useLanguage();
   const cloud = useCloudAuth(notify, t);
+  const totpManager = useTotpEntries({
+    cloudAuthenticated: cloud.state.authenticated,
+    notify,
+    t,
+  });
   const cloudContent = useCloudContent();
   const {
     announcement, faqs, loadAnnouncement, loadFaqs, loadNotifications,
@@ -545,10 +552,11 @@ export function DashboardApp() {
   const syncCloud = useCallback(async () => {
     const result = await cloud.sync();
     if (result) {
+      await totpManager.syncCloud();
       await manager.reload();
       await providerManager.reload();
     }
-  }, [cloud.sync, manager.reload, providerManager.reload]);
+  }, [cloud.sync, manager.reload, providerManager.reload, totpManager.syncCloud]);
   const changeFloatingBubble = useCallback((enabled: boolean) => {
     void floatingBubble.setEnabled(enabled);
   }, [floatingBubble.setEnabled]);
@@ -979,6 +987,10 @@ export function DashboardApp() {
     <ProxyTopbarActions cloudAuthenticated={cloud.state.authenticated}
       manager={providerManager} t={t} />
   );
+  const accountProxyTopbarActions = (
+    <ProxyTopbarActions cloudAuthenticated={cloud.state.authenticated}
+      manager={providerManager} trailingAction={<TotpManager manager={totpManager} t={t} />} t={t} />
+  );
   const menuTools = (
     <DashboardMenuTools actions={{
       checkForUpdates: () => void checkForUpdates(),
@@ -1103,7 +1115,7 @@ export function DashboardApp() {
                 </button>
                 {refreshActionMenu}
                 {chatGptActionMenu}
-                {proxyTopbarActions}
+                {accountProxyTopbarActions}
               </div>
             )}
             {page === "providers" && (
@@ -1148,6 +1160,9 @@ export function DashboardApp() {
               cloudBaseUrlLoading={cloud.loading}
               cloudAuthenticated={cloud.state.authenticated}
               onCloudBaseUrlSave={saveCloudBaseUrl}
+              totpCloudSyncEnabled={totpManager.cloudSyncEnabled}
+              totpCloudSyncLoading={totpManager.syncing}
+              onTotpCloudSyncChange={totpManager.setCloudSyncEnabled}
               floatingBubbleEnabled={floatingBubble.enabled}
               floatingBubbleLoading={floatingBubble.loading} onFloatingBubbleChange={changeFloatingBubble}
               bubbleResetDisplay={bubbleResetDisplay.display} bubbleResetDisplayLoading={bubbleResetDisplay.loading}

@@ -237,6 +237,7 @@ main.dream-skin-main { padding-bottom: 0; }
 main.accounts-main .accounts-page-panel { flex: 1; display: flex; flex-direction: column; }
 .topbar { width: 100%; height: 110px; padding: 25px var(--page-x); border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; gap: 18px; background: rgba(248,250,247,.82); backdrop-filter: blur(16px); }
 .topbar-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; }
+.account-security-actions { display: inline-flex; align-items: center; gap: 10px; }
 .provider-topbar-action-slot { display: flex; align-items: center; gap: 10px; }
 .provider-add-menu-button.ant-btn {
   height: auto;
@@ -810,6 +811,74 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .cloud-recycle-bin-filters { width: 100%; max-width: 400px; display: flex; gap: 8px; margin-bottom: 12px; }
 .cloud-recycle-bin-filters .ant-select { width: 120px; flex: 0 0 auto; }
 .cloud-recycle-bin-filters .ant-input-affix-wrapper { min-width: 0; flex: 1; }
+.totp-manager-modal .ant-modal-body { max-height: 68vh; overflow-y: auto; }
+.totp-manager-intro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.totp-manager-intro p { max-width: 400px; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+.totp-code-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.totp-code-card {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fbfcfa;
+}
+.totp-code-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.totp-code-heading > div:first-child { min-width: 0; display: grid; gap: 3px; }
+.totp-code-heading strong,
+.totp-code-heading span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.totp-code-heading strong { color: var(--ink); font-size: 13px; }
+.totp-code-heading span { color: var(--muted); font-size: 11px; }
+.totp-code-actions { display: flex; flex: 0 0 auto; gap: 2px; }
+.totp-code-button {
+  width: 100%;
+  margin-top: 13px;
+  padding: 0;
+  border: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 10px;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+.totp-code-button:disabled { cursor: wait; }
+.totp-code-value {
+  min-width: 0;
+  color: var(--green-dark);
+  font-family: "Cascadia Mono", "SFMono-Regular", monospace;
+  font-size: 25px;
+  font-weight: 700;
+  letter-spacing: .07em;
+  white-space: nowrap;
+}
+.totp-copy-label { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 10px; }
+.totp-code-button .ant-progress { grid-column: 2; grid-row: 1 / span 2; }
+.totp-empty { margin: 38px 0 24px; }
+.totp-qr-import { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.totp-qr-import span { max-width: 280px; color: var(--muted); font-size: 11px; line-height: 1.45; }
+.totp-form-modal .ant-alert { max-width: 400px; margin-bottom: 12px; }
+.totp-form-modal .ant-form-item-explain,
+.totp-form-modal .ant-form-item-extra { max-width: 400px; }
+.totp-form-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.totp-form-options { display: grid; grid-template-columns: 1fr 1fr 1.35fr; gap: 12px; }
+.totp-form-options .ant-input-number { width: 100%; }
+.totp-sync-warning { max-width: 400px; color: #9a6c17 !important; }
+
+@media (max-width: 760px) {
+  .totp-code-grid,
+  .totp-form-row { grid-template-columns: 1fr; }
+  .totp-form-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .totp-manager-intro { align-items: flex-start; flex-direction: column; }
+}
 .proxy-session-table { min-height: 0; flex: 1; overflow: hidden; border: 1px solid var(--line); border-radius: 8px; }
 .proxy-session-table > .ant-spin-nested-loading,
 .proxy-session-table > .ant-spin-nested-loading > .ant-spin-container,

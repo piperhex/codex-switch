@@ -17,8 +17,10 @@ import type { ConfigModuleOptions } from '@/config/config.types';
 import { REDIS_CLIENT } from '@/modules/redis/redis.constants';
 import { PutSyncAccountsDto, SyncAccountDto } from './dto/sync-accounts.dto';
 import { PutSyncProvidersDto, SyncProviderDto } from './dto/sync-providers.dto';
+import { PutSyncTotpVaultDto } from './dto/sync-totp.dto';
 import { SyncedAccountEntity } from './entities/synced-account.entity';
 import { SyncedProviderEntity } from './entities/synced-provider.entity';
+import { SyncedTotpVaultEntity } from './entities/synced-totp-vault.entity';
 import { SystemAccountBindingEntity } from './entities/system-account-binding.entity';
 import { SystemAccountEntity } from './entities/system-account.entity';
 import { RemoteDeviceEntity } from '@/modules/devices/entities/remote-device.entity';
@@ -201,6 +203,8 @@ export class SyncService {
     private readonly accounts: Repository<SyncedAccountEntity>,
     @InjectRepository(SyncedProviderEntity)
     private readonly providers: Repository<SyncedProviderEntity>,
+    @InjectRepository(SyncedTotpVaultEntity)
+    private readonly totpVaults: Repository<SyncedTotpVaultEntity>,
     @InjectRepository(SystemAccountEntity)
     private readonly systemAccounts: Repository<SystemAccountEntity>,
     @InjectRepository(SystemAccountBindingEntity)
@@ -838,6 +842,26 @@ export class SyncService {
     await this.providers.update({ ownerId, providerId }, { deletedAt: new Date() });
     await this.redis.del(this.providerCacheKey(ownerId));
     return { id: providerId };
+  }
+
+  async getTotpVault(ownerId: string) {
+    const vault = await this.totpVaults.findOne({ where: { ownerId } });
+    return vault
+      ? { entries: vault.entries, modifiedAt: vault.modifiedAt.toISOString() }
+      : { entries: [], modifiedAt: null };
+  }
+
+  async putTotpVault(ownerId: string, dto: PutSyncTotpVaultDto) {
+    const incomingModifiedAt = new Date(dto.modifiedAt);
+    const existing = await this.totpVaults.findOne({ where: { ownerId } });
+    if (existing && existing.modifiedAt >= incomingModifiedAt) {
+      return { entries: existing.entries, modifiedAt: existing.modifiedAt.toISOString() };
+    }
+    const vault = existing ?? this.totpVaults.create({ ownerId });
+    vault.entries = dto.entries;
+    vault.modifiedAt = incomingModifiedAt;
+    const saved = await this.totpVaults.save(vault);
+    return { entries: saved.entries, modifiedAt: saved.modifiedAt.toISOString() };
   }
 
   async listDeletedProviders(ownerId: string): Promise<{ providers: DeletedSyncProviderDto[] }> {

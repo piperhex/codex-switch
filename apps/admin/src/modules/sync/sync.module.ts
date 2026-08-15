@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { RbacModule } from '@/common/rbac/rbac.module';
 import { SyncedAccountEntity } from './entities/synced-account.entity';
 import { SyncedProviderEntity } from './entities/synced-provider.entity';
+import { SyncedTotpVaultEntity } from './entities/synced-totp-vault.entity';
 import { SystemAccountBindingEntity } from './entities/system-account-binding.entity';
 import { SystemAccountEntity } from './entities/system-account.entity';
 import { SyncController } from './sync.controller';
@@ -15,6 +16,7 @@ import { RemoteDeviceEntity } from '@/modules/devices/entities/remote-device.ent
     TypeOrmModule.forFeature([
       SyncedAccountEntity,
       SyncedProviderEntity,
+      SyncedTotpVaultEntity,
       SystemAccountEntity,
       SystemAccountBindingEntity,
       RemoteDeviceEntity,

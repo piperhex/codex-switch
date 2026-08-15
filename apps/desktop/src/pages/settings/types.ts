@@ -23,6 +23,9 @@ export interface SettingsPageProps {
   cloudBaseUrlLoading: boolean;
   cloudAuthenticated: boolean;
   onCloudBaseUrlSave: (baseUrl: string) => Promise<void> | void;
+  totpCloudSyncEnabled: boolean;
+  totpCloudSyncLoading: boolean;
+  onTotpCloudSyncChange: (enabled: boolean) => void;
   floatingBubbleEnabled: boolean;
   floatingBubbleLoading: boolean;
   onFloatingBubbleChange: (enabled: boolean) => void;

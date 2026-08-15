@@ -46,7 +46,8 @@ If production uses `POSTGRES_DB_SYNCHRONIZE=false`, apply `sql/20260704-admin-ma
 `sql/20260727-app-faqs.sql`, `sql/20260805-sync-provider-context-window.sql`, and
 `sql/20260812-sync-provider-field-versions-soft-delete.sql` before using
 the expanded admin console, provider sync, official account pool, reusable invitations,
-announcements, desktop FAQs, email templates, telemetry, and feedback management.
+announcements, desktop FAQs, email templates, telemetry, and feedback management. Also apply
+`sql/20260815-sync-totp-vault.sql` before enabling optional 2FA key synchronization.
 The RBAC migration must be applied before starting this version because application startup
 synchronizes the permission catalog and protected system roles.
 
@@ -236,6 +237,8 @@ tokens remain valid when a signed link is copied for an invitation created by an
 - `PUT /sync/providers`
 - `PUT /sync/providers/:id`
 - `DELETE /sync/providers/:id`
+- `GET /sync/totp`
+- `PUT /sync/totp`
 
 Account deletion is soft: the synchronized row is retained with `deletedAt`, omitted from active
 account views, and returned by `GET /sync/accounts` through `deletedAccountIds` so other desktop
@@ -246,6 +249,10 @@ and returned through `deletedProviderIds`. Provider fields carry independent mod
 changes made to different fields on different devices merge without overwriting one another. New
 desktop-created providers use UUID v4 identifiers; existing identifiers remain valid for backward
 compatibility.
+
+2FA key synchronization is independent from account and Provider synchronization and remains off
+by default in the desktop app. When enabled, the complete TOTP vault is stored in PostgreSQL and
+resolved using the latest vault modification time.
 
 - `GET /admin`
 - `GET /admin/reset-password`

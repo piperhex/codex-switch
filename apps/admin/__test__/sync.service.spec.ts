@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SyncService } from '@/modules/sync/sync.service';
 import type { SyncedAccountEntity } from '@/modules/sync/entities/synced-account.entity';
 import type { SyncedProviderEntity } from '@/modules/sync/entities/synced-provider.entity';
+import type { SyncedTotpVaultEntity } from '@/modules/sync/entities/synced-totp-vault.entity';
 import type { SystemAccountBindingEntity } from '@/modules/sync/entities/system-account-binding.entity';
 import type { SystemAccountEntity } from '@/modules/sync/entities/system-account.entity';
 import { makeAccount, makeProvider } from './fixtures';
@@ -18,6 +19,11 @@ describe('SyncService', () => {
     find: ReturnType<typeof vi.fn>; findOne: ReturnType<typeof vi.fn>;
     save: ReturnType<typeof vi.fn>; delete: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
+  };
+  let totpVaults: {
+    findOne: ReturnType<typeof vi.fn>;
+    create: ReturnType<typeof vi.fn>;
+    save: ReturnType<typeof vi.fn>;
   };
   let systemAccounts: {
     find: ReturnType<typeof vi.fn>; findAndCount: ReturnType<typeof vi.fn>;
@@ -47,6 +53,11 @@ describe('SyncService', () => {
       find: vi.fn(), findOne: vi.fn(),
       save: vi.fn(async (value) => value), delete: vi.fn(), update: vi.fn(),
     };
+    totpVaults = {
+      findOne: vi.fn(),
+      create: vi.fn((value) => value),
+      save: vi.fn(async (value) => value),
+    };
     systemAccounts = {
       find: vi.fn().mockResolvedValue([]),
       findAndCount: vi.fn(),
@@ -75,6 +86,7 @@ describe('SyncService', () => {
     service = new SyncService(
       accounts as unknown as Repository<SyncedAccountEntity>,
       providers as unknown as Repository<SyncedProviderEntity>,
+      totpVaults as unknown as Repository<SyncedTotpVaultEntity>,
       systemAccounts as unknown as Repository<SystemAccountEntity>,
       systemBindings as unknown as Repository<SystemAccountBindingEntity>,
       remoteDevices as unknown as Repository<import('@/modules/devices/entities/remote-device.entity').RemoteDeviceEntity>,
@@ -86,6 +98,32 @@ describe('SyncService', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  it('returns an empty 2FA vault when cloud sync has never been enabled', async () => {
+    totpVaults.findOne.mockResolvedValue(null);
+
+    await expect(service.getTotpVault('owner-1')).resolves.toEqual({
+      entries: [],
+      modifiedAt: null,
+    });
+  });
+
+  it('keeps the newer cloud 2FA vault when an older snapshot is uploaded', async () => {
+    const existing = {
+      entries: [{ id: 'remote-entry' }],
+      modifiedAt: new Date('2026-08-15T10:00:00.000Z'),
+    };
+    totpVaults.findOne.mockResolvedValue(existing);
+
+    await expect(service.putTotpVault('owner-1', {
+      entries: [],
+      modifiedAt: '2026-08-15T09:00:00.000Z',
+    })).resolves.toEqual({
+      entries: existing.entries,
+      modifiedAt: '2026-08-15T10:00:00.000Z',
+    });
+    expect(totpVaults.save).not.toHaveBeenCalled();
   });
 
   it('returns a cache hit without querying PostgreSQL', async () => {

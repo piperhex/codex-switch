@@ -6,6 +6,7 @@ import { check, type DownloadEvent, type Update } from "@tauri-apps/plugin-updat
 import { DEMO_ACCOUNTS, DEMO_INFO } from "../demo";
 import { BUILT_IN_DREAM_SKIN_THEMES } from "../dreamSkinBuiltIns";
 import { LANGUAGE_STORAGE_KEY, isLanguage, type Language } from "../i18n";
+import type { TotpVault } from "../utils/totp";
 import type {
   Account,
   AccountArchiveImportResult,
@@ -1516,6 +1517,14 @@ export async function pushCloudAccounts(): Promise<CloudSyncResult> {
 export async function pushCloudAccount(id: string, restoreDeleted = false): Promise<CloudSyncResult> {
   if (!hasLocalBackend) return { uploaded: 0, downloaded: 0 };
   return invoke<CloudSyncResult>("cloud_push_account", { id, restoreDeleted });
+}
+
+export async function syncCloudTotp(vault: TotpVault): Promise<TotpVault> {
+  if (!hasLocalBackend) return vault;
+  return invoke<TotpVault>("cloud_sync_totp", {
+    entries: vault.entries,
+    modifiedAt: vault.modifiedAt,
+  });
 }
 
 export async function pushCloudProviders(): Promise<CloudSyncResult> {

@@ -10,6 +10,7 @@ import {
 import { RefreshTokenEntity } from '@/modules/auth/entities/refresh-token.entity';
 import { SyncedAccountEntity } from '@/modules/sync/entities/synced-account.entity';
 import { SyncedProviderEntity } from '@/modules/sync/entities/synced-provider.entity';
+import { SyncedTotpVaultEntity } from '@/modules/sync/entities/synced-totp-vault.entity';
 
 export type UserRole = string;
 
@@ -41,6 +42,9 @@ export class UserEntity {
 
   @OneToMany(() => SyncedProviderEntity, (provider) => provider.owner)
   syncedProviders: SyncedProviderEntity[];
+
+  @OneToMany(() => SyncedTotpVaultEntity, (vault) => vault.owner)
+  syncedTotpVaults: SyncedTotpVaultEntity[];
 
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;

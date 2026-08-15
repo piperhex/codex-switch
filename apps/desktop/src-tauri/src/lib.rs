@@ -272,6 +272,7 @@ pub fn run() {
             cloud::cloud_restore_deleted_provider,
             cloud::cloud_delete_provider,
             cloud::cloud_sync_accounts,
+            cloud::cloud_sync_totp,
             skills_market::list_market_skills,
             skills_market::upload_market_skill,
             skills_market::install_market_skill,
