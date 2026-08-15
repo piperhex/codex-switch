@@ -326,6 +326,14 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
                 argument(&args, "providerId")?,
             ),
         )),
+        "fetch_claude_code_models" => serialize(block_on(
+            crate::claude_code_provider::fetch_claude_code_models(
+                app,
+                argument(&args, "baseUrl")?,
+                argument(&args, "apiKey")?,
+                argument(&args, "providerId")?,
+            ),
+        )),
         "fetch_grok_models" => serialize(block_on(crate::grok_provider::fetch_grok_models(
             app,
             argument(&args, "baseUrl")?,

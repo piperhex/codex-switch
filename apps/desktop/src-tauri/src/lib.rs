@@ -3,6 +3,7 @@ mod agent_identity;
 mod antigravity_provider;
 mod auth;
 mod autostart;
+mod claude_code_provider;
 mod cloud;
 mod codex_api;
 mod codex_runtime;
@@ -215,6 +216,7 @@ pub fn run() {
             providers::list_providers,
             providers::save_provider,
             antigravity_provider::fetch_antigravity_models,
+            claude_code_provider::fetch_claude_code_models,
             grok_provider::fetch_grok_models,
             provider_models::fetch_relay_models,
             providers::fetch_deepseek_models,

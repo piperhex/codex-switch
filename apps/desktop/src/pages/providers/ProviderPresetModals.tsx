@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { AutoComplete, Button, Input, Select, Tag } from "antd";
-import { Bot, Orbit, RefreshCw, Save, Sparkles, X, Zap } from "lucide-react";
+import { Bot, Code2, Orbit, RefreshCw, Save, Sparkles, X, Zap } from "lucide-react";
 import { fetchDeepSeekModels } from "../../api/backend";
 import type { Translate } from "../../i18n";
 import type { Provider, ProviderInput } from "../../types";
@@ -240,12 +240,14 @@ export function DeepSeekProviderModal({ provider, saving, onClose, onSave, t }: 
 export function ProviderPresetModal({
   onClose,
   onSelectAntigravity,
+  onSelectClaudeCode,
   onSelectDeepSeek,
   onSelectGrok,
   t,
 }: {
   onClose: () => void;
   onSelectAntigravity: () => void;
+  onSelectClaudeCode: () => void;
   onSelectDeepSeek: () => void;
   onSelectGrok: () => void;
   t: Translate;
@@ -283,6 +285,14 @@ export function ProviderPresetModal({
               <small>{t("providers.presets.grokDescription")}</small>
             </span>
             <Tag color="cyan">{t("providers.presets.official")}</Tag>
+          </button>
+          <button className="provider-preset-card" onClick={onSelectClaudeCode}>
+            <span className="provider-preset-icon"><Code2 size={20} /></span>
+            <span>
+              <strong>Claude Code</strong>
+              <small>{t("providers.presets.claudeCodeDescription")}</small>
+            </span>
+            <Tag color="orange">{t("providers.presets.official")}</Tag>
           </button>
         </div>
       </div>

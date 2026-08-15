@@ -1230,6 +1230,7 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 }
 .provider-preset-modal { width: min(520px, 95vw); }
 .provider-preset-modal > p,
+.claude-code-provider-modal > p,
 .deepseek-provider-modal > p,
 .antigravity-provider-modal > p,
 .grok-provider-modal > p { max-width: 400px; }
