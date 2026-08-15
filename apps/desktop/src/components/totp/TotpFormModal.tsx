@@ -126,9 +126,11 @@ export function TotpFormModal({ entry, onCancel, onSave, open, t }: TotpFormModa
           <Form.Item name="digits" label={t("totp.digits")}>
             <Select options={[6, 8].map((value) => ({ value, label: String(value) }))} />
           </Form.Item>
-          <Form.Item name="period" label={t("totp.period")}>
+          <Form.Item label={t("totp.period")}>
             <Space.Compact block>
-              <InputNumber min={15} max={120} precision={0} />
+              <Form.Item name="period" noStyle>
+                <InputNumber min={15} max={120} precision={0} />
+              </Form.Item>
               <Button disabled>{t("totp.seconds")}</Button>
             </Space.Compact>
           </Form.Item>
