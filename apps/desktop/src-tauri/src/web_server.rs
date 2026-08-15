@@ -326,6 +326,12 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
                 argument(&args, "providerId")?,
             ),
         )),
+        "fetch_grok_models" => serialize(block_on(crate::grok_provider::fetch_grok_models(
+            app,
+            argument(&args, "baseUrl")?,
+            argument(&args, "apiKey")?,
+            argument(&args, "providerId")?,
+        ))),
         "fetch_relay_models" => serialize(block_on(crate::provider_models::fetch_relay_models(
             argument(&args, "baseUrl")?,
             argument(&args, "apiKey")?,

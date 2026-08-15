@@ -1231,7 +1231,8 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .provider-preset-modal { width: min(520px, 95vw); }
 .provider-preset-modal > p,
 .deepseek-provider-modal > p,
-.antigravity-provider-modal > p { max-width: 400px; }
+.antigravity-provider-modal > p,
+.grok-provider-modal > p { max-width: 400px; }
 .provider-preset-list { display: grid; gap: 10px; }
 .provider-preset-card { width: 100%; padding: 14px; border: 1px solid #d9e3da; border-radius: 11px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; color: var(--ink); background: #fff; text-align: left; cursor: pointer; }
 .provider-preset-card:hover { border-color: var(--green); background: var(--green-soft); box-shadow: 0 8px 20px rgba(var(--green-rgb), .1); }

@@ -10,6 +10,7 @@ import {
   ANTIGRAVITY_FALLBACK_MODELS,
   isAntigravityProvider,
 } from "../utils/antigravityProvider";
+import { GROK_FALLBACK_MODELS } from "../utils/grokProvider";
 import { isTotpEntry, TOTP_STORAGE_KEY, type TotpVault } from "../utils/totp";
 import type {
   Account,
@@ -507,6 +508,21 @@ export async function fetchAntigravityModels(
     return ANTIGRAVITY_FALLBACK_MODELS;
   }
   return invoke<string[]>("fetch_antigravity_models", {
+    baseUrl,
+    apiKey: apiKey?.trim() || null,
+    providerId: providerId ?? null,
+  });
+}
+
+export async function fetchGrokModels(
+  baseUrl: string,
+  apiKey?: string,
+  providerId?: string,
+): Promise<string[]> {
+  if (!hasLocalBackend) {
+    return GROK_FALLBACK_MODELS;
+  }
+  return invoke<string[]>("fetch_grok_models", {
     baseUrl,
     apiKey: apiKey?.trim() || null,
     providerId: providerId ?? null,

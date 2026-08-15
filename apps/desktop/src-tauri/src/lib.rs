@@ -16,6 +16,7 @@ mod dream_skin_native;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 mod dream_skin_resources;
 mod floating_bubble;
+mod grok_provider;
 mod launch_options;
 mod local_proxy;
 mod main_window;
@@ -214,6 +215,7 @@ pub fn run() {
             providers::list_providers,
             providers::save_provider,
             antigravity_provider::fetch_antigravity_models,
+            grok_provider::fetch_grok_models,
             provider_models::fetch_relay_models,
             providers::fetch_deepseek_models,
             providers::query_provider_balance,
