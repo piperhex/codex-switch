@@ -23,6 +23,8 @@ interface ProvidersPageProps {
   saving: boolean;
   localProxy: LocalProxyStatus | null;
   proxyBusy: boolean;
+  proxyStartDisabledReason?: string;
+  onStartProxy: () => void;
   onSave: (provider: ProviderInput) => Promise<Provider | null>;
   onSwitch: (id: string) => void;
   onSwitchModel: (id: string, model: string) => void;
@@ -46,6 +48,8 @@ export function ProvidersPage({
   saving,
   localProxy,
   proxyBusy,
+  proxyStartDisabledReason,
+  onStartProxy,
   onSave,
   onSwitch,
   onSwitchModel,
@@ -112,9 +116,12 @@ export function ProvidersPage({
     providers,
     busyProviderId,
     proxyRunning,
+    proxyBusy,
+    proxyStartDisabledReason,
     language,
     usageForProvider,
     onSwitch,
+    onStartProxy,
     onSwitchModel,
     onModelControlChange,
     onAutoSwitchChange,

@@ -964,10 +964,16 @@ export function DashboardApp() {
     void getCurrentWindow().toggleMaximize().catch((error) => notify(String(error)));
   };
   const titlebarProxyRunning = Boolean(providerManager.localProxy?.running);
+  const proxyStartDisabledReason = !hasLocalBackend && !providerManager.localProxy?.port
+    ? t("providers.proxy.webPortRequired")
+    : activeAccount && !activeAccount.localProxyCompatible
+      ? t("providers.proxy.agentIdentityUnsupported")
+      : undefined;
   const proxyStatusControls = (
-    <ProxyStatusControls activeAccount={activeAccount} activeProvider={activeProvider}
+    <ProxyStatusControls activeProvider={activeProvider}
       customTitlebarEnabled={CUSTOM_TITLEBAR_ENABLED} manager={providerManager}
-      notify={notify} onRequestLanAccess={() => setShowLanAccess(true)} t={t} />
+      notify={notify} onRequestLanAccess={() => setShowLanAccess(true)}
+      startDisabledReason={proxyStartDisabledReason} t={t} />
   );
   const proxyTopbarActions = (
     <ProxyTopbarActions cloudAuthenticated={cloud.state.authenticated}
@@ -1187,6 +1193,8 @@ export function DashboardApp() {
               loading={providerManager.loading}
               busyProviderId={providerManager.busyProviderId} saving={providerManager.saving}
               localProxy={providerManager.localProxy} proxyBusy={providerManager.proxyBusy}
+              proxyStartDisabledReason={proxyStartDisabledReason}
+              onStartProxy={() => void providerManager.startProxy()}
               onSave={providerManager.saveProvider}
               onSwitch={switchProvider} onSwitchModel={switchProviderModel}
               onModelControlChange={setProviderModelControl}

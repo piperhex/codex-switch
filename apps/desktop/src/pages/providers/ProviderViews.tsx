@@ -24,15 +24,52 @@ interface ProviderViewProps {
   providers: Provider[];
   busyProviderId: string | null;
   proxyRunning: boolean;
+  proxyBusy: boolean;
+  proxyStartDisabledReason?: string;
   language: Language;
   usageForProvider: (provider: Provider) => ProviderTokenUsageTotals | undefined;
   onSwitch: (id: string) => void;
+  onStartProxy: () => void;
   onSwitchModel: (id: string, model: string) => void;
   onModelControlChange: (id: string, controlledByCodex: boolean) => void;
   onAutoSwitchChange: (id: string, enabled: boolean) => void;
   onDelete: (id: string) => void;
   onEdit: (provider: Provider) => void;
   t: Translate;
+}
+
+function ProviderProxyModeWarning({ options, cardView = false }: {
+  options: Pick<ProviderViewProps,
+    "onStartProxy" | "proxyBusy" | "proxyRunning" | "proxyStartDisabledReason" | "t">;
+  cardView?: boolean;
+}) {
+  if (options.proxyRunning) return null;
+  const button = (
+    <Button danger size="small" loading={options.proxyBusy}
+      disabled={Boolean(options.proxyStartDisabledReason)}>
+      {options.t("providers.proxy.enable")}
+    </Button>
+  );
+  const action = options.proxyStartDisabledReason ? (
+    <Tooltip title={options.proxyStartDisabledReason}>
+      <span className="provider-proxy-warning-action">{button}</span>
+    </Tooltip>
+  ) : (
+    <Popconfirm title={options.t("providers.proxy.startConfirmTitle")}
+      description={<span className="proxy-start-confirm-description">
+        {options.t("providers.proxy.description")}
+      </span>}
+      okText={options.t("providers.proxy.start")} cancelText={options.t("providers.proxy.cancel")}
+      disabled={options.proxyBusy} onConfirm={options.onStartProxy}>
+      {button}
+    </Popconfirm>
+  );
+  return (
+    <div className={`provider-proxy-warning${cardView ? " card-view" : ""}`}>
+      <span>{options.t("providers.proxy.requiredForSwitch")}</span>
+      {action}
+    </div>
+  );
 }
 
 interface ProviderTableProps extends ProviderViewProps {
@@ -192,6 +229,7 @@ export function ProviderTableView(options: ProviderTableProps) {
   };
   return <div className="provider-table-wrap">
     <div className="provider-table-toolbar">
+      <ProviderProxyModeWarning options={options} />
       {options.proxyRunning && (
         <ImageAccountSelect accounts={accounts} accountId={imageGenerationAccountId}
           busy={imageAccountBusy} onChange={onImageAccountChange}
@@ -223,7 +261,10 @@ export function ProviderTableView(options: ProviderTableProps) {
     <Table rowKey="id" size="small" columns={visibleColumns} dataSource={providers}
       rowSelection={{ fixed: true, columnWidth: 36, selectedRowKeys: selectedProviderIds,
         onChange: (keys) => setSelectedProviderIds(keys.map(String)) }}
-      rowClassName={(provider) => (provider.active ? "active-row" : "")}
+      rowClassName={(provider) => [
+        provider.active ? "active-row" : "",
+        !options.proxyRunning ? "proxy-required-row" : "",
+      ].filter(Boolean).join(" ")}
       pagination={false} scroll={{ x: tableScrollX }} />
   </div>;
 }
@@ -243,6 +284,7 @@ function ProviderCard({ provider, options }: { provider: Provider; options: Prov
   } = options;
   const waiting = busyProviderId === provider.id;
   const cardClassName = `provider-card${provider.active ? " active" : ""}`
+    + `${options.proxyRunning ? "" : " proxy-required-card"}`
     + `${provider.supportsDirectSwitch ? " switchable" : ""}`;
   return <article className={cardClassName} onClick={(event) => {
     if ((event.target as HTMLElement).closest("button, input, select, .ant-select")) return;
@@ -298,7 +340,12 @@ function ProviderCard({ provider, options }: { provider: Provider; options: Prov
 }
 
 export function ProviderCardView(options: ProviderViewProps) {
-  return <div className="provider-card-grid">
-    {options.providers.map((provider) => <ProviderCard key={provider.id} provider={provider} options={options} />)}
-  </div>;
+  return <>
+    <ProviderProxyModeWarning options={options} cardView />
+    <div className="provider-card-grid">
+      {options.providers.map((provider) => (
+        <ProviderCard key={provider.id} provider={provider} options={options} />
+      ))}
+    </div>
+  </>;
 }

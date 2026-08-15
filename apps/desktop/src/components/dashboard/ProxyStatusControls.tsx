@@ -1,40 +1,37 @@
 import { Popconfirm, Switch, Tooltip } from "antd";
 import { Copy } from "lucide-react";
-import { hasLocalBackend } from "../../api/backend";
 import type { Translate } from "../../i18n";
-import type { Account, Provider } from "../../types";
+import type { Provider } from "../../types";
 import type { useProviderManager } from "../../hooks/useProviderManager";
 
 type ProviderManager = ReturnType<typeof useProviderManager>;
 
 interface ProxyStatusControlsProps {
-  activeAccount: Account | null;
   activeProvider: Provider | null;
   customTitlebarEnabled: boolean;
   manager: ProviderManager;
   notify: (message: string) => void;
   onRequestLanAccess: () => void;
+  startDisabledReason?: string;
   t: Translate;
 }
 
-function startDisabledReason(options: ProxyStatusControlsProps) {
-  const { activeAccount, manager, t } = options;
-  if (!hasLocalBackend && !manager.localProxy?.port) return t("providers.proxy.webPortRequired");
-  if (activeAccount && !activeAccount.localProxyCompatible) {
-    return t("providers.proxy.agentIdentityUnsupported");
-  }
-  return undefined;
-}
-
 export function ProxyStatusControls(options: ProxyStatusControlsProps) {
-  const { activeProvider, customTitlebarEnabled, manager, notify, onRequestLanAccess, t } = options;
+  const {
+    activeProvider,
+    customTitlebarEnabled,
+    manager,
+    notify,
+    onRequestLanAccess,
+    startDisabledReason,
+    t,
+  } = options;
   const running = Boolean(manager.localProxy?.running);
   const baseUrl = manager.localProxy?.port
     ? `http://${manager.localProxy.address}:${manager.localProxy.port}/v1`
     : "--";
-  const startReason = startDisabledReason(options);
   const stopReason = running && activeProvider ? t("providers.error.proxyStopProviderActive") : undefined;
-  const toggleDisabled = manager.proxyBusy || Boolean(stopReason) || (!running && Boolean(startReason));
+  const toggleDisabled = manager.proxyBusy || Boolean(stopReason) || (!running && Boolean(startDisabledReason));
 
   const copyBaseUrl = () => {
     if (!manager.localProxy) return;
@@ -58,7 +55,7 @@ export function ProxyStatusControls(options: ProxyStatusControlsProps) {
         }} />
     </span>
   );
-  const disabledReason = stopReason ?? (running ? undefined : startReason);
+  const disabledReason = stopReason ?? (running ? undefined : startDisabledReason);
   const statusControl = disabledReason ? (
     <Tooltip title={disabledReason}>
       <span className="window-titlebar-proxy-status-wrap">{statusSwitch}</span>
