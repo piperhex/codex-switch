@@ -103,7 +103,7 @@ export function RelayStationModal({
   };
 
   return (
-    <div className="modal-backdrop">
+    <div className="modal-backdrop provider-modal-backdrop">
       <div className="modal provider-modal relay-station-modal">
         <button className="modal-close" disabled={saving} onClick={onClose}
           aria-label={t("providers.relay.close")}>

@@ -45,7 +45,7 @@ export function OpenAiProviderModal({ provider, saving, onClose, onSave, t }: Pr
   };
 
   return (
-    <div className="modal-backdrop">
+    <div className="modal-backdrop provider-modal-backdrop">
       <div className="modal provider-modal">
         <button className="modal-close" disabled={saving} onClick={onClose}
           aria-label={t("providers.openai.close")}>
@@ -180,7 +180,7 @@ export function DeepSeekProviderModal({ provider, saving, onClose, onSave, t }: 
   };
 
   return (
-    <div className="modal-backdrop">
+    <div className="modal-backdrop provider-modal-backdrop">
       <div className="modal provider-modal deepseek-provider-modal">
         <button className="modal-close" disabled={saving} onClick={onClose}
           aria-label={t("providers.deepSeek.close")}>
