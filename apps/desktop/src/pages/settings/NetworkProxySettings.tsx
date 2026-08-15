@@ -1,5 +1,5 @@
-import { useEffect, useId, useState } from "react";
-import { Button, Input, InputNumber, Modal, Switch } from "antd";
+import { useEffect, useId, useRef, useState } from "react";
+import { Input, InputNumber, Modal, Switch } from "antd";
 import { Waypoints } from "lucide-react";
 import type { Translate } from "../../i18n";
 import type { NetworkProxySettings } from "../../types";
@@ -7,7 +7,6 @@ import type { NetworkProxySettings } from "../../types";
 interface NetworkProxyEditorProps {
   loading: boolean;
   onSave: (settings: NetworkProxySettings) => Promise<boolean>;
-  onSaved?: () => void;
   t: Translate;
   value: NetworkProxySettings;
 }
@@ -35,29 +34,52 @@ function validateProxy(settings: NetworkProxySettings, t: Translate) {
   return null;
 }
 
-function NetworkProxyEditor({ loading, onSave, onSaved, t, value }: NetworkProxyEditorProps) {
+function settingsMatch(first: NetworkProxySettings, second: NetworkProxySettings) {
+  return first.enabled === second.enabled
+    && first.proxyUrl.trim() === second.proxyUrl.trim()
+    && first.proxyPort === second.proxyPort;
+}
+
+function NetworkProxyEditor({ loading, onSave, t, value }: NetworkProxyEditorProps) {
   const fieldId = useId();
   const [draft, setDraft] = useState(value);
   const [error, setError] = useState<string | null>(null);
+  const savingRef = useRef(false);
 
   useEffect(() => {
     setDraft(value);
     setError(null);
   }, [value]);
 
-  const save = async () => {
-    const validationError = validateProxy(draft, t);
+  const save = async (settings: NetworkProxySettings) => {
+    if (savingRef.current) return;
+    const normalizedSettings = { ...settings, proxyUrl: settings.proxyUrl.trim() };
+    const validationError = validateProxy(normalizedSettings, t);
     setError(validationError);
     if (validationError) return;
-    if (await onSave({ ...draft, proxyUrl: draft.proxyUrl.trim() })) onSaved?.();
+    if (settingsMatch(normalizedSettings, value)) return;
+    savingRef.current = true;
+    try {
+      await onSave(normalizedSettings);
+    } finally {
+      savingRef.current = false;
+    }
+  };
+
+  const updateEnabled = (enabled: boolean) => {
+    const nextDraft = { ...draft, enabled };
+    setDraft(nextDraft);
+    void save(nextDraft);
   };
 
   return (
-    <div className="network-proxy-editor">
+    <div className="network-proxy-editor" onBlur={(event) => {
+      if (!event.currentTarget.contains(event.relatedTarget)) void save(draft);
+    }}>
       <div className="network-proxy-toggle">
         <span>{t("settings.networkProxy.enabled")}</span>
         <Switch checked={draft.enabled} disabled={loading}
-          onChange={(enabled) => setDraft((current) => ({ ...current, enabled }))} />
+          onChange={updateEnabled} />
       </div>
       <div className="network-proxy-fields">
         <label htmlFor={`${fieldId}-url`}>{t("settings.networkProxy.address")}</label>
@@ -75,14 +97,11 @@ function NetworkProxyEditor({ loading, onSave, onSaved, t, value }: NetworkProxy
           onChange={(proxyPort) => setDraft((current) => ({ ...current, proxyPort }))} />
       </div>
       {error && <p className="network-proxy-error">{error}</p>}
-      <Button type="primary" loading={loading} onClick={() => void save()}>
-        {t("settings.networkProxy.save")}
-      </Button>
     </div>
   );
 }
 
-type NetworkProxyCardProps = Omit<NetworkProxyEditorProps, "onSaved">;
+type NetworkProxyCardProps = NetworkProxyEditorProps;
 
 export function NetworkProxySettingsCard(props: NetworkProxyCardProps) {
   const { t } = props;
@@ -111,7 +130,7 @@ export function NetworkProxySettingsModal({ onClose, open, ...props }: NetworkPr
       title={props.t("settings.networkProxy.title")}
       onCancel={onClose} maskClosable={!props.loading} closable={!props.loading}>
       <p className="network-proxy-modal-copy">{props.t("settings.networkProxy.description")}</p>
-      <NetworkProxyEditor {...props} onSaved={onClose} />
+      <NetworkProxyEditor {...props} />
     </Modal>
   );
 }

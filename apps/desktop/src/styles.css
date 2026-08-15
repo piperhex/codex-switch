@@ -878,7 +878,7 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .web-proxy-settings-field { flex-wrap: wrap; }
 .web-proxy-settings-field .ant-space-compact { width: 180px; }
 .web-proxy-settings-field .ant-input-number { width: 112px; }
-.network-proxy-settings-card .settings-card-content { align-items: flex-start; }
+.network-proxy-settings-card .settings-card-content { align-items: center; }
 .network-proxy-editor {
   width: clamp(330px, 42vw, 520px);
   display: grid;
@@ -900,7 +900,6 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
   gap: 8px;
 }
 .network-proxy-fields .ant-input-number { width: 100%; }
-.network-proxy-editor > .ant-btn { justify-self: end; }
 .network-proxy-error { margin: 0 !important; color: #b64f45 !important; }
 .network-proxy-modal-copy {
   max-width: 400px;
