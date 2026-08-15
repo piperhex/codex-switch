@@ -37,6 +37,10 @@ interface AdminAreaProps {
   profile: UserProfile;
 }
 
+interface AdminAreaRootProps extends AdminAreaProps {
+  onExit: () => void;
+}
+
 const COLORS = {
   canvas: '#f4f7f5',
   surface: '#ffffff',
@@ -314,8 +318,22 @@ function ConfirmCopy({ icon, title, description, tone = 'red' }: {
   </View>;
 }
 
-function AdminHome({ profile, onOpen }: { profile: UserProfile; onOpen: (page: AdminPage) => void }) {
+function AdminHome({ profile, onExit, onOpen }: {
+  profile: UserProfile;
+  onExit: () => void;
+  onOpen: (page: AdminPage) => void;
+}) {
   return <ScrollView style={styles.flex} contentContainerStyle={styles.homeScroll}>
+    <View style={styles.homeNavigation}>
+      <Pressable accessibilityRole="button" accessibilityLabel="返回设置" onPress={onExit}
+        style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
+        <Text style={styles.backArrow}>‹</Text>
+      </Pressable>
+      <View>
+        <Text style={styles.homeNavigationTitle}>管理控制台</Text>
+        <Text style={styles.homeNavigationSubtitle}>返回设置</Text>
+      </View>
+    </View>
     <View style={styles.hero}>
       <View style={styles.heroTop}>
         <View style={styles.heroMark}><Text style={styles.heroMarkText}>CS</Text></View>
@@ -1247,20 +1265,22 @@ function UsersPage({ session, profile, onBack }: AdminAreaProps & { onBack: () =
   </PageShell>;
 }
 
-export function AdminArea({ session, profile }: AdminAreaProps) {
+export function AdminArea({ session, profile, onExit }: AdminAreaRootProps) {
   const [page, setPage] = useState<AdminPage>('home');
   const props = useMemo(() => ({ session, profile, onBack: () => setPage('home') }), [profile, session]);
 
   useEffect(() => {
-    if (page === 'home') return undefined;
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-      setPage('home');
+      if (page === 'home') onExit();
+      else setPage('home');
       return true;
     });
     return () => subscription.remove();
-  }, [page]);
+  }, [onExit, page]);
 
-  if (page === 'home') return <AdminHome profile={profile} onOpen={setPage} />;
+  if (page === 'home') {
+    return <AdminHome profile={profile} onExit={onExit} onOpen={setPage} />;
+  }
   if (page === 'dashboard') return <DashboardPage {...props} />;
   if (page === 'officialAccounts') return <OfficialAccountsPage {...props} />;
   if (page === 'invitations') return <InvitationsPage {...props} />;
@@ -1279,6 +1299,14 @@ const styles = StyleSheet.create({
   pageTitle: { color: COLORS.ink, fontSize: 21, lineHeight: 27, fontWeight: '800' },
   pageSubtitle: { color: COLORS.muted, fontSize: 12, marginTop: 2 },
   homeScroll: { paddingHorizontal: 18, paddingTop: 16, paddingBottom: 36 },
+  homeNavigation: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 16,
+  },
+  homeNavigationTitle: { color: COLORS.ink, fontSize: 18, fontWeight: '800' },
+  homeNavigationSubtitle: { color: COLORS.muted, fontSize: 11, marginTop: 2 },
   hero: { borderRadius: 24, backgroundColor: COLORS.primaryDark, padding: 22, overflow: 'hidden' },
   heroTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 },
   heroMark: { width: 42, height: 42, borderRadius: 14, backgroundColor: '#b7ef5d', alignItems: 'center', justifyContent: 'center' },

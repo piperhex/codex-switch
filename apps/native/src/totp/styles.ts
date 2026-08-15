@@ -1,20 +1,6 @@
 import { StyleSheet } from 'react-native';
 
 export const totpStyles = StyleSheet.create({
-  trigger: {
-    minHeight: 34,
-    paddingHorizontal: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#bde8d8',
-    borderRadius: 10,
-    backgroundColor: '#e6f8f1',
-  },
-  triggerText: { color: '#14806f', fontSize: 12, fontWeight: '800' },
-  managerBody: { maxHeight: 590 },
-  managerBodyContent: { paddingBottom: 8 },
-  intro: { color: '#6f8177', fontSize: 12, lineHeight: 18, marginBottom: 14 },
   empty: {
     minHeight: 180,
     alignItems: 'center',

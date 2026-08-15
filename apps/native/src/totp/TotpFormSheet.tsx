@@ -10,6 +10,7 @@ interface TotpFormSheetProps {
   entry: TotpEntry | null;
   onCancel: () => void;
   onSave: (draft: TotpDraft) => void;
+  startWithScanner?: boolean;
   visible: boolean;
 }
 
@@ -36,7 +37,13 @@ function OptionRow<T extends string | number>({ options, selected, onChange }: {
   })}</View>;
 }
 
-export function TotpFormSheet({ entry, onCancel, onSave, visible }: TotpFormSheetProps) {
+export function TotpFormSheet({
+  entry,
+  onCancel,
+  onSave,
+  startWithScanner = false,
+  visible,
+}: TotpFormSheetProps) {
   const [draft, setDraft] = useState<TotpDraft>(DEFAULT_DRAFT);
   const [periodInput, setPeriodInput] = useState('30');
   const [error, setError] = useState('');
@@ -57,7 +64,8 @@ export function TotpFormSheet({ entry, onCancel, onSave, visible }: TotpFormShee
     setPeriodInput(String(initial.period));
     setError('');
     setShowSecret(false);
-  }, [entry, visible]);
+    setScannerOpen(!entry && startWithScanner);
+  }, [entry, startWithScanner, visible]);
 
   const patchDraft = <K extends keyof TotpDraft>(key: K, value: TotpDraft[K]) => {
     setDraft((current) => ({ ...current, [key]: value }));
