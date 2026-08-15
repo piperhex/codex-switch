@@ -9,6 +9,7 @@ import type {
   UsageWindow,
   UserProfile,
 } from '../types';
+import type { TotpVault } from '../totp/types';
 
 const SESSION_KEY = 'codex-switch.mobile.session.v1';
 const GLOBAL_REFRESH_INTERVAL_KEY = 'codex-switch.mobile.global-refresh-minutes.v1';
@@ -529,4 +530,22 @@ export async function changePassword(session: AuthSession, currentPassword: stri
     body: JSON.stringify({ currentPassword, newPassword }),
   });
   if (!response.ok) throw new ApiError(await parseError(response), response.status);
+}
+
+export async function syncTotpVault(session: AuthSession, vault: TotpVault): Promise<TotpVault> {
+  const response = await authorizedRequest(session, '/sync/totp', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(vault),
+  });
+  if (!response.ok) throw new ApiError(await parseError(response), response.status);
+  const payload: unknown = await response.json();
+  if (!payload || typeof payload !== 'object') throw new ApiError('服务器返回的 2FA 数据无效');
+  const candidate = payload as Partial<TotpVault>;
+  if (!Array.isArray(candidate.entries)
+    || typeof candidate.modifiedAt !== 'string'
+    || Number.isNaN(Date.parse(candidate.modifiedAt))) {
+    throw new ApiError('服务器返回的 2FA 数据无效');
+  }
+  return candidate as TotpVault;
 }

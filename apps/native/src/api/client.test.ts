@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AccountSummary, AuthSession } from '../types';
+import type { TotpVault } from '../totp/types';
 
 vi.mock('expo-secure-store', () => ({
   deleteItemAsync: vi.fn(),
@@ -13,6 +14,7 @@ import {
   fetchAccountSummary,
   fetchAccountUsage,
   fetchResetCredits,
+  syncTotpVault,
 } from './client';
 
 const session: AuthSession = {
@@ -200,5 +202,21 @@ describe('mobile Codex API client', () => {
     expect(apiFetch.mock.calls[0]?.[1]).toEqual(expect.objectContaining({ method: 'DELETE' }));
     const headers = new Headers((apiFetch.mock.calls[0]?.[1] as RequestInit).headers);
     expect(headers.get('Authorization')).toBe('Bearer switch-access');
+  });
+
+  it('synchronizes the mobile 2FA vault only when explicitly requested', async () => {
+    const vault: TotpVault = {
+      entries: [],
+      modifiedAt: '2026-08-15T10:00:00.000Z',
+    };
+    const apiFetch = vi.fn().mockResolvedValue(new Response(JSON.stringify(vault), { status: 200 }));
+    vi.stubGlobal('fetch', apiFetch);
+
+    await expect(syncTotpVault(session, vault)).resolves.toEqual(vault);
+
+    expect(apiFetch.mock.calls[0]?.[0]).toBe('https://switch.example.com/sync/totp');
+    const request = apiFetch.mock.calls[0]?.[1] as RequestInit;
+    expect(request.method).toBe('PUT');
+    expect(JSON.parse(request.body as string)).toEqual(vault);
   });
 });

@@ -19,4 +19,8 @@ npm run ios -w @codex-switch/native
 
 下拉刷新、页面内“刷新”和应用回到前台时，移动端会先从 Codex Switch 后端读取账户列表和短期 access token，再由手机直接调用 Codex 官方接口刷新每个账号的用量。查看或使用重置卡也由手机直连 Codex，不经过 Codex Switch 的重置卡代理接口。为避免瞬间发起过多请求，用量查询最多同时处理四个账号。access token 过期时，需要先由桌面端刷新账号凭据并完成云同步。隐私开关会遮罩账号卡片中的邮箱和备注预览；单击备注位置属于主动查看操作，会从底部抽屉展示完整备注。
 
+账户页提供 2FA 验证码管理器，支持保存多个 TOTP 密钥、扫描标准 Authenticator 二维码、手动录入、编辑、
+删除和复制动态验证码。密钥保存在 iOS Keychain / Android Keystore 支持的系统安全存储中。手机端的 2FA
+云同步开关位于设置页，默认关闭；只有用户主动开启后，密钥才会上传到已登录的 Codex Switch 云端服务器。
+
 生产环境应使用 HTTPS。为了便于连接现有局域网或本地开发后端，当前 Expo 配置允许 HTTP；发布前若只使用 HTTPS，可移除 `app.json` 中的明文传输配置。

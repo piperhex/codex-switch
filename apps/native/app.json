@@ -33,7 +33,14 @@
       }
     },
     "plugins": [
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "允许 Codex Switch 扫描 2FA 二维码",
+          "recordAudioAndroid": false
+        }
+      ]
     ]
   }
 }
