@@ -768,25 +768,59 @@ pub(crate) fn switch_provider_blocking<R: Runtime>(
 ) -> Result<(), String> {
     let paths = resolve_paths(&app)?;
     let provider = read_provider(&paths, &id)?;
+    activate_provider_profile(&app, &paths, &provider)
+}
+
+pub(crate) fn switch_provider_model_and_activate_blocking<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    id: String,
+    model: String,
+) -> Result<(), String> {
+    let paths = resolve_paths(&app)?;
+    let mut provider = read_provider(&paths, &id)?;
+    if provider.model_selection_controlled_by_codex {
+        return Err("Provider model selection is controlled within Codex".to_string());
+    }
+    let selected_model = require_non_empty("Model", &model)?;
+    if !provider.models.iter().any(|value| value == &selected_model) {
+        return Err("Provider model does not exist".to_string());
+    }
+    provider.model = selected_model;
+    provider = normalize_provider_profile(provider)?;
+    validate_provider_activation(&provider)?;
+    write_local_provider(&paths, &provider, None)?;
+    activate_provider_profile(&app, &paths, &provider)
+}
+
+fn activate_provider_profile<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    paths: &Paths,
+    provider: &ProviderProfile,
+) -> Result<(), String> {
+    validate_provider_activation(provider)?;
+    let original_state = read_state(paths);
+    backup_codex_config_if_needed(paths, original_state.active_provider_id.is_none())?;
+    let mut state = original_state.clone();
+    state.active_provider_id = Some(provider.id.clone());
+    state.active_account_id = None;
+    state.concurrent_account_routing_enabled = false;
+    write_state(paths, &state)?;
+    if let Err(error) = write_provider_local_proxy_config(paths, provider) {
+        if let Err(rollback_error) = write_state(paths, &original_state) {
+            eprintln!("failed to restore provider state after activation error: {rollback_error}");
+        }
+        return Err(error);
+    }
+    refresh_codex_models_best_effort(provider);
+    emit_providers_changed(app)
+}
+
+fn validate_provider_activation(provider: &ProviderProfile) -> Result<(), String> {
     ensure_not_local_proxy_base_url(&provider.base_url)?;
     ensure_local_proxy_running_for_provider()?;
     if provider.kind != ProviderKind::OpenAi && provider.api_key.trim().is_empty() {
         return Err("Provider API key is empty".to_string());
     }
-
-    let original_state = read_state(&paths);
-    backup_codex_config_if_needed(&paths, original_state.active_provider_id.is_none())?;
-    let mut state = original_state.clone();
-    state.active_provider_id = Some(provider.id.clone());
-    state.active_account_id = None;
-    state.concurrent_account_routing_enabled = false;
-    write_state(&paths, &state)?;
-    if let Err(error) = write_provider_local_proxy_config(&paths, &provider) {
-        let _ = write_state(&paths, &original_state);
-        return Err(error);
-    }
-    refresh_codex_models_best_effort(&provider);
-    emit_providers_changed(&app)?;
     Ok(())
 }
 

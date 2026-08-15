@@ -1,5 +1,5 @@
 use tauri::{
-    menu::{CheckMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuItem},
+    menu::{CheckMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuItem, Submenu},
     tray::{MouseButton, TrayIconBuilder, TrayIconEvent},
     App, AppHandle, Manager, Runtime,
 };
@@ -18,6 +18,8 @@ const RESTART_APP_ID: &str = "tray:restart-app";
 const QUIT_ID: &str = "tray:quit";
 const ACCOUNT_PREFIX: &str = "tray:account:";
 const PROVIDER_PREFIX: &str = "tray:provider:";
+const PROVIDER_MODEL_PREFIX: &str = "tray:provider-model:";
+const PROVIDER_SUBMENU_PREFIX: &str = "tray:provider-submenu:";
 const MENU_EMAIL_CHARS: usize = 15;
 const MENU_PROVIDER_CHARS: usize = 28;
 
@@ -103,6 +105,19 @@ pub(crate) fn handle_menu_event<R: Runtime>(app: &AppHandle<R>, event: MenuEvent
                 commands::switch_account_and_restart_chatgpt_blocking(app, account_id)
             {
                 eprintln!("failed to switch account from tray: {error}");
+            }
+        });
+        return;
+    }
+    if let Some(selection) = parse_provider_model_menu_id(id) {
+        let app = app.clone();
+        tauri::async_runtime::spawn_blocking(move || {
+            if let Err(error) = providers::switch_provider_model_and_activate_blocking(
+                app,
+                selection.provider_id,
+                selection.model,
+            ) {
+                eprintln!("failed to switch provider model from menu: {error}");
             }
         });
         return;
@@ -243,15 +258,7 @@ fn append_provider_items<R: Runtime>(
             }
 
             for provider in providers {
-                let item = CheckMenuItem::with_id(
-                    app,
-                    format!("{PROVIDER_PREFIX}{}", provider.id),
-                    provider_label(&provider),
-                    provider.supports_direct_switch,
-                    provider.active,
-                    None::<&str>,
-                )?;
-                menu.append(&item)?;
+                append_provider_item(app, menu, &provider)?;
             }
         }
         Err(error) => {
@@ -266,6 +273,80 @@ fn append_provider_items<R: Runtime>(
         }
     }
     Ok(())
+}
+
+fn append_provider_item<R: Runtime>(
+    app: &AppHandle<R>,
+    menu: &Menu<R>,
+    provider: &ProviderSummary,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if provider.model_selection_controlled_by_codex || provider.models.is_empty() {
+        let item = CheckMenuItem::with_id(
+            app,
+            format!("{PROVIDER_PREFIX}{}", provider.id),
+            provider_label(provider),
+            provider.supports_direct_switch,
+            provider.active,
+            None::<&str>,
+        )?;
+        menu.append(&item)?;
+        return Ok(());
+    }
+
+    let submenu = Submenu::with_id(
+        app,
+        format!("{PROVIDER_SUBMENU_PREFIX}{}", provider.id),
+        provider_submenu_label(provider),
+        provider.supports_direct_switch,
+    )?;
+    for model in &provider.models {
+        let item = CheckMenuItem::with_id(
+            app,
+            provider_model_menu_id(&provider.id, model),
+            escape_menu_text(&truncate_menu_provider(model)),
+            provider.supports_direct_switch,
+            provider.active && provider.model == *model,
+            None::<&str>,
+        )?;
+        submenu.append(&item)?;
+    }
+    menu.append(&submenu)?;
+    Ok(())
+}
+
+fn provider_submenu_label(provider: &ProviderSummary) -> String {
+    let label = provider_label(provider);
+    if provider.active {
+        format!("✓ {label}")
+    } else {
+        label
+    }
+}
+
+struct ProviderModelSelection {
+    provider_id: String,
+    model: String,
+}
+
+fn provider_model_menu_id(provider_id: &str, model: &str) -> String {
+    use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
+
+    format!(
+        "{PROVIDER_MODEL_PREFIX}{}:{}",
+        URL_SAFE_NO_PAD.encode(provider_id),
+        URL_SAFE_NO_PAD.encode(model)
+    )
+}
+
+fn parse_provider_model_menu_id(id: &str) -> Option<ProviderModelSelection> {
+    use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
+
+    let encoded = id.strip_prefix(PROVIDER_MODEL_PREFIX)?;
+    let (provider_id, model) = encoded.split_once(':')?;
+    Some(ProviderModelSelection {
+        provider_id: String::from_utf8(URL_SAFE_NO_PAD.decode(provider_id).ok()?).ok()?,
+        model: String::from_utf8(URL_SAFE_NO_PAD.decode(model).ok()?).ok()?,
+    })
 }
 
 fn account_label(account: &AccountSummary) -> String {
@@ -316,5 +397,25 @@ fn truncate_menu_email(text: &str) -> String {
         format!("{truncated}...")
     } else {
         truncated
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{parse_provider_model_menu_id, provider_model_menu_id};
+
+    #[test]
+    fn provider_model_menu_id_round_trips_special_characters() {
+        let id = provider_model_menu_id("relay:one", "openai/gpt:latest 中文");
+        let selection = parse_provider_model_menu_id(&id).expect("menu id should be valid");
+
+        assert_eq!(selection.provider_id, "relay:one");
+        assert_eq!(selection.model, "openai/gpt:latest 中文");
+    }
+
+    #[test]
+    fn provider_model_menu_id_rejects_invalid_values() {
+        assert!(parse_provider_model_menu_id("tray:provider-model:not-base64:!").is_none());
+        assert!(parse_provider_model_menu_id("tray:provider:relay").is_none());
     }
 }
