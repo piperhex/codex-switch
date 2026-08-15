@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { ArrowRight, LogIn, RefreshCw } from "lucide-react";
 import type { Language, Translate } from "../i18n";
 import type { AccountDisplayMode } from "../hooks/useAccountDisplayMode";
-import type { Account, LocalProxyStatus, ResetCreditsLoadState } from "../types";
+import type { Account, AccountDetailsDraft, LocalProxyStatus, ResetCreditsLoadState } from "../types";
 import { AccountTable } from "../components/accounts/AccountTable";
 
 export function AccountsPage({
@@ -62,7 +62,7 @@ export function AccountsPage({
   autoSwitchBusyAccountId: string | null;
   onAutoSwitchPriorityChange: (id: string, priority: number) => Promise<boolean>;
   autoSwitchPriorityBusyAccountId: string | null;
-  onSaveNote: (id: string, note: string, expiresAt: string) => Promise<boolean>;
+  onSaveNote: (id: string, details: AccountDetailsDraft) => Promise<boolean>;
   onLoadResetCredits: (id: string, force?: boolean) => void;
   onUseResetCredit: (id: string) => void;
   resetCreditBusyAccountId: string | null;

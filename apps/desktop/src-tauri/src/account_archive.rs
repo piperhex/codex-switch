@@ -17,13 +17,14 @@ use zip::{write::SimpleFileOptions, CompressionMethod, ZipArchive, ZipWriter};
 
 use crate::{
     auth::{account_fields, canonicalize_chatgpt_auth, validate_auth},
-    models::{ProviderProfile, ProviderSyncPayload, UsageSummary},
+    models::{AccountPrivateDetails, ProviderProfile, ProviderSyncPayload, UsageSummary},
     storage::{
-        auto_switch_priority_path, expiration_path, load_auto_switch_priority, load_expiration,
-        load_note, load_or_init_last_modified, load_usage, managed_auth_path, note_path,
-        parse_last_modified, read_json, read_state, resolve_paths, save_account_last_modified,
-        save_auto_switch_priority, save_expiration, save_note, save_usage, usage_path,
-        write_json_if_changed, write_managed_auth_if_changed, write_state,
+        account_private_details_path, auto_switch_priority_path, expiration_path,
+        load_account_private_details, load_auto_switch_priority, load_expiration, load_note,
+        load_or_init_last_modified, load_usage, managed_auth_path, note_path, parse_last_modified,
+        read_json, read_state, resolve_paths, save_account_last_modified,
+        save_account_private_details, save_auto_switch_priority, save_expiration, save_note,
+        save_usage, usage_path, write_json_if_changed, write_managed_auth_if_changed, write_state,
     },
 };
 
@@ -52,6 +53,8 @@ struct AccountArchiveEntry {
     auth: Value,
     note: String,
     expires_at: String,
+    #[serde(default)]
+    private_details: AccountPrivateDetails,
     usage: UsageSummary,
     #[serde(default)]
     auto_switch_priority: i32,
@@ -147,6 +150,9 @@ fn collect_accounts<R: Runtime>(
             accounts.push(AccountArchiveEntry {
                 note: load_note(&note_path(&paths, &id)),
                 expires_at: load_expiration(&expiration_path(&paths, &id)),
+                private_details: load_account_private_details(&account_private_details_path(
+                    &paths, &id,
+                )),
                 usage: load_usage(&usage_path(&paths, &id)),
                 auto_switch_priority: load_auto_switch_priority(&auto_switch_priority_path(
                     &paths, &id,
@@ -160,7 +166,7 @@ fn collect_accounts<R: Runtime>(
     accounts.sort_by(|left, right| left.id.cmp(&right.id));
     let providers = collect_providers(&paths)?;
     Ok(AccountArchivePayload {
-        format_version: 3,
+        format_version: 4,
         exported_at: Utc::now().to_rfc3339(),
         active_account_id,
         active_provider_id,
@@ -173,7 +179,7 @@ fn apply_archive<R: Runtime>(
     app: &tauri::AppHandle<R>,
     payload: AccountArchivePayload,
 ) -> Result<AccountArchiveImportResult, String> {
-    if payload.format_version == 0 || payload.format_version > 3 {
+    if payload.format_version == 0 || payload.format_version > 4 {
         return Err(format!(
             "Unsupported account archive version: {}",
             payload.format_version
@@ -231,6 +237,10 @@ fn apply_archive<R: Runtime>(
             write_json_if_changed(&auth_path, &account.auth)?;
             save_note(&note_path(&paths, &account.id), &account.note)?;
             save_expiration(&expiration_path(&paths, &account.id), &account.expires_at)?;
+            save_account_private_details(
+                &account_private_details_path(&paths, &account.id),
+                &account.private_details,
+            )?;
             save_usage(&usage_path(&paths, &account.id), &account.usage)?;
             save_auto_switch_priority(
                 &auto_switch_priority_path(&paths, &account.id),
@@ -523,6 +533,11 @@ mod tests {
                 }),
                 note: "plain-secret-note".to_string(),
                 expires_at: "2026-12-31".to_string(),
+                private_details: AccountPrivateDetails {
+                    password: "plain-secret-password".to_string(),
+                    phone_number: "+65 6123 4567".to_string(),
+                    totp_secret: "JBSWY3DPEHPK3PXP".to_string(),
+                },
                 usage: UsageSummary::default(),
                 auto_switch_priority: 0,
                 last_modified_at: Some("2026-07-04T00:00:00Z".to_string()),
@@ -559,6 +574,7 @@ mod tests {
         assert!(!archive_text.contains("plain-secret-access-token"));
         assert!(!archive_text.contains("plain-secret-provider-key"));
         assert!(!archive_text.contains("plain-secret-note"));
+        assert!(!archive_text.contains("plain-secret-password"));
 
         let mut zip = ZipArchive::new(Cursor::new(archive)).expect("archive should be a plain zip");
         let mut encrypted = Vec::new();
@@ -569,12 +585,17 @@ mod tests {
         assert!(encrypted.starts_with(ARCHIVE_MAGIC));
         assert!(!String::from_utf8_lossy(&encrypted).contains("plain-secret-note"));
         assert!(!String::from_utf8_lossy(&encrypted).contains("plain-secret-provider-key"));
+        assert!(!String::from_utf8_lossy(&encrypted).contains("plain-secret-password"));
 
         let compressed = decrypt_payload(&encrypted).expect("payload should decrypt");
         let json = gunzip(&compressed).expect("payload should decompress");
         let restored: AccountArchivePayload =
             serde_json::from_slice(&json).expect("payload should decode");
         assert_eq!(restored.accounts[0].note, "plain-secret-note");
+        assert_eq!(
+            restored.accounts[0].private_details.password,
+            "plain-secret-password"
+        );
         assert_eq!(restored.providers[0].api_key, "plain-secret-provider-key");
     }
 }

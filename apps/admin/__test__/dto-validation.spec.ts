@@ -193,7 +193,13 @@ describe('request DTO validation', () => {
   });
 
   it('validates nested sync accounts and accepts a complete valid payload', async () => {
-    const valid = plainToInstance(PutSyncAccountsDto, { accounts: [makeAccount()] });
+    const valid = plainToInstance(PutSyncAccountsDto, { accounts: [makeAccount({
+      privateDetails: {
+        password: 'saved-password',
+        phoneNumber: '+65 6123 4567',
+        totpSecret: 'JBSWY3DPEHPK3PXP',
+      },
+    })] });
     expect(valid.accounts[0]).toBeInstanceOf(SyncAccountDto);
     await expect(validate(valid)).resolves.toEqual([]);
 
@@ -204,13 +210,14 @@ describe('request DTO validation', () => {
         active: 'yes',
         autoSwitchPriority: 1.5,
         usage: 'none',
+        privateDetails: { password: '', phoneNumber: '', totpSecret: 'not-base32' },
       }],
     });
     const errors = await validate(invalid);
     expect(errors).toHaveLength(1);
     expect(errors[0].property).toBe('accounts');
     expect(errors[0].children?.[0].children?.map((error) => error.property))
-      .toEqual(expect.arrayContaining(['id', 'active', 'autoSwitchPriority', 'usage']));
+      .toEqual(expect.arrayContaining(['id', 'active', 'autoSwitchPriority', 'usage', 'privateDetails']));
   });
 
   it('applies sync DTO defaults while allowing a nullable provider account id', async () => {

@@ -2506,7 +2506,7 @@ fn try_auto_switch_official_account<R: Runtime>(
 
     // The quota result that triggered this flow can be stale, so refresh every enabled
     // official account before choosing a replacement instead of relying on cached usage.
-    let accounts = crate::commands::list_accounts(app.clone())?;
+    let accounts = crate::commands::list_accounts_blocking(app.clone())?;
     if !accounts
         .iter()
         .any(|account| account.id == current_id && account.auto_switch_enabled)
@@ -6556,6 +6556,7 @@ mod tests {
             email: format!("{id}@example.com"),
             note: String::new(),
             expires_at: String::new(),
+            private_details: Default::default(),
             plan: String::new(),
             account_id: None,
             active: id == "current",

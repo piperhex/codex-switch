@@ -445,7 +445,7 @@ fn clamp_menu_axis(value: f64, min: f64, max: f64) -> f64 {
 }
 
 fn estimated_floating_menu_size<R: Runtime>(app: &AppHandle<R>) -> (f64, f64) {
-    let mut labels = match commands::list_accounts(app.clone()) {
+    let mut labels = match commands::list_accounts_blocking(app.clone()) {
         Ok(accounts) if accounts.is_empty() => vec!["No accounts".to_string()],
         Ok(accounts) => accounts
             .into_iter()

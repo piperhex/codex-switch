@@ -9,8 +9,9 @@ interface TotpCodeCardProps {
   entry: TotpEntry;
   now: number;
   onCopy: () => void;
-  onDelete: () => void;
-  onEdit: () => void;
+  onDelete?: () => void;
+  onEdit?: () => void;
+  badge?: string;
   t: Translate;
 }
 
@@ -22,6 +23,7 @@ function displayCode(code: string) {
 
 export function TotpCodeCard({
   code,
+  badge,
   copied,
   entry,
   now,
@@ -36,17 +38,17 @@ export function TotpCodeCard({
     <article className="totp-code-card">
       <div className="totp-code-heading">
         <div><strong>{entry.issuer}</strong><span>{entry.accountName}</span></div>
-        <div className="totp-code-actions">
-          <Tooltip title={t("totp.edit")} styles={{ root: { maxWidth: 400 } }}>
+        {badge ? <span className="totp-code-badge">{badge}</span> : <div className="totp-code-actions">
+          {onEdit && <Tooltip title={t("totp.edit")} styles={{ root: { maxWidth: 400 } }}>
             <Button type="text" size="small" icon={<Pencil size={14} />} onClick={onEdit} />
-          </Tooltip>
-          <Popconfirm title={t("totp.deleteConfirm")} okText={t("table.delete")}
+          </Tooltip>}
+          {onDelete && <Popconfirm title={t("totp.deleteConfirm")} okText={t("table.delete")}
             cancelText={t("table.cancel")} okButtonProps={{ danger: true }} onConfirm={onDelete}>
             <Tooltip title={t("table.delete")} styles={{ root: { maxWidth: 400 } }}>
               <Button type="text" danger size="small" icon={<Trash2 size={14} />} />
             </Tooltip>
-          </Popconfirm>
-        </div>
+          </Popconfirm>}
+        </div>}
       </div>
       <button type="button" className="totp-code-button" disabled={!code} onClick={onCopy}>
         <span className="totp-code-value">{displayCode(code)}</span>

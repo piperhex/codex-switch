@@ -302,7 +302,7 @@ fn handle_invoke_request(app: AppHandle, mut request: Request) {
 fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value, String> {
     match command {
         "get_app_info" => serialize(crate::commands::get_app_info(app)),
-        "list_accounts" => serialize(crate::commands::list_accounts(app)),
+        "list_accounts" => serialize(block_on(crate::commands::list_accounts(app))),
         "get_app_settings" => serialize(crate::floating_bubble::get_app_settings(app)),
         "set_launch_at_startup" => serialize(block_on(crate::autostart::set_launch_at_startup(
             app,
@@ -663,12 +663,10 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
             argument(&args, "id")?,
         ))),
         "delete_account" => serialize(crate::commands::delete_account(app, argument(&args, "id")?)),
-        "update_account_note" => serialize(crate::commands::update_account_note(
+        "update_account_note" => serialize(block_on(crate::commands::update_account_note(
             app,
-            argument(&args, "id")?,
-            argument(&args, "note")?,
-            argument(&args, "expiresAt")?,
-        )),
+            argument(&args, "input")?,
+        ))),
         "fetch_reset_credits" => serialize(block_on(crate::commands::fetch_reset_credits(
             app,
             argument(&args, "id")?,

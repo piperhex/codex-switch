@@ -9,6 +9,7 @@ import { LANGUAGE_STORAGE_KEY, isLanguage, type Language } from "../i18n";
 import { isTotpEntry, TOTP_STORAGE_KEY, type TotpVault } from "../utils/totp";
 import type {
   Account,
+  AccountDetailsDraft,
   AccountArchiveImportResult,
   AccountTokenUsageTotals,
   AppInfo,
@@ -880,6 +881,11 @@ export async function showTokenUsageWindow(): Promise<void> {
     return;
   }
   await invoke("show_token_usage_window");
+}
+
+export async function loadAccounts(): Promise<Account[]> {
+  if (!hasLocalBackend) return structuredClone(DEMO_ACCOUNTS);
+  return invoke<Account[]>("list_accounts");
 }
 
 export async function showTotpWindow(): Promise<void> {
@@ -1785,8 +1791,8 @@ export async function removeAccount(id: string): Promise<void> {
   if (hasLocalBackend) await invoke("delete_account", { id });
 }
 
-export async function updateAccountNote(id: string, note: string, expiresAt: string): Promise<void> {
-  if (hasLocalBackend) await invoke("update_account_note", { id, note, expiresAt });
+export async function updateAccountNote(id: string, details: AccountDetailsDraft): Promise<void> {
+  if (hasLocalBackend) await invoke("update_account_note", { input: { id, ...details } });
 }
 
 export async function fetchResetCredits(id: string): Promise<ResetCreditsSummary> {

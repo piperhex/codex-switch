@@ -137,7 +137,7 @@ pub(crate) fn build_menu<R: Runtime>(
     )?;
     menu.append(&accounts_header)?;
 
-    match commands::list_accounts(app.clone()) {
+    match commands::list_accounts_blocking(app.clone()) {
         Ok(accounts) if accounts.is_empty() => {
             let empty = MenuItem::with_id(app, "tray:empty", "暂无节点", false, None::<&str>)?;
             menu.append(&empty)?;

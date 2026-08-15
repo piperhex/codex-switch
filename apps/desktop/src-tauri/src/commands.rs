@@ -32,16 +32,17 @@ use crate::{
         token_expiring, usage_request,
     },
     models::{
-        AccountSummary, AppInfo, AppSettings, ManagerStateFile, ResetCreditsSummary, UsageSummary,
+        AccountSummary, AppInfo, AppSettings, ManagerStateFile, ResetCreditsSummary,
+        UpdateAccountDetailsInput, UsageSummary,
     },
     storage::{
-        account_dir, auto_switch_priority_path, expiration_path, import_value,
-        load_auto_switch_priority, load_expiration, load_note, load_official_account_access,
-        load_usage, managed_auth_path, note_path, read_app_settings, read_json, read_state,
-        resolve_paths, save_auto_switch_priority, save_expiration, save_note, save_usage,
-        sync_current_into_store, touch_account_field, usage_path, write_app_settings,
-        write_json_atomic, write_json_if_changed, write_managed_auth_if_changed, write_state,
-        AccountSyncField, Paths,
+        account_dir, account_private_details_path, auto_switch_priority_path, expiration_path,
+        import_value, load_account_private_details, load_auto_switch_priority, load_expiration,
+        load_note, load_official_account_access, load_usage, managed_auth_path, note_path,
+        read_app_settings, read_json, read_state, resolve_paths, save_account_private_details,
+        save_auto_switch_priority, save_expiration, save_note, save_usage, sync_current_into_store,
+        touch_account_field, usage_path, write_app_settings, write_json_atomic,
+        write_json_if_changed, write_managed_auth_if_changed, write_state, AccountSyncField, Paths,
     },
 };
 
@@ -121,8 +122,7 @@ pub(crate) fn open_managed_folder<R: Runtime>(
         .map_err(|error| format!("Failed to open {}: {error}", path.display()))
 }
 
-#[tauri::command]
-pub(crate) fn list_accounts<R: Runtime>(
+pub(crate) fn list_accounts_blocking<R: Runtime>(
     app: tauri::AppHandle<R>,
 ) -> Result<Vec<AccountSummary>, String> {
     // 非 ChatGPT 模式或损坏的当前 auth.json 不应阻止管理器打开。
@@ -167,6 +167,9 @@ pub(crate) fn list_accounts<R: Runtime>(
             usage,
             note: load_note(&note_path(&paths, &id)),
             expires_at: load_expiration(&expiration_path(&paths, &id)),
+            private_details: load_account_private_details(&account_private_details_path(
+                &paths, &id,
+            )),
             id,
             email,
             plan,
@@ -182,6 +185,15 @@ pub(crate) fn list_accounts<R: Runtime>(
     }
     accounts.sort_by(|left, right| left.email.cmp(&right.email));
     Ok(accounts)
+}
+
+#[tauri::command]
+pub(crate) async fn list_accounts<R: Runtime + 'static>(
+    app: tauri::AppHandle<R>,
+) -> Result<Vec<AccountSummary>, String> {
+    tauri::async_runtime::spawn_blocking(move || list_accounts_blocking(app))
+        .await
+        .map_err(|error| format!("Account list task failed: {error}"))?
 }
 
 #[tauri::command]
@@ -2298,13 +2310,16 @@ fn ensure_quota_consumption_completed(response: Response) -> Result<(), String> 
     Ok(())
 }
 
-#[tauri::command]
-pub(crate) fn update_account_note<R: Runtime>(
+fn update_account_details_blocking<R: Runtime>(
     app: tauri::AppHandle<R>,
-    id: String,
-    note: String,
-    expires_at: String,
+    input: UpdateAccountDetailsInput,
 ) -> Result<(), String> {
+    let UpdateAccountDetailsInput {
+        id,
+        note,
+        expires_at,
+        private_details,
+    } = input;
     let paths = resolve_paths(&app)?;
     if !managed_auth_path(&paths, &id).exists() {
         return Err("Account does not exist".to_string());
@@ -2320,13 +2335,26 @@ pub(crate) fn update_account_note<R: Runtime>(
         NaiveDate::parse_from_str(&expires_at, "%Y-%m-%d")
             .map_err(|_| "Expiration date must use YYYY-MM-DD format".to_string())?;
     }
+    let private_details = private_details.normalized()?;
     save_note(&note_path(&paths, &id), &note)?;
     save_expiration(&expiration_path(&paths, &id), &expires_at)?;
+    save_account_private_details(&account_private_details_path(&paths, &id), &private_details)?;
     touch_account_field(&paths, &id, AccountSyncField::Note)?;
     touch_account_field(&paths, &id, AccountSyncField::ExpiresAt)?;
+    touch_account_field(&paths, &id, AccountSyncField::PrivateDetails)?;
     app.emit("accounts-changed", ())
         .map_err(|error| error.to_string())?;
     Ok(())
+}
+
+#[tauri::command]
+pub(crate) async fn update_account_note<R: Runtime + 'static>(
+    app: tauri::AppHandle<R>,
+    input: UpdateAccountDetailsInput,
+) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || update_account_details_blocking(app, input))
+        .await
+        .map_err(|error| format!("Account details task failed: {error}"))?
 }
 
 pub(crate) fn refresh_usage_blocking<R: Runtime>(
@@ -3165,12 +3193,37 @@ mod compatible_json_import_tests {
         update_disabled_account_ids, write_managed_auth_to_current,
         LOCAL_PROXY_CONVERSATION_PROVIDER, OFFICIAL_CONVERSATION_PROVIDER,
     };
-    use crate::models::ManagerStateFile;
+    use crate::models::{AccountPrivateDetails, ManagerStateFile};
     use crate::storage::{managed_auth_path, read_json, write_json_atomic, Paths};
     use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
     use rusqlite::Connection;
     use serde_json::{json, Value};
     use std::{fs, path::PathBuf, time::SystemTime};
+
+    #[test]
+    fn private_account_details_normalize_phone_and_base32_key() {
+        let details = AccountPrivateDetails {
+            password: "kept exactly ".to_string(),
+            phone_number: "  +65 6123 4567  ".to_string(),
+            totp_secret: "jbsw-y3dp ehpk3pxp==".to_string(),
+        }
+        .normalized()
+        .expect("valid private details");
+        assert_eq!(details.password, "kept exactly ");
+        assert_eq!(details.phone_number, "+65 6123 4567");
+        assert_eq!(details.totp_secret, "JBSWY3DPEHPK3PXP");
+    }
+
+    #[test]
+    fn private_account_details_reject_invalid_2fa_keys() {
+        let error = AccountPrivateDetails {
+            totp_secret: "not-a-base32-key!".to_string(),
+            ..Default::default()
+        }
+        .normalized()
+        .expect_err("invalid key");
+        assert_eq!(error, "2FA key must be a valid Base32 value");
+    }
 
     fn jwt(payload: Value) -> String {
         format!(

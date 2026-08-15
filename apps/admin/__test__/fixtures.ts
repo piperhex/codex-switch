@@ -76,6 +76,7 @@ export function makeAccount(overrides: Partial<SyncAccountDto> = {}): SyncAccoun
       auth: '2026-07-05T00:00:00.000Z',
       note: '2026-07-05T00:00:00.000Z',
       expiresAt: '2026-07-05T00:00:00.000Z',
+      privateDetails: '2026-07-05T00:00:00.000Z',
       usage: '2026-07-05T00:00:00.000Z',
       active: '2026-07-05T00:00:00.000Z',
       autoSwitchPriority: '2026-07-05T00:00:00.000Z',

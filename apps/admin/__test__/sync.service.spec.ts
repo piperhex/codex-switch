@@ -647,6 +647,11 @@ describe('SyncService', () => {
       expiresAt: '', plan: 'Plus', codexAccountId: 'workspace-1', active: true,
       usage: { primary: { remainingPercent: 80 } },
       lastModifiedAt: new Date('2026-07-05T00:00:00.000Z'),
+      privateDetails: {
+        password: 'must-stay-private',
+        phoneNumber: '+65 6123 4567',
+        totpSecret: 'JBSWY3DPEHPK3PXP',
+      },
       auth: {
         tokens: {
           access_token: 'mobile-access-token',
@@ -667,6 +672,8 @@ describe('SyncService', () => {
       })],
     });
     expect(result.accounts[0]).not.toHaveProperty('auth');
+    expect(result.accounts[0]).not.toHaveProperty('privateDetails');
+    expect(JSON.stringify(result)).not.toContain('must-stay-private');
     expect(JSON.stringify(result)).not.toContain('must-not-leave-the-server');
     expect(accounts.find).toHaveBeenCalledWith({ where: { ownerId: 'owner-1' }, order: { email: 'ASC' } });
     expect(redis.get).not.toHaveBeenCalled();
@@ -705,12 +712,44 @@ describe('SyncService', () => {
     }));
   });
 
+  it('stores account-linked private details for an assigned official account', async () => {
+    const privateDetails = {
+      password: 'official-password',
+      phoneNumber: '+65 6123 4567',
+      totpSecret: 'JBSWY3DPEHPK3PXP',
+    };
+    systemBindings.find.mockResolvedValue([{
+      systemAccountId: '10000000-0000-4000-8000-000000000001',
+      userId: 'owner-1',
+      account: {
+        syncAccountId: 'account-1',
+        note: 'primary',
+        expiresAt: '2027-01-01',
+      },
+    }]);
+    accounts.findOne.mockResolvedValue(null);
+
+    await service.upsert('owner-1', 'account-1', makeAccount({ privateDetails }));
+
+    expect(accounts.save).toHaveBeenCalledWith(expect.objectContaining({
+      ownerId: 'owner-1',
+      accountId: 'account-1',
+      privateDetails,
+    }));
+    expect(redis.del).toHaveBeenCalledWith('sync:accounts:owner-1');
+  });
+
   it('returns a web account overview without any Codex credentials', async () => {
     accounts.find.mockResolvedValue([{
       ownerId: 'owner-1', accountId: 'account-1', email: 'a@example.com', note: 'primary',
       expiresAt: '', plan: 'Plus', codexAccountId: 'workspace-1', active: true,
       usage: { primary: { remainingPercent: 80 } },
       lastModifiedAt: new Date('2026-07-05T00:00:00.000Z'),
+      privateDetails: {
+        password: 'must-stay-private',
+        phoneNumber: '+65 6123 4567',
+        totpSecret: 'JBSWY3DPEHPK3PXP',
+      },
       auth: { tokens: { access_token: 'must-stay-server-side', refresh_token: 'also-secret' } },
     }]);
 
@@ -720,7 +759,9 @@ describe('SyncService', () => {
       id: 'account-1', email: 'a@example.com', accountId: 'workspace-1',
     })]);
     expect(result.accounts[0]).not.toHaveProperty('auth');
+    expect(result.accounts[0]).not.toHaveProperty('privateDetails');
     expect(result.accounts[0]).not.toHaveProperty('codexAccessToken');
+    expect(JSON.stringify(result)).not.toContain('must-stay-private');
     expect(JSON.stringify(result)).not.toContain('must-stay-server-side');
   });
 
@@ -1258,6 +1299,48 @@ describe('SyncService', () => {
     }));
     expect(transactionRepository.save).toHaveBeenCalled();
     expect(redis.del).toHaveBeenCalledWith('sync:providers:owner-1');
+  });
+
+  it('merges private account details independently from the standalone 2FA vault', async () => {
+    transactionRepository.findOne.mockResolvedValue({
+      id: 'database-id', ownerId: 'owner-1', accountId: 'account-1',
+      email: 'account@example.com', note: 'cloud note', expiresAt: '2027-01-01',
+      privateDetails: { password: 'old', phoneNumber: '', totpSecret: '' },
+      plan: 'Plus', codexAccountId: 'codex-1', active: true,
+      autoSwitchPriority: 0, usage: { used: 10 }, auth: { token: 'secret' },
+      lastModifiedAt: new Date('2026-07-05T00:00:00.000Z'),
+      fieldModifiedAt: {
+        auth: '2026-07-05T00:00:00.000Z', note: '2026-07-05T00:00:00.000Z',
+        expiresAt: '2026-07-05T00:00:00.000Z', privateDetails: '2026-07-05T00:00:00.000Z',
+        usage: '2026-07-05T00:00:00.000Z', active: '2026-07-05T00:00:00.000Z',
+        autoSwitchPriority: '2026-07-05T00:00:00.000Z',
+      },
+    });
+    const privateDetails = {
+      password: 'new-password',
+      phoneNumber: '+65 6123 4567',
+      totpSecret: 'JBSWY3DPEHPK3PXP',
+    };
+    const incoming = makeAccount({
+      note: 'stale note',
+      privateDetails,
+      fieldModifiedAt: {
+        ...makeAccount().fieldModifiedAt,
+        note: '2026-07-04T00:00:00.000Z',
+        privateDetails: '2026-07-06T00:00:00.000Z',
+      },
+    });
+
+    await service.upsert('owner-1', incoming.id, incoming);
+
+    expect(transactionRepository.save).toHaveBeenCalledWith(expect.objectContaining({
+      note: 'cloud note',
+      privateDetails,
+      fieldModifiedAt: expect.objectContaining({
+        note: '2026-07-05T00:00:00.000Z',
+        privateDetails: '2026-07-06T00:00:00.000Z',
+      }),
+    }));
   });
 
   it('keeps only valid reasoning strengths for known provider models', async () => {

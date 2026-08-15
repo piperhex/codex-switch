@@ -11,6 +11,7 @@ pub(crate) struct AccountSummary {
     pub(crate) email: String,
     pub(crate) note: String,
     pub(crate) expires_at: String,
+    pub(crate) private_details: AccountPrivateDetails,
     pub(crate) plan: String,
     pub(crate) account_id: Option<String>,
     pub(crate) active: bool,
@@ -22,6 +23,56 @@ pub(crate) struct AccountSummary {
     pub(crate) official: bool,
     pub(crate) metadata_editable: bool,
     pub(crate) usage: UsageSummary,
+}
+
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", default)]
+pub(crate) struct AccountPrivateDetails {
+    pub(crate) password: String,
+    pub(crate) phone_number: String,
+    pub(crate) totp_secret: String,
+}
+
+impl AccountPrivateDetails {
+    pub(crate) fn normalized(mut self) -> Result<Self, String> {
+        const MAX_PASSWORD_LENGTH: usize = 1_024;
+        const MAX_PHONE_LENGTH: usize = 64;
+        const MAX_TOTP_LENGTH: usize = 512;
+
+        if self.password.chars().count() > MAX_PASSWORD_LENGTH {
+            return Err("Account password is too long".to_string());
+        }
+        self.phone_number = self.phone_number.trim().to_string();
+        if self.phone_number.chars().count() > MAX_PHONE_LENGTH {
+            return Err("Phone number is too long".to_string());
+        }
+        self.totp_secret = self
+            .totp_secret
+            .to_uppercase()
+            .chars()
+            .filter(|character| {
+                !character.is_whitespace() && *character != '-' && *character != '='
+            })
+            .collect();
+        let valid_totp = self.totp_secret.is_empty()
+            || (self.totp_secret.len() <= MAX_TOTP_LENGTH
+                && self
+                    .totp_secret
+                    .chars()
+                    .all(|character| matches!(character, 'A'..='Z' | '2'..='7')));
+        valid_totp
+            .then_some(self)
+            .ok_or_else(|| "2FA key must be a valid Base32 value".to_string())
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct UpdateAccountDetailsInput {
+    pub(crate) id: String,
+    pub(crate) note: String,
+    pub(crate) expires_at: String,
+    pub(crate) private_details: AccountPrivateDetails,
 }
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
@@ -512,6 +563,8 @@ pub(crate) struct AccountFieldModifiedAt {
     #[serde(default)]
     pub(crate) expires_at: String,
     #[serde(default)]
+    pub(crate) private_details: String,
+    #[serde(default)]
     pub(crate) usage: String,
     #[serde(default)]
     pub(crate) active: String,
@@ -569,6 +622,8 @@ pub(crate) struct CloudAccountPayload {
     pub(crate) email: String,
     pub(crate) note: String,
     pub(crate) expires_at: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) private_details: Option<AccountPrivateDetails>,
     pub(crate) plan: String,
     pub(crate) account_id: Option<String>,
     pub(crate) active: bool,

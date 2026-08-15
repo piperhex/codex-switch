@@ -32,13 +32,15 @@ use crate::{
     },
     skills_market::{SkillMarketItem, SkillMarketResponse, SkillPreview},
     storage::{
-        auto_switch_priority_path, expiration_path, load_auto_switch_priority, load_expiration,
-        load_note, load_official_account_access, load_or_init_account_field_modified_at,
+        account_private_details_path, auto_switch_priority_path, expiration_path,
+        load_account_private_details, load_auto_switch_priority, load_expiration, load_note,
+        load_official_account_access, load_or_init_account_field_modified_at,
         load_or_init_last_modified, load_usage, managed_auth_path, note_path,
         official_account_access_path, parse_last_modified, read_app_settings, read_json,
-        read_state, resolve_paths, save_account_field_modified_at, save_auto_switch_priority,
-        save_expiration, save_note, save_usage, usage_path, write_app_settings, write_json_atomic,
-        write_json_if_changed, write_managed_auth_if_changed, write_state,
+        read_state, resolve_paths, save_account_field_modified_at, save_account_private_details,
+        save_auto_switch_priority, save_expiration, save_note, save_usage, usage_path,
+        write_app_settings, write_json_atomic, write_json_if_changed,
+        write_managed_auth_if_changed, write_state,
     },
 };
 
@@ -661,6 +663,7 @@ fn collect_local_accounts<R: Runtime>(
             .filter(|value| !value.trim().is_empty())
             .unwrap_or(auth_plan);
         let (official, metadata_editable) = load_official_account_access(&paths, &id);
+        let private_details_path = account_private_details_path(&paths, &id);
         accounts.push(CloudAccountPayload {
             active: active_id.as_deref() == Some(&id),
             auto_switch_priority: load_auto_switch_priority(&auto_switch_priority_path(
@@ -669,6 +672,9 @@ fn collect_local_accounts<R: Runtime>(
             usage,
             note: load_note(&note_path(&paths, &id)),
             expires_at: load_expiration(&expiration_path(&paths, &id)),
+            private_details: private_details_path
+                .exists()
+                .then(|| load_account_private_details(&private_details_path)),
             last_modified_at,
             field_modified_at,
             id,
@@ -733,6 +739,7 @@ fn normalize_account_field_modified_at(
         &mut values.auth,
         &mut values.note,
         &mut values.expires_at,
+        &mut values.private_details,
         &mut values.usage,
         &mut values.active,
         &mut values.auto_switch_priority,
@@ -804,6 +811,12 @@ fn apply_remote_account<R: Runtime>(
         &local_field_modified_at.expires_at,
         &remote_field_modified_at.expires_at,
     );
+    let apply_private_details = account.private_details.is_some()
+        && should_apply_remote_field(
+            local_usable,
+            &local_field_modified_at.private_details,
+            &remote_field_modified_at.private_details,
+        );
     let apply_usage = should_apply_remote_field(
         local_usable,
         &local_field_modified_at.usage,
@@ -836,6 +849,16 @@ fn apply_remote_account<R: Runtime>(
         save_expiration(&expiration_path(&paths, &account.id), &account.expires_at)?;
         local_field_modified_at.expires_at = remote_field_modified_at.expires_at.clone();
     }
+    if apply_private_details {
+        if let Some(details) = &account.private_details {
+            let details = details.clone().normalized()?;
+            save_account_private_details(
+                &account_private_details_path(&paths, &account.id),
+                &details,
+            )?;
+        }
+        local_field_modified_at.private_details = remote_field_modified_at.private_details.clone();
+    }
     if apply_usage {
         save_usage(&usage_path(&paths, &account.id), &account.usage)?;
         local_field_modified_at.usage = remote_field_modified_at.usage.clone();
@@ -854,6 +877,7 @@ fn apply_remote_account<R: Runtime>(
     if apply_auth
         || apply_note
         || apply_expires_at
+        || apply_private_details
         || apply_usage
         || apply_active
         || apply_auto_switch_priority
@@ -884,6 +908,7 @@ fn apply_remote_account<R: Runtime>(
         || apply_auth
         || apply_note
         || apply_expires_at
+        || apply_private_details
         || apply_usage
         || apply_active
         || apply_auto_switch_priority)

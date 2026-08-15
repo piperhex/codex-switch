@@ -8,9 +8,25 @@ import {
   IsString,
   MaxLength,
   Max,
+  Matches,
   Min,
   ValidateNested,
 } from 'class-validator';
+
+export class AccountPrivateDetailsDto {
+  @IsString()
+  @MaxLength(1024)
+  password: string = '';
+
+  @IsString()
+  @MaxLength(64)
+  phoneNumber: string = '';
+
+  @IsString()
+  @MaxLength(512)
+  @Matches(/^$|^[A-Z2-7]+$/)
+  totpSecret: string = '';
+}
 
 export class AccountFieldModifiedAtDto {
   @IsOptional()
@@ -42,6 +58,11 @@ export class AccountFieldModifiedAtDto {
   @IsString()
   @MaxLength(40)
   autoSwitchPriority?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  privateDetails?: string;
 }
 
 export class SyncAccountDto {
@@ -59,6 +80,12 @@ export class SyncAccountDto {
   @IsString()
   @MaxLength(40)
   expiresAt: string = '';
+
+  @IsOptional()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => AccountPrivateDetailsDto)
+  privateDetails?: AccountPrivateDetailsDto;
 
   @IsString()
   @MaxLength(80)

@@ -86,7 +86,7 @@ import { SettingsPage } from "../../pages/SettingsPage";
 import { SkillsMarketPage } from "../../pages/SkillsMarketPage";
 import { CodexThreadsPage } from "../../pages/CodexThreadsPage";
 import { formatRefreshTime } from "../../utils/format";
-import type { BubbleResetDisplay, BubbleStyle, Provider } from "../../types";
+import type { AccountDetailsDraft, BubbleResetDisplay, BubbleStyle, Provider } from "../../types";
 
 const LAST_REFRESH_ALL_KEY = "codex-switch:last-refresh-all-at";
 const REPOSITORY_URL = "https://github.com/piperhex/codex-switch";
@@ -404,8 +404,8 @@ export function DashboardApp() {
   const setAccountAutoSwitchEnabled = useCallback((id: string, enabled: boolean) => {
     void manager.setAutoSwitchEnabled(id, enabled);
   }, [manager.setAutoSwitchEnabled]);
-  const saveAccountNote = useCallback((id: string, note: string, expiresAt: string) => (
-    manager.saveAccountNote(id, note, expiresAt)
+  const saveAccountNote = useCallback((id: string, details: AccountDetailsDraft) => (
+    manager.saveAccountNote(id, details)
   ), [manager.saveAccountNote]);
   const switchProvider = useCallback((id: string) => {
     void providerManager.switchProvider(id);

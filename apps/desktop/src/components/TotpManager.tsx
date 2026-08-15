@@ -8,6 +8,7 @@ import { TotpCodeCard } from "./totp/TotpCodeCard";
 import { TotpFormModal } from "./totp/TotpFormModal";
 
 interface TotpManagerProps {
+  boundEntries?: TotpEntry[];
   manager: ReturnType<typeof useTotpEntries>;
   t: Translate;
 }
@@ -35,11 +36,13 @@ function useTotpCodes(entries: TotpEntry[]) {
   return { codes, now };
 }
 
-export function TotpManager({ manager, t }: TotpManagerProps) {
+export function TotpManager({ boundEntries = [], manager, t }: TotpManagerProps) {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<TotpEntry | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const { codes, now } = useTotpCodes(manager.entries);
+  const entries = useMemo(() => [...boundEntries, ...manager.entries], [boundEntries, manager.entries]);
+  const boundEntryIds = useMemo(() => new Set(boundEntries.map((entry) => entry.id)), [boundEntries]);
+  const { codes, now } = useTotpCodes(entries);
 
   const openForm = (entry: TotpEntry | null) => {
     setEditing(entry);
@@ -62,11 +65,13 @@ export function TotpManager({ manager, t }: TotpManagerProps) {
           {t("totp.add")}
         </Button>
       </div>
-      {manager.entries.length ? <div className="totp-code-grid">
-        {manager.entries.map((entry) => <TotpCodeCard key={entry.id} entry={entry}
+      {entries.length ? <div className="totp-code-grid">
+        {entries.map((entry) => <TotpCodeCard key={entry.id} entry={entry}
           code={codes[entry.id] ?? ""} now={now} copied={copiedId === entry.id}
-          onCopy={() => void copyCode(entry)} onDelete={() => manager.deleteEntry(entry.id)}
-          onEdit={() => openForm(entry)} t={t} />)}
+          onCopy={() => void copyCode(entry)}
+          onDelete={boundEntryIds.has(entry.id) ? undefined : () => manager.deleteEntry(entry.id)}
+          onEdit={boundEntryIds.has(entry.id) ? undefined : () => openForm(entry)}
+          badge={boundEntryIds.has(entry.id) ? t("totp.accountBound") : undefined} t={t} />)}
       </div> : <Empty className="totp-empty" description={t("totp.empty")} />}
       <TotpFormModal open={formOpen} entry={editing} t={t}
         onCancel={() => setFormOpen(false)} onSave={(draft) => {

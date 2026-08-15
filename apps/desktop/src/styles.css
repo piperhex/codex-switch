@@ -548,11 +548,40 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .modal > p { margin: 0 0 20px; color: #738078; font-size: 12px; line-height: 1.6; }
 .reset-credits-modal { width: min(720px, 95vw); max-height: 80vh; overflow: auto; }
 .reset-credits-modal .reset-credits-panel, .reset-credits-modal .reset-credits-status { padding: 12px 0 0; border-top: 1px solid #edf1ec; }
-.account-note-modal { width: min(640px, 95vw); }
+.account-note-modal { width: min(680px, 95vw); max-height: 90vh; overflow-y: auto; }
 .account-note-label { display: block; margin-bottom: 7px; color: #435047; font-size: 12px; font-weight: 700; }
 .account-expiration-picker.ant-picker { width: 220px; height: 38px; border-color: #d4ddd5; }
 .account-expiration-hint { display: block; margin: 5px 0 14px; color: #8b978f; font-size: 10px; }
-.account-note-textarea { width: 100%; min-height: 260px; max-height: 52vh; resize: vertical; padding: 12px 14px; border: 1px solid #d4ddd5; border-radius: 10px; outline: none; color: var(--ink); background: white; font: 13px/1.65 "DM Sans", "Microsoft YaHei UI", sans-serif; }
+.account-private-fields {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px 12px;
+  margin-bottom: 14px;
+}
+.account-private-fields .account-note-label { margin: 0; }
+.account-private-hint {
+  grid-column: 2;
+  max-width: 400px;
+  margin-top: -5px;
+  color: #8b978f;
+  font-size: 10px;
+  line-height: 1.5;
+}
+.account-private-hint.error { color: #c3382c; }
+.account-note-textarea {
+  width: 100%;
+  min-height: 130px;
+  max-height: 40vh;
+  resize: vertical;
+  padding: 12px 14px;
+  border: 1px solid #d4ddd5;
+  border-radius: 10px;
+  outline: none;
+  color: var(--ink);
+  background: white;
+  font: 13px/1.65 "DM Sans", "Microsoft YaHei UI", sans-serif;
+}
 .account-note-textarea:hover { border-color: #a8bbaa; }
 .account-note-textarea:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(var(--green-rgb), .12); }
 .account-note-footer { margin-top: 14px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
@@ -834,6 +863,7 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .totp-code-heading strong { color: var(--ink); font-size: 13px; }
 .totp-code-heading span { color: var(--muted); font-size: 11px; }
 .totp-code-actions { display: flex; flex: 0 0 auto; gap: 2px; }
+.totp-code-badge { flex: 0 0 auto; color: var(--green-dark); font-size: 10px; font-weight: 700; }
 .totp-code-button {
   width: 100%;
   margin-top: 13px;

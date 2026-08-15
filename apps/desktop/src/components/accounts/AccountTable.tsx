@@ -29,6 +29,7 @@ import type { Language, Translate } from "../../i18n";
 import type { AccountDisplayMode } from "../../hooks/useAccountDisplayMode";
 import type {
   Account,
+  AccountDetailsDraft,
   AccountTokenUsageTotals,
   ProxySessionLatencySummary,
   ResetCreditsLoadState,
@@ -60,7 +61,7 @@ interface AccountTableProps {
   autoSwitchPriorityBusyAccountId: string | null;
   autoSwitchOnQuotaExhaustion: boolean;
   customAutoSwitchPriorityEnabled: boolean;
-  onSaveNote: (id: string, note: string, expiresAt: string) => Promise<boolean>;
+  onSaveNote: (id: string, details: AccountDetailsDraft) => Promise<boolean>;
   resetCredits: Record<string, ResetCreditsLoadState>;
   onLoadResetCredits: (id: string, force?: boolean) => void;
   onUseResetCredit: (id: string) => void;
@@ -1198,7 +1199,7 @@ export function AccountTable({
     </div>
     {editingAccount && <AccountNoteModal key={editingAccount.id} account={editingAccount}
       onClose={() => setEditingAccount(null)}
-      onSave={(note, expiresAt) => onSaveNote(editingAccount.id, note, expiresAt)} t={t} />}
+      onSave={(details) => onSaveNote(editingAccount.id, details)} t={t} />}
     {resetCreditsAccount && <ResetCreditsModal state={resetCredits[resetCreditsAccount.id]} onClose={() => setResetCreditsAccount(null)}
       onRetry={() => onLoadResetCredits(resetCreditsAccount.id, true)} language={language} t={t} />}
   </>;
@@ -1424,6 +1425,6 @@ export function AccountTable({
     {tableContextMenu}
     {editingAccount && <AccountNoteModal key={editingAccount.id} account={editingAccount}
       onClose={() => setEditingAccount(null)}
-      onSave={(note, expiresAt) => onSaveNote(editingAccount.id, note, expiresAt)} t={t} />}
+      onSave={(details) => onSaveNote(editingAccount.id, details)} t={t} />}
   </>;
 }

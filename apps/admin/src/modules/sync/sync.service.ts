@@ -68,7 +68,7 @@ type StoredResetCreditAccount =
   | { source: 'personal'; account: SyncedAccountEntity }
   | { source: 'system'; account: SystemAccountEntity };
 
-export type AdminSyncAccountDto = SyncAccountDto & {
+export type AdminSyncAccountDto = Omit<SyncAccountDto, 'privateDetails'> & {
   source: 'personal' | 'system';
   systemAccountId?: string;
   inSystemPool?: boolean;
@@ -102,6 +102,7 @@ type AccountFieldModifiedAt = {
   auth: string;
   note: string;
   expiresAt: string;
+  privateDetails: string;
   usage: string;
   active: string;
   autoSwitchPriority: string;
@@ -257,6 +258,7 @@ export class SyncService {
         canEditOfficialMetadata,
         false,
       );
+      await this.upsertBoundAccountPrivateDetails(ownerId, account);
     }
     await this.dataSource.transaction(async (manager) => {
       const repo = manager.getRepository(SyncedAccountEntity);
@@ -294,6 +296,8 @@ export class SyncService {
         canEditOfficialMetadata,
         true,
       );
+      await this.upsertBoundAccountPrivateDetails(ownerId, account);
+      await this.redis.del(this.cacheKey(ownerId));
       await this.updateDeviceActiveAccount(ownerId, deviceId, [account]);
       return { id: accountId };
     }
@@ -385,7 +389,7 @@ export class SyncService {
   async listSummary(ownerId: string) {
     return {
       accounts: (await this.loadEffectiveAccountState(ownerId)).accounts.map((row) => {
-        const { auth, ...account } = row;
+        const { auth, privateDetails: _privateDetails, ...account } = row;
         const tokens = this.objectValue(auth.tokens);
         const codexAccessToken = this.stringValue(tokens?.access_token);
         return {
@@ -399,7 +403,7 @@ export class SyncService {
   async listWebSummary(ownerId: string) {
     return {
       accounts: (await this.loadEffectiveAccountState(ownerId)).accounts.map((row) => {
-        const { auth: _auth, ...account } = row;
+        const { auth: _auth, privateDetails: _privateDetails, ...account } = row;
         return account;
       }),
     };
@@ -479,8 +483,9 @@ export class SyncService {
     const effective = new Map<string, AdminSyncAccountDto>();
     for (const row of personalRows) {
       const account = this.toDto(row);
+      const { privateDetails: _privateDetails, ...safeAccount } = account;
       effective.set(account.id, {
-        ...account,
+        ...safeAccount,
         source: 'personal',
         inSystemPool: pooledSyncAccountIds.has(account.id),
       });
@@ -977,6 +982,7 @@ export class SyncService {
           email: incoming.email,
           note: incoming.note ?? '',
           expiresAt: incoming.expiresAt ?? '',
+          privateDetails: incoming.privateDetails ?? {},
           plan: incoming.plan,
           codexAccountId: incoming.accountId ?? null,
           active: incoming.active,
@@ -1005,6 +1011,7 @@ export class SyncService {
       email: existing.email,
       note: existing.note,
       expiresAt: existing.expiresAt,
+      privateDetails: existing.privateDetails ?? {},
       plan: existing.plan,
       codexAccountId: existing.codexAccountId ?? null,
       active: existing.active,
@@ -1038,6 +1045,15 @@ export class SyncService {
       && this.isIncomingFieldNewer(existingFieldModifiedAt.expiresAt, incomingFieldModifiedAt.expiresAt)) {
       account.expiresAt = incoming.expiresAt ?? '';
       account.fieldModifiedAt!.expiresAt = incomingFieldModifiedAt.expiresAt;
+      changed = true;
+    }
+    if (incoming.privateDetails !== undefined
+      && this.isIncomingFieldNewer(
+        existingFieldModifiedAt.privateDetails,
+        incomingFieldModifiedAt.privateDetails,
+      )) {
+      account.privateDetails = incoming.privateDetails;
+      account.fieldModifiedAt!.privateDetails = incomingFieldModifiedAt.privateDetails;
       changed = true;
     }
     if (this.isIncomingFieldNewer(existingFieldModifiedAt.usage, incomingFieldModifiedAt.usage)) {
@@ -1077,6 +1093,9 @@ export class SyncService {
       auth: this.formatLastModifiedAt(this.parseLastModifiedAt(value?.auth ?? defaultValue)),
       note: this.formatLastModifiedAt(this.parseLastModifiedAt(value?.note ?? defaultValue)),
       expiresAt: this.formatLastModifiedAt(this.parseLastModifiedAt(value?.expiresAt ?? defaultValue)),
+      privateDetails: this.formatLastModifiedAt(
+        this.parseLastModifiedAt(value?.privateDetails ?? defaultValue),
+      ),
       usage: this.formatLastModifiedAt(this.parseLastModifiedAt(value?.usage ?? defaultValue)),
       active: this.formatLastModifiedAt(this.parseLastModifiedAt(value?.active ?? defaultValue)),
       autoSwitchPriority: this.formatLastModifiedAt(
@@ -1094,6 +1113,7 @@ export class SyncService {
       this.parseLastModifiedAt(values.auth).getTime(),
       this.parseLastModifiedAt(values.note).getTime(),
       this.parseLastModifiedAt(values.expiresAt).getTime(),
+      this.parseLastModifiedAt(values.privateDetails).getTime(),
       this.parseLastModifiedAt(values.usage).getTime(),
       this.parseLastModifiedAt(values.active).getTime(),
       this.parseLastModifiedAt(values.autoSwitchPriority).getTime(),
@@ -1101,11 +1121,18 @@ export class SyncService {
   }
 
   private toDto(row: SyncedAccountEntity): SyncAccountDto {
+    const privateDetails = {
+      password: this.stringValue(row.privateDetails?.password) ?? '',
+      phoneNumber: this.stringValue(row.privateDetails?.phoneNumber) ?? '',
+      totpSecret: this.stringValue(row.privateDetails?.totpSecret) ?? '',
+    };
+    const hasPrivateDetails = Object.values(privateDetails).some((value) => value.length > 0);
     return {
       id: row.accountId,
       email: row.email,
       note: row.note,
       expiresAt: row.expiresAt,
+      ...(hasPrivateDetails ? { privateDetails } : {}),
       plan: row.plan,
       accountId: row.codexAccountId,
       active: row.active,
@@ -1324,8 +1351,12 @@ export class SyncService {
         metadataEditable: true,
       }] as const;
     }));
+    const personalByAccountId = new Map(personalRows.map((row) => [row.accountId, row]));
     for (const binding of bindings) {
-      const account = this.systemAccountToSyncDto(binding.account);
+      const account = this.withPersonalPrivateDetails(
+        this.systemAccountToSyncDto(binding.account),
+        personalByAccountId.get(binding.account.syncAccountId),
+      );
       effective.set(account.id, {
         ...account,
         official: true,
@@ -1402,6 +1433,30 @@ export class SyncService {
       usage: account.usage,
       lastModifiedAt: this.formatLastModifiedAt(account.lastModifiedAt ?? account.updatedAt),
       auth: account.auth,
+    };
+  }
+
+  private withPersonalPrivateDetails(
+    account: SyncAccountDto,
+    personal: SyncedAccountEntity | undefined,
+  ): SyncAccountDto {
+    if (!personal) return account;
+    const personalDto = this.toDto(personal);
+    if (!personalDto.privateDetails) return account;
+    const accountVersions = this.normalizeAccountFieldModifiedAt(
+      account.fieldModifiedAt,
+      account.lastModifiedAt,
+    );
+    const personalVersions = this.normalizeAccountFieldModifiedAt(
+      personalDto.fieldModifiedAt,
+      personalDto.lastModifiedAt,
+    );
+    accountVersions.privateDetails = personalVersions.privateDetails;
+    return {
+      ...account,
+      privateDetails: personalDto.privateDetails,
+      fieldModifiedAt: accountVersions,
+      lastModifiedAt: this.latestAccountFieldModifiedAt(accountVersions).toISOString(),
     };
   }
 
@@ -1821,6 +1876,34 @@ export class SyncService {
       expiresAt: incoming.expiresAt,
     });
     return true;
+  }
+
+  private async upsertBoundAccountPrivateDetails(ownerId: string, incoming: SyncAccountDto) {
+    if (!incoming.privateDetails) return;
+    const incomingVersions = this.normalizeAccountFieldModifiedAt(
+      incoming.fieldModifiedAt,
+      incoming.lastModifiedAt,
+    );
+    const existing = await this.accounts.findOne({ where: { ownerId, accountId: incoming.id } });
+    if (!existing) {
+      const merged = this.mergeIncomingAccount(null, ownerId, incoming);
+      if (merged) await this.accounts.save(this.accounts.create(merged.account));
+      return;
+    }
+    const existingVersions = this.normalizeAccountFieldModifiedAt(
+      existing.fieldModifiedAt,
+      this.formatLastModifiedAt(existing.lastModifiedAt ?? existing.updatedAt),
+    );
+    if (!this.isIncomingFieldNewer(
+      existingVersions.privateDetails,
+      incomingVersions.privateDetails,
+    )) return;
+    existing.privateDetails = incoming.privateDetails;
+    existingVersions.privateDetails = incomingVersions.privateDetails;
+    existing.fieldModifiedAt = existingVersions;
+    existing.lastModifiedAt = this.latestAccountFieldModifiedAt(existingVersions);
+    existing.deletedAt = null;
+    await this.accounts.save(existing);
   }
 
   private usageWindow(value: unknown): UsageWindowDto | null {

@@ -21,7 +21,7 @@ import {
   updateAccountNote,
 } from "../api/backend";
 import type { Translate } from "../i18n";
-import type { Account, AppInfo } from "../types";
+import type { Account, AccountDetailsDraft, AppInfo } from "../types";
 
 interface RefreshAllOptions {
   quiet?: boolean;
@@ -395,10 +395,10 @@ export function useAccountManager(
     [setAutoSwitchAccounts],
   );
 
-  const saveAccountNote = useCallback(async (id: string, note: string, expiresAt: string) => {
+  const saveAccountNote = useCallback(async (id: string, details: AccountDetailsDraft) => {
     try {
-      await updateAccountNote(id, note, expiresAt);
-      setAccounts((items) => items.map((item) => item.id === id ? { ...item, note, expiresAt } : item));
+      await updateAccountNote(id, details);
+      setAccounts((items) => items.map((item) => item.id === id ? { ...item, ...details } : item));
       notify(t("toast.accountDetailsSaved"));
       await cloudSync?.pushAccount?.(id);
       return true;

@@ -11,7 +11,8 @@ use tauri::{Manager, Runtime};
 use crate::{
     auth::{account_fields, canonicalize_chatgpt_auth, validate_auth},
     models::{
-        AccountFieldModifiedAt, AppSettings, ManagerStateFile, UsageSummary, DEFAULT_CLOUD_BASE_URL,
+        AccountFieldModifiedAt, AccountPrivateDetails, AppSettings, ManagerStateFile, UsageSummary,
+        DEFAULT_CLOUD_BASE_URL,
     },
 };
 
@@ -20,6 +21,7 @@ pub(crate) enum AccountSyncField {
     Auth,
     Note,
     ExpiresAt,
+    PrivateDetails,
     Usage,
     Active,
     AutoSwitchPriority,
@@ -37,6 +39,7 @@ pub(crate) struct Paths {
 }
 
 static TEMP_FILE_COUNTER: AtomicU64 = AtomicU64::new(1);
+const UNMODIFIED_FIELD_AT: &str = "1970-01-01T00:00:00Z";
 
 fn atomic_temp_path(path: &Path) -> PathBuf {
     path.with_extension(format!(
@@ -177,6 +180,10 @@ pub(crate) fn expiration_path(paths: &Paths, id: &str) -> PathBuf {
     account_dir(paths, id).join("expires-at.txt")
 }
 
+pub(crate) fn account_private_details_path(paths: &Paths, id: &str) -> PathBuf {
+    account_dir(paths, id).join("private-details.json")
+}
+
 pub(crate) fn official_account_access_path(paths: &Paths, id: &str) -> PathBuf {
     account_dir(paths, id).join("official-account-access.json")
 }
@@ -216,6 +223,13 @@ pub(crate) fn load_expiration(path: &Path) -> String {
     fs::read_to_string(path).unwrap_or_default()
 }
 
+pub(crate) fn load_account_private_details(path: &Path) -> AccountPrivateDetails {
+    fs::read(path)
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .unwrap_or_default()
+}
+
 pub(crate) fn load_auto_switch_priority(path: &Path) -> i32 {
     fs::read_to_string(path)
         .ok()
@@ -246,6 +260,14 @@ pub(crate) fn save_note(path: &Path, note: &str) -> Result<(), String> {
 
 pub(crate) fn save_expiration(path: &Path, expires_at: &str) -> Result<(), String> {
     save_note(path, expires_at)
+}
+
+pub(crate) fn save_account_private_details(
+    path: &Path,
+    details: &AccountPrivateDetails,
+) -> Result<(), String> {
+    let value = serde_json::to_value(details).map_err(|error| error.to_string())?;
+    write_json_atomic(path, &value)
 }
 
 pub(crate) fn save_auto_switch_priority(path: &Path, priority: i32) -> Result<(), String> {
@@ -279,6 +301,7 @@ fn latest_file_modified(paths: &Paths, id: &str) -> Option<DateTime<Utc>> {
         managed_auth_path(paths, id),
         note_path(paths, id),
         expiration_path(paths, id),
+        account_private_details_path(paths, id),
         usage_path(paths, id),
         auto_switch_priority_path(paths, id),
     ]
@@ -323,6 +346,10 @@ fn fill_missing_field_modified_at(
     if values.expires_at.trim().is_empty() {
         values.expires_at = file_modified_or_fallback(expiration_path(paths, id), fallback);
     }
+    if values.private_details.trim().is_empty() {
+        values.private_details =
+            file_modified_or_fallback(account_private_details_path(paths, id), UNMODIFIED_FIELD_AT);
+    }
     if values.usage.trim().is_empty() {
         values.usage = file_modified_or_fallback(usage_path(paths, id), fallback);
     }
@@ -364,6 +391,7 @@ pub(crate) fn save_account_field_modified_at(
         &values.auth,
         &values.note,
         &values.expires_at,
+        &values.private_details,
         &values.usage,
         &values.active,
         &values.auto_switch_priority,
@@ -389,6 +417,7 @@ pub(crate) fn touch_account_field(
         AccountSyncField::Auth => values.auth = value,
         AccountSyncField::Note => values.note = value,
         AccountSyncField::ExpiresAt => values.expires_at = value,
+        AccountSyncField::PrivateDetails => values.private_details = value,
         AccountSyncField::Usage => values.usage = value,
         AccountSyncField::Active => values.active = value,
         AccountSyncField::AutoSwitchPriority => values.auto_switch_priority = value,

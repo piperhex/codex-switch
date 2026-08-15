@@ -19,6 +19,7 @@ export interface Account {
   email: string;
   note: string;
   expiresAt: string;
+  privateDetails: AccountPrivateDetails;
   plan: string;
   accountId?: string | null;
   active: boolean;
@@ -30,6 +31,18 @@ export interface Account {
   official: boolean;
   metadataEditable: boolean;
   usage: UsageSummary;
+}
+
+export interface AccountPrivateDetails {
+  password: string;
+  phoneNumber: string;
+  totpSecret: string;
+}
+
+export interface AccountDetailsDraft {
+  note: string;
+  expiresAt: string;
+  privateDetails: AccountPrivateDetails;
 }
 
 export interface ResetCredit {

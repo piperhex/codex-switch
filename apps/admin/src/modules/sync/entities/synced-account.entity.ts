@@ -10,6 +10,12 @@ import {
 } from 'typeorm';
 import { UserEntity } from '@/modules/user/entities/user.entity';
 
+export interface StoredAccountPrivateDetails {
+  password?: string;
+  phoneNumber?: string;
+  totpSecret?: string;
+}
+
 @Entity({ name: 'synced_accounts' })
 @Index(['ownerId', 'accountId'], { unique: true })
 export class SyncedAccountEntity {
@@ -33,6 +39,9 @@ export class SyncedAccountEntity {
 
   @Column({ type: 'varchar', length: 40, default: '' })
   expiresAt: string;
+
+  @Column({ type: 'jsonb', default: {} })
+  privateDetails: StoredAccountPrivateDetails;
 
   @Column({ type: 'varchar', length: 80, default: 'ChatGPT' })
   plan: string;
