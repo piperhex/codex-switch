@@ -682,6 +682,90 @@ describe('SyncService', () => {
     expect(redis.get).not.toHaveBeenCalled();
   });
 
+  it('adds a personal account from mobile OAuth without returning refresh credentials', async () => {
+    const idToken = [
+      Buffer.from(JSON.stringify({ alg: 'none' })).toString('base64url'),
+      Buffer.from(JSON.stringify({
+        sub: 'chatgpt-user-1',
+        email: 'mobile@example.com',
+        'https://api.openai.com/auth': {
+          chatgpt_account_id: 'workspace-1',
+          chatgpt_plan_type: 'plus',
+        },
+      })).toString('base64url'),
+      'signature',
+    ].join('.');
+    accounts.find.mockResolvedValueOnce([]);
+    transactionRepository.findOne.mockResolvedValue(null);
+    transactionRepository.save.mockImplementation(async (value) => {
+      accounts.find.mockResolvedValue([value]);
+      return value;
+    });
+
+    const result = await service.upsertPersonalAccountFromAuth('owner-1', {
+      auth_mode: 'chatgpt',
+      tokens: {
+        id_token: idToken,
+        access_token: 'mobile-access-token',
+        refresh_token: 'must-not-leave-the-server',
+        account_id: 'workspace-1',
+      },
+    });
+
+    expect(result).toEqual(expect.objectContaining({
+      email: 'mobile@example.com',
+      plan: 'plus',
+      accountId: 'workspace-1',
+      codexAccessToken: 'mobile-access-token',
+    }));
+    expect(result).not.toHaveProperty('auth');
+    expect(JSON.stringify(result)).not.toContain('must-not-leave-the-server');
+    expect(transactionRepository.save).toHaveBeenCalledWith(expect.objectContaining({
+      ownerId: 'owner-1',
+      email: 'mobile@example.com',
+      auth: expect.objectContaining({
+        tokens: expect.objectContaining({ refresh_token: 'must-not-leave-the-server' }),
+      }),
+    }));
+  });
+
+  it('updates the same account details shown by desktop and mobile', async () => {
+    const original = {
+      ownerId: 'owner-1', accountId: 'account-1', email: 'a@example.com', note: 'old note',
+      expiresAt: '', plan: 'Plus', codexAccountId: 'workspace-1', active: false,
+      autoSwitchPriority: 0, usage: {}, privateDetails: {},
+      auth: { tokens: { access_token: 'mobile-access-token' } },
+      lastModifiedAt: new Date('2026-07-05T00:00:00.000Z'), fieldModifiedAt: {},
+    };
+    const updated = {
+      ...original,
+      note: 'new note',
+      expiresAt: '2026-12-31',
+      privateDetails: {
+        password: 'account-password',
+        phoneNumber: '+65 6123 4567',
+        totpSecret: 'JBSWY3DPEHPK3PXP',
+      },
+    };
+    accounts.find.mockResolvedValueOnce([original]).mockResolvedValueOnce([updated]);
+    transactionRepository.findOne.mockResolvedValue(original);
+
+    await expect(service.updateAccountDetails('owner-1', 'account-1', {
+      note: updated.note,
+      expiresAt: updated.expiresAt,
+      privateDetails: updated.privateDetails,
+    })).resolves.toEqual(expect.objectContaining({
+      note: updated.note,
+      expiresAt: updated.expiresAt,
+      privateDetails: updated.privateDetails,
+    }));
+    expect(transactionRepository.save).toHaveBeenCalledWith(expect.objectContaining({
+      note: updated.note,
+      expiresAt: updated.expiresAt,
+      privateDetails: updated.privateDetails,
+    }));
+  });
+
   it('requires metadata permission before updating an assigned official account', async () => {
     const binding = {
       systemAccountId: '10000000-0000-4000-8000-000000000001',

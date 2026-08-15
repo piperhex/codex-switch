@@ -14,7 +14,10 @@ import {
   fetchAccountSummary,
   fetchAccountUsage,
   fetchResetCredits,
+  pollAccountOAuth,
+  startAccountOAuth,
   syncTotpVault,
+  updateAccountDetails,
 } from './client';
 
 const session: AuthSession = {
@@ -228,5 +231,45 @@ describe('mobile Codex API client', () => {
     const request = apiFetch.mock.calls[0]?.[1] as RequestInit;
     expect(request.method).toBe('PUT');
     expect(JSON.parse(request.body as string)).toEqual(vault);
+  });
+
+  it('starts mobile OAuth, polls it, and updates editable account details', async () => {
+    const oauth = {
+      sessionId: 'oauth-session',
+      verificationUrl: 'https://auth.openai.com/codex/device',
+      userCode: 'ABCD-EFGH',
+      interval: 2,
+      expiresIn: 900,
+    };
+    const details = {
+      note: 'Mobile note',
+      expiresAt: '2026-12-31',
+      privateDetails: {
+        password: 'account-password',
+        phoneNumber: '+65 6123 4567',
+        totpSecret: 'JBSWY3DPEHPK3PXP',
+      },
+    };
+    const apiFetch = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(oauth), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ status: 'pending' }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(account(details)), { status: 200 }));
+    vi.stubGlobal('fetch', apiFetch);
+
+    await expect(startAccountOAuth(session)).resolves.toEqual(oauth);
+    await expect(pollAccountOAuth(session, 'oauth/session')).resolves.toEqual({ status: 'pending' });
+    await expect(updateAccountDetails(session, 'account/1', details))
+      .resolves.toEqual(expect.objectContaining(details));
+
+    expect(apiFetch.mock.calls[0]?.[0]).toBe(
+      'https://switch.example.com/sync/accounts/oauth/start',
+    );
+    expect(apiFetch.mock.calls[1]?.[0]).toBe(
+      'https://switch.example.com/sync/accounts/oauth/oauth%2Fsession/poll',
+    );
+    expect(apiFetch.mock.calls[2]?.[0]).toBe(
+      'https://switch.example.com/sync/accounts/account%2F1/details',
+    );
+    expect(JSON.parse((apiFetch.mock.calls[2]?.[1] as RequestInit).body as string)).toEqual(details);
   });
 });

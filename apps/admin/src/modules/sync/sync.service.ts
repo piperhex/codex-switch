@@ -15,7 +15,11 @@ import type { SelectQueryBuilder } from 'typeorm';
 import { MODULE_OPTIONS_TOKEN } from '@/config/configurable';
 import type { ConfigModuleOptions } from '@/config/config.types';
 import { REDIS_CLIENT } from '@/modules/redis/redis.constants';
-import { PutSyncAccountsDto, SyncAccountDto } from './dto/sync-accounts.dto';
+import {
+  PutSyncAccountsDto,
+  SyncAccountDto,
+  type UpdateAccountDetailsDto,
+} from './dto/sync-accounts.dto';
 import { PutSyncProvidersDto, SyncProviderDto } from './dto/sync-providers.dto';
 import { PutSyncTotpVaultDto } from './dto/sync-totp.dto';
 import { SyncedAccountEntity } from './entities/synced-account.entity';
@@ -96,6 +100,10 @@ export interface DeletedSyncProviderDto {
 type EffectiveSyncAccountDto = SyncAccountDto & {
   official: boolean;
   metadataEditable: boolean;
+};
+
+export type MobileSyncAccountDto = Omit<EffectiveSyncAccountDto, 'auth'> & {
+  codexAccessToken?: string;
 };
 
 type AccountFieldModifiedAt = {
@@ -386,18 +394,75 @@ export class SyncService {
     return payload;
   }
 
-  async listSummary(ownerId: string) {
+  async listSummary(ownerId: string, canEditOfficialMetadata = false) {
+    const effective = this.withOfficialMetadataAccess(
+      await this.loadEffectiveAccountState(ownerId),
+      canEditOfficialMetadata,
+    );
     return {
-      accounts: (await this.loadEffectiveAccountState(ownerId)).accounts.map((row) => {
-        const { auth, ...account } = row;
-        const tokens = this.objectValue(auth.tokens);
-        const codexAccessToken = this.stringValue(tokens?.access_token);
-        return {
-          ...account,
-          ...(codexAccessToken ? { codexAccessToken } : {}),
-        };
-      }),
+      accounts: effective.accounts
+        .map((account) => this.mobileAccountSummary(account)),
     };
+  }
+
+  async upsertPersonalAccountFromAuth(
+    ownerId: string,
+    rawAuth: Record<string, unknown>,
+  ): Promise<MobileSyncAccountDto> {
+    const auth = this.normalizeSystemAccountAuth(rawAuth);
+    const identity = this.systemAccountIdentity(auth);
+    const effective = (await this.loadEffectiveAccountState(ownerId)).accounts
+      .find((account) => account.id === identity.syncAccountId);
+    const modifiedAt = this.formatLastModifiedAt(new Date());
+    const fieldModifiedAt = this.normalizeAccountFieldModifiedAt(
+      effective?.fieldModifiedAt,
+      effective?.lastModifiedAt ?? modifiedAt,
+    );
+    fieldModifiedAt.auth = modifiedAt;
+    await this.upsert(ownerId, identity.syncAccountId, {
+      id: identity.syncAccountId,
+      email: identity.email,
+      note: effective?.note ?? '',
+      expiresAt: effective?.expiresAt ?? '',
+      privateDetails: effective?.privateDetails,
+      plan: identity.plan,
+      accountId: identity.codexAccountId,
+      active: effective?.active ?? false,
+      autoSwitchPriority: effective?.autoSwitchPriority ?? 0,
+      usage: effective?.usage ?? {},
+      auth,
+      fieldModifiedAt,
+      lastModifiedAt: modifiedAt,
+    });
+    return this.mobileAccountById(ownerId, identity.syncAccountId);
+  }
+
+  async updateAccountDetails(
+    ownerId: string,
+    accountId: string,
+    details: UpdateAccountDetailsDto,
+    canEditOfficialMetadata = false,
+  ): Promise<MobileSyncAccountDto> {
+    const account = (await this.loadEffectiveAccountState(ownerId)).accounts
+      .find((candidate) => candidate.id === accountId);
+    if (!account) throw new NotFoundException('Synced account not found');
+    const modifiedAt = this.formatLastModifiedAt(new Date());
+    const fieldModifiedAt = this.normalizeAccountFieldModifiedAt(
+      account.fieldModifiedAt,
+      account.lastModifiedAt,
+    );
+    fieldModifiedAt.note = modifiedAt;
+    fieldModifiedAt.expiresAt = modifiedAt;
+    fieldModifiedAt.privateDetails = modifiedAt;
+    await this.upsert(ownerId, accountId, {
+      ...account,
+      note: details.note,
+      expiresAt: details.expiresAt,
+      privateDetails: details.privateDetails,
+      fieldModifiedAt,
+      lastModifiedAt: modifiedAt,
+    }, undefined, canEditOfficialMetadata);
+    return this.mobileAccountById(ownerId, accountId);
   }
 
   async listWebSummary(ownerId: string) {
@@ -1434,6 +1499,23 @@ export class SyncService {
       lastModifiedAt: this.formatLastModifiedAt(account.lastModifiedAt ?? account.updatedAt),
       auth: account.auth,
     };
+  }
+
+  private mobileAccountSummary(account: EffectiveSyncAccountDto): MobileSyncAccountDto {
+    const { auth, ...summary } = account;
+    const tokens = this.objectValue(auth.tokens);
+    const codexAccessToken = this.stringValue(tokens?.access_token);
+    return {
+      ...summary,
+      ...(codexAccessToken ? { codexAccessToken } : {}),
+    };
+  }
+
+  private async mobileAccountById(ownerId: string, accountId: string) {
+    const account = (await this.loadEffectiveAccountState(ownerId)).accounts
+      .find((candidate) => candidate.id === accountId);
+    if (!account) throw new NotFoundException('Synced account not found');
+    return this.mobileAccountSummary(account);
   }
 
   private withPersonalPrivateDetails(

@@ -52,6 +52,7 @@ import { reportMobileInstallation } from './src/telemetry';
 import { earliestExpirationDate } from './src/utils/expiration';
 import { AdminArea } from './src/admin/AdminArea';
 import { AccountPrivateDetailsSheet } from './src/components/AccountPrivateDetailsSheet';
+import { AddAccountSheet } from './src/components/AddAccountSheet';
 import { AppToastHost, Toast } from './src/components/AppToast';
 import { BottomSheet } from './src/components/BottomSheet';
 import { TotpPage } from './src/totp/TotpPage';
@@ -337,6 +338,7 @@ function AccountCard({ account, privateMode, switchBusy, switching, onOpenDetail
 }
 
 function Dashboard({
+  session,
   accounts,
   devices,
   loading,
@@ -346,7 +348,9 @@ function Dashboard({
   onRefresh,
   onRefreshAccount,
   onSwitch,
+  onAccountUpdated,
 }: {
+  session: AuthSession;
   accounts: AccountSummary[];
   devices: RemoteDevice[];
   loading: boolean;
@@ -356,11 +360,13 @@ function Dashboard({
   onRefresh: () => Promise<void>;
   onRefreshAccount: (accountId: string) => Promise<void>;
   onSwitch: (deviceId: string, accountId: string) => Promise<void>;
+  onAccountUpdated: (account: AccountSummary) => void;
 }) {
   const [privateMode, setPrivateMode] = useState(true);
   const [detailAccountId, setDetailAccountId] = useState<string | null>(null);
   const [resetCreditsAccount, setResetCreditsAccount] = useState<AccountSummary | null>(null);
   const [privateDetailsAccountId, setPrivateDetailsAccountId] = useState<string | null>(null);
+  const [addAccountOpen, setAddAccountOpen] = useState(false);
   const [switchAccount, setSwitchAccount] = useState<AccountSummary | null>(null);
   const detailAccount = accounts.find((account) => account.id === detailAccountId) ?? null;
   const privateDetailsAccount = accounts.find((account) => account.id === privateDetailsAccountId) ?? null;
@@ -372,12 +378,21 @@ function Dashboard({
     <ScrollView style={styles.flex} contentContainerStyle={styles.dashboardScroll}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor={COLORS.green} />}>
       <View style={styles.header}>
-        <View><Text style={styles.brand}>Codex <Text style={styles.brandStrong}>Switch</Text></Text><Text style={styles.headerCaption}>仓库地址：https://github.com/piperhex/codex-switch</Text></View>
+        <View style={styles.headerTitle}>
+          <Text style={styles.brand}>Codex <Text style={styles.brandStrong}>Switch</Text></Text>
+          <Text style={styles.headerCaption} numberOfLines={1}>
+            仓库地址：https://github.com/piperhex/codex-switch
+          </Text>
+        </View>
+        <Pressable accessibilityRole="button" onPress={() => setAddAccountOpen(true)}
+          style={({ pressed }) => [styles.addAccountButton, pressed && styles.pressed]}>
+          <Text style={styles.addAccountButtonText}>＋ 添加账户</Text>
+        </Pressable>
       </View>
       <View style={styles.overviewCard}>
         <View>
           <Text style={styles.overviewEyebrow}>账户管理</Text>
-          <Text style={styles.overviewTitle}>{accounts.length} 个官方账号</Text>
+          <Text style={styles.overviewTitle}>{accounts.length} 个账号</Text>
           <Text style={styles.overviewMeta}>{devices.length
             ? `${devices.length} 台 PC 设备 · ${devices.filter((device) => device.online).length} 台在线`
             : '请先登录一台 PC 设备'}</Text>
@@ -397,7 +412,10 @@ function Dashboard({
         </View>
       </View>
       {loading ? <View style={styles.loadingBox}><ActivityIndicator size="large" color={COLORS.green} /><Text style={styles.loadingText}>正在读取账户概览…</Text></View> : null}
-      {!loading && accounts.length === 0 ? <View style={styles.emptyBox}><Text style={styles.emptyTitle}>还没有可展示的账号</Text><Text style={styles.emptyText}>请先在桌面端登录并同步账户，然后下拉刷新此页面。</Text></View> : null}
+      {!loading && accounts.length === 0 ? <View style={styles.emptyBox}>
+        <Text style={styles.emptyTitle}>还没有可展示的账号</Text>
+        <Text style={styles.emptyText}>点击“添加账户”，使用 ChatGPT 完成授权后即可查看账号。</Text>
+      </View> : null}
       {!loading && accounts.map((account) => <AccountCard key={account.id} account={account}
         privateMode={privateMode}
         switchBusy={Boolean(switchingAccountId)}
@@ -431,8 +449,10 @@ function Dashboard({
       onClose={() => setResetCreditsAccount(null)}
       onConsumed={onRefresh}
     />
-    <AccountPrivateDetailsSheet account={privateDetailsAccount}
-      onClose={() => setPrivateDetailsAccountId(null)} />
+    <AccountPrivateDetailsSheet account={privateDetailsAccount} session={session}
+      onClose={() => setPrivateDetailsAccountId(null)} onUpdated={onAccountUpdated} />
+    <AddAccountSheet session={session} visible={addAccountOpen}
+      onClose={() => setAddAccountOpen(false)} onAdded={onRefresh} />
   </>;
 }
 
@@ -1342,7 +1362,7 @@ function AccountDetailsDrawer({
       >
         <View>
           <Text style={styles.openNoteTitle}>账号资料</Text>
-          <Text style={styles.openNoteHint}>查看备注、手机号、密码和 2FA</Text>
+          <Text style={styles.openNoteHint}>编辑截止日期、备注、手机号、密码和 2FA</Text>
         </View>
         <Text style={styles.openNoteArrow}>›</Text>
       </Pressable>
@@ -1950,9 +1970,12 @@ function AppContent() {
   return <SafeAreaView style={styles.app}>
     <StatusBar style="dark" />
     {activePage === 'accounts'
-      ? <Dashboard accounts={accounts} devices={devices} loading={loading} refreshing={refreshing}
+      ? <Dashboard session={session} accounts={accounts} devices={devices} loading={loading} refreshing={refreshing}
         refreshingAccountId={refreshingAccountId} switchingAccountId={switchingAccountId}
-        onRefresh={refreshAll} onRefreshAccount={refreshAccount} onSwitch={handleRemoteSwitch} />
+        onRefresh={refreshAll} onRefreshAccount={refreshAccount} onSwitch={handleRemoteSwitch}
+        onAccountUpdated={(updated) => setAccounts((current) => current.map((account) => (
+          account.id === updated.id ? { ...account, ...updated } : account
+        )))} />
       : activePage === 'devices'
         ? <DeviceManagementPage accounts={accounts} devices={devices} refreshing={refreshing}
           deletingDeviceId={deletingDeviceId} switchingOpenAiAuth={switchingOpenAiAuth}
@@ -1988,6 +2011,15 @@ const styles = StyleSheet.create({
   flex: { flex: 1 }, app: { flex: 1, backgroundColor: COLORS.canvas }, boot: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.canvas, gap: 12 }, bootText: { color: COLORS.ink, fontSize: 18, fontWeight: '700' }, startupError: { flex: 1, padding: 28, justifyContent: 'center', backgroundColor: COLORS.canvas }, startupErrorTitle: { color: COLORS.ink, fontSize: 22, fontWeight: '800' }, startupErrorMessage: { color: COLORS.muted, fontSize: 15, lineHeight: 22, marginTop: 12 }, startupErrorDetail: { color: COLORS.danger, fontSize: 12, marginTop: 20 },
   loginScroll: { flexGrow: 1, backgroundColor: COLORS.canvas, padding: 28, justifyContent: 'center' }, logoMark: { width: 58, height: 58, borderRadius: 18, backgroundColor: '#a7e733', justifyContent: 'center', alignItems: 'center', alignSelf: 'center', marginBottom: 18, shadowColor: '#4f7915', shadowOpacity: 0.18, shadowRadius: 14, elevation: 4 }, logoGlyph: { color: '#184122', fontSize: 34, fontWeight: '900' }, loginTitle: { color: COLORS.ink, fontSize: 30, fontWeight: '800', textAlign: 'center' }, loginSubtitle: { color: COLORS.muted, fontSize: 15, textAlign: 'center', marginTop: 8, marginBottom: 30 }, loginCard: { backgroundColor: COLORS.card, borderColor: COLORS.border, borderWidth: 1, borderRadius: 18, padding: 20, shadowColor: '#314c3d', shadowOpacity: 0.06, shadowRadius: 18, elevation: 2 }, fieldLabelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 36 }, fieldLabel: { color: COLORS.ink, fontSize: 14, fontWeight: '700', marginBottom: 8, marginTop: 14 }, officialServerButton: { paddingVertical: 6, paddingHorizontal: 9, borderRadius: 8, backgroundColor: COLORS.paleBlue, marginTop: 6 }, officialServerButtonText: { color: '#168da2', fontWeight: '700', fontSize: 12 }, fieldHint: { color: COLORS.muted, fontSize: 12, marginTop: 8 }, input: { height: 48, borderColor: '#cbdcd0', borderWidth: 1, borderRadius: 10, paddingHorizontal: 13, color: COLORS.ink, fontSize: 16, backgroundColor: '#fbfdfb' }, primaryButton: { height: 50, justifyContent: 'center', alignItems: 'center', borderRadius: 11, backgroundColor: COLORS.cyan, marginTop: 24, shadowColor: COLORS.cyan, shadowOpacity: 0.22, shadowRadius: 10, elevation: 3 }, primaryButtonText: { color: '#fff', fontWeight: '800', fontSize: 16 }, pressed: { opacity: 0.82 }, disabled: { opacity: 0.6 }, securityNote: { color: COLORS.muted, fontSize: 12, textAlign: 'center', marginTop: 18 },
   dashboardScroll: { padding: 18, paddingBottom: 34 }, header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }, brand: { color: COLORS.ink, fontSize: 22, fontWeight: '400' }, brandStrong: { fontWeight: '800' }, headerCaption: { color: COLORS.muted, marginTop: 3, fontSize: 12 }, logoutButton: { paddingVertical: 8, paddingHorizontal: 12, borderWidth: 1, borderColor: '#e9b7b2', borderRadius: 9, backgroundColor: '#fffafa' }, logoutText: { color: '#bd3c35', fontWeight: '700', fontSize: 13 }, overviewCard: { backgroundColor: '#112b21', padding: 20, borderRadius: 18, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, overviewEyebrow: { color: '#b5c9bd', fontSize: 13, fontWeight: '700', letterSpacing: 1 }, overviewTitle: { color: '#fff', fontSize: 22, fontWeight: '800', marginTop: 4 }, overviewMeta: { color: '#c7d7cd', fontSize: 12, marginTop: 8, maxWidth: 195 }, refreshButton: { minWidth: 106, height: 40, borderRadius: 10, backgroundColor: COLORS.cyan, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 12 }, refreshText: { color: '#fff', fontWeight: '800', fontSize: 14 }, controlRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 15 }, lastUpdate: { color: COLORS.muted, fontSize: 12, flex: 1 }, privacyControl: { flexDirection: 'row', alignItems: 'center', gap: 7 }, privacyText: { color: COLORS.muted, fontSize: 12 }, loadingBox: { backgroundColor: COLORS.card, borderRadius: 16, padding: 38, alignItems: 'center', gap: 14, borderWidth: 1, borderColor: COLORS.border }, loadingText: { color: COLORS.muted }, emptyBox: { backgroundColor: COLORS.card, borderRadius: 16, padding: 28, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border }, emptyTitle: { color: COLORS.ink, fontWeight: '800', fontSize: 17 }, emptyText: { color: COLORS.muted, textAlign: 'center', marginTop: 9, lineHeight: 20 },
+  headerTitle: { flex: 1, minWidth: 0, marginRight: 10 },
+  addAccountButton: {
+    minHeight: 38,
+    justifyContent: 'center',
+    borderRadius: 10,
+    backgroundColor: COLORS.paleGreen,
+    paddingHorizontal: 11,
+  },
+  addAccountButtonText: { color: '#14806f', fontSize: 12, fontWeight: '800' },
   devicePageScroll: { padding: 18, paddingBottom: 36 },
   devicePageHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
   devicePageHeaderText: { flex: 1, minWidth: 0 },

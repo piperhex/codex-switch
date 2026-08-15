@@ -31,8 +31,29 @@ export interface AccountSummary {
   active: boolean;
   usage: UsageSummary;
   privateDetails?: AccountPrivateDetails;
+  official?: boolean;
+  metadataEditable?: boolean;
   lastModifiedAt?: string;
 }
+
+export interface AccountDetailsDraft {
+  note: string;
+  expiresAt: string;
+  privateDetails: AccountPrivateDetails;
+}
+
+export interface AccountOAuthStart {
+  sessionId: string;
+  verificationUrl: string;
+  userCode: string;
+  interval: number;
+  expiresIn: number;
+}
+
+export type AccountOAuthPoll =
+  | { status: 'pending' }
+  | { status: 'complete'; account: AccountSummary }
+  | { status: 'failed'; message?: string };
 
 export interface ResetCredit {
   issuedAt?: string | null;

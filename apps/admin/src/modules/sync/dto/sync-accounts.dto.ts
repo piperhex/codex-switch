@@ -129,3 +129,17 @@ export class PutSyncAccountsDto {
   @Type(() => SyncAccountDto)
   accounts: SyncAccountDto[];
 }
+
+export class UpdateAccountDetailsDto {
+  @IsString()
+  note: string = '';
+
+  @IsString()
+  @MaxLength(40)
+  expiresAt: string = '';
+
+  @IsObject()
+  @ValidateNested()
+  @Type(() => AccountPrivateDetailsDto)
+  privateDetails: AccountPrivateDetailsDto = new AccountPrivateDetailsDto();
+}

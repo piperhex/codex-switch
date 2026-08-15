@@ -8,6 +8,7 @@ import { AuthController } from '@/modules/auth/auth.controller';
 import { SyncController } from '@/modules/sync/sync.controller';
 import type { AuthService } from '@/modules/auth/auth.service';
 import type { SyncService } from '@/modules/sync/sync.service';
+import type { PersonalAccountOAuthService } from '@/modules/sync/personal-account-oauth.service';
 import type { AuthUser } from '@/common/decorators/user.decorator';
 import { makeAccount, makeProvider } from './fixtures';
 
@@ -61,13 +62,21 @@ describe('HTTP controllers', () => {
       fetchUsage: vi.fn().mockResolvedValue('usage'),
       fetchResetCredits: vi.fn().mockResolvedValue('reset-credits'),
       consumeResetCredit: vi.fn().mockResolvedValue('reset-consumed'),
+      updateAccountDetails: vi.fn().mockResolvedValue('details-updated'),
       upsert: vi.fn().mockResolvedValue('upsert'), delete: vi.fn().mockResolvedValue('delete'),
       listProviders: vi.fn().mockResolvedValue('provider-list'),
       replaceProviders: vi.fn().mockResolvedValue('provider-replace'),
       upsertProvider: vi.fn().mockResolvedValue('provider-upsert'),
       deleteProvider: vi.fn().mockResolvedValue('provider-delete'),
     };
-    const controller = new SyncController(sync as unknown as SyncService);
+    const personalAccountOAuth = {
+      start: vi.fn().mockResolvedValue('oauth-started'),
+      poll: vi.fn().mockResolvedValue('oauth-polled'),
+    };
+    const controller = new SyncController(
+      sync as unknown as SyncService,
+      personalAccountOAuth as unknown as PersonalAccountOAuthService,
+    );
     const user: AuthUser = { id: 'owner-1', email: 'owner@example.com', role: 'user' };
     const account = makeAccount();
     const provider = makeProvider();
@@ -75,6 +84,13 @@ describe('HTTP controllers', () => {
     await expect(controller.list(user)).resolves.toBe('list');
     await expect(controller.listSummary(user)).resolves.toBe('summary');
     await expect(controller.listWebSummary(user)).resolves.toBe('web-summary');
+    await expect(controller.startAccountOAuth(user)).resolves.toBe('oauth-started');
+    await expect(controller.pollAccountOAuth(user, 'oauth-session')).resolves.toBe('oauth-polled');
+    await expect(controller.updateAccountDetails(user, account.id, {
+      note: 'updated',
+      expiresAt: '2026-12-31',
+      privateDetails: { password: 'secret', phoneNumber: '123', totpSecret: '' },
+    })).resolves.toBe('details-updated');
     await expect(controller.usage(user, account.id)).resolves.toBe('usage');
     await expect(controller.resetCredits(user, account.id)).resolves.toBe('reset-credits');
     await expect(controller.consumeResetCredit(user, account.id)).resolves.toBe('reset-consumed');
@@ -87,8 +103,15 @@ describe('HTTP controllers', () => {
     await expect(controller.deleteProvider(user, provider.id)).resolves.toBe('provider-delete');
 
     expect(sync.list).toHaveBeenCalledWith(user.id, undefined, false);
-    expect(sync.listSummary).toHaveBeenCalledWith(user.id);
+    expect(sync.listSummary).toHaveBeenCalledWith(user.id, false);
     expect(sync.listWebSummary).toHaveBeenCalledWith(user.id);
+    expect(personalAccountOAuth.start).toHaveBeenCalledWith(user);
+    expect(personalAccountOAuth.poll).toHaveBeenCalledWith(user, 'oauth-session');
+    expect(sync.updateAccountDetails).toHaveBeenCalledWith(user.id, account.id, {
+      note: 'updated',
+      expiresAt: '2026-12-31',
+      privateDetails: { password: 'secret', phoneNumber: '123', totpSecret: '' },
+    }, false);
     expect(sync.fetchUsage).toHaveBeenCalledWith(user.id, account.id);
     expect(sync.fetchResetCredits).toHaveBeenCalledWith(user.id, account.id);
     expect(sync.consumeResetCredit).toHaveBeenCalledWith(user.id, account.id);

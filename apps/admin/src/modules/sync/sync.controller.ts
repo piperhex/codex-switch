@@ -1,18 +1,38 @@
-import { Body, Controller, Delete, Get, Header, Headers, Param, Post, Put, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Header,
+  Headers,
+  Param,
+  Patch,
+  Post,
+  Put,
+  UseGuards,
+} from '@nestjs/common';
 import { CurrentUser, type AuthUser } from '@/common/decorators/user.decorator';
 import { RequireAnyPermissions, RequirePermissions } from '@/common/decorators/permissions.decorator';
 import { PermissionsGuard } from '@/common/guards/permissions.guard';
 import { Permission } from '@/common/rbac/permissions';
 import { JwtAuthGuard } from '@/modules/jwt/jwt-auth.guard';
-import { PutSyncAccountsDto, SyncAccountDto } from './dto/sync-accounts.dto';
+import {
+  PutSyncAccountsDto,
+  SyncAccountDto,
+  UpdateAccountDetailsDto,
+} from './dto/sync-accounts.dto';
 import { PutSyncProvidersDto, SyncProviderDto } from './dto/sync-providers.dto';
 import { PutSyncTotpVaultDto } from './dto/sync-totp.dto';
+import { PersonalAccountOAuthService } from './personal-account-oauth.service';
 import { SyncService } from './sync.service';
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('sync')
 export class SyncController {
-  constructor(private readonly sync: SyncService) {}
+  constructor(
+    private readonly sync: SyncService,
+    private readonly personalAccountOAuth: PersonalAccountOAuthService,
+  ) {}
 
   @Get('accounts')
   @RequirePermissions(Permission.SelfAccountsRead)
@@ -33,7 +53,10 @@ export class SyncController {
   @Header('Cache-Control', 'no-store')
   @RequirePermissions(Permission.SelfAccountsRead)
   listSummary(@CurrentUser() user: AuthUser) {
-    return this.sync.listSummary(user.id);
+    return this.sync.listSummary(
+      user.id,
+      user.permissions?.includes(Permission.OfficialAccountMetadataWrite) ?? false,
+    );
   }
 
   @Get('accounts/web-summary')
@@ -41,6 +64,36 @@ export class SyncController {
   @RequirePermissions(Permission.SelfAccountsRead)
   listWebSummary(@CurrentUser() user: AuthUser) {
     return this.sync.listWebSummary(user.id);
+  }
+
+  @Post('accounts/oauth/start')
+  @Header('Cache-Control', 'no-store')
+  @RequirePermissions(Permission.SelfAccountsWrite)
+  startAccountOAuth(@CurrentUser() user: AuthUser) {
+    return this.personalAccountOAuth.start(user);
+  }
+
+  @Post('accounts/oauth/:sessionId/poll')
+  @Header('Cache-Control', 'no-store')
+  @RequirePermissions(Permission.SelfAccountsWrite)
+  pollAccountOAuth(@CurrentUser() user: AuthUser, @Param('sessionId') sessionId: string) {
+    return this.personalAccountOAuth.poll(user, sessionId);
+  }
+
+  @Patch('accounts/:id/details')
+  @Header('Cache-Control', 'no-store')
+  @RequirePermissions(Permission.SelfAccountsWrite)
+  updateAccountDetails(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: UpdateAccountDetailsDto,
+  ) {
+    return this.sync.updateAccountDetails(
+      user.id,
+      id,
+      dto,
+      user.permissions?.includes(Permission.OfficialAccountMetadataWrite) ?? false,
+    );
   }
 
   @Get('accounts/:id/usage')

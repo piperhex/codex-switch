@@ -1,5 +1,8 @@
 import * as SecureStore from 'expo-secure-store';
 import type {
+  AccountDetailsDraft,
+  AccountOAuthPoll,
+  AccountOAuthStart,
   AccountSummary,
   AuthResponse,
   AuthSession,
@@ -542,6 +545,44 @@ export async function changePassword(session: AuthSession, currentPassword: stri
     body: JSON.stringify({ currentPassword, newPassword }),
   });
   if (!response.ok) throw new ApiError(await parseError(response), response.status);
+}
+
+export async function startAccountOAuth(session: AuthSession): Promise<AccountOAuthStart> {
+  const response = await authorizedRequest(session, '/sync/accounts/oauth/start', { method: 'POST' });
+  if (!response.ok) throw new ApiError(await parseError(response), response.status);
+  return response.json() as Promise<AccountOAuthStart>;
+}
+
+export async function pollAccountOAuth(
+  session: AuthSession,
+  sessionId: string,
+): Promise<AccountOAuthPoll> {
+  const response = await authorizedRequest(
+    session,
+    `/sync/accounts/oauth/${encodeURIComponent(sessionId)}/poll`,
+    { method: 'POST' },
+  );
+  if (!response.ok) throw new ApiError(await parseError(response), response.status);
+  return response.json() as Promise<AccountOAuthPoll>;
+}
+
+export async function updateAccountDetails(
+  session: AuthSession,
+  accountId: string,
+  details: AccountDetailsDraft,
+): Promise<AccountSummary> {
+  const response = await authorizedRequest(
+    session,
+    `/sync/accounts/${encodeURIComponent(accountId)}/details`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(details),
+    },
+  );
+  if (!response.ok) throw new ApiError(await parseError(response), response.status);
+  const account = await response.json() as AccountSummary;
+  return { ...account, privateDetails: accountPrivateDetails(account.privateDetails) };
 }
 
 export async function syncTotpVault(session: AuthSession, vault: TotpVault): Promise<TotpVault> {
