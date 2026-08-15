@@ -1562,6 +1562,10 @@ export async function resizeFloatingBubble(expanded: boolean): Promise<void> {
   if (isDesktopApp) await invoke("resize_floating_bubble", { expanded });
 }
 
+export async function resizeFloatingBubbleForProviderCard(providerCard: boolean): Promise<void> {
+  if (isDesktopApp) await invoke("resize_floating_bubble_for_provider_card", { providerCard });
+}
+
 export async function dragFloatingBubble(): Promise<void> {
   if (isDesktopApp) await invoke("drag_floating_bubble");
 }

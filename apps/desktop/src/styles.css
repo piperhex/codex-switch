@@ -1679,6 +1679,77 @@ html.floating-usage-page #root {
   text-overflow: clip;
 }
 
+.floating-provider-card {
+  right: 8px;
+  bottom: 8px;
+  width: calc(100% - 16px);
+  height: calc(100% - 16px);
+  padding: 8px 12px;
+  display: block;
+  border: 1px solid rgba(255, 255, 255, .48);
+  border-radius: 20px;
+  color: #fff;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, .24), rgba(255, 255, 255, .07) 45%, rgba(255, 255, 255, .14)),
+    rgba(31, 38, 48, .48);
+  box-shadow: 0 5px 14px rgba(0, 0, 0, .2), inset 0 1px 0 rgba(255, 255, 255, .36),
+    inset 0 0 26px rgba(255, 255, 255, .08);
+}
+.floating-provider-card::before { display: none; }
+.floating-provider-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, rgba(255, 255, 255, .18), transparent 28%, transparent 70%,
+    rgba(255, 255, 255, .07));
+  pointer-events: none;
+}
+.floating-provider-card.is-refreshing { filter: brightness(1.08); }
+.floating-provider-details {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  align-content: center;
+}
+.floating-provider-details > span {
+  min-width: 0;
+  min-height: 19px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, .23);
+}
+.floating-provider-details > span:last-child { border-bottom: 0; }
+.floating-provider-details b {
+  min-width: 0;
+  overflow: hidden;
+  color: rgba(255, 255, 255, .86);
+  font-size: 8px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.floating-provider-details strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #fff;
+  font: 800 10px/1 Manrope, sans-serif;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.floating-provider-details .floating-provider-heading b {
+  color: #fff;
+  font: 800 10px/1 Manrope, sans-serif;
+}
+.floating-provider-details .floating-provider-heading strong {
+  max-width: 58%;
+  color: rgba(255, 255, 255, .72);
+  font-size: 8px;
+}
+
 .floating-bubble-style-trigger { min-width: 102px; }
 .floating-bubble-style-modal-description { margin: -4px 0 18px; color: var(--muted); }
 .floating-bubble-style-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }

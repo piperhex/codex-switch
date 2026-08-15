@@ -1,4 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type MouseEvent,
+  type PointerEvent,
+} from "react";
 import {
   dragFloatingBubble,
   fetchResetCredits,
@@ -7,6 +16,7 @@ import {
   loadProviders,
   queryProviderUsage,
   refreshAccountUsage,
+  resizeFloatingBubbleForProviderCard,
   showDashboardFromBubble,
   showFloatingBubbleMenu,
   subscribeToBubbleResetDisplayChanges,
@@ -14,10 +24,12 @@ import {
   subscribeToBackendEvents,
   subscribeToProviderEvents,
 } from "../api/backend";
+import { useFloatingProviderStats } from "../hooks/useFloatingProviderStats";
 import { useLanguage } from "../hooks/useLanguage";
 import { useThemeColor } from "../hooks/useThemeColor";
 import type { Account, BubbleResetDisplay, BubbleStyle, Provider, UsageSummary } from "../types";
 import { remainingTone, resetClockTime } from "../utils/format";
+import { FloatingProviderCard } from "./FloatingProviderCard";
 
 function usageColor(remaining: number) {
   const tone = remainingTone(remaining);
@@ -47,6 +59,22 @@ interface BubblePointerGesture {
 
 function clampPercent(value: number) {
   return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function bubbleActionLabel(language: "en" | "zh", refreshing: boolean, providerCard: boolean) {
+  if (language === "zh") {
+    if (refreshing) return providerCard ? "正在刷新余额和 Token" : "正在刷新当前额度";
+    return providerCard ? "点击刷新余额和 Token" : "点击刷新当前额度";
+  }
+  if (refreshing) return providerCard ? "Refreshing balance and tokens" : "Refreshing current quota";
+  return providerCard ? "Click to refresh balance and tokens" : "Click to refresh current quota";
+}
+
+function bubbleClassName(providerCard: boolean, glass: boolean, settling: boolean, refreshing: boolean) {
+  const modeClass = providerCard ? "floating-provider-card" : glass ? "floating-bubble-glass" : "";
+  return ["floating-bubble", modeClass, settling ? "is-water-settling" : "", refreshing ? "is-refreshing" : ""]
+    .filter(Boolean)
+    .join(" ");
 }
 
 function BubbleResetLabel({ timestamp, language, display, className, compact = false }: {
@@ -105,10 +133,10 @@ function BubbleResetLabel({ timestamp, language, display, className, compact = f
 }
 
 export function FloatingUsageBubble() {
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   useThemeColor(ignoreThemeError);
   const [accounts, setAccounts] = useState<Account[]>([]);
-  const [activeUpstreamProvider, setActiveUpstreamProvider] = useState<Provider | null>(null);
+  const [activeProvider, setActiveProvider] = useState<Provider | null>(null);
   const [providerUsage, setProviderUsage] = useState<UsageSummary | null>(null);
   const [resetDisplay, setResetDisplay] = useState<BubbleResetDisplay>("countdown");
   const [bubbleStyle, setBubbleStyle] = useState<BubbleStyle>("classic");
@@ -128,8 +156,9 @@ export function FloatingUsageBubble() {
       loadProviders(),
     ]);
     setAccounts(nextAccounts);
-    const provider = providers.find((item) => item.active && item.kind === "openai") ?? null;
-    setActiveUpstreamProvider(provider);
+    const active = providers.find((item) => item.active) ?? null;
+    const provider = active?.kind === "openai" ? active : null;
+    setActiveProvider(active);
     const request = ++providerUsageRequest.current;
     if (!provider) {
       setProviderUsage(null);
@@ -167,7 +196,15 @@ export function FloatingUsageBubble() {
   useEffect(() => subscribeToBubbleStyleChanges(setBubbleStyle), []);
 
   const account = useMemo(() => accounts.find((item) => item.active), [accounts]);
+  const activeUpstreamProvider = activeProvider?.kind === "openai" ? activeProvider : null;
+  const activeCustomProvider = activeProvider?.kind === "custom" ? activeProvider : null;
+  const providerStats = useFloatingProviderStats(activeCustomProvider);
+  const refreshProviderStats = providerStats.refresh;
   const accountId = account?.id ?? null;
+
+  useEffect(() => {
+    void resizeFloatingBubbleForProviderCard(Boolean(activeCustomProvider)).catch(() => undefined);
+  }, [activeCustomProvider?.id, bubbleStyle]);
   useEffect(() => {
     let active = true;
     if (!accountId) {
@@ -199,9 +236,7 @@ export function FloatingUsageBubble() {
       : remainingTone(remaining) === "warning"
         ? (language === "zh" ? "额度注意" : "Quota warning")
         : (language === "zh" ? "额度充足" : "Quota healthy");
-  const bubbleLabel = language === "zh"
-    ? (refreshing ? "正在刷新当前额度" : "点击刷新当前额度")
-    : (refreshing ? "Refreshing current quota" : "Click to refresh current quota");
+  const bubbleLabel = bubbleActionLabel(language, refreshing, Boolean(activeCustomProvider));
   const ringStyle = {
     "--bubble-progress": `${ringRemaining ?? 0}%`,
     "--bubble-color": ringRemaining === null ? "#7b8780" : usageColor(ringRemaining),
@@ -227,11 +262,13 @@ export function FloatingUsageBubble() {
   }, [remaining]);
 
   const refreshCurrentUsage = useCallback(async () => {
-    if ((!account && !activeUpstreamProvider) || refreshingRef.current) return;
+    if ((!account && !activeProvider) || refreshingRef.current) return;
     refreshingRef.current = true;
     setRefreshing(true);
     try {
-      if (activeUpstreamProvider) {
+      if (activeCustomProvider) {
+        await refreshProviderStats();
+      } else if (activeUpstreamProvider) {
         const usage = await queryProviderUsage(activeUpstreamProvider.id);
         setProviderUsage(usage);
       } else if (account) {
@@ -244,7 +281,7 @@ export function FloatingUsageBubble() {
       refreshingRef.current = false;
       setRefreshing(false);
     }
-  }, [account, activeUpstreamProvider, load]);
+  }, [account, activeCustomProvider, activeProvider, activeUpstreamProvider, load, refreshProviderStats]);
 
   useEffect(() => () => {
     if (pendingClickRefresh.current !== null) {
@@ -315,7 +352,10 @@ export function FloatingUsageBubble() {
 
   return (
     <div className="floating-usage-window" onContextMenu={openContextMenu}>
-      <button type="button" className={`floating-bubble ${bubbleStyle === "glass" ? "floating-bubble-glass" : ""} ${waterSettling ? "is-water-settling" : ""} ${refreshing ? "is-refreshing" : ""}`} style={ringStyle}
+      <button
+        type="button"
+        className={bubbleClassName(Boolean(activeCustomProvider), bubbleStyle === "glass", waterSettling, refreshing)}
+        style={ringStyle}
         aria-label={bubbleLabel}
         title={bubbleLabel}
         aria-busy={refreshing}
@@ -324,20 +364,50 @@ export function FloatingUsageBubble() {
         onPointerUp={finishPointerGesture}
         onPointerCancel={cancelPointerGesture}
         onClick={(event) => { if (event.detail === 0) void refreshCurrentUsage(); }}>
-        <span className="floating-bubble-water" aria-hidden="true" />
-        <span className="floating-bubble-weekly" aria-hidden="true">
-          {language === "zh" ? "周" : "W"} {weeklyRemaining === null ? "--" : `${weeklyRemaining}%`}
-        </span>
-        <span className="floating-bubble-value">{remaining === null ? "--" : `${remaining}%`}</span>
-        <BubbleResetLabel timestamp={primary?.resetsAt} language={language} display={resetDisplay} />
-        <span className="floating-glass-ring" aria-hidden="true"><span>{remaining === null ? "--" : `${remaining}%`}</span><small>{language === "zh" ? "主用量剩余" : "Primary left"}</small></span>
-        <span className="floating-glass-brand">Codex</span>
-        <span className="floating-glass-details">
-          <span><b>{language === "zh" ? "距离重置" : "Until reset"}</b><BubbleResetLabel timestamp={primary?.resetsAt} language={language} display={resetDisplay} className="floating-glass-reset" compact /></span>
-          <span><b>{language === "zh" ? "剩余重置" : "Resets left"}</b><strong>{resetCreditsRemaining === null ? "--" : `${resetCreditsRemaining}${language === "zh" ? " 次" : ""}`}</strong></span>
-          <span><b>{language === "zh" ? "次用量已使用" : "Secondary used"}</b><strong>{secondaryUsed === null ? "--" : `${secondaryUsed}%`}</strong></span>
-          <span><b>{language === "zh" ? "额度状态" : "Quota status"}</b><strong className={`floating-glass-status ${remaining === null ? "" : remainingTone(remaining)}`}>{status}</strong></span>
-        </span>
+        {activeCustomProvider ? <FloatingProviderCard
+          balance={providerStats.balance}
+          balanceError={providerStats.balanceError}
+          language={language}
+          loading={providerStats.loading}
+          provider={activeCustomProvider}
+          t={t}
+          tokenUsage={providerStats.tokenUsage}
+        /> : <>
+          <span className="floating-bubble-water" aria-hidden="true" />
+          <span className="floating-bubble-weekly" aria-hidden="true">
+            {language === "zh" ? "周" : "W"} {weeklyRemaining === null ? "--" : `${weeklyRemaining}%`}
+          </span>
+          <span className="floating-bubble-value">{remaining === null ? "--" : `${remaining}%`}</span>
+          <BubbleResetLabel timestamp={primary?.resetsAt} language={language} display={resetDisplay} />
+          <span className="floating-glass-ring" aria-hidden="true">
+            <span>{remaining === null ? "--" : `${remaining}%`}</span>
+            <small>{language === "zh" ? "主用量剩余" : "Primary left"}</small>
+          </span>
+          <span className="floating-glass-brand">Codex</span>
+          <span className="floating-glass-details">
+            <span>
+              <b>{language === "zh" ? "距离重置" : "Until reset"}</b>
+              <BubbleResetLabel timestamp={primary?.resetsAt} language={language} display={resetDisplay}
+                className="floating-glass-reset" compact />
+            </span>
+            <span>
+              <b>{language === "zh" ? "剩余重置" : "Resets left"}</b>
+              <strong>
+                {resetCreditsRemaining === null ? "--" : `${resetCreditsRemaining}${language === "zh" ? " 次" : ""}`}
+              </strong>
+            </span>
+            <span>
+              <b>{language === "zh" ? "次用量已使用" : "Secondary used"}</b>
+              <strong>{secondaryUsed === null ? "--" : `${secondaryUsed}%`}</strong>
+            </span>
+            <span>
+              <b>{language === "zh" ? "额度状态" : "Quota status"}</b>
+              <strong className={`floating-glass-status ${remaining === null ? "" : remainingTone(remaining)}`}>
+                {status}
+              </strong>
+            </span>
+          </span>
+        </>}
       </button>
     </div>
   );

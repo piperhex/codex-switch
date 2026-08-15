@@ -240,6 +240,7 @@ pub fn run() {
             floating_bubble::set_app_language,
             web_server::set_web_proxy_port,
             floating_bubble::resize_floating_bubble,
+            floating_bubble::resize_floating_bubble_for_provider_card,
             floating_bubble::drag_floating_bubble,
             floating_bubble::show_floating_bubble_menu,
             floating_bubble::show_dashboard_from_bubble,
