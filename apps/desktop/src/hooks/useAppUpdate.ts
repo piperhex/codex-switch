@@ -13,6 +13,7 @@ import type { HelpVersionState } from "../components/modals/HelpModal";
 import type { Translate } from "../i18n";
 import type { UpdateInfo } from "../types";
 import { useBackgroundUpdateCheck } from "./useBackgroundUpdateCheck";
+import { usePendingAppUpdateInstall } from "./usePendingAppUpdateInstall";
 
 export function useAppUpdate(notify: (message: string) => void, t: Translate) {
   const [availableUpdate, setAvailableUpdate] = useState<UpdateInfo | null>(null);
@@ -25,6 +26,7 @@ export function useAppUpdate(notify: (message: string) => void, t: Translate) {
   const [installingUpdate, setInstallingUpdate] = useState(false);
   const [updateInstallError, setUpdateInstallError] = useState<string | null>(null);
   const [helpVersionState, setHelpVersionState] = useState<HelpVersionState>({ status: "checking" });
+  usePendingAppUpdateInstall(setInstallingUpdate, setUpdateInstallError);
   const helpVersionRequestId = useRef(0);
   const availableUpdateRef = useRef<UpdateInfo | null>(null);
   const downloadingUpdateRef = useRef(false);

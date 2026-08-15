@@ -112,10 +112,12 @@ export async function quitApplication(): Promise<void> {
 export const DEFAULT_CLOUD_BASE_URL = "https://codex.onepiper.cloud";
 export const DEFAULT_AUTO_DISABLE_STATUS_CODES = [401, 402, 403] as const;
 const RELEASES_URL = "https://github.com/piperhex/codex-switch/releases/latest";
+const PENDING_APP_UPDATE_VERSION_KEY = "codex-switch:pending-app-update-version";
 let pendingAppUpdate: Update | null = null;
 let appUpdateDownloaded = false;
 let updateDownloadPromise: Promise<void> | null = null;
 let updateInstallInProgress = false;
+let pendingUpdateInstallPromise: Promise<void> | null = null;
 const UPDATE_CHECK_RETRY_DELAYS_MS = [500, 1_500] as const;
 const LAUNCH_AT_STARTUP_PREVIEW_KEY = "codex-switch:launch-at-startup";
 const FLOATING_BUBBLE_PREVIEW_KEY = "codex-switch:floating-bubble";
@@ -2161,6 +2163,7 @@ export async function downloadAvailableUpdate(onProgress?: (progress: number | n
     try {
       await update.download(reportProgress);
       appUpdateDownloaded = true;
+      rememberPendingAppUpdate(update.version);
     } catch (error) {
       await update.close();
       if (pendingAppUpdate === update) pendingAppUpdate = null;
@@ -2183,6 +2186,7 @@ export async function installDownloadedUpdate(): Promise<void> {
   if (!update || !appUpdateDownloaded) throw new Error("The update has not finished downloading");
 
   updateInstallInProgress = true;
+  forgetPendingAppUpdate();
   try {
     await update.install();
     await update.close();
@@ -2190,9 +2194,59 @@ export async function installDownloadedUpdate(): Promise<void> {
     appUpdateDownloaded = false;
     await relaunch();
   } catch (error) {
+    rememberPendingAppUpdate(update.version);
     updateInstallInProgress = false;
     throw error;
   }
+}
+
+function readPendingAppUpdateVersion(): string | null {
+  try {
+    return window.localStorage.getItem(PENDING_APP_UPDATE_VERSION_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function rememberPendingAppUpdate(version: string) {
+  try {
+    window.localStorage.setItem(PENDING_APP_UPDATE_VERSION_KEY, version);
+  } catch {
+    // The downloaded update remains installable in the current session when storage is unavailable.
+  }
+}
+
+function forgetPendingAppUpdate() {
+  try {
+    window.localStorage.removeItem(PENDING_APP_UPDATE_VERSION_KEY);
+  } catch {
+    // A stale marker is cleared after the installed version no longer has an available update.
+  }
+}
+
+export function hasPendingAppUpdateInstall(): boolean {
+  return isDesktopApp && readPendingAppUpdateVersion() !== null;
+}
+
+export function installPendingAppUpdateOnLaunch(): Promise<void> {
+  if (!hasPendingAppUpdateInstall()) return Promise.resolve();
+  if (pendingUpdateInstallPromise) return pendingUpdateInstallPromise;
+
+  const install = async () => {
+    const update = await checkForUpdate({ force: true });
+    if (!update) {
+      forgetPendingAppUpdate();
+      return;
+    }
+    await downloadAvailableUpdate();
+    await installDownloadedUpdate();
+  };
+  const request = install();
+  pendingUpdateInstallPromise = request;
+  void request.finally(() => {
+    if (pendingUpdateInstallPromise === request) pendingUpdateInstallPromise = null;
+  }).catch(() => undefined);
+  return request;
 }
 
 const HOSTED_BACKEND_POLL_INTERVAL_MS = 2_500;
