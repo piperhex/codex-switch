@@ -598,6 +598,16 @@ pub(crate) struct DeletedCloudAccount {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub(crate) struct DeletedCloudProvider {
+    pub(crate) id: String,
+    pub(crate) name: String,
+    pub(crate) base_url: String,
+    pub(crate) model: String,
+    pub(crate) deleted_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct ProviderSyncPayload {
     pub(crate) id: String,
     #[serde(default)]

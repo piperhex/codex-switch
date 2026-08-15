@@ -3,9 +3,9 @@ use std::{fs, io::Read, path::PathBuf, time::Duration};
 use reqwest::blocking::Client;
 use serde::Deserialize;
 use serde_json::{json, Value};
-use sha2::{Digest, Sha256};
 use tauri::{Emitter, Runtime};
 use url::Url;
+use uuid::Uuid;
 
 use crate::{
     auth::{is_agent_identity_auth, validate_auth},
@@ -261,7 +261,7 @@ pub(crate) fn save_provider<R: Runtime>(
             validate_provider_id(&id)?;
             id
         }
-        None => unique_provider_id(&paths, &provider.name, &provider.base_url, &provider.model),
+        None => unique_provider_id(&paths),
     };
     let kind = provider.kind;
     let name = require_non_empty("Provider name", &provider.name)?;
@@ -1928,25 +1928,13 @@ fn validate_provider_id(id: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn unique_provider_id(paths: &Paths, name: &str, base_url: &str, model: &str) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(name.trim().to_lowercase().as_bytes());
-    hasher.update(b"\0");
-    hasher.update(base_url.trim().to_lowercase().as_bytes());
-    hasher.update(b"\0");
-    hasher.update(model.trim().as_bytes());
-    let digest = hasher.finalize();
-    let base = digest[..8]
-        .iter()
-        .map(|byte| format!("{byte:02x}"))
-        .collect::<String>();
-    let mut id = base.clone();
-    let mut suffix = 2;
-    while provider_path(paths, &id).exists() {
-        id = format!("{base}-{suffix}");
-        suffix += 1;
+fn unique_provider_id(paths: &Paths) -> String {
+    loop {
+        let id = Uuid::new_v4().to_string();
+        if !provider_path(paths, &id).exists() {
+            return id;
+        }
     }
-    id
 }
 
 fn backup_codex_config_if_needed(paths: &Paths, entering_provider: bool) -> Result<(), String> {
@@ -2875,6 +2863,17 @@ mod tests {
     fn providers_can_only_switch_while_proxy_is_running() {
         assert!(!provider_switch_supported(false));
         assert!(provider_switch_supported(true));
+    }
+
+    #[test]
+    fn new_provider_ids_are_random_version_four_uuids() {
+        let paths = test_paths();
+        let first = unique_provider_id(&paths);
+        let second = unique_provider_id(&paths);
+
+        assert_eq!(Uuid::parse_str(&first).unwrap().get_version_num(), 4);
+        assert_eq!(Uuid::parse_str(&second).unwrap().get_version_num(), 4);
+        assert_ne!(first, second);
     }
 
     #[test]

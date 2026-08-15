@@ -243,7 +243,9 @@ devices can remove their local copy.
 
 Provider deletion uses the same tombstone model. Deleted providers are omitted from active views
 and returned through `deletedProviderIds`. Provider fields carry independent modification times so
-changes made to different fields on different devices merge without overwriting one another.
+changes made to different fields on different devices merge without overwriting one another. New
+desktop-created providers use UUID v4 identifiers; existing identifiers remain valid for backward
+compatibility.
 
 - `GET /admin`
 - `GET /admin/reset-password`
@@ -253,6 +255,10 @@ changes made to different fields on different devices merge without overwriting 
 - `DELETE /admin/api/users/:id`
 - `PATCH /admin/api/profile/password`
 - `GET /admin/api/profile/accounts`
+- `GET /admin/api/profile/accounts/deleted`
+- `POST /admin/api/profile/accounts/deleted/:accountId/restore`
+- `GET /admin/api/profile/providers/deleted`
+- `POST /admin/api/profile/providers/deleted/:providerId/restore`
 - `GET /admin/api/users/:id/accounts`
 - `POST /admin/api/users/:id/accounts/:accountId/add-to-pool`
 - `GET /admin/api/users/:id/providers`

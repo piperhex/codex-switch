@@ -191,6 +191,23 @@ export class AdminController {
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.SelfProvidersRead)
+  @Get('api/profile/providers/deleted')
+  listOwnDeletedProviders(@CurrentUser() user: AuthUser) {
+    return this.admin.listOwnDeletedProviders(user);
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.SelfProvidersWrite)
+  @Post('api/profile/providers/deleted/:providerId/restore')
+  restoreOwnDeletedProvider(
+    @CurrentUser() user: AuthUser,
+    @Param('providerId') providerId: string,
+  ) {
+    return this.admin.restoreOwnDeletedProvider(user, providerId);
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequireAnyPermissions(
     Permission.SelfAccountsWrite,
     Permission.OfficialAccountMetadataWrite,

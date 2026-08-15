@@ -519,6 +519,14 @@ export interface DeletedCloudAccount {
   deletedAt: string;
 }
 
+export interface DeletedCloudProvider {
+  id: string;
+  name: string;
+  baseUrl: string;
+  model: string;
+  deletedAt: string;
+}
+
 export interface DreamSkinMarketTheme {
   id: string;
   name: string;

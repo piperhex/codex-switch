@@ -26,6 +26,7 @@ describe('AdminService', () => {
     listForAdmin: ReturnType<typeof vi.fn>; listSystemAccounts: ReturnType<typeof vi.fn>;
     listForPortal: ReturnType<typeof vi.fn>;
     listDeletedAccounts: ReturnType<typeof vi.fn>; restoreDeletedAccount: ReturnType<typeof vi.fn>;
+    listDeletedProviders: ReturnType<typeof vi.fn>; restoreDeletedProvider: ReturnType<typeof vi.fn>;
     createSystemAccount: ReturnType<typeof vi.fn>; createSystemAccountFromPersonal: ReturnType<typeof vi.fn>;
     updateSystemAccount: ReturnType<typeof vi.fn>;
     deleteSystemAccount: ReturnType<typeof vi.fn>; deleteSystemAccounts: ReturnType<typeof vi.fn>;
@@ -68,6 +69,7 @@ describe('AdminService', () => {
       createSystemAccountFromPersonal: vi.fn(),
       listForPortal: vi.fn(),
       listDeletedAccounts: vi.fn(), restoreDeletedAccount: vi.fn(),
+      listDeletedProviders: vi.fn(), restoreDeletedProvider: vi.fn(),
       updateSystemAccount: vi.fn(), deleteSystemAccount: vi.fn(), deleteSystemAccounts: vi.fn(),
       listSystemAccountBindingIds: vi.fn(), bindSystemAccounts: vi.fn(),
       unbindSystemAccounts: vi.fn(),
@@ -316,6 +318,22 @@ describe('AdminService', () => {
       action: 'sync-account.update',
       targetId: account.id,
       metadata: { ownerId: actor.id, fields: ['note', 'expiresAt'] },
+    }));
+  });
+
+  it('restores a current-user provider and records an audit log', async () => {
+    const provider = { id: 'provider-1', name: 'Gateway' };
+    sync.restoreDeletedProvider.mockResolvedValue(provider);
+
+    await expect(service.restoreOwnDeletedProvider(actor, provider.id))
+      .resolves.toEqual({ id: provider.id });
+
+    expect(sync.restoreDeletedProvider).toHaveBeenCalledWith(actor.id, provider.id);
+    expect(auditLogs.save).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'sync-provider.restore',
+      targetId: provider.id,
+      targetEmail: provider.name,
+      metadata: { ownerId: actor.id },
     }));
   });
 

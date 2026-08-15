@@ -20,6 +20,7 @@ import type {
   CloudFaq,
   CloudNotification,
   CloudSyncResult,
+  DeletedCloudProvider,
   CodexThreadBinEntry,
   CodexThreadBundlePreview,
   CodexThreadBundleResult,
@@ -1540,6 +1541,16 @@ export async function loadDeletedCloudAccounts(): Promise<DeletedCloudAccount[]>
 export async function restoreDeletedCloudAccount(id: string): Promise<CloudSyncResult> {
   if (!hasLocalBackend) return { uploaded: 0, downloaded: 1 };
   return invoke<CloudSyncResult>("cloud_restore_deleted_account", { id });
+}
+
+export async function loadDeletedCloudProviders(): Promise<DeletedCloudProvider[]> {
+  if (!hasLocalBackend) return [];
+  return invoke<DeletedCloudProvider[]>("cloud_list_deleted_providers");
+}
+
+export async function restoreDeletedCloudProvider(id: string): Promise<CloudSyncResult> {
+  if (!hasLocalBackend) return { uploaded: 0, downloaded: 1 };
+  return invoke<CloudSyncResult>("cloud_restore_deleted_provider", { id });
 }
 
 export async function deleteCloudProvider(id: string): Promise<CloudSyncResult> {

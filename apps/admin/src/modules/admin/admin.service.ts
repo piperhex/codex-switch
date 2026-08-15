@@ -133,6 +133,18 @@ export class AdminService {
     return { id: account.id };
   }
 
+  listOwnDeletedProviders(actor: AuthUser) {
+    return this.sync.listDeletedProviders(actor.id);
+  }
+
+  async restoreOwnDeletedProvider(actor: AuthUser, providerId: string) {
+    const provider = await this.sync.restoreDeletedProvider(actor.id, providerId);
+    await this.record(actor, 'sync-provider.restore', 'sync-provider', providerId, provider.name, {
+      ownerId: actor.id,
+    });
+    return { id: provider.id };
+  }
+
   async updateOwnAccount(
     actor: AuthUser,
     accountId: string,

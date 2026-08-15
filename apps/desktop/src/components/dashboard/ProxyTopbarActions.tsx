@@ -2,7 +2,7 @@ import { Popover, Switch } from "antd";
 import { ChevronDown, Shuffle } from "lucide-react";
 import type { Translate } from "../../i18n";
 import type { useProviderManager } from "../../hooks/useProviderManager";
-import { AccountRecycleBin } from "../AccountRecycleBin";
+import { CloudRecycleBin } from "../CloudRecycleBin";
 import { ProxySessionManager } from "../ProxySessionManager";
 
 interface ProxyTopbarActionsProps {
@@ -50,7 +50,7 @@ export function ProxyTopbarActions({ cloudAuthenticated, manager, t }: ProxyTopb
         </button>
       </Popover>
       <ProxySessionManager t={t} triggerClassName="refresh-all proxy-topbar-action" />
-      <AccountRecycleBin t={t} disabled={!cloudAuthenticated}
+      <CloudRecycleBin t={t} disabled={!cloudAuthenticated}
         triggerClassName="refresh-all proxy-topbar-action" />
     </>
   );

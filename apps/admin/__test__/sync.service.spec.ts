@@ -1351,6 +1351,48 @@ describe('SyncService', () => {
     expect(redis.del).toHaveBeenCalledWith('sync:providers:owner-1');
   });
 
+  it('lists only owner-scoped deleted providers without credentials', async () => {
+    providers.find.mockResolvedValue([{
+      ownerId: 'owner-1', providerId: 'provider-1', name: 'Gateway',
+      baseUrl: 'https://gateway.example.com/v1', model: 'gpt-4.1', apiKey: 'secret',
+      deletedAt: new Date('2026-08-15T01:00:00.000Z'),
+    }]);
+
+    await expect(service.listDeletedProviders('owner-1')).resolves.toEqual({
+      providers: [{
+        id: 'provider-1', name: 'Gateway', baseUrl: 'https://gateway.example.com/v1',
+        model: 'gpt-4.1', deletedAt: '2026-08-15T01:00:00.000Z',
+      }],
+    });
+    expect(providers.find).toHaveBeenCalledWith({
+      where: { ownerId: 'owner-1', deletedAt: expect.anything() },
+      order: { deletedAt: 'DESC' },
+    });
+  });
+
+  it('restores an owner-scoped deleted provider and invalidates the cache', async () => {
+    const dto = makeProvider();
+    providers.findOne.mockResolvedValue({
+      ownerId: 'owner-1', providerId: dto.id, kind: dto.kind, name: dto.name,
+      baseUrl: dto.baseUrl, apiKey: dto.apiKey, model: dto.model, models: dto.models,
+      modelReasoningEfforts: dto.modelReasoningEfforts,
+      modelContextWindows: dto.modelContextWindows,
+      imageInputModels: dto.imageInputModels, contextWindow: dto.contextWindow,
+      modelSelectionControlledByCodex: dto.modelSelectionControlledByCodex,
+      apiFormat: dto.apiFormat, fieldModifiedAt: dto.fieldModifiedAt,
+      lastModifiedAt: new Date(dto.lastModifiedAt!),
+      deletedAt: new Date('2026-08-15T01:00:00.000Z'),
+    });
+
+    await expect(service.restoreDeletedProvider('owner-1', dto.id))
+      .resolves.toEqual(expect.objectContaining({ id: dto.id, name: dto.name }));
+    expect(providers.findOne).toHaveBeenCalledWith({
+      where: { ownerId: 'owner-1', providerId: dto.id, deletedAt: expect.anything() },
+    });
+    expect(providers.save).toHaveBeenCalledWith(expect.objectContaining({ deletedAt: null }));
+    expect(redis.del).toHaveBeenCalledWith('sync:providers:owner-1');
+  });
+
   it('updates owner-scoped accounts for admin management and deactivates siblings when needed', async () => {
     accounts.findOne.mockResolvedValue({
       ownerId: 'owner-1',

@@ -83,6 +83,14 @@ export interface DeletedSyncAccountDto {
   deletedAt: string;
 }
 
+export interface DeletedSyncProviderDto {
+  id: string;
+  name: string;
+  baseUrl: string;
+  model: string;
+  deletedAt: string;
+}
+
 type EffectiveSyncAccountDto = SyncAccountDto & {
   official: boolean;
   metadataEditable: boolean;
@@ -830,6 +838,33 @@ export class SyncService {
     await this.providers.update({ ownerId, providerId }, { deletedAt: new Date() });
     await this.redis.del(this.providerCacheKey(ownerId));
     return { id: providerId };
+  }
+
+  async listDeletedProviders(ownerId: string): Promise<{ providers: DeletedSyncProviderDto[] }> {
+    const rows = await this.providers.find({
+      where: { ownerId, deletedAt: Not(IsNull()) },
+      order: { deletedAt: 'DESC' },
+    });
+    return {
+      providers: rows.map((row) => ({
+        id: row.providerId,
+        name: row.name,
+        baseUrl: row.baseUrl,
+        model: row.model,
+        deletedAt: row.deletedAt!.toISOString(),
+      })),
+    };
+  }
+
+  async restoreDeletedProvider(ownerId: string, providerId: string) {
+    const provider = await this.providers.findOne({
+      where: { ownerId, providerId, deletedAt: Not(IsNull()) },
+    });
+    if (!provider) throw new NotFoundException('Deleted provider not found');
+    provider.deletedAt = null;
+    const saved = await this.providers.save(provider);
+    await this.redis.del(this.providerCacheKey(ownerId));
+    return this.toProviderDto(saved);
   }
 
   async updateForAdmin(

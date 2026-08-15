@@ -603,6 +603,12 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
         "cloud_restore_deleted_account" => serialize(block_on(
             crate::cloud::cloud_restore_deleted_account(app, argument(&args, "id")?),
         )),
+        "cloud_list_deleted_providers" => {
+            serialize(block_on(crate::cloud::cloud_list_deleted_providers(app)))
+        }
+        "cloud_restore_deleted_provider" => serialize(block_on(
+            crate::cloud::cloud_restore_deleted_provider(app, argument(&args, "id")?),
+        )),
         "cloud_delete_provider" => serialize(block_on(crate::cloud::cloud_delete_provider(
             app,
             argument(&args, "id")?,

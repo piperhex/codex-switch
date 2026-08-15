@@ -27,7 +27,8 @@ use crate::{
     auth::{account_fields, canonicalize_chatgpt_auth, subscription_active_until, validate_auth},
     models::{
         AccountFieldModifiedAt, AppSettings, CloudAccountPayload, CloudAuthState, CloudSyncResult,
-        DeletedCloudAccount, ProviderFieldModifiedAt, ProviderProfile, ProviderSyncPayload,
+        DeletedCloudAccount, DeletedCloudProvider, ProviderFieldModifiedAt, ProviderProfile,
+        ProviderSyncPayload,
     },
     skills_market::{SkillMarketItem, SkillMarketResponse, SkillPreview},
     storage::{
@@ -83,6 +84,12 @@ struct CloudAccountsResponse {
 #[serde(rename_all = "camelCase")]
 struct DeletedCloudAccountsResponse {
     accounts: Vec<DeletedCloudAccount>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DeletedCloudProvidersResponse {
+    providers: Vec<DeletedCloudProvider>,
 }
 
 #[derive(Deserialize)]
@@ -2288,6 +2295,86 @@ pub(crate) async fn cloud_restore_deleted_account<R: Runtime>(
 }
 
 #[tauri::command]
+pub(crate) async fn cloud_list_deleted_providers<R: Runtime>(
+    app: tauri::AppHandle<R>,
+) -> Result<Vec<DeletedCloudProvider>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let _credentials_guard = lock_cloud_credentials()?;
+        let client = api_client()?;
+        let mut settings = read_app_settings(&app)?;
+        let mut credentials = read_cloud_credentials(&app);
+        let response = cloud_request(
+            &app,
+            &client,
+            &mut settings,
+            &mut credentials,
+            Method::GET,
+            "/admin/api/profile/providers/deleted",
+            None,
+        )?;
+        if !response.status().is_success() {
+            return Err(response_error(
+                "Cloud provider recycle bin download",
+                response,
+            ));
+        }
+        let payload: DeletedCloudProvidersResponse = response
+            .json()
+            .map_err(|error| format!("Cloud provider recycle bin response is invalid: {error}"))?;
+        write_app_settings(&app, &settings)?;
+        write_cloud_credentials(&app, &credentials)?;
+        Ok(payload.providers)
+    })
+    .await
+    .map_err(|error| format!("Cloud provider recycle bin task failed: {error}"))?
+}
+
+#[tauri::command]
+pub(crate) async fn cloud_restore_deleted_provider<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    id: String,
+) -> Result<CloudSyncResult, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let _credentials_guard = lock_cloud_credentials()?;
+        let client = api_client()?;
+        let mut settings = read_app_settings(&app)?;
+        let mut credentials = read_cloud_credentials(&app);
+        let encoded_id = url::form_urlencoded::byte_serialize(id.as_bytes()).collect::<String>();
+        let response = cloud_request(
+            &app,
+            &client,
+            &mut settings,
+            &mut credentials,
+            Method::POST,
+            &format!("/admin/api/profile/providers/deleted/{encoded_id}/restore"),
+            None,
+        )?;
+        if !response.status().is_success() {
+            return Err(response_error("Cloud provider restore", response));
+        }
+        let remote = get_remote_providers(&app, &client, &mut settings, &mut credentials)?;
+        let provider = remote
+            .providers
+            .into_iter()
+            .find(|provider| provider.id == id)
+            .ok_or_else(|| "The restored provider is not available for download".to_string())?;
+        apply_remote_provider(&app, &provider)?;
+        settings.cloud_last_sync_at = Some(Utc::now().to_rfc3339());
+        write_app_settings(&app, &settings)?;
+        write_cloud_credentials(&app, &credentials)?;
+        app.emit("providers-changed", ())
+            .map_err(|error| error.to_string())?;
+        crate::system_tray::refresh_menu(&app);
+        Ok(CloudSyncResult {
+            uploaded: 0,
+            downloaded: 1,
+        })
+    })
+    .await
+    .map_err(|error| format!("Cloud provider restore task failed: {error}"))?
+}
+
+#[tauri::command]
 pub(crate) async fn cloud_delete_provider<R: Runtime>(
     app: tauri::AppHandle<R>,
     id: String,
@@ -2385,7 +2472,7 @@ mod tests {
         cloud_state, persist_cloud_token_response, refresh_rejection_expires_cloud_session,
         restored_account_status, saved_cloud_login_service, should_apply_remote_field,
         CloudAccountsResponse, CloudCredentials, CloudProvidersResponse, CloudTokenResponse,
-        CloudUserResponse,
+        CloudUserResponse, DeletedCloudProvidersResponse,
     };
     use crate::models::AppSettings;
     use reqwest::StatusCode;
@@ -2407,6 +2494,26 @@ mod tests {
 
         assert!(response.providers.is_empty());
         assert_eq!(response.deleted_provider_ids, ["provider-1"]);
+    }
+
+    #[test]
+    fn deleted_cloud_provider_response_accepts_safe_summary_fields() {
+        let response: DeletedCloudProvidersResponse = serde_json::from_str(
+            r#"{
+                "providers": [{
+                    "id": "provider-1",
+                    "name": "Gateway",
+                    "baseUrl": "https://example.com/v1",
+                    "model": "gpt-5.6",
+                    "deletedAt": "2026-08-15T01:00:00Z"
+                }]
+            }"#,
+        )
+        .unwrap();
+
+        assert_eq!(response.providers.len(), 1);
+        assert_eq!(response.providers[0].id, "provider-1");
+        assert_eq!(response.providers[0].name, "Gateway");
     }
 
     #[test]
