@@ -38,6 +38,7 @@ import {
   showTokenUsageWindow,
   submitFeedback,
   subscribeToCloudSessionExpired,
+  subscribeToOpenSettings,
   updateAutoDisableStatusCodes,
   updateNetworkProxy,
   updateShowUsageNetworkErrors,
@@ -212,6 +213,7 @@ export function DashboardApp() {
   const [showUsageNetworkErrorsLoading, setShowUsageNetworkErrorsLoading] = useState(false);
   const cloudSessionPromptedRef = useRef(false);
   const providerBalanceRefreshCountRef = useRef(0);
+  useEffect(() => subscribeToOpenSettings(() => setPage("settings")), []);
   const { message: toast, notify } = useToast();
   const { language, setLanguage, t } = useLanguage();
   const cloud = useCloudAuth(notify, t);

@@ -155,6 +155,7 @@ const LANGUAGE_EVENT = "codex-switch:language-changed";
 const TOTP_EVENT = "codex-switch:totp-changed";
 const PROVIDERS_EVENT = "codex-switch:providers-changed";
 const PROVIDER_BALANCE_EVENT = "codex-switch:provider-balance-refreshed";
+const OPEN_SETTINGS_EVENT = "open-settings";
 const DREAM_SKIN_INSTALLED_PREVIEW_KEY = "codex-switch:dream-skin-installed";
 const DREAM_SKIN_SESSION_PREVIEW_KEY = "codex-switch:dream-skin-session";
 const DREAM_SKIN_THEME_PREVIEW_KEY = "codex-switch:dream-skin-theme";
@@ -2459,6 +2460,12 @@ export function subscribeToProviderEvents(onProvidersChanged: () => void): () =>
     return () => window.removeEventListener(PROVIDERS_EVENT, onProvidersChanged);
   }
   const subscription = listen("providers-changed", onProvidersChanged);
+  return () => void subscription.then((unlisten) => unlisten());
+}
+
+export function subscribeToOpenSettings(onOpen: () => void): () => void {
+  if (!isDesktopApp) return () => undefined;
+  const subscription = listen(OPEN_SETTINGS_EVENT, () => onOpen());
   return () => void subscription.then((unlisten) => unlisten());
 }
 

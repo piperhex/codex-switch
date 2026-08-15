@@ -1,7 +1,7 @@
 use tauri::{
     menu::{CheckMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuItem, Submenu},
     tray::{MouseButton, TrayIconBuilder, TrayIconEvent},
-    App, AppHandle, Manager, Runtime,
+    App, AppHandle, Emitter, Manager, Runtime,
 };
 
 use crate::{
@@ -13,6 +13,8 @@ use crate::{
 
 const TRAY_ID: &str = "main-tray";
 const DASHBOARD_ID: &str = "tray:dashboard";
+const SETTINGS_ID: &str = "tray:settings";
+const OPEN_SETTINGS_EVENT: &str = "open-settings";
 const RESTART_CHATGPT_ID: &str = "tray:restart-chatgpt";
 const RESTART_APP_ID: &str = "tray:restart-app";
 const QUIT_ID: &str = "tray:quit";
@@ -74,8 +76,22 @@ pub(crate) fn show_dashboard<R: Runtime>(app: &AppHandle<R>) {
     }
 }
 
+fn show_settings<R: Runtime>(app: &AppHandle<R>) {
+    show_dashboard(app);
+    let Some(window) = app.get_webview_window("main") else {
+        return;
+    };
+    if let Err(error) = window.emit(OPEN_SETTINGS_EVENT, ()) {
+        eprintln!("failed to open settings from menu: {error}");
+    }
+}
+
 pub(crate) fn handle_menu_event<R: Runtime>(app: &AppHandle<R>, event: MenuEvent) {
     let id = event.id().as_ref();
+    if id == SETTINGS_ID {
+        show_settings(app);
+        return;
+    }
     if id == DASHBOARD_ID {
         show_dashboard(app);
         return;
@@ -186,6 +202,13 @@ pub(crate) fn build_menu<R: Runtime>(
     append_provider_items(app, &menu, chinese)?;
 
     menu.append(&PredefinedMenuItem::separator(app)?)?;
+    menu.append(&MenuItem::with_id(
+        app,
+        SETTINGS_ID,
+        if chinese { "设置" } else { "Settings" },
+        true,
+        None::<&str>,
+    )?)?;
     menu.append(&MenuItem::with_id(
         app,
         DASHBOARD_ID,

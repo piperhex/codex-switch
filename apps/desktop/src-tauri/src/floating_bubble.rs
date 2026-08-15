@@ -24,6 +24,7 @@ const SCREEN_MARGIN: f64 = 22.0;
 const MENU_SCREEN_MARGIN: f64 = 8.0;
 const MENU_EMAIL_CHARS: usize = 15;
 const MENU_VERTICAL_ATTACH_RATIO: f64 = 0.58;
+const MENU_ACTION_ROW_COUNT: usize = 5;
 const BUBBLE_SIZE: f64 = 92.0;
 const BUBBLE_EDGE_INSET: f64 = 8.0;
 const HEX_COLOR_LEN: usize = 7;
@@ -477,7 +478,7 @@ fn estimated_floating_menu_size<R: Runtime>(app: &AppHandle<R>) -> (f64, f64) {
         .max()
         .unwrap_or(20);
     let width = ((max_chars as f64) * 8.8 + 92.0).clamp(230.0, 520.0);
-    let height = ((labels.len() + 4) as f64) * 32.0 + 26.0;
+    let height = ((labels.len() + MENU_ACTION_ROW_COUNT) as f64) * 32.0 + 26.0;
     (width, height)
 }
 
