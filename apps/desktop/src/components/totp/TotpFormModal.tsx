@@ -27,6 +27,14 @@ const DEFAULT_DRAFT: TotpDraft = {
   period: 30,
 };
 
+function normalizeFormDraft(values: TotpDraft): TotpDraft {
+  return {
+    ...values,
+    secret: normalizeTotpSecret(values.secret),
+    period: Number(values.period ?? DEFAULT_DRAFT.period),
+  };
+}
+
 function qrImportError(cause: unknown, t: Translate) {
   if (!(cause instanceof QrImageError)) return t("totp.qrInvalid");
   if (cause.code === "unsupported-image") return t("totp.qrUnsupported");
@@ -75,10 +83,7 @@ export function TotpFormModal({ entry, onCancel, onSave, open, t }: TotpFormModa
       const current = form.getFieldsValue(true);
       const parsed = current.secret?.trim().toLowerCase().startsWith("otpauth://")
         ? parseOtpAuthUri(current.secret)
-        : await form.validateFields().then((values) => ({
-          ...values,
-          secret: normalizeTotpSecret(values.secret),
-        }));
+        : await form.validateFields().then(normalizeFormDraft);
       onSave(parsed);
       onCancel();
     } catch (cause) {
