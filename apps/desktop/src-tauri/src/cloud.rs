@@ -1212,6 +1212,47 @@ fn put_remote_account<R: Runtime>(
     Ok(())
 }
 
+struct RestoreRemoteAccountOptions<'a, R: Runtime> {
+    app: &'a tauri::AppHandle<R>,
+    client: &'a Client,
+    settings: &'a mut AppSettings,
+    credentials: &'a mut CloudCredentials,
+    id: &'a str,
+}
+
+fn restore_remote_account_if_deleted<R: Runtime>(
+    options: RestoreRemoteAccountOptions<'_, R>,
+) -> Result<bool, String> {
+    let RestoreRemoteAccountOptions {
+        app,
+        client,
+        settings,
+        credentials,
+        id,
+    } = options;
+    let encoded_id = url::form_urlencoded::byte_serialize(id.as_bytes()).collect::<String>();
+    let response = cloud_request(
+        app,
+        client,
+        settings,
+        credentials,
+        Method::POST,
+        &format!("/admin/api/profile/accounts/deleted/{encoded_id}/restore"),
+        None,
+    )?;
+    if let Some(restored) = restored_account_status(response.status()) {
+        return Ok(restored);
+    }
+    Err(response_error("Cloud account restore", response))
+}
+
+fn restored_account_status(status: StatusCode) -> Option<bool> {
+    if status.is_success() {
+        return Some(true);
+    }
+    (status == StatusCode::NOT_FOUND).then_some(false)
+}
+
 fn put_remote_provider<R: Runtime>(
     app: &tauri::AppHandle<R>,
     client: &Client,
@@ -2079,12 +2120,22 @@ pub(crate) async fn cloud_push_accounts<R: Runtime>(
 pub(crate) async fn cloud_push_account<R: Runtime>(
     app: tauri::AppHandle<R>,
     id: String,
+    restore_deleted: bool,
 ) -> Result<CloudSyncResult, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let _credentials_guard = lock_cloud_credentials()?;
         let client = api_client()?;
         let mut settings = read_app_settings(&app)?;
         let mut credentials = read_cloud_credentials(&app);
+        if restore_deleted {
+            restore_remote_account_if_deleted(RestoreRemoteAccountOptions {
+                app: &app,
+                client: &client,
+                settings: &mut settings,
+                credentials: &mut credentials,
+                id: &id,
+            })?;
+        }
         put_remote_account(&app, &client, &mut settings, &mut credentials, &id)?;
         write_app_settings(&app, &settings)?;
         write_cloud_credentials(&app, &credentials)?;
@@ -2204,20 +2255,15 @@ pub(crate) async fn cloud_restore_deleted_account<R: Runtime>(
         let client = api_client()?;
         let mut settings = read_app_settings(&app)?;
         let mut credentials = read_cloud_credentials(&app);
-        let response = cloud_request(
-            &app,
-            &client,
-            &mut settings,
-            &mut credentials,
-            Method::POST,
-            &format!(
-                "/admin/api/profile/accounts/deleted/{}/restore",
-                url::form_urlencoded::byte_serialize(id.as_bytes()).collect::<String>()
-            ),
-            None,
-        )?;
-        if !response.status().is_success() {
-            return Err(response_error("Cloud account restore", response));
+        let restored = restore_remote_account_if_deleted(RestoreRemoteAccountOptions {
+            app: &app,
+            client: &client,
+            settings: &mut settings,
+            credentials: &mut credentials,
+            id: &id,
+        })?;
+        if !restored {
+            return Err("The deleted cloud account no longer exists".to_string());
         }
         let remote_accounts = get_remote_accounts(&app, &client, &mut settings, &mut credentials)?;
         let account = remote_accounts
@@ -2337,8 +2383,9 @@ pub(crate) async fn cloud_sync_accounts<R: Runtime>(
 mod tests {
     use super::{
         cloud_state, persist_cloud_token_response, refresh_rejection_expires_cloud_session,
-        saved_cloud_login_service, should_apply_remote_field, CloudAccountsResponse,
-        CloudCredentials, CloudProvidersResponse, CloudTokenResponse, CloudUserResponse,
+        restored_account_status, saved_cloud_login_service, should_apply_remote_field,
+        CloudAccountsResponse, CloudCredentials, CloudProvidersResponse, CloudTokenResponse,
+        CloudUserResponse,
     };
     use crate::models::AppSettings;
     use reqwest::StatusCode;
@@ -2360,6 +2407,13 @@ mod tests {
 
         assert!(response.providers.is_empty());
         assert_eq!(response.deleted_provider_ids, ["provider-1"]);
+    }
+
+    #[test]
+    fn explicit_account_restore_continues_when_no_tombstone_exists() {
+        assert_eq!(restored_account_status(StatusCode::OK), Some(true));
+        assert_eq!(restored_account_status(StatusCode::NOT_FOUND), Some(false));
+        assert_eq!(restored_account_status(StatusCode::FORBIDDEN), None);
     }
 
     #[test]

@@ -187,6 +187,16 @@ export function useCloudAuth(notify: (message: string) => void, t: Translate) {
     }
   }, [load, state.authenticated]);
 
+  const restoreAndPushAccountQuietly = useCallback(async (id: string) => {
+    if (!state.authenticated) return;
+    try {
+      await pushCloudAccount(id, true);
+      await load();
+    } catch {
+      // Explicit account additions stay local-first if cloud recovery or upload is unavailable.
+    }
+  }, [load, state.authenticated]);
+
   const deleteAccountQuietly = useCallback(async (id: string) => {
     if (!state.authenticated) return;
     try {
@@ -243,6 +253,7 @@ export function useCloudAuth(notify: (message: string) => void, t: Translate) {
     sync,
     pushQuietly,
     pushAccountQuietly,
+    restoreAndPushAccountQuietly,
     deleteAccountQuietly,
     pushProvidersQuietly,
     pushProviderQuietly,

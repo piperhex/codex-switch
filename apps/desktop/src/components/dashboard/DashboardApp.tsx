@@ -249,8 +249,14 @@ export function DashboardApp() {
   const accountCloudSync = useMemo(() => ({
     pushAll: cloud.pushQuietly,
     pushAccount: cloud.pushAccountQuietly,
+    restoreAndPushAccount: cloud.restoreAndPushAccountQuietly,
     deleteAccount: cloud.deleteAccountQuietly,
-  }), [cloud.deleteAccountQuietly, cloud.pushAccountQuietly, cloud.pushQuietly]);
+  }), [
+    cloud.deleteAccountQuietly,
+    cloud.pushAccountQuietly,
+    cloud.pushQuietly,
+    cloud.restoreAndPushAccountQuietly,
+  ]);
   const providerCloudSync = useMemo(() => ({
     pushProvider: cloud.pushProviderQuietly,
     deleteProvider: cloud.deleteProviderQuietly,

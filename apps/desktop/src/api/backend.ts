@@ -1512,9 +1512,9 @@ export async function pushCloudAccounts(): Promise<CloudSyncResult> {
   return invoke<CloudSyncResult>("cloud_push_accounts");
 }
 
-export async function pushCloudAccount(id: string): Promise<CloudSyncResult> {
+export async function pushCloudAccount(id: string, restoreDeleted = false): Promise<CloudSyncResult> {
   if (!hasLocalBackend) return { uploaded: 0, downloaded: 0 };
-  return invoke<CloudSyncResult>("cloud_push_account", { id });
+  return invoke<CloudSyncResult>("cloud_push_account", { id, restoreDeleted });
 }
 
 export async function pushCloudProviders(): Promise<CloudSyncResult> {

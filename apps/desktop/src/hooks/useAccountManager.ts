@@ -32,6 +32,7 @@ interface RefreshAllOptions {
 interface AccountCloudSync {
   pushAll?: () => Promise<void> | void;
   pushAccount?: (id: string) => Promise<void> | void;
+  restoreAndPushAccount?: (id: string) => Promise<void> | void;
   deleteAccount?: (id: string) => Promise<void> | void;
 }
 
@@ -62,11 +63,16 @@ export function useAccountManager(
     }
   }, [notify]);
 
+  const syncAddedAccount = useCallback((id: string) => {
+    const syncAccount = cloudSync?.restoreAndPushAccount ?? cloudSync?.pushAccount;
+    return syncAccount?.(id);
+  }, [cloudSync]);
+
   const refreshAddedAccounts = useCallback(async (ids: string[]) => {
     await Promise.allSettled(ids.map((id) => refreshAccountUsage(id)));
     await load();
-    await Promise.allSettled(ids.map((id) => cloudSync?.pushAccount?.(id)));
-  }, [cloudSync, load]);
+    await Promise.allSettled(ids.map(syncAddedAccount));
+  }, [load, syncAddedAccount]);
 
   useEffect(() => { void load(); }, [load]);
   useEffect(() => subscribeToBackendEvents(
@@ -151,7 +157,7 @@ export function useAccountManager(
           providers: result.result.providersImported,
         }));
         await load();
-        await Promise.allSettled(result.result.accountIds.map((id) => cloudSync?.pushAccount?.(id)));
+        await Promise.allSettled(result.result.accountIds.map(syncAddedAccount));
         if (result.result.providerIds.length) await cloudSync?.pushAll?.();
       }
     } catch (error) {
@@ -159,7 +165,7 @@ export function useAccountManager(
     } finally {
       setArchiveOperation(null);
     }
-  }, [cloudSync, load, notify, t]);
+  }, [cloudSync, load, notify, syncAddedAccount, t]);
 
   const switchAccount = useCallback(async (id: string, hotSwitch = false) => {
     setBusyAccountId(id);

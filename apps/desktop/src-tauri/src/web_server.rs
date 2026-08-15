@@ -586,6 +586,7 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
         "cloud_push_account" => serialize(block_on(crate::cloud::cloud_push_account(
             app,
             argument(&args, "id")?,
+            argument(&args, "restoreDeleted")?,
         ))),
         "cloud_push_providers" => serialize(block_on(crate::cloud::cloud_push_providers(app))),
         "cloud_push_provider" => serialize(block_on(crate::cloud::cloud_push_provider(
