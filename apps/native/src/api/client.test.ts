@@ -48,6 +48,11 @@ describe('mobile Codex API client', () => {
     const apiFetch = vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({
         accounts: [account({
+          privateDetails: {
+            password: 'account-password',
+            phoneNumber: '+65 6123 4567',
+            totpSecret: 'JBSWY3DPEHPK3PXP',
+          },
           usage: {
             primary: { usedPercent: 99, remainingPercent: 1 },
             fetchedAt: '2026-01-01T00:00:00.000Z',
@@ -97,6 +102,11 @@ describe('mobile Codex API client', () => {
       error: null,
     }));
     expect(result[0]?.plan).toBe('pro');
+    expect(result[0]?.privateDetails).toEqual({
+      password: 'account-password',
+      phoneNumber: '+65 6123 4567',
+      totpSecret: 'JBSWY3DPEHPK3PXP',
+    });
     expect(apiFetch.mock.calls[1]?.[0]).toBe('https://chatgpt.com/backend-api/wham/usage');
     const headers = new Headers((apiFetch.mock.calls[1]?.[1] as RequestInit).headers);
     expect(headers.get('Authorization')).toBe('Bearer codex-access');

@@ -14,6 +14,12 @@ export interface UsageSummary {
   error?: string | null;
 }
 
+export interface AccountPrivateDetails {
+  password: string;
+  phoneNumber: string;
+  totpSecret: string;
+}
+
 export interface AccountSummary {
   id: string;
   email: string;
@@ -24,6 +30,7 @@ export interface AccountSummary {
   codexAccessToken?: string;
   active: boolean;
   usage: UsageSummary;
+  privateDetails?: AccountPrivateDetails;
   lastModifiedAt?: string;
 }
 
@@ -81,6 +88,7 @@ export interface AdminDashboardOverview {
   summary: {
     totalUsers: number;
     activeUsers: number;
+    dailyActiveUsers: number;
     newUsers: number;
     totalInstallations: number;
     newInstallations: number;

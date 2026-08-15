@@ -370,10 +370,36 @@ function DashboardPage({ session, onBack }: AdminAreaProps & { onBack: () => voi
   useEffect(() => { void load(); }, [load]);
 
   const metrics: Array<{ label: string; value: number; note: string; tone: Tone }> = [
-    { label: '用户总数', value: data?.summary.totalUsers ?? 0, note: `活跃 ${data?.summary.activeUsers ?? 0} · 新增 ${data?.summary.newUsers ?? 0}`, tone: 'blue' },
-    { label: '设备安装', value: data?.summary.totalInstallations ?? 0, note: `新增 ${data?.summary.newInstallations ?? 0}`, tone: 'green' },
-    { label: '官方账号', value: data?.summary.officialAccounts ?? 0, note: `已绑定 ${data?.summary.boundOfficialAccounts ?? 0}`, tone: 'purple' },
-    { label: '待处理事项', value: (data?.summary.pendingFeedback ?? 0) + (data?.summary.pendingApprovals ?? 0), note: `反馈 ${data?.summary.pendingFeedback ?? 0} · 审批 ${data?.summary.pendingApprovals ?? 0}`, tone: 'amber' },
+    {
+      label: '用户总数',
+      value: data?.summary.totalUsers ?? 0,
+      note: `活跃 ${data?.summary.activeUsers ?? 0} · 新增 ${data?.summary.newUsers ?? 0}`,
+      tone: 'blue',
+    },
+    {
+      label: '日活跃用户',
+      value: data?.summary.dailyActiveUsers ?? 0,
+      note: '今日活跃设备（按设备去重）',
+      tone: 'green',
+    },
+    {
+      label: '设备安装',
+      value: data?.summary.totalInstallations ?? 0,
+      note: `新增 ${data?.summary.newInstallations ?? 0}`,
+      tone: 'green',
+    },
+    {
+      label: '官方账号',
+      value: data?.summary.officialAccounts ?? 0,
+      note: `已绑定 ${data?.summary.boundOfficialAccounts ?? 0}`,
+      tone: 'purple',
+    },
+    {
+      label: '待处理事项',
+      value: (data?.summary.pendingFeedback ?? 0) + (data?.summary.pendingApprovals ?? 0),
+      note: `反馈 ${data?.summary.pendingFeedback ?? 0} · 审批 ${data?.summary.pendingApprovals ?? 0}`,
+      tone: 'amber',
+    },
   ];
   const trend = data?.trend.slice(-10) ?? [];
   const trendMax = Math.max(1, ...trend.map((item) => item.users + item.installations));

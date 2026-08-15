@@ -641,7 +641,7 @@ describe('SyncService', () => {
     );
   });
 
-  it('returns the mobile account overview with only the Codex access token', async () => {
+  it('returns mobile private details and only the Codex access token', async () => {
     accounts.find.mockResolvedValue([{
       ownerId: 'owner-1', accountId: 'account-1', email: 'a@example.com', note: 'primary',
       expiresAt: '', plan: 'Plus', codexAccountId: 'workspace-1', active: true,
@@ -669,11 +669,14 @@ describe('SyncService', () => {
         email: 'a@example.com',
         accountId: 'workspace-1',
         codexAccessToken: 'mobile-access-token',
+        privateDetails: {
+          password: 'must-stay-private',
+          phoneNumber: '+65 6123 4567',
+          totpSecret: 'JBSWY3DPEHPK3PXP',
+        },
       })],
     });
     expect(result.accounts[0]).not.toHaveProperty('auth');
-    expect(result.accounts[0]).not.toHaveProperty('privateDetails');
-    expect(JSON.stringify(result)).not.toContain('must-stay-private');
     expect(JSON.stringify(result)).not.toContain('must-not-leave-the-server');
     expect(accounts.find).toHaveBeenCalledWith({ where: { ownerId: 'owner-1' }, order: { email: 'ASC' } });
     expect(redis.get).not.toHaveBeenCalled();

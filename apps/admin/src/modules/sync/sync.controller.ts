@@ -25,9 +25,9 @@ export class SyncController {
   }
 
   /**
-   * Mobile clients receive the account overview plus the short-lived Codex
-   * access token needed for direct usage/reset-card requests. Never expose the
-   * refresh token, ID token, or the rest of the synchronized auth payload.
+   * Mobile clients receive the account overview, account-linked private details,
+   * and the short-lived Codex access token needed for direct usage/reset-card
+   * requests. Never expose the refresh token, ID token, or the rest of the auth payload.
    */
   @Get('accounts/summary')
   @Header('Cache-Control', 'no-store')

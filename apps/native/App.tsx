@@ -51,6 +51,7 @@ import type {
 import { reportMobileInstallation } from './src/telemetry';
 import { earliestExpirationDate } from './src/utils/expiration';
 import { AdminArea } from './src/admin/AdminArea';
+import { AccountPrivateDetailsSheet } from './src/components/AccountPrivateDetailsSheet';
 import { AppToastHost, Toast } from './src/components/AppToast';
 import { BottomSheet } from './src/components/BottomSheet';
 import { TotpManager } from './src/totp/TotpManager';
@@ -361,9 +362,10 @@ function Dashboard({
   const [privateMode, setPrivateMode] = useState(true);
   const [detailAccountId, setDetailAccountId] = useState<string | null>(null);
   const [resetCreditsAccount, setResetCreditsAccount] = useState<AccountSummary | null>(null);
-  const [noteAccount, setNoteAccount] = useState<AccountSummary | null>(null);
+  const [privateDetailsAccountId, setPrivateDetailsAccountId] = useState<string | null>(null);
   const [switchAccount, setSwitchAccount] = useState<AccountSummary | null>(null);
   const detailAccount = accounts.find((account) => account.id === detailAccountId) ?? null;
+  const privateDetailsAccount = accounts.find((account) => account.id === privateDetailsAccountId) ?? null;
   const latestUpdate = useMemo(() => {
     const timestamps = accounts.map((account) => account.usage.fetchedAt).filter(Boolean).sort();
     return timestamps.length ? timestamps[timestamps.length - 1] : null;
@@ -417,7 +419,7 @@ function Dashboard({
       onClose={() => setDetailAccountId(null)}
       onRefresh={onRefreshAccount}
       onOpenResetCredits={(account) => setResetCreditsAccount(account)}
-      onOpenNote={(account) => setNoteAccount(account)}
+      onOpenPrivateDetails={(account) => setPrivateDetailsAccountId(account.id)}
     />
     <DeviceSwitchDrawer
       account={switchAccount}
@@ -434,7 +436,8 @@ function Dashboard({
       onClose={() => setResetCreditsAccount(null)}
       onConsumed={onRefresh}
     />
-    <NoteDrawer account={noteAccount} onClose={() => setNoteAccount(null)} />
+    <AccountPrivateDetailsSheet account={privateDetailsAccount}
+      onClose={() => setPrivateDetailsAccountId(null)} />
   </>;
 }
 
@@ -1217,7 +1220,7 @@ function AccountDetailsDrawer({
   onClose,
   onRefresh,
   onOpenResetCredits,
-  onOpenNote,
+  onOpenPrivateDetails,
 }: {
   account: AccountSummary | null;
   devices: RemoteDevice[];
@@ -1226,7 +1229,7 @@ function AccountDetailsDrawer({
   onClose: () => void;
   onRefresh: (accountId: string) => Promise<void>;
   onOpenResetCredits: (account: AccountSummary) => void;
-  onOpenNote: (account: AccountSummary) => void;
+  onOpenPrivateDetails: (account: AccountSummary) => void;
 }) {
   const activeDevices = account
     ? devices.filter((device) => device.activeAccountId === account.id)
@@ -1316,13 +1319,13 @@ function AccountDetailsDrawer({
 
       <Pressable
         accessibilityRole="button"
-        accessibilityHint="在新的底部抽屉中查看账号备注"
-        onPress={() => onOpenNote(account)}
+        accessibilityHint="在新的底部抽屉中查看账号私密资料"
+        onPress={() => onOpenPrivateDetails(account)}
         style={({ pressed }) => [styles.openNoteButton, pressed && styles.pressed]}
       >
         <View>
-          <Text style={styles.openNoteTitle}>账号备注</Text>
-          <Text style={styles.openNoteHint}>备注详情将单独打开</Text>
+          <Text style={styles.openNoteTitle}>账号资料</Text>
+          <Text style={styles.openNoteHint}>查看备注、手机号、密码和 2FA</Text>
         </View>
         <Text style={styles.openNoteArrow}>›</Text>
       </Pressable>
@@ -1530,24 +1533,6 @@ function DeviceSwitchDrawer({ account, devices, switching, onClose, onSwitch }: 
         </Pressable>;
       })}
     </ScrollView>
-  </BottomSheet>;
-}
-
-function NoteDrawer({ account, onClose }: { account: AccountSummary | null; onClose: () => void }) {
-  return <BottomSheet
-    visible={Boolean(account)}
-    title="账号备注"
-    subtitle={account?.email}
-    onClose={onClose}
-    actions={[{ label: '完成', tone: 'primary', onPress: onClose }]}
-  >
-    <View style={styles.noteContentBox}>
-      <ScrollView style={styles.noteContentScroll} contentContainerStyle={styles.noteContentScrollInner}>
-        <Text selectable style={[styles.noteContentText, !account?.note && styles.noteEmptyText]}>
-          {account?.note || '该账号暂无备注'}
-        </Text>
-      </ScrollView>
-    </View>
   </BottomSheet>;
 }
 
@@ -2127,11 +2112,6 @@ const styles = StyleSheet.create({
   switchDeviceEmpty: { minHeight: 150, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, backgroundColor: COLORS.canvas, padding: 20 },
   switchDeviceEmptyTitle: { color: COLORS.ink, fontSize: 16, fontWeight: '800' },
   switchDeviceEmptyText: { color: COLORS.muted, fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 7 },
-  noteContentBox: { minHeight: 130, maxHeight: 360, backgroundColor: COLORS.canvas, borderColor: COLORS.border, borderWidth: 1, borderRadius: 14, marginTop: 2, marginBottom: 18, overflow: 'hidden' },
-  noteContentScroll: { flexGrow: 0 },
-  noteContentScrollInner: { padding: 16 },
-  noteContentText: { color: COLORS.ink, fontSize: 15, lineHeight: 24 },
-  noteEmptyText: { color: COLORS.muted },
   settingsScroll: { padding: 18, paddingBottom: 30 }, settingsHeader: { marginBottom: 24 }, settingsTitle: { color: COLORS.ink, fontSize: 28, fontWeight: '800' }, settingsSubtitle: { color: COLORS.muted, fontSize: 13, marginTop: 4 }, sectionLabel: { color: COLORS.muted, fontSize: 13, fontWeight: '700', marginLeft: 3, marginBottom: 9, marginTop: 2 }, settingsCard: { backgroundColor: COLORS.card, borderColor: COLORS.border, borderWidth: 1, borderRadius: 16, padding: 17, marginBottom: 22, shadowColor: '#456152', shadowOpacity: 0.04, shadowRadius: 8, elevation: 1 }, profileSummary: { flexDirection: 'row', alignItems: 'center' }, profileAvatar: { width: 50, height: 50, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: '#c9f0e7' }, profileAvatarText: { color: '#14806f', fontSize: 16, fontWeight: '800' }, profileSummaryText: { flex: 1, minWidth: 0, marginLeft: 12 }, profileName: { color: COLORS.ink, fontSize: 16, fontWeight: '800' }, profileCaption: { color: COLORS.muted, fontSize: 12, marginTop: 4 }, settingsDivider: { height: 1, backgroundColor: '#e4ede6', marginVertical: 16 }, infoRow: { minHeight: 38, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16 }, infoLabel: { color: COLORS.muted, fontSize: 14 }, infoValue: { color: COLORS.ink, fontSize: 14, fontWeight: '700', flex: 1, textAlign: 'right' }, rowDivider: { height: 1, backgroundColor: '#eef3ef', marginVertical: 7 }, roleBadge: { backgroundColor: COLORS.paleBlue, borderRadius: 8, paddingVertical: 5, paddingHorizontal: 10 }, roleBadgeText: { color: '#168da2', fontWeight: '800', fontSize: 12 }, passwordHint: { color: COLORS.muted, fontSize: 12, lineHeight: 18, marginBottom: 2 }, settingsLogoutButton: { height: 48, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#e9b7b2', borderRadius: 12, backgroundColor: '#fffafa' }, settingsLogoutText: { color: '#bd3c35', fontWeight: '800', fontSize: 15 },
   refreshSettingsTitle: { color: COLORS.ink, fontSize: 16, fontWeight: '800', marginBottom: 6 }, refreshIntervalRow: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 16 }, refreshIntervalInput: { width: 88, height: 44, borderWidth: 1, borderColor: '#cbdcd0', borderRadius: 9, backgroundColor: '#fbfdfb', color: COLORS.ink, fontSize: 16, textAlign: 'center' }, refreshIntervalUnit: { color: COLORS.muted, fontSize: 14, flex: 1 }, saveIntervalButton: { minWidth: 72, height: 42, alignItems: 'center', justifyContent: 'center', borderRadius: 9, backgroundColor: COLORS.cyan, paddingHorizontal: 14 }, saveIntervalText: { color: '#fff', fontWeight: '800', fontSize: 14 }, refreshSettingsHint: { color: COLORS.muted, fontSize: 11, lineHeight: 17, marginTop: 12 },
   passwordEntry: { flexDirection: 'row', alignItems: 'center', minHeight: 76 }, passwordEntryText: { flex: 1 }, passwordEntryArrow: { color: '#91a198', fontSize: 30, lineHeight: 32, marginLeft: 12 }, passwordDrawerBody: { maxHeight: 500, paddingTop: 2, paddingBottom: 6 },

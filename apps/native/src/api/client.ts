@@ -78,6 +78,15 @@ function numberValue(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }
 
+function accountPrivateDetails(value: unknown) {
+  const details = objectValue(value);
+  return {
+    password: typeof details?.password === 'string' ? details.password : '',
+    phoneNumber: typeof details?.phoneNumber === 'string' ? details.phoneNumber : '',
+    totpSecret: typeof details?.totpSecret === 'string' ? details.totpSecret : '',
+  };
+}
+
 function upstreamErrorMessage(error: unknown) {
   return error instanceof Error && error.message ? error.message : 'Codex 查询失败';
 }
@@ -395,7 +404,10 @@ export async function fetchAccountSummary(session: AuthSession): Promise<Account
   if (!payload || typeof payload !== 'object' || !Array.isArray((payload as { accounts?: unknown }).accounts)) {
     throw new ApiError('服务器返回的账户数据无效');
   }
-  const accounts = (payload as { accounts: AccountSummary[] }).accounts;
+  const accounts = (payload as { accounts: AccountSummary[] }).accounts.map((account) => ({
+    ...account,
+    privateDetails: accountPrivateDetails(account.privateDetails),
+  }));
   return mapWithConcurrency(accounts, 4, async (account) => {
     try {
       const usage = await fetchAccountUsage(account);
