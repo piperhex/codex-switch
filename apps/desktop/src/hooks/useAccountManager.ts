@@ -74,15 +74,23 @@ export function useAccountManager(
     await Promise.allSettled(ids.map(syncAddedAccount));
   }, [load, syncAddedAccount]);
 
+  const syncLoggedInAccount = useCallback(async (id: string) => {
+    await load();
+    await syncAddedAccount(id);
+  }, [load, syncAddedAccount]);
+
   useEffect(() => { void load(); }, [load]);
   useEffect(() => subscribeToBackendEvents(
     () => void load(),
     (status) => {
       notify(status.message);
+      if (status.ok && status.accountId) {
+        void syncLoggedInAccount(status.accountId);
+        return;
+      }
       void load();
-      if (status.ok && status.accountId) void refreshAddedAccounts([status.accountId]);
     },
-  ), [load, notify, refreshAddedAccounts]);
+  ), [load, notify, syncLoggedInAccount]);
   useEffect(() => subscribeToProviderEvents(() => void load()), [load]);
 
   const startLogin = useCallback(async (embedded: boolean) => {

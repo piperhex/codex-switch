@@ -124,6 +124,22 @@ fn emit_login<R: Runtime>(
     );
 }
 
+fn close_login_window_later<R: Runtime + 'static>(app: tauri::AppHandle<R>) {
+    thread::spawn(move || {
+        thread::sleep(Duration::from_millis(850));
+        if let Some(window) = app.get_webview_window("codex-login") {
+            let _ = window.close();
+        }
+    });
+}
+
+fn refresh_saved_account_usage<R: Runtime>(app: &tauri::AppHandle<R>, account_id: &str) {
+    if let Err(error) = crate::commands::refresh_usage_blocking(app.clone(), account_id.to_string())
+    {
+        eprintln!("initial account usage refresh failed: {error}");
+    }
+}
+
 fn open_login_in_default_browser<R: Runtime>(
     app: &tauri::AppHandle<R>,
     url: &str,
@@ -265,18 +281,16 @@ fn run_login_loop<R: Runtime + 'static>(
                     "登录成功",
                     "账户已保存。请回到 Codex Switch 手动切换到此账户。",
                 );
+                let _ = app.emit("accounts-changed", ());
+                close_login_window_later(app.clone());
+                refresh_saved_account_usage(&app, &account_id);
                 emit_login(
                     &app,
                     true,
                     "登录成功，账户已保存，可手动切换",
                     Some(account_id),
                 );
-                let _ = app.emit("accounts-changed", ());
                 crate::system_tray::refresh_menu(&app);
-                thread::sleep(Duration::from_millis(850));
-                if let Some(window) = app.get_webview_window("codex-login") {
-                    let _ = window.close();
-                }
                 break;
             }
             Err(error) => {
