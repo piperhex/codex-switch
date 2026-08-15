@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
-import { Alert, Button, Modal, Table, Tag, type TableColumnsType } from "antd";
-import { RefreshCw, RotateCcw, Trash2 } from "lucide-react";
+import { Alert, Button, Input, Modal, Select, Table, Tag, type TableColumnsType } from "antd";
+import { RefreshCw, RotateCcw, Search, Trash2 } from "lucide-react";
 import {
   loadDeletedCloudAccounts,
   loadDeletedCloudProviders,
@@ -20,8 +20,20 @@ type RecycleBinItem =
   | { type: "account"; value: DeletedCloudAccount }
   | { type: "provider"; value: DeletedCloudProvider };
 
+type RecycleBinTypeFilter = "all" | RecycleBinItem["type"];
+
 function recycleBinItemKey(item: RecycleBinItem) {
   return `${item.type}:${item.value.id}`;
+}
+
+function matchesRecycleBinQuery(item: RecycleBinItem, query: string) {
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  if (!normalizedQuery) return true;
+
+  const searchableValues = item.type === "account"
+    ? [item.value.email, item.value.note, item.value.plan]
+    : [item.value.name, item.value.model];
+  return searchableValues.some((value) => value.toLocaleLowerCase().includes(normalizedQuery));
 }
 
 export function CloudRecycleBin({ t, disabled, triggerClassName }: CloudRecycleBinProps) {
@@ -31,6 +43,8 @@ export function CloudRecycleBin({ t, disabled, triggerClassName }: CloudRecycleB
   const [loading, setLoading] = useState(false);
   const [restoringKey, setRestoringKey] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [typeFilter, setTypeFilter] = useState<RecycleBinTypeFilter>("all");
+  const [query, setQuery] = useState("");
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -77,6 +91,10 @@ export function CloudRecycleBin({ t, disabled, triggerClassName }: CloudRecycleB
     accounts,
     providers,
   ]);
+
+  const filteredItems = useMemo(() => items.filter((item) => (
+    (typeFilter === "all" || item.type === typeFilter) && matchesRecycleBinQuery(item, query)
+  )), [items, query, typeFilter]);
 
   const columns = useMemo<TableColumnsType<RecycleBinItem>>(() => [
     {
@@ -138,7 +156,12 @@ export function CloudRecycleBin({ t, disabled, triggerClassName }: CloudRecycleB
     <>
       <Button className={triggerClassName} size="small" icon={<Trash2 size={14} />}
         disabled={disabled} title={disabled ? t("providers.proxy.recycleBinLoginRequired") : undefined}
-        onClick={() => { setOpen(true); void refresh(); }}>
+        onClick={() => {
+          setTypeFilter("all");
+          setQuery("");
+          setOpen(true);
+          void refresh();
+        }}>
         {t("providers.proxy.recycleBin")}
       </Button>
       <Modal className="cloud-recycle-bin-modal" open={open} centered width={900}
@@ -150,8 +173,23 @@ export function CloudRecycleBin({ t, disabled, triggerClassName }: CloudRecycleB
         </Button></>}>
         <p className="proxy-session-description">{t("providers.proxy.recycleBinDescription")}</p>
         {error ? <Alert type="error" showIcon message={error} /> : null}
+        <div className="cloud-recycle-bin-filters">
+          <Select value={typeFilter} aria-label={t("providers.proxy.recycleBinType")}
+            onChange={setTypeFilter} options={[
+              { value: "all", label: t("providers.proxy.recycleBinAllTypes") },
+              { value: "account", label: t("providers.proxy.recycleBinAccount") },
+              { value: "provider", label: t("providers.proxy.recycleBinProvider") },
+            ]} />
+          <Input allowClear value={query} prefix={<Search size={14} />}
+            placeholder={t("providers.proxy.recycleBinSearchPlaceholder")}
+            onChange={(event) => setQuery(event.target.value)} />
+        </div>
         <Table rowKey={recycleBinItemKey} size="small" loading={loading} columns={columns}
-          dataSource={items} pagination={false} locale={{ emptyText: t("providers.proxy.recycleBinEmpty") }}
+          dataSource={filteredItems} pagination={false} locale={{
+            emptyText: t(items.length === 0
+              ? "providers.proxy.recycleBinEmpty"
+              : "providers.proxy.recycleBinNoResults"),
+          }}
           scroll={{ x: 820, y: "50vh" }} />
       </Modal>
     </>

@@ -805,6 +805,9 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .proxy-session-modal .ant-alert { margin-bottom: 12px; }
 .cloud-recycle-bin-modal .ant-alert { max-width: 400px; margin-bottom: 12px; }
 .cloud-recycle-bin-modal .proxy-session-description { max-width: 400px; }
+.cloud-recycle-bin-filters { width: 100%; max-width: 400px; display: flex; gap: 8px; margin-bottom: 12px; }
+.cloud-recycle-bin-filters .ant-select { width: 120px; flex: 0 0 auto; }
+.cloud-recycle-bin-filters .ant-input-affix-wrapper { min-width: 0; flex: 1; }
 .proxy-session-table { min-height: 0; flex: 1; overflow: hidden; border: 1px solid var(--line); border-radius: 8px; }
 .proxy-session-table > .ant-spin-nested-loading,
 .proxy-session-table > .ant-spin-nested-loading > .ant-spin-container,
