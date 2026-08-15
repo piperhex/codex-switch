@@ -1,10 +1,64 @@
-import { useRef, useState } from "react";
-import { DatePicker, Input } from "antd";
+import { useEffect, useRef, useState } from "react";
+import { Button, DatePicker, Input, Progress } from "antd";
 import dayjs from "dayjs";
-import { StickyNote, X } from "lucide-react";
+import { ScanQrCode, StickyNote, X } from "lucide-react";
 import type { Translate } from "../../i18n";
 import type { Account, AccountDetailsDraft } from "../../types";
-import { normalizeTotpSecret, parseOtpAuthUri } from "../../utils/totp";
+import { generateTotp, normalizeTotpSecret, parseOtpAuthUri } from "../../utils/totp";
+import { decodeQrImage, qrImportErrorMessage } from "../totp/qr";
+
+const ACCOUNT_TOTP_PERIOD = 30;
+
+function initialPreviewSecret(secret: string) {
+  try {
+    return secret ? normalizeTotpSecret(secret) : "";
+  } catch {
+    return "";
+  }
+}
+
+function AccountTotpPreview({ accountName, secret, t }: {
+  accountName: string;
+  secret: string;
+  t: Translate;
+}) {
+  const [now, setNow] = useState(Date.now());
+  const [code, setCode] = useState("");
+  const remaining = ACCOUNT_TOTP_PERIOD - (Math.floor(now / 1000) % ACCOUNT_TOTP_PERIOD);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    void generateTotp({
+      id: "account-preview",
+      issuer: "ChatGPT",
+      accountName,
+      secret,
+      algorithm: "SHA1",
+      digits: 6,
+      period: ACCOUNT_TOTP_PERIOD,
+      createdAt: "",
+    }, now).then((value) => {
+      if (active) setCode(value);
+    }).catch(() => {
+      if (active) setCode("");
+    });
+    return () => { active = false; };
+  }, [accountName, now, secret]);
+
+  return <div className="account-totp-preview">
+    <span>
+      <small>{t("note.totpPreview")}</small>
+      <strong>{code ? `${code.slice(0, 3)} ${code.slice(3)}` : "••• •••"}</strong>
+    </span>
+    <Progress type="circle" size={38} percent={(remaining / ACCOUNT_TOTP_PERIOD) * 100}
+      strokeWidth={8} format={() => remaining} />
+  </div>;
+}
 
 export function AccountNoteModal({
   account,
@@ -22,12 +76,54 @@ export function AccountNoteModal({
   const [password, setPassword] = useState(account.privateDetails.password);
   const [phoneNumber, setPhoneNumber] = useState(account.privateDetails.phoneNumber);
   const [totpSecret, setTotpSecret] = useState(account.privateDetails.totpSecret);
+  const [previewSecret, setPreviewSecret] = useState(
+    () => initialPreviewSecret(account.privateDetails.totpSecret),
+  );
   const [totpError, setTotpError] = useState("");
+  const [totpImported, setTotpImported] = useState(false);
+  const [readingQr, setReadingQr] = useState(false);
   const [saving, setSaving] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const qrFileInputRef = useRef<HTMLInputElement>(null);
+
+  const importQrCode = async (file: File) => {
+    setReadingQr(true);
+    try {
+      const draft = parseOtpAuthUri(await decodeQrImage(file));
+      setTotpSecret(draft.secret);
+      setPreviewSecret(draft.secret);
+      setTotpError("");
+      setTotpImported(true);
+    } catch (cause) {
+      setTotpImported(false);
+      setPreviewSecret("");
+      setTotpError(qrImportErrorMessage(cause, t));
+    } finally {
+      setReadingQr(false);
+    }
+  };
+
+  const showTotpPreview = () => {
+    if (!totpSecret.trim()) {
+      setPreviewSecret("");
+      setTotpError("");
+      return;
+    }
+    try {
+      const secret = totpSecret.trim().toLowerCase().startsWith("otpauth://")
+        ? parseOtpAuthUri(totpSecret).secret
+        : normalizeTotpSecret(totpSecret);
+      setTotpSecret(secret);
+      setPreviewSecret(secret);
+      setTotpError("");
+    } catch {
+      setPreviewSecret("");
+      setTotpError(t("note.totpInvalid"));
+    }
+  };
 
   const save = async () => {
-    if (saving) return;
+    if (saving || readingQr) return;
     let normalizedTotpSecret = "";
     try {
       normalizedTotpSecret = !totpSecret.trim()
@@ -79,10 +175,25 @@ export function AccountNoteModal({
           <label className="account-note-label" htmlFor="account-totp-secret">{t("note.totp")}</label>
           <Input.Password id="account-totp-secret" value={totpSecret} maxLength={1024}
             status={totpError ? "error" : undefined} autoComplete="off" placeholder={t("note.totpPlaceholder")}
-            onChange={(event) => { setTotpSecret(event.target.value); setTotpError(""); }} />
-          <span className={`account-private-hint${totpError ? " error" : ""}`}>
-            {totpError || t("note.totpHint")}
-          </span>
+            onChange={(event) => {
+              setTotpSecret(event.target.value);
+              setPreviewSecret("");
+              setTotpError("");
+              setTotpImported(false);
+            }} onBlur={showTotpPreview} />
+          <div className="account-totp-tools">
+            <input ref={qrFileInputRef} type="file" accept="image/*" hidden onChange={(event) => {
+              const file = event.target.files?.[0];
+              event.target.value = "";
+              if (file) void importQrCode(file);
+            }} />
+            <Button size="small" icon={<ScanQrCode size={14} />} loading={readingQr} disabled={saving}
+              onClick={() => qrFileInputRef.current?.click()}>{t("totp.scanQr")}</Button>
+            <span className={`account-private-hint${totpError ? " error" : totpImported ? " success" : ""}`}>
+              {totpError || (totpImported ? t("totp.qrImported") : t("note.totpHint"))}
+            </span>
+          </div>
+          {previewSecret && <AccountTotpPreview accountName={account.email} secret={previewSecret} t={t} />}
         </div>
         <label className="account-note-label" htmlFor="account-note-textarea">{t("note.label")}</label>
         <textarea ref={textareaRef} id="account-note-textarea" className="account-note-textarea"
@@ -100,7 +211,7 @@ export function AccountNoteModal({
             <button type="button" className="note-cancel-button" disabled={saving} onClick={onClose}>
               {t("note.cancel")}
             </button>
-            <button type="submit" className="primary-button" disabled={saving}>
+            <button type="submit" className="primary-button" disabled={saving || readingQr}>
               {saving ? t("note.saving") : t("note.save")}
             </button>
           </div>

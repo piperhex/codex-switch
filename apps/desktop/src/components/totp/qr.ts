@@ -1,5 +1,6 @@
 import jsQR from "jsqr";
 import { decodeTotpQrImage, isDesktopApp } from "../../api/backend";
+import type { Translate } from "../../i18n";
 
 const MAX_QR_IMAGE_BYTES = 10 * 1024 * 1024;
 const PRIMARY_CANVAS_EDGE = 2_000;
@@ -19,6 +20,13 @@ export class QrImageError extends Error {
     super(code);
     this.name = "QrImageError";
   }
+}
+
+export function qrImportErrorMessage(cause: unknown, t: Translate) {
+  if (!(cause instanceof QrImageError)) return t("totp.qrInvalid");
+  if (cause.code === "unsupported-image") return t("totp.qrUnsupported");
+  if (cause.code === "qr-not-found") return t("totp.qrNotFound");
+  return t("totp.qrReadFailed");
 }
 
 interface LoadedImage {

@@ -561,14 +561,34 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 }
 .account-private-fields .account-note-label { margin: 0; }
 .account-private-hint {
-  grid-column: 2;
   max-width: 400px;
-  margin-top: -5px;
   color: #8b978f;
   font-size: 10px;
   line-height: 1.5;
 }
 .account-private-hint.error { color: #c3382c; }
+.account-private-hint.success { color: var(--green-dark); }
+.account-totp-tools {
+  grid-column: 2;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: -5px;
+}
+.account-totp-preview {
+  grid-column: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 250px;
+  padding: 9px 12px;
+  border: 1px solid rgba(var(--green-rgb), .2);
+  border-radius: 10px;
+  background: rgba(var(--green-rgb), .06);
+}
+.account-totp-preview > span { display: grid; gap: 2px; }
+.account-totp-preview small { color: var(--muted); font-size: 10px; }
+.account-totp-preview strong { color: var(--ink); font-size: 20px; letter-spacing: .12em; }
 .account-note-textarea {
   width: 100%;
   min-height: 130px;
