@@ -85,7 +85,7 @@ import { useTotpEntries } from "../../hooks/useTotpEntries";
 import { AccountsPage } from "../../pages/AccountsPage";
 import { DreamSkinPage } from "../../pages/DreamSkinPage";
 import { ProvidersPage } from "../../pages/ProvidersPage";
-import { SettingsPage } from "../../pages/SettingsPage";
+import { SettingsGroupsNav, SettingsPage } from "../../pages/SettingsPage";
 import { SkillsMarketPage } from "../../pages/SkillsMarketPage";
 import { CodexThreadsPage } from "../../pages/CodexThreadsPage";
 import { NetworkProxySettingsModal } from "../../pages/settings/NetworkProxySettings";
@@ -1128,12 +1128,13 @@ export function DashboardApp() {
           {page !== "tokens" && page !== "dreamSkin" && (
           <header className={`topbar${
             page === "accounts" && providerManager.localProxy?.running ? " accounts-topbar" : ""
-          }`}>
+          }${page === "settings" ? " settings-topbar" : ""}`}>
             {page === "accounts" && providerManager.localProxy?.running ? (
               <TokenUsageHeatmap weeks={tokenUsagePreferences.weeks}
                 refreshSeconds={tokenUsagePreferences.refreshSeconds} language={language} t={t} />
             ) : (
-              <div className={page === "skills" ? "skills-market-heading" : undefined}>
+              <div className={page === "skills" ? "skills-market-heading"
+                : page === "settings" ? "settings-heading" : undefined}>
                 <span className="eyebrow">{page === "providers"
                 ? t("topbar.providersEyebrow")
                 : page === "skills"
@@ -1141,7 +1142,8 @@ export function DashboardApp() {
                   : page === "sessions"
                     ? t("topbar.sessionsEyebrow")
                   : t("topbar.eyebrow")}</span>
-                <div className={page === "skills" ? "skills-market-title-row" : undefined}>
+                <div className={page === "skills" ? "skills-market-title-row"
+                  : page === "settings" ? "settings-title-row" : undefined}>
                   <h1>{page === "settings"
                     ? t("topbar.settings")
                     : page === "skills"
@@ -1152,6 +1154,7 @@ export function DashboardApp() {
                       ? t("topbar.providers", { count: providerManager.providers.length })
                       : t("topbar.accounts", { count: manager.accounts.length })}</h1>
                   {page === "skills" && <div id="skills-market-tabs" className="skills-market-tabs-slot" />}
+                  {page === "settings" && <SettingsGroupsNav t={t} />}
                 </div>
               </div>
             )}

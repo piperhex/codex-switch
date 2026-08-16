@@ -22,6 +22,27 @@ interface SettingsSectionProps {
   title: string;
 }
 
+const SETTINGS_SECTIONS = [
+  "appearance",
+  "system",
+  "usage",
+  "connection",
+  "privacy",
+  "storage",
+] as const;
+
+export function SettingsGroupsNav({ t }: Pick<SettingsPageProps, "t">) {
+  return (
+    <nav className="settings-groups-nav" aria-label={t("settings.sections.navigation")}>
+      {SETTINGS_SECTIONS.map((section) => (
+        <a key={section} href={`#settings-${section}`}>
+          {t(`settings.sections.${section}.title`)}
+        </a>
+      ))}
+    </nav>
+  );
+}
+
 function SettingsSection({ children, description, id, title }: SettingsSectionProps) {
   return (
     <section className="settings-group" id={id}>
@@ -39,14 +60,6 @@ export function SettingsPage(settings: SettingsPageProps) {
 
   return (
     <div className="settings-page">
-      <nav className="settings-groups-nav" aria-label={settings.t("settings.sections.navigation")}>
-        {(["appearance", "system", "usage", "connection", "privacy", "storage"] as const)
-          .map((section) => (
-            <a key={section} href={`#settings-${section}`}>
-              {settings.t(`settings.sections.${section}.title`)}
-            </a>
-          ))}
-      </nav>
       <SettingsSection id="settings-appearance"
         title={settings.t("settings.sections.appearance.title")}
         description={settings.t("settings.sections.appearance.description")}>
