@@ -38,6 +38,7 @@ mod totp_window;
 mod web_server;
 
 use oauth::AppState;
+use tauri::Manager;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     if std::env::args_os().any(|argument| argument == "--print-local-proxy-token") {
@@ -72,6 +73,7 @@ pub fn run() {
         }))
         .manage(AppState::default())
         .manage(main_window::MainWindowStateCache::default())
+        .manage(main_window::CloseBehaviorState::default())
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             None,
@@ -84,6 +86,7 @@ pub fn run() {
         .setup(move |app| {
             storage::migrate_app_settings_for_version(app.handle())?;
             let settings = storage::read_app_settings(app.handle())?;
+            main_window::configure_close_behavior(app.handle(), settings.close_to_tray);
             if let Err(error) = system_proxy::configure(&settings.network_proxy) {
                 eprintln!("failed to restore the network proxy setting: {error}");
             }
@@ -131,8 +134,12 @@ pub fn run() {
                 }
                 if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                     main_window::remember_and_save(window);
-                    api.prevent_close();
-                    let _ = window.hide();
+                    if main_window::close_to_tray(window) {
+                        api.prevent_close();
+                        let _ = window.hide();
+                    } else {
+                        window.app_handle().exit(0);
+                    }
                 }
             }
             if window.label() == local_proxy::TOKEN_USAGE_WINDOW_LABEL {
@@ -253,6 +260,7 @@ pub fn run() {
             local_proxy::copy_local_proxy_lan_api_key,
             floating_bubble::get_app_settings,
             autostart::set_launch_at_startup,
+            main_window::set_close_to_tray,
             floating_bubble::set_floating_bubble,
             floating_bubble::set_privacy_mode,
             floating_bubble::set_hide_account_notes,

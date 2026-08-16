@@ -360,6 +360,7 @@ export interface UpdateInfo {
 
 export interface AppSettings {
   launchAtStartup?: boolean;
+  closeToTray?: boolean;
   floatingBubbleEnabled: boolean;
   privacyMode: boolean;
   hideAccountNotes: boolean;

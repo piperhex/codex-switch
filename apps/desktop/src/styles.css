@@ -863,7 +863,15 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .update-notes pre { max-height: 150px; margin: 9px 0 0; overflow: auto; color: #718078; font: 10px/1.55 "DM Sans", "Microsoft YaHei UI", sans-serif; white-space: pre-wrap; word-break: break-word; }
 .update-actions { display: flex; justify-content: flex-end; gap: 9px; flex-wrap: wrap; }
 
-.settings-page { width: calc(100% - 32px); max-width: none; margin: 30px 16px; display: grid; gap: 14px; }
+.settings-page { width: calc(100% - 32px); max-width: none; margin: 24px 16px 36px; display: grid; gap: 26px; }
+.settings-groups-nav { display: flex; align-items: center; gap: 7px; overflow-x: auto; padding: 3px 1px 5px; scrollbar-width: thin; }
+.settings-groups-nav a { flex: 0 0 auto; padding: 7px 11px; border: 1px solid var(--line); border-radius: 999px; color: #58675e; background: var(--panel); font-size: 11px; font-weight: 700; text-decoration: none; transition: .18s ease; }
+.settings-groups-nav a:hover { border-color: #b9d5c3; color: var(--green-dark); background: var(--green-soft); }
+.settings-group { min-width: 0; display: grid; gap: 11px; scroll-margin-top: 18px; }
+.settings-group-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; padding: 0 3px 9px; border-bottom: 1px solid var(--line); }
+.settings-group-heading h2 { margin: 0; color: var(--ink); font: 750 16px/1.25 Manrope, sans-serif; }
+.settings-group-heading p { max-width: 520px; margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; text-align: right; }
+.settings-group-cards { min-width: 0; display: grid; gap: 10px; }
 .settings-card { display: flex; align-items: center; gap: 15px; padding: 16px 18px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }
 .settings-card-content { min-width: 0; flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 28px; }
 .settings-card-copy { min-width: 0; flex: 1 1 auto; }
@@ -1735,6 +1743,9 @@ main.tokens-main { overflow: hidden; padding-bottom: 0; }
 }
 
 @media (max-width: 820px) {
+  .settings-page { margin-top: 18px; gap: 22px; }
+  .settings-group-heading { align-items: flex-start; flex-direction: column; gap: 4px; }
+  .settings-group-heading p { max-width: none; text-align: left; }
   .settings-card { align-items: flex-start; }
   .settings-card-content { align-items: flex-start; flex-direction: column; gap: 10px; }
   .settings-field { flex-wrap: wrap; justify-content: flex-start; white-space: normal; }

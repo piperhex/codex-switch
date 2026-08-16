@@ -1,6 +1,15 @@
 import type { CSSProperties } from "react";
 import { Button, ColorPicker, Modal, Segmented, Switch } from "antd";
-import { CircleGauge, EyeOff, Languages, LayoutGrid, Palette, Power, TableProperties } from "lucide-react";
+import {
+  AppWindow,
+  CircleGauge,
+  EyeOff,
+  Languages,
+  LayoutGrid,
+  Palette,
+  Power,
+  TableProperties,
+} from "lucide-react";
 import { LANGUAGE_OPTIONS, type Language } from "../../i18n";
 import type { BubbleResetDisplay } from "../../types";
 import type { SettingsPageProps } from "./types";
@@ -89,6 +98,32 @@ function LaunchAtStartupCard({ settings }: { settings: SettingsPageProps }) {
             checkedChildren={t("settings.autoRefresh.on")}
             unCheckedChildren={t("settings.autoRefresh.off")}
             onChange={onLaunchAtStartupChange}
+          />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function CloseToTrayCard({ settings }: { settings: SettingsPageProps }) {
+  const { closeToTrayEnabled, closeToTrayLoading, onCloseToTrayChange, t } = settings;
+  return (
+    <section className="settings-card">
+      <div className="settings-icon"><AppWindow size={23} /></div>
+      <div className="settings-card-content">
+        <div className="settings-card-copy">
+          <h3>{t("settings.closeToTray.title")}</h3>
+          <p>{t("settings.closeToTray.description")}</p>
+        </div>
+        <div className="settings-field">
+          <label htmlFor="close-to-tray-enabled">{t("settings.closeToTray.label")}</label>
+          <Switch
+            id="close-to-tray-enabled"
+            checked={closeToTrayEnabled}
+            loading={closeToTrayLoading}
+            checkedChildren={t("settings.autoRefresh.on")}
+            unCheckedChildren={t("settings.autoRefresh.off")}
+            onChange={onCloseToTrayChange}
           />
         </div>
       </div>
@@ -311,7 +346,7 @@ function AccountDisplayCard({ settings }: { settings: SettingsPageProps }) {
   );
 }
 
-export function BasicSettingsCards({
+export function AppearanceSettingsCards({
   bubbleStyleModalOpen,
   onBubbleStyleModalOpenChange,
   settings,
@@ -320,15 +355,26 @@ export function BasicSettingsCards({
     <>
       <LanguageCard settings={settings} />
       <ThemeCard settings={settings} />
-      <LaunchAtStartupCard settings={settings} />
       <FloatingBubbleCard onOpen={() => onBubbleStyleModalOpenChange(true)} settings={settings} />
       <BubbleStyleModal
         onClose={() => onBubbleStyleModalOpenChange(false)}
         open={bubbleStyleModalOpen}
         settings={settings}
       />
-      <PrivacyCard settings={settings} />
       <AccountDisplayCard settings={settings} />
     </>
   );
+}
+
+export function SystemSettingsCards({ settings }: { settings: SettingsPageProps }) {
+  return (
+    <>
+      <LaunchAtStartupCard settings={settings} />
+      <CloseToTrayCard settings={settings} />
+    </>
+  );
+}
+
+export function PrivacySettingsCards({ settings }: { settings: SettingsPageProps }) {
+  return <PrivacyCard settings={settings} />;
 }

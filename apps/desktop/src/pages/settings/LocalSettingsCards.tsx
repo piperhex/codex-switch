@@ -150,11 +150,22 @@ function LogsCard({ settings }: { settings: SettingsPageProps }) {
   );
 }
 
-export function LocalSettingsCards({ settings }: { settings: SettingsPageProps }) {
+export function RefreshSettingsCards({ settings }: { settings: SettingsPageProps }) {
   return (
     <>
       <AutoRefreshCard settings={settings} />
       <AccountAutoRefreshCard settings={settings} />
+    </>
+  );
+}
+
+export function SecuritySettingsCard({ settings }: { settings: SettingsPageProps }) {
+  return <SecurityCard settings={settings} />;
+}
+
+export function StorageSettingsCards({ settings }: { settings: SettingsPageProps }) {
+  return (
+    <>
       <FolderCard
         options={{
           icon: "home",
@@ -173,7 +184,6 @@ export function LocalSettingsCards({ settings }: { settings: SettingsPageProps }
           settings,
         }}
       />
-      <SecurityCard settings={settings} />
       <LogsCard settings={settings} />
     </>
   );

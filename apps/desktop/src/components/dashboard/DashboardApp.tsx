@@ -71,6 +71,7 @@ import { useBubbleResetDisplay } from "../../hooks/useBubbleResetDisplay";
 import { useBubbleStyle } from "../../hooks/useBubbleStyle";
 import { useCloudAuth } from "../../hooks/useCloudAuth";
 import { useCloudContent, useCloudContentLifecycle } from "../../hooks/useCloudContent";
+import { useCloseToTray } from "../../hooks/useCloseToTray";
 import { useLanguage } from "../../hooks/useLanguage";
 import { useLaunchAtStartup } from "../../hooks/useLaunchAtStartup";
 import { useFloatingBubble } from "../../hooks/useFloatingBubble";
@@ -292,6 +293,7 @@ export function DashboardApp() {
   }), [cloud.deleteProviderQuietly, cloud.pushProviderQuietly]);
   const floatingBubble = useFloatingBubble(notify);
   const launchAtStartup = useLaunchAtStartup(notify);
+  const closeToTray = useCloseToTray(notify);
   const bubbleResetDisplay = useBubbleResetDisplay(notify);
   const bubbleStyle = useBubbleStyle(notify);
   const privacyMode = usePrivacyMode(notify);
@@ -602,6 +604,9 @@ export function DashboardApp() {
   const changeLaunchAtStartup = useCallback((enabled: boolean) => {
     void launchAtStartup.setEnabled(enabled);
   }, [launchAtStartup.setEnabled]);
+  const changeCloseToTray = useCallback((enabled: boolean) => {
+    void closeToTray.setEnabled(enabled);
+  }, [closeToTray.setEnabled]);
   const changeBubbleResetDisplay = useCallback((display: BubbleResetDisplay) => {
     void bubbleResetDisplay.setDisplay(display);
   }, [bubbleResetDisplay.setDisplay]);
@@ -1189,6 +1194,9 @@ export function DashboardApp() {
               launchAtStartupEnabled={launchAtStartup.enabled}
               launchAtStartupLoading={launchAtStartup.loading}
               onLaunchAtStartupChange={changeLaunchAtStartup}
+              closeToTrayEnabled={closeToTray.enabled}
+              closeToTrayLoading={closeToTray.loading}
+              onCloseToTrayChange={changeCloseToTray}
               autoRefreshSeconds={autoRefresh.seconds} onEnabledChange={autoRefresh.setEnabled}
               onSecondsChange={autoRefresh.updateSeconds}
               currentAutoRefreshTarget={currentAutoRefreshTarget}

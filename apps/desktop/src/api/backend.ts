@@ -128,6 +128,7 @@ let updateInstallInProgress = false;
 let pendingUpdateInstallPromise: Promise<void> | null = null;
 const UPDATE_CHECK_RETRY_DELAYS_MS = [500, 1_500] as const;
 const LAUNCH_AT_STARTUP_PREVIEW_KEY = "codex-switch:launch-at-startup";
+const CLOSE_TO_TRAY_PREVIEW_KEY = "codex-switch:close-to-tray";
 const FLOATING_BUBBLE_PREVIEW_KEY = "codex-switch:floating-bubble";
 const PRIVACY_MODE_PREVIEW_KEY = "codex-switch:privacy-mode";
 const HIDE_ACCOUNT_NOTES_PREVIEW_KEY = "codex-switch:hide-account-notes";
@@ -384,6 +385,7 @@ export async function loadAppSettings(): Promise<AppSettings> {
   if (!hasLocalBackend) {
     return {
       launchAtStartup: window.localStorage.getItem(LAUNCH_AT_STARTUP_PREVIEW_KEY) !== "false",
+      closeToTray: window.localStorage.getItem(CLOSE_TO_TRAY_PREVIEW_KEY) !== "false",
       floatingBubbleEnabled: previewFloatingBubbleEnabled(),
       privacyMode: window.localStorage.getItem(PRIVACY_MODE_PREVIEW_KEY) !== "false",
       hideAccountNotes: window.localStorage.getItem(HIDE_ACCOUNT_NOTES_PREVIEW_KEY) === "true",
@@ -1200,6 +1202,14 @@ export async function updateLaunchAtStartup(enabled: boolean): Promise<AppSettin
     return loadAppSettings();
   }
   return invoke<AppSettings>("set_launch_at_startup", { enabled });
+}
+
+export async function updateCloseToTray(enabled: boolean): Promise<AppSettings> {
+  if (!hasLocalBackend) {
+    window.localStorage.setItem(CLOSE_TO_TRAY_PREVIEW_KEY, String(enabled));
+    return loadAppSettings();
+  }
+  return invoke<AppSettings>("set_close_to_tray", { enabled });
 }
 
 export async function updateFloatingBubble(enabled: boolean): Promise<AppSettings> {

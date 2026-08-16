@@ -12,6 +12,9 @@ export interface SettingsPageProps {
   launchAtStartupEnabled: boolean;
   launchAtStartupLoading: boolean;
   onLaunchAtStartupChange: (enabled: boolean) => void;
+  closeToTrayEnabled: boolean;
+  closeToTrayLoading: boolean;
+  onCloseToTrayChange: (enabled: boolean) => void;
   autoRefreshEnabled: boolean;
   autoRefreshSeconds: number;
   onEnabledChange: (enabled: boolean) => void;

@@ -1,9 +1,18 @@
-use std::{fs, path::PathBuf, sync::Mutex};
+use std::{
+    fs,
+    path::PathBuf,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Mutex,
+    },
+};
 
 use serde::{Deserialize, Serialize};
 use tauri::{
     App, AppHandle, LogicalSize, Manager, PhysicalPosition, PhysicalSize, Runtime, Window,
 };
+
+use crate::models::AppSettings;
 
 const STATE_FILE_NAME: &str = "main-window-state.json";
 #[cfg(not(target_os = "macos"))]
@@ -35,6 +44,55 @@ struct WorkArea {
 
 #[derive(Default)]
 pub(crate) struct MainWindowStateCache(Mutex<Option<MainWindowState>>);
+
+pub(crate) struct CloseBehaviorState(AtomicBool);
+
+impl Default for CloseBehaviorState {
+    fn default() -> Self {
+        Self(AtomicBool::new(true))
+    }
+}
+
+pub(crate) fn configure_close_behavior<R: Runtime>(app: &AppHandle<R>, close_to_tray: bool) {
+    app.state::<CloseBehaviorState>()
+        .0
+        .store(close_to_tray, Ordering::Relaxed);
+}
+
+pub(crate) fn close_to_tray<R: Runtime>(window: &Window<R>) -> bool {
+    window
+        .state::<CloseBehaviorState>()
+        .0
+        .load(Ordering::Relaxed)
+}
+
+#[tauri::command]
+pub(crate) async fn set_close_to_tray<R: Runtime>(
+    app: AppHandle<R>,
+    enabled: bool,
+) -> Result<AppSettings, String> {
+    let worker_app = app.clone();
+    let write_result = tauri::async_runtime::spawn_blocking(move || {
+        let mut settings = crate::storage::read_app_settings(&worker_app)?;
+        settings.close_to_tray = enabled;
+        crate::storage::write_app_settings(&worker_app, &settings)?;
+        Ok::<_, String>(settings)
+    })
+    .await;
+    let settings = match write_result {
+        Ok(Ok(settings)) => settings,
+        Ok(Err(error)) => {
+            eprintln!("failed to save the close behavior: {error}");
+            return Err("Could not save the window setting. Please try again.".to_string());
+        }
+        Err(error) => {
+            eprintln!("close behavior worker failed: {error}");
+            return Err("Could not save the window setting. Please try again.".to_string());
+        }
+    };
+    configure_close_behavior(&app, settings.close_to_tray);
+    Ok(settings)
+}
 
 pub(crate) fn restore_or_set_default<R: Runtime>(app: &App<R>) -> tauri::Result<()> {
     let Some(window) = app.get_webview_window("main") else {

@@ -54,7 +54,8 @@ Includes 300+ presets and integrates with [Fei-Away/Codex-Dream-Skin](https://gi
 - Can serve a browser UI on localhost alongside the desktop app, or run it without desktop UI through `--headless --port`.
 - Includes a Skills Market for searching and installing community Skills; cloud-signed-in users can publish versioned packages and updates.
 - Includes 300+ Dream Skin presets with one-click apply, custom backgrounds, appearance controls, and restore support.
-- Stores local preferences for language, accent color, privacy mode, usage widgets, account refresh, and token analytics.
+- Groups preferences by appearance, window behavior, usage, network, privacy, and storage, including language,
+  accent color, close-to-tray behavior, usage widgets, account refresh, and token analytics.
 - Optionally syncs with a self-hosted NestJS backend. The Expo mobile app can refresh official usage/reset credits and switch the active account on a selected online PC.
 - Keeps account credentials and Provider secrets in the Rust backend, out of the React UI and application logs.
 
