@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import * as Clipboard from 'expo-clipboard';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { updateAccountDetails } from '../api/client';
 import { generateTotp, normalizeTotpSecret, parseOtpAuthUri } from '../totp/totp';
 import { TotpQrScanner } from '../totp/TotpQrScanner';
@@ -99,9 +99,10 @@ function AccountTotpPreview({ secret }: { secret: string }) {
   </Pressable>;
 }
 
-export function AccountPrivateDetailsSheet({ account, session, onClose, onUpdated }: {
+export function AccountPrivateDetailsSheet({ account, session, syncing, onClose, onUpdated }: {
   account: AccountSummary | null;
   session: AuthSession;
+  syncing: boolean;
   onClose: () => void;
   onUpdated: (account: AccountSummary) => void;
 }) {
@@ -118,18 +119,26 @@ export function AccountPrivateDetailsSheet({ account, session, onClose, onUpdate
   const [saving, setSaving] = useState(false);
   const metadataEditable = account?.metadataEditable !== false;
 
+  const privateDetails = account?.privateDetails;
+
   useEffect(() => {
-    const details = account?.privateDetails;
     setNote(account?.note ?? '');
     setExpiresAt(account?.expiresAt ?? '');
-    setPhoneNumber(details?.phoneNumber ?? '');
-    setPassword(details?.password ?? '');
-    setTotpSecret(details?.totpSecret ?? '');
-    setPreviewSecret(details?.totpSecret ?? '');
+    setPhoneNumber(privateDetails?.phoneNumber ?? '');
+    setPassword(privateDetails?.password ?? '');
+    setTotpSecret(privateDetails?.totpSecret ?? '');
+    setPreviewSecret(privateDetails?.totpSecret ?? '');
     setPasswordHidden(true);
     setTotpHidden(true);
     setTotpError('');
-  }, [account]);
+  }, [
+    account?.expiresAt,
+    account?.id,
+    account?.note,
+    privateDetails?.password,
+    privateDetails?.phoneNumber,
+    privateDetails?.totpSecret,
+  ]);
 
   const previewTotp = () => {
     try {
@@ -173,9 +182,18 @@ export function AccountPrivateDetailsSheet({ account, session, onClose, onUpdate
     <BottomSheet visible={Boolean(account) && !scannerOpen} tall title="账号资料" subtitle={account?.email}
       onClose={onClose} dismissible={!saving} actions={[
         { label: '取消', onPress: onClose, disabled: saving },
-        { label: '保存', tone: 'primary', onPress: () => void save(), loading: saving },
+        {
+          label: '保存',
+          tone: 'primary',
+          onPress: () => void save(),
+          disabled: syncing,
+          loading: saving,
+        },
       ]}>
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}
+      {syncing ? <View style={styles.syncingBox}>
+        <ActivityIndicator color="#14806f" />
+        <Text style={styles.syncingText}>正在同步最新账号资料…</Text>
+      </View> : <ScrollView style={styles.scroll} contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled">
         <Text style={styles.label}>预设可用截止日期</Text>
         <TextInput value={expiresAt} onChangeText={setExpiresAt} editable={metadataEditable}
@@ -221,7 +239,7 @@ export function AccountPrivateDetailsSheet({ account, session, onClose, onUpdate
           textAlignVertical="top" placeholder="添加账号备注" placeholderTextColor="#98a69f"
           style={[styles.input, styles.noteInput]} />
         {!metadataEditable ? <Text style={styles.readOnlyHint}>该字段由管理员维护</Text> : null}
-      </ScrollView>
+      </ScrollView>}
     </BottomSheet>
     <TotpQrScanner visible={Boolean(account) && scannerOpen} onClose={() => setScannerOpen(false)}
       onScan={(value) => {
@@ -242,6 +260,8 @@ export function AccountPrivateDetailsSheet({ account, session, onClose, onUpdate
 const styles = StyleSheet.create({
   scroll: { maxHeight: 620 },
   content: { paddingBottom: 10 },
+  syncingBox: { minHeight: 180, alignItems: 'center', justifyContent: 'center', gap: 10 },
+  syncingText: { color: '#568072', fontSize: 12, fontWeight: '700' },
   label: { color: '#263b31', fontSize: 12, fontWeight: '800', marginTop: 14, marginBottom: 7 },
   inputRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   input: {

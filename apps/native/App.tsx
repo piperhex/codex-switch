@@ -374,6 +374,10 @@ function Dashboard({
     const timestamps = accounts.map((account) => account.usage.fetchedAt).filter(Boolean).sort();
     return timestamps.length ? timestamps[timestamps.length - 1] : null;
   }, [accounts]);
+  const openPrivateDetails = (account: AccountSummary) => {
+    setPrivateDetailsAccountId(account.id);
+    void onRefresh();
+  };
   return <>
     <ScrollView style={styles.flex} contentContainerStyle={styles.dashboardScroll}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor={COLORS.green} />}>
@@ -432,7 +436,7 @@ function Dashboard({
       onClose={() => setDetailAccountId(null)}
       onRefresh={onRefreshAccount}
       onOpenResetCredits={(account) => setResetCreditsAccount(account)}
-      onOpenPrivateDetails={(account) => setPrivateDetailsAccountId(account.id)}
+      onOpenPrivateDetails={openPrivateDetails}
     />
     <DeviceSwitchDrawer
       account={switchAccount}
@@ -449,7 +453,7 @@ function Dashboard({
       onClose={() => setResetCreditsAccount(null)}
       onConsumed={onRefresh}
     />
-    <AccountPrivateDetailsSheet account={privateDetailsAccount} session={session}
+    <AccountPrivateDetailsSheet account={privateDetailsAccount} session={session} syncing={refreshing}
       onClose={() => setPrivateDetailsAccountId(null)} onUpdated={onAccountUpdated} />
     <AddAccountSheet session={session} visible={addAccountOpen}
       onClose={() => setAddAccountOpen(false)} onAdded={onRefresh} />
