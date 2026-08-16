@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { syncTotpVault } from '../api/client';
+import { fetchTotpVault, syncTotpVault } from '../api/client';
 import type { AuthSession } from '../types';
 import {
   loadTotpCloudSyncEnabled,
@@ -8,7 +8,13 @@ import {
   saveTotpVault,
 } from './storage';
 import { createTotpEntry } from './totp';
-import type { TotpDraft, TotpEntry, TotpManagerState, TotpVault } from './types';
+import type {
+  TotpCloudRefreshResult,
+  TotpDraft,
+  TotpEntry,
+  TotpManagerState,
+  TotpVault,
+} from './types';
 
 const EMPTY_VAULT: TotpVault = { entries: [], modifiedAt: '1970-01-01T00:00:00.000Z' };
 
@@ -23,7 +29,7 @@ export function useTotpVault(
   const vaultRef = useRef(vault);
   const sessionRef = useRef(session);
   const syncEnabledRef = useRef(false);
-  const syncQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const syncQueueRef = useRef<Promise<unknown>>(Promise.resolve());
   const storageQueueRef = useRef<Promise<void>>(Promise.resolve());
   sessionRef.current = session;
 
@@ -105,12 +111,36 @@ export function useTotpVault(
     if (enabled) await synchronize(activeSession, vaultRef.current);
   }, [synchronize]);
 
+  const refreshCloud = useCallback((): Promise<TotpCloudRefreshResult> => {
+    const activeSession = sessionRef.current;
+    if (!activeSession) return Promise.resolve('empty');
+    setSyncing(true);
+    const operation = syncQueueRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        const remote = await fetchTotpVault(activeSession);
+        if (!remote) return 'empty';
+        if (sessionRef.current !== activeSession) return 'current';
+        if (Date.parse(remote.modifiedAt) <= Date.parse(vaultRef.current.modifiedAt)) return 'current';
+        vaultRef.current = remote;
+        setVault(remote);
+        await persist(activeSession, remote);
+        return 'updated';
+      })
+      .finally(() => {
+        if (syncQueueRef.current === operation) setSyncing(false);
+      });
+    syncQueueRef.current = operation;
+    return operation;
+  }, [persist]);
+
   return {
     addEntry: (draft) => commitEntries((entries) => [...entries, createTotpEntry(draft)]),
     cloudSyncEnabled,
     deleteEntry: (id) => commitEntries((entries) => entries.filter((entry) => entry.id !== id)),
     entries: vault.entries,
     initialized,
+    refreshCloud,
     setCloudSyncEnabled,
     syncing,
     updateEntry: (id, draft) => commitEntries((entries) => entries.map((entry) => (

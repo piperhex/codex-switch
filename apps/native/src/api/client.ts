@@ -407,10 +407,15 @@ export async function fetchAccountSummary(session: AuthSession): Promise<Account
   if (!payload || typeof payload !== 'object' || !Array.isArray((payload as { accounts?: unknown }).accounts)) {
     throw new ApiError('服务器返回的账户数据无效');
   }
-  const accounts = (payload as { accounts: AccountSummary[] }).accounts.map((account) => ({
+  return (payload as { accounts: AccountSummary[] }).accounts.map((account) => ({
     ...account,
     privateDetails: accountPrivateDetails(account.privateDetails),
   }));
+}
+
+export async function fetchAccountUsageSummaries(
+  accounts: readonly AccountSummary[],
+): Promise<AccountSummary[]> {
   return mapWithConcurrency(accounts, 4, async (account) => {
     try {
       const usage = await fetchAccountUsage(account);
@@ -598,6 +603,20 @@ export async function syncTotpVault(session: AuthSession, vault: TotpVault): Pro
   if (!Array.isArray(candidate.entries)
     || typeof candidate.modifiedAt !== 'string'
     || Number.isNaN(Date.parse(candidate.modifiedAt))) {
+    throw new ApiError('服务器返回的 2FA 数据无效');
+  }
+  return candidate as TotpVault;
+}
+
+export async function fetchTotpVault(session: AuthSession): Promise<TotpVault | null> {
+  const response = await authorizedRequest(session, '/sync/totp');
+  if (!response.ok) throw new ApiError(await parseError(response), response.status);
+  const payload: unknown = await response.json();
+  if (!payload || typeof payload !== 'object') throw new ApiError('服务器返回的 2FA 数据无效');
+  const candidate = payload as Partial<TotpVault> & { modifiedAt?: string | null };
+  if (!Array.isArray(candidate.entries)) throw new ApiError('服务器返回的 2FA 数据无效');
+  if (candidate.modifiedAt === null) return null;
+  if (typeof candidate.modifiedAt !== 'string' || Number.isNaN(Date.parse(candidate.modifiedAt))) {
     throw new ApiError('服务器返回的 2FA 数据无效');
   }
   return candidate as TotpVault;

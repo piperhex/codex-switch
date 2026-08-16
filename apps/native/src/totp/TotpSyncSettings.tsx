@@ -22,8 +22,8 @@ export function TotpSyncSettings({ manager }: { manager: TotpManagerState }) {
     <View style={styles.card}>
       <View style={styles.row}>
         <View style={styles.copy}>
-          <Text style={styles.title}>同步至云端</Text>
-          <Text style={styles.description}>在已登录的手机和电脑之间同步 Authenticator 密钥。</Text>
+          <Text style={styles.title}>自动云同步</Text>
+          <Text style={styles.description}>开启后自动同步变更；关闭时仍可在 2FA 页面下拉获取云端密钥。</Text>
         </View>
         {disabled ? <ActivityIndicator color="#18af8c" size="small" /> : <Switch
           accessibilityLabel="同步 2FA 密钥至云端" value={manager.cloudSyncEnabled}

@@ -1,5 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { Toast } from '../components/AppToast';
 import { TotpCodeCard } from './TotpCodeCard';
 import { TotpFormSheet } from './TotpFormSheet';
@@ -29,7 +38,7 @@ function PageHeader({ onManualAdd, onScanAdd }: {
   return <View style={styles.header}>
     <View style={styles.heading}>
       <Text style={styles.title}>2FA 验证码</Text>
-      <Text style={styles.subtitle}>验证码自动刷新，点击即可复制</Text>
+      <Text style={styles.subtitle}>下拉获取云端密钥，点击验证码即可复制</Text>
     </View>
     <View style={styles.actions}>
       <Pressable accessibilityRole="button" onPress={onManualAdd}
@@ -86,9 +95,23 @@ export function TotpPage({ manager }: { manager: TotpManagerState }) {
     setFormOpen(true);
   };
 
+  const refreshCloud = async () => {
+    if (!manager.initialized || manager.syncing) return;
+    try {
+      const result = await manager.refreshCloud();
+      if (result === 'updated') Toast.success('已获取云端 2FA 密钥');
+      if (result === 'current') Toast.success('本机 2FA 已是最新');
+      if (result === 'empty') Toast.fail('云端暂无 2FA 密钥');
+    } catch {
+      Toast.fail('获取云端 2FA 密钥失败');
+    }
+  };
+
   return <View style={styles.page}>
     <PageHeader onManualAdd={() => openForm(null)} onScanAdd={() => openForm(null, true)} />
-    <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
+    <ScrollView style={styles.list} contentContainerStyle={styles.listContent}
+      refreshControl={<RefreshControl refreshing={manager.syncing}
+        onRefresh={() => void refreshCloud()} tintColor="#18af8c" />}>
       <EntryList manager={manager} codes={codes} now={now} onEdit={openForm} />
     </ScrollView>
     <TotpFormSheet
@@ -132,6 +155,6 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: { color: '#ffffff', fontSize: 13, fontWeight: '800' },
   list: { flex: 1 },
-  listContent: { paddingHorizontal: 18, paddingTop: 4, paddingBottom: 34 },
+  listContent: { flexGrow: 1, paddingHorizontal: 18, paddingTop: 4, paddingBottom: 34 },
   pressed: { opacity: 0.76 },
 });

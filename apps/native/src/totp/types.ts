@@ -18,12 +18,15 @@ export interface TotpVault {
   modifiedAt: string;
 }
 
+export type TotpCloudRefreshResult = 'updated' | 'current' | 'empty';
+
 export interface TotpManagerState {
   addEntry: (draft: TotpDraft) => void;
   cloudSyncEnabled: boolean;
   deleteEntry: (id: string) => void;
   entries: TotpEntry[];
   initialized: boolean;
+  refreshCloud: () => Promise<TotpCloudRefreshResult>;
   setCloudSyncEnabled: (enabled: boolean) => Promise<void>;
   syncing: boolean;
   updateEntry: (id: string, draft: TotpDraft) => void;

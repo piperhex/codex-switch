@@ -13,6 +13,8 @@ import {
   deleteRemoteDevice,
   fetchAccountSummary,
   fetchAccountUsage,
+  fetchAccountUsageSummaries,
+  fetchTotpVault,
   fetchResetCredits,
   pollAccountOAuth,
   startAccountOAuth,
@@ -47,45 +49,59 @@ describe('mobile Codex API client', () => {
     vi.restoreAllMocks();
   });
 
-  it('replaces the backend usage snapshot with a live Codex response', async () => {
-    const apiFetch = vi.fn()
-      .mockResolvedValueOnce(new Response(JSON.stringify({
-        accounts: [account({
-          privateDetails: {
-            password: 'account-password',
-            phoneNumber: '+65 6123 4567',
-            totpSecret: 'JBSWY3DPEHPK3PXP',
-          },
-          usage: {
-            primary: { usedPercent: 99, remainingPercent: 1 },
-            fetchedAt: '2026-01-01T00:00:00.000Z',
-          },
-        })],
-      }), { status: 200 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({
-        plan_type: 'pro',
-        promo: {
-          offer: {
-            valid_until: '2026-08-31T12:30:00Z',
-            ends_at: '2026-09-30T12:30:00Z',
-          },
+  it('loads account metadata without refreshing Codex usage', async () => {
+    const apiFetch = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({
+      accounts: [account({
+        privateDetails: {
+          password: 'account-password',
+          phoneNumber: '+65 6123 4567',
+          totpSecret: 'JBSWY3DPEHPK3PXP',
         },
-        rate_limit: {
-          primary_window: {
-            used_percent: 25,
-            limit_window_seconds: 18_000,
-            reset_at: 1_800_000_000,
-          },
-          secondary_window: {
-            used_percent: 40,
-            limit_window_seconds: 604_800,
-            reset_at: 1_800_100_000,
-          },
+        usage: {
+          primary: { usedPercent: 99, remainingPercent: 1 },
+          fetchedAt: '2026-01-01T00:00:00.000Z',
         },
-      }), { status: 200 }));
+      })],
+    }), { status: 200 }));
     vi.stubGlobal('fetch', apiFetch);
 
     const result = await fetchAccountSummary(session);
+
+    expect(result[0]?.usage.primary?.usedPercent).toBe(99);
+    expect(result[0]?.privateDetails).toEqual({
+      password: 'account-password',
+      phoneNumber: '+65 6123 4567',
+      totpSecret: 'JBSWY3DPEHPK3PXP',
+    });
+    expect(apiFetch).toHaveBeenCalledTimes(1);
+    expect(apiFetch.mock.calls[0]?.[0]).toBe('https://switch.example.com/sync/accounts/summary');
+  });
+
+  it('refreshes all account usage from Codex', async () => {
+    const apiFetch = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({
+      plan_type: 'pro',
+      promo: {
+        offer: {
+          valid_until: '2026-08-31T12:30:00Z',
+          ends_at: '2026-09-30T12:30:00Z',
+        },
+      },
+      rate_limit: {
+        primary_window: {
+          used_percent: 25,
+          limit_window_seconds: 18_000,
+          reset_at: 1_800_000_000,
+        },
+        secondary_window: {
+          used_percent: 40,
+          limit_window_seconds: 604_800,
+          reset_at: 1_800_100_000,
+        },
+      },
+    }), { status: 200 }));
+    vi.stubGlobal('fetch', apiFetch);
+
+    const result = await fetchAccountUsageSummaries([account()]);
 
     expect(result[0]?.usage).toEqual(expect.objectContaining({
       primary: {
@@ -105,35 +121,28 @@ describe('mobile Codex API client', () => {
       error: null,
     }));
     expect(result[0]?.plan).toBe('pro');
-    expect(result[0]?.privateDetails).toEqual({
-      password: 'account-password',
-      phoneNumber: '+65 6123 4567',
-      totpSecret: 'JBSWY3DPEHPK3PXP',
-    });
-    expect(apiFetch.mock.calls[1]?.[0]).toBe('https://chatgpt.com/backend-api/wham/usage');
-    const headers = new Headers((apiFetch.mock.calls[1]?.[1] as RequestInit).headers);
+    expect(apiFetch.mock.calls[0]?.[0]).toBe('https://chatgpt.com/backend-api/wham/usage');
+    const headers = new Headers((apiFetch.mock.calls[0]?.[1] as RequestInit).headers);
     expect(headers.get('Authorization')).toBe('Bearer codex-access');
     expect(headers.get('ChatGPT-Account-Id')).toBe('workspace-1');
     expect(headers.get('originator')).toBe('codex_cli_rs');
   });
 
-  it('does not fall back to stale backend usage when no Codex token is available', async () => {
-    const apiFetch = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({
-      accounts: [account({
-        codexAccessToken: undefined,
-        usage: {
-          primary: { usedPercent: 10, remainingPercent: 90 },
-          fetchedAt: '2026-01-01T00:00:00.000Z',
-        },
-      })],
-    }), { status: 200 }));
+  it('does not fall back to stale usage when no Codex token is available', async () => {
+    const apiFetch = vi.fn();
     vi.stubGlobal('fetch', apiFetch);
 
-    const result = await fetchAccountSummary(session);
+    const result = await fetchAccountUsageSummaries([account({
+      codexAccessToken: undefined,
+      usage: {
+        primary: { usedPercent: 10, remainingPercent: 90 },
+        fetchedAt: '2026-01-01T00:00:00.000Z',
+      },
+    })]);
 
     expect(result[0]?.usage.primary).toBeNull();
     expect(result[0]?.usage.error).toContain('没有可用于手机直连的 Codex Token');
-    expect(apiFetch).toHaveBeenCalledTimes(1);
+    expect(apiFetch).not.toHaveBeenCalled();
   });
 
   it('refreshes one account usage without requesting the account list', async () => {
@@ -231,6 +240,20 @@ describe('mobile Codex API client', () => {
     const request = apiFetch.mock.calls[0]?.[1] as RequestInit;
     expect(request.method).toBe('PUT');
     expect(JSON.parse(request.body as string)).toEqual(vault);
+  });
+
+  it('downloads the cloud 2FA vault without uploading the local vault', async () => {
+    const vault: TotpVault = {
+      entries: [],
+      modifiedAt: '2026-08-15T10:00:00.000Z',
+    };
+    const apiFetch = vi.fn().mockResolvedValue(new Response(JSON.stringify(vault), { status: 200 }));
+    vi.stubGlobal('fetch', apiFetch);
+
+    await expect(fetchTotpVault(session)).resolves.toEqual(vault);
+
+    expect(apiFetch.mock.calls[0]?.[0]).toBe('https://switch.example.com/sync/totp');
+    expect((apiFetch.mock.calls[0]?.[1] as RequestInit).method).toBeUndefined();
   });
 
   it('starts mobile OAuth, polls it, and updates editable account details', async () => {

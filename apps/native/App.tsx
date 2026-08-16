@@ -29,6 +29,7 @@ import {
   deleteRemoteDevice,
   fetchAccountSummary,
   fetchAccountUsage,
+  fetchAccountUsageSummaries,
   fetchResetCredits,
   fetchRemoteDevices,
   fetchUserProfile,
@@ -50,6 +51,7 @@ import type {
 } from './src/types';
 import { reportMobileInstallation } from './src/telemetry';
 import { earliestExpirationDate } from './src/utils/expiration';
+import { mergeRefreshedUsage, mergeServerAccounts } from './src/utils/accounts';
 import { AdminArea } from './src/admin/AdminArea';
 import { AccountPrivateDetailsSheet } from './src/components/AccountPrivateDetailsSheet';
 import { AddAccountSheet } from './src/components/AddAccountSheet';
@@ -342,10 +344,12 @@ function Dashboard({
   accounts,
   devices,
   loading,
-  refreshing,
+  syncingServer,
+  refreshingUsage,
   refreshingAccountId,
   switchingAccountId,
-  onRefresh,
+  onRefreshServer,
+  onRefreshUsage,
   onRefreshAccount,
   onSwitch,
   onAccountUpdated,
@@ -354,10 +358,12 @@ function Dashboard({
   accounts: AccountSummary[];
   devices: RemoteDevice[];
   loading: boolean;
-  refreshing: boolean;
+  syncingServer: boolean;
+  refreshingUsage: boolean;
   refreshingAccountId: string | null;
   switchingAccountId: string | null;
-  onRefresh: () => Promise<void>;
+  onRefreshServer: () => Promise<void>;
+  onRefreshUsage: () => Promise<void>;
   onRefreshAccount: (accountId: string) => Promise<void>;
   onSwitch: (deviceId: string, accountId: string) => Promise<void>;
   onAccountUpdated: (account: AccountSummary) => void;
@@ -374,13 +380,15 @@ function Dashboard({
     const timestamps = accounts.map((account) => account.usage.fetchedAt).filter(Boolean).sort();
     return timestamps.length ? timestamps[timestamps.length - 1] : null;
   }, [accounts]);
+  const refreshBusy = syncingServer || refreshingUsage || Boolean(refreshingAccountId);
   const openPrivateDetails = (account: AccountSummary) => {
     setPrivateDetailsAccountId(account.id);
-    void onRefresh();
+    void onRefreshServer();
   };
   return <>
     <ScrollView style={styles.flex} contentContainerStyle={styles.dashboardScroll}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor={COLORS.green} />}>
+      refreshControl={<RefreshControl refreshing={syncingServer}
+        onRefresh={() => void onRefreshServer()} tintColor={COLORS.green} />}>
       <View style={styles.header}>
         <View style={styles.headerTitle}>
           <Text style={styles.brand}>Codex <Text style={styles.brandStrong}>Switch</Text></Text>
@@ -402,12 +410,14 @@ function Dashboard({
             : '请先登录一台 PC 设备'}</Text>
         </View>
         <Pressable accessibilityRole="button" style={({ pressed }) => [styles.refreshButton, pressed && styles.pressed]}
-          disabled={refreshing} onPress={() => void onRefresh()}>
-          {refreshing ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.refreshText}>↻ 刷新全部</Text>}
+          disabled={refreshBusy || accounts.length === 0} onPress={() => void onRefreshUsage()}>
+          {refreshingUsage
+            ? <ActivityIndicator color="#fff" size="small" />
+            : <Text style={styles.refreshText}>↻ 刷新用量</Text>}
         </Pressable>
       </View>
       <View style={styles.controlRow}>
-        <Text style={styles.lastUpdate}>最近更新：{displayDate(latestUpdate)}</Text>
+        <Text style={styles.lastUpdate}>用量更新：{displayDate(latestUpdate)}</Text>
         <View style={styles.privacyControl}>
           <Text style={styles.privacyText}>隐藏信息</Text>
           <Switch value={privateMode} onValueChange={setPrivateMode}
@@ -426,13 +436,13 @@ function Dashboard({
         switching={switchingAccountId === account.id}
         onOpenDetails={(selectedAccount) => setDetailAccountId(selectedAccount.id)}
         onOpenSwitch={setSwitchAccount} />)}
-      <Text style={styles.footer}>下拉页面或点击“刷新全部”将更新所有账号</Text>
+      <Text style={styles.footer}>下拉同步服务器资料；点击“刷新用量”更新所有账号用量</Text>
     </ScrollView>
     <AccountDetailsDrawer
       account={detailAccount}
       devices={devices}
       privateMode={privateMode}
-      refreshing={refreshing || detailAccount?.id === refreshingAccountId}
+      refreshing={refreshBusy}
       onClose={() => setDetailAccountId(null)}
       onRefresh={onRefreshAccount}
       onOpenResetCredits={(account) => setResetCreditsAccount(account)}
@@ -451,12 +461,12 @@ function Dashboard({
     <ResetCreditsDrawer
       account={resetCreditsAccount}
       onClose={() => setResetCreditsAccount(null)}
-      onConsumed={onRefresh}
+      onConsumed={onRefreshServer}
     />
-    <AccountPrivateDetailsSheet account={privateDetailsAccount} session={session} syncing={refreshing}
+    <AccountPrivateDetailsSheet account={privateDetailsAccount} session={session} syncing={syncingServer}
       onClose={() => setPrivateDetailsAccountId(null)} onUpdated={onAccountUpdated} />
     <AddAccountSheet session={session} visible={addAccountOpen}
-      onClose={() => setAddAccountOpen(false)} onAdded={onRefresh} />
+      onClose={() => setAddAccountOpen(false)} onAdded={onRefreshServer} />
   </>;
 }
 
@@ -1044,7 +1054,7 @@ function SettingsPage({ session, profile, globalRefreshMinutes, onGlobalRefreshM
     setSavingRefreshInterval(true);
     try {
       await onGlobalRefreshMinutesChange(minutes);
-      Toast.success(`已设置为每 ${minutes} 分钟自动刷新`);
+      Toast.success(`已设置为每 ${minutes} 分钟自动刷新用量`);
     } catch (error) {
       Toast.fail(errorMessage(error));
     } finally {
@@ -1110,8 +1120,8 @@ function SettingsPage({ session, profile, globalRefreshMinutes, onGlobalRefreshM
 
       <Text style={styles.sectionLabel}>刷新设置</Text>
       <View style={styles.settingsCard}>
-        <Text style={styles.refreshSettingsTitle}>全局自动刷新</Text>
-        <Text style={styles.passwordHint}>统一刷新账号管理页中的所有账号，仅保留这一项全局配置。</Text>
+        <Text style={styles.refreshSettingsTitle}>自动刷新用量</Text>
+        <Text style={styles.passwordHint}>按设定间隔刷新账号管理页中所有账号的用量。</Text>
         <View style={styles.refreshIntervalRow}>
           <TextInput value={refreshMinutesInput} onChangeText={(value) => setRefreshMinutesInput(value.replace(/\D/g, '').slice(0, 4))}
             keyboardType="number-pad" placeholder="30" placeholderTextColor="#98a9a0" style={styles.refreshIntervalInput}
@@ -1122,7 +1132,7 @@ function SettingsPage({ session, profile, globalRefreshMinutes, onGlobalRefreshM
             {savingRefreshInterval ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.saveIntervalText}>保存</Text>}
           </Pressable>
         </View>
-        <Text style={styles.refreshSettingsHint}>默认 30 分钟；下拉刷新和“刷新全部”按钮不受此间隔限制。</Text>
+        <Text style={styles.refreshSettingsHint}>默认 30 分钟；“刷新用量”按钮可随时手动刷新。</Text>
       </View>
 
       <TotpSyncSettings manager={totpManager} />
@@ -1583,7 +1593,8 @@ function AppContent() {
   const [activePage, setActivePage] = useState<AppPage>('accounts');
   const [initializing, setInitializing] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
+  const [syncingServer, setSyncingServer] = useState(false);
+  const [refreshingUsage, setRefreshingUsage] = useState(false);
   const [refreshingAccountId, setRefreshingAccountId] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<AccountSummary[]>([]);
   const [devices, setDevices] = useState<RemoteDevice[]>([]);
@@ -1598,20 +1609,19 @@ function AppContent() {
   const totpManager = useTotpVault(session, notifyTotpError);
   const refreshingRef = useRef(false);
   const refreshingAccountIdRef = useRef<string | null>(null);
-  const lastRefreshAtRef = useRef(0);
+  const lastUsageRefreshAtRef = useRef(0);
 
-  const refreshAll = useCallback(async (activeSession = session, quiet = false) => {
+  const refreshServerData = useCallback(async (activeSession = session, quiet = false) => {
     if (!activeSession || refreshingRef.current || refreshingAccountIdRef.current) return;
     refreshingRef.current = true;
-    setRefreshing(true);
+    setSyncingServer(true);
     try {
       const [nextAccounts, nextDevices] = await Promise.all([
         fetchAccountSummary(activeSession),
         fetchRemoteDevices(activeSession),
       ]);
-      setAccounts(nextAccounts);
+      setAccounts((current) => mergeServerAccounts(current, nextAccounts));
       setDevices(nextDevices);
-      lastRefreshAtRef.current = Date.now();
     } catch (error) {
       if (isSessionExpiredError(error)) {
         setSession(null);
@@ -1623,9 +1633,28 @@ function AppContent() {
       if (!quiet) Toast.fail(errorMessage(error));
     } finally {
       refreshingRef.current = false;
-      setRefreshing(false);
+      setSyncingServer(false);
     }
   }, [session]);
+
+  const refreshAllUsage = useCallback(async (quiet = false) => {
+    if (!session || !accounts.length || refreshingRef.current || refreshingAccountIdRef.current) return;
+    refreshingRef.current = true;
+    setRefreshingUsage(true);
+    try {
+      const refreshedAccounts = await fetchAccountUsageSummaries(accounts);
+      const failedCount = refreshedAccounts.filter((account) => Boolean(account.usage.error)).length;
+      setAccounts((current) => mergeRefreshedUsage(current, refreshedAccounts));
+      lastUsageRefreshAtRef.current = Date.now();
+      if (!quiet && failedCount === 0) Toast.success('所有账号用量已刷新');
+      if (!quiet && failedCount > 0) Toast.fail(`${failedCount} 个账号用量刷新失败`);
+    } catch (error) {
+      if (!quiet) Toast.fail(`刷新用量失败：${errorMessage(error)}`);
+    } finally {
+      refreshingRef.current = false;
+      setRefreshingUsage(false);
+    }
+  }, [accounts, session]);
 
   const refreshAccount = useCallback(async (accountId: string) => {
     if (!session || refreshingRef.current || refreshingAccountIdRef.current) return;
@@ -1682,7 +1711,7 @@ function AppContent() {
           } else {
             if (accountsResult.status === 'fulfilled') {
               setAccounts(accountsResult.value);
-              lastRefreshAtRef.current = Date.now();
+              lastUsageRefreshAtRef.current = Date.now();
             }
             if (devicesResult.status === 'fulfilled') setDevices(devicesResult.value);
             if (profileResult.status === 'fulfilled') setProfile(profileResult.value);
@@ -1712,8 +1741,8 @@ function AppContent() {
     if (!session) return undefined;
     const intervalMilliseconds = globalRefreshMinutes * 60_000;
     const refreshWhenDue = () => {
-      if (Date.now() - lastRefreshAtRef.current >= intervalMilliseconds) {
-        void refreshAll(session, true);
+      if (Date.now() - lastUsageRefreshAtRef.current >= intervalMilliseconds) {
+        void refreshAllUsage(true);
       }
     };
     const timer = setInterval(refreshWhenDue, intervalMilliseconds);
@@ -1724,7 +1753,7 @@ function AppContent() {
       clearInterval(timer);
       subscription.remove();
     };
-  }, [globalRefreshMinutes, refreshAll, session]);
+  }, [globalRefreshMinutes, refreshAllUsage, session]);
 
   useEffect(() => {
     if (!session) return undefined;
@@ -1849,7 +1878,7 @@ function AppContent() {
     void fetchAccountSummary(nextSession)
       .then((nextAccounts) => {
         setAccounts(nextAccounts);
-        lastRefreshAtRef.current = Date.now();
+        lastUsageRefreshAtRef.current = Date.now();
       })
       .catch((error) => Toast.fail(`读取账户失败：${errorMessage(error)}`))
       .finally(() => setLoading(false));
@@ -1974,16 +2003,18 @@ function AppContent() {
   return <SafeAreaView style={styles.app}>
     <StatusBar style="dark" />
     {activePage === 'accounts'
-      ? <Dashboard session={session} accounts={accounts} devices={devices} loading={loading} refreshing={refreshing}
+      ? <Dashboard session={session} accounts={accounts} devices={devices} loading={loading}
+        syncingServer={syncingServer} refreshingUsage={refreshingUsage}
         refreshingAccountId={refreshingAccountId} switchingAccountId={switchingAccountId}
-        onRefresh={refreshAll} onRefreshAccount={refreshAccount} onSwitch={handleRemoteSwitch}
+        onRefreshServer={refreshServerData} onRefreshUsage={refreshAllUsage}
+        onRefreshAccount={refreshAccount} onSwitch={handleRemoteSwitch}
         onAccountUpdated={(updated) => setAccounts((current) => current.map((account) => (
           account.id === updated.id ? { ...account, ...updated } : account
         )))} />
       : activePage === 'devices'
-        ? <DeviceManagementPage accounts={accounts} devices={devices} refreshing={refreshing}
+        ? <DeviceManagementPage accounts={accounts} devices={devices} refreshing={syncingServer}
           deletingDeviceId={deletingDeviceId} switchingOpenAiAuth={switchingOpenAiAuth}
-          onRefresh={refreshAll} onDelete={handleDeleteDevice}
+          onRefresh={refreshServerData} onDelete={handleDeleteDevice}
           onSetOpenAiAuthAccount={handleSetOpenAiAuthAccount} />
         : activePage === 'totp'
           ? <TotpPage manager={totpManager} />
