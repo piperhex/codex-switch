@@ -232,6 +232,10 @@ describe('mobile Codex API client', () => {
   it('synchronizes the mobile 2FA vault only when explicitly requested', async () => {
     const vault: TotpVault = {
       entries: [],
+      tombstones: [{
+        id: '10000000-0000-4000-8000-000000000001',
+        deletedAt: '2026-08-15T10:00:00.000Z',
+      }],
       modifiedAt: '2026-08-15T10:00:00.000Z',
     };
     const apiFetch = vi.fn().mockResolvedValue(new Response(JSON.stringify(vault), { status: 200 }));
@@ -248,6 +252,10 @@ describe('mobile Codex API client', () => {
   it('downloads the cloud 2FA vault without uploading the local vault', async () => {
     const vault: TotpVault = {
       entries: [],
+      tombstones: [{
+        id: '10000000-0000-4000-8000-000000000001',
+        deletedAt: '2026-08-15T10:00:00.000Z',
+      }],
       modifiedAt: '2026-08-15T10:00:00.000Z',
     };
     const apiFetch = vi.fn().mockResolvedValue(new Response(JSON.stringify(vault), { status: 200 }));

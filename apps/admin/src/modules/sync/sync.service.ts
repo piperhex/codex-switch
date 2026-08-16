@@ -28,6 +28,7 @@ import { SyncedTotpVaultEntity } from './entities/synced-totp-vault.entity';
 import { SystemAccountBindingEntity } from './entities/system-account-binding.entity';
 import { SystemAccountEntity } from './entities/system-account.entity';
 import { RemoteDeviceEntity } from '@/modules/devices/entities/remote-device.entity';
+import { mergeTotpVault, readStoredTotpVault } from './totp-vault-merge';
 import {
   createCodexOutboundDispatcher,
   withCodexOutboundDispatcher,
@@ -916,22 +917,22 @@ export class SyncService {
 
   async getTotpVault(ownerId: string) {
     const vault = await this.totpVaults.findOne({ where: { ownerId } });
-    return vault
-      ? { entries: vault.entries, modifiedAt: vault.modifiedAt.toISOString() }
-      : { entries: [], modifiedAt: null };
+    return vault ? readStoredTotpVault(vault) : { entries: [], tombstones: [], modifiedAt: null };
   }
 
   async putTotpVault(ownerId: string, dto: PutSyncTotpVaultDto) {
-    const incomingModifiedAt = new Date(dto.modifiedAt);
-    const existing = await this.totpVaults.findOne({ where: { ownerId } });
-    if (existing && existing.modifiedAt >= incomingModifiedAt) {
-      return { entries: existing.entries, modifiedAt: existing.modifiedAt.toISOString() };
-    }
-    const vault = existing ?? this.totpVaults.create({ ownerId });
-    vault.entries = dto.entries;
-    vault.modifiedAt = incomingModifiedAt;
-    const saved = await this.totpVaults.save(vault);
-    return { entries: saved.entries, modifiedAt: saved.modifiedAt.toISOString() };
+    return this.dataSource.transaction(async (manager) => {
+      await manager.query('SELECT pg_advisory_xact_lock(hashtext($1))', [ownerId]);
+      const repository = manager.getRepository(SyncedTotpVaultEntity);
+      const existing = await repository.findOne({ where: { ownerId } });
+      const merged = mergeTotpVault(existing, dto);
+      const vault = existing ?? repository.create({ ownerId });
+      vault.entries = merged.entries;
+      vault.tombstones = merged.tombstones;
+      vault.modifiedAt = new Date(merged.modifiedAt);
+      await repository.save(vault);
+      return merged;
+    });
   }
 
   async listDeletedProviders(ownerId: string): Promise<{ providers: DeletedSyncProviderDto[] }> {

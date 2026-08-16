@@ -38,6 +38,7 @@ describe('SyncService', () => {
     delete: ReturnType<typeof vi.fn>; save: ReturnType<typeof vi.fn>;
     create: ReturnType<typeof vi.fn>; update: ReturnType<typeof vi.fn>; findOne: ReturnType<typeof vi.fn>;
   };
+  let transactionManager: { getRepository: ReturnType<typeof vi.fn>; query: ReturnType<typeof vi.fn> };
   let dataSource: { transaction: ReturnType<typeof vi.fn> };
   let redis: { get: ReturnType<typeof vi.fn>; set: ReturnType<typeof vi.fn>; del: ReturnType<typeof vi.fn> };
   let remoteDevices: { findOne: ReturnType<typeof vi.fn>; update: ReturnType<typeof vi.fn> };
@@ -76,11 +77,11 @@ describe('SyncService', () => {
       delete: vi.fn(), save: vi.fn(), create: vi.fn((value) => value),
       update: vi.fn(), findOne: vi.fn(),
     };
-    dataSource = {
-      transaction: vi.fn(async (work) => work({
-        getRepository: vi.fn(() => transactionRepository),
-      })),
+    transactionManager = {
+      getRepository: vi.fn(() => transactionRepository),
+      query: vi.fn(),
     };
+    dataSource = { transaction: vi.fn(async (work) => work(transactionManager)) };
     redis = { get: vi.fn(), set: vi.fn(), del: vi.fn() };
     remoteDevices = { findOne: vi.fn(), update: vi.fn() };
     service = new SyncService(
@@ -105,25 +106,33 @@ describe('SyncService', () => {
 
     await expect(service.getTotpVault('owner-1')).resolves.toEqual({
       entries: [],
+      tombstones: [],
       modifiedAt: null,
     });
   });
 
-  it('keeps the newer cloud 2FA vault when an older snapshot is uploaded', async () => {
+  it('merges a cloud 2FA upload while holding an owner-scoped database lock', async () => {
     const existing = {
-      entries: [{ id: 'remote-entry' }],
+      entries: [],
+      tombstones: [],
       modifiedAt: new Date('2026-08-15T10:00:00.000Z'),
     };
-    totpVaults.findOne.mockResolvedValue(existing);
+    transactionRepository.findOne.mockResolvedValue(existing);
 
     await expect(service.putTotpVault('owner-1', {
       entries: [],
-      modifiedAt: '2026-08-15T09:00:00.000Z',
-    })).resolves.toEqual({
-      entries: existing.entries,
+      tombstones: [],
       modifiedAt: '2026-08-15T10:00:00.000Z',
+    })).resolves.toEqual({
+      entries: [],
+      tombstones: [],
+      modifiedAt: '1970-01-01T00:00:00.000Z',
     });
-    expect(totpVaults.save).not.toHaveBeenCalled();
+    expect(transactionManager.query).toHaveBeenCalledWith(
+      'SELECT pg_advisory_xact_lock(hashtext($1))',
+      ['owner-1'],
+    );
+    expect(transactionRepository.save).toHaveBeenCalledOnce();
   });
 
   it('returns a cache hit without querying PostgreSQL', async () => {

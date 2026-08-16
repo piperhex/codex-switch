@@ -70,7 +70,8 @@ function AccountTotpPreview({ accountName, secret, t }: {
       algorithm: "SHA1",
       digits: 6,
       period: ACCOUNT_TOTP_PERIOD,
-      createdAt: "",
+      createdAt: "1970-01-01T00:00:00.000Z",
+      updatedAt: "1970-01-01T00:00:00.000Z",
     }, now).then((value) => {
       if (active) setCode(value);
     }).catch(() => {

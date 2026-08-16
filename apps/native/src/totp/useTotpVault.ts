@@ -8,15 +8,54 @@ import {
   saveTotpVault,
 } from './storage';
 import { createTotpEntry } from './totp';
+import { mergeTotpVaults, normalizeTotpVault, totpVaultsEqual } from './vault';
 import type {
   TotpCloudRefreshResult,
   TotpDraft,
-  TotpEntry,
   TotpManagerState,
   TotpVault,
 } from './types';
 
-const EMPTY_VAULT: TotpVault = { entries: [], modifiedAt: '1970-01-01T00:00:00.000Z' };
+const EMPTY_VAULT: TotpVault = {
+  entries: [],
+  tombstones: [],
+  modifiedAt: '1970-01-01T00:00:00.000Z',
+};
+type TotpVaultContents = Pick<TotpVault, 'entries' | 'tombstones'>;
+
+function addToVault(current: TotpVault, draft: TotpDraft, modifiedAt: string): TotpVaultContents {
+  const entry = createTotpEntry(draft, undefined, modifiedAt);
+  return {
+    entries: [...current.entries, entry],
+    tombstones: current.tombstones.filter((item) => item.id !== entry.id),
+  };
+}
+
+function updateInVault(
+  current: TotpVault,
+  id: string,
+  draft: TotpDraft,
+  modifiedAt: string,
+): TotpVaultContents {
+  return {
+    entries: current.entries.map((entry) => (
+      entry.id === id
+        ? { ...createTotpEntry(draft, id, modifiedAt), createdAt: entry.createdAt }
+        : entry
+    )),
+    tombstones: current.tombstones.filter((item) => item.id !== id),
+  };
+}
+
+function deleteFromVault(current: TotpVault, id: string, modifiedAt: string): TotpVaultContents {
+  return {
+    entries: current.entries.filter((entry) => entry.id !== id),
+    tombstones: [
+      ...current.tombstones.filter((item) => item.id !== id),
+      { id, deletedAt: modifiedAt },
+    ],
+  };
+}
 
 export function useTotpVault(
   session: AuthSession | null,
@@ -48,10 +87,11 @@ export function useTotpVault(
       .then(async () => {
         const remote = await syncTotpVault(activeSession, snapshot);
         if (sessionRef.current !== activeSession) return;
-        if (Date.parse(remote.modifiedAt) < Date.parse(vaultRef.current.modifiedAt)) return;
-        vaultRef.current = remote;
-        setVault(remote);
-        await persist(activeSession, remote);
+        const merged = mergeTotpVaults(vaultRef.current, remote);
+        if (totpVaultsEqual(merged, vaultRef.current)) return;
+        vaultRef.current = merged;
+        setVault(merged);
+        await persist(activeSession, merged);
       })
       .finally(() => {
         if (syncQueueRef.current === operation) setSyncing(false);
@@ -89,10 +129,14 @@ export function useTotpVault(
     return () => { cancelled = true; };
   }, [notifyError, session, synchronize]);
 
-  const commitEntries = useCallback((update: (entries: TotpEntry[]) => TotpEntry[]) => {
+  const commitVault = useCallback((
+    update: (current: TotpVault, modifiedAt: string) => TotpVaultContents,
+  ) => {
     const activeSession = sessionRef.current;
     if (!activeSession) return;
-    const next = { entries: update(vaultRef.current.entries), modifiedAt: new Date().toISOString() };
+    const modifiedAt = new Date().toISOString();
+    const next = normalizeTotpVault({ ...update(vaultRef.current, modifiedAt), modifiedAt });
+    if (!next) return;
     vaultRef.current = next;
     setVault(next);
     void persist(activeSession, next).catch(() => notifyError('保存 2FA 密钥失败'));
@@ -121,10 +165,11 @@ export function useTotpVault(
         const remote = await fetchTotpVault(activeSession);
         if (!remote) return 'empty';
         if (sessionRef.current !== activeSession) return 'current';
-        if (Date.parse(remote.modifiedAt) <= Date.parse(vaultRef.current.modifiedAt)) return 'current';
-        vaultRef.current = remote;
-        setVault(remote);
-        await persist(activeSession, remote);
+        const merged = mergeTotpVaults(vaultRef.current, remote);
+        if (totpVaultsEqual(merged, vaultRef.current)) return 'current';
+        vaultRef.current = merged;
+        setVault(merged);
+        await persist(activeSession, merged);
         return 'updated';
       })
       .finally(() => {
@@ -135,16 +180,16 @@ export function useTotpVault(
   }, [persist]);
 
   return {
-    addEntry: (draft) => commitEntries((entries) => [...entries, createTotpEntry(draft)]),
+    addEntry: (draft) => commitVault((current, modifiedAt) => addToVault(current, draft, modifiedAt)),
     cloudSyncEnabled,
-    deleteEntry: (id) => commitEntries((entries) => entries.filter((entry) => entry.id !== id)),
+    deleteEntry: (id) => commitVault((current, modifiedAt) => deleteFromVault(current, id, modifiedAt)),
     entries: vault.entries,
     initialized,
     refreshCloud,
     setCloudSyncEnabled,
     syncing,
-    updateEntry: (id, draft) => commitEntries((entries) => entries.map((entry) => (
-      entry.id === id ? { ...createTotpEntry(draft, id), createdAt: entry.createdAt } : entry
-    ))),
+    updateEntry: (id, draft) => commitVault(
+      (current, modifiedAt) => updateInVault(current, id, draft, modifiedAt),
+    ),
   };
 }

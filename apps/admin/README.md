@@ -47,7 +47,8 @@ If production uses `POSTGRES_DB_SYNCHRONIZE=false`, apply `sql/20260704-admin-ma
 `sql/20260812-sync-provider-field-versions-soft-delete.sql` before using
 the expanded admin console, provider sync, official account pool, reusable invitations,
 announcements, desktop FAQs, email templates, telemetry, and feedback management. Also apply
-`sql/20260815-sync-totp-vault.sql` before enabling optional 2FA key synchronization.
+`sql/20260815-sync-totp-vault.sql` and `sql/20260816-sync-totp-tombstones.sql` before enabling
+optional 2FA key synchronization.
 The RBAC migration must be applied before starting this version because application startup
 synchronizes the permission catalog and protected system roles.
 

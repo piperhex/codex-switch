@@ -13,7 +13,7 @@ import {
 import { CLAUDE_CODE_FALLBACK_MODELS } from "../utils/claudeCodeProvider";
 import { GROK_FALLBACK_MODELS } from "../utils/grokProvider";
 import { findProviderPreset } from "../utils/providerCatalog";
-import { isTotpEntry, TOTP_STORAGE_KEY, type TotpVault } from "../utils/totp";
+import { normalizeTotpVault, TOTP_STORAGE_KEY, type TotpVault } from "../utils/totp";
 import type {
   Account,
   AccountDetailsDraft,
@@ -1639,6 +1639,7 @@ export async function syncCloudTotp(vault: TotpVault): Promise<TotpVault> {
   if (!hasLocalBackend) return vault;
   return invoke<TotpVault>("cloud_sync_totp", {
     entries: vault.entries,
+    tombstones: vault.tombstones,
     modifiedAt: vault.modifiedAt,
   });
 }
@@ -2393,11 +2394,7 @@ export async function publishTotpChange(vault: TotpVault): Promise<void> {
 }
 
 function validatedTotpVault(value: unknown): TotpVault | null {
-  if (!value || typeof value !== "object") return null;
-  const candidate = value as Partial<TotpVault>;
-  if (!Array.isArray(candidate.entries) || typeof candidate.modifiedAt !== "string") return null;
-  if (Number.isNaN(Date.parse(candidate.modifiedAt))) return null;
-  return { entries: candidate.entries.filter(isTotpEntry), modifiedAt: candidate.modifiedAt };
+  return normalizeTotpVault(value);
 }
 
 export function subscribeToTotpChanges(onChange: (vault: TotpVault) => void): () => void {

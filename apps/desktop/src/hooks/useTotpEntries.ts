@@ -3,36 +3,63 @@ import { publishTotpChange, subscribeToTotpChanges, syncCloudTotp } from "../api
 import type { Translate } from "../i18n";
 import {
   createTotpEntry,
-  isTotpEntry,
+  mergeTotpVaults,
+  normalizeTotpVault,
   TOTP_CLOUD_SYNC_KEY,
   TOTP_STORAGE_KEY,
+  totpVaultsEqual,
   type TotpDraft,
-  type TotpEntry,
   type TotpVault,
 } from "../utils/totp";
 
 const EMPTY_VAULT_MODIFIED_AT = "1970-01-01T00:00:00.000Z";
+const EMPTY_VAULT: TotpVault = {
+  entries: [],
+  tombstones: [],
+  modifiedAt: EMPTY_VAULT_MODIFIED_AT,
+};
+type TotpVaultContents = Pick<TotpVault, "entries" | "tombstones">;
+
+function addToVault(current: TotpVault, draft: TotpDraft, modifiedAt: string): TotpVaultContents {
+  const entry = createTotpEntry(draft, undefined, modifiedAt);
+  return {
+    entries: [...current.entries, entry],
+    tombstones: current.tombstones.filter((item) => item.id !== entry.id),
+  };
+}
+
+function updateInVault(
+  current: TotpVault,
+  id: string,
+  draft: TotpDraft,
+  modifiedAt: string,
+): TotpVaultContents {
+  return {
+    entries: current.entries.map((entry) => (
+      entry.id === id
+        ? { ...createTotpEntry(draft, id, modifiedAt), createdAt: entry.createdAt }
+        : entry
+    )),
+    tombstones: current.tombstones.filter((item) => item.id !== id),
+  };
+}
+
+function deleteFromVault(current: TotpVault, id: string, modifiedAt: string): TotpVaultContents {
+  return {
+    entries: current.entries.filter((entry) => entry.id !== id),
+    tombstones: [
+      ...current.tombstones.filter((item) => item.id !== id),
+      { id, deletedAt: modifiedAt },
+    ],
+  };
+}
 
 function loadVault(): TotpVault {
   try {
     const stored: unknown = JSON.parse(window.localStorage.getItem(TOTP_STORAGE_KEY) ?? "[]");
-    if (Array.isArray(stored)) {
-      const entries = stored.filter(isTotpEntry);
-      return {
-        entries,
-        modifiedAt: entries[entries.length - 1]?.createdAt ?? EMPTY_VAULT_MODIFIED_AT,
-      };
-    }
-    if (!stored || typeof stored !== "object") throw new Error("invalid-vault");
-    const candidate = stored as Partial<TotpVault>;
-    const entries = Array.isArray(candidate.entries) ? candidate.entries.filter(isTotpEntry) : [];
-    const modifiedAt = typeof candidate.modifiedAt === "string"
-      && !Number.isNaN(Date.parse(candidate.modifiedAt))
-      ? candidate.modifiedAt
-      : EMPTY_VAULT_MODIFIED_AT;
-    return { entries, modifiedAt };
+    return normalizeTotpVault(stored) ?? EMPTY_VAULT;
   } catch {
-    return { entries: [], modifiedAt: EMPTY_VAULT_MODIFIED_AT };
+    return EMPTY_VAULT;
   }
 }
 
@@ -58,10 +85,10 @@ export function useTotpEntries({ cloudAuthenticated, notify, t }: TotpEntriesOpt
   }, [vault]);
 
   useEffect(() => subscribeToTotpChanges((nextVault) => {
-    if (nextVault.modifiedAt === vaultRef.current.modifiedAt) return;
-    if (Date.parse(nextVault.modifiedAt) < Date.parse(vaultRef.current.modifiedAt)) return;
-    vaultRef.current = nextVault;
-    setVault(nextVault);
+    const merged = mergeTotpVaults(vaultRef.current, nextVault);
+    if (totpVaultsEqual(merged, vaultRef.current)) return;
+    vaultRef.current = merged;
+    setVault(merged);
   }), []);
 
   const syncVault = useCallback((snapshot: TotpVault) => {
@@ -70,10 +97,13 @@ export function useTotpEntries({ cloudAuthenticated, notify, t }: TotpEntriesOpt
     const operation = syncQueueRef.current
       .catch(() => undefined)
       .then(async () => {
-        const remote = await syncCloudTotp(snapshot);
-        if (Date.parse(remote.modifiedAt) < Date.parse(vaultRef.current.modifiedAt)) return;
-        vaultRef.current = remote;
-        setVault(remote);
+        const response = await syncCloudTotp(snapshot);
+        const remote = normalizeTotpVault(response);
+        if (!remote) throw new Error("invalid-2fa-vault");
+        const merged = mergeTotpVaults(vaultRef.current, remote);
+        if (totpVaultsEqual(merged, vaultRef.current)) return;
+        vaultRef.current = merged;
+        setVault(merged);
       })
       .catch((error) => notify(`${t("totp.cloudSyncFailed")}: ${String(error)}`))
       .finally(() => {
@@ -88,26 +118,28 @@ export function useTotpEntries({ cloudAuthenticated, notify, t }: TotpEntriesOpt
     if (cloudSyncEnabled && cloudAuthenticated) void syncVault(vaultRef.current);
   }, [cloudAuthenticated, cloudSyncEnabled, syncVault]);
 
-  const commitEntries = useCallback((update: (current: TotpEntry[]) => TotpEntry[]) => {
-    const next = { entries: update(vaultRef.current.entries), modifiedAt: new Date().toISOString() };
+  const commitVault = useCallback((
+    update: (current: TotpVault, modifiedAt: string) => TotpVaultContents,
+  ) => {
+    const modifiedAt = new Date().toISOString();
+    const next = normalizeTotpVault({ ...update(vaultRef.current, modifiedAt), modifiedAt });
+    if (!next) return;
     vaultRef.current = next;
     setVault(next);
     if (cloudSyncEnabled && cloudAuthenticated) void syncVault(next);
   }, [cloudAuthenticated, cloudSyncEnabled, syncVault]);
 
   const addEntry = useCallback((draft: TotpDraft) => {
-    commitEntries((current) => [...current, createTotpEntry(draft)]);
-  }, [commitEntries]);
+    commitVault((current, modifiedAt) => addToVault(current, draft, modifiedAt));
+  }, [commitVault]);
 
   const updateEntry = useCallback((id: string, draft: TotpDraft) => {
-    commitEntries((current) => current.map((entry) => (
-      entry.id === id ? { ...createTotpEntry(draft, id), createdAt: entry.createdAt } : entry
-    )));
-  }, [commitEntries]);
+    commitVault((current, modifiedAt) => updateInVault(current, id, draft, modifiedAt));
+  }, [commitVault]);
 
   const deleteEntry = useCallback((id: string) => {
-    commitEntries((current) => current.filter((entry) => entry.id !== id));
-  }, [commitEntries]);
+    commitVault((current, modifiedAt) => deleteFromVault(current, id, modifiedAt));
+  }, [commitVault]);
 
   const setCloudSyncEnabled = useCallback((enabled: boolean) => {
     window.localStorage.setItem(TOTP_CLOUD_SYNC_KEY, String(enabled));

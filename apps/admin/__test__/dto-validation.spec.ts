@@ -27,6 +27,11 @@ import { PutSyncAccountsDto, SyncAccountDto } from '@/modules/sync/dto/sync-acco
 import { CompleteAccountOAuthDto } from '@/modules/sync/dto/complete-account-oauth.dto';
 import { PutSyncProvidersDto, SyncProviderDto } from '@/modules/sync/dto/sync-providers.dto';
 import {
+  PutSyncTotpVaultDto,
+  TotpEntryDto,
+  TotpTombstoneDto,
+} from '@/modules/sync/dto/sync-totp.dto';
+import {
   ListDeviceInstallationsQueryDto,
   ListTelemetryEventsQueryDto,
 } from '@/modules/telemetry/dto/list-telemetry.dto';
@@ -225,6 +230,34 @@ describe('request DTO validation', () => {
     expect(errors[0].property).toBe('accounts');
     expect(errors[0].children?.[0].children?.map((error) => error.property))
       .toEqual(expect.arrayContaining(['id', 'active', 'autoSwitchPriority', 'usage', 'privateDetails']));
+  });
+
+  it('validates versioned 2FA entries and remains compatible with legacy snapshots', async () => {
+    const entry = {
+      id: '10000000-0000-4000-8000-000000000001',
+      issuer: 'Example',
+      accountName: 'person@example.com',
+      secret: 'JBSWY3DPEHPK3PXP',
+      algorithm: 'SHA1',
+      digits: 6,
+      period: 30,
+      createdAt: '2026-08-15T09:00:00.000Z',
+      updatedAt: '2026-08-15T10:00:00.000Z',
+    };
+    const versioned = plainToInstance(PutSyncTotpVaultDto, {
+      entries: [entry],
+      tombstones: [{ id: entry.id, deletedAt: '2026-08-15T10:00:01.000Z' }],
+      modifiedAt: '2026-08-15T10:00:01.000Z',
+    });
+    expect(versioned.entries[0]).toBeInstanceOf(TotpEntryDto);
+    expect(versioned.tombstones?.[0]).toBeInstanceOf(TotpTombstoneDto);
+    await expect(validate(versioned)).resolves.toEqual([]);
+
+    const legacy = plainToInstance(PutSyncTotpVaultDto, {
+      entries: [{ ...entry, updatedAt: undefined }],
+      modifiedAt: '2026-08-15T10:00:00.000Z',
+    });
+    await expect(validate(legacy)).resolves.toEqual([]);
   });
 
   it('applies sync DTO defaults while allowing a nullable provider account id', async () => {

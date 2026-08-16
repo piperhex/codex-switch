@@ -64,7 +64,11 @@ export function parseOtpAuthUri(value: string): TotpDraft {
   };
 }
 
-export function createTotpEntry(draft: TotpDraft, id = Crypto.randomUUID()): TotpEntry {
+export function createTotpEntry(
+  draft: TotpDraft,
+  id = Crypto.randomUUID(),
+  updatedAt = new Date().toISOString(),
+): TotpEntry {
   if (!Number.isInteger(draft.period)
     || draft.period < MIN_PERIOD_SECONDS
     || draft.period > MAX_PERIOD_SECONDS) {
@@ -76,27 +80,9 @@ export function createTotpEntry(draft: TotpDraft, id = Crypto.randomUUID()): Tot
     issuer: draft.issuer.trim() || DEFAULT_ISSUER,
     accountName: draft.accountName.trim(),
     secret: normalizeTotpSecret(draft.secret),
-    createdAt: new Date().toISOString(),
+    createdAt: updatedAt,
+    updatedAt,
   };
-}
-
-export function isTotpEntry(value: unknown): value is TotpEntry {
-  if (!value || typeof value !== 'object') return false;
-  const entry = value as Partial<TotpEntry>;
-  try {
-    normalizeTotpSecret(entry.secret ?? '');
-  } catch {
-    return false;
-  }
-  return typeof entry.id === 'string'
-    && typeof entry.issuer === 'string'
-    && typeof entry.accountName === 'string'
-    && typeof entry.createdAt === 'string'
-    && ['SHA1', 'SHA256', 'SHA512'].includes(entry.algorithm ?? '')
-    && (entry.digits === 6 || entry.digits === 8)
-    && Number.isInteger(entry.period)
-    && (entry.period ?? 0) >= MIN_PERIOD_SECONDS
-    && (entry.period ?? 0) <= MAX_PERIOD_SECONDS;
 }
 
 function decodeBase32(secret: string) {

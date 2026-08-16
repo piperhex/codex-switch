@@ -113,12 +113,23 @@ pub(crate) struct CloudTotpEntry {
     digits: u8,
     period: u16,
     created_at: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    updated_at: Option<String>,
+}
+
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CloudTotpTombstone {
+    id: String,
+    deleted_at: String,
 }
 
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct CloudTotpVault {
     entries: Vec<CloudTotpEntry>,
+    #[serde(default)]
+    tombstones: Vec<CloudTotpTombstone>,
     modified_at: Option<String>,
 }
 
@@ -1179,29 +1190,6 @@ fn get_remote_providers<R: Runtime>(
     Ok(payload)
 }
 
-fn get_remote_totp_vault<R: Runtime>(
-    app: &tauri::AppHandle<R>,
-    client: &Client,
-    settings: &mut AppSettings,
-    credentials: &mut CloudCredentials,
-) -> Result<CloudTotpVault, String> {
-    let response = cloud_request(
-        app,
-        client,
-        settings,
-        credentials,
-        Method::GET,
-        "/sync/totp",
-        None,
-    )?;
-    if !response.status().is_success() {
-        return Err(response_error("Cloud 2FA download", response));
-    }
-    response
-        .json()
-        .map_err(|error| format!("Cloud 2FA response is invalid: {error}"))
-}
-
 fn validate_totp_entry(entry: &CloudTotpEntry) -> Result<(), String> {
     let valid_secret = !entry.secret.is_empty()
         && entry
@@ -1218,30 +1206,38 @@ fn validate_totp_entry(entry: &CloudTotpEntry) -> Result<(), String> {
         || !matches!(entry.digits, 6 | 8)
         || !(15..=120).contains(&entry.period)
         || DateTime::parse_from_rfc3339(&entry.created_at).is_err()
+        || entry
+            .updated_at
+            .as_deref()
+            .is_some_and(|value| DateTime::parse_from_rfc3339(value).is_err())
     {
         return Err("A 2FA entry is invalid".to_string());
     }
     Ok(())
 }
 
-fn validate_totp_vault(entries: &[CloudTotpEntry], modified_at: &str) -> Result<(), String> {
-    if entries.len() > 200 || DateTime::parse_from_rfc3339(modified_at).is_err() {
-        return Err("The 2FA vault is invalid".to_string());
+fn validate_totp_tombstone(tombstone: &CloudTotpTombstone) -> Result<(), String> {
+    if Uuid::parse_str(&tombstone.id).is_err()
+        || DateTime::parse_from_rfc3339(&tombstone.deleted_at).is_err()
+    {
+        return Err("A 2FA deletion record is invalid".to_string());
     }
-    entries.iter().try_for_each(validate_totp_entry)
+    Ok(())
 }
 
-fn remote_totp_is_newer(remote: &CloudTotpVault, local_modified_at: &str) -> bool {
-    let Some(remote_modified_at) = remote.modified_at.as_deref() else {
-        return false;
-    };
-    let Ok(remote_time) = DateTime::parse_from_rfc3339(remote_modified_at) else {
-        return false;
-    };
-    let Ok(local_time) = DateTime::parse_from_rfc3339(local_modified_at) else {
-        return false;
-    };
-    remote_time > local_time
+fn validate_totp_vault(
+    entries: &[CloudTotpEntry],
+    tombstones: &[CloudTotpTombstone],
+    modified_at: &str,
+) -> Result<(), String> {
+    if entries.len() > 200
+        || tombstones.len() > 200
+        || DateTime::parse_from_rfc3339(modified_at).is_err()
+    {
+        return Err("The 2FA vault is invalid".to_string());
+    }
+    entries.iter().try_for_each(validate_totp_entry)?;
+    tombstones.iter().try_for_each(validate_totp_tombstone)
 }
 
 fn put_remote_totp_vault<R: Runtime>(
@@ -2604,24 +2600,21 @@ pub(crate) async fn cloud_sync_accounts<R: Runtime>(
 pub(crate) async fn cloud_sync_totp<R: Runtime>(
     app: tauri::AppHandle<R>,
     entries: Vec<CloudTotpEntry>,
+    tombstones: Vec<CloudTotpTombstone>,
     modified_at: String,
 ) -> Result<CloudTotpVault, String> {
-    validate_totp_vault(&entries, &modified_at)?;
+    validate_totp_vault(&entries, &tombstones, &modified_at)?;
     tauri::async_runtime::spawn_blocking(move || {
         let _credentials_guard = lock_cloud_credentials()?;
         let client = api_client()?;
         let mut settings = read_app_settings(&app)?;
         let mut credentials = read_cloud_credentials(&app);
-        let remote = get_remote_totp_vault(&app, &client, &mut settings, &mut credentials)?;
-        let result = if remote_totp_is_newer(&remote, &modified_at) {
-            remote
-        } else {
-            let local = CloudTotpVault {
-                entries,
-                modified_at: Some(modified_at),
-            };
-            put_remote_totp_vault(&app, &client, &mut settings, &mut credentials, &local)?
+        let local = CloudTotpVault {
+            entries,
+            tombstones,
+            modified_at: Some(modified_at),
         };
+        let result = put_remote_totp_vault(&app, &client, &mut settings, &mut credentials, &local)?;
         write_app_settings(&app, &settings)?;
         write_cloud_credentials(&app, &credentials)?;
         Ok(result)
@@ -2634,10 +2627,10 @@ pub(crate) async fn cloud_sync_totp<R: Runtime>(
 mod tests {
     use super::{
         cloud_state, persist_cloud_token_response, refresh_rejection_expires_cloud_session,
-        remote_totp_is_newer, restored_account_status, saved_cloud_login_service,
-        should_apply_remote_field, validate_totp_vault, CloudAccountsResponse, CloudCredentials,
-        CloudProvidersResponse, CloudTokenResponse, CloudTotpEntry, CloudTotpVault,
-        CloudUserResponse, DeletedCloudProvidersResponse,
+        restored_account_status, saved_cloud_login_service, should_apply_remote_field,
+        validate_totp_vault, CloudAccountsResponse, CloudCredentials, CloudProvidersResponse,
+        CloudTokenResponse, CloudTotpEntry, CloudTotpTombstone, CloudUserResponse,
+        DeletedCloudProvidersResponse,
     };
     use crate::models::AppSettings;
     use reqwest::StatusCode;
@@ -2652,6 +2645,7 @@ mod tests {
             digits: 6,
             period: 30,
             created_at: "2026-08-15T10:00:00Z".to_string(),
+            updated_at: Some("2026-08-15T10:00:00Z".to_string()),
         }
     }
 
@@ -2660,18 +2654,20 @@ mod tests {
         let mut entry = valid_totp_entry();
         entry.secret = "NOT-A-SECRET".to_string();
 
-        assert!(validate_totp_vault(&[entry], "2026-08-15T10:00:00Z").is_err());
+        assert!(validate_totp_vault(&[entry], &[], "2026-08-15T10:00:00Z").is_err());
     }
 
     #[test]
-    fn totp_sync_prefers_the_newer_remote_snapshot() {
-        let remote = CloudTotpVault {
-            entries: vec![valid_totp_entry()],
-            modified_at: Some("2026-08-15T10:00:01Z".to_string()),
+    fn totp_vault_validation_rejects_invalid_tombstones() {
+        let tombstone = CloudTotpTombstone {
+            id: "not-a-uuid".to_string(),
+            deleted_at: "2026-08-15T10:00:01Z".to_string(),
         };
 
-        assert!(remote_totp_is_newer(&remote, "2026-08-15T10:00:00Z"));
-        assert!(!remote_totp_is_newer(&remote, "2026-08-15T10:00:02Z"));
+        assert!(
+            validate_totp_vault(&[valid_totp_entry()], &[tombstone], "2026-08-15T10:00:01Z",)
+                .is_err()
+        );
     }
 
     #[test]

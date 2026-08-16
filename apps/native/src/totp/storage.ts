@@ -1,7 +1,7 @@
 import * as Crypto from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
 import type { AuthSession } from '../types';
-import { isTotpEntry } from './totp';
+import { normalizeTotpVault } from './vault';
 import type { TotpVault } from './types';
 
 const VAULT_KEY_PREFIX = 'codex-switch.mobile.totp-vault.v1';
@@ -17,18 +17,13 @@ async function accountKey(session: AuthSession, prefix: string) {
 export async function loadTotpVault(session: AuthSession): Promise<TotpVault> {
   try {
     const raw = await SecureStore.getItemAsync(await accountKey(session, VAULT_KEY_PREFIX));
-    if (!raw) return { entries: [], modifiedAt: EMPTY_VAULT_MODIFIED_AT };
+    if (!raw) return { entries: [], tombstones: [], modifiedAt: EMPTY_VAULT_MODIFIED_AT };
     const stored: unknown = JSON.parse(raw);
-    if (!stored || typeof stored !== 'object') throw new Error('invalid-vault');
-    const candidate = stored as Partial<TotpVault>;
-    const entries = Array.isArray(candidate.entries) ? candidate.entries.filter(isTotpEntry) : [];
-    const modifiedAt = typeof candidate.modifiedAt === 'string'
-      && !Number.isNaN(Date.parse(candidate.modifiedAt))
-      ? candidate.modifiedAt
-      : EMPTY_VAULT_MODIFIED_AT;
-    return { entries, modifiedAt };
+    const vault = normalizeTotpVault(stored);
+    if (!vault) throw new Error('invalid-vault');
+    return vault;
   } catch {
-    return { entries: [], modifiedAt: EMPTY_VAULT_MODIFIED_AT };
+    return { entries: [], tombstones: [], modifiedAt: EMPTY_VAULT_MODIFIED_AT };
   }
 }
 

@@ -9,12 +9,19 @@ export interface TotpEntry {
   digits: 6 | 8;
   period: number;
   createdAt: string;
+  updatedAt: string;
 }
 
-export type TotpDraft = Omit<TotpEntry, 'id' | 'createdAt'>;
+export type TotpDraft = Omit<TotpEntry, 'id' | 'createdAt' | 'updatedAt'>;
+
+export interface TotpTombstone {
+  id: string;
+  deletedAt: string;
+}
 
 export interface TotpVault {
   entries: TotpEntry[];
+  tombstones: TotpTombstone[];
   modifiedAt: string;
 }
 

@@ -9,7 +9,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { UserEntity } from '@/modules/user/entities/user.entity';
-import type { TotpEntryDto } from '../dto/sync-totp.dto';
+import type { TotpEntryDto, TotpTombstoneDto } from '../dto/sync-totp.dto';
 
 @Entity({ name: 'synced_totp_vaults' })
 @Index(['ownerId'], { unique: true })
@@ -25,6 +25,9 @@ export class SyncedTotpVaultEntity {
 
   @Column({ type: 'jsonb', default: [] })
   entries: TotpEntryDto[];
+
+  @Column({ type: 'jsonb', default: [] })
+  tombstones: TotpTombstoneDto[];
 
   @Column({ type: 'timestamptz' })
   modifiedAt: Date;

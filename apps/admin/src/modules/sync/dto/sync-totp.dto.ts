@@ -5,6 +5,7 @@ import {
   IsIn,
   IsInt,
   IsISO8601,
+  IsOptional,
   IsString,
   IsUUID,
   Matches,
@@ -44,6 +45,18 @@ export class TotpEntryDto {
 
   @IsISO8601({ strict: true })
   createdAt: string;
+
+  @IsOptional()
+  @IsISO8601({ strict: true })
+  updatedAt?: string;
+}
+
+export class TotpTombstoneDto {
+  @IsUUID()
+  id: string;
+
+  @IsISO8601({ strict: true })
+  deletedAt: string;
 }
 
 export class PutSyncTotpVaultDto {
@@ -52,6 +65,13 @@ export class PutSyncTotpVaultDto {
   @ValidateNested({ each: true })
   @Type(() => TotpEntryDto)
   entries: TotpEntryDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(200)
+  @ValidateNested({ each: true })
+  @Type(() => TotpTombstoneDto)
+  tombstones?: TotpTombstoneDto[];
 
   @IsISO8601({ strict: true })
   modifiedAt: string;
