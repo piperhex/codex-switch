@@ -27,6 +27,7 @@ export interface SettingsPageProps {
   cloudBaseUrl: string;
   cloudBaseUrlLoading: boolean;
   cloudAuthenticated: boolean;
+  showCustomCloudServer: boolean;
   onCloudBaseUrlSave: (baseUrl: string) => Promise<void> | void;
   totpCloudSyncEnabled: boolean;
   totpCloudSyncLoading: boolean;

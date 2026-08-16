@@ -369,6 +369,7 @@ export interface AppSettings {
   bubbleX?: number | null;
   bubbleY?: number | null;
   cloudBaseUrl?: string | null;
+  showCustomCloudServer?: boolean;
   tokenUsageWeeks?: number;
   tokenUsageRefreshSeconds?: number;
   autoDisableStatusCodes?: number[];

@@ -22,7 +22,7 @@ export function SettingsPage(settings: SettingsPageProps) {
       <NetworkProxySettingsCard loading={settings.networkProxyLoading}
         onSave={settings.onNetworkProxySave} t={settings.t} value={settings.networkProxy} />
       <LocalSettingsCards settings={settings} />
-      <CloudSettingsCard settings={settings} />
+      {settings.showCustomCloudServer && <CloudSettingsCard settings={settings} />}
       <TotpSyncSettingsCard settings={settings} />
     </div>
   );

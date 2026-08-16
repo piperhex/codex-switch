@@ -118,6 +118,9 @@ The **Providers** page manages OpenAI Responses or Chat Completions-compatible e
 
 The **Skills** page can browse, search, and install community Skills locally. Publishing or updating a versioned Skill package requires a signed-in cloud account. The **One-click themes** page provides 300+ bundled Dream Skin presets plus custom-background and restore controls.
 
+The custom cloud server setting is hidden by default. Self-hosted users can set
+`showCustomCloudServer` to `true` in `settings.json` to display it on the Settings page.
+
 ## More documentation
 
 - [Architecture and data flow](docs/architecture.md)

@@ -211,6 +211,7 @@ export function DashboardApp() {
   const [autoDisableStatusCodesLoading, setAutoDisableStatusCodesLoading] = useState(false);
   const [showUsageNetworkErrors, setShowUsageNetworkErrors] = useState(false);
   const [showUsageNetworkErrorsLoading, setShowUsageNetworkErrorsLoading] = useState(false);
+  const [showCustomCloudServer, setShowCustomCloudServer] = useState(false);
   const cloudSessionPromptedRef = useRef(false);
   const providerBalanceRefreshCountRef = useRef(0);
   useEffect(() => subscribeToOpenSettings(() => setPage("settings")), []);
@@ -308,6 +309,7 @@ export function DashboardApp() {
           settings.autoDisableStatusCodes ?? [...DEFAULT_AUTO_DISABLE_STATUS_CODES],
         );
         setShowUsageNetworkErrors(settings.showUsageNetworkErrors ?? false);
+        setShowCustomCloudServer(settings.showCustomCloudServer ?? false);
       })
       .catch((error) => notify(String(error)));
   }, [notify]);
@@ -1199,6 +1201,7 @@ export function DashboardApp() {
               cloudBaseUrl={cloud.state.baseUrl ?? ""}
               cloudBaseUrlLoading={cloud.loading}
               cloudAuthenticated={cloud.state.authenticated}
+              showCustomCloudServer={showCustomCloudServer}
               onCloudBaseUrlSave={saveCloudBaseUrl}
               totpCloudSyncEnabled={totpManager.cloudSyncEnabled}
               totpCloudSyncLoading={totpManager.syncing}

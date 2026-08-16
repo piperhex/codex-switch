@@ -422,6 +422,8 @@ pub(crate) struct AppSettings {
     #[serde(default = "default_cloud_base_url")]
     pub(crate) cloud_base_url: Option<String>,
     #[serde(default)]
+    pub(crate) show_custom_cloud_server: bool,
+    #[serde(default)]
     pub(crate) cloud_user_email: Option<String>,
     #[serde(default)]
     pub(crate) cloud_user_id: Option<String>,
@@ -519,6 +521,7 @@ impl Default for AppSettings {
             bubble_x: None,
             bubble_y: None,
             cloud_base_url: default_cloud_base_url(),
+            show_custom_cloud_server: false,
             cloud_user_email: None,
             cloud_user_id: None,
             cloud_last_sync_at: None,
@@ -755,6 +758,18 @@ mod tests {
             Some(DEFAULT_CLOUD_BASE_URL)
         );
         assert!(explicitly_disabled.cloud_base_url.is_none());
+    }
+
+    #[test]
+    fn app_settings_hide_custom_cloud_server_by_default() {
+        let defaults = AppSettings::default();
+        let migrated: AppSettings = serde_json::from_str("{}").unwrap();
+        let explicitly_visible: AppSettings =
+            serde_json::from_str(r#"{"showCustomCloudServer":true}"#).unwrap();
+
+        assert!(!defaults.show_custom_cloud_server);
+        assert!(!migrated.show_custom_cloud_server);
+        assert!(explicitly_visible.show_custom_cloud_server);
     }
 
     #[test]
