@@ -200,6 +200,7 @@ docs/                架构和开发文档
 
 - [架构与数据流](docs/architecture.md)
 - [开发与调试](docs/development.md)
+- [Bilibili PC 端与手机端使用教程合集规划](docs/bilibili-usage-series-plan.md)
 - [贡献指南](CONTRIBUTING.md)
 
 ## 发布版本
