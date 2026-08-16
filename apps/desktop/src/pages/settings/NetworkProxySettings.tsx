@@ -13,13 +13,10 @@ interface NetworkProxyEditorProps {
 
 function validateProxy(settings: NetworkProxySettings, t: Translate) {
   if (!settings.enabled) return null;
-  if (!settings.proxyPort || settings.proxyPort < 1 || settings.proxyPort > 65_535) {
-    return t("settings.networkProxy.invalidPort");
-  }
   const rawUrl = settings.proxyUrl.trim();
   if (!rawUrl) return t("settings.networkProxy.invalidAddress");
   try {
-    const url = new URL(rawUrl.includes("://") ? rawUrl : `http://${rawUrl}`);
+    const url = new URL(rawUrl);
     const pathIsEmpty = url.pathname === "/" && !url.search && !url.hash;
     const invalidUrl = !["http:", "https:"].includes(url.protocol)
       || !url.hostname
@@ -30,6 +27,9 @@ function validateProxy(settings: NetworkProxySettings, t: Translate) {
     }
   } catch {
     return t("settings.networkProxy.invalidAddress");
+  }
+  if (!settings.proxyPort || settings.proxyPort < 1 || settings.proxyPort > 65_535) {
+    return t("settings.networkProxy.invalidPort");
   }
   return null;
 }

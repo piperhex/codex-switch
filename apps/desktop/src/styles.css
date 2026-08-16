@@ -911,7 +911,7 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
   gap: 8px;
 }
 .network-proxy-fields .ant-input-number { width: 100%; }
-.network-proxy-error { margin: 0 !important; color: #b64f45 !important; }
+.network-proxy-error { max-width: 400px; margin: 0 !important; color: #b64f45 !important; }
 .network-proxy-modal-copy {
   max-width: 400px;
   margin: 0 0 14px;

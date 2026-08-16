@@ -87,7 +87,7 @@ pub(crate) fn configure(settings: &NetworkProxySettings) -> Result<(), String> {
 pub(crate) fn normalize_settings(
     mut settings: NetworkProxySettings,
 ) -> Result<NetworkProxySettings, String> {
-    settings.proxy_url = settings.proxy_url.trim().trim_end_matches('/').to_string();
+    settings.proxy_url = settings.proxy_url.trim().to_string();
     if !settings.enabled {
         return Ok(settings);
     }
@@ -126,12 +126,7 @@ fn parse_network_proxy_base_url(value: &str) -> Result<String, String> {
     if value.is_empty() {
         return Err("Enter a proxy address".to_string());
     }
-    let candidate = if value.contains("://") {
-        value.to_string()
-    } else {
-        format!("http://{value}")
-    };
-    let url = Url::parse(&candidate).map_err(|_| "Enter a valid HTTP proxy address".to_string())?;
+    let url = Url::parse(value).map_err(|_| "Enter a valid HTTP(S) proxy URL".to_string())?;
     let valid = matches!(url.scheme(), "http" | "https")
         && url.host_str().is_some()
         && url.port().is_none()
@@ -359,7 +354,7 @@ mod tests {
     fn normalizes_enabled_network_proxy() {
         let normalized = normalize_settings(NetworkProxySettings {
             enabled: true,
-            proxy_url: " 127.0.0.1/ ".to_string(),
+            proxy_url: " http://127.0.0.1/ ".to_string(),
             proxy_port: Some(7897),
         })
         .expect("proxy should normalize");
@@ -391,6 +386,18 @@ mod tests {
         })
         .expect_err("zero port should fail");
         assert!(zero_port_error.contains("proxy port"));
+    }
+
+    #[test]
+    fn rejects_proxy_address_without_url_scheme() {
+        let error = normalize_settings(NetworkProxySettings {
+            enabled: true,
+            proxy_url: "127.0.0.1".to_string(),
+            proxy_port: Some(7897),
+        })
+        .expect_err("proxy address without a URL scheme should fail");
+
+        assert!(error.contains("proxy URL"));
     }
 
     #[test]
