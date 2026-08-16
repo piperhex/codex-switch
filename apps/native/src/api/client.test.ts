@@ -9,6 +9,7 @@ vi.mock('expo-secure-store', () => ({
 }));
 
 import {
+  completeEmbeddedAccountOAuth,
   consumeResetCredit,
   deleteRemoteDevice,
   fetchAccountSummary,
@@ -17,7 +18,9 @@ import {
   fetchTotpVault,
   fetchResetCredits,
   pollAccountOAuth,
+  pollEmbeddedAccountOAuth,
   startAccountOAuth,
+  startEmbeddedAccountOAuth,
   syncTotpVault,
   updateAccountDetails,
 } from './client';
@@ -294,5 +297,39 @@ describe('mobile Codex API client', () => {
       'https://switch.example.com/sync/accounts/account%2F1/details',
     );
     expect(JSON.parse((apiFetch.mock.calls[2]?.[1] as RequestInit).body as string)).toEqual(details);
+  });
+
+  it('completes an embedded OAuth callback inside the mobile app', async () => {
+    const oauth = {
+      sessionId: 'embedded-session',
+      authorizationUrl: 'https://auth.openai.com/oauth/authorize?state=oauth-state',
+      callbackUrl: 'http://localhost:1455/auth/callback',
+      expiresIn: 600,
+    };
+    const callback = { code: 'authorization-code', state: 'oauth-state' };
+    const apiFetch = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(oauth), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ status: 'complete', account: account() }), {
+        status: 200,
+      }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ status: 'pending' }), { status: 200 }));
+    vi.stubGlobal('fetch', apiFetch);
+
+    await expect(startEmbeddedAccountOAuth(session)).resolves.toEqual(oauth);
+    await expect(completeEmbeddedAccountOAuth(session, 'embedded/session', callback))
+      .resolves.toEqual(expect.objectContaining({ status: 'complete' }));
+    await expect(pollEmbeddedAccountOAuth(session, 'embedded/session'))
+      .resolves.toEqual({ status: 'pending' });
+
+    expect(apiFetch.mock.calls[0]?.[0]).toBe(
+      'https://switch.example.com/sync/accounts/oauth/embedded/start',
+    );
+    expect(apiFetch.mock.calls[1]?.[0]).toBe(
+      'https://switch.example.com/sync/accounts/oauth/embedded/embedded%2Fsession/complete',
+    );
+    expect(JSON.parse((apiFetch.mock.calls[1]?.[1] as RequestInit).body as string)).toEqual(callback);
+    expect(apiFetch.mock.calls[2]?.[0]).toBe(
+      'https://switch.example.com/sync/accounts/oauth/embedded/embedded%2Fsession/poll',
+    );
   });
 });

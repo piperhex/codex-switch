@@ -9,6 +9,7 @@ import { SystemAccountEntity } from './entities/system-account.entity';
 import { SyncController } from './sync.controller';
 import { SyncService } from './sync.service';
 import { PersonalAccountOAuthService } from './personal-account-oauth.service';
+import { PersonalAccountEmbeddedOAuthService } from './personal-account-embedded-oauth.service';
 import { RemoteDeviceEntity } from '@/modules/devices/entities/remote-device.entity';
 
 @Module({
@@ -24,7 +25,7 @@ import { RemoteDeviceEntity } from '@/modules/devices/entities/remote-device.ent
     ]),
   ],
   controllers: [SyncController],
-  providers: [SyncService, PersonalAccountOAuthService],
+  providers: [SyncService, PersonalAccountOAuthService, PersonalAccountEmbeddedOAuthService],
   exports: [SyncService],
 })
 export class SyncModule {}

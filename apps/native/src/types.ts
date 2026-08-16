@@ -50,6 +50,19 @@ export interface AccountOAuthStart {
   expiresIn: number;
 }
 
+export interface EmbeddedAccountOAuthStart {
+  sessionId: string;
+  authorizationUrl: string;
+  callbackUrl: string;
+  expiresIn: number;
+}
+
+export interface EmbeddedAccountOAuthCallback {
+  code?: string;
+  state: string;
+  error?: string;
+}
+
 export type AccountOAuthPoll =
   | { status: 'pending' }
   | { status: 'complete'; account: AccountSummary }

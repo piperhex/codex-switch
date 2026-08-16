@@ -24,6 +24,7 @@ import { RegisterDto } from '@/modules/auth/dto/register.dto';
 import { RequestPasswordResetCodeDto } from '@/modules/auth/dto/request-password-reset-code.dto';
 import { ResetPasswordDto } from '@/modules/auth/dto/reset-password.dto';
 import { PutSyncAccountsDto, SyncAccountDto } from '@/modules/sync/dto/sync-accounts.dto';
+import { CompleteAccountOAuthDto } from '@/modules/sync/dto/complete-account-oauth.dto';
 import { PutSyncProvidersDto, SyncProviderDto } from '@/modules/sync/dto/sync-providers.dto';
 import {
   ListDeviceInstallationsQueryDto,
@@ -76,6 +77,12 @@ describe('request DTO validation', () => {
       'verificationCode must be a 6-digit number',
       'newPassword must be longer than or equal to 8 characters',
     ]));
+    await expect(messages(CompleteAccountOAuthDto, {
+      code: 'authorization-code', state: 'oauth-state',
+    })).resolves.toEqual([]);
+    await expect(messages(CompleteAccountOAuthDto, {
+      code: 'authorization-code',
+    })).resolves.toContain('state must be a string');
   });
 
   it('accepts dynamic role codes while rejecting malformed codes and patch types', async () => {

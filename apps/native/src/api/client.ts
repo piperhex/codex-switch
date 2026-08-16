@@ -6,6 +6,8 @@ import type {
   AccountSummary,
   AuthResponse,
   AuthSession,
+  EmbeddedAccountOAuthCallback,
+  EmbeddedAccountOAuthStart,
   RemoteDevice,
   ResetCreditsSummary,
   UsageSummary,
@@ -565,6 +567,49 @@ export async function pollAccountOAuth(
   const response = await authorizedRequest(
     session,
     `/sync/accounts/oauth/${encodeURIComponent(sessionId)}/poll`,
+    { method: 'POST' },
+  );
+  if (!response.ok) throw new ApiError(await parseError(response), response.status);
+  return response.json() as Promise<AccountOAuthPoll>;
+}
+
+export async function startEmbeddedAccountOAuth(
+  session: AuthSession,
+): Promise<EmbeddedAccountOAuthStart> {
+  const response = await authorizedRequest(
+    session,
+    '/sync/accounts/oauth/embedded/start',
+    { method: 'POST' },
+  );
+  if (!response.ok) throw new ApiError(await parseError(response), response.status);
+  return response.json() as Promise<EmbeddedAccountOAuthStart>;
+}
+
+export async function completeEmbeddedAccountOAuth(
+  session: AuthSession,
+  sessionId: string,
+  callback: EmbeddedAccountOAuthCallback,
+): Promise<AccountOAuthPoll> {
+  const response = await authorizedRequest(
+    session,
+    `/sync/accounts/oauth/embedded/${encodeURIComponent(sessionId)}/complete`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(callback),
+    },
+  );
+  if (!response.ok) throw new ApiError(await parseError(response), response.status);
+  return response.json() as Promise<AccountOAuthPoll>;
+}
+
+export async function pollEmbeddedAccountOAuth(
+  session: AuthSession,
+  sessionId: string,
+): Promise<AccountOAuthPoll> {
+  const response = await authorizedRequest(
+    session,
+    `/sync/accounts/oauth/embedded/${encodeURIComponent(sessionId)}/poll`,
     { method: 'POST' },
   );
   if (!response.ok) throw new ApiError(await parseError(response), response.status);

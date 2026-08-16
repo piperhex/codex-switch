@@ -8,6 +8,9 @@ import { AuthController } from '@/modules/auth/auth.controller';
 import { SyncController } from '@/modules/sync/sync.controller';
 import type { AuthService } from '@/modules/auth/auth.service';
 import type { SyncService } from '@/modules/sync/sync.service';
+import type {
+  PersonalAccountEmbeddedOAuthService,
+} from '@/modules/sync/personal-account-embedded-oauth.service';
 import type { PersonalAccountOAuthService } from '@/modules/sync/personal-account-oauth.service';
 import type { AuthUser } from '@/common/decorators/user.decorator';
 import { makeAccount, makeProvider } from './fixtures';
@@ -73,9 +76,15 @@ describe('HTTP controllers', () => {
       start: vi.fn().mockResolvedValue('oauth-started'),
       poll: vi.fn().mockResolvedValue('oauth-polled'),
     };
+    const personalAccountEmbeddedOAuth = {
+      start: vi.fn().mockResolvedValue('embedded-oauth-started'),
+      complete: vi.fn().mockResolvedValue('embedded-oauth-completed'),
+      poll: vi.fn().mockResolvedValue('embedded-oauth-polled'),
+    };
     const controller = new SyncController(
       sync as unknown as SyncService,
       personalAccountOAuth as unknown as PersonalAccountOAuthService,
+      personalAccountEmbeddedOAuth as unknown as PersonalAccountEmbeddedOAuthService,
     );
     const user: AuthUser = { id: 'owner-1', email: 'owner@example.com', role: 'user' };
     const account = makeAccount();
@@ -86,6 +95,13 @@ describe('HTTP controllers', () => {
     await expect(controller.listWebSummary(user)).resolves.toBe('web-summary');
     await expect(controller.startAccountOAuth(user)).resolves.toBe('oauth-started');
     await expect(controller.pollAccountOAuth(user, 'oauth-session')).resolves.toBe('oauth-polled');
+    await expect(controller.startEmbeddedAccountOAuth(user)).resolves.toBe('embedded-oauth-started');
+    await expect(controller.completeEmbeddedAccountOAuth(user, 'embedded-session', {
+      code: 'authorization-code',
+      state: 'oauth-state',
+    })).resolves.toBe('embedded-oauth-completed');
+    await expect(controller.pollEmbeddedAccountOAuth(user, 'embedded-session'))
+      .resolves.toBe('embedded-oauth-polled');
     await expect(controller.updateAccountDetails(user, account.id, {
       note: 'updated',
       expiresAt: '2026-12-31',
@@ -107,6 +123,12 @@ describe('HTTP controllers', () => {
     expect(sync.listWebSummary).toHaveBeenCalledWith(user.id);
     expect(personalAccountOAuth.start).toHaveBeenCalledWith(user);
     expect(personalAccountOAuth.poll).toHaveBeenCalledWith(user, 'oauth-session');
+    expect(personalAccountEmbeddedOAuth.start).toHaveBeenCalledWith(user);
+    expect(personalAccountEmbeddedOAuth.complete).toHaveBeenCalledWith(user, 'embedded-session', {
+      code: 'authorization-code',
+      state: 'oauth-state',
+    });
+    expect(personalAccountEmbeddedOAuth.poll).toHaveBeenCalledWith(user, 'embedded-session');
     expect(sync.updateAccountDetails).toHaveBeenCalledWith(user.id, account.id, {
       note: 'updated',
       expiresAt: '2026-12-31',

@@ -23,6 +23,8 @@ import {
 } from './dto/sync-accounts.dto';
 import { PutSyncProvidersDto, SyncProviderDto } from './dto/sync-providers.dto';
 import { PutSyncTotpVaultDto } from './dto/sync-totp.dto';
+import { CompleteAccountOAuthDto } from './dto/complete-account-oauth.dto';
+import { PersonalAccountEmbeddedOAuthService } from './personal-account-embedded-oauth.service';
 import { PersonalAccountOAuthService } from './personal-account-oauth.service';
 import { SyncService } from './sync.service';
 
@@ -32,6 +34,7 @@ export class SyncController {
   constructor(
     private readonly sync: SyncService,
     private readonly personalAccountOAuth: PersonalAccountOAuthService,
+    private readonly personalAccountEmbeddedOAuth: PersonalAccountEmbeddedOAuthService,
   ) {}
 
   @Get('accounts')
@@ -71,6 +74,31 @@ export class SyncController {
   @RequirePermissions(Permission.SelfAccountsWrite)
   startAccountOAuth(@CurrentUser() user: AuthUser) {
     return this.personalAccountOAuth.start(user);
+  }
+
+  @Post('accounts/oauth/embedded/start')
+  @Header('Cache-Control', 'no-store')
+  @RequirePermissions(Permission.SelfAccountsWrite)
+  startEmbeddedAccountOAuth(@CurrentUser() user: AuthUser) {
+    return this.personalAccountEmbeddedOAuth.start(user);
+  }
+
+  @Post('accounts/oauth/embedded/:sessionId/complete')
+  @Header('Cache-Control', 'no-store')
+  @RequirePermissions(Permission.SelfAccountsWrite)
+  completeEmbeddedAccountOAuth(
+    @CurrentUser() user: AuthUser,
+    @Param('sessionId') sessionId: string,
+    @Body() dto: CompleteAccountOAuthDto,
+  ) {
+    return this.personalAccountEmbeddedOAuth.complete(user, sessionId, dto);
+  }
+
+  @Post('accounts/oauth/embedded/:sessionId/poll')
+  @Header('Cache-Control', 'no-store')
+  @RequirePermissions(Permission.SelfAccountsWrite)
+  pollEmbeddedAccountOAuth(@CurrentUser() user: AuthUser, @Param('sessionId') sessionId: string) {
+    return this.personalAccountEmbeddedOAuth.poll(user, sessionId);
   }
 
   @Post('accounts/oauth/:sessionId/poll')
