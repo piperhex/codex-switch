@@ -9,6 +9,7 @@
     "ios": "node ./scripts/expo.cjs start --ios",
     "export:android": "node ./scripts/expo.cjs export --platform android --output-dir node_modules/.expo-export",
     "prebuild:android": "node ./scripts/expo.cjs prebuild --platform android --clean --no-install",
+    "build:apk": "node ./scripts/build-apk.cjs",
     "prebuild:ios": "node ./scripts/expo.cjs prebuild --platform ios --clean --no-install",
     "check": "tsc --noEmit",
     "test": "vitest run"

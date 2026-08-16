@@ -19,6 +19,7 @@
     "build:admin": "npm run build -w @codex-switch/admin-ui",
     "build:web": "npm run build -w @codex-switch/web",
     "build:backend": "npm run build -w @codex-switch/backend",
+    "build:apk": "npm run build:apk -w @codex-switch/native",
     "build:app": "npm run build:app -w @codex-switch/desktop",
     "build:app:mac": "npm run build:app:mac -w @codex-switch/desktop",
     "build:app:win-arm64": "npm run build:app:win-arm64 -w @codex-switch/desktop",
