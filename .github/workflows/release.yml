@@ -365,8 +365,8 @@ jobs:
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
 
-      - name: Test updater manifest generator
-        run: node --test scripts/generate-updater-manifest.test.mjs
+      - name: Test release metadata generators
+        run: node --test scripts/generate-updater-manifest.test.mjs scripts/organize-release-downloads.test.mjs
 
       - name: Generate and validate updater manifest
         env:
@@ -384,6 +384,13 @@ jobs:
           draft: ${{ needs.create-release.outputs.release_draft }}
           files: latest.json
           fail_on_unmatched_files: true
+
+      - name: Organize release downloads
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_ID: ${{ needs.create-release.outputs.release_id }}
+          TAG_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+        run: node scripts/organize-release-downloads.mjs
 
       - name: Publish release
         uses: actions/github-script@v9
