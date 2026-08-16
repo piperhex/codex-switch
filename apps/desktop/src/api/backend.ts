@@ -1635,6 +1635,11 @@ export async function pushCloudAccount(id: string, restoreDeleted = false): Prom
   return invoke<CloudSyncResult>("cloud_push_account", { id, restoreDeleted });
 }
 
+export async function pullCloudAccount(id: string): Promise<CloudSyncResult> {
+  if (!hasLocalBackend) return { uploaded: 0, downloaded: 0 };
+  return invoke<CloudSyncResult>("cloud_pull_account", { id });
+}
+
 export async function syncCloudTotp(vault: TotpVault): Promise<TotpVault> {
   if (!hasLocalBackend) return vault;
   return invoke<TotpVault>("cloud_sync_totp", {
@@ -1642,6 +1647,12 @@ export async function syncCloudTotp(vault: TotpVault): Promise<TotpVault> {
     tombstones: vault.tombstones,
     modifiedAt: vault.modifiedAt,
   });
+}
+
+export async function pullCloudTotp(): Promise<TotpVault | null> {
+  if (!hasLocalBackend) return null;
+  const response = await invoke<TotpVault & { modifiedAt: string | null }>("cloud_pull_totp");
+  return response.modifiedAt === null ? null : response;
 }
 
 export async function pushCloudProviders(): Promise<CloudSyncResult> {

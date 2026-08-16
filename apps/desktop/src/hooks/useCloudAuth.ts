@@ -6,6 +6,7 @@ import {
   deleteCloudProvider,
   loginCloud,
   logoutCloud,
+  pullCloudAccount,
   pushCloudAccount,
   pushCloudAccounts,
   pushCloudProvider,
@@ -40,6 +41,15 @@ export function useCloudAuth(notify: (message: string) => void, t: Translate) {
     setState(nextState);
     return nextState;
   }, []);
+
+  const syncAfterAuthentication = useCallback(async () => {
+    try {
+      await syncCloudAccounts();
+      await load();
+    } catch (error) {
+      notify(String(error));
+    }
+  }, [load, notify]);
 
   useEffect(() => {
     let active = true;
@@ -78,6 +88,7 @@ export function useCloudAuth(notify: (message: string) => void, t: Translate) {
       if (!result.credentialStorageUpdated) {
         notify(t("toast.cloudPasswordSaveFailed"));
       }
+      await syncAfterAuthentication();
       return true;
     } catch (error) {
       notify(String(error));
@@ -85,7 +96,7 @@ export function useCloudAuth(notify: (message: string) => void, t: Translate) {
     } finally {
       setLoading(false);
     }
-  }, [notify, t]);
+  }, [notify, syncAfterAuthentication, t]);
 
   const sendRegistrationCode = useCallback(async (email: string) => {
     setSendingRegistrationCode(true);
@@ -115,6 +126,7 @@ export function useCloudAuth(notify: (message: string) => void, t: Translate) {
       if (!result.credentialStorageUpdated) {
         notify(t("toast.cloudPasswordSaveFailed"));
       }
+      await syncAfterAuthentication();
       return true;
     } catch (error) {
       notify(String(error));
@@ -122,7 +134,7 @@ export function useCloudAuth(notify: (message: string) => void, t: Translate) {
     } finally {
       setLoading(false);
     }
-  }, [notify, t]);
+  }, [notify, syncAfterAuthentication, t]);
 
   const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
     setChangingPassword(true);
@@ -185,6 +197,13 @@ export function useCloudAuth(notify: (message: string) => void, t: Translate) {
     } catch {
       // Local account operations remain local-first if cloud sync is temporarily unavailable.
     }
+  }, [load, state.authenticated]);
+
+  const pullAccount = useCallback(async (id: string) => {
+    if (!state.authenticated) return { uploaded: 0, downloaded: 0 };
+    const result = await pullCloudAccount(id);
+    await load();
+    return result;
   }, [load, state.authenticated]);
 
   const restoreAndPushAccountQuietly = useCallback(async (id: string) => {
@@ -253,6 +272,7 @@ export function useCloudAuth(notify: (message: string) => void, t: Translate) {
     sync,
     pushQuietly,
     pushAccountQuietly,
+    pullAccount,
     restoreAndPushAccountQuietly,
     deleteAccountQuietly,
     pushProvidersQuietly,

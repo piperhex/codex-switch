@@ -1190,6 +1190,29 @@ fn get_remote_providers<R: Runtime>(
     Ok(payload)
 }
 
+fn get_remote_totp_vault<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    client: &Client,
+    settings: &mut AppSettings,
+    credentials: &mut CloudCredentials,
+) -> Result<CloudTotpVault, String> {
+    let response = cloud_request(
+        app,
+        client,
+        settings,
+        credentials,
+        Method::GET,
+        "/sync/totp",
+        None,
+    )?;
+    if !response.status().is_success() {
+        return Err(response_error("Cloud 2FA download", response));
+    }
+    response
+        .json()
+        .map_err(|error| format!("Cloud 2FA response is invalid: {error}"))
+}
+
 fn validate_totp_entry(entry: &CloudTotpEntry) -> Result<(), String> {
     let valid_secret = !entry.secret.is_empty()
         && entry
@@ -2253,6 +2276,56 @@ pub(crate) async fn cloud_push_accounts<R: Runtime>(
     .map_err(|error| format!("Cloud upload task failed: {error}"))?
 }
 
+fn pull_remote_account<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    client: &Client,
+    settings: &mut AppSettings,
+    credentials: &mut CloudCredentials,
+    id: &str,
+) -> Result<CloudSyncResult, String> {
+    let remote = get_remote_accounts(app, client, settings, credentials)?;
+    let deleted = remote
+        .deleted_account_ids
+        .iter()
+        .any(|account_id| account_id == id);
+    let changed = if deleted {
+        apply_remote_account_deletion(app, id)?
+    } else if let Some(account) = remote.accounts.into_iter().find(|account| account.id == id) {
+        apply_remote_account(app, &account)?
+    } else {
+        false
+    };
+    settings.cloud_last_sync_at = Some(Utc::now().to_rfc3339());
+    if changed {
+        app.emit("accounts-changed", ())
+            .map_err(|error| error.to_string())?;
+        crate::system_tray::refresh_menu(app);
+    }
+    Ok(CloudSyncResult {
+        uploaded: 0,
+        downloaded: usize::from(changed),
+    })
+}
+
+#[tauri::command]
+pub(crate) async fn cloud_pull_account<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    id: String,
+) -> Result<CloudSyncResult, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let _credentials_guard = lock_cloud_credentials()?;
+        let client = api_client()?;
+        let mut settings = read_app_settings(&app)?;
+        let mut credentials = read_cloud_credentials(&app);
+        let result = pull_remote_account(&app, &client, &mut settings, &mut credentials, &id)?;
+        write_app_settings(&app, &settings)?;
+        write_cloud_credentials(&app, &credentials)?;
+        Ok(result)
+    })
+    .await
+    .map_err(|error| format!("Cloud account download task failed: {error}"))?
+}
+
 #[tauri::command]
 pub(crate) async fn cloud_push_account<R: Runtime>(
     app: tauri::AppHandle<R>,
@@ -2621,6 +2694,24 @@ pub(crate) async fn cloud_sync_totp<R: Runtime>(
     })
     .await
     .map_err(|error| format!("Cloud 2FA sync task failed: {error}"))?
+}
+
+#[tauri::command]
+pub(crate) async fn cloud_pull_totp<R: Runtime>(
+    app: tauri::AppHandle<R>,
+) -> Result<CloudTotpVault, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let _credentials_guard = lock_cloud_credentials()?;
+        let client = api_client()?;
+        let mut settings = read_app_settings(&app)?;
+        let mut credentials = read_cloud_credentials(&app);
+        let result = get_remote_totp_vault(&app, &client, &mut settings, &mut credentials)?;
+        write_app_settings(&app, &settings)?;
+        write_cloud_credentials(&app, &credentials)?;
+        Ok(result)
+    })
+    .await
+    .map_err(|error| format!("Cloud 2FA download task failed: {error}"))?
 }
 
 #[cfg(test)]

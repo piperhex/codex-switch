@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Button, DatePicker, Input, Progress } from "antd";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { Button, DatePicker, Input, Progress, Spin } from "antd";
 import dayjs from "dayjs";
 import { Check, Copy, ScanQrCode, StickyNote, X } from "lucide-react";
 import type { Translate } from "../../i18n";
@@ -108,11 +108,13 @@ function AccountTotpPreview({ accountName, secret, t }: {
 
 export function AccountNoteModal({
   account,
+  loading,
   onClose,
   onSave,
   t,
 }: {
   account: Account;
+  loading: boolean;
   onClose: () => void;
   onSave: (details: AccountDetailsDraft) => Promise<boolean>;
   t: Translate;
@@ -131,6 +133,23 @@ export function AccountNoteModal({
   const [saving, setSaving] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const qrFileInputRef = useRef<HTMLInputElement>(null);
+
+  useLayoutEffect(() => {
+    setNote(account.note);
+    setExpiresAt(account.expiresAt);
+    setPassword(account.privateDetails.password);
+    setPhoneNumber(account.privateDetails.phoneNumber);
+    setTotpSecret(account.privateDetails.totpSecret);
+    setPreviewSecret(initialPreviewSecret(account.privateDetails.totpSecret));
+    setTotpError("");
+    setTotpImported(false);
+  }, [
+    account.expiresAt,
+    account.note,
+    account.privateDetails.password,
+    account.privateDetails.phoneNumber,
+    account.privateDetails.totpSecret,
+  ]);
 
   const importQrCode = async (file: File) => {
     setReadingQr(true);
@@ -169,7 +188,7 @@ export function AccountNoteModal({
   };
 
   const save = async () => {
-    if (saving || readingQr) return;
+    if (loading || saving || readingQr) return;
     let normalizedTotpSecret = "";
     try {
       normalizedTotpSecret = !totpSecret.trim()
@@ -201,7 +220,10 @@ export function AccountNoteModal({
         aria-labelledby="account-note-title" onSubmit={(event) => { event.preventDefault(); void save(); }}>
         <button type="button" className="modal-close" aria-label={t("note.close")}
           disabled={saving} onClick={onClose}><X size={18} /></button>
-        <div className="account-note-scroll">
+        {loading ? <div className="account-note-loading">
+          <Spin size="large" />
+          <span>{t("note.loading")}</span>
+        </div> : <div className="account-note-scroll">
           <div className="modal-icon"><StickyNote size={22} /></div>
           <h2 id="account-note-title">{t("note.title")}</h2>
           <p>{t("note.description", { email: account.email })}</p>
@@ -272,14 +294,14 @@ export function AccountNoteModal({
                 }} />
             </div>
           </div>
-        </div>
+        </div>}
         <div className="account-note-footer">
           <span>{t("note.shortcut")}</span>
           <div>
             <button type="button" className="note-cancel-button" disabled={saving} onClick={onClose}>
               {t("note.cancel")}
             </button>
-            <button type="submit" className="primary-button" disabled={saving || readingQr}>
+            <button type="submit" className="primary-button" disabled={loading || saving || readingQr}>
               {saving ? t("note.saving") : t("note.save")}
             </button>
           </div>

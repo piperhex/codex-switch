@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { publishTotpChange, subscribeToTotpChanges, syncCloudTotp } from "../api/backend";
+import {
+  publishTotpChange,
+  pullCloudTotp,
+  subscribeToTotpChanges,
+  syncCloudTotp,
+} from "../api/backend";
 import type { Translate } from "../i18n";
 import {
   createTotpEntry,
@@ -76,7 +81,7 @@ export function useTotpEntries({ cloudAuthenticated, notify, t }: TotpEntriesOpt
   );
   const [syncing, setSyncing] = useState(false);
   const vaultRef = useRef(vault);
-  const syncQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const syncQueueRef = useRef<Promise<unknown>>(Promise.resolve());
   const activeSyncCountRef = useRef(0);
 
   useEffect(() => {
@@ -91,6 +96,15 @@ export function useTotpEntries({ cloudAuthenticated, notify, t }: TotpEntriesOpt
     setVault(merged);
   }), []);
 
+  const applyRemoteVault = useCallback((response: TotpVault) => {
+    const remote = normalizeTotpVault(response);
+    if (!remote) throw new Error("invalid-2fa-vault");
+    const merged = mergeTotpVaults(vaultRef.current, remote);
+    if (totpVaultsEqual(merged, vaultRef.current)) return;
+    vaultRef.current = merged;
+    setVault(merged);
+  }, []);
+
   const syncVault = useCallback((snapshot: TotpVault) => {
     activeSyncCountRef.current += 1;
     setSyncing(true);
@@ -98,12 +112,7 @@ export function useTotpEntries({ cloudAuthenticated, notify, t }: TotpEntriesOpt
       .catch(() => undefined)
       .then(async () => {
         const response = await syncCloudTotp(snapshot);
-        const remote = normalizeTotpVault(response);
-        if (!remote) throw new Error("invalid-2fa-vault");
-        const merged = mergeTotpVaults(vaultRef.current, remote);
-        if (totpVaultsEqual(merged, vaultRef.current)) return;
-        vaultRef.current = merged;
-        setVault(merged);
+        applyRemoteVault(response);
       })
       .catch((error) => notify(`${t("totp.cloudSyncFailed")}: ${String(error)}`))
       .finally(() => {
@@ -112,11 +121,36 @@ export function useTotpEntries({ cloudAuthenticated, notify, t }: TotpEntriesOpt
       });
     syncQueueRef.current = operation;
     return operation;
-  }, [notify, t]);
+  }, [applyRemoteVault, notify, t]);
+
+  const pullVault = useCallback(() => {
+    activeSyncCountRef.current += 1;
+    setSyncing(true);
+    const operation = syncQueueRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        const remote = await pullCloudTotp();
+        if (remote) applyRemoteVault(remote);
+        return true;
+      })
+      .catch((error) => {
+        notify(`${t("totp.cloudSyncFailed")}: ${String(error)}`);
+        return false;
+      })
+      .finally(() => {
+        activeSyncCountRef.current -= 1;
+        if (activeSyncCountRef.current === 0) setSyncing(false);
+      });
+    syncQueueRef.current = operation;
+    return operation;
+  }, [applyRemoteVault, notify, t]);
 
   useEffect(() => {
-    if (cloudSyncEnabled && cloudAuthenticated) void syncVault(vaultRef.current);
-  }, [cloudAuthenticated, cloudSyncEnabled, syncVault]);
+    if (!cloudAuthenticated) return;
+    void pullVault().then((pulled) => {
+      if (pulled && cloudSyncEnabled) void syncVault(vaultRef.current);
+    });
+  }, [cloudAuthenticated, cloudSyncEnabled, pullVault, syncVault]);
 
   const commitVault = useCallback((
     update: (current: TotpVault, modifiedAt: string) => TotpVaultContents,
@@ -148,9 +182,12 @@ export function useTotpEntries({ cloudAuthenticated, notify, t }: TotpEntriesOpt
   }, [notify, t]);
 
   const syncCloud = useCallback(() => {
-    if (!cloudSyncEnabled || !cloudAuthenticated) return Promise.resolve();
-    return syncVault(vaultRef.current);
-  }, [cloudAuthenticated, cloudSyncEnabled, syncVault]);
+    if (!cloudAuthenticated) return Promise.resolve();
+    return pullVault().then((pulled) => {
+      if (pulled && cloudSyncEnabled) return syncVault(vaultRef.current);
+      return undefined;
+    });
+  }, [cloudAuthenticated, cloudSyncEnabled, pullVault, syncVault]);
 
   return {
     addEntry,

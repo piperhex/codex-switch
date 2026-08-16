@@ -612,6 +612,10 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
         ))),
         "cloud_logout" => serialize(block_on(crate::cloud::cloud_logout(app))),
         "cloud_sync_accounts" => serialize(block_on(crate::cloud::cloud_sync_accounts(app))),
+        "cloud_pull_account" => serialize(block_on(crate::cloud::cloud_pull_account(
+            app,
+            argument(&args, "id")?,
+        ))),
         "cloud_push_accounts" => serialize(block_on(crate::cloud::cloud_push_accounts(app))),
         "cloud_push_account" => serialize(block_on(crate::cloud::cloud_push_account(
             app,
@@ -627,6 +631,7 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
             app,
             argument(&args, "id")?,
         ))),
+        "cloud_pull_totp" => serialize(block_on(crate::cloud::cloud_pull_totp(app))),
         "cloud_list_deleted_accounts" => {
             serialize(block_on(crate::cloud::cloud_list_deleted_accounts(app)))
         }

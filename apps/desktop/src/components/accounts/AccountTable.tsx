@@ -62,6 +62,7 @@ interface AccountTableProps {
   autoSwitchOnQuotaExhaustion: boolean;
   customAutoSwitchPriorityEnabled: boolean;
   onSaveNote: (id: string, details: AccountDetailsDraft) => Promise<boolean>;
+  onLoadAccountDetails: (id: string) => Promise<Account | null>;
   resetCredits: Record<string, ResetCreditsLoadState>;
   onLoadResetCredits: (id: string, force?: boolean) => void;
   onUseResetCredit: (id: string) => void;
@@ -399,6 +400,7 @@ export function AccountTable({
   autoSwitchOnQuotaExhaustion,
   customAutoSwitchPriorityEnabled,
   onSaveNote,
+  onLoadAccountDetails,
   resetCredits,
   onLoadResetCredits,
   onUseResetCredit,
@@ -426,6 +428,7 @@ export function AccountTable({
   const tableWrapRef = useRef<HTMLDivElement>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
+  const [loadingAccountDetailsId, setLoadingAccountDetailsId] = useState<string | null>(null);
   const [resetCreditsAccount, setResetCreditsAccount] = useState<Account | null>(null);
   const [contextMenu, setContextMenu] = useState<AccountContextMenu | null>(null);
   const [tableActionMenuAccountId, setTableActionMenuAccountId] = useState<string | null>(null);
@@ -444,6 +447,17 @@ export function AccountTable({
   const [proxySessionLatency, setProxySessionLatency] = useState<ProxySessionLatencySummary>(
     EMPTY_PROXY_SESSION_LATENCY,
   );
+  const openAccountDetails = (account: Account) => {
+    setEditingAccount(account);
+    setLoadingAccountDetailsId(account.id);
+    void onLoadAccountDetails(account.id)
+      .then((latest) => {
+        setEditingAccount((current) => current?.id === account.id ? latest : current);
+      })
+      .finally(() => {
+        setLoadingAccountDetailsId((current) => current === account.id ? null : current);
+      });
+  };
   useEffect(() => {
     const tableWrap = tableWrapRef.current;
     if (!tableWrap) return undefined;
@@ -1036,7 +1050,7 @@ export function AccountTable({
           title={!canEditAccountMetadata(account) ? t("table.officialMetadataReadOnly") : undefined}
           onClick={() => {
           setContextMenu(null);
-          setEditingAccount(account);
+          openAccountDetails(account);
         }}>
           <Pencil size={14} />
           {t("table.editNoteAndExpiry")}
@@ -1110,7 +1124,7 @@ export function AccountTable({
                   <div className={`account-note-trigger${canEditAccountMetadata(account) ? "" : " read-only"}`}
                     onClick={(event) => event.stopPropagation()}
                     onDoubleClick={() => {
-                      if (canEditAccountMetadata(account)) setEditingAccount(account);
+                      if (canEditAccountMetadata(account)) openAccountDetails(account);
                     }} aria-label={canEditAccountMetadata(account)
                       ? t("note.doubleClick")
                       : t("table.officialMetadataReadOnly")}>
@@ -1198,6 +1212,7 @@ export function AccountTable({
       })}
     </div>
     {editingAccount && <AccountNoteModal key={editingAccount.id} account={editingAccount}
+      loading={loadingAccountDetailsId === editingAccount.id}
       onClose={() => setEditingAccount(null)}
       onSave={(details) => onSaveNote(editingAccount.id, details)} t={t} />}
     {resetCreditsAccount && <ResetCreditsModal state={resetCredits[resetCreditsAccount.id]} onClose={() => setResetCreditsAccount(null)}
@@ -1410,7 +1425,7 @@ export function AccountTable({
           },
           onDoubleClick: (event) => {
             if ((event.target as HTMLElement).closest("button, a, input, textarea")) return;
-            if (canEditAccountMetadata(account)) setEditingAccount(account);
+            if (canEditAccountMetadata(account)) openAccountDetails(account);
           },
         })}
         expandable={{
@@ -1424,6 +1439,7 @@ export function AccountTable({
     </div>
     {tableContextMenu}
     {editingAccount && <AccountNoteModal key={editingAccount.id} account={editingAccount}
+      loading={loadingAccountDetailsId === editingAccount.id}
       onClose={() => setEditingAccount(null)}
       onSave={(details) => onSaveNote(editingAccount.id, details)} t={t} />}
   </>;

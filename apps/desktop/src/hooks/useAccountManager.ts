@@ -34,6 +34,7 @@ interface AccountCloudSync {
   pushAccount?: (id: string) => Promise<void> | void;
   restoreAndPushAccount?: (id: string) => Promise<void> | void;
   deleteAccount?: (id: string) => Promise<void> | void;
+  pullAccount?: (id: string) => Promise<unknown> | void;
 }
 
 export function useAccountManager(
@@ -408,6 +409,23 @@ export function useAccountManager(
     }
   }, [cloudSync, notify, t]);
 
+  const refreshAccountDetails = useCallback(async (id: string): Promise<Account | null> => {
+    try {
+      await cloudSync?.pullAccount?.(id);
+    } catch (error) {
+      notify(String(error));
+    }
+    try {
+      const dashboard = await loadDashboard();
+      setAccounts(dashboard.accounts);
+      setInfo(dashboard.info);
+      return dashboard.accounts.find((account) => account.id === id) ?? null;
+    } catch (error) {
+      notify(String(error));
+      return null;
+    }
+  }, [cloudSync, notify]);
+
   const setAutoSwitchPriority = useCallback(async (id: string, priority: number) => {
     setAutoSwitchPriorityBusyAccountId(id);
     try {
@@ -453,6 +471,7 @@ export function useAccountManager(
     disableAutoSwitchAccounts,
     setAutoSwitchPriority,
     saveAccountNote,
+    refreshAccountDetails,
     reload: load,
   };
 }

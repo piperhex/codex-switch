@@ -558,6 +558,17 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
   grid-template-rows: minmax(0, 1fr) auto;
 }
 .account-note-scroll { min-height: 0; padding: 24px 32px 18px; overflow-y: auto; }
+.account-note-loading {
+  min-height: 280px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 12px;
+  color: #568072;
+  font-size: 12px;
+  font-weight: 700;
+}
 .account-note-scroll > p { margin: 0 0 20px; color: #738078; font-size: 12px; line-height: 1.6; }
 .account-note-label { display: block; margin-bottom: 7px; color: #435047; font-size: 12px; font-weight: 700; }
 .account-details-grid {

@@ -27,6 +27,7 @@ export function AccountsPage({
   onAutoSwitchPriorityChange,
   autoSwitchPriorityBusyAccountId,
   onSaveNote,
+  onLoadAccountDetails,
   onLoadResetCredits,
   onUseResetCredit,
   resetCreditBusyAccountId,
@@ -63,6 +64,7 @@ export function AccountsPage({
   onAutoSwitchPriorityChange: (id: string, priority: number) => Promise<boolean>;
   autoSwitchPriorityBusyAccountId: string | null;
   onSaveNote: (id: string, details: AccountDetailsDraft) => Promise<boolean>;
+  onLoadAccountDetails: (id: string) => Promise<Account | null>;
   onLoadResetCredits: (id: string, force?: boolean) => void;
   onUseResetCredit: (id: string) => void;
   resetCreditBusyAccountId: string | null;
@@ -113,6 +115,7 @@ export function AccountsPage({
         autoSwitchOnQuotaExhaustion={localProxy?.autoSwitchOnQuotaExhaustion ?? false}
         customAutoSwitchPriorityEnabled={localProxy?.customAutoSwitchPriorityEnabled ?? false}
         onSaveNote={onSaveNote}
+        onLoadAccountDetails={onLoadAccountDetails}
         resetCredits={resetCredits} onLoadResetCredits={onLoadResetCredits}
         onUseResetCredit={onUseResetCredit} resetCreditBusyAccountId={resetCreditBusyAccountId}
         hotSwitchEnabled={hotSwitchEnabled} privacyMode={privacyMode}

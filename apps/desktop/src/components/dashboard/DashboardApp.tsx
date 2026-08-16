@@ -277,10 +277,12 @@ export function DashboardApp() {
     pushAccount: cloud.pushAccountQuietly,
     restoreAndPushAccount: cloud.restoreAndPushAccountQuietly,
     deleteAccount: cloud.deleteAccountQuietly,
+    pullAccount: cloud.pullAccount,
   }), [
     cloud.deleteAccountQuietly,
     cloud.pushAccountQuietly,
     cloud.pushQuietly,
+    cloud.pullAccount,
     cloud.restoreAndPushAccountQuietly,
   ]);
   const providerCloudSync = useMemo(() => ({
@@ -1288,6 +1290,7 @@ export function DashboardApp() {
               onAutoSwitchPriorityChange={manager.setAutoSwitchPriority}
               autoSwitchPriorityBusyAccountId={manager.autoSwitchPriorityBusyAccountId}
               onSaveNote={saveAccountNote}
+              onLoadAccountDetails={manager.refreshAccountDetails}
               resetCredits={resetCredits.states}
               onLoadResetCredits={loadResetCredits}
               onUseResetCredit={(id) => void useResetCredit(id)}
