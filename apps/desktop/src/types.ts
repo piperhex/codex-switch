@@ -376,6 +376,7 @@ export interface AppSettings {
   autoDisableStatusCodes?: number[];
   showUsageNetworkErrors?: boolean;
   webProxyPort?: number | null;
+  webProxyListenOnAllInterfaces?: boolean;
   networkProxy?: NetworkProxySettings;
 }
 

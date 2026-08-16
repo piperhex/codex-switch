@@ -42,6 +42,7 @@ import {
   updateAutoDisableStatusCodes,
   updateNetworkProxy,
   updateShowUsageNetworkErrors,
+  updateWebProxyListenOnAllInterfaces,
   updateWebProxyPort,
 } from "../../api/backend";
 import { AboutModal } from "../modals/AboutModal";
@@ -203,6 +204,7 @@ export function DashboardApp() {
   const [resetCreditBusyAccountId, setResetCreditBusyAccountId] = useState<string | null>(null);
   const [refreshingProviderBalances, setRefreshingProviderBalances] = useState(false);
   const [webProxyPort, setWebProxyPort] = useState<number | null>(null);
+  const [webProxyListenOnAllInterfaces, setWebProxyListenOnAllInterfaces] = useState(false);
   const [webProxyPortLoading, setWebProxyPortLoading] = useState(false);
   const [networkProxy, setNetworkProxy] = useState(DEFAULT_NETWORK_PROXY);
   const [networkProxyLoading, setNetworkProxyLoading] = useState(false);
@@ -306,6 +308,7 @@ export function DashboardApp() {
     void loadAppSettings()
       .then((settings) => {
         setWebProxyPort(settings.webProxyPort ?? null);
+        setWebProxyListenOnAllInterfaces(settings.webProxyListenOnAllInterfaces ?? false);
         setNetworkProxy(settings.networkProxy ?? DEFAULT_NETWORK_PROXY);
         setAutoDisableStatusCodes(
           settings.autoDisableStatusCodes ?? [...DEFAULT_AUTO_DISABLE_STATUS_CODES],
@@ -468,6 +471,7 @@ export function DashboardApp() {
     try {
       const settings = await updateWebProxyPort(port);
       setWebProxyPort(settings.webProxyPort ?? null);
+      setWebProxyListenOnAllInterfaces(settings.webProxyListenOnAllInterfaces ?? false);
       if (!hasLocalBackend) await providerManager.reload();
       notify(t(port === null ? "toast.webServerDisabled" : "toast.webServerStarted", {
         port: port ?? "",
@@ -478,6 +482,20 @@ export function DashboardApp() {
       setWebProxyPortLoading(false);
     }
   }, [notify, providerManager.reload, t]);
+
+  const changeWebProxyListenOnAllInterfaces = useCallback(async (enabled: boolean) => {
+    setWebProxyPortLoading(true);
+    try {
+      const settings = await updateWebProxyListenOnAllInterfaces(enabled);
+      setWebProxyPort(settings.webProxyPort ?? null);
+      setWebProxyListenOnAllInterfaces(settings.webProxyListenOnAllInterfaces ?? false);
+      notify(t(enabled ? "toast.webServerLanEnabled" : "toast.webServerLanDisabled"));
+    } catch (error) {
+      notify(String(error));
+    } finally {
+      setWebProxyPortLoading(false);
+    }
+  }, [notify, t]);
 
   const saveNetworkProxy = useCallback(async (settings: NetworkProxySettings) => {
     setNetworkProxyLoading(true);
@@ -1239,8 +1257,10 @@ export function DashboardApp() {
               showUsageNetworkErrorsLoading={showUsageNetworkErrorsLoading}
               onShowUsageNetworkErrorsChange={changeShowUsageNetworkErrors}
               webProxyPort={webProxyPort}
+              webProxyListenOnAllInterfaces={webProxyListenOnAllInterfaces}
               webProxyPortLoading={webProxyPortLoading}
               onWebProxyPortChange={changeWebProxyPort}
+              onWebProxyListenOnAllInterfacesChange={changeWebProxyListenOnAllInterfaces}
               onOpenWebVersion={openWebVersion}
               networkProxy={networkProxy}
               networkProxyLoading={networkProxyLoading}

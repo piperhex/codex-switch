@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Button, Input, InputNumber, Space } from "antd";
+import { Button, Input, InputNumber, Space, Switch } from "antd";
 import { Cloud, Network } from "lucide-react";
 import { DEFAULT_CLOUD_BASE_URL } from "../../api/backend";
 import type { SettingsPageProps } from "./types";
@@ -11,8 +11,10 @@ interface ConnectionSettingsCardsProps {
 function WebProxyCard({ settings }: ConnectionSettingsCardsProps) {
   const {
     onOpenWebVersion,
+    onWebProxyListenOnAllInterfacesChange,
     onWebProxyPortChange,
     t,
+    webProxyListenOnAllInterfaces,
     webProxyPort,
     webProxyPortLoading,
   } = settings;
@@ -33,6 +35,15 @@ function WebProxyCard({ settings }: ConnectionSettingsCardsProps) {
           <h3>{t("settings.webProxy.title")}</h3><p>{t("settings.webProxy.description")}</p>
         </div>
         <div className="settings-field web-proxy-settings-field">
+          <label htmlFor="web-proxy-listen-on-lan">{t("settings.webProxy.listenOnLan")}</label>
+          <Switch
+            id="web-proxy-listen-on-lan"
+            checked={webProxyListenOnAllInterfaces ?? false}
+            loading={webProxyPortLoading}
+            checkedChildren={t("settings.autoRefresh.on")}
+            unCheckedChildren={t("settings.autoRefresh.off")}
+            onChange={(enabled) => onWebProxyListenOnAllInterfacesChange?.(enabled)}
+          />
           <label htmlFor="web-proxy-port">{t("settings.webProxy.port")}</label>
           {webVersionUrl && (
             <a

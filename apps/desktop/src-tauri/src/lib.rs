@@ -272,6 +272,7 @@ pub fn run() {
             floating_bubble::set_app_language,
             network_proxy::set_network_proxy,
             web_server::set_web_proxy_port,
+            web_server::set_web_proxy_listen_on_all_interfaces,
             floating_bubble::resize_floating_bubble,
             floating_bubble::resize_floating_bubble_for_provider_card,
             floating_bubble::drag_floating_bubble,

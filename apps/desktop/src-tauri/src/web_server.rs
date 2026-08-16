@@ -14,7 +14,8 @@ use crate::{
     storage::{read_app_settings, write_app_settings},
 };
 
-const WEB_SERVER_HOST: &str = "127.0.0.1";
+const WEB_SERVER_LOOPBACK_HOST: &str = "127.0.0.1";
+const WEB_SERVER_ALL_INTERFACES_HOST: &str = "0.0.0.0";
 const WEB_SERVER_THREAD_NAME: &str = "codex-switch-web-server";
 const WEB_REQUEST_THREAD_NAME: &str = "codex-switch-web-request";
 const WEB_CONTENT_SECURITY_POLICY: &str = "default-src 'self'; img-src 'self' data: http: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http: https: ws: wss:";
@@ -39,9 +40,15 @@ struct WebInvokeResponse {
 }
 
 struct WebServerRuntime {
-    port: u16,
+    configuration: WebServerConfiguration,
     server: Arc<Server>,
     handle: Option<JoinHandle<()>>,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct WebServerConfiguration {
+    port: u16,
+    listen_on_all_interfaces: bool,
 }
 
 fn runtime() -> &'static Mutex<Option<WebServerRuntime>> {
@@ -50,27 +57,36 @@ fn runtime() -> &'static Mutex<Option<WebServerRuntime>> {
 }
 
 pub(crate) fn setup(app: &AppHandle, port_override: Option<u16>) -> Result<(), String> {
-    let port = match port_override {
-        Some(port) => Some(port),
-        None => read_app_settings(app)?.web_proxy_port,
-    };
+    let settings = read_app_settings(app)?;
+    let port = port_override.or(settings.web_proxy_port);
     if let Some(port) = port {
         validate_port(port)?;
-        start_server(app.clone(), port)?;
+        start_server(
+            app.clone(),
+            WebServerConfiguration {
+                port,
+                listen_on_all_interfaces: settings.web_proxy_listen_on_all_interfaces,
+            },
+        )?;
     }
     Ok(())
 }
 
 pub(crate) fn restart_at_port(app: &AppHandle, port: u16) -> Result<(), String> {
     validate_port(port)?;
-    let previous_port = running_port();
-    if previous_port == Some(port) {
+    let settings = read_app_settings(app)?;
+    let configuration = WebServerConfiguration {
+        port,
+        listen_on_all_interfaces: settings.web_proxy_listen_on_all_interfaces,
+    };
+    let previous_configuration = running_configuration();
+    if previous_configuration == Some(configuration) {
         return Ok(());
     }
 
     stop_server();
-    if let Err(error) = start_server(app.clone(), port) {
-        let restore_error = restore_server(app, previous_port);
+    if let Err(error) = start_server(app.clone(), configuration) {
+        let restore_error = restore_server(app, previous_configuration);
         return Err(configuration_error(error, restore_error));
     }
     Ok(())
@@ -81,36 +97,89 @@ pub(crate) fn shutdown() {
 }
 
 #[tauri::command]
-pub(crate) fn set_web_proxy_port(app: AppHandle, port: Option<u16>) -> Result<AppSettings, String> {
+pub(crate) async fn set_web_proxy_port(
+    app: AppHandle,
+    port: Option<u16>,
+) -> Result<AppSettings, String> {
+    tauri::async_runtime::spawn_blocking(move || set_web_proxy_port_blocking(&app, port))
+        .await
+        .map_err(|error| format!("Failed to update the web version settings: {error}"))?
+}
+
+#[tauri::command]
+pub(crate) async fn set_web_proxy_listen_on_all_interfaces(
+    app: AppHandle,
+    enabled: bool,
+) -> Result<AppSettings, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        set_web_proxy_listen_on_all_interfaces_blocking(&app, enabled)
+    })
+    .await
+    .map_err(|error| format!("Failed to update the web version settings: {error}"))?
+}
+
+fn set_web_proxy_port_blocking(app: &AppHandle, port: Option<u16>) -> Result<AppSettings, String> {
     if let Some(port) = port {
         validate_port(port)?;
     }
+    let settings = read_app_settings(app)?;
+    let listen_on_all_interfaces = settings.web_proxy_listen_on_all_interfaces;
+    update_web_server_configuration(app, settings, port, listen_on_all_interfaces)
+}
 
-    let mut settings = read_app_settings(&app)?;
-    let previous_saved_port = settings.web_proxy_port;
-    let previous_running_port = running_port();
-    if previous_saved_port == port && previous_running_port == port {
+fn set_web_proxy_listen_on_all_interfaces_blocking(
+    app: &AppHandle,
+    enabled: bool,
+) -> Result<AppSettings, String> {
+    let settings = read_app_settings(app)?;
+    let port = settings.web_proxy_port;
+    update_web_server_configuration(app, settings, port, enabled)
+}
+
+fn update_web_server_configuration(
+    app: &AppHandle,
+    mut settings: AppSettings,
+    port: Option<u16>,
+    listen_on_all_interfaces: bool,
+) -> Result<AppSettings, String> {
+    let desired_configuration = port.map(|port| WebServerConfiguration {
+        port,
+        listen_on_all_interfaces,
+    });
+    let previous_configuration = running_configuration();
+    let saved_configuration_matches = settings.web_proxy_port == port
+        && settings.web_proxy_listen_on_all_interfaces == listen_on_all_interfaces;
+    if saved_configuration_matches && previous_configuration == desired_configuration {
         return Ok(settings);
     }
 
-    stop_server();
-    if let Some(port) = port {
-        if let Err(error) = start_server(app.clone(), port) {
-            let restore_error = restore_server(&app, previous_running_port);
-            return Err(configuration_error(error, restore_error));
-        }
-    }
-
+    apply_server_configuration(app, desired_configuration, previous_configuration)?;
     settings.web_proxy_port = port;
-    if let Err(error) = write_app_settings(&app, &settings) {
+    settings.web_proxy_listen_on_all_interfaces = listen_on_all_interfaces;
+    if let Err(error) = write_app_settings(app, &settings) {
         stop_server();
-        let restore_error = restore_server(&app, previous_running_port);
+        let restore_error = restore_server(app, previous_configuration);
         return Err(configuration_error(
-            format!("Failed to save the web version port: {error}"),
+            format!("Failed to save the web version settings: {error}"),
             restore_error,
         ));
     }
     Ok(settings)
+}
+
+fn apply_server_configuration(
+    app: &AppHandle,
+    desired: Option<WebServerConfiguration>,
+    previous: Option<WebServerConfiguration>,
+) -> Result<(), String> {
+    stop_server();
+    if let Some(configuration) = desired {
+        if let Err(error) = start_server(app.clone(), configuration) {
+            let restore_error = restore_server(app, previous);
+            return Err(configuration_error(error, restore_error));
+        }
+    }
+    Ok(())
 }
 
 fn validate_port(port: u16) -> Result<(), String> {
@@ -129,32 +198,36 @@ fn configuration_error(error: String, restore_error: Option<String>) -> String {
     }
 }
 
-fn restore_server(app: &AppHandle, port: Option<u16>) -> Option<String> {
-    port.and_then(|port| start_server(app.clone(), port).err())
+fn restore_server(
+    app: &AppHandle,
+    configuration: Option<WebServerConfiguration>,
+) -> Option<String> {
+    configuration.and_then(|configuration| start_server(app.clone(), configuration).err())
 }
 
-fn running_port() -> Option<u16> {
+fn running_configuration() -> Option<WebServerConfiguration> {
     runtime()
         .lock()
         .ok()
-        .and_then(|guard| guard.as_ref().map(|runtime| runtime.port))
+        .and_then(|guard| guard.as_ref().map(|runtime| runtime.configuration))
 }
 
-fn start_server(app: AppHandle, port: u16) -> Result<(), String> {
+fn start_server(app: AppHandle, configuration: WebServerConfiguration) -> Result<(), String> {
     let mut guard = runtime()
         .lock()
         .map_err(|_| "Web server runtime lock is poisoned".to_string())?;
     if let Some(runtime) = guard.as_ref() {
-        if runtime.port == port {
+        if runtime.configuration == configuration {
             return Ok(());
         }
         return Err(format!(
             "The web version is already listening on port {}",
-            runtime.port
+            runtime.configuration.port
         ));
     }
 
-    let bind_address = format!("{WEB_SERVER_HOST}:{port}");
+    let host = web_server_host(configuration.listen_on_all_interfaces);
+    let bind_address = format!("{host}:{}", configuration.port);
     let server =
         Arc::new(Server::http(&bind_address).map_err(|error| {
             format!("Failed to start the web version at {bind_address}: {error}")
@@ -173,11 +246,19 @@ fn start_server(app: AppHandle, port: u16) -> Result<(), String> {
         .map_err(|error| format!("Failed to spawn the web version server: {error}"))?;
 
     *guard = Some(WebServerRuntime {
-        port,
+        configuration,
         server,
         handle: Some(handle),
     });
     Ok(())
+}
+
+fn web_server_host(listen_on_all_interfaces: bool) -> &'static str {
+    if listen_on_all_interfaces {
+        WEB_SERVER_ALL_INTERFACES_HOST
+    } else {
+        WEB_SERVER_LOOPBACK_HOST
+    }
 }
 
 fn stop_server() {
@@ -312,7 +393,12 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
             app,
             argument(&args, "enabled")?,
         ))),
-        "set_web_proxy_port" => serialize(set_web_proxy_port(app, argument(&args, "port")?)),
+        "set_web_proxy_port" => {
+            serialize(block_on(set_web_proxy_port(app, argument(&args, "port")?)))
+        }
+        "set_web_proxy_listen_on_all_interfaces" => serialize(block_on(
+            set_web_proxy_listen_on_all_interfaces(app, argument(&args, "enabled")?),
+        )),
         "set_network_proxy" => serialize(block_on(crate::network_proxy::set_network_proxy(
             app,
             argument(&args, "settings")?,
@@ -872,6 +958,23 @@ mod tests {
         assert!(validate_port(0).is_err());
         assert!(validate_port(1).is_ok());
         assert!(AppSettings::default().web_proxy_port.is_none());
+        assert!(!AppSettings::default().web_proxy_listen_on_all_interfaces);
+    }
+
+    #[test]
+    fn web_server_configuration_changes_when_lan_listening_changes() {
+        let loopback = WebServerConfiguration {
+            port: 18_080,
+            listen_on_all_interfaces: false,
+        };
+        let lan = WebServerConfiguration {
+            listen_on_all_interfaces: true,
+            ..loopback
+        };
+
+        assert!(loopback != lan);
+        assert_eq!(web_server_host(false), "127.0.0.1");
+        assert_eq!(web_server_host(true), "0.0.0.0");
     }
 
     #[test]

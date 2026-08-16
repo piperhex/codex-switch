@@ -51,7 +51,8 @@ Includes 300+ presets and integrates with [Fei-Away/Codex-Dream-Skin](https://gi
 - Records proxy token usage, displays conversation/message details, context consumption and latency, and exports structured diagnostics.
 - Provides weekly heatmaps and trends plus token-type, Provider, model, and account rankings.
 - Can refresh accounts after quota exhaustion, select an eligible account with the lowest primary-window usage, switch credentials, and retry once.
-- Can serve a browser UI on localhost alongside the desktop app, or run it without desktop UI through `--headless --port`.
+- Can serve a browser UI alongside the desktop app, optionally expose it to trusted LAN devices, or run it
+  without desktop UI through `--headless --port`.
 - Includes a Skills Market for searching and installing community Skills; cloud-signed-in users can publish versioned packages and updates.
 - Includes 300+ Dream Skin presets with one-click apply, custom backgrounds, appearance controls, and restore support.
 - Groups preferences by appearance, window behavior, usage, network, privacy, and storage, including language,
@@ -106,7 +107,10 @@ The development browser preview uses demo data and never accesses real credentia
 3. Select **Switch** to atomically replace the `auth.json` currently used by Codex.
 4. If a running ChatGPT/Codex process may have cached the old credentials, use **Restart ChatGPT** from the dashboard or tray.
 
-An installed client can start the localhost-only browser UI alongside the desktop interface, or run it without creating a window, tray icon, or floating widget. In headless mode the command-line port applies only to that process:
+An installed client can start the browser UI alongside the desktop interface, or run it without creating a
+window, tray icon, or floating widget. It listens only on `127.0.0.1` by default; enable **Listen on LAN** in
+Settings to allow access from trusted devices on the same network. In headless mode the command-line port
+applies only to that process:
 
 ```powershell
 codex-switch.exe --headless --port=18080

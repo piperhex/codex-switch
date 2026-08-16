@@ -444,6 +444,8 @@ pub(crate) struct AppSettings {
     #[serde(default)]
     pub(crate) web_proxy_port: Option<u16>,
     #[serde(default)]
+    pub(crate) web_proxy_listen_on_all_interfaces: bool,
+    #[serde(default)]
     pub(crate) network_proxy: NetworkProxySettings,
     #[serde(default)]
     pub(crate) last_started_version: Option<String>,
@@ -538,6 +540,7 @@ impl Default for AppSettings {
             auto_disable_status_codes: default_auto_disable_status_codes(),
             show_usage_network_errors: false,
             web_proxy_port: None,
+            web_proxy_listen_on_all_interfaces: false,
             network_proxy: NetworkProxySettings::default(),
             last_started_version: None,
         }
@@ -840,11 +843,16 @@ mod tests {
     fn app_settings_default_the_web_version_to_disabled() {
         let defaults = AppSettings::default();
         let migrated: AppSettings = serde_json::from_str("{}").unwrap();
-        let enabled: AppSettings = serde_json::from_str(r#"{"webProxyPort":18765}"#).unwrap();
+        let enabled: AppSettings =
+            serde_json::from_str(r#"{"webProxyPort":18765,"webProxyListenOnAllInterfaces":true}"#)
+                .unwrap();
 
         assert!(defaults.web_proxy_port.is_none());
         assert!(migrated.web_proxy_port.is_none());
+        assert!(!defaults.web_proxy_listen_on_all_interfaces);
+        assert!(!migrated.web_proxy_listen_on_all_interfaces);
         assert_eq!(enabled.web_proxy_port, Some(18_765));
+        assert!(enabled.web_proxy_listen_on_all_interfaces);
     }
 
     #[test]

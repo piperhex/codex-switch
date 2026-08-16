@@ -150,6 +150,7 @@ const LOCAL_PROXY_AUTO_DISABLE_UNREACHABLE_PREVIEW_KEY = "codex-switch:local-pro
 const LOCAL_PROXY_LISTEN_ALL_INTERFACES_PREVIEW_KEY = "codex-switch:local-proxy-listen-all-interfaces";
 const LOCAL_PROXY_LAN_API_KEY_PREVIEW_KEY = "codex-switch:local-proxy-lan-api-key";
 const LOCAL_PROXY_PORT_PREVIEW_KEY = "codex-switch:local-proxy-port";
+const WEB_PROXY_LISTEN_ALL_INTERFACES_PREVIEW_KEY = "codex-switch:web-proxy-listen-all-interfaces";
 const LOCAL_PROXY_IMAGE_ACCOUNT_PREVIEW_KEY = "codex-switch:image-generation-account";
 const LOCAL_PROXY_OPENAI_AUTH_ACCOUNT_PREVIEW_KEY = "codex-switch:proxy-openai-auth-account";
 const TOKEN_USAGE_WEEKS_PREVIEW_KEY = "codex-switch:token-usage-weeks";
@@ -399,6 +400,8 @@ export async function loadAppSettings(): Promise<AppSettings> {
       autoDisableStatusCodes: previewAutoDisableStatusCodes(),
       showUsageNetworkErrors: window.localStorage.getItem(SHOW_USAGE_NETWORK_ERRORS_PREVIEW_KEY) === "true",
       webProxyPort: previewLocalProxyStatus().port || null,
+      webProxyListenOnAllInterfaces:
+        window.localStorage.getItem(WEB_PROXY_LISTEN_ALL_INTERFACES_PREVIEW_KEY) === "true",
       networkProxy: {
         enabled: window.localStorage.getItem(NETWORK_PROXY_ENABLED_PREVIEW_KEY) === "true",
         proxyUrl: window.localStorage.getItem(NETWORK_PROXY_URL_PREVIEW_KEY) ?? "",
@@ -1014,6 +1017,14 @@ export async function updateWebProxyPort(port: number | null): Promise<AppSettin
     window.localStorage.setItem(LOCAL_PROXY_PORT_PREVIEW_KEY, String(port));
   }
   window.dispatchEvent(new CustomEvent(PROVIDERS_EVENT));
+  return loadAppSettings();
+}
+
+export async function updateWebProxyListenOnAllInterfaces(enabled: boolean): Promise<AppSettings> {
+  if (hasLocalBackend) {
+    return invoke<AppSettings>("set_web_proxy_listen_on_all_interfaces", { enabled });
+  }
+  window.localStorage.setItem(WEB_PROXY_LISTEN_ALL_INTERFACES_PREVIEW_KEY, String(enabled));
   return loadAppSettings();
 }
 

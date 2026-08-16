@@ -61,8 +61,10 @@ export interface SettingsPageProps {
   showUsageNetworkErrorsLoading: boolean;
   onShowUsageNetworkErrorsChange: (enabled: boolean) => Promise<void> | void;
   webProxyPort?: number | null;
+  webProxyListenOnAllInterfaces?: boolean;
   webProxyPortLoading?: boolean;
   onWebProxyPortChange?: (port: number | null) => void;
+  onWebProxyListenOnAllInterfacesChange?: (enabled: boolean) => void;
   onOpenWebVersion?: (url: string) => void;
   networkProxy: NetworkProxySettings;
   networkProxyLoading: boolean;
