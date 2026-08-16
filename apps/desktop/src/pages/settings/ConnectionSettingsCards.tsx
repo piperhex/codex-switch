@@ -109,7 +109,7 @@ function CloudSettingsCardContent({ settings }: ConnectionSettingsCardsProps) {
   }, [cloudBaseUrl]);
 
   return (
-    <section className="settings-card cloud-settings-card">
+    <section className="settings-card">
       <div className="settings-icon"><Cloud size={23} /></div>
       <div className="settings-card-content">
         <div className="settings-card-copy">
