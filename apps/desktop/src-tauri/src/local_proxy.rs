@@ -20,6 +20,11 @@ use tauri::{Emitter, Manager, Runtime, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use tiny_http::{Header, Method, Request, Response, Server, StatusCode};
 
+#[path = "chat_bridge_continuation.rs"]
+mod chat_bridge_continuation;
+
+const MAX_CONTINUATION_SCOPE_ID_BYTES: usize = 512;
+
 use crate::{
     agent_identity,
     auth::{account_fields, is_agent_identity_auth, token_string, validate_auth},
@@ -4241,7 +4246,12 @@ fn forward_chat_bridge(
     let selected_model = selected_provider_model(&responses_body, provider);
     responses_body["model"] = Value::String(selected_model.clone());
     let tool_context = build_codex_tool_context_from_request(&responses_body);
-    let mut chat_body = responses_to_chat_completions_with_context(&responses_body, &tool_context);
+    let continuation_scope = chat_continuation_scope(&provider.id, headers);
+    let mut chat_body = responses_to_chat_completions_with_context(
+        &responses_body,
+        &tool_context,
+        continuation_scope.as_ref(),
+    );
     if provider.balance_platform == Some(ProviderBalancePlatform::DeepSeek) {
         apply_deepseek_reasoning(&responses_body, &mut chat_body);
     }
@@ -4283,6 +4293,7 @@ fn forward_chat_bridge(
                 BufReader::new(response),
                 selected_model,
                 tool_context,
+                continuation_scope,
             ))),
             token_usage_account: None,
         });
@@ -4304,9 +4315,26 @@ fn forward_chat_bridge(
 
     let json: Value = serde_json::from_slice(&body)
         .map_err(|_| "Chat bridge upstream returned non-JSON response".to_string())?;
-    let mut payload = json_payload(status, chat_to_responses_json(&json, &tool_context));
+    let mut payload = json_payload(
+        status,
+        chat_to_responses_json(&json, &tool_context, continuation_scope.as_ref()),
+    );
     payload.response_headers = response_headers;
     Ok(payload)
+}
+
+fn chat_continuation_scope(
+    provider_id: &str,
+    headers: &[(String, String)],
+) -> Option<chat_bridge_continuation::ContinuationScope> {
+    proxy_session_id(headers)
+        .filter(|session_id| {
+            provider_id.len() <= MAX_CONTINUATION_SCOPE_ID_BYTES
+                && session_id.len() <= MAX_CONTINUATION_SCOPE_ID_BYTES
+        })
+        .map(|session_id| {
+            chat_bridge_continuation::ContinuationScope::new(provider_id, &session_id)
+        })
 }
 
 fn selected_provider_model(body: &Value, provider: &ProviderProfile) -> String {
@@ -4817,12 +4845,13 @@ fn respond_error(request: Request, status: u16, message: String) {
 #[cfg(test)]
 fn responses_to_chat_completions(body: &Value) -> Value {
     let tool_context = build_codex_tool_context_from_request(body);
-    responses_to_chat_completions_with_context(body, &tool_context)
+    responses_to_chat_completions_with_context(body, &tool_context, None)
 }
 
 fn responses_to_chat_completions_with_context(
     body: &Value,
     tool_context: &CodexToolContext,
+    continuation_scope: Option<&chat_bridge_continuation::ContinuationScope>,
 ) -> Value {
     let mut messages = Vec::new();
     if let Some(instructions) = body.get("instructions").and_then(value_to_text) {
@@ -4832,6 +4861,9 @@ fn responses_to_chat_completions_with_context(
     }
     if let Some(input) = body.get("input") {
         append_input_messages(input, &mut messages, tool_context);
+    }
+    if let Some(scope) = continuation_scope {
+        chat_bridge_continuation::restore_messages(scope, &mut messages);
     }
     if messages.is_empty() {
         messages.push(json!({ "role": "user", "content": "" }));
@@ -4988,6 +5020,13 @@ fn append_input_item_as_chat_message(
 
 fn flush_pending_tool_calls(messages: &mut Vec<Value>, pending_tool_calls: &mut Vec<Value>) {
     if pending_tool_calls.is_empty() {
+        return;
+    }
+    if let Some(message) = messages.last_mut().filter(|message| {
+        message.get("role").and_then(Value::as_str) == Some("assistant")
+            && message.get("tool_calls").is_none()
+    }) {
+        message["tool_calls"] = Value::Array(std::mem::take(pending_tool_calls));
         return;
     }
     messages.push(json!({
@@ -5324,7 +5363,11 @@ fn responses_tool_choice_to_chat(tool_choice: &Value, tool_context: &CodexToolCo
     }
 }
 
-fn chat_to_responses_json(chat: &Value, tool_context: &CodexToolContext) -> Value {
+fn chat_to_responses_json(
+    chat: &Value,
+    tool_context: &CodexToolContext,
+    continuation_scope: Option<&chat_bridge_continuation::ContinuationScope>,
+) -> Value {
     let id = chat
         .get("id")
         .and_then(Value::as_str)
@@ -5339,6 +5382,9 @@ fn chat_to_responses_json(chat: &Value, tool_context: &CodexToolContext) -> Valu
         .pointer("/choices/0/message")
         .cloned()
         .unwrap_or_else(|| json!({}));
+    if let Some(scope) = continuation_scope {
+        chat_bridge_continuation::capture_message(scope, &message);
+    }
     let content = message
         .get("content")
         .and_then(value_to_text)
@@ -5598,6 +5644,7 @@ struct StreamingToolCall {
     call_id: String,
     name: String,
     arguments: String,
+    thought_signature: String,
     added: bool,
     done: bool,
 }
@@ -5611,14 +5658,21 @@ struct ChatSseReader<R> {
     pending_offset: usize,
     data_lines: Vec<String>,
     text: String,
+    reasoning_content: String,
     tools: BTreeMap<usize, StreamingToolCall>,
     tool_context: CodexToolContext,
+    continuation_scope: Option<chat_bridge_continuation::ContinuationScope>,
     usage: Option<Value>,
     completed: bool,
 }
 
 impl<R: BufRead> ChatSseReader<R> {
-    fn new(upstream: R, model: String, tool_context: CodexToolContext) -> Self {
+    fn new(
+        upstream: R,
+        model: String,
+        tool_context: CodexToolContext,
+        continuation_scope: Option<chat_bridge_continuation::ContinuationScope>,
+    ) -> Self {
         let response_id = response_id();
         let message_id = format!("msg_{response_id}");
         let pending = response_start_sse(&response_id, &message_id, &model).into_bytes();
@@ -5631,8 +5685,10 @@ impl<R: BufRead> ChatSseReader<R> {
             pending_offset: 0,
             data_lines: Vec::new(),
             text: String::new(),
+            reasoning_content: String::new(),
             tools: BTreeMap::new(),
             tool_context,
+            continuation_scope,
             usage: None,
             completed: false,
         }
@@ -5699,6 +5755,9 @@ impl<R: BufRead> ChatSseReader<R> {
         {
             self.usage = Some(usage);
         }
+        if let Some(reasoning) = chat_stream_reasoning_delta(&value) {
+            self.reasoning_content.push_str(reasoning);
+        }
         if let Some(delta) = chat_stream_delta_text(&value) {
             if !delta.is_empty() {
                 self.text.push_str(delta);
@@ -5723,6 +5782,7 @@ impl<R: BufRead> ChatSseReader<R> {
             return;
         }
         let (tool_events, tool_items) = self.finalize_tools();
+        self.capture_continuation();
         self.push_pending(response_done_sse(
             &self.response_id,
             &self.message_id,
@@ -5733,6 +5793,26 @@ impl<R: BufRead> ChatSseReader<R> {
             self.usage.clone(),
         ));
         self.completed = true;
+    }
+
+    fn capture_continuation(&self) {
+        let Some(scope) = self.continuation_scope.as_ref() else {
+            return;
+        };
+        let tool_calls = self
+            .tools
+            .values()
+            .filter(|tool| !tool.call_id.is_empty())
+            .map(streaming_continuation_tool_call)
+            .collect::<Vec<_>>();
+        if tool_calls.is_empty() {
+            return;
+        }
+        let message = json!({
+            "reasoning_content": self.reasoning_content,
+            "tool_calls": tool_calls
+        });
+        chat_bridge_continuation::capture_message(scope, &message);
     }
 
     fn fail(&mut self, message: String) {
@@ -5756,6 +5836,10 @@ impl<R: BufRead> ChatSseReader<R> {
             .get("arguments")
             .and_then(Value::as_str)
             .unwrap_or("");
+        let signature_delta = tool_call
+            .pointer("/extra_content/google/thought_signature")
+            .and_then(Value::as_str)
+            .unwrap_or("");
 
         let mut should_add = false;
         let mut output_index = None;
@@ -5774,6 +5858,9 @@ impl<R: BufRead> ChatSseReader<R> {
             }
             if !args_delta.is_empty() {
                 state.arguments.push_str(args_delta);
+            }
+            if !signature_delta.is_empty() {
+                state.thought_signature.push_str(signature_delta);
             }
             if !state.added && !state.name.is_empty() {
                 should_add = true;
@@ -6035,15 +6122,27 @@ fn chat_sse_to_responses_sse(sse: &str, model: &str) -> String {
     output
 }
 
+fn streaming_continuation_tool_call(tool: &StreamingToolCall) -> Value {
+    let mut tool_call = json!({ "id": tool.call_id });
+    if !tool.thought_signature.is_empty() {
+        tool_call["extra_content"] = json!({
+            "google": { "thought_signature": tool.thought_signature }
+        });
+    }
+    tool_call
+}
+
+fn chat_stream_reasoning_delta(value: &Value) -> Option<&str> {
+    value
+        .pointer("/choices/0/delta/reasoning_content")
+        .and_then(Value::as_str)
+}
+
 fn chat_stream_delta_text(value: &Value) -> Option<&str> {
     value
         .pointer("/choices/0/delta/content")
         .and_then(Value::as_str)
-        .or_else(|| {
-            value
-                .pointer("/choices/0/delta/reasoning_content")
-                .and_then(Value::as_str)
-        })
+        .or_else(|| chat_stream_reasoning_delta(value))
 }
 
 fn response_start_sse(response_id: &str, message_id: &str, model: &str) -> String {
@@ -6349,6 +6448,18 @@ mod tests {
         ];
 
         assert_eq!(proxy_session_id(&headers).as_deref(), Some("thread-1"));
+    }
+
+    #[test]
+    fn chat_continuation_requires_a_session_header() {
+        assert!(chat_continuation_scope("provider", &[]).is_none());
+
+        let headers = vec![("thread-id".to_string(), "thread-1".to_string())];
+        assert!(chat_continuation_scope("provider", &headers).is_some());
+
+        let oversized = "x".repeat(MAX_CONTINUATION_SCOPE_ID_BYTES + 1);
+        let headers = vec![("thread-id".to_string(), oversized)];
+        assert!(chat_continuation_scope("provider", &headers).is_none());
     }
 
     #[test]
@@ -8177,7 +8288,7 @@ mod tests {
             "tool_choice": { "type": "tool_search" }
         });
         let context = build_codex_tool_context_from_request(&body);
-        let chat = responses_to_chat_completions_with_context(&body, &context);
+        let chat = responses_to_chat_completions_with_context(&body, &context, None);
         let tools = chat["tools"].as_array().unwrap();
 
         assert!(tools
@@ -8218,6 +8329,7 @@ mod tests {
                 }]
             }),
             &context,
+            None,
         );
 
         assert_eq!(response["output"][0]["type"], "tool_search_call");
@@ -8225,6 +8337,165 @@ mod tests {
         assert_eq!(response["output"][1]["type"], "function_call");
         assert_eq!(response["output"][1]["namespace"], "chrome");
         assert_eq!(response["output"][1]["name"], "open_url");
+    }
+
+    #[test]
+    fn buffered_kimi_tool_call_restores_reasoning_content() {
+        let session = uuid::Uuid::new_v4().to_string();
+        let scope = chat_bridge_continuation::ContinuationScope::new("kimi", &session);
+        let context = CodexToolContext::default();
+        let response = chat_to_responses_json(
+            &json!({
+                "id": "chatcmpl-kimi",
+                "model": "kimi-k3",
+                "choices": [{ "message": {
+                    "role": "assistant",
+                    "content": null,
+                    "reasoning_content": "private Kimi continuation",
+                    "tool_calls": [{
+                        "id": "call-kimi",
+                        "type": "function",
+                        "function": { "name": "run", "arguments": "{}" }
+                    }]
+                }}]
+            }),
+            &context,
+            Some(&scope),
+        );
+        let mut input = response["output"].as_array().unwrap().clone();
+        input.push(json!({
+            "type": "function_call_output",
+            "call_id": "call-kimi",
+            "output": "ok"
+        }));
+        let body = json!({ "model": "kimi-k3", "input": input });
+
+        let chat = responses_to_chat_completions_with_context(&body, &context, Some(&scope));
+
+        assert_eq!(
+            chat["messages"][0]["reasoning_content"],
+            "private Kimi continuation"
+        );
+        assert_eq!(chat["messages"][0]["tool_calls"][0]["id"], "call-kimi");
+        assert_eq!(chat["messages"][1]["tool_call_id"], "call-kimi");
+    }
+
+    #[test]
+    fn buffered_gemini_parallel_calls_restore_only_their_own_signatures() {
+        let session = uuid::Uuid::new_v4().to_string();
+        let scope = chat_bridge_continuation::ContinuationScope::new("gemini", &session);
+        let context = CodexToolContext::default();
+        let response = chat_to_responses_json(
+            &json!({
+                "id": "chatcmpl-gemini",
+                "model": "gemini-3.7-flash",
+                "choices": [{ "message": {
+                    "role": "assistant",
+                    "tool_calls": [
+                        {
+                            "id": "call-paris",
+                            "type": "function",
+                            "extra_content": {
+                                "google": { "thought_signature": "signature-paris" }
+                            },
+                            "function": { "name": "weather", "arguments": "{}" }
+                        },
+                        {
+                            "id": "call-london",
+                            "type": "function",
+                            "function": { "name": "weather", "arguments": "{}" }
+                        }
+                    ]
+                }}]
+            }),
+            &context,
+            Some(&scope),
+        );
+        let body = json!({ "model": "gemini-3.7-flash", "input": response["output"] });
+
+        let chat = responses_to_chat_completions_with_context(&body, &context, Some(&scope));
+
+        let calls = chat["messages"][0]["tool_calls"].as_array().unwrap();
+        assert_eq!(
+            calls[0]["extra_content"]["google"]["thought_signature"],
+            "signature-paris"
+        );
+        assert!(calls[1].get("extra_content").is_none());
+    }
+
+    #[test]
+    fn streaming_kimi_tool_call_restores_reasoning_content() {
+        let session = uuid::Uuid::new_v4().to_string();
+        let scope = chat_bridge_continuation::ContinuationScope::new("kimi", &session);
+        let sse = concat!(
+            "data: {\"choices\":[{\"delta\":{\"reasoning_content\":\"private stream\"}}]}\n\n",
+            "data: {\"choices\":[{\"delta\":{\"tool_calls\":[",
+            "{\"index\":0,\"id\":\"call-stream\",",
+            "\"function\":{\"name\":\"run\",\"arguments\":\"{}\"}}]}}]}\n\n",
+            "data: [DONE]\n\n"
+        );
+        let mut reader = ChatSseReader::new(
+            BufReader::new(Cursor::new(sse.as_bytes().to_vec())),
+            "kimi-k3".to_string(),
+            CodexToolContext::default(),
+            Some(scope.clone()),
+        );
+        let mut output = String::new();
+        reader.read_to_string(&mut output).unwrap();
+        let completed = sse_event(&output, "response.completed");
+        let body = json!({
+            "model": "kimi-k3",
+            "input": completed["response"]["output"]
+        });
+
+        let chat = responses_to_chat_completions_with_context(
+            &body,
+            &CodexToolContext::default(),
+            Some(&scope),
+        );
+
+        assert_eq!(chat["messages"][0]["reasoning_content"], "private stream");
+        assert_eq!(chat["messages"][0]["tool_calls"][0]["id"], "call-stream");
+    }
+
+    #[test]
+    fn streaming_gemini_parallel_calls_restore_thought_signature() {
+        let session = uuid::Uuid::new_v4().to_string();
+        let scope = chat_bridge_continuation::ContinuationScope::new("gemini", &session);
+        let sse = concat!(
+            "data: {\"choices\":[{\"delta\":{\"tool_calls\":[",
+            "{\"index\":0,\"id\":\"call-a\",\"extra_content\":{\"google\":",
+            "{\"thought_signature\":\"signature-a\"}},",
+            "\"function\":{\"name\":\"weather\",\"arguments\":\"{}\"}},",
+            "{\"index\":1,\"id\":\"call-b\",\"function\":{\"name\":\"weather\",\"arguments\":\"{}\"}}]}}]}\n\n",
+            "data: [DONE]\n\n"
+        );
+        let mut reader = ChatSseReader::new(
+            BufReader::new(Cursor::new(sse.as_bytes().to_vec())),
+            "gemini-3.7-flash".to_string(),
+            CodexToolContext::default(),
+            Some(scope.clone()),
+        );
+        let mut output = String::new();
+        reader.read_to_string(&mut output).unwrap();
+        let completed = sse_event(&output, "response.completed");
+        let body = json!({
+            "model": "gemini-3.7-flash",
+            "input": completed["response"]["output"]
+        });
+
+        let chat = responses_to_chat_completions_with_context(
+            &body,
+            &CodexToolContext::default(),
+            Some(&scope),
+        );
+
+        let calls = chat["messages"][0]["tool_calls"].as_array().unwrap();
+        assert_eq!(
+            calls[0]["extra_content"]["google"]["thought_signature"],
+            "signature-a"
+        );
+        assert!(calls[1].get("extra_content").is_none());
     }
 
     #[test]
@@ -8247,6 +8518,7 @@ mod tests {
             BufReader::new(Cursor::new(sse.as_bytes().to_vec())),
             "deepseek-chat".to_string(),
             context,
+            None,
         );
         let mut output = String::new();
         reader.read_to_string(&mut output).unwrap();
@@ -8268,6 +8540,7 @@ mod tests {
             BufReader::new(Cursor::new(sse.as_bytes().to_vec())),
             "deepseek-chat".to_string(),
             CodexToolContext::default(),
+            None,
         );
         let mut output = String::new();
         reader.read_to_string(&mut output).unwrap();

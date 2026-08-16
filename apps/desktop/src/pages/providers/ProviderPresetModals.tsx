@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { AutoComplete, Button, Input, Select, Tag } from "antd";
-import { Bot, Code2, Orbit, RefreshCw, Save, Sparkles, X, Zap } from "lucide-react";
+import { AutoComplete, Button, Input, Select } from "antd";
+import { Bot, RefreshCw, Save, X } from "lucide-react";
 import { fetchDeepSeekModels } from "../../api/backend";
-import type { Translate } from "../../i18n";
 import type { Provider, ProviderInput } from "../../types";
 import { CONTEXT_WINDOW_OPTIONS, modelOptions, normalizeModels, parseContextWindowK } from "./providerUtils";
 import type { ProviderModalProps } from "./ProviderModal";
@@ -79,7 +78,6 @@ export function OpenAiProviderModal({ provider, saving, onClose, onSave, t }: Pr
     </div>
   );
 }
-
 const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
 const DEEPSEEK_FALLBACK_MODELS = ["deepseek-v4-flash", "deepseek-v4-pro"];
 
@@ -231,69 +229,6 @@ export function DeepSeekProviderModal({ provider, saving, onClose, onSave, t }: 
           <Button onClick={onClose} disabled={saving}>{t("providers.form.cancel")}</Button>
           <Button type="primary" icon={<Save size={14} />} loading={saving} disabled={!canSave}
             onClick={() => void submit()}>{t("providers.form.save")}</Button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export function ProviderPresetModal({
-  onClose,
-  onSelectAntigravity,
-  onSelectClaudeCode,
-  onSelectDeepSeek,
-  onSelectGrok,
-  t,
-}: {
-  onClose: () => void;
-  onSelectAntigravity: () => void;
-  onSelectClaudeCode: () => void;
-  onSelectDeepSeek: () => void;
-  onSelectGrok: () => void;
-  t: Translate;
-}) {
-  return (
-    <div className="modal-backdrop">
-      <div className="modal provider-preset-modal">
-        <button className="modal-close" onClick={onClose} aria-label={t("providers.presets.close")}>
-          <X size={17} />
-        </button>
-        <div className="modal-icon"><Sparkles size={22} /></div>
-        <h2>{t("providers.presets.title")}</h2>
-        <p>{t("providers.presets.description")}</p>
-        <div className="provider-preset-list">
-          <button className="provider-preset-card" onClick={onSelectAntigravity}>
-            <span className="provider-preset-icon"><Orbit size={20} /></span>
-            <span>
-              <strong>Google Antigravity</strong>
-              <small>{t("providers.presets.antigravityDescription")}</small>
-            </span>
-            <Tag color="purple">{t("providers.presets.localService")}</Tag>
-          </button>
-          <button className="provider-preset-card" onClick={onSelectDeepSeek}>
-            <span className="provider-preset-icon"><Bot size={20} /></span>
-            <span>
-              <strong>DeepSeek</strong>
-              <small>{t("providers.presets.deepSeekDescription")}</small>
-            </span>
-            <Tag color="blue">{t("providers.presets.official")}</Tag>
-          </button>
-          <button className="provider-preset-card" onClick={onSelectGrok}>
-            <span className="provider-preset-icon"><Zap size={20} /></span>
-            <span>
-              <strong>Grok</strong>
-              <small>{t("providers.presets.grokDescription")}</small>
-            </span>
-            <Tag color="cyan">{t("providers.presets.official")}</Tag>
-          </button>
-          <button className="provider-preset-card" onClick={onSelectClaudeCode}>
-            <span className="provider-preset-icon"><Code2 size={20} /></span>
-            <span>
-              <strong>Claude Code</strong>
-              <small>{t("providers.presets.claudeCodeDescription")}</small>
-            </span>
-            <Tag color="orange">{t("providers.presets.official")}</Tag>
-          </button>
         </div>
       </div>
     </div>

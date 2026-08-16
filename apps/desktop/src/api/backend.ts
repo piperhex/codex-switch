@@ -12,6 +12,7 @@ import {
 } from "../utils/antigravityProvider";
 import { CLAUDE_CODE_FALLBACK_MODELS } from "../utils/claudeCodeProvider";
 import { GROK_FALLBACK_MODELS } from "../utils/grokProvider";
+import { findProviderPreset } from "../utils/providerCatalog";
 import { isTotpEntry, TOTP_STORAGE_KEY, type TotpVault } from "../utils/totp";
 import type {
   Account,
@@ -429,7 +430,9 @@ export async function saveProviderProfile(provider: ProviderInput): Promise<Prov
     const existing = index >= 0 ? providers[index] : null;
     const hasApiKey = Boolean(provider.apiKey?.trim() || existing?.hasApiKey);
     const kind = provider.kind === "openai" ? "openai" : "custom";
-    if (kind === "custom" && !hasApiKey && !isAntigravityProvider(provider)) {
+    const allowsMissingApiKey = isAntigravityProvider(provider)
+      || findProviderPreset(provider)?.apiKeyRequired === false;
+    if (kind === "custom" && !hasApiKey && !allowsMissingApiKey) {
       throw new Error("API key is required for a new provider");
     }
     const requestedModel = provider.model.trim();
@@ -542,6 +545,28 @@ export async function fetchClaudeCodeModels(
     baseUrl,
     apiKey: apiKey?.trim() || null,
     providerId: providerId ?? null,
+  });
+}
+
+export interface PresetModelQuery {
+  presetId: string;
+  baseUrl: string;
+  apiKey?: string;
+  providerId?: string;
+}
+
+export async function fetchPresetModels(
+  request: PresetModelQuery,
+  fallbackModels: string[],
+): Promise<string[]> {
+  if (!hasLocalBackend) return fallbackModels;
+  return invoke<string[]>("fetch_preset_models", {
+    request: {
+      presetId: request.presetId,
+      baseUrl: request.baseUrl,
+      apiKey: request.apiKey?.trim() || null,
+      providerId: request.providerId ?? null,
+    },
   });
 }
 

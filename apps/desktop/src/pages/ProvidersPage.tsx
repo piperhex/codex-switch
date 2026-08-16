@@ -10,11 +10,14 @@ import type { Account, LocalProxyStatus, Provider, ProviderInput } from "../type
 import { isAntigravityProvider } from "../utils/antigravityProvider";
 import { isClaudeCodeProvider } from "../utils/claudeCodeProvider";
 import { isGrokProvider } from "../utils/grokProvider";
+import { findProviderPreset, type ProviderPresetId } from "../utils/providerCatalog";
 import { AntigravityProviderModal } from "./providers/AntigravityProviderModal";
+import { CatalogProviderModal } from "./providers/CatalogProviderModal";
 import { ClaudeCodeProviderModal } from "./providers/ClaudeCodeProviderModal";
 import { GrokProviderModal } from "./providers/GrokProviderModal";
 import { ProviderModal } from "./providers/ProviderModal";
-import { DeepSeekProviderModal, OpenAiProviderModal, ProviderPresetModal } from "./providers/ProviderPresetModals";
+import { ProviderPresetModal } from "./providers/ProviderPresetModal";
+import { DeepSeekProviderModal, OpenAiProviderModal } from "./providers/ProviderPresetModals";
 import { RelayStationModal } from "./providers/RelayStationModal";
 import { ProviderCardView, ProviderTableView } from "./providers/ProviderViews";
 import { ProviderAddMenu } from "./providers/ProviderAddMenu";
@@ -79,6 +82,7 @@ export function ProvidersPage({
   const [showAntigravityModal, setShowAntigravityModal] = useState(false);
   const [showGrokModal, setShowGrokModal] = useState(false);
   const [showClaudeCodeModal, setShowClaudeCodeModal] = useState(false);
+  const [catalogPresetId, setCatalogPresetId] = useState<ProviderPresetId | null>(null);
   const [selectedProviderIds, setSelectedProviderIds] = useState<string[]>([]);
   const [bulkDeleteBusy, setBulkDeleteBusy] = useState(false);
   const [topbarHost, setTopbarHost] = useState<HTMLElement | null>(null);
@@ -123,8 +127,14 @@ export function ProvidersPage({
     setShowPresetModal(false);
     setShowClaudeCodeModal(true);
   };
+  const openCatalogPreset = (presetId: ProviderPresetId) => {
+    setEditingProvider(null);
+    setShowPresetModal(false);
+    setCatalogPresetId(presetId);
+  };
   const openEdit = (provider: Provider) => {
     setEditingProvider(provider);
+    const catalogPreset = findProviderPreset(provider);
     if (provider.kind === "openai") {
       setShowOpenAiModal(true);
     } else if (isAntigravityProvider(provider)) {
@@ -133,6 +143,8 @@ export function ProvidersPage({
       setShowGrokModal(true);
     } else if (isClaudeCodeProvider(provider)) {
       setShowClaudeCodeModal(true);
+    } else if (catalogPreset) {
+      setCatalogPresetId(catalogPreset.id);
     } else if (provider.balancePlatform === "deepSeek") {
       setShowDeepSeekModal(true);
     } else {
@@ -195,7 +207,11 @@ export function ProvidersPage({
         onClose={() => setShowRelayModal(false)} onSave={onSave} t={t} />}
       {showPresetModal && <ProviderPresetModal onClose={() => setShowPresetModal(false)}
         onSelectAntigravity={openAntigravityPreset} onSelectClaudeCode={openClaudeCodePreset}
-        onSelectDeepSeek={openDeepSeekPreset} onSelectGrok={openGrokPreset} t={t} />}
+        onSelectDeepSeek={openDeepSeekPreset} onSelectGrok={openGrokPreset}
+        onSelectCatalog={openCatalogPreset} t={t} />}
+      {catalogPresetId && <CatalogProviderModal presetId={catalogPresetId}
+        provider={editingProvider} saving={saving} onClose={() => setCatalogPresetId(null)}
+        onSave={onSave} t={t} />}
       {showDeepSeekModal && <DeepSeekProviderModal provider={editingProvider} saving={saving}
         onClose={() => setShowDeepSeekModal(false)} onSave={onSave} t={t} />}
       {showAntigravityModal && <AntigravityProviderModal provider={editingProvider} saving={saving}

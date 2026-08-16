@@ -340,6 +340,10 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
             argument(&args, "apiKey")?,
             argument(&args, "providerId")?,
         ))),
+        "fetch_preset_models" => serialize(block_on(crate::preset_provider::fetch_preset_models(
+            app,
+            argument(&args, "request")?,
+        ))),
         "fetch_relay_models" => serialize(block_on(crate::provider_models::fetch_relay_models(
             argument(&args, "baseUrl")?,
             argument(&args, "apiKey")?,

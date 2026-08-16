@@ -25,6 +25,7 @@ mod models;
 mod network_proxy;
 mod oauth;
 mod official_plugins;
+mod preset_provider;
 mod provider_models;
 mod providers;
 mod remote_control;
@@ -218,6 +219,7 @@ pub fn run() {
             antigravity_provider::fetch_antigravity_models,
             claude_code_provider::fetch_claude_code_models,
             grok_provider::fetch_grok_models,
+            preset_provider::fetch_preset_models,
             provider_models::fetch_relay_models,
             providers::fetch_deepseek_models,
             providers::query_provider_balance,

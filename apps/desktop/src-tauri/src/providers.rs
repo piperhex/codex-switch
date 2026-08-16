@@ -277,15 +277,7 @@ pub(crate) fn save_provider<R: Runtime>(
     let model_context_windows =
         normalize_model_context_windows(&models, provider.model_context_windows);
     let image_input_models = normalize_model_subset(&models, provider.image_input_models);
-    let supplied_key = provider.api_key.unwrap_or_default().trim().to_string();
-    let api_key = if supplied_key.is_empty() {
-        existing
-            .as_ref()
-            .map(|value| value.api_key.clone())
-            .unwrap_or_default()
-    } else {
-        supplied_key
-    };
+    let api_key = retained_api_key(existing.as_ref(), &base_url, provider.api_key.as_deref());
     if kind != ProviderKind::OpenAi
         && api_key.is_empty()
         && !crate::antigravity_provider::is_antigravity_identity(
@@ -294,9 +286,16 @@ pub(crate) fn save_provider<R: Runtime>(
             &base_url,
             provider.api_format,
         )
+        && !crate::preset_provider::allows_missing_api_key_fields(
+            kind,
+            &name,
+            &base_url,
+            provider.api_format,
+        )
     {
         return Err("API key is required for a new provider".to_string());
     }
+
     let (balance_platform, balance_query_url, balance_query_token) = normalize_balance_settings(
         provider.balance_platform,
         provider.balance_query_url,
@@ -349,6 +348,21 @@ pub(crate) fn save_provider<R: Runtime>(
         state.active_provider_id.as_deref() == Some(&profile.id),
         state.auto_switch_provider_id.as_deref() == Some(&profile.id),
     ))
+}
+
+fn retained_api_key(
+    existing: Option<&ProviderProfile>,
+    base_url: &str,
+    supplied_key: Option<&str>,
+) -> String {
+    let supplied_key = supplied_key.unwrap_or_default().trim();
+    if !supplied_key.is_empty() {
+        return supplied_key.to_string();
+    }
+    existing
+        .filter(|value| value.base_url == base_url)
+        .map(|value| value.api_key.clone())
+        .unwrap_or_default()
 }
 
 #[tauri::command]
@@ -829,6 +843,7 @@ fn validate_provider_activation(provider: &ProviderProfile) -> Result<(), String
     if provider.kind != ProviderKind::OpenAi
         && provider.api_key.trim().is_empty()
         && !crate::antigravity_provider::allows_missing_api_key(provider)
+        && !crate::preset_provider::allows_missing_api_key(provider)
     {
         return Err("Provider API key is empty".to_string());
     }
@@ -1026,6 +1041,7 @@ pub(crate) fn activate_provider_for_sync(paths: &Paths, id: &str) -> Result<bool
     if provider.kind != ProviderKind::OpenAi
         && provider.api_key.trim().is_empty()
         && !crate::antigravity_provider::allows_missing_api_key(&provider)
+        && !crate::preset_provider::allows_missing_api_key(&provider)
     {
         return Ok(false);
     }
@@ -1869,6 +1885,7 @@ fn normalize_synced_provider(mut provider: ProviderProfile) -> Result<ProviderPr
     if provider.kind != ProviderKind::OpenAi
         && provider.api_key.is_empty()
         && !crate::antigravity_provider::allows_missing_api_key(&provider)
+        && !crate::preset_provider::allows_missing_api_key(&provider)
     {
         return Err("Provider API key is empty".to_string());
     }
@@ -3242,6 +3259,193 @@ sandbox_mode = "workspace-write"
         let profile = normalize_synced_provider(provider).unwrap();
 
         assert!(profile.api_key.is_empty());
+    }
+
+    #[test]
+    fn local_preset_save_policy_allows_empty_keys_only_for_exact_identities() {
+        use crate::preset_provider::allows_missing_api_key_fields;
+
+        assert!(allows_missing_api_key_fields(
+            ProviderKind::Custom,
+            "Ollama",
+            "http://localhost:11434/v1",
+            ProviderApiFormat::OpenaiResponses,
+        ));
+        assert!(allows_missing_api_key_fields(
+            ProviderKind::Custom,
+            "LM Studio",
+            "http://127.0.0.1:1234/v1",
+            ProviderApiFormat::OpenaiResponses,
+        ));
+        assert!(!allows_missing_api_key_fields(
+            ProviderKind::Custom,
+            "Ollama",
+            "http://192.168.1.2:11434/v1",
+            ProviderApiFormat::OpenaiResponses,
+        ));
+        assert!(!allows_missing_api_key_fields(
+            ProviderKind::Custom,
+            "OpenRouter",
+            "https://openrouter.ai/api/v1",
+            ProviderApiFormat::OpenaiResponses,
+        ));
+    }
+
+    #[test]
+    fn saved_api_key_is_not_reused_for_a_different_endpoint() {
+        let existing = provider();
+
+        assert_eq!(
+            retained_api_key(Some(&existing), &existing.base_url, None),
+            existing.api_key
+        );
+        assert!(retained_api_key(Some(&existing), "https://other.example/v1", None).is_empty());
+        assert_eq!(
+            retained_api_key(
+                Some(&existing),
+                "https://other.example/v1",
+                Some(" new-key ")
+            ),
+            "new-key"
+        );
+    }
+
+    #[test]
+    fn local_preset_sync_and_activation_policy_accepts_empty_keys() {
+        for (name, base_url) in [
+            ("Ollama", "http://localhost:11434/v1"),
+            ("LM Studio", "http://localhost:1234/v1"),
+        ] {
+            let mut local = provider();
+            local.name = name.to_string();
+            local.base_url = base_url.to_string();
+            local.api_key.clear();
+
+            assert!(crate::preset_provider::allows_missing_api_key(&local));
+            assert!(normalize_synced_provider(local).is_ok());
+        }
+    }
+
+    #[test]
+    fn preset_endpoints_models_and_api_formats_match_service_contracts() {
+        use crate::preset_provider::{inspect_preset_for_test, PresetProviderId};
+
+        let coding = inspect_preset_for_test(
+            PresetProviderId::Bailian,
+            "https://coding.dashscope.aliyuncs.com/v1",
+            None,
+        )
+        .unwrap();
+        assert_eq!(coding.0, ProviderApiFormat::OpenaiChat);
+        assert!(coding.2.contains(&"glm-5".to_string()));
+
+        let payg = inspect_preset_for_test(
+            PresetProviderId::Bailian,
+            "https://llm-abc.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
+            None,
+        )
+        .unwrap();
+        assert_eq!(payg.0, ProviderApiFormat::OpenaiResponses);
+        assert_eq!(payg.2[0], "qwen3.7-max");
+        assert!(inspect_preset_for_test(
+            PresetProviderId::Bailian,
+            "https://evil.example/compatible-mode/v1",
+            None,
+        )
+        .is_err());
+
+        let ollama =
+            inspect_preset_for_test(PresetProviderId::Ollama, "http://[::1]:11434/v1", None)
+                .unwrap();
+        assert!(ollama.1.ends_with("/v1/models"));
+        let payload = json!({"models": [
+            {"key": "plain", "type": "llm", "trained_for_tool_use": false},
+            {"key": "embed", "type": "embedding"},
+            {"key": "tools", "type": "llm", "trained_for_tool_use": true}
+        ]});
+        let studio = inspect_preset_for_test(
+            PresetProviderId::LmStudio,
+            "http://localhost:1234/v1",
+            Some(&payload),
+        )
+        .unwrap();
+        assert!(studio.1.ends_with("/api/v1/models"));
+        assert_eq!(studio.2, vec!["tools", "plain"]);
+    }
+
+    #[test]
+    fn remote_preset_contracts_match_catalog_and_filter_unusable_models() {
+        use crate::preset_provider::{inspect_preset_for_test, PresetProviderId};
+
+        let glm =
+            inspect_preset_for_test(PresetProviderId::Glm, "https://api.z.ai/api/paas/v4", None)
+                .unwrap();
+        assert_eq!(glm.0, ProviderApiFormat::OpenaiChat);
+
+        let minimax =
+            inspect_preset_for_test(PresetProviderId::MiniMax, "https://api.minimax.io/v1", None)
+                .unwrap();
+        assert_eq!(minimax.0, ProviderApiFormat::OpenaiChat);
+        let minimax_payload = json!({"data": [
+            {"id": "MiniMax-M2.7"},
+            {"id": "speech-2.8-hd"}
+        ]});
+        let minimax = inspect_preset_for_test(
+            PresetProviderId::MiniMax,
+            "https://api.minimax.io/v1",
+            Some(&minimax_payload),
+        )
+        .unwrap();
+        assert_eq!(minimax.2, vec!["MiniMax-M2.7"]);
+
+        let payload = json!({"data": [
+            {"id": "tool-chat", "archived": false, "capabilities": {
+                "completion_chat": true, "function_calling": true
+            }},
+            {"id": "no-tools", "archived": false, "capabilities": {
+                "completion_chat": true, "function_calling": false
+            }},
+            {"id": "archived", "archived": true, "capabilities": {
+                "completion_chat": true, "function_calling": true
+            }}
+        ]});
+        let mistral = inspect_preset_for_test(
+            PresetProviderId::Mistral,
+            "https://api.mistral.ai/v1",
+            Some(&payload),
+        )
+        .unwrap();
+        assert_eq!(mistral.2, vec!["tool-chat"]);
+    }
+
+    #[test]
+    fn saved_optional_token_is_reused_only_for_the_same_local_preset_endpoint() {
+        use crate::preset_provider::{reusable_api_key_for_test, PresetProviderId};
+
+        let mut studio = provider();
+        studio.name = "LM Studio".to_string();
+        studio.base_url = "http://localhost:1234/v1".to_string();
+        studio.api_key = "lm-secret".to_string();
+        assert_eq!(
+            reusable_api_key_for_test(
+                &studio,
+                PresetProviderId::LmStudio,
+                "http://localhost:1234/v1/",
+            ),
+            Some("lm-secret".to_string())
+        );
+        assert!(reusable_api_key_for_test(
+            &studio,
+            PresetProviderId::LmStudio,
+            "http://localhost:4321/v1",
+        )
+        .is_none());
+        assert!(reusable_api_key_for_test(
+            &studio,
+            PresetProviderId::Ollama,
+            "http://localhost:1234/v1",
+        )
+        .is_none());
     }
 
     #[test]
