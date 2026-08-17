@@ -468,6 +468,8 @@ pub(crate) struct AppSettings {
     pub(crate) auto_disable_status_codes: Vec<u16>,
     #[serde(default)]
     pub(crate) show_usage_network_errors: bool,
+    #[serde(default = "default_gpt_5_6_sol_context_window")]
+    pub(crate) gpt_5_6_sol_context_window: u64,
     #[serde(default)]
     pub(crate) web_proxy_port: Option<u16>,
     #[serde(default)]
@@ -525,6 +527,9 @@ pub(crate) const MIN_TOKEN_USAGE_WEEKS: u16 = 1;
 pub(crate) const MAX_TOKEN_USAGE_WEEKS: u16 = 52;
 pub(crate) const MIN_TOKEN_USAGE_REFRESH_SECONDS: u64 = 1;
 pub(crate) const MAX_TOKEN_USAGE_REFRESH_SECONDS: u64 = 3_600;
+pub(crate) const DEFAULT_GPT_5_6_SOL_CONTEXT_WINDOW: u64 = 272_000;
+pub(crate) const MAX_GPT_5_6_SOL_CONTEXT_WINDOW: u64 = 1_050_000;
+pub(crate) const MIN_GPT_5_6_SOL_CONTEXT_WINDOW: u64 = 1_000;
 
 fn default_token_usage_weeks() -> u16 {
     20
@@ -532,6 +537,10 @@ fn default_token_usage_weeks() -> u16 {
 
 fn default_token_usage_refresh_seconds() -> u64 {
     60
+}
+
+fn default_gpt_5_6_sol_context_window() -> u64 {
+    DEFAULT_GPT_5_6_SOL_CONTEXT_WINDOW
 }
 
 fn default_close_to_tray() -> bool {
@@ -566,6 +575,7 @@ impl Default for AppSettings {
             token_usage_refresh_seconds: default_token_usage_refresh_seconds(),
             auto_disable_status_codes: default_auto_disable_status_codes(),
             show_usage_network_errors: false,
+            gpt_5_6_sol_context_window: default_gpt_5_6_sol_context_window(),
             web_proxy_port: None,
             web_proxy_listen_on_all_interfaces: false,
             network_proxy: NetworkProxySettings::default(),
@@ -820,6 +830,17 @@ mod tests {
             Some(DEFAULT_CLOUD_BASE_URL)
         );
         assert!(explicitly_disabled.cloud_base_url.is_none());
+    }
+
+    #[test]
+    fn app_settings_default_gpt_5_6_sol_context_window_is_272k() {
+        let defaults = AppSettings::default();
+        let migrated: AppSettings = serde_json::from_str("{}").unwrap();
+        let serialized = serde_json::to_value(&defaults).unwrap();
+
+        assert_eq!(defaults.gpt_5_6_sol_context_window, 272_000);
+        assert_eq!(migrated.gpt_5_6_sol_context_window, 272_000);
+        assert_eq!(serialized["gpt56SolContextWindow"], 272_000);
     }
 
     #[test]

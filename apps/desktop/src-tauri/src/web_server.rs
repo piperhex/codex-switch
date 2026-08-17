@@ -385,6 +385,12 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
         "get_app_info" => serialize(crate::commands::get_app_info(app)),
         "list_accounts" => serialize(block_on(crate::commands::list_accounts(app))),
         "get_app_settings" => serialize(crate::floating_bubble::get_app_settings(app)),
+        "set_gpt_5_6_sol_context_window" => serialize(block_on(
+            crate::local_proxy::set_gpt_5_6_sol_context_window(
+                app,
+                argument(&args, "contextWindow")?,
+            ),
+        )),
         "set_close_to_tray" => serialize(block_on(crate::main_window::set_close_to_tray(
             app.clone(),
             argument(&args, "enabled")?,

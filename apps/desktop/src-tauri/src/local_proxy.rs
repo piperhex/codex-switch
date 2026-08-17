@@ -30,18 +30,21 @@ use crate::{
     auth::{account_fields, is_agent_identity_auth, token_string, validate_auth},
     codex_api::{refresh_tokens, token_expiring, ORIGINATOR},
     models::{
-        AccountSummary, AccountTokenUsageTotals, DailyTokenUsage, ImageModelTarget, ImageRouteKind,
-        LocalProxyStatus, ManagerStateFile, ProviderApiFormat, ProviderBalancePlatform,
-        ProviderKind, ProviderProfile, ProviderTokenUsageTotals, ProxySessionLatencySummary,
-        ProxySessionRequestSummary, ProxySessionSummary, TokenUsageEntry, UsageSummary,
+        AccountSummary, AccountTokenUsageTotals, AppSettings, DailyTokenUsage, ImageModelTarget,
+        ImageRouteKind, LocalProxyStatus, ManagerStateFile, ProviderApiFormat,
+        ProviderBalancePlatform, ProviderKind, ProviderProfile, ProviderTokenUsageTotals,
+        ProxySessionLatencySummary, ProxySessionRequestSummary, ProxySessionSummary,
+        TokenUsageEntry, UsageSummary, MAX_GPT_5_6_SOL_CONTEXT_WINDOW,
+        MIN_GPT_5_6_SOL_CONTEXT_WINDOW,
     },
     providers::{
         self, LOCAL_PROXY_ACTOR_AUTHORIZATION_HEADER, LOCAL_PROXY_BASE_URL, LOCAL_PROXY_HOST,
         LOCAL_PROXY_PORT,
     },
     storage::{
-        load_usage, managed_auth_path, read_json, read_state, resolve_paths, usage_path,
-        write_managed_auth_if_changed, write_state, Paths,
+        load_usage, managed_auth_path, read_app_settings, read_json, read_state, resolve_paths,
+        usage_path, write_app_settings, write_json_if_changed, write_managed_auth_if_changed,
+        write_state, Paths,
     },
 };
 
@@ -60,6 +63,7 @@ const TOKEN_USAGE_LIST_LIMIT: usize = 500;
 const TOKEN_USAGE_CAPTURE_MAX_BYTES: usize = 4 * 1024 * 1024;
 const PROXY_SESSION_REQUEST_KEEP_ROWS: usize = 500;
 const DEFAULT_EFFECTIVE_CONTEXT_WINDOW_PERCENT: u64 = 95;
+const GPT_5_6_SOL_MODEL: &str = "gpt-5.6-sol";
 pub(crate) const TOKEN_USAGE_WINDOW_LABEL: &str = "token-usage";
 const CUSTOM_TOOL_INPUT_DESCRIPTION: &str =
     "Raw string input for the original custom tool. Preserve formatting exactly.";
@@ -1070,6 +1074,43 @@ pub(crate) async fn get_local_proxy_status<R: Runtime + 'static>(
     tauri::async_runtime::spawn_blocking(move || Ok(status(&app)))
         .await
         .map_err(|error| format!("Local proxy status task failed: {error}"))?
+}
+
+#[tauri::command]
+pub(crate) async fn set_gpt_5_6_sol_context_window<R: Runtime + 'static>(
+    app: tauri::AppHandle<R>,
+    context_window: u64,
+) -> Result<AppSettings, String> {
+    validate_gpt_5_6_sol_context_window(context_window)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        set_gpt_5_6_sol_context_window_blocking(&app, context_window)
+    })
+    .await
+    .map_err(|error| format!("Model context window task failed: {error}"))?
+}
+
+fn validate_gpt_5_6_sol_context_window(context_window: u64) -> Result<(), String> {
+    if !(MIN_GPT_5_6_SOL_CONTEXT_WINDOW..=MAX_GPT_5_6_SOL_CONTEXT_WINDOW).contains(&context_window)
+        || !context_window.is_multiple_of(MIN_GPT_5_6_SOL_CONTEXT_WINDOW)
+    {
+        return Err("Context window must be a whole K value between 1K and 1050K".to_string());
+    }
+    Ok(())
+}
+
+fn set_gpt_5_6_sol_context_window_blocking<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    context_window: u64,
+) -> Result<AppSettings, String> {
+    let mut settings = read_app_settings(app)?;
+    settings.gpt_5_6_sol_context_window = context_window;
+    write_app_settings(app, &settings)?;
+    let paths = resolve_paths(app)?;
+    if let Err(error) = update_cached_model_context_window(&paths, context_window) {
+        // The proxy applies the override on the next model request even if this best-effort cache refresh races Codex.
+        eprintln!("failed to update the cached GPT-5.6 Sol context window: {error}");
+    }
+    Ok(settings)
 }
 
 #[tauri::command]
@@ -2356,17 +2397,7 @@ fn handle_proxy_request<R: Runtime>(
             Some(&target),
             ProxyDiagnosticRoute::LocalModels,
         );
-        let result = match &target {
-            ActiveTarget::Official { model } => {
-                forward_official(app, method, url, headers, body, model, None)
-            }
-            ActiveTarget::Provider(provider)
-                if providers::uses_upstream_official_models(provider) =>
-            {
-                forward_provider(method, url, headers, body, provider)
-            }
-            ActiveTarget::Provider(provider) => Ok(provider_models_payload(provider)),
-        };
+        let result = models_payload(app, url, headers, &target);
         append_proxy_diagnostic_result(app, diagnostic, &result, started_at.elapsed());
         return result;
     }
@@ -3614,6 +3645,18 @@ fn official_model_context_windows(paths: &Paths) -> HashMap<String, u64> {
         .unwrap_or_default()
 }
 
+fn update_cached_model_context_window(paths: &Paths, context_window: u64) -> Result<(), String> {
+    let path = paths.codex_home.join("models_cache.json");
+    if !path.exists() {
+        return Ok(());
+    }
+    let mut catalog = read_json(&path)?;
+    if apply_model_context_window(&mut catalog, GPT_5_6_SOL_MODEL, context_window) {
+        write_json_if_changed(&path, &catalog)?;
+    }
+    Ok(())
+}
+
 fn upstream_official_provider_names(paths: &Paths) -> HashSet<String> {
     providers::list_provider_profiles(paths)
         .unwrap_or_default()
@@ -4351,6 +4394,103 @@ fn forward_provider(
             .send()
             .map_err(|error| format!("Provider proxy request failed: {error}"))?,
     )
+}
+
+fn models_payload<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    url: &str,
+    headers: &[(String, String)],
+    target: &ActiveTarget,
+) -> Result<UpstreamPayload, String> {
+    let upstream_headers = unconditional_model_catalog_headers(headers);
+    let payload = match target {
+        ActiveTarget::Official { model } => forward_official(
+            app,
+            &Method::Get,
+            url,
+            &upstream_headers,
+            Vec::new(),
+            model,
+            None,
+        )?,
+        ActiveTarget::Provider(provider) if providers::uses_upstream_official_models(provider) => {
+            forward_provider(&Method::Get, url, &upstream_headers, Vec::new(), provider)?
+        }
+        ActiveTarget::Provider(provider) => return Ok(provider_models_payload(provider)),
+    };
+    let context_window = read_app_settings(app)?.gpt_5_6_sol_context_window;
+    override_model_context_window(payload, GPT_5_6_SOL_MODEL, context_window)
+}
+
+fn unconditional_model_catalog_headers(headers: &[(String, String)]) -> Vec<(String, String)> {
+    headers
+        .iter()
+        .filter(|(name, _)| {
+            !matches!(
+                name.to_ascii_lowercase().as_str(),
+                "if-none-match" | "if-modified-since"
+            )
+        })
+        .cloned()
+        .collect()
+}
+
+fn override_model_context_window(
+    mut payload: UpstreamPayload,
+    model: &str,
+    context_window: u64,
+) -> Result<UpstreamPayload, String> {
+    if payload.status != 200 {
+        return Ok(payload);
+    }
+    let mut body = Vec::new();
+    match payload.body {
+        UpstreamBody::Buffered(buffered) => body = buffered,
+        UpstreamBody::Streaming(mut reader) => {
+            reader
+                .read_to_end(&mut body)
+                .map_err(|error| format!("Failed to read upstream model catalog: {error}"))?;
+        }
+    }
+    let mut catalog = serde_json::from_slice::<Value>(&body)
+        .map_err(|error| format!("Upstream model catalog is not valid JSON: {error}"))?;
+    if apply_model_context_window(&mut catalog, model, context_window) {
+        body = serde_json::to_vec(&catalog)
+            .map_err(|error| format!("Failed to encode model catalog: {error}"))?;
+        replace_model_catalog_etags(&mut payload.response_headers, &body);
+    }
+    payload.body = UpstreamBody::Buffered(body);
+    Ok(payload)
+}
+
+fn apply_model_context_window(catalog: &mut Value, model: &str, context_window: u64) -> bool {
+    let Some(models) = catalog.get_mut("models").and_then(Value::as_array_mut) else {
+        return false;
+    };
+    let Some(entry) = models.iter_mut().find(|entry| {
+        ["slug", "id"]
+            .into_iter()
+            .any(|field| entry.get(field).and_then(Value::as_str) == Some(model))
+    }) else {
+        return false;
+    };
+    entry["context_window"] = json!(context_window);
+    entry["max_context_window"] = json!(context_window);
+    true
+}
+
+fn replace_model_catalog_etags(headers: &mut Vec<(String, String)>, body: &[u8]) {
+    let etag = format!("\"codex-switch-{}\"", short_hash_bytes(body));
+    let mut found = false;
+    for (name, value) in headers.iter_mut() {
+        if matches!(name.to_ascii_lowercase().as_str(), "etag" | "x-models-etag") {
+            value.clone_from(&etag);
+            found = true;
+        }
+    }
+    if !found {
+        headers.push(("ETag".to_string(), etag));
+    }
 }
 
 fn provider_models_payload(provider: &ProviderProfile) -> UpstreamPayload {
@@ -8390,6 +8530,58 @@ mod tests {
                 ("gpt-max-fallback".to_string(), 121_600),
             ])
         );
+    }
+
+    #[test]
+    fn model_catalog_context_override_updates_limits_and_etag() {
+        let catalog = json!({
+            "models": [{
+                "slug": GPT_5_6_SOL_MODEL,
+                "context_window": 272_000,
+                "max_context_window": 872_000,
+                "effective_context_window_percent": 95
+            }]
+        });
+        let payload = UpstreamPayload {
+            status: 200,
+            content_type: Some("application/json".to_string()),
+            response_headers: vec![("x-models-etag".to_string(), "upstream".to_string())],
+            body: UpstreamBody::Buffered(serde_json::to_vec(&catalog).unwrap()),
+            token_usage_account: None,
+        };
+
+        let payload = override_model_context_window(payload, GPT_5_6_SOL_MODEL, 1_000_000).unwrap();
+        let UpstreamBody::Buffered(body) = payload.body else {
+            panic!("model catalog override must buffer the response");
+        };
+        let updated: Value = serde_json::from_slice(&body).unwrap();
+
+        assert_eq!(updated["models"][0]["context_window"], 1_000_000);
+        assert_eq!(updated["models"][0]["max_context_window"], 1_000_000);
+        assert_eq!(updated["models"][0]["effective_context_window_percent"], 95);
+        assert!(payload.response_headers[0].1.starts_with("\"codex-switch-"));
+    }
+
+    #[test]
+    fn model_catalog_refresh_removes_conditional_request_headers() {
+        let headers = vec![
+            ("If-None-Match".to_string(), "cached".to_string()),
+            ("If-Modified-Since".to_string(), "yesterday".to_string()),
+            ("User-Agent".to_string(), "Codex".to_string()),
+        ];
+
+        assert_eq!(
+            unconditional_model_catalog_headers(&headers),
+            vec![("User-Agent".to_string(), "Codex".to_string())]
+        );
+    }
+
+    #[test]
+    fn gpt_5_6_sol_context_window_validation_uses_whole_k_increments() {
+        assert!(validate_gpt_5_6_sol_context_window(272_000).is_ok());
+        assert!(validate_gpt_5_6_sol_context_window(1_000_000).is_ok());
+        assert!(validate_gpt_5_6_sol_context_window(272_001).is_err());
+        assert!(validate_gpt_5_6_sol_context_window(1_051_000).is_err());
     }
 
     #[test]

@@ -39,6 +39,12 @@ import {
 } from "../../api/backend";
 import type { Language, Translate } from "../../i18n";
 import type { AccountDisplayMode } from "../../hooks/useAccountDisplayMode";
+import {
+  DEFAULT_GPT_5_6_SOL_CONTEXT_WINDOW_K,
+  GPT_5_6_SOL_CONTEXT_WINDOW_OPTIONS_K,
+  type ModelContextWindowError,
+  useGpt56SolContextWindow,
+} from "../../hooks/useGpt56SolContextWindow";
 import type {
   Account,
   AccountDetailsDraft,
@@ -106,12 +112,16 @@ interface AccountTableProps {
 
 const USAGE_SORT_STORAGE_KEY = "codex-switch:account-table-usage-sort";
 const HIDDEN_COLUMNS_STORAGE_KEY = "codex-switch:account-table-hidden-columns";
-const MODEL_CONTEXT_WINDOW_STORAGE_KEY = "codex-switch:account-table-model-context-window";
-const GPT_5_6_SOL_CONTEXT_WINDOW_OPTIONS = [128, 256, 384, 400, 1000].map((value) => ({
+const GPT_5_6_SOL_CONTEXT_WINDOW_OPTIONS = GPT_5_6_SOL_CONTEXT_WINDOW_OPTIONS_K.map((value) => ({
   label: `${value}K`,
   value: String(value),
 }));
-const DEFAULT_GPT_5_6_SOL_CONTEXT_WINDOW_K = "256";
+
+function modelContextWindowTooltipKey(error: ModelContextWindowError) {
+  if (error === "invalid") return "table.modelContextWindowInvalid" as const;
+  if (error === "save") return "table.modelContextWindowSaveError" as const;
+  return "table.modelContextWindowTooltip" as const;
+}
 
 type UsageSortColumn = "fiveHours" | "oneWeek";
 type UsageSortOrder = "ascend" | "descend";
@@ -158,15 +168,6 @@ function loadUsageSortPreference(): UsageSortPreference | null {
     return { column: preference.column, order: preference.order };
   } catch {
     return null;
-  }
-}
-
-function loadModelContextWindowK() {
-  try {
-    return window.localStorage.getItem(MODEL_CONTEXT_WINDOW_STORAGE_KEY)?.trim()
-      || DEFAULT_GPT_5_6_SOL_CONTEXT_WINDOW_K;
-  } catch {
-    return DEFAULT_GPT_5_6_SOL_CONTEXT_WINDOW_K;
   }
 }
 
@@ -475,21 +476,13 @@ export function AccountTable({
   const [openaiAuthPendingAccountId, setOpenaiAuthPendingAccountId] = useState<string | null>(null);
   const [usageSort, setUsageSort] = useState<UsageSortPreference | null>(loadUsageSortPreference);
   const [hiddenColumns, setHiddenColumns] = useState<AccountTableColumnKey[]>(loadHiddenColumns);
-  const [modelContextWindowK, setModelContextWindowK] = useState(loadModelContextWindowK);
+  const modelContextWindow = useGpt56SolContextWindow();
   const [tableScrollY, setTableScrollY] = useState(0);
   const [accountTokenUsage, setAccountTokenUsage] = useState<AccountTokenUsageTotals[]>([]);
   const [accountConversationCounts, setAccountConversationCounts] = useState<Record<string, number>>({});
   const [proxySessionLatency, setProxySessionLatency] = useState<ProxySessionLatencySummary>(
     EMPTY_PROXY_SESSION_LATENCY,
   );
-  const updateModelContextWindowK = (value: string) => {
-    setModelContextWindowK(value);
-    try {
-      window.localStorage.setItem(MODEL_CONTEXT_WINDOW_STORAGE_KEY, value);
-    } catch {
-      // The selection remains usable when browser storage is unavailable.
-    }
-  };
   const openAccountDetails = (account: Account) => {
     setEditingAccount(account);
     setLoadingAccountDetailsId(account.id);
@@ -1314,17 +1307,25 @@ export function AccountTable({
               </Tooltip>
             )}
           </span>
-          <span className="model-context-window-control">
-            <span>{t("table.modelContextWindow")}{language === "zh" ? "：" : ": "}</span>
-            <AutoComplete
-              value={modelContextWindowK}
-              options={GPT_5_6_SOL_CONTEXT_WINDOW_OPTIONS}
-              placeholder={DEFAULT_GPT_5_6_SOL_CONTEXT_WINDOW_K}
-              aria-label={t("table.modelContextWindow")}
-              onChange={updateModelContextWindowK}
-            />
-            <span>K</span>
-          </span>
+          <Tooltip
+            title={t(modelContextWindowTooltipKey(modelContextWindow.error))}
+            styles={{ root: { maxWidth: 400 } }}
+          >
+            <span className="model-context-window-control">
+              <span>{t("table.modelContextWindow")}{language === "zh" ? "：" : ": "}</span>
+              <AutoComplete
+                value={modelContextWindow.valueK}
+                options={GPT_5_6_SOL_CONTEXT_WINDOW_OPTIONS}
+                placeholder={DEFAULT_GPT_5_6_SOL_CONTEXT_WINDOW_K}
+                aria-label={t("table.modelContextWindow")}
+                disabled={modelContextWindow.saving}
+                status={modelContextWindow.error ? "error" : undefined}
+                onChange={modelContextWindow.updateValueK}
+                onBlur={() => void modelContextWindow.saveValueK(modelContextWindow.valueK)}
+              />
+              <span>K</span>
+            </span>
+          </Tooltip>
           {proxyControls}
         </div>
         {showImageModelSelectors && (

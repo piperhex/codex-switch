@@ -121,6 +121,9 @@ export async function quitApplication(): Promise<void> {
 }
 export const DEFAULT_CLOUD_BASE_URL = "https://codex.onepiper.cloud";
 export const DEFAULT_AUTO_DISABLE_STATUS_CODES = [401, 402, 403] as const;
+export const DEFAULT_GPT_5_6_SOL_CONTEXT_WINDOW = 272_000;
+export const MAX_GPT_5_6_SOL_CONTEXT_WINDOW = 1_050_000;
+export const MIN_GPT_5_6_SOL_CONTEXT_WINDOW = 1_000;
 const RELEASES_URL = "https://github.com/piperhex/codex-switch/releases/latest";
 const PENDING_APP_UPDATE_VERSION_KEY = "codex-switch:pending-app-update-version";
 let pendingAppUpdate: Update | null = null;
@@ -161,6 +164,7 @@ const TOKEN_USAGE_WEEKS_PREVIEW_KEY = "codex-switch:token-usage-weeks";
 const TOKEN_USAGE_REFRESH_PREVIEW_KEY = "codex-switch:token-usage-refresh-seconds";
 const AUTO_DISABLE_STATUS_CODES_PREVIEW_KEY = "codex-switch:auto-disable-status-codes";
 const SHOW_USAGE_NETWORK_ERRORS_PREVIEW_KEY = "codex-switch:show-usage-network-errors";
+const GPT_5_6_SOL_CONTEXT_WINDOW_LEGACY_KEY = "codex-switch:account-table-model-context-window";
 const THEME_COLOR_EVENT = "codex-switch:theme-color-changed";
 const BUBBLE_RESET_DISPLAY_EVENT = "bubble-reset-display-changed";
 const BUBBLE_STYLE_EVENT = "bubble-style-changed";
@@ -408,6 +412,21 @@ function previewAutoDisableStatusCodes() {
   }
 }
 
+function legacyGpt56SolContextWindow(): number | null {
+  try {
+    const contextWindowK = Number(window.localStorage.getItem(GPT_5_6_SOL_CONTEXT_WINDOW_LEGACY_KEY));
+    const contextWindow = contextWindowK * 1_000;
+    if (contextWindow === 256_000) return DEFAULT_GPT_5_6_SOL_CONTEXT_WINDOW;
+    return Number.isSafeInteger(contextWindow)
+      && contextWindow >= MIN_GPT_5_6_SOL_CONTEXT_WINDOW
+      && contextWindow <= MAX_GPT_5_6_SOL_CONTEXT_WINDOW
+      ? contextWindow
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function loadAppSettings(): Promise<AppSettings> {
   if (!hasLocalBackend) {
     return {
@@ -425,6 +444,7 @@ export async function loadAppSettings(): Promise<AppSettings> {
       tokenUsageRefreshSeconds: Number(window.localStorage.getItem(TOKEN_USAGE_REFRESH_PREVIEW_KEY)) || 60,
       autoDisableStatusCodes: previewAutoDisableStatusCodes(),
       showUsageNetworkErrors: window.localStorage.getItem(SHOW_USAGE_NETWORK_ERRORS_PREVIEW_KEY) === "true",
+      gpt56SolContextWindow: legacyGpt56SolContextWindow() ?? DEFAULT_GPT_5_6_SOL_CONTEXT_WINDOW,
       webProxyPort: previewLocalProxyStatus().port || null,
       webProxyListenOnAllInterfaces:
         window.localStorage.getItem(WEB_PROXY_LISTEN_ALL_INTERFACES_PREVIEW_KEY) === "true",
@@ -436,6 +456,36 @@ export async function loadAppSettings(): Promise<AppSettings> {
     };
   }
   return invoke<AppSettings>("get_app_settings");
+}
+
+export async function loadGpt56SolContextWindow(): Promise<number> {
+  const settings = await loadAppSettings();
+  const savedContextWindow = settings.gpt56SolContextWindow ?? DEFAULT_GPT_5_6_SOL_CONTEXT_WINDOW;
+  const legacyContextWindow = legacyGpt56SolContextWindow();
+  if (!hasLocalBackend || legacyContextWindow === null) return savedContextWindow;
+  const migrated = await invoke<AppSettings>("set_gpt_5_6_sol_context_window", {
+    contextWindow: legacyContextWindow,
+  });
+  try {
+    window.localStorage.removeItem(GPT_5_6_SOL_CONTEXT_WINDOW_LEGACY_KEY);
+  } catch {
+    // The backend setting remains authoritative when browser storage is unavailable.
+  }
+  return migrated.gpt56SolContextWindow ?? legacyContextWindow;
+}
+
+export async function updateGpt56SolContextWindow(contextWindow: number): Promise<number> {
+  if (!Number.isSafeInteger(contextWindow)
+    || contextWindow < MIN_GPT_5_6_SOL_CONTEXT_WINDOW
+    || contextWindow > MAX_GPT_5_6_SOL_CONTEXT_WINDOW) {
+    throw new Error("Context window must be between 1K and 1050K");
+  }
+  if (!hasLocalBackend) {
+    window.localStorage.setItem(GPT_5_6_SOL_CONTEXT_WINDOW_LEGACY_KEY, String(contextWindow / 1_000));
+    return contextWindow;
+  }
+  const settings = await invoke<AppSettings>("set_gpt_5_6_sol_context_window", { contextWindow });
+  return settings.gpt56SolContextWindow ?? contextWindow;
 }
 
 export async function loadProviders(): Promise<Provider[]> {
