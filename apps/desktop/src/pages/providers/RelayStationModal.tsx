@@ -115,6 +115,13 @@ export function RelayStationModal({
         <h2>{t("providers.relay.title")}</h2>
         <p>{t("providers.relay.description")}</p>
         <div className="provider-form">
+          <label htmlFor="relay-name">{t("providers.form.name")}</label>
+          <Input id="relay-name" value={name} disabled={saving}
+            placeholder={t("providers.relay.namePlaceholder")}
+            onChange={(event) => {
+              setNameTouched(true);
+              setName(event.target.value);
+            }} />
           <label htmlFor="relay-platform">{t("providers.relay.platform")}</label>
           <Select id="relay-platform" value={platform} disabled={saving}
             placeholder={t("providers.relay.platformPlaceholder")}
@@ -136,13 +143,6 @@ export function RelayStationModal({
           <details className="provider-advanced">
             <summary>{t("providers.relay.advanced")}</summary>
             <div className="provider-advanced-fields">
-              <label htmlFor="relay-name">{t("providers.form.name")}</label>
-              <Input id="relay-name" value={name} disabled={saving}
-                placeholder={t("providers.relay.namePlaceholder")}
-                onChange={(event) => {
-                  setNameTouched(true);
-                  setName(event.target.value);
-                }} />
               <label htmlFor="relay-base-url">{t("providers.form.baseUrl")}</label>
               <Input id="relay-base-url" value={baseUrl} disabled={saving}
                 onChange={(event) => setBaseUrl(event.target.value)} />
