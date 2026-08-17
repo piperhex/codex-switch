@@ -73,6 +73,7 @@ import { useBubbleStyle } from "../../hooks/useBubbleStyle";
 import { useCloudAuth } from "../../hooks/useCloudAuth";
 import { useCloudContent, useCloudContentLifecycle } from "../../hooks/useCloudContent";
 import { useCloseToTray } from "../../hooks/useCloseToTray";
+import { useCodexHome } from "../../hooks/useCodexHome";
 import { useLanguage } from "../../hooks/useLanguage";
 import { useLaunchAtStartup } from "../../hooks/useLaunchAtStartup";
 import { useFloatingBubble } from "../../hooks/useFloatingBubble";
@@ -304,6 +305,13 @@ export function DashboardApp() {
   const tokenUsagePreferences = useTokenUsagePreferences(notify);
   const manager = useAccountManager(notify, t, accountCloudSync);
   const providerManager = useProviderManager(notify, t, providerCloudSync);
+  const codexHome = useCodexHome({
+    currentPath: manager.info?.codexHome,
+    localProxyRunning: Boolean(providerManager.localProxy?.running),
+    notify,
+    reload: manager.reload,
+    t,
+  });
   useEffect(() => {
     void loadAppSettings()
       .then((settings) => {
@@ -1271,6 +1279,10 @@ export function DashboardApp() {
               onNetworkProxySave={saveNetworkProxy}
               onTokenUsageWeeksChange={tokenUsagePreferences.updateWeeks}
               onTokenUsageRefreshSecondsChange={tokenUsagePreferences.updateRefreshSeconds}
+              codexHomeCustomized={codexHome.customized}
+              codexHomeLoading={codexHome.loading}
+              onChangeCodexHome={() => void codexHome.change()}
+              onResetCodexHome={codexHome.reset}
               onOpenCodexHome={openCodexHome} onOpenAccountStore={openAccountStore} language={language}
               onExportLogs={() => void exportLogs()} exportingLogs={exportingLogs}
               onLanguageChange={setLanguage} t={t} />

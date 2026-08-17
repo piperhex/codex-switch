@@ -6,6 +6,7 @@ mod autostart;
 mod claude_code_provider;
 mod cloud;
 mod codex_api;
+mod codex_home;
 mod codex_runtime;
 mod commands;
 mod conversation_hub;
@@ -87,6 +88,7 @@ pub fn run() {
         .setup(move |app| {
             storage::migrate_app_settings_for_version(app.handle())?;
             let settings = storage::read_app_settings(app.handle())?;
+            codex_home::initialize(settings.codex_home.as_deref());
             main_window::configure_close_behavior(app.handle(), settings.close_to_tray);
             if let Err(error) = system_proxy::configure(&settings.network_proxy) {
                 eprintln!("failed to restore the network proxy setting: {error}");
@@ -174,6 +176,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::get_app_info,
             commands::open_managed_folder,
+            codex_home::set_codex_home,
             commands::list_accounts,
             commands::copy_account_auth_json,
             commands::import_auth_file,

@@ -430,6 +430,7 @@ function legacyGpt56SolContextWindow(): number | null {
 export async function loadAppSettings(): Promise<AppSettings> {
   if (!hasLocalBackend) {
     return {
+      codexHome: null,
       launchAtStartup: window.localStorage.getItem(LAUNCH_AT_STARTUP_PREVIEW_KEY) !== "false",
       closeToTray: window.localStorage.getItem(CLOSE_TO_TRAY_PREVIEW_KEY) !== "false",
       floatingBubbleEnabled: previewFloatingBubbleEnabled(),
@@ -456,6 +457,22 @@ export async function loadAppSettings(): Promise<AppSettings> {
     };
   }
   return invoke<AppSettings>("get_app_settings");
+}
+
+export async function chooseCodexHome(defaultPath?: string): Promise<string | null> {
+  if (!isDesktopApp) return null;
+  const selected = await open({
+    title: "Codex Home",
+    multiple: false,
+    directory: true,
+    defaultPath: defaultPath || undefined,
+  });
+  return typeof selected === "string" ? selected : null;
+}
+
+export async function updateCodexHome(path: string | null): Promise<AppSettings> {
+  if (!isDesktopApp) return loadAppSettings();
+  return invoke<AppSettings>("set_codex_home", { path });
 }
 
 export async function loadGpt56SolContextWindow(): Promise<number> {

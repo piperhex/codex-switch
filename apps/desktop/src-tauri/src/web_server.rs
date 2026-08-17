@@ -756,14 +756,14 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
             app,
             argument(&args, "skill")?,
         ))),
-        "list_official_plugins" => {
-            serialize(block_on(crate::official_plugins::list_official_plugins()))
-        }
+        "list_official_plugins" => serialize(block_on(
+            crate::official_plugins::list_official_plugins(app),
+        )),
         "install_official_plugin" => serialize(block_on(
-            crate::official_plugins::install_official_plugin(argument(&args, "pluginId")?),
+            crate::official_plugins::install_official_plugin(app, argument(&args, "pluginId")?),
         )),
         "remove_official_plugin" => serialize(block_on(
-            crate::official_plugins::remove_official_plugin(argument(&args, "pluginId")?),
+            crate::official_plugins::remove_official_plugin(app, argument(&args, "pluginId")?),
         )),
         "set_official_plugin_enabled" => serialize(block_on(
             crate::official_plugins::set_official_plugin_enabled(

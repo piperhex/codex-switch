@@ -6,9 +6,9 @@ use std::{
 #[cfg(target_os = "windows")]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
-fn command(executable: &Path) -> Command {
+fn command(executable: &Path, codex_home: &Path) -> Command {
     let mut command = Command::new(executable);
-    command.env("NO_COLOR", "1");
+    command.env("NO_COLOR", "1").env("CODEX_HOME", codex_home);
     #[cfg(target_os = "windows")]
     {
         use std::os::windows::process::CommandExt;
@@ -17,8 +17,8 @@ fn command(executable: &Path) -> Command {
     command
 }
 
-fn execute(executable: &Path, args: &[&str]) -> std::io::Result<Output> {
-    command(executable).args(args).output()
+fn execute(executable: &Path, codex_home: &Path, args: &[&str]) -> std::io::Result<Output> {
+    command(executable, codex_home).args(args).output()
 }
 
 #[cfg(target_os = "windows")]
@@ -29,11 +29,11 @@ fn plugin_appserver_path(codex_home: &Path) -> PathBuf {
         .join("codex.exe")
 }
 
-fn candidates() -> Vec<PathBuf> {
+fn candidates(codex_home: &Path) -> Vec<PathBuf> {
     let mut candidates = Vec::new();
     #[cfg(target_os = "windows")]
-    if let Ok(codex_home) = crate::storage::resolve_codex_home() {
-        let plugin_cli = plugin_appserver_path(&codex_home);
+    {
+        let plugin_cli = plugin_appserver_path(codex_home);
         if plugin_cli.is_file() {
             candidates.push(plugin_cli);
         }
@@ -42,10 +42,14 @@ fn candidates() -> Vec<PathBuf> {
     candidates
 }
 
-fn execute_first_available(candidates: &[PathBuf], args: &[&str]) -> std::io::Result<Output> {
+fn execute_first_available(
+    candidates: &[PathBuf],
+    codex_home: &Path,
+    args: &[&str],
+) -> std::io::Result<Output> {
     let mut last_error = None;
     for executable in candidates {
-        match execute(executable, args) {
+        match execute(executable, codex_home, args) {
             Ok(output) => return Ok(output),
             Err(error) if is_unavailable(&error) => last_error = Some(error),
             Err(error) => return Err(error),
@@ -76,8 +80,12 @@ fn startup_error(error: &std::io::Error, fallback: &str) -> String {
     }
 }
 
-pub(super) fn run(args: &[&str], failure_message: &str) -> Result<Output, String> {
-    let output = execute_first_available(&candidates(), args)
+pub(super) fn run(
+    codex_home: &Path,
+    args: &[&str],
+    failure_message: &str,
+) -> Result<Output, String> {
+    let output = execute_first_available(&candidates(codex_home), codex_home, args)
         .map_err(|error| startup_error(&error, failure_message))?;
     output
         .status
@@ -108,9 +116,13 @@ mod tests {
     fn falls_back_to_the_next_executable_candidate() {
         let missing =
             std::env::temp_dir().join(format!("missing-codex-cli-{}", std::process::id()));
-        let output =
-            execute_first_available(&[missing, std::env::current_exe().unwrap()], &["--help"])
-                .unwrap();
+        let codex_home = std::env::temp_dir();
+        let output = execute_first_available(
+            &[missing, std::env::current_exe().unwrap()],
+            &codex_home,
+            &["--help"],
+        )
+        .unwrap();
 
         assert!(output.status.success());
     }

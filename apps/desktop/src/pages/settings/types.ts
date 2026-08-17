@@ -71,6 +71,10 @@ export interface SettingsPageProps {
   onNetworkProxySave: (settings: NetworkProxySettings) => Promise<boolean>;
   onTokenUsageWeeksChange: (value: number | string | null) => void;
   onTokenUsageRefreshSecondsChange: (value: number | string | null) => void;
+  codexHomeCustomized: boolean;
+  codexHomeLoading: boolean;
+  onChangeCodexHome: () => void;
+  onResetCodexHome: () => void;
   onOpenCodexHome: () => void;
   onOpenAccountStore: () => void;
   onExportLogs: () => void;

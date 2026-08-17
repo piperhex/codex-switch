@@ -426,6 +426,8 @@ pub(crate) struct DailyTokenUsage {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct AppSettings {
+    #[serde(default)]
+    pub(crate) codex_home: Option<String>,
     #[serde(default = "default_launch_at_startup")]
     pub(crate) launch_at_startup: bool,
     #[serde(default = "default_close_to_tray")]
@@ -554,6 +556,7 @@ fn default_auto_disable_status_codes() -> Vec<u16> {
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
+            codex_home: None,
             launch_at_startup: default_launch_at_startup(),
             close_to_tray: default_close_to_tray(),
             floating_bubble_enabled: default_floating_bubble_enabled(),

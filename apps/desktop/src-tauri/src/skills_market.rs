@@ -1,6 +1,6 @@
 use std::{
     collections::BTreeMap,
-    env, fs,
+    fs,
     io::{Cursor, Write},
     path::{Component, Path, PathBuf},
 };
@@ -91,13 +91,8 @@ struct ArchiveLayout {
     root_prefix: Option<PathBuf>,
 }
 
-fn skills_root() -> Result<PathBuf, String> {
-    if let Some(codex_home) = env::var_os("CODEX_HOME").filter(|value| !value.is_empty()) {
-        return Ok(PathBuf::from(codex_home).join("skills"));
-    }
-    dirs::home_dir()
-        .map(|home| home.join(".codex").join("skills"))
-        .ok_or_else(|| "Could not resolve the Codex skills directory".to_string())
+fn skills_root<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<PathBuf, String> {
+    crate::storage::resolve_paths(app).map(|paths| paths.codex_home.join("skills"))
 }
 
 fn registry_path<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<PathBuf, String> {
@@ -323,7 +318,7 @@ fn mark_installed<R: Runtime>(
     app: &tauri::AppHandle<R>,
     items: &mut [SkillMarketItem],
 ) -> Result<(), String> {
-    let root = skills_root()?;
+    let root = skills_root(app)?;
     let mut registry = read_registry(app);
     registry.installed.retain(|_, installed| {
         installed_path(&root, &installed.directory)
@@ -463,7 +458,7 @@ pub(crate) async fn install_market_skill<R: Runtime>(
     skill: SkillMarketItem,
 ) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let root = skills_root()?;
+        let root = skills_root(&app)?;
         fs::create_dir_all(&root)
             .map_err(|error| format!("Could not create {}: {error}", root.display()))?;
         let mut registry = read_registry(&app);

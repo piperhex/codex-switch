@@ -1,5 +1,5 @@
 import { Button, Switch } from "antd";
-import { FileDown, FolderKey, FolderOpen, KeyRound, RefreshCw, ShieldCheck } from "lucide-react";
+import { FileDown, FolderKey, FolderOpen, KeyRound, RefreshCw, RotateCcw, ShieldCheck } from "lucide-react";
 import { DurationTimePicker } from "./DurationTimePicker";
 import type { SettingsPageProps } from "./types";
 
@@ -79,33 +79,67 @@ function AccountAutoRefreshCard({ settings }: { settings: SettingsPageProps }) {
   );
 }
 
-function FolderCard({
-  options,
-}: { options: {
-  icon: "home" | "store";
-  onOpen: () => void;
-  path?: string;
-  title: string;
-  settings: SettingsPageProps;
-} }) {
-  const { icon, onOpen, path, title, settings } = options;
+function CodexHomeCard({ settings }: { settings: SettingsPageProps }) {
   const { t } = settings;
+  const path = settings.info?.codexHome;
   return (
     <section className="settings-card">
-      <div className="settings-icon">
-        {icon === "home" ? <FolderKey size={23} /> : <KeyRound size={23} />}
-      </div>
+      <div className="settings-icon"><FolderKey size={23} /></div>
       <div className="settings-card-content">
         <div className="settings-card-copy">
-          <h3>{title}</h3>
-          <p>{t(icon === "home" ? "settings.codexHome.description" : "settings.accountStore.description")}</p>
+          <h3>Codex Home</h3>
+          <p>{t("settings.codexHome.description")}</p>
+          <code>{path ?? t("settings.loading")}</code>
+        </div>
+        <div className="settings-folder-actions">
+          <Button
+            size="small"
+            loading={settings.codexHomeLoading}
+            onClick={settings.onChangeCodexHome}
+          >
+            {t("settings.codexHome.change")}
+          </Button>
+          {settings.codexHomeCustomized && (
+            <Button
+              size="small"
+              icon={<RotateCcw size={14} />}
+              disabled={settings.codexHomeLoading}
+              onClick={settings.onResetCodexHome}
+            >
+              {t("settings.codexHome.reset")}
+            </Button>
+          )}
+          <Button
+            size="small"
+            icon={<FolderOpen size={14} />}
+            disabled={!path || settings.codexHomeLoading}
+            onClick={settings.onOpenCodexHome}
+          >
+            {t("settings.openFolder")}
+          </Button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function AccountStoreCard({ settings }: { settings: SettingsPageProps }) {
+  const { t } = settings;
+  const path = settings.info?.accountStore;
+  return (
+    <section className="settings-card">
+      <div className="settings-icon"><KeyRound size={23} /></div>
+      <div className="settings-card-content">
+        <div className="settings-card-copy">
+          <h3>{t("settings.accountStore.title")}</h3>
+          <p>{t("settings.accountStore.description")}</p>
           <code>{path ?? t("settings.loading")}</code>
         </div>
         <Button
           size="small"
           icon={<FolderOpen size={14} />}
           disabled={!path}
-          onClick={onOpen}
+          onClick={settings.onOpenAccountStore}
         >
           {t("settings.openFolder")}
         </Button>
@@ -166,24 +200,8 @@ export function SecuritySettingsCard({ settings }: { settings: SettingsPageProps
 export function StorageSettingsCards({ settings }: { settings: SettingsPageProps }) {
   return (
     <>
-      <FolderCard
-        options={{
-          icon: "home",
-          onOpen: settings.onOpenCodexHome,
-          path: settings.info?.codexHome,
-          title: "Codex Home",
-          settings,
-        }}
-      />
-      <FolderCard
-        options={{
-          icon: "store",
-          onOpen: settings.onOpenAccountStore,
-          path: settings.info?.accountStore,
-          title: settings.t("settings.accountStore.title"),
-          settings,
-        }}
-      />
+      <CodexHomeCard settings={settings} />
+      <AccountStoreCard settings={settings} />
       <LogsCard settings={settings} />
     </>
   );

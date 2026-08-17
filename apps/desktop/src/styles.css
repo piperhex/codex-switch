@@ -901,6 +901,14 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .settings-card .settings-current-account { display: inline-block; margin: 0; padding: 5px 8px; border-radius: 6px; color: var(--green-dark); background: var(--green-selection); font-weight: 600; }
 .settings-card-copy > .settings-current-account, .settings-card-copy > code, .settings-card-copy > .cloud-settings-status { margin-top: 7px !important; }
 .settings-card code { display: block; padding: 6px 8px; border-radius: 7px; color: #456052; background: #f0f3ef; font-size: 10px; word-break: break-all; }
+.settings-folder-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
 .settings-field { flex: 0 0 auto; display: flex; align-items: center; justify-content: flex-end; gap: 10px; white-space: nowrap; }
 .settings-field label { color: #5d6a62; font-size: 11px; font-weight: 700; }
 .settings-field .ant-segmented-item-label { height: 100%; min-height: 0; display: flex; align-items: center; justify-content: center; line-height: 1; }
@@ -1797,6 +1805,7 @@ main.tokens-main { overflow: hidden; padding-bottom: 0; }
   .settings-card { align-items: flex-start; }
   .settings-card-content { align-items: flex-start; flex-direction: column; gap: 10px; }
   .settings-field { flex-wrap: wrap; justify-content: flex-start; white-space: normal; }
+  .settings-folder-actions { justify-content: flex-start; }
   .settings-field-wide .ant-input-affix-wrapper { width: min(430px, 100%); }
   .network-proxy-editor { width: 100%; }
   .network-proxy-fields { grid-template-columns: 1fr 100px; }

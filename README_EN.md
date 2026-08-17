@@ -123,6 +123,11 @@ The **Providers** page manages OpenAI Responses or Chat Completions-compatible e
 
 The **Skills** page can browse, search, and install community Skills locally. Publishing or updating a versioned Skill package requires a signed-in cloud account. The **One-click themes** page provides 300+ bundled Dream Skin presets plus custom-background and restore controls.
 
+Settings lets you choose the Codex Home directory used by Codex Switch. When no custom directory is set,
+it resolves `CODEX_HOME` first and then `~/.codex`; **Use default** follows the same order. This setting does
+not modify system environment variables. Managed account copies, Provider settings, application settings,
+cloud tokens, proxy logs, and token-usage history remain in the operating system's application data directory.
+
 The custom cloud server setting is hidden by default. Self-hosted users can set
 `showCustomCloudServer` to `true` in `settings.json` to display it on the Settings page.
 

@@ -224,8 +224,9 @@ fn parse_official_plugins(data: &[u8]) -> Result<Vec<OfficialPluginItem>, String
         .collect())
 }
 
-fn list_official_plugins_blocking() -> Result<Vec<OfficialPluginItem>, String> {
+fn list_official_plugins_blocking(codex_home: &Path) -> Result<Vec<OfficialPluginItem>, String> {
     let output = cli::run(
+        codex_home,
         &["plugin", "list", "--available", "--json"],
         "Could not load the official plugin catalog. Update Codex and try again.",
     )?;
@@ -242,11 +243,12 @@ fn official_plugin_name(plugin_id: &str) -> Option<&str> {
     (valid_name && marketplace == OFFICIAL_MARKETPLACE).then_some(name)
 }
 
-fn install_official_plugin_blocking(plugin_id: &str) -> Result<(), String> {
+fn install_official_plugin_blocking(codex_home: &Path, plugin_id: &str) -> Result<(), String> {
     let name = official_plugin_name(plugin_id).ok_or_else(|| {
         "This official plugin selection is invalid. Refresh the catalog and try again.".to_string()
     })?;
     cli::run(
+        codex_home,
         &[
             "plugin",
             "add",
@@ -260,11 +262,12 @@ fn install_official_plugin_blocking(plugin_id: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn remove_official_plugin_blocking(plugin_id: &str) -> Result<(), String> {
+fn remove_official_plugin_blocking(codex_home: &Path, plugin_id: &str) -> Result<(), String> {
     let name = official_plugin_name(plugin_id).ok_or_else(|| {
         "This official plugin selection is invalid. Refresh the catalog and try again.".to_string()
     })?;
     cli::run(
+        codex_home,
         &[
             "plugin",
             "remove",
@@ -313,24 +316,41 @@ fn set_official_plugin_enabled_blocking(
 }
 
 #[tauri::command]
-pub(crate) async fn list_official_plugins() -> Result<Vec<OfficialPluginItem>, String> {
-    tauri::async_runtime::spawn_blocking(list_official_plugins_blocking)
-        .await
-        .map_err(|_| "The official plugin catalog stopped loading. Please try again.".to_string())?
+pub(crate) async fn list_official_plugins(
+    app: tauri::AppHandle,
+) -> Result<Vec<OfficialPluginItem>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let codex_home = crate::storage::resolve_paths(&app)?.codex_home;
+        list_official_plugins_blocking(&codex_home)
+    })
+    .await
+    .map_err(|_| "The official plugin catalog stopped loading. Please try again.".to_string())?
 }
 
 #[tauri::command]
-pub(crate) async fn install_official_plugin(plugin_id: String) -> Result<(), String> {
-    tauri::async_runtime::spawn_blocking(move || install_official_plugin_blocking(&plugin_id))
-        .await
-        .map_err(|_| "The official plugin installation stopped. Please try again.".to_string())?
+pub(crate) async fn install_official_plugin(
+    app: tauri::AppHandle,
+    plugin_id: String,
+) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let codex_home = crate::storage::resolve_paths(&app)?.codex_home;
+        install_official_plugin_blocking(&codex_home, &plugin_id)
+    })
+    .await
+    .map_err(|_| "The official plugin installation stopped. Please try again.".to_string())?
 }
 
 #[tauri::command]
-pub(crate) async fn remove_official_plugin(plugin_id: String) -> Result<(), String> {
-    tauri::async_runtime::spawn_blocking(move || remove_official_plugin_blocking(&plugin_id))
-        .await
-        .map_err(|_| "The official plugin uninstall stopped. Please try again.".to_string())?
+pub(crate) async fn remove_official_plugin(
+    app: tauri::AppHandle,
+    plugin_id: String,
+) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let codex_home = crate::storage::resolve_paths(&app)?.codex_home;
+        remove_official_plugin_blocking(&codex_home, &plugin_id)
+    })
+    .await
+    .map_err(|_| "The official plugin uninstall stopped. Please try again.".to_string())?
 }
 
 #[tauri::command]
@@ -354,7 +374,8 @@ mod tests {
     #[test]
     #[ignore = "requires the current Codex desktop plugin runtime"]
     fn loads_official_plugins_from_the_desktop_runtime() {
-        let plugins = list_official_plugins_blocking().unwrap();
+        let codex_home = crate::codex_home::resolve().unwrap();
+        let plugins = list_official_plugins_blocking(&codex_home).unwrap();
 
         assert!(!plugins.is_empty());
     }

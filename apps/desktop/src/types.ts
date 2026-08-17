@@ -369,6 +369,7 @@ export interface UpdateInfo {
 }
 
 export interface AppSettings {
+  codexHome?: string | null;
   launchAtStartup?: boolean;
   closeToTray?: boolean;
   floatingBubbleEnabled: boolean;
