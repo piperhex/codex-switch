@@ -65,8 +65,9 @@ function targetPath(target: ImageModelTarget | null | undefined): string[] | und
   return [`${PROVIDER_PREFIX}${target.providerId}`, target.model];
 }
 
-function parseTarget(path: string[]): ImageModelTarget | null {
-  const [source, model] = path;
+function parseTarget(path: readonly unknown[] | null | undefined): ImageModelTarget | null {
+  if (!Array.isArray(path)) return null;
+  const [source, model] = path.map(String);
   if (source?.startsWith(OFFICIAL_PREFIX)) {
     return { kind: "official", accountId: source.slice(OFFICIAL_PREFIX.length) };
   }
@@ -109,7 +110,7 @@ export function ImageModelRouteSelect({
           allowClear
           showSearch
           displayRender={(labels) => labels.join(" / ")}
-          onChange={(path) => onChange(routeKind, parseTarget(path.map(String)))}
+          onChange={(path) => onChange(routeKind, parseTarget(path))}
         />
       </Tooltip>
     </label>
