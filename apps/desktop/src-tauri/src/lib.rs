@@ -36,6 +36,7 @@ mod system_tray;
 mod totp_qr;
 mod totp_window;
 mod web_server;
+mod web_session_login;
 
 use oauth::AppState;
 use tauri::Manager;
@@ -153,6 +154,14 @@ pub fn run() {
                     api.prevent_close();
                     if let Err(error) = window.destroy() {
                         eprintln!("failed to close 2FA window: {error}");
+                    }
+                }
+            }
+            if window.label() == web_session_login::WINDOW_LABEL {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    if let Err(error) = window.destroy() {
+                        eprintln!("failed to close ChatGPT web login window: {error}");
                     }
                 }
             }
@@ -281,6 +290,7 @@ pub fn run() {
             floating_bubble::show_floating_bubble_menu,
             floating_bubble::show_dashboard_from_bubble,
             oauth::start_login,
+            web_session_login::start_web_session_login,
             cloud::get_cloud_auth_state,
             cloud::get_saved_cloud_login,
             cloud::fetch_cloud_announcement,

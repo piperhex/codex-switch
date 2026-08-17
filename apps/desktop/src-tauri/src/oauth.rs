@@ -108,7 +108,7 @@ fn html_response(request: Request, status: u16, title: &str, message: &str) {
     let _ = request.respond(response);
 }
 
-fn emit_login<R: Runtime>(
+pub(crate) fn emit_login<R: Runtime>(
     app: &tauri::AppHandle<R>,
     ok: bool,
     message: impl Into<String>,

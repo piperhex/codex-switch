@@ -1,8 +1,11 @@
-import { ChevronRight, ClipboardPaste, ExternalLink, FileInput, KeyRound, LayoutGrid, ShieldCheck, X } from "lucide-react";
+import {
+  ChevronRight, ClipboardPaste, ExternalLink, FileInput, Globe2, KeyRound, LayoutGrid, ShieldCheck, X,
+} from "lucide-react";
 import type { Translate } from "../../i18n";
 
-export function LoginModal({ onClose, onStart, onImport, onImportClipboard, t }: {
+export function LoginModal({ onClose, onWebSession, onStart, onImport, onImportClipboard, t }: {
   onClose: () => void;
+  onWebSession: () => void;
   onStart: (embedded: boolean) => void;
   onImport: () => void;
   onImportClipboard: () => void;
@@ -18,6 +21,11 @@ export function LoginModal({ onClose, onStart, onImport, onImportClipboard, t }:
         <button type="button" className="login-choice featured" onClick={() => onStart(true)}>
           <span className="choice-icon"><LayoutGrid size={20} /></span>
           <span><b>{t("login.embedded.title")}</b><small>{t("login.embedded.description")}</small></span><ChevronRight size={19} />
+        </button>
+        <button type="button" className="login-choice" onClick={onWebSession}>
+          <span className="choice-icon"><Globe2 size={20} /></span>
+          <span><b>{t("login.webSession.title")}</b><small>{t("login.webSession.description")}</small></span>
+          <ChevronRight size={19} />
         </button>
         <button type="button" className="login-choice" onClick={() => onStart(false)}>
           <span className="choice-icon"><ExternalLink size={20} /></span>

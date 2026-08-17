@@ -683,6 +683,10 @@ export function DashboardApp() {
     setShowLogin(false);
     void manager.startLogin(embedded);
   };
+  const startWebSessionLogin = () => {
+    setShowLogin(false);
+    void manager.startWebSessionLogin();
+  };
   const importAccountJson = () => {
     setShowLogin(false);
     void manager.importAccountJson();
@@ -1343,7 +1347,8 @@ export function DashboardApp() {
           </section>
         </main>
 
-        {showLogin && <LoginModal onClose={() => setShowLogin(false)} onStart={startLogin}
+        {showLogin && <LoginModal onClose={() => setShowLogin(false)} onWebSession={startWebSessionLogin}
+          onStart={startLogin}
           onImport={importAccountJson} onImportClipboard={importAccountJsonFromClipboard} t={t} />}
         {showMenuSearch && <MenuSearchModal items={menuItems.search} onClose={() => setShowMenuSearch(false)}
           onSelect={(action) => {

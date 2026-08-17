@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   activateAccount,
   beginLogin,
+  beginWebSessionLogin,
   chooseAndImportAccountJson,
   copyAccountAuthJson,
   consumeAccountQuota,
@@ -103,6 +104,20 @@ export function useAccountManager(
     try {
       await beginLogin(embedded);
       notify(embedded ? t("toast.embeddedOpened") : t("toast.browserOpened"));
+    } catch (error) {
+      notify(String(error));
+    }
+  }, [notify, t]);
+
+  const startWebSessionLogin = useCallback(async () => {
+    if (!isDesktopApp) {
+      notify(t("toast.previewLogin"));
+      return;
+    }
+    notify(t("toast.openingWebSession"));
+    try {
+      await beginWebSessionLogin();
+      notify(t("toast.webSessionOpened"));
     } catch (error) {
       notify(String(error));
     }
@@ -454,6 +469,7 @@ export function useAccountManager(
     refreshingAll,
     archiveOperation,
     startLogin,
+    startWebSessionLogin,
     importAccountJson,
     importAccountJsonFromClipboard,
     exportAccountArchive,

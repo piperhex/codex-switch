@@ -1846,6 +1846,10 @@ export async function beginLogin(embedded: boolean): Promise<LoginStart | null> 
   return invoke<LoginStart>("start_login", { embedded });
 }
 
+export async function beginWebSessionLogin(): Promise<void> {
+  if (isDesktopApp) await invoke("start_web_session_login");
+}
+
 export type ImportAuthResult =
   | { status: "imported"; id: string }
   | { status: "cancelled" }
