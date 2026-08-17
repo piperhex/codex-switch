@@ -62,7 +62,7 @@ QQ 技术交流群：`1051213898`。
 - 内置 300+ 套 Dream Skin 主题预设，支持一键应用、自定义背景、外观调整和恢复。
 - 设置按外观、窗口、用量、网络、隐私和存储分组，支持界面语言、主题色、关闭到托盘、
   隐私模式、悬浮球、账号刷新和 Token 统计范围等本地选项。
-- 可选同步到自建 NestJS 后端；Expo 移动端读取账号摘要与短期 Codex access token，直接向 Codex 刷新用量和重置卡，并可通过 WebSocket 切换指定 PC 的账号。
+- 可选同步到自建 NestJS 后端；Expo 移动端读取账号摘要与短期 Codex access token，直接向 Codex 刷新用量和重置卡。移动端与独立 Web 端还可远程切换指定 PC 的官方模型或已同步 Provider；跨类型切换后会提示重启 ChatGPT/Codex。
 - 账号和服务商密钥仅保存在 Rust 后端，不会暴露给桌面端 React 界面或应用日志。
 
 > [!IMPORTANT]
@@ -121,7 +121,7 @@ npm run dev:backend
 npm run start -w @codex-switch/native
 ```
 
-移动端需要已部署的云端后端，会读取已同步的账号摘要和短期 Codex access token，由手机直接刷新用量与重置卡，同时显示在线 PC 并可分别切换每台 PC 的当前账号。详细配置请参阅 [移动端文档](apps/native/README.md) 和 [管理后端文档](apps/admin/README.md)。
+移动端需要已部署的云端后端，会读取已同步的账号摘要和短期 Codex access token，由手机直接刷新用量与重置卡，同时显示在线 PC，并可分别切换每台 PC 的官方模型或已同步 Provider。远程切换 Provider 前，需要先在目标 PC 启动本地代理；在官方模型与 Provider 间切换后，移动端会提示重启 ChatGPT/Codex。详细配置请参阅 [移动端文档](apps/native/README.md) 和 [管理后端文档](apps/admin/README.md)。
 
 构建桌面安装包：
 
@@ -235,7 +235,7 @@ Codex Switch 使用 [Apache License 2.0](LICENSE)，与官方 [OpenAI Codex](htt
 ## 当前限制
 
 - OAuth 回调会优先使用本地端口 `1455`，失败后回退到 `1457`。
-- 完整账号管理与第三方服务商工作流仅支持桌面端；移动端可直接刷新官方用量和重置卡，并远程切换指定 PC 的官方账号。
+- 第三方 Provider 的新增、编辑和密钥管理仍仅支持桌面端；移动端与独立 Web 端可远程切换指定 PC 的官方模型或已同步 Provider。远程启用 Provider 时，目标 PC 必须正在运行本地代理。
 - macOS 发布构建采用临时签名；除非在 CI 配置 Apple Developer 签名与公证凭据，否则不会完成公证。
 - 已发布的 iOS `.app.zip` 未签名，仅为 CI 构建产物，不能直接作为 App Store 安装包使用。
 - 内嵌登录依赖 WebView 与身份提供商策略；若失败，请使用系统浏览器登录。

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Button,
   Card,
@@ -7,7 +7,6 @@ import {
   Form,
   Input,
   List,
-  Popup,
   PullToRefresh,
   SafeArea,
   SpinLoading,
@@ -15,7 +14,7 @@ import {
   TabBar,
   Toast,
 } from "antd-mobile";
-import { Dropdown, Grid, Modal, Tooltip, type MenuProps } from "antd";
+import { Dropdown, Tooltip, type MenuProps } from "antd";
 import {
   ChevronRight,
   CircleAlert,
@@ -36,7 +35,6 @@ import {
   ShieldCheck,
   Sparkles,
   Wifi,
-  X,
   Zap,
 } from "lucide-react";
 import {
@@ -58,14 +56,17 @@ import {
   refreshAll,
   refreshOneAccount,
   removeDevice,
+  restartDeviceCodex,
   setDeviceOpenAiAuthAccount,
   signIn,
   signOut,
   switchDeviceAccount,
+  switchDeviceProvider,
 } from "./store";
 import type { AccountSummary, AppPage, RemoteDevice, ResetCredit, UsageWindow } from "./types";
+import { AdaptiveSheet } from "./components/AdaptiveSheet";
+import { RemoteModelSwitchSheet } from "./components/RemoteModelSwitchSheet";
 
-const { useBreakpoint } = Grid;
 const REFRESH_INTERVAL_KEY = "codex-switch.web.refresh-minutes.v1";
 const PULL_REFRESH_TEXT = {
   pulling: "下拉刷新",
@@ -119,30 +120,31 @@ function loadRefreshMinutes() {
   return Number.isInteger(value) && value >= 1 && value <= 1440 ? value : 30;
 }
 
-function AdaptiveSheet({ open, title, subtitle, onClose, children, width = 520 }: {
-  open: boolean;
-  title: string;
-  subtitle?: string;
-  onClose: () => void;
-  children: ReactNode;
-  width?: number;
-}) {
-  const screens = useBreakpoint();
-  if (screens.md) {
-    return <Modal open={open} onCancel={onClose} footer={null} width={width} centered destroyOnClose
-      title={<div className="modal-heading"><strong>{title}</strong>{subtitle ? <span>{subtitle}</span> : null}</div>}>
-      <div className="adaptive-sheet-content">{children}</div>
-    </Modal>;
-  }
-  return <Popup visible={open} onMaskClick={onClose} destroyOnClose bodyClassName="mobile-popup">
-    <div className="sheet-handle" />
-    <div className="sheet-header">
-      <div><h2>{title}</h2>{subtitle ? <p>{subtitle}</p> : null}</div>
-      <button className="icon-button" type="button" onClick={onClose} aria-label="关闭"><X size={19} /></button>
-    </div>
-    <div className="adaptive-sheet-content">{children}</div>
-    <SafeArea position="bottom" />
-  </Popup>;
+function useRemoteModelRestartPrompt() {
+  const dispatch = useAppDispatch();
+  const { devices, restartingDeviceId } = useAppSelector((state) => state.data);
+  return useCallback(async (deviceId: string) => {
+    const device = devices.find((candidate) => candidate.deviceId === deviceId);
+    if (!device?.capabilities?.includes("restart-codex")) {
+      await Dialog.alert({
+        title: "重启以加载当前模型？",
+        content: "已在官方模型与第三方 Provider 间切换。请在目标 PC 上手动重启 ChatGPT/Codex。",
+        confirmText: "知道了",
+      });
+      return;
+    }
+    const confirmed = await Dialog.confirm({
+      title: "重启以加载当前模型？",
+      content: "已在官方模型与第三方 Provider 间切换。立即重启目标 PC 上的 ChatGPT/Codex 以加载当前模型。",
+      confirmText: "立即重启",
+      cancelText: "稍后",
+    });
+    if (!confirmed || restartingDeviceId) return;
+    try {
+      await dispatch(restartDeviceCodex(deviceId)).unwrap();
+      Toast.show({ icon: "success", content: "目标 PC 上的 ChatGPT/Codex 已重启" });
+    } catch { /* The global error toast reports the failure. */ }
+  }, [devices, dispatch, restartingDeviceId]);
 }
 
 function UsageMeter({ label, usage }: { label: string; usage?: UsageWindow | null }) {
@@ -307,7 +309,16 @@ function ResetCreditsPanel({ account, open, onClose, onConsumed }: {
 
 function AccountsPage() {
   const dispatch = useAppDispatch();
-  const { accounts, devices, loading, refreshing, refreshingAccountId, lastRefreshAt } = useAppSelector((state) => state.data);
+  const {
+    accounts,
+    devices,
+    loading,
+    refreshing,
+    refreshingAccountId,
+    switchingAccountId,
+    lastRefreshAt,
+  } = useAppSelector((state) => state.data);
+  const promptModelRestart = useRemoteModelRestartPrompt();
   const [privateMode, setPrivateMode] = useState(true);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [switchId, setSwitchId] = useState<string | null>(null);
@@ -356,13 +367,27 @@ function AccountsPage() {
     </AdaptiveSheet>
     <AdaptiveSheet open={Boolean(switchTarget)} title="选择目标设备" subtitle={switchTarget ? `切换到 ${switchTarget.email}` : undefined} onClose={() => setSwitchId(null)}>
       {!onlineDevices.length ? <Empty className="compact-empty" description="当前没有在线 PC 设备" />
-        : <div className="select-list">{onlineDevices.map((device) => <button type="button" key={device.deviceId} onClick={async () => {
-          try {
-            await dispatch(switchDeviceAccount({ deviceId: device.deviceId, accountId: switchTarget!.id })).unwrap();
-            Toast.show({ icon: "success", content: `${device.name} 已切换账号` });
-            setSwitchId(null);
-          } catch { /* Global toast */ }
-        }}><span className="device-mini-icon"><Laptop size={19} /></span><span><strong>{device.name}</strong><small>{platformName(device.platform)} · 在线</small></span><ChevronRight size={18} /></button>)}</div>}
+        : <div className="select-list">{onlineDevices.map((device) => {
+          const current = !device.activeProviderId && device.activeAccountId === switchTarget?.id;
+          const switching = switchingAccountId === switchTarget?.id;
+          return <button type="button" key={device.deviceId} disabled={current || switching}
+            onClick={async () => {
+              try {
+                const result = await dispatch(switchDeviceAccount({
+                  deviceId: device.deviceId,
+                  accountId: switchTarget!.id,
+                })).unwrap();
+                Toast.show({ icon: "success", content: `${device.name} 已切换到官方模型` });
+                setSwitchId(null);
+                if (result.result.requiresRestart) {
+                  window.setTimeout(() => void promptModelRestart(device.deviceId), 0);
+                }
+              } catch { /* Global toast */ }
+            }}><span className="device-mini-icon"><Laptop size={19} /></span><span>
+              <strong>{device.name}</strong><small>{platformName(device.platform)} · 在线</small></span>
+            {current ? <b className="current-pill">当前</b> : <ChevronRight size={18} />}
+          </button>;
+        })}</div>}
     </AdaptiveSheet>
     <ResetCreditsPanel account={creditsTarget} open={Boolean(creditsTarget)} onClose={() => setCreditsId(null)} onConsumed={() => void performRefresh()} />
   </>;
@@ -370,9 +395,21 @@ function AccountsPage() {
 
 function DevicesPage() {
   const dispatch = useAppDispatch();
-  const { accounts, devices, refreshing, deletingDeviceId, switchingOpenAiAuth } = useAppSelector((state) => state.data);
+  const {
+    accounts,
+    providers,
+    devices,
+    refreshing,
+    deletingDeviceId,
+    switchingAccountId,
+    switchingProvider,
+    switchingOpenAiAuth,
+  } = useAppSelector((state) => state.data);
+  const promptModelRestart = useRemoteModelRestartPrompt();
   const [authDeviceId, setAuthDeviceId] = useState<string | null>(null);
+  const [modelDeviceId, setModelDeviceId] = useState<string | null>(null);
   const authDevice = devices.find((item) => item.deviceId === authDeviceId) ?? null;
+  const modelDevice = devices.find((item) => item.deviceId === modelDeviceId) ?? null;
   const sorted = useMemo(() => [...devices].sort((left, right) => Number(right.online) - Number(left.online)
     || Date.parse(right.lastSeenAt) - Date.parse(left.lastSeenAt)), [devices]);
   const onlineCount = devices.filter((item) => item.online).length;
@@ -394,39 +431,118 @@ function DevicesPage() {
     } catch { /* Global toast */ }
   };
 
+  const switchOfficialModel = async (deviceId: string, accountId: string) => {
+    try {
+      const result = await dispatch(switchDeviceAccount({ deviceId, accountId })).unwrap();
+      Toast.show({ icon: "success", content: "已切换到官方模型" });
+      if (result.result.requiresRestart) {
+        window.setTimeout(() => void promptModelRestart(deviceId), 0);
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const switchProviderModel = async (deviceId: string, providerId: string) => {
+    try {
+      const result = await dispatch(switchDeviceProvider({ deviceId, providerId })).unwrap();
+      Toast.show({ icon: "success", content: "已切换到第三方 Provider" });
+      if (result.result.requiresRestart) {
+        window.setTimeout(() => void promptModelRestart(deviceId), 0);
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
   return <>
-    <PullToRefresh onRefresh={performRefresh} renderText={(status) => PULL_REFRESH_TEXT[status]}><div className="page-body devices-page">
-      <header className="page-heading"><div><span>实时连接</span><h1>设备管理</h1></div>
-        <button className="icon-button" type="button" onClick={() => void dispatch(refreshAll())} aria-label="刷新设备"><RefreshCw size={19} className={refreshing ? "spin" : ""} /></button>
-      </header>
-      <section className="device-summary">
-        <div className="summary-icon"><Wifi size={24} /></div><div><strong>{onlineCount}</strong><span>台设备当前在线</span></div>
-        <div className="live-pill"><i /> 实时更新</div>
-      </section>
-      <div className="section-toolbar"><div><h2>已登录设备</h2><span>共 {devices.length} 台 PC</span></div></div>
-      {!devices.length ? <Empty className="page-empty" description="登录桌面端后，设备会出现在这里" />
-        : <div className="device-grid">{sorted.map((device) => {
-          const activeAccount = accounts.find((item) => item.id === device.activeAccountId);
-          const authAccount = accounts.find((item) => item.id === device.openaiAuthAccountId);
-          return <Card key={device.deviceId} className={`device-card ${device.online ? "online" : "offline"}`}>
-            <div className="device-card-header"><span className="device-platform"><Laptop size={22} /></span><div><h3>{device.name}</h3><p>{platformName(device.platform)}{device.appVersion ? ` · v${device.appVersion}` : ""}</p></div>
-              <span className="status-badge"><i />{device.online ? "在线" : "离线"}</span></div>
-            <div className="device-data"><div><span>当前账号</span><strong>{activeAccount?.email || "未选择"}</strong></div><div><span>代理登录态</span><strong>{authAccount?.email || "未选择"}</strong></div><div><span>最后在线</span><strong>{device.online ? "当前在线" : formatDate(device.lastSeenAt, true)}</strong></div></div>
-            <div className="device-actions"><Button block size="small" disabled={device.online} loading={deletingDeviceId === device.deviceId} onClick={() => void deleteDevice(device)}>{device.online ? "在线不可删除" : "删除设备"}</Button>
-              <Button block size="small" color="primary" disabled={!device.online} loading={switchingOpenAiAuth?.deviceId === device.deviceId} onClick={() => setAuthDeviceId(device.deviceId)}>代理登录态</Button></div>
-          </Card>;
-        })}</div>}
-    </div></PullToRefresh>
-    <AdaptiveSheet open={Boolean(authDevice)} title="代理登录态账号" subtitle={authDevice ? `${authDevice.name} · 选择后会重启 ChatGPT/Codex` : undefined} onClose={() => setAuthDeviceId(null)}>
+    <PullToRefresh onRefresh={performRefresh} renderText={(status) => PULL_REFRESH_TEXT[status]}>
+      <div className="page-body devices-page">
+        <header className="page-heading"><div><span>实时连接</span><h1>设备管理</h1></div>
+          <button className="icon-button" type="button" onClick={() => void dispatch(refreshAll())}
+            aria-label="刷新设备">
+            <RefreshCw size={19} className={refreshing ? "spin" : ""} />
+          </button>
+        </header>
+        <section className="device-summary">
+          <div className="summary-icon"><Wifi size={24} /></div>
+          <div><strong>{onlineCount}</strong><span>台设备当前在线</span></div>
+          <div className="live-pill"><i /> 实时更新</div>
+        </section>
+        <div className="section-toolbar"><div><h2>已登录设备</h2><span>共 {devices.length} 台 PC</span></div></div>
+        {!devices.length ? <Empty className="page-empty" description="登录桌面端后，设备会出现在这里" />
+          : <div className="device-grid">{sorted.map((device) => {
+            const activeAccount = accounts.find((item) => item.id === device.activeAccountId);
+            const activeProvider = providers.find((item) => item.id === device.activeProviderId);
+            const authAccount = accounts.find((item) => item.id === device.openaiAuthAccountId);
+            const currentModel = device.activeProviderId
+              ? `${activeProvider?.name || "第三方 Provider"}${activeProvider?.model ? ` · ${activeProvider.model}` : ""}`
+              : activeAccount ? `官方 · ${activeAccount.email}` : "未选择";
+            return <Card key={device.deviceId} className={`device-card ${device.online ? "online" : "offline"}`}>
+              <div className="device-card-header"><span className="device-platform"><Laptop size={22} /></span>
+                <div><h3>{device.name}</h3>
+                  <p>{platformName(device.platform)}{device.appVersion ? ` · v${device.appVersion}` : ""}</p></div>
+                <span className="status-badge"><i />{device.online ? "在线" : "离线"}</span></div>
+              <div className="device-data">
+                <div><span>当前模型</span><strong>{currentModel}</strong></div>
+                <div><span>官方账号</span><strong>{activeAccount?.email || "未选择"}</strong></div>
+                <div><span>代理登录态</span><strong>{authAccount?.email || "未选择"}</strong></div>
+                <div><span>最后在线</span>
+                  <strong>{device.online ? "当前在线" : formatDate(device.lastSeenAt, true)}</strong></div>
+              </div>
+              <Button block size="small" color="primary" className="device-model-action"
+                disabled={!device.online} onClick={() => setModelDeviceId(device.deviceId)}>
+                切换模型
+              </Button>
+              <div className="device-actions">
+                <Button block size="small" disabled={device.online}
+                  loading={deletingDeviceId === device.deviceId} onClick={() => void deleteDevice(device)}>
+                  {device.online ? "在线不可删除" : "删除设备"}
+                </Button>
+                <Button block size="small" disabled={!device.online}
+                  loading={switchingOpenAiAuth?.deviceId === device.deviceId}
+                  onClick={() => setAuthDeviceId(device.deviceId)}>
+                  代理登录态
+                </Button>
+              </div>
+            </Card>;
+          })}</div>}
+      </div>
+    </PullToRefresh>
+    <RemoteModelSwitchSheet
+      device={modelDevice}
+      accounts={accounts}
+      providers={providers}
+      switchingAccountId={switchingAccountId}
+      switchingProviderId={switchingProvider
+        && switchingProvider.deviceId === modelDevice?.deviceId
+        ? switchingProvider.providerId : null}
+      onClose={() => setModelDeviceId(null)}
+      onSwitchAccount={switchOfficialModel}
+      onSwitchProvider={switchProviderModel}
+    />
+    <AdaptiveSheet open={Boolean(authDevice)} title="代理登录态账号"
+      subtitle={authDevice ? `${authDevice.name} · 选择后会重启 ChatGPT/Codex` : undefined}
+      onClose={() => setAuthDeviceId(null)}>
       <div className="select-list account-select-list">{accounts.map((account) => {
         const current = authDevice?.openaiAuthAccountId === account.id;
-        return <button type="button" disabled={current || Boolean(switchingOpenAiAuth)} key={account.id} onClick={async () => {
-          try {
-            await dispatch(setDeviceOpenAiAuthAccount({ deviceId: authDevice!.deviceId, accountId: account.id })).unwrap();
-            Toast.show({ icon: "success", content: "代理登录态已更新" });
-            setAuthDeviceId(null);
-          } catch { /* Global toast */ }
-        }}><span className="account-initial">{account.email.slice(0, 2).toUpperCase()}</span><span><strong>{account.email}</strong><small>{account.plan || "ChatGPT"}</small></span>{current ? <b className="current-pill">当前</b> : <ChevronRight size={18} />}</button>;
+        return <button type="button" disabled={current || Boolean(switchingOpenAiAuth)} key={account.id}
+          onClick={async () => {
+            try {
+              await dispatch(setDeviceOpenAiAuthAccount({
+                deviceId: authDevice!.deviceId,
+                accountId: account.id,
+              })).unwrap();
+              Toast.show({ icon: "success", content: "代理登录态已更新" });
+              setAuthDeviceId(null);
+            } catch { /* Global toast */ }
+          }}>
+          <span className="account-initial">{account.email.slice(0, 2).toUpperCase()}</span>
+          <span><strong>{account.email}</strong><small>{account.plan || "ChatGPT"}</small></span>
+          {current ? <b className="current-pill">当前</b> : <ChevronRight size={18} />}
+        </button>;
       })}</div>
     </AdaptiveSheet>
   </>;

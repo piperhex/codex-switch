@@ -57,7 +57,7 @@ Includes 300+ presets and integrates with [Fei-Away/Codex-Dream-Skin](https://gi
 - Includes 300+ Dream Skin presets with one-click apply, custom backgrounds, appearance controls, and restore support.
 - Groups preferences by appearance, window behavior, usage, network, privacy, and storage, including language,
   accent color, close-to-tray behavior, usage widgets, account refresh, and token analytics.
-- Optionally syncs with a self-hosted NestJS backend. The Expo mobile app can refresh official usage/reset credits and switch the active account on a selected online PC.
+- Optionally syncs with a self-hosted NestJS backend. The Expo mobile app can refresh official usage/reset credits, while both the mobile and standalone Web apps can remotely switch a selected PC between official models and synchronized Providers. Cross-source switches prompt for a ChatGPT/Codex restart.
 - Keeps account credentials and Provider secrets in the Rust backend, out of the React UI and application logs.
 
 > [!IMPORTANT]
@@ -98,7 +98,7 @@ npm run build:app
 npm run check
 ```
 
-The development browser preview uses demo data and never accesses real credentials. The mobile companion requires a deployed cloud backend; it receives redacted summaries plus a short-lived Codex access token for direct usage/reset-credit refreshes, and can switch the account used by a selected online PC. See [the mobile README](apps/native/README.md) and [the admin backend README](apps/admin/README.md).
+The development browser preview uses demo data and never accesses real credentials. The mobile companion requires a deployed cloud backend; it receives redacted summaries plus a short-lived Codex access token for direct usage/reset-credit refreshes. The mobile and standalone Web apps can remotely switch a selected online PC between official models and synchronized Providers. Provider switching requires the local proxy to be running on the target PC, and cross-source switches prompt for a ChatGPT/Codex restart. See [the mobile README](apps/native/README.md) and [the admin backend README](apps/admin/README.md).
 
 ## Usage
 

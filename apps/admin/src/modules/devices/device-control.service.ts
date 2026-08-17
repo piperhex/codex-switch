@@ -11,6 +11,15 @@ export interface RegisterRemoteDevice {
   appVersion?: string | null;
   activeAccountId?: string | null;
   openaiAuthAccountId?: string | null;
+  activeProviderId?: string | null;
+  localProxyRunning?: boolean;
+  capabilities?: string[];
+}
+
+export interface RemoteProviderSummary {
+  id: string;
+  name: string;
+  model: string;
 }
 
 @Injectable()
@@ -34,6 +43,11 @@ export class DeviceControlService {
       appVersion: input.appVersion?.trim().slice(0, 50) || null,
       activeAccountId: input.activeAccountId ?? existing?.activeAccountId ?? null,
       openaiAuthAccountId: input.openaiAuthAccountId ?? existing?.openaiAuthAccountId ?? null,
+      activeProviderId: input.activeProviderId === undefined
+        ? existing?.activeProviderId ?? null
+        : input.activeProviderId,
+      localProxyRunning: input.localProxyRunning ?? existing?.localProxyRunning ?? false,
+      capabilities: input.capabilities ?? existing?.capabilities ?? [],
       lastSeenAt: new Date(),
     });
     return this.devices.save(device);
@@ -68,10 +82,34 @@ export class DeviceControlService {
     }
   }
 
+  async listProviderSummaries(ownerId: string): Promise<RemoteProviderSummary[]> {
+    const { providers } = await this.sync.listProviders(ownerId);
+    return providers.map((provider) => ({
+      id: provider.id,
+      name: provider.name,
+      model: provider.model,
+    }));
+  }
+
+  async assertProviderAvailable(ownerId: string, providerId: string) {
+    const providers = await this.listProviderSummaries(ownerId);
+    if (!providers.some((provider) => provider.id === providerId)) {
+      throw new NotFoundException('Provider was not found');
+    }
+  }
+
   async setActiveAccount(ownerId: string, deviceId: string, accountId: string) {
     await this.devices.update(
       { ownerId, deviceId },
-      { activeAccountId: accountId, lastSeenAt: new Date() },
+      { activeAccountId: accountId, activeProviderId: null, lastSeenAt: new Date() },
+    );
+    return this.getOwned(ownerId, deviceId);
+  }
+
+  async setActiveProvider(ownerId: string, deviceId: string, providerId: string) {
+    await this.devices.update(
+      { ownerId, deviceId },
+      { activeProviderId: providerId, lastSeenAt: new Date() },
     );
     return this.getOwned(ownerId, deviceId);
   }

@@ -14,6 +14,9 @@ const device: RemoteDevice = {
   appVersion: '1.2.3',
   activeAccountId: 'account-1',
   openaiAuthAccountId: 'account-2',
+  activeProviderId: 'provider-1',
+  localProxyRunning: true,
+  capabilities: ['provider-switch', 'restart-codex'],
   lastSeenAt: '2026-07-26T01:00:00.000Z',
   online: true,
 };
@@ -32,6 +35,33 @@ describe('mobile device status WebSocket protocol', () => {
     expect(JSON.parse(deviceStatusSubscriptionMessage(session))).toEqual({
       type: 'subscribe-devices',
       accessToken: 'access-token',
+    });
+  });
+
+  it('defaults model-control fields from older desktop status payloads', () => {
+    const legacyDevice = {
+      deviceId: device.deviceId,
+      name: device.name,
+      platform: device.platform,
+      lastSeenAt: device.lastSeenAt,
+      online: true,
+    };
+    const message = parseDeviceStatusSocketMessage(JSON.stringify({
+      type: 'device-online',
+      device: legacyDevice,
+    }));
+
+    expect(message).toEqual({
+      type: 'device-online',
+      device: {
+        ...legacyDevice,
+        appVersion: null,
+        activeAccountId: null,
+        openaiAuthAccountId: null,
+        activeProviderId: null,
+        localProxyRunning: false,
+        capabilities: [],
+      },
     });
   });
 

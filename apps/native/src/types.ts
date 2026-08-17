@@ -77,6 +77,8 @@ export interface ResetCreditsSummary {
   credits: ResetCredit[];
 }
 
+export type RemoteControlCapability = 'provider-switch' | 'restart-codex';
+
 export interface RemoteDevice {
   deviceId: string;
   name: string;
@@ -84,7 +86,24 @@ export interface RemoteDevice {
   appVersion?: string | null;
   activeAccountId?: string | null;
   openaiAuthAccountId?: string | null;
+  activeProviderId?: string | null;
+  localProxyRunning: boolean;
+  capabilities: RemoteControlCapability[];
   lastSeenAt: string;
+  online: boolean;
+}
+
+export interface RemoteProviderSummary {
+  id: string;
+  name: string;
+  model: string;
+}
+
+export interface RemoteModelSwitchResult {
+  deviceId: string;
+  activeAccountId?: string | null;
+  activeProviderId?: string | null;
+  requiresRestart: boolean;
   online: boolean;
 }
 

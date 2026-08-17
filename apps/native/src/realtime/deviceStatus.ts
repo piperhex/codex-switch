@@ -106,7 +106,17 @@ function remoteDevice(value: unknown): RemoteDevice | null {
     openaiAuthAccountId: typeof device.openaiAuthAccountId === 'string'
       ? device.openaiAuthAccountId
       : null,
+    activeProviderId: typeof device.activeProviderId === 'string' ? device.activeProviderId : null,
+    localProxyRunning: device.localProxyRunning === true,
+    capabilities: remoteControlCapabilities(device.capabilities),
     lastSeenAt: device.lastSeenAt,
     online: device.online,
   };
+}
+
+function remoteControlCapabilities(value: unknown): RemoteDevice['capabilities'] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((capability): capability is RemoteDevice['capabilities'][number] => (
+    capability === 'provider-switch' || capability === 'restart-codex'
+  ));
 }

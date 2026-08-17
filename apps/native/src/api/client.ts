@@ -9,6 +9,8 @@ import type {
   EmbeddedAccountOAuthCallback,
   EmbeddedAccountOAuthStart,
   RemoteDevice,
+  RemoteModelSwitchResult,
+  RemoteProviderSummary,
   ResetCreditsSummary,
   UsageSummary,
   UsageWindow,
@@ -482,7 +484,24 @@ export async function fetchRemoteDevices(session: AuthSession): Promise<RemoteDe
   if (!payload || typeof payload !== 'object' || !Array.isArray((payload as { devices?: unknown }).devices)) {
     throw new ApiError('服务器返回的设备数据无效');
   }
-  return (payload as { devices: RemoteDevice[] }).devices;
+  return (payload as { devices: RemoteDevice[] }).devices.map((device) => ({
+    ...device,
+    activeProviderId: device.activeProviderId ?? null,
+    localProxyRunning: device.localProxyRunning === true,
+    capabilities: Array.isArray(device.capabilities) ? device.capabilities : [],
+  }));
+}
+
+export async function fetchRemoteProviders(
+  session: AuthSession,
+): Promise<RemoteProviderSummary[]> {
+  const response = await authorizedRequest(session, '/devices/providers');
+  if (!response.ok) throw new ApiError(await parseError(response), response.status);
+  const payload: unknown = await response.json();
+  if (!payload || typeof payload !== 'object' || !Array.isArray((payload as { providers?: unknown }).providers)) {
+    throw new ApiError('服务器返回的 Provider 数据无效');
+  }
+  return (payload as { providers: RemoteProviderSummary[] }).providers;
 }
 
 export async function deleteRemoteDevice(session: AuthSession, deviceId: string): Promise<void> {
@@ -496,14 +515,40 @@ export async function switchRemoteDeviceAccount(
   session: AuthSession,
   deviceId: string,
   accountId: string,
-): Promise<{ deviceId: string; activeAccountId: string; online: boolean }> {
+): Promise<RemoteModelSwitchResult> {
   const response = await authorizedRequest(session, `/devices/${encodeURIComponent(deviceId)}/account`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ accountId }),
   });
   if (!response.ok) throw new ApiError(await parseError(response), response.status);
-  return response.json() as Promise<{ deviceId: string; activeAccountId: string; online: boolean }>;
+  return response.json() as Promise<RemoteModelSwitchResult>;
+}
+
+export async function switchRemoteDeviceProvider(
+  session: AuthSession,
+  deviceId: string,
+  providerId: string,
+): Promise<RemoteModelSwitchResult> {
+  const response = await authorizedRequest(session, `/devices/${encodeURIComponent(deviceId)}/provider`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ providerId }),
+  });
+  if (!response.ok) throw new ApiError(await parseError(response), response.status);
+  return response.json() as Promise<RemoteModelSwitchResult>;
+}
+
+export async function restartRemoteDeviceCodex(
+  session: AuthSession,
+  deviceId: string,
+): Promise<void> {
+  const response = await authorizedRequest(
+    session,
+    `/devices/${encodeURIComponent(deviceId)}/restart-codex`,
+    { method: 'POST' },
+  );
+  if (!response.ok) throw new ApiError(await parseError(response), response.status);
 }
 
 export async function setRemoteDeviceOpenAiAuthAccount(

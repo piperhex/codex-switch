@@ -253,6 +253,8 @@ pub(crate) struct RemoteControlConfig {
     pub(crate) app_version: String,
     pub(crate) active_account_id: Option<String>,
     pub(crate) openai_auth_account_id: Option<String>,
+    pub(crate) active_provider_id: Option<String>,
+    pub(crate) local_proxy_running: bool,
 }
 
 fn cloud_credentials_path<R: Runtime>(
@@ -600,6 +602,8 @@ pub(crate) fn remote_control_config<R: Runtime>(
         app_version: app.package_info().version.to_string(),
         active_account_id: manager_state.active_account_id,
         openai_auth_account_id: manager_state.local_proxy_openai_auth_account_id,
+        active_provider_id: manager_state.active_provider_id,
+        local_proxy_running: crate::local_proxy::is_running(),
     }))
 }
 

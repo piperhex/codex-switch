@@ -1,6 +1,6 @@
 # Codex Switch Backend
 
-NestJS backend for Codex Switch cloud login, account and Provider synchronization, the read-only mobile summary, and administration.
+NestJS backend for Codex Switch cloud login, account and Provider synchronization, remote device model controls, and administration.
 
 ## Stack
 
@@ -43,8 +43,9 @@ If production uses `POSTGRES_DB_SYNCHRONIZE=false`, apply `sql/20260704-admin-ma
 `sql/20260722-sync-account-soft-delete.sql`, `sql/20260722-email-templates.sql`,
 `sql/20260722-auto-switch-priority.sql`,
 `sql/20260723-remote-device-account-switching.sql`, `sql/20260724-app-notifications.sql`,
-`sql/20260727-app-faqs.sql`, `sql/20260805-sync-provider-context-window.sql`, and
-`sql/20260812-sync-provider-field-versions-soft-delete.sql` before using
+`sql/20260727-app-faqs.sql`, `sql/20260805-sync-provider-context-window.sql`,
+`sql/20260812-sync-provider-field-versions-soft-delete.sql`, and
+`sql/20260817-remote-device-provider-switching.sql` before using
 the expanded admin console, provider sync, official account pool, reusable invitations,
 announcements, desktop FAQs, email templates, telemetry, and feedback management. Also apply
 `sql/20260815-sync-totp-vault.sql` and `sql/20260816-sync-totp-tombstones.sql` before enabling

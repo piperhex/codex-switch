@@ -4,6 +4,8 @@ import type {
   AuthSession,
   DeviceStatusSocketMessage,
   RemoteDevice,
+  RemoteModelSwitchResult,
+  RemoteProviderSummary,
   ResetCreditsSummary,
   UsageSummary,
   UserProfile,
@@ -166,12 +168,14 @@ async function mapWithConcurrency<T, R>(values: T[], limit: number, mapper: (val
 }
 
 export async function fetchDashboardData(refreshUsage = true) {
-  const [{ accounts }, devices, profile] = await Promise.all([
+  const [{ accounts }, devicesPayload, { providers }, profile] = await Promise.all([
     apiJson<{ accounts: AccountSummary[] }>("/sync/accounts/web-summary"),
-    apiJson<{ devices: RemoteDevice[] }>("/devices").then((value) => value.devices),
+    apiJson<{ devices: RemoteDevice[] }>("/devices"),
+    apiJson<{ providers: RemoteProviderSummary[] }>("/devices/providers"),
     apiJson<UserProfile>("/auth/me"),
   ]);
-  if (!refreshUsage) return { accounts, devices, profile };
+  const devices = devicesPayload.devices.map(normalizeRemoteDevice);
+  if (!refreshUsage) return { accounts, devices, providers, profile };
   const refreshedAccounts = await mapWithConcurrency(accounts, 4, async (account) => {
     try {
       const usage = await apiJson<UsageSummary>(`/sync/accounts/${encodeURIComponent(account.id)}/usage`);
@@ -187,7 +191,7 @@ export async function fetchDashboardData(refreshUsage = true) {
       };
     }
   });
-  return { accounts: refreshedAccounts, devices, profile };
+  return { accounts: refreshedAccounts, devices, providers, profile };
 }
 
 export function deviceStatusWebSocketUrl(baseUrl: string) {
@@ -203,8 +207,12 @@ export function parseDeviceStatusMessage(value: unknown): DeviceStatusSocketMess
   if (typeof value !== "string") return null;
   try {
     const message = JSON.parse(value) as DeviceStatusSocketMessage;
-    if (message.type === "devices-snapshot" && Array.isArray(message.devices)) return message;
-    if (message.type === "device-online" && message.device?.deviceId) return message;
+    if (message.type === "devices-snapshot" && Array.isArray(message.devices)) {
+      return { ...message, devices: message.devices.map(normalizeRemoteDevice) };
+    }
+    if (message.type === "device-online" && message.device?.deviceId) {
+      return { ...message, device: normalizeRemoteDevice(message.device) };
+    }
     if (message.type === "device-offline" && message.deviceId) return message;
     if (message.type === "device-removed" && message.deviceId) return message;
   } catch {
@@ -225,4 +233,35 @@ export async function consumeResetCredit(accountId: string) {
   return apiJson<{ ok: true }>(`/sync/accounts/${encodeURIComponent(accountId)}/reset-credits/consume`, {
     method: "POST",
   });
+}
+
+export async function switchRemoteDeviceProvider(deviceId: string, providerId: string) {
+  return apiJson<RemoteModelSwitchResult>(
+    `/devices/${encodeURIComponent(deviceId)}/provider`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ providerId }),
+    },
+  );
+}
+
+export async function restartRemoteDeviceCodex(deviceId: string) {
+  await apiJson<{ deviceId: string; restarted: boolean }>(
+    `/devices/${encodeURIComponent(deviceId)}/restart-codex`,
+    { method: "POST" },
+  );
+}
+
+function normalizeRemoteDevice(device: RemoteDevice): RemoteDevice {
+  return {
+    ...device,
+    activeProviderId: device.activeProviderId ?? null,
+    localProxyRunning: device.localProxyRunning === true,
+    capabilities: Array.isArray(device.capabilities)
+      ? device.capabilities.filter((capability) => (
+        capability === "provider-switch" || capability === "restart-codex"
+      ))
+      : [],
+  };
 }

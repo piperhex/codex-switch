@@ -15,12 +15,16 @@ import {
   fetchAccountSummary,
   fetchAccountUsage,
   fetchAccountUsageSummaries,
+  fetchRemoteProviders,
   fetchTotpVault,
   fetchResetCredits,
   pollAccountOAuth,
   pollEmbeddedAccountOAuth,
+  restartRemoteDeviceCodex,
   startAccountOAuth,
   startEmbeddedAccountOAuth,
+  switchRemoteDeviceAccount,
+  switchRemoteDeviceProvider,
   syncTotpVault,
   updateAccountDetails,
 } from './client';
@@ -227,6 +231,64 @@ describe('mobile Codex API client', () => {
     expect(apiFetch.mock.calls[0]?.[1]).toEqual(expect.objectContaining({ method: 'DELETE' }));
     const headers = new Headers((apiFetch.mock.calls[0]?.[1] as RequestInit).headers);
     expect(headers.get('Authorization')).toBe('Bearer switch-access');
+  });
+
+  it('loads safe provider summaries from the cloud API', async () => {
+    const providers = [{ id: 'provider-1', name: 'Gateway', model: 'model-a' }];
+    const apiFetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ providers }), {
+      status: 200,
+    }));
+    vi.stubGlobal('fetch', apiFetch);
+
+    await expect(fetchRemoteProviders(session)).resolves.toEqual(providers);
+    expect(apiFetch.mock.calls[0]?.[0]).toBe('https://switch.example.com/devices/providers');
+  });
+
+  it('switches a remote desktop between official and provider models', async () => {
+    const officialResult = {
+      deviceId: 'device/1',
+      activeAccountId: 'account-2',
+      activeProviderId: null,
+      requiresRestart: true,
+      online: true,
+    };
+    const providerResult = {
+      deviceId: 'device/1',
+      activeAccountId: 'account-2',
+      activeProviderId: 'provider-1',
+      requiresRestart: true,
+      online: true,
+    };
+    const apiFetch = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(officialResult), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(providerResult), { status: 200 }));
+    vi.stubGlobal('fetch', apiFetch);
+
+    await expect(switchRemoteDeviceAccount(session, 'device/1', 'account-2'))
+      .resolves.toEqual(officialResult);
+    await expect(switchRemoteDeviceProvider(session, 'device/1', 'provider-1'))
+      .resolves.toEqual(providerResult);
+    expect(apiFetch.mock.calls.map((call) => call[0])).toEqual([
+      'https://switch.example.com/devices/device%2F1/account',
+      'https://switch.example.com/devices/device%2F1/provider',
+    ]);
+    expect(JSON.parse((apiFetch.mock.calls[0]?.[1] as RequestInit).body as string))
+      .toEqual({ accountId: 'account-2' });
+    expect(JSON.parse((apiFetch.mock.calls[1]?.[1] as RequestInit).body as string))
+      .toEqual({ providerId: 'provider-1' });
+  });
+
+  it('restarts Codex on the selected remote desktop', async () => {
+    const apiFetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ restarted: true }), {
+      status: 200,
+    }));
+    vi.stubGlobal('fetch', apiFetch);
+
+    await expect(restartRemoteDeviceCodex(session, 'device/1')).resolves.toBeUndefined();
+    expect(apiFetch.mock.calls[0]?.[0]).toBe(
+      'https://switch.example.com/devices/device%2F1/restart-codex',
+    );
+    expect(apiFetch.mock.calls[0]?.[1]).toEqual(expect.objectContaining({ method: 'POST' }));
   });
 
   it('synchronizes the mobile 2FA vault only when explicitly requested', async () => {

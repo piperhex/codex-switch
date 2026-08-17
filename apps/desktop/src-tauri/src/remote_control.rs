@@ -31,6 +31,16 @@ enum ServerMessage {
         #[serde(rename = "accountId")]
         account_id: String,
     },
+    SwitchProvider {
+        #[serde(rename = "commandId")]
+        command_id: String,
+        #[serde(rename = "providerId")]
+        provider_id: String,
+    },
+    RestartCodex {
+        #[serde(rename = "commandId")]
+        command_id: String,
+    },
 }
 
 pub(crate) fn start<R: Runtime>(app: tauri::AppHandle<R>) {
@@ -66,6 +76,9 @@ fn run_connection<R: Runtime>(
                 "appVersion": config.app_version,
                 "activeAccountId": config.active_account_id,
                 "openaiAuthAccountId": config.openai_auth_account_id,
+                "activeProviderId": config.active_provider_id,
+                "localProxyRunning": config.local_proxy_running,
+                "capabilities": ["provider-switch", "restart-codex"],
             })
             .to_string()
             .into(),
@@ -87,6 +100,13 @@ fn run_connection<R: Runtime>(
                         command_id,
                         account_id,
                     } => handle_openai_auth_switch(app, &mut socket, command_id, account_id)?,
+                    ServerMessage::SwitchProvider {
+                        command_id,
+                        provider_id,
+                    } => handle_provider_switch(app, &mut socket, command_id, provider_id)?,
+                    ServerMessage::RestartCodex { command_id } => {
+                        handle_codex_restart(app, &mut socket, command_id)?
+                    }
                     ServerMessage::Authenticated { .. } => {}
                 }
             }
@@ -115,6 +135,8 @@ fn run_connection<R: Runtime>(
                 || next.access_token != config.access_token
                 || next.active_account_id != config.active_account_id
                 || next.openai_auth_account_id != config.openai_auth_account_id
+                || next.active_provider_id != config.active_provider_id
+                || next.local_proxy_running != config.local_proxy_running
         }) {
             let _ = socket.close(None);
             return Ok(());
@@ -130,6 +152,48 @@ fn handle_switch<R: Runtime>(
 ) -> Result<(), String> {
     let result =
         crate::commands::switch_account_and_restart_chatgpt_blocking(app.clone(), account_id);
+    send_command_result(socket, command_id, result, "account switch")
+}
+
+fn handle_openai_auth_switch<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    socket: &mut WebSocket<MaybeTlsStream<TcpStream>>,
+    command_id: String,
+    account_id: String,
+) -> Result<(), String> {
+    let result = crate::local_proxy::set_local_proxy_openai_auth_account_blocking(
+        app.clone(),
+        Some(account_id),
+    )
+    .map(|_| ());
+    send_command_result(socket, command_id, result, "OpenAI login account switch")
+}
+
+fn handle_provider_switch<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    socket: &mut WebSocket<MaybeTlsStream<TcpStream>>,
+    command_id: String,
+    provider_id: String,
+) -> Result<(), String> {
+    let result = crate::providers::switch_provider_blocking(app.clone(), provider_id);
+    send_command_result(socket, command_id, result, "Provider switch")
+}
+
+fn handle_codex_restart<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    socket: &mut WebSocket<MaybeTlsStream<TcpStream>>,
+    command_id: String,
+) -> Result<(), String> {
+    let result = crate::commands::restart_chatgpt_blocking(app.clone());
+    send_command_result(socket, command_id, result, "Codex restart")
+}
+
+fn send_command_result(
+    socket: &mut WebSocket<MaybeTlsStream<TcpStream>>,
+    command_id: String,
+    result: Result<(), String>,
+    context: &str,
+) -> Result<(), String> {
     let response = match result {
         Ok(()) => json!({
             "type": "switch-result",
@@ -145,35 +209,7 @@ fn handle_switch<R: Runtime>(
     };
     socket
         .send(Message::Text(response.to_string().into()))
-        .map_err(|error| format!("Could not send account switch result: {error}"))
-}
-
-fn handle_openai_auth_switch<R: Runtime>(
-    app: &tauri::AppHandle<R>,
-    socket: &mut WebSocket<MaybeTlsStream<TcpStream>>,
-    command_id: String,
-    account_id: String,
-) -> Result<(), String> {
-    let result = crate::local_proxy::set_local_proxy_openai_auth_account_blocking(
-        app.clone(),
-        Some(account_id),
-    );
-    let response = match result {
-        Ok(_) => json!({
-            "type": "switch-result",
-            "commandId": command_id,
-            "success": true,
-        }),
-        Err(error) => json!({
-            "type": "switch-result",
-            "commandId": command_id,
-            "success": false,
-            "error": error,
-        }),
-    };
-    socket
-        .send(Message::Text(response.to_string().into()))
-        .map_err(|error| format!("Could not send OpenAI login account result: {error}"))
+        .map_err(|error| format!("Could not send {context} result: {error}"))
 }
 
 fn set_read_timeout(
@@ -186,4 +222,33 @@ fn set_read_timeout(
         _ => Ok(()),
     }
     .map_err(|error| format!("Could not configure WebSocket timeout: {error}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ServerMessage;
+
+    #[test]
+    fn parses_provider_switch_and_restart_commands() {
+        let provider = serde_json::from_str::<ServerMessage>(
+            r#"{"type":"switch-provider","commandId":"command-1","providerId":"provider-1"}"#,
+        )
+        .expect("provider command should deserialize");
+        assert!(matches!(
+            provider,
+            ServerMessage::SwitchProvider {
+                command_id,
+                provider_id,
+            } if command_id == "command-1" && provider_id == "provider-1"
+        ));
+
+        let restart = serde_json::from_str::<ServerMessage>(
+            r#"{"type":"restart-codex","commandId":"command-2"}"#,
+        )
+        .expect("restart command should deserialize");
+        assert!(matches!(
+            restart,
+            ServerMessage::RestartCodex { command_id } if command_id == "command-2"
+        ));
+    }
 }

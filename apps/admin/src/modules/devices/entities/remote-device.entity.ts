@@ -36,6 +36,15 @@ export class RemoteDeviceEntity {
   @Column({ type: 'varchar', length: 64, nullable: true })
   openaiAuthAccountId: string | null;
 
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  activeProviderId: string | null;
+
+  @Column({ type: 'boolean', default: false })
+  localProxyRunning: boolean;
+
+  @Column({ type: 'jsonb', default: [] })
+  capabilities: string[];
+
   @Column({ type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
   lastSeenAt: Date;
 

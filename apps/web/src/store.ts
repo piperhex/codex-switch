@@ -7,8 +7,10 @@ import {
   login,
   logout,
   refreshAccountUsage,
+  restartRemoteDeviceCodex,
   setActiveSession,
   subscribeSession,
+  switchRemoteDeviceProvider,
 } from "./api";
 import type {
   AccountSummary,
@@ -16,6 +18,8 @@ import type {
   AuthSession,
   DeviceStatusSocketMessage,
   RemoteDevice,
+  RemoteModelSwitchResult,
+  RemoteProviderSummary,
   UserProfile,
 } from "./types";
 
@@ -28,6 +32,7 @@ interface AuthState {
 
 interface DataState {
   accounts: AccountSummary[];
+  providers: RemoteProviderSummary[];
   devices: RemoteDevice[];
   profile: UserProfile | null;
   page: AppPage;
@@ -36,7 +41,9 @@ interface DataState {
   refreshingAccountId: string | null;
   deletingDeviceId: string | null;
   switchingAccountId: string | null;
+  switchingProvider: { deviceId: string; providerId: string } | null;
   switchingOpenAiAuth: { deviceId: string; accountId: string } | null;
+  restartingDeviceId: string | null;
   lastRefreshAt: number | null;
   error: string | null;
 }
@@ -94,11 +101,27 @@ export const switchDeviceAccount = createAsyncThunk(
   "data/switchDeviceAccount",
   async ({ deviceId, accountId }: { deviceId: string; accountId: string }) => ({
     accountId,
-    result: await apiJson<{ deviceId: string; activeAccountId: string; online: boolean }>(
+    result: await apiJson<RemoteModelSwitchResult>(
       `/devices/${encodeURIComponent(deviceId)}/account`,
       { method: "POST", body: JSON.stringify({ accountId }) },
     ),
   }),
+);
+
+export const switchDeviceProvider = createAsyncThunk(
+  "data/switchDeviceProvider",
+  async ({ deviceId, providerId }: { deviceId: string; providerId: string }) => ({
+    providerId,
+    result: await switchRemoteDeviceProvider(deviceId, providerId),
+  }),
+);
+
+export const restartDeviceCodex = createAsyncThunk(
+  "data/restartDeviceCodex",
+  async (deviceId: string) => {
+    await restartRemoteDeviceCodex(deviceId);
+    return deviceId;
+  },
 );
 
 export const setDeviceOpenAiAuthAccount = createAsyncThunk(
@@ -111,6 +134,20 @@ export const setDeviceOpenAiAuthAccount = createAsyncThunk(
     ),
   }),
 );
+
+function applyModelSwitchResult(
+  devices: RemoteDevice[],
+  result: RemoteModelSwitchResult,
+): RemoteDevice[] {
+  return devices.map((device) => device.deviceId === result.deviceId
+    ? {
+      ...device,
+      activeAccountId: result.activeAccountId ?? device.activeAccountId,
+      activeProviderId: result.activeProviderId ?? null,
+      online: result.online,
+    }
+    : device);
+}
 
 const authSlice = createSlice({
   name: "auth",
@@ -140,9 +177,10 @@ const authSlice = createSlice({
 });
 
 const initialDataState: DataState = {
-  accounts: [], devices: [], profile: null, page: "accounts", loading: false, refreshing: false,
-  refreshingAccountId: null, deletingDeviceId: null, switchingAccountId: null,
-  switchingOpenAiAuth: null, lastRefreshAt: null, error: null,
+  accounts: [], providers: [], devices: [], profile: null, page: "accounts",
+  loading: false, refreshing: false, refreshingAccountId: null, deletingDeviceId: null,
+  switchingAccountId: null, switchingProvider: null, switchingOpenAiAuth: null,
+  restartingDeviceId: null, lastRefreshAt: null, error: null,
 };
 
 const dataSlice = createSlice({
@@ -230,12 +268,25 @@ const dataSlice = createSlice({
     .addCase(switchDeviceAccount.pending, (state, action) => { state.switchingAccountId = action.meta.arg.accountId; })
     .addCase(switchDeviceAccount.fulfilled, (state, action) => {
       state.switchingAccountId = null;
-      state.devices = state.devices.map((device) => device.deviceId === action.payload.result.deviceId
-        ? { ...device, activeAccountId: action.payload.result.activeAccountId, online: action.payload.result.online }
-        : device);
+      state.devices = applyModelSwitchResult(state.devices, action.payload.result);
     })
     .addCase(switchDeviceAccount.rejected, (state, action) => {
       state.switchingAccountId = null;
+      state.error = messageOf(action.error);
+    })
+    .addCase(switchDeviceProvider.pending, (state, action) => { state.switchingProvider = action.meta.arg; })
+    .addCase(switchDeviceProvider.fulfilled, (state, action) => {
+      state.switchingProvider = null;
+      state.devices = applyModelSwitchResult(state.devices, action.payload.result);
+    })
+    .addCase(switchDeviceProvider.rejected, (state, action) => {
+      state.switchingProvider = null;
+      state.error = messageOf(action.error);
+    })
+    .addCase(restartDeviceCodex.pending, (state, action) => { state.restartingDeviceId = action.meta.arg; })
+    .addCase(restartDeviceCodex.fulfilled, (state) => { state.restartingDeviceId = null; })
+    .addCase(restartDeviceCodex.rejected, (state, action) => {
+      state.restartingDeviceId = null;
       state.error = messageOf(action.error);
     })
     .addCase(setDeviceOpenAiAuthAccount.pending, (state, action) => { state.switchingOpenAiAuth = action.meta.arg; })

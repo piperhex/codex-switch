@@ -27,6 +27,9 @@ interface AuthMessage {
   appVersion?: string;
   activeAccountId?: string | null;
   openaiAuthAccountId?: string | null;
+  activeProviderId?: string | null;
+  localProxyRunning?: boolean;
+  capabilities?: string[];
 }
 
 interface SubscribeDevicesMessage {
@@ -61,11 +64,20 @@ interface RemoteDeviceStatus {
   appVersion?: string | null;
   activeAccountId?: string | null;
   openaiAuthAccountId?: string | null;
+  activeProviderId?: string | null;
+  localProxyRunning: boolean;
+  capabilities: string[];
   lastSeenAt: string;
   online: boolean;
 }
 
-interface PendingSwitch {
+type RemoteCommand =
+  | { type: 'switch-account'; accountId: string }
+  | { type: 'set-openai-auth-account'; accountId: string }
+  | { type: 'switch-provider'; providerId: string }
+  | { type: 'restart-codex' };
+
+interface PendingCommand {
   ownerId: string;
   deviceId: string;
   resolve: () => void;
@@ -77,7 +89,7 @@ interface PendingSwitch {
 export class DeviceGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly sessions = new Map<WebSocket, ClientSession>();
   private readonly sockets = new Map<string, WebSocket>();
-  private readonly pending = new Map<string, PendingSwitch>();
+  private readonly pending = new Map<string, PendingCommand>();
   private readonly authTimers = new Map<WebSocket, NodeJS.Timeout>();
   private readonly deviceSubscribers = new Map<string, Set<WebSocket>>();
   private readonly heartbeatTimers = new Map<WebSocket, NodeJS.Timeout>();
@@ -157,7 +169,7 @@ export class DeviceGateway implements OnGatewayConnection, OnGatewayDisconnect {
         || pending.deviceId !== session.deviceId
       ) continue;
       clearTimeout(pending.timer);
-      pending.reject(new Error('Device disconnected before the account was switched'));
+      pending.reject(new Error('Device disconnected before the command completed'));
       this.pending.delete(commandId);
     }
   }
@@ -178,19 +190,22 @@ export class DeviceGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   async pushAccountSwitch(ownerId: string, deviceId: string, accountId: string) {
-    await this.pushSwitchCommand(ownerId, deviceId, 'switch-account', accountId);
+    await this.pushCommand(ownerId, deviceId, { type: 'switch-account', accountId });
   }
 
   async pushOpenAiAuthAccountSwitch(ownerId: string, deviceId: string, accountId: string) {
-    await this.pushSwitchCommand(ownerId, deviceId, 'set-openai-auth-account', accountId);
+    await this.pushCommand(ownerId, deviceId, { type: 'set-openai-auth-account', accountId });
   }
 
-  private async pushSwitchCommand(
-    ownerId: string,
-    deviceId: string,
-    type: 'switch-account' | 'set-openai-auth-account',
-    accountId: string,
-  ) {
+  async pushProviderSwitch(ownerId: string, deviceId: string, providerId: string) {
+    await this.pushCommand(ownerId, deviceId, { type: 'switch-provider', providerId });
+  }
+
+  async pushCodexRestart(ownerId: string, deviceId: string) {
+    await this.pushCommand(ownerId, deviceId, { type: 'restart-codex' });
+  }
+
+  private async pushCommand(ownerId: string, deviceId: string, command: RemoteCommand) {
     const socket = this.sockets.get(this.socketKey(ownerId, deviceId));
     const session = socket ? this.sessions.get(socket) : undefined;
     if (
@@ -206,11 +221,11 @@ export class DeviceGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const completion = new Promise<void>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(commandId);
-        reject(new Error('Timed out while waiting for the device to switch accounts'));
+        reject(new Error('Timed out while waiting for the device command'));
       }, 25_000);
       this.pending.set(commandId, { ownerId, deviceId, resolve, reject, timer });
     });
-    socket.send(JSON.stringify({ type, commandId, accountId }));
+    socket.send(JSON.stringify({ ...command, commandId }));
     await completion;
   }
 
@@ -242,7 +257,7 @@ export class DeviceGateway implements OnGatewayConnection, OnGatewayDisconnect {
       clearTimeout(pending.timer);
       this.pending.delete(message.commandId);
       if (message.success) pending.resolve();
-      else pending.reject(new Error(message.error || 'The device could not switch accounts'));
+      else pending.reject(new Error(message.error || 'The device command failed'));
       await this.devices.touch(session.deviceId);
     }
   }
@@ -263,6 +278,9 @@ export class DeviceGateway implements OnGatewayConnection, OnGatewayDisconnect {
       appVersion: message.appVersion,
       activeAccountId: message.activeAccountId,
       openaiAuthAccountId: message.openaiAuthAccountId,
+      activeProviderId: message.activeProviderId,
+      localProxyRunning: message.localProxyRunning,
+      capabilities: normalizeCapabilities(message.capabilities),
     });
     const authTimer = this.authTimers.get(client);
     if (authTimer) clearTimeout(authTimer);
@@ -317,6 +335,9 @@ export class DeviceGateway implements OnGatewayConnection, OnGatewayDisconnect {
       appVersion?: string | null;
       activeAccountId?: string | null;
       openaiAuthAccountId?: string | null;
+      activeProviderId?: string | null;
+      localProxyRunning?: boolean;
+      capabilities?: string[];
       lastSeenAt?: Date | string;
     },
     online: boolean,
@@ -331,6 +352,9 @@ export class DeviceGateway implements OnGatewayConnection, OnGatewayDisconnect {
       appVersion: device.appVersion,
       activeAccountId: device.activeAccountId,
       openaiAuthAccountId: device.openaiAuthAccountId,
+      activeProviderId: device.activeProviderId,
+      localProxyRunning: device.localProxyRunning ?? false,
+      capabilities: normalizeCapabilities(device.capabilities),
       lastSeenAt,
       online,
     };
@@ -351,4 +375,11 @@ export class DeviceGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private socketKey(ownerId: string, deviceId: string) {
     return `${ownerId}:${deviceId}`;
   }
+}
+
+const REMOTE_CONTROL_CAPABILITIES = new Set(['provider-switch', 'restart-codex']);
+
+function normalizeCapabilities(value: string[] | undefined) {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.filter((capability) => REMOTE_CONTROL_CAPABILITIES.has(capability)))];
 }

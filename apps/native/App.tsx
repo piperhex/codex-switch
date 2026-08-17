@@ -32,19 +32,24 @@ import {
   fetchAccountUsageSummaries,
   fetchResetCredits,
   fetchRemoteDevices,
+  fetchRemoteProviders,
   fetchUserProfile,
   isSessionExpiredError,
   loadGlobalRefreshMinutes,
   loadSession,
   login,
+  restartRemoteDeviceCodex,
   saveGlobalRefreshMinutes,
   setRemoteDeviceOpenAiAuthAccount,
   switchRemoteDeviceAccount,
+  switchRemoteDeviceProvider,
 } from './src/api/client';
 import type {
   AccountSummary,
   AuthSession,
   RemoteDevice,
+  RemoteModelSwitchResult,
+  RemoteProviderSummary,
   ResetCreditsSummary,
   UsageWindow,
   UserProfile,
@@ -57,6 +62,7 @@ import { AccountPrivateDetailsSheet } from './src/components/AccountPrivateDetai
 import { AddAccountSheet } from './src/components/AddAccountSheet';
 import { AppToastHost, Toast } from './src/components/AppToast';
 import { BottomSheet } from './src/components/BottomSheet';
+import { RemoteModelSwitchSheet } from './src/components/RemoteModelSwitchSheet';
 import { TotpPage } from './src/totp/TotpPage';
 import { TotpSyncSettings } from './src/totp/TotpSyncSettings';
 import type { TotpManagerState } from './src/totp/types';
@@ -173,6 +179,33 @@ function platformLabel(platform: string) {
   if (normalized === 'macos' || normalized === 'darwin') return 'macOS';
   if (normalized === 'linux') return 'Linux';
   return platform || '未知平台';
+}
+
+function remoteModelLabel(
+  device: RemoteDevice,
+  activeAccount: AccountSummary | undefined,
+  activeProvider: RemoteProviderSummary | undefined,
+) {
+  if (!device.activeProviderId) {
+    return activeAccount ? `官方 · ${activeAccount.email}` : '未选择';
+  }
+  if (!activeProvider) return 'Provider 信息未同步';
+  return `${activeProvider.name}${activeProvider.model ? ` · ${activeProvider.model}` : ''}`;
+}
+
+function applyRemoteModelSwitch(
+  devices: RemoteDevice[],
+  result: RemoteModelSwitchResult,
+): RemoteDevice[] {
+  return devices.map((device) => device.deviceId === result.deviceId
+    ? {
+      ...device,
+      activeAccountId: result.activeAccountId ?? device.activeAccountId,
+      activeProviderId: result.activeProviderId ?? null,
+      online: result.online,
+      lastSeenAt: new Date().toISOString(),
+    }
+    : device);
 }
 
 function platformGlyph(platform: string) {
@@ -365,7 +398,7 @@ function Dashboard({
   onRefreshServer: () => Promise<void>;
   onRefreshUsage: () => Promise<void>;
   onRefreshAccount: (accountId: string) => Promise<void>;
-  onSwitch: (deviceId: string, accountId: string) => Promise<void>;
+  onSwitch: (deviceId: string, accountId: string) => Promise<boolean>;
   onAccountUpdated: (account: AccountSummary) => void;
 }) {
   const [privateMode, setPrivateMode] = useState(true);
@@ -453,10 +486,7 @@ function Dashboard({
       devices={devices}
       switching={Boolean(switchingAccountId)}
       onClose={() => setSwitchAccount(null)}
-      onSwitch={async (deviceId, accountId) => {
-        await onSwitch(deviceId, accountId);
-        setSwitchAccount(null);
-      }}
+      onSwitch={onSwitch}
     />
     <ResetCreditsDrawer
       account={resetCreditsAccount}
@@ -786,24 +816,35 @@ function OpenAiAuthAccountDrawer({
 
 function DeviceManagementPage({
   accounts,
+  providers,
   devices,
   refreshing,
   deletingDeviceId,
+  switchingAccountId,
+  switchingProvider,
   switchingOpenAiAuth,
   onRefresh,
   onDelete,
+  onSwitchAccount,
+  onSwitchProvider,
   onSetOpenAiAuthAccount,
 }: {
   accounts: AccountSummary[];
+  providers: RemoteProviderSummary[];
   devices: RemoteDevice[];
   refreshing: boolean;
   deletingDeviceId: string | null;
+  switchingAccountId: string | null;
+  switchingProvider: { deviceId: string; providerId: string } | null;
   switchingOpenAiAuth: { deviceId: string; accountId: string } | null;
   onRefresh: () => Promise<void>;
   onDelete: (deviceId: string) => Promise<void>;
+  onSwitchAccount: (deviceId: string, accountId: string) => Promise<boolean>;
+  onSwitchProvider: (deviceId: string, providerId: string) => Promise<boolean>;
   onSetOpenAiAuthAccount: (deviceId: string, accountId: string) => Promise<boolean>;
 }) {
   const [openAiAuthDeviceId, setOpenAiAuthDeviceId] = useState<string | null>(null);
+  const [modelDeviceId, setModelDeviceId] = useState<string | null>(null);
   const sortedDevices = useMemo(() => [...devices].sort((left, right) => {
     if (left.online !== right.online) return left.online ? -1 : 1;
     return new Date(right.lastSeenAt).getTime() - new Date(left.lastSeenAt).getTime();
@@ -812,6 +853,7 @@ function DeviceManagementPage({
   const openAiAuthDevice = devices.find(
     (device) => device.deviceId === openAiAuthDeviceId,
   ) ?? null;
+  const modelDevice = devices.find((device) => device.deviceId === modelDeviceId) ?? null;
 
   const confirmDelete = useCallback((device: RemoteDevice) => {
     if (device.online || deletingDeviceId) return;
@@ -842,7 +884,7 @@ function DeviceManagementPage({
       <View style={styles.devicePageHeader}>
         <View style={styles.devicePageHeaderText}>
           <Text style={styles.settingsTitle}>设备管理</Text>
-          <Text style={styles.settingsSubtitle}>查看 PC 设备状态并控制代理登录态账号</Text>
+          <Text style={styles.settingsSubtitle}>查看 PC 设备状态并切换官方或第三方模型</Text>
         </View>
         <Pressable
           accessibilityRole="button"
@@ -888,12 +930,15 @@ function DeviceManagementPage({
         <Text style={styles.devicePageEmptyText}>在桌面端登录同一个云端账号后，设备会自动出现在这里。</Text>
       </View> : sortedDevices.map((device) => {
         const activeAccount = accounts.find((account) => account.id === device.activeAccountId);
+        const activeProvider = providers.find((provider) => provider.id === device.activeProviderId);
         const openAiAuthAccount = accounts.find(
           (account) => account.id === device.openaiAuthAccountId,
         );
         const deleting = deletingDeviceId === device.deviceId;
         const deleteDisabled = device.online || Boolean(deletingDeviceId);
         const switchingOpenAiAuthForDevice = switchingOpenAiAuth?.deviceId === device.deviceId;
+        const switchingModelForDevice = switchingProvider?.deviceId === device.deviceId
+          || Boolean(switchingAccountId && modelDeviceId === device.deviceId);
         const openAiAuthDisabled = !device.online || Boolean(switchingOpenAiAuth);
         return <View
           key={device.deviceId}
@@ -929,7 +974,13 @@ function DeviceManagementPage({
           </View>
           <View style={styles.deviceCardDivider} />
           <View style={styles.deviceDetailRow}>
-            <Text style={styles.deviceDetailLabel}>当前账号</Text>
+            <Text style={styles.deviceDetailLabel}>当前模型</Text>
+            <Text style={styles.deviceDetailValue} numberOfLines={1}>
+              {remoteModelLabel(device, activeAccount, activeProvider)}
+            </Text>
+          </View>
+          <View style={styles.deviceDetailRow}>
+            <Text style={styles.deviceDetailLabel}>官方账号</Text>
             <Text style={styles.deviceDetailValue} numberOfLines={1}>
               {activeAccount?.email ?? (device.activeAccountId ? '账号信息未同步' : '未选择')}
             </Text>
@@ -947,6 +998,21 @@ function DeviceManagementPage({
               {device.online ? '当前在线' : displayFullDate(device.lastSeenAt)}
             </Text>
           </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`切换 ${device.name} 使用的模型`}
+            disabled={!device.online || switchingModelForDevice}
+            onPress={() => setModelDeviceId(device.deviceId)}
+            style={({ pressed }) => [
+              styles.deviceModelButton,
+              pressed && styles.pressed,
+              (!device.online || switchingModelForDevice) && styles.disabled,
+            ]}
+          >
+            {switchingModelForDevice
+              ? <ActivityIndicator color={COLORS.green} size="small" />
+              : <Text style={styles.deviceModelButtonText}>切换模型</Text>}
+          </Pressable>
           <View style={styles.deviceActionRow}>
             <Pressable
               accessibilityRole="button"
@@ -1009,6 +1075,19 @@ function DeviceManagementPage({
         : null}
       onClose={() => setOpenAiAuthDeviceId(null)}
       onSelect={onSetOpenAiAuthAccount}
+    />
+    <RemoteModelSwitchSheet
+      device={modelDevice}
+      accounts={accounts}
+      providers={providers}
+      switchingAccountId={switchingAccountId}
+      switchingProviderId={switchingProvider
+        && switchingProvider.deviceId === modelDevice?.deviceId
+        ? switchingProvider.providerId
+        : null}
+      onClose={() => setModelDeviceId(null)}
+      onSwitchAccount={onSwitchAccount}
+      onSwitchProvider={onSwitchProvider}
     />
   </>;
 }
@@ -1283,7 +1362,7 @@ function AccountDetailsDrawer({
   onOpenPrivateDetails: (account: AccountSummary) => void;
 }) {
   const activeDevices = account
-    ? devices.filter((device) => device.activeAccountId === account.id)
+    ? devices.filter((device) => !device.activeProviderId && device.activeAccountId === account.id)
     : [];
   const email = account
     ? (privateMode ? maskEmail(account.email) : account.email)
@@ -1528,7 +1607,7 @@ function DeviceSwitchDrawer({ account, devices, switching, onClose, onSwitch }: 
   devices: RemoteDevice[];
   switching: boolean;
   onClose: () => void;
-  onSwitch: (deviceId: string, accountId: string) => Promise<void>;
+  onSwitch: (deviceId: string, accountId: string) => Promise<boolean>;
 }) {
   const [pendingDeviceId, setPendingDeviceId] = useState<string | null>(null);
 
@@ -1536,11 +1615,11 @@ function DeviceSwitchDrawer({ account, devices, switching, onClose, onSwitch }: 
     if (!account || switching) return;
     setPendingDeviceId(deviceId);
     try {
-      await onSwitch(deviceId, account.id);
+      if (await onSwitch(deviceId, account.id)) onClose();
     } finally {
       setPendingDeviceId(null);
     }
-  }, [account, onSwitch, switching]);
+  }, [account, onClose, onSwitch, switching]);
 
   return <BottomSheet
     visible={Boolean(account)}
@@ -1554,7 +1633,7 @@ function DeviceSwitchDrawer({ account, devices, switching, onClose, onSwitch }: 
         <Text style={styles.switchDeviceEmptyTitle}>暂无可用设备</Text>
         <Text style={styles.switchDeviceEmptyText}>请先在 PC 端登录同一个云端账号并保持应用运行。</Text>
       </View> : devices.map((device) => {
-        const current = device.activeAccountId === account?.id;
+        const current = !device.activeProviderId && device.activeAccountId === account?.id;
         const disabled = switching || !device.online || current;
         return <Pressable
           key={device.deviceId}
@@ -1597,13 +1676,19 @@ function AppContent() {
   const [refreshingUsage, setRefreshingUsage] = useState(false);
   const [refreshingAccountId, setRefreshingAccountId] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<AccountSummary[]>([]);
+  const [providers, setProviders] = useState<RemoteProviderSummary[]>([]);
   const [devices, setDevices] = useState<RemoteDevice[]>([]);
   const [deletingDeviceId, setDeletingDeviceId] = useState<string | null>(null);
   const [switchingAccountId, setSwitchingAccountId] = useState<string | null>(null);
+  const [switchingProvider, setSwitchingProvider] = useState<{
+    deviceId: string;
+    providerId: string;
+  } | null>(null);
   const [switchingOpenAiAuth, setSwitchingOpenAiAuth] = useState<{
     deviceId: string;
     accountId: string;
   } | null>(null);
+  const [restartingDeviceId, setRestartingDeviceId] = useState<string | null>(null);
   const [globalRefreshMinutes, setGlobalRefreshMinutes] = useState(DEFAULT_GLOBAL_REFRESH_MINUTES);
   const notifyTotpError = useCallback((message: string) => Toast.fail(message), []);
   const totpManager = useTotpVault(session, notifyTotpError);
@@ -1616,18 +1701,21 @@ function AppContent() {
     refreshingRef.current = true;
     setSyncingServer(true);
     try {
-      const [nextAccounts, nextDevices] = await Promise.all([
+      const [nextAccounts, nextDevices, nextProviders] = await Promise.all([
         fetchAccountSummary(activeSession),
         fetchRemoteDevices(activeSession),
+        fetchRemoteProviders(activeSession),
       ]);
       setAccounts((current) => mergeServerAccounts(current, nextAccounts));
       setDevices(nextDevices);
+      setProviders(nextProviders);
     } catch (error) {
       if (isSessionExpiredError(error)) {
         setSession(null);
         setProfile(null);
         setAccounts([]);
         setDevices([]);
+        setProviders([]);
         setActivePage('accounts');
       }
       if (!quiet) Toast.fail(errorMessage(error));
@@ -1694,28 +1782,34 @@ function AppContent() {
         if (stored) {
           setProfile(stored.profile ?? null);
           setLoading(true);
-          const [accountsResult, devicesResult, profileResult] = await Promise.allSettled([
+          const [accountsResult, devicesResult, providersResult, profileResult] = await Promise.allSettled([
             fetchAccountSummary(stored),
             fetchRemoteDevices(stored),
+            fetchRemoteProviders(stored),
             fetchUserProfile(stored),
           ]);
           if (!mounted) return;
 
-          const sessionError = [accountsResult, devicesResult, profileResult]
+          const sessionError = [accountsResult, devicesResult, providersResult, profileResult]
             .find((result) => result.status === 'rejected' && isSessionExpiredError(result.reason));
           if (sessionError) {
             setSession(null);
             setProfile(null);
             setAccounts([]);
             setDevices([]);
+            setProviders([]);
           } else {
             if (accountsResult.status === 'fulfilled') {
               setAccounts(accountsResult.value);
               lastUsageRefreshAtRef.current = Date.now();
             }
             if (devicesResult.status === 'fulfilled') setDevices(devicesResult.value);
+            if (providersResult.status === 'fulfilled') setProviders(providersResult.value);
             if (profileResult.status === 'fulfilled') setProfile(profileResult.value);
-            if (accountsResult.status === 'rejected' || devicesResult.status === 'rejected' || profileResult.status === 'rejected') {
+            if (accountsResult.status === 'rejected'
+              || devicesResult.status === 'rejected'
+              || providersResult.status === 'rejected'
+              || profileResult.status === 'rejected') {
               Toast.fail('暂时无法同步云端数据，登录状态已保留');
             }
           }
@@ -1793,6 +1887,7 @@ function AppContent() {
             setProfile(null);
             setAccounts([]);
             setDevices([]);
+            setProviders([]);
             setActivePage('accounts');
           }
         }
@@ -1885,6 +1980,9 @@ function AppContent() {
     void fetchRemoteDevices(nextSession)
       .then(setDevices)
       .catch((error) => Toast.fail(`读取设备失败：${errorMessage(error)}`));
+    void fetchRemoteProviders(nextSession)
+      .then(setProviders)
+      .catch((error) => Toast.fail(`读取 Provider 失败：${errorMessage(error)}`));
     void fetchUserProfile(nextSession)
       .then(setProfile)
       .catch((error) => Toast.fail(`读取用户身份失败：${errorMessage(error)}`));
@@ -1916,6 +2014,7 @@ function AppContent() {
         setProfile(null);
         setAccounts([]);
         setDevices([]);
+        setProviders([]);
         setActivePage('accounts');
       } else {
         Toast.fail(`删除失败：${errorMessage(error)}`);
@@ -1926,22 +2025,86 @@ function AppContent() {
     }
   }, [deletingDeviceId, devices, session]);
 
-  const handleRemoteSwitch = useCallback(async (deviceId: string, accountId: string) => {
-    if (!session || switchingAccountId) return;
+  const restartCodexOnDevice = useCallback(async (deviceId: string) => {
+    if (!session || restartingDeviceId) return;
+    setRestartingDeviceId(deviceId);
+    try {
+      await restartRemoteDeviceCodex(session, deviceId);
+      Toast.success('目标 PC 上的 ChatGPT/Codex 已重启');
+    } catch (error) {
+      Toast.fail(`重启失败：${errorMessage(error)}`);
+    } finally {
+      setRestartingDeviceId(null);
+    }
+  }, [restartingDeviceId, session]);
+
+  const promptModelRestart = useCallback((deviceId: string) => {
+    const device = devices.find((candidate) => candidate.deviceId === deviceId);
+    const canRestartRemotely = device?.capabilities?.includes('restart-codex') ?? false;
+    const content = canRestartRemotely
+      ? '已在官方模型与第三方 Provider 间切换。立即重启目标 PC 上的 ChatGPT/Codex 以加载当前模型。'
+      : '已在官方模型与第三方 Provider 间切换。请在目标 PC 上手动重启 ChatGPT/Codex。';
+    Alert.alert(
+      '重启以加载当前模型？',
+      content,
+      canRestartRemotely
+        ? [
+          { text: '稍后', style: 'cancel' },
+          {
+            text: '立即重启',
+            style: 'destructive',
+            onPress: () => void restartCodexOnDevice(deviceId),
+          },
+        ]
+        : [{ text: '知道了' }],
+    );
+  }, [devices, restartCodexOnDevice]);
+
+  const handleRemoteSwitch = useCallback(async (
+    deviceId: string,
+    accountId: string,
+  ): Promise<boolean> => {
+    if (!session || switchingAccountId) return false;
     setSwitchingAccountId(accountId);
     try {
       const result = await switchRemoteDeviceAccount(session, deviceId, accountId);
-      setDevices((current) => current.map((device) => device.deviceId === deviceId
-        ? { ...device, activeAccountId: result.activeAccountId, online: result.online, lastSeenAt: new Date().toISOString() }
-        : device));
-      Toast.success('PC 端账号已切换');
+      setDevices((current) => applyRemoteModelSwitch(current, result));
+      Toast.success('PC 端已切换到官方模型');
+      if (result.requiresRestart) {
+        setTimeout(() => promptModelRestart(deviceId), 0);
+      }
+      return true;
     } catch (error) {
       Toast.fail(`切换失败：${errorMessage(error)}`);
       void fetchRemoteDevices(session).then(setDevices).catch(() => undefined);
+      return false;
     } finally {
       setSwitchingAccountId(null);
     }
-  }, [session, switchingAccountId]);
+  }, [promptModelRestart, session, switchingAccountId]);
+
+  const handleRemoteProviderSwitch = useCallback(async (
+    deviceId: string,
+    providerId: string,
+  ): Promise<boolean> => {
+    if (!session || switchingProvider) return false;
+    setSwitchingProvider({ deviceId, providerId });
+    try {
+      const result = await switchRemoteDeviceProvider(session, deviceId, providerId);
+      setDevices((current) => applyRemoteModelSwitch(current, result));
+      Toast.success('PC 端已切换到第三方 Provider');
+      if (result.requiresRestart) {
+        setTimeout(() => promptModelRestart(deviceId), 0);
+      }
+      return true;
+    } catch (error) {
+      Toast.fail(`切换失败：${errorMessage(error)}`);
+      void fetchRemoteDevices(session).then(setDevices).catch(() => undefined);
+      return false;
+    } finally {
+      setSwitchingProvider(null);
+    }
+  }, [promptModelRestart, session, switchingProvider]);
 
   const handleSetOpenAiAuthAccount = useCallback(async (
     deviceId: string,
@@ -1974,6 +2137,7 @@ function AppContent() {
         setProfile(null);
         setAccounts([]);
         setDevices([]);
+        setProviders([]);
         setActivePage('accounts');
       } else {
         Toast.fail(`更新代理登录态失败：${errorMessage(error)}`);
@@ -1991,8 +2155,11 @@ function AppContent() {
     setProfile(null);
     setAccounts([]);
     setDevices([]);
+    setProviders([]);
     setDeletingDeviceId(null);
+    setSwitchingProvider(null);
     setSwitchingOpenAiAuth(null);
+    setRestartingDeviceId(null);
     setActivePage('accounts');
   }, []);
 
@@ -2012,9 +2179,12 @@ function AppContent() {
           account.id === updated.id ? { ...account, ...updated } : account
         )))} />
       : activePage === 'devices'
-        ? <DeviceManagementPage accounts={accounts} devices={devices} refreshing={syncingServer}
-          deletingDeviceId={deletingDeviceId} switchingOpenAiAuth={switchingOpenAiAuth}
-          onRefresh={refreshServerData} onDelete={handleDeleteDevice}
+        ? <DeviceManagementPage accounts={accounts} providers={providers} devices={devices}
+          refreshing={syncingServer} deletingDeviceId={deletingDeviceId}
+          switchingAccountId={switchingAccountId} switchingProvider={switchingProvider}
+          switchingOpenAiAuth={switchingOpenAiAuth} onRefresh={refreshServerData}
+          onDelete={handleDeleteDevice} onSwitchAccount={handleRemoteSwitch}
+          onSwitchProvider={handleRemoteProviderSwitch}
           onSetOpenAiAuthAccount={handleSetOpenAiAuthAccount} />
         : activePage === 'totp'
           ? <TotpPage manager={totpManager} />
@@ -2096,7 +2266,9 @@ const styles = StyleSheet.create({
   deviceDetailRow: { minHeight: 29, flexDirection: 'row', alignItems: 'center', gap: 12 },
   deviceDetailLabel: { width: 64, color: COLORS.muted, fontSize: 11 },
   deviceDetailValue: { flex: 1, minWidth: 0, color: COLORS.ink, fontSize: 11, fontWeight: '700', textAlign: 'right' },
-  deviceActionRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 },
+  deviceModelButton: { height: 42, alignItems: 'center', justifyContent: 'center', borderRadius: 10, borderWidth: 1, borderColor: '#9bd5c2', backgroundColor: '#edf9f4', marginTop: 14 },
+  deviceModelButtonText: { color: '#0f8068', fontSize: 12, fontWeight: '900' },
+  deviceActionRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
   deviceDeleteButton: { flex: 1, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 10, borderWidth: 1, borderColor: '#efc3bf', backgroundColor: '#fff8f7', paddingHorizontal: 8 },
   deviceDeleteButtonOnline: { borderColor: '#e1e9e3', backgroundColor: '#f5f8f6' },
   deviceDeleteButtonText: { color: '#bd3c35', fontSize: 12, fontWeight: '800' },

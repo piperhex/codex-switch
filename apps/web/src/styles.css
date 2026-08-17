@@ -164,6 +164,17 @@ h1, h2, h3, .brand-lockup { font-family: "Manrope", "PingFang SC", "Microsoft Ya
 .select-list button > span:nth-child(2) { min-width: 0; }.select-list strong, .select-list small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.select-list strong { font-size: 12px; }.select-list small { margin-top: 4px; color: var(--muted); font-size: 9px; }.select-list > button > svg { color: #95a29c; }
 .device-mini-icon, .account-initial { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 11px; color: #14765f; background: #e6f5ef; }.account-initial { font-size: 10px; font-weight: 800; }
 .current-pill { justify-self: end; padding: 4px 7px; border-radius: 7px; color: #08725d; background: #e2f4ed; font-size: 9px; }
+.sheet-close { width: 34px; height: 34px; display: grid; place-items: center; flex: 0 0 auto; border: 0; border-radius: 10px; color: #718078; background: #f1f5f3; font-size: 22px; line-height: 1; cursor: pointer; }
+.model-switch-section + .model-switch-section { margin-top: 22px; }
+.model-switch-section h3 { color: var(--ink); font-size: 13px; }
+.model-switch-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.model-switch-heading span { max-width: 240px; color: #9a6b18; font-size: 9px; text-align: right; }
+.model-switch-section .select-list { margin-top: 11px; }
+.model-switch-empty { margin-top: 11px; padding: 14px; border-radius: 11px; color: var(--muted); background: #f5f8f6; font-size: 10px; }
+.provider-initial { color: #64540c; background: #f5efd0; }
+.model-switch-loading { justify-self: end; color: var(--green); font-size: 9px; font-weight: 700; }
+.model-switch-footer { max-width: 400px; margin: 18px auto 0; color: var(--muted); font-size: 9px; line-height: 1.6; }
+.adm-dialog .adm-center-popup { --adm-center-popup-max-width: min(400px, calc(100vw - 32px)); }
 .credit-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 17px; }.credit-card { display: flex; align-items: center; gap: 12px; padding: 14px; border: 1px solid #dbe9e3; border-radius: 13px; background: linear-gradient(120deg, #f4fbf8, #fff); }.credit-icon { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 12px; color: #5d7d21; background: #eef7d8; }.credit-card strong, .credit-card span { display: block; }.credit-card strong { color: #30453b; font-size: 12px; }.credit-card span { margin-top: 4px; color: var(--muted); font-size: 9px; }
 
 /* Devices */
@@ -175,6 +186,7 @@ h1, h2, h3, .brand-lockup { font-family: "Manrope", "PingFang SC", "Microsoft Ya
 .status-badge { display: flex; align-items: center; gap: 6px; margin-left: auto; padding: 5px 8px; border-radius: 8px; color: #79877f; background: #f0f3f1; font-size: 9px; font-weight: 800; }.status-badge i { width: 6px; height: 6px; border-radius: 50%; background: #9da7a2; }.device-card.online .status-badge { color: #08725d; background: #e3f5ee; }.device-card.online .status-badge i { background: #22ba83; box-shadow: 0 0 0 3px rgba(34,186,131,.12); }
 .device-data { display: grid; gap: 10px; margin-top: 18px; padding: 14px 0; border-top: 1px solid #edf1ef; border-bottom: 1px solid #edf1ef; }.device-data div { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 12px; }.device-data span { color: #85928c; font-size: 9px; }.device-data strong { overflow: hidden; color: #44584f; font-size: 10px; font-weight: 600; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
 .device-actions { display: grid; grid-template-columns: 1fr 1.25fr; gap: 9px; margin-top: 15px; }.device-actions .adm-button { border-radius: 9px; font-size: 10px; font-weight: 700; }
+.device-model-action.adm-button { margin-top: 15px; border-radius: 9px; font-size: 10px; font-weight: 700; }
 
 /* Settings */
 .profile-card { display: flex; align-items: center; gap: 15px; padding: 21px 23px; border: 1px solid #dce7e1; border-radius: 18px; background: #fff; box-shadow: 0 8px 28px rgba(35,75,57,.04); }.profile-avatar { width: 51px; height: 51px; display: grid; place-items: center; border-radius: 15px; color: #0a6b55; background: #dff3eb; font-weight: 800; }.profile-card > div:nth-child(2) { min-width: 0; }.profile-card h2 { overflow: hidden; color: var(--ink); font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }.profile-card p { margin-top: 4px; color: var(--muted); font-size: 10px; }.profile-card > span { margin-left: auto; padding: 6px 10px; border-radius: 8px; color: #0b725d; background: #e3f5ee; font-size: 9px; font-weight: 800; }
