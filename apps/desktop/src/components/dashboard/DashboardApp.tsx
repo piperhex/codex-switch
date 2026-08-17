@@ -1049,8 +1049,7 @@ export function DashboardApp() {
       ? t("providers.proxy.agentIdentityUnsupported")
       : undefined;
   const proxyStatusControls = (
-    <ProxyStatusControls activeProvider={activeProvider}
-      customTitlebarEnabled={CUSTOM_TITLEBAR_ENABLED} manager={providerManager}
+    <ProxyStatusControls customTitlebarEnabled={CUSTOM_TITLEBAR_ENABLED} manager={providerManager}
       notify={notify} onRequestLanAccess={() => setShowLanAccess(true)}
       startDisabledReason={proxyStartDisabledReason} t={t} />
   );
@@ -1298,7 +1297,8 @@ export function DashboardApp() {
               proxyStartDisabledReason={proxyStartDisabledReason}
               onStartProxy={() => void providerManager.startProxy()}
               onSave={providerManager.saveProvider}
-              onSwitch={switchProvider} onSwitchModel={switchProviderModel}
+              onSwitch={switchProvider} onDeactivate={providerManager.cancelProviderUse}
+              onSwitchModel={switchProviderModel}
               onModelControlChange={setProviderModelControl}
               onAutoSwitchChange={providerManager.setProviderAutoSwitch}
               onDelete={deleteProvider}

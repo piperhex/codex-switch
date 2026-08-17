@@ -38,6 +38,7 @@ interface ProvidersPageProps {
   onStartProxy: () => void;
   onSave: (provider: ProviderInput) => Promise<Provider | null>;
   onSwitch: (id: string) => void;
+  onDeactivate: (id: string) => void;
   onSwitchModel: (id: string, model: string) => void;
   onModelControlChange: (id: string, controlledByCodex: boolean) => void;
   onAutoSwitchChange: (id: string, enabled: boolean) => void;
@@ -63,6 +64,7 @@ export function ProvidersPage({
   onStartProxy,
   onSave,
   onSwitch,
+  onDeactivate,
   onSwitchModel,
   onModelControlChange,
   onAutoSwitchChange,
@@ -166,6 +168,7 @@ export function ProvidersPage({
     language,
     usageForProvider,
     onSwitch,
+    onDeactivate,
     onStartProxy,
     onSwitchModel,
     onModelControlChange,

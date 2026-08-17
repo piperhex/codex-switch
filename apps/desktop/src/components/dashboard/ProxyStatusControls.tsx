@@ -1,13 +1,11 @@
 import { Popconfirm, Switch, Tooltip } from "antd";
 import { Copy } from "lucide-react";
 import type { Translate } from "../../i18n";
-import type { Provider } from "../../types";
 import type { useProviderManager } from "../../hooks/useProviderManager";
 
 type ProviderManager = ReturnType<typeof useProviderManager>;
 
 interface ProxyStatusControlsProps {
-  activeProvider: Provider | null;
   customTitlebarEnabled: boolean;
   manager: ProviderManager;
   notify: (message: string) => void;
@@ -18,7 +16,6 @@ interface ProxyStatusControlsProps {
 
 export function ProxyStatusControls(options: ProxyStatusControlsProps) {
   const {
-    activeProvider,
     customTitlebarEnabled,
     manager,
     notify,
@@ -30,8 +27,7 @@ export function ProxyStatusControls(options: ProxyStatusControlsProps) {
   const baseUrl = manager.localProxy?.port
     ? `http://${manager.localProxy.address}:${manager.localProxy.port}/v1`
     : "--";
-  const stopReason = running && activeProvider ? t("providers.error.proxyStopProviderActive") : undefined;
-  const toggleDisabled = manager.proxyBusy || Boolean(stopReason) || (!running && Boolean(startDisabledReason));
+  const toggleDisabled = manager.proxyBusy || (!running && Boolean(startDisabledReason));
 
   const copyBaseUrl = () => {
     if (!manager.localProxy) return;
@@ -55,7 +51,7 @@ export function ProxyStatusControls(options: ProxyStatusControlsProps) {
         }} />
     </span>
   );
-  const disabledReason = stopReason ?? (running ? undefined : startDisabledReason);
+  const disabledReason = running ? undefined : startDisabledReason;
   const statusControl = disabledReason ? (
     <Tooltip title={disabledReason}>
       <span className="window-titlebar-proxy-status-wrap">{statusSwitch}</span>

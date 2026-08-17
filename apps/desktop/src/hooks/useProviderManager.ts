@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   activateProvider,
   copyLocalProxyLanApiKey,
+  deactivateProvider,
   loadLocalProxyStatus,
   loadProviders,
   queryProviderBalance,
@@ -60,9 +61,6 @@ function providerErrorMessage(error: unknown, t: Translate) {
   }
   if (message.includes("Local proxy was stopped, the selected auth.json and non-proxy conversations were restored")) {
     return t("providers.error.proxyStoppedRestartFailed");
-  }
-  if (message.includes("The local proxy cannot be stopped while a third-party Provider is active")) {
-    return t("providers.error.proxyStopProviderActive");
   }
   if (message.includes("API key is required for a new provider")) return t("providers.error.apiKeyRequired");
   if (message.includes("Provider does not exist")) return t("providers.error.notFound");
@@ -211,6 +209,19 @@ export function useProviderManager(
     }
   }, [load, notify, providers, t]);
 
+  const cancelProviderUse = useCallback(async (id: string) => {
+    setBusyProviderId(id);
+    try {
+      await deactivateProvider();
+      notify(t("toast.providerUseCancelled"));
+      await load();
+    } catch (error) {
+      notify(providerErrorMessage(error, t));
+    } finally {
+      setBusyProviderId(null);
+    }
+  }, [load, notify, t]);
+
   const switchModel = useCallback(async (id: string, model: string) => {
     setBusyProviderId(id);
     try {
@@ -338,10 +349,7 @@ export function useProviderManager(
   }, [load, notify, t]);
 
   const stopProxy = useCallback(async () => {
-    if (providers.some((provider) => provider.active)) {
-      notify(t("providers.error.proxyStopProviderActive"));
-      return;
-    }
+    const providerWasActive = providers.some((provider) => provider.active);
     setProxyBusy(true);
     setProxyStopProgress({ phase: "stoppingClient", percent: 3 });
     const unsubscribeProgress = subscribeToLocalProxyStopProgress((progress) => {
@@ -361,7 +369,9 @@ export function useProviderManager(
     try {
       setLocalProxy(await stopLocalProxy());
       setProxyStopProgress({ phase: "complete", percent: 100 });
-      notify(t("toast.localProxyStopped"));
+      notify(t(providerWasActive
+        ? "toast.localProxyStoppedProviderDeselected"
+        : "toast.localProxyStopped"));
       await load();
       await new Promise((resolve) => window.setTimeout(resolve, 650));
     } catch (error) {
@@ -521,6 +531,7 @@ export function useProviderManager(
     activeProvider: providers.find((provider) => provider.active) ?? null,
     saveProvider,
     switchProvider,
+    cancelProviderUse,
     switchModel,
     setModelControl,
     setProviderAutoSwitch,

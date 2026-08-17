@@ -479,7 +479,7 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
                 argument(&args, "enabled")?,
             ))
         }
-        "disable_provider" => serialize(crate::providers::disable_provider(app)),
+        "disable_provider" => serialize(block_on(crate::providers::disable_provider(app))),
         "delete_provider" => serialize(crate::providers::delete_provider(
             app,
             argument(&args, "id")?,

@@ -1126,9 +1126,6 @@ export async function updateWebProxyListenOnAllInterfaces(enabled: boolean): Pro
 
 export async function stopLocalProxy(): Promise<LocalProxyStatus> {
   if (!hasLocalBackend) {
-    if (readPreviewProviders().some((provider) => provider.active)) {
-      throw new Error("The local proxy cannot be stopped while a third-party Provider is active");
-    }
     window.localStorage.removeItem(LOCAL_PROXY_PREVIEW_KEY);
     writePreviewProviders(readPreviewProviders().map((provider) => ({
       ...provider,

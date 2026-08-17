@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { Button, Checkbox, Dropdown, Popconfirm, Space, Table, Tag, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { Check, Columns3, Pencil, RotateCcw, Server, Shuffle, Trash2 } from "lucide-react";
+import { CircleOff, Columns3, Pencil, RotateCcw, Server, Shuffle, Trash2 } from "lucide-react";
 import { ImageModelRouteSelect } from "../../components/ImageModelRouteSelect";
 import type { Language, Translate } from "../../i18n";
 import type {
@@ -32,6 +32,7 @@ interface ProviderViewProps {
   language: Language;
   usageForProvider: (provider: Provider) => ProviderTokenUsageTotals | undefined;
   onSwitch: (id: string) => void;
+  onDeactivate: (id: string) => void;
   onStartProxy: () => void;
   onSwitchModel: (id: string, model: string) => void;
   onModelControlChange: (id: string, controlledByCodex: boolean) => void;
@@ -102,21 +103,33 @@ function ProviderImageModelControls(options: ProviderViewProps) {
 function ProviderActions({ provider, options }: {
   provider: Provider;
   options: Pick<ProviderViewProps,
-    "busyProviderId" | "proxyRunning" | "onAutoSwitchChange" | "onSwitch" | "onEdit" | "onDelete" | "t">;
+    "busyProviderId" | "proxyRunning" | "onAutoSwitchChange" | "onSwitch" | "onDeactivate"
+    | "onEdit" | "onDelete" | "t">;
 }) {
-  const { busyProviderId, proxyRunning, onAutoSwitchChange, onSwitch, onEdit, onDelete, t } = options;
+  const {
+    busyProviderId,
+    proxyRunning,
+    onAutoSwitchChange,
+    onSwitch,
+    onDeactivate,
+    onEdit,
+    onDelete,
+    t,
+  } = options;
   const waiting = busyProviderId === provider.id;
   return (
     <Space size={4} className="table-actions">
-      <Tooltip title={provider.supportsDirectSwitch
-        ? t("providers.tooltip.switch")
-        : t("providers.tooltip.requiresBridge")}>
+      <Tooltip title={provider.active
+        ? t("providers.action.cancelUse")
+        : provider.supportsDirectSwitch
+          ? t("providers.tooltip.switch")
+          : t("providers.tooltip.requiresBridge")}>
         <Button size="small" type={provider.active ? "default" : "primary"}
-          disabled={provider.active || !provider.supportsDirectSwitch}
-          loading={waiting} icon={provider.active ? <Check size={14} /> : <RotateCcw size={14} />}
-          onClick={() => onSwitch(provider.id)}>
+          disabled={!provider.active && !provider.supportsDirectSwitch}
+          loading={waiting} icon={provider.active ? <CircleOff size={14} /> : <RotateCcw size={14} />}
+          onClick={() => provider.active ? onDeactivate(provider.id) : onSwitch(provider.id)}>
           {provider.active
-            ? t("providers.action.inUse")
+            ? t("providers.action.cancelUse")
             : proxyRunning
               ? t("providers.action.hotSwitch")
               : t("providers.action.switch")}
@@ -282,6 +295,7 @@ function ProviderCard({ provider, options }: { provider: Provider; options: Prov
     language,
     usageForProvider,
     onSwitch,
+    onDeactivate,
     onSwitchModel,
     onModelControlChange,
     onAutoSwitchChange,
@@ -307,6 +321,13 @@ function ProviderCard({ provider, options }: { provider: Provider; options: Prov
           ? <Tag>{t("providers.status.ready")}</Tag>
           : <Tag color="gold">{t("providers.status.bridgeRequired")}</Tag>}
       <div className="provider-card-top-actions">
+        {provider.active && (
+          <Tooltip title={t("providers.action.cancelUse")}>
+            <Button size="small" className="table-icon-button" loading={waiting}
+              aria-label={t("providers.action.cancelUse")} icon={<CircleOff size={14} />}
+              onClick={() => onDeactivate(provider.id)} />
+          </Tooltip>
+        )}
         {options.proxyRunning && provider.kind === "custom" && (
           <Tooltip title={t(provider.autoSwitchEnabled
             ? "providers.tooltip.autoSwitchEnabled"

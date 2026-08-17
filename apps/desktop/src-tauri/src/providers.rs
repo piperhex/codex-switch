@@ -940,7 +940,15 @@ pub(crate) fn set_provider_auto_switch_enabled<R: Runtime>(
 }
 
 #[tauri::command]
-pub(crate) fn disable_provider<R: Runtime>(app: tauri::AppHandle<R>) -> Result<(), String> {
+pub(crate) async fn disable_provider<R: Runtime + 'static>(
+    app: tauri::AppHandle<R>,
+) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || disable_provider_blocking(app))
+        .await
+        .map_err(|error| format!("Provider disable task failed: {error}"))?
+}
+
+fn disable_provider_blocking<R: Runtime>(app: tauri::AppHandle<R>) -> Result<(), String> {
     let paths = resolve_paths(&app)?;
     let original_state = read_state(&paths);
     let mut state = original_state.clone();

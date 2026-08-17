@@ -1578,7 +1578,6 @@ fn stop_local_proxy_blocking<R: Runtime>(
         .map_err(|_| "Account switch lock is poisoned".to_string())?;
     let paths = resolve_paths(&app)?;
     let original_state = read_state(&paths);
-    ensure_proxy_can_stop_with_state(&original_state)?;
     let selected_account_id = original_state.active_account_id.clone();
 
     // Validate the selected credential before interrupting the client. The managed
@@ -1637,9 +1636,7 @@ fn stop_local_proxy_blocking<R: Runtime>(
             crate::commands::write_managed_auth_to_current(&paths, account_id)?;
         }
         providers::restore_official_config(&paths)?;
-        let mut state = read_state(&paths);
-        state.active_provider_id = None;
-        state.local_proxy_enabled = false;
+        let state = stopped_proxy_state(read_state(&paths));
         write_state(&paths, &state)
     })();
     if let Err(commit_error) = commit_result {
@@ -1737,13 +1734,10 @@ fn ensure_proxy_can_stop_with_auth(auth: &Value) -> Result<(), String> {
     Ok(())
 }
 
-fn ensure_proxy_can_stop_with_state(state: &ManagerStateFile) -> Result<(), String> {
-    if state.active_provider_id.is_some() {
-        return Err(
-            "The local proxy cannot be stopped while a third-party Provider is active".to_string(),
-        );
-    }
-    Ok(())
+fn stopped_proxy_state(mut state: ManagerStateFile) -> ManagerStateFile {
+    state.active_provider_id = None;
+    state.local_proxy_enabled = false;
+    state
 }
 
 #[tauri::command]
@@ -7038,15 +7032,17 @@ mod tests {
     }
 
     #[test]
-    fn proxy_cannot_stop_while_a_third_party_provider_is_active() {
+    fn stopping_proxy_deselects_the_active_third_party_provider() {
         let provider_state = ManagerStateFile {
             active_provider_id: Some("third-party".to_string()),
+            local_proxy_enabled: true,
             ..ManagerStateFile::default()
         };
 
-        let error = ensure_proxy_can_stop_with_state(&provider_state).unwrap_err();
-        assert!(error.contains("third-party Provider is active"));
-        ensure_proxy_can_stop_with_state(&ManagerStateFile::default()).unwrap();
+        let stopped_state = stopped_proxy_state(provider_state);
+
+        assert!(stopped_state.active_provider_id.is_none());
+        assert!(!stopped_state.local_proxy_enabled);
     }
 
     fn account_with_usage(id: &str, primary: f64, secondary: f64) -> AccountSummary {
