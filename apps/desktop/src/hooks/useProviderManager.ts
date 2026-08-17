@@ -202,8 +202,10 @@ export function useProviderManager(
           ? queryProviderBalance(id).catch(() => undefined)
           : Promise.resolve(),
       ]);
+      return true;
     } catch (error) {
       notify(providerErrorMessage(error, t));
+      return false;
     } finally {
       setBusyProviderId(null);
     }

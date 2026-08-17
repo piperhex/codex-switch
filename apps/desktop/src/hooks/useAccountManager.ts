@@ -192,17 +192,21 @@ export function useAccountManager(
   }, [cloudSync, load, notify, syncAddedAccount, t]);
 
   const switchAccount = useCallback(async (id: string, hotSwitch = false) => {
+    let accountActivated = false;
     setBusyAccountId(id);
     try {
       await activateAccount(id);
+      accountActivated = true;
       if (!hasLocalBackend) {
         setAccounts((items) => items.map((item) => ({ ...item, active: item.id === id })));
       }
       notify(t(hotSwitch ? "toast.accountSwitchedHot" : "toast.switched"));
       if (hasLocalBackend) await load();
       await cloudSync?.pushAccount?.(id);
+      return true;
     } catch (error) {
       notify(String(error));
+      return accountActivated;
     } finally {
       setBusyAccountId(null);
     }

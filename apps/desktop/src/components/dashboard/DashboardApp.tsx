@@ -338,8 +338,6 @@ export function DashboardApp() {
     : activeAccount || concurrentRoutingActive
       ? "official"
       : null;
-  const lastModelSourceRef = useRef<typeof currentModelSource>(null);
-  const modelSourceTrackingReadyRef = useRef(false);
   const concurrentAutoRefreshAccountIds = useMemo(
     () => manager.accounts
       .filter((account) => account.autoSwitchEnabled)
@@ -429,9 +427,6 @@ export function DashboardApp() {
     setShowCloudLogin(true);
   }, []);
   const openCloudAccount = useCallback(() => setShowCloudAccount(true), []);
-  const switchAccount = useCallback((id: string) => {
-    void manager.switchAccount(id, Boolean(providerManager.localProxy?.running));
-  }, [manager.switchAccount, providerManager.localProxy?.running]);
   const refreshUsage = useCallback((id: string) => {
     void manager.refreshUsage(id);
   }, [manager.refreshUsage]);
@@ -444,9 +439,6 @@ export function DashboardApp() {
   const saveAccountNote = useCallback((id: string, details: AccountDetailsDraft) => (
     manager.saveAccountNote(id, details)
   ), [manager.saveAccountNote]);
-  const switchProvider = useCallback((id: string) => {
-    void providerManager.switchProvider(id);
-  }, [providerManager.switchProvider]);
   const switchProviderModel = useCallback((id: string, model: string) => {
     void providerManager.switchModel(id, model);
   }, [providerManager.switchModel]);
@@ -745,21 +737,7 @@ export function DashboardApp() {
       onOk: restartChatGptProcess,
     });
   }, [restartChatGptProcess, t]);
-  useEffect(() => {
-    if (manager.loading || providerManager.loading) return;
-    if (!modelSourceTrackingReadyRef.current) {
-      lastModelSourceRef.current = currentModelSource;
-      modelSourceTrackingReadyRef.current = true;
-      return;
-    }
-    if (!currentModelSource) return;
-
-    const previousModelSource = lastModelSourceRef.current;
-    lastModelSourceRef.current = currentModelSource;
-    if (!previousModelSource
-      || previousModelSource === currentModelSource
-      || !providerManager.localProxy?.running) return;
-
+  const promptRestartToLoadModel = useCallback(() => {
     Modal.confirm({
       title: t("actions.restartToLoadModelTitle"),
       content: t("actions.restartToLoadModelDescription"),
@@ -769,13 +747,29 @@ export function DashboardApp() {
       width: 400,
       onOk: restartChatGptProcess,
     });
+  }, [restartChatGptProcess, t]);
+  const switchAccount = useCallback(async (id: string) => {
+    const localProxyRunning = Boolean(providerManager.localProxy?.running);
+    const shouldPromptForRestart = localProxyRunning && currentModelSource === "provider";
+    const switched = await manager.switchAccount(id, localProxyRunning);
+    if (switched && shouldPromptForRestart) promptRestartToLoadModel();
   }, [
     currentModelSource,
-    manager.loading,
-    providerManager.loading,
+    manager.switchAccount,
+    promptRestartToLoadModel,
     providerManager.localProxy?.running,
-    restartChatGptProcess,
-    t,
+  ]);
+  const switchProvider = useCallback(async (id: string) => {
+    const shouldPromptForRestart = Boolean(
+      providerManager.localProxy?.running && currentModelSource === "official",
+    );
+    const switched = await providerManager.switchProvider(id);
+    if (switched && shouldPromptForRestart) promptRestartToLoadModel();
+  }, [
+    currentModelSource,
+    promptRestartToLoadModel,
+    providerManager.localProxy?.running,
+    providerManager.switchProvider,
   ]);
   const openTokenUsage = useCallback(async () => {
     try {
