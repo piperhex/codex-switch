@@ -75,6 +75,7 @@ pub fn run() {
                 Err(error) => eprintln!("invalid launch request: {error}"),
             }
         }))
+        .plugin(tauri_plugin_deep_link::init())
         .manage(AppState::default())
         .manage(main_window::MainWindowStateCache::default())
         .manage(main_window::CloseBehaviorState::default())
@@ -102,12 +103,18 @@ pub fn run() {
                 main_window::restore_or_set_default(app)?;
             }
             commands::initialize_local_state(app.handle());
-            #[cfg(any(target_os = "windows", target_os = "linux"))]
-            app.deep_link().register_all()?;
-            if let Some(urls) = app.deep_link().get_current()? {
-                for url in urls {
-                    ccs_import::handle_url(app.handle(), &url);
+            #[cfg(any(target_os = "linux", all(debug_assertions, windows)))]
+            if let Err(error) = app.deep_link().register_all() {
+                eprintln!("failed to register desktop import links: {error}");
+            }
+            match app.deep_link().get_current() {
+                Ok(Some(urls)) => {
+                    for url in urls {
+                        ccs_import::handle_url(app.handle(), &url);
+                    }
                 }
+                Ok(None) => {}
+                Err(error) => eprintln!("failed to read the startup import link: {error}"),
             }
             let import_app = app.handle().clone();
             app.deep_link().on_open_url(move |event| {
