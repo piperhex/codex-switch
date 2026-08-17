@@ -315,6 +315,11 @@ h1 { margin: 5px 0 0; font: 700 26px/1.1 Manrope, sans-serif; letter-spacing: -.
 .account-table-toolbar-summary strong { max-width: 180px; overflow: hidden; text-overflow: ellipsis; color: var(--ink); font-weight: 600; }
 .account-concurrent-routing-control { min-height: 24px; display: inline-flex; align-items: center; gap: 6px; color: var(--ink); font-size: 11px; font-weight: 600; white-space: nowrap; }
 .today-token-usage-value { cursor: help; }
+.model-context-window-control { display: inline-flex; align-items: center; gap: 4px; }
+.model-context-window-control .ant-select { width: 72px; }
+.model-context-window-control .ant-select-selector { min-height: 24px !important; }
+.model-context-window-control .ant-select-selection-search-input,
+.model-context-window-control .ant-select-selection-item { font-size: 11px; }
 .web-proxy-controls { margin: 0; padding: 0 0 0 16px; border-right: 0; border-left: 1px solid rgba(var(--green-rgb), .18); gap: 7px; }
 .web-proxy-controls .window-titlebar-proxy-endpoint { max-width: min(260px, 22vw); }
 .conversation-latency-indicator { gap: 5px; }
