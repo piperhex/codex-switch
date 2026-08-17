@@ -37,8 +37,10 @@ import {
   restartChatGpt,
   showTokenUsageWindow,
   submitFeedback,
+  subscribeToCcSwitchImports,
   subscribeToCloudSessionExpired,
   subscribeToOpenSettings,
+  takeCcSwitchImportNavigation,
   updateAutoDisableStatusCodes,
   updateNetworkProxy,
   updateShowUsageNetworkErrors,
@@ -219,6 +221,29 @@ export function DashboardApp() {
   const cloudSessionPromptedRef = useRef(false);
   const providerBalanceRefreshCountRef = useRef(0);
   useEffect(() => subscribeToOpenSettings(() => setPage("settings")), []);
+  useEffect(() => {
+    let active = true;
+    let unsubscribe: (() => void) | undefined;
+    const openProviders = () => {
+      if (!active) return;
+      setPage("providers");
+      void takeCcSwitchImportNavigation().catch(() => undefined);
+    };
+    void subscribeToCcSwitchImports(openProviders).then((stopListening) => {
+      if (!active) {
+        stopListening();
+        return;
+      }
+      unsubscribe = stopListening;
+      void takeCcSwitchImportNavigation().then((pending) => {
+        if (pending) openProviders();
+      }).catch(() => undefined);
+    });
+    return () => {
+      active = false;
+      unsubscribe?.();
+    };
+  }, []);
   const { message: toast, notify } = useToast();
   const { language, setLanguage, t } = useLanguage();
   const cloud = useCloudAuth(notify, t);

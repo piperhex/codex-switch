@@ -173,6 +173,7 @@ const TOTP_EVENT = "codex-switch:totp-changed";
 const PROVIDERS_EVENT = "codex-switch:providers-changed";
 const PROVIDER_BALANCE_EVENT = "codex-switch:provider-balance-refreshed";
 const OPEN_SETTINGS_EVENT = "open-settings";
+const CCSWITCH_IMPORTED_EVENT = "ccswitch-imported";
 const DREAM_SKIN_INSTALLED_PREVIEW_KEY = "codex-switch:dream-skin-installed";
 const DREAM_SKIN_SESSION_PREVIEW_KEY = "codex-switch:dream-skin-session";
 const DREAM_SKIN_THEME_PREVIEW_KEY = "codex-switch:dream-skin-theme";
@@ -2695,6 +2696,16 @@ export function subscribeToOpenSettings(onOpen: () => void): () => void {
   if (!isDesktopApp) return () => undefined;
   const subscription = listen(OPEN_SETTINGS_EVENT, () => onOpen());
   return () => void subscription.then((unlisten) => unlisten());
+}
+
+export async function subscribeToCcSwitchImports(onImported: () => void): Promise<UnlistenFn> {
+  if (!isDesktopApp) return () => undefined;
+  return listen(CCSWITCH_IMPORTED_EVENT, onImported);
+}
+
+export async function takeCcSwitchImportNavigation(): Promise<boolean> {
+  if (!isDesktopApp) return false;
+  return invoke<boolean>("take_ccswitch_import_navigation");
 }
 
 export async function loadDreamSkinResourcesStatus(): Promise<DreamSkinResourcesStatus> {
