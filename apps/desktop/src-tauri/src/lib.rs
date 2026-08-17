@@ -3,6 +3,7 @@ mod agent_identity;
 mod antigravity_provider;
 mod auth;
 mod autostart;
+mod ccs_import;
 mod claude_code_provider;
 mod cloud;
 mod codex_api;
@@ -41,6 +42,7 @@ mod web_session_login;
 
 use oauth::AppState;
 use tauri::Manager;
+use tauri_plugin_deep_link::DeepLinkExt;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     if std::env::args_os().any(|argument| argument == "--print-local-proxy-token") {
@@ -100,6 +102,19 @@ pub fn run() {
                 main_window::restore_or_set_default(app)?;
             }
             commands::initialize_local_state(app.handle());
+            #[cfg(any(target_os = "windows", target_os = "linux"))]
+            app.deep_link().register_all()?;
+            if let Some(urls) = app.deep_link().get_current()? {
+                for url in urls {
+                    ccs_import::handle_url(app.handle(), &url);
+                }
+            }
+            let import_app = app.handle().clone();
+            app.deep_link().on_open_url(move |event| {
+                for url in event.urls() {
+                    ccs_import::handle_url(&import_app, &url);
+                }
+            });
             if !launch_options.headless {
                 dream_skin::start_background_updates();
                 if let Err(error) = codex_runtime::setup(app.handle()) {

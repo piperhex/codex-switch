@@ -188,44 +188,44 @@ pub(crate) fn refresh_official_codex_models_for_paths(paths: &Paths) {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ProviderInput {
-    id: Option<String>,
+    pub(crate) id: Option<String>,
     #[serde(default)]
-    kind: ProviderKind,
-    name: String,
-    base_url: String,
-    api_key: Option<String>,
-    model: String,
+    pub(crate) kind: ProviderKind,
+    pub(crate) name: String,
+    pub(crate) base_url: String,
+    pub(crate) api_key: Option<String>,
+    pub(crate) model: String,
     #[serde(default)]
-    models: Vec<String>,
+    pub(crate) models: Vec<String>,
     #[serde(default)]
-    model_reasoning_efforts: ModelReasoningEfforts,
+    pub(crate) model_reasoning_efforts: ModelReasoningEfforts,
     #[serde(default)]
-    model_context_windows: ModelContextWindows,
+    pub(crate) model_context_windows: ModelContextWindows,
     #[serde(default)]
-    image_input_models: Vec<String>,
+    pub(crate) image_input_models: Vec<String>,
     #[serde(default)]
-    image_input_models_configured: Option<bool>,
+    pub(crate) image_input_models_configured: Option<bool>,
     #[serde(default)]
-    context_window: Option<u64>,
+    pub(crate) context_window: Option<u64>,
     #[serde(default)]
-    model_selection_controlled_by_codex: bool,
-    api_format: ProviderApiFormat,
+    pub(crate) model_selection_controlled_by_codex: bool,
+    pub(crate) api_format: ProviderApiFormat,
     #[serde(default)]
-    balance_platform: Option<ProviderBalancePlatform>,
+    pub(crate) balance_platform: Option<ProviderBalancePlatform>,
     #[serde(default)]
-    balance_query_url: Option<String>,
+    pub(crate) balance_query_url: Option<String>,
     #[serde(default)]
-    balance_query_token: Option<String>,
+    pub(crate) balance_query_token: Option<String>,
     #[serde(default)]
-    balance_query_uses_api_key: bool,
+    pub(crate) balance_query_uses_api_key: bool,
     #[serde(default)]
-    wallet_query_url: Option<String>,
+    pub(crate) wallet_query_url: Option<String>,
     #[serde(default)]
-    wallet_query_token: Option<String>,
+    pub(crate) wallet_query_token: Option<String>,
     #[serde(default)]
-    wallet_username: Option<String>,
+    pub(crate) wallet_username: Option<String>,
     #[serde(default)]
-    wallet_password: Option<String>,
+    pub(crate) wallet_password: Option<String>,
 }
 
 #[tauri::command]

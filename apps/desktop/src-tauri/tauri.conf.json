@@ -29,6 +29,11 @@
     }
   },
   "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["ccswitch", "cswitch"]
+      }
+    },
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZDNzM5NjczQzMxNTBBQjcKUldTM0NoWERjNVp6L0ZxQ0k3ZzhJUGV4U1FVajBQdkZCclV6K1lkU3U5VXA2MDh6ZE5sK3Z4UXIK",
       "endpoints": [
