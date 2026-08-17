@@ -10,6 +10,7 @@ import {
   setLocalProxyAutoDisableUnreachable,
   setLocalProxyCustomPriority,
   setLocalProxyImageAccount,
+  setLocalProxyImageModelTarget,
   setLocalProxyOpenaiAuthAccount,
   setLocalProxyListenOnAllInterfaces,
   setLocalProxyAutoSwitch,
@@ -28,6 +29,8 @@ import type {
   LocalProxyStartProgress,
   LocalProxyStatus,
   LocalProxyStopProgress,
+  ImageModelTarget,
+  ImageRouteKind,
   Provider,
   ProviderInput,
 } from "../types";
@@ -106,6 +109,18 @@ function providerErrorMessage(error: unknown, t: Translate) {
   }
   if (message.includes("Start the local proxy before selecting an image generation account")) {
     return t("providers.error.imageAccountProxyRequired");
+  }
+  if (message.includes("Start the local proxy before selecting an image model")) {
+    return t("providers.error.imageAccountProxyRequired");
+  }
+  if (message.includes("Image output account must use an OAuth token")) {
+    return t("providers.error.imageAccountOAuthRequired");
+  }
+  if (message.includes("The selected image model is not available for this Provider")) {
+    return t("providers.error.imageModelUnavailable");
+  }
+  if (message.includes("The selected Provider model does not support image input")) {
+    return t("providers.error.imageInputUnsupported");
   }
   if (message.includes("OpenAI login account must use an OAuth token")) {
     return t("providers.error.openaiAuthAccountOAuthRequired");
@@ -416,6 +431,24 @@ export function useProviderManager(
     }
   }, [load, notify, t]);
 
+  const setProxyImageModel = useCallback(async (
+    routeKind: ImageRouteKind,
+    target: ImageModelTarget | null,
+  ) => {
+    setProxyBusy(true);
+    try {
+      setLocalProxy(await setLocalProxyImageModelTarget(routeKind, target));
+      notify(t(routeKind === "input"
+        ? "toast.proxyImageInputModelSaved"
+        : "toast.proxyImageOutputModelSaved"));
+      await load();
+    } catch (error) {
+      notify(providerErrorMessage(error, t));
+    } finally {
+      setProxyBusy(false);
+    }
+  }, [load, notify, t]);
+
   const setProxyOpenaiAuthAccount = useCallback(async (accountId: string | null) => {
     setProxyBusy(true);
     try {
@@ -498,6 +531,7 @@ export function useProviderManager(
     setProxyAutoDisableUnreachable,
     setProxyCustomPriority,
     setProxyImageAccount,
+    setProxyImageModel,
     setProxyOpenaiAuthAccount,
     setProxyListenOnAllInterfaces,
     copyProxyLanApiKey,

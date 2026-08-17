@@ -1293,7 +1293,7 @@ export function DashboardApp() {
               onAutoSwitchChange={providerManager.setProviderAutoSwitch}
               onDelete={deleteProvider}
               onDeleteMany={providerManager.deleteProviders}
-              onImageAccountChange={providerManager.setProxyImageAccount}
+              onImageModelChange={providerManager.setProxyImageModel}
               displayMode={accountDisplayMode.displayMode}
               privacyMode={privacyMode.enabled}
               tokenUsageRefreshSeconds={tokenUsagePreferences.refreshSeconds}
@@ -1307,7 +1307,8 @@ export function DashboardApp() {
               preferencesLoading={tokenUsagePreferences.loading} embedded />
           </section>
           <section className="page-panel accounts-page-panel" hidden={page !== "accounts"}>
-            <MemoAccountsPage accounts={manager.accounts} loading={manager.loading}
+            <MemoAccountsPage accounts={manager.accounts} providers={providerManager.providers}
+              loading={manager.loading}
               busyAccountId={manager.busyAccountId} onAdd={openLogin}
               localProxy={providerManager.localProxy} proxyBusy={providerManager.proxyBusy}
               onSwitch={switchAccount}
@@ -1329,7 +1330,7 @@ export function DashboardApp() {
               onLoadResetCredits={loadResetCredits}
               onUseResetCredit={(id) => void useResetCredit(id)}
               resetCreditBusyAccountId={resetCreditBusyAccountId}
-              onImageAccountChange={providerManager.setProxyImageAccount}
+              onImageModelChange={providerManager.setProxyImageModel}
               onOpenaiAuthAccountChange={providerManager.setProxyOpenaiAuthAccount}
               onConcurrentRoutingChange={providerManager.setProxyConcurrentRouting}
               privacyMode={privacyMode.enabled}

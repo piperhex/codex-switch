@@ -30,9 +30,9 @@ use crate::{
     auth::{account_fields, is_agent_identity_auth, token_string, validate_auth},
     codex_api::{refresh_tokens, token_expiring, ORIGINATOR},
     models::{
-        AccountSummary, AccountTokenUsageTotals, DailyTokenUsage, LocalProxyStatus,
-        ManagerStateFile, ProviderApiFormat, ProviderBalancePlatform, ProviderKind,
-        ProviderProfile, ProviderTokenUsageTotals, ProxySessionLatencySummary,
+        AccountSummary, AccountTokenUsageTotals, DailyTokenUsage, ImageModelTarget, ImageRouteKind,
+        LocalProxyStatus, ManagerStateFile, ProviderApiFormat, ProviderBalancePlatform,
+        ProviderKind, ProviderProfile, ProviderTokenUsageTotals, ProxySessionLatencySummary,
         ProxySessionRequestSummary, ProxySessionSummary, TokenUsageEntry, UsageSummary,
     },
     providers::{
@@ -1011,10 +1011,13 @@ fn status<R: Runtime>(app: &tauri::AppHandle<R>) -> LocalProxyStatus {
         listen_on_all_interfaces,
         has_lan_api_key,
         image_generation_account_id,
+        image_input_target,
+        image_output_target,
         openai_auth_account_id,
     ) = resolve_paths(app)
         .map(|paths| {
             let state = read_state(&paths);
+            let image_output_target = effective_image_output_target(&state);
             (
                 state.auto_switch_on_quota_exhaustion,
                 state.concurrent_account_routing_enabled,
@@ -1023,10 +1026,14 @@ fn status<R: Runtime>(app: &tauri::AppHandle<R>) -> LocalProxyStatus {
                 lan_listening_enabled(&state),
                 configured_lan_api_key(&state).is_some(),
                 state.image_generation_account_id,
+                state.image_input_target,
+                image_output_target,
                 state.local_proxy_openai_auth_account_id,
             )
         })
-        .unwrap_or((false, false, false, false, false, false, None, None));
+        .unwrap_or((
+            false, false, false, false, false, false, None, None, None, None,
+        ));
     LocalProxyStatus {
         running: is_running(),
         address: proxy_bind_host(listen_on_all_interfaces).to_string(),
@@ -1039,8 +1046,21 @@ fn status<R: Runtime>(app: &tauri::AppHandle<R>) -> LocalProxyStatus {
         listen_on_all_interfaces,
         has_lan_api_key,
         image_generation_account_id,
+        image_input_target,
+        image_output_target,
         openai_auth_account_id,
     }
+}
+
+fn effective_image_output_target(state: &ManagerStateFile) -> Option<ImageModelTarget> {
+    state.image_output_target.clone().or_else(|| {
+        state
+            .image_generation_account_id
+            .as_ref()
+            .map(|account_id| ImageModelTarget::Official {
+                account_id: account_id.clone(),
+            })
+    })
 }
 
 #[tauri::command]
@@ -1821,11 +1841,96 @@ pub(crate) fn set_image_generation_account<R: Runtime>(
     }
 
     let mut state = read_state(&paths);
-    state.image_generation_account_id = account_id;
+    state.image_generation_account_id = account_id.clone();
+    state.image_output_target =
+        account_id.map(|account_id| ImageModelTarget::Official { account_id });
     write_state(&paths, &state)?;
     app.emit("providers-changed", ())
         .map_err(|error| error.to_string())?;
     Ok(status(&app))
+}
+
+#[tauri::command]
+pub(crate) async fn set_image_model_target<R: Runtime + 'static>(
+    app: tauri::AppHandle<R>,
+    route_kind: ImageRouteKind,
+    target: Option<ImageModelTarget>,
+) -> Result<LocalProxyStatus, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        set_image_model_target_blocking(app, route_kind, target)
+    })
+    .await
+    .map_err(|error| format!("Image model update task failed: {error}"))?
+}
+
+fn set_image_model_target_blocking<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    route_kind: ImageRouteKind,
+    target: Option<ImageModelTarget>,
+) -> Result<LocalProxyStatus, String> {
+    if !is_running() {
+        return Err("Start the local proxy before selecting an image model".to_string());
+    }
+    let paths = resolve_paths(&app)?;
+    validate_image_model_target(&paths, route_kind, target.as_ref())?;
+    let mut state = read_state(&paths);
+    match route_kind {
+        ImageRouteKind::Input => state.image_input_target = target,
+        ImageRouteKind::Output => {
+            state.image_generation_account_id = official_target_account_id(target.as_ref());
+            state.image_output_target = target;
+        }
+    }
+    write_state(&paths, &state)?;
+    app.emit("providers-changed", ())
+        .map_err(|error| error.to_string())?;
+    Ok(status(&app))
+}
+
+fn validate_image_model_target(
+    paths: &Paths,
+    route_kind: ImageRouteKind,
+    target: Option<&ImageModelTarget>,
+) -> Result<(), String> {
+    let Some(target) = target else {
+        return Ok(());
+    };
+    match target {
+        ImageModelTarget::Official { account_id } => {
+            let auth = crate::commands::load_validated_managed_auth(paths, account_id.trim())?;
+            if route_kind == ImageRouteKind::Output
+                && (is_agent_identity_auth(&auth) || token_string(&auth, "access_token").is_none())
+            {
+                return Err("Image output account must use an OAuth token".to_string());
+            }
+            Ok(())
+        }
+        ImageModelTarget::Provider { provider_id, model } => {
+            let provider = providers::read_provider(paths, provider_id.trim())?;
+            let model = model.trim();
+            if !provider.models.iter().any(|candidate| candidate == model) {
+                return Err(
+                    "The selected image model is not available for this Provider".to_string(),
+                );
+            }
+            if route_kind == ImageRouteKind::Input
+                && !provider
+                    .image_input_models
+                    .iter()
+                    .any(|candidate| candidate == model)
+            {
+                return Err("The selected Provider model does not support image input".to_string());
+            }
+            Ok(())
+        }
+    }
+}
+
+fn official_target_account_id(target: Option<&ImageModelTarget>) -> Option<String> {
+    match target {
+        Some(ImageModelTarget::Official { account_id }) => Some(account_id.trim().to_string()),
+        _ => None,
+    }
 }
 
 #[tauri::command]
@@ -1878,6 +1983,7 @@ pub(crate) fn set_local_proxy_openai_auth_account_blocking<R: Runtime>(
 #[derive(Clone, Copy)]
 enum OfficialCredentialPurpose {
     Default,
+    ImageInput,
     ImageGeneration,
 }
 
@@ -2265,7 +2371,7 @@ fn handle_proxy_request<R: Runtime>(
         return result;
     }
 
-    let target = match active_target_for_request(app, path) {
+    let target = match active_target_for_request(app, path, &body) {
         Ok(target) => target,
         Err(error) => {
             let diagnostic = proxy_diagnostic_entry(
@@ -2281,6 +2387,7 @@ fn handle_proxy_request<R: Runtime>(
             return result;
         }
     };
+    let body = apply_image_output_model(app, path, headers, body, &target);
     let route = proxy_diagnostic_route(path, &target);
     let diagnostic = proxy_diagnostic_entry(method, url, headers, &body, Some(&target), route);
     let usage_context = token_usage_context(
@@ -2347,7 +2454,7 @@ fn forward_active_request<R: Runtime>(
     path: &str,
     session_id: Option<&str>,
 ) -> Result<UpstreamPayload, String> {
-    match active_target_for_request(app, path)? {
+    match active_target_for_request(app, path, &body)? {
         ActiveTarget::Official { model } => {
             forward_official(app, method, url, headers, body, &model, session_id)
         }
@@ -2662,19 +2769,18 @@ fn primary_remaining_quota_score(usage: &UsageSummary) -> Option<f64> {
 }
 
 fn active_target<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<ActiveTarget, String> {
-    active_target_for_request(app, "")
+    active_target_for_request(app, "", &[])
 }
 
 fn active_target_for_request<R: Runtime>(
     app: &tauri::AppHandle<R>,
     path: &str,
+    body: &[u8],
 ) -> Result<ActiveTarget, String> {
     let paths = resolve_paths(app)?;
     let state = read_state(&paths);
-    if should_route_image_request_to_official(&state, path) {
-        return Ok(ActiveTarget::Official {
-            model: providers::preferred_official_model(&paths),
-        });
+    if let Some(target) = image_model_target_for_request(&state, path, body) {
+        return active_target_from_image_model(&paths, &target);
     }
     if let Some(id) = state.active_provider_id {
         let provider = providers::read_provider(&paths, &id)?;
@@ -2686,10 +2792,62 @@ fn active_target_for_request<R: Runtime>(
     })
 }
 
-fn should_route_image_request_to_official(state: &ManagerStateFile, path: &str) -> bool {
-    state.active_provider_id.is_some()
-        && state.image_generation_account_id.is_some()
-        && is_image_generation_endpoint(path)
+fn image_model_target_for_request(
+    state: &ManagerStateFile,
+    path: &str,
+    body: &[u8],
+) -> Option<ImageModelTarget> {
+    if is_image_generation_endpoint(path) {
+        return effective_image_output_target(state);
+    }
+    if !is_responses_endpoint(path) || !request_contains_input_image(body) {
+        return None;
+    }
+    state.image_input_target.clone()
+}
+
+fn request_contains_input_image(body: &[u8]) -> bool {
+    serde_json::from_slice::<Value>(body)
+        .ok()
+        .and_then(|value| value.get("input").cloned())
+        .is_some_and(|input| contains_input_image(&input))
+}
+
+fn apply_image_output_model<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    path: &str,
+    headers: &[(String, String)],
+    body: Vec<u8>,
+    target: &ActiveTarget,
+) -> Vec<u8> {
+    if !is_image_generation_endpoint(path) || !matches!(target, ActiveTarget::Provider(_)) {
+        return body;
+    }
+    let Some(ImageModelTarget::Provider { model, .. }) = resolve_paths(app)
+        .ok()
+        .and_then(|paths| effective_image_output_target(&read_state(&paths)))
+    else {
+        return body;
+    };
+    body_with_selected_image_model(body, &model, header_value(headers, "content-type"))
+}
+
+fn active_target_from_image_model(
+    paths: &Paths,
+    target: &ImageModelTarget,
+) -> Result<ActiveTarget, String> {
+    match target {
+        ImageModelTarget::Official { .. } => Ok(ActiveTarget::Official {
+            model: providers::preferred_official_model(paths),
+        }),
+        ImageModelTarget::Provider { provider_id, model } => {
+            let mut provider = providers::read_provider(paths, provider_id)?;
+            provider.model = model.clone();
+            provider.model_selection_controlled_by_codex = false;
+            providers::ensure_not_local_proxy_base_url(&provider.base_url)?;
+            Ok(ActiveTarget::Provider(Box::new(provider)))
+        }
+    }
 }
 
 fn proxy_diagnostic_route(path: &str, target: &ActiveTarget) -> ProxyDiagnosticRoute {
@@ -4078,6 +4236,8 @@ fn forward_official<R: Runtime>(
     let upstream_endpoint = upstream_endpoint_for_codex_request(url);
     let credential_purpose = if is_image_generation_endpoint(request_path(&upstream_endpoint)) {
         OfficialCredentialPurpose::ImageGeneration
+    } else if request_contains_input_image(&body) {
+        OfficialCredentialPurpose::ImageInput
     } else {
         OfficialCredentialPurpose::Default
     };
@@ -4229,6 +4389,79 @@ fn provider_body_for_upstream(
     };
     value["model"] = Value::String(selected_provider_model(&value, provider));
     serde_json::to_vec(&value).unwrap_or(body)
+}
+
+fn body_with_selected_model(body: Vec<u8>, model: &str) -> Vec<u8> {
+    let Ok(mut value) = serde_json::from_slice::<Value>(&body) else {
+        return body;
+    };
+    if !value.is_object() {
+        return body;
+    }
+    value["model"] = Value::String(model.to_string());
+    serde_json::to_vec(&value).unwrap_or(body)
+}
+
+fn body_with_selected_image_model(
+    body: Vec<u8>,
+    model: &str,
+    content_type: Option<&str>,
+) -> Vec<u8> {
+    if !content_type.is_some_and(|value| value.contains("multipart/form-data")) {
+        return body_with_selected_model(body, model);
+    }
+    let Some(boundary) = content_type.and_then(multipart_boundary) else {
+        return body;
+    };
+    replace_multipart_model(body, boundary, model)
+}
+
+fn multipart_boundary(content_type: &str) -> Option<&str> {
+    content_type.split(';').find_map(|part| {
+        part.trim()
+            .strip_prefix("boundary=")
+            .map(|value| value.trim_matches('"'))
+            .filter(|value| !value.is_empty())
+    })
+}
+
+fn replace_multipart_model(mut body: Vec<u8>, boundary: &str, model: &str) -> Vec<u8> {
+    let field_marker = b"name=\"model\"";
+    let Some(field_position) = find_bytes(&body, field_marker) else {
+        return append_multipart_model(body, boundary, model);
+    };
+    let Some(header_offset) = find_bytes(&body[field_position..], b"\r\n\r\n") else {
+        return body;
+    };
+    let value_start = field_position + header_offset + 4;
+    let next_boundary = format!("\r\n--{boundary}");
+    let Some(value_length) = find_bytes(&body[value_start..], next_boundary.as_bytes()) else {
+        return body;
+    };
+    body.splice(value_start..value_start + value_length, model.bytes());
+    body
+}
+
+fn append_multipart_model(mut body: Vec<u8>, boundary: &str, model: &str) -> Vec<u8> {
+    let closing_boundary = format!("--{boundary}--");
+    let Some(position) = find_bytes(&body, closing_boundary.as_bytes()) else {
+        return body;
+    };
+    let part = format!(
+        "--{boundary}\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\n{model}\r\n"
+    );
+    body.splice(position..position, part.bytes());
+    body
+}
+
+fn find_bytes(haystack: &[u8], needle: &[u8]) -> Option<usize> {
+    (!needle.is_empty())
+        .then(|| {
+            haystack
+                .windows(needle.len())
+                .position(|window| window == needle)
+        })
+        .flatten()
 }
 
 fn forward_chat_bridge(
@@ -4524,14 +4757,28 @@ fn credential_account_id(
         .active_account_id
         .as_deref()
         .ok_or_else(|| "Select an official account before using the local proxy".to_string())?;
-    if !matches!(purpose, OfficialCredentialPurpose::ImageGeneration) {
-        return Ok(active_account_id.to_string());
+    match purpose {
+        OfficialCredentialPurpose::Default => return Ok(active_account_id.to_string()),
+        OfficialCredentialPurpose::ImageInput => {
+            if let Some(ImageModelTarget::Official { account_id }) = &state.image_input_target {
+                return Ok(account_id.clone());
+            }
+            return Ok(active_account_id.to_string());
+        }
+        OfficialCredentialPurpose::ImageGeneration => {}
     }
-    if state.concurrent_account_routing_enabled || state.active_provider_id.is_some() {
-        return Ok(state
+    if let Some(ImageModelTarget::Official { account_id }) = &state.image_output_target {
+        return Ok(account_id.clone());
+    }
+    if (state.concurrent_account_routing_enabled || state.active_provider_id.is_some())
+        && state.image_generation_account_id.is_some()
+    {
+        let account_id = state
             .image_generation_account_id
-            .clone()
-            .unwrap_or_else(|| active_account_id.to_string()));
+            .as_ref()
+            .cloned()
+            .unwrap_or_default();
+        return Ok(account_id);
     }
     if !is_agent_identity_auth(active_auth) {
         return Ok(active_account_id.to_string());
@@ -7141,20 +7388,35 @@ mod tests {
             ..ManagerStateFile::default()
         };
 
-        assert!(should_route_image_request_to_official(
-            &state,
-            "/v1/images/generations"
-        ));
-        assert!(!should_route_image_request_to_official(
-            &state,
-            "/v1/responses"
-        ));
+        assert_eq!(
+            image_model_target_for_request(&state, "/v1/images/generations", &[]),
+            Some(ImageModelTarget::Official {
+                account_id: "oauth-account".to_string(),
+            })
+        );
+        assert!(image_model_target_for_request(&state, "/v1/responses", &[]).is_none());
 
         state.image_generation_account_id = None;
-        assert!(!should_route_image_request_to_official(
-            &state,
-            "/v1/images/generations"
-        ));
+        assert!(image_model_target_for_request(&state, "/v1/images/generations", &[]).is_none());
+    }
+
+    #[test]
+    fn image_input_request_uses_the_configured_provider_model() {
+        let state = ManagerStateFile {
+            image_input_target: Some(ImageModelTarget::Provider {
+                provider_id: "vision-provider".to_string(),
+                model: "vision-model".to_string(),
+            }),
+            ..ManagerStateFile::default()
+        };
+        let body =
+            br#"{"input":[{"type":"input_image","image_url":"data:image/png;base64,AA=="}]}"#;
+
+        assert_eq!(
+            image_model_target_for_request(&state, "/v1/responses", body),
+            state.image_input_target
+        );
+        assert!(image_model_target_for_request(&state, "/v1/responses", b"{}").is_none());
     }
 
     #[test]
@@ -8261,6 +8523,41 @@ mod tests {
 
         assert_eq!(forwarded["model"], "gpt-image-2");
         assert_eq!(forwarded["prompt"], "a fox reading code");
+    }
+
+    #[test]
+    fn selected_image_output_model_overrides_json_requests() {
+        let body = serde_json::to_vec(&json!({
+            "model": "gpt-image-2",
+            "prompt": "a fox reading code"
+        }))
+        .unwrap();
+
+        let forwarded = body_with_selected_image_model(body, "provider-image", None);
+        let forwarded: Value = serde_json::from_slice(&forwarded).unwrap();
+
+        assert_eq!(forwarded["model"], "provider-image");
+    }
+
+    #[test]
+    fn selected_image_output_model_overrides_multipart_edits() {
+        let boundary = "codex-switch-boundary";
+        let body = format!(
+            "--{boundary}\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nold-model\r\n\
+             --{boundary}\r\nContent-Disposition: form-data; name=\"image\"; filename=\"a.png\"\r\n\r\nPNG\r\n\
+             --{boundary}--\r\n"
+        )
+        .into_bytes();
+
+        let forwarded = body_with_selected_image_model(
+            body,
+            "provider-image",
+            Some(&format!("multipart/form-data; boundary={boundary}")),
+        );
+        let forwarded = String::from_utf8(forwarded).unwrap();
+
+        assert!(forwarded.contains("name=\"model\"\r\n\r\nprovider-image\r\n"));
+        assert!(forwarded.contains("filename=\"a.png\"\r\n\r\nPNG\r\n"));
     }
 
     #[test]

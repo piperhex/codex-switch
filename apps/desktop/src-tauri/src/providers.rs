@@ -10,9 +10,9 @@ use uuid::Uuid;
 use crate::{
     auth::{is_agent_identity_auth, validate_auth},
     models::{
-        ModelContextWindows, ModelReasoningEfforts, ProviderApiFormat, ProviderBalance,
-        ProviderBalanceItem, ProviderBalancePlatform, ProviderFieldModifiedAt, ProviderKind,
-        ProviderProfile, ProviderSummary, ReasoningEffort, UsageSummary,
+        ImageModelTarget, ModelContextWindows, ModelReasoningEfforts, ProviderApiFormat,
+        ProviderBalance, ProviderBalanceItem, ProviderBalancePlatform, ProviderFieldModifiedAt,
+        ProviderKind, ProviderProfile, ProviderSummary, ReasoningEffort, UsageSummary,
     },
     storage::{
         managed_auth_path, read_json, read_state, resolve_paths, write_json_atomic,
@@ -981,6 +981,18 @@ pub(crate) fn delete_provider<R: Runtime>(
             write_state(&paths, &state)?;
         }
     }
+    let mut image_state = read_state(&paths);
+    let cleared_image_input = target_uses_provider(image_state.image_input_target.as_ref(), &id);
+    let cleared_image_output = target_uses_provider(image_state.image_output_target.as_ref(), &id);
+    if cleared_image_input {
+        image_state.image_input_target = None;
+    }
+    if cleared_image_output {
+        image_state.image_output_target = None;
+    }
+    if cleared_image_input || cleared_image_output {
+        write_state(&paths, &image_state)?;
+    }
     let path = provider_path(&paths, &id);
     if path.exists() {
         fs::remove_file(&path).map_err(|error| format!("Failed to delete provider: {error}"))?;
@@ -995,6 +1007,13 @@ pub(crate) fn delete_provider<R: Runtime>(
     }
     emit_providers_changed(&app)?;
     Ok(())
+}
+
+fn target_uses_provider(target: Option<&ImageModelTarget>, provider_id: &str) -> bool {
+    matches!(
+        target,
+        Some(ImageModelTarget::Provider { provider_id: selected, .. }) if selected == provider_id
+    )
 }
 
 pub(crate) fn apply_local_proxy_config_for_state<R: Runtime>(

@@ -154,8 +154,16 @@ export interface LocalProxyStatus {
   listenOnAllInterfaces: boolean;
   hasLanApiKey: boolean;
   imageGenerationAccountId?: string | null;
+  imageInputTarget?: ImageModelTarget | null;
+  imageOutputTarget?: ImageModelTarget | null;
   openaiAuthAccountId?: string | null;
 }
+
+export type ImageModelTarget =
+  | { kind: "official"; accountId: string }
+  | { kind: "provider"; providerId: string; model: string };
+
+export type ImageRouteKind = "input" | "output";
 
 export type LocalProxyStopPhase =
   | "stoppingClient"

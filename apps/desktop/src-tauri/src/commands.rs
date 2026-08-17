@@ -32,8 +32,8 @@ use crate::{
         token_expiring, usage_request,
     },
     models::{
-        AccountSummary, AppInfo, AppSettings, ManagerStateFile, ResetCreditsSummary,
-        UpdateAccountDetailsInput, UsageSummary,
+        AccountSummary, AppInfo, AppSettings, ImageModelTarget, ManagerStateFile,
+        ResetCreditsSummary, UpdateAccountDetailsInput, UsageSummary,
     },
     storage::{
         account_dir, account_private_details_path, auto_switch_priority_path, expiration_path,
@@ -1533,20 +1533,36 @@ pub(crate) fn delete_account<R: Runtime>(
     }
     set_account_auto_switch_enabled_for_paths(&paths, &id, true)?;
     let mut state = read_state(&paths);
-    let cleared_image_generation_account =
-        state.image_generation_account_id.as_deref() == Some(&id);
-    if cleared_image_generation_account {
+    let mut cleared_image_model = state.image_generation_account_id.as_deref() == Some(&id);
+    if cleared_image_model {
         state.image_generation_account_id = None;
+    }
+    if target_uses_official_account(state.image_input_target.as_ref(), &id) {
+        state.image_input_target = None;
+        cleared_image_model = true;
+    }
+    if target_uses_official_account(state.image_output_target.as_ref(), &id) {
+        state.image_output_target = None;
+        cleared_image_model = true;
+    }
+    if cleared_image_model {
         write_state(&paths, &state)?;
     }
     app.emit("accounts-changed", ())
         .map_err(|error| error.to_string())?;
-    if cleared_image_generation_account {
+    if cleared_image_model {
         app.emit("providers-changed", ())
             .map_err(|error| error.to_string())?;
     }
     crate::system_tray::refresh_menu(&app);
     Ok(())
+}
+
+fn target_uses_official_account(target: Option<&ImageModelTarget>, account_id: &str) -> bool {
+    matches!(
+        target,
+        Some(ImageModelTarget::Official { account_id: selected }) if selected == account_id
+    )
 }
 
 #[tauri::command]

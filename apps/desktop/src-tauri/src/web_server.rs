@@ -609,6 +609,13 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
         "set_image_generation_account" => serialize(
             crate::local_proxy::set_image_generation_account(app, argument(&args, "accountId")?),
         ),
+        "set_image_model_target" => {
+            serialize(block_on(crate::local_proxy::set_image_model_target(
+                app,
+                argument(&args, "routeKind")?,
+                argument(&args, "target")?,
+            )))
+        }
         "set_local_proxy_openai_auth_account" => serialize(block_on(
             crate::local_proxy::set_local_proxy_openai_auth_account(
                 app,

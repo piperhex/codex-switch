@@ -6,7 +6,9 @@ import {
 } from "lucide-react";
 import type { AccountDisplayMode } from "../hooks/useAccountDisplayMode";
 import type { Language, Translate } from "../i18n";
-import type { Account, LocalProxyStatus, Provider, ProviderInput } from "../types";
+import type {
+  Account, ImageModelTarget, ImageRouteKind, LocalProxyStatus, Provider, ProviderInput,
+} from "../types";
 import { isAntigravityProvider } from "../utils/antigravityProvider";
 import { isClaudeCodeProvider } from "../utils/claudeCodeProvider";
 import { isGrokProvider } from "../utils/grokProvider";
@@ -41,7 +43,7 @@ interface ProvidersPageProps {
   onAutoSwitchChange: (id: string, enabled: boolean) => void;
   onDelete: (id: string) => void;
   onDeleteMany: (ids: string[]) => Promise<string[]>;
-  onImageAccountChange: (accountId: string | null) => void;
+  onImageModelChange: (routeKind: ImageRouteKind, target: ImageModelTarget | null) => void;
   displayMode: AccountDisplayMode;
   privacyMode: boolean;
   tokenUsageRefreshSeconds: number;
@@ -66,7 +68,7 @@ export function ProvidersPage({
   onAutoSwitchChange,
   onDelete,
   onDeleteMany,
-  onImageAccountChange,
+  onImageModelChange,
   displayMode,
   privacyMode,
   tokenUsageRefreshSeconds,
@@ -156,6 +158,7 @@ export function ProvidersPage({
 
   const providerViewProps = {
     providers,
+    accounts,
     busyProviderId,
     proxyRunning,
     proxyBusy,
@@ -169,6 +172,11 @@ export function ProvidersPage({
     onAutoSwitchChange,
     onDelete,
     onEdit: openEdit,
+    imageInputTarget: localProxy?.imageInputTarget ?? null,
+    imageOutputTarget: localProxy?.imageOutputTarget ?? null,
+    imageModelBusy: proxyBusy,
+    onImageModelChange,
+    privacyMode,
     t,
   };
 
@@ -184,10 +192,7 @@ export function ProvidersPage({
       {providers.length ? displayMode === "table"
         ? <ProviderTableView {...providerViewProps} onDeleteMany={onDeleteMany}
           selectedProviderIds={selectedProviderIds} setSelectedProviderIds={setSelectedProviderIds}
-          bulkDeleteBusy={bulkDeleteBusy} setBulkDeleteBusy={setBulkDeleteBusy}
-          accounts={accounts} imageGenerationAccountId={localProxy?.imageGenerationAccountId ?? null}
-          imageAccountBusy={proxyBusy} onImageAccountChange={onImageAccountChange}
-          privacyMode={privacyMode} />
+          bulkDeleteBusy={bulkDeleteBusy} setBulkDeleteBusy={setBulkDeleteBusy} />
         : <ProviderCardView {...providerViewProps} /> : (
         <div className="provider-empty">
           <Server size={24} />

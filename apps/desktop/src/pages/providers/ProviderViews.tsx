@@ -3,9 +3,11 @@ import type { Dispatch, SetStateAction } from "react";
 import { Button, Checkbox, Dropdown, Popconfirm, Space, Table, Tag, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { Check, Columns3, Pencil, RotateCcw, Server, Shuffle, Trash2 } from "lucide-react";
-import { ImageAccountSelect } from "../../components/ImageAccountSelect";
+import { ImageModelRouteSelect } from "../../components/ImageModelRouteSelect";
 import type { Language, Translate } from "../../i18n";
-import type { Account, Provider, ProviderTokenUsageTotals } from "../../types";
+import type {
+  Account, ImageModelTarget, ImageRouteKind, Provider, ProviderTokenUsageTotals,
+} from "../../types";
 import {
   apiFormatTag,
   ProviderBalanceCell,
@@ -22,6 +24,7 @@ import {
 
 interface ProviderViewProps {
   providers: Provider[];
+  accounts: Account[];
   busyProviderId: string | null;
   proxyRunning: boolean;
   proxyBusy: boolean;
@@ -35,6 +38,11 @@ interface ProviderViewProps {
   onAutoSwitchChange: (id: string, enabled: boolean) => void;
   onDelete: (id: string) => void;
   onEdit: (provider: Provider) => void;
+  imageInputTarget: ImageModelTarget | null;
+  imageOutputTarget: ImageModelTarget | null;
+  imageModelBusy: boolean;
+  onImageModelChange: (routeKind: ImageRouteKind, target: ImageModelTarget | null) => void;
+  privacyMode: boolean;
   t: Translate;
 }
 
@@ -73,16 +81,22 @@ function ProviderProxyModeWarning({ options, cardView = false }: {
 }
 
 interface ProviderTableProps extends ProviderViewProps {
-  accounts: Account[];
-  imageGenerationAccountId: string | null;
-  imageAccountBusy: boolean;
-  onImageAccountChange: (accountId: string | null) => void;
-  privacyMode: boolean;
   onDeleteMany: (ids: string[]) => Promise<string[]>;
   selectedProviderIds: string[];
   setSelectedProviderIds: Dispatch<SetStateAction<string[]>>;
   bulkDeleteBusy: boolean;
   setBulkDeleteBusy: Dispatch<SetStateAction<boolean>>;
+}
+
+function ProviderImageModelControls(options: ProviderViewProps) {
+  return <div className="proxy-image-model-fields">
+    <ImageModelRouteSelect accounts={options.accounts} providers={options.providers} routeKind="input"
+      target={options.imageInputTarget} busy={options.imageModelBusy}
+      onChange={options.onImageModelChange} privacyMode={options.privacyMode} t={options.t} />
+    <ImageModelRouteSelect accounts={options.accounts} providers={options.providers} routeKind="output"
+      target={options.imageOutputTarget} busy={options.imageModelBusy}
+      onChange={options.onImageModelChange} privacyMode={options.privacyMode} t={options.t} />
+  </div>;
 }
 
 function ProviderActions({ provider, options }: {
@@ -180,11 +194,6 @@ function buildColumns(options: ProviderViewProps): ColumnsType<Provider> {
 export function ProviderTableView(options: ProviderTableProps) {
   const {
     providers,
-    accounts,
-    imageGenerationAccountId,
-    imageAccountBusy,
-    onImageAccountChange,
-    privacyMode,
     onDeleteMany,
     selectedProviderIds,
     setSelectedProviderIds,
@@ -231,9 +240,7 @@ export function ProviderTableView(options: ProviderTableProps) {
     <div className="provider-table-toolbar">
       <ProviderProxyModeWarning options={options} />
       {options.proxyRunning && (
-        <ImageAccountSelect accounts={accounts} accountId={imageGenerationAccountId}
-          busy={imageAccountBusy} onChange={onImageAccountChange}
-          privacyMode={privacyMode} t={t} />
+        <ProviderImageModelControls {...options} />
       )}
       <Popconfirm title={t("providers.batchDelete.title", { count: selectedProviderIds.length })}
         description={t("providers.batchDelete.description")} okText={t("providers.delete.ok")}
@@ -342,6 +349,11 @@ function ProviderCard({ provider, options }: { provider: Provider; options: Prov
 export function ProviderCardView(options: ProviderViewProps) {
   return <>
     <ProviderProxyModeWarning options={options} cardView />
+    {options.proxyRunning && (
+      <div className="provider-card-image-model-toolbar">
+        <ProviderImageModelControls {...options} />
+      </div>
+    )}
     <div className="provider-card-grid">
       {options.providers.map((provider) => (
         <ProviderCard key={provider.id} provider={provider} options={options} />

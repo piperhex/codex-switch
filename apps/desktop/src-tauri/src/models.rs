@@ -135,9 +135,31 @@ pub(crate) struct ManagerStateFile {
     #[serde(default)]
     pub(crate) image_generation_account_id: Option<String>,
     #[serde(default)]
+    pub(crate) image_input_target: Option<ImageModelTarget>,
+    #[serde(default)]
+    pub(crate) image_output_target: Option<ImageModelTarget>,
+    #[serde(default)]
     pub(crate) local_proxy_openai_auth_account_id: Option<String>,
     #[serde(default)]
     pub(crate) disabled_account_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+pub(crate) enum ImageModelTarget {
+    Official { account_id: String },
+    Provider { provider_id: String, model: String },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) enum ImageRouteKind {
+    Input,
+    Output,
 }
 
 #[derive(Serialize)]
@@ -292,6 +314,8 @@ pub(crate) struct LocalProxyStatus {
     pub(crate) listen_on_all_interfaces: bool,
     pub(crate) has_lan_api_key: bool,
     pub(crate) image_generation_account_id: Option<String>,
+    pub(crate) image_input_target: Option<ImageModelTarget>,
+    pub(crate) image_output_target: Option<ImageModelTarget>,
     pub(crate) openai_auth_account_id: Option<String>,
 }
 
@@ -749,7 +773,32 @@ mod tests {
         assert!(!state.local_proxy_listen_on_all_interfaces);
         assert!(state.local_proxy_lan_api_key.is_none());
         assert!(state.image_generation_account_id.is_none());
+        assert!(state.image_input_target.is_none());
+        assert!(state.image_output_target.is_none());
         assert!(state.disabled_account_ids.is_empty());
+    }
+
+    #[test]
+    fn image_model_targets_use_camel_case_at_the_ipc_boundary() {
+        let official = serde_json::to_value(ImageModelTarget::Official {
+            account_id: "account-1".to_string(),
+        })
+        .unwrap();
+        let provider: ImageModelTarget = serde_json::from_value(serde_json::json!({
+            "kind": "provider",
+            "providerId": "provider-1",
+            "model": "vision-model"
+        }))
+        .unwrap();
+
+        assert_eq!(official["accountId"], "account-1");
+        assert_eq!(
+            provider,
+            ImageModelTarget::Provider {
+                provider_id: "provider-1".to_string(),
+                model: "vision-model".to_string(),
+            }
+        );
     }
 
     #[test]

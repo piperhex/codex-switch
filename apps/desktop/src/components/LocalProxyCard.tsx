@@ -1,20 +1,23 @@
 import { Button, Popconfirm, Popover, Switch, Tag, Tooltip } from "antd";
 import { ChevronDown, Power, PowerOff, RadioTower, Shuffle } from "lucide-react";
 import type { Translate } from "../i18n";
-import type { Account, LocalProxyStatus } from "../types";
+import type {
+  Account, ImageModelTarget, ImageRouteKind, LocalProxyStatus, Provider,
+} from "../types";
 import { ProxySessionManager } from "./ProxySessionManager";
-import { ImageAccountSelect } from "./ImageAccountSelect";
+import { ImageModelRouteSelect } from "./ImageModelRouteSelect";
 
 interface LocalProxyCardProps {
   localProxy: LocalProxyStatus | null;
   accounts: Account[];
+  providers: Provider[];
   proxyBusy: boolean;
   onStartProxy: () => void;
   onStopProxy: () => void;
   onAutoSwitchChange: (enabled: boolean) => void;
   onCustomAutoSwitchPriorityEnabledChange: (enabled: boolean) => void;
   onAutoDisableUnreachableChange: (enabled: boolean) => void;
-  onImageAccountChange: (accountId: string | null) => void;
+  onImageModelChange: (routeKind: ImageRouteKind, target: ImageModelTarget | null) => void;
   onListenOnAllInterfacesChange: (enabled: boolean) => void;
   startDisabledReason?: string;
   t: Translate;
@@ -23,20 +26,21 @@ interface LocalProxyCardProps {
 export function LocalProxyCard({
   localProxy,
   accounts,
+  providers,
   proxyBusy,
   onStartProxy,
   onStopProxy,
   onAutoSwitchChange,
   onCustomAutoSwitchPriorityEnabledChange,
   onAutoDisableUnreachableChange,
-  onImageAccountChange,
+  onImageModelChange,
   onListenOnAllInterfacesChange,
   startDisabledReason,
   t,
 }: LocalProxyCardProps) {
   const proxyRunning = Boolean(localProxy?.running);
   const activeAccount = accounts.find((account) => account.active);
-  const showImageAccountSelect = proxyRunning && (
+  const showImageModelSelectors = proxyRunning && (
     Boolean(activeAccount?.agentIdentity)
     || Boolean(localProxy?.concurrentAccountRoutingEnabled)
   );
@@ -62,10 +66,15 @@ export function LocalProxyCard({
         </div>
       </div>
       <div className="provider-official-actions">
-        {showImageAccountSelect && (
-          <ImageAccountSelect accounts={accounts}
-            accountId={localProxy?.imageGenerationAccountId}
-            busy={proxyBusy} onChange={onImageAccountChange} t={t} />
+        {showImageModelSelectors && (
+          <div className="proxy-image-model-fields">
+            <ImageModelRouteSelect accounts={accounts} providers={providers} routeKind="input"
+              target={localProxy?.imageInputTarget} busy={proxyBusy}
+              onChange={onImageModelChange} t={t} />
+            <ImageModelRouteSelect accounts={accounts} providers={providers} routeKind="output"
+              target={localProxy?.imageOutputTarget} busy={proxyBusy}
+              onChange={onImageModelChange} t={t} />
+          </div>
         )}
         <Tag className={proxyRunning ? "current-tag" : undefined}>
           {proxyRunning ? t("providers.proxy.running") : t("providers.proxy.stopped")}

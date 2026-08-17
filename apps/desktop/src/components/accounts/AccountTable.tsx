@@ -31,6 +31,9 @@ import type {
   Account,
   AccountDetailsDraft,
   AccountTokenUsageTotals,
+  ImageModelTarget,
+  ImageRouteKind,
+  Provider,
   ProxySessionLatencySummary,
   ResetCreditsLoadState,
 } from "../../types";
@@ -39,12 +42,13 @@ import { initials } from "../../utils/format";
 import { formatCompactTokenCount } from "../../utils/tokenContext";
 import { shouldShowUsageError } from "../../utils/usageErrors";
 import { AccountNoteModal } from "../modals/AccountNoteModal";
-import { ImageAccountSelect } from "../ImageAccountSelect";
+import { ImageModelRouteSelect } from "../ImageModelRouteSelect";
 import { ResetCreditsPanel } from "./ResetCreditsPanel";
 import { UsageMeter } from "./UsageMeter";
 
 interface AccountTableProps {
   accounts: Account[];
+  providers: Provider[];
   busyAccountId: string | null;
   onSwitch: (id: string) => void;
   onDeactivate: (id: string) => void;
@@ -71,9 +75,10 @@ interface AccountTableProps {
   concurrentAccountRoutingEnabled: boolean;
   concurrentAccountRoutingBusy: boolean;
   onConcurrentAccountRoutingChange: (enabled: boolean) => void;
-  imageGenerationAccountId: string | null;
-  imageAccountBusy: boolean;
-  onImageAccountChange: (accountId: string | null) => void;
+  imageInputTarget: ImageModelTarget | null;
+  imageOutputTarget: ImageModelTarget | null;
+  imageModelBusy: boolean;
+  onImageModelChange: (routeKind: ImageRouteKind, target: ImageModelTarget | null) => void;
   openaiAuthAccountId: string | null;
   openaiAuthBusy: boolean;
   onOpenaiAuthAccountChange: (accountId: string | null) => void;
@@ -383,6 +388,7 @@ function ResetCreditsModal({
 
 export function AccountTable({
   accounts,
+  providers,
   busyAccountId,
   onSwitch,
   onDeactivate,
@@ -409,9 +415,10 @@ export function AccountTable({
   concurrentAccountRoutingEnabled,
   concurrentAccountRoutingBusy,
   onConcurrentAccountRoutingChange,
-  imageGenerationAccountId,
-  imageAccountBusy,
-  onImageAccountChange,
+  imageInputTarget,
+  imageOutputTarget,
+  imageModelBusy,
+  onImageModelChange,
   openaiAuthAccountId,
   openaiAuthBusy,
   onOpenaiAuthAccountChange,
@@ -626,7 +633,7 @@ export function AccountTable({
     .filter((account) => selectedAccountIdSet.has(account.id) && account.autoSwitchEnabled)
     .map((account) => account.id);
   const activeAccount = accounts.find((account) => account.active) ?? null;
-  const showImageAccountSelect = hotSwitchEnabled && (
+  const showImageModelSelectors = hotSwitchEnabled && (
     Boolean(activeAccount?.agentIdentity) || concurrentAccountRoutingEnabled
   );
   const officialAuthAccount = accounts.find((account) => account.id === openaiAuthAccountId) ?? null;
@@ -1273,10 +1280,15 @@ export function AccountTable({
           </span>
           {proxyControls}
         </div>
-        {showImageAccountSelect && (
-          <ImageAccountSelect accounts={accounts} accountId={imageGenerationAccountId}
-            busy={imageAccountBusy} onChange={onImageAccountChange}
-            privacyMode={privacyMode} t={t} />
+        {showImageModelSelectors && (
+          <div className="proxy-image-model-fields">
+            <ImageModelRouteSelect accounts={accounts} providers={providers} routeKind="input"
+              target={imageInputTarget} busy={imageModelBusy} onChange={onImageModelChange}
+              privacyMode={privacyMode} t={t} />
+            <ImageModelRouteSelect accounts={accounts} providers={providers} routeKind="output"
+              target={imageOutputTarget} busy={imageModelBusy} onChange={onImageModelChange}
+              privacyMode={privacyMode} t={t} />
+          </div>
         )}
         <Tooltip title={t("table.concurrentRoutingTooltip")} styles={{ root: { maxWidth: 400 } }}>
           <span className="account-concurrent-routing-control">

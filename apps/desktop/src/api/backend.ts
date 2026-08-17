@@ -52,6 +52,8 @@ import type {
   LocalProxyStartProgress,
   LocalProxyStatus,
   LocalProxyStopProgress,
+  ImageModelTarget,
+  ImageRouteKind,
   NetworkProxySettings,
   ProxySession,
   ProxySessionRequest,
@@ -152,6 +154,8 @@ const LOCAL_PROXY_LAN_API_KEY_PREVIEW_KEY = "codex-switch:local-proxy-lan-api-ke
 const LOCAL_PROXY_PORT_PREVIEW_KEY = "codex-switch:local-proxy-port";
 const WEB_PROXY_LISTEN_ALL_INTERFACES_PREVIEW_KEY = "codex-switch:web-proxy-listen-all-interfaces";
 const LOCAL_PROXY_IMAGE_ACCOUNT_PREVIEW_KEY = "codex-switch:image-generation-account";
+const LOCAL_PROXY_IMAGE_INPUT_TARGET_PREVIEW_KEY = "codex-switch:image-input-target";
+const LOCAL_PROXY_IMAGE_OUTPUT_TARGET_PREVIEW_KEY = "codex-switch:image-output-target";
 const LOCAL_PROXY_OPENAI_AUTH_ACCOUNT_PREVIEW_KEY = "codex-switch:proxy-openai-auth-account";
 const TOKEN_USAGE_WEEKS_PREVIEW_KEY = "codex-switch:token-usage-weeks";
 const TOKEN_USAGE_REFRESH_PREVIEW_KEY = "codex-switch:token-usage-refresh-seconds";
@@ -345,8 +349,29 @@ function previewLocalProxyStatus(): LocalProxyStatus {
     listenOnAllInterfaces: window.localStorage.getItem(LOCAL_PROXY_LISTEN_ALL_INTERFACES_PREVIEW_KEY) === "true",
     hasLanApiKey: Boolean(window.localStorage.getItem(LOCAL_PROXY_LAN_API_KEY_PREVIEW_KEY)),
     imageGenerationAccountId: window.localStorage.getItem(LOCAL_PROXY_IMAGE_ACCOUNT_PREVIEW_KEY),
+    imageInputTarget: readPreviewImageModelTarget(LOCAL_PROXY_IMAGE_INPUT_TARGET_PREVIEW_KEY),
+    imageOutputTarget: readPreviewImageModelTarget(LOCAL_PROXY_IMAGE_OUTPUT_TARGET_PREVIEW_KEY),
     openaiAuthAccountId: window.localStorage.getItem(LOCAL_PROXY_OPENAI_AUTH_ACCOUNT_PREVIEW_KEY),
   };
+}
+
+function readPreviewImageModelTarget(key: string): LocalProxyStatus["imageInputTarget"] {
+  const stored = window.localStorage.getItem(key);
+  if (!stored) return null;
+  try {
+    const value = JSON.parse(stored) as unknown;
+    if (!value || typeof value !== "object" || !("kind" in value)) return null;
+    if (value.kind === "official" && "accountId" in value && typeof value.accountId === "string") {
+      return { kind: "official", accountId: value.accountId };
+    }
+    if (value.kind === "provider" && "providerId" in value && "model" in value
+      && typeof value.providerId === "string" && typeof value.model === "string") {
+      return { kind: "provider", providerId: value.providerId, model: value.model };
+    }
+  } catch {
+    return null;
+  }
+  return null;
 }
 
 export async function loadDashboard(): Promise<{ accounts: Account[]; info: AppInfo }> {
@@ -1184,6 +1209,31 @@ export async function setLocalProxyImageAccount(accountId: string | null): Promi
     return previewLocalProxyStatus();
   }
   return invoke<LocalProxyStatus>("set_image_generation_account", { accountId });
+}
+
+export async function setLocalProxyImageModelTarget(
+  routeKind: ImageRouteKind,
+  target: ImageModelTarget | null,
+): Promise<LocalProxyStatus> {
+  if (!hasLocalBackend) {
+    if (!previewLocalProxyStatus().running) {
+      throw new Error("Start the local proxy before selecting an image model");
+    }
+    const key = routeKind === "input"
+      ? LOCAL_PROXY_IMAGE_INPUT_TARGET_PREVIEW_KEY
+      : LOCAL_PROXY_IMAGE_OUTPUT_TARGET_PREVIEW_KEY;
+    if (target) window.localStorage.setItem(key, JSON.stringify(target));
+    else window.localStorage.removeItem(key);
+    if (routeKind === "output") {
+      if (target?.kind === "official") {
+        window.localStorage.setItem(LOCAL_PROXY_IMAGE_ACCOUNT_PREVIEW_KEY, target.accountId);
+      } else {
+        window.localStorage.removeItem(LOCAL_PROXY_IMAGE_ACCOUNT_PREVIEW_KEY);
+      }
+    }
+    return previewLocalProxyStatus();
+  }
+  return invoke<LocalProxyStatus>("set_image_model_target", { routeKind, target });
 }
 
 export async function setLocalProxyOpenaiAuthAccount(accountId: string | null): Promise<LocalProxyStatus> {

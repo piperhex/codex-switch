@@ -255,6 +255,7 @@ pub fn run() {
             local_proxy::set_custom_auto_switch_priority_enabled,
             local_proxy::set_auto_disable_unreachable_accounts,
             local_proxy::set_image_generation_account,
+            local_proxy::set_image_model_target,
             local_proxy::set_local_proxy_openai_auth_account,
             local_proxy::set_local_proxy_listen_on_all_interfaces,
             local_proxy::copy_local_proxy_lan_api_key,
