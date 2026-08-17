@@ -146,6 +146,19 @@ interface AccountContextMenu {
   y: number;
 }
 
+const ACCOUNT_CONTEXT_MENU_WIDTH = 220;
+const ACCOUNT_CONTEXT_MENU_HEIGHT = {
+  hotSwitch: 352,
+  directSwitch: 276,
+} as const;
+
+function contextMenuPosition(event: { clientX: number; clientY: number }, menuHeight: number) {
+  return {
+    x: Math.max(8, Math.min(event.clientX, window.innerWidth - ACCOUNT_CONTEXT_MENU_WIDTH - 8)),
+    y: Math.max(8, Math.min(event.clientY, window.innerHeight - menuHeight - 8)),
+  };
+}
+
 function maskAccountEmail(email: string) {
   if (email.length <= 10) return "*****";
   return `${email.slice(0, 5)}*****${email.slice(-5)}`;
@@ -1068,6 +1081,14 @@ export function AccountTable({
             {resetWaiting ? t("table.resetCreditsRefreshing") : t("table.useResetCredit")}
           </button>
         </Popconfirm>
+        <button type="button" onClick={() => {
+          setContextMenu(null);
+          setResetCreditsAccount(account);
+          onLoadResetCredits(account.id);
+        }}>
+          <CalendarClock size={14} />
+          {t("table.viewResetCredits")}
+        </button>
         <button type="button" disabled={waiting} onClick={() => {
           setContextMenu(null);
           onRefresh(account.id);
@@ -1113,7 +1134,6 @@ export function AccountTable({
     <div className="account-card-grid">
       {orderedAccounts.map((account) => {
         const waiting = busyAccountId === account.id;
-        const resetWaiting = resetCreditBusyAccountId === account.id;
         const isDisabled = isAccountDisabled(account, hotSwitchEnabled);
         const switchBlocked = hotSwitchEnabled
           ? !account.localProxyCompatible
@@ -1131,14 +1151,12 @@ export function AccountTable({
               if (!concurrentRoutingActive && !account.active && !switchBlocked) onSwitch(account.id);
             }}
             onContextMenu={(event) => {
-              if ((event.target as HTMLElement).closest("button, a, input, textarea, summary, details")) return;
               event.preventDefault();
-              const menuWidth = 180;
-              const menuHeight = hotSwitchEnabled ? 164 : 124;
               setContextMenu({
                 accountId: account.id,
-                x: Math.max(8, Math.min(event.clientX, window.innerWidth - menuWidth - 8)),
-                y: Math.max(8, Math.min(event.clientY, window.innerHeight - menuHeight - 8)),
+                ...contextMenuPosition(event, hotSwitchEnabled
+                  ? ACCOUNT_CONTEXT_MENU_HEIGHT.hotSwitch
+                  : ACCOUNT_CONTEXT_MENU_HEIGHT.directSwitch),
               });
             }}>
             <div className="card-topline" />
@@ -1181,59 +1199,6 @@ export function AccountTable({
               <div className="card-header-actions">
                 <Tooltip title={t("table.refreshUsage")}><Button size="small" className="table-icon-button" loading={waiting}
                   icon={<RefreshCw size={14} />} onClick={() => onRefresh(account.id)} /></Tooltip>
-                {contextMenu?.accountId === account.id && <div ref={contextMenuRef} className="context-menu"
-                  style={{ left: contextMenu.x, top: contextMenu.y }} onClick={(event) => event.stopPropagation()}>
-                  {!concurrentRoutingActive && account.active && (
-                    <Popconfirm title={t("table.deactivateConfirmTitle")}
-                      description={<span>{t("table.deactivateConfirmDescription")}</span>}
-                      okText={t("table.deactivate")} cancelText={t("table.cancel")}
-                      okButtonProps={{ danger: true }} styles={{ root: { maxWidth: 400 } }}
-                      onConfirm={() => {
-                        setContextMenu(null);
-                        onDeactivate(account.id);
-                      }}>
-                      <button type="button" className="destructive" disabled={waiting}>
-                        <X size={14} />{t("table.deactivate")}
-                      </button>
-                    </Popconfirm>
-                  )}
-                  <Popconfirm title={t("table.useResetCreditConfirmTitle")}
-                    description={<span className="reset-credit-confirm-description">{t("table.useResetCreditConfirmDescription")}</span>}
-                    okText={t("table.useResetCreditOk")} cancelText={t("table.cancel")}
-                    disabled={waiting || resetWaiting} onConfirm={() => {
-                      setContextMenu(null);
-                      onUseResetCredit(account.id);
-                    }}>
-                    <button type="button" disabled={waiting || resetWaiting}><CalendarClock size={14} />{t("table.useResetCredit")}</button>
-                  </Popconfirm>
-                  <button type="button" onClick={() => {
-                    setContextMenu(null);
-                    setResetCreditsAccount(account);
-                    onLoadResetCredits(account.id);
-                  }}><CalendarClock size={14} />{t("table.viewResetCredits")}</button>
-                  <button type="button" onClick={() => {
-                    setContextMenu(null);
-                    onCopyAuthJson(account.id);
-                  }}><Copy size={14} />{t("table.copyAuthJson")}</button>
-                  {hotSwitchEnabled && <Tooltip title={switchBlocked ? switchBlockedReason : t("table.autoSwitchTooltip")}>
-                    <button type="button" disabled={switchBlocked || autoSwitchBusyAccountId !== null}
-                      onClick={() => {
-                        setContextMenu(null);
-                        onAutoSwitchEnabledChange(account.id, !account.autoSwitchEnabled);
-                      }}>
-                      {account.autoSwitchEnabled ? <ToggleLeft size={14} /> : <ToggleRight size={14} />}
-                      {account.autoSwitchEnabled ? t("table.disableAutoSwitch") : t("table.enableAutoSwitch")}
-                    </button>
-                  </Tooltip>}
-                  <Popconfirm title={t("table.deleteConfirmTitle")} description={t("table.deleteConfirmDescription")}
-                    okText={t("table.delete")} cancelText={t("table.cancel")} okButtonProps={{ danger: true }} disabled={account.active}
-                    onConfirm={() => {
-                      setContextMenu(null);
-                      onDelete(account.id);
-                    }}>
-                    <button type="button" className="destructive" disabled={account.active}><Trash2 size={14} />{t("table.delete")}</button>
-                  </Popconfirm>
-                </div>}
               </div>
             </header>
             <div className="account-card-usage">
@@ -1247,6 +1212,7 @@ export function AccountTable({
         );
       })}
     </div>
+    {tableContextMenu}
     {editingAccount && <AccountNoteModal key={editingAccount.id} account={editingAccount}
       loading={loadingAccountDetailsId === editingAccount.id}
       onClose={() => setEditingAccount(null)}
@@ -1474,13 +1440,12 @@ export function AccountTable({
             : t("table.officialMetadataReadOnly"),
           onContextMenu: (event) => {
             event.preventDefault();
-            const menuWidth = 220;
-            const menuHeight = hotSwitchEnabled ? 318 : 242;
             setTableActionMenuAccountId(null);
             setContextMenu({
               accountId: account.id,
-              x: Math.max(8, Math.min(event.clientX, window.innerWidth - menuWidth - 8)),
-              y: Math.max(8, Math.min(event.clientY, window.innerHeight - menuHeight - 8)),
+              ...contextMenuPosition(event, hotSwitchEnabled
+                ? ACCOUNT_CONTEXT_MENU_HEIGHT.hotSwitch
+                : ACCOUNT_CONTEXT_MENU_HEIGHT.directSwitch),
             });
           },
           onDoubleClick: (event) => {
@@ -1502,5 +1467,7 @@ export function AccountTable({
       loading={loadingAccountDetailsId === editingAccount.id}
       onClose={() => setEditingAccount(null)}
       onSave={(details) => onSaveNote(editingAccount.id, details)} t={t} />}
+    {resetCreditsAccount && <ResetCreditsModal state={resetCredits[resetCreditsAccount.id]} onClose={() => setResetCreditsAccount(null)}
+      onRetry={() => onLoadResetCredits(resetCreditsAccount.id, true)} language={language} t={t} />}
   </>;
 }

@@ -370,7 +370,6 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .account-card .plan-line .ant-tag { margin: 0; }
 .reset-credits-badge { color: var(--green-dark); font-weight: 700; white-space: nowrap; }
 .card-header-actions { position: relative; flex: 0 0 auto; align-self: flex-start; }
-.card-header-actions .context-menu { position: fixed; top: auto; right: auto; width: 180px; }
 .account-card-usage { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0 20px; border: 1px solid #e5e9e4; border-radius: 11px; background: #f6f8f5; }
 .account-card-usage section { min-width: 0; display: grid; gap: 7px; padding: 13px 14px; }
 .account-card-usage section + section { border-left: 1px solid #e0e5df; }
