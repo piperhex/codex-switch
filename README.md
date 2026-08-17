@@ -161,6 +161,29 @@ npm run check
 
 “第三方服务商”页面用于管理兼容 OpenAI Responses 或 Chat Completions 的接口、API 密钥、模型列表，以及由 Codex 还是 Codex Switch 控制模型选择。三方 Provider 仅可在本地代理运行时使用；代理会监听 `127.0.0.1:15722` 并使 Codex 指向该地址，从而支持热切换。
 
+### 中转站接入
+
+Codex Switch 支持通过桌面深链从 sub2api、newapi 以及其他兼容页面一键导入中转站 Provider。网页按钮只需要打开下面的自定义协议链接，浏览器会唤起已安装的 Codex Switch，并把参数交给桌面端保存：
+
+```text
+cswitch://v1/import?resource=provider&app=codex&name=站点名称&homepage=https%3A%2F%2Fexample.com&endpoint=https%3A%2F%2Fexample.com%2Fv1&apiKey=你的API密钥&balancePlatform=sub2api
+```
+
+现有使用 `ccswitch://` 的页面也完全兼容，把协议头替换为 `cswitch://` 不是必须的。所有参数值都必须经过 URL 编码，尤其是 `name`、`homepage`、`endpoint` 和 `apiKey`；API 密钥不要直接拼接未编码的特殊字符。
+
+参数说明：
+
+- `resource=provider`：固定值，表示导入 Provider。
+- `app=codex`：按 OpenAI Responses Provider 导入，适合支持 Responses 接口的中转站。
+- `app=claude`、`app=gemini` 或 `app=grokbuild`：按兼容 Chat Completions 的自定义 Provider 导入，适合只提供 Chat Completions 的中转站。
+- `name`：在 Codex Switch 中显示的 Provider 名称。
+- `homepage`：站点主页，保留给兼容页面使用。
+- `endpoint`：实际 API Base URL，例如 `https://example.com/v1`。
+- `apiKey`：中转站 API 密钥。
+- `balancePlatform=sub2api` 或 `balancePlatform=newapi`：可选，用于标记对应的余额查询平台；也接受兼容页面常用的 `platform` 参数名。
+
+因此，sub2api 使用的核心格式不是账号 JSON，而是上面的 Provider 深链格式：把 `balancePlatform` 设置为 `sub2api`，把 `endpoint` 和 `apiKey` 换成该站点实际值即可。newapi 只需将其改为 `newapi`。深链会在桌面端后台解析并保存，不会把密钥写入前端日志。
+
 官方账号模式下，“自动切号”会在收到额度响应后刷新已保存账号，选择主用量窗口使用率最低的符合条件账号，切换凭据后重试该请求一次。“Token 汇总”窗口展示该代理观察到的请求用量。
 
 设置页按用途分组，可配置界面语言、主题色、关闭到托盘、隐私模式、悬浮用量球、
