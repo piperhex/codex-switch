@@ -169,7 +169,7 @@ Codex Switch 支持通过桌面深链从 sub2api、newapi 以及其他兼容页�
 cswitch://v1/import?resource=provider&app=codex&name=站点名称&homepage=https%3A%2F%2Fexample.com&endpoint=https%3A%2F%2Fexample.com%2Fv1&apiKey=你的API密钥&balancePlatform=sub2api
 ```
 
-现有使用 `ccswitch://` 的页面也完全兼容，把协议头替换为 `cswitch://` 不是必须的。所有参数值都必须经过 URL 编码，尤其是 `name`、`homepage`、`endpoint` 和 `apiKey`；API 密钥不要直接拼接未编码的特殊字符。
+Codex Switch 只注册自己的 `cswitch://` 协议，`ccswitch://` 继续留给 CC Switch，避免两个应用同时安装时争抢系统关联。所有参数值都必须经过 URL 编码，尤其是 `name`、`homepage`、`endpoint` 和 `apiKey`；API 密钥不要直接拼接未编码的特殊字符。
 
 参数说明：
 

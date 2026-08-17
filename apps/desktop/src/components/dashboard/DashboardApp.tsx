@@ -221,31 +221,30 @@ export function DashboardApp() {
   const cloudSessionPromptedRef = useRef(false);
   const providerBalanceRefreshCountRef = useRef(0);
   useEffect(() => subscribeToOpenSettings(() => setPage("settings")), []);
+  const { message: toast, notify } = useToast();
+  const { language, setLanguage, t } = useLanguage();
   useEffect(() => {
     let active = true;
     let unsubscribe: (() => void) | undefined;
-    const openProviders = () => {
-      if (!active) return;
+    const consumeImport = async () => {
+      const pending = await takeCcSwitchImportNavigation().catch(() => false);
+      if (!active || !pending) return;
       setPage("providers");
-      void takeCcSwitchImportNavigation().catch(() => undefined);
+      notify(t("toast.providerImported"));
     };
-    void subscribeToCcSwitchImports(openProviders).then((stopListening) => {
+    void subscribeToCcSwitchImports(() => void consumeImport()).then((stopListening) => {
       if (!active) {
         stopListening();
         return;
       }
       unsubscribe = stopListening;
-      void takeCcSwitchImportNavigation().then((pending) => {
-        if (pending) openProviders();
-      }).catch(() => undefined);
+      void consumeImport();
     });
     return () => {
       active = false;
       unsubscribe?.();
     };
-  }, []);
-  const { message: toast, notify } = useToast();
-  const { language, setLanguage, t } = useLanguage();
+  }, [notify, t]);
   const cloud = useCloudAuth(notify, t);
   const totpManager = useTotpEntries({
     cloudAuthenticated: cloud.state.authenticated,
