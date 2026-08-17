@@ -7,6 +7,7 @@ import { ModelReasoningEditor } from "./ModelReasoningEditor";
 import {
   modelOptions,
   modelContextWindows,
+  modelImageInputModels,
   modelReasoningConfigs,
   modelReasoningEfforts,
   type ModelReasoningConfig,
@@ -57,6 +58,8 @@ export function RelayModelPicker({
       onModelConfigsChange(modelReasoningConfigs(latest, {
         reasoningEfforts: modelReasoningEfforts(modelConfigs),
         contextWindows: modelContextWindows(modelConfigs),
+        imageInputModels: modelImageInputModels(modelConfigs),
+        preserveImageInputForModels: modelConfigs.map(({ model }) => model.trim()),
       }));
       onActiveModelChange(latest.includes(activeModel) ? activeModel : latest[0] ?? "");
       setLoaded(true);

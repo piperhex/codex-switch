@@ -85,6 +85,7 @@ export interface Provider {
   modelReasoningEfforts: ModelReasoningEfforts;
   modelContextWindows: ModelContextWindows;
   imageInputModels: string[];
+  imageInputModelsConfigured: boolean;
   contextWindow?: number | null;
   modelSelectionControlledByCodex: boolean;
   apiFormat: ProviderApiFormat;
@@ -112,6 +113,7 @@ export interface ProviderInput {
   modelReasoningEfforts: ModelReasoningEfforts;
   modelContextWindows: ModelContextWindows;
   imageInputModels: string[];
+  imageInputModelsConfigured?: boolean;
   contextWindow?: number | null;
   modelSelectionControlledByCodex: boolean;
   apiKey?: string;

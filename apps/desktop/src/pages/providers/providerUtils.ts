@@ -67,6 +67,7 @@ export interface ModelReasoningConfig {
   model: string;
   reasoningEfforts: ReasoningEffort[];
   contextWindowK: string;
+  supportsImageInput: boolean;
 }
 
 export const REASONING_EFFORTS: ReasoningEffort[] = [
@@ -95,6 +96,10 @@ export function defaultReasoningEfforts(model: string): ReasoningEffort[] {
   return efforts;
 }
 
+export function supportsImageInputByDefault(model: string) {
+  return model.trim().toLowerCase().startsWith("gpt-");
+}
+
 export function reasoningEffortOptions(model: string, t: Translate) {
   const values = model.trim().toLowerCase().startsWith("gpt-")
     ? defaultReasoningEfforts(model)
@@ -108,6 +113,8 @@ export function modelReasoningConfigs(
     reasoningEfforts?: ModelReasoningEfforts;
     contextWindows?: ModelContextWindows;
     fallbackContextWindow?: number | null;
+    imageInputModels?: string[];
+    preserveImageInputForModels?: string[];
   } = {},
 ): ModelReasoningConfig[] {
   const fallbackContextWindowK = options.fallbackContextWindow
@@ -121,6 +128,8 @@ export function modelReasoningConfigs(
     contextWindowK: options.contextWindows?.[model]
       ? String(options.contextWindows[model] / 1000)
       : fallbackContextWindowK,
+    supportsImageInput: options.imageInputModels?.includes(model)
+      || (!options.preserveImageInputForModels?.includes(model) && supportsImageInputByDefault(model)),
   }));
 }
 
@@ -136,6 +145,12 @@ export function modelContextWindows(configs: ModelReasoningConfig[]): ModelConte
     const contextWindow = parseContextWindowK(contextWindowK);
     return model.trim() && contextWindow ? [[model.trim(), contextWindow]] : [];
   }));
+}
+
+export function modelImageInputModels(configs: ModelReasoningConfig[]) {
+  return configs
+    .filter(({ model, supportsImageInput }) => model.trim() && supportsImageInput)
+    .map(({ model }) => model.trim());
 }
 
 export function parseContextWindowK(value: string): number | null | undefined {

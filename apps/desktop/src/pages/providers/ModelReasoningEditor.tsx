@@ -1,4 +1,4 @@
-import { AutoComplete, Button, Input, Select } from "antd";
+import { AutoComplete, Button, Checkbox, Input, Select } from "antd";
 import { Plus, Trash2 } from "lucide-react";
 import type { Translate } from "../../i18n";
 import type { ReasoningEffort } from "../../types";
@@ -8,6 +8,7 @@ import {
   defaultReasoningEfforts,
   type ModelReasoningConfig,
   reasoningEffortOptions,
+  supportsImageInputByDefault,
 } from "./providerUtils";
 
 interface ModelReasoningEditorProps {
@@ -23,6 +24,10 @@ function usesDefaults(config: ModelReasoningConfig) {
     && config.reasoningEfforts.every((effort, index) => effort === defaults[index]);
 }
 
+function usesDefaultImageSupport(config: ModelReasoningConfig) {
+  return config.supportsImageInput === supportsImageInputByDefault(config.model);
+}
+
 export function ModelReasoningEditor({
   value,
   disabled,
@@ -35,7 +40,10 @@ export function ModelReasoningEditor({
       const reasoningEfforts = !config.model.trim() || usesDefaults(config)
         ? defaultReasoningEfforts(model)
         : config.reasoningEfforts;
-      return { ...config, model, reasoningEfforts };
+      const supportsImageInput = !config.model.trim() || usesDefaultImageSupport(config)
+        ? supportsImageInputByDefault(model)
+        : config.supportsImageInput;
+      return { ...config, model, reasoningEfforts, supportsImageInput };
     }));
   };
   const updateEfforts = (index: number, reasoningEfforts: ReasoningEffort[]) => {
@@ -48,11 +56,17 @@ export function ModelReasoningEditor({
       rowIndex === index ? { ...config, contextWindowK } : config
     )));
   };
+  const updateImageInput = (index: number, supportsImageInput: boolean) => {
+    onChange(value.map((config, rowIndex) => (
+      rowIndex === index ? { ...config, supportsImageInput } : config
+    )));
+  };
   const remove = (index: number) => onChange(value.filter((_, rowIndex) => rowIndex !== index));
   const add = () => onChange([...value, {
     model: "",
     reasoningEfforts: [],
     contextWindowK: DEFAULT_CONTEXT_WINDOW_K,
+    supportsImageInput: false,
   }]);
 
   return <div className="provider-model-editor">
@@ -60,6 +74,7 @@ export function ModelReasoningEditor({
       <span>{t("providers.form.modelName")}</span>
       <span>{t("providers.form.reasoningEfforts")}</span>
       <span>{t("providers.form.contextWindow")}</span>
+      <span>{t("providers.form.imageInputModels")}</span>
       <span />
     </div>
     {value.map((config, index) => <div className="provider-model-editor-row" key={index}>
@@ -72,6 +87,9 @@ export function ModelReasoningEditor({
       <AutoComplete value={config.contextWindowK} disabled={disabled}
         options={CONTEXT_WINDOW_OPTIONS} placeholder={DEFAULT_CONTEXT_WINDOW_K} allowClear
         onChange={(contextWindowK) => updateContextWindow(index, contextWindowK)} />
+      <Checkbox checked={config.supportsImageInput} disabled={disabled}
+        aria-label={`${t("providers.form.imageInputModels")}: ${config.model}`}
+        onChange={(event) => updateImageInput(index, event.target.checked)} />
       <Button type="text" danger icon={<Trash2 size={14} />} disabled={disabled || value.length === 1}
         aria-label={t("providers.form.removeModel")} onClick={() => remove(index)} />
     </div>)}

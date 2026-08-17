@@ -965,7 +965,19 @@ fn apply_remote_provider<R: Runtime>(
     merge_field!(models);
     merge_field!(model_reasoning_efforts);
     merge_field!(model_context_windows);
-    merge_field!(image_input_models);
+    if !local_exists
+        || remote_field_is_newer(
+            &local_versions.image_input_models,
+            &remote_versions.image_input_models,
+        )
+    {
+        merged.image_input_models = remote_profile.image_input_models.clone();
+        if !merged.image_input_models.is_empty() {
+            merged.image_input_models_configured = true;
+        }
+        local_versions.image_input_models = remote_versions.image_input_models.clone();
+        changed = true;
+    }
     merge_field!(context_window);
     merge_field!(model_selection_controlled_by_codex);
     merge_field!(api_format);
@@ -1104,6 +1116,7 @@ fn provider_payload_to_profile(provider: &ProviderSyncPayload) -> ProviderProfil
         model_reasoning_efforts: provider.model_reasoning_efforts.clone(),
         model_context_windows: provider.model_context_windows.clone(),
         image_input_models: provider.image_input_models.clone(),
+        image_input_models_configured: !provider.image_input_models.is_empty(),
         context_window: provider.context_window,
         model_selection_controlled_by_codex: provider.model_selection_controlled_by_codex,
         api_format: provider.api_format,

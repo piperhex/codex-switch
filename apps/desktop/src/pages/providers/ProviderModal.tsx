@@ -10,6 +10,7 @@ import {
   defaultBalanceUrl,
   defaultWalletUrl,
   modelContextWindows,
+  modelImageInputModels,
   modelReasoningConfigs,
   modelReasoningEfforts,
   modelOptions,
@@ -30,7 +31,6 @@ export function ProviderModal({ provider, saving, onClose, onSave, t }: Provider
   const [baseUrl, setBaseUrl] = useState("");
   const [model, setModel] = useState("");
   const [modelConfigs, setModelConfigs] = useState<ModelReasoningConfig[]>([]);
-  const [imageInputModels, setImageInputModels] = useState<string[]>([]);
   const [apiKey, setApiKey] = useState("");
   const [apiFormat, setApiFormat] = useState<ProviderApiFormat>("openaiResponses");
   const [balancePlatform, setBalancePlatform] = useState<ProviderBalancePlatform | "none">("none");
@@ -55,9 +55,15 @@ export function ProviderModal({ provider, saving, onClose, onSave, t }: Provider
         reasoningEfforts: provider?.modelReasoningEfforts,
         contextWindows: provider?.modelContextWindows,
         fallbackContextWindow: provider?.contextWindow,
+        imageInputModels: provider?.imageInputModels,
+        preserveImageInputForModels: provider?.imageInputModelsConfigured ? nextModels : [],
       })
-      : [{ model: "", reasoningEfforts: [], contextWindowK: DEFAULT_CONTEXT_WINDOW_K }]);
-    setImageInputModels(provider?.imageInputModels?.filter((value) => nextModels.includes(value)) ?? []);
+      : [{
+        model: "",
+        reasoningEfforts: [],
+        contextWindowK: DEFAULT_CONTEXT_WINDOW_K,
+        supportsImageInput: false,
+      }]);
     setModel(provider?.model ?? nextModels[0] ?? "");
     setApiKey("");
     setApiFormat(provider?.apiFormat ?? "openaiResponses");
@@ -93,7 +99,6 @@ export function ProviderModal({ provider, saving, onClose, onSave, t }: Provider
   const updateModels = (configs: ModelReasoningConfig[]) => {
     const nextModels = configs.map((config) => config.model.trim()).filter(Boolean);
     setModelConfigs(configs);
-    setImageInputModels((current) => current.filter((value) => nextModels.includes(value)));
     if (!nextModels.includes(model.trim())) setModel(nextModels[0] ?? "");
   };
   const submit = async () => {
@@ -107,7 +112,8 @@ export function ProviderModal({ provider, saving, onClose, onSave, t }: Provider
       models: normalizedModels,
       modelReasoningEfforts: modelReasoningEfforts(modelConfigs),
       modelContextWindows: modelContextWindows(modelConfigs),
-      imageInputModels: imageInputModels.filter((value) => normalizedModels.includes(value)),
+      imageInputModels: modelImageInputModels(modelConfigs),
+      imageInputModelsConfigured: true,
       contextWindow: null,
       modelSelectionControlledByCodex: provider?.modelSelectionControlledByCodex ?? false,
       apiKey: apiKey.trim() || undefined,
@@ -179,12 +185,6 @@ export function ProviderModal({ provider, saving, onClose, onSave, t }: Provider
             disabled={saving || !normalizedModels.length}
             placeholder="openai/gpt-4.1" options={modelOptions(normalizedModels)}
             onChange={(value) => setModel(value)} />
-          <label htmlFor="provider-image-input-models">{t("providers.form.imageInputModels")}</label>
-          <Select id="provider-image-input-models" mode="multiple" value={imageInputModels}
-            disabled={saving || !normalizedModels.length}
-            placeholder={t("providers.form.imageInputModelsPlaceholder")}
-            options={modelOptions(normalizedModels)} onChange={setImageInputModels} />
-          <small>{t("providers.form.imageInputModelsHint")}</small>
           <label htmlFor="provider-api-key">{t("providers.form.apiKey")}</label>
           <Input.Password id="provider-api-key" value={apiKey} disabled={saving}
             placeholder={provider?.hasApiKey ? t("providers.form.keepApiKey") : t("providers.form.newApiKey")}

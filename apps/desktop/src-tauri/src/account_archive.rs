@@ -387,6 +387,7 @@ fn provider_payload_to_profile(provider: &ProviderSyncPayload) -> Result<Provide
         model_reasoning_efforts: provider.model_reasoning_efforts.clone(),
         model_context_windows: provider.model_context_windows.clone(),
         image_input_models: provider.image_input_models.clone(),
+        image_input_models_configured: !provider.image_input_models.is_empty(),
         context_window: provider.context_window,
         model_selection_controlled_by_codex: provider.model_selection_controlled_by_codex,
         api_format: provider.api_format,

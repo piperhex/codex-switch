@@ -230,6 +230,8 @@ pub(crate) struct ProviderProfile {
     pub(crate) model_context_windows: ModelContextWindows,
     #[serde(default)]
     pub(crate) image_input_models: Vec<String>,
+    #[serde(default)]
+    pub(crate) image_input_models_configured: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) context_window: Option<u64>,
     #[serde(default)]
@@ -263,6 +265,7 @@ pub(crate) struct ProviderSummary {
     pub(crate) model_reasoning_efforts: ModelReasoningEfforts,
     pub(crate) model_context_windows: ModelContextWindows,
     pub(crate) image_input_models: Vec<String>,
+    pub(crate) image_input_models_configured: bool,
     pub(crate) context_window: Option<u64>,
     pub(crate) model_selection_controlled_by_codex: bool,
     pub(crate) api_format: ProviderApiFormat,

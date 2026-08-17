@@ -301,6 +301,7 @@ function readPreviewProviders(): Provider[] {
         modelReasoningEfforts: normalizeModelReasoningEfforts(models, provider.modelReasoningEfforts),
         modelContextWindows: normalizeModelContextWindows(models, provider.modelContextWindows),
         imageInputModels: normalizeModelSubset(models, provider.imageInputModels),
+        imageInputModelsConfigured: Boolean(provider.imageInputModelsConfigured),
         contextWindow: provider.contextWindow ?? null,
         modelSelectionControlledByCodex: kind === "openai"
           ? true
@@ -483,6 +484,9 @@ export async function saveProviderProfile(provider: ProviderInput): Promise<Prov
       modelReasoningEfforts: normalizeModelReasoningEfforts(models, provider.modelReasoningEfforts),
       modelContextWindows: normalizeModelContextWindows(models, provider.modelContextWindows),
       imageInputModels: normalizeModelSubset(models, provider.imageInputModels),
+      imageInputModelsConfigured: provider.imageInputModelsConfigured
+        ?? existing?.imageInputModelsConfigured
+        ?? false,
       contextWindow: provider.contextWindow ?? null,
       modelSelectionControlledByCodex: kind === "openai"
         ? true

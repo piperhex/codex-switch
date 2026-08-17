@@ -9,6 +9,7 @@ import {
   defaultWalletUrl,
   defaultReasoningEfforts,
   modelContextWindows,
+  modelImageInputModels,
   modelReasoningEfforts,
   type ModelReasoningConfig,
   parseContextWindowK,
@@ -33,8 +34,8 @@ export function RelayStationModal({
     model: "gpt-5.6-sol",
     reasoningEfforts: defaultReasoningEfforts("gpt-5.6-sol"),
     contextWindowK: DEFAULT_CONTEXT_WINDOW_K,
+    supportsImageInput: true,
   }]);
-  const [imageInputModels, setImageInputModels] = useState<string[]>([]);
   const [baseUrl, setBaseUrl] = useState("");
   const [balanceQueryUrl, setBalanceQueryUrl] = useState("");
   const [balanceQueryUsesApiKey, setBalanceQueryUsesApiKey] = useState(true);
@@ -85,7 +86,8 @@ export function RelayStationModal({
       models,
       modelReasoningEfforts: modelReasoningEfforts(modelConfigs),
       modelContextWindows: modelContextWindows(modelConfigs),
-      imageInputModels: imageInputModels.filter((value) => models.includes(value)),
+      imageInputModels: modelImageInputModels(modelConfigs),
+      imageInputModelsConfigured: true,
       contextWindow: null,
       modelSelectionControlledByCodex: false,
       apiKey,
@@ -130,16 +132,7 @@ export function RelayStationModal({
             disabled={saving} modelConfigs={modelConfigs} activeModel={model}
             onModelConfigsChange={(configs) => {
               setModelConfigs(configs);
-              const values = configs.map((config) => config.model.trim()).filter(Boolean);
-              setImageInputModels((current) => current.filter((value) => values.includes(value)));
             }} onActiveModelChange={setModel} t={t} />
-          <label htmlFor="relay-image-input-models">{t("providers.form.imageInputModels")}</label>
-          <Select id="relay-image-input-models" mode="multiple" value={imageInputModels}
-            disabled={saving || !models.length}
-            placeholder={t("providers.form.imageInputModelsPlaceholder")}
-            options={models.map((value) => ({ label: value, value }))}
-            onChange={setImageInputModels} />
-          <small>{t("providers.form.imageInputModelsHint")}</small>
           <details className="provider-advanced">
             <summary>{t("providers.relay.advanced")}</summary>
             <div className="provider-advanced-fields">

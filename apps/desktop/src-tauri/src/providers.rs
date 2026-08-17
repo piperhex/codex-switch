@@ -201,6 +201,8 @@ pub(crate) struct ProviderInput {
     #[serde(default)]
     image_input_models: Vec<String>,
     #[serde(default)]
+    image_input_models_configured: Option<bool>,
+    #[serde(default)]
     context_window: Option<u64>,
     #[serde(default)]
     model_selection_controlled_by_codex: bool,
@@ -313,6 +315,14 @@ pub(crate) fn save_provider<R: Runtime>(
             existing.as_ref(),
         )?;
 
+    let image_input_models_configured = provider
+        .image_input_models_configured
+        .or_else(|| {
+            existing
+                .as_ref()
+                .map(|profile| profile.image_input_models_configured)
+        })
+        .unwrap_or(false);
     let profile = normalize_provider_profile(ProviderProfile {
         id,
         kind,
@@ -324,6 +334,7 @@ pub(crate) fn save_provider<R: Runtime>(
         model_reasoning_efforts,
         model_context_windows,
         image_input_models,
+        image_input_models_configured,
         context_window: provider.context_window,
         model_selection_controlled_by_codex: provider.model_selection_controlled_by_codex,
         api_format: provider.api_format,
@@ -1210,7 +1221,10 @@ fn provider_field_values(provider: &ProviderProfile) -> Vec<serde_json::Value> {
         json!(provider.models),
         json!(provider.model_reasoning_efforts),
         json!(provider.model_context_windows),
-        json!(provider.image_input_models),
+        json!({
+            "models": provider.image_input_models,
+            "configured": provider.image_input_models_configured,
+        }),
         json!(provider.context_window),
         json!(provider.model_selection_controlled_by_codex),
         json!(provider.api_format),
@@ -1357,6 +1371,7 @@ fn provider_summary(
         model_reasoning_efforts: provider.model_reasoning_efforts.clone(),
         model_context_windows: provider.model_context_windows.clone(),
         image_input_models: provider.image_input_models.clone(),
+        image_input_models_configured: provider.image_input_models_configured,
         context_window: provider.context_window,
         model_selection_controlled_by_codex: provider.model_selection_controlled_by_codex,
         api_format: provider.api_format,
@@ -2621,6 +2636,7 @@ mod tests {
             model_reasoning_efforts: ModelReasoningEfforts::new(),
             model_context_windows: ModelContextWindows::new(),
             image_input_models: Vec::new(),
+            image_input_models_configured: false,
             context_window: None,
             model_selection_controlled_by_codex: false,
             api_format: ProviderApiFormat::OpenaiResponses,
@@ -3507,6 +3523,7 @@ sandbox_mode = "workspace-write"
             model_reasoning_efforts: ModelReasoningEfforts::new(),
             model_context_windows: ModelContextWindows::new(),
             image_input_models: vec!["missing-model".to_string()],
+            image_input_models_configured: true,
             context_window: None,
             model_selection_controlled_by_codex: false,
             api_format: ProviderApiFormat::OpenaiResponses,
