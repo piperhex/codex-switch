@@ -8060,7 +8060,10 @@ mod tests {
         assert_eq!(models.len(), 2);
         assert_eq!(models[0]["slug"], "deepseek-chat");
         assert_eq!(models[1]["slug"], "deepseek-reasoner");
-        assert_eq!(models[0]["context_window"], 256_000);
+        assert_eq!(
+            models[0]["context_window"],
+            providers::DEFAULT_DEEPSEEK_MODEL_CONTEXT_WINDOW
+        );
         for model in models {
             for key in [
                 "supported_reasoning_levels",

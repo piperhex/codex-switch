@@ -21,12 +21,13 @@ export const PROVIDER_TABLE_COLUMN_KEYS = [
 
 export type ProviderTableColumnKey = typeof PROVIDER_TABLE_COLUMN_KEYS[number];
 
-export const CONTEXT_WINDOW_OPTIONS = [128, 256, 400, 1000].map((value) => ({
+export const CONTEXT_WINDOW_OPTIONS = [128, 272, 384, 400, 1000].map((value) => ({
   label: `${value}K`,
   value: String(value),
 }));
 
 export const DEFAULT_CONTEXT_WINDOW_K = "256";
+export const DEFAULT_DEEPSEEK_CONTEXT_WINDOW_K = "1000";
 
 export function isProviderTableColumnKey(value: unknown): value is ProviderTableColumnKey {
   return typeof value === "string"
@@ -127,10 +128,17 @@ export function modelReasoningConfigs(
       : defaultReasoningEfforts(model),
     contextWindowK: options.contextWindows?.[model]
       ? String(options.contextWindows[model] / 1000)
-      : fallbackContextWindowK,
+      : defaultContextWindowK(model, fallbackContextWindowK),
     supportsImageInput: options.imageInputModels?.includes(model)
       || (!options.preserveImageInputForModels?.includes(model) && supportsImageInputByDefault(model)),
   }));
+}
+
+function defaultContextWindowK(model: string, fallbackContextWindowK: string) {
+  if (model.trim().toLowerCase().startsWith("deepseek-")) {
+    return DEFAULT_DEEPSEEK_CONTEXT_WINDOW_K;
+  }
+  return fallbackContextWindowK;
 }
 
 export function modelReasoningEfforts(configs: ModelReasoningConfig[]): ModelReasoningEfforts {

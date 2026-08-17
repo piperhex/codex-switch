@@ -35,6 +35,7 @@ const LOCAL_PROXY_PROVIDER_NAME: &str = "Codex Switch Local Proxy";
 pub(crate) const DEFAULT_OFFICIAL_MODEL: &str = "gpt-5.6-sol";
 const MODEL_CATALOG_FILENAME: &str = "codex-switch-model-catalog.json";
 pub(crate) const DEFAULT_MODEL_CONTEXT_WINDOW: u64 = 256_000;
+pub(crate) const DEFAULT_DEEPSEEK_MODEL_CONTEXT_WINDOW: u64 = 1_000_000;
 const NEW_API_QUOTA_PER_USD: f64 = 500_000.0;
 const MAX_BALANCE_RESPONSE_BYTES: u64 = 1024 * 1024;
 const MAX_MODEL_RESPONSE_BYTES: u64 = 1024 * 1024;
@@ -107,12 +108,14 @@ pub(crate) fn codex_model_context_windows(provider: &ProviderProfile) -> ModelCo
     if provider.model_selection_controlled_by_codex {
         return provider.model_context_windows.clone();
     }
-    provider
+    let context_window = provider
         .model_context_windows
         .get(&provider.model)
         .copied()
-        .map(|context_window| [(CODEX_SWITCH_CONTROL_MODEL.to_string(), context_window)].into())
-        .unwrap_or_default()
+        .unwrap_or_else(|| {
+            default_context_window_for_model(&provider.model, provider_context_window(provider))
+        });
+    [(CODEX_SWITCH_CONTROL_MODEL.to_string(), context_window)].into()
 }
 
 pub(crate) fn reasoning_effort_profile(provider: &ProviderProfile) -> ReasoningEffortProfile {
@@ -2117,9 +2120,19 @@ pub(crate) fn effective_provider_context_window_for_model(
         .model_context_windows
         .get(model)
         .copied()
-        .unwrap_or_else(|| provider_context_window(provider))
+        .unwrap_or_else(|| {
+            default_context_window_for_model(model, provider_context_window(provider))
+        })
         .saturating_mul(95)
         / 100
+}
+
+fn default_context_window_for_model(model: &str, provider_default: u64) -> u64 {
+    if model.trim().to_ascii_lowercase().starts_with("deepseek-") {
+        DEFAULT_DEEPSEEK_MODEL_CONTEXT_WINDOW
+    } else {
+        provider_default
+    }
 }
 
 struct ModelCatalogOptions<'a> {
@@ -2142,11 +2155,14 @@ fn model_catalog_for_models(models: &[String], options: ModelCatalogOptions<'_>)
                 model_reasoning_profile,
                 options.reasoning_efforts,
             );
-            let model_context_window = options
-                .context_windows
-                .get(model)
-                .copied()
-                .unwrap_or(options.default_context_window);
+            let model_context_window =
+                options
+                    .context_windows
+                    .get(model)
+                    .copied()
+                    .unwrap_or_else(|| {
+                        default_context_window_for_model(model, options.default_context_window)
+                    });
             provider_model_catalog_entry(
                 model,
                 index,
@@ -3758,8 +3774,14 @@ sandbox_mode = "workspace-write"
         assert_eq!(models[0]["use_responses_lite"], false);
         assert!(models[0].get("tool_mode").is_some());
         assert!(models[0].get("multi_agent_version").is_some());
-        assert_eq!(models[0]["context_window"], 256_000);
-        assert_eq!(models[0]["max_context_window"], 256_000);
+        assert_eq!(
+            models[0]["context_window"],
+            DEFAULT_DEEPSEEK_MODEL_CONTEXT_WINDOW
+        );
+        assert_eq!(
+            models[0]["max_context_window"],
+            DEFAULT_DEEPSEEK_MODEL_CONTEXT_WINDOW
+        );
         assert_eq!(models[1]["context_window"], 400_000);
         assert_eq!(models[1]["max_context_window"], 400_000);
         assert_eq!(models[0]["input_modalities"], json!(["text"]));
@@ -3774,6 +3796,20 @@ sandbox_mode = "workspace-write"
             vec!["none", "low", "medium", "high", "xhigh", "max"]
         );
         assert_eq!(models[1]["slug"], "deepseek-reasoner");
+    }
+
+    #[test]
+    fn switch_control_defaults_deepseek_context_window() {
+        let mut provider = provider();
+        provider.model = "deepseek-chat".to_string();
+        provider.models = vec![provider.model.clone()];
+        provider.model_selection_controlled_by_codex = false;
+
+        let context_windows = codex_model_context_windows(&provider);
+        assert_eq!(
+            context_windows.get(CODEX_SWITCH_CONTROL_MODEL),
+            Some(&DEFAULT_DEEPSEEK_MODEL_CONTEXT_WINDOW)
+        );
     }
 
     #[test]
