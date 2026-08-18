@@ -28,6 +28,11 @@ struct ImportBalanceSettings {
     uses_api_key: bool,
 }
 
+struct ImportModels {
+    selected: String,
+    available: Vec<String>,
+}
+
 #[derive(Default)]
 pub(crate) struct ImportNavigationState {
     pending: AtomicBool,
@@ -67,12 +72,7 @@ fn import_url<R: Runtime>(app: &AppHandle<R>, url: &Url) -> Result<(), String> {
     let api_key = bounded_query_value(&query, "apiKey", MAX_API_KEY_LENGTH)?;
     let requested_model = bounded_optional_query_value(&query, "model", MAX_MODEL_LENGTH)?;
     let (kind, api_format, controlled_by_codex) = provider_kind(&app_name)?;
-    let model = import_model(&app_name, requested_model)?;
-    let models = if model.is_empty() {
-        Vec::new()
-    } else {
-        vec![model.clone()]
-    };
+    let models = import_models(&app_name, requested_model, &endpoint, &api_key)?;
     let balance = import_balance_settings(&query, &endpoint)?;
     let provider = ProviderInput {
         id: None,
@@ -81,8 +81,8 @@ fn import_url<R: Runtime>(app: &AppHandle<R>, url: &Url) -> Result<(), String> {
         group: String::new(),
         base_url: endpoint,
         api_key: Some(api_key),
-        model,
-        models,
+        model: models.selected,
+        models: models.available,
         model_reasoning_efforts: Default::default(),
         model_context_windows: Default::default(),
         image_input_models: Vec::new(),
@@ -141,6 +141,37 @@ fn import_model(app: &str, requested_model: String) -> Result<String, String> {
     match app {
         "codex" => Ok(providers::DEFAULT_OFFICIAL_MODEL.to_string()),
         _ => Err("CCS link is missing model".to_string()),
+    }
+}
+
+fn import_models(
+    app: &str,
+    requested_model: String,
+    endpoint: &str,
+    api_key: &str,
+) -> Result<ImportModels, String> {
+    let preferred = import_model(app, requested_model)?;
+    let fetched = crate::provider_models::fetch_relay_models_blocking(endpoint, api_key);
+    Ok(resolve_import_models(preferred, fetched))
+}
+
+fn resolve_import_models(preferred: String, fetched: Result<Vec<String>, String>) -> ImportModels {
+    let available = match fetched {
+        Ok(models) if !models.is_empty() => models,
+        Ok(_) => vec![preferred.clone()],
+        Err(error) => {
+            eprintln!("failed to load models for a CCS import; using the default: {error}");
+            vec![preferred.clone()]
+        }
+    };
+    let selected = if available.contains(&preferred) {
+        preferred
+    } else {
+        available.first().cloned().unwrap_or(preferred)
+    };
+    ImportModels {
+        selected,
+        available,
     }
 }
 
@@ -274,6 +305,42 @@ mod tests {
             import_model("codex", String::new()).unwrap(),
             providers::DEFAULT_OFFICIAL_MODEL
         );
+    }
+
+    #[test]
+    fn imported_relay_prefers_its_requested_model() {
+        let models = resolve_import_models(
+            "gpt-requested".to_string(),
+            Ok(vec!["gpt-first".to_string(), "gpt-requested".to_string()]),
+        );
+
+        assert_eq!(models.selected, "gpt-requested");
+        assert_eq!(models.available, vec!["gpt-first", "gpt-requested"]);
+    }
+
+    #[test]
+    fn imported_relay_selects_the_first_fetched_model_when_needed() {
+        let models = resolve_import_models(
+            providers::DEFAULT_OFFICIAL_MODEL.to_string(),
+            Ok(vec![
+                "relay-model-a".to_string(),
+                "relay-model-b".to_string(),
+            ]),
+        );
+
+        assert_eq!(models.selected, "relay-model-a");
+        assert_eq!(models.available, vec!["relay-model-a", "relay-model-b"]);
+    }
+
+    #[test]
+    fn imported_relay_keeps_a_default_when_model_discovery_fails() {
+        let models = resolve_import_models(
+            providers::DEFAULT_OFFICIAL_MODEL.to_string(),
+            Err("unavailable".to_string()),
+        );
+
+        assert_eq!(models.selected, providers::DEFAULT_OFFICIAL_MODEL);
+        assert_eq!(models.available, vec![providers::DEFAULT_OFFICIAL_MODEL]);
     }
 
     #[test]

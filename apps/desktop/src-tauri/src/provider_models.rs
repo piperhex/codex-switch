@@ -17,7 +17,10 @@ pub(crate) async fn fetch_relay_models(
         .map_err(|error| format!("Relay model query task failed: {error}"))?
 }
 
-fn fetch_relay_models_blocking(base_url: &str, api_key: &str) -> Result<Vec<String>, String> {
+pub(crate) fn fetch_relay_models_blocking(
+    base_url: &str,
+    api_key: &str,
+) -> Result<Vec<String>, String> {
     let token = api_key.trim();
     if token.is_empty() {
         return Err("Relay API key is required before fetching models".to_string());
