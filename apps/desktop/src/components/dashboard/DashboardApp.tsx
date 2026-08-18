@@ -1193,6 +1193,7 @@ export function DashboardApp() {
         </header>
 
         <main className={page === "accounts" ? "accounts-main"
+          : page === "providers" ? "providers-main"
           : page === "tokens" ? "tokens-main"
             : page === "dreamSkin" ? "dream-skin-main" : undefined}>
           {page !== "tokens" && page !== "dreamSkin" && (
@@ -1335,7 +1336,7 @@ export function DashboardApp() {
           <section className="page-panel" hidden={page !== "sessions"}>
             {page === "sessions" && <MemoCodexThreadsPage language={language} notify={notify} />}
           </section>
-          <section className="page-panel" hidden={page !== "providers"}>
+          <section className="page-panel providers-page-panel" hidden={page !== "providers"}>
             <MemoProvidersPage providers={providerManager.providers} providerGroups={providerGroups}
               accounts={manager.accounts}
               active={page === "providers"}

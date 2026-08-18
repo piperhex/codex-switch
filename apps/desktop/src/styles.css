@@ -231,10 +231,13 @@ main { width: 100%; min-width: 0; min-height: 0; overflow-x: hidden; overflow-y:
   .thread-session-row { grid-template-columns: 22px 20px minmax(140px, 1fr) 78px 30px; }
   .thread-token-stats { display: none; }
 }
-main.accounts-main { overflow: hidden; display: flex; flex-direction: column; padding-bottom: 0; }
+main.accounts-main,
+main.providers-main { overflow: hidden; display: flex; flex-direction: column; padding-bottom: 0; }
 main.dream-skin-main { padding-bottom: 0; }
-.accounts-page-panel { min-height: 0; }
-main.accounts-main .accounts-page-panel { flex: 1; display: flex; flex-direction: column; }
+.accounts-page-panel,
+.providers-page-panel { min-height: 0; }
+main.accounts-main .accounts-page-panel,
+main.providers-main .providers-page-panel { flex: 1; display: flex; flex-direction: column; }
 .topbar { width: 100%; height: 110px; padding: 25px var(--page-x); border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; gap: 18px; background: rgba(248,250,247,.82); backdrop-filter: blur(16px); }
 .settings-topbar { position: sticky; top: 0; z-index: 20; }
 .settings-heading { min-width: 0; flex: 1 1 auto; }
@@ -243,7 +246,7 @@ main.accounts-main .accounts-page-panel { flex: 1; display: flex; flex-direction
 .topbar-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; }
 .account-security-actions { display: inline-flex; align-items: center; gap: 10px; }
 .provider-topbar-action-slot { display: flex; align-items: center; gap: 10px; }
-.provider-add-menu-button.ant-btn {
+.provider-topbar-button.ant-btn {
   height: auto;
   padding: 9px 13px;
   border-radius: 9px;
@@ -974,6 +977,13 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .note-card { border-color: #c8dccd; background: #f8fbf7; }
 
 .provider-page { width: calc(100% - 32px); max-width: none; min-width: 0; margin: 30px 16px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+main.providers-main .provider-page {
+  flex: 1;
+  min-height: 0;
+  margin: 8px 16px 16px;
+  display: flex;
+  flex-direction: column;
+}
 .provider-official, .provider-proxy { min-width: 0; min-height: 72px; padding: 15px 18px; border: 1px solid var(--line); border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 16px; background: var(--panel); box-shadow: 0 5px 18px rgba(24,45,31,.035); }
 .provider-official.active { border-color: #b9d0bf; background: var(--green-selection); }
 .provider-proxy.active { border-color: #b9d0bf; background: #f4faf5; }
@@ -1139,6 +1149,7 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .provider-avatar.official { color: #234f34; background: #dcebdd; }
 .provider-avatar.proxy { color: #334a62; background: #e7edf3; }
 .provider-table-wrap { min-width: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: white; box-shadow: 0 5px 18px rgba(24,45,31,.035); }
+main.providers-main .provider-table-wrap { flex: 1; min-height: 0; }
 .provider-table-toolbar {
   min-height: 40px;
   padding: 6px 10px;
@@ -1152,7 +1163,6 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 }
 .provider-group-toolbar {
   min-width: 0;
-  margin-right: auto;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -1162,18 +1172,18 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
   font-weight: 700;
 }
 .provider-group-toolbar .ant-tag { margin: 0 -3px 0 2px; background: transparent; }
-.provider-group-start-button.ant-btn-primary:not(:disabled) {
-  color: #fff;
-  border-color: var(--green);
-  background: var(--green);
-  box-shadow: 0 4px 12px rgba(var(--green-rgb), .2);
+.provider-group-start-button.ant-btn:not(:disabled) {
+  color: var(--green-dark);
+  border-color: rgba(var(--green-rgb), .25);
+  background: rgba(var(--green-rgb), .09);
+  box-shadow: none;
 }
-.provider-group-start-button.ant-btn-primary:not(:disabled):hover {
-  color: #fff;
-  border-color: var(--green-dark);
-  background: var(--green-dark);
+.provider-group-start-button.ant-btn:not(:disabled):hover {
+  color: var(--green-dark);
+  border-color: rgba(var(--green-rgb), .42);
+  background: rgba(var(--green-rgb), .15);
 }
-.provider-group-start-button.ant-btn-primary .ant-tag { color: inherit; }
+.provider-group-start-button.ant-btn .ant-tag { color: inherit; }
 .provider-group-button.ant-btn { max-width: 140px; padding-inline: 4px; color: #526259; }
 .provider-group-button > span { overflow: hidden; text-overflow: ellipsis; }
 .provider-group-empty { color: #98a39d; }
@@ -1242,6 +1252,7 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .provider-table-wrap .ant-table-cell { padding: 8px 16px !important; }
 .provider-token-value { color: var(--ink); font: 700 12px Manrope, sans-serif; }
 .provider-card-grid { min-width: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(390px, 1fr)); gap: 14px; }
+main.providers-main .provider-card-grid { flex: 1; min-height: 0; align-content: start; overflow: auto; }
 .provider-card { position: relative; overflow: hidden; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); box-shadow: 0 5px 18px rgba(24,45,31,.035); }
 .provider-card.switchable { cursor: pointer; }
 .provider-card.active { border-color: rgba(var(--green-rgb), .72); box-shadow: 0 0 0 2px rgba(var(--green-rgb), .48), 0 12px 28px rgba(var(--green-rgb), .14); }

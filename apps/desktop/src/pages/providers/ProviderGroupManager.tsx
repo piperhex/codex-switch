@@ -82,7 +82,7 @@ export function ProviderGroupManager(options: ProviderGroupManagerProps) {
   };
 
   return <>
-    <Button size="small" icon={<FolderCog size={14} />} onClick={() => setOpen(true)}>
+    <Button className="provider-topbar-button" icon={<FolderCog size={14} />} onClick={() => setOpen(true)}>
       {options.t("providers.group.manage")}
     </Button>
     <Modal open={open} width={520} title={options.t("providers.group.manageTitle")} footer={null}

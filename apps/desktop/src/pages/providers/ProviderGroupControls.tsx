@@ -91,7 +91,7 @@ export function ProviderGroupToolbar({
       const active = members.length > 0 && members.every((provider) => provider.active);
       return <Tooltip key={group} title={t("providers.group.startHint", { count: members.length })}
         styles={{ root: { maxWidth: 400 } }}>
-        <Button size="small" type="primary" className="provider-group-start-button" icon={<Play size={13} />}
+        <Button className="provider-group-start-button provider-topbar-button" icon={<Play size={14} />}
           loading={busyProviderId === `group:${group}`} disabled={!proxyRunning || active}
           onClick={() => onSwitchGroup(group)}>
           {group}<Tag bordered={false}>{members.length}</Tag>

@@ -23,6 +23,7 @@ import { DeepSeekProviderModal, OpenAiProviderModal } from "./providers/Provider
 import { RelayStationModal } from "./providers/RelayStationModal";
 import { ProviderCardView, ProviderTableView } from "./providers/ProviderViews";
 import { ProviderAddMenu } from "./providers/ProviderAddMenu";
+import { ProviderGroupToolbar } from "./providers/ProviderGroupControls";
 import { ProviderGroupManager } from "./providers/ProviderGroupManager";
 import { useProviderTokenUsage } from "./providers/useProviderTokenUsage";
 
@@ -184,7 +185,6 @@ export function ProvidersPage({
     language,
     usageForProvider,
     onSwitch,
-    onSwitchGroup,
     onDeactivate,
     onStartProxy,
     onSwitchModel,
@@ -206,10 +206,12 @@ export function ProvidersPage({
     <>
       {topbarHost && createPortal(
         <Space size={6}>
-          <ProviderGroupManager groups={groups} providers={providers} busy={Boolean(busyProviderId)}
-            onChangeMany={onGroupChangeMany} onGroupsChange={onProviderGroupsChange} t={t} />
           <ProviderAddMenu onAddPreset={() => setShowPresetModal(true)} onAddOpenAi={openCreateOpenAi}
             onAddProvider={openCreate} onAddRelay={() => setShowRelayModal(true)} t={t} />
+          <ProviderGroupToolbar providers={providers} busyProviderId={busyProviderId}
+            proxyRunning={proxyRunning} onSwitchGroup={onSwitchGroup} t={t} />
+          <ProviderGroupManager groups={groups} providers={providers} busy={Boolean(busyProviderId)}
+            onChangeMany={onGroupChangeMany} onGroupsChange={onProviderGroupsChange} t={t} />
         </Space>,
         topbarHost,
       )}

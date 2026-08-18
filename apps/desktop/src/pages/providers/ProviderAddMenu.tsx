@@ -41,7 +41,7 @@ export function ProviderAddMenu({
   return (
     <Dropdown open={open} onOpenChange={setOpen} trigger={["click"]}
       menu={{ items, onClick: handleSelect }}>
-      <Button className="provider-add-menu-button" type="primary" icon={<Plus size={14} />}>
+      <Button className="provider-add-menu-button provider-topbar-button" type="primary" icon={<Plus size={14} />}>
         {t("providers.action.addMenu")}
       </Button>
     </Dropdown>

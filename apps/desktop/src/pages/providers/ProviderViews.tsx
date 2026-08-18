@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { Button, Checkbox, Dropdown, Popconfirm, Space, Table, Tag, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
@@ -24,7 +24,6 @@ import {
 import {
   ProviderBulkGroupActions,
   ProviderGroupCell,
-  ProviderGroupToolbar,
 } from "./ProviderGroupControls";
 
 interface ProviderViewProps {
@@ -38,7 +37,6 @@ interface ProviderViewProps {
   language: Language;
   usageForProvider: (provider: Provider) => ProviderTokenUsageTotals | undefined;
   onSwitch: (id: string) => void;
-  onSwitchGroup: (group: string) => void;
   onDeactivate: (id: string) => void;
   onStartProxy: () => void;
   onSwitchModel: (id: string, model: string) => void;
@@ -96,6 +94,25 @@ interface ProviderTableProps extends ProviderViewProps {
   setSelectedProviderIds: Dispatch<SetStateAction<string[]>>;
   bulkDeleteBusy: boolean;
   setBulkDeleteBusy: Dispatch<SetStateAction<boolean>>;
+}
+
+function useProviderTableScrollHeight() {
+  const tableWrapRef = useRef<HTMLDivElement>(null);
+  const [tableScrollY, setTableScrollY] = useState(0);
+  useEffect(() => {
+    const tableWrap = tableWrapRef.current;
+    if (!tableWrap) return undefined;
+    const updateScrollHeight = () => {
+      const headerHeight = tableWrap.querySelector(".ant-table-thead")?.getBoundingClientRect().height ?? 0;
+      const toolbarHeight = tableWrap.querySelector(".provider-table-toolbar")?.getBoundingClientRect().height ?? 0;
+      setTableScrollY(Math.max(1, Math.floor(tableWrap.clientHeight - headerHeight - toolbarHeight)));
+    };
+    const observer = new ResizeObserver(updateScrollHeight);
+    observer.observe(tableWrap);
+    updateScrollHeight();
+    return () => observer.disconnect();
+  }, []);
+  return { tableWrapRef, tableScrollY };
 }
 
 function ProviderImageModelControls(options: ProviderViewProps) {
@@ -228,6 +245,7 @@ export function ProviderTableView(options: ProviderTableProps) {
     setBulkDeleteBusy,
     t,
   } = options;
+  const { tableWrapRef, tableScrollY } = useProviderTableScrollHeight();
   const [hiddenColumns, setHiddenColumns] = useState<ProviderTableColumnKey[]>(loadHiddenColumns);
   const columns = buildColumns(options);
   const hiddenColumnSet = new Set(hiddenColumns);
@@ -266,11 +284,9 @@ export function ProviderTableView(options: ProviderTableProps) {
       setBulkDeleteBusy(false);
     }
   };
-  return <div className="provider-table-wrap">
+  return <div ref={tableWrapRef} className="provider-table-wrap">
     <div className="provider-table-toolbar">
       <ProviderProxyModeWarning options={options} />
-      <ProviderGroupToolbar providers={providers} busyProviderId={options.busyProviderId}
-        proxyRunning={options.proxyRunning} onSwitchGroup={options.onSwitchGroup} t={t} />
       {options.proxyRunning && (
         <ProviderImageModelControls {...options} />
       )}
@@ -306,7 +322,7 @@ export function ProviderTableView(options: ProviderTableProps) {
         provider.active ? "active-row" : "",
         !options.proxyRunning ? "proxy-required-row" : "",
       ].filter(Boolean).join(" ")}
-      pagination={false} scroll={{ x: tableScrollX }} />
+      pagination={false} scroll={tableScrollY ? { x: tableScrollX, y: tableScrollY } : { x: tableScrollX }} />
   </div>;
 }
 
@@ -393,8 +409,6 @@ function ProviderCard({ provider, options }: { provider: Provider; options: Prov
 export function ProviderCardView(options: ProviderViewProps) {
   return <>
     <ProviderProxyModeWarning options={options} cardView />
-    <ProviderGroupToolbar providers={options.providers} busyProviderId={options.busyProviderId}
-      proxyRunning={options.proxyRunning} onSwitchGroup={options.onSwitchGroup} t={options.t} />
     {options.proxyRunning && (
       <div className="provider-card-image-model-toolbar">
         <ProviderImageModelControls {...options} />
