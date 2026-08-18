@@ -7,6 +7,7 @@ import {
   Settings,
   UserRound,
 } from "lucide-react";
+import type { ReactNode } from "react";
 import type { Translate } from "../../i18n";
 
 export type DashboardPage =
@@ -22,6 +23,7 @@ interface DashboardNavigationProps {
   collapsed?: boolean;
   onPageChange: (page: DashboardPage) => void;
   page: DashboardPage;
+  sidebarTools?: ReactNode;
   t: Translate;
   variant?: "top" | "sidebar";
 }
@@ -39,27 +41,35 @@ export function DashboardNavigation({
   collapsed = false,
   onPageChange,
   page,
+  sidebarTools,
   t,
   variant = "top",
 }: DashboardNavigationProps) {
-  const items = variant === "sidebar"
-    ? [...NAVIGATION_ITEMS, { page: "settings", icon: Settings, labelKey: "nav.settings" } as const]
-    : NAVIGATION_ITEMS;
+  const navigationButton = (item: typeof NAVIGATION_ITEMS[number] | {
+    page: "settings";
+    icon: typeof Settings;
+    labelKey: "nav.settings";
+  }) => {
+    const Icon = item.icon;
+    const label = t(item.labelKey);
+    return (
+      <button key={item.page} className={page === item.page ? "selected" : ""}
+        aria-label={collapsed ? label : undefined} title={collapsed ? label : undefined}
+        onClick={() => onPageChange(item.page)}>
+        <Icon size={19} /><span>{label}</span>
+      </button>
+    );
+  };
   return (
     <nav className={variant === "sidebar" ? "sidebar-tabs" : "top-tabs"}
       aria-label={t("nav.aria")}>
-      {items.map((item) => {
-        const Icon = item.icon;
-        const label = t(item.labelKey);
-        return (
-          <button key={item.page} className={`${page === item.page ? "selected" : ""}${
-            item.page === "settings" ? " sidebar-nav-settings" : ""
-          }`} aria-label={collapsed ? label : undefined} title={collapsed ? label : undefined}
-            onClick={() => onPageChange(item.page)}>
-            <Icon size={19} /><span>{label}</span>
-          </button>
-        );
-      })}
+      {NAVIGATION_ITEMS.map(navigationButton)}
+      {variant === "sidebar" && (
+        <div className="sidebar-nav-tools">
+          {sidebarTools}
+          {navigationButton({ page: "settings", icon: Settings, labelKey: "nav.settings" })}
+        </div>
+      )}
     </nav>
   );
 }

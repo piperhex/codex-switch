@@ -20,6 +20,7 @@ import type { ProxySession, ProxySessionRequest } from "../types";
 interface ProxySessionManagerProps {
   t: Translate;
   triggerClassName?: string;
+  triggerVariant?: "sidebar" | "toolbar";
 }
 
 type ActivityFilter = "active" | "idle";
@@ -229,7 +230,11 @@ function RequestTokenUsage({ request, t }: { request: ProxySessionRequest; t: Tr
   );
 }
 
-export function ProxySessionManager({ t, triggerClassName }: ProxySessionManagerProps) {
+export function ProxySessionManager({
+  t,
+  triggerClassName,
+  triggerVariant = "toolbar",
+}: ProxySessionManagerProps) {
   const [open, setOpen] = useState(false);
   const [sessions, setSessions] = useState<ProxySession[]>([]);
   const [loading, setLoading] = useState(false);
@@ -615,10 +620,17 @@ export function ProxySessionManager({ t, triggerClassName }: ProxySessionManager
 
   return (
     <>
-      <Button className={triggerClassName} size="small" icon={<Cable size={14} />}
-        onClick={() => setOpen(true)}>
-        {t("providers.proxy.sessions")}
-      </Button>
+      {triggerVariant === "sidebar" ? (
+        <button type="button" aria-label={t("providers.proxy.sessions")}
+          title={t("providers.proxy.sessions")} onClick={() => setOpen(true)}>
+          <Cable size={19} aria-hidden="true" /><span>{t("providers.proxy.sessions")}</span>
+        </button>
+      ) : (
+        <Button className={triggerClassName} size="small" icon={<Cable size={14} />}
+          onClick={() => setOpen(true)}>
+          {t("providers.proxy.sessions")}
+        </Button>
+      )}
       <Modal
         className="proxy-session-modal"
         open={open}

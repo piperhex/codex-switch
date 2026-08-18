@@ -161,7 +161,7 @@ button:focus-visible { outline: 3px solid rgba(45, 131, 87, .24); outline-offset
   background: var(--green-selection);
   box-shadow: inset 3px 0 0 var(--green-accent);
 }
-.sidebar-tabs .sidebar-nav-settings { margin-top: auto; }
+.sidebar-nav-tools { margin-top: auto; display: flex; flex-direction: column; gap: 5px; }
 .sidebar-collapsed .sidebar-tabs { padding-inline: 8px; }
 .sidebar-collapsed .sidebar-tabs button { justify-content: center; padding-inline: 0; }
 .sidebar-collapsed .sidebar-tabs button span { display: none; }
@@ -536,6 +536,22 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .account-conversation-count { position: absolute; top: -7px; right: -9px; min-width: 17px; height: 17px; padding: 0 4px; border: 2px solid var(--panel); border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; color: #fff; background: var(--green); font: 700 9px/1 Manrope, sans-serif; box-sizing: border-box; }
 .account-primary { min-width: 0; display: grid; gap: 2px; }
 .account-email-row { min-width: 0; display: flex; align-items: baseline; gap: 4px; }
+.account-email-copy {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+.account-email-copy svg { flex: 0 0 auto; color: #839088; }
+.account-email-copy:hover .account-email, .account-email-copy.copied .account-email { color: var(--green-dark); }
+.account-email-copy.copied svg { color: var(--green); }
 .account-email {
   min-width: 0;
   max-width: 220px;
@@ -630,7 +646,7 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .avatar.disabled-avatar { color: #b42318; background: #ffd8d3; }
 .identity { flex: 1; min-width: 0; }
 .identity-line { display: flex; align-items: center; gap: 9px; }
-.identity h3 { margin: 0; overflow: hidden; text-overflow: ellipsis; font: 700 14px Manrope, sans-serif; }
+.identity .account-email { font: 700 14px Manrope, sans-serif; }
 .active-pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 7px; border-radius: 20px; color: #246f4a; background: #e6f2e8; font-size: 9px; font-weight: 600; }
 .active-pill span { width: 5px; height: 5px; border-radius: 50%; background: #3a9a65; }
 .plan-line { margin-top: 6px; display: flex; align-items: center; gap: 7px; color: #829087; font-size: 10px; }

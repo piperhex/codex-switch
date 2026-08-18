@@ -56,6 +56,7 @@ import { FeedbackModal } from "../modals/FeedbackModal";
 import { TokenUsageHeatmap } from "../TokenUsageHeatmap";
 import { TokenUsageDashboard } from "../TokenUsageDashboard";
 import { TotpWindowButton } from "../TotpWindowButton";
+import { ProxySessionManager } from "../ProxySessionManager";
 import { CloudLoginModal } from "../modals/CloudLoginModal";
 import { CloudAccountModal } from "../modals/CloudAccountModal";
 import { LoginModal } from "../modals/LoginModal";
@@ -1094,13 +1095,15 @@ export function DashboardApp() {
       notify={notify} onRequestLanAccess={() => setShowLanAccess(true)}
       startDisabledReason={proxyStartDisabledReason} t={t} />
   );
+  const sidebarNavigationEnabled = navigationStyle.style === "sidebar";
   const proxyTopbarActions = (
     <ProxyTopbarActions cloudAuthenticated={cloud.state.authenticated}
-      manager={providerManager} t={t} />
+      manager={providerManager} showSessionManager={!sidebarNavigationEnabled} t={t} />
   );
   const accountProxyTopbarActions = (
     <ProxyTopbarActions cloudAuthenticated={cloud.state.authenticated}
-      manager={providerManager} trailingAction={<TotpWindowButton notify={notify} t={t} />} t={t} />
+      manager={providerManager} showSessionManager={!sidebarNavigationEnabled}
+      trailingAction={sidebarNavigationEnabled ? undefined : <TotpWindowButton notify={notify} t={t} />} t={t} />
   );
   const menuTools = (
     <DashboardMenuTools actions={{
@@ -1119,7 +1122,6 @@ export function DashboardApp() {
     }} appUpdate={appUpdate} cloud={cloud} cloudContent={cloudContent} language={language}
       onToggleThemeMode={themeMode.toggleMode} t={t} themeMode={themeMode.mode} />
   );
-  const sidebarNavigationEnabled = navigationStyle.style === "sidebar";
   const sidebarToggleLabel = t(navigationStyle.sidebarCollapsed
     ? "nav.expandSidebar"
     : "nav.collapseSidebar");
@@ -1189,7 +1191,13 @@ export function DashboardApp() {
               <span>Codex<br /><b>Switch</b></span>
             </button>
             <DashboardNavigation collapsed={navigationStyle.sidebarCollapsed}
-              onPageChange={setPage} page={page} t={t} variant="sidebar" />
+              onPageChange={setPage} page={page} t={t} variant="sidebar"
+              sidebarTools={(
+                <>
+                  {titlebarProxyRunning && <ProxySessionManager t={t} triggerVariant="sidebar" />}
+                  <TotpWindowButton notify={notify} t={t} variant="sidebar" />
+                </>
+              )} />
           </aside>
         )}
         <header className="app-menu">

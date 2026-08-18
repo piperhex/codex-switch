@@ -9,6 +9,7 @@ import { ProxySessionManager } from "../ProxySessionManager";
 interface ProxyTopbarActionsProps {
   cloudAuthenticated: boolean;
   manager: ReturnType<typeof useProviderManager>;
+  showSessionManager?: boolean;
   trailingAction?: ReactNode;
   t: Translate;
 }
@@ -16,6 +17,7 @@ interface ProxyTopbarActionsProps {
 export function ProxyTopbarActions({
   cloudAuthenticated,
   manager,
+  showSessionManager = true,
   t,
   trailingAction,
 }: ProxyTopbarActionsProps) {
@@ -58,7 +60,7 @@ export function ProxyTopbarActions({
           <ChevronDown size={12} />
         </button>
       </Popover>}
-      {proxyRunning && <ProxySessionManager t={t}
+      {proxyRunning && showSessionManager && <ProxySessionManager t={t}
         triggerClassName="refresh-all proxy-topbar-action" />}
       {(proxyRunning || trailingAction) && <span className="account-security-actions">
         {proxyRunning && <CloudRecycleBin t={t} disabled={!cloudAuthenticated}

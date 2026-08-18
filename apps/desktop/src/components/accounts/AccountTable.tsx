@@ -16,6 +16,7 @@ import type { TableProps } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import {
   CalendarClock,
+  Check,
   Columns3,
   Copy,
   Gauge,
@@ -114,6 +115,7 @@ interface AccountTableProps {
 
 const USAGE_SORT_STORAGE_KEY = "codex-switch:account-table-usage-sort";
 const HIDDEN_COLUMNS_STORAGE_KEY = "codex-switch:account-table-hidden-columns";
+const EMAIL_COPY_FEEDBACK_DURATION_MS = 1_600;
 const GPT_5_6_SOL_CONTEXT_WINDOW_OPTIONS = GPT_5_6_SOL_CONTEXT_WINDOW_OPTIONS_K.map((value) => ({
   label: `${value}K`,
   value: String(value),
@@ -233,6 +235,43 @@ function AccountResetCreditCount({ count, language }: { count: number | null; la
   if (!count) return null;
   const label = language === "zh" ? `${count}重置卡` : `${count} reset card${count === 1 ? "" : "s"}`;
   return <span className="account-reset-credit-count"><span aria-hidden="true">·</span>{label}</span>;
+}
+
+function CopyableAccountEmail({ email, displayEmail, t }: {
+  email: string;
+  displayEmail: string;
+  t: Translate;
+}) {
+  const [copied, setCopied] = useState(false);
+  const resetTimer = useRef<number | null>(null);
+  useEffect(() => () => {
+    if (resetTimer.current !== null) window.clearTimeout(resetTimer.current);
+  }, []);
+
+  const copyEmail = async () => {
+    try {
+      await navigator.clipboard.writeText(email);
+      setCopied(true);
+      if (resetTimer.current !== null) window.clearTimeout(resetTimer.current);
+      resetTimer.current = window.setTimeout(() => setCopied(false), EMAIL_COPY_FEEDBACK_DURATION_MS);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  const label = copied ? t("totp.copied") : t("table.copyEmail");
+  return (
+    <Tooltip title={label}>
+      <button type="button" className={`account-email-copy${copied ? " copied" : ""}`}
+        aria-label={label} onClick={(event) => {
+          event.stopPropagation();
+          void copyEmail();
+        }}>
+        {copied ? <Check size={12} aria-hidden="true" /> : <Copy size={12} aria-hidden="true" />}
+        <span className="account-email">{displayEmail}</span>
+      </button>
+    </Tooltip>
+  );
 }
 
 function tokenUsageMatchesAccount(usage: AccountTokenUsageTotals, account: Account) {
@@ -631,9 +670,8 @@ export function AccountTable({
           </div>
           <div className="account-primary">
             <div className="account-email-row">
-              <div className="account-email" title={privacyMode ? undefined : account.email}>
-                {privacyMode ? maskAccountEmail(account.email) : account.email}
-              </div>
+              <CopyableAccountEmail email={account.email}
+                displayEmail={privacyMode ? maskAccountEmail(account.email) : account.email} t={t} />
               <AccountResetCreditCount count={resetCreditsCount(resetCredits[account.id])} language={language} />
             </div>
             <div className={`account-note-preview${account.note ? "" : " empty"}`}
@@ -1070,7 +1108,8 @@ export function AccountTable({
               </div>
               <div className="identity">
                 <div className="identity-line">
-                  <h3 title={privacyMode ? undefined : account.email}>{privacyMode ? maskAccountEmail(account.email) : account.email}</h3>
+                  <CopyableAccountEmail email={account.email}
+                    displayEmail={privacyMode ? maskAccountEmail(account.email) : account.email} t={t} />
                   <AccountResetCreditCount count={resetCreditsCount(resetCredits[account.id])}
                     language={language} />
                   <Tooltip title={account.accountId ? t("table.workspace", { id: account.accountId }) : t("table.personal")}>
