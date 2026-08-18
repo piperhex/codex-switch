@@ -41,70 +41,52 @@ jobs:
             const tag = process.env.TAG_NAME;
             const boilerplate = "Windows, macOS, Linux, Android, and iOS build artifacts are attached below.";
 
-            const releases = await github.paginate(github.rest.repos.listReleases, {
-              owner,
-              repo,
-              per_page: 100,
-            });
-            const candidates = releases
-              .filter((release) => release.tag_name === tag)
-              .sort((left, right) => Number(right.id) - Number(left.id));
-            let release = candidates.find((candidate) => !candidate.draft) ?? candidates[0];
-
-            if (!release) {
-              try {
-                const { data: created } = await github.rest.repos.createRelease({
+            try {
+              const { data: release } = await github.rest.repos.getReleaseByTag({
+                owner,
+                repo,
+                tag,
+              });
+              const update = {};
+              if (release.name !== process.env.RELEASE_NAME) {
+                update.name = process.env.RELEASE_NAME;
+              }
+              if (!release.body?.trim() || release.body.trim() === boilerplate) {
+                const { data: notes } = await github.rest.repos.generateReleaseNotes({
                   owner,
                   repo,
                   tag_name: tag,
-                  name: process.env.RELEASE_NAME,
-                  body: boilerplate,
-                  draft: true,
-                  prerelease: process.env.PRERELEASE === "true",
-                  generate_release_notes: true,
                 });
-                release = created;
-              } catch (error) {
-                if (error.status !== 422) throw error;
-                const refreshed = await github.paginate(github.rest.repos.listReleases, {
+                update.body = `${boilerplate}\n\n${notes.body}`;
+              }
+              if (Object.keys(update).length > 0) {
+                await github.rest.repos.updateRelease({
                   owner,
                   repo,
-                  per_page: 100,
+                  release_id: release.id,
+                  ...update,
                 });
-                release = refreshed
-                  .filter((candidate) => candidate.tag_name === tag)
-                  .sort((left, right) => Number(right.id) - Number(left.id))
-                  .find((candidate) => !candidate.draft) ?? refreshed
-                    .filter((candidate) => candidate.tag_name === tag)
-                    .sort((left, right) => Number(right.id) - Number(left.id))[0];
-                if (!release) throw error;
-                core.warning(`Reused release ${release.id} after a concurrent create attempt.`);
+                core.info(`Updated existing release ${release.id}.`);
               }
+              core.setOutput("release_draft", String(release.draft));
+              core.info(`Using existing release ${release.id} for ${tag}.`);
+              return release.id.toString();
+            } catch (error) {
+              if (error.status !== 404) throw error;
             }
 
-            const update = {};
-            if (release.name !== process.env.RELEASE_NAME) {
-              update.name = process.env.RELEASE_NAME;
-            }
-            if (!release.body?.trim() || release.body.trim() === boilerplate) {
-              const { data: notes } = await github.rest.repos.generateReleaseNotes({
-                owner,
-                repo,
-                tag_name: tag,
-              });
-              update.body = `${boilerplate}\n\n${notes.body}`;
-            }
-            if (Object.keys(update).length > 0) {
-              await github.rest.repos.updateRelease({
-                owner,
-                repo,
-                release_id: release.id,
-                ...update,
-              });
-              core.info(`Updated existing release ${release.id}.`);
-            }
-            core.setOutput("release_draft", String(release.draft));
-            core.info(`Using release ${release.id} for ${tag}.`);
+            const { data: release } = await github.rest.repos.createRelease({
+              owner,
+              repo,
+              tag_name: tag,
+              name: process.env.RELEASE_NAME,
+              body: boilerplate,
+              draft: true,
+              prerelease: process.env.PRERELEASE === "true",
+              generate_release_notes: true,
+            });
+            core.setOutput("release_draft", "true");
+            core.info(`Created draft release ${release.id} for ${tag}.`);
             return release.id.toString();
 
   release:

@@ -93,10 +93,7 @@ jobs:
               repo,
               per_page: 100,
             });
-            const matching = releases
-              .filter((release) => release.tag_name === tag)
-              .sort((left, right) => Number(right.id) - Number(left.id));
-            const existing = matching.find((release) => !release.draft) ?? matching[0];
+            const existing = releases.find((release) => release.tag_name === tag);
             if (existing) {
               await github.rest.repos.updateRelease({
                 owner,
@@ -139,34 +136,17 @@ jobs:
               }
               return;
             }
-            let created;
-            try {
-              const response = await github.rest.repos.createRelease({
-                owner,
-                repo,
-                tag_name: tag,
-                target_commitish: context.sha,
-                name,
-                body,
-                draft: true,
-                prerelease: false,
-                make_latest: "false",
-              });
-              created = response.data;
-            } catch (error) {
-              if (error.status !== 422) throw error;
-              const refreshed = await github.paginate(github.rest.repos.listReleases, {
-                owner,
-                repo,
-                per_page: 100,
-              });
-              const concurrent = refreshed
-                .filter((release) => release.tag_name === tag)
-                .sort((left, right) => Number(right.id) - Number(left.id));
-              created = concurrent.find((release) => !release.draft) ?? concurrent[0];
-              if (!created) throw error;
-              core.warning(`Reused release ${created.id} after a concurrent create attempt.`);
-            }
+            const { data: created } = await github.rest.repos.createRelease({
+              owner,
+              repo,
+              tag_name: tag,
+              target_commitish: context.sha,
+              name,
+              body,
+              draft: true,
+              prerelease: false,
+              make_latest: "false",
+            });
             core.setOutput("release_id", created.id.toString());
             for (const assetName of assetNames) {
               core.setOutput(assetOutputs.get(assetName), "true");
