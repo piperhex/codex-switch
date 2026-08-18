@@ -1232,6 +1232,7 @@ export function DashboardApp() {
           : page === "tokens" ? "tokens-main"
             : page === "dreamSkin" ? "dream-skin-main" : undefined}>
           {page !== "tokens" && page !== "dreamSkin" && (
+          <>
           <header className={`topbar${page === "accounts" ? " account-view-topbar" : ""}${
             page === "accounts" && providerManager.localProxy?.running ? " accounts-topbar" : ""
           }${page === "settings" ? " settings-topbar" : ""}`}>
@@ -1298,6 +1299,12 @@ export function DashboardApp() {
             )}
             {page === "sessions" && <div id="codex-thread-topbar-actions" className="topbar-actions" />}
           </header>
+          {page === "accounts" && accountDisplayMode.displayMode === "cards" && (
+            <div className="account-card-toolbar-row">
+              <div id="account-card-topbar-controls" className="account-card-topbar-controls" />
+            </div>
+          )}
+          </>
           )}
 
           <section className="page-panel" hidden={page !== "dreamSkin"}>
@@ -1413,7 +1420,8 @@ export function DashboardApp() {
               preferencesLoading={tokenUsagePreferences.loading} embedded />
           </section>
           <section className="page-panel accounts-page-panel" hidden={page !== "accounts"}>
-            <MemoAccountsPage accounts={manager.accounts} providers={providerManager.providers}
+            <MemoAccountsPage active={page === "accounts"}
+              accounts={manager.accounts} providers={providerManager.providers}
               loading={manager.loading}
               busyAccountId={manager.busyAccountId} onAdd={openLogin}
               localProxy={providerManager.localProxy} proxyBusy={providerManager.proxyBusy}

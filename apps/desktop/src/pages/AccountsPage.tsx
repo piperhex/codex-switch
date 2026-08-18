@@ -9,6 +9,7 @@ import type {
 import { AccountTable } from "../components/accounts/AccountTable";
 
 export function AccountsPage({
+  active,
   accounts,
   providers,
   loading,
@@ -47,6 +48,7 @@ export function AccountsPage({
   language,
   t,
 }: {
+  active: boolean;
   accounts: Account[];
   providers: Provider[];
   loading: boolean;
@@ -109,7 +111,7 @@ export function AccountsPage({
   }
   return (
     <div className="accounts-page">
-      <AccountTable accounts={accounts} providers={providers} busyAccountId={busyAccountId}
+      <AccountTable active={active} accounts={accounts} providers={providers} busyAccountId={busyAccountId}
         onSwitch={onSwitch} onDeactivate={onDeactivate}
         onCopyAuthJson={onCopyAuthJson} onRefresh={onRefresh} onDelete={onDelete}
         onConsumeQuotaMany={onConsumeQuotaMany} onDeleteMany={onDeleteMany}

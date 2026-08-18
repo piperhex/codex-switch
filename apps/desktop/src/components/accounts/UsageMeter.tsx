@@ -31,17 +31,45 @@ function secondsSinceRefresh(timestamp: string | null | undefined, now: number) 
   return Math.max(0, Math.floor((now - refreshedAt) / 1000));
 }
 
-export function UsageMeter({ window: usageWindow, resetWindow, fetchedAt, variant = "line", language, t }: {
+export function UsageRefreshAge({ fetchedAt, t }: { fetchedAt?: string | null; t: Translate }) {
+  const [now, setNow] = useState(() => Date.now());
+  const seconds = secondsSinceRefresh(fetchedAt, now);
+
+  useEffect(() => {
+    if (seconds === null) return;
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [seconds === null]);
+
+  if (seconds === null) return null;
+  return <span className="account-card-refresh-age">{t("usage.refreshAge", { seconds })}</span>;
+}
+
+interface UsageMeterProps {
   window?: UsageWindow | null;
   resetWindow: UsageResetWindow;
   fetchedAt?: string | null;
-  variant?: "line" | "circle";
+  variant?: "line" | "card";
+  cardLabel?: string;
+  cardLabelSuffix?: string;
   language: Language;
   t: Translate;
-}) {
+}
+
+export function UsageMeter({
+  window: usageWindow,
+  resetWindow,
+  fetchedAt,
+  variant = "line",
+  cardLabel,
+  cardLabelSuffix,
+  language,
+  t,
+}: UsageMeterProps) {
   const [now, setNow] = useState(() => Date.now());
   const recentRefreshSeconds = secondsSinceRefresh(fetchedAt, now);
-  const tickerActive = Boolean(usageWindow?.resetsAt) || recentRefreshSeconds !== null;
+  const tickerActive = Boolean(usageWindow?.resetsAt)
+    || (variant === "line" && recentRefreshSeconds !== null);
 
   useEffect(() => {
     if (!tickerActive) return;
@@ -53,14 +81,22 @@ export function UsageMeter({ window: usageWindow, resetWindow, fetchedAt, varian
   if (!usageWindow) return <span className="usage-missing">--</span>;
   const remaining = Math.round(usageWindow.remainingPercent);
   const tone = remainingTone(remaining);
-  if (variant === "circle") return (
+  if (variant === "card") return (
     <div className={`table-usage card-usage-meter table-usage-${resetWindow}`}>
-      <Progress type="circle" percent={remaining} size={54} strokeWidth={10} strokeColor={usageStroke(remaining)}
-        format={() => <span className="card-usage-percent"><strong className={tone}>{remaining}%</strong><small>{t("usage.remaining")}</small></span>} />
-      {recentRefreshSeconds !== null && (
-        <span className="card-usage-meta">{t("usage.recentRefresh", { seconds: recentRefreshSeconds })}</span>
-      )}
-      <span className="card-usage-reset">{resetLabel(usageWindow.resetsAt, language, resetWindow)}</span>
+      <div className="card-usage-head">
+        <span className="card-usage-value">
+          <strong className={tone}>{remaining}%</strong>
+          <span className="card-usage-label">
+            {cardLabel && <span className="card-usage-name">{cardLabel}</span>}
+            {cardLabelSuffix && <span>{cardLabelSuffix}</span>}
+            <span className="card-usage-remaining">{t("usage.remaining")}</span>
+          </span>
+          <span className="card-usage-inline-reset">
+            {tableResetLabel(usageWindow.resetsAt, language, resetWindow, now)}
+          </span>
+        </span>
+      </div>
+      <Progress percent={remaining} showInfo={false} size="small" strokeColor={usageStroke(remaining)} />
     </div>
   );
   return (

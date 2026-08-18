@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import {
   AutoComplete,
   Button,
@@ -65,9 +66,10 @@ import {
 import { AccountNoteModal } from "../modals/AccountNoteModal";
 import { ImageModelRouteSelect } from "../ImageModelRouteSelect";
 import { ResetCreditsPanel } from "./ResetCreditsPanel";
-import { UsageMeter } from "./UsageMeter";
+import { UsageMeter, UsageRefreshAge } from "./UsageMeter";
 
 interface AccountTableProps {
+  active: boolean;
   accounts: Account[];
   providers: Provider[];
   busyAccountId: string | null;
@@ -404,6 +406,7 @@ function ResetCreditsModal({
 }
 
 export function AccountTable({
+  active,
   accounts,
   providers,
   busyAccountId,
@@ -469,6 +472,7 @@ export function AccountTable({
   const [tableScrollY, setTableScrollY] = useState(0);
   const [accountTokenUsage, setAccountTokenUsage] = useState<AccountTokenUsageTotals[]>([]);
   const [accountConversationCounts, setAccountConversationCounts] = useState<Record<string, number>>({});
+  const [cardTopbarHost, setCardTopbarHost] = useState<HTMLElement | null>(null);
   const openAccountDetails = (account: Account) => {
     setEditingAccount(account);
     setLoadingAccountDetailsId(account.id);
@@ -480,6 +484,10 @@ export function AccountTable({
         setLoadingAccountDetailsId((current) => current === account.id ? null : current);
       });
   };
+  useEffect(() => {
+    const showCardControls = active && displayMode === "cards";
+    setCardTopbarHost(showCardControls ? document.getElementById("account-card-topbar-controls") : null);
+  }, [active, displayMode]);
   useEffect(() => {
     const tableWrap = tableWrapRef.current;
     if (!tableWrap) return undefined;
@@ -675,10 +683,8 @@ export function AccountTable({
               <AccountResetCreditCount count={resetCreditsCount(resetCredits[account.id])} language={language} />
             </div>
             <div className={`account-note-preview${account.note ? "" : " empty"}`}
-              title={hideAccountNotes ? undefined : account.note || (canEditAccountMetadata(account)
-                ? t("note.doubleClick") : t("table.noNote"))}>
-              {hideAccountNotes && account.note ? "**********" : account.note || (canEditAccountMetadata(account)
-                ? t("note.doubleClick") : t("table.noNote"))}
+              title={hideAccountNotes ? undefined : account.note || t("table.noNote")}>
+              {hideAccountNotes && account.note ? "**********" : account.note || t("table.noNote")}
             </div>
             <div className="account-meta">
               <Tooltip title={account.accountId ? t("table.workspace", { id: account.accountId }) : t("table.personal")}>
@@ -1072,7 +1078,97 @@ export function AccountTable({
     );
   })() : null;
 
+  const accountToolbarSummary = (
+    <div className="account-table-toolbar-summary">
+      <span>
+        {t("table.currentAccountLabel")}{language === "zh" ? "：" : ": "}
+        <strong title={privacyMode ? undefined : activeAccount?.email}>
+          {accountSummaryLabel(activeAccount)}
+        </strong>
+      </span>
+      <span>
+        {t("table.officialAuthAccountLabel")}{language === "zh" ? "：" : ": "}
+        <strong title={privacyMode ? undefined : officialAuthAccount?.email}>
+          {accountSummaryLabel(officialAuthAccount)}
+        </strong>
+      </span>
+      <Tooltip title={t(modelContextWindowTooltipKey(modelContextWindow.error))}
+        styles={{ root: { maxWidth: 400 } }}>
+        <span className="model-context-window-control">
+          <span>{t("table.modelContextWindow")}{language === "zh" ? "：" : ": "}</span>
+          <AutoComplete value={modelContextWindow.valueK}
+            options={GPT_5_6_SOL_CONTEXT_WINDOW_OPTIONS}
+            placeholder={DEFAULT_GPT_5_6_SOL_CONTEXT_WINDOW_K}
+            aria-label={t("table.modelContextWindow")}
+            disabled={modelContextWindow.saving}
+            status={modelContextWindow.error ? "error" : undefined}
+            onChange={modelContextWindow.updateValueK}
+            onBlur={() => void modelContextWindow.saveValueK(modelContextWindow.valueK)} />
+          <span>K</span>
+        </span>
+      </Tooltip>
+      {proxyControls}
+    </div>
+  );
+  const imageModelControls = showImageModelSelectors ? (
+    <div className="proxy-image-model-fields">
+      <ImageModelRouteSelect accounts={accounts} providers={providers} routeKind="input"
+        target={imageInputTarget} busy={imageModelBusy} onChange={onImageModelChange}
+        privacyMode={privacyMode} t={t} />
+      <ImageModelRouteSelect accounts={accounts} providers={providers} routeKind="output"
+        target={imageOutputTarget} busy={imageModelBusy} onChange={onImageModelChange}
+        privacyMode={privacyMode} t={t} />
+    </div>
+  ) : null;
+  const concurrentRoutingControl = (
+    <Tooltip title={t("table.concurrentRoutingTooltip")} styles={{ root: { maxWidth: 400 } }}>
+      <span className="account-concurrent-routing-control">
+        <span>{t("table.concurrentRouting")}</span>
+        <Switch size="small" checked={concurrentAccountRoutingEnabled}
+          loading={concurrentAccountRoutingBusy}
+          disabled={!hotSwitchEnabled || concurrentAccountRoutingBusy}
+          aria-label={t("table.concurrentRouting")}
+          onChange={onConcurrentAccountRoutingChange} />
+      </span>
+    </Tooltip>
+  );
+  const batchConsumeControl = (
+    <Popconfirm title={t("table.batchConsumeQuotaConfirmTitle", {
+      count: consumableSelectedAccountIds.length,
+    })} okText={t("table.batchConsumeQuotaOk")} cancelText={t("table.cancel")}
+      onOpenChange={setBulkConsumeQuotaConfirmOpen}
+      disabled={!consumableSelectedAccountIds.length || bulkConsumeQuotaBusy
+        || bulkDeleteBusy || bulkEnableBusy || bulkDisableBusy
+        || autoSwitchBusyAccountId !== null}
+      onConfirm={async () => {
+        const ids = [...consumableSelectedAccountIds];
+        setBulkConsumeQuotaBusy(true);
+        try {
+          await onConsumeQuotaMany(ids);
+        } finally {
+          setBulkConsumeQuotaBusy(false);
+        }
+      }}>
+      <Tooltip title={bulkConsumeQuotaConfirmOpen ? null : t("table.batchConsumeQuotaTooltip")}>
+        <Button size="small" icon={<Gauge size={14} />} loading={bulkConsumeQuotaBusy}
+          disabled={!consumableSelectedAccountIds.length || bulkDeleteBusy
+            || bulkEnableBusy || bulkDisableBusy || autoSwitchBusyAccountId !== null}>
+          {t("table.batchConsumeQuota")}
+        </Button>
+      </Tooltip>
+    </Popconfirm>
+  );
+
   if (displayMode === "cards") return <>
+    {cardTopbarHost && createPortal(
+      <div className="account-card-heading-controls">
+        {accountToolbarSummary}
+        {imageModelControls}
+        {concurrentRoutingControl}
+        {batchConsumeControl}
+      </div>,
+      cardTopbarHost,
+    )}
     <div className="account-card-grid">
       {orderedAccounts.map((account) => {
         const waiting = busyAccountId === account.id;
@@ -1088,7 +1184,7 @@ export function AccountTable({
             title={switchBlocked ? switchBlockedReason : undefined}
             aria-disabled={switchBlocked}
             onClick={(event) => {
-              if ((event.target as HTMLElement).closest("button, a, input, textarea, summary, details, .account-note-trigger")) return;
+              if ((event.target as HTMLElement).closest("button, a, input, textarea, summary, details")) return;
               setContextMenu(null);
               if (!concurrentRoutingActive && !account.active && !switchBlocked) onSwitch(account.id);
             }}
@@ -1117,18 +1213,9 @@ export function AccountTable({
                   </Tooltip>
                   {account.official && <Tag className="official-account-tag">{t("table.official")}</Tag>}
                 </div>
-                <Tooltip title={!canEditAccountMetadata(account)
-                  ? t("table.officialMetadataReadOnly")
-                  : hideAccountNotes ? "**********" : account.note || t("note.doubleClick")}>
-                  <div className={`account-note-trigger${canEditAccountMetadata(account) ? "" : " read-only"}`}
-                    onClick={(event) => event.stopPropagation()}
-                    onDoubleClick={() => {
-                      if (canEditAccountMetadata(account)) openAccountDetails(account);
-                    }} aria-label={canEditAccountMetadata(account)
-                      ? t("note.doubleClick")
-                      : t("table.officialMetadataReadOnly")}>
-                    {hideAccountNotes && account.note ? "**********" : account.note || (canEditAccountMetadata(account)
-                      ? t("note.doubleClick") : t("table.noNote"))}
+                <Tooltip title={hideAccountNotes && account.note ? "**********" : account.note || t("table.noNote")}>
+                  <div className="account-card-note">
+                    {hideAccountNotes && account.note ? "**********" : account.note || t("table.noNote")}
                   </div>
                 </Tooltip>
                 <div className="plan-line">
@@ -1144,13 +1231,21 @@ export function AccountTable({
               <div className="card-header-actions">
                 <Tooltip title={t("table.refreshUsage")}><Button size="small" className="table-icon-button" loading={waiting}
                   icon={<RefreshCw size={14} />} onClick={() => onRefresh(account.id)} /></Tooltip>
+                <UsageRefreshAge fetchedAt={account.usage.fetchedAt} t={t} />
               </div>
             </header>
             <div className="account-card-usage">
-              <section><span>{t("table.fiveHours")}</span><UsageMeter window={account.usage.primary} resetWindow="oneWeek"
-                fetchedAt={account.usage.fetchedAt} variant="circle" language={language} t={t} /></section>
-              <section><span>{t("table.oneWeek")}</span><UsageMeter window={account.usage.secondary} resetWindow="oneWeek"
-                variant="circle" language={language} t={t} /></section>
+              <section>
+                <UsageMeter window={account.usage.primary} resetWindow="oneWeek"
+                  fetchedAt={account.usage.fetchedAt} variant="card"
+                  cardLabel={t("usage.primaryMarker")} cardLabelSuffix={t("usage.unit")}
+                  language={language} t={t} />
+              </section>
+              <section>
+                <UsageMeter window={account.usage.secondary} resetWindow="oneWeek"
+                  variant="card" cardLabel={t("usage.secondaryMarker")} cardLabelSuffix={t("usage.unit")}
+                  language={language} t={t} />
+              </section>
             </div>
           </article>
         );
@@ -1168,88 +1263,10 @@ export function AccountTable({
   return <>
     <div ref={tableWrapRef} className="account-table-wrap">
       <div className="account-table-toolbar">
-        <div className="account-table-toolbar-summary">
-          <span>
-            {t("table.currentAccountLabel")}{language === "zh" ? "：" : ": "}
-            <strong title={privacyMode ? undefined : activeAccount?.email}>
-              {accountSummaryLabel(activeAccount)}
-            </strong>
-          </span>
-          <span>
-            {t("table.officialAuthAccountLabel")}{language === "zh" ? "：" : ": "}
-            <strong title={privacyMode ? undefined : officialAuthAccount?.email}>
-              {accountSummaryLabel(officialAuthAccount)}
-            </strong>
-          </span>
-          <Tooltip
-            title={t(modelContextWindowTooltipKey(modelContextWindow.error))}
-            styles={{ root: { maxWidth: 400 } }}
-          >
-            <span className="model-context-window-control">
-              <span>{t("table.modelContextWindow")}{language === "zh" ? "：" : ": "}</span>
-              <AutoComplete
-                value={modelContextWindow.valueK}
-                options={GPT_5_6_SOL_CONTEXT_WINDOW_OPTIONS}
-                placeholder={DEFAULT_GPT_5_6_SOL_CONTEXT_WINDOW_K}
-                aria-label={t("table.modelContextWindow")}
-                disabled={modelContextWindow.saving}
-                status={modelContextWindow.error ? "error" : undefined}
-                onChange={modelContextWindow.updateValueK}
-                onBlur={() => void modelContextWindow.saveValueK(modelContextWindow.valueK)}
-              />
-              <span>K</span>
-            </span>
-          </Tooltip>
-          {proxyControls}
-        </div>
-        {showImageModelSelectors && (
-          <div className="proxy-image-model-fields">
-            <ImageModelRouteSelect accounts={accounts} providers={providers} routeKind="input"
-              target={imageInputTarget} busy={imageModelBusy} onChange={onImageModelChange}
-              privacyMode={privacyMode} t={t} />
-            <ImageModelRouteSelect accounts={accounts} providers={providers} routeKind="output"
-              target={imageOutputTarget} busy={imageModelBusy} onChange={onImageModelChange}
-              privacyMode={privacyMode} t={t} />
-          </div>
-        )}
-        <Tooltip title={t("table.concurrentRoutingTooltip")} styles={{ root: { maxWidth: 400 } }}>
-          <span className="account-concurrent-routing-control">
-            <span>{t("table.concurrentRouting")}</span>
-            <Switch size="small"
-              checked={concurrentAccountRoutingEnabled}
-              loading={concurrentAccountRoutingBusy}
-              disabled={!hotSwitchEnabled || concurrentAccountRoutingBusy}
-              aria-label={t("table.concurrentRouting")}
-              onChange={onConcurrentAccountRoutingChange} />
-          </span>
-        </Tooltip>
-        <Popconfirm
-          title={t("table.batchConsumeQuotaConfirmTitle", {
-            count: consumableSelectedAccountIds.length,
-          })}
-          okText={t("table.batchConsumeQuotaOk")}
-          cancelText={t("table.cancel")}
-          onOpenChange={setBulkConsumeQuotaConfirmOpen}
-          disabled={!consumableSelectedAccountIds.length || bulkConsumeQuotaBusy
-            || bulkDeleteBusy || bulkEnableBusy || bulkDisableBusy
-            || autoSwitchBusyAccountId !== null}
-          onConfirm={async () => {
-            const ids = [...consumableSelectedAccountIds];
-            setBulkConsumeQuotaBusy(true);
-            try {
-              await onConsumeQuotaMany(ids);
-            } finally {
-              setBulkConsumeQuotaBusy(false);
-            }
-          }}>
-          <Tooltip title={bulkConsumeQuotaConfirmOpen ? null : t("table.batchConsumeQuotaTooltip")}>
-            <Button size="small" icon={<Gauge size={14} />} loading={bulkConsumeQuotaBusy}
-              disabled={!consumableSelectedAccountIds.length || bulkDeleteBusy
-                || bulkEnableBusy || bulkDisableBusy || autoSwitchBusyAccountId !== null}>
-              {t("table.batchConsumeQuota")}
-            </Button>
-          </Tooltip>
-        </Popconfirm>
+        {accountToolbarSummary}
+        {imageModelControls}
+        {concurrentRoutingControl}
+        {batchConsumeControl}
         <Popconfirm title={t("table.batchDeleteConfirmTitle", { count: deletableSelectedAccountIds.length })}
           description={t("table.batchDeleteConfirmDescription")}
           okText={t("table.delete")} cancelText={t("table.cancel")} okButtonProps={{ danger: true }}
@@ -1343,9 +1360,6 @@ export function AccountTable({
           isAccountDisabled(account, hotSwitchEnabled) ? "account-alert-row" : "",
         ].filter(Boolean).join(" ")}
         onRow={(account) => ({
-          title: canEditAccountMetadata(account)
-            ? t("note.doubleClick")
-            : t("table.officialMetadataReadOnly"),
           onContextMenu: (event) => {
             event.preventDefault();
             setTableActionMenuAccountId(null);
@@ -1355,10 +1369,6 @@ export function AccountTable({
                 ? ACCOUNT_CONTEXT_MENU_HEIGHT.hotSwitch
                 : ACCOUNT_CONTEXT_MENU_HEIGHT.directSwitch),
             });
-          },
-          onDoubleClick: (event) => {
-            if ((event.target as HTMLElement).closest("button, a, input, textarea")) return;
-            if (canEditAccountMetadata(account)) openAccountDetails(account);
           },
         })}
         expandable={{
