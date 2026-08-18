@@ -43,6 +43,7 @@ import {
   takeCcSwitchImportNavigation,
   updateAutoDisableStatusCodes,
   updateNetworkProxy,
+  updateProviderGroups,
   updateShowUsageNetworkErrors,
   updateWebProxyListenOnAllInterfaces,
   updateWebProxyPort,
@@ -218,6 +219,7 @@ export function DashboardApp() {
   const [showUsageNetworkErrors, setShowUsageNetworkErrors] = useState(false);
   const [showUsageNetworkErrorsLoading, setShowUsageNetworkErrorsLoading] = useState(false);
   const [showCustomCloudServer, setShowCustomCloudServer] = useState(false);
+  const [providerGroups, setProviderGroups] = useState<string[]>([]);
   const cloudSessionPromptedRef = useRef(false);
   const providerBalanceRefreshCountRef = useRef(0);
   useEffect(() => subscribeToOpenSettings(() => setPage("settings")), []);
@@ -347,8 +349,17 @@ export function DashboardApp() {
         );
         setShowUsageNetworkErrors(settings.showUsageNetworkErrors ?? false);
         setShowCustomCloudServer(settings.showCustomCloudServer ?? false);
+        setProviderGroups(settings.providerGroups ?? []);
       })
       .catch((error) => notify(String(error)));
+  }, [notify]);
+  const saveProviderGroups = useCallback(async (groups: string[]) => {
+    try {
+      setProviderGroups(await updateProviderGroups(groups));
+    } catch (error) {
+      notify(String(error));
+      throw error;
+    }
   }, [notify]);
   const resetCredits = useResetCredits(manager.accounts, notify, t);
   const activeAccount = manager.accounts.find((account) => account.active) ?? null;
@@ -1325,7 +1336,8 @@ export function DashboardApp() {
             {page === "sessions" && <MemoCodexThreadsPage language={language} notify={notify} />}
           </section>
           <section className="page-panel" hidden={page !== "providers"}>
-            <MemoProvidersPage providers={providerManager.providers} accounts={manager.accounts}
+            <MemoProvidersPage providers={providerManager.providers} providerGroups={providerGroups}
+              accounts={manager.accounts}
               active={page === "providers"}
               loading={providerManager.loading}
               busyProviderId={providerManager.busyProviderId} saving={providerManager.saving}
@@ -1339,6 +1351,7 @@ export function DashboardApp() {
               onModelControlChange={setProviderModelControl}
               onGroupChange={providerManager.changeProviderGroup}
               onGroupChangeMany={providerManager.changeProviderGroups}
+              onProviderGroupsChange={saveProviderGroups}
               onAutoSwitchChange={providerManager.setProviderAutoSwitch}
               onDelete={deleteProvider}
               onDeleteMany={providerManager.deleteProviders}

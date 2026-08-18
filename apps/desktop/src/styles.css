@@ -1180,6 +1180,22 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .provider-group-editor { width: min(320px, 72vw); display: grid; gap: 8px; }
 .provider-group-editor .ant-space { justify-content: flex-end; }
 .provider-batch-group-confirm { display: block; max-width: 360px; }
+.provider-group-manager-description { margin: 0 0 14px; color: #6c7a72; }
+.provider-group-create-row { margin-bottom: 14px; }
+.provider-group-manager-list { display: grid; gap: 8px; max-height: min(420px, 55vh); overflow-y: auto; }
+.provider-group-manager-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+  align-items: center;
+  min-height: 40px;
+  padding: 6px 8px;
+  border: 1px solid rgba(var(--green-rgb), .12);
+  border-radius: 9px;
+  background: rgba(var(--green-rgb), .035);
+}
+.provider-group-manager-row > strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.provider-group-manager-row .ant-tag { margin: 0; }
 .provider-card-image-model-toolbar {
   margin-bottom: 12px;
   padding: 8px 10px;

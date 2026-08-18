@@ -484,6 +484,8 @@ pub(crate) struct AppSettings {
     #[serde(default)]
     pub(crate) network_proxy: NetworkProxySettings,
     #[serde(default)]
+    pub(crate) provider_groups: Vec<String>,
+    #[serde(default)]
     pub(crate) last_started_version: Option<String>,
 }
 
@@ -587,6 +589,7 @@ impl Default for AppSettings {
             web_proxy_port: None,
             web_proxy_listen_on_all_interfaces: false,
             network_proxy: NetworkProxySettings::default(),
+            provider_groups: Vec::new(),
             last_started_version: None,
         }
     }

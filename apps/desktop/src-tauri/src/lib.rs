@@ -272,6 +272,7 @@ pub fn run() {
             providers::switch_provider_model,
             providers::set_provider_model_control,
             providers::set_provider_group,
+            providers::set_provider_groups,
             providers::set_provider_auto_switch_enabled,
             providers::disable_provider,
             providers::delete_provider,

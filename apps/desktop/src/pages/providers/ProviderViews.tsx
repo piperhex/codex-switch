@@ -29,6 +29,7 @@ import {
 
 interface ProviderViewProps {
   providers: Provider[];
+  providerGroups: string[];
   accounts: Account[];
   busyProviderId: string | null;
   proxyRunning: boolean;
@@ -182,7 +183,7 @@ function buildColumns(options: ProviderViewProps): ColumnsType<Provider> {
     },
     {
       title: t("providers.table.group"), key: "group", dataIndex: "group", width: 150,
-      render: (_, provider) => <ProviderGroupCell provider={provider} providers={options.providers}
+      render: (_, provider) => <ProviderGroupCell provider={provider} groups={options.providerGroups}
         busy={busyProviderId === provider.id} onChange={options.onGroupChange} t={t} />,
     },
     {
@@ -273,7 +274,7 @@ export function ProviderTableView(options: ProviderTableProps) {
       {options.proxyRunning && (
         <ProviderImageModelControls {...options} />
       )}
-      <ProviderBulkGroupActions providers={providers} selectedProviders={selectedProviders}
+      <ProviderBulkGroupActions groups={options.providerGroups} selectedProviders={selectedProviders}
         busy={Boolean(options.busyProviderId)} onChangeMany={options.onGroupChangeMany} t={t} />
       <Popconfirm title={t("providers.batchDelete.title", { count: selectedProviderIds.length })}
         description={t("providers.batchDelete.description")} okText={t("providers.delete.ok")}
@@ -376,7 +377,7 @@ function ProviderCard({ provider, options }: { provider: Provider; options: Prov
       <div><span>{t("providers.table.model")}</span><ProviderModelCell provider={provider}
         busy={waiting} onSwitchModel={onSwitchModel} t={t} /></div>
       <div><span>{t("providers.table.group")}</span><ProviderGroupCell provider={provider}
-        providers={options.providers} busy={waiting} onChange={options.onGroupChange} t={t} /></div>
+        groups={options.providerGroups} busy={waiting} onChange={options.onGroupChange} t={t} /></div>
       <div><span>{t("providers.table.api")}</span>{apiFormatTag(provider, t)}</div>
       <div><span>{t("providers.table.modelControl")}</span><ProviderModelControlCell provider={provider}
         busy={waiting} onModelControlChange={onModelControlChange} t={t} /></div>

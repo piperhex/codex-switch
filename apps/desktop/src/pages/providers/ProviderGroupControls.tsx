@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Button, Input, Popconfirm, Popover, Space, Tag, Tooltip } from "antd";
 import { FolderKanban, FolderMinus, FolderPlus, Play } from "lucide-react";
 import type { Translate } from "../../i18n";
@@ -37,16 +37,15 @@ function ProviderGroupEditor(options: ProviderGroupEditorProps) {
 
 interface ProviderGroupCellProps {
   provider: Provider;
-  providers: Provider[];
+  groups: string[];
   busy: boolean;
   onChange: (id: string, group: string) => void;
   t: Translate;
 }
 
-export function ProviderGroupCell({ provider, providers, busy, onChange, t }: ProviderGroupCellProps) {
+export function ProviderGroupCell({ provider, groups, busy, onChange, t }: ProviderGroupCellProps) {
   const [open, setOpen] = useState(false);
   const [group, setGroup] = useState(provider.group);
-  const groups = useMemo(() => [...new Set(providers.map((item) => item.group).filter(Boolean))], [providers]);
   const optionsId = `provider-group-options-${provider.id}`;
   useEffect(() => setGroup(provider.group), [provider.group]);
   if (provider.kind !== "custom") return <span className="provider-group-empty">—</span>;
@@ -103,7 +102,7 @@ export function ProviderGroupToolbar({
 }
 
 interface ProviderBulkGroupActionsProps {
-  providers: Provider[];
+  groups: string[];
   selectedProviders: Provider[];
   busy: boolean;
   onChangeMany: (ids: string[], group: string) => Promise<string[]>;
@@ -111,7 +110,7 @@ interface ProviderBulkGroupActionsProps {
 }
 
 export function ProviderBulkGroupActions({
-  providers,
+  groups,
   selectedProviders,
   busy,
   onChangeMany,
@@ -120,7 +119,6 @@ export function ProviderBulkGroupActions({
   const [open, setOpen] = useState(false);
   const [group, setGroup] = useState("");
   const [saving, setSaving] = useState(false);
-  const groups = useMemo(() => [...new Set(providers.map((item) => item.group).filter(Boolean))], [providers]);
   const selectedCustomProviders = selectedProviders.filter((provider) => provider.kind === "custom");
   const groupedProviders = selectedCustomProviders.filter((provider) => provider.group);
   const changing = busy || saving;

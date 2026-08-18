@@ -23,10 +23,12 @@ import { DeepSeekProviderModal, OpenAiProviderModal } from "./providers/Provider
 import { RelayStationModal } from "./providers/RelayStationModal";
 import { ProviderCardView, ProviderTableView } from "./providers/ProviderViews";
 import { ProviderAddMenu } from "./providers/ProviderAddMenu";
+import { ProviderGroupManager } from "./providers/ProviderGroupManager";
 import { useProviderTokenUsage } from "./providers/useProviderTokenUsage";
 
 interface ProvidersPageProps {
   providers: Provider[];
+  providerGroups: string[];
   accounts: Account[];
   active: boolean;
   loading: boolean;
@@ -44,6 +46,7 @@ interface ProvidersPageProps {
   onModelControlChange: (id: string, controlledByCodex: boolean) => void;
   onGroupChange: (id: string, group: string) => void;
   onGroupChangeMany: (ids: string[], group: string) => Promise<string[]>;
+  onProviderGroupsChange: (groups: string[]) => Promise<void>;
   onAutoSwitchChange: (id: string, enabled: boolean) => void;
   onDelete: (id: string) => void;
   onDeleteMany: (ids: string[]) => Promise<string[]>;
@@ -56,6 +59,7 @@ interface ProvidersPageProps {
 }
 export function ProvidersPage({
   providers,
+  providerGroups,
   accounts,
   active,
   loading,
@@ -73,6 +77,7 @@ export function ProvidersPage({
   onModelControlChange,
   onGroupChange,
   onGroupChangeMany,
+  onProviderGroupsChange,
   onAutoSwitchChange,
   onDelete,
   onDeleteMany,
@@ -97,6 +102,10 @@ export function ProvidersPage({
   const [bulkDeleteBusy, setBulkDeleteBusy] = useState(false);
   const [topbarHost, setTopbarHost] = useState<HTMLElement | null>(null);
   const proxyRunning = Boolean(localProxy?.running);
+  const groups = [...new Set([
+    ...providerGroups,
+    ...providers.filter((provider) => provider.kind === "custom").map((provider) => provider.group),
+  ].filter(Boolean))];
 
   useEffect(() => {
     setTopbarHost(active ? document.getElementById("provider-topbar-actions") : null);
@@ -166,6 +175,7 @@ export function ProvidersPage({
 
   const providerViewProps = {
     providers,
+    providerGroups: groups,
     accounts,
     busyProviderId,
     proxyRunning,
@@ -195,8 +205,12 @@ export function ProvidersPage({
   return (
     <>
       {topbarHost && createPortal(
-        <ProviderAddMenu onAddPreset={() => setShowPresetModal(true)} onAddOpenAi={openCreateOpenAi}
-          onAddProvider={openCreate} onAddRelay={() => setShowRelayModal(true)} t={t} />,
+        <Space size={6}>
+          <ProviderGroupManager groups={groups} providers={providers} busy={Boolean(busyProviderId)}
+            onChangeMany={onGroupChangeMany} onGroupsChange={onProviderGroupsChange} t={t} />
+          <ProviderAddMenu onAddPreset={() => setShowPresetModal(true)} onAddOpenAi={openCreateOpenAi}
+            onAddProvider={openCreate} onAddRelay={() => setShowRelayModal(true)} t={t} />
+        </Space>,
         topbarHost,
       )}
       <div className="provider-page">

@@ -15,8 +15,9 @@ use crate::{
         ProviderKind, ProviderProfile, ProviderSummary, ReasoningEffort, UsageSummary,
     },
     storage::{
-        managed_auth_path, read_json, read_state, resolve_paths, write_json_atomic,
-        write_json_if_changed, write_state, write_text_atomic, write_text_if_changed, Paths,
+        managed_auth_path, read_app_settings, read_json, read_state, resolve_paths,
+        write_app_settings, write_json_atomic, write_json_if_changed, write_state,
+        write_text_atomic, write_text_if_changed, Paths,
     },
 };
 
@@ -39,6 +40,7 @@ pub(crate) const DEFAULT_DEEPSEEK_MODEL_CONTEXT_WINDOW: u64 = 1_000_000;
 const NEW_API_QUOTA_PER_USD: f64 = 500_000.0;
 const MAX_BALANCE_RESPONSE_BYTES: u64 = 1024 * 1024;
 const MAX_MODEL_RESPONSE_BYTES: u64 = 1024 * 1024;
+const MAX_PROVIDER_GROUP_COUNT: usize = 100;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum ReasoningEffortProfile {
@@ -1341,6 +1343,27 @@ pub(crate) async fn set_provider_group<R: Runtime + 'static>(
         .map_err(|error| format!("Provider group update task failed: {error}"))?
 }
 
+#[tauri::command]
+pub(crate) async fn set_provider_groups<R: Runtime + 'static>(
+    app: tauri::AppHandle<R>,
+    groups: Vec<String>,
+) -> Result<Vec<String>, String> {
+    tauri::async_runtime::spawn_blocking(move || set_provider_groups_blocking(app, groups))
+        .await
+        .map_err(|error| format!("Provider group catalog update task failed: {error}"))?
+}
+
+fn set_provider_groups_blocking<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    groups: Vec<String>,
+) -> Result<Vec<String>, String> {
+    let groups = normalize_provider_groups(groups)?;
+    let mut settings = read_app_settings(&app)?;
+    settings.provider_groups.clone_from(&groups);
+    write_app_settings(&app, &settings)?;
+    Ok(groups)
+}
+
 fn set_provider_group_blocking<R: Runtime>(
     app: tauri::AppHandle<R>,
     id: String,
@@ -2038,6 +2061,26 @@ fn normalize_provider_group(value: &str) -> Result<String, String> {
         return Err("Provider group contains unsupported characters".to_string());
     }
     Ok(group.to_string())
+}
+
+fn normalize_provider_groups(groups: Vec<String>) -> Result<Vec<String>, String> {
+    if groups.len() > MAX_PROVIDER_GROUP_COUNT {
+        return Err(format!(
+            "No more than {MAX_PROVIDER_GROUP_COUNT} Provider groups are allowed"
+        ));
+    }
+    let mut normalized = Vec::new();
+    let mut seen = HashSet::new();
+    for group in groups {
+        let group = normalize_provider_group(&group)?;
+        if group.is_empty() {
+            return Err("Provider group name is required".to_string());
+        }
+        if seen.insert(group.clone()) {
+            normalized.push(group);
+        }
+    }
+    Ok(normalized)
 }
 
 fn normalize_model_selection(
@@ -3009,6 +3052,22 @@ mod tests {
             wallet_username: None,
             wallet_password: None,
         }
+    }
+
+    #[test]
+    fn provider_group_catalog_normalizes_and_deduplicates_names() {
+        let groups = normalize_provider_groups(vec![
+            " Work ".to_string(),
+            "Personal".to_string(),
+            "Work".to_string(),
+        ])
+        .expect("valid group names should normalize");
+        assert_eq!(groups, vec!["Work", "Personal"]);
+    }
+
+    #[test]
+    fn provider_group_catalog_rejects_empty_names() {
+        assert!(normalize_provider_groups(vec!["  ".to_string()]).is_err());
     }
 
     #[test]

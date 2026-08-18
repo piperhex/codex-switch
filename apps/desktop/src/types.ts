@@ -392,6 +392,7 @@ export interface AppSettings {
   webProxyPort?: number | null;
   webProxyListenOnAllInterfaces?: boolean;
   networkProxy?: NetworkProxySettings;
+  providerGroups?: string[];
 }
 
 export interface NetworkProxySettings {

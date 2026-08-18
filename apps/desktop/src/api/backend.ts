@@ -140,6 +140,7 @@ const HIDE_ACCOUNT_NOTES_PREVIEW_KEY = "codex-switch:hide-account-notes";
 const BUBBLE_RESET_DISPLAY_PREVIEW_KEY = "codex-switch:bubble-reset-display";
 const BUBBLE_STYLE_PREVIEW_KEY = "codex-switch:bubble-style";
 const THEME_COLOR_PREVIEW_KEY = "codex-switch:theme-color";
+const PROVIDER_GROUPS_PREVIEW_KEY = "codex-switch:provider-groups";
 const CLOUD_BASE_URL_PREVIEW_KEY = "codex-switch:cloud-base-url";
 const NETWORK_PROXY_ENABLED_PREVIEW_KEY = "codex-switch:network-proxy-enabled";
 const NETWORK_PROXY_URL_PREVIEW_KEY = "codex-switch:network-proxy-url";
@@ -456,6 +457,7 @@ export async function loadAppSettings(): Promise<AppSettings> {
         proxyUrl: window.localStorage.getItem(NETWORK_PROXY_URL_PREVIEW_KEY) ?? "",
         proxyPort: Number(window.localStorage.getItem(NETWORK_PROXY_PORT_PREVIEW_KEY)) || null,
       },
+      providerGroups: previewProviderGroups(),
     };
   }
   return invoke<AppSettings>("get_app_settings");
@@ -760,6 +762,24 @@ export async function activateProvider(id: string): Promise<void> {
     return;
   }
   await invoke("switch_provider", { id });
+}
+
+function previewProviderGroups(): string[] {
+  try {
+    const parsed: unknown = JSON.parse(window.localStorage.getItem(PROVIDER_GROUPS_PREVIEW_KEY) ?? "[]");
+    return Array.isArray(parsed) ? parsed.filter((group): group is string => typeof group === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function updateProviderGroups(groups: string[]): Promise<string[]> {
+  const normalized = [...new Set(groups.map((group) => group.trim()).filter(Boolean))];
+  if (!hasLocalBackend) {
+    window.localStorage.setItem(PROVIDER_GROUPS_PREVIEW_KEY, JSON.stringify(normalized));
+    return normalized;
+  }
+  return invoke<string[]>("set_provider_groups", { groups: normalized });
 }
 
 export async function activateProviderGroup(group: string): Promise<void> {

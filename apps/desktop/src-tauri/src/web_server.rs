@@ -462,6 +462,10 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
             app,
             argument(&args, "id")?,
         ))),
+        "switch_provider_group" => serialize(block_on(crate::providers::switch_provider_group(
+            app,
+            argument(&args, "group")?,
+        ))),
         "switch_provider_model" => serialize(crate::providers::switch_provider_model(
             app,
             argument(&args, "id")?,
@@ -472,6 +476,15 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
             argument(&args, "id")?,
             argument(&args, "controlledByCodex")?,
         )),
+        "set_provider_group" => serialize(block_on(crate::providers::set_provider_group(
+            app,
+            argument(&args, "id")?,
+            argument(&args, "group")?,
+        ))),
+        "set_provider_groups" => serialize(block_on(crate::providers::set_provider_groups(
+            app,
+            argument(&args, "groups")?,
+        ))),
         "set_provider_auto_switch_enabled" => {
             serialize(crate::providers::set_provider_auto_switch_enabled(
                 app,
