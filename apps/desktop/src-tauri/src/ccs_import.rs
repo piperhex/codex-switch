@@ -65,8 +65,9 @@ fn import_url<R: Runtime>(app: &AppHandle<R>, url: &Url) -> Result<(), String> {
     let name = bounded_query_value(&query, "name", MAX_PROVIDER_NAME_LENGTH)?;
     let endpoint = bounded_query_value(&query, "endpoint", MAX_ENDPOINT_LENGTH)?;
     let api_key = bounded_query_value(&query, "apiKey", MAX_API_KEY_LENGTH)?;
-    let model = bounded_optional_query_value(&query, "model", MAX_MODEL_LENGTH)?;
+    let requested_model = bounded_optional_query_value(&query, "model", MAX_MODEL_LENGTH)?;
     let (kind, api_format, controlled_by_codex) = provider_kind(&app_name)?;
+    let model = import_model(&app_name, requested_model)?;
     let models = if model.is_empty() {
         Vec::new()
     } else {
@@ -122,14 +123,24 @@ fn validate_route(url: &Url) -> Result<(), String> {
 fn provider_kind(app: &str) -> Result<(ProviderKind, ProviderApiFormat, bool), String> {
     match app {
         "codex" => Ok((
-            ProviderKind::OpenAi,
+            ProviderKind::Custom,
             ProviderApiFormat::OpenaiResponses,
-            true,
+            false,
         )),
         "claude" | "gemini" | "grokbuild" => {
             Ok((ProviderKind::Custom, ProviderApiFormat::OpenaiChat, false))
         }
         _ => Err(format!("unsupported CCS app '{app}'")),
+    }
+}
+
+fn import_model(app: &str, requested_model: String) -> Result<String, String> {
+    if !requested_model.is_empty() {
+        return Ok(requested_model);
+    }
+    match app {
+        "codex" => Ok(providers::DEFAULT_OFFICIAL_MODEL.to_string()),
+        _ => Err("CCS link is missing model".to_string()),
     }
 }
 
@@ -249,6 +260,19 @@ mod tests {
         assert_eq!(
             parse_balance_platform("new-api"),
             Some(ProviderBalancePlatform::NewApi)
+        );
+    }
+
+    #[test]
+    fn imports_codex_links_as_relay_providers() {
+        let (kind, api_format, controlled_by_codex) = provider_kind("codex").unwrap();
+
+        assert_eq!(kind, ProviderKind::Custom);
+        assert_eq!(api_format, ProviderApiFormat::OpenaiResponses);
+        assert!(!controlled_by_codex);
+        assert_eq!(
+            import_model("codex", String::new()).unwrap(),
+            providers::DEFAULT_OFFICIAL_MODEL
         );
     }
 

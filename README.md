@@ -174,7 +174,7 @@ Codex Switch 只注册自己的 `cswitch://` 协议，`ccswitch://` 继续留给
 参数说明：
 
 - `resource=provider`：固定值，表示导入 Provider。
-- `app=codex`：按 OpenAI Responses Provider 导入，适合支持 Responses 接口的中转站。
+- `app=codex`：按支持 OpenAI Responses 的第三方中转站 Provider 导入，不会识别为官方 OpenAI Provider。
 - `app=claude`、`app=gemini` 或 `app=grokbuild`：按兼容 Chat Completions 的自定义 Provider 导入，适合只提供 Chat Completions 的中转站。
 - `name`：在 Codex Switch 中显示的 Provider 名称。
 - `homepage`：站点主页，保留给兼容页面使用。
