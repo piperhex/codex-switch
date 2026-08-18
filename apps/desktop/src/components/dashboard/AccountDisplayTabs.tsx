@@ -24,6 +24,7 @@ export function AccountDisplayTabs({ displayMode, onChange, t }: AccountDisplayT
             aria-label={option.label} title={option.label}
             className={selected ? "selected" : undefined} onClick={() => onChange(option.value)}>
             <Icon size={12} />
+            <span>{option.label}</span>
           </button>
         );
       })}

@@ -350,17 +350,19 @@ main.providers-main .providers-page-panel { flex: 1; display: flex; flex-directi
   background: #edf1ee;
 }
 .account-display-tabs button {
-  width: 20px;
-  height: 18px;
-  padding: 0;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
   border: 0;
   border-radius: 4px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 4px;
   color: #68776e;
   background: transparent;
   cursor: pointer;
+  font-size: 9px;
   transition: color .16s ease, background .16s ease, box-shadow .16s ease;
 }
 .account-display-tabs button:hover { color: var(--green-dark); background: rgba(255,255,255,.6); }
@@ -385,9 +387,10 @@ main.providers-main .providers-page-panel { flex: 1; display: flex; flex-directi
   line-height: normal;
 }
 .accounts-topbar { height: 136px; padding: 16px; }
+.account-view-topbar { padding-right: 16px; padding-left: 17px; }
 .account-card-toolbar-row {
   min-height: 58px;
-  padding: 8px var(--page-x);
+  padding: 8px 16px 8px 17px;
   border-bottom: 1px solid var(--line);
   display: flex;
   align-items: center;
