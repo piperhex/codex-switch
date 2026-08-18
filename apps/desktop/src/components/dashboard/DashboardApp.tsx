@@ -1338,6 +1338,7 @@ export function DashboardApp() {
               onSwitchModel={switchProviderModel}
               onModelControlChange={setProviderModelControl}
               onGroupChange={providerManager.changeProviderGroup}
+              onGroupChangeMany={providerManager.changeProviderGroups}
               onAutoSwitchChange={providerManager.setProviderAutoSwitch}
               onDelete={deleteProvider}
               onDeleteMany={providerManager.deleteProviders}

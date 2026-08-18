@@ -43,6 +43,7 @@ interface ProvidersPageProps {
   onSwitchModel: (id: string, model: string) => void;
   onModelControlChange: (id: string, controlledByCodex: boolean) => void;
   onGroupChange: (id: string, group: string) => void;
+  onGroupChangeMany: (ids: string[], group: string) => Promise<string[]>;
   onAutoSwitchChange: (id: string, enabled: boolean) => void;
   onDelete: (id: string) => void;
   onDeleteMany: (ids: string[]) => Promise<string[]>;
@@ -71,6 +72,7 @@ export function ProvidersPage({
   onSwitchModel,
   onModelControlChange,
   onGroupChange,
+  onGroupChangeMany,
   onAutoSwitchChange,
   onDelete,
   onDeleteMany,
@@ -178,6 +180,7 @@ export function ProvidersPage({
     onSwitchModel,
     onModelControlChange,
     onGroupChange,
+    onGroupChangeMany,
     onAutoSwitchChange,
     onDelete,
     onEdit: openEdit,

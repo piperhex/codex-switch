@@ -285,6 +285,35 @@ export function useProviderManager(
     }
   }, [cloudSync, load, notify, t]);
 
+  const changeProviderGroups = useCallback(async (ids: string[], group: string) => {
+    const uniqueIds = [...new Set(ids)];
+    const changedIds: string[] = [];
+    let firstError: string | null = null;
+    setBusyProviderId("group:batch");
+    try {
+      for (const id of uniqueIds) {
+        setBusyProviderId(id);
+        try {
+          await setProviderGroup(id, group);
+          changedIds.push(id);
+          await cloudSync?.pushProvider?.(id);
+        } catch (error) {
+          firstError ??= providerErrorMessage(error, t);
+        }
+      }
+      if (firstError) notify(firstError);
+      if (changedIds.length) {
+        notify(t(group.trim() ? "toast.providerGroupsSaved" : "toast.providerGroupsCleared", {
+          count: changedIds.length,
+        }));
+        await load();
+      }
+      return changedIds;
+    } finally {
+      setBusyProviderId(null);
+    }
+  }, [cloudSync, load, notify, t]);
+
   const setProviderAutoSwitch = useCallback(async (id: string, enabled: boolean) => {
     setBusyProviderId(id);
     try {
@@ -571,6 +600,7 @@ export function useProviderManager(
     switchModel,
     setModelControl,
     changeProviderGroup,
+    changeProviderGroups,
     setProviderAutoSwitch,
     deleteProvider,
     deleteProviders,

@@ -21,7 +21,11 @@ import {
   persistHiddenColumns,
   type ProviderTableColumnKey,
 } from "./providerUtils";
-import { ProviderGroupCell, ProviderGroupToolbar } from "./ProviderGroupControls";
+import {
+  ProviderBulkGroupActions,
+  ProviderGroupCell,
+  ProviderGroupToolbar,
+} from "./ProviderGroupControls";
 
 interface ProviderViewProps {
   providers: Provider[];
@@ -39,6 +43,7 @@ interface ProviderViewProps {
   onSwitchModel: (id: string, model: string) => void;
   onModelControlChange: (id: string, controlledByCodex: boolean) => void;
   onGroupChange: (id: string, group: string) => void;
+  onGroupChangeMany: (ids: string[], group: string) => Promise<string[]>;
   onAutoSwitchChange: (id: string, enabled: boolean) => void;
   onDelete: (id: string) => void;
   onEdit: (provider: Provider) => void;
@@ -225,6 +230,8 @@ export function ProviderTableView(options: ProviderTableProps) {
   const [hiddenColumns, setHiddenColumns] = useState<ProviderTableColumnKey[]>(loadHiddenColumns);
   const columns = buildColumns(options);
   const hiddenColumnSet = new Set(hiddenColumns);
+  const selectedProviderIdSet = new Set(selectedProviderIds);
+  const selectedProviders = providers.filter((provider) => selectedProviderIdSet.has(provider.id));
   const visibleColumns = columns.filter((column) =>
     !isProviderTableColumnKey(column.key) || !hiddenColumnSet.has(column.key));
   const columnSettings: { key: ProviderTableColumnKey; label: string }[] = [
@@ -266,6 +273,8 @@ export function ProviderTableView(options: ProviderTableProps) {
       {options.proxyRunning && (
         <ProviderImageModelControls {...options} />
       )}
+      <ProviderBulkGroupActions providers={providers} selectedProviders={selectedProviders}
+        busy={Boolean(options.busyProviderId)} onChangeMany={options.onGroupChangeMany} t={t} />
       <Popconfirm title={t("providers.batchDelete.title", { count: selectedProviderIds.length })}
         description={t("providers.batchDelete.description")} okText={t("providers.delete.ok")}
         cancelText={t("providers.delete.cancel")} okButtonProps={{ danger: true }}
