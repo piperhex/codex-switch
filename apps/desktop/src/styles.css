@@ -489,6 +489,7 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .account-card-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; padding: 14px 20px; }
 .account-card-actions .ant-btn { display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
 .account-table-wrap .ant-table { color: var(--ink); font-size: 12px; }
+.account-table-wrap col.ant-table-selection-col { background: #f6f8f5; }
 .account-table-wrap .ant-table-thead > tr > th { background: #f6f8f5; color: #5d6a62; font-size: 11px; font-weight: 700; }
 .account-table-wrap .ant-table-tbody > tr > td { background: #fff; }
 .account-table-wrap .ant-table-tbody > tr.active-row > td { background: var(--green-selection); }
@@ -2656,6 +2657,7 @@ html.floating-usage-page #root {
 :root[data-theme="dark"] .proxy-session-table .ant-table-thead > tr > th,
 :root[data-theme="dark"] .proxy-session-request-table .ant-table-thead > tr > th,
 :root[data-theme="dark"] .token-usage-table-wrap .ant-table-thead > tr > th { color: #b7c2bb; background: #28312c; }
+:root[data-theme="dark"] .account-table-wrap col.ant-table-selection-col { background: #28312c; }
 :root[data-theme="dark"] .account-table-wrap .ant-table-tbody > tr > td,
 :root[data-theme="dark"] .provider-table-wrap .ant-table-tbody > tr > td { background: var(--panel); }
 :root[data-theme="dark"] .account-table-wrap .ant-table-tbody > tr:hover > td,
