@@ -3295,7 +3295,7 @@ const translations = {
     "providers.tag.responses": "Responses",
     "providers.tag.chatBridge": "Chat 转换",
     "providers.table.provider": "Provider",
-    "providers.table.group": "分组",
+    "providers.table.group": "分组聚合",
     "providers.group.placeholder": "输入或选择分组",
     "providers.group.ungrouped": "未分组",
     "providers.group.save": "保存分组",
