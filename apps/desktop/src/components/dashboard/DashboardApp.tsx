@@ -99,6 +99,7 @@ import { SettingsGroupsNav, SettingsPage } from "../../pages/SettingsPage";
 import { SkillsMarketPage } from "../../pages/SkillsMarketPage";
 import { CodexThreadsPage } from "../../pages/CodexThreadsPage";
 import { NetworkProxySettingsModal } from "../../pages/settings/NetworkProxySettings";
+import { AccountDisplayTabs } from "./AccountDisplayTabs";
 import type {
   AccountDetailsDraft,
   BubbleResetDisplay,
@@ -1231,15 +1232,16 @@ export function DashboardApp() {
           : page === "tokens" ? "tokens-main"
             : page === "dreamSkin" ? "dream-skin-main" : undefined}>
           {page !== "tokens" && page !== "dreamSkin" && (
-          <header className={`topbar${
+          <header className={`topbar${page === "accounts" ? " account-view-topbar" : ""}${
             page === "accounts" && providerManager.localProxy?.running ? " accounts-topbar" : ""
           }${page === "settings" ? " settings-topbar" : ""}`}>
             {page === "accounts" && providerManager.localProxy?.running ? (
               <TokenUsageHeatmap weeks={tokenUsagePreferences.weeks}
                 refreshSeconds={tokenUsagePreferences.refreshSeconds} language={language} t={t} />
             ) : (
-              <div className={page === "skills" ? "skills-market-heading"
-                : page === "settings" ? "settings-heading" : undefined}>
+              <div className={page === "accounts" ? "accounts-heading"
+                : page === "skills" ? "skills-market-heading"
+                  : page === "settings" ? "settings-heading" : undefined}>
                 <span className="eyebrow">{page === "providers"
                 ? t("topbar.providersEyebrow")
                 : page === "skills"
@@ -1262,6 +1264,10 @@ export function DashboardApp() {
                   {page === "settings" && <SettingsGroupsNav t={t} />}
                 </div>
               </div>
+            )}
+            {page === "accounts" && (
+              <AccountDisplayTabs displayMode={accountDisplayMode.displayMode}
+                onChange={accountDisplayMode.setDisplayMode} t={t} />
             )}
             {page === "accounts" && (
               <div className="topbar-actions">

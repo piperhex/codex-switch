@@ -333,6 +333,43 @@ main.dream-skin-main { padding-bottom: 0; }
 main.accounts-main .accounts-page-panel,
 main.providers-main .providers-page-panel { flex: 1; display: flex; flex-direction: column; }
 .topbar { width: 100%; height: 110px; padding: 25px var(--page-x); border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; gap: 18px; background: rgba(248,250,247,.82); backdrop-filter: blur(16px); }
+.account-view-topbar { position: relative; }
+.accounts-heading { min-width: 0; }
+.account-display-tabs {
+  width: max-content;
+  position: absolute;
+  bottom: 4px;
+  left: 8px;
+  z-index: 2;
+  padding: 2px;
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #edf1ee;
+}
+.account-display-tabs button {
+  width: 20px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #68776e;
+  background: transparent;
+  cursor: pointer;
+  transition: color .16s ease, background .16s ease, box-shadow .16s ease;
+}
+.account-display-tabs button:hover { color: var(--green-dark); background: rgba(255,255,255,.6); }
+.account-display-tabs button.selected {
+  color: var(--green-dark);
+  background: white;
+  box-shadow: 0 1px 4px rgba(24,45,31,.12);
+}
+.account-display-tabs button:focus-visible { outline: 2px solid rgba(var(--green-rgb), .35); outline-offset: 1px; }
 .settings-topbar { position: sticky; top: 0; z-index: 20; }
 .settings-heading { min-width: 0; flex: 1 1 auto; }
 .settings-title-row { min-width: 0; margin-top: 5px; display: flex; align-items: center; gap: 20px; }
@@ -2638,6 +2675,14 @@ html.floating-usage-page #root {
 :root[data-theme="dark"] .top-tabs button { color: #9ba8a0; }
 :root[data-theme="dark"] .top-tabs button:hover { color: var(--ink); background: #303a34; }
 :root[data-theme="dark"] .top-tabs button.selected { color: var(--ink); }
+:root[data-theme="dark"] .account-display-tabs { border-color: var(--line); background: #252e29; }
+:root[data-theme="dark"] .account-display-tabs button { color: #9ba8a0; }
+:root[data-theme="dark"] .account-display-tabs button:hover { color: var(--ink); background: #303a34; }
+:root[data-theme="dark"] .account-display-tabs button.selected {
+  color: var(--ink);
+  background: #37433c;
+  box-shadow: none;
+}
 :root[data-theme="dark"] .notification-unread-badge,
 :root[data-theme="dark"] .update-install-badge { border-color: #1b221e; }
 :root[data-theme="dark"] .notification-item p { color: #b0bbb4; }
