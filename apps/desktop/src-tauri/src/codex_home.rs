@@ -117,6 +117,7 @@ fn paths_match(left: &Path, right: &Path) -> bool {
 fn inactive_state(mut state: ManagerStateFile) -> ManagerStateFile {
     state.active_account_id = None;
     state.active_provider_id = None;
+    state.active_provider_group = None;
     state.concurrent_account_routing_enabled = false;
     state.local_proxy_enabled = false;
     state

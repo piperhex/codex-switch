@@ -28,6 +28,7 @@ interface AuthMessage {
   activeAccountId?: string | null;
   openaiAuthAccountId?: string | null;
   activeProviderId?: string | null;
+  activeProviderGroup?: string | null;
   localProxyRunning?: boolean;
   capabilities?: string[];
 }
@@ -65,6 +66,7 @@ interface RemoteDeviceStatus {
   activeAccountId?: string | null;
   openaiAuthAccountId?: string | null;
   activeProviderId?: string | null;
+  activeProviderGroup?: string | null;
   localProxyRunning: boolean;
   capabilities: string[];
   lastSeenAt: string;
@@ -75,6 +77,7 @@ type RemoteCommand =
   | { type: 'switch-account'; accountId: string }
   | { type: 'set-openai-auth-account'; accountId: string }
   | { type: 'switch-provider'; providerId: string }
+  | { type: 'switch-provider-group'; group: string }
   | { type: 'restart-codex' };
 
 interface PendingCommand {
@@ -201,6 +204,10 @@ export class DeviceGateway implements OnGatewayConnection, OnGatewayDisconnect {
     await this.pushCommand(ownerId, deviceId, { type: 'switch-provider', providerId });
   }
 
+  async pushProviderGroupSwitch(ownerId: string, deviceId: string, group: string) {
+    await this.pushCommand(ownerId, deviceId, { type: 'switch-provider-group', group });
+  }
+
   async pushCodexRestart(ownerId: string, deviceId: string) {
     await this.pushCommand(ownerId, deviceId, { type: 'restart-codex' });
   }
@@ -279,6 +286,7 @@ export class DeviceGateway implements OnGatewayConnection, OnGatewayDisconnect {
       activeAccountId: message.activeAccountId,
       openaiAuthAccountId: message.openaiAuthAccountId,
       activeProviderId: message.activeProviderId,
+      activeProviderGroup: message.activeProviderGroup,
       localProxyRunning: message.localProxyRunning,
       capabilities: normalizeCapabilities(message.capabilities),
     });
@@ -336,6 +344,7 @@ export class DeviceGateway implements OnGatewayConnection, OnGatewayDisconnect {
       activeAccountId?: string | null;
       openaiAuthAccountId?: string | null;
       activeProviderId?: string | null;
+      activeProviderGroup?: string | null;
       localProxyRunning?: boolean;
       capabilities?: string[];
       lastSeenAt?: Date | string;
@@ -353,6 +362,7 @@ export class DeviceGateway implements OnGatewayConnection, OnGatewayDisconnect {
       activeAccountId: device.activeAccountId,
       openaiAuthAccountId: device.openaiAuthAccountId,
       activeProviderId: device.activeProviderId,
+      activeProviderGroup: device.activeProviderGroup,
       localProxyRunning: device.localProxyRunning ?? false,
       capabilities: normalizeCapabilities(device.capabilities),
       lastSeenAt,
@@ -377,7 +387,11 @@ export class DeviceGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 }
 
-const REMOTE_CONTROL_CAPABILITIES = new Set(['provider-switch', 'restart-codex']);
+const REMOTE_CONTROL_CAPABILITIES = new Set([
+  'provider-switch',
+  'provider-group-switch',
+  'restart-codex',
+]);
 
 function normalizeCapabilities(value: string[] | undefined) {
   if (!Array.isArray(value)) return [];

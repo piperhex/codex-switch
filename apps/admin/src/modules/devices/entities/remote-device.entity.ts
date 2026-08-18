@@ -39,6 +39,9 @@ export class RemoteDeviceEntity {
   @Column({ type: 'varchar', length: 64, nullable: true })
   activeProviderId: string | null;
 
+  @Column({ type: 'varchar', length: 80, nullable: true })
+  activeProviderGroup: string | null;
+
   @Column({ type: 'boolean', default: false })
   localProxyRunning: boolean;
 

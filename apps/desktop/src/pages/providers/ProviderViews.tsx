@@ -21,6 +21,7 @@ import {
   persistHiddenColumns,
   type ProviderTableColumnKey,
 } from "./providerUtils";
+import { ProviderGroupCell, ProviderGroupToolbar } from "./ProviderGroupControls";
 
 interface ProviderViewProps {
   providers: Provider[];
@@ -32,10 +33,12 @@ interface ProviderViewProps {
   language: Language;
   usageForProvider: (provider: Provider) => ProviderTokenUsageTotals | undefined;
   onSwitch: (id: string) => void;
+  onSwitchGroup: (group: string) => void;
   onDeactivate: (id: string) => void;
   onStartProxy: () => void;
   onSwitchModel: (id: string, model: string) => void;
   onModelControlChange: (id: string, controlledByCodex: boolean) => void;
+  onGroupChange: (id: string, group: string) => void;
   onAutoSwitchChange: (id: string, enabled: boolean) => void;
   onDelete: (id: string) => void;
   onEdit: (provider: Provider) => void;
@@ -173,6 +176,11 @@ function buildColumns(options: ProviderViewProps): ColumnsType<Provider> {
       </div>,
     },
     {
+      title: t("providers.table.group"), key: "group", dataIndex: "group", width: 150,
+      render: (_, provider) => <ProviderGroupCell provider={provider} providers={options.providers}
+        busy={busyProviderId === provider.id} onChange={options.onGroupChange} t={t} />,
+    },
+    {
       title: t("providers.table.model"), key: "model", dataIndex: "model", width: 260,
       render: (_, provider) => <ProviderModelCell provider={provider}
         busy={busyProviderId === provider.id} onSwitchModel={onSwitchModel} t={t} />,
@@ -221,6 +229,7 @@ export function ProviderTableView(options: ProviderTableProps) {
     !isProviderTableColumnKey(column.key) || !hiddenColumnSet.has(column.key));
   const columnSettings: { key: ProviderTableColumnKey; label: string }[] = [
     { key: "provider", label: t("providers.table.provider") },
+    { key: "group", label: t("providers.table.group") },
     { key: "model", label: t("providers.table.model") },
     { key: "api", label: t("providers.table.api") },
     { key: "modelControl", label: t("providers.table.modelControl") },
@@ -252,6 +261,8 @@ export function ProviderTableView(options: ProviderTableProps) {
   return <div className="provider-table-wrap">
     <div className="provider-table-toolbar">
       <ProviderProxyModeWarning options={options} />
+      <ProviderGroupToolbar providers={providers} busyProviderId={options.busyProviderId}
+        proxyRunning={options.proxyRunning} onSwitchGroup={options.onSwitchGroup} t={t} />
       {options.proxyRunning && (
         <ProviderImageModelControls {...options} />
       )}
@@ -355,6 +366,8 @@ function ProviderCard({ provider, options }: { provider: Provider; options: Prov
     <div className="provider-card-details">
       <div><span>{t("providers.table.model")}</span><ProviderModelCell provider={provider}
         busy={waiting} onSwitchModel={onSwitchModel} t={t} /></div>
+      <div><span>{t("providers.table.group")}</span><ProviderGroupCell provider={provider}
+        providers={options.providers} busy={waiting} onChange={options.onGroupChange} t={t} /></div>
       <div><span>{t("providers.table.api")}</span>{apiFormatTag(provider, t)}</div>
       <div><span>{t("providers.table.modelControl")}</span><ProviderModelControlCell provider={provider}
         busy={waiting} onModelControlChange={onModelControlChange} t={t} /></div>
@@ -370,6 +383,8 @@ function ProviderCard({ provider, options }: { provider: Provider; options: Prov
 export function ProviderCardView(options: ProviderViewProps) {
   return <>
     <ProviderProxyModeWarning options={options} cardView />
+    <ProviderGroupToolbar providers={options.providers} busyProviderId={options.busyProviderId}
+      proxyRunning={options.proxyRunning} onSwitchGroup={options.onSwitchGroup} t={options.t} />
     {options.proxyRunning && (
       <div className="provider-card-image-model-toolbar">
         <ProviderImageModelControls {...options} />

@@ -301,6 +301,7 @@ function readPreviewProviders(): Provider[] {
       return {
         ...provider,
         kind,
+        group: kind === "custom" && typeof provider.group === "string" ? provider.group.trim() : "",
         model: models.includes(selectedModel) ? selectedModel : (models[0] ?? ""),
         models,
         modelReasoningEfforts: normalizeModelReasoningEfforts(models, provider.modelReasoningEfforts),
@@ -546,6 +547,7 @@ export async function saveProviderProfile(provider: ProviderInput): Promise<Prov
       id: existing?.id ?? provider.id ?? previewProviderId(),
       kind,
       name: provider.name.trim(),
+      group: kind === "custom" ? provider.group?.trim() || existing?.group || "" : "",
       baseUrl: provider.baseUrl.trim().replace(/\/+$/, ""),
       model,
       models,
@@ -760,6 +762,28 @@ export async function activateProvider(id: string): Promise<void> {
   await invoke("switch_provider", { id });
 }
 
+export async function activateProviderGroup(group: string): Promise<void> {
+  const normalizedGroup = group.trim();
+  if (!normalizedGroup) throw new Error("Select a Provider group");
+  if (!hasLocalBackend) {
+    const providers = readPreviewProviders();
+    if (!providers.some((provider) => provider.kind === "custom" && provider.group === normalizedGroup)) {
+      throw new Error("Provider group does not contain any available APIs");
+    }
+    if (!previewLocalProxyStatus().running) {
+      throw new Error(
+        "Third-party Providers require the local proxy. Start the local proxy before switching Provider.",
+      );
+    }
+    writePreviewProviders(providers.map((provider) => ({
+      ...provider,
+      active: provider.kind === "custom" && provider.group === normalizedGroup,
+    })));
+    return;
+  }
+  await invoke("switch_provider_group", { group: normalizedGroup });
+}
+
 export async function switchProviderModel(id: string, model: string): Promise<Provider> {
   if (!hasLocalBackend) {
     const providers = readPreviewProviders();
@@ -789,6 +813,20 @@ export async function setProviderModelControl(id: string, controlledByCodex: boo
     return providers[index];
   }
   return invoke<Provider>("set_provider_model_control", { id, controlledByCodex });
+}
+
+export async function setProviderGroup(id: string, group: string): Promise<Provider> {
+  const normalizedGroup = group.trim();
+  if (!hasLocalBackend) {
+    const providers = readPreviewProviders();
+    const index = providers.findIndex((provider) => provider.id === id);
+    if (index < 0) throw new Error("Provider does not exist");
+    if (providers[index].kind !== "custom") throw new Error("Only third-party Providers can be grouped");
+    providers[index] = { ...providers[index], group: normalizedGroup };
+    writePreviewProviders(providers);
+    return providers[index];
+  }
+  return invoke<Provider>("set_provider_group", { id, group: normalizedGroup });
 }
 
 export async function setProviderAutoSwitchEnabled(id: string, enabled: boolean): Promise<void> {

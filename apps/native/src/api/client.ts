@@ -487,6 +487,7 @@ export async function fetchRemoteDevices(session: AuthSession): Promise<RemoteDe
   return (payload as { devices: RemoteDevice[] }).devices.map((device) => ({
     ...device,
     activeProviderId: device.activeProviderId ?? null,
+    activeProviderGroup: device.activeProviderGroup ?? null,
     localProxyRunning: device.localProxyRunning === true,
     capabilities: Array.isArray(device.capabilities) ? device.capabilities : [],
   }));
@@ -501,7 +502,10 @@ export async function fetchRemoteProviders(
   if (!payload || typeof payload !== 'object' || !Array.isArray((payload as { providers?: unknown }).providers)) {
     throw new ApiError('服务器返回的 Provider 数据无效');
   }
-  return (payload as { providers: RemoteProviderSummary[] }).providers;
+  return (payload as { providers: RemoteProviderSummary[] }).providers.map((provider) => ({
+    ...provider,
+    group: typeof provider.group === 'string' ? provider.group : '',
+  }));
 }
 
 export async function deleteRemoteDevice(session: AuthSession, deviceId: string): Promise<void> {
@@ -535,6 +539,24 @@ export async function switchRemoteDeviceProvider(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ providerId }),
   });
+  if (!response.ok) throw new ApiError(await parseError(response), response.status);
+  return response.json() as Promise<RemoteModelSwitchResult>;
+}
+
+export async function switchRemoteDeviceProviderGroup(
+  session: AuthSession,
+  deviceId: string,
+  group: string,
+): Promise<RemoteModelSwitchResult> {
+  const response = await authorizedRequest(
+    session,
+    `/devices/${encodeURIComponent(deviceId)}/provider-group`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ group }),
+    },
+  );
   if (!response.ok) throw new ApiError(await parseError(response), response.status);
   return response.json() as Promise<RemoteModelSwitchResult>;
 }

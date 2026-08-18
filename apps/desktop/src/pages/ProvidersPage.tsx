@@ -38,9 +38,11 @@ interface ProvidersPageProps {
   onStartProxy: () => void;
   onSave: (provider: ProviderInput) => Promise<Provider | null>;
   onSwitch: (id: string) => void;
+  onSwitchGroup: (group: string) => void;
   onDeactivate: (id: string) => void;
   onSwitchModel: (id: string, model: string) => void;
   onModelControlChange: (id: string, controlledByCodex: boolean) => void;
+  onGroupChange: (id: string, group: string) => void;
   onAutoSwitchChange: (id: string, enabled: boolean) => void;
   onDelete: (id: string) => void;
   onDeleteMany: (ids: string[]) => Promise<string[]>;
@@ -64,9 +66,11 @@ export function ProvidersPage({
   onStartProxy,
   onSave,
   onSwitch,
+  onSwitchGroup,
   onDeactivate,
   onSwitchModel,
   onModelControlChange,
+  onGroupChange,
   onAutoSwitchChange,
   onDelete,
   onDeleteMany,
@@ -168,10 +172,12 @@ export function ProvidersPage({
     language,
     usageForProvider,
     onSwitch,
+    onSwitchGroup,
     onDeactivate,
     onStartProxy,
     onSwitchModel,
     onModelControlChange,
+    onGroupChange,
     onAutoSwitchChange,
     onDelete,
     onEdit: openEdit,

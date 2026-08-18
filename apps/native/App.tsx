@@ -43,6 +43,7 @@ import {
   setRemoteDeviceOpenAiAuthAccount,
   switchRemoteDeviceAccount,
   switchRemoteDeviceProvider,
+  switchRemoteDeviceProviderGroup,
 } from './src/api/client';
 import type {
   AccountSummary,
@@ -186,6 +187,7 @@ function remoteModelLabel(
   activeAccount: AccountSummary | undefined,
   activeProvider: RemoteProviderSummary | undefined,
 ) {
+  if (device.activeProviderGroup) return `分组 · ${device.activeProviderGroup}`;
   if (!device.activeProviderId) {
     return activeAccount ? `官方 · ${activeAccount.email}` : '未选择';
   }
@@ -202,6 +204,7 @@ function applyRemoteModelSwitch(
       ...device,
       activeAccountId: result.activeAccountId ?? device.activeAccountId,
       activeProviderId: result.activeProviderId ?? null,
+      activeProviderGroup: result.activeProviderGroup ?? null,
       online: result.online,
       lastSeenAt: new Date().toISOString(),
     }
@@ -827,6 +830,7 @@ function DeviceManagementPage({
   onDelete,
   onSwitchAccount,
   onSwitchProvider,
+  onSwitchProviderGroup,
   onSetOpenAiAuthAccount,
 }: {
   accounts: AccountSummary[];
@@ -841,6 +845,7 @@ function DeviceManagementPage({
   onDelete: (deviceId: string) => Promise<void>;
   onSwitchAccount: (deviceId: string, accountId: string) => Promise<boolean>;
   onSwitchProvider: (deviceId: string, providerId: string) => Promise<boolean>;
+  onSwitchProviderGroup: (deviceId: string, group: string) => Promise<boolean>;
   onSetOpenAiAuthAccount: (deviceId: string, accountId: string) => Promise<boolean>;
 }) {
   const [openAiAuthDeviceId, setOpenAiAuthDeviceId] = useState<string | null>(null);
@@ -1088,6 +1093,7 @@ function DeviceManagementPage({
       onClose={() => setModelDeviceId(null)}
       onSwitchAccount={onSwitchAccount}
       onSwitchProvider={onSwitchProvider}
+      onSwitchProviderGroup={onSwitchProviderGroup}
     />
   </>;
 }
@@ -2106,6 +2112,27 @@ function AppContent() {
     }
   }, [promptModelRestart, session, switchingProvider]);
 
+  const handleRemoteProviderGroupSwitch = useCallback(async (
+    deviceId: string,
+    group: string,
+  ): Promise<boolean> => {
+    if (!session || switchingProvider) return false;
+    setSwitchingProvider({ deviceId, providerId: `group:${group}` });
+    try {
+      const result = await switchRemoteDeviceProviderGroup(session, deviceId, group);
+      setDevices((current) => applyRemoteModelSwitch(current, result));
+      Toast.success(`PC 端已启动分组“${group}”`);
+      if (result.requiresRestart) setTimeout(() => promptModelRestart(deviceId), 0);
+      return true;
+    } catch (error) {
+      Toast.fail(`切换失败：${errorMessage(error)}`);
+      void fetchRemoteDevices(session).then(setDevices).catch(() => undefined);
+      return false;
+    } finally {
+      setSwitchingProvider(null);
+    }
+  }, [promptModelRestart, session, switchingProvider]);
+
   const handleSetOpenAiAuthAccount = useCallback(async (
     deviceId: string,
     accountId: string,
@@ -2185,6 +2212,7 @@ function AppContent() {
           switchingOpenAiAuth={switchingOpenAiAuth} onRefresh={refreshServerData}
           onDelete={handleDeleteDevice} onSwitchAccount={handleRemoteSwitch}
           onSwitchProvider={handleRemoteProviderSwitch}
+          onSwitchProviderGroup={handleRemoteProviderGroupSwitch}
           onSetOpenAiAuthAccount={handleSetOpenAiAuthAccount} />
         : activePage === 'totp'
           ? <TotpPage manager={totpManager} />

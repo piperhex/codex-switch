@@ -37,6 +37,11 @@ enum ServerMessage {
         #[serde(rename = "providerId")]
         provider_id: String,
     },
+    SwitchProviderGroup {
+        #[serde(rename = "commandId")]
+        command_id: String,
+        group: String,
+    },
     RestartCodex {
         #[serde(rename = "commandId")]
         command_id: String,
@@ -77,8 +82,9 @@ fn run_connection<R: Runtime>(
                 "activeAccountId": config.active_account_id,
                 "openaiAuthAccountId": config.openai_auth_account_id,
                 "activeProviderId": config.active_provider_id,
+                "activeProviderGroup": config.active_provider_group,
                 "localProxyRunning": config.local_proxy_running,
-                "capabilities": ["provider-switch", "restart-codex"],
+                "capabilities": ["provider-switch", "provider-group-switch", "restart-codex"],
             })
             .to_string()
             .into(),
@@ -104,6 +110,9 @@ fn run_connection<R: Runtime>(
                         command_id,
                         provider_id,
                     } => handle_provider_switch(app, &mut socket, command_id, provider_id)?,
+                    ServerMessage::SwitchProviderGroup { command_id, group } => {
+                        handle_provider_group_switch(app, &mut socket, command_id, group)?
+                    }
                     ServerMessage::RestartCodex { command_id } => {
                         handle_codex_restart(app, &mut socket, command_id)?
                     }
@@ -136,6 +145,7 @@ fn run_connection<R: Runtime>(
                 || next.active_account_id != config.active_account_id
                 || next.openai_auth_account_id != config.openai_auth_account_id
                 || next.active_provider_id != config.active_provider_id
+                || next.active_provider_group != config.active_provider_group
                 || next.local_proxy_running != config.local_proxy_running
         }) {
             let _ = socket.close(None);
@@ -177,6 +187,16 @@ fn handle_provider_switch<R: Runtime>(
 ) -> Result<(), String> {
     let result = crate::providers::switch_provider_blocking(app.clone(), provider_id);
     send_command_result(socket, command_id, result, "Provider switch")
+}
+
+fn handle_provider_group_switch<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    socket: &mut WebSocket<MaybeTlsStream<TcpStream>>,
+    command_id: String,
+    group: String,
+) -> Result<(), String> {
+    let result = crate::providers::switch_provider_group_blocking(app.clone(), group);
+    send_command_result(socket, command_id, result, "Provider group switch")
 }
 
 fn handle_codex_restart<R: Runtime>(
@@ -240,6 +260,16 @@ mod tests {
                 command_id,
                 provider_id,
             } if command_id == "command-1" && provider_id == "provider-1"
+        ));
+
+        let group = serde_json::from_str::<ServerMessage>(
+            r#"{"type":"switch-provider-group","commandId":"command-g","group":"Work"}"#,
+        )
+        .expect("Provider group command should deserialize");
+        assert!(matches!(
+            group,
+            ServerMessage::SwitchProviderGroup { command_id, group }
+                if command_id == "command-g" && group == "Work"
         ));
 
         let restart = serde_json::from_str::<ServerMessage>(

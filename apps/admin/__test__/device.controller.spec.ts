@@ -173,6 +173,36 @@ describe('DeviceController', () => {
     expect(result.requiresRestart).toBe(false);
   });
 
+  it('starts every API in a Provider group on the remote desktop', async () => {
+    const devices = {
+      getOwned: vi.fn().mockResolvedValue({
+        deviceId: 'device-1',
+        activeAccountId: 'account-1',
+        activeProviderId: null,
+        activeProviderGroup: null,
+        localProxyRunning: true,
+        capabilities: ['provider-group-switch'],
+      }),
+      assertProviderGroupAvailable: vi.fn().mockResolvedValue(undefined),
+      setActiveProviderGroup: vi.fn().mockResolvedValue({
+        deviceId: 'device-1',
+        activeAccountId: 'account-1',
+        activeProviderId: null,
+        activeProviderGroup: '工作',
+      }),
+    };
+    const gateway = { pushProviderGroupSwitch: vi.fn().mockResolvedValue(undefined) };
+    const controller = new DeviceController(
+      devices as unknown as DeviceControlService,
+      gateway as unknown as DeviceGateway,
+    );
+
+    await expect(controller.switchProviderGroup(user, 'device-1', { group: ' 工作 ' }))
+      .resolves.toMatchObject({ activeProviderGroup: '工作', requiresRestart: true });
+    expect(devices.assertProviderGroupAvailable).toHaveBeenCalledWith(user.id, '工作');
+    expect(gateway.pushProviderGroupSwitch).toHaveBeenCalledWith(user.id, 'device-1', '工作');
+  });
+
   it('rejects provider switching when the desktop capability is unavailable', async () => {
     const devices = {
       getOwned: vi.fn().mockResolvedValue({

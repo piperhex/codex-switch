@@ -125,6 +125,7 @@ interface AccountMergeResult {
 type ProviderFieldModifiedAt = {
   kind: string;
   name: string;
+  group: string;
   baseUrl: string;
   apiKey: string;
   model: string;
@@ -1219,6 +1220,7 @@ export class SyncService {
       id: row.providerId,
       kind: row.kind ?? 'custom',
       name: row.name,
+      group: row.group ?? '',
       baseUrl: row.baseUrl,
       apiKey: row.apiKey,
       model: row.model,
@@ -1257,6 +1259,7 @@ export class SyncService {
     const incomingValues: Record<keyof ProviderFieldModifiedAt, unknown> = {
       kind: incoming.kind ?? 'custom',
       name: incoming.name,
+      group: incoming.group?.trim() ?? '',
       baseUrl: incoming.baseUrl,
       apiKey: incoming.apiKey,
       model: incoming.model,
@@ -1304,6 +1307,7 @@ export class SyncService {
     const mergedValues: Record<keyof ProviderFieldModifiedAt, unknown> = {
       kind: existing.kind,
       name: existing.name,
+      group: existing.group ?? '',
       baseUrl: existing.baseUrl,
       apiKey: existing.apiKey,
       model: existing.model,
@@ -1350,7 +1354,7 @@ export class SyncService {
     const defaultValue = this.formatLastModifiedAt(this.parseLastModifiedAt(fallback));
     const normalized = {} as ProviderFieldModifiedAt;
     for (const key of [
-      'kind', 'name', 'baseUrl', 'apiKey', 'model', 'models', 'modelReasoningEfforts',
+      'kind', 'name', 'group', 'baseUrl', 'apiKey', 'model', 'models', 'modelReasoningEfforts',
       'modelContextWindows',
       'imageInputModels', 'contextWindow',
       'modelSelectionControlledByCodex', 'apiFormat', 'balancePlatform',

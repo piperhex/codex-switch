@@ -25,6 +25,7 @@ import {
   startEmbeddedAccountOAuth,
   switchRemoteDeviceAccount,
   switchRemoteDeviceProvider,
+  switchRemoteDeviceProviderGroup,
   syncTotpVault,
   updateAccountDetails,
 } from './client';
@@ -234,7 +235,7 @@ describe('mobile Codex API client', () => {
   });
 
   it('loads safe provider summaries from the cloud API', async () => {
-    const providers = [{ id: 'provider-1', name: 'Gateway', model: 'model-a' }];
+    const providers = [{ id: 'provider-1', name: 'Gateway', model: 'model-a', group: '工作' }];
     const apiFetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ providers }), {
       status: 200,
     }));
@@ -259,23 +260,34 @@ describe('mobile Codex API client', () => {
       requiresRestart: true,
       online: true,
     };
+    const groupResult = {
+      ...providerResult,
+      activeProviderId: null,
+      activeProviderGroup: '工作',
+    };
     const apiFetch = vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify(officialResult), { status: 200 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify(providerResult), { status: 200 }));
+      .mockResolvedValueOnce(new Response(JSON.stringify(providerResult), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(groupResult), { status: 200 }));
     vi.stubGlobal('fetch', apiFetch);
 
     await expect(switchRemoteDeviceAccount(session, 'device/1', 'account-2'))
       .resolves.toEqual(officialResult);
     await expect(switchRemoteDeviceProvider(session, 'device/1', 'provider-1'))
       .resolves.toEqual(providerResult);
+    await expect(switchRemoteDeviceProviderGroup(session, 'device/1', '工作'))
+      .resolves.toEqual(groupResult);
     expect(apiFetch.mock.calls.map((call) => call[0])).toEqual([
       'https://switch.example.com/devices/device%2F1/account',
       'https://switch.example.com/devices/device%2F1/provider',
+      'https://switch.example.com/devices/device%2F1/provider-group',
     ]);
     expect(JSON.parse((apiFetch.mock.calls[0]?.[1] as RequestInit).body as string))
       .toEqual({ accountId: 'account-2' });
     expect(JSON.parse((apiFetch.mock.calls[1]?.[1] as RequestInit).body as string))
       .toEqual({ providerId: 'provider-1' });
+    expect(JSON.parse((apiFetch.mock.calls[2]?.[1] as RequestInit).body as string))
+      .toEqual({ group: '工作' });
   });
 
   it('restarts Codex on the selected remote desktop', async () => {

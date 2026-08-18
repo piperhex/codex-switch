@@ -31,6 +31,9 @@ export class SyncedProviderEntity {
   @Column({ type: 'varchar', length: 160 })
   name: string;
 
+  @Column({ type: 'varchar', length: 80, default: '' })
+  group: string;
+
   @Column({ type: 'varchar', length: 500 })
   baseUrl: string;
 

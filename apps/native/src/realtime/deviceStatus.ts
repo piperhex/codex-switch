@@ -107,6 +107,9 @@ function remoteDevice(value: unknown): RemoteDevice | null {
       ? device.openaiAuthAccountId
       : null,
     activeProviderId: typeof device.activeProviderId === 'string' ? device.activeProviderId : null,
+    activeProviderGroup: typeof device.activeProviderGroup === 'string'
+      ? device.activeProviderGroup
+      : null,
     localProxyRunning: device.localProxyRunning === true,
     capabilities: remoteControlCapabilities(device.capabilities),
     lastSeenAt: device.lastSeenAt,
@@ -117,6 +120,8 @@ function remoteDevice(value: unknown): RemoteDevice | null {
 function remoteControlCapabilities(value: unknown): RemoteDevice['capabilities'] {
   if (!Array.isArray(value)) return [];
   return value.filter((capability): capability is RemoteDevice['capabilities'][number] => (
-    capability === 'provider-switch' || capability === 'restart-codex'
+    capability === 'provider-switch'
+    || capability === 'provider-group-switch'
+    || capability === 'restart-codex'
   ));
 }

@@ -503,7 +503,8 @@ fn should_activate_import(
     activate
         || (!current_auth_exists
             && state.active_account_id.is_none()
-            && state.active_provider_id.is_none())
+            && state.active_provider_id.is_none()
+            && state.active_provider_group.is_none())
 }
 
 fn should_sync_current_as_active(
@@ -513,6 +514,7 @@ fn should_sync_current_as_active(
     proxy_running: bool,
 ) -> bool {
     state.active_provider_id.is_none()
+        && state.active_provider_group.is_none()
         && !state.local_proxy_enabled
         && !proxy_running
         && state.active_account_id.as_deref() != Some(id)

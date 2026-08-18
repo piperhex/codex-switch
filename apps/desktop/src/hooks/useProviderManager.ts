@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   activateProvider,
+  activateProviderGroup,
   copyLocalProxyLanApiKey,
   deactivateProvider,
   loadLocalProxyStatus,
@@ -17,6 +18,7 @@ import {
   setLocalProxyAutoSwitch,
   setLocalProxyConcurrentRouting,
   setProviderModelControl,
+  setProviderGroup,
   setProviderAutoSwitchEnabled,
   startLocalProxy,
   stopLocalProxy,
@@ -82,6 +84,10 @@ function providerErrorMessage(error: unknown, t: Translate) {
   }
   if (message.includes("Official Codex local proxy requires")) return t("providers.error.officialProxyAuthRequired");
   if (message.includes("Provider id is invalid")) return t("providers.error.providerIdInvalid");
+  if (message.includes("Stop the active Provider group")) return t("providers.error.stopGroupFirst");
+  if (message.includes("Provider group does not contain")) return t("providers.error.groupEmpty");
+  if (message.includes("Select a Provider group")) return t("providers.error.groupRequired");
+  if (message.includes("unique API and model names")) return t("providers.error.groupModelDuplicate");
   if (message.includes("Provider balance query token is required")) {
     return t("providers.error.balanceTokenRequired");
   }
@@ -209,6 +215,21 @@ export function useProviderManager(
     }
   }, [load, notify, providers, t]);
 
+  const switchProviderGroup = useCallback(async (group: string) => {
+    setBusyProviderId(`group:${group}`);
+    try {
+      await activateProviderGroup(group);
+      notify(t("toast.providerGroupSwitched", { group }));
+      await load();
+      return true;
+    } catch (error) {
+      notify(providerErrorMessage(error, t));
+      return false;
+    } finally {
+      setBusyProviderId(null);
+    }
+  }, [load, notify, t]);
+
   const cancelProviderUse = useCallback(async (id: string) => {
     setBusyProviderId(id);
     try {
@@ -241,6 +262,20 @@ export function useProviderManager(
     try {
       await setProviderModelControl(id, controlledByCodex);
       notify(t("toast.providerModelControlSaved"));
+      await load();
+      await cloudSync?.pushProvider?.(id);
+    } catch (error) {
+      notify(providerErrorMessage(error, t));
+    } finally {
+      setBusyProviderId(null);
+    }
+  }, [cloudSync, load, notify, t]);
+
+  const changeProviderGroup = useCallback(async (id: string, group: string) => {
+    setBusyProviderId(id);
+    try {
+      await setProviderGroup(id, group);
+      notify(t(group.trim() ? "toast.providerGroupSaved" : "toast.providerGroupCleared"));
       await load();
       await cloudSync?.pushProvider?.(id);
     } catch (error) {
@@ -531,9 +566,11 @@ export function useProviderManager(
     activeProvider: providers.find((provider) => provider.active) ?? null,
     saveProvider,
     switchProvider,
+    switchProviderGroup,
     cancelProviderUse,
     switchModel,
     setModelControl,
+    changeProviderGroup,
     setProviderAutoSwitch,
     deleteProvider,
     deleteProviders,

@@ -24,6 +24,7 @@ export function makeProvider(overrides: Partial<SyncProviderDto> = {}): SyncProv
     id: 'provider-1',
     kind: 'custom',
     name: 'Gateway',
+    group: '',
     baseUrl: 'https://gateway.example.com/v1',
     apiKey: 'sk-provider-secret',
     model: 'gpt-4.1',
@@ -38,6 +39,7 @@ export function makeProvider(overrides: Partial<SyncProviderDto> = {}): SyncProv
     fieldModifiedAt: {
       kind: '2026-07-05T00:00:00.000Z',
       name: '2026-07-05T00:00:00.000Z',
+      group: '2026-07-05T00:00:00.000Z',
       baseUrl: '2026-07-05T00:00:00.000Z',
       apiKey: '2026-07-05T00:00:00.000Z',
       model: '2026-07-05T00:00:00.000Z',

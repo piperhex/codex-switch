@@ -71,6 +71,7 @@ fn import_url<R: Runtime>(app: &AppHandle<R>, url: &Url) -> Result<(), String> {
         id: None,
         kind,
         name,
+        group: String::new(),
         base_url: endpoint,
         api_key: Some(api_key),
         model,

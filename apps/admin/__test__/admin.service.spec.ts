@@ -276,6 +276,7 @@ describe('AdminService', () => {
         id: provider.id,
         kind: provider.kind,
         name: provider.name,
+        group: provider.group,
         baseUrl: provider.baseUrl,
         model: provider.model,
         models: provider.models,

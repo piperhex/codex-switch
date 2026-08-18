@@ -62,6 +62,7 @@ import {
   signOut,
   switchDeviceAccount,
   switchDeviceProvider,
+  switchDeviceProviderGroup,
 } from "./store";
 import type { AccountSummary, AppPage, RemoteDevice, ResetCredit, UsageWindow } from "./types";
 import { AdaptiveSheet } from "./components/AdaptiveSheet";
@@ -457,6 +458,19 @@ function DevicesPage() {
     }
   };
 
+  const switchProviderGroup = async (deviceId: string, group: string) => {
+    try {
+      const result = await dispatch(switchDeviceProviderGroup({ deviceId, group })).unwrap();
+      Toast.show({ icon: "success", content: `已启动分组“${group}”` });
+      if (result.result.requiresRestart) {
+        window.setTimeout(() => void promptModelRestart(deviceId), 0);
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
   return <>
     <PullToRefresh onRefresh={performRefresh} renderText={(status) => PULL_REFRESH_TEXT[status]}>
       <div className="page-body devices-page">
@@ -477,9 +491,13 @@ function DevicesPage() {
             const activeAccount = accounts.find((item) => item.id === device.activeAccountId);
             const activeProvider = providers.find((item) => item.id === device.activeProviderId);
             const authAccount = accounts.find((item) => item.id === device.openaiAuthAccountId);
-            const currentModel = device.activeProviderId
-              ? `${activeProvider?.name || "第三方 Provider"}${activeProvider?.model ? ` · ${activeProvider.model}` : ""}`
-              : activeAccount ? `官方 · ${activeAccount.email}` : "未选择";
+            const currentModel = device.activeProviderGroup
+              ? `分组 · ${device.activeProviderGroup}`
+              : device.activeProviderId
+                ? `${activeProvider?.name || "第三方 Provider"}${
+                  activeProvider?.model ? ` · ${activeProvider.model}` : ""
+                }`
+                : activeAccount ? `官方 · ${activeAccount.email}` : "未选择";
             return <Card key={device.deviceId} className={`device-card ${device.online ? "online" : "offline"}`}>
               <div className="device-card-header"><span className="device-platform"><Laptop size={22} /></span>
                 <div><h3>{device.name}</h3>
@@ -522,6 +540,7 @@ function DevicesPage() {
       onClose={() => setModelDeviceId(null)}
       onSwitchAccount={switchOfficialModel}
       onSwitchProvider={switchProviderModel}
+      onSwitchProviderGroup={switchProviderGroup}
     />
     <AdaptiveSheet open={Boolean(authDevice)} title="代理登录态账号"
       subtitle={authDevice ? `${authDevice.name} · 选择后会重启 ChatGPT/Codex` : undefined}

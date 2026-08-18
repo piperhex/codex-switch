@@ -1,4 +1,4 @@
-use std::{fs, io::Read, path::PathBuf, time::Duration};
+use std::{collections::HashSet, fs, io::Read, path::PathBuf, time::Duration};
 
 use reqwest::blocking::Client;
 use serde::Deserialize;
@@ -70,6 +70,23 @@ fn refresh_codex_models_best_effort(provider: &ProviderProfile) {
         model_reasoning_efforts,
         selected_model,
         reasoning_effort_profile(provider),
+    );
+}
+
+fn refresh_codex_group_models_best_effort(providers: &[ProviderProfile]) {
+    if !crate::local_proxy::is_running() {
+        return;
+    }
+    let catalog = provider_group_catalog_data(providers);
+    let Some(selected_model) = catalog.models.first().cloned() else {
+        return;
+    };
+    crate::codex_runtime::refresh_models(
+        catalog.models,
+        catalog.image_input_models,
+        catalog.reasoning_efforts,
+        selected_model,
+        ReasoningEffortProfile::Standard,
     );
 }
 
@@ -163,6 +180,12 @@ pub(crate) fn refresh_codex_models_for_current_target(paths: &Paths) {
         return;
     }
     let state = read_state(paths);
+    if let Some(group) = state.active_provider_group.as_deref() {
+        if let Ok(providers) = provider_group_profiles(paths, group) {
+            refresh_codex_group_models_best_effort(&providers);
+        }
+        return;
+    }
     let Some(id) = state.active_provider_id.as_deref() else {
         refresh_official_codex_models_for_paths(paths);
         return;
@@ -192,6 +215,8 @@ pub(crate) struct ProviderInput {
     #[serde(default)]
     pub(crate) kind: ProviderKind,
     pub(crate) name: String,
+    #[serde(default)]
+    pub(crate) group: String,
     pub(crate) base_url: String,
     pub(crate) api_key: Option<String>,
     pub(crate) model: String,
@@ -237,9 +262,13 @@ pub(crate) fn list_providers<R: Runtime>(
     let mut providers = list_provider_profiles(&paths)?
         .into_iter()
         .map(|provider| {
+            let active_in_group = state
+                .active_provider_group
+                .as_deref()
+                .is_some_and(|group| !provider.group.is_empty() && provider.group == group);
             provider_summary(
                 &provider,
-                state.active_provider_id.as_deref() == Some(&provider.id),
+                active_in_group || state.active_provider_id.as_deref() == Some(&provider.id),
                 state.auto_switch_provider_id.as_deref() == Some(&provider.id),
             )
         })
@@ -270,6 +299,14 @@ pub(crate) fn save_provider<R: Runtime>(
     };
     let kind = provider.kind;
     let name = require_non_empty("Provider name", &provider.name)?;
+    let group = if provider.group.trim().is_empty() {
+        existing
+            .as_ref()
+            .map(|value| value.group.clone())
+            .unwrap_or_default()
+    } else {
+        normalize_provider_group(&provider.group)?
+    };
     let base_url = normalize_base_url(&provider.base_url)?;
     let model = if kind == ProviderKind::OpenAi && provider.model.trim().is_empty() {
         DEFAULT_OFFICIAL_MODEL
@@ -330,6 +367,7 @@ pub(crate) fn save_provider<R: Runtime>(
         id,
         kind,
         name,
+        group,
         base_url,
         api_key,
         model,
@@ -355,11 +393,16 @@ pub(crate) fn save_provider<R: Runtime>(
     if state.active_provider_id.as_deref() == Some(&profile.id) {
         write_active_provider_config(&paths, &profile)?;
         refresh_codex_models_best_effort(&profile);
+    } else if state.active_provider_group.as_deref() == Some(profile.group.as_str()) {
+        let group_providers = provider_group_profiles(&paths, &profile.group)?;
+        write_provider_group_local_proxy_config(&paths, &profile.group, &group_providers)?;
+        refresh_codex_group_models_best_effort(&group_providers);
     }
     emit_providers_changed(&app)?;
     Ok(provider_summary(
         &profile,
-        state.active_provider_id.as_deref() == Some(&profile.id),
+        state.active_provider_id.as_deref() == Some(&profile.id)
+            || state.active_provider_group.as_deref() == Some(profile.group.as_str()),
         state.auto_switch_provider_id.as_deref() == Some(&profile.id),
     ))
 }
@@ -807,6 +850,48 @@ pub(crate) fn switch_provider_blocking<R: Runtime>(
     activate_provider_profile(&app, &paths, &provider)
 }
 
+#[tauri::command]
+pub(crate) async fn switch_provider_group<R: Runtime + 'static>(
+    app: tauri::AppHandle<R>,
+    group: String,
+) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || switch_provider_group_blocking(app, group))
+        .await
+        .map_err(|error| format!("Provider group switch task failed: {error}"))?
+}
+
+pub(crate) fn switch_provider_group_blocking<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    group: String,
+) -> Result<(), String> {
+    let paths = resolve_paths(&app)?;
+    let group = normalize_provider_group(&group)?;
+    let providers = provider_group_profiles(&paths, &group)?;
+    for provider in &providers {
+        validate_provider_activation(provider)?;
+    }
+    let original_state = read_state(&paths);
+    backup_codex_config_if_needed(
+        &paths,
+        original_state.active_provider_id.is_none()
+            && original_state.active_provider_group.is_none(),
+    )?;
+    let mut state = original_state.clone();
+    state.active_provider_id = None;
+    state.active_provider_group = Some(group.clone());
+    state.active_account_id = None;
+    state.concurrent_account_routing_enabled = false;
+    write_state(&paths, &state)?;
+    if let Err(error) = write_provider_group_local_proxy_config(&paths, &group, &providers) {
+        if let Err(rollback_error) = write_state(&paths, &original_state) {
+            eprintln!("failed to restore Provider group state: {rollback_error}");
+        }
+        return Err(error);
+    }
+    refresh_codex_group_models_best_effort(&providers);
+    emit_providers_changed(&app)
+}
+
 pub(crate) fn switch_provider_model_and_activate_blocking<R: Runtime>(
     app: tauri::AppHandle<R>,
     id: String,
@@ -835,9 +920,14 @@ fn activate_provider_profile<R: Runtime>(
 ) -> Result<(), String> {
     validate_provider_activation(provider)?;
     let original_state = read_state(paths);
-    backup_codex_config_if_needed(paths, original_state.active_provider_id.is_none())?;
+    backup_codex_config_if_needed(
+        paths,
+        original_state.active_provider_id.is_none()
+            && original_state.active_provider_group.is_none(),
+    )?;
     let mut state = original_state.clone();
     state.active_provider_id = Some(provider.id.clone());
+    state.active_provider_group = None;
     state.active_account_id = None;
     state.concurrent_account_routing_enabled = false;
     write_state(paths, &state)?;
@@ -885,11 +975,15 @@ pub(crate) fn switch_provider_model<R: Runtime>(
     if active {
         write_active_provider_config(&paths, &provider)?;
         refresh_codex_models_best_effort(&provider);
+    } else if state.active_provider_group.as_deref() == Some(provider.group.as_str()) {
+        let group_providers = provider_group_profiles(&paths, &provider.group)?;
+        write_provider_group_local_proxy_config(&paths, &provider.group, &group_providers)?;
+        refresh_codex_group_models_best_effort(&group_providers);
     }
     emit_providers_changed(&app)?;
     Ok(provider_summary(
         &provider,
-        active,
+        active || state.active_provider_group.as_deref() == Some(provider.group.as_str()),
         state.auto_switch_provider_id.as_deref() == Some(&provider.id),
     ))
 }
@@ -911,11 +1005,15 @@ pub(crate) fn set_provider_model_control<R: Runtime>(
     if active {
         write_active_provider_config(&paths, &provider)?;
         refresh_codex_models_best_effort(&provider);
+    } else if state.active_provider_group.as_deref() == Some(provider.group.as_str()) {
+        let group_providers = provider_group_profiles(&paths, &provider.group)?;
+        write_provider_group_local_proxy_config(&paths, &provider.group, &group_providers)?;
+        refresh_codex_group_models_best_effort(&group_providers);
     }
     emit_providers_changed(&app)?;
     Ok(provider_summary(
         &provider,
-        active,
+        active || state.active_provider_group.as_deref() == Some(provider.group.as_str()),
         state.auto_switch_provider_id.as_deref() == Some(&provider.id),
     ))
 }
@@ -956,8 +1054,13 @@ fn disable_provider_blocking<R: Runtime>(app: tauri::AppHandle<R>) -> Result<(),
     let original_state = read_state(&paths);
     let mut state = original_state.clone();
     state.active_provider_id = None;
+    state.active_provider_group = None;
     if crate::local_proxy::is_running() {
-        backup_codex_config_if_needed(&paths, original_state.active_provider_id.is_none())?;
+        backup_codex_config_if_needed(
+            &paths,
+            original_state.active_provider_id.is_none()
+                && original_state.active_provider_group.is_none(),
+        )?;
         write_state(&paths, &state)?;
         if let Err(error) = write_official_local_proxy_config(&paths) {
             let _ = write_state(&paths, &original_state);
@@ -980,6 +1083,13 @@ pub(crate) fn delete_provider<R: Runtime>(
     let paths = resolve_paths(&app)?;
     validate_provider_id(&id)?;
     let original_state = read_state(&paths);
+    if let Ok(provider) = read_provider(&paths, &id) {
+        if original_state.active_provider_group.as_deref() == Some(provider.group.as_str()) {
+            return Err(
+                "Stop the active Provider group before deleting one of its APIs".to_string(),
+            );
+        }
+    }
     let was_active = original_state.active_provider_id.as_deref() == Some(&id);
     let was_auto_switch_provider = original_state.auto_switch_provider_id.as_deref() == Some(&id);
     if was_active || was_auto_switch_provider {
@@ -1050,7 +1160,14 @@ pub(crate) fn apply_local_proxy_config_for_state<R: Runtime>(
 pub(crate) fn apply_local_proxy_config_for_paths(paths: &Paths) -> Result<(), String> {
     let state = read_state(paths);
     sync_local_proxy_openai_auth_for_state(paths, &state)?;
-    backup_codex_config_if_needed(paths, state.active_provider_id.is_none())?;
+    backup_codex_config_if_needed(
+        paths,
+        state.active_provider_id.is_none() && state.active_provider_group.is_none(),
+    )?;
+    if let Some(group) = state.active_provider_group.as_deref() {
+        let providers = provider_group_profiles(paths, group)?;
+        return write_provider_group_local_proxy_config(paths, group, &providers);
+    }
     if let Some(id) = state.active_provider_id.as_deref() {
         let provider = read_provider(paths, id)?;
         ensure_not_local_proxy_base_url(&provider.base_url)?;
@@ -1066,7 +1183,7 @@ pub(crate) fn ensure_local_proxy_compatible_for_state(paths: &Paths) -> Result<(
         paths,
         state.local_proxy_openai_auth_account_id.as_deref(),
     )?;
-    if state.active_provider_id.is_some() {
+    if state.active_provider_id.is_some() || state.active_provider_group.is_some() {
         return Ok(());
     }
     let Some(account_id) = state.active_account_id.as_deref() else {
@@ -1091,9 +1208,14 @@ pub(crate) fn activate_provider_for_sync(paths: &Paths, id: &str) -> Result<bool
     }
 
     let original_state = read_state(paths);
-    backup_codex_config_if_needed(paths, original_state.active_provider_id.is_none())?;
+    backup_codex_config_if_needed(
+        paths,
+        original_state.active_provider_id.is_none()
+            && original_state.active_provider_group.is_none(),
+    )?;
     let mut state = original_state.clone();
     state.active_provider_id = Some(provider.id.clone());
+    state.active_provider_group = None;
     state.active_account_id = None;
     state.concurrent_account_routing_enabled = false;
     write_state(paths, &state)?;
@@ -1121,11 +1243,15 @@ fn cleanup_non_proxy_provider_state(paths: &Paths) -> Result<(), String> {
     } else {
         false
     };
-    if state.active_provider_id.is_none() && !has_managed_proxy_config {
+    if state.active_provider_id.is_none()
+        && state.active_provider_group.is_none()
+        && !has_managed_proxy_config
+    {
         return Ok(());
     }
     restore_official_config(paths)?;
     state.active_provider_id = None;
+    state.active_provider_group = None;
     state.local_proxy_enabled = false;
     write_state(paths, &state)
 }
@@ -1204,6 +1330,126 @@ pub(crate) fn list_provider_profiles(paths: &Paths) -> Result<Vec<ProviderProfil
     Ok(providers)
 }
 
+#[tauri::command]
+pub(crate) async fn set_provider_group<R: Runtime + 'static>(
+    app: tauri::AppHandle<R>,
+    id: String,
+    group: String,
+) -> Result<ProviderSummary, String> {
+    tauri::async_runtime::spawn_blocking(move || set_provider_group_blocking(app, id, group))
+        .await
+        .map_err(|error| format!("Provider group update task failed: {error}"))?
+}
+
+fn set_provider_group_blocking<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    id: String,
+    group: String,
+) -> Result<ProviderSummary, String> {
+    let paths = resolve_paths(&app)?;
+    let mut provider = read_provider(&paths, &id)?;
+    if provider.kind != ProviderKind::Custom {
+        return Err("Only third-party Providers can be grouped".to_string());
+    }
+    let group = normalize_provider_group(&group)?;
+    let state = read_state(&paths);
+    let changes_active_group = state
+        .active_provider_group
+        .as_deref()
+        .is_some_and(|active| active == provider.group || active == group);
+    if provider.group != group && changes_active_group {
+        return Err("Stop the active Provider group before changing it".to_string());
+    }
+    provider.group = group;
+    provider = normalize_provider_profile(provider)?;
+    write_local_provider(&paths, &provider, None)?;
+    emit_providers_changed(&app)?;
+    Ok(provider_summary(
+        &provider,
+        state.active_provider_id.as_deref() == Some(&provider.id)
+            || state.active_provider_group.as_deref() == Some(provider.group.as_str()),
+        state.auto_switch_provider_id.as_deref() == Some(&provider.id),
+    ))
+}
+
+pub(crate) fn provider_group_profiles(
+    paths: &Paths,
+    group: &str,
+) -> Result<Vec<ProviderProfile>, String> {
+    let group = normalize_provider_group(group)?;
+    if group.is_empty() {
+        return Err("Select a Provider group".to_string());
+    }
+    let providers = list_provider_profiles(paths)?
+        .into_iter()
+        .filter(|provider| provider.kind == ProviderKind::Custom && provider.group == group)
+        .collect::<Vec<_>>();
+    if providers.is_empty() {
+        return Err("Provider group does not contain any available APIs".to_string());
+    }
+    validate_provider_group_models(&providers)?;
+    Ok(providers)
+}
+
+fn validate_provider_group_models(providers: &[ProviderProfile]) -> Result<(), String> {
+    let mut names = HashSet::new();
+    for provider in providers {
+        for model in group_visible_models(provider) {
+            let name = provider_group_model_name(provider, model);
+            if !names.insert(name) {
+                return Err(
+                    "APIs in a Provider group must have unique API and model names".to_string(),
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
+pub(crate) fn provider_group_model_name(provider: &ProviderProfile, model: &str) -> String {
+    format!("{}-{model}", provider.name)
+}
+
+pub(crate) fn provider_for_group_model(
+    providers: &[ProviderProfile],
+    requested_model: Option<&str>,
+) -> Result<ProviderProfile, String> {
+    let matching_provider = |requested: &str| {
+        providers.iter().find_map(|provider| {
+            group_visible_models(provider)
+                .into_iter()
+                .find(|model| provider_group_model_name(provider, model) == requested)
+                .map(|model| (provider, model.to_string()))
+        })
+    };
+    let selected = match requested_model {
+        Some(requested) => matching_provider(requested).ok_or_else(|| {
+            "The selected model is not available in this Provider group".to_string()
+        })?,
+        None => providers
+            .first()
+            .and_then(|provider| {
+                group_visible_models(provider)
+                    .first()
+                    .map(|model| (provider, (*model).to_string()))
+            })
+            .ok_or_else(|| "Provider group does not contain any models".to_string())?,
+    };
+    let (provider, model) = selected;
+    let mut selected_provider = provider.clone();
+    selected_provider.model = model;
+    selected_provider.model_selection_controlled_by_codex = false;
+    Ok(selected_provider)
+}
+
+fn group_visible_models(provider: &ProviderProfile) -> Vec<&str> {
+    if provider.model_selection_controlled_by_codex {
+        provider.models.iter().map(String::as_str).collect()
+    } else {
+        vec![provider.model.as_str()]
+    }
+}
+
 pub(crate) fn read_provider(paths: &Paths, id: &str) -> Result<ProviderProfile, String> {
     validate_provider_id(id)?;
     read_provider_file(provider_path(paths, id))
@@ -1226,6 +1472,7 @@ fn provider_field_values(provider: &ProviderProfile) -> Vec<serde_json::Value> {
     vec![
         json!(provider.kind),
         json!(provider.name),
+        json!(provider.group),
         json!(provider.base_url),
         json!(provider.api_key),
         json!(provider.model),
@@ -1249,10 +1496,11 @@ fn provider_field_values(provider: &ProviderProfile) -> Vec<serde_json::Value> {
     ]
 }
 
-fn provider_field_versions_mut(values: &mut ProviderFieldModifiedAt) -> [&mut String; 19] {
+fn provider_field_versions_mut(values: &mut ProviderFieldModifiedAt) -> [&mut String; 20] {
     [
         &mut values.kind,
         &mut values.name,
+        &mut values.group,
         &mut values.base_url,
         &mut values.api_key,
         &mut values.model,
@@ -1376,6 +1624,7 @@ fn provider_summary(
         id: provider.id.clone(),
         kind: provider.kind,
         name: provider.name.clone(),
+        group: provider.group.clone(),
         base_url: provider.base_url.clone(),
         model: provider.model.clone(),
         models: provider.models.clone(),
@@ -1780,6 +2029,17 @@ fn require_non_empty(label: &str, value: &str) -> Result<String, String> {
     }
 }
 
+fn normalize_provider_group(value: &str) -> Result<String, String> {
+    let group = value.trim();
+    if group.chars().count() > 80 {
+        return Err("Provider group must be 80 characters or fewer".to_string());
+    }
+    if group.chars().any(char::is_control) {
+        return Err("Provider group contains unsupported characters".to_string());
+    }
+    Ok(group.to_string())
+}
+
 fn normalize_model_selection(
     model: &str,
     models: Vec<String>,
@@ -1851,7 +2111,9 @@ fn normalize_provider_profile(mut provider: ProviderProfile) -> Result<ProviderP
         }
         provider.model_selection_controlled_by_codex = true;
         provider.api_format = ProviderApiFormat::OpenaiResponses;
+        provider.group.clear();
     }
+    provider.group = normalize_provider_group(&provider.group)?;
     if provider.balance_platform == Some(ProviderBalancePlatform::DeepSeek) {
         if provider.kind != ProviderKind::Custom {
             return Err("DeepSeek presets must be third-party proxy providers".to_string());
@@ -1925,6 +2187,7 @@ pub(crate) fn uses_upstream_official_models(provider: &ProviderProfile) -> bool 
 fn normalize_synced_provider(mut provider: ProviderProfile) -> Result<ProviderProfile, String> {
     validate_provider_id(&provider.id)?;
     provider.name = require_non_empty("Provider name", &provider.name)?;
+    provider.group = normalize_provider_group(&provider.group)?;
     provider.base_url = normalize_base_url(&provider.base_url)?;
     provider.api_key = provider.api_key.trim().to_string();
     if provider.kind != ProviderKind::OpenAi
@@ -2143,6 +2406,65 @@ struct ModelCatalogOptions<'a> {
     reasoning_profile: ReasoningEffortProfile,
 }
 
+fn write_provider_group_local_proxy_config(
+    paths: &Paths,
+    group: &str,
+    providers: &[ProviderProfile],
+) -> Result<(), String> {
+    let catalog = model_catalog_for_provider_group(providers);
+    write_json_if_changed(&paths.codex_home.join(MODEL_CATALOG_FILENAME), &catalog)?;
+    let selected_model = provider_group_catalog_data(providers)
+        .models
+        .into_iter()
+        .next()
+        .ok_or_else(|| "Provider group does not contain any models".to_string())?;
+    write_local_proxy_config(paths, group, Some(&selected_model), true)
+}
+
+struct ProviderGroupCatalogData {
+    models: Vec<String>,
+    image_input_models: Vec<String>,
+    reasoning_efforts: ModelReasoningEfforts,
+    context_windows: ModelContextWindows,
+}
+
+fn provider_group_catalog_data(providers: &[ProviderProfile]) -> ProviderGroupCatalogData {
+    let mut data = ProviderGroupCatalogData {
+        models: Vec::new(),
+        image_input_models: Vec::new(),
+        reasoning_efforts: ModelReasoningEfforts::new(),
+        context_windows: ModelContextWindows::new(),
+    };
+    for provider in providers {
+        for model in group_visible_models(provider) {
+            let display_name = provider_group_model_name(provider, model);
+            if !data.models.contains(&display_name) {
+                data.models.push(display_name.clone());
+            }
+            if provider
+                .image_input_models
+                .iter()
+                .any(|value| value == model)
+            {
+                data.image_input_models.push(display_name.clone());
+            }
+            if let Some(efforts) = provider.model_reasoning_efforts.get(model) {
+                data.reasoning_efforts
+                    .insert(display_name.clone(), efforts.clone());
+            }
+            let context_window = provider
+                .model_context_windows
+                .get(model)
+                .copied()
+                .unwrap_or_else(|| {
+                    default_context_window_for_model(model, provider_context_window(provider))
+                });
+            data.context_windows.insert(display_name, context_window);
+        }
+    }
+    data
+}
+
 fn model_catalog_for_models(models: &[String], options: ModelCatalogOptions<'_>) -> Value {
     let entries = models
         .iter()
@@ -2321,6 +2643,20 @@ pub(crate) fn model_catalog_for_provider(provider: &ProviderProfile) -> Value {
             context_windows: &context_windows,
             default_context_window: provider_context_window(provider),
             reasoning_profile: reasoning_effort_profile(provider),
+        },
+    )
+}
+
+pub(crate) fn model_catalog_for_provider_group(providers: &[ProviderProfile]) -> Value {
+    let data = provider_group_catalog_data(providers);
+    model_catalog_for_models(
+        &data.models,
+        ModelCatalogOptions {
+            image_input_models: &data.image_input_models,
+            reasoning_efforts: &data.reasoning_efforts,
+            context_windows: &data.context_windows,
+            default_context_window: DEFAULT_MODEL_CONTEXT_WINDOW,
+            reasoning_profile: ReasoningEffortProfile::Standard,
         },
     )
 }
@@ -2653,6 +2989,7 @@ mod tests {
             id: "p".to_string(),
             kind: ProviderKind::Custom,
             name: "Gateway".to_string(),
+            group: String::new(),
             base_url: "https://gateway.example.com/v1".to_string(),
             api_key: "sk-test".to_string(),
             model: "gpt-4.1".to_string(),
@@ -2672,6 +3009,47 @@ mod tests {
             wallet_username: None,
             wallet_password: None,
         }
+    }
+
+    #[test]
+    fn provider_group_catalog_uses_api_and_model_names() {
+        let mut first = provider();
+        first.name = "API One".to_string();
+        first.group = "Work".to_string();
+        first.model_selection_controlled_by_codex = true;
+        first.models = vec!["model-a".to_string(), "model-b".to_string()];
+        first.model = "model-a".to_string();
+        let mut second = provider();
+        second.id = "p2".to_string();
+        second.name = "API Two".to_string();
+        second.group = "Work".to_string();
+        second.model = "model-c".to_string();
+        second.models = vec!["model-c".to_string()];
+
+        let catalog = model_catalog_for_provider_group(&[first.clone(), second.clone()]);
+        let slugs = catalog["models"]
+            .as_array()
+            .expect("group catalog should contain models")
+            .iter()
+            .filter_map(|entry| entry["slug"].as_str())
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            slugs,
+            vec!["API One-model-a", "API One-model-b", "API Two-model-c"]
+        );
+        let selected =
+            provider_for_group_model(&[first.clone(), second.clone()], Some("API Two-model-c"))
+                .expect("group model should resolve to its API");
+        assert_eq!(selected.id, "p2");
+        assert_eq!(selected.model, "model-c");
+        assert!(!selected.model_selection_controlled_by_codex);
+        assert!(provider_for_group_model(&[provider()], Some("unknown-model")).is_err());
+
+        second.name = first.name.clone();
+        second.model = "model-a".to_string();
+        second.models = vec!["model-a".to_string()];
+        assert!(validate_provider_group_models(&[first, second]).is_err());
     }
 
     #[test]
@@ -3540,6 +3918,7 @@ sandbox_mode = "workspace-write"
             id: "p".to_string(),
             kind: ProviderKind::Custom,
             name: "Gateway".to_string(),
+            group: String::new(),
             base_url: "https://gateway.example.com/v1".to_string(),
             api_key: "sk-test".to_string(),
             model: "gpt-4.1".to_string(),

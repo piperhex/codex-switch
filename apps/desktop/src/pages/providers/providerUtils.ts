@@ -10,6 +10,7 @@ const HIDDEN_COLUMNS_STORAGE_KEY = "codex-switch:provider-table-hidden-columns";
 
 export const PROVIDER_TABLE_COLUMN_KEYS = [
   "provider",
+  "group",
   "model",
   "api",
   "modelControl",

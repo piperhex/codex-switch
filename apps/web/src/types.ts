@@ -27,7 +27,7 @@ export interface AccountSummary {
   source?: "personal" | "system";
 }
 
-export type RemoteControlCapability = 'provider-switch' | 'restart-codex';
+export type RemoteControlCapability = 'provider-switch' | 'provider-group-switch' | 'restart-codex';
 
 export interface RemoteDevice {
   deviceId: string;
@@ -37,6 +37,7 @@ export interface RemoteDevice {
   activeAccountId?: string | null;
   openaiAuthAccountId?: string | null;
   activeProviderId?: string | null;
+  activeProviderGroup?: string | null;
   localProxyRunning: boolean;
   capabilities: RemoteControlCapability[];
   lastSeenAt: string;
@@ -47,12 +48,14 @@ export interface RemoteProviderSummary {
   id: string;
   name: string;
   model: string;
+  group: string;
 }
 
 export interface RemoteModelSwitchResult {
   deviceId: string;
   activeAccountId?: string | null;
   activeProviderId?: string | null;
+  activeProviderGroup?: string | null;
   requiresRestart: boolean;
   online: boolean;
 }

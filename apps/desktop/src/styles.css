@@ -1150,6 +1150,23 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
   border-bottom: 1px solid var(--line);
   background: #fbfcfa;
 }
+.provider-group-toolbar {
+  min-width: 0;
+  margin-right: auto;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  color: #66756c;
+  font-size: 11px;
+  font-weight: 700;
+}
+.provider-group-toolbar .ant-tag { margin: 0 -3px 0 2px; background: transparent; }
+.provider-group-button.ant-btn { max-width: 140px; padding-inline: 4px; color: #526259; }
+.provider-group-button > span { overflow: hidden; text-overflow: ellipsis; }
+.provider-group-empty { color: #98a39d; }
+.provider-group-editor { width: min(320px, 72vw); display: grid; gap: 8px; }
+.provider-group-editor .ant-space { justify-content: flex-end; }
 .provider-card-image-model-toolbar {
   margin-bottom: 12px;
   padding: 8px 10px;

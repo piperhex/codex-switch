@@ -1361,6 +1361,7 @@ fn switch_account_unlocked<R: Runtime>(app: &tauri::AppHandle<R>, id: &str) -> R
     let original_state = read_state(&paths);
     let mut state = original_state.clone();
     state.active_provider_id = None;
+    state.active_provider_group = None;
     state.active_account_id = Some(id.to_string());
     state.concurrent_account_routing_enabled = false;
 

@@ -57,6 +57,7 @@ interface RemoteModelSwitchSheetProps {
   onClose: () => void;
   onSwitchAccount: (deviceId: string, accountId: string) => Promise<boolean>;
   onSwitchProvider: (deviceId: string, providerId: string) => Promise<boolean>;
+  onSwitchProviderGroup: (deviceId: string, group: string) => Promise<boolean>;
 }
 
 export function RemoteModelSwitchSheet({
@@ -68,10 +69,13 @@ export function RemoteModelSwitchSheet({
   onClose,
   onSwitchAccount,
   onSwitchProvider,
+  onSwitchProviderGroup,
 }: RemoteModelSwitchSheetProps) {
   const busy = Boolean(switchingAccountId || switchingProviderId);
   const providerSupported = device?.capabilities?.includes('provider-switch') ?? false;
   const providerAvailable = providerSupported && Boolean(device?.localProxyRunning);
+  const groupSupported = device?.capabilities?.includes('provider-group-switch') ?? false;
+  const groups = [...new Set(providers.map((provider) => provider.group).filter(Boolean))];
 
   const selectAccount = async (accountId: string) => {
     if (!device || busy) return;
@@ -80,6 +84,10 @@ export function RemoteModelSwitchSheet({
   const selectProvider = async (providerId: string) => {
     if (!device || busy || !providerAvailable) return;
     if (await onSwitchProvider(device.deviceId, providerId)) onClose();
+  };
+  const selectProviderGroup = async (group: string) => {
+    if (!device || busy || !providerAvailable || !groupSupported) return;
+    if (await onSwitchProviderGroup(device.deviceId, group)) onClose();
   };
 
   return <BottomSheet
@@ -93,7 +101,9 @@ export function RemoteModelSwitchSheet({
     <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
       <Text style={styles.sectionTitle}>官方模型</Text>
       {!accounts.length ? <Text style={styles.emptyText}>暂无已同步的官方账号。</Text> : accounts.map((account) => {
-        const current = !device?.activeProviderId && device?.activeAccountId === account.id;
+        const current = !device?.activeProviderId
+          && !device?.activeProviderGroup
+          && device?.activeAccountId === account.id;
         return <ModelOption
           key={`account:${account.id}`}
           badge="O"
@@ -114,19 +124,30 @@ export function RemoteModelSwitchSheet({
             ? <Text style={styles.hint}>请先在 PC 端启动本地代理</Text>
             : null}
       </View>
-      {!providers.length ? <Text style={styles.emptyText}>暂无已同步的第三方 Provider。</Text> : providers.map((provider) => {
-        const current = device?.activeProviderId === provider.id;
-        return <ModelOption
-          key={`provider:${provider.id}`}
-          badge="P"
-          title={provider.name}
-          subtitle={provider.model || '由 Codex 选择模型'}
-          current={current}
-          disabled={busy || !device?.online || !providerAvailable || current}
-          loading={switchingProviderId === provider.id}
-          onPress={() => void selectProvider(provider.id)}
-        />;
-      })}
+      {!providers.length ? <Text style={styles.emptyText}>暂无已同步的第三方 Provider。</Text> : <>
+        {groups.map((group) => {
+          const count = providers.filter((provider) => provider.group === group).length;
+          const current = device?.activeProviderGroup === group;
+          return <ModelOption key={`group:${group}`} badge="G" title={group}
+            subtitle={`同时启用 ${count} 个 API`} current={current}
+            disabled={busy || !device?.online || !providerAvailable || !groupSupported || current}
+            loading={switchingProviderId === `group:${group}`}
+            onPress={() => void selectProviderGroup(group)} />;
+        })}
+        {providers.map((provider) => {
+          const current = device?.activeProviderId === provider.id;
+          return <ModelOption
+            key={`provider:${provider.id}`}
+            badge="P"
+            title={provider.name}
+            subtitle={provider.model || '由 Codex 选择模型'}
+            current={current}
+            disabled={busy || !device?.online || !providerAvailable || current}
+            loading={switchingProviderId === provider.id}
+            onPress={() => void selectProvider(provider.id)}
+          />;
+        })}
+      </>}
       <Text style={styles.footerHint}>
         在官方模型与第三方 Provider 之间切换后，需要重启 ChatGPT/Codex 才能加载当前模型。
       </Text>

@@ -254,6 +254,7 @@ pub(crate) struct RemoteControlConfig {
     pub(crate) active_account_id: Option<String>,
     pub(crate) openai_auth_account_id: Option<String>,
     pub(crate) active_provider_id: Option<String>,
+    pub(crate) active_provider_group: Option<String>,
     pub(crate) local_proxy_running: bool,
 }
 
@@ -603,6 +604,7 @@ pub(crate) fn remote_control_config<R: Runtime>(
         active_account_id: manager_state.active_account_id,
         openai_auth_account_id: manager_state.local_proxy_openai_auth_account_id,
         active_provider_id: manager_state.active_provider_id,
+        active_provider_group: manager_state.active_provider_group,
         local_proxy_running: crate::local_proxy::is_running(),
     }))
 }
@@ -963,6 +965,7 @@ fn apply_remote_provider<R: Runtime>(
     }
     merge_field!(kind);
     merge_field!(name);
+    merge_field!(group);
     merge_field!(base_url);
     merge_field!(api_key);
     merge_field!(model);
@@ -993,10 +996,15 @@ fn apply_remote_provider<R: Runtime>(
     merge_field!(wallet_username);
     merge_field!(wallet_password);
     if changed {
+        let state = read_state(&paths);
+        let active_group = state.active_provider_group.as_deref();
+        let active = state.active_provider_id.as_deref() == Some(&provider.id)
+            || active_group == Some(merged.group.as_str())
+            || local_profile
+                .as_ref()
+                .is_some_and(|local| active_group == Some(local.group.as_str()));
         crate::providers::write_synced_provider(&paths, merged, &local_versions)?;
-        if crate::local_proxy::is_running()
-            && read_state(&paths).active_provider_id.as_deref() == Some(&provider.id)
-        {
+        if crate::local_proxy::is_running() && active {
             crate::providers::apply_local_proxy_config_for_paths(&paths)?;
             crate::providers::refresh_codex_models_for_current_target(&paths);
         }
@@ -1023,6 +1031,7 @@ fn normalize_provider_field_modified_at(
     for value in [
         &mut values.kind,
         &mut values.name,
+        &mut values.group,
         &mut values.base_url,
         &mut values.api_key,
         &mut values.model,
@@ -1052,6 +1061,7 @@ fn latest_provider_field_modified_at(values: &ProviderFieldModifiedAt) -> String
     [
         &values.kind,
         &values.name,
+        &values.group,
         &values.base_url,
         &values.api_key,
         &values.model,
@@ -1086,6 +1096,7 @@ fn provider_payload_from_profile(
         id: provider.id,
         kind: provider.kind,
         name: provider.name,
+        group: provider.group,
         base_url: provider.base_url,
         api_key: provider.api_key,
         model: provider.model,
@@ -1113,6 +1124,7 @@ fn provider_payload_to_profile(provider: &ProviderSyncPayload) -> ProviderProfil
         id: provider.id.clone(),
         kind: provider.kind,
         name: provider.name.clone(),
+        group: provider.group.clone(),
         base_url: provider.base_url.clone(),
         api_key: provider.api_key.clone(),
         model: provider.model.clone(),

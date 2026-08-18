@@ -15,6 +15,7 @@ import { DeviceControlService } from './device-control.service';
 import { DeviceGateway } from './device.gateway';
 import { SwitchDeviceAccountDto } from './dto/switch-device-account.dto';
 import { SwitchDeviceProviderDto } from './dto/switch-device-provider.dto';
+import { SwitchDeviceProviderGroupDto } from './dto/switch-device-provider-group.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('devices')
@@ -36,6 +37,7 @@ export class DeviceController {
         activeAccountId: device.activeAccountId,
         openaiAuthAccountId: device.openaiAuthAccountId,
         activeProviderId: device.activeProviderId ?? null,
+        activeProviderGroup: device.activeProviderGroup ?? null,
         localProxyRunning: device.localProxyRunning ?? false,
         capabilities: device.capabilities ?? [],
         lastSeenAt: device.lastSeenAt,
@@ -81,7 +83,8 @@ export class DeviceController {
       deviceId: device.deviceId,
       activeAccountId: device.activeAccountId,
       activeProviderId: device.activeProviderId,
-      requiresRestart: Boolean(currentDevice.activeProviderId),
+      activeProviderGroup: device.activeProviderGroup,
+      requiresRestart: Boolean(currentDevice.activeProviderId || currentDevice.activeProviderGroup),
       online: true,
     };
   }
@@ -110,7 +113,43 @@ export class DeviceController {
       deviceId: device.deviceId,
       activeAccountId: device.activeAccountId,
       activeProviderId: device.activeProviderId,
-      requiresRestart: !currentDevice.activeProviderId && Boolean(currentDevice.activeAccountId),
+      activeProviderGroup: device.activeProviderGroup,
+      requiresRestart: !currentDevice.activeProviderId
+        && !currentDevice.activeProviderGroup
+        && Boolean(currentDevice.activeAccountId),
+      online: true,
+    };
+  }
+
+  @Post(':deviceId/provider-group')
+  async switchProviderGroup(
+    @CurrentUser() user: AuthUser,
+    @Param('deviceId') deviceId: string,
+    @Body() dto: SwitchDeviceProviderGroupDto,
+  ) {
+    const currentDevice = await this.devices.getOwned(user.id, deviceId);
+    if (!(currentDevice.capabilities?.includes('provider-group-switch') ?? false)) {
+      throw new ConflictException('请先更新目标 PC 上的 Codex Switch');
+    }
+    if (!currentDevice.localProxyRunning) {
+      throw new ConflictException('请先在目标 PC 上启动本地代理');
+    }
+    const group = dto.group.trim();
+    await this.devices.assertProviderGroupAvailable(user.id, group);
+    try {
+      await this.gateway.pushProviderGroupSwitch(user.id, deviceId, group);
+    } catch (error) {
+      throw new ConflictException(error instanceof Error ? error.message : 'Provider group switch failed');
+    }
+    const device = await this.devices.setActiveProviderGroup(user.id, deviceId, group);
+    return {
+      deviceId: device.deviceId,
+      activeAccountId: device.activeAccountId,
+      activeProviderId: device.activeProviderId,
+      activeProviderGroup: device.activeProviderGroup,
+      requiresRestart: !currentDevice.activeProviderId
+        && !currentDevice.activeProviderGroup
+        && Boolean(currentDevice.activeAccountId),
       online: true,
     };
   }

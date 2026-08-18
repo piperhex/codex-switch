@@ -16,6 +16,7 @@ import {
 export class ProviderFieldModifiedAtDto {
   @IsOptional() @IsString() @MaxLength(40) kind?: string;
   @IsOptional() @IsString() @MaxLength(40) name?: string;
+  @IsOptional() @IsString() @MaxLength(40) group?: string;
   @IsOptional() @IsString() @MaxLength(40) baseUrl?: string;
   @IsOptional() @IsString() @MaxLength(40) apiKey?: string;
   @IsOptional() @IsString() @MaxLength(40) model?: string;
@@ -47,6 +48,11 @@ export class SyncProviderDto {
   @IsString()
   @MaxLength(160)
   name: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  group?: string = '';
 
   @IsString()
   @MaxLength(500)

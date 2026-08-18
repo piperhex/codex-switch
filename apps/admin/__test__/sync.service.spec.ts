@@ -638,7 +638,16 @@ describe('SyncService', () => {
       lastModifiedAt: new Date('2026-07-05T00:00:00.000Z'),
     }]);
     const expected = {
-      providers: [makeProvider({ apiKey: 'sk-secret' })],
+      providers: [makeProvider({
+        apiKey: 'sk-secret',
+        balancePlatform: undefined,
+        balanceQueryUrl: undefined,
+        balanceQueryToken: undefined,
+        walletQueryUrl: undefined,
+        walletQueryToken: undefined,
+        walletUsername: undefined,
+        walletPassword: undefined,
+      })],
       deletedProviderIds: [],
     };
 

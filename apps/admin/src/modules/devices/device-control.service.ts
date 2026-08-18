@@ -12,6 +12,7 @@ export interface RegisterRemoteDevice {
   activeAccountId?: string | null;
   openaiAuthAccountId?: string | null;
   activeProviderId?: string | null;
+  activeProviderGroup?: string | null;
   localProxyRunning?: boolean;
   capabilities?: string[];
 }
@@ -20,6 +21,7 @@ export interface RemoteProviderSummary {
   id: string;
   name: string;
   model: string;
+  group: string;
 }
 
 @Injectable()
@@ -46,6 +48,9 @@ export class DeviceControlService {
       activeProviderId: input.activeProviderId === undefined
         ? existing?.activeProviderId ?? null
         : input.activeProviderId,
+      activeProviderGroup: input.activeProviderGroup === undefined
+        ? existing?.activeProviderGroup ?? null
+        : input.activeProviderGroup,
       localProxyRunning: input.localProxyRunning ?? existing?.localProxyRunning ?? false,
       capabilities: input.capabilities ?? existing?.capabilities ?? [],
       lastSeenAt: new Date(),
@@ -88,6 +93,7 @@ export class DeviceControlService {
       id: provider.id,
       name: provider.name,
       model: provider.model,
+      group: provider.group ?? '',
     }));
   }
 
@@ -98,10 +104,22 @@ export class DeviceControlService {
     }
   }
 
+  async assertProviderGroupAvailable(ownerId: string, group: string) {
+    const providers = await this.listProviderSummaries(ownerId);
+    if (!group.trim() || !providers.some((provider) => provider.group === group)) {
+      throw new NotFoundException('Provider group was not found');
+    }
+  }
+
   async setActiveAccount(ownerId: string, deviceId: string, accountId: string) {
     await this.devices.update(
       { ownerId, deviceId },
-      { activeAccountId: accountId, activeProviderId: null, lastSeenAt: new Date() },
+      {
+        activeAccountId: accountId,
+        activeProviderId: null,
+        activeProviderGroup: null,
+        lastSeenAt: new Date(),
+      },
     );
     return this.getOwned(ownerId, deviceId);
   }
@@ -109,7 +127,15 @@ export class DeviceControlService {
   async setActiveProvider(ownerId: string, deviceId: string, providerId: string) {
     await this.devices.update(
       { ownerId, deviceId },
-      { activeProviderId: providerId, lastSeenAt: new Date() },
+      { activeProviderId: providerId, activeProviderGroup: null, lastSeenAt: new Date() },
+    );
+    return this.getOwned(ownerId, deviceId);
+  }
+
+  async setActiveProviderGroup(ownerId: string, deviceId: string, group: string) {
+    await this.devices.update(
+      { ownerId, deviceId },
+      { activeProviderId: null, activeProviderGroup: group, lastSeenAt: new Date() },
     );
     return this.getOwned(ownerId, deviceId);
   }

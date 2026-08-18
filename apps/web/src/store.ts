@@ -11,6 +11,7 @@ import {
   setActiveSession,
   subscribeSession,
   switchRemoteDeviceProvider,
+  switchRemoteDeviceProviderGroup,
 } from "./api";
 import type {
   AccountSummary,
@@ -116,6 +117,14 @@ export const switchDeviceProvider = createAsyncThunk(
   }),
 );
 
+export const switchDeviceProviderGroup = createAsyncThunk(
+  "data/switchDeviceProviderGroup",
+  async ({ deviceId, group }: { deviceId: string; group: string }) => ({
+    providerId: `group:${group}`,
+    result: await switchRemoteDeviceProviderGroup(deviceId, group),
+  }),
+);
+
 export const restartDeviceCodex = createAsyncThunk(
   "data/restartDeviceCodex",
   async (deviceId: string) => {
@@ -144,6 +153,7 @@ function applyModelSwitchResult(
       ...device,
       activeAccountId: result.activeAccountId ?? device.activeAccountId,
       activeProviderId: result.activeProviderId ?? null,
+      activeProviderGroup: result.activeProviderGroup ?? null,
       online: result.online,
     }
     : device);
@@ -280,6 +290,20 @@ const dataSlice = createSlice({
       state.devices = applyModelSwitchResult(state.devices, action.payload.result);
     })
     .addCase(switchDeviceProvider.rejected, (state, action) => {
+      state.switchingProvider = null;
+      state.error = messageOf(action.error);
+    })
+    .addCase(switchDeviceProviderGroup.pending, (state, action) => {
+      state.switchingProvider = {
+        deviceId: action.meta.arg.deviceId,
+        providerId: `group:${action.meta.arg.group}`,
+      };
+    })
+    .addCase(switchDeviceProviderGroup.fulfilled, (state, action) => {
+      state.switchingProvider = null;
+      state.devices = applyModelSwitchResult(state.devices, action.payload.result);
+    })
+    .addCase(switchDeviceProviderGroup.rejected, (state, action) => {
       state.switchingProvider = null;
       state.error = messageOf(action.error);
     })

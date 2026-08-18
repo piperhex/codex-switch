@@ -79,6 +79,7 @@ export interface Provider {
   id: string;
   kind: ProviderKind;
   name: string;
+  group: string;
   baseUrl: string;
   model: string;
   models: string[];
@@ -107,6 +108,7 @@ export interface ProviderInput {
   id?: string;
   kind: ProviderKind;
   name: string;
+  group?: string;
   baseUrl: string;
   model: string;
   models: string[];

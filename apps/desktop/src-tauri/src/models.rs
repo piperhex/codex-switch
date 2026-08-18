@@ -113,6 +113,8 @@ pub(crate) struct ManagerStateFile {
     pub(crate) active_account_id: Option<String>,
     pub(crate) active_provider_id: Option<String>,
     #[serde(default)]
+    pub(crate) active_provider_group: Option<String>,
+    #[serde(default)]
     pub(crate) auto_switch_provider_id: Option<String>,
     /// Last known executable used by the local ChatGPT/Codex desktop app. This is
     /// intentionally only a local launch hint; it is never synced with accounts.
@@ -219,6 +221,8 @@ pub(crate) struct ProviderProfile {
     #[serde(default)]
     pub(crate) kind: ProviderKind,
     pub(crate) name: String,
+    #[serde(default)]
+    pub(crate) group: String,
     pub(crate) base_url: String,
     pub(crate) api_key: String,
     pub(crate) model: String,
@@ -259,6 +263,7 @@ pub(crate) struct ProviderSummary {
     pub(crate) id: String,
     pub(crate) kind: ProviderKind,
     pub(crate) name: String,
+    pub(crate) group: String,
     pub(crate) base_url: String,
     pub(crate) model: String,
     pub(crate) models: Vec<String>,
@@ -647,6 +652,8 @@ pub(crate) struct ProviderFieldModifiedAt {
     #[serde(default)]
     pub(crate) name: String,
     #[serde(default)]
+    pub(crate) group: String,
+    #[serde(default)]
     pub(crate) base_url: String,
     #[serde(default)]
     pub(crate) api_key: String,
@@ -735,6 +742,8 @@ pub(crate) struct ProviderSyncPayload {
     #[serde(default)]
     pub(crate) kind: ProviderKind,
     pub(crate) name: String,
+    #[serde(default)]
+    pub(crate) group: String,
     pub(crate) base_url: String,
     pub(crate) api_key: String,
     pub(crate) model: String,

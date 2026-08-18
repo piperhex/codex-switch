@@ -175,7 +175,11 @@ export async function fetchDashboardData(refreshUsage = true) {
     apiJson<UserProfile>("/auth/me"),
   ]);
   const devices = devicesPayload.devices.map(normalizeRemoteDevice);
-  if (!refreshUsage) return { accounts, devices, providers, profile };
+  const normalizedProviders = providers.map((provider) => ({
+    ...provider,
+    group: typeof provider.group === "string" ? provider.group : "",
+  }));
+  if (!refreshUsage) return { accounts, devices, providers: normalizedProviders, profile };
   const refreshedAccounts = await mapWithConcurrency(accounts, 4, async (account) => {
     try {
       const usage = await apiJson<UsageSummary>(`/sync/accounts/${encodeURIComponent(account.id)}/usage`);
@@ -191,7 +195,7 @@ export async function fetchDashboardData(refreshUsage = true) {
       };
     }
   });
-  return { accounts: refreshedAccounts, devices, providers, profile };
+  return { accounts: refreshedAccounts, devices, providers: normalizedProviders, profile };
 }
 
 export function deviceStatusWebSocketUrl(baseUrl: string) {
@@ -246,6 +250,17 @@ export async function switchRemoteDeviceProvider(deviceId: string, providerId: s
   );
 }
 
+export async function switchRemoteDeviceProviderGroup(deviceId: string, group: string) {
+  return apiJson<RemoteModelSwitchResult>(
+    `/devices/${encodeURIComponent(deviceId)}/provider-group`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ group }),
+    },
+  );
+}
+
 export async function restartRemoteDeviceCodex(deviceId: string) {
   await apiJson<{ deviceId: string; restarted: boolean }>(
     `/devices/${encodeURIComponent(deviceId)}/restart-codex`,
@@ -257,10 +272,13 @@ function normalizeRemoteDevice(device: RemoteDevice): RemoteDevice {
   return {
     ...device,
     activeProviderId: device.activeProviderId ?? null,
+    activeProviderGroup: device.activeProviderGroup ?? null,
     localProxyRunning: device.localProxyRunning === true,
     capabilities: Array.isArray(device.capabilities)
       ? device.capabilities.filter((capability) => (
-        capability === "provider-switch" || capability === "restart-codex"
+        capability === "provider-switch"
+        || capability === "provider-group-switch"
+        || capability === "restart-codex"
       ))
       : [],
   };

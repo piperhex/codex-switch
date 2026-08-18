@@ -795,6 +795,18 @@ export function DashboardApp() {
     providerManager.localProxy?.running,
     providerManager.switchProvider,
   ]);
+  const switchProviderGroup = useCallback(async (group: string) => {
+    const shouldPromptForRestart = Boolean(
+      providerManager.localProxy?.running && currentModelSource === "official",
+    );
+    const switched = await providerManager.switchProviderGroup(group);
+    if (switched && shouldPromptForRestart) promptRestartToLoadModel();
+  }, [
+    currentModelSource,
+    promptRestartToLoadModel,
+    providerManager.localProxy?.running,
+    providerManager.switchProviderGroup,
+  ]);
   const openTokenUsage = useCallback(async () => {
     try {
       await showTokenUsageWindow();
@@ -1322,8 +1334,10 @@ export function DashboardApp() {
               onStartProxy={() => void providerManager.startProxy()}
               onSave={providerManager.saveProvider}
               onSwitch={switchProvider} onDeactivate={providerManager.cancelProviderUse}
+              onSwitchGroup={switchProviderGroup}
               onSwitchModel={switchProviderModel}
               onModelControlChange={setProviderModelControl}
+              onGroupChange={providerManager.changeProviderGroup}
               onAutoSwitchChange={providerManager.setProviderAutoSwitch}
               onDelete={deleteProvider}
               onDeleteMany={providerManager.deleteProviders}

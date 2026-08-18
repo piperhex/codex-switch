@@ -266,6 +266,7 @@ enum UpstreamBody {
 enum ActiveTarget {
     Official { model: String },
     Provider(Box<ProviderProfile>),
+    ProviderGroup(Vec<ProviderProfile>),
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -1736,6 +1737,7 @@ fn ensure_proxy_can_stop_with_auth(auth: &Value) -> Result<(), String> {
 
 fn stopped_proxy_state(mut state: ManagerStateFile) -> ManagerStateFile {
     state.active_provider_id = None;
+    state.active_provider_group = None;
     state.local_proxy_enabled = false;
     state
 }
@@ -1776,7 +1778,8 @@ pub(crate) fn set_concurrent_account_routing_enabled<R: Runtime>(
         let first_account_id = enabled_account_ids.first().ok_or_else(|| {
             "Enable at least one official account before enabling concurrent routing".to_string()
         })?;
-        if state.active_provider_id.take().is_some() {
+        if state.active_provider_id.take().is_some() || state.active_provider_group.take().is_some()
+        {
             switched_from_provider = true;
         }
         if state
@@ -2432,12 +2435,15 @@ fn handle_proxy_request<R: Runtime>(
             &context.model,
         );
     }
-    let provider_models_etag = match &target {
+    let provider_models_etag = active_provider_group_models_etag(app).or_else(|| match &target {
         ActiveTarget::Provider(provider) if !providers::uses_upstream_official_models(provider) => {
             Some(provider_models_etag(provider))
         }
+        ActiveTarget::ProviderGroup(group_providers) => {
+            Some(provider_group_models_etag(group_providers))
+        }
         _ => None,
-    };
+    });
     let result = match target {
         ActiveTarget::Official { model } => {
             let response =
@@ -2452,6 +2458,9 @@ fn handle_proxy_request<R: Runtime>(
             } else {
                 forward_provider(method, url, headers, body, &provider)
             }
+        }
+        ActiveTarget::ProviderGroup(_) => {
+            Err("Provider group requests must select a model".to_string())
         }
     };
     let result = result.map(|mut payload| {
@@ -2490,6 +2499,9 @@ fn forward_active_request<R: Runtime>(
             forward_chat_bridge(method, url, headers, body, &provider)
         }
         ActiveTarget::Provider(provider) => forward_provider(method, url, headers, body, &provider),
+        ActiveTarget::ProviderGroup(_) => {
+            Err("Provider group requests must select a model".to_string())
+        }
     }
 }
 
@@ -2498,6 +2510,12 @@ fn current_usage_payload<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<Upstre
     let state = read_state(&paths);
     let usage = if let Some(provider_id) = state.active_provider_id {
         providers::query_provider_usage_blocking(app.clone(), provider_id)?
+    } else if let Some(group) = state.active_provider_group.as_deref() {
+        let provider = providers::provider_group_profiles(&paths, group)?
+            .into_iter()
+            .next()
+            .ok_or_else(|| "Provider group does not contain any available APIs".to_string())?;
+        providers::query_provider_usage_blocking(app.clone(), provider.id)?
     } else {
         let account_id = state
             .active_account_id
@@ -2619,7 +2637,9 @@ fn auto_switch_official_account<R: Runtime>(
     // The retry resolves the active target again. A successful automatic fallback may now
     // point at either another official account or the configured third-party Provider.
     let state = read_state(&resolve_paths(app)?);
-    Ok(state.active_provider_id.is_some() || state.active_account_id.is_some())
+    Ok(state.active_provider_id.is_some()
+        || state.active_provider_group.is_some()
+        || state.active_account_id.is_some())
 }
 
 fn try_auto_switch_official_account<R: Runtime>(
@@ -2794,6 +2814,13 @@ fn primary_remaining_quota_score(usage: &UsageSummary) -> Option<f64> {
 }
 
 fn active_target<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<ActiveTarget, String> {
+    let paths = resolve_paths(app)?;
+    let state = read_state(&paths);
+    if let Some(group) = state.active_provider_group.as_deref() {
+        return Ok(ActiveTarget::ProviderGroup(
+            providers::provider_group_profiles(&paths, group)?,
+        ));
+    }
     active_target_for_request(app, "", &[])
 }
 
@@ -2806,6 +2833,15 @@ fn active_target_for_request<R: Runtime>(
     let state = read_state(&paths);
     if let Some(target) = image_model_target_for_request(&state, path, body) {
         return active_target_from_image_model(&paths, &target);
+    }
+    if let Some(group) = state.active_provider_group.as_deref() {
+        let group_providers = providers::provider_group_profiles(&paths, group)?;
+        let requested = serde_json::from_slice::<Value>(body)
+            .ok()
+            .and_then(|value| requested_model(&value).map(str::to_string));
+        let provider = providers::provider_for_group_model(&group_providers, requested.as_deref())?;
+        providers::ensure_not_local_proxy_base_url(&provider.base_url)?;
+        return Ok(ActiveTarget::Provider(Box::new(provider)));
     }
     if let Some(id) = state.active_provider_id {
         let provider = providers::read_provider(&paths, &id)?;
@@ -2888,6 +2924,7 @@ fn proxy_diagnostic_route(path: &str, target: &ActiveTarget) -> ProxyDiagnosticR
             ProxyDiagnosticRoute::ProviderResponsesPassthrough
         }
         ActiveTarget::Provider(_) => ProxyDiagnosticRoute::ProviderPassthrough,
+        ActiveTarget::ProviderGroup(_) => ProxyDiagnosticRoute::LocalModels,
     }
 }
 
@@ -3003,6 +3040,7 @@ fn token_usage_context(
                 .unwrap_or_else(|| provider.model.clone());
             (provider.name.clone(), Some(provider.id.clone()), model)
         }
+        ActiveTarget::ProviderGroup(_) => return None,
     };
 
     Some(TokenUsageContext {
@@ -3427,6 +3465,10 @@ fn diagnostic_target(target: Option<&ActiveTarget>, route: ProxyDiagnosticRoute)
             "apiFormat": provider.api_format,
             "model": provider.model,
             "modelSelectionControlledByCodex": provider.model_selection_controlled_by_codex
+        }),
+        Some(ActiveTarget::ProviderGroup(providers)) => json!({
+            "type": "providerGroup",
+            "providerCount": providers.len()
         }),
         None if route.is_local() => json!({ "type": "local" }),
         None => json!({ "type": "unresolved" }),
@@ -4411,6 +4453,9 @@ fn models_payload<R: Runtime>(
             forward_provider(&Method::Get, url, &upstream_headers, Vec::new(), provider)?
         }
         ActiveTarget::Provider(provider) => return Ok(provider_models_payload(provider)),
+        ActiveTarget::ProviderGroup(group_providers) => {
+            return Ok(provider_group_models_payload(group_providers));
+        }
     };
     let context_window = read_app_settings(app)?.gpt_5_6_sol_context_window;
     override_model_context_window(payload, GPT_5_6_SOL_MODEL, context_window)
@@ -4504,6 +4549,32 @@ fn provider_models_etag(provider: &ProviderProfile) -> String {
     let catalog = providers::model_catalog_for_provider(provider);
     let body = serde_json::to_vec(&catalog).unwrap_or_default();
     format!("\"codex-switch-{}\"", short_hash_bytes(&body))
+}
+
+fn provider_group_models_payload(providers: &[ProviderProfile]) -> UpstreamPayload {
+    let catalog = providers::model_catalog_for_provider_group(providers);
+    let body = serde_json::to_vec(&catalog).unwrap_or_else(|_| b"{}".to_vec());
+    UpstreamPayload {
+        status: 200,
+        content_type: Some("application/json; charset=utf-8".to_string()),
+        response_headers: vec![("ETag".to_string(), provider_group_models_etag(providers))],
+        body: UpstreamBody::Buffered(body),
+        token_usage_account: None,
+    }
+}
+
+fn provider_group_models_etag(providers: &[ProviderProfile]) -> String {
+    let catalog = providers::model_catalog_for_provider_group(providers);
+    let body = serde_json::to_vec(&catalog).unwrap_or_default();
+    format!("\"codex-switch-{}\"", short_hash_bytes(&body))
+}
+
+fn active_provider_group_models_etag<R: Runtime>(app: &tauri::AppHandle<R>) -> Option<String> {
+    let paths = resolve_paths(app).ok()?;
+    let state = read_state(&paths);
+    let group = state.active_provider_group.as_deref()?;
+    let providers = providers::provider_group_profiles(&paths, group).ok()?;
+    Some(provider_group_models_etag(&providers))
 }
 
 fn provider_body_for_upstream(
@@ -4904,7 +4975,9 @@ fn credential_account_id(
     if let Some(ImageModelTarget::Official { account_id }) = &state.image_output_target {
         return Ok(account_id.clone());
     }
-    if (state.concurrent_account_routing_enabled || state.active_provider_id.is_some())
+    if (state.concurrent_account_routing_enabled
+        || state.active_provider_id.is_some()
+        || state.active_provider_group.is_some())
         && state.image_generation_account_id.is_some()
     {
         let account_id = state
@@ -6742,6 +6815,7 @@ mod tests {
             id: "openai".to_string(),
             kind: ProviderKind::OpenAi,
             name: "OpenAI".to_string(),
+            group: String::new(),
             base_url,
             api_key: "sk-upstream".to_string(),
             model: "gpt-5.6-sol".to_string(),
@@ -7696,6 +7770,7 @@ mod tests {
             id: "responses".to_string(),
             kind: ProviderKind::Custom,
             name: "Responses Gateway".to_string(),
+            group: String::new(),
             base_url: "https://gateway.example.com/v1".to_string(),
             api_key: "sk-provider-test".to_string(),
             model: "gpt-4.1".to_string(),
@@ -7748,6 +7823,7 @@ mod tests {
             id: "chat".to_string(),
             kind: ProviderKind::Custom,
             name: "Chat Gateway".to_string(),
+            group: String::new(),
             base_url: "https://gateway.example.com/v1".to_string(),
             api_key: "sk-provider-test".to_string(),
             model: "deepseek-chat".to_string(),
@@ -8035,6 +8111,7 @@ mod tests {
             id: "deepseek".to_string(),
             kind: ProviderKind::Custom,
             name: "DeepSeek".to_string(),
+            group: String::new(),
             base_url: "https://api.deepseek.com/v1".to_string(),
             api_key: "sk-provider-test".to_string(),
             model: "deepseek-chat".to_string(),
@@ -8089,6 +8166,7 @@ mod tests {
             id: "deepseek".to_string(),
             kind: ProviderKind::Custom,
             name: "DeepSeek".to_string(),
+            group: String::new(),
             base_url: "https://api.deepseek.com/v1".to_string(),
             api_key: "sk-provider-test".to_string(),
             model: "deepseek-chat".to_string(),
@@ -8129,6 +8207,7 @@ mod tests {
             id: "deepseek".to_string(),
             kind: ProviderKind::Custom,
             name: "DeepSeek".to_string(),
+            group: String::new(),
             base_url: "https://api.deepseek.com/v1".to_string(),
             api_key: "sk-provider-test".to_string(),
             model: "deepseek-chat".to_string(),
@@ -8690,6 +8769,7 @@ mod tests {
             id: "images".to_string(),
             kind: ProviderKind::Custom,
             name: "Images".to_string(),
+            group: String::new(),
             base_url: "https://images.example.com/v1".to_string(),
             api_key: "sk-provider-test".to_string(),
             model: "provider-text-model".to_string(),
@@ -9076,6 +9156,7 @@ mod tests {
             id: "deepseek".to_string(),
             kind: ProviderKind::Custom,
             name: "DeepSeek".to_string(),
+            group: String::new(),
             base_url: "https://api.deepseek.com/v1".to_string(),
             api_key: "sk-provider-test".to_string(),
             model: "deepseek-chat".to_string(),
@@ -9154,6 +9235,7 @@ mod tests {
             id: "deepseek".to_string(),
             kind: ProviderKind::Custom,
             name: "DeepSeek".to_string(),
+            group: String::new(),
             base_url,
             api_key: "sk-provider-test".to_string(),
             model: "deepseek-v4-flash".to_string(),
