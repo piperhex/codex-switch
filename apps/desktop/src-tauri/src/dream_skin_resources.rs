@@ -21,8 +21,8 @@ use crate::{
     dream_skin_native::BUILT_IN_THEME_IDS,
 };
 
-const RELEASES_API: &str =
-    "https://api.github.com/repos/piperhex/codex-switch/releases?per_page=50";
+const RELEASES_API: &str = "https://api.github.com/repos/piperhex/codex-switch/releases";
+const RELEASES_PER_PAGE: usize = 100;
 const RELEASE_TAG_PREFIX: &str = "dream-skin-";
 const RESOURCE_ASSET_PREFIX: &str = "dream-skin-resources-";
 const MAX_DOWNLOAD_BYTES: u64 = 512 * 1024 * 1024;
@@ -208,26 +208,43 @@ fn run_update() -> Result<(), String> {
 }
 
 fn latest_release(client: &Client) -> Result<ResourceRelease, String> {
-    let releases = client
+    let mut page = 1;
+    loop {
+        let releases = load_release_page(client, page)?;
+        let is_last_page = releases.len() < RELEASES_PER_PAGE;
+        if let Some(release) = select_release(releases) {
+            return Ok(release);
+        }
+        if is_last_page {
+            return Err("No Dream Skin resource release is available yet.".to_string());
+        }
+        page += 1;
+    }
+}
+
+fn load_release_page(client: &Client, page: usize) -> Result<Vec<GithubRelease>, String> {
+    client
         .get(RELEASES_API)
+        .query(&[("per_page", RELEASES_PER_PAGE), ("page", page)])
         .send()
         .and_then(reqwest::blocking::Response::error_for_status)
         .map_err(|error| format!("Failed to check Dream Skin resources: {error}"))?
         .json::<Vec<GithubRelease>>()
-        .map_err(|error| format!("Failed to read the resource release list: {error}"))?;
-    select_release(releases)
-        .ok_or_else(|| "No Dream Skin resource release is available yet.".to_string())
+        .map_err(|error| format!("Failed to read the resource release list: {error}"))
 }
 
 fn select_release(releases: Vec<GithubRelease>) -> Option<ResourceRelease> {
-    let release = releases.into_iter().find(|release| {
-        !release.draft
-            && release
-                .tag_name
-                .strip_prefix(RELEASE_TAG_PREFIX)
-                .is_some_and(valid_version)
-    })?;
+    releases.into_iter().find_map(resource_release_from)
+}
+
+fn resource_release_from(release: GithubRelease) -> Option<ResourceRelease> {
+    if release.draft {
+        return None;
+    }
     let version = release.tag_name.strip_prefix(RELEASE_TAG_PREFIX)?;
+    if !valid_version(version) {
+        return None;
+    }
     let expected_name = format!("{RESOURCE_ASSET_PREFIX}{version}.zip");
     let asset = release.assets.into_iter().find(|asset| {
         asset.name == expected_name && asset.size > 0 && asset.size <= MAX_DOWNLOAD_BYTES
@@ -470,30 +487,5 @@ fn cleanup_old_packs(root: &Path, current_version: &str) {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn resource_versions_are_lowercase_md5_values() {
-        assert!(valid_version("0123456789abcdef0123456789abcdef"));
-        assert!(!valid_version("0123456789ABCDEF0123456789ABCDEF"));
-        assert!(!valid_version("v1"));
-    }
-
-    #[test]
-    fn release_selection_requires_matching_versioned_asset() {
-        let version = "0123456789abcdef0123456789abcdef";
-        let selected = select_release(vec![GithubRelease {
-            tag_name: format!("dream-skin-{version}"),
-            draft: false,
-            assets: vec![GithubAsset {
-                name: format!("dream-skin-resources-{version}.zip"),
-                browser_download_url: "https://example.invalid/resources.zip".to_string(),
-                size: 42,
-            }],
-        }])
-        .expect("release should be selected");
-        assert_eq!(selected.version, version);
-        assert_eq!(selected.size, 42);
-    }
-}
+#[path = "dream_skin_resources_tests.rs"]
+mod tests;
