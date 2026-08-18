@@ -9,6 +9,7 @@ export interface DashboardMenuItems {
   navigate: MenuProps["items"];
   search: MenuSearchItem[];
   tools: MenuProps["items"];
+  view: MenuProps["items"];
 }
 
 function fileItems(t: Translate): MenuProps["items"] {
@@ -38,6 +39,17 @@ function navigateItems(t: Translate): MenuProps["items"] {
     { type: "divider" },
     { key: "settings", label: t("nav.settings") },
   ];
+}
+
+function viewItems(t: Translate): MenuProps["items"] {
+  return [{
+    key: "navigation-style",
+    label: t("settings.navigationStyle.title"),
+    children: [
+      { key: "navigation-style-top", label: t("settings.navigationStyle.top") },
+      { key: "navigation-style-sidebar", label: t("settings.navigationStyle.sidebar") },
+    ],
+  }];
 }
 
 function toolItems(t: Translate): MenuProps["items"] {
@@ -86,6 +98,8 @@ function searchItems(t: Translate, authenticated: boolean): MenuSearchItem[] {
     item("open-account-store", t("windowMenu.openAccountStore"), t("windowMenu.file")),
     item("restart-app", t("windowMenu.restartApp"), t("windowMenu.file")),
     item("quit-app", t("windowMenu.quit"), t("windowMenu.file")),
+    item("navigation-style-top", t("settings.navigationStyle.top"), t("windowMenu.view")),
+    item("navigation-style-sidebar", t("settings.navigationStyle.sidebar"), t("windowMenu.view")),
     item("accounts", t("nav.accounts"), t("windowMenu.navigate")),
     item("providers", t("nav.providers"), t("windowMenu.navigate")),
     item("token-usage", t("nav.tokenUsage"), t("windowMenu.navigate")),
@@ -120,5 +134,6 @@ export function buildDashboardMenuItems(t: Translate, authenticated: boolean): D
     navigate: navigateItems(t),
     search: searchItems(t, authenticated),
     tools: toolItems(t),
+    view: viewItems(t),
   };
 }

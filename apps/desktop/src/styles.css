@@ -52,8 +52,6 @@ button:focus-visible { outline: 3px solid rgba(45, 131, 87, .24); outline-offset
 .sidebar-navigation-shell.custom-titlebar-shell .app-menu { grid-row: 2; }
 .sidebar-navigation-shell.custom-titlebar-shell main { grid-row: 3; }
 .window-titlebar { position: relative; z-index: 1000; min-width: 0; height: var(--window-titlebar-height); display: flex; align-items: stretch; color: #1f2c24; background: #f5fafc; border-bottom: 1px solid #d7e2e5; user-select: none; }
-.window-titlebar-icon-zone { width: 38px; flex: 0 0 38px; display: grid; place-items: center; }
-.window-titlebar-icon-zone img { width: 18px; height: 18px; object-fit: contain; pointer-events: none; transform: translateY(-1px); }
 .window-menu-bar { min-width: 0; flex: 0 0 auto; display: flex; align-items: stretch; }
 .window-menu-trigger { min-width: 52px; height: 26px; align-self: center; padding: 0 11px; border: 0; border-radius: 9px; display: grid; place-items: center; color: #253129; background: transparent; cursor: default; font-size: 13px; line-height: 1; white-space: nowrap; }
 .window-menu-trigger:first-child { padding-left: 6px; }

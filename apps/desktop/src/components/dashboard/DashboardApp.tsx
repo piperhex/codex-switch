@@ -81,7 +81,7 @@ import { useCloseToTray } from "../../hooks/useCloseToTray";
 import { useCodexHome } from "../../hooks/useCodexHome";
 import { useLanguage } from "../../hooks/useLanguage";
 import { useLaunchAtStartup } from "../../hooks/useLaunchAtStartup";
-import { useNavigationStyle } from "../../hooks/useNavigationStyle";
+import { useNavigationStyle, type NavigationStyle } from "../../hooks/useNavigationStyle";
 import { useFloatingBubble } from "../../hooks/useFloatingBubble";
 import { useProviderManager } from "../../hooks/useProviderManager";
 import { usePrivacyMode } from "../../hooks/usePrivacyMode";
@@ -148,6 +148,7 @@ type SystemMenuAction =
   | "open-account-store"
   | "restart-app"
   | "quit-app"
+  | `navigation-style-${NavigationStyle}`
   | "accounts"
   | "providers"
   | "token-usage"
@@ -902,6 +903,10 @@ export function DashboardApp() {
       case "quit-app":
         void quitApplication();
         break;
+      case "navigation-style-top":
+      case "navigation-style-sidebar":
+        navigationStyle.setStyle(action === "navigation-style-top" ? "top" : "sidebar");
+        break;
       case "accounts":
         setPage("accounts");
         break;
@@ -1079,13 +1084,14 @@ export function DashboardApp() {
     </div>
   );
   const menuItems = buildDashboardMenuItems(t, cloud.state.authenticated);
-  const windowMenu = (label: string, items: MenuProps["items"]) => (
+  const windowMenu = (label: string, items: MenuProps["items"], selectedKeys?: string[]) => (
     <Dropdown
       trigger={["click"]}
       placement="bottomLeft"
       overlayClassName="window-menu-dropdown"
       menu={{
         items,
+        selectedKeys,
         onClick: ({ key }) => handleSystemMenuAction(key as SystemMenuAction),
       }}
     >
@@ -1152,11 +1158,11 @@ export function DashboardApp() {
       }${sidebarNavigationEnabled && navigationStyle.sidebarCollapsed ? " sidebar-collapsed" : ""}`}>
         {CUSTOM_TITLEBAR_ENABLED && (
           <header className="window-titlebar">
-            <div className="window-titlebar-icon-zone" data-tauri-drag-region>
-              <img src={APP_LOGO_URL} alt="" data-tauri-drag-region />
-            </div>
             <nav className="window-menu-bar" aria-label={t("windowMenu.aria")}>
               {windowMenu(t("windowMenu.file"), menuItems.file)}
+              {windowMenu(t("windowMenu.view"), menuItems.view, [
+                `navigation-style-${navigationStyle.style}`,
+              ])}
               {windowMenu(t("windowMenu.navigate"), menuItems.navigate)}
               {windowMenu(t("windowMenu.tools"), menuItems.tools)}
               {windowMenu(t("windowMenu.cloud"), menuItems.cloud)}
