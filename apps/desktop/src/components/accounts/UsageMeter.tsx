@@ -17,11 +17,11 @@ function tableResetLabel(timestamp: number | null | undefined, language: Languag
   if (resetWindow === "oneWeek") {
     const countdown = resetCountdownWithDays(timestamp, language, now);
     if (!countdown) return label;
-    return language === "zh" ? `${label}（倒计时：${countdown}）` : `${label} (Countdown: ${countdown})`;
+    return language === "zh" ? `${label} · 剩 ${countdown}` : `${label} · ${countdown} left`;
   }
   const countdown = resetCountdownTime(timestamp, now);
   if (!countdown) return label;
-  return language === "zh" ? `${label}(倒计时：${countdown})` : `${label} (Countdown: ${countdown})`;
+  return language === "zh" ? `${label} · 剩 ${countdown}` : `${label} · ${countdown} left`;
 }
 
 function secondsSinceRefresh(timestamp: string | null | undefined, now: number) {
@@ -72,11 +72,13 @@ export function UsageMeter({ window: usageWindow, resetWindow, resetCreditsCount
         <span>{t("usage.remaining")}</span>
         {resetCreditsCount !== undefined && (
           <span className="usage-reset-credits">
-            {t("usage.resetCreditsRemaining", { count: resetCreditsCount ?? "-" })}
+            {t("usage.resetCreditsCompact", { count: resetCreditsCount ?? "-" })}
           </span>
         )}
         {recentRefreshSeconds !== null && (
-          <span className="usage-recent-refresh">{t("usage.recentRefresh", { seconds: recentRefreshSeconds })}</span>
+          <span className="usage-recent-refresh">
+            {t("usage.recentRefreshCompact", { seconds: recentRefreshSeconds })}
+          </span>
         )}
       </div>
       <Progress percent={remaining} showInfo={false} size="small" strokeColor={usageStroke(remaining)} />

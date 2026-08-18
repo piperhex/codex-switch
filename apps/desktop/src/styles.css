@@ -577,6 +577,7 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .auto-switch-priority-input { width: 88px; }
 .usage-reset-credits { white-space: nowrap; color: var(--green-dark) !important; font-weight: 700; }
 .usage-recent-refresh { white-space: nowrap; color: #718078 !important; }
+.usage-reset-credits::before, .usage-recent-refresh::before { margin-right: 4px; color: #9aa69f; content: "·"; }
 .usage-reset { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; white-space: normal; }
 .usage-reset > span:first-child { white-space: nowrap; }
 .account-table-wrap .ant-progress-line { line-height: 1; }
