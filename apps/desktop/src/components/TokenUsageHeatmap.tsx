@@ -216,12 +216,28 @@ export function TokenUsageHeatmap({
       <div className="token-heatmap-summary" title={error ?? undefined}>
         <span>{t("tokenUsage.period", { weeks })}</span>
         <strong>{loading && entries.length === 0 ? "--" : formatTokenCount(total, numberFormat)}<small> Tokens</small></strong>
-        <span className="token-heatmap-today">
-          {t("table.todayTokenUsageLabel")}{language === "zh" ? "：" : ": "}
-          <Tooltip title={<DailyTokenUsageTooltip totals={todayTokenTotals} language={language} />} placement="top">
-            <b>{formatCompactTokenCount(todayTokenTotals.total, language)}</b>
+        <div className="token-heatmap-details">
+          <span className="token-heatmap-today">
+            {t("table.todayTokenUsageLabel")}{language === "zh" ? "：" : ": "}
+            <Tooltip title={<DailyTokenUsageTooltip totals={todayTokenTotals} language={language} />} placement="top">
+              <b>{formatCompactTokenCount(todayTokenTotals.total, language)}</b>
+            </Tooltip>
+          </span>
+          <Tooltip title={t("table.averageConversationLatencyTooltip", {
+            requests: proxySessionLatency.requestCount,
+          })} styles={{ root: { maxWidth: 400 } }}>
+            <span
+              className={`conversation-latency-indicator is-${conversationLatencyLevel(proxySessionLatency)}`}
+              aria-label={`${t("table.averageConversationLatencyLabel")}: ${
+                formatAverageConversationLatency(proxySessionLatency)
+              }`}
+            >
+              <span>{t("table.averageConversationLatencyLabel")}{language === "zh" ? "：" : ": "}</span>
+              <Signal size={13} strokeWidth={2.5} aria-hidden="true" />
+              <strong>{formatAverageConversationLatency(proxySessionLatency)}</strong>
+            </span>
           </Tooltip>
-        </span>
+        </div>
       </div>
       <div className="token-heatmap-chart">
         <div className="token-heatmap-weekdays" aria-hidden="true">
@@ -271,20 +287,6 @@ export function TokenUsageHeatmap({
             </div>
           </div>
           <div className="token-heatmap-footer">
-            <Tooltip title={t("table.averageConversationLatencyTooltip", {
-              requests: proxySessionLatency.requestCount,
-            })} styles={{ root: { maxWidth: 400 } }}>
-              <span
-                className={`conversation-latency-indicator is-${conversationLatencyLevel(proxySessionLatency)}`}
-                aria-label={`${t("table.averageConversationLatencyLabel")}: ${
-                  formatAverageConversationLatency(proxySessionLatency)
-                }`}
-              >
-                <span>{t("table.averageConversationLatencyLabel")}{language === "zh" ? "：" : ": "}</span>
-                <Signal size={13} strokeWidth={2.5} aria-hidden="true" />
-                <strong>{formatAverageConversationLatency(proxySessionLatency)}</strong>
-              </span>
-            </Tooltip>
             <div className="token-heatmap-legend">
               <span>{t("tokenUsage.less")}</span>
               <div className="token-heatmap-legend-scale">
