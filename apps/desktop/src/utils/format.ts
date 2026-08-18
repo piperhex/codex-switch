@@ -103,17 +103,6 @@ export function formatUpdated(timestamp: string | null | undefined, language: La
   });
 }
 
-export function formatRefreshTime(timestamp: string | null | undefined, language: Language) {
-  if (!timestamp) return language === "zh" ? "暂无" : "None";
-  return new Date(timestamp).toLocaleString(language === "zh" ? "zh-CN" : "en-US", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-}
-
 export function formatSystemTime(timestamp: string | null | undefined, language: Language) {
   if (!timestamp) return language === "zh" ? "时间未知" : "Unknown time";
   const value = new Date(timestamp);

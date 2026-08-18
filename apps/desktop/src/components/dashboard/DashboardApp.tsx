@@ -98,7 +98,6 @@ import { SettingsGroupsNav, SettingsPage } from "../../pages/SettingsPage";
 import { SkillsMarketPage } from "../../pages/SkillsMarketPage";
 import { CodexThreadsPage } from "../../pages/CodexThreadsPage";
 import { NetworkProxySettingsModal } from "../../pages/settings/NetworkProxySettings";
-import { formatRefreshTime } from "../../utils/format";
 import type {
   AccountDetailsDraft,
   BubbleResetDisplay,
@@ -107,7 +106,6 @@ import type {
   Provider,
 } from "../../types";
 
-const LAST_REFRESH_ALL_KEY = "codex-switch:last-refresh-all-at";
 const REPOSITORY_URL = "https://github.com/piperhex/codex-switch";
 const LATEST_RELEASE_API_URL = "https://api.github.com/repos/piperhex/codex-switch/releases/latest";
 const APP_LOGO_URL = new URL("../../../src-tauri/icons/128x128.png", import.meta.url).href;
@@ -173,10 +171,6 @@ type SystemMenuAction =
   | "repository"
   | "about";
 
-function storedRefreshAllTime() {
-  const value = window.localStorage.getItem(LAST_REFRESH_ALL_KEY);
-  return value && !Number.isNaN(new Date(value).getTime()) ? value : null;
-}
 function normalizeHttpUrl(value: string | undefined) {
   const trimmed = value?.trim();
   if (!trimmed) return null;
@@ -207,7 +201,6 @@ export function DashboardApp() {
   const [showFeedback, setShowFeedback] = useState(false);
   const [showLanAccess, setShowLanAccess] = useState(false);
   const [showNetworkProxy, setShowNetworkProxy] = useState(false);
-  const [lastRefreshAllAt, setLastRefreshAllAt] = useState<string | null>(storedRefreshAllTime);
   const [chatGptOperation, setChatGptOperation] = useState<"start" | "restart" | null>(null);
   const [exportingLogs, setExportingLogs] = useState(false);
   const [resetCreditBusyAccountId, setResetCreditBusyAccountId] = useState<string | null>(null);
@@ -433,14 +426,8 @@ export function DashboardApp() {
     : activeProvider?.balancePlatform
       ? activeProvider.name
       : activeAccount?.email ?? null;
-  const markRefreshAll = useCallback(() => {
-    const refreshedAt = new Date().toISOString();
-    window.localStorage.setItem(LAST_REFRESH_ALL_KEY, refreshedAt);
-    setLastRefreshAllAt(refreshedAt);
-  }, []);
   const automaticRefresh = useCallback(
     async () => {
-      markRefreshAll();
       await Promise.all([
         manager.refreshAll({ quiet: true, showSpinner: false }),
         refreshConfiguredProviderBalances(),
@@ -454,7 +441,6 @@ export function DashboardApp() {
       loadFaqs,
       loadNotifications,
       manager.refreshAll,
-      markRefreshAll,
       refreshConfiguredProviderBalances,
     ],
   );
@@ -738,7 +724,6 @@ export function DashboardApp() {
     void manager.importAccountJsonFromClipboard();
   };
   const refreshAll = () => {
-    markRefreshAll();
     void manager.refreshAll();
     void refreshConfiguredProviderBalances();
     void loadAnnouncement();
@@ -1078,9 +1063,6 @@ export function DashboardApp() {
           {t("actions.refresh")}
         </button>
       </Dropdown>
-      <small className="last-auto-refresh">
-        {t("actions.lastUpdated", { time: formatRefreshTime(lastRefreshAllAt, language) })}
-      </small>
     </div>
   );
   const menuItems = buildDashboardMenuItems(t, cloud.state.authenticated);

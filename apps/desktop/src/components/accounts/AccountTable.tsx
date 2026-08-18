@@ -25,7 +25,6 @@ import {
   Pencil,
   RefreshCw,
   RotateCcw,
-  Signal,
   ToggleLeft,
   ToggleRight,
   Trash2,
@@ -34,7 +33,6 @@ import {
 import {
   loadAccountTokenUsage,
   loadProxySessions,
-  loadRecentProxySessionLatency,
   subscribeToTokenUsageChanges,
 } from "../../api/backend";
 import type { Language, Translate } from "../../i18n";
@@ -52,13 +50,17 @@ import type {
   ImageModelTarget,
   ImageRouteKind,
   Provider,
-  ProxySessionLatencySummary,
   ResetCreditsLoadState,
 } from "../../types";
 import { accountExpirationDate } from "../../utils/expiration";
 import { initials } from "../../utils/format";
 import { formatCompactTokenCount } from "../../utils/tokenContext";
 import { shouldShowUsageError } from "../../utils/usageErrors";
+import {
+  DailyTokenUsageTooltip,
+  EMPTY_TOKEN_TOTALS,
+  type TokenTypeTotals,
+} from "../DailyTokenUsageTooltip";
 import { AccountNoteModal } from "../modals/AccountNoteModal";
 import { ImageModelRouteSelect } from "../ImageModelRouteSelect";
 import { ResetCreditsPanel } from "./ResetCreditsPanel";
@@ -227,42 +229,6 @@ function resetCreditsCount(state?: ResetCreditsLoadState) {
   return state?.status === "loaded" ? state.data.credits.length : null;
 }
 
-interface TokenTypeTotals {
-  total: number;
-  input: number;
-  output: number;
-  reasoning: number;
-  cached: number;
-}
-
-const EMPTY_TOKEN_TOTALS: TokenTypeTotals = {
-  total: 0,
-  input: 0,
-  output: 0,
-  reasoning: 0,
-  cached: 0,
-};
-
-const EMPTY_PROXY_SESSION_LATENCY: ProxySessionLatencySummary = {
-  totalFirstResponseTimeMs: 0,
-  requestCount: 0,
-};
-
-function formatAverageConversationLatency(summary: ProxySessionLatencySummary) {
-  if (!summary.requestCount) return "—";
-  return `${(summary.totalFirstResponseTimeMs / summary.requestCount / 1_000).toFixed(1)}s`;
-}
-
-type ConversationLatencyLevel = "good" | "warning" | "poor" | "unknown";
-
-function conversationLatencyLevel(summary: ProxySessionLatencySummary): ConversationLatencyLevel {
-  if (!summary.requestCount) return "unknown";
-  const averageSeconds = summary.totalFirstResponseTimeMs / summary.requestCount / 1_000;
-  if (averageSeconds < 2) return "good";
-  if (averageSeconds < 3) return "warning";
-  return "poor";
-}
-
 function tokenUsageMatchesAccount(usage: AccountTokenUsageTotals, account: Account) {
   const accountId = account.accountId?.trim();
   const usageAccountId = usage.accountId?.trim();
@@ -270,41 +236,6 @@ function tokenUsageMatchesAccount(usage: AccountTokenUsageTotals, account: Accou
   const email = account.email.trim().toLowerCase();
   const usageEmail = usage.accountEmail?.trim().toLowerCase();
   return Boolean(email && usageEmail && email === usageEmail);
-}
-
-function DailyTokenUsageTooltip({ totals, language }: {
-  totals: TokenTypeTotals;
-  language: Language;
-}) {
-  const labels = language === "zh"
-    ? {
-      title: "今日 Token 用量",
-      input: "输入",
-      output: "输出",
-      reasoning: "推理",
-      cached: "缓存",
-    }
-    : {
-      title: "Today's Token usage",
-      input: "Input",
-      output: "Output",
-      reasoning: "Reasoning",
-      cached: "Cached",
-    };
-  const values = [totals.input, totals.output, totals.reasoning, totals.cached];
-
-  return (
-    <div className="compact-token-tooltip">
-      <strong>{labels.title}</strong>
-      {values.map((value, index) => (
-        <span key={index}>
-          <i className={`token-type-${index}`} />
-          {([labels.input, labels.output, labels.reasoning, labels.cached] as const)[index]}
-          <b>{formatCompactTokenCount(value, language)}</b>
-        </span>
-      ))}
-    </div>
-  );
 }
 
 function CompactDailyTokenChart({ totals, language }: {
@@ -493,9 +424,6 @@ export function AccountTable({
   const [tableScrollY, setTableScrollY] = useState(0);
   const [accountTokenUsage, setAccountTokenUsage] = useState<AccountTokenUsageTotals[]>([]);
   const [accountConversationCounts, setAccountConversationCounts] = useState<Record<string, number>>({});
-  const [proxySessionLatency, setProxySessionLatency] = useState<ProxySessionLatencySummary>(
-    EMPTY_PROXY_SESSION_LATENCY,
-  );
   const openAccountDetails = (account: Account) => {
     setEditingAccount(account);
     setLoadingAccountDetailsId(account.id);
@@ -564,28 +492,6 @@ export function AccountTable({
     };
   }, [hotSwitchEnabled, tokenUsageRefreshSeconds]);
   useEffect(() => {
-    let active = true;
-    let refreshing = false;
-    const refresh = async () => {
-      if (refreshing) return;
-      refreshing = true;
-      try {
-        const summary = await loadRecentProxySessionLatency();
-        if (active) setProxySessionLatency(summary);
-      } catch {
-        if (active) setProxySessionLatency(EMPTY_PROXY_SESSION_LATENCY);
-      } finally {
-        refreshing = false;
-      }
-    };
-    void refresh();
-    const timer = window.setInterval(() => void refresh(), 2_000);
-    return () => {
-      active = false;
-      window.clearInterval(timer);
-    };
-  }, []);
-  useEffect(() => {
     if (!concurrentRoutingActive) {
       setAccountConversationCounts({});
       return undefined;
@@ -647,16 +553,6 @@ export function AccountTable({
     });
     return totals;
   }, [accountTokenUsage, accounts]);
-  const todayTokenTotals = useMemo(
-    () => accountTokenUsage.reduce<TokenTypeTotals>((totals, usage) => ({
-      total: totals.total + usage.totalTokens,
-      input: totals.input + usage.inputTokens,
-      output: totals.output + usage.outputTokens,
-      reasoning: totals.reasoning + usage.reasoningTokens,
-      cached: totals.cached + usage.cachedTokens,
-    }), EMPTY_TOKEN_TOTALS),
-    [accountTokenUsage],
-  );
   const orderedAccounts = useMemo(() => [...accounts].sort(
     (left, right) => Number(needsAccountAttention(left, hotSwitchEnabled, showUsageNetworkErrors))
       - Number(needsAccountAttention(right, hotSwitchEnabled, showUsageNetworkErrors)),
@@ -1236,42 +1132,6 @@ export function AccountTable({
             <strong title={privacyMode ? undefined : officialAuthAccount?.email}>
               {accountSummaryLabel(officialAuthAccount)}
             </strong>
-          </span>
-          <Tooltip title={t("table.averageConversationLatencyTooltip", {
-            requests: proxySessionLatency.requestCount,
-          })}>
-            <span
-              className={`conversation-latency-indicator is-${conversationLatencyLevel(proxySessionLatency)}`}
-              aria-label={`${t("table.averageConversationLatencyLabel")}: ${formatAverageConversationLatency(proxySessionLatency)}`}
-            >
-              <span className="conversation-latency-label">
-                {t("table.averageConversationLatencyLabel")}{language === "zh" ? "：" : ": "}
-              </span>
-              <Signal size={16} strokeWidth={2.5} aria-hidden="true" />
-              <strong>{formatAverageConversationLatency(proxySessionLatency)}</strong>
-            </span>
-          </Tooltip>
-          <span
-            className="today-token-usage-summary"
-            aria-label={`${t("table.todayTokenUsageLabel")}: ${
-              hotSwitchEnabled ? formatCompactTokenCount(todayTokenTotals.total, language) : "--"
-            }`}
-          >
-            {t("table.todayTokenUsageLabel")}{language === "zh" ? "：" : ": "}
-            {hotSwitchEnabled ? (
-              <Tooltip
-                title={<DailyTokenUsageTooltip totals={todayTokenTotals} language={language} />}
-                placement="top"
-              >
-                <strong className="today-token-usage-value">
-                  {formatCompactTokenCount(todayTokenTotals.total, language)}
-                </strong>
-              </Tooltip>
-            ) : (
-              <Tooltip title={t("table.tokenTotalsProxyOnly")}>
-                <strong className="today-token-usage-value">--</strong>
-              </Tooltip>
-            )}
           </span>
           <Tooltip
             title={t(modelContextWindowTooltipKey(modelContextWindow.error))}

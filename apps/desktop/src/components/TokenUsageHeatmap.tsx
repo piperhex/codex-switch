@@ -1,11 +1,42 @@
 import { useEffect, useMemo, useState } from "react";
 import { Tooltip } from "antd";
-import { loadDailyTokenUsage } from "../api/backend";
+import { Signal } from "lucide-react";
+import {
+  loadAccountTokenUsage,
+  loadDailyTokenUsage,
+  loadRecentProxySessionLatency,
+  subscribeToTokenUsageChanges,
+} from "../api/backend";
 import type { Language, Translate } from "../i18n";
-import type { DailyTokenUsage } from "../types";
+import type { AccountTokenUsageTotals, DailyTokenUsage, ProxySessionLatencySummary } from "../types";
+import { formatCompactTokenCount } from "../utils/tokenContext";
+import {
+  DailyTokenUsageTooltip,
+  EMPTY_TOKEN_TOTALS,
+  type TokenTypeTotals,
+} from "./DailyTokenUsageTooltip";
 
 const DAYS_PER_WEEK = 7;
 const TOKEN_USAGE_MORE_THRESHOLD = 100_000_000;
+const EMPTY_PROXY_SESSION_LATENCY: ProxySessionLatencySummary = {
+  totalFirstResponseTimeMs: 0,
+  requestCount: 0,
+};
+
+type ConversationLatencyLevel = "good" | "warning" | "poor" | "unknown";
+
+function formatAverageConversationLatency(summary: ProxySessionLatencySummary) {
+  if (!summary.requestCount) return "—";
+  return `${(summary.totalFirstResponseTimeMs / summary.requestCount / 1_000).toFixed(1)}s`;
+}
+
+function conversationLatencyLevel(summary: ProxySessionLatencySummary): ConversationLatencyLevel {
+  if (!summary.requestCount) return "unknown";
+  const averageSeconds = summary.totalFirstResponseTimeMs / summary.requestCount / 1_000;
+  if (averageSeconds < 2) return "good";
+  if (averageSeconds < 3) return "warning";
+  return "poor";
+}
 
 function dateKey(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -43,6 +74,44 @@ function formatTokenCount(value: number, numberFormat: Intl.NumberFormat) {
   return `${millions}M`;
 }
 
+function useTodayTokenTotals(refreshSeconds: number) {
+  const [usage, setUsage] = useState<AccountTokenUsageTotals[]>([]);
+  useEffect(() => {
+    let active = true;
+    let refreshing = false;
+    const refresh = async () => {
+      if (refreshing) return;
+      refreshing = true;
+      try {
+        const today = new Date();
+        const startTs = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime() / 1_000;
+        const totals = await loadAccountTokenUsage(startTs);
+        if (active) setUsage(totals);
+      } catch {
+        // Keep the last successful totals while token statistics are temporarily unavailable.
+      } finally {
+        refreshing = false;
+      }
+    };
+    void refresh();
+    const timer = window.setInterval(() => void refresh(), Math.max(1, refreshSeconds) * 1_000);
+    const unsubscribe = subscribeToTokenUsageChanges(() => void refresh());
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+      unsubscribe();
+    };
+  }, [refreshSeconds]);
+
+  return useMemo(() => usage.reduce<TokenTypeTotals>((totals, entry) => ({
+    total: totals.total + entry.totalTokens,
+    input: totals.input + entry.inputTokens,
+    output: totals.output + entry.outputTokens,
+    reasoning: totals.reasoning + entry.reasoningTokens,
+    cached: totals.cached + entry.cachedTokens,
+  }), EMPTY_TOKEN_TOTALS), [usage]);
+}
+
 export function TokenUsageHeatmap({
   weeks,
   refreshSeconds,
@@ -58,6 +127,10 @@ export function TokenUsageHeatmap({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [calendarVersion, setCalendarVersion] = useState(0);
+  const todayTokenTotals = useTodayTokenTotals(refreshSeconds);
+  const [proxySessionLatency, setProxySessionLatency] = useState<ProxySessionLatencySummary>(
+    EMPTY_PROXY_SESSION_LATENCY,
+  );
   const columns = useMemo(() => calendarWeeks(weeks), [calendarVersion, weeks]);
   const today = dateKey(new Date());
 
@@ -91,6 +164,29 @@ export function TokenUsageHeatmap({
     };
   }, [refreshSeconds, weeks]);
 
+  useEffect(() => {
+    let active = true;
+    let refreshing = false;
+    const refresh = async () => {
+      if (refreshing) return;
+      refreshing = true;
+      try {
+        const summary = await loadRecentProxySessionLatency();
+        if (active) setProxySessionLatency(summary);
+      } catch {
+        if (active) setProxySessionLatency(EMPTY_PROXY_SESSION_LATENCY);
+      } finally {
+        refreshing = false;
+      }
+    };
+    void refresh();
+    const timer = window.setInterval(() => void refresh(), 2_000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, []);
+
   const totals = useMemo(
     () => new Map(entries.map((entry) => [entry.date, entry])),
     [entries],
@@ -120,6 +216,12 @@ export function TokenUsageHeatmap({
       <div className="token-heatmap-summary" title={error ?? undefined}>
         <span>{t("tokenUsage.period", { weeks })}</span>
         <strong>{loading && entries.length === 0 ? "--" : formatTokenCount(total, numberFormat)}<small> Tokens</small></strong>
+        <span className="token-heatmap-today">
+          {t("table.todayTokenUsageLabel")}{language === "zh" ? "：" : ": "}
+          <Tooltip title={<DailyTokenUsageTooltip totals={todayTokenTotals} language={language} />} placement="top">
+            <b>{formatCompactTokenCount(todayTokenTotals.total, language)}</b>
+          </Tooltip>
+        </span>
       </div>
       <div className="token-heatmap-chart">
         <div className="token-heatmap-weekdays" aria-hidden="true">
@@ -168,21 +270,37 @@ export function TokenUsageHeatmap({
               ))}
             </div>
           </div>
-          <div className="token-heatmap-legend">
-            <span>{t("tokenUsage.less")}</span>
-            <div className="token-heatmap-legend-scale">
-              {legendRanges.map((range) => (
-                <Tooltip key={range.level} title={range.level === 0
-                  ? t("tokenUsage.rangeZero")
-                  : t("tokenUsage.range", {
-                    minimum: formatTokenCount(range.minimum, numberFormat),
-                    maximum: formatTokenCount(range.maximum, numberFormat),
-                  })}>
-                  <span className={`token-heatmap-cell level-${range.level}`} />
-                </Tooltip>
-              ))}
+          <div className="token-heatmap-footer">
+            <Tooltip title={t("table.averageConversationLatencyTooltip", {
+              requests: proxySessionLatency.requestCount,
+            })} styles={{ root: { maxWidth: 400 } }}>
+              <span
+                className={`conversation-latency-indicator is-${conversationLatencyLevel(proxySessionLatency)}`}
+                aria-label={`${t("table.averageConversationLatencyLabel")}: ${
+                  formatAverageConversationLatency(proxySessionLatency)
+                }`}
+              >
+                <span>{t("table.averageConversationLatencyLabel")}{language === "zh" ? "：" : ": "}</span>
+                <Signal size={13} strokeWidth={2.5} aria-hidden="true" />
+                <strong>{formatAverageConversationLatency(proxySessionLatency)}</strong>
+              </span>
+            </Tooltip>
+            <div className="token-heatmap-legend">
+              <span>{t("tokenUsage.less")}</span>
+              <div className="token-heatmap-legend-scale">
+                {legendRanges.map((range) => (
+                  <Tooltip key={range.level} title={range.level === 0
+                    ? t("tokenUsage.rangeZero")
+                    : t("tokenUsage.range", {
+                      minimum: formatTokenCount(range.minimum, numberFormat),
+                      maximum: formatTokenCount(range.maximum, numberFormat),
+                    })}>
+                    <span className={`token-heatmap-cell level-${range.level}`} />
+                  </Tooltip>
+                ))}
+              </div>
+              <span>{t("tokenUsage.more")}</span>
             </div>
-            <span>{t("tokenUsage.more")}</span>
           </div>
         </div>
       </div>
