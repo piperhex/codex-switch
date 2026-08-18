@@ -89,7 +89,7 @@ export function RelayStationModal({
       imageInputModels: modelImageInputModels(modelConfigs),
       imageInputModelsConfigured: true,
       contextWindow: null,
-      modelSelectionControlledByCodex: false,
+      modelSelectionControlledByCodex: true,
       apiKey,
       apiFormat: "openaiResponses",
       balancePlatform: platform,

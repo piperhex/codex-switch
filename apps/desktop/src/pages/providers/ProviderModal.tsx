@@ -115,7 +115,7 @@ export function ProviderModal({ provider, saving, onClose, onSave, t }: Provider
       imageInputModels: modelImageInputModels(modelConfigs),
       imageInputModelsConfigured: true,
       contextWindow: null,
-      modelSelectionControlledByCodex: provider?.modelSelectionControlledByCodex ?? false,
+      modelSelectionControlledByCodex: provider?.modelSelectionControlledByCodex ?? true,
       apiKey: apiKey.trim() || undefined,
       apiFormat,
       balancePlatform: balancePlatform === "none" ? null : balancePlatform,

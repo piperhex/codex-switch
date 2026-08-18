@@ -125,10 +125,10 @@ fn provider_kind(app: &str) -> Result<(ProviderKind, ProviderApiFormat, bool), S
         "codex" => Ok((
             ProviderKind::Custom,
             ProviderApiFormat::OpenaiResponses,
-            false,
+            true,
         )),
         "claude" | "gemini" | "grokbuild" => {
-            Ok((ProviderKind::Custom, ProviderApiFormat::OpenaiChat, false))
+            Ok((ProviderKind::Custom, ProviderApiFormat::OpenaiChat, true))
         }
         _ => Err(format!("unsupported CCS app '{app}'")),
     }
@@ -300,11 +300,21 @@ mod tests {
 
         assert_eq!(kind, ProviderKind::Custom);
         assert_eq!(api_format, ProviderApiFormat::OpenaiResponses);
-        assert!(!controlled_by_codex);
+        assert!(controlled_by_codex);
         assert_eq!(
             import_model("codex", String::new()).unwrap(),
             providers::DEFAULT_OFFICIAL_MODEL
         );
+    }
+
+    #[test]
+    fn imported_compatible_providers_default_to_codex_model_control() {
+        for app in ["claude", "gemini", "grokbuild"] {
+            let (_, api_format, controlled_by_codex) = provider_kind(app).unwrap();
+
+            assert_eq!(api_format, ProviderApiFormat::OpenaiChat);
+            assert!(controlled_by_codex);
+        }
     }
 
     #[test]
