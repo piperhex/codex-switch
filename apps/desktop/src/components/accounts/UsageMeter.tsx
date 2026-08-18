@@ -31,10 +31,9 @@ function secondsSinceRefresh(timestamp: string | null | undefined, now: number) 
   return Math.max(0, Math.floor((now - refreshedAt) / 1000));
 }
 
-export function UsageMeter({ window: usageWindow, resetWindow, resetCreditsCount, fetchedAt, variant = "line", language, t }: {
+export function UsageMeter({ window: usageWindow, resetWindow, fetchedAt, variant = "line", language, t }: {
   window?: UsageWindow | null;
   resetWindow: UsageResetWindow;
-  resetCreditsCount?: number | null;
   fetchedAt?: string | null;
   variant?: "line" | "circle";
   language: Language;
@@ -58,10 +57,9 @@ export function UsageMeter({ window: usageWindow, resetWindow, resetCreditsCount
     <div className={`table-usage card-usage-meter table-usage-${resetWindow}`}>
       <Progress type="circle" percent={remaining} size={54} strokeWidth={10} strokeColor={usageStroke(remaining)}
         format={() => <span className="card-usage-percent"><strong className={tone}>{remaining}%</strong><small>{t("usage.remaining")}</small></span>} />
-      {(resetCreditsCount !== undefined || recentRefreshSeconds !== null) && <span className="card-usage-meta">
-        {resetCreditsCount !== undefined && t("usage.resetCreditsRemaining", { count: resetCreditsCount ?? "-" })}
-        {recentRefreshSeconds !== null && t("usage.recentRefresh", { seconds: recentRefreshSeconds })}
-      </span>}
+      {recentRefreshSeconds !== null && (
+        <span className="card-usage-meta">{t("usage.recentRefresh", { seconds: recentRefreshSeconds })}</span>
+      )}
       <span className="card-usage-reset">{resetLabel(usageWindow.resetsAt, language, resetWindow)}</span>
     </div>
   );
@@ -70,11 +68,6 @@ export function UsageMeter({ window: usageWindow, resetWindow, resetCreditsCount
       <div className="table-usage-head">
         <strong className={tone}>{remaining}%</strong>
         <span>{t("usage.remaining")}</span>
-        {resetCreditsCount !== undefined && (
-          <span className="usage-reset-credits">
-            {t("usage.resetCreditsCompact", { count: resetCreditsCount ?? "-" })}
-          </span>
-        )}
         {recentRefreshSeconds !== null && (
           <span className="usage-recent-refresh">
             {t("usage.recentRefreshCompact", { seconds: recentRefreshSeconds })}

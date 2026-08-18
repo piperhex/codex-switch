@@ -229,6 +229,12 @@ function resetCreditsCount(state?: ResetCreditsLoadState) {
   return state?.status === "loaded" ? state.data.credits.length : null;
 }
 
+function AccountResetCreditCount({ count, language }: { count: number | null; language: Language }) {
+  if (!count) return null;
+  const label = language === "zh" ? `${count}重置卡` : `${count} reset card${count === 1 ? "" : "s"}`;
+  return <span className="account-reset-credit-count"><span aria-hidden="true">·</span>{label}</span>;
+}
+
 function tokenUsageMatchesAccount(usage: AccountTokenUsageTotals, account: Account) {
   const accountId = account.accountId?.trim();
   const usageAccountId = usage.accountId?.trim();
@@ -624,8 +630,11 @@ export function AccountTable({
             )}
           </div>
           <div className="account-primary">
-            <div className="account-email" title={privacyMode ? undefined : account.email}>
-              {privacyMode ? maskAccountEmail(account.email) : account.email}
+            <div className="account-email-row">
+              <div className="account-email" title={privacyMode ? undefined : account.email}>
+                {privacyMode ? maskAccountEmail(account.email) : account.email}
+              </div>
+              <AccountResetCreditCount count={resetCreditsCount(resetCredits[account.id])} language={language} />
             </div>
             <div className={`account-note-preview${account.note ? "" : " empty"}`}
               title={hideAccountNotes ? undefined : account.note || (canEditAccountMetadata(account)
@@ -666,8 +675,7 @@ export function AccountTable({
       // OpenAI currently reports the primary (5-hour) quota with a weekly reset window.
       // Render its reset time like the weekly quota so it does not show a misleading 5-hour countdown.
       render: (_, account) => <UsageMeter window={account.usage.primary} resetWindow="oneWeek"
-        resetCreditsCount={resetCreditsCount(resetCredits[account.id])} fetchedAt={account.usage.fetchedAt}
-        language={language} t={t} />,
+        fetchedAt={account.usage.fetchedAt} language={language} t={t} />,
     },
     {
       title: t("table.oneWeek"), key: "oneWeek", width: 260,
@@ -681,7 +689,7 @@ export function AccountTable({
       ),
       sortOrder: usageSort?.column === "oneWeek" ? usageSort.order : null,
       render: (_, account) => <UsageMeter window={account.usage.secondary} resetWindow="oneWeek"
-        resetCreditsCount={resetCreditsCount(resetCredits[account.id])} language={language} t={t} />,
+        language={language} t={t} />,
     },
     {
       title: t("table.tokenTotals"), key: "tokenTotals", width: 92, align: "center" as const,
@@ -1063,6 +1071,8 @@ export function AccountTable({
               <div className="identity">
                 <div className="identity-line">
                   <h3 title={privacyMode ? undefined : account.email}>{privacyMode ? maskAccountEmail(account.email) : account.email}</h3>
+                  <AccountResetCreditCount count={resetCreditsCount(resetCredits[account.id])}
+                    language={language} />
                   <Tooltip title={account.accountId ? t("table.workspace", { id: account.accountId }) : t("table.personal")}>
                     <Tag className="plan-tag">{account.plan || "ChatGPT"}</Tag>
                   </Tooltip>
@@ -1099,8 +1109,7 @@ export function AccountTable({
             </header>
             <div className="account-card-usage">
               <section><span>{t("table.fiveHours")}</span><UsageMeter window={account.usage.primary} resetWindow="oneWeek"
-                resetCreditsCount={resetCreditsCount(resetCredits[account.id])} fetchedAt={account.usage.fetchedAt}
-                variant="circle" language={language} t={t} /></section>
+                fetchedAt={account.usage.fetchedAt} variant="circle" language={language} t={t} /></section>
               <section><span>{t("table.oneWeek")}</span><UsageMeter window={account.usage.secondary} resetWindow="oneWeek"
                 variant="circle" language={language} t={t} /></section>
             </div>

@@ -535,7 +535,23 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .table-avatar.disabled-avatar { color: #b42318; background: #ffd8d3; }
 .account-conversation-count { position: absolute; top: -7px; right: -9px; min-width: 17px; height: 17px; padding: 0 4px; border: 2px solid var(--panel); border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; color: #fff; background: var(--green); font: 700 9px/1 Manrope, sans-serif; box-sizing: border-box; }
 .account-primary { min-width: 0; display: grid; gap: 2px; }
-.account-email { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+.account-email-row { min-width: 0; display: flex; align-items: baseline; gap: 4px; }
+.account-email {
+  min-width: 0;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+}
+.account-reset-credit-count {
+  flex: 0 0 auto;
+  color: var(--green-dark);
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.account-reset-credit-count > span { margin-right: 4px; color: #9aa69f; }
 .account-note-preview { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #53675a; font-size: 10px; }
 .account-note-preview.empty { color: #9aa59e; font-style: italic; }
 .account-meta { height: 18px; display: flex; align-items: center; gap: 4px; }
@@ -575,9 +591,8 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .account-token-chart-cell .compact-model-token-chart { padding-left: 0; border-left: 0; }
 .account-token-chart-unavailable { min-width: 32px; color: #9aa69f; font-size: 11px; cursor: help; }
 .auto-switch-priority-input { width: 88px; }
-.usage-reset-credits { white-space: nowrap; color: var(--green-dark) !important; font-weight: 700; }
 .usage-recent-refresh { white-space: nowrap; color: #718078 !important; }
-.usage-reset-credits::before, .usage-recent-refresh::before { margin-right: 4px; color: #9aa69f; content: "·"; }
+.usage-recent-refresh::before { margin-right: 4px; color: #9aa69f; content: "·"; }
 .usage-reset { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; white-space: normal; }
 .usage-reset > span:first-child { white-space: nowrap; }
 .account-table-wrap .ant-progress-line { line-height: 1; }
