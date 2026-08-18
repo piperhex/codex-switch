@@ -41,13 +41,34 @@ export function applyThemeColor(color: string) {
   const normalized = normalizeThemeColor(color);
   const rgb = parseColor(normalized);
   const root = document.documentElement;
+  const dark = root.dataset.theme === "dark";
   root.style.setProperty("--green", normalized);
-  root.style.setProperty("--green-dark", mix(normalized, { r: 0, g: 0, b: 0 }, .24));
-  root.style.setProperty("--green-soft", mix(normalized, { r: 255, g: 255, b: 255 }, .88));
-  root.style.setProperty("--green-selection", mix(normalized, { r: 255, g: 255, b: 255 }, .82));
-  root.style.setProperty("--green-selection-hover", mix(normalized, { r: 255, g: 255, b: 255 }, .76));
+  root.style.setProperty("--green-dark", mix(
+    normalized,
+    dark ? { r: 255, g: 255, b: 255 } : { r: 0, g: 0, b: 0 },
+    dark ? .3 : .24,
+  ));
+  root.style.setProperty("--green-soft", mix(
+    normalized,
+    dark ? { r: 24, g: 31, b: 27 } : { r: 255, g: 255, b: 255 },
+    dark ? .8 : .88,
+  ));
+  root.style.setProperty("--green-selection", mix(
+    normalized,
+    dark ? { r: 24, g: 31, b: 27 } : { r: 255, g: 255, b: 255 },
+    dark ? .66 : .82,
+  ));
+  root.style.setProperty("--green-selection-hover", mix(
+    normalized,
+    dark ? { r: 24, g: 31, b: 27 } : { r: 255, g: 255, b: 255 },
+    dark ? .58 : .76,
+  ));
   root.style.setProperty("--green-accent", mix(normalized, { r: 255, g: 255, b: 255 }, .18));
-  root.style.setProperty("--green-highlight", mix(normalized, { r: 255, g: 255, b: 255 }, .38));
+  root.style.setProperty("--green-highlight", mix(
+    normalized,
+    dark ? { r: 24, g: 31, b: 27 } : { r: 255, g: 255, b: 255 },
+    dark ? .35 : .38,
+  ));
   root.style.setProperty("--green-gradient-end", mix(normalized, { r: 255, g: 255, b: 255 }, .42));
   root.style.setProperty("--green-surface", mix(normalized, { r: 18, g: 22, b: 20 }, .82));
   root.style.setProperty("--green-rgb", `${rgb.r}, ${rgb.g}, ${rgb.b}`);

@@ -11,15 +11,18 @@ import {
   LogIn,
   LogOut,
   MessageSquareText,
+  Moon,
   RefreshCw,
   Settings,
   ShieldCheck,
+  Sun,
   UploadCloud,
 } from "lucide-react";
 import type { useAppUpdate } from "../../hooks/useAppUpdate";
 import type { useCloudAuth } from "../../hooks/useCloudAuth";
 import type { useCloudContent } from "../../hooks/useCloudContent";
 import type { Language, Translate } from "../../i18n";
+import type { ThemeMode } from "../../utils/themeMode";
 import { NotificationPanel } from "./NotificationPanel";
 
 interface MenuActions {
@@ -43,7 +46,24 @@ interface DashboardMenuToolsProps {
   cloud: ReturnType<typeof useCloudAuth>;
   cloudContent: ReturnType<typeof useCloudContent>;
   language: Language;
+  onToggleThemeMode: () => void;
   t: Translate;
+  themeMode: ThemeMode;
+}
+
+function ThemeModeButton({ mode, onToggle, t }: {
+  mode: ThemeMode;
+  onToggle: () => void;
+  t: Translate;
+}) {
+  const label = t(mode === "dark" ? "themeMode.switchToLight" : "themeMode.switchToDark");
+  return (
+    <Tooltip title={label}>
+      <button type="button" className="theme-mode-button" aria-label={label} onClick={onToggle}>
+        {mode === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+      </button>
+    </Tooltip>
+  );
 }
 
 function menuItems(options: DashboardMenuToolsProps) {
@@ -88,7 +108,16 @@ function handleMenuClick(key: string, options: DashboardMenuToolsProps) {
 }
 
 export function DashboardMenuTools(options: DashboardMenuToolsProps) {
-  const { actions, appUpdate, cloud, cloudContent, language, t } = options;
+  const {
+    actions,
+    appUpdate,
+    cloud,
+    cloudContent,
+    language,
+    onToggleThemeMode,
+    t,
+    themeMode,
+  } = options;
   const unreadCount = cloudContent.notifications.filter((notification) => {
     if (!cloudContent.lastNotificationSeenAt) return true;
     return new Date(notification.updatedAt).getTime()
@@ -129,6 +158,7 @@ export function DashboardMenuTools(options: DashboardMenuToolsProps) {
           {unreadCount > 0 && <span className="notification-unread-badge" aria-hidden="true" />}
         </button>
       </Popover>
+      <ThemeModeButton mode={themeMode} onToggle={onToggleThemeMode} t={t} />
       {appUpdate.availableUpdate
         && (appUpdate.updateDownloaded || (appUpdate.downloadingUpdate && appUpdate.downloadRequested)) && (
         <Tooltip title={appUpdate.downloadingUpdate

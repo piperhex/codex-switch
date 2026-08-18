@@ -1,8 +1,11 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
+import { applyThemeMode, loadThemeMode } from "./utils/themeMode";
 import "antd/dist/reset.css";
 import "./styles.css";
+
+applyThemeMode(loadThemeMode());
 
 function normalizeWindowRoute(value: string | null) {
   return (value ?? "").replace(/^#\/?/, "").split(/[?#]/)[0];

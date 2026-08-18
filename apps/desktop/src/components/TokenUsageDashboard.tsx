@@ -80,14 +80,23 @@ function mixColor(color: string, target: number, weight: number) {
     .toString(16).padStart(2, "0")).join("")}`;
 }
 
-function chartPalette(themeColor: string) {
+interface ChartPalette {
+  grid: string;
+  heat: string[];
+  panel: string;
+  series: string[];
+  text: string;
+  muted: string;
+}
+
+function chartPalette(themeColor: string, dark: boolean): ChartPalette {
   const color = normalizeThemeColor(themeColor);
   return {
     heat: [
-      "#edf1ee",
-      mixColor(color, 255, .78),
-      mixColor(color, 255, .52),
-      mixColor(color, 255, .25),
+      dark ? "#252d28" : "#edf1ee",
+      mixColor(color, dark ? 24 : 255, dark ? .72 : .78),
+      mixColor(color, dark ? 24 : 255, dark ? .5 : .52),
+      mixColor(color, dark ? 24 : 255, dark ? .28 : .25),
       mixColor(color, 0, .18),
     ],
     series: [
@@ -97,6 +106,10 @@ function chartPalette(themeColor: string) {
       mixColor(color, 0, .42),
       mixColor(color, 255, .5),
     ],
+    grid: dark ? "#39453e" : "#e8ede8",
+    panel: dark ? "#1e2521" : "#fff",
+    text: dark ? "#b7c2bb" : "#526158",
+    muted: dark ? "#8f9c94" : "#718078",
   };
 }
 
@@ -143,7 +156,11 @@ function EChart({ option, label, className = "" }: {
   return <div ref={elementRef} className={`token-echart ${className}`} role="img" aria-label={label} />;
 }
 
-function rankingOption(data: Array<[string, number]>, color: string, language: Language): EChartsOption {
+function rankingOption(
+  data: Array<[string, number]>,
+  palette: ChartPalette,
+  language: Language,
+): EChartsOption {
   const sorted = [...data].reverse();
   return {
     animationDurationUpdate: 280,
@@ -156,13 +173,13 @@ function rankingOption(data: Array<[string, number]>, color: string, language: L
     grid: { left: 18, right: 26, top: 12, bottom: 16, containLabel: true },
     xAxis: {
       type: "value",
-      axisLabel: { color: "#7b8980", formatter: (value: number) => formatTokens(value, language) },
-      splitLine: { lineStyle: { color: "#e8ede8" } },
+      axisLabel: { color: palette.muted, formatter: (value: number) => formatTokens(value, language) },
+      splitLine: { lineStyle: { color: palette.grid } },
     },
     yAxis: {
       type: "category",
       data: sorted.map(([label]) => label),
-      axisLabel: { color: "#526158", width: 118, overflow: "truncate" },
+      axisLabel: { color: palette.text, width: 118, overflow: "truncate" },
       axisTick: { show: false },
       axisLine: { show: false },
     },
@@ -170,17 +187,22 @@ function rankingOption(data: Array<[string, number]>, color: string, language: L
       type: "bar",
       data: sorted.map(([, value]) => value),
       barMaxWidth: 14,
-      itemStyle: { color, borderRadius: [0, 4, 4, 0] },
-      label: { show: true, position: "right", color: "#718078", formatter: (params: any) => formatTokens(Number(params.value), language) },
+      itemStyle: { color: palette.series[0], borderRadius: [0, 4, 4, 0] },
+      label: { show: true, position: "right", color: palette.muted,
+        formatter: (params: any) => formatTokens(Number(params.value), language) },
     }],
   };
 }
 
-function usagePieOption(data: Array<[string, number]>, colors: string[], language: Language): EChartsOption {
+function usagePieOption(
+  data: Array<[string, number]>,
+  palette: ChartPalette,
+  language: Language,
+): EChartsOption {
   return {
     animationDurationUpdate: 280,
     aria: { enabled: true },
-    color: colors,
+    color: palette.series,
     tooltip: {
       trigger: "item",
       formatter: (params: any) => `${params.marker}${params.name}<br/><b>${formatTokens(Number(params.value), language)} Tokens</b> · ${params.percent}%`,
@@ -190,9 +212,9 @@ function usagePieOption(data: Array<[string, number]>, colors: string[], languag
       radius: ["36%", "66%"],
       center: ["50%", "48%"],
       avoidLabelOverlap: true,
-      itemStyle: { borderColor: "#fff", borderWidth: 2, borderRadius: 3 },
+      itemStyle: { borderColor: palette.panel, borderWidth: 2, borderRadius: 3 },
       label: {
-        color: "#526158",
+        color: palette.text,
         fontSize: 9,
         width: 82,
         overflow: "truncate",
@@ -205,6 +227,7 @@ function usagePieOption(data: Array<[string, number]>, colors: string[], languag
 }
 
 export function TokenUsageDashboard({
+  dark = false,
   language,
   themeColor,
   weeks,
@@ -213,6 +236,7 @@ export function TokenUsageDashboard({
   preferencesLoading = false,
   embedded = false,
 }: {
+  dark?: boolean;
   language: Language;
   themeColor: string;
   weeks: number;
@@ -305,7 +329,7 @@ export function TokenUsageDashboard({
     : "Token usage is collected only in proxy mode";
   const rangeLabel = language === "zh" ? "最近" : "Last";
   const weeksUnit = language === "zh" ? "周" : "weeks";
-  const palette = useMemo(() => chartPalette(themeColor), [themeColor]);
+  const palette = useMemo(() => chartPalette(themeColor, dark), [dark, themeColor]);
   const dateKeys = useMemo(() => calendarDateKeys(weeks), [dailyUsage, weeks]);
   const dailyByDate = useMemo(() => new Map(dailyUsage.map((entry) => [entry.date, entry])), [dailyUsage]);
 
@@ -331,7 +355,7 @@ export function TokenUsageDashboard({
       itemHeight: 11,
       itemGap: 4,
       text: language === "zh" ? ["多", "少"] : ["More", "Less"],
-      textStyle: { color: "#718078", fontSize: 10 },
+      textStyle: { color: palette.muted, fontSize: 10 },
       pieces: [
         { value: 0, color: palette.heat[0] },
         { min: 1, max: 25_000_000, color: palette.heat[1] },
@@ -347,17 +371,19 @@ export function TokenUsageDashboard({
       bottom: 18,
       cellSize: [22, 22],
       splitLine: { show: false },
-      itemStyle: { color: palette.heat[0], borderColor: "#f8faf8", borderWidth: 2 },
+      itemStyle: { color: palette.heat[0], borderColor: palette.panel, borderWidth: 2 },
       yearLabel: { show: false },
-      monthLabel: { color: "#718078", fontSize: 10, nameMap: language === "zh" ? "ZH" : "EN" },
-      dayLabel: { firstDay: 0, color: "#718078", fontSize: 10, nameMap: language === "zh" ? ["日", "一", "二", "三", "四", "五", "六"] : "EN" },
+      monthLabel: { color: palette.muted, fontSize: 10,
+        nameMap: language === "zh" ? "ZH" : "EN" },
+      dayLabel: { firstDay: 0, color: palette.muted, fontSize: 10,
+        nameMap: language === "zh" ? ["日", "一", "二", "三", "四", "五", "六"] : "EN" },
     },
     series: [{
       type: "heatmap",
       coordinateSystem: "calendar",
       data: dateKeys.map((key) => [key, dailyByDate.get(key)?.totalTokens ?? 0]),
     }],
-  }), [dailyByDate, dateKeys, language, locale, palette.heat, tokenLabels]);
+  }), [dailyByDate, dateKeys, language, locale, palette, tokenLabels]);
 
   const trendOption = useMemo<EChartsOption>(() => {
     const definitions = [
@@ -372,19 +398,20 @@ export function TokenUsageDashboard({
       aria: { enabled: true },
       color: palette.series,
       tooltip: { trigger: "axis", valueFormatter: (value: unknown) => `${formatTokens(Number(value), language)} Tokens` },
-      legend: { top: 0, textStyle: { color: "#5f6e65", fontSize: 10 } },
+      legend: { top: 0, textStyle: { color: palette.text, fontSize: 10 } },
       grid: { left: 18, right: 22, top: 38, bottom: 18, containLabel: true },
       xAxis: {
         type: "category",
         boundaryGap: false,
         data: dateKeys,
-        axisLabel: { color: "#7b8980", hideOverlap: true, formatter: (value: string) => value.slice(5) },
-        axisLine: { lineStyle: { color: "#dfe5df" } },
+        axisLabel: { color: palette.muted, hideOverlap: true,
+          formatter: (value: string) => value.slice(5) },
+        axisLine: { lineStyle: { color: palette.grid } },
       },
       yAxis: {
         type: "value",
-        axisLabel: { color: "#7b8980", formatter: (value: number) => formatTokens(value, language) },
-        splitLine: { lineStyle: { color: "#e8ede8" } },
+        axisLabel: { color: palette.muted, formatter: (value: number) => formatTokens(value, language) },
+        splitLine: { lineStyle: { color: palette.grid } },
       },
       series: definitions.map(([name, field], index) => ({
         name,
@@ -396,7 +423,7 @@ export function TokenUsageDashboard({
         data: dateKeys.map((key) => dailyByDate.get(key)?.[field] ?? 0),
       })),
     };
-  }, [dailyByDate, dateKeys, language, palette.series, tokenLabels]);
+  }, [dailyByDate, dateKeys, language, palette, tokenLabels]);
 
   const breakdownOption = useMemo<EChartsOption>(() => {
     const totals = dailyUsage.reduce((current, entry) => ({
@@ -410,11 +437,21 @@ export function TokenUsageDashboard({
       aria: { enabled: true },
       tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, valueFormatter: (value: unknown) => `${formatTokens(Number(value), language)} Tokens` },
       grid: { left: 16, right: 18, top: 16, bottom: 18, containLabel: true },
-      xAxis: { type: "category", data: [tokenLabels.input, tokenLabels.output, tokenLabels.reasoning, tokenLabels.cached], axisTick: { show: false }, axisLine: { lineStyle: { color: "#dfe5df" } }, axisLabel: { color: "#5f6e65" } },
-      yAxis: { type: "value", axisLabel: { color: "#7b8980", formatter: (value: number) => formatTokens(value, language) }, splitLine: { lineStyle: { color: "#e8ede8" } } },
-      series: [{ type: "bar", data: [totals.input, totals.output, totals.reasoning, totals.cached], barMaxWidth: 30, itemStyle: { color: (params: any) => palette.series[params.dataIndex], borderRadius: [4, 4, 0, 0] }, label: { show: true, position: "top", color: "#718078", formatter: (params: any) => formatTokens(Number(params.value), language) } }],
+      xAxis: { type: "category",
+        data: [tokenLabels.input, tokenLabels.output, tokenLabels.reasoning, tokenLabels.cached],
+        axisTick: { show: false }, axisLine: { lineStyle: { color: palette.grid } },
+        axisLabel: { color: palette.text } },
+      yAxis: { type: "value",
+        axisLabel: { color: palette.muted, formatter: (value: number) => formatTokens(value, language) },
+        splitLine: { lineStyle: { color: palette.grid } } },
+      series: [{ type: "bar", data: [totals.input, totals.output, totals.reasoning, totals.cached],
+        barMaxWidth: 30,
+        itemStyle: { color: (params: any) => palette.series[params.dataIndex],
+          borderRadius: [4, 4, 0, 0] },
+        label: { show: true, position: "top", color: palette.muted,
+          formatter: (params: any) => formatTokens(Number(params.value), language) } }],
     };
-  }, [dailyUsage, language, palette.series, tokenLabels]);
+  }, [dailyUsage, language, palette, tokenLabels]);
 
   const providerData = useMemo(() => aggregateEntries(entries, (entry) => entry.provider), [entries]);
   const modelData = useMemo(() => aggregateEntries(entries, (entry) => entry.model), [entries]);
@@ -461,15 +498,15 @@ export function TokenUsageDashboard({
         </section>
         <section className="token-chart-panel">
           <div className="token-chart-heading"><h2>{labels.providers}</h2><span>{labels.recent}</span></div>
-          <EChart option={rankingOption(providerData, palette.series[0], language)} label={labels.providers} />
+          <EChart option={rankingOption(providerData, palette, language)} label={labels.providers} />
         </section>
         <section className="token-chart-panel">
           <div className="token-chart-heading"><h2>{labels.models}</h2><span>{labels.recent}</span></div>
-          <EChart option={usagePieOption(modelData, palette.series, language)} label={labels.models} />
+          <EChart option={usagePieOption(modelData, palette, language)} label={labels.models} />
         </section>
         <section className="token-chart-panel">
           <div className="token-chart-heading"><h2>{labels.accounts}</h2><span>{labels.recent}</span></div>
-          <EChart option={usagePieOption(accountData, palette.series, language)} label={labels.accounts} />
+          <EChart option={usagePieOption(accountData, palette, language)} label={labels.accounts} />
         </section>
       </div>
       {!loading && dailyUsage.length === 0 && entries.length === 0 ? <div className="token-dashboard-empty">{labels.noData}</div> : null}

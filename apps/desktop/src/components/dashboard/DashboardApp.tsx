@@ -87,6 +87,7 @@ import { useProviderManager } from "../../hooks/useProviderManager";
 import { usePrivacyMode } from "../../hooks/usePrivacyMode";
 import { useResetCredits } from "../../hooks/useResetCredits";
 import { useThemeColor } from "../../hooks/useThemeColor";
+import { useThemeMode } from "../../hooks/useThemeMode";
 import { useTokenUsagePreferences } from "../../hooks/useTokenUsagePreferences";
 import { useToast } from "../../hooks/useToast";
 import { useTotpEntries } from "../../hooks/useTotpEntries";
@@ -332,6 +333,7 @@ export function DashboardApp() {
   const accountDisplayMode = useAccountDisplayMode();
   const navigationStyle = useNavigationStyle();
   const themeColor = useThemeColor(notify);
+  const themeMode = useThemeMode();
   const tokenUsagePreferences = useTokenUsagePreferences(notify);
   const manager = useAccountManager(notify, t, accountCloudSync);
   const providerManager = useProviderManager(notify, t, providerCloudSync);
@@ -1126,7 +1128,8 @@ export function DashboardApp() {
       openRepository,
       openSettings: () => setPage("settings"),
       syncCloud: () => void syncCloud(),
-    }} appUpdate={appUpdate} cloud={cloud} cloudContent={cloudContent} language={language} t={t} />
+    }} appUpdate={appUpdate} cloud={cloud} cloudContent={cloudContent} language={language}
+      onToggleThemeMode={themeMode.toggleMode} t={t} themeMode={themeMode.mode} />
   );
   const sidebarNavigationEnabled = navigationStyle.style === "sidebar";
   const sidebarToggleLabel = t(navigationStyle.sidebarCollapsed
@@ -1135,7 +1138,9 @@ export function DashboardApp() {
 
   return (
     <ConfigProvider locale={language === "zh" ? zhCN : enUS} theme={{
-      algorithm: antdTheme.compactAlgorithm,
+      algorithm: themeMode.mode === "dark"
+        ? [antdTheme.darkAlgorithm, antdTheme.compactAlgorithm]
+        : antdTheme.compactAlgorithm,
       token: {
         colorPrimary: themeColor.color,
         borderRadius: 6,
@@ -1398,7 +1403,8 @@ export function DashboardApp() {
               language={language} t={t} />
           </section>
           <section className="page-panel token-dashboard-page" hidden={page !== "tokens"}>
-            <TokenUsageDashboard language={language} themeColor={themeColor.color}
+            <TokenUsageDashboard dark={themeMode.mode === "dark"} language={language}
+              themeColor={themeColor.color}
               weeks={tokenUsagePreferences.weeks}
               refreshSeconds={tokenUsagePreferences.refreshSeconds}
               onWeeksChange={tokenUsagePreferences.updateWeeks}

@@ -7,6 +7,7 @@ import { loadAccounts, subscribeToBackendEvents } from "../api/backend";
 import { useCloudAuth } from "../hooks/useCloudAuth";
 import { useLanguage } from "../hooks/useLanguage";
 import { useThemeColor } from "../hooks/useThemeColor";
+import { useThemeMode } from "../hooks/useThemeMode";
 import { useToast } from "../hooks/useToast";
 import { useTotpEntries } from "../hooks/useTotpEntries";
 import type { Account } from "../types";
@@ -48,6 +49,7 @@ export function TotpWindow() {
   const { message, notify } = useToast();
   const { language, t } = useLanguage();
   const themeColor = useThemeColor(notify);
+  const themeMode = useThemeMode();
   const cloud = useCloudAuth(notify, t);
   const manager = useTotpEntries({
     cloudAuthenticated: cloud.state.authenticated,
@@ -63,7 +65,9 @@ export function TotpWindow() {
 
   return (
     <ConfigProvider locale={language === "zh" ? zhCN : enUS} theme={{
-      algorithm: antdTheme.compactAlgorithm,
+      algorithm: themeMode.mode === "dark"
+        ? [antdTheme.darkAlgorithm, antdTheme.compactAlgorithm]
+        : antdTheme.compactAlgorithm,
       token: {
         colorPrimary: themeColor.color,
         borderRadius: 6,

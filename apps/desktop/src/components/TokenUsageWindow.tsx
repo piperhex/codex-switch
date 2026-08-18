@@ -4,6 +4,7 @@ import enUS from "antd/locale/en_US";
 import zhCN from "antd/locale/zh_CN";
 import { useLanguage } from "../hooks/useLanguage";
 import { useThemeColor } from "../hooks/useThemeColor";
+import { useThemeMode } from "../hooks/useThemeMode";
 import { useTokenUsagePreferences } from "../hooks/useTokenUsagePreferences";
 import { TokenUsageDashboard } from "./TokenUsageDashboard";
 
@@ -12,6 +13,7 @@ const ignoreError = () => undefined;
 export function TokenUsageWindow() {
   const { language } = useLanguage();
   const themeColor = useThemeColor(ignoreError);
+  const themeMode = useThemeMode();
   const preferences = useTokenUsagePreferences(ignoreError);
 
   useEffect(() => {
@@ -21,7 +23,9 @@ export function TokenUsageWindow() {
 
   return (
     <ConfigProvider locale={language === "zh" ? zhCN : enUS} theme={{
-      algorithm: antdTheme.compactAlgorithm,
+      algorithm: themeMode.mode === "dark"
+        ? [antdTheme.darkAlgorithm, antdTheme.compactAlgorithm]
+        : antdTheme.compactAlgorithm,
       token: {
         colorPrimary: themeColor.color,
         borderRadius: 6,
@@ -29,6 +33,7 @@ export function TokenUsageWindow() {
       },
     }}>
       <TokenUsageDashboard
+        dark={themeMode.mode === "dark"}
         language={language}
         themeColor={themeColor.color}
         weeks={preferences.weeks}
