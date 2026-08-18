@@ -354,9 +354,8 @@ main.providers-main .providers-page-panel { flex: 1; display: flex; flex-directi
 .token-heatmap-summary > strong { color: var(--ink); font: 700 22px/1 Manrope, sans-serif; letter-spacing: -.025em; white-space: nowrap; }
 .token-heatmap-summary > strong small { margin-left: 5px; color: var(--green-dark); font: 700 9px/1 "DM Sans", sans-serif; letter-spacing: .03em; }
 .token-heatmap-details {
-  display: flex;
-  align-items: baseline;
-  gap: 14px;
+  display: grid;
+  gap: 3px;
   color: #7b8980;
   font-size: 9px;
   font-weight: 700;
