@@ -18,6 +18,15 @@ const MAX_PROVIDER_NAME_LENGTH: usize = 200;
 const MAX_ENDPOINT_LENGTH: usize = 2_048;
 const MAX_API_KEY_LENGTH: usize = 16_384;
 const MAX_MODEL_LENGTH: usize = 200;
+const SUB2API_BALANCE_PATH: &str = "/v1/usage";
+const NEW_API_BALANCE_PATH: &str = "/api/usage/token/";
+const DEEPSEEK_BALANCE_PATH: &str = "/user/balance";
+
+struct ImportBalanceSettings {
+    platform: Option<ProviderBalancePlatform>,
+    query_url: Option<String>,
+    uses_api_key: bool,
+}
 
 #[derive(Default)]
 pub(crate) struct ImportNavigationState {
@@ -63,10 +72,7 @@ fn import_url<R: Runtime>(app: &AppHandle<R>, url: &Url) -> Result<(), String> {
     } else {
         vec![model.clone()]
     };
-    let balance_platform = query
-        .get("balancePlatform")
-        .or_else(|| query.get("platform"))
-        .and_then(|value| parse_balance_platform(value));
+    let balance = import_balance_settings(&query, &endpoint)?;
     let provider = ProviderInput {
         id: None,
         kind,
@@ -83,10 +89,10 @@ fn import_url<R: Runtime>(app: &AppHandle<R>, url: &Url) -> Result<(), String> {
         context_window: None,
         model_selection_controlled_by_codex: controlled_by_codex,
         api_format,
-        balance_platform,
-        balance_query_url: None,
+        balance_platform: balance.platform,
+        balance_query_url: balance.query_url,
         balance_query_token: None,
-        balance_query_uses_api_key: false,
+        balance_query_uses_api_key: balance.uses_api_key,
         wallet_query_url: None,
         wallet_query_token: None,
         wallet_username: None,
@@ -134,6 +140,46 @@ fn parse_balance_platform(value: &str) -> Option<ProviderBalancePlatform> {
         "deepseek" | "deep-seek" => Some(ProviderBalancePlatform::DeepSeek),
         _ => None,
     }
+}
+
+fn import_balance_settings(
+    query: &BTreeMap<String, String>,
+    endpoint: &str,
+) -> Result<ImportBalanceSettings, String> {
+    let platform = query
+        .get("balancePlatform")
+        .or_else(|| query.get("platform"))
+        .and_then(|value| parse_balance_platform(value));
+    let query_url = platform
+        .map(|platform| default_balance_query_url(endpoint, platform))
+        .transpose()?;
+    Ok(ImportBalanceSettings {
+        platform,
+        query_url,
+        uses_api_key: platform.is_some(),
+    })
+}
+
+fn default_balance_query_url(
+    endpoint: &str,
+    platform: ProviderBalancePlatform,
+) -> Result<String, String> {
+    let mut url =
+        Url::parse(endpoint).map_err(|error| format!("CCS endpoint is invalid: {error}"))?;
+    let root_path = url.path().trim_end_matches('/');
+    let root_path = root_path
+        .strip_suffix("/v1")
+        .unwrap_or(root_path)
+        .trim_end_matches('/');
+    let balance_path = match platform {
+        ProviderBalancePlatform::NewApi => NEW_API_BALANCE_PATH,
+        ProviderBalancePlatform::Sub2Api => SUB2API_BALANCE_PATH,
+        ProviderBalancePlatform::DeepSeek => DEEPSEEK_BALANCE_PATH,
+    };
+    url.set_path(&format!("{root_path}{balance_path}"));
+    url.set_query(None);
+    url.set_fragment(None);
+    Ok(url.to_string())
 }
 
 fn query_value<'a>(query: &'a BTreeMap<String, String>, key: &str) -> Result<&'a str, String> {
@@ -204,5 +250,40 @@ mod tests {
             parse_balance_platform("new-api"),
             Some(ProviderBalancePlatform::NewApi)
         );
+    }
+
+    #[test]
+    fn supplies_sub2api_balance_defaults_for_compatible_links() {
+        let query = Url::parse(
+            "cswitch://v1/import?balancePlatform=sub2api&endpoint=https%3A%2F%2Frelay.example.com%2Fv1",
+        )
+        .unwrap()
+        .query_pairs()
+        .map(|(key, value)| (key.into_owned(), value.into_owned()))
+        .collect::<BTreeMap<_, _>>();
+
+        let settings = import_balance_settings(&query, &query["endpoint"]).unwrap();
+
+        assert_eq!(settings.platform, Some(ProviderBalancePlatform::Sub2Api));
+        assert_eq!(
+            settings.query_url.as_deref(),
+            Some("https://relay.example.com/v1/usage")
+        );
+        assert!(settings.uses_api_key);
+    }
+
+    #[test]
+    fn supplies_new_api_balance_defaults_for_nested_endpoints() {
+        let query = BTreeMap::from([("platform".to_string(), "new-api".to_string())]);
+
+        let settings =
+            import_balance_settings(&query, "https://relay.example.com/codex/v1/").unwrap();
+
+        assert_eq!(settings.platform, Some(ProviderBalancePlatform::NewApi));
+        assert_eq!(
+            settings.query_url.as_deref(),
+            Some("https://relay.example.com/codex/api/usage/token/")
+        );
+        assert!(settings.uses_api_key);
     }
 }

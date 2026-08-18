@@ -182,6 +182,8 @@ Codex Switch 只注册自己的 `cswitch://` 协议，`ccswitch://` 继续留给
 - `apiKey`：中转站 API 密钥。
 - `balancePlatform=sub2api` 或 `balancePlatform=newapi`：可选，用于标记对应的余额查询平台；也接受兼容页面常用的 `platform` 参数名。
 
+页面只需提供余额平台；未提供余额查询地址和 Token 时，Codex Switch 会根据 `endpoint` 补全平台默认地址，并复用导入的 API 密钥。
+
 因此，sub2api 使用的核心格式不是账号 JSON，而是上面的 Provider 深链格式：把 `balancePlatform` 设置为 `sub2api`，把 `endpoint` 和 `apiKey` 换成该站点实际值即可。newapi 只需将其改为 `newapi`。深链会在桌面端后台解析并保存，不会把密钥写入前端日志。
 
 官方账号模式下，“自动切号”会在收到额度响应后刷新已保存账号，选择主用量窗口使用率最低的符合条件账号，切换凭据后重试该请求一次。“Token 汇总”窗口展示该代理观察到的请求用量。
