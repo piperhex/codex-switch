@@ -5,6 +5,8 @@ import {
   CircleGauge,
   EyeOff,
   Languages,
+  LayoutPanelLeft,
+  LayoutPanelTop,
   LayoutGrid,
   Palette,
   Power,
@@ -73,6 +75,42 @@ function ThemeCard({ settings }: { settings: SettingsPageProps }) {
               onChangeComplete={(color) => onThemeColorChange(color.toHexString())}
             />
           </span>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function NavigationStyleCard({ settings }: { settings: SettingsPageProps }) {
+  const { navigationStyle, onNavigationStyleChange, t } = settings;
+  return (
+    <section className="settings-card">
+      <div className="settings-icon"><LayoutPanelLeft size={23} /></div>
+      <div className="settings-card-content">
+        <div className="settings-card-copy">
+          <h3>{t("settings.navigationStyle.title")}</h3>
+          <p>{t("settings.navigationStyle.description")}</p>
+        </div>
+        <div className="settings-field">
+          <label htmlFor="navigation-style">{t("settings.navigationStyle.label")}</label>
+          <Segmented id="navigation-style" value={navigationStyle} options={[
+            {
+              value: "top",
+              label: (
+                <span className="segmented-option-label">
+                  <LayoutPanelTop size={14} />{t("settings.navigationStyle.top")}
+                </span>
+              ),
+            },
+            {
+              value: "sidebar",
+              label: (
+                <span className="segmented-option-label">
+                  <LayoutPanelLeft size={14} />{t("settings.navigationStyle.sidebar")}
+                </span>
+              ),
+            },
+          ]} onChange={(value) => onNavigationStyleChange(value as typeof navigationStyle)} />
         </div>
       </div>
     </section>
@@ -354,6 +392,7 @@ export function AppearanceSettingsCards({
   return (
     <>
       <LanguageCard settings={settings} />
+      <NavigationStyleCard settings={settings} />
       <ThemeCard settings={settings} />
       <FloatingBubbleCard onOpen={() => onBubbleStyleModalOpenChange(true)} settings={settings} />
       <BubbleStyleModal

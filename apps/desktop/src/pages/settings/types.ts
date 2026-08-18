@@ -1,4 +1,5 @@
 import type { AccountDisplayMode } from "../../hooks/useAccountDisplayMode";
+import type { NavigationStyle } from "../../hooks/useNavigationStyle";
 import type { Language, Translate } from "../../i18n";
 import type {
   AppInfo,
@@ -27,6 +28,8 @@ export interface SettingsPageProps {
   themeColor: string;
   themeColorLoading: boolean;
   onThemeColorChange: (color: string) => void;
+  navigationStyle: NavigationStyle;
+  onNavigationStyleChange: (style: NavigationStyle) => void;
   cloudBaseUrl: string;
   cloudBaseUrlLoading: boolean;
   cloudAuthenticated: boolean;

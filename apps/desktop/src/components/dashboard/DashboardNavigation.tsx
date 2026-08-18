@@ -1,4 +1,12 @@
-import { BarChart3, FolderOpen, PackageOpen, Palette, Server, UserRound } from "lucide-react";
+import {
+  BarChart3,
+  FolderOpen,
+  PackageOpen,
+  Palette,
+  Server,
+  Settings,
+  UserRound,
+} from "lucide-react";
 import type { Translate } from "../../i18n";
 
 export type DashboardPage =
@@ -11,32 +19,47 @@ export type DashboardPage =
   | "settings";
 
 interface DashboardNavigationProps {
+  collapsed?: boolean;
   onPageChange: (page: DashboardPage) => void;
   page: DashboardPage;
   t: Translate;
+  variant?: "top" | "sidebar";
 }
 
-export function DashboardNavigation({ onPageChange, page, t }: DashboardNavigationProps) {
+const NAVIGATION_ITEMS = [
+  { page: "accounts", icon: UserRound, labelKey: "nav.accounts" },
+  { page: "sessions", icon: FolderOpen, labelKey: "nav.sessions" },
+  { page: "providers", icon: Server, labelKey: "nav.providers" },
+  { page: "tokens", icon: BarChart3, labelKey: "nav.tokenUsage" },
+  { page: "dreamSkin", icon: Palette, labelKey: "nav.dreamSkin" },
+  { page: "skills", icon: PackageOpen, labelKey: "nav.skills" },
+] as const;
+
+export function DashboardNavigation({
+  collapsed = false,
+  onPageChange,
+  page,
+  t,
+  variant = "top",
+}: DashboardNavigationProps) {
+  const items = variant === "sidebar"
+    ? [...NAVIGATION_ITEMS, { page: "settings", icon: Settings, labelKey: "nav.settings" } as const]
+    : NAVIGATION_ITEMS;
   return (
-    <nav className="top-tabs" aria-label={t("nav.aria")}>
-      <button className={page === "accounts" ? "selected" : ""} onClick={() => onPageChange("accounts")}>
-        <UserRound size={19} />{t("nav.accounts")}
-      </button>
-      <button className={page === "sessions" ? "selected" : ""} onClick={() => onPageChange("sessions")}>
-        <FolderOpen size={19} />{t("nav.sessions")}
-      </button>
-      <button className={page === "providers" ? "selected" : ""} onClick={() => onPageChange("providers")}>
-        <Server size={19} />{t("nav.providers")}
-      </button>
-      <button className={page === "tokens" ? "selected" : ""} onClick={() => onPageChange("tokens")}>
-        <BarChart3 size={19} />{t("nav.tokenUsage")}
-      </button>
-      <button className={page === "dreamSkin" ? "selected" : ""} onClick={() => onPageChange("dreamSkin")}>
-        <Palette size={19} />{t("nav.dreamSkin")}
-      </button>
-      <button className={page === "skills" ? "selected" : ""} onClick={() => onPageChange("skills")}>
-        <PackageOpen size={19} />{t("nav.skills")}
-      </button>
+    <nav className={variant === "sidebar" ? "sidebar-tabs" : "top-tabs"}
+      aria-label={t("nav.aria")}>
+      {items.map((item) => {
+        const Icon = item.icon;
+        const label = t(item.labelKey);
+        return (
+          <button key={item.page} className={`${page === item.page ? "selected" : ""}${
+            item.page === "settings" ? " sidebar-nav-settings" : ""
+          }`} aria-label={collapsed ? label : undefined} title={collapsed ? label : undefined}
+            onClick={() => onPageChange(item.page)}>
+            <Icon size={19} /><span>{label}</span>
+          </button>
+        );
+      })}
     </nav>
   );
 }

@@ -7,6 +7,8 @@ import {
   Check,
   CircleHelp,
   Minus,
+  PanelLeftClose,
+  PanelLeftOpen,
   Play,
   Plus,
   RefreshCw,
@@ -79,6 +81,7 @@ import { useCloseToTray } from "../../hooks/useCloseToTray";
 import { useCodexHome } from "../../hooks/useCodexHome";
 import { useLanguage } from "../../hooks/useLanguage";
 import { useLaunchAtStartup } from "../../hooks/useLaunchAtStartup";
+import { useNavigationStyle } from "../../hooks/useNavigationStyle";
 import { useFloatingBubble } from "../../hooks/useFloatingBubble";
 import { useProviderManager } from "../../hooks/useProviderManager";
 import { usePrivacyMode } from "../../hooks/usePrivacyMode";
@@ -327,6 +330,7 @@ export function DashboardApp() {
   const bubbleStyle = useBubbleStyle(notify);
   const privacyMode = usePrivacyMode(notify);
   const accountDisplayMode = useAccountDisplayMode();
+  const navigationStyle = useNavigationStyle();
   const themeColor = useThemeColor(notify);
   const tokenUsagePreferences = useTokenUsagePreferences(notify);
   const manager = useAccountManager(notify, t, accountCloudSync);
@@ -1124,6 +1128,10 @@ export function DashboardApp() {
       syncCloud: () => void syncCloud(),
     }} appUpdate={appUpdate} cloud={cloud} cloudContent={cloudContent} language={language} t={t} />
   );
+  const sidebarNavigationEnabled = navigationStyle.style === "sidebar";
+  const sidebarToggleLabel = t(navigationStyle.sidebarCollapsed
+    ? "nav.expandSidebar"
+    : "nav.collapseSidebar");
 
   return (
     <ConfigProvider locale={language === "zh" ? zhCN : enUS} theme={{
@@ -1134,7 +1142,9 @@ export function DashboardApp() {
         fontFamily: "\"DM Sans\", \"Microsoft YaHei UI\", sans-serif",
       },
     }}>
-      <div className={`app-shell${CUSTOM_TITLEBAR_ENABLED ? " custom-titlebar-shell" : ""}`}>
+      <div className={`app-shell${CUSTOM_TITLEBAR_ENABLED ? " custom-titlebar-shell" : ""}${
+        sidebarNavigationEnabled ? " sidebar-navigation-shell" : ""
+      }${sidebarNavigationEnabled && navigationStyle.sidebarCollapsed ? " sidebar-collapsed" : ""}`}>
         {CUSTOM_TITLEBAR_ENABLED && (
           <header className="window-titlebar">
             <div className="window-titlebar-icon-zone" data-tauri-drag-region>
@@ -1178,17 +1188,40 @@ export function DashboardApp() {
             </div>
           </header>
         )}
+        {sidebarNavigationEnabled && (
+          <aside className="app-sidebar">
+            <button type="button" className="brand sidebar-brand" onClick={openRepository}
+              aria-label={t("help.github")} title={t("help.github")}>
+              <img className="brand-logo" src={APP_LOGO_URL} alt="" />
+              <span>Codex<br /><b>Switch</b></span>
+            </button>
+            <DashboardNavigation collapsed={navigationStyle.sidebarCollapsed}
+              onPageChange={setPage} page={page} t={t} variant="sidebar" />
+          </aside>
+        )}
         <header className="app-menu">
-          <button type="button" className="brand" onClick={openRepository}
-            aria-label={t("help.github")} title={t("help.github")}>
-            <img className="brand-logo" src={APP_LOGO_URL} alt="" />
-            <span>Codex<br /><b>Switch</b></span>
-          </button>
+          {sidebarNavigationEnabled ? (
+            <button type="button" className="sidebar-collapse-button" aria-label={sidebarToggleLabel}
+              title={sidebarToggleLabel}
+              onClick={() => navigationStyle.setSidebarCollapsed(!navigationStyle.sidebarCollapsed)}>
+              {navigationStyle.sidebarCollapsed
+                ? <PanelLeftOpen size={19} />
+                : <PanelLeftClose size={19} />}
+            </button>
+          ) : (
+            <button type="button" className="brand" onClick={openRepository}
+              aria-label={t("help.github")} title={t("help.github")}>
+              <img className="brand-logo" src={APP_LOGO_URL} alt="" />
+              <span>Codex<br /><b>Switch</b></span>
+            </button>
+          )}
           <AnnouncementBanner link={announcementLink} onOpenLink={openAnnouncementLink}
             scrollDurationSeconds={announcement?.scrollDurationSeconds ?? 22}
             style={announcementStyle} text={announcementText}
             trackKey={`${language}:${announcementText}`} />
-          <DashboardNavigation onPageChange={setPage} page={page} t={t} />
+          {!sidebarNavigationEnabled && (
+            <DashboardNavigation onPageChange={setPage} page={page} t={t} />
+          )}
           {!CUSTOM_TITLEBAR_ENABLED && menuTools}
         </header>
 
@@ -1300,6 +1333,8 @@ export function DashboardApp() {
               onHideAccountNotesChange={changeHideAccountNotes}
               accountDisplayMode={accountDisplayMode.displayMode}
               onAccountDisplayModeChange={accountDisplayMode.setDisplayMode}
+              navigationStyle={navigationStyle.style}
+              onNavigationStyleChange={navigationStyle.setStyle}
               tokenUsageWeeks={tokenUsagePreferences.weeks}
               tokenUsageRefreshSeconds={tokenUsagePreferences.refreshSeconds}
               tokenUsagePreferencesLoading={tokenUsagePreferences.loading}
