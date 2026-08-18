@@ -536,8 +536,12 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
   margin: 0 16px;
   padding: 1px 1px 16px;
   overflow: auto;
+
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(390px, 510px));
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(max(390px, calc((100% - 28px) / 3)), 1fr)
+  );
   align-content: start;
   gap: 14px;
 }
