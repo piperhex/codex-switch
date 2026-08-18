@@ -1503,8 +1503,28 @@ main.providers-main .provider-table-wrap { flex: 1; min-height: 0; }
 .provider-table-wrap .ant-table-tbody > tr:hover > td { background: #f6faf7; }
 .provider-table-wrap .ant-table-cell { padding: 8px 16px !important; }
 .provider-token-value { color: var(--ink); font: 700 12px Manrope, sans-serif; }
-.provider-card-grid { min-width: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(390px, 1fr)); gap: 14px; }
-main.providers-main .provider-card-grid { flex: 1; min-height: 0; align-content: start; overflow: auto; }
+.provider-card-grid {
+  min-width: 0;
+  display: grid;
+
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(390px, 1fr)
+  );
+
+  /* 关键 */
+  grid-auto-rows: max-content;
+  align-items: start;
+  align-content: start;
+
+  gap: 14px;
+}
+
+main.providers-main .provider-card-grid {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
 .provider-card { position: relative; overflow: hidden; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); box-shadow: 0 5px 18px rgba(24,45,31,.035); }
 .provider-card.switchable { cursor: pointer; }
 .provider-card.active { border-color: rgba(var(--green-rgb), .72); box-shadow: 0 0 0 2px rgba(var(--green-rgb), .48), 0 12px 28px rgba(var(--green-rgb), .14); }
