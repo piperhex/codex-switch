@@ -357,11 +357,6 @@ export function DashboardApp() {
     providerManager.localProxy?.running
       && providerManager.localProxy.concurrentAccountRoutingEnabled,
   );
-  const currentModelSource: "official" | "provider" | null = activeProvider
-    ? "provider"
-    : activeAccount || concurrentRoutingActive
-      ? "official"
-      : null;
   const concurrentAutoRefreshAccountIds = useMemo(
     () => manager.accounts
       .filter((account) => account.autoSwitchEnabled)
@@ -753,52 +748,19 @@ export function DashboardApp() {
       onOk: restartChatGptProcess,
     });
   }, [restartChatGptProcess, t]);
-  const promptRestartToLoadModel = useCallback(() => {
-    Modal.confirm({
-      title: t("actions.restartToLoadModelTitle"),
-      content: t("actions.restartToLoadModelDescription"),
-      okText: t("actions.restartChatGpt"),
-      cancelText: t("update.later"),
-      okButtonProps: { danger: true },
-      width: 400,
-      onOk: restartChatGptProcess,
-    });
-  }, [restartChatGptProcess, t]);
   const switchAccount = useCallback(async (id: string) => {
     const localProxyRunning = Boolean(providerManager.localProxy?.running);
-    const shouldPromptForRestart = localProxyRunning && currentModelSource === "provider";
-    const switched = await manager.switchAccount(id, localProxyRunning);
-    if (switched && shouldPromptForRestart) promptRestartToLoadModel();
+    await manager.switchAccount(id, localProxyRunning);
   }, [
-    currentModelSource,
     manager.switchAccount,
-    promptRestartToLoadModel,
     providerManager.localProxy?.running,
   ]);
   const switchProvider = useCallback(async (id: string) => {
-    const shouldPromptForRestart = Boolean(
-      providerManager.localProxy?.running && currentModelSource === "official",
-    );
-    const switched = await providerManager.switchProvider(id);
-    if (switched && shouldPromptForRestart) promptRestartToLoadModel();
-  }, [
-    currentModelSource,
-    promptRestartToLoadModel,
-    providerManager.localProxy?.running,
-    providerManager.switchProvider,
-  ]);
+    await providerManager.switchProvider(id);
+  }, [providerManager.switchProvider]);
   const switchProviderGroup = useCallback(async (group: string) => {
-    const shouldPromptForRestart = Boolean(
-      providerManager.localProxy?.running && currentModelSource === "official",
-    );
-    const switched = await providerManager.switchProviderGroup(group);
-    if (switched && shouldPromptForRestart) promptRestartToLoadModel();
-  }, [
-    currentModelSource,
-    promptRestartToLoadModel,
-    providerManager.localProxy?.running,
-    providerManager.switchProviderGroup,
-  ]);
+    await providerManager.switchProviderGroup(group);
+  }, [providerManager.switchProviderGroup]);
   const openTokenUsage = useCallback(async () => {
     try {
       await showTokenUsageWindow();
