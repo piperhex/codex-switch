@@ -1233,7 +1233,7 @@ export function DashboardApp() {
             : page === "dreamSkin" ? "dream-skin-main" : undefined}>
           {page !== "tokens" && page !== "dreamSkin" && (
           <>
-          <header className={`topbar${page === "accounts" ? " account-view-topbar" : ""}${
+          <header className={`topbar${page === "accounts" || page === "providers" ? " account-view-topbar" : ""}${
             page === "accounts" && providerManager.localProxy?.running ? " accounts-topbar" : ""
           }${page === "settings" ? " settings-topbar" : ""}`}>
             {page === "accounts" && providerManager.localProxy?.running ? (
@@ -1266,7 +1266,7 @@ export function DashboardApp() {
                 </div>
               </div>
             )}
-            {page === "accounts" && (
+            {(page === "accounts" || page === "providers") && (
               <AccountDisplayTabs displayMode={accountDisplayMode.displayMode}
                 onChange={accountDisplayMode.setDisplayMode} t={t} />
             )}
