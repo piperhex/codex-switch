@@ -1265,12 +1265,19 @@ pub(crate) fn restore_official_config(paths: &Paths) -> Result<(), String> {
         // Older interrupted/direct Provider switches could leave Codex Switch's
         // managed blocks inside the backup itself. Never restore those blocks when
         // returning to an official account.
-        let official_config =
+        let backed_up_config =
             if backup.contains(PROVIDER_ROOT_START) || backup.contains(PROVIDER_TABLE_START) {
                 remove_marked_blocks(&backup)
             } else {
                 backup
             };
+        let official_config = if paths.current_config.exists() {
+            let current = fs::read_to_string(&paths.current_config)
+                .map_err(|error| format!("Failed to read Codex config: {error}"))?;
+            restore_provider_conflicts(&current, &backed_up_config)
+        } else {
+            backed_up_config
+        };
         if official_config.trim().is_empty() {
             if paths.current_config.exists() {
                 fs::remove_file(&paths.current_config)
@@ -2900,6 +2907,52 @@ fn remove_provider_conflicts(config: &str) -> String {
     output.join("\n")
 }
 
+fn restore_provider_conflicts(current: &str, backup: &str) -> String {
+    let current = remove_provider_conflicts(&remove_marked_blocks(current));
+    let blocks = [
+        provider_root_lines(backup),
+        current.trim().to_string(),
+        config_table_block(backup, "[model_providers.custom]"),
+    ];
+    let restored = blocks
+        .iter()
+        .map(|block| block.trim())
+        .filter(|block| !block.is_empty())
+        .collect::<Vec<_>>()
+        .join("\n\n");
+    if restored.is_empty() {
+        restored
+    } else {
+        format!("{restored}\n")
+    }
+}
+
+fn provider_root_lines(config: &str) -> String {
+    config
+        .lines()
+        .take_while(|line| !is_table_header(line.trim()))
+        .filter(|line| is_provider_root_key(line.trim()))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn config_table_block(config: &str, header: &str) -> String {
+    let mut lines = Vec::new();
+    let mut in_table = false;
+    for line in config.lines() {
+        let trimmed = line.trim();
+        if trimmed == header {
+            in_table = true;
+        } else if in_table && is_table_header(trimmed) {
+            break;
+        }
+        if in_table {
+            lines.push(line);
+        }
+    }
+    lines.join("\n")
+}
+
 fn config_contains_local_proxy(config: &str) -> bool {
     config.contains(LOCAL_PROXY_BASE_URL)
         || config.contains(LOCAL_PROXY_TOKEN)
@@ -3026,6 +3079,23 @@ mod tests {
     use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
     use serde_json::json;
     use tiny_http::{Header, Response, Server};
+
+    const STALE_OFFICIAL_CONFIG: &str = r#"model = "gpt-5.5"
+
+[features]
+js_repl = true
+
+[shell_environment_policy.set]
+BROWSER_USE_AVAILABLE_BACKENDS = "iab"
+NODE_REPL_TRUSTED_BROWSER_CLIENT_SHA256S = "old-hash"
+NODE_REPL_TRUSTED_CODE_PATHS = 'C:\old'
+
+[windows]
+sandbox = "workspace-write"
+
+[model_providers.custom]
+base_url = "https://custom.example.com/v1"
+"#;
 
     fn provider() -> ProviderProfile {
         ProviderProfile {
@@ -3528,6 +3598,47 @@ mod tests {
         assert!(!restored.contains(PROVIDER_ROOT_START));
         assert!(!restored.contains("[model_providers.custom]"));
         assert!(!restored.contains("https://gateway.example.com/v1"));
+        assert!(!paths.config_backup.exists());
+        fs::remove_dir_all(paths.codex_home.parent().unwrap()).unwrap();
+    }
+
+    #[test]
+    fn restoring_official_config_preserves_current_non_provider_settings() {
+        let paths = test_paths();
+        let options = LocalProxyConfigOptions {
+            name: "Proxy",
+            model: Some("deepseek-chat"),
+            include_model_catalog: true,
+            requires_openai_auth: false,
+            token_command: "codex-switch",
+        };
+        let current = merge_local_proxy_config(STALE_OFFICIAL_CONFIG, &options)
+            .replace("js_repl = true", "js_repl = false")
+            .replace(
+                "BROWSER_USE_AVAILABLE_BACKENDS = \"iab\"",
+                "BROWSER_USE_AVAILABLE_BACKENDS = \"chrome,iab\"",
+            )
+            .replace("old-hash", "trusted-client-hash")
+            .replace(
+                "NODE_REPL_TRUSTED_CODE_PATHS = 'C:\\old'",
+                "NODE_REPL_TRUSTED_CODE_PATHS = 'C:\\Users\\Test\\.codex;C:\\Users\\Test\\AppData\\Local\\OpenAI\\Codex'",
+            )
+            .replace("sandbox = \"workspace-write\"", "sandbox = \"elevated\"");
+        write_text_atomic(&paths.config_backup, STALE_OFFICIAL_CONFIG).unwrap();
+        write_text_atomic(&paths.current_config, &current).unwrap();
+
+        restore_official_config(&paths).unwrap();
+
+        let restored = fs::read_to_string(&paths.current_config).unwrap();
+        assert!(restored.contains("model = \"gpt-5.5\""));
+        assert!(restored.contains("js_repl = false"));
+        assert!(restored.contains("BROWSER_USE_AVAILABLE_BACKENDS = \"chrome,iab\""));
+        assert!(restored.contains("NODE_REPL_TRUSTED_CODE_PATHS = 'C:\\Users\\Test\\.codex"));
+        assert!(restored.contains("sandbox = \"elevated\""));
+        assert!(restored.contains("https://custom.example.com/v1"));
+        assert!(!restored.contains(PROVIDER_ROOT_START));
+        assert!(!restored.contains(LOCAL_PROXY_BASE_URL));
+        restored.parse::<toml_edit::DocumentMut>().unwrap();
         assert!(!paths.config_backup.exists());
         fs::remove_dir_all(paths.codex_home.parent().unwrap()).unwrap();
     }

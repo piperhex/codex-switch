@@ -1219,21 +1219,36 @@ fn codex_model_refresh_expression(
       (query.queryKey[1] === "user" || query.queryKey[1] === "read-response"))
   );
 {observer_patch_helpers}
-  if (expectedModels.length === 0) clearModelQueryPatch();
+  if (expectedModels.length === 0) {{
+    clearModelQueryPatch();
+    // Inactive picker queries retain injected Provider data after invalidation, so reset their
+    // cached data before returning to the official catalog.
+    if (typeof queryClient.resetQueries === "function") {{
+      await queryClient.resetQueries({{ predicate: matchesModelsQuery }}, {{ cancelRefetch: true }});
+    }} else {{
+      await queryClient.invalidateQueries({{
+        predicate: matchesModelsQuery,
+        refetchType: "all",
+      }});
+    }}
+    await queryClient.invalidateQueries({{
+      predicate: matchesConfigQuery,
+      refetchType: "active",
+    }});
+    const currentQueries = queryClient.getQueryCache().getAll().filter(matchesModelsQuery);
+    return {{
+      refreshed: currentQueries.length > 0,
+      reason: currentQueries.length > 0 ? "official-model-queries-reset" : "models-query-not-found",
+      injected: false,
+      count: 0,
+    }};
+  }}
   await queryClient.invalidateQueries({{
     predicate: query => matchesModelsQuery(query) || matchesConfigQuery(query),
     refetchType: "active",
   }});
 
   const currentQueries = queryClient.getQueryCache().getAll().filter(matchesModelsQuery);
-  if (expectedModels.length === 0) {{
-    return {{
-      refreshed: currentQueries.length > 0,
-      reason: currentQueries.length > 0 ? "existing-model-queries-refreshed" : "models-query-not-found",
-      injected: false,
-      count: 0,
-    }};
-  }}
   const expected = new Set(expectedModels);
   const injectedModels = expectedModels.map((model, index) => ({{
     id: model,
@@ -3012,7 +3027,24 @@ mod tests {
         assert!(expression.contains("observer.setOptions = options =>"));
         assert!(expression.contains("query.addObserver = observer =>"));
         assert!(expression.contains("models,\n        defaultModel:"));
-        assert!(expression.contains("if (expectedModels.length === 0) clearModelQueryPatch()"));
+        assert!(expression.contains("if (expectedModels.length === 0) {"));
+    }
+
+    #[test]
+    fn official_model_refresh_clears_injected_candidates_before_refetching() {
+        let expression = codex_model_refresh_expression(
+            &[],
+            &[],
+            &Default::default(),
+            "gpt-5.6-sol",
+            crate::providers::ReasoningEffortProfile::Standard,
+        )
+        .unwrap();
+
+        assert!(expression.contains("clearModelQueryPatch();"));
+        assert!(expression.contains("queryClient.resetQueries({ predicate: matchesModelsQuery }"));
+        assert!(expression.contains("refetchType: \"all\""));
+        assert!(expression.contains("official-model-queries-reset"));
     }
 
     #[test]
