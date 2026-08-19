@@ -8,6 +8,7 @@ export interface ThreadGroup {
 }
 
 export const UNKNOWN_WORKSPACE = "未知工作目录";
+const RECENT_SESSION_WORKSPACE_PATTERN = /(?:^|[\\/])Codex[\\/]\d{4}-\d{2}-\d{2}(?:[\\/]|$)/i;
 
 export function formatSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -46,12 +47,16 @@ export function groupLabel(cwd: string) {
   return normalized.split("/").filter(Boolean).at(-1) || cwd;
 }
 
+export function isUnassignedWorkspace(cwd: string) {
+  return cwd === UNKNOWN_WORKSPACE || RECENT_SESSION_WORKSPACE_PATTERN.test(cwd);
+}
+
 export function workspaceDisplayName(group: ThreadGroup, untitled: string) {
   const titles = group.items
     .map((item) => item.title.trim())
     .filter(Boolean);
+  if (isUnassignedWorkspace(group.cwd)) return titles.join("、") || untitled;
   if (group.items.length === 1) return titles[0] || untitled;
-  if (group.cwd === UNKNOWN_WORKSPACE) return titles.join("、") || untitled;
   return groupLabel(group.cwd);
 }
 

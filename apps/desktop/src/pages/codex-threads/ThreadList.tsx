@@ -9,7 +9,7 @@ import { openCodexThreadPath } from "../../api/backend";
 import type { ThreadCopy } from "./copy";
 import type { ThreadGroup } from "./utils";
 import {
-  formatSize, formatTokenAmount, relativeTime, UNKNOWN_WORKSPACE, workspaceDisplayName,
+  formatSize, formatTokenAmount, isUnassignedWorkspace, relativeTime, workspaceDisplayName,
 } from "./utils";
 
 interface HighlightedTextProps {
@@ -112,7 +112,7 @@ function WorkspaceGroup(props: WorkspaceGroupProps) {
   const { toggleGroup, toggleThread, selectItems, notify, reportError } = props;
   const everySelected = group.items.every((item) => selected.has(item.sessionId));
   const someSelected = group.items.some((item) => selected.has(item.sessionId));
-  const isUnknownWorkspace = group.cwd === UNKNOWN_WORKSPACE;
+  const isUnassigned = isUnassignedWorkspace(group.cwd);
   return (
     <section className="thread-workspace">
       <div className="thread-workspace-row" onDoubleClick={toggleGroup}>
@@ -127,7 +127,7 @@ function WorkspaceGroup(props: WorkspaceGroupProps) {
         <Folder size={20} />
         <div className="thread-workspace-copy">
           <strong>{workspaceDisplayName(group, text.untitled)}</strong>
-          <span title={group.cwd}>{isUnknownWorkspace ? text.noProject : group.cwd}</span>
+          <span title={group.cwd}>{isUnassigned ? text.noProject : group.cwd}</span>
         </div>
         <span className="thread-workspace-count">{group.items.length} {text.sessions}</span>
         <time>{relativeTime(group.updatedAt, language)}</time>
