@@ -285,11 +285,11 @@ html.codex-dream-skin main.main-surface:not(.dream-skin-home-shell)::before {
   background-repeat: no-repeat;
   background-position: center, center, var(--ds-art-position);
   background-size: 100% 100%, 100% 100%, cover;
-  opacity: .78;
+  opacity: var(--ds-task-layer-opacity, .78);
 }
 
 html.codex-dream-skin[data-dream-shell="light"] main.main-surface:not(.dream-skin-home-shell)::before {
-  opacity: .72;
+  opacity: var(--ds-task-layer-opacity, .72);
 }
 
 html.codex-dream-skin:is([data-dream-art-wide="true"], [data-dream-art-aspect="wide"], [data-dream-art-aspect="ultrawide"])

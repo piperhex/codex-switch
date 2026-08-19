@@ -660,6 +660,7 @@ export interface DreamSkinStatus {
   activeThemeId?: string | null;
   activeThemeName?: string | null;
   activeThemeAppearance?: DreamSkinAppearance | null;
+  activeThemeOverlayOpacity?: number | null;
   enginePath?: string | null;
   savedThemes: DreamSkinThemeSummary[];
 }

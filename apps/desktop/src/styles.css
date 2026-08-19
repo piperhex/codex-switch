@@ -1998,11 +1998,16 @@ main.tokens-main { overflow: hidden; padding-bottom: 0; }
 .dream-session-paused i { background: #f2b84b; box-shadow: 0 0 0 4px rgba(242,184,75,.15); }
 .dream-session-pill { flex: 0 0 auto; min-height: 28px; padding: 5px 10px; border: 1px solid var(--line); border-radius: 999px; background: #f4f7f4; font-size: 11px; font-weight: 720; white-space: nowrap; }
 .dream-toolbar-theme { min-width: 0; max-width: min(28vw, 360px); padding-right: 14px; display: flex; align-items: baseline; gap: 7px; border-right: 1px solid var(--line); white-space: nowrap; }
-.dream-toolbar-theme > span, .dream-toolbar-appearance > span { flex: 0 0 auto; color: #7b8980; font-size: 10px; font-weight: 700; }
+.dream-toolbar-theme > span,
+.dream-toolbar-appearance > span,
+.dream-toolbar-overlay > span { flex: 0 0 auto; color: #7b8980; font-size: 10px; font-weight: 700; }
 .dream-toolbar-theme > b { min-width: 0; overflow: hidden; color: var(--ink); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .dream-toolbar-appearance { width: clamp(260px, 25vw, 360px); min-width: 0; display: flex; align-items: center; gap: 8px; }
 .dream-toolbar-appearance .ant-segmented { min-width: 0; flex: 1; padding: 2px; color: #536158; background: #edf2ed; }
 .dream-toolbar-appearance .ant-segmented-item-selected { color: #15331f; background: #fff; box-shadow: 0 1px 4px rgba(24,45,31,.08); }
+.dream-toolbar-overlay { width: clamp(150px, 14vw, 220px); min-width: 0; display: flex; align-items: center; gap: 7px; }
+.dream-toolbar-overlay .ant-slider { min-width: 52px; flex: 1; margin: 5px 3px; }
+.dream-toolbar-overlay > b { width: 30px; flex: 0 0 auto; color: var(--ink); font-size: 10px; text-align: right; }
 .dream-toolbar-spacer { min-width: 4px; flex: 1 1 auto; }
 .dream-toolbar-actions { flex: 0 0 auto; display: flex; align-items: center; gap: 6px; }
 .dream-toolbar-actions .ant-btn { height: 28px; padding-inline: 9px; font-size: 10px; }
@@ -2119,6 +2124,7 @@ main.tokens-main { overflow: hidden; padding-bottom: 0; }
   .dream-skin-console { gap: 10px; }
   .dream-toolbar-theme { max-width: 240px; padding-right: 10px; }
   .dream-toolbar-appearance { width: 280px; }
+  .dream-toolbar-overlay { width: 170px; }
 }
 
 @media (max-width: 860px) {
@@ -2126,6 +2132,7 @@ main.tokens-main { overflow: hidden; padding-bottom: 0; }
   .dream-toolbar-theme { max-width: none; flex: 1 1 220px; border-right: 0; }
   .dream-toolbar-spacer { display: none; }
   .dream-toolbar-appearance { width: auto; flex: 1 1 300px; }
+  .dream-toolbar-overlay { width: auto; flex: 1 1 220px; }
   .dream-toolbar-actions { margin-left: auto; }
   .dream-section-heading { align-items: flex-start; flex-direction: column; gap: 7px; }
   .dream-section-heading > p { text-align: left; }

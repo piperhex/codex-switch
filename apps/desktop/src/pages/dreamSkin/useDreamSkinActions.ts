@@ -7,6 +7,7 @@ import {
   installDreamSkinMarketTheme,
   saveDreamSkinTheme,
   setDreamSkinAppearance,
+  setDreamSkinOverlayOpacity,
 } from "../../api/backend";
 import { BUILT_IN_DREAM_SKIN_IDS } from "../../dreamSkinBuiltIns";
 import type { Translate } from "../../i18n";
@@ -122,6 +123,14 @@ export function useThemeActions(options: ThemeOptions): ThemeActions {
     );
   }, [runStatusOperation, t]);
 
+  const changeOverlayOpacity = useCallback((opacity: number) => {
+    void runStatusOperation(
+      "overlayOpacity",
+      () => setDreamSkinOverlayOpacity(opacity),
+      t("dreamSkin.toast.overlayOpacityChanged"),
+    );
+  }, [runStatusOperation, t]);
+
   const installAndApplyMarketTheme = useCallback((theme: DreamSkinMarketTheme) => {
     if (theme.installed && !theme.updateAvailable) return applyTheme(theme.id);
     const operation = async () => runStatusOperation(
@@ -154,5 +163,11 @@ export function useThemeActions(options: ThemeOptions): ThemeActions {
     runInstalledOperation(status?.installed, operation, confirmChatGptRestart);
   }, [applyTheme, confirmChatGptRestart, runStatusOperation, setCommunityThemes, status?.installed, t]);
 
-  return { applyTheme, changeAppearance, installAndApplyCommunityTheme, installAndApplyMarketTheme };
+  return {
+    applyTheme,
+    changeAppearance,
+    changeOverlayOpacity,
+    installAndApplyCommunityTheme,
+    installAndApplyMarketTheme,
+  };
 }

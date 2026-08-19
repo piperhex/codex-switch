@@ -58,6 +58,7 @@ export function DreamSkinPage({ t, notify }: DreamSkinPageProps) {
       refresh: catalog.refreshThemeMarket,
       setQuery: catalog.setMarketQuery,
     }} changeAppearance={themeActions.changeAppearance}
+      changeOverlayOpacity={themeActions.changeOverlayOpacity}
       confirmChatGptRestart={statusState.confirmChatGptRestart} isBusy={isBusy} loading={loading}
       notify={notify} refresh={statusState.refresh} resourcesReady={resourcesReady}
       runStatusOperation={statusState.runStatusOperation} setBusy={statusState.setBusy}

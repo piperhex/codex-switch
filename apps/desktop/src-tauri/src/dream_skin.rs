@@ -22,6 +22,7 @@ pub(crate) struct DreamSkinStatus {
     pub(crate) active_theme_id: Option<String>,
     pub(crate) active_theme_name: Option<String>,
     pub(crate) active_theme_appearance: Option<String>,
+    pub(crate) active_theme_overlay_opacity: Option<f64>,
     pub(crate) engine_path: Option<String>,
     pub(crate) saved_themes: Vec<DreamSkinThemeSummary>,
 }
@@ -93,6 +94,7 @@ fn unsupported_status() -> DreamSkinStatus {
         active_theme_id: None,
         active_theme_name: None,
         active_theme_appearance: None,
+        active_theme_overlay_opacity: None,
         engine_path: None,
         saved_themes: Vec::new(),
     }
@@ -221,6 +223,21 @@ pub(crate) async fn set_dream_skin_appearance(
     run_blocking(move || {
         #[cfg(any(target_os = "windows", target_os = "macos"))]
         crate::dream_skin_native::set_appearance(&app, &appearance)?;
+        #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+        return Err("Codex Dream Skin currently supports Windows and macOS.".to_string());
+        Ok(get_dream_skin_status())
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn set_dream_skin_overlay_opacity(
+    app: AppHandle,
+    opacity: f64,
+) -> Result<DreamSkinStatus, String> {
+    run_blocking(move || {
+        #[cfg(any(target_os = "windows", target_os = "macos"))]
+        crate::dream_skin_native::set_overlay_opacity(&app, opacity)?;
         #[cfg(not(any(target_os = "windows", target_os = "macos")))]
         return Err("Codex Dream Skin currently supports Windows and macOS.".to_string());
         Ok(get_dream_skin_status())

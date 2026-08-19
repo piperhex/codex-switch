@@ -91,6 +91,7 @@
       appearance,
       safeArea,
       taskMode,
+      overlayOpacity: hasNumber(art.overlayOpacity) ? clamp(art.overlayOpacity) : .8,
       focusX: hasNumber(art.focusX) ? clamp(art.focusX) : null,
       focusY: hasNumber(art.focusY) ? clamp(art.focusY) : null,
       accent: safeAccent,
@@ -312,6 +313,8 @@
       : config.taskMode;
     const accent = config.accent || `rgb(${profile.accent.join(" ")})`;
     const accentInk = luminance(...profile.accent) > .42 ? "rgb(26 24 28)" : "rgb(250 248 251)";
+    const overlayFactors = appearance === "dark" ? [1.025, .925, .75] : [1.075, .975, .825];
+    const overlayPercent = (factor) => `${Math.round(clamp(config.overlayOpacity * factor) * 1000) / 10}%`;
     root.classList.toggle("dream-theme-light", appearance === "light");
     root.classList.toggle("dream-theme-dark", appearance === "dark");
     root.classList.toggle("dream-art-wide", profile.aspect >= 1.75);
@@ -332,6 +335,11 @@
     root.style.setProperty("--dream-accent", accent);
     root.style.setProperty("--dream-accent-ink", accentInk);
     root.style.setProperty("--dream-image-luma", profile.luma.toFixed(3));
+    root.style.setProperty("--dream-art-opacity", String(1 - config.overlayOpacity));
+    root.style.setProperty("--dream-banner-art-opacity", String(clamp((1 - config.overlayOpacity) * 1.8)));
+    root.style.setProperty("--dream-task-overlay-edge", overlayPercent(overlayFactors[0]));
+    root.style.setProperty("--dream-task-overlay-mid", overlayPercent(overlayFactors[1]));
+    root.style.setProperty("--dream-task-overlay-far", overlayPercent(overlayFactors[2]));
   };
 
   const ensure = () => {

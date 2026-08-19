@@ -863,6 +863,9 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
         "set_dream_skin_appearance" => serialize(block_on(
             crate::dream_skin::set_dream_skin_appearance(app, argument(&args, "appearance")?),
         )),
+        "set_dream_skin_overlay_opacity" => serialize(block_on(
+            crate::dream_skin::set_dream_skin_overlay_opacity(app, argument(&args, "opacity")?),
+        )),
         "set_dream_skin_paused" => serialize(block_on(crate::dream_skin::set_dream_skin_paused(
             app,
             argument(&args, "paused")?,
