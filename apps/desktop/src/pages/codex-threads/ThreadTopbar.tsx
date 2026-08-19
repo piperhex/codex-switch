@@ -1,6 +1,6 @@
 import { Dropdown } from "antd";
 import {
-  ArchiveRestore, ChevronDown, Download, Eye, Import, RefreshCw, Upload,
+  ArchiveRestore, ChevronDown, Download, Eye, Import, Power, RefreshCw, Upload,
 } from "lucide-react";
 import type { ThreadCopy } from "./copy";
 
@@ -9,6 +9,7 @@ interface ThreadTopbarProps {
   busy: boolean;
   selectedCount: number;
   runSync: () => void;
+  restartChatGpt: () => void;
   openImport: () => void;
   openExport: () => void;
   openRepair: () => void;
@@ -16,11 +17,16 @@ interface ThreadTopbarProps {
 }
 
 export function ThreadTopbar(props: ThreadTopbarProps) {
-  const { text, busy, selectedCount, runSync, openImport, openExport, openRepair, openBin } = props;
+  const {
+    text, busy, selectedCount, runSync, restartChatGpt, openImport, openExport, openRepair, openBin,
+  } = props;
   return (
     <>
       <button className="refresh-all" disabled={busy} onClick={runSync}>
         <RefreshCw className={busy ? "spin" : undefined} size={16} />{text.sync}
+      </button>
+      <button className="refresh-all" disabled={busy} onClick={restartChatGpt}>
+        <Power size={16} />{text.restartChatGpt}
       </button>
       <Dropdown trigger={["click"]} menu={{
         items: [

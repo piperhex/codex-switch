@@ -1181,7 +1181,8 @@ export function DashboardApp() {
         <main className={page === "accounts" ? "accounts-main"
           : page === "providers" ? "providers-main"
           : page === "tokens" ? "tokens-main"
-            : page === "dreamSkin" ? "dream-skin-main" : undefined}>
+            : page === "dreamSkin" ? "dream-skin-main"
+              : page === "sessions" ? "sessions-main" : undefined}>
           {page !== "tokens" && page !== "dreamSkin" && (
           <>
           <header className={`topbar${page === "accounts" || page === "providers" ? " account-view-topbar" : ""}${
@@ -1336,7 +1337,7 @@ export function DashboardApp() {
               authenticated={cloud.state.authenticated} currentUserId={cloud.state.userId}
               onLogin={openCloudLogin} notify={notify} t={t} />
           </section>
-          <section className="page-panel" hidden={page !== "sessions"}>
+          <section className="page-panel sessions-page-panel" hidden={page !== "sessions"}>
             {page === "sessions" && <MemoCodexThreadsPage language={language} notify={notify} />}
           </section>
           <section className="page-panel providers-page-panel" hidden={page !== "providers"}>

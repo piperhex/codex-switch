@@ -241,6 +241,9 @@ button:focus-visible { outline: 3px solid rgba(45, 131, 87, .24); outline-offset
 .update-ready-button.downloading > svg { position: relative; z-index: 1; }
 main { width: 100%; min-width: 0; min-height: 0; overflow-x: hidden; overflow-y: auto; scrollbar-gutter: stable; padding-bottom: 60px; }
 .page-panel[hidden] { display: none !important; }
+.sessions-main { overflow: hidden; display: flex; flex-direction: column; padding-bottom: 0; }
+.sessions-page-panel { min-height: 0; flex: 1; display: flex; flex-direction: column; }
+.sessions-page-panel > .codex-thread-manager { min-height: 0; flex: 1; display: flex; flex-direction: column; }
 .codex-thread-manager { width: calc(100% - 32px); min-height: 560px; margin: 24px 16px 0; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255,255,255,.8); box-shadow: 0 8px 28px rgba(24,45,31,.055); }
 .codex-thread-toolbar { display: grid; grid-template-columns: minmax(240px, 1fr) 130px 160px; gap: 10px; }
 .codex-thread-toolbar .ant-input-affix-wrapper,
@@ -249,8 +252,9 @@ main { width: 100%; min-width: 0; min-height: 0; overflow-x: hidden; overflow-y:
 .codex-thread-toolbar .ant-select { height: 42px; }
 .thread-input-clear { width: 24px; height: 24px; padding: 0; border: 0; border-radius: 5px; display: grid; place-items: center; color: var(--muted); background: transparent; cursor: pointer; }
 .thread-input-clear:hover { color: var(--ink); background: #eef2ee; }
-.codex-thread-list { min-height: 300px; margin-top: 16px; overflow: hidden; }
+.codex-thread-list { min-height: 300px; margin-top: 16px; overflow: hidden; display: flex; flex: 1; flex-direction: column; }
 .thread-list-header { min-height: 38px; padding: 0 11px; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: 24px 24px 22px minmax(0, 1fr) auto 58px; align-items: center; gap: 9px; color: var(--muted); font-size: 11px; }
+.thread-list-scroll { min-height: 0; flex: 1; overflow-y: auto; }
 .thread-list-header strong { color: #52635a; font-size: 11px; font-weight: 600; }
 .thread-list-header-count { white-space: nowrap; }
 .thread-list-header-time { text-align: right; white-space: nowrap; }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { syncCodexThreadIndex } from "../api/backend";
+import { Modal } from "antd";
+import { restartChatGpt, syncCodexThreadIndex } from "../api/backend";
 import type { Language } from "../i18n";
 import { threadCopy } from "./codex-threads/copy";
 import { ThreadList } from "./codex-threads/ThreadList";
@@ -59,6 +60,29 @@ export function CodexThreadsPage({ language, notify }: CodexThreadsPageProps) {
     }
   };
 
+  const runRestartChatGpt = async () => {
+    setBusy(true);
+    try {
+      await restartChatGpt();
+      notify(text.restartChatGptSuccess);
+    } catch (error) {
+      reportError(error);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const confirmRestartChatGpt = () => {
+    Modal.confirm({
+      title: text.restartChatGptConfirmTitle,
+      content: <span className="compact-confirm-copy">{text.restartChatGptConfirmDescription}</span>,
+      okText: text.restartChatGpt,
+      cancelText: text.close,
+      okButtonProps: { danger: true },
+      onOk: runRestartChatGpt,
+    });
+  };
+
   return (
     <>
       {topbarHost && createPortal(
@@ -67,6 +91,7 @@ export function CodexThreadsPage({ language, notify }: CodexThreadsPageProps) {
           busy={busy}
           selectedCount={list.selected.size}
           runSync={() => void runSync()}
+          restartChatGpt={confirmRestartChatGpt}
           openImport={() => void transfer.openImport()}
           openExport={() => void transfer.openExport()}
           openRepair={repair.openModal}

@@ -225,7 +225,7 @@ export function ThreadList(props: ThreadListProps) {
         <span className="thread-list-header-count">{text.sessionCount}</span>
         <span className="thread-list-header-time">{text.conversationTime}</span>
       </div>
-      {listContent}
+      <div className="thread-list-scroll">{listContent}</div>
     </div>
   );
 }
