@@ -2364,15 +2364,26 @@ fn unique_provider_id(paths: &Paths) -> String {
 }
 
 fn backup_codex_config_if_needed(paths: &Paths, entering_provider: bool) -> Result<(), String> {
-    if !entering_provider || paths.config_backup.exists() {
+    if !entering_provider {
         return Ok(());
     }
-    let backup = if paths.current_config.exists() {
-        fs::read_to_string(&paths.current_config)
-            .map_err(|error| format!("Failed to read Codex config: {error}"))?
-    } else {
-        String::new()
-    };
+    if paths.config_backup.exists() {
+        let existing = fs::read_to_string(&paths.config_backup)
+            .map_err(|error| format!("Failed to read Codex config backup: {error}"))?;
+        if !existing.trim().is_empty() {
+            return Ok(());
+        }
+        fs::remove_file(&paths.config_backup)
+            .map_err(|error| format!("Failed to clear empty Codex config backup: {error}"))?;
+    }
+    if !paths.current_config.exists() {
+        return Ok(());
+    }
+    let backup = fs::read_to_string(&paths.current_config)
+        .map_err(|error| format!("Failed to read Codex config: {error}"))?;
+    if backup.trim().is_empty() {
+        return Ok(());
+    }
     write_text_atomic(&paths.config_backup, &backup)
 }
 
@@ -2850,24 +2861,75 @@ fn merge_local_proxy_config(existing: &str, options: &LocalProxyConfigOptions<'_
     config
 }
 
+#[derive(Clone, Copy)]
+enum MarkedBlockKind {
+    Root,
+    Table,
+}
+
 fn remove_marked_blocks(config: &str) -> String {
-    let mut output = Vec::new();
-    let mut skipping = false;
-    for line in config.lines() {
-        let trimmed = line.trim();
-        if trimmed == PROVIDER_ROOT_START || trimmed == PROVIDER_TABLE_START {
-            skipping = true;
+    let lines = config.lines().collect::<Vec<_>>();
+    let mut output = Vec::with_capacity(lines.len());
+    let mut index = 0;
+    while index < lines.len() {
+        let Some((kind, end_marker)) = marked_block_start(lines[index].trim()) else {
+            output.push(lines[index]);
+            index += 1;
             continue;
-        }
-        if skipping && (trimmed == PROVIDER_ROOT_END || trimmed == PROVIDER_TABLE_END) {
-            skipping = false;
-            continue;
-        }
-        if !skipping {
-            output.push(line);
-        }
+        };
+        let Some(end_index) = find_marked_block_end(&lines, index + 1, end_marker) else {
+            return config.to_string();
+        };
+        output.extend(clean_marked_block(&lines[index + 1..end_index], kind));
+        index = end_index + 1;
     }
     output.join("\n")
+}
+
+fn marked_block_start(line: &str) -> Option<(MarkedBlockKind, &'static str)> {
+    match line {
+        PROVIDER_ROOT_START => Some((MarkedBlockKind::Root, PROVIDER_ROOT_END)),
+        PROVIDER_TABLE_START => Some((MarkedBlockKind::Table, PROVIDER_TABLE_END)),
+        _ => None,
+    }
+}
+
+fn find_marked_block_end(lines: &[&str], start: usize, end_marker: &str) -> Option<usize> {
+    lines
+        .iter()
+        .enumerate()
+        .skip(start)
+        .find_map(|(index, line)| (line.trim() == end_marker).then_some(index))
+}
+
+fn clean_marked_block<'a>(lines: &'a [&'a str], kind: MarkedBlockKind) -> Vec<&'a str> {
+    let mut output = Vec::with_capacity(lines.len());
+    let mut in_root = true;
+    let mut removing_provider_table = false;
+    for line in lines {
+        let trimmed = line.trim();
+        if is_table_header(trimmed) {
+            in_root = false;
+            removing_provider_table = is_managed_provider_table(trimmed);
+            if !removing_provider_table {
+                output.push(*line);
+            }
+            continue;
+        }
+        if removing_provider_table {
+            continue;
+        }
+        if matches!(kind, MarkedBlockKind::Root) && in_root && is_provider_root_key(trimmed) {
+            continue;
+        }
+        output.push(*line);
+    }
+    output
+}
+
+fn is_managed_provider_table(line: &str) -> bool {
+    line == "[model_providers.custom]"
+        || line == format!("[model_providers.{LOCAL_PROXY_PROVIDER_ID}]")
 }
 
 fn remove_provider_conflicts(config: &str) -> String {
@@ -3541,6 +3603,98 @@ base_url = "https://custom.example.com/v1"
         assert_eq!(state.active_account_id.as_deref(), Some("official-account"));
         assert!(state.active_provider_id.is_none());
         fs::remove_dir_all(paths.codex_home.parent().unwrap()).unwrap();
+    }
+
+    #[test]
+    fn empty_config_backup_is_replaced_by_the_current_config() {
+        let paths = test_paths();
+        write_text_atomic(&paths.config_backup, "\n").unwrap();
+        let current = "model = \"gpt-5.5\"\n\n[features]\njs_repl = true\n";
+        write_text_atomic(&paths.current_config, current).unwrap();
+
+        backup_codex_config_if_needed(&paths, true).unwrap();
+
+        assert_eq!(fs::read_to_string(&paths.config_backup).unwrap(), current);
+        fs::remove_dir_all(paths.codex_home.parent().unwrap()).unwrap();
+    }
+
+    #[test]
+    fn empty_config_backup_does_not_get_created_without_a_current_config() {
+        let paths = test_paths();
+
+        backup_codex_config_if_needed(&paths, true).unwrap();
+
+        assert!(!paths.config_backup.exists());
+    }
+
+    #[test]
+    fn marked_provider_blocks_preserve_user_tables_inside_legacy_markers() {
+        let config = format!(
+            "{PROVIDER_TABLE_START}\n\
+             [model_providers.{LOCAL_PROXY_PROVIDER_ID}]\n\
+             base_url = \"{LOCAL_PROXY_BASE_URL}\"\n\
+             \n\
+             [desktop]\n\
+             show_home = true\n\
+             \n\
+             [features]\n\
+             js_repl = true\n\
+             {PROVIDER_TABLE_END}\n"
+        );
+
+        let cleaned = remove_marked_blocks(&config);
+
+        assert!(!cleaned.contains(LOCAL_PROXY_BASE_URL));
+        assert!(cleaned.contains("[desktop]"));
+        assert!(cleaned.contains("show_home = true"));
+        assert!(cleaned.contains("[features]"));
+        assert!(cleaned.contains("js_repl = true"));
+        cleaned.parse::<toml_edit::DocumentMut>().unwrap();
+    }
+
+    #[test]
+    fn restoring_with_an_empty_backup_keeps_user_settings_inside_legacy_markers() {
+        let paths = test_paths();
+        let current = format!(
+            "{PROVIDER_TABLE_START}\n\
+             [model_providers.{LOCAL_PROXY_PROVIDER_ID}]\n\
+             base_url = \"{LOCAL_PROXY_BASE_URL}\"\n\
+             \n\
+             [desktop]\n\
+             show_home = true\n\
+             \n\
+             [features]\n\
+             js_repl = true\n\
+             {PROVIDER_TABLE_END}\n"
+        );
+        write_text_atomic(&paths.config_backup, "").unwrap();
+        write_text_atomic(&paths.current_config, &current).unwrap();
+
+        restore_official_config(&paths).unwrap();
+
+        let restored = fs::read_to_string(&paths.current_config).unwrap();
+        assert!(restored.contains("[desktop]"));
+        assert!(restored.contains("show_home = true"));
+        assert!(restored.contains("[features]"));
+        assert!(restored.contains("js_repl = true"));
+        assert!(!restored.contains(LOCAL_PROXY_BASE_URL));
+        assert!(!paths.config_backup.exists());
+        restored.parse::<toml_edit::DocumentMut>().unwrap();
+        fs::remove_dir_all(paths.codex_home.parent().unwrap()).unwrap();
+    }
+
+    #[test]
+    fn unclosed_marked_provider_blocks_are_left_untouched() {
+        let config = format!(
+            "{PROVIDER_TABLE_START}\n\
+             [model_providers.{LOCAL_PROXY_PROVIDER_ID}]\n\
+             base_url = \"{LOCAL_PROXY_BASE_URL}\"\n\
+             \n\
+             [desktop]\n\
+             show_home = true\n"
+        );
+
+        assert_eq!(remove_marked_blocks(&config), config);
     }
 
     #[test]
