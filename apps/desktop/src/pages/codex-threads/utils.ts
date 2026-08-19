@@ -47,11 +47,12 @@ export function groupLabel(cwd: string) {
 }
 
 export function workspaceDisplayName(group: ThreadGroup, untitled: string) {
-  if (group.cwd !== UNKNOWN_WORKSPACE) return groupLabel(group.cwd);
   const titles = group.items
     .map((item) => item.title.trim())
     .filter(Boolean);
-  return titles.length ? titles.join("、") : untitled;
+  if (group.items.length === 1) return titles[0] || untitled;
+  if (group.cwd === UNKNOWN_WORKSPACE) return titles.join("、") || untitled;
+  return groupLabel(group.cwd);
 }
 
 export function interpolate(value: string, values: Record<string, string | number>) {
