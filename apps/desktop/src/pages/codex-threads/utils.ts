@@ -7,6 +7,8 @@ export interface ThreadGroup {
   updatedAt: number;
 }
 
+export const UNKNOWN_WORKSPACE = "未知工作目录";
+
 export function formatSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -42,6 +44,14 @@ export function relativeTime(timestamp: number | null, language: Language) {
 export function groupLabel(cwd: string) {
   const normalized = cwd.replace(/\\/g, "/").replace(/\/$/, "");
   return normalized.split("/").filter(Boolean).at(-1) || cwd;
+}
+
+export function workspaceDisplayName(group: ThreadGroup, untitled: string) {
+  if (group.cwd !== UNKNOWN_WORKSPACE) return groupLabel(group.cwd);
+  const titles = group.items
+    .map((item) => item.title.trim())
+    .filter(Boolean);
+  return titles.length ? titles.join("、") : untitled;
 }
 
 export function interpolate(value: string, values: Record<string, string | number>) {
