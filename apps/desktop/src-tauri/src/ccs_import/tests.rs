@@ -23,7 +23,7 @@ fn rejects_other_resources() {
 }
 
 #[test]
-fn parses_confirmation_details_before_saving() {
+fn confirmation_details_include_all_supported_models_before_saving() {
     let url = Url::parse(concat!(
         "cswitch://v1/import?resource=provider&app=codex&name=Relay",
         "&endpoint=https%3A%2F%2Frelay.example.com%2Fv1",
@@ -31,12 +31,16 @@ fn parses_confirmation_details_before_saving() {
     ))
     .unwrap();
 
-    let pending = parse_import(&url).unwrap();
+    let mut pending = parse_import(&url).unwrap();
+    pending.models = resolve_import_models(
+        "gpt-custom".to_string(),
+        Ok(vec!["gpt-custom".to_string(), "gpt-fast".to_string()]),
+    );
     let details = pending.details();
 
     assert_eq!(details.name, "Relay");
     assert_eq!(details.endpoint, "https://relay.example.com/v1");
-    assert_eq!(details.model, "gpt-custom");
+    assert_eq!(details.models, vec!["gpt-custom", "gpt-fast"]);
     assert!(details.api_key_provided);
 }
 

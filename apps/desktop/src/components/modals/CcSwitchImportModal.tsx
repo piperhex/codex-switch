@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Input, Modal } from "antd";
+import { Input, Modal, Popover } from "antd";
 import type { Translate } from "../../i18n";
 import type { CcSwitchImportRequest, ProviderBalancePlatform } from "../../types";
 
@@ -26,6 +26,7 @@ export function CcSwitchImportModal({
   t,
 }: CcSwitchImportModalProps) {
   const [name, setName] = useState("");
+  const modelNames = request?.models.join("、") ?? "";
 
   useEffect(() => setName(request?.name ?? ""), [request]);
 
@@ -48,7 +49,16 @@ export function CcSwitchImportModal({
       <div className="ccswitch-import-details">
         <div><span>{t("providers.import.app")}</span><strong>{request.app}</strong></div>
         <div><span>{t("providers.import.endpoint")}</span><strong>{request.endpoint}</strong></div>
-        <div><span>{t("providers.import.model")}</span><strong>{request.model}</strong></div>
+        <div>
+          <span>{t("providers.import.model")}</span>
+          <Popover
+            content={<div className="ccswitch-import-model-popover">{modelNames}</div>}
+            placement="top"
+            mouseEnterDelay={0.2}
+          >
+            <strong className="ccswitch-import-model-preview">{modelNames}</strong>
+          </Popover>
+        </div>
         <div>
           <span>{t("providers.import.balance")}</span>
           <strong>{balancePlatformLabel(request.balancePlatform, t)}</strong>

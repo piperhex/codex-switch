@@ -135,7 +135,7 @@ export interface CcSwitchImportRequest {
   app: string;
   name: string;
   endpoint: string;
-  model: string;
+  models: string[];
   apiKeyProvided: boolean;
   balancePlatform?: ProviderBalancePlatform | null;
 }

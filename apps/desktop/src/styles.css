@@ -843,6 +843,12 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .ccswitch-import-details strong {
   min-width: 0; overflow-wrap: anywhere; color: #34463b; font-size: 10px; font-weight: 600;
 }
+.ccswitch-import-model-preview {
+  display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ccswitch-import-model-popover {
+  max-width: 400px; max-height: 240px; overflow-y: auto; overflow-wrap: anywhere; line-height: 1.6;
+}
 .reset-credits-modal { width: min(720px, 95vw); max-height: 80vh; overflow: auto; }
 .reset-credits-modal .reset-credits-panel, .reset-credits-modal .reset-credits-status { padding: 12px 0 0; border-top: 1px solid #edf1ec; }
 .account-note-backdrop { padding: 24px; }

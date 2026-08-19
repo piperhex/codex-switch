@@ -45,6 +45,7 @@ struct ImportBalanceSettings {
     uses_api_key: bool,
 }
 
+#[derive(Clone)]
 struct ImportModels {
     selected: String,
     available: Vec<String>,
@@ -57,7 +58,7 @@ struct PendingProviderImport {
     name: String,
     endpoint: String,
     api_key: String,
-    requested_model: String,
+    models: ImportModels,
     kind: ProviderKind,
     api_format: ProviderApiFormat,
     controlled_by_codex: bool,
@@ -71,7 +72,7 @@ pub(crate) struct CcSwitchImportRequest {
     app: String,
     name: String,
     endpoint: String,
-    model: String,
+    models: Vec<String>,
     api_key_provided: bool,
     balance_platform: Option<ProviderBalancePlatform>,
 }
@@ -83,7 +84,7 @@ impl PendingProviderImport {
             app: self.app_name.clone(),
             name: self.name.clone(),
             endpoint: self.endpoint.clone(),
-            model: self.requested_model.clone(),
+            models: self.models.available.clone(),
             api_key_provided: !self.api_key.is_empty(),
             balance_platform: self.balance.platform,
         }
@@ -110,6 +111,12 @@ pub(crate) fn handle_url<R: Runtime>(app: &AppHandle<R>, url: &Url) {
 
 fn queue_import<R: Runtime>(app: &AppHandle<R>, url: &Url) -> Result<(), String> {
     let mut pending = parse_import(url)?;
+    pending.models = import_models(
+        &pending.app_name,
+        pending.models.selected.clone(),
+        &pending.endpoint,
+        &pending.api_key,
+    )?;
     let paths = resolve_paths(app)?;
     let mut names = providers::list_provider_profiles(&paths)?
         .into_iter()
@@ -154,7 +161,10 @@ fn parse_import(url: &Url) -> Result<PendingProviderImport, String> {
         name,
         endpoint,
         api_key,
-        requested_model,
+        models: ImportModels {
+            selected: requested_model.clone(),
+            available: vec![requested_model],
+        },
         kind,
         api_format,
         controlled_by_codex,
@@ -224,12 +234,7 @@ fn save_pending_import<R: Runtime>(
         .map(|provider| provider.name)
         .collect::<Vec<_>>();
     let name = unique_provider_name(&requested_name, &existing_names);
-    let models = import_models(
-        &pending.app_name,
-        pending.requested_model.clone(),
-        &pending.endpoint,
-        &pending.api_key,
-    )?;
+    let models = pending.models.clone();
     providers::save_provider(app.clone(), pending_provider_input(pending, name, models))
 }
 
