@@ -391,6 +391,12 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
                 argument(&args, "contextWindow")?,
             ),
         )),
+        "set_upstream_429_retry_timeout" => serialize(block_on(
+            crate::local_proxy::set_upstream_429_retry_timeout(
+                app,
+                argument(&args, "timeoutSeconds")?,
+            ),
+        )),
         "set_close_to_tray" => serialize(block_on(crate::main_window::set_close_to_tray(
             app.clone(),
             argument(&args, "enabled")?,
@@ -440,6 +446,12 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
             app,
             argument(&args, "request")?,
         ))),
+        "detect_relay_platform" => {
+            serialize(block_on(crate::provider_platform::detect_relay_platform(
+                argument(&args, "baseUrl")?,
+                argument(&args, "apiKey")?,
+            )))
+        }
         "fetch_relay_models" => serialize(block_on(crate::provider_models::fetch_relay_models(
             argument(&args, "baseUrl")?,
             argument(&args, "apiKey")?,
@@ -850,6 +862,9 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
         ))),
         "set_dream_skin_appearance" => serialize(block_on(
             crate::dream_skin::set_dream_skin_appearance(app, argument(&args, "appearance")?),
+        )),
+        "set_dream_skin_overlay_opacity" => serialize(block_on(
+            crate::dream_skin::set_dream_skin_overlay_opacity(app, argument(&args, "opacity")?),
         )),
         "set_dream_skin_paused" => serialize(block_on(crate::dream_skin::set_dream_skin_paused(
             app,

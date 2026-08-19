@@ -39,10 +39,8 @@ import {
   restartChatGpt,
   showTokenUsageWindow,
   submitFeedback,
-  subscribeToCcSwitchImports,
   subscribeToCloudSessionExpired,
   subscribeToOpenSettings,
-  takeCcSwitchImportNavigation,
   updateAutoDisableStatusCodes,
   updateNetworkProxy,
   updateProviderGroups,
@@ -62,6 +60,7 @@ import { CloudAccountModal } from "../modals/CloudAccountModal";
 import { LoginModal } from "../modals/LoginModal";
 import { LanAccessModal } from "../modals/LanAccessModal";
 import { UpdateModal } from "../modals/UpdateModal";
+import { CcSwitchImportModal } from "../modals/CcSwitchImportModal";
 import { MenuSearchModal } from "../MenuSearchModal";
 import { ProxyStatusControls } from "./ProxyStatusControls";
 import { ProxyTopbarActions } from "./ProxyTopbarActions";
@@ -79,6 +78,7 @@ import { useBubbleStyle } from "../../hooks/useBubbleStyle";
 import { useCloudAuth } from "../../hooks/useCloudAuth";
 import { useCloudContent, useCloudContentLifecycle } from "../../hooks/useCloudContent";
 import { useCloseToTray } from "../../hooks/useCloseToTray";
+import { useCcSwitchImport } from "../../hooks/useCcSwitchImport";
 import { useCodexHome } from "../../hooks/useCodexHome";
 import { useLanguage } from "../../hooks/useLanguage";
 import { useLaunchAtStartup } from "../../hooks/useLaunchAtStartup";
@@ -90,6 +90,7 @@ import { useResetCredits } from "../../hooks/useResetCredits";
 import { useThemeColor } from "../../hooks/useThemeColor";
 import { useThemeMode } from "../../hooks/useThemeMode";
 import { useTokenUsagePreferences } from "../../hooks/useTokenUsagePreferences";
+import { useUpstream429RetryTimeout } from "../../hooks/useUpstream429RetryTimeout";
 import { useToast } from "../../hooks/useToast";
 import { useTotpEntries } from "../../hooks/useTotpEntries";
 import { AccountsPage } from "../../pages/AccountsPage";
@@ -225,28 +226,6 @@ export function DashboardApp() {
   useEffect(() => subscribeToOpenSettings(() => setPage("settings")), []);
   const { message: toast, notify } = useToast();
   const { language, setLanguage, t } = useLanguage();
-  useEffect(() => {
-    let active = true;
-    let unsubscribe: (() => void) | undefined;
-    const consumeImport = async () => {
-      const pending = await takeCcSwitchImportNavigation().catch(() => false);
-      if (!active || !pending) return;
-      setPage("providers");
-      notify(t("toast.providerImported"));
-    };
-    void subscribeToCcSwitchImports(() => void consumeImport()).then((stopListening) => {
-      if (!active) {
-        stopListening();
-        return;
-      }
-      unsubscribe = stopListening;
-      void consumeImport();
-    });
-    return () => {
-      active = false;
-      unsubscribe?.();
-    };
-  }, [notify, t]);
   const cloud = useCloudAuth(notify, t);
   const totpManager = useTotpEntries({
     cloudAuthenticated: cloud.state.authenticated,
@@ -331,8 +310,18 @@ export function DashboardApp() {
   const themeColor = useThemeColor(notify);
   const themeMode = useThemeMode();
   const tokenUsagePreferences = useTokenUsagePreferences(notify);
+  const upstream429RetryTimeout = useUpstream429RetryTimeout(notify);
   const manager = useAccountManager(notify, t, accountCloudSync);
   const providerManager = useProviderManager(notify, t, providerCloudSync);
+  const handleCcSwitchImported = useCallback((provider: Provider) => {
+    setPage("providers");
+    notify(t("toast.providerImported", { name: provider.name }));
+  }, [notify, t]);
+  const ccSwitchImport = useCcSwitchImport({
+    notify,
+    onImported: handleCcSwitchImported,
+    t,
+  });
   const codexHome = useCodexHome({
     currentPath: manager.info?.codexHome,
     localProxyRunning: Boolean(providerManager.localProxy?.running),
@@ -370,11 +359,6 @@ export function DashboardApp() {
     providerManager.localProxy?.running
       && providerManager.localProxy.concurrentAccountRoutingEnabled,
   );
-  const currentModelSource: "official" | "provider" | null = activeProvider
-    ? "provider"
-    : activeAccount || concurrentRoutingActive
-      ? "official"
-      : null;
   const concurrentAutoRefreshAccountIds = useMemo(
     () => manager.accounts
       .filter((account) => account.autoSwitchEnabled)
@@ -766,52 +750,19 @@ export function DashboardApp() {
       onOk: restartChatGptProcess,
     });
   }, [restartChatGptProcess, t]);
-  const promptRestartToLoadModel = useCallback(() => {
-    Modal.confirm({
-      title: t("actions.restartToLoadModelTitle"),
-      content: t("actions.restartToLoadModelDescription"),
-      okText: t("actions.restartChatGpt"),
-      cancelText: t("update.later"),
-      okButtonProps: { danger: true },
-      width: 400,
-      onOk: restartChatGptProcess,
-    });
-  }, [restartChatGptProcess, t]);
   const switchAccount = useCallback(async (id: string) => {
     const localProxyRunning = Boolean(providerManager.localProxy?.running);
-    const shouldPromptForRestart = localProxyRunning && currentModelSource === "provider";
-    const switched = await manager.switchAccount(id, localProxyRunning);
-    if (switched && shouldPromptForRestart) promptRestartToLoadModel();
+    await manager.switchAccount(id, localProxyRunning);
   }, [
-    currentModelSource,
     manager.switchAccount,
-    promptRestartToLoadModel,
     providerManager.localProxy?.running,
   ]);
   const switchProvider = useCallback(async (id: string) => {
-    const shouldPromptForRestart = Boolean(
-      providerManager.localProxy?.running && currentModelSource === "official",
-    );
-    const switched = await providerManager.switchProvider(id);
-    if (switched && shouldPromptForRestart) promptRestartToLoadModel();
-  }, [
-    currentModelSource,
-    promptRestartToLoadModel,
-    providerManager.localProxy?.running,
-    providerManager.switchProvider,
-  ]);
+    await providerManager.switchProvider(id);
+  }, [providerManager.switchProvider]);
   const switchProviderGroup = useCallback(async (group: string) => {
-    const shouldPromptForRestart = Boolean(
-      providerManager.localProxy?.running && currentModelSource === "official",
-    );
-    const switched = await providerManager.switchProviderGroup(group);
-    if (switched && shouldPromptForRestart) promptRestartToLoadModel();
-  }, [
-    currentModelSource,
-    promptRestartToLoadModel,
-    providerManager.localProxy?.running,
-    providerManager.switchProviderGroup,
-  ]);
+    await providerManager.switchProviderGroup(group);
+  }, [providerManager.switchProviderGroup]);
   const openTokenUsage = useCallback(async () => {
     try {
       await showTokenUsageWindow();
@@ -1233,7 +1184,7 @@ export function DashboardApp() {
             : page === "dreamSkin" ? "dream-skin-main" : undefined}>
           {page !== "tokens" && page !== "dreamSkin" && (
           <>
-          <header className={`topbar${page === "accounts" ? " account-view-topbar" : ""}${
+          <header className={`topbar${page === "accounts" || page === "providers" ? " account-view-topbar" : ""}${
             page === "accounts" && providerManager.localProxy?.running ? " accounts-topbar" : ""
           }${page === "settings" ? " settings-topbar" : ""}`}>
             {page === "accounts" && providerManager.localProxy?.running ? (
@@ -1266,7 +1217,7 @@ export function DashboardApp() {
                 </div>
               </div>
             )}
-            {page === "accounts" && (
+            {(page === "accounts" || page === "providers") && (
               <AccountDisplayTabs displayMode={accountDisplayMode.displayMode}
                 onChange={accountDisplayMode.setDisplayMode} t={t} />
             )}
@@ -1352,6 +1303,9 @@ export function DashboardApp() {
               tokenUsageWeeks={tokenUsagePreferences.weeks}
               tokenUsageRefreshSeconds={tokenUsagePreferences.refreshSeconds}
               tokenUsagePreferencesLoading={tokenUsagePreferences.loading}
+              upstream429RetryTimeoutSeconds={upstream429RetryTimeout.timeoutSeconds}
+              upstream429RetryTimeoutLoading={upstream429RetryTimeout.loading}
+              onUpstream429RetryTimeoutChange={upstream429RetryTimeout.update}
               autoDisableStatusCodes={autoDisableStatusCodes}
               autoDisableStatusCodesLoading={autoDisableStatusCodesLoading}
               onAutoDisableStatusCodesChange={changeAutoDisableStatusCodes}
@@ -1505,6 +1459,9 @@ export function DashboardApp() {
         <NetworkProxySettingsModal open={showNetworkProxy} value={networkProxy}
           loading={networkProxyLoading} onSave={saveNetworkProxy}
           onClose={() => setShowNetworkProxy(false)} t={t} />
+        <CcSwitchImportModal request={ccSwitchImport.request} saving={ccSwitchImport.saving}
+          onCancel={() => void ccSwitchImport.cancel()}
+          onConfirm={(name) => void ccSwitchImport.confirm(name)} t={t} />
         <ProxyProgressModal progress={providerManager.proxyStartProgress}
           phaseKeys={PROXY_START_PHASE_KEYS} titleKey="providers.proxy.startProgressTitle"
           fileLabelKey="providers.proxy.startProgressFiles"

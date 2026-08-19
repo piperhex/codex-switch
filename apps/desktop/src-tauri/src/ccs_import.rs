@@ -1,14 +1,20 @@
 use std::{
-    collections::BTreeMap,
-    sync::atomic::{AtomicBool, Ordering},
+    collections::{BTreeMap, BTreeSet, VecDeque},
+    sync::Mutex,
 };
 
-use tauri::{AppHandle, Emitter, Manager, Runtime, State};
+use serde::Serialize;
+use tauri::{AppHandle, Emitter, Manager, Runtime};
 use url::Url;
+use uuid::Uuid;
 
 use crate::{
-    models::{ProviderApiFormat, ProviderBalancePlatform, ProviderKind},
+    models::{
+        ModelReasoningEfforts, ProviderApiFormat, ProviderBalancePlatform, ProviderKind,
+        ProviderSummary, ReasoningEffort,
+    },
     providers::{self, ProviderInput},
+    storage::resolve_paths,
 };
 
 const CCS_SCHEMES: &[&str] = &["ccswitch", "cswitch"];
@@ -18,29 +24,76 @@ const MAX_PROVIDER_NAME_LENGTH: usize = 200;
 const MAX_ENDPOINT_LENGTH: usize = 2_048;
 const MAX_API_KEY_LENGTH: usize = 16_384;
 const MAX_MODEL_LENGTH: usize = 200;
+const FIRST_DUPLICATE_SUFFIX: usize = 2;
 const SUB2API_BALANCE_PATH: &str = "/v1/usage";
 const NEW_API_BALANCE_PATH: &str = "/api/usage/token/";
 const DEEPSEEK_BALANCE_PATH: &str = "/user/balance";
+const DEEPSEEK_MODEL_PREFIX: &str = "deepseek-";
+const DEEPSEEK_REASONING_EFFORTS: [ReasoningEffort; 6] = [
+    ReasoningEffort::None,
+    ReasoningEffort::Low,
+    ReasoningEffort::Medium,
+    ReasoningEffort::High,
+    ReasoningEffort::Xhigh,
+    ReasoningEffort::Max,
+];
 
+#[derive(Clone)]
 struct ImportBalanceSettings {
     platform: Option<ProviderBalancePlatform>,
     query_url: Option<String>,
     uses_api_key: bool,
 }
 
+#[derive(Clone)]
 struct ImportModels {
     selected: String,
     available: Vec<String>,
 }
 
-#[derive(Default)]
-pub(crate) struct ImportNavigationState {
-    pending: AtomicBool,
+#[derive(Clone)]
+struct PendingProviderImport {
+    id: String,
+    app_name: String,
+    name: String,
+    endpoint: String,
+    api_key: String,
+    models: ImportModels,
+    kind: ProviderKind,
+    api_format: ProviderApiFormat,
+    controlled_by_codex: bool,
+    balance: ImportBalanceSettings,
 }
 
-#[tauri::command]
-pub(crate) fn take_ccswitch_import_navigation(state: State<'_, ImportNavigationState>) -> bool {
-    state.pending.swap(false, Ordering::AcqRel)
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CcSwitchImportRequest {
+    request_id: String,
+    app: String,
+    name: String,
+    endpoint: String,
+    models: Vec<String>,
+    api_key_provided: bool,
+    balance_platform: Option<ProviderBalancePlatform>,
+}
+
+impl PendingProviderImport {
+    fn details(&self) -> CcSwitchImportRequest {
+        CcSwitchImportRequest {
+            request_id: self.id.clone(),
+            app: self.app_name.clone(),
+            name: self.name.clone(),
+            endpoint: self.endpoint.clone(),
+            models: self.models.available.clone(),
+            api_key_provided: !self.api_key.is_empty(),
+            balance_platform: self.balance.platform,
+        }
+    }
+}
+
+#[derive(Default)]
+pub(crate) struct ImportState {
+    pending: Mutex<VecDeque<PendingProviderImport>>,
 }
 
 /// Handles a URL delivered by the `ccswitch://` desktop deep-link integration.
@@ -50,13 +103,41 @@ pub(crate) fn handle_url<R: Runtime>(app: &AppHandle<R>, url: &Url) {
     let app = app.clone();
     let url = url.clone();
     tauri::async_runtime::spawn_blocking(move || {
-        if let Err(error) = import_url(&app, &url) {
+        if let Err(error) = queue_import(&app, &url) {
             eprintln!("ignored CCS import link: {error}");
         }
     });
 }
 
-fn import_url<R: Runtime>(app: &AppHandle<R>, url: &Url) -> Result<(), String> {
+fn queue_import<R: Runtime>(app: &AppHandle<R>, url: &Url) -> Result<(), String> {
+    let mut pending = parse_import(url)?;
+    pending.models = import_models(
+        &pending.app_name,
+        pending.models.selected.clone(),
+        &pending.endpoint,
+        &pending.api_key,
+    )?;
+    let paths = resolve_paths(app)?;
+    let mut names = providers::list_provider_profiles(&paths)?
+        .into_iter()
+        .map(|provider| provider.name)
+        .collect::<Vec<_>>();
+    let state = app.state::<ImportState>();
+    let mut queue = state
+        .pending
+        .lock()
+        .map_err(|_| "CCS import queue is unavailable".to_string())?;
+    names.extend(queue.iter().map(|item| item.name.clone()));
+    pending.name = unique_provider_name(&pending.name, &names);
+    queue.push_back(pending);
+    drop(queue);
+
+    crate::system_tray::show_dashboard(app);
+    app.emit("ccswitch-import-requested", ())
+        .map_err(|error| format!("failed to show the CCS import confirmation: {error}"))
+}
+
+fn parse_import(url: &Url) -> Result<PendingProviderImport, String> {
     validate_route(url)?;
     let query = url
         .query_pairs()
@@ -72,41 +153,165 @@ fn import_url<R: Runtime>(app: &AppHandle<R>, url: &Url) -> Result<(), String> {
     let api_key = bounded_query_value(&query, "apiKey", MAX_API_KEY_LENGTH)?;
     let requested_model = bounded_optional_query_value(&query, "model", MAX_MODEL_LENGTH)?;
     let (kind, api_format, controlled_by_codex) = provider_kind(&app_name)?;
-    let models = import_models(&app_name, requested_model, &endpoint, &api_key)?;
+    let requested_model = import_model(&app_name, requested_model)?;
     let balance = import_balance_settings(&query, &endpoint)?;
-    let provider = ProviderInput {
-        id: None,
+    Ok(PendingProviderImport {
+        id: Uuid::new_v4().to_string(),
+        app_name,
+        name,
+        endpoint,
+        api_key,
+        models: ImportModels {
+            selected: requested_model.clone(),
+            available: vec![requested_model],
+        },
         kind,
+        api_format,
+        controlled_by_codex,
+        balance,
+    })
+}
+
+#[tauri::command]
+pub(crate) async fn take_ccswitch_import_request<R: Runtime + 'static>(
+    app: AppHandle<R>,
+) -> Result<Option<CcSwitchImportRequest>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<ImportState>();
+        let queue = state
+            .pending
+            .lock()
+            .map_err(|_| "CCS import queue is unavailable".to_string())?;
+        Ok(queue.front().map(PendingProviderImport::details))
+    })
+    .await
+    .map_err(|error| format!("failed to read the CCS import request: {error}"))?
+}
+
+#[tauri::command]
+pub(crate) async fn cancel_ccswitch_provider_import<R: Runtime + 'static>(
+    app: AppHandle<R>,
+    request_id: String,
+) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || remove_pending_import(&app, &request_id).map(drop))
+        .await
+        .map_err(|error| format!("failed to cancel the CCS import request: {error}"))?
+}
+
+#[tauri::command]
+pub(crate) async fn confirm_ccswitch_provider_import<R: Runtime + 'static>(
+    app: AppHandle<R>,
+    request_id: String,
+    name: String,
+) -> Result<ProviderSummary, String> {
+    tauri::async_runtime::spawn_blocking(move || confirm_import(&app, &request_id, &name))
+        .await
+        .map_err(|error| format!("failed to confirm the CCS import request: {error}"))?
+}
+
+fn confirm_import<R: Runtime>(
+    app: &AppHandle<R>,
+    request_id: &str,
+    requested_name: &str,
+) -> Result<ProviderSummary, String> {
+    let requested_name = bounded_value(requested_name, "name", MAX_PROVIDER_NAME_LENGTH)?;
+    let pending = remove_pending_import(app, request_id)?;
+    let result = save_pending_import(app, pending.clone(), requested_name);
+    if result.is_err() {
+        restore_pending_import(app, pending)?;
+    }
+    result
+}
+
+fn save_pending_import<R: Runtime>(
+    app: &AppHandle<R>,
+    pending: PendingProviderImport,
+    requested_name: String,
+) -> Result<ProviderSummary, String> {
+    let paths = resolve_paths(app)?;
+    let existing_names = providers::list_provider_profiles(&paths)?
+        .into_iter()
+        .map(|provider| provider.name)
+        .collect::<Vec<_>>();
+    let name = unique_provider_name(&requested_name, &existing_names);
+    let models = pending.models.clone();
+    providers::save_provider(app.clone(), pending_provider_input(pending, name, models))
+}
+
+fn pending_provider_input(
+    pending: PendingProviderImport,
+    name: String,
+    models: ImportModels,
+) -> ProviderInput {
+    let model_reasoning_efforts = imported_model_reasoning_efforts(&models.available);
+    ProviderInput {
+        id: None,
+        kind: pending.kind,
         name,
         group: String::new(),
-        base_url: endpoint,
-        api_key: Some(api_key),
+        base_url: pending.endpoint,
+        api_key: Some(pending.api_key),
         model: models.selected,
         models: models.available,
-        model_reasoning_efforts: Default::default(),
+        model_reasoning_efforts,
         model_context_windows: Default::default(),
         image_input_models: Vec::new(),
         image_input_models_configured: Some(false),
         context_window: None,
-        model_selection_controlled_by_codex: controlled_by_codex,
-        api_format,
-        balance_platform: balance.platform,
-        balance_query_url: balance.query_url,
+        model_selection_controlled_by_codex: pending.controlled_by_codex,
+        api_format: pending.api_format,
+        balance_platform: pending.balance.platform,
+        balance_query_url: pending.balance.query_url,
         balance_query_token: None,
-        balance_query_uses_api_key: balance.uses_api_key,
+        balance_query_uses_api_key: pending.balance.uses_api_key,
         wallet_query_url: None,
         wallet_query_token: None,
         wallet_username: None,
         wallet_password: None,
-    };
-    providers::save_provider(app.clone(), provider)?;
-    app.state::<ImportNavigationState>()
-        .pending
-        .store(true, Ordering::Release);
-    crate::system_tray::show_dashboard(app);
-    if let Err(error) = app.emit("ccswitch-imported", ()) {
-        eprintln!("failed to notify the dashboard about the CCS import: {error}");
     }
+}
+
+fn imported_model_reasoning_efforts(models: &[String]) -> ModelReasoningEfforts {
+    models
+        .iter()
+        .filter(|model| {
+            model
+                .trim()
+                .to_ascii_lowercase()
+                .starts_with(DEEPSEEK_MODEL_PREFIX)
+        })
+        .map(|model| (model.clone(), DEEPSEEK_REASONING_EFFORTS.to_vec()))
+        .collect()
+}
+
+fn remove_pending_import<R: Runtime>(
+    app: &AppHandle<R>,
+    request_id: &str,
+) -> Result<PendingProviderImport, String> {
+    let state = app.state::<ImportState>();
+    let mut queue = state
+        .pending
+        .lock()
+        .map_err(|_| "CCS import queue is unavailable".to_string())?;
+    let index = queue
+        .iter()
+        .position(|pending| pending.id == request_id)
+        .ok_or_else(|| "CCS import request is no longer available".to_string())?;
+    queue
+        .remove(index)
+        .ok_or_else(|| "CCS import request is no longer available".to_string())
+}
+
+fn restore_pending_import<R: Runtime>(
+    app: &AppHandle<R>,
+    pending: PendingProviderImport,
+) -> Result<(), String> {
+    let state = app.state::<ImportState>();
+    state
+        .pending
+        .lock()
+        .map_err(|_| "CCS import queue is unavailable".to_string())?
+        .push_front(pending);
     Ok(())
 }
 
@@ -237,7 +442,14 @@ fn bounded_query_value(
     key: &str,
     max_length: usize,
 ) -> Result<String, String> {
-    let value = query_value(query, key)?.trim();
+    bounded_value(query_value(query, key)?, key, max_length)
+}
+
+fn bounded_value(value: &str, key: &str, max_length: usize) -> Result<String, String> {
+    let value = value.trim();
+    if value.is_empty() {
+        return Err(format!("CCS link is missing {key}"));
+    }
     if value.chars().count() > max_length {
         return Err(format!("CCS {key} is too long"));
     }
@@ -256,135 +468,25 @@ fn bounded_optional_query_value(
     Ok(value.to_string())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn accepts_provider_import_route() {
-        let url = Url::parse("ccswitch://v1/import?resource=provider&app=codex").unwrap();
-        assert!(validate_route(&url).is_ok());
+fn unique_provider_name(requested: &str, existing_names: &[String]) -> String {
+    let normalized_names = existing_names
+        .iter()
+        .map(|name| name.trim().to_lowercase())
+        .collect::<BTreeSet<_>>();
+    if !normalized_names.contains(&requested.to_lowercase()) {
+        return requested.to_string();
     }
-
-    #[test]
-    fn accepts_first_party_provider_import_route() {
-        let url = Url::parse("cswitch://v1/import?resource=provider&app=codex").unwrap();
-        assert!(validate_route(&url).is_ok());
-    }
-
-    #[test]
-    fn rejects_other_resources() {
-        let url = Url::parse("ccswitch://v1/import?resource=account&app=codex").unwrap();
-        let query = url
-            .query_pairs()
-            .map(|(key, value)| (key.into_owned(), value.into_owned()))
-            .collect::<BTreeMap<_, _>>();
-        assert_ne!(query.get("resource").map(String::as_str), Some("provider"));
-    }
-
-    #[test]
-    fn maps_sub2api_and_newapi_platforms() {
-        assert_eq!(
-            parse_balance_platform("sub2api"),
-            Some(ProviderBalancePlatform::Sub2Api)
-        );
-        assert_eq!(
-            parse_balance_platform("new-api"),
-            Some(ProviderBalancePlatform::NewApi)
-        );
-    }
-
-    #[test]
-    fn imports_codex_links_as_relay_providers() {
-        let (kind, api_format, controlled_by_codex) = provider_kind("codex").unwrap();
-
-        assert_eq!(kind, ProviderKind::Custom);
-        assert_eq!(api_format, ProviderApiFormat::OpenaiResponses);
-        assert!(controlled_by_codex);
-        assert_eq!(
-            import_model("codex", String::new()).unwrap(),
-            providers::DEFAULT_OFFICIAL_MODEL
-        );
-    }
-
-    #[test]
-    fn imported_compatible_providers_default_to_codex_model_control() {
-        for app in ["claude", "gemini", "grokbuild"] {
-            let (_, api_format, controlled_by_codex) = provider_kind(app).unwrap();
-
-            assert_eq!(api_format, ProviderApiFormat::OpenaiChat);
-            assert!(controlled_by_codex);
+    for number in FIRST_DUPLICATE_SUFFIX.. {
+        let suffix = format!(" ({number})");
+        let base_length = MAX_PROVIDER_NAME_LENGTH.saturating_sub(suffix.chars().count());
+        let base = requested.chars().take(base_length).collect::<String>();
+        let candidate = format!("{}{suffix}", base.trim_end());
+        if !normalized_names.contains(&candidate.to_lowercase()) {
+            return candidate;
         }
     }
-
-    #[test]
-    fn imported_relay_prefers_its_requested_model() {
-        let models = resolve_import_models(
-            "gpt-requested".to_string(),
-            Ok(vec!["gpt-first".to_string(), "gpt-requested".to_string()]),
-        );
-
-        assert_eq!(models.selected, "gpt-requested");
-        assert_eq!(models.available, vec!["gpt-first", "gpt-requested"]);
-    }
-
-    #[test]
-    fn imported_relay_selects_the_first_fetched_model_when_needed() {
-        let models = resolve_import_models(
-            providers::DEFAULT_OFFICIAL_MODEL.to_string(),
-            Ok(vec![
-                "relay-model-a".to_string(),
-                "relay-model-b".to_string(),
-            ]),
-        );
-
-        assert_eq!(models.selected, "relay-model-a");
-        assert_eq!(models.available, vec!["relay-model-a", "relay-model-b"]);
-    }
-
-    #[test]
-    fn imported_relay_keeps_a_default_when_model_discovery_fails() {
-        let models = resolve_import_models(
-            providers::DEFAULT_OFFICIAL_MODEL.to_string(),
-            Err("unavailable".to_string()),
-        );
-
-        assert_eq!(models.selected, providers::DEFAULT_OFFICIAL_MODEL);
-        assert_eq!(models.available, vec![providers::DEFAULT_OFFICIAL_MODEL]);
-    }
-
-    #[test]
-    fn supplies_sub2api_balance_defaults_for_compatible_links() {
-        let query = Url::parse(
-            "cswitch://v1/import?balancePlatform=sub2api&endpoint=https%3A%2F%2Frelay.example.com%2Fv1",
-        )
-        .unwrap()
-        .query_pairs()
-        .map(|(key, value)| (key.into_owned(), value.into_owned()))
-        .collect::<BTreeMap<_, _>>();
-
-        let settings = import_balance_settings(&query, &query["endpoint"]).unwrap();
-
-        assert_eq!(settings.platform, Some(ProviderBalancePlatform::Sub2Api));
-        assert_eq!(
-            settings.query_url.as_deref(),
-            Some("https://relay.example.com/v1/usage")
-        );
-        assert!(settings.uses_api_key);
-    }
-
-    #[test]
-    fn supplies_new_api_balance_defaults_for_nested_endpoints() {
-        let query = BTreeMap::from([("platform".to_string(), "new-api".to_string())]);
-
-        let settings =
-            import_balance_settings(&query, "https://relay.example.com/codex/v1/").unwrap();
-
-        assert_eq!(settings.platform, Some(ProviderBalancePlatform::NewApi));
-        assert_eq!(
-            settings.query_url.as_deref(),
-            Some("https://relay.example.com/codex/api/usage/token/")
-        );
-        assert!(settings.uses_api_key);
-    }
+    unreachable!("provider suffix search always has another number")
 }
+
+#[cfg(test)]
+mod tests;

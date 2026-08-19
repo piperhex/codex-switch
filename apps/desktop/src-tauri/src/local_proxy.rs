@@ -35,8 +35,10 @@ use crate::{
         ProviderBalancePlatform, ProviderKind, ProviderProfile, ProviderTokenUsageTotals,
         ProxySessionLatencySummary, ProxySessionRequestSummary, ProxySessionSummary,
         TokenUsageEntry, UsageSummary, MAX_GPT_5_6_SOL_CONTEXT_WINDOW,
-        MIN_GPT_5_6_SOL_CONTEXT_WINDOW,
+        MAX_UPSTREAM_429_RETRY_TIMEOUT_SECONDS, MIN_GPT_5_6_SOL_CONTEXT_WINDOW,
+        MIN_UPSTREAM_429_RETRY_TIMEOUT_SECONDS,
     },
+    provider_api_cache,
     providers::{
         self, LOCAL_PROXY_ACTOR_AUTHORIZATION_HEADER, LOCAL_PROXY_BASE_URL, LOCAL_PROXY_HOST,
         LOCAL_PROXY_PORT,
@@ -73,6 +75,8 @@ const LOCAL_PROXY_START_PROGRESS_EVENT: &str = "local-proxy-start-progress";
 const LOCAL_PROXY_STOP_PROGRESS_EVENT: &str = "local-proxy-stop-progress";
 const LOCAL_PROXY_REBIND_RETRY_TIMEOUT: Duration = Duration::from_secs(1);
 const LOCAL_PROXY_REBIND_RETRY_INTERVAL: Duration = Duration::from_millis(25);
+const UPSTREAM_429_INITIAL_DELAY_SECONDS: u64 = 1;
+const UPSTREAM_429_DELAY_STEP_SECONDS: u64 = 2;
 
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -308,6 +312,7 @@ enum ProxyDiagnosticRoute {
     LocalModels,
     TargetResolutionError,
     Official,
+    ProviderAuto,
     ProviderChatBridge,
     ProviderResponsesPassthrough,
     ProviderPassthrough,
@@ -320,6 +325,7 @@ impl ProxyDiagnosticRoute {
             ProxyDiagnosticRoute::LocalModels => "local_models",
             ProxyDiagnosticRoute::TargetResolutionError => "target_resolution_error",
             ProxyDiagnosticRoute::Official => "official",
+            ProxyDiagnosticRoute::ProviderAuto => "provider_auto",
             ProxyDiagnosticRoute::ProviderChatBridge => "provider_chat_bridge",
             ProxyDiagnosticRoute::ProviderResponsesPassthrough => "provider_responses_passthrough",
             ProxyDiagnosticRoute::ProviderPassthrough => "provider_passthrough",
@@ -1088,6 +1094,29 @@ pub(crate) async fn set_gpt_5_6_sol_context_window<R: Runtime + 'static>(
     })
     .await
     .map_err(|error| format!("Model context window task failed: {error}"))?
+}
+
+#[tauri::command]
+pub(crate) async fn set_upstream_429_retry_timeout<R: Runtime + 'static>(
+    app: tauri::AppHandle<R>,
+    timeout_seconds: u64,
+) -> Result<AppSettings, String> {
+    if !(MIN_UPSTREAM_429_RETRY_TIMEOUT_SECONDS..=MAX_UPSTREAM_429_RETRY_TIMEOUT_SECONDS)
+        .contains(&timeout_seconds)
+    {
+        return Err(format!(
+            "429 retry time must be between {MIN_UPSTREAM_429_RETRY_TIMEOUT_SECONDS} and \
+             {MAX_UPSTREAM_429_RETRY_TIMEOUT_SECONDS} seconds"
+        ));
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut settings = read_app_settings(&app)?;
+        settings.upstream_429_retry_timeout_seconds = timeout_seconds;
+        write_app_settings(&app, &settings)?;
+        Ok(settings)
+    })
+    .await
+    .map_err(|error| format!("429 retry settings task failed: {error}"))?
 }
 
 fn validate_gpt_5_6_sol_context_window(context_window: u64) -> Result<(), String> {
@@ -2394,7 +2423,12 @@ fn handle_proxy_request<R: Runtime>(
             Some(&target),
             ProxyDiagnosticRoute::LocalModels,
         );
-        let result = models_payload(app, url, headers, &target);
+        let retry_timeout = upstream_429_retry_timeout(app)?;
+        let result = retry_upstream_request(
+            retry_timeout,
+            || models_payload(app, url, headers, &target),
+            |response| try_switch_official_account_after_quota(app, response),
+        );
         append_proxy_diagnostic_result(app, diagnostic, &result, started_at.elapsed());
         return result;
     }
@@ -2444,25 +2478,12 @@ fn handle_proxy_request<R: Runtime>(
         }
         _ => None,
     });
-    let result = match target {
-        ActiveTarget::Official { model } => {
-            let response =
-                forward_official(app, method, url, headers, body.clone(), &model, session_id);
-            retry_official_request_after_quota_switch(app, response, || {
-                forward_active_request(app, method, url, headers, body, path, session_id)
-            })
-        }
-        ActiveTarget::Provider(provider) => {
-            if is_responses_endpoint(path) && provider.api_format == ProviderApiFormat::OpenaiChat {
-                forward_chat_bridge(method, url, headers, body, &provider)
-            } else {
-                forward_provider(method, url, headers, body, &provider)
-            }
-        }
-        ActiveTarget::ProviderGroup(_) => {
-            Err("Provider group requests must select a model".to_string())
-        }
-    };
+    let retry_timeout = upstream_429_retry_timeout(app)?;
+    let result = retry_upstream_request(
+        retry_timeout,
+        || forward_active_request(app, method, url, headers, body.clone(), path, session_id),
+        |response| try_switch_official_account_after_quota(app, response),
+    );
     let result = result.map(|mut payload| {
         if let Some(etag) = provider_models_etag {
             payload
@@ -2492,13 +2513,9 @@ fn forward_active_request<R: Runtime>(
         ActiveTarget::Official { model } => {
             forward_official(app, method, url, headers, body, &model, session_id)
         }
-        ActiveTarget::Provider(provider)
-            if is_responses_endpoint(path)
-                && provider.api_format == ProviderApiFormat::OpenaiChat =>
-        {
-            forward_chat_bridge(method, url, headers, body, &provider)
+        ActiveTarget::Provider(provider) => {
+            forward_provider_request(method, url, headers, body, &provider)
         }
-        ActiveTarget::Provider(provider) => forward_provider(method, url, headers, body, &provider),
         ActiveTarget::ProviderGroup(_) => {
             Err("Provider group requests must select a model".to_string())
         }
@@ -2527,65 +2544,96 @@ fn current_usage_payload<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<Upstre
     Ok(json_payload(200, payload))
 }
 
-fn retry_official_request_after_quota_switch<R: Runtime, F>(
-    app: &tauri::AppHandle<R>,
-    response: Result<UpstreamPayload, String>,
-    retry: F,
-) -> Result<UpstreamPayload, String>
-where
-    F: FnOnce() -> Result<UpstreamPayload, String>,
-{
-    retry_official_request_after_quota_switch_with(
-        response,
-        |observed_generation, observed_attempt_generation, failed_account_id| {
-            auto_switch_official_account(
-                app,
-                observed_generation,
-                observed_attempt_generation,
-                failed_account_id,
-            )
-        },
-        retry,
-    )
+fn upstream_429_retry_timeout<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<Duration, String> {
+    let seconds = read_app_settings(app)?
+        .upstream_429_retry_timeout_seconds
+        .clamp(
+            MIN_UPSTREAM_429_RETRY_TIMEOUT_SECONDS,
+            MAX_UPSTREAM_429_RETRY_TIMEOUT_SECONDS,
+        );
+    Ok(Duration::from_secs(seconds))
 }
 
-fn retry_official_request_after_quota_switch_with<S, F>(
-    response: Result<UpstreamPayload, String>,
-    switch: S,
-    retry: F,
+fn retry_upstream_request<F, S>(
+    timeout: Duration,
+    request: F,
+    switch_official_account: S,
 ) -> Result<UpstreamPayload, String>
 where
-    S: FnOnce(u64, u64, &str) -> Result<bool, String>,
-    F: FnOnce() -> Result<UpstreamPayload, String>,
+    F: FnMut() -> Result<UpstreamPayload, String>,
+    S: FnMut(&UpstreamPayload) -> bool,
 {
-    let response = response?;
-    if !is_official_quota_exhaustion(&response) {
+    let started_at = Instant::now();
+    retry_upstream_request_with(timeout, request, switch_official_account, |delay| {
+        thread::sleep(delay.min(timeout.saturating_sub(started_at.elapsed())));
+        started_at.elapsed()
+    })
+}
+
+fn retry_upstream_request_with<F, S, W>(
+    timeout: Duration,
+    mut request: F,
+    mut switch_official_account: S,
+    mut wait_before_retry: W,
+) -> Result<UpstreamPayload, String>
+where
+    F: FnMut() -> Result<UpstreamPayload, String>,
+    S: FnMut(&UpstreamPayload) -> bool,
+    W: FnMut(Duration) -> Duration,
+{
+    let mut retry_number = 0_u16;
+    let mut retried_after_forbidden_quota = false;
+    loop {
+        let response = request()?;
+        if response.status == 429 {
+            retry_number = retry_number.saturating_add(1);
+            let elapsed = wait_before_retry(upstream_429_retry_delay(retry_number));
+            if elapsed >= timeout {
+                return Ok(response);
+            }
+            let _ = switch_official_account(&response);
+            continue;
+        }
+        if !retried_after_forbidden_quota
+            && is_official_quota_exhaustion(&response)
+            && switch_official_account(&response)
+        {
+            retried_after_forbidden_quota = true;
+            continue;
+        }
         return Ok(response);
     }
+}
 
+fn upstream_429_retry_delay(retry_number: u16) -> Duration {
+    let additional_seconds =
+        u64::from(retry_number.saturating_sub(1)).saturating_mul(UPSTREAM_429_DELAY_STEP_SECONDS);
+    Duration::from_secs(UPSTREAM_429_INITIAL_DELAY_SECONDS.saturating_add(additional_seconds))
+}
+
+fn try_switch_official_account_after_quota<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    response: &UpstreamPayload,
+) -> bool {
     let Some(account) = response
         .token_usage_account
         .as_ref()
         .filter(|account| credential_can_trigger_auto_switch(account))
     else {
-        return Ok(response);
+        return false;
     };
-    let observed_generation = account.active_account_generation;
-    let observed_attempt_generation = account.auto_switch_attempt_generation;
-    let failed_account_id = account.account_id.clone();
-
-    match switch(
-        observed_generation,
-        observed_attempt_generation,
-        &failed_account_id,
+    match auto_switch_official_account(
+        app,
+        account.active_account_generation,
+        account.auto_switch_attempt_generation,
+        &account.account_id,
     ) {
-        Ok(true) => retry(),
-        Ok(false) => Ok(response),
+        Ok(switched) => switched,
         Err(error) => {
             eprintln!(
                 "failed to automatically switch official account after quota exhaustion: {error}"
             );
-            Ok(response)
+            false
         }
     }
 }
@@ -2914,6 +2962,11 @@ fn active_target_from_image_model(
 fn proxy_diagnostic_route(path: &str, target: &ActiveTarget) -> ProxyDiagnosticRoute {
     match target {
         ActiveTarget::Official { .. } => ProxyDiagnosticRoute::Official,
+        ActiveTarget::Provider(provider)
+            if provider.kind == ProviderKind::Custom && is_response_create_endpoint(path) =>
+        {
+            ProxyDiagnosticRoute::ProviderAuto
+        }
         ActiveTarget::Provider(provider)
             if is_responses_endpoint(path)
                 && provider.api_format == ProviderApiFormat::OpenaiChat =>
@@ -4432,6 +4485,114 @@ fn forward_provider(
     )
 }
 
+fn forward_provider_request(
+    method: &Method,
+    url: &str,
+    headers: &[(String, String)],
+    body: Vec<u8>,
+    provider: &ProviderProfile,
+) -> Result<UpstreamPayload, String> {
+    if provider.kind == ProviderKind::Custom
+        && *method == Method::Post
+        && is_response_create_endpoint(request_path(url))
+    {
+        return forward_provider_with_api_fallback(method, url, headers, body, provider);
+    }
+    if is_responses_endpoint(request_path(url))
+        && provider.api_format == ProviderApiFormat::OpenaiChat
+    {
+        return forward_chat_bridge(method, url, headers, body, provider);
+    }
+    forward_provider(method, url, headers, body, provider)
+}
+
+fn forward_provider_with_api_fallback(
+    method: &Method,
+    url: &str,
+    headers: &[(String, String)],
+    body: Vec<u8>,
+    provider: &ProviderProfile,
+) -> Result<UpstreamPayload, String> {
+    let model = provider_request_model(&body, provider);
+    let preferred = provider_api_cache::cached_format(&provider.id, &provider.base_url, &model)
+        .unwrap_or(provider.api_format);
+    let first =
+        forward_provider_with_format(preferred, method, url, headers, body.clone(), provider);
+    if api_attempt_succeeded(&first) {
+        remember_provider_api_format(provider, &model, preferred);
+        return first;
+    }
+    if first.as_ref().is_ok_and(|payload| payload.status == 429) {
+        return first;
+    }
+
+    let alternate = alternate_api_format(preferred);
+    let second = forward_provider_with_format(alternate, method, url, headers, body, provider);
+    if api_attempt_succeeded(&second) {
+        remember_provider_api_format(provider, &model, alternate);
+        return second;
+    }
+    provider_api_cache::forget_format(&provider.id, &model);
+    preferred_protocol_failure(first, second)
+}
+
+fn forward_provider_with_format(
+    format: ProviderApiFormat,
+    method: &Method,
+    url: &str,
+    headers: &[(String, String)],
+    body: Vec<u8>,
+    provider: &ProviderProfile,
+) -> Result<UpstreamPayload, String> {
+    match format {
+        ProviderApiFormat::OpenaiResponses => {
+            forward_provider(method, url, headers, body, provider)
+        }
+        ProviderApiFormat::OpenaiChat => forward_chat_bridge(method, url, headers, body, provider),
+    }
+}
+
+fn provider_request_model(body: &[u8], provider: &ProviderProfile) -> String {
+    serde_json::from_slice::<Value>(body)
+        .ok()
+        .map(|value| selected_provider_model(&value, provider))
+        .unwrap_or_else(|| provider.model.clone())
+}
+
+fn alternate_api_format(format: ProviderApiFormat) -> ProviderApiFormat {
+    match format {
+        ProviderApiFormat::OpenaiResponses => ProviderApiFormat::OpenaiChat,
+        ProviderApiFormat::OpenaiChat => ProviderApiFormat::OpenaiResponses,
+    }
+}
+
+fn api_attempt_succeeded(result: &Result<UpstreamPayload, String>) -> bool {
+    result
+        .as_ref()
+        .is_ok_and(|payload| status_ok(payload.status))
+}
+
+fn remember_provider_api_format(
+    provider: &ProviderProfile,
+    model: &str,
+    format: ProviderApiFormat,
+) {
+    provider_api_cache::remember_format(&provider.id, &provider.base_url, model, format);
+}
+
+fn preferred_protocol_failure(
+    first: Result<UpstreamPayload, String>,
+    second: Result<UpstreamPayload, String>,
+) -> Result<UpstreamPayload, String> {
+    match (first, second) {
+        (_, Ok(payload)) => Ok(payload),
+        (Ok(payload), Err(_)) => Ok(payload),
+        (Err(first_error), Err(second_error)) => Err(format!(
+            "Provider request failed for both supported API formats: {first_error}; {second_error}"
+        )),
+    }
+}
+
 fn models_payload<R: Runtime>(
     app: &tauri::AppHandle<R>,
     url: &str,
@@ -5175,6 +5336,10 @@ fn upstream_endpoint_for_codex_request(url: &str) -> String {
 
 fn is_responses_endpoint(path: &str) -> bool {
     normalized_responses_endpoint(path).is_some()
+}
+
+fn is_response_create_endpoint(path: &str) -> bool {
+    normalized_responses_endpoint(path) == Some("/v1/responses")
 }
 
 fn normalized_responses_endpoint(path: &str) -> Option<&'static str> {
@@ -6810,6 +6975,17 @@ mod tests {
             .unwrap_or_else(|| panic!("missing SSE event {event_type}"))
     }
 
+    fn read_upstream_payload(mut payload: UpstreamPayload) -> Vec<u8> {
+        let mut body = Vec::new();
+        match &mut payload.body {
+            UpstreamBody::Buffered(buffered) => body.extend_from_slice(buffered),
+            UpstreamBody::Streaming(reader) => {
+                reader.read_to_end(&mut body).unwrap();
+            }
+        }
+        body
+    }
+
     fn openai_provider(base_url: String) -> ProviderProfile {
         ProviderProfile {
             id: "openai".to_string(),
@@ -7312,27 +7488,38 @@ mod tests {
             let switch_count = switch_count.clone();
             let retry_count = retry_count.clone();
             thread::spawn(move || {
-                retry_official_request_after_quota_switch_with(
-                    Ok(official_payload(429, observed_generation)),
-                    |generation, attempt_generation, failed_account_id| {
-                        coordinator.switch_or_wait(
-                            generation,
-                            attempt_generation,
-                            failed_account_id,
-                            || {
-                                switch_count.fetch_add(1, AtomicOrdering::SeqCst);
-                                switch_started_tx.send(()).unwrap();
-                                finish_switch_rx
-                                    .recv_timeout(Duration::from_secs(5))
-                                    .unwrap();
-                                Ok(AutoSwitchAttempt::Switched)
-                            },
-                        )
-                    },
+                let mut attempt = 0;
+                retry_upstream_request_with(
+                    Duration::from_secs(2),
                     || {
-                        retry_count.fetch_add(1, AtomicOrdering::SeqCst);
-                        Ok(official_payload(200, observed_generation + 1))
+                        let response = if attempt == 0 {
+                            official_payload(429, observed_generation)
+                        } else {
+                            retry_count.fetch_add(1, AtomicOrdering::SeqCst);
+                            official_payload(200, observed_generation + 1)
+                        };
+                        attempt += 1;
+                        Ok(response)
                     },
+                    |response| {
+                        let account = response.token_usage_account.as_ref().unwrap();
+                        coordinator
+                            .switch_or_wait(
+                                account.active_account_generation,
+                                account.auto_switch_attempt_generation,
+                                &account.account_id,
+                                || {
+                                    switch_count.fetch_add(1, AtomicOrdering::SeqCst);
+                                    switch_started_tx.send(()).unwrap();
+                                    finish_switch_rx
+                                        .recv_timeout(Duration::from_secs(5))
+                                        .unwrap();
+                                    Ok(AutoSwitchAttempt::Switched)
+                                },
+                            )
+                            .unwrap_or(false)
+                    },
+                    |_| Duration::from_secs(1),
                 )
                 .unwrap()
                 .status
@@ -7349,24 +7536,35 @@ mod tests {
             let retry_count = retry_count.clone();
             let waiter_entered_tx = waiter_entered_tx.clone();
             handles.push(thread::spawn(move || {
-                retry_official_request_after_quota_switch_with(
-                    Ok(official_payload(429, observed_generation)),
-                    |generation, attempt_generation, failed_account_id| {
-                        coordinator.switch_or_wait_with_waiter_hook(
-                            generation,
-                            attempt_generation,
-                            failed_account_id,
-                            || {
-                                switch_count.fetch_add(1, AtomicOrdering::SeqCst);
-                                Ok(AutoSwitchAttempt::Switched)
-                            },
-                            || waiter_entered_tx.send(()).unwrap(),
-                        )
-                    },
+                let mut attempt = 0;
+                retry_upstream_request_with(
+                    Duration::from_secs(2),
                     || {
-                        retry_count.fetch_add(1, AtomicOrdering::SeqCst);
-                        Ok(official_payload(200, observed_generation + 1))
+                        let response = if attempt == 0 {
+                            official_payload(429, observed_generation)
+                        } else {
+                            retry_count.fetch_add(1, AtomicOrdering::SeqCst);
+                            official_payload(200, observed_generation + 1)
+                        };
+                        attempt += 1;
+                        Ok(response)
                     },
+                    |response| {
+                        let account = response.token_usage_account.as_ref().unwrap();
+                        coordinator
+                            .switch_or_wait_with_waiter_hook(
+                                account.active_account_generation,
+                                account.auto_switch_attempt_generation,
+                                &account.account_id,
+                                || {
+                                    switch_count.fetch_add(1, AtomicOrdering::SeqCst);
+                                    Ok(AutoSwitchAttempt::Switched)
+                                },
+                                || waiter_entered_tx.send(()).unwrap(),
+                            )
+                            .unwrap_or(false)
+                    },
+                    |_| Duration::from_secs(1),
                 )
                 .unwrap()
                 .status
@@ -7503,23 +7701,34 @@ mod tests {
 
         let second_switch_count = AtomicUsize::new(0);
         let retry_count = AtomicUsize::new(0);
-        let response = retry_official_request_after_quota_switch_with(
-            Ok(official_payload(429, observed_generation)),
-            |generation, attempt_generation, failed_account_id| {
-                coordinator.switch_or_wait(
-                    generation,
-                    attempt_generation,
-                    failed_account_id,
-                    || {
-                        second_switch_count.fetch_add(1, AtomicOrdering::SeqCst);
-                        Ok(AutoSwitchAttempt::Switched)
-                    },
-                )
-            },
+        let mut attempt = 0;
+        let response = retry_upstream_request_with(
+            Duration::from_secs(2),
             || {
-                retry_count.fetch_add(1, AtomicOrdering::SeqCst);
-                Ok(official_payload(200, observed_generation + 1))
+                let response = if attempt == 0 {
+                    official_payload(429, observed_generation)
+                } else {
+                    retry_count.fetch_add(1, AtomicOrdering::SeqCst);
+                    official_payload(200, observed_generation + 1)
+                };
+                attempt += 1;
+                Ok(response)
             },
+            |response| {
+                let account = response.token_usage_account.as_ref().unwrap();
+                coordinator
+                    .switch_or_wait(
+                        account.active_account_generation,
+                        account.auto_switch_attempt_generation,
+                        &account.account_id,
+                        || {
+                            second_switch_count.fetch_add(1, AtomicOrdering::SeqCst);
+                            Ok(AutoSwitchAttempt::Switched)
+                        },
+                    )
+                    .unwrap_or(false)
+            },
+            |_| Duration::from_secs(1),
         )
         .unwrap();
 
@@ -7530,26 +7739,56 @@ mod tests {
     }
 
     #[test]
-    fn quota_switch_retry_is_limited_to_once() {
+    fn retry_timeout_returns_the_last_429_response() {
         let switch_count = AtomicUsize::new(0);
-        let retry_count = AtomicUsize::new(0);
+        let request_count = AtomicUsize::new(0);
+        let mut elapsed = Duration::ZERO;
 
-        let response = retry_official_request_after_quota_switch_with(
-            Ok(official_payload(429, 0)),
-            |_, _, _| {
-                switch_count.fetch_add(1, AtomicOrdering::SeqCst);
-                Ok(true)
-            },
+        let response = retry_upstream_request_with(
+            Duration::from_secs(2),
             || {
-                retry_count.fetch_add(1, AtomicOrdering::SeqCst);
-                Ok(official_payload(429, 1))
+                request_count.fetch_add(1, AtomicOrdering::SeqCst);
+                Ok(official_payload(429, 0))
+            },
+            |_| {
+                switch_count.fetch_add(1, AtomicOrdering::SeqCst);
+                true
+            },
+            |delay| {
+                elapsed += delay;
+                elapsed
             },
         )
         .unwrap();
 
         assert_eq!(response.status, 429);
         assert_eq!(switch_count.load(AtomicOrdering::SeqCst), 1);
-        assert_eq!(retry_count.load(AtomicOrdering::SeqCst), 1);
+        assert_eq!(request_count.load(AtomicOrdering::SeqCst), 2);
+    }
+
+    #[test]
+    fn progressive_429_delays_hide_intermediate_responses() {
+        let request_count = AtomicUsize::new(0);
+        let mut delays = Vec::new();
+        let mut elapsed = Duration::ZERO;
+        let response = retry_upstream_request_with(
+            Duration::from_secs(10),
+            || {
+                let attempt = request_count.fetch_add(1, AtomicOrdering::SeqCst);
+                Ok(official_payload(if attempt < 3 { 429 } else { 200 }, 0))
+            },
+            |_| false,
+            |delay| {
+                delays.push(delay.as_secs());
+                elapsed += delay;
+                elapsed
+            },
+        )
+        .unwrap();
+
+        assert_eq!(response.status, 200);
+        assert_eq!(request_count.load(AtomicOrdering::SeqCst), 4);
+        assert_eq!(delays, [1, 3, 5]);
     }
 
     #[test]
@@ -9289,6 +9528,105 @@ mod tests {
                 "output_tokens_details": { "reasoning_tokens": 0 },
                 "total_tokens": 2
             })
+        );
+    }
+
+    fn spawn_api_detection_server() -> (String, mpsc::Receiver<String>, thread::JoinHandle<()>) {
+        let server = Server::http("127.0.0.1:0").unwrap();
+        let addr = server.server_addr().to_ip().unwrap();
+        let (tx, rx) = mpsc::channel();
+        let handle = thread::spawn(move || {
+            for request_index in 0..4 {
+                let mut request = server.recv().unwrap();
+                let path = request.url().to_string();
+                let mut request_body = String::new();
+                request
+                    .as_reader()
+                    .read_to_string(&mut request_body)
+                    .unwrap();
+                tx.send(path).unwrap();
+
+                let response = match request_index {
+                    0 => Response::from_string(
+                        json!({ "error": { "message": "unsupported endpoint" } }).to_string(),
+                    )
+                    .with_status_code(StatusCode(404)),
+                    1 | 2 => Response::from_string(
+                        json!({
+                            "id": "chatcmpl_auto",
+                            "object": "chat.completion",
+                            "model": "model-a",
+                            "choices": [{
+                                "index": 0,
+                                "message": { "role": "assistant", "content": "ok" },
+                                "finish_reason": "stop"
+                            }]
+                        })
+                        .to_string(),
+                    )
+                    .with_header(Header::from_bytes("Content-Type", "application/json").unwrap()),
+                    _ => Response::from_string(
+                        json!({ "id": "resp_model_b", "model": "model-b" }).to_string(),
+                    )
+                    .with_header(Header::from_bytes("Content-Type", "application/json").unwrap()),
+                };
+                request.respond(response).unwrap();
+            }
+        });
+        (format!("http://{addr}/v1"), rx, handle)
+    }
+
+    fn api_detection_provider(base_url: String) -> ProviderProfile {
+        let mut provider = openai_provider(base_url);
+        provider.id = "provider-api-detection-by-model".to_string();
+        provider.kind = ProviderKind::Custom;
+        provider.model = "model-a".to_string();
+        provider.models = vec!["model-a".to_string(), "model-b".to_string()];
+        provider
+    }
+
+    fn api_detection_body(model: &str) -> Vec<u8> {
+        serde_json::to_vec(&json!({
+            "model": model,
+            "input": "ping",
+            "stream": false
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn provider_api_detection_is_cached_independently_for_each_model() {
+        let (base_url, rx, handle) = spawn_api_detection_server();
+        let provider = api_detection_provider(base_url);
+        let model_a_body = api_detection_body("model-a");
+        let model_b_body = api_detection_body("model-b");
+
+        for body in [model_a_body.clone(), model_a_body, model_b_body] {
+            let payload =
+                forward_provider_request(&Method::Post, "/v1/responses", &[], body, &provider)
+                    .unwrap();
+            assert_eq!(payload.status, 200);
+            read_upstream_payload(payload);
+        }
+
+        handle.join().unwrap();
+        let paths = rx.into_iter().collect::<Vec<_>>();
+        assert_eq!(
+            paths,
+            vec![
+                "/v1/responses",
+                "/v1/chat/completions",
+                "/v1/chat/completions",
+                "/v1/responses"
+            ]
+        );
+        assert_eq!(
+            provider_api_cache::cached_format(&provider.id, &provider.base_url, "model-a"),
+            Some(ProviderApiFormat::OpenaiChat)
+        );
+        assert_eq!(
+            provider_api_cache::cached_format(&provider.id, &provider.base_url, "model-b"),
+            Some(ProviderApiFormat::OpenaiResponses)
         );
     }
 }

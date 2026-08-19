@@ -23,6 +23,7 @@ import type {
   AppSettings,
   BubbleResetDisplay,
   BubbleStyle,
+  CcSwitchImportRequest,
   CloudAuthenticationResult,
   CloudAuthState,
   CloudAnnouncement,
@@ -60,6 +61,7 @@ import type {
   ProxySessionLatencySummary,
   Provider,
   ProviderBalance,
+  ProviderBalancePlatform,
   ProviderInput,
   ProviderTokenUsageTotals,
   ReasoningEffort,
@@ -121,6 +123,9 @@ export async function quitApplication(): Promise<void> {
 }
 export const DEFAULT_CLOUD_BASE_URL = "https://codex.onepiper.cloud";
 export const DEFAULT_AUTO_DISABLE_STATUS_CODES = [401, 402, 403] as const;
+export const DEFAULT_UPSTREAM_429_RETRY_TIMEOUT_SECONDS = 300;
+export const MIN_UPSTREAM_429_RETRY_TIMEOUT_SECONDS = 1;
+export const MAX_UPSTREAM_429_RETRY_TIMEOUT_SECONDS = 3_600;
 export const DEFAULT_GPT_5_6_SOL_CONTEXT_WINDOW = 272_000;
 export const MAX_GPT_5_6_SOL_CONTEXT_WINDOW = 1_050_000;
 export const MIN_GPT_5_6_SOL_CONTEXT_WINDOW = 1_000;
@@ -164,6 +169,7 @@ const LOCAL_PROXY_OPENAI_AUTH_ACCOUNT_PREVIEW_KEY = "codex-switch:proxy-openai-a
 const TOKEN_USAGE_WEEKS_PREVIEW_KEY = "codex-switch:token-usage-weeks";
 const TOKEN_USAGE_REFRESH_PREVIEW_KEY = "codex-switch:token-usage-refresh-seconds";
 const AUTO_DISABLE_STATUS_CODES_PREVIEW_KEY = "codex-switch:auto-disable-status-codes";
+const UPSTREAM_429_RETRY_TIMEOUT_PREVIEW_KEY = "codex-switch:upstream-429-retry-timeout";
 const SHOW_USAGE_NETWORK_ERRORS_PREVIEW_KEY = "codex-switch:show-usage-network-errors";
 const GPT_5_6_SOL_CONTEXT_WINDOW_LEGACY_KEY = "codex-switch:account-table-model-context-window";
 const THEME_COLOR_EVENT = "codex-switch:theme-color-changed";
@@ -174,11 +180,13 @@ const TOTP_EVENT = "codex-switch:totp-changed";
 const PROVIDERS_EVENT = "codex-switch:providers-changed";
 const PROVIDER_BALANCE_EVENT = "codex-switch:provider-balance-refreshed";
 const OPEN_SETTINGS_EVENT = "open-settings";
-const CCSWITCH_IMPORTED_EVENT = "ccswitch-imported";
+const CCSWITCH_IMPORT_REQUESTED_EVENT = "ccswitch-import-requested";
 const DREAM_SKIN_INSTALLED_PREVIEW_KEY = "codex-switch:dream-skin-installed";
 const DREAM_SKIN_SESSION_PREVIEW_KEY = "codex-switch:dream-skin-session";
 const DREAM_SKIN_THEME_PREVIEW_KEY = "codex-switch:dream-skin-theme";
 const DREAM_SKIN_APPEARANCE_PREVIEW_KEY = "codex-switch:dream-skin-appearance";
+const DREAM_SKIN_OVERLAY_OPACITY_PREVIEW_KEY = "codex-switch:dream-skin-overlay-opacity";
+const DEFAULT_DREAM_SKIN_OVERLAY_OPACITY = 0.8;
 const DREAM_SKIN_MARKET_INDEX_URL = "https://raw.githubusercontent.com/BigPizzaV3/CodexPlusPlus-Themes/main/index.json";
 const DREAM_SKIN_MARKET_ASSET_ROOT = "https://raw.githubusercontent.com/BigPizzaV3/CodexPlusPlus-Themes/main/";
 const DREAM_SKIN_MARKET_REPOSITORY_URL = "https://github.com/BigPizzaV3/CodexPlusPlus-Themes";
@@ -207,6 +215,10 @@ function previewDreamSkinStatus(): DreamSkinStatus {
   const activeThemeAppearance: DreamSkinAppearance = storedAppearance === "light" || storedAppearance === "dark"
     ? storedAppearance
     : "auto";
+  const storedOverlayOpacity = Number(window.localStorage.getItem(DREAM_SKIN_OVERLAY_OPACITY_PREVIEW_KEY));
+  const activeThemeOverlayOpacity = Number.isFinite(storedOverlayOpacity)
+    ? Math.min(1, Math.max(0, storedOverlayOpacity))
+    : DEFAULT_DREAM_SKIN_OVERLAY_OPACITY;
   return {
     supported: true,
     platform: navigator.platform.toLowerCase().includes("mac") ? "macos" : "windows",
@@ -216,6 +228,7 @@ function previewDreamSkinStatus(): DreamSkinStatus {
     activeThemeId,
     activeThemeName: activeThemeId ? DREAM_SKIN_PREVIEW_THEME_NAMES[activeThemeId] ?? "Custom theme" : null,
     activeThemeAppearance,
+    activeThemeOverlayOpacity,
     enginePath: installed ? "Preview / CodexDreamSkin" : null,
     savedThemes: [],
   };
@@ -415,6 +428,15 @@ function previewAutoDisableStatusCodes() {
   }
 }
 
+function previewUpstream429RetryTimeoutSeconds() {
+  const value = Number(window.localStorage.getItem(UPSTREAM_429_RETRY_TIMEOUT_PREVIEW_KEY));
+  return Number.isInteger(value)
+    && value >= MIN_UPSTREAM_429_RETRY_TIMEOUT_SECONDS
+    && value <= MAX_UPSTREAM_429_RETRY_TIMEOUT_SECONDS
+    ? value
+    : DEFAULT_UPSTREAM_429_RETRY_TIMEOUT_SECONDS;
+}
+
 function legacyGpt56SolContextWindow(): number | null {
   try {
     const contextWindowK = Number(window.localStorage.getItem(GPT_5_6_SOL_CONTEXT_WINDOW_LEGACY_KEY));
@@ -447,6 +469,7 @@ export async function loadAppSettings(): Promise<AppSettings> {
       tokenUsageWeeks: Number(window.localStorage.getItem(TOKEN_USAGE_WEEKS_PREVIEW_KEY)) || 20,
       tokenUsageRefreshSeconds: Number(window.localStorage.getItem(TOKEN_USAGE_REFRESH_PREVIEW_KEY)) || 60,
       autoDisableStatusCodes: previewAutoDisableStatusCodes(),
+      upstream429RetryTimeoutSeconds: previewUpstream429RetryTimeoutSeconds(),
       showUsageNetworkErrors: window.localStorage.getItem(SHOW_USAGE_NETWORK_ERRORS_PREVIEW_KEY) === "true",
       gpt56SolContextWindow: legacyGpt56SolContextWindow() ?? DEFAULT_GPT_5_6_SOL_CONTEXT_WINDOW,
       webProxyPort: previewLocalProxyStatus().port || null,
@@ -682,6 +705,17 @@ export async function fetchRelayModels(baseUrl: string, apiKey: string): Promise
     return ["gpt-5.6-sol", "gpt-5.4"];
   }
   return invoke<string[]>("fetch_relay_models", {
+    baseUrl,
+    apiKey: apiKey.trim(),
+  });
+}
+
+export async function detectRelayPlatform(
+  baseUrl: string,
+  apiKey: string,
+): Promise<ProviderBalancePlatform | null> {
+  if (!hasLocalBackend) return null;
+  return invoke<ProviderBalancePlatform | null>("detect_relay_platform", {
     baseUrl,
     apiKey: apiKey.trim(),
   });
@@ -1469,6 +1503,14 @@ export async function updateAutoDisableStatusCodes(statusCodes: number[]): Promi
   return invoke<AppSettings>("set_auto_disable_status_codes", { statusCodes });
 }
 
+export async function updateUpstream429RetryTimeout(timeoutSeconds: number): Promise<AppSettings> {
+  if (!hasLocalBackend) {
+    window.localStorage.setItem(UPSTREAM_429_RETRY_TIMEOUT_PREVIEW_KEY, String(timeoutSeconds));
+    return loadAppSettings();
+  }
+  return invoke<AppSettings>("set_upstream_429_retry_timeout", { timeoutSeconds });
+}
+
 export async function updateShowUsageNetworkErrors(enabled: boolean): Promise<AppSettings> {
   if (!hasLocalBackend) {
     window.localStorage.setItem(SHOW_USAGE_NETWORK_ERRORS_PREVIEW_KEY, String(enabled));
@@ -2156,6 +2198,7 @@ export async function applyDreamSkinTheme(themeId: string): Promise<DreamSkinSta
       DREAM_SKIN_APPEARANCE_PREVIEW_KEY,
       DREAM_SKIN_PREVIEW_THEME_APPEARANCES[themeId] ?? "auto",
     );
+    window.localStorage.removeItem(DREAM_SKIN_OVERLAY_OPACITY_PREVIEW_KEY);
     return previewDreamSkinStatus();
   }
   return invoke<DreamSkinStatus>("apply_dream_skin_theme", { themeId });
@@ -2187,6 +2230,7 @@ export async function importDreamSkinImage(
     window.localStorage.setItem(DREAM_SKIN_SESSION_PREVIEW_KEY, "active");
     window.localStorage.setItem(DREAM_SKIN_THEME_PREVIEW_KEY, "custom");
     window.localStorage.setItem(DREAM_SKIN_APPEARANCE_PREVIEW_KEY, options.appearance);
+    window.localStorage.removeItem(DREAM_SKIN_OVERLAY_OPACITY_PREVIEW_KEY);
     return previewDreamSkinStatus();
   }
   return invoke<DreamSkinStatus>("import_dream_skin_image", { path, options });
@@ -2203,6 +2247,14 @@ export async function setDreamSkinAppearance(appearance: DreamSkinAppearance): P
     return previewDreamSkinStatus();
   }
   return invoke<DreamSkinStatus>("set_dream_skin_appearance", { appearance });
+}
+
+export async function setDreamSkinOverlayOpacity(opacity: number): Promise<DreamSkinStatus> {
+  if (!hasLocalBackend) {
+    window.localStorage.setItem(DREAM_SKIN_OVERLAY_OPACITY_PREVIEW_KEY, String(opacity));
+    return previewDreamSkinStatus();
+  }
+  return invoke<DreamSkinStatus>("set_dream_skin_overlay_opacity", { opacity });
 }
 
 export async function setDreamSkinPaused(paused: boolean): Promise<DreamSkinStatus> {
@@ -2232,6 +2284,7 @@ export async function restoreDreamSkin(): Promise<DreamSkinStatus> {
     window.localStorage.removeItem(DREAM_SKIN_SESSION_PREVIEW_KEY);
     window.localStorage.removeItem(DREAM_SKIN_THEME_PREVIEW_KEY);
     window.localStorage.removeItem(DREAM_SKIN_APPEARANCE_PREVIEW_KEY);
+    window.localStorage.removeItem(DREAM_SKIN_OVERLAY_OPACITY_PREVIEW_KEY);
     return previewDreamSkinStatus();
   }
   return invoke<DreamSkinStatus>("restore_dream_skin");
@@ -2756,14 +2809,26 @@ export function subscribeToOpenSettings(onOpen: () => void): () => void {
   return () => void subscription.then((unlisten) => unlisten());
 }
 
-export async function subscribeToCcSwitchImports(onImported: () => void): Promise<UnlistenFn> {
+export async function subscribeToCcSwitchImportRequests(onRequested: () => void): Promise<UnlistenFn> {
   if (!isDesktopApp) return () => undefined;
-  return listen(CCSWITCH_IMPORTED_EVENT, onImported);
+  return listen(CCSWITCH_IMPORT_REQUESTED_EVENT, onRequested);
 }
 
-export async function takeCcSwitchImportNavigation(): Promise<boolean> {
-  if (!isDesktopApp) return false;
-  return invoke<boolean>("take_ccswitch_import_navigation");
+export async function takeCcSwitchImportRequest(): Promise<CcSwitchImportRequest | null> {
+  if (!isDesktopApp) return null;
+  return invoke<CcSwitchImportRequest | null>("take_ccswitch_import_request");
+}
+
+export async function cancelCcSwitchProviderImport(requestId: string): Promise<void> {
+  if (!isDesktopApp) return;
+  await invoke("cancel_ccswitch_provider_import", { requestId });
+}
+
+export async function confirmCcSwitchProviderImport(
+  requestId: string,
+  name: string,
+): Promise<Provider> {
+  return invoke<Provider>("confirm_ccswitch_provider_import", { requestId, name });
 }
 
 export async function loadDreamSkinResourcesStatus(): Promise<DreamSkinResourcesStatus> {

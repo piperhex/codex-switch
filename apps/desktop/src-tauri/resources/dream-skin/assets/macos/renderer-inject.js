@@ -34,6 +34,8 @@
     "--ds-bg-rgb", "--ds-panel-rgb", "--ds-panel-2-rgb", "--ds-accent-rgb",
     "--ds-accent-alt-rgb", "--ds-secondary-rgb", "--ds-highlight-rgb",
     "--ds-text-rgb", "--ds-muted-rgb", "--ds-line-rgb",
+    "--ds-task-layer-opacity", "--ds-task-immersive-sidebar",
+    "--ds-task-immersive-edge", "--ds-task-immersive-mid", "--ds-task-immersive-far",
     "--dream-art-focus-x", "--dream-art-focus-y", "--dream-art-position",
     "--dream-skin-focus-x", "--dream-skin-focus-y", "--dream-skin-art-position",
     "--dream-skin-name", "--dream-skin-tagline", "--dream-skin-project-prefix",
@@ -126,6 +128,9 @@
   };
 
   const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+  const configuredOverlayOpacity = Number(ART.overlayOpacity);
+  const overlayOpacity = Number.isFinite(configuredOverlayOpacity)
+    ? clamp(configuredOverlayOpacity, 0, 1) : .8;
 
   const rgbString = (value) => {
     const rgb = parseRgb(value);
@@ -353,6 +358,20 @@
       const rgb = rgbString(value);
       if (rgb) setStyleProperty(root, name, rgb);
     }
+    const overlayFactors = shell === "light"
+      ? { layer: .9, sidebar: .9, edge: 1.075, mid: .975, far: .825 }
+      : { layer: .975, sidebar: .875, edge: 1.025, mid: .925, far: .75 };
+    const overlayAlpha = (factor) => clamp(overlayOpacity * factor, 0, 1).toFixed(3);
+    const overlayBase = shell === "light" ? "var(--ds-panel-rgb)" : "var(--ds-bg-rgb)";
+    setStyleProperty(root, "--ds-task-layer-opacity", overlayAlpha(overlayFactors.layer));
+    setStyleProperty(root, "--ds-task-immersive-sidebar",
+      `rgb(var(--ds-panel-rgb) / ${overlayAlpha(overlayFactors.sidebar)})`);
+    setStyleProperty(root, "--ds-task-immersive-edge",
+      `rgb(${overlayBase} / ${overlayAlpha(overlayFactors.edge)})`);
+    setStyleProperty(root, "--ds-task-immersive-mid",
+      `rgb(${overlayBase} / ${overlayAlpha(overlayFactors.mid)})`);
+    setStyleProperty(root, "--ds-task-immersive-far",
+      `rgb(${overlayBase} / ${overlayAlpha(overlayFactors.far)})`);
     setStyleProperty(root, "--dream-skin-name", cssString(THEME.name || "Codex Dream Skin"));
     setStyleProperty(root, "--dream-skin-tagline", cssString(THEME.tagline || "Make something wonderful."));
     setStyleProperty(root, "--dream-skin-project-prefix", cssString(THEME.projectPrefix || "选择项目 · "));

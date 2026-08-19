@@ -26,6 +26,7 @@ import {
 import type { Translate } from "../../i18n";
 import type { DreamSkinAppearance, DreamSkinStatus } from "../../types";
 import { APPEARANCE_OPTIONS } from "./constants";
+import { DreamSkinOverlaySlider } from "./DreamSkinOverlaySlider";
 import type { RunStatusOperation, ThemeTab } from "./types";
 
 type Props = {
@@ -43,6 +44,7 @@ type Props = {
     setQuery: (query: string) => void;
   };
   changeAppearance: (appearance: DreamSkinAppearance) => void;
+  changeOverlayOpacity: (opacity: number) => void;
   confirmChatGptRestart: (operation: () => Promise<unknown>) => void;
   isBusy: boolean;
   loading: boolean;
@@ -61,7 +63,8 @@ type Props = {
 };
 
 export function DreamSkinToolbar(props: Props) {
-  const { busy, catalog, changeAppearance, confirmChatGptRestart, isBusy, loading, notify } = props;
+  const { busy, catalog, changeAppearance, changeOverlayOpacity, confirmChatGptRestart, isBusy } = props;
+  const { loading, notify } = props;
   const { refresh, resourcesReady, runStatusOperation, setBusy, setError, setSaveName, setSaveOpen } = props;
   const { setThemeTab, status, t, themeTab } = props;
   const [toolsOpen, setToolsOpen] = useState(false);
@@ -84,6 +87,8 @@ export function DreamSkinToolbar(props: Props) {
             options={APPEARANCE_OPTIONS.map((option) => ({ value: option.value, label: t(option.labelKey) }))}
             onChange={(appearance) => changeAppearance(appearance as DreamSkinAppearance)} />
         </div>
+        <DreamSkinOverlaySlider disabled={!status?.installed || !status?.activeThemeId || isBusy}
+          opacity={status?.activeThemeOverlayOpacity} onChange={changeOverlayOpacity} t={t} />
         <div className="dream-toolbar-spacer" />
         <div className="dream-toolbar-actions">
           <Button type={status?.installed ? "default" : "primary"} icon={<Sparkles size={14} />}

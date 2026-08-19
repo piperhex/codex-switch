@@ -130,6 +130,16 @@ export interface ProviderInput {
   walletPassword?: string;
 }
 
+export interface CcSwitchImportRequest {
+  requestId: string;
+  app: string;
+  name: string;
+  endpoint: string;
+  models: string[];
+  apiKeyProvided: boolean;
+  balancePlatform?: ProviderBalancePlatform | null;
+}
+
 export interface ProviderBalance {
   apiAmount?: number | null;
   apiUnit: string;
@@ -387,6 +397,7 @@ export interface AppSettings {
   tokenUsageWeeks?: number;
   tokenUsageRefreshSeconds?: number;
   autoDisableStatusCodes?: number[];
+  upstream429RetryTimeoutSeconds?: number;
   showUsageNetworkErrors?: boolean;
   gpt56SolContextWindow?: number;
   webProxyPort?: number | null;
@@ -649,6 +660,7 @@ export interface DreamSkinStatus {
   activeThemeId?: string | null;
   activeThemeName?: string | null;
   activeThemeAppearance?: DreamSkinAppearance | null;
+  activeThemeOverlayOpacity?: number | null;
   enginePath?: string | null;
   savedThemes: DreamSkinThemeSummary[];
 }

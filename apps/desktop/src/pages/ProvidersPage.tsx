@@ -20,7 +20,6 @@ import { GrokProviderModal } from "./providers/GrokProviderModal";
 import { ProviderModal } from "./providers/ProviderModal";
 import { ProviderPresetModal } from "./providers/ProviderPresetModal";
 import { DeepSeekProviderModal, OpenAiProviderModal } from "./providers/ProviderPresetModals";
-import { RelayStationModal } from "./providers/RelayStationModal";
 import { ProviderCardView, ProviderTableView } from "./providers/ProviderViews";
 import { ProviderAddMenu } from "./providers/ProviderAddMenu";
 import { ProviderGroupToolbar } from "./providers/ProviderGroupControls";
@@ -92,7 +91,6 @@ export function ProvidersPage({
   const [editingProvider, setEditingProvider] = useState<Provider | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [showOpenAiModal, setShowOpenAiModal] = useState(false);
-  const [showRelayModal, setShowRelayModal] = useState(false);
   const [showPresetModal, setShowPresetModal] = useState(false);
   const [showDeepSeekModal, setShowDeepSeekModal] = useState(false);
   const [showAntigravityModal, setShowAntigravityModal] = useState(false);
@@ -207,7 +205,7 @@ export function ProvidersPage({
       {topbarHost && createPortal(
         <Space size={6}>
           <ProviderAddMenu onAddPreset={() => setShowPresetModal(true)} onAddOpenAi={openCreateOpenAi}
-            onAddProvider={openCreate} onAddRelay={() => setShowRelayModal(true)} t={t} />
+            onAddProvider={openCreate} t={t} />
           <ProviderGroupToolbar providers={providers} busyProviderId={busyProviderId}
             proxyRunning={proxyRunning} onSwitchGroup={onSwitchGroup} t={t} />
           <ProviderGroupManager groups={groups} providers={providers} busy={Boolean(busyProviderId)}
@@ -227,7 +225,7 @@ export function ProvidersPage({
           <strong>{t("providers.empty.title")}</strong>
           <Space size={8}>
             <ProviderAddMenu onAddPreset={() => setShowPresetModal(true)} onAddOpenAi={openCreateOpenAi}
-              onAddProvider={openCreate} onAddRelay={() => setShowRelayModal(true)} t={t} />
+              onAddProvider={openCreate} t={t} />
           </Space>
         </div>
       )}
@@ -236,8 +234,6 @@ export function ProvidersPage({
         onClose={() => setShowModal(false)} onSave={onSave} t={t} />}
       {showOpenAiModal && <OpenAiProviderModal provider={editingProvider} saving={saving}
         onClose={() => setShowOpenAiModal(false)} onSave={onSave} t={t} />}
-      {showRelayModal && <RelayStationModal saving={saving}
-        onClose={() => setShowRelayModal(false)} onSave={onSave} t={t} />}
       {showPresetModal && <ProviderPresetModal onClose={() => setShowPresetModal(false)}
         onSelectAntigravity={openAntigravityPreset} onSelectClaudeCode={openClaudeCodePreset}
         onSelectDeepSeek={openDeepSeekPreset} onSelectGrok={openGrokPreset}

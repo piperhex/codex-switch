@@ -78,6 +78,7 @@ export type ImportSaveActions = {
 export type ThemeActions = {
   applyTheme: (themeId: string) => void;
   changeAppearance: (appearance: DreamSkinAppearance) => void;
+  changeOverlayOpacity: (opacity: number) => void;
   installAndApplyCommunityTheme: (theme: DreamSkinCommunityTheme) => void;
   installAndApplyMarketTheme: (theme: DreamSkinMarketTheme) => void;
 };

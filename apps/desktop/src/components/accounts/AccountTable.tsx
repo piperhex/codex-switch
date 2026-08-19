@@ -489,6 +489,10 @@ export function AccountTable({
     setCardTopbarHost(showCardControls ? document.getElementById("account-card-topbar-controls") : null);
   }, [active, displayMode]);
   useEffect(() => {
+    if (!active || displayMode !== "table") {
+      setTableScrollY(0);
+      return undefined;
+    }
     const tableWrap = tableWrapRef.current;
     if (!tableWrap) return undefined;
 
@@ -501,7 +505,7 @@ export function AccountTable({
     observer.observe(tableWrap);
     updateScrollHeight();
     return () => observer.disconnect();
-  }, []);
+  }, [active, displayMode]);
   useEffect(() => {
     const closeContextMenu = (event: PointerEvent) => {
       if (event.target instanceof Element && event.target.closest(".ant-popconfirm")) return;

@@ -50,7 +50,10 @@ Includes 300+ presets and integrates with [Fei-Away/Codex-Dream-Skin](https://gi
 - Routes third-party Providers through the loopback proxy on `127.0.0.1:15722` and supports hot switching between official accounts and Providers.
 - Records proxy token usage, displays conversation/message details, context consumption and latency, and exports structured diagnostics.
 - Provides weekly heatmaps and trends plus token-type, Provider, model, and account rankings.
-- Can refresh accounts after quota exhaustion, select an eligible account with the lowest primary-window usage, switch credentials, and retry once.
+- Retries upstream HTTP 429 responses after progressively longer waits for up to five minutes by default,
+  returning only the last 429 when the time limit is reached.
+- Can refresh accounts after quota exhaustion, select an eligible account with the lowest primary-window
+  usage, and switch credentials.
 - Can serve a browser UI alongside the desktop app, optionally expose it to trusted LAN devices, or run it
   without desktop UI through `--headless --port`.
 - Includes a Skills Market for searching and installing community Skills; cloud-signed-in users can publish versioned packages and updates.

@@ -593,6 +593,13 @@ fn normalize_theme_document(mut document: Value, fallback_id: &str) -> Result<Va
             art.insert(key.to_string(), json!(number));
         }
     }
+    if let Some(value) = art.get("overlayOpacity").filter(|value| !value.is_null()) {
+        let opacity = value
+            .as_f64()
+            .filter(|number| number.is_finite() && (0.0..=1.0).contains(number))
+            .ok_or_else(|| "Theme overlay opacity must be between 0 and 1.".to_string())?;
+        art.insert("overlayOpacity".to_string(), json!(opacity));
+    }
     let safe_area = art
         .get("safeArea")
         .and_then(Value::as_str)
@@ -1219,21 +1226,36 @@ fn codex_model_refresh_expression(
       (query.queryKey[1] === "user" || query.queryKey[1] === "read-response"))
   );
 {observer_patch_helpers}
-  if (expectedModels.length === 0) clearModelQueryPatch();
+  if (expectedModels.length === 0) {{
+    clearModelQueryPatch();
+    // Inactive picker queries retain injected Provider data after invalidation, so reset their
+    // cached data before returning to the official catalog.
+    if (typeof queryClient.resetQueries === "function") {{
+      await queryClient.resetQueries({{ predicate: matchesModelsQuery }}, {{ cancelRefetch: true }});
+    }} else {{
+      await queryClient.invalidateQueries({{
+        predicate: matchesModelsQuery,
+        refetchType: "all",
+      }});
+    }}
+    await queryClient.invalidateQueries({{
+      predicate: matchesConfigQuery,
+      refetchType: "active",
+    }});
+    const currentQueries = queryClient.getQueryCache().getAll().filter(matchesModelsQuery);
+    return {{
+      refreshed: currentQueries.length > 0,
+      reason: currentQueries.length > 0 ? "official-model-queries-reset" : "models-query-not-found",
+      injected: false,
+      count: 0,
+    }};
+  }}
   await queryClient.invalidateQueries({{
     predicate: query => matchesModelsQuery(query) || matchesConfigQuery(query),
     refetchType: "active",
   }});
 
   const currentQueries = queryClient.getQueryCache().getAll().filter(matchesModelsQuery);
-  if (expectedModels.length === 0) {{
-    return {{
-      refreshed: currentQueries.length > 0,
-      reason: currentQueries.length > 0 ? "existing-model-queries-refreshed" : "models-query-not-found",
-      injected: false,
-      count: 0,
-    }};
-  }}
   const expected = new Set(expectedModels);
   const injectedModels = expectedModels.map((model, index) => ({{
     id: model,
@@ -2598,6 +2620,31 @@ pub(crate) fn set_appearance(app: &AppHandle, appearance: &str) -> Result<(), St
     Ok(())
 }
 
+pub(crate) fn set_overlay_opacity(app: &AppHandle, opacity: f64) -> Result<(), String> {
+    if !opacity.is_finite() || !(0.0..=1.0).contains(&opacity) {
+        return Err("Theme overlay opacity must be between 0 and 1.".to_string());
+    }
+    let _operation = OPERATION_LOCK
+        .lock()
+        .map_err(|_| "Dream Skin operation lock is unavailable.".to_string())?;
+    let paths = ensure_installed(app)?;
+    let active_root = active_theme_root()?;
+    let mut document = load_theme(&active_root)?.document;
+    let object = document
+        .as_object_mut()
+        .ok_or_else(|| "Theme metadata root must be an object.".to_string())?;
+    object.remove("artMetadata");
+    let art = object
+        .get_mut("art")
+        .and_then(Value::as_object_mut)
+        .ok_or_else(|| "Theme art settings must be an object.".to_string())?;
+    art.insert("overlayOpacity".to_string(), json!(opacity));
+    write_json(&active_root.join("theme.json"), &document)?;
+    ensure_monitor(paths);
+    wake_monitor();
+    Ok(())
+}
+
 pub(crate) fn set_paused(app: &AppHandle, paused: bool) -> Result<(), String> {
     let _operation = OPERATION_LOCK
         .lock()
@@ -2766,6 +2813,14 @@ pub(crate) fn status(platform: &str) -> DreamSkinStatus {
             .and_then(|theme| theme.document.get("appearance"))
             .and_then(Value::as_str)
             .map(str::to_string),
+        active_theme_overlay_opacity: active.as_ref().map(|theme| {
+            theme
+                .document
+                .get("art")
+                .and_then(|art| art.get("overlayOpacity"))
+                .and_then(Value::as_f64)
+                .unwrap_or(0.8)
+        }),
         engine_path: marker_path().ok().map(|path| path.display().to_string()),
         saved_themes: list_saved_themes(),
     }
@@ -3012,7 +3067,37 @@ mod tests {
         assert!(expression.contains("observer.setOptions = options =>"));
         assert!(expression.contains("query.addObserver = observer =>"));
         assert!(expression.contains("models,\n        defaultModel:"));
-        assert!(expression.contains("if (expectedModels.length === 0) clearModelQueryPatch()"));
+        assert!(expression.contains("if (expectedModels.length === 0) {"));
+    }
+
+    #[test]
+    fn validates_theme_overlay_opacity() {
+        let normalized =
+            normalize_theme_document(json!({ "art": { "overlayOpacity": 0.45 } }), "preset-test")
+                .unwrap();
+        assert_eq!(normalized["art"]["overlayOpacity"], json!(0.45));
+
+        for invalid in [-0.1, 1.1] {
+            let document = json!({ "art": { "overlayOpacity": invalid } });
+            assert!(normalize_theme_document(document, "preset-test").is_err());
+        }
+    }
+
+    #[test]
+    fn official_model_refresh_clears_injected_candidates_before_refetching() {
+        let expression = codex_model_refresh_expression(
+            &[],
+            &[],
+            &Default::default(),
+            "gpt-5.6-sol",
+            crate::providers::ReasoningEffortProfile::Standard,
+        )
+        .unwrap();
+
+        assert!(expression.contains("clearModelQueryPatch();"));
+        assert!(expression.contains("queryClient.resetQueries({ predicate: matchesModelsQuery }"));
+        assert!(expression.contains("refetchType: \"all\""));
+        assert!(expression.contains("official-model-queries-reset"));
     }
 
     #[test]

@@ -60,6 +60,9 @@ export interface SettingsPageProps {
   autoDisableStatusCodes: number[];
   autoDisableStatusCodesLoading: boolean;
   onAutoDisableStatusCodesChange: (statusCodes: number[]) => Promise<void> | void;
+  upstream429RetryTimeoutSeconds: number;
+  upstream429RetryTimeoutLoading: boolean;
+  onUpstream429RetryTimeoutChange: (value: number | string | null) => void;
   showUsageNetworkErrors: boolean;
   showUsageNetworkErrorsLoading: boolean;
   onShowUsageNetworkErrorsChange: (enabled: boolean) => Promise<void> | void;

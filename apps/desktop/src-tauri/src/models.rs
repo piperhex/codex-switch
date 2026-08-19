@@ -473,6 +473,8 @@ pub(crate) struct AppSettings {
     pub(crate) token_usage_refresh_seconds: u64,
     #[serde(default = "default_auto_disable_status_codes")]
     pub(crate) auto_disable_status_codes: Vec<u16>,
+    #[serde(default = "default_upstream_429_retry_timeout_seconds")]
+    pub(crate) upstream_429_retry_timeout_seconds: u64,
     #[serde(default)]
     pub(crate) show_usage_network_errors: bool,
     #[serde(default = "default_gpt_5_6_sol_context_window")]
@@ -536,6 +538,9 @@ pub(crate) const MIN_TOKEN_USAGE_WEEKS: u16 = 1;
 pub(crate) const MAX_TOKEN_USAGE_WEEKS: u16 = 52;
 pub(crate) const MIN_TOKEN_USAGE_REFRESH_SECONDS: u64 = 1;
 pub(crate) const MAX_TOKEN_USAGE_REFRESH_SECONDS: u64 = 3_600;
+pub(crate) const DEFAULT_UPSTREAM_429_RETRY_TIMEOUT_SECONDS: u64 = 300;
+pub(crate) const MIN_UPSTREAM_429_RETRY_TIMEOUT_SECONDS: u64 = 1;
+pub(crate) const MAX_UPSTREAM_429_RETRY_TIMEOUT_SECONDS: u64 = 3_600;
 pub(crate) const DEFAULT_GPT_5_6_SOL_CONTEXT_WINDOW: u64 = 272_000;
 pub(crate) const MAX_GPT_5_6_SOL_CONTEXT_WINDOW: u64 = 1_050_000;
 pub(crate) const MIN_GPT_5_6_SOL_CONTEXT_WINDOW: u64 = 1_000;
@@ -558,6 +563,10 @@ fn default_close_to_tray() -> bool {
 
 fn default_auto_disable_status_codes() -> Vec<u16> {
     vec![401, 402, 403]
+}
+
+fn default_upstream_429_retry_timeout_seconds() -> u64 {
+    DEFAULT_UPSTREAM_429_RETRY_TIMEOUT_SECONDS
 }
 
 impl Default for AppSettings {
@@ -584,6 +593,7 @@ impl Default for AppSettings {
             token_usage_weeks: default_token_usage_weeks(),
             token_usage_refresh_seconds: default_token_usage_refresh_seconds(),
             auto_disable_status_codes: default_auto_disable_status_codes(),
+            upstream_429_retry_timeout_seconds: default_upstream_429_retry_timeout_seconds(),
             show_usage_network_errors: false,
             gpt_5_6_sol_context_window: default_gpt_5_6_sol_context_window(),
             web_proxy_port: None,
@@ -962,6 +972,18 @@ mod tests {
         assert_eq!(defaults.auto_disable_status_codes, [401, 402, 403]);
         assert_eq!(migrated.auto_disable_status_codes, [401, 402, 403]);
         assert_eq!(customized.auto_disable_status_codes, [401, 429]);
+    }
+
+    #[test]
+    fn app_settings_defaults_upstream_429_retry_timeout_to_five_minutes() {
+        let defaults = AppSettings::default();
+        let migrated: AppSettings = serde_json::from_str("{}").unwrap();
+        let customized: AppSettings =
+            serde_json::from_str(r#"{"upstream429RetryTimeoutSeconds":90}"#).unwrap();
+
+        assert_eq!(defaults.upstream_429_retry_timeout_seconds, 300);
+        assert_eq!(migrated.upstream_429_retry_timeout_seconds, 300);
+        assert_eq!(customized.upstream_429_retry_timeout_seconds, 90);
     }
 
     #[test]

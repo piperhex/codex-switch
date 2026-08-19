@@ -28,7 +28,9 @@ mod network_proxy;
 mod oauth;
 mod official_plugins;
 mod preset_provider;
+mod provider_api_cache;
 mod provider_models;
+mod provider_platform;
 mod providers;
 mod remote_control;
 mod skills_market;
@@ -77,7 +79,7 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_deep_link::init())
         .manage(AppState::default())
-        .manage(ccs_import::ImportNavigationState::default())
+        .manage(ccs_import::ImportState::default())
         .manage(main_window::MainWindowStateCache::default())
         .manage(main_window::CloseBehaviorState::default())
         .plugin(tauri_plugin_autostart::init(
@@ -198,7 +200,9 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::get_app_info,
-            ccs_import::take_ccswitch_import_navigation,
+            ccs_import::take_ccswitch_import_request,
+            ccs_import::cancel_ccswitch_provider_import,
+            ccs_import::confirm_ccswitch_provider_import,
             commands::open_managed_folder,
             codex_home::set_codex_home,
             commands::list_accounts,
@@ -247,6 +251,7 @@ pub fn run() {
             dream_skin::import_dream_skin_image,
             dream_skin::save_dream_skin_theme,
             dream_skin::set_dream_skin_appearance,
+            dream_skin::set_dream_skin_overlay_opacity,
             dream_skin::set_dream_skin_paused,
             dream_skin::reapply_dream_skin,
             dream_skin::verify_dream_skin,
@@ -264,6 +269,7 @@ pub fn run() {
             grok_provider::fetch_grok_models,
             preset_provider::fetch_preset_models,
             provider_models::fetch_relay_models,
+            provider_platform::detect_relay_platform,
             providers::fetch_deepseek_models,
             providers::query_provider_balance,
             providers::query_provider_usage,
@@ -278,6 +284,7 @@ pub fn run() {
             providers::delete_provider,
             local_proxy::get_local_proxy_status,
             local_proxy::set_gpt_5_6_sol_context_window,
+            local_proxy::set_upstream_429_retry_timeout,
             local_proxy::list_proxy_sessions,
             local_proxy::list_proxy_session_requests,
             local_proxy::get_recent_proxy_session_latency,
