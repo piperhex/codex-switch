@@ -1730,11 +1730,11 @@ main.providers-main .provider-card-grid {
 .empty-state p { margin: 0 0 10px; }
 .account-empty-proxy-toolbar { margin: 18px var(--page-x) -12px; display: flex; justify-content: flex-end; }
 .account-empty-proxy-toolbar .window-titlebar-proxy { margin-right: 0; padding-right: 0; border-right: 0; }
-.toast { position: fixed; z-index: 60; right: 28px; bottom: 26px; max-width: 470px; padding: 11px 15px; display: flex; align-items: center; gap: 8px; border: 1px solid #c2d6c7; border-radius: 10px; color: #244c35; background: rgba(247,252,247,.96); box-shadow: 0 14px 35px rgba(18,41,26,.15); font-size: 13px; font-weight: 700; animation: rise .2s ease; }
+.toast { position: fixed; z-index: 60; top: 24px; left: 50%; right: auto; bottom: auto; max-width: min(400px, calc(100vw - 32px)); transform: translateX(-50%); padding: 11px 15px; display: flex; align-items: center; gap: 8px; border: 1px solid #c2d6c7; border-radius: 10px; color: #244c35; background: rgba(247,252,247,.96); box-shadow: 0 14px 35px rgba(18,41,26,.15); font-size: 13px; font-weight: 700; animation: rise .2s ease; }
 .spin { animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes fade { from { opacity: 0; } }
-@keyframes rise { from { opacity: 0; transform: translateY(8px); } }
+@keyframes rise { from { opacity: 0; transform: translate(-50%, -8px); } }
 
 html.token-usage-page,
 html.token-usage-page body,
