@@ -30,6 +30,7 @@ mod official_plugins;
 mod preset_provider;
 mod provider_api_cache;
 mod provider_models;
+mod provider_platform;
 mod providers;
 mod remote_control;
 mod skills_market;
@@ -267,6 +268,7 @@ pub fn run() {
             grok_provider::fetch_grok_models,
             preset_provider::fetch_preset_models,
             provider_models::fetch_relay_models,
+            provider_platform::detect_relay_platform,
             providers::fetch_deepseek_models,
             providers::query_provider_balance,
             providers::query_provider_usage,

@@ -46,7 +46,7 @@ export function RelayModelPicker({
 
   const loadModels = async () => {
     if (!canFetch) {
-      setError(t("providers.relay.modelsNeedConnection"));
+      setError(t("providers.form.modelsNeedConnection"));
       return;
     }
     const currentRequestId = ++requestId.current;
@@ -65,7 +65,7 @@ export function RelayModelPicker({
       setLoaded(true);
     } catch {
       if (currentRequestId !== requestId.current) return;
-      setError(t("providers.relay.modelsFetchFailed"));
+      setError(t("providers.form.modelsFetchFailed"));
       setLoaded(false);
     } finally {
       if (currentRequestId === requestId.current) setLoading(false);
@@ -94,15 +94,15 @@ export function RelayModelPicker({
   const status = error
     ? <small className="provider-form-error">{error}</small>
     : <small>{loaded
-      ? t("providers.relay.modelsUpdated", { count: modelConfigs.length })
-      : t("providers.relay.modelsAutoHint")}</small>;
+      ? t("providers.form.modelsUpdated", { count: modelConfigs.length })
+      : t("providers.form.modelsAutoHint")}</small>;
 
   return <>
     <div className="provider-form-label-row">
-      <label>{t("providers.relay.models")}</label>
+      <label>{t("providers.form.models")}</label>
       <Button size="small" icon={<RefreshCw size={13} />} loading={loading}
         disabled={disabled || !canFetch} onClick={() => void loadModels()}>
-        {t("providers.relay.refreshModels")}
+        {t("providers.form.refreshModels")}
       </Button>
     </div>
     <ModelReasoningEditor value={modelConfigs} disabled={disabled || loading}

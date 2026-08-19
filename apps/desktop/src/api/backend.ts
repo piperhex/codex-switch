@@ -61,6 +61,7 @@ import type {
   ProxySessionLatencySummary,
   Provider,
   ProviderBalance,
+  ProviderBalancePlatform,
   ProviderInput,
   ProviderTokenUsageTotals,
   ReasoningEffort,
@@ -683,6 +684,17 @@ export async function fetchRelayModels(baseUrl: string, apiKey: string): Promise
     return ["gpt-5.6-sol", "gpt-5.4"];
   }
   return invoke<string[]>("fetch_relay_models", {
+    baseUrl,
+    apiKey: apiKey.trim(),
+  });
+}
+
+export async function detectRelayPlatform(
+  baseUrl: string,
+  apiKey: string,
+): Promise<ProviderBalancePlatform | null> {
+  if (!hasLocalBackend) return null;
+  return invoke<ProviderBalancePlatform | null>("detect_relay_platform", {
     baseUrl,
     apiKey: apiKey.trim(),
   });

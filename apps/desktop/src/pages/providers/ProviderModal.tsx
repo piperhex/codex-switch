@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
-import { Button, Input, Select, Switch } from "antd";
+import { Button } from "antd";
 import { Save, Server, X } from "lucide-react";
 import type { Translate } from "../../i18n";
-import type { Provider, ProviderBalancePlatform, ProviderInput } from "../../types";
-import { ModelReasoningEditor } from "./ModelReasoningEditor";
+import type { Provider, ProviderInput } from "../../types";
+import { ProviderFormFields } from "./ProviderFormFields";
 import {
-  balancePlatformOptions,
   DEFAULT_CONTEXT_WINDOW_K,
   defaultBalanceUrl,
   defaultWalletUrl,
@@ -13,11 +12,12 @@ import {
   modelImageInputModels,
   modelReasoningConfigs,
   modelReasoningEfforts,
-  modelOptions,
   normalizeModels,
   parseContextWindowK,
+  relayName,
   type ModelReasoningConfig,
 } from "./providerUtils";
+import { useProviderBalanceDetection } from "./useProviderBalanceDetection";
 
 export interface ProviderModalProps {
   provider: Provider | null;
@@ -26,23 +26,19 @@ export interface ProviderModalProps {
   onSave: (provider: ProviderInput) => Promise<Provider | null>;
   t: Translate;
 }
+
 export function ProviderModal({ provider, saving, onClose, onSave, t }: ProviderModalProps) {
   const [name, setName] = useState("");
+  const [nameTouched, setNameTouched] = useState(false);
   const [baseUrl, setBaseUrl] = useState("");
   const [model, setModel] = useState("");
   const [modelConfigs, setModelConfigs] = useState<ModelReasoningConfig[]>([]);
   const [apiKey, setApiKey] = useState("");
-  const [balancePlatform, setBalancePlatform] = useState<ProviderBalancePlatform | "none">("none");
-  const [balanceQueryUrl, setBalanceQueryUrl] = useState("");
-  const [balanceQueryUsesApiKey, setBalanceQueryUsesApiKey] = useState(true);
-  const [balanceQueryToken, setBalanceQueryToken] = useState("");
-  const [walletQueryUrl, setWalletQueryUrl] = useState("");
-  const [walletQueryToken, setWalletQueryToken] = useState("");
-  const [walletUsername, setWalletUsername] = useState("");
-  const [walletPassword, setWalletPassword] = useState("");
+  const balance = useProviderBalanceDetection({ provider, baseUrl, apiKey });
 
   useEffect(() => {
     setName(provider?.name ?? "");
+    setNameTouched(Boolean(provider));
     setBaseUrl(provider?.baseUrl ?? "");
     const nextModels = normalizeModels(provider?.model ?? "", provider?.models ?? []);
     setModelConfigs(nextModels.length
@@ -58,18 +54,9 @@ export function ProviderModal({ provider, saving, onClose, onSave, t }: Provider
         reasoningEfforts: [],
         contextWindowK: DEFAULT_CONTEXT_WINDOW_K,
         supportsImageInput: false,
-      }]);
+    }]);
     setModel(provider?.model ?? nextModels[0] ?? "");
     setApiKey("");
-    setBalancePlatform(provider?.balancePlatform ?? "none");
-    setBalanceQueryUrl(provider?.balanceQueryUrl ?? "");
-    setBalanceQueryUsesApiKey(provider?.balanceQueryUsesApiKey ?? true);
-    setBalanceQueryToken("");
-    setWalletQueryUrl(provider?.walletQueryUrl
-      ?? (provider?.balancePlatform ? defaultWalletUrl(provider.baseUrl, provider.balancePlatform) : ""));
-    setWalletQueryToken("");
-    setWalletUsername(provider?.walletUsername ?? "");
-    setWalletPassword("");
   }, [provider]);
 
   const rowModels = modelConfigs.map((config) => config.model.trim()).filter(Boolean);
@@ -80,23 +67,26 @@ export function ProviderModal({ provider, saving, onClose, onSave, t }: Provider
       config.reasoningEfforts.length > 0 && Boolean(parseContextWindowK(config.contextWindowK))
     ));
   const activeModel = model.trim() || (normalizedModels[0] ?? "");
-  const hasBalanceToken = balanceQueryUsesApiKey
-    || Boolean(balanceQueryToken.trim() || provider?.hasBalanceQueryToken);
+  const hasBalanceToken = balance.balanceQueryUsesApiKey
+    || Boolean(balance.balanceQueryToken.trim() || provider?.hasBalanceQueryToken);
   const canSave = Boolean(
     name.trim()
     && baseUrl.trim()
     && activeModel
     && modelsAreValid
     && (provider?.hasApiKey || apiKey.trim())
-    && (balancePlatform === "none" || (balanceQueryUrl.trim() && hasBalanceToken)),
+    && (!balance.balancePlatform || (balance.balanceQueryUrl.trim() && hasBalanceToken)),
   );
-  const updateModels = (configs: ModelReasoningConfig[]) => {
-    const nextModels = configs.map((config) => config.model.trim()).filter(Boolean);
-    setModelConfigs(configs);
-    if (!nextModels.includes(model.trim())) setModel(nextModels[0] ?? "");
-  };
-  const submit = async () => {
+
+  async function submit() {
     if (!canSave) return;
+    const detectedPlatform = await balance.resolvePlatform();
+    const detectedBalanceQueryUrl = detectedPlatform
+      ? balance.balanceQueryUrl || defaultBalanceUrl(baseUrl, detectedPlatform)
+      : "";
+    const detectedWalletQueryUrl = detectedPlatform
+      ? balance.walletQueryUrl || defaultWalletUrl(baseUrl, detectedPlatform)
+      : "";
     const saved = await onSave({
       id: provider?.id,
       kind: "custom",
@@ -112,47 +102,17 @@ export function ProviderModal({ provider, saving, onClose, onSave, t }: Provider
       modelSelectionControlledByCodex: provider?.modelSelectionControlledByCodex ?? true,
       apiKey: apiKey.trim() || undefined,
       apiFormat: provider?.apiFormat ?? "openaiResponses",
-      balancePlatform: balancePlatform === "none" ? null : balancePlatform,
-      balanceQueryUrl: balancePlatform === "none" ? null : balanceQueryUrl,
-      balanceQueryToken: balanceQueryToken.trim() || undefined,
-      balanceQueryUsesApiKey,
-      walletQueryUrl: balancePlatform === "none" ? null : walletQueryUrl || null,
-      walletQueryToken: walletQueryToken.trim() || undefined,
-      walletUsername: walletUsername.trim() || undefined,
-      walletPassword: walletPassword || undefined,
+      balancePlatform: detectedPlatform,
+      balanceQueryUrl: detectedPlatform ? detectedBalanceQueryUrl : null,
+      balanceQueryToken: balance.balanceQueryToken.trim() || undefined,
+      balanceQueryUsesApiKey: balance.balanceQueryUsesApiKey,
+      walletQueryUrl: detectedPlatform ? detectedWalletQueryUrl || null : null,
+      walletQueryToken: balance.walletQueryToken.trim() || undefined,
+      walletUsername: balance.walletUsername.trim() || undefined,
+      walletPassword: balance.walletPassword || undefined,
     });
     if (saved) onClose();
-  };
-  const newApiWalletFields = <>
-    <label htmlFor="provider-wallet-token">{t("providers.form.walletToken")}</label>
-    <Input.Password id="provider-wallet-token" value={walletQueryToken} disabled={saving}
-      placeholder={provider?.hasWalletQueryToken
-        ? t("providers.form.keepWalletToken")
-        : t("providers.form.walletTokenPlaceholder")}
-      onChange={(event) => setWalletQueryToken(event.target.value)} />
-    <small>{t("providers.form.walletNewApiTokenAutoIdHint")}</small>
-    <div className="provider-auth-divider">{t("providers.form.walletLoginAlternative")}</div>
-    <label htmlFor="provider-wallet-username">{t("providers.form.walletUsername")}</label>
-    <Input id="provider-wallet-username" value={walletUsername} disabled={saving}
-      placeholder={t("providers.form.walletUsernamePlaceholder")}
-      onChange={(event) => setWalletUsername(event.target.value)} />
-    <label htmlFor="provider-wallet-password">{t("providers.form.walletPassword")}</label>
-    <Input.Password id="provider-wallet-password" value={walletPassword} disabled={saving}
-      placeholder={provider?.hasWalletLoginCredentials
-        ? t("providers.form.keepWalletPassword")
-        : t("providers.form.walletPasswordPlaceholder")}
-      onChange={(event) => setWalletPassword(event.target.value)} />
-    <small>{t("providers.form.walletLoginHint")}</small>
-  </>;
-  const tokenWalletFields = <>
-    <label htmlFor="provider-wallet-token">{t("providers.form.walletToken")}</label>
-    <Input.Password id="provider-wallet-token" value={walletQueryToken} disabled={saving}
-      placeholder={provider?.hasWalletQueryToken
-        ? t("providers.form.keepWalletToken")
-        : t("providers.form.walletTokenPlaceholder")}
-      onChange={(event) => setWalletQueryToken(event.target.value)} />
-    <small>{t("providers.form.walletTokenHint")}</small>
-  </>;
+  }
 
   return (
     <div className="modal-backdrop provider-modal-backdrop">
@@ -163,66 +123,39 @@ export function ProviderModal({ provider, saving, onClose, onSave, t }: Provider
         <div className="modal-icon"><Server size={22} /></div>
         <h2>{provider ? t("providers.modal.editTitle") : t("providers.modal.addTitle")}</h2>
         <p>{t("providers.modal.description")}</p>
-        <div className="provider-form">
-          <label htmlFor="provider-name">{t("providers.form.name")}</label>
-          <Input id="provider-name" value={name} disabled={saving} placeholder="OpenRouter"
-            onChange={(event) => setName(event.target.value)} />
-          <label htmlFor="provider-base-url">{t("providers.form.baseUrl")}</label>
-          <Input id="provider-base-url" value={baseUrl} disabled={saving} placeholder="https://openrouter.ai/api/v1"
-            onChange={(event) => setBaseUrl(event.target.value)} />
-          <label>{t("providers.form.models")}</label>
-          <ModelReasoningEditor value={modelConfigs} disabled={saving}
-            onChange={updateModels} t={t} />
-          <small>{t("providers.form.modelRowsHint")}</small>
-          <label htmlFor="provider-active-model">{t("providers.form.activeModel")}</label>
-          <Select id="provider-active-model" value={activeModel || undefined}
-            disabled={saving || !normalizedModels.length}
-            placeholder="openai/gpt-4.1" options={modelOptions(normalizedModels)}
-            onChange={(value) => setModel(value)} />
-          <label htmlFor="provider-api-key">{t("providers.form.apiKey")}</label>
-          <Input.Password id="provider-api-key" value={apiKey} disabled={saving}
-            placeholder={provider?.hasApiKey ? t("providers.form.keepApiKey") : t("providers.form.newApiKey")}
-            onChange={(event) => setApiKey(event.target.value)} />
-          <label htmlFor="provider-balance-platform">{t("providers.form.balancePlatform")}</label>
-          <Select id="provider-balance-platform" value={balancePlatform} disabled={saving}
-            options={balancePlatformOptions(t)}
-            onChange={(value) => {
-              setBalancePlatform(value);
-              if (value !== "none" && !balanceQueryUrl.trim()) {
-                setBalanceQueryUrl(defaultBalanceUrl(baseUrl, value));
-              }
-              if (value !== "none" && !walletQueryUrl.trim()) {
-                setWalletQueryUrl(defaultWalletUrl(baseUrl, value));
-              }
-            }} />
-          {balancePlatform !== "none" && <>
-            <label htmlFor="provider-balance-url">{t("providers.form.balanceQueryUrl")}</label>
-            <Input id="provider-balance-url" value={balanceQueryUrl} disabled={saving}
-              placeholder={defaultBalanceUrl(baseUrl, balancePlatform)}
-              onChange={(event) => setBalanceQueryUrl(event.target.value)} />
-            <div className="provider-form-switch">
-              <div>
-                <label htmlFor="provider-balance-reuse-key">{t("providers.form.balanceReuseApiKey")}</label>
-                <small>{t("providers.form.balanceReuseApiKeyHint")}</small>
-              </div>
-              <Switch id="provider-balance-reuse-key" checked={balanceQueryUsesApiKey} disabled={saving}
-                onChange={setBalanceQueryUsesApiKey} />
-            </div>
-            {!balanceQueryUsesApiKey && <>
-              <label htmlFor="provider-balance-token">{t("providers.form.balanceToken")}</label>
-              <Input.Password id="provider-balance-token" value={balanceQueryToken} disabled={saving}
-                placeholder={provider?.hasBalanceQueryToken
-                  ? t("providers.form.keepBalanceToken")
-                  : t("providers.form.newApiKey")}
-                onChange={(event) => setBalanceQueryToken(event.target.value)} />
-            </>}
-            <label htmlFor="provider-wallet-url">{t("providers.form.walletQueryUrl")}</label>
-            <Input id="provider-wallet-url" value={walletQueryUrl} disabled={saving}
-              placeholder={defaultWalletUrl(baseUrl, balancePlatform)}
-              onChange={(event) => setWalletQueryUrl(event.target.value)} />
-            {balancePlatform === "newApi" ? newApiWalletFields : tokenWalletFields}
-          </>}
-        </div>
+        <ProviderFormFields apiKey={apiKey} baseUrl={baseUrl} modelConfigs={modelConfigs} name={name}
+          provider={provider} saving={saving} activeModel={activeModel}
+          balanceSettings={{
+            baseUrl,
+            balancePlatform: balance.balancePlatform,
+            balanceQueryUrl: balance.balanceQueryUrl,
+            balanceQueryUsesApiKey: balance.balanceQueryUsesApiKey,
+            balanceQueryToken: balance.balanceQueryToken,
+            detectionState: balance.detectionState,
+            provider,
+            saving,
+            walletQueryUrl: balance.walletQueryUrl,
+            walletQueryToken: balance.walletQueryToken,
+            walletUsername: balance.walletUsername,
+            walletPassword: balance.walletPassword,
+            onBalanceQueryUrlChange: balance.updateBalanceQueryUrl,
+            onBalanceQueryUsesApiKeyChange: balance.setBalanceQueryUsesApiKey,
+            onBalanceQueryTokenChange: balance.setBalanceQueryToken,
+            onWalletQueryUrlChange: balance.updateWalletQueryUrl,
+            onWalletQueryTokenChange: balance.setWalletQueryToken,
+            onWalletUsernameChange: balance.setWalletUsername,
+            onWalletPasswordChange: balance.setWalletPassword,
+          }}
+          onApiKeyChange={setApiKey}
+          onBaseUrlChange={(value) => {
+            setBaseUrl(value);
+            if (!nameTouched) setName(relayName(value));
+          }}
+          onModelConfigsChange={setModelConfigs} onActiveModelChange={setModel}
+          onNameChange={(value) => {
+            setNameTouched(true);
+            setName(value);
+          }} t={t} />
         <div className="provider-modal-footer">
           <Button onClick={onClose} disabled={saving}>{t("providers.form.cancel")}</Button>
           <Button type="primary" icon={<Save size={14} />} loading={saving} disabled={!canSave}

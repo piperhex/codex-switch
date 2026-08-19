@@ -211,13 +211,3 @@ export function relayName(value: string) {
     return "";
   }
 }
-
-export function balancePlatformOptions(t: Translate, includeDisabled = true) {
-  const options: { label: string; value: ProviderBalancePlatform | "none" }[] = [];
-  if (includeDisabled) options.push({ label: t("providers.balance.disabled"), value: "none" });
-  options.push(
-    { label: "New API", value: "newApi" },
-    { label: "Sub2API", value: "sub2Api" },
-  );
-  return options;
-}

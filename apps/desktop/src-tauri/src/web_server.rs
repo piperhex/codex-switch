@@ -440,6 +440,12 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
             app,
             argument(&args, "request")?,
         ))),
+        "detect_relay_platform" => {
+            serialize(block_on(crate::provider_platform::detect_relay_platform(
+                argument(&args, "baseUrl")?,
+                argument(&args, "apiKey")?,
+            )))
+        }
         "fetch_relay_models" => serialize(block_on(crate::provider_models::fetch_relay_models(
             argument(&args, "baseUrl")?,
             argument(&args, "apiKey")?,
