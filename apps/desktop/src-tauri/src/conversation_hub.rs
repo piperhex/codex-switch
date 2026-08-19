@@ -1404,6 +1404,28 @@ fn delete_thread_rows(
     transaction.commit().map_err(|error| error.to_string())
 }
 
+fn purge_thread_catalogs(codex_home: &Path, session_id: &str) -> Result<(), String> {
+    let catalog_dir = codex_home.join("sqlite");
+    if !catalog_dir.exists() {
+        return Ok(());
+    }
+    for entry in fs::read_dir(&catalog_dir).map_err(|error| error.to_string())? {
+        let path = entry.map_err(|error| error.to_string())?.path();
+        if path.extension().and_then(|value| value.to_str()) != Some("db") {
+            continue;
+        }
+        delete_thread_rows(
+            Some(path),
+            session_id,
+            &[(
+                "local_thread_catalog",
+                "DELETE FROM local_thread_catalog WHERE thread_id = ?1",
+            )],
+        )?;
+    }
+    Ok(())
+}
+
 fn purge_thread_state(codex_home: &Path, session_id: &str) -> Result<(), String> {
     delete_thread_rows(
         latest_state_db(codex_home),
@@ -1470,7 +1492,8 @@ fn purge_thread_state(codex_home: &Path, session_id: &str) -> Result<(), String>
         latest_versioned_db(codex_home, "logs_"),
         session_id,
         &[("logs", "DELETE FROM logs WHERE thread_id = ?1")],
-    )
+    )?;
+    purge_thread_catalogs(codex_home, session_id)
 }
 
 pub(crate) fn browse_codex_thread_bin_blocking<R: Runtime>(
@@ -2658,6 +2681,53 @@ mod tests {
         assert_eq!(restored.preview, "Visible thread");
         assert_eq!(restored.rollout_path, "sessions/rollout-thread-a.jsonl");
 
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn purging_a_thread_removes_its_codex_catalog_entry() {
+        let root = test_root("catalog-purge");
+        let catalog_dir = root.join("sqlite");
+        fs::create_dir_all(&catalog_dir).unwrap();
+        let catalog_path = catalog_dir.join("codex.db");
+        let connection = Connection::open(&catalog_path).unwrap();
+        connection
+            .execute_batch(
+                "CREATE TABLE local_thread_catalog (
+                    thread_id TEXT PRIMARY KEY,
+                    model_provider TEXT NOT NULL
+                );
+                INSERT INTO local_thread_catalog (thread_id, model_provider)
+                VALUES ('thread-a', 'openai'), ('thread-b', 'openai');",
+            )
+            .unwrap();
+        drop(connection);
+
+        purge_thread_catalogs(&root, "thread-a").unwrap();
+
+        let connection = Connection::open(&catalog_path).unwrap();
+        assert_eq!(
+            connection
+                .query_row(
+                    "SELECT COUNT(*) FROM local_thread_catalog WHERE thread_id = 'thread-a'",
+                    [],
+                    |row| row.get::<_, i64>(0),
+                )
+                .unwrap(),
+            0
+        );
+        assert_eq!(
+            connection
+                .query_row(
+                    "SELECT COUNT(*) FROM local_thread_catalog WHERE thread_id = 'thread-b'",
+                    [],
+                    |row| row.get::<_, i64>(0),
+                )
+                .unwrap(),
+            1
+        );
+
+        drop(connection);
         fs::remove_dir_all(&root).unwrap();
     }
 
