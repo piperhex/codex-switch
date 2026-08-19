@@ -9,7 +9,10 @@ use url::Url;
 use uuid::Uuid;
 
 use crate::{
-    models::{ProviderApiFormat, ProviderBalancePlatform, ProviderKind, ProviderSummary},
+    models::{
+        ModelReasoningEfforts, ProviderApiFormat, ProviderBalancePlatform, ProviderKind,
+        ProviderSummary, ReasoningEffort,
+    },
     providers::{self, ProviderInput},
     storage::resolve_paths,
 };
@@ -25,6 +28,15 @@ const FIRST_DUPLICATE_SUFFIX: usize = 2;
 const SUB2API_BALANCE_PATH: &str = "/v1/usage";
 const NEW_API_BALANCE_PATH: &str = "/api/usage/token/";
 const DEEPSEEK_BALANCE_PATH: &str = "/user/balance";
+const DEEPSEEK_MODEL_PREFIX: &str = "deepseek-";
+const DEEPSEEK_REASONING_EFFORTS: [ReasoningEffort; 6] = [
+    ReasoningEffort::None,
+    ReasoningEffort::Low,
+    ReasoningEffort::Medium,
+    ReasoningEffort::High,
+    ReasoningEffort::Xhigh,
+    ReasoningEffort::Max,
+];
 
 #[derive(Clone)]
 struct ImportBalanceSettings {
@@ -226,6 +238,7 @@ fn pending_provider_input(
     name: String,
     models: ImportModels,
 ) -> ProviderInput {
+    let model_reasoning_efforts = imported_model_reasoning_efforts(&models.available);
     ProviderInput {
         id: None,
         kind: pending.kind,
@@ -235,7 +248,7 @@ fn pending_provider_input(
         api_key: Some(pending.api_key),
         model: models.selected,
         models: models.available,
-        model_reasoning_efforts: Default::default(),
+        model_reasoning_efforts,
         model_context_windows: Default::default(),
         image_input_models: Vec::new(),
         image_input_models_configured: Some(false),
@@ -251,6 +264,19 @@ fn pending_provider_input(
         wallet_username: None,
         wallet_password: None,
     }
+}
+
+fn imported_model_reasoning_efforts(models: &[String]) -> ModelReasoningEfforts {
+    models
+        .iter()
+        .filter(|model| {
+            model
+                .trim()
+                .to_ascii_lowercase()
+                .starts_with(DEEPSEEK_MODEL_PREFIX)
+        })
+        .map(|model| (model.clone(), DEEPSEEK_REASONING_EFFORTS.to_vec()))
+        .collect()
 }
 
 fn remove_pending_import<R: Runtime>(

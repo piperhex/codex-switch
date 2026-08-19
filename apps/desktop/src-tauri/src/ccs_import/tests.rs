@@ -112,6 +112,20 @@ fn imported_relay_keeps_a_default_when_model_discovery_fails() {
 }
 
 #[test]
+fn imported_deepseek_models_receive_supported_reasoning_efforts() {
+    let efforts = imported_model_reasoning_efforts(&[
+        "deepseek-v4-flash".to_string(),
+        "DeepSeek-V4-Pro".to_string(),
+        "gpt-custom".to_string(),
+    ]);
+
+    assert_eq!(efforts.len(), 2);
+    assert_eq!(efforts["deepseek-v4-flash"], DEEPSEEK_REASONING_EFFORTS);
+    assert_eq!(efforts["DeepSeek-V4-Pro"], DEEPSEEK_REASONING_EFFORTS);
+    assert!(!efforts.contains_key("gpt-custom"));
+}
+
+#[test]
 fn supplies_sub2api_balance_defaults_for_compatible_links() {
     let query = Url::parse(
         "cswitch://v1/import?balancePlatform=sub2api&endpoint=https%3A%2F%2Frelay.example.com%2Fv1",
