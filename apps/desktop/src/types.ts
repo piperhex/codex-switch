@@ -130,6 +130,16 @@ export interface ProviderInput {
   walletPassword?: string;
 }
 
+export interface CcSwitchImportRequest {
+  requestId: string;
+  app: string;
+  name: string;
+  endpoint: string;
+  model: string;
+  apiKeyProvided: boolean;
+  balancePlatform?: ProviderBalancePlatform | null;
+}
+
 export interface ProviderBalance {
   apiAmount?: number | null;
   apiUnit: string;

@@ -23,6 +23,7 @@ import type {
   AppSettings,
   BubbleResetDisplay,
   BubbleStyle,
+  CcSwitchImportRequest,
   CloudAuthenticationResult,
   CloudAuthState,
   CloudAnnouncement,
@@ -174,7 +175,7 @@ const TOTP_EVENT = "codex-switch:totp-changed";
 const PROVIDERS_EVENT = "codex-switch:providers-changed";
 const PROVIDER_BALANCE_EVENT = "codex-switch:provider-balance-refreshed";
 const OPEN_SETTINGS_EVENT = "open-settings";
-const CCSWITCH_IMPORTED_EVENT = "ccswitch-imported";
+const CCSWITCH_IMPORT_REQUESTED_EVENT = "ccswitch-import-requested";
 const DREAM_SKIN_INSTALLED_PREVIEW_KEY = "codex-switch:dream-skin-installed";
 const DREAM_SKIN_SESSION_PREVIEW_KEY = "codex-switch:dream-skin-session";
 const DREAM_SKIN_THEME_PREVIEW_KEY = "codex-switch:dream-skin-theme";
@@ -2756,14 +2757,26 @@ export function subscribeToOpenSettings(onOpen: () => void): () => void {
   return () => void subscription.then((unlisten) => unlisten());
 }
 
-export async function subscribeToCcSwitchImports(onImported: () => void): Promise<UnlistenFn> {
+export async function subscribeToCcSwitchImportRequests(onRequested: () => void): Promise<UnlistenFn> {
   if (!isDesktopApp) return () => undefined;
-  return listen(CCSWITCH_IMPORTED_EVENT, onImported);
+  return listen(CCSWITCH_IMPORT_REQUESTED_EVENT, onRequested);
 }
 
-export async function takeCcSwitchImportNavigation(): Promise<boolean> {
-  if (!isDesktopApp) return false;
-  return invoke<boolean>("take_ccswitch_import_navigation");
+export async function takeCcSwitchImportRequest(): Promise<CcSwitchImportRequest | null> {
+  if (!isDesktopApp) return null;
+  return invoke<CcSwitchImportRequest | null>("take_ccswitch_import_request");
+}
+
+export async function cancelCcSwitchProviderImport(requestId: string): Promise<void> {
+  if (!isDesktopApp) return;
+  await invoke("cancel_ccswitch_provider_import", { requestId });
+}
+
+export async function confirmCcSwitchProviderImport(
+  requestId: string,
+  name: string,
+): Promise<Provider> {
+  return invoke<Provider>("confirm_ccswitch_provider_import", { requestId, name });
 }
 
 export async function loadDreamSkinResourcesStatus(): Promise<DreamSkinResourcesStatus> {

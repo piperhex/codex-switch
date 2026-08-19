@@ -77,7 +77,7 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_deep_link::init())
         .manage(AppState::default())
-        .manage(ccs_import::ImportNavigationState::default())
+        .manage(ccs_import::ImportState::default())
         .manage(main_window::MainWindowStateCache::default())
         .manage(main_window::CloseBehaviorState::default())
         .plugin(tauri_plugin_autostart::init(
@@ -198,7 +198,9 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::get_app_info,
-            ccs_import::take_ccswitch_import_navigation,
+            ccs_import::take_ccswitch_import_request,
+            ccs_import::cancel_ccswitch_provider_import,
+            ccs_import::confirm_ccswitch_provider_import,
             commands::open_managed_folder,
             codex_home::set_codex_home,
             commands::list_accounts,

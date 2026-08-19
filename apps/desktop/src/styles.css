@@ -819,6 +819,30 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .modal-icon { width: 46px; height: 46px; border-radius: 13px; display: grid; place-items: center; color: var(--green-dark); background: var(--green-soft); }
 .modal h2 { margin: 17px 0 7px; font: 700 20px Manrope, sans-serif; }
 .modal > p { margin: 0 0 20px; color: #738078; font-size: 12px; line-height: 1.6; }
+.ccswitch-import-content {
+  max-height: calc(100dvh - 220px); display: grid; gap: 10px; overflow-y: auto;
+}
+.ccswitch-import-content > p {
+  max-width: 400px; margin: 0; color: #738078; font-size: 12px; line-height: 1.6;
+}
+.ccswitch-import-content > label {
+  margin-top: 2px; color: #526259; font-size: 11px; font-weight: 700;
+}
+.ccswitch-import-content > small {
+  max-width: 400px; color: #7b8980; font-size: 10px; line-height: 1.5;
+}
+.ccswitch-import-details {
+  overflow: hidden; border: 1px solid var(--line); border-radius: 9px; background: #f7f9f6;
+}
+.ccswitch-import-details > div {
+  min-width: 0; padding: 7px 9px; display: grid;
+  grid-template-columns: 76px minmax(0, 1fr); gap: 8px;
+}
+.ccswitch-import-details > div + div { border-top: 1px solid var(--line); }
+.ccswitch-import-details span { color: #718078; font-size: 10px; font-weight: 700; }
+.ccswitch-import-details strong {
+  min-width: 0; overflow-wrap: anywhere; color: #34463b; font-size: 10px; font-weight: 600;
+}
 .reset-credits-modal { width: min(720px, 95vw); max-height: 80vh; overflow: auto; }
 .reset-credits-modal .reset-credits-panel, .reset-credits-modal .reset-credits-status { padding: 12px 0 0; border-top: 1px solid #edf1ec; }
 .account-note-backdrop { padding: 24px; }

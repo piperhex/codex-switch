@@ -39,10 +39,8 @@ import {
   restartChatGpt,
   showTokenUsageWindow,
   submitFeedback,
-  subscribeToCcSwitchImports,
   subscribeToCloudSessionExpired,
   subscribeToOpenSettings,
-  takeCcSwitchImportNavigation,
   updateAutoDisableStatusCodes,
   updateNetworkProxy,
   updateProviderGroups,
@@ -62,6 +60,7 @@ import { CloudAccountModal } from "../modals/CloudAccountModal";
 import { LoginModal } from "../modals/LoginModal";
 import { LanAccessModal } from "../modals/LanAccessModal";
 import { UpdateModal } from "../modals/UpdateModal";
+import { CcSwitchImportModal } from "../modals/CcSwitchImportModal";
 import { MenuSearchModal } from "../MenuSearchModal";
 import { ProxyStatusControls } from "./ProxyStatusControls";
 import { ProxyTopbarActions } from "./ProxyTopbarActions";
@@ -79,6 +78,7 @@ import { useBubbleStyle } from "../../hooks/useBubbleStyle";
 import { useCloudAuth } from "../../hooks/useCloudAuth";
 import { useCloudContent, useCloudContentLifecycle } from "../../hooks/useCloudContent";
 import { useCloseToTray } from "../../hooks/useCloseToTray";
+import { useCcSwitchImport } from "../../hooks/useCcSwitchImport";
 import { useCodexHome } from "../../hooks/useCodexHome";
 import { useLanguage } from "../../hooks/useLanguage";
 import { useLaunchAtStartup } from "../../hooks/useLaunchAtStartup";
@@ -225,28 +225,6 @@ export function DashboardApp() {
   useEffect(() => subscribeToOpenSettings(() => setPage("settings")), []);
   const { message: toast, notify } = useToast();
   const { language, setLanguage, t } = useLanguage();
-  useEffect(() => {
-    let active = true;
-    let unsubscribe: (() => void) | undefined;
-    const consumeImport = async () => {
-      const pending = await takeCcSwitchImportNavigation().catch(() => false);
-      if (!active || !pending) return;
-      setPage("providers");
-      notify(t("toast.providerImported"));
-    };
-    void subscribeToCcSwitchImports(() => void consumeImport()).then((stopListening) => {
-      if (!active) {
-        stopListening();
-        return;
-      }
-      unsubscribe = stopListening;
-      void consumeImport();
-    });
-    return () => {
-      active = false;
-      unsubscribe?.();
-    };
-  }, [notify, t]);
   const cloud = useCloudAuth(notify, t);
   const totpManager = useTotpEntries({
     cloudAuthenticated: cloud.state.authenticated,
@@ -333,6 +311,15 @@ export function DashboardApp() {
   const tokenUsagePreferences = useTokenUsagePreferences(notify);
   const manager = useAccountManager(notify, t, accountCloudSync);
   const providerManager = useProviderManager(notify, t, providerCloudSync);
+  const handleCcSwitchImported = useCallback((provider: Provider) => {
+    setPage("providers");
+    notify(t("toast.providerImported", { name: provider.name }));
+  }, [notify, t]);
+  const ccSwitchImport = useCcSwitchImport({
+    notify,
+    onImported: handleCcSwitchImported,
+    t,
+  });
   const codexHome = useCodexHome({
     currentPath: manager.info?.codexHome,
     localProxyRunning: Boolean(providerManager.localProxy?.running),
@@ -1505,6 +1492,9 @@ export function DashboardApp() {
         <NetworkProxySettingsModal open={showNetworkProxy} value={networkProxy}
           loading={networkProxyLoading} onSave={saveNetworkProxy}
           onClose={() => setShowNetworkProxy(false)} t={t} />
+        <CcSwitchImportModal request={ccSwitchImport.request} saving={ccSwitchImport.saving}
+          onCancel={() => void ccSwitchImport.cancel()}
+          onConfirm={(name) => void ccSwitchImport.confirm(name)} t={t} />
         <ProxyProgressModal progress={providerManager.proxyStartProgress}
           phaseKeys={PROXY_START_PHASE_KEYS} titleKey="providers.proxy.startProgressTitle"
           fileLabelKey="providers.proxy.startProgressFiles"
