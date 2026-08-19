@@ -91,7 +91,10 @@ The desktop React frontend receives redacted models such as `AccountSummary`, `P
 2. Third-party Providers can be activated only while the local proxy is running. The original Codex config is backed up before the proxy writes its managed root/provider sections.
 3. Starting the proxy binds `127.0.0.1:15722`, writes a local Provider entry to `config.toml`, and persists the enabled state. Subsequent official-account, Provider, and model switches update the proxy target without requiring a Codex restart.
 4. The proxy records redacted diagnostics and extracts token counts from completed Responses streams into SQLite and JSONL history. The Token Usage window displays the newest 500 rows; the database retains up to 10,000.
-5. When quota failover is enabled in official-account mode, a quota-like `429` or `403` triggers a fresh usage query for every saved account. The proxy excludes failed, exhausted, and current accounts, switches to the account with the lowest primary-window used percentage, and retries the original request once.
+5. Upstream `429` responses stay inside the proxy while it retries after progressively longer 1, 3, and 5
+   second waits. The default five-minute time budget is configurable. When official-account quota failover is
+   enabled, eligible quota responses can also switch to the account with the lowest primary-window used
+   percentage before the next attempt. Only the final response reaches the client.
 
 ### Cloud Synchronization
 

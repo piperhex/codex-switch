@@ -391,6 +391,12 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
                 argument(&args, "contextWindow")?,
             ),
         )),
+        "set_upstream_429_retry_timeout" => serialize(block_on(
+            crate::local_proxy::set_upstream_429_retry_timeout(
+                app,
+                argument(&args, "timeoutSeconds")?,
+            ),
+        )),
         "set_close_to_tray" => serialize(block_on(crate::main_window::set_close_to_tray(
             app.clone(),
             argument(&args, "enabled")?,

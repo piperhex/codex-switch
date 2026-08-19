@@ -123,6 +123,9 @@ export async function quitApplication(): Promise<void> {
 }
 export const DEFAULT_CLOUD_BASE_URL = "https://codex.onepiper.cloud";
 export const DEFAULT_AUTO_DISABLE_STATUS_CODES = [401, 402, 403] as const;
+export const DEFAULT_UPSTREAM_429_RETRY_TIMEOUT_SECONDS = 300;
+export const MIN_UPSTREAM_429_RETRY_TIMEOUT_SECONDS = 1;
+export const MAX_UPSTREAM_429_RETRY_TIMEOUT_SECONDS = 3_600;
 export const DEFAULT_GPT_5_6_SOL_CONTEXT_WINDOW = 272_000;
 export const MAX_GPT_5_6_SOL_CONTEXT_WINDOW = 1_050_000;
 export const MIN_GPT_5_6_SOL_CONTEXT_WINDOW = 1_000;
@@ -166,6 +169,7 @@ const LOCAL_PROXY_OPENAI_AUTH_ACCOUNT_PREVIEW_KEY = "codex-switch:proxy-openai-a
 const TOKEN_USAGE_WEEKS_PREVIEW_KEY = "codex-switch:token-usage-weeks";
 const TOKEN_USAGE_REFRESH_PREVIEW_KEY = "codex-switch:token-usage-refresh-seconds";
 const AUTO_DISABLE_STATUS_CODES_PREVIEW_KEY = "codex-switch:auto-disable-status-codes";
+const UPSTREAM_429_RETRY_TIMEOUT_PREVIEW_KEY = "codex-switch:upstream-429-retry-timeout";
 const SHOW_USAGE_NETWORK_ERRORS_PREVIEW_KEY = "codex-switch:show-usage-network-errors";
 const GPT_5_6_SOL_CONTEXT_WINDOW_LEGACY_KEY = "codex-switch:account-table-model-context-window";
 const THEME_COLOR_EVENT = "codex-switch:theme-color-changed";
@@ -417,6 +421,15 @@ function previewAutoDisableStatusCodes() {
   }
 }
 
+function previewUpstream429RetryTimeoutSeconds() {
+  const value = Number(window.localStorage.getItem(UPSTREAM_429_RETRY_TIMEOUT_PREVIEW_KEY));
+  return Number.isInteger(value)
+    && value >= MIN_UPSTREAM_429_RETRY_TIMEOUT_SECONDS
+    && value <= MAX_UPSTREAM_429_RETRY_TIMEOUT_SECONDS
+    ? value
+    : DEFAULT_UPSTREAM_429_RETRY_TIMEOUT_SECONDS;
+}
+
 function legacyGpt56SolContextWindow(): number | null {
   try {
     const contextWindowK = Number(window.localStorage.getItem(GPT_5_6_SOL_CONTEXT_WINDOW_LEGACY_KEY));
@@ -449,6 +462,7 @@ export async function loadAppSettings(): Promise<AppSettings> {
       tokenUsageWeeks: Number(window.localStorage.getItem(TOKEN_USAGE_WEEKS_PREVIEW_KEY)) || 20,
       tokenUsageRefreshSeconds: Number(window.localStorage.getItem(TOKEN_USAGE_REFRESH_PREVIEW_KEY)) || 60,
       autoDisableStatusCodes: previewAutoDisableStatusCodes(),
+      upstream429RetryTimeoutSeconds: previewUpstream429RetryTimeoutSeconds(),
       showUsageNetworkErrors: window.localStorage.getItem(SHOW_USAGE_NETWORK_ERRORS_PREVIEW_KEY) === "true",
       gpt56SolContextWindow: legacyGpt56SolContextWindow() ?? DEFAULT_GPT_5_6_SOL_CONTEXT_WINDOW,
       webProxyPort: previewLocalProxyStatus().port || null,
@@ -1480,6 +1494,14 @@ export async function updateAutoDisableStatusCodes(statusCodes: number[]): Promi
     return loadAppSettings();
   }
   return invoke<AppSettings>("set_auto_disable_status_codes", { statusCodes });
+}
+
+export async function updateUpstream429RetryTimeout(timeoutSeconds: number): Promise<AppSettings> {
+  if (!hasLocalBackend) {
+    window.localStorage.setItem(UPSTREAM_429_RETRY_TIMEOUT_PREVIEW_KEY, String(timeoutSeconds));
+    return loadAppSettings();
+  }
+  return invoke<AppSettings>("set_upstream_429_retry_timeout", { timeoutSeconds });
 }
 
 export async function updateShowUsageNetworkErrors(enabled: boolean): Promise<AppSettings> {

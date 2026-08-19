@@ -90,6 +90,7 @@ import { useResetCredits } from "../../hooks/useResetCredits";
 import { useThemeColor } from "../../hooks/useThemeColor";
 import { useThemeMode } from "../../hooks/useThemeMode";
 import { useTokenUsagePreferences } from "../../hooks/useTokenUsagePreferences";
+import { useUpstream429RetryTimeout } from "../../hooks/useUpstream429RetryTimeout";
 import { useToast } from "../../hooks/useToast";
 import { useTotpEntries } from "../../hooks/useTotpEntries";
 import { AccountsPage } from "../../pages/AccountsPage";
@@ -309,6 +310,7 @@ export function DashboardApp() {
   const themeColor = useThemeColor(notify);
   const themeMode = useThemeMode();
   const tokenUsagePreferences = useTokenUsagePreferences(notify);
+  const upstream429RetryTimeout = useUpstream429RetryTimeout(notify);
   const manager = useAccountManager(notify, t, accountCloudSync);
   const providerManager = useProviderManager(notify, t, providerCloudSync);
   const handleCcSwitchImported = useCallback((provider: Provider) => {
@@ -1301,6 +1303,9 @@ export function DashboardApp() {
               tokenUsageWeeks={tokenUsagePreferences.weeks}
               tokenUsageRefreshSeconds={tokenUsagePreferences.refreshSeconds}
               tokenUsagePreferencesLoading={tokenUsagePreferences.loading}
+              upstream429RetryTimeoutSeconds={upstream429RetryTimeout.timeoutSeconds}
+              upstream429RetryTimeoutLoading={upstream429RetryTimeout.loading}
+              onUpstream429RetryTimeoutChange={upstream429RetryTimeout.update}
               autoDisableStatusCodes={autoDisableStatusCodes}
               autoDisableStatusCodesLoading={autoDisableStatusCodesLoading}
               onAutoDisableStatusCodesChange={changeAutoDisableStatusCodes}

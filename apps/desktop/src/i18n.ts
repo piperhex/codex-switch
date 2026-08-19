@@ -700,6 +700,11 @@ const translations = {
     "settings.tokenUsage.weeks": "Visible range",
     "settings.tokenUsage.weeksUnit": "weeks",
     "settings.tokenUsage.refreshInterval": "Refresh interval",
+    "settings.upstream429Retry.title": "Upstream rate-limit retries",
+    "settings.upstream429Retry.description":
+      "For HTTP 429 responses, retry after 1, 3, 5 seconds and continue with increasing waits. "
+      + "Return the error only when this time limit is reached. The default is five minutes.",
+    "settings.upstream429Retry.label": "Maximum retry time",
     "settings.usageNetworkErrors.title": "Usage network error alerts",
     "settings.usageNetworkErrors.description": "Show account errors caused by timeouts or connection failures. HTTP status errors are always shown and keep their existing handling.",
     "settings.usageNetworkErrors.label": "Show network errors",
@@ -2735,6 +2740,10 @@ const translations = {
     "settings.tokenUsage.weeks": "展示范围",
     "settings.tokenUsage.weeksUnit": "周",
     "settings.tokenUsage.refreshInterval": "刷新间隔",
+    "settings.upstream429Retry.title": "上游限流重试",
+    "settings.upstream429Retry.description":
+      "上游返回 HTTP 429 后按 1、3、5 秒逐渐增加等待时间；达到时限仍失败才返回错误。默认 5 分钟。",
+    "settings.upstream429Retry.label": "最长重试时间",
     "settings.usageNetworkErrors.title": "用量网络错误提示",
     "settings.usageNetworkErrors.description": "显示请求超时、连接失败等账号错误。HTTP 状态码错误始终显示，并继续按原有逻辑处理。",
     "settings.usageNetworkErrors.label": "显示网络错误",

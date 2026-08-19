@@ -60,7 +60,9 @@ Codex Switch 将这些操作整合到一个本地桌面应用中：添加账户�
 
 ### Provider、热切换与自动切号
 
-管理兼容 OpenAI Responses 或 Chat Completions 的第三方 Provider、API Key、模型列表和模型控制策略，并可查询常见中转站余额。本地代理运行后可在官方账号和 Provider 间热切换；官方额度耗尽时，还可刷新所有账号、自动切到主用量最低的可用账号并重试一次。
+管理兼容 OpenAI Responses 或 Chat Completions 的第三方 Provider、API Key、模型列表和模型控制策略，
+并可查询常见中转站余额。本地代理运行后可在官方账号和 Provider 间热切换；遇到上游限流时会按递增间隔自动重试，
+官方额度耗尽时还可刷新账号并自动切到主用量最低的可用账号。
 
 ### 代理会话与 Token 分析
 

@@ -283,6 +283,7 @@ pub fn run() {
             providers::delete_provider,
             local_proxy::get_local_proxy_status,
             local_proxy::set_gpt_5_6_sol_context_window,
+            local_proxy::set_upstream_429_retry_timeout,
             local_proxy::list_proxy_sessions,
             local_proxy::list_proxy_session_requests,
             local_proxy::get_recent_proxy_session_latency,

@@ -397,6 +397,7 @@ export interface AppSettings {
   tokenUsageWeeks?: number;
   tokenUsageRefreshSeconds?: number;
   autoDisableStatusCodes?: number[];
+  upstream429RetryTimeoutSeconds?: number;
   showUsageNetworkErrors?: boolean;
   gpt56SolContextWindow?: number;
   webProxyPort?: number | null;

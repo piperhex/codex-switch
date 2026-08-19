@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Button, Checkbox, InputNumber, Select, Space, Switch } from "antd";
-import { CalendarDays, Network, ShieldCheck } from "lucide-react";
+import { CalendarDays, Network, ShieldCheck, TimerReset } from "lucide-react";
 import {
   MAX_TOKEN_USAGE_REFRESH_SECONDS,
   MAX_TOKEN_USAGE_WEEKS,
@@ -8,6 +8,7 @@ import {
   MIN_TOKEN_USAGE_WEEKS,
 } from "../../hooks/useTokenUsagePreferences";
 import { httpStatusOptions } from "../../utils/httpStatusOptions";
+import { DurationTimePicker } from "./DurationTimePicker";
 import type { SettingsPageProps } from "./types";
 
 function TokenUsageCard({ settings }: { settings: SettingsPageProps }) {
@@ -94,6 +95,37 @@ function UsageNetworkErrorsCard({ settings }: { settings: SettingsPageProps }) {
   );
 }
 
+function Upstream429RetryCard({ settings }: { settings: SettingsPageProps }) {
+  const {
+    onUpstream429RetryTimeoutChange,
+    t,
+    upstream429RetryTimeoutLoading,
+    upstream429RetryTimeoutSeconds,
+  } = settings;
+  return (
+    <section className="settings-card">
+      <div className="settings-icon"><TimerReset size={23} /></div>
+      <div className="settings-card-content">
+        <div className="settings-card-copy">
+          <h3>{t("settings.upstream429Retry.title")}</h3>
+          <p>{t("settings.upstream429Retry.description")}</p>
+        </div>
+        <div className="settings-field">
+          <label htmlFor="upstream-429-retry-timeout">
+            {t("settings.upstream429Retry.label")}
+          </label>
+          <DurationTimePicker
+            id="upstream-429-retry-timeout"
+            value={upstream429RetryTimeoutSeconds}
+            disabled={upstream429RetryTimeoutLoading}
+            onChange={onUpstream429RetryTimeoutChange}
+          />
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function AutoDisableStatusCodesCard({ settings }: { settings: SettingsPageProps }) {
   const {
     autoDisableStatusCodes,
@@ -153,6 +185,7 @@ export function UsageSettingsCards({ settings }: { settings: SettingsPageProps }
   return (
     <>
       <TokenUsageCard settings={settings} />
+      <Upstream429RetryCard settings={settings} />
       <UsageNetworkErrorsCard settings={settings} />
       <AutoDisableStatusCodesCard settings={settings} />
     </>
