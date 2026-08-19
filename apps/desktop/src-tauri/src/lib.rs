@@ -29,6 +29,7 @@ mod oauth;
 mod official_plugins;
 mod preset_provider;
 mod provider_api_cache;
+mod provider_connectivity;
 mod provider_models;
 mod provider_platform;
 mod providers;
@@ -264,6 +265,7 @@ pub fn run() {
             dream_skin::install_dream_skin_community_theme,
             providers::list_providers,
             providers::save_provider,
+            provider_connectivity::test_provider_connectivity,
             antigravity_provider::fetch_antigravity_models,
             claude_code_provider::fetch_claude_code_models,
             grok_provider::fetch_grok_models,

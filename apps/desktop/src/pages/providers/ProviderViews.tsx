@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { Button, Checkbox, Dropdown, Popconfirm, Space, Table, Tag, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { CircleOff, Columns3, Pencil, RotateCcw, Server, Shuffle, Trash2 } from "lucide-react";
+import { Activity, CircleOff, Columns3, ExternalLink, Pencil, RotateCcw, Server, Shuffle, Trash2 } from "lucide-react";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { ImageModelRouteSelect } from "../../components/ImageModelRouteSelect";
 import type { Language, Translate } from "../../i18n";
 import type {
@@ -25,6 +26,10 @@ import {
   ProviderBulkGroupActions,
   ProviderGroupCell,
 } from "./ProviderGroupControls";
+import {
+  type ProviderConnectivityErrors,
+  useProviderConnectivity,
+} from "./useProviderConnectivity";
 
 interface ProviderViewProps {
   providers: Provider[];
@@ -188,15 +193,37 @@ function ProviderActions({ provider, options }: {
   );
 }
 
-function buildColumns(options: ProviderViewProps): ColumnsType<Provider> {
+function ProviderIdentityCell({ provider, error, t }: {
+  provider: Provider;
+  error?: string;
+  t: Translate;
+}) {
+  return <div className="provider-cell">
+    <div className="provider-avatar"><Server size={15} /></div>
+    <button type="button" className="provider-link" title={t("providers.openBaseUrl")}
+      onClick={() => void openUrl(provider.baseUrl)}>
+      <span className="provider-link-name">
+        <strong>{provider.name}</strong>
+        {error && <Tooltip title={error} styles={{ root: { maxWidth: 400 } }}>
+          <span className="provider-connectivity-error">{t("providers.connectivity.error")}</span>
+        </Tooltip>}
+        <ExternalLink className="provider-external-link" size={12} />
+      </span>
+      <span className="provider-base-url" title={provider.baseUrl}>{provider.baseUrl}</span>
+    </button>
+  </div>;
+}
+
+function buildColumns(
+  options: ProviderViewProps,
+  connectivityErrors: ProviderConnectivityErrors,
+): ColumnsType<Provider> {
   const { busyProviderId, language, usageForProvider, onSwitchModel, onModelControlChange, t } = options;
   return [
     {
       title: t("providers.table.provider"), key: "provider", dataIndex: "name", width: 240,
-      render: (_, provider) => <div className="provider-cell">
-        <div className="provider-avatar"><Server size={15} /></div>
-        <div><strong>{provider.name}</strong><span title={provider.baseUrl}>{provider.baseUrl}</span></div>
-      </div>,
+      render: (_, provider) => <ProviderIdentityCell provider={provider}
+        error={connectivityErrors[provider.id]} t={t} />,
     },
     {
       title: t("providers.table.group"), key: "group", dataIndex: "group", width: 150,
@@ -247,7 +274,9 @@ export function ProviderTableView(options: ProviderTableProps) {
   } = options;
   const { tableWrapRef, tableScrollY } = useProviderTableScrollHeight();
   const [hiddenColumns, setHiddenColumns] = useState<ProviderTableColumnKey[]>(loadHiddenColumns);
-  const columns = buildColumns(options);
+  const providerIds = providers.map((provider) => provider.id);
+  const connectivity = useProviderConnectivity(providerIds);
+  const columns = buildColumns(options, connectivity.errors);
   const hiddenColumnSet = new Set(hiddenColumns);
   const selectedProviderIdSet = new Set(selectedProviderIds);
   const selectedProviders = providers.filter((provider) => selectedProviderIdSet.has(provider.id));
@@ -301,6 +330,11 @@ export function ProviderTableView(options: ProviderTableProps) {
           {t("providers.batchDelete.action", { count: selectedProviderIds.length })}
         </Button>
       </Popconfirm>
+      <Button size="small" icon={<Activity size={14} />} loading={connectivity.testing}
+        disabled={!selectedProviderIds.length || connectivity.testing}
+        onClick={() => void connectivity.testMany(selectedProviderIds)}>
+        {t("providers.batchConnectivity.action", { count: selectedProviderIds.length })}
+      </Button>
       <Dropdown trigger={["click"]} placement="bottomRight" dropdownRender={() => (
         <div className="provider-column-settings" onClick={(event) => event.stopPropagation()}>
           <strong>{t("table.columnSettings")}</strong>

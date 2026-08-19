@@ -710,6 +710,11 @@ export async function fetchRelayModels(baseUrl: string, apiKey: string): Promise
   });
 }
 
+export async function testProviderConnectivity(id: string): Promise<void> {
+  if (!isDesktopApp) return;
+  await invoke("test_provider_connectivity", { id });
+}
+
 export async function detectRelayPlatform(
   baseUrl: string,
   apiKey: string,
