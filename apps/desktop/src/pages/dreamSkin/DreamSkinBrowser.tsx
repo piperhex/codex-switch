@@ -9,6 +9,7 @@ import { CommunityThemeCard, MarketThemeCard, SavedThemeCard, ThemeCard } from "
 type Props = {
   actions: ThemeActions;
   busy: string | null;
+  builtInQuery: string;
   catalog: CatalogState;
   chooseCustomImage: () => Promise<void>;
   isBusy: boolean;
@@ -32,12 +33,17 @@ export function DreamSkinBrowser(props: Props) {
 }
 
 function BuiltInThemes(props: Props) {
-  const { actions, busy, chooseCustomImage, isBusy, resourcesReady, status, t } = props;
+  const { actions, busy, builtInQuery, chooseCustomImage, isBusy, resourcesReady, status, t } = props;
+  const query = builtInQuery.trim().toLocaleLowerCase();
+  const themes = BUILT_IN_DREAM_SKIN_THEMES.filter((theme) => !query
+    || [t(theme.nameKey), t(theme.descriptionKey), theme.id]
+      .some((value) => value.toLocaleLowerCase().includes(query)));
   return <div className="dream-theme-grid" role="tabpanel" aria-label={t("dreamSkin.tabs.builtIn")}>
-    {BUILT_IN_DREAM_SKIN_THEMES.map((theme) => <ThemeCard key={theme.id}
+    {themes.map((theme) => <ThemeCard key={theme.id}
       active={status?.activeThemeId === theme.id} busy={busy === `apply:${theme.id}`}
       disabled={!resourcesReady} description={t(theme.descriptionKey)} id={theme.id} name={t(theme.nameKey)}
       previewEnabled={resourcesReady} tone={theme.tone} onApply={() => actions.applyTheme(theme.id)} t={t} />)}
+    {themes.length === 0 && <div className="dream-market-empty dream-theme-empty">{t("dreamSkin.presets.empty")}</div>}
     <article className="dream-theme-card dream-theme-import-card">
       <button type="button" className="dream-import-trigger" disabled={isBusy}
         onClick={() => void chooseCustomImage()}>

@@ -32,6 +32,7 @@ import type { RunStatusOperation, ThemeTab } from "./types";
 type Props = {
   busy: string | null;
   catalog: {
+    builtInQuery: string;
     communityError: string | null;
     communityInitialized: boolean;
     communityLoading: boolean;
@@ -41,6 +42,7 @@ type Props = {
     marketQuery: string;
     updatedAt?: string;
     refresh: () => void;
+    setBuiltInQuery: (query: string) => void;
     setQuery: (query: string) => void;
   };
   changeAppearance: (appearance: DreamSkinAppearance) => void;
@@ -166,6 +168,10 @@ function ToolsPopover(props: ToolsProps) {
 
 function BrowserHeader(props: Pick<Props, "catalog" | "setThemeTab" | "t" | "themeTab">) {
   const { catalog, setThemeTab, t, themeTab } = props;
+  const builtInActions = <div className="dream-market-tab-actions">
+    <Input className="dream-market-search" allowClear value={catalog.builtInQuery} prefix={<Search size={14} />}
+      placeholder={t("dreamSkin.presets.search")} onChange={(event) => catalog.setBuiltInQuery(event.target.value)} />
+  </div>;
   const marketActions = <div className="dream-market-tab-actions">
     <Input className="dream-market-search" allowClear value={catalog.marketQuery} prefix={<Search size={14} />}
       placeholder={t("dreamSkin.market.search")} onChange={(event) => catalog.setQuery(event.target.value)} />
@@ -179,7 +185,8 @@ function BrowserHeader(props: Pick<Props, "catalog" | "setThemeTab" | "t" | "the
   </div>;
   return <div className="dream-theme-browser-header">
     <Tabs activeKey={themeTab} onChange={(key) => setThemeTab(key as ThemeTab)}
-      tabBarExtraContent={themeTab === "market" ? marketActions : null} items={tabItems(t)} />
+      tabBarExtraContent={themeTab === "builtIn" ? builtInActions : themeTab === "market" ? marketActions : null}
+      items={tabItems(t)} />
     <TabSummary catalog={catalog} t={t} themeTab={themeTab} />
   </div>;
 }

@@ -2047,6 +2047,7 @@ main.tokens-main { overflow: hidden; padding-bottom: 0; }
 .dream-market-pane { display: grid; gap: 12px; }
 .dream-market-tab-actions { min-width: 0; display: flex; align-items: center; gap: 8px; }
 .dream-market-search.ant-input-affix-wrapper { width: clamp(190px, 28vw, 460px); }
+.dream-theme-empty { grid-column: 1 / -1; }
 .dream-market-summary { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 16px; }
 .dream-market-card .dream-theme-preview { background-color: #e8eee9; }
 .dream-market-version { position: absolute; right: 11px; bottom: 10px; padding: 4px 7px; border-radius: 6px; color: #fff; background: rgba(10,20,13,.64); font: 700 9px/1 Manrope, sans-serif; backdrop-filter: blur(8px); }

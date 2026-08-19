@@ -12,6 +12,7 @@ import type { DreamSkinPageProps, ThemeTab } from "./dreamSkin/types";
 
 export function DreamSkinPage({ t, notify }: DreamSkinPageProps) {
   const [themeTab, setThemeTab] = useState<ThemeTab>("builtIn");
+  const [builtInQuery, setBuiltInQuery] = useState("");
   const statusState = useDreamSkinStatus(t, notify);
   const catalog = useDreamSkinCatalog(themeTab);
   const sharedOptions = {
@@ -47,6 +48,7 @@ export function DreamSkinPage({ t, notify }: DreamSkinPageProps) {
     <DreamSkinAlerts error={error} resources={resources} resourcePercent={resourcePercent}
       setError={statusState.setError} setResources={statusState.setResources} t={t} />
     <DreamSkinToolbar busy={busy} catalog={{
+      builtInQuery,
       communityError: catalog.communityError,
       communityInitialized: catalog.communityInitialized,
       communityLoading: catalog.communityLoading,
@@ -56,6 +58,7 @@ export function DreamSkinPage({ t, notify }: DreamSkinPageProps) {
       marketQuery: catalog.marketQuery,
       updatedAt: catalog.market?.updatedAt,
       refresh: catalog.refreshThemeMarket,
+      setBuiltInQuery,
       setQuery: catalog.setMarketQuery,
     }} changeAppearance={themeActions.changeAppearance}
       changeOverlayOpacity={themeActions.changeOverlayOpacity}
@@ -64,7 +67,7 @@ export function DreamSkinPage({ t, notify }: DreamSkinPageProps) {
       runStatusOperation={statusState.runStatusOperation} setBusy={statusState.setBusy}
       setError={statusState.setError} setSaveName={importSave.setSaveName}
       setSaveOpen={importSave.setSaveOpen} setThemeTab={setThemeTab} status={status} t={t} themeTab={themeTab} />
-    <DreamSkinBrowser actions={themeActions} busy={busy} catalog={catalog}
+    <DreamSkinBrowser actions={themeActions} busy={busy} builtInQuery={builtInQuery} catalog={catalog}
       chooseCustomImage={importSave.chooseCustomImage} isBusy={isBusy} resourcesReady={resourcesReady}
       savedThemes={importSave.savedThemes} status={status} t={t} themeTab={themeTab} />
     <DreamSkinDialogs busy={busy} isBusy={isBusy} importDialog={{
