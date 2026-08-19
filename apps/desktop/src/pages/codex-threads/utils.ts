@@ -56,7 +56,6 @@ export function workspaceDisplayName(group: ThreadGroup, untitled: string) {
     .map((item) => item.title.trim())
     .filter(Boolean);
   if (isUnassignedWorkspace(group.cwd)) return titles.join("、") || untitled;
-  if (group.items.length === 1) return titles[0] || untitled;
   return groupLabel(group.cwd);
 }
 
