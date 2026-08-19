@@ -2,8 +2,8 @@
   "schemaVersion": 2,
   "purpose": "Provenance record for bundled Dream Skin preset artwork.",
   "createdAt": "2026-07-20",
-  "generator": "OpenAI built-in image generation",
-  "provenance": "Generated from text-only prompts for this project. Entries are explicitly classified as project-original artwork or third-party-IP fan art.",
+  "generator": "OpenAI built-in image generation, with user-provided artwork labeled per entry",
+  "provenance": "Generated entries come from text-only prompts for this project. User-provided entries are explicitly labeled when their original provenance has not been independently verified.",
   "promptPolicy": {
     "scope": "Project-original entries only.",
     "style": "Premium contemporary Chinese 2D donghua key visual with clean expressive linework, polished cel shading, luminous atmospheric painting, and a cute high-appeal original character or Chinese landscape.",
@@ -17,8 +17,17 @@
   },
   "transformations": "Each generated image is resized to 2560x1440, converted to JPEG, and configured as an adaptive Codex Dream Skin theme.",
   "distributionNote": "Bundled only as configured themes inside Codex Switch.",
-  "rightsNotice": "Themes marked thirdPartyFanArt depict third-party characters. Permission from the applicable IP owners is required before public or commercial distribution.",
+  "rightsNotice": "Themes marked thirdPartyFanArt require permission from the applicable IP owners. User-provided artwork also requires the contributor to hold the necessary distribution rights.",
   "themes": [
+    {
+      "id": "preset-rose-reverie",
+      "category": "user-provided",
+      "nameEn": "Rose Reverie",
+      "nameZh": "蔷薇 · 绮梦",
+      "promptSummary": "Rose-pink portrait scene with the subject on the right and a calm pale left UI area.",
+      "rightsStatus": "userProvidedUnverified",
+      "sourceNote": "Imported from a user-provided local theme package; the original artwork provenance was not independently verified."
+    },
     {
       "id": "preset-celadon-sword-lord",
       "category": "ancient-male",
@@ -1982,6 +1991,8 @@
       "nameEn": "Starlight Noodle Stall",
       "nameZh": "星光面摊",
       "promptSummary": "A tiny futuristic noodle stall beneath a crowded starfield."
+    },
+    {
       "id": "preset-tom-jerry-attic-treasure",
       "category": "tom-jerry",
       "franchise": "Tom and Jerry",
