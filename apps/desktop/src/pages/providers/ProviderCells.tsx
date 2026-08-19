@@ -9,10 +9,7 @@ import { modelOptions, normalizeModels } from "./providerUtils";
 
 export function apiFormatTag(provider: Provider, t: Translate) {
   if (provider.kind === "openai") return <Tag color="blue">{t("providers.tag.openai")}</Tag>;
-  if (provider.apiFormat === "openaiResponses") {
-    return <Tag color="green">{t("providers.tag.responses")}</Tag>;
-  }
-  return <Tag color="gold">{t("providers.tag.chatBridge")}</Tag>;
+  return <Tag color="cyan">{t("providers.tag.autoApi")}</Tag>;
 }
 
 function apiBalanceValue(

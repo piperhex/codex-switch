@@ -28,6 +28,7 @@ mod network_proxy;
 mod oauth;
 mod official_plugins;
 mod preset_provider;
+mod provider_api_cache;
 mod provider_models;
 mod providers;
 mod remote_control;

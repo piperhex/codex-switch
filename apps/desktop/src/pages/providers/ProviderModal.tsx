@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { Button, Input, Segmented, Select, Switch } from "antd";
+import { Button, Input, Select, Switch } from "antd";
 import { Save, Server, X } from "lucide-react";
 import type { Translate } from "../../i18n";
-import type { Provider, ProviderApiFormat, ProviderBalancePlatform, ProviderInput } from "../../types";
+import type { Provider, ProviderBalancePlatform, ProviderInput } from "../../types";
 import { ModelReasoningEditor } from "./ModelReasoningEditor";
 import {
   balancePlatformOptions,
@@ -32,7 +32,6 @@ export function ProviderModal({ provider, saving, onClose, onSave, t }: Provider
   const [model, setModel] = useState("");
   const [modelConfigs, setModelConfigs] = useState<ModelReasoningConfig[]>([]);
   const [apiKey, setApiKey] = useState("");
-  const [apiFormat, setApiFormat] = useState<ProviderApiFormat>("openaiResponses");
   const [balancePlatform, setBalancePlatform] = useState<ProviderBalancePlatform | "none">("none");
   const [balanceQueryUrl, setBalanceQueryUrl] = useState("");
   const [balanceQueryUsesApiKey, setBalanceQueryUsesApiKey] = useState(true);
@@ -41,10 +40,6 @@ export function ProviderModal({ provider, saving, onClose, onSave, t }: Provider
   const [walletQueryToken, setWalletQueryToken] = useState("");
   const [walletUsername, setWalletUsername] = useState("");
   const [walletPassword, setWalletPassword] = useState("");
-  const apiFormatOptions: { label: string; value: ProviderApiFormat }[] = [
-    { label: t("providers.api.responses"), value: "openaiResponses" },
-    { label: t("providers.api.chatCompletions"), value: "openaiChat" },
-  ];
 
   useEffect(() => {
     setName(provider?.name ?? "");
@@ -66,7 +61,6 @@ export function ProviderModal({ provider, saving, onClose, onSave, t }: Provider
       }]);
     setModel(provider?.model ?? nextModels[0] ?? "");
     setApiKey("");
-    setApiFormat(provider?.apiFormat ?? "openaiResponses");
     setBalancePlatform(provider?.balancePlatform ?? "none");
     setBalanceQueryUrl(provider?.balanceQueryUrl ?? "");
     setBalanceQueryUsesApiKey(provider?.balanceQueryUsesApiKey ?? true);
@@ -117,7 +111,7 @@ export function ProviderModal({ provider, saving, onClose, onSave, t }: Provider
       contextWindow: null,
       modelSelectionControlledByCodex: provider?.modelSelectionControlledByCodex ?? true,
       apiKey: apiKey.trim() || undefined,
-      apiFormat,
+      apiFormat: provider?.apiFormat ?? "openaiResponses",
       balancePlatform: balancePlatform === "none" ? null : balancePlatform,
       balanceQueryUrl: balancePlatform === "none" ? null : balanceQueryUrl,
       balanceQueryToken: balanceQueryToken.trim() || undefined,
@@ -189,9 +183,6 @@ export function ProviderModal({ provider, saving, onClose, onSave, t }: Provider
           <Input.Password id="provider-api-key" value={apiKey} disabled={saving}
             placeholder={provider?.hasApiKey ? t("providers.form.keepApiKey") : t("providers.form.newApiKey")}
             onChange={(event) => setApiKey(event.target.value)} />
-          <label>{t("providers.form.upstreamApi")}</label>
-          <Segmented value={apiFormat} options={apiFormatOptions}
-            onChange={(value) => setApiFormat(value as ProviderApiFormat)} />
           <label htmlFor="provider-balance-platform">{t("providers.form.balancePlatform")}</label>
           <Select id="provider-balance-platform" value={balancePlatform} disabled={saving}
             options={balancePlatformOptions(t)}

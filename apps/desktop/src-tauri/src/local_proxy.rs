@@ -37,6 +37,7 @@ use crate::{
         TokenUsageEntry, UsageSummary, MAX_GPT_5_6_SOL_CONTEXT_WINDOW,
         MIN_GPT_5_6_SOL_CONTEXT_WINDOW,
     },
+    provider_api_cache,
     providers::{
         self, LOCAL_PROXY_ACTOR_AUTHORIZATION_HEADER, LOCAL_PROXY_BASE_URL, LOCAL_PROXY_HOST,
         LOCAL_PROXY_PORT,
@@ -308,6 +309,7 @@ enum ProxyDiagnosticRoute {
     LocalModels,
     TargetResolutionError,
     Official,
+    ProviderAuto,
     ProviderChatBridge,
     ProviderResponsesPassthrough,
     ProviderPassthrough,
@@ -320,6 +322,7 @@ impl ProxyDiagnosticRoute {
             ProxyDiagnosticRoute::LocalModels => "local_models",
             ProxyDiagnosticRoute::TargetResolutionError => "target_resolution_error",
             ProxyDiagnosticRoute::Official => "official",
+            ProxyDiagnosticRoute::ProviderAuto => "provider_auto",
             ProxyDiagnosticRoute::ProviderChatBridge => "provider_chat_bridge",
             ProxyDiagnosticRoute::ProviderResponsesPassthrough => "provider_responses_passthrough",
             ProxyDiagnosticRoute::ProviderPassthrough => "provider_passthrough",
@@ -2453,11 +2456,7 @@ fn handle_proxy_request<R: Runtime>(
             })
         }
         ActiveTarget::Provider(provider) => {
-            if is_responses_endpoint(path) && provider.api_format == ProviderApiFormat::OpenaiChat {
-                forward_chat_bridge(method, url, headers, body, &provider)
-            } else {
-                forward_provider(method, url, headers, body, &provider)
-            }
+            forward_provider_request(method, url, headers, body, &provider)
         }
         ActiveTarget::ProviderGroup(_) => {
             Err("Provider group requests must select a model".to_string())
@@ -2492,13 +2491,9 @@ fn forward_active_request<R: Runtime>(
         ActiveTarget::Official { model } => {
             forward_official(app, method, url, headers, body, &model, session_id)
         }
-        ActiveTarget::Provider(provider)
-            if is_responses_endpoint(path)
-                && provider.api_format == ProviderApiFormat::OpenaiChat =>
-        {
-            forward_chat_bridge(method, url, headers, body, &provider)
+        ActiveTarget::Provider(provider) => {
+            forward_provider_request(method, url, headers, body, &provider)
         }
-        ActiveTarget::Provider(provider) => forward_provider(method, url, headers, body, &provider),
         ActiveTarget::ProviderGroup(_) => {
             Err("Provider group requests must select a model".to_string())
         }
@@ -2914,6 +2909,11 @@ fn active_target_from_image_model(
 fn proxy_diagnostic_route(path: &str, target: &ActiveTarget) -> ProxyDiagnosticRoute {
     match target {
         ActiveTarget::Official { .. } => ProxyDiagnosticRoute::Official,
+        ActiveTarget::Provider(provider)
+            if provider.kind == ProviderKind::Custom && is_response_create_endpoint(path) =>
+        {
+            ProxyDiagnosticRoute::ProviderAuto
+        }
         ActiveTarget::Provider(provider)
             if is_responses_endpoint(path)
                 && provider.api_format == ProviderApiFormat::OpenaiChat =>
@@ -4432,6 +4432,111 @@ fn forward_provider(
     )
 }
 
+fn forward_provider_request(
+    method: &Method,
+    url: &str,
+    headers: &[(String, String)],
+    body: Vec<u8>,
+    provider: &ProviderProfile,
+) -> Result<UpstreamPayload, String> {
+    if provider.kind == ProviderKind::Custom
+        && *method == Method::Post
+        && is_response_create_endpoint(request_path(url))
+    {
+        return forward_provider_with_api_fallback(method, url, headers, body, provider);
+    }
+    if is_responses_endpoint(request_path(url))
+        && provider.api_format == ProviderApiFormat::OpenaiChat
+    {
+        return forward_chat_bridge(method, url, headers, body, provider);
+    }
+    forward_provider(method, url, headers, body, provider)
+}
+
+fn forward_provider_with_api_fallback(
+    method: &Method,
+    url: &str,
+    headers: &[(String, String)],
+    body: Vec<u8>,
+    provider: &ProviderProfile,
+) -> Result<UpstreamPayload, String> {
+    let model = provider_request_model(&body, provider);
+    let preferred = provider_api_cache::cached_format(&provider.id, &provider.base_url, &model)
+        .unwrap_or(provider.api_format);
+    let first =
+        forward_provider_with_format(preferred, method, url, headers, body.clone(), provider);
+    if api_attempt_succeeded(&first) {
+        remember_provider_api_format(provider, &model, preferred);
+        return first;
+    }
+
+    let alternate = alternate_api_format(preferred);
+    let second = forward_provider_with_format(alternate, method, url, headers, body, provider);
+    if api_attempt_succeeded(&second) {
+        remember_provider_api_format(provider, &model, alternate);
+        return second;
+    }
+    provider_api_cache::forget_format(&provider.id, &model);
+    preferred_protocol_failure(first, second)
+}
+
+fn forward_provider_with_format(
+    format: ProviderApiFormat,
+    method: &Method,
+    url: &str,
+    headers: &[(String, String)],
+    body: Vec<u8>,
+    provider: &ProviderProfile,
+) -> Result<UpstreamPayload, String> {
+    match format {
+        ProviderApiFormat::OpenaiResponses => {
+            forward_provider(method, url, headers, body, provider)
+        }
+        ProviderApiFormat::OpenaiChat => forward_chat_bridge(method, url, headers, body, provider),
+    }
+}
+
+fn provider_request_model(body: &[u8], provider: &ProviderProfile) -> String {
+    serde_json::from_slice::<Value>(body)
+        .ok()
+        .map(|value| selected_provider_model(&value, provider))
+        .unwrap_or_else(|| provider.model.clone())
+}
+
+fn alternate_api_format(format: ProviderApiFormat) -> ProviderApiFormat {
+    match format {
+        ProviderApiFormat::OpenaiResponses => ProviderApiFormat::OpenaiChat,
+        ProviderApiFormat::OpenaiChat => ProviderApiFormat::OpenaiResponses,
+    }
+}
+
+fn api_attempt_succeeded(result: &Result<UpstreamPayload, String>) -> bool {
+    result
+        .as_ref()
+        .is_ok_and(|payload| status_ok(payload.status))
+}
+
+fn remember_provider_api_format(
+    provider: &ProviderProfile,
+    model: &str,
+    format: ProviderApiFormat,
+) {
+    provider_api_cache::remember_format(&provider.id, &provider.base_url, model, format);
+}
+
+fn preferred_protocol_failure(
+    first: Result<UpstreamPayload, String>,
+    second: Result<UpstreamPayload, String>,
+) -> Result<UpstreamPayload, String> {
+    match (first, second) {
+        (_, Ok(payload)) => Ok(payload),
+        (Ok(payload), Err(_)) => Ok(payload),
+        (Err(first_error), Err(second_error)) => Err(format!(
+            "Provider request failed for both supported API formats: {first_error}; {second_error}"
+        )),
+    }
+}
+
 fn models_payload<R: Runtime>(
     app: &tauri::AppHandle<R>,
     url: &str,
@@ -5175,6 +5280,10 @@ fn upstream_endpoint_for_codex_request(url: &str) -> String {
 
 fn is_responses_endpoint(path: &str) -> bool {
     normalized_responses_endpoint(path).is_some()
+}
+
+fn is_response_create_endpoint(path: &str) -> bool {
+    normalized_responses_endpoint(path) == Some("/v1/responses")
 }
 
 fn normalized_responses_endpoint(path: &str) -> Option<&'static str> {
@@ -6808,6 +6917,17 @@ mod tests {
             })
             .find(|value| value.get("type").and_then(Value::as_str) == Some(event_type))
             .unwrap_or_else(|| panic!("missing SSE event {event_type}"))
+    }
+
+    fn read_upstream_payload(mut payload: UpstreamPayload) -> Vec<u8> {
+        let mut body = Vec::new();
+        match &mut payload.body {
+            UpstreamBody::Buffered(buffered) => body.extend_from_slice(buffered),
+            UpstreamBody::Streaming(reader) => {
+                reader.read_to_end(&mut body).unwrap();
+            }
+        }
+        body
     }
 
     fn openai_provider(base_url: String) -> ProviderProfile {
@@ -9289,6 +9409,105 @@ mod tests {
                 "output_tokens_details": { "reasoning_tokens": 0 },
                 "total_tokens": 2
             })
+        );
+    }
+
+    fn spawn_api_detection_server() -> (String, mpsc::Receiver<String>, thread::JoinHandle<()>) {
+        let server = Server::http("127.0.0.1:0").unwrap();
+        let addr = server.server_addr().to_ip().unwrap();
+        let (tx, rx) = mpsc::channel();
+        let handle = thread::spawn(move || {
+            for request_index in 0..4 {
+                let mut request = server.recv().unwrap();
+                let path = request.url().to_string();
+                let mut request_body = String::new();
+                request
+                    .as_reader()
+                    .read_to_string(&mut request_body)
+                    .unwrap();
+                tx.send(path).unwrap();
+
+                let response = match request_index {
+                    0 => Response::from_string(
+                        json!({ "error": { "message": "unsupported endpoint" } }).to_string(),
+                    )
+                    .with_status_code(StatusCode(404)),
+                    1 | 2 => Response::from_string(
+                        json!({
+                            "id": "chatcmpl_auto",
+                            "object": "chat.completion",
+                            "model": "model-a",
+                            "choices": [{
+                                "index": 0,
+                                "message": { "role": "assistant", "content": "ok" },
+                                "finish_reason": "stop"
+                            }]
+                        })
+                        .to_string(),
+                    )
+                    .with_header(Header::from_bytes("Content-Type", "application/json").unwrap()),
+                    _ => Response::from_string(
+                        json!({ "id": "resp_model_b", "model": "model-b" }).to_string(),
+                    )
+                    .with_header(Header::from_bytes("Content-Type", "application/json").unwrap()),
+                };
+                request.respond(response).unwrap();
+            }
+        });
+        (format!("http://{addr}/v1"), rx, handle)
+    }
+
+    fn api_detection_provider(base_url: String) -> ProviderProfile {
+        let mut provider = openai_provider(base_url);
+        provider.id = "provider-api-detection-by-model".to_string();
+        provider.kind = ProviderKind::Custom;
+        provider.model = "model-a".to_string();
+        provider.models = vec!["model-a".to_string(), "model-b".to_string()];
+        provider
+    }
+
+    fn api_detection_body(model: &str) -> Vec<u8> {
+        serde_json::to_vec(&json!({
+            "model": model,
+            "input": "ping",
+            "stream": false
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn provider_api_detection_is_cached_independently_for_each_model() {
+        let (base_url, rx, handle) = spawn_api_detection_server();
+        let provider = api_detection_provider(base_url);
+        let model_a_body = api_detection_body("model-a");
+        let model_b_body = api_detection_body("model-b");
+
+        for body in [model_a_body.clone(), model_a_body, model_b_body] {
+            let payload =
+                forward_provider_request(&Method::Post, "/v1/responses", &[], body, &provider)
+                    .unwrap();
+            assert_eq!(payload.status, 200);
+            read_upstream_payload(payload);
+        }
+
+        handle.join().unwrap();
+        let paths = rx.into_iter().collect::<Vec<_>>();
+        assert_eq!(
+            paths,
+            vec![
+                "/v1/responses",
+                "/v1/chat/completions",
+                "/v1/chat/completions",
+                "/v1/responses"
+            ]
+        );
+        assert_eq!(
+            provider_api_cache::cached_format(&provider.id, &provider.base_url, "model-a"),
+            Some(ProviderApiFormat::OpenaiChat)
+        );
+        assert_eq!(
+            provider_api_cache::cached_format(&provider.id, &provider.base_url, "model-b"),
+            Some(ProviderApiFormat::OpenaiResponses)
         );
     }
 }
