@@ -3076,8 +3076,8 @@ html.floating-usage-page #root {
   color: var(--green-dark);
 }
 
-.aggregate-api-card span,
-.aggregate-api-row span {
+.aggregate-api-card > div > span,
+.aggregate-api-row > div > span {
   overflow: hidden;
   color: var(--muted);
   text-overflow: ellipsis;
