@@ -12,6 +12,10 @@ Codex Switch is a local-first multi-account workspace for Codex / ChatGPT. Its T
 
 ![Codex Switch account dashboard](docs/assets/codex-switch-dashboard.png)
 
+### Conversation management
+
+![Codex Switch conversation management](docs/assets/codex-switch-conversations.png)
+
 ### Third-party providers
 
 ![Codex Switch providers](docs/assets/codex-switch-providers.png)
@@ -26,9 +30,13 @@ Includes 300+ presets and integrates with [Fei-Away/Codex-Dream-Skin](https://gi
 
 ![Codex Switch one-click themes](docs/assets/codex-switch-dream-skin.png)
 
-### Skills Market
+### Plugin Market
 
-![Codex Switch Skills Market](docs/assets/codex-switch-skills.png)
+![Codex Switch Plugin Market](docs/assets/codex-switch-skills.png)
+
+### 2FA authenticator
+
+![Codex Switch 2FA authenticator](docs/assets/codex-switch-two-factor.png)
 
 ### Floating usage widgets
 
