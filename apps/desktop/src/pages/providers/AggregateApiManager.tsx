@@ -105,7 +105,7 @@ export function AggregateApiManager(props: AggregateApiManagerProps) {
                 {aggregate.active && <Tag color="green">{t("providers.aggregate.active")}</Tag>}
                 {!aggregate.enabled && <Tag>{t("providers.aggregate.disabled")}</Tag>}</Space>
                 <small>{aggregate.model}</small><span title={memberNames}>{memberNames}</span></div>
-              <Space size={4}>
+              <Space className="aggregate-api-actions" size={4} wrap>
                 <Button size="small" icon={<Power size={13} />} loading={waiting}
                   disabled={!aggregate.enabled || (!proxyRunning && !aggregate.active)}
                   onClick={() => aggregate.active

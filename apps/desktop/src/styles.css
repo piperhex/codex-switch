@@ -3065,6 +3065,12 @@ html.floating-usage-page #root {
   gap: 2px;
 }
 
+.aggregate-api-row > .aggregate-api-actions {
+  display: flex;
+  flex: 0 0 auto;
+  justify-content: flex-end;
+}
+
 .aggregate-api-card small,
 .aggregate-api-row small {
   color: var(--green-dark);
