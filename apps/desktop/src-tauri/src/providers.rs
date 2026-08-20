@@ -65,13 +65,13 @@ fn refresh_codex_models_best_effort(paths: &Paths, provider: &ProviderProfile) {
     );
     let model_reasoning_efforts = codex_model_reasoning_efforts(provider);
     let selected_model = codex_model_for_provider(provider).to_string();
-    crate::codex_runtime::refresh_models(
+    crate::codex_runtime::refresh_models(crate::codex_runtime::ModelRefreshRequest {
         models,
         image_input_models,
         model_reasoning_efforts,
         selected_model,
-        reasoning_effort_profile(provider),
-    );
+        reasoning_profile: reasoning_effort_profile(provider),
+    });
 }
 
 fn refresh_codex_group_models_best_effort(paths: &Paths, providers: &[ProviderProfile]) {
@@ -87,13 +87,13 @@ fn refresh_codex_group_models_best_effort(paths: &Paths, providers: &[ProviderPr
     let Some(selected_model) = catalog.models.first().cloned() else {
         return;
     };
-    crate::codex_runtime::refresh_models(
-        catalog.models,
-        catalog.image_input_models,
-        catalog.reasoning_efforts,
+    crate::codex_runtime::refresh_models(crate::codex_runtime::ModelRefreshRequest {
+        models: catalog.models,
+        image_input_models: catalog.image_input_models,
+        model_reasoning_efforts: catalog.reasoning_efforts,
         selected_model,
-        ReasoningEffortProfile::Standard,
-    );
+        reasoning_profile: ReasoningEffortProfile::Standard,
+    });
 }
 
 fn codex_visible_models(provider: &ProviderProfile) -> Vec<String> {
@@ -225,13 +225,7 @@ pub(crate) fn refresh_official_codex_models() {
     if !crate::local_proxy::is_running() {
         return;
     }
-    crate::codex_runtime::refresh_models(
-        Vec::new(),
-        Vec::new(),
-        ModelReasoningEfforts::new(),
-        official_model(),
-        ReasoningEffortProfile::Standard,
-    );
+    crate::codex_runtime::refresh_official_models(official_model());
 }
 
 #[derive(Deserialize)]
