@@ -218,7 +218,7 @@ export function ProvidersPage({
         <Space size={6}>
           <ProviderAddMenu onAddPreset={() => setShowPresetModal(true)} onAddOpenAi={openCreateOpenAi}
             onAddProvider={openCreate} t={t} />
-          <Button size="small" icon={<Network size={14} />}
+          <Button className="provider-topbar-button" icon={<Network size={14} />}
             onClick={() => setShowAggregateManager(true)}>
             {t("providers.aggregate.manage")}
           </Button>
