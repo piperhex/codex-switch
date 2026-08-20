@@ -216,6 +216,20 @@ pub(crate) async fn save_dream_skin_theme(
 }
 
 #[tauri::command]
+pub(crate) async fn delete_dream_skin_themes(
+    theme_ids: Vec<String>,
+) -> Result<DreamSkinStatus, String> {
+    run_blocking(move || {
+        #[cfg(any(target_os = "windows", target_os = "macos"))]
+        crate::dream_skin_native::delete_themes(&theme_ids)?;
+        #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+        return Err("Codex Dream Skin currently supports Windows and macOS.".to_string());
+        Ok(get_dream_skin_status())
+    })
+    .await
+}
+
+#[tauri::command]
 pub(crate) async fn set_dream_skin_appearance(
     app: AppHandle,
     appearance: String,

@@ -2073,11 +2073,32 @@ main.tokens-main { overflow: hidden; padding-bottom: 0; }
 .dream-theme-card { min-width: 260px; overflow: hidden; border: 1px solid #dce5dd; border-radius: 13px; background: #fff; box-shadow: 0 8px 24px rgba(26, 49, 32, .06); transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
 .dream-theme-card:hover { transform: translateY(-2px); border-color: rgba(var(--green-rgb), .44); box-shadow: 0 14px 32px rgba(26, 49, 32, .11); }
 .dream-theme-card.is-active { border-color: var(--green); box-shadow: 0 0 0 2px rgba(var(--green-rgb), .11), 0 14px 32px rgba(26, 49, 32, .1); }
+.dream-theme-card.is-selected {
+  border-color: var(--green);
+  box-shadow: 0 0 0 2px rgba(var(--green-rgb), .16), 0 14px 32px rgba(26, 49, 32, .1);
+}
 .dream-theme-preview { position: relative; height: 142px; overflow: hidden; background-size: cover; background-position: center; }
 .dream-theme-preview-saved { background: radial-gradient(circle at 72% 24%, rgba(var(--green-rgb), .55), transparent 25%), linear-gradient(135deg, #16251c, #34503d); }
 .dream-theme-preview-shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(8,15,10,.04) 38%, rgba(8,15,10,.68)); }
 .dream-theme-id { position: absolute; right: 12px; bottom: 11px; left: 12px; overflow: hidden; color: rgba(255,255,255,.72); font: 650 9px/1 Manrope, sans-serif; text-overflow: ellipsis; white-space: nowrap; }
 .dream-theme-current { position: absolute; top: 11px; right: 11px; padding: 5px 8px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid rgba(255,255,255,.32); border-radius: 999px; color: #15331f; background: var(--green-highlight); font-size: 9px; font-weight: 750; box-shadow: 0 6px 16px rgba(0,0,0,.18); }
+.dream-theme-selection {
+  position: absolute;
+  z-index: 1;
+  top: 11px;
+  left: 11px;
+  padding: 5px;
+  border: 1px solid rgba(255,255,255,.38);
+  border-radius: 7px;
+  background: rgba(10,20,13,.58);
+  box-shadow: 0 6px 16px rgba(0,0,0,.16);
+  backdrop-filter: blur(8px);
+}
+.dream-theme-selection .ant-checkbox-inner { border-color: rgba(255,255,255,.88); background: rgba(255,255,255,.16); }
+.dream-theme-selection .ant-checkbox-checked .ant-checkbox-inner {
+  border-color: var(--green);
+  background: var(--green);
+}
 .dream-theme-copy { min-height: 100px; padding: 12px; display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; }
 .dream-theme-copy > div { min-width: 0; }
 .dream-theme-copy h3 { margin: 0 0 6px; color: #1a2920; font: 720 14px/1.25 Manrope, sans-serif; }

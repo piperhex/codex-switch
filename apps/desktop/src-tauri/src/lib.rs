@@ -251,6 +251,7 @@ pub fn run() {
             dream_skin::apply_dream_skin_theme,
             dream_skin::import_dream_skin_image,
             dream_skin::save_dream_skin_theme,
+            dream_skin::delete_dream_skin_themes,
             dream_skin::set_dream_skin_appearance,
             dream_skin::set_dream_skin_overlay_opacity,
             dream_skin::set_dream_skin_paused,

@@ -860,6 +860,9 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
             app,
             argument(&args, "name")?,
         ))),
+        "delete_dream_skin_themes" => serialize(block_on(
+            crate::dream_skin::delete_dream_skin_themes(argument(&args, "themeIds")?),
+        )),
         "set_dream_skin_appearance" => serialize(block_on(
             crate::dream_skin::set_dream_skin_appearance(app, argument(&args, "appearance")?),
         )),

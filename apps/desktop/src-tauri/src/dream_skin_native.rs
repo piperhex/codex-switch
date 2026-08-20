@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fs,
     io::ErrorKind,
     net::{Ipv4Addr, SocketAddr, TcpListener, TcpStream},
@@ -2596,6 +2596,46 @@ pub(crate) fn save_theme(app: &AppHandle, name: &str) -> Result<(), String> {
     Ok(())
 }
 
+fn validate_deletable_theme_id(theme_id: &str) -> Result<(), String> {
+    if !valid_theme_id(theme_id) || BUILT_IN_THEME_IDS.contains(&theme_id) {
+        return Err("Only saved community themes can be deleted.".to_string());
+    }
+    Ok(())
+}
+
+fn deletable_theme_directory(theme_id: &str) -> Result<PathBuf, String> {
+    validate_deletable_theme_id(theme_id)?;
+    let directory = themes_root()?.join(theme_id);
+    let metadata = fs::symlink_metadata(&directory)
+        .map_err(|_| format!("Saved theme does not exist: {theme_id}"))?;
+    if !metadata.is_dir() || metadata.file_type().is_symlink() {
+        return Err(format!(
+            "Saved theme is not a managed directory: {theme_id}"
+        ));
+    }
+    ensure_no_reparse_points(&directory)?;
+    saved_theme_directory(theme_id)
+}
+
+pub(crate) fn delete_themes(theme_ids: &[String]) -> Result<(), String> {
+    if theme_ids.is_empty() {
+        return Err("Select at least one saved theme to delete.".to_string());
+    }
+    let _operation = OPERATION_LOCK
+        .lock()
+        .map_err(|_| "Dream Skin operation lock is unavailable.".to_string())?;
+    let unique_ids = theme_ids.iter().collect::<HashSet<_>>();
+    let directories = unique_ids
+        .into_iter()
+        .map(|theme_id| deletable_theme_directory(theme_id).map(|path| (theme_id, path)))
+        .collect::<Result<Vec<_>, _>>()?;
+    for (theme_id, directory) in directories {
+        fs::remove_dir_all(directory)
+            .map_err(|_| format!("Failed to delete saved theme: {theme_id}"))?;
+    }
+    Ok(())
+}
+
 pub(crate) fn set_appearance(app: &AppHandle, appearance: &str) -> Result<(), String> {
     if !matches!(appearance, "auto" | "light" | "dark") {
         return Err("Theme appearance is invalid.".to_string());
@@ -2857,6 +2897,13 @@ mod tests {
         assert!(valid_theme_id("20260719-120000-deadbeef"));
         assert!(!valid_theme_id("../escape"));
         assert!(!valid_theme_id(""));
+    }
+
+    #[test]
+    fn only_saved_theme_ids_can_be_deleted() {
+        assert!(validate_deletable_theme_id("community-theme").is_ok());
+        assert!(validate_deletable_theme_id("../escape").is_err());
+        assert!(validate_deletable_theme_id("preset-rose-reverie").is_err());
     }
 
     #[test]

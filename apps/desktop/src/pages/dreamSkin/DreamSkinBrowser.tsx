@@ -3,7 +3,7 @@ import { ImagePlus, RefreshCw, WandSparkles } from "lucide-react";
 import { BUILT_IN_DREAM_SKIN_THEMES } from "../../dreamSkinBuiltIns";
 import type { Translate } from "../../i18n";
 import type { DreamSkinStatus, DreamSkinThemeSummary } from "../../types";
-import type { CatalogState, ThemeActions, ThemeTab } from "./types";
+import type { CatalogState, SavedThemeLibrary, ThemeActions, ThemeTab } from "./types";
 import { CommunityThemeCard, MarketThemeCard, SavedThemeCard, ThemeCard } from "./ThemeCards";
 
 type Props = {
@@ -14,6 +14,7 @@ type Props = {
   chooseCustomImage: () => Promise<void>;
   isBusy: boolean;
   resourcesReady: boolean;
+  savedLibrary: SavedThemeLibrary;
   savedThemes: DreamSkinThemeSummary[];
   status: DreamSkinStatus | null;
   t: Translate;
@@ -108,14 +109,21 @@ function MarketSentinel({ catalog, t }: Pick<Props, "catalog" | "t">) {
 }
 
 function SavedThemes(props: Props) {
-  const { actions, busy, savedThemes, status, t } = props;
+  const { actions, busy, savedLibrary, savedThemes, status, t } = props;
   if (savedThemes.length === 0) {
     return <div className="dream-market-empty" role="tabpanel"
       aria-label={t("dreamSkin.tabs.savedCommunity")}>{t("dreamSkin.saved.empty")}</div>;
   }
+  const query = savedLibrary.query.trim().toLocaleLowerCase();
+  const filteredThemes = savedThemes.filter((theme) => !query
+    || [theme.name, theme.id].some((value) => value.toLocaleLowerCase().includes(query)));
   return <div className="dream-theme-grid dream-saved-grid" role="tabpanel"
     aria-label={t("dreamSkin.tabs.savedCommunity")}>
-    {savedThemes.map((theme) => <SavedThemeCard key={theme.id} theme={theme} status={status!}
-      busy={busy === `apply:${theme.id}`} onApply={() => actions.applyTheme(theme.id)} t={t} />)}
+    {filteredThemes.map((theme) => <SavedThemeCard key={theme.id} theme={theme} status={status!}
+      busy={busy === `apply:${theme.id}`} onApply={() => actions.applyTheme(theme.id)} t={t}
+      selected={savedLibrary.selectedThemeIds.includes(theme.id)}
+      onSelectionChange={(selected) => savedLibrary.toggleTheme(theme.id, selected)} />)}
+    {filteredThemes.length === 0
+      && <div className="dream-market-empty dream-theme-empty">{t("dreamSkin.saved.searchEmpty")}</div>}
   </div>;
 }

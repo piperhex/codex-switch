@@ -2246,6 +2246,11 @@ export async function saveDreamSkinTheme(name: string): Promise<DreamSkinStatus>
   return invoke<DreamSkinStatus>("save_dream_skin_theme", { name });
 }
 
+export async function deleteDreamSkinThemes(themeIds: string[]): Promise<DreamSkinStatus> {
+  if (!hasLocalBackend) return previewDreamSkinStatus();
+  return invoke<DreamSkinStatus>("delete_dream_skin_themes", { themeIds });
+}
+
 export async function setDreamSkinAppearance(appearance: DreamSkinAppearance): Promise<DreamSkinStatus> {
   if (!hasLocalBackend) {
     window.localStorage.setItem(DREAM_SKIN_APPEARANCE_PREVIEW_KEY, appearance);
