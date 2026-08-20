@@ -199,14 +199,11 @@ function ProviderIdentityCell({ provider, error, conversationCount, t }: {
   t: Translate;
 }) {
   return <div className="provider-cell">
-    <div className="provider-avatar"><Server size={15} /></div>
+    <ProviderAvatar conversationCount={conversationCount} iconSize={15} t={t} />
     <button type="button" className="provider-link" title={t("providers.openBaseUrl")}
       onClick={() => void openUrl(provider.baseUrl)}>
       <span className="provider-link-name">
         <strong>{provider.name}</strong>
-        {conversationCount > 0 && <Tag color="blue">
-          {t("providers.aggregate.conversationCount", { count: conversationCount })}
-        </Tag>}
         {error && <Tooltip title={error} styles={{ root: { maxWidth: 400 } }}>
           <span className="provider-connectivity-error">{t("providers.connectivity.error")}</span>
         </Tooltip>}
@@ -214,6 +211,21 @@ function ProviderIdentityCell({ provider, error, conversationCount, t }: {
       </span>
       <span className="provider-base-url" title={provider.baseUrl}>{provider.baseUrl}</span>
     </button>
+  </div>;
+}
+
+function ProviderAvatar({ conversationCount, iconSize, t }: {
+  conversationCount: number;
+  iconSize: number;
+  t: Translate;
+}) {
+  const countLabel = t("table.conversationCount", { count: conversationCount });
+  return <div className="table-avatar-wrap">
+    <div className="provider-avatar"><Server size={iconSize} /></div>
+    {conversationCount > 0 && <span className="account-conversation-count"
+      title={countLabel} aria-label={countLabel}>
+      {conversationCount > 99 ? "99+" : conversationCount}
+    </span>}
   </div>;
 }
 
@@ -389,14 +401,10 @@ function ProviderCard({ provider, options }: { provider: Provider; options: Prov
   }}>
     <div className="card-topline" />
     <header className="provider-card-head">
-      <div className="provider-avatar"><Server size={18} /></div>
+      <ProviderAvatar conversationCount={aggregateConversationCount} iconSize={18} t={t} />
       <div><strong>{provider.name}</strong><span title={provider.baseUrl}>{provider.baseUrl}</span></div>
       {provider.active
         ? <Tag className="current-tag">{t("providers.status.current")}</Tag>
-        : aggregateConversationCount > 0
-          ? <Tag color="blue">{t("providers.aggregate.conversationCount", {
-            count: aggregateConversationCount,
-          })}</Tag>
         : provider.supportsDirectSwitch
           ? <Tag>{t("providers.status.ready")}</Tag>
           : <Tag color="gold">{t("providers.status.bridgeRequired")}</Tag>}
