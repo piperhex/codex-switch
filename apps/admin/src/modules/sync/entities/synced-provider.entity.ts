@@ -52,6 +52,9 @@ export class SyncedProviderEntity {
   @Column({ type: 'jsonb', default: {} })
   modelContextWindows: Record<string, number>;
 
+  @Column({ type: 'jsonb', default: {} })
+  modelApiFormats: Record<string, 'openaiResponses' | 'openaiChat'>;
+
   @Column({ type: 'jsonb', default: [] })
   imageInputModels: string[];
 
