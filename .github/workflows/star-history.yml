@@ -1,0 +1,42 @@
+name: Star History
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - .github/workflows/star-history.yml
+  schedule:
+    - cron: "23 */6 * * *"
+  watch:
+    types:
+      - started
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: star-history
+  cancel-in-progress: true
+
+jobs:
+  update:
+    name: Update chart
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Generate Star History
+        uses: narayann7/star-history-action@a68d8f9d67ca20d55b682a264e69152dcf326e9c
+        with:
+          repos: piperhex/codex-switch
+          output-dir: assets/star-history
+          token: ${{ github.token }}
+          type: Date
+          themes: light,dark
+          update-readme: "false"
+          commit: "true"
+          commit-message: "chore: update Star History [skip ci]"

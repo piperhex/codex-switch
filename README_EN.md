@@ -154,15 +154,15 @@ Codex Switch is independently developed third-party software and is not affiliat
   <picture>
     <source
       media="(prefers-color-scheme: dark)"
-      srcset="https://api.star-history.com/svg?repos=piperhex/codex-switch&type=Date&theme=dark"
+      srcset="assets/star-history/star-history-dark.svg"
     />
     <source
       media="(prefers-color-scheme: light)"
-      srcset="https://api.star-history.com/svg?repos=piperhex/codex-switch&type=Date"
+      srcset="assets/star-history/star-history-light.svg"
     />
     <img
       alt="Codex Switch Star History"
-      src="https://api.star-history.com/svg?repos=piperhex/codex-switch&type=Date"
+      src="assets/star-history/star-history-light.svg"
     />
   </picture>
 </a>
