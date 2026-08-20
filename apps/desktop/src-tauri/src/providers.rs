@@ -192,6 +192,16 @@ pub(crate) fn refresh_codex_models_for_current_target(paths: &Paths) {
         refresh_official_codex_models_for_paths(paths);
         return;
     };
+    if crate::aggregate_api::is_active_id(id) {
+        if let Ok(config) = crate::aggregate_api::read_active_config(paths, id) {
+            if let Ok(profiles) = crate::aggregate_api::member_profiles(paths, &config) {
+                if let Ok(profile) = crate::aggregate_api::logical_profile(&config, &profiles) {
+                    refresh_codex_models_best_effort(&profile);
+                }
+            }
+        }
+        return;
+    }
     if let Ok(provider) = read_provider(paths, id) {
         refresh_codex_models_best_effort(&provider);
     }
@@ -943,7 +953,36 @@ fn activate_provider_profile<R: Runtime>(
     emit_providers_changed(app)
 }
 
-fn validate_provider_activation(provider: &ProviderProfile) -> Result<(), String> {
+pub(crate) fn activate_logical_provider<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    paths: &Paths,
+    provider: &ProviderProfile,
+) -> Result<(), String> {
+    ensure_local_proxy_running_for_provider()?;
+    ensure_not_local_proxy_base_url(&provider.base_url)?;
+    let original_state = read_state(paths);
+    backup_codex_config_if_needed(
+        paths,
+        original_state.active_provider_id.is_none()
+            && original_state.active_provider_group.is_none(),
+    )?;
+    let mut state = original_state.clone();
+    state.active_provider_id = Some(provider.id.clone());
+    state.active_provider_group = None;
+    state.active_account_id = None;
+    state.concurrent_account_routing_enabled = false;
+    write_state(paths, &state)?;
+    if let Err(error) = write_provider_local_proxy_config(paths, provider) {
+        if let Err(rollback_error) = write_state(paths, &original_state) {
+            eprintln!("failed to restore aggregate API state: {rollback_error}");
+        }
+        return Err(error);
+    }
+    refresh_codex_models_best_effort(provider);
+    emit_providers_changed(app)
+}
+
+pub(crate) fn validate_provider_activation(provider: &ProviderProfile) -> Result<(), String> {
     ensure_not_local_proxy_base_url(&provider.base_url)?;
     ensure_local_proxy_running_for_provider()?;
     if provider.kind != ProviderKind::OpenAi
@@ -1051,7 +1090,9 @@ pub(crate) async fn disable_provider<R: Runtime + 'static>(
         .map_err(|error| format!("Provider disable task failed: {error}"))?
 }
 
-fn disable_provider_blocking<R: Runtime>(app: tauri::AppHandle<R>) -> Result<(), String> {
+pub(crate) fn disable_provider_blocking<R: Runtime>(
+    app: tauri::AppHandle<R>,
+) -> Result<(), String> {
     let paths = resolve_paths(&app)?;
     let original_state = read_state(&paths);
     let mut state = original_state.clone();
@@ -1131,6 +1172,20 @@ pub(crate) fn delete_provider<R: Runtime>(
     if path.exists() {
         fs::remove_file(&path).map_err(|error| format!("Failed to delete provider: {error}"))?;
     }
+    crate::aggregate_api::remove_provider_membership(&paths, &id)?;
+    if let Some(active_id) = original_state
+        .active_provider_id
+        .as_deref()
+        .filter(|active_id| crate::aggregate_api::is_active_id(active_id))
+    {
+        let config = crate::aggregate_api::read_active_config(&paths, active_id)?;
+        if config.enabled {
+            apply_local_proxy_config_for_paths(&paths)?;
+            refresh_codex_models_for_current_target(&paths);
+        } else {
+            disable_provider_blocking(app.clone())?;
+        }
+    }
     let versions_path = provider_field_modified_at_path(&paths, &id);
     if versions_path.exists() {
         fs::remove_file(&versions_path)
@@ -1171,6 +1226,12 @@ pub(crate) fn apply_local_proxy_config_for_paths(paths: &Paths) -> Result<(), St
         return write_provider_group_local_proxy_config(paths, group, &providers);
     }
     if let Some(id) = state.active_provider_id.as_deref() {
+        if crate::aggregate_api::is_active_id(id) {
+            let config = crate::aggregate_api::read_active_config(paths, id)?;
+            let profiles = crate::aggregate_api::member_profiles(paths, &config)?;
+            let profile = crate::aggregate_api::logical_profile(&config, &profiles)?;
+            return write_provider_local_proxy_config(paths, &profile);
+        }
         let provider = read_provider(paths, id)?;
         ensure_not_local_proxy_base_url(&provider.base_url)?;
         write_provider_local_proxy_config(paths, &provider)

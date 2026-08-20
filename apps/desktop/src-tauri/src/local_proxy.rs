@@ -27,6 +27,8 @@ const MAX_CONTINUATION_SCOPE_ID_BYTES: usize = 512;
 
 use crate::{
     agent_identity,
+    aggregate_api::{self, AggregateApiConfig},
+    aggregate_scheduler,
     auth::{account_fields, is_agent_identity_auth, token_string, validate_auth},
     codex_api::{refresh_tokens, token_expiring, ORIGINATOR},
     models::{
@@ -271,6 +273,21 @@ enum ActiveTarget {
     Official { model: String },
     Provider(Box<ProviderProfile>),
     ProviderGroup(Vec<ProviderProfile>),
+    Aggregate(AggregateTarget),
+}
+
+struct AggregateTarget {
+    config: AggregateApiConfig,
+    profiles: Vec<ProviderProfile>,
+}
+
+struct AggregateForwardRequest<'a> {
+    method: &'a Method,
+    url: &'a str,
+    headers: &'a [(String, String)],
+    body: Vec<u8>,
+    session_id: Option<&'a str>,
+    target: &'a AggregateTarget,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -2274,6 +2291,7 @@ fn stop_server() {
         stop_proxy_runtime(proxy_runtime);
     }
     clear_proxy_sessions();
+    aggregate_scheduler::clear();
 }
 
 fn handle_request<R: Runtime>(app: tauri::AppHandle<R>, mut request: Request) {
@@ -2476,6 +2494,7 @@ fn handle_proxy_request<R: Runtime>(
         ActiveTarget::ProviderGroup(group_providers) => {
             Some(provider_group_models_etag(group_providers))
         }
+        ActiveTarget::Aggregate(target) => Some(aggregate_models_etag(&target.config)),
         _ => None,
     });
     let retry_timeout = upstream_429_retry_timeout(app)?;
@@ -2516,6 +2535,14 @@ fn forward_active_request<R: Runtime>(
         ActiveTarget::Provider(provider) => {
             forward_provider_request(method, url, headers, body, &provider)
         }
+        ActiveTarget::Aggregate(target) => forward_aggregate_request(AggregateForwardRequest {
+            method,
+            url,
+            headers,
+            body,
+            session_id,
+            target: &target,
+        }),
         ActiveTarget::ProviderGroup(_) => {
             Err("Provider group requests must select a model".to_string())
         }
@@ -2526,6 +2553,15 @@ fn current_usage_payload<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<Upstre
     let paths = resolve_paths(app)?;
     let state = read_state(&paths);
     let usage = if let Some(provider_id) = state.active_provider_id {
+        let provider_id =
+            if aggregate_api::is_active_id(&provider_id) {
+                let config = aggregate_api::read_active_config(&paths, &provider_id)?;
+                config.member_provider_ids.first().cloned().ok_or_else(|| {
+                    "Aggregate API does not contain any available APIs".to_string()
+                })?
+            } else {
+                provider_id
+            };
         providers::query_provider_usage_blocking(app.clone(), provider_id)?
     } else if let Some(group) = state.active_provider_group.as_deref() {
         let provider = providers::provider_group_profiles(&paths, group)?
@@ -2892,6 +2928,17 @@ fn active_target_for_request<R: Runtime>(
         return Ok(ActiveTarget::Provider(Box::new(provider)));
     }
     if let Some(id) = state.active_provider_id {
+        if aggregate_api::is_active_id(&id) {
+            let config = aggregate_api::read_active_config(&paths, &id)?;
+            if !config.enabled {
+                return Err("Aggregate API is disabled".to_string());
+            }
+            let profiles = aggregate_api::member_profiles(&paths, &config)?;
+            return Ok(ActiveTarget::Aggregate(AggregateTarget {
+                config,
+                profiles,
+            }));
+        }
         let provider = providers::read_provider(&paths, &id)?;
         providers::ensure_not_local_proxy_base_url(&provider.base_url)?;
         return Ok(ActiveTarget::Provider(Box::new(provider)));
@@ -2978,6 +3025,7 @@ fn proxy_diagnostic_route(path: &str, target: &ActiveTarget) -> ProxyDiagnosticR
         }
         ActiveTarget::Provider(_) => ProxyDiagnosticRoute::ProviderPassthrough,
         ActiveTarget::ProviderGroup(_) => ProxyDiagnosticRoute::LocalModels,
+        ActiveTarget::Aggregate(_) => ProxyDiagnosticRoute::ProviderAuto,
     }
 }
 
@@ -3094,6 +3142,11 @@ fn token_usage_context(
             (provider.name.clone(), Some(provider.id.clone()), model)
         }
         ActiveTarget::ProviderGroup(_) => return None,
+        ActiveTarget::Aggregate(target) => (
+            target.config.name.clone(),
+            Some(aggregate_api::active_id(&target.config.id)),
+            target.config.model.clone(),
+        ),
     };
 
     Some(TokenUsageContext {
@@ -3522,6 +3575,13 @@ fn diagnostic_target(target: Option<&ActiveTarget>, route: ProxyDiagnosticRoute)
         Some(ActiveTarget::ProviderGroup(providers)) => json!({
             "type": "providerGroup",
             "providerCount": providers.len()
+        }),
+        Some(ActiveTarget::Aggregate(target)) => json!({
+            "type": "aggregateApi",
+            "id": target.config.id,
+            "name": target.config.name,
+            "model": target.config.model,
+            "memberCount": target.profiles.len()
         }),
         None if route.is_local() => json!({ "type": "local" }),
         None => json!({ "type": "unresolved" }),
@@ -4506,6 +4566,76 @@ fn forward_provider_request(
     forward_provider(method, url, headers, body, provider)
 }
 
+fn forward_aggregate_request(
+    request: AggregateForwardRequest<'_>,
+) -> Result<UpstreamPayload, String> {
+    let member_ids = request
+        .target
+        .profiles
+        .iter()
+        .map(|provider| provider.id.clone())
+        .collect::<Vec<_>>();
+    let mut excluded = HashSet::new();
+    let mut last_result = None;
+    loop {
+        let member_id = match aggregate_scheduler::select_member(
+            &request.target.config.id,
+            request.session_id,
+            &member_ids,
+            &excluded,
+        ) {
+            Ok(member_id) => member_id,
+            Err(error) => return last_result.unwrap_or(Err(error)),
+        };
+        let provider = request
+            .target
+            .profiles
+            .iter()
+            .find(|provider| provider.id == member_id)
+            .ok_or_else(|| "Aggregate API member does not exist".to_string())?;
+        let provider = aggregate_api::force_aggregate_model(provider, &request.target.config.model);
+        let result = forward_provider_request(
+            request.method,
+            request.url,
+            request.headers,
+            request.body.clone(),
+            &provider,
+        );
+        if !aggregate_result_is_retryable(&result) {
+            aggregate_scheduler::mark_success(&request.target.config.id, &member_id);
+            return result;
+        }
+        aggregate_scheduler::mark_failure(
+            &request.target.config.id,
+            &member_id,
+            request.session_id,
+        );
+        excluded.insert(member_id);
+        last_result = Some(result);
+    }
+}
+
+fn aggregate_result_is_retryable(result: &Result<UpstreamPayload, String>) -> bool {
+    match result {
+        Ok(payload) => matches!(payload.status, 408 | 425 | 429 | 500 | 502 | 503 | 504),
+        Err(error) => {
+            let error = error.to_ascii_lowercase();
+            [
+                "request failed",
+                "timed out",
+                "timeout",
+                "connection",
+                "connect error",
+                "network",
+                "dns",
+                "error sending request",
+            ]
+            .iter()
+            .any(|marker| error.contains(marker))
+        }
+    }
+}
+
 fn forward_provider_with_api_fallback(
     method: &Method,
     url: &str,
@@ -4617,6 +4747,7 @@ fn models_payload<R: Runtime>(
         ActiveTarget::ProviderGroup(group_providers) => {
             return Ok(provider_group_models_payload(group_providers));
         }
+        ActiveTarget::Aggregate(target) => return aggregate_models_payload(target),
     };
     let context_window = read_app_settings(app)?.gpt_5_6_sol_context_window;
     override_model_context_window(payload, GPT_5_6_SOL_MODEL, context_window)
@@ -4704,6 +4835,23 @@ fn provider_models_payload(provider: &ProviderProfile) -> UpstreamPayload {
         body: UpstreamBody::Buffered(body),
         token_usage_account: None,
     }
+}
+
+fn aggregate_models_payload(target: &AggregateTarget) -> Result<UpstreamPayload, String> {
+    let profile = aggregate_api::logical_profile(&target.config, &target.profiles)?;
+    let catalog = providers::model_catalog_for_provider(&profile);
+    let body = serde_json::to_vec(&catalog).unwrap_or_else(|_| b"{}".to_vec());
+    Ok(UpstreamPayload {
+        status: 200,
+        content_type: Some("application/json; charset=utf-8".to_string()),
+        response_headers: vec![("ETag".to_string(), aggregate_models_etag(&target.config))],
+        body: UpstreamBody::Buffered(body),
+        token_usage_account: None,
+    })
+}
+
+fn aggregate_models_etag(config: &AggregateApiConfig) -> String {
+    format!("\"aggregate-{}\"", short_hash_str(&config.model))
 }
 
 fn provider_models_etag(provider: &ProviderProfile) -> String {
@@ -9628,5 +9776,23 @@ mod tests {
             provider_api_cache::cached_format(&provider.id, &provider.base_url, "model-b"),
             Some(ProviderApiFormat::OpenaiResponses)
         );
+    }
+
+    #[test]
+    fn aggregate_retryability_only_includes_transient_failures() {
+        assert!(aggregate_result_is_retryable(&Ok(json_payload(
+            503,
+            json!({ "error": "busy" })
+        ))));
+        assert!(aggregate_result_is_retryable(&Err(
+            "Provider proxy request failed: connection reset".to_string()
+        )));
+        assert!(!aggregate_result_is_retryable(&Ok(json_payload(
+            401,
+            json!({ "error": "unauthorized" })
+        ))));
+        assert!(!aggregate_result_is_retryable(&Err(
+            "Request body is invalid".to_string()
+        )));
     }
 }

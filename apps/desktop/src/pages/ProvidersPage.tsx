@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Space } from "antd";
+import { Button, Space } from "antd";
 import {
-  RefreshCw, Server,
+  Network, RefreshCw, Server,
 } from "lucide-react";
 import type { AccountDisplayMode } from "../hooks/useAccountDisplayMode";
 import type { Language, Translate } from "../i18n";
 import type {
-  Account, ImageModelTarget, ImageRouteKind, LocalProxyStatus, Provider, ProviderInput,
+  Account, AggregateApi, AggregateApiInput, ImageModelTarget, ImageRouteKind, LocalProxyStatus,
+  Provider, ProviderInput,
 } from "../types";
 import { isAntigravityProvider } from "../utils/antigravityProvider";
 import { isClaudeCodeProvider } from "../utils/claudeCodeProvider";
@@ -24,10 +25,13 @@ import { ProviderCardView, ProviderTableView } from "./providers/ProviderViews";
 import { ProviderAddMenu } from "./providers/ProviderAddMenu";
 import { ProviderGroupToolbar } from "./providers/ProviderGroupControls";
 import { ProviderGroupManager } from "./providers/ProviderGroupManager";
+import { AggregateApiManager } from "./providers/AggregateApiManager";
+import { AggregateApiOverview } from "./providers/AggregateApiOverview";
 import { useProviderTokenUsage } from "./providers/useProviderTokenUsage";
 
 interface ProvidersPageProps {
   providers: Provider[];
+  aggregateApis: AggregateApi[];
   providerGroups: string[];
   accounts: Account[];
   active: boolean;
@@ -39,6 +43,9 @@ interface ProvidersPageProps {
   proxyStartDisabledReason?: string;
   onStartProxy: () => void;
   onSave: (provider: ProviderInput) => Promise<Provider | null>;
+  onSaveAggregateApi: (aggregate: AggregateApiInput) => Promise<AggregateApi | null>;
+  onSwitchAggregateApi: (id: string) => Promise<boolean>;
+  onDeleteAggregateApi: (id: string) => void;
   onSwitch: (id: string) => void;
   onSwitchGroup: (group: string) => void;
   onDeactivate: (id: string) => void;
@@ -59,6 +66,7 @@ interface ProvidersPageProps {
 }
 export function ProvidersPage({
   providers,
+  aggregateApis,
   providerGroups,
   accounts,
   active,
@@ -70,6 +78,9 @@ export function ProvidersPage({
   proxyStartDisabledReason,
   onStartProxy,
   onSave,
+  onSaveAggregateApi,
+  onSwitchAggregateApi,
+  onDeleteAggregateApi,
   onSwitch,
   onSwitchGroup,
   onDeactivate,
@@ -96,6 +107,7 @@ export function ProvidersPage({
   const [showAntigravityModal, setShowAntigravityModal] = useState(false);
   const [showGrokModal, setShowGrokModal] = useState(false);
   const [showClaudeCodeModal, setShowClaudeCodeModal] = useState(false);
+  const [showAggregateManager, setShowAggregateManager] = useState(false);
   const [catalogPresetId, setCatalogPresetId] = useState<ProviderPresetId | null>(null);
   const [selectedProviderIds, setSelectedProviderIds] = useState<string[]>([]);
   const [bulkDeleteBusy, setBulkDeleteBusy] = useState(false);
@@ -206,6 +218,10 @@ export function ProvidersPage({
         <Space size={6}>
           <ProviderAddMenu onAddPreset={() => setShowPresetModal(true)} onAddOpenAi={openCreateOpenAi}
             onAddProvider={openCreate} t={t} />
+          <Button size="small" icon={<Network size={14} />}
+            onClick={() => setShowAggregateManager(true)}>
+            {t("providers.aggregate.manage")}
+          </Button>
           <ProviderGroupToolbar providers={providers} busyProviderId={busyProviderId}
             proxyRunning={proxyRunning} onSwitchGroup={onSwitchGroup} t={t} />
           <ProviderGroupManager groups={groups} providers={providers} busy={Boolean(busyProviderId)}
@@ -214,6 +230,11 @@ export function ProvidersPage({
         topbarHost,
       )}
       <div className="provider-page">
+
+      <AggregateApiOverview aggregates={aggregateApis} providers={providers}
+        busyId={busyProviderId} proxyRunning={proxyRunning}
+        onManage={() => setShowAggregateManager(true)} onSwitch={onSwitchAggregateApi}
+        onDeactivate={onDeactivate} t={t} />
 
       {providers.length ? displayMode === "table"
         ? <ProviderTableView {...providerViewProps} onDeleteMany={onDeleteMany}
@@ -226,6 +247,9 @@ export function ProvidersPage({
           <Space size={8}>
             <ProviderAddMenu onAddPreset={() => setShowPresetModal(true)} onAddOpenAi={openCreateOpenAi}
               onAddProvider={openCreate} t={t} />
+            <Button icon={<Network size={14} />} onClick={() => setShowAggregateManager(true)}>
+              {t("providers.aggregate.manage")}
+            </Button>
           </Space>
         </div>
       )}
@@ -249,6 +273,11 @@ export function ProvidersPage({
         onClose={() => setShowGrokModal(false)} onSave={onSave} t={t} />}
       {showClaudeCodeModal && <ClaudeCodeProviderModal provider={editingProvider} saving={saving}
         onClose={() => setShowClaudeCodeModal(false)} onSave={onSave} t={t} />}
+      <AggregateApiManager open={showAggregateManager} aggregates={aggregateApis}
+        providers={providers} saving={saving} busyId={busyProviderId} proxyRunning={proxyRunning}
+        onClose={() => setShowAggregateManager(false)} onSave={onSaveAggregateApi}
+        onSwitch={onSwitchAggregateApi} onDeactivate={onDeactivate}
+        onDelete={onDeleteAggregateApi} t={t} />
       </div>
     </>
   );

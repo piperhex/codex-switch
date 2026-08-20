@@ -19,6 +19,8 @@ import type {
   AccountDetailsDraft,
   AccountArchiveImportResult,
   AccountTokenUsageTotals,
+  AggregateApi,
+  AggregateApiInput,
   AppInfo,
   AppSettings,
   BubbleResetDisplay,
@@ -152,6 +154,7 @@ const NETWORK_PROXY_URL_PREVIEW_KEY = "codex-switch:network-proxy-url";
 const NETWORK_PROXY_PORT_PREVIEW_KEY = "codex-switch:network-proxy-port";
 const CLOUD_USER_PREVIEW_KEY = "codex-switch:cloud-user-email";
 const PROVIDERS_PREVIEW_KEY = "codex-switch:providers";
+const AGGREGATE_APIS_PREVIEW_KEY = "codex-switch:aggregate-apis";
 const DEFAULT_OPENAI_PROVIDER_MODEL = "gpt-5.6-sol";
 const LOCAL_PROXY_PREVIEW_KEY = "codex-switch:local-proxy-running";
 const LOCAL_PROXY_AUTO_SWITCH_PREVIEW_KEY = "codex-switch:local-proxy-auto-switch";
@@ -549,6 +552,89 @@ export async function loadProviders(): Promise<Provider[]> {
   return invoke<Provider[]>("list_providers");
 }
 
+function readPreviewAggregateApis(): AggregateApi[] {
+  try {
+    const stored = window.localStorage.getItem(AGGREGATE_APIS_PREVIEW_KEY) ?? "[]";
+    const parsed: unknown = JSON.parse(stored);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((aggregate): aggregate is AggregateApi => Boolean(
+      aggregate
+      && typeof aggregate === "object"
+      && "id" in aggregate
+      && "name" in aggregate
+      && "model" in aggregate
+      && "memberProviderIds" in aggregate,
+    ));
+  } catch {
+    return [];
+  }
+}
+
+function writePreviewAggregateApis(aggregates: AggregateApi[]) {
+  window.localStorage.setItem(AGGREGATE_APIS_PREVIEW_KEY, JSON.stringify(aggregates));
+  window.dispatchEvent(new CustomEvent(PROVIDERS_EVENT));
+}
+
+export async function loadAggregateApis(): Promise<AggregateApi[]> {
+  if (!hasLocalBackend) return readPreviewAggregateApis();
+  return invoke<AggregateApi[]>("list_aggregate_apis");
+}
+
+export async function saveAggregateApiProfile(input: AggregateApiInput): Promise<AggregateApi> {
+  if (!hasLocalBackend) {
+    const providers = readPreviewProviders();
+    const memberIds = [...new Set(input.memberProviderIds)];
+    if (memberIds.length < 2) throw new Error("Select at least two APIs for the aggregate");
+    const members = memberIds.map((id) => providers.find((provider) => provider.id === id));
+    if (members.some((provider) => !provider)) throw new Error("Provider does not exist");
+    if (members.some((provider) => !provider?.models.includes(input.model))) {
+      throw new Error("Every API in an aggregate must support the selected model");
+    }
+    const aggregates = readPreviewAggregateApis();
+    const index = input.id ? aggregates.findIndex((aggregate) => aggregate.id === input.id) : -1;
+    const aggregate: AggregateApi = {
+      ...input,
+      id: input.id ?? previewProviderId(),
+      memberProviderIds: memberIds,
+      active: index >= 0 && aggregates[index].active && input.enabled,
+    };
+    if (index >= 0) aggregates[index] = aggregate;
+    else aggregates.push(aggregate);
+    writePreviewAggregateApis(aggregates);
+    return aggregate;
+  }
+  return invoke<AggregateApi>("save_aggregate_api", { aggregate: input });
+}
+
+export async function activateAggregateApi(id: string): Promise<void> {
+  if (!hasLocalBackend) {
+    if (!previewLocalProxyStatus().running) {
+      throw new Error(
+        "Third-party Providers require the local proxy. Start the local proxy before switching Provider.",
+      );
+    }
+    const aggregates = readPreviewAggregateApis();
+    const selected = aggregates.find((aggregate) => aggregate.id === id);
+    if (!selected) throw new Error("Aggregate API does not exist");
+    if (!selected.enabled) throw new Error("Enable the aggregate API before using it");
+    writePreviewProviders(readPreviewProviders().map((provider) => ({ ...provider, active: false })));
+    writePreviewAggregateApis(aggregates.map((aggregate) => ({
+      ...aggregate,
+      active: aggregate.id === id,
+    })));
+    return;
+  }
+  await invoke("switch_aggregate_api", { id });
+}
+
+export async function removeAggregateApi(id: string): Promise<void> {
+  if (!hasLocalBackend) {
+    writePreviewAggregateApis(readPreviewAggregateApis().filter((aggregate) => aggregate.id !== id));
+    return;
+  }
+  await invoke("delete_aggregate_api", { id });
+}
+
 export async function saveProviderProfile(provider: ProviderInput): Promise<Provider> {
   if (!hasLocalBackend) {
     const providers = readPreviewProviders();
@@ -798,6 +884,10 @@ export async function activateProvider(id: string): Promise<void> {
     }
     window.localStorage.setItem(LOCAL_PROXY_CONCURRENT_ROUTING_PREVIEW_KEY, "false");
     writePreviewProviders(providers.map((provider) => ({ ...provider, active: provider.id === id })));
+    writePreviewAggregateApis(readPreviewAggregateApis().map((aggregate) => ({
+      ...aggregate,
+      active: false,
+    })));
     return;
   }
   await invoke("switch_provider", { id });
@@ -910,6 +1000,10 @@ export async function setProviderAutoSwitchEnabled(id: string, enabled: boolean)
 export async function deactivateProvider(): Promise<void> {
   if (!hasLocalBackend) {
     writePreviewProviders(readPreviewProviders().map((provider) => ({ ...provider, active: false })));
+    writePreviewAggregateApis(readPreviewAggregateApis().map((aggregate) => ({
+      ...aggregate,
+      active: false,
+    })));
     return;
   }
   await invoke("disable_provider");

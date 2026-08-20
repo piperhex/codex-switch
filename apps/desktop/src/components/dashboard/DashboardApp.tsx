@@ -1341,7 +1341,8 @@ export function DashboardApp() {
             {page === "sessions" && <MemoCodexThreadsPage language={language} notify={notify} />}
           </section>
           <section className="page-panel providers-page-panel" hidden={page !== "providers"}>
-            <MemoProvidersPage providers={providerManager.providers} providerGroups={providerGroups}
+            <MemoProvidersPage providers={providerManager.providers}
+              aggregateApis={providerManager.aggregateApis} providerGroups={providerGroups}
               accounts={manager.accounts}
               active={page === "providers"}
               loading={providerManager.loading}
@@ -1350,6 +1351,9 @@ export function DashboardApp() {
               proxyStartDisabledReason={proxyStartDisabledReason}
               onStartProxy={() => void providerManager.startProxy()}
               onSave={providerManager.saveProvider}
+              onSaveAggregateApi={providerManager.saveAggregateApi}
+              onSwitchAggregateApi={providerManager.switchAggregateApi}
+              onDeleteAggregateApi={providerManager.deleteAggregateApi}
               onSwitch={switchProvider} onDeactivate={providerManager.cancelProviderUse}
               onSwitchGroup={switchProviderGroup}
               onSwitchModel={switchProviderModel}

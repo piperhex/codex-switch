@@ -3019,3 +3019,80 @@ html.floating-usage-page #root {
   .skills-detail-actions .skill-install-button { width: auto; flex: 1; }
   .skills-detail-actions > .community-skill-actions { width: 100%; }
 }
+.aggregate-api-overview {
+  margin-bottom: 14px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.aggregate-api-overview-title,
+.aggregate-api-manager-heading,
+.aggregate-api-row,
+.aggregate-api-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.aggregate-api-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.aggregate-api-card,
+.aggregate-api-row {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--green-soft);
+}
+
+.aggregate-api-card.active {
+  border-color: var(--green);
+}
+
+.aggregate-api-card > div,
+.aggregate-api-row > div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.aggregate-api-card small,
+.aggregate-api-row small {
+  color: var(--green-dark);
+}
+
+.aggregate-api-card span,
+.aggregate-api-row span {
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.aggregate-api-manager-heading p {
+  max-width: 400px;
+  margin: 0;
+  color: var(--muted);
+}
+
+.aggregate-api-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+@media (max-width: 640px) {
+  .aggregate-api-manager-heading,
+  .aggregate-api-row,
+  .aggregate-api-card {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

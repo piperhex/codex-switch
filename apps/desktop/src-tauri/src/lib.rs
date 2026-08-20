@@ -1,5 +1,7 @@
 mod account_archive;
 mod agent_identity;
+mod aggregate_api;
+mod aggregate_scheduler;
 mod antigravity_provider;
 mod auth;
 mod autostart;
@@ -285,6 +287,10 @@ pub fn run() {
             providers::set_provider_auto_switch_enabled,
             providers::disable_provider,
             providers::delete_provider,
+            aggregate_api::list_aggregate_apis,
+            aggregate_api::save_aggregate_api,
+            aggregate_api::delete_aggregate_api,
+            aggregate_api::switch_aggregate_api,
             local_proxy::get_local_proxy_status,
             local_proxy::set_gpt_5_6_sol_context_window,
             local_proxy::set_upstream_429_retry_timeout,
