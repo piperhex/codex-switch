@@ -111,6 +111,19 @@ pub(crate) fn refresh_models(request: ModelRefreshRequest) {
     }
 }
 
+/// Refreshes Codex's model and config caches before returning to the caller.
+pub(crate) fn refresh_models_blocking(request: ModelRefreshRequest) {
+    #[cfg(any(target_os = "windows", target_os = "macos"))]
+    {
+        let generation = next_model_refresh_generation();
+        apply_model_refresh(generation, request);
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    {
+        let _ = request;
+    }
+}
+
 /// Loads the current official catalog through the local proxy before refreshing
 /// Codex. This avoids restoring a stale app-server model cache after a Provider switch.
 pub(crate) fn refresh_official_models(selected_model: String) {
@@ -120,13 +133,23 @@ pub(crate) fn refresh_official_models(selected_model: String) {
         let _ = thread::Builder::new()
             .name("codex-official-model-refresh".to_string())
             .spawn(move || {
-                let payload = load_official_model_refresh_payload(selected_model.clone())
-                    .unwrap_or_else(|error| {
-                        eprintln!("Failed to load the official Codex model catalog: {error}");
-                        empty_official_model_refresh_payload(selected_model)
-                    });
+                let payload = official_model_refresh_payload_or_default(selected_model);
                 apply_model_refresh(generation, payload);
             });
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    {
+        let _ = selected_model;
+    }
+}
+
+/// Loads the official catalog and refreshes Codex before returning to the caller.
+pub(crate) fn refresh_official_models_blocking(selected_model: String) {
+    #[cfg(any(target_os = "windows", target_os = "macos"))]
+    {
+        let generation = next_model_refresh_generation();
+        let payload = official_model_refresh_payload_or_default(selected_model);
+        apply_model_refresh(generation, payload);
     }
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     {
@@ -140,6 +163,14 @@ fn schedule_model_refresh(request: ModelRefreshRequest) {
     let _ = thread::Builder::new()
         .name("codex-model-picker-refresh".to_string())
         .spawn(move || apply_model_refresh(generation, request));
+}
+
+#[cfg(any(target_os = "windows", target_os = "macos"))]
+fn official_model_refresh_payload_or_default(selected_model: String) -> ModelRefreshRequest {
+    load_official_model_refresh_payload(selected_model.clone()).unwrap_or_else(|error| {
+        eprintln!("Failed to load the official Codex model catalog: {error}");
+        empty_official_model_refresh_payload(selected_model)
+    })
 }
 
 #[cfg(any(target_os = "windows", target_os = "macos"))]

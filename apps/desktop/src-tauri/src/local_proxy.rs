@@ -1959,7 +1959,7 @@ fn set_image_model_target_blocking<R: Runtime>(
                 )),
             };
         }
-        providers::refresh_codex_models_for_current_target(&paths);
+        providers::refresh_codex_models_for_current_target_blocking(&paths);
     }
     app.emit("providers-changed", ())
         .map_err(|error| error.to_string())?;

@@ -58,43 +58,73 @@ fn refresh_codex_models_best_effort(paths: &Paths, provider: &ProviderProfile) {
     if !crate::local_proxy::is_running() {
         return;
     }
-    let models = codex_visible_models(provider);
-    let image_input_models = routed_image_input_models(
-        &models,
-        &codex_image_input_models(provider),
-        image_input_route_enabled(paths),
-    );
-    let model_reasoning_efforts = codex_model_reasoning_efforts(provider);
-    let selected_model = codex_model_for_provider(provider).to_string();
-    crate::codex_runtime::refresh_models(crate::codex_runtime::ModelRefreshRequest {
-        models,
-        image_input_models,
-        model_reasoning_efforts,
-        selected_model,
-        reasoning_profile: reasoning_effort_profile(provider),
-    });
+    crate::codex_runtime::refresh_models(provider_model_refresh_request(paths, provider));
+}
+
+fn refresh_codex_models_now_best_effort(paths: &Paths, provider: &ProviderProfile) {
+    if !crate::local_proxy::is_running() {
+        return;
+    }
+    crate::codex_runtime::refresh_models_blocking(provider_model_refresh_request(paths, provider));
 }
 
 fn refresh_codex_group_models_best_effort(paths: &Paths, providers: &[ProviderProfile]) {
     if !crate::local_proxy::is_running() {
         return;
     }
+    let Some(request) = provider_group_model_refresh_request(paths, providers) else {
+        return;
+    };
+    crate::codex_runtime::refresh_models(request);
+}
+
+fn refresh_codex_group_models_now_best_effort(paths: &Paths, providers: &[ProviderProfile]) {
+    if !crate::local_proxy::is_running() {
+        return;
+    }
+    let Some(request) = provider_group_model_refresh_request(paths, providers) else {
+        return;
+    };
+    crate::codex_runtime::refresh_models_blocking(request);
+}
+
+fn provider_model_refresh_request(
+    paths: &Paths,
+    provider: &ProviderProfile,
+) -> crate::codex_runtime::ModelRefreshRequest {
+    let models = codex_visible_models(provider);
+    let image_input_models = routed_image_input_models(
+        &models,
+        &codex_image_input_models(provider),
+        image_input_route_enabled(paths),
+    );
+    crate::codex_runtime::ModelRefreshRequest {
+        models,
+        image_input_models,
+        model_reasoning_efforts: codex_model_reasoning_efforts(provider),
+        selected_model: codex_model_for_provider(provider).to_string(),
+        reasoning_profile: reasoning_effort_profile(provider),
+    }
+}
+
+fn provider_group_model_refresh_request(
+    paths: &Paths,
+    providers: &[ProviderProfile],
+) -> Option<crate::codex_runtime::ModelRefreshRequest> {
     let mut catalog = provider_group_catalog_data(providers);
     catalog.image_input_models = routed_image_input_models(
         &catalog.models,
         &catalog.image_input_models,
         image_input_route_enabled(paths),
     );
-    let Some(selected_model) = catalog.models.first().cloned() else {
-        return;
-    };
-    crate::codex_runtime::refresh_models(crate::codex_runtime::ModelRefreshRequest {
+    let selected_model = catalog.models.first().cloned()?;
+    Some(crate::codex_runtime::ModelRefreshRequest {
         models: catalog.models,
         image_input_models: catalog.image_input_models,
         model_reasoning_efforts: catalog.reasoning_efforts,
         selected_model,
         reasoning_profile: ReasoningEffortProfile::Standard,
-    });
+    })
 }
 
 fn codex_visible_models(provider: &ProviderProfile) -> Vec<String> {
@@ -219,6 +249,26 @@ pub(crate) fn refresh_codex_models_for_current_target(paths: &Paths) {
     };
     if let Ok(provider) = read_provider(paths, id) {
         refresh_codex_models_best_effort(paths, &provider);
+    }
+}
+
+pub(crate) fn refresh_codex_models_for_current_target_blocking(paths: &Paths) {
+    if !crate::local_proxy::is_running() {
+        return;
+    }
+    let state = read_state(paths);
+    if let Some(group) = state.active_provider_group.as_deref() {
+        if let Ok(providers) = provider_group_profiles(paths, group) {
+            refresh_codex_group_models_now_best_effort(paths, &providers);
+        }
+        return;
+    }
+    let Some(id) = state.active_provider_id.as_deref() else {
+        crate::codex_runtime::refresh_official_models_blocking(official_model());
+        return;
+    };
+    if let Ok(provider) = read_provider(paths, id) {
+        refresh_codex_models_now_best_effort(paths, &provider);
     }
 }
 
@@ -913,7 +963,7 @@ pub(crate) fn switch_provider_group_blocking<R: Runtime>(
         }
         return Err(error);
     }
-    refresh_codex_group_models_best_effort(&paths, &providers);
+    refresh_codex_group_models_now_best_effort(&paths, &providers);
     emit_providers_changed(&app)
 }
 
@@ -962,7 +1012,7 @@ fn activate_provider_profile<R: Runtime>(
         }
         return Err(error);
     }
-    refresh_codex_models_best_effort(paths, provider);
+    refresh_codex_models_now_best_effort(paths, provider);
     emit_providers_changed(app)
 }
 
@@ -4165,6 +4215,25 @@ base_url = "https://custom.example.com/v1"
 
         assert_eq!(models[0]["input_modalities"], json!(["text", "image"]));
         assert_eq!(models[1]["input_modalities"], json!(["text", "image"]));
+    }
+
+    #[test]
+    fn provider_refresh_request_applies_image_route_before_switch_returns() {
+        let paths = test_paths();
+        let state = crate::models::ManagerStateFile {
+            image_input_target: Some(ImageModelTarget::Official {
+                account_id: "image-account".to_string(),
+            }),
+            ..Default::default()
+        };
+        write_state(&paths, &state).unwrap();
+        let mut provider = provider();
+        provider.models = vec!["text-model".to_string(), "vision-model".to_string()];
+        provider.model_selection_controlled_by_codex = true;
+
+        let request = provider_model_refresh_request(&paths, &provider);
+
+        assert_eq!(request.models, request.image_input_models);
     }
 
     #[test]
