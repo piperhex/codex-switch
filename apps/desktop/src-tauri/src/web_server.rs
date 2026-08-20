@@ -781,6 +781,17 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
             app,
             argument(&args, "skill")?,
         ))),
+        "remove_market_skill" => serialize(block_on(crate::skills_market::remove_market_skill(
+            app,
+            argument(&args, "skillId")?,
+        ))),
+        "set_market_skill_enabled" => {
+            serialize(block_on(crate::skills_market::set_market_skill_enabled(
+                app,
+                argument(&args, "skillId")?,
+                argument(&args, "enabled")?,
+            )))
+        }
         "list_official_plugins" => serialize(block_on(
             crate::official_plugins::list_official_plugins(app),
         )),

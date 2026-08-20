@@ -1742,15 +1742,30 @@ export async function fetchCloudFaqs(): Promise<CloudFaq[]> {
 
 const SKILL_MARKET_INSTALLED_PREVIEW_KEY = "codex-switch:skill-market-installed";
 
-function previewInstalledSkills(): Record<string, string> {
+interface PreviewInstalledSkill {
+  enabled: boolean;
+  version: string;
+}
+
+function previewInstalledSkills(): Record<string, PreviewInstalledSkill> {
   try {
     const value = JSON.parse(window.localStorage.getItem(SKILL_MARKET_INSTALLED_PREVIEW_KEY) ?? "{}") as unknown;
-    return value && typeof value === "object" && !Array.isArray(value)
-      ? value as Record<string, string>
-      : {};
+    if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+    return Object.fromEntries(Object.entries(value).flatMap(([id, installed]) => {
+      if (typeof installed === "string") return [[id, { enabled: true, version: installed }]];
+      if (!installed || typeof installed !== "object" || Array.isArray(installed)) return [];
+      const candidate = installed as Partial<PreviewInstalledSkill>;
+      return typeof candidate.version === "string"
+        ? [[id, { enabled: candidate.enabled !== false, version: candidate.version }]]
+        : [];
+    }));
   } catch {
     return {};
   }
+}
+
+function savePreviewInstalledSkills(installed: Record<string, PreviewInstalledSkill>) {
+  window.localStorage.setItem(SKILL_MARKET_INSTALLED_PREVIEW_KEY, JSON.stringify(installed));
 }
 
 export async function fetchSkillMarket(): Promise<SkillMarketItem[]> {
@@ -1766,8 +1781,9 @@ export async function fetchSkillMarket(): Promise<SkillMarketItem[]> {
   const installed = previewInstalledSkills();
   return payload.items.map((item) => ({
     ...item,
-    installedVersion: installed[item.id] ?? null,
-    installed: installed[item.id] === item.version,
+    installedVersion: installed[item.id]?.version ?? null,
+    installed: installed[item.id]?.version === item.version,
+    enabled: installed[item.id]?.enabled ?? false,
   }));
 }
 
@@ -1810,11 +1826,33 @@ export async function publishSkill(input: SkillPublishInput): Promise<SkillMarke
 export async function installMarketSkill(skill: SkillMarketItem): Promise<void> {
   if (!hasLocalBackend) {
     const installed = previewInstalledSkills();
-    installed[skill.id] = skill.version;
-    window.localStorage.setItem(SKILL_MARKET_INSTALLED_PREVIEW_KEY, JSON.stringify(installed));
+    installed[skill.id] = { enabled: installed[skill.id]?.enabled ?? true, version: skill.version };
+    savePreviewInstalledSkills(installed);
     return;
   }
   await invoke("install_market_skill", { skill });
+}
+
+export async function removeMarketSkill(skillId: string): Promise<void> {
+  if (!hasLocalBackend) {
+    const installed = previewInstalledSkills();
+    delete installed[skillId];
+    savePreviewInstalledSkills(installed);
+    return;
+  }
+  await invoke("remove_market_skill", { skillId });
+}
+
+export async function setMarketSkillEnabled(skillId: string, enabled: boolean): Promise<void> {
+  if (!hasLocalBackend) {
+    const installed = previewInstalledSkills();
+    const current = installed[skillId];
+    if (!current) throw new Error("Install this plugin before changing its status");
+    installed[skillId] = { ...current, enabled };
+    savePreviewInstalledSkills(installed);
+    return;
+  }
+  await invoke("set_market_skill_enabled", { skillId, enabled });
 }
 
 export async function fetchOfficialPlugins(): Promise<OfficialPluginItem[]> {

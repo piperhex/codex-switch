@@ -1,12 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { LoaderCircle, PackageOpen } from "lucide-react";
-import { fetchSkillMarket, installMarketSkill, skillPreviewUrl } from "../../api/backend";
+import {
+  fetchSkillMarket,
+  installMarketSkill,
+  removeMarketSkill,
+  setMarketSkillEnabled,
+  skillPreviewUrl,
+} from "../../api/backend";
 import type { SkillMarketItem } from "../../types";
 import { SkillDetailModal } from "./SkillDetailModal";
 import { SkillMarketGrid } from "./SkillMarketGrid";
 import { SkillPublishModal } from "./SkillPublishModal";
 import { SkillsMarketToolbar } from "./SkillsMarketToolbar";
-import type { CommunitySkillsMarketProps } from "./types";
+import type { CommunitySkillBusyAction, CommunitySkillsMarketProps } from "./types";
 
 export function CommunitySkillsMarket({
   active,
@@ -26,7 +32,7 @@ export function CommunitySkillsMarket({
   const [publishing, setPublishing] = useState(false);
   const [editing, setEditing] = useState<SkillMarketItem | null>(null);
   const [detailSkillId, setDetailSkillId] = useState<string | null>(null);
-  const [busySkillId, setBusySkillId] = useState<string | null>(null);
+  const [busyAction, setBusyAction] = useState<CommunitySkillBusyAction | null>(null);
   const [brokenPreviews, setBrokenPreviews] = useState<Set<string>>(() => new Set());
 
   const load = useCallback(async () => {
@@ -64,7 +70,7 @@ export function CommunitySkillsMarket({
   };
 
   const install = async (skill: SkillMarketItem) => {
-    setBusySkillId(skill.id);
+    setBusyAction({ action: "install", skillId: skill.id });
     try {
       await installMarketSkill(skill);
       notify(skill.installedVersion ? t("skills.toast.updated") : t("skills.toast.installed"));
@@ -72,7 +78,33 @@ export function CommunitySkillsMarket({
     } catch (caught) {
       setError(String(caught instanceof Error ? caught.message : caught));
     } finally {
-      setBusySkillId(null);
+      setBusyAction(null);
+    }
+  };
+
+  const setEnabled = async (skill: SkillMarketItem, enabled: boolean) => {
+    setBusyAction({ action: "toggle", skillId: skill.id });
+    try {
+      await setMarketSkillEnabled(skill.id, enabled);
+      notify(t(enabled ? "skills.toast.enabled" : "skills.toast.disabled", { name: skill.title }));
+      await load();
+    } catch (caught) {
+      setError(String(caught instanceof Error ? caught.message : caught));
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
+  const remove = async (skill: SkillMarketItem) => {
+    setBusyAction({ action: "remove", skillId: skill.id });
+    try {
+      await removeMarketSkill(skill.id);
+      notify(t("skills.toast.deleted", { name: skill.title }));
+      await load();
+    } catch (caught) {
+      setError(String(caught instanceof Error ? caught.message : caught));
+    } finally {
+      setBusyAction(null);
     }
   };
 
@@ -113,11 +145,13 @@ export function CommunitySkillsMarket({
           authenticated={authenticated}
           baseUrl={baseUrl}
           brokenPreviews={brokenPreviews}
-          busySkillId={busySkillId}
+          busyAction={busyAction}
           currentUserId={currentUserId}
           items={filtered}
           onEdit={setEditing}
           onInstall={install}
+          onRemove={remove}
+          onSetEnabled={setEnabled}
           onOpen={setDetailSkillId}
           onPreviewError={markPreviewBroken}
           t={t}
@@ -126,7 +160,7 @@ export function CommunitySkillsMarket({
 
       {detailSkill && (
         <SkillDetailModal
-          busy={busySkillId === detailSkill.id}
+          busyAction={busyAction}
           isPublisher={Boolean(
             authenticated
             && currentUserId
@@ -138,6 +172,8 @@ export function CommunitySkillsMarket({
             setEditing(skill);
           }}
           onInstall={install}
+          onRemove={remove}
+          onSetEnabled={setEnabled}
           onPreviewError={markPreviewBroken}
           preview={skillPreviewUrl(baseUrl, detailSkill)}
           previewBroken={brokenPreviews.has(detailSkill.id)}

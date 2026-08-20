@@ -503,6 +503,7 @@ export interface SkillMarketItem {
   updatedAt: string;
   installed: boolean;
   installedVersion?: string | null;
+  enabled: boolean;
 }
 
 export interface OfficialPluginItem {

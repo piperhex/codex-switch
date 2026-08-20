@@ -59,8 +59,10 @@ export interface PublishModalProps {
 }
 
 export interface SkillInstallButtonProps {
-  busy: boolean;
+  busyAction: CommunitySkillBusyAction | null;
   onInstall: (skill: SkillMarketItem) => Promise<void>;
+  onRemove: (skill: SkillMarketItem) => Promise<void>;
+  onSetEnabled: (skill: SkillMarketItem, enabled: boolean) => Promise<void>;
   skill: SkillMarketItem;
   t: Translate;
 }
@@ -78,12 +80,21 @@ export interface SkillMarketGridProps {
   authenticated: boolean;
   baseUrl?: string | null;
   brokenPreviews: Set<string>;
-  busySkillId: string | null;
+  busyAction: CommunitySkillBusyAction | null;
   currentUserId?: string | null;
   items: SkillMarketItem[];
   onEdit: (skill: SkillMarketItem) => void;
   onInstall: (skill: SkillMarketItem) => Promise<void>;
+  onRemove: (skill: SkillMarketItem) => Promise<void>;
+  onSetEnabled: (skill: SkillMarketItem, enabled: boolean) => Promise<void>;
   onOpen: (skillId: string) => void;
   onPreviewError: (skillId: string) => void;
   t: Translate;
+}
+
+export type CommunitySkillAction = "install" | "remove" | "toggle";
+
+export interface CommunitySkillBusyAction {
+  action: CommunitySkillAction;
+  skillId: string;
 }

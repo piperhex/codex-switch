@@ -1,5 +1,4 @@
 use std::{
-    collections::BTreeMap,
     fs,
     io::{Cursor, Write},
     path::{Component, Path, PathBuf},
@@ -7,12 +6,13 @@ use std::{
 
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
-use tauri::{Manager, Runtime};
-use uuid::Uuid;
+use tauri::Runtime;
 use zip::{write::SimpleFileOptions, CompressionMethod, ZipArchive, ZipWriter};
 
-use crate::{cloud, storage::write_json_atomic};
+use crate::cloud;
+
+mod install;
+mod installed;
 
 pub(crate) const MAX_SKILL_ARCHIVE_BYTES: usize = 1024 * 1024;
 const MAX_SKILL_EXPANDED_BYTES: u64 = 10 * 1024 * 1024;
@@ -38,6 +38,8 @@ pub(crate) struct SkillMarketItem {
     pub(crate) installed: bool,
     #[serde(default)]
     pub(crate) installed_version: Option<String>,
+    #[serde(default)]
+    pub(crate) enabled: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -73,19 +75,6 @@ pub(crate) struct SkillPreview {
     pub(crate) data: Vec<u8>,
 }
 
-#[derive(Debug, Default, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct SkillInstallRegistry {
-    installed: BTreeMap<String, InstalledSkill>,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct InstalledSkill {
-    directory: String,
-    version: String,
-}
-
 #[derive(Debug)]
 struct ArchiveLayout {
     root_prefix: Option<PathBuf>,
@@ -93,38 +82,6 @@ struct ArchiveLayout {
 
 fn skills_root<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<PathBuf, String> {
     crate::storage::resolve_paths(app).map(|paths| paths.codex_home.join("skills"))
-}
-
-fn registry_path<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<PathBuf, String> {
-    app.path()
-        .app_data_dir()
-        .map(|path| path.join("skill-market-installs.json"))
-        .map_err(|error| format!("Could not resolve the skill install registry: {error}"))
-}
-
-fn read_registry<R: Runtime>(app: &tauri::AppHandle<R>) -> SkillInstallRegistry {
-    let Ok(path) = registry_path(app) else {
-        return SkillInstallRegistry::default();
-    };
-    let Ok(data) = fs::read(path) else {
-        return SkillInstallRegistry::default();
-    };
-    serde_json::from_slice(&data).unwrap_or_default()
-}
-
-fn write_registry<R: Runtime>(
-    app: &tauri::AppHandle<R>,
-    registry: &SkillInstallRegistry,
-) -> Result<(), String> {
-    let path = registry_path(app)?;
-    let parent = path
-        .parent()
-        .ok_or_else(|| "Skill install registry path has no parent".to_string())?;
-    fs::create_dir_all(parent)
-        .map_err(|error| format!("Could not create the skill registry directory: {error}"))?;
-    let value = serde_json::to_value(registry)
-        .map_err(|error| format!("Could not serialize the skill registry: {error}"))?;
-    write_json_atomic(&path, &value)
 }
 
 fn safe_relative_path(path: &Path) -> bool {
@@ -306,34 +263,6 @@ fn decode_preview(input: Option<SkillPreviewInput>) -> Result<Option<SkillPrevie
     }))
 }
 
-fn installed_path(root: &Path, value: &str) -> Option<PathBuf> {
-    let relative = Path::new(value);
-    if !safe_relative_path(relative) || relative.components().count() != 1 {
-        return None;
-    }
-    Some(root.join(relative))
-}
-
-fn mark_installed<R: Runtime>(
-    app: &tauri::AppHandle<R>,
-    items: &mut [SkillMarketItem],
-) -> Result<(), String> {
-    let root = skills_root(app)?;
-    let mut registry = read_registry(app);
-    registry.installed.retain(|_, installed| {
-        installed_path(&root, &installed.directory)
-            .is_some_and(|path| path.join("SKILL.md").is_file())
-    });
-    for item in items {
-        item.installed_version = registry
-            .installed
-            .get(&item.id)
-            .map(|value| value.version.clone());
-        item.installed = item.installed_version.as_deref() == Some(item.version.as_str());
-    }
-    write_registry(app, &registry)
-}
-
 fn extract_archive(data: &[u8], destination: &Path, layout: &ArchiveLayout) -> Result<(), String> {
     let mut archive = ZipArchive::new(Cursor::new(data))
         .map_err(|error| format!("Downloaded skill archive is invalid: {error}"))?;
@@ -386,7 +315,7 @@ pub(crate) async fn list_market_skills<R: Runtime>(
 ) -> Result<Vec<SkillMarketItem>, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let mut items = cloud::fetch_skill_market_items(&app)?;
-        mark_installed(&app, &mut items)?;
+        installed::mark_installed(&app, &mut items)?;
         Ok(items)
     })
     .await
@@ -457,93 +386,32 @@ pub(crate) async fn install_market_skill<R: Runtime>(
     app: tauri::AppHandle<R>,
     skill: SkillMarketItem,
 ) -> Result<(), String> {
-    tauri::async_runtime::spawn_blocking(move || {
-        let root = skills_root(&app)?;
-        fs::create_dir_all(&root)
-            .map_err(|error| format!("Could not create {}: {error}", root.display()))?;
-        let mut registry = read_registry(&app);
-        if registry.installed.get(&skill.id).is_some_and(|installed| {
-            installed.version == skill.version
-                && installed_path(&root, &installed.directory)
-                    .is_some_and(|path| path.join("SKILL.md").is_file())
-        }) {
-            return Ok(());
-        }
+    tauri::async_runtime::spawn_blocking(move || install::install_market_skill(&app, skill))
+        .await
+        .map_err(|error| format!("Skill install task failed: {error}"))?
+}
 
-        let archive = cloud::download_skill_market_archive(&app, &skill.id)?;
-        if archive.len() > MAX_SKILL_ARCHIVE_BYTES {
-            return Err("Downloaded skill archive exceeds the 1 MB limit".to_string());
-        }
-        let actual_sha256 = format!("{:x}", Sha256::digest(&archive));
-        if !actual_sha256.eq_ignore_ascii_case(&skill.archive_sha256) {
-            return Err("Downloaded skill archive failed integrity verification".to_string());
-        }
-        let layout = inspect_archive(&archive)?;
-        let short_id = skill
-            .id
-            .chars()
-            .filter(|character| character.is_ascii_hexdigit())
-            .take(12)
-            .collect::<String>();
-        let directory_name = format!(
-            "market-{}",
-            if short_id.is_empty() {
-                Uuid::new_v4().to_string()
-            } else {
-                short_id
-            }
-        );
-        let destination = root.join(&directory_name);
-        let managed_destination = registry
-            .installed
-            .get(&skill.id)
-            .and_then(|installed| installed_path(&root, &installed.directory));
-        if destination.exists() && managed_destination.as_deref() != Some(destination.as_path()) {
-            return Err("A local skill already uses the marketplace install directory".to_string());
-        }
-        let temporary = root.join(format!(".codex-switch-skill-{}", Uuid::new_v4()));
-        fs::create_dir(&temporary)
-            .map_err(|error| format!("Could not create temporary skill directory: {error}"))?;
-        if let Err(error) = extract_archive(&archive, &temporary, &layout) {
-            let _ = fs::remove_dir_all(&temporary);
-            return Err(error);
-        }
-        let backup = root.join(format!(".codex-switch-skill-backup-{}", Uuid::new_v4()));
-        if destination.exists() {
-            fs::rename(&destination, &backup).map_err(|error| {
-                format!("Could not prepare the installed skill for update: {error}")
-            })?;
-        }
-        if let Err(error) = fs::rename(&temporary, &destination) {
-            let _ = fs::remove_dir_all(&temporary);
-            if backup.exists() {
-                let _ = fs::rename(&backup, &destination);
-            }
-            return Err(format!("Could not install skill: {error}"));
-        }
-        registry.installed.insert(
-            skill.id,
-            InstalledSkill {
-                directory: directory_name,
-                version: skill.version,
-            },
-        );
-        if let Err(error) = write_registry(&app, &registry) {
-            let _ = fs::remove_dir_all(&destination);
-            if backup.exists() {
-                let _ = fs::rename(&backup, &destination);
-            }
-            return Err(error);
-        }
-        if backup.exists() {
-            fs::remove_dir_all(&backup).map_err(|error| {
-                format!("Skill updated, but the old version could not be removed: {error}")
-            })?;
-        }
-        Ok(())
+#[tauri::command]
+pub(crate) async fn set_market_skill_enabled<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    skill_id: String,
+    enabled: bool,
+) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        installed::set_market_skill_enabled(&app, &skill_id, enabled)
     })
     .await
-    .map_err(|error| format!("Skill install task failed: {error}"))?
+    .map_err(|error| format!("Skill status task failed: {error}"))?
+}
+
+#[tauri::command]
+pub(crate) async fn remove_market_skill<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    skill_id: String,
+) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || installed::remove_market_skill(&app, &skill_id))
+        .await
+        .map_err(|error| format!("Skill removal task failed: {error}"))?
 }
 
 #[cfg(test)]

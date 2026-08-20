@@ -365,6 +365,8 @@ pub fn run() {
             skills_market::list_market_skills,
             skills_market::upload_market_skill,
             skills_market::install_market_skill,
+            skills_market::remove_market_skill,
+            skills_market::set_market_skill_enabled,
             official_plugins::list_official_plugins,
             official_plugins::install_official_plugin,
             official_plugins::remove_official_plugin,

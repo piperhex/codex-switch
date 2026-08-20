@@ -4,11 +4,13 @@ import { SkillInstallButton } from "./SkillInstallButton";
 import type { SkillDetailModalProps } from "./types";
 
 export function SkillDetailModal({
-  busy,
+  busyAction,
   isPublisher,
   onClose,
   onEdit,
   onInstall,
+  onRemove,
+  onSetEnabled,
   onPreviewError,
   preview,
   previewBroken,
@@ -77,7 +79,8 @@ export function SkillDetailModal({
               <Edit3 size={16} />{t("skills.edit")}
             </button>
           )}
-          <SkillInstallButton busy={busy} onInstall={onInstall} skill={skill} t={t} />
+          <SkillInstallButton busyAction={busyAction} onInstall={onInstall} onRemove={onRemove}
+            onSetEnabled={onSetEnabled} skill={skill} t={t} />
         </div>
       </div>
     </div>

@@ -21,7 +21,7 @@ function SkillCardPreview({ options, skill }: { options: SkillMarketGridProps; s
 }
 
 function SkillCardBody({ options, skill }: { options: SkillMarketGridProps; skill: SkillMarketItem }) {
-  const { authenticated, busySkillId, currentUserId, onEdit, onInstall, t } = options;
+  const { authenticated, busyAction, currentUserId, onEdit, onInstall, onRemove, onSetEnabled, t } = options;
   const isPublisher = Boolean(authenticated && currentUserId && skill.uploaderId === currentUserId);
   return (
     <div className="skill-card-body">
@@ -44,8 +44,10 @@ function SkillCardBody({ options, skill }: { options: SkillMarketGridProps; skil
         </span>
       </div>
       <SkillInstallButton
-        busy={busySkillId === skill.id}
+        busyAction={busyAction}
         onInstall={onInstall}
+        onRemove={onRemove}
+        onSetEnabled={onSetEnabled}
         skill={skill}
         t={t}
       />
