@@ -132,6 +132,7 @@ type ProviderFieldModifiedAt = {
   models: string;
   modelReasoningEfforts: string;
   modelContextWindows: string;
+  modelApiFormats: string;
   imageInputModels: string;
   contextWindow: string;
   modelSelectionControlledByCodex: string;
@@ -148,6 +149,7 @@ type ProviderFieldModifiedAt = {
 const PROVIDER_REASONING_EFFORTS = new Set([
   'none', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra',
 ]);
+const PROVIDER_API_FORMATS = new Set(['openaiResponses', 'openaiChat']);
 
 export interface SystemAccountDto {
   id: string;
@@ -1230,6 +1232,7 @@ export class SyncService {
         row.models,
       ),
       modelContextWindows: this.normalizeModelContextWindows(row.modelContextWindows, row.models),
+      modelApiFormats: this.normalizeModelApiFormats(row.modelApiFormats, row.models),
       imageInputModels: row.imageInputModels ?? [],
       contextWindow: row.contextWindow,
       modelSelectionControlledByCodex: row.modelSelectionControlledByCodex,
@@ -1272,6 +1275,7 @@ export class SyncService {
         incoming.modelContextWindows,
         incoming.models,
       ),
+      modelApiFormats: this.normalizeModelApiFormats(incoming.modelApiFormats, incoming.models),
       imageInputModels: incoming.imageInputModels ?? [],
       contextWindow: incoming.contextWindow ?? null,
       modelSelectionControlledByCodex: incoming.modelSelectionControlledByCodex ?? false,
@@ -1314,6 +1318,7 @@ export class SyncService {
       models: existing.models,
       modelReasoningEfforts: existing.modelReasoningEfforts,
       modelContextWindows: existing.modelContextWindows,
+      modelApiFormats: existing.modelApiFormats,
       imageInputModels: existing.imageInputModels,
       contextWindow: existing.contextWindow,
       modelSelectionControlledByCodex: existing.modelSelectionControlledByCodex,
@@ -1355,7 +1360,7 @@ export class SyncService {
     const normalized = {} as ProviderFieldModifiedAt;
     for (const key of [
       'kind', 'name', 'group', 'baseUrl', 'apiKey', 'model', 'models', 'modelReasoningEfforts',
-      'modelContextWindows',
+      'modelContextWindows', 'modelApiFormats',
       'imageInputModels', 'contextWindow',
       'modelSelectionControlledByCodex', 'apiFormat', 'balancePlatform',
       'balanceQueryUrl', 'balanceQueryToken', 'walletQueryUrl', 'walletQueryToken',
@@ -1395,6 +1400,18 @@ export class SyncService {
       if (isValid) {
         normalized[model] = contextWindow;
       }
+    }
+    return normalized;
+  }
+
+  private normalizeModelApiFormats(value: unknown, models: string[]) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+    const configured = value as Record<string, unknown>;
+    const normalized: Record<string, SyncProviderDto['apiFormat']> = {};
+    for (const model of models) {
+      const apiFormat = configured[model];
+      if (typeof apiFormat !== 'string' || !PROVIDER_API_FORMATS.has(apiFormat)) continue;
+      normalized[model] = apiFormat as SyncProviderDto['apiFormat'];
     }
     return normalized;
   }

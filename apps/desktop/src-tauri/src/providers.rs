@@ -9,10 +9,12 @@ use uuid::Uuid;
 
 use crate::{
     auth::{is_agent_identity_auth, validate_auth},
+    codex_config::{self, LocalProxyConfig},
     models::{
-        ImageModelTarget, ModelContextWindows, ModelReasoningEfforts, ProviderApiFormat,
-        ProviderBalance, ProviderBalanceItem, ProviderBalancePlatform, ProviderFieldModifiedAt,
-        ProviderKind, ProviderProfile, ProviderSummary, ReasoningEffort, UsageSummary,
+        ImageModelTarget, ModelApiFormats, ModelContextWindows, ModelReasoningEfforts,
+        ProviderApiFormat, ProviderBalance, ProviderBalanceItem, ProviderBalancePlatform,
+        ProviderFieldModifiedAt, ProviderKind, ProviderProfile, ProviderSummary, ReasoningEffort,
+        UsageSummary,
     },
     storage::{
         managed_auth_path, read_app_settings, read_json, read_state, resolve_paths,
@@ -21,17 +23,11 @@ use crate::{
     },
 };
 
-const PROVIDER_ROOT_START: &str = "# Codex Switch provider start";
-const PROVIDER_ROOT_END: &str = "# Codex Switch provider end";
-const PROVIDER_TABLE_START: &str = "# Codex Switch custom provider start";
-const PROVIDER_TABLE_END: &str = "# Codex Switch custom provider end";
-pub(crate) const LOCAL_PROXY_HOST: &str = "127.0.0.1";
-pub(crate) const LOCAL_PROXY_PORT: u16 = 15722;
-pub(crate) const LOCAL_PROXY_BASE_URL: &str = "http://127.0.0.1:15722/v1";
-pub(crate) const LOCAL_PROXY_TOKEN: &str = "CODEX_SWITCH_LOCAL_PROXY";
-pub(crate) const LOCAL_PROXY_ACTOR_AUTHORIZATION_HEADER: &str = "x-openai-actor-authorization";
+pub(crate) use codex_config::{
+    LOCAL_PROXY_ACTOR_AUTHORIZATION_HEADER, LOCAL_PROXY_BASE_URL, LOCAL_PROXY_HOST,
+    LOCAL_PROXY_PORT, LOCAL_PROXY_TOKEN,
+};
 pub(crate) const CODEX_SWITCH_CONTROL_MODEL: &str = "codex switch control";
-const LOCAL_PROXY_PROVIDER_ID: &str = "codex-switch-local";
 const LOCAL_PROXY_PROVIDER_NAME: &str = "Codex Switch Local Proxy";
 pub(crate) const DEFAULT_OFFICIAL_MODEL: &str = "gpt-5.6-sol";
 const MODEL_CATALOG_FILENAME: &str = "codex-switch-model-catalog.json";
@@ -58,38 +54,77 @@ fn emit_providers_changed<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<(), S
     Ok(())
 }
 
-fn refresh_codex_models_best_effort(provider: &ProviderProfile) {
+fn refresh_codex_models_best_effort(paths: &Paths, provider: &ProviderProfile) {
     if !crate::local_proxy::is_running() {
         return;
     }
-    let models = codex_visible_models(provider);
-    let image_input_models = codex_image_input_models(provider);
-    let model_reasoning_efforts = codex_model_reasoning_efforts(provider);
-    let selected_model = codex_model_for_provider(provider).to_string();
-    crate::codex_runtime::refresh_models(
-        models,
-        image_input_models,
-        model_reasoning_efforts,
-        selected_model,
-        reasoning_effort_profile(provider),
-    );
+    crate::codex_runtime::refresh_models(provider_model_refresh_request(paths, provider));
 }
 
-fn refresh_codex_group_models_best_effort(providers: &[ProviderProfile]) {
+fn refresh_codex_models_now_best_effort(paths: &Paths, provider: &ProviderProfile) {
     if !crate::local_proxy::is_running() {
         return;
     }
-    let catalog = provider_group_catalog_data(providers);
-    let Some(selected_model) = catalog.models.first().cloned() else {
+    crate::codex_runtime::refresh_models_blocking(provider_model_refresh_request(paths, provider));
+}
+
+fn refresh_codex_group_models_best_effort(paths: &Paths, providers: &[ProviderProfile]) {
+    if !crate::local_proxy::is_running() {
+        return;
+    }
+    let Some(request) = provider_group_model_refresh_request(paths, providers) else {
         return;
     };
-    crate::codex_runtime::refresh_models(
-        catalog.models,
-        catalog.image_input_models,
-        catalog.reasoning_efforts,
-        selected_model,
-        ReasoningEffortProfile::Standard,
+    crate::codex_runtime::refresh_models(request);
+}
+
+fn refresh_codex_group_models_now_best_effort(paths: &Paths, providers: &[ProviderProfile]) {
+    if !crate::local_proxy::is_running() {
+        return;
+    }
+    let Some(request) = provider_group_model_refresh_request(paths, providers) else {
+        return;
+    };
+    crate::codex_runtime::refresh_models_blocking(request);
+}
+
+fn provider_model_refresh_request(
+    paths: &Paths,
+    provider: &ProviderProfile,
+) -> crate::codex_runtime::ModelRefreshRequest {
+    let models = codex_visible_models(provider);
+    let image_input_models = routed_image_input_models(
+        &models,
+        &codex_image_input_models(provider),
+        image_input_route_enabled(paths),
     );
+    crate::codex_runtime::ModelRefreshRequest {
+        models,
+        image_input_models,
+        model_reasoning_efforts: codex_model_reasoning_efforts(provider),
+        selected_model: codex_model_for_provider(provider).to_string(),
+        reasoning_profile: reasoning_effort_profile(provider),
+    }
+}
+
+fn provider_group_model_refresh_request(
+    paths: &Paths,
+    providers: &[ProviderProfile],
+) -> Option<crate::codex_runtime::ModelRefreshRequest> {
+    let mut catalog = provider_group_catalog_data(providers);
+    catalog.image_input_models = routed_image_input_models(
+        &catalog.models,
+        &catalog.image_input_models,
+        image_input_route_enabled(paths),
+    );
+    let selected_model = catalog.models.first().cloned()?;
+    Some(crate::codex_runtime::ModelRefreshRequest {
+        models: catalog.models,
+        image_input_models: catalog.image_input_models,
+        model_reasoning_efforts: catalog.reasoning_efforts,
+        selected_model,
+        reasoning_profile: ReasoningEffortProfile::Standard,
+    })
 }
 
 fn codex_visible_models(provider: &ProviderProfile) -> Vec<String> {
@@ -108,6 +143,22 @@ pub(crate) fn codex_image_input_models(provider: &ProviderProfile) -> Vec<String
         vec![CODEX_SWITCH_CONTROL_MODEL.to_string()]
     } else {
         Vec::new()
+    }
+}
+
+fn image_input_route_enabled(paths: &Paths) -> bool {
+    read_state(paths).image_input_target.is_some()
+}
+
+fn routed_image_input_models(
+    models: &[String],
+    configured_models: &[String],
+    route_enabled: bool,
+) -> Vec<String> {
+    if route_enabled {
+        models.to_vec()
+    } else {
+        configured_models.to_vec()
     }
 }
 
@@ -171,7 +222,11 @@ pub(crate) fn reasoning_effort_profile_for_model(
 
 fn codex_model_for_provider(provider: &ProviderProfile) -> &str {
     if provider.model_selection_controlled_by_codex {
-        &provider.model
+        provider
+            .models
+            .first()
+            .map(String::as_str)
+            .unwrap_or(&provider.model)
     } else {
         CODEX_SWITCH_CONTROL_MODEL
     }
@@ -184,40 +239,54 @@ pub(crate) fn refresh_codex_models_for_current_target(paths: &Paths) {
     let state = read_state(paths);
     if let Some(group) = state.active_provider_group.as_deref() {
         if let Ok(providers) = provider_group_profiles(paths, group) {
-            refresh_codex_group_models_best_effort(&providers);
+            refresh_codex_group_models_best_effort(paths, &providers);
         }
         return;
     }
     let Some(id) = state.active_provider_id.as_deref() else {
-        refresh_official_codex_models_for_paths(paths);
+        refresh_official_codex_models();
         return;
     };
     if crate::aggregate_api::is_active_id(id) {
         if let Ok(config) = crate::aggregate_api::read_active_config(paths, id) {
             if let Ok(profiles) = crate::aggregate_api::member_profiles(paths, &config) {
                 if let Ok(profile) = crate::aggregate_api::logical_profile(&config, &profiles) {
-                    refresh_codex_models_best_effort(&profile);
+                    refresh_codex_models_best_effort(paths, &profile);
                 }
             }
         }
         return;
     }
     if let Ok(provider) = read_provider(paths, id) {
-        refresh_codex_models_best_effort(&provider);
+        refresh_codex_models_best_effort(paths, &provider);
     }
 }
 
-pub(crate) fn refresh_official_codex_models_for_paths(paths: &Paths) {
+pub(crate) fn refresh_codex_models_for_current_target_blocking(paths: &Paths) {
     if !crate::local_proxy::is_running() {
         return;
     }
-    crate::codex_runtime::refresh_models(
-        Vec::new(),
-        Vec::new(),
-        ModelReasoningEfforts::new(),
-        preferred_official_model(paths),
-        ReasoningEffortProfile::Standard,
-    );
+    let state = read_state(paths);
+    if let Some(group) = state.active_provider_group.as_deref() {
+        if let Ok(providers) = provider_group_profiles(paths, group) {
+            refresh_codex_group_models_now_best_effort(paths, &providers);
+        }
+        return;
+    }
+    let Some(id) = state.active_provider_id.as_deref() else {
+        crate::codex_runtime::refresh_official_models_blocking(official_model());
+        return;
+    };
+    if let Ok(provider) = read_provider(paths, id) {
+        refresh_codex_models_now_best_effort(paths, &provider);
+    }
+}
+
+pub(crate) fn refresh_official_codex_models() {
+    if !crate::local_proxy::is_running() {
+        return;
+    }
+    crate::codex_runtime::refresh_official_models(official_model());
 }
 
 #[derive(Deserialize)]
@@ -238,6 +307,8 @@ pub(crate) struct ProviderInput {
     pub(crate) model_reasoning_efforts: ModelReasoningEfforts,
     #[serde(default)]
     pub(crate) model_context_windows: ModelContextWindows,
+    #[serde(default)]
+    pub(crate) model_api_formats: ModelApiFormats,
     #[serde(default)]
     pub(crate) image_input_models: Vec<String>,
     #[serde(default)]
@@ -330,6 +401,7 @@ pub(crate) fn save_provider<R: Runtime>(
         normalize_model_reasoning_efforts(&models, provider.model_reasoning_efforts);
     let model_context_windows =
         normalize_model_context_windows(&models, provider.model_context_windows);
+    let model_api_formats = normalize_model_api_formats(&models, provider.model_api_formats);
     let image_input_models = normalize_model_subset(&models, provider.image_input_models);
     let api_key = retained_api_key(existing.as_ref(), &base_url, provider.api_key.as_deref());
     if kind != ProviderKind::OpenAi
@@ -386,6 +458,7 @@ pub(crate) fn save_provider<R: Runtime>(
         models,
         model_reasoning_efforts,
         model_context_windows,
+        model_api_formats,
         image_input_models,
         image_input_models_configured,
         context_window: provider.context_window,
@@ -404,11 +477,11 @@ pub(crate) fn save_provider<R: Runtime>(
     let state = read_state(&paths);
     if state.active_provider_id.as_deref() == Some(&profile.id) {
         write_active_provider_config(&paths, &profile)?;
-        refresh_codex_models_best_effort(&profile);
+        refresh_codex_models_best_effort(&paths, &profile);
     } else if state.active_provider_group.as_deref() == Some(profile.group.as_str()) {
         let group_providers = provider_group_profiles(&paths, &profile.group)?;
         write_provider_group_local_proxy_config(&paths, &profile.group, &group_providers)?;
-        refresh_codex_group_models_best_effort(&group_providers);
+        refresh_codex_group_models_best_effort(&paths, &group_providers);
     }
     emit_providers_changed(&app)?;
     Ok(provider_summary(
@@ -900,7 +973,7 @@ pub(crate) fn switch_provider_group_blocking<R: Runtime>(
         }
         return Err(error);
     }
-    refresh_codex_group_models_best_effort(&providers);
+    refresh_codex_group_models_now_best_effort(&paths, &providers);
     emit_providers_changed(&app)
 }
 
@@ -949,7 +1022,7 @@ fn activate_provider_profile<R: Runtime>(
         }
         return Err(error);
     }
-    refresh_codex_models_best_effort(provider);
+    refresh_codex_models_now_best_effort(paths, provider);
     emit_providers_changed(app)
 }
 
@@ -978,7 +1051,7 @@ pub(crate) fn activate_logical_provider<R: Runtime>(
         }
         return Err(error);
     }
-    refresh_codex_models_best_effort(provider);
+    refresh_codex_models_best_effort(paths, provider);
     emit_providers_changed(app)
 }
 
@@ -1015,11 +1088,11 @@ pub(crate) fn switch_provider_model<R: Runtime>(
     let active = state.active_provider_id.as_deref() == Some(&provider.id);
     if active {
         write_active_provider_config(&paths, &provider)?;
-        refresh_codex_models_best_effort(&provider);
+        refresh_codex_models_best_effort(&paths, &provider);
     } else if state.active_provider_group.as_deref() == Some(provider.group.as_str()) {
         let group_providers = provider_group_profiles(&paths, &provider.group)?;
         write_provider_group_local_proxy_config(&paths, &provider.group, &group_providers)?;
-        refresh_codex_group_models_best_effort(&group_providers);
+        refresh_codex_group_models_best_effort(&paths, &group_providers);
     }
     emit_providers_changed(&app)?;
     Ok(provider_summary(
@@ -1045,11 +1118,11 @@ pub(crate) fn set_provider_model_control<R: Runtime>(
     let active = state.active_provider_id.as_deref() == Some(&provider.id);
     if active {
         write_active_provider_config(&paths, &provider)?;
-        refresh_codex_models_best_effort(&provider);
+        refresh_codex_models_best_effort(&paths, &provider);
     } else if state.active_provider_group.as_deref() == Some(provider.group.as_str()) {
         let group_providers = provider_group_profiles(&paths, &provider.group)?;
         write_provider_group_local_proxy_config(&paths, &provider.group, &group_providers)?;
-        refresh_codex_group_models_best_effort(&group_providers);
+        refresh_codex_group_models_best_effort(&paths, &group_providers);
     }
     emit_providers_changed(&app)?;
     Ok(provider_summary(
@@ -1286,7 +1359,7 @@ pub(crate) fn activate_provider_for_sync(paths: &Paths, id: &str) -> Result<bool
         let _ = write_state(paths, &original_state);
         return Err(error);
     }
-    refresh_codex_models_best_effort(&provider);
+    refresh_codex_models_best_effort(paths, &provider);
     Ok(true)
 }
 
@@ -1320,48 +1393,34 @@ fn cleanup_non_proxy_provider_state(paths: &Paths) -> Result<(), String> {
 }
 
 pub(crate) fn restore_official_config(paths: &Paths) -> Result<(), String> {
+    restore_official_config_with_model(paths, None)
+}
+
+pub(crate) fn restore_default_official_config(paths: &Paths) -> Result<(), String> {
+    restore_official_config_with_model(paths, Some(DEFAULT_OFFICIAL_MODEL))
+}
+
+fn restore_official_config_with_model(paths: &Paths, model: Option<&str>) -> Result<(), String> {
+    let backup = paths
+        .config_backup
+        .exists()
+        .then(|| {
+            fs::read_to_string(&paths.config_backup)
+                .map_err(|error| format!("Failed to read Codex config backup: {error}"))
+        })
+        .transpose()?;
+    let current = if paths.current_config.exists() {
+        fs::read_to_string(&paths.current_config)
+            .map_err(|error| format!("Failed to read Codex config: {error}"))?
+    } else {
+        backup.clone().unwrap_or_default()
+    };
+    let official_config = codex_config::restore_official(&current, backup.as_deref(), model)
+        .map_err(|error| error.to_string())?;
+    write_text_if_changed(&paths.current_config, &official_config)?;
     if paths.config_backup.exists() {
-        let backup = fs::read_to_string(&paths.config_backup)
-            .map_err(|error| format!("Failed to read Codex config backup: {error}"))?;
-        // Older interrupted/direct Provider switches could leave Codex Switch's
-        // managed blocks inside the backup itself. Never restore those blocks when
-        // returning to an official account.
-        let backed_up_config =
-            if backup.contains(PROVIDER_ROOT_START) || backup.contains(PROVIDER_TABLE_START) {
-                remove_marked_blocks(&backup)
-            } else {
-                backup
-            };
-        let official_config = if paths.current_config.exists() {
-            let current = fs::read_to_string(&paths.current_config)
-                .map_err(|error| format!("Failed to read Codex config: {error}"))?;
-            restore_provider_conflicts(&current, &backed_up_config)
-        } else {
-            backed_up_config
-        };
-        if official_config.trim().is_empty() {
-            if paths.current_config.exists() {
-                fs::remove_file(&paths.current_config)
-                    .map_err(|error| format!("Failed to remove managed Codex config: {error}"))?;
-            }
-        } else {
-            write_text_if_changed(&paths.current_config, &official_config)?;
-        }
         fs::remove_file(&paths.config_backup)
             .map_err(|error| format!("Failed to clear Codex config backup: {error}"))?;
-        return Ok(());
-    }
-
-    if paths.current_config.exists() {
-        let current = fs::read_to_string(&paths.current_config)
-            .map_err(|error| format!("Failed to read Codex config: {error}"))?;
-        let cleaned = remove_marked_blocks(&current);
-        if cleaned.trim().is_empty() {
-            fs::remove_file(&paths.current_config)
-                .map_err(|error| format!("Failed to remove managed Codex config: {error}"))?;
-        } else if cleaned != current {
-            write_text_if_changed(&paths.current_config, &cleaned)?;
-        }
     }
     Ok(())
 }
@@ -1570,6 +1629,7 @@ fn provider_field_values(provider: &ProviderProfile) -> Vec<serde_json::Value> {
         json!(provider.models),
         json!(provider.model_reasoning_efforts),
         json!(provider.model_context_windows),
+        json!(provider.model_api_formats),
         json!({
             "models": provider.image_input_models,
             "configured": provider.image_input_models_configured,
@@ -1587,7 +1647,7 @@ fn provider_field_values(provider: &ProviderProfile) -> Vec<serde_json::Value> {
     ]
 }
 
-fn provider_field_versions_mut(values: &mut ProviderFieldModifiedAt) -> [&mut String; 20] {
+fn provider_field_versions_mut(values: &mut ProviderFieldModifiedAt) -> [&mut String; 21] {
     [
         &mut values.kind,
         &mut values.name,
@@ -1598,6 +1658,7 @@ fn provider_field_versions_mut(values: &mut ProviderFieldModifiedAt) -> [&mut St
         &mut values.models,
         &mut values.model_reasoning_efforts,
         &mut values.model_context_windows,
+        &mut values.model_api_formats,
         &mut values.image_input_models,
         &mut values.context_window,
         &mut values.model_selection_controlled_by_codex,
@@ -1721,6 +1782,7 @@ fn provider_summary(
         models: provider.models.clone(),
         model_reasoning_efforts: provider.model_reasoning_efforts.clone(),
         model_context_windows: provider.model_context_windows.clone(),
+        model_api_formats: provider.model_api_formats.clone(),
         image_input_models: provider.image_input_models.clone(),
         image_input_models_configured: provider.image_input_models_configured,
         context_window: provider.context_window,
@@ -2212,6 +2274,19 @@ fn normalize_model_context_windows(
         .collect()
 }
 
+fn normalize_model_api_formats(models: &[String], configured: ModelApiFormats) -> ModelApiFormats {
+    configured
+        .into_iter()
+        .filter_map(|(configured_model, api_format)| {
+            let model = configured_model.trim();
+            models
+                .iter()
+                .any(|candidate| candidate == model)
+                .then(|| (model.to_string(), api_format))
+        })
+        .collect()
+}
+
 fn normalize_provider_profile(mut provider: ProviderProfile) -> Result<ProviderProfile, String> {
     if provider.context_window == Some(0) {
         return Err("Context window must be greater than zero".to_string());
@@ -2247,6 +2322,8 @@ fn normalize_provider_profile(mut provider: ProviderProfile) -> Result<ProviderP
         normalize_model_reasoning_efforts(&provider.models, provider.model_reasoning_efforts);
     provider.model_context_windows =
         normalize_model_context_windows(&provider.models, provider.model_context_windows);
+    provider.model_api_formats =
+        normalize_model_api_formats(&provider.models, provider.model_api_formats);
     provider.image_input_models =
         normalize_model_subset(&provider.models, provider.image_input_models);
     match provider.balance_platform {
@@ -2449,8 +2526,12 @@ fn backup_codex_config_if_needed(paths: &Paths, entering_provider: bool) -> Resu
 }
 
 pub(crate) fn write_official_local_proxy_config(paths: &Paths) -> Result<(), String> {
-    let model = preferred_official_model(paths);
-    write_local_proxy_config(paths, LOCAL_PROXY_PROVIDER_NAME, Some(&model), false)
+    write_local_proxy_config(
+        paths,
+        LOCAL_PROXY_PROVIDER_NAME,
+        Some(DEFAULT_OFFICIAL_MODEL),
+        false,
+    )
 }
 
 fn write_provider_local_proxy_config(
@@ -2533,7 +2614,10 @@ fn write_provider_group_local_proxy_config(
     group: &str,
     providers: &[ProviderProfile],
 ) -> Result<(), String> {
-    let catalog = model_catalog_for_provider_group(providers);
+    let catalog = model_catalog_for_provider_group_with_image_route(
+        providers,
+        image_input_route_enabled(paths),
+    );
     write_json_if_changed(&paths.codex_home.join(MODEL_CATALOG_FILENAME), &catalog)?;
     let selected_model = provider_group_catalog_data(providers)
         .models
@@ -2748,13 +2832,26 @@ fn provider_model_catalog_entry(
 }
 
 fn write_provider_model_catalog(paths: &Paths, provider: &ProviderProfile) -> Result<(), String> {
-    let catalog = model_catalog_for_provider(provider);
+    let catalog =
+        model_catalog_for_provider_with_image_route(provider, image_input_route_enabled(paths));
     write_json_if_changed(&paths.codex_home.join(MODEL_CATALOG_FILENAME), &catalog).map(|_| ())
 }
 
+#[cfg(test)]
 pub(crate) fn model_catalog_for_provider(provider: &ProviderProfile) -> Value {
+    model_catalog_for_provider_with_image_route(provider, false)
+}
+
+pub(crate) fn model_catalog_for_provider_with_image_route(
+    provider: &ProviderProfile,
+    image_input_route_enabled: bool,
+) -> Value {
     let models = codex_visible_models(provider);
-    let image_input_models = codex_image_input_models(provider);
+    let image_input_models = routed_image_input_models(
+        &models,
+        &codex_image_input_models(provider),
+        image_input_route_enabled,
+    );
     let reasoning_efforts = codex_model_reasoning_efforts(provider);
     let context_windows = codex_model_context_windows(provider);
     model_catalog_for_models(
@@ -2769,8 +2866,21 @@ pub(crate) fn model_catalog_for_provider(provider: &ProviderProfile) -> Value {
     )
 }
 
+#[cfg(test)]
 pub(crate) fn model_catalog_for_provider_group(providers: &[ProviderProfile]) -> Value {
-    let data = provider_group_catalog_data(providers);
+    model_catalog_for_provider_group_with_image_route(providers, false)
+}
+
+pub(crate) fn model_catalog_for_provider_group_with_image_route(
+    providers: &[ProviderProfile],
+    image_input_route_enabled: bool,
+) -> Value {
+    let mut data = provider_group_catalog_data(providers);
+    data.image_input_models = routed_image_input_models(
+        &data.models,
+        &data.image_input_models,
+        image_input_route_enabled,
+    );
     model_catalog_for_models(
         &data.models,
         ModelCatalogOptions {
@@ -2809,43 +2919,8 @@ fn write_local_proxy_config(
         requires_openai_auth,
         token_command: &token_command,
     };
-    let merged = merge_local_proxy_config(&existing, &options);
+    let merged = merge_local_proxy_config(&existing, &options)?;
     write_text_if_changed(&paths.current_config, &merged).map(|_| ())
-}
-
-#[cfg(test)]
-fn merge_provider_config(existing: &str, provider: &ProviderProfile) -> String {
-    let cleaned = remove_provider_conflicts(&remove_marked_blocks(existing));
-    let mut config = String::new();
-    config.push_str(PROVIDER_ROOT_START);
-    config.push('\n');
-    config.push_str("model_provider = \"custom\"\n");
-    config.push_str(&format!("model = {}\n", toml_string(&provider.model)));
-    config.push_str("disable_response_storage = true\n");
-    config.push_str(PROVIDER_ROOT_END);
-    config.push_str("\n\n");
-
-    let cleaned = cleaned.trim();
-    if !cleaned.is_empty() {
-        config.push_str(cleaned);
-        config.push_str("\n\n");
-    }
-
-    config.push_str(PROVIDER_TABLE_START);
-    config.push('\n');
-    config.push_str("[model_providers.custom]\n");
-    config.push_str(&format!("name = {}\n", toml_string(&provider.name)));
-    config.push_str(&format!("base_url = {}\n", toml_string(&provider.base_url)));
-    config.push_str("wire_api = \"responses\"\n");
-    if !provider.api_key.trim().is_empty() {
-        config.push_str(&format!(
-            "experimental_bearer_token = {}\n",
-            toml_string(&provider.api_key)
-        ));
-    }
-    config.push_str(PROVIDER_TABLE_END);
-    config.push('\n');
-    config
 }
 
 struct LocalProxyConfigOptions<'a> {
@@ -2856,344 +2931,31 @@ struct LocalProxyConfigOptions<'a> {
     token_command: &'a str,
 }
 
-fn merge_local_proxy_config(existing: &str, options: &LocalProxyConfigOptions<'_>) -> String {
-    let cleaned = remove_provider_conflicts(&remove_marked_blocks(existing));
-    let model = options
-        .model
-        .map(str::trim)
-        .filter(|value| !value.is_empty());
-    let mut config = String::new();
-    config.push_str(PROVIDER_ROOT_START);
-    config.push('\n');
-    config.push_str(&format!(
-        "model_provider = {}\n",
-        toml_string(LOCAL_PROXY_PROVIDER_ID)
-    ));
-    if let Some(model) = model {
-        config.push_str(&format!("model = {}\n", toml_string(model)));
-    }
-    if options.include_model_catalog {
-        config.push_str(&format!(
-            "model_catalog_json = {}\n",
-            toml_string(MODEL_CATALOG_FILENAME)
-        ));
-    }
-    config.push_str("disable_response_storage = true\n");
-    config.push_str(PROVIDER_ROOT_END);
-    config.push_str("\n\n");
-
-    let cleaned = cleaned.trim();
-    if !cleaned.is_empty() {
-        config.push_str(cleaned);
-        config.push_str("\n\n");
-    }
-
-    config.push_str(PROVIDER_TABLE_START);
-    config.push('\n');
-    config.push_str(&format!("[model_providers.{LOCAL_PROXY_PROVIDER_ID}]\n"));
-    config.push_str(&format!("name = {}\n", toml_string(options.name)));
-    config.push_str(&format!(
-        "base_url = {}\n",
-        toml_string(LOCAL_PROXY_BASE_URL)
-    ));
-    config.push_str("wire_api = \"responses\"\n");
-    config.push_str(&format!(
-        "requires_openai_auth = {}\n",
-        options.requires_openai_auth
-    ));
-    if options.requires_openai_auth {
-        config.push_str(&format!(
-            "experimental_bearer_token = {}\n",
-            toml_string(LOCAL_PROXY_TOKEN)
-        ));
-    } else {
-        config.push_str(&format!(
-            "auth = {{ command = {}, args = [\"--print-local-proxy-token\"], timeout_ms = 5000, refresh_interval_ms = 300000 }}\n",
-            toml_string(options.token_command)
-        ));
-    }
-    config.push_str(&format!(
-        "http_headers = {{ {} = {} }}\n",
-        toml_string(LOCAL_PROXY_ACTOR_AUTHORIZATION_HEADER),
-        toml_string(LOCAL_PROXY_TOKEN)
-    ));
-    config.push_str(PROVIDER_TABLE_END);
-    config.push('\n');
-    config
-}
-
-#[derive(Clone, Copy)]
-enum MarkedBlockKind {
-    Root,
-    Table,
-}
-
-fn remove_marked_blocks(config: &str) -> String {
-    let lines = config.lines().collect::<Vec<_>>();
-    let mut output = Vec::with_capacity(lines.len());
-    let mut index = 0;
-    while index < lines.len() {
-        let Some((kind, end_marker)) = marked_block_start(lines[index].trim()) else {
-            output.push(lines[index]);
-            index += 1;
-            continue;
-        };
-        let Some(end_index) = find_marked_block_end(&lines, index + 1, end_marker) else {
-            return config.to_string();
-        };
-        output.extend(clean_marked_block(&lines[index + 1..end_index], kind));
-        index = end_index + 1;
-    }
-    output.join("\n")
-}
-
-fn marked_block_start(line: &str) -> Option<(MarkedBlockKind, &'static str)> {
-    match line {
-        PROVIDER_ROOT_START => Some((MarkedBlockKind::Root, PROVIDER_ROOT_END)),
-        PROVIDER_TABLE_START => Some((MarkedBlockKind::Table, PROVIDER_TABLE_END)),
-        _ => None,
-    }
-}
-
-fn find_marked_block_end(lines: &[&str], start: usize, end_marker: &str) -> Option<usize> {
-    lines
-        .iter()
-        .enumerate()
-        .skip(start)
-        .find_map(|(index, line)| (line.trim() == end_marker).then_some(index))
-}
-
-fn clean_marked_block<'a>(lines: &'a [&'a str], kind: MarkedBlockKind) -> Vec<&'a str> {
-    let mut output = Vec::with_capacity(lines.len());
-    let mut in_root = true;
-    let mut removing_provider_table = false;
-    for line in lines {
-        let trimmed = line.trim();
-        if is_table_header(trimmed) {
-            in_root = false;
-            removing_provider_table = is_managed_provider_table(trimmed);
-            if !removing_provider_table {
-                output.push(*line);
-            }
-            continue;
-        }
-        if removing_provider_table {
-            continue;
-        }
-        if matches!(kind, MarkedBlockKind::Root) && in_root && is_provider_root_key(trimmed) {
-            continue;
-        }
-        output.push(*line);
-    }
-    output
-}
-
-fn is_managed_provider_table(line: &str) -> bool {
-    line == "[model_providers.custom]"
-        || line == format!("[model_providers.{LOCAL_PROXY_PROVIDER_ID}]")
-}
-
-fn remove_provider_conflicts(config: &str) -> String {
-    let mut output = Vec::new();
-    let mut in_root = true;
-    let mut removing_custom_provider = false;
-    let local_proxy_provider_header = format!("[model_providers.{LOCAL_PROXY_PROVIDER_ID}]");
-
-    for line in config.lines() {
-        let trimmed = line.trim();
-        if removing_custom_provider {
-            if is_table_header(trimmed) {
-                removing_custom_provider = false;
-            } else {
-                continue;
-            }
-        }
-
-        if is_table_header(trimmed) {
-            in_root = false;
-            if trimmed == "[model_providers.custom]"
-                || trimmed == local_proxy_provider_header.as_str()
-            {
-                removing_custom_provider = true;
-                continue;
-            }
-            output.push(line);
-            continue;
-        }
-
-        if in_root && is_provider_root_key(trimmed) {
-            continue;
-        }
-        output.push(line);
-    }
-
-    output.join("\n")
-}
-
-fn restore_provider_conflicts(current: &str, backup: &str) -> String {
-    let current = remove_provider_conflicts(&remove_marked_blocks(current));
-    let blocks = [
-        provider_root_lines(backup),
-        current.trim().to_string(),
-        config_table_block(backup, "[model_providers.custom]"),
-    ];
-    let restored = blocks
-        .iter()
-        .map(|block| block.trim())
-        .filter(|block| !block.is_empty())
-        .collect::<Vec<_>>()
-        .join("\n\n");
-    if restored.is_empty() {
-        restored
-    } else {
-        format!("{restored}\n")
-    }
-}
-
-fn provider_root_lines(config: &str) -> String {
-    config
-        .lines()
-        .take_while(|line| !is_table_header(line.trim()))
-        .filter(|line| is_provider_root_key(line.trim()))
-        .collect::<Vec<_>>()
-        .join("\n")
-}
-
-fn config_table_block(config: &str, header: &str) -> String {
-    let mut lines = Vec::new();
-    let mut in_table = false;
-    for line in config.lines() {
-        let trimmed = line.trim();
-        if trimmed == header {
-            in_table = true;
-        } else if in_table && is_table_header(trimmed) {
-            break;
-        }
-        if in_table {
-            lines.push(line);
-        }
-    }
-    lines.join("\n")
+fn merge_local_proxy_config(
+    existing: &str,
+    options: &LocalProxyConfigOptions<'_>,
+) -> Result<String, String> {
+    codex_config::apply_local_proxy(
+        existing,
+        &LocalProxyConfig {
+            name: options.name,
+            model: options.model,
+            model_catalog_filename: options
+                .include_model_catalog
+                .then_some(MODEL_CATALOG_FILENAME),
+            requires_openai_auth: options.requires_openai_auth,
+            token_command: options.token_command,
+        },
+    )
+    .map_err(|error| error.to_string())
 }
 
 fn config_contains_local_proxy(config: &str) -> bool {
-    config.contains(LOCAL_PROXY_BASE_URL)
-        || config.contains(LOCAL_PROXY_TOKEN)
-        || config.contains(&format!("[model_providers.{LOCAL_PROXY_PROVIDER_ID}]"))
+    codex_config::contains_local_proxy(config)
 }
 
-pub(crate) fn preferred_official_model(paths: &Paths) -> String {
-    let current = fs::read_to_string(&paths.current_config).ok();
-    let backup = fs::read_to_string(&paths.config_backup).ok();
-    preferred_official_model_from_configs(current.as_deref(), backup.as_deref())
-}
-
-fn preferred_official_model_from_configs(current: Option<&str>, backup: Option<&str>) -> String {
-    backup
-        .and_then(|config| extract_root_model(&remove_marked_blocks(config)))
-        .or_else(|| {
-            current.and_then(|config| {
-                let cleaned = remove_marked_blocks(config);
-                extract_root_model(&cleaned)
-            })
-        })
-        .unwrap_or_else(|| DEFAULT_OFFICIAL_MODEL.to_string())
-}
-
-fn extract_root_model(config: &str) -> Option<String> {
-    let mut in_root = true;
-    for line in config.lines() {
-        let trimmed = line.trim();
-        if is_table_header(trimmed) {
-            in_root = false;
-            continue;
-        }
-        if !in_root || !trimmed.starts_with("model") {
-            continue;
-        }
-        let Some(rest) = trimmed.strip_prefix("model") else {
-            continue;
-        };
-        let rest = rest.trim_start();
-        if !rest.starts_with('=') {
-            continue;
-        }
-        let value = rest[1..].trim();
-        return parse_toml_string_literal(value);
-    }
-    None
-}
-
-fn parse_toml_string_literal(value: &str) -> Option<String> {
-    let quote = value.chars().next()?;
-    if quote != '"' && quote != '\'' {
-        return None;
-    }
-    let mut escaped = false;
-    let mut output = String::new();
-    for ch in value[quote.len_utf8()..].chars() {
-        if quote == '"' && escaped {
-            let decoded = match ch {
-                'n' => '\n',
-                'r' => '\r',
-                't' => '\t',
-                '"' => '"',
-                '\\' => '\\',
-                other => other,
-            };
-            output.push(decoded);
-            escaped = false;
-            continue;
-        }
-        if quote == '"' && ch == '\\' {
-            escaped = true;
-            continue;
-        }
-        if ch == quote {
-            return Some(output);
-        }
-        output.push(ch);
-    }
-    None
-}
-
-fn is_table_header(value: &str) -> bool {
-    value.starts_with('[') && value.ends_with(']')
-}
-
-fn is_provider_root_key(value: &str) -> bool {
-    [
-        "model_provider",
-        "model",
-        "disable_response_storage",
-        "model_catalog_json",
-    ]
-    .iter()
-    .any(|key| value.starts_with(key) && value[key.len()..].trim_start().starts_with('='))
-}
-
-fn toml_string(value: &str) -> String {
-    let mut output = String::from("\"");
-    for ch in value.chars() {
-        match ch {
-            '\\' => output.push_str("\\\\"),
-            '"' => output.push_str("\\\""),
-            '\n' => output.push_str("\\n"),
-            '\r' => output.push_str("\\r"),
-            '\t' => output.push_str("\\t"),
-            ch if ch.is_control() => {
-                let code = ch as u32;
-                if code <= 0xFFFF {
-                    output.push_str(&format!("\\u{code:04X}"));
-                } else {
-                    output.push_str(&format!("\\U{code:08X}"));
-                }
-            }
-            ch => output.push(ch),
-        }
-    }
-    output.push('"');
-    output
+pub(crate) fn official_model() -> String {
+    DEFAULT_OFFICIAL_MODEL.to_string()
 }
 
 #[cfg(test)]
@@ -3232,6 +2994,7 @@ base_url = "https://custom.example.com/v1"
             models: vec!["gpt-4.1".to_string()],
             model_reasoning_efforts: ModelReasoningEfforts::new(),
             model_context_windows: ModelContextWindows::new(),
+            model_api_formats: ModelApiFormats::new(),
             image_input_models: Vec::new(),
             image_input_models_configured: false,
             context_window: None,
@@ -3637,12 +3400,19 @@ base_url = "https://custom.example.com/v1"
     fn startup_restores_legacy_direct_provider_config() {
         let paths = test_paths();
         let official_config = "model = \"gpt-5.5\"\n";
+        let legacy_provider_config = format!(
+            "# Codex Switch provider start\n\
+             model_provider = \"custom\"\n\
+             model = \"gpt-4.1\"\n\
+             # Codex Switch provider end\n\n\
+             {official_config}\n\
+             # Codex Switch custom provider start\n\
+             [model_providers.custom]\n\
+             base_url = \"https://gateway.example.com/v1\"\n\
+             # Codex Switch custom provider end\n"
+        );
         write_text_atomic(&paths.config_backup, official_config).unwrap();
-        write_text_atomic(
-            &paths.current_config,
-            &merge_provider_config(official_config, &provider()),
-        )
-        .unwrap();
+        write_text_atomic(&paths.current_config, &legacy_provider_config).unwrap();
         write_state(
             &paths,
             &crate::models::ManagerStateFile {
@@ -3655,10 +3425,11 @@ base_url = "https://custom.example.com/v1"
 
         cleanup_non_proxy_provider_state(&paths).unwrap();
 
-        assert_eq!(
-            fs::read_to_string(&paths.current_config).unwrap(),
-            official_config
-        );
+        let restored = fs::read_to_string(&paths.current_config).unwrap();
+        let document = restored.parse::<toml_edit::DocumentMut>().unwrap();
+        assert_eq!(document["model"].as_str(), Some("gpt-5.5"));
+        assert_eq!(document["model_provider"].as_str(), Some("openai"));
+        assert!(!restored.contains("https://gateway.example.com/v1"));
         assert!(!paths.config_backup.exists());
         let state = read_state(&paths);
         assert_eq!(state.active_account_id.as_deref(), Some("official-account"));
@@ -3689,76 +3460,6 @@ base_url = "https://custom.example.com/v1"
     }
 
     #[test]
-    fn marked_provider_blocks_preserve_user_tables_inside_legacy_markers() {
-        let config = format!(
-            "{PROVIDER_TABLE_START}\n\
-             [model_providers.{LOCAL_PROXY_PROVIDER_ID}]\n\
-             base_url = \"{LOCAL_PROXY_BASE_URL}\"\n\
-             \n\
-             [desktop]\n\
-             show_home = true\n\
-             \n\
-             [features]\n\
-             js_repl = true\n\
-             {PROVIDER_TABLE_END}\n"
-        );
-
-        let cleaned = remove_marked_blocks(&config);
-
-        assert!(!cleaned.contains(LOCAL_PROXY_BASE_URL));
-        assert!(cleaned.contains("[desktop]"));
-        assert!(cleaned.contains("show_home = true"));
-        assert!(cleaned.contains("[features]"));
-        assert!(cleaned.contains("js_repl = true"));
-        cleaned.parse::<toml_edit::DocumentMut>().unwrap();
-    }
-
-    #[test]
-    fn restoring_with_an_empty_backup_keeps_user_settings_inside_legacy_markers() {
-        let paths = test_paths();
-        let current = format!(
-            "{PROVIDER_TABLE_START}\n\
-             [model_providers.{LOCAL_PROXY_PROVIDER_ID}]\n\
-             base_url = \"{LOCAL_PROXY_BASE_URL}\"\n\
-             \n\
-             [desktop]\n\
-             show_home = true\n\
-             \n\
-             [features]\n\
-             js_repl = true\n\
-             {PROVIDER_TABLE_END}\n"
-        );
-        write_text_atomic(&paths.config_backup, "").unwrap();
-        write_text_atomic(&paths.current_config, &current).unwrap();
-
-        restore_official_config(&paths).unwrap();
-
-        let restored = fs::read_to_string(&paths.current_config).unwrap();
-        assert!(restored.contains("[desktop]"));
-        assert!(restored.contains("show_home = true"));
-        assert!(restored.contains("[features]"));
-        assert!(restored.contains("js_repl = true"));
-        assert!(!restored.contains(LOCAL_PROXY_BASE_URL));
-        assert!(!paths.config_backup.exists());
-        restored.parse::<toml_edit::DocumentMut>().unwrap();
-        fs::remove_dir_all(paths.codex_home.parent().unwrap()).unwrap();
-    }
-
-    #[test]
-    fn unclosed_marked_provider_blocks_are_left_untouched() {
-        let config = format!(
-            "{PROVIDER_TABLE_START}\n\
-             [model_providers.{LOCAL_PROXY_PROVIDER_ID}]\n\
-             base_url = \"{LOCAL_PROXY_BASE_URL}\"\n\
-             \n\
-             [desktop]\n\
-             show_home = true\n"
-        );
-
-        assert_eq!(remove_marked_blocks(&config), config);
-    }
-
-    #[test]
     fn official_proxy_without_login_selection_removes_current_auth() {
         let paths = test_paths();
         let auth = test_auth();
@@ -3780,6 +3481,11 @@ base_url = "https://custom.example.com/v1"
         assert!(fs::read_to_string(&paths.current_config)
             .unwrap()
             .contains("requires_openai_auth = false"));
+        assert_eq!(
+            codex_config::root_model(&fs::read_to_string(&paths.current_config).unwrap())
+                .as_deref(),
+            Some(DEFAULT_OFFICIAL_MODEL)
+        );
         let root = paths.codex_home.parent().unwrap();
         fs::remove_dir_all(root).unwrap();
     }
@@ -3799,25 +3505,6 @@ base_url = "https://custom.example.com/v1"
     }
 
     #[test]
-    fn restoring_official_config_removes_managed_provider_blocks_from_backup() {
-        let paths = test_paths();
-        let official_setting = "model_reasoning_effort = \"high\"\n";
-        let stale_backup = merge_provider_config(official_setting, &provider());
-        write_text_atomic(&paths.config_backup, &stale_backup).unwrap();
-        write_text_atomic(&paths.current_config, &stale_backup).unwrap();
-
-        restore_official_config(&paths).unwrap();
-
-        let restored = fs::read_to_string(&paths.current_config).unwrap();
-        assert!(restored.contains(official_setting.trim()));
-        assert!(!restored.contains(PROVIDER_ROOT_START));
-        assert!(!restored.contains("[model_providers.custom]"));
-        assert!(!restored.contains("https://gateway.example.com/v1"));
-        assert!(!paths.config_backup.exists());
-        fs::remove_dir_all(paths.codex_home.parent().unwrap()).unwrap();
-    }
-
-    #[test]
     fn restoring_official_config_preserves_current_non_provider_settings() {
         let paths = test_paths();
         let options = LocalProxyConfigOptions {
@@ -3828,6 +3515,7 @@ base_url = "https://custom.example.com/v1"
             token_command: "codex-switch",
         };
         let current = merge_local_proxy_config(STALE_OFFICIAL_CONFIG, &options)
+            .unwrap()
             .replace("js_repl = true", "js_repl = false")
             .replace(
                 "BROWSER_USE_AVAILABLE_BACKENDS = \"iab\"",
@@ -3851,7 +3539,6 @@ base_url = "https://custom.example.com/v1"
         assert!(restored.contains("NODE_REPL_TRUSTED_CODE_PATHS = 'C:\\Users\\Test\\.codex"));
         assert!(restored.contains("sandbox = \"elevated\""));
         assert!(restored.contains("https://custom.example.com/v1"));
-        assert!(!restored.contains(PROVIDER_ROOT_START));
         assert!(!restored.contains(LOCAL_PROXY_BASE_URL));
         restored.parse::<toml_edit::DocumentMut>().unwrap();
         assert!(!paths.config_backup.exists());
@@ -3961,53 +3648,51 @@ base_url = "https://custom.example.com/v1"
             requires_openai_auth: false,
             token_command: r"C:\Program Files\Codex Switch\codex-switch.exe",
         };
-        let merged = merge_local_proxy_config("model = \"old\"", &options);
+        let merged = merge_local_proxy_config("model = \"old\"", &options).unwrap();
         assert!(merged.contains("model_provider = \"codex-switch-local\""));
         assert!(merged.contains("model = \"deepseek-chat\""));
         assert!(merged.contains("model_catalog_json = \"codex-switch-model-catalog.json\""));
         assert!(merged.contains("base_url = \"http://127.0.0.1:15722/v1\""));
         assert!(merged.contains("requires_openai_auth = false"));
-        assert!(merged.contains(
-            "http_headers = { \"x-openai-actor-authorization\" = \"CODEX_SWITCH_LOCAL_PROXY\" }"
-        ));
+        let document = merged.parse::<toml_edit::DocumentMut>().unwrap();
+        let provider = &document["model_providers"][codex_config::LOCAL_PROXY_PROVIDER_ID];
+        assert_eq!(
+            provider["http_headers"][LOCAL_PROXY_ACTOR_AUTHORIZATION_HEADER].as_str(),
+            Some(LOCAL_PROXY_TOKEN)
+        );
         assert!(merged.contains("--print-local-proxy-token"));
-        assert!(merged.contains(
-            "auth = { command = \"C:\\\\Program Files\\\\Codex Switch\\\\codex-switch.exe\""
-        ));
+        assert_eq!(
+            provider["auth"]["command"].as_str(),
+            Some(r"C:\Program Files\Codex Switch\codex-switch.exe")
+        );
         assert!(!merged.contains("model = \"old\""));
     }
 
     #[test]
-    fn provider_config_replaces_conflicting_root_keys_and_custom_provider() {
-        let existing = r#"
-model = "old"
-approval_policy = "on-request"
+    fn switching_provider_replaces_the_previous_proxy_model() {
+        let first = LocalProxyConfigOptions {
+            name: "First",
+            model: Some("first-model"),
+            include_model_catalog: true,
+            requires_openai_auth: false,
+            token_command: "codex-switch",
+        };
+        let second = LocalProxyConfigOptions {
+            name: "Second",
+            model: Some("second-model"),
+            include_model_catalog: true,
+            requires_openai_auth: false,
+            token_command: "codex-switch",
+        };
 
-[model_providers.custom]
-base_url = "https://old.example.com"
+        let first_config = merge_local_proxy_config("", &first).unwrap();
+        let second_config = merge_local_proxy_config(&first_config, &second).unwrap();
 
-[profiles.default]
-sandbox_mode = "workspace-write"
-"#;
-
-        let merged = merge_provider_config(existing, &provider());
-        assert!(merged.contains("model_provider = \"custom\""));
-        assert!(merged.contains("model = \"gpt-4.1\""));
-        assert!(!merged.contains("model_catalog_json"));
-        assert!(!merged.contains("requires_openai_auth"));
-        assert!(merged.contains("approval_policy = \"on-request\""));
-        assert!(merged.contains("[profiles.default]"));
-        assert!(!merged.contains("https://old.example.com"));
-    }
-
-    #[test]
-    fn provider_config_uses_dynamic_models_when_codex_controls_models() {
-        let mut provider = provider();
-        provider.model_selection_controlled_by_codex = true;
-
-        let merged = merge_provider_config("", &provider);
-
-        assert!(!merged.contains("model_catalog_json"));
+        assert_eq!(
+            codex_config::root_model(&second_config).as_deref(),
+            Some("second-model")
+        );
+        assert!(!second_config.contains("first-model"));
     }
 
     #[test]
@@ -4021,43 +3706,13 @@ sandbox_mode = "workspace-write"
     }
 
     #[test]
-    fn codex_control_keeps_selected_provider_model() {
+    fn codex_control_uses_first_available_provider_model() {
         let mut provider = provider();
         provider.model_selection_controlled_by_codex = true;
+        provider.model = "stale-model".to_string();
+        provider.models = vec!["available-model".to_string(), "second-model".to_string()];
 
-        assert_eq!(codex_model_for_provider(&provider), "gpt-4.1");
-    }
-
-    #[test]
-    fn provider_config_keeps_dynamic_models_for_a_custom_context_window() {
-        let mut provider = provider();
-        provider.context_window = Some(256_000);
-
-        let merged = merge_provider_config("", &provider);
-
-        assert!(!merged.contains("model_catalog_json"));
-    }
-
-    #[test]
-    fn openai_provider_config_uses_upstream_model_catalog() {
-        let mut provider = provider();
-        provider.kind = ProviderKind::OpenAi;
-        provider.model_selection_controlled_by_codex = true;
-
-        let merged = merge_provider_config("", &provider);
-
-        assert!(!merged.contains("model_catalog_json"));
-    }
-
-    #[test]
-    fn openai_provider_config_omits_empty_api_key() {
-        let mut provider = provider();
-        provider.kind = ProviderKind::OpenAi;
-        provider.api_key.clear();
-
-        let merged = merge_provider_config("", &provider);
-
-        assert!(!merged.contains("experimental_bearer_token"));
+        assert_eq!(codex_model_for_provider(&provider), "available-model");
     }
 
     #[test]
@@ -4310,6 +3965,7 @@ sandbox_mode = "workspace-write"
             models: Vec::new(),
             model_reasoning_efforts: ModelReasoningEfforts::new(),
             model_context_windows: ModelContextWindows::new(),
+            model_api_formats: ModelApiFormats::new(),
             image_input_models: vec!["missing-model".to_string()],
             image_input_models_configured: true,
             context_window: None,
@@ -4473,6 +4129,23 @@ sandbox_mode = "workspace-write"
     }
 
     #[test]
+    fn model_api_formats_are_limited_to_available_models() {
+        let configured = [
+            (" gpt-5.6-sol ".to_string(), ProviderApiFormat::OpenaiChat),
+            ("missing".to_string(), ProviderApiFormat::OpenaiResponses),
+        ]
+        .into();
+
+        let normalized = normalize_model_api_formats(&["gpt-5.6-sol".to_string()], configured);
+
+        assert_eq!(
+            normalized.get("gpt-5.6-sol"),
+            Some(&ProviderApiFormat::OpenaiChat)
+        );
+        assert!(!normalized.contains_key("missing"));
+    }
+
+    #[test]
     fn switch_control_inherits_the_selected_gpt_model_reasoning_levels() {
         let mut provider = provider();
         provider.model = "GPT-5.6-SOL".to_string();
@@ -4591,6 +4264,40 @@ sandbox_mode = "workspace-write"
     }
 
     #[test]
+    fn image_input_route_marks_all_visible_models_as_image_capable() {
+        let mut provider = provider();
+        provider.models = vec!["text-model".to_string(), "vision-model".to_string()];
+        provider.model = "text-model".to_string();
+        provider.image_input_models = vec!["vision-model".to_string()];
+        provider.model_selection_controlled_by_codex = true;
+
+        let catalog = model_catalog_for_provider_with_image_route(&provider, true);
+        let models = catalog["models"].as_array().unwrap();
+
+        assert_eq!(models[0]["input_modalities"], json!(["text", "image"]));
+        assert_eq!(models[1]["input_modalities"], json!(["text", "image"]));
+    }
+
+    #[test]
+    fn provider_refresh_request_applies_image_route_before_switch_returns() {
+        let paths = test_paths();
+        let state = crate::models::ManagerStateFile {
+            image_input_target: Some(ImageModelTarget::Official {
+                account_id: "image-account".to_string(),
+            }),
+            ..Default::default()
+        };
+        write_state(&paths, &state).unwrap();
+        let mut provider = provider();
+        provider.models = vec!["text-model".to_string(), "vision-model".to_string()];
+        provider.model_selection_controlled_by_codex = true;
+
+        let request = provider_model_refresh_request(&paths, &provider);
+
+        assert_eq!(request.models, request.image_input_models);
+    }
+
+    #[test]
     fn provider_context_window_defaults_and_rejects_zero() {
         let provider = provider();
         assert_eq!(
@@ -4604,11 +4311,6 @@ sandbox_mode = "workspace-write"
             normalize_provider_profile(invalid).unwrap_err(),
             "Context window must be greater than zero"
         );
-    }
-
-    #[test]
-    fn toml_string_escapes_secret_characters() {
-        assert_eq!(toml_string("a\"b\\c"), "\"a\\\"b\\\\c\"");
     }
 
     #[test]
@@ -4639,7 +4341,8 @@ sandbox_mode = "workspace-write"
     }
 
     #[test]
-    fn official_local_proxy_uses_backed_up_official_model_after_provider() {
+    fn official_local_proxy_uses_the_default_official_model_after_provider() {
+        let paths = test_paths();
         let backup = r#"
 model = "gpt-5.5"
 model_reasoning_effort = "xhigh"
@@ -4651,31 +4354,24 @@ model_reasoning_effort = "xhigh"
             requires_openai_auth: false,
             token_command: "codex-switch",
         };
-        let provider_proxy = merge_local_proxy_config(backup, &provider_options);
+        let provider_proxy = merge_local_proxy_config(backup, &provider_options).unwrap();
+        write_text_atomic(&paths.config_backup, backup).unwrap();
+        write_text_atomic(&paths.current_config, &provider_proxy).unwrap();
 
-        assert_eq!(
-            preferred_official_model_from_configs(Some(&provider_proxy), Some(backup)),
-            "gpt-5.5"
-        );
+        write_official_local_proxy_config(&paths).unwrap();
 
-        let official_model =
-            preferred_official_model_from_configs(Some(&provider_proxy), Some(backup));
-        let official_options = LocalProxyConfigOptions {
-            name: LOCAL_PROXY_PROVIDER_NAME,
-            model: Some(&official_model),
-            include_model_catalog: false,
-            requires_openai_auth: false,
-            token_command: "codex-switch",
-        };
-        let official_proxy = merge_local_proxy_config(&provider_proxy, &official_options);
-        let first_model = extract_root_model(&official_proxy).unwrap();
+        let official_proxy = fs::read_to_string(&paths.current_config).unwrap();
+        let first_model = codex_config::root_model(&official_proxy).unwrap();
 
-        assert_eq!(first_model, "gpt-5.5");
+        assert_eq!(first_model, DEFAULT_OFFICIAL_MODEL);
         assert!(!official_proxy.contains("deepseek-v4-flash"));
+        fs::remove_dir_all(paths.codex_home.parent().unwrap()).unwrap();
     }
 
     #[test]
-    fn official_model_does_not_reuse_managed_provider_model_without_backup() {
+    fn restoring_default_official_config_replaces_the_backed_up_model() {
+        let paths = test_paths();
+        let backup = "model = \"gpt-5.5\"\n";
         let provider_options = LocalProxyConfigOptions {
             name: "DeepSeek",
             model: Some("deepseek-v4-flash"),
@@ -4683,29 +4379,18 @@ model_reasoning_effort = "xhigh"
             requires_openai_auth: false,
             token_command: "codex-switch",
         };
-        let provider_proxy = merge_local_proxy_config(r#"model = "gpt-5.5""#, &provider_options);
+        let provider_proxy = merge_local_proxy_config(backup, &provider_options).unwrap();
+        write_text_atomic(&paths.config_backup, backup).unwrap();
+        write_text_atomic(&paths.current_config, &provider_proxy).unwrap();
 
+        restore_default_official_config(&paths).unwrap();
+
+        let restored = fs::read_to_string(&paths.current_config).unwrap();
         assert_eq!(
-            preferred_official_model_from_configs(Some(&provider_proxy), None),
-            DEFAULT_OFFICIAL_MODEL
+            codex_config::root_model(&restored).as_deref(),
+            Some(DEFAULT_OFFICIAL_MODEL)
         );
-    }
-
-    #[test]
-    fn official_model_does_not_reuse_managed_provider_model_from_stale_backup() {
-        let managed_provider = merge_provider_config("", &provider());
-
-        assert_eq!(
-            preferred_official_model_from_configs(None, Some(&managed_provider)),
-            DEFAULT_OFFICIAL_MODEL
-        );
-    }
-
-    #[test]
-    fn official_model_uses_plain_current_config_without_backup() {
-        assert_eq!(
-            preferred_official_model_from_configs(Some(r#"model = "gpt-5.5""#), None),
-            "gpt-5.5"
-        );
+        assert!(!paths.config_backup.exists());
+        fs::remove_dir_all(paths.codex_home.parent().unwrap()).unwrap();
     }
 }

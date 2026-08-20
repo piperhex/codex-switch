@@ -2,13 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { Tooltip } from "antd";
 import { Signal } from "lucide-react";
 import {
-  loadAccountTokenUsage,
   loadDailyTokenUsage,
   loadRecentProxySessionLatency,
   subscribeToTokenUsageChanges,
 } from "../api/backend";
 import type { Language, Translate } from "../i18n";
-import type { AccountTokenUsageTotals, DailyTokenUsage, ProxySessionLatencySummary } from "../types";
+import type { DailyTokenUsage, ProxySessionLatencySummary } from "../types";
 import { formatCompactTokenCount } from "../utils/tokenContext";
 import {
   DailyTokenUsageTooltip,
@@ -74,42 +73,15 @@ function formatTokenCount(value: number, numberFormat: Intl.NumberFormat) {
   return `${millions}M`;
 }
 
-function useTodayTokenTotals(refreshSeconds: number) {
-  const [usage, setUsage] = useState<AccountTokenUsageTotals[]>([]);
-  useEffect(() => {
-    let active = true;
-    let refreshing = false;
-    const refresh = async () => {
-      if (refreshing) return;
-      refreshing = true;
-      try {
-        const today = new Date();
-        const startTs = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime() / 1_000;
-        const totals = await loadAccountTokenUsage(startTs);
-        if (active) setUsage(totals);
-      } catch {
-        // Keep the last successful totals while token statistics are temporarily unavailable.
-      } finally {
-        refreshing = false;
-      }
-    };
-    void refresh();
-    const timer = window.setInterval(() => void refresh(), Math.max(1, refreshSeconds) * 1_000);
-    const unsubscribe = subscribeToTokenUsageChanges(() => void refresh());
-    return () => {
-      active = false;
-      window.clearInterval(timer);
-      unsubscribe();
-    };
-  }, [refreshSeconds]);
-
-  return useMemo(() => usage.reduce<TokenTypeTotals>((totals, entry) => ({
-    total: totals.total + entry.totalTokens,
-    input: totals.input + entry.inputTokens,
-    output: totals.output + entry.outputTokens,
-    reasoning: totals.reasoning + entry.reasoningTokens,
-    cached: totals.cached + entry.cachedTokens,
-  }), EMPTY_TOKEN_TOTALS), [usage]);
+function tokenTypeTotals(usage?: DailyTokenUsage): TokenTypeTotals {
+  if (!usage) return EMPTY_TOKEN_TOTALS;
+  return {
+    total: usage.totalTokens,
+    input: usage.inputTokens,
+    output: usage.outputTokens,
+    reasoning: usage.reasoningTokens,
+    cached: usage.cachedTokens,
+  };
 }
 
 export function TokenUsageHeatmap({
@@ -127,7 +99,6 @@ export function TokenUsageHeatmap({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [calendarVersion, setCalendarVersion] = useState(0);
-  const todayTokenTotals = useTodayTokenTotals(refreshSeconds);
   const [proxySessionLatency, setProxySessionLatency] = useState<ProxySessionLatencySummary>(
     EMPTY_PROXY_SESSION_LATENCY,
   );
@@ -158,9 +129,11 @@ export function TokenUsageHeatmap({
     setLoading(true);
     void refresh();
     const timer = window.setInterval(() => void refresh(), refreshSeconds * 1000);
+    const unsubscribe = subscribeToTokenUsageChanges(() => void refresh());
     return () => {
       active = false;
       window.clearInterval(timer);
+      unsubscribe();
     };
   }, [refreshSeconds, weeks]);
 
@@ -191,6 +164,7 @@ export function TokenUsageHeatmap({
     () => new Map(entries.map((entry) => [entry.date, entry])),
     [entries],
   );
+  const todayTokenTotals = useMemo(() => tokenTypeTotals(totals.get(today)), [today, totals]);
   const total = useMemo(
     () => columns.flat().reduce((sum, date) => sum + (totals.get(dateKey(date))?.totalTokens ?? 0), 0),
     [columns, totals],

@@ -23,6 +23,7 @@ export class ProviderFieldModifiedAtDto {
   @IsOptional() @IsString() @MaxLength(40) models?: string;
   @IsOptional() @IsString() @MaxLength(40) modelReasoningEfforts?: string;
   @IsOptional() @IsString() @MaxLength(40) modelContextWindows?: string;
+  @IsOptional() @IsString() @MaxLength(40) modelApiFormats?: string;
   @IsOptional() @IsString() @MaxLength(40) imageInputModels?: string;
   @IsOptional() @IsString() @MaxLength(40) contextWindow?: string;
   @IsOptional() @IsString() @MaxLength(40) modelSelectionControlledByCodex?: string;
@@ -78,6 +79,10 @@ export class SyncProviderDto {
   @IsOptional()
   @IsObject()
   modelContextWindows: Record<string, number> = {};
+
+  @IsOptional()
+  @IsObject()
+  modelApiFormats: Record<string, 'openaiResponses' | 'openaiChat'> = {};
 
   @IsArray()
   @ArrayMaxSize(500)

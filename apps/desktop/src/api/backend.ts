@@ -297,6 +297,18 @@ function normalizeModelContextWindows(models: string[], value: unknown): Provide
   return normalized;
 }
 
+function normalizeModelApiFormats(models: string[], value: unknown): Provider["modelApiFormats"] {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const normalized: Provider["modelApiFormats"] = {};
+  for (const model of models) {
+    const apiFormat = (value as Record<string, unknown>)[model];
+    if (apiFormat === "openaiResponses" || apiFormat === "openaiChat") {
+      normalized[model] = apiFormat;
+    }
+  }
+  return normalized;
+}
+
 function readPreviewProviders(): Provider[] {
   try {
     const parsed: unknown = JSON.parse(window.localStorage.getItem(PROVIDERS_PREVIEW_KEY) ?? "[]");
@@ -323,6 +335,7 @@ function readPreviewProviders(): Provider[] {
         models,
         modelReasoningEfforts: normalizeModelReasoningEfforts(models, provider.modelReasoningEfforts),
         modelContextWindows: normalizeModelContextWindows(models, provider.modelContextWindows),
+        modelApiFormats: normalizeModelApiFormats(models, provider.modelApiFormats),
         imageInputModels: normalizeModelSubset(models, provider.imageInputModels),
         imageInputModelsConfigured: Boolean(provider.imageInputModelsConfigured),
         contextWindow: provider.contextWindow ?? null,
@@ -664,6 +677,7 @@ export async function saveProviderProfile(provider: ProviderInput): Promise<Prov
       models,
       modelReasoningEfforts: normalizeModelReasoningEfforts(models, provider.modelReasoningEfforts),
       modelContextWindows: normalizeModelContextWindows(models, provider.modelContextWindows),
+      modelApiFormats: normalizeModelApiFormats(models, provider.modelApiFormats),
       imageInputModels: normalizeModelSubset(models, provider.imageInputModels),
       imageInputModelsConfigured: provider.imageInputModelsConfigured
         ?? existing?.imageInputModelsConfigured

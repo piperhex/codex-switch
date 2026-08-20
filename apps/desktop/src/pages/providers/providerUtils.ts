@@ -1,7 +1,9 @@
 import type { Translate, TranslationKey } from "../../i18n";
 import type {
+  ModelApiFormats,
   ModelContextWindows,
   ModelReasoningEfforts,
+  ProviderApiFormat,
   ProviderBalancePlatform,
   ReasoningEffort,
 } from "../../types";
@@ -69,6 +71,7 @@ export interface ModelReasoningConfig {
   model: string;
   reasoningEfforts: ReasoningEffort[];
   contextWindowK: string;
+  apiFormat: ProviderApiFormat | "auto";
   supportsImageInput: boolean;
 }
 
@@ -114,6 +117,7 @@ export function modelReasoningConfigs(
   options: {
     reasoningEfforts?: ModelReasoningEfforts;
     contextWindows?: ModelContextWindows;
+    apiFormats?: ModelApiFormats;
     fallbackContextWindow?: number | null;
     imageInputModels?: string[];
     preserveImageInputForModels?: string[];
@@ -130,6 +134,7 @@ export function modelReasoningConfigs(
     contextWindowK: options.contextWindows?.[model]
       ? String(options.contextWindows[model] / 1000)
       : defaultContextWindowK(model, fallbackContextWindowK),
+    apiFormat: options.apiFormats?.[model] ?? "auto",
     supportsImageInput: options.imageInputModels?.includes(model)
       || (!options.preserveImageInputForModels?.includes(model) && supportsImageInputByDefault(model)),
   }));
@@ -210,4 +215,10 @@ export function relayName(value: string) {
   } catch {
     return "";
   }
+}
+
+export function modelApiFormats(configs: ModelReasoningConfig[]): ModelApiFormats {
+  return Object.fromEntries(configs.flatMap(({ model, apiFormat }) => (
+    model.trim() && apiFormat !== "auto" ? [[model.trim(), apiFormat]] : []
+  )));
 }

@@ -631,6 +631,7 @@ describe('SyncService', () => {
       models: ['gpt-4.1'],
       modelReasoningEfforts: { 'gpt-4.1': ['low', 'medium', 'high', 'xhigh'] },
       modelContextWindows: { 'gpt-4.1': 256_000 },
+      modelApiFormats: { 'gpt-4.1': 'openaiResponses' },
       imageInputModels: ['gpt-4.1'],
       contextWindow: 256_000,
       modelSelectionControlledByCodex: false,
@@ -1478,6 +1479,23 @@ describe('SyncService', () => {
 
     expect(transactionRepository.create).toHaveBeenCalledWith(expect.objectContaining({
       modelContextWindows: { 'gpt-4.1': 400_000 },
+    }));
+  });
+
+  it('keeps only valid API formats for known provider models', async () => {
+    const provider = makeProvider({
+      modelApiFormats: {
+        'gpt-4.1': 'openaiChat',
+        missing: 'openaiResponses',
+        invalid: 'unsupported' as 'openaiChat',
+      },
+    });
+    transactionRepository.findOne.mockResolvedValue(null);
+
+    await service.upsertProvider('owner-1', provider.id, provider);
+
+    expect(transactionRepository.create).toHaveBeenCalledWith(expect.objectContaining({
+      modelApiFormats: { 'gpt-4.1': 'openaiChat' },
     }));
   });
 

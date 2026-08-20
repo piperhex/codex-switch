@@ -111,7 +111,7 @@ export function AggregateApiManager(props: AggregateApiManagerProps) {
                   onClick={() => aggregate.active
                     ? props.onDeactivate(`aggregate:${aggregate.id}`)
                     : void props.onSwitch(aggregate.id)}>
-                  {aggregate.active ? t("providers.action.cancelUse") : t("providers.action.hotSwitch")}
+                  {aggregate.active ? t("providers.action.cancelUse") : t("providers.action.switch")}
                 </Button>
                 <Button size="small" icon={<Edit3 size={13} />} onClick={() => openEditor(aggregate)} />
                 <Popconfirm title={t("providers.aggregate.deleteTitle")} placement="topRight"

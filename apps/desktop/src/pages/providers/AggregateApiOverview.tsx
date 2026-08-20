@@ -41,7 +41,7 @@ export function AggregateApiOverview(props: AggregateApiOverviewProps) {
               ? props.onDeactivate(`aggregate:${aggregate.id}`)
               : void props.onSwitch(aggregate.id)}>
             {aggregate.active
-              ? props.t("providers.action.cancelUse") : props.t("providers.action.hotSwitch")}
+              ? props.t("providers.action.cancelUse") : props.t("providers.action.switch")}
           </Button>
         </article>;
       })}

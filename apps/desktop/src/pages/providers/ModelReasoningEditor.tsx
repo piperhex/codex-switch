@@ -1,7 +1,7 @@
 import { AutoComplete, Button, Checkbox, Input, Select } from "antd";
 import { Plus, Trash2 } from "lucide-react";
 import type { Translate } from "../../i18n";
-import type { ReasoningEffort } from "../../types";
+import type { ProviderApiFormat, ReasoningEffort } from "../../types";
 import {
   CONTEXT_WINDOW_OPTIONS,
   DEFAULT_CONTEXT_WINDOW_K,
@@ -56,6 +56,11 @@ export function ModelReasoningEditor({
       rowIndex === index ? { ...config, contextWindowK } : config
     )));
   };
+  const updateApiFormat = (index: number, apiFormat: ProviderApiFormat | "auto") => {
+    onChange(value.map((config, rowIndex) => (
+      rowIndex === index ? { ...config, apiFormat } : config
+    )));
+  };
   const updateImageInput = (index: number, supportsImageInput: boolean) => {
     onChange(value.map((config, rowIndex) => (
       rowIndex === index ? { ...config, supportsImageInput } : config
@@ -66,14 +71,21 @@ export function ModelReasoningEditor({
     model: "",
     reasoningEfforts: [],
     contextWindowK: DEFAULT_CONTEXT_WINDOW_K,
+    apiFormat: "auto",
     supportsImageInput: false,
   }]);
+  const apiFormatOptions = [
+    { label: t("providers.form.apiProtocolAuto"), value: "auto" },
+    { label: "Responses", value: "openaiResponses" },
+    { label: "Chat Completions", value: "openaiChat" },
+  ];
 
   return <div className="provider-model-editor">
     <div className="provider-model-editor-head">
       <span>{t("providers.form.modelName")}</span>
       <span>{t("providers.form.reasoningEfforts")}</span>
       <span>{t("providers.form.contextWindow")}</span>
+      <span>{t("providers.form.apiProtocol")}</span>
       <span>{t("providers.form.imageInputModels")}</span>
       <span />
     </div>
@@ -87,6 +99,8 @@ export function ModelReasoningEditor({
       <AutoComplete value={config.contextWindowK} disabled={disabled}
         options={CONTEXT_WINDOW_OPTIONS} placeholder={DEFAULT_CONTEXT_WINDOW_K} allowClear
         onChange={(contextWindowK) => updateContextWindow(index, contextWindowK)} />
+      <Select value={config.apiFormat} disabled={disabled} options={apiFormatOptions}
+        onChange={(apiFormat) => updateApiFormat(index, apiFormat)} />
       <Checkbox checked={config.supportsImageInput} disabled={disabled}
         aria-label={`${t("providers.form.imageInputModels")}: ${config.model}`}
         onChange={(event) => updateImageInput(index, event.target.checked)} />

@@ -8,6 +8,7 @@ import {
   DEFAULT_CONTEXT_WINDOW_K,
   defaultBalanceUrl,
   defaultWalletUrl,
+  modelApiFormats,
   modelContextWindows,
   modelImageInputModels,
   modelReasoningConfigs,
@@ -45,6 +46,7 @@ export function ProviderModal({ provider, saving, onClose, onSave, t }: Provider
       ? modelReasoningConfigs(nextModels, {
         reasoningEfforts: provider?.modelReasoningEfforts,
         contextWindows: provider?.modelContextWindows,
+        apiFormats: provider?.modelApiFormats,
         fallbackContextWindow: provider?.contextWindow,
         imageInputModels: provider?.imageInputModels,
         preserveImageInputForModels: provider?.imageInputModelsConfigured ? nextModels : [],
@@ -53,6 +55,7 @@ export function ProviderModal({ provider, saving, onClose, onSave, t }: Provider
         model: "",
         reasoningEfforts: [],
         contextWindowK: DEFAULT_CONTEXT_WINDOW_K,
+        apiFormat: "auto",
         supportsImageInput: false,
     }]);
     setModel(provider?.model ?? nextModels[0] ?? "");
@@ -96,6 +99,7 @@ export function ProviderModal({ provider, saving, onClose, onSave, t }: Provider
       models: normalizedModels,
       modelReasoningEfforts: modelReasoningEfforts(modelConfigs),
       modelContextWindows: modelContextWindows(modelConfigs),
+      modelApiFormats: modelApiFormats(modelConfigs),
       imageInputModels: modelImageInputModels(modelConfigs),
       imageInputModelsConfigured: true,
       contextWindow: null,

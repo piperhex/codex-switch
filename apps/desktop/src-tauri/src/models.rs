@@ -213,6 +213,7 @@ pub(crate) enum ReasoningEffort {
 
 pub(crate) type ModelReasoningEfforts = BTreeMap<String, Vec<ReasoningEffort>>;
 pub(crate) type ModelContextWindows = BTreeMap<String, u64>;
+pub(crate) type ModelApiFormats = BTreeMap<String, ProviderApiFormat>;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -232,6 +233,8 @@ pub(crate) struct ProviderProfile {
     pub(crate) model_reasoning_efforts: ModelReasoningEfforts,
     #[serde(default)]
     pub(crate) model_context_windows: ModelContextWindows,
+    #[serde(default)]
+    pub(crate) model_api_formats: ModelApiFormats,
     #[serde(default)]
     pub(crate) image_input_models: Vec<String>,
     #[serde(default)]
@@ -269,6 +272,7 @@ pub(crate) struct ProviderSummary {
     pub(crate) models: Vec<String>,
     pub(crate) model_reasoning_efforts: ModelReasoningEfforts,
     pub(crate) model_context_windows: ModelContextWindows,
+    pub(crate) model_api_formats: ModelApiFormats,
     pub(crate) image_input_models: Vec<String>,
     pub(crate) image_input_models_configured: bool,
     pub(crate) context_window: Option<u64>,
@@ -679,6 +683,8 @@ pub(crate) struct ProviderFieldModifiedAt {
     #[serde(default)]
     pub(crate) model_context_windows: String,
     #[serde(default)]
+    pub(crate) model_api_formats: String,
+    #[serde(default)]
     pub(crate) image_input_models: String,
     #[serde(default)]
     pub(crate) context_window: String,
@@ -766,6 +772,8 @@ pub(crate) struct ProviderSyncPayload {
     pub(crate) model_reasoning_efforts: ModelReasoningEfforts,
     #[serde(default)]
     pub(crate) model_context_windows: ModelContextWindows,
+    #[serde(default)]
+    pub(crate) model_api_formats: ModelApiFormats,
     #[serde(default)]
     pub(crate) image_input_models: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
