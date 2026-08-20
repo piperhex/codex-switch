@@ -147,3 +147,22 @@ Codex Switch is licensed under the [Apache License 2.0](LICENSE), the same licen
 ## Disclaimer
 
 Codex Switch is independently developed third-party software and is not affiliated with, associated with, authorized by, endorsed by, or officially partnered with OpenAI or its Codex products.
+
+## Star History
+
+<a href="https://www.star-history.com/#piperhex/codex-switch&Date">
+  <picture>
+    <source
+      media="(prefers-color-scheme: dark)"
+      srcset="https://api.star-history.com/svg?repos=piperhex/codex-switch&type=Date&theme=dark"
+    />
+    <source
+      media="(prefers-color-scheme: light)"
+      srcset="https://api.star-history.com/svg?repos=piperhex/codex-switch&type=Date"
+    />
+    <img
+      alt="Codex Switch Star History"
+      src="https://api.star-history.com/svg?repos=piperhex/codex-switch&type=Date"
+    />
+  </picture>
+</a>

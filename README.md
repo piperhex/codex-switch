@@ -271,3 +271,22 @@ Codex Switch 使用 [Apache License 2.0](LICENSE)，与官方 [OpenAI Codex](htt
 ## 免责声明
 
 Codex Switch 是独立开发的第三方软件，与 OpenAI 及其 Codex 产品不存在隶属、关联、授权、认可或官方合作关系。
+
+## Star History
+
+<a href="https://www.star-history.com/#piperhex/codex-switch&Date">
+  <picture>
+    <source
+      media="(prefers-color-scheme: dark)"
+      srcset="https://api.star-history.com/svg?repos=piperhex/codex-switch&type=Date&theme=dark"
+    />
+    <source
+      media="(prefers-color-scheme: light)"
+      srcset="https://api.star-history.com/svg?repos=piperhex/codex-switch&type=Date"
+    />
+    <img
+      alt="Codex Switch Star History"
+      src="https://api.star-history.com/svg?repos=piperhex/codex-switch&type=Date"
+    />
+  </picture>
+</a>
