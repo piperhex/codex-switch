@@ -610,6 +610,7 @@ export async function saveAggregateApiProfile(input: AggregateApiInput): Promise
       id: input.id ?? previewProviderId(),
       memberProviderIds: memberIds,
       active: index >= 0 && aggregates[index].active && input.enabled,
+      memberConversationCounts: index >= 0 ? aggregates[index].memberConversationCounts ?? {} : {},
     };
     if (index >= 0) aggregates[index] = aggregate;
     else aggregates.push(aggregate);

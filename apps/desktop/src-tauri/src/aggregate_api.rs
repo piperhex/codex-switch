@@ -1,4 +1,7 @@
-use std::{collections::HashSet, path::PathBuf};
+use std::{
+    collections::{HashMap, HashSet},
+    path::PathBuf,
+};
 
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Runtime};
@@ -43,6 +46,7 @@ pub(crate) struct AggregateApiSummary {
     member_provider_ids: Vec<String>,
     enabled: bool,
     active: bool,
+    member_conversation_counts: HashMap<String, usize>,
 }
 
 #[tauri::command]
@@ -185,7 +189,7 @@ fn list_summaries<R: Runtime>(
     let mut summaries = read_configs(&paths)?
         .into_iter()
         .map(|aggregate| summary(aggregate, active_provider_id.as_deref()))
-        .collect::<Vec<_>>();
+        .collect::<Result<Vec<_>, _>>()?;
     summaries.sort_by(|left, right| left.name.cmp(&right.name));
     Ok(summaries)
 }
@@ -218,10 +222,7 @@ fn save_blocking<R: Runtime>(
         providers::disable_provider_blocking(app.clone())?;
     }
     emit_changed(app)?;
-    Ok(summary(
-        config,
-        read_state(&paths).active_provider_id.as_deref(),
-    ))
+    summary(config, read_state(&paths).active_provider_id.as_deref())
 }
 
 fn delete_blocking<R: Runtime>(app: &tauri::AppHandle<R>, id: &str) -> Result<(), String> {
@@ -370,16 +371,22 @@ fn common_image_input_models(
     }
 }
 
-fn summary(config: AggregateApiConfig, active_provider_id: Option<&str>) -> AggregateApiSummary {
+fn summary(
+    config: AggregateApiConfig,
+    active_provider_id: Option<&str>,
+) -> Result<AggregateApiSummary, String> {
     let expected_active_id = active_id(&config.id);
-    AggregateApiSummary {
+    let member_conversation_counts =
+        aggregate_scheduler::conversation_counts(&config.id, &config.member_provider_ids)?;
+    Ok(AggregateApiSummary {
         active: active_provider_id == Some(&expected_active_id),
         id: config.id,
         name: config.name,
         model: config.model,
         member_provider_ids: config.member_provider_ids,
         enabled: config.enabled,
-    }
+        member_conversation_counts,
+    })
 }
 
 fn read_configs(paths: &Paths) -> Result<Vec<AggregateApiConfig>, String> {

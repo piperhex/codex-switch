@@ -2,6 +2,7 @@ import { Button, Space, Tag } from "antd";
 import { Network, Power } from "lucide-react";
 import type { Translate } from "../../i18n";
 import type { AggregateApi, Provider } from "../../types";
+import { aggregateMemberNames } from "./aggregateApiPresentation";
 
 interface AggregateApiOverviewProps {
   aggregates: AggregateApi[];
@@ -25,9 +26,7 @@ export function AggregateApiOverview(props: AggregateApiOverviewProps) {
     </div>
     <div className="aggregate-api-overview-grid">
       {props.aggregates.filter((aggregate) => aggregate.enabled).map((aggregate) => {
-        const members = aggregate.memberProviderIds
-          .map((id) => props.providers.find((provider) => provider.id === id)?.name)
-          .filter(Boolean).join(" + ");
+        const members = aggregateMemberNames(aggregate, props.providers, props.t);
         const waiting = props.busyId === `aggregate:${aggregate.id}`;
         return <article className={aggregate.active ? "aggregate-api-card active" : "aggregate-api-card"}
           key={aggregate.id}>

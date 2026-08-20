@@ -140,6 +140,7 @@ export interface AggregateApi {
   memberProviderIds: string[];
   enabled: boolean;
   active: boolean;
+  memberConversationCounts: Record<string, number>;
 }
 
 export interface AggregateApiInput {

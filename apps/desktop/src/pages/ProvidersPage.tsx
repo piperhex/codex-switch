@@ -29,6 +29,8 @@ import { AggregateApiManager } from "./providers/AggregateApiManager";
 import { AggregateApiOverview } from "./providers/AggregateApiOverview";
 import { useProviderTokenUsage } from "./providers/useProviderTokenUsage";
 
+const AGGREGATE_RUNTIME_REFRESH_MS = 2_000;
+
 interface ProvidersPageProps {
   providers: Provider[];
   aggregateApis: AggregateApi[];
@@ -44,6 +46,7 @@ interface ProvidersPageProps {
   onStartProxy: () => void;
   onSave: (provider: ProviderInput) => Promise<Provider | null>;
   onSaveAggregateApi: (aggregate: AggregateApiInput) => Promise<AggregateApi | null>;
+  onRefreshAggregateApis: () => Promise<void>;
   onSwitchAggregateApi: (id: string) => Promise<boolean>;
   onDeleteAggregateApi: (id: string) => void;
   onSwitch: (id: string) => void;
@@ -79,6 +82,7 @@ export function ProvidersPage({
   onStartProxy,
   onSave,
   onSaveAggregateApi,
+  onRefreshAggregateApis,
   onSwitchAggregateApi,
   onDeleteAggregateApi,
   onSwitch,
@@ -113,6 +117,7 @@ export function ProvidersPage({
   const [bulkDeleteBusy, setBulkDeleteBusy] = useState(false);
   const [topbarHost, setTopbarHost] = useState<HTMLElement | null>(null);
   const proxyRunning = Boolean(localProxy?.running);
+  const activeAggregateId = aggregateApis.find((aggregate) => aggregate.active)?.id;
   const groups = [...new Set([
     ...providerGroups,
     ...providers.filter((provider) => provider.kind === "custom").map((provider) => provider.group),
@@ -126,6 +131,25 @@ export function ProvidersPage({
     const providerIds = new Set(providers.map((provider) => provider.id));
     setSelectedProviderIds((current) => current.filter((id) => providerIds.has(id)));
   }, [providers]);
+
+  useEffect(() => {
+    if (!active || !activeAggregateId) return undefined;
+    let refreshRunning = false;
+    const refreshCounts = async () => {
+      if (refreshRunning) return;
+      refreshRunning = true;
+      try {
+        await onRefreshAggregateApis();
+      } catch {
+        // Runtime statistics are best-effort and the next interval retries automatically.
+      } finally {
+        refreshRunning = false;
+      }
+    };
+    void refreshCounts();
+    const timer = window.setInterval(() => void refreshCounts(), AGGREGATE_RUNTIME_REFRESH_MS);
+    return () => window.clearInterval(timer);
+  }, [active, activeAggregateId, onRefreshAggregateApis]);
 
   const usageForProvider = useProviderTokenUsage(tokenUsageRefreshSeconds);
 
@@ -209,6 +233,8 @@ export function ProvidersPage({
     imageModelBusy: proxyBusy,
     onImageModelChange,
     privacyMode,
+    aggregateConversationCounts: aggregateApis.find((aggregate) => aggregate.active)
+      ?.memberConversationCounts ?? {},
     t,
   };
 

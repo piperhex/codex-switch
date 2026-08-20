@@ -3,6 +3,7 @@ import { Button, Empty, Form, Input, Modal, Popconfirm, Select, Space, Switch, T
 import { Edit3, Plus, Power, Trash2 } from "lucide-react";
 import type { Translate } from "../../i18n";
 import type { AggregateApi, AggregateApiInput, Provider } from "../../types";
+import { aggregateMemberNames } from "./aggregateApiPresentation";
 
 interface AggregateApiManagerProps {
   open: boolean;
@@ -96,9 +97,7 @@ export function AggregateApiManager(props: AggregateApiManagerProps) {
         description={t("providers.aggregate.empty")} /> : (
         <div className="aggregate-api-list">
           {aggregates.map((aggregate) => {
-            const memberNames = aggregate.memberProviderIds
-              .map((id) => providers.find((provider) => provider.id === id)?.name)
-              .filter(Boolean).join(" + ");
+            const memberNames = aggregateMemberNames(aggregate, providers, t);
             const waiting = busyId === `aggregate:${aggregate.id}`;
             return <div className="aggregate-api-row" key={aggregate.id}>
               <div><Space size={6}><strong>{aggregate.name}</strong>

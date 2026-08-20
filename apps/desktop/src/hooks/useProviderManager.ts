@@ -192,6 +192,10 @@ export function useProviderManager(
   useEffect(() => { void load(); }, [load]);
   useEffect(() => subscribeToProviderEvents(() => void load()), [load]);
 
+  const refreshAggregateApis = useCallback(async () => {
+    setAggregateApis(await loadAggregateApis());
+  }, []);
+
   const saveProvider = useCallback(async (provider: ProviderInput) => {
     setSaving(true);
     try {
@@ -645,6 +649,7 @@ export function useProviderManager(
   return {
     providers,
     aggregateApis,
+    refreshAggregateApis,
     localProxy,
     loading,
     busyProviderId,

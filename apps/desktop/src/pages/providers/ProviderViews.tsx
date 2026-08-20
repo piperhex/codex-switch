@@ -56,6 +56,7 @@ interface ProviderViewProps {
   imageModelBusy: boolean;
   onImageModelChange: (routeKind: ImageRouteKind, target: ImageModelTarget | null) => void;
   privacyMode: boolean;
+  aggregateConversationCounts: Record<string, number>;
   t: Translate;
 }
 
@@ -191,9 +192,10 @@ function ProviderActions({ provider, options }: {
   );
 }
 
-function ProviderIdentityCell({ provider, error, t }: {
+function ProviderIdentityCell({ provider, error, conversationCount, t }: {
   provider: Provider;
   error?: string;
+  conversationCount: number;
   t: Translate;
 }) {
   return <div className="provider-cell">
@@ -202,6 +204,9 @@ function ProviderIdentityCell({ provider, error, t }: {
       onClick={() => void openUrl(provider.baseUrl)}>
       <span className="provider-link-name">
         <strong>{provider.name}</strong>
+        {conversationCount > 0 && <Tag color="blue">
+          {t("providers.aggregate.conversationCount", { count: conversationCount })}
+        </Tag>}
         {error && <Tooltip title={error} styles={{ root: { maxWidth: 400 } }}>
           <span className="provider-connectivity-error">{t("providers.connectivity.error")}</span>
         </Tooltip>}
@@ -221,7 +226,8 @@ function buildColumns(
     {
       title: t("providers.table.provider"), key: "provider", dataIndex: "name", width: 240,
       render: (_, provider) => <ProviderIdentityCell provider={provider}
-        error={connectivityErrors[provider.id]} t={t} />,
+        error={connectivityErrors[provider.id]}
+        conversationCount={options.aggregateConversationCounts[provider.id] ?? 0} t={t} />,
     },
     {
       title: t("providers.table.group"), key: "group", dataIndex: "group", width: 150,
@@ -373,6 +379,7 @@ function ProviderCard({ provider, options }: { provider: Provider; options: Prov
     t,
   } = options;
   const waiting = busyProviderId === provider.id;
+  const aggregateConversationCount = options.aggregateConversationCounts[provider.id] ?? 0;
   const cardClassName = `provider-card${provider.active ? " active" : ""}`
     + `${options.proxyRunning ? "" : " proxy-required-card"}`
     + `${provider.supportsDirectSwitch ? " switchable" : ""}`;
@@ -386,6 +393,10 @@ function ProviderCard({ provider, options }: { provider: Provider; options: Prov
       <div><strong>{provider.name}</strong><span title={provider.baseUrl}>{provider.baseUrl}</span></div>
       {provider.active
         ? <Tag className="current-tag">{t("providers.status.current")}</Tag>
+        : aggregateConversationCount > 0
+          ? <Tag color="blue">{t("providers.aggregate.conversationCount", {
+            count: aggregateConversationCount,
+          })}</Tag>
         : provider.supportsDirectSwitch
           ? <Tag>{t("providers.status.ready")}</Tag>
           : <Tag color="gold">{t("providers.status.bridgeRequired")}</Tag>}

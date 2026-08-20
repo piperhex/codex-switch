@@ -1352,6 +1352,7 @@ export function DashboardApp() {
               onStartProxy={() => void providerManager.startProxy()}
               onSave={providerManager.saveProvider}
               onSaveAggregateApi={providerManager.saveAggregateApi}
+              onRefreshAggregateApis={providerManager.refreshAggregateApis}
               onSwitchAggregateApi={providerManager.switchAggregateApi}
               onDeleteAggregateApi={providerManager.deleteAggregateApi}
               onSwitch={switchProvider} onDeactivate={providerManager.cancelProviderUse}

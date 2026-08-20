@@ -85,6 +85,20 @@ pub(crate) fn mark_success(aggregate_id: &str, member_id: &str) {
     });
 }
 
+pub(crate) fn conversation_counts(
+    aggregate_id: &str,
+    member_ids: &[String],
+) -> Result<HashMap<String, usize>, String> {
+    with_scheduler(|scheduler| {
+        let counts = scheduler
+            .groups
+            .get(aggregate_id)
+            .map(|runtime| runtime.assignment_counts(member_ids))
+            .unwrap_or_else(|| empty_assignment_counts(member_ids));
+        Ok(counts)
+    })
+}
+
 pub(crate) fn reset(aggregate_id: &str) {
     let _ = with_scheduler(|scheduler| {
         scheduler.groups.remove(aggregate_id);
@@ -259,10 +273,7 @@ impl AggregateRuntime {
     }
 
     fn assignment_counts(&self, member_ids: &[String]) -> HashMap<String, usize> {
-        let mut counts = member_ids
-            .iter()
-            .map(|member_id| (member_id.clone(), 0_usize))
-            .collect::<HashMap<_, _>>();
+        let mut counts = empty_assignment_counts(member_ids);
         for member_id in self.assignments.values() {
             if let Some(count) = counts.get_mut(member_id) {
                 *count = count.saturating_add(1);
@@ -270,6 +281,13 @@ impl AggregateRuntime {
         }
         counts
     }
+}
+
+fn empty_assignment_counts(member_ids: &[String]) -> HashMap<String, usize> {
+    member_ids
+        .iter()
+        .map(|member_id| (member_id.clone(), 0_usize))
+        .collect()
 }
 
 #[cfg(test)]
@@ -322,6 +340,14 @@ mod tests {
                 .select_member_at("g", selection("two", &members(), &excluded, now))
                 .unwrap(),
             "b"
+        );
+        assert_eq!(
+            scheduler.groups["g"].assignment_counts(&members()),
+            HashMap::from([
+                ("a".to_string(), 2),
+                ("b".to_string(), 1),
+                ("c".to_string(), 1),
+            ])
         );
     }
 
