@@ -61,7 +61,11 @@ pub(crate) fn apply_local_proxy(
     Ok(document.to_string())
 }
 
-pub(crate) fn restore_official(current: &str, backup: Option<&str>) -> Result<String, ConfigError> {
+pub(crate) fn restore_official(
+    current: &str,
+    backup: Option<&str>,
+    model: Option<&str>,
+) -> Result<String, ConfigError> {
     let mut document = parse_document(current)?;
     remove_managed_root(&mut document);
     remove_local_proxy_table(&mut document)?;
@@ -76,6 +80,9 @@ pub(crate) fn restore_official(current: &str, backup: Option<&str>) -> Result<St
         "model_provider",
         Value::from(OFFICIAL_PROVIDER_ID),
     );
+    if let Some(model) = model.map(str::trim).filter(|model| !model.is_empty()) {
+        set_root_value(&mut document, "model", Value::from(model));
+    }
     Ok(document.to_string())
 }
 
@@ -90,6 +97,7 @@ pub(crate) fn contains_local_proxy(content: &str) -> bool {
         || content.contains(LOCAL_PROXY_TOKEN)
 }
 
+#[cfg(test)]
 pub(crate) fn root_model(content: &str) -> Option<String> {
     parse_document(content)
         .ok()?
@@ -365,7 +373,7 @@ js_repl = true
     fn restoring_proxy_config_forces_the_official_provider() {
         let current = apply_local_proxy("notify = [\"done\"]\n", &proxy_options()).unwrap();
 
-        let restored = restore_official(&current, None).unwrap();
+        let restored = restore_official(&current, None, None).unwrap();
         let document = restored.parse::<DocumentMut>().unwrap();
 
         assert_eq!(document["model_provider"].as_str(), Some("openai"));
@@ -380,12 +388,24 @@ js_repl = true
             .unwrap()
             .replace("js_repl = true", "js_repl = false");
 
-        let restored = restore_official(&current, Some(backup)).unwrap();
+        let restored = restore_official(&current, Some(backup), None).unwrap();
         let document = restored.parse::<DocumentMut>().unwrap();
 
         assert_eq!(document["model_provider"].as_str(), Some("openai"));
         assert_eq!(document["model"].as_str(), Some("gpt-5.5"));
         assert_eq!(document["features"]["js_repl"].as_bool(), Some(false));
+    }
+
+    #[test]
+    fn restoring_can_force_the_official_model() {
+        let backup = "model = \"gpt-5.5\"\n";
+        let current = apply_local_proxy(backup, &proxy_options()).unwrap();
+
+        let restored = restore_official(&current, Some(backup), Some("gpt-5.6-sol")).unwrap();
+        let document = restored.parse::<DocumentMut>().unwrap();
+
+        assert_eq!(document["model_provider"].as_str(), Some("openai"));
+        assert_eq!(document["model"].as_str(), Some("gpt-5.6-sol"));
     }
 
     #[test]
@@ -400,7 +420,7 @@ js_repl = true
              {PROVIDER_TABLE_END}\n"
         );
 
-        let restored = restore_official(&source, None).unwrap();
+        let restored = restore_official(&source, None, None).unwrap();
 
         assert!(restored.contains("[features]"));
         assert!(restored.contains("js_repl = true"));

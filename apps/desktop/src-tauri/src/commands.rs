@@ -1307,7 +1307,7 @@ fn deactivate_account_unlocked<R: Runtime>(
     app.emit("providers-changed", ())
         .map_err(|error| error.to_string())?;
     if proxy_running {
-        crate::providers::refresh_official_codex_models_for_paths(&paths);
+        crate::providers::refresh_official_codex_models();
     }
     crate::system_tray::refresh_menu(app);
     Ok(Some(account_id))
@@ -1393,7 +1393,7 @@ fn switch_account_unlocked<R: Runtime>(app: &tauri::AppHandle<R>, id: &str) -> R
     app.emit("providers-changed", ())
         .map_err(|error| error.to_string())?;
     if proxy_running {
-        crate::providers::refresh_official_codex_models_for_paths(&paths);
+        crate::providers::refresh_official_codex_models();
     }
     crate::system_tray::refresh_menu(app);
     Ok(())

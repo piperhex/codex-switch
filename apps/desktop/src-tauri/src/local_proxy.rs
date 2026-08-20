@@ -1665,7 +1665,7 @@ fn stop_local_proxy_blocking<R: Runtime>(
         if let Some(account_id) = selected_account_id.as_deref() {
             crate::commands::write_managed_auth_to_current(&paths, account_id)?;
         }
-        providers::restore_official_config(&paths)?;
+        providers::restore_default_official_config(&paths)?;
         let state = stopped_proxy_state(read_state(&paths));
         write_state(&paths, &state)
     })();
@@ -2897,7 +2897,7 @@ fn active_target_for_request<R: Runtime>(
         return Ok(ActiveTarget::Provider(Box::new(provider)));
     }
     Ok(ActiveTarget::Official {
-        model: providers::preferred_official_model(&paths),
+        model: providers::official_model(),
     })
 }
 
@@ -2947,7 +2947,7 @@ fn active_target_from_image_model(
 ) -> Result<ActiveTarget, String> {
     match target {
         ImageModelTarget::Official { .. } => Ok(ActiveTarget::Official {
-            model: providers::preferred_official_model(paths),
+            model: providers::official_model(),
         }),
         ImageModelTarget::Provider { provider_id, model } => {
             let mut provider = providers::read_provider(paths, provider_id)?;

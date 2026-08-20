@@ -188,7 +188,7 @@ pub(crate) fn refresh_codex_models_for_current_target(paths: &Paths) {
         return;
     }
     let Some(id) = state.active_provider_id.as_deref() else {
-        refresh_official_codex_models_for_paths(paths);
+        refresh_official_codex_models();
         return;
     };
     if let Ok(provider) = read_provider(paths, id) {
@@ -196,7 +196,7 @@ pub(crate) fn refresh_codex_models_for_current_target(paths: &Paths) {
     }
 }
 
-pub(crate) fn refresh_official_codex_models_for_paths(paths: &Paths) {
+pub(crate) fn refresh_official_codex_models() {
     if !crate::local_proxy::is_running() {
         return;
     }
@@ -204,7 +204,7 @@ pub(crate) fn refresh_official_codex_models_for_paths(paths: &Paths) {
         Vec::new(),
         Vec::new(),
         ModelReasoningEfforts::new(),
-        preferred_official_model(paths),
+        official_model(),
         ReasoningEffortProfile::Standard,
     );
 }
@@ -1258,6 +1258,14 @@ fn cleanup_non_proxy_provider_state(paths: &Paths) -> Result<(), String> {
 }
 
 pub(crate) fn restore_official_config(paths: &Paths) -> Result<(), String> {
+    restore_official_config_with_model(paths, None)
+}
+
+pub(crate) fn restore_default_official_config(paths: &Paths) -> Result<(), String> {
+    restore_official_config_with_model(paths, Some(DEFAULT_OFFICIAL_MODEL))
+}
+
+fn restore_official_config_with_model(paths: &Paths, model: Option<&str>) -> Result<(), String> {
     let backup = paths
         .config_backup
         .exists()
@@ -1272,7 +1280,7 @@ pub(crate) fn restore_official_config(paths: &Paths) -> Result<(), String> {
     } else {
         backup.clone().unwrap_or_default()
     };
-    let official_config = codex_config::restore_official(&current, backup.as_deref())
+    let official_config = codex_config::restore_official(&current, backup.as_deref(), model)
         .map_err(|error| error.to_string())?;
     write_text_if_changed(&paths.current_config, &official_config)?;
     if paths.config_backup.exists() {
@@ -2365,8 +2373,12 @@ fn backup_codex_config_if_needed(paths: &Paths, entering_provider: bool) -> Resu
 }
 
 pub(crate) fn write_official_local_proxy_config(paths: &Paths) -> Result<(), String> {
-    let model = preferred_official_model(paths);
-    write_local_proxy_config(paths, LOCAL_PROXY_PROVIDER_NAME, Some(&model), false)
+    write_local_proxy_config(
+        paths,
+        LOCAL_PROXY_PROVIDER_NAME,
+        Some(DEFAULT_OFFICIAL_MODEL),
+        false,
+    )
 }
 
 fn write_provider_local_proxy_config(
@@ -2760,23 +2772,8 @@ fn config_contains_local_proxy(config: &str) -> bool {
     codex_config::contains_local_proxy(config)
 }
 
-pub(crate) fn preferred_official_model(paths: &Paths) -> String {
-    let current = fs::read_to_string(&paths.current_config).ok();
-    let backup = fs::read_to_string(&paths.config_backup).ok();
-    preferred_official_model_from_configs(current.as_deref(), backup.as_deref())
-}
-
-fn preferred_official_model_from_configs(current: Option<&str>, backup: Option<&str>) -> String {
-    backup
-        .and_then(official_model_from_config)
-        .or_else(|| current.and_then(official_model_from_config))
-        .unwrap_or_else(|| DEFAULT_OFFICIAL_MODEL.to_string())
-}
-
-fn official_model_from_config(config: &str) -> Option<String> {
-    (!config_contains_local_proxy(config))
-        .then(|| codex_config::root_model(config))
-        .flatten()
+pub(crate) fn official_model() -> String {
+    DEFAULT_OFFICIAL_MODEL.to_string()
 }
 
 #[cfg(test)]
@@ -3301,6 +3298,11 @@ base_url = "https://custom.example.com/v1"
         assert!(fs::read_to_string(&paths.current_config)
             .unwrap()
             .contains("requires_openai_auth = false"));
+        assert_eq!(
+            codex_config::root_model(&fs::read_to_string(&paths.current_config).unwrap())
+                .as_deref(),
+            Some(DEFAULT_OFFICIAL_MODEL)
+        );
         let root = paths.codex_home.parent().unwrap();
         fs::remove_dir_all(root).unwrap();
     }
@@ -4104,7 +4106,8 @@ base_url = "https://custom.example.com/v1"
     }
 
     #[test]
-    fn official_local_proxy_uses_backed_up_official_model_after_provider() {
+    fn official_local_proxy_uses_the_default_official_model_after_provider() {
+        let paths = test_paths();
         let backup = r#"
 model = "gpt-5.5"
 model_reasoning_effort = "xhigh"
@@ -4117,30 +4120,23 @@ model_reasoning_effort = "xhigh"
             token_command: "codex-switch",
         };
         let provider_proxy = merge_local_proxy_config(backup, &provider_options).unwrap();
+        write_text_atomic(&paths.config_backup, backup).unwrap();
+        write_text_atomic(&paths.current_config, &provider_proxy).unwrap();
 
-        assert_eq!(
-            preferred_official_model_from_configs(Some(&provider_proxy), Some(backup)),
-            "gpt-5.5"
-        );
+        write_official_local_proxy_config(&paths).unwrap();
 
-        let official_model =
-            preferred_official_model_from_configs(Some(&provider_proxy), Some(backup));
-        let official_options = LocalProxyConfigOptions {
-            name: LOCAL_PROXY_PROVIDER_NAME,
-            model: Some(&official_model),
-            include_model_catalog: false,
-            requires_openai_auth: false,
-            token_command: "codex-switch",
-        };
-        let official_proxy = merge_local_proxy_config(&provider_proxy, &official_options).unwrap();
+        let official_proxy = fs::read_to_string(&paths.current_config).unwrap();
         let first_model = codex_config::root_model(&official_proxy).unwrap();
 
-        assert_eq!(first_model, "gpt-5.5");
+        assert_eq!(first_model, DEFAULT_OFFICIAL_MODEL);
         assert!(!official_proxy.contains("deepseek-v4-flash"));
+        fs::remove_dir_all(paths.codex_home.parent().unwrap()).unwrap();
     }
 
     #[test]
-    fn official_model_does_not_reuse_managed_provider_model_without_backup() {
+    fn restoring_default_official_config_replaces_the_backed_up_model() {
+        let paths = test_paths();
+        let backup = "model = \"gpt-5.5\"\n";
         let provider_options = LocalProxyConfigOptions {
             name: "DeepSeek",
             model: Some("deepseek-v4-flash"),
@@ -4148,20 +4144,18 @@ model_reasoning_effort = "xhigh"
             requires_openai_auth: false,
             token_command: "codex-switch",
         };
-        let provider_proxy =
-            merge_local_proxy_config(r#"model = "gpt-5.5""#, &provider_options).unwrap();
+        let provider_proxy = merge_local_proxy_config(backup, &provider_options).unwrap();
+        write_text_atomic(&paths.config_backup, backup).unwrap();
+        write_text_atomic(&paths.current_config, &provider_proxy).unwrap();
 
-        assert_eq!(
-            preferred_official_model_from_configs(Some(&provider_proxy), None),
-            DEFAULT_OFFICIAL_MODEL
-        );
-    }
+        restore_default_official_config(&paths).unwrap();
 
-    #[test]
-    fn official_model_uses_plain_current_config_without_backup() {
+        let restored = fs::read_to_string(&paths.current_config).unwrap();
         assert_eq!(
-            preferred_official_model_from_configs(Some(r#"model = "gpt-5.5""#), None),
-            "gpt-5.5"
+            codex_config::root_model(&restored).as_deref(),
+            Some(DEFAULT_OFFICIAL_MODEL)
         );
+        assert!(!paths.config_backup.exists());
+        fs::remove_dir_all(paths.codex_home.parent().unwrap()).unwrap();
     }
 }
