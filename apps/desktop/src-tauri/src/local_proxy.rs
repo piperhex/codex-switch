@@ -4532,6 +4532,10 @@ fn forward_provider_with_api_fallback(
     provider: &ProviderProfile,
 ) -> Result<UpstreamPayload, String> {
     let model = provider_request_model(&body, provider);
+    if let Some(format) = provider.model_api_formats.get(&model).copied() {
+        provider_api_cache::forget_format(&provider.id, &model);
+        return forward_provider_with_format(format, method, url, headers, body, provider);
+    }
     let preferred = provider_api_cache::cached_format(&provider.id, &provider.base_url, &model)
         .unwrap_or(provider.api_format);
     let first =
@@ -7095,6 +7099,7 @@ mod tests {
             models: vec!["gpt-5.6-sol".to_string()],
             model_reasoning_efforts: Default::default(),
             model_context_windows: Default::default(),
+            model_api_formats: Default::default(),
             image_input_models: vec!["gpt-5.6-sol".to_string()],
             image_input_models_configured: true,
             context_window: None,
@@ -8113,6 +8118,7 @@ mod tests {
             models: vec!["gpt-4.1".to_string()],
             model_reasoning_efforts: Default::default(),
             model_context_windows: Default::default(),
+            model_api_formats: Default::default(),
             image_input_models: Vec::new(),
             image_input_models_configured: false,
             context_window: None,
@@ -8166,6 +8172,7 @@ mod tests {
             models: vec!["deepseek-chat".to_string()],
             model_reasoning_efforts: Default::default(),
             model_context_windows: Default::default(),
+            model_api_formats: Default::default(),
             image_input_models: Vec::new(),
             image_input_models_configured: false,
             context_window: None,
@@ -8454,6 +8461,7 @@ mod tests {
             models: vec!["deepseek-chat".to_string(), "deepseek-reasoner".to_string()],
             model_reasoning_efforts: Default::default(),
             model_context_windows: Default::default(),
+            model_api_formats: Default::default(),
             image_input_models: vec!["deepseek-reasoner".to_string()],
             image_input_models_configured: true,
             context_window: Some(256_000),
@@ -8509,6 +8517,7 @@ mod tests {
             models: vec!["deepseek-chat".to_string(), "deepseek-reasoner".to_string()],
             model_reasoning_efforts: Default::default(),
             model_context_windows: Default::default(),
+            model_api_formats: Default::default(),
             image_input_models: Vec::new(),
             image_input_models_configured: false,
             context_window: None,
@@ -8550,6 +8559,7 @@ mod tests {
             models: vec!["deepseek-chat".to_string()],
             model_reasoning_efforts: Default::default(),
             model_context_windows: Default::default(),
+            model_api_formats: Default::default(),
             image_input_models: Vec::new(),
             image_input_models_configured: false,
             context_window: None,
@@ -9124,6 +9134,7 @@ mod tests {
             models: vec!["provider-text-model".to_string()],
             model_reasoning_efforts: Default::default(),
             model_context_windows: Default::default(),
+            model_api_formats: Default::default(),
             image_input_models: Vec::new(),
             image_input_models_configured: false,
             context_window: None,
@@ -9511,6 +9522,7 @@ mod tests {
             models: vec!["deepseek-chat".to_string(), "deepseek-reasoner".to_string()],
             model_reasoning_efforts: Default::default(),
             model_context_windows: Default::default(),
+            model_api_formats: Default::default(),
             image_input_models: Vec::new(),
             image_input_models_configured: false,
             context_window: None,
@@ -9590,6 +9602,7 @@ mod tests {
             models: vec!["deepseek-v4-flash".to_string()],
             model_reasoning_efforts: Default::default(),
             model_context_windows: Default::default(),
+            model_api_formats: Default::default(),
             image_input_models: Vec::new(),
             image_input_models_configured: false,
             context_window: None,
@@ -9685,6 +9698,32 @@ mod tests {
         (format!("http://{addr}/v1"), rx, handle)
     }
 
+    fn spawn_single_chat_api_server() -> (String, mpsc::Receiver<String>, thread::JoinHandle<()>) {
+        let server = Server::http("127.0.0.1:0").unwrap();
+        let addr = server.server_addr().to_ip().unwrap();
+        let (tx, rx) = mpsc::channel();
+        let handle = thread::spawn(move || {
+            let request = server.recv().unwrap();
+            tx.send(request.url().to_string()).unwrap();
+            let response = Response::from_string(
+                json!({
+                    "id": "chatcmpl_fixed",
+                    "object": "chat.completion",
+                    "model": "model-a",
+                    "choices": [{
+                        "index": 0,
+                        "message": { "role": "assistant", "content": "ok" },
+                        "finish_reason": "stop"
+                    }]
+                })
+                .to_string(),
+            )
+            .with_header(Header::from_bytes("Content-Type", "application/json").unwrap());
+            request.respond(response).unwrap();
+        });
+        (format!("http://{addr}/v1"), rx, handle)
+    }
+
     fn api_detection_provider(base_url: String) -> ProviderProfile {
         let mut provider = openai_provider(base_url);
         provider.id = "provider-api-detection-by-model".to_string();
@@ -9736,6 +9775,39 @@ mod tests {
         assert_eq!(
             provider_api_cache::cached_format(&provider.id, &provider.base_url, "model-b"),
             Some(ProviderApiFormat::OpenaiResponses)
+        );
+    }
+
+    #[test]
+    fn configured_model_api_format_skips_automatic_fallback() {
+        let (base_url, rx, handle) = spawn_single_chat_api_server();
+        let mut provider = api_detection_provider(base_url);
+        provider
+            .model_api_formats
+            .insert("model-a".to_string(), ProviderApiFormat::OpenaiChat);
+        provider_api_cache::remember_format(
+            &provider.id,
+            &provider.base_url,
+            "model-a",
+            ProviderApiFormat::OpenaiResponses,
+        );
+
+        let payload = forward_provider_request(
+            &Method::Post,
+            "/v1/responses",
+            &[],
+            api_detection_body("model-a"),
+            &provider,
+        )
+        .unwrap();
+        assert_eq!(payload.status, 200);
+        read_upstream_payload(payload);
+
+        handle.join().unwrap();
+        assert_eq!(rx.recv().unwrap(), "/v1/chat/completions");
+        assert_eq!(
+            provider_api_cache::cached_format(&provider.id, &provider.base_url, "model-a"),
+            None
         );
     }
 }

@@ -11,9 +11,10 @@ use crate::{
     auth::{is_agent_identity_auth, validate_auth},
     codex_config::{self, LocalProxyConfig},
     models::{
-        ImageModelTarget, ModelContextWindows, ModelReasoningEfforts, ProviderApiFormat,
-        ProviderBalance, ProviderBalanceItem, ProviderBalancePlatform, ProviderFieldModifiedAt,
-        ProviderKind, ProviderProfile, ProviderSummary, ReasoningEffort, UsageSummary,
+        ImageModelTarget, ModelApiFormats, ModelContextWindows, ModelReasoningEfforts,
+        ProviderApiFormat, ProviderBalance, ProviderBalanceItem, ProviderBalancePlatform,
+        ProviderFieldModifiedAt, ProviderKind, ProviderProfile, ProviderSummary, ReasoningEffort,
+        UsageSummary,
     },
     storage::{
         managed_auth_path, read_app_settings, read_json, read_state, resolve_paths,
@@ -247,6 +248,8 @@ pub(crate) struct ProviderInput {
     #[serde(default)]
     pub(crate) model_context_windows: ModelContextWindows,
     #[serde(default)]
+    pub(crate) model_api_formats: ModelApiFormats,
+    #[serde(default)]
     pub(crate) image_input_models: Vec<String>,
     #[serde(default)]
     pub(crate) image_input_models_configured: Option<bool>,
@@ -338,6 +341,7 @@ pub(crate) fn save_provider<R: Runtime>(
         normalize_model_reasoning_efforts(&models, provider.model_reasoning_efforts);
     let model_context_windows =
         normalize_model_context_windows(&models, provider.model_context_windows);
+    let model_api_formats = normalize_model_api_formats(&models, provider.model_api_formats);
     let image_input_models = normalize_model_subset(&models, provider.image_input_models);
     let api_key = retained_api_key(existing.as_ref(), &base_url, provider.api_key.as_deref());
     if kind != ProviderKind::OpenAi
@@ -394,6 +398,7 @@ pub(crate) fn save_provider<R: Runtime>(
         models,
         model_reasoning_efforts,
         model_context_windows,
+        model_api_formats,
         image_input_models,
         image_input_models_configured,
         context_window: provider.context_window,
@@ -1513,6 +1518,7 @@ fn provider_field_values(provider: &ProviderProfile) -> Vec<serde_json::Value> {
         json!(provider.models),
         json!(provider.model_reasoning_efforts),
         json!(provider.model_context_windows),
+        json!(provider.model_api_formats),
         json!({
             "models": provider.image_input_models,
             "configured": provider.image_input_models_configured,
@@ -1530,7 +1536,7 @@ fn provider_field_values(provider: &ProviderProfile) -> Vec<serde_json::Value> {
     ]
 }
 
-fn provider_field_versions_mut(values: &mut ProviderFieldModifiedAt) -> [&mut String; 20] {
+fn provider_field_versions_mut(values: &mut ProviderFieldModifiedAt) -> [&mut String; 21] {
     [
         &mut values.kind,
         &mut values.name,
@@ -1541,6 +1547,7 @@ fn provider_field_versions_mut(values: &mut ProviderFieldModifiedAt) -> [&mut St
         &mut values.models,
         &mut values.model_reasoning_efforts,
         &mut values.model_context_windows,
+        &mut values.model_api_formats,
         &mut values.image_input_models,
         &mut values.context_window,
         &mut values.model_selection_controlled_by_codex,
@@ -1664,6 +1671,7 @@ fn provider_summary(
         models: provider.models.clone(),
         model_reasoning_efforts: provider.model_reasoning_efforts.clone(),
         model_context_windows: provider.model_context_windows.clone(),
+        model_api_formats: provider.model_api_formats.clone(),
         image_input_models: provider.image_input_models.clone(),
         image_input_models_configured: provider.image_input_models_configured,
         context_window: provider.context_window,
@@ -2155,6 +2163,19 @@ fn normalize_model_context_windows(
         .collect()
 }
 
+fn normalize_model_api_formats(models: &[String], configured: ModelApiFormats) -> ModelApiFormats {
+    configured
+        .into_iter()
+        .filter_map(|(configured_model, api_format)| {
+            let model = configured_model.trim();
+            models
+                .iter()
+                .any(|candidate| candidate == model)
+                .then(|| (model.to_string(), api_format))
+        })
+        .collect()
+}
+
 fn normalize_provider_profile(mut provider: ProviderProfile) -> Result<ProviderProfile, String> {
     if provider.context_window == Some(0) {
         return Err("Context window must be greater than zero".to_string());
@@ -2190,6 +2211,8 @@ fn normalize_provider_profile(mut provider: ProviderProfile) -> Result<ProviderP
         normalize_model_reasoning_efforts(&provider.models, provider.model_reasoning_efforts);
     provider.model_context_windows =
         normalize_model_context_windows(&provider.models, provider.model_context_windows);
+    provider.model_api_formats =
+        normalize_model_api_formats(&provider.models, provider.model_api_formats);
     provider.image_input_models =
         normalize_model_subset(&provider.models, provider.image_input_models);
     match provider.balance_platform {
@@ -2860,6 +2883,7 @@ base_url = "https://custom.example.com/v1"
             models: vec!["gpt-4.1".to_string()],
             model_reasoning_efforts: ModelReasoningEfforts::new(),
             model_context_windows: ModelContextWindows::new(),
+            model_api_formats: ModelApiFormats::new(),
             image_input_models: Vec::new(),
             image_input_models_configured: false,
             context_window: None,
@@ -3830,6 +3854,7 @@ base_url = "https://custom.example.com/v1"
             models: Vec::new(),
             model_reasoning_efforts: ModelReasoningEfforts::new(),
             model_context_windows: ModelContextWindows::new(),
+            model_api_formats: ModelApiFormats::new(),
             image_input_models: vec!["missing-model".to_string()],
             image_input_models_configured: true,
             context_window: None,
@@ -3989,6 +4014,23 @@ base_url = "https://custom.example.com/v1"
             .collect::<Vec<_>>();
 
         assert_eq!(efforts, vec!["low", "high"]);
+        assert!(!normalized.contains_key("missing"));
+    }
+
+    #[test]
+    fn model_api_formats_are_limited_to_available_models() {
+        let configured = [
+            (" gpt-5.6-sol ".to_string(), ProviderApiFormat::OpenaiChat),
+            ("missing".to_string(), ProviderApiFormat::OpenaiResponses),
+        ]
+        .into();
+
+        let normalized = normalize_model_api_formats(&["gpt-5.6-sol".to_string()], configured);
+
+        assert_eq!(
+            normalized.get("gpt-5.6-sol"),
+            Some(&ProviderApiFormat::OpenaiChat)
+        );
         assert!(!normalized.contains_key("missing"));
     }
 

@@ -972,6 +972,7 @@ fn apply_remote_provider<R: Runtime>(
     merge_field!(models);
     merge_field!(model_reasoning_efforts);
     merge_field!(model_context_windows);
+    merge_field!(model_api_formats);
     if !local_exists
         || remote_field_is_newer(
             &local_versions.image_input_models,
@@ -1038,6 +1039,7 @@ fn normalize_provider_field_modified_at(
         &mut values.models,
         &mut values.model_reasoning_efforts,
         &mut values.model_context_windows,
+        &mut values.model_api_formats,
         &mut values.image_input_models,
         &mut values.context_window,
         &mut values.model_selection_controlled_by_codex,
@@ -1068,6 +1070,7 @@ fn latest_provider_field_modified_at(values: &ProviderFieldModifiedAt) -> String
         &values.models,
         &values.model_reasoning_efforts,
         &values.model_context_windows,
+        &values.model_api_formats,
         &values.image_input_models,
         &values.context_window,
         &values.model_selection_controlled_by_codex,
@@ -1103,6 +1106,7 @@ fn provider_payload_from_profile(
         models: provider.models,
         model_reasoning_efforts: provider.model_reasoning_efforts,
         model_context_windows: provider.model_context_windows,
+        model_api_formats: provider.model_api_formats,
         image_input_models: provider.image_input_models,
         context_window: provider.context_window,
         model_selection_controlled_by_codex: provider.model_selection_controlled_by_codex,
@@ -1131,6 +1135,7 @@ fn provider_payload_to_profile(provider: &ProviderSyncPayload) -> ProviderProfil
         models: provider.models.clone(),
         model_reasoning_efforts: provider.model_reasoning_efforts.clone(),
         model_context_windows: provider.model_context_windows.clone(),
+        model_api_formats: provider.model_api_formats.clone(),
         image_input_models: provider.image_input_models.clone(),
         image_input_models_configured: !provider.image_input_models.is_empty(),
         context_window: provider.context_window,

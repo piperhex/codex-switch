@@ -255,6 +255,7 @@ fn pending_provider_input(
         models: models.available,
         model_reasoning_efforts,
         model_context_windows: Default::default(),
+        model_api_formats: Default::default(),
         image_input_models: Vec::new(),
         image_input_models_configured: Some(false),
         context_window: None,
