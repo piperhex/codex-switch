@@ -8,7 +8,7 @@ use tauri::{Emitter, Runtime};
 use uuid::Uuid;
 
 use crate::{
-    aggregate_scheduler,
+    aggregate_scheduler, local_proxy,
     models::{ModelContextWindows, ModelReasoningEfforts, ProviderKind, ProviderProfile},
     providers,
     storage::{read_json, read_state, resolve_paths, write_json_atomic, Paths},
@@ -186,9 +186,16 @@ fn list_summaries<R: Runtime>(
 ) -> Result<Vec<AggregateApiSummary>, String> {
     let paths = resolve_paths(app)?;
     let active_provider_id = read_state(&paths).active_provider_id;
+    let active_session_ids = local_proxy::active_proxy_session_ids()?;
     let mut summaries = read_configs(&paths)?
         .into_iter()
-        .map(|aggregate| summary(aggregate, active_provider_id.as_deref()))
+        .map(|aggregate| {
+            summary(
+                aggregate,
+                active_provider_id.as_deref(),
+                &active_session_ids,
+            )
+        })
         .collect::<Result<Vec<_>, _>>()?;
     summaries.sort_by(|left, right| left.name.cmp(&right.name));
     Ok(summaries)
@@ -222,7 +229,11 @@ fn save_blocking<R: Runtime>(
         providers::disable_provider_blocking(app.clone())?;
     }
     emit_changed(app)?;
-    summary(config, read_state(&paths).active_provider_id.as_deref())
+    summary(
+        config,
+        read_state(&paths).active_provider_id.as_deref(),
+        &local_proxy::active_proxy_session_ids()?,
+    )
 }
 
 fn delete_blocking<R: Runtime>(app: &tauri::AppHandle<R>, id: &str) -> Result<(), String> {
@@ -374,10 +385,14 @@ fn common_image_input_models(
 fn summary(
     config: AggregateApiConfig,
     active_provider_id: Option<&str>,
+    active_session_ids: &HashSet<String>,
 ) -> Result<AggregateApiSummary, String> {
     let expected_active_id = active_id(&config.id);
-    let member_conversation_counts =
-        aggregate_scheduler::conversation_counts(&config.id, &config.member_provider_ids)?;
+    let member_conversation_counts = aggregate_scheduler::conversation_counts(
+        &config.id,
+        &config.member_provider_ids,
+        active_session_ids,
+    )?;
     Ok(AggregateApiSummary {
         active: active_provider_id == Some(&expected_active_id),
         id: config.id,

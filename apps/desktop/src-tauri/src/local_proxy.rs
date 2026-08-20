@@ -773,6 +773,17 @@ fn proxy_sessions() -> &'static Mutex<HashMap<String, ProxySessionState>> {
     PROXY_SESSIONS.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
+pub(crate) fn active_proxy_session_ids() -> Result<HashSet<String>, String> {
+    let sessions = proxy_sessions()
+        .lock()
+        .map_err(|_| "Proxy session registry lock is poisoned".to_string())?;
+    Ok(sessions
+        .values()
+        .filter(|session| session.active_requests > 0)
+        .map(|session| session.id.clone())
+        .collect())
+}
+
 fn concurrent_account_router() -> &'static Mutex<ConcurrentAccountRouter> {
     CONCURRENT_ACCOUNT_ROUTER.get_or_init(|| Mutex::new(ConcurrentAccountRouter::default()))
 }
