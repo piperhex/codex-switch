@@ -53,12 +53,16 @@ fn emit_providers_changed<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<(), S
     Ok(())
 }
 
-fn refresh_codex_models_best_effort(provider: &ProviderProfile) {
+fn refresh_codex_models_best_effort(paths: &Paths, provider: &ProviderProfile) {
     if !crate::local_proxy::is_running() {
         return;
     }
     let models = codex_visible_models(provider);
-    let image_input_models = codex_image_input_models(provider);
+    let image_input_models = routed_image_input_models(
+        &models,
+        &codex_image_input_models(provider),
+        image_input_route_enabled(paths),
+    );
     let model_reasoning_efforts = codex_model_reasoning_efforts(provider);
     let selected_model = codex_model_for_provider(provider).to_string();
     crate::codex_runtime::refresh_models(
@@ -70,11 +74,16 @@ fn refresh_codex_models_best_effort(provider: &ProviderProfile) {
     );
 }
 
-fn refresh_codex_group_models_best_effort(providers: &[ProviderProfile]) {
+fn refresh_codex_group_models_best_effort(paths: &Paths, providers: &[ProviderProfile]) {
     if !crate::local_proxy::is_running() {
         return;
     }
-    let catalog = provider_group_catalog_data(providers);
+    let mut catalog = provider_group_catalog_data(providers);
+    catalog.image_input_models = routed_image_input_models(
+        &catalog.models,
+        &catalog.image_input_models,
+        image_input_route_enabled(paths),
+    );
     let Some(selected_model) = catalog.models.first().cloned() else {
         return;
     };
@@ -103,6 +112,22 @@ pub(crate) fn codex_image_input_models(provider: &ProviderProfile) -> Vec<String
         vec![CODEX_SWITCH_CONTROL_MODEL.to_string()]
     } else {
         Vec::new()
+    }
+}
+
+fn image_input_route_enabled(paths: &Paths) -> bool {
+    read_state(paths).image_input_target.is_some()
+}
+
+fn routed_image_input_models(
+    models: &[String],
+    configured_models: &[String],
+    route_enabled: bool,
+) -> Vec<String> {
+    if route_enabled {
+        models.to_vec()
+    } else {
+        configured_models.to_vec()
     }
 }
 
@@ -183,7 +208,7 @@ pub(crate) fn refresh_codex_models_for_current_target(paths: &Paths) {
     let state = read_state(paths);
     if let Some(group) = state.active_provider_group.as_deref() {
         if let Ok(providers) = provider_group_profiles(paths, group) {
-            refresh_codex_group_models_best_effort(&providers);
+            refresh_codex_group_models_best_effort(paths, &providers);
         }
         return;
     }
@@ -192,7 +217,7 @@ pub(crate) fn refresh_codex_models_for_current_target(paths: &Paths) {
         return;
     };
     if let Ok(provider) = read_provider(paths, id) {
-        refresh_codex_models_best_effort(&provider);
+        refresh_codex_models_best_effort(paths, &provider);
     }
 }
 
@@ -393,11 +418,11 @@ pub(crate) fn save_provider<R: Runtime>(
     let state = read_state(&paths);
     if state.active_provider_id.as_deref() == Some(&profile.id) {
         write_active_provider_config(&paths, &profile)?;
-        refresh_codex_models_best_effort(&profile);
+        refresh_codex_models_best_effort(&paths, &profile);
     } else if state.active_provider_group.as_deref() == Some(profile.group.as_str()) {
         let group_providers = provider_group_profiles(&paths, &profile.group)?;
         write_provider_group_local_proxy_config(&paths, &profile.group, &group_providers)?;
-        refresh_codex_group_models_best_effort(&group_providers);
+        refresh_codex_group_models_best_effort(&paths, &group_providers);
     }
     emit_providers_changed(&app)?;
     Ok(provider_summary(
@@ -889,7 +914,7 @@ pub(crate) fn switch_provider_group_blocking<R: Runtime>(
         }
         return Err(error);
     }
-    refresh_codex_group_models_best_effort(&providers);
+    refresh_codex_group_models_best_effort(&paths, &providers);
     emit_providers_changed(&app)
 }
 
@@ -938,7 +963,7 @@ fn activate_provider_profile<R: Runtime>(
         }
         return Err(error);
     }
-    refresh_codex_models_best_effort(provider);
+    refresh_codex_models_best_effort(paths, provider);
     emit_providers_changed(app)
 }
 
@@ -975,11 +1000,11 @@ pub(crate) fn switch_provider_model<R: Runtime>(
     let active = state.active_provider_id.as_deref() == Some(&provider.id);
     if active {
         write_active_provider_config(&paths, &provider)?;
-        refresh_codex_models_best_effort(&provider);
+        refresh_codex_models_best_effort(&paths, &provider);
     } else if state.active_provider_group.as_deref() == Some(provider.group.as_str()) {
         let group_providers = provider_group_profiles(&paths, &provider.group)?;
         write_provider_group_local_proxy_config(&paths, &provider.group, &group_providers)?;
-        refresh_codex_group_models_best_effort(&group_providers);
+        refresh_codex_group_models_best_effort(&paths, &group_providers);
     }
     emit_providers_changed(&app)?;
     Ok(provider_summary(
@@ -1005,11 +1030,11 @@ pub(crate) fn set_provider_model_control<R: Runtime>(
     let active = state.active_provider_id.as_deref() == Some(&provider.id);
     if active {
         write_active_provider_config(&paths, &provider)?;
-        refresh_codex_models_best_effort(&provider);
+        refresh_codex_models_best_effort(&paths, &provider);
     } else if state.active_provider_group.as_deref() == Some(provider.group.as_str()) {
         let group_providers = provider_group_profiles(&paths, &provider.group)?;
         write_provider_group_local_proxy_config(&paths, &provider.group, &group_providers)?;
-        refresh_codex_group_models_best_effort(&group_providers);
+        refresh_codex_group_models_best_effort(&paths, &group_providers);
     }
     emit_providers_changed(&app)?;
     Ok(provider_summary(
@@ -1224,7 +1249,7 @@ pub(crate) fn activate_provider_for_sync(paths: &Paths, id: &str) -> Result<bool
         let _ = write_state(paths, &original_state);
         return Err(error);
     }
-    refresh_codex_models_best_effort(&provider);
+    refresh_codex_models_best_effort(paths, &provider);
     Ok(true)
 }
 
@@ -2461,7 +2486,10 @@ fn write_provider_group_local_proxy_config(
     group: &str,
     providers: &[ProviderProfile],
 ) -> Result<(), String> {
-    let catalog = model_catalog_for_provider_group(providers);
+    let catalog = model_catalog_for_provider_group_with_image_route(
+        providers,
+        image_input_route_enabled(paths),
+    );
     write_json_if_changed(&paths.codex_home.join(MODEL_CATALOG_FILENAME), &catalog)?;
     let selected_model = provider_group_catalog_data(providers)
         .models
@@ -2676,13 +2704,26 @@ fn provider_model_catalog_entry(
 }
 
 fn write_provider_model_catalog(paths: &Paths, provider: &ProviderProfile) -> Result<(), String> {
-    let catalog = model_catalog_for_provider(provider);
+    let catalog =
+        model_catalog_for_provider_with_image_route(provider, image_input_route_enabled(paths));
     write_json_if_changed(&paths.codex_home.join(MODEL_CATALOG_FILENAME), &catalog).map(|_| ())
 }
 
+#[cfg(test)]
 pub(crate) fn model_catalog_for_provider(provider: &ProviderProfile) -> Value {
+    model_catalog_for_provider_with_image_route(provider, false)
+}
+
+pub(crate) fn model_catalog_for_provider_with_image_route(
+    provider: &ProviderProfile,
+    image_input_route_enabled: bool,
+) -> Value {
     let models = codex_visible_models(provider);
-    let image_input_models = codex_image_input_models(provider);
+    let image_input_models = routed_image_input_models(
+        &models,
+        &codex_image_input_models(provider),
+        image_input_route_enabled,
+    );
     let reasoning_efforts = codex_model_reasoning_efforts(provider);
     let context_windows = codex_model_context_windows(provider);
     model_catalog_for_models(
@@ -2697,8 +2738,21 @@ pub(crate) fn model_catalog_for_provider(provider: &ProviderProfile) -> Value {
     )
 }
 
+#[cfg(test)]
 pub(crate) fn model_catalog_for_provider_group(providers: &[ProviderProfile]) -> Value {
-    let data = provider_group_catalog_data(providers);
+    model_catalog_for_provider_group_with_image_route(providers, false)
+}
+
+pub(crate) fn model_catalog_for_provider_group_with_image_route(
+    providers: &[ProviderProfile],
+    image_input_route_enabled: bool,
+) -> Value {
+    let mut data = provider_group_catalog_data(providers);
+    data.image_input_models = routed_image_input_models(
+        &data.models,
+        &data.image_input_models,
+        image_input_route_enabled,
+    );
     model_catalog_for_models(
         &data.models,
         ModelCatalogOptions {
@@ -4060,6 +4114,21 @@ base_url = "https://custom.example.com/v1"
 
         provider.image_input_models.clear();
         assert!(codex_image_input_models(&provider).is_empty());
+    }
+
+    #[test]
+    fn image_input_route_marks_all_visible_models_as_image_capable() {
+        let mut provider = provider();
+        provider.models = vec!["text-model".to_string(), "vision-model".to_string()];
+        provider.model = "text-model".to_string();
+        provider.image_input_models = vec!["vision-model".to_string()];
+        provider.model_selection_controlled_by_codex = true;
+
+        let catalog = model_catalog_for_provider_with_image_route(&provider, true);
+        let models = catalog["models"].as_array().unwrap();
+
+        assert_eq!(models[0]["input_modalities"], json!(["text", "image"]));
+        assert_eq!(models[1]["input_modalities"], json!(["text", "image"]));
     }
 
     #[test]

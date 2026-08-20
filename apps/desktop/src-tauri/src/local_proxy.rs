@@ -1940,7 +1940,8 @@ fn set_image_model_target_blocking<R: Runtime>(
     }
     let paths = resolve_paths(&app)?;
     validate_image_model_target(&paths, route_kind, target.as_ref())?;
-    let mut state = read_state(&paths);
+    let original_state = read_state(&paths);
+    let mut state = original_state.clone();
     match route_kind {
         ImageRouteKind::Input => state.image_input_target = target,
         ImageRouteKind::Output => {
@@ -1949,6 +1950,17 @@ fn set_image_model_target_blocking<R: Runtime>(
         }
     }
     write_state(&paths, &state)?;
+    if route_kind == ImageRouteKind::Input {
+        if let Err(error) = providers::apply_local_proxy_config_for_paths(&paths) {
+            return match write_state(&paths, &original_state) {
+                Ok(()) => Err(error),
+                Err(rollback_error) => Err(format!(
+                    "{error}; failed to restore the previous image model setting: {rollback_error}"
+                )),
+            };
+        }
+        providers::refresh_codex_models_for_current_target(&paths);
+    }
     app.emit("providers-changed", ())
         .map_err(|error| error.to_string())?;
     Ok(status(&app))
@@ -2471,10 +2483,16 @@ fn handle_proxy_request<R: Runtime>(
     }
     let provider_models_etag = active_provider_group_models_etag(app).or_else(|| match &target {
         ActiveTarget::Provider(provider) if !providers::uses_upstream_official_models(provider) => {
-            Some(provider_models_etag(provider))
+            Some(provider_models_etag_with_image_route(
+                provider,
+                image_input_route_enabled(app),
+            ))
         }
         ActiveTarget::ProviderGroup(group_providers) => {
-            Some(provider_group_models_etag(group_providers))
+            Some(provider_group_models_etag_with_image_route(
+                group_providers,
+                image_input_route_enabled(app),
+            ))
         }
         _ => None,
     });
@@ -4600,6 +4618,7 @@ fn models_payload<R: Runtime>(
     target: &ActiveTarget,
 ) -> Result<UpstreamPayload, String> {
     let upstream_headers = unconditional_model_catalog_headers(headers);
+    let image_input_route_enabled = image_input_route_enabled(app);
     let payload = match target {
         ActiveTarget::Official { model } => forward_official(
             app,
@@ -4613,13 +4632,28 @@ fn models_payload<R: Runtime>(
         ActiveTarget::Provider(provider) if providers::uses_upstream_official_models(provider) => {
             forward_provider(&Method::Get, url, &upstream_headers, Vec::new(), provider)?
         }
-        ActiveTarget::Provider(provider) => return Ok(provider_models_payload(provider)),
+        ActiveTarget::Provider(provider) => {
+            return Ok(provider_models_payload_with_image_route(
+                provider,
+                image_input_route_enabled,
+            ));
+        }
         ActiveTarget::ProviderGroup(group_providers) => {
-            return Ok(provider_group_models_payload(group_providers));
+            return Ok(provider_group_models_payload_with_image_route(
+                group_providers,
+                image_input_route_enabled,
+            ));
         }
     };
+    let payload = override_model_image_input(payload, image_input_route_enabled)?;
     let context_window = read_app_settings(app)?.gpt_5_6_sol_context_window;
     override_model_context_window(payload, GPT_5_6_SOL_MODEL, context_window)
+}
+
+fn image_input_route_enabled<R: Runtime>(app: &tauri::AppHandle<R>) -> bool {
+    resolve_paths(app)
+        .map(|paths| read_state(&paths).image_input_target.is_some())
+        .unwrap_or(false)
 }
 
 fn unconditional_model_catalog_headers(headers: &[(String, String)]) -> Vec<(String, String)> {
@@ -4663,6 +4697,38 @@ fn override_model_context_window(
     Ok(payload)
 }
 
+fn override_model_image_input(
+    mut payload: UpstreamPayload,
+    enabled: bool,
+) -> Result<UpstreamPayload, String> {
+    if payload.status != 200 || !enabled {
+        return Ok(payload);
+    }
+    let mut body = Vec::new();
+    match payload.body {
+        UpstreamBody::Buffered(buffered) => body = buffered,
+        UpstreamBody::Streaming(mut reader) => {
+            reader
+                .read_to_end(&mut body)
+                .map_err(|error| format!("Failed to read upstream model catalog: {error}"))?;
+        }
+    }
+    let mut catalog = serde_json::from_slice::<Value>(&body)
+        .map_err(|error| format!("Upstream model catalog is not valid JSON: {error}"))?;
+    let Some(models) = catalog.get_mut("models").and_then(Value::as_array_mut) else {
+        payload.body = UpstreamBody::Buffered(body);
+        return Ok(payload);
+    };
+    for model in models {
+        model["input_modalities"] = json!(["text", "image"]);
+    }
+    body = serde_json::to_vec(&catalog)
+        .map_err(|error| format!("Failed to encode model catalog: {error}"))?;
+    replace_model_catalog_etags(&mut payload.response_headers, &body);
+    payload.body = UpstreamBody::Buffered(body);
+    Ok(payload)
+}
+
 fn apply_model_context_window(catalog: &mut Value, model: &str, context_window: u64) -> bool {
     let Some(models) = catalog.get_mut("models").and_then(Value::as_array_mut) else {
         return false;
@@ -4693,10 +4759,19 @@ fn replace_model_catalog_etags(headers: &mut Vec<(String, String)>, body: &[u8])
     }
 }
 
+#[cfg(test)]
 fn provider_models_payload(provider: &ProviderProfile) -> UpstreamPayload {
-    let catalog = providers::model_catalog_for_provider(provider);
+    provider_models_payload_with_image_route(provider, false)
+}
+
+fn provider_models_payload_with_image_route(
+    provider: &ProviderProfile,
+    image_input_route_enabled: bool,
+) -> UpstreamPayload {
+    let catalog =
+        providers::model_catalog_for_provider_with_image_route(provider, image_input_route_enabled);
     let body = serde_json::to_vec(&catalog).unwrap_or_else(|_| b"{}".to_vec());
-    let etag = provider_models_etag(provider);
+    let etag = provider_models_etag_with_image_route(provider, image_input_route_enabled);
     UpstreamPayload {
         status: 200,
         content_type: Some("application/json; charset=utf-8".to_string()),
@@ -4706,26 +4781,45 @@ fn provider_models_payload(provider: &ProviderProfile) -> UpstreamPayload {
     }
 }
 
-fn provider_models_etag(provider: &ProviderProfile) -> String {
-    let catalog = providers::model_catalog_for_provider(provider);
+fn provider_models_etag_with_image_route(
+    provider: &ProviderProfile,
+    image_input_route_enabled: bool,
+) -> String {
+    let catalog =
+        providers::model_catalog_for_provider_with_image_route(provider, image_input_route_enabled);
     let body = serde_json::to_vec(&catalog).unwrap_or_default();
     format!("\"codex-switch-{}\"", short_hash_bytes(&body))
 }
 
-fn provider_group_models_payload(providers: &[ProviderProfile]) -> UpstreamPayload {
-    let catalog = providers::model_catalog_for_provider_group(providers);
+fn provider_group_models_payload_with_image_route(
+    providers: &[ProviderProfile],
+    image_input_route_enabled: bool,
+) -> UpstreamPayload {
+    let catalog = providers::model_catalog_for_provider_group_with_image_route(
+        providers,
+        image_input_route_enabled,
+    );
     let body = serde_json::to_vec(&catalog).unwrap_or_else(|_| b"{}".to_vec());
     UpstreamPayload {
         status: 200,
         content_type: Some("application/json; charset=utf-8".to_string()),
-        response_headers: vec![("ETag".to_string(), provider_group_models_etag(providers))],
+        response_headers: vec![(
+            "ETag".to_string(),
+            provider_group_models_etag_with_image_route(providers, image_input_route_enabled),
+        )],
         body: UpstreamBody::Buffered(body),
         token_usage_account: None,
     }
 }
 
-fn provider_group_models_etag(providers: &[ProviderProfile]) -> String {
-    let catalog = providers::model_catalog_for_provider_group(providers);
+fn provider_group_models_etag_with_image_route(
+    providers: &[ProviderProfile],
+    image_input_route_enabled: bool,
+) -> String {
+    let catalog = providers::model_catalog_for_provider_group_with_image_route(
+        providers,
+        image_input_route_enabled,
+    );
     let body = serde_json::to_vec(&catalog).unwrap_or_default();
     format!("\"codex-switch-{}\"", short_hash_bytes(&body))
 }
@@ -4735,7 +4829,10 @@ fn active_provider_group_models_etag<R: Runtime>(app: &tauri::AppHandle<R>) -> O
     let state = read_state(&paths);
     let group = state.active_provider_group.as_deref()?;
     let providers = providers::provider_group_profiles(&paths, group).ok()?;
-    Some(provider_group_models_etag(&providers))
+    Some(provider_group_models_etag_with_image_route(
+        &providers,
+        state.image_input_target.is_some(),
+    ))
 }
 
 fn provider_body_for_upstream(
@@ -8469,8 +8566,20 @@ mod tests {
         let first = provider_models_payload(&provider);
         provider.models.push("deepseek-reasoner".to_string());
         let second = provider_models_payload(&provider);
+        let routed = provider_models_payload_with_image_route(&provider, true);
         assert_ne!(first.response_headers, second.response_headers);
+        assert_ne!(second.response_headers, routed.response_headers);
         assert!(first.response_headers[0].1.starts_with("\"codex-switch-"));
+
+        let UpstreamBody::Buffered(body) = routed.body else {
+            panic!("provider model catalog should be buffered");
+        };
+        let catalog: Value = serde_json::from_slice(&body).unwrap();
+        assert!(catalog["models"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|model| model["input_modalities"] == json!(["text", "image"])));
     }
 
     #[test]
