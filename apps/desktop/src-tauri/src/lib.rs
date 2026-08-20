@@ -7,6 +7,7 @@ mod ccs_import;
 mod claude_code_provider;
 mod cloud;
 mod codex_api;
+mod codex_config;
 mod codex_home;
 mod codex_runtime;
 mod commands;
