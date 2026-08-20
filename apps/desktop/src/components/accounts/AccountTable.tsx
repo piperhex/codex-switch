@@ -797,7 +797,7 @@ export function AccountTable({
                     <Button size="small" type="primary" disabled={switchBlocked}
                       loading={waiting} icon={<RotateCcw size={14} />}
                       onClick={() => onSwitch(account.id)}>
-                      {hotSwitchEnabled ? t("table.hotSwitch") : t("table.switch")}
+                      {t("table.switch")}
                     </Button>
                   )}
                 </span>
@@ -975,7 +975,7 @@ export function AccountTable({
                   onSwitch(account.id);
                 }}>
                 <RotateCcw size={14} />
-                {hotSwitchEnabled ? t("table.hotSwitch") : t("table.switch")}
+                {t("table.switch")}
               </button>
             )}
           </Tooltip>

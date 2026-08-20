@@ -161,9 +161,7 @@ function ProviderActions({ provider, options }: {
           onClick={() => provider.active ? onDeactivate(provider.id) : onSwitch(provider.id)}>
           {provider.active
             ? t("providers.action.cancelUse")
-            : proxyRunning
-              ? t("providers.action.hotSwitch")
-              : t("providers.action.switch")}
+            : t("providers.action.switch")}
         </Button>
       </Tooltip>
       {proxyRunning && provider.kind === "custom" && (
