@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import {
   applyDreamSkinTheme,
   chooseDreamSkinImage,
+  deleteDreamSkinThemes,
   importDreamSkinImage,
   installDreamSkinCommunityTheme,
   installDreamSkinMarketTheme,
@@ -131,6 +132,21 @@ export function useThemeActions(options: ThemeOptions): ThemeActions {
     );
   }, [runStatusOperation, t]);
 
+  const deleteSavedThemes = useCallback(async (themeIds: string[]) => {
+    const deleted = await runStatusOperation(
+      "deleteThemes",
+      () => deleteDreamSkinThemes(themeIds),
+      t("dreamSkin.saved.toast.deleted", { count: themeIds.length }),
+    );
+    if (!deleted) return false;
+    const deletedIds = new Set(themeIds);
+    void refreshMarket();
+    setCommunityThemes((current) => current.map((theme) => deletedIds.has(theme.themeId)
+      ? { ...theme, installed: false, installedVersion: null, updateAvailable: false }
+      : theme));
+    return true;
+  }, [refreshMarket, runStatusOperation, setCommunityThemes, t]);
+
   const installAndApplyMarketTheme = useCallback((theme: DreamSkinMarketTheme) => {
     if (theme.installed && !theme.updateAvailable) return applyTheme(theme.id);
     const operation = async () => runStatusOperation(
@@ -167,6 +183,7 @@ export function useThemeActions(options: ThemeOptions): ThemeActions {
     applyTheme,
     changeAppearance,
     changeOverlayOpacity,
+    deleteSavedThemes,
     installAndApplyCommunityTheme,
     installAndApplyMarketTheme,
   };

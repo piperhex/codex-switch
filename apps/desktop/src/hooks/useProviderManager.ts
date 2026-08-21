@@ -1,13 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
 import {
+  activateAggregateApi,
   activateProvider,
   activateProviderGroup,
   copyLocalProxyLanApiKey,
   deactivateProvider,
+  loadAggregateApis,
   loadLocalProxyStatus,
   loadProviders,
   queryProviderBalance,
+  removeAggregateApi,
   removeProvider,
+  saveAggregateApiProfile,
   saveProviderProfile,
   setLocalProxyAutoDisableUnreachable,
   setLocalProxyCustomPriority,
@@ -29,6 +33,8 @@ import {
 } from "../api/backend";
 import type { Translate } from "../i18n";
 import type {
+  AggregateApi,
+  AggregateApiInput,
   LocalProxyStartProgress,
   LocalProxyStatus,
   LocalProxyStopProgress,
@@ -74,6 +80,13 @@ function providerErrorMessage(error: unknown, t: Translate) {
   }
   if (message.includes("Provider API key is empty")) return t("providers.error.apiKeyEmpty");
   if (message.includes("Provider name is required")) return t("providers.error.nameRequired");
+  if (message.includes("Aggregate API name is required")) return t("providers.aggregate.error.nameRequired");
+  if (message.includes("Select at least two APIs")) return t("providers.aggregate.error.membersRequired");
+  if (message.includes("Every API in an aggregate must support")) {
+    return t("providers.aggregate.error.modelMismatch");
+  }
+  if (message.includes("Aggregate API does not exist")) return t("providers.aggregate.error.notFound");
+  if (message.includes("Enable the aggregate API")) return t("providers.aggregate.error.disabled");
   if (message.includes("Model is required")) return t("providers.error.modelRequired");
   if (message.includes("Base URL is required")) return t("providers.error.baseUrlRequired");
   if (message.includes("Base URL must be an http:// or https:// URL with a host")) {
@@ -150,6 +163,7 @@ export function useProviderManager(
   cloudSync?: ProviderCloudSync,
 ) {
   const [providers, setProviders] = useState<Provider[]>([]);
+  const [aggregateApis, setAggregateApis] = useState<AggregateApi[]>([]);
   const [localProxy, setLocalProxy] = useState<LocalProxyStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [busyProviderId, setBusyProviderId] = useState<string | null>(null);
@@ -160,11 +174,13 @@ export function useProviderManager(
 
   const load = useCallback(async () => {
     try {
-      const [nextProviders, nextProxy] = await Promise.all([
+      const [nextProviders, nextAggregates, nextProxy] = await Promise.all([
         loadProviders(),
+        loadAggregateApis(),
         loadLocalProxyStatus(),
       ]);
       setProviders(nextProviders);
+      setAggregateApis(nextAggregates);
       setLocalProxy(nextProxy);
     } catch (error) {
       notify(String(error));
@@ -175,6 +191,10 @@ export function useProviderManager(
 
   useEffect(() => { void load(); }, [load]);
   useEffect(() => subscribeToProviderEvents(() => void load()), [load]);
+
+  const refreshAggregateApis = useCallback(async () => {
+    setAggregateApis(await loadAggregateApis());
+  }, []);
 
   const saveProvider = useCallback(async (provider: ProviderInput) => {
     setSaving(true);
@@ -191,6 +211,49 @@ export function useProviderManager(
       setSaving(false);
     }
   }, [cloudSync, load, notify, t]);
+
+  const saveAggregateApi = useCallback(async (aggregate: AggregateApiInput) => {
+    setSaving(true);
+    try {
+      const saved = await saveAggregateApiProfile(aggregate);
+      notify(t("toast.aggregateApiSaved"));
+      await load();
+      return saved;
+    } catch (error) {
+      notify(providerErrorMessage(error, t));
+      return null;
+    } finally {
+      setSaving(false);
+    }
+  }, [load, notify, t]);
+
+  const switchAggregateApi = useCallback(async (id: string) => {
+    setBusyProviderId(`aggregate:${id}`);
+    try {
+      await activateAggregateApi(id);
+      notify(t("toast.aggregateApiSwitched"));
+      await load();
+      return true;
+    } catch (error) {
+      notify(providerErrorMessage(error, t));
+      return false;
+    } finally {
+      setBusyProviderId(null);
+    }
+  }, [load, notify, t]);
+
+  const deleteAggregateApi = useCallback(async (id: string) => {
+    setBusyProviderId(`aggregate:${id}`);
+    try {
+      await removeAggregateApi(id);
+      notify(t("toast.aggregateApiDeleted"));
+      await load();
+    } catch (error) {
+      notify(providerErrorMessage(error, t));
+    } finally {
+      setBusyProviderId(null);
+    }
+  }, [load, notify, t]);
 
   const switchProvider = useCallback(async (id: string) => {
     setBusyProviderId(id);
@@ -585,6 +648,8 @@ export function useProviderManager(
 
   return {
     providers,
+    aggregateApis,
+    refreshAggregateApis,
     localProxy,
     loading,
     busyProviderId,
@@ -594,6 +659,9 @@ export function useProviderManager(
     proxyStopProgress,
     activeProvider: providers.find((provider) => provider.active) ?? null,
     saveProvider,
+    saveAggregateApi,
+    switchAggregateApi,
+    deleteAggregateApi,
     switchProvider,
     switchProviderGroup,
     cancelProviderUse,

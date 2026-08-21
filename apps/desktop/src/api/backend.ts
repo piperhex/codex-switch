@@ -19,6 +19,8 @@ import type {
   AccountDetailsDraft,
   AccountArchiveImportResult,
   AccountTokenUsageTotals,
+  AggregateApi,
+  AggregateApiInput,
   AppInfo,
   AppSettings,
   BubbleResetDisplay,
@@ -152,6 +154,7 @@ const NETWORK_PROXY_URL_PREVIEW_KEY = "codex-switch:network-proxy-url";
 const NETWORK_PROXY_PORT_PREVIEW_KEY = "codex-switch:network-proxy-port";
 const CLOUD_USER_PREVIEW_KEY = "codex-switch:cloud-user-email";
 const PROVIDERS_PREVIEW_KEY = "codex-switch:providers";
+const AGGREGATE_APIS_PREVIEW_KEY = "codex-switch:aggregate-apis";
 const DEFAULT_OPENAI_PROVIDER_MODEL = "gpt-5.6-sol";
 const LOCAL_PROXY_PREVIEW_KEY = "codex-switch:local-proxy-running";
 const LOCAL_PROXY_AUTO_SWITCH_PREVIEW_KEY = "codex-switch:local-proxy-auto-switch";
@@ -562,6 +565,90 @@ export async function loadProviders(): Promise<Provider[]> {
   return invoke<Provider[]>("list_providers");
 }
 
+function readPreviewAggregateApis(): AggregateApi[] {
+  try {
+    const stored = window.localStorage.getItem(AGGREGATE_APIS_PREVIEW_KEY) ?? "[]";
+    const parsed: unknown = JSON.parse(stored);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((aggregate): aggregate is AggregateApi => Boolean(
+      aggregate
+      && typeof aggregate === "object"
+      && "id" in aggregate
+      && "name" in aggregate
+      && "model" in aggregate
+      && "memberProviderIds" in aggregate,
+    ));
+  } catch {
+    return [];
+  }
+}
+
+function writePreviewAggregateApis(aggregates: AggregateApi[]) {
+  window.localStorage.setItem(AGGREGATE_APIS_PREVIEW_KEY, JSON.stringify(aggregates));
+  window.dispatchEvent(new CustomEvent(PROVIDERS_EVENT));
+}
+
+export async function loadAggregateApis(): Promise<AggregateApi[]> {
+  if (!hasLocalBackend) return readPreviewAggregateApis();
+  return invoke<AggregateApi[]>("list_aggregate_apis");
+}
+
+export async function saveAggregateApiProfile(input: AggregateApiInput): Promise<AggregateApi> {
+  if (!hasLocalBackend) {
+    const providers = readPreviewProviders();
+    const memberIds = [...new Set(input.memberProviderIds)];
+    if (memberIds.length < 2) throw new Error("Select at least two APIs for the aggregate");
+    const members = memberIds.map((id) => providers.find((provider) => provider.id === id));
+    if (members.some((provider) => !provider)) throw new Error("Provider does not exist");
+    if (members.some((provider) => !provider?.models.includes(input.model))) {
+      throw new Error("Every API in an aggregate must support the selected model");
+    }
+    const aggregates = readPreviewAggregateApis();
+    const index = input.id ? aggregates.findIndex((aggregate) => aggregate.id === input.id) : -1;
+    const aggregate: AggregateApi = {
+      ...input,
+      id: input.id ?? previewProviderId(),
+      memberProviderIds: memberIds,
+      active: index >= 0 && aggregates[index].active && input.enabled,
+      memberConversationCounts: index >= 0 ? aggregates[index].memberConversationCounts ?? {} : {},
+    };
+    if (index >= 0) aggregates[index] = aggregate;
+    else aggregates.push(aggregate);
+    writePreviewAggregateApis(aggregates);
+    return aggregate;
+  }
+  return invoke<AggregateApi>("save_aggregate_api", { aggregate: input });
+}
+
+export async function activateAggregateApi(id: string): Promise<void> {
+  if (!hasLocalBackend) {
+    if (!previewLocalProxyStatus().running) {
+      throw new Error(
+        "Third-party Providers require the local proxy. Start the local proxy before switching Provider.",
+      );
+    }
+    const aggregates = readPreviewAggregateApis();
+    const selected = aggregates.find((aggregate) => aggregate.id === id);
+    if (!selected) throw new Error("Aggregate API does not exist");
+    if (!selected.enabled) throw new Error("Enable the aggregate API before using it");
+    writePreviewProviders(readPreviewProviders().map((provider) => ({ ...provider, active: false })));
+    writePreviewAggregateApis(aggregates.map((aggregate) => ({
+      ...aggregate,
+      active: aggregate.id === id,
+    })));
+    return;
+  }
+  await invoke("switch_aggregate_api", { id });
+}
+
+export async function removeAggregateApi(id: string): Promise<void> {
+  if (!hasLocalBackend) {
+    writePreviewAggregateApis(readPreviewAggregateApis().filter((aggregate) => aggregate.id !== id));
+    return;
+  }
+  await invoke("delete_aggregate_api", { id });
+}
+
 export async function saveProviderProfile(provider: ProviderInput): Promise<Provider> {
   if (!hasLocalBackend) {
     const providers = readPreviewProviders();
@@ -812,6 +899,10 @@ export async function activateProvider(id: string): Promise<void> {
     }
     window.localStorage.setItem(LOCAL_PROXY_CONCURRENT_ROUTING_PREVIEW_KEY, "false");
     writePreviewProviders(providers.map((provider) => ({ ...provider, active: provider.id === id })));
+    writePreviewAggregateApis(readPreviewAggregateApis().map((aggregate) => ({
+      ...aggregate,
+      active: false,
+    })));
     return;
   }
   await invoke("switch_provider", { id });
@@ -924,6 +1015,10 @@ export async function setProviderAutoSwitchEnabled(id: string, enabled: boolean)
 export async function deactivateProvider(): Promise<void> {
   if (!hasLocalBackend) {
     writePreviewProviders(readPreviewProviders().map((provider) => ({ ...provider, active: false })));
+    writePreviewAggregateApis(readPreviewAggregateApis().map((aggregate) => ({
+      ...aggregate,
+      active: false,
+    })));
     return;
   }
   await invoke("disable_provider");
@@ -1756,15 +1851,30 @@ export async function fetchCloudFaqs(): Promise<CloudFaq[]> {
 
 const SKILL_MARKET_INSTALLED_PREVIEW_KEY = "codex-switch:skill-market-installed";
 
-function previewInstalledSkills(): Record<string, string> {
+interface PreviewInstalledSkill {
+  enabled: boolean;
+  version: string;
+}
+
+function previewInstalledSkills(): Record<string, PreviewInstalledSkill> {
   try {
     const value = JSON.parse(window.localStorage.getItem(SKILL_MARKET_INSTALLED_PREVIEW_KEY) ?? "{}") as unknown;
-    return value && typeof value === "object" && !Array.isArray(value)
-      ? value as Record<string, string>
-      : {};
+    if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+    return Object.fromEntries(Object.entries(value).flatMap(([id, installed]) => {
+      if (typeof installed === "string") return [[id, { enabled: true, version: installed }]];
+      if (!installed || typeof installed !== "object" || Array.isArray(installed)) return [];
+      const candidate = installed as Partial<PreviewInstalledSkill>;
+      return typeof candidate.version === "string"
+        ? [[id, { enabled: candidate.enabled !== false, version: candidate.version }]]
+        : [];
+    }));
   } catch {
     return {};
   }
+}
+
+function savePreviewInstalledSkills(installed: Record<string, PreviewInstalledSkill>) {
+  window.localStorage.setItem(SKILL_MARKET_INSTALLED_PREVIEW_KEY, JSON.stringify(installed));
 }
 
 export async function fetchSkillMarket(): Promise<SkillMarketItem[]> {
@@ -1780,8 +1890,9 @@ export async function fetchSkillMarket(): Promise<SkillMarketItem[]> {
   const installed = previewInstalledSkills();
   return payload.items.map((item) => ({
     ...item,
-    installedVersion: installed[item.id] ?? null,
-    installed: installed[item.id] === item.version,
+    installedVersion: installed[item.id]?.version ?? null,
+    installed: installed[item.id]?.version === item.version,
+    enabled: installed[item.id]?.enabled ?? false,
   }));
 }
 
@@ -1824,11 +1935,33 @@ export async function publishSkill(input: SkillPublishInput): Promise<SkillMarke
 export async function installMarketSkill(skill: SkillMarketItem): Promise<void> {
   if (!hasLocalBackend) {
     const installed = previewInstalledSkills();
-    installed[skill.id] = skill.version;
-    window.localStorage.setItem(SKILL_MARKET_INSTALLED_PREVIEW_KEY, JSON.stringify(installed));
+    installed[skill.id] = { enabled: installed[skill.id]?.enabled ?? true, version: skill.version };
+    savePreviewInstalledSkills(installed);
     return;
   }
   await invoke("install_market_skill", { skill });
+}
+
+export async function removeMarketSkill(skillId: string): Promise<void> {
+  if (!hasLocalBackend) {
+    const installed = previewInstalledSkills();
+    delete installed[skillId];
+    savePreviewInstalledSkills(installed);
+    return;
+  }
+  await invoke("remove_market_skill", { skillId });
+}
+
+export async function setMarketSkillEnabled(skillId: string, enabled: boolean): Promise<void> {
+  if (!hasLocalBackend) {
+    const installed = previewInstalledSkills();
+    const current = installed[skillId];
+    if (!current) throw new Error("Install this plugin before changing its status");
+    installed[skillId] = { ...current, enabled };
+    savePreviewInstalledSkills(installed);
+    return;
+  }
+  await invoke("set_market_skill_enabled", { skillId, enabled });
 }
 
 export async function fetchOfficialPlugins(): Promise<OfficialPluginItem[]> {
@@ -2258,6 +2391,11 @@ export async function importDreamSkinImage(
 export async function saveDreamSkinTheme(name: string): Promise<DreamSkinStatus> {
   if (!hasLocalBackend) return previewDreamSkinStatus();
   return invoke<DreamSkinStatus>("save_dream_skin_theme", { name });
+}
+
+export async function deleteDreamSkinThemes(themeIds: string[]): Promise<DreamSkinStatus> {
+  if (!hasLocalBackend) return previewDreamSkinStatus();
+  return invoke<DreamSkinStatus>("delete_dream_skin_themes", { themeIds });
 }
 
 export async function setDreamSkinAppearance(appearance: DreamSkinAppearance): Promise<DreamSkinStatus> {

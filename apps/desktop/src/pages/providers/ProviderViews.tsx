@@ -56,6 +56,7 @@ interface ProviderViewProps {
   imageModelBusy: boolean;
   onImageModelChange: (routeKind: ImageRouteKind, target: ImageModelTarget | null) => void;
   privacyMode: boolean;
+  aggregateConversationCounts: Record<string, number>;
   t: Translate;
 }
 
@@ -191,13 +192,14 @@ function ProviderActions({ provider, options }: {
   );
 }
 
-function ProviderIdentityCell({ provider, error, t }: {
+function ProviderIdentityCell({ provider, error, conversationCount, t }: {
   provider: Provider;
   error?: string;
+  conversationCount: number;
   t: Translate;
 }) {
   return <div className="provider-cell">
-    <div className="provider-avatar"><Server size={15} /></div>
+    <ProviderAvatar conversationCount={conversationCount} iconSize={15} t={t} />
     <button type="button" className="provider-link" title={t("providers.openBaseUrl")}
       onClick={() => void openUrl(provider.baseUrl)}>
       <span className="provider-link-name">
@@ -212,6 +214,21 @@ function ProviderIdentityCell({ provider, error, t }: {
   </div>;
 }
 
+function ProviderAvatar({ conversationCount, iconSize, t }: {
+  conversationCount: number;
+  iconSize: number;
+  t: Translate;
+}) {
+  const countLabel = t("table.conversationCount", { count: conversationCount });
+  return <div className="table-avatar-wrap">
+    <div className="provider-avatar"><Server size={iconSize} /></div>
+    {conversationCount > 0 && <span className="account-conversation-count"
+      title={countLabel} aria-label={countLabel}>
+      {conversationCount > 99 ? "99+" : conversationCount}
+    </span>}
+  </div>;
+}
+
 function buildColumns(
   options: ProviderViewProps,
   connectivityErrors: ProviderConnectivityErrors,
@@ -221,7 +238,8 @@ function buildColumns(
     {
       title: t("providers.table.provider"), key: "provider", dataIndex: "name", width: 240,
       render: (_, provider) => <ProviderIdentityCell provider={provider}
-        error={connectivityErrors[provider.id]} t={t} />,
+        error={connectivityErrors[provider.id]}
+        conversationCount={options.aggregateConversationCounts[provider.id] ?? 0} t={t} />,
     },
     {
       title: t("providers.table.group"), key: "group", dataIndex: "group", width: 150,
@@ -373,6 +391,7 @@ function ProviderCard({ provider, options }: { provider: Provider; options: Prov
     t,
   } = options;
   const waiting = busyProviderId === provider.id;
+  const aggregateConversationCount = options.aggregateConversationCounts[provider.id] ?? 0;
   const cardClassName = `provider-card${provider.active ? " active" : ""}`
     + `${options.proxyRunning ? "" : " proxy-required-card"}`
     + `${provider.supportsDirectSwitch ? " switchable" : ""}`;
@@ -382,7 +401,7 @@ function ProviderCard({ provider, options }: { provider: Provider; options: Prov
   }}>
     <div className="card-topline" />
     <header className="provider-card-head">
-      <div className="provider-avatar"><Server size={18} /></div>
+      <ProviderAvatar conversationCount={aggregateConversationCount} iconSize={18} t={t} />
       <div><strong>{provider.name}</strong><span title={provider.baseUrl}>{provider.baseUrl}</span></div>
       {provider.active
         ? <Tag className="current-tag">{t("providers.status.current")}</Tag>

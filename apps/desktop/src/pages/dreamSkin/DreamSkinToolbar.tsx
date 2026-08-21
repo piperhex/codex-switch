@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   Sparkles,
   Store,
+  Trash2,
 } from "lucide-react";
 import {
   installDreamSkin,
@@ -27,7 +28,7 @@ import type { Translate } from "../../i18n";
 import type { DreamSkinAppearance, DreamSkinStatus } from "../../types";
 import { APPEARANCE_OPTIONS } from "./constants";
 import { DreamSkinOverlaySlider } from "./DreamSkinOverlaySlider";
-import type { RunStatusOperation, ThemeTab } from "./types";
+import type { RunStatusOperation, SavedThemeLibrary, ThemeTab } from "./types";
 
 type Props = {
   busy: string | null;
@@ -54,6 +55,7 @@ type Props = {
   refresh: () => Promise<void>;
   resourcesReady: boolean;
   runStatusOperation: RunStatusOperation;
+  savedLibrary: SavedThemeLibrary;
   setBusy: (busy: string | null) => void;
   setError: (error: string | null) => void;
   setSaveName: (name: string) => void;
@@ -108,7 +110,8 @@ export function DreamSkinToolbar(props: Props) {
         </div>
       </div>
     </section>
-    <BrowserHeader catalog={catalog} setThemeTab={setThemeTab} t={t} themeTab={themeTab} />
+    <BrowserHeader catalog={catalog} savedLibrary={props.savedLibrary} setThemeTab={setThemeTab}
+      t={t} themeTab={themeTab} busy={busy} />
   </div>;
 }
 
@@ -166,8 +169,8 @@ function ToolsPopover(props: ToolsProps) {
   </Popover>;
 }
 
-function BrowserHeader(props: Pick<Props, "catalog" | "setThemeTab" | "t" | "themeTab">) {
-  const { catalog, setThemeTab, t, themeTab } = props;
+function BrowserHeader(props: Pick<Props, "busy" | "catalog" | "savedLibrary" | "setThemeTab" | "t" | "themeTab">) {
+  const { busy, catalog, savedLibrary, setThemeTab, t, themeTab } = props;
   const builtInActions = <div className="dream-market-tab-actions">
     <Input className="dream-market-search" allowClear value={catalog.builtInQuery} prefix={<Search size={14} />}
       placeholder={t("dreamSkin.presets.search")} onChange={(event) => catalog.setBuiltInQuery(event.target.value)} />
@@ -183,9 +186,24 @@ function BrowserHeader(props: Pick<Props, "catalog" | "setThemeTab" | "t" | "the
       {t("dreamSkin.market.gallery")}
     </Button>
   </div>;
+  const selectedCount = savedLibrary.selectedThemeIds.length;
+  const savedActions = <div className="dream-market-tab-actions">
+    <Popconfirm title={t("dreamSkin.saved.delete.confirmTitle", { count: selectedCount })}
+      description={t("dreamSkin.saved.delete.confirmDescription")} okText={t("dreamSkin.saved.delete.action")}
+      cancelText={t("table.cancel")} okButtonProps={{ danger: true }}
+      onConfirm={savedLibrary.deleteSelectedThemes}>
+      <Button danger icon={<Trash2 size={14} />} disabled={selectedCount === 0}
+        loading={busy === "deleteThemes"}>
+        {t("dreamSkin.saved.delete.selected", { count: selectedCount })}
+      </Button>
+    </Popconfirm>
+    <Input className="dream-market-search" allowClear value={savedLibrary.query} prefix={<Search size={14} />}
+      placeholder={t("dreamSkin.saved.search")} onChange={(event) => savedLibrary.setQuery(event.target.value)} />
+  </div>;
   return <div className="dream-theme-browser-header">
     <Tabs activeKey={themeTab} onChange={(key) => setThemeTab(key as ThemeTab)}
-      tabBarExtraContent={themeTab === "builtIn" ? builtInActions : themeTab === "market" ? marketActions : null}
+      tabBarExtraContent={themeTab === "builtIn" ? builtInActions
+        : themeTab === "market" ? marketActions : savedActions}
       items={tabItems(t)} />
     <TabSummary catalog={catalog} t={t} themeTab={themeTab} />
   </div>;

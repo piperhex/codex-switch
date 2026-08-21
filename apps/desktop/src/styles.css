@@ -1651,8 +1651,7 @@ main.providers-main .provider-card-grid {
   min-height: 0;
   display: grid;
   gap: 8px;
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow: auto;
   overscroll-behavior: contain;
   padding-right: 8px;
   margin-right: -8px;
@@ -1663,7 +1662,7 @@ main.providers-main .provider-card-grid {
 .provider-form-error { max-width: 400px; color: #b45145 !important; }
 .provider-form .ant-select { width: 100%; }
 .provider-form .ant-segmented { justify-self: start; }
-.provider-model-editor { min-width: 0; display: grid; gap: 6px; overflow-x: auto; }
+.provider-model-editor { min-width: 0; display: grid; gap: 6px; }
 .provider-model-editor-head, .provider-model-editor-row {
   min-width: 760px;
   display: grid;
@@ -2086,11 +2085,32 @@ main.tokens-main { overflow: hidden; padding-bottom: 0; }
 .dream-theme-card { min-width: 260px; overflow: hidden; border: 1px solid #dce5dd; border-radius: 13px; background: #fff; box-shadow: 0 8px 24px rgba(26, 49, 32, .06); transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
 .dream-theme-card:hover { transform: translateY(-2px); border-color: rgba(var(--green-rgb), .44); box-shadow: 0 14px 32px rgba(26, 49, 32, .11); }
 .dream-theme-card.is-active { border-color: var(--green); box-shadow: 0 0 0 2px rgba(var(--green-rgb), .11), 0 14px 32px rgba(26, 49, 32, .1); }
+.dream-theme-card.is-selected {
+  border-color: var(--green);
+  box-shadow: 0 0 0 2px rgba(var(--green-rgb), .16), 0 14px 32px rgba(26, 49, 32, .1);
+}
 .dream-theme-preview { position: relative; height: 142px; overflow: hidden; background-size: cover; background-position: center; }
 .dream-theme-preview-saved { background: radial-gradient(circle at 72% 24%, rgba(var(--green-rgb), .55), transparent 25%), linear-gradient(135deg, #16251c, #34503d); }
 .dream-theme-preview-shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(8,15,10,.04) 38%, rgba(8,15,10,.68)); }
 .dream-theme-id { position: absolute; right: 12px; bottom: 11px; left: 12px; overflow: hidden; color: rgba(255,255,255,.72); font: 650 9px/1 Manrope, sans-serif; text-overflow: ellipsis; white-space: nowrap; }
 .dream-theme-current { position: absolute; top: 11px; right: 11px; padding: 5px 8px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid rgba(255,255,255,.32); border-radius: 999px; color: #15331f; background: var(--green-highlight); font-size: 9px; font-weight: 750; box-shadow: 0 6px 16px rgba(0,0,0,.18); }
+.dream-theme-selection {
+  position: absolute;
+  z-index: 1;
+  top: 11px;
+  left: 11px;
+  padding: 5px;
+  border: 1px solid rgba(255,255,255,.38);
+  border-radius: 7px;
+  background: rgba(10,20,13,.58);
+  box-shadow: 0 6px 16px rgba(0,0,0,.16);
+  backdrop-filter: blur(8px);
+}
+.dream-theme-selection .ant-checkbox-inner { border-color: rgba(255,255,255,.88); background: rgba(255,255,255,.16); }
+.dream-theme-selection .ant-checkbox-checked .ant-checkbox-inner {
+  border-color: var(--green);
+  background: var(--green);
+}
 .dream-theme-copy { min-height: 100px; padding: 12px; display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; }
 .dream-theme-copy > div { min-width: 0; }
 .dream-theme-copy h3 { margin: 0 0 6px; color: #1a2920; font: 720 14px/1.25 Manrope, sans-serif; }
@@ -2702,7 +2722,8 @@ html.floating-usage-page #root {
 .skill-card-title { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .skill-card-title h3 { min-width: 0; margin: 0; overflow: hidden; color: var(--ink); font: 700 15px/1.25 Manrope, sans-serif; text-overflow: ellipsis; white-space: nowrap; }
 .skill-card-title button { width: 28px; height: 28px; flex: 0 0 auto; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 7px; color: var(--green-dark); background: #fff; cursor: pointer; }
-.skill-card .skill-card-title button, .skill-card .skill-install-button { position: relative; z-index: 2; }
+.skill-card .skill-card-title button, .skill-card .skill-install-button,
+.skill-card .community-skill-actions { position: relative; z-index: 2; }
 .skill-card-title button:hover { border-color: var(--green); background: var(--green-soft); }
 .skill-card-body > p { height: 46px; margin: 0; overflow: hidden; color: #617067; font-size: 11px; line-height: 1.45; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
 .skill-card-meta { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #8a968f; font-size: 9px; }
@@ -2714,6 +2735,24 @@ html.floating-usage-page #root {
 .skill-install-button.uninstall { color: #a8483f; border-color: #efc9c5; background: #fff1ef; }
 .skill-install-button.uninstall:hover:not(:disabled) { color: #913b34; background: #ffe5e1; }
 .skill-install-button:disabled { cursor: default; opacity: .8; }
+.community-skill-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.community-skill-toggle {
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: #65736b;
+  background: #f5f7f5;
+  font-size: 11px;
+  font-weight: 700;
+}
+.community-skill-toggle .ant-switch { flex: 0 0 auto; }
+.community-skill-update { grid-column: 1 / -1; }
+.skills-detail-actions > .community-skill-actions { width: min(360px, 45vw); }
+.skills-detail-actions .community-skill-actions .skill-install-button { width: 100%; }
 .official-plugin-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .official-plugin-toggle {
   height: 34px;
@@ -2923,7 +2962,8 @@ html.floating-usage-page #root {
 :root[data-theme="dark"] .update-versions span,
 :root[data-theme="dark"] .skills-package-field,
 :root[data-theme="dark"] .skills-preview-field,
-:root[data-theme="dark"] .official-plugin-toggle { border-color: var(--line); background: #252e29; }
+:root[data-theme="dark"] .official-plugin-toggle,
+:root[data-theme="dark"] .community-skill-toggle { border-color: var(--line); color: #b0bbb4; background: #252e29; }
 :root[data-theme="dark"] .settings-card code,
 :root[data-theme="dark"] .provider-model-code,
 :root[data-theme="dark"] .token-model-code { color: #b8c5bd; background: #29332d; }
@@ -2989,4 +3029,88 @@ html.floating-usage-page #root {
   .skills-detail-content h2 { font-size: 22px; }
   .skills-detail-actions { padding-inline: 16px; }
   .skills-detail-actions .skill-install-button { width: auto; flex: 1; }
+  .skills-detail-actions > .community-skill-actions { width: 100%; }
+}
+.aggregate-api-overview {
+  margin-bottom: 14px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.aggregate-api-overview-title,
+.aggregate-api-manager-heading,
+.aggregate-api-row,
+.aggregate-api-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.aggregate-api-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.aggregate-api-card,
+.aggregate-api-row {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--green-soft);
+}
+
+.aggregate-api-card.active {
+  border-color: var(--green);
+}
+
+.aggregate-api-card > div,
+.aggregate-api-row > div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.aggregate-api-row > .aggregate-api-actions {
+  display: flex;
+  flex: 0 0 auto;
+  justify-content: flex-end;
+}
+
+.aggregate-api-card small,
+.aggregate-api-row small {
+  color: var(--green-dark);
+}
+
+.aggregate-api-card > div > span,
+.aggregate-api-row > div > span {
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.aggregate-api-manager-heading p {
+  max-width: 400px;
+  margin: 0;
+  color: var(--muted);
+}
+
+.aggregate-api-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+@media (max-width: 640px) {
+  .aggregate-api-manager-heading,
+  .aggregate-api-row,
+  .aggregate-api-card {
+    align-items: stretch;
+    flex-direction: column;
+  }
 }

@@ -14,6 +14,10 @@ QQ 技术交流群：`1051213898`。
 
 ![Codex Switch 账号管理界面](docs/assets/codex-switch-dashboard.png)
 
+### 会话管理
+
+![Codex Switch 会话管理界面](docs/assets/codex-switch-conversations.png)
+
 ### 第三方模型服务商
 
 ![Codex Switch 第三方模型服务商界面](docs/assets/codex-switch-providers.png)
@@ -28,9 +32,13 @@ QQ 技术交流群：`1051213898`。
 
 ![Codex Switch 一键换肤界面](docs/assets/codex-switch-dream-skin.png)
 
-### Skills 市场
+### 插件市场
 
-![Codex Switch Skills 市场](docs/assets/codex-switch-skills.png)
+![Codex Switch 插件市场](docs/assets/codex-switch-skills.png)
+
+### 2FA 验证码
+
+![Codex Switch 2FA 验证码界面](docs/assets/codex-switch-two-factor.png)
 
 ### 悬浮用量球
 

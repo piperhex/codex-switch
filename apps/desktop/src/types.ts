@@ -133,6 +133,24 @@ export interface ProviderInput {
   walletPassword?: string;
 }
 
+export interface AggregateApi {
+  id: string;
+  name: string;
+  model: string;
+  memberProviderIds: string[];
+  enabled: boolean;
+  active: boolean;
+  memberConversationCounts: Record<string, number>;
+}
+
+export interface AggregateApiInput {
+  id?: string;
+  name: string;
+  model: string;
+  memberProviderIds: string[];
+  enabled: boolean;
+}
+
 export interface CcSwitchImportRequest {
   requestId: string;
   app: string;
@@ -506,6 +524,7 @@ export interface SkillMarketItem {
   updatedAt: string;
   installed: boolean;
   installedVersion?: string | null;
+  enabled: boolean;
 }
 
 export interface OfficialPluginItem {

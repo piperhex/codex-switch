@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Button, Tooltip } from "antd";
+import { Button, Checkbox, Tooltip } from "antd";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { Check, CloudDownload, Eye, Github, WandSparkles } from "lucide-react";
 import { loadDreamSkinThemePreview } from "../../api/backend";
@@ -21,6 +21,11 @@ type ThemeCardProps = {
   name: string;
   preview?: string | null;
   previewEnabled?: boolean;
+  selection?: {
+    label: string;
+    selected: boolean;
+    onChange: (selected: boolean) => void;
+  };
   tone?: string;
   onApply: () => void;
   t: Translate;
@@ -28,13 +33,16 @@ type ThemeCardProps = {
 
 export function ThemeCard(props: ThemeCardProps) {
   const { active, busy, description, disabled = false, id, name, preview } = props;
-  const { previewEnabled = false, tone, onApply, t } = props;
+  const { previewEnabled = false, selection, tone, onApply, t } = props;
   const { cardRef, resolvedPreview } = useLazyPreview({ id, preview, previewEnabled });
   return (
-    <article ref={cardRef} className={`dream-theme-card${active ? " is-active" : ""}`}>
+    <article ref={cardRef}
+      className={`dream-theme-card${active ? " is-active" : ""}${selection?.selected ? " is-selected" : ""}`}>
       <div className={`dream-theme-preview dream-theme-preview-${tone ?? "saved"}`}
         style={resolvedPreview ? { backgroundImage: `url("${resolvedPreview}")` } : undefined}>
         <div className="dream-theme-preview-shade" />
+        {selection && <Checkbox className="dream-theme-selection" checked={selection.selected}
+          aria-label={selection.label} onChange={(event) => selection.onChange(event.target.checked)} />}
         <span className="dream-theme-id">{id}</span>
         {active && <span className="dream-theme-current"><Check size={13} />{t("dreamSkin.current")}</span>}
       </div>
@@ -90,12 +98,18 @@ export function SavedThemeCard(props: {
   status: DreamSkinStatus;
   busy: boolean;
   onApply: () => void;
+  onSelectionChange: (selected: boolean) => void;
+  selected: boolean;
   t: Translate;
 }) {
-  const { theme, status, busy, onApply, t } = props;
+  const { theme, status, busy, onApply, onSelectionChange, selected, t } = props;
   return <ThemeCard active={status.activeThemeId === theme.id} busy={busy}
     description={t("dreamSkin.saved.description")} id={theme.id} name={theme.name}
-    previewEnabled onApply={onApply} t={t} />;
+    previewEnabled onApply={onApply} selection={{
+      label: t("dreamSkin.saved.select", { name: theme.name }),
+      selected,
+      onChange: onSelectionChange,
+    }} t={t} />;
 }
 
 function InstallButton(props: {

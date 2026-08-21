@@ -79,6 +79,15 @@ export type ThemeActions = {
   applyTheme: (themeId: string) => void;
   changeAppearance: (appearance: DreamSkinAppearance) => void;
   changeOverlayOpacity: (opacity: number) => void;
+  deleteSavedThemes: (themeIds: string[]) => Promise<boolean>;
   installAndApplyCommunityTheme: (theme: DreamSkinCommunityTheme) => void;
   installAndApplyMarketTheme: (theme: DreamSkinMarketTheme) => void;
+};
+
+export type SavedThemeLibrary = {
+  query: string;
+  selectedThemeIds: string[];
+  deleteSelectedThemes: () => Promise<void>;
+  setQuery: Dispatch<SetStateAction<string>>;
+  toggleTheme: (themeId: string, selected: boolean) => void;
 };

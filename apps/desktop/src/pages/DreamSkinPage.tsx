@@ -6,6 +6,7 @@ import { DreamSkinBrowser } from "./dreamSkin/DreamSkinBrowser";
 import { DreamSkinDialogs } from "./dreamSkin/DreamSkinDialogs";
 import { DreamSkinToolbar } from "./dreamSkin/DreamSkinToolbar";
 import { useDreamSkinCatalog } from "./dreamSkin/useDreamSkinCatalog";
+import { useSavedThemeLibrary } from "./dreamSkin/useSavedThemeLibrary";
 import { useImportSaveActions, useThemeActions } from "./dreamSkin/useDreamSkinActions";
 import { useDreamSkinStatus } from "./dreamSkin/useDreamSkinStatus";
 import type { DreamSkinPageProps, ThemeTab } from "./dreamSkin/types";
@@ -28,13 +29,13 @@ export function DreamSkinPage({ t, notify }: DreamSkinPageProps) {
     refreshMarket: catalog.refreshMarket,
     setCommunityThemes: catalog.setCommunityThemes,
   });
+  const savedLibrary = useSavedThemeLibrary(themeActions.deleteSavedThemes);
   const { busy, error, loading, resources, status } = statusState;
   const isBusy = busy !== null;
   const resourcesReady = resources?.installed === true;
   const resourcePercent = resources?.totalBytes
     ? Math.min(100, Math.round(resources.downloadedBytes / resources.totalBytes * 100))
     : 0;
-
   if (loading && !status) {
     return <div className="dream-skin-loading"><Sparkles className="spin" size={24} />
       {t("dreamSkin.loading")}</div>;
@@ -66,10 +67,12 @@ export function DreamSkinPage({ t, notify }: DreamSkinPageProps) {
       notify={notify} refresh={statusState.refresh} resourcesReady={resourcesReady}
       runStatusOperation={statusState.runStatusOperation} setBusy={statusState.setBusy}
       setError={statusState.setError} setSaveName={importSave.setSaveName}
-      setSaveOpen={importSave.setSaveOpen} setThemeTab={setThemeTab} status={status} t={t} themeTab={themeTab} />
+      setSaveOpen={importSave.setSaveOpen} setThemeTab={setThemeTab} status={status} t={t} themeTab={themeTab}
+      savedLibrary={savedLibrary} />
     <DreamSkinBrowser actions={themeActions} busy={busy} builtInQuery={builtInQuery} catalog={catalog}
       chooseCustomImage={importSave.chooseCustomImage} isBusy={isBusy} resourcesReady={resourcesReady}
-      savedThemes={importSave.savedThemes} status={status} t={t} themeTab={themeTab} />
+      savedThemes={importSave.savedThemes} status={status} t={t} themeTab={themeTab}
+      savedLibrary={savedLibrary} />
     <DreamSkinDialogs busy={busy} isBusy={isBusy} importDialog={{
       open: importSave.importOpen,
       options: importSave.importOptions,
