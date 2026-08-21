@@ -381,7 +381,7 @@ h1 { margin: 5px 0 0; font: 700 26px/1.1 Manrope, sans-serif; letter-spacing: -.
 .usage-grid { display: grid; grid-template-columns: 1fr 1fr; margin: 0 20px; border: 1px solid #e5e9e4; border-radius: 11px; background: #f6f8f5; }
 .usage-unit { display: flex; align-items: center; justify-content: center; gap: 15px; padding: 15px 12px; }
 .usage-unit + .usage-unit { border-left: 1px solid #e0e5df; }
-.usage-ring { --ring: #65a97c; position: relative; width: 58px; height: 58px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 50%; background: conic-gradient(var(--ring) var(--progress), #dfe6df 0); }
+.usage-ring { --ring: #65a97c; --progress: 0%; position: relative; width: 58px; height: 58px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 50%; background: conic-gradient(var(--ring) var(--progress), #dfe6df 0); }
 .usage-ring::after { content: ""; position: absolute; inset: 5px; border-radius: 50%; background: #f9faf8; }
 .usage-ring.warning { --ring: #d0a340; }
 .usage-ring.danger { --ring: #d2685b; }
@@ -1189,6 +1189,12 @@ html.floating-usage-page #root {
 }
 
 .floating-bubble {
+  --bubble-progress: 0%;
+  --bubble-color: #7b8780;
+  --bubble-water-level: 0%;
+  --bubble-water-top: #20b7ed;
+  --bubble-water-color: #0b93d9;
+  --bubble-water-bottom: #0873d5;
   position: absolute;
   right: 8px;
   bottom: 8px;
