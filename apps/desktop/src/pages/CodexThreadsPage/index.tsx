@@ -76,7 +76,7 @@ export function CodexThreadsPage({ language, notify }: CodexThreadsPageProps) {
   const confirmRestartChatGpt = () => {
     Modal.confirm({
       title: text.restartChatGptConfirmTitle,
-      content: <span className={styles.compactConfirmCopy}>{text.restartChatGptConfirmDescription}</span>,
+      content: <span className="compact-confirm-copy">{text.restartChatGptConfirmDescription}</span>,
       okText: text.restartChatGpt,
       cancelText: text.close,
       okButtonProps: { danger: true },

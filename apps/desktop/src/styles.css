@@ -423,6 +423,7 @@ h1 { margin: 5px 0 0; font: 700 26px/1.1 Manrope, sans-serif; letter-spacing: -.
 .menu-search-footer span { display: inline-flex; align-items: center; gap: 7px; }
 .menu-search-footer kbd { min-width: 30px; height: 28px; padding: 0 7px; border: 1px solid rgba(var(--green-rgb), .38); border-radius: 6px; display: inline-grid; place-items: center; color: var(--green-dark); background: #fff; box-shadow: 0 2px 4px rgba(var(--green-rgb), .12); font: 500 12px/1 "DM Sans", sans-serif; }
 .modal { width: min(440px, 95vw); position: relative; padding: 28px; border-radius: 17px; background: #fbfcfa; box-shadow: 0 28px 80px rgba(9,25,15,.28); animation: rise .2s ease; }
+.compact-confirm-copy { display: block; max-width: 400px; line-height: 1.55; }
 .modal-close { position: absolute; top: 16px; right: 16px; border: 0; border-radius: 8px; width: 32px; height: 32px; display: grid; place-items: center; background: transparent; color: #7b8980; cursor: pointer; }
 .modal-close:hover { background: #edf1ed; }
 .modal-icon { width: 46px; height: 46px; border-radius: 13px; display: grid; place-items: center; color: var(--green-dark); background: var(--green-soft); }
