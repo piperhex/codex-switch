@@ -567,7 +567,7 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
 .ant-tag.official-account-tag { margin: 0; color: #fff; border-color: var(--green); background: var(--green); font-weight: 600; }
 .account-card { cursor: pointer; }
 .account-card button, .account-card input, .account-card summary { cursor: auto; }
-.account-card-note { max-width: 240px; margin-top: 3px; overflow: hidden; color: #53675a; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.account-card .account-note-edit { max-width: 240px; margin-top: 3px; cursor: pointer; }
 .account-card .plan-line .ant-tag { margin: 0; }
 .reset-credits-badge { color: var(--green-dark); font-weight: 700; white-space: nowrap; }
 .card-header-actions {
@@ -690,8 +690,27 @@ main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
   white-space: nowrap;
 }
 .account-reset-credit-count > span { margin-right: 4px; color: #9aa69f; }
-.account-note-preview { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #53675a; font-size: 10px; }
-.account-note-preview.empty { color: #9aa59e; font-style: italic; }
+.account-note-edit {
+  min-width: 0;
+  max-width: 220px;
+  padding: 0;
+  border: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #53675a;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-size: 10px;
+  text-align: left;
+}
+.account-note-edit svg { flex: 0 0 auto; }
+.account-note-edit span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account-note-edit.empty { color: #9aa59e; font-style: italic; }
+.account-note-edit:hover:not(:disabled) { color: var(--green-dark); }
+.account-note-edit:focus-visible { border-radius: 3px; outline: 2px solid var(--green-accent); outline-offset: 2px; }
+.account-note-edit:disabled { cursor: not-allowed; opacity: .7; }
 .account-meta { height: 18px; display: flex; align-items: center; gap: 4px; }
 .account-meta .ant-tag { margin: 0; font-size: 10px; line-height: 16px; }
 .account-meta .current-tag { color: var(--green-dark); border-color: var(--green-accent); background: var(--green-selection); }

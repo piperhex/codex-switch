@@ -329,6 +329,27 @@ function canEditAccountMetadata(account: Account) {
   return !account.official || account.metadataEditable;
 }
 
+function AccountNoteEditButton({ account, hideAccountNotes, onEdit, t }: {
+  account: Account;
+  hideAccountNotes: boolean;
+  onEdit: () => void;
+  t: Translate;
+}) {
+  const noteText = hideAccountNotes && account.note
+    ? "**********"
+    : account.note || t("table.noNote");
+  const editable = canEditAccountMetadata(account);
+
+  return <button type="button"
+    className={`account-note-edit${account.note ? "" : " empty"}`}
+    disabled={!editable}
+    title={editable ? noteText : t("table.officialMetadataReadOnly")}
+    onClick={onEdit}>
+    <Pencil size={11} aria-hidden="true" />
+    <span>{noteText}</span>
+  </button>;
+}
+
 function compareKeepingAttentionLast(
   left: Account,
   right: Account,
@@ -669,10 +690,8 @@ export function AccountTable({
                 displayEmail={privacyMode ? maskAccountEmail(account.email) : account.email} t={t} />
               <AccountResetCreditCount count={resetCreditsCount(resetCredits[account.id])} language={language} />
             </div>
-            <div className={`account-note-preview${account.note ? "" : " empty"}`}
-              title={hideAccountNotes ? undefined : account.note || t("table.noNote")}>
-              {hideAccountNotes && account.note ? "**********" : account.note || t("table.noNote")}
-            </div>
+            <AccountNoteEditButton account={account} hideAccountNotes={hideAccountNotes}
+              onEdit={() => openAccountDetails(account)} t={t} />
             <div className="account-meta">
               <Tooltip title={account.accountId ? t("table.workspace", { id: account.accountId }) : t("table.personal")}>
                 <Tag className="plan-tag">{account.plan || "ChatGPT"}</Tag>
@@ -1189,11 +1208,8 @@ export function AccountTable({
                   </Tooltip>
                   {account.official && <Tag className="official-account-tag">{t("table.official")}</Tag>}
                 </div>
-                <Tooltip title={hideAccountNotes && account.note ? "**********" : account.note || t("table.noNote")}>
-                  <div className="account-card-note">
-                    {hideAccountNotes && account.note ? "**********" : account.note || t("table.noNote")}
-                  </div>
-                </Tooltip>
+                <AccountNoteEditButton account={account} hideAccountNotes={hideAccountNotes}
+                  onEdit={() => openAccountDetails(account)} t={t} />
                 <div className="plan-line">
                   {accountExpirationDate(account.expiresAt, account.usage.apiExpiresAt) && (
                     <span>{t("table.expiresAt", {
