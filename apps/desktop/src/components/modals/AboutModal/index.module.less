@@ -1,0 +1,40 @@
+:global {
+  .about-modal { width: min(620px, 95vw); padding: 0; overflow: hidden; border: 1px solid rgba(var(--green-rgb), .17); }
+  .about-modal > .modal-close { z-index: 2; color: rgba(239,252,248,.75); }
+  .about-modal > .modal-close:hover { color: #fff; background: rgba(255,255,255,.11); }
+  .about-hero { position: relative; padding: 30px 30px 24px; overflow: hidden; color: #f5fffd; background: radial-gradient(circle at 88% 10%, rgba(130,204,200,.28), transparent 29%), linear-gradient(135deg, #142b28, #1b4642 65%, #23635f); }
+  .about-hero::after { position: absolute; right: -74px; bottom: -114px; width: 250px; height: 250px; border: 1px solid rgba(255,255,255,.09); border-radius: 50%; content: ""; }
+  .about-brand-mark { width: 58px; height: 58px; position: relative; z-index: 1; padding: 7px; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.2); border-radius: 17px; background: rgba(255,255,255,.1); box-shadow: 0 14px 32px rgba(7,27,21,.22); }
+  .about-brand-mark img { width: 100%; height: 100%; display: block; object-fit: contain; filter: drop-shadow(0 5px 9px rgba(5,25,19,.28)); }
+  .about-brand-copy { position: relative; z-index: 1; margin-top: 17px; }
+  .about-brand-copy > span { color: var(--green-highlight); font: 700 8px/1.2 Manrope, sans-serif; letter-spacing: .15em; }
+  .about-brand-copy h2 { margin: 5px 0 6px; color: #fff; font-size: 25px; letter-spacing: -.02em; }
+  .about-brand-copy p { max-width: 460px; margin: 0; color: rgba(236,250,246,.7); font-size: 11px; line-height: 1.6; }
+  .about-badges { position: relative; z-index: 1; margin-top: 18px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .about-badges span { padding: 5px 8px; border: 1px solid rgba(255,255,255,.14); border-radius: 999px; color: rgba(240,253,249,.78); background: rgba(255,255,255,.07); font-size: 8px; font-weight: 700; }
+  .about-body { padding: 23px 26px 24px; background: linear-gradient(180deg, #fbfcfa, #f7f9f7); }
+  .about-introduction { margin: 0 0 17px; color: #637168; font-size: 11px; line-height: 1.7; }
+  .about-principles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .about-principles article { min-width: 0; padding: 12px; display: grid; align-content: start; gap: 9px; border: 1px solid #e0e7e0; border-radius: 11px; background: rgba(255,255,255,.9); }
+  .about-principles article > div { width: 31px; height: 31px; display: grid; place-items: center; border-radius: 9px; color: var(--green-dark); background: var(--green-soft); }
+  .about-principles article > span { min-width: 0; display: grid; gap: 4px; }
+  .about-principles b { color: #304036; font-size: 10px; line-height: 1.35; }
+  .about-principles small { color: #7b8880; font-size: 8px; line-height: 1.55; }
+  .about-version-panel { min-height: 57px; margin-top: 14px; padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; gap: 18px; border: 1px solid #dce5dd; border-radius: 11px; background: #f1f6f2; }
+  .about-version-panel > div { display: grid; gap: 2px; }
+  .about-version-panel > div span { color: #849088; font-size: 8px; }
+  .about-version-panel > div b { color: var(--green-dark); font: 700 13px/1.2 Manrope, sans-serif; }
+  .about-actions { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .about-actions button { min-height: 34px; padding: 8px 11px; border: 1px solid #d6e0d8; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; color: #42534a; background: #fff; font-size: 9px; font-weight: 700; cursor: pointer; transition: .16s ease; }
+  .about-actions button:hover { color: var(--green-dark); border-color: rgba(var(--green-rgb),.52); background: var(--green-soft); transform: translateY(-1px); }
+  .about-actions button.primary { color: #fff; border-color: var(--green); background: var(--green); }
+  .about-actions button.primary:hover { color: #fff; border-color: var(--green-dark); background: var(--green-dark); }
+  .about-legal { margin-top: 18px; padding-top: 14px; border-top: 1px solid #e2e8e2; }
+  .about-legal > span { color: #506159; font-size: 8px; font-weight: 700; }
+  .about-legal p { margin: 5px 0 0; color: #929d96; font-size: 8px; line-height: 1.5; }
+
+  :root[data-theme="dark"] .about-actions button { border-color: var(--line); color: var(--ink); background: #252e29; }
+  :root[data-theme="dark"] .about-body { background: #1b221e; }
+  :root[data-theme="dark"] .about-principles article,
+  :root[data-theme="dark"] .about-version-panel { border-color: var(--line); background: #252e29; }
+}

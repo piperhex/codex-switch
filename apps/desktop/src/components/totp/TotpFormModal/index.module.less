@@ -1,0 +1,15 @@
+:global {
+  .totp-qr-import { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .totp-qr-import span { max-width: 280px; color: var(--muted); font-size: 11px; line-height: 1.45; }
+  .totp-form-modal .ant-alert { max-width: 400px; margin-bottom: 12px; }
+  .totp-form-modal .ant-form-item-explain,
+  .totp-form-modal .ant-form-item-extra { max-width: 400px; }
+  .totp-form-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .totp-form-options { display: grid; grid-template-columns: 1fr 1fr 1.35fr; gap: 12px; }
+  .totp-form-options .ant-input-number { width: 100%; }
+
+  @media (max-width: 760px) {
+    .totp-form-row { grid-template-columns: 1fr; }
+    .totp-form-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+}

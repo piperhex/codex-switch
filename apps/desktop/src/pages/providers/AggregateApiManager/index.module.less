@@ -1,0 +1,57 @@
+.manager { min-width: 0; }
+
+.heading,
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.heading p {
+  max-width: 400px;
+  margin: 0;
+  color: var(--muted);
+}
+
+.list {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.row {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--green-soft);
+}
+
+.row > div:first-child {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.row small { color: var(--green-dark); }
+
+.row > div:first-child > span {
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.actions {
+  display: flex;
+  flex: 0 0 auto;
+  justify-content: flex-end;
+}
+
+@media (max-width: 640px) {
+  .heading,
+  .row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

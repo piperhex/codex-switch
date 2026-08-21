@@ -1,0 +1,100 @@
+.tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: #f2f5f2;
+
+  button {
+    height: 34px;
+    padding: 0 18px;
+    border: 0;
+    border-radius: 8px;
+    color: #718078;
+    background: transparent;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 700;
+
+    white-space: nowrap;
+
+    &:hover {
+      color: var(--green-dark);
+    }
+
+    &:focus-visible {
+      outline: 2px solid rgba(var(--green-rgb), .55);
+      outline-offset: 1px;
+    }
+  }
+
+  .active {
+    color: var(--green-dark);
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(18, 42, 27, .09);
+  }
+}
+
+.toolbarActions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.search {
+  width: min(230px, 22vw);
+  height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: #829087;
+  background: #fff;
+
+  &:focus-within {
+    border-color: var(--green);
+    box-shadow: 0 0 0 3px rgba(var(--green-rgb), .12);
+  }
+
+  input {
+    width: 100%;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    color: var(--ink);
+    background: transparent;
+    font-size: 11px;
+  }
+}
+
+:global(:root[data-theme="dark"]) {
+  .tabs {
+    border-color: var(--line);
+      background: #252e29;
+
+    button {
+      color: #9ba8a0;
+    }
+
+    .active {
+      color: var(--ink);
+      background: #344039;
+    }
+  }
+
+  .search {
+    border-color: var(--line);
+    background: var(--panel);
+  }
+}
+
+@media (max-width: 1080px) {
+  .search {
+    width: min(280px, 35vw);
+  }
+}

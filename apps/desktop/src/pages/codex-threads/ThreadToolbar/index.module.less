@@ -1,0 +1,35 @@
+.codexThreadToolbar {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) 130px 160px;
+  gap: 10px;
+
+  :global(.ant-input-affix-wrapper),
+  :global(.ant-btn),
+  :global(.ant-select-selector) {
+    min-height: 42px !important;
+    border-radius: 9px !important;
+  }
+
+  :global(.ant-select) { height: 42px; }
+}
+
+.threadInputClear {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+
+  &:hover { color: var(--ink); background: #eef2ee; }
+}
+
+:global(:root[data-theme="dark"]) .threadInputClear:hover { background: #303a34; }
+
+@media (max-width: 1050px) {
+  .codexThreadToolbar { grid-template-columns: minmax(210px, 1fr) 108px 142px; }
+}

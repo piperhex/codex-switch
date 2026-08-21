@@ -1,0 +1,154 @@
+.prerequisite,
+.browser {
+  width: calc(100% - 32px);
+  max-width: calc(100% - 32px);
+  margin-inline: 16px;
+}
+
+.prerequisite {
+  border-radius: 8px;
+}
+
+.browser {
+  display: grid;
+  gap: 16px;
+}
+
+.themeGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(max(260px, calc((100% - 36px) / 4)), 1fr));
+  gap: 12px;
+}
+
+.marketPane {
+  display: grid;
+  gap: 12px;
+
+  :global(.ant-alert-message),
+  :global(.ant-alert-description) {
+    max-width: 400px;
+  }
+}
+
+.themeEmpty {
+  grid-column: 1 / -1;
+}
+
+.marketLoading,
+.marketEmpty {
+  min-height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #748178;
+  font-size: 12px;
+}
+
+.marketSentinel {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  color: #7b887f;
+  font-size: 10px;
+}
+
+.themeImportCard {
+  min-width: 260px;
+  min-height: 242px;
+  overflow: hidden;
+  border: 1px dashed #dce5dd;
+  border-radius: 13px;
+  background: linear-gradient(145deg, rgba(var(--green-rgb), .055), rgba(255,255,255,.86));
+  box-shadow: 0 8px 24px rgba(26, 49, 32, .06);
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    border-color: rgba(var(--green-rgb), .44);
+    box-shadow: 0 14px 32px rgba(26, 49, 32, .11);
+  }
+}
+
+.importTrigger {
+  width: 100%;
+  height: 100%;
+  min-height: 242px;
+  padding: 24px;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #223128;
+  background: transparent;
+  cursor: pointer;
+  text-align: center;
+
+  &:disabled {
+    opacity: .55;
+    cursor: default;
+  }
+
+  span:nth-child(2) {
+    display: grid;
+    gap: 7px;
+  }
+
+  b {
+    font: 720 15px Manrope, sans-serif;
+  }
+
+  small {
+    max-width: 300px;
+    color: #78857d;
+    font-size: 10px;
+    line-height: 1.55;
+  }
+
+  em {
+    padding: 7px 11px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 8px;
+    color: #fff;
+    background: var(--green-dark);
+    font-size: 10px;
+    font-style: normal;
+    font-weight: 700;
+  }
+}
+
+.importIcon {
+  width: 58px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(var(--green-rgb), .25);
+  border-radius: 18px;
+  color: var(--green-dark);
+  background: #fff;
+  box-shadow: 0 9px 22px rgba(24, 55, 33, .09);
+}
+
+:global(:root[data-theme="dark"]) {
+  .themeImportCard {
+    border-color: var(--line);
+    background: rgba(var(--green-rgb), .05);
+    box-shadow: none;
+  }
+
+  .importTrigger {
+    color: var(--ink);
+  }
+
+  .importIcon {
+    border-color: var(--line);
+    color: var(--ink);
+    background: #252e29;
+  }
+}

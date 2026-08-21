@@ -1,0 +1,48 @@
+:global {
+  .totp-code-card {
+    min-width: 0;
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: #fbfcfa;
+  }
+
+  .totp-code-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+  .totp-code-heading > div:first-child { min-width: 0; display: grid; gap: 3px; }
+  .totp-code-heading strong,
+  .totp-code-heading span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .totp-code-heading strong { color: var(--ink); font-size: 13px; }
+  .totp-code-heading span { color: var(--muted); font-size: 11px; }
+  .totp-code-actions { display: flex; flex: 0 0 auto; gap: 2px; }
+  .totp-code-badge { flex: 0 0 auto; color: var(--green-dark); font-size: 10px; font-weight: 700; }
+
+  .totp-code-button {
+    width: 100%;
+    margin-top: 13px;
+    padding: 0;
+    border: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    align-items: center;
+    column-gap: 10px;
+    color: inherit;
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .totp-code-button:disabled { cursor: wait; }
+  .totp-code-value {
+    min-width: 0;
+    color: var(--green-dark);
+    font-family: "Cascadia Mono", "SFMono-Regular", monospace;
+    font-size: 25px;
+    font-weight: 700;
+    letter-spacing: .07em;
+    white-space: nowrap;
+  }
+
+  .totp-copy-label { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 10px; }
+  .totp-code-button .ant-progress { grid-column: 2; grid-row: 1 / span 2; }
+}

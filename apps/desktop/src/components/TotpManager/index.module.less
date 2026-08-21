@@ -1,0 +1,24 @@
+:global {
+  .totp-manager-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    margin-bottom: 16px;
+  }
+
+  .totp-manager-filters {
+    margin-bottom: 14px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(180px, .55fr);
+    gap: 10px;
+  }
+
+  .totp-manager-filters .ant-select { width: 100%; }
+  .totp-code-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .totp-empty { margin: 38px 0 24px; }
+
+  @media (max-width: 760px) {
+    .totp-code-grid { grid-template-columns: 1fr; }
+    .totp-manager-filters { grid-template-columns: 1fr; }
+  }
+}

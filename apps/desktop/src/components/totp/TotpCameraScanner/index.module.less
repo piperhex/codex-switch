@@ -1,0 +1,48 @@
+:global {
+  .totp-camera-view {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    position: relative;
+    overflow: hidden;
+    border-radius: 12px;
+    background: #101713;
+  }
+
+  .totp-camera-view video { width: 100%; height: 100%; display: block; object-fit: cover; }
+  .totp-camera-loading {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: 10px;
+    color: #dbe8df;
+    font-size: 12px;
+  }
+
+  .totp-camera-frame {
+    width: min(58%, 260px);
+    aspect-ratio: 1;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    border: 2px solid rgba(255, 255, 255, .88);
+    border-radius: 14px;
+    box-shadow: 0 0 0 999px rgba(5, 14, 9, .34);
+    transform: translate(-50%, -50%);
+  }
+
+  .totp-camera-hint {
+    max-width: 400px;
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.45;
+  }
+
+  .totp-camera-hint svg { flex: 0 0 auto; color: var(--green); }
+  .totp-camera-modal .ant-alert { max-width: 400px; margin-top: 12px; }
+}

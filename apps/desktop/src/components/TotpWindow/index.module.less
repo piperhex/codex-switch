@@ -1,0 +1,35 @@
+:global {
+  html.totp-window-page,
+  html.totp-window-page body,
+  html.totp-window-page #root {
+    min-width: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #f3f5f1;
+  }
+
+  .totp-window-shell {
+    width: 100vw;
+    height: 100vh;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: #f3f5f1;
+  }
+
+  .totp-window-header { flex: 0 0 auto; padding: 22px 22px 10px; }
+  .totp-window-header span {
+    color: #819087;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .14em;
+  }
+
+  .totp-window-header h1 { margin: 5px 0 0; font-size: 24px; }
+  .totp-window-content { min-height: 0; flex: 1; padding: 10px 22px 22px; overflow-y: auto; }
+  .totp-window-shell .toast { max-width: 400px; }
+  :root[data-theme="dark"] .totp-window-shell { color: var(--ink); background: #171d19; }
+}

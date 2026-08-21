@@ -1,0 +1,263 @@
+/* Account table and card presentation. Selectors stay global while the
+ * stylesheet is owned by the AccountTable component. */
+:global {
+  .account-view-topbar { position: relative; padding-right: 16px; padding-left: 17px; }
+  .accounts-heading { min-width: 0; }
+  .account-display-tabs {
+    width: max-content;
+    position: absolute;
+    bottom: 4px;
+    left: 8px;
+    z-index: 2;
+    padding: 2px;
+    display: inline-flex;
+    align-items: center;
+    gap: 1px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: #edf1ee;
+  }
+  .account-display-tabs button {
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border: 0;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    color: #68776e;
+    background: transparent;
+    cursor: pointer;
+    font-size: 9px;
+    transition: color .16s ease, background .16s ease, box-shadow .16s ease;
+  }
+  .account-display-tabs button:hover { color: var(--green-dark); background: rgba(255,255,255,.6); }
+  .account-display-tabs button.selected {
+    color: var(--green-dark);
+    background: white;
+    box-shadow: 0 1px 4px rgba(24,45,31,.12);
+  }
+  .account-display-tabs button:focus-visible { outline: 2px solid rgba(var(--green-rgb), .35); outline-offset: 1px; }
+  .account-topbar-controls {
+    min-width: 0;
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 8px;
+  }
+  .account-topbar-controls > .topbar-actions { min-height: 40px; }
+  .account-topbar-controls > .proxy-image-model-fields { justify-content: flex-end; }
+  .account-security-actions { display: inline-flex; align-items: center; gap: 10px; }
+  .accounts-topbar { height: 136px; padding: 16px; }
+  .account-card-toolbar-row {
+    min-height: 58px;
+    padding: 8px 16px 8px 17px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    background: rgba(248,250,247,.82);
+  }
+  .account-card-topbar-controls {
+    min-width: 0;
+    flex: 1 1 auto;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+  .account-card-heading-controls {
+    width: max-content;
+    min-width: 100%;
+    min-height: 32px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .account-card-heading-controls .account-table-toolbar-summary { flex: 1 1 auto; }
+  .account-list { margin: 0 var(--page-x); display: grid; gap: 14px; }
+  .account-table-wrap {
+    width: calc(100% - 32px);
+    max-width: calc(100% - 32px);
+    min-width: 0;
+    margin: 30px 16px 0;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    overflow: hidden;
+    background: white;
+    box-shadow: 0 5px 18px rgba(24,45,31,.035);
+  }
+  .account-table-toolbar {
+    min-height: 40px;
+    padding: 6px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 8px;
+    border-bottom: 1px solid var(--line);
+    background: #fbfcfa;
+  }
+  .account-table-toolbar-summary {
+    min-width: 0;
+    margin-right: auto;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    color: var(--muted);
+    font-size: 11px;
+  }
+  .account-table-toolbar-summary span { min-width: 0; display: inline-flex; align-items: center; white-space: nowrap; }
+  .account-table-toolbar-summary strong { max-width: 180px; overflow: hidden; text-overflow: ellipsis; color: var(--ink); font-weight: 600; }
+  .account-concurrent-routing-control { min-height: 24px; display: inline-flex; align-items: center; gap: 6px; color: var(--ink); font-size: 11px; font-weight: 600; white-space: nowrap; }
+  .model-context-window-control { display: inline-flex; align-items: center; gap: 4px; }
+  .model-context-window-control .ant-select { width: 72px; }
+  .model-context-window-control .ant-select-selector { min-height: 24px !important; }
+  .model-context-window-control .ant-select-selection-search-input,
+  .model-context-window-control .ant-select-selection-item { font-size: 11px; }
+  main.accounts-main .accounts-page { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; padding: 8px 0 16px; }
+  main.accounts-main .accounts-page .account-table-wrap { flex: 1; min-height: 0; margin: 0 16px; }
+  main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
+  .account-card-grid {
+    width: calc(100% - 32px);
+    margin: 0 16px;
+    padding: 1px 1px 16px;
+    overflow: auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(max(390px, calc((100% - 28px) / 3)), 1fr));
+    align-content: start;
+    gap: 14px;
+  }
+  .account-card.account-alert-card { border-color: #efc3be; background: #fff1f0; }
+  .account-card.account-alert-card:hover { background: #ffe4e1; }
+  .account-card .current-tag { margin: 0; color: var(--green-dark); border-color: var(--green-accent); background: var(--green-selection); }
+  .ant-tag.official-account-tag { margin: 0; color: #fff; border-color: var(--green); background: var(--green); font-weight: 600; }
+  .account-card { cursor: pointer; }
+  .account-card button, .account-card input, .account-card summary { cursor: auto; }
+  .account-card .account-note-edit { max-width: 240px; margin-top: 3px; cursor: pointer; }
+  .account-card .plan-line .ant-tag { margin: 0; }
+  .reset-credits-badge { color: var(--green-dark); font-weight: 700; white-space: nowrap; }
+  .card-header-actions {
+    position: relative;
+    flex: 0 0 auto;
+    align-self: flex-start;
+    display: grid;
+    justify-items: center;
+    gap: 3px;
+  }
+  .account-card-refresh-age { color: var(--green-dark); font-size: 8px; font-weight: 700; white-space: nowrap; }
+  .account-card-usage { display: grid; margin: 0 20px; border: 1px solid #e5e9e4; border-radius: 11px; background: #f6f8f5; }
+  .account-card-usage section { min-width: 0; padding: 10px 14px; display: grid; gap: 5px; }
+  .account-card-usage section + section { border-top: 1px solid #e0e5df; }
+  .account-card-usage .table-usage,
+  .account-card-usage .table-usage-fiveHours,
+  .account-card-usage .table-usage-oneWeek { min-width: 0; }
+  .card-usage-meter { gap: 4px; }
+  .card-usage-head { min-width: 0; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .card-usage-value { display: inline-flex; align-items: baseline; gap: 4px; color: #839088; font-size: 9px; }
+  .card-usage-value strong { font: 700 12px Manrope, sans-serif; }
+  .card-usage-label { display: inline-flex; gap: 2px; }
+  .card-usage-name { color: var(--green); font-size: 11px; font-weight: 700; }
+  .card-usage-remaining { color: #839088; }
+  .card-usage-value strong.good { color: var(--green); }
+  .card-usage-value strong.warning { color: #a87515; }
+  .card-usage-value strong.danger { color: #b94b42; }
+  .card-usage-inline-reset { color: #839088; }
+  .card-usage-inline-reset::before { margin-right: 4px; color: #9aa69f; content: "·"; }
+  .account-reset-credits { margin: 11px 20px 0; border: 1px solid #e0e7e0; border-radius: 8px; overflow: hidden; }
+  .account-reset-credits summary { padding: 8px 10px; color: #536158; background: #f7faf6; cursor: pointer; font-size: 10px; font-weight: 700; }
+  .account-reset-credits .reset-credits-panel, .account-reset-credits .reset-credits-status { padding-left: 12px; }
+  .account-card-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; padding: 14px 20px; }
+  .account-card-actions .ant-btn { display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+  .account-table-wrap .ant-table { color: var(--ink); font-size: 12px; }
+  .account-table-wrap col.ant-table-selection-col { background: #f6f8f5; }
+  .account-table-wrap .ant-table-thead > tr > th { background: #f6f8f5; color: #5d6a62; font-size: 11px; font-weight: 700; }
+  .account-table-wrap .ant-table-tbody > tr > td { background: #fff; }
+  .account-table-wrap .ant-table-tbody > tr.active-row > td { background: var(--green-selection); }
+  .account-table-wrap .ant-table-tbody > tr.active-row:hover > td { background: var(--green-selection-hover); }
+  .account-table-wrap .ant-table-tbody > tr.active-row > td:first-child { box-shadow: inset 4px 0 0 var(--green-accent); }
+  .account-table-wrap .ant-table-tbody > tr.account-alert-row > td { background: #fff1f0; }
+  .account-table-wrap .ant-table-tbody > tr.account-alert-row:hover > td { background: #ffe4e1; }
+  .account-table-wrap .ant-table-tbody > tr:hover > td { background: #f6faf7; }
+  .account-table-wrap .ant-table-cell { padding: 8px 16px !important; }
+  .account-table-wrap .ant-table-expand-icon-col { width: 32px !important; min-width: 32px !important; }
+  .account-table-wrap .ant-table-row-expand-icon-cell { width: 32px !important; min-width: 32px !important; max-width: 32px !important; padding-inline: 4px !important; text-align: center; }
+  .account-table-wrap .ant-table-row-expand-icon { margin-inline: 0; }
+  .account-table-wrap .ant-table-cell::before { display: none; }
+  .account-table-wrap .ant-table-expanded-row > td { padding: 0 !important; background: #f7faf6 !important; }
+  .account-cell { min-width: 0; display: flex; align-items: center; gap: 10px; }
+  .table-avatar-wrap { position: relative; flex: 0 0 auto; }
+  .table-avatar { width: 28px; height: 28px; border-radius: 7px; display: grid; place-items: center; color: var(--green-dark); background: var(--green-soft); font: 700 10px Manrope, sans-serif; }
+  .table-avatar.disabled-avatar { color: #b42318; background: #ffd8d3; }
+  .account-conversation-count { position: absolute; top: -7px; right: -9px; min-width: 17px; height: 17px; padding: 0 4px; border: 2px solid var(--panel); border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; color: #fff; background: var(--green); font: 700 9px/1 Manrope, sans-serif; box-sizing: border-box; }
+  .account-primary { min-width: 0; display: grid; gap: 2px; }
+  .account-email-row { min-width: 0; display: flex; align-items: baseline; gap: 4px; }
+  .account-email-copy { min-width: 0; padding: 0; border: 0; display: inline-flex; align-items: center; gap: 4px; color: inherit; background: transparent; cursor: pointer; font: inherit; text-align: left; }
+  .account-email-copy svg { flex: 0 0 auto; color: #839088; }
+  .account-email-copy:hover .account-email, .account-email-copy.copied .account-email { color: var(--green-dark); }
+  .account-email-copy.copied svg { color: var(--green); }
+  .account-email { min-width: 0; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+  .account-reset-credit-count { flex: 0 0 auto; color: var(--green-dark); font-size: 10px; font-weight: 700; white-space: nowrap; }
+  .account-reset-credit-count > span { margin-right: 4px; color: #9aa69f; }
+  .account-note-edit { min-width: 0; max-width: 220px; padding: 0; border: 0; display: inline-flex; align-items: center; gap: 4px; color: #53675a; background: transparent; cursor: pointer; font: inherit; font-size: 10px; text-align: left; }
+  .account-note-edit svg { flex: 0 0 auto; }
+  .account-note-edit span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .account-note-edit.empty { color: #9aa59e; font-style: italic; }
+  .account-note-edit:hover:not(:disabled) { color: var(--green-dark); }
+  .account-note-edit:focus-visible { border-radius: 3px; outline: 2px solid var(--green-accent); outline-offset: 2px; }
+  .account-note-edit:disabled { cursor: not-allowed; opacity: .7; }
+  .account-meta { height: 18px; display: flex; align-items: center; gap: 4px; }
+  .account-meta .ant-tag { margin: 0; font-size: 10px; line-height: 16px; }
+  .account-meta .current-tag { color: var(--green-dark); border-color: var(--green-accent); background: var(--green-selection); }
+  .plan-tag { margin: 0; max-width: 150px; overflow: hidden; text-overflow: ellipsis; text-transform: capitalize; }
+  .plan-expiration { color: #7d8a82; font-size: 9px; white-space: nowrap; }
+  .account-id { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #7d8a82; font: 10px ui-monospace, SFMono-Regular, Consolas, monospace; }
+  .table-usage { min-width: 116px; display: grid; gap: 2px; }
+  .table-usage-fiveHours { min-width: 198px; }
+  .table-usage-oneWeek { min-width: 206px; }
+  .table-usage-head { display: flex; align-items: baseline; gap: 4px; flex-wrap: wrap; line-height: 1; }
+  .table-usage-head strong { font: 700 12px Manrope, sans-serif; }
+  .table-usage-head strong.good { color: var(--green); }
+  .table-usage-head strong.warning { color: #a87515; }
+  .table-usage-head strong.danger { color: #b94b42; }
+  .table-usage-head span, .usage-reset, .usage-missing { color: #839088; font-size: 10px; }
+  .account-token-chart-cell { display: flex; align-items: center; justify-content: center; }
+  .account-token-chart-cell .compact-model-token-chart { padding-left: 0; border-left: 0; }
+  .account-token-chart-unavailable { min-width: 32px; color: #9aa69f; font-size: 11px; cursor: help; }
+  .auto-switch-priority-input { width: 88px; }
+  .usage-recent-refresh { white-space: nowrap; color: #718078 !important; }
+  .usage-recent-refresh::before { margin-right: 4px; color: #9aa69f; content: "·"; }
+  .usage-reset { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; white-space: normal; }
+  .usage-reset > span:first-child { white-space: nowrap; }
+  .account-table-wrap .ant-progress-line { line-height: 1; }
+  .account-table-wrap .ant-progress-inner { background-color: #e5ebe5; }
+  .account-action-menu { width: 164px; padding: 5px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); box-shadow: 0 12px 30px rgba(22,36,27,.14); }
+  .account-action-menu button { width: 100%; padding: 8px 9px; display: flex; gap: 8px; align-items: center; border: 0; border-radius: 6px; background: transparent; font-size: 11px; color: var(--ink); cursor: pointer; }
+  .account-action-menu button:not(:disabled):hover { background: var(--green-soft); }
+  .account-action-menu button.destructive { color: #ae4c42; }
+  .account-action-menu button:disabled { opacity: .4; cursor: not-allowed; }
+  .account-action-menu-divider { height: 1px; margin: 4px 6px; background: var(--line); }
+  .account-card { position: relative; overflow: visible; padding-bottom: 18px; border: 1px solid #dfe5df; border-radius: 14px; background: var(--panel); box-shadow: 0 5px 18px rgba(24,45,31,.035); transition: .2s ease; }
+  .account-card:hover { border-color: #cbd7ce; box-shadow: 0 9px 30px rgba(24,45,31,.065); }
+  .account-card.active { border-color: rgba(var(--green-rgb), .72); box-shadow: 0 0 0 2px rgba(var(--green-rgb), .48), 0 12px 28px rgba(var(--green-rgb), .14); }
+  .account-head { display: flex; align-items: center; gap: 13px; padding: 19px 20px 15px; }
+  .identity .account-email { font: 700 14px Manrope, sans-serif; }
+  .account-row-context-menu { position: fixed; top: auto; right: auto; z-index: 1000; width: 220px; }
+
+  :root[data-theme="dark"] .account-card-toolbar-row { border-color: var(--line); background: rgba(27, 34, 30, .96); }
+  :root[data-theme="dark"] .account-display-tabs { border-color: var(--line); background: #252e29; }
+  :root[data-theme="dark"] .account-display-tabs button { color: #9ba8a0; }
+  :root[data-theme="dark"] .account-display-tabs button:hover { color: var(--ink); background: #303a34; }
+  :root[data-theme="dark"] .account-display-tabs button.selected { color: var(--ink); background: #37433c; box-shadow: none; }
+  :root[data-theme="dark"] .account-card,
+  :root[data-theme="dark"] .account-table-wrap { border-color: var(--line); background: var(--panel); box-shadow: none; }
+  :root[data-theme="dark"] .account-table-toolbar { border-color: var(--line); color: var(--ink); background: #252e29; }
+  :root[data-theme="dark"] .account-card-usage { border-color: var(--line); color: #b0bbb4; background: #252e29; }
+  :root[data-theme="dark"] .account-table-wrap .ant-table-thead > tr > th { color: #b7c2bb; background: #28312c; }
+  :root[data-theme="dark"] .account-table-wrap col.ant-table-selection-col { background: #28312c; }
+  :root[data-theme="dark"] .account-table-wrap .ant-table-tbody > tr > td { background: var(--panel); }
+  :root[data-theme="dark"] .account-table-wrap .ant-table-tbody > tr:hover > td { background: #28332d; }
+  :root[data-theme="dark"] .account-table-wrap .ant-table-expanded-row > td { background: #252e29 !important; }
+  :root[data-theme="dark"] .account-card-usage section + section { border-color: var(--line); }
+}

@@ -1,0 +1,54 @@
+.overview {
+  margin-bottom: 14px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.overviewTitle,
+.card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.overviewGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.card {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--green-soft);
+}
+
+.active { border-color: var(--green); }
+
+.card > div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.card small { color: var(--green-dark); }
+
+.card > div > span {
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .overviewTitle,
+  .card {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

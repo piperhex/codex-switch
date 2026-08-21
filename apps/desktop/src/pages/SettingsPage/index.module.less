@@ -1,0 +1,94 @@
+/* Settings page presentation. Global selectors preserve the established markup
+ * while ownership moves out of the application-wide stylesheet. */
+:global {
+  .settings-topbar { position: sticky; top: 0; z-index: 20; }
+  .settings-heading { min-width: 0; flex: 1 1 auto; }
+  .settings-title-row { min-width: 0; margin-top: 5px; display: flex; align-items: center; gap: 20px; }
+  .settings-title-row h1 { margin: 0; flex: 0 0 auto; white-space: nowrap; }
+  .settings-page { width: calc(100% - 32px); max-width: none; margin: 24px 16px 36px; display: grid; gap: 26px; }
+  .settings-groups-nav { min-width: 0; display: flex; align-items: center; gap: 7px; overflow-x: auto; padding: 1px; scrollbar-width: thin; }
+  .settings-groups-nav a { flex: 0 0 auto; padding: 7px 11px; border: 1px solid var(--line); border-radius: 999px; color: #58675e; background: var(--panel); font-size: 11px; font-weight: 700; text-decoration: none; transition: .18s ease; }
+  .settings-groups-nav a:hover { border-color: #b9d5c3; color: var(--green-dark); background: var(--green-soft); }
+  .settings-group { min-width: 0; display: grid; gap: 11px; scroll-margin-top: 128px; }
+  .settings-group-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; padding: 0 3px 9px; border-bottom: 1px solid var(--line); }
+  .settings-group-heading h2 { margin: 0; color: var(--ink); font: 750 16px/1.25 Manrope, sans-serif; }
+  .settings-group-heading p { max-width: 520px; margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; text-align: right; }
+  .settings-group-cards { min-width: 0; display: grid; gap: 10px; }
+  .settings-card { display: flex; align-items: center; gap: 15px; padding: 16px 18px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }
+  .settings-card-content { min-width: 0; flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 28px; }
+  .settings-card-copy { min-width: 0; flex: 1 1 auto; }
+  .settings-icon { width: 44px; height: 44px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; line-height: 0; border-radius: 11px; color: var(--green); background: var(--green-soft); }
+  .settings-icon > svg { display: block; flex: 0 0 auto; }
+  .settings-card h3 { margin: 2px 0 5px; font: 700 14px Manrope, sans-serif; }
+  .settings-card p { margin: 0; font-size: 11px; color: var(--muted); line-height: 1.6; }
+  .settings-card .settings-current-account { display: inline-block; margin: 0; padding: 5px 8px; border-radius: 6px; color: var(--green-dark); background: var(--green-selection); font-weight: 600; }
+  .settings-card-copy > .settings-current-account,
+  .settings-card-copy > code,
+  .settings-card-copy > .cloud-settings-status { margin-top: 7px !important; }
+  .settings-card code { display: block; padding: 6px 8px; border-radius: 7px; color: #456052; background: #f0f3ef; font-size: 10px; word-break: break-all; }
+  .settings-folder-actions { flex: 0 0 auto; display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+  .settings-field { flex: 0 0 auto; display: flex; align-items: center; justify-content: flex-end; gap: 10px; white-space: nowrap; }
+  .settings-field label { color: #5d6a62; font-size: 11px; font-weight: 700; }
+  .settings-field .ant-segmented-item-label { height: 100%; min-height: 0; display: flex; align-items: center; justify-content: center; line-height: 1; }
+  .segmented-option-label { display: inline-flex; align-items: center; justify-content: center; gap: 4px; line-height: 1; }
+  .segmented-option-label > svg { display: block; flex: 0 0 auto; }
+  .settings-field-wide { align-items: stretch; }
+  .settings-field-wide label { align-self: center; flex: 0 0 auto; }
+  .settings-field-wide .ant-input-affix-wrapper { width: clamp(210px, 28vw, 430px); }
+  .cloud-settings-status { display: inline-block; padding: 5px 8px; border-radius: 6px; color: #456052 !important; background: #eef4ee; font-weight: 600; }
+  .settings-field .ant-space-compact { width: 150px; }
+  .settings-field .ant-input-number { width: 108px; }
+  .web-proxy-settings-field { flex-wrap: wrap; }
+  .web-proxy-settings-field .ant-space-compact { width: 180px; }
+  .web-proxy-settings-field .ant-input-number { width: 112px; }
+  .network-proxy-settings-card .settings-card-content { align-items: center; }
+  .network-proxy-editor { width: clamp(330px, 42vw, 520px); display: grid; gap: 10px; }
+  .network-proxy-toggle { min-height: 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .network-proxy-toggle > span,
+  .network-proxy-fields label { color: #5d6a62; font-size: 11px; font-weight: 700; }
+  .network-proxy-fields { display: grid; grid-template-columns: auto minmax(150px, 1fr) auto 100px; align-items: center; gap: 8px; }
+  .network-proxy-fields .ant-input-number { width: 100%; }
+  .network-proxy-error { max-width: 400px; margin: 0 !important; color: #b64f45 !important; }
+  .network-proxy-modal-copy { max-width: 400px; margin: 0 0 14px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+  .ant-modal .network-proxy-editor { width: 100%; }
+  .ant-modal .network-proxy-fields { grid-template-columns: 1fr 100px; }
+  .ant-modal .network-proxy-fields label { grid-column: auto; }
+  .ant-modal .network-proxy-fields label:first-child { grid-column: 1; grid-row: 1; }
+  .ant-modal .network-proxy-fields .network-proxy-url-input { grid-column: 1; grid-row: 2; }
+  .ant-modal .network-proxy-fields label:nth-of-type(2) { grid-column: 2; grid-row: 1; }
+  .ant-modal .network-proxy-fields .ant-input-number { grid-column: 2; grid-row: 2; }
+  .web-proxy-address { max-width: min(280px, 30vw); padding: 0; overflow: hidden; border: 0; color: var(--green-dark); background: transparent; cursor: pointer; font: 650 11px/1.4 "DM Sans", sans-serif; text-decoration: underline; text-overflow: ellipsis; white-space: nowrap; }
+  .web-proxy-address:hover { color: var(--green); }
+  .settings-field .duration-time-picker.ant-picker { width: 112px; }
+  .token-usage-settings-field { flex-wrap: wrap; }
+  .token-usage-settings-field .ant-space-compact { width: 132px; }
+  .token-usage-settings-field .ant-input-number { width: 88px; }
+  .auto-disable-status-codes-field .ant-select { width: clamp(260px, 32vw, 430px); }
+  .http-status-option { min-width: 0; display: flex; align-items: flex-start; gap: 9px; padding: 3px 0; }
+  .http-status-option .ant-checkbox-wrapper, .http-status-option .ant-checkbox { pointer-events: none; }
+  .http-status-option > span:last-child { min-width: 0; display: grid; gap: 2px; white-space: normal; }
+  .http-status-option strong { color: var(--text); font-size: 11px; }
+  .http-status-option small { color: var(--muted); font-size: 10px; line-height: 1.35; }
+  .note-card { border-color: #c8dccd; background: #f8fbf7; }
+
+  :root[data-theme="dark"] .settings-card { border-color: var(--line); background: var(--panel); box-shadow: none; }
+  :root[data-theme="dark"] .settings-card code { color: #b8c5bd; background: #29332d; }
+  :root[data-theme="dark"] .cloud-settings-status { color: #b8c5bd !important; background: #29332d; }
+
+  @media (max-width: 820px) {
+    .settings-page { margin-top: 18px; gap: 22px; }
+    .settings-group-heading { align-items: flex-start; flex-direction: column; gap: 4px; }
+    .settings-group-heading p { max-width: none; text-align: left; }
+    .settings-card { align-items: flex-start; }
+    .settings-card-content { align-items: flex-start; flex-direction: column; gap: 10px; }
+    .settings-field { flex-wrap: wrap; justify-content: flex-start; white-space: normal; }
+    .settings-folder-actions { justify-content: flex-start; }
+    .settings-field-wide .ant-input-affix-wrapper { width: min(430px, 100%); }
+    .network-proxy-editor { width: 100%; }
+    .network-proxy-fields { grid-template-columns: 1fr 100px; }
+    .network-proxy-fields label:first-child { grid-column: 1; grid-row: 1; }
+    .network-proxy-fields .network-proxy-url-input { grid-column: 1; grid-row: 2; }
+    .network-proxy-fields label:nth-of-type(2) { grid-column: 2; grid-row: 1; }
+    .network-proxy-fields .ant-input-number { grid-column: 2; grid-row: 2; }
+  }
+}

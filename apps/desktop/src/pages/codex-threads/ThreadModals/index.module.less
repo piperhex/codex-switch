@@ -1,0 +1,89 @@
+.threadBinList,
+.threadPackageList {
+  max-height: 430px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.threadBinRow {
+  min-height: 58px;
+  padding: 8px 10px;
+  display: grid;
+  grid-template-columns: 22px 20px minmax(0, 1fr) 72px 70px;
+  align-items: center;
+  gap: 9px;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+
+  &:last-child { border-bottom: 0; }
+  &:hover { background: var(--green-soft); }
+  > span { min-width: 0; display: grid; gap: 3px; }
+  strong { overflow: hidden; color: var(--ink); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+  small { overflow: hidden; color: var(--muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+  time, em { color: var(--muted); font-size: 10px; font-style: normal; font-weight: 500; text-align: right; }
+}
+
+.threadModalHint { max-width: 100%; margin: 0 0 14px; color: #596960; font-size: 12px; line-height: 1.65; }
+.threadPackageSummary { display: block; margin-bottom: 10px; color: var(--ink); font-size: 12px; }
+
+.threadPackageRow {
+  min-height: 56px;
+  padding: 8px 10px;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) 78px 70px;
+  align-items: center;
+  gap: 9px;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+
+  &:last-child { border-bottom: 0; }
+  &:hover:not(.disabled) { background: var(--green-soft); }
+  > span { min-width: 0; display: grid; gap: 3px; }
+  strong { overflow: hidden; color: var(--ink); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+  small { overflow: hidden; color: var(--muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+  em, b { color: var(--muted); font-size: 10px; font-style: normal; font-weight: 500; text-align: right; }
+  em { color: var(--green-dark); }
+}
+
+.disabled { cursor: default; opacity: .58; background: #f5f6f5; }
+
+.threadRepairModal {
+  :global(.ant-modal-body) { max-height: calc(100vh - 190px); overflow-y: auto; }
+  h4 { margin: 15px 0 8px; color: #4b5d52; font-size: 12px; }
+}
+
+.threadChoiceGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+
+  button {
+    min-height: 78px;
+    padding: 13px 15px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    display: grid;
+    align-content: start;
+    gap: 7px;
+    color: var(--ink);
+    background: white;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  button:hover:not(:disabled) { border-color: rgba(var(--green-rgb), .55); background: var(--green-soft); }
+  button:disabled { cursor: not-allowed; opacity: .55; }
+  strong { font-size: 13px; }
+  span { color: #66756c; font-size: 11px; line-height: 1.5; }
+}
+
+.selected { border-color: var(--green) !important; background: var(--green-soft) !important; box-shadow: 0 0 0 2px rgba(var(--green-rgb), .12); }
+.threadRepairPreview { width: 100%; margin-top: 14px; padding: 10px 12px; border: 1px solid rgba(var(--green-rgb), .3); border-radius: 9px; color: var(--green-dark); background: var(--green-soft); font-size: 11px; line-height: 1.55; }
+.threadEmpty { min-height: 280px; display: grid; place-content: center; justify-items: center; gap: 12px; color: var(--muted); font-size: 12px; }
+
+:global(:root[data-theme="dark"]) .threadChoiceGrid button {
+  border-color: var(--line);
+  color: var(--ink);
+  background: #252e29;
+}

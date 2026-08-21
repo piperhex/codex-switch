@@ -1,0 +1,64 @@
+.modal {
+  width: min(940px, 95vw);
+  max-height: calc(100dvh - 60px);
+  display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.modal > p { max-width: 400px; }
+
+.list {
+  min-height: 0;
+  padding-right: 4px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  overflow-y: auto;
+}
+
+.card {
+  width: 100%;
+  padding: 14px;
+  border: 1px solid #d9e3da;
+  border-radius: 11px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  color: var(--ink);
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.card:hover {
+  border-color: var(--green);
+  background: var(--green-soft);
+  box-shadow: 0 8px 20px rgba(var(--green-rgb), .1);
+}
+
+.icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  color: #3157c8;
+  background: #eef3ff;
+}
+
+.card > span:nth-child(2) { min-width: 0; display: grid; gap: 4px; }
+.card strong { font-size: 13px; }
+.card small { color: #718078; font-size: 10px; line-height: 1.5; }
+.card :global(.ant-tag) { margin-inline-end: 0; }
+
+:global(:root[data-theme="dark"]) .card {
+  border-color: var(--line);
+  color: var(--ink);
+  background: #252e29;
+}
+
+@media (max-width: 720px) {
+  .list { grid-template-columns: 1fr; }
+}

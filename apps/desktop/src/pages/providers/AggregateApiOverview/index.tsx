@@ -1,0 +1,50 @@
+import { Button, Space, Tag } from "antd";
+import { Network, Power } from "lucide-react";
+import type { Translate } from "../../../i18n";
+import type { AggregateApi, Provider } from "../../../types";
+import { aggregateMemberNames } from "../aggregateApiPresentation";
+import styles from "./index.module.less";
+
+interface AggregateApiOverviewProps {
+  aggregates: AggregateApi[];
+  providers: Provider[];
+  busyId: string | null;
+  proxyRunning: boolean;
+  onManage: () => void;
+  onSwitch: (id: string) => Promise<boolean>;
+  onDeactivate: (id: string) => void;
+  t: Translate;
+}
+
+export function AggregateApiOverview(props: AggregateApiOverviewProps) {
+  if (!props.aggregates.length) return null;
+  return <section className={styles.overview}>
+    <div className={styles.overviewTitle}>
+      <Space size={7}><Network size={17} /><strong>{props.t("providers.aggregate.title")}</strong></Space>
+      <Button type="link" size="small" onClick={props.onManage}>
+        {props.t("providers.aggregate.manage")}
+      </Button>
+    </div>
+    <div className={styles.overviewGrid}>
+      {props.aggregates.filter((aggregate) => aggregate.enabled).map((aggregate) => {
+        const members = aggregateMemberNames(aggregate, props.providers, props.t);
+        const waiting = props.busyId === `aggregate:${aggregate.id}`;
+        return <article className={`${styles.card} ${aggregate.active ? styles.active : ""}`}
+          key={aggregate.id}>
+          <div><Space size={6}><strong>{aggregate.name}</strong>
+            {aggregate.active && <Tag color="green">{props.t("providers.aggregate.active")}</Tag>}
+          </Space><small>{aggregate.model}</small><span title={members}>{members}</span></div>
+          <Button size="small" type={aggregate.active ? "default" : "primary"}
+            icon={<Power size={13} />} loading={waiting}
+            disabled={!props.proxyRunning && !aggregate.active}
+            onClick={() => aggregate.active
+              ? props.onDeactivate(`aggregate:${aggregate.id}`)
+              : void props.onSwitch(aggregate.id)}>
+            {aggregate.active
+              ? props.t("providers.action.cancelUse") : props.t("providers.action.switch")}
+          </Button>
+        </article>;
+      })}
+    </div>
+  </section>;
+}
