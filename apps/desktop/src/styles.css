@@ -381,6 +381,16 @@ main.providers-main .providers-page-panel { flex: 1; display: flex; flex-directi
 .settings-title-row { min-width: 0; margin-top: 5px; display: flex; align-items: center; gap: 20px; }
 .settings-title-row h1 { margin: 0; flex: 0 0 auto; white-space: nowrap; }
 .topbar-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; }
+.account-topbar-controls {
+  min-width: 0;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+}
+.account-topbar-controls > .topbar-actions { min-height: 40px; }
+.account-topbar-controls > .proxy-image-model-fields { justify-content: flex-end; }
 .account-security-actions { display: inline-flex; align-items: center; gap: 10px; }
 .provider-topbar-action-slot { display: flex; align-items: center; gap: 10px; }
 .provider-topbar-button.ant-btn {

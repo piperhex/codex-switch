@@ -101,6 +101,7 @@ import { SkillsMarketPage } from "../../pages/SkillsMarketPage";
 import { CodexThreadsPage } from "../../pages/CodexThreadsPage";
 import { NetworkProxySettingsModal } from "../../pages/settings/NetworkProxySettings";
 import { AccountDisplayTabs } from "./AccountDisplayTabs";
+import { AccountTopbarActions } from "./AccountTopbarActions";
 import type {
   AccountDetailsDraft,
   BubbleResetDisplay,
@@ -1223,14 +1224,17 @@ export function DashboardApp() {
                 onChange={accountDisplayMode.setDisplayMode} t={t} />
             )}
             {page === "accounts" && (
-              <div className="topbar-actions">
+              <AccountTopbarActions accounts={manager.accounts}
+                providers={providerManager.providers} localProxy={providerManager.localProxy}
+                proxyBusy={providerManager.proxyBusy} privacyMode={privacyMode.enabled}
+                onImageModelChange={providerManager.setProxyImageModel} t={t}>
                 <button className="primary-button" onClick={openLogin}>
                   <Plus size={18} />{t("actions.addAccount")}
                 </button>
                 {refreshActionMenu}
                 {chatGptActionMenu}
                 {accountProxyTopbarActions}
-              </div>
+              </AccountTopbarActions>
             )}
             {page === "providers" && (
               <div className="topbar-actions">
@@ -1376,7 +1380,7 @@ export function DashboardApp() {
           </section>
           <section className="page-panel accounts-page-panel" hidden={page !== "accounts"}>
             <MemoAccountsPage active={page === "accounts"}
-              accounts={manager.accounts} providers={providerManager.providers}
+              accounts={manager.accounts}
               loading={manager.loading}
               busyAccountId={manager.busyAccountId} onAdd={openLogin}
               localProxy={providerManager.localProxy} proxyBusy={providerManager.proxyBusy}
@@ -1399,7 +1403,6 @@ export function DashboardApp() {
               onLoadResetCredits={loadResetCredits}
               onUseResetCredit={(id) => void useResetCredit(id)}
               resetCreditBusyAccountId={resetCreditBusyAccountId}
-              onImageModelChange={providerManager.setProxyImageModel}
               onOpenaiAuthAccountChange={providerManager.setProxyOpenaiAuthAccount}
               onConcurrentRoutingChange={providerManager.setProxyConcurrentRouting}
               privacyMode={privacyMode.enabled}

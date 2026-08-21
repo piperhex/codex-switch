@@ -3,7 +3,7 @@ import { ArrowRight, LogIn, RefreshCw } from "lucide-react";
 import type { Language, Translate } from "../i18n";
 import type { AccountDisplayMode } from "../hooks/useAccountDisplayMode";
 import type {
-  Account, AccountDetailsDraft, ImageModelTarget, ImageRouteKind, LocalProxyStatus, Provider,
+  Account, AccountDetailsDraft, LocalProxyStatus,
   ResetCreditsLoadState,
 } from "../types";
 import { AccountTable } from "../components/accounts/AccountTable";
@@ -11,7 +11,6 @@ import { AccountTable } from "../components/accounts/AccountTable";
 export function AccountsPage({
   active,
   accounts,
-  providers,
   loading,
   busyAccountId,
   localProxy,
@@ -36,7 +35,6 @@ export function AccountsPage({
   onLoadResetCredits,
   onUseResetCredit,
   resetCreditBusyAccountId,
-  onImageModelChange,
   onOpenaiAuthAccountChange,
   onConcurrentRoutingChange,
   privacyMode,
@@ -50,7 +48,6 @@ export function AccountsPage({
 }: {
   active: boolean;
   accounts: Account[];
-  providers: Provider[];
   loading: boolean;
   busyAccountId: string | null;
   localProxy: LocalProxyStatus | null;
@@ -75,7 +72,6 @@ export function AccountsPage({
   onLoadResetCredits: (id: string, force?: boolean) => void;
   onUseResetCredit: (id: string) => void;
   resetCreditBusyAccountId: string | null;
-  onImageModelChange: (routeKind: ImageRouteKind, target: ImageModelTarget | null) => void;
   onOpenaiAuthAccountChange: (accountId: string | null) => void;
   onConcurrentRoutingChange: (enabled: boolean) => void;
   privacyMode: boolean;
@@ -111,7 +107,7 @@ export function AccountsPage({
   }
   return (
     <div className="accounts-page">
-      <AccountTable active={active} accounts={accounts} providers={providers} busyAccountId={busyAccountId}
+      <AccountTable active={active} accounts={accounts} busyAccountId={busyAccountId}
         onSwitch={onSwitch} onDeactivate={onDeactivate}
         onCopyAuthJson={onCopyAuthJson} onRefresh={onRefresh} onDelete={onDelete}
         onConsumeQuotaMany={onConsumeQuotaMany} onDeleteMany={onDeleteMany}
@@ -130,10 +126,6 @@ export function AccountsPage({
         concurrentAccountRoutingEnabled={localProxy?.concurrentAccountRoutingEnabled ?? false}
         concurrentAccountRoutingBusy={proxyBusy}
         onConcurrentAccountRoutingChange={onConcurrentRoutingChange}
-        imageInputTarget={localProxy?.imageInputTarget ?? null}
-        imageOutputTarget={localProxy?.imageOutputTarget ?? null}
-        imageModelBusy={proxyBusy}
-        onImageModelChange={onImageModelChange}
         showUsageNetworkErrors={showUsageNetworkErrors} displayMode={displayMode}
         openaiAuthAccountId={localProxy?.openaiAuthAccountId ?? null} openaiAuthBusy={proxyBusy}
         onOpenaiAuthAccountChange={onOpenaiAuthAccountChange}

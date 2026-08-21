@@ -49,9 +49,6 @@ import type {
   Account,
   AccountDetailsDraft,
   AccountTokenUsageTotals,
-  ImageModelTarget,
-  ImageRouteKind,
-  Provider,
   ResetCreditsLoadState,
 } from "../../types";
 import { accountExpirationDate } from "../../utils/expiration";
@@ -64,14 +61,12 @@ import {
   type TokenTypeTotals,
 } from "../DailyTokenUsageTooltip";
 import { AccountNoteModal } from "../modals/AccountNoteModal";
-import { ImageModelRouteSelect } from "../ImageModelRouteSelect";
 import { ResetCreditsPanel } from "./ResetCreditsPanel";
 import { UsageMeter, UsageRefreshAge } from "./UsageMeter";
 
 interface AccountTableProps {
   active: boolean;
   accounts: Account[];
-  providers: Provider[];
   busyAccountId: string | null;
   onSwitch: (id: string) => void;
   onDeactivate: (id: string) => void;
@@ -98,10 +93,6 @@ interface AccountTableProps {
   concurrentAccountRoutingEnabled: boolean;
   concurrentAccountRoutingBusy: boolean;
   onConcurrentAccountRoutingChange: (enabled: boolean) => void;
-  imageInputTarget: ImageModelTarget | null;
-  imageOutputTarget: ImageModelTarget | null;
-  imageModelBusy: boolean;
-  onImageModelChange: (routeKind: ImageRouteKind, target: ImageModelTarget | null) => void;
   openaiAuthAccountId: string | null;
   openaiAuthBusy: boolean;
   onOpenaiAuthAccountChange: (accountId: string | null) => void;
@@ -408,7 +399,6 @@ function ResetCreditsModal({
 export function AccountTable({
   active,
   accounts,
-  providers,
   busyAccountId,
   onSwitch,
   onDeactivate,
@@ -435,10 +425,6 @@ export function AccountTable({
   concurrentAccountRoutingEnabled,
   concurrentAccountRoutingBusy,
   onConcurrentAccountRoutingChange,
-  imageInputTarget,
-  imageOutputTarget,
-  imageModelBusy,
-  onImageModelChange,
   openaiAuthAccountId,
   openaiAuthBusy,
   onOpenaiAuthAccountChange,
@@ -628,9 +614,6 @@ export function AccountTable({
     .filter((account) => selectedAccountIdSet.has(account.id) && account.autoSwitchEnabled)
     .map((account) => account.id);
   const activeAccount = accounts.find((account) => account.active) ?? null;
-  const showImageModelSelectors = hotSwitchEnabled && (
-    Boolean(activeAccount?.agentIdentity) || concurrentAccountRoutingEnabled
-  );
   const officialAuthAccount = accounts.find((account) => account.id === openaiAuthAccountId) ?? null;
   const accountSummaryLabel = (account: Account | null) => {
     if (!account) return "-";
@@ -1114,16 +1097,6 @@ export function AccountTable({
       {proxyControls}
     </div>
   );
-  const imageModelControls = showImageModelSelectors ? (
-    <div className="proxy-image-model-fields">
-      <ImageModelRouteSelect accounts={accounts} providers={providers} routeKind="input"
-        target={imageInputTarget} busy={imageModelBusy} onChange={onImageModelChange}
-        privacyMode={privacyMode} t={t} />
-      <ImageModelRouteSelect accounts={accounts} providers={providers} routeKind="output"
-        target={imageOutputTarget} busy={imageModelBusy} onChange={onImageModelChange}
-        privacyMode={privacyMode} t={t} />
-    </div>
-  ) : null;
   const concurrentRoutingControl = (
     <Tooltip title={t("table.concurrentRoutingTooltip")} styles={{ root: { maxWidth: 400 } }}>
       <span className="account-concurrent-routing-control">
@@ -1167,7 +1140,6 @@ export function AccountTable({
     {cardTopbarHost && createPortal(
       <div className="account-card-heading-controls">
         {accountToolbarSummary}
-        {imageModelControls}
         {concurrentRoutingControl}
         {batchConsumeControl}
       </div>,
@@ -1268,7 +1240,6 @@ export function AccountTable({
     <div ref={tableWrapRef} className="account-table-wrap">
       <div className="account-table-toolbar">
         {accountToolbarSummary}
-        {imageModelControls}
         {concurrentRoutingControl}
         {batchConsumeControl}
         <Popconfirm title={t("table.batchDeleteConfirmTitle", { count: deletableSelectedAccountIds.length })}
