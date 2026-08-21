@@ -7,6 +7,7 @@ const PRIMARY_CANVAS_EDGE = 2_000;
 const FALLBACK_CANVAS_EDGE = 1_600;
 const FALLBACK_REGION_SIZE = 0.72;
 const FALLBACK_REGION_OFFSET = 1 - FALLBACK_REGION_SIZE;
+const CAMERA_CANVAS_EDGE = 1_200;
 const IMAGE_FILE_EXTENSION = /\.(?:avif|bmp|gif|jpe?g|png|webp)$/i;
 
 export type QrImageErrorCode =
@@ -142,6 +143,18 @@ function renderRegion(image: HTMLImageElement, region: ScanRegion, pass: ScanPas
 
 function decodeRegion(image: HTMLImageElement, region: ScanRegion, pass: ScanPass) {
   const pixels = renderRegion(image, region, pass);
+  return jsQR(pixels.data, pixels.width, pixels.height, { inversionAttempts: "attemptBoth" })?.data ?? "";
+}
+
+export function decodeQrVideoFrame(video: HTMLVideoElement, canvas: HTMLCanvasElement) {
+  if (!video.videoWidth || !video.videoHeight) return "";
+  const scale = Math.min(1, CAMERA_CANVAS_EDGE / Math.max(video.videoWidth, video.videoHeight));
+  canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+  canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  if (!context) throw new QrImageError("image-read-failed");
+  context.drawImage(video, 0, 0, canvas.width, canvas.height);
+  const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
   return jsQR(pixels.data, pixels.width, pixels.height, { inversionAttempts: "attemptBoth" })?.data ?? "";
 }
 

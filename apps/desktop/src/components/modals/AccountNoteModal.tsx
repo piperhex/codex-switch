@@ -1,11 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Button, DatePicker, Input, Progress, Spin } from "antd";
 import dayjs from "dayjs";
-import { Check, Copy, ScanQrCode, StickyNote, X } from "lucide-react";
+import { Camera, Check, Copy, ScanQrCode, StickyNote, X } from "lucide-react";
 import type { Translate } from "../../i18n";
 import type { Account, AccountDetailsDraft } from "../../types";
 import { generateTotp, normalizeTotpSecret, parseOtpAuthUri } from "../../utils/totp";
 import { decodeQrImage, qrImportErrorMessage } from "../totp/qr";
+import { TotpCameraScanner } from "../totp/TotpCameraScanner";
 
 const ACCOUNT_TOTP_PERIOD = 30;
 const COPY_FEEDBACK_DURATION_MS = 1_600;
@@ -130,6 +131,7 @@ export function AccountNoteModal({
   const [totpError, setTotpError] = useState("");
   const [totpImported, setTotpImported] = useState(false);
   const [readingQr, setReadingQr] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const qrFileInputRef = useRef<HTMLInputElement>(null);
@@ -143,6 +145,7 @@ export function AccountNoteModal({
     setPreviewSecret(initialPreviewSecret(account.privateDetails.totpSecret));
     setTotpError("");
     setTotpImported(false);
+    setCameraOpen(false);
   }, [
     account.expiresAt,
     account.note,
@@ -272,6 +275,8 @@ export function AccountNoteModal({
                   }} />
                   <Button size="small" icon={<ScanQrCode size={14} />} loading={readingQr} disabled={saving}
                     onClick={() => qrFileInputRef.current?.click()}>{t("totp.scanQr")}</Button>
+                  <Button size="small" icon={<Camera size={14} />} disabled={saving || readingQr}
+                    onClick={() => setCameraOpen(true)}>{t("totp.scanCamera")}</Button>
                   {(totpError || totpImported) && (
                     <span className={`account-private-hint${totpError ? " error" : " success"}`}>
                       {totpError || t("totp.qrImported")}
@@ -307,6 +312,14 @@ export function AccountNoteModal({
           </div>
         </div>
       </form>
+      <TotpCameraScanner open={cameraOpen} onCancel={() => setCameraOpen(false)} t={t}
+        onImport={(draft) => {
+          setTotpSecret(draft.secret);
+          setPreviewSecret(draft.secret);
+          setTotpError("");
+          setTotpImported(true);
+          setCameraOpen(false);
+        }} />
     </div>
   );
 }
