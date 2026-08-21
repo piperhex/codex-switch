@@ -1,0 +1,33 @@
+include!("constants.rs");
+include!("types.rs");
+include!("state_core.rs");
+include!("state_sessions.rs");
+include!("commands_status.rs");
+include!("lifecycle.rs");
+include!("settings.rs");
+include!("server.rs");
+include!("routing_auto.rs");
+include!("routing_target.rs");
+include!("capture.rs");
+include!("diagnostics_helpers.rs");
+include!("token_usage.rs");
+include!("token_usage_db.rs");
+include!("forwarding.rs");
+include!("models.rs");
+include!("chat_bridge.rs");
+include!("auth_http.rs");
+include!("conversion.rs");
+include!("tools.rs");
+include!("streaming.rs");
+include!("sse.rs");
+
+#[cfg(test)]
+mod tests {
+    include!("tests/part_01.rs");
+    include!("tests/part_02.rs");
+    include!("tests/part_03.rs");
+    include!("tests/part_04.rs");
+    include!("tests/part_05.rs");
+    include!("tests/part_06.rs");
+    include!("tests/part_07.rs");
+}
