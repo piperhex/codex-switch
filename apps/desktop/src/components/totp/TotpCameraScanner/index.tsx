@@ -4,7 +4,7 @@ import { Camera } from "lucide-react";
 import type { Translate } from "../../../i18n";
 import { parseOtpAuthUri, type TotpDraft } from "../../../utils/totp";
 import { decodeQrVideoFrame } from "../qr";
-import "./index.module.less";
+import "./index.less";
 
 const CAMERA_SCAN_INTERVAL_MS = 120;
 const CAMERA_CONSTRAINTS: MediaStreamConstraints = {

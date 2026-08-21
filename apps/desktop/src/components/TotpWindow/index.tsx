@@ -13,7 +13,7 @@ import { useTotpEntries } from "../../hooks/useTotpEntries";
 import type { Account } from "../../types";
 import { normalizeTotpSecret, type TotpEntry } from "../../utils/totp";
 import { TotpManager } from "../TotpManager";
-import "./index.module.less";
+import "./index.less";
 
 function toBoundTotpEntries(accounts: Account[]): TotpEntry[] {
   return accounts.flatMap((account) => {

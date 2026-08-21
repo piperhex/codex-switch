@@ -14,7 +14,7 @@ import type { SettingsPageProps } from "../settings/types";
 import { UsageSettingsCards } from "../settings/UsageSettingsCards";
 import { TotpSyncSettingsCard } from "../settings/TotpSyncSettingsCard";
 import { NetworkProxySettingsCard } from "../settings/NetworkProxySettings";
-import "./index.module.less";
+import "./index.less";
 
 interface SettingsSectionProps {
   children: ReactNode;

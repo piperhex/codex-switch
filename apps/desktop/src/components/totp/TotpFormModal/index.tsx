@@ -10,7 +10,7 @@ import {
 } from "../../../utils/totp";
 import { decodeQrImage, qrImportErrorMessage } from "../qr";
 import { TotpCameraScanner } from "../TotpCameraScanner";
-import "./index.module.less";
+import "./index.less";
 
 interface TotpFormModalProps {
   entry: TotpEntry | null;

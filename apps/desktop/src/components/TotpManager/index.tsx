@@ -7,7 +7,7 @@ import { generateTotp, type TotpEntry } from "../../utils/totp";
 import { buildTotpIssuerOptions, filterTotpEntries } from "../totp/filter";
 import { TotpCodeCard } from "../totp/TotpCodeCard";
 import { TotpFormModal } from "../totp/TotpFormModal";
-import "./index.module.less";
+import "./index.less";
 
 interface TotpManagerProps {
   boundEntries?: TotpEntry[];

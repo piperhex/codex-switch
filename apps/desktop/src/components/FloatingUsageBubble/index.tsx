@@ -30,7 +30,7 @@ import { useThemeColor } from "../../hooks/useThemeColor";
 import type { Account, BubbleResetDisplay, BubbleStyle, Provider, UsageSummary } from "../../types";
 import { remainingTone, resetClockTime } from "../../utils/format";
 import { FloatingProviderCard } from "../FloatingProviderCard";
-import "./index.module.less";
+import "./index.less";
 
 function usageColor(remaining: number) {
   const tone = remainingTone(remaining);

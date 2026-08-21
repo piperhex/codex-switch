@@ -30,7 +30,7 @@ import {
   type ProviderConnectivityErrors,
   useProviderConnectivity,
 } from "../useProviderConnectivity";
-import "./index.module.less";
+import "./index.less";
 
 interface ProviderViewProps {
   providers: Provider[];

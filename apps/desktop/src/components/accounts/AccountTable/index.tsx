@@ -61,7 +61,7 @@ import {
 import { AccountNoteModal } from "../../modals/AccountNoteModal";
 import { ResetCreditsPanel } from "../ResetCreditsPanel";
 import { UsageMeter, UsageRefreshAge } from "../UsageMeter";
-import "./index.module.less";
+import "./index.less";
 import {
   AccountNoteEditButton,
   AccountResetCreditCount,

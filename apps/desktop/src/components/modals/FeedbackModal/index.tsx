@@ -6,7 +6,7 @@ import {
   MAX_FEEDBACK_IMAGES,
   prepareFeedbackImage,
 } from "../../../utils/feedbackImages";
-import "./index.module.less";
+import "./index.less";
 
 interface PreparedImage {
   id: string;

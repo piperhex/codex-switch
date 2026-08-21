@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import type { Translate } from "../../../i18n";
 import type { HelpVersionState } from "../HelpModal";
-import "./index.module.less";
+import "./index.less";
 
 interface AboutModalProps {
   logoUrl: string;

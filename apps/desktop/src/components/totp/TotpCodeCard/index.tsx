@@ -2,7 +2,7 @@ import { Button, Popconfirm, Progress, Tooltip } from "antd";
 import { Copy, Pencil, Trash2 } from "lucide-react";
 import type { Translate } from "../../../i18n";
 import type { TotpEntry } from "../../../utils/totp";
-import "./index.module.less";
+import "./index.less";
 
 interface TotpCodeCardProps {
   code: string;
