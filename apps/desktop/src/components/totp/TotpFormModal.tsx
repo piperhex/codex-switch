@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Alert, Button, Form, Input, InputNumber, Modal, Select, Space } from "antd";
-import { ScanQrCode } from "lucide-react";
+import { Camera, ScanQrCode } from "lucide-react";
 import type { Translate } from "../../i18n";
 import {
   normalizeTotpSecret,
@@ -9,6 +9,7 @@ import {
   type TotpEntry,
 } from "../../utils/totp";
 import { decodeQrImage, qrImportErrorMessage } from "./qr";
+import { TotpCameraScanner } from "./TotpCameraScanner";
 
 interface TotpFormModalProps {
   entry: TotpEntry | null;
@@ -40,6 +41,7 @@ export function TotpFormModal({ entry, onCancel, onSave, open, t }: TotpFormModa
   const [error, setError] = useState("");
   const [imported, setImported] = useState(false);
   const [readingQr, setReadingQr] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -54,15 +56,19 @@ export function TotpFormModal({ entry, onCancel, onSave, open, t }: TotpFormModa
     } : DEFAULT_DRAFT);
     setError("");
     setImported(false);
+    setCameraOpen(false);
   }, [entry, form, open]);
+
+  const applyImportedDraft = (draft: TotpDraft) => {
+    form.setFieldsValue(draft);
+    setError("");
+    setImported(true);
+  };
 
   const importQrCode = async (file: File) => {
     setReadingQr(true);
     try {
-      const draft = parseOtpAuthUri(await decodeQrImage(file));
-      form.setFieldsValue(draft);
-      setError("");
-      setImported(true);
+      applyImportedDraft(parseOtpAuthUri(await decodeQrImage(file)));
     } catch (cause) {
       setImported(false);
       setError(qrImportErrorMessage(cause, t));
@@ -97,6 +103,8 @@ export function TotpFormModal({ entry, onCancel, onSave, open, t }: TotpFormModa
         }} />
         <Button icon={<ScanQrCode size={15} />} loading={readingQr}
           onClick={() => fileInputRef.current?.click()}>{t("totp.scanQr")}</Button>
+        <Button icon={<Camera size={15} />} disabled={readingQr}
+          onClick={() => setCameraOpen(true)}>{t("totp.scanCamera")}</Button>
         <span>{t("totp.scanQrHint")}</span>
       </div>}
       {imported ? <Alert type="success" showIcon message={t("totp.qrImported")} /> : null}
@@ -134,6 +142,11 @@ export function TotpFormModal({ entry, onCancel, onSave, open, t }: TotpFormModa
           </Form.Item>
         </div>
       </Form>
+      <TotpCameraScanner open={open && cameraOpen && !entry} t={t}
+        onCancel={() => setCameraOpen(false)} onImport={(draft) => {
+          applyImportedDraft(draft);
+          setCameraOpen(false);
+        }} />
     </Modal>
   );
 }
