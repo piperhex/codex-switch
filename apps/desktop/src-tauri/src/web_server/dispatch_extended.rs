@@ -1,0 +1,298 @@
+fn dispatch_extended_command(app: AppHandle, command: &str, args: Value) -> Result<Value, String> {
+    match command {
+        "set_auto_switch_on_quota_exhaustion" => {
+            serialize(crate::local_proxy::set_auto_switch_on_quota_exhaustion(
+                app,
+                argument(&args, "enabled")?,
+            ))
+        }
+        "set_concurrent_account_routing_enabled" => {
+            serialize(crate::local_proxy::set_concurrent_account_routing_enabled(
+                app,
+                argument(&args, "enabled")?,
+            ))
+        }
+        "set_auto_disable_unreachable_accounts" => {
+            serialize(crate::local_proxy::set_auto_disable_unreachable_accounts(
+                app,
+                argument(&args, "enabled")?,
+            ))
+        }
+        "set_custom_auto_switch_priority_enabled" => {
+            serialize(crate::local_proxy::set_custom_auto_switch_priority_enabled(
+                app,
+                argument(&args, "enabled")?,
+            ))
+        }
+        "set_image_generation_account" => serialize(
+            crate::local_proxy::set_image_generation_account(app, argument(&args, "accountId")?),
+        ),
+        "set_image_model_target" => {
+            serialize(block_on(crate::local_proxy::set_image_model_target(
+                app,
+                argument(&args, "routeKind")?,
+                argument(&args, "target")?,
+            )))
+        }
+        "set_local_proxy_openai_auth_account" => serialize(block_on(
+            crate::local_proxy::set_local_proxy_openai_auth_account(
+                app,
+                argument(&args, "accountId")?,
+            ),
+        )),
+        "set_local_proxy_listen_on_all_interfaces" => serialize(
+            crate::local_proxy::set_local_proxy_listen_on_all_interfaces(
+                app,
+                argument(&args, "enabled")?,
+                argument(&args, "apiKey")?,
+            ),
+        ),
+        "copy_local_proxy_lan_api_key" => {
+            serialize(crate::local_proxy::copy_local_proxy_lan_api_key(app))
+        }
+        "set_floating_bubble" => serialize(block_on(crate::floating_bubble::set_floating_bubble(
+            app,
+            argument(&args, "enabled")?,
+        ))),
+        "set_privacy_mode" => serialize(crate::floating_bubble::set_privacy_mode(
+            app,
+            argument(&args, "enabled")?,
+        )),
+        "set_hide_account_notes" => serialize(crate::floating_bubble::set_hide_account_notes(
+            app,
+            argument(&args, "enabled")?,
+        )),
+        "set_show_usage_network_errors" => serialize(
+            crate::floating_bubble::set_show_usage_network_errors(app, argument(&args, "enabled")?),
+        ),
+        "set_token_usage_preferences" => {
+            serialize(crate::floating_bubble::set_token_usage_preferences(
+                app,
+                argument(&args, "weeks")?,
+                argument(&args, "refreshSeconds")?,
+            ))
+        }
+        "set_auto_disable_status_codes" => serialize(
+            crate::commands::set_auto_disable_status_codes(app, argument(&args, "statusCodes")?),
+        ),
+        "set_bubble_reset_display" => serialize(crate::floating_bubble::set_bubble_reset_display(
+            app,
+            argument(&args, "display")?,
+        )),
+        "set_bubble_style" => serialize(crate::floating_bubble::set_bubble_style(
+            app,
+            argument(&args, "style")?,
+        )),
+        "set_theme_color" => serialize(crate::floating_bubble::set_theme_color(
+            app,
+            argument(&args, "color")?,
+        )),
+        "set_app_language" => serialize(crate::floating_bubble::set_app_language(
+            app,
+            argument(&args, "language")?,
+        )),
+        "get_cloud_auth_state" => serialize(block_on(crate::cloud::get_cloud_auth_state(app))),
+        "get_saved_cloud_login" => serialize(block_on(crate::cloud::get_saved_cloud_login(app))),
+        "set_cloud_base_url" => serialize(block_on(crate::cloud::set_cloud_base_url(
+            app,
+            argument(&args, "baseUrl")?,
+        ))),
+        "cloud_login" => serialize(block_on(crate::cloud::cloud_login(
+            app,
+            argument(&args, "email")?,
+            argument(&args, "password")?,
+            argument(&args, "rememberPassword")?,
+        ))),
+        "fetch_cloud_announcement" => {
+            serialize(block_on(crate::cloud::fetch_cloud_announcement(app)))
+        }
+        "fetch_cloud_notifications" => {
+            serialize(block_on(crate::cloud::fetch_cloud_notifications(app)))
+        }
+        "fetch_cloud_faqs" => serialize(block_on(crate::cloud::fetch_cloud_faqs(app))),
+        "cloud_request_registration_code" => serialize(block_on(
+            crate::cloud::cloud_request_registration_code(app, argument(&args, "email")?),
+        )),
+        "cloud_register" => serialize(block_on(crate::cloud::cloud_register(
+            app,
+            argument(&args, "email")?,
+            argument(&args, "password")?,
+            argument(&args, "verificationCode")?,
+            argument(&args, "rememberPassword")?,
+        ))),
+        "cloud_change_password" => serialize(block_on(crate::cloud::cloud_change_password(
+            app,
+            argument(&args, "currentPassword")?,
+            argument(&args, "newPassword")?,
+        ))),
+        "cloud_logout" => serialize(block_on(crate::cloud::cloud_logout(app))),
+        "cloud_sync_accounts" => serialize(block_on(crate::cloud::cloud_sync_accounts(app))),
+        "cloud_pull_account" => serialize(block_on(crate::cloud::cloud_pull_account(
+            app,
+            argument(&args, "id")?,
+        ))),
+        "cloud_push_accounts" => serialize(block_on(crate::cloud::cloud_push_accounts(app))),
+        "cloud_push_account" => serialize(block_on(crate::cloud::cloud_push_account(
+            app,
+            argument(&args, "id")?,
+            argument(&args, "restoreDeleted")?,
+        ))),
+        "cloud_push_providers" => serialize(block_on(crate::cloud::cloud_push_providers(app))),
+        "cloud_push_provider" => serialize(block_on(crate::cloud::cloud_push_provider(
+            app,
+            argument(&args, "id")?,
+        ))),
+        "cloud_delete_account" => serialize(block_on(crate::cloud::cloud_delete_account(
+            app,
+            argument(&args, "id")?,
+        ))),
+        "cloud_pull_totp" => serialize(block_on(crate::cloud::cloud_pull_totp(app))),
+        "cloud_list_deleted_accounts" => {
+            serialize(block_on(crate::cloud::cloud_list_deleted_accounts(app)))
+        }
+        "cloud_restore_deleted_account" => serialize(block_on(
+            crate::cloud::cloud_restore_deleted_account(app, argument(&args, "id")?),
+        )),
+        "cloud_list_deleted_providers" => {
+            serialize(block_on(crate::cloud::cloud_list_deleted_providers(app)))
+        }
+        "cloud_restore_deleted_provider" => serialize(block_on(
+            crate::cloud::cloud_restore_deleted_provider(app, argument(&args, "id")?),
+        )),
+        "cloud_delete_provider" => serialize(block_on(crate::cloud::cloud_delete_provider(
+            app,
+            argument(&args, "id")?,
+        ))),
+        "list_market_skills" => serialize(block_on(crate::skills_market::list_market_skills(app))),
+        "install_market_skill" => serialize(block_on(crate::skills_market::install_market_skill(
+            app,
+            argument(&args, "skill")?,
+        ))),
+        "remove_market_skill" => serialize(block_on(crate::skills_market::remove_market_skill(
+            app,
+            argument(&args, "skillId")?,
+        ))),
+        "set_market_skill_enabled" => {
+            serialize(block_on(crate::skills_market::set_market_skill_enabled(
+                app,
+                argument(&args, "skillId")?,
+                argument(&args, "enabled")?,
+            )))
+        }
+        "list_official_plugins" => serialize(block_on(
+            crate::official_plugins::list_official_plugins(app),
+        )),
+        "install_official_plugin" => serialize(block_on(
+            crate::official_plugins::install_official_plugin(app, argument(&args, "pluginId")?),
+        )),
+        "remove_official_plugin" => serialize(block_on(
+            crate::official_plugins::remove_official_plugin(app, argument(&args, "pluginId")?),
+        )),
+        "set_official_plugin_enabled" => serialize(block_on(
+            crate::official_plugins::set_official_plugin_enabled(
+                app,
+                argument(&args, "pluginId")?,
+                argument(&args, "enabled")?,
+            ),
+        )),
+        "switch_account_and_restart_chatgpt" => serialize(block_on(
+            crate::commands::switch_account_and_restart_chatgpt(app, argument(&args, "id")?),
+        )),
+        "deactivate_account_and_restart_chatgpt" => serialize(block_on(
+            crate::commands::deactivate_account_and_restart_chatgpt(app),
+        )),
+        "set_account_auto_switch_enabled" => {
+            serialize(crate::commands::set_account_auto_switch_enabled(
+                app,
+                argument(&args, "id")?,
+                argument(&args, "enabled")?,
+            ))
+        }
+        "set_account_auto_switch_priority" => {
+            serialize(crate::commands::set_account_auto_switch_priority(
+                app,
+                argument(&args, "id")?,
+                argument(&args, "priority")?,
+            ))
+        }
+        "refresh_usage" => serialize(block_on(crate::commands::refresh_usage(
+            app,
+            argument(&args, "id")?,
+        ))),
+        "consume_account_quota" => serialize(block_on(crate::commands::consume_account_quota(
+            app,
+            argument(&args, "id")?,
+        ))),
+        "delete_account" => serialize(crate::commands::delete_account(app, argument(&args, "id")?)),
+        "update_account_note" => serialize(block_on(crate::commands::update_account_note(
+            app,
+            argument(&args, "input")?,
+        ))),
+        "fetch_reset_credits" => serialize(block_on(crate::commands::fetch_reset_credits(
+            app,
+            argument(&args, "id")?,
+        ))),
+        "consume_reset_credit" => serialize(block_on(crate::commands::consume_reset_credit(
+            app,
+            argument(&args, "id")?,
+        ))),
+        "restart_chatgpt" => serialize(block_on(crate::commands::restart_chatgpt(app))),
+        "launch_chatgpt" => serialize(block_on(crate::commands::launch_chatgpt(app))),
+        "open_managed_folder" => serialize(crate::commands::open_managed_folder(
+            app,
+            argument(&args, "target")?,
+        )),
+        "get_dream_skin_status" => serialize(Ok(crate::dream_skin::get_dream_skin_status())),
+        "get_dream_skin_resources_status" => {
+            serialize(Ok(crate::dream_skin::get_dream_skin_resources_status()))
+        }
+        "retry_dream_skin_resources" => {
+            serialize(Ok(crate::dream_skin::retry_dream_skin_resources()))
+        }
+        "install_dream_skin" => serialize(block_on(crate::dream_skin::install_dream_skin(app))),
+        "apply_dream_skin_theme" => serialize(block_on(crate::dream_skin::apply_dream_skin_theme(
+            app,
+            argument(&args, "themeId")?,
+        ))),
+        "save_dream_skin_theme" => serialize(block_on(crate::dream_skin::save_dream_skin_theme(
+            app,
+            argument(&args, "name")?,
+        ))),
+        "delete_dream_skin_themes" => serialize(block_on(
+            crate::dream_skin::delete_dream_skin_themes(argument(&args, "themeIds")?),
+        )),
+        "set_dream_skin_appearance" => serialize(block_on(
+            crate::dream_skin::set_dream_skin_appearance(app, argument(&args, "appearance")?),
+        )),
+        "set_dream_skin_overlay_opacity" => serialize(block_on(
+            crate::dream_skin::set_dream_skin_overlay_opacity(app, argument(&args, "opacity")?),
+        )),
+        "set_dream_skin_paused" => serialize(block_on(crate::dream_skin::set_dream_skin_paused(
+            app,
+            argument(&args, "paused")?,
+        ))),
+        "reapply_dream_skin" => serialize(block_on(crate::dream_skin::reapply_dream_skin(app))),
+        "verify_dream_skin" => serialize(block_on(crate::dream_skin::verify_dream_skin(app))),
+        "restore_dream_skin" => serialize(block_on(crate::dream_skin::restore_dream_skin(app))),
+        "open_dream_skin_folder" => serialize(crate::dream_skin::open_dream_skin_folder(app)),
+        "get_dream_skin_theme_preview" => serialize(
+            crate::dream_skin::get_dream_skin_theme_preview(argument(&args, "themeId")?),
+        ),
+        "get_dream_skin_market" => serialize(block_on(crate::dream_skin::get_dream_skin_market())),
+        "install_dream_skin_market_theme" => serialize(block_on(
+            crate::dream_skin::install_dream_skin_market_theme(argument(&args, "themeId")?),
+        )),
+        "get_dream_skin_community_page" => {
+            serialize(block_on(crate::dream_skin::get_dream_skin_community_page(
+                argument(&args, "offset")?,
+                argument(&args, "limit")?,
+            )))
+        }
+        "install_dream_skin_community_theme" => serialize(block_on(
+            crate::dream_skin::install_dream_skin_community_theme(argument(&args, "versionId")?),
+        )),
+        _ => Err(format!(
+            "Command is not available in the web version: {command}"
+        )),
+    }
+}
