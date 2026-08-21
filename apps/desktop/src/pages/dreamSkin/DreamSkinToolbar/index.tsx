@@ -1,4 +1,5 @@
 import { useState } from "react";
+import styles from "./index.module.less";
 import { Button, Input, Popconfirm, Popover, Segmented, Tabs, Tooltip } from "antd";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
@@ -23,12 +24,12 @@ import {
   restoreDreamSkin,
   setDreamSkinPaused,
   verifyDreamSkin,
-} from "../../api/backend";
-import type { Translate } from "../../i18n";
-import type { DreamSkinAppearance, DreamSkinStatus } from "../../types";
-import { APPEARANCE_OPTIONS } from "./constants";
-import { DreamSkinOverlaySlider } from "./DreamSkinOverlaySlider";
-import type { RunStatusOperation, SavedThemeLibrary, ThemeTab } from "./types";
+} from "../../../api/backend";
+import type { Translate } from "../../../i18n";
+import type { DreamSkinAppearance, DreamSkinStatus } from "../../../types";
+import { APPEARANCE_OPTIONS } from "../constants";
+import { DreamSkinOverlaySlider } from "../DreamSkinOverlaySlider";
+import type { RunStatusOperation, SavedThemeLibrary, ThemeTab } from "../types";
 
 type Props = {
   busy: string | null;
@@ -75,16 +76,16 @@ export function DreamSkinToolbar(props: Props) {
   const sessionLabel = status ? t(`dreamSkin.session.${status.session}`) : t("dreamSkin.session.loading");
   const activeThemeName = status?.activeThemeName || t("dreamSkin.noActiveTheme");
   const tools = { ...props, setToolsOpen, toolsOpen };
-  return <div className="dream-skin-sticky-stack">
-    <section className="dream-skin-hero">
-      <div className="dream-skin-console">
-        <strong className={`dream-session dream-session-pill dream-session-${status?.session ?? "ready"}`}>
+  return <div className={styles.stickyStack}>
+    <section className={styles.hero}>
+      <div className={styles.console}>
+        <strong className={`${styles.session} ${styles.sessionPill} ${styles["session-" + (status?.session ?? "ready")]}`}>
           <i />{sessionLabel}
         </strong>
-        <div className="dream-toolbar-theme">
+        <div className={styles.toolbarTheme}>
           <span>{t("dreamSkin.activeTheme")}</span><b title={activeThemeName}>{activeThemeName}</b>
         </div>
-        <div className="dream-toolbar-appearance">
+        <div className={styles.toolbarAppearance}>
           <span>{t("dreamSkin.import.appearance")}</span>
           <Segmented block size="small" value={status?.activeThemeAppearance ?? "auto"}
             disabled={!status?.installed || !status.activeThemeId || isBusy}
@@ -93,8 +94,8 @@ export function DreamSkinToolbar(props: Props) {
         </div>
         <DreamSkinOverlaySlider disabled={!status?.installed || !status?.activeThemeId || isBusy}
           opacity={status?.activeThemeOverlayOpacity} onChange={changeOverlayOpacity} t={t} />
-        <div className="dream-toolbar-spacer" />
-        <div className="dream-toolbar-actions">
+        <div className={styles.toolbarSpacer} />
+        <div className={styles.toolbarActions}>
           <Button type={status?.installed ? "default" : "primary"} icon={<Sparkles size={14} />}
             loading={busy === "install"}
             disabled={(isBusy && busy !== "install") || (!resourcesReady && !status?.activeThemeId)}
@@ -122,7 +123,7 @@ function ToolsPopover(props: ToolsProps) {
   const { setError, setSaveName, setSaveOpen, setToolsOpen, status, t, toolsOpen } = props;
   const closeAndRun = (operation: () => void) => { setToolsOpen(false); operation(); };
   return <Popover trigger="click" placement="bottomRight" open={toolsOpen} onOpenChange={setToolsOpen}
-    content={<div className="dream-tools-more-panel">
+    content={<div className={styles.toolsMorePanel}>
       <Button type="text" icon={status?.session === "paused"
         ? <CirclePlay size={15} /> : <CirclePause size={15} />}
         disabled={!status?.installed || isBusy} loading={busy === "pause"} onClick={() => closeAndRun(() => {
@@ -171,12 +172,12 @@ function ToolsPopover(props: ToolsProps) {
 
 function BrowserHeader(props: Pick<Props, "busy" | "catalog" | "savedLibrary" | "setThemeTab" | "t" | "themeTab">) {
   const { busy, catalog, savedLibrary, setThemeTab, t, themeTab } = props;
-  const builtInActions = <div className="dream-market-tab-actions">
-    <Input className="dream-market-search" allowClear value={catalog.builtInQuery} prefix={<Search size={14} />}
+  const builtInActions = <div className={styles.marketTabActions}>
+    <Input className={styles.marketSearch} allowClear value={catalog.builtInQuery} prefix={<Search size={14} />}
       placeholder={t("dreamSkin.presets.search")} onChange={(event) => catalog.setBuiltInQuery(event.target.value)} />
   </div>;
-  const marketActions = <div className="dream-market-tab-actions">
-    <Input className="dream-market-search" allowClear value={catalog.marketQuery} prefix={<Search size={14} />}
+  const marketActions = <div className={styles.marketTabActions}>
+    <Input className={styles.marketSearch} allowClear value={catalog.marketQuery} prefix={<Search size={14} />}
       placeholder={t("dreamSkin.market.search")} onChange={(event) => catalog.setQuery(event.target.value)} />
     <Button icon={<RefreshCw className={catalog.marketLoading || catalog.communityLoading ? "spin" : ""}
       size={14} />} loading={catalog.marketLoading || catalog.communityLoading} onClick={catalog.refresh}>
@@ -187,7 +188,7 @@ function BrowserHeader(props: Pick<Props, "busy" | "catalog" | "savedLibrary" | 
     </Button>
   </div>;
   const selectedCount = savedLibrary.selectedThemeIds.length;
-  const savedActions = <div className="dream-market-tab-actions">
+  const savedActions = <div className={styles.marketTabActions}>
     <Popconfirm title={t("dreamSkin.saved.delete.confirmTitle", { count: selectedCount })}
       description={t("dreamSkin.saved.delete.confirmDescription")} okText={t("dreamSkin.saved.delete.action")}
       cancelText={t("table.cancel")} okButtonProps={{ danger: true }}
@@ -197,10 +198,10 @@ function BrowserHeader(props: Pick<Props, "busy" | "catalog" | "savedLibrary" | 
         {t("dreamSkin.saved.delete.selected", { count: selectedCount })}
       </Button>
     </Popconfirm>
-    <Input className="dream-market-search" allowClear value={savedLibrary.query} prefix={<Search size={14} />}
+    <Input className={styles.marketSearch} allowClear value={savedLibrary.query} prefix={<Search size={14} />}
       placeholder={t("dreamSkin.saved.search")} onChange={(event) => savedLibrary.setQuery(event.target.value)} />
   </div>;
-  return <div className="dream-theme-browser-header">
+  return <div className={styles.themeBrowserHeader}>
     <Tabs activeKey={themeTab} onChange={(key) => setThemeTab(key as ThemeTab)}
       tabBarExtraContent={themeTab === "builtIn" ? builtInActions
         : themeTab === "market" ? marketActions : savedActions}
@@ -211,20 +212,20 @@ function BrowserHeader(props: Pick<Props, "busy" | "catalog" | "savedLibrary" | 
 
 function tabItems(t: Translate) {
   return [
-    { key: "builtIn", label: <span className="dream-theme-tab-label"><Sparkles size={15} />
+    { key: "builtIn", label: <span className={styles.themeTabLabel}><Sparkles size={15} />
       {t("dreamSkin.tabs.builtIn")}</span> },
-    { key: "market", label: <span className="dream-theme-tab-label"><Store size={15} />
+    { key: "market", label: <span className={styles.themeTabLabel}><Store size={15} />
       {t("dreamSkin.tabs.market")}</span> },
-    { key: "saved", label: <span className="dream-theme-tab-label"><Save size={15} />
+    { key: "saved", label: <span className={styles.themeTabLabel}><Save size={15} />
       {t("dreamSkin.tabs.savedCommunity")}</span> },
   ];
 }
 
 function TabSummary({ catalog, t, themeTab }: Pick<Props, "catalog" | "t" | "themeTab">) {
-  if (themeTab === "builtIn") return <div className="dream-tab-summary">{t("dreamSkin.presets.description")}</div>;
-  if (themeTab === "saved") return <div className="dream-tab-summary">{t("dreamSkin.saved.subtitle")}</div>;
+  if (themeTab === "builtIn") return <div className={styles.tabSummary}>{t("dreamSkin.presets.description")}</div>;
+  if (themeTab === "saved") return <div className={styles.tabSummary}>{t("dreamSkin.saved.subtitle")}</div>;
   if (!catalog.updatedAt && !catalog.communityInitialized) return null;
-  return <div className="dream-tab-summary dream-market-summary">
+  return <div className={`${styles.tabSummary} ${styles.marketSummary}`}>
     {catalog.updatedAt && <span>{t("dreamSkin.market.updatedAt", { date: catalog.updatedAt })}</span>}
     {catalog.communityInitialized && (!catalog.communityError || catalog.communityThemesLength > 0)
       && <span>{t("dreamSkin.market.loadedCount", {

@@ -1,6 +1,7 @@
-import type { Translate } from "../../i18n";
-import type { Language } from "../../i18n";
-import type { CloudNotification } from "../../types";
+import type { Translate } from "../../../i18n";
+import type { Language } from "../../../i18n";
+import type { CloudNotification } from "../../../types";
+import styles from "./index.module.less";
 
 interface NotificationPanelProps {
   language: Language;
@@ -22,12 +23,12 @@ function normalizeHttpUrl(value: string | undefined) {
 
 export function NotificationPanel({ language, notifications, onOpenLink, t }: NotificationPanelProps) {
   return (
-    <section className="notification-panel" aria-label={t("notification.title")}>
-      <div className="notification-panel-header">
+    <section className={styles.notificationPanel} aria-label={t("notification.title")}>
+      <div className={styles.notificationPanelHeader}>
         <strong>{t("notification.title")}</strong>
         <span>{t("notification.count", { count: notifications.length })}</span>
       </div>
-      <div className="notification-list">
+      <div className={styles.notificationList}>
         {notifications.length ? notifications.map((notification) => {
           const title = language === "zh" ? notification.titleZh : notification.titleEn;
           const content = language === "zh" ? notification.contentZh : notification.contentEn;
@@ -35,8 +36,8 @@ export function NotificationPanel({ language, notifications, onOpenLink, t }: No
             ? notification.linkLabelZh
             : notification.linkLabelEn).trim() || t("notification.learnMore");
           return (
-            <article className="notification-item" key={notification.id}>
-              <div className="notification-item-heading">
+            <article className={styles.notificationItem} key={notification.id}>
+              <div className={styles.notificationItemHeading}>
                 <strong>{title}</strong>
                 <time dateTime={notification.publishedAt}>
                   {new Date(notification.publishedAt).toLocaleString(
@@ -53,7 +54,7 @@ export function NotificationPanel({ language, notifications, onOpenLink, t }: No
               )}
             </article>
           );
-        }) : <div className="notification-empty">{t("notification.empty")}</div>}
+        }) : <div className={styles.notificationEmpty}>{t("notification.empty")}</div>}
       </div>
     </section>
   );

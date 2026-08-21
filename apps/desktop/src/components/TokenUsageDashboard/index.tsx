@@ -9,15 +9,17 @@ import {
   TooltipComponent,
   VisualMapComponent,
 } from "echarts/components";
-import { init, use } from "echarts/core";
-import type { EChartsCoreOption as EChartsOption, EChartsType } from "echarts/core";
+import { use } from "echarts/core";
+import type { EChartsCoreOption as EChartsOption } from "echarts/core";
 import { CanvasRenderer } from "echarts/renderers";
 import { RefreshCw } from "lucide-react";
-import { loadDailyTokenUsage, loadTokenUsageEntries } from "../api/backend";
-import { MAX_TOKEN_USAGE_WEEKS, MIN_TOKEN_USAGE_WEEKS } from "../hooks/useTokenUsagePreferences";
-import type { Language } from "../i18n";
-import type { DailyTokenUsage, TokenUsageEntry } from "../types";
-import { normalizeThemeColor } from "../utils/theme";
+import { loadDailyTokenUsage, loadTokenUsageEntries } from "../../api/backend";
+import { MAX_TOKEN_USAGE_WEEKS, MIN_TOKEN_USAGE_WEEKS } from "../../hooks/useTokenUsagePreferences";
+import type { Language } from "../../i18n";
+import type { DailyTokenUsage, TokenUsageEntry } from "../../types";
+import { normalizeThemeColor } from "../../utils/theme";
+import { EChart } from "./EChart";
+import styles from "./index.module.less";
 
 const TOKEN_USAGE_MORE_THRESHOLD = 100_000_000;
 const MAX_RANKING_ITEMS = 8;
@@ -125,35 +127,6 @@ function aggregateEntries(entries: TokenUsageEntry[], label: (entry: TokenUsageE
     totals.set(key, (totals.get(key) ?? 0) + entryTotal(entry));
   });
   return [...totals.entries()].sort((left, right) => right[1] - left[1]).slice(0, MAX_RANKING_ITEMS);
-}
-
-function EChart({ option, label, className = "" }: {
-  option: EChartsOption;
-  label: string;
-  className?: string;
-}) {
-  const elementRef = useRef<HTMLDivElement | null>(null);
-  const chartRef = useRef<EChartsType | null>(null);
-
-  useEffect(() => {
-    const element = elementRef.current;
-    if (!element) return undefined;
-    const chart = init(element, undefined, { renderer: "canvas" });
-    chartRef.current = chart;
-    const observer = new ResizeObserver(() => chart.resize());
-    observer.observe(element);
-    return () => {
-      observer.disconnect();
-      chart.dispose();
-      chartRef.current = null;
-    };
-  }, []);
-
-  useEffect(() => {
-    chartRef.current?.setOption(option, { notMerge: true, lazyUpdate: true });
-  }, [option]);
-
-  return <div ref={elementRef} className={`token-echart ${className}`} role="img" aria-label={label} />;
 }
 
 function rankingOption(
@@ -460,15 +433,15 @@ export function TokenUsageDashboard({
     || (language === "zh" ? "未识别账户" : "Unknown account")), [entries, language]);
 
   return (
-    <div className={`token-dashboard${embedded ? " embedded" : ""}`}>
-      <header className="token-dashboard-header">
+    <div className={`${styles.tokenDashboard}${embedded ? ` ${styles.embedded}` : ""}`}>
+      <header className={styles.tokenDashboardHeader}>
         <div>
           <span>{labels.eyebrow}</span>
           <h1>{labels.title}</h1>
-          <small>{labels.period}{updatedAt ? ` · ${labels.updated} ${updatedAt.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : ""}<span className="token-dashboard-proxy-note"> · {proxyOnlyHint}</span></small>
+          <small>{labels.period}{updatedAt ? ` · ${labels.updated} ${updatedAt.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : ""}<span className={styles.tokenDashboardProxyNote}> · {proxyOnlyHint}</span></small>
         </div>
-        <div className="token-dashboard-actions">
-          <label className="token-dashboard-range">
+        <div className={styles.tokenDashboardActions}>
+          <label className={styles.tokenDashboardRange}>
             <span>{rangeLabel}</span>
             <InputNumber min={MIN_TOKEN_USAGE_WEEKS} max={MAX_TOKEN_USAGE_WEEKS} step={1}
               value={weeks} disabled={preferencesLoading || !onWeeksChange}
@@ -480,36 +453,36 @@ export function TokenUsageDashboard({
           </Button>
         </div>
       </header>
-      {error ? <div className="token-usage-error">{error}</div> : null}
-      <div className="token-dashboard-grid token-dashboard-grid-top">
-        <section className="token-chart-panel token-chart-panel-heatmap">
-          <div className="token-chart-heading"><h2>{labels.heatmap}</h2><span>{labels.heatmapHint}</span></div>
-          <EChart option={heatmapOption} label={labels.heatmap} className="token-echart-heatmap" />
+      {error ? <div className={styles.tokenUsageError}>{error}</div> : null}
+      <div className={`${styles.tokenDashboardGrid} ${styles.tokenDashboardGridTop}`}>
+        <section className={`${styles.tokenChartPanel} ${styles.tokenChartPanelHeatmap}`}>
+          <div className={styles.tokenChartHeading}><h2>{labels.heatmap}</h2><span>{labels.heatmapHint}</span></div>
+          <EChart option={heatmapOption} label={labels.heatmap} className="tokenEchartHeatmap" />
         </section>
-        <section className="token-chart-panel">
-          <div className="token-chart-heading"><h2>{labels.trend}</h2><span>{labels.period}</span></div>
-          <EChart option={trendOption} label={labels.trend} className="token-echart-trend" />
+        <section className={styles.tokenChartPanel}>
+          <div className={styles.tokenChartHeading}><h2>{labels.trend}</h2><span>{labels.period}</span></div>
+          <EChart option={trendOption} label={labels.trend} className="tokenEchartTrend" />
         </section>
       </div>
-      <div className="token-dashboard-grid token-dashboard-grid-bottom">
-        <section className="token-chart-panel">
-          <div className="token-chart-heading"><h2>{labels.breakdown}</h2><span>{labels.period}</span></div>
+      <div className={`${styles.tokenDashboardGrid} ${styles.tokenDashboardGridBottom}`}>
+        <section className={styles.tokenChartPanel}>
+          <div className={styles.tokenChartHeading}><h2>{labels.breakdown}</h2><span>{labels.period}</span></div>
           <EChart option={breakdownOption} label={labels.breakdown} />
         </section>
-        <section className="token-chart-panel">
-          <div className="token-chart-heading"><h2>{labels.providers}</h2><span>{labels.recent}</span></div>
+        <section className={styles.tokenChartPanel}>
+          <div className={styles.tokenChartHeading}><h2>{labels.providers}</h2><span>{labels.recent}</span></div>
           <EChart option={rankingOption(providerData, palette, language)} label={labels.providers} />
         </section>
-        <section className="token-chart-panel">
-          <div className="token-chart-heading"><h2>{labels.models}</h2><span>{labels.recent}</span></div>
+        <section className={styles.tokenChartPanel}>
+          <div className={styles.tokenChartHeading}><h2>{labels.models}</h2><span>{labels.recent}</span></div>
           <EChart option={usagePieOption(modelData, palette, language)} label={labels.models} />
         </section>
-        <section className="token-chart-panel">
-          <div className="token-chart-heading"><h2>{labels.accounts}</h2><span>{labels.recent}</span></div>
+        <section className={styles.tokenChartPanel}>
+          <div className={styles.tokenChartHeading}><h2>{labels.accounts}</h2><span>{labels.recent}</span></div>
           <EChart option={usagePieOption(accountData, palette, language)} label={labels.accounts} />
         </section>
       </div>
-      {!loading && dailyUsage.length === 0 && entries.length === 0 ? <div className="token-dashboard-empty">{labels.noData}</div> : null}
+      {!loading && dailyUsage.length === 0 && entries.length === 0 ? <div className={styles.tokenDashboardEmpty}>{labels.noData}</div> : null}
     </div>
   );
 }

@@ -1,0 +1,190 @@
+.tokenDashboard {
+  width: 100%;
+  height: 100vh;
+  min-height: 0;
+  padding: 22px;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1.08fr) minmax(0, .92fr);
+  align-content: stretch;
+  gap: 14px;
+  overflow: hidden;
+  background: #f3f5f1;
+  color: var(--ink);
+}
+
+.embedded {
+  height: 100%;
+  min-height: 0;
+  padding: 18px 16px;
+}
+
+.tokenDashboardHeader {
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+
+  > div { min-width: 0; }
+  > div > span { color: #819087; font-size: 10px; font-weight: 700; letter-spacing: .14em; }
+  h1 { margin: 5px 0 3px; font-size: 24px; }
+  small { display: block; color: #7c8981; font-size: 10px; }
+}
+
+.tokenDashboardProxyNote { color: #a06d29; font-weight: 600; }
+
+.tokenDashboardActions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tokenDashboardRange {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #718078;
+  font-size: 11px;
+  white-space: nowrap;
+
+  :global(.ant-input-number) { width: 64px; }
+}
+
+.tokenChartPanel {
+  min-width: 0;
+  min-height: 0;
+  padding: 16px 16px 10px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: 0 5px 18px rgba(24,45,31,.035);
+}
+
+.tokenChartPanelHeatmap { padding-bottom: 6px; }
+
+.tokenChartHeading {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+
+  h2 { margin: 0; color: var(--ink); font: 700 13px Manrope, sans-serif; }
+  span {
+    max-width: 68%;
+    overflow: hidden;
+    color: #7c8981;
+    font-size: 9px;
+    text-align: right;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.tokenDashboardGrid {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.tokenDashboardGridTop,
+.tokenDashboardGridBottom { min-height: 0; }
+.tokenDashboardGridBottom { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+.tokenEchart {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+}
+
+.tokenEchartHeatmap,
+.tokenEchartTrend {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+}
+
+.tokenDashboardEmpty {
+  padding: 32px;
+  color: #849188;
+  text-align: center;
+  font-size: 11px;
+}
+
+.tokenUsageError {
+  padding: 9px 12px;
+  border: 1px solid #ffd0cc;
+  border-radius: 8px;
+  color: #a25046;
+  background: #fff2f0;
+  font-size: 11px;
+}
+
+:global(.token-chart-tooltip) {
+  min-width: 178px;
+  display: grid;
+  gap: 5px;
+}
+
+:global(.token-chart-tooltip > strong) {
+  display: block;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #e5eae5;
+  color: #26342c;
+  font-size: 11px;
+}
+
+:global(.token-chart-tooltip > div) {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  color: #66736b;
+  font-size: 10px;
+}
+
+:global(.token-chart-tooltip > div b) {
+  color: #26342c;
+  font-weight: 700;
+}
+
+:global(:root[data-theme="dark"] .token-chart-tooltip > strong) {
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+:global(:root[data-theme="dark"] .token-chart-tooltip > div) { color: #b0bbb4; }
+:global(:root[data-theme="dark"] .token-chart-tooltip > div b) { color: var(--ink); }
+
+:global(:root[data-theme="dark"]) .tokenDashboard {
+  color: var(--ink);
+  background: #171d19;
+}
+
+:global(:root[data-theme="dark"]) .tokenChartPanel {
+  border-color: var(--line);
+  background: var(--panel);
+  box-shadow: none;
+}
+
+@media (max-width: 620px) {
+  .tokenDashboard {
+    height: auto;
+    min-height: 100%;
+    grid-template-rows: auto;
+    overflow: visible;
+    padding: 16px;
+  }
+
+  .tokenDashboardHeader { align-items: flex-start; flex-direction: column; }
+  .tokenDashboardActions { width: 100%; justify-content: space-between; }
+  .tokenDashboardGrid { grid-template-columns: 1fr; }
+  .tokenChartPanel { min-height: 280px; }
+}
