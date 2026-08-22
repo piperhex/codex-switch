@@ -172,7 +172,7 @@ function SessionTokenChart({ session, t }: { session: ProxySession; t: Translate
   );
   return (
     <Tooltip title={tooltip} placement="top">
-      <div className="compact-model-token-chart" role="img"
+      <div className={styles.compactModelTokenChart} role="img"
         aria-label={t("providers.proxy.sessionsTokensAria", {
           tokens: formatTokens(session.totalTokens),
         })}>

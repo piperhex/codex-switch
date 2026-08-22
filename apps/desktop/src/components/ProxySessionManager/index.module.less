@@ -173,9 +173,31 @@
 
 .tokenChart { display: flex; align-items: center; justify-content: center; }
 
-.tokenChart :global(.compact-model-token-chart) {
+.compactModelTokenChart {
+  width: 54px;
+  min-width: 54px;
   padding-left: 0;
-  border-left: 0;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  color: #75837a;
+  cursor: help;
+
+  > span { color: var(--green-dark); font: 800 7px/1 Manrope, sans-serif; letter-spacing: .08em; }
+  svg { width: 48px; height: 26px; display: block; overflow: visible; }
+  small {
+    max-width: 48px;
+    overflow: hidden;
+    color: #718078;
+    font: 700 8px/1 Manrope, sans-serif;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  rect { stroke: rgba(255,255,255,.72); stroke-width: .6px; }
+  :global(.token-type-0) { fill: #3b82f6; }
+  :global(.token-type-1) { fill: #10b981; }
+  :global(.token-type-2) { fill: #8b5cf6; }
+  :global(.token-type-3) { fill: #f59e0b; }
 }
 
 .activity {
