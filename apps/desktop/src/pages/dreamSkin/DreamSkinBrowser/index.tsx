@@ -95,6 +95,10 @@ function MarketThemes(props: Props) {
 }
 
 function MarketSentinel({ catalog, t }: Pick<Props, "catalog" | "t">) {
+  const initialLoading = catalog.marketLoading && !catalog.market
+    && catalog.communityLoading && !catalog.communityInitialized;
+  if (initialLoading) return null;
+
   let content = null;
   if (catalog.communityLoading) {
     content = <><RefreshCw className="spin" size={15} />{t("dreamSkin.market.loadingMore")}</>;
