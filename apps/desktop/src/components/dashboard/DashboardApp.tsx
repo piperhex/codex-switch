@@ -78,6 +78,7 @@ import { useBubbleStyle } from "../../hooks/useBubbleStyle";
 import { useCloudAuth } from "../../hooks/useCloudAuth";
 import { useCloudContent, useCloudContentLifecycle } from "../../hooks/useCloudContent";
 import { useCloseToTray } from "../../hooks/useCloseToTray";
+import { useClaudeCodeIntegration } from "../../hooks/useClaudeCodeIntegration";
 import { useCcSwitchImport } from "../../hooks/useCcSwitchImport";
 import { useCodexHome } from "../../hooks/useCodexHome";
 import { useLanguage } from "../../hooks/useLanguage";
@@ -94,12 +95,14 @@ import { useUpstream429RetryTimeout } from "../../hooks/useUpstream429RetryTimeo
 import { useToast } from "../../hooks/useToast";
 import { useTotpEntries } from "../../hooks/useTotpEntries";
 import { AccountsPage } from "../../pages/AccountsPage";
+import { ClaudeCodePage } from "../../pages/ClaudeCodePage";
 import { DreamSkinPage } from "../../pages/DreamSkinPage";
 import { ProvidersPage } from "../../pages/ProvidersPage";
 import { SettingsGroupsNav, SettingsPage } from "../../pages/SettingsPage";
 import { SkillsMarketPage } from "../../pages/SkillsMarketPage";
 import { CodexThreadsPage } from "../../pages/CodexThreadsPage";
 import { NetworkProxySettingsModal } from "../../pages/settings/NetworkProxySettings";
+import type { Translate } from "../../i18n";
 import { AccountDisplayTabs } from "./AccountDisplayTabs";
 import { AccountTopbarActions } from "./AccountTopbarActions";
 import type {
@@ -115,6 +118,7 @@ const LATEST_RELEASE_API_URL = "https://api.github.com/repos/piperhex/codex-swit
 const APP_LOGO_URL = new URL("../../../src-tauri/icons/128x128.png", import.meta.url).href;
 const CUSTOM_TITLEBAR_ENABLED = isDesktopApp && navigator.userAgent.includes("Windows");
 const MemoAccountsPage = memo(AccountsPage);
+const MemoClaudeCodePage = memo(ClaudeCodePage);
 const MemoDreamSkinPage = memo(DreamSkinPage);
 const MemoProvidersPage = memo(ProvidersPage);
 const MemoSettingsPage = memo(SettingsPage);
@@ -153,6 +157,7 @@ type SystemMenuAction =
   | `navigation-style-${NavigationStyle}`
   | "accounts"
   | "providers"
+  | "claude-code"
   | "token-usage"
   | "dream-skin"
   | "skills"
@@ -193,6 +198,27 @@ async function refreshProviderBalances(providers: Provider[]) {
       .map((provider) => queryProviderBalance(provider.id)),
   );
 }
+
+function dashboardEyebrow(page: DashboardPage, t: Translate) {
+  if (page === "providers") return t("topbar.providersEyebrow");
+  if (page === "skills") return t("topbar.skillsEyebrow");
+  if (page === "sessions") return t("topbar.sessionsEyebrow");
+  if (page === "claudeCode") return t("topbar.claudeCodeEyebrow");
+  return t("topbar.eyebrow");
+}
+
+function dashboardTitle(page: DashboardPage, t: Translate, options: {
+  accountCount: number;
+  providerCount: number;
+}) {
+  if (page === "settings") return t("topbar.settings");
+  if (page === "skills") return t("topbar.skills");
+  if (page === "sessions") return t("topbar.sessions");
+  if (page === "claudeCode") return t("topbar.claudeCode");
+  if (page === "providers") return t("topbar.providers", { count: options.providerCount });
+  return t("topbar.accounts", { count: options.accountCount });
+}
+
 export function DashboardApp() {
   const [page, setPage] = useState<DashboardPage>("accounts");
   const [showLogin, setShowLogin] = useState(false);
@@ -227,6 +253,7 @@ export function DashboardApp() {
   useEffect(() => subscribeToOpenSettings(() => setPage("settings")), []);
   const { message: toast, notify } = useToast();
   const { language, setLanguage, t } = useLanguage();
+  const claudeCodeIntegration = useClaudeCodeIntegration(notify, t);
   const cloud = useCloudAuth(notify, t);
   const totpManager = useTotpEntries({
     cloudAuthenticated: cloud.state.authenticated,
@@ -852,6 +879,9 @@ export function DashboardApp() {
       case "providers":
         setPage("providers");
         break;
+      case "claude-code":
+        setPage("claudeCode");
+        break;
       case "token-usage":
         setPage("tokens");
         break;
@@ -1181,6 +1211,7 @@ export function DashboardApp() {
 
         <main className={page === "accounts" ? "accounts-main"
           : page === "providers" ? "providers-main"
+          : page === "claudeCode" ? "claude-code-main"
           : page === "tokens" ? "tokens-main"
             : page === "dreamSkin" ? "dream-skin-main"
               : page === "sessions" ? "sessions-main" : undefined}>
@@ -1195,25 +1226,14 @@ export function DashboardApp() {
             ) : (
               <div className={page === "accounts" ? "accounts-heading"
                 : page === "skills" ? "skills-market-heading"
-                  : page === "settings" ? "settings-heading" : undefined}>
-                <span className="eyebrow">{page === "providers"
-                ? t("topbar.providersEyebrow")
-                : page === "skills"
-                  ? t("topbar.skillsEyebrow")
-                  : page === "sessions"
-                    ? t("topbar.sessionsEyebrow")
-                  : t("topbar.eyebrow")}</span>
+                : page === "settings" ? "settings-heading" : undefined}>
+                <span className="eyebrow">{dashboardEyebrow(page, t)}</span>
                 <div className={page === "skills" ? "skills-market-title-row"
                   : page === "settings" ? "settings-title-row" : undefined}>
-                  <h1>{page === "settings"
-                    ? t("topbar.settings")
-                    : page === "skills"
-                      ? t("topbar.skills")
-                      : page === "sessions"
-                        ? t("topbar.sessions")
-                    : page === "providers"
-                      ? t("topbar.providers", { count: providerManager.providers.length })
-                      : t("topbar.accounts", { count: manager.accounts.length })}</h1>
+                  <h1>{dashboardTitle(page, t, {
+                    accountCount: manager.accounts.length,
+                    providerCount: providerManager.providers.length,
+                  })}</h1>
                   {page === "skills" && <div id="skills-market-tabs" className="skills-market-tabs-slot" />}
                   {page === "settings" && <SettingsGroupsNav t={t} />}
                 </div>
@@ -1265,6 +1285,12 @@ export function DashboardApp() {
 
           <section className="page-panel" hidden={page !== "dreamSkin"}>
             {page === "dreamSkin" && <MemoDreamSkinPage t={t} notify={notify} />}
+          </section>
+          <section className="page-panel" hidden={page !== "claudeCode"}>
+            {page === "claudeCode" && <MemoClaudeCodePage target={claudeCodeIntegration.target}
+              busy={claudeCodeIntegration.busy} onTargetChange={claudeCodeIntegration.changeTarget}
+              onLaunch={() => void claudeCodeIntegration.launch()}
+              onRestart={() => void claudeCodeIntegration.restart()} t={t} />}
           </section>
           <section className="page-panel" hidden={page !== "settings"}>
             <MemoSettingsPage info={manager.info} autoRefreshEnabled={autoRefresh.enabled}

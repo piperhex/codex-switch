@@ -48,15 +48,20 @@ pub(crate) fn set_concurrent_account_routing_enabled<R: Runtime>(
     }
     state.concurrent_account_routing_enabled = enabled;
     write_state(&paths, &state)?;
-    if switched_from_provider {
+    let write_codex = crate::claude_code::should_write_codex_for_app(&app)?;
+    if switched_from_provider && write_codex {
         if let Err(error) = providers::write_official_local_proxy_config(&paths) {
-            let _ = write_state(&paths, &original_state);
+            if let Err(rollback_error) = write_state(&paths, &original_state) {
+                eprintln!("failed to restore proxy state: {rollback_error}");
+            }
             return Err(error);
         }
     }
-    if enabled {
+    if enabled && write_codex {
         if let Err(error) = providers::sync_local_proxy_openai_auth(&paths) {
-            let _ = write_state(&paths, &original_state);
+            if let Err(rollback_error) = write_state(&paths, &original_state) {
+                eprintln!("failed to restore proxy state: {rollback_error}");
+            }
             return Err(error);
         }
     }
@@ -272,17 +277,22 @@ pub(crate) fn set_local_proxy_openai_auth_account_blocking<R: Runtime>(
     }
     state.local_proxy_openai_auth_account_id = account_id;
     write_state(&paths, &state)?;
-    providers::apply_local_proxy_config_for_state(&app)?;
+    let write_codex = crate::claude_code::should_write_codex_for_app(&app)?;
+    if write_codex {
+        providers::apply_local_proxy_config_for_state(&app)?;
+    }
     app.emit("providers-changed", ())
         .map_err(|error| error.to_string())?;
     crate::system_tray::refresh_menu(&app);
     let proxy_status = status(&app);
 
-    crate::commands::restart_chatgpt_unlocked(&app).map_err(|error| {
-        format!(
-            "OpenAI login state was updated, but ChatGPT/Codex could not be restarted ({error}). Please start ChatGPT or Codex manually."
-        )
-    })?;
+    if write_codex {
+        crate::commands::restart_chatgpt_unlocked(&app).map_err(|error| {
+            format!(
+                "OpenAI login state was updated, but ChatGPT/Codex could not be restarted ({error}). Please start ChatGPT or Codex manually."
+            )
+        })?;
+    }
     Ok(proxy_status)
 }
 

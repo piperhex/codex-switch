@@ -93,6 +93,9 @@ pub(crate) fn activate_provider_for_sync(paths: &Paths, id: &str) -> Result<bool
 pub(crate) fn cleanup_stale_local_proxy_config<R: Runtime>(
     app: &tauri::AppHandle<R>,
 ) -> Result<(), String> {
+    if !crate::claude_code::should_write_codex_for_app(app)? {
+        return Ok(());
+    }
     let paths = resolve_paths(app)?;
     cleanup_non_proxy_provider_state(&paths)
 }

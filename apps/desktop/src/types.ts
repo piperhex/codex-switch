@@ -425,7 +425,10 @@ export interface AppSettings {
   webProxyListenOnAllInterfaces?: boolean;
   networkProxy?: NetworkProxySettings;
   providerGroups?: string[];
+  claudeCodeWriteTarget?: ClaudeCodeWriteTarget;
 }
+
+export type ClaudeCodeWriteTarget = "all" | "codex" | "claudeCode";
 
 export interface NetworkProxySettings {
   enabled: boolean;

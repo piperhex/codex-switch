@@ -32,6 +32,7 @@ import type {
   CloudFaq,
   CloudNotification,
   CloudSyncResult,
+  ClaudeCodeWriteTarget,
   DeletedCloudProvider,
   CodexThreadBinEntry,
   CodexThreadBundlePreview,
@@ -148,6 +149,7 @@ const BUBBLE_RESET_DISPLAY_PREVIEW_KEY = "codex-switch:bubble-reset-display";
 const BUBBLE_STYLE_PREVIEW_KEY = "codex-switch:bubble-style";
 const THEME_COLOR_PREVIEW_KEY = "codex-switch:theme-color";
 const PROVIDER_GROUPS_PREVIEW_KEY = "codex-switch:provider-groups";
+const CLAUDE_CODE_WRITE_TARGET_PREVIEW_KEY = "codex-switch:claude-code-write-target";
 const CLOUD_BASE_URL_PREVIEW_KEY = "codex-switch:cloud-base-url";
 const NETWORK_PROXY_ENABLED_PREVIEW_KEY = "codex-switch:network-proxy-enabled";
 const NETWORK_PROXY_URL_PREVIEW_KEY = "codex-switch:network-proxy-url";
@@ -497,9 +499,25 @@ export async function loadAppSettings(): Promise<AppSettings> {
         proxyPort: Number(window.localStorage.getItem(NETWORK_PROXY_PORT_PREVIEW_KEY)) || null,
       },
       providerGroups: previewProviderGroups(),
+      claudeCodeWriteTarget: previewClaudeCodeWriteTarget(),
     };
   }
   return invoke<AppSettings>("get_app_settings");
+}
+
+function previewClaudeCodeWriteTarget(): ClaudeCodeWriteTarget {
+  const value = window.localStorage.getItem(CLAUDE_CODE_WRITE_TARGET_PREVIEW_KEY);
+  return value === "all" || value === "claudeCode" ? value : "codex";
+}
+
+export async function updateClaudeCodeWriteTarget(
+  target: ClaudeCodeWriteTarget,
+): Promise<AppSettings> {
+  if (!hasLocalBackend) {
+    window.localStorage.setItem(CLAUDE_CODE_WRITE_TARGET_PREVIEW_KEY, target);
+    return loadAppSettings();
+  }
+  return invoke<AppSettings>("set_claude_code_write_target", { target });
 }
 
 export async function chooseCodexHome(defaultPath?: string): Promise<string | null> {
@@ -2322,6 +2340,15 @@ export async function restartChatGpt(): Promise<void> {
 export async function launchChatGpt(): Promise<boolean> {
   if (hasLocalBackend) return invoke<boolean>("launch_chatgpt");
   return false;
+}
+
+export async function launchClaudeCode(): Promise<boolean> {
+  if (hasLocalBackend) return invoke<boolean>("launch_claude_code");
+  return false;
+}
+
+export async function restartClaudeCode(): Promise<void> {
+  if (hasLocalBackend) await invoke("restart_claude_code");
 }
 
 export async function openManagedFolder(target: "codexHome" | "accountStore"): Promise<void> {

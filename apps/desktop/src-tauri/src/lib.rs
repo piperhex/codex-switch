@@ -6,6 +6,7 @@ mod antigravity_provider;
 mod auth;
 mod autostart;
 mod ccs_import;
+mod claude_code;
 mod claude_code_provider;
 mod cloud;
 mod codex_api;
@@ -232,6 +233,9 @@ pub fn run() {
             commands::consume_reset_credit,
             commands::restart_chatgpt,
             commands::launch_chatgpt,
+            claude_code::set_claude_code_write_target,
+            claude_code::launch_claude_code,
+            claude_code::restart_claude_code,
             commands::restore_non_proxy_conversations,
             conversation_hub::browse_codex_threads,
             conversation_hub::measure_codex_thread_tokens,

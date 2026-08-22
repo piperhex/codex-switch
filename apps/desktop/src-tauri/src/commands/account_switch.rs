@@ -57,6 +57,10 @@ fn deactivate_account_and_restart_chatgpt_blocking<R: Runtime>(
         .map_err(|_| "Account switch lock is poisoned".to_string())?;
     refresh_local_codex_path(&app);
 
+    if !crate::claude_code::should_write_codex_for_app(&app)? {
+        return deactivate_account_unlocked(&app, crate::local_proxy::is_running()).map(|_| ());
+    }
+
     let proxy_running = crate::local_proxy::is_running();
     let client_was_running = !proxy_running && chatgpt_or_codex_is_running()?;
     let launch_target = client_was_running
@@ -114,7 +118,10 @@ fn deactivate_account_unlocked<R: Runtime>(
     state.concurrent_account_routing_enabled = false;
     write_state(&paths, &state)?;
 
-    let auth_result = if proxy_running {
+    let write_codex = crate::claude_code::should_write_codex_for_app(app)?;
+    let auth_result = if !write_codex {
+        Ok(())
+    } else if proxy_running {
         crate::providers::sync_local_proxy_openai_auth(&paths)
     } else {
         match fs::remove_file(&paths.current_auth) {
@@ -133,9 +140,10 @@ fn deactivate_account_unlocked<R: Runtime>(
         .map_err(|error| error.to_string())?;
     app.emit("providers-changed", ())
         .map_err(|error| error.to_string())?;
-    if proxy_running {
+    if proxy_running && write_codex {
         crate::providers::refresh_official_codex_models();
     }
+    crate::claude_code::sync_after_switch(app)?;
     crate::system_tray::refresh_menu(app);
     Ok(Some(account_id))
 }
@@ -151,6 +159,9 @@ pub(crate) fn switch_account_and_restart_chatgpt_blocking<R: Runtime>(
     // Refresh the launch hint for every account switch, including hot proxy
     // switches where no restart is needed.
     refresh_local_codex_path(&app);
+    if !crate::claude_code::should_write_codex_for_app(&app)? {
+        return switch_account_unlocked(&app, &id);
+    }
     if crate::local_proxy::is_running() {
         return switch_account_unlocked(&app, &id);
     }
@@ -192,7 +203,10 @@ fn switch_account_unlocked<R: Runtime>(app: &tauri::AppHandle<R>, id: &str) -> R
     state.active_account_id = Some(id.to_string());
     state.concurrent_account_routing_enabled = false;
 
-    if proxy_running {
+    let write_codex = crate::claude_code::should_write_codex_for_app(app)?;
+    if !write_codex {
+        write_state(&paths, &state)?;
+    } else if proxy_running {
         // Publish the official route before changing config.toml. Codex watches that
         // file and may reconnect immediately; writing the config first would let the
         // reconnect race through the previously selected third-party Provider.
@@ -219,9 +233,10 @@ fn switch_account_unlocked<R: Runtime>(app: &tauri::AppHandle<R>, id: &str) -> R
         .map_err(|error| error.to_string())?;
     app.emit("providers-changed", ())
         .map_err(|error| error.to_string())?;
-    if proxy_running {
+    if proxy_running && write_codex {
         crate::providers::refresh_official_codex_models();
     }
+    crate::claude_code::sync_after_switch(app)?;
     crate::system_tray::refresh_menu(app);
     Ok(())
 }

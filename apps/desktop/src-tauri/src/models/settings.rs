@@ -58,7 +58,18 @@ pub(crate) struct AppSettings {
     #[serde(default)]
     pub(crate) provider_groups: Vec<String>,
     #[serde(default)]
+    pub(crate) claude_code_write_target: ClaudeCodeWriteTarget,
+    #[serde(default)]
     pub(crate) last_started_version: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) enum ClaudeCodeWriteTarget {
+    All,
+    #[default]
+    Codex,
+    ClaudeCode,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
@@ -170,6 +181,7 @@ impl Default for AppSettings {
             web_proxy_listen_on_all_interfaces: false,
             network_proxy: NetworkProxySettings::default(),
             provider_groups: Vec::new(),
+            claude_code_write_target: ClaudeCodeWriteTarget::default(),
             last_started_version: None,
         }
     }

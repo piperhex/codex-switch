@@ -13,7 +13,13 @@ pub(crate) fn restore_local_proxy_if_enabled<R: Runtime>(
             return Err(error);
         }
     };
-    if let Err(error) = providers::apply_local_proxy_config_for_state(app) {
+    let write_codex = crate::claude_code::should_write_codex_for_app(app)?;
+    let config_result = if write_codex {
+        providers::apply_local_proxy_config_for_state(app)
+    } else {
+        Ok(())
+    };
+    if let Err(error) = config_result {
         if started {
             stop_server();
         }
@@ -36,6 +42,7 @@ fn start_local_proxy_blocking<R: Runtime>(
     app: tauri::AppHandle<R>,
 ) -> Result<LocalProxyStatus, String> {
     let paths = resolve_paths(&app)?;
+    let write_codex = crate::claude_code::should_write_codex_for_app(&app)?;
     // Validate the selected official credential before interrupting a running client.
     // The local proxy supports both OAuth and Agent Identity authentication.
     providers::ensure_local_proxy_compatible_for_state(&paths)?;
@@ -43,7 +50,7 @@ fn start_local_proxy_blocking<R: Runtime>(
     // Only interrupt and relaunch a client that is actually running. When no
     // client is open, proxy mode can be enabled by updating its configuration
     // directly, without treating the absence of a process as a stop failure.
-    let client_was_running = crate::commands::chatgpt_or_codex_is_running()?;
+    let client_was_running = write_codex && crate::commands::chatgpt_or_codex_is_running()?;
     let launch_target = client_was_running
         .then(|| crate::commands::refresh_and_get_chatgpt_launch_target(&app))
         .flatten();
@@ -56,7 +63,12 @@ fn start_local_proxy_blocking<R: Runtime>(
 
     emit_start_progress(&app, "startingProxy", 18, None, None);
     let started = start_server(app.clone())?;
-    if let Err(error) = providers::apply_local_proxy_config_for_state(&app) {
+    let config_result = if write_codex {
+        providers::apply_local_proxy_config_for_state(&app)
+    } else {
+        Ok(())
+    };
+    if let Err(error) = config_result {
         if started {
             stop_server();
         }
@@ -71,23 +83,28 @@ fn start_local_proxy_blocking<R: Runtime>(
     // stopped, then only launch it once the old conversations are ready for
     // local-proxy mode.
     emit_start_progress(&app, "syncingConversations", 38, Some(0), None);
-    let sync_result = crate::commands::sync_conversation_metadata_if_present_with_progress(
-        &paths.codex_home,
-        &mut |processed, total| {
-            let percent = processed
-                .saturating_mul(50)
-                .checked_div(total)
-                .map(|progress| 38 + progress.min(50) as u8)
-                .unwrap_or(88);
-            emit_start_progress(
-                &app,
-                "syncingConversations",
-                percent,
-                Some(processed),
-                Some(total),
-            );
-        },
-    );
+    let sync_result = if write_codex {
+        crate::commands::sync_conversation_metadata_if_present_with_progress(
+            &paths.codex_home,
+            &mut |processed, total| {
+                let percent = processed
+                    .saturating_mul(50)
+                    .checked_div(total)
+                    .map(|progress| 38 + progress.min(50) as u8)
+                    .unwrap_or(88);
+                emit_start_progress(
+                    &app,
+                    "syncingConversations",
+                    percent,
+                    Some(processed),
+                    Some(total),
+                );
+            },
+        )
+        .map(|_| ())
+    } else {
+        Ok(())
+    };
     let start_result = if client_was_running {
         emit_start_progress(&app, "restartingClient", 92, None, None);
         crate::commands::restart_chatgpt_from_target(&app, launch_target.as_ref())
@@ -136,17 +153,20 @@ fn stop_local_proxy_blocking<R: Runtime>(
         .lock()
         .map_err(|_| "Account switch lock is poisoned".to_string())?;
     let paths = resolve_paths(&app)?;
+    let write_codex = crate::claude_code::should_write_codex_for_app(&app)?;
     let original_state = read_state(&paths);
     let selected_account_id = original_state.active_account_id.clone();
 
     // Validate the selected credential before interrupting the client. The managed
     // copy is loaded again after shutdown so auth.json receives the latest tokens.
-    if let Some(account_id) = selected_account_id.as_deref() {
-        let auth = crate::commands::load_validated_managed_auth(&paths, account_id)?;
-        ensure_proxy_can_stop_with_auth(&auth)?;
+    if write_codex {
+        if let Some(account_id) = selected_account_id.as_deref() {
+            let auth = crate::commands::load_validated_managed_auth(&paths, account_id)?;
+            ensure_proxy_can_stop_with_auth(&auth)?;
+        }
     }
 
-    let client_was_running = crate::commands::chatgpt_or_codex_is_running()?;
+    let client_was_running = write_codex && crate::commands::chatgpt_or_codex_is_running()?;
     let launch_target = client_was_running
         .then(|| crate::commands::refresh_and_get_chatgpt_launch_target(&app))
         .flatten();
@@ -158,7 +178,7 @@ fn stop_local_proxy_blocking<R: Runtime>(
 
     stop_server();
     emit_stop_progress(&app, "restoringConversations", 12, Some(0), None);
-    let conversation_restore_result =
+    let conversation_restore_result = if write_codex {
         crate::commands::restore_conversation_metadata_if_present_with_progress(
             &paths.codex_home,
             &mut |processed, total| {
@@ -175,38 +195,40 @@ fn stop_local_proxy_blocking<R: Runtime>(
                     Some(total),
                 );
             },
-        );
+        )
+        .map(|_| ())
+    } else {
+        Ok(())
+    };
     if let Err(restore_error) = conversation_restore_result {
-        let recovery_errors = recover_proxy_after_failed_stop(
-            &app,
-            &paths,
-            &original_state,
+        let recovery_errors = recover_proxy_after_failed_stop(&app, &paths, ProxyRecoveryOptions {
+            original_state: &original_state,
             client_was_running,
-            launch_target.as_ref(),
-            false,
-        );
+            launch_target: launch_target.as_ref(),
+            restore_proxy_conversations: false,
+        });
         emit_stop_progress(&app, "failed", 88, None, None);
         return Err(stop_cancelled_error(restore_error, recovery_errors));
     }
 
     emit_stop_progress(&app, "restoringConfiguration", 90, None, None);
     let commit_result = (|| -> Result<(), String> {
-        if let Some(account_id) = selected_account_id.as_deref() {
-            crate::commands::write_managed_auth_to_current(&paths, account_id)?;
+        if write_codex {
+            if let Some(account_id) = selected_account_id.as_deref() {
+                crate::commands::write_managed_auth_to_current(&paths, account_id)?;
+            }
+            providers::restore_default_official_config(&paths)?;
         }
-        providers::restore_default_official_config(&paths)?;
         let state = stopped_proxy_state(read_state(&paths));
         write_state(&paths, &state)
     })();
     if let Err(commit_error) = commit_result {
-        let recovery_errors = recover_proxy_after_failed_stop(
-            &app,
-            &paths,
-            &original_state,
+        let recovery_errors = recover_proxy_after_failed_stop(&app, &paths, ProxyRecoveryOptions {
+            original_state: &original_state,
             client_was_running,
-            launch_target.as_ref(),
-            true,
-        );
+            launch_target: launch_target.as_ref(),
+            restore_proxy_conversations: true,
+        });
         emit_stop_progress(&app, "failed", 90, None, None);
         return Err(stop_cancelled_error(commit_error, recovery_errors));
     }
@@ -235,32 +257,45 @@ fn stop_local_proxy_blocking<R: Runtime>(
     }
 }
 
+struct ProxyRecoveryOptions<'a> {
+    original_state: &'a ManagerStateFile,
+    client_was_running: bool,
+    launch_target: Option<&'a crate::commands::ChatGptLaunchTarget>,
+    restore_proxy_conversations: bool,
+}
+
 fn recover_proxy_after_failed_stop<R: Runtime>(
     app: &tauri::AppHandle<R>,
     paths: &Paths,
-    original_state: &ManagerStateFile,
-    client_was_running: bool,
-    launch_target: Option<&crate::commands::ChatGptLaunchTarget>,
-    restore_proxy_conversations: bool,
+    options: ProxyRecoveryOptions<'_>,
 ) -> Vec<String> {
     let mut errors = Vec::new();
-    if restore_proxy_conversations {
+    let write_codex = match crate::claude_code::should_write_codex_for_app(app) {
+        Ok(enabled) => enabled,
+        Err(error) => {
+            errors.push(format!("write target lookup failed: {error}"));
+            false
+        }
+    };
+    if options.restore_proxy_conversations && write_codex {
         if let Err(error) =
             crate::commands::sync_conversation_metadata_if_present(&paths.codex_home)
         {
             errors.push(format!("conversation rollback failed: {error}"));
         }
     }
-    if let Err(error) = write_state(paths, original_state) {
+    if let Err(error) = write_state(paths, options.original_state) {
         errors.push(format!("state rollback failed: {error}"));
     }
     if let Err(error) = start_server(app.clone()) {
         errors.push(format!("proxy restart failed: {error}"));
-    } else if let Err(error) = providers::apply_local_proxy_config_for_state(app) {
-        errors.push(format!("proxy configuration rollback failed: {error}"));
+    } else if write_codex {
+        if let Err(error) = providers::apply_local_proxy_config_for_state(app) {
+            errors.push(format!("proxy configuration rollback failed: {error}"));
+        }
     }
-    if client_was_running {
-        let restart_result = crate::commands::restart_chatgpt_from_target(app, launch_target);
+    if options.client_was_running {
+        let restart_result = crate::commands::restart_chatgpt_from_target(app, options.launch_target);
         if let Err(error) = restart_result {
             errors.push(format!("client restart failed: {error}"));
         }

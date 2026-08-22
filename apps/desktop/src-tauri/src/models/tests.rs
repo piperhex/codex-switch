@@ -62,6 +62,17 @@
     }
 
     #[test]
+    fn app_settings_default_to_writing_codex_only() {
+        let defaults = AppSettings::default();
+        let migrated: AppSettings = serde_json::from_str("{}").unwrap();
+        let all: AppSettings = serde_json::from_str(r#"{"claudeCodeWriteTarget":"all"}"#).unwrap();
+
+        assert_eq!(defaults.claude_code_write_target, ClaudeCodeWriteTarget::Codex);
+        assert_eq!(migrated.claude_code_write_target, ClaudeCodeWriteTarget::Codex);
+        assert_eq!(all.claude_code_write_target, ClaudeCodeWriteTarget::All);
+    }
+
+    #[test]
     fn app_settings_default_gpt_5_6_sol_context_window_is_272k() {
         let defaults = AppSettings::default();
         let migrated: AppSettings = serde_json::from_str("{}").unwrap();

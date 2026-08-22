@@ -38,24 +38,35 @@ pub(crate) fn switch_provider_group_blocking<R: Runtime>(
         validate_provider_activation(provider)?;
     }
     let original_state = read_state(&paths);
-    backup_codex_config_if_needed(
-        &paths,
-        original_state.active_provider_id.is_none()
-            && original_state.active_provider_group.is_none(),
-    )?;
+    let write_codex = crate::claude_code::should_write_codex_for_app(&app)?;
+    if write_codex {
+        backup_codex_config_if_needed(
+            &paths,
+            original_state.active_provider_id.is_none()
+                && original_state.active_provider_group.is_none(),
+        )?;
+    }
     let mut state = original_state.clone();
     state.active_provider_id = None;
     state.active_provider_group = Some(group.clone());
     state.active_account_id = None;
     state.concurrent_account_routing_enabled = false;
     write_state(&paths, &state)?;
-    if let Err(error) = write_provider_group_local_proxy_config(&paths, &group, &providers) {
+    let config_result = if write_codex {
+        write_provider_group_local_proxy_config(&paths, &group, &providers)
+    } else {
+        Ok(())
+    };
+    if let Err(error) = config_result {
         if let Err(rollback_error) = write_state(&paths, &original_state) {
             eprintln!("failed to restore Provider group state: {rollback_error}");
         }
         return Err(error);
     }
-    refresh_codex_group_models_now_best_effort(&paths, &providers);
+    if write_codex {
+        refresh_codex_group_models_now_best_effort(&paths, &providers);
+    }
+    crate::claude_code::sync_after_switch(&app)?;
     emit_providers_changed(&app)
 }
 
@@ -87,24 +98,35 @@ fn activate_provider_profile<R: Runtime>(
 ) -> Result<(), String> {
     validate_provider_activation(provider)?;
     let original_state = read_state(paths);
-    backup_codex_config_if_needed(
-        paths,
-        original_state.active_provider_id.is_none()
-            && original_state.active_provider_group.is_none(),
-    )?;
+    let write_codex = crate::claude_code::should_write_codex_for_app(app)?;
+    if write_codex {
+        backup_codex_config_if_needed(
+            paths,
+            original_state.active_provider_id.is_none()
+                && original_state.active_provider_group.is_none(),
+        )?;
+    }
     let mut state = original_state.clone();
     state.active_provider_id = Some(provider.id.clone());
     state.active_provider_group = None;
     state.active_account_id = None;
     state.concurrent_account_routing_enabled = false;
     write_state(paths, &state)?;
-    if let Err(error) = write_provider_local_proxy_config(paths, provider) {
+    let config_result = if write_codex {
+        write_provider_local_proxy_config(paths, provider)
+    } else {
+        Ok(())
+    };
+    if let Err(error) = config_result {
         if let Err(rollback_error) = write_state(paths, &original_state) {
             eprintln!("failed to restore provider state after activation error: {rollback_error}");
         }
         return Err(error);
     }
-    refresh_codex_models_now_best_effort(paths, provider);
+    if write_codex {
+        refresh_codex_models_now_best_effort(paths, provider);
+    }
+    crate::claude_code::sync_after_switch(app)?;
     emit_providers_changed(app)
 }
 
@@ -116,24 +138,35 @@ pub(crate) fn activate_logical_provider<R: Runtime>(
     ensure_local_proxy_running_for_provider()?;
     ensure_not_local_proxy_base_url(&provider.base_url)?;
     let original_state = read_state(paths);
-    backup_codex_config_if_needed(
-        paths,
-        original_state.active_provider_id.is_none()
-            && original_state.active_provider_group.is_none(),
-    )?;
+    let write_codex = crate::claude_code::should_write_codex_for_app(app)?;
+    if write_codex {
+        backup_codex_config_if_needed(
+            paths,
+            original_state.active_provider_id.is_none()
+                && original_state.active_provider_group.is_none(),
+        )?;
+    }
     let mut state = original_state.clone();
     state.active_provider_id = Some(provider.id.clone());
     state.active_provider_group = None;
     state.active_account_id = None;
     state.concurrent_account_routing_enabled = false;
     write_state(paths, &state)?;
-    if let Err(error) = write_provider_local_proxy_config(paths, provider) {
+    let config_result = if write_codex {
+        write_provider_local_proxy_config(paths, provider)
+    } else {
+        Ok(())
+    };
+    if let Err(error) = config_result {
         if let Err(rollback_error) = write_state(paths, &original_state) {
             eprintln!("failed to restore aggregate API state: {rollback_error}");
         }
         return Err(error);
     }
-    refresh_codex_models_best_effort(paths, provider);
+    if write_codex {
+        refresh_codex_models_best_effort(paths, provider);
+    }
+    crate::claude_code::sync_after_switch(app)?;
     emit_providers_changed(app)
 }
 
@@ -168,13 +201,19 @@ pub(crate) fn switch_provider_model<R: Runtime>(
 
     let state = read_state(&paths);
     let active = state.active_provider_id.as_deref() == Some(&provider.id);
-    if active {
+    let write_codex = crate::claude_code::should_write_codex_for_app(&app)?;
+    if active && write_codex {
         write_active_provider_config(&paths, &provider)?;
         refresh_codex_models_best_effort(&paths, &provider);
-    } else if state.active_provider_group.as_deref() == Some(provider.group.as_str()) {
+    } else if write_codex
+        && state.active_provider_group.as_deref() == Some(provider.group.as_str())
+    {
         let group_providers = provider_group_profiles(&paths, &provider.group)?;
         write_provider_group_local_proxy_config(&paths, &provider.group, &group_providers)?;
         refresh_codex_group_models_best_effort(&paths, &group_providers);
+    }
+    if active || state.active_provider_group.as_deref() == Some(provider.group.as_str()) {
+        crate::claude_code::sync_after_switch(&app)?;
     }
     emit_providers_changed(&app)?;
     Ok(provider_summary(
@@ -198,10 +237,13 @@ pub(crate) fn set_provider_model_control<R: Runtime>(
 
     let state = read_state(&paths);
     let active = state.active_provider_id.as_deref() == Some(&provider.id);
-    if active {
+    let write_codex = crate::claude_code::should_write_codex_for_app(&app)?;
+    if active && write_codex {
         write_active_provider_config(&paths, &provider)?;
         refresh_codex_models_best_effort(&paths, &provider);
-    } else if state.active_provider_group.as_deref() == Some(provider.group.as_str()) {
+    } else if write_codex
+        && state.active_provider_group.as_deref() == Some(provider.group.as_str())
+    {
         let group_providers = provider_group_profiles(&paths, &provider.group)?;
         write_provider_group_local_proxy_config(&paths, &provider.group, &group_providers)?;
         refresh_codex_group_models_best_effort(&paths, &group_providers);
@@ -253,7 +295,10 @@ pub(crate) fn disable_provider_blocking<R: Runtime>(
     let mut state = original_state.clone();
     state.active_provider_id = None;
     state.active_provider_group = None;
-    if crate::local_proxy::is_running() {
+    let write_codex = crate::claude_code::should_write_codex_for_app(&app)?;
+    if !write_codex {
+        write_state(&paths, &state)?;
+    } else if crate::local_proxy::is_running() {
         backup_codex_config_if_needed(
             &paths,
             original_state.active_provider_id.is_none()
@@ -268,7 +313,10 @@ pub(crate) fn disable_provider_blocking<R: Runtime>(
         restore_official_config(&paths)?;
         write_state(&paths, &state)?;
     }
-    refresh_codex_models_for_current_target(&paths);
+    if write_codex {
+        refresh_codex_models_for_current_target(&paths);
+    }
+    crate::claude_code::sync_after_switch(&app)?;
     emit_providers_changed(&app)?;
     Ok(())
 }
@@ -297,7 +345,10 @@ pub(crate) fn delete_provider<R: Runtime>(
         }
         if was_active {
             state.active_provider_id = None;
-            if crate::local_proxy::is_running() {
+            let write_codex = crate::claude_code::should_write_codex_for_app(&app)?;
+            if !write_codex {
+                write_state(&paths, &state)?;
+            } else if crate::local_proxy::is_running() {
                 write_state(&paths, &state)?;
                 if let Err(error) = write_official_local_proxy_config(&paths) {
                     let _ = write_state(&paths, &original_state);
@@ -347,7 +398,10 @@ pub(crate) fn delete_provider<R: Runtime>(
             .map_err(|error| format!("Failed to delete provider field versions: {error}"))?;
     }
     if was_active {
-        refresh_codex_models_for_current_target(&paths);
+        if crate::claude_code::should_write_codex_for_app(&app)? {
+            refresh_codex_models_for_current_target(&paths);
+        }
+        crate::claude_code::sync_after_switch(&app)?;
     }
     emit_providers_changed(&app)?;
     Ok(())

@@ -3,6 +3,14 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
         "get_app_info" => serialize(crate::commands::get_app_info(app)),
         "list_accounts" => serialize(block_on(crate::commands::list_accounts(app))),
         "get_app_settings" => serialize(crate::floating_bubble::get_app_settings(app)),
+        "set_claude_code_write_target" => serialize(block_on(
+            crate::claude_code::set_claude_code_write_target(
+                app,
+                argument(&args, "target")?,
+            ),
+        )),
+        "launch_claude_code" => serialize(block_on(crate::claude_code::launch_claude_code(app))),
+        "restart_claude_code" => serialize(block_on(crate::claude_code::restart_claude_code(app))),
         "set_gpt_5_6_sol_context_window" => serialize(block_on(
             crate::local_proxy::set_gpt_5_6_sol_context_window(
                 app,
