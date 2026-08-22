@@ -1,3 +1,6 @@
+.styleScope { --component-style-scope: 1; }
+
+:global {
   html.totp-window-page,
   html.totp-window-page body,
   html.totp-window-page #root {
@@ -31,3 +34,4 @@
   .totp-window-content { min-height: 0; flex: 1; padding: 10px 22px 22px; overflow-y: auto; }
   .totp-window-shell .toast { max-width: 400px; }
   :root[data-theme="dark"] .totp-window-shell { color: var(--ink); background: #171d19; }
+}

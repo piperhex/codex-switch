@@ -10,7 +10,7 @@ import {
 } from "../../../utils/totp";
 import { decodeQrImage, qrImportErrorMessage } from "../qr";
 import { TotpCameraScanner } from "../TotpCameraScanner";
-import "./index.less";
+import styles from "./index.module.less";
 
 interface TotpFormModalProps {
   entry: TotpEntry | null;
@@ -92,7 +92,7 @@ export function TotpFormModal({ entry, onCancel, onSave, open, t }: TotpFormModa
   };
 
   return (
-    <Modal className="totp-form-modal" open={open} centered width={520}
+    <Modal className={`${styles.styleScope} totp-form-modal`} open={open} centered width={520}
       title={t(entry ? "totp.editTitle" : "totp.addTitle")}
       okText={t("totp.save")} cancelText={t("table.cancel")}
       onOk={() => void save()} onCancel={onCancel}>

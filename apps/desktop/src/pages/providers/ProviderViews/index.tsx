@@ -30,7 +30,7 @@ import {
   type ProviderConnectivityErrors,
   useProviderConnectivity,
 } from "../useProviderConnectivity";
-import "./index.less";
+import styles from "./index.module.less";
 
 interface ProviderViewProps {
   providers: Provider[];
@@ -330,7 +330,7 @@ export function ProviderTableView(options: ProviderTableProps) {
       setBulkDeleteBusy(false);
     }
   };
-  return <div ref={tableWrapRef} className="provider-table-wrap">
+  return <div ref={tableWrapRef} className={`${styles.styleScope} provider-table-wrap`}>
     <div className="provider-table-toolbar">
       <ProviderProxyModeWarning options={options} />
       {options.proxyRunning && (
@@ -466,7 +466,7 @@ export function ProviderCardView(options: ProviderViewProps) {
         <ProviderImageModelControls {...options} />
       </div>
     )}
-    <div className="provider-card-grid">
+    <div className={`${styles.styleScope} provider-card-grid`}>
       {options.providers.map((provider) => (
         <ProviderCard key={provider.id} provider={provider} options={options} />
       ))}

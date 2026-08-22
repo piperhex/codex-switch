@@ -1,3 +1,6 @@
+.styleScope { --component-style-scope: 1; }
+
+:global {
   .totp-qr-import { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
   .totp-qr-import span { max-width: 280px; color: var(--muted); font-size: 11px; line-height: 1.45; }
   .totp-form-modal .ant-alert { max-width: 400px; margin-bottom: 12px; }
@@ -11,3 +14,4 @@
     .totp-form-row { grid-template-columns: 1fr; }
     .totp-form-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
+}

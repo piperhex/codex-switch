@@ -4,7 +4,7 @@ import { Camera } from "lucide-react";
 import type { Translate } from "../../../i18n";
 import { parseOtpAuthUri, type TotpDraft } from "../../../utils/totp";
 import { decodeQrVideoFrame } from "../qr";
-import "./index.less";
+import styles from "./index.module.less";
 
 const CAMERA_SCAN_INTERVAL_MS = 120;
 const CAMERA_CONSTRAINTS: MediaStreamConstraints = {
@@ -114,7 +114,7 @@ export function TotpCameraScanner({ open, onCancel, onImport, t }: TotpCameraSca
     return () => window.cancelAnimationFrame(frameId);
   }, [open, ready, t]);
 
-  return <Modal className="totp-camera-modal" open={open} centered width={560}
+  return <Modal className={`${styles.styleScope} totp-camera-modal`} open={open} centered width={560}
     title={t("totp.cameraTitle")} onCancel={onCancel} destroyOnHidden
     footer={<Button onClick={onCancel}>{t("table.cancel")}</Button>}>
     <div className="totp-camera-view">

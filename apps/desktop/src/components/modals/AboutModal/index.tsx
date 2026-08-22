@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import type { Translate } from "../../../i18n";
 import type { HelpVersionState } from "../HelpModal";
-import "./index.less";
+import styles from "./index.module.less";
 
 interface AboutModalProps {
   logoUrl: string;
@@ -58,7 +58,7 @@ export function AboutModal({
   ];
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className={`${styles.styleScope} modal-backdrop`} onClick={onClose}>
       <section
         className="modal about-modal"
         role="dialog"

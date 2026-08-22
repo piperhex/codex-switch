@@ -61,7 +61,7 @@ import {
 import { AccountNoteModal } from "../../modals/AccountNoteModal";
 import { ResetCreditsPanel } from "../ResetCreditsPanel";
 import { UsageMeter, UsageRefreshAge } from "../UsageMeter";
-import "./index.less";
+import styles from "./index.module.less";
 import {
   AccountNoteEditButton,
   AccountResetCreditCount,
@@ -1007,7 +1007,7 @@ export function AccountTable({
       </div>,
       cardTopbarHost,
     )}
-    <div className="account-card-grid">
+    <div className={`${styles.styleScope} account-card-grid`}>
       {orderedAccounts.map((account) => {
         const waiting = busyAccountId === account.id;
         const isDisabled = isAccountDisabled(account, hotSwitchEnabled);
@@ -1096,7 +1096,7 @@ export function AccountTable({
   </>;
 
   return <>
-    <div ref={tableWrapRef} className="account-table-wrap">
+    <div ref={tableWrapRef} className={`${styles.styleScope} account-table-wrap`}>
       <div className="account-table-toolbar">
         {accountToolbarSummary}
         {concurrentRoutingControl}

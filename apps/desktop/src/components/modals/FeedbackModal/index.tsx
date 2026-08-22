@@ -6,7 +6,7 @@ import {
   MAX_FEEDBACK_IMAGES,
   prepareFeedbackImage,
 } from "../../../utils/feedbackImages";
-import "./index.less";
+import styles from "./index.module.less";
 
 interface PreparedImage {
   id: string;
@@ -100,7 +100,8 @@ export function FeedbackModal({ signedInEmail, onClose, onSubmit, t }: FeedbackM
   };
 
   return (
-    <div className="modal-backdrop feedback-backdrop" role="presentation" onMouseDown={(event) => {
+    <div className={`${styles.styleScope} modal-backdrop feedback-backdrop`}
+      role="presentation" onMouseDown={(event) => {
       if (event.target === event.currentTarget && !submitting && !preparing) onClose();
     }}>
       <form className="modal feedback-modal" role="dialog" aria-modal="true"

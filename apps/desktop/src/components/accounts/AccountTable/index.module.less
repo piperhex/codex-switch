@@ -1,5 +1,8 @@
 /* Account table and card presentation. Selectors stay global while the
  * stylesheet is owned by the AccountTable component. */
+.styleScope { --component-style-scope: 1; }
+
+:global {
   .account-view-topbar { position: relative; padding-right: 16px; padding-left: 17px; }
   .accounts-heading { min-width: 0; }
   .account-display-tabs {
@@ -259,3 +262,4 @@
   :root[data-theme="dark"] .account-table-wrap .ant-table-tbody > tr:hover > td { background: #28332d; }
   :root[data-theme="dark"] .account-table-wrap .ant-table-expanded-row > td { background: #252e29 !important; }
   :root[data-theme="dark"] .account-card-usage section + section { border-color: var(--line); }
+}

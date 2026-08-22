@@ -7,7 +7,7 @@ import { generateTotp, type TotpEntry } from "../../utils/totp";
 import { buildTotpIssuerOptions, filterTotpEntries } from "../totp/filter";
 import { TotpCodeCard } from "../totp/TotpCodeCard";
 import { TotpFormModal } from "../totp/TotpFormModal";
-import "./index.less";
+import styles from "./index.module.less";
 
 interface TotpManagerProps {
   boundEntries?: TotpEntry[];
@@ -74,7 +74,7 @@ export function TotpManager({ boundEntries = [], manager, t }: TotpManagerProps)
 
   return (
     <>
-      <div className="totp-manager-actions">
+      <div className={`${styles.styleScope} totp-manager-actions`}>
         <Button type="primary" icon={<Plus size={14} />} onClick={() => openForm(null)}>
           {t("totp.add")}
         </Button>

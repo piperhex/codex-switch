@@ -13,7 +13,7 @@ import { useTotpEntries } from "../../hooks/useTotpEntries";
 import type { Account } from "../../types";
 import { normalizeTotpSecret, type TotpEntry } from "../../utils/totp";
 import { TotpManager } from "../TotpManager";
-import "./index.less";
+import styles from "./index.module.less";
 
 function toBoundTotpEntries(accounts: Account[]): TotpEntry[] {
   return accounts.flatMap((account) => {
@@ -75,7 +75,7 @@ export function TotpWindow() {
         fontFamily: "\"DM Sans\", \"Microsoft YaHei UI\", sans-serif",
       },
     }}>
-      <main className="totp-window-shell">
+      <main className={`${styles.styleScope} totp-window-shell`}>
         <header className="totp-window-header">
           <span>AUTHENTICATOR</span>
           <h1>{t("totp.title")}</h1>

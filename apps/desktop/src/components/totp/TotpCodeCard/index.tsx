@@ -2,7 +2,7 @@ import { Button, Popconfirm, Progress, Tooltip } from "antd";
 import { Copy, Pencil, Trash2 } from "lucide-react";
 import type { Translate } from "../../../i18n";
 import type { TotpEntry } from "../../../utils/totp";
-import "./index.less";
+import styles from "./index.module.less";
 
 interface TotpCodeCardProps {
   code: string;
@@ -36,7 +36,7 @@ export function TotpCodeCard({
   const elapsed = Math.floor(now / 1000) % entry.period;
   const remaining = entry.period - elapsed;
   return (
-    <article className="totp-code-card">
+    <article className={`${styles.styleScope} totp-code-card`}>
       <div className="totp-code-heading">
         <div><strong>{entry.issuer}</strong><span>{entry.accountName}</span></div>
         {badge ? <span className="totp-code-badge">{badge}</span> : <div className="totp-code-actions">

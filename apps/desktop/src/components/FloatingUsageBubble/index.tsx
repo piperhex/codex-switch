@@ -30,7 +30,7 @@ import { useThemeColor } from "../../hooks/useThemeColor";
 import type { Account, BubbleResetDisplay, BubbleStyle, Provider, UsageSummary } from "../../types";
 import { remainingTone, resetClockTime } from "../../utils/format";
 import { FloatingProviderCard } from "../FloatingProviderCard";
-import "./index.less";
+import styles from "./index.module.less";
 
 function usageColor(remaining: number) {
   const tone = remainingTone(remaining);
@@ -352,7 +352,7 @@ export function FloatingUsageBubble() {
   };
 
   return (
-    <div className="floating-usage-window" onContextMenu={openContextMenu}>
+    <div className={`${styles.styleScope} floating-usage-window`} onContextMenu={openContextMenu}>
       <button
         type="button"
         className={bubbleClassName(Boolean(activeCustomProvider), bubbleStyle === "glass", waterSettling, refreshing)}

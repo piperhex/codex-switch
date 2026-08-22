@@ -14,7 +14,7 @@ import type { SettingsPageProps } from "../settings/types";
 import { UsageSettingsCards } from "../settings/UsageSettingsCards";
 import { TotpSyncSettingsCard } from "../settings/TotpSyncSettingsCard";
 import { NetworkProxySettingsCard } from "../settings/NetworkProxySettings";
-import "./index.less";
+import styles from "./index.module.less";
 
 interface SettingsSectionProps {
   children: ReactNode;
@@ -60,7 +60,7 @@ export function SettingsPage(settings: SettingsPageProps) {
   const [bubbleStyleModalOpen, setBubbleStyleModalOpen] = useState(false);
 
   return (
-    <div className="settings-page">
+    <div className={`${styles.styleScope} settings-page`}>
       <SettingsSection id="settings-appearance"
         title={settings.t("settings.sections.appearance.title")}
         description={settings.t("settings.sections.appearance.description")}>

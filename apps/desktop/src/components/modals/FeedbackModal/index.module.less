@@ -1,3 +1,6 @@
+.styleScope { --component-style-scope: 1; }
+
+:global {
   .feedback-backdrop { z-index: 45; }
   .feedback-modal { width: min(620px, 95vw); max-height: 90vh; overflow-y: auto; }
   .feedback-label { display: block; margin-bottom: 7px; color: #435047; font-size: 12px; font-weight: 700; }
@@ -32,3 +35,4 @@
 
   :root[data-theme="dark"] .feedback-textarea,
   :root[data-theme="dark"] .feedback-contact-field input { border-color: var(--line); color: var(--ink); background: #252e29; }
+}

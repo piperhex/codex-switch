@@ -1,5 +1,8 @@
 /* Provider table, card, and shared cell presentation. Selectors remain global
  * because ProviderViews composes several provider subcomponents. */
+.styleScope { --component-style-scope: 1; }
+
+:global {
   .provider-column-settings {
     width: 190px;
     max-width: 400px;
@@ -291,3 +294,4 @@
     background: #28332d;
   }
   :root[data-theme="dark"] .provider-card-details > div + div { border-color: var(--line); }
+}
