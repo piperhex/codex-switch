@@ -20,14 +20,22 @@ if (existsSync(outputRoot)) {
 }
 
 const nativeSource = readFileSync(
-  join(repositoryRoot, "apps", "desktop", "src-tauri", "src", "dream_skin_native.rs"),
+  join(
+    repositoryRoot,
+    "apps",
+    "desktop",
+    "src-tauri",
+    "src",
+    "dream_skin_native",
+    "types.rs",
+  ),
   "utf8",
 );
 const registry = nativeSource.match(
   /pub\(crate\) const BUILT_IN_THEME_IDS: \[&str; \d+\] = \[(?<body>[\s\S]*?)\n\];/,
 );
 if (!registry?.groups?.body) {
-  throw new Error("Unable to read BUILT_IN_THEME_IDS from dream_skin_native.rs");
+  throw new Error("Unable to read the built-in Dream Skin registry");
 }
 const themeIds = [...registry.groups.body.matchAll(/"([a-z0-9_-]+)"/g)].map(
   (match) => match[1],

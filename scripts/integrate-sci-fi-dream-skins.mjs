@@ -158,7 +158,7 @@ const builtInEntries = themes
 builtIns = `${builtIns.slice(0, builtInInsertAt)}${builtInEntries}${builtIns.slice(builtInInsertAt)}`;
 fs.writeFileSync(builtInsPath, builtIns, "utf8");
 
-const rustPath = path.join(desktop, "src-tauri", "src", "dream_skin_native.rs");
+const rustPath = path.join(desktop, "src-tauri", "src", "dream_skin_native", "types.rs");
 let rust = fs.readFileSync(rustPath, "utf8");
 const arrayPattern = /(?:pub\(crate\) )?const BUILT_IN_THEME_IDS: \[&str; \d+\] = \[(?<body>[\s\S]*?)\n\];/;
 const arrayMatch = rust.match(arrayPattern);

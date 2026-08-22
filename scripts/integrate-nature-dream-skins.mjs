@@ -153,7 +153,7 @@ mutateLatest(builtInsPath, (source) => {
   return `${source.slice(0, insertAt)}${entries}${source.slice(insertAt)}`;
 });
 
-const rustPath = path.join(desktop, "src-tauri", "src", "dream_skin_native.rs");
+const rustPath = path.join(desktop, "src-tauri", "src", "dream_skin_native", "types.rs");
 mutateLatest(rustPath, (source) => {
   const arrayPattern =
     /(?:pub\(crate\) )?const BUILT_IN_THEME_IDS: \[&str; \d+\] = \[(?<body>[\s\S]*?)\n\];/;
