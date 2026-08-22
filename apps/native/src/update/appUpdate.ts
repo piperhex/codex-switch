@@ -2,6 +2,13 @@ import * as Application from 'expo-application';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import appConfig from '../../app.json';
+import {
+  normalizedVersion,
+  parseVersion,
+  versionFromReleaseMetadata,
+} from './version';
+
+export { versionFromReleaseMetadata } from './version';
 
 const RELEASE_API_URL = 'https://api.github.com/repos/piperhex/codex-switch/releases/latest';
 const UPDATE_METADATA_KEY = 'codex-switch.mobile.android-update.v1';
@@ -68,19 +75,6 @@ type DownloadListener = (state: AndroidUpdateDownloadState) => void;
 let downloadState: AndroidUpdateDownloadState = { status: 'idle' };
 let activeDownload: Promise<string> | null = null;
 const downloadListeners = new Set<DownloadListener>();
-
-function normalizedVersion(value: string) {
-  return value.trim().replace(/^v/i, '').split('+', 1)[0];
-}
-
-function parseVersion(value: string) {
-  const match = /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$/.exec(normalizedVersion(value));
-  if (!match) return null;
-  return {
-    core: [Number(match[1]), Number(match[2]), Number(match[3])] as const,
-    prerelease: match[4]?.split('.') ?? [],
-  };
-}
 
 function comparePrerelease(left: string[], right: string[]) {
   if (!left.length && !right.length) return 0;
@@ -152,9 +146,11 @@ export async function checkForAppUpdate(): Promise<AppUpdateCheck> {
 
   const payload = await response.json() as GitHubRelease;
   const tagName = textValue(payload.tag_name);
-  const version = normalizedVersion(tagName);
+  const assets = Array.isArray(payload.assets) ? payload.assets as GitHubReleaseAsset[] : [];
+  const assetNames = assets.map((asset) => asset.name);
+  const version = versionFromReleaseMetadata([tagName, payload.name, ...assetNames]);
   const releaseUrl = textValue(payload.html_url);
-  if (!version || !parseVersion(version) || !releaseUrl) {
+  if (!version || !releaseUrl) {
     throw new Error('最新版本信息格式无效');
   }
 
@@ -165,7 +161,7 @@ export async function checkForAppUpdate(): Promise<AppUpdateCheck> {
     notes: textValue(payload.body),
     publishedAt: textValue(payload.published_at) || null,
     releaseUrl,
-    androidAsset: androidAssetFrom(payload.assets),
+    androidAsset: androidAssetFrom(assets),
   };
   return {
     currentVersion: CURRENT_APP_VERSION,
