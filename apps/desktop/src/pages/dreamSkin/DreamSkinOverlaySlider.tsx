@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Slider } from "antd";
 import type { Translate } from "../../i18n";
+import styles from "./DreamSkinToolbar/index.module.less";
 
 const DEFAULT_OVERLAY_PERCENT = 80;
 
@@ -27,7 +28,7 @@ export function DreamSkinOverlaySlider({ disabled, opacity, onChange, t }: Props
     onChange(nextPercent / 100);
   };
 
-  return <div className="dream-toolbar-overlay" title={t("dreamSkin.overlayOpacity.description")}>
+  return <div className={styles.toolbarOverlay} title={t("dreamSkin.overlayOpacity.description")}>
     <span>{t("dreamSkin.overlayOpacity")}</span>
     <Slider aria-label={t("dreamSkin.overlayOpacity")} min={0} max={100} step={5}
       disabled={disabled} value={percent} tooltip={{ formatter: (value) => `${value ?? percent}%` }}

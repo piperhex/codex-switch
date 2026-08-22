@@ -3,7 +3,7 @@
 .styleScope { --component-style-scope: 1; }
 
 :global {
-  .account-view-topbar { position: relative; padding-right: 16px; padding-left: 17px; }
+  .topbar.account-view-topbar { position: relative; padding: 25px 16px; }
   .accounts-heading { min-width: 0; }
   .account-display-tabs {
     width: max-content;
@@ -19,12 +19,12 @@
     border-radius: 6px;
     background: #edf1ee;
   }
-  /* The proxy-enabled account topbar also contains the token heatmap. Keep
-   * the view switch in the unused upper-left area instead of covering its
-   * latency summary row. */
+  /* Keep the view switch aligned with the table's left edge at the bottom of
+   * the account topbar, matching the original account-page layout. */
   .accounts-topbar .account-display-tabs {
-    top: 4px;
-    bottom: auto;
+    top: auto;
+    bottom: 4px;
+    left: 16px;
   }
   .account-display-tabs button {
     min-width: 20px;
@@ -60,7 +60,7 @@
   .account-topbar-controls > .topbar-actions { min-height: 40px; }
   .account-topbar-controls > .proxy-image-model-fields { justify-content: flex-end; }
   .account-security-actions { display: inline-flex; align-items: center; gap: 10px; }
-  .accounts-topbar { height: 136px; padding: 16px; }
+  .topbar.account-view-topbar.accounts-topbar { height: 136px; padding: 16px; }
   .account-card-toolbar-row {
     min-height: 58px;
     padding: 8px 16px 8px 17px;
