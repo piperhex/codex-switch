@@ -84,6 +84,16 @@
     fn remote_preset_contracts_match_catalog_and_filter_unusable_models() {
         use crate::preset_provider::{inspect_preset_for_test, PresetProviderId};
 
+        for endpoint in [
+            "https://ark.cn-beijing.volces.com/api/plan/v3",
+            "https://ark.cn-beijing.volces.com/api/coding/v3",
+        ] {
+            let volcengine =
+                inspect_preset_for_test(PresetProviderId::Volcengine, endpoint, None).unwrap();
+            assert_eq!(volcengine.0, ProviderApiFormat::OpenaiResponses);
+            assert!(volcengine.1.ends_with("/models"));
+        }
+
         let glm =
             inspect_preset_for_test(PresetProviderId::Glm, "https://api.z.ai/api/paas/v4", None)
                 .unwrap();

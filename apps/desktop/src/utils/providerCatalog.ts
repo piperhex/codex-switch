@@ -29,6 +29,8 @@ export type ProviderEndpointTranslationKey = `providers.catalog.endpoint.${
   | "paygUnitedStates"
   | "standardChina"
   | "standardInternational"
+  | "agentPlanChina"
+  | "codingPlanChina"
   | "europe"
   | "modelArkChina"
   | "bytePlusInternational"}`;
@@ -262,6 +264,28 @@ const MISTRAL_ENDPOINTS = [
 
 const VOLCENGINE_ENDPOINTS = [
   {
+    id: "agentPlanChina",
+    labelKey: "providers.catalog.endpoint.agentPlanChina",
+    baseUrl: "https://ark.cn-beijing.volces.com/api/plan/v3",
+    apiFormat: "openaiResponses",
+    fallbackModels: [
+      "doubao-seed-2-0-code-preview-260215",
+      "doubao-seed-2-0-pro-260215",
+      "doubao-seed-2-0-lite-260215",
+    ],
+  },
+  {
+    id: "codingPlanChina",
+    labelKey: "providers.catalog.endpoint.codingPlanChina",
+    baseUrl: "https://ark.cn-beijing.volces.com/api/coding/v3",
+    apiFormat: "openaiResponses",
+    fallbackModels: [
+      "doubao-seed-2-0-code-preview-260215",
+      "doubao-seed-2-0-pro-260215",
+      "doubao-seed-2-0-lite-260215",
+    ],
+  },
+  {
     id: "china",
     labelKey: "providers.catalog.endpoint.modelArkChina",
     baseUrl: "https://ark.cn-beijing.volces.com/api/v3",
@@ -410,7 +434,7 @@ export const PROVIDER_CATALOG = {
     defaultBaseUrl: VOLCENGINE_ENDPOINTS[0].baseUrl,
     baseUrlEditable: false,
     apiKeyRequired: true,
-    modelsAvailable: false,
+    modelsAvailable: true,
     tag: "official",
     descriptionKey: "providers.catalog.volcengine.description",
     noteKey: "providers.catalog.volcengine.note",

@@ -104,6 +104,8 @@ const GLM_ENDPOINTS: &[&str] = &[
 const MINIMAX_ENDPOINTS: &[&str] = &["https://api.minimaxi.com/v1", "https://api.minimax.io/v1"];
 const MISTRAL_ENDPOINTS: &[&str] = &["https://api.mistral.ai/v1", "https://api.eu.mistral.ai/v1"];
 const VOLCENGINE_ENDPOINTS: &[&str] = &[
+    "https://ark.cn-beijing.volces.com/api/plan/v3",
+    "https://ark.cn-beijing.volces.com/api/coding/v3",
     "https://ark.cn-beijing.volces.com/api/v3",
     "https://ark.ap-southeast.bytepluses.com/api/v3",
 ];
@@ -119,7 +121,7 @@ const PRESET_SPECS: &[PresetSpec] = &[
     preset!(Glm, "GLM", OpenaiChat, GLM_ENDPOINTS, false, true, Unavailable),
     preset!(MiniMax, "MiniMax", OpenaiChat, MINIMAX_ENDPOINTS, false, true, OpenAi),
     preset!(Mistral, "Mistral", OpenaiChat, MISTRAL_ENDPOINTS, false, true, OpenAi),
-    preset!(Volcengine, "Volcengine ModelArk", OpenaiResponses, VOLCENGINE_ENDPOINTS, false, true, Unavailable),
+    preset!(Volcengine, "Volcengine ModelArk", OpenaiResponses, VOLCENGINE_ENDPOINTS, false, true, OpenAi),
 ];
 
 #[tauri::command]
