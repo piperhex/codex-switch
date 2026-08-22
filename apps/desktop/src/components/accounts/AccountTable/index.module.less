@@ -19,6 +19,13 @@
     border-radius: 6px;
     background: #edf1ee;
   }
+  /* The proxy-enabled account topbar also contains the token heatmap. Keep
+   * the view switch in the unused upper-left area instead of covering its
+   * latency summary row. */
+  .accounts-topbar .account-display-tabs {
+    top: 4px;
+    bottom: auto;
+  }
   .account-display-tabs button {
     min-width: 20px;
     height: 20px;
