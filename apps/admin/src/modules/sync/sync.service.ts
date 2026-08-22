@@ -441,6 +441,13 @@ export class SyncService {
     return this.mobileAccountById(ownerId, identity.syncAccountId);
   }
 
+  async accountDetails(ownerId: string, accountId: string) {
+    const account = (await this.loadEffectiveAccountState(ownerId)).accounts
+      .find((candidate) => candidate.id === accountId);
+    if (!account) throw new NotFoundException('Synced account not found');
+    const { codexAccessToken: _token, official, ...details } = this.mobileAccountSummary(account);
+    return { ...details, source: official ? 'system' : 'personal' };
+  }
   async updateAccountDetails(
     ownerId: string,
     accountId: string,
@@ -472,8 +479,14 @@ export class SyncService {
   async listWebSummary(ownerId: string) {
     return {
       accounts: (await this.loadEffectiveAccountState(ownerId)).accounts.map((row) => {
-        const { auth: _auth, privateDetails: _privateDetails, ...account } = row;
-        return account;
+        const {
+          auth: _auth,
+          privateDetails: _privateDetails,
+          official,
+          metadataEditable: _metadataEditable,
+          ...account
+        } = row;
+        return { ...account, source: official ? 'system' : 'personal' };
       }),
     };
   }

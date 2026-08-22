@@ -14,6 +14,12 @@ export interface UsageSummary {
   error?: string | null;
 }
 
+export interface AccountPrivateDetails {
+  password: string;
+  phoneNumber: string;
+  totpSecret: string;
+}
+
 export interface AccountSummary {
   id: string;
   email: string;
@@ -23,6 +29,7 @@ export interface AccountSummary {
   accountId?: string | null;
   active: boolean;
   usage: UsageSummary;
+  privateDetails?: AccountPrivateDetails;
   lastModifiedAt?: string;
   source?: "personal" | "system";
 }
@@ -91,7 +98,37 @@ export interface ResetCreditsSummary {
   credits: ResetCredit[];
 }
 
-export type AppPage = "accounts" | "devices" | "settings";
+export type AppPage = "accounts" | "devices" | "totp" | "settings";
+export type TotpAlgorithm = "SHA1" | "SHA256" | "SHA512";
+
+export interface TotpEntry {
+  id: string;
+  issuer: string;
+  accountName: string;
+  secret: string;
+  algorithm: TotpAlgorithm;
+  digits: 6 | 8;
+  period: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TotpTombstone {
+  id: string;
+  deletedAt: string;
+}
+
+export interface TotpVault {
+  entries: TotpEntry[];
+  tombstones: TotpTombstone[];
+  modifiedAt: string;
+}
+export interface AccountImportResult {
+  accounts: AccountSummary[];
+  importedCount: number;
+  skippedCount: number;
+  skipped: string[];
+}
 
 export type DeviceStatusSocketMessage =
   | { type: "devices-snapshot"; devices: RemoteDevice[] }

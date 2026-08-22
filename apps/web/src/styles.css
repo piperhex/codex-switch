@@ -245,3 +245,43 @@ h1, h2, h3, .brand-lockup { font-family: "Manrope", "PingFang SC", "Microsoft Ya
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+.account-toolbar-actions { display: flex; align-items: center; gap: 14px; }
+.add-account-options { display: grid; gap: 10px; }
+.add-account-options button { display: flex; align-items: center; gap: 13px; width: 100%; min-height: 64px; padding: 13px 15px; border: 1px solid #dce7e1; border-radius: 13px; color: #14765f; background: #fff; text-align: left; cursor: pointer; }
+.add-account-options button:disabled { opacity: .5; cursor: not-allowed; }
+.add-account-options button > span { display: grid; gap: 4px; }
+.add-account-options strong { color: var(--ink); font-size: 12px; }
+.add-account-options small { color: var(--muted); font-size: 10px; }
+.oauth-import-panel { max-width: 400px; text-align: center; }
+.oauth-import-icon { display: grid; place-items: center; width: 48px; height: 48px; margin: 0 auto 12px; border-radius: 15px; color: #0a735c; background: #e2f5ed; }
+.oauth-import-panel h3 { color: var(--ink); font-size: 16px; }
+.oauth-import-panel p { margin: 7px auto 16px; color: var(--muted); font-size: 11px; line-height: 1.6; }
+.oauth-link { display: inline-flex; align-items: center; gap: 6px; color: var(--green); font-size: 11px; font-weight: 700; text-decoration: none; }
+.oauth-code-value { margin: 16px 0 10px; padding: 13px; border: 1px dashed #9bd4c4; border-radius: 11px; color: #0a735c; background: #f2fbf7; font-family: monospace; font-size: 22px; font-weight: 800; letter-spacing: 3px; }
+.account-details-form { --border-inner: none; }
+.secret-input-row { display: flex; align-items: center; gap: 6px; padding-right: 8px; border: 1px solid #d4e0da; border-radius: 9px; }
+.secret-input-row .adm-input { flex: 1; --border-inner: none; }
+.secret-input-row button { display: grid; place-items: center; padding: 5px; border: 0; color: var(--muted); background: transparent; cursor: pointer; }
+
+.totp-heading-actions { display: flex; gap: 8px; }
+.totp-sync-card { display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 17px; border: 1px solid #dce7e1; border-radius: 16px; color: #0a735c; background: #fff; }
+.totp-sync-card > svg { width: 42px; height: 42px; padding: 10px; border-radius: 12px; background: #e2f5ed; }
+.totp-sync-card strong, .totp-sync-card span { display: block; }
+.totp-sync-card strong { color: var(--ink); font-size: 12px; }
+.totp-sync-card span { margin-top: 4px; color: var(--muted); font-size: 9px; }
+.totp-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 15px; }
+.totp-card { padding: 17px; border: 1px solid #dce7e1; border-radius: 16px; background: #fff; box-shadow: 0 8px 28px rgba(35,75,57,.04); }
+.totp-card-header { display: flex; align-items: flex-start; gap: 10px; }
+.totp-card-header > div { min-width: 0; flex: 1; }
+.totp-card-header strong, .totp-card-header span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.totp-card-header strong { color: var(--ink); font-size: 13px; }
+.totp-card-header span { margin-top: 4px; color: var(--muted); font-size: 9px; }
+.totp-card-header button, .totp-card footer button { border: 0; color: var(--muted); background: transparent; cursor: pointer; }
+.totp-code { display: flex; align-items: center; gap: 8px; width: 100%; margin-top: 18px; padding: 0; border: 0; color: #0a735c; background: transparent; font-family: monospace; font-size: 26px; font-weight: 800; letter-spacing: 2px; cursor: pointer; }
+.totp-code svg { margin-left: auto; color: #7b8c84; }
+.totp-progress { overflow: hidden; height: 4px; margin-top: 13px; border-radius: 3px; background: #dce8df; }
+.totp-progress i { display: block; height: 100%; border-radius: inherit; background: var(--green); transition: width .2s linear; }
+.totp-card footer { display: flex; justify-content: space-between; margin-top: 9px; color: var(--muted); font-size: 9px; }
+@media (max-width: 1180px) { .totp-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 860px) { .totp-grid { grid-template-columns: 1fr; }.totp-heading-actions { flex-wrap: wrap; justify-content: flex-end; } }

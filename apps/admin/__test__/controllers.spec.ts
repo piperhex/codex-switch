@@ -12,6 +12,7 @@ import type {
   PersonalAccountEmbeddedOAuthService,
 } from '@/modules/sync/personal-account-embedded-oauth.service';
 import type { PersonalAccountOAuthService } from '@/modules/sync/personal-account-oauth.service';
+import type { PersonalAccountImportService } from '@/modules/sync/personal-account-import.service';
 import type { AuthUser } from '@/common/decorators/user.decorator';
 import { makeAccount, makeProvider } from './fixtures';
 
@@ -81,10 +82,12 @@ describe('HTTP controllers', () => {
       complete: vi.fn().mockResolvedValue('embedded-oauth-completed'),
       poll: vi.fn().mockResolvedValue('embedded-oauth-polled'),
     };
+    const personalAccountImport = { import: vi.fn().mockResolvedValue('accounts-imported') };
     const controller = new SyncController(
       sync as unknown as SyncService,
       personalAccountOAuth as unknown as PersonalAccountOAuthService,
       personalAccountEmbeddedOAuth as unknown as PersonalAccountEmbeddedOAuthService,
+      personalAccountImport as unknown as PersonalAccountImportService,
     );
     const user: AuthUser = { id: 'owner-1', email: 'owner@example.com', role: 'user' };
     const account = makeAccount();

@@ -1,6 +1,7 @@
 import type {
   AccountSummary,
   AuthResponse,
+  AccountImportResult,
   AuthSession,
   DeviceStatusSocketMessage,
   RemoteDevice,
@@ -8,6 +9,7 @@ import type {
   RemoteProviderSummary,
   ResetCreditsSummary,
   UsageSummary,
+  TotpVault,
   UserProfile,
 } from "./types";
 
@@ -225,6 +227,50 @@ export function parseDeviceStatusMessage(value: unknown): DeviceStatusSocketMess
   return null;
 }
 
+export async function startAccountOAuth() {
+  return apiJson<{ sessionId: string; verificationUrl: string; userCode: string; interval: number; expiresIn: number }>(
+    '/sync/accounts/oauth/start',
+    { method: 'POST' },
+  );
+}
+
+export async function pollAccountOAuth(sessionId: string) {
+  return apiJson<{ status: 'pending' | 'complete' | 'failed'; message?: string; account?: AccountSummary }>(
+    `/sync/accounts/oauth/${encodeURIComponent(sessionId)}/poll`,
+    { method: 'POST' },
+  );
+}
+
+export async function importPersonalAccounts(content: string, options: { note?: string; expiresAt?: string } = {}) {
+  return apiJson<AccountImportResult>('/sync/accounts/import', {
+    method: 'POST',
+    body: JSON.stringify({ content, ...options }),
+  });
+}
+export async function fetchAccountDetails(accountId: string) {
+  return apiJson<AccountSummary>(`/sync/accounts/${encodeURIComponent(accountId)}/details`);
+}
+
+export async function updateAccountDetails(accountId: string, details: {
+  note: string;
+  expiresAt: string;
+  privateDetails: { password: string; phoneNumber: string; totpSecret: string };
+}) {
+  return apiJson<AccountSummary>(`/sync/accounts/${encodeURIComponent(accountId)}/details`, {
+    method: 'PATCH',
+    body: JSON.stringify(details),
+  });
+}
+export async function fetchTotpVault() {
+  return apiJson<TotpVault & { modifiedAt: string | null }>('/sync/totp');
+}
+
+export async function putTotpVault(vault: TotpVault) {
+  return apiJson<TotpVault>('/sync/totp', {
+    method: 'PUT',
+    body: JSON.stringify(vault),
+  });
+}
 export async function refreshAccountUsage(accountId: string) {
   return apiJson<UsageSummary>(`/sync/accounts/${encodeURIComponent(accountId)}/usage`);
 }

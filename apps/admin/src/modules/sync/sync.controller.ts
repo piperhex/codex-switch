@@ -24,7 +24,9 @@ import {
 import { PutSyncProvidersDto, SyncProviderDto } from './dto/sync-providers.dto';
 import { PutSyncTotpVaultDto } from './dto/sync-totp.dto';
 import { CompleteAccountOAuthDto } from './dto/complete-account-oauth.dto';
+import { ImportPersonalAccountsDto } from './dto/import-personal-accounts.dto';
 import { PersonalAccountEmbeddedOAuthService } from './personal-account-embedded-oauth.service';
+import { PersonalAccountImportService } from './personal-account-import.service';
 import { PersonalAccountOAuthService } from './personal-account-oauth.service';
 import { SyncService } from './sync.service';
 
@@ -35,6 +37,7 @@ export class SyncController {
     private readonly sync: SyncService,
     private readonly personalAccountOAuth: PersonalAccountOAuthService,
     private readonly personalAccountEmbeddedOAuth: PersonalAccountEmbeddedOAuthService,
+    private readonly personalAccountImport: PersonalAccountImportService,
   ) {}
 
   @Get('accounts')
@@ -108,6 +111,19 @@ export class SyncController {
     return this.personalAccountOAuth.poll(user, sessionId);
   }
 
+  @Post('accounts/import')
+  @Header('Cache-Control', 'no-store')
+  @RequirePermissions(Permission.SelfAccountsWrite)
+  importAccounts(@CurrentUser() user: AuthUser, @Body() dto: ImportPersonalAccountsDto) {
+    return this.personalAccountImport.import(user, dto);
+  }
+
+  @Get('accounts/:id/details')
+  @Header('Cache-Control', 'no-store')
+  @RequirePermissions(Permission.SelfAccountsRead)
+  accountDetails(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.sync.accountDetails(user.id, id);
+  }
   @Patch('accounts/:id/details')
   @Header('Cache-Control', 'no-store')
   @RequirePermissions(Permission.SelfAccountsWrite)

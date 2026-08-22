@@ -622,6 +622,24 @@ export async function changePassword(session: AuthSession, currentPassword: stri
   if (!response.ok) throw new ApiError(await parseError(response), response.status);
 }
 
+export async function importPersonalAccounts(
+  session: AuthSession,
+  content: string,
+  options: { note?: string; expiresAt?: string } = {},
+): Promise<{ accounts: AccountSummary[]; importedCount: number; skippedCount: number; skipped: string[] }> {
+  const response = await authorizedRequest(session, '/sync/accounts/import', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content, ...options }),
+  });
+  if (!response.ok) throw new ApiError(await parseError(response), response.status);
+  return response.json() as Promise<{
+    accounts: AccountSummary[];
+    importedCount: number;
+    skippedCount: number;
+    skipped: string[];
+  }>;
+}
 export async function startAccountOAuth(session: AuthSession): Promise<AccountOAuthStart> {
   const response = await authorizedRequest(session, '/sync/accounts/oauth/start', { method: 'POST' });
   if (!response.ok) throw new ApiError(await parseError(response), response.status);

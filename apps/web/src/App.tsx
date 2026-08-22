@@ -66,7 +66,10 @@ import {
 } from "./store";
 import type { AccountSummary, AppPage, RemoteDevice, ResetCredit, UsageWindow } from "./types";
 import { AdaptiveSheet } from "./components/AdaptiveSheet";
+import { AccountDetailsSheet } from "./components/AccountDetailsSheet";
+import { AddAccountSheet } from "./components/AddAccountSheet";
 import { RemoteModelSwitchSheet } from "./components/RemoteModelSwitchSheet";
+import { TotpPage } from "./components/TotpPage";
 
 const REFRESH_INTERVAL_KEY = "codex-switch.web.refresh-minutes.v1";
 const PULL_REFRESH_TEXT = {
@@ -324,9 +327,12 @@ function AccountsPage() {
   const [detailId, setDetailId] = useState<string | null>(null);
   const [switchId, setSwitchId] = useState<string | null>(null);
   const [creditsId, setCreditsId] = useState<string | null>(null);
+  const [addAccountOpen, setAddAccountOpen] = useState(false);
+  const [editAccountId, setEditAccountId] = useState<string | null>(null);
   const detail = accounts.find((item) => item.id === detailId) ?? null;
   const switchTarget = accounts.find((item) => item.id === switchId) ?? null;
   const creditsTarget = accounts.find((item) => item.id === creditsId) ?? null;
+  const editTarget = accounts.find((item) => item.id === editAccountId) ?? null;
   const onlineDevices = devices.filter((device) => device.online);
   const performRefresh = useCallback(async () => {
     try { await dispatch(refreshAll()).unwrap(); }
@@ -344,16 +350,16 @@ function AccountsPage() {
       <div className="hero-glow" />
     </section>
     <div className="section-toolbar"><div><h2>我的账号</h2><span>{accounts.length} 个已同步账号</span></div>
-      <div className="privacy-toggle"><span>{privateMode ? <EyeOff size={16} /> : <Eye size={16} />} 隐藏信息</span><Switch checked={privateMode} onChange={setPrivateMode} /></div></div>
+      <div className="account-toolbar-actions"><Button size="small" color="primary" onClick={() => setAddAccountOpen(true)}>＋ 添加账户</Button><div className="privacy-toggle"><span>{privateMode ? <EyeOff size={16} /> : <Eye size={16} />} 隐藏信息</span><Switch checked={privateMode} onChange={setPrivateMode} /></div></div></div>
     {loading ? <div className="page-loading"><SpinLoading color="primary" /><span>正在读取账户概览</span></div>
-      : !accounts.length ? <Empty className="page-empty" description="暂无可展示的账号，请先在桌面端同步" />
+      : !accounts.length ? <Empty className="page-empty" description="暂无可展示的账号，请点击“添加账户”" />
         : <div className="account-grid">{accounts.map((account) => <AccountCard key={account.id} account={account} privateMode={privateMode}
           onOpen={() => setDetailId(account.id)} onSwitch={() => setSwitchId(account.id)} />)}</div>}
   </div>;
 
   return <>
     <PullToRefresh onRefresh={performRefresh} renderText={(status) => PULL_REFRESH_TEXT[status]}>{content}</PullToRefresh>
-    <AdaptiveSheet open={Boolean(detail)} title="账号详情" subtitle={detail?.email} onClose={() => setDetailId(null)}>
+    <AdaptiveSheet open={Boolean(detail)} title="账号概览" subtitle={detail?.email} onClose={() => setDetailId(null)}>
       {detail ? <div className="account-detail">
         <div className="detail-identity"><span className="plan-badge">{detail.plan || "ChatGPT"}</span><h3>{detail.email}</h3><p>{detail.source === "system" ? "官方账号池绑定" : "个人同步账号"}</p></div>
         <UsageMeter label="主用量窗口" usage={detail.usage.primary} />
@@ -364,8 +370,11 @@ function AccountsPage() {
           try { await dispatch(refreshOneAccount(detail.id)).unwrap(); Toast.show({ icon: "success", content: "用量已刷新" }); }
           catch { /* Global toast */ }
         }}><RefreshCw size={16} />刷新用量</Button><Button block color="primary" onClick={() => setCreditsId(detail.id)}><Sparkles size={16} />重置卡</Button></div>
+        <Button block fill="outline" onClick={() => { setDetailId(null); setEditAccountId(detail.id); }}>编辑账号信息</Button>
       </div> : null}
     </AdaptiveSheet>
+    <AccountDetailsSheet account={editTarget} onClose={() => setEditAccountId(null)} onUpdated={async () => { await performRefresh(); }} />
+    <AddAccountSheet open={addAccountOpen} onClose={() => setAddAccountOpen(false)} onAdded={performRefresh} />
     <AdaptiveSheet open={Boolean(switchTarget)} title="选择目标设备" subtitle={switchTarget ? `切换到 ${switchTarget.email}` : undefined} onClose={() => setSwitchId(null)}>
       {!onlineDevices.length ? <Empty className="compact-empty" description="当前没有在线 PC 设备" />
         : <div className="select-list">{onlineDevices.map((device) => {
@@ -644,6 +653,7 @@ function SettingsPage() {
 const navItems: Array<{ key: AppPage; label: string; icon: typeof LayoutDashboard }> = [
   { key: "accounts", label: "账号", icon: LayoutDashboard },
   { key: "devices", label: "设备", icon: Laptop },
+  { key: "totp", label: "2FA", icon: ShieldCheck },
   { key: "settings", label: "设置", icon: Settings },
 ];
 
@@ -732,9 +742,9 @@ function AppShell() {
       <Dropdown menu={{ items: userMenu }} trigger={["click"]}><button type="button" className="sidebar-profile"><span>{(profile?.email || session?.email || "U").slice(0, 2).toUpperCase()}</span><div><strong>{profile?.email || session?.email}</strong><small>{profile?.roleName || (profile?.role === "admin" ? "管理员" : "用户")}</small></div><Menu size={17} /></button></Dropdown>
     </aside>
     <div className="content-shell">
-      <header className="desktop-topbar"><div><span>{navItems.find((item) => item.key === page)?.label}</span><strong>{page === "accounts" ? "欢迎回来，今天也保持从容。" : page === "devices" ? "查看并控制你的桌面设备。" : "管理偏好与账户安全。"}</strong></div>
+      <header className="desktop-topbar"><div><span>{navItems.find((item) => item.key === page)?.label}</span><strong>{page === "accounts" ? "欢迎回来，今天也保持从容。" : page === "devices" ? "查看并控制你的桌面设备。" : page === "totp" ? "管理并同步你的 2FA 验证码。" : "管理偏好与账户安全。"}</strong></div>
         <div><Tooltip title="刷新全部数据"><button className="icon-button" type="button" onClick={() => void dispatch(refreshAll())}><RefreshCw size={18} className={refreshing ? "spin" : ""} /></button></Tooltip><span className="topbar-date">{new Intl.DateTimeFormat("zh-CN", { month: "long", day: "numeric", weekday: "short" }).format(new Date())}</span></div></header>
-      <main className="main-content">{page === "accounts" ? <AccountsPage /> : page === "devices" ? <DevicesPage /> : <SettingsPage />}</main>
+      <main className="main-content">{page === "accounts" ? <AccountsPage /> : page === "devices" ? <DevicesPage /> : page === "totp" ? <TotpPage /> : <SettingsPage />}</main>
     </div>
     <div className="mobile-tabbar"><TabBar activeKey={page} onChange={(key) => dispatch(pageChanged(key as AppPage))}>{navItems.map((item) => <TabBar.Item key={item.key} title={item.label} icon={<item.icon size={21} />} badge={item.key === "devices" && onlineCount ? onlineCount : undefined} />)}</TabBar><SafeArea position="bottom" /></div>
   </div>;
