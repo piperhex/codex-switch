@@ -78,7 +78,7 @@ import { useBubbleStyle } from "../../hooks/useBubbleStyle";
 import { useCloudAuth } from "../../hooks/useCloudAuth";
 import { useCloudContent, useCloudContentLifecycle } from "../../hooks/useCloudContent";
 import { useCloseToTray } from "../../hooks/useCloseToTray";
-import { useClaudeCodeIntegration } from "../../hooks/useClaudeCodeIntegration";
+import { useThirdPartyAppIntegration } from "../../hooks/useThirdPartyAppIntegration";
 import { useCcSwitchImport } from "../../hooks/useCcSwitchImport";
 import { useCodexHome } from "../../hooks/useCodexHome";
 import { useLanguage } from "../../hooks/useLanguage";
@@ -95,7 +95,7 @@ import { useUpstream429RetryTimeout } from "../../hooks/useUpstream429RetryTimeo
 import { useToast } from "../../hooks/useToast";
 import { useTotpEntries } from "../../hooks/useTotpEntries";
 import { AccountsPage } from "../../pages/AccountsPage";
-import { ClaudeCodePage } from "../../pages/ClaudeCodePage";
+import { ThirdPartyAppsPage } from "../../pages/ThirdPartyAppsPage";
 import { DreamSkinPage } from "../../pages/DreamSkinPage";
 import { ProvidersPage } from "../../pages/ProvidersPage";
 import { SettingsGroupsNav, SettingsPage } from "../../pages/SettingsPage";
@@ -118,7 +118,7 @@ const LATEST_RELEASE_API_URL = "https://api.github.com/repos/piperhex/codex-swit
 const APP_LOGO_URL = new URL("../../../src-tauri/icons/128x128.png", import.meta.url).href;
 const CUSTOM_TITLEBAR_ENABLED = isDesktopApp && navigator.userAgent.includes("Windows");
 const MemoAccountsPage = memo(AccountsPage);
-const MemoClaudeCodePage = memo(ClaudeCodePage);
+const MemoThirdPartyAppsPage = memo(ThirdPartyAppsPage);
 const MemoDreamSkinPage = memo(DreamSkinPage);
 const MemoProvidersPage = memo(ProvidersPage);
 const MemoSettingsPage = memo(SettingsPage);
@@ -253,7 +253,7 @@ export function DashboardApp() {
   useEffect(() => subscribeToOpenSettings(() => setPage("settings")), []);
   const { message: toast, notify } = useToast();
   const { language, setLanguage, t } = useLanguage();
-  const claudeCodeIntegration = useClaudeCodeIntegration(notify, t);
+  const thirdPartyAppIntegration = useThirdPartyAppIntegration(notify, t);
   const cloud = useCloudAuth(notify, t);
   const totpManager = useTotpEntries({
     cloudAuthenticated: cloud.state.authenticated,
@@ -1287,10 +1287,19 @@ export function DashboardApp() {
             {page === "dreamSkin" && <MemoDreamSkinPage t={t} notify={notify} />}
           </section>
           <section className="page-panel" hidden={page !== "claudeCode"}>
-            {page === "claudeCode" && <MemoClaudeCodePage target={claudeCodeIntegration.target}
-              busy={claudeCodeIntegration.busy} onTargetChange={claudeCodeIntegration.changeTarget}
-              onLaunch={() => void claudeCodeIntegration.launch()}
-              onRestart={() => void claudeCodeIntegration.restart()} t={t} />}
+            {page === "claudeCode" && (
+              <MemoThirdPartyAppsPage
+                settings={thirdPartyAppIntegration.settings}
+                saving={thirdPartyAppIntegration.saving}
+                busy={thirdPartyAppIntegration.busy}
+                onEnabledChange={thirdPartyAppIntegration.changeEnabled}
+                onWriteCodexChange={thirdPartyAppIntegration.changeWriteCodex}
+                onAppChange={thirdPartyAppIntegration.changeApp}
+                onLaunch={() => void thirdPartyAppIntegration.launch()}
+                onRestart={() => void thirdPartyAppIntegration.restart()}
+                t={t}
+              />
+            )}
           </section>
           <section className="page-panel" hidden={page !== "settings"}>
             <MemoSettingsPage info={manager.info} autoRefreshEnabled={autoRefresh.enabled}

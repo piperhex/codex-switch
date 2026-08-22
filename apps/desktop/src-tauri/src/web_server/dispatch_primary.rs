@@ -9,6 +9,12 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
                 argument(&args, "target")?,
             ),
         )),
+        "set_third_party_app_write_settings" => serialize(block_on(
+            crate::third_party_apps::set_third_party_app_write_settings(
+                app,
+                argument(&args, "settings")?,
+            ),
+        )),
         "launch_claude_code" => serialize(block_on(crate::claude_code::launch_claude_code(app))),
         "restart_claude_code" => serialize(block_on(crate::claude_code::restart_claude_code(app))),
         "set_gpt_5_6_sol_context_window" => serialize(block_on(

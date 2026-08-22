@@ -42,6 +42,7 @@ mod skills_market;
 mod storage;
 mod system_proxy;
 mod system_tray;
+mod third_party_apps;
 mod totp_qr;
 mod totp_window;
 mod web_server;
@@ -234,6 +235,7 @@ pub fn run() {
             commands::restart_chatgpt,
             commands::launch_chatgpt,
             claude_code::set_claude_code_write_target,
+            third_party_apps::set_third_party_app_write_settings,
             claude_code::launch_claude_code,
             claude_code::restart_claude_code,
             commands::restore_non_proxy_conversations,

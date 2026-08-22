@@ -14,6 +14,10 @@ import { CLAUDE_CODE_FALLBACK_MODELS } from "../utils/claudeCodeProvider";
 import { GROK_FALLBACK_MODELS } from "../utils/grokProvider";
 import { findProviderPreset } from "../utils/providerCatalog";
 import { normalizeTotpVault, TOTP_STORAGE_KEY, type TotpVault } from "../utils/totp";
+import {
+  normalizeThirdPartyAppWriteSettings,
+  THIRD_PARTY_APP_IDS,
+} from "../utils/thirdPartyApps";
 import type {
   Account,
   AccountDetailsDraft,
@@ -33,6 +37,7 @@ import type {
   CloudNotification,
   CloudSyncResult,
   ClaudeCodeWriteTarget,
+  ThirdPartyAppWriteSettings,
   DeletedCloudProvider,
   CodexThreadBinEntry,
   CodexThreadBundlePreview,
@@ -150,6 +155,7 @@ const BUBBLE_STYLE_PREVIEW_KEY = "codex-switch:bubble-style";
 const THEME_COLOR_PREVIEW_KEY = "codex-switch:theme-color";
 const PROVIDER_GROUPS_PREVIEW_KEY = "codex-switch:provider-groups";
 const CLAUDE_CODE_WRITE_TARGET_PREVIEW_KEY = "codex-switch:claude-code-write-target";
+const THIRD_PARTY_APP_WRITE_PREVIEW_KEY = "codex-switch:third-party-app-write";
 const CLOUD_BASE_URL_PREVIEW_KEY = "codex-switch:cloud-base-url";
 const NETWORK_PROXY_ENABLED_PREVIEW_KEY = "codex-switch:network-proxy-enabled";
 const NETWORK_PROXY_URL_PREVIEW_KEY = "codex-switch:network-proxy-url";
@@ -499,6 +505,7 @@ export async function loadAppSettings(): Promise<AppSettings> {
         proxyPort: Number(window.localStorage.getItem(NETWORK_PROXY_PORT_PREVIEW_KEY)) || null,
       },
       providerGroups: previewProviderGroups(),
+      thirdPartyAppWrite: previewThirdPartyAppWriteSettings(),
       claudeCodeWriteTarget: previewClaudeCodeWriteTarget(),
     };
   }
@@ -510,14 +517,40 @@ function previewClaudeCodeWriteTarget(): ClaudeCodeWriteTarget {
   return value === "all" || value === "claudeCode" ? value : "codex";
 }
 
-export async function updateClaudeCodeWriteTarget(
-  target: ClaudeCodeWriteTarget,
+function previewThirdPartyAppWriteSettings(): ThirdPartyAppWriteSettings {
+  const serialized = window.localStorage.getItem(THIRD_PARTY_APP_WRITE_PREVIEW_KEY);
+  if (!serialized) {
+    return normalizeThirdPartyAppWriteSettings(undefined, previewClaudeCodeWriteTarget());
+  }
+  try {
+    const value: unknown = JSON.parse(serialized);
+    if (!value || typeof value !== "object") return normalizeThirdPartyAppWriteSettings(undefined);
+    const record = value as Record<string, unknown>;
+    const rawApps = record.apps && typeof record.apps === "object"
+      ? record.apps as Record<string, unknown>
+      : {};
+    const apps: Partial<ThirdPartyAppWriteSettings["apps"]> = {};
+    for (const appId of THIRD_PARTY_APP_IDS) {
+      if (typeof rawApps[appId] === "boolean") apps[appId] = rawApps[appId];
+    }
+    return normalizeThirdPartyAppWriteSettings({
+      enabled: typeof record.enabled === "boolean" ? record.enabled : undefined,
+      writeCodex: typeof record.writeCodex === "boolean" ? record.writeCodex : undefined,
+      apps,
+    });
+  } catch {
+    return normalizeThirdPartyAppWriteSettings(undefined, previewClaudeCodeWriteTarget());
+  }
+}
+
+export async function updateThirdPartyAppWriteSettings(
+  settings: ThirdPartyAppWriteSettings,
 ): Promise<AppSettings> {
   if (!hasLocalBackend) {
-    window.localStorage.setItem(CLAUDE_CODE_WRITE_TARGET_PREVIEW_KEY, target);
+    window.localStorage.setItem(THIRD_PARTY_APP_WRITE_PREVIEW_KEY, JSON.stringify(settings));
     return loadAppSettings();
   }
-  return invoke<AppSettings>("set_claude_code_write_target", { target });
+  return invoke<AppSettings>("set_third_party_app_write_settings", { settings });
 }
 
 export async function chooseCodexHome(defaultPath?: string): Promise<string | null> {

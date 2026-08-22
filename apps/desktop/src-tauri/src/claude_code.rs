@@ -5,11 +5,8 @@ use sysinfo::{ProcessesToUpdate, System};
 use tauri::{AppHandle, Runtime};
 
 use crate::{
-    models::{AppSettings, ClaudeCodeWriteTarget, ManagerStateFile, ProviderProfile},
-    storage::{
-        read_app_settings, read_json, read_state, resolve_paths, write_app_settings,
-        write_json_atomic,
-    },
+    models::{AppSettings, ClaudeCodeWriteTarget, ProviderProfile},
+    storage::{read_app_settings, read_json, write_app_settings, write_json_atomic},
 };
 
 const CLAUDE_SETTINGS_FILE: &str = "settings.json";
@@ -27,11 +24,14 @@ pub(crate) async fn set_claude_code_write_target<R: Runtime + 'static>(
     tauri::async_runtime::spawn_blocking(move || {
         let mut settings = read_app_settings(&app)?;
         let previous_target = settings.claude_code_write_target;
+        let previous_third_party = settings.third_party_app_write;
         settings.claude_code_write_target = target;
+        settings.third_party_app_write = Some(target.into());
         write_app_settings(&app, &settings)?;
-        if let Err(error) = sync_current_target(&app) {
+        if let Err(error) = crate::third_party_apps::sync_after_switch(&app) {
             eprintln!("Claude Code configuration sync failed: {error}");
             settings.claude_code_write_target = previous_target;
+            settings.third_party_app_write = previous_third_party;
             write_app_settings(&app, &settings)?;
             return Err(
                 "无法更新 Claude Code 配置，写入目标未更改。请检查配置文件后重试。".to_string(),
@@ -43,62 +43,16 @@ pub(crate) async fn set_claude_code_write_target<R: Runtime + 'static>(
     .map_err(|_| "保存写入目标失败，请重试。".to_string())?
 }
 
-pub(crate) fn should_write_claude(settings: &AppSettings) -> bool {
-    matches!(
-        settings.claude_code_write_target,
-        ClaudeCodeWriteTarget::All | ClaudeCodeWriteTarget::ClaudeCode
-    )
-}
-
-pub(crate) fn should_write_codex(settings: &AppSettings) -> bool {
-    matches!(
-        settings.claude_code_write_target,
-        ClaudeCodeWriteTarget::All | ClaudeCodeWriteTarget::Codex
-    )
-}
-
 pub(crate) fn should_write_codex_for_app<R: Runtime>(app: &AppHandle<R>) -> Result<bool, String> {
-    read_app_settings(app).map(|settings| should_write_codex(&settings))
-}
-
-pub(crate) fn sync_current_target<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
-    let settings = read_app_settings(app)?;
-    if !should_write_claude(&settings) {
-        return Ok(());
-    }
-
-    let paths = resolve_paths(app)?;
-    let state = read_state(&paths);
-    let provider = active_provider(&paths, &state)?;
-    write_settings(provider.as_ref())
+    read_app_settings(app)
+        .map(|settings| crate::third_party_apps::should_write_codex_for_settings(&settings))
 }
 
 pub(crate) fn sync_after_switch<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
-    sync_current_target(app).map_err(|error| {
-        eprintln!("Claude Code configuration sync failed: {error}");
-        "切换已完成，但无法写入 Claude Code 配置。请检查配置文件后重试。".to_string()
+    crate::third_party_apps::sync_after_switch(app).map_err(|error| {
+        eprintln!("Third-party app configuration sync failed: {error}");
+        format!("切换已完成，但无法写入三方 App 配置：{error}")
     })
-}
-
-fn active_provider(
-    paths: &crate::storage::Paths,
-    state: &ManagerStateFile,
-) -> Result<Option<ProviderProfile>, String> {
-    if let Some(id) = state.active_provider_id.as_deref() {
-        if crate::aggregate_api::is_active_id(id) {
-            let config = crate::aggregate_api::read_active_config(paths, id)?;
-            let profiles = crate::aggregate_api::member_profiles(paths, &config)?;
-            return Ok(Some(crate::aggregate_api::logical_profile(
-                &config, &profiles,
-            )?));
-        }
-        return Ok(Some(crate::providers::read_provider(paths, id)?));
-    }
-    if let Some(group) = state.active_provider_group.as_deref() {
-        return crate::providers::provider_group_profiles(paths, group)
-            .map(|providers| providers.into_iter().next());
-    }
-    Ok(None)
 }
 
 fn claude_settings_path() -> Result<PathBuf, String> {
@@ -106,7 +60,7 @@ fn claude_settings_path() -> Result<PathBuf, String> {
     Ok(home.join(".claude").join(CLAUDE_SETTINGS_FILE))
 }
 
-fn write_settings(provider: Option<&ProviderProfile>) -> Result<(), String> {
+pub(crate) fn write_provider_settings(provider: Option<&ProviderProfile>) -> Result<(), String> {
     let path = claude_settings_path()?;
     let mut settings = match read_json(&path) {
         Ok(value) if value.is_object() => value,
@@ -302,15 +256,30 @@ mod tests {
     #[test]
     fn write_targets_enable_only_the_selected_applications() {
         let mut settings = AppSettings::default();
-        assert!(should_write_codex(&settings));
-        assert!(!should_write_claude(&settings));
+        assert!(crate::third_party_apps::should_write_codex_for_settings(
+            &settings
+        ));
+        assert!(!crate::third_party_apps::should_write_app(
+            &settings,
+            crate::third_party_apps::ThirdPartyAppId::ClaudeCode,
+        ));
 
         settings.claude_code_write_target = ClaudeCodeWriteTarget::All;
-        assert!(should_write_codex(&settings));
-        assert!(should_write_claude(&settings));
+        assert!(crate::third_party_apps::should_write_codex_for_settings(
+            &settings
+        ));
+        assert!(crate::third_party_apps::should_write_app(
+            &settings,
+            crate::third_party_apps::ThirdPartyAppId::ClaudeCode,
+        ));
 
         settings.claude_code_write_target = ClaudeCodeWriteTarget::ClaudeCode;
-        assert!(!should_write_codex(&settings));
-        assert!(should_write_claude(&settings));
+        assert!(!crate::third_party_apps::should_write_codex_for_settings(
+            &settings
+        ));
+        assert!(crate::third_party_apps::should_write_app(
+            &settings,
+            crate::third_party_apps::ThirdPartyAppId::ClaudeCode,
+        ));
     }
 }

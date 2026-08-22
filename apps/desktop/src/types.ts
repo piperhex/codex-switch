@@ -425,10 +425,28 @@ export interface AppSettings {
   webProxyListenOnAllInterfaces?: boolean;
   networkProxy?: NetworkProxySettings;
   providerGroups?: string[];
+  thirdPartyAppWrite?: ThirdPartyAppWriteSettings;
   claudeCodeWriteTarget?: ClaudeCodeWriteTarget;
 }
 
 export type ClaudeCodeWriteTarget = "all" | "codex" | "claudeCode";
+
+export type ThirdPartyAppId =
+  | "claudeCode"
+  | "openCode"
+  | "openClaw"
+  | "hermesAgent"
+  | "trae"
+  | "workBuddy"
+  | "zCode"
+  | "deepSeekHarness"
+  | "openViking";
+
+export interface ThirdPartyAppWriteSettings {
+  enabled: boolean;
+  writeCodex: boolean;
+  apps: Record<ThirdPartyAppId, boolean>;
+}
 
 export interface NetworkProxySettings {
   enabled: boolean;

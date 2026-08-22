@@ -73,6 +73,25 @@
     }
 
     #[test]
+    fn third_party_app_write_settings_use_camel_case_and_default_safely() {
+        let defaults = AppSettings::default();
+        let migrated: AppSettings = serde_json::from_str(
+            r#"{"thirdPartyAppWrite":{"enabled":true,"writeCodex":false,"apps":{"openCode":true}}}"#,
+        )
+        .unwrap();
+
+        assert!(defaults.third_party_app_write.is_none());
+        let settings = migrated.third_party_app_write.unwrap();
+        assert!(settings.enabled);
+        assert!(!settings.write_codex);
+        assert!(settings.apps.open_code);
+        assert!(!settings.apps.open_claw);
+        let serialized = serde_json::to_value(settings).unwrap();
+        assert_eq!(serialized["writeCodex"], false);
+        assert_eq!(serialized["apps"]["deepSeekHarness"], false);
+    }
+
+    #[test]
     fn app_settings_default_gpt_5_6_sol_context_window_is_272k() {
         let defaults = AppSettings::default();
         let migrated: AppSettings = serde_json::from_str("{}").unwrap();

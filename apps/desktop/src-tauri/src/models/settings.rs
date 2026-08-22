@@ -59,6 +59,8 @@ pub(crate) struct AppSettings {
     pub(crate) provider_groups: Vec<String>,
     #[serde(default)]
     pub(crate) claude_code_write_target: ClaudeCodeWriteTarget,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) third_party_app_write: Option<ThirdPartyAppWriteSettings>,
     #[serde(default)]
     pub(crate) last_started_version: Option<String>,
 }
@@ -70,6 +72,68 @@ pub(crate) enum ClaudeCodeWriteTarget {
     #[default]
     Codex,
     ClaudeCode,
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ThirdPartyAppWriteTargets {
+    #[serde(default)]
+    pub(crate) claude_code: bool,
+    #[serde(default)]
+    pub(crate) open_code: bool,
+    #[serde(default)]
+    pub(crate) open_claw: bool,
+    #[serde(default)]
+    pub(crate) hermes_agent: bool,
+    #[serde(default)]
+    pub(crate) trae: bool,
+    #[serde(default)]
+    pub(crate) work_buddy: bool,
+    #[serde(default)]
+    pub(crate) z_code: bool,
+    #[serde(default)]
+    pub(crate) deep_seek_harness: bool,
+    #[serde(default)]
+    pub(crate) open_viking: bool,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ThirdPartyAppWriteSettings {
+    #[serde(default)]
+    pub(crate) enabled: bool,
+    #[serde(default = "default_write_codex")]
+    pub(crate) write_codex: bool,
+    #[serde(default)]
+    pub(crate) apps: ThirdPartyAppWriteTargets,
+}
+
+impl Default for ThirdPartyAppWriteSettings {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            write_codex: true,
+            apps: ThirdPartyAppWriteTargets::default(),
+        }
+    }
+}
+
+impl From<ClaudeCodeWriteTarget> for ThirdPartyAppWriteSettings {
+    fn from(target: ClaudeCodeWriteTarget) -> Self {
+        let writes_claude = target != ClaudeCodeWriteTarget::Codex;
+        Self {
+            enabled: writes_claude,
+            write_codex: target != ClaudeCodeWriteTarget::ClaudeCode,
+            apps: ThirdPartyAppWriteTargets {
+                claude_code: writes_claude,
+                ..ThirdPartyAppWriteTargets::default()
+            },
+        }
+    }
+}
+
+fn default_write_codex() -> bool {
+    true
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
@@ -182,6 +246,7 @@ impl Default for AppSettings {
             network_proxy: NetworkProxySettings::default(),
             provider_groups: Vec::new(),
             claude_code_write_target: ClaudeCodeWriteTarget::default(),
+            third_party_app_write: None,
             last_started_version: None,
         }
     }
