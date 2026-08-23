@@ -4,6 +4,7 @@
 
 - After completing the requested changes and verifying them successfully, automatically commit the changes made for the current task and push the current branch to its configured upstream. Do not wait for a separate request to commit or push.
 - Never include unrelated existing changes in the commit. If verification fails, the branch has no configured upstream, or the push is blocked, report the issue instead of bypassing checks or rewriting history.
+- Also include tracked files changed only by line-ending differences rather than leaving them uncommitted.
 
 ## User-Facing Prompts and Copy
 
