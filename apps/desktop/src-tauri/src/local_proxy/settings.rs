@@ -275,6 +275,9 @@ pub(crate) fn set_local_proxy_openai_auth_account_blocking<R: Runtime>(
     if state.local_proxy_openai_auth_account_id == account_id {
         return Ok(status(&app));
     }
+    if let Some(previous_account_id) = state.local_proxy_openai_auth_account_id.as_deref() {
+        providers::preserve_refreshed_proxy_auth(&paths, previous_account_id);
+    }
     state.local_proxy_openai_auth_account_id = account_id;
     write_state(&paths, &state)?;
     let write_codex = crate::claude_code::should_write_codex_for_app(&app)?;
