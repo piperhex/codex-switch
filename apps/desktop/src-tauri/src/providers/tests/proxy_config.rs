@@ -246,7 +246,7 @@
     }
 
     #[test]
-    fn proxy_auth_refresh_is_preserved_before_managed_auth_is_reapplied() {
+    fn refreshed_auth_is_preserved_before_managed_auth_is_reapplied() {
         let paths = test_paths();
         let auth = test_auth();
         let (_, _, _, id) = crate::auth::account_fields(&auth).unwrap();

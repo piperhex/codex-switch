@@ -285,7 +285,7 @@ fn sync_local_proxy_openai_auth_for_state(
     state: &crate::models::ManagerStateFile,
 ) -> Result<(), String> {
     if let Some(account_id) = state.local_proxy_openai_auth_account_id.as_deref() {
-        preserve_refreshed_proxy_auth(paths, account_id);
+        preserve_refreshed_auth(paths, account_id);
         validate_local_proxy_openai_auth_account(paths, Some(account_id))?;
         let auth = read_json(&managed_auth_path(paths, account_id))?;
         write_json_if_changed(&paths.current_auth, &auth)?;
@@ -307,7 +307,7 @@ fn sync_local_proxy_openai_auth_for_state(
 /// proxy/configuration update copies the managed payload back to the live file.
 /// This is intentionally best-effort: a partially written external file must
 /// never make an otherwise valid proxy configuration change fail.
-pub(crate) fn preserve_refreshed_proxy_auth(paths: &Paths, account_id: &str) {
+pub(crate) fn preserve_refreshed_auth(paths: &Paths, account_id: &str) {
     let Ok(mut current_auth) = read_json(&paths.current_auth) else {
         return;
     };
