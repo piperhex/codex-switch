@@ -42,12 +42,41 @@ fn sync_desktop_paths(clear: bool, context_window: u64) -> Result<(), String> {
                 errors.push(format!("{}：{error}", root.display()));
             }
         }
+        #[cfg(windows)]
+        if let Err(error) = sync_windows_login_mode(clear) {
+            errors.push(format!("Windows 登录模式：{error}"));
+        }
         if errors.is_empty() {
             Ok(())
         } else {
             Err(errors.join("；"))
         }
     }
+}
+
+#[cfg(windows)]
+fn sync_windows_login_mode(clear: bool) -> Result<(), String> {
+    let roaming_app_data = env::var_os("APPDATA")
+        .map(PathBuf::from)
+        .or_else(|| dirs::home_dir().map(|home| home.join("AppData").join("Roaming")))
+        .ok_or_else(|| "无法定位 Windows Roaming 配置目录".to_string())?;
+    let root = windows_login_root(&roaming_app_data);
+    let config_path = root.join(CONFIG_FILE);
+    if clear {
+        if config_path.exists() {
+            update_deployment_mode(&config_path, "1p")?;
+        }
+        return Ok(());
+    }
+    if root.is_dir() {
+        update_deployment_mode(&config_path, "3p")?;
+    }
+    Ok(())
+}
+
+#[cfg(any(windows, test))]
+fn windows_login_root(roaming_app_data: &Path) -> PathBuf {
+    roaming_app_data.join("Claude")
 }
 
 #[cfg(not(target_os = "macos"))]
@@ -253,5 +282,11 @@ mod tests {
                 .join("Application Support")
                 .join("Claude-3p")
         );
+    }
+
+    #[test]
+    fn windows_login_root_uses_roaming_app_data() {
+        let roaming = PathBuf::from(r"C:\Users\tester\AppData\Roaming");
+        assert_eq!(windows_login_root(&roaming), roaming.join("Claude"));
     }
 }
