@@ -105,9 +105,6 @@ fn anthropic_to_responses(request: &Value) -> Value {
     if let Some(system) = request.get("system").and_then(anthropic_text) {
         body["instructions"] = Value::String(system);
     }
-    if let Some(max_tokens) = request.get("max_tokens") {
-        body["max_output_tokens"] = max_tokens.clone();
-    }
     if let Some(tools) = request.get("tools").and_then(Value::as_array) {
         body["tools"] = Value::Array(tools.iter().map(anthropic_tool).collect());
     }
@@ -318,7 +315,7 @@ mod anthropic_bridge_tests {
         });
         let converted = anthropic_to_responses(&request);
         assert_eq!(converted["instructions"], "Be concise");
-        assert_eq!(converted["max_output_tokens"], 512);
+        assert!(converted.get("max_output_tokens").is_none());
         assert_eq!(converted["store"], false);
         assert_eq!(converted["input"][0]["content"][0]["text"], "Hello");
     }
