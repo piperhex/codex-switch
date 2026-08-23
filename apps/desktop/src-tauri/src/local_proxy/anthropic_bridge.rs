@@ -127,34 +127,47 @@ fn anthropic_message(message: &Value) -> Value {
         .unwrap_or("user");
     json!({
         "role": role,
-        "content": anthropic_content(message.get("content"))
+        "content": anthropic_content(message.get("content"), role)
     })
 }
 
-fn anthropic_content(content: Option<&Value>) -> Value {
+fn anthropic_content(content: Option<&Value>, role: &str) -> Value {
     if let Some(text) = content.and_then(Value::as_str) {
-        return json!([{ "type": "input_text", "text": text }]);
+        return json!([{ "type": response_text_type(role), "text": text }]);
     }
     Value::Array(
         content
             .and_then(Value::as_array)
-            .map(|items| items.iter().filter_map(anthropic_content_block).collect())
+            .map(|items| {
+                items
+                    .iter()
+                    .filter_map(|item| anthropic_content_block(item, role))
+                    .collect()
+            })
             .unwrap_or_default(),
     )
 }
 
-fn anthropic_content_block(block: &Value) -> Option<Value> {
+fn anthropic_content_block(block: &Value, role: &str) -> Option<Value> {
     match block.get("type").and_then(Value::as_str) {
         Some("text") => block
             .get("text")
             .and_then(Value::as_str)
-            .map(|text| json!({ "type": "input_text", "text": text })),
+            .map(|text| json!({ "type": response_text_type(role), "text": text })),
         Some("tool_result") => Some(json!({
             "type": "function_call_output",
             "call_id": block.get("tool_use_id").cloned().unwrap_or(Value::Null),
             "output": block.get("content").cloned().unwrap_or(Value::Null)
         })),
         _ => None,
+    }
+}
+
+fn response_text_type(role: &str) -> &'static str {
+    if role == "assistant" {
+        "output_text"
+    } else {
+        "input_text"
     }
 }
 
@@ -318,6 +331,13 @@ mod anthropic_bridge_tests {
         assert!(converted.get("max_output_tokens").is_none());
         assert_eq!(converted["store"], false);
         assert_eq!(converted["input"][0]["content"][0]["text"], "Hello");
+        let assistant = json!({
+            "messages": [{ "role": "assistant", "content": "Earlier answer" }]
+        });
+        assert_eq!(
+            anthropic_to_responses(&assistant)["input"][0]["content"][0]["type"],
+            "output_text"
+        );
     }
 
     #[test]
