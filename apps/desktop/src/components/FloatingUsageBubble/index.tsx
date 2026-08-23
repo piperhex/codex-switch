@@ -348,7 +348,7 @@ export function FloatingUsageBubble() {
   const openContextMenu = (event: MouseEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.stopPropagation();
-    void showFloatingBubbleMenu();
+    void showFloatingBubbleMenu({ x: event.clientX, y: event.clientY });
   };
 
   return (

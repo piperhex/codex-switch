@@ -4,12 +4,10 @@ use tauri::{
 };
 
 use crate::{
-    commands,
     models::{
-        AppSettings, BubbleResetDisplay, BubbleStyle, UsageWindow, MAX_TOKEN_USAGE_REFRESH_SECONDS,
+        AppSettings, BubbleResetDisplay, BubbleStyle, MAX_TOKEN_USAGE_REFRESH_SECONDS,
         MAX_TOKEN_USAGE_WEEKS, MIN_TOKEN_USAGE_REFRESH_SECONDS, MIN_TOKEN_USAGE_WEEKS,
     },
-    providers,
     storage::{read_app_settings, write_app_settings},
 };
 
@@ -21,12 +19,6 @@ const GLASS_HEIGHT: f64 = 112.0;
 const EXPANDED_WIDTH: f64 = 304.0;
 const EXPANDED_HEIGHT: f64 = 298.0;
 const SCREEN_MARGIN: f64 = 22.0;
-const MENU_SCREEN_MARGIN: f64 = 8.0;
-const MENU_EMAIL_CHARS: usize = 15;
-const MENU_VERTICAL_ATTACH_RATIO: f64 = 0.58;
-const MENU_ACTION_ROW_COUNT: usize = 5;
-const BUBBLE_SIZE: f64 = 92.0;
-const BUBBLE_EDGE_INSET: f64 = 8.0;
 const HEX_COLOR_LEN: usize = 7;
 
 pub(crate) fn setup<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {

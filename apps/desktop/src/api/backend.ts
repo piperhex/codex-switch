@@ -2153,8 +2153,8 @@ export async function dragFloatingBubble(): Promise<void> {
   if (isDesktopApp) await invoke("drag_floating_bubble");
 }
 
-export async function showFloatingBubbleMenu(): Promise<void> {
-  if (isDesktopApp) await invoke("show_floating_bubble_menu");
+export async function showFloatingBubbleMenu(position: { x: number; y: number }): Promise<void> {
+  if (isDesktopApp) await invoke("show_floating_bubble_menu", { position });
 }
 
 export async function showDashboardFromBubble(): Promise<void> {
