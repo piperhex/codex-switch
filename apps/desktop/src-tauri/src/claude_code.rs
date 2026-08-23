@@ -6,7 +6,7 @@ use tauri::{AppHandle, Runtime};
 
 use crate::{
     codex_config::LOCAL_PROXY_BASE_URL,
-    models::{AppSettings, ClaudeCodeWriteTarget, ProviderProfile},
+    models::{AppSettings, ClaudeCodeWriteTarget, ClaudeSubagentModel, ProviderProfile},
     storage::{read_app_settings, read_json, write_app_settings, write_json_atomic},
 };
 
@@ -22,6 +22,7 @@ const PROXY_MANAGED_TOKEN: &str = "PROXY_MANAGED";
 const CLAUDE_PROXY_HAIKU_MODEL: &str = "claude-haiku-4-5";
 const CLAUDE_PROXY_SONNET_MODEL: &str = "claude-sonnet-4-6";
 const CLAUDE_PROXY_OPUS_MODEL: &str = "claude-opus-4-8";
+const CLAUDE_CODE_SUBAGENT_MODEL: &str = "CLAUDE_CODE_SUBAGENT_MODEL";
 
 #[tauri::command]
 pub(crate) async fn set_claude_code_write_target<R: Runtime + 'static>(
@@ -94,7 +95,9 @@ pub(crate) fn write_provider_settings(provider: Option<&ProviderProfile>) -> Res
 
 /// Writes the local proxy endpoint used when the selected route is an official
 /// account rather than a third-party Provider.
-pub(crate) fn write_official_proxy_settings() -> Result<(), String> {
+pub(crate) fn write_official_proxy_settings(
+    subagent_model: ClaudeSubagentModel,
+) -> Result<(), String> {
     let path = claude_settings_path()?;
     let mut settings = match read_json(&path) {
         Ok(value) if value.is_object() => value,
@@ -110,11 +113,14 @@ pub(crate) fn write_official_proxy_settings() -> Result<(), String> {
         .or_insert_with(|| Value::Object(Map::new()))
         .as_object_mut()
         .ok_or_else(|| "Claude Code settings.json 的 env 必须是 JSON 对象".to_string())?;
-    apply_official_proxy_environment(env);
+    apply_official_proxy_environment(env, subagent_model);
     write_json_atomic(&path, &settings)
 }
 
-fn apply_official_proxy_environment(env: &mut Map<String, Value>) {
+fn apply_official_proxy_environment(
+    env: &mut Map<String, Value>,
+    subagent_model: ClaudeSubagentModel,
+) {
     env.insert(
         ANTHROPIC_BASE_URL.into(),
         Value::String(claude_base_url(LOCAL_PROXY_BASE_URL).to_string()),
@@ -136,6 +142,15 @@ fn apply_official_proxy_environment(env: &mut Map<String, Value>) {
     env.insert(
         ANTHROPIC_AUTH_TOKEN.into(),
         Value::String(PROXY_MANAGED_TOKEN.to_string()),
+    );
+    let subagent_route = match subagent_model {
+        ClaudeSubagentModel::Sol => CLAUDE_PROXY_SONNET_MODEL,
+        ClaudeSubagentModel::Terra => CLAUDE_PROXY_SONNET_MODEL,
+        ClaudeSubagentModel::Luna => CLAUDE_PROXY_HAIKU_MODEL,
+    };
+    env.insert(
+        CLAUDE_CODE_SUBAGENT_MODEL.into(),
+        Value::String(subagent_route.to_string()),
     );
 }
 
@@ -174,6 +189,7 @@ fn clear_provider_environment(env: &mut Map<String, Value>) {
         ANTHROPIC_DEFAULT_HAIKU_MODEL,
         ANTHROPIC_DEFAULT_SONNET_MODEL,
         ANTHROPIC_DEFAULT_OPUS_MODEL,
+        CLAUDE_CODE_SUBAGENT_MODEL,
     ] {
         env.remove(key);
     }
@@ -313,7 +329,7 @@ mod tests {
     fn official_proxy_environment_uses_the_local_proxy_route() {
         let mut env = Map::from_iter([(ANTHROPIC_API_KEY.to_string(), json!("stale"))]);
 
-        apply_official_proxy_environment(&mut env);
+        apply_official_proxy_environment(&mut env, ClaudeSubagentModel::Sol);
 
         assert_eq!(
             env.get(ANTHROPIC_BASE_URL),
@@ -334,6 +350,10 @@ mod tests {
         );
         assert_eq!(env.get(ANTHROPIC_AUTH_TOKEN), Some(&json!("PROXY_MANAGED")));
         assert!(!env.contains_key(ANTHROPIC_API_KEY));
+        assert_eq!(
+            env.get(CLAUDE_CODE_SUBAGENT_MODEL),
+            Some(&json!("claude-sonnet-4-6"))
+        );
     }
 
     #[test]

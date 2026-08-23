@@ -33,6 +33,7 @@ describe("third-party app write settings", () => {
     expect(settings.apps.openCode).toBe(true);
     expect(settings.apps.openClaw).toBe(true);
     expect(settings.apps.claudeCode).toBe(false);
+    expect(settings.claudeSubagentModel).toBe("sol");
     expect(settings.apps.openViking).toBe(false);
   });
 });

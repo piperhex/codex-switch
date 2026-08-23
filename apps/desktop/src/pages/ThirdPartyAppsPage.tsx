@@ -1,7 +1,11 @@
-import { Button, Card, Space, Switch, Typography } from "antd";
+import { Button, Card, Select, Space, Switch, Typography } from "antd";
 import { Bot, Play, RefreshCw, SquareTerminal } from "lucide-react";
 import type { Translate, TranslationKey } from "../i18n";
-import type { ThirdPartyAppId, ThirdPartyAppWriteSettings } from "../types";
+import type {
+  ClaudeSubagentModel,
+  ThirdPartyAppId,
+  ThirdPartyAppWriteSettings,
+} from "../types";
 
 const THIRD_PARTY_APPS: ReadonlyArray<{
   id: ThirdPartyAppId;
@@ -25,6 +29,7 @@ interface ThirdPartyAppsPageProps {
   onEnabledChange: (enabled: boolean) => void;
   onWriteCodexChange: (enabled: boolean) => void;
   onAppChange: (appId: ThirdPartyAppId, enabled: boolean) => void;
+  onSubagentModelChange: (model: ClaudeSubagentModel) => void;
   onLaunch: () => void;
   onRestart: () => void;
   t: Translate;
@@ -75,7 +80,7 @@ function AppRow(props: AppRowProps) {
 export function ThirdPartyAppsPage(props: ThirdPartyAppsPageProps) {
   const {
     settings, saving, busy, onEnabledChange, onWriteCodexChange,
-    onAppChange, onLaunch, onRestart, t,
+    onAppChange, onSubagentModelChange, onLaunch, onRestart, t,
   } = props;
   return (
     <div className="third-party-apps-page">
@@ -103,6 +108,25 @@ export function ThirdPartyAppsPage(props: ThirdPartyAppsPageProps) {
             </div>
             <Switch checked={settings.writeCodex} disabled={saving} onChange={onWriteCodexChange}
               aria-label={t("thirdPartyApps.writeCodex")} />
+          </div>
+          <div className="third-party-apps-master-item">
+            <div>
+              <Typography.Text strong>{t("thirdPartyApps.subagentModel")}</Typography.Text>
+              <Typography.Paragraph type="secondary">
+                {t("thirdPartyApps.subagentModelHint")}
+              </Typography.Paragraph>
+            </div>
+            <Select<ClaudeSubagentModel>
+              value={settings.claudeSubagentModel}
+              disabled={saving}
+              onChange={onSubagentModelChange}
+              options={[
+                { value: "sol", label: "GPT-5.6 Sol" },
+                { value: "terra", label: "GPT-5.6 Terra" },
+                { value: "luna", label: "GPT-5.6 Luna" },
+              ]}
+              style={{ width: 160 }}
+            />
           </div>
         </div>
         <div className="third-party-apps-list-heading">

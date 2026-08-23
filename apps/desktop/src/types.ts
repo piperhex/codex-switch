@@ -446,7 +446,10 @@ export interface ThirdPartyAppWriteSettings {
   enabled: boolean;
   writeCodex: boolean;
   apps: Record<ThirdPartyAppId, boolean>;
+  claudeSubagentModel: ClaudeSubagentModel;
 }
+
+export type ClaudeSubagentModel = "sol" | "terra" | "luna";
 
 export interface NetworkProxySettings {
   enabled: boolean;

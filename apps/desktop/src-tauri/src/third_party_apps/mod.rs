@@ -122,7 +122,9 @@ pub(crate) fn sync_after_switch<R: Runtime>(app: &AppHandle<R>) -> Result<(), St
             {
                 errors.push(format!("Claude Desktop：{error}"));
             }
-            claude_code::write_official_proxy_settings()
+            claude_code::write_official_proxy_settings(
+                effective_settings(&settings).claude_subagent_model,
+            )
         } else {
             if let Err(error) = crate::claude_desktop::clear_proxy_settings() {
                 errors.push(format!("Claude Desktop：{error}"));

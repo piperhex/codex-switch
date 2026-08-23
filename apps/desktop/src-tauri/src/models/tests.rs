@@ -86,9 +86,15 @@
         assert!(!settings.write_codex);
         assert!(settings.apps.open_code);
         assert!(!settings.apps.open_claw);
+        assert_eq!(settings.claude_subagent_model, ClaudeSubagentModel::Sol);
         let serialized = serde_json::to_value(settings).unwrap();
         assert_eq!(serialized["writeCodex"], false);
         assert_eq!(serialized["apps"]["deepSeekHarness"], false);
+        let terra: ThirdPartyAppWriteSettings = serde_json::from_str(
+            r#"{"claudeSubagentModel":"terra"}"#,
+        )
+        .unwrap();
+        assert_eq!(terra.claude_subagent_model, ClaudeSubagentModel::Terra);
     }
 
     #[test]

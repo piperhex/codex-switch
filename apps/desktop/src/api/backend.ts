@@ -536,6 +536,8 @@ function previewThirdPartyAppWriteSettings(): ThirdPartyAppWriteSettings {
     return normalizeThirdPartyAppWriteSettings({
       enabled: typeof record.enabled === "boolean" ? record.enabled : undefined,
       writeCodex: typeof record.writeCodex === "boolean" ? record.writeCodex : undefined,
+      claudeSubagentModel: record.claudeSubagentModel === "luna"
+        || record.claudeSubagentModel === "terra" ? record.claudeSubagentModel : "sol",
       apps,
     });
   } catch {

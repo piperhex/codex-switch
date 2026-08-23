@@ -1295,6 +1295,7 @@ export function DashboardApp() {
                 onEnabledChange={thirdPartyAppIntegration.changeEnabled}
                 onWriteCodexChange={thirdPartyAppIntegration.changeWriteCodex}
                 onAppChange={thirdPartyAppIntegration.changeApp}
+                onSubagentModelChange={thirdPartyAppIntegration.changeSubagentModel}
                 onLaunch={() => void thirdPartyAppIntegration.launch()}
                 onRestart={() => void thirdPartyAppIntegration.restart()}
                 t={t}

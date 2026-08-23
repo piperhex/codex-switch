@@ -43,7 +43,10 @@ fn forward_anthropic_official<R: tauri::Runtime>(
         .get("model")
         .and_then(Value::as_str)
         .unwrap_or("claude");
-    let responses_body = anthropic_to_responses(&request);
+    let app_settings = read_app_settings(app)?;
+    let subagent_model = crate::third_party_apps::effective_settings(&app_settings)
+        .claude_subagent_model;
+    let responses_body = anthropic_to_responses(&request, subagent_model);
     let encoded = serde_json::to_vec(&responses_body)
         .map_err(|error| format!("Failed to encode Anthropic request: {error}"))?;
     let mut payload = send_official_request(
@@ -96,156 +99,20 @@ fn read_payload_body(payload: &mut UpstreamPayload) -> Result<Vec<u8>, String> {
     }
 }
 
-fn anthropic_to_responses(request: &Value) -> Value {
-    let mut body = json!({
-        "model": crate::providers::DEFAULT_OFFICIAL_MODEL,
-        "input": anthropic_messages(request.get("messages")),
-        // ChatGPT Codex's OAuth Responses endpoint only accepts streamed
-        // requests. Non-streaming Claude probes are assembled back into a
-        // normal Anthropic response after the upstream stream completes.
-        "stream": true,
-        "store": false
-    });
-    if let Some(system) = request.get("system").and_then(anthropic_text) {
-        body["instructions"] = Value::String(system);
-    }
-    if let Some(tools) = request.get("tools").and_then(Value::as_array) {
-        body["tools"] = Value::Array(tools.iter().map(anthropic_tool).collect());
-    }
-    body
-}
 
-fn anthropic_messages(messages: Option<&Value>) -> Value {
-    let mut converted = Vec::new();
-    for message in messages.and_then(Value::as_array).into_iter().flatten() {
-        let Some(blocks) = message.get("content").and_then(Value::as_array) else {
-            converted.push(anthropic_message(message));
-            continue;
-        };
-        let role = message.get("role").and_then(Value::as_str).unwrap_or("user");
-        let mut regular_blocks = Vec::new();
-        for block in blocks {
-            let block_type = block.get("type").and_then(Value::as_str);
-            if block_type == Some("tool_result") {
-                if !regular_blocks.is_empty() {
-                    converted.push(json!({
-                        "role": role,
-                        "content": std::mem::take(&mut regular_blocks)
-                    }));
-                }
-                converted.push(anthropic_tool_result(block));
-            } else if block_type == Some("tool_use") {
-                if !regular_blocks.is_empty() {
-                    converted.push(json!({
-                        "role": role,
-                        "content": std::mem::take(&mut regular_blocks)
-                    }));
-                }
-                converted.push(anthropic_tool_call(block));
-            } else if let Some(converted_block) = anthropic_content_block(block, role) {
-                regular_blocks.push(converted_block);
-            }
-        }
-        if !regular_blocks.is_empty() {
-            converted.push(json!({ "role": role, "content": regular_blocks }));
-        }
-    }
-    Value::Array(converted)
-}
 
-fn anthropic_message(message: &Value) -> Value {
-    let role = message
-        .get("role")
-        .and_then(Value::as_str)
-        .unwrap_or("user");
-    json!({
-        "role": role,
-        "content": anthropic_content(message.get("content"), role)
-    })
-}
 
-fn anthropic_content(content: Option<&Value>, role: &str) -> Value {
-    if let Some(text) = content.and_then(Value::as_str) {
-        return json!([{ "type": response_text_type(role), "text": text }]);
-    }
-    Value::Array(
-        content
-            .and_then(Value::as_array)
-            .map(|items| {
-                items
-                    .iter()
-                    .filter_map(|item| anthropic_content_block(item, role))
-                    .collect()
-            })
-            .unwrap_or_default(),
-    )
-}
 
-fn anthropic_content_block(block: &Value, role: &str) -> Option<Value> {
-    match block.get("type").and_then(Value::as_str) {
-        Some("text") => block
-            .get("text")
-            .and_then(Value::as_str)
-            .map(|text| json!({ "type": response_text_type(role), "text": text })),
-        Some("image") if role != "assistant" => anthropic_image_block(block),
-        Some("tool_result") => None,
-        _ => None,
-    }
-}
 
-fn anthropic_image_block(block: &Value) -> Option<Value> {
-    let source = block.get("source")?;
-    match source.get("type").and_then(Value::as_str) {
-        Some("base64") => {
-            let media_type = source.get("media_type").and_then(Value::as_str)?;
-            let data = source.get("data").and_then(Value::as_str)?;
-            Some(json!({
-                "type": "input_image",
-                "image_url": format!("data:{media_type};base64,{data}")
-            }))
-        }
-        Some("url") => source
-            .get("url")
-            .and_then(Value::as_str)
-            .map(|url| json!({ "type": "input_image", "image_url": url })),
-        _ => None,
-    }
-}
 
-fn anthropic_tool_result(block: &Value) -> Value {
-    json!({
-            "type": "function_call_output",
-            "call_id": block.get("tool_use_id").cloned().unwrap_or(Value::Null),
-            "output": block.get("content").cloned().unwrap_or(Value::Null)
-    })
-}
 
-fn anthropic_tool_call(block: &Value) -> Value {
-    let arguments = block.get("input").cloned().unwrap_or_else(|| json!({}));
-    json!({
-        "type": "function_call",
-        "call_id": block.get("id").cloned().unwrap_or(Value::Null),
-        "name": block.get("name").cloned().unwrap_or(Value::Null),
-        "arguments": arguments.to_string()
-    })
-}
 
-fn response_text_type(role: &str) -> &'static str {
-    if role == "assistant" {
-        "output_text"
-    } else {
-        "input_text"
-    }
-}
 
-fn anthropic_tool(tool: &Value) -> Value {
-    json!({
-        "type": "function",
-        "name": tool.get("name").cloned().unwrap_or(Value::Null),
-        "description": tool.get("description").cloned().unwrap_or(Value::Null),
-        "parameters": tool.get("input_schema").cloned().unwrap_or_else(|| json!({}))
-    })
-}
+
+
+
+
+
 
 fn responses_to_anthropic(response: &Value, model: &str) -> Value {
     let mut text = String::new();
@@ -505,13 +372,17 @@ fn push_anthropic_sse(output: &mut String, event: &str, value: Value) {
 mod anthropic_bridge_tests {
     use super::*;
 
+    fn convert(request: &Value) -> Value {
+        anthropic_to_responses(request, crate::models::ClaudeSubagentModel::Sol)
+    }
+
     #[test]
     fn converts_anthropic_messages_to_responses() {
         let request = json!({
             "model": "claude-sonnet", "max_tokens": 512, "system": "Be concise",
             "messages": [{ "role": "user", "content": "Hello" }]
         });
-        let converted = anthropic_to_responses(&request);
+        let converted = convert(&request);
         assert_eq!(converted["instructions"], "Be concise");
         assert!(converted.get("max_output_tokens").is_none());
         assert_eq!(converted["store"], false);
@@ -521,7 +392,7 @@ mod anthropic_bridge_tests {
             "messages": [{ "role": "assistant", "content": "Earlier answer" }]
         });
         assert_eq!(
-            anthropic_to_responses(&assistant)["input"][0]["content"][0]["type"],
+            convert(&assistant)["input"][0]["content"][0]["type"],
             "output_text"
         );
         let tool_result = json!({
@@ -531,7 +402,7 @@ mod anthropic_bridge_tests {
             }]
         });
         assert_eq!(
-            anthropic_to_responses(&tool_result)["input"][0]["type"],
+            convert(&tool_result)["input"][0]["type"],
             "function_call_output"
         );
         let tool_turn = json!({
@@ -544,12 +415,34 @@ mod anthropic_bridge_tests {
                 }]}
             ]
         });
-        let tool_responses = anthropic_to_responses(&tool_turn);
+        let tool_responses = convert(&tool_turn);
         let tool_input = tool_responses["input"]
             .as_array()
             .expect("tool input");
         assert_eq!(tool_input[0]["type"], "function_call");
         assert_eq!(tool_input[1]["type"], "function_call_output");
+        let structured_result = json!({
+            "messages": [{
+                "role": "user",
+                "content": [{
+                    "type": "tool_result",
+                    "tool_use_id": "call-2",
+                    "content": [{ "type": "text", "text": "completed" }]
+                }]
+            }]
+        });
+        assert_eq!(
+            convert(&structured_result)["input"][0]["output"][0]["type"],
+            "input_text"
+        );
+        assert_eq!(
+            convert(&json!({ "model": "claude-haiku-4-5" }))["model"],
+            "gpt-5.6-luna"
+        );
+        assert_eq!(
+            convert(&json!({ "model": "claude-opus-5" }))["model"],
+            "gpt-5.6-sol"
+        );
         let image = json!({
             "messages": [{
                 "role": "user",
@@ -560,8 +453,19 @@ mod anthropic_bridge_tests {
             }]
         });
         assert_eq!(
-            anthropic_to_responses(&image)["input"][0]["content"][0]["type"],
+            convert(&image)["input"][0]["content"][0]["type"],
             "input_image"
+        );
+        let subagent = json!({
+            "model": "claude-sonnet-5",
+            "metadata": { "user_id": "session_agent_worker" }
+        });
+        assert_eq!(
+            anthropic_to_responses(
+                &subagent,
+                crate::models::ClaudeSubagentModel::Terra,
+            )["model"],
+            "gpt-5.6-terra"
         );
     }
 

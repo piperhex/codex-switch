@@ -1,4 +1,5 @@
 import type {
+  ClaudeSubagentModel,
   ClaudeCodeWriteTarget,
   ThirdPartyAppId,
   ThirdPartyAppWriteSettings,
@@ -20,6 +21,7 @@ interface ThirdPartyAppWriteSettingsInput {
   enabled?: boolean;
   writeCodex?: boolean;
   apps?: Partial<Record<ThirdPartyAppId, boolean>>;
+  claudeSubagentModel?: ClaudeSubagentModel;
 }
 
 export function createThirdPartyAppSelection(
@@ -43,6 +45,7 @@ export function defaultThirdPartyAppWriteSettings(): ThirdPartyAppWriteSettings 
     enabled: false,
     writeCodex: true,
     apps: createThirdPartyAppSelection(),
+    claudeSubagentModel: "sol",
   };
 }
 
@@ -54,6 +57,7 @@ export function settingsFromLegacyTarget(
     enabled: writesClaudeCode,
     writeCodex: target !== "claudeCode",
     apps: createThirdPartyAppSelection(writesClaudeCode),
+    claudeSubagentModel: "sol",
   };
 }
 
@@ -71,5 +75,6 @@ export function normalizeThirdPartyAppWriteSettings(
     enabled: settings.enabled ?? fallback.enabled,
     writeCodex: settings.writeCodex ?? fallback.writeCodex,
     apps,
+    claudeSubagentModel: settings.claudeSubagentModel ?? fallback.claudeSubagentModel,
   };
 }

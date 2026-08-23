@@ -106,6 +106,17 @@ pub(crate) struct ThirdPartyAppWriteSettings {
     pub(crate) write_codex: bool,
     #[serde(default)]
     pub(crate) apps: ThirdPartyAppWriteTargets,
+    #[serde(default)]
+    pub(crate) claude_subagent_model: ClaudeSubagentModel,
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) enum ClaudeSubagentModel {
+    #[default]
+    Sol,
+    Terra,
+    Luna,
 }
 
 impl Default for ThirdPartyAppWriteSettings {
@@ -114,6 +125,7 @@ impl Default for ThirdPartyAppWriteSettings {
             enabled: false,
             write_codex: true,
             apps: ThirdPartyAppWriteTargets::default(),
+            claude_subagent_model: ClaudeSubagentModel::default(),
         }
     }
 }
@@ -128,6 +140,7 @@ impl From<ClaudeCodeWriteTarget> for ThirdPartyAppWriteSettings {
                 claude_code: writes_claude,
                 ..ThirdPartyAppWriteTargets::default()
             },
+            claude_subagent_model: ClaudeSubagentModel::default(),
         }
     }
 }

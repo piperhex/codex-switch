@@ -6,7 +6,11 @@ import {
   updateThirdPartyAppWriteSettings,
 } from "../api/backend";
 import type { Translate } from "../i18n";
-import type { ThirdPartyAppId, ThirdPartyAppWriteSettings } from "../types";
+import type {
+  ClaudeSubagentModel,
+  ThirdPartyAppId,
+  ThirdPartyAppWriteSettings,
+} from "../types";
 import {
   defaultThirdPartyAppWriteSettings,
   normalizeThirdPartyAppWriteSettings,
@@ -57,6 +61,10 @@ export function useThirdPartyAppIntegration(
     save({ ...settings, apps: { ...settings.apps, [appId]: enabled } })
   ), [save, settings]);
 
+  const changeSubagentModel = useCallback((claudeSubagentModel: ClaudeSubagentModel) => (
+    save({ ...settings, claudeSubagentModel })
+  ), [save, settings]);
+
   const launch = useCallback(async () => {
     setBusy("launch");
     try {
@@ -85,6 +93,7 @@ export function useThirdPartyAppIntegration(
     busy,
     changeApp,
     changeEnabled,
+    changeSubagentModel,
     changeWriteCodex,
     launch,
     restart,
