@@ -278,6 +278,26 @@ fn handle_proxy_request<R: Runtime>(
         );
         return result;
     }
+    if *method == Method::Post && is_anthropic_count_tokens_endpoint(path) {
+        let result = Ok(json_payload(
+            200,
+            json!({ "input_tokens": body.len().saturating_div(4) }),
+        ));
+        append_proxy_diagnostic_result(
+            app,
+            proxy_diagnostic_entry(
+                method,
+                url,
+                headers,
+                &body,
+                None,
+                ProxyDiagnosticRoute::LocalHealth,
+            ),
+            &result,
+            started_at.elapsed(),
+        );
+        return result;
+    }
     if *method == Method::Get && matches!(path, "/usage" | "/v1/usage") {
         return current_usage_payload(app);
     }

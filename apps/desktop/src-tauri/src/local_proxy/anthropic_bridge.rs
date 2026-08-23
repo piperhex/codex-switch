@@ -6,9 +6,18 @@ const ANTHROPIC_MESSAGES_PATHS: [&str; 6] = [
     "/claude-desktop/v1/messages",
     "/claude-desktop/v1/v1/messages",
 ];
+const ANTHROPIC_COUNT_TOKENS_PATHS: [&str; 3] = [
+    "/claude-desktop/v1/messages/count_tokens",
+    "/claude-desktop/messages/count_tokens",
+    "/v1/messages/count_tokens",
+];
 
 fn is_anthropic_messages_endpoint(path: &str) -> bool {
     ANTHROPIC_MESSAGES_PATHS.contains(&path)
+}
+
+fn is_anthropic_count_tokens_endpoint(path: &str) -> bool {
+    ANTHROPIC_COUNT_TOKENS_PATHS.contains(&path)
 }
 
 fn forward_anthropic_official<R: tauri::Runtime>(
@@ -40,7 +49,7 @@ fn forward_anthropic_official<R: tauri::Runtime>(
     let mut payload = send_official_request(
         &client,
         &Method::Post,
-        "/v1/responses",
+        &official_url("/v1/responses"),
         // Claude Desktop sends Anthropic-specific headers that are not valid
         // Codex headers. The official route supplies its own authentication
         // and client identity; forwarding this request header set can make
