@@ -8,6 +8,7 @@ mod autostart;
 mod ccs_import;
 mod claude_code;
 mod claude_code_provider;
+mod claude_desktop;
 mod cloud;
 mod codex_api;
 mod codex_config;

@@ -1,4 +1,11 @@
-const ANTHROPIC_MESSAGES_PATHS: [&str; 3] = ["/messages", "/v1/messages", "/v1/v1/messages"];
+const ANTHROPIC_MESSAGES_PATHS: [&str; 6] = [
+    "/messages",
+    "/v1/messages",
+    "/v1/v1/messages",
+    "/claude-desktop/messages",
+    "/claude-desktop/v1/messages",
+    "/claude-desktop/v1/v1/messages",
+];
 
 fn is_anthropic_messages_endpoint(path: &str) -> bool {
     ANTHROPIC_MESSAGES_PATHS.contains(&path)

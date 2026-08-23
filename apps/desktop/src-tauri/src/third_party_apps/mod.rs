@@ -111,10 +111,19 @@ pub(crate) fn sync_after_switch<R: Runtime>(app: &AppHandle<R>) -> Result<(), St
     if should_write_app(&settings, ThirdPartyAppId::ClaudeCode) {
         let state = read_state(&resolve_paths(app)?);
         let result = if provider.is_some() {
+            if let Err(error) = crate::claude_desktop::clear_proxy_settings() {
+                errors.push(format!("Claude Desktop：{error}"));
+            }
             claude_code::write_provider_settings(provider.as_ref())
         } else if state.local_proxy_enabled && state.active_account_id.is_some() {
+            if let Err(error) = crate::claude_desktop::write_official_proxy_settings() {
+                errors.push(format!("Claude Desktop：{error}"));
+            }
             claude_code::write_official_proxy_settings()
         } else {
+            if let Err(error) = crate::claude_desktop::clear_proxy_settings() {
+                errors.push(format!("Claude Desktop：{error}"));
+            }
             claude_code::write_provider_settings(None)
         };
         if let Err(error) = result {
