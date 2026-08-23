@@ -74,9 +74,10 @@ fn forward_anthropic_official<R: tauri::Runtime>(
             token_usage_account: payload.token_usage_account,
         });
     }
-    let response: Value = serde_json::from_slice(&response_body)
-        .map_err(|error| format!("Codex returned invalid JSON: {error}"))?;
-    let mut converted = json_payload(payload.status, responses_to_anthropic(&response, model));
+    let mut converted = json_payload(
+        payload.status,
+        responses_sse_to_anthropic_message(&response_body, model),
+    );
     converted.response_headers = payload.response_headers;
     converted.token_usage_account = payload.token_usage_account;
     Ok(converted)
@@ -99,7 +100,10 @@ fn anthropic_to_responses(request: &Value) -> Value {
     let mut body = json!({
         "model": crate::providers::DEFAULT_OFFICIAL_MODEL,
         "input": anthropic_messages(request.get("messages")),
-        "stream": request.get("stream").cloned().unwrap_or(json!(false)),
+        // ChatGPT Codex's OAuth Responses endpoint only accepts streamed
+        // requests. Non-streaming Claude probes are assembled back into a
+        // normal Anthropic response after the upstream stream completes.
+        "stream": true,
         "store": false
     });
     if let Some(system) = request.get("system").and_then(anthropic_text) {
@@ -258,6 +262,57 @@ fn anthropic_text(value: &Value) -> Option<String> {
     })
 }
 
+fn responses_sse_to_anthropic_message(sse: &[u8], model: &str) -> Value {
+    let source = String::from_utf8_lossy(sse);
+    let mut text = String::new();
+    let mut response_id = "resp_codex_switch".to_string();
+    let mut usage = json!({ "input_tokens": 0, "output_tokens": 0 });
+    for block in source.split("\n\n") {
+        let Some(data) = block
+            .lines()
+            .find_map(|line| line.strip_prefix("data:"))
+        else {
+            continue;
+        };
+        let data = data.trim();
+        if data == "[DONE]" {
+            continue;
+        }
+        let Ok(value) = serde_json::from_str::<Value>(data) else {
+            continue;
+        };
+        match value.get("type").and_then(Value::as_str) {
+            Some("response.created") => {
+                if let Some(id) = value.pointer("/response/id").and_then(Value::as_str) {
+                    response_id = id.to_string();
+                }
+            }
+            Some("response.output_text.delta") => {
+                if let Some(delta) = value.get("delta").and_then(Value::as_str) {
+                    text.push_str(delta);
+                }
+            }
+            Some("response.completed") => {
+                if let Some(completed_usage) = value.pointer("/response/usage") {
+                    usage = anthropic_usage(Some(completed_usage));
+                }
+            }
+            _ => {}
+        }
+    }
+    responses_to_anthropic(
+        &json!({
+            "id": response_id,
+            "output": [{
+                "type": "message",
+                "content": [{ "type": "output_text", "text": text }]
+            }],
+            "usage": usage
+        }),
+        model,
+    )
+}
+
 fn responses_sse_to_anthropic(sse: &[u8], model: &str) -> String {
     let source = String::from_utf8_lossy(sse);
     let mut output = String::new();
@@ -330,6 +385,7 @@ mod anthropic_bridge_tests {
         assert_eq!(converted["instructions"], "Be concise");
         assert!(converted.get("max_output_tokens").is_none());
         assert_eq!(converted["store"], false);
+        assert_eq!(converted["stream"], true);
         assert_eq!(converted["input"][0]["content"][0]["text"], "Hello");
         let assistant = json!({
             "messages": [{ "role": "assistant", "content": "Earlier answer" }]
