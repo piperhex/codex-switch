@@ -262,11 +262,28 @@ fn anthropic_text(value: &Value) -> Option<String> {
     })
 }
 
-fn responses_sse_to_anthropic_message(sse: &[u8], model: &str) -> Value {
+#[derive(Default)]
+struct ParsedResponsesStream {
+    response_id: String,
+    text: String,
+    tools: Vec<ParsedToolCall>,
+    usage: Value,
+}
+
+#[derive(Default)]
+struct ParsedToolCall {
+    id: String,
+    name: String,
+    arguments: String,
+}
+
+fn parse_responses_sse(sse: &[u8]) -> ParsedResponsesStream {
     let source = String::from_utf8_lossy(sse);
-    let mut text = String::new();
-    let mut response_id = "resp_codex_switch".to_string();
-    let mut usage = json!({ "input_tokens": 0, "output_tokens": 0 });
+    let mut parsed = ParsedResponsesStream {
+        response_id: "resp_codex_switch".to_string(),
+        usage: json!({ "input_tokens": 0, "output_tokens": 0 }),
+        ..Default::default()
+    };
     for block in source.split("\n\n") {
         let Some(data) = block
             .lines()
@@ -284,37 +301,83 @@ fn responses_sse_to_anthropic_message(sse: &[u8], model: &str) -> Value {
         match value.get("type").and_then(Value::as_str) {
             Some("response.created") => {
                 if let Some(id) = value.pointer("/response/id").and_then(Value::as_str) {
-                    response_id = id.to_string();
+                    parsed.response_id = id.to_string();
                 }
             }
             Some("response.output_text.delta") => {
                 if let Some(delta) = value.get("delta").and_then(Value::as_str) {
-                    text.push_str(delta);
+                    parsed.text.push_str(delta);
+                }
+            }
+            Some("response.output_item.added") => {
+                if value.pointer("/item/type").and_then(Value::as_str) == Some("function_call") {
+                    parsed.tools.push(ParsedToolCall {
+                        id: value
+                            .pointer("/item/call_id")
+                            .or_else(|| value.pointer("/item/id"))
+                            .and_then(Value::as_str)
+                            .unwrap_or("call_codex_switch")
+                            .to_string(),
+                        name: value
+                            .pointer("/item/name")
+                            .and_then(Value::as_str)
+                            .unwrap_or("tool")
+                            .to_string(),
+                        arguments: String::new(),
+                    });
+                }
+            }
+            Some("response.function_call_arguments.delta") => {
+                if let Some(delta) = value.get("delta").and_then(Value::as_str) {
+                    if let Some(tool) = parsed.tools.last_mut() {
+                        tool.arguments.push_str(delta);
+                    }
+                }
+            }
+            Some("response.function_call_arguments.done") => {
+                if let Some(arguments) = value.get("arguments").and_then(Value::as_str) {
+                    if let Some(tool) = parsed.tools.last_mut() {
+                        tool.arguments = arguments.to_string();
+                    }
                 }
             }
             Some("response.completed") => {
                 if let Some(completed_usage) = value.pointer("/response/usage") {
-                    usage = anthropic_usage(Some(completed_usage));
+                    parsed.usage = anthropic_usage(Some(completed_usage));
                 }
             }
             _ => {}
         }
     }
+    parsed
+}
+
+fn responses_sse_to_anthropic_message(sse: &[u8], model: &str) -> Value {
+    let parsed = parse_responses_sse(sse);
+    let mut output = vec![json!({
+        "type": "message",
+        "content": [{ "type": "output_text", "text": parsed.text }]
+    })];
+    output.extend(parsed.tools.iter().map(|tool| {
+        json!({
+            "type": "function_call",
+            "call_id": tool.id,
+            "name": tool.name,
+            "arguments": tool.arguments
+        })
+    }));
     responses_to_anthropic(
         &json!({
-            "id": response_id,
-            "output": [{
-                "type": "message",
-                "content": [{ "type": "output_text", "text": text }]
-            }],
-            "usage": usage
+            "id": parsed.response_id,
+            "output": output,
+            "usage": parsed.usage
         }),
         model,
     )
 }
 
 fn responses_sse_to_anthropic(sse: &[u8], model: &str) -> String {
-    let source = String::from_utf8_lossy(sse);
+    let parsed = parse_responses_sse(sse);
     let mut output = String::new();
     let message = json!({
         "id": "msg_codex_switch", "type": "message", "role": "assistant",
@@ -324,40 +387,44 @@ fn responses_sse_to_anthropic(sse: &[u8], model: &str) -> String {
     push_anthropic_sse(&mut output, "message_start", json!({
         "type": "message_start", "message": message
     }));
-    push_anthropic_sse(&mut output, "content_block_start", json!({
-        "type": "content_block_start", "index": 0,
-        "content_block": { "type": "text", "text": "" }
-    }));
-    for block in source.split("\n\n") {
-        let Some(data) = block
-            .lines()
-            .find_map(|line| line.strip_prefix("data:"))
-        else {
-            continue;
-        };
-        let data = data.trim();
-        if data == "[DONE]" {
-            continue;
-        }
-        let Ok(value) = serde_json::from_str::<Value>(data) else {
-            continue;
-        };
-        if value.get("type").and_then(Value::as_str) == Some("response.output_text.delta") {
-            if let Some(delta) = value.get("delta").and_then(Value::as_str) {
-                push_anthropic_sse(&mut output, "content_block_delta", json!({
-                    "type": "content_block_delta", "index": 0,
-                    "delta": { "type": "text_delta", "text": delta }
-                }));
-            }
-        }
+    let mut index = 0;
+    if !parsed.text.is_empty() {
+        push_anthropic_sse(&mut output, "content_block_start", json!({
+            "type": "content_block_start", "index": index,
+            "content_block": { "type": "text", "text": "" }
+        }));
+        push_anthropic_sse(&mut output, "content_block_delta", json!({
+            "type": "content_block_delta", "index": index,
+            "delta": { "type": "text_delta", "text": parsed.text }
+        }));
+        push_anthropic_sse(&mut output, "content_block_stop", json!({
+            "type": "content_block_stop", "index": index
+        }));
+        index += 1;
     }
-    push_anthropic_sse(&mut output, "content_block_stop", json!({
-        "type": "content_block_stop", "index": 0
-    }));
+    for tool in &parsed.tools {
+        push_anthropic_sse(&mut output, "content_block_start", json!({
+            "type": "content_block_start", "index": index,
+            "content_block": {
+                "type": "tool_use", "id": tool.id, "name": tool.name, "input": {}
+            }
+        }));
+        push_anthropic_sse(&mut output, "content_block_delta", json!({
+            "type": "content_block_delta", "index": index,
+            "delta": { "type": "input_json_delta", "partial_json": tool.arguments }
+        }));
+        push_anthropic_sse(&mut output, "content_block_stop", json!({
+            "type": "content_block_stop", "index": index
+        }));
+        index += 1;
+    }
     push_anthropic_sse(&mut output, "message_delta", json!({
         "type": "message_delta",
-        "delta": { "stop_reason": "end_turn", "stop_sequence": Value::Null },
-        "usage": { "output_tokens": 0 }
+        "delta": {
+            "stop_reason": if parsed.tools.is_empty() { "end_turn" } else { "tool_use" },
+            "stop_sequence": Value::Null
+        },
+        "usage": parsed.usage
     }));
     push_anthropic_sse(&mut output, "message_stop", json!({ "type": "message_stop" }));
     output
