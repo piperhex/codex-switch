@@ -151,9 +151,9 @@ fn gateway_profile() -> Value {
         "inferenceGatewayBaseUrl": format!("http://127.0.0.1:15722{PROXY_ROUTE}"),
         "inferenceProvider": "gateway",
         "inferenceModels": [
-            { "name": "claude-haiku-4-5" },
-            { "name": "claude-sonnet-5", "supports1m": true },
-            { "name": "claude-opus-5", "supports1m": true }
+            { "name": "claude-haiku-4-5", "labelOverride": "gpt-5.6-luna" },
+            { "name": "claude-sonnet-5", "labelOverride": "gpt-5.6-sol" },
+            { "name": "claude-opus-5", "labelOverride": "gpt-5.6-sol" }
         ]
     })
 }
@@ -171,5 +171,14 @@ mod tests {
         );
         assert_eq!(profile["inferenceGatewayAuthScheme"], "bearer");
         assert_eq!(profile["inferenceGatewayApiKey"], "PROXY_MANAGED");
+        assert_eq!(
+            profile["inferenceModels"][1]["labelOverride"],
+            "gpt-5.6-sol"
+        );
+        assert!(profile["inferenceModels"]
+            .as_array()
+            .expect("models")
+            .iter()
+            .all(|model| model.get("supports1m").is_none()));
     }
 }
