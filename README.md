@@ -207,8 +207,8 @@ Codex Switch 只注册自己的 `cswitch://` 协议，`ccswitch://` 继续留给
 无界面模式不会创建主窗口、托盘或悬浮球，命令行端口只对本次运行生效：
 
 ```powershell
-codex-switch.exe --headless --port=18080
-# 也支持：codex-switch.exe --headless --port 18080
+csw.exe --headless --port=18080
+# 也支持：csw.exe --headless --port 18080
 ```
 
 启动后通过 `http://127.0.0.1:18080` 访问。`--headless` 必须与 `--port` 同时使用，端口范围为 `1-65535`。

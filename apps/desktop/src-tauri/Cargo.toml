@@ -1,5 +1,5 @@
 [package]
-name = "codex-switch"
+name = "csw"
 version = "1.0.21"
 description = "Local multi-account manager for Codex auth.json"
 authors = ["Codex Switch"]

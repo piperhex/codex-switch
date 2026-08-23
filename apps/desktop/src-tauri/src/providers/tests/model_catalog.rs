@@ -222,7 +222,7 @@ model_reasoning_effort = "xhigh"
             model: Some("deepseek-v4-flash"),
             include_model_catalog: true,
             requires_openai_auth: false,
-            token_command: "codex-switch",
+            token_command: "csw",
         };
         let provider_proxy = merge_local_proxy_config(backup, &provider_options).unwrap();
         write_text_atomic(&paths.config_backup, backup).unwrap();
@@ -247,7 +247,7 @@ model_reasoning_effort = "xhigh"
             model: Some("deepseek-v4-flash"),
             include_model_catalog: true,
             requires_openai_auth: false,
-            token_command: "codex-switch",
+            token_command: "csw",
         };
         let provider_proxy = merge_local_proxy_config(backup, &provider_options).unwrap();
         write_text_atomic(&paths.config_backup, backup).unwrap();

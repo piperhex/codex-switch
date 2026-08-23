@@ -131,7 +131,7 @@
             model: Some("deepseek-chat"),
             include_model_catalog: true,
             requires_openai_auth: false,
-            token_command: "codex-switch",
+            token_command: "csw",
         };
         let current = merge_local_proxy_config(STALE_OFFICIAL_CONFIG, &options)
             .unwrap()
@@ -265,7 +265,7 @@
             model: Some("deepseek-chat"),
             include_model_catalog: true,
             requires_openai_auth: false,
-            token_command: r"C:\Program Files\Codex Switch\codex-switch.exe",
+            token_command: r"C:\Program Files\Codex Switch\csw.exe",
         };
         let merged = merge_local_proxy_config("model = \"old\"", &options).unwrap();
         assert!(merged.contains("model_provider = \"codex-switch-local\""));
@@ -282,7 +282,7 @@
         assert!(merged.contains("--print-local-proxy-token"));
         assert_eq!(
             provider["auth"]["command"].as_str(),
-            Some(r"C:\Program Files\Codex Switch\codex-switch.exe")
+            Some(r"C:\Program Files\Codex Switch\csw.exe")
         );
         assert!(!merged.contains("model = \"old\""));
     }
@@ -294,14 +294,14 @@
             model: Some("first-model"),
             include_model_catalog: true,
             requires_openai_auth: false,
-            token_command: "codex-switch",
+            token_command: "csw",
         };
         let second = LocalProxyConfigOptions {
             name: "Second",
             model: Some("second-model"),
             include_model_catalog: true,
             requires_openai_auth: false,
-            token_command: "codex-switch",
+            token_command: "csw",
         };
 
         let first_config = merge_local_proxy_config("", &first).unwrap();

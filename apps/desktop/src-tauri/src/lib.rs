@@ -60,7 +60,7 @@ pub fn run() {
     let launch_options = match launch_options::LaunchOptions::from_environment() {
         Ok(options) => options,
         Err(error) => {
-            eprintln!("{error}\nUsage: codex-switch --headless --port=<1-65535>");
+            eprintln!("{error}\nUsage: csw --headless --port=<1-65535>");
             std::process::exit(2);
         }
     };

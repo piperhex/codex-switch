@@ -124,8 +124,8 @@ Settings to allow access from trusted devices on the same network. In headless m
 applies only to that process:
 
 ```powershell
-codex-switch.exe --headless --port=18080
-# Also supported: codex-switch.exe --headless --port 18080
+csw.exe --headless --port=18080
+# Also supported: csw.exe --headless --port 18080
 ```
 
 Open `http://127.0.0.1:18080` after startup. `--headless` requires `--port`, whose valid range is `1-65535`.

@@ -652,55 +652,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "codex-switch"
-version = "1.0.21"
-dependencies = [
- "aes-gcm",
- "base64 0.22.1",
- "chrono",
- "crypto_box",
- "dirs 6.0.0",
- "ed25519-dalek",
- "flate2",
- "image",
- "json5",
- "keyring",
- "md-5",
- "qrcode",
- "rand",
- "reqwest 0.12.28",
- "rqrr",
- "rusqlite",
- "semver",
- "serde",
- "serde_json",
- "serde_yaml",
- "sha2",
- "sysinfo",
- "tauri",
- "tauri-build",
- "tauri-plugin-autostart",
- "tauri-plugin-clipboard-manager",
- "tauri-plugin-deep-link",
- "tauri-plugin-dialog",
- "tauri-plugin-opener",
- "tauri-plugin-process",
- "tauri-plugin-single-instance",
- "tauri-plugin-updater",
- "tiny_http",
- "toml_edit 0.25.12+spec-1.1.0",
- "tungstenite",
- "url",
- "uuid",
- "windows",
- "windows-sys 0.61.2",
- "windows-version",
- "winreg 0.55.0",
- "zip 2.4.2",
- "zstd",
-]
-
-[[package]]
 name = "combine"
 version = "4.6.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -915,6 +866,55 @@ checksum = "13b588ba4ac1a99f7f2964d24b3d896ddc6bf847ee3855dbd4366f058cfcd331"
 dependencies = [
  "quote",
  "syn 2.0.118",
+]
+
+[[package]]
+name = "csw"
+version = "1.0.21"
+dependencies = [
+ "aes-gcm",
+ "base64 0.22.1",
+ "chrono",
+ "crypto_box",
+ "dirs 6.0.0",
+ "ed25519-dalek",
+ "flate2",
+ "image",
+ "json5",
+ "keyring",
+ "md-5",
+ "qrcode",
+ "rand",
+ "reqwest 0.12.28",
+ "rqrr",
+ "rusqlite",
+ "semver",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "sha2",
+ "sysinfo",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-autostart",
+ "tauri-plugin-clipboard-manager",
+ "tauri-plugin-deep-link",
+ "tauri-plugin-dialog",
+ "tauri-plugin-opener",
+ "tauri-plugin-process",
+ "tauri-plugin-single-instance",
+ "tauri-plugin-updater",
+ "tiny_http",
+ "toml_edit 0.25.12+spec-1.1.0",
+ "tungstenite",
+ "url",
+ "uuid",
+ "windows",
+ "windows-sys 0.61.2",
+ "windows-version",
+ "winreg 0.55.0",
+ "zip 2.4.2",
+ "zstd",
 ]
 
 [[package]]

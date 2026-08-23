@@ -344,7 +344,7 @@ mod tests {
             model: Some("deepseek-chat"),
             model_catalog_filename: Some("codex-switch-model-catalog.json"),
             requires_openai_auth: false,
-            token_command: r"C:\Program Files\Codex Switch\codex-switch.exe",
+            token_command: r"C:\Program Files\Codex Switch\csw.exe",
         }
     }
 

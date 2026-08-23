@@ -38,8 +38,8 @@ if (embeddedAssetNames.length === 0) {
 
 const executableNames =
   process.platform === "win32"
-    ? new Set(["codex-switch.exe"])
-    : new Set(["codex-switch"]);
+    ? new Set(["csw.exe"])
+    : new Set(["csw"]);
 const executableCandidates = findFiles(
   cargoTargetRoot,
   (path) =>

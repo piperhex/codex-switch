@@ -69,7 +69,7 @@ mod tests {
     #[test]
     fn desktop_launch_is_the_default() {
         assert_eq!(
-            LaunchOptions::parse(["codex-switch"]).unwrap(),
+            LaunchOptions::parse(["csw"]).unwrap(),
             LaunchOptions {
                 headless: false,
                 port: None,
@@ -80,14 +80,14 @@ mod tests {
     #[test]
     fn headless_launch_accepts_both_port_syntaxes() {
         assert_eq!(
-            LaunchOptions::parse(["codex-switch", "--headless", "--port=18080"]).unwrap(),
+            LaunchOptions::parse(["csw", "--headless", "--port=18080"]).unwrap(),
             LaunchOptions {
                 headless: true,
                 port: Some(18_080),
             }
         );
         assert_eq!(
-            LaunchOptions::parse(["codex-switch", "--port", "18081", "--headless"]).unwrap(),
+            LaunchOptions::parse(["csw", "--port", "18081", "--headless"]).unwrap(),
             LaunchOptions {
                 headless: true,
                 port: Some(18_081),
@@ -97,16 +97,16 @@ mod tests {
 
     #[test]
     fn headless_launch_requires_a_valid_port() {
-        assert!(LaunchOptions::parse(["codex-switch", "--headless"]).is_err());
-        assert!(LaunchOptions::parse(["codex-switch", "--headless", "--port=0"]).is_err());
-        assert!(LaunchOptions::parse(["codex-switch", "--headless", "--port=65536"]).is_err());
-        assert!(LaunchOptions::parse(["codex-switch", "--port=18080"]).is_err());
+        assert!(LaunchOptions::parse(["csw", "--headless"]).is_err());
+        assert!(LaunchOptions::parse(["csw", "--headless", "--port=0"]).is_err());
+        assert!(LaunchOptions::parse(["csw", "--headless", "--port=65536"]).is_err());
+        assert!(LaunchOptions::parse(["csw", "--port=18080"]).is_err());
     }
 
     #[test]
     fn unrelated_arguments_are_ignored() {
         assert_eq!(
-            LaunchOptions::parse(["codex-switch", "--some-platform-flag"]).unwrap(),
+            LaunchOptions::parse(["csw", "--some-platform-flag"]).unwrap(),
             LaunchOptions {
                 headless: false,
                 port: None,

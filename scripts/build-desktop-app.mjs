@@ -28,7 +28,7 @@ run("cargo", [
   cargoManifest,
   "--release",
   "--package",
-  "codex-switch",
+  "csw",
 ]);
 
 if (
