@@ -13,21 +13,21 @@ const PROFILE_NAME: &str = "Codex Switch";
 const PROXY_TOKEN: &str = "PROXY_MANAGED";
 const PROXY_ROUTE: &str = "/claude-desktop";
 
-pub(crate) fn write_official_proxy_settings() -> Result<(), String> {
-    sync_desktop_paths(false)
+pub(crate) fn write_official_proxy_settings(context_window: u64) -> Result<(), String> {
+    sync_desktop_paths(false, context_window)
 }
 
 pub(crate) fn clear_proxy_settings() -> Result<(), String> {
-    sync_desktop_paths(true)
+    sync_desktop_paths(true, 0)
 }
 
-fn sync_desktop_paths(clear: bool) -> Result<(), String> {
+fn sync_desktop_paths(clear: bool, context_window: u64) -> Result<(), String> {
     let mut errors = Vec::new();
     for root in desktop_config_roots() {
         let result = if clear {
             clear_at_root(&root)
         } else {
-            write_at_root(&root)
+            write_at_root(&root, context_window)
         };
         if let Err(error) = result {
             errors.push(format!("{}：{error}", root.display()));
@@ -74,14 +74,14 @@ fn desktop_config_roots() -> Vec<PathBuf> {
     roots
 }
 
-fn write_at_root(root: &Path) -> Result<(), String> {
+fn write_at_root(root: &Path, context_window: u64) -> Result<(), String> {
     let config_path = root.join(CONFIG_FILE);
     let profile_path = root
         .join("configLibrary")
         .join(format!("{PROFILE_ID}.json"));
     let meta_path = root.join("configLibrary").join("_meta.json");
     update_deployment_mode(&config_path, "3p")?;
-    write_json_atomic(&profile_path, &gateway_profile())?;
+    write_json_atomic(&profile_path, &gateway_profile(context_window))?;
     update_meta(&meta_path, true)
 }
 
@@ -142,7 +142,15 @@ fn read_object_or_empty(path: &Path) -> Result<Value, String> {
     }
 }
 
-fn gateway_profile() -> Value {
+fn gateway_profile(context_window: u64) -> Value {
+    let supports_1m = context_window >= 1_000_000;
+    let model = |name: &str, label: &str| {
+        let mut value = json!({ "name": name, "labelOverride": label });
+        if supports_1m {
+            value["supports1m"] = Value::Bool(true);
+        }
+        value
+    };
     json!({
         "coworkEgressAllowedHosts": ["*"],
         "disableDeploymentModeChooser": true,
@@ -151,9 +159,9 @@ fn gateway_profile() -> Value {
         "inferenceGatewayBaseUrl": format!("http://127.0.0.1:15722{PROXY_ROUTE}"),
         "inferenceProvider": "gateway",
         "inferenceModels": [
-            { "name": "claude-haiku-4-5", "labelOverride": "gpt-5.6-luna" },
-            { "name": "claude-sonnet-5", "labelOverride": "gpt-5.6-sol" },
-            { "name": "claude-opus-5", "labelOverride": "gpt-5.6-sol" }
+            model("claude-haiku-4-5", "gpt-5.6-luna"),
+            model("claude-sonnet-5", "gpt-5.6-sol"),
+            model("claude-opus-5", "gpt-5.6-sol")
         ]
     })
 }
@@ -164,7 +172,7 @@ mod tests {
 
     #[test]
     fn desktop_gateway_profile_uses_the_local_proxy_route() {
-        let profile = gateway_profile();
+        let profile = gateway_profile(1_000_000);
         assert_eq!(
             profile["inferenceGatewayBaseUrl"],
             "http://127.0.0.1:15722/claude-desktop"
@@ -176,6 +184,12 @@ mod tests {
             "gpt-5.6-sol"
         );
         assert!(profile["inferenceModels"]
+            .as_array()
+            .expect("models")
+            .iter()
+            .all(|model| model.get("supports1m") == Some(&Value::Bool(true))));
+        let compact_profile = gateway_profile(272_000);
+        assert!(compact_profile["inferenceModels"]
             .as_array()
             .expect("models")
             .iter()

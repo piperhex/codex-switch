@@ -105,6 +105,7 @@ pub(crate) async fn set_third_party_app_write_settings<R: Runtime + 'static>(
 pub(crate) fn sync_after_switch<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
     let settings = read_app_settings(app)?;
     let provider = active_provider(app)?;
+    let official_context_window = settings.gpt_5_6_sol_context_window;
     let home = dirs::home_dir().ok_or_else(|| "无法定位用户主目录".to_string())?;
     let mut errors = Vec::new();
 
@@ -116,7 +117,9 @@ pub(crate) fn sync_after_switch<R: Runtime>(app: &AppHandle<R>) -> Result<(), St
             }
             claude_code::write_provider_settings(provider.as_ref())
         } else if state.local_proxy_enabled && state.active_account_id.is_some() {
-            if let Err(error) = crate::claude_desktop::write_official_proxy_settings() {
+            if let Err(error) =
+                crate::claude_desktop::write_official_proxy_settings(official_context_window)
+            {
                 errors.push(format!("Claude Desktop：{error}"));
             }
             claude_code::write_official_proxy_settings()
