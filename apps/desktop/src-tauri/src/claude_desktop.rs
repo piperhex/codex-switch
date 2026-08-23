@@ -1,7 +1,10 @@
 use std::{
-    env, fs,
+    fs,
     path::{Path, PathBuf},
 };
+
+#[cfg(not(target_os = "macos"))]
+use std::env;
 
 use serde_json::{json, Value};
 
@@ -22,24 +25,32 @@ pub(crate) fn clear_proxy_settings() -> Result<(), String> {
 }
 
 fn sync_desktop_paths(clear: bool, context_window: u64) -> Result<(), String> {
-    let mut errors = Vec::new();
-    for root in desktop_config_roots() {
-        let result = if clear {
-            clear_at_root(&root)
-        } else {
-            write_at_root(&root, context_window)
-        };
-        if let Err(error) = result {
-            errors.push(format!("{}：{error}", root.display()));
-        }
+    #[cfg(target_os = "macos")]
+    {
+        sync_macos_paths(clear, context_window)
     }
-    if errors.is_empty() {
-        Ok(())
-    } else {
-        Err(errors.join("；"))
+    #[cfg(not(target_os = "macos"))]
+    {
+        let mut errors = Vec::new();
+        for root in desktop_config_roots() {
+            let result = if clear {
+                clear_at_root(&root)
+            } else {
+                write_at_root(&root, context_window)
+            };
+            if let Err(error) = result {
+                errors.push(format!("{}：{error}", root.display()));
+            }
+        }
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors.join("；"))
+        }
     }
 }
 
+#[cfg(not(target_os = "macos"))]
 fn desktop_config_roots() -> Vec<PathBuf> {
     let local_app_data = env::var_os("LOCALAPPDATA")
         .map(PathBuf::from)
@@ -61,6 +72,7 @@ fn desktop_config_roots() -> Vec<PathBuf> {
     roots
 }
 
+#[cfg(not(target_os = "macos"))]
 fn append_store_package_roots(roots: &mut Vec<PathBuf>, parent: &Path) {
     let Ok(entries) = fs::read_dir(parent) else {
         return;
@@ -78,6 +90,29 @@ fn append_store_package_roots(roots: &mut Vec<PathBuf>, parent: &Path) {
             roots.push(package_root);
         }
     }
+}
+
+#[cfg(target_os = "macos")]
+fn sync_macos_paths(clear: bool, context_window: u64) -> Result<(), String> {
+    let home = dirs::home_dir().ok_or_else(|| "无法定位用户主目录".to_string())?;
+    let (normal_root, threep_root) = macos_config_roots(&home);
+    if clear {
+        if normal_root.join(CONFIG_FILE).exists() {
+            update_deployment_mode(&normal_root.join(CONFIG_FILE), "1p")?;
+        }
+        return clear_at_root(&threep_root);
+    }
+    update_deployment_mode(&normal_root.join(CONFIG_FILE), "3p")?;
+    write_at_root(&threep_root, context_window)
+}
+
+#[cfg(any(target_os = "macos", test))]
+fn macos_config_roots(home: &Path) -> (PathBuf, PathBuf) {
+    let application_support = home.join("Library").join("Application Support");
+    (
+        application_support.join("Claude"),
+        application_support.join("Claude-3p"),
+    )
 }
 
 fn write_at_root(root: &Path, context_window: u64) -> Result<(), String> {
@@ -200,5 +235,23 @@ mod tests {
             .expect("models")
             .iter()
             .all(|model| model.get("supports1m").is_none()));
+    }
+
+    #[test]
+    fn macos_roots_match_claude_physical_directories() {
+        let home = PathBuf::from("/Users/tester");
+        let (normal, threep) = macos_config_roots(&home);
+        assert_eq!(
+            normal,
+            home.join("Library")
+                .join("Application Support")
+                .join("Claude")
+        );
+        assert_eq!(
+            threep,
+            home.join("Library")
+                .join("Application Support")
+                .join("Claude-3p")
+        );
     }
 }
