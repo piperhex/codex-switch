@@ -99,7 +99,8 @@ fn anthropic_to_responses(request: &Value) -> Value {
     let mut body = json!({
         "model": crate::providers::DEFAULT_OFFICIAL_MODEL,
         "input": anthropic_messages(request.get("messages")),
-        "stream": request.get("stream").cloned().unwrap_or(json!(false))
+        "stream": request.get("stream").cloned().unwrap_or(json!(false)),
+        "store": false
     });
     if let Some(system) = request.get("system").and_then(anthropic_text) {
         body["instructions"] = Value::String(system);
@@ -318,6 +319,7 @@ mod anthropic_bridge_tests {
         let converted = anthropic_to_responses(&request);
         assert_eq!(converted["instructions"], "Be concise");
         assert_eq!(converted["max_output_tokens"], 512);
+        assert_eq!(converted["store"], false);
         assert_eq!(converted["input"][0]["content"][0]["text"], "Hello");
     }
 
