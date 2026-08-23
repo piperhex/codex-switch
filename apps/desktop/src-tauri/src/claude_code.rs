@@ -5,9 +5,8 @@ use sysinfo::{ProcessesToUpdate, System};
 use tauri::{AppHandle, Runtime};
 
 use crate::{
-    codex_config::{LOCAL_PROXY_BASE_URL, LOCAL_PROXY_TOKEN},
+    codex_config::LOCAL_PROXY_BASE_URL,
     models::{AppSettings, ClaudeCodeWriteTarget, ProviderProfile},
-    providers::DEFAULT_OFFICIAL_MODEL,
     storage::{read_app_settings, read_json, write_app_settings, write_json_atomic},
 };
 
@@ -16,7 +15,13 @@ const ANTHROPIC_BASE_URL: &str = "ANTHROPIC_BASE_URL";
 const ANTHROPIC_AUTH_TOKEN: &str = "ANTHROPIC_AUTH_TOKEN";
 const ANTHROPIC_API_KEY: &str = "ANTHROPIC_API_KEY";
 const ANTHROPIC_MODEL: &str = "ANTHROPIC_MODEL";
+const ANTHROPIC_DEFAULT_HAIKU_MODEL: &str = "ANTHROPIC_DEFAULT_HAIKU_MODEL";
 const ANTHROPIC_DEFAULT_SONNET_MODEL: &str = "ANTHROPIC_DEFAULT_SONNET_MODEL";
+const ANTHROPIC_DEFAULT_OPUS_MODEL: &str = "ANTHROPIC_DEFAULT_OPUS_MODEL";
+const PROXY_MANAGED_TOKEN: &str = "PROXY_MANAGED";
+const CLAUDE_PROXY_HAIKU_MODEL: &str = "claude-haiku-4-5";
+const CLAUDE_PROXY_SONNET_MODEL: &str = "claude-sonnet-4-6";
+const CLAUDE_PROXY_OPUS_MODEL: &str = "claude-opus-4-8";
 
 #[tauri::command]
 pub(crate) async fn set_claude_code_write_target<R: Runtime + 'static>(
@@ -114,18 +119,23 @@ fn apply_official_proxy_environment(env: &mut Map<String, Value>) {
         ANTHROPIC_BASE_URL.into(),
         Value::String(claude_base_url(LOCAL_PROXY_BASE_URL).to_string()),
     );
+    env.remove(ANTHROPIC_MODEL);
     env.insert(
-        ANTHROPIC_MODEL.into(),
-        Value::String(DEFAULT_OFFICIAL_MODEL.to_string()),
+        ANTHROPIC_DEFAULT_HAIKU_MODEL.into(),
+        Value::String(CLAUDE_PROXY_HAIKU_MODEL.to_string()),
     );
     env.insert(
         ANTHROPIC_DEFAULT_SONNET_MODEL.into(),
-        Value::String(DEFAULT_OFFICIAL_MODEL.to_string()),
+        Value::String(CLAUDE_PROXY_SONNET_MODEL.to_string()),
+    );
+    env.insert(
+        ANTHROPIC_DEFAULT_OPUS_MODEL.into(),
+        Value::String(CLAUDE_PROXY_OPUS_MODEL.to_string()),
     );
     env.remove(ANTHROPIC_API_KEY);
     env.insert(
         ANTHROPIC_AUTH_TOKEN.into(),
-        Value::String(LOCAL_PROXY_TOKEN.to_string()),
+        Value::String(PROXY_MANAGED_TOKEN.to_string()),
     );
 }
 
@@ -161,7 +171,9 @@ fn clear_provider_environment(env: &mut Map<String, Value>) {
         ANTHROPIC_AUTH_TOKEN,
         ANTHROPIC_API_KEY,
         ANTHROPIC_MODEL,
+        ANTHROPIC_DEFAULT_HAIKU_MODEL,
         ANTHROPIC_DEFAULT_SONNET_MODEL,
+        ANTHROPIC_DEFAULT_OPUS_MODEL,
     ] {
         env.remove(key);
     }
@@ -307,15 +319,20 @@ mod tests {
             env.get(ANTHROPIC_BASE_URL),
             Some(&json!("http://127.0.0.1:15722"))
         );
-        assert_eq!(env.get(ANTHROPIC_MODEL), Some(&json!("gpt-5.6-sol")));
+        assert!(!env.contains_key(ANTHROPIC_MODEL));
+        assert_eq!(
+            env.get(ANTHROPIC_DEFAULT_HAIKU_MODEL),
+            Some(&json!("claude-haiku-4-5"))
+        );
         assert_eq!(
             env.get(ANTHROPIC_DEFAULT_SONNET_MODEL),
-            Some(&json!("gpt-5.6-sol"))
+            Some(&json!("claude-sonnet-4-6"))
         );
         assert_eq!(
-            env.get(ANTHROPIC_AUTH_TOKEN),
-            Some(&json!("CODEX_SWITCH_LOCAL_PROXY"))
+            env.get(ANTHROPIC_DEFAULT_OPUS_MODEL),
+            Some(&json!("claude-opus-4-8"))
         );
+        assert_eq!(env.get(ANTHROPIC_AUTH_TOKEN), Some(&json!("PROXY_MANAGED")));
         assert!(!env.contains_key(ANTHROPIC_API_KEY));
     }
 
