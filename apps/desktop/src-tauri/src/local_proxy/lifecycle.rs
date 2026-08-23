@@ -26,6 +26,13 @@ pub(crate) fn restore_local_proxy_if_enabled<R: Runtime>(
         let _ = set_local_proxy_enabled(&paths, false);
         return Err(error);
     }
+    if let Err(error) = crate::third_party_apps::sync_after_switch(app) {
+        if started {
+            stop_server();
+        }
+        let _ = set_local_proxy_enabled(&paths, false);
+        return Err(error);
+    }
     Ok(true)
 }
 
@@ -75,6 +82,13 @@ fn start_local_proxy_blocking<R: Runtime>(
         return Err(error);
     }
     set_local_proxy_enabled(&paths, true)?;
+    if let Err(error) = crate::third_party_apps::sync_after_switch(&app) {
+        if started {
+            stop_server();
+        }
+        let _ = set_local_proxy_enabled(&paths, false);
+        return Err(error);
+    }
     app.emit("providers-changed", ())
         .map_err(|error| error.to_string())?;
     crate::system_tray::refresh_menu(&app);
@@ -231,6 +245,10 @@ fn stop_local_proxy_blocking<R: Runtime>(
         });
         emit_stop_progress(&app, "failed", 90, None, None);
         return Err(stop_cancelled_error(commit_error, recovery_errors));
+    }
+
+    if let Err(error) = crate::third_party_apps::sync_after_switch(&app) {
+        eprintln!("Third-party app configuration cleanup failed after proxy stop: {error}");
     }
 
     let _ = app.emit("providers-changed", ());

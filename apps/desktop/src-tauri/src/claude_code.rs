@@ -5,7 +5,9 @@ use sysinfo::{ProcessesToUpdate, System};
 use tauri::{AppHandle, Runtime};
 
 use crate::{
+    codex_config::{LOCAL_PROXY_BASE_URL, LOCAL_PROXY_TOKEN},
     models::{AppSettings, ClaudeCodeWriteTarget, ProviderProfile},
+    providers::DEFAULT_OFFICIAL_MODEL,
     storage::{read_app_settings, read_json, write_app_settings, write_json_atomic},
 };
 
@@ -83,6 +85,48 @@ pub(crate) fn write_provider_settings(provider: Option<&ProviderProfile>) -> Res
     }
 
     write_json_atomic(&path, &settings)
+}
+
+/// Writes the local proxy endpoint used when the selected route is an official
+/// account rather than a third-party Provider.
+pub(crate) fn write_official_proxy_settings() -> Result<(), String> {
+    let path = claude_settings_path()?;
+    let mut settings = match read_json(&path) {
+        Ok(value) if value.is_object() => value,
+        Ok(_) => return Err("Claude Code settings.json 必须是 JSON 对象".to_string()),
+        Err(_) if !path.exists() => json!({}),
+        Err(error) => return Err(error),
+    };
+    let object = settings
+        .as_object_mut()
+        .ok_or_else(|| "Claude Code settings.json 必须是 JSON 对象".to_string())?;
+    let env = object
+        .entry("env")
+        .or_insert_with(|| Value::Object(Map::new()))
+        .as_object_mut()
+        .ok_or_else(|| "Claude Code settings.json 的 env 必须是 JSON 对象".to_string())?;
+    apply_official_proxy_environment(env);
+    write_json_atomic(&path, &settings)
+}
+
+fn apply_official_proxy_environment(env: &mut Map<String, Value>) {
+    env.insert(
+        ANTHROPIC_BASE_URL.into(),
+        Value::String(claude_base_url(LOCAL_PROXY_BASE_URL).to_string()),
+    );
+    env.insert(
+        ANTHROPIC_MODEL.into(),
+        Value::String(DEFAULT_OFFICIAL_MODEL.to_string()),
+    );
+    env.insert(
+        ANTHROPIC_DEFAULT_SONNET_MODEL.into(),
+        Value::String(DEFAULT_OFFICIAL_MODEL.to_string()),
+    );
+    env.remove(ANTHROPIC_API_KEY);
+    env.insert(
+        ANTHROPIC_AUTH_TOKEN.into(),
+        Value::String(LOCAL_PROXY_TOKEN.to_string()),
+    );
 }
 
 fn apply_provider_environment(env: &mut Map<String, Value>, provider: &ProviderProfile) {
@@ -251,6 +295,28 @@ mod tests {
         );
         assert!(!env.contains_key(ANTHROPIC_BASE_URL));
         assert!(!env.contains_key(ANTHROPIC_AUTH_TOKEN));
+    }
+
+    #[test]
+    fn official_proxy_environment_uses_the_local_proxy_route() {
+        let mut env = Map::from_iter([(ANTHROPIC_API_KEY.to_string(), json!("stale"))]);
+
+        apply_official_proxy_environment(&mut env);
+
+        assert_eq!(
+            env.get(ANTHROPIC_BASE_URL),
+            Some(&json!("http://127.0.0.1:15722"))
+        );
+        assert_eq!(env.get(ANTHROPIC_MODEL), Some(&json!("gpt-5.6-sol")));
+        assert_eq!(
+            env.get(ANTHROPIC_DEFAULT_SONNET_MODEL),
+            Some(&json!("gpt-5.6-sol"))
+        );
+        assert_eq!(
+            env.get(ANTHROPIC_AUTH_TOKEN),
+            Some(&json!("CODEX_SWITCH_LOCAL_PROXY"))
+        );
+        assert!(!env.contains_key(ANTHROPIC_API_KEY));
     }
 
     #[test]
