@@ -387,6 +387,9 @@ fn forward_active_request<R: Runtime>(
 ) -> Result<UpstreamPayload, String> {
     match active_target_for_request(app, path, &body)? {
         ActiveTarget::Official { model } => {
+            if is_anthropic_messages_endpoint(path) {
+                return forward_anthropic_official(app, headers, body, session_id);
+            }
             forward_official(app, method, url, headers, body, &model, session_id)
         }
         ActiveTarget::Provider(provider) => {

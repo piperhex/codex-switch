@@ -13,6 +13,7 @@ include!("diagnostics_helpers.rs");
 include!("token_usage.rs");
 include!("token_usage_db.rs");
 include!("forwarding.rs");
+include!("anthropic_bridge.rs");
 include!("models.rs");
 include!("chat_bridge.rs");
 include!("auth_http.rs");
