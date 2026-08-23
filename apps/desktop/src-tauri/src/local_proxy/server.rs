@@ -261,6 +261,23 @@ fn handle_proxy_request<R: Runtime>(
         append_proxy_diagnostic_result(app, diagnostic, &result, started_at.elapsed());
         return result;
     }
+    if matches!(*method, Method::Get | Method::Head) && path == "/claude-desktop/api/hello" {
+        let result = Ok(json_payload(200, json!({ "status": "ok" })));
+        append_proxy_diagnostic_result(
+            app,
+            proxy_diagnostic_entry(
+                method,
+                url,
+                headers,
+                &body,
+                None,
+                ProxyDiagnosticRoute::LocalHealth,
+            ),
+            &result,
+            started_at.elapsed(),
+        );
+        return result;
+    }
     if *method == Method::Get && matches!(path, "/usage" | "/v1/usage") {
         return current_usage_payload(app);
     }

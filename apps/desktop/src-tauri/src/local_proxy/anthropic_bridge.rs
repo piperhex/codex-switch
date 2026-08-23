@@ -13,7 +13,7 @@ fn is_anthropic_messages_endpoint(path: &str) -> bool {
 
 fn forward_anthropic_official<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
-    headers: &[(String, String)],
+    _headers: &[(String, String)],
     body: Vec<u8>,
     session_id: Option<&str>,
 ) -> Result<UpstreamPayload, String> {
@@ -41,7 +41,11 @@ fn forward_anthropic_official<R: tauri::Runtime>(
         &client,
         &Method::Post,
         "/v1/responses",
-        headers,
+        // Claude Desktop sends Anthropic-specific headers that are not valid
+        // Codex headers. The official route supplies its own authentication
+        // and client identity; forwarding this request header set can make
+        // reqwest reject the upstream builder before any network call.
+        &[],
         &encoded,
         &credentials.authentication,
     )?;
