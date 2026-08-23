@@ -54,24 +54,30 @@ fn desktop_config_roots() -> Vec<PathBuf> {
             roots.push(path);
         }
     }
-    if let Ok(entries) = fs::read_dir(&local_app_data) {
-        for entry in entries.flatten() {
-            let path = entry.path();
-            let Some(name) = path.file_name().and_then(|value| value.to_str()) else {
-                continue;
-            };
-            if !name.starts_with("Claude_") || !path.is_dir() {
-                continue;
-            }
-            let package_root = path.join("LocalCache").join("Roaming").join("Claude");
-            if package_root.is_dir() {
-                roots.push(package_root);
-            }
-        }
-    }
+    append_store_package_roots(&mut roots, &local_app_data);
+    append_store_package_roots(&mut roots, &local_app_data.join("Packages"));
     roots.sort();
     roots.dedup();
     roots
+}
+
+fn append_store_package_roots(roots: &mut Vec<PathBuf>, parent: &Path) {
+    let Ok(entries) = fs::read_dir(parent) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let Some(name) = path.file_name().and_then(|value| value.to_str()) else {
+            continue;
+        };
+        if !name.starts_with("Claude_") || !path.is_dir() {
+            continue;
+        }
+        let package_root = path.join("LocalCache").join("Roaming").join("Claude");
+        if package_root.is_dir() {
+            roots.push(package_root);
+        }
+    }
 }
 
 fn write_at_root(root: &Path, context_window: u64) -> Result<(), String> {
