@@ -125,7 +125,8 @@ fn anthropic_messages(messages: Option<&Value>) -> Value {
         let role = message.get("role").and_then(Value::as_str).unwrap_or("user");
         let mut regular_blocks = Vec::new();
         for block in blocks {
-            if block.get("type").and_then(Value::as_str) == Some("tool_result") {
+            let block_type = block.get("type").and_then(Value::as_str);
+            if block_type == Some("tool_result") {
                 if !regular_blocks.is_empty() {
                     converted.push(json!({
                         "role": role,
@@ -133,6 +134,14 @@ fn anthropic_messages(messages: Option<&Value>) -> Value {
                     }));
                 }
                 converted.push(anthropic_tool_result(block));
+            } else if block_type == Some("tool_use") {
+                if !regular_blocks.is_empty() {
+                    converted.push(json!({
+                        "role": role,
+                        "content": std::mem::take(&mut regular_blocks)
+                    }));
+                }
+                converted.push(anthropic_tool_call(block));
             } else if let Some(converted_block) = anthropic_content_block(block, role) {
                 regular_blocks.push(converted_block);
             }
@@ -188,6 +197,16 @@ fn anthropic_tool_result(block: &Value) -> Value {
             "type": "function_call_output",
             "call_id": block.get("tool_use_id").cloned().unwrap_or(Value::Null),
             "output": block.get("content").cloned().unwrap_or(Value::Null)
+    })
+}
+
+fn anthropic_tool_call(block: &Value) -> Value {
+    let arguments = block.get("input").cloned().unwrap_or_else(|| json!({}));
+    json!({
+        "type": "function_call",
+        "call_id": block.get("id").cloned().unwrap_or(Value::Null),
+        "name": block.get("name").cloned().unwrap_or(Value::Null),
+        "arguments": arguments.to_string()
     })
 }
 
@@ -495,6 +514,21 @@ mod anthropic_bridge_tests {
             anthropic_to_responses(&tool_result)["input"][0]["type"],
             "function_call_output"
         );
+        let tool_turn = json!({
+            "messages": [
+                { "role": "assistant", "content": [{
+                    "type": "tool_use", "id": "call-1", "name": "search", "input": { "q": "desktop" }
+                }]},
+                { "role": "user", "content": [{
+                    "type": "tool_result", "tool_use_id": "call-1", "content": "done"
+                }]}
+            ]
+        });
+        let tool_input = anthropic_to_responses(&tool_turn)["input"]
+            .as_array()
+            .expect("tool input");
+        assert_eq!(tool_input[0]["type"], "function_call");
+        assert_eq!(tool_input[1]["type"], "function_call_output");
     }
 
     #[test]
