@@ -116,12 +116,32 @@ fn anthropic_to_responses(request: &Value) -> Value {
 }
 
 fn anthropic_messages(messages: Option<&Value>) -> Value {
-    Value::Array(
-        messages
-            .and_then(Value::as_array)
-            .map(|items| items.iter().map(anthropic_message).collect())
-            .unwrap_or_default(),
-    )
+    let mut converted = Vec::new();
+    for message in messages.and_then(Value::as_array).into_iter().flatten() {
+        let Some(blocks) = message.get("content").and_then(Value::as_array) else {
+            converted.push(anthropic_message(message));
+            continue;
+        };
+        let role = message.get("role").and_then(Value::as_str).unwrap_or("user");
+        let mut regular_blocks = Vec::new();
+        for block in blocks {
+            if block.get("type").and_then(Value::as_str) == Some("tool_result") {
+                if !regular_blocks.is_empty() {
+                    converted.push(json!({
+                        "role": role,
+                        "content": std::mem::take(&mut regular_blocks)
+                    }));
+                }
+                converted.push(anthropic_tool_result(block));
+            } else if let Some(converted_block) = anthropic_content_block(block, role) {
+                regular_blocks.push(converted_block);
+            }
+        }
+        if !regular_blocks.is_empty() {
+            converted.push(json!({ "role": role, "content": regular_blocks }));
+        }
+    }
+    Value::Array(converted)
 }
 
 fn anthropic_message(message: &Value) -> Value {
@@ -158,13 +178,17 @@ fn anthropic_content_block(block: &Value, role: &str) -> Option<Value> {
             .get("text")
             .and_then(Value::as_str)
             .map(|text| json!({ "type": response_text_type(role), "text": text })),
-        Some("tool_result") => Some(json!({
+        Some("tool_result") => None,
+        _ => None,
+    }
+}
+
+fn anthropic_tool_result(block: &Value) -> Value {
+    json!({
             "type": "function_call_output",
             "call_id": block.get("tool_use_id").cloned().unwrap_or(Value::Null),
             "output": block.get("content").cloned().unwrap_or(Value::Null)
-        })),
-        _ => None,
-    }
+    })
 }
 
 fn response_text_type(role: &str) -> &'static str {
@@ -460,6 +484,16 @@ mod anthropic_bridge_tests {
         assert_eq!(
             anthropic_to_responses(&assistant)["input"][0]["content"][0]["type"],
             "output_text"
+        );
+        let tool_result = json!({
+            "messages": [{
+                "role": "user",
+                "content": [{ "type": "tool_result", "tool_use_id": "call-1", "content": "done" }]
+            }]
+        });
+        assert_eq!(
+            anthropic_to_responses(&tool_result)["input"][0]["type"],
+            "function_call_output"
         );
     }
 
