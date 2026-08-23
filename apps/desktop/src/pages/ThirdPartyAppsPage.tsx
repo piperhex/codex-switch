@@ -41,14 +41,19 @@ interface AppRowProps {
   checked: boolean;
   disabled: boolean;
   busy: ThirdPartyAppsPageProps["busy"];
+  subagentModel: ClaudeSubagentModel;
   onChange: (appId: ThirdPartyAppId, enabled: boolean) => void;
+  onSubagentModelChange: (model: ClaudeSubagentModel) => void;
   onLaunch: () => void;
   onRestart: () => void;
   t: Translate;
 }
 
 function AppRow(props: AppRowProps) {
-  const { appId, label, checked, disabled, busy, onChange, onLaunch, onRestart, t } = props;
+  const {
+    appId, label, checked, disabled, busy, subagentModel,
+    onChange, onSubagentModelChange, onLaunch, onRestart, t,
+  } = props;
   return (
     <div className="third-party-app-row" role="listitem">
       <div className="third-party-app-identity">
@@ -58,6 +63,18 @@ function AppRow(props: AppRowProps) {
       <div className="third-party-app-row-actions">
         {appId === "claudeCode" && (
           <Space wrap size={8}>
+            <Typography.Text type="secondary">{t("thirdPartyApps.subagentModel")}</Typography.Text>
+            <Select<ClaudeSubagentModel>
+              value={subagentModel}
+              disabled={disabled}
+              onChange={onSubagentModelChange}
+              options={[
+                { value: "sol", label: "GPT-5.6 Sol" },
+                { value: "terra", label: "GPT-5.6 Terra" },
+                { value: "luna", label: "GPT-5.6 Luna" },
+              ]}
+              style={{ width: 150 }}
+            />
             <Button size="small" icon={<Play size={14} />} loading={busy === "launch"} onClick={onLaunch}>
               {t("claudeCode.launch")}
             </Button>
@@ -109,25 +126,6 @@ export function ThirdPartyAppsPage(props: ThirdPartyAppsPageProps) {
             <Switch checked={settings.writeCodex} disabled={saving} onChange={onWriteCodexChange}
               aria-label={t("thirdPartyApps.writeCodex")} />
           </div>
-          <div className="third-party-apps-master-item">
-            <div>
-              <Typography.Text strong>{t("thirdPartyApps.subagentModel")}</Typography.Text>
-              <Typography.Paragraph type="secondary">
-                {t("thirdPartyApps.subagentModelHint")}
-              </Typography.Paragraph>
-            </div>
-            <Select<ClaudeSubagentModel>
-              value={settings.claudeSubagentModel}
-              disabled={saving}
-              onChange={onSubagentModelChange}
-              options={[
-                { value: "sol", label: "GPT-5.6 Sol" },
-                { value: "terra", label: "GPT-5.6 Terra" },
-                { value: "luna", label: "GPT-5.6 Luna" },
-              ]}
-              style={{ width: 160 }}
-            />
-          </div>
         </div>
         <div className="third-party-apps-list-heading">
           <Typography.Text strong>{t("thirdPartyApps.listTitle")}</Typography.Text>
@@ -136,7 +134,9 @@ export function ThirdPartyAppsPage(props: ThirdPartyAppsPageProps) {
         <div className="third-party-apps-list" role="list">
           {THIRD_PARTY_APPS.map(({ id, labelKey }) => (
             <AppRow key={id} appId={id} label={t(labelKey)} checked={settings.apps[id]}
-              disabled={!settings.enabled || saving} busy={busy} onChange={onAppChange}
+              disabled={!settings.enabled || saving} busy={busy}
+              subagentModel={settings.claudeSubagentModel} onChange={onAppChange}
+              onSubagentModelChange={onSubagentModelChange}
               onLaunch={onLaunch} onRestart={onRestart} t={t} />
           ))}
         </div>
