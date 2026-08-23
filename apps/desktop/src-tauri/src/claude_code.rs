@@ -1,7 +1,6 @@
-use std::{path::PathBuf, process::Command, thread, time::Duration};
+use std::path::PathBuf;
 
 use serde_json::{json, Map, Value};
-use sysinfo::{ProcessesToUpdate, System};
 use tauri::{AppHandle, Runtime};
 
 use crate::{
@@ -24,6 +23,22 @@ const CLAUDE_PROXY_SONNET_MODEL: &str = "claude-sonnet-4-6";
 const CLAUDE_PROXY_OPUS_MODEL: &str = "claude-opus-4-8";
 const CLAUDE_CODE_SUBAGENT_MODEL: &str = "CLAUDE_CODE_SUBAGENT_MODEL";
 const CLAUDE_CODE_ATTRIBUTION_HEADER: &str = "CLAUDE_CODE_ATTRIBUTION_HEADER";
+
+mod process;
+
+#[tauri::command]
+pub(crate) async fn launch_claude_code<R: Runtime + 'static>(
+    _app: AppHandle<R>,
+) -> Result<bool, String> {
+    process::launch_claude_code().await
+}
+
+#[tauri::command]
+pub(crate) async fn restart_claude_code<R: Runtime + 'static>(
+    _app: AppHandle<R>,
+) -> Result<(), String> {
+    process::restart_claude_code().await
+}
 
 #[tauri::command]
 pub(crate) async fn set_claude_code_write_target<R: Runtime + 'static>(
@@ -204,98 +219,6 @@ fn clear_provider_environment(env: &mut Map<String, Value>) {
     ] {
         env.remove(key);
     }
-}
-
-fn claude_process_running() -> bool {
-    let mut system = System::new_all();
-    system.refresh_processes(ProcessesToUpdate::All, true);
-    system.processes().values().any(is_claude_code_process)
-}
-
-fn is_claude_code_process(process: &sysinfo::Process) -> bool {
-    let name = process.name().to_string_lossy().to_ascii_lowercase();
-    if name == "claude" || name == "claude.exe" {
-        return true;
-    }
-    process.cmd().iter().any(|argument| {
-        let argument = argument.to_string_lossy().to_ascii_lowercase();
-        argument.contains("@anthropic-ai/claude-code") || argument.contains("claude-code/cli.js")
-    })
-}
-
-fn ensure_claude_available() -> Result<(), String> {
-    #[cfg(windows)]
-    let status = Command::new("where.exe").arg("claude").status();
-    #[cfg(not(windows))]
-    let status = Command::new("which").arg("claude").status();
-
-    match status {
-        Ok(status) if status.success() => Ok(()),
-        _ => Err("未找到 Claude Code。请先安装 Claude Code，并确保 claude 命令可用。".to_string()),
-    }
-}
-
-fn spawn_claude() -> Result<(), String> {
-    ensure_claude_available()?;
-    #[cfg(windows)]
-    {
-        Command::new("cmd")
-            .args(["/C", "start", "Claude Code", "cmd", "/K", "claude"])
-            .spawn()
-            .map_err(|error| format!("无法启动 Claude Code：{error}"))?;
-    }
-    #[cfg(target_os = "macos")]
-    {
-        Command::new("open")
-            .args(["-a", "Claude Code"])
-            .spawn()
-            .map_err(|error| format!("无法启动 Claude Code：{error}"))?;
-    }
-    #[cfg(all(unix, not(target_os = "macos")))]
-    {
-        Command::new("claude")
-            .spawn()
-            .map_err(|error| format!("无法启动 Claude Code：{error}"))?;
-    }
-    Ok(())
-}
-
-#[tauri::command]
-pub(crate) async fn launch_claude_code<R: Runtime + 'static>(
-    _app: AppHandle<R>,
-) -> Result<bool, String> {
-    tauri::async_runtime::spawn_blocking(move || {
-        if claude_process_running() {
-            return Ok(false);
-        }
-        spawn_claude()?;
-        Ok(true)
-    })
-    .await
-    .map_err(|_| "启动 Claude Code 失败，请重试。".to_string())?
-}
-
-#[tauri::command]
-pub(crate) async fn restart_claude_code<R: Runtime + 'static>(
-    _app: AppHandle<R>,
-) -> Result<(), String> {
-    tauri::async_runtime::spawn_blocking(move || {
-        let mut system = System::new_all();
-        system.refresh_processes(ProcessesToUpdate::All, true);
-        let mut kill_failed = false;
-        for process in system.processes().values() {
-            if is_claude_code_process(process) {
-                kill_failed |= !process.kill();
-            }
-        }
-        if kill_failed {
-            return Err("无法关闭正在运行的 Claude Code，请手动关闭后重试。".to_string());
-        }
-        thread::sleep(Duration::from_millis(300));
-        spawn_claude()
-    })
-    .await
-    .map_err(|_| "重启 Claude Code 失败，请重试。".to_string())?
 }
 
 #[cfg(test)]
