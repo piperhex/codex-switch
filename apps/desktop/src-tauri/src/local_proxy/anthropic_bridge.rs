@@ -187,7 +187,27 @@ fn anthropic_content_block(block: &Value, role: &str) -> Option<Value> {
             .get("text")
             .and_then(Value::as_str)
             .map(|text| json!({ "type": response_text_type(role), "text": text })),
+        Some("image") if role != "assistant" => anthropic_image_block(block),
         Some("tool_result") => None,
+        _ => None,
+    }
+}
+
+fn anthropic_image_block(block: &Value) -> Option<Value> {
+    let source = block.get("source")?;
+    match source.get("type").and_then(Value::as_str) {
+        Some("base64") => {
+            let media_type = source.get("media_type").and_then(Value::as_str)?;
+            let data = source.get("data").and_then(Value::as_str)?;
+            Some(json!({
+                "type": "input_image",
+                "image_url": format!("data:{media_type};base64,{data}")
+            }))
+        }
+        Some("url") => source
+            .get("url")
+            .and_then(Value::as_str)
+            .map(|url| json!({ "type": "input_image", "image_url": url })),
         _ => None,
     }
 }
@@ -524,11 +544,25 @@ mod anthropic_bridge_tests {
                 }]}
             ]
         });
-        let tool_input = anthropic_to_responses(&tool_turn)["input"]
+        let tool_responses = anthropic_to_responses(&tool_turn);
+        let tool_input = tool_responses["input"]
             .as_array()
             .expect("tool input");
         assert_eq!(tool_input[0]["type"], "function_call");
         assert_eq!(tool_input[1]["type"], "function_call_output");
+        let image = json!({
+            "messages": [{
+                "role": "user",
+                "content": [{
+                    "type": "image",
+                    "source": { "type": "base64", "media_type": "image/png", "data": "abc123" }
+                }]
+            }]
+        });
+        assert_eq!(
+            anthropic_to_responses(&image)["input"][0]["content"][0]["type"],
+            "input_image"
+        );
     }
 
     #[test]
