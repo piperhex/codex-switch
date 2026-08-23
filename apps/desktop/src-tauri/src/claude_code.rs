@@ -23,6 +23,7 @@ const CLAUDE_PROXY_HAIKU_MODEL: &str = "claude-haiku-4-5";
 const CLAUDE_PROXY_SONNET_MODEL: &str = "claude-sonnet-4-6";
 const CLAUDE_PROXY_OPUS_MODEL: &str = "claude-opus-4-8";
 const CLAUDE_CODE_SUBAGENT_MODEL: &str = "CLAUDE_CODE_SUBAGENT_MODEL";
+const CLAUDE_CODE_ATTRIBUTION_HEADER: &str = "CLAUDE_CODE_ATTRIBUTION_HEADER";
 
 #[tauri::command]
 pub(crate) async fn set_claude_code_write_target<R: Runtime + 'static>(
@@ -143,6 +144,7 @@ fn apply_official_proxy_environment(
         ANTHROPIC_AUTH_TOKEN.into(),
         Value::String(PROXY_MANAGED_TOKEN.to_string()),
     );
+    disable_dynamic_attribution(env);
     let subagent_route = match subagent_model {
         ClaudeSubagentModel::Sol => CLAUDE_PROXY_SONNET_MODEL,
         ClaudeSubagentModel::Terra => CLAUDE_PROXY_SONNET_MODEL,
@@ -173,6 +175,14 @@ fn apply_provider_environment(env: &mut Map<String, Value>, provider: &ProviderP
         ANTHROPIC_AUTH_TOKEN.into(),
         Value::String(provider.api_key.clone()),
     );
+    disable_dynamic_attribution(env);
+}
+
+fn disable_dynamic_attribution(env: &mut Map<String, Value>) {
+    env.insert(
+        CLAUDE_CODE_ATTRIBUTION_HEADER.into(),
+        Value::String("false".to_string()),
+    );
 }
 
 fn claude_base_url(base_url: &str) -> &str {
@@ -190,6 +200,7 @@ fn clear_provider_environment(env: &mut Map<String, Value>) {
         ANTHROPIC_DEFAULT_SONNET_MODEL,
         ANTHROPIC_DEFAULT_OPUS_MODEL,
         CLAUDE_CODE_SUBAGENT_MODEL,
+        CLAUDE_CODE_ATTRIBUTION_HEADER,
     ] {
         env.remove(key);
     }
@@ -353,6 +364,10 @@ mod tests {
         assert_eq!(
             env.get(CLAUDE_CODE_SUBAGENT_MODEL),
             Some(&json!("claude-sonnet-4-6"))
+        );
+        assert_eq!(
+            env.get(CLAUDE_CODE_ATTRIBUTION_HEADER),
+            Some(&json!("false"))
         );
     }
 

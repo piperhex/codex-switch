@@ -20,84 +20,10 @@ fn is_anthropic_count_tokens_endpoint(path: &str) -> bool {
     ANTHROPIC_COUNT_TOKENS_PATHS.contains(&path)
 }
 
-fn forward_anthropic_official<R: tauri::Runtime>(
-    app: &tauri::AppHandle<R>,
-    _headers: &[(String, String)],
-    body: Vec<u8>,
-    session_id: Option<&str>,
-) -> Result<UpstreamPayload, String> {
-    let client = http_client()?;
-    let credentials = official_credentials(
-        app,
-        &client,
-        OfficialCredentialPurpose::Default,
-        session_id,
-    )?;
-    let request: Value = serde_json::from_slice(&body)
-        .map_err(|error| format!("Anthropic request body is not valid JSON: {error}"))?;
-    let stream = request
-        .get("stream")
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
-    let model = request
-        .get("model")
-        .and_then(Value::as_str)
-        .unwrap_or("claude");
-    let app_settings = read_app_settings(app)?;
-    let subagent_model = crate::third_party_apps::effective_settings(&app_settings)
-        .claude_subagent_model;
-    let responses_body = anthropic_to_responses(&request, subagent_model);
-    let encoded = serde_json::to_vec(&responses_body)
-        .map_err(|error| format!("Failed to encode Anthropic request: {error}"))?;
-    let mut payload = send_official_request(
-        &client,
-        &Method::Post,
-        &official_url("/v1/responses"),
-        // Claude Desktop sends Anthropic-specific headers that are not valid
-        // Codex headers. The official route supplies its own authentication
-        // and client identity; forwarding this request header set can make
-        // reqwest reject the upstream builder before any network call.
-        &[],
-        &encoded,
-        &credentials.authentication,
-    )?;
-    payload.token_usage_account = Some(credentials.token_usage_account);
-    if !status_ok(payload.status) {
-        return Ok(payload);
-    }
-    let response_body = read_payload_body(&mut payload)?;
-    if stream {
-        return Ok(UpstreamPayload {
-            status: payload.status,
-            content_type: Some("text/event-stream; charset=utf-8".to_string()),
-            response_headers: Vec::new(),
-            body: UpstreamBody::Buffered(
-                responses_sse_to_anthropic(&response_body, model).into_bytes(),
-            ),
-            token_usage_account: payload.token_usage_account,
-        });
-    }
-    let mut converted = json_payload(
-        payload.status,
-        responses_sse_to_anthropic_message(&response_body, model),
-    );
-    converted.response_headers = payload.response_headers;
-    converted.token_usage_account = payload.token_usage_account;
-    Ok(converted)
-}
 
-fn read_payload_body(payload: &mut UpstreamPayload) -> Result<Vec<u8>, String> {
-    match std::mem::replace(&mut payload.body, UpstreamBody::Buffered(Vec::new())) {
-        UpstreamBody::Buffered(body) => Ok(body),
-        UpstreamBody::Streaming(mut stream) => {
-            let mut body = Vec::new();
-            stream
-                .read_to_end(&mut body)
-                .map_err(|error| format!("Failed to read Codex response: {error}"))?;
-            Ok(body)
-        }
-    }
-}
+
+
+
 
 
 
@@ -467,6 +393,9 @@ mod anthropic_bridge_tests {
             )["model"],
             "gpt-5.6-terra"
         );
+        assert!(is_anthropic_token_probe(
+            br#"{"max_tokens":1,"messages":[{"role":"user","content":"count"}]}"#
+        ));
     }
 
     #[test]

@@ -19,6 +19,18 @@ fn anthropic_to_responses(
     body
 }
 
+fn is_anthropic_token_probe(body: &[u8]) -> bool {
+    serde_json::from_slice::<Value>(body)
+        .ok()
+        .is_some_and(|request| {
+            request.get("max_tokens").and_then(Value::as_u64) == Some(1)
+                && request
+                    .get("messages")
+                    .and_then(Value::as_array)
+                    .is_some_and(|messages| messages.len() == 1)
+        })
+}
+
 fn codex_model_for_anthropic_request(
     request: &Value,
     subagent_model: crate::models::ClaudeSubagentModel,

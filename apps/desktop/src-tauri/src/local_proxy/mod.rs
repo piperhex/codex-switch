@@ -14,6 +14,7 @@ include!("token_usage.rs");
 include!("token_usage_db.rs");
 include!("forwarding.rs");
 include!("anthropic_bridge.rs");
+include!("anthropic_forwarding.rs");
 include!("anthropic_request.rs");
 include!("models.rs");
 include!("chat_bridge.rs");

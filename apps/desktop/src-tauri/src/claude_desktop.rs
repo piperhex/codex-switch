@@ -17,17 +17,23 @@ const PROXY_TOKEN: &str = "PROXY_MANAGED";
 const PROXY_ROUTE: &str = "/claude-desktop";
 
 pub(crate) fn write_official_proxy_settings(context_window: u64) -> Result<(), String> {
-    sync_desktop_paths(false, context_window)
+    sync_desktop_paths(false, &gateway_profile(context_window))
+}
+
+pub(crate) fn write_provider_proxy_settings(
+    provider: &crate::models::ProviderProfile,
+) -> Result<(), String> {
+    sync_desktop_paths(false, &provider_gateway_profile(provider))
 }
 
 pub(crate) fn clear_proxy_settings() -> Result<(), String> {
-    sync_desktop_paths(true, 0)
+    sync_desktop_paths(true, &Value::Null)
 }
 
-fn sync_desktop_paths(clear: bool, context_window: u64) -> Result<(), String> {
+fn sync_desktop_paths(clear: bool, profile: &Value) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
-        sync_macos_paths(clear, context_window)
+        sync_macos_paths(clear, profile)
     }
     #[cfg(not(target_os = "macos"))]
     {
@@ -36,7 +42,7 @@ fn sync_desktop_paths(clear: bool, context_window: u64) -> Result<(), String> {
             let result = if clear {
                 clear_at_root(&root)
             } else {
-                write_at_root(&root, context_window)
+                write_at_root(&root, profile)
             };
             if let Err(error) = result {
                 errors.push(format!("{}：{error}", root.display()));
@@ -122,7 +128,7 @@ fn append_store_package_roots(roots: &mut Vec<PathBuf>, parent: &Path) {
 }
 
 #[cfg(target_os = "macos")]
-fn sync_macos_paths(clear: bool, context_window: u64) -> Result<(), String> {
+fn sync_macos_paths(clear: bool, profile: &Value) -> Result<(), String> {
     let home = dirs::home_dir().ok_or_else(|| "无法定位用户主目录".to_string())?;
     let (normal_root, threep_root) = macos_config_roots(&home);
     if clear {
@@ -132,7 +138,7 @@ fn sync_macos_paths(clear: bool, context_window: u64) -> Result<(), String> {
         return clear_at_root(&threep_root);
     }
     update_deployment_mode(&normal_root.join(CONFIG_FILE), "3p")?;
-    write_at_root(&threep_root, context_window)
+    write_at_root(&threep_root, profile)
 }
 
 #[cfg(any(target_os = "macos", test))]
@@ -144,14 +150,14 @@ fn macos_config_roots(home: &Path) -> (PathBuf, PathBuf) {
     )
 }
 
-fn write_at_root(root: &Path, context_window: u64) -> Result<(), String> {
+fn write_at_root(root: &Path, profile: &Value) -> Result<(), String> {
     let config_path = root.join(CONFIG_FILE);
     let profile_path = root
         .join("configLibrary")
         .join(format!("{PROFILE_ID}.json"));
     let meta_path = root.join("configLibrary").join("_meta.json");
     update_deployment_mode(&config_path, "3p")?;
-    write_json_atomic(&profile_path, &gateway_profile(context_window))?;
+    write_json_atomic(&profile_path, profile)?;
     update_meta(&meta_path, true)
 }
 
@@ -236,6 +242,31 @@ fn gateway_profile(context_window: u64) -> Value {
     })
 }
 
+fn provider_gateway_profile(provider: &crate::models::ProviderProfile) -> Value {
+    let context_window = crate::third_party_apps::provider_context_window(provider);
+    let supports_1m = context_window >= 1_000_000;
+    let model = |name: &str| {
+        let mut value = json!({ "name": name, "labelOverride": provider.model });
+        if supports_1m {
+            value["supports1m"] = Value::Bool(true);
+        }
+        value
+    };
+    json!({
+        "coworkEgressAllowedHosts": ["*"],
+        "disableDeploymentModeChooser": true,
+        "inferenceGatewayApiKey": PROXY_TOKEN,
+        "inferenceGatewayAuthScheme": "bearer",
+        "inferenceGatewayBaseUrl": format!("http://127.0.0.1:15722{PROXY_ROUTE}"),
+        "inferenceProvider": "gateway",
+        "inferenceModels": [
+            model("claude-haiku-4-5"),
+            model("claude-sonnet-5"),
+            model("claude-opus-5")
+        ]
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -288,5 +319,12 @@ mod tests {
     fn windows_login_root_uses_roaming_app_data() {
         let roaming = PathBuf::from(r"C:\Users\tester\AppData\Roaming");
         assert_eq!(windows_login_root(&roaming), roaming.join("Claude"));
+    }
+
+    #[test]
+    fn provider_profile_uses_the_selected_provider_model() {
+        let provider = crate::third_party_apps::tests::provider();
+        let profile = provider_gateway_profile(&provider);
+        assert_eq!(profile["inferenceModels"][0]["labelOverride"], "test-model");
     }
 }

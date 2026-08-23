@@ -298,6 +298,26 @@ fn handle_proxy_request<R: Runtime>(
         );
         return result;
     }
+    if *method == Method::Post
+        && is_anthropic_messages_endpoint(path)
+        && is_anthropic_token_probe(&body)
+    {
+        let result = Ok(anthropic_token_probe_payload(&body));
+        append_proxy_diagnostic_result(
+            app,
+            proxy_diagnostic_entry(
+                method,
+                url,
+                headers,
+                &body,
+                None,
+                ProxyDiagnosticRoute::LocalHealth,
+            ),
+            &result,
+            started_at.elapsed(),
+        );
+        return result;
+    }
     if *method == Method::Get && matches!(path, "/usage" | "/v1/usage") {
         return current_usage_payload(app);
     }
@@ -430,6 +450,9 @@ fn forward_active_request<R: Runtime>(
             forward_official(app, method, url, headers, body, &model, session_id)
         }
         ActiveTarget::Provider(provider) => {
+            if is_anthropic_messages_endpoint(path) {
+                return forward_anthropic_provider(body, &provider);
+            }
             forward_provider_request(method, url, headers, body, &provider)
         }
         ActiveTarget::Aggregate(target) => forward_aggregate_request(AggregateForwardRequest {
