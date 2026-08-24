@@ -8,7 +8,12 @@ use tauri::{AppHandle, Runtime};
 
 use crate::{
     claude_code,
-    models::{AppSettings, ProviderProfile, ThirdPartyAppWriteSettings},
+    codex_config::{LOCAL_PROXY_BASE_URL, LOCAL_PROXY_TOKEN},
+    models::{
+        AppSettings, ModelApiFormats, ModelContextWindows, ModelReasoningEfforts,
+        ProviderApiFormat, ProviderKind, ProviderProfile, ThirdPartyAppWriteSettings,
+    },
+    providers::DEFAULT_OFFICIAL_MODEL,
     storage::{read_app_settings, read_state, resolve_paths, write_app_settings},
 };
 
@@ -235,7 +240,43 @@ fn active_provider<R: Runtime>(app: &AppHandle<R>) -> Result<Option<ProviderProf
         return crate::providers::provider_group_profiles(&paths, group)
             .map(|providers| providers.into_iter().next());
     }
+    if state.local_proxy_enabled
+        && state.active_account_id.is_some()
+        && crate::local_proxy::is_running()
+    {
+        let context_window = read_app_settings(app)?.gpt_5_6_sol_context_window;
+        return Ok(Some(official_local_proxy_profile(context_window)));
+    }
     Ok(None)
+}
+
+fn official_local_proxy_profile(context_window: u64) -> ProviderProfile {
+    let model = DEFAULT_OFFICIAL_MODEL.to_string();
+    ProviderProfile {
+        id: MANAGED_PROVIDER_ID.to_string(),
+        kind: ProviderKind::OpenAi,
+        name: "Codex Switch".to_string(),
+        group: String::new(),
+        base_url: LOCAL_PROXY_BASE_URL.to_string(),
+        api_key: LOCAL_PROXY_TOKEN.to_string(),
+        model: model.clone(),
+        models: vec![model],
+        model_reasoning_efforts: ModelReasoningEfforts::new(),
+        model_context_windows: ModelContextWindows::new(),
+        model_api_formats: ModelApiFormats::new(),
+        image_input_models: Vec::new(),
+        image_input_models_configured: false,
+        context_window: Some(context_window),
+        model_selection_controlled_by_codex: true,
+        api_format: ProviderApiFormat::OpenaiResponses,
+        balance_platform: None,
+        balance_query_url: None,
+        balance_query_token: None,
+        wallet_query_url: None,
+        wallet_query_token: None,
+        wallet_username: None,
+        wallet_password: None,
+    }
 }
 
 #[cfg(test)]
@@ -286,5 +327,15 @@ pub(crate) mod tests {
         assert!(effective.enabled);
         assert!(effective.write_codex);
         assert!(effective.apps.claude_code);
+    }
+
+    #[test]
+    fn official_local_proxy_profile_targets_the_responses_endpoint() {
+        let profile = official_local_proxy_profile(1_000_000);
+        assert_eq!(profile.base_url, LOCAL_PROXY_BASE_URL);
+        assert_eq!(profile.api_key, LOCAL_PROXY_TOKEN);
+        assert_eq!(profile.api_format, ProviderApiFormat::OpenaiResponses);
+        assert_eq!(profile.models, vec![DEFAULT_OFFICIAL_MODEL]);
+        assert_eq!(profile.context_window, Some(1_000_000));
     }
 }

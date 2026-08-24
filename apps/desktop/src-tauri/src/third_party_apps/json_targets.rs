@@ -392,6 +392,15 @@ mod tests {
     }
 
     #[test]
+    fn open_code_responses_provider_uses_the_native_openai_sdk() {
+        let mut config = json!({});
+        let mut provider = provider();
+        provider.api_format = crate::models::ProviderApiFormat::OpenaiResponses;
+        update_open_code_config(&mut config, Some(&provider)).unwrap();
+        assert_eq!(config["provider"]["codex-switch"]["npm"], "@ai-sdk/openai");
+    }
+
+    #[test]
     fn open_claw_update_preserves_unrelated_sections() {
         let mut config = json!({ "gateway": { "token": "keep" } });
         let provider = provider();
