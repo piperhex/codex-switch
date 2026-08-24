@@ -133,7 +133,8 @@ fn forwarded_response_headers(headers: &reqwest::header::HeaderMap) -> Vec<(Stri
 fn build_upstream_url(base_url: &str, endpoint: &str) -> String {
     let base = base_url.trim_end_matches('/');
     let endpoint = endpoint.trim_start_matches('/');
-    let endpoint = if base.ends_with("/v1") {
+    let has_versioned_path = base_url_ends_with_version_segment(base);
+    let endpoint = if has_versioned_path {
         endpoint.strip_prefix("v1/").unwrap_or(endpoint)
     } else {
         endpoint
@@ -143,7 +144,7 @@ fn build_upstream_url(base_url: &str, endpoint: &str) -> String {
         .split_once("://")
         .map(|(_, rest)| !rest.contains('/'))
         .unwrap_or_else(|| !base.contains('/'));
-    let mut url = if base.ends_with("/v1") {
+    let mut url = if has_versioned_path {
         format!("{base}/{endpoint}")
     } else if origin_only {
         format!("{base}/v1/{endpoint}")
@@ -154,6 +155,19 @@ fn build_upstream_url(base_url: &str, endpoint: &str) -> String {
         url = url.replace("/v1/v1", "/v1");
     }
     url
+}
+
+fn base_url_ends_with_version_segment(base_url: &str) -> bool {
+    let Some(version) = base_url.rsplit('/').next() else {
+        return false;
+    };
+    let Some(version_number) = version.strip_prefix('v') else {
+        return false;
+    };
+    !version_number.is_empty()
+        && version_number
+            .chars()
+            .all(|character| character.is_ascii_digit())
 }
 
 fn official_url(endpoint: &str) -> String {

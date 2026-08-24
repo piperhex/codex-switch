@@ -404,6 +404,24 @@
     }
 
     #[test]
+    fn upstream_url_supports_provider_versioned_base_paths() {
+        assert_eq!(
+            build_upstream_url(
+                "https://ark.cn-beijing.volces.com/api/plan/v3",
+                "/v1/responses"
+            ),
+            "https://ark.cn-beijing.volces.com/api/plan/v3/responses"
+        );
+        assert_eq!(
+            build_upstream_url(
+                "https://ark.cn-beijing.volces.com/api/coding/v3",
+                "/v1/models"
+            ),
+            "https://ark.cn-beijing.volces.com/api/coding/v3/models"
+        );
+    }
+
+    #[test]
     fn codex_response_endpoint_variants_normalize_for_upstream() {
         assert_eq!(
             upstream_endpoint_for_codex_request("/v1/v1/responses?foo=bar"),
