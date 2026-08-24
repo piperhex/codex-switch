@@ -23,6 +23,7 @@ fn backup_codex_config_if_needed(paths: &Paths, entering_provider: bool) -> Resu
 }
 
 pub(crate) fn write_official_local_proxy_config(paths: &Paths) -> Result<(), String> {
+    sync_local_proxy_auth_before_config_write(paths, LocalProxyConfigTarget::Official)?;
     write_local_proxy_config(
         paths,
         LOCAL_PROXY_PROVIDER_NAME,
@@ -35,6 +36,7 @@ fn write_provider_local_proxy_config(
     paths: &Paths,
     provider: &ProviderProfile,
 ) -> Result<(), String> {
+    sync_local_proxy_auth_before_config_write(paths, LocalProxyConfigTarget::Provider)?;
     let uses_local_catalog = !uses_upstream_official_models(provider);
     if uses_local_catalog {
         write_provider_model_catalog(paths, provider)?;
@@ -45,6 +47,28 @@ fn write_provider_local_proxy_config(
         Some(codex_model_for_provider(provider)),
         uses_local_catalog,
     )
+}
+
+#[derive(Clone, Copy)]
+enum LocalProxyConfigTarget {
+    Official,
+    Provider,
+}
+
+// Provider requests read their official credentials from the managed account store, so the live
+// Codex auth file can be cleared while a third-party Provider is active. Keeping that file empty
+// prevents Codex's background account polling from treating an old OAuth credential as current.
+fn sync_local_proxy_auth_before_config_write(
+    paths: &Paths,
+    target: LocalProxyConfigTarget,
+) -> Result<(), String> {
+    let state = read_state(paths);
+    if matches!(target, LocalProxyConfigTarget::Official)
+        || state.local_proxy_openai_auth_account_id.is_none()
+    {
+        sync_local_proxy_openai_auth_for_state(paths, &state)?;
+    }
+    Ok(())
 }
 
 fn write_active_provider_config(paths: &Paths, provider: &ProviderProfile) -> Result<(), String> {
@@ -111,6 +135,7 @@ fn write_provider_group_local_proxy_config(
     group: &str,
     providers: &[ProviderProfile],
 ) -> Result<(), String> {
+    sync_local_proxy_auth_before_config_write(paths, LocalProxyConfigTarget::Provider)?;
     let catalog = model_catalog_for_provider_group_with_image_route(
         providers,
         image_input_route_enabled(paths),

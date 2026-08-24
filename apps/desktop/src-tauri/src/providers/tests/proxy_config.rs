@@ -124,6 +124,60 @@
     }
 
     #[test]
+    fn provider_activation_removes_stale_auth_without_openai_login_selection() {
+        let paths = test_paths();
+        let auth = test_auth();
+        let (_, _, _, id) = crate::auth::account_fields(&auth).unwrap();
+        write_json_atomic(&managed_auth_path(&paths, &id), &auth).unwrap();
+        write_json_atomic(&paths.current_auth, &auth).unwrap();
+        write_provider(&paths, &provider()).unwrap();
+        write_state(
+            &paths,
+            &crate::models::ManagerStateFile {
+                active_provider_id: Some("p".to_string()),
+                local_proxy_openai_auth_account_id: None,
+                ..crate::models::ManagerStateFile::default()
+            },
+        )
+        .unwrap();
+
+        // This is the path used by a hot Provider switch. It must enforce the
+        // same auth-file invariant as starting the proxy from scratch.
+        write_provider_local_proxy_config(&paths, &provider()).unwrap();
+
+        assert!(!paths.current_auth.exists());
+        assert_eq!(read_json(&managed_auth_path(&paths, &id)).unwrap(), auth);
+        assert!(fs::read_to_string(&paths.current_config)
+            .unwrap()
+            .contains("requires_openai_auth = false"));
+        fs::remove_dir_all(paths.codex_home.parent().unwrap()).unwrap();
+    }
+
+    #[test]
+    fn official_proxy_config_restores_selected_login_auth_after_provider_switch() {
+        let paths = test_paths();
+        let auth = test_auth();
+        let (_, _, _, id) = crate::auth::account_fields(&auth).unwrap();
+        write_json_atomic(&managed_auth_path(&paths, &id), &auth).unwrap();
+        write_state(
+            &paths,
+            &crate::models::ManagerStateFile {
+                local_proxy_openai_auth_account_id: Some(id),
+                ..crate::models::ManagerStateFile::default()
+            },
+        )
+        .unwrap();
+
+        write_official_local_proxy_config(&paths).unwrap();
+
+        assert!(paths.current_auth.exists());
+        assert!(fs::read_to_string(&paths.current_config)
+            .unwrap()
+            .contains("requires_openai_auth = true"));
+        fs::remove_dir_all(paths.codex_home.parent().unwrap()).unwrap();
+    }
+
+    #[test]
     fn restoring_official_config_preserves_current_non_provider_settings() {
         let paths = test_paths();
         let options = LocalProxyConfigOptions {

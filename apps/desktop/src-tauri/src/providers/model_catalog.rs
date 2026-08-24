@@ -229,15 +229,14 @@ fn write_local_proxy_config(
     model: Option<&str>,
     include_model_catalog: bool,
 ) -> Result<(), String> {
+    let state = read_state(paths);
     let existing = if paths.current_config.exists() {
         fs::read_to_string(&paths.current_config)
             .map_err(|error| format!("Failed to read Codex config: {error}"))?
     } else {
         String::new()
     };
-    let requires_openai_auth = read_state(paths)
-        .local_proxy_openai_auth_account_id
-        .is_some();
+    let requires_openai_auth = state.local_proxy_openai_auth_account_id.is_some();
     let token_command = std::env::current_exe()
         .map_err(|error| format!("Failed to locate Codex Switch for local proxy auth: {error}"))?
         .display()
