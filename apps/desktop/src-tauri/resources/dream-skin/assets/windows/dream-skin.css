@@ -700,8 +700,11 @@ html.codex-dream-skin.dream-art-wide main.main-surface .app-shell-main-content-t
   background: transparent !important;
 }
 
+/* Codex 26.818 renamed the surface token classes while keeping the timeline
+   scroll data attribute. Clear both the legacy and current bottom fades so
+   the composer remains the only painted surface around the input controls. */
 html.codex-dream-skin.dream-art-wide main.main-surface
-  .thread-scroll-container .bg-gradient-to-t.from-token-main-surface-primary {
+  :is(.thread-scroll-container, [data-app-action-timeline-scroll]) .bg-gradient-to-t {
   background: transparent !important;
 }
 

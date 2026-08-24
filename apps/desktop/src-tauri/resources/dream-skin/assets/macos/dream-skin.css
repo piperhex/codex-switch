@@ -1027,9 +1027,11 @@ html.codex-dream-skin[data-dream-art-wide="true"] main.main-surface
 
 /* Codex paints a second opaque fade behind the sticky composer. The composer
    already owns its readable surface, so retaining this layer creates a false
-   bottom panel and makes the control look duplicated. */
+   bottom panel and makes the control look duplicated. Codex 26.818 renamed
+   the surface token classes while keeping the timeline scroll data attribute,
+   so clear both the legacy and current bottom fades. */
 html.codex-dream-skin[data-dream-art-wide="true"] main.main-surface
-  .thread-scroll-container .bg-gradient-to-t.from-token-main-surface-primary {
+  :is(.thread-scroll-container, [data-app-action-timeline-scroll]) .bg-gradient-to-t {
   background: transparent !important;
 }
 
