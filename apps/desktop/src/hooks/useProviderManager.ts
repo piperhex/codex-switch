@@ -15,6 +15,7 @@ import {
   saveProviderProfile,
   setLocalProxyAutoDisableUnreachable,
   setLocalProxyCustomPriority,
+  setLocalProxyCustomThreshold,
   setLocalProxyImageAccount,
   setLocalProxyImageModelTarget,
   setLocalProxyOpenaiAuthAccount,
@@ -557,6 +558,18 @@ export function useProviderManager(
     }
   }, [load, notify, t]);
 
+  const setProxyCustomThreshold = useCallback(async (enabled: boolean) => {
+    setProxyBusy(true);
+    try {
+      setLocalProxy(await setLocalProxyCustomThreshold(enabled));
+      await load();
+    } catch (error) {
+      notify(providerErrorMessage(error, t));
+    } finally {
+      setProxyBusy(false);
+    }
+  }, [load, notify, t]);
+
   const setProxyImageAccount = useCallback(async (accountId: string | null) => {
     setProxyBusy(true);
     try {
@@ -678,6 +691,7 @@ export function useProviderManager(
     setProxyConcurrentRouting,
     setProxyAutoDisableUnreachable,
     setProxyCustomPriority,
+    setProxyCustomThreshold,
     setProxyImageAccount,
     setProxyImageModel,
     setProxyOpenaiAuthAccount,

@@ -35,6 +35,10 @@ pub(crate) fn save_auto_switch_priority(path: &Path, priority: i32) -> Result<()
     write_text_atomic(path, &priority.to_string())
 }
 
+pub(crate) fn save_auto_switch_threshold(path: &Path, threshold: f64) -> Result<(), String> {
+    write_text_atomic(path, &threshold.to_string())
+}
+
 pub(crate) fn parse_last_modified(value: &str) -> Option<DateTime<Utc>> {
     DateTime::parse_from_rfc3339(value.trim())
         .ok()
@@ -65,6 +69,7 @@ fn latest_file_modified(paths: &Paths, id: &str) -> Option<DateTime<Utc>> {
         account_private_details_path(paths, id),
         usage_path(paths, id),
         auto_switch_priority_path(paths, id),
+        auto_switch_threshold_path(paths, id),
     ]
     .into_iter()
     .filter_map(|path| fs::metadata(path).ok()?.modified().ok())
@@ -121,6 +126,10 @@ fn fill_missing_field_modified_at(
         values.auto_switch_priority =
             file_modified_or_fallback(auto_switch_priority_path(paths, id), fallback);
     }
+    if values.auto_switch_threshold.trim().is_empty() {
+        values.auto_switch_threshold =
+            file_modified_or_fallback(auto_switch_threshold_path(paths, id), fallback);
+    }
 }
 
 pub(crate) fn load_or_init_account_field_modified_at(
@@ -156,6 +165,7 @@ pub(crate) fn save_account_field_modified_at(
         &values.usage,
         &values.active,
         &values.auto_switch_priority,
+        &values.auto_switch_threshold,
     ]
     .into_iter()
     .filter_map(|value| parse_last_modified(value))
@@ -182,6 +192,7 @@ pub(crate) fn touch_account_field(
         AccountSyncField::Usage => values.usage = value,
         AccountSyncField::Active => values.active = value,
         AccountSyncField::AutoSwitchPriority => values.auto_switch_priority = value,
+        AccountSyncField::AutoSwitchThreshold => values.auto_switch_threshold = value,
     }
     save_account_field_modified_at(paths, id, &values)?;
     Ok(modified_at)

@@ -151,6 +151,7 @@ fn try_auto_switch_official_account<R: Runtime>(
         &refreshed_accounts,
         &current_id,
         state.custom_auto_switch_priority_enabled,
+        state.custom_auto_switch_threshold_enabled,
     ) {
         let target_id = target.id.clone();
         if let Err(error) = crate::commands::switch_account_blocking(app.clone(), target_id.clone())
@@ -173,7 +174,11 @@ fn try_auto_switch_official_account<R: Runtime>(
     }
 
     if backup_usage_unknown
-        || !all_backup_accounts_have_exhausted_primary_quota(&refreshed_accounts, &current_id)
+        || !all_backup_accounts_have_exhausted_primary_quota(
+            &refreshed_accounts,
+            &current_id,
+            state.custom_auto_switch_threshold_enabled,
+        )
     {
         return Ok(AutoSwitchAttempt::Unchanged);
     }
@@ -200,10 +205,12 @@ fn try_auto_switch_official_account<R: Runtime>(
 fn all_backup_accounts_have_exhausted_primary_quota(
     accounts: &[AccountSummary],
     current_id: &str,
+    custom_threshold_enabled: bool,
 ) -> bool {
     accounts
         .iter()
         .filter(|account| account.id != current_id && account.auto_switch_enabled)
+        .filter(|account| account_meets_threshold(account, custom_threshold_enabled))
         .all(|account| {
             account.usage.error.is_none()
                 && account
@@ -218,13 +225,15 @@ fn account_with_lowest_remaining_primary_quota<'a>(
     accounts: &'a [AccountSummary],
     current_id: &str,
     custom_priority_enabled: bool,
+    custom_threshold_enabled: bool,
 ) -> Option<&'a AccountSummary> {
     accounts
         .iter()
         .filter(|account| account.id != current_id)
         .filter(|account| account.auto_switch_enabled)
         .filter_map(|account| {
-            primary_remaining_quota_score(&account.usage).map(|score| (account, score))
+            let score = primary_remaining_quota_score(&account.usage)?;
+            account_meets_threshold(account, custom_threshold_enabled).then_some((account, score))
         })
         .min_by(|(left_account, left_usage), (right_account, right_usage)| {
             let priority_order = if custom_priority_enabled {
@@ -241,4 +250,12 @@ fn account_with_lowest_remaining_primary_quota<'a>(
             })
         })
         .map(|(account, _)| account)
+}
+
+fn account_meets_threshold(account: &AccountSummary, custom_threshold_enabled: bool) -> bool {
+    if !custom_threshold_enabled {
+        return true;
+    }
+    primary_remaining_quota_score(&account.usage)
+        .is_some_and(|remaining| remaining >= account.auto_switch_threshold)
 }

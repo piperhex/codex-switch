@@ -27,6 +27,7 @@ mod tests {
                 },
                 usage: UsageSummary::default(),
                 auto_switch_priority: 0,
+                auto_switch_threshold: 0.0,
                 last_modified_at: Some("2026-07-04T00:00:00Z".to_string()),
             }],
             providers: vec![ProviderSyncPayload {

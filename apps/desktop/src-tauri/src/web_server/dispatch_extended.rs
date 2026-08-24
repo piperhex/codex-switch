@@ -24,6 +24,12 @@ fn dispatch_extended_command(app: AppHandle, command: &str, args: Value) -> Resu
                 argument(&args, "enabled")?,
             ))
         }
+        "set_custom_auto_switch_threshold_enabled" => {
+            serialize(crate::local_proxy::set_custom_auto_switch_threshold_enabled(
+                app,
+                argument(&args, "enabled")?,
+            ))
+        }
         "set_image_generation_account" => serialize(
             crate::local_proxy::set_image_generation_account(app, argument(&args, "accountId")?),
         ),
@@ -215,6 +221,13 @@ fn dispatch_extended_command(app: AppHandle, command: &str, args: Value) -> Resu
                 argument(&args, "priority")?,
             ))
         }
+        "set_account_auto_switch_threshold" => serialize(block_on(
+            crate::commands::set_account_auto_switch_threshold(
+                app,
+                argument(&args, "id")?,
+                argument(&args, "threshold")?,
+            ),
+        )),
         "refresh_usage" => serialize(block_on(crate::commands::refresh_usage(
             app,
             argument(&args, "id")?,

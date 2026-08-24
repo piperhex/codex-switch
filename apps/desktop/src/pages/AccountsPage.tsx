@@ -30,6 +30,8 @@ export function AccountsPage({
   autoSwitchBusyAccountId,
   onAutoSwitchPriorityChange,
   autoSwitchPriorityBusyAccountId,
+  onAutoSwitchThresholdChange,
+  autoSwitchThresholdBusyAccountId,
   onSaveNote,
   onLoadAccountDetails,
   onLoadResetCredits,
@@ -67,6 +69,8 @@ export function AccountsPage({
   autoSwitchBusyAccountId: string | null;
   onAutoSwitchPriorityChange: (id: string, priority: number) => Promise<boolean>;
   autoSwitchPriorityBusyAccountId: string | null;
+  onAutoSwitchThresholdChange: (id: string, threshold: number) => Promise<boolean>;
+  autoSwitchThresholdBusyAccountId: string | null;
   onSaveNote: (id: string, details: AccountDetailsDraft) => Promise<boolean>;
   onLoadAccountDetails: (id: string) => Promise<Account | null>;
   onLoadResetCredits: (id: string, force?: boolean) => void;
@@ -115,8 +119,11 @@ export function AccountsPage({
         onAutoSwitchEnabledChange={onAutoSwitchEnabledChange} autoSwitchBusyAccountId={autoSwitchBusyAccountId}
         onAutoSwitchPriorityChange={onAutoSwitchPriorityChange}
         autoSwitchPriorityBusyAccountId={autoSwitchPriorityBusyAccountId}
+        onAutoSwitchThresholdChange={onAutoSwitchThresholdChange}
+        autoSwitchThresholdBusyAccountId={autoSwitchThresholdBusyAccountId}
         autoSwitchOnQuotaExhaustion={localProxy?.autoSwitchOnQuotaExhaustion ?? false}
         customAutoSwitchPriorityEnabled={localProxy?.customAutoSwitchPriorityEnabled ?? false}
+        customAutoSwitchThresholdEnabled={localProxy?.customAutoSwitchThresholdEnabled ?? false}
         onSaveNote={onSaveNote}
         onLoadAccountDetails={onLoadAccountDetails}
         resetCredits={resetCredits} onLoadResetCredits={onLoadResetCredits}

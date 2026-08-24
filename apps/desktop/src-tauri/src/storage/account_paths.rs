@@ -45,6 +45,10 @@ pub(crate) fn auto_switch_priority_path(paths: &Paths, id: &str) -> PathBuf {
     account_dir(paths, id).join("auto-switch-priority.txt")
 }
 
+pub(crate) fn auto_switch_threshold_path(paths: &Paths, id: &str) -> PathBuf {
+    account_dir(paths, id).join("auto-switch-threshold.txt")
+}
+
 pub(crate) fn last_modified_path(paths: &Paths, id: &str) -> PathBuf {
     account_dir(paths, id).join("last-modified-at.txt")
 }
@@ -72,5 +76,13 @@ pub(crate) fn load_auto_switch_priority(path: &Path) -> i32 {
     fs::read_to_string(path)
         .ok()
         .and_then(|value| value.trim().parse().ok())
+        .unwrap_or_default()
+}
+
+pub(crate) fn load_auto_switch_threshold(path: &Path) -> f64 {
+    fs::read_to_string(path)
+        .ok()
+        .and_then(|value| value.trim().parse().ok())
+        .filter(|value: &f64| value.is_finite() && (0.0..=100.0).contains(value))
         .unwrap_or_default()
 }

@@ -17,6 +17,7 @@ import {
   removeAccount,
   setAccountAutoSwitchEnabled,
   setAccountAutoSwitchPriority,
+  setAccountAutoSwitchThreshold,
   subscribeToBackendEvents,
   subscribeToProviderEvents,
   updateAccountNote,
@@ -49,6 +50,7 @@ export function useAccountManager(
   const [busyAccountId, setBusyAccountId] = useState<string | null>(null);
   const [autoSwitchBusyAccountId, setAutoSwitchBusyAccountId] = useState<string | null>(null);
   const [autoSwitchPriorityBusyAccountId, setAutoSwitchPriorityBusyAccountId] = useState<string | null>(null);
+  const [autoSwitchThresholdBusyAccountId, setAutoSwitchThresholdBusyAccountId] = useState<string | null>(null);
   const [refreshingAll, setRefreshingAll] = useState(false);
   const [archiveOperation, setArchiveOperation] = useState<"import" | "export" | null>(null);
   const refreshingAllRef = useRef(false);
@@ -463,6 +465,24 @@ export function useAccountManager(
     }
   }, [cloudSync, load, notify]);
 
+  const setAutoSwitchThreshold = useCallback(async (id: string, threshold: number) => {
+    setAutoSwitchThresholdBusyAccountId(id);
+    try {
+      await setAccountAutoSwitchThreshold(id, threshold);
+      setAccounts((items) => items.map((item) => item.id === id
+        ? { ...item, autoSwitchThreshold: threshold }
+        : item));
+      await cloudSync?.pushAccount?.(id);
+      if (hasLocalBackend) await load();
+      return true;
+    } catch (error) {
+      notify(String(error));
+      return false;
+    } finally {
+      setAutoSwitchThresholdBusyAccountId(null);
+    }
+  }, [cloudSync, load, notify]);
+
   return {
     accounts,
     info,
@@ -470,6 +490,7 @@ export function useAccountManager(
     busyAccountId,
     autoSwitchBusyAccountId,
     autoSwitchPriorityBusyAccountId,
+    autoSwitchThresholdBusyAccountId,
     refreshingAll,
     archiveOperation,
     startLogin,
@@ -490,6 +511,7 @@ export function useAccountManager(
     enableAutoSwitchAccounts,
     disableAutoSwitchAccounts,
     setAutoSwitchPriority,
+    setAutoSwitchThreshold,
     saveAccountNote,
     refreshAccountDetails,
     reload: load,

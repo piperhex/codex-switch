@@ -105,6 +105,8 @@ pub(crate) struct LocalProxyStatus {
     pub(crate) auto_switch_on_quota_exhaustion: bool,
     pub(crate) concurrent_account_routing_enabled: bool,
     pub(crate) custom_auto_switch_priority_enabled: bool,
+    #[serde(default)]
+    pub(crate) custom_auto_switch_threshold_enabled: bool,
     pub(crate) auto_disable_unreachable_accounts: bool,
     pub(crate) listen_on_all_interfaces: bool,
     pub(crate) has_lan_api_key: bool,

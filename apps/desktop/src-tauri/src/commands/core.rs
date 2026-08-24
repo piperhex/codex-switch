@@ -106,6 +106,8 @@ pub(crate) fn list_accounts_blocking<R: Runtime>(
         let auto_switch_enabled = !state.disabled_account_ids.contains(&id);
         let auto_switch_priority =
             load_auto_switch_priority(&auto_switch_priority_path(&paths, &id));
+        let auto_switch_threshold =
+            load_auto_switch_threshold(&auto_switch_threshold_path(&paths, &id));
         let mut usage = load_usage(&usage_path(&paths, &id));
         usage.api_expires_at = subscription_active_until(&auth);
         let (official, metadata_editable) = load_official_account_access(&paths, &id);
@@ -128,6 +130,7 @@ pub(crate) fn list_accounts_blocking<R: Runtime>(
             account_id,
             auto_switch_enabled,
             auto_switch_priority,
+            auto_switch_threshold,
             local_proxy_compatible,
             direct_switch_compatible,
             agent_identity,

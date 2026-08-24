@@ -41,6 +41,12 @@ export function ProxyTopbarActions({
                 disabled={manager.proxyBusy || !localProxy?.autoSwitchOnQuotaExhaustion}
                 onChange={(enabled) => void manager.setProxyCustomPriority(enabled)} />
             </div>
+            <div className="proxy-auto-switch-menu-item" title={t("table.customThresholdTooltip")}>
+              <span>{t("table.customThresholdEnabled")}</span>
+              <Switch size="small" checked={localProxy?.customAutoSwitchThresholdEnabled}
+                disabled={manager.proxyBusy || !localProxy?.autoSwitchOnQuotaExhaustion}
+                onChange={(enabled) => void manager.setProxyCustomThreshold(enabled)} />
+            </div>
             <div className="proxy-auto-switch-menu-item"
               title={t("providers.proxy.autoDisableUnreachableTooltip")}>
               <span>{t("providers.proxy.autoDisableUnreachable")}</span>

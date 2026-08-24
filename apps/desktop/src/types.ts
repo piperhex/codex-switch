@@ -25,6 +25,7 @@ export interface Account {
   active: boolean;
   autoSwitchEnabled: boolean;
   autoSwitchPriority: number;
+  autoSwitchThreshold: number;
   localProxyCompatible: boolean;
   directSwitchCompatible: boolean;
   agentIdentity: boolean;
@@ -185,6 +186,7 @@ export interface LocalProxyStatus {
   autoSwitchOnQuotaExhaustion: boolean;
   concurrentAccountRoutingEnabled: boolean;
   customAutoSwitchPriorityEnabled: boolean;
+  customAutoSwitchThresholdEnabled: boolean;
   autoDisableUnreachableAccounts: boolean;
   listenOnAllInterfaces: boolean;
   hasLanApiKey: boolean;

@@ -356,6 +356,7 @@
             active: id == "current",
             auto_switch_enabled: true,
             auto_switch_priority: 0,
+            auto_switch_threshold: 0.0,
             local_proxy_compatible: true,
             direct_switch_compatible: true,
             agent_identity: false,
@@ -408,7 +409,7 @@
         ];
 
         let selected =
-            account_with_lowest_remaining_primary_quota(&accounts, "current", false).unwrap();
+            account_with_lowest_remaining_primary_quota(&accounts, "current", false, false).unwrap();
 
         assert_eq!(selected.id, "lowest-remaining");
     }
@@ -424,7 +425,7 @@
         ];
 
         let selected =
-            account_with_lowest_remaining_primary_quota(&accounts, "current", false).unwrap();
+            account_with_lowest_remaining_primary_quota(&accounts, "current", false, false).unwrap();
 
         assert_eq!(selected.id, "enabled");
     }
@@ -442,7 +443,24 @@
         ];
 
         let selected =
-            account_with_lowest_remaining_primary_quota(&accounts, "current", true).unwrap();
+            account_with_lowest_remaining_primary_quota(&accounts, "current", true, false).unwrap();
 
         assert_eq!(selected.id, "lower-priority");
+    }
+
+    #[test]
+    fn quota_switch_excludes_accounts_below_custom_threshold() {
+        let mut below_threshold = account_with_usage("below-threshold", 10.0, 90.0);
+        below_threshold.auto_switch_threshold = 20.0;
+        let accounts = vec![
+            account_with_usage("current", 0.0, 80.0),
+            below_threshold,
+            account_with_usage("eligible", 30.0, 90.0),
+        ];
+
+        let selected =
+            account_with_lowest_remaining_primary_quota(&accounts, "current", false, true)
+                .unwrap();
+
+        assert_eq!(selected.id, "eligible");
     }

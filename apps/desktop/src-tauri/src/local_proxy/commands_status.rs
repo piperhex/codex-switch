@@ -10,6 +10,7 @@ fn status<R: Runtime>(app: &tauri::AppHandle<R>) -> LocalProxyStatus {
         auto_switch_on_quota_exhaustion,
         concurrent_account_routing_enabled,
         custom_auto_switch_priority_enabled,
+        custom_auto_switch_threshold_enabled,
         auto_disable_unreachable_accounts,
         listen_on_all_interfaces,
         has_lan_api_key,
@@ -25,6 +26,7 @@ fn status<R: Runtime>(app: &tauri::AppHandle<R>) -> LocalProxyStatus {
                 state.auto_switch_on_quota_exhaustion,
                 state.concurrent_account_routing_enabled,
                 state.custom_auto_switch_priority_enabled,
+                state.custom_auto_switch_threshold_enabled,
                 state.auto_disable_unreachable_accounts,
                 lan_listening_enabled(&state),
                 configured_lan_api_key(&state).is_some(),
@@ -35,7 +37,7 @@ fn status<R: Runtime>(app: &tauri::AppHandle<R>) -> LocalProxyStatus {
             )
         })
         .unwrap_or((
-            false, false, false, false, false, false, None, None, None, None,
+            false, false, false, false, false, false, false, None, None, None, None,
         ));
     LocalProxyStatus {
         running: is_running(),
@@ -45,6 +47,7 @@ fn status<R: Runtime>(app: &tauri::AppHandle<R>) -> LocalProxyStatus {
         auto_switch_on_quota_exhaustion,
         concurrent_account_routing_enabled,
         custom_auto_switch_priority_enabled,
+        custom_auto_switch_threshold_enabled,
         auto_disable_unreachable_accounts,
         listen_on_all_interfaces,
         has_lan_api_key,

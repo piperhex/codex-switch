@@ -1438,6 +1438,8 @@ export function DashboardApp() {
               autoSwitchBusyAccountId={manager.autoSwitchBusyAccountId}
               onAutoSwitchPriorityChange={manager.setAutoSwitchPriority}
               autoSwitchPriorityBusyAccountId={manager.autoSwitchPriorityBusyAccountId}
+              onAutoSwitchThresholdChange={manager.setAutoSwitchThreshold}
+              autoSwitchThresholdBusyAccountId={manager.autoSwitchThresholdBusyAccountId}
               onSaveNote={saveAccountNote}
               onLoadAccountDetails={manager.refreshAccountDetails}
               resetCredits={resetCredits.states}

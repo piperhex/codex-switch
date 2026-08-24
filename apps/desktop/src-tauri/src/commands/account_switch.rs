@@ -337,6 +337,32 @@ pub(crate) fn set_account_auto_switch_priority<R: Runtime>(
     Ok(())
 }
 
+#[tauri::command]
+pub(crate) async fn set_account_auto_switch_threshold<R: Runtime + 'static>(
+    app: tauri::AppHandle<R>,
+    id: String,
+    threshold: f64,
+) -> Result<(), String> {
+    if !threshold.is_finite() || !(0.0..=100.0).contains(&threshold) {
+        return Err("Auto-switch threshold must be between 0 and 100".to_string());
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        let paths = resolve_paths(&app)?;
+        if !managed_auth_path(&paths, &id).exists() {
+            return Err("Account does not exist".to_string());
+        }
+        let path = auto_switch_threshold_path(&paths, &id);
+        if load_auto_switch_threshold(&path) != threshold || !path.exists() {
+            save_auto_switch_threshold(&path, threshold)?;
+            touch_account_field(&paths, &id, AccountSyncField::AutoSwitchThreshold)?;
+        }
+        app.emit("accounts-changed", ())
+            .map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|error| format!("Account threshold task failed: {error}"))?
+}
+
 fn update_disabled_account_ids(state: &mut ManagerStateFile, id: &str, enabled: bool) -> bool {
     let was_disabled = state
         .disabled_account_ids

@@ -66,6 +66,7 @@ import {
   AccountNoteEditButton,
   AccountResetCreditCount,
   AutoSwitchPriorityInput,
+  AutoSwitchThresholdInput,
   canEditAccountMetadata,
   CompactDailyTokenChart,
   CopyableAccountEmail,
@@ -93,8 +94,11 @@ interface AccountTableProps {
   autoSwitchBusyAccountId: string | null;
   onAutoSwitchPriorityChange: (id: string, priority: number) => Promise<boolean>;
   autoSwitchPriorityBusyAccountId: string | null;
+  onAutoSwitchThresholdChange: (id: string, threshold: number) => Promise<boolean>;
+  autoSwitchThresholdBusyAccountId: string | null;
   autoSwitchOnQuotaExhaustion: boolean;
   customAutoSwitchPriorityEnabled: boolean;
+  customAutoSwitchThresholdEnabled: boolean;
   onSaveNote: (id: string, details: AccountDetailsDraft) => Promise<boolean>;
   onLoadAccountDetails: (id: string) => Promise<Account | null>;
   resetCredits: Record<string, ResetCreditsLoadState>;
@@ -139,6 +143,7 @@ const ACCOUNT_TABLE_COLUMN_KEYS = [
   "oneWeek",
   "tokenTotals",
   "autoSwitchPriority",
+  "autoSwitchThreshold",
   "actions",
 ] as const;
 type AccountTableColumnKey = typeof ACCOUNT_TABLE_COLUMN_KEYS[number];
@@ -277,8 +282,11 @@ export function AccountTable({
   autoSwitchBusyAccountId,
   onAutoSwitchPriorityChange,
   autoSwitchPriorityBusyAccountId,
+  onAutoSwitchThresholdChange,
+  autoSwitchThresholdBusyAccountId,
   autoSwitchOnQuotaExhaustion,
   customAutoSwitchPriorityEnabled,
+  customAutoSwitchThresholdEnabled,
   onSaveNote,
   onLoadAccountDetails,
   resetCredits,
@@ -445,6 +453,9 @@ export function AccountTable({
   const customPriorityActive = hotSwitchEnabled
     && autoSwitchOnQuotaExhaustion
     && customAutoSwitchPriorityEnabled;
+  const customThresholdActive = hotSwitchEnabled
+    && autoSwitchOnQuotaExhaustion
+    && customAutoSwitchThresholdEnabled;
   const todayTokenTotalsByAccount = useMemo(() => {
     const totals = new Map<string, TokenTypeTotals>();
     accountTokenUsage.forEach((usage) => {
@@ -609,6 +620,15 @@ export function AccountTable({
           onSave={onAutoSwitchPriorityChange} />
       ),
     }] : []),
+    ...(customThresholdActive ? [{
+      title: t("table.autoSwitchThreshold"), key: "autoSwitchThreshold", width: 150,
+      align: "center" as const, fixed: "right" as const,
+      render: (_: unknown, account: Account) => (
+        <AutoSwitchThresholdInput account={account}
+          disabled={autoSwitchThresholdBusyAccountId !== null}
+          onSave={onAutoSwitchThresholdChange} t={t} />
+      ),
+    }] : []),
     {
       title: t("table.actions"), key: "actions", width: 300, align: "center", fixed: "right",
       render: (_, account) => {
@@ -757,6 +777,9 @@ export function AccountTable({
     { key: "tokenTotals", label: t("table.tokenTotals") },
     ...(customPriorityActive
       ? [{ key: "autoSwitchPriority" as const, label: t("table.autoSwitchPriority") }]
+      : []),
+    ...(customThresholdActive
+      ? [{ key: "autoSwitchThreshold" as const, label: t("table.autoSwitchThreshold") }]
       : []),
     { key: "actions", label: t("table.actions") },
   ];
@@ -1192,6 +1215,9 @@ export function AccountTable({
         rowClassName={(account) => [
           isAccountHighlighted(account, concurrentRoutingActive) ? "active-row" : "",
           isAccountDisabled(account, hotSwitchEnabled) ? "account-alert-row" : "",
+          customThresholdActive && account.usage.primary?.remainingPercent !== undefined
+            && account.usage.primary.remainingPercent < account.autoSwitchThreshold
+            ? "account-threshold-row" : "",
         ].filter(Boolean).join(" ")}
         onRow={(account) => ({
           onContextMenu: (event) => {

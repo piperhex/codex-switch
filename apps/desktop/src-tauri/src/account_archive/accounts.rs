@@ -36,6 +36,9 @@ fn collect_accounts<R: Runtime>(
                 auto_switch_priority: load_auto_switch_priority(&auto_switch_priority_path(
                     &paths, &id,
                 )),
+                auto_switch_threshold: load_auto_switch_threshold(&auto_switch_threshold_path(
+                    &paths, &id,
+                )),
                 last_modified_at,
                 id,
                 auth,
@@ -124,6 +127,10 @@ fn apply_archive<R: Runtime>(
             save_auto_switch_priority(
                 &auto_switch_priority_path(&paths, &account.id),
                 account.auto_switch_priority,
+            )?;
+            save_auto_switch_threshold(
+                &auto_switch_threshold_path(&paths, &account.id),
+                account.auto_switch_threshold,
             )?;
             save_account_last_modified(
                 &paths,

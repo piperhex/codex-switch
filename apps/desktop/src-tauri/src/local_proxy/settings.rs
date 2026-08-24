@@ -100,6 +100,23 @@ pub(crate) fn set_custom_auto_switch_priority_enabled<R: Runtime>(
 }
 
 #[tauri::command]
+pub(crate) fn set_custom_auto_switch_threshold_enabled<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    enabled: bool,
+) -> Result<LocalProxyStatus, String> {
+    if enabled && (!is_running() || !read_state(&resolve_paths(&app)?).auto_switch_on_quota_exhaustion) {
+        return Err("Enable automatic account switching before enabling custom thresholds".to_string());
+    }
+    let paths = resolve_paths(&app)?;
+    let mut state = read_state(&paths);
+    state.custom_auto_switch_threshold_enabled = enabled;
+    write_state(&paths, &state)?;
+    app.emit("providers-changed", ())
+        .map_err(|error| error.to_string())?;
+    Ok(status(&app))
+}
+
+#[tauri::command]
 pub(crate) fn set_auto_disable_unreachable_accounts<R: Runtime>(
     app: tauri::AppHandle<R>,
     enabled: bool,

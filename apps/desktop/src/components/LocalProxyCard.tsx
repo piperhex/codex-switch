@@ -16,6 +16,7 @@ interface LocalProxyCardProps {
   onStopProxy: () => void;
   onAutoSwitchChange: (enabled: boolean) => void;
   onCustomAutoSwitchPriorityEnabledChange: (enabled: boolean) => void;
+  onCustomAutoSwitchThresholdEnabledChange: (enabled: boolean) => void;
   onAutoDisableUnreachableChange: (enabled: boolean) => void;
   onImageModelChange: (routeKind: ImageRouteKind, target: ImageModelTarget | null) => void;
   onListenOnAllInterfacesChange: (enabled: boolean) => void;
@@ -32,6 +33,7 @@ export function LocalProxyCard({
   onStopProxy,
   onAutoSwitchChange,
   onCustomAutoSwitchPriorityEnabledChange,
+  onCustomAutoSwitchThresholdEnabledChange,
   onAutoDisableUnreachableChange,
   onImageModelChange,
   onListenOnAllInterfacesChange,
@@ -111,6 +113,13 @@ export function LocalProxyCard({
                     <Switch size="small" checked={localProxy?.customAutoSwitchPriorityEnabled ?? false}
                       disabled={proxyBusy || !localProxy?.autoSwitchOnQuotaExhaustion}
                       onChange={onCustomAutoSwitchPriorityEnabledChange} />
+                  </div>
+                  <div className="proxy-auto-switch-menu-item"
+                    title={t("table.customThresholdTooltip")}>
+                    <span>{t("table.customThresholdEnabled")}</span>
+                    <Switch size="small" checked={localProxy?.customAutoSwitchThresholdEnabled ?? false}
+                      disabled={proxyBusy || !localProxy?.autoSwitchOnQuotaExhaustion}
+                      onChange={onCustomAutoSwitchThresholdEnabledChange} />
                   </div>
                   <div className="proxy-auto-switch-menu-item"
                     title={t("providers.proxy.autoDisableUnreachableTooltip")}>

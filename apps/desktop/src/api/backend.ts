@@ -169,6 +169,7 @@ const LOCAL_PROXY_PREVIEW_KEY = "codex-switch:local-proxy-running";
 const LOCAL_PROXY_AUTO_SWITCH_PREVIEW_KEY = "codex-switch:local-proxy-auto-switch";
 const LOCAL_PROXY_CONCURRENT_ROUTING_PREVIEW_KEY = "codex-switch:local-proxy-concurrent-routing";
 const LOCAL_PROXY_CUSTOM_PRIORITY_PREVIEW_KEY = "codex-switch:local-proxy-custom-priority";
+const LOCAL_PROXY_CUSTOM_THRESHOLD_PREVIEW_KEY = "codex-switch:local-proxy-custom-threshold";
 const LOCAL_PROXY_AUTO_DISABLE_UNREACHABLE_PREVIEW_KEY = "codex-switch:local-proxy-auto-disable-unreachable";
 const LOCAL_PROXY_LISTEN_ALL_INTERFACES_PREVIEW_KEY = "codex-switch:local-proxy-listen-all-interfaces";
 const LOCAL_PROXY_LAN_API_KEY_PREVIEW_KEY = "codex-switch:local-proxy-lan-api-key";
@@ -391,6 +392,7 @@ function previewLocalProxyStatus(): LocalProxyStatus {
     autoSwitchOnQuotaExhaustion: window.localStorage.getItem(LOCAL_PROXY_AUTO_SWITCH_PREVIEW_KEY) === "true",
     concurrentAccountRoutingEnabled: window.localStorage.getItem(LOCAL_PROXY_CONCURRENT_ROUTING_PREVIEW_KEY) === "true",
     customAutoSwitchPriorityEnabled: window.localStorage.getItem(LOCAL_PROXY_CUSTOM_PRIORITY_PREVIEW_KEY) === "true",
+    customAutoSwitchThresholdEnabled: window.localStorage.getItem(LOCAL_PROXY_CUSTOM_THRESHOLD_PREVIEW_KEY) === "true",
     autoDisableUnreachableAccounts: window.localStorage.getItem(LOCAL_PROXY_AUTO_DISABLE_UNREACHABLE_PREVIEW_KEY) === "true",
     listenOnAllInterfaces: window.localStorage.getItem(LOCAL_PROXY_LISTEN_ALL_INTERFACES_PREVIEW_KEY) === "true",
     hasLanApiKey: Boolean(window.localStorage.getItem(LOCAL_PROXY_LAN_API_KEY_PREVIEW_KEY)),
@@ -1533,6 +1535,19 @@ export async function setLocalProxyCustomPriority(enabled: boolean): Promise<Loc
   return invoke<LocalProxyStatus>("set_custom_auto_switch_priority_enabled", { enabled });
 }
 
+export async function setLocalProxyCustomThreshold(enabled: boolean): Promise<LocalProxyStatus> {
+  if (!hasLocalBackend) {
+    const status = previewLocalProxyStatus();
+    if (enabled && (!status.running || !status.autoSwitchOnQuotaExhaustion)) {
+      throw new Error("Enable automatic account switching before enabling custom thresholds");
+    }
+    window.localStorage.setItem(LOCAL_PROXY_CUSTOM_THRESHOLD_PREVIEW_KEY, String(enabled));
+    window.dispatchEvent(new CustomEvent(PROVIDERS_EVENT));
+    return previewLocalProxyStatus();
+  }
+  return invoke<LocalProxyStatus>("set_custom_auto_switch_threshold_enabled", { enabled });
+}
+
 export async function setLocalProxyImageAccount(accountId: string | null): Promise<LocalProxyStatus> {
   if (!hasLocalBackend) {
     if (!previewLocalProxyStatus().running) {
@@ -2342,6 +2357,13 @@ export async function setAccountAutoSwitchEnabled(id: string, enabled: boolean):
 export async function setAccountAutoSwitchPriority(id: string, priority: number): Promise<void> {
   if (!Number.isInteger(priority)) throw new Error("Auto-switch priority must be an integer");
   if (hasLocalBackend) await invoke("set_account_auto_switch_priority", { id, priority });
+}
+
+export async function setAccountAutoSwitchThreshold(id: string, threshold: number): Promise<void> {
+  if (!Number.isFinite(threshold) || threshold < 0 || threshold > 100) {
+    throw new Error("Auto-switch threshold must be between 0 and 100");
+  }
+  if (hasLocalBackend) await invoke("set_account_auto_switch_threshold", { id, threshold });
 }
 
 export async function refreshAccountUsage(id: string): Promise<void> {

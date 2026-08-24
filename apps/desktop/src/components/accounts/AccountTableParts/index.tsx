@@ -146,6 +146,28 @@ export function AutoSwitchPriorityInput({ account, disabled, onSave, t }: {
     onBlur={() => void save()} onPressEnter={(event) => event.currentTarget.blur()} />;
 }
 
+export function AutoSwitchThresholdInput({ account, disabled, onSave, t }: {
+  account: Account;
+  disabled: boolean;
+  onSave: (id: string, threshold: number) => Promise<boolean>;
+  t: Translate;
+}) {
+  const [value, setValue] = useState<number | null>(account.autoSwitchThreshold);
+  useEffect(() => setValue(account.autoSwitchThreshold), [account.autoSwitchThreshold]);
+
+  const save = async () => {
+    const threshold = value === null ? 0 : Math.min(100, Math.max(0, value));
+    setValue(threshold);
+    if (threshold === account.autoSwitchThreshold) return;
+    if (!await onSave(account.id, threshold)) setValue(account.autoSwitchThreshold);
+  };
+
+  return <InputNumber className="auto-switch-threshold-input" size="small" precision={1} step={1}
+    min={0} max={100} suffix="%" value={value} disabled={disabled}
+    aria-label={t("table.autoSwitchThreshold")} onChange={setValue}
+    onBlur={() => void save()} onPressEnter={(event) => event.currentTarget.blur()} />;
+}
+
 export function ResetCreditsModal({ state, onClose, onRetry, language, t }: {
   state?: ResetCreditsLoadState;
   onClose: () => void;

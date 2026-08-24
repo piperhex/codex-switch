@@ -25,6 +25,7 @@ pub(crate) enum AccountSyncField {
     Usage,
     Active,
     AutoSwitchPriority,
+    AutoSwitchThreshold,
 }
 
 #[derive(Clone)]

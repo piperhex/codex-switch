@@ -42,6 +42,9 @@ pub(super) fn collect_local_accounts<R: Runtime>(
             auto_switch_priority: load_auto_switch_priority(&auto_switch_priority_path(
                 &paths, &id,
             )),
+            auto_switch_threshold: load_auto_switch_threshold(&auto_switch_threshold_path(
+                &paths, &id,
+            )),
             usage,
             note: load_note(&note_path(&paths, &id)),
             expires_at: load_expiration(&expiration_path(&paths, &id)),
@@ -85,6 +88,7 @@ pub(super) fn normalize_account_field_modified_at(
         &mut values.usage,
         &mut values.active,
         &mut values.auto_switch_priority,
+        &mut values.auto_switch_threshold,
     ] {
         if value.trim().is_empty() {
             *value = fallback.to_string();
@@ -174,6 +178,11 @@ pub(super) fn apply_remote_account<R: Runtime>(
         &local_field_modified_at.auto_switch_priority,
         &remote_field_modified_at.auto_switch_priority,
     );
+    let apply_auto_switch_threshold = should_apply_remote_field(
+        local_usable,
+        &local_field_modified_at.auto_switch_threshold,
+        &remote_field_modified_at.auto_switch_threshold,
+    );
 
     let account_auth = if apply_auth {
         write_json_if_changed(&auth_path, &remote_auth)?;
@@ -216,6 +225,14 @@ pub(super) fn apply_remote_account<R: Runtime>(
         local_field_modified_at.auto_switch_priority =
             remote_field_modified_at.auto_switch_priority.clone();
     }
+    if apply_auto_switch_threshold {
+        save_auto_switch_threshold(
+            &auto_switch_threshold_path(&paths, &account.id),
+            account.auto_switch_threshold,
+        )?;
+        local_field_modified_at.auto_switch_threshold =
+            remote_field_modified_at.auto_switch_threshold.clone();
+    }
     if apply_auth
         || apply_note
         || apply_expires_at
@@ -223,6 +240,7 @@ pub(super) fn apply_remote_account<R: Runtime>(
         || apply_usage
         || apply_active
         || apply_auto_switch_priority
+        || apply_auto_switch_threshold
     {
         save_account_field_modified_at(&paths, &account.id, &local_field_modified_at)?;
     }
@@ -253,7 +271,8 @@ pub(super) fn apply_remote_account<R: Runtime>(
         || apply_private_details
         || apply_usage
         || apply_active
-        || apply_auto_switch_priority)
+        || apply_auto_switch_priority
+        || apply_auto_switch_threshold)
 }
 
 pub(super) fn get_remote_accounts<R: Runtime>(

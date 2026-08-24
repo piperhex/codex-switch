@@ -15,6 +15,8 @@ pub(crate) struct AccountFieldModifiedAt {
     pub(crate) active: String,
     #[serde(default)]
     pub(crate) auto_switch_priority: String,
+    #[serde(default)]
+    pub(crate) auto_switch_threshold: String,
 }
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
@@ -78,6 +80,8 @@ pub(crate) struct CloudAccountPayload {
     pub(crate) active: bool,
     #[serde(default)]
     pub(crate) auto_switch_priority: i32,
+    #[serde(default)]
+    pub(crate) auto_switch_threshold: f64,
     pub(crate) usage: UsageSummary,
     pub(crate) last_modified_at: String,
     #[serde(default)]

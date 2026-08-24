@@ -17,6 +17,7 @@ pub(crate) struct AccountSummary {
     pub(crate) active: bool,
     pub(crate) auto_switch_enabled: bool,
     pub(crate) auto_switch_priority: i32,
+    pub(crate) auto_switch_threshold: f64,
     pub(crate) local_proxy_compatible: bool,
     pub(crate) direct_switch_compatible: bool,
     pub(crate) agent_identity: bool,
@@ -128,6 +129,8 @@ pub(crate) struct ManagerStateFile {
     pub(crate) concurrent_account_routing_enabled: bool,
     #[serde(default)]
     pub(crate) custom_auto_switch_priority_enabled: bool,
+    #[serde(default)]
+    pub(crate) custom_auto_switch_threshold_enabled: bool,
     #[serde(default)]
     pub(crate) auto_disable_unreachable_accounts: bool,
     #[serde(default)]
