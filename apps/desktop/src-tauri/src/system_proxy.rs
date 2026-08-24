@@ -16,10 +16,6 @@ struct SystemProxyConfig {
 
 impl SystemProxyConfig {
     fn proxy_for(&self, target: &Url) -> Option<Url> {
-        if environment_proxy_configured(target.scheme()) {
-            return None;
-        }
-
         self.configured_proxy_for(target)
     }
 
@@ -199,18 +195,6 @@ fn parse_proxy_endpoint(endpoint: &str) -> Option<Url> {
     Url::parse(&value)
         .ok()
         .filter(|url| matches!(url.scheme(), "http" | "https") && url.host_str().is_some())
-}
-
-fn environment_proxy_configured(scheme: &str) -> bool {
-    let scheme_variables: &[&str] = match scheme {
-        "http" => &["HTTP_PROXY", "http_proxy"],
-        "https" => &["HTTPS_PROXY", "https_proxy"],
-        _ => &[],
-    };
-    scheme_variables
-        .iter()
-        .chain(["ALL_PROXY", "all_proxy"].iter())
-        .any(|name| std::env::var_os(name).is_some_and(|value| !value.is_empty()))
 }
 
 fn bypass_rule_matches(rule: &str, host: &str, port: Option<u16>) -> bool {

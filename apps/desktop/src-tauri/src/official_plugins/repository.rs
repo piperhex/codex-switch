@@ -30,7 +30,7 @@ fn has_marketplace_manifest(repository: &Path) -> bool {
 }
 
 fn download_snapshot(repository: &Path) -> Result<(), String> {
-    let client = Client::builder()
+    let client = crate::system_proxy::apply(Client::builder())
         .timeout(DOWNLOAD_TIMEOUT)
         .user_agent("Codex-Switch official plugin catalog")
         .build()

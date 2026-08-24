@@ -63,7 +63,7 @@ fn fetch_models_blocking<R: Runtime>(
 }
 
 fn model_query_client() -> Result<Client, String> {
-    Client::builder()
+    crate::system_proxy::apply(Client::builder())
         .timeout(MODEL_QUERY_TIMEOUT)
         .redirect(reqwest::redirect::Policy::none())
         .user_agent("Codex-Switch")

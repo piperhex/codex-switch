@@ -59,7 +59,7 @@ fn fetch_models_blocking<R: Runtime>(
     let query_url = models_url(&base_url)?;
     let supplied_key = api_key.unwrap_or_default().trim().to_string();
     let token = saved_or_supplied_key(&app, supplied_key, provider_id)?;
-    let client = Client::builder()
+    let client = crate::system_proxy::apply(Client::builder())
         .timeout(Duration::from_secs(5))
         .redirect(reqwest::redirect::Policy::none())
         .user_agent("Codex-Switch")
