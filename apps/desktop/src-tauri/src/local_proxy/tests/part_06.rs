@@ -327,6 +327,29 @@
     }
 
     #[test]
+    fn chat_bridge_ignores_local_reasoning_items_when_building_chat_history() {
+        let body = json!({
+            "model": "deepseek-chat",
+            "input": [
+                {
+                    "type": "reasoning",
+                    "id": "rs_resp_1787577994",
+                    "summary": [{ "type": "summary_text", "text": "private thought" }]
+                },
+                {
+                    "type": "message",
+                    "role": "assistant",
+                    "content": [{ "type": "output_text", "text": "The weather is sunny." }]
+                }
+            ]
+        });
+        let chat = responses_to_chat_completions(&body);
+
+        assert_eq!(chat["messages"].as_array().unwrap().len(), 1);
+        assert_eq!(chat["messages"][0]["content"], "The weather is sunny.");
+    }
+
+    #[test]
     fn chat_bridge_honors_codex_selected_provider_model() {
         let provider = ProviderProfile {
             id: "deepseek".to_string(),

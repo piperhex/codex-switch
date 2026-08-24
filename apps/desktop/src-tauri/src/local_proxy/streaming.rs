@@ -40,7 +40,7 @@ impl<R: BufRead> ChatSseReader<R> {
     ) -> Self {
         let response_id = response_id();
         let message_id = format!("msg_{response_id}");
-        let reasoning_id = format!("rs_{response_id}");
+        let reasoning_id = format!("{LOCAL_REASONING_ITEM_ID_PREFIX}{response_id}");
         let pending = response_start_sse(&response_id, &model).into_bytes();
         Self {
             upstream,

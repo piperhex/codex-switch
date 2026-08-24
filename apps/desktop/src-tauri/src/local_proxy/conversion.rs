@@ -4,6 +4,40 @@ fn responses_to_chat_completions(body: &Value) -> Value {
     responses_to_chat_completions_with_context(body, &tool_context, None)
 }
 
+const LOCAL_REASONING_ITEM_ID_PREFIX: &str = "rs_resp_";
+
+fn is_local_reasoning_item(value: &Value) -> bool {
+    value.get("type").and_then(Value::as_str) == Some("reasoning")
+        && value
+            .get("id")
+            .and_then(Value::as_str)
+            .is_some_and(|id| id.starts_with(LOCAL_REASONING_ITEM_ID_PREFIX))
+}
+
+fn remove_local_reasoning_items(value: &mut Value) -> bool {
+    let Value::Array(items) = value else {
+        return false;
+    };
+    let original_len = items.len();
+    items.retain(|item| !is_local_reasoning_item(item));
+    let mut changed = items.len() != original_len;
+    for item in items {
+        changed |= remove_local_reasoning_items(item);
+    }
+    changed
+}
+
+fn remove_local_reasoning_from_input(value: &mut Value) -> bool {
+    let Some(input) = value.get_mut("input") else {
+        return false;
+    };
+    if is_local_reasoning_item(input) {
+        *input = Value::Array(Vec::new());
+        return true;
+    }
+    remove_local_reasoning_items(input)
+}
+
 fn responses_to_chat_completions_with_context(
     body: &Value,
     tool_context: &CodexToolContext,
@@ -125,6 +159,9 @@ fn append_input_item_as_chat_message(
     pending_tool_calls: &mut Vec<Value>,
     tool_context: &CodexToolContext,
 ) {
+    if is_local_reasoning_item(item) {
+        return;
+    }
     match item {
         Value::String(text) => {
             flush_pending_tool_calls(messages, pending_tool_calls);

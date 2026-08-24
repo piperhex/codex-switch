@@ -268,6 +268,7 @@ fn provider_body_for_upstream(
     let Ok(mut value) = serde_json::from_slice::<Value>(&body) else {
         return body;
     };
+    remove_local_reasoning_from_input(&mut value);
     value["model"] = Value::String(selected_provider_model(&value, provider));
     serde_json::to_vec(&value).unwrap_or(body)
 }

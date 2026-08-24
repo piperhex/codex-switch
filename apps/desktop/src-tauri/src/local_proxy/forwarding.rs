@@ -95,10 +95,13 @@ fn official_body_for_upstream(method: &Method, url: &str, body: Vec<u8>, model: 
     let Ok(mut value) = serde_json::from_slice::<Value>(&body) else {
         return body;
     };
-    if requested_model(&value).is_some() {
+    let removed_local_reasoning = remove_local_reasoning_from_input(&mut value);
+    if requested_model(&value).is_some() && !removed_local_reasoning {
         return body;
     }
-    value["model"] = Value::String(selected_official_model(&value, model));
+    if requested_model(&value).is_none() {
+        value["model"] = Value::String(selected_official_model(&value, model));
+    }
     serde_json::to_vec(&value).unwrap_or(body)
 }
 
