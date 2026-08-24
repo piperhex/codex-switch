@@ -10,7 +10,9 @@ use std::os::windows::process::CommandExt;
 
 use sysinfo::{ProcessesToUpdate, System};
 
-use super::{command_name_matches, known_windows_commands};
+use super::command_name_matches;
+#[cfg(windows)]
+use super::known_windows_commands;
 
 const PROCESS_EXIT_TIMEOUT: Duration = Duration::from_secs(10);
 const PROCESS_POLL_INTERVAL: Duration = Duration::from_millis(100);
