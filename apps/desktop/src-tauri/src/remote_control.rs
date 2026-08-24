@@ -1,14 +1,20 @@
 use std::{
     io::ErrorKind,
-    net::TcpStream,
+    io::{Read, Write},
+    net::{TcpStream, ToSocketAddrs},
     thread,
     time::{Duration, Instant},
 };
 
+use base64::Engine;
 use serde::Deserialize;
 use serde_json::json;
 use tauri::Runtime;
-use tungstenite::{connect, stream::MaybeTlsStream, Error as WebSocketError, Message, WebSocket};
+use tungstenite::{
+    client, client_tls, connect, stream::MaybeTlsStream, Error as WebSocketError, Message,
+    WebSocket,
+};
+use url::Url;
 
 use crate::cloud::RemoteControlConfig;
 
@@ -67,8 +73,7 @@ fn run_connection<R: Runtime>(
     app: &tauri::AppHandle<R>,
     config: RemoteControlConfig,
 ) -> Result<(), String> {
-    let (mut socket, _) = connect(config.websocket_url.as_str())
-        .map_err(|error| format!("WebSocket connection failed: {error}"))?;
+    let (mut socket, _) = connect_remote_websocket(&config.websocket_url)?;
     set_read_timeout(socket.get_mut(), Some(Duration::from_secs(2)))?;
     socket
         .send(Message::Text(
@@ -152,6 +157,145 @@ fn run_connection<R: Runtime>(
             return Ok(());
         }
     }
+}
+
+fn connect_remote_websocket(
+    websocket_url: &str,
+) -> Result<
+    (
+        WebSocket<MaybeTlsStream<TcpStream>>,
+        tungstenite::handshake::client::Response,
+    ),
+    String,
+> {
+    let target = Url::parse(websocket_url)
+        .map_err(|error| format!("Invalid remote control WebSocket URL: {error}"))?;
+    let proxy_target = proxy_lookup_url(&target)?;
+    let Some(proxy_url) = crate::system_proxy::proxy_for_target(&proxy_target) else {
+        return connect(websocket_url)
+            .map_err(|error| format!("WebSocket connection failed: {error}"));
+    };
+    if proxy_url.scheme() != "http" {
+        return Err(
+            "Remote control requires an HTTP system proxy; HTTPS proxy endpoints are not supported"
+                .to_string(),
+        );
+    }
+    let stream = connect_http_proxy_tunnel(&target, &proxy_url)?;
+    let result = if target.scheme() == "wss" {
+        client_tls(websocket_url, stream)
+    } else {
+        client(websocket_url, MaybeTlsStream::Plain(stream))
+    };
+    result.map_err(|error| format!("WebSocket handshake failed: {error}"))
+}
+
+fn proxy_lookup_url(target: &Url) -> Result<Url, String> {
+    let mut lookup = target.clone();
+    let scheme = match target.scheme() {
+        "ws" => "http",
+        "wss" => "https",
+        _ => return Err("Remote control URL must use ws:// or wss://".to_string()),
+    };
+    lookup
+        .set_scheme(scheme)
+        .map_err(|_| "Could not prepare the WebSocket proxy lookup URL".to_string())?;
+    Ok(lookup)
+}
+
+fn connect_http_proxy_tunnel(target: &Url, proxy: &Url) -> Result<TcpStream, String> {
+    let proxy_host = proxy
+        .host_str()
+        .ok_or_else(|| "The configured WebSocket proxy has no host".to_string())?;
+    let proxy_port = proxy
+        .port_or_known_default()
+        .ok_or_else(|| "The configured WebSocket proxy has no port".to_string())?;
+    let target_host = target
+        .host_str()
+        .ok_or_else(|| "The remote control URL has no host".to_string())?;
+    let target_port = target
+        .port_or_known_default()
+        .ok_or_else(|| "The remote control URL has no port".to_string())?;
+    let target_authority = format_authority(target_host, target_port);
+    let proxy_address = (proxy_host, proxy_port)
+        .to_socket_addrs()
+        .map_err(|error| format!("Could not resolve the WebSocket proxy: {error}"))?
+        .next()
+        .ok_or_else(|| "Could not resolve the WebSocket proxy".to_string())?;
+    let mut stream = TcpStream::connect_timeout(&proxy_address, Duration::from_secs(10))
+        .map_err(|error| format!("Could not connect to the WebSocket proxy: {error}"))?;
+    stream
+        .set_read_timeout(Some(Duration::from_secs(10)))
+        .map_err(|error| format!("Could not configure the WebSocket proxy timeout: {error}"))?;
+    let mut request = format!(
+        "CONNECT {target_authority} HTTP/1.1\r\nHost: {target_authority}\r\nConnection: keep-alive\r\n"
+    );
+    if !proxy.username().is_empty() || proxy.password().is_some() {
+        let username = percent_decode(proxy.username());
+        let password = percent_decode(proxy.password().unwrap_or_default());
+        let credentials =
+            base64::engine::general_purpose::STANDARD.encode(format!("{username}:{password}"));
+        request.push_str(&format!("Proxy-Authorization: Basic {credentials}\r\n"));
+    }
+    request.push_str("\r\n");
+    stream
+        .write_all(request.as_bytes())
+        .map_err(|error| format!("Could not establish the WebSocket proxy tunnel: {error}"))?;
+    let status = read_proxy_connect_status(&mut stream)?;
+    if status != 200 {
+        return Err(format!(
+            "WebSocket proxy rejected CONNECT with HTTP {status}"
+        ));
+    }
+    Ok(stream)
+}
+
+fn read_proxy_connect_status(stream: &mut TcpStream) -> Result<u16, String> {
+    const MAX_PROXY_HEADER_BYTES: usize = 16 * 1024;
+    let mut response = Vec::with_capacity(1024);
+    let mut chunk = [0_u8; 1024];
+    while response.len() < MAX_PROXY_HEADER_BYTES {
+        let read = stream
+            .read(&mut chunk)
+            .map_err(|error| format!("Could not read the WebSocket proxy response: {error}"))?;
+        if read == 0 {
+            break;
+        }
+        response.extend_from_slice(&chunk[..read]);
+        if response.windows(4).any(|window| window == b"\r\n\r\n") {
+            break;
+        }
+    }
+    let header_end = response
+        .windows(4)
+        .position(|window| window == b"\r\n\r\n")
+        .ok_or_else(|| "The WebSocket proxy returned an incomplete CONNECT response".to_string())?;
+    let status_header = String::from_utf8_lossy(&response[..header_end]);
+    let status_line = status_header
+        .lines()
+        .next()
+        .ok_or_else(|| "The WebSocket proxy returned an invalid CONNECT response".to_string())?;
+    status_line
+        .split_whitespace()
+        .nth(1)
+        .and_then(|value| value.parse().ok())
+        .ok_or_else(|| "The WebSocket proxy returned an invalid HTTP status".to_string())
+}
+
+fn format_authority(host: &str, port: u16) -> String {
+    if host.contains(':') && !host.starts_with('[') {
+        format!("[{host}]:{port}")
+    } else {
+        format!("{host}:{port}")
+    }
+}
+
+fn percent_decode(value: &str) -> String {
+    url::form_urlencoded::parse(value.as_bytes())
+        .map(|(key, _)| key)
+        .next()
+        .map(|value| value.into_owned())
+        .unwrap_or_else(|| value.to_string())
 }
 
 fn handle_switch<R: Runtime>(
@@ -246,7 +390,24 @@ fn set_read_timeout(
 
 #[cfg(test)]
 mod tests {
-    use super::ServerMessage;
+    use super::{format_authority, proxy_lookup_url, ServerMessage};
+
+    #[test]
+    fn formats_websocket_proxy_authorities() {
+        assert_eq!(format_authority("example.com", 443), "example.com:443");
+        assert_eq!(format_authority("2001:db8::1", 443), "[2001:db8::1]:443");
+    }
+
+    #[test]
+    fn maps_websocket_urls_to_http_proxy_lookup_urls() {
+        let secure = proxy_lookup_url(&url::Url::parse("wss://example.com/socket").unwrap())
+            .expect("secure websocket URL should map");
+        assert_eq!(secure.as_str(), "https://example.com/socket");
+
+        let plain = proxy_lookup_url(&url::Url::parse("ws://example.com/socket").unwrap())
+            .expect("plain websocket URL should map");
+        assert_eq!(plain.as_str(), "http://example.com/socket");
+    }
 
     #[test]
     fn parses_provider_switch_and_restart_commands() {

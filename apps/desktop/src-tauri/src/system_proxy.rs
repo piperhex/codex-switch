@@ -4,6 +4,8 @@ use reqwest::{blocking::ClientBuilder, Proxy, Url};
 
 use crate::models::NetworkProxySettings;
 
+mod platform;
+
 static NETWORK_PROXY: OnceLock<RwLock<Option<Url>>> = OnceLock::new();
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -12,11 +14,22 @@ struct SystemProxyConfig {
     http_proxy: Option<Url>,
     https_proxy: Option<Url>,
     bypass: Vec<String>,
+    #[cfg(target_os = "windows")]
+    auto_config_url: Option<String>,
+    #[cfg(target_os = "windows")]
+    auto_detect: bool,
 }
 
 impl SystemProxyConfig {
     fn proxy_for(&self, target: &Url) -> Option<Url> {
-        self.configured_proxy_for(target)
+        if let Some(proxy) = self.configured_proxy_for(target) {
+            return Some(proxy);
+        }
+        #[cfg(target_os = "windows")]
+        if !self.should_bypass(target) {
+            return platform::windows_auto_proxy_for(self, target);
+        }
+        None
     }
 
     fn configured_proxy_for(&self, target: &Url) -> Option<Url> {
@@ -59,15 +72,22 @@ impl SystemProxyConfig {
 }
 
 pub(crate) fn apply(builder: ClientBuilder) -> ClientBuilder {
-    if let Some(proxy_url) = configured_network_proxy() {
+    if configured_network_proxy().is_some() {
         return builder.no_proxy().proxy(Proxy::custom(move |target| {
-            should_proxy_target(target).then(|| proxy_url.clone())
+            configured_network_proxy().filter(|_| should_proxy_target(target))
         }));
     }
-    let Some(config) = current_system_proxy() else {
+    let Some(config) = platform::current_system_proxy() else {
         return builder;
     };
     builder.proxy(Proxy::custom(move |target| config.proxy_for(target)))
+}
+
+pub(crate) fn proxy_for_target(target: &Url) -> Option<Url> {
+    if let Some(proxy_url) = configured_network_proxy() {
+        return should_proxy_target(target).then_some(proxy_url);
+    }
+    platform::current_system_proxy().and_then(|config| config.proxy_for(target))
 }
 
 pub(crate) fn configure(settings: &NetworkProxySettings) -> Result<(), String> {
@@ -197,6 +217,24 @@ fn parse_proxy_endpoint(endpoint: &str) -> Option<Url> {
         .filter(|url| matches!(url.scheme(), "http" | "https") && url.host_str().is_some())
 }
 
+fn parse_proxy_result(value: &str) -> Option<Url> {
+    for entry in value.split(';').map(str::trim) {
+        let mut parts = entry.split_whitespace();
+        let Some(kind) = parts.next() else {
+            continue;
+        };
+        let Some(endpoint) = parts.next() else {
+            continue;
+        };
+        if matches!(kind.to_ascii_uppercase().as_str(), "PROXY" | "HTTP") {
+            if let Some(proxy) = parse_proxy_endpoint(endpoint) {
+                return Some(proxy);
+            }
+        }
+    }
+    None
+}
+
 fn bypass_rule_matches(rule: &str, host: &str, port: Option<u16>) -> bool {
     let rule = rule.trim().to_ascii_lowercase();
     if rule.is_empty() {
@@ -271,58 +309,6 @@ fn wildcard_matches(pattern: &str, value: &str) -> bool {
     pattern_index == pattern.len()
 }
 
-#[cfg(target_os = "windows")]
-fn current_system_proxy() -> Option<SystemProxyConfig> {
-    use windows_sys::Win32::{
-        Foundation::GlobalFree,
-        Networking::WinHttp::{
-            WinHttpGetIEProxyConfigForCurrentUser, WINHTTP_CURRENT_USER_IE_PROXY_CONFIG,
-        },
-    };
-
-    let mut raw = WINHTTP_CURRENT_USER_IE_PROXY_CONFIG::default();
-    if unsafe { WinHttpGetIEProxyConfigForCurrentUser(&mut raw) } == 0 {
-        return None;
-    }
-
-    let proxy_server = wide_string(raw.lpszProxy);
-    let proxy_bypass = wide_string(raw.lpszProxyBypass);
-    unsafe {
-        if !raw.lpszAutoConfigUrl.is_null() {
-            GlobalFree(raw.lpszAutoConfigUrl.cast());
-        }
-        if !raw.lpszProxy.is_null() {
-            GlobalFree(raw.lpszProxy.cast());
-        }
-        if !raw.lpszProxyBypass.is_null() {
-            GlobalFree(raw.lpszProxyBypass.cast());
-        }
-    }
-
-    parse_windows_proxy(proxy_server.as_deref()?, proxy_bypass.as_deref())
-}
-
-#[cfg(target_os = "windows")]
-fn wide_string(value: *const u16) -> Option<String> {
-    if value.is_null() {
-        return None;
-    }
-    let mut length = 0;
-    unsafe {
-        while *value.add(length) != 0 {
-            length += 1;
-        }
-        Some(String::from_utf16_lossy(std::slice::from_raw_parts(
-            value, length,
-        )))
-    }
-}
-
-#[cfg(not(target_os = "windows"))]
-fn current_system_proxy() -> Option<SystemProxyConfig> {
-    None
-}
-
 #[cfg(test)]
 mod tests {
     use reqwest::Url;
@@ -330,8 +316,8 @@ mod tests {
     use crate::models::NetworkProxySettings;
 
     use super::{
-        bypass_rule_matches, network_proxy_url, normalize_settings, parse_windows_proxy,
-        should_proxy_target, wildcard_matches,
+        bypass_rule_matches, network_proxy_url, normalize_settings, parse_proxy_result,
+        parse_windows_proxy, should_proxy_target, wildcard_matches,
     };
 
     #[test]
@@ -436,6 +422,17 @@ mod tests {
             Some("http://127.0.0.1:7891/")
         );
         assert!(config.default_proxy.is_none());
+    }
+
+    #[test]
+    fn parses_winhttp_autoproxy_results_without_treating_direct_as_a_host() {
+        assert_eq!(
+            parse_proxy_result("PROXY 127.0.0.1:7890; DIRECT")
+                .as_ref()
+                .map(Url::as_str),
+            Some("http://127.0.0.1:7890/")
+        );
+        assert!(parse_proxy_result("DIRECT").is_none());
     }
 
     #[test]
