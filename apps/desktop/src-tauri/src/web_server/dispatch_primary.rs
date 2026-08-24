@@ -227,6 +227,12 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
                 argument(&args, "sessionIds")?,
             ))
         }
+        "migrate_codex_threads" => serialize(
+            crate::conversation_hub::migrate_codex_threads_blocking(
+                app,
+                argument(&args, "sessionIds")?,
+            ),
+        ),
         "reconcile_codex_thread_visibility" => serialize(
             crate::conversation_hub::reconcile_codex_thread_visibility_blocking(
                 app,

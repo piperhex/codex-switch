@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
@@ -144,6 +144,14 @@ pub(crate) struct ManagerStateFile {
     pub(crate) local_proxy_openai_auth_account_id: Option<String>,
     #[serde(default)]
     pub(crate) disabled_account_ids: Vec<String>,
+    /// Local ownership metadata for Codex threads. The rollout files do not carry
+    /// the account that created them, so this map is updated around account switches.
+    #[serde(default)]
+    pub(crate) conversation_account_ids: BTreeMap<String, String>,
+    #[serde(default)]
+    pub(crate) observed_conversation_ids: BTreeSet<String>,
+    #[serde(default)]
+    pub(crate) conversation_ownership_initialized: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

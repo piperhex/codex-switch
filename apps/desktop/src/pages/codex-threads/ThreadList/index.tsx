@@ -38,6 +38,7 @@ interface SessionRowProps {
   toggle: () => void;
   notify: (message: string) => void;
   reportError: (error: unknown) => void;
+  migrate: (id: string) => void;
 }
 
 function TokenStats({ stats, thread, text }: Pick<SessionRowProps, "stats" | "thread" | "text">) {
@@ -55,7 +56,7 @@ function TokenStats({ stats, thread, text }: Pick<SessionRowProps, "stats" | "th
 }
 
 function SessionRow(props: SessionRowProps) {
-  const { thread, selected, stats, language, text, query, toggle, notify, reportError } = props;
+  const { thread, selected, stats, language, text, query, toggle, notify, reportError, migrate } = props;
   const openPath = (key: string) => {
     if (key === "copy") {
       void navigator.clipboard.writeText(thread.sessionId).then(() => notify(text.copyId));
@@ -70,6 +71,10 @@ function SessionRow(props: SessionRowProps) {
       <div className={styles.threadSessionCopy}>
         <strong><HighlightedText value={thread.title || text.untitled} query={query} /></strong>
         <span>{thread.sessionId}</span>
+        <span className={styles.threadAccount}>
+          {text.account}: {thread.accountEmail || text.unknownAccount}
+          {thread.accountActive && ` · ${text.currentAccount}`}
+        </span>
         {thread.matchExcerpt && (
           <p className={styles.threadMatchExcerpt}>
             <Search size={12} />
@@ -84,8 +89,13 @@ function SessionRow(props: SessionRowProps) {
           { key: "folder", icon: <FolderOpen size={15} />, label: text.openFolder },
           { key: "file", icon: <FileJson size={15} />, label: text.openFile },
           { key: "copy", icon: <Copy size={15} />, label: text.copyId },
+          {
+            key: "migrate",
+            label: text.migrate,
+            disabled: thread.accountActive,
+          },
         ],
-        onClick: ({ key }) => openPath(key),
+        onClick: ({ key }) => key === "migrate" ? migrate(thread.sessionId) : openPath(key),
       }}>
         <button className={styles.threadMore} aria-label="More"><MoreHorizontal size={17} /></button>
       </Dropdown>
@@ -106,11 +116,12 @@ interface WorkspaceGroupProps {
   selectItems: (checked: boolean) => void;
   notify: (message: string) => void;
   reportError: (error: unknown) => void;
+  migrate: (id: string) => void;
 }
 
 function WorkspaceGroup(props: WorkspaceGroupProps) {
   const { group, isOpen, selected, tokens, language, text, query } = props;
-  const { toggleGroup, toggleThread, selectItems, notify, reportError } = props;
+  const { toggleGroup, toggleThread, selectItems, notify, reportError, migrate } = props;
   const everySelected = group.items.every((item) => selected.has(item.sessionId));
   const someSelected = group.items.some((item) => selected.has(item.sessionId));
   const isUnassigned = isUnassignedWorkspace(group.cwd);
@@ -147,6 +158,7 @@ function WorkspaceGroup(props: WorkspaceGroupProps) {
               toggle={() => toggleThread(thread.sessionId)}
               notify={notify}
               reportError={reportError}
+              migrate={migrate}
             />
           ))}
         </div>
@@ -173,12 +185,13 @@ interface ThreadListProps {
   toggleGroup: (cwd: string, items: CodexThreadEntry[]) => Promise<void>;
   notify: (message: string) => void;
   reportError: (error: unknown) => void;
+  migrate: (id: string) => void;
 }
 
 export function ThreadList(props: ThreadListProps) {
   const { language, text, loading, appliedQuery, groups, selected, setSelected } = props;
   const { expanded, tokens, visibleCount, allVisibleSelected, someVisibleSelected } = props;
-  const { toggleAll, toggleThread, toggleGroup, notify, reportError } = props;
+  const { toggleAll, toggleThread, toggleGroup, notify, reportError, migrate } = props;
   const selectGroupItems = (items: CodexThreadEntry[], checked: boolean) => setSelected((current) => {
     const next = new Set(current);
     items.forEach((item) => checked ? next.add(item.sessionId) : next.delete(item.sessionId));
@@ -207,6 +220,7 @@ export function ThreadList(props: ThreadListProps) {
         selectItems={(checked) => selectGroupItems(group.items, checked)}
         notify={notify}
         reportError={reportError}
+        migrate={migrate}
       />
     ))}</>;
   }

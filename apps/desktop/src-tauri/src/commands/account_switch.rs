@@ -109,7 +109,13 @@ fn deactivate_account_unlocked<R: Runtime>(
     proxy_running: bool,
 ) -> Result<Option<String>, String> {
     let paths = resolve_paths(app)?;
-    let original_state = read_state(&paths);
+    let mut original_state = read_state(&paths);
+    let previous_account_id = original_state.active_account_id.clone();
+    crate::conversation_hub::mark_threads_before_account_switch(
+        &paths,
+        &mut original_state,
+        previous_account_id.as_deref(),
+    )?;
     let Some(account_id) = original_state.active_account_id.clone() else {
         return Ok(None);
     };
@@ -197,7 +203,13 @@ fn switch_account_unlocked<R: Runtime>(app: &tauri::AppHandle<R>, id: &str) -> R
     let paths = resolve_paths(app)?;
     let selected = load_validated_managed_auth(&paths, id)?;
     ensure_account_switch_allowed(&selected, proxy_running)?;
-    let original_state = read_state(&paths);
+    let mut original_state = read_state(&paths);
+    let previous_account_id = original_state.active_account_id.clone();
+    crate::conversation_hub::mark_threads_before_account_switch(
+        &paths,
+        &mut original_state,
+        previous_account_id.as_deref(),
+    )?;
     if let Some(previous_account_id) = original_state.active_account_id.as_deref() {
         crate::providers::preserve_refreshed_auth(&paths, previous_account_id);
     }

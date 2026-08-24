@@ -33,6 +33,9 @@ pub(crate) struct ThreadEntry {
     updated_at: Option<i64>,
     size_bytes: u64,
     match_excerpt: Option<String>,
+    account_id: Option<String>,
+    account_email: Option<String>,
+    account_active: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -50,6 +53,15 @@ pub(crate) struct MutationReport {
     requested_count: usize,
     affected_count: usize,
     released_bytes: u64,
+    message: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct MigrationReport {
+    requested_count: usize,
+    migrated_count: usize,
+    skipped_count: usize,
     message: String,
 }
 
@@ -208,11 +220,13 @@ struct BinSnapshot {
 }
 
 include!("discovery.rs");
+include!("ownership.rs");
 include!("state_storage.rs");
 include!("state_restore.rs");
 include!("discard.rs");
 include!("bin.rs");
 include!("transfer.rs");
+include!("migration.rs");
 include!("visibility.rs");
 include!("commands.rs");
 include!("tests.rs");

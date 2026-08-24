@@ -12,13 +12,15 @@ interface ThreadTopbarProps {
   restartChatGpt: () => void;
   openImport: () => void;
   openExport: () => void;
+  migrateSelected: () => void;
   openRepair: () => void;
   openBin: () => void;
 }
 
 export function ThreadTopbar(props: ThreadTopbarProps) {
   const {
-    text, busy, selectedCount, runSync, restartChatGpt, openImport, openExport, openRepair, openBin,
+    text, busy, selectedCount, runSync, restartChatGpt, openImport, openExport, migrateSelected,
+    openRepair, openBin,
   } = props;
   return (
     <>
@@ -47,6 +49,9 @@ export function ThreadTopbar(props: ThreadTopbarProps) {
           <Upload size={16} />{text.transfer}<ChevronDown size={14} />
         </button>
       </Dropdown>
+      <button className="refresh-all" disabled={busy || !selectedCount} onClick={migrateSelected}>
+        {text.migrate}
+      </button>
       <button className="refresh-all" disabled={busy} onClick={openRepair}>
         <Eye size={16} />{text.repair}
       </button>

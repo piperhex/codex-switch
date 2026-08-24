@@ -326,7 +326,11 @@ pub(crate) fn browse_codex_threads_blocking<R: Runtime>(
     title_query: Option<String>,
     content_query: Option<String>,
 ) -> Result<Vec<ThreadEntry>, String> {
-    let codex_home = resolve_paths(&app)?.codex_home;
+    let paths = resolve_paths(&app)?;
+    let codex_home = paths.codex_home.clone();
+    let snapshots = gather_snapshots(&codex_home)?;
+    let state = sync_thread_ownership(&paths, &snapshots)?;
+    let account_emails = account_email_by_id(&paths);
     let title_query = title_query
         .map(|value| value.trim().to_lowercase())
         .filter(|v| !v.is_empty());
@@ -334,7 +338,7 @@ pub(crate) fn browse_codex_threads_blocking<R: Runtime>(
         .map(|value| value.trim().to_string())
         .filter(|v| !v.is_empty());
     let mut entries = Vec::new();
-    for snapshot in gather_snapshots(&codex_home)? {
+    for snapshot in snapshots {
         let title_matches = title_query
             .as_ref()
             .is_some_and(|query| snapshot.title.to_lowercase().contains(query));
@@ -352,6 +356,17 @@ pub(crate) fn browse_codex_threads_blocking<R: Runtime>(
         if !matches {
             continue;
         }
+        let account_id = state
+            .conversation_account_ids
+            .get(&snapshot.session_id)
+            .cloned();
+        let account_email = account_id
+            .as_deref()
+            .and_then(|id| account_emails.get(id).cloned());
+        let account_active = account_id
+            .as_deref()
+            .zip(state.active_account_id.as_deref())
+            .is_some_and(|(thread_account, active_account)| thread_account == active_account);
         entries.push(ThreadEntry {
             session_id: snapshot.session_id,
             session_kind: thread_kind(&snapshot.title, &snapshot.cwd),
@@ -360,6 +375,9 @@ pub(crate) fn browse_codex_threads_blocking<R: Runtime>(
             updated_at: snapshot.updated_at,
             size_bytes: snapshot.size_bytes,
             match_excerpt,
+            account_id,
+            account_email,
+            account_active,
         });
     }
     entries.sort_by(|left, right| {

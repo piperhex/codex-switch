@@ -9,6 +9,7 @@ import { RepairModal, TransferModal, TrashModal } from "../codex-threads/ThreadM
 import { ThreadToolbar } from "../codex-threads/ThreadToolbar";
 import { ThreadTopbar } from "../codex-threads/ThreadTopbar";
 import { useRepair } from "../codex-threads/useRepair";
+import { useMigration } from "../codex-threads/useMigration";
 import { useThreadList } from "../codex-threads/useThreadList";
 import { useTransfer } from "../codex-threads/useTransfer";
 import { useTrash } from "../codex-threads/useTrash";
@@ -42,6 +43,14 @@ export function CodexThreadsPage({ language, notify }: CodexThreadsPageProps) {
     setBusy,
   });
   const repair = useRepair({ selected: list.selected, text, notify, reportError, refresh });
+  const migrate = useMigration({
+    text,
+    notify,
+    reportError,
+    refresh,
+    setBusy,
+    clearSelection: () => list.setSelected(new Set()),
+  });
 
   useEffect(() => {
     setTopbarHost(document.getElementById("codex-thread-topbar-actions"));
@@ -84,6 +93,16 @@ export function CodexThreadsPage({ language, notify }: CodexThreadsPageProps) {
     });
   };
 
+  const confirmMigration = (sessionIds: string[]) => {
+    Modal.confirm({
+      title: text.migrateConfirmTitle,
+      content: <span className="compact-confirm-copy">{text.migrateConfirmDescription}</span>,
+      okText: text.migrate,
+      cancelText: text.close,
+      onOk: () => migrate(sessionIds),
+    });
+  };
+
   return (
     <>
       {topbarHost && createPortal(
@@ -95,6 +114,7 @@ export function CodexThreadsPage({ language, notify }: CodexThreadsPageProps) {
           restartChatGpt={confirmRestartChatGpt}
           openImport={() => void transfer.openImport()}
           openExport={() => void transfer.openExport()}
+          migrateSelected={() => confirmMigration([...list.selected])}
           openRepair={repair.openModal}
           openBin={() => void trash.openBin()}
         />,
@@ -132,6 +152,7 @@ export function CodexThreadsPage({ language, notify }: CodexThreadsPageProps) {
           toggleGroup={list.toggleGroup}
           notify={notify}
           reportError={reportError}
+          migrate={(id) => confirmMigration([id])}
         />
         <TrashModal
           open={trash.open}

@@ -348,4 +348,68 @@ mod tests {
         fs::remove_dir_all(source).unwrap();
         fs::remove_dir_all(target).unwrap();
     }
+
+    #[test]
+    fn migration_rewrites_thread_ids_and_clears_old_parent_links() {
+        let mut value = serde_json::json!({
+            "type": "session_meta",
+            "payload": {
+                "id": "thread-old",
+                "session_id": "thread-old",
+                "parent_thread_id": "thread-old",
+                "message": "thread-old should remain in user content"
+            }
+        });
+
+        rewrite_thread_identifiers(&mut value, "thread-old", "thread-new");
+
+        assert_eq!(value["payload"]["id"], "thread-new");
+        assert_eq!(value["payload"]["session_id"], "thread-new");
+        assert!(value["payload"]["parent_thread_id"].is_null());
+        assert_eq!(value["payload"]["message"], "thread-old should remain in user content");
+    }
+
+    #[test]
+    fn initial_ownership_scan_keeps_legacy_threads_unknown() {
+        let mut state = crate::models::ManagerStateFile::default();
+        let snapshots = vec![snapshot_for_ownership_test("legacy-thread")];
+
+        assert!(observe_threads(&snapshots, &mut state, Some("current-account")));
+
+        assert!(state.conversation_ownership_initialized);
+        assert!(state.observed_conversation_ids.contains("legacy-thread"));
+        assert!(!state.conversation_account_ids.contains_key("legacy-thread"));
+    }
+
+    #[test]
+    fn later_ownership_scan_assigns_new_threads_to_the_current_account() {
+        let mut state = crate::models::ManagerStateFile {
+            conversation_ownership_initialized: true,
+            ..crate::models::ManagerStateFile::default()
+        };
+        let snapshots = vec![snapshot_for_ownership_test("new-thread")];
+
+        assert!(observe_threads(&snapshots, &mut state, Some("current-account")));
+
+        assert_eq!(
+            state.conversation_account_ids.get("new-thread").map(String::as_str),
+            Some("current-account")
+        );
+    }
+
+    fn snapshot_for_ownership_test(session_id: &str) -> RolloutSnapshot {
+        RolloutSnapshot {
+            session_id: session_id.to_string(),
+            title: session_id.to_string(),
+            cwd: "C:\\workspace".to_string(),
+            updated_at: None,
+            path: PathBuf::new(),
+            physical_paths: Vec::new(),
+            relative_path: PathBuf::new(),
+            index_value: serde_json::json!({ "id": session_id }),
+            size_bytes: 0,
+            history_base_thread_id: None,
+            parent_thread_id: None,
+        }
+    }
 }

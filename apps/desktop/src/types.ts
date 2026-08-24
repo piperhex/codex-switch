@@ -287,6 +287,9 @@ export interface CodexThreadEntry {
   updatedAt: number | null;
   sizeBytes: number;
   matchExcerpt: string | null;
+  accountId: string | null;
+  accountEmail: string | null;
+  accountActive: boolean;
 }
 
 export interface CodexThreadTokenTotals {
@@ -347,6 +350,13 @@ export interface CodexThreadVisibilityReport {
   indexEntryCount: number;
   backupDir: string | null;
   dryRun: boolean;
+  message: string;
+}
+
+export interface CodexThreadMigrationReport {
+  requestedCount: number;
+  migratedCount: number;
+  skippedCount: number;
   message: string;
 }
 

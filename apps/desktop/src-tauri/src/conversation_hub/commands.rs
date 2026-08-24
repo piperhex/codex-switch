@@ -122,6 +122,18 @@ pub(crate) async fn unpack_codex_threads<R: Runtime + 'static>(
 }
 
 #[tauri::command]
+pub(crate) async fn migrate_codex_threads<R: Runtime + 'static>(
+    app: tauri::AppHandle<R>,
+    session_ids: Vec<String>,
+) -> Result<MigrationReport, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        migrate_codex_threads_blocking(app, session_ids)
+    })
+    .await
+    .map_err(|error| format!("Migrate conversations task failed: {error}"))?
+}
+
+#[tauri::command]
 pub(crate) async fn reconcile_codex_thread_visibility<R: Runtime + 'static>(
     app: tauri::AppHandle<R>,
     mode: String,

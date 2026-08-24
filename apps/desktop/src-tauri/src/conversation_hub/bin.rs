@@ -132,6 +132,13 @@ fn delete_bin_items<R: Runtime>(
     for id in &target_ids {
         purge_thread_state(&codex_home, id)?;
     }
+    let paths = resolve_paths(app)?;
+    let mut manager_state = crate::storage::read_state(&paths);
+    for id in &target_ids {
+        manager_state.conversation_account_ids.remove(id);
+        manager_state.observed_conversation_ids.remove(id);
+    }
+    crate::storage::write_state(&paths, &manager_state)?;
     let mut ids = HashSet::new();
     let mut released = 0u64;
     for item in entries

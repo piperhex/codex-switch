@@ -43,6 +43,7 @@ import type {
   CodexThreadBundlePreview,
   CodexThreadBundleResult,
   CodexThreadEntry,
+  CodexThreadMigrationReport,
   CodexThreadMutationReport,
   CodexThreadTokenTotals,
   CodexThreadVisibilityReport,
@@ -1469,6 +1470,11 @@ export async function previewCodexThreadImport(importPath: string): Promise<Code
 
 export async function importCodexThreads(importPath: string, sessionIds: string[]): Promise<CodexThreadBundleResult> {
   return invoke<CodexThreadBundleResult>("unpack_codex_threads", { importPath, sessionIds });
+}
+
+export async function migrateCodexThreads(sessionIds: string[]): Promise<CodexThreadMigrationReport> {
+  if (!hasLocalBackend) throw new Error("会话迁移需要桌面版 Codex Switch");
+  return invoke<CodexThreadMigrationReport>("migrate_codex_threads", { sessionIds });
 }
 
 export async function repairCodexThreadVisibility(options: {
