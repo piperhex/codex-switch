@@ -3,6 +3,7 @@ import {
   IsArray,
   IsBoolean,
   IsInt,
+  IsNumber,
   IsObject,
   IsOptional,
   IsString,
@@ -62,6 +63,11 @@ export class AccountFieldModifiedAtDto {
   @IsOptional()
   @IsString()
   @MaxLength(40)
+  autoSwitchThreshold?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
   privateDetails?: string;
 }
 
@@ -104,6 +110,12 @@ export class SyncAccountDto {
   @Min(-2147483648)
   @Max(2147483647)
   autoSwitchPriority?: number;
+
+  @IsOptional()
+  @IsNumber({ allowInfinity: false, allowNaN: false })
+  @Min(0)
+  @Max(100)
+  autoSwitchThreshold?: number;
 
   @IsObject()
   usage: Record<string, unknown>;

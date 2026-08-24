@@ -115,6 +115,7 @@ type AccountFieldModifiedAt = {
   usage: string;
   active: string;
   autoSwitchPriority: string;
+  autoSwitchThreshold: string;
 };
 
 interface AccountMergeResult {
@@ -433,6 +434,7 @@ export class SyncService {
       accountId: identity.codexAccountId,
       active: effective?.active ?? false,
       autoSwitchPriority: effective?.autoSwitchPriority ?? 0,
+      autoSwitchThreshold: effective?.autoSwitchThreshold ?? 0,
       usage: effective?.usage ?? {},
       auth,
       fieldModifiedAt,
@@ -1036,6 +1038,10 @@ export class SyncService {
       account.autoSwitchPriority = patch.autoSwitchPriority;
       fieldModifiedAt.autoSwitchPriority = modifiedAt;
     }
+    if (patch.autoSwitchThreshold !== undefined) {
+      account.autoSwitchThreshold = patch.autoSwitchThreshold;
+      fieldModifiedAt.autoSwitchThreshold = modifiedAt;
+    }
     account.fieldModifiedAt = fieldModifiedAt;
     account.lastModifiedAt = this.latestAccountFieldModifiedAt(fieldModifiedAt);
     const saved = await this.accounts.save(account);
@@ -1069,6 +1075,7 @@ export class SyncService {
           codexAccountId: incoming.accountId ?? null,
           active: incoming.active,
           autoSwitchPriority: incoming.autoSwitchPriority ?? 0,
+          autoSwitchThreshold: incoming.autoSwitchThreshold ?? 0,
           usage: incoming.usage ?? {},
           auth: incoming.auth,
           deletedAt: null,
@@ -1098,6 +1105,7 @@ export class SyncService {
       codexAccountId: existing.codexAccountId ?? null,
       active: existing.active,
       autoSwitchPriority: existing.autoSwitchPriority ?? 0,
+      autoSwitchThreshold: existing.autoSwitchThreshold ?? 0,
       usage: existing.usage,
       auth: existing.auth,
       deletedAt: null,
@@ -1161,6 +1169,16 @@ export class SyncService {
       account.fieldModifiedAt!.autoSwitchPriority = incomingFieldModifiedAt.autoSwitchPriority;
       changed = true;
     }
+    if (incoming.autoSwitchThreshold !== undefined
+      && (incomingHasFieldVersions || !existingHasFieldVersions)
+      && this.isIncomingFieldNewer(
+        existingFieldModifiedAt.autoSwitchThreshold,
+        incomingFieldModifiedAt.autoSwitchThreshold,
+      )) {
+      account.autoSwitchThreshold = incoming.autoSwitchThreshold;
+      account.fieldModifiedAt!.autoSwitchThreshold = incomingFieldModifiedAt.autoSwitchThreshold;
+      changed = true;
+    }
     if (!changed) return null;
     account.lastModifiedAt = this.latestAccountFieldModifiedAt(account.fieldModifiedAt!);
     return { account, activeApplied };
@@ -1183,6 +1201,9 @@ export class SyncService {
       autoSwitchPriority: this.formatLastModifiedAt(
         this.parseLastModifiedAt(value?.autoSwitchPriority ?? defaultValue),
       ),
+      autoSwitchThreshold: this.formatLastModifiedAt(
+        this.parseLastModifiedAt(value?.autoSwitchThreshold ?? defaultValue),
+      ),
     };
   }
 
@@ -1199,6 +1220,7 @@ export class SyncService {
       this.parseLastModifiedAt(values.usage).getTime(),
       this.parseLastModifiedAt(values.active).getTime(),
       this.parseLastModifiedAt(values.autoSwitchPriority).getTime(),
+      this.parseLastModifiedAt(values.autoSwitchThreshold).getTime(),
     ));
   }
 
@@ -1219,6 +1241,7 @@ export class SyncService {
       accountId: row.codexAccountId,
       active: row.active,
       autoSwitchPriority: row.autoSwitchPriority ?? 0,
+      autoSwitchThreshold: row.autoSwitchThreshold ?? 0,
       usage: row.usage,
       lastModifiedAt: this.formatLastModifiedAt(row.lastModifiedAt ?? row.updatedAt),
       fieldModifiedAt: this.normalizeAccountFieldModifiedAt(
@@ -1495,6 +1518,7 @@ export class SyncService {
       codexAccountId: systemAccount.codexAccountId ?? null,
       active: false,
       autoSwitchPriority: 0,
+      autoSwitchThreshold: 0,
       usage: systemAccount.usage,
       auth: systemAccount.auth,
       fieldModifiedAt: this.normalizeAccountFieldModifiedAt(undefined, fallbackModifiedAt),
@@ -1530,6 +1554,7 @@ export class SyncService {
       accountId: account.codexAccountId,
       active: false,
       autoSwitchPriority: 0,
+      autoSwitchThreshold: 0,
       usage: account.usage,
       lastModifiedAt: this.formatLastModifiedAt(account.lastModifiedAt ?? account.updatedAt),
       auth: account.auth,

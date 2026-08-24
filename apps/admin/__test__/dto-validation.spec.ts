@@ -211,6 +211,7 @@ describe('request DTO validation', () => {
         phoneNumber: '+65 6123 4567',
         totpSecret: 'JBSWY3DPEHPK3PXP',
       },
+      autoSwitchThreshold: 37.5,
     })] });
     expect(valid.accounts[0]).toBeInstanceOf(SyncAccountDto);
     await expect(validate(valid)).resolves.toEqual([]);
@@ -221,6 +222,7 @@ describe('request DTO validation', () => {
         id: 'x'.repeat(65),
         active: 'yes',
         autoSwitchPriority: 1.5,
+        autoSwitchThreshold: 101,
         usage: 'none',
         privateDetails: { password: '', phoneNumber: '', totpSecret: 'not-base32' },
       }],
@@ -229,7 +231,14 @@ describe('request DTO validation', () => {
     expect(errors).toHaveLength(1);
     expect(errors[0].property).toBe('accounts');
     expect(errors[0].children?.[0].children?.map((error) => error.property))
-      .toEqual(expect.arrayContaining(['id', 'active', 'autoSwitchPriority', 'usage', 'privateDetails']));
+      .toEqual(expect.arrayContaining([
+        'id',
+        'active',
+        'autoSwitchPriority',
+        'autoSwitchThreshold',
+        'usage',
+        'privateDetails',
+      ]));
   });
 
   it('validates versioned 2FA entries and remains compatible with legacy snapshots', async () => {

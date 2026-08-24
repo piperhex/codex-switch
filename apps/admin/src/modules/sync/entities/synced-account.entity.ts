@@ -55,6 +55,9 @@ export class SyncedAccountEntity {
   @Column({ type: 'integer', default: 0 })
   autoSwitchPriority: number;
 
+  @Column({ type: 'double precision', default: 0 })
+  autoSwitchThreshold: number;
+
   @Column({ type: 'jsonb', default: {} })
   usage: Record<string, unknown>;
 

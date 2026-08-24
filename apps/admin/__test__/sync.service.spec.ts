@@ -471,27 +471,29 @@ describe('SyncService', () => {
     }));
   });
 
-  it('merges auto-switch priority independently from usage and notes', async () => {
+  it('merges auto-switch settings independently from usage and notes', async () => {
     transactionRepository.findOne.mockResolvedValue({
       id: 'database-id', ownerId: 'owner-1', accountId: 'account-1',
       email: 'account@example.com', note: 'cloud note', expiresAt: '2027-01-01',
       plan: 'Plus', codexAccountId: 'codex-1', active: true,
-      autoSwitchPriority: 8, usage: { used: 10 }, auth: { token: 'secret' },
+      autoSwitchPriority: 8, autoSwitchThreshold: 75, usage: { used: 10 }, auth: { token: 'secret' },
       lastModifiedAt: new Date('2026-07-05T00:00:00.000Z'),
       fieldModifiedAt: {
         auth: '2026-07-05T00:00:00.000Z', note: '2026-07-05T00:00:00.000Z',
         expiresAt: '2026-07-05T00:00:00.000Z', usage: '2026-07-05T00:00:00.000Z',
         active: '2026-07-05T00:00:00.000Z',
         autoSwitchPriority: '2026-07-05T00:00:00.000Z',
+        autoSwitchThreshold: '2026-07-05T00:00:00.000Z',
       },
     });
     const incoming = makeAccount({
-      note: 'stale note', autoSwitchPriority: -2, usage: { used: 20 },
+      note: 'stale note', autoSwitchPriority: -2, autoSwitchThreshold: 25.5, usage: { used: 20 },
       fieldModifiedAt: {
         auth: '2026-07-04T00:00:00.000Z', note: '2026-07-04T00:00:00.000Z',
         expiresAt: '2026-07-04T00:00:00.000Z', usage: '2026-07-04T00:00:00.000Z',
         active: '2026-07-04T00:00:00.000Z',
         autoSwitchPriority: '2026-07-06T00:00:00.000Z',
+        autoSwitchThreshold: '2026-07-07T00:00:00.000Z',
       },
     });
 
@@ -501,8 +503,10 @@ describe('SyncService', () => {
       note: 'cloud note',
       usage: { used: 10 },
       autoSwitchPriority: -2,
+      autoSwitchThreshold: 25.5,
       fieldModifiedAt: expect.objectContaining({
         autoSwitchPriority: '2026-07-06T00:00:00.000Z',
+        autoSwitchThreshold: '2026-07-07T00:00:00.000Z',
       }),
     }));
   });
@@ -541,6 +545,7 @@ describe('SyncService', () => {
     expect(transactionRepository.update).not.toHaveBeenCalled();
     expect(transactionRepository.create).toHaveBeenCalledWith(expect.objectContaining({
       id: undefined, note: '', expiresAt: '', codexAccountId: null, usage: {}, active: false,
+      autoSwitchThreshold: 0,
       lastModifiedAt: new Date(account.lastModifiedAt!),
     }));
   });
