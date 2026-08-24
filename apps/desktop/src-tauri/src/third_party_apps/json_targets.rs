@@ -9,6 +9,8 @@ use crate::{models::ProviderProfile, storage::write_json_atomic};
 
 use super::{provider_context_window, provider_protocol, ProviderProtocol, MANAGED_PROVIDER_ID};
 
+const WORK_BUDDY_MANAGED_MARKER: &str = "codexSwitchManaged";
+
 pub(super) fn sync_open_code(
     home: &Path,
     provider: Option<&ProviderProfile>,
@@ -41,9 +43,6 @@ pub(super) fn sync_work_buddy(
     home: &Path,
     provider: Option<&ProviderProfile>,
 ) -> Result<(), String> {
-    let Some(provider) = provider else {
-        return Ok(());
-    };
     let path = home.join(".workbuddy").join("models.json");
     let mut config = read_json_compatible(&path)?;
     update_work_buddy_config(&mut config, provider)?;
@@ -281,7 +280,10 @@ fn clear_open_claw_primary(root: &mut Map<String, Value>) {
     }
 }
 
-fn update_work_buddy_config(config: &mut Value, provider: &ProviderProfile) -> Result<(), String> {
+fn update_work_buddy_config(
+    config: &mut Value,
+    provider: Option<&ProviderProfile>,
+) -> Result<(), String> {
     let root = root_object(config)?;
     let models = root
         .entry("models".to_string())
@@ -289,16 +291,36 @@ fn update_work_buddy_config(config: &mut Value, provider: &ProviderProfile) -> R
     let models = models
         .as_array_mut()
         .ok_or_else(|| "WorkBuddy 的 models 必须是数组".to_string())?;
-    models.retain(|entry| entry.get("id").and_then(Value::as_str) != Some(provider.model.as_str()));
-    models.push(work_buddy_model(provider));
+    let managed_models = models
+        .iter()
+        .filter(|entry| entry.get(WORK_BUDDY_MANAGED_MARKER) == Some(&Value::Bool(true)))
+        .filter_map(|entry| entry.get("id").and_then(Value::as_str))
+        .map(str::to_string)
+        .collect::<Vec<_>>();
+    models.retain(|entry| {
+        entry.get(WORK_BUDDY_MANAGED_MARKER) != Some(&Value::Bool(true))
+            && provider.is_none_or(|provider| {
+                entry.get("id").and_then(Value::as_str) != Some(provider.model.as_str())
+            })
+    });
+    if let Some(provider) = provider {
+        models.push(work_buddy_model(provider));
+    }
     let available = root
         .entry("availableModels".to_string())
         .or_insert_with(|| json!([]));
     let available = available
         .as_array_mut()
         .ok_or_else(|| "WorkBuddy 的 availableModels 必须是数组".to_string())?;
-    available.retain(|value| value.as_str() != Some(provider.model.as_str()));
-    available.push(json!(provider.model));
+    available.retain(|value| {
+        !managed_models
+            .iter()
+            .any(|model| value.as_str() == Some(model.as_str()))
+    });
+    if let Some(provider) = provider {
+        available.retain(|value| value.as_str() != Some(provider.model.as_str()));
+        available.push(json!(provider.model));
+    }
     Ok(())
 }
 
@@ -315,7 +337,8 @@ fn work_buddy_model(provider: &ProviderProfile) -> Value {
         "supportsToolCall": true,
         "supportsImages": provider.image_input_models.contains(&provider.model),
         "supportsReasoning": provider.model_reasoning_efforts.contains_key(&provider.model),
-        "useCustomProtocol": false
+        "useCustomProtocol": false,
+        "codexSwitchManaged": true
     })
 }
 
@@ -428,5 +451,20 @@ mod tests {
         update_open_viking_config(&mut config, &provider).unwrap();
         assert_eq!(config["vlm"]["model"], "test-model");
         assert_eq!(config["embedding"]["dense"]["model"], "embedding-model");
+    }
+
+    #[test]
+    fn work_buddy_clear_removes_only_codex_switch_models() {
+        let mut config = json!({
+            "models": [
+                { "id": "keep-model", "vendor": "Custom" },
+                { "id": "managed-model", "codexSwitchManaged": true }
+            ],
+            "availableModels": ["keep-model", "managed-model"]
+        });
+        update_work_buddy_config(&mut config, None).unwrap();
+        assert_eq!(config["models"].as_array().map(Vec::len), Some(1));
+        assert_eq!(config["models"][0]["id"], "keep-model");
+        assert_eq!(config["availableModels"], json!(["keep-model"]));
     }
 }

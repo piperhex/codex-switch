@@ -116,12 +116,12 @@ fn update_hermes_config(
             .ok_or_else(|| "Hermes 的 custom_providers 必须是数组".to_string())?;
         providers
             .retain(|entry| entry.get("name").and_then(Value::as_str) != Some(MANAGED_PROVIDER_ID));
-        let Some(provider) = provider else {
-            return Ok(());
-        };
-        providers.push(hermes_provider(provider));
+        if let Some(provider) = provider {
+            providers.push(hermes_provider(provider));
+        }
     }
     let Some(provider) = provider else {
+        clear_hermes_model(root);
         return Ok(());
     };
 
@@ -135,6 +135,27 @@ fn update_hermes_config(
         text(hermes_api_mode(provider_protocol(provider))),
     );
     Ok(())
+}
+
+fn clear_hermes_model(root: &mut Mapping) {
+    let managed = root
+        .get(text("model"))
+        .and_then(Value::as_mapping)
+        .and_then(|model| model.get(text("provider")))
+        .and_then(Value::as_str)
+        == Some(MANAGED_PROVIDER_ID);
+    if !managed {
+        return;
+    }
+    let Some(model) = root.get_mut(text("model")).and_then(Value::as_mapping_mut) else {
+        return;
+    };
+    for key in ["default", "provider", "base_url", "api_key", "api_mode"] {
+        model.remove(text(key));
+    }
+    if model.is_empty() {
+        root.remove(text("model"));
+    }
 }
 
 fn hermes_provider(provider: &ProviderProfile) -> Value {
@@ -187,6 +208,7 @@ fn update_deep_seek_settings(
                 providers.remove(text(MANAGED_PROVIDER_ID));
             }
         }
+        clear_deep_seek_selector(root);
         return Ok(());
     };
     let mut route = Mapping::new();
@@ -218,6 +240,18 @@ fn update_deep_seek_settings(
     selector.insert(text("model"), text(&provider.model));
     root.insert(text("agent-default-model"), Value::Mapping(selector));
     Ok(())
+}
+
+fn clear_deep_seek_selector(root: &mut Mapping) {
+    let managed = root
+        .get(text("agent-default-model"))
+        .and_then(Value::as_mapping)
+        .and_then(|selector| selector.get(text("provider")))
+        .and_then(Value::as_str)
+        == Some(MANAGED_PROVIDER_ID);
+    if managed {
+        root.remove(text("agent-default-model"));
+    }
 }
 
 fn update_deep_seek_credentials(
@@ -259,6 +293,17 @@ mod tests {
     }
 
     #[test]
+    fn hermes_clear_removes_only_the_managed_model_selection() {
+        let mut config = serde_yaml::from_str(
+            "custom_providers:\n  - name: keep\nmodel:\n  provider: codex-switch\n  default: test-model\n",
+        )
+        .unwrap();
+        update_hermes_config(&mut config, None).unwrap();
+        assert!(config.get("model").is_none());
+        assert_eq!(config["custom_providers"][0]["name"], "keep");
+    }
+
+    #[test]
     fn deep_seek_update_writes_route_and_selector() {
         let mut config = Value::Mapping(Mapping::new());
         let mut provider = provider();
@@ -272,5 +317,15 @@ mod tests {
             config["llm-pi-ai"]["providers"][MANAGED_PROVIDER_ID]["api"],
             "openai-responses"
         );
+    }
+
+    #[test]
+    fn deep_seek_clear_removes_the_managed_default_selector() {
+        let mut config = serde_yaml::from_str(
+            "llm-pi-ai:\n  providers:\n    codex-switch:\n      api: openai-completions\nagent-default-model:\n  provider: codex-switch\n  model: test-model\n",
+        )
+        .unwrap();
+        update_deep_seek_settings(&mut config, None).unwrap();
+        assert!(config.get("agent-default-model").is_none());
     }
 }

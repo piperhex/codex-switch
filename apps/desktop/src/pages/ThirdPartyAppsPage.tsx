@@ -15,7 +15,6 @@ const THIRD_PARTY_APPS: ReadonlyArray<{
   { id: "openCode", labelKey: "thirdPartyApps.app.openCode" },
   { id: "openClaw", labelKey: "thirdPartyApps.app.openClaw" },
   { id: "hermesAgent", labelKey: "thirdPartyApps.app.hermesAgent" },
-  { id: "trae", labelKey: "thirdPartyApps.app.trae" },
   { id: "workBuddy", labelKey: "thirdPartyApps.app.workBuddy" },
   { id: "zCode", labelKey: "thirdPartyApps.app.zCode" },
   { id: "deepSeekHarness", labelKey: "thirdPartyApps.app.deepSeekHarness" },
