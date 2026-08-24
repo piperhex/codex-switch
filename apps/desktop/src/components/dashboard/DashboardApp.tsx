@@ -1296,8 +1296,8 @@ export function DashboardApp() {
                 onWriteCodexChange={thirdPartyAppIntegration.changeWriteCodex}
                 onAppChange={thirdPartyAppIntegration.changeApp}
                 onSubagentModelChange={thirdPartyAppIntegration.changeSubagentModel}
-                onLaunch={() => void thirdPartyAppIntegration.launch()}
-                onRestart={() => void thirdPartyAppIntegration.restart()}
+                onLaunch={(appId) => void thirdPartyAppIntegration.launch(appId)}
+                onRestart={(appId) => void thirdPartyAppIntegration.restart(appId)}
                 t={t}
               />
             )}

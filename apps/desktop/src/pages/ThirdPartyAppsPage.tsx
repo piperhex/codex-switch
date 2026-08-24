@@ -30,9 +30,15 @@ interface ThirdPartyAppsPageProps {
   onWriteCodexChange: (enabled: boolean) => void;
   onAppChange: (appId: ThirdPartyAppId, enabled: boolean) => void;
   onSubagentModelChange: (model: ClaudeSubagentModel) => void;
-  onLaunch: () => void;
-  onRestart: () => void;
+  onLaunch: (appId: LaunchableThirdPartyApp) => void;
+  onRestart: (appId: LaunchableThirdPartyApp) => void;
   t: Translate;
+}
+
+type LaunchableThirdPartyApp = "claudeCode" | "openCode";
+
+function isLaunchableThirdPartyApp(appId: ThirdPartyAppId): appId is LaunchableThirdPartyApp {
+  return appId === "claudeCode" || appId === "openCode";
 }
 
 interface AppRowProps {
@@ -44,8 +50,8 @@ interface AppRowProps {
   subagentModel: ClaudeSubagentModel;
   onChange: (appId: ThirdPartyAppId, enabled: boolean) => void;
   onSubagentModelChange: (model: ClaudeSubagentModel) => void;
-  onLaunch: () => void;
-  onRestart: () => void;
+  onLaunch: (appId: LaunchableThirdPartyApp) => void;
+  onRestart: (appId: LaunchableThirdPartyApp) => void;
   t: Translate;
 }
 
@@ -54,6 +60,9 @@ function AppRow(props: AppRowProps) {
     appId, label, checked, disabled, busy, subagentModel,
     onChange, onSubagentModelChange, onLaunch, onRestart, t,
   } = props;
+  const hasProcessControls = isLaunchableThirdPartyApp(appId);
+  const launchLabel = appId === "claudeCode" ? t("claudeCode.launch") : t("openCode.launch");
+  const restartLabel = appId === "claudeCode" ? t("claudeCode.restart") : t("openCode.restart");
   return (
     <div className="third-party-app-row" role="listitem">
       <div className="third-party-app-identity">
@@ -61,7 +70,7 @@ function AppRow(props: AppRowProps) {
         <Typography.Text strong>{label}</Typography.Text>
       </div>
       <div className="third-party-app-row-actions">
-        {appId === "claudeCode" && (
+        {hasProcessControls && (
           <Space wrap size={8}>
             <Typography.Text type="secondary">{t("thirdPartyApps.subagentModel")}</Typography.Text>
             <Select<ClaudeSubagentModel>
@@ -75,11 +84,13 @@ function AppRow(props: AppRowProps) {
               ]}
               style={{ width: 150 }}
             />
-            <Button size="small" icon={<Play size={14} />} loading={busy === "launch"} onClick={onLaunch}>
-              {t("claudeCode.launch")}
+            <Button size="small" icon={<Play size={14} />} loading={busy === "launch"}
+              onClick={() => onLaunch(appId)}>
+              {launchLabel}
             </Button>
-            <Button size="small" icon={<RefreshCw size={14} />} loading={busy === "restart"} onClick={onRestart}>
-              {t("claudeCode.restart")}
+            <Button size="small" icon={<RefreshCw size={14} />} loading={busy === "restart"}
+              onClick={() => onRestart(appId)}>
+              {restartLabel}
             </Button>
           </Space>
         )}

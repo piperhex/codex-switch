@@ -17,6 +17,8 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
         )),
         "launch_claude_code" => serialize(block_on(crate::claude_code::launch_claude_code(app))),
         "restart_claude_code" => serialize(block_on(crate::claude_code::restart_claude_code(app))),
+        "launch_open_code" => serialize(block_on(crate::open_code::launch_open_code(app))),
+        "restart_open_code" => serialize(block_on(crate::open_code::restart_open_code(app))),
         "set_gpt_5_6_sol_context_window" => serialize(block_on(
             crate::local_proxy::set_gpt_5_6_sol_context_window(
                 app,

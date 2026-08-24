@@ -32,6 +32,7 @@ mod models;
 mod network_proxy;
 mod oauth;
 mod official_plugins;
+mod open_code;
 mod preset_provider;
 mod provider_api_cache;
 mod provider_connectivity;
@@ -240,6 +241,8 @@ pub fn run() {
             third_party_apps::set_third_party_app_write_settings,
             claude_code::launch_claude_code,
             claude_code::restart_claude_code,
+            open_code::launch_open_code,
+            open_code::restart_open_code,
             commands::restore_non_proxy_conversations,
             conversation_hub::browse_codex_threads,
             conversation_hub::measure_codex_thread_tokens,

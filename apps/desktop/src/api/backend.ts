@@ -2414,6 +2414,15 @@ export async function restartClaudeCode(): Promise<void> {
   if (hasLocalBackend) await invoke("restart_claude_code");
 }
 
+export async function launchOpenCode(): Promise<boolean> {
+  if (hasLocalBackend) return invoke<boolean>("launch_open_code");
+  return false;
+}
+
+export async function restartOpenCode(): Promise<void> {
+  if (hasLocalBackend) await invoke("restart_open_code");
+}
+
 export async function openManagedFolder(target: "codexHome" | "accountStore"): Promise<void> {
   if (hasLocalBackend) await invoke("open_managed_folder", { target });
 }

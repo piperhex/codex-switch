@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   launchClaudeCode,
+  launchOpenCode,
   loadAppSettings,
   restartClaudeCode,
+  restartOpenCode,
   updateThirdPartyAppWriteSettings,
 } from "../api/backend";
 import type { Translate } from "../i18n";
@@ -15,6 +17,8 @@ import {
   defaultThirdPartyAppWriteSettings,
   normalizeThirdPartyAppWriteSettings,
 } from "../utils/thirdPartyApps";
+
+type LaunchableThirdPartyApp = "claudeCode" | "openCode";
 
 export function useThirdPartyAppIntegration(
   notify: (message: string) => void,
@@ -65,11 +69,17 @@ export function useThirdPartyAppIntegration(
     save({ ...settings, claudeSubagentModel })
   ), [save, settings]);
 
-  const launch = useCallback(async () => {
+  const launch = useCallback(async (appId: LaunchableThirdPartyApp) => {
     setBusy("launch");
     try {
-      const launched = await launchClaudeCode();
-      notify(launched ? t("toast.claudeCodeLaunched") : t("toast.claudeCodeAlreadyRunning"));
+      const launched = appId === "claudeCode"
+        ? await launchClaudeCode()
+        : await launchOpenCode();
+      if (appId === "claudeCode") {
+        notify(launched ? t("toast.claudeCodeLaunched") : t("toast.claudeCodeAlreadyRunning"));
+      } else {
+        notify(launched ? t("toast.openCodeLaunched") : t("toast.openCodeAlreadyRunning"));
+      }
     } catch (error) {
       notify(String(error));
     } finally {
@@ -77,11 +87,16 @@ export function useThirdPartyAppIntegration(
     }
   }, [notify, t]);
 
-  const restart = useCallback(async () => {
+  const restart = useCallback(async (appId: LaunchableThirdPartyApp) => {
     setBusy("restart");
     try {
-      await restartClaudeCode();
-      notify(t("toast.claudeCodeRestarted"));
+      if (appId === "claudeCode") {
+        await restartClaudeCode();
+        notify(t("toast.claudeCodeRestarted"));
+      } else {
+        await restartOpenCode();
+        notify(t("toast.openCodeRestarted"));
+      }
     } catch (error) {
       notify(String(error));
     } finally {
