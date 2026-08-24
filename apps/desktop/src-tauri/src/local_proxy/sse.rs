@@ -1,37 +1,15 @@
 #[cfg(test)]
 fn chat_sse_to_responses_sse(sse: &str, model: &str) -> String {
-    let response_id = response_id();
-    let message_id = format!("msg_{response_id}");
-    let mut output = response_start_sse(&response_id, &message_id, model);
-    let mut text = String::new();
-    for block in sse.split("\n\n") {
-        for line in block.lines() {
-            let Some(data) = line.trim_start().strip_prefix("data:") else {
-                continue;
-            };
-            let data = data.trim();
-            if data == "[DONE]" {
-                continue;
-            }
-            let Ok(value) = serde_json::from_str::<Value>(data) else {
-                continue;
-            };
-            if let Some(delta) = chat_stream_delta_text(&value) {
-                text.push_str(delta);
-                output.push_str(&response_text_delta_sse(&message_id, delta));
-            }
-        }
-    }
-
-    output.push_str(&response_done_sse(
-        &response_id,
-        &message_id,
-        model,
-        &text,
-        "",
-        Vec::new(),
+    let mut reader = ChatSseReader::new(
+        BufReader::new(std::io::Cursor::new(sse.as_bytes().to_vec())),
+        model.to_string(),
+        CodexToolContext::default(),
         None,
-    ));
+    );
+    let mut output = String::new();
+    reader
+        .read_to_string(&mut output)
+        .expect("in-memory chat stream should be readable");
     output
 }
 
@@ -55,10 +33,9 @@ fn chat_stream_delta_text(value: &Value) -> Option<&str> {
     value
         .pointer("/choices/0/delta/content")
         .and_then(Value::as_str)
-        .or_else(|| chat_stream_reasoning_delta(value))
 }
 
-fn response_start_sse(response_id: &str, message_id: &str, model: &str) -> String {
+fn response_start_sse(response_id: &str, model: &str) -> String {
     let mut output = String::new();
     push_sse(
         &mut output,
@@ -75,12 +52,17 @@ fn response_start_sse(response_id: &str, message_id: &str, model: &str) -> Strin
             }
         }),
     );
+    output
+}
+
+fn response_message_start_sse(message_id: &str, output_index: usize) -> String {
+    let mut output = String::new();
     push_sse(
         &mut output,
         "response.output_item.added",
         json!({
             "type": "response.output_item.added",
-            "output_index": 0,
+            "output_index": output_index,
             "item": {
                 "id": message_id,
                 "type": "message",
@@ -96,7 +78,7 @@ fn response_start_sse(response_id: &str, message_id: &str, model: &str) -> Strin
         json!({
             "type": "response.content_part.added",
             "item_id": message_id,
-            "output_index": 0,
+            "output_index": output_index,
             "content_index": 0,
             "part": { "type": "output_text", "text": "" }
         }),
@@ -104,7 +86,37 @@ fn response_start_sse(response_id: &str, message_id: &str, model: &str) -> Strin
     output
 }
 
-fn response_text_delta_sse(message_id: &str, delta: &str) -> String {
+fn response_reasoning_start_sse(reasoning_id: &str, output_index: usize) -> String {
+    let mut output = String::new();
+    push_sse(
+        &mut output,
+        "response.output_item.added",
+        json!({
+            "type": "response.output_item.added",
+            "output_index": output_index,
+            "item": {
+                "id": reasoning_id,
+                "type": "reasoning",
+                "status": "in_progress",
+                "summary": []
+            }
+        }),
+    );
+    push_sse(
+        &mut output,
+        "response.reasoning_summary_part.added",
+        json!({
+            "type": "response.reasoning_summary_part.added",
+            "item_id": reasoning_id,
+            "output_index": output_index,
+            "summary_index": 0,
+            "part": { "type": "summary_text", "text": "" }
+        }),
+    );
+    output
+}
+
+fn response_text_delta_sse(message_id: &str, output_index: usize, delta: &str) -> String {
     let mut output = String::new();
     push_sse(
         &mut output,
@@ -112,8 +124,24 @@ fn response_text_delta_sse(message_id: &str, delta: &str) -> String {
         json!({
             "type": "response.output_text.delta",
             "item_id": message_id,
-            "output_index": 0,
+            "output_index": output_index,
             "content_index": 0,
+            "delta": delta
+        }),
+    );
+    output
+}
+
+fn response_reasoning_delta_sse(reasoning_id: &str, output_index: usize, delta: &str) -> String {
+    let mut output = String::new();
+    push_sse(
+        &mut output,
+        "response.reasoning_summary_text.delta",
+        json!({
+            "type": "response.reasoning_summary_text.delta",
+            "item_id": reasoning_id,
+            "output_index": output_index,
+            "summary_index": 0,
             "delta": delta
         }),
     );
@@ -122,14 +150,61 @@ fn response_text_delta_sse(message_id: &str, delta: &str) -> String {
 
 fn response_done_sse(
     response_id: &str,
-    message_id: &str,
     model: &str,
-    text: &str,
+    reasoning_id: Option<(&str, usize, &str)>,
+    message: (&str, usize, &str),
     tool_events: &str,
-    tool_items: Vec<Value>,
+    mut tool_items: Vec<(usize, Value)>,
     usage: Option<Value>,
 ) -> String {
     let mut output = String::new();
+    let (message_id, message_index, text) = message;
+    let mut response_output = Vec::new();
+    if let Some((reasoning_id, reasoning_index, reasoning)) = reasoning_id {
+        let reasoning_item = json!({
+            "id": reasoning_id,
+            "type": "reasoning",
+            "status": "completed",
+            "summary": [{ "type": "summary_text", "text": reasoning }]
+        });
+        response_output.push((reasoning_index, reasoning_item));
+        push_sse(
+            &mut output,
+            "response.reasoning_summary_text.done",
+            json!({
+                "type": "response.reasoning_summary_text.done",
+                "item_id": reasoning_id,
+                "output_index": reasoning_index,
+                "summary_index": 0,
+                "text": reasoning
+            }),
+        );
+        push_sse(
+            &mut output,
+            "response.reasoning_summary_part.done",
+            json!({
+                "type": "response.reasoning_summary_part.done",
+                "item_id": reasoning_id,
+                "output_index": reasoning_index,
+                "summary_index": 0,
+                "part": { "type": "summary_text", "text": reasoning }
+            }),
+        );
+        push_sse(
+            &mut output,
+            "response.output_item.done",
+            json!({
+                "type": "response.output_item.done",
+                "output_index": reasoning_index,
+                "item": {
+                    "id": reasoning_id,
+                    "type": "reasoning",
+                    "status": "completed",
+                    "summary": [{ "type": "summary_text", "text": reasoning }]
+                }
+            }),
+        );
+    }
     let message_item = json!({
         "id": message_id,
         "type": "message",
@@ -143,7 +218,7 @@ fn response_done_sse(
         json!({
             "type": "response.output_text.done",
             "item_id": message_id,
-            "output_index": 0,
+            "output_index": message_index,
             "content_index": 0,
             "text": text
         }),
@@ -154,7 +229,7 @@ fn response_done_sse(
         json!({
             "type": "response.content_part.done",
             "item_id": message_id,
-            "output_index": 0,
+            "output_index": message_index,
             "content_index": 0,
             "part": { "type": "output_text", "text": text }
         }),
@@ -164,20 +239,21 @@ fn response_done_sse(
         "response.output_item.done",
         json!({
             "type": "response.output_item.done",
-            "output_index": 0,
+            "output_index": message_index,
             "item": message_item
         }),
     );
     output.push_str(tool_events);
-    let mut response_output = vec![message_item];
-    response_output.extend(tool_items);
+    response_output.push((message_index, message_item));
+    response_output.append(&mut tool_items);
+    response_output.sort_by_key(|(index, _)| *index);
     let mut response = json!({
         "id": response_id,
         "object": "response",
         "created_at": unix_now(),
         "status": "completed",
         "model": model,
-        "output": response_output
+        "output": response_output.into_iter().map(|(_, item)| item).collect::<Vec<_>>()
     });
     if let Some(usage) = usage {
         response["usage"] = usage;

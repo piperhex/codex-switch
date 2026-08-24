@@ -20,6 +20,10 @@ struct ChatSseReader<R> {
     data_lines: Vec<String>,
     text: String,
     reasoning_content: String,
+    reasoning_id: String,
+    reasoning_output_index: Option<usize>,
+    message_output_index: Option<usize>,
+    next_output_index: usize,
     tools: BTreeMap<usize, StreamingToolCall>,
     tool_context: CodexToolContext,
     continuation_scope: Option<chat_bridge_continuation::ContinuationScope>,
@@ -36,7 +40,8 @@ impl<R: BufRead> ChatSseReader<R> {
     ) -> Self {
         let response_id = response_id();
         let message_id = format!("msg_{response_id}");
-        let pending = response_start_sse(&response_id, &message_id, &model).into_bytes();
+        let reasoning_id = format!("rs_{response_id}");
+        let pending = response_start_sse(&response_id, &model).into_bytes();
         Self {
             upstream,
             model,
@@ -47,6 +52,10 @@ impl<R: BufRead> ChatSseReader<R> {
             data_lines: Vec::new(),
             text: String::new(),
             reasoning_content: String::new(),
+            reasoning_id,
+            reasoning_output_index: None,
+            message_output_index: None,
+            next_output_index: 0,
             tools: BTreeMap::new(),
             tool_context,
             continuation_scope,
@@ -117,13 +126,10 @@ impl<R: BufRead> ChatSseReader<R> {
             self.usage = Some(usage);
         }
         if let Some(reasoning) = chat_stream_reasoning_delta(&value) {
-            self.reasoning_content.push_str(reasoning);
+            self.append_reasoning_delta(reasoning);
         }
         if let Some(delta) = chat_stream_delta_text(&value) {
-            if !delta.is_empty() {
-                self.text.push_str(delta);
-                self.push_pending(response_text_delta_sse(&self.message_id, delta));
-            }
+            self.append_text_delta(delta);
         }
         if let Some(tool_calls) = value
             .pointer("/choices/0/delta/tool_calls")
@@ -143,12 +149,17 @@ impl<R: BufRead> ChatSseReader<R> {
             return;
         }
         let (tool_events, tool_items) = self.finalize_tools();
+        self.ensure_message_started();
         self.capture_continuation();
+        let reasoning = self
+            .reasoning_output_index
+            .map(|index| (self.reasoning_id.as_str(), index, self.reasoning_content.as_str()));
+        let message_index = self.message_output_index.unwrap_or(0);
         self.push_pending(response_done_sse(
             &self.response_id,
-            &self.message_id,
             &self.model,
-            &self.text,
+            reasoning,
+            (&self.message_id, message_index, &self.text),
             &tool_events,
             tool_items,
             self.usage.clone(),
@@ -186,6 +197,49 @@ impl<R: BufRead> ChatSseReader<R> {
             &message,
         ));
         self.completed = true;
+    }
+
+    fn allocate_output_index(&mut self) -> usize {
+        let index = self.next_output_index;
+        self.next_output_index += 1;
+        index
+    }
+
+    fn ensure_message_started(&mut self) {
+        if self.message_output_index.is_some() {
+            return;
+        }
+        let output_index = self.allocate_output_index();
+        self.message_output_index = Some(output_index);
+        self.push_pending(response_message_start_sse(&self.message_id, output_index));
+    }
+
+    fn append_text_delta(&mut self, delta: &str) {
+        if delta.is_empty() {
+            return;
+        }
+        self.ensure_message_started();
+        self.text.push_str(delta);
+        let output_index = self.message_output_index.unwrap_or(0);
+        self.push_pending(response_text_delta_sse(&self.message_id, output_index, delta));
+    }
+
+    fn append_reasoning_delta(&mut self, delta: &str) {
+        if delta.is_empty() {
+            return;
+        }
+        if self.reasoning_output_index.is_none() {
+            let output_index = self.allocate_output_index();
+            self.reasoning_output_index = Some(output_index);
+            self.push_pending(response_reasoning_start_sse(&self.reasoning_id, output_index));
+        }
+        self.reasoning_content.push_str(delta);
+        let output_index = self.reasoning_output_index.unwrap_or(0);
+        self.push_pending(response_reasoning_delta_sse(
+            &self.reasoning_id,
+            output_index,
+            delta,
+        ));
     }
 
     fn process_tool_call_delta(&mut self, tool_call: &Value) -> String {
@@ -236,7 +290,7 @@ impl<R: BufRead> ChatSseReader<R> {
         let mut output = String::new();
 
         if should_add {
-            let output_index = index + 1;
+            let output_index = self.allocate_output_index();
             let Some(state) = self.tools.get_mut(&index) else {
                 return output;
             };
@@ -297,7 +351,7 @@ impl<R: BufRead> ChatSseReader<R> {
         output
     }
 
-    fn finalize_tools(&mut self) -> (String, Vec<Value>) {
+    fn finalize_tools(&mut self) -> (String, Vec<(usize, Value)>) {
         let mut output = String::new();
         let mut items = Vec::new();
         let keys = self.tools.keys().copied().collect::<Vec<_>>();
@@ -320,7 +374,7 @@ impl<R: BufRead> ChatSseReader<R> {
 
             let should_add = self.tools.get(&key).is_some_and(|state| !state.added);
             if should_add {
-                let output_index = key + 1;
+                let output_index = self.allocate_output_index();
                 let Some(state) = self.tools.get_mut(&key) else {
                     continue;
                 };
@@ -368,7 +422,7 @@ impl<R: BufRead> ChatSseReader<R> {
                 &self.tool_context,
             );
             state.done = true;
-            items.push(item.clone());
+            items.push((output_index, item.clone()));
 
             if is_custom_tool {
                 let input = custom_tool_input_from_chat_arguments(&arguments);

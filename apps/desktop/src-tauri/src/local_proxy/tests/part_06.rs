@@ -282,8 +282,15 @@
 
         assert!(output.contains("response.created"));
         assert!(output.contains("response.output_text.delta"));
-        assert!(output.contains("thinking"));
         assert!(output.contains(" done"));
+        assert_eq!(
+            sse_event(&output, "response.reasoning_summary_text.delta")["delta"],
+            "thinking"
+        );
+        assert_eq!(
+            sse_event(&output, "response.output_text.delta")["delta"],
+            " done"
+        );
         assert!(output.contains("response.completed"));
         assert!(output.ends_with("data: [DONE]\n\n"));
         let completed = sse_event(&output, "response.completed");
@@ -306,7 +313,16 @@
             "deepseek-chat",
         );
 
-        assert!(output.contains("why"));
+        assert_eq!(
+            sse_event(&output, "response.reasoning_summary_text.delta")["delta"],
+            "why"
+        );
+        assert!(!sse_event(&output, "response.completed")["response"]["output"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|item| item.get("content"))
+            .any(|content| content.to_string().contains("why")));
         assert!(output.contains("response.completed"));
     }
 
