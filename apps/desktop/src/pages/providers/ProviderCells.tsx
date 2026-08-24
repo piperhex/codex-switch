@@ -5,7 +5,7 @@ import { queryProviderBalance, subscribeToProviderBalance } from "../../api/back
 import type { Language, Translate } from "../../i18n";
 import type { Provider, ProviderBalance, ProviderTokenUsageTotals } from "../../types";
 import { formatCompactTokenCount } from "../../utils/tokenContext";
-import { formatEstimatedCost } from "../../utils/tokenCost";
+import { formatEstimatedCost, type TokenCostDisplaySettings } from "../../utils/tokenCost";
 import { modelOptions, normalizeModels } from "./providerUtils";
 
 export function apiFormatTag(provider: Provider, t: Translate) {
@@ -209,10 +209,17 @@ export function ProviderTokenCell({ usage, period, language, t }: TokenCellProps
   );
 }
 
-export function ProviderEstimatedCostCell({ usage, t }: { usage?: ProviderTokenUsageTotals; t: Translate }) {
+export function ProviderEstimatedCostCell({ usage, settings, t }: {
+  usage?: ProviderTokenUsageTotals;
+  settings: TokenCostDisplaySettings;
+  t: Translate;
+}) {
   return (
-    <Tooltip title={t("providers.tokenUsage.costHint")} styles={{ root: { maxWidth: 400 } }}>
-      <strong className="provider-token-value">{formatEstimatedCost(usage?.todayEstimatedCost ?? 0)}</strong>
+    <Tooltip title={t("providers.tokenUsage.costHint", { unit: settings.unit })}
+      styles={{ root: { maxWidth: 400 } }}>
+      <strong className="provider-token-value">
+        {formatEstimatedCost(usage?.todayEstimatedCost ?? 0, settings)}
+      </strong>
     </Tooltip>
   );
 }

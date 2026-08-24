@@ -5,6 +5,7 @@ import type { ColumnsType } from "antd/es/table";
 import { Activity, CircleOff, Columns3, ExternalLink, Pencil, RotateCcw, Server, Shuffle, Trash2 } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { ImageModelRouteSelect } from "../../../components/ImageModelRouteSelect";
+import { TokenCostColumnTitle, useTokenCostDisplaySettings } from "../../../components/TokenCostUnitSettings";
 import type { Language, Translate } from "../../../i18n";
 import type {
   Account, ImageModelTarget, ImageRouteKind, Provider, ProviderTokenUsageTotals,
@@ -32,6 +33,7 @@ import {
   useProviderConnectivity,
 } from "../useProviderConnectivity";
 import styles from "./index.module.less";
+import type { TokenCostDisplaySettings } from "../../../utils/tokenCost";
 
 interface ProviderViewProps {
   providers: Provider[];
@@ -234,6 +236,7 @@ function ProviderAvatar({ conversationCount, iconSize, t }: {
 function buildColumns(
   options: ProviderViewProps,
   connectivityErrors: ProviderConnectivityErrors,
+  tokenCostDisplay: TokenCostDisplaySettings,
 ): ColumnsType<Provider> {
   const { busyProviderId, language, usageForProvider, onSwitchModel, onModelControlChange, t } = options;
   return [
@@ -274,8 +277,11 @@ function buildColumns(
         period="total" language={language} t={t} />,
     },
     {
-      title: t("providers.table.estimatedCost"), key: "estimatedCost", width: 125, align: "center",
-      render: (_, provider) => <ProviderEstimatedCostCell usage={usageForProvider(provider)} t={t} />,
+      title: <TokenCostColumnTitle label={t("providers.table.estimatedCost")}
+        settings={tokenCostDisplay} t={t} />,
+      key: "estimatedCost", width: 145, align: "center",
+      render: (_, provider) => <ProviderEstimatedCostCell usage={usageForProvider(provider)}
+        settings={tokenCostDisplay} t={t} />,
     },
     {
       title: t("providers.table.actions"), key: "actions", width: 285, align: "right", fixed: "right",
@@ -296,9 +302,10 @@ export function ProviderTableView(options: ProviderTableProps) {
   } = options;
   const { tableWrapRef, tableScrollY } = useProviderTableScrollHeight();
   const [hiddenColumns, setHiddenColumns] = useState<ProviderTableColumnKey[]>(loadHiddenColumns);
+  const tokenCostDisplay = useTokenCostDisplaySettings();
   const providerIds = providers.map((provider) => provider.id);
   const connectivity = useProviderConnectivity(providerIds);
-  const columns = buildColumns(options, connectivity.errors);
+  const columns = buildColumns(options, connectivity.errors, tokenCostDisplay);
   const hiddenColumnSet = new Set(hiddenColumns);
   const selectedProviderIdSet = new Set(selectedProviderIds);
   const selectedProviders = providers.filter((provider) => selectedProviderIdSet.has(provider.id));
@@ -383,7 +390,11 @@ export function ProviderTableView(options: ProviderTableProps) {
   </div>;
 }
 
-function ProviderCard({ provider, options }: { provider: Provider; options: ProviderViewProps }) {
+function ProviderCard({ provider, options, tokenCostDisplay }: {
+  provider: Provider;
+  options: ProviderViewProps;
+  tokenCostDisplay: TokenCostDisplaySettings;
+}) {
   const {
     busyProviderId,
     language,
@@ -461,12 +472,13 @@ function ProviderCard({ provider, options }: { provider: Provider; options: Prov
       <div><span>{t("providers.table.totalTokens")}</span><ProviderTokenCell
         usage={usageForProvider(provider)} period="total" language={language} t={t} /></div>
       <div><span>{t("providers.table.estimatedCost")}</span><ProviderEstimatedCostCell
-        usage={usageForProvider(provider)} t={t} /></div>
+        usage={usageForProvider(provider)} settings={tokenCostDisplay} t={t} /></div>
     </div>
   </article>;
 }
 
 export function ProviderCardView(options: ProviderViewProps) {
+  const tokenCostDisplay = useTokenCostDisplaySettings();
   return <>
     <ProviderProxyModeWarning options={options} cardView />
     {options.proxyRunning && (
@@ -476,7 +488,8 @@ export function ProviderCardView(options: ProviderViewProps) {
     )}
     <div className={`${styles.styleScope} provider-card-grid`}>
       {options.providers.map((provider) => (
-        <ProviderCard key={provider.id} provider={provider} options={options} />
+        <ProviderCard key={provider.id} provider={provider} options={options}
+          tokenCostDisplay={tokenCostDisplay} />
       ))}
     </div>
   </>;

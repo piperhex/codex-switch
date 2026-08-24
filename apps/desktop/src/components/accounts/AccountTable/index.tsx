@@ -60,6 +60,7 @@ import {
   EMPTY_TOKEN_TOTALS,
   type TokenTypeTotals,
 } from "../../DailyTokenUsageTooltip";
+import { TokenCostColumnTitle, useTokenCostDisplaySettings } from "../../TokenCostUnitSettings";
 import { AccountNoteModal } from "../../modals/AccountNoteModal";
 import { ResetCreditsPanel } from "../ResetCreditsPanel";
 import { UsageMeter, UsageRefreshAge } from "../UsageMeter";
@@ -335,6 +336,7 @@ export function AccountTable({
   const [tableScrollY, setTableScrollY] = useState(0);
   const [accountTokenUsage, setAccountTokenUsage] = useState<AccountTokenUsageTotals[]>([]);
   const [accountConversationCounts, setAccountConversationCounts] = useState<Record<string, number>>({});
+  const tokenCostDisplay = useTokenCostDisplaySettings();
   const [cardTopbarHost, setCardTopbarHost] = useState<HTMLElement | null>(null);
   const openAccountDetails = (account: Account) => {
     setEditingAccount(account);
@@ -617,11 +619,16 @@ export function AccountTable({
       ),
     },
     {
-      title: t("table.estimatedTokenCost"), key: "estimatedCost", width: 120, align: "center" as const,
+      title: <TokenCostColumnTitle label={t("table.estimatedTokenCost")}
+        settings={tokenCostDisplay} t={t} />,
+      key: "estimatedCost", width: 145, align: "center" as const,
       render: (_: unknown, account: Account) => {
         const usage = accountTokenUsage.find((item) => tokenUsageMatchesAccount(item, account));
-        return <Tooltip title={t("table.estimatedTokenCostHint")} styles={{ root: { maxWidth: 400 } }}>
-          <strong className="account-token-cost">{formatEstimatedCost(usage?.estimatedCost ?? 0)}</strong>
+        return <Tooltip title={t("table.estimatedTokenCostHint", { unit: tokenCostDisplay.unit })}
+          styles={{ root: { maxWidth: 400 } }}>
+          <strong className="account-token-cost">
+            {formatEstimatedCost(usage?.estimatedCost ?? 0, tokenCostDisplay)}
+          </strong>
         </Tooltip>;
       },
     },

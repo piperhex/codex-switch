@@ -393,6 +393,18 @@ h1 { margin: 5px 0 0; font: 700 26px/1.1 Manrope, sans-serif; letter-spacing: -.
 .account-column-settings > strong { display: block; margin-bottom: 8px; color: var(--ink); font-size: 11px; }
 .account-column-settings-list { display: grid; gap: 7px; }
 .account-column-settings-list .ant-checkbox-wrapper { margin-inline-start: 0; color: var(--ink); font-size: 11px; }
+.token-cost-column-title { display: inline-flex; align-items: center; gap: 3px; }
+.token-cost-settings-button { width: 22px; height: 22px; padding: 0; color: var(--muted); }
+.token-cost-settings-button:hover { color: var(--green-dark); }
+.token-cost-unit-settings {
+  width: min(290px, calc(100vw - 32px)); max-width: 400px; display: grid; gap: 7px;
+  padding: 10px 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel);
+  box-shadow: 0 12px 30px rgba(22,36,27,.14);
+}
+.token-cost-unit-settings strong { color: var(--ink); font-size: 11px; }
+.token-cost-unit-settings label { color: var(--muted); font-size: 10px; font-weight: 700; }
+.token-cost-unit-settings small { color: var(--muted); font-size: 10px; line-height: 1.45; }
+.token-cost-unit-settings .ant-input-number { width: 100%; }
 .reset-credits-panel { display: grid; gap: 8px; padding: 12px 18px 14px 52px; border-top: 1px solid #edf1ec; }
 .reset-credit { display: grid; grid-template-columns: 118px minmax(0, 1fr); align-items: center; gap: 16px; padding: 10px 13px; border: 1px solid #dfe7df; border-radius: 8px; background: #fff; }
 .reset-credit-index { display: flex; align-items: center; gap: 7px; color: var(--green-dark); font-weight: 700; }

@@ -1,6 +1,18 @@
 import type { Provider, TokenUsageEntry } from "../types";
 
 const TOKENS_PER_MILLION = 1_000_000;
+const TOKEN_COST_DISPLAY_STORAGE_KEY = "codex-switch:token-cost-display";
+export const TOKEN_COST_DISPLAY_EVENT = "codex-switch:token-cost-display-changed";
+
+export interface TokenCostDisplaySettings {
+  unit: string;
+  usdMultiplier: number;
+}
+
+export const DEFAULT_TOKEN_COST_DISPLAY_SETTINGS: TokenCostDisplaySettings = {
+  unit: "USD",
+  usdMultiplier: 1,
+};
 
 interface TokenCostRate {
   input: number;
@@ -64,7 +76,30 @@ export function estimateTokenCost(entry: TokenUsageEntry, providers: Provider[])
   ) / TOKENS_PER_MILLION;
 }
 
-export function formatEstimatedCost(value: number, currency = "USD") {
-  if (!Number.isFinite(value)) return `0.00 ${currency}`;
-  return `${value < 0.01 && value > 0 ? value.toFixed(4) : value.toFixed(2)} ${currency}`;
+export function loadTokenCostDisplaySettings(): TokenCostDisplaySettings {
+  try {
+    const parsed: unknown = JSON.parse(window.localStorage.getItem(TOKEN_COST_DISPLAY_STORAGE_KEY) ?? "null");
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return DEFAULT_TOKEN_COST_DISPLAY_SETTINGS;
+    }
+    const value = parsed as Partial<TokenCostDisplaySettings>;
+    const unit = typeof value.unit === "string" ? value.unit.trim().slice(0, 12) : "";
+    const usdMultiplier = value.usdMultiplier;
+    if (!unit || typeof usdMultiplier !== "number" || !Number.isFinite(usdMultiplier) || usdMultiplier <= 0) {
+      return DEFAULT_TOKEN_COST_DISPLAY_SETTINGS;
+    }
+    return { unit, usdMultiplier };
+  } catch {
+    return DEFAULT_TOKEN_COST_DISPLAY_SETTINGS;
+  }
+}
+
+export function saveTokenCostDisplaySettings(settings: TokenCostDisplaySettings) {
+  window.localStorage.setItem(TOKEN_COST_DISPLAY_STORAGE_KEY, JSON.stringify(settings));
+  window.dispatchEvent(new CustomEvent(TOKEN_COST_DISPLAY_EVENT));
+}
+
+export function formatEstimatedCost(value: number, settings = DEFAULT_TOKEN_COST_DISPLAY_SETTINGS) {
+  const converted = Number.isFinite(value) ? value * settings.usdMultiplier : 0;
+  return `${converted < 0.01 && converted > 0 ? converted.toFixed(4) : converted.toFixed(2)} ${settings.unit}`;
 }
