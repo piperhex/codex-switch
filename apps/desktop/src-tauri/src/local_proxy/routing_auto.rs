@@ -252,6 +252,45 @@ fn account_with_lowest_remaining_primary_quota<'a>(
         .map(|(account, _)| account)
 }
 
+pub(crate) fn maybe_switch_official_account_below_threshold<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+) -> Result<bool, String> {
+    let paths = resolve_paths(app)?;
+    let state = read_state(&paths);
+    if !state.auto_switch_on_quota_exhaustion
+        || !state.custom_auto_switch_threshold_enabled
+        || state.active_provider_id.is_some()
+        || state.active_provider_group.is_some()
+    {
+        return Ok(false);
+    }
+    let Some(current_id) = state.active_account_id else {
+        return Ok(false);
+    };
+    let current_account = crate::commands::list_accounts_blocking(app.clone())?
+        .into_iter()
+        .find(|account| account.id == current_id && account.auto_switch_enabled);
+    let Some(current_account) = current_account else {
+        return Ok(false);
+    };
+    let Some(primary) = current_account.usage.primary.as_ref() else {
+        return Ok(false);
+    };
+    if current_account.usage.error.is_some()
+        || primary.remaining_percent >= current_account.auto_switch_threshold
+    {
+        return Ok(false);
+    }
+    let (observed_generation, observed_attempt_generation, _) =
+        auto_switch_coordinator().account_snapshot(|| Ok(()))?;
+    auto_switch_official_account(
+        app,
+        observed_generation,
+        observed_attempt_generation,
+        &current_id,
+    )
+}
+
 fn account_meets_threshold(account: &AccountSummary, custom_threshold_enabled: bool) -> bool {
     if !custom_threshold_enabled {
         return true;
