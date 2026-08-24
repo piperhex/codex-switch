@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { loadProviderTokenUsage, subscribeToTokenUsageChanges } from "../../api/backend";
-import type { ProviderTokenUsageTotals } from "../../types";
+import type { Provider, ProviderTokenUsageTotals } from "../../types";
 import { createProviderTokenUsageLookup } from "../../utils/providerTokenUsage";
 
-export function useProviderTokenUsage(tokenUsageRefreshSeconds: number) {
+export function useProviderTokenUsage(tokenUsageRefreshSeconds: number, providers: Provider[]) {
   const [providerTokenUsage, setProviderTokenUsage] = useState<ProviderTokenUsageTotals[]>([]);
 
   useEffect(() => {
@@ -19,7 +19,7 @@ export function useProviderTokenUsage(tokenUsageRefreshSeconds: number) {
         today.getDate(),
       ).getTime() / 1_000);
       try {
-        const totals = await loadProviderTokenUsage(startTs);
+        const totals = await loadProviderTokenUsage(startTs, providers);
         if (active) setProviderTokenUsage(totals);
       } catch {
         // Keep the last successful values when token statistics are temporarily unavailable.
@@ -36,7 +36,7 @@ export function useProviderTokenUsage(tokenUsageRefreshSeconds: number) {
       window.clearInterval(timer);
       unsubscribe();
     };
-  }, [tokenUsageRefreshSeconds]);
+  }, [providers, tokenUsageRefreshSeconds]);
 
   return useMemo(
     () => createProviderTokenUsageLookup(providerTokenUsage),

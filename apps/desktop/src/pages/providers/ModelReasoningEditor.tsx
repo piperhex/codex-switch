@@ -1,4 +1,4 @@
-import { AutoComplete, Button, Checkbox, Input, Select } from "antd";
+import { AutoComplete, Button, Checkbox, Input, InputNumber, Select } from "antd";
 import { Plus, Trash2 } from "lucide-react";
 import type { Translate } from "../../i18n";
 import type { ProviderApiFormat, ReasoningEffort } from "../../types";
@@ -66,6 +66,9 @@ export function ModelReasoningEditor({
       rowIndex === index ? { ...config, supportsImageInput } : config
     )));
   };
+  const updateUnitCost = (index: number, unitCost: number | null) => onChange(value.map((config, rowIndex) => (
+    rowIndex === index ? { ...config, unitCost } : config
+  )));
   const remove = (index: number) => onChange(value.filter((_, rowIndex) => rowIndex !== index));
   const add = () => onChange([...value, {
     model: "",
@@ -73,6 +76,7 @@ export function ModelReasoningEditor({
     contextWindowK: DEFAULT_CONTEXT_WINDOW_K,
     apiFormat: "auto",
     supportsImageInput: false,
+    unitCost: null,
   }]);
   const apiFormatOptions = [
     { label: t("providers.form.apiProtocolAuto"), value: "auto" },
@@ -87,6 +91,7 @@ export function ModelReasoningEditor({
       <span>{t("providers.form.contextWindow")}</span>
       <span>{t("providers.form.apiProtocol")}</span>
       <span>{t("providers.form.imageInputModels")}</span>
+      <span>{t("providers.form.unitCostPerMillion")}</span>
       <span />
     </div>
     {value.map((config, index) => <div className="provider-model-editor-row" key={index}>
@@ -104,6 +109,8 @@ export function ModelReasoningEditor({
       <Checkbox checked={config.supportsImageInput} disabled={disabled}
         aria-label={`${t("providers.form.imageInputModels")}: ${config.model}`}
         onChange={(event) => updateImageInput(index, event.target.checked)} />
+      <InputNumber min={0} precision={6} value={config.unitCost} disabled={disabled}
+        placeholder="Sol" onChange={(next) => updateUnitCost(index, next)} />
       <Button type="text" danger icon={<Trash2 size={14} />} disabled={disabled || value.length === 1}
         aria-label={t("providers.form.removeModel")} onClick={() => remove(index)} />
     </div>)}

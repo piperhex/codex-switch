@@ -11,6 +11,7 @@ import {
   modelApiFormats,
   modelContextWindows,
   modelImageInputModels,
+  modelTokenCosts,
   modelReasoningConfigs,
   modelReasoningEfforts,
   normalizeModels,
@@ -49,6 +50,7 @@ export function ProviderModal({ provider, saving, onClose, onSave, t }: Provider
         apiFormats: provider?.modelApiFormats,
         fallbackContextWindow: provider?.contextWindow,
         imageInputModels: provider?.imageInputModels,
+        tokenCosts: provider?.modelTokenCosts,
         preserveImageInputForModels: provider?.imageInputModelsConfigured ? nextModels : [],
       })
       : [{
@@ -57,6 +59,7 @@ export function ProviderModal({ provider, saving, onClose, onSave, t }: Provider
         contextWindowK: DEFAULT_CONTEXT_WINDOW_K,
         apiFormat: "auto",
         supportsImageInput: false,
+        unitCost: null,
     }]);
     setModel(provider?.model ?? nextModels[0] ?? "");
     setApiKey("");
@@ -100,6 +103,7 @@ export function ProviderModal({ provider, saving, onClose, onSave, t }: Provider
       modelReasoningEfforts: modelReasoningEfforts(modelConfigs),
       modelContextWindows: modelContextWindows(modelConfigs),
       modelApiFormats: modelApiFormats(modelConfigs),
+      modelTokenCosts: modelTokenCosts(modelConfigs),
       imageInputModels: modelImageInputModels(modelConfigs),
       imageInputModelsConfigured: true,
       contextWindow: null,

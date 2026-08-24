@@ -3,7 +3,7 @@ import { ArrowRight, LogIn, RefreshCw } from "lucide-react";
 import type { Language, Translate } from "../i18n";
 import type { AccountDisplayMode } from "../hooks/useAccountDisplayMode";
 import type {
-  Account, AccountDetailsDraft, LocalProxyStatus,
+  Account, AccountDetailsDraft, LocalProxyStatus, Provider,
   ResetCreditsLoadState,
 } from "../types";
 import { AccountTable } from "../components/accounts/AccountTable";
@@ -11,6 +11,7 @@ import { AccountTable } from "../components/accounts/AccountTable";
 export function AccountsPage({
   active,
   accounts,
+  providers,
   loading,
   busyAccountId,
   localProxy,
@@ -50,6 +51,7 @@ export function AccountsPage({
 }: {
   active: boolean;
   accounts: Account[];
+  providers: Provider[];
   loading: boolean;
   busyAccountId: string | null;
   localProxy: LocalProxyStatus | null;
@@ -111,7 +113,7 @@ export function AccountsPage({
   }
   return (
     <div className="accounts-page">
-      <AccountTable active={active} accounts={accounts} busyAccountId={busyAccountId}
+      <AccountTable active={active} accounts={accounts} providers={providers} busyAccountId={busyAccountId}
         onSwitch={onSwitch} onDeactivate={onDeactivate}
         onCopyAuthJson={onCopyAuthJson} onRefresh={onRefresh} onDelete={onDelete}
         onConsumeQuotaMany={onConsumeQuotaMany} onDeleteMany={onDeleteMany}

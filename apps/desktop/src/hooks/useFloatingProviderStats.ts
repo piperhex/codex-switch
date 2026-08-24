@@ -26,6 +26,8 @@ async function loadTokenUsage(provider: Provider) {
     providerId: provider.id,
     todayTokens: 0,
     totalTokens: 0,
+    todayEstimatedCost: 0,
+    totalEstimatedCost: 0,
   };
 }
 

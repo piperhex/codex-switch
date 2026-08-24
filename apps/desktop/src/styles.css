@@ -909,10 +909,10 @@ main.providers-main .provider-page {
 .provider-form .ant-segmented { justify-self: start; }
 .provider-model-editor { min-width: 0; display: grid; gap: 6px; }
 .provider-model-editor-head, .provider-model-editor-row {
-  min-width: 760px;
+  min-width: 860px;
   display: grid;
   grid-template-columns:
-    minmax(140px, 1fr) minmax(200px, 1.4fr) minmax(100px, .6fr) minmax(150px, .75fr) 64px 32px;
+    minmax(140px, 1fr) minmax(200px, 1.4fr) minmax(100px, .6fr) minmax(150px, .75fr) 64px 120px 32px;
   align-items: center;
   gap: 7px;
 }
@@ -922,7 +922,7 @@ main.providers-main .provider-page {
 .provider-model-editor-head > :nth-child(5),
 .provider-model-editor-row > :nth-child(5) { justify-self: center; }
 .provider-model-add {
-  min-width: 760px;
+  min-width: 860px;
   width: 100%;
   justify-self: stretch;
   border-style: dashed;

@@ -13,6 +13,8 @@ import {
 import { CLAUDE_CODE_FALLBACK_MODELS } from "../utils/claudeCodeProvider";
 import { GROK_FALLBACK_MODELS } from "../utils/grokProvider";
 import { findProviderPreset } from "../utils/providerCatalog";
+import { loadStoredModelTokenCosts, persistStoredModelTokenCosts } from "../pages/providers/providerUtils";
+import { estimateTokenCost } from "../utils/tokenCost";
 import { normalizeTotpVault, TOTP_STORAGE_KEY, type TotpVault } from "../utils/totp";
 import {
   normalizeThirdPartyAppWriteSettings,
@@ -339,6 +341,7 @@ function readPreviewProviders(): Provider[] {
       const models = normalizeModels(selectedModel, provider.models);
       return {
         ...provider,
+        modelTokenCosts: provider.modelTokenCosts ?? loadStoredModelTokenCosts()[provider.id] ?? {},
         kind,
         group: kind === "custom" && typeof provider.group === "string" ? provider.group.trim() : "",
         model: models.includes(selectedModel) ? selectedModel : (models[0] ?? ""),
@@ -618,7 +621,12 @@ export async function loadProviders(): Promise<Provider[]> {
     }
     return normalized;
   }
-  return invoke<Provider[]>("list_providers");
+  const providers = await invoke<Provider[]>("list_providers");
+  const storedCosts = loadStoredModelTokenCosts();
+  return providers.map((provider) => ({
+    ...provider,
+    modelTokenCosts: provider.modelTokenCosts ?? storedCosts[provider.id] ?? {},
+  }));
 }
 
 function readPreviewAggregateApis(): AggregateApi[] {
@@ -735,6 +743,7 @@ export async function saveProviderProfile(provider: ProviderInput): Promise<Prov
       modelReasoningEfforts: normalizeModelReasoningEfforts(models, provider.modelReasoningEfforts),
       modelContextWindows: normalizeModelContextWindows(models, provider.modelContextWindows),
       modelApiFormats: normalizeModelApiFormats(models, provider.modelApiFormats),
+      modelTokenCosts: provider.modelTokenCosts ?? existing?.modelTokenCosts ?? {},
       imageInputModels: normalizeModelSubset(models, provider.imageInputModels),
       imageInputModelsConfigured: provider.imageInputModelsConfigured
         ?? existing?.imageInputModelsConfigured
@@ -772,7 +781,11 @@ export async function saveProviderProfile(provider: ProviderInput): Promise<Prov
     writePreviewProviders(providers);
     return next;
   }
-  return invoke<Provider>("save_provider", { provider });
+  const saved = await invoke<Provider>("save_provider", { provider });
+  const storedCosts = loadStoredModelTokenCosts()[saved.id] ?? {};
+  const modelTokenCosts = provider.modelTokenCosts ?? storedCosts;
+  if (provider.modelTokenCosts) persistStoredModelTokenCosts(saved.id, modelTokenCosts);
+  return { ...saved, modelTokenCosts };
 }
 
 export async function fetchDeepSeekModels(
@@ -1250,10 +1263,21 @@ export async function loadTokenUsageEntries(): Promise<TokenUsageEntry[]> {
   return invoke<TokenUsageEntry[]>("list_token_usage_entries");
 }
 
-export async function loadAccountTokenUsage(startTs: number): Promise<AccountTokenUsageTotals[]> {
+export async function loadAccountTokenUsage(
+  startTs: number,
+  providers: Provider[] = [],
+): Promise<AccountTokenUsageTotals[]> {
+  const entries = await loadTokenUsageEntries();
+  const costs = new Map<string, number>();
+  entries.filter((entry) => entry.ts >= startTs && (entry.accountId || entry.accountEmail)).forEach((entry) => {
+    const key = entry.accountId
+      ? `id:${entry.accountId}`
+      : `email:${entry.accountEmail?.trim().toLowerCase()}`;
+    costs.set(key, (costs.get(key) ?? 0) + estimateTokenCost(entry, providers));
+  });
   if (!hasLocalBackend) {
     const totals = new Map<string, AccountTokenUsageTotals>();
-    for (const entry of await loadTokenUsageEntries()) {
+    for (const entry of entries) {
       if (entry.ts < startTs || (!entry.accountId && !entry.accountEmail)) continue;
       const key = entry.accountId
         ? `id:${entry.accountId}`
@@ -1266,6 +1290,7 @@ export async function loadAccountTokenUsage(startTs: number): Promise<AccountTok
         outputTokens: 0,
         reasoningTokens: 0,
         cachedTokens: 0,
+        estimatedCost: 0,
       };
       current.totalTokens += entry.totalTokens
         ?? (entry.inputTokens ?? 0) + (entry.outputTokens ?? 0);
@@ -1273,17 +1298,37 @@ export async function loadAccountTokenUsage(startTs: number): Promise<AccountTok
       current.outputTokens += entry.outputTokens ?? 0;
       current.reasoningTokens += entry.reasoningTokens ?? 0;
       current.cachedTokens += entry.cachedTokens ?? 0;
+      current.estimatedCost += estimateTokenCost(entry, providers);
       totals.set(key, current);
     }
     return [...totals.values()];
   }
-  return invoke<AccountTokenUsageTotals[]>("list_account_token_usage", { startTs });
+  const totals = await invoke<AccountTokenUsageTotals[]>("list_account_token_usage", { startTs });
+  return totals.map((total) => ({
+    ...total,
+    estimatedCost: costs.get(total.accountId
+      ? `id:${total.accountId}`
+      : `email:${total.accountEmail?.trim().toLowerCase()}`) ?? 0,
+  }));
 }
 
-export async function loadProviderTokenUsage(startTs: number): Promise<ProviderTokenUsageTotals[]> {
+export async function loadProviderTokenUsage(
+  startTs: number,
+  providers: Provider[] = [],
+): Promise<ProviderTokenUsageTotals[]> {
+  const entries = await loadTokenUsageEntries();
+  const costByProvider = new Map<string, { today: number; total: number }>();
+  entries.forEach((entry) => {
+    const key = entry.providerId ? `id:${entry.providerId}` : `name:${entry.provider.trim()}`;
+    const current = costByProvider.get(key) ?? { today: 0, total: 0 };
+    const cost = estimateTokenCost(entry, providers);
+    current.total += cost;
+    if (entry.ts >= startTs) current.today += cost;
+    costByProvider.set(key, current);
+  });
   if (!hasLocalBackend) {
     const totals = new Map<string, ProviderTokenUsageTotals>();
-    for (const entry of await loadTokenUsageEntries()) {
+    for (const entry of entries) {
       const provider = entry.provider.trim();
       if (!provider) continue;
       const current = totals.get(provider) ?? {
@@ -1291,15 +1336,26 @@ export async function loadProviderTokenUsage(startTs: number): Promise<ProviderT
         providerId: entry.providerId,
         todayTokens: 0,
         totalTokens: 0,
+        todayEstimatedCost: 0,
+        totalEstimatedCost: 0,
       };
       const tokens = entry.totalTokens ?? (entry.inputTokens ?? 0) + (entry.outputTokens ?? 0);
       current.totalTokens += tokens;
       if (entry.ts >= startTs) current.todayTokens += tokens;
+      const cost = estimateTokenCost(entry, providers);
+      current.totalEstimatedCost += cost;
+      if (entry.ts >= startTs) current.todayEstimatedCost += cost;
       totals.set(provider, current);
     }
     return [...totals.values()];
   }
-  return invoke<ProviderTokenUsageTotals[]>("list_provider_token_usage", { startTs });
+  const totals = await invoke<ProviderTokenUsageTotals[]>("list_provider_token_usage", { startTs });
+  return totals.map((total) => {
+    const costs = costByProvider.get(total.providerId
+      ? `id:${total.providerId}`
+      : `name:${total.provider.trim()}`) ?? { today: 0, total: 0 };
+    return { ...total, todayEstimatedCost: costs.today, totalEstimatedCost: costs.total };
+  });
 }
 
 export async function loadDailyTokenUsage(startTs: number): Promise<DailyTokenUsage[]> {

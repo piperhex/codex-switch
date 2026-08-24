@@ -151,7 +151,7 @@ export function ProvidersPage({
     return () => window.clearInterval(timer);
   }, [active, activeAggregateId, onRefreshAggregateApis]);
 
-  const usageForProvider = useProviderTokenUsage(tokenUsageRefreshSeconds);
+  const usageForProvider = useProviderTokenUsage(tokenUsageRefreshSeconds, providers);
 
   const openCreate = () => {
     setEditingProvider(null);

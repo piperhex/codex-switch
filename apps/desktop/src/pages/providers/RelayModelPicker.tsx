@@ -62,6 +62,9 @@ export function RelayModelPicker({
         apiFormats: modelApiFormats(modelConfigs),
         imageInputModels: modelImageInputModels(modelConfigs),
         preserveImageInputForModels: modelConfigs.map(({ model }) => model.trim()),
+        tokenCosts: Object.fromEntries(modelConfigs.flatMap(({ model, unitCost }) => (
+          model.trim() && unitCost != null ? [[model.trim(), unitCost]] : []
+        ))),
       }));
       onActiveModelChange(latest.includes(activeModel) ? activeModel : latest[0] ?? "");
       setLoaded(true);

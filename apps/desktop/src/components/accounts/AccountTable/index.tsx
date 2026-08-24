@@ -48,11 +48,13 @@ import type {
   Account,
   AccountDetailsDraft,
   AccountTokenUsageTotals,
+  Provider,
   ResetCreditsLoadState,
 } from "../../../types";
 import { accountExpirationDate } from "../../../utils/expiration";
 import { initials } from "../../../utils/format";
 import { shouldShowUsageError } from "../../../utils/usageErrors";
+import { formatEstimatedCost } from "../../../utils/tokenCost";
 import {
   DailyTokenUsageTooltip,
   EMPTY_TOKEN_TOTALS,
@@ -80,6 +82,7 @@ import {
 interface AccountTableProps {
   active: boolean;
   accounts: Account[];
+  providers: Provider[];
   busyAccountId: string | null;
   onSwitch: (id: string) => void;
   onDeactivate: (id: string) => void;
@@ -142,6 +145,7 @@ const ACCOUNT_TABLE_COLUMN_KEYS = [
   "fiveHours",
   "oneWeek",
   "tokenTotals",
+  "estimatedCost",
   "autoSwitchPriority",
   "autoSwitchThreshold",
   "actions",
@@ -268,6 +272,7 @@ function compareKeepingAttentionLast(
 export function AccountTable({
   active,
   accounts,
+  providers,
   busyAccountId,
   onSwitch,
   onDeactivate,
@@ -389,7 +394,7 @@ export function AccountTable({
           today.getMonth(),
           today.getDate(),
         ).getTime() / 1_000;
-        const totals = await loadAccountTokenUsage(startTs);
+        const totals = await loadAccountTokenUsage(startTs, providers);
         if (active) setAccountTokenUsage(totals);
       } catch {
         // Keep the last successful totals; quota rendering must not fail with token statistics.
@@ -405,7 +410,7 @@ export function AccountTable({
       window.clearInterval(timer);
       unsubscribe();
     };
-  }, [hotSwitchEnabled, tokenUsageRefreshSeconds]);
+  }, [hotSwitchEnabled, providers, tokenUsageRefreshSeconds]);
   useEffect(() => {
     if (!concurrentRoutingActive) {
       setAccountConversationCounts({});
@@ -611,6 +616,15 @@ export function AccountTable({
         </div>
       ),
     },
+    {
+      title: t("table.estimatedTokenCost"), key: "estimatedCost", width: 120, align: "center" as const,
+      render: (_: unknown, account: Account) => {
+        const usage = accountTokenUsage.find((item) => tokenUsageMatchesAccount(item, account));
+        return <Tooltip title={t("table.estimatedTokenCostHint")} styles={{ root: { maxWidth: 400 } }}>
+          <strong className="account-token-cost">{formatEstimatedCost(usage?.estimatedCost ?? 0)}</strong>
+        </Tooltip>;
+      },
+    },
     ...(customPriorityActive ? [{
       title: t("table.autoSwitchPriority"), key: "autoSwitchPriority", width: 150,
       align: "center" as const, fixed: "right" as const,
@@ -775,6 +789,7 @@ export function AccountTable({
     { key: "fiveHours", label: t("table.fiveHours") },
     { key: "oneWeek", label: t("table.oneWeek") },
     { key: "tokenTotals", label: t("table.tokenTotals") },
+    { key: "estimatedCost", label: t("table.estimatedTokenCost") },
     ...(customPriorityActive
       ? [{ key: "autoSwitchPriority" as const, label: t("table.autoSwitchPriority") }]
       : []),

@@ -5,10 +5,12 @@ import type {
   ModelReasoningEfforts,
   ProviderApiFormat,
   ProviderBalancePlatform,
+  ModelTokenCosts,
   ReasoningEffort,
 } from "../../types";
 
 const HIDDEN_COLUMNS_STORAGE_KEY = "codex-switch:provider-table-hidden-columns";
+const MODEL_TOKEN_COSTS_STORAGE_KEY = "codex-switch:provider-model-token-costs";
 
 export const PROVIDER_TABLE_COLUMN_KEYS = [
   "provider",
@@ -19,6 +21,7 @@ export const PROVIDER_TABLE_COLUMN_KEYS = [
   "balance",
   "todayTokens",
   "totalTokens",
+  "estimatedCost",
   "actions",
 ] as const;
 
@@ -31,6 +34,30 @@ export const CONTEXT_WINDOW_OPTIONS = [128, 272, 384, 400, 1000].map((value) => 
 
 export const DEFAULT_CONTEXT_WINDOW_K = "256";
 export const DEFAULT_DEEPSEEK_CONTEXT_WINDOW_K = "1000";
+
+type StoredModelTokenCosts = Record<string, ModelTokenCosts>;
+
+export function loadStoredModelTokenCosts(): StoredModelTokenCosts {
+  try {
+    const parsed: unknown = JSON.parse(window.localStorage.getItem(MODEL_TOKEN_COSTS_STORAGE_KEY) ?? "{}");
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    return Object.fromEntries(Object.entries(parsed).flatMap(([providerId, value]) => {
+      if (!value || typeof value !== "object" || Array.isArray(value)) return [];
+      const costs = Object.fromEntries(Object.entries(value).flatMap(([model, cost]) => (
+        typeof cost === "number" && Number.isFinite(cost) && cost >= 0 ? [[model, cost]] : []
+      )));
+      return [[providerId, costs]];
+    }));
+  } catch {
+    return {};
+  }
+}
+
+export function persistStoredModelTokenCosts(providerId: string, costs: ModelTokenCosts) {
+  const stored = loadStoredModelTokenCosts();
+  stored[providerId] = costs;
+  window.localStorage.setItem(MODEL_TOKEN_COSTS_STORAGE_KEY, JSON.stringify(stored));
+}
 
 export function isProviderTableColumnKey(value: unknown): value is ProviderTableColumnKey {
   return typeof value === "string"
@@ -73,6 +100,7 @@ export interface ModelReasoningConfig {
   contextWindowK: string;
   apiFormat: ProviderApiFormat | "auto";
   supportsImageInput: boolean;
+  unitCost: number | null;
 }
 
 export const REASONING_EFFORTS: ReasoningEffort[] = [
@@ -121,6 +149,7 @@ export function modelReasoningConfigs(
     fallbackContextWindow?: number | null;
     imageInputModels?: string[];
     preserveImageInputForModels?: string[];
+    tokenCosts?: ModelTokenCosts;
   } = {},
 ): ModelReasoningConfig[] {
   const fallbackContextWindowK = options.fallbackContextWindow
@@ -137,6 +166,7 @@ export function modelReasoningConfigs(
     apiFormat: options.apiFormats?.[model] ?? "auto",
     supportsImageInput: options.imageInputModels?.includes(model)
       || (!options.preserveImageInputForModels?.includes(model) && supportsImageInputByDefault(model)),
+    unitCost: options.tokenCosts?.[model] ?? null,
   }));
 }
 
@@ -215,6 +245,14 @@ export function relayName(value: string) {
   } catch {
     return "";
   }
+}
+
+export function modelTokenCosts(configs: ModelReasoningConfig[]): ModelTokenCosts {
+  return Object.fromEntries(configs.flatMap(({ model, unitCost }) => (
+    model.trim() && unitCost != null && Number.isFinite(unitCost) && unitCost >= 0
+      ? [[model.trim(), unitCost]]
+      : []
+  )));
 }
 
 export function modelApiFormats(configs: ModelReasoningConfig[]): ModelApiFormats {

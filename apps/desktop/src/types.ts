@@ -76,6 +76,7 @@ export type ProviderBalancePlatform = "newApi" | "sub2Api" | "deepSeek";
 export type ReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh" | "max" | "ultra";
 export type ModelReasoningEfforts = Record<string, ReasoningEffort[]>;
 export type ModelContextWindows = Record<string, number>;
+export type ModelTokenCosts = Record<string, number>;
 
 export interface Provider {
   id: string;
@@ -88,6 +89,7 @@ export interface Provider {
   modelReasoningEfforts: ModelReasoningEfforts;
   modelContextWindows: ModelContextWindows;
   modelApiFormats: ModelApiFormats;
+  modelTokenCosts?: ModelTokenCosts;
   imageInputModels: string[];
   imageInputModelsConfigured: boolean;
   contextWindow?: number | null;
@@ -118,6 +120,7 @@ export interface ProviderInput {
   modelReasoningEfforts: ModelReasoningEfforts;
   modelContextWindows: ModelContextWindows;
   modelApiFormats?: ModelApiFormats;
+  modelTokenCosts?: ModelTokenCosts;
   imageInputModels: string[];
   imageInputModelsConfigured?: boolean;
   contextWindow?: number | null;
@@ -387,6 +390,7 @@ export interface AccountTokenUsageTotals {
   outputTokens: number;
   reasoningTokens: number;
   cachedTokens: number;
+  estimatedCost: number;
 }
 
 export interface ProviderTokenUsageTotals {
@@ -394,6 +398,8 @@ export interface ProviderTokenUsageTotals {
   providerId?: string | null;
   todayTokens: number;
   totalTokens: number;
+  todayEstimatedCost: number;
+  totalEstimatedCost: number;
 }
 
 export interface DailyTokenUsage {

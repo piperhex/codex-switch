@@ -15,6 +15,7 @@ import {
   ProviderModelCell,
   ProviderModelControlCell,
   ProviderTokenCell,
+  ProviderEstimatedCostCell,
 } from "../ProviderCells";
 import {
   isProviderTableColumnKey,
@@ -273,6 +274,10 @@ function buildColumns(
         period="total" language={language} t={t} />,
     },
     {
+      title: t("providers.table.estimatedCost"), key: "estimatedCost", width: 125, align: "center",
+      render: (_, provider) => <ProviderEstimatedCostCell usage={usageForProvider(provider)} t={t} />,
+    },
+    {
       title: t("providers.table.actions"), key: "actions", width: 285, align: "right", fixed: "right",
       render: (_, provider) => <ProviderActions provider={provider} options={options} />,
     },
@@ -308,6 +313,7 @@ export function ProviderTableView(options: ProviderTableProps) {
     { key: "balance", label: t("providers.table.balance") },
     { key: "todayTokens", label: t("providers.table.todayTokens") },
     { key: "totalTokens", label: t("providers.table.totalTokens") },
+    { key: "estimatedCost", label: t("providers.table.estimatedCost") },
     { key: "actions", label: t("providers.table.actions") },
   ];
   const visibleColumnCount = columnSettings.filter(({ key }) => !hiddenColumnSet.has(key)).length;
@@ -454,6 +460,8 @@ function ProviderCard({ provider, options }: { provider: Provider; options: Prov
         usage={usageForProvider(provider)} period="today" language={language} t={t} /></div>
       <div><span>{t("providers.table.totalTokens")}</span><ProviderTokenCell
         usage={usageForProvider(provider)} period="total" language={language} t={t} /></div>
+      <div><span>{t("providers.table.estimatedCost")}</span><ProviderEstimatedCostCell
+        usage={usageForProvider(provider)} t={t} /></div>
     </div>
   </article>;
 }

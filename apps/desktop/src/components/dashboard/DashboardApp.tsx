@@ -1422,6 +1422,7 @@ export function DashboardApp() {
           <section className="page-panel accounts-page-panel" hidden={page !== "accounts"}>
             <MemoAccountsPage active={page === "accounts"}
               accounts={manager.accounts}
+              providers={providerManager.providers}
               loading={manager.loading}
               busyAccountId={manager.busyAccountId} onAdd={openLogin}
               localProxy={providerManager.localProxy} proxyBusy={providerManager.proxyBusy}
