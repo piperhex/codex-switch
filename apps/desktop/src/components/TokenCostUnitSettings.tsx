@@ -10,7 +10,7 @@ import {
   TOKEN_COST_DISPLAY_EVENT,
   type TokenCostDisplaySettings,
 } from "../utils/tokenCost";
-import { fetchCloudCurrencyRates } from "../api/backend";
+import { BASE_CURRENCY_RATE, fetchCloudCurrencyRates } from "../api/backend";
 import type { CloudCurrencyRate } from "../types";
 
 export function useTokenCostDisplaySettings() {
@@ -38,7 +38,7 @@ export function TokenCostColumnTitle({ label, settings, providers, t }: {
   const [unit, setUnit] = useState(settings.unit);
   const [usdMultiplier, setUsdMultiplier] = useState<number | null>(settings.usdMultiplier);
   const [currencyCode, setCurrencyCode] = useState(settings.currencyCode);
-  const [currencyRates, setCurrencyRates] = useState<CloudCurrencyRate[]>([]);
+  const [currencyRates, setCurrencyRates] = useState<CloudCurrencyRate[]>([BASE_CURRENCY_RATE]);
   const [currencyRatesLoading, setCurrencyRatesLoading] = useState(false);
   const valid = Boolean(unit.trim() && usdMultiplier && usdMultiplier > 0);
   const save = () => {
@@ -55,7 +55,7 @@ export function TokenCostColumnTitle({ label, settings, providers, t }: {
     try {
       setCurrencyRates((await fetchCloudCurrencyRates()).currencies);
     } catch {
-      setCurrencyRates([]);
+      setCurrencyRates([BASE_CURRENCY_RATE]);
     } finally {
       setCurrencyRatesLoading(false);
     }

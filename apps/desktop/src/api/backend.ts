@@ -35,6 +35,7 @@ import type {
   CloudAuthenticationResult,
   CloudAuthState,
   CloudAnnouncement,
+  CloudCurrencyRate,
   CloudCurrencyRates,
   CloudFaq,
   CloudNotification,
@@ -134,6 +135,7 @@ export async function quitApplication(): Promise<void> {
   if (isDesktopApp) await exitApp(0);
 }
 export const DEFAULT_CLOUD_BASE_URL = "https://codex.onepiper.cloud";
+export const BASE_CURRENCY_RATE: CloudCurrencyRate = { code: "USD", name: "USD", rate: 1 };
 export const DEFAULT_AUTO_DISABLE_STATUS_CODES = [401, 402, 403] as const;
 export const DEFAULT_UPSTREAM_429_RETRY_TIMEOUT_SECONDS = 300;
 export const MIN_UPSTREAM_429_RETRY_TIMEOUT_SECONDS = 1;
@@ -2417,15 +2419,28 @@ export async function setAccountAutoSwitchPriority(id: string, priority: number)
 }
 
 export async function fetchCloudCurrencyRates(): Promise<CloudCurrencyRates> {
-  if (hasLocalBackend) return invoke<CloudCurrencyRates>("fetch_cloud_currency_rates");
+  if (hasLocalBackend) {
+    const rates = await invoke<CloudCurrencyRates>("fetch_cloud_currency_rates");
+    return includeBaseCurrency(rates);
+  }
   const { baseUrl } = previewCloudState();
-  if (!baseUrl) return { currencies: [], updatedAt: null };
+  if (!baseUrl) return includeBaseCurrency({ currencies: [], updatedAt: null });
   const response = await fetch(`${baseUrl.replace(/\/+$/, "")}/currency-rates`, {
     headers: { Accept: "application/json" },
     cache: "no-store",
   });
   if (!response.ok) throw new Error(`Currency rate request failed with HTTP ${response.status}`);
-  return response.json() as Promise<CloudCurrencyRates>;
+  return includeBaseCurrency(await response.json() as CloudCurrencyRates);
+}
+
+function includeBaseCurrency(rates: CloudCurrencyRates): CloudCurrencyRates {
+  return {
+    ...rates,
+    currencies: [
+      BASE_CURRENCY_RATE,
+      ...rates.currencies.filter((currency) => currency.code !== BASE_CURRENCY_RATE.code),
+    ],
+  };
 }
 
 export async function setAccountAutoSwitchThreshold(id: string, threshold: number): Promise<void> {
