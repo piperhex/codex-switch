@@ -18,7 +18,7 @@ import { CurrencySettingsEntity, type CurrencySettingItem } from './entities/cur
 
 const SETTINGS_ID = 'current';
 const CURRENCY_API_URL = 'https://api.currencyapi.com/v3/latest';
-const CACHE_TTL_MS = 5 * 60 * 1000;
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const CURRENCY_API_TIMEOUT_MS = 10_000;
 
 interface CurrencyApiResponse {
