@@ -278,7 +278,7 @@ function buildColumns(
     },
     {
       title: <TokenCostColumnTitle label={t("providers.table.estimatedCost")}
-        settings={tokenCostDisplay} t={t} />,
+        settings={tokenCostDisplay} providers={options.providers} t={t} />,
       key: "estimatedCost", width: 145, align: "center",
       render: (_, provider) => <ProviderEstimatedCostCell usage={usageForProvider(provider)}
         settings={tokenCostDisplay} t={t} />,

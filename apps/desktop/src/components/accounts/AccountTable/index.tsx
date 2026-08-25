@@ -54,7 +54,7 @@ import type {
 import { accountExpirationDate } from "../../../utils/expiration";
 import { initials } from "../../../utils/format";
 import { shouldShowUsageError } from "../../../utils/usageErrors";
-import { formatEstimatedCost } from "../../../utils/tokenCost";
+import { formatEstimatedCost, TOKEN_COST_CUSTOM_RULES_EVENT } from "../../../utils/tokenCost";
 import {
   DailyTokenUsageTooltip,
   EMPTY_TOKEN_TOTALS,
@@ -407,10 +407,12 @@ export function AccountTable({
     void refresh();
     const timer = window.setInterval(() => void refresh(), Math.max(1, tokenUsageRefreshSeconds) * 1000);
     const unsubscribe = subscribeToTokenUsageChanges(() => void refresh());
+    window.addEventListener(TOKEN_COST_CUSTOM_RULES_EVENT, refresh);
     return () => {
       active = false;
       window.clearInterval(timer);
       unsubscribe();
+      window.removeEventListener(TOKEN_COST_CUSTOM_RULES_EVENT, refresh);
     };
   }, [hotSwitchEnabled, providers, tokenUsageRefreshSeconds]);
   useEffect(() => {
@@ -620,7 +622,7 @@ export function AccountTable({
     },
     {
       title: <TokenCostColumnTitle label={t("table.estimatedTokenCost")}
-        settings={tokenCostDisplay} t={t} />,
+        settings={tokenCostDisplay} providers={providers} t={t} />,
       key: "estimatedCost", width: 145, align: "center" as const,
       render: (_: unknown, account: Account) => {
         const usage = accountTokenUsage.find((item) => tokenUsageMatchesAccount(item, account));

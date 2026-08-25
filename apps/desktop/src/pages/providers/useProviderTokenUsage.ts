@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { loadProviderTokenUsage, subscribeToTokenUsageChanges } from "../../api/backend";
 import type { Provider, ProviderTokenUsageTotals } from "../../types";
 import { createProviderTokenUsageLookup } from "../../utils/providerTokenUsage";
+import { TOKEN_COST_CUSTOM_RULES_EVENT } from "../../utils/tokenCost";
 
 export function useProviderTokenUsage(tokenUsageRefreshSeconds: number, providers: Provider[]) {
   const [providerTokenUsage, setProviderTokenUsage] = useState<ProviderTokenUsageTotals[]>([]);
@@ -31,10 +32,12 @@ export function useProviderTokenUsage(tokenUsageRefreshSeconds: number, provider
     const refreshInterval = Math.max(1, tokenUsageRefreshSeconds) * 1_000;
     const timer = window.setInterval(() => void refresh(), refreshInterval);
     const unsubscribe = subscribeToTokenUsageChanges(() => void refresh());
+    window.addEventListener(TOKEN_COST_CUSTOM_RULES_EVENT, refresh);
     return () => {
       active = false;
       window.clearInterval(timer);
       unsubscribe();
+      window.removeEventListener(TOKEN_COST_CUSTOM_RULES_EVENT, refresh);
     };
   }, [providers, tokenUsageRefreshSeconds]);
 

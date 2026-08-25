@@ -405,6 +405,30 @@ h1 { margin: 5px 0 0; font: 700 26px/1.1 Manrope, sans-serif; letter-spacing: -.
 .token-cost-unit-settings label { color: var(--muted); font-size: 10px; font-weight: 700; }
 .token-cost-unit-settings small { color: var(--muted); font-size: 10px; line-height: 1.45; }
 .token-cost-unit-settings .ant-input-number { width: 100%; }
+.custom-token-cost-backdrop { z-index: 80; }
+.custom-token-cost-modal {
+  width: 80vw; max-width: none; height: 80vh; padding: 24px; overflow: hidden;
+  display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; gap: 18px;
+}
+.custom-token-cost-header { display: flex; align-items: flex-start; gap: 13px; padding-right: 32px; }
+.custom-token-cost-header h2 { margin-top: 4px; }
+.custom-token-cost-header p { max-width: 400px; margin-bottom: 0; }
+.custom-token-cost-editor { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr); gap: 12px 16px; }
+.custom-token-cost-field { display: grid; gap: 5px; min-width: 0; }
+.custom-token-cost-field label { color: var(--muted); font-size: 11px; font-weight: 700; }
+.custom-token-cost-field .ant-select, .custom-token-cost-field .ant-input-number { width: 100%; }
+.custom-token-cost-rates { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(120px, 1fr)); gap: 12px; }
+.custom-token-cost-hint, .custom-token-cost-empty { grid-column: 1 / -1; color: var(--muted); font-size: 11px; line-height: 1.5; }
+.custom-token-cost-saved { min-height: 0; display: grid; align-content: start; gap: 8px; overflow: auto; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: rgba(var(--green-rgb), .035); }
+.custom-token-cost-saved > strong { color: var(--ink); font-size: 12px; }
+.custom-token-cost-saved > small { color: var(--muted); }
+.custom-token-cost-saved-row { display: grid; grid-template-columns: minmax(0, 1fr) auto 32px; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+.custom-token-cost-saved-row > span { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.custom-token-cost-saved-row b, .custom-token-cost-saved-row code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.custom-token-cost-saved-row b { color: var(--ink); font-size: 11px; }
+.custom-token-cost-saved-row code { color: var(--muted); font-size: 10px; }
+.custom-token-cost-saved-row small { color: var(--muted); white-space: nowrap; }
+.custom-token-cost-footer { display: flex; justify-content: flex-end; }
 .reset-credits-panel { display: grid; gap: 8px; padding: 12px 18px 14px 52px; border-top: 1px solid #edf1ec; }
 .reset-credit { display: grid; grid-template-columns: 118px minmax(0, 1fr); align-items: center; gap: 16px; padding: 10px 13px; border: 1px solid #dfe7df; border-radius: 8px; background: #fff; }
 .reset-credit-index { display: flex; align-items: center; gap: 7px; color: var(--green-dark); font-weight: 700; }
