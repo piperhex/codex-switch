@@ -24,6 +24,7 @@ import {
   consumeResetCredit,
   DEFAULT_AUTO_DISABLE_STATUS_CODES,
   DEFAULT_CLOUD_BASE_URL,
+  fetchCloudCurrencyRates,
   hasLocalBackend,
   isDesktopApp,
   launchChatGpt,
@@ -94,6 +95,7 @@ import { useTokenUsagePreferences } from "../../hooks/useTokenUsagePreferences";
 import { useUpstream429RetryTimeout } from "../../hooks/useUpstream429RetryTimeout";
 import { useToast } from "../../hooks/useToast";
 import { useTotpEntries } from "../../hooks/useTotpEntries";
+import { loadTokenCostDisplaySettings, refreshTokenCostCurrencyRate } from "../../utils/tokenCost";
 import { AccountsPage } from "../../pages/AccountsPage";
 import { ThirdPartyAppsPage } from "../../pages/ThirdPartyAppsPage";
 import { DreamSkinPage } from "../../pages/DreamSkinPage";
@@ -440,11 +442,21 @@ export function DashboardApp() {
     : activeProvider?.balancePlatform
       ? activeProvider.name
       : activeAccount?.email ?? null;
+  const refreshTokenCostCurrency = useCallback(async () => {
+    if (!loadTokenCostDisplaySettings().currencyCode) return;
+    try {
+      const rates = await fetchCloudCurrencyRates();
+      refreshTokenCostCurrencyRate(rates.currencies);
+    } catch {
+      // A currency refresh must not interrupt the global usage refresh.
+    }
+  }, []);
   const automaticRefresh = useCallback(
     async () => {
       await Promise.all([
         manager.refreshAll({ quiet: true, showSpinner: false }),
         refreshConfiguredProviderBalances(),
+        refreshTokenCostCurrency(),
         loadAnnouncement(),
         loadNotifications(),
         loadFaqs(),
@@ -456,6 +468,7 @@ export function DashboardApp() {
       loadNotifications,
       manager.refreshAll,
       refreshConfiguredProviderBalances,
+      refreshTokenCostCurrency,
     ],
   );
   const autoRefresh = useAutoRefresh(true, automaticRefresh);
@@ -740,6 +753,7 @@ export function DashboardApp() {
   const refreshAll = () => {
     void manager.refreshAll();
     void refreshConfiguredProviderBalances();
+    void refreshTokenCostCurrency();
     void loadAnnouncement();
     void loadNotifications();
     void loadFaqs();

@@ -37,12 +37,17 @@ export function TokenCostColumnTitle({ label, settings, providers, t }: {
   const [customBillingOpen, setCustomBillingOpen] = useState(false);
   const [unit, setUnit] = useState(settings.unit);
   const [usdMultiplier, setUsdMultiplier] = useState<number | null>(settings.usdMultiplier);
+  const [currencyCode, setCurrencyCode] = useState(settings.currencyCode);
   const [currencyRates, setCurrencyRates] = useState<CloudCurrencyRate[]>([]);
   const [currencyRatesLoading, setCurrencyRatesLoading] = useState(false);
   const valid = Boolean(unit.trim() && usdMultiplier && usdMultiplier > 0);
   const save = () => {
     if (!valid || usdMultiplier == null) return;
-    saveTokenCostDisplaySettings({ unit: unit.trim().slice(0, 12), usdMultiplier });
+    saveTokenCostDisplaySettings({
+      unit: unit.trim().slice(0, 12),
+      usdMultiplier,
+      currencyCode,
+    });
     setOpen(false);
   };
   const loadCurrencyRates = async () => {
@@ -64,6 +69,7 @@ export function TokenCostColumnTitle({ label, settings, providers, t }: {
           if (nextOpen) {
             setUnit(settings.unit);
             setUsdMultiplier(settings.usdMultiplier);
+            setCurrencyCode(settings.currencyCode);
             void loadCurrencyRates();
           }
         }} dropdownRender={() => <div className="token-cost-unit-settings"
@@ -76,7 +82,9 @@ export function TokenCostColumnTitle({ label, settings, providers, t }: {
               value: currency.code,
               label: `${currency.name} (${currency.code})`,
             }))}
+            value={currencyCode ?? undefined}
             onChange={(code: string | undefined) => {
+              setCurrencyCode(code ?? null);
               const currency = currencyRates.find((item) => item.code === code);
               if (!currency) return;
               setUnit(currency.name);
@@ -84,10 +92,13 @@ export function TokenCostColumnTitle({ label, settings, providers, t }: {
             }} />
           <label htmlFor="token-cost-unit">{t("tokenCost.settings.unit")}</label>
           <Input id="token-cost-unit" value={unit} maxLength={12}
-            onChange={(event) => setUnit(event.target.value)} />
+            onChange={(event) => {
+              setCurrencyCode(null);
+              setUnit(event.target.value);
+            }} />
           <label htmlFor="token-cost-multiplier">{t("tokenCost.settings.usdMultiplier")}</label>
           <InputNumber id="token-cost-multiplier" min={0.000001} precision={6}
-            value={usdMultiplier} onChange={setUsdMultiplier} />
+            value={usdMultiplier} disabled={Boolean(currencyCode)} onChange={setUsdMultiplier} />
           <small>{t("tokenCost.settings.hint", { unit: unit.trim() || settings.unit })}</small>
           <Button type="primary" size="small" disabled={!valid} onClick={save}>
             {t("tokenCost.settings.save")}

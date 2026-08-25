@@ -9,11 +9,13 @@ export const TOKEN_COST_CUSTOM_RULES_EVENT = "codex-switch:token-cost-custom-rul
 export interface TokenCostDisplaySettings {
   unit: string;
   usdMultiplier: number;
+  currencyCode: string | null;
 }
 
 export const DEFAULT_TOKEN_COST_DISPLAY_SETTINGS: TokenCostDisplaySettings = {
   unit: "USD",
   usdMultiplier: 1,
+  currencyCode: null,
 };
 
 export interface TokenCostRate {
@@ -161,10 +163,14 @@ export function loadTokenCostDisplaySettings(): TokenCostDisplaySettings {
     const value = parsed as Partial<TokenCostDisplaySettings>;
     const unit = typeof value.unit === "string" ? value.unit.trim().slice(0, 12) : "";
     const usdMultiplier = value.usdMultiplier;
+    const currencyCode = typeof value.currencyCode === "string"
+      && /^[A-Z]{3}$/.test(value.currencyCode.trim().toUpperCase())
+      ? value.currencyCode.trim().toUpperCase()
+      : null;
     if (!unit || typeof usdMultiplier !== "number" || !Number.isFinite(usdMultiplier) || usdMultiplier <= 0) {
       return DEFAULT_TOKEN_COST_DISPLAY_SETTINGS;
     }
-    return { unit, usdMultiplier };
+    return { unit, usdMultiplier, currencyCode };
   } catch {
     return DEFAULT_TOKEN_COST_DISPLAY_SETTINGS;
   }
@@ -178,4 +184,20 @@ export function saveTokenCostDisplaySettings(settings: TokenCostDisplaySettings)
 export function formatEstimatedCost(value: number, settings = DEFAULT_TOKEN_COST_DISPLAY_SETTINGS) {
   const converted = Number.isFinite(value) ? value * settings.usdMultiplier : 0;
   return `${converted < 0.01 && converted > 0 ? converted.toFixed(4) : converted.toFixed(2)} ${settings.unit}`;
+}
+
+export function refreshTokenCostCurrencyRate(
+  currencies: Array<{ code: string; name: string; rate: number }>,
+) {
+  const settings = loadTokenCostDisplaySettings();
+  if (!settings.currencyCode) return false;
+  const currency = currencies.find((item) => item.code === settings.currencyCode);
+  if (!currency || !Number.isFinite(currency.rate) || currency.rate <= 0) return false;
+  if (currency.rate === settings.usdMultiplier && currency.name === settings.unit) return false;
+  saveTokenCostDisplaySettings({
+    ...settings,
+    unit: currency.name,
+    usdMultiplier: currency.rate,
+  });
+  return true;
 }
