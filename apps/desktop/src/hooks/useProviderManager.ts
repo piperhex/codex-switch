@@ -22,6 +22,7 @@ import {
   setLocalProxyListenOnAllInterfaces,
   setLocalProxyAutoSwitch,
   setLocalProxyConcurrentRouting,
+  setSystemPromptFilterEnabled,
   setProviderModelControl,
   setProviderGroup,
   setProviderAutoSwitchEnabled,
@@ -648,6 +649,19 @@ export function useProviderManager(
     }
   }, [load, notify, t]);
 
+  const setSystemPromptFilter = useCallback(async (enabled: boolean) => {
+    setProxyBusy(true);
+    try {
+      setLocalProxy(await setSystemPromptFilterEnabled(enabled));
+      notify(t(enabled ? "toast.systemPromptFilterEnabled" : "toast.systemPromptFilterDisabled"));
+      await load();
+    } catch (error) {
+      notify(String(error));
+    } finally {
+      setProxyBusy(false);
+    }
+  }, [load, notify, t]);
+
   const copyProxyLanApiKey = useCallback(async () => {
     try {
       await copyLocalProxyLanApiKey();
@@ -696,6 +710,7 @@ export function useProviderManager(
     setProxyImageModel,
     setProxyOpenaiAuthAccount,
     setProxyListenOnAllInterfaces,
+    setSystemPromptFilter,
     copyProxyLanApiKey,
     reload: load,
   };

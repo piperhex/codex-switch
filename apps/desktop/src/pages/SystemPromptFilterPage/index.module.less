@@ -1,0 +1,127 @@
+.page {
+  width: min(920px, 100%);
+  margin: 0 auto;
+  padding: 28px;
+  display: grid;
+  gap: 22px;
+}
+
+.controlCard {
+  min-height: 190px;
+  padding: 28px;
+  border: 1px solid rgba(var(--green-rgb), 0.2);
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+  background: linear-gradient(135deg, var(--panel), var(--green-soft));
+  box-shadow: 0 18px 48px rgba(22, 36, 27, 0.08);
+}
+
+.controlCopy {
+  max-width: 620px;
+}
+
+.controlCopy h2,
+.sectionHeading h2 {
+  margin: 12px 0 7px;
+  color: var(--ink);
+  font: 700 20px/1.25 Manrope, "Microsoft YaHei UI", sans-serif;
+}
+
+.controlCopy p,
+.sectionHeading p,
+.scopeCard p,
+.notice {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.status {
+  padding: 4px 9px;
+  border-radius: 999px;
+  color: #a5473e;
+  background: rgba(209, 67, 67, 0.1);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.status.running {
+  color: var(--green-dark);
+  background: var(--green-selection);
+}
+
+.controlCard :global(.ant-switch) {
+  min-width: 48px;
+  flex: 0 0 auto;
+}
+
+.controlCard :global(.ant-switch-checked) {
+  background: var(--green);
+}
+
+.scopeSection {
+  display: grid;
+  gap: 14px;
+}
+
+.sectionHeading h2 {
+  margin-top: 0;
+  font-size: 17px;
+}
+
+.scopeGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.scopeCard {
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: var(--panel);
+}
+
+.scopeCard > svg {
+  flex: 0 0 auto;
+  color: var(--green);
+}
+
+.scopeCard strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.scopeCard p {
+  margin-top: 5px;
+  font-size: 12px;
+}
+
+.notice {
+  max-width: 720px;
+  padding-left: 12px;
+  border-left: 3px solid rgba(var(--green-rgb), 0.35);
+  font-size: 12px;
+}
+
+@media (max-width: 760px) {
+  .page {
+    padding: 18px;
+  }
+
+  .controlCard {
+    min-height: 0;
+    padding: 22px;
+  }
+
+  .scopeGrid {
+    grid-template-columns: 1fr;
+  }
+}

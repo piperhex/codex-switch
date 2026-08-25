@@ -37,6 +37,7 @@ function navigateItems(t: Translate): MenuProps["items"] {
     { key: "dream-skin", label: t("nav.dreamSkin") },
     { key: "skills", label: t("nav.skills") },
     { key: "sessions", label: t("nav.sessions") },
+    { key: "system-prompt-filter", label: t("nav.systemPromptFilter") },
     { type: "divider" },
     { key: "settings", label: t("nav.settings") },
   ];
@@ -108,6 +109,7 @@ function searchItems(t: Translate, authenticated: boolean): MenuSearchItem[] {
     item("dream-skin", t("nav.dreamSkin"), t("windowMenu.navigate")),
     item("skills", t("nav.skills"), t("windowMenu.navigate")),
     item("sessions", t("nav.sessions"), t("windowMenu.navigate")),
+    item("system-prompt-filter", t("nav.systemPromptFilter"), t("windowMenu.navigate")),
     item("settings", t("nav.settings"), t("windowMenu.navigate")),
     item("refresh-all", t("actions.refreshAll"), t("windowMenu.tools")),
     item("refresh-reset-credits", t("actions.refreshResetCredits"), t("windowMenu.tools")),

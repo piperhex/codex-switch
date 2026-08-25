@@ -58,7 +58,7 @@ fn forward_anthropic_official<R: tauri::Runtime>(
     let app_settings = read_app_settings(app)?;
     let subagent_model = crate::third_party_apps::effective_settings(&app_settings)
         .claude_subagent_model;
-    let responses_body = anthropic_to_responses(&request, subagent_model);
+    let responses_body = filter_system_prompt_value(anthropic_to_responses(&request, subagent_model));
     let encoded = serde_json::to_vec(&responses_body)
         .map_err(|error| format!("Failed to encode Anthropic request: {error}"))?;
     let mut payload = send_official_request(
@@ -91,10 +91,10 @@ fn forward_anthropic_provider(
         .get("model")
         .and_then(Value::as_str)
         .unwrap_or("claude");
-    let mut responses_body = anthropic_to_responses(
+    let mut responses_body = filter_system_prompt_value(anthropic_to_responses(
         &request,
         crate::models::ClaudeSubagentModel::Sol,
-    );
+    ));
     responses_body["model"] = Value::String(provider.model.clone());
     let encoded = serde_json::to_vec(&responses_body)
         .map_err(|error| format!("Failed to encode Anthropic request: {error}"))?;

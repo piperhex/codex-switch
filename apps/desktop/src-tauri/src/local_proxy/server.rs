@@ -13,6 +13,7 @@ fn start_server<R: Runtime>(app: tauri::AppHandle<R>) -> Result<bool, String> {
     }
 
     let state = read_state(&resolve_paths(&app)?);
+    set_system_prompt_filter_runtime_enabled(state.system_prompt_filter_enabled);
     let bind_addr = format!(
         "{}:{LOCAL_PROXY_PORT}",
         proxy_bind_host(lan_listening_enabled(&state))
@@ -373,6 +374,11 @@ fn handle_proxy_request<R: Runtime>(
         }
     };
     let body = apply_image_output_model(app, path, headers, body, &target);
+    let body = if is_anthropic_messages_endpoint(path) {
+        body
+    } else {
+        filter_system_prompts(body)
+    };
     let route = proxy_diagnostic_route(path, &target);
     let diagnostic = proxy_diagnostic_entry(method, url, headers, &body, Some(&target), route);
     let usage_context = token_usage_context(
@@ -414,7 +420,7 @@ fn handle_proxy_request<R: Runtime>(
     let retry_timeout = upstream_429_retry_timeout(app)?;
     let result = retry_upstream_request(
         retry_timeout,
-        || forward_active_request(app, method, url, headers, body.clone(), path, session_id),
+        || forward_active_request(app, method, url, headers, body.clone(), &target, session_id),
         |response| try_switch_official_account_after_quota(app, response),
     );
     let result = result.map(|mut payload| {
@@ -439,21 +445,21 @@ fn forward_active_request<R: Runtime>(
     url: &str,
     headers: &[(String, String)],
     body: Vec<u8>,
-    path: &str,
+    target: &ActiveTarget,
     session_id: Option<&str>,
 ) -> Result<UpstreamPayload, String> {
-    match active_target_for_request(app, path, &body)? {
+    match target {
         ActiveTarget::Official { model } => {
-            if is_anthropic_messages_endpoint(path) {
+            if is_anthropic_messages_endpoint(request_path(url)) {
                 return forward_anthropic_official(app, headers, body, session_id);
             }
-            forward_official(app, method, url, headers, body, &model, session_id)
+            forward_official(app, method, url, headers, body, model, session_id)
         }
         ActiveTarget::Provider(provider) => {
-            if is_anthropic_messages_endpoint(path) {
-                return forward_anthropic_provider(body, &provider);
+            if is_anthropic_messages_endpoint(request_path(url)) {
+                return forward_anthropic_provider(body, provider);
             }
-            forward_provider_request(method, url, headers, body, &provider)
+            forward_provider_request(method, url, headers, body, provider)
         }
         ActiveTarget::Aggregate(target) => forward_aggregate_request(AggregateForwardRequest {
             method,
@@ -461,7 +467,7 @@ fn forward_active_request<R: Runtime>(
             headers,
             body,
             session_id,
-            target: &target,
+            target,
         }),
         ActiveTarget::ProviderGroup(_) => {
             Err("Provider group requests must select a model".to_string())

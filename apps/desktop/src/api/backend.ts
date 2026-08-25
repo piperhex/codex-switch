@@ -176,6 +176,7 @@ const LOCAL_PROXY_CONCURRENT_ROUTING_PREVIEW_KEY = "codex-switch:local-proxy-con
 const LOCAL_PROXY_CUSTOM_PRIORITY_PREVIEW_KEY = "codex-switch:local-proxy-custom-priority";
 const LOCAL_PROXY_CUSTOM_THRESHOLD_PREVIEW_KEY = "codex-switch:local-proxy-custom-threshold";
 const LOCAL_PROXY_AUTO_DISABLE_UNREACHABLE_PREVIEW_KEY = "codex-switch:local-proxy-auto-disable-unreachable";
+const SYSTEM_PROMPT_FILTER_PREVIEW_KEY = "codex-switch:system-prompt-filter";
 const LOCAL_PROXY_LISTEN_ALL_INTERFACES_PREVIEW_KEY = "codex-switch:local-proxy-listen-all-interfaces";
 const LOCAL_PROXY_LAN_API_KEY_PREVIEW_KEY = "codex-switch:local-proxy-lan-api-key";
 const LOCAL_PROXY_PORT_PREVIEW_KEY = "codex-switch:local-proxy-port";
@@ -400,6 +401,7 @@ function previewLocalProxyStatus(): LocalProxyStatus {
     customAutoSwitchPriorityEnabled: window.localStorage.getItem(LOCAL_PROXY_CUSTOM_PRIORITY_PREVIEW_KEY) === "true",
     customAutoSwitchThresholdEnabled: window.localStorage.getItem(LOCAL_PROXY_CUSTOM_THRESHOLD_PREVIEW_KEY) === "true",
     autoDisableUnreachableAccounts: window.localStorage.getItem(LOCAL_PROXY_AUTO_DISABLE_UNREACHABLE_PREVIEW_KEY) === "true",
+    systemPromptFilterEnabled: window.localStorage.getItem(SYSTEM_PROMPT_FILTER_PREVIEW_KEY) === "true",
     listenOnAllInterfaces: window.localStorage.getItem(LOCAL_PROXY_LISTEN_ALL_INTERFACES_PREVIEW_KEY) === "true",
     hasLanApiKey: Boolean(window.localStorage.getItem(LOCAL_PROXY_LAN_API_KEY_PREVIEW_KEY)),
     imageGenerationAccountId: window.localStorage.getItem(LOCAL_PROXY_IMAGE_ACCOUNT_PREVIEW_KEY),
@@ -1596,6 +1598,15 @@ export async function setLocalProxyCustomPriority(enabled: boolean): Promise<Loc
     return previewLocalProxyStatus();
   }
   return invoke<LocalProxyStatus>("set_custom_auto_switch_priority_enabled", { enabled });
+}
+
+export async function setSystemPromptFilterEnabled(enabled: boolean): Promise<LocalProxyStatus> {
+  if (!hasLocalBackend) {
+    window.localStorage.setItem(SYSTEM_PROMPT_FILTER_PREVIEW_KEY, String(enabled));
+    window.dispatchEvent(new CustomEvent(PROVIDERS_EVENT));
+    return previewLocalProxyStatus();
+  }
+  return invoke<LocalProxyStatus>("set_system_prompt_filter_enabled", { enabled });
 }
 
 export async function setLocalProxyCustomThreshold(enabled: boolean): Promise<LocalProxyStatus> {

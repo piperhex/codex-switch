@@ -5,7 +5,10 @@ use std::{
     net::{IpAddr, Ipv4Addr, Ipv6Addr, Shutdown, SocketAddr, TcpStream},
     ops::Deref,
     path::{Path, PathBuf},
-    sync::{Arc, Mutex, MutexGuard, OnceLock, TryLockError},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Mutex, MutexGuard, OnceLock, TryLockError,
+    },
     thread::{self, JoinHandle},
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };

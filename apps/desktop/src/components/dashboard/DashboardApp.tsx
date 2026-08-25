@@ -103,6 +103,7 @@ import { ProvidersPage } from "../../pages/ProvidersPage";
 import { SettingsGroupsNav, SettingsPage } from "../../pages/SettingsPage";
 import { SkillsMarketPage } from "../../pages/SkillsMarketPage";
 import { CodexThreadsPage } from "../../pages/CodexThreadsPage";
+import { SystemPromptFilterPage } from "../../pages/SystemPromptFilterPage";
 import { NetworkProxySettingsModal } from "../../pages/settings/NetworkProxySettings";
 import type { Translate } from "../../i18n";
 import { AccountDisplayTabs } from "./AccountDisplayTabs";
@@ -126,6 +127,7 @@ const MemoProvidersPage = memo(ProvidersPage);
 const MemoSettingsPage = memo(SettingsPage);
 const MemoSkillsMarketPage = memo(SkillsMarketPage);
 const MemoCodexThreadsPage = memo(CodexThreadsPage);
+const MemoSystemPromptFilterPage = memo(SystemPromptFilterPage);
 const PROXY_START_PHASE_KEYS = {
   preparingClient: "providers.proxy.startProgress.preparingClient",
   startingProxy: "providers.proxy.startProgress.startingProxy",
@@ -164,6 +166,7 @@ type SystemMenuAction =
   | "dream-skin"
   | "skills"
   | "sessions"
+  | "system-prompt-filter"
   | "settings"
   | "refresh-all"
   | "refresh-reset-credits"
@@ -206,6 +209,7 @@ function dashboardEyebrow(page: DashboardPage, t: Translate) {
   if (page === "skills") return t("topbar.skillsEyebrow");
   if (page === "sessions") return t("topbar.sessionsEyebrow");
   if (page === "claudeCode") return t("topbar.claudeCodeEyebrow");
+  if (page === "promptFilter") return t("topbar.systemPromptFilterEyebrow");
   return t("topbar.eyebrow");
 }
 
@@ -217,6 +221,7 @@ function dashboardTitle(page: DashboardPage, t: Translate, options: {
   if (page === "skills") return t("topbar.skills");
   if (page === "sessions") return t("topbar.sessions");
   if (page === "claudeCode") return t("topbar.claudeCode");
+  if (page === "promptFilter") return t("topbar.systemPromptFilter");
   if (page === "providers") return t("topbar.providers", { count: options.providerCount });
   return t("topbar.accounts", { count: options.accountCount });
 }
@@ -908,6 +913,9 @@ export function DashboardApp() {
       case "sessions":
         setPage("sessions");
         break;
+      case "system-prompt-filter":
+        setPage("promptFilter");
+        break;
       case "settings":
         setPage("settings");
         break;
@@ -1393,6 +1401,17 @@ export function DashboardApp() {
           </section>
           <section className="page-panel sessions-page-panel" hidden={page !== "sessions"}>
             {page === "sessions" && <MemoCodexThreadsPage language={language} notify={notify} />}
+          </section>
+          <section className="page-panel" hidden={page !== "promptFilter"}>
+            {page === "promptFilter" && (
+              <MemoSystemPromptFilterPage
+                enabled={providerManager.localProxy?.systemPromptFilterEnabled ?? false}
+                loading={providerManager.proxyBusy}
+                onEnabledChange={(enabled) => void providerManager.setSystemPromptFilter(enabled)}
+                proxyRunning={providerManager.localProxy?.running ?? false}
+                t={t}
+              />
+            )}
           </section>
           <section className="page-panel providers-page-panel" hidden={page !== "providers"}>
             <MemoProvidersPage providers={providerManager.providers}

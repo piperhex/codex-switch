@@ -134,6 +134,8 @@ pub(crate) struct ManagerStateFile {
     #[serde(default)]
     pub(crate) auto_disable_unreachable_accounts: bool,
     #[serde(default)]
+    pub(crate) system_prompt_filter_enabled: bool,
+    #[serde(default)]
     pub(crate) local_proxy_listen_on_all_interfaces: bool,
     #[serde(default)]
     pub(crate) local_proxy_lan_api_key: Option<String>,
