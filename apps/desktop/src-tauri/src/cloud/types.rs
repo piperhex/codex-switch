@@ -140,6 +140,21 @@ pub(crate) struct CloudFaq {
     pub(super) updated_at: String,
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CloudCurrencyRate {
+    pub(super) code: String,
+    pub(super) name: String,
+    pub(super) rate: f64,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CloudCurrencyRates {
+    pub(super) currencies: Vec<CloudCurrencyRate>,
+    pub(super) updated_at: Option<String>,
+}
+
 pub(super) fn default_announcement_scroll_duration_seconds() -> u16 {
     22
 }

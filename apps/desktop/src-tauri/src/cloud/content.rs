@@ -70,6 +70,29 @@ pub(crate) async fn fetch_cloud_faqs<R: Runtime>(
 }
 
 #[tauri::command]
+pub(crate) async fn fetch_cloud_currency_rates<R: Runtime>(
+    app: tauri::AppHandle<R>,
+) -> Result<CloudCurrencyRates, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let client = api_client()?;
+        let settings = read_app_settings(&app)?;
+        let response = client
+            .get(endpoint(&settings, "/currency-rates")?)
+            .header("Accept", "application/json")
+            .send()
+            .map_err(|error| format!("Currency rate request failed: {error}"))?;
+        if !response.status().is_success() {
+            return Err(response_error("Currency rate request", response));
+        }
+        response
+            .json()
+            .map_err(|error| format!("Currency rate response is invalid: {error}"))
+    })
+    .await
+    .map_err(|error| format!("Currency rate request task failed: {error}"))?
+}
+
+#[tauri::command]
 pub(crate) async fn report_announcement_click<R: Runtime>(
     app: tauri::AppHandle<R>,
     link: String,

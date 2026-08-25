@@ -2417,7 +2417,8 @@ export async function setAccountAutoSwitchPriority(id: string, priority: number)
 }
 
 export async function fetchCloudCurrencyRates(): Promise<CloudCurrencyRates> {
-  const { baseUrl } = hasLocalBackend ? await loadCloudAuthState() : previewCloudState();
+  if (hasLocalBackend) return invoke<CloudCurrencyRates>("fetch_cloud_currency_rates");
+  const { baseUrl } = previewCloudState();
   if (!baseUrl) return { currencies: [], updatedAt: null };
   const response = await fetch(`${baseUrl.replace(/\/+$/, "")}/currency-rates`, {
     headers: { Accept: "application/json" },
