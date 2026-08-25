@@ -525,6 +525,17 @@ export interface CloudAnnouncement {
   updatedAt?: string | null;
 }
 
+export interface CloudCurrencyRate {
+  code: string;
+  name: string;
+  rate: number;
+}
+
+export interface CloudCurrencyRates {
+  currencies: CloudCurrencyRate[];
+  updatedAt: string | null;
+}
+
 export interface CloudNotification {
   id: string;
   titleZh: string;

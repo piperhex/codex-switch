@@ -16,6 +16,7 @@ import { RbacModule } from '@/common/rbac/rbac.module';
 import { DashboardModule } from '@/modules/dashboard/dashboard.module';
 import { DeviceModule } from '@/modules/devices/device.module';
 import { SkillsModule } from '@/modules/skills/skills.module';
+import { CurrencyModule } from '@/modules/currency/currency.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { SkillsModule } from '@/modules/skills/skills.module';
     DashboardModule,
     DeviceModule,
     SkillsModule,
+    CurrencyModule,
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'public'),
       // API misses must remain API 404 responses. Without these exclusions,
@@ -48,6 +50,7 @@ import { SkillsModule } from '@/modules/skills/skills.module';
         '/announcements/{*any}',
         '/notifications/{*any}',
         '/faqs/{*any}',
+        '/currency-rates/{*any}',
         '/feedback/{*any}',
         '/telemetry/{*any}',
         '/devices/{*any}',

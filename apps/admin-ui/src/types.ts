@@ -1,7 +1,7 @@
 export type Role = string;
 export type UserStatus = "active" | "disabled";
 export type Permission = string;
-export type MenuKey = "dashboard" | "myAccounts" | "users" | "roles" | "officialAccounts" | "announcement" | "emailTemplates" | "skills" | "feedback" | "telemetry" | "audit" | "invitations" | "approvals";
+export type MenuKey = "dashboard" | "myAccounts" | "users" | "roles" | "officialAccounts" | "announcement" | "currency" | "emailTemplates" | "skills" | "feedback" | "telemetry" | "audit" | "invitations" | "approvals";
 
 export interface AuthTokens {
   accessToken: string;
@@ -53,6 +53,9 @@ export interface AnnouncementConfig {
   scrollDurationSeconds: number;
   updatedAt?: string | null;
 }
+
+export interface CurrencyItem { code: string; name: string; }
+export interface CurrencySettings { hasApiKey: boolean; currencies: CurrencyItem[]; updatedAt?: string | null; }
 
 export interface AppNotification {
   id: string;

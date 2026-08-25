@@ -46,7 +46,8 @@ If production uses `POSTGRES_DB_SYNCHRONIZE=false`, apply `sql/20260704-admin-ma
 `sql/20260727-app-faqs.sql`, `sql/20260805-sync-provider-context-window.sql`,
 `sql/20260812-sync-provider-field-versions-soft-delete.sql`, and
 `sql/20260817-remote-device-provider-switching.sql`, and
-`sql/20260824-sync-account-auto-switch-threshold.sql` before using
+`sql/20260824-sync-account-auto-switch-threshold.sql`, and
+`sql/20260825-currency-settings.sql` before using
 the expanded admin console, provider sync, official account pool, reusable invitations,
 announcements, desktop FAQs, email templates, telemetry, and feedback management. Also apply
 `sql/20260815-sync-totp-vault.sql` and `sql/20260816-sync-totp-tombstones.sql` before enabling
@@ -138,6 +139,7 @@ curl -s -X POST http://KONG_ADMIN:8001/consumers/codex-switch-client/jwt \
 ```
 
 Create routes so the client-facing `/auth`, `/admin`, `/feedback`, `/announcements`, `/notifications`, `/faqs`, `/telemetry`, and `/device-switch` paths remain public, while `/sync`, `/devices`, and `/admin/api` are protected by the JWT plugin. Route `/web` to the independent `codex-switch-web` service with `strip_path=true`; static browser navigation cannot carry an Authorization header, so JWT is enforced on its protected API calls rather than on HTML and asset requests. The WebSocket authenticates its first message in NestJS. Authenticated sub-routes on a public prefix still enforce JWTs in NestJS:
+The `/currency-rates` endpoint is also public and does not require authentication.
 
 ```bash
 curl -s -X POST http://KONG_ADMIN:8001/services \
@@ -152,6 +154,7 @@ curl -s -X POST http://KONG_ADMIN:8001/services/codex-switch-backend/routes \
   --data 'paths[]=/announcements' \
   --data 'paths[]=/notifications' \
   --data 'paths[]=/faqs' \
+  --data 'paths[]=/currency-rates' \
   --data 'paths[]=/telemetry' \
   --data 'paths[]=/device-switch' \
   --data strip_path=false
@@ -227,6 +230,7 @@ tokens remain valid when a signed link is copied for an invitation created by an
 - `POST /announcements/clicks/authenticated`
 - `GET /notifications/recent`
 - `GET /faqs`
+- `GET /currency-rates`
 - `POST /telemetry/installations`
 - `WS /device-switch`
 - `GET /devices`
@@ -303,6 +307,8 @@ resolved using the latest vault modification time.
 - `POST /admin/api/feedback/:id/email`
 - `GET /admin/api/announcement`
 - `PATCH /admin/api/announcement`
+- `GET /admin/api/currency`
+- `PATCH /admin/api/currency`
 - `GET /admin/api/announcement/clicks/overview`
 - `GET /admin/api/announcement/clicks`
 - `GET /admin/api/email-templates`

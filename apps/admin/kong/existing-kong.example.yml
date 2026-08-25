@@ -24,6 +24,7 @@ services:
           - /announcements
           - /notifications
           - /faqs
+          - /currency-rates
           - /telemetry
           - /device-switch
         strip_path: false

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Button, Dropdown, Input, InputNumber } from "antd";
+import { Button, Dropdown, Input, InputNumber, Select } from "antd";
 import { Settings2 } from "lucide-react";
 import type { Translate } from "../i18n";
 import type { Provider } from "../types";
@@ -10,6 +10,8 @@ import {
   TOKEN_COST_DISPLAY_EVENT,
   type TokenCostDisplaySettings,
 } from "../utils/tokenCost";
+import { fetchCloudCurrencyRates } from "../api/backend";
+import type { CloudCurrencyRate } from "../types";
 
 export function useTokenCostDisplaySettings() {
   const [settings, setSettings] = useState(loadTokenCostDisplaySettings);
@@ -35,11 +37,23 @@ export function TokenCostColumnTitle({ label, settings, providers, t }: {
   const [customBillingOpen, setCustomBillingOpen] = useState(false);
   const [unit, setUnit] = useState(settings.unit);
   const [usdMultiplier, setUsdMultiplier] = useState<number | null>(settings.usdMultiplier);
+  const [currencyRates, setCurrencyRates] = useState<CloudCurrencyRate[]>([]);
+  const [currencyRatesLoading, setCurrencyRatesLoading] = useState(false);
   const valid = Boolean(unit.trim() && usdMultiplier && usdMultiplier > 0);
   const save = () => {
     if (!valid || usdMultiplier == null) return;
     saveTokenCostDisplaySettings({ unit: unit.trim().slice(0, 12), usdMultiplier });
     setOpen(false);
+  };
+  const loadCurrencyRates = async () => {
+    setCurrencyRatesLoading(true);
+    try {
+      setCurrencyRates((await fetchCloudCurrencyRates()).currencies);
+    } catch {
+      setCurrencyRates([]);
+    } finally {
+      setCurrencyRatesLoading(false);
+    }
   };
   return <>
     <span className="token-cost-column-title">
@@ -50,10 +64,24 @@ export function TokenCostColumnTitle({ label, settings, providers, t }: {
           if (nextOpen) {
             setUnit(settings.unit);
             setUsdMultiplier(settings.usdMultiplier);
+            void loadCurrencyRates();
           }
         }} dropdownRender={() => <div className="token-cost-unit-settings"
           onClick={(event) => event.stopPropagation()}>
           <strong>{t("tokenCost.settings.title")}</strong>
+          <label htmlFor="token-cost-currency">{t("tokenCost.settings.currency")}</label>
+          <Select id="token-cost-currency" allowClear loading={currencyRatesLoading}
+            placeholder={t("tokenCost.settings.currencyPlaceholder")} style={{ width: "100%" }}
+            options={currencyRates.map((currency) => ({
+              value: currency.code,
+              label: `${currency.name} (${currency.code})`,
+            }))}
+            onChange={(code: string | undefined) => {
+              const currency = currencyRates.find((item) => item.code === code);
+              if (!currency) return;
+              setUnit(currency.name);
+              setUsdMultiplier(currency.rate);
+            }} />
           <label htmlFor="token-cost-unit">{t("tokenCost.settings.unit")}</label>
           <Input id="token-cost-unit" value={unit} maxLength={12}
             onChange={(event) => setUnit(event.target.value)} />

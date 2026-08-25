@@ -31,6 +31,8 @@ export enum Permission {
   SkillsManage = 'admin.skills.manage',
   TelemetryRead = 'admin.telemetry.read',
   DashboardRead = 'admin.dashboard.read',
+  CurrencyRead = 'admin.currency.read',
+  CurrencyManage = 'admin.currency.manage',
 }
 
 export interface PermissionDefinition {
@@ -73,6 +75,8 @@ export const PERMISSION_CATALOG: readonly PermissionDefinition[] = [
   { code: Permission.SkillsManage, group: 'skills', name: 'Manage community skills', description: 'Edit or remove skills published by users.' },
   { code: Permission.TelemetryRead, group: 'telemetry', name: 'Read telemetry', description: 'View installation and telemetry analytics.' },
   { code: Permission.DashboardRead, group: 'analytics', name: 'Read dashboard', description: 'View cross-system operational metrics and trends.' },
+  { code: Permission.CurrencyRead, group: 'content', name: 'Read currency settings', description: 'View configured currency display options.' },
+  { code: Permission.CurrencyManage, group: 'content', name: 'Manage currency settings', description: 'Configure CurrencyAPI and display currencies.' },
 ] as const;
 
 export const USER_ROLE_PERMISSIONS: readonly Permission[] = [
@@ -105,6 +109,7 @@ const PERMISSION_DEPENDENCIES: Partial<Record<Permission, readonly Permission[]>
   [Permission.MailServicesManage]: [Permission.MailServicesRead],
   [Permission.FeedbackManage]: [Permission.FeedbackRead, Permission.MailServicesRead],
   [Permission.SkillsManage]: [Permission.SkillsRead],
+  [Permission.CurrencyManage]: [Permission.CurrencyRead],
 };
 
 export function expandPermissionDependencies(permissions: readonly string[]): string[] {

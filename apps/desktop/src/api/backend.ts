@@ -35,6 +35,7 @@ import type {
   CloudAuthenticationResult,
   CloudAuthState,
   CloudAnnouncement,
+  CloudCurrencyRates,
   CloudFaq,
   CloudNotification,
   CloudSyncResult,
@@ -2413,6 +2414,17 @@ export async function setAccountAutoSwitchEnabled(id: string, enabled: boolean):
 export async function setAccountAutoSwitchPriority(id: string, priority: number): Promise<void> {
   if (!Number.isInteger(priority)) throw new Error("Auto-switch priority must be an integer");
   if (hasLocalBackend) await invoke("set_account_auto_switch_priority", { id, priority });
+}
+
+export async function fetchCloudCurrencyRates(): Promise<CloudCurrencyRates> {
+  const { baseUrl } = hasLocalBackend ? await loadCloudAuthState() : previewCloudState();
+  if (!baseUrl) return { currencies: [], updatedAt: null };
+  const response = await fetch(`${baseUrl.replace(/\/+$/, "")}/currency-rates`, {
+    headers: { Accept: "application/json" },
+    cache: "no-store",
+  });
+  if (!response.ok) throw new Error(`Currency rate request failed with HTTP ${response.status}`);
+  return response.json() as Promise<CloudCurrencyRates>;
 }
 
 export async function setAccountAutoSwitchThreshold(id: string, threshold: number): Promise<void> {

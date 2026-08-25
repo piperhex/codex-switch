@@ -20,6 +20,7 @@ import { LoginView } from "./components/LoginView";
 import { useAuthenticatedApi } from "./hooks/useAuthenticatedApi";
 import { ApprovalsPage } from "./pages/ApprovalsPage";
 import { AnnouncementPage } from "./pages/AnnouncementPage";
+import { CurrencyPage } from "./pages/CurrencyPage";
 import { AuditLogsPage } from "./pages/AuditLogsPage";
 import { FeedbackPage } from "./pages/FeedbackPage";
 import { EmailTemplatesPage } from "./pages/EmailTemplatesPage";
@@ -36,6 +37,8 @@ import type {
   AnnouncementClickFilters,
   AnnouncementClickOverview,
   AnnouncementConfig,
+  CurrencyItem,
+  CurrencySettings,
   AdminSkillRow,
   AdminSkillUpdate,
   AppFaq,
@@ -106,6 +109,7 @@ const emptyAnnouncement: AnnouncementConfig = {
   scrollDurationSeconds: 22,
   updatedAt: null,
 };
+const emptyCurrencySettings: CurrencySettings = { hasApiKey: false, currencies: [], updatedAt: null };
 const emptyAnnouncementClicks: PageResult<AnnouncementClick> = {
   items: [], total: 0, page: 1, pageSize: 20,
 };
@@ -122,6 +126,7 @@ const menuPermissions: Record<MenuKey, Permission> = {
   roles: "admin.roles.read",
   officialAccounts: "admin.official-accounts.read",
   announcement: "admin.announcements.read",
+  currency: "admin.currency.read",
   emailTemplates: "admin.email-templates.read",
   skills: "admin.skills.read",
   feedback: "admin.feedback.read",
@@ -138,6 +143,7 @@ const menuOrder: MenuKey[] = [
   "myAccounts",
   "officialAccounts",
   "announcement",
+  "currency",
   "emailTemplates",
   "skills",
   "feedback",
@@ -203,6 +209,9 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
   const [announcement, setAnnouncement] = useState<AnnouncementConfig>(emptyAnnouncement);
   const [announcementLoading, setAnnouncementLoading] = useState(false);
   const [announcementSaving, setAnnouncementSaving] = useState(false);
+  const [currencySettings, setCurrencySettings] = useState<CurrencySettings>(emptyCurrencySettings);
+  const [currencyLoading, setCurrencyLoading] = useState(false);
+  const [currencySaving, setCurrencySaving] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [notificationSaving, setNotificationSaving] = useState(false);
@@ -592,6 +601,37 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
     }
   }, [api, message]);
 
+  const loadCurrency = useCallback(async () => {
+    setCurrencyLoading(true);
+    try {
+      setCurrencySettings(await api<CurrencySettings>("/admin/api/currency"));
+    } catch (error) {
+      message.error((error as Error).message);
+    } finally {
+      setCurrencyLoading(false);
+    }
+  }, [api, message]);
+
+  const saveCurrency = useCallback(async (
+    apiKey: string,
+    currencies: CurrencyItem[],
+    clearApiKey: boolean,
+  ) => {
+    setCurrencySaving(true);
+    try {
+      setCurrencySettings(await api<CurrencySettings>("/admin/api/currency", {
+        method: "PATCH",
+        body: JSON.stringify({ apiKey: apiKey || undefined, clearApiKey, currencies }),
+      }));
+      message.success(t("currency.saved"));
+    } catch (error) {
+      message.error((error as Error).message);
+      throw error;
+    } finally {
+      setCurrencySaving(false);
+    }
+  }, [api, message, t]);
+
   const loadNotifications = useCallback(async () => {
     setNotificationsLoading(true);
     try {
@@ -792,6 +832,7 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
       void loadAnnouncementClickOverview();
       void loadAnnouncementClicks();
     }
+    if (activeKey === "currency") void loadCurrency();
     if (activeKey === "feedback") void loadFeedback();
     if (activeKey === "skills") void loadSkills();
     if (activeKey === "feedback") void loadMailServices();
@@ -814,6 +855,7 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
     loadMailServices,
     loadDashboard,
     loadAnnouncement,
+    loadCurrency,
     loadNotifications,
     loadFaqs,
     loadAnnouncementClickOverview,
@@ -846,6 +888,7 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
   const canManageInvitations = Boolean(profile?.permissions?.includes("admin.invitations.manage"));
   const canManageApprovals = Boolean(profile?.permissions?.includes("admin.approvals.manage"));
   const canManageAnnouncements = Boolean(profile?.permissions?.includes("admin.announcements.manage"));
+  const canManageCurrency = Boolean(profile?.permissions?.includes("admin.currency.manage"));
   const canManageFeedback = Boolean(profile?.permissions?.includes("admin.feedback.manage"));
   const canManageSkills = Boolean(profile?.permissions?.includes("admin.skills.manage"));
   const canManageEmailTemplates = Boolean(profile?.permissions?.includes("admin.email-templates.manage"));
@@ -1152,6 +1195,19 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
           onDeleteNotification={deleteNotification}
           onSaveFaq={saveFaq}
           onDeleteFaq={deleteFaq}
+        />
+      );
+    }
+
+    if (activeKey === "currency") {
+      return (
+        <CurrencyPage
+          settings={currencySettings}
+          loading={currencyLoading}
+          saving={currencySaving}
+          canManage={canManageCurrency}
+          onRefresh={loadCurrency}
+          onSave={saveCurrency}
         />
       );
     }
