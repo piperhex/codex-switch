@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button, Dropdown, Input, InputNumber, Select } from "antd";
 import { Settings2 } from "lucide-react";
 import type { Translate } from "../i18n";
@@ -40,16 +40,20 @@ export function TokenCostColumnTitle({ label, settings, providers, t }: {
   const [currencyCode, setCurrencyCode] = useState(settings.currencyCode);
   const [currencyRates, setCurrencyRates] = useState<CloudCurrencyRate[]>([BASE_CURRENCY_RATE]);
   const [currencyRatesLoading, setCurrencyRatesLoading] = useState(false);
+  const wasOpen = useRef(false);
   const valid = Boolean(unit.trim() && usdMultiplier && usdMultiplier > 0);
-  const save = () => {
-    if (!valid || usdMultiplier == null) return;
+
+  useEffect(() => {
+    const shouldSave = wasOpen.current && !open;
+    wasOpen.current = open;
+    if (!shouldSave || !valid || usdMultiplier == null) return;
     saveTokenCostDisplaySettings({
       unit: unit.trim().slice(0, 12),
       usdMultiplier,
       currencyCode,
     });
-    setOpen(false);
-  };
+  }, [currencyCode, open, unit, usdMultiplier, valid]);
+
   const loadCurrencyRates = async () => {
     setCurrencyRatesLoading(true);
     try {
@@ -100,7 +104,7 @@ export function TokenCostColumnTitle({ label, settings, providers, t }: {
           <InputNumber id="token-cost-multiplier" min={0.000001} precision={6}
             value={usdMultiplier} disabled={Boolean(currencyCode)} onChange={setUsdMultiplier} />
           <small>{t("tokenCost.settings.hint", { unit: unit.trim() || settings.unit })}</small>
-          <Button type="primary" size="small" disabled={!valid} onClick={save}>
+          <Button type="primary" size="small" disabled={!valid} onClick={() => setOpen(false)}>
             {t("tokenCost.settings.save")}
           </Button>
           <Button size="small" onClick={() => {
