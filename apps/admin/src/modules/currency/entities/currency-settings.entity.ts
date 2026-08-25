@@ -15,7 +15,7 @@ export class CurrencySettingsEntity {
   @PrimaryColumn({ type: 'varchar', length: 32 })
   id: string;
 
-  @Column({ type: 'text', nullable: true, select: false })
+  @Column({ name: 'encrypted_api_key', type: 'text', nullable: true, select: false })
   encryptedApiKey?: string | null;
 
   @Column({ type: 'jsonb', default: () => "'[]'::jsonb" })
