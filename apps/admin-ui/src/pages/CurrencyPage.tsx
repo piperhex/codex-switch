@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { App, Button, Card, Form, Input, Space, Table, Typography } from "antd";
 import { Plus, Trash2 } from "lucide-react";
 import { useI18n } from "../i18n-context";
-import type { CurrencyItem, CurrencySettings } from "../types";
+import { formatDate } from "../utils/format";
+import type { CurrencyItem, CurrencyRate, CurrencySettings } from "../types";
 
 interface CurrencyPageProps {
   settings: CurrencySettings;
@@ -17,7 +18,7 @@ const emptyItem: CurrencyItem = { code: "", name: "" };
 
 export function CurrencyPage({ settings, loading, saving, canManage, onRefresh, onSave }: CurrencyPageProps) {
   const { message } = App.useApp();
-  const { t } = useI18n();
+  const { language, t } = useI18n();
   const [apiKey, setApiKey] = useState("");
   const [clearApiKey, setClearApiKey] = useState(false);
   const [currencies, setCurrencies] = useState<CurrencyItem[]>(settings.currencies);
@@ -44,9 +45,24 @@ export function CurrencyPage({ settings, loading, saving, canManage, onRefresh, 
       message.error(t("currency.duplicate"));
       return;
     }
-    await onSave(apiKey.trim(), normalized, clearApiKey);
-    setApiKey("");
-    setClearApiKey(false);
+    try {
+      await onSave(apiKey.trim(), normalized, clearApiKey);
+      setApiKey("");
+      setClearApiKey(false);
+    } catch {
+      // The parent displays the request error and keeps the entered value for retry.
+    }
+  };
+
+  const saveApiKeyOnBlur = async () => {
+    const value = apiKey.trim();
+    if (!canManage || !value || clearApiKey) return;
+    try {
+      await onSave(value, settings.currencies, false);
+      setApiKey("");
+    } catch {
+      // The parent displays the request error and keeps the entered value for retry.
+    }
   };
 
   return (
@@ -58,7 +74,6 @@ export function CurrencyPage({ settings, loading, saving, canManage, onRefresh, 
         </div>
         <Space>
           <Button onClick={() => void onRefresh()}>{t("common.refresh")}</Button>
-          {canManage && <Button type="primary" loading={saving} onClick={() => void save()}>{t("common.save")}</Button>}
         </Space>
       </div>
       <Card loading={loading} title={t("currency.apiKeyTitle")}>
@@ -67,31 +82,37 @@ export function CurrencyPage({ settings, loading, saving, canManage, onRefresh, 
             label={t("currency.apiKey")}
             extra={settings.hasApiKey ? t("currency.apiKeyConfigured") : t("currency.apiKeyMissing")}
           >
-            <Input.Password
-              value={apiKey}
-              disabled={!canManage}
-              placeholder={settings.hasApiKey
-                ? t("currency.apiKeyPlaceholderExisting")
-                : t("currency.apiKeyPlaceholder")}
-              onChange={(event) => { setApiKey(event.target.value); setClearApiKey(false); }}
-            />
+            <Space.Compact block>
+              <Input.Password
+                value={apiKey}
+                disabled={!canManage}
+                placeholder={settings.hasApiKey
+                  ? t("currency.apiKeyPlaceholderExisting")
+                  : t("currency.apiKeyPlaceholder")}
+                onChange={(event) => { setApiKey(event.target.value); setClearApiKey(false); }}
+                onBlur={() => void saveApiKeyOnBlur()}
+              />
+              {settings.hasApiKey && canManage && (
+                <Button danger onClick={() => { setApiKey(""); setClearApiKey(true); }}>
+                  {t("currency.clearApiKey")}
+                </Button>
+              )}
+            </Space.Compact>
           </Form.Item>
-          {settings.hasApiKey && canManage && (
-            <Button type="link" danger onClick={() => { setApiKey(""); setClearApiKey(true); }}>
-              {t("currency.clearApiKey")}
-            </Button>
-          )}
         </Form>
       </Card>
       <Card
         title={t("currency.currenciesTitle")}
         extra={canManage && (
-          <Button
-            icon={<Plus size={15} />}
-            onClick={() => setCurrencies((items) => [...items, { ...emptyItem }])}
-          >
-            {t("currency.add")}
-          </Button>
+          <Space>
+            <Button loading={saving} type="primary" onClick={() => void save()}>{t("common.save")}</Button>
+            <Button
+              icon={<Plus size={15} />}
+              onClick={() => setCurrencies((items) => [...items, { ...emptyItem }])}
+            >
+              {t("currency.add")}
+            </Button>
+          </Space>
         )}
       >
         <Table<CurrencyItem>
@@ -136,6 +157,30 @@ export function CurrencyPage({ settings, loading, saving, canManage, onRefresh, 
                   ))}
                 />
               ),
+            },
+          ]}
+        />
+      </Card>
+      <Card
+        loading={loading}
+        title={t("currency.cacheTitle")}
+        extra={settings.cacheExpiresAt
+          ? t("currency.cacheExpiresAt", { time: formatDate(settings.cacheExpiresAt, language) })
+          : undefined}
+      >
+        <Table<CurrencyRate>
+          rowKey="code"
+          dataSource={settings.cachedRates}
+          pagination={false}
+          locale={{ emptyText: t("currency.cacheEmpty") }}
+          columns={[
+            { title: t("currency.name"), dataIndex: "name" },
+            { title: t("currency.code"), dataIndex: "code", width: 120 },
+            {
+              title: t("currency.rate"),
+              dataIndex: "rate",
+              width: 160,
+              render: (value: number) => value.toLocaleString(undefined, { maximumFractionDigits: 8 }),
             },
           ]}
         />

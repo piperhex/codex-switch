@@ -34,6 +34,8 @@ export interface CurrencyRate {
 export interface CurrencySettingsResponse {
   hasApiKey: boolean;
   currencies: CurrencySettingItem[];
+  cachedRates: CurrencyRate[];
+  cacheExpiresAt: string | null;
   updatedAt: string | null;
 }
 
@@ -150,9 +152,14 @@ export class CurrencyService {
   }
 
   private present(setting: CurrencySettingsEntity | null): CurrencySettingsResponse {
+    const activeCache = this.cachedRates && this.cachedRates.expiresAt > Date.now()
+      ? this.cachedRates
+      : null;
     return {
       hasApiKey: Boolean(setting?.encryptedApiKey),
       currencies: setting?.currencies ?? [],
+      cachedRates: activeCache?.rates ?? [],
+      cacheExpiresAt: activeCache ? new Date(activeCache.expiresAt).toISOString() : null,
       updatedAt: setting?.updatedAt?.toISOString() ?? null,
     };
   }

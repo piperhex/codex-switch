@@ -55,7 +55,14 @@ export interface AnnouncementConfig {
 }
 
 export interface CurrencyItem { code: string; name: string; }
-export interface CurrencySettings { hasApiKey: boolean; currencies: CurrencyItem[]; updatedAt?: string | null; }
+export interface CurrencyRate { code: string; name: string; rate: number; }
+export interface CurrencySettings {
+  hasApiKey: boolean;
+  currencies: CurrencyItem[];
+  cachedRates: CurrencyRate[];
+  cacheExpiresAt?: string | null;
+  updatedAt?: string | null;
+}
 
 export interface AppNotification {
   id: string;

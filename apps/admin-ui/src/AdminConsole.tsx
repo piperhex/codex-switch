@@ -109,7 +109,13 @@ const emptyAnnouncement: AnnouncementConfig = {
   scrollDurationSeconds: 22,
   updatedAt: null,
 };
-const emptyCurrencySettings: CurrencySettings = { hasApiKey: false, currencies: [], updatedAt: null };
+const emptyCurrencySettings: CurrencySettings = {
+  hasApiKey: false,
+  currencies: [],
+  cachedRates: [],
+  cacheExpiresAt: null,
+  updatedAt: null,
+};
 const emptyAnnouncementClicks: PageResult<AnnouncementClick> = {
   items: [], total: 0, page: 1, pageSize: 20,
 };
