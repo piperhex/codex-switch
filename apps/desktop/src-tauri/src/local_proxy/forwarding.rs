@@ -95,8 +95,8 @@ fn official_body_for_upstream(method: &Method, url: &str, body: Vec<u8>, model: 
     let Ok(mut value) = serde_json::from_slice::<Value>(&body) else {
         return body;
     };
-    let removed_local_reasoning = remove_local_reasoning_from_input(&mut value);
-    if requested_model(&value).is_some() && !removed_local_reasoning {
+    let removed_incompatible_reasoning = remove_incompatible_official_reasoning_from_input(&mut value);
+    if requested_model(&value).is_some() && !removed_incompatible_reasoning {
         return body;
     }
     if requested_model(&value).is_none() {

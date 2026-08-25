@@ -5,6 +5,7 @@ fn responses_to_chat_completions(body: &Value) -> Value {
 }
 
 const LOCAL_REASONING_ITEM_ID_PREFIX: &str = "rs_resp_";
+const OFFICIAL_REASONING_ITEM_ID_PREFIX: &str = "rs_";
 
 fn is_local_reasoning_item(value: &Value) -> bool {
     value.get("type").and_then(Value::as_str) == Some("reasoning")
@@ -12,6 +13,19 @@ fn is_local_reasoning_item(value: &Value) -> bool {
             .get("id")
             .and_then(Value::as_str)
             .is_some_and(|id| id.starts_with(LOCAL_REASONING_ITEM_ID_PREFIX))
+}
+
+fn is_incompatible_official_reasoning_item(value: &Value) -> bool {
+    if value.get("type").and_then(Value::as_str) != Some("reasoning") {
+        return false;
+    }
+    if is_local_reasoning_item(value) {
+        return true;
+    }
+    !value
+        .get("id")
+        .and_then(Value::as_str)
+        .is_some_and(|id| id.starts_with(OFFICIAL_REASONING_ITEM_ID_PREFIX))
 }
 
 fn remove_local_reasoning_items(value: &mut Value) -> bool {
@@ -25,6 +39,30 @@ fn remove_local_reasoning_items(value: &mut Value) -> bool {
         changed |= remove_local_reasoning_items(item);
     }
     changed
+}
+
+fn remove_incompatible_official_reasoning_items(value: &mut Value) -> bool {
+    let Value::Array(items) = value else {
+        return false;
+    };
+    let original_len = items.len();
+    items.retain(|item| !is_incompatible_official_reasoning_item(item));
+    let mut changed = items.len() != original_len;
+    for item in items {
+        changed |= remove_incompatible_official_reasoning_items(item);
+    }
+    changed
+}
+
+fn remove_incompatible_official_reasoning_from_input(value: &mut Value) -> bool {
+    let Some(input) = value.get_mut("input") else {
+        return false;
+    };
+    if is_incompatible_official_reasoning_item(input) {
+        *input = Value::Array(Vec::new());
+        return true;
+    }
+    remove_incompatible_official_reasoning_items(input)
 }
 
 fn remove_local_reasoning_from_input(value: &mut Value) -> bool {

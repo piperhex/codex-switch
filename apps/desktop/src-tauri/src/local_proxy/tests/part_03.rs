@@ -375,6 +375,41 @@
     }
 
     #[test]
+    fn official_responses_body_drops_relay_reasoning_items_before_forwarding() {
+        let body = serde_json::to_vec(&json!({
+            "model": "gpt-5.6-sol",
+            "input": [
+                {
+                    "type": "reasoning",
+                    "id": "item_1bc6d4061cc75b97950b00fb",
+                    "summary": [{ "type": "summary_text", "text": "relay thought" }]
+                },
+                {
+                    "type": "message",
+                    "role": "user",
+                    "content": [{ "type": "input_text", "text": "Continue" }]
+                }
+            ]
+        }))
+        .unwrap();
+
+        let forwarded = official_body_for_upstream(
+            &Method::Post,
+            "/v1/responses",
+            body,
+            "gpt-5.6-sol",
+        );
+        let parsed: Value = serde_json::from_slice(&forwarded).unwrap();
+        let input = parsed["input"].as_array().unwrap();
+
+        assert_eq!(input.len(), 1);
+        assert_eq!(input[0]["type"], "message");
+        assert!(!forwarded.windows(b"item_1bc6d4061cc75b97950b00fb".len()).any(
+            |window| window == b"item_1bc6d4061cc75b97950b00fb"
+        ));
+    }
+
+    #[test]
     fn openai_provider_preserves_codex_selected_model() {
         let provider = openai_provider("https://upstream.example.com/v1".to_string());
         let body = serde_json::to_vec(&json!({
