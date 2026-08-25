@@ -104,9 +104,6 @@ export function TokenCostColumnTitle({ label, settings, providers, t }: {
           <InputNumber id="token-cost-multiplier" min={0.000001} precision={6}
             value={usdMultiplier} disabled={Boolean(currencyCode)} onChange={setUsdMultiplier} />
           <small>{t("tokenCost.settings.hint", { unit: unit.trim() || settings.unit })}</small>
-          <Button type="primary" size="small" disabled={!valid} onClick={() => setOpen(false)}>
-            {t("tokenCost.settings.save")}
-          </Button>
           <Button size="small" onClick={() => {
             setOpen(false);
             setCustomBillingOpen(true);
