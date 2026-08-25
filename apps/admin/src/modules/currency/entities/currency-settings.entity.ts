@@ -21,12 +21,12 @@ export class CurrencySettingsEntity {
   @Column({ type: 'jsonb', default: () => "'[]'::jsonb" })
   currencies: CurrencySettingItem[];
 
-  @Column({ type: 'uuid', nullable: true })
+  @Column({ name: 'updated_by_id', type: 'uuid', nullable: true })
   updatedById?: string | null;
 
-  @Column({ type: 'varchar', length: 160, default: '' })
+  @Column({ name: 'updated_by_email', type: 'varchar', length: 160, default: '' })
   updatedByEmail: string;
 
-  @UpdateDateColumn({ type: 'timestamptz' })
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt: Date;
 }
