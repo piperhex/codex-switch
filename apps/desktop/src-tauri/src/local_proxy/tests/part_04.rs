@@ -425,3 +425,37 @@
         assert_eq!(entries[TOKEN_USAGE_LIST_LIMIT - 1].id, "entry-002");
         assert!(entries.iter().all(|entry| entry.id != "entry-001"));
     }
+
+    #[test]
+    fn token_usage_database_lists_all_entries_since_start_without_display_limit() {
+        let connection = Connection::open_in_memory().unwrap();
+        init_token_usage_schema(&connection).unwrap();
+        for index in 0..(TOKEN_USAGE_LIST_LIMIT + 2) {
+            insert_token_usage_entry(
+                &connection,
+                &TokenUsageEntry {
+                    id: format!("entry-{index:03}"),
+                    ts: index as u64,
+                    provider: "Provider".to_string(),
+                    provider_id: None,
+                    account_id: None,
+                    account_email: None,
+                    model: "gpt-test".to_string(),
+                    duration_ms: None,
+                    input_tokens: Some(1),
+                    output_tokens: Some(1),
+                    reasoning_tokens: None,
+                    cached_tokens: None,
+                    total_tokens: Some(2),
+                    model_context_window: None,
+                },
+            )
+            .unwrap();
+        }
+
+        let entries = list_token_usage_entries_since_from_db(&connection, 1).unwrap();
+
+        assert_eq!(entries.len(), TOKEN_USAGE_LIST_LIMIT + 1);
+        assert_eq!(entries[0].id, "entry-501");
+        assert_eq!(entries.last().map(|entry| entry.id.as_str()), Some("entry-001"));
+    }

@@ -363,11 +363,39 @@ pub(crate) async fn list_token_usage_entries<R: Runtime + 'static>(
         .map_err(|error| format!("Token usage list task failed: {error}"))?
 }
 
+#[tauri::command]
+pub(crate) async fn list_token_usage_entries_since<R: Runtime + 'static>(
+    app: tauri::AppHandle<R>,
+    start_ts: u64,
+) -> Result<Vec<TokenUsageEntry>, String> {
+    tauri::async_runtime::spawn_blocking(move || list_token_usage_entries_since_blocking(&app, start_ts))
+        .await
+        .map_err(|error| format!("Token usage range task failed: {error}"))?
+}
+
 fn list_token_usage_entries_blocking<R: Runtime>(
     app: &tauri::AppHandle<R>,
 ) -> Result<Vec<TokenUsageEntry>, String> {
     let connection = open_token_usage_db(app)?;
     let mut entries = list_token_usage_entries_from_db(&connection, TOKEN_USAGE_LIST_LIMIT)?;
+    enrich_token_usage_entries(app, &mut entries);
+    Ok(entries)
+}
+
+fn list_token_usage_entries_since_blocking<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    start_ts: u64,
+) -> Result<Vec<TokenUsageEntry>, String> {
+    let connection = open_token_usage_db(app)?;
+    let mut entries = list_token_usage_entries_since_from_db(&connection, start_ts)?;
+    enrich_token_usage_entries(app, &mut entries);
+    Ok(entries)
+}
+
+fn enrich_token_usage_entries<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    entries: &mut [TokenUsageEntry],
+) {
     let paths = resolve_paths(app).ok();
     let official_context_windows = paths
         .as_ref()
@@ -381,7 +409,7 @@ fn list_token_usage_entries_blocking<R: Runtime>(
         .as_ref()
         .map(provider_context_windows)
         .unwrap_or_default();
-    for entry in &mut entries {
+    for entry in entries {
         entry.model_context_window =
             if uses_official_model_context(&entry.provider, &upstream_official_provider_names) {
                 official_context_windows.get(&entry.model).copied()
@@ -396,9 +424,8 @@ fn list_token_usage_entries_blocking<R: Runtime>(
                                 / 100,
                         ),
                 )
-            };
+        };
     }
-    Ok(entries)
 }
 
 #[tauri::command]

@@ -156,6 +156,12 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
         "list_token_usage_entries" => {
             serialize(block_on(crate::local_proxy::list_token_usage_entries(app)))
         }
+        "list_token_usage_entries_since" => serialize(block_on(
+            crate::local_proxy::list_token_usage_entries_since(
+                app,
+                argument(&args, "startTs")?,
+            ),
+        )),
         "list_daily_token_usage" => serialize(block_on(
             crate::local_proxy::list_daily_token_usage(app, argument(&args, "startTs")?),
         )),

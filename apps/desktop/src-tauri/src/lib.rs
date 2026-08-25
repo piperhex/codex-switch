@@ -312,6 +312,7 @@ pub fn run() {
             local_proxy::get_recent_proxy_session_latency,
             local_proxy::export_diagnostic_logs,
             local_proxy::list_token_usage_entries,
+            local_proxy::list_token_usage_entries_since,
             local_proxy::list_daily_token_usage,
             local_proxy::list_account_token_usage,
             local_proxy::list_provider_token_usage,

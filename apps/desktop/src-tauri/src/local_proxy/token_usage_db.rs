@@ -38,6 +38,46 @@ fn list_token_usage_entries_from_db(
         .map_err(|error| format!("Failed to parse token usage entries: {error}"))
 }
 
+fn list_token_usage_entries_since_from_db(
+    connection: &Connection,
+    start_ts: u64,
+) -> Result<Vec<TokenUsageEntry>, String> {
+    let mut statement = connection
+        .prepare(
+            r#"
+            SELECT id, ts, provider, provider_id, account_id, account_email, model, duration_ms,
+                   input_tokens, output_tokens, reasoning_tokens, cached_tokens, total_tokens
+            FROM token_usage_entries
+            WHERE ts >= ?1
+            ORDER BY ts DESC, id DESC
+            "#,
+        )
+        .map_err(|error| format!("Failed to query token usage entries since start: {error}"))?;
+    let rows = statement
+        .query_map(params![u64_to_i64(start_ts)], |row| {
+            Ok(TokenUsageEntry {
+                id: row.get(0)?,
+                ts: i64_to_u64(row.get::<_, i64>(1)?),
+                provider: row.get(2)?,
+                provider_id: row.get(3)?,
+                account_id: row.get(4)?,
+                account_email: row.get(5)?,
+                model: row.get(6)?,
+                duration_ms: opt_i64_to_u64(row.get(7)?),
+                input_tokens: opt_i64_to_u64(row.get(8)?),
+                output_tokens: opt_i64_to_u64(row.get(9)?),
+                reasoning_tokens: opt_i64_to_u64(row.get(10)?),
+                cached_tokens: opt_i64_to_u64(row.get(11)?),
+                total_tokens: opt_i64_to_u64(row.get(12)?),
+                model_context_window: None,
+            })
+        })
+        .map_err(|error| format!("Failed to read token usage entries since start: {error}"))?;
+
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|error| format!("Failed to parse token usage entries since start: {error}"))
+}
+
 fn list_daily_token_usage_from_db(
     connection: &Connection,
     start_ts: u64,

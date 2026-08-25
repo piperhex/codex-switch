@@ -1229,10 +1229,10 @@ export async function loadRecentProxySessionLatency(): Promise<ProxySessionLaten
   return invoke<ProxySessionLatencySummary>("get_recent_proxy_session_latency");
 }
 
-export async function loadTokenUsageEntries(): Promise<TokenUsageEntry[]> {
+export async function loadTokenUsageEntries(startTs?: number): Promise<TokenUsageEntry[]> {
   if (!hasLocalBackend) {
     const now = Math.floor(Date.now() / 1000);
-    return [
+    const entries = [
       {
         id: "preview-token-1",
         ts: now - 92,
@@ -1262,6 +1262,10 @@ export async function loadTokenUsageEntries(): Promise<TokenUsageEntry[]> {
         modelContextWindow: 121_600,
       },
     ];
+    return startTs == null ? entries : entries.filter((entry) => entry.ts >= startTs);
+  }
+  if (startTs != null) {
+    return invoke<TokenUsageEntry[]>("list_token_usage_entries_since", { startTs });
   }
   return invoke<TokenUsageEntry[]>("list_token_usage_entries");
 }
@@ -1270,7 +1274,7 @@ export async function loadAccountTokenUsage(
   startTs: number,
   providers: Provider[] = [],
 ): Promise<AccountTokenUsageTotals[]> {
-  const entries = await loadTokenUsageEntries();
+  const entries = await loadTokenUsageEntries(startTs);
   const costs = new Map<string, number>();
   entries.filter((entry) => entry.ts >= startTs && (entry.accountId || entry.accountEmail)).forEach((entry) => {
     const key = entry.accountId
@@ -1319,7 +1323,7 @@ export async function loadProviderTokenUsage(
   startTs: number,
   providers: Provider[] = [],
 ): Promise<ProviderTokenUsageTotals[]> {
-  const entries = await loadTokenUsageEntries();
+  const entries = await loadTokenUsageEntries(0);
   const costByProvider = new Map<string, { today: number; total: number }>();
   entries.forEach((entry) => {
     const key = entry.providerId ? `id:${entry.providerId}` : `name:${entry.provider.trim()}`;
