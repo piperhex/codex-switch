@@ -1408,7 +1408,9 @@ export function DashboardApp() {
                 enabled={providerManager.localProxy?.systemPromptFilterEnabled ?? false}
                 loading={providerManager.proxyBusy}
                 onEnabledChange={(enabled) => void providerManager.setSystemPromptFilter(enabled)}
+                onRulesChange={providerManager.saveSystemPromptFilterRules}
                 proxyRunning={providerManager.localProxy?.running ?? false}
+                rules={providerManager.localProxy?.systemPromptFilterRules ?? []}
                 t={t}
               />
             )}

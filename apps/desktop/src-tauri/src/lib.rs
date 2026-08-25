@@ -326,6 +326,7 @@ pub fn run() {
             local_proxy::set_custom_auto_switch_threshold_enabled,
             local_proxy::set_auto_disable_unreachable_accounts,
             local_proxy::set_system_prompt_filter_enabled,
+            local_proxy::set_system_prompt_filter_rules,
             local_proxy::set_image_generation_account,
             local_proxy::set_image_model_target,
             local_proxy::set_local_proxy_openai_auth_account,

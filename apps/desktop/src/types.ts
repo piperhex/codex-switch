@@ -192,6 +192,7 @@ export interface LocalProxyStatus {
   customAutoSwitchThresholdEnabled: boolean;
   autoDisableUnreachableAccounts: boolean;
   systemPromptFilterEnabled: boolean;
+  systemPromptFilterRules: string[];
   listenOnAllInterfaces: boolean;
   hasLanApiKey: boolean;
   imageGenerationAccountId?: string | null;

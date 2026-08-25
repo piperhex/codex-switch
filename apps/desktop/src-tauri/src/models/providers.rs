@@ -109,6 +109,7 @@ pub(crate) struct LocalProxyStatus {
     pub(crate) custom_auto_switch_threshold_enabled: bool,
     pub(crate) auto_disable_unreachable_accounts: bool,
     pub(crate) system_prompt_filter_enabled: bool,
+    pub(crate) system_prompt_filter_rules: Vec<String>,
     pub(crate) listen_on_all_interfaces: bool,
     pub(crate) has_lan_api_key: bool,
     pub(crate) image_generation_account_id: Option<String>,

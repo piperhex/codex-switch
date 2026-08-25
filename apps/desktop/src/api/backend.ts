@@ -177,6 +177,7 @@ const LOCAL_PROXY_CUSTOM_PRIORITY_PREVIEW_KEY = "codex-switch:local-proxy-custom
 const LOCAL_PROXY_CUSTOM_THRESHOLD_PREVIEW_KEY = "codex-switch:local-proxy-custom-threshold";
 const LOCAL_PROXY_AUTO_DISABLE_UNREACHABLE_PREVIEW_KEY = "codex-switch:local-proxy-auto-disable-unreachable";
 const SYSTEM_PROMPT_FILTER_PREVIEW_KEY = "codex-switch:system-prompt-filter";
+const SYSTEM_PROMPT_FILTER_RULES_PREVIEW_KEY = "codex-switch:system-prompt-filter-rules";
 const LOCAL_PROXY_LISTEN_ALL_INTERFACES_PREVIEW_KEY = "codex-switch:local-proxy-listen-all-interfaces";
 const LOCAL_PROXY_LAN_API_KEY_PREVIEW_KEY = "codex-switch:local-proxy-lan-api-key";
 const LOCAL_PROXY_PORT_PREVIEW_KEY = "codex-switch:local-proxy-port";
@@ -402,6 +403,7 @@ function previewLocalProxyStatus(): LocalProxyStatus {
     customAutoSwitchThresholdEnabled: window.localStorage.getItem(LOCAL_PROXY_CUSTOM_THRESHOLD_PREVIEW_KEY) === "true",
     autoDisableUnreachableAccounts: window.localStorage.getItem(LOCAL_PROXY_AUTO_DISABLE_UNREACHABLE_PREVIEW_KEY) === "true",
     systemPromptFilterEnabled: window.localStorage.getItem(SYSTEM_PROMPT_FILTER_PREVIEW_KEY) === "true",
+    systemPromptFilterRules: readPreviewSystemPromptFilterRules(),
     listenOnAllInterfaces: window.localStorage.getItem(LOCAL_PROXY_LISTEN_ALL_INTERFACES_PREVIEW_KEY) === "true",
     hasLanApiKey: Boolean(window.localStorage.getItem(LOCAL_PROXY_LAN_API_KEY_PREVIEW_KEY)),
     imageGenerationAccountId: window.localStorage.getItem(LOCAL_PROXY_IMAGE_ACCOUNT_PREVIEW_KEY),
@@ -791,6 +793,15 @@ export async function saveProviderProfile(provider: ProviderInput): Promise<Prov
   const modelTokenCosts = provider.modelTokenCosts ?? storedCosts;
   if (provider.modelTokenCosts) persistStoredModelTokenCosts(saved.id, modelTokenCosts);
   return { ...saved, modelTokenCosts };
+}
+
+function readPreviewSystemPromptFilterRules(): string[] {
+  try {
+    const stored = JSON.parse(window.localStorage.getItem(SYSTEM_PROMPT_FILTER_RULES_PREVIEW_KEY) ?? "[]") as unknown;
+    return Array.isArray(stored) ? stored.filter((rule): rule is string => typeof rule === "string") : [];
+  } catch {
+    return [];
+  }
 }
 
 export async function fetchDeepSeekModels(
@@ -1607,6 +1618,15 @@ export async function setSystemPromptFilterEnabled(enabled: boolean): Promise<Lo
     return previewLocalProxyStatus();
   }
   return invoke<LocalProxyStatus>("set_system_prompt_filter_enabled", { enabled });
+}
+
+export async function setSystemPromptFilterRules(rules: string[]): Promise<LocalProxyStatus> {
+  if (!hasLocalBackend) {
+    window.localStorage.setItem(SYSTEM_PROMPT_FILTER_RULES_PREVIEW_KEY, JSON.stringify(rules));
+    window.dispatchEvent(new CustomEvent(PROVIDERS_EVENT));
+    return previewLocalProxyStatus();
+  }
+  return invoke<LocalProxyStatus>("set_system_prompt_filter_rules", { rules });
 }
 
 export async function setLocalProxyCustomThreshold(enabled: boolean): Promise<LocalProxyStatus> {

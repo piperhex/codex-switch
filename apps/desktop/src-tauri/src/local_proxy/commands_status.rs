@@ -13,6 +13,7 @@ fn status<R: Runtime>(app: &tauri::AppHandle<R>) -> LocalProxyStatus {
         custom_auto_switch_threshold_enabled,
         auto_disable_unreachable_accounts,
         system_prompt_filter_enabled,
+        system_prompt_filter_rules,
         listen_on_all_interfaces,
         has_lan_api_key,
         image_generation_account_id,
@@ -30,6 +31,7 @@ fn status<R: Runtime>(app: &tauri::AppHandle<R>) -> LocalProxyStatus {
                 state.custom_auto_switch_threshold_enabled,
                 state.auto_disable_unreachable_accounts,
                 state.system_prompt_filter_enabled,
+                state.system_prompt_filter_rules.clone(),
                 lan_listening_enabled(&state),
                 configured_lan_api_key(&state).is_some(),
                 state.image_generation_account_id,
@@ -39,7 +41,19 @@ fn status<R: Runtime>(app: &tauri::AppHandle<R>) -> LocalProxyStatus {
             )
         })
         .unwrap_or((
-            false, false, false, false, false, false, false, false, None, None, None, None,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            Vec::new(),
+            false,
+            false,
+            None,
+            None,
+            None,
+            None,
         ));
     LocalProxyStatus {
         running: is_running(),
@@ -52,6 +66,7 @@ fn status<R: Runtime>(app: &tauri::AppHandle<R>) -> LocalProxyStatus {
         custom_auto_switch_threshold_enabled,
         auto_disable_unreachable_accounts,
         system_prompt_filter_enabled,
+        system_prompt_filter_rules,
         listen_on_all_interfaces,
         has_lan_api_key,
         image_generation_account_id,

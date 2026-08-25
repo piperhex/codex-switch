@@ -30,6 +30,9 @@ fn dispatch_extended_command(app: AppHandle, command: &str, args: Value) -> Resu
                 argument(&args, "enabled")?,
             ),
         )),
+        "set_system_prompt_filter_rules" => serialize(block_on(
+            crate::local_proxy::set_system_prompt_filter_rules(app, argument(&args, "rules")?),
+        )),
         "set_custom_auto_switch_threshold_enabled" => {
             serialize(crate::local_proxy::set_custom_auto_switch_threshold_enabled(
                 app,

@@ -13,7 +13,10 @@ fn start_server<R: Runtime>(app: tauri::AppHandle<R>) -> Result<bool, String> {
     }
 
     let state = read_state(&resolve_paths(&app)?);
-    set_system_prompt_filter_runtime_enabled(state.system_prompt_filter_enabled);
+    set_system_prompt_filter_runtime_config(
+        state.system_prompt_filter_enabled,
+        state.system_prompt_filter_rules.clone(),
+    );
     let bind_addr = format!(
         "{}:{LOCAL_PROXY_PORT}",
         proxy_bind_host(lan_listening_enabled(&state))
