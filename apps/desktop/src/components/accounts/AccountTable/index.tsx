@@ -653,7 +653,7 @@ export function AccountTable({
       ),
     }] : []),
     {
-      title: t("table.actions"), key: "actions", width: 300, align: "center", fixed: "right",
+      title: t("table.actions"), key: "actions", width: 190, align: "center", fixed: "right",
       render: (_, account) => {
         const waiting = busyAccountId === account.id;
         const resetWaiting = resetCreditBusyAccountId === account.id;
@@ -691,37 +691,35 @@ export function AccountTable({
                 </span>
               </Tooltip>
             )}
-            {hotSwitchEnabled && (
-              <Tooltip placement="top" classNames={{ root: "openai-auth-action-tooltip" }} title={(
-                <div className="openai-auth-action-tooltip-content">
-                  <p>{t("providers.proxy.openaiAuthAccountTooltipRemote")}</p>
-                  <p>{t("providers.proxy.openaiAuthAccountTooltipCapabilities")}</p>
-                  {officialAuthUnsupported && (
-                    <p className="warning">{t("providers.error.openaiAuthAccountOAuthRequired")}</p>
-                  )}
-                </div>
-              )}>
-                <span>
-                  <Button size="small" type={officialAuthActive ? "primary" : "default"}
-                    danger={officialAuthActive}
-                    loading={openaiAuthBusy && openaiAuthPendingAccountId === account.id}
-                    disabled={openaiAuthBusy || officialAuthUnsupported}
-                    onClick={() => {
-                      setOpenaiAuthPendingAccountId(account.id);
-                      onOpenaiAuthAccountChange(officialAuthActive ? null : account.id);
-                    }}>
-                    {t(officialAuthActive
-                      ? "providers.proxy.deactivateOpenaiAuthAccount"
-                      : "providers.proxy.activateOpenaiAuthAccount")}
-                  </Button>
-                </span>
-              </Tooltip>
-            )}
             <Dropdown trigger={["click"]} placement="bottomRight"
               open={tableActionMenuAccountId === account.id}
               onOpenChange={(open) => setTableActionMenuAccountId(open ? account.id : null)}
               dropdownRender={() => (
                 <div className="account-action-menu" onClick={(event) => event.stopPropagation()}>
+                  {hotSwitchEnabled && (
+                    <Tooltip placement="left" classNames={{ root: "openai-auth-action-tooltip" }} title={(
+                      <div className="openai-auth-action-tooltip-content">
+                        <p>{t("providers.proxy.openaiAuthAccountTooltipRemote")}</p>
+                        <p>{t("providers.proxy.openaiAuthAccountTooltipCapabilities")}</p>
+                        {officialAuthUnsupported && (
+                          <p className="warning">{t("providers.error.openaiAuthAccountOAuthRequired")}</p>
+                        )}
+                      </div>
+                    )}>
+                      <button type="button" className={officialAuthActive ? "destructive" : undefined}
+                        disabled={openaiAuthBusy || officialAuthUnsupported}
+                        onClick={() => {
+                          setTableActionMenuAccountId(null);
+                          setOpenaiAuthPendingAccountId(account.id);
+                          onOpenaiAuthAccountChange(officialAuthActive ? null : account.id);
+                        }}>
+                        {officialAuthActive ? <LogOut size={14} /> : <LogIn size={14} />}
+                        {t(officialAuthActive
+                          ? "providers.proxy.deactivateOpenaiAuthAccount"
+                          : "providers.proxy.activateOpenaiAuthAccount")}
+                      </button>
+                    </Tooltip>
+                  )}
                   <Popconfirm title={t("table.useResetCreditConfirmTitle")}
                     description={<span className="reset-credit-confirm-description">{t("table.useResetCreditConfirmDescription")}</span>}
                     okText={t("table.useResetCreditOk")} cancelText={t("table.cancel")}
