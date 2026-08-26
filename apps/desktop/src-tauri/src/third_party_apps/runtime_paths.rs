@@ -38,6 +38,16 @@ pub(crate) fn saved_command<R: Runtime>(
     path.is_file().then_some(path)
 }
 
+pub(crate) fn running_command(app_id: LaunchableApp) -> Option<PathBuf> {
+    let mut system = System::new_all();
+    system.refresh_processes(ProcessesToUpdate::All, true);
+    match app_id {
+        LaunchableApp::ClaudeCode => find_claude_code_path(&system),
+        LaunchableApp::OpenCode => find_open_code_path(&system),
+    }
+    .map(PathBuf::from)
+}
+
 pub(crate) fn capture_running_app_paths<R: Runtime>(app: &AppHandle<R>) {
     let app = app.clone();
     // Process enumeration and JSON persistence are deliberately off the startup thread.

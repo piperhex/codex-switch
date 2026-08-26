@@ -42,6 +42,12 @@ pub(super) fn known_windows_commands() -> Vec<PathBuf> {
     if let Some(local_data_dir) = dirs::data_local_dir() {
         candidates.push(
             local_data_dir
+                .join("Programs")
+                .join("@opencode-aidesktop")
+                .join("OpenCode.exe"),
+        );
+        candidates.push(
+            local_data_dir
                 .join("Microsoft")
                 .join("WinGet")
                 .join("Links")
@@ -68,5 +74,18 @@ mod tests {
         assert!(command_name_matches(Path::new("opencode.cmd")));
         assert!(command_name_matches(Path::new("opencode2.exe")));
         assert!(!command_name_matches(Path::new("claude.exe")));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn includes_the_desktop_installer_location() {
+        let local_data_dir =
+            dirs::data_local_dir().expect("Windows tests should have a local data directory");
+        assert!(known_windows_commands().contains(
+            &local_data_dir
+                .join("Programs")
+                .join("@opencode-aidesktop")
+                .join("OpenCode.exe")
+        ));
     }
 }

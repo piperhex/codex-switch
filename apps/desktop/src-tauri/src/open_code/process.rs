@@ -76,9 +76,7 @@ fn parse_windows_commands(output: &[u8]) -> Vec<PathBuf> {
 #[cfg(windows)]
 fn resolve_open_code_command<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
     let mut candidates = known_windows_commands();
-    if let Some(path) =
-        crate::third_party_apps::runtime_paths::saved_command(app, LaunchableApp::OpenCode)
-    {
+    if let Some(path) = remembered_or_running_command(app, LaunchableApp::OpenCode) {
         candidates.insert(0, path);
     }
     for command in ["opencode", "opencode2"] {
@@ -95,9 +93,7 @@ fn resolve_open_code_command<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, 
 
 #[cfg(not(windows))]
 fn resolve_open_code_command<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
-    if let Some(path) =
-        crate::third_party_apps::runtime_paths::saved_command(app, LaunchableApp::OpenCode)
-    {
+    if let Some(path) = remembered_or_running_command(app, LaunchableApp::OpenCode) {
         return Ok(path);
     }
     for command in ["opencode", "opencode2"] {
@@ -115,9 +111,26 @@ fn resolve_open_code_command<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, 
     Err("未找到 OpenCode。请先安装 OpenCode，并确保 opencode 命令可用。".to_string())
 }
 
+fn remembered_or_running_command<R: Runtime>(
+    app: &AppHandle<R>,
+    app_id: LaunchableApp,
+) -> Option<PathBuf> {
+    crate::third_party_apps::runtime_paths::saved_command(app, app_id)
+        .or_else(|| crate::third_party_apps::runtime_paths::running_command(app_id))
+}
+
 fn spawn_open_code(command_path: &Path) -> Result<(), String> {
     #[cfg(windows)]
     {
+        if command_path
+            .extension()
+            .is_some_and(|extension| extension.eq_ignore_ascii_case("exe"))
+        {
+            Command::new(command_path)
+                .spawn()
+                .map_err(|error| format!("无法启动 OpenCode：{error}"))?;
+            return Ok(());
+        }
         let command_line = format!("\"{}\"", command_path.display());
         windows_hidden_command("cmd.exe")
             .args(["/D", "/C", "start", "OpenCode", "cmd.exe", "/D", "/K"])

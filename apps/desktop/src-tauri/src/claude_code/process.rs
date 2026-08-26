@@ -105,9 +105,7 @@ fn parse_windows_claude_commands(output: &[u8]) -> Vec<PathBuf> {
 #[cfg(windows)]
 fn resolve_claude_command<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
     let mut candidates = known_windows_claude_commands();
-    if let Some(path) =
-        crate::third_party_apps::runtime_paths::saved_command(app, LaunchableApp::ClaudeCode)
-    {
+    if let Some(path) = remembered_or_running_command(app, LaunchableApp::ClaudeCode) {
         candidates.insert(0, path);
     }
     if let Ok(output) = windows_hidden_command("where.exe").arg("claude").output() {
@@ -125,9 +123,7 @@ fn resolve_claude_command<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, Str
 
 #[cfg(not(windows))]
 fn resolve_claude_command<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
-    if let Some(path) =
-        crate::third_party_apps::runtime_paths::saved_command(app, LaunchableApp::ClaudeCode)
-    {
+    if let Some(path) = remembered_or_running_command(app, LaunchableApp::ClaudeCode) {
         return Ok(path);
     }
     let output = Command::new("which").arg("claude").output();
@@ -142,6 +138,14 @@ fn resolve_claude_command<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, Str
             }),
         _ => Err("未找到 Claude Code。请先安装 Claude Code，并确保 claude 命令可用。".to_string()),
     }
+}
+
+fn remembered_or_running_command<R: Runtime>(
+    app: &AppHandle<R>,
+    app_id: LaunchableApp,
+) -> Option<PathBuf> {
+    crate::third_party_apps::runtime_paths::saved_command(app, app_id)
+        .or_else(|| crate::third_party_apps::runtime_paths::running_command(app_id))
 }
 
 #[cfg(windows)]
