@@ -96,7 +96,16 @@ fn official_body_for_upstream(method: &Method, url: &str, body: Vec<u8>, model: 
         return body;
     };
     let removed_incompatible_reasoning = remove_incompatible_official_reasoning_from_input(&mut value);
-    if requested_model(&value).is_some() && !removed_incompatible_reasoning {
+    // ChatGPT's OAuth-backed Codex endpoint rejects the token-limit field that
+    // OpenCode's Responses adapter sends. Codex itself leaves this field out,
+    // so omit it when forwarding third-party requests to the official service.
+    let removed_unsupported_output_limit = value.as_object_mut().is_some_and(|object| {
+        object.remove("max_output_tokens").is_some()
+    });
+    if requested_model(&value).is_some()
+        && !removed_incompatible_reasoning
+        && !removed_unsupported_output_limit
+    {
         return body;
     }
     if requested_model(&value).is_none() {

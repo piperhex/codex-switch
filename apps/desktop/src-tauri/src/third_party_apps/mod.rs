@@ -62,6 +62,7 @@ pub(crate) fn provider_context_window(provider: &ProviderProfile) -> u64 {
 pub(crate) fn effective_settings(settings: &AppSettings) -> ThirdPartyAppWriteSettings {
     settings
         .third_party_app_write
+        .clone()
         .unwrap_or_else(|| settings.claude_code_write_target.into())
 }
 
@@ -120,7 +121,10 @@ pub(crate) fn sync_after_switch<R: Runtime>(app: &AppHandle<R>) -> Result<(), St
             if let Err(error) = crate::claude_desktop::write_provider_proxy_settings(provider) {
                 errors.push(format!("Claude Desktop：{error}"));
             }
-            claude_code::write_provider_settings(Some(provider))
+            claude_code::write_provider_settings(
+                Some(provider),
+                &effective_settings(&settings).claude_subagent_model,
+            )
         } else if state.local_proxy_enabled && state.active_account_id.is_some() {
             if let Err(error) =
                 crate::claude_desktop::write_official_proxy_settings(official_context_window)

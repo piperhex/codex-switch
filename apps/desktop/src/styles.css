@@ -367,6 +367,25 @@ h1 { margin: 5px 0 0; font: 700 26px/1.1 Manrope, sans-serif; letter-spacing: -.
 .account-column-settings { width: 190px; max-width: 400px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); box-shadow: 0 12px 30px rgba(22,36,27,.14); }
 .account-column-settings > strong { display: block; margin-bottom: 8px; color: var(--ink); font-size: 11px; }
 .account-column-settings-list { display: grid; gap: 7px; }
+.account-column-setting-item {
+  min-width: 0; height: 24px; display: flex; align-items: center; gap: 5px; margin: 0 -4px;
+  padding: 0 4px; border: 1px solid transparent; border-radius: 6px;
+  transition: border-color .15s ease, background .15s ease, opacity .15s ease;
+}
+.account-column-setting-item.is-dragging { opacity: .42; }
+.account-column-setting-item.is-drag-target { border-color: rgba(var(--green-rgb), .55); background: var(--green-soft); }
+.account-column-setting-item .ant-checkbox-wrapper { min-width: 0; flex: 1; }
+.account-column-drag-handle, .account-column-fixed-icon {
+  width: 17px; height: 22px; flex: 0 0 auto; display: grid; place-items: center; color: #93a098;
+}
+.account-column-drag-handle {
+  border-radius: 4px; cursor: grab; touch-action: none; user-select: none;
+}
+.account-column-drag-handle:hover, .account-column-drag-handle:focus-visible {
+  color: var(--green-dark); background: var(--green-selection); outline: none;
+}
+.account-column-drag-handle:active { cursor: grabbing; }
+.account-column-fixed-icon { color: #aab3ad; }
 .account-column-settings-list .ant-checkbox-wrapper { margin-inline-start: 0; color: var(--ink); font-size: 11px; }
 .token-cost-column-title { display: inline-flex; align-items: center; gap: 3px; }
 .token-cost-settings-button { width: 22px; height: 22px; padding: 0; color: var(--muted); }

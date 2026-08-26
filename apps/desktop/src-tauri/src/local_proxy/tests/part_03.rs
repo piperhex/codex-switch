@@ -375,6 +375,22 @@
     }
 
     #[test]
+    fn official_responses_body_drops_unsupported_output_token_limit() {
+        let body = serde_json::to_vec(&json!({
+            "model": "gpt-5.6-sol",
+            "input": "ping",
+            "max_output_tokens": 4096
+        }))
+        .unwrap();
+
+        let forwarded = official_body_for_upstream(&Method::Post, "/v1/responses", body, "gpt-5.6-sol");
+        let parsed: Value = serde_json::from_slice(&forwarded).unwrap();
+
+        assert!(parsed.get("max_output_tokens").is_none());
+        assert_eq!(parsed["model"], "gpt-5.6-sol");
+    }
+
+    #[test]
     fn official_responses_body_drops_relay_reasoning_items_before_forwarding() {
         let body = serde_json::to_vec(&json!({
             "model": "gpt-5.6-sol",

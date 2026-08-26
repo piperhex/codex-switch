@@ -20,8 +20,10 @@ import {
   Columns3,
   Copy,
   Gauge,
+  GripVertical,
   LogIn,
   LogOut,
+  Lock,
   MoreHorizontal,
   Pencil,
   RefreshCw,
@@ -152,6 +154,16 @@ const ACCOUNT_TABLE_COLUMN_KEYS = [
   "actions",
 ] as const;
 type AccountTableColumnKey = typeof ACCOUNT_TABLE_COLUMN_KEYS[number];
+type ReorderableAccountTableColumnKey = Exclude<AccountTableColumnKey, "account" | "actions">;
+const REORDERABLE_ACCOUNT_TABLE_COLUMN_KEYS: ReorderableAccountTableColumnKey[] = [
+  "fiveHours",
+  "oneWeek",
+  "tokenTotals",
+  "estimatedCost",
+  "autoSwitchPriority",
+  "autoSwitchThreshold",
+];
+const COLUMN_ORDER_STORAGE_KEY = "codex-switch:account-table-column-order";
 
 interface UsageSortPreference {
   column: UsageSortColumn;
@@ -227,6 +239,34 @@ function loadHiddenColumns(): AccountTableColumnKey[] {
 
 function persistHiddenColumns(columns: AccountTableColumnKey[]) {
   window.localStorage.setItem(HIDDEN_COLUMNS_STORAGE_KEY, JSON.stringify(columns));
+}
+
+function isReorderableAccountTableColumnKey(value: unknown): value is ReorderableAccountTableColumnKey {
+  return typeof value === "string"
+    && REORDERABLE_ACCOUNT_TABLE_COLUMN_KEYS.includes(value as ReorderableAccountTableColumnKey);
+}
+
+function loadColumnOrder(): ReorderableAccountTableColumnKey[] {
+  try {
+    const parsed: unknown = JSON.parse(window.localStorage.getItem(COLUMN_ORDER_STORAGE_KEY) ?? "[]");
+    const stored = Array.isArray(parsed)
+      ? [...new Set(parsed.filter(isReorderableAccountTableColumnKey))]
+      : [];
+    return [
+      ...stored,
+      ...REORDERABLE_ACCOUNT_TABLE_COLUMN_KEYS.filter((key) => !stored.includes(key)),
+    ];
+  } catch {
+    return [...REORDERABLE_ACCOUNT_TABLE_COLUMN_KEYS];
+  }
+}
+
+function persistColumnOrder(columns: ReorderableAccountTableColumnKey[]) {
+  try {
+    window.localStorage.setItem(COLUMN_ORDER_STORAGE_KEY, JSON.stringify(columns));
+  } catch {
+    // Keep the in-memory order when local storage is unavailable.
+  }
 }
 
 function usageRemainingSortValue(window: Account["usage"]["primary"]) {
@@ -332,6 +372,10 @@ export function AccountTable({
   const [openaiAuthPendingAccountId, setOpenaiAuthPendingAccountId] = useState<string | null>(null);
   const [usageSort, setUsageSort] = useState<UsageSortPreference | null>(loadUsageSortPreference);
   const [hiddenColumns, setHiddenColumns] = useState<AccountTableColumnKey[]>(loadHiddenColumns);
+  const [columnOrder, setColumnOrder] = useState<ReorderableAccountTableColumnKey[]>(loadColumnOrder);
+  const draggedColumnRef = useRef<ReorderableAccountTableColumnKey | null>(null);
+  const [draggedColumn, setDraggedColumn] = useState<ReorderableAccountTableColumnKey | null>(null);
+  const [dragTargetColumn, setDragTargetColumn] = useState<ReorderableAccountTableColumnKey | null>(null);
   const modelContextWindow = useGpt56SolContextWindow();
   const [tableScrollY, setTableScrollY] = useState(0);
   const [accountTokenUsage, setAccountTokenUsage] = useState<AccountTokenUsageTotals[]>([]);
@@ -789,9 +833,7 @@ export function AccountTable({
     },
   ];
   const hiddenColumnSet = new Set(hiddenColumns);
-  const visibleColumns = columns.filter((column) =>
-    !isAccountTableColumnKey(column.key) || !hiddenColumnSet.has(column.key));
-  const columnSettings: { key: AccountTableColumnKey; label: string }[] = [
+  const baseColumnSettings: { key: AccountTableColumnKey; label: string }[] = [
     { key: "account", label: t("table.account") },
     { key: "fiveHours", label: t("table.fiveHours") },
     { key: "oneWeek", label: t("table.oneWeek") },
@@ -805,6 +847,28 @@ export function AccountTable({
       : []),
     { key: "actions", label: t("table.actions") },
   ];
+  const columnLabels = new Map(baseColumnSettings.map(({ key, label }) => [key, label]));
+  const availableColumnKeys = new Set(baseColumnSettings.map(({ key }) => key));
+  const columnSettings: { key: AccountTableColumnKey; label: string }[] = [
+    { key: "account", label: columnLabels.get("account") ?? t("table.account") },
+    ...columnOrder
+      .filter((key) => availableColumnKeys.has(key))
+      .map((key) => ({ key, label: columnLabels.get(key) ?? key })),
+    { key: "actions", label: columnLabels.get("actions") ?? t("table.actions") },
+  ];
+  const columnsByKey = new Map(
+    columns
+      .filter((column) => isAccountTableColumnKey(column.key))
+      .map((column) => [column.key as AccountTableColumnKey, column]),
+  );
+  const orderedColumns = [
+    ...columns.filter((column) => !isAccountTableColumnKey(column.key)),
+    ...columnSettings
+      .map(({ key }) => columnsByKey.get(key))
+      .filter((column): column is NonNullable<typeof column> => column != null),
+  ];
+  const visibleColumns = orderedColumns.filter((column) =>
+    !isAccountTableColumnKey(column.key) || !hiddenColumnSet.has(column.key));
   const visibleConfigurableColumnCount = columnSettings
     .filter(({ key }) => !hiddenColumnSet.has(key)).length;
   const tableScrollX = 68 + visibleColumns.reduce(
@@ -818,6 +882,35 @@ export function AccountTable({
         ? current.filter((column) => column !== key)
         : [...new Set([...current, key])];
       persistHiddenColumns(next);
+      return next;
+    });
+  };
+
+  const reorderColumn = (
+    source: ReorderableAccountTableColumnKey,
+    target: ReorderableAccountTableColumnKey,
+  ) => {
+    if (source === target) return;
+    setColumnOrder((current) => {
+      const sourceIndex = current.indexOf(source);
+      const targetIndex = current.indexOf(target);
+      if (sourceIndex < 0 || targetIndex < 0) return current;
+      const next = current.filter((key) => key !== source);
+      next.splice(next.indexOf(target), 0, source);
+      persistColumnOrder(next);
+      return next;
+    });
+  };
+
+  const moveColumn = (key: ReorderableAccountTableColumnKey, offset: number) => {
+    setColumnOrder((current) => {
+      const sourceIndex = current.indexOf(key);
+      const targetIndex = Math.max(0, Math.min(current.length - 1, sourceIndex + offset));
+      if (sourceIndex < 0 || sourceIndex === targetIndex) return current;
+      const next = [...current];
+      next.splice(sourceIndex, 1);
+      next.splice(targetIndex, 0, key);
+      persistColumnOrder(next);
       return next;
     });
   };
@@ -1209,12 +1302,77 @@ export function AccountTable({
               <div className="account-column-settings-list">
                 {columnSettings.map(({ key, label }) => {
                   const checked = !hiddenColumnSet.has(key);
+                  const reorderable = isReorderableAccountTableColumnKey(key);
                   return (
-                    <Checkbox key={key} checked={checked}
-                      disabled={checked && visibleConfigurableColumnCount <= 1}
-                      onChange={(event) => setColumnVisible(key, event.target.checked)}>
-                      {label}
-                    </Checkbox>
+                    <div key={key}
+                      data-account-table-column-key={key}
+                      className={[
+                        "account-column-setting-item",
+                        draggedColumn === key ? "is-dragging" : "",
+                        dragTargetColumn === key ? "is-drag-target" : "",
+                      ].filter(Boolean).join(" ")}>
+                      {reorderable ? (
+                        <span className="account-column-drag-handle" role="button" tabIndex={0}
+                          title={t("table.columnOrderDrag", { column: label })}
+                          aria-label={t("table.columnOrderDrag", { column: label })}
+                          onPointerDown={(event) => {
+                            if (event.button !== 0) return;
+                            event.preventDefault();
+                            event.currentTarget.setPointerCapture(event.pointerId);
+                            draggedColumnRef.current = key;
+                            setDraggedColumn(key);
+                          }}
+                          onPointerMove={(event) => {
+                            if (!draggedColumnRef.current) return;
+                            const item = document.elementFromPoint(event.clientX, event.clientY)
+                              ?.closest<HTMLElement>("[data-account-table-column-key]");
+                            const target = item?.dataset.accountTableColumnKey;
+                            setDragTargetColumn(
+                              isReorderableAccountTableColumnKey(target) ? target : null,
+                            );
+                          }}
+                          onPointerUp={(event) => {
+                            const source = draggedColumnRef.current;
+                            const item = document.elementFromPoint(event.clientX, event.clientY)
+                              ?.closest<HTMLElement>("[data-account-table-column-key]");
+                            const target = item?.dataset.accountTableColumnKey;
+                            if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                              event.currentTarget.releasePointerCapture(event.pointerId);
+                            }
+                            draggedColumnRef.current = null;
+                            setDraggedColumn(null);
+                            setDragTargetColumn(null);
+                            if (source && isReorderableAccountTableColumnKey(target)) {
+                              reorderColumn(source, target);
+                            }
+                          }}
+                          onPointerCancel={() => {
+                            draggedColumnRef.current = null;
+                            setDraggedColumn(null);
+                            setDragTargetColumn(null);
+                          }}
+                          onKeyDown={(event) => {
+                            if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+                            event.preventDefault();
+                            moveColumn(key, event.key === "ArrowUp" ? -1 : 1);
+                          }}>
+                          <GripVertical size={14} aria-hidden="true" />
+                        </span>
+                      ) : (
+                        <Tooltip title={t(key === "account"
+                          ? "table.columnOrderFixedFirst"
+                          : "table.columnOrderFixedLast")}>
+                          <span className="account-column-fixed-icon">
+                            <Lock size={12} aria-hidden="true" />
+                          </span>
+                        </Tooltip>
+                      )}
+                      <Checkbox checked={checked}
+                        disabled={checked && visibleConfigurableColumnCount <= 1}
+                        onChange={(event) => setColumnVisible(key, event.target.checked)}>
+                        {label}
+                      </Checkbox>
+                    </div>
                   );
                 })}
               </div>

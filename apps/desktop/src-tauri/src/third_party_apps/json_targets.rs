@@ -140,11 +140,16 @@ fn open_code_provider(provider: &ProviderProfile) -> Value {
         ProviderProtocol::OpenaiResponses => "@ai-sdk/openai",
         ProviderProtocol::OpenaiChat => "@ai-sdk/openai-compatible",
     };
+    let models = provider
+        .models
+        .iter()
+        .map(|model| (model.clone(), model_descriptor(provider, model)))
+        .collect::<Map<_, _>>();
     json!({
         "npm": npm,
         "name": provider.name,
         "options": { "baseURL": provider.base_url, "apiKey": provider.api_key },
-        "models": { provider.model.clone(): model_descriptor(provider) }
+        "models": models
     })
 }
 
@@ -173,7 +178,7 @@ fn update_z_code_config(
             "kind": kind,
             "source": "custom",
             "options": { "baseURL": provider.base_url, "apiKey": provider.api_key, "apiKeyRequired": true },
-            "models": { provider.model.clone(): model_descriptor(provider) }
+            "models": { provider.model.clone(): model_descriptor(provider, &provider.model) }
         }));
     }
     set_model_selectors(root, provider);
@@ -383,15 +388,25 @@ fn open_viking_provider(provider: &ProviderProfile) -> &'static str {
     }
 }
 
-fn model_descriptor(provider: &ProviderProfile) -> Value {
-    let input = if provider.image_input_models.contains(&provider.model) {
+fn model_descriptor(provider: &ProviderProfile, model: &str) -> Value {
+    let input = if provider
+        .image_input_models
+        .iter()
+        .any(|candidate| candidate == model)
+    {
         vec!["text", "image"]
     } else {
         vec!["text"]
     };
+    let context_window = provider
+        .model_context_windows
+        .get(model)
+        .copied()
+        .or(provider.context_window)
+        .unwrap_or(128_000);
     json!({
-        "name": provider.model,
-        "limit": { "context": provider_context_window(provider), "output": 8192 },
+        "name": model,
+        "limit": { "context": context_window, "output": 8192 },
         "modalities": { "input": input, "output": ["text"] }
     })
 }
@@ -404,13 +419,22 @@ mod tests {
     #[test]
     fn open_code_update_preserves_other_providers_and_selects_managed_model() {
         let mut config = json!({ "provider": { "keep": { "npm": "existing" } } });
-        let provider = provider();
+        let mut provider = provider();
+        provider.models.push("second-model".to_string());
         update_open_code_config(&mut config, Some(&provider)).unwrap();
         assert_eq!(config["provider"]["keep"]["npm"], "existing");
         assert_eq!(config["model"], "codex-switch/test-model");
         assert_eq!(
             config["provider"]["codex-switch"]["options"]["apiKey"],
             "secret"
+        );
+        assert_eq!(
+            config["provider"]["codex-switch"]["models"]["test-model"]["name"],
+            "test-model"
+        );
+        assert_eq!(
+            config["provider"]["codex-switch"]["models"]["second-model"]["name"],
+            "second-model"
         );
     }
 
