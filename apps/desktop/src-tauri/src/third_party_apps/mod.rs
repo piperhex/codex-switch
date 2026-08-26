@@ -256,14 +256,28 @@ fn active_provider<R: Runtime>(app: &AppHandle<R>) -> Result<Option<ProviderProf
         && crate::local_proxy::is_running()
     {
         let context_window = read_app_settings(app)?.gpt_5_6_sol_context_window;
-        let models = official_local_proxy_models(&paths.codex_home);
-        return Ok(Some(official_local_proxy_profile(context_window, models)));
+        let catalog = official_local_proxy_catalog(&paths.codex_home);
+        return Ok(Some(official_local_proxy_profile(
+            context_window,
+            catalog.models,
+            catalog.image_input_models,
+        )));
     }
     Ok(None)
 }
 
-fn official_local_proxy_profile(context_window: u64, models: Vec<String>) -> ProviderProfile {
+struct OfficialLocalProxyCatalog {
+    models: Vec<String>,
+    image_input_models: Vec<String>,
+}
+
+fn official_local_proxy_profile(
+    context_window: u64,
+    models: Vec<String>,
+    image_input_models: Vec<String>,
+) -> ProviderProfile {
     let model = DEFAULT_OFFICIAL_MODEL.to_string();
+    let image_input_models_configured = !image_input_models.is_empty();
     let mut models = models;
     for known_model in KNOWN_OFFICIAL_MODELS {
         if !models.iter().any(|candidate| candidate == known_model) {
@@ -282,8 +296,8 @@ fn official_local_proxy_profile(context_window: u64, models: Vec<String>) -> Pro
         model_reasoning_efforts: ModelReasoningEfforts::new(),
         model_context_windows: ModelContextWindows::new(),
         model_api_formats: ModelApiFormats::new(),
-        image_input_models: Vec::new(),
-        image_input_models_configured: false,
+        image_input_models,
+        image_input_models_configured,
         context_window: Some(context_window),
         model_selection_controlled_by_codex: true,
         api_format: ProviderApiFormat::OpenaiResponses,
@@ -297,18 +311,16 @@ fn official_local_proxy_profile(context_window: u64, models: Vec<String>) -> Pro
     }
 }
 
-fn official_local_proxy_models(codex_home: &Path) -> Vec<String> {
+fn official_local_proxy_catalog(codex_home: &Path) -> OfficialLocalProxyCatalog {
     let path = codex_home.join("codex-switch-model-catalog.json");
-    let Ok(source) = fs::read_to_string(path) else {
-        return Vec::new();
-    };
-    let Ok(catalog) = serde_json::from_str::<serde_json::Value>(&source) else {
-        return Vec::new();
-    };
-    let Some(entries) = catalog.get("models").and_then(serde_json::Value::as_array) else {
-        return Vec::new();
-    };
+    let entries = fs::read_to_string(path)
+        .ok()
+        .and_then(|source| serde_json::from_str::<serde_json::Value>(&source).ok())
+        .and_then(|catalog| catalog.get("models").cloned())
+        .and_then(|models| models.as_array().cloned())
+        .unwrap_or_default();
     let mut models = Vec::new();
+    let mut image_input_models = Vec::new();
     for entry in entries {
         let Some(model) = ["slug", "id"]
             .into_iter()
@@ -318,13 +330,28 @@ fn official_local_proxy_models(codex_home: &Path) -> Vec<String> {
         };
         let model = model.trim();
         if !model.is_empty() && !models.iter().any(|known| known == model) {
-            models.push(model.to_string());
+            let model = model.to_string();
+            if entry
+                .get("input_modalities")
+                .and_then(serde_json::Value::as_array)
+                .is_some_and(|modalities| {
+                    modalities
+                        .iter()
+                        .any(|modality| modality.as_str() == Some("image"))
+                })
+            {
+                image_input_models.push(model.clone());
+            }
+            models.push(model);
         }
     }
     if !models.iter().any(|model| model == DEFAULT_OFFICIAL_MODEL) {
         models.insert(0, DEFAULT_OFFICIAL_MODEL.to_string());
     }
-    models
+    OfficialLocalProxyCatalog {
+        models,
+        image_input_models,
+    }
 }
 
 #[cfg(test)]
@@ -379,7 +406,8 @@ pub(crate) mod tests {
 
     #[test]
     fn official_local_proxy_profile_targets_the_responses_endpoint() {
-        let profile = official_local_proxy_profile(1_000_000, Vec::new());
+        let profile =
+            official_local_proxy_profile(1_000_000, Vec::new(), vec!["gpt-5.6-sol".to_string()]);
         assert_eq!(profile.base_url, LOCAL_PROXY_BASE_URL);
         assert_eq!(profile.api_key, LOCAL_PROXY_TOKEN);
         assert_eq!(profile.api_format, ProviderApiFormat::OpenaiResponses);
@@ -392,5 +420,6 @@ pub(crate) mod tests {
             ]
         );
         assert_eq!(profile.context_window, Some(1_000_000));
+        assert_eq!(profile.image_input_models, vec!["gpt-5.6-sol"]);
     }
 }

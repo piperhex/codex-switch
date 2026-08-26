@@ -1,6 +1,7 @@
 import { Button, Input, Switch } from "antd";
 import { Check, Pencil, Plus, Sparkles, Trash2, X } from "lucide-react";
 import type { Translate } from "../../i18n";
+import type { SystemPromptRule } from "../../types";
 import styles from "./index.module.less";
 import { type PromptEditor, usePromptEditor } from "./usePromptEditor";
 
@@ -10,8 +11,8 @@ interface SystemPromptInjectionPageProps {
   enabled: boolean;
   loading: boolean;
   onEnabledChange: (enabled: boolean) => void;
-  onPromptsChange: (prompts: string[]) => Promise<boolean>;
-  prompts: string[];
+  onPromptsChange: (prompts: SystemPromptRule[]) => Promise<boolean>;
+  prompts: SystemPromptRule[];
   proxyRunning: boolean;
   t: Translate;
 }
@@ -19,17 +20,19 @@ interface SystemPromptInjectionPageProps {
 function PromptRows({ editor, loading, prompts, t }: {
   editor: PromptEditor;
   loading: boolean;
-  prompts: string[];
+  prompts: SystemPromptRule[];
   t: Translate;
 }) {
   return <div className={styles.promptList}>
-    {prompts.map((prompt, index) => <div className={styles.promptRow} key={`${prompt}-${index}`}>
+    {prompts.map((prompt, index) => <div className={styles.promptRow} key={`${prompt.text}-${index}`}>
       {editor.editingIndex === index ? (
         <Input autoFocus maxLength={MAX_PROMPT_LENGTH}
           onChange={(event) => editor.updateEditingValue(event.target.value)}
           onPressEnter={() => void editor.saveEdit()} value={editor.editingValue} />
-      ) : <span>{prompt}</span>}
-      <div className={styles.promptActions}>
+          ) : <span>{prompt.text}</span>}
+          <div className={styles.promptActions}>
+            <Switch aria-label={t("systemPromptInjection.togglePrompt")} checked={prompt.enabled}
+              disabled={loading} onChange={(enabled) => void editor.togglePrompt(index, enabled)} size="small" />
         {editor.editingIndex === index ? <>
           <Button aria-label={t("systemPromptInjection.savePrompt")} disabled={loading}
             icon={<Check size={15} />} onClick={() => void editor.saveEdit()} type="text" />
@@ -46,8 +49,8 @@ function PromptRows({ editor, loading, prompts, t }: {
 
 function PromptList({ loading, onChange, prompts, t }: {
   loading: boolean;
-  onChange: (prompts: string[]) => Promise<boolean>;
-  prompts: string[];
+  onChange: (prompts: SystemPromptRule[]) => Promise<boolean>;
+  prompts: SystemPromptRule[];
   t: Translate;
 }) {
   const editor = usePromptEditor(prompts, onChange, t);

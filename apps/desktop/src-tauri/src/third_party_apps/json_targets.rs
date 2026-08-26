@@ -448,6 +448,18 @@ mod tests {
     }
 
     #[test]
+    fn open_code_model_descriptor_preserves_image_input_capability() {
+        let mut config = json!({});
+        let mut provider = provider();
+        provider.image_input_models = vec![provider.model.clone()];
+        update_open_code_config(&mut config, Some(&provider)).unwrap();
+        assert_eq!(
+            config["provider"]["codex-switch"]["models"]["test-model"]["modalities"]["input"],
+            json!(["text", "image"])
+        );
+    }
+
+    #[test]
     fn open_claw_update_preserves_unrelated_sections() {
         let mut config = json!({ "gateway": { "token": "keep" } });
         let provider = provider();

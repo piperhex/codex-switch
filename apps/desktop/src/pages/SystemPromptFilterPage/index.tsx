@@ -1,6 +1,7 @@
 import { Button, Input, Switch } from "antd";
 import { Check, Pencil, Plus, ShieldCheck, Trash2, X } from "lucide-react";
 import type { Translate } from "../../i18n";
+import type { SystemPromptRule } from "../../types";
 import styles from "./index.module.less";
 import { type RuleEditor, useRuleEditor } from "./useRuleEditor";
 
@@ -10,23 +11,23 @@ interface SystemPromptFilterPageProps {
   enabled: boolean;
   loading: boolean;
   onEnabledChange: (enabled: boolean) => void;
-  onRulesChange: (rules: string[]) => Promise<boolean>;
+  onRulesChange: (rules: SystemPromptRule[]) => Promise<boolean>;
   proxyRunning: boolean;
-  rules: string[];
+  rules: SystemPromptRule[];
   t: Translate;
 }
 
 interface RuleListProps {
   loading: boolean;
-  onChange: (rules: string[]) => Promise<boolean>;
-  rules: string[];
+  onChange: (rules: SystemPromptRule[]) => Promise<boolean>;
+  rules: SystemPromptRule[];
   t: Translate;
 }
 
 interface RuleRowsProps {
   editor: RuleEditor;
   loading: boolean;
-  rules: string[];
+  rules: SystemPromptRule[];
   t: Translate;
 }
 
@@ -34,13 +35,15 @@ function RuleRows({ editor, loading, rules, t }: RuleRowsProps) {
   return (
     <div className={styles.ruleList}>
       {rules.map((rule, index) => (
-        <div className={styles.ruleRow} key={`${rule}-${index}`}>
+        <div className={styles.ruleRow} key={`${rule.text}-${index}`}>
           {editor.editingIndex === index ? (
             <Input autoFocus maxLength={MAX_RULE_LENGTH}
               onChange={(event) => editor.updateEditingValue(event.target.value)}
               onPressEnter={() => void editor.saveEdit()} value={editor.editingValue} />
-          ) : <span>{rule}</span>}
+          ) : <span>{rule.text}</span>}
           <div className={styles.ruleActions}>
+            <Switch aria-label={t("systemPromptFilter.toggleRule")} checked={rule.enabled}
+              disabled={loading} onChange={(enabled) => void editor.toggleRule(index, enabled)} size="small" />
             {editor.editingIndex === index ? (
               <>
                 <Button aria-label={t("systemPromptFilter.saveRule")} disabled={loading}

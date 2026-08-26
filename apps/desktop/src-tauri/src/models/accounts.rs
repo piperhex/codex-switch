@@ -136,11 +136,11 @@ pub(crate) struct ManagerStateFile {
     #[serde(default)]
     pub(crate) system_prompt_filter_enabled: bool,
     #[serde(default)]
-    pub(crate) system_prompt_filter_rules: Vec<String>,
+    pub(crate) system_prompt_filter_rules: Vec<SystemPromptRule>,
     #[serde(default)]
     pub(crate) system_prompt_injection_enabled: bool,
     #[serde(default)]
-    pub(crate) system_prompt_injection_prompts: Vec<String>,
+    pub(crate) system_prompt_injection_prompts: Vec<SystemPromptRule>,
     #[serde(default)]
     pub(crate) local_proxy_listen_on_all_interfaces: bool,
     #[serde(default)]
@@ -163,6 +163,43 @@ pub(crate) struct ManagerStateFile {
     pub(crate) observed_conversation_ids: BTreeSet<String>,
     #[serde(default)]
     pub(crate) conversation_ownership_initialized: bool,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct SystemPromptRule {
+    pub(crate) text: String,
+    pub(crate) enabled: bool,
+}
+
+impl<'de> Deserialize<'de> for SystemPromptRule {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum Input {
+            Legacy(String),
+            Structured {
+                text: String,
+                #[serde(default = "default_system_prompt_rule_enabled")]
+                enabled: bool,
+            },
+        }
+
+        match Input::deserialize(deserializer)? {
+            Input::Legacy(text) => Ok(Self {
+                text,
+                enabled: true,
+            }),
+            Input::Structured { text, enabled } => Ok(Self { text, enabled }),
+        }
+    }
+}
+
+fn default_system_prompt_rule_enabled() -> bool {
+    true
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

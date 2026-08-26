@@ -65,6 +65,7 @@ import type {
   LoginStatus,
   LocalProxyStartProgress,
   LocalProxyStatus,
+  SystemPromptRule,
   LocalProxyStopProgress,
   ImageModelTarget,
   ImageRouteKind,
@@ -799,22 +800,29 @@ export async function saveProviderProfile(provider: ProviderInput): Promise<Prov
   return { ...saved, modelTokenCosts };
 }
 
-function readPreviewSystemPromptFilterRules(): string[] {
+function readPreviewSystemPromptRules(key: string): SystemPromptRule[] {
   try {
-    const stored = JSON.parse(window.localStorage.getItem(SYSTEM_PROMPT_FILTER_RULES_PREVIEW_KEY) ?? "[]") as unknown;
-    return Array.isArray(stored) ? stored.filter((rule): rule is string => typeof rule === "string") : [];
+    const stored = JSON.parse(window.localStorage.getItem(key) ?? "[]") as unknown;
+    if (!Array.isArray(stored)) return [];
+    return stored.flatMap((entry): SystemPromptRule[] => {
+      if (typeof entry === "string") return [{ text: entry, enabled: true }];
+      if (!entry || typeof entry !== "object") return [];
+      const value = entry as { text?: unknown; enabled?: unknown };
+      return typeof value.text === "string"
+        ? [{ text: value.text, enabled: value.enabled !== false }]
+        : [];
+    });
   } catch {
     return [];
   }
 }
 
-function readPreviewSystemPromptInjectionPrompts(): string[] {
-  try {
-    const stored = JSON.parse(window.localStorage.getItem(SYSTEM_PROMPT_INJECTION_PROMPTS_PREVIEW_KEY) ?? "[]") as unknown;
-    return Array.isArray(stored) ? stored.filter((prompt): prompt is string => typeof prompt === "string") : [];
-  } catch {
-    return [];
-  }
+function readPreviewSystemPromptFilterRules(): SystemPromptRule[] {
+  return readPreviewSystemPromptRules(SYSTEM_PROMPT_FILTER_RULES_PREVIEW_KEY);
+}
+
+function readPreviewSystemPromptInjectionPrompts(): SystemPromptRule[] {
+  return readPreviewSystemPromptRules(SYSTEM_PROMPT_INJECTION_PROMPTS_PREVIEW_KEY);
 }
 
 export async function fetchDeepSeekModels(
@@ -1633,7 +1641,7 @@ export async function setSystemPromptFilterEnabled(enabled: boolean): Promise<Lo
   return invoke<LocalProxyStatus>("set_system_prompt_filter_enabled", { enabled });
 }
 
-export async function setSystemPromptFilterRules(rules: string[]): Promise<LocalProxyStatus> {
+export async function setSystemPromptFilterRules(rules: SystemPromptRule[]): Promise<LocalProxyStatus> {
   if (!hasLocalBackend) {
     window.localStorage.setItem(SYSTEM_PROMPT_FILTER_RULES_PREVIEW_KEY, JSON.stringify(rules));
     window.dispatchEvent(new CustomEvent(PROVIDERS_EVENT));
@@ -1651,7 +1659,7 @@ export async function setSystemPromptInjectionEnabled(enabled: boolean): Promise
   return invoke<LocalProxyStatus>("set_system_prompt_injection_enabled", { enabled });
 }
 
-export async function setSystemPromptInjectionPrompts(prompts: string[]): Promise<LocalProxyStatus> {
+export async function setSystemPromptInjectionPrompts(prompts: SystemPromptRule[]): Promise<LocalProxyStatus> {
   if (!hasLocalBackend) {
     window.localStorage.setItem(SYSTEM_PROMPT_INJECTION_PROMPTS_PREVIEW_KEY, JSON.stringify(prompts));
     window.dispatchEvent(new CustomEvent(PROVIDERS_EVENT));

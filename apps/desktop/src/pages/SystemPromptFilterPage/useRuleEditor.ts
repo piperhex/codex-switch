@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { Translate } from "../../i18n";
+import type { SystemPromptRule } from "../../types";
 
 function normalizedRule(value: string) {
   return value.trim().toLocaleLowerCase();
@@ -7,21 +8,21 @@ function normalizedRule(value: string) {
 
 function ruleValidationError(
   value: string,
-  rules: string[],
+  rules: SystemPromptRule[],
   t: Translate,
   ignoredIndex?: number,
 ) {
   if (!value.trim()) return t("systemPromptFilter.ruleRequired");
   const normalized = normalizedRule(value);
   const duplicate = rules.some((rule, index) => (
-    index !== ignoredIndex && normalizedRule(rule) === normalized
+    index !== ignoredIndex && normalizedRule(rule.text) === normalized
   ));
   return duplicate ? t("systemPromptFilter.ruleDuplicate") : "";
 }
 
 export function useRuleEditor(
-  rules: string[],
-  onChange: (rules: string[]) => Promise<boolean>,
+  rules: SystemPromptRule[],
+  onChange: (rules: SystemPromptRule[]) => Promise<boolean>,
   t: Translate,
 ) {
   const [draft, setDraft] = useState("");
@@ -34,20 +35,20 @@ export function useRuleEditor(
   const cancelEdit = () => { setEditingIndex(null); setError(""); };
   const beginEdit = (index: number) => {
     setEditingIndex(index);
-    setEditingValue(rules[index]);
+    setEditingValue(rules[index].text);
     setError("");
   };
   const addRule = async () => {
     const validationError = ruleValidationError(draft, rules, t);
     if (validationError) return setError(validationError);
-    if (await onChange([...rules, draft.trim()])) updateDraft("");
+    if (await onChange([...rules, { text: draft.trim(), enabled: true }])) updateDraft("");
   };
   const saveEdit = async () => {
     if (editingIndex === null) return;
     const validationError = ruleValidationError(editingValue, rules, t, editingIndex);
     if (validationError) return setError(validationError);
     const nextRules = rules.map((rule, index) => (
-      index === editingIndex ? editingValue.trim() : rule
+      index === editingIndex ? { ...rule, text: editingValue.trim() } : rule
     ));
     if (await onChange(nextRules)) {
       setEditingValue("");
@@ -58,6 +59,11 @@ export function useRuleEditor(
     if (!(await onChange(rules.filter((_, ruleIndex) => ruleIndex !== index)))) return;
     if (editingIndex === index) setEditingIndex(null);
     setError("");
+  };
+  const toggleRule = async (index: number, enabled: boolean) => {
+    await onChange(rules.map((rule, ruleIndex) => (
+      ruleIndex === index ? { ...rule, enabled } : rule
+    )));
   };
 
   return {
@@ -70,6 +76,7 @@ export function useRuleEditor(
     editingValue,
     error,
     saveEdit,
+    toggleRule,
     updateDraft,
     updateEditingValue,
   };

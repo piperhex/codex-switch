@@ -47,6 +47,7 @@ import type {
   ImageRouteKind,
   Provider,
   ProviderInput,
+  SystemPromptRule,
 } from "../types";
 
 interface ProviderCloudSync {
@@ -665,7 +666,7 @@ export function useProviderManager(
     }
   }, [load, notify, t]);
 
-  const saveSystemPromptFilterRules = useCallback(async (rules: string[]) => {
+  const saveSystemPromptFilterRules = useCallback(async (rules: SystemPromptRule[]) => {
     setProxyBusy(true);
     try {
       setLocalProxy(await setSystemPromptFilterRules(rules));
@@ -693,7 +694,7 @@ export function useProviderManager(
     }
   }, [load, notify, t]);
 
-  const saveSystemPromptInjectionPrompts = useCallback(async (prompts: string[]) => {
+  const saveSystemPromptInjectionPrompts = useCallback(async (prompts: SystemPromptRule[]) => {
     setProxyBusy(true);
     try {
       setLocalProxy(await setSystemPromptInjectionPrompts(prompts));

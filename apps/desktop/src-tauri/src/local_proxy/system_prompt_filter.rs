@@ -2,22 +2,26 @@ const MAX_SYSTEM_PROMPT_FILTER_RULES: usize = 100;
 const MAX_SYSTEM_PROMPT_FILTER_RULE_CHARS: usize = 500;
 
 static SYSTEM_PROMPT_FILTER_ENABLED: AtomicBool = AtomicBool::new(false);
-static SYSTEM_PROMPT_FILTER_RULES: OnceLock<RwLock<Vec<String>>> = OnceLock::new();
+static SYSTEM_PROMPT_FILTER_RULES: OnceLock<RwLock<Vec<crate::models::SystemPromptRule>>> =
+    OnceLock::new();
 
-fn system_prompt_filter_rules() -> &'static RwLock<Vec<String>> {
+fn system_prompt_filter_rules() -> &'static RwLock<Vec<crate::models::SystemPromptRule>> {
     SYSTEM_PROMPT_FILTER_RULES.get_or_init(|| RwLock::new(Vec::new()))
 }
 
-fn set_system_prompt_filter_runtime_config(enabled: bool, rules: Vec<String>) {
+fn set_system_prompt_filter_runtime_config(
+    enabled: bool,
+    rules: Vec<crate::models::SystemPromptRule>,
+) {
     let mut stored_rules = match system_prompt_filter_rules().write() {
         Ok(guard) => guard,
         Err(poisoned) => poisoned.into_inner(),
     };
-    *stored_rules = rules.into_iter().map(|rule| rule.to_lowercase()).collect();
+    *stored_rules = rules;
     SYSTEM_PROMPT_FILTER_ENABLED.store(enabled, Ordering::Relaxed);
 }
 
-fn runtime_system_prompt_filter_rules() -> Vec<String> {
+fn runtime_system_prompt_filter_rules() -> Vec<crate::models::SystemPromptRule> {
     match system_prompt_filter_rules().read() {
         Ok(guard) => guard.clone(),
         Err(poisoned) => poisoned.into_inner().clone(),
@@ -32,7 +36,10 @@ fn filter_system_prompts(body: Vec<u8>) -> Vec<u8> {
     filter_system_prompts_when_enabled(body, &rules)
 }
 
-fn filter_system_prompts_when_enabled(body: Vec<u8>, rules: &[String]) -> Vec<u8> {
+fn filter_system_prompts_when_enabled(
+    body: Vec<u8>,
+    rules: &[crate::models::SystemPromptRule],
+) -> Vec<u8> {
     if rules.is_empty() {
         return body;
     }
@@ -50,7 +57,10 @@ fn filter_system_prompt_value(value: Value) -> Value {
     remove_matching_system_prompts(value, &runtime_system_prompt_filter_rules())
 }
 
-fn remove_matching_system_prompts(mut value: Value, rules: &[String]) -> Value {
+fn remove_matching_system_prompts(
+    mut value: Value,
+    rules: &[crate::models::SystemPromptRule],
+) -> Value {
     if rules.is_empty() {
         return value;
     }
@@ -67,7 +77,7 @@ fn remove_matching_system_prompts(mut value: Value, rules: &[String]) -> Value {
 fn remove_matching_field(
     object: &mut serde_json::Map<String, Value>,
     field: &str,
-    rules: &[String],
+    rules: &[crate::models::SystemPromptRule],
 ) {
     if object
         .get(field)
@@ -77,7 +87,10 @@ fn remove_matching_field(
     }
 }
 
-fn remove_matching_system_messages(value: Option<&mut Value>, rules: &[String]) {
+fn remove_matching_system_messages(
+    value: Option<&mut Value>,
+    rules: &[crate::models::SystemPromptRule],
+) {
     let Some(Value::Array(messages)) = value else {
         return;
     };
@@ -93,12 +106,10 @@ fn remove_matching_system_messages(value: Option<&mut Value>, rules: &[String]) 
     });
 }
 
-fn content_matches_rules(content: &Value, rules: &[String]) -> bool {
+fn content_matches_rules(content: &Value, rules: &[crate::models::SystemPromptRule]) -> bool {
     match content {
         Value::String(text) => text_matches_rules(text, rules),
-        Value::Array(items) => items
-            .iter()
-            .any(|item| content_matches_rules(item, rules)),
+        Value::Array(items) => items.iter().any(|item| content_matches_rules(item, rules)),
         Value::Object(object) => ["text", "content"]
             .iter()
             .filter_map(|key| object.get(*key))
@@ -107,16 +118,21 @@ fn content_matches_rules(content: &Value, rules: &[String]) -> bool {
     }
 }
 
-fn text_matches_rules(text: &str, rules: &[String]) -> bool {
+fn text_matches_rules(text: &str, rules: &[crate::models::SystemPromptRule]) -> bool {
     let normalized_text = text.to_lowercase();
-    rules.iter().any(|rule| normalized_text.contains(rule))
+    rules
+        .iter()
+        .filter(|rule| rule.enabled)
+        .any(|rule| normalized_text.contains(&rule.text.to_lowercase()))
 }
 
 fn is_system_role(role: &str) -> bool {
     role.eq_ignore_ascii_case("system") || role.eq_ignore_ascii_case("developer")
 }
 
-fn normalize_system_prompt_filter_rules(rules: Vec<String>) -> Result<Vec<String>, String> {
+fn normalize_system_prompt_filter_rules(
+    rules: Vec<crate::models::SystemPromptRule>,
+) -> Result<Vec<crate::models::SystemPromptRule>, String> {
     if rules.len() > MAX_SYSTEM_PROMPT_FILTER_RULES {
         return Err(format!(
             "You can add up to {MAX_SYSTEM_PROMPT_FILTER_RULES} filter rules"
@@ -124,8 +140,8 @@ fn normalize_system_prompt_filter_rules(rules: Vec<String>) -> Result<Vec<String
     }
     let mut normalized_rules = Vec::with_capacity(rules.len());
     let mut seen = HashSet::with_capacity(rules.len());
-    for rule in rules {
-        let trimmed = rule.trim();
+    for mut rule in rules {
+        let trimmed = rule.text.trim();
         if trimmed.is_empty() {
             return Err("Filter rules cannot be empty".to_string());
         }
@@ -136,7 +152,8 @@ fn normalize_system_prompt_filter_rules(rules: Vec<String>) -> Result<Vec<String
         }
         let normalized = trimmed.to_lowercase();
         if seen.insert(normalized) {
-            normalized_rules.push(trimmed.to_string());
+            rule.text = trimmed.to_string();
+            normalized_rules.push(rule);
         }
     }
     Ok(normalized_rules)
@@ -164,7 +181,7 @@ pub(crate) async fn set_system_prompt_filter_enabled<R: Runtime + 'static>(
 #[tauri::command]
 pub(crate) async fn set_system_prompt_filter_rules<R: Runtime + 'static>(
     app: tauri::AppHandle<R>,
-    rules: Vec<String>,
+    rules: Vec<crate::models::SystemPromptRule>,
 ) -> Result<LocalProxyStatus, String> {
     let normalized_rules = normalize_system_prompt_filter_rules(rules)?;
     tauri::async_runtime::spawn_blocking(move || {
@@ -194,14 +211,23 @@ mod system_prompt_filter_tests {
 
     fn filtered(value: Value, rules: &[&str]) -> Value {
         let body = serde_json::to_vec(&value).expect("request should serialize");
-        let rules = rules.iter().map(|rule| rule.to_string()).collect::<Vec<_>>();
+        let rules = rules
+            .iter()
+            .map(|rule| crate::models::SystemPromptRule {
+                text: rule.to_string(),
+                enabled: true,
+            })
+            .collect::<Vec<_>>();
         serde_json::from_slice(&filter_system_prompts_when_enabled(body, &rules))
             .expect("filtered request should be valid JSON")
     }
 
     #[test]
     fn removes_only_matching_responses_instructions() {
-        let matching = filtered(json!({ "instructions": "Run INTERNAL workflow" }), &["internal"]);
+        let matching = filtered(
+            json!({ "instructions": "Run INTERNAL workflow" }),
+            &["internal"],
+        );
         let unmatched = filtered(json!({ "instructions": "Keep this prompt" }), &["internal"]);
 
         assert!(matching.get("instructions").is_none());
@@ -250,7 +276,13 @@ mod system_prompt_filter_tests {
         assert_eq!(filtered(value.clone(), &[]), value);
         let body = b"not-json".to_vec();
         assert_eq!(
-            filter_system_prompts_when_enabled(body.clone(), &["rule".to_string()]),
+            filter_system_prompts_when_enabled(
+                body.clone(),
+                &[crate::models::SystemPromptRule {
+                    text: "rule".to_string(),
+                    enabled: true,
+                }],
+            ),
             body
         );
     }
@@ -258,17 +290,50 @@ mod system_prompt_filter_tests {
     #[test]
     fn normalizes_and_deduplicates_rules() {
         let rules = normalize_system_prompt_filter_rules(vec![
-            "  Internal Policy  ".to_string(),
-            "internal policy".to_string(),
-            "Another Rule".to_string(),
+            crate::models::SystemPromptRule {
+                text: "  Internal Policy  ".to_string(),
+                enabled: true,
+            },
+            crate::models::SystemPromptRule {
+                text: "internal policy".to_string(),
+                enabled: false,
+            },
+            crate::models::SystemPromptRule {
+                text: "Another Rule".to_string(),
+                enabled: true,
+            },
         ])
         .expect("rules should be valid");
 
-        assert_eq!(rules, vec!["Internal Policy", "Another Rule"]);
-        assert!(normalize_system_prompt_filter_rules(vec!["   ".to_string()]).is_err());
+        assert_eq!(
+            rules
+                .iter()
+                .map(|rule| rule.text.as_str())
+                .collect::<Vec<_>>(),
+            vec!["Internal Policy", "Another Rule"]
+        );
+        assert!(
+            normalize_system_prompt_filter_rules(vec![crate::models::SystemPromptRule {
+                text: "   ".to_string(),
+                enabled: true
+            }])
+            .is_err()
+        );
         let long_rule = "x".repeat(MAX_SYSTEM_PROMPT_FILTER_RULE_CHARS + 1);
-        let too_many_rules = vec!["rule".to_string(); MAX_SYSTEM_PROMPT_FILTER_RULES + 1];
-        assert!(normalize_system_prompt_filter_rules(vec![long_rule]).is_err());
+        let too_many_rules = vec![
+            crate::models::SystemPromptRule {
+                text: "rule".to_string(),
+                enabled: true
+            };
+            MAX_SYSTEM_PROMPT_FILTER_RULES + 1
+        ];
+        assert!(
+            normalize_system_prompt_filter_rules(vec![crate::models::SystemPromptRule {
+                text: long_rule,
+                enabled: true
+            }])
+            .is_err()
+        );
         assert!(normalize_system_prompt_filter_rules(too_many_rules).is_err());
     }
 }

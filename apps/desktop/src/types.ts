@@ -192,9 +192,9 @@ export interface LocalProxyStatus {
   customAutoSwitchThresholdEnabled: boolean;
   autoDisableUnreachableAccounts: boolean;
   systemPromptFilterEnabled: boolean;
-  systemPromptFilterRules: string[];
+  systemPromptFilterRules: SystemPromptRule[];
   systemPromptInjectionEnabled: boolean;
-  systemPromptInjectionPrompts: string[];
+  systemPromptInjectionPrompts: SystemPromptRule[];
   listenOnAllInterfaces: boolean;
   hasLanApiKey: boolean;
   imageGenerationAccountId?: string | null;
@@ -299,6 +299,11 @@ export interface CodexThreadEntry {
   accountId: string | null;
   accountEmail: string | null;
   accountActive: boolean;
+}
+
+export interface SystemPromptRule {
+  text: string;
+  enabled: boolean;
 }
 
 export interface CodexThreadTokenTotals {
