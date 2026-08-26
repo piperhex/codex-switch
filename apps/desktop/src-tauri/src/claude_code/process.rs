@@ -9,6 +9,9 @@ use std::{
 use std::os::windows::process::CommandExt;
 
 use sysinfo::{ProcessesToUpdate, System};
+use tauri::{AppHandle, Runtime};
+
+use crate::third_party_apps::runtime_paths::LaunchableApp;
 
 const PROCESS_EXIT_TIMEOUT: Duration = Duration::from_secs(10);
 const PROCESS_POLL_INTERVAL: Duration = Duration::from_millis(100);
@@ -65,6 +68,13 @@ fn known_windows_claude_commands() -> Vec<PathBuf> {
     let mut candidates = Vec::new();
     if let Some(home) = dirs::home_dir() {
         candidates.push(home.join(".local").join("bin").join("claude.exe"));
+        // Some Windows native installers use the XDG-style config directory.
+        candidates.push(
+            home.join(".config")
+                .join("devai")
+                .join("bin")
+                .join("claude.exe"),
+        );
     }
     if let Some(data_dir) = dirs::data_dir() {
         candidates.push(data_dir.join("npm").join("claude.cmd"));
@@ -93,8 +103,13 @@ fn parse_windows_claude_commands(output: &[u8]) -> Vec<PathBuf> {
 }
 
 #[cfg(windows)]
-fn resolve_claude_command() -> Result<PathBuf, String> {
+fn resolve_claude_command<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
     let mut candidates = known_windows_claude_commands();
+    if let Some(path) =
+        crate::third_party_apps::runtime_paths::saved_command(app, LaunchableApp::ClaudeCode)
+    {
+        candidates.insert(0, path);
+    }
     if let Ok(output) = windows_hidden_command("where.exe").arg("claude").output() {
         candidates.extend(parse_windows_claude_commands(&output.stdout));
     }
@@ -109,7 +124,12 @@ fn resolve_claude_command() -> Result<PathBuf, String> {
 }
 
 #[cfg(not(windows))]
-fn resolve_claude_command() -> Result<PathBuf, String> {
+fn resolve_claude_command<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
+    if let Some(path) =
+        crate::third_party_apps::runtime_paths::saved_command(app, LaunchableApp::ClaudeCode)
+    {
+        return Ok(path);
+    }
     let output = Command::new("which").arg("claude").output();
 
     match output {
@@ -157,9 +177,11 @@ fn spawn_claude(command_path: &Path) -> Result<(), String> {
     Ok(())
 }
 
-pub(super) async fn launch_claude_code() -> Result<bool, String> {
+pub(super) async fn launch_claude_code<R: Runtime + 'static>(
+    app: AppHandle<R>,
+) -> Result<bool, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let command_path = resolve_claude_command()?;
+        let command_path = resolve_claude_command(&app)?;
         if claude_process_running(&command_path) {
             return Ok(false);
         }
@@ -170,9 +192,11 @@ pub(super) async fn launch_claude_code() -> Result<bool, String> {
     .map_err(|_| "启动 Claude Code 失败，请重试。".to_string())?
 }
 
-pub(super) async fn restart_claude_code() -> Result<(), String> {
+pub(super) async fn restart_claude_code<R: Runtime + 'static>(
+    app: AppHandle<R>,
+) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let command_path = resolve_claude_command()?;
+        let command_path = resolve_claude_command(&app)?;
         stop_claude_processes(&command_path)?;
         wait_for_claude_processes_to_exit(&command_path)?;
         spawn_claude(&command_path)
@@ -223,5 +247,18 @@ mod tests {
             parse_windows_claude_commands(output.as_bytes()),
             vec![PathBuf::from("C:\\Users\\me\\.local\\bin\\claude.exe")]
         );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn known_windows_commands_include_the_devai_native_install() {
+        let home = dirs::home_dir().expect("Windows tests should have a home directory");
+        assert!(known_windows_claude_commands().contains(
+            &home
+                .join(".config")
+                .join("devai")
+                .join("bin")
+                .join("claude.exe")
+        ));
     }
 }

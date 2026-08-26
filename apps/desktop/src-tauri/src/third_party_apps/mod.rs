@@ -1,4 +1,5 @@
 mod json_targets;
+pub(crate) mod runtime_paths;
 mod yaml_targets;
 
 use std::{fs, path::Path};
@@ -16,6 +17,8 @@ use crate::{
     providers::DEFAULT_OFFICIAL_MODEL,
     storage::{read_app_settings, read_state, resolve_paths, write_app_settings},
 };
+
+pub(crate) use runtime_paths::capture_running_app_paths;
 
 pub(crate) const MANAGED_PROVIDER_ID: &str = "codex-switch";
 const KNOWN_OFFICIAL_MODELS: [&str; 3] = ["gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"];

@@ -9,10 +9,12 @@ use std::{
 use std::os::windows::process::CommandExt;
 
 use sysinfo::{ProcessesToUpdate, System};
+use tauri::{AppHandle, Runtime};
 
 use super::command_name_matches;
 #[cfg(windows)]
 use super::known_windows_commands;
+use crate::third_party_apps::runtime_paths::LaunchableApp;
 
 const PROCESS_EXIT_TIMEOUT: Duration = Duration::from_secs(10);
 const PROCESS_POLL_INTERVAL: Duration = Duration::from_millis(100);
@@ -72,8 +74,13 @@ fn parse_windows_commands(output: &[u8]) -> Vec<PathBuf> {
 }
 
 #[cfg(windows)]
-fn resolve_open_code_command() -> Result<PathBuf, String> {
+fn resolve_open_code_command<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
     let mut candidates = known_windows_commands();
+    if let Some(path) =
+        crate::third_party_apps::runtime_paths::saved_command(app, LaunchableApp::OpenCode)
+    {
+        candidates.insert(0, path);
+    }
     for command in ["opencode", "opencode2"] {
         if let Ok(output) = windows_hidden_command("where.exe").arg(command).output() {
             candidates.extend(parse_windows_commands(&output.stdout));
@@ -87,7 +94,12 @@ fn resolve_open_code_command() -> Result<PathBuf, String> {
 }
 
 #[cfg(not(windows))]
-fn resolve_open_code_command() -> Result<PathBuf, String> {
+fn resolve_open_code_command<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
+    if let Some(path) =
+        crate::third_party_apps::runtime_paths::saved_command(app, LaunchableApp::OpenCode)
+    {
+        return Ok(path);
+    }
     for command in ["opencode", "opencode2"] {
         let output = Command::new("which").arg(command).output();
         if let Ok(output) = output {
@@ -122,9 +134,11 @@ fn spawn_open_code(command_path: &Path) -> Result<(), String> {
     Ok(())
 }
 
-pub(super) async fn launch_open_code() -> Result<bool, String> {
+pub(super) async fn launch_open_code<R: Runtime + 'static>(
+    app: AppHandle<R>,
+) -> Result<bool, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let command_path = resolve_open_code_command()?;
+        let command_path = resolve_open_code_command(&app)?;
         if open_code_process_running(&command_path) {
             return Ok(false);
         }
@@ -135,9 +149,11 @@ pub(super) async fn launch_open_code() -> Result<bool, String> {
     .map_err(|_| "启动 OpenCode 失败，请重试。".to_string())?
 }
 
-pub(super) async fn restart_open_code() -> Result<(), String> {
+pub(super) async fn restart_open_code<R: Runtime + 'static>(
+    app: AppHandle<R>,
+) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let command_path = resolve_open_code_command()?;
+        let command_path = resolve_open_code_command(&app)?;
         stop_open_code_processes(&command_path)?;
         wait_for_open_code_processes_to_exit(&command_path)?;
         spawn_open_code(&command_path)

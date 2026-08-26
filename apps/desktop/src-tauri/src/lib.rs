@@ -102,6 +102,7 @@ pub fn run() {
         .setup(move |app| {
             storage::migrate_app_settings_for_version(app.handle())?;
             let settings = storage::read_app_settings(app.handle())?;
+            third_party_apps::capture_running_app_paths(app.handle());
             codex_home::initialize(settings.codex_home.as_deref());
             main_window::configure_close_behavior(app.handle(), settings.close_to_tray);
             if let Err(error) = system_proxy::configure(&settings.network_proxy) {

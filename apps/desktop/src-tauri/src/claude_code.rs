@@ -28,16 +28,16 @@ mod process;
 
 #[tauri::command]
 pub(crate) async fn launch_claude_code<R: Runtime + 'static>(
-    _app: AppHandle<R>,
+    app: AppHandle<R>,
 ) -> Result<bool, String> {
-    process::launch_claude_code().await
+    process::launch_claude_code(app).await
 }
 
 #[tauri::command]
 pub(crate) async fn restart_claude_code<R: Runtime + 'static>(
-    _app: AppHandle<R>,
+    app: AppHandle<R>,
 ) -> Result<(), String> {
-    process::restart_claude_code().await
+    process::restart_claude_code(app).await
 }
 
 #[tauri::command]
