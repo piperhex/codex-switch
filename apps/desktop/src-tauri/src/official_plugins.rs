@@ -1,4 +1,7 @@
-use std::{path::Path, sync::Mutex};
+use std::{
+    path::Path,
+    sync::{Mutex, MutexGuard},
+};
 
 use serde::Serialize;
 
@@ -8,6 +11,18 @@ mod store;
 
 const OFFICIAL_MARKETPLACES: &[&str] = &["openai-api-curated", "openai-curated"];
 static OFFICIAL_PLUGIN_LOCK: Mutex<()> = Mutex::new(());
+
+fn lock_official_plugins(lock: &Mutex<()>) -> MutexGuard<'_, ()> {
+    match lock.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => {
+            eprintln!(
+                "official plugin lock was poisoned; recovering so plugin operations can continue"
+            );
+            poisoned.into_inner()
+        }
+    }
+}
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -68,23 +83,17 @@ pub(super) struct PluginInterface {
 }
 
 fn list_official_plugins_blocking(codex_home: &Path) -> Result<Vec<OfficialPluginItem>, String> {
-    let _guard = OFFICIAL_PLUGIN_LOCK
-        .lock()
-        .map_err(|_| "The official plugin catalog is temporarily unavailable.".to_string())?;
+    let _guard = lock_official_plugins(&OFFICIAL_PLUGIN_LOCK);
     catalog::list(codex_home)
 }
 
 fn install_official_plugin_blocking(codex_home: &Path, plugin_id: &str) -> Result<(), String> {
-    let _guard = OFFICIAL_PLUGIN_LOCK
-        .lock()
-        .map_err(|_| "The official plugin installer is temporarily unavailable.".to_string())?;
+    let _guard = lock_official_plugins(&OFFICIAL_PLUGIN_LOCK);
     store::install(codex_home, plugin_id)
 }
 
 fn remove_official_plugin_blocking(codex_home: &Path, plugin_id: &str) -> Result<(), String> {
-    let _guard = OFFICIAL_PLUGIN_LOCK
-        .lock()
-        .map_err(|_| "The official plugin installer is temporarily unavailable.".to_string())?;
+    let _guard = lock_official_plugins(&OFFICIAL_PLUGIN_LOCK);
     store::remove(codex_home, plugin_id)
 }
 
@@ -93,9 +102,7 @@ fn set_official_plugin_enabled_blocking(
     plugin_id: &str,
     enabled: bool,
 ) -> Result<(), String> {
-    let _guard = OFFICIAL_PLUGIN_LOCK
-        .lock()
-        .map_err(|_| "The official plugin setting is temporarily unavailable.".to_string())?;
+    let _guard = lock_official_plugins(&OFFICIAL_PLUGIN_LOCK);
     store::set_enabled(codex_home, plugin_id, enabled)
 }
 
@@ -154,6 +161,18 @@ pub(crate) async fn set_official_plugin_enabled(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn recovers_from_a_poisoned_plugin_lock() {
+        let lock = Mutex::new(());
+        let panic_result = std::panic::catch_unwind(|| {
+            let _guard = lock.lock().expect("test lock should be available");
+            panic!("simulate a failed plugin operation");
+        });
+
+        assert!(panic_result.is_err());
+        let _guard = lock_official_plugins(&lock);
+    }
 
     #[test]
     fn accepts_only_official_plugin_ids() {
