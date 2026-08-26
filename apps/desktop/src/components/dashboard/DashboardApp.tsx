@@ -104,6 +104,7 @@ import { SettingsGroupsNav, SettingsPage } from "../../pages/SettingsPage";
 import { SkillsMarketPage } from "../../pages/SkillsMarketPage";
 import { CodexThreadsPage } from "../../pages/CodexThreadsPage";
 import { SystemPromptFilterPage } from "../../pages/SystemPromptFilterPage";
+import { SystemPromptInjectionPage } from "../../pages/SystemPromptInjectionPage";
 import { NetworkProxySettingsModal } from "../../pages/settings/NetworkProxySettings";
 import type { Translate } from "../../i18n";
 import { AccountDisplayTabs } from "./AccountDisplayTabs";
@@ -128,6 +129,7 @@ const MemoSettingsPage = memo(SettingsPage);
 const MemoSkillsMarketPage = memo(SkillsMarketPage);
 const MemoCodexThreadsPage = memo(CodexThreadsPage);
 const MemoSystemPromptFilterPage = memo(SystemPromptFilterPage);
+const MemoSystemPromptInjectionPage = memo(SystemPromptInjectionPage);
 const PROXY_START_PHASE_KEYS = {
   preparingClient: "providers.proxy.startProgress.preparingClient",
   startingProxy: "providers.proxy.startProgress.startingProxy",
@@ -167,6 +169,7 @@ type SystemMenuAction =
   | "skills"
   | "sessions"
   | "system-prompt-filter"
+  | "system-prompt-injection"
   | "settings"
   | "refresh-all"
   | "refresh-reset-credits"
@@ -210,6 +213,7 @@ function dashboardEyebrow(page: DashboardPage, t: Translate) {
   if (page === "sessions") return t("topbar.sessionsEyebrow");
   if (page === "claudeCode") return t("topbar.claudeCodeEyebrow");
   if (page === "promptFilter") return t("topbar.systemPromptFilterEyebrow");
+  if (page === "promptInjection") return t("topbar.systemPromptInjectionEyebrow");
   return t("topbar.eyebrow");
 }
 
@@ -222,6 +226,7 @@ function dashboardTitle(page: DashboardPage, t: Translate, options: {
   if (page === "sessions") return t("topbar.sessions");
   if (page === "claudeCode") return t("topbar.claudeCode");
   if (page === "promptFilter") return t("topbar.systemPromptFilter");
+  if (page === "promptInjection") return t("topbar.systemPromptInjection");
   if (page === "providers") return t("topbar.providers", { count: options.providerCount });
   return t("topbar.accounts", { count: options.accountCount });
 }
@@ -925,6 +930,9 @@ export function DashboardApp() {
       case "system-prompt-filter":
         setPage("promptFilter");
         break;
+      case "system-prompt-injection":
+        setPage("promptInjection");
+        break;
       case "settings":
         setPage("settings");
         break;
@@ -1433,6 +1441,19 @@ export function DashboardApp() {
                 onRulesChange={providerManager.saveSystemPromptFilterRules}
                 proxyRunning={providerManager.localProxy?.running ?? false}
                 rules={providerManager.localProxy?.systemPromptFilterRules ?? []}
+                t={t}
+              />
+            )}
+          </section>
+          <section className="page-panel" hidden={page !== "promptInjection"}>
+            {page === "promptInjection" && (
+              <MemoSystemPromptInjectionPage
+                enabled={providerManager.localProxy?.systemPromptInjectionEnabled ?? false}
+                loading={providerManager.proxyBusy}
+                onEnabledChange={(enabled) => void providerManager.setSystemPromptInjection(enabled)}
+                onPromptsChange={providerManager.saveSystemPromptInjectionPrompts}
+                prompts={providerManager.localProxy?.systemPromptInjectionPrompts ?? []}
+                proxyRunning={providerManager.localProxy?.running ?? false}
                 t={t}
               />
             )}

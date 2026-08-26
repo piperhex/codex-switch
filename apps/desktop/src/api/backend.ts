@@ -178,6 +178,8 @@ const LOCAL_PROXY_CUSTOM_THRESHOLD_PREVIEW_KEY = "codex-switch:local-proxy-custo
 const LOCAL_PROXY_AUTO_DISABLE_UNREACHABLE_PREVIEW_KEY = "codex-switch:local-proxy-auto-disable-unreachable";
 const SYSTEM_PROMPT_FILTER_PREVIEW_KEY = "codex-switch:system-prompt-filter";
 const SYSTEM_PROMPT_FILTER_RULES_PREVIEW_KEY = "codex-switch:system-prompt-filter-rules";
+const SYSTEM_PROMPT_INJECTION_PREVIEW_KEY = "codex-switch:system-prompt-injection";
+const SYSTEM_PROMPT_INJECTION_PROMPTS_PREVIEW_KEY = "codex-switch:system-prompt-injection-prompts";
 const LOCAL_PROXY_LISTEN_ALL_INTERFACES_PREVIEW_KEY = "codex-switch:local-proxy-listen-all-interfaces";
 const LOCAL_PROXY_LAN_API_KEY_PREVIEW_KEY = "codex-switch:local-proxy-lan-api-key";
 const LOCAL_PROXY_PORT_PREVIEW_KEY = "codex-switch:local-proxy-port";
@@ -404,6 +406,8 @@ function previewLocalProxyStatus(): LocalProxyStatus {
     autoDisableUnreachableAccounts: window.localStorage.getItem(LOCAL_PROXY_AUTO_DISABLE_UNREACHABLE_PREVIEW_KEY) === "true",
     systemPromptFilterEnabled: window.localStorage.getItem(SYSTEM_PROMPT_FILTER_PREVIEW_KEY) === "true",
     systemPromptFilterRules: readPreviewSystemPromptFilterRules(),
+    systemPromptInjectionEnabled: window.localStorage.getItem(SYSTEM_PROMPT_INJECTION_PREVIEW_KEY) === "true",
+    systemPromptInjectionPrompts: readPreviewSystemPromptInjectionPrompts(),
     listenOnAllInterfaces: window.localStorage.getItem(LOCAL_PROXY_LISTEN_ALL_INTERFACES_PREVIEW_KEY) === "true",
     hasLanApiKey: Boolean(window.localStorage.getItem(LOCAL_PROXY_LAN_API_KEY_PREVIEW_KEY)),
     imageGenerationAccountId: window.localStorage.getItem(LOCAL_PROXY_IMAGE_ACCOUNT_PREVIEW_KEY),
@@ -799,6 +803,15 @@ function readPreviewSystemPromptFilterRules(): string[] {
   try {
     const stored = JSON.parse(window.localStorage.getItem(SYSTEM_PROMPT_FILTER_RULES_PREVIEW_KEY) ?? "[]") as unknown;
     return Array.isArray(stored) ? stored.filter((rule): rule is string => typeof rule === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function readPreviewSystemPromptInjectionPrompts(): string[] {
+  try {
+    const stored = JSON.parse(window.localStorage.getItem(SYSTEM_PROMPT_INJECTION_PROMPTS_PREVIEW_KEY) ?? "[]") as unknown;
+    return Array.isArray(stored) ? stored.filter((prompt): prompt is string => typeof prompt === "string") : [];
   } catch {
     return [];
   }
@@ -1627,6 +1640,24 @@ export async function setSystemPromptFilterRules(rules: string[]): Promise<Local
     return previewLocalProxyStatus();
   }
   return invoke<LocalProxyStatus>("set_system_prompt_filter_rules", { rules });
+}
+
+export async function setSystemPromptInjectionEnabled(enabled: boolean): Promise<LocalProxyStatus> {
+  if (!hasLocalBackend) {
+    window.localStorage.setItem(SYSTEM_PROMPT_INJECTION_PREVIEW_KEY, String(enabled));
+    window.dispatchEvent(new CustomEvent(PROVIDERS_EVENT));
+    return previewLocalProxyStatus();
+  }
+  return invoke<LocalProxyStatus>("set_system_prompt_injection_enabled", { enabled });
+}
+
+export async function setSystemPromptInjectionPrompts(prompts: string[]): Promise<LocalProxyStatus> {
+  if (!hasLocalBackend) {
+    window.localStorage.setItem(SYSTEM_PROMPT_INJECTION_PROMPTS_PREVIEW_KEY, JSON.stringify(prompts));
+    window.dispatchEvent(new CustomEvent(PROVIDERS_EVENT));
+    return previewLocalProxyStatus();
+  }
+  return invoke<LocalProxyStatus>("set_system_prompt_injection_prompts", { prompts });
 }
 
 export async function setLocalProxyCustomThreshold(enabled: boolean): Promise<LocalProxyStatus> {

@@ -24,6 +24,8 @@ import {
   setLocalProxyConcurrentRouting,
   setSystemPromptFilterEnabled,
   setSystemPromptFilterRules,
+  setSystemPromptInjectionEnabled,
+  setSystemPromptInjectionPrompts,
   setProviderModelControl,
   setProviderGroup,
   setProviderAutoSwitchEnabled,
@@ -678,6 +680,34 @@ export function useProviderManager(
     }
   }, [load, notify, t]);
 
+  const setSystemPromptInjection = useCallback(async (enabled: boolean) => {
+    setProxyBusy(true);
+    try {
+      setLocalProxy(await setSystemPromptInjectionEnabled(enabled));
+      notify(t(enabled ? "toast.systemPromptInjectionEnabled" : "toast.systemPromptInjectionDisabled"));
+      await load();
+    } catch (error) {
+      notify(String(error));
+    } finally {
+      setProxyBusy(false);
+    }
+  }, [load, notify, t]);
+
+  const saveSystemPromptInjectionPrompts = useCallback(async (prompts: string[]) => {
+    setProxyBusy(true);
+    try {
+      setLocalProxy(await setSystemPromptInjectionPrompts(prompts));
+      notify(t("toast.systemPromptInjectionPromptsSaved"));
+      await load();
+      return true;
+    } catch (error) {
+      notify(String(error));
+      return false;
+    } finally {
+      setProxyBusy(false);
+    }
+  }, [load, notify, t]);
+
   const copyProxyLanApiKey = useCallback(async () => {
     try {
       await copyLocalProxyLanApiKey();
@@ -728,6 +758,8 @@ export function useProviderManager(
     setProxyListenOnAllInterfaces,
     setSystemPromptFilter,
     saveSystemPromptFilterRules,
+    setSystemPromptInjection,
+    saveSystemPromptInjectionPrompts,
     copyProxyLanApiKey,
     reload: load,
   };

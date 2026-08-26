@@ -3,6 +3,7 @@ import {
   Bot,
   FolderOpen,
   ListFilter,
+  Sparkles,
   PackageOpen,
   Palette,
   Server,
@@ -20,6 +21,7 @@ export type DashboardPage =
   | "skills"
   | "sessions"
   | "promptFilter"
+  | "promptInjection"
   | "settings"
   | "claudeCode";
 
@@ -36,6 +38,7 @@ const NAVIGATION_ITEMS = [
   { page: "accounts", icon: UserRound, labelKey: "nav.accounts" },
   { page: "sessions", icon: FolderOpen, labelKey: "nav.sessions" },
   { page: "promptFilter", icon: ListFilter, labelKey: "nav.systemPromptFilter" },
+  { page: "promptInjection", icon: Sparkles, labelKey: "nav.systemPromptInjection" },
   { page: "providers", icon: Server, labelKey: "nav.providers" },
   { page: "claudeCode", icon: Bot, labelKey: "nav.claudeCode" },
   { page: "tokens", icon: BarChart3, labelKey: "nav.tokenUsage" },

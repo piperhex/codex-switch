@@ -6,6 +6,7 @@ include!("commands_status.rs");
 include!("lifecycle.rs");
 include!("settings.rs");
 include!("system_prompt_filter.rs");
+include!("system_prompt_injection.rs");
 include!("server.rs");
 include!("routing_auto.rs");
 include!("routing_target.rs");

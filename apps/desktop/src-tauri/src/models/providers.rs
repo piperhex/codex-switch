@@ -110,6 +110,9 @@ pub(crate) struct LocalProxyStatus {
     pub(crate) auto_disable_unreachable_accounts: bool,
     pub(crate) system_prompt_filter_enabled: bool,
     pub(crate) system_prompt_filter_rules: Vec<String>,
+    #[serde(default)]
+    pub(crate) system_prompt_injection_enabled: bool,
+    pub(crate) system_prompt_injection_prompts: Vec<String>,
     pub(crate) listen_on_all_interfaces: bool,
     pub(crate) has_lan_api_key: bool,
     pub(crate) image_generation_account_id: Option<String>,

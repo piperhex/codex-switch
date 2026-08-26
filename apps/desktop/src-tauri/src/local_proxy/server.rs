@@ -17,6 +17,10 @@ fn start_server<R: Runtime>(app: tauri::AppHandle<R>) -> Result<bool, String> {
         state.system_prompt_filter_enabled,
         state.system_prompt_filter_rules.clone(),
     );
+    set_system_prompt_injection_runtime_config(
+        state.system_prompt_injection_enabled,
+        state.system_prompt_injection_prompts.clone(),
+    );
     let bind_addr = format!(
         "{}:{LOCAL_PROXY_PORT}",
         proxy_bind_host(lan_listening_enabled(&state))
@@ -380,7 +384,7 @@ fn handle_proxy_request<R: Runtime>(
     let body = if is_anthropic_messages_endpoint(path) {
         body
     } else {
-        filter_system_prompts(body)
+        inject_system_prompts(filter_system_prompts(body))
     };
     let route = proxy_diagnostic_route(path, &target);
     let diagnostic = proxy_diagnostic_entry(method, url, headers, &body, Some(&target), route);
