@@ -58,7 +58,7 @@ fn forward_anthropic_official<R: tauri::Runtime>(
     let app_settings = read_app_settings(app)?;
     let subagent_model = crate::third_party_apps::effective_settings(&app_settings)
         .claude_subagent_model;
-    let responses_body = filter_system_prompt_value(anthropic_to_responses(&request, subagent_model));
+    let responses_body = filter_system_prompt_value(anthropic_to_responses(&request, &subagent_model));
     let encoded = serde_json::to_vec(&responses_body)
         .map_err(|error| format!("Failed to encode Anthropic request: {error}"))?;
     let mut payload = send_official_request(
@@ -80,6 +80,7 @@ fn forward_anthropic_official<R: tauri::Runtime>(
 fn forward_anthropic_provider(
     body: Vec<u8>,
     provider: &ProviderProfile,
+    subagent_model: &str,
 ) -> Result<UpstreamPayload, String> {
     let request: Value = serde_json::from_slice(&body)
         .map_err(|error| format!("Anthropic request body is not valid JSON: {error}"))?;
@@ -93,9 +94,19 @@ fn forward_anthropic_provider(
         .unwrap_or("claude");
     let mut responses_body = filter_system_prompt_value(anthropic_to_responses(
         &request,
-        crate::models::ClaudeSubagentModel::Sol,
+        subagent_model,
     ));
-    responses_body["model"] = Value::String(provider.model.clone());
+    let target_model = if is_anthropic_subagent_request(&request) {
+        provider
+            .models
+            .iter()
+            .find(|model| model.as_str() == subagent_model)
+            .cloned()
+            .unwrap_or_else(|| provider.model.clone())
+    } else {
+        provider.model.clone()
+    };
+    responses_body["model"] = Value::String(target_model);
     let encoded = serde_json::to_vec(&responses_body)
         .map_err(|error| format!("Failed to encode Anthropic request: {error}"))?;
     let payload = forward_provider_request(

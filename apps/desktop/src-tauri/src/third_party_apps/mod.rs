@@ -1,7 +1,7 @@
 mod json_targets;
 mod yaml_targets;
 
-use std::path::Path;
+use std::{fs, path::Path};
 
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Runtime};
@@ -128,13 +128,16 @@ pub(crate) fn sync_after_switch<R: Runtime>(app: &AppHandle<R>) -> Result<(), St
                 errors.push(format!("Claude Desktop：{error}"));
             }
             claude_code::write_official_proxy_settings(
-                effective_settings(&settings).claude_subagent_model,
+                &effective_settings(&settings).claude_subagent_model,
             )
         } else {
             if let Err(error) = crate::claude_desktop::clear_proxy_settings() {
                 errors.push(format!("Claude Desktop：{error}"));
             }
-            claude_code::write_provider_settings(None)
+            claude_code::write_provider_settings(
+                None,
+                &effective_settings(&settings).claude_subagent_model,
+            )
         };
         if let Err(error) = result {
             errors.push(format!("Claude Code：{error}"));
@@ -245,13 +248,19 @@ fn active_provider<R: Runtime>(app: &AppHandle<R>) -> Result<Option<ProviderProf
         && crate::local_proxy::is_running()
     {
         let context_window = read_app_settings(app)?.gpt_5_6_sol_context_window;
-        return Ok(Some(official_local_proxy_profile(context_window)));
+        let models = official_local_proxy_models(&paths.codex_home);
+        return Ok(Some(official_local_proxy_profile(context_window, models)));
     }
     Ok(None)
 }
 
-fn official_local_proxy_profile(context_window: u64) -> ProviderProfile {
+fn official_local_proxy_profile(context_window: u64, models: Vec<String>) -> ProviderProfile {
     let model = DEFAULT_OFFICIAL_MODEL.to_string();
+    let models = if models.is_empty() {
+        vec![model.clone()]
+    } else {
+        models
+    };
     ProviderProfile {
         id: MANAGED_PROVIDER_ID.to_string(),
         kind: ProviderKind::OpenAi,
@@ -260,7 +269,7 @@ fn official_local_proxy_profile(context_window: u64) -> ProviderProfile {
         base_url: LOCAL_PROXY_BASE_URL.to_string(),
         api_key: LOCAL_PROXY_TOKEN.to_string(),
         model: model.clone(),
-        models: vec![model],
+        models,
         model_reasoning_efforts: ModelReasoningEfforts::new(),
         model_context_windows: ModelContextWindows::new(),
         model_api_formats: ModelApiFormats::new(),
@@ -277,6 +286,36 @@ fn official_local_proxy_profile(context_window: u64) -> ProviderProfile {
         wallet_username: None,
         wallet_password: None,
     }
+}
+
+fn official_local_proxy_models(codex_home: &Path) -> Vec<String> {
+    let path = codex_home.join("codex-switch-model-catalog.json");
+    let Ok(source) = fs::read_to_string(path) else {
+        return Vec::new();
+    };
+    let Ok(catalog) = serde_json::from_str::<serde_json::Value>(&source) else {
+        return Vec::new();
+    };
+    let Some(entries) = catalog.get("models").and_then(serde_json::Value::as_array) else {
+        return Vec::new();
+    };
+    let mut models = Vec::new();
+    for entry in entries {
+        let Some(model) = ["slug", "id"]
+            .into_iter()
+            .find_map(|field| entry.get(field).and_then(serde_json::Value::as_str))
+        else {
+            continue;
+        };
+        let model = model.trim();
+        if !model.is_empty() && !models.iter().any(|known| known == model) {
+            models.push(model.to_string());
+        }
+    }
+    if !models.iter().any(|model| model == DEFAULT_OFFICIAL_MODEL) {
+        models.insert(0, DEFAULT_OFFICIAL_MODEL.to_string());
+    }
+    models
 }
 
 #[cfg(test)]
@@ -331,7 +370,7 @@ pub(crate) mod tests {
 
     #[test]
     fn official_local_proxy_profile_targets_the_responses_endpoint() {
-        let profile = official_local_proxy_profile(1_000_000);
+        let profile = official_local_proxy_profile(1_000_000, Vec::new());
         assert_eq!(profile.base_url, LOCAL_PROXY_BASE_URL);
         assert_eq!(profile.api_key, LOCAL_PROXY_TOKEN);
         assert_eq!(profile.api_format, ProviderApiFormat::OpenaiResponses);

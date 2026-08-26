@@ -469,7 +469,8 @@ export interface ThirdPartyAppWriteSettings {
   claudeSubagentModel: ClaudeSubagentModel;
 }
 
-export type ClaudeSubagentModel = "sol" | "terra" | "luna";
+/** Model identifier used for Claude Code background agents. */
+export type ClaudeSubagentModel = string;
 
 export interface NetworkProxySettings {
   enabled: boolean;

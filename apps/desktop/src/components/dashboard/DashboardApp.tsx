@@ -390,6 +390,15 @@ export function DashboardApp() {
   const resetCredits = useResetCredits(manager.accounts, notify, t);
   const activeAccount = manager.accounts.find((account) => account.active) ?? null;
   const activeProvider = providerManager.activeProvider;
+  const thirdPartySubagentModels = useMemo(() => {
+    if (!activeProvider || activeProvider.kind !== "custom") return ["sol", "terra", "luna"];
+    return [...new Set([activeProvider.model, ...activeProvider.models].map((model) => model.trim())
+      .filter(Boolean))];
+  }, [activeProvider]);
+  const thirdPartySubagentModel = activeProvider?.kind === "custom"
+    && !thirdPartySubagentModels.includes(thirdPartyAppIntegration.settings.claudeSubagentModel)
+    ? (thirdPartySubagentModels[0] ?? thirdPartyAppIntegration.settings.claudeSubagentModel)
+    : thirdPartyAppIntegration.settings.claudeSubagentModel;
   const concurrentRoutingActive = Boolean(
     providerManager.localProxy?.running
       && providerManager.localProxy.concurrentAccountRoutingEnabled,
@@ -1329,6 +1338,8 @@ export function DashboardApp() {
                 onOpenProviders={() => setPage("providers")}
                 onAppChange={thirdPartyAppIntegration.changeApp}
                 onSubagentModelChange={thirdPartyAppIntegration.changeSubagentModel}
+                subagentModels={thirdPartySubagentModels}
+                subagentModel={thirdPartySubagentModel}
                 onLaunch={(appId) => void thirdPartyAppIntegration.launch(appId)}
                 onRestart={(appId) => void thirdPartyAppIntegration.restart(appId)}
                 t={t}

@@ -1,6 +1,6 @@
 fn anthropic_to_responses(
     request: &Value,
-    subagent_model: crate::models::ClaudeSubagentModel,
+    subagent_model: &str,
 ) -> Value {
     let mut body = json!({
         "model": codex_model_for_anthropic_request(request, subagent_model),
@@ -33,13 +33,14 @@ fn is_anthropic_token_probe(body: &[u8]) -> bool {
 
 fn codex_model_for_anthropic_request(
     request: &Value,
-    subagent_model: crate::models::ClaudeSubagentModel,
-) -> &'static str {
+    subagent_model: &str,
+) -> String {
     if is_anthropic_subagent_request(request) {
         return match subagent_model {
-            crate::models::ClaudeSubagentModel::Sol => "gpt-5.6-sol",
-            crate::models::ClaudeSubagentModel::Terra => "gpt-5.6-terra",
-            crate::models::ClaudeSubagentModel::Luna => "gpt-5.6-luna",
+            "terra" => "gpt-5.6-terra".to_string(),
+            "luna" => "gpt-5.6-luna".to_string(),
+            "sol" => "gpt-5.6-sol".to_string(),
+            custom => custom.to_string(),
         };
     }
     let requested = request
@@ -48,9 +49,9 @@ fn codex_model_for_anthropic_request(
         .unwrap_or_default()
         .to_ascii_lowercase();
     if requested.contains("haiku") {
-        "gpt-5.6-luna"
+        "gpt-5.6-luna".to_string()
     } else {
-        crate::providers::DEFAULT_OFFICIAL_MODEL
+        crate::providers::DEFAULT_OFFICIAL_MODEL.to_string()
     }
 }
 

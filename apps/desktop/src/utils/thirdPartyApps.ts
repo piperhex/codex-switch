@@ -75,6 +75,6 @@ export function normalizeThirdPartyAppWriteSettings(
     enabled: settings.enabled ?? fallback.enabled,
     writeCodex: settings.writeCodex ?? fallback.writeCodex,
     apps,
-    claudeSubagentModel: settings.claudeSubagentModel ?? fallback.claudeSubagentModel,
+    claudeSubagentModel: settings.claudeSubagentModel?.trim() || fallback.claudeSubagentModel,
   };
 }

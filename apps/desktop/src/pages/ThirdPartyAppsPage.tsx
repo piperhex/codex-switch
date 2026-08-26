@@ -38,6 +38,8 @@ interface ThirdPartyAppsPageProps {
   onOpenProviders: () => void;
   onAppChange: (appId: ThirdPartyAppId, enabled: boolean) => void;
   onSubagentModelChange: (model: ClaudeSubagentModel) => void;
+  subagentModels: string[];
+  subagentModel: ClaudeSubagentModel;
   onLaunch: (appId: LaunchableThirdPartyApp) => void;
   onRestart: (appId: LaunchableThirdPartyApp) => void;
   t: Translate;
@@ -49,6 +51,15 @@ function isLaunchableThirdPartyApp(appId: ThirdPartyAppId): appId is LaunchableT
   return appId === "claudeCode" || appId === "openCode";
 }
 
+function subagentModelLabel(model: string) {
+  const officialLabels: Record<string, string> = {
+    sol: "GPT-5.6 Sol",
+    terra: "GPT-5.6 Terra",
+    luna: "GPT-5.6 Luna",
+  };
+  return officialLabels[model] ?? model;
+}
+
 interface AppRowProps {
   appId: ThirdPartyAppId;
   label: string;
@@ -56,6 +67,7 @@ interface AppRowProps {
   disabled: boolean;
   busy: ThirdPartyAppsPageProps["busy"];
   subagentModel: ClaudeSubagentModel;
+  subagentModels: string[];
   onChange: (appId: ThirdPartyAppId, enabled: boolean) => void;
   onSubagentModelChange: (model: ClaudeSubagentModel) => void;
   onLaunch: (appId: LaunchableThirdPartyApp) => void;
@@ -65,7 +77,7 @@ interface AppRowProps {
 
 function AppRow(props: AppRowProps) {
   const {
-    appId, label, checked, disabled, busy, subagentModel,
+    appId, label, checked, disabled, busy, subagentModel, subagentModels,
     onChange, onSubagentModelChange, onLaunch, onRestart, t,
   } = props;
   const hasProcessControls = isLaunchableThirdPartyApp(appId);
@@ -85,11 +97,7 @@ function AppRow(props: AppRowProps) {
               value={subagentModel}
               disabled={disabled}
               onChange={onSubagentModelChange}
-              options={[
-                { value: "sol", label: "GPT-5.6 Sol" },
-                { value: "terra", label: "GPT-5.6 Terra" },
-                { value: "luna", label: "GPT-5.6 Luna" },
-              ]}
+              options={subagentModels.map((model) => ({ value: model, label: subagentModelLabel(model) }))}
               style={{ width: 150 }}
             />
             <Button size="small" icon={<Play size={14} />} loading={busy === "launch"}
@@ -118,6 +126,7 @@ export function ThirdPartyAppsPage(props: ThirdPartyAppsPageProps) {
     settings, saving, proxyBusy, proxyRunning, proxyStartDisabledReason, hasProxyTarget, busy,
     onEnabledChange, onWriteCodexChange, onStartProxy, onOpenAccounts, onOpenProviders,
     onAppChange, onSubagentModelChange, onLaunch, onRestart, t,
+    subagentModels, subagentModel,
   } = props;
   const [topbarHost, setTopbarHost] = useState<HTMLElement | null>(null);
 
@@ -178,7 +187,8 @@ export function ThirdPartyAppsPage(props: ThirdPartyAppsPageProps) {
             {THIRD_PARTY_APPS.map(({ id, labelKey }) => (
               <AppRow key={id} appId={id} label={t(labelKey)} checked={settings.apps[id]}
                 disabled={!settings.enabled || saving} busy={busy}
-                subagentModel={settings.claudeSubagentModel} onChange={onAppChange}
+                subagentModel={subagentModel} onChange={onAppChange}
+                subagentModels={subagentModels}
                 onSubagentModelChange={onSubagentModelChange}
                 onLaunch={onLaunch} onRestart={onRestart} t={t} />
             ))}

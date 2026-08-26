@@ -460,7 +460,10 @@ fn forward_active_request<R: Runtime>(
         }
         ActiveTarget::Provider(provider) => {
             if is_anthropic_messages_endpoint(request_path(url)) {
-                return forward_anthropic_provider(body, provider);
+                let settings = read_app_settings(app)?;
+                let subagent_model =
+                    crate::third_party_apps::effective_settings(&settings).claude_subagent_model;
+                return forward_anthropic_provider(body, provider, &subagent_model);
             }
             forward_provider_request(method, url, headers, body, provider)
         }

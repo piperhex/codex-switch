@@ -5,7 +5,7 @@ use tauri::{AppHandle, Runtime};
 
 use crate::{
     codex_config::LOCAL_PROXY_BASE_URL,
-    models::{AppSettings, ClaudeCodeWriteTarget, ClaudeSubagentModel, ProviderProfile},
+    models::{AppSettings, ClaudeCodeWriteTarget, ProviderProfile},
     storage::{read_app_settings, read_json, write_app_settings, write_json_atomic},
 };
 
@@ -84,7 +84,10 @@ fn claude_settings_path() -> Result<PathBuf, String> {
     Ok(home.join(".claude").join(CLAUDE_SETTINGS_FILE))
 }
 
-pub(crate) fn write_provider_settings(provider: Option<&ProviderProfile>) -> Result<(), String> {
+pub(crate) fn write_provider_settings(
+    provider: Option<&ProviderProfile>,
+    subagent_model: &str,
+) -> Result<(), String> {
     let path = claude_settings_path()?;
     let mut settings = match read_json(&path) {
         Ok(value) if value.is_object() => value,
@@ -102,7 +105,7 @@ pub(crate) fn write_provider_settings(provider: Option<&ProviderProfile>) -> Res
         .ok_or_else(|| "Claude Code settings.json 的 env 必须是 JSON 对象".to_string())?;
 
     match provider {
-        Some(provider) => apply_provider_environment(env, provider),
+        Some(provider) => apply_provider_environment(env, provider, subagent_model),
         None => clear_provider_environment(env),
     }
 
@@ -111,9 +114,7 @@ pub(crate) fn write_provider_settings(provider: Option<&ProviderProfile>) -> Res
 
 /// Writes the local proxy endpoint used when the selected route is an official
 /// account rather than a third-party Provider.
-pub(crate) fn write_official_proxy_settings(
-    subagent_model: ClaudeSubagentModel,
-) -> Result<(), String> {
+pub(crate) fn write_official_proxy_settings(subagent_model: &str) -> Result<(), String> {
     let path = claude_settings_path()?;
     let mut settings = match read_json(&path) {
         Ok(value) if value.is_object() => value,
@@ -133,10 +134,7 @@ pub(crate) fn write_official_proxy_settings(
     write_json_atomic(&path, &settings)
 }
 
-fn apply_official_proxy_environment(
-    env: &mut Map<String, Value>,
-    subagent_model: ClaudeSubagentModel,
-) {
+fn apply_official_proxy_environment(env: &mut Map<String, Value>, subagent_model: &str) {
     env.insert(
         ANTHROPIC_BASE_URL.into(),
         Value::String(claude_base_url(LOCAL_PROXY_BASE_URL).to_string()),
@@ -161,9 +159,9 @@ fn apply_official_proxy_environment(
     );
     disable_dynamic_attribution(env);
     let subagent_route = match subagent_model {
-        ClaudeSubagentModel::Sol => CLAUDE_PROXY_SONNET_MODEL,
-        ClaudeSubagentModel::Terra => CLAUDE_PROXY_SONNET_MODEL,
-        ClaudeSubagentModel::Luna => CLAUDE_PROXY_HAIKU_MODEL,
+        "terra" => CLAUDE_PROXY_SONNET_MODEL,
+        "luna" => CLAUDE_PROXY_HAIKU_MODEL,
+        _ => CLAUDE_PROXY_SONNET_MODEL,
     };
     env.insert(
         CLAUDE_CODE_SUBAGENT_MODEL.into(),
@@ -171,7 +169,11 @@ fn apply_official_proxy_environment(
     );
 }
 
-fn apply_provider_environment(env: &mut Map<String, Value>, provider: &ProviderProfile) {
+fn apply_provider_environment(
+    env: &mut Map<String, Value>,
+    provider: &ProviderProfile,
+    subagent_model: &str,
+) {
     let base_url = claude_base_url(&provider.base_url);
     env.insert(
         ANTHROPIC_BASE_URL.into(),
@@ -184,6 +186,15 @@ fn apply_provider_environment(env: &mut Map<String, Value>, provider: &ProviderP
     env.insert(
         ANTHROPIC_DEFAULT_SONNET_MODEL.into(),
         Value::String(provider.model.clone()),
+    );
+    let selected_subagent_model = provider
+        .models
+        .iter()
+        .find(|model| model.as_str() == subagent_model)
+        .unwrap_or(&provider.model);
+    env.insert(
+        CLAUDE_CODE_SUBAGENT_MODEL.into(),
+        Value::String(selected_subagent_model.clone()),
     );
     env.remove(ANTHROPIC_API_KEY);
     env.insert(
@@ -263,7 +274,7 @@ mod tests {
     fn official_proxy_environment_uses_the_local_proxy_route() {
         let mut env = Map::from_iter([(ANTHROPIC_API_KEY.to_string(), json!("stale"))]);
 
-        apply_official_proxy_environment(&mut env, ClaudeSubagentModel::Sol);
+        apply_official_proxy_environment(&mut env, "sol");
 
         assert_eq!(
             env.get(ANTHROPIC_BASE_URL),

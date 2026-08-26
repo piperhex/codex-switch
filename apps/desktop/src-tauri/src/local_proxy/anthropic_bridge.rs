@@ -299,7 +299,7 @@ mod anthropic_bridge_tests {
     use super::*;
 
     fn convert(request: &Value) -> Value {
-        anthropic_to_responses(request, crate::models::ClaudeSubagentModel::Sol)
+        anthropic_to_responses(request, "sol")
     }
 
     #[test]
@@ -389,10 +389,11 @@ mod anthropic_bridge_tests {
         assert_eq!(
             anthropic_to_responses(
                 &subagent,
-                crate::models::ClaudeSubagentModel::Terra,
+                "terra",
             )["model"],
             "gpt-5.6-terra"
         );
+        assert_eq!(anthropic_to_responses(&subagent, "provider-model")["model"], "provider-model");
         assert!(is_anthropic_token_probe(
             br#"{"max_tokens":1,"messages":[{"role":"user","content":"count"}]}"#
         ));
