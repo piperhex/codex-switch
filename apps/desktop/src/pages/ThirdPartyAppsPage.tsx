@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Button, Card, Select, Space, Switch, Typography } from "antd";
+import { Button, Card, Popconfirm, Select, Space, Switch, Typography } from "antd";
 import { Play, RefreshCw, SquareTerminal } from "lucide-react";
 import type { Translate, TranslationKey } from "../i18n";
 import type {
@@ -26,9 +26,16 @@ const THIRD_PARTY_APPS: ReadonlyArray<{
 interface ThirdPartyAppsPageProps {
   settings: ThirdPartyAppWriteSettings;
   saving: boolean;
+  proxyBusy: boolean;
+  proxyRunning: boolean;
+  proxyStartDisabledReason?: string;
+  hasProxyTarget: boolean;
   busy: "launch" | "restart" | null;
   onEnabledChange: (enabled: boolean) => void;
   onWriteCodexChange: (enabled: boolean) => void;
+  onStartProxy: () => void;
+  onOpenAccounts: () => void;
+  onOpenProviders: () => void;
   onAppChange: (appId: ThirdPartyAppId, enabled: boolean) => void;
   onSubagentModelChange: (model: ClaudeSubagentModel) => void;
   onLaunch: (appId: LaunchableThirdPartyApp) => void;
@@ -108,7 +115,8 @@ function AppRow(props: AppRowProps) {
 
 export function ThirdPartyAppsPage(props: ThirdPartyAppsPageProps) {
   const {
-    settings, saving, busy, onEnabledChange, onWriteCodexChange,
+    settings, saving, proxyBusy, proxyRunning, proxyStartDisabledReason, hasProxyTarget, busy,
+    onEnabledChange, onWriteCodexChange, onStartProxy, onOpenAccounts, onOpenProviders,
     onAppChange, onSubagentModelChange, onLaunch, onRestart, t,
   } = props;
   const [topbarHost, setTopbarHost] = useState<HTMLElement | null>(null);
@@ -121,9 +129,35 @@ export function ThirdPartyAppsPage(props: ThirdPartyAppsPageProps) {
     <>
       {topbarHost && createPortal(
         <div className="third-party-apps-topbar-controls">
+          {!proxyRunning && (
+            <div className="third-party-apps-proxy-warning">
+              <Typography.Text type="warning">{t("thirdPartyApps.proxyRequired")}</Typography.Text>
+              <Popconfirm title={t("providers.proxy.startConfirmTitle")}
+                description={<span className="proxy-start-confirm-description">{t("providers.proxy.description")}</span>}
+                okText={t("providers.proxy.start")} cancelText={t("providers.proxy.cancel")}
+                disabled={proxyBusy || Boolean(proxyStartDisabledReason)} onConfirm={onStartProxy}>
+                <Button type="link" size="small" loading={proxyBusy}
+                  disabled={proxyBusy || Boolean(proxyStartDisabledReason)}>
+                  {t("thirdPartyApps.openProxy")}
+                </Button>
+              </Popconfirm>
+            </div>
+          )}
+          {proxyRunning && !hasProxyTarget && (
+            <div className="third-party-apps-proxy-warning">
+              <Typography.Text type="warning">{t("thirdPartyApps.targetRequired")}</Typography.Text>
+              <Button type="link" size="small" onClick={onOpenAccounts}>
+                {t("thirdPartyApps.openAccounts")}
+              </Button>
+              <Button type="link" size="small" onClick={onOpenProviders}>
+                {t("thirdPartyApps.openProviders")}
+              </Button>
+            </div>
+          )}
           <label className="third-party-apps-topbar-control">
             <Typography.Text strong>{t("thirdPartyApps.masterWrite")}</Typography.Text>
-            <Switch checked={settings.enabled} loading={saving} onChange={onEnabledChange}
+            <Switch checked={settings.enabled} loading={saving}
+              disabled={!proxyRunning || !hasProxyTarget} onChange={onEnabledChange}
               aria-label={t("thirdPartyApps.masterWrite")} />
           </label>
           <label className="third-party-apps-topbar-control">

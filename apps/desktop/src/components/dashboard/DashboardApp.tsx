@@ -1317,9 +1317,16 @@ export function DashboardApp() {
               <MemoThirdPartyAppsPage
                 settings={thirdPartyAppIntegration.settings}
                 saving={thirdPartyAppIntegration.saving}
+                proxyBusy={providerManager.proxyBusy}
+                proxyRunning={Boolean(providerManager.localProxy?.running)}
+                proxyStartDisabledReason={proxyStartDisabledReason}
+                hasProxyTarget={Boolean(activeProvider || activeAccount?.official)}
                 busy={thirdPartyAppIntegration.busy}
                 onEnabledChange={thirdPartyAppIntegration.changeEnabled}
                 onWriteCodexChange={thirdPartyAppIntegration.changeWriteCodex}
+                onStartProxy={() => void providerManager.startProxy()}
+                onOpenAccounts={() => setPage("accounts")}
+                onOpenProviders={() => setPage("providers")}
                 onAppChange={thirdPartyAppIntegration.changeApp}
                 onSubagentModelChange={thirdPartyAppIntegration.changeSubagentModel}
                 onLaunch={(appId) => void thirdPartyAppIntegration.launch(appId)}
