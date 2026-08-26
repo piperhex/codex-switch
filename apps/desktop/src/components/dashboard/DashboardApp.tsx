@@ -21,6 +21,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
   chooseAndExportDiagnosticLogs,
+  copyWebProxyLanApiKey,
   consumeResetCredit,
   DEFAULT_AUTO_DISABLE_STATUS_CODES,
   DEFAULT_CLOUD_BASE_URL,
@@ -568,6 +569,15 @@ export function DashboardApp() {
       notify(String(error));
     } finally {
       setWebProxyPortLoading(false);
+    }
+  }, [notify, t]);
+
+  const copyWebProxyKey = useCallback(async () => {
+    try {
+      await copyWebProxyLanApiKey();
+      notify(t("providers.proxy.lanApiKeyCopied"));
+    } catch (error) {
+      notify(String(error));
     }
   }, [notify, t]);
 
@@ -1410,6 +1420,7 @@ export function DashboardApp() {
               webProxyPortLoading={webProxyPortLoading}
               onWebProxyPortChange={changeWebProxyPort}
               onWebProxyListenOnAllInterfacesChange={changeWebProxyListenOnAllInterfaces}
+              onCopyWebProxyLanApiKey={copyWebProxyKey}
               onOpenWebVersion={openWebVersion}
               networkProxy={networkProxy}
               networkProxyLoading={networkProxyLoading}

@@ -45,6 +45,7 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
         "set_web_proxy_listen_on_all_interfaces" => serialize(block_on(
             set_web_proxy_listen_on_all_interfaces(app, argument(&args, "enabled")?),
         )),
+        "copy_web_proxy_lan_api_key" => serialize(block_on(copy_web_proxy_lan_api_key(app))),
         "set_network_proxy" => serialize(block_on(crate::network_proxy::set_network_proxy(
             app,
             argument(&args, "settings")?,

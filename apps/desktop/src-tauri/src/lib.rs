@@ -350,6 +350,7 @@ pub fn run() {
             network_proxy::set_network_proxy,
             web_server::set_web_proxy_port,
             web_server::set_web_proxy_listen_on_all_interfaces,
+            web_server::copy_web_proxy_lan_api_key,
             floating_bubble::resize_floating_bubble,
             floating_bubble::resize_floating_bubble_for_provider_card,
             floating_bubble::drag_floating_bubble,

@@ -71,6 +71,7 @@ export interface SettingsPageProps {
   webProxyPortLoading?: boolean;
   onWebProxyPortChange?: (port: number | null) => void;
   onWebProxyListenOnAllInterfacesChange?: (enabled: boolean) => void;
+  onCopyWebProxyLanApiKey?: () => Promise<void> | void;
   onOpenWebVersion?: (url: string) => void;
   networkProxy: NetworkProxySettings;
   networkProxyLoading: boolean;

@@ -103,19 +103,67 @@ interface HostedInvokeResponse<T> {
   error?: string;
 }
 
+const HOSTED_WEB_API_KEY_STORAGE_KEY = "codex-switch:hosted-web-api-key";
+
+function readHostedWebApiKey() {
+  try {
+    return window.sessionStorage.getItem(HOSTED_WEB_API_KEY_STORAGE_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+function writeHostedWebApiKey(value: string) {
+  try {
+    if (value) window.sessionStorage.setItem(HOSTED_WEB_API_KEY_STORAGE_KEY, value);
+    else window.sessionStorage.removeItem(HOSTED_WEB_API_KEY_STORAGE_KEY);
+  } catch {
+    // Private browsing may disable session storage; the key remains in memory
+    // for the current request flow instead.
+  }
+}
+
+let hostedWebApiKeyPrompt: Promise<string | null> | null = null;
+
+function requestHostedWebApiKey() {
+  if (!hostedWebApiKeyPrompt) {
+    const prompt = navigator.language.toLowerCase().startsWith("zh")
+      ? "请输入 Codex Switch 中显示的局域网访问密钥。"
+      : "Enter the LAN access key shown in Codex Switch.";
+    hostedWebApiKeyPrompt = Promise.resolve(window.prompt(
+      prompt,
+    )).finally(() => {
+      hostedWebApiKeyPrompt = null;
+    });
+  }
+  return hostedWebApiKeyPrompt;
+}
+
 async function invoke<T = void>(command: string, args: Record<string, unknown> = {}): Promise<T> {
   if (isDesktopApp) return invokeTauri<T>(command, args);
   if (!isHostedWebApp) throw new Error(`Native command is unavailable in browser preview: ${command}`);
 
-  const response = await fetch("/__codex_switch__/api/invoke", {
+  const body = JSON.stringify({ command, args });
+  const request = (apiKey: string) => fetch("/__codex_switch__/api/invoke", {
     method: "POST",
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
+      ...(apiKey ? { "X-API-Key": apiKey } : {}),
     },
     cache: "no-store",
-    body: JSON.stringify({ command, args }),
+    body,
   });
+  let response = await request(readHostedWebApiKey());
+  if (response.status === 401) {
+    writeHostedWebApiKey("");
+    const suppliedKey = (await requestHostedWebApiKey())?.trim() || "";
+    if (suppliedKey) {
+      writeHostedWebApiKey(suppliedKey);
+      response = await request(suppliedKey);
+      if (response.status === 401) writeHostedWebApiKey("");
+    }
+  }
   if (!response.ok) {
     throw new Error((await response.text().catch(() => "")) || `Web command failed with HTTP ${response.status}`);
   }
@@ -1569,6 +1617,10 @@ export async function previewCodexThreadImport(importPath: string): Promise<Code
 
 export async function importCodexThreads(importPath: string, sessionIds: string[]): Promise<CodexThreadBundleResult> {
   return invoke<CodexThreadBundleResult>("unpack_codex_threads", { importPath, sessionIds });
+}
+
+export function copyWebProxyLanApiKey(): Promise<void> {
+  return invoke<void>("copy_web_proxy_lan_api_key");
 }
 
 export async function migrateCodexThreads(sessionIds: string[]): Promise<CodexThreadMigrationReport> {

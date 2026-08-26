@@ -50,10 +50,11 @@ struct WebServerRuntime {
     handle: Option<JoinHandle<()>>,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 struct WebServerConfiguration {
     port: u16,
     listen_on_all_interfaces: bool,
+    lan_api_key: Option<String>,
 }
 
 fn runtime() -> &'static Mutex<Option<WebServerRuntime>> {
@@ -66,13 +67,8 @@ pub(crate) fn setup(app: &AppHandle, port_override: Option<u16>) -> Result<(), S
     let port = port_override.or(settings.web_proxy_port);
     if let Some(port) = port {
         validate_port(port)?;
-        start_server(
-            app.clone(),
-            WebServerConfiguration {
-                port,
-                listen_on_all_interfaces: settings.web_proxy_listen_on_all_interfaces,
-            },
-        )?;
+        let configuration = configuration_for_settings(app, port, &settings)?;
+        start_server(app.clone(), configuration)?;
     }
     Ok(())
 }
@@ -80,17 +76,32 @@ pub(crate) fn setup(app: &AppHandle, port_override: Option<u16>) -> Result<(), S
 pub(crate) fn restart_at_port(app: &AppHandle, port: u16) -> Result<(), String> {
     validate_port(port)?;
     let settings = read_app_settings(app)?;
-    let configuration = WebServerConfiguration {
-        port,
-        listen_on_all_interfaces: settings.web_proxy_listen_on_all_interfaces,
-    };
     let previous_configuration = running_configuration();
-    if previous_configuration == Some(configuration) {
+    let previous_key = stored_web_lan_api_key(app)?;
+    let rotate_key = settings.web_proxy_listen_on_all_interfaces
+        && previous_configuration
+            .as_ref()
+            .is_some_and(|configuration| configuration.port != port);
+    let configuration = if rotate_key {
+        let key = generate_web_lan_api_key();
+        write_web_lan_api_key(app, Some(key.clone()))?;
+        WebServerConfiguration {
+            port,
+            listen_on_all_interfaces: true,
+            lan_api_key: Some(key),
+        }
+    } else {
+        configuration_for_settings(app, port, &settings)?
+    };
+    if previous_configuration == Some(configuration.clone()) {
         return Ok(());
     }
 
     stop_server();
     if let Err(error) = start_server(app.clone(), configuration) {
+        if rotate_key {
+            restore_web_lan_api_key(app, previous_key);
+        }
         let restore_error = restore_server(app, previous_configuration);
         return Err(configuration_error(error, restore_error));
     }
@@ -147,29 +158,50 @@ fn update_web_server_configuration(
     port: Option<u16>,
     listen_on_all_interfaces: bool,
 ) -> Result<AppSettings, String> {
-    let desired_configuration = port.map(|port| WebServerConfiguration {
-        port,
-        listen_on_all_interfaces,
-    });
     let previous_configuration = running_configuration();
     let saved_configuration_matches = settings.web_proxy_port == port
         && settings.web_proxy_listen_on_all_interfaces == listen_on_all_interfaces;
-    if saved_configuration_matches && previous_configuration == desired_configuration {
+    let running_binding_matches = match (previous_configuration.as_ref(), port) {
+        (None, None) => true,
+        (Some(running), Some(port)) => {
+            running.port == port && running.listen_on_all_interfaces == listen_on_all_interfaces
+        }
+        _ => false,
+    };
+    if saved_configuration_matches && running_binding_matches {
         return Ok(settings);
     }
 
-    apply_server_configuration(app, desired_configuration, previous_configuration)?;
+    let previous_key = stored_web_lan_api_key(app)?;
+    let desired_key = listen_on_all_interfaces.then(generate_web_lan_api_key);
+    let desired_configuration =
+        prepare_configuration(port, listen_on_all_interfaces, desired_key.clone());
+    write_web_lan_api_key(app, desired_key)?;
+
+    if let Err(error) =
+        apply_server_configuration(app, desired_configuration, previous_configuration.clone())
+    {
+        restore_web_lan_api_key(app, previous_key);
+        return Err(error);
+    }
     settings.web_proxy_port = port;
     settings.web_proxy_listen_on_all_interfaces = listen_on_all_interfaces;
     if let Err(error) = write_app_settings(app, &settings) {
         stop_server();
         let restore_error = restore_server(app, previous_configuration);
+        restore_web_lan_api_key(app, previous_key);
         return Err(configuration_error(
             format!("Failed to save the web version settings: {error}"),
             restore_error,
         ));
     }
     Ok(settings)
+}
+
+fn restore_web_lan_api_key(app: &AppHandle, key: Option<String>) {
+    if let Err(error) = write_web_lan_api_key(app, key) {
+        eprintln!("Could not restore the previous LAN access key: {error}");
+    }
 }
 
 fn apply_server_configuration(
@@ -214,7 +246,7 @@ fn running_configuration() -> Option<WebServerConfiguration> {
     runtime()
         .lock()
         .ok()
-        .and_then(|guard| guard.as_ref().map(|runtime| runtime.configuration))
+        .and_then(|guard| guard.as_ref().map(|runtime| runtime.configuration.clone()))
 }
 
 fn start_server(app: AppHandle, configuration: WebServerConfiguration) -> Result<(), String> {
@@ -238,14 +270,16 @@ fn start_server(app: AppHandle, configuration: WebServerConfiguration) -> Result
             format!("Failed to start the web version at {bind_address}: {error}")
         })?);
     let server_for_thread = server.clone();
+    let request_security = WebRequestSecurity::from_configuration(&configuration)?;
     let handle = thread::Builder::new()
         .name(WEB_SERVER_THREAD_NAME.to_string())
         .spawn(move || {
             for request in server_for_thread.incoming_requests() {
                 let request_app = app.clone();
+                let request_security = request_security.clone();
                 let _ = thread::Builder::new()
                     .name(WEB_REQUEST_THREAD_NAME.to_string())
-                    .spawn(move || handle_request(request_app, request));
+                    .spawn(move || handle_request(request_app, request, request_security));
             }
         })
         .map_err(|error| format!("Failed to spawn the web version server: {error}"))?;
@@ -277,6 +311,7 @@ fn stop_server() {
 }
 
 include!("requests.rs");
+include!("security.rs");
 include!("dispatch_primary.rs");
 include!("dispatch_extended.rs");
 include!("dispatch_helpers.rs");

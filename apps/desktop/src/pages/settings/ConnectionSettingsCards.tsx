@@ -12,6 +12,7 @@ function WebProxyCard({ settings }: ConnectionSettingsCardsProps) {
   const {
     onOpenWebVersion,
     onWebProxyListenOnAllInterfacesChange,
+    onCopyWebProxyLanApiKey,
     onWebProxyPortChange,
     t,
     webProxyListenOnAllInterfaces,
@@ -44,6 +45,16 @@ function WebProxyCard({ settings }: ConnectionSettingsCardsProps) {
             unCheckedChildren={t("settings.autoRefresh.off")}
             onChange={(enabled) => onWebProxyListenOnAllInterfacesChange?.(enabled)}
           />
+          <small className="web-proxy-scope">
+            {webProxyListenOnAllInterfaces
+              ? t("settings.webProxy.scopeLan")
+              : t("settings.webProxy.scopeLocal")}
+          </small>
+          {webProxyListenOnAllInterfaces && onCopyWebProxyLanApiKey && (
+            <Button size="small" onClick={() => void onCopyWebProxyLanApiKey()}>
+              {t("providers.proxy.copyLanApiKey")}
+            </Button>
+          )}
           <label htmlFor="web-proxy-port">{t("settings.webProxy.port")}</label>
           {webVersionUrl && (
             <a

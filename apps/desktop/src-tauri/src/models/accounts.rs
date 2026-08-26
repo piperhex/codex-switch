@@ -145,6 +145,10 @@ pub(crate) struct ManagerStateFile {
     pub(crate) local_proxy_listen_on_all_interfaces: bool,
     #[serde(default)]
     pub(crate) local_proxy_lan_api_key: Option<String>,
+    /// Authentication secret for the hosted web control plane. This is kept in
+    /// the local state file and is never included in AppSettings responses.
+    #[serde(default)]
+    pub(crate) web_proxy_lan_api_key: Option<String>,
     #[serde(default)]
     pub(crate) image_generation_account_id: Option<String>,
     #[serde(default)]

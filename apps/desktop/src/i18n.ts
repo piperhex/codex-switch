@@ -825,6 +825,8 @@ const translations = {
     "settings.webProxy.description":
       "Enter a port to start the web version. Turn on LAN access only for trusted devices on your network.",
     "settings.webProxy.listenOnLan": "Listen on LAN",
+    "settings.webProxy.scopeLocal": "Only this computer",
+    "settings.webProxy.scopeLan": "LAN devices with the access key",
     "settings.webProxy.port": "Listening port",
     "settings.webProxy.disabled": "Disabled",
     "settings.webProxy.save": "Save",
@@ -3048,6 +3050,8 @@ const translations = {
     "settings.webProxy.description":
       "输入端口即可启动网页版。只在可信网络中开启局域网监听。",
     "settings.webProxy.listenOnLan": "监听局域网",
+    "settings.webProxy.scopeLocal": "仅限本机",
+    "settings.webProxy.scopeLan": "局域网设备（需访问密钥）",
     "settings.webProxy.port": "监听端口",
     "settings.webProxy.disabled": "未启用",
     "settings.webProxy.save": "保存",
