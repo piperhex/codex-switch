@@ -1,5 +1,7 @@
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Button, Card, Select, Space, Switch, Typography } from "antd";
-import { Bot, Play, RefreshCw, SquareTerminal } from "lucide-react";
+import { Play, RefreshCw, SquareTerminal } from "lucide-react";
 import type { Translate, TranslationKey } from "../i18n";
 import type {
   ClaudeSubagentModel,
@@ -109,48 +111,46 @@ export function ThirdPartyAppsPage(props: ThirdPartyAppsPageProps) {
     settings, saving, busy, onEnabledChange, onWriteCodexChange,
     onAppChange, onSubagentModelChange, onLaunch, onRestart, t,
   } = props;
+  const [topbarHost, setTopbarHost] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    setTopbarHost(document.getElementById("third-party-apps-topbar-actions"));
+  }, []);
+
   return (
-    <div className="third-party-apps-page">
-      <Card className="third-party-apps-card">
-        <div className="third-party-apps-heading">
-          <span className="third-party-apps-heading-icon"><Bot size={22} /></span>
-          <div>
-            <Typography.Title level={3}>{t("thirdPartyApps.title")}</Typography.Title>
-            <Typography.Paragraph>{t("thirdPartyApps.description")}</Typography.Paragraph>
-          </div>
-        </div>
-        <div className="third-party-apps-master-settings">
-          <div className="third-party-apps-master-item">
-            <div>
-              <Typography.Text strong>{t("thirdPartyApps.masterWrite")}</Typography.Text>
-              <Typography.Paragraph type="secondary">{t("thirdPartyApps.masterWriteHint")}</Typography.Paragraph>
-            </div>
+    <>
+      {topbarHost && createPortal(
+        <div className="third-party-apps-topbar-controls">
+          <label className="third-party-apps-topbar-control">
+            <Typography.Text strong>{t("thirdPartyApps.masterWrite")}</Typography.Text>
             <Switch checked={settings.enabled} loading={saving} onChange={onEnabledChange}
               aria-label={t("thirdPartyApps.masterWrite")} />
-          </div>
-          <div className="third-party-apps-master-item">
-            <div>
-              <Typography.Text strong>{t("thirdPartyApps.writeCodex")}</Typography.Text>
-              <Typography.Paragraph type="secondary">{t("thirdPartyApps.writeCodexHint")}</Typography.Paragraph>
-            </div>
+          </label>
+          <label className="third-party-apps-topbar-control">
+            <Typography.Text strong>{t("thirdPartyApps.writeCodex")}</Typography.Text>
             <Switch checked={settings.writeCodex} disabled={saving} onChange={onWriteCodexChange}
               aria-label={t("thirdPartyApps.writeCodex")} />
+          </label>
+        </div>,
+        topbarHost,
+      )}
+      <div className="third-party-apps-page">
+        <Card className="third-party-apps-card">
+          <div className="third-party-apps-list-heading">
+            <Typography.Text strong>{t("thirdPartyApps.listTitle")}</Typography.Text>
+            <Typography.Text type="secondary">{t("thirdPartyApps.listHint")}</Typography.Text>
           </div>
-        </div>
-        <div className="third-party-apps-list-heading">
-          <Typography.Text strong>{t("thirdPartyApps.listTitle")}</Typography.Text>
-          <Typography.Text type="secondary">{t("thirdPartyApps.listHint")}</Typography.Text>
-        </div>
-        <div className="third-party-apps-list" role="list">
-          {THIRD_PARTY_APPS.map(({ id, labelKey }) => (
-            <AppRow key={id} appId={id} label={t(labelKey)} checked={settings.apps[id]}
-              disabled={!settings.enabled || saving} busy={busy}
-              subagentModel={settings.claudeSubagentModel} onChange={onAppChange}
-              onSubagentModelChange={onSubagentModelChange}
-              onLaunch={onLaunch} onRestart={onRestart} t={t} />
-          ))}
-        </div>
-      </Card>
-    </div>
+          <div className="third-party-apps-list" role="list">
+            {THIRD_PARTY_APPS.map(({ id, labelKey }) => (
+              <AppRow key={id} appId={id} label={t(labelKey)} checked={settings.apps[id]}
+                disabled={!settings.enabled || saving} busy={busy}
+                subagentModel={settings.claudeSubagentModel} onChange={onAppChange}
+                onSubagentModelChange={onSubagentModelChange}
+                onLaunch={onLaunch} onRestart={onRestart} t={t} />
+            ))}
+          </div>
+        </Card>
+      </div>
+    </>
   );
 }

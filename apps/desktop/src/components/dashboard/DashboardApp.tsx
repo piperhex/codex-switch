@@ -1296,6 +1296,10 @@ export function DashboardApp() {
               <div id="skills-market-topbar-actions" className="topbar-actions skills-market-topbar-actions" />
             )}
             {page === "sessions" && <div id="codex-thread-topbar-actions" className="topbar-actions" />}
+            {page === "claudeCode" && (
+              <div id="third-party-apps-topbar-actions"
+                className="topbar-actions third-party-apps-topbar-actions" />
+            )}
           </header>
           {page === "accounts" && accountDisplayMode.displayMode === "cards" && (
             <div className="account-card-toolbar-row">

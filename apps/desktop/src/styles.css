@@ -229,43 +229,15 @@ main { width: 100%; min-width: 0; min-height: 0; overflow-x: hidden; overflow-y:
 .page-panel[hidden] { display: none !important; }
 .third-party-apps-page { min-height: 0; overflow: auto; padding: 30px 16px 0; }
 .third-party-apps-card { width: 100%; max-width: none; border-color: var(--line); }
-.third-party-apps-heading { display: flex; align-items: flex-start; gap: 14px; }
-.third-party-apps-heading h3 { margin: 0 0 5px; }
-.third-party-apps-heading p { max-width: 400px; margin: 0; }
-.third-party-apps-heading-icon {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  flex: 0 0 auto;
-  border-radius: 12px;
-  color: #d97757;
-  background: rgba(217,119,87,.13);
-}
-.third-party-apps-master-settings {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
-  margin-top: 28px;
-  padding: 18px 0;
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
-}
-.third-party-apps-master-item {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 18px;
-  min-width: 0;
-}
-.third-party-apps-master-item p { max-width: 400px; margin: 5px 0 0; }
-.third-party-apps-master-item .ant-switch { flex: 0 0 auto; }
+.third-party-apps-topbar-controls { display: flex; align-items: center; gap: 18px; }
+.third-party-apps-topbar-control { display: inline-flex; align-items: center; gap: 9px; white-space: nowrap; }
+.third-party-apps-topbar-control .ant-typography { font-size: 12px; }
 .third-party-apps-list-heading {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 16px;
-  margin: 22px 0 10px;
+  margin: 0 0 10px;
 }
 .third-party-apps-list-heading > span:last-child { max-width: 400px; font-size: 11px; }
 .third-party-apps-list { overflow: hidden; border: 1px solid var(--line); border-radius: 12px; }
@@ -293,7 +265,7 @@ main { width: 100%; min-width: 0; min-height: 0; overflow-x: hidden; overflow-y:
   background: var(--green-soft);
 }
 @media (max-width: 720px) {
-  .third-party-apps-master-settings { grid-template-columns: 1fr; }
+  .third-party-apps-topbar-controls { align-items: flex-end; flex-direction: column; gap: 6px; }
   .third-party-apps-list-heading,
   .third-party-app-row { align-items: flex-start; flex-direction: column; }
   .third-party-app-row-actions { width: 100%; justify-content: space-between; }
