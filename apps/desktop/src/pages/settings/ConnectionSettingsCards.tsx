@@ -52,7 +52,7 @@ function WebProxyCard({ settings }: ConnectionSettingsCardsProps) {
           </small>
           {webProxyListenOnAllInterfaces && onCopyWebProxyLanApiKey && (
             <Button size="small" onClick={() => void onCopyWebProxyLanApiKey()}>
-              {t("providers.proxy.copyLanApiKey")}
+              {t("settings.webProxy.copyLanApiKey")}
             </Button>
           )}
           <label htmlFor="web-proxy-port">{t("settings.webProxy.port")}</label>

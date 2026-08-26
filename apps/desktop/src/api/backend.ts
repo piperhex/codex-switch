@@ -124,6 +124,7 @@ function writeHostedWebApiKey(value: string) {
 }
 
 let hostedWebApiKeyPrompt: Promise<string | null> | null = null;
+let hostedWebApiKeyRejected = false;
 
 function requestHostedWebApiKey() {
   if (!hostedWebApiKeyPrompt) {
@@ -156,12 +157,22 @@ async function invoke<T = void>(command: string, args: Record<string, unknown> =
   });
   let response = await request(readHostedWebApiKey());
   if (response.status === 401) {
+    if (hostedWebApiKeyRejected) {
+      throw new Error("The LAN access key was rejected. Check the key in Codex Switch and reload the page.");
+    }
     writeHostedWebApiKey("");
     const suppliedKey = (await requestHostedWebApiKey())?.trim() || "";
     if (suppliedKey) {
       writeHostedWebApiKey(suppliedKey);
       response = await request(suppliedKey);
-      if (response.status === 401) writeHostedWebApiKey("");
+      if (response.status === 401) {
+        writeHostedWebApiKey("");
+        hostedWebApiKeyRejected = true;
+      } else {
+        hostedWebApiKeyRejected = false;
+      }
+    } else {
+      hostedWebApiKeyRejected = true;
     }
   }
   if (!response.ok) {
