@@ -193,7 +193,7 @@ pub(crate) const MIN_TOKEN_USAGE_WEEKS: u16 = 1;
 pub(crate) const MAX_TOKEN_USAGE_WEEKS: u16 = 52;
 pub(crate) const MIN_TOKEN_USAGE_REFRESH_SECONDS: u64 = 1;
 pub(crate) const MAX_TOKEN_USAGE_REFRESH_SECONDS: u64 = 3_600;
-pub(crate) const DEFAULT_UPSTREAM_429_RETRY_TIMEOUT_SECONDS: u64 = 300;
+pub(crate) const DEFAULT_UPSTREAM_429_RETRY_TIMEOUT_SECONDS: u64 = 60;
 pub(crate) const MIN_UPSTREAM_429_RETRY_TIMEOUT_SECONDS: u64 = 1;
 pub(crate) const MAX_UPSTREAM_429_RETRY_TIMEOUT_SECONDS: u64 = 3_600;
 pub(crate) const DEFAULT_GPT_5_6_SOL_CONTEXT_WINDOW: u64 = 272_000;
@@ -217,7 +217,7 @@ fn default_close_to_tray() -> bool {
 }
 
 fn default_auto_disable_status_codes() -> Vec<u16> {
-    vec![401, 402, 403]
+    vec![401, 402, 403, 429]
 }
 
 fn default_upstream_429_retry_timeout_seconds() -> u64 {

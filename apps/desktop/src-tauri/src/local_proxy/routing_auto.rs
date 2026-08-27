@@ -259,6 +259,69 @@ fn account_with_lowest_remaining_primary_quota<'a>(
         .map(|(account, _)| account)
 }
 
+#[derive(Clone, Copy)]
+enum UpstreamQuotaEvent {
+    Retry,
+    RetryTimedOut,
+}
+
+fn handle_upstream_quota_event<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    response: &UpstreamPayload,
+    event: UpstreamQuotaEvent,
+) -> bool {
+    match event {
+        UpstreamQuotaEvent::Retry => try_switch_official_account_after_quota(app, response),
+        UpstreamQuotaEvent::RetryTimedOut => {
+            if let Err(error) = try_disable_official_account_after_429_timeout(app, response) {
+                eprintln!(
+                    "failed to automatically disable official account after 429 retry timeout: {error}"
+                );
+            }
+            false
+        }
+    }
+}
+
+fn try_disable_official_account_after_429_timeout<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    response: &UpstreamPayload,
+) -> Result<(), String> {
+    let paths = resolve_paths(app)?;
+    let state = read_state(&paths);
+    let settings = read_app_settings(app)?;
+    let Some(account_id) = account_to_disable_after_429_timeout(response, &state, &settings) else {
+        return Ok(());
+    };
+    let changed =
+        crate::commands::set_account_auto_switch_enabled_for_paths(&paths, account_id, false)?;
+    if changed {
+        app.emit("accounts-changed", ())
+            .map_err(|error| error.to_string())?;
+        crate::system_tray::refresh_menu(app);
+    }
+    Ok(())
+}
+
+fn account_to_disable_after_429_timeout<'a>(
+    response: &'a UpstreamPayload,
+    state: &ManagerStateFile,
+    settings: &AppSettings,
+) -> Option<&'a str> {
+    if response.status != 429
+        || !state.auto_switch_on_quota_exhaustion
+        || !state.auto_disable_unreachable_accounts
+        || !settings.auto_disable_status_codes.contains(&429)
+    {
+        return None;
+    }
+    response
+        .token_usage_account
+        .as_ref()
+        .filter(|account| credential_can_trigger_auto_switch(account))
+        .map(|account| account.account_id.as_str())
+}
+
 pub(crate) fn maybe_switch_official_account_below_threshold<R: Runtime>(
     app: &tauri::AppHandle<R>,
 ) -> Result<bool, String> {

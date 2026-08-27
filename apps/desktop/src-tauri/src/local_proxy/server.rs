@@ -358,7 +358,7 @@ fn handle_proxy_request<R: Runtime>(
         let result = retry_upstream_request(
             retry_timeout,
             || models_payload(app, url, headers, &target),
-            |response| try_switch_official_account_after_quota(app, response),
+            |response, event| handle_upstream_quota_event(app, response, event),
         );
         append_proxy_diagnostic_result(app, diagnostic, &result, started_at.elapsed());
         return result;
@@ -428,7 +428,7 @@ fn handle_proxy_request<R: Runtime>(
     let result = retry_upstream_request(
         retry_timeout,
         || forward_active_request(app, method, url, headers, body.clone(), &target, session_id),
-        |response| try_switch_official_account_after_quota(app, response),
+        |response, event| handle_upstream_quota_event(app, response, event),
     );
     let result = result.map(|mut payload| {
         if let Some(etag) = provider_models_etag {
@@ -529,14 +529,14 @@ fn upstream_429_retry_timeout<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<D
 fn retry_upstream_request<F, S>(
     timeout: Duration,
     request: F,
-    switch_official_account: S,
+    handle_quota_event: S,
 ) -> Result<UpstreamPayload, String>
 where
     F: FnMut() -> Result<UpstreamPayload, String>,
-    S: FnMut(&UpstreamPayload) -> bool,
+    S: FnMut(&UpstreamPayload, UpstreamQuotaEvent) -> bool,
 {
     let started_at = Instant::now();
-    retry_upstream_request_with(timeout, request, switch_official_account, |delay| {
+    retry_upstream_request_with(timeout, request, handle_quota_event, |delay| {
         thread::sleep(delay.min(timeout.saturating_sub(started_at.elapsed())));
         started_at.elapsed()
     })
@@ -545,12 +545,12 @@ where
 fn retry_upstream_request_with<F, S, W>(
     timeout: Duration,
     mut request: F,
-    mut switch_official_account: S,
+    mut handle_quota_event: S,
     mut wait_before_retry: W,
 ) -> Result<UpstreamPayload, String>
 where
     F: FnMut() -> Result<UpstreamPayload, String>,
-    S: FnMut(&UpstreamPayload) -> bool,
+    S: FnMut(&UpstreamPayload, UpstreamQuotaEvent) -> bool,
     W: FnMut(Duration) -> Duration,
 {
     let mut retry_number = 0_u16;
@@ -561,14 +561,15 @@ where
             retry_number = retry_number.saturating_add(1);
             let elapsed = wait_before_retry(upstream_429_retry_delay(retry_number));
             if elapsed >= timeout {
+                let _ = handle_quota_event(&response, UpstreamQuotaEvent::RetryTimedOut);
                 return Ok(response);
             }
-            let _ = switch_official_account(&response);
+            let _ = handle_quota_event(&response, UpstreamQuotaEvent::Retry);
             continue;
         }
         if !retried_after_forbidden_quota
             && is_official_quota_exhaustion(&response)
-            && switch_official_account(&response)
+            && handle_quota_event(&response, UpstreamQuotaEvent::Retry)
         {
             retried_after_forbidden_quota = true;
             continue;

@@ -196,8 +196,8 @@ export async function quitApplication(): Promise<void> {
 }
 export const DEFAULT_CLOUD_BASE_URL = "https://codex.onepiper.cloud";
 export const BASE_CURRENCY_RATE: CloudCurrencyRate = { code: "USD", name: "USD", rate: 1 };
-export const DEFAULT_AUTO_DISABLE_STATUS_CODES = [401, 402, 403] as const;
-export const DEFAULT_UPSTREAM_429_RETRY_TIMEOUT_SECONDS = 300;
+export const DEFAULT_AUTO_DISABLE_STATUS_CODES = [401, 402, 403, 429] as const;
+export const DEFAULT_UPSTREAM_429_RETRY_TIMEOUT_SECONDS = 60;
 export const MIN_UPSTREAM_429_RETRY_TIMEOUT_SECONDS = 1;
 export const MAX_UPSTREAM_429_RETRY_TIMEOUT_SECONDS = 3_600;
 export const DEFAULT_GPT_5_6_SOL_CONTEXT_WINDOW = 272_000;

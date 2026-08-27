@@ -211,20 +211,20 @@
         let customized: AppSettings =
             serde_json::from_str(r#"{"autoDisableStatusCodes":[401,429]}"#).unwrap();
 
-        assert_eq!(defaults.auto_disable_status_codes, [401, 402, 403]);
-        assert_eq!(migrated.auto_disable_status_codes, [401, 402, 403]);
+        assert_eq!(defaults.auto_disable_status_codes, [401, 402, 403, 429]);
+        assert_eq!(migrated.auto_disable_status_codes, [401, 402, 403, 429]);
         assert_eq!(customized.auto_disable_status_codes, [401, 429]);
     }
 
     #[test]
-    fn app_settings_defaults_upstream_429_retry_timeout_to_five_minutes() {
+    fn app_settings_defaults_upstream_429_retry_timeout_to_one_minute() {
         let defaults = AppSettings::default();
         let migrated: AppSettings = serde_json::from_str("{}").unwrap();
         let customized: AppSettings =
             serde_json::from_str(r#"{"upstream429RetryTimeoutSeconds":90}"#).unwrap();
 
-        assert_eq!(defaults.upstream_429_retry_timeout_seconds, 300);
-        assert_eq!(migrated.upstream_429_retry_timeout_seconds, 300);
+        assert_eq!(defaults.upstream_429_retry_timeout_seconds, 60);
+        assert_eq!(migrated.upstream_429_retry_timeout_seconds, 60);
         assert_eq!(customized.upstream_429_retry_timeout_seconds, 90);
     }
 

@@ -380,7 +380,7 @@ fn update_disabled_account_ids(state: &mut ManagerStateFile, id: &str, enabled: 
     was_disabled != should_be_disabled
 }
 
-fn set_account_auto_switch_enabled_for_paths(
+pub(crate) fn set_account_auto_switch_enabled_for_paths(
     paths: &Paths,
     id: &str,
     enabled: bool,

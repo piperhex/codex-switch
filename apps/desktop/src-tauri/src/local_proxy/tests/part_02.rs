@@ -102,7 +102,7 @@
                         attempt += 1;
                         Ok(response)
                     },
-                    |response| {
+                    |response, _| {
                         let account = response.token_usage_account.as_ref().unwrap();
                         coordinator
                             .switch_or_wait(
@@ -150,7 +150,7 @@
                         attempt += 1;
                         Ok(response)
                     },
-                    |response| {
+                    |response, _| {
                         let account = response.token_usage_account.as_ref().unwrap();
                         coordinator
                             .switch_or_wait_with_waiter_hook(
@@ -315,7 +315,7 @@
                 attempt += 1;
                 Ok(response)
             },
-            |response| {
+            |response, _| {
                 let account = response.token_usage_account.as_ref().unwrap();
                 coordinator
                     .switch_or_wait(
@@ -342,6 +342,7 @@
     #[test]
     fn retry_timeout_returns_the_last_429_response() {
         let switch_count = AtomicUsize::new(0);
+        let timeout_count = AtomicUsize::new(0);
         let request_count = AtomicUsize::new(0);
         let mut elapsed = Duration::ZERO;
 
@@ -351,8 +352,15 @@
                 request_count.fetch_add(1, AtomicOrdering::SeqCst);
                 Ok(official_payload(429, 0))
             },
-            |_| {
-                switch_count.fetch_add(1, AtomicOrdering::SeqCst);
+            |_, event| {
+                match event {
+                    UpstreamQuotaEvent::Retry => {
+                        switch_count.fetch_add(1, AtomicOrdering::SeqCst);
+                    }
+                    UpstreamQuotaEvent::RetryTimedOut => {
+                        timeout_count.fetch_add(1, AtomicOrdering::SeqCst);
+                    }
+                }
                 true
             },
             |delay| {
@@ -364,7 +372,31 @@
 
         assert_eq!(response.status, 429);
         assert_eq!(switch_count.load(AtomicOrdering::SeqCst), 1);
+        assert_eq!(timeout_count.load(AtomicOrdering::SeqCst), 1);
         assert_eq!(request_count.load(AtomicOrdering::SeqCst), 2);
+    }
+
+    #[test]
+    fn final_429_selects_the_failed_account_for_automatic_disabling() {
+        let response = official_payload(429, 0);
+        let mut state = ManagerStateFile {
+            auto_switch_on_quota_exhaustion: true,
+            auto_disable_unreachable_accounts: true,
+            ..ManagerStateFile::default()
+        };
+        let mut settings = AppSettings::default();
+
+        assert_eq!(
+            account_to_disable_after_429_timeout(&response, &state, &settings),
+            Some("current")
+        );
+
+        settings.auto_disable_status_codes.retain(|status| *status != 429);
+        assert!(account_to_disable_after_429_timeout(&response, &state, &settings).is_none());
+
+        settings.auto_disable_status_codes.push(429);
+        state.auto_disable_unreachable_accounts = false;
+        assert!(account_to_disable_after_429_timeout(&response, &state, &settings).is_none());
     }
 
     #[test]
@@ -378,7 +410,7 @@
                 let attempt = request_count.fetch_add(1, AtomicOrdering::SeqCst);
                 Ok(official_payload(if attempt < 3 { 429 } else { 200 }, 0))
             },
-            |_| false,
+            |_, _| false,
             |delay| {
                 delays.push(delay.as_secs());
                 elapsed += delay;

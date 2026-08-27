@@ -812,13 +812,16 @@ const translations = {
     "settings.upstream429Retry.title": "Upstream rate-limit retries",
     "settings.upstream429Retry.description":
       "For HTTP 429 responses, retry after 1, 3, 5 seconds and continue with increasing waits. "
-      + "Return the error only when this time limit is reached. The default is five minutes.",
+      + "The default limit is one minute. When it expires, eligible accounts are automatically "
+      + "excluded before the error is returned.",
     "settings.upstream429Retry.label": "Maximum retry time",
     "settings.usageNetworkErrors.title": "Usage network error alerts",
     "settings.usageNetworkErrors.description": "Show account errors caused by timeouts or connection failures. HTTP status errors are always shown and keep their existing handling.",
     "settings.usageNetworkErrors.label": "Show network errors",
     "settings.autoDisableStatusCodes.title": "Automatic-disable HTTP statuses",
-    "settings.autoDisableStatusCodes.description": "Select the HTTP statuses that can exclude an account when automatic disabling is enabled. The list includes a short explanation for each standard status; 401, 402, and 403 are selected by default.",
+    "settings.autoDisableStatusCodes.description":
+      "Select the HTTP statuses that can exclude an account when automatic disabling is enabled. "
+      + "The list includes a short explanation for each standard status; 401, 402, 403, and 429 are selected by default.",
     "settings.autoDisableStatusCodes.label": "HTTP statuses",
     "settings.autoDisableStatusCodes.placeholder": "Select status codes",
     "settings.webProxy.title": "Web version listening port",
@@ -3043,13 +3046,15 @@ const translations = {
     "settings.tokenUsage.refreshInterval": "刷新间隔",
     "settings.upstream429Retry.title": "上游限流重试",
     "settings.upstream429Retry.description":
-      "上游返回 HTTP 429 后按 1、3、5 秒逐渐增加等待时间；达到时限仍失败才返回错误。默认 5 分钟。",
+      "上游返回 HTTP 429 后按 1、3、5 秒逐渐增加等待时间，默认最长重试 1 分钟；达到时限仍失败时，先按设置自动禁用账号，再返回错误。",
     "settings.upstream429Retry.label": "最长重试时间",
     "settings.usageNetworkErrors.title": "用量网络错误提示",
     "settings.usageNetworkErrors.description": "显示请求超时、连接失败等账号错误。HTTP 状态码错误始终显示，并继续按原有逻辑处理。",
     "settings.usageNetworkErrors.label": "显示网络错误",
     "settings.autoDisableStatusCodes.title": "自动禁用 HTTP 状态码",
-    "settings.autoDisableStatusCodes.description": "勾选开启自动禁用后，可以将账号排除在自动切号之外的 HTTP 状态码。下拉列表包含各标准状态码的简短说明，默认勾选 401、402、403。",
+    "settings.autoDisableStatusCodes.description":
+      "勾选开启自动禁用后，可以将账号排除在自动切号之外的 HTTP 状态码。"
+      + "下拉列表包含各标准状态码的简短说明，默认勾选 401、402、403 和 429。",
     "settings.autoDisableStatusCodes.label": "HTTP 状态码",
     "settings.autoDisableStatusCodes.placeholder": "请选择状态码",
     "settings.webProxy.title": "网页版 Codex Switch 监听端口",
