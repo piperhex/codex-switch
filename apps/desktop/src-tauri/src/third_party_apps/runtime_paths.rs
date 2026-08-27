@@ -146,6 +146,7 @@ fn is_windows_app_path(path: &Path) -> bool {
 mod tests {
     use super::*;
 
+    #[cfg(windows)]
     #[test]
     fn ignores_windows_claude_desktop_paths() {
         assert!(!is_claude_code_executable(Path::new(
@@ -157,10 +158,9 @@ mod tests {
     }
 
     #[test]
-    fn recognizes_open_code_install_paths() {
-        assert!(is_open_code_executable(Path::new(
-            r"C:\Users\me\AppData\Local\Programs\OpenCode\OpenCode.exe",
-        )));
-        assert!(!is_open_code_executable(Path::new(r"C:\tools\claude.exe")));
+    fn recognizes_open_code_executable_names() {
+        assert!(is_open_code_executable(Path::new("OpenCode.exe")));
+        assert!(is_open_code_executable(Path::new("opencode2")));
+        assert!(!is_open_code_executable(Path::new("claude.exe")));
     }
 }
