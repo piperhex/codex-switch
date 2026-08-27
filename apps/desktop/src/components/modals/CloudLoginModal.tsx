@@ -98,10 +98,7 @@ export function CloudLoginModal({
                 setEmail(event.target.value);
               }}
               placeholder={t("cloudLogin.emailPlaceholder")} /></span>
-          <div className="cloud-login-label-row">
-            <label htmlFor="cloud-login-password">{t("cloudLogin.password")}</label>
-            <button type="button" onClick={onForgotPassword}>{t("cloudLogin.forgotPassword")}</button>
-          </div>
+          <label htmlFor="cloud-login-password">{t("cloudLogin.password")}</label>
           <span className="cloud-login-input"><LockKeyhole size={16} />
             <input id="cloud-login-password" type="password" autoComplete="current-password" value={password}
               disabled={loading} onChange={(event) => {
@@ -109,17 +106,22 @@ export function CloudLoginModal({
                 setPassword(event.target.value);
               }}
               placeholder={t("cloudLogin.passwordPlaceholder")} /></span>
-          <label className="cloud-remember-password">
-            <input type="checkbox" checked={rememberPassword} disabled={loading}
-              onChange={(event) => {
-                credentialsEdited.current = true;
-                setRememberPassword(event.target.checked);
-              }} />
-            <span>
-              <b>{t("cloudLogin.rememberPassword")}</b>
-              <small>{t("cloudLogin.rememberPasswordHint")}</small>
-            </span>
-          </label>
+          <div className="cloud-login-options-row">
+            <label className="cloud-remember-password">
+              <input type="checkbox" checked={rememberPassword} disabled={loading}
+                onChange={(event) => {
+                  credentialsEdited.current = true;
+                  setRememberPassword(event.target.checked);
+                }} />
+              <span>
+                <b>{t("cloudLogin.rememberPassword")}</b>
+                <small>{t("cloudLogin.rememberPasswordHint")}</small>
+              </span>
+            </label>
+            <button type="button" className="cloud-forgot-password" onClick={onForgotPassword}>
+              {t("cloudLogin.forgotPassword")}
+            </button>
+          </div>
           {registerMode && <>
             <label htmlFor="cloud-registration-code">{t("cloudLogin.verificationCode")}</label>
             <div className="cloud-verification-row">
