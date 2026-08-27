@@ -21,15 +21,15 @@ function fixture(body = "Release notes") {
     id: index + 1,
     name,
     state: "uploaded",
-    browser_download_url: `https://github.test/downloads/${name}`,
+    browser_download_url: `https://github.test/org/repo/releases/download/untagged-draft/${name}`,
   }));
   assets.push({
     id: 99,
     name: "Codex.Switch_1.2.3_windows-x64-setup.exe.sig",
     state: "uploaded",
-    browser_download_url: "https://github.test/downloads/updater-signature",
+    browser_download_url: "https://github.test/org/repo/releases/download/untagged-draft/updater-signature",
   });
-  return { body, assets };
+  return { body, assets, tag_name: "v1.2.3" };
 }
 
 test("groups installable release assets by platform and architecture", () => {
@@ -46,6 +46,8 @@ test("groups installable release assets by platform and architecture", () => {
   assert.match(body, /### 移动端/);
   assert.match(body, /iOS（未签名，仅供构建验证）/);
   assert.doesNotMatch(body, /updater-signature/);
+  assert.doesNotMatch(body, /untagged-draft/);
+  assert.match(body, /\/releases\/download\/v1\.2\.3\//);
   assert.match(body, /## 更新内容\n\nRelease notes$/);
 });
 

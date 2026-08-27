@@ -68,15 +68,15 @@ function downloadItem(label, assets) {
 }
 
 export function createReleaseBody(release) {
-  const downloadBlock = renderDownloadBlock(release.assets ?? []);
+  const downloadBlock = renderDownloadBlock(release.assets ?? [], release.tag_name);
   const releaseNotes = extractReleaseNotes(release.body ?? "");
   const notes = releaseNotes || "本版本暂无其他更新说明。";
   return `${downloadBlock}\n\n${UPDATE_HEADING}\n\n${notes}`;
 }
 
-function renderDownloadBlock(assets) {
+function renderDownloadBlock(assets, tagName) {
   const sections = DOWNLOAD_SECTIONS.map((section) => {
-    const items = section.items.map((item) => renderDownloadItem(item, assets));
+    const items = section.items.map((item) => renderDownloadItem(item, assets, tagName));
     return `${section.heading}\n\n${items.join("\n")}`;
   });
   const guidance = [
@@ -94,12 +94,23 @@ function renderDownloadBlock(assets) {
   ].join("\n");
 }
 
-function renderDownloadItem(item, releaseAssets) {
+function renderDownloadItem(item, releaseAssets, tagName) {
   const links = item.assets.map((definition) => {
     const releaseAsset = findUniqueAsset(releaseAssets, definition);
-    return `[${definition.label}](${releaseAsset.browser_download_url})`;
+    return `[${definition.label}](${versionedAssetUrl(releaseAsset, tagName)})`;
   });
   return `- ${item.label}：${links.join(" ｜ ")}`;
+}
+
+function versionedAssetUrl(releaseAsset, tagName) {
+  const marker = "/releases/download/";
+  const tagStart = releaseAsset.browser_download_url.indexOf(marker) + marker.length;
+  const assetStart = releaseAsset.browser_download_url.indexOf("/", tagStart);
+  if (!tagName || tagStart < marker.length || assetStart === -1) {
+    throw new Error(`${releaseAsset.name} does not have a versionable download URL.`);
+  }
+  return `${releaseAsset.browser_download_url.slice(0, tagStart)}${tagName}`
+    + releaseAsset.browser_download_url.slice(assetStart);
 }
 
 function findUniqueAsset(releaseAssets, definition) {
