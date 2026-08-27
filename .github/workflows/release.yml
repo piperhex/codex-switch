@@ -397,11 +397,13 @@ jobs:
         uses: actions/github-script@v9
         env:
           RELEASE_ID: ${{ needs.create-release.outputs.release_id }}
+          TAG_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const { owner, repo } = context.repo;
             const releaseId = Number(process.env.RELEASE_ID);
+            const tag = process.env.TAG_NAME;
             const { data: release } = await github.rest.repos.getRelease({
               owner,
               repo,
@@ -417,6 +419,7 @@ jobs:
               owner,
               repo,
               release_id: releaseId,
+              tag_name: tag,
               draft: false,
             });
             core.info(`Published release ${releaseId}.`);
