@@ -129,44 +129,6 @@ function aggregateEntries(entries: TokenUsageEntry[], label: (entry: TokenUsageE
   return [...totals.entries()].sort((left, right) => right[1] - left[1]).slice(0, MAX_RANKING_ITEMS);
 }
 
-function rankingOption(
-  data: Array<[string, number]>,
-  palette: ChartPalette,
-  language: Language,
-): EChartsOption {
-  const sorted = [...data].reverse();
-  return {
-    animationDurationUpdate: 280,
-    aria: { enabled: true },
-    tooltip: {
-      trigger: "axis",
-      axisPointer: { type: "shadow" },
-      valueFormatter: (value: unknown) => `${formatTokens(Number(value), language)} Tokens`,
-    },
-    grid: { left: 18, right: 26, top: 12, bottom: 16, containLabel: true },
-    xAxis: {
-      type: "value",
-      axisLabel: { color: palette.muted, formatter: (value: number) => formatTokens(value, language) },
-      splitLine: { lineStyle: { color: palette.grid } },
-    },
-    yAxis: {
-      type: "category",
-      data: sorted.map(([label]) => label),
-      axisLabel: { color: palette.text, width: 118, overflow: "truncate" },
-      axisTick: { show: false },
-      axisLine: { show: false },
-    },
-    series: [{
-      type: "bar",
-      data: sorted.map(([, value]) => value),
-      barMaxWidth: 14,
-      itemStyle: { color: palette.series[0], borderRadius: [0, 4, 4, 0] },
-      label: { show: true, position: "right", color: palette.muted,
-        formatter: (params: any) => formatTokens(Number(params.value), language) },
-    }],
-  };
-}
-
 function usagePieOption(
   data: Array<[string, number]>,
   palette: ChartPalette,
@@ -471,7 +433,7 @@ export function TokenUsageDashboard({
         </section>
         <section className={styles.tokenChartPanel}>
           <div className={styles.tokenChartHeading}><h2>{labels.providers}</h2><span>{labels.recent}</span></div>
-          <EChart option={rankingOption(providerData, palette, language)} label={labels.providers} />
+          <EChart option={usagePieOption(providerData, palette, language)} label={labels.providers} />
         </section>
         <section className={styles.tokenChartPanel}>
           <div className={styles.tokenChartHeading}><h2>{labels.models}</h2><span>{labels.recent}</span></div>
