@@ -190,6 +190,7 @@ export interface LocalProxyStatus {
   concurrentAccountRoutingEnabled: boolean;
   customAutoSwitchPriorityEnabled: boolean;
   customAutoSwitchThresholdEnabled: boolean;
+  globalAutoSwitchThreshold: number;
   autoDisableUnreachableAccounts: boolean;
   systemPromptFilterEnabled: boolean;
   systemPromptFilterRules: SystemPromptRule[];

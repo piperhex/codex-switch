@@ -132,6 +132,8 @@ pub(crate) struct ManagerStateFile {
     #[serde(default)]
     pub(crate) custom_auto_switch_threshold_enabled: bool,
     #[serde(default)]
+    pub(crate) global_auto_switch_threshold: f64,
+    #[serde(default)]
     pub(crate) auto_disable_unreachable_accounts: bool,
     #[serde(default)]
     pub(crate) system_prompt_filter_enabled: bool,

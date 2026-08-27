@@ -55,8 +55,11 @@ fn active_target_for_request<R: Runtime>(
         providers::ensure_not_local_proxy_base_url(&provider.base_url)?;
         return Ok(ActiveTarget::Provider(Box::new(provider)));
     }
-    if maybe_switch_official_account_below_threshold(app)? {
-        return active_target_for_request(app, path, body);
+    if !state.concurrent_account_routing_enabled {
+        if maybe_switch_official_account_below_threshold(app)? {
+            return active_target_for_request(app, path, body);
+        }
+        ensure_active_official_account_meets_threshold(app)?;
     }
     Ok(ActiveTarget::Official {
         model: providers::official_model(),

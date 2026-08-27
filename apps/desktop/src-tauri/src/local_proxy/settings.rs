@@ -117,6 +117,28 @@ pub(crate) fn set_custom_auto_switch_threshold_enabled<R: Runtime>(
 }
 
 #[tauri::command]
+pub(crate) async fn set_global_auto_switch_threshold<R: Runtime + 'static>(
+    app: tauri::AppHandle<R>,
+    threshold: f64,
+) -> Result<LocalProxyStatus, String> {
+    if !threshold.is_finite() || !(0.0..=100.0).contains(&threshold) {
+        return Err("Global auto-switch threshold must be between 0 and 100".to_string());
+    }
+    let task_app = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let paths = resolve_paths(&task_app)?;
+        let mut state = read_state(&paths);
+        state.global_auto_switch_threshold = threshold;
+        write_state(&paths, &state)
+    })
+    .await
+    .map_err(|error| format!("Global threshold task failed: {error}"))??;
+    app.emit("providers-changed", ())
+        .map_err(|error| error.to_string())?;
+    Ok(status(&app))
+}
+
+#[tauri::command]
 pub(crate) fn set_auto_disable_unreachable_accounts<R: Runtime>(
     app: tauri::AppHandle<R>,
     enabled: bool,

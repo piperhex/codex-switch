@@ -1530,6 +1530,7 @@ export function DashboardApp() {
               autoSwitchPriorityBusyAccountId={manager.autoSwitchPriorityBusyAccountId}
               onAutoSwitchThresholdChange={manager.setAutoSwitchThreshold}
               autoSwitchThresholdBusyAccountId={manager.autoSwitchThresholdBusyAccountId}
+              onGlobalAutoSwitchThresholdChange={providerManager.setProxyGlobalThreshold}
               onSaveNote={saveAccountNote}
               onLoadAccountDetails={manager.refreshAccountDetails}
               resetCredits={resetCredits.states}

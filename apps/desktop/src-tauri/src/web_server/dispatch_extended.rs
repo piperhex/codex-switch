@@ -51,6 +51,12 @@ fn dispatch_extended_command(app: AppHandle, command: &str, args: Value) -> Resu
                 argument(&args, "enabled")?,
             ))
         }
+        "set_global_auto_switch_threshold" => serialize(block_on(
+            crate::local_proxy::set_global_auto_switch_threshold(
+                app,
+                argument(&args, "threshold")?,
+            ),
+        )),
         "set_image_generation_account" => serialize(
             crate::local_proxy::set_image_generation_account(app, argument(&args, "accountId")?),
         ),

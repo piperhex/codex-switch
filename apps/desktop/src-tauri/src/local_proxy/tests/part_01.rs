@@ -208,10 +208,27 @@
             ..UsageSummary::default()
         };
 
-        assert!(!primary_quota_available_for_concurrent_routing(&exhausted));
-        assert!(primary_quota_available_for_concurrent_routing(&available));
+        assert!(!primary_quota_available_for_concurrent_routing(
+            &exhausted, None
+        ));
         assert!(primary_quota_available_for_concurrent_routing(
-            &UsageSummary::default()
+            &available, None
+        ));
+        assert!(primary_quota_available_for_concurrent_routing(
+            &UsageSummary::default(),
+            None
+        ));
+        assert!(!primary_quota_available_for_concurrent_routing(
+            &available,
+            Some(20.0)
+        ));
+        assert!(primary_quota_available_for_concurrent_routing(
+            &available,
+            Some(1.0)
+        ));
+        assert!(!primary_quota_available_for_concurrent_routing(
+            &UsageSummary::default(),
+            Some(20.0)
         ));
     }
 
@@ -409,7 +426,8 @@
         ];
 
         let selected =
-            account_with_lowest_remaining_primary_quota(&accounts, "current", false, false).unwrap();
+            account_with_lowest_remaining_primary_quota(&accounts, "current", false, false, 0.0)
+                .unwrap();
 
         assert_eq!(selected.id, "lowest-remaining");
     }
@@ -425,7 +443,8 @@
         ];
 
         let selected =
-            account_with_lowest_remaining_primary_quota(&accounts, "current", false, false).unwrap();
+            account_with_lowest_remaining_primary_quota(&accounts, "current", false, false, 0.0)
+                .unwrap();
 
         assert_eq!(selected.id, "enabled");
     }
@@ -443,7 +462,8 @@
         ];
 
         let selected =
-            account_with_lowest_remaining_primary_quota(&accounts, "current", true, false).unwrap();
+            account_with_lowest_remaining_primary_quota(&accounts, "current", true, false, 0.0)
+                .unwrap();
 
         assert_eq!(selected.id, "lower-priority");
     }
@@ -459,7 +479,27 @@
         ];
 
         let selected =
-            account_with_lowest_remaining_primary_quota(&accounts, "current", false, true)
+            account_with_lowest_remaining_primary_quota(&accounts, "current", false, true, 0.0)
+                .unwrap();
+
+        assert_eq!(selected.id, "eligible");
+    }
+
+    #[test]
+    fn quota_switch_applies_the_stricter_global_threshold() {
+        let mut permissive_account = account_with_usage("below-global", 30.0, 90.0);
+        permissive_account.auto_switch_threshold = 10.0;
+        let mut stricter_account = account_with_usage("below-account", 50.0, 90.0);
+        stricter_account.auto_switch_threshold = 60.0;
+        let accounts = vec![
+            account_with_usage("current", 0.0, 80.0),
+            permissive_account,
+            stricter_account,
+            account_with_usage("eligible", 70.0, 90.0),
+        ];
+
+        let selected =
+            account_with_lowest_remaining_primary_quota(&accounts, "current", false, true, 40.0)
                 .unwrap();
 
         assert_eq!(selected.id, "eligible");

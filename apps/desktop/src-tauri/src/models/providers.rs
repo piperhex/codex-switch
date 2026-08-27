@@ -107,6 +107,8 @@ pub(crate) struct LocalProxyStatus {
     pub(crate) custom_auto_switch_priority_enabled: bool,
     #[serde(default)]
     pub(crate) custom_auto_switch_threshold_enabled: bool,
+    #[serde(default)]
+    pub(crate) global_auto_switch_threshold: f64,
     pub(crate) auto_disable_unreachable_accounts: bool,
     pub(crate) system_prompt_filter_enabled: bool,
     pub(crate) system_prompt_filter_rules: Vec<crate::models::SystemPromptRule>,

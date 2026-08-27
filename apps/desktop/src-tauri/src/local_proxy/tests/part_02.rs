@@ -11,7 +11,8 @@
         ];
 
         let selected =
-            account_with_lowest_remaining_primary_quota(&accounts, "current", true, false).unwrap();
+            account_with_lowest_remaining_primary_quota(&accounts, "current", true, false, 0.0)
+                .unwrap();
 
         assert_eq!(selected.id, "lower-usage");
     }
@@ -24,7 +25,7 @@
             account_with_usage("backup-2", 0.0, 50.0),
         ];
         assert!(all_backup_accounts_have_exhausted_primary_quota(
-            &exhausted, "current", false
+            &exhausted, "current", false, 0.0
         ));
 
         let available = vec![
@@ -33,14 +34,14 @@
             account_with_usage("available", 1.0, 0.0),
         ];
         assert!(!all_backup_accounts_have_exhausted_primary_quota(
-            &available, "current", false
+            &available, "current", false, 0.0
         ));
 
         let mut unknown = account_with_usage("unknown", 0.0, 0.0);
         unknown.usage.error = Some("network error".to_string());
         assert!(!all_backup_accounts_have_exhausted_primary_quota(
             &[account_with_usage("current", 0.0, 80.0), unknown],
-            "current", false
+            "current", false, 0.0
         ));
     }
 
@@ -48,7 +49,7 @@
     fn provider_fallback_is_available_when_there_are_no_backup_accounts() {
         assert!(all_backup_accounts_have_exhausted_primary_quota(
             &[account_with_usage("current", 0.0, 80.0)],
-            "current", false
+            "current", false, 0.0
         ));
     }
 

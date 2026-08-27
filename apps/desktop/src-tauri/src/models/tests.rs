@@ -11,6 +11,8 @@
         assert!(!state.auto_switch_on_quota_exhaustion);
         assert!(!state.concurrent_account_routing_enabled);
         assert!(!state.custom_auto_switch_priority_enabled);
+        assert!(!state.custom_auto_switch_threshold_enabled);
+        assert_eq!(state.global_auto_switch_threshold, 0.0);
         assert!(!state.auto_disable_unreachable_accounts);
         assert!(!state.local_proxy_listen_on_all_interfaces);
         assert!(state.local_proxy_lan_api_key.is_none());

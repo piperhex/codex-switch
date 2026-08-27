@@ -49,9 +49,9 @@ use crate::{
         LOCAL_PROXY_PORT,
     },
     storage::{
-        load_usage, managed_auth_path, read_app_settings, read_json, read_state, resolve_paths,
-        usage_path, write_app_settings, write_json_if_changed, write_managed_auth_if_changed,
-        write_state, Paths,
+        auto_switch_threshold_path, load_auto_switch_threshold, load_usage, managed_auth_path,
+        read_app_settings, read_json, read_state, resolve_paths, usage_path, write_app_settings,
+        write_json_if_changed, write_managed_auth_if_changed, write_state, Paths,
     },
 };
 

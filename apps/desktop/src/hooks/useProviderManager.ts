@@ -16,6 +16,7 @@ import {
   setLocalProxyAutoDisableUnreachable,
   setLocalProxyCustomPriority,
   setLocalProxyCustomThreshold,
+  setLocalProxyGlobalThreshold,
   setLocalProxyImageAccount,
   setLocalProxyImageModelTarget,
   setLocalProxyOpenaiAuthAccount,
@@ -575,6 +576,21 @@ export function useProviderManager(
     }
   }, [load, notify, t]);
 
+  const setProxyGlobalThreshold = useCallback(async (threshold: number) => {
+    setProxyBusy(true);
+    try {
+      setLocalProxy(await setLocalProxyGlobalThreshold(threshold));
+      notify(t("toast.proxyGlobalThresholdSaved"));
+      await load();
+      return true;
+    } catch (error) {
+      notify(providerErrorMessage(error, t));
+      return false;
+    } finally {
+      setProxyBusy(false);
+    }
+  }, [load, notify, t]);
+
   const setProxyImageAccount = useCallback(async (accountId: string | null) => {
     setProxyBusy(true);
     try {
@@ -753,6 +769,7 @@ export function useProviderManager(
     setProxyAutoDisableUnreachable,
     setProxyCustomPriority,
     setProxyCustomThreshold,
+    setProxyGlobalThreshold,
     setProxyImageAccount,
     setProxyImageModel,
     setProxyOpenaiAuthAccount,

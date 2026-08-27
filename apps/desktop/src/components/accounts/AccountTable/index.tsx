@@ -75,6 +75,7 @@ import {
   canEditAccountMetadata,
   CompactDailyTokenChart,
   CopyableAccountEmail,
+  GlobalAutoSwitchThresholdControl,
   needsAccountAttention,
   resetCreditsCount,
   ResetCreditsModal,
@@ -105,6 +106,8 @@ interface AccountTableProps {
   autoSwitchOnQuotaExhaustion: boolean;
   customAutoSwitchPriorityEnabled: boolean;
   customAutoSwitchThresholdEnabled: boolean;
+  globalAutoSwitchThreshold: number;
+  onGlobalAutoSwitchThresholdChange: (threshold: number) => Promise<boolean>;
   onSaveNote: (id: string, details: AccountDetailsDraft) => Promise<boolean>;
   onLoadAccountDetails: (id: string) => Promise<Account | null>;
   resetCredits: Record<string, ResetCreditsLoadState>;
@@ -333,6 +336,8 @@ export function AccountTable({
   autoSwitchOnQuotaExhaustion,
   customAutoSwitchPriorityEnabled,
   customAutoSwitchThresholdEnabled,
+  globalAutoSwitchThreshold,
+  onGlobalAutoSwitchThresholdChange,
   onSaveNote,
   onLoadAccountDetails,
   resetCredits,
@@ -688,7 +693,10 @@ export function AccountTable({
       ),
     }] : []),
     ...(customThresholdActive ? [{
-      title: t("table.autoSwitchThreshold"), key: "autoSwitchThreshold", width: 150,
+      title: <GlobalAutoSwitchThresholdControl threshold={globalAutoSwitchThreshold}
+        disabled={concurrentAccountRoutingBusy}
+        onSave={onGlobalAutoSwitchThresholdChange} t={t} />,
+      key: "autoSwitchThreshold", width: 170,
       align: "center" as const, fixed: "right" as const,
       render: (_: unknown, account: Account) => (
         <AutoSwitchThresholdInput account={account}
@@ -1396,7 +1404,8 @@ export function AccountTable({
           isAccountHighlighted(account, concurrentRoutingActive) ? "active-row" : "",
           isAccountDisabled(account, hotSwitchEnabled) ? "account-alert-row" : "",
           customThresholdActive && account.usage.primary?.remainingPercent !== undefined
-            && account.usage.primary.remainingPercent < account.autoSwitchThreshold
+            && account.usage.primary.remainingPercent
+              < Math.max(account.autoSwitchThreshold, globalAutoSwitchThreshold)
             ? "account-threshold-row" : "",
         ].filter(Boolean).join(" ")}
         onRow={(account) => ({

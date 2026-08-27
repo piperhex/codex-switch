@@ -1,5 +1,6 @@
 /* Account table and card presentation. Selectors stay global while the
  * stylesheet is owned by the AccountTable component. */
+/* The account view switch stays aligned with the table's left edge. */
 .styleScope { --component-style-scope: 1; }
 
 :global {
@@ -19,8 +20,6 @@
     border-radius: 6px;
     background: #edf1ee;
   }
-  /* Keep the view switch aligned with the table's left edge at the bottom of
-   * the account topbar, matching the original account-page layout. */
   .accounts-topbar .account-display-tabs {
     top: auto;
     bottom: 4px;
@@ -237,6 +236,12 @@
   .account-token-chart-cell .compact-model-token-chart { padding-left: 0; border-left: 0; }
   .account-token-chart-unavailable { min-width: 32px; color: #9aa69f; font-size: 11px; cursor: help; }
   .auto-switch-priority-input { width: 88px; }
+  .auto-switch-threshold-title { display: inline-flex; align-items: center; justify-content: center; gap: 2px; }
+  .auto-switch-threshold-title .ant-btn { width: 24px; min-width: 24px; height: 24px; padding: 0; }
+  .global-threshold-popover { width: 270px; max-width: calc(100vw - 48px); }
+  .global-threshold-popover p { margin: 0 0 10px; color: #66736b; font-size: 12px; line-height: 1.5; }
+  .global-threshold-popover > div { display: flex; align-items: center; gap: 8px; }
+  .global-threshold-popover .ant-input-number { width: 120px; }
   .usage-recent-refresh { white-space: nowrap; color: #718078 !important; }
   .usage-recent-refresh::before { margin-right: 4px; color: #9aa69f; content: "·"; }
   .usage-reset { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; white-space: normal; }

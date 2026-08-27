@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { InputNumber, Tooltip } from "antd";
-import { CalendarClock, Check, Copy, Pencil, X } from "lucide-react";
+import { Button, InputNumber, Popover, Tooltip } from "antd";
+import { CalendarClock, Check, Copy, Pencil, Settings, X } from "lucide-react";
 import type { Language, Translate } from "../../../i18n";
 import type {
   Account,
@@ -166,6 +166,72 @@ export function AutoSwitchThresholdInput({ account, disabled, onSave, t }: {
     min={0} max={100} suffix="%" value={value} disabled={disabled}
     aria-label={t("table.autoSwitchThreshold")} onChange={setValue}
     onBlur={() => void save()} onPressEnter={(event) => event.currentTarget.blur()} />;
+}
+
+function GlobalThresholdEditor({ value, disabled, saving, onChange, onSave, t }: {
+  value: number | null;
+  disabled: boolean;
+  saving: boolean;
+  onChange: (value: number | null) => void;
+  onSave: () => void;
+  t: Translate;
+}) {
+  return <div className="global-threshold-popover">
+    <p>{t("table.globalAutoSwitchThresholdDescription")}</p>
+    <div>
+      <InputNumber size="small" precision={1} step={1} min={0} max={100} suffix="%"
+        value={value} disabled={saving || disabled} onChange={onChange}
+        aria-label={t("table.globalAutoSwitchThreshold")} />
+      <Button type="primary" size="small" loading={saving} disabled={disabled}
+        onClick={onSave}>{t("table.saveGlobalThreshold")}</Button>
+    </div>
+  </div>;
+}
+
+export function GlobalAutoSwitchThresholdControl({ threshold, disabled, onSave, t }: {
+  threshold: number;
+  disabled: boolean;
+  onSave: (threshold: number) => Promise<boolean>;
+  t: Translate;
+}) {
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [value, setValue] = useState<number | null>(threshold);
+  useEffect(() => setValue(threshold), [threshold]);
+
+  const save = async () => {
+    const nextThreshold = value === null ? 0 : Math.min(100, Math.max(0, value));
+    setValue(nextThreshold);
+    if (nextThreshold === threshold) {
+      setOpen(false);
+      return;
+    }
+    setSaving(true);
+    const saved = await onSave(nextThreshold);
+    setSaving(false);
+    if (saved) setOpen(false);
+    else setValue(threshold);
+  };
+
+  const content = <GlobalThresholdEditor value={value} disabled={disabled} saving={saving}
+    onChange={setValue} onSave={() => void save()} t={t} />;
+
+  return <span className="auto-switch-threshold-title">
+    <span>{t("table.autoSwitchThreshold")}</span>
+    <Popover title={t("table.globalAutoSwitchThreshold")} content={content} trigger="click"
+      open={open} placement="bottomRight" styles={{ root: { maxWidth: 400 } }}
+      onOpenChange={(nextOpen) => {
+        if (!saving) {
+          setValue(threshold);
+          setOpen(nextOpen);
+        }
+      }}>
+      <Tooltip title={t("table.globalAutoSwitchThresholdTooltip")}>
+        <Button type="text" size="small" disabled={disabled} icon={<Settings size={14} />}
+          aria-label={t("table.globalAutoSwitchThreshold")} />
+      </Tooltip>
+    </Popover>
+  </span>;
 }
 
 export function ResetCreditsModal({ state, onClose, onRetry, language, t }: {

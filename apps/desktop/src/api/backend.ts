@@ -235,6 +235,7 @@ const LOCAL_PROXY_AUTO_SWITCH_PREVIEW_KEY = "codex-switch:local-proxy-auto-switc
 const LOCAL_PROXY_CONCURRENT_ROUTING_PREVIEW_KEY = "codex-switch:local-proxy-concurrent-routing";
 const LOCAL_PROXY_CUSTOM_PRIORITY_PREVIEW_KEY = "codex-switch:local-proxy-custom-priority";
 const LOCAL_PROXY_CUSTOM_THRESHOLD_PREVIEW_KEY = "codex-switch:local-proxy-custom-threshold";
+const LOCAL_PROXY_GLOBAL_THRESHOLD_PREVIEW_KEY = "codex-switch:local-proxy-global-threshold";
 const LOCAL_PROXY_AUTO_DISABLE_UNREACHABLE_PREVIEW_KEY = "codex-switch:local-proxy-auto-disable-unreachable";
 const SYSTEM_PROMPT_FILTER_PREVIEW_KEY = "codex-switch:system-prompt-filter";
 const SYSTEM_PROMPT_FILTER_RULES_PREVIEW_KEY = "codex-switch:system-prompt-filter-rules";
@@ -451,6 +452,9 @@ function previewProviderId() {
 
 function previewLocalProxyStatus(): LocalProxyStatus {
   const configuredPort = Number(window.localStorage.getItem(LOCAL_PROXY_PORT_PREVIEW_KEY));
+  const configuredGlobalThreshold = Number(
+    window.localStorage.getItem(LOCAL_PROXY_GLOBAL_THRESHOLD_PREVIEW_KEY),
+  );
   const port = Number.isInteger(configuredPort) && configuredPort >= 1 && configuredPort <= 65_535
     ? configuredPort
     : 0;
@@ -463,6 +467,9 @@ function previewLocalProxyStatus(): LocalProxyStatus {
     concurrentAccountRoutingEnabled: window.localStorage.getItem(LOCAL_PROXY_CONCURRENT_ROUTING_PREVIEW_KEY) === "true",
     customAutoSwitchPriorityEnabled: window.localStorage.getItem(LOCAL_PROXY_CUSTOM_PRIORITY_PREVIEW_KEY) === "true",
     customAutoSwitchThresholdEnabled: window.localStorage.getItem(LOCAL_PROXY_CUSTOM_THRESHOLD_PREVIEW_KEY) === "true",
+    globalAutoSwitchThreshold: Number.isFinite(configuredGlobalThreshold)
+      && configuredGlobalThreshold >= 0 && configuredGlobalThreshold <= 100
+      ? configuredGlobalThreshold : 0,
     autoDisableUnreachableAccounts: window.localStorage.getItem(LOCAL_PROXY_AUTO_DISABLE_UNREACHABLE_PREVIEW_KEY) === "true",
     systemPromptFilterEnabled: window.localStorage.getItem(SYSTEM_PROMPT_FILTER_PREVIEW_KEY) === "true",
     systemPromptFilterRules: readPreviewSystemPromptFilterRules(),
@@ -1742,6 +1749,18 @@ export async function setLocalProxyCustomThreshold(enabled: boolean): Promise<Lo
     return previewLocalProxyStatus();
   }
   return invoke<LocalProxyStatus>("set_custom_auto_switch_threshold_enabled", { enabled });
+}
+
+export async function setLocalProxyGlobalThreshold(threshold: number): Promise<LocalProxyStatus> {
+  if (!Number.isFinite(threshold) || threshold < 0 || threshold > 100) {
+    throw new Error("Global auto-switch threshold must be between 0 and 100");
+  }
+  if (!hasLocalBackend) {
+    window.localStorage.setItem(LOCAL_PROXY_GLOBAL_THRESHOLD_PREVIEW_KEY, String(threshold));
+    window.dispatchEvent(new CustomEvent(PROVIDERS_EVENT));
+    return previewLocalProxyStatus();
+  }
+  return invoke<LocalProxyStatus>("set_global_auto_switch_threshold", { threshold });
 }
 
 export async function setLocalProxyImageAccount(accountId: string | null): Promise<LocalProxyStatus> {

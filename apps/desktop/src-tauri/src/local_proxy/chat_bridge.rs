@@ -147,11 +147,17 @@ fn enabled_concurrent_account_ids(
     Ok(account_ids)
 }
 
-fn primary_quota_available_for_concurrent_routing(usage: &UsageSummary) -> bool {
-    !usage
-        .primary
-        .as_ref()
-        .is_some_and(|primary| primary.remaining_percent <= 0.0)
+fn primary_quota_available_for_concurrent_routing(
+    usage: &UsageSummary,
+    threshold: Option<f64>,
+) -> bool {
+    let Some(threshold) = threshold else {
+        return !usage
+            .primary
+            .as_ref()
+            .is_some_and(|primary| primary.remaining_percent <= 0.0);
+    };
+    primary_remaining_quota_score(usage).is_some_and(|remaining| remaining >= threshold)
 }
 
 fn available_concurrent_account_ids(
@@ -161,9 +167,19 @@ fn available_concurrent_account_ids(
     Ok(enabled_concurrent_account_ids(paths, state)?
         .into_iter()
         .filter(|account_id| {
-            primary_quota_available_for_concurrent_routing(&load_usage(&usage_path(
-                paths, account_id,
-            )))
+            let custom_threshold_enabled = state.auto_switch_on_quota_exhaustion
+                && state.custom_auto_switch_threshold_enabled;
+            let threshold = custom_threshold_enabled.then(|| {
+                effective_auto_switch_threshold(
+                    load_auto_switch_threshold(&auto_switch_threshold_path(paths, account_id)),
+                    state.global_auto_switch_threshold,
+                    true,
+                )
+            });
+            primary_quota_available_for_concurrent_routing(
+                &load_usage(&usage_path(paths, account_id)),
+                threshold,
+            )
         })
         .collect())
 }
@@ -173,17 +189,22 @@ fn concurrent_account_for_session(
     state: &ManagerStateFile,
     session_id: Option<&str>,
 ) -> Result<Option<String>, String> {
-    let Some(session_id) = session_id else {
-        return Ok(None);
-    };
     let enabled_account_ids = available_concurrent_account_ids(paths, state)?;
+    let no_available_account = || {
+        "No enabled official account currently meets the configured usage threshold".to_string()
+    };
+    let Some(session_id) = session_id else {
+        return enabled_account_ids
+            .first()
+            .cloned()
+            .map(Some)
+            .ok_or_else(no_available_account);
+    };
     let account_id = concurrent_account_router()
         .lock()
         .map_err(|_| "Concurrent account router lock is poisoned".to_string())?
         .account_for_session(session_id, &enabled_account_ids)
-        .ok_or_else(|| {
-            "No enabled official account currently has primary quota available".to_string()
-        })?;
+        .ok_or_else(no_available_account)?;
     Ok(Some(account_id))
 }
 
