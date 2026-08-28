@@ -475,12 +475,14 @@ function ProviderCard({ provider, options, tokenCostDisplay }: {
       <div><span>{t("providers.table.api")}</span>{apiFormatTag(provider, t)}</div>
       <div><span>{t("providers.table.modelControl")}</span><ProviderModelControlCell provider={provider}
         busy={waiting} onModelControlChange={onModelControlChange} t={t} /></div>
-      <div><span>{t("providers.table.balance")}</span><ProviderBalanceCell provider={provider} t={t} /></div>
-      <div><span>{t("providers.table.todayTokens")}</span><ProviderTokenCell
+    </div>
+    <div className="provider-card-summary">
+      <div className="provider-card-summary-item"><ProviderBalanceCell provider={provider} t={t} /></div>
+      <div className="provider-card-summary-item"><span>{t("providers.table.todayTokens")}</span><ProviderTokenCell
         usage={usageForProvider(provider)} period="today" language={language} t={t} /></div>
-      <div><span>{t("providers.table.totalTokens")}</span><ProviderTokenCell
+      <div className="provider-card-summary-item"><span>{t("providers.table.totalTokens")}</span><ProviderTokenCell
         usage={usageForProvider(provider)} period="total" language={language} t={t} /></div>
-      <div><span>{t("providers.table.estimatedCost")}</span><ProviderEstimatedCostCell
+      <div className="provider-card-summary-item"><ProviderEstimatedCostCell
         usage={usageForProvider(provider)} settings={tokenCostDisplay} t={t} /></div>
     </div>
   </article>;
