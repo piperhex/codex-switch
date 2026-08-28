@@ -113,7 +113,7 @@
   .provider-card-grid {
     min-width: 0;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(390px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(max(390px, calc((100% - 28px) / 3)), 1fr));
     grid-auto-rows: max-content;
     align-items: start;
     align-content: start;
