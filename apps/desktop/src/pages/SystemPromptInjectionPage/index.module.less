@@ -34,8 +34,40 @@
   font-weight: 700;
 }
 .error { margin: 7px 0 0; color: #b42318; font-size: 12px; }
-.topbarControls { display: flex; align-items: center; gap: 10px; }
+.topbarControls {
+  --topbar-control-font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 .topbarControls :global(.ant-btn-primary) { background: var(--green); }
+.promptStateTabs {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #c8ccc9;
+}
+.promptStateTab {
+  min-width: 45px;
+  height: 27px;
+  padding: 0 8px;
+  border: 0;
+  color: #fff;
+  background: #b8bdb9;
+  font-family: inherit;
+  font-size: var(--topbar-control-font-size);
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease;
+}
+.promptStateTab + .promptStateTab { border-left: 1px solid rgba(255, 255, 255, .5); }
+.promptStateTab:disabled { cursor: default; }
+.promptStateTab.promptStateActive.promptStateEnabled { background: var(--green); }
+.promptStateTab.promptStateActive.promptStateDisabled { background: #d14343; }
+.promptStateTab:not(.promptStateActive) { color: #6f7772; background: #c8ccc9; }
+.promptStateTab:focus-visible { position: relative; z-index: 1; outline: 2px solid var(--green); outline-offset: -2px; }
 .editorModal :global(.ant-modal-content) {
   height: 80vh;
   display: flex;

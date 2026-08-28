@@ -54,23 +54,31 @@
   font-size: 12px;
 }
 
-.topbarControls { display: flex; align-items: center; gap: 10px; }
+.topbarControls {
+  --topbar-control-font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 .topbarControls :global(.ant-btn-primary) { background: var(--green); }
 .ruleStateTabs {
   display: inline-flex;
   overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 999px;
   background: #c8ccc9;
 }
 .ruleStateTab {
-  min-width: 54px;
-  height: 30px;
-  padding: 0 10px;
+  min-width: 45px;
+  height: 27px;
+  padding: 0 8px;
   border: 0;
   color: #fff;
   background: #b8bdb9;
-  font: 600 12px/1 inherit;
+  font-family: inherit;
+  font-size: var(--topbar-control-font-size);
+  font-weight: 600;
+  line-height: 1;
   cursor: pointer;
   transition: background .15s ease, color .15s ease;
 }

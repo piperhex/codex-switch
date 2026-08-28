@@ -19,6 +19,40 @@ interface SystemPromptInjectionPageProps {
   t: Translate;
 }
 
+function PromptEnabledTabs({ enabled, loading, onChange, t }: {
+  enabled: boolean;
+  loading: boolean;
+  onChange: (enabled: boolean) => void;
+  t: Translate;
+}) {
+  const options = [
+    { value: true, label: t("systemPromptInjection.enabled") },
+    { value: false, label: t("systemPromptInjection.disabled") },
+  ];
+  return (
+    <div className={styles.promptStateTabs} role="tablist" aria-label={t("systemPromptInjection.toggleTitle")}>
+      {options.map((option) => {
+        const selected = option.value === enabled;
+        return (
+          <button
+            key={option.label}
+            type="button"
+            role="tab"
+            aria-selected={selected}
+            disabled={loading || selected}
+            className={`${styles.promptStateTab} ${option.value
+              ? styles.promptStateEnabled
+              : styles.promptStateDisabled}${selected ? ` ${styles.promptStateActive}` : ""}`}
+            onClick={() => onChange(option.value)}
+          >
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function promptPreview(value: string) {
   const characters = Array.from(value);
   return characters.length > PROMPT_PREVIEW_CHAR_LIMIT
@@ -133,8 +167,7 @@ function PromptList({ enabled, loading, onChange, onEnabledChange, prompts, t }:
     <PromptEditorModal editor={editor} loading={loading} t={t} />
     {topbarHost && createPortal(
       <div className={styles.topbarControls}>
-        <Switch aria-label={t("systemPromptInjection.toggleTitle")} checked={enabled}
-          loading={loading} onChange={onEnabledChange} />
+        <PromptEnabledTabs enabled={enabled} loading={loading} onChange={onEnabledChange} t={t} />
         <Button disabled={loading} icon={<Plus size={16} />} onClick={editor.openAdd} type="primary">
           {t("systemPromptInjection.addPrompt")}
         </Button>
