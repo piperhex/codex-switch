@@ -1,6 +1,7 @@
 import {
   ChevronRight, ClipboardPaste, ExternalLink, FileInput, Globe2, KeyRound, LayoutGrid, ShieldCheck, X,
 } from "lucide-react";
+import { Modal } from "antd";
 import type { Translate } from "../../i18n";
 
 export function LoginModal({ onClose, onWebSession, onStart, onImport, onImportClipboard, t }: {
@@ -11,6 +12,16 @@ export function LoginModal({ onClose, onWebSession, onStart, onImport, onImportC
   onImportClipboard: () => void;
   t: Translate;
 }) {
+  const confirmWebSession = () => {
+    Modal.confirm({
+      title: t("login.webSessionConfirmTitle"),
+      content: <span className="login-web-session-warning">{t("login.webSessionConfirmDescription")}</span>,
+      okText: t("login.webSessionConfirmButton"),
+      cancelText: t("login.webSessionCancelButton"),
+      onOk: onWebSession,
+    });
+  };
+
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <section className="modal" onClick={(event) => event.stopPropagation()}>
@@ -22,7 +33,7 @@ export function LoginModal({ onClose, onWebSession, onStart, onImport, onImportC
           <span className="choice-icon"><LayoutGrid size={20} /></span>
           <span><b>{t("login.embedded.title")}</b><small>{t("login.embedded.description")}</small></span><ChevronRight size={19} />
         </button>
-        <button type="button" className="login-choice" onClick={onWebSession}>
+        <button type="button" className="login-choice" onClick={confirmWebSession}>
           <span className="choice-icon"><Globe2 size={20} /></span>
           <span><b>{t("login.webSession.title")}</b><small>{t("login.webSession.description")}</small></span>
           <ChevronRight size={19} />
