@@ -59,7 +59,7 @@
   font-weight: 700;
 }
 .addRow { margin-top: 18px; display: flex; gap: 10px; }
-.addRow :global(.ant-input) { min-width: 0; }
+.addRow :global(.ant-input-textarea) { min-width: 0; flex: 1; }
 .addRow :global(.ant-btn-primary) { background: var(--green); }
 .error { margin: 7px 0 0; color: #b42318; font-size: 12px; }
 .promptList { margin-top: 14px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
@@ -74,7 +74,7 @@
 }
 .promptRow + .promptRow { border-top: 1px solid var(--line); }
 .promptRow > span { min-width: 0; flex: 1; overflow-wrap: anywhere; }
-.promptRow > :global(.ant-input) { min-width: 0; flex: 1; }
+.promptRow > :global(.ant-input-textarea) { min-width: 0; flex: 1; }
 .promptActions { flex: 0 0 auto; display: flex; align-items: center; gap: 2px; }
 .emptyState {
   min-height: 128px;

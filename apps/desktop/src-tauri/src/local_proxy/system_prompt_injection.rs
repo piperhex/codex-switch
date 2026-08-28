@@ -1,5 +1,4 @@
 const MAX_SYSTEM_PROMPT_INJECTION_PROMPTS: usize = 100;
-const MAX_SYSTEM_PROMPT_INJECTION_PROMPT_CHARS: usize = 500;
 
 static SYSTEM_PROMPT_INJECTION_ENABLED: AtomicBool = AtomicBool::new(false);
 static SYSTEM_PROMPT_INJECTION_PROMPTS: OnceLock<RwLock<Vec<crate::models::SystemPromptRule>>> =
@@ -109,11 +108,6 @@ fn normalize_system_prompt_injection_prompts(
         if trimmed.is_empty() {
             return Err("Injection prompts cannot be empty".to_string());
         }
-        if trimmed.chars().count() > MAX_SYSTEM_PROMPT_INJECTION_PROMPT_CHARS {
-            return Err(format!(
-                "Each injection prompt can contain up to {MAX_SYSTEM_PROMPT_INJECTION_PROMPT_CHARS} characters"
-            ));
-        }
         if seen.insert(trimmed.to_lowercase()) {
             prompt.text = trimmed.to_string();
             normalized_prompts.push(prompt);
@@ -168,7 +162,7 @@ pub(crate) async fn set_system_prompt_injection_prompts<R: Runtime + 'static>(
 mod system_prompt_injection_tests {
     use super::{
         inject_system_prompt_value_with_prompts, normalize_system_prompt_injection_prompts,
-        MAX_SYSTEM_PROMPT_INJECTION_PROMPTS, MAX_SYSTEM_PROMPT_INJECTION_PROMPT_CHARS,
+        MAX_SYSTEM_PROMPT_INJECTION_PROMPTS,
     };
     use serde_json::json;
 
@@ -252,7 +246,6 @@ mod system_prompt_injection_tests {
             }])
             .is_err()
         );
-        let long_prompt = "x".repeat(MAX_SYSTEM_PROMPT_INJECTION_PROMPT_CHARS + 1);
         let too_many_prompts = vec![
             crate::models::SystemPromptRule {
                 text: "prompt".to_string(),
@@ -260,13 +253,15 @@ mod system_prompt_injection_tests {
             };
             MAX_SYSTEM_PROMPT_INJECTION_PROMPTS + 1
         ];
-        assert!(
-            normalize_system_prompt_injection_prompts(vec![crate::models::SystemPromptRule {
-                text: long_prompt,
-                enabled: true
-            }])
-            .is_err()
-        );
+        let long_prompt = "x".repeat(10_000);
+        let normalized_long_prompt = normalize_system_prompt_injection_prompts(vec![
+            crate::models::SystemPromptRule {
+                text: long_prompt.clone(),
+                enabled: true,
+            },
+        ])
+        .expect("long prompts should be valid");
+        assert_eq!(normalized_long_prompt[0].text, long_prompt);
         assert!(normalize_system_prompt_injection_prompts(too_many_prompts).is_err());
     }
 }

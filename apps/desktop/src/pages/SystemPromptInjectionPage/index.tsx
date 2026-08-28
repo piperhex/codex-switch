@@ -5,8 +5,6 @@ import type { SystemPromptRule } from "../../types";
 import styles from "./index.module.less";
 import { type PromptEditor, usePromptEditor } from "./usePromptEditor";
 
-const MAX_PROMPT_LENGTH = 500;
-
 interface SystemPromptInjectionPageProps {
   enabled: boolean;
   loading: boolean;
@@ -26,9 +24,9 @@ function PromptRows({ editor, loading, prompts, t }: {
   return <div className={styles.promptList}>
     {prompts.map((prompt, index) => <div className={styles.promptRow} key={`${prompt.text}-${index}`}>
       {editor.editingIndex === index ? (
-        <Input autoFocus maxLength={MAX_PROMPT_LENGTH}
+        <Input.TextArea autoFocus autoSize={{ minRows: 3, maxRows: 12 }}
           onChange={(event) => editor.updateEditingValue(event.target.value)}
-          onPressEnter={() => void editor.saveEdit()} value={editor.editingValue} />
+          value={editor.editingValue} />
           ) : <span>{prompt.text}</span>}
           <div className={styles.promptActions}>
             <Switch aria-label={t("systemPromptInjection.togglePrompt")} checked={prompt.enabled}
@@ -62,9 +60,9 @@ function PromptList({ loading, onChange, prompts, t }: {
       {t("systemPromptInjection.promptCount", { count: prompts.length })}
     </span></div>
     <div className={styles.addRow}>
-      <Input maxLength={MAX_PROMPT_LENGTH} onChange={(event) => editor.updateDraft(event.target.value)}
-        onPressEnter={() => void editor.addPrompt()} placeholder={t("systemPromptInjection.promptPlaceholder")}
-        value={editor.draft} />
+      <Input.TextArea autoSize={{ minRows: 3, maxRows: 8 }}
+        onChange={(event) => editor.updateDraft(event.target.value)}
+        placeholder={t("systemPromptInjection.promptPlaceholder")} value={editor.draft} />
       <Button disabled={loading} icon={<Plus size={16} />} onClick={() => void editor.addPrompt()} type="primary">
         {t("systemPromptInjection.addPrompt")}
       </Button>
