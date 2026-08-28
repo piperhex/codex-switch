@@ -268,11 +268,21 @@
   :root[data-theme="dark"] .account-display-tabs button.selected { color: var(--ink); background: #30343a; box-shadow: none; }
   :root[data-theme="dark"] .account-card,
   :root[data-theme="dark"] .account-table-wrap { border-color: var(--line); background: var(--panel); box-shadow: none; }
+  :root[data-theme="dark"] .account-card.account-alert-card { border-color: #6a3a3d; background: #3d2527; }
+  :root[data-theme="dark"] .account-card.account-alert-card:hover { background: #512d30; }
   :root[data-theme="dark"] .account-table-toolbar { border-color: var(--line); color: var(--ink); background: #202328; }
   :root[data-theme="dark"] .account-card-usage { border-color: var(--line); color: #b7bcc5; background: #202328; }
   :root[data-theme="dark"] .account-table-wrap .ant-table-thead > tr > th { color: #bdc2ca; background: #1e2125; }
   :root[data-theme="dark"] .account-table-wrap col.ant-table-selection-col { background: #1e2125; }
   :root[data-theme="dark"] .account-table-wrap .ant-table-tbody > tr > td { background: var(--panel); }
+  :root[data-theme="dark"] .account-table-wrap .ant-table-tbody > tr.active-row > td { background: var(--green-selection); }
+  :root[data-theme="dark"] .account-table-wrap .ant-table-tbody > tr.active-row:hover > td {
+    background: var(--green-selection-hover);
+  }
+  :root[data-theme="dark"] .account-table-wrap .ant-table-tbody > tr.account-alert-row > td { background: #3d2527; }
+  :root[data-theme="dark"] .account-table-wrap .ant-table-tbody > tr.account-alert-row:hover > td {
+    background: #512d30;
+  }
   :root[data-theme="dark"] .account-table-wrap .ant-table-tbody > tr:hover > td { background: #292d32; }
   :root[data-theme="dark"] .account-table-wrap .ant-table-tbody > tr.account-threshold-row > td { background: #4a4328; }
   :root[data-theme="dark"] .account-table-wrap .ant-table-tbody > tr.account-threshold-row:hover > td { background: #5a502d; }
