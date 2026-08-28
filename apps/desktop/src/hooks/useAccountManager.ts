@@ -97,14 +97,14 @@ export function useAccountManager(
   ), [load, notify, syncLoggedInAccount]);
   useEffect(() => subscribeToProviderEvents(() => void load()), [load]);
 
-  const startLogin = useCallback(async (embedded: boolean) => {
+  const startLogin = useCallback(async (embedded: boolean, privateMode = false) => {
     if (!isDesktopApp) {
       notify(t("toast.previewLogin"));
       return;
     }
     notify(embedded ? t("toast.openingEmbedded") : t("toast.openingBrowser"));
     try {
-      await beginLogin(embedded);
+      await beginLogin(embedded, privateMode);
       notify(embedded ? t("toast.embeddedOpened") : t("toast.browserOpened"));
     } catch (error) {
       notify(String(error));

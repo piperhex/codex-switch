@@ -2444,9 +2444,9 @@ export async function showDashboardFromBubble(): Promise<void> {
   if (isDesktopApp) await invoke("show_dashboard_from_bubble");
 }
 
-export async function beginLogin(embedded: boolean): Promise<LoginStart | null> {
+export async function beginLogin(embedded: boolean, privateMode = false): Promise<LoginStart | null> {
   if (!isDesktopApp) return null;
-  return invoke<LoginStart>("start_login", { embedded });
+  return invoke<LoginStart>("start_login", { embedded, private_mode: privateMode });
 }
 
 export async function beginWebSessionLogin(): Promise<void> {

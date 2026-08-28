@@ -150,6 +150,17 @@ fn open_login_in_default_browser<R: Runtime>(
         .map_err(|error| format!("无法打开默认浏览器：{error}"))
 }
 
+fn open_login_browser<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    url: &str,
+    private_mode: bool,
+) -> Result<(), String> {
+    if private_mode {
+        return open_default_private(app, url);
+    }
+    open_login_in_default_browser(app, url)
+}
+
 fn open_embedded_login_window<R: Runtime + 'static>(
     app: &tauri::AppHandle<R>,
     url: &str,
@@ -339,6 +350,7 @@ pub(crate) fn start_login<R: Runtime + 'static>(
     app: tauri::AppHandle<R>,
     state: State<'_, AppState>,
     embedded: bool,
+    private_mode: bool,
 ) -> Result<LoginStart, String> {
     if let Some(previous) = state
         .login_cancel
@@ -388,7 +400,7 @@ pub(crate) fn start_login<R: Runtime + 'static>(
                 emit_login(&window_app, false, error, None);
             }
         });
-    } else if let Err(error) = open_default_private(&app, &url) {
+    } else if let Err(error) = open_login_browser(&app, &url, private_mode) {
         cancel.store(true, Ordering::Relaxed);
         return Err(error);
     }

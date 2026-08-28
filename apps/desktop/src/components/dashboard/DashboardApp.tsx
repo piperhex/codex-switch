@@ -763,9 +763,9 @@ export function DashboardApp() {
     void reportDeviceActivity().catch(() => undefined);
   }, [cloud.state.baseUrl]);
 
-  const startLogin = (embedded: boolean) => {
+  const startLogin = (embedded: boolean, privateMode = false) => {
     setShowLogin(false);
-    void manager.startLogin(embedded);
+    void manager.startLogin(embedded, privateMode);
   };
   const startWebSessionLogin = () => {
     setShowLogin(false);

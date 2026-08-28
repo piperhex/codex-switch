@@ -1,17 +1,20 @@
 import {
   ChevronRight, ClipboardPaste, ExternalLink, FileInput, Globe2, KeyRound, LayoutGrid, ShieldCheck, X,
 } from "lucide-react";
-import { Modal } from "antd";
+import { Button, Modal } from "antd";
+import { useState } from "react";
 import type { Translate } from "../../i18n";
 
 export function LoginModal({ onClose, onWebSession, onStart, onImport, onImportClipboard, t }: {
   onClose: () => void;
   onWebSession: () => void;
-  onStart: (embedded: boolean) => void;
+  onStart: (embedded: boolean, privateMode?: boolean) => void;
   onImport: () => void;
   onImportClipboard: () => void;
   t: Translate;
 }) {
+  const [browserModeConfirmOpen, setBrowserModeConfirmOpen] = useState(false);
+
   const confirmWebSession = () => {
     Modal.confirm({
       title: t("login.webSessionConfirmTitle"),
@@ -20,6 +23,11 @@ export function LoginModal({ onClose, onWebSession, onStart, onImport, onImportC
       cancelText: t("login.webSessionCancelButton"),
       onOk: onWebSession,
     });
+  };
+
+  const startBrowserLogin = (privateMode: boolean) => {
+    setBrowserModeConfirmOpen(false);
+    onStart(false, privateMode);
   };
 
   return (
@@ -38,7 +46,7 @@ export function LoginModal({ onClose, onWebSession, onStart, onImport, onImportC
           <span><b>{t("login.webSession.title")}</b><small>{t("login.webSession.description")}</small></span>
           <ChevronRight size={19} />
         </button>
-        <button type="button" className="login-choice" onClick={() => onStart(false)}>
+        <button type="button" className="login-choice" onClick={() => setBrowserModeConfirmOpen(true)}>
           <span className="choice-icon"><ExternalLink size={20} /></span>
           <span><b>{t("login.browser.title")}</b><small>{t("login.browser.description")}</small></span><ChevronRight size={19} />
         </button>
@@ -54,6 +62,22 @@ export function LoginModal({ onClose, onWebSession, onStart, onImport, onImportC
         </button>
         <div className="safety-note"><ShieldCheck size={16} />{t("login.safety")}</div>
       </section>
+      <Modal
+        open={browserModeConfirmOpen}
+        title={t("login.browserModeConfirmTitle")}
+        width={400}
+        onCancel={() => setBrowserModeConfirmOpen(false)}
+        footer={[
+          <Button key="normal" danger type="primary" onClick={() => startBrowserLogin(false)}>
+            {t("login.browserNormalButton")}
+          </Button>,
+          <Button key="private" type="primary" onClick={() => startBrowserLogin(true)}>
+            {t("login.browserPrivateButton")}
+          </Button>,
+        ]}
+      >
+        <p className="login-browser-mode-warning">{t("login.browserModeConfirmDescription")}</p>
+      </Modal>
     </div>
   );
 }
