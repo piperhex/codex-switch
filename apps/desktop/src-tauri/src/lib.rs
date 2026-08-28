@@ -5,6 +5,7 @@ mod aggregate_scheduler;
 mod antigravity_provider;
 mod auth;
 mod autostart;
+mod browser;
 mod ccs_import;
 mod claude_code;
 mod claude_code_provider;

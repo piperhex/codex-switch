@@ -19,6 +19,7 @@ use tiny_http::{Header, Request, Response as HttpResponse, Server, StatusCode};
 
 use crate::{
     auth::decode_jwt,
+    browser::open_default_private,
     codex_api::{CLIENT_ID, ISSUER, ORIGINATOR},
     models::{LoginStart, LoginStatus},
     storage::import_value,
@@ -387,7 +388,7 @@ pub(crate) fn start_login<R: Runtime + 'static>(
                 emit_login(&window_app, false, error, None);
             }
         });
-    } else if let Err(error) = open_login_in_default_browser(&app, &url) {
+    } else if let Err(error) = open_default_private(&app, &url) {
         cancel.store(true, Ordering::Relaxed);
         return Err(error);
     }
