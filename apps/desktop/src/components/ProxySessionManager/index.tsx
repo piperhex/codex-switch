@@ -248,6 +248,7 @@ export function ProxySessionManager({
   const [dragTargetColumn, setDragTargetColumn] = useState<ReorderableColumnKey | null>(null);
   const [detailsSession, setDetailsSession] = useState<ProxySession | null>(null);
   const [requestDetails, setRequestDetails] = useState<ProxySessionRequest[]>([]);
+  const [conversationRequest, setConversationRequest] = useState<ProxySessionRequest | null>(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [detailsError, setDetailsError] = useState("");
   const refreshingRef = useRef(false);
@@ -597,6 +598,24 @@ export function ProxySessionManager({
       align: "right",
       render: (_, request) => <RequestTokenUsage request={request} t={t} />,
     },
+    {
+      title: t("providers.proxy.sessionsRequestConversation"),
+      key: "conversation",
+      width: 110,
+      align: "center",
+      render: (_, request) => (
+        <Button
+          type="link"
+          size="small"
+          className={styles.requestConversationButton}
+          icon={<Eye size={13} />}
+          disabled={!request.conversation}
+          onClick={() => setConversationRequest(request)}
+        >
+          {t("providers.proxy.sessionsRequestViewConversation")}
+        </Button>
+      ),
+    },
   ], [t]);
 
   const handleTableChange: TableProps<ProxySession>["onChange"] = (_, filters) => {
@@ -615,8 +634,14 @@ export function ProxySessionManager({
   };
 
   const closeManager = () => {
+    setConversationRequest(null);
     setDetailsSession(null);
     setOpen(false);
+  };
+
+  const closeRequestDetails = () => {
+    setConversationRequest(null);
+    setDetailsSession(null);
   };
 
   return (
@@ -783,7 +808,7 @@ export function ProxySessionManager({
           conversation: detailsSession?.title
             || (detailsSession ? shortSessionId(detailsSession.id) : ""),
         })}
-        onCancel={() => setDetailsSession(null)}
+        onCancel={closeRequestDetails}
         footer={(
           <>
             <Button
@@ -795,7 +820,7 @@ export function ProxySessionManager({
             >
               {t("providers.proxy.sessionsRefresh")}
             </Button>
-            <Button type="primary" onClick={() => setDetailsSession(null)}>
+            <Button type="primary" onClick={closeRequestDetails}>
               {t("providers.proxy.sessionsClose")}
             </Button>
           </>
@@ -821,8 +846,24 @@ export function ProxySessionManager({
             size: "small",
           } : false}
           locale={{ emptyText: t("providers.proxy.sessionsRequestDetailsEmpty") }}
-          scroll={{ x: 930, y: "calc(80vh - 260px)" }}
+          scroll={{ x: 1_040, y: "calc(80vh - 260px)" }}
         />
+      </Modal>
+      <Modal
+        className={styles.conversationModal}
+        open={conversationRequest != null}
+        centered
+        width="min(720px, 90vw)"
+        title={t("providers.proxy.sessionsRequestConversationTitle", {
+          request: conversationRequest ? `#${conversationRequest.id}` : "",
+        })}
+        footer={null}
+        onCancel={() => setConversationRequest(null)}
+      >
+        <pre className={styles.requestConversationContent}>
+          {conversationRequest?.conversation
+            || t("providers.proxy.sessionsRequestConversationEmpty")}
+        </pre>
       </Modal>
     </>
   );

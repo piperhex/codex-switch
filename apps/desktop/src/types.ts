@@ -268,6 +268,7 @@ export interface ProxySessionRequest {
     startedAt: number;
     model?: string | null;
     reasoningEffort?: string | null;
+    conversation?: string | null;
     firstResponseTimeMs?: number | null;
     responseTimeMs?: number | null;
     totalTokens?: number | null;

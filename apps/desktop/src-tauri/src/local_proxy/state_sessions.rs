@@ -84,6 +84,7 @@ fn begin_proxy_session_request(
         .to_string();
     let now = unix_now();
     let (model, reasoning_effort) = proxy_request_metadata(body);
+    let conversation = proxy_request_conversation(body);
     let started_at = Instant::now();
     let mut request_id = 1;
     if let Ok(mut sessions) = proxy_sessions().lock() {
@@ -119,6 +120,7 @@ fn begin_proxy_session_request(
             started_at: now,
             model,
             reasoning_effort,
+            conversation,
             first_response_time_ms: None,
             response_time_ms: None,
             usage: None,
@@ -132,6 +134,22 @@ fn begin_proxy_session_request(
         request_id,
         started_at,
     }
+}
+
+const MAX_PROXY_SESSION_CONVERSATION_CHARS: usize = 12_000;
+
+fn proxy_request_conversation(body: &[u8]) -> Option<String> {
+    let value = serde_json::from_slice::<Value>(body).ok()?;
+    let conversation = value
+        .get("messages")
+        .or_else(|| value.get("input"))
+        .or_else(|| value.get("prompt"))?;
+    let text = serde_json::to_string_pretty(conversation).ok()?;
+    let mut truncated = text.chars().take(MAX_PROXY_SESSION_CONVERSATION_CHARS).collect::<String>();
+    if text.chars().count() > MAX_PROXY_SESSION_CONVERSATION_CHARS {
+        truncated.push_str("\n…");
+    }
+    Some(truncated)
 }
 
 fn proxy_request_metadata(body: &[u8]) -> (Option<String>, Option<String>) {

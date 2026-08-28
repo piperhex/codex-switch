@@ -291,6 +291,7 @@ fn list_proxy_session_requests_blocking(
             started_at: request.started_at,
             model: request.model.clone(),
             reasoning_effort: request.reasoning_effort.clone(),
+            conversation: request.conversation.clone(),
             first_response_time_ms: request.first_response_time_ms,
             response_time_ms: request.response_time_ms,
             total_tokens: request.usage.as_ref().and_then(token_usage_total),

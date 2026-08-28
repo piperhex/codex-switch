@@ -222,6 +222,28 @@
   font-size: 10px;
 }
 
+.requestConversationButton:global(.ant-btn) {
+  height: 24px;
+  padding: 0 4px;
+  font-size: 11px;
+}
+
+.conversationModal :global(.ant-modal-body) { padding-top: 4px; }
+
+.requestConversationContent {
+  max-height: 60vh;
+  margin: 0;
+  padding: 12px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--ink);
+  font: 12px/1.6 ui-monospace, SFMono-Regular, Consolas, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .requestTable {
   min-height: 0;
   flex: 1;

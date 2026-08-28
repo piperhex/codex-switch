@@ -275,6 +275,21 @@
     }
 
     #[test]
+    fn proxy_request_conversation_extracts_messages_and_limits_size() {
+        let body = br#"{"messages":[{"role":"user","content":"Hello"}]}"#;
+        let conversation = proxy_request_conversation(body).expect("conversation");
+        assert!(conversation.contains("Hello"));
+
+        let long_body = format!(
+            "{{\"input\":\"{}\"}}",
+            "x".repeat(MAX_PROXY_SESSION_CONVERSATION_CHARS + 10)
+        );
+        let truncated = proxy_request_conversation(long_body.as_bytes()).expect("conversation");
+        assert!(truncated.chars().count() <= MAX_PROXY_SESSION_CONVERSATION_CHARS + 2);
+        assert!(truncated.ends_with("\n…"));
+    }
+
+    #[test]
     fn proxy_session_token_totals_accumulate_completed_responses() {
         let mut totals = ProxySessionTokenTotals::default();
         totals.add_usage(&TokenUsageValues {
