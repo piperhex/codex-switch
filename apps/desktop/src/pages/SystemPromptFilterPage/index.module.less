@@ -56,6 +56,30 @@
 
 .topbarControls { display: flex; align-items: center; gap: 10px; }
 .topbarControls :global(.ant-btn-primary) { background: var(--green); }
+.ruleStateTabs {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #c8ccc9;
+}
+.ruleStateTab {
+  min-width: 54px;
+  height: 30px;
+  padding: 0 10px;
+  border: 0;
+  color: #fff;
+  background: #b8bdb9;
+  font: 600 12px/1 inherit;
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease;
+}
+.ruleStateTab + .ruleStateTab { border-left: 1px solid rgba(255, 255, 255, .5); }
+.ruleStateTab:disabled { cursor: default; }
+.ruleStateTab.ruleStateActive.ruleStateEnabled { background: var(--green); }
+.ruleStateTab.ruleStateActive.ruleStateDisabled { background: #d14343; }
+.ruleStateTab:not(.ruleStateActive) { color: #6f7772; background: #c8ccc9; }
+.ruleStateTab:focus-visible { position: relative; z-index: 1; outline: 2px solid var(--green); outline-offset: -2px; }
 .editorModal :global(.ant-modal-content) {
   height: 80vh;
   display: flex;

@@ -42,6 +42,40 @@ function rulePreview(value: string) {
     : value;
 }
 
+function RuleEnabledTabs({ enabled, loading, onChange, t }: {
+  enabled: boolean;
+  loading: boolean;
+  onChange: (enabled: boolean) => void;
+  t: Translate;
+}) {
+  const options = [
+    { value: true, label: t("systemPromptFilter.enabled") },
+    { value: false, label: t("systemPromptFilter.disabled") },
+  ];
+  return (
+    <div className={styles.ruleStateTabs} role="tablist" aria-label={t("systemPromptFilter.toggleTitle")}>
+      {options.map((option) => {
+        const selected = option.value === enabled;
+        return (
+          <button
+            key={option.label}
+            type="button"
+            role="tab"
+            aria-selected={selected}
+            disabled={loading || selected}
+            className={`${styles.ruleStateTab} ${option.value
+              ? styles.ruleStateEnabled
+              : styles.ruleStateDisabled}${selected ? ` ${styles.ruleStateActive}` : ""}`}
+            onClick={() => onChange(option.value)}
+          >
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function RuleEditorModal({ editor, loading, t }: RuleEditorModalProps) {
   const isEditing = editor.editingIndex !== null;
   return (
@@ -143,8 +177,7 @@ function RuleList({ enabled, loading, onChange, onEnabledChange, rules, t }: Rul
       <RuleEditorModal editor={editor} loading={loading} t={t} />
       {topbarHost && createPortal(
         <div className={styles.topbarControls}>
-          <Switch aria-label={t("systemPromptFilter.toggleTitle")} checked={enabled}
-            loading={loading} onChange={onEnabledChange} />
+          <RuleEnabledTabs enabled={enabled} loading={loading} onChange={onEnabledChange} t={t} />
           <Button disabled={loading} icon={<Plus size={16} />} onClick={editor.openAdd} type="primary">
             {t("systemPromptFilter.addRule")}
           </Button>
