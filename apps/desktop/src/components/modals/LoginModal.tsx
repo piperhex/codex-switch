@@ -32,7 +32,9 @@ export function LoginModal({ onClose, onWebSession, onStart, onImport, onImportC
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-backdrop" onClick={(event) => {
+      if (event.target === event.currentTarget) onClose();
+    }}>
       <section className="modal" onClick={(event) => event.stopPropagation()}>
         <button type="button" className="modal-close" aria-label={t("login.close")} onClick={onClose}><X size={19} /></button>
         <div className="modal-icon"><KeyRound size={25} /></div>
