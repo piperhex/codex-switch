@@ -213,6 +213,7 @@ export type ImageRouteKind = "input" | "output";
 export type LocalProxyStopPhase =
   | "stoppingClient"
   | "restoringConversations"
+  | "skippingConversations"
   | "restoringConfiguration"
   | "restartingClient"
   | "complete"

@@ -155,13 +155,23 @@ fn start_local_proxy_blocking<R: Runtime>(
 pub(crate) async fn stop_local_proxy<R: Runtime + 'static>(
     app: tauri::AppHandle<R>,
 ) -> Result<LocalProxyStatus, String> {
-    tauri::async_runtime::spawn_blocking(move || stop_local_proxy_blocking(app))
+    tauri::async_runtime::spawn_blocking(move || stop_local_proxy_blocking(app, true))
+        .await
+        .map_err(|error| format!("Local proxy stop task failed: {error}"))?
+}
+
+#[tauri::command]
+pub(crate) async fn stop_local_proxy_without_migrating<R: Runtime + 'static>(
+    app: tauri::AppHandle<R>,
+) -> Result<LocalProxyStatus, String> {
+    tauri::async_runtime::spawn_blocking(move || stop_local_proxy_blocking(app, false))
         .await
         .map_err(|error| format!("Local proxy stop task failed: {error}"))?
 }
 
 fn stop_local_proxy_blocking<R: Runtime>(
     app: tauri::AppHandle<R>,
+    restore_conversations: bool,
 ) -> Result<LocalProxyStatus, String> {
     let _switch_guard = crate::commands::account_switch_lock()
         .lock()
@@ -191,8 +201,18 @@ fn stop_local_proxy_blocking<R: Runtime>(
     }
 
     stop_server();
-    emit_stop_progress(&app, "restoringConversations", 12, Some(0), None);
-    let conversation_restore_result = if write_codex {
+    emit_stop_progress(
+        &app,
+        if restore_conversations {
+            "restoringConversations"
+        } else {
+            "skippingConversations"
+        },
+        12,
+        Some(0),
+        None,
+    );
+    let conversation_restore_result = if restore_conversations && write_codex {
         crate::commands::restore_conversation_metadata_if_present_with_progress(
             &paths.codex_home,
             &mut |processed, total| {
@@ -241,7 +261,7 @@ fn stop_local_proxy_blocking<R: Runtime>(
             original_state: &original_state,
             client_was_running,
             launch_target: launch_target.as_ref(),
-            restore_proxy_conversations: true,
+            restore_proxy_conversations: restore_conversations,
         });
         emit_stop_progress(&app, "failed", 90, None, None);
         return Err(stop_cancelled_error(commit_error, recovery_errors));
@@ -268,9 +288,15 @@ fn stop_local_proxy_blocking<R: Runtime>(
         }
         Err(restart_error) => {
             emit_stop_progress(&app, "complete", 100, None, None);
-            Err(format!(
-                "Local proxy was stopped, the selected auth.json and non-proxy conversations were restored, but ChatGPT/Codex could not be restarted ({restart_error}). Please start ChatGPT or Codex manually."
-            ))
+            if restore_conversations {
+                Err(format!(
+                    "Local proxy was stopped, the selected auth.json and non-proxy conversations were restored, but ChatGPT/Codex could not be restarted ({restart_error}). Please start ChatGPT or Codex manually."
+                ))
+            } else {
+                Err(format!(
+                    "Local proxy was stopped without migrating conversations, but ChatGPT/Codex could not be restarted ({restart_error}). Please start ChatGPT or Codex manually."
+                ))
+            }
         }
     }
 }

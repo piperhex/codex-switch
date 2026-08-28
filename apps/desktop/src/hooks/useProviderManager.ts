@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { createElement, useCallback, useEffect, useState } from "react";
+import { Modal } from "antd";
 import {
   activateAggregateApi,
   activateProvider,
@@ -32,6 +33,7 @@ import {
   setProviderAutoSwitchEnabled,
   startLocalProxy,
   stopLocalProxy,
+  stopLocalProxyWithoutMigrating,
   subscribeToLocalProxyStartProgress,
   subscribeToLocalProxyStopProgress,
   subscribeToProviderEvents,
@@ -76,6 +78,9 @@ function providerErrorMessage(error: unknown, t: Translate) {
   }
   if (message.includes("Local proxy was stopped, the selected auth.json and non-proxy conversations were restored")) {
     return t("providers.error.proxyStoppedRestartFailed");
+  }
+  if (message.includes("Local proxy was stopped without migrating conversations")) {
+    return t("providers.error.proxyStoppedWithoutMigrationRestartFailed");
   }
   if (message.includes("API key is required for a new provider")) return t("providers.error.apiKeyRequired");
   if (message.includes("Provider does not exist")) return t("providers.error.notFound");
@@ -482,26 +487,28 @@ export function useProviderManager(
     }
   }, [load, notify, t]);
 
-  const stopProxy = useCallback(async () => {
-    const providerWasActive = providers.some((provider) => provider.active);
+  const stopProxyAttempt = useCallback(async (withoutMigration: boolean, providerWasActive: boolean) => {
     setProxyBusy(true);
     setProxyStopProgress({ phase: "stoppingClient", percent: 3 });
-    const unsubscribeProgress = subscribeToLocalProxyStopProgress((progress) => {
-      setProxyStopProgress(progress);
-    });
+    const unsubscribeProgress = subscribeToLocalProxyStopProgress(setProxyStopProgress);
     const fakeProgressTimer = window.setInterval(() => {
       setProxyStopProgress((current) => {
         if (!current || current.phase === "complete" || current.phase === "failed") return current;
         const ceiling = current.phase === "stoppingClient" ? 10
           : current.phase === "restoringConversations" ? 88
-            : current.phase === "restoringConfiguration" ? 94
-              : 98;
+            : current.phase === "skippingConversations" ? 88
+              : current.phase === "restoringConfiguration" ? 94
+                : 98;
         if (current.percent >= ceiling) return current;
         return { ...current, percent: Math.min(ceiling, current.percent + 1) };
       });
     }, 700);
+    let canRetryWithoutMigration = false;
     try {
-      setLocalProxy(await stopLocalProxy());
+      const status = withoutMigration
+        ? await stopLocalProxyWithoutMigrating()
+        : await stopLocalProxy();
+      setLocalProxy(status);
       setProxyStopProgress({ phase: "complete", percent: 100 });
       notify(t(providerWasActive
         ? "toast.localProxyStoppedProviderDeselected"
@@ -512,6 +519,7 @@ export function useProviderManager(
       const stopCompleted = String(error).includes(
         "Local proxy was stopped, the selected auth.json and non-proxy conversations were restored",
       );
+      canRetryWithoutMigration = !withoutMigration && !stopCompleted;
       setProxyStopProgress((current) => ({
         phase: stopCompleted ? "complete" : "failed",
         percent: stopCompleted ? 100 : Math.max(current?.percent ?? 0, 3),
@@ -525,7 +533,36 @@ export function useProviderManager(
       setProxyStopProgress(null);
       setProxyBusy(false);
     }
-  }, [load, notify, providers, t]);
+    return canRetryWithoutMigration;
+  }, [load, notify, t]);
+
+  const confirmStopWithoutMigration = useCallback(() => new Promise<boolean>((resolve) => {
+    Modal.confirm({
+      title: t("providers.proxy.stopFailedConfirmTitle"),
+      content: createElement(
+        "span",
+        { className: "compact-confirm-copy" },
+        t("providers.proxy.stopFailedConfirmDescription"),
+      ),
+      okText: t("providers.proxy.keepRunning"),
+      cancelText: t("providers.proxy.stopWithoutMigration"),
+      okType: "primary",
+      cancelButtonProps: { danger: true },
+      closable: false,
+      maskClosable: false,
+      keyboard: false,
+      onOk: () => resolve(false),
+      onCancel: () => resolve(true),
+    });
+  }), [t]);
+
+  const stopProxy = useCallback(async () => {
+    const providerWasActive = providers.some((provider) => provider.active);
+    const canRetryWithoutMigration = await stopProxyAttempt(false, providerWasActive);
+    if (canRetryWithoutMigration && await confirmStopWithoutMigration()) {
+      await stopProxyAttempt(true, providerWasActive);
+    }
+  }, [confirmStopWithoutMigration, providers, stopProxyAttempt]);
 
   const setProxyAutoSwitch = useCallback(async (enabled: boolean) => {
     setProxyBusy(true);

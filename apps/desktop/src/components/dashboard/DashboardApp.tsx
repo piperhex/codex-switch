@@ -142,6 +142,7 @@ const PROXY_START_PHASE_KEYS = {
 const PROXY_STOP_PHASE_KEYS = {
   stoppingClient: "providers.proxy.stopProgress.stoppingClient",
   restoringConversations: "providers.proxy.stopProgress.restoringConversations",
+  skippingConversations: "providers.proxy.stopProgress.skippingConversations",
   restoringConfiguration: "providers.proxy.stopProgress.restoringConfiguration",
   restartingClient: "providers.proxy.stopProgress.restartingClient",
   complete: "providers.proxy.stopProgress.complete",

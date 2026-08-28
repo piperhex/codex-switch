@@ -1610,6 +1610,11 @@ export async function stopLocalProxy(): Promise<LocalProxyStatus> {
   return invoke<LocalProxyStatus>("stop_local_proxy");
 }
 
+export async function stopLocalProxyWithoutMigrating(): Promise<LocalProxyStatus> {
+  if (!hasLocalBackend) return stopLocalProxy();
+  return invoke<LocalProxyStatus>("stop_local_proxy_without_migrating");
+}
+
 export async function restoreNonProxyConversations(): Promise<DirectConversationSyncResult> {
   if (!hasLocalBackend) return { conversationsUpdated: 0, rolloutFilesUpdated: 0 };
   return invoke<DirectConversationSyncResult>("restore_non_proxy_conversations");

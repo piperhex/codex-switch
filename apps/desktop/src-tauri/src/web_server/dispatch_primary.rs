@@ -175,6 +175,9 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
         )),
         "start_local_proxy" => serialize(block_on(crate::local_proxy::start_local_proxy(app))),
         "stop_local_proxy" => serialize(block_on(crate::local_proxy::stop_local_proxy(app))),
+        "stop_local_proxy_without_migrating" => serialize(block_on(
+            crate::local_proxy::stop_local_proxy_without_migrating(app),
+        )),
         "restore_non_proxy_conversations" => serialize(block_on(
             crate::commands::restore_non_proxy_conversations(app),
         )),
