@@ -2446,7 +2446,7 @@ export async function showDashboardFromBubble(): Promise<void> {
 
 export async function beginLogin(embedded: boolean, privateMode = false): Promise<LoginStart | null> {
   if (!isDesktopApp) return null;
-  return invoke<LoginStart>("start_login", { embedded, private_mode: privateMode });
+  return invoke<LoginStart>("start_login", { embedded, privateMode });
 }
 
 export async function beginWebSessionLogin(): Promise<void> {
