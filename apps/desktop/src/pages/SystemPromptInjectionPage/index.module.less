@@ -7,39 +7,14 @@
   box-sizing: border-box;
 }
 
-.controlCard,
 .promptsCard { border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }
-.controlCard {
-  min-height: 132px;
-  padding: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
-  background: linear-gradient(135deg, var(--panel), var(--green-soft));
-  box-shadow: 0 8px 24px rgba(22, 36, 27, 0.06);
-}
-.controlCopy { max-width: 760px; }
-.controlCopy h2,
 .sectionHeading h2 {
   margin: 10px 0 6px;
   color: var(--ink);
   font: 700 18px/1.3 Manrope, "Microsoft YaHei UI", sans-serif;
 }
-.controlCopy p,
 .sectionHeading p,
 .notice { margin: 0; color: var(--muted); line-height: 1.6; }
-.status {
-  padding: 4px 9px;
-  border-radius: 999px;
-  color: #a5473e;
-  background: rgba(209, 67, 67, 0.1);
-  font-size: 11px;
-  font-weight: 700;
-}
-.status.running { color: var(--green-dark); background: var(--green-selection); }
-.controlCard :global(.ant-switch) { min-width: 48px; flex: 0 0 auto; }
-.controlCard :global(.ant-switch-checked) { background: var(--green); }
 .promptsCard { padding: 20px 24px 24px; }
 .sectionHeading {
   display: flex;
@@ -58,24 +33,21 @@
   font-size: 11px;
   font-weight: 700;
 }
-.addRow { margin-top: 18px; display: flex; gap: 10px; }
-.addRow :global(.ant-input-textarea) { min-width: 0; flex: 1; }
-.addRow :global(.ant-btn-primary) { background: var(--green); }
 .error { margin: 7px 0 0; color: #b42318; font-size: 12px; }
-.promptList { margin-top: 14px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
-.promptRow {
-  min-height: 48px;
-  padding: 7px 9px 7px 14px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
+.topbarControls { display: flex; align-items: center; gap: 10px; }
+.topbarControls :global(.ant-btn-primary) { background: var(--green); }
+.promptTable { margin-top: 18px; }
+.promptPreview {
+  display: block;
+  max-width: 100%;
   color: var(--ink);
-  background: var(--panel);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
-.promptRow + .promptRow { border-top: 1px solid var(--line); }
-.promptRow > span { min-width: 0; flex: 1; overflow-wrap: anywhere; }
-.promptRow > :global(.ant-input-textarea) { min-width: 0; flex: 1; }
 .promptActions { flex: 0 0 auto; display: flex; align-items: center; gap: 2px; }
+.editorForm { display: grid; gap: 16px; }
+.editorForm label { display: grid; gap: 6px; color: var(--ink); font-size: 13px; font-weight: 600; }
+.promptEditorTextArea :global(textarea) { resize: vertical !important; }
 .emptyState {
   min-height: 128px;
   margin-top: 14px;
@@ -98,8 +70,7 @@
   font-size: 12px;
 }
 @media (max-width: 640px) {
-  .controlCard,
   .promptsCard { padding: 18px; }
-  .addRow { align-items: stretch; flex-direction: column; }
   .sectionHeading { align-items: flex-start; }
+  .topbarControls { gap: 6px; }
 }

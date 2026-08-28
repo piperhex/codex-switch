@@ -871,11 +871,15 @@ function readPreviewSystemPromptRules(key: string): SystemPromptRule[] {
     const stored = JSON.parse(window.localStorage.getItem(key) ?? "[]") as unknown;
     if (!Array.isArray(stored)) return [];
     return stored.flatMap((entry): SystemPromptRule[] => {
-      if (typeof entry === "string") return [{ text: entry, enabled: true }];
+      if (typeof entry === "string") return [{ name: "", text: entry, enabled: true }];
       if (!entry || typeof entry !== "object") return [];
-      const value = entry as { text?: unknown; enabled?: unknown };
+      const value = entry as { name?: unknown; text?: unknown; enabled?: unknown };
       return typeof value.text === "string"
-        ? [{ text: value.text, enabled: value.enabled !== false }]
+        ? [{
+            name: typeof value.name === "string" ? value.name : "",
+            text: value.text,
+            enabled: value.enabled !== false,
+          }]
         : [];
     });
   } catch {

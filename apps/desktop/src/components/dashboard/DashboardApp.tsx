@@ -1323,6 +1323,9 @@ export function DashboardApp() {
               <div id="skills-market-topbar-actions" className="topbar-actions skills-market-topbar-actions" />
             )}
             {page === "sessions" && <div id="codex-thread-topbar-actions" className="topbar-actions" />}
+            {page === "promptInjection" && (
+              <div id="system-prompt-injection-topbar-actions" className="topbar-actions" />
+            )}
             {page === "claudeCode" && (
               <div id="third-party-apps-topbar-actions"
                 className="topbar-actions third-party-apps-topbar-actions" />
@@ -1464,7 +1467,6 @@ export function DashboardApp() {
                 onEnabledChange={(enabled) => void providerManager.setSystemPromptInjection(enabled)}
                 onPromptsChange={providerManager.saveSystemPromptInjectionPrompts}
                 prompts={providerManager.localProxy?.systemPromptInjectionPrompts ?? []}
-                proxyRunning={providerManager.localProxy?.running ?? false}
                 t={t}
               />
             )}

@@ -214,6 +214,7 @@ mod system_prompt_filter_tests {
         let rules = rules
             .iter()
             .map(|rule| crate::models::SystemPromptRule {
+                name: String::new(),
                 text: rule.to_string(),
                 enabled: true,
             })
@@ -279,6 +280,7 @@ mod system_prompt_filter_tests {
             filter_system_prompts_when_enabled(
                 body.clone(),
                 &[crate::models::SystemPromptRule {
+                    name: String::new(),
                     text: "rule".to_string(),
                     enabled: true,
                 }],
@@ -291,14 +293,17 @@ mod system_prompt_filter_tests {
     fn normalizes_and_deduplicates_rules() {
         let rules = normalize_system_prompt_filter_rules(vec![
             crate::models::SystemPromptRule {
+                name: String::new(),
                 text: "  Internal Policy  ".to_string(),
                 enabled: true,
             },
             crate::models::SystemPromptRule {
+                name: String::new(),
                 text: "internal policy".to_string(),
                 enabled: false,
             },
             crate::models::SystemPromptRule {
+                name: String::new(),
                 text: "Another Rule".to_string(),
                 enabled: true,
             },
@@ -314,6 +319,7 @@ mod system_prompt_filter_tests {
         );
         assert!(
             normalize_system_prompt_filter_rules(vec![crate::models::SystemPromptRule {
+                name: String::new(),
                 text: "   ".to_string(),
                 enabled: true
             }])
@@ -322,6 +328,7 @@ mod system_prompt_filter_tests {
         let long_rule = "x".repeat(MAX_SYSTEM_PROMPT_FILTER_RULE_CHARS + 1);
         let too_many_rules = vec![
             crate::models::SystemPromptRule {
+                name: String::new(),
                 text: "rule".to_string(),
                 enabled: true
             };
@@ -329,6 +336,7 @@ mod system_prompt_filter_tests {
         ];
         assert!(
             normalize_system_prompt_filter_rules(vec![crate::models::SystemPromptRule {
+                name: String::new(),
                 text: long_rule,
                 enabled: true
             }])

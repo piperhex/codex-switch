@@ -304,6 +304,7 @@ export interface CodexThreadEntry {
 }
 
 export interface SystemPromptRule {
+  name?: string;
   text: string;
   enabled: boolean;
 }

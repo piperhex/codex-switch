@@ -23,38 +23,53 @@ export function usePromptEditor(
   onChange: (prompts: SystemPromptRule[]) => Promise<boolean>,
   t: Translate,
 ) {
+  const [modalOpen, setModalOpen] = useState(false);
   const [draft, setDraft] = useState("");
+  const [draftName, setDraftName] = useState("");
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [editingValue, setEditingValue] = useState("");
   const [error, setError] = useState("");
   const updateDraft = (value: string) => { setDraft(value); setError(""); };
-  const updateEditingValue = (value: string) => { setEditingValue(value); setError(""); };
-  const cancelEdit = () => { setEditingIndex(null); setError(""); };
-  const beginEdit = (index: number) => {
-    setEditingIndex(index);
-    setEditingValue(prompts[index].text);
+  const updateDraftName = (value: string) => { setDraftName(value); setError(""); };
+  const closeModal = () => {
+    setModalOpen(false);
+    setEditingIndex(null);
     setError("");
   };
-  const addPrompt = async () => {
-    const validationError = promptValidationError(draft, prompts, t);
-    if (validationError) return setError(validationError);
-    if (await onChange([...prompts, { text: draft.trim(), enabled: true }])) updateDraft("");
+  const openAdd = () => {
+    setDraftName("");
+    setDraft("");
+    setEditingIndex(null);
+    setError("");
+    setModalOpen(true);
   };
-  const saveEdit = async () => {
-    if (editingIndex === null) return;
-    const validationError = promptValidationError(editingValue, prompts, t, editingIndex);
+  const beginEdit = (index: number) => {
+    setEditingIndex(index);
+    setDraftName(prompts[index].name ?? "");
+    setDraft(prompts[index].text);
+    setError("");
+    setModalOpen(true);
+  };
+  const savePrompt = async () => {
+    if (!draftName.trim()) return setError(t("systemPromptInjection.promptNameRequired"));
+    const validationError = promptValidationError(draft, prompts, t, editingIndex ?? undefined);
     if (validationError) return setError(validationError);
-    const nextPrompts = prompts.map((prompt, index) => (
-      index === editingIndex ? { ...prompt, text: editingValue.trim() } : prompt
-    ));
+    const nextPrompt = {
+      name: draftName.trim(),
+      text: draft.trim(),
+      enabled: editingIndex === null ? true : prompts[editingIndex].enabled,
+    };
+    const nextPrompts = editingIndex === null
+      ? [...prompts, nextPrompt]
+      : prompts.map((prompt, index) => (index === editingIndex ? nextPrompt : prompt));
     if (await onChange(nextPrompts)) {
-      setEditingValue("");
-      cancelEdit();
+      setDraft("");
+      setDraftName("");
+      closeModal();
     }
   };
   const deletePrompt = async (index: number) => {
     if (!(await onChange(prompts.filter((_, promptIndex) => promptIndex !== index)))) return;
-    if (editingIndex === index) setEditingIndex(null);
+    if (editingIndex === index) closeModal();
     setError("");
   };
   const togglePrompt = async (index: number, enabled: boolean) => {
@@ -63,8 +78,8 @@ export function usePromptEditor(
     )));
   };
   return {
-    addPrompt, beginEdit, cancelEdit, deletePrompt, draft, editingIndex, editingValue,
-    error, saveEdit, togglePrompt, updateDraft, updateEditingValue,
+    beginEdit, closeModal, deletePrompt, draft, draftName, editingIndex, error,
+    modalOpen, openAdd, savePrompt, togglePrompt, updateDraft, updateDraftName,
   };
 }
 

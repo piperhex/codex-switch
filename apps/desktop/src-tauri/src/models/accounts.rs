@@ -174,6 +174,8 @@ pub(crate) struct ManagerStateFile {
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct SystemPromptRule {
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub(crate) name: String,
     pub(crate) text: String,
     pub(crate) enabled: bool,
 }
@@ -188,6 +190,8 @@ impl<'de> Deserialize<'de> for SystemPromptRule {
         enum Input {
             Legacy(String),
             Structured {
+                #[serde(default)]
+                name: Option<String>,
                 text: String,
                 #[serde(default = "default_system_prompt_rule_enabled")]
                 enabled: bool,
@@ -196,10 +200,15 @@ impl<'de> Deserialize<'de> for SystemPromptRule {
 
         match Input::deserialize(deserializer)? {
             Input::Legacy(text) => Ok(Self {
+                name: String::new(),
                 text,
                 enabled: true,
             }),
-            Input::Structured { text, enabled } => Ok(Self { text, enabled }),
+            Input::Structured { name, text, enabled } => Ok(Self {
+                name: name.unwrap_or_default(),
+                text,
+                enabled,
+            }),
         }
     }
 }

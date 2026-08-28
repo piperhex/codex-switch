@@ -171,6 +171,7 @@ mod system_prompt_injection_tests {
         let value = inject_system_prompt_value_with_prompts(
             json!({ "instructions": "Be concise" }),
             &[crate::models::SystemPromptRule {
+                name: String::new(),
                 text: "Follow the team policy".to_string(),
                 enabled: true,
             }],
@@ -186,6 +187,7 @@ mod system_prompt_injection_tests {
         let value = inject_system_prompt_value_with_prompts(
             json!({ "messages": [{ "role": "user", "content": "Hello" }] }),
             &[crate::models::SystemPromptRule {
+                name: String::new(),
                 text: "Use plain language".to_string(),
                 enabled: true,
             }],
@@ -200,6 +202,7 @@ mod system_prompt_injection_tests {
         let value = inject_system_prompt_value_with_prompts(
             json!({ "model": "gpt-image-1", "size": "1024x1024" }),
             &[crate::models::SystemPromptRule {
+                name: String::new(),
                 text: "Do not alter image settings".to_string(),
                 enabled: true,
             }],
@@ -214,18 +217,22 @@ mod system_prompt_injection_tests {
     fn normalizes_and_deduplicates_prompts() {
         let prompts = normalize_system_prompt_injection_prompts(vec![
             crate::models::SystemPromptRule {
+                name: String::new(),
                 text: "  Be helpful  ".to_string(),
                 enabled: true,
             },
             crate::models::SystemPromptRule {
+                name: String::new(),
                 text: "be helpful".to_string(),
                 enabled: false,
             },
             crate::models::SystemPromptRule {
+                name: String::new(),
                 text: "Stay focused".to_string(),
                 enabled: true,
             },
             crate::models::SystemPromptRule {
+                name: String::new(),
                 text: "Disabled prompt".to_string(),
                 enabled: false,
             },
@@ -241,6 +248,7 @@ mod system_prompt_injection_tests {
         assert!(!prompts[2].enabled);
         assert!(
             normalize_system_prompt_injection_prompts(vec![crate::models::SystemPromptRule {
+                name: String::new(),
                 text: " ".to_string(),
                 enabled: true
             }])
@@ -248,6 +256,7 @@ mod system_prompt_injection_tests {
         );
         let too_many_prompts = vec![
             crate::models::SystemPromptRule {
+                name: String::new(),
                 text: "prompt".to_string(),
                 enabled: true
             };
@@ -256,6 +265,7 @@ mod system_prompt_injection_tests {
         let long_prompt = "x".repeat(10_000);
         let normalized_long_prompt = normalize_system_prompt_injection_prompts(vec![
             crate::models::SystemPromptRule {
+                name: String::new(),
                 text: long_prompt.clone(),
                 enabled: true,
             },
