@@ -31,7 +31,6 @@ export function LoginModal({ onClose, onWebSession, onStart, onImport, onImportC
           <span className="choice-icon"><ExternalLink size={20} /></span>
           <span><b>{t("login.browser.title")}</b><small>{t("login.browser.description")}</small></span><ChevronRight size={19} />
         </button>
-        <div className="modal-divider"><span>{t("login.or")}</span></div>
         <button type="button" className="login-choice import-choice" onClick={onImport}>
           <span className="choice-icon"><FileInput size={20} /></span>
           <span><b>{t("login.importMultiple")}</b><small>{t("login.importCompatible")}</small></span>
