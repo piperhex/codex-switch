@@ -529,7 +529,6 @@ h1 { margin: 5px 0 0; font: 700 26px/1.1 Manrope, sans-serif; letter-spacing: -.
 .modal-close:hover { background: #edf1ed; }
 .modal-icon { width: 46px; height: 46px; border-radius: 13px; display: grid; place-items: center; color: var(--green-dark); background: var(--green-soft); }
 .modal h2 { margin: 17px 0 7px; font: 700 20px Manrope, sans-serif; }
-.modal > p { margin: 0 0 20px; color: #738078; font-size: 12px; line-height: 1.6; }
 .ccswitch-import-content {
   max-height: calc(100dvh - 220px); display: grid; gap: 10px; overflow-y: auto;
 }

@@ -39,7 +39,6 @@ export function LoginModal({ onClose, onWebSession, onStart, onImport, onImportC
         <button type="button" className="modal-close" aria-label={t("login.close")} onClick={onClose}><X size={19} /></button>
         <div className="modal-icon"><KeyRound size={25} /></div>
         <h2>{t("login.title")}</h2>
-        <p>{t("login.description")}</p>
         <button type="button" className="login-choice featured" onClick={() => onStart(true)}>
           <span className="choice-icon"><LayoutGrid size={20} /></span>
           <span><b>{t("login.embedded.title")}</b><small>{t("login.embedded.description")}</small></span><ChevronRight size={19} />
