@@ -226,6 +226,43 @@
     }
 
     #[test]
+    fn upstream_transport_errors_use_gateway_statuses() {
+        assert_eq!(
+            upstream_error_status("Official Codex proxy request failed [timeout]: timed out"),
+            504
+        );
+        assert_eq!(
+            upstream_error_status(
+                "Official Codex proxy request failed [connect]: connection refused"
+            ),
+            503
+        );
+        assert_eq!(
+            upstream_error_status("Official Codex proxy request failed [request]: invalid request"),
+            502
+        );
+        assert_eq!(upstream_error_status("an unrelated local error"), 502);
+    }
+
+    #[test]
+    fn proxy_diagnostic_marks_image_input_without_logging_image_data() {
+        let body = br#"{"input":[{"type":"input_image","image_url":"data:image/png;base64,secret"}]}"#;
+        let entry = proxy_diagnostic_entry(
+            &Method::Post,
+            "/v1/responses",
+            &[],
+            body,
+            Some(&ActiveTarget::Official {
+                model: "gpt-5.6-sol".to_string(),
+            }),
+            ProxyDiagnosticRoute::Official,
+        );
+
+        assert_eq!(entry["containsInputImage"], true);
+        assert!(!entry.to_string().contains("data:image/png;base64,secret"));
+    }
+
+    #[test]
     fn proxy_diagnostic_entry_redacts_non_responses_body_content() {
         let provider = ProviderProfile {
             id: "chat".to_string(),

@@ -1,5 +1,6 @@
 use std::{
     collections::{BTreeMap, HashMap, HashSet, VecDeque},
+    error::Error,
     fs::{self, OpenOptions},
     io::{self, BufRead, BufReader, Read, Write},
     net::{IpAddr, Ipv4Addr, Ipv6Addr, Shutdown, SocketAddr, TcpStream},
@@ -58,6 +59,7 @@ use crate::{
 const OFFICIAL_CODEX_BASE_URL: &str = "https://chatgpt.com/backend-api/codex";
 const UPSTREAM_TIMEOUT: Duration = Duration::from_secs(600);
 const UPSTREAM_CONNECT_TIMEOUT: Duration = Duration::from_secs(20);
+const MAX_UPSTREAM_TRANSPORT_RETRIES: u8 = 2;
 const TOOL_SEARCH_PROXY_NAME: &str = "tool_search";
 const CUSTOM_TOOL_INPUT_FIELD: &str = "input";
 const CHAT_TOOL_NAME_MAX_LEN: usize = 64;

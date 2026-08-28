@@ -80,7 +80,9 @@ fn send_official_request(
         apply_forward_headers(request, headers, true)
             .body(body.to_vec())
             .send()
-            .map_err(|error| format!("Official Codex proxy request failed: {error}"))?,
+            .map_err(|error| {
+                format_upstream_request_error("Official Codex proxy request failed", &error)
+            })?,
     )
 }
 
@@ -136,7 +138,7 @@ fn forward_provider(
         request
             .body(body)
             .send()
-            .map_err(|error| format!("Provider proxy request failed: {error}"))?,
+            .map_err(|error| format_upstream_request_error("Provider proxy request failed", &error))?,
     )
 }
 

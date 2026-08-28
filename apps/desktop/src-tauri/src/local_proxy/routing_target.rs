@@ -167,6 +167,7 @@ fn proxy_diagnostic_entry(
         "query": request_query_diagnostic(url),
         "upstreamEndpoint": request_path(&upstream_endpoint),
         "isResponsesEndpoint": is_responses_endpoint(path),
+        "containsInputImage": request_contains_input_image(body),
         "route": route.as_str(),
         "requestBodyBytes": body.len(),
         "requestBodyHash": short_hash_bytes(body),
@@ -219,6 +220,7 @@ fn append_proxy_diagnostic_result<R: Runtime>(
         Err(error) => {
             entry["result"] = json!({
                 "ok": false,
+                "errorKind": upstream_error_kind(error),
                 "error": truncate_for_log(error, 240),
                 "errorHash": short_hash_str(error)
             });

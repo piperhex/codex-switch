@@ -206,7 +206,10 @@ fn handle_request<R: Runtime>(app: tauri::AppHandle<R>, mut request: Request) {
     );
     let payload = match result {
         Ok(payload) => payload,
-        Err(error) => json_payload(502, json!({ "error": { "message": error } })),
+        Err(error) => json_payload(
+            upstream_error_status(&error),
+            json!({ "error": { "message": error } }),
+        ),
     };
     respond_payload(
         request,
@@ -554,9 +557,21 @@ where
     W: FnMut(Duration) -> Duration,
 {
     let mut retry_number = 0_u16;
+    let mut transport_retry_number = 0_u8;
     let mut retried_after_forbidden_quota = false;
     loop {
-        let response = request()?;
+        let response = match request() {
+            Ok(response) => response,
+            Err(error)
+                if upstream_error_kind(&error) == Some("connect")
+                    && transport_retry_number < MAX_UPSTREAM_TRANSPORT_RETRIES =>
+            {
+                transport_retry_number = transport_retry_number.saturating_add(1);
+                let _ = wait_before_retry(upstream_transport_retry_delay(transport_retry_number));
+                continue;
+            }
+            Err(error) => return Err(error),
+        };
         if response.status == 429 {
             retry_number = retry_number.saturating_add(1);
             let elapsed = wait_before_retry(upstream_429_retry_delay(retry_number));
@@ -575,5 +590,13 @@ where
             continue;
         }
         return Ok(response);
+    }
+}
+
+fn upstream_transport_retry_delay(retry_number: u8) -> Duration {
+    match retry_number {
+        1 => Duration::from_millis(250),
+        2 => Duration::from_secs(1),
+        _ => Duration::ZERO,
     }
 }

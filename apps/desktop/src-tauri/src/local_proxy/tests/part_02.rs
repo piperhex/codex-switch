@@ -377,6 +377,51 @@
     }
 
     #[test]
+    fn transient_connect_errors_are_retried_with_bounded_backoff() {
+        let request_count = AtomicUsize::new(0);
+        let mut delays = Vec::new();
+        let response = retry_upstream_request_with(
+            Duration::from_secs(2),
+            || {
+                let attempt = request_count.fetch_add(1, AtomicOrdering::SeqCst);
+                if attempt < 2 {
+                    Err("Official Codex proxy request failed [connect]: connection refused".to_string())
+                } else {
+                    Ok(official_payload(200, 0))
+                }
+            },
+            |_, _| false,
+            |delay| {
+                delays.push(delay);
+                Duration::from_secs(1)
+            },
+        )
+        .unwrap();
+
+        assert_eq!(response.status, 200);
+        assert_eq!(request_count.load(AtomicOrdering::SeqCst), 3);
+        assert_eq!(delays, [Duration::from_millis(250), Duration::from_secs(1)]);
+    }
+
+    #[test]
+    fn transport_retry_limit_returns_the_last_connect_error() {
+        let request_count = AtomicUsize::new(0);
+        let error = retry_upstream_request_with(
+            Duration::from_secs(2),
+            || {
+                request_count.fetch_add(1, AtomicOrdering::SeqCst);
+                Err("Official Codex proxy request failed [connect]: connection refused".to_string())
+            },
+            |_, _| false,
+            |_| Duration::from_secs(1),
+        )
+        .unwrap_err();
+
+        assert!(error.contains("[connect]"));
+        assert_eq!(request_count.load(AtomicOrdering::SeqCst), 3);
+    }
+
+    #[test]
     fn final_429_selects_the_failed_account_for_automatic_disabling() {
         let response = official_payload(429, 0);
         let mut state = ManagerStateFile {

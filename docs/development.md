@@ -66,7 +66,7 @@ For local Windows ARM64 app builds, install the Rust `aarch64-pc-windows-msvc` t
 - Tray issue: confirm `system_tray::refresh_menu` is called after account, usage, or active-account changes.
 - Floating bubble issue: inspect `settings.json`, window label `usage-bubble`, and the `theme-color-changed` event path.
 - Provider/config issue: inspect the managed blocks in `$CODEX_HOME/config.toml`, `config-before-provider.toml`, the selected Provider JSON, and the `providers-changed` event path. Never paste real Provider keys into an issue.
-- Local proxy issue: confirm `127.0.0.1:15722` is free, inspect `state.json`, call the local `/health` route, and export diagnostics from Settings. Review an export before sharing because upstream error details can still be sensitive.
+- Local proxy issue: confirm `127.0.0.1:15722` is free, inspect `state.json`, call the local `/health` route, and export diagnostics from Settings. Transport failures are classified as connection (`503`), timeout (`504`), or other gateway errors (`502`). Review an export before sharing because upstream error details can still be sensitive.
 - Token Usage issue: requests must pass through the local proxy. Inspect `token-usage.sqlite3`, the `token-usage` capability label, and the hash route used by the auxiliary window.
 - Cloud issue: verify the configured Base URL, Kong route split, backend logs, and `lastModifiedAt` values. Use only fake credentials while debugging synchronization.
 - Mobile issue: verify the same Base URL reaches `/auth/login` and `/sync/accounts/summary` from the device; localhost on the development computer is not localhost on a physical phone.

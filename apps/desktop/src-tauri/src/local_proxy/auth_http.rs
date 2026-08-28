@@ -84,6 +84,53 @@ fn http_client() -> Result<Client, String> {
         .map_err(|error| format!("Failed to create proxy HTTP client: {error}"))
 }
 
+fn format_upstream_request_error(label: &str, error: &reqwest::Error) -> String {
+    let kind = reqwest_error_kind(error);
+    let chain = error_chain(error);
+    format!("{label} [{kind}]: {chain}")
+}
+
+fn reqwest_error_kind(error: &reqwest::Error) -> &'static str {
+    if error.is_timeout() {
+        "timeout"
+    } else if error.is_connect() {
+        "connect"
+    } else if error.is_request() {
+        "request"
+    } else {
+        "other"
+    }
+}
+
+fn error_chain(error: &(dyn Error + 'static)) -> String {
+    const MAX_CAUSES: usize = 4;
+    let mut parts = Vec::with_capacity(MAX_CAUSES);
+    let mut current = Some(error);
+    while let Some(error) = current {
+        parts.push(error.to_string());
+        if parts.len() == MAX_CAUSES {
+            break;
+        }
+        current = error.source();
+    }
+    parts.join("; cause: ")
+}
+
+fn upstream_error_kind(message: &str) -> Option<&'static str> {
+    ["timeout", "connect", "request", "other"]
+        .into_iter()
+        .find(|kind| message.contains(&format!("[{kind}]")))
+}
+
+fn upstream_error_status(message: &str) -> u16 {
+    match upstream_error_kind(message) {
+        Some("timeout") => 504,
+        Some("connect") => 503,
+        Some("request") | Some("other") => 502,
+        _ => 502,
+    }
+}
+
 fn reqwest_method(method: &Method) -> Result<reqwest::Method, String> {
     reqwest::Method::from_bytes(method.as_str().as_bytes())
         .map_err(|error| format!("Unsupported HTTP method {}: {error}", method.as_str()))
