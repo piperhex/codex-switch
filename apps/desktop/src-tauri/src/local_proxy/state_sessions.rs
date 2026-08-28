@@ -23,6 +23,12 @@ fn proxy_sessions() -> &'static Mutex<HashMap<String, ProxySessionState>> {
     PROXY_SESSIONS.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
+static PROXY_SESSION_UNLIMITED_CONVERSATION: OnceLock<AtomicBool> = OnceLock::new();
+
+fn proxy_session_unlimited_conversation() -> &'static AtomicBool {
+    PROXY_SESSION_UNLIMITED_CONVERSATION.get_or_init(|| AtomicBool::new(false))
+}
+
 pub(crate) fn active_proxy_session_ids() -> Result<HashSet<String>, String> {
     let sessions = proxy_sessions()
         .lock()
@@ -145,6 +151,9 @@ fn proxy_request_conversation(body: &[u8]) -> Option<String> {
         .or_else(|| value.get("input"))
         .or_else(|| value.get("prompt"))?;
     let text = serde_json::to_string_pretty(conversation).ok()?;
+    if proxy_session_unlimited_conversation().load(Ordering::Relaxed) {
+        return Some(text);
+    }
     let mut truncated = text.chars().take(MAX_PROXY_SESSION_CONVERSATION_CHARS).collect::<String>();
     if text.chars().count() > MAX_PROXY_SESSION_CONVERSATION_CHARS {
         truncated.push_str("\n…");

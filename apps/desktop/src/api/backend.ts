@@ -1316,6 +1316,25 @@ export async function loadProxySessionRequests(sessionId: string): Promise<Proxy
   return invoke<ProxySessionRequest[]>("list_proxy_session_requests", { sessionId });
 }
 
+const PROXY_SESSION_UNLIMITED_CONVERSATION_PREVIEW_KEY =
+  "codex-switch.proxy-session-unlimited-conversation";
+
+export async function loadProxySessionUnlimitedConversation(): Promise<boolean> {
+  if (hasLocalBackend) return invoke<boolean>("get_proxy_session_unlimited_conversation");
+  return window.localStorage.getItem(PROXY_SESSION_UNLIMITED_CONVERSATION_PREVIEW_KEY) === "true";
+}
+
+export async function setProxySessionUnlimitedConversation(enabled: boolean): Promise<boolean> {
+  if (hasLocalBackend) {
+    return invoke<boolean>("set_proxy_session_unlimited_conversation", { enabled });
+  }
+  window.localStorage.setItem(
+    PROXY_SESSION_UNLIMITED_CONVERSATION_PREVIEW_KEY,
+    String(enabled),
+  );
+  return enabled;
+}
+
 export async function loadRecentProxySessionLatency(): Promise<ProxySessionLatencySummary> {
   if (!hasLocalBackend) {
     const sessions = (await loadProxySessions())

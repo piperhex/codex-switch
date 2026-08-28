@@ -395,6 +395,17 @@ pub(crate) async fn list_token_usage_entries<R: Runtime + 'static>(
 }
 
 #[tauri::command]
+pub(crate) async fn get_proxy_session_unlimited_conversation() -> Result<bool, String> {
+    Ok(proxy_session_unlimited_conversation().load(Ordering::Relaxed))
+}
+
+#[tauri::command]
+pub(crate) async fn set_proxy_session_unlimited_conversation(enabled: bool) -> Result<bool, String> {
+    proxy_session_unlimited_conversation().store(enabled, Ordering::Relaxed);
+    Ok(enabled)
+}
+
+#[tauri::command]
 pub(crate) async fn list_token_usage_entries_since<R: Runtime + 'static>(
     app: tauri::AppHandle<R>,
     start_ts: u64,

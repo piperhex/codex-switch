@@ -6,6 +6,7 @@ import {
   Dropdown,
   Modal,
   Progress,
+  Switch,
   Table,
   Tag,
   Tooltip,
@@ -13,7 +14,12 @@ import {
   type TableProps,
 } from "antd";
 import { Cable, Columns3, Eye, GripVertical, Lock, RefreshCw } from "lucide-react";
-import { loadProxySessionRequests, loadProxySessions } from "../../api/backend";
+import {
+  loadProxySessionRequests,
+  loadProxySessionUnlimitedConversation,
+  loadProxySessions,
+  setProxySessionUnlimitedConversation,
+} from "../../api/backend";
 import type { Translate } from "../../i18n";
 import type { ProxySession, ProxySessionRequest } from "../../types";
 import styles from "./index.module.less";
@@ -249,6 +255,8 @@ export function ProxySessionManager({
   const [detailsSession, setDetailsSession] = useState<ProxySession | null>(null);
   const [requestDetails, setRequestDetails] = useState<ProxySessionRequest[]>([]);
   const [conversationRequest, setConversationRequest] = useState<ProxySessionRequest | null>(null);
+  const [unlimitedConversation, setUnlimitedConversation] = useState(false);
+  const [unlimitedConversationLoading, setUnlimitedConversationLoading] = useState(false);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [detailsError, setDetailsError] = useState("");
   const refreshingRef = useRef(false);
@@ -276,6 +284,25 @@ export function ProxySessionManager({
     const timer = window.setInterval(() => void refresh(), 2_000);
     return () => window.clearInterval(timer);
   }, [open, refresh]);
+
+  useEffect(() => {
+    if (!open) return;
+    void loadProxySessionUnlimitedConversation()
+      .then(setUnlimitedConversation)
+      .catch(() => setUnlimitedConversation(false));
+  }, [open]);
+
+  const handleUnlimitedConversationChange = async (enabled: boolean) => {
+    setUnlimitedConversationLoading(true);
+    try {
+      setUnlimitedConversation(await setProxySessionUnlimitedConversation(enabled));
+    } catch (cause) {
+      const detail = cause instanceof Error ? cause.message : String(cause);
+      setError(`${t("providers.proxy.sessionsRetentionSettingError")}: ${detail}`);
+    } finally {
+      setUnlimitedConversationLoading(false);
+    }
+  };
 
   const refreshRequestDetails = useCallback(async (
     session: ProxySession,
@@ -678,6 +705,17 @@ export function ProxySessionManager({
       >
         <div className={styles.tableHeading}>
           <p className={styles.description}>{t("providers.proxy.sessionsDescription")}</p>
+          <Tooltip title={t("providers.proxy.sessionsUnlimitedConversationTooltip")}>
+            <label className={styles.sessionRetentionControl}>
+              <span>{t("providers.proxy.sessionsUnlimitedConversation")}</span>
+              <Switch
+                size="small"
+                checked={unlimitedConversation}
+                loading={unlimitedConversationLoading}
+                onChange={(enabled) => void handleUnlimitedConversationChange(enabled)}
+              />
+            </label>
+          </Tooltip>
           <Dropdown
             trigger={["click"]}
             placement="bottomRight"
