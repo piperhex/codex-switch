@@ -1888,6 +1888,30 @@ html.floating-usage-page #root {
 :root[data-theme="dark"] .skill-card,
 :root[data-theme="dark"] .modal,
 :root[data-theme="dark"] .menu-search-dialog { border-color: var(--line); background: var(--panel); box-shadow: none; }
+:root[data-theme="dark"] .account-note-scroll > p { color: var(--muted); }
+:root[data-theme="dark"] .account-note-label { color: #b7bcc5; }
+:root[data-theme="dark"] .account-copy-field > button {
+  border-color: var(--line);
+  color: #b7bcc5;
+  background: #202328;
+}
+:root[data-theme="dark"] .account-copy-field > button:disabled { color: #68717b; background: #1d2024; }
+:root[data-theme="dark"] .account-expiration-picker.ant-picker { border-color: var(--line); background: #202328; }
+:root[data-theme="dark"] .account-note-textarea {
+  border-color: var(--line);
+  color: var(--ink);
+  background: #202328;
+}
+:root[data-theme="dark"] .account-note-footer {
+  border-color: var(--line);
+  background: #202328;
+  box-shadow: 0 -8px 22px rgba(0, 0, 0, .16);
+}
+:root[data-theme="dark"] .note-cancel-button {
+  border-color: var(--line);
+  color: #b7bcc5;
+  background: #1d2024;
+}
 :root[data-theme="dark"] .refresh-all,
 :root[data-theme="dark"] .topbar-actions .proxy-topbar-action.ant-btn,
 :root[data-theme="dark"] .menu-search-field,
