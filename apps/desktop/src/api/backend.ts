@@ -123,17 +123,38 @@ function writeHostedWebApiKey(value: string) {
   }
 }
 
+export interface HostedWebApiKeyRequest {
+  resolve: (value: string | null) => void;
+}
+
+const hostedWebApiKeyRequestListeners = new Set<(request: HostedWebApiKeyRequest) => void>();
+let pendingHostedWebApiKeyRequest: HostedWebApiKeyRequest | null = null;
+
+export function subscribeToHostedWebApiKeyRequests(
+  listener: (request: HostedWebApiKeyRequest) => void,
+) {
+  hostedWebApiKeyRequestListeners.add(listener);
+  if (pendingHostedWebApiKeyRequest) listener(pendingHostedWebApiKeyRequest);
+  return () => hostedWebApiKeyRequestListeners.delete(listener);
+}
+
 let hostedWebApiKeyPrompt: Promise<string | null> | null = null;
 let hostedWebApiKeyRejected = false;
 
 function requestHostedWebApiKey() {
   if (!hostedWebApiKeyPrompt) {
-    const prompt = navigator.language.toLowerCase().startsWith("zh")
-      ? "请输入 Codex Switch 中显示的局域网访问密钥。"
-      : "Enter the LAN access key shown in Codex Switch.";
-    hostedWebApiKeyPrompt = Promise.resolve(window.prompt(
-      prompt,
-    )).finally(() => {
+    let resolvePrompt: (value: string | null) => void = () => undefined;
+    const request: HostedWebApiKeyRequest = {
+      resolve: (value) => {
+        if (pendingHostedWebApiKeyRequest === request) pendingHostedWebApiKeyRequest = null;
+        resolvePrompt(value);
+      },
+    };
+    hostedWebApiKeyPrompt = new Promise<string | null>((resolve) => {
+      resolvePrompt = resolve;
+      pendingHostedWebApiKeyRequest = request;
+      hostedWebApiKeyRequestListeners.forEach((listener) => listener(request));
+    }).finally(() => {
       hostedWebApiKeyPrompt = null;
     });
   }

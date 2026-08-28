@@ -1012,6 +1012,8 @@ main.providers-main .provider-page {
 .lan-api-key-row { display: flex; align-items: center; gap: 6px; }
 .lan-api-key-row .ant-input-affix-wrapper { min-width: 0; flex: 1; }
 .lan-api-key-row .ant-btn { flex: 0 0 auto; white-space: nowrap; }
+.hosted-web-api-key-form { display: grid; gap: 8px; max-width: 400px; }
+.hosted-web-api-key-form p { margin: 0 0 4px; color: #66756c; font-size: 12px; line-height: 1.6; }
 .lan-api-key-copy-status { margin-top: -2px; color: var(--green); font-size: 10px; }
 .lan-api-key-copy-status.failed { color: #b95c49; }
 

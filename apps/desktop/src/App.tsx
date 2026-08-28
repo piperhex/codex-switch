@@ -1,4 +1,5 @@
 import { FloatingUsageBubble } from "./components/FloatingUsageBubble";
+import { HostedWebApiKeyModal } from "./components/modals/HostedWebApiKeyModal";
 import { TokenUsageWindow } from "./components/TokenUsageWindow";
 import { TotpWindow } from "./components/TotpWindow";
 import { DashboardApp } from "./components/dashboard/DashboardApp";
@@ -14,6 +15,13 @@ function currentWindowName() {
 
 export default function App() {
   const windowName = currentWindowName();
+  return <>
+    {renderWindow(windowName)}
+    <HostedWebApiKeyModal />
+  </>;
+}
+
+function renderWindow(windowName: string) {
   if (windowName === "bubble") return <FloatingUsageBubble />;
   if (windowName === "token-usage") return <TokenUsageWindow />;
   if (windowName === "totp") return <TotpWindow />;
