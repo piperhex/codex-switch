@@ -81,9 +81,11 @@
   gap: 2px;
 }
 
-.editorForm { display: grid; gap: 16px; }
+.editorForm { height: 100%; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 16px; }
 .editorForm label { display: grid; gap: 6px; color: var(--ink); font-size: 13px; font-weight: 600; }
-.ruleEditorTextArea :global(textarea) { resize: vertical !important; }
+.editorForm label:nth-of-type(2) { min-height: 0; display: flex; flex-direction: column; }
+.ruleEditorTextArea { min-height: 0; flex: 1; display: flex; }
+.ruleEditorTextArea :global(textarea) { height: 100% !important; resize: vertical !important; }
 
 .emptyState {
   min-height: 128px;
