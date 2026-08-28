@@ -207,8 +207,8 @@ fn handle_request<R: Runtime>(app: tauri::AppHandle<R>, mut request: Request) {
     let payload = match result {
         Ok(payload) => payload,
         Err(error) => json_payload(
-            upstream_error_status(&error),
-            json!({ "error": { "message": error } }),
+            error.status(),
+            json!({ "error": { "message": error.client_message() } }),
         ),
     };
     respond_payload(
@@ -256,7 +256,7 @@ fn handle_proxy_request<R: Runtime>(
     body: Vec<u8>,
     session_id: Option<&str>,
     session_request_id: Option<u64>,
-) -> Result<UpstreamPayload, String> {
+) -> UpstreamResult {
     let path = request_path(url);
     let started_at = Instant::now();
     if *method == Method::Get && path == "/health" {
@@ -330,7 +330,7 @@ fn handle_proxy_request<R: Runtime>(
         return result;
     }
     if *method == Method::Get && matches!(path, "/usage" | "/v1/usage") {
-        return current_usage_payload(app);
+        return current_usage_payload(app).map_err(UpstreamError::from);
     }
     if *method == Method::Get && matches!(path, "/models" | "/v1/models") {
         let target = match active_target(app) {
@@ -344,7 +344,7 @@ fn handle_proxy_request<R: Runtime>(
                     None,
                     ProxyDiagnosticRoute::LocalModels,
                 );
-                let result = Err(error);
+                let result: UpstreamResult = Err(error.into());
                 append_proxy_diagnostic_result(app, diagnostic, &result, started_at.elapsed());
                 return result;
             }
@@ -360,6 +360,7 @@ fn handle_proxy_request<R: Runtime>(
         let retry_timeout = upstream_429_retry_timeout(app)?;
         let result = retry_upstream_request(
             retry_timeout,
+            upstream_transport_retry_mode(&target),
             || models_payload(app, url, headers, &target),
             |response, event| handle_upstream_quota_event(app, response, event),
         );
@@ -378,7 +379,7 @@ fn handle_proxy_request<R: Runtime>(
                 None,
                 ProxyDiagnosticRoute::TargetResolutionError,
             );
-            let result = Err(error);
+            let result: UpstreamResult = Err(error.into());
             append_proxy_diagnostic_result(app, diagnostic, &result, started_at.elapsed());
             return result;
         }
@@ -430,6 +431,7 @@ fn handle_proxy_request<R: Runtime>(
     let retry_timeout = upstream_429_retry_timeout(app)?;
     let result = retry_upstream_request(
         retry_timeout,
+        upstream_transport_retry_mode(&target),
         || forward_active_request(app, method, url, headers, body.clone(), &target, session_id),
         |response, event| handle_upstream_quota_event(app, response, event),
     );
@@ -457,7 +459,7 @@ fn forward_active_request<R: Runtime>(
     body: Vec<u8>,
     target: &ActiveTarget,
     session_id: Option<&str>,
-) -> Result<UpstreamPayload, String> {
+) -> UpstreamResult {
     match target {
         ActiveTarget::Official { model } => {
             if is_anthropic_messages_endpoint(request_path(url)) {
@@ -483,7 +485,9 @@ fn forward_active_request<R: Runtime>(
             target,
         }),
         ActiveTarget::ProviderGroup(_) => {
-            Err("Provider group requests must select a model".to_string())
+            Err(UpstreamError::Other(
+                "Provider group requests must select a model".to_string(),
+            ))
         }
     }
 }
@@ -531,28 +535,36 @@ fn upstream_429_retry_timeout<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<D
 
 fn retry_upstream_request<F, S>(
     timeout: Duration,
+    transport_retry_mode: UpstreamTransportRetryMode,
     request: F,
     handle_quota_event: S,
-) -> Result<UpstreamPayload, String>
+) -> UpstreamResult
 where
-    F: FnMut() -> Result<UpstreamPayload, String>,
+    F: FnMut() -> UpstreamResult,
     S: FnMut(&UpstreamPayload, UpstreamQuotaEvent) -> bool,
 {
     let started_at = Instant::now();
-    retry_upstream_request_with(timeout, request, handle_quota_event, |delay| {
-        thread::sleep(delay.min(timeout.saturating_sub(started_at.elapsed())));
-        started_at.elapsed()
-    })
+    retry_upstream_request_with(
+        timeout,
+        transport_retry_mode,
+        request,
+        handle_quota_event,
+        |delay| {
+            thread::sleep(delay.min(timeout.saturating_sub(started_at.elapsed())));
+            started_at.elapsed()
+        },
+    )
 }
 
 fn retry_upstream_request_with<F, S, W>(
     timeout: Duration,
+    transport_retry_mode: UpstreamTransportRetryMode,
     mut request: F,
     mut handle_quota_event: S,
     mut wait_before_retry: W,
-) -> Result<UpstreamPayload, String>
+) -> UpstreamResult
 where
-    F: FnMut() -> Result<UpstreamPayload, String>,
+    F: FnMut() -> UpstreamResult,
     S: FnMut(&UpstreamPayload, UpstreamQuotaEvent) -> bool,
     W: FnMut(Duration) -> Duration,
 {
@@ -563,11 +575,11 @@ where
         let response = match request() {
             Ok(response) => response,
             Err(error)
-                if upstream_error_kind(&error) == Some("connect")
+                if transport_retry_mode.should_retry(&error)
                     && transport_retry_number < MAX_UPSTREAM_TRANSPORT_RETRIES =>
             {
                 transport_retry_number = transport_retry_number.saturating_add(1);
-                let _ = wait_before_retry(upstream_transport_retry_delay(transport_retry_number));
+                wait_before_retry(upstream_transport_retry_delay(transport_retry_number));
                 continue;
             }
             Err(error) => return Err(error),
@@ -590,6 +602,15 @@ where
             continue;
         }
         return Ok(response);
+    }
+}
+
+fn upstream_transport_retry_mode(target: &ActiveTarget) -> UpstreamTransportRetryMode {
+    match target {
+        ActiveTarget::Official { .. } => UpstreamTransportRetryMode::OfficialConnectFailures,
+        ActiveTarget::Provider(_)
+        | ActiveTarget::ProviderGroup(_)
+        | ActiveTarget::Aggregate(_) => UpstreamTransportRetryMode::Disabled,
     }
 }
 

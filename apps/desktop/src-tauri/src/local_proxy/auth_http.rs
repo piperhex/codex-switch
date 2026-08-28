@@ -84,21 +84,21 @@ fn http_client() -> Result<Client, String> {
         .map_err(|error| format!("Failed to create proxy HTTP client: {error}"))
 }
 
-fn format_upstream_request_error(label: &str, error: &reqwest::Error) -> String {
-    let kind = reqwest_error_kind(error);
-    let chain = error_chain(error);
-    format!("{label} [{kind}]: {chain}")
+fn upstream_request_error(label: &'static str, error: reqwest::Error) -> UpstreamError {
+    let kind = reqwest_error_kind(&error);
+    let error = error.without_url();
+    UpstreamError::transport(kind, label, error_chain(&error))
 }
 
-fn reqwest_error_kind(error: &reqwest::Error) -> &'static str {
+fn reqwest_error_kind(error: &reqwest::Error) -> UpstreamTransportErrorKind {
     if error.is_timeout() {
-        "timeout"
+        UpstreamTransportErrorKind::Timeout
     } else if error.is_connect() {
-        "connect"
+        UpstreamTransportErrorKind::Connect
     } else if error.is_request() {
-        "request"
+        UpstreamTransportErrorKind::Request
     } else {
-        "other"
+        UpstreamTransportErrorKind::Other
     }
 }
 
@@ -116,27 +116,12 @@ fn error_chain(error: &(dyn Error + 'static)) -> String {
     parts.join("; cause: ")
 }
 
-fn upstream_error_kind(message: &str) -> Option<&'static str> {
-    ["timeout", "connect", "request", "other"]
-        .into_iter()
-        .find(|kind| message.contains(&format!("[{kind}]")))
-}
-
-fn upstream_error_status(message: &str) -> u16 {
-    match upstream_error_kind(message) {
-        Some("timeout") => 504,
-        Some("connect") => 503,
-        Some("request") | Some("other") => 502,
-        _ => 502,
-    }
-}
-
 fn reqwest_method(method: &Method) -> Result<reqwest::Method, String> {
     reqwest::Method::from_bytes(method.as_str().as_bytes())
         .map_err(|error| format!("Unsupported HTTP method {}: {error}", method.as_str()))
 }
 
-fn stream_response(response: ReqwestResponse) -> Result<UpstreamPayload, String> {
+fn stream_response(response: ReqwestResponse) -> UpstreamResult {
     let status = response.status().as_u16();
     let content_type = response
         .headers()

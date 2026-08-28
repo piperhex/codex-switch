@@ -92,6 +92,7 @@
                 let mut attempt = 0;
                 retry_upstream_request_with(
                     Duration::from_secs(2),
+                    UpstreamTransportRetryMode::Disabled,
                     || {
                         let response = if attempt == 0 {
                             official_payload(429, observed_generation)
@@ -140,6 +141,7 @@
                 let mut attempt = 0;
                 retry_upstream_request_with(
                     Duration::from_secs(2),
+                    UpstreamTransportRetryMode::Disabled,
                     || {
                         let response = if attempt == 0 {
                             official_payload(429, observed_generation)
@@ -305,6 +307,7 @@
         let mut attempt = 0;
         let response = retry_upstream_request_with(
             Duration::from_secs(2),
+            UpstreamTransportRetryMode::Disabled,
             || {
                 let response = if attempt == 0 {
                     official_payload(429, observed_generation)
@@ -348,6 +351,7 @@
 
         let response = retry_upstream_request_with(
             Duration::from_secs(2),
+            UpstreamTransportRetryMode::Disabled,
             || {
                 request_count.fetch_add(1, AtomicOrdering::SeqCst);
                 Ok(official_payload(429, 0))
@@ -382,10 +386,15 @@
         let mut delays = Vec::new();
         let response = retry_upstream_request_with(
             Duration::from_secs(2),
+            UpstreamTransportRetryMode::OfficialConnectFailures,
             || {
                 let attempt = request_count.fetch_add(1, AtomicOrdering::SeqCst);
                 if attempt < 2 {
-                    Err("Official Codex proxy request failed [connect]: connection refused".to_string())
+                    Err(UpstreamError::transport(
+                        UpstreamTransportErrorKind::Connect,
+                        "Official Codex proxy request failed",
+                        "connection refused".to_string(),
+                    ))
                 } else {
                     Ok(official_payload(200, 0))
                 }
@@ -408,9 +417,14 @@
         let request_count = AtomicUsize::new(0);
         let error = retry_upstream_request_with(
             Duration::from_secs(2),
+            UpstreamTransportRetryMode::OfficialConnectFailures,
             || {
                 request_count.fetch_add(1, AtomicOrdering::SeqCst);
-                Err("Official Codex proxy request failed [connect]: connection refused".to_string())
+                Err(UpstreamError::transport(
+                    UpstreamTransportErrorKind::Connect,
+                    "Official Codex proxy request failed",
+                    "connection refused".to_string(),
+                ))
             },
             |_, _| false,
             |_| Duration::from_secs(1),
@@ -418,8 +432,38 @@
         .err()
         .expect("connect retry exhaustion should return an error");
 
-        assert!(error.contains("[connect]"));
+        assert!(error.is_connect());
+        assert_eq!(error.status(), 503);
         assert_eq!(request_count.load(AtomicOrdering::SeqCst), 3);
+    }
+
+    #[test]
+    fn provider_connect_errors_are_not_retried() {
+        let request_count = AtomicUsize::new(0);
+        let mut delays = Vec::new();
+        let error = retry_upstream_request_with(
+            Duration::from_secs(2),
+            UpstreamTransportRetryMode::Disabled,
+            || {
+                request_count.fetch_add(1, AtomicOrdering::SeqCst);
+                Err(UpstreamError::transport(
+                    UpstreamTransportErrorKind::Connect,
+                    "Provider proxy request failed",
+                    "connection refused".to_string(),
+                ))
+            },
+            |_, _| false,
+            |delay| {
+                delays.push(delay);
+                Duration::from_secs(1)
+            },
+        )
+        .err()
+        .expect("provider connection errors should be returned immediately");
+
+        assert!(error.is_connect());
+        assert_eq!(request_count.load(AtomicOrdering::SeqCst), 1);
+        assert!(delays.is_empty());
     }
 
     #[test]
@@ -452,6 +496,7 @@
         let mut elapsed = Duration::ZERO;
         let response = retry_upstream_request_with(
             Duration::from_secs(10),
+            UpstreamTransportRetryMode::Disabled,
             || {
                 let attempt = request_count.fetch_add(1, AtomicOrdering::SeqCst);
                 Ok(official_payload(if attempt < 3 { 429 } else { 200 }, 0))

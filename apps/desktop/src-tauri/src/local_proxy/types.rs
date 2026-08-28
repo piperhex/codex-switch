@@ -139,6 +139,145 @@ struct UpstreamPayload {
     token_usage_account: Option<TokenUsageAccount>,
 }
 
+type UpstreamResult = Result<UpstreamPayload, UpstreamError>;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum UpstreamTransportErrorKind {
+    Connect,
+    Timeout,
+    Request,
+    Other,
+}
+
+impl UpstreamTransportErrorKind {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Connect => "connect",
+            Self::Timeout => "timeout",
+            Self::Request => "request",
+            Self::Other => "other",
+        }
+    }
+
+    fn status(self) -> u16 {
+        match self {
+            Self::Connect => 503,
+            Self::Timeout => 504,
+            Self::Request | Self::Other => 502,
+        }
+    }
+
+    fn client_description(self) -> &'static str {
+        match self {
+            Self::Connect => "unable to connect to the upstream service",
+            Self::Timeout => "the upstream request timed out",
+            Self::Request => "the upstream request could not be sent",
+            Self::Other => "the upstream request failed",
+        }
+    }
+}
+
+#[derive(Debug)]
+enum UpstreamError {
+    Transport {
+        kind: UpstreamTransportErrorKind,
+        label: &'static str,
+        diagnostic_detail: String,
+    },
+    Other(String),
+}
+
+impl UpstreamError {
+    fn transport(
+        kind: UpstreamTransportErrorKind,
+        label: &'static str,
+        diagnostic_detail: String,
+    ) -> Self {
+        Self::Transport {
+            kind,
+            label,
+            diagnostic_detail,
+        }
+    }
+
+    fn status(&self) -> u16 {
+        match self {
+            Self::Transport { kind, .. } => kind.status(),
+            Self::Other(_) => 502,
+        }
+    }
+
+    fn kind(&self) -> Option<&'static str> {
+        match self {
+            Self::Transport { kind, .. } => Some(kind.as_str()),
+            Self::Other(_) => None,
+        }
+    }
+
+    fn client_message(&self) -> String {
+        match self {
+            Self::Transport { kind, label, .. } => {
+                format!("{label}: {}", kind.client_description())
+            }
+            Self::Other(message) => message.clone(),
+        }
+    }
+
+    fn diagnostic_message(&self) -> String {
+        match self {
+            Self::Transport {
+                kind,
+                label,
+                diagnostic_detail,
+            } => format!("{label} [{}]: {diagnostic_detail}", kind.as_str()),
+            Self::Other(message) => message.clone(),
+        }
+    }
+
+    fn is_connect(&self) -> bool {
+        matches!(
+            self,
+            Self::Transport {
+                kind: UpstreamTransportErrorKind::Connect,
+                ..
+            }
+        )
+    }
+
+    fn is_aggregate_retryable(&self) -> bool {
+        match self {
+            Self::Transport { .. } => true,
+            Self::Other(message) => aggregate_error_message_is_retryable(message),
+        }
+    }
+}
+
+impl fmt::Display for UpstreamError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(&self.client_message())
+    }
+}
+
+impl Error for UpstreamError {}
+
+impl From<String> for UpstreamError {
+    fn from(message: String) -> Self {
+        Self::Other(message)
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum UpstreamTransportRetryMode {
+    Disabled,
+    OfficialConnectFailures,
+}
+
+impl UpstreamTransportRetryMode {
+    fn should_retry(self, error: &UpstreamError) -> bool {
+        self == Self::OfficialConnectFailures && error.is_connect()
+    }
+}
+
 enum UpstreamBody {
     Buffered(Vec<u8>),
     Streaming(Box<dyn Read + Send>),

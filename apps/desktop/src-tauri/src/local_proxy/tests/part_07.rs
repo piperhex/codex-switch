@@ -239,14 +239,14 @@
             json!({ "error": "busy" })
         ))));
         assert!(aggregate_result_is_retryable(&Err(
-            "Provider proxy request failed: connection reset".to_string()
+            UpstreamError::Other("Provider proxy request failed: connection reset".to_string())
         )));
         assert!(!aggregate_result_is_retryable(&Ok(json_payload(
             401,
             json!({ "error": "unauthorized" })
         ))));
         assert!(!aggregate_result_is_retryable(&Err(
-            "Request body is invalid".to_string()
+            UpstreamError::Other("Request body is invalid".to_string())
         )));
     }
 

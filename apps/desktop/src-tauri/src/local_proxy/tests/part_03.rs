@@ -227,21 +227,63 @@
 
     #[test]
     fn upstream_transport_errors_use_gateway_statuses() {
-        assert_eq!(
-            upstream_error_status("Official Codex proxy request failed [timeout]: timed out"),
-            504
+        let timeout = UpstreamError::transport(
+            UpstreamTransportErrorKind::Timeout,
+            "Official Codex proxy request failed",
+            "timed out".to_string(),
         );
-        assert_eq!(
-            upstream_error_status(
-                "Official Codex proxy request failed [connect]: connection refused"
-            ),
-            503
+        let connect = UpstreamError::transport(
+            UpstreamTransportErrorKind::Connect,
+            "Official Codex proxy request failed",
+            "connection refused".to_string(),
         );
-        assert_eq!(
-            upstream_error_status("Official Codex proxy request failed [request]: invalid request"),
-            502
+        let request = UpstreamError::transport(
+            UpstreamTransportErrorKind::Request,
+            "Official Codex proxy request failed",
+            "invalid request".to_string(),
         );
-        assert_eq!(upstream_error_status("an unrelated local error"), 502);
+
+        assert_eq!(timeout.status(), 504);
+        assert_eq!(connect.status(), 503);
+        assert_eq!(request.status(), 502);
+        assert_eq!(UpstreamError::Other("local error".to_string()).status(), 502);
+    }
+
+    #[test]
+    fn upstream_request_error_removes_sensitive_url_from_diagnostics_and_client_message() {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        drop(listener);
+        let sensitive_url = format!(
+            "http://sensitive_user_4829:sensitive_password_7315@{address}/v1?token=sensitive_token_9137"
+        );
+        let error = Client::builder()
+            .no_proxy()
+            .connect_timeout(Duration::from_secs(1))
+            .build()
+            .unwrap()
+            .get(&sensitive_url)
+            .send()
+            .expect_err("the released loopback port should reject the connection");
+        assert!(error.url().is_some());
+
+        let error = upstream_request_error("Provider proxy request failed", error);
+        let diagnostic = error.diagnostic_message();
+        let client_message = error.client_message();
+
+        for secret in [
+            "sensitive_user_4829",
+            "sensitive_password_7315",
+            "sensitive_token_9137",
+        ] {
+            assert!(!diagnostic.contains(secret));
+            assert!(!client_message.contains(secret));
+        }
+        assert!(matches!(error.kind(), Some("connect" | "timeout")));
+        assert!(matches!(error.status(), 503 | 504));
+        assert!(client_message.starts_with("Provider proxy request failed: "));
+        assert!(!client_message.contains(&address.to_string()));
+        assert_ne!(diagnostic, client_message);
     }
 
     #[test]

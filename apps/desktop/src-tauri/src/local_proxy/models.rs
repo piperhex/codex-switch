@@ -3,7 +3,7 @@ fn models_payload<R: Runtime>(
     url: &str,
     headers: &[(String, String)],
     target: &ActiveTarget,
-) -> Result<UpstreamPayload, String> {
+) -> UpstreamResult {
     let upstream_headers = unconditional_model_catalog_headers(headers);
     let image_input_route_enabled = image_input_route_enabled(app);
     let payload = match target {
@@ -32,12 +32,14 @@ fn models_payload<R: Runtime>(
             ));
         }
         ActiveTarget::Aggregate(target) => {
-            return aggregate_models_payload(target, image_input_route_enabled);
+            return aggregate_models_payload(target, image_input_route_enabled)
+                .map_err(UpstreamError::from);
         }
     };
     let payload = override_model_image_input(payload, image_input_route_enabled)?;
     let context_window = read_app_settings(app)?.gpt_5_6_sol_context_window;
     override_model_context_window(payload, GPT_5_6_SOL_MODEL, context_window)
+        .map_err(UpstreamError::from)
 }
 
 fn image_input_route_enabled<R: Runtime>(app: &tauri::AppHandle<R>) -> bool {

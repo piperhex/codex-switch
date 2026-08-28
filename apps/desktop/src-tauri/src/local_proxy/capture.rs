@@ -1,8 +1,8 @@
 fn attach_token_usage_capture<R: Runtime + 'static>(
     app: &tauri::AppHandle<R>,
     context: Option<TokenUsageContext>,
-    result: Result<UpstreamPayload, String>,
-) -> Result<UpstreamPayload, String> {
+    result: UpstreamResult,
+) -> UpstreamResult {
     let mut payload = result?;
     let Some(mut context) = context else {
         return Ok(payload);

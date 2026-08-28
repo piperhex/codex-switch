@@ -4,9 +4,9 @@ fn forward_chat_bridge(
     headers: &[(String, String)],
     body: Vec<u8>,
     provider: &ProviderProfile,
-) -> Result<UpstreamPayload, String> {
+) -> UpstreamResult {
     if *method != Method::Post {
-        return Err("Chat bridge only supports POST requests".to_string());
+        return Err("Chat bridge only supports POST requests".to_string().into());
     }
     let mut responses_body: Value = serde_json::from_slice(&body)
         .map_err(|error| format!("Responses request body is not valid JSON: {error}"))?;
@@ -43,7 +43,7 @@ fn forward_chat_bridge(
     let request = apply_forward_headers(request, headers, true);
     let response = request
         .send()
-        .map_err(|error| format!("Chat bridge request failed: {error}"))?;
+        .map_err(|error| upstream_request_error("Chat bridge request failed", error))?;
     let status = response.status().as_u16();
     let content_type = response
         .headers()
@@ -68,7 +68,7 @@ fn forward_chat_bridge(
 
     let body = response
         .bytes()
-        .map_err(|error| format!("Failed to read chat bridge response: {error}"))?;
+        .map_err(|error| upstream_request_error("Failed to read chat bridge response", error))?;
     if !status_ok(status) {
         return Ok(UpstreamPayload {
             status,

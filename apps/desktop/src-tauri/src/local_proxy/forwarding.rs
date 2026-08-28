@@ -6,7 +6,7 @@ fn forward_official<R: Runtime>(
     body: Vec<u8>,
     model: &str,
     session_id: Option<&str>,
-) -> Result<UpstreamPayload, String> {
+) -> UpstreamResult {
     let client = http_client()?;
     let upstream_endpoint = upstream_endpoint_for_codex_request(url);
     let credential_purpose = if is_image_generation_endpoint(request_path(&upstream_endpoint)) {
@@ -49,7 +49,7 @@ fn send_official_request(
     headers: &[(String, String)],
     body: &[u8],
     authentication: &OfficialRequestAuthentication,
-) -> Result<UpstreamPayload, String> {
+) -> UpstreamResult {
     let mut request = client
         .request(reqwest_method(method)?, upstream_url)
         .header("originator", ORIGINATOR)
@@ -80,9 +80,7 @@ fn send_official_request(
         apply_forward_headers(request, headers, true)
             .body(body.to_vec())
             .send()
-            .map_err(|error| {
-                format_upstream_request_error("Official Codex proxy request failed", &error)
-            })?,
+            .map_err(|error| upstream_request_error("Official Codex proxy request failed", error))?,
     )
 }
 
@@ -122,7 +120,7 @@ fn forward_provider(
     headers: &[(String, String)],
     body: Vec<u8>,
     provider: &ProviderProfile,
-) -> Result<UpstreamPayload, String> {
+) -> UpstreamResult {
     let client = http_client()?;
     let upstream_endpoint = upstream_endpoint_for_codex_request(url);
     let upstream_url = build_upstream_url(&provider.base_url, &upstream_endpoint);
@@ -138,7 +136,7 @@ fn forward_provider(
         request
             .body(body)
             .send()
-            .map_err(|error| format_upstream_request_error("Provider proxy request failed", &error))?,
+            .map_err(|error| upstream_request_error("Provider proxy request failed", error))?,
     )
 }
 
@@ -148,7 +146,7 @@ fn forward_provider_request(
     headers: &[(String, String)],
     body: Vec<u8>,
     provider: &ProviderProfile,
-) -> Result<UpstreamPayload, String> {
+) -> UpstreamResult {
     if provider.kind == ProviderKind::Custom
         && *method == Method::Post
         && is_response_create_endpoint(request_path(url))
@@ -165,7 +163,7 @@ fn forward_provider_request(
 
 fn forward_aggregate_request(
     request: AggregateForwardRequest<'_>,
-) -> Result<UpstreamPayload, String> {
+) -> UpstreamResult {
     let member_ids = request
         .target
         .profiles
@@ -182,7 +180,7 @@ fn forward_aggregate_request(
             &excluded,
         ) {
             Ok(member_id) => member_id,
-            Err(error) => return last_result.unwrap_or(Err(error)),
+            Err(error) => return last_result.unwrap_or_else(|| Err(error.into())),
         };
         let provider = request
             .target
@@ -212,25 +210,27 @@ fn forward_aggregate_request(
     }
 }
 
-fn aggregate_result_is_retryable(result: &Result<UpstreamPayload, String>) -> bool {
+fn aggregate_result_is_retryable(result: &UpstreamResult) -> bool {
     match result {
         Ok(payload) => matches!(payload.status, 408 | 425 | 429 | 500 | 502 | 503 | 504),
-        Err(error) => {
-            let error = error.to_ascii_lowercase();
-            [
-                "request failed",
-                "timed out",
-                "timeout",
-                "connection",
-                "connect error",
-                "network",
-                "dns",
-                "error sending request",
-            ]
-            .iter()
-            .any(|marker| error.contains(marker))
-        }
+        Err(error) => error.is_aggregate_retryable(),
     }
+}
+
+fn aggregate_error_message_is_retryable(message: &str) -> bool {
+    let message = message.to_ascii_lowercase();
+    [
+        "request failed",
+        "timed out",
+        "timeout",
+        "connection",
+        "connect error",
+        "network",
+        "dns",
+        "error sending request",
+    ]
+    .iter()
+    .any(|marker| message.contains(marker))
 }
 
 fn forward_provider_with_api_fallback(
@@ -239,7 +239,7 @@ fn forward_provider_with_api_fallback(
     headers: &[(String, String)],
     body: Vec<u8>,
     provider: &ProviderProfile,
-) -> Result<UpstreamPayload, String> {
+) -> UpstreamResult {
     let model = provider_request_model(&body, provider);
     if let Some(format) = provider.model_api_formats.get(&model).copied() {
         provider_api_cache::forget_format(&provider.id, &model);
@@ -274,7 +274,7 @@ fn forward_provider_with_format(
     headers: &[(String, String)],
     body: Vec<u8>,
     provider: &ProviderProfile,
-) -> Result<UpstreamPayload, String> {
+) -> UpstreamResult {
     match format {
         ProviderApiFormat::OpenaiResponses => {
             forward_provider(method, url, headers, body, provider)
@@ -297,7 +297,7 @@ fn alternate_api_format(format: ProviderApiFormat) -> ProviderApiFormat {
     }
 }
 
-fn api_attempt_succeeded(result: &Result<UpstreamPayload, String>) -> bool {
+fn api_attempt_succeeded(result: &UpstreamResult) -> bool {
     result
         .as_ref()
         .is_ok_and(|payload| status_ok(payload.status))
@@ -312,14 +312,14 @@ fn remember_provider_api_format(
 }
 
 fn preferred_protocol_failure(
-    first: Result<UpstreamPayload, String>,
-    second: Result<UpstreamPayload, String>,
-) -> Result<UpstreamPayload, String> {
+    first: UpstreamResult,
+    second: UpstreamResult,
+) -> UpstreamResult {
     match (first, second) {
         (_, Ok(payload)) => Ok(payload),
         (Ok(payload), Err(_)) => Ok(payload),
-        (Err(first_error), Err(second_error)) => Err(format!(
+        (Err(first_error), Err(second_error)) => Err(UpstreamError::Other(format!(
             "Provider request failed for both supported API formats: {first_error}; {second_error}"
-        )),
+        ))),
     }
 }

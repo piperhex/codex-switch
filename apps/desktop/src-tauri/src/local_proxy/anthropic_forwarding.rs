@@ -37,7 +37,7 @@ fn forward_anthropic_official<R: tauri::Runtime>(
     _headers: &[(String, String)],
     body: Vec<u8>,
     session_id: Option<&str>,
-) -> Result<UpstreamPayload, String> {
+) -> UpstreamResult {
     let client = http_client()?;
     let credentials = official_credentials(
         app,
@@ -83,7 +83,7 @@ fn forward_anthropic_provider(
     body: Vec<u8>,
     provider: &ProviderProfile,
     subagent_model: &str,
-) -> Result<UpstreamPayload, String> {
+) -> UpstreamResult {
     let request: Value = serde_json::from_slice(&body)
         .map_err(|error| format!("Anthropic request body is not valid JSON: {error}"))?;
     let stream = request
@@ -124,7 +124,7 @@ fn convert_responses_payload(
     mut payload: UpstreamPayload,
     stream: bool,
     model: &str,
-) -> Result<UpstreamPayload, String> {
+) -> UpstreamResult {
     if !status_ok(payload.status) {
         return Ok(payload);
     }

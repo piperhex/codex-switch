@@ -83,8 +83,12 @@ fn image_model_target_for_request(
 fn request_contains_input_image(body: &[u8]) -> bool {
     serde_json::from_slice::<Value>(body)
         .ok()
-        .and_then(|value| value.get("input").cloned())
-        .is_some_and(|input| contains_input_image(&input))
+        .as_ref()
+        .is_some_and(parsed_request_contains_input_image)
+}
+
+fn parsed_request_contains_input_image(body: &Value) -> bool {
+    body.get("input").is_some_and(contains_input_image)
 }
 
 fn apply_image_output_model<R: Runtime>(
@@ -167,7 +171,9 @@ fn proxy_diagnostic_entry(
         "query": request_query_diagnostic(url),
         "upstreamEndpoint": request_path(&upstream_endpoint),
         "isResponsesEndpoint": is_responses_endpoint(path),
-        "containsInputImage": request_contains_input_image(body),
+        "containsInputImage": request_body
+            .as_ref()
+            .is_some_and(parsed_request_contains_input_image),
         "route": route.as_str(),
         "requestBodyBytes": body.len(),
         "requestBodyHash": short_hash_bytes(body),
@@ -189,7 +195,7 @@ fn proxy_diagnostic_entry(
 fn append_proxy_diagnostic_result<R: Runtime>(
     app: &tauri::AppHandle<R>,
     mut entry: Value,
-    result: &Result<UpstreamPayload, String>,
+    result: &UpstreamResult,
     duration: Duration,
 ) {
     entry["durationMs"] = json!(duration.as_millis() as u64);
@@ -218,11 +224,12 @@ fn append_proxy_diagnostic_result<R: Runtime>(
             entry["result"] = result;
         }
         Err(error) => {
+            let diagnostic_message = error.diagnostic_message();
             entry["result"] = json!({
                 "ok": false,
-                "errorKind": upstream_error_kind(error),
-                "error": truncate_for_log(error, 240),
-                "errorHash": short_hash_str(error)
+                "errorKind": error.kind(),
+                "error": truncate_for_log(&diagnostic_message, 240),
+                "errorHash": short_hash_str(&diagnostic_message)
             });
         }
     }
