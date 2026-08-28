@@ -708,7 +708,6 @@ h1 { margin: 5px 0 0; font: 700 26px/1.1 Manrope, sans-serif; letter-spacing: -.
 .login-choice small { color: #7f8c83; font-size: 9px; }
 .login-choice > svg { color: #94a098; }
 .login-web-session-warning, .login-browser-mode-warning { display: block; max-width: 400px; color: #c34236; font-size: 12px; line-height: 1.6; }
-.safety-note { margin-top: 16px; display: flex; align-items: center; justify-content: center; gap: 6px; color: #839088; font-size: 9px; }
 .cloud-login-modal { width: min(430px, 95vw); }
 .cloud-login-form { display: grid; gap: 8px; }
 .cloud-login-form label { color: #526259; font-size: 11px; font-weight: 700; }

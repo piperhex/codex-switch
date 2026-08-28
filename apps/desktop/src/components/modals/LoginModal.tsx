@@ -1,5 +1,5 @@
 import {
-  ChevronRight, ClipboardPaste, ExternalLink, FileInput, Globe2, KeyRound, LayoutGrid, ShieldCheck, X,
+  ChevronRight, ClipboardPaste, ExternalLink, FileInput, Globe2, KeyRound, LayoutGrid, X,
 } from "lucide-react";
 import { Button, Modal } from "antd";
 import { useState } from "react";
@@ -63,7 +63,6 @@ export function LoginModal({ onClose, onWebSession, onStart, onImport, onImportC
           <span><b>{t("login.importClipboard")}</b><small>{t("login.importClipboardDescription")}</small></span>
           <ChevronRight size={19} />
         </button>
-        <div className="safety-note"><ShieldCheck size={16} />{t("login.safety")}</div>
       </section>
       <Modal
         open={browserModeConfirmOpen}
