@@ -202,10 +202,11 @@ function ProviderIdentityCell({ provider, error, conversationCount, t }: {
   conversationCount: number;
   t: Translate;
 }) {
+  const providerBaseUrl = providerHomepageUrl(provider.baseUrl);
   return <div className="provider-cell">
     <ProviderAvatar conversationCount={conversationCount} iconSize={15} t={t} />
     <button type="button" className="provider-link" title={t("providers.openBaseUrl")}
-      onClick={() => void openUrl(provider.baseUrl)}>
+      onClick={() => void openUrl(providerBaseUrl)}>
       <span className="provider-link-name">
         <strong>{provider.name}</strong>
         {error && <Tooltip title={error} styles={{ root: { maxWidth: 400 } }}>
@@ -216,6 +217,14 @@ function ProviderIdentityCell({ provider, error, conversationCount, t }: {
       <span className="provider-base-url" title={provider.baseUrl}>{provider.baseUrl}</span>
     </button>
   </div>;
+}
+
+function providerHomepageUrl(baseUrl: string) {
+  try {
+    return new URL(baseUrl).origin;
+  } catch {
+    return baseUrl;
+  }
 }
 
 function ProviderAvatar({ conversationCount, iconSize, t }: {
