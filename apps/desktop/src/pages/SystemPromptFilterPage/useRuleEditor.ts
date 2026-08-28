@@ -25,39 +25,54 @@ export function useRuleEditor(
   onChange: (rules: SystemPromptRule[]) => Promise<boolean>,
   t: Translate,
 ) {
+  const [modalOpen, setModalOpen] = useState(false);
   const [draft, setDraft] = useState("");
+  const [draftName, setDraftName] = useState("");
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [editingValue, setEditingValue] = useState("");
   const [error, setError] = useState("");
 
   const updateDraft = (value: string) => { setDraft(value); setError(""); };
-  const updateEditingValue = (value: string) => { setEditingValue(value); setError(""); };
-  const cancelEdit = () => { setEditingIndex(null); setError(""); };
-  const beginEdit = (index: number) => {
-    setEditingIndex(index);
-    setEditingValue(rules[index].text);
+  const updateDraftName = (value: string) => { setDraftName(value); setError(""); };
+  const closeModal = () => {
+    setModalOpen(false);
+    setEditingIndex(null);
     setError("");
   };
-  const addRule = async () => {
-    const validationError = ruleValidationError(draft, rules, t);
-    if (validationError) return setError(validationError);
-    if (await onChange([...rules, { text: draft.trim(), enabled: true }])) updateDraft("");
+  const openAdd = () => {
+    setDraftName("");
+    setDraft("");
+    setEditingIndex(null);
+    setError("");
+    setModalOpen(true);
   };
-  const saveEdit = async () => {
-    if (editingIndex === null) return;
-    const validationError = ruleValidationError(editingValue, rules, t, editingIndex);
+  const beginEdit = (index: number) => {
+    setEditingIndex(index);
+    setDraftName(rules[index].name ?? "");
+    setDraft(rules[index].text);
+    setError("");
+    setModalOpen(true);
+  };
+  const saveRule = async () => {
+    if (!draftName.trim()) return setError(t("systemPromptFilter.ruleNameRequired"));
+    const validationError = ruleValidationError(draft, rules, t, editingIndex ?? undefined);
     if (validationError) return setError(validationError);
-    const nextRules = rules.map((rule, index) => (
-      index === editingIndex ? { ...rule, text: editingValue.trim() } : rule
-    ));
+    const nextRule = {
+      name: draftName.trim(),
+      text: draft.trim(),
+      enabled: editingIndex === null ? true : rules[editingIndex].enabled,
+    };
+    const nextRules = editingIndex === null
+      ? [...rules, nextRule]
+      : rules.map((rule, index) => (index === editingIndex ? nextRule : rule));
     if (await onChange(nextRules)) {
-      setEditingValue("");
-      cancelEdit();
+      setDraft("");
+      setDraftName("");
+      closeModal();
     }
   };
   const deleteRule = async (index: number) => {
     if (!(await onChange(rules.filter((_, ruleIndex) => ruleIndex !== index)))) return;
-    if (editingIndex === index) setEditingIndex(null);
+    if (editingIndex === index) closeModal();
     setError("");
   };
   const toggleRule = async (index: number, enabled: boolean) => {
@@ -67,18 +82,19 @@ export function useRuleEditor(
   };
 
   return {
-    addRule,
     beginEdit,
-    cancelEdit,
+    closeModal,
     deleteRule,
     draft,
+    draftName,
     editingIndex,
-    editingValue,
     error,
-    saveEdit,
+    modalOpen,
+    openAdd,
+    saveRule,
     toggleRule,
     updateDraft,
-    updateEditingValue,
+    updateDraftName,
   };
 }
 

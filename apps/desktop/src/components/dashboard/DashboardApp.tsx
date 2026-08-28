@@ -1323,6 +1323,9 @@ export function DashboardApp() {
               <div id="skills-market-topbar-actions" className="topbar-actions skills-market-topbar-actions" />
             )}
             {page === "sessions" && <div id="codex-thread-topbar-actions" className="topbar-actions" />}
+            {page === "promptFilter" && (
+              <div id="system-prompt-filter-topbar-actions" className="topbar-actions" />
+            )}
             {page === "promptInjection" && (
               <div id="system-prompt-injection-topbar-actions" className="topbar-actions" />
             )}
@@ -1448,12 +1451,11 @@ export function DashboardApp() {
           </section>
           <section className="page-panel" hidden={page !== "promptFilter"}>
             {page === "promptFilter" && (
-              <MemoSystemPromptFilterPage
+            <MemoSystemPromptFilterPage
                 enabled={providerManager.localProxy?.systemPromptFilterEnabled ?? false}
                 loading={providerManager.proxyBusy}
                 onEnabledChange={(enabled) => void providerManager.setSystemPromptFilter(enabled)}
                 onRulesChange={providerManager.saveSystemPromptFilterRules}
-                proxyRunning={providerManager.localProxy?.running ?? false}
                 rules={providerManager.localProxy?.systemPromptFilterRules ?? []}
                 t={t}
               />
