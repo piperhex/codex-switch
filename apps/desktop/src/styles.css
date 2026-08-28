@@ -710,8 +710,6 @@ h1 { margin: 5px 0 0; font: 700 26px/1.1 Manrope, sans-serif; letter-spacing: -.
 .modal-divider { height: 32px; display: flex; align-items: center; text-align: center; color: #9aa59e; font-size: 9px; }
 .modal-divider::before, .modal-divider::after { content: ""; flex: 1; height: 1px; background: #e3e8e3; }
 .modal-divider span { padding: 0 10px; }
-.import-choice { width: 100%; border: 1px dashed #cdd7cf; border-radius: 9px; padding: 10px; display: flex; align-items: center; justify-content: center; gap: 7px; color: #536159; background: transparent; cursor: pointer; font-size: 11px; }
-.import-choice:hover { color: var(--green); border-color: #87ad94; background: #f4f8f4; }
 .safety-note { margin-top: 16px; display: flex; align-items: center; justify-content: center; gap: 6px; color: #839088; font-size: 9px; }
 .cloud-login-modal { width: min(430px, 95vw); }
 .cloud-login-form { display: grid; gap: 8px; }

@@ -32,8 +32,16 @@ export function LoginModal({ onClose, onWebSession, onStart, onImport, onImportC
           <span><b>{t("login.browser.title")}</b><small>{t("login.browser.description")}</small></span><ChevronRight size={19} />
         </button>
         <div className="modal-divider"><span>{t("login.or")}</span></div>
-        <button type="button" className="import-choice" onClick={onImport}><FileInput size={17} />{t("login.importMultiple")}</button>
-        <button type="button" className="import-choice" onClick={onImportClipboard}><ClipboardPaste size={17} />{t("login.importClipboard")}</button>
+        <button type="button" className="login-choice import-choice" onClick={onImport}>
+          <span className="choice-icon"><FileInput size={20} /></span>
+          <span><b>{t("login.importMultiple")}</b><small>{t("login.importCompatible")}</small></span>
+          <ChevronRight size={19} />
+        </button>
+        <button type="button" className="login-choice import-choice" onClick={onImportClipboard}>
+          <span className="choice-icon"><ClipboardPaste size={20} /></span>
+          <span><b>{t("login.importClipboard")}</b><small>{t("login.importClipboardDescription")}</small></span>
+          <ChevronRight size={19} />
+        </button>
         <div className="safety-note"><ShieldCheck size={16} />{t("login.safety")}</div>
       </section>
     </div>
