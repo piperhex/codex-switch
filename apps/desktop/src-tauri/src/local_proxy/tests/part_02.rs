@@ -415,7 +415,8 @@
             |_, _| false,
             |_| Duration::from_secs(1),
         )
-        .unwrap_err();
+        .err()
+        .expect("connect retry exhaustion should return an error");
 
         assert!(error.contains("[connect]"));
         assert_eq!(request_count.load(AtomicOrdering::SeqCst), 3);

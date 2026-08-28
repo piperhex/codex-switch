@@ -2238,7 +2238,8 @@ export async function fetchSkillMarket(): Promise<SkillMarketItem[]> {
 }
 
 function selectedPackage(path: string, kind: SkillPackageSelection["kind"]): SkillPackageSelection {
-  const name = path.split(/[\\/]/).filter(Boolean).at(-1) ?? (kind === "folder" ? "skill-folder" : "skill.zip");
+  const pathSegments = path.split(/[\\/]/).filter(Boolean);
+  const name = pathSegments[pathSegments.length - 1] ?? (kind === "folder" ? "skill-folder" : "skill.zip");
   return { path, kind, name };
 }
 
