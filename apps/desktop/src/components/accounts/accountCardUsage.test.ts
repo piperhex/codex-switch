@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Account, AccountTokenUsageTotals } from "../../types";
 import { EMPTY_TOKEN_TOTALS, type TokenTypeTotals } from "../DailyTokenUsageTooltip";
-import { getOfficialAccountCardTokenUsage } from "./accountCardUsage";
+import { getAccountCardTokenUsage } from "./accountCardUsage";
 
 function account(official: boolean): Account {
   return {
@@ -38,12 +38,12 @@ describe("official account card token usage", () => {
       estimatedCost: 0.0123,
     }];
 
-    expect(getOfficialAccountCardTokenUsage(account(true), new Map([["account-1", totals]]), usage))
+    expect(getAccountCardTokenUsage(account(true), new Map([["account-1", totals]]), usage))
       .toEqual({ totals, estimatedCost: 0.0123 });
   });
 
-  it("does not return token footer data for personal accounts", () => {
-    expect(getOfficialAccountCardTokenUsage(account(false), new Map([["account-1", EMPTY_TOKEN_TOTALS]]), []))
-      .toBeNull();
+  it("returns token footer data for personal accounts too", () => {
+    expect(getAccountCardTokenUsage(account(false), new Map([["account-1", EMPTY_TOKEN_TOTALS]]), []))
+      .toEqual({ totals: EMPTY_TOKEN_TOTALS, estimatedCost: 0 });
   });
 });

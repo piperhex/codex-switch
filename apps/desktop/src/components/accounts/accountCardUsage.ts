@@ -1,7 +1,7 @@
 import type { Account, AccountTokenUsageTotals } from "../../types";
 import type { TokenTypeTotals } from "../DailyTokenUsageTooltip";
 
-export interface OfficialAccountCardTokenUsage {
+export interface AccountCardTokenUsage {
   totals: TokenTypeTotals;
   estimatedCost: number;
 }
@@ -15,12 +15,11 @@ function tokenUsageMatchesAccount(usage: AccountTokenUsageTotals, account: Accou
   return Boolean(email && usageEmail && email === usageEmail);
 }
 
-export function getOfficialAccountCardTokenUsage(
+export function getAccountCardTokenUsage(
   account: Account,
   totalsByAccount: Map<string, TokenTypeTotals>,
   accountTokenUsage: AccountTokenUsageTotals[],
-): OfficialAccountCardTokenUsage | null {
-  if (!account.official) return null;
+): AccountCardTokenUsage {
   const usage = accountTokenUsage.find((item) => tokenUsageMatchesAccount(item, account));
   return {
     totals: totalsByAccount.get(account.id) ?? {

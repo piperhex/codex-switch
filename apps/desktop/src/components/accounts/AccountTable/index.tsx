@@ -67,7 +67,7 @@ import { TokenCostColumnTitle, useTokenCostDisplaySettings } from "../../TokenCo
 import { AccountNoteModal } from "../../modals/AccountNoteModal";
 import { ResetCreditsPanel } from "../ResetCreditsPanel";
 import { UsageMeter, UsageRefreshAge } from "../UsageMeter";
-import { getOfficialAccountCardTokenUsage } from "../accountCardUsage";
+import { getAccountCardTokenUsage } from "../accountCardUsage";
 import styles from "./index.module.less";
 import {
   AccountNoteEditButton,
@@ -1159,7 +1159,7 @@ export function AccountTable({
       {orderedAccounts.map((account) => {
         const waiting = busyAccountId === account.id;
         const isDisabled = isAccountDisabled(account, hotSwitchEnabled);
-        const cardTokenUsage = getOfficialAccountCardTokenUsage(
+        const cardTokenUsage = getAccountCardTokenUsage(
           account,
           todayTokenTotalsByAccount,
           accountTokenUsage,
