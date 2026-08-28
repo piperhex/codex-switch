@@ -36,6 +36,16 @@
 .error { margin: 7px 0 0; color: #b42318; font-size: 12px; }
 .topbarControls { display: flex; align-items: center; gap: 10px; }
 .topbarControls :global(.ant-btn-primary) { background: var(--green); }
+.editorModal :global(.ant-modal-content) {
+  height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+.editorModal :global(.ant-modal-body) {
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+}
 .promptTable { margin-top: 18px; }
 .promptPreview {
   display: block;

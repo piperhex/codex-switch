@@ -34,7 +34,9 @@ function PromptEditorModal({ editor, loading, t }: {
   const isEditing = editor.editingIndex !== null;
   return (
     <Modal
+      className={styles.editorModal}
       open={editor.modalOpen}
+      width="80vw"
       title={t(isEditing ? "systemPromptInjection.editPrompt" : "systemPromptInjection.addPrompt")}
       okText={t("systemPromptInjection.savePrompt")}
       cancelText={t("systemPromptInjection.cancelEdit")}
