@@ -50,27 +50,27 @@ export function applyThemeColor(color: string) {
   ));
   root.style.setProperty("--green-soft", mix(
     normalized,
-    dark ? { r: 24, g: 31, b: 27 } : { r: 255, g: 255, b: 255 },
+    dark ? { r: 17, g: 18, b: 20 } : { r: 255, g: 255, b: 255 },
     dark ? .8 : .88,
   ));
   root.style.setProperty("--green-selection", mix(
     normalized,
-    dark ? { r: 24, g: 31, b: 27 } : { r: 255, g: 255, b: 255 },
+    dark ? { r: 17, g: 18, b: 20 } : { r: 255, g: 255, b: 255 },
     dark ? .66 : .82,
   ));
   root.style.setProperty("--green-selection-hover", mix(
     normalized,
-    dark ? { r: 24, g: 31, b: 27 } : { r: 255, g: 255, b: 255 },
+    dark ? { r: 17, g: 18, b: 20 } : { r: 255, g: 255, b: 255 },
     dark ? .58 : .76,
   ));
   root.style.setProperty("--green-accent", mix(normalized, { r: 255, g: 255, b: 255 }, .18));
   root.style.setProperty("--green-highlight", mix(
     normalized,
-    dark ? { r: 24, g: 31, b: 27 } : { r: 255, g: 255, b: 255 },
+    dark ? { r: 17, g: 18, b: 20 } : { r: 255, g: 255, b: 255 },
     dark ? .35 : .38,
   ));
   root.style.setProperty("--green-gradient-end", mix(normalized, { r: 255, g: 255, b: 255 }, .42));
-  root.style.setProperty("--green-surface", mix(normalized, { r: 18, g: 22, b: 20 }, .82));
+  root.style.setProperty("--green-surface", mix(normalized, { r: 15, g: 16, b: 18 }, .82));
   root.style.setProperty("--green-rgb", `${rgb.r}, ${rgb.g}, ${rgb.b}`);
   return normalized;
 }
