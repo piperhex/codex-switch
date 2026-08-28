@@ -37,11 +37,9 @@ fn find_default_codex_install() -> Result<CodexInstall, String> {
 }
 
 #[cfg(target_os = "macos")]
-fn launch_codex(install: &CodexInstall, arguments: &str) -> Result<u32, String> {
+fn launch_codex(install: &CodexInstall, arguments: &[String]) -> Result<u32, String> {
     let mut command = Command::new(&install.executable);
-    for argument in arguments.split_whitespace() {
-        command.arg(argument);
-    }
+    command.args(arguments);
     command
         .spawn()
         .map(|child| child.id())

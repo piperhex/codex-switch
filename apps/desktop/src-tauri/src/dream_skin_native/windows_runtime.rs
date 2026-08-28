@@ -238,7 +238,7 @@ fn find_runtime_launch_install() -> Result<CodexInstall, String> {
 }
 
 #[cfg(target_os = "windows")]
-fn launch_codex(install: &CodexInstall, arguments: &str) -> Result<u32, String> {
+fn launch_codex(install: &CodexInstall, arguments: &[String]) -> Result<u32, String> {
     use windows::{
         core::HSTRING,
         Win32::{
@@ -282,10 +282,15 @@ fn launch_codex(install: &CodexInstall, arguments: &str) -> Result<u32, String> 
             CoCreateInstance(&ApplicationActivationManager, None, CLSCTX_LOCAL_SERVER)
         }
         .map_err(|error| format!("Failed to create Windows app activation manager: {error}"))?;
+        let command_line = arguments
+            .iter()
+            .map(|argument| quote_windows_argument(argument))
+            .collect::<Vec<_>>()
+            .join(" ");
         return unsafe {
             manager.ActivateApplication(
                 &HSTRING::from(app_user_model_id),
-                &HSTRING::from(arguments),
+                &HSTRING::from(command_line),
                 AO_NONE,
             )
         }
@@ -293,13 +298,20 @@ fn launch_codex(install: &CodexInstall, arguments: &str) -> Result<u32, String> 
     }
 
     let mut command = Command::new(&install.executable);
-    for argument in arguments.split_whitespace() {
-        command.arg(argument);
-    }
+    command.args(arguments);
     command.spawn().map(|child| child.id()).map_err(|error| {
         format!(
             "Failed to launch Codex from {}: {error}",
             install.executable.display()
         )
     })
+}
+
+#[cfg(target_os = "windows")]
+fn quote_windows_argument(argument: &str) -> String {
+    if argument.is_empty() || argument.chars().any(char::is_whitespace) {
+        format!("\"{argument}\"")
+    } else {
+        argument.to_string()
+    }
 }

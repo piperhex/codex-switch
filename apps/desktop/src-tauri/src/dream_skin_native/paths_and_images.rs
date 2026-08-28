@@ -18,6 +18,10 @@ fn pause_path() -> Result<PathBuf, String> {
     Ok(state_root()?.join("paused"))
 }
 
+fn cdp_profile_path() -> Result<PathBuf, String> {
+    Ok(state_root()?.join("cdp-profile"))
+}
+
 fn bundled_root(app: &AppHandle) -> Result<PathBuf, String> {
     let manifest_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("resources")

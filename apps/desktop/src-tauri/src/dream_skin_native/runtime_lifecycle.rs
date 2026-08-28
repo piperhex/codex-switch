@@ -6,7 +6,9 @@ fn start_managed_runtime(
     let _launch = RuntimeLaunchGuard::acquire();
     stop_codex(install)?;
     let port = select_port()?;
-    let arguments = format!("--remote-debugging-address=127.0.0.1 --remote-debugging-port={port}");
+    let profile = cdp_profile_path()?;
+    ensure_directory(&profile)?;
+    let arguments = managed_runtime_arguments(port, &profile);
     let mut state = read_session();
     state.session = "active".to_string();
     state.port = Some(port);
@@ -25,6 +27,14 @@ fn start_managed_runtime(
         }
     }
     Ok(())
+}
+
+fn managed_runtime_arguments(port: u16, profile: &Path) -> Vec<String> {
+    vec![
+        "--remote-debugging-address=127.0.0.1".to_string(),
+        format!("--remote-debugging-port={port}"),
+        format!("--user-data-dir={}", profile.display()),
+    ]
 }
 
 fn skin_verification_required(skin_installed: bool, skin_paused: bool) -> bool {

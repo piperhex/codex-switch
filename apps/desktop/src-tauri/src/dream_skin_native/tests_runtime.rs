@@ -6,6 +6,37 @@
     }
 
     #[test]
+    fn managed_runtime_arguments_pair_cdp_with_a_non_default_profile() {
+        let profile = PathBuf::from(
+            r"C:\Users\Test User\AppData\Local\CodexDreamSkin\cdp-profile",
+        );
+
+        assert_eq!(
+            managed_runtime_arguments(9335, &profile),
+            vec![
+                "--remote-debugging-address=127.0.0.1",
+                "--remote-debugging-port=9335",
+                r"--user-data-dir=C:\Users\Test User\AppData\Local\CodexDreamSkin\cdp-profile",
+            ]
+        );
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn windows_activation_quotes_profile_paths_with_spaces() {
+        assert_eq!(
+            quote_windows_argument(
+                r"--user-data-dir=C:\Users\Test User\AppData\Local\CodexDreamSkin\cdp-profile",
+            ),
+            r#""--user-data-dir=C:\Users\Test User\AppData\Local\CodexDreamSkin\cdp-profile""#
+        );
+        assert_eq!(
+            quote_windows_argument("--remote-debugging-port=9335"),
+            "--remote-debugging-port=9335"
+        );
+    }
+
+    #[test]
     fn ordinary_restarts_leave_skin_verification_to_the_monitor() {
         assert!(!wait_for_skin_verification(
             true,
