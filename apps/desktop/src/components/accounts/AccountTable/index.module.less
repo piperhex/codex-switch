@@ -178,6 +178,21 @@
   .account-reset-credits .reset-credits-panel, .account-reset-credits .reset-credits-status { padding-left: 12px; }
   .account-card-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; padding: 14px 20px; }
   .account-card-actions .ant-btn { display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+  .account-card-token-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 12px 20px 0;
+    padding-top: 10px;
+    border-top: 1px solid #e5e9e4;
+    font-size: 10px;
+  }
+  .account-card-token-summary,
+  .account-card-token-cost { color: #718078; white-space: nowrap; }
+  .account-card-token-summary { cursor: help; }
+  .account-card-token-summary.unavailable { color: #9aa69f; }
+  .account-card-token-cost { color: var(--green-dark); font-weight: 700; }
   .account-table-wrap .ant-table { color: var(--ink); font-size: 12px; }
   .account-table-wrap col.ant-table-selection-col { background: #f6f8f5; }
   .account-table-wrap .ant-table-thead > tr > th { background: #f6f8f5; color: #5d6a62; font-size: 11px; font-weight: 700; }
@@ -288,4 +303,7 @@
   :root[data-theme="dark"] .account-table-wrap .ant-table-tbody > tr.account-threshold-row:hover > td { background: #5a502d; }
   :root[data-theme="dark"] .account-table-wrap .ant-table-expanded-row > td { background: #202328 !important; }
   :root[data-theme="dark"] .account-card-usage section + section { border-color: var(--line); }
+  :root[data-theme="dark"] .account-card-token-footer { border-color: var(--line); }
+  :root[data-theme="dark"] .account-card-token-summary { color: #aeb8b1; }
+  :root[data-theme="dark"] .account-card-token-summary.unavailable { color: #7f8982; }
 }

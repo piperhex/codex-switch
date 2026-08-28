@@ -55,6 +55,7 @@ import type {
 } from "../../../types";
 import { accountExpirationDate } from "../../../utils/expiration";
 import { initials } from "../../../utils/format";
+import { formatCompactTokenCount } from "../../../utils/tokenContext";
 import { shouldShowUsageError } from "../../../utils/usageErrors";
 import { formatEstimatedCost, TOKEN_COST_CUSTOM_RULES_EVENT } from "../../../utils/tokenCost";
 import {
@@ -66,6 +67,7 @@ import { TokenCostColumnTitle, useTokenCostDisplaySettings } from "../../TokenCo
 import { AccountNoteModal } from "../../modals/AccountNoteModal";
 import { ResetCreditsPanel } from "../ResetCreditsPanel";
 import { UsageMeter, UsageRefreshAge } from "../UsageMeter";
+import { getOfficialAccountCardTokenUsage } from "../accountCardUsage";
 import styles from "./index.module.less";
 import {
   AccountNoteEditButton,
@@ -1157,6 +1159,11 @@ export function AccountTable({
       {orderedAccounts.map((account) => {
         const waiting = busyAccountId === account.id;
         const isDisabled = isAccountDisabled(account, hotSwitchEnabled);
+        const cardTokenUsage = getOfficialAccountCardTokenUsage(
+          account,
+          todayTokenTotalsByAccount,
+          accountTokenUsage,
+        );
         const switchBlocked = hotSwitchEnabled
           ? !account.localProxyCompatible
           : !account.directSwitchCompatible;
@@ -1228,6 +1235,30 @@ export function AccountTable({
                   language={language} t={t} />
               </section>
             </div>
+            {cardTokenUsage && (
+              <footer className="account-card-token-footer">
+                {hotSwitchEnabled ? (
+                  <Tooltip title={<DailyTokenUsageTooltip totals={cardTokenUsage.totals} language={language} />}
+                    placement="topLeft" styles={{ root: { maxWidth: 400 } }}>
+                    <span className="account-card-token-summary" aria-label={t("table.tokenTotals")}>
+                      {t("tokenUsage.dayTotal", {
+                        tokens: formatCompactTokenCount(cardTokenUsage.totals.total, language),
+                      })}
+                    </span>
+                  </Tooltip>
+                ) : (
+                  <Tooltip title={t("table.tokenTotalsProxyOnly")}>
+                    <span className="account-card-token-summary unavailable">--</span>
+                  </Tooltip>
+                )}
+                <Tooltip title={t("table.estimatedTokenCostHint", { unit: tokenCostDisplay.unit })}
+                  styles={{ root: { maxWidth: 400 } }}>
+                  <span className="account-card-token-cost">
+                    {formatEstimatedCost(cardTokenUsage.estimatedCost, tokenCostDisplay)}
+                  </span>
+                </Tooltip>
+              </footer>
+            )}
           </article>
         );
       })}
