@@ -51,7 +51,7 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
             argument(&args, "settings")?,
         ))),
         "list_aggregate_apis" => serialize(block_on(crate::aggregate_api::list_aggregate_apis(app))),
-        "list_providers" => serialize(crate::providers::list_providers(app)),
+        "list_providers" => serialize(block_on(crate::providers::list_providers(app))),
         "save_provider" => serialize(crate::providers::save_provider(
             app,
             argument(&args, "provider")?,

@@ -11,6 +11,10 @@ use crate::{
     storage::read_app_settings,
 };
 
+mod refresh;
+
+pub(crate) use refresh::refresh_menu;
+
 const TRAY_ID: &str = "main-tray";
 const DASHBOARD_ID: &str = "tray:dashboard";
 const SETTINGS_ID: &str = "tray:settings";
@@ -26,7 +30,7 @@ const MENU_EMAIL_CHARS: usize = 15;
 const MENU_PROVIDER_CHARS: usize = 28;
 
 pub(crate) fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
-    let menu = build_menu(app.handle())?;
+    let menu = build_initial_menu(app.handle())?;
     let mut builder = TrayIconBuilder::with_id(TRAY_ID)
         .menu(&menu)
         .tooltip("Codex Switch")
@@ -49,21 +53,36 @@ pub(crate) fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     }
 
     builder.build(app)?;
+    refresh_menu(app.handle());
     Ok(())
 }
 
-pub(crate) fn refresh_menu<R: Runtime>(app: &AppHandle<R>) {
-    let Some(tray) = app.tray_by_id(TRAY_ID) else {
-        return;
-    };
-    match build_menu(app) {
-        Ok(menu) => {
-            if let Err(error) = tray.set_menu(Some(menu)) {
-                eprintln!("failed to refresh tray menu: {error}");
-            }
-        }
-        Err(error) => eprintln!("failed to build tray menu: {error}"),
-    }
+fn build_initial_menu<R: Runtime>(
+    app: &AppHandle<R>,
+) -> Result<Menu<R>, Box<dyn std::error::Error>> {
+    let menu = Menu::new(app)?;
+    menu.append(&MenuItem::with_id(
+        app,
+        DASHBOARD_ID,
+        "Dashboard",
+        true,
+        None::<&str>,
+    )?)?;
+    menu.append(&MenuItem::with_id(
+        app,
+        "tray:loading",
+        "正在加载…",
+        false,
+        None::<&str>,
+    )?)?;
+    menu.append(&MenuItem::with_id(
+        app,
+        QUIT_ID,
+        "Quit",
+        true,
+        None::<&str>,
+    )?)?;
+    Ok(menu)
 }
 
 pub(crate) fn show_dashboard<R: Runtime>(app: &AppHandle<R>) {
@@ -266,7 +285,7 @@ fn append_provider_items<R: Runtime>(
     )?;
     menu.append(&header)?;
 
-    match providers::list_providers(app.clone()) {
+    match providers::list_providers_blocking(app.clone()) {
         Ok(providers) => {
             if providers.is_empty() {
                 let empty = MenuItem::with_id(

@@ -1,5 +1,13 @@
 #[tauri::command]
-pub(crate) fn list_providers<R: Runtime>(
+pub(crate) async fn list_providers<R: Runtime + 'static>(
+    app: tauri::AppHandle<R>,
+) -> Result<Vec<ProviderSummary>, String> {
+    tauri::async_runtime::spawn_blocking(move || list_providers_blocking(app))
+        .await
+        .map_err(|error| format!("Provider list task failed: {error}"))?
+}
+
+pub(crate) fn list_providers_blocking<R: Runtime>(
     app: tauri::AppHandle<R>,
 ) -> Result<Vec<ProviderSummary>, String> {
     let paths = resolve_paths(&app)?;
