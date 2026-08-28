@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   Alert,
   Button,
   Checkbox,
   Dropdown,
+  Input,
   Modal,
   Progress,
   Switch,
@@ -13,7 +14,7 @@ import {
   type TableColumnsType,
   type TableProps,
 } from "antd";
-import { Cable, Columns3, Eye, GripVertical, Lock, RefreshCw } from "lucide-react";
+import { Cable, Columns3, Eye, GripVertical, Lock, RefreshCw, Search } from "lucide-react";
 import {
   loadProxySessionRequests,
   loadProxySessionUnlimitedConversation,
@@ -150,6 +151,28 @@ function formatResponseTime(value: number) {
   return `${(value / 1_000).toFixed(1)}s`;
 }
 
+function highlightConversation(value: string, query: string): ReactNode {
+  const normalizedQuery = query.trim();
+  if (!normalizedQuery) return value;
+  const lowerValue = value.toLocaleLowerCase();
+  const lowerQuery = normalizedQuery.toLocaleLowerCase();
+  const parts: ReactNode[] = [];
+  let cursor = 0;
+  let matchIndex = lowerValue.indexOf(lowerQuery, cursor);
+  while (matchIndex !== -1) {
+    if (matchIndex > cursor) parts.push(value.slice(cursor, matchIndex));
+    parts.push(
+      <mark key={`${matchIndex}-${lowerQuery}`} className={styles.conversationSearchMatch}>
+        {value.slice(matchIndex, matchIndex + normalizedQuery.length)}
+      </mark>,
+    );
+    cursor = matchIndex + normalizedQuery.length;
+    matchIndex = lowerValue.indexOf(lowerQuery, cursor);
+  }
+  if (cursor < value.length) parts.push(value.slice(cursor));
+  return parts.length ? parts : value;
+}
+
 function SessionTokenChart({ session, t }: { session: ProxySession; t: Translate }) {
   const values = [
     session.inputTokens,
@@ -255,6 +278,7 @@ export function ProxySessionManager({
   const [detailsSession, setDetailsSession] = useState<ProxySession | null>(null);
   const [requestDetails, setRequestDetails] = useState<ProxySessionRequest[]>([]);
   const [conversationRequest, setConversationRequest] = useState<ProxySessionRequest | null>(null);
+  const [conversationSearch, setConversationSearch] = useState("");
   const [unlimitedConversation, setUnlimitedConversation] = useState(false);
   const [unlimitedConversationLoading, setUnlimitedConversationLoading] = useState(false);
   const [detailsLoading, setDetailsLoading] = useState(false);
@@ -637,7 +661,10 @@ export function ProxySessionManager({
           className={styles.requestConversationButton}
           icon={<Eye size={13} />}
           disabled={!request.conversation}
-          onClick={() => setConversationRequest(request)}
+          onClick={() => {
+            setConversationSearch("");
+            setConversationRequest(request);
+          }}
         >
           {t("providers.proxy.sessionsRequestViewConversation")}
         </Button>
@@ -661,12 +688,14 @@ export function ProxySessionManager({
   };
 
   const closeManager = () => {
+    setConversationSearch("");
     setConversationRequest(null);
     setDetailsSession(null);
     setOpen(false);
   };
 
   const closeRequestDetails = () => {
+    setConversationSearch("");
     setConversationRequest(null);
     setDetailsSession(null);
   };
@@ -896,11 +925,26 @@ export function ProxySessionManager({
           request: conversationRequest ? `#${conversationRequest.id}` : "",
         })}
         footer={null}
-        onCancel={() => setConversationRequest(null)}
+        onCancel={() => {
+          setConversationSearch("");
+          setConversationRequest(null);
+        }}
       >
+        <Input
+          allowClear
+          className={styles.conversationSearch}
+          prefix={<Search size={14} />}
+          aria-label={t("providers.proxy.sessionsRequestConversationSearch")}
+          placeholder={t("providers.proxy.sessionsRequestConversationSearch")}
+          value={conversationSearch}
+          onChange={(event) => setConversationSearch(event.target.value)}
+        />
         <pre className={styles.requestConversationContent}>
-          {conversationRequest?.conversation
-            || t("providers.proxy.sessionsRequestConversationEmpty")}
+          {highlightConversation(
+            conversationRequest?.conversation
+              || t("providers.proxy.sessionsRequestConversationEmpty"),
+            conversationSearch,
+          )}
         </pre>
       </Modal>
     </>
