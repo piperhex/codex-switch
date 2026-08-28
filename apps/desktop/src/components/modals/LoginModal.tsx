@@ -19,6 +19,7 @@ export function LoginModal({ onClose, onWebSession, onStart, onImport, onImportC
     Modal.confirm({
       title: t("login.webSessionConfirmTitle"),
       content: <span className="login-web-session-warning">{t("login.webSessionConfirmDescription")}</span>,
+      centered: true,
       okText: t("login.webSessionConfirmButton"),
       cancelText: t("login.webSessionCancelButton"),
       onOk: onWebSession,
@@ -64,6 +65,7 @@ export function LoginModal({ onClose, onWebSession, onStart, onImport, onImportC
       </section>
       <Modal
         open={browserModeConfirmOpen}
+        centered
         title={t("login.browserModeConfirmTitle")}
         width={400}
         onCancel={() => setBrowserModeConfirmOpen(false)}
