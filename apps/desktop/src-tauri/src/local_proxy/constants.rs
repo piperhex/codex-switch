@@ -78,6 +78,11 @@ const CUSTOM_TOOL_PRESERVED_METADATA_HEADING: &str = "Original tool definition:"
 const LOCAL_PROXY_LAN_HOST: &str = "0.0.0.0";
 const LOCAL_PROXY_START_PROGRESS_EVENT: &str = "local-proxy-start-progress";
 const LOCAL_PROXY_STOP_PROGRESS_EVENT: &str = "local-proxy-stop-progress";
+const LOCAL_PROXY_UPSTREAM_CONNECTION_FAILED_EVENT: &str = "local-proxy-upstream-connection-failed";
+const UPSTREAM_CONNECTION_FAILURE_MESSAGE: &str = concat!(
+    "Connection to the target service failed. Check your network, VPN/proxy, DNS, and firewall. ",
+    "If multiple proxy tools or modes are enabled, keep only one enabled and try again.",
+);
 const LOCAL_PROXY_REBIND_RETRY_TIMEOUT: Duration = Duration::from_secs(1);
 const LOCAL_PROXY_REBIND_RETRY_INTERVAL: Duration = Duration::from_millis(25);
 const UPSTREAM_429_INITIAL_DELAY_SECONDS: u64 = 1;

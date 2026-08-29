@@ -69,6 +69,29 @@
     }
 
     #[test]
+    fn upstream_transport_errors_are_classified_for_user_notifications() {
+        assert!(is_upstream_transport_error(
+            "Official Codex proxy request failed: error sending request for url (https://example.com)",
+        ));
+        assert!(is_upstream_transport_error(
+            "Provider proxy request failed: error sending request for url (https://example.com)",
+        ));
+        assert!(!is_upstream_transport_error(
+            "Official Codex proxy request returned HTTP 502",
+        ));
+        assert_eq!(
+            upstream_error_message(
+                "Official Codex proxy request failed: error sending request for url (https://example.com)",
+            ),
+            UPSTREAM_CONNECTION_FAILURE_MESSAGE,
+        );
+        assert_eq!(
+            upstream_error_message("Select an official account"),
+            "Select an official account",
+        );
+    }
+
+    #[test]
     fn lan_listening_requires_a_configured_api_key() {
         let mut state = ManagerStateFile {
             local_proxy_listen_on_all_interfaces: true,

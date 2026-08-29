@@ -206,12 +206,33 @@ fn handle_request<R: Runtime>(app: tauri::AppHandle<R>, mut request: Request) {
     );
     let payload = match result {
         Ok(payload) => payload,
-        Err(error) => json_payload(502, json!({ "error": { "message": error } })),
+        Err(error) => {
+            let is_transport_error = is_upstream_transport_error(&error);
+            if is_transport_error {
+                let _ = app.emit(LOCAL_PROXY_UPSTREAM_CONNECTION_FAILED_EVENT, ());
+            }
+            let message = upstream_error_message(&error);
+            json_payload(502, json!({ "error": { "message": message } }))
+        }
     };
     respond_payload(
         request,
         attach_first_response_capture(payload, session.as_ref()),
     );
+}
+
+fn is_upstream_transport_error(error: &str) -> bool {
+    let normalized = error.to_ascii_lowercase();
+    normalized.contains("official codex proxy request failed: error sending request")
+        || normalized.contains("provider proxy request failed: error sending request")
+}
+
+fn upstream_error_message(error: &str) -> &str {
+    if is_upstream_transport_error(error) {
+        UPSTREAM_CONNECTION_FAILURE_MESSAGE
+    } else {
+        error
+    }
 }
 
 fn request_has_valid_api_key(headers: &[(String, String)], expected: &str) -> bool {
