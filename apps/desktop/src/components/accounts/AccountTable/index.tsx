@@ -6,6 +6,7 @@ import {
   Checkbox,
   Dropdown,
   Popconfirm,
+  Select,
   Space,
   Switch,
   Table,
@@ -68,6 +69,7 @@ import { AccountNoteModal } from "../../modals/AccountNoteModal";
 import { ResetCreditsPanel } from "../ResetCreditsPanel";
 import { UsageMeter, UsageRefreshAge } from "../UsageMeter";
 import { getAccountCardTokenUsage } from "../accountCardUsage";
+import { getOfficialAuthAccounts, getSwitchableAccounts } from "../accountSelectors";
 import styles from "./index.module.less";
 import {
   AccountNoteEditButton,
@@ -554,6 +556,32 @@ export function AccountTable({
     if (!account) return "-";
     return privacyMode ? maskAccountEmail(account.email) : account.email;
   };
+  const switchableAccounts = useMemo(
+    () => getSwitchableAccounts(accounts, hotSwitchEnabled),
+    [accounts, hotSwitchEnabled],
+  );
+  const officialAuthAccounts = useMemo(() => getOfficialAuthAccounts(accounts), [accounts]);
+  const switchableAccountIds = new Set(switchableAccounts.map((account) => account.id));
+  const accountSelectAccounts = activeAccount && !switchableAccountIds.has(activeAccount.id)
+    ? [...switchableAccounts, activeAccount]
+    : switchableAccounts;
+  const accountSelectOptions = accountSelectAccounts.map((account) => ({
+    label: accountSummaryLabel(account),
+    value: account.id,
+    disabled: !switchableAccountIds.has(account.id),
+  }));
+  const officialAuthAccountIds = new Set(officialAuthAccounts.map((account) => account.id));
+  const officialAuthSelectAccounts = officialAuthAccount && !officialAuthAccountIds.has(officialAuthAccount.id)
+    ? [...officialAuthAccounts, officialAuthAccount]
+    : officialAuthAccounts;
+  const officialAuthSelectOptions = [
+    { label: t("table.officialAuthAccountNotSet"), value: "" },
+    ...officialAuthSelectAccounts.map((account) => ({
+      label: accountSummaryLabel(account),
+      value: account.id,
+      disabled: !officialAuthAccountIds.has(account.id),
+    })),
+  ];
   const handleTableChange: NonNullable<TableProps<Account>["onChange"]> = (_, __, sorter) => {
     const activeSorter = Array.isArray(sorter) ? sorter[0] : sorter;
     const nextSort = isUsageSortColumn(activeSorter.columnKey) && isUsageSortOrder(activeSorter.order)
@@ -1079,15 +1107,24 @@ export function AccountTable({
     <div className="account-table-toolbar-summary">
       <span>
         {t("table.currentAccountLabel")}{language === "zh" ? "：" : ": "}
-        <strong title={privacyMode ? undefined : activeAccount?.email}>
-          {accountSummaryLabel(activeAccount)}
-        </strong>
+        <Select size="small" className="account-summary-select" value={activeAccount?.id}
+          showSearch optionFilterProp="label" title={privacyMode ? undefined : activeAccount?.email}
+          options={accountSelectOptions} loading={busyAccountId !== null}
+          disabled={busyAccountId !== null || !accountSelectOptions.length}
+          aria-label={t("table.currentAccountLabel")}
+          onChange={(accountId) => {
+            if (accountId !== activeAccount?.id) onSwitch(accountId);
+          }} />
       </span>
       <span>
         {t("table.officialAuthAccountLabel")}{language === "zh" ? "：" : ": "}
-        <strong title={privacyMode ? undefined : officialAuthAccount?.email}>
-          {accountSummaryLabel(officialAuthAccount)}
-        </strong>
+        <Select size="small" className="account-summary-select" value={officialAuthAccount?.id ?? ""}
+          showSearch optionFilterProp="label"
+          title={privacyMode ? undefined : officialAuthAccount?.email}
+          options={officialAuthSelectOptions} loading={openaiAuthBusy}
+          disabled={!hotSwitchEnabled || openaiAuthBusy}
+          aria-label={t("table.officialAuthAccountLabel")}
+          onChange={(accountId) => onOpenaiAuthAccountChange(accountId || null)} />
       </span>
       <Tooltip title={t(modelContextWindowTooltipKey(modelContextWindow.error))}
         styles={{ root: { maxWidth: 400 } }}>

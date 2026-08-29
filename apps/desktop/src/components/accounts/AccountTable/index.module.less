@@ -118,6 +118,18 @@
   }
   .account-table-toolbar-summary span { min-width: 0; display: inline-flex; align-items: center; white-space: nowrap; }
   .account-table-toolbar-summary strong { max-width: 180px; overflow: hidden; text-overflow: ellipsis; color: var(--ink); font-weight: 600; }
+  .account-table-toolbar-summary .account-summary-select { width: 180px; }
+  .account-table-toolbar-summary .account-summary-select .ant-select-selector {
+    min-height: 24px !important;
+    padding: 0 8px !important;
+  }
+  .account-table-toolbar-summary .account-summary-select .ant-select-selection-item,
+  .account-table-toolbar-summary .account-summary-select .ant-select-selection-placeholder {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 11px;
+    line-height: 22px;
+  }
   .account-concurrent-routing-control { min-height: 24px; display: inline-flex; align-items: center; gap: 6px; color: var(--ink); font-size: 11px; font-weight: 600; white-space: nowrap; }
   .model-context-window-control { display: inline-flex; align-items: center; gap: 4px; }
   .model-context-window-control .ant-select { width: 72px; }
