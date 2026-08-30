@@ -22,7 +22,7 @@
 | `name` | varchar(120) | 非空；按发布者和名称唯一 |
 | `version` | varchar(40) | 非空；仅允许 ASCII 字母、数字、`.`、`_`、`+`、`-` |
 | `type` | enum | `injection` 或 `filter` |
-| `text` | text | 非空；最多 5000 个 Unicode 字符 |
+| `text` | text | 非空；注入最多 5000 个 Unicode 字符，过滤最多 500 个 Unicode 字符 |
 | `uploader_id` | UUID | 外键；非空 |
 | `install_count` | bigint | 非负，默认 0 |
 | `created_at` / `updated_at` | timestamptz | 非空 |

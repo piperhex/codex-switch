@@ -56,9 +56,9 @@ export interface ResetCreditsSummary {
 }
 
 export type ResetCreditsLoadState =
-  | { status: "loading" }
+  | { status: "loading"; fetchedAt?: string }
   | { status: "loaded"; data: ResetCreditsSummary; fetchedAt: string }
-  | { status: "error"; error: string };
+  | { status: "error"; error: string; fetchedAt?: string };
 
 export interface AppInfo {
   codexHome: string;

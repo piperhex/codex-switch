@@ -64,8 +64,8 @@ import {
 } from "../../DailyTokenUsageTooltip";
 import { TokenCostColumnTitle, useTokenCostDisplaySettings } from "../../TokenCostUnitSettings";
 import { AccountNoteModal } from "../../modals/AccountNoteModal";
+import { AccountExpandedPanel } from "../AccountExpandedPanel";
 import { OfficialContextSettings } from "../OfficialContextSettings";
-import { ResetCreditsPanel } from "../ResetCreditsPanel";
 import { UsageMeter, UsageRefreshAge } from "../UsageMeter";
 import { getAccountCardTokenUsage } from "../accountCardUsage";
 import { getOfficialAuthAccounts, getSwitchableAccounts } from "../accountSelectors";
@@ -1496,9 +1496,10 @@ export function AccountTable({
         expandable={{
           columnWidth: 32,
           fixed: "left",
-          expandedRowRender: (account) => <ResetCreditsPanel state={resetCredits[account.id]}
-            onRetry={() => onLoadResetCredits(account.id, true)} language={language} t={t} />,
-          onExpand: (expanded, account) => { if (expanded) onLoadResetCredits(account.id); },
+          expandedRowRender: (account) => <AccountExpandedPanel account={account}
+            resetCredits={resetCredits[account.id]} privacyMode={privacyMode} hideAccountNotes={hideAccountNotes}
+            onRefreshResetCredits={() => onLoadResetCredits(account.id, true)} language={language} t={t} />,
+          onExpand: (expanded, account) => { if (expanded) void onLoadAccountDetails(account.id); },
         }}
         scroll={tableScrollY ? { x: tableScrollX, y: tableScrollY } : { x: tableScrollX }} />
     </div>

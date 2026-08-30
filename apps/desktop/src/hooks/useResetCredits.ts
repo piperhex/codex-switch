@@ -95,7 +95,10 @@ export function useResetCredits(accounts: Account[], notify: (message: string) =
     if (requests.current.has(id)) return;
     if (!force && states[id] && sessionRequests.current.has(id)) return;
     requests.current.add(id);
-    setStates((current) => ({ ...current, [id]: { status: "loading" } }));
+    setStates((current) => ({
+      ...current,
+      [id]: { status: "loading", fetchedAt: current[id]?.fetchedAt },
+    }));
     try {
       const data = await fetchResetCredits(id);
       const loadedState: LoadedResetCreditsState = { status: "loaded", data, fetchedAt: new Date().toISOString() };
@@ -103,7 +106,10 @@ export function useResetCredits(accounts: Account[], notify: (message: string) =
       persistResetCreditsCache(cachedStates.current);
       setStates((current) => ({ ...current, [id]: loadedState }));
     } catch (error) {
-      setStates((current) => ({ ...current, [id]: { status: "error", error: String(error) } }));
+      setStates((current) => ({
+        ...current,
+        [id]: { status: "error", error: String(error), fetchedAt: current[id]?.fetchedAt },
+      }));
     } finally {
       sessionRequests.current.add(id);
       requests.current.delete(id);
