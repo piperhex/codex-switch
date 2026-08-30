@@ -203,6 +203,7 @@ fn dispatch_extended_command(app: AppHandle, command: &str, args: Value) -> Resu
         "list_prompt_plugins" => serialize(block_on(crate::prompt_plugins::list_prompt_plugins(app))),
         "publish_prompt_plugin" => serialize(block_on(crate::prompt_plugins::publish_prompt_plugin(
             app,
+            argument(&args, "pluginId")?,
             argument(&args, "name")?,
             argument(&args, "version")?,
             argument(&args, "type")?,

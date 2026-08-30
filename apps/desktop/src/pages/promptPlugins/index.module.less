@@ -3,6 +3,8 @@
 .titleRow { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
 .card h3 { margin: 0; color: var(--ink); font-size: 16px; }
 .titleRow small { flex: none; color: var(--muted); font-size: 10px; }
+.editButton { display: inline-flex; align-items: center; justify-content: center; margin-left: auto; padding: 3px; border: 0; color: var(--muted); background: transparent; cursor: pointer; }
+.editButton:hover { color: var(--green-dark); }
 .card p { min-height: 66px; margin: 0; overflow: hidden; color: var(--muted); font-size: 12px; line-height: 1.5; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; white-space: pre-wrap; }
 .badge { justify-self: start; padding: 4px 8px; border-radius: 999px; color: var(--green-dark); background: var(--green-soft); font-size: 10px; font-weight: 700; }
 .meta, .actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 10px; }
@@ -17,3 +19,5 @@
 .modal input, .modal textarea { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); background: var(--panel); font: inherit; }
 .modal label:last-of-type { min-height: 0; display: flex; flex: 1; flex-direction: column; }
 .modal label:last-of-type textarea { min-height: 0; height: auto; flex: 1; overflow-y: auto; resize: vertical; }
+.textField { min-height: 0; display: flex; flex: 1; flex-direction: column; }
+.textField textarea { min-height: 0; height: auto; flex: 1; overflow-y: auto; resize: vertical; }

@@ -205,13 +205,21 @@ pub(crate) async fn list_prompt_plugins<R: Runtime + 'static>(
 #[tauri::command]
 pub(crate) async fn publish_prompt_plugin<R: Runtime + 'static>(
     app: tauri::AppHandle<R>,
+    plugin_id: Option<String>,
     name: String,
     version: String,
     r#type: PromptPluginType,
     text: String,
 ) -> Result<PromptPluginItem, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        crate::cloud::publish_prompt_plugin(&app, &name, &version, r#type, &text)
+        crate::cloud::publish_prompt_plugin(
+            &app,
+            plugin_id.as_deref(),
+            &name,
+            &version,
+            r#type,
+            &text,
+        )
     })
     .await
     .map_err(|error| format!("Prompt plugin publish task failed: {error}"))?

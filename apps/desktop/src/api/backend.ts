@@ -2332,22 +2332,27 @@ export async function fetchPromptPlugins(): Promise<PromptPluginItem[]> {
   if (!response.ok) throw new Error(`Prompt plugin market request failed with HTTP ${response.status}`);
   const payload = await response.json() as { items: PromptPluginItem[] };
   const installed = previewPromptPlugins();
-  return payload.items.map((item) => ({ ...item, installedVersion: installed[item.id]?.version ?? null, installed: installed[item.id]?.version === item.version, enabled: installed[item.id]?.enabled ?? false }));
+  return payload.items.map((item) => {
+    const stored = installed[item.id];
+    const installedVersion = stored?.version === "latest" ? item.version : (stored?.version ?? null);
+    return { ...item, installedVersion, installed: installedVersion === item.version, enabled: stored?.enabled ?? false };
+  });
 }
 
 export async function publishPromptPlugin(input: PromptPluginPublishInput): Promise<PromptPluginItem> {
-  if (hasLocalBackend) return invoke<PromptPluginItem>("publish_prompt_plugin", { name: input.name, version: input.version, type: input.type, text: input.text });
+  if (hasLocalBackend) return invoke<PromptPluginItem>("publish_prompt_plugin", { pluginId: input.pluginId ?? null, name: input.name, version: input.version, type: input.type, text: input.text });
   const { baseUrl, authenticated } = previewCloudState();
   if (!baseUrl || !authenticated) throw new Error("Please sign in before publishing a prompt plugin");
-  const response = await fetch(`${baseUrl.replace(/\/+$/, "")}/prompt-plugins`, { method: input.pluginId ? "PATCH" : "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ name: input.name, version: input.version, type: input.type, text: input.text }) });
+  const pluginPath = input.pluginId ? `/prompt-plugins/${encodeURIComponent(input.pluginId)}` : "/prompt-plugins";
+  const response = await fetch(`${baseUrl.replace(/\/+$/, "")}${pluginPath}`, { method: input.pluginId ? "PATCH" : "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ name: input.name, version: input.version, type: input.type, text: input.text }) });
   if (!response.ok) throw new Error(`Prompt plugin publish failed with HTTP ${response.status}`);
   return response.json() as Promise<PromptPluginItem>;
 }
 
-export async function installPromptPlugin(pluginId: string): Promise<void> {
+export async function installPromptPlugin(pluginId: string, version?: string): Promise<void> {
   if (hasLocalBackend) return invoke("install_prompt_plugin", { pluginId });
   const installed = previewPromptPlugins();
-  installed[pluginId] = { version: "latest", enabled: true };
+  installed[pluginId] = { version: version ?? "latest", enabled: installed[pluginId]?.enabled ?? true };
   window.localStorage.setItem(PROMPT_PLUGIN_PREVIEW_KEY, JSON.stringify(installed));
 }
 

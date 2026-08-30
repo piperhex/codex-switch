@@ -50,6 +50,7 @@ pub(crate) fn fetch_prompt_plugin<R: Runtime>(
 
 pub(crate) fn publish_prompt_plugin<R: Runtime>(
     app: &tauri::AppHandle<R>,
+    plugin_id: Option<&str>,
     name: &str,
     version: &str,
     plugin_type: PromptPluginType,
@@ -63,7 +64,15 @@ pub(crate) fn publish_prompt_plugin<R: Runtime>(
         .access_token
         .as_deref()
         .ok_or_else(|| "Please sign in before publishing a prompt plugin".to_string())?;
-    let response = client.post(endpoint(&settings, "/prompt-plugins")?).bearer_auth(token)
+    let path = plugin_id
+        .map(|id| format!("/prompt-plugins/{id}"))
+        .unwrap_or_else(|| "/prompt-plugins".to_string());
+    let request = if plugin_id.is_some() {
+        client.patch(endpoint(&settings, &path)?)
+    } else {
+        client.post(endpoint(&settings, &path)?)
+    };
+    let response = request.bearer_auth(token)
         .json(&serde_json::json!({ "name": name, "version": version, "type": plugin_type, "text": text }))
         .send().map_err(|error| format!("Prompt plugin upload failed: {error}"))?;
     if !response.status().is_success() {
