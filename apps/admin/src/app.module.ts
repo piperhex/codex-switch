@@ -17,6 +17,7 @@ import { DashboardModule } from '@/modules/dashboard/dashboard.module';
 import { DeviceModule } from '@/modules/devices/device.module';
 import { SkillsModule } from '@/modules/skills/skills.module';
 import { CurrencyModule } from '@/modules/currency/currency.module';
+import { PromptPluginsModule } from '@/modules/prompt-plugins/prompt-plugins.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { CurrencyModule } from '@/modules/currency/currency.module';
     DeviceModule,
     SkillsModule,
     CurrencyModule,
+    PromptPluginsModule,
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'public'),
       // API misses must remain API 404 responses. Without these exclusions,
@@ -56,6 +58,7 @@ import { CurrencyModule } from '@/modules/currency/currency.module';
         '/devices/{*any}',
         '/device-switch/{*any}',
         '/skills/{*any}',
+        '/prompt-plugins/{*any}',
       ],
     }),
   ],
