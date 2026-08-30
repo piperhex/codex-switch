@@ -10,7 +10,7 @@
 .typeTabs { display: flex; gap: 6px; margin: 10px 0; }
 .typeTabs button { flex: 1; min-height: 34px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); cursor: pointer; }
 .typeTabs .active { color: #fff; border-color: var(--green-dark); background: var(--green-dark); }
-.modal { width: 80vw; height: 80vh; max-width: none; box-sizing: border-box; display: grid; gap: 12px; overflow-y: auto; }
+:global(.modal).modal { width: 80vw; height: 80vh; max-width: none; box-sizing: border-box; display: grid; gap: 12px; overflow-y: auto; }
 .modal label { display: grid; gap: 6px; color: var(--ink); font-size: 11px; font-weight: 700; }
 .modal input, .modal textarea { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); background: var(--panel); font: inherit; }
 .modal textarea { min-height: 44vh; resize: vertical; }
