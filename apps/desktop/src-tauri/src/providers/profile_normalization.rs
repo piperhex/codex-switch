@@ -314,7 +314,12 @@ pub(crate) fn preserve_refreshed_auth(paths: &Paths, account_id: &str) {
     if crate::auth::is_agent_identity_auth(&current_auth) {
         return;
     }
-    if crate::auth::canonicalize_chatgpt_auth(&mut current_auth).is_err()
+    let has_original_refresh_time = current_auth
+        .get("last_refresh")
+        .and_then(Value::as_str)
+        .is_some_and(|value| chrono::DateTime::parse_from_rfc3339(value).is_ok());
+    if !has_original_refresh_time
+        || crate::auth::canonicalize_chatgpt_auth(&mut current_auth).is_err()
         || crate::auth::validate_auth(&current_auth).is_err()
         || crate::auth::account_fields(&current_auth)
             .map(|(_, _, _, id)| id != account_id)
@@ -322,7 +327,8 @@ pub(crate) fn preserve_refreshed_auth(paths: &Paths, account_id: &str) {
     {
         return;
     }
-    if let Err(error) = crate::storage::write_managed_auth_if_changed(paths, account_id, &current_auth) {
+    if let Err(error) = crate::storage::write_managed_auth_if_newer(paths, account_id, &current_auth)
+    {
         eprintln!("failed to preserve refreshed proxy auth for {account_id}: {error}");
     }
 }

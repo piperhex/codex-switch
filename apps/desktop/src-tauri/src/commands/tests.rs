@@ -28,7 +28,7 @@ mod compatible_json_import_tests {
         parse_compatible_json_auth_values, parse_sub2api_auth_values,
         restore_conversation_metadata_if_present, should_disable_account_auto_switch,
         sync_conversation_metadata_if_present_with_progress, sync_current_auth_with_client_state,
-        update_disabled_account_ids, write_managed_auth_to_current,
+        update_disabled_account_ids, write_managed_auth_to_current, RequestAuth,
         LOCAL_PROXY_CONVERSATION_PROVIDER, OFFICIAL_CONVERSATION_PROVIDER,
     };
     use crate::models::{AccountPrivateDetails, ManagerStateFile};

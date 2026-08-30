@@ -198,7 +198,50 @@ pub(crate) fn switch_account_and_restart_chatgpt_blocking<R: Runtime>(
     })
 }
 
+/// Reapplies a refreshed login only when that account is still active. Unlike a manual switch,
+/// this does not launch ChatGPT/Codex when it was not already running.
+pub(crate) fn reapply_active_account_after_login<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    id: String,
+) -> Result<bool, String> {
+    let _switch_guard = account_switch_lock()
+        .lock()
+        .map_err(|_| "Account switch lock is poisoned".to_string())?;
+    refresh_local_codex_path(&app);
+    let paths = resolve_paths(&app)?;
+    if read_state(&paths).active_account_id.as_deref() != Some(&id) {
+        return Ok(false);
+    }
+    let write_codex = crate::claude_code::should_write_codex_for_app(&app)?;
+    if !write_codex || crate::local_proxy::is_running() {
+        switch_account_unlocked_with_options(&app, &id, false)?;
+        return Ok(true);
+    }
+    let client_was_running = chatgpt_or_codex_is_running()?;
+    let launch_target = client_was_running
+        .then(|| refresh_and_get_chatgpt_launch_target(&app))
+        .flatten();
+    if client_was_running {
+        stop_chatgpt_processes()?;
+        wait_for_chatgpt_processes_to_exit(Duration::from_secs(10))?;
+    }
+    switch_account_unlocked_with_options(&app, &id, false)?;
+    if !client_was_running || crate::codex_runtime::restart_managed_session()? {
+        return Ok(true);
+    }
+    start_chatgpt(launch_target.as_ref())?;
+    Ok(true)
+}
+
 fn switch_account_unlocked<R: Runtime>(app: &tauri::AppHandle<R>, id: &str) -> Result<(), String> {
+    switch_account_unlocked_with_options(app, id, true)
+}
+
+fn switch_account_unlocked_with_options<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    id: &str,
+    preserve_previous: bool,
+) -> Result<(), String> {
     let proxy_running = crate::local_proxy::is_running();
     let paths = resolve_paths(app)?;
     let selected = load_validated_managed_auth(&paths, id)?;
@@ -210,9 +253,41 @@ fn switch_account_unlocked<R: Runtime>(app: &tauri::AppHandle<R>, id: &str) -> R
         &mut original_state,
         previous_account_id.as_deref(),
     )?;
-    if let Some(previous_account_id) = original_state.active_account_id.as_deref() {
-        crate::providers::preserve_refreshed_auth(&paths, previous_account_id);
+    if preserve_previous {
+        if let Some(previous_account_id) = original_state.active_account_id.as_deref() {
+            crate::providers::preserve_refreshed_auth(&paths, previous_account_id);
+        }
     }
+    apply_account_switch(
+        app,
+        id,
+        AccountSwitchContext {
+            proxy_running,
+            paths,
+            selected,
+            original_state,
+        },
+    )
+}
+
+struct AccountSwitchContext {
+    proxy_running: bool,
+    paths: Paths,
+    selected: Value,
+    original_state: ManagerStateFile,
+}
+
+fn apply_account_switch<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    id: &str,
+    context: AccountSwitchContext,
+) -> Result<(), String> {
+    let AccountSwitchContext {
+        proxy_running,
+        paths,
+        selected,
+        original_state,
+    } = context;
     let mut state = original_state.clone();
     state.active_provider_id = None;
     state.active_provider_group = None;

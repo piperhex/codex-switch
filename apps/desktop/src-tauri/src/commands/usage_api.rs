@@ -5,18 +5,67 @@ fn api_client() -> Result<Client, String> {
         .map_err(|error| format!("创建网络客户端失败：{error}"))
 }
 
+struct RequestAuth {
+    value: Value,
+    persisted: Value,
+}
+
+impl RequestAuth {
+    fn new(value: Value) -> Self {
+        Self {
+            persisted: value.clone(),
+            value,
+        }
+    }
+
+    fn persist(&mut self, paths: &Paths, id: &str) -> Result<bool, String> {
+        if write_managed_auth_if_unchanged(paths, id, &self.persisted, &self.value)? {
+            self.persisted = self.value.clone();
+            sync_active_auth(paths, id, &self.value)?;
+            return Ok(true);
+        }
+        self.value = load_managed_auth_value(paths, id)?;
+        self.persisted = self.value.clone();
+        Ok(false)
+    }
+
+    fn reload_if_changed(&mut self, paths: &Paths, id: &str) -> Result<bool, String> {
+        let current = load_managed_auth_value(paths, id)?;
+        if current == self.persisted {
+            return Ok(false);
+        }
+        self.value = current.clone();
+        self.persisted = current;
+        Ok(true)
+    }
+
+    fn refresh(&mut self, client: &Client, paths: &Paths, id: &str) -> Result<(), String> {
+        if self.reload_if_changed(paths, id)? {
+            return Ok(());
+        }
+        if let Err(error) = refresh_tokens(client, &mut self.value) {
+            return if self.reload_if_changed(paths, id)? {
+                Ok(())
+            } else {
+                Err(error)
+            };
+        }
+        self.persist(paths, id)?;
+        Ok(())
+    }
+}
+
 fn refresh_auth_if_needed(
     client: &Client,
-    auth: &mut Value,
+    auth: &mut RequestAuth,
     paths: &Paths,
     id: &str,
 ) -> Result<(), String> {
-    if is_agent_identity_auth(auth) {
+    if is_agent_identity_auth(&auth.value) {
         return Ok(());
     }
-    if token_expiring(auth) {
-        refresh_tokens(client, auth)?;
-        persist_request_auth(paths, id, auth)?;
+    if token_expiring(&auth.value) {
+        auth.refresh(client, paths, id)?;
     }
     Ok(())
 }
@@ -25,26 +74,28 @@ fn is_active_account(paths: &Paths, id: &str) -> bool {
     read_state(paths).active_account_id.as_deref() == Some(id)
 }
 
-fn load_auth_for_request<R: Runtime>(
-    _app: &tauri::AppHandle<R>,
-    paths: &Paths,
-    id: &str,
-) -> Result<Value, String> {
+fn load_managed_auth_value(paths: &Paths, id: &str) -> Result<Value, String> {
     let managed_path = managed_auth_path(paths, id);
     // The current .codex/auth.json is a startup-only import source. Subsequent
     // account operations use the managed copy so external file changes cannot
     // silently alter the active account.
-    let mut auth = read_json(&managed_path)?;
-    if canonicalize_chatgpt_auth(&mut auth)? {
-        write_managed_auth_if_changed(paths, id, &auth)?;
+    let original = read_json(&managed_path)?;
+    let mut auth = original.clone();
+    if canonicalize_chatgpt_auth(&mut auth)?
+        && !write_managed_auth_if_unchanged(paths, id, &original, &auth)?
+    {
+        return load_managed_auth_value(paths, id);
     }
     validate_auth(&auth)?;
     Ok(auth)
 }
 
-fn persist_request_auth(paths: &Paths, id: &str, auth: &Value) -> Result<(), String> {
-    write_managed_auth_if_changed(paths, id, auth)?;
-    sync_active_auth(paths, id, auth)
+fn load_auth_for_request<R: Runtime>(
+    _app: &tauri::AppHandle<R>,
+    paths: &Paths,
+    id: &str,
+) -> Result<RequestAuth, String> {
+    load_managed_auth_value(paths, id).map(RequestAuth::new)
 }
 
 #[tauri::command]
@@ -83,11 +134,11 @@ fn consume_account_quota_blocking<R: Runtime>(
     let client = quota_consumption_client()?;
     refresh_auth_if_needed(&client, &mut auth, &paths, &id)?;
 
-    let response = if is_agent_identity_auth(&auth) {
-        if agent_identity::ensure_task(&client, &mut auth)? {
-            persist_request_auth(&paths, &id, &auth)?;
+    let response = if is_agent_identity_auth(&auth.value) {
+        if agent_identity::ensure_task(&client, &mut auth.value)? {
+            auth.persist(&paths, &id)?;
         }
-        let response = send_quota_consumption_request(&client, &auth)?;
+        let response = send_quota_consumption_request(&client, &auth.value)?;
         if response.status() == reqwest::StatusCode::UNAUTHORIZED {
             let status = response.status();
             let body = response
@@ -96,24 +147,23 @@ fn consume_account_quota_blocking<R: Runtime>(
             if !agent_identity::is_invalid_task_response(status, &body) {
                 return Err(format!("Codex 对话接口返回 HTTP {status}"));
             }
-            agent_identity::register_task(&client, &mut auth)?;
-            persist_request_auth(&paths, &id, &auth)?;
-            send_quota_consumption_request(&client, &auth)?
+            agent_identity::register_task(&client, &mut auth.value)?;
+            auth.persist(&paths, &id)?;
+            send_quota_consumption_request(&client, &auth.value)?
         } else {
             response
         }
     } else {
-        let mut response = send_quota_consumption_request(&client, &auth)?;
+        let mut response = send_quota_consumption_request(&client, &auth.value)?;
         if response.status() == reqwest::StatusCode::UNAUTHORIZED {
-            refresh_tokens(&client, &mut auth)?;
-            persist_request_auth(&paths, &id, &auth)?;
-            response = send_quota_consumption_request(&client, &auth)?;
+            auth.refresh(&client, &paths, &id)?;
+            response = send_quota_consumption_request(&client, &auth.value)?;
         }
         response
     };
 
     ensure_quota_consumption_completed(response)?;
-    persist_request_auth(&paths, &id, &auth)
+    auth.persist(&paths, &id).map(|_| ())
 }
 
 fn quota_consumption_client() -> Result<Client, String> {

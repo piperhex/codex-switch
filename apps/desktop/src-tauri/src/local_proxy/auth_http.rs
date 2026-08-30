@@ -1,3 +1,43 @@
+fn persist_or_reload_managed_auth(
+    paths: &Paths,
+    account_id: &str,
+    expected: &Value,
+    auth: &mut Value,
+) -> Result<bool, String> {
+    if write_managed_auth_if_unchanged(paths, account_id, expected, auth)? {
+        return Ok(true);
+    }
+    *auth = read_json(&managed_auth_path(paths, account_id))?;
+    validate_auth(auth)?;
+    Ok(false)
+}
+
+fn refresh_or_reload_managed_auth(
+    client: &Client,
+    paths: &Paths,
+    account_id: &str,
+    auth: &mut Value,
+) -> Result<(), String> {
+    let expected = auth.clone();
+    let current = read_json(&managed_auth_path(paths, account_id))?;
+    if current != expected {
+        *auth = current;
+        validate_auth(auth)?;
+        return Ok(());
+    }
+    if let Err(error) = refresh_tokens(client, auth) {
+        let current = read_json(&managed_auth_path(paths, account_id))?;
+        if current == expected {
+            return Err(error);
+        }
+        *auth = current;
+        validate_auth(auth)?;
+        return Ok(());
+    }
+    persist_or_reload_managed_auth(paths, account_id, &expected, auth)?;
+    Ok(())
+}
+
 fn invalid_agent_identity_task_response(
     authentication: &OfficialRequestAuthentication,
     payload: &UpstreamPayload,
@@ -28,8 +68,14 @@ fn refresh_agent_identity_task<R: Runtime>(
     else {
         return Ok(());
     };
+    let expected = auth.clone();
     agent_identity::register_task(client, auth)?;
-    write_managed_auth_if_changed(&resolve_paths(app)?, active_account_id, auth)?;
+    persist_or_reload_managed_auth(
+        &resolve_paths(app)?,
+        active_account_id,
+        &expected,
+        auth,
+    )?;
     *request_authentication = agent_identity::request_authentication(auth)?;
     Ok(())
 }

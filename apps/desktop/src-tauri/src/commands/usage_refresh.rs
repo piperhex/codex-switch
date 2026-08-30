@@ -45,11 +45,11 @@ fn try_refresh_usage_blocking<R: Runtime>(
     let client = api_client()?;
     refresh_auth_if_needed(&client, &mut auth, &paths, id)?;
 
-    let response = if is_agent_identity_auth(&auth) {
-        if agent_identity::ensure_task(&client, &mut auth)? {
-            persist_request_auth(&paths, id, &auth)?;
+    let response = if is_agent_identity_auth(&auth.value) {
+        if agent_identity::ensure_task(&client, &mut auth.value)? {
+            auth.persist(&paths, id)?;
         }
-        let response = agent_identity::usage_request(&client, &auth)?;
+        let response = agent_identity::usage_request(&client, &auth.value)?;
         if response.status() == reqwest::StatusCode::UNAUTHORIZED {
             let status = response.status();
             let body = response
@@ -58,18 +58,17 @@ fn try_refresh_usage_blocking<R: Runtime>(
             if !agent_identity::is_invalid_task_response(status, &body) {
                 return Err(format!("Codex 用量接口返回 HTTP {status}"));
             }
-            agent_identity::register_task(&client, &mut auth)?;
-            persist_request_auth(&paths, id, &auth)?;
-            agent_identity::usage_request(&client, &auth)?
+            agent_identity::register_task(&client, &mut auth.value)?;
+            auth.persist(&paths, id)?;
+            agent_identity::usage_request(&client, &auth.value)?
         } else {
             response
         }
     } else {
-        let mut response = usage_request(&client, &auth)?;
+        let mut response = usage_request(&client, &auth.value)?;
         if response.status() == reqwest::StatusCode::UNAUTHORIZED {
-            refresh_tokens(&client, &mut auth)?;
-            persist_request_auth(&paths, id, &auth)?;
-            response = usage_request(&client, &auth)?;
+            auth.refresh(&client, &paths, id)?;
+            response = usage_request(&client, &auth.value)?;
         }
         response
     };
@@ -82,10 +81,10 @@ fn try_refresh_usage_blocking<R: Runtime>(
         .json()
         .map_err(|error| format!("解析用量响应失败：{error}"))?;
     let mut usage = parse_usage(&payload);
-    usage.api_expires_at = subscription_active_until(&auth);
+    usage.api_expires_at = subscription_active_until(&auth.value);
     save_usage(&usage_path(&paths, id), &usage)?;
     touch_account_field(&paths, id, AccountSyncField::Usage)?;
-    persist_request_auth(&paths, id, &auth)?;
+    auth.persist(&paths, id)?;
     app.emit("accounts-changed", ())
         .map_err(|error| error.to_string())?;
     crate::system_tray::refresh_menu(app);
@@ -116,15 +115,14 @@ fn fetch_reset_credits_blocking<R: Runtime>(
 
 fn fetch_reset_credits_with_retry(
     client: &Client,
-    auth: &mut Value,
+    auth: &mut RequestAuth,
     paths: &Paths,
     id: &str,
 ) -> Result<ResetCreditsSummary, String> {
-    let mut response = reset_credits_request(client, auth)?;
+    let mut response = reset_credits_request(client, &auth.value)?;
     if response.status() == reqwest::StatusCode::UNAUTHORIZED {
-        refresh_tokens(client, auth)?;
-        persist_request_auth(paths, id, auth)?;
-        response = reset_credits_request(client, auth)?;
+        auth.refresh(client, paths, id)?;
+        response = reset_credits_request(client, &auth.value)?;
     }
     if response.status() == reqwest::StatusCode::UNAUTHORIZED {
         return Err("凭证已失效，或请求未正确携带 Authorization，请重新登录".to_string());
@@ -136,7 +134,7 @@ fn fetch_reset_credits_with_retry(
     let payload: Value = response
         .json()
         .map_err(|error| format!("解析重置卡响应失败：{error}"))?;
-    persist_request_auth(paths, id, auth)?;
+    auth.persist(paths, id)?;
     parse_reset_credits(&payload)
 }
 
@@ -169,11 +167,10 @@ fn consume_reset_credit_blocking<R: Runtime>(
         Utc::now().timestamp_millis(),
         rand::random::<u64>()
     );
-    let mut response = consume_reset_credit_request(&client, &auth, &redeem_request_id)?;
+    let mut response = consume_reset_credit_request(&client, &auth.value, &redeem_request_id)?;
     if response.status() == reqwest::StatusCode::UNAUTHORIZED {
-        refresh_tokens(&client, &mut auth)?;
-        persist_request_auth(&paths, &id, &auth)?;
-        response = consume_reset_credit_request(&client, &auth, &redeem_request_id)?;
+        auth.refresh(&client, &paths, &id)?;
+        response = consume_reset_credit_request(&client, &auth.value, &redeem_request_id)?;
     }
     if response.status() == reqwest::StatusCode::UNAUTHORIZED {
         return Err("凭证已失效，或请求未正确携带 Authorization，请重新登录".to_string());
@@ -190,7 +187,7 @@ fn consume_reset_credit_blocking<R: Runtime>(
         .map_err(|error| format!("解析重置卡使用响应失败：{error}"))?;
     match payload.get("code").and_then(Value::as_str) {
         Some("reset") | Some("already_redeemed") => {
-            persist_request_auth(&paths, &id, &auth)?;
+            auth.persist(&paths, &id)?;
             Ok(())
         }
         Some("no_credit") => Err("当前账号没有可用重置卡".to_string()),

@@ -286,20 +286,24 @@ fn run_login_loop<R: Runtime + 'static>(
         match exchange_code(&client, port, code, &verifier)
             .and_then(|tokens| persist_login(&app, tokens))
         {
-            Ok(account_id) => {
-                html_response(
-                    request,
-                    200,
-                    "登录成功",
-                    "账户已保存。请回到 Codex Switch 手动切换到此账户。",
-                );
+            Ok((account_id, reapplied)) => {
+                let success_message = if reapplied {
+                    "当前账户凭据已更新，并已重新应用。"
+                } else {
+                    "账户已保存。请回到 Codex Switch 手动切换到此账户。"
+                };
+                html_response(request, 200, "登录成功", success_message);
                 let _ = app.emit("accounts-changed", ());
                 close_login_window_later(app.clone());
                 refresh_saved_account_usage(&app, &account_id);
                 emit_login(
                     &app,
                     true,
-                    "登录成功，账户已保存，可手动切换",
+                    if reapplied {
+                        "登录成功，当前账户凭据已更新"
+                    } else {
+                        "登录成功，账户已保存，可手动切换"
+                    },
                     Some(account_id),
                 );
                 crate::system_tray::refresh_menu(&app);
@@ -314,7 +318,10 @@ fn run_login_loop<R: Runtime + 'static>(
     }
 }
 
-fn persist_login<R: Runtime>(app: &tauri::AppHandle<R>, tokens: Value) -> Result<String, String> {
+fn persist_login<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    tokens: Value,
+) -> Result<(String, bool), String> {
     let id_token = tokens
         .get("id_token")
         .and_then(Value::as_str)
@@ -342,7 +349,18 @@ fn persist_login<R: Runtime>(app: &tauri::AppHandle<R>, tokens: Value) -> Result
             "account_id": account_id,
         },
     });
-    import_value(app, auth, false)
+    let account_id = import_value(app, auth, false)?;
+    let reapplied = match crate::commands::reapply_active_account_after_login(
+        app.clone(),
+        account_id.clone(),
+    ) {
+        Ok(reapplied) => reapplied,
+        Err(error) => {
+            eprintln!("failed to reapply refreshed active account {account_id}: {error}");
+            false
+        }
+    };
+    Ok((account_id, reapplied))
 }
 
 #[tauri::command]

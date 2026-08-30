@@ -4,9 +4,27 @@ mod tests {
 
     use super::{
         apply_app_settings_version_migration, should_activate_import,
-        should_sync_current_as_active, write_text_if_changed,
+        should_sync_current_as_active, write_managed_auth_if_unchanged, write_text_if_changed,
     };
     use crate::models::{AppSettings, ManagerStateFile, DEFAULT_CLOUD_BASE_URL};
+    use crate::storage::{managed_auth_path, read_json, write_json_atomic, Paths};
+    use serde_json::json;
+
+    fn test_paths() -> Paths {
+        let root = std::env::temp_dir().join(format!(
+            "codex-switch-storage-test-{}",
+            uuid::Uuid::new_v4()
+        ));
+        Paths {
+            current_auth: root.join("codex-home/auth.json"),
+            current_config: root.join("codex-home/config.toml"),
+            codex_home: root.join("codex-home"),
+            accounts: root.join("app-data/accounts"),
+            providers: root.join("app-data/providers"),
+            config_backup: root.join("app-data/config-before-provider.toml"),
+            state_file: root.join("app-data/state.json"),
+        }
+    }
 
     #[test]
     fn text_is_only_replaced_when_contents_change() {
@@ -24,6 +42,21 @@ mod tests {
         assert_eq!(fs::read_to_string(&path).unwrap(), "model = \"second\"\n");
 
         fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn stale_request_cannot_overwrite_a_new_login_credential() {
+        let paths = test_paths();
+        let id = "account-1";
+        let stale = json!({ "tokens": { "access_token": "stale" } });
+        let refreshed_stale = json!({ "tokens": { "access_token": "refreshed-stale" } });
+        let fresh_login = json!({ "tokens": { "access_token": "fresh-login" } });
+        write_json_atomic(&managed_auth_path(&paths, id), &fresh_login).unwrap();
+
+        assert!(!write_managed_auth_if_unchanged(&paths, id, &stale, &refreshed_stale).unwrap());
+        assert_eq!(read_json(&managed_auth_path(&paths, id)).unwrap(), fresh_login);
+
+        fs::remove_dir_all(paths.codex_home.parent().unwrap()).unwrap();
     }
 
     #[test]

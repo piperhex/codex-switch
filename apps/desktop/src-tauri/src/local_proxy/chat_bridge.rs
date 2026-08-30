@@ -273,8 +273,14 @@ fn official_credentials<R: Runtime>(
         return Err("Select a non-Agent Identity OAuth account for image generation".to_string());
     }
     if is_agent_identity_auth(&auth) {
+        let expected = auth.clone();
         if agent_identity::ensure_task(client, &mut auth)? {
-            write_managed_auth_if_changed(&paths, &credential_account_id, &auth)?;
+            persist_or_reload_managed_auth(
+                &paths,
+                &credential_account_id,
+                &expected,
+                &mut auth,
+            )?;
         }
         return Ok(OfficialProxyCredentials {
             authentication: OfficialRequestAuthentication::AgentIdentity {
@@ -286,10 +292,9 @@ fn official_credentials<R: Runtime>(
         });
     }
     if token_expiring(&auth) {
-        refresh_tokens(client, &mut auth)?;
         // An old in-flight request must not overwrite Codex's watched auth.json after a
         // hot switch.  Refresh only the managed credential for the account it started with.
-        write_managed_auth_if_changed(&paths, &credential_account_id, &auth)?;
+        refresh_or_reload_managed_auth(client, &paths, &credential_account_id, &mut auth)?;
     }
     let access_token = token_string(&auth, "access_token")
         .ok_or_else(|| "auth.json is missing tokens.access_token".to_string())?

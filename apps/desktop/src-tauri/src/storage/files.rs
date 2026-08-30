@@ -1,7 +1,10 @@
 use std::{
     fs, io,
     path::{Path, PathBuf},
-    sync::atomic::{AtomicU64, Ordering},
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Mutex,
+    },
 };
 
 use chrono::{DateTime, Utc};
@@ -40,6 +43,7 @@ pub(crate) struct Paths {
 }
 
 static TEMP_FILE_COUNTER: AtomicU64 = AtomicU64::new(1);
+static MANAGED_AUTH_WRITE_LOCK: Mutex<()> = Mutex::new(());
 const UNMODIFIED_FIELD_AT: &str = "1970-01-01T00:00:00Z";
 
 fn atomic_temp_path(path: &Path) -> PathBuf {

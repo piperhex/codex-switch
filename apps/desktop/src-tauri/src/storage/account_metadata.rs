@@ -203,9 +203,73 @@ pub(crate) fn write_managed_auth_if_changed(
     id: &str,
     auth: &Value,
 ) -> Result<bool, String> {
+    let _guard = MANAGED_AUTH_WRITE_LOCK
+        .lock()
+        .map_err(|_| "Account credential write lock is poisoned".to_string())?;
+    write_managed_auth_if_changed_unlocked(paths, id, auth)
+}
+
+fn write_managed_auth_if_changed_unlocked(
+    paths: &Paths,
+    id: &str,
+    auth: &Value,
+) -> Result<bool, String> {
     let changed = write_json_if_changed(&managed_auth_path(paths, id), auth)?;
     if changed {
         touch_account_field(paths, id, AccountSyncField::Auth)?;
     }
     Ok(changed)
+}
+
+/// Replaces a request's credential only when no newer login or refresh changed it meanwhile.
+pub(crate) fn write_managed_auth_if_unchanged(
+    paths: &Paths,
+    id: &str,
+    expected: &Value,
+    auth: &Value,
+) -> Result<bool, String> {
+    let _guard = MANAGED_AUTH_WRITE_LOCK
+        .lock()
+        .map_err(|_| "Account credential write lock is poisoned".to_string())?;
+    let current = read_json(&managed_auth_path(paths, id)).ok();
+    if current.as_ref() == Some(auth) {
+        return Ok(true);
+    }
+    if current.as_ref() != Some(expected) {
+        return Ok(false);
+    }
+    write_managed_auth_if_changed_unlocked(paths, id, auth)?;
+    Ok(true)
+}
+
+fn auth_last_refresh(auth: &Value) -> Option<DateTime<Utc>> {
+    auth.get("last_refresh")
+        .and_then(Value::as_str)
+        .and_then(parse_last_modified)
+}
+
+/// Imports a live Codex credential only when it is demonstrably newer than the managed copy.
+pub(crate) fn write_managed_auth_if_newer(
+    paths: &Paths,
+    id: &str,
+    auth: &Value,
+) -> Result<bool, String> {
+    let _guard = MANAGED_AUTH_WRITE_LOCK
+        .lock()
+        .map_err(|_| "Account credential write lock is poisoned".to_string())?;
+    let path = managed_auth_path(paths, id);
+    let Ok(current) = read_json(&path) else {
+        return write_managed_auth_if_changed_unlocked(paths, id, auth);
+    };
+    if current == *auth {
+        return Ok(false);
+    }
+    let candidate_is_newer = matches!(
+        (auth_last_refresh(auth), auth_last_refresh(&current)),
+        (Some(candidate), Some(existing)) if candidate > existing
+    );
+    if !candidate_is_newer {
+        return Ok(false);
+    }
+    write_managed_auth_if_changed_unlocked(paths, id, auth)
 }

@@ -43,8 +43,8 @@ use crate::{
         read_json, read_state, resolve_paths, save_account_private_details,
         save_auto_switch_priority, save_auto_switch_threshold, save_expiration, save_note,
         save_usage, sync_current_into_store, touch_account_field, usage_path, write_app_settings,
-        write_json_atomic, write_json_if_changed, write_managed_auth_if_changed, write_state,
-        AccountSyncField, Paths,
+        write_json_atomic, write_json_if_changed, write_managed_auth_if_changed,
+        write_managed_auth_if_unchanged, write_state, AccountSyncField, Paths,
     },
 };
 

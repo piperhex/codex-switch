@@ -62,6 +62,37 @@
     }
 
     #[test]
+    fn in_flight_refresh_reloads_a_newer_login_instead_of_overwriting_it() {
+        let paths = test_paths();
+        let token = access_token();
+        let stale = json!({
+            "auth_mode": "chatgpt",
+            "OPENAI_API_KEY": null,
+            "tokens": {
+                "id_token": token,
+                "access_token": "stale-access",
+                "refresh_token": "stale-refresh"
+            },
+            "last_refresh": "2026-08-30T01:00:00Z"
+        });
+        let (_, _, _, id) = crate::auth::account_fields(&stale).unwrap();
+        let mut fresh = stale.clone();
+        fresh["tokens"]["access_token"] = Value::String("fresh-login-access".to_string());
+        fresh["tokens"]["refresh_token"] = Value::String("fresh-login-refresh".to_string());
+        fresh["last_refresh"] = Value::String("2026-08-30T02:00:00Z".to_string());
+        write_json_atomic(&managed_auth_path(&paths, &id), &fresh).unwrap();
+
+        let mut request = RequestAuth::new(stale);
+        request.value["tokens"]["access_token"] =
+            Value::String("refreshed-stale-access".to_string());
+        assert!(!request.persist(&paths, &id).unwrap());
+        assert_eq!(request.value, fresh);
+        assert_eq!(read_json(&managed_auth_path(&paths, &id)).unwrap(), fresh);
+
+        fs::remove_dir_all(paths.codex_home.parent().unwrap()).unwrap();
+    }
+
+    #[test]
     fn updates_disabled_account_ids_without_duplicates() {
         let mut state = ManagerStateFile::default();
 
