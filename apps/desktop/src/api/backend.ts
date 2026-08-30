@@ -2567,10 +2567,9 @@ export async function chooseAndImportAccountJson(): Promise<CompatibleJsonImport
 
 export async function importAccountJsonFromClipboard(): Promise<CompatibleJsonImportResult> {
   if (!isDesktopApp) return { status: "preview" };
-  if (!navigator.clipboard?.readText) throw new Error("Clipboard text access is unavailable");
-  const content = await navigator.clipboard.readText();
-  if (!content.trim()) throw new Error("Clipboard does not contain account JSON");
-  const result = await invoke<{ importedIds: string[]; skipped: string[] }>("import_account_json_text", { content });
+  const result = await invoke<{ importedIds: string[]; skipped: string[] }>(
+    "import_account_json_from_clipboard",
+  );
   return { status: "imported", ids: result.importedIds, skipped: result.skipped };
 }
 

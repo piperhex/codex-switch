@@ -225,6 +225,30 @@ pub(crate) fn import_account_json_text<R: Runtime>(
     import_normalized_json_auth_values(&app, &auth_values, normalize_compatible_json_auth)
 }
 
+fn import_account_json_from_clipboard_blocking<R: Runtime>(
+    app: tauri::AppHandle<R>,
+) -> Result<CompatibleJsonImportResult, String> {
+    let content = app.clipboard().read_text().map_err(|error| {
+        eprintln!("failed to read account JSON from clipboard: {error}");
+        "无法读取剪贴板，请复制账号 JSON 后重试".to_string()
+    })?;
+    import_account_json_text(app, content)
+}
+
+#[tauri::command]
+pub(crate) async fn import_account_json_from_clipboard<R: Runtime + 'static>(
+    app: tauri::AppHandle<R>,
+) -> Result<CompatibleJsonImportResult, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        import_account_json_from_clipboard_blocking(app)
+    })
+    .await
+    .map_err(|error| {
+        eprintln!("clipboard account import task failed: {error}");
+        "剪贴板导入未完成，请重试".to_string()
+    })?
+}
+
 fn is_sub2api_export(value: &Value) -> bool {
     let Some(object) = value.as_object() else {
         return false;

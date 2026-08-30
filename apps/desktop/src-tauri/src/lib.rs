@@ -221,6 +221,7 @@ pub fn run() {
             commands::import_auth_file,
             commands::import_account_json_file,
             commands::import_account_json_text,
+            commands::import_account_json_from_clipboard,
             commands::import_compatible_json_file,
             commands::import_sub2api_json_file,
             account_archive::export_accounts_archive,
