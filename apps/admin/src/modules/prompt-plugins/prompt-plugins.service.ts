@@ -5,9 +5,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { ILike, Repository } from 'typeorm';
 import type { AuthUser } from '@/common/decorators/user.decorator';
+import { AdminAuditLogEntity } from '@/modules/admin/entities/admin-audit-log.entity';
 import { CreatePromptPluginDto } from './dto/create-prompt-plugin.dto';
+import type {
+  ListAdminPromptPluginsQueryDto,
+  UpdateAdminPromptPluginDto,
+} from './dto/admin-prompt-plugin.dto';
 import { PromptPluginItemEntity, type PromptPluginType } from './entities/prompt-plugin-item.entity';
 
 export const MAX_PROMPT_PLUGIN_FILTER_TEXT = 500;
@@ -35,6 +40,8 @@ export class PromptPluginsService {
   constructor(
     @InjectRepository(PromptPluginItemEntity)
     private readonly plugins: Repository<PromptPluginItemEntity>,
+    @InjectRepository(AdminAuditLogEntity)
+    private readonly auditLogs: Repository<AdminAuditLogEntity>,
   ) {}
 
   async list() {
@@ -65,6 +72,75 @@ export class PromptPluginsService {
     return this.present(plugin);
   }
 
+  async listForAdmin(query: ListAdminPromptPluginsQueryDto) {
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 20;
+    const search = query.search?.trim();
+    const where = search
+      ? [
+        { name: ILike(`%${search}%`) },
+        { text: ILike(`%${search}%`) },
+        { uploaderEmail: ILike(`%${search}%`) },
+      ]
+      : {};
+    const [items, total] = await this.plugins.findAndCount({
+      where,
+      order: { createdAt: 'DESC' },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    });
+    return {
+      items: items.map((item) => this.presentForAdmin(item)),
+      total,
+      page,
+      pageSize,
+    };
+  }
+
+  async updateForAdmin(actor: AuthUser, id: string, dto: UpdateAdminPromptPluginDto) {
+    const plugin = await this.plugins.findOne({ where: { id } });
+    if (!plugin) throw new NotFoundException('Prompt plugin does not exist');
+    const fields = Object.keys(dto);
+    if (!fields.length) {
+      throw new BadRequestException('At least one prompt plugin field is required');
+    }
+
+    const input = validatePromptPluginInput({
+      name: dto.name ?? plugin.name,
+      version: dto.version ?? plugin.version,
+      type: dto.type ?? plugin.type,
+      text: dto.text ?? plugin.text,
+    });
+    Object.assign(plugin, input);
+    const saved = await this.plugins.save(plugin);
+    await this.auditLogs.save(this.auditLogs.create({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: 'prompt-plugin.update',
+      targetType: 'prompt-plugin',
+      targetId: plugin.id,
+      targetEmail: plugin.uploaderEmail,
+      metadata: { fields },
+    }));
+    return this.presentForAdmin(saved);
+  }
+
+  async deleteForAdmin(actor: AuthUser, id: string) {
+    const plugin = await this.plugins.findOne({ where: { id } });
+    if (!plugin) throw new NotFoundException('Prompt plugin does not exist');
+    await this.plugins.delete({ id });
+    await this.auditLogs.save(this.auditLogs.create({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: 'prompt-plugin.delete',
+      targetType: 'prompt-plugin',
+      targetId: plugin.id,
+      targetEmail: plugin.uploaderEmail,
+      metadata: { name: plugin.name, version: plugin.version, installCount: plugin.installCount },
+    }));
+    return { ok: true };
+  }
+
   private present(plugin: PromptPluginItemEntity) {
     return {
       id: plugin.id,
@@ -76,6 +152,13 @@ export class PromptPluginsService {
       installCount: plugin.installCount ?? 0,
       createdAt: plugin.createdAt.toISOString(),
       updatedAt: plugin.updatedAt.toISOString(),
+    };
+  }
+
+  private presentForAdmin(plugin: PromptPluginItemEntity) {
+    return {
+      ...this.present(plugin),
+      uploaderEmail: plugin.uploaderEmail,
     };
   }
 }

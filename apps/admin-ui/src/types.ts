@@ -1,7 +1,7 @@
 export type Role = string;
 export type UserStatus = "active" | "disabled";
 export type Permission = string;
-export type MenuKey = "dashboard" | "myAccounts" | "users" | "roles" | "officialAccounts" | "announcement" | "currency" | "emailTemplates" | "skills" | "feedback" | "telemetry" | "audit" | "invitations" | "approvals";
+export type MenuKey = "dashboard" | "myAccounts" | "users" | "roles" | "officialAccounts" | "announcement" | "currency" | "emailTemplates" | "skills" | "promptPlugins" | "feedback" | "telemetry" | "audit" | "invitations" | "approvals";
 
 export interface AuthTokens {
   accessToken: string;
@@ -200,6 +200,23 @@ export interface AdminSkillUpdate {
   description: string;
   version: string;
 }
+
+export type PromptPluginType = "injection" | "filter";
+
+export interface AdminPromptPluginRow {
+  id: string;
+  name: string;
+  version: string;
+  type: PromptPluginType;
+  text: string;
+  uploaderId?: string | null;
+  uploaderEmail: string;
+  installCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type AdminPromptPluginUpdate = Pick<AdminPromptPluginRow, "name" | "version" | "type" | "text">;
 
 export type TelemetryPlatform = "windows" | "macos" | "linux" | "android" | "ios";
 

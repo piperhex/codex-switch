@@ -154,6 +154,16 @@ const BUILT_IN_PERMISSION_ZH: Record<string, PermissionMetadata> = {
     name: "管理社区 Skills",
     description: "编辑或删除用户发布的 Skills。",
   },
+  "admin.prompt-plugins.read": {
+    group: "系统提示词",
+    name: "查看系统提示词",
+    description: "查看市场中发布的系统提示词。",
+  },
+  "admin.prompt-plugins.manage": {
+    group: "系统提示词",
+    name: "管理系统提示词",
+    description: "编辑或删除市场中的系统提示词。",
+  },
   "admin.telemetry.read": {
     group: "设备统计",
     name: "查看设备统计",

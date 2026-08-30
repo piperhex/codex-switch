@@ -6,6 +6,7 @@ import {
   PromptPluginsService,
 } from '@/modules/prompt-plugins/prompt-plugins.service';
 import type { PromptPluginItemEntity } from '@/modules/prompt-plugins/entities/prompt-plugin-item.entity';
+import type { AdminAuditLogEntity } from '@/modules/admin/entities/admin-audit-log.entity';
 
 const actor: AuthUser = { id: 'publisher-1', email: 'publisher@example.com', role: 'user' };
 const other: AuthUser = { id: 'publisher-2', email: 'other@example.com', role: 'user' };
@@ -24,10 +25,20 @@ function createService() {
     find: vi.fn(),
     findOne: vi.fn(),
     increment: vi.fn(),
+    findAndCount: vi.fn(),
+    delete: vi.fn(),
+  };
+  const auditLogs = {
+    create: vi.fn((value) => value),
+    save: vi.fn(async (value) => value),
   };
   return {
-    service: new PromptPluginsService(repository as unknown as Repository<PromptPluginItemEntity>),
+    service: new PromptPluginsService(
+      repository as unknown as Repository<PromptPluginItemEntity>,
+      auditLogs as unknown as Repository<AdminAuditLogEntity>,
+    ),
     repository,
+    auditLogs,
   };
 }
 
@@ -57,5 +68,59 @@ describe('PromptPluginsService', () => {
     });
     await service.install('prompt-1');
     expect(repository.increment).toHaveBeenCalledWith({ id: 'prompt-1' }, 'installCount', 1);
+  });
+
+  it('lists prompt plugins for administrators with pagination and publisher details', async () => {
+    const { service, repository } = createService();
+    const item = {
+      id: 'prompt-1',
+      ...validDto,
+      uploaderId: actor.id,
+      uploaderEmail: actor.email,
+      installCount: 12,
+      createdAt: new Date('2026-08-30T01:00:00.000Z'),
+      updatedAt: new Date('2026-08-30T02:00:00.000Z'),
+    };
+    repository.findAndCount.mockResolvedValue([[item], 1]);
+
+    await expect(service.listForAdmin({ page: 2, pageSize: 10, search: 'Concise' })).resolves.toMatchObject({
+      items: [{ id: 'prompt-1', uploaderEmail: actor.email, installCount: 12 }],
+      total: 1,
+      page: 2,
+      pageSize: 10,
+    });
+    expect(repository.findAndCount).toHaveBeenCalled();
+  });
+
+  it('allows administrators to edit and delete prompt plugins with audit logs', async () => {
+    const { service, repository, auditLogs } = createService();
+    const item = {
+      id: 'prompt-1',
+      ...validDto,
+      uploaderId: actor.id,
+      uploaderEmail: actor.email,
+      installCount: 3,
+      createdAt: new Date('2026-08-30T01:00:00.000Z'),
+      updatedAt: new Date('2026-08-30T02:00:00.000Z'),
+    };
+    repository.findOne.mockResolvedValue(item);
+    repository.save.mockImplementation(async (value) => ({ ...value, updatedAt: new Date('2026-08-30T03:00:00.000Z') }));
+    const admin: AuthUser = { id: 'admin-1', email: 'admin@example.com', role: 'admin' };
+
+    await service.updateForAdmin(admin, 'prompt-1', {
+      name: ' Curated prompt ', version: '2.0.0', type: 'filter', text: ' Remove secrets ',
+    });
+    expect(repository.save).toHaveBeenCalledWith(expect.objectContaining({
+      name: 'Curated prompt', version: '2.0.0', type: 'filter', text: 'Remove secrets',
+    }));
+    expect(auditLogs.create).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'prompt-plugin.update', targetId: 'prompt-1',
+    }));
+
+    await expect(service.deleteForAdmin(admin, 'prompt-1')).resolves.toEqual({ ok: true });
+    expect(repository.delete).toHaveBeenCalledWith({ id: 'prompt-1' });
+    expect(auditLogs.create).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'prompt-plugin.delete', targetEmail: actor.email,
+    }));
   });
 });

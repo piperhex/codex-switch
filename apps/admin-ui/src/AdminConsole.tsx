@@ -28,6 +28,7 @@ import { InvitationsPage } from "./pages/InvitationsPage";
 import { MyAccountsPage } from "./pages/MyAccountsPage";
 import { OfficialAccountsPage } from "./pages/OfficialAccountsPage";
 import { SkillsPage } from "./pages/SkillsPage";
+import { PromptPluginsPage } from "./pages/PromptPluginsPage";
 import { TelemetryPage } from "./pages/TelemetryPage";
 import { UsersPage } from "./pages/UsersPage";
 import { RolesPage } from "./pages/RolesPage";
@@ -41,6 +42,8 @@ import type {
   CurrencySettings,
   AdminSkillRow,
   AdminSkillUpdate,
+  AdminPromptPluginRow,
+  AdminPromptPluginUpdate,
   AppFaq,
   AppFaqInput,
   AppNotification,
@@ -89,6 +92,7 @@ const emptyInvitations: PageResult<Invitation> = { items: [], total: 0, page: 1,
 const emptyApprovals: PageResult<ApprovalRequest> = { items: [], total: 0, page: 1, pageSize: 20 };
 const emptyFeedback: PageResult<FeedbackRow> = { items: [], total: 0, page: 1, pageSize: 20 };
 const emptySkills: PageResult<AdminSkillRow> = { items: [], total: 0, page: 1, pageSize: 20 };
+const emptyPromptPlugins: PageResult<AdminPromptPluginRow> = { items: [], total: 0, page: 1, pageSize: 20 };
 const emptyInstallations: PageResult<DeviceInstallation> = { items: [], total: 0, page: 1, pageSize: 20 };
 const emptyTelemetryEvents: PageResult<TelemetryEvent> = { items: [], total: 0, page: 1, pageSize: 20 };
 const emptySystemAccounts: PageResult<SystemAccount> = { items: [], total: 0, page: 1, pageSize: 20 };
@@ -135,6 +139,7 @@ const menuPermissions: Record<MenuKey, Permission> = {
   currency: "admin.currency.read",
   emailTemplates: "admin.email-templates.read",
   skills: "admin.skills.read",
+  promptPlugins: "admin.prompt-plugins.read",
   feedback: "admin.feedback.read",
   telemetry: "admin.telemetry.read",
   audit: "admin.audit-logs.read",
@@ -152,6 +157,7 @@ const menuOrder: MenuKey[] = [
   "currency",
   "emailTemplates",
   "skills",
+  "promptPlugins",
   "feedback",
   "telemetry",
   "audit",
@@ -191,6 +197,9 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
   const [skills, setSkills] = useState<PageResult<AdminSkillRow>>(emptySkills);
   const [skillSearch, setSkillSearch] = useState("");
   const [skillsLoading, setSkillsLoading] = useState(false);
+  const [promptPlugins, setPromptPlugins] = useState<PageResult<AdminPromptPluginRow>>(emptyPromptPlugins);
+  const [promptPluginSearch, setPromptPluginSearch] = useState("");
+  const [promptPluginsLoading, setPromptPluginsLoading] = useState(false);
   const [emailTemplates, setEmailTemplates] = useState<EmailTemplate[]>([]);
   const [emailTemplatesLoading, setEmailTemplatesLoading] = useState(false);
   const [emailTemplateSaving, setEmailTemplateSaving] = useState(false);
@@ -391,6 +400,39 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
       throw error;
     }
   }, [api, loadSkills, message, t]);
+
+  const loadPromptPlugins = useCallback(async (
+    page = promptPlugins.page,
+    pageSize = promptPlugins.pageSize,
+  ) => {
+    setPromptPluginsLoading(true);
+    try {
+      const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+      if (promptPluginSearch.trim()) params.set("search", promptPluginSearch.trim());
+      setPromptPlugins(await api<PageResult<AdminPromptPluginRow>>(`/admin/api/prompt-plugins?${params}`));
+    } catch (error) {
+      message.error((error as Error).message);
+    } finally {
+      setPromptPluginsLoading(false);
+    }
+  }, [api, message, promptPluginSearch, promptPlugins.page, promptPlugins.pageSize]);
+
+  const updatePromptPlugin = useCallback(async (
+    id: string,
+    values: AdminPromptPluginUpdate,
+  ) => {
+    try {
+      await api<AdminPromptPluginRow>(`/admin/api/prompt-plugins/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        body: JSON.stringify(values),
+      });
+      message.success(t("common.updated"));
+      await loadPromptPlugins();
+    } catch (error) {
+      message.error((error as Error).message);
+      throw error;
+    }
+  }, [api, loadPromptPlugins, message, t]);
 
   const loadEmailTemplates = useCallback(async () => {
     setEmailTemplatesLoading(true);
@@ -841,6 +883,7 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
     if (activeKey === "currency") void loadCurrency();
     if (activeKey === "feedback") void loadFeedback();
     if (activeKey === "skills") void loadSkills();
+    if (activeKey === "promptPlugins") void loadPromptPlugins();
     if (activeKey === "feedback") void loadMailServices();
     if (activeKey === "emailTemplates") {
       void loadEmailTemplates();
@@ -857,6 +900,7 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
     loadInvitations,
     loadFeedback,
     loadSkills,
+    loadPromptPlugins,
     loadEmailTemplates,
     loadMailServices,
     loadDashboard,
@@ -897,6 +941,7 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
   const canManageCurrency = Boolean(profile?.permissions?.includes("admin.currency.manage"));
   const canManageFeedback = Boolean(profile?.permissions?.includes("admin.feedback.manage"));
   const canManageSkills = Boolean(profile?.permissions?.includes("admin.skills.manage"));
+  const canManagePromptPlugins = Boolean(profile?.permissions?.includes("admin.prompt-plugins.manage"));
   const canManageEmailTemplates = Boolean(profile?.permissions?.includes("admin.email-templates.manage"));
   const canManageMailServices = Boolean(profile?.permissions?.includes("admin.mail-services.manage"));
   const canManageOwnAccounts = Boolean(profile?.permissions?.includes("self.accounts.write"));
@@ -1257,6 +1302,38 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
                 });
                 message.success(t("common.deleted"));
                 await loadSkills();
+              },
+            });
+          }}
+        />
+      );
+    }
+
+    if (activeKey === "promptPlugins") {
+      return (
+        <PromptPluginsPage
+          plugins={promptPlugins}
+          loading={promptPluginsLoading}
+          search={promptPluginSearch}
+          canManage={canManagePromptPlugins}
+          onSearchChange={setPromptPluginSearch}
+          onLoad={loadPromptPlugins}
+          onUpdate={updatePromptPlugin}
+          onDelete={(plugin) => {
+            modal.confirm({
+              title: t("promptPlugins.deleteTitle"),
+              content: t("promptPlugins.deleteDescription", {
+                name: plugin.name,
+                email: plugin.uploaderEmail,
+              }),
+              okText: t("common.delete"),
+              okButtonProps: { danger: true },
+              onOk: async () => {
+                await api(`/admin/api/prompt-plugins/${encodeURIComponent(plugin.id)}`, {
+                  method: "DELETE",
+                });
+                message.success(t("common.deleted"));
+                await loadPromptPlugins();
               },
             });
           }}

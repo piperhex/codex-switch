@@ -29,6 +29,8 @@ export enum Permission {
   FeedbackManage = 'admin.feedback.manage',
   SkillsRead = 'admin.skills.read',
   SkillsManage = 'admin.skills.manage',
+  PromptPluginsRead = 'admin.prompt-plugins.read',
+  PromptPluginsManage = 'admin.prompt-plugins.manage',
   TelemetryRead = 'admin.telemetry.read',
   DashboardRead = 'admin.dashboard.read',
   CurrencyRead = 'admin.currency.read',
@@ -73,6 +75,8 @@ export const PERMISSION_CATALOG: readonly PermissionDefinition[] = [
   { code: Permission.FeedbackManage, group: 'feedback', name: 'Manage feedback', description: 'Reply to user feedback.' },
   { code: Permission.SkillsRead, group: 'skills', name: 'Read community skills', description: 'View skills published by users and their download metrics.' },
   { code: Permission.SkillsManage, group: 'skills', name: 'Manage community skills', description: 'Edit or remove skills published by users.' },
+  { code: Permission.PromptPluginsRead, group: 'prompt-plugins', name: 'Read system prompts', description: 'View system prompt plugins published in the market.' },
+  { code: Permission.PromptPluginsManage, group: 'prompt-plugins', name: 'Manage system prompts', description: 'Edit or remove system prompt plugins.' },
   { code: Permission.TelemetryRead, group: 'telemetry', name: 'Read telemetry', description: 'View installation and telemetry analytics.' },
   { code: Permission.DashboardRead, group: 'analytics', name: 'Read dashboard', description: 'View cross-system operational metrics and trends.' },
   { code: Permission.CurrencyRead, group: 'content', name: 'Read currency settings', description: 'View configured currency display options.' },
@@ -109,6 +113,7 @@ const PERMISSION_DEPENDENCIES: Partial<Record<Permission, readonly Permission[]>
   [Permission.MailServicesManage]: [Permission.MailServicesRead],
   [Permission.FeedbackManage]: [Permission.FeedbackRead, Permission.MailServicesRead],
   [Permission.SkillsManage]: [Permission.SkillsRead],
+  [Permission.PromptPluginsManage]: [Permission.PromptPluginsRead],
   [Permission.CurrencyManage]: [Permission.CurrencyRead],
 };
 
