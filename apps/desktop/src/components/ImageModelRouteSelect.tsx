@@ -106,6 +106,7 @@ export function ImageModelRouteSelect({
           value={targetPath(target)}
           options={options}
           placeholder={t("providers.proxy.imageModelPlaceholder")}
+          popupClassName="proxy-image-model-dropdown"
           disabled={busy || options.length === 0}
           allowClear
           showSearch
