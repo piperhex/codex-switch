@@ -452,6 +452,7 @@ export interface AppSettings {
   upstream429RetryTimeoutSeconds?: number;
   showUsageNetworkErrors?: boolean;
   gpt56SolContextWindow?: number;
+  officialModelContextWindows?: Record<string, number>;
   webProxyPort?: number | null;
   webProxyListenOnAllInterfaces?: boolean;
   networkProxy?: NetworkProxySettings;

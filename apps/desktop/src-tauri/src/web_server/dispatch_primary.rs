@@ -25,6 +25,16 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
                 argument(&args, "contextWindow")?,
             ),
         )),
+        "get_official_model_context_settings" => serialize(block_on(
+            crate::local_proxy::get_official_model_context_settings(app),
+        )),
+        "set_official_model_context_window" => serialize(block_on(
+            crate::local_proxy::set_official_model_context_window(
+                app,
+                argument(&args, "model")?,
+                argument(&args, "contextWindow")?,
+            ),
+        )),
         "set_upstream_429_retry_timeout" => serialize(block_on(
             crate::local_proxy::set_upstream_429_retry_timeout(
                 app,

@@ -64,6 +64,7 @@ import {
 } from "../../DailyTokenUsageTooltip";
 import { TokenCostColumnTitle, useTokenCostDisplaySettings } from "../../TokenCostUnitSettings";
 import { AccountNoteModal } from "../../modals/AccountNoteModal";
+import { OfficialContextSettings } from "../OfficialContextSettings";
 import { ResetCreditsPanel } from "../ResetCreditsPanel";
 import { UsageMeter, UsageRefreshAge } from "../UsageMeter";
 import { getAccountCardTokenUsage } from "../accountCardUsage";
@@ -1128,7 +1129,7 @@ export function AccountTable({
       <Tooltip title={t(modelContextWindowTooltipKey(modelContextWindow.error))}
         styles={{ root: { maxWidth: 400 } }}>
         <span className="model-context-window-control">
-          <span>{t("table.modelContextWindow")}{language === "zh" ? "：" : ": "}</span>
+          <span>{t("table.modelContextGlobal")}{language === "zh" ? "：" : ": "}</span>
           <AutoComplete value={modelContextWindow.valueK}
             options={GPT_5_6_SOL_CONTEXT_WINDOW_OPTIONS}
             placeholder={DEFAULT_GPT_5_6_SOL_CONTEXT_WINDOW_K}
@@ -1138,6 +1139,10 @@ export function AccountTable({
             onChange={modelContextWindow.updateValueK}
             onBlur={() => void modelContextWindow.saveValueK(modelContextWindow.valueK)} />
           <span>K</span>
+          <OfficialContextSettings models={modelContextWindow.models}
+            valuesK={modelContextWindow.modelValuesK} saving={modelContextWindow.saving}
+            onSave={modelContextWindow.saveModelValueK} onChange={modelContextWindow.updateModelValueK}
+            onClear={modelContextWindow.clearModelValue} t={t} />
         </span>
       </Tooltip>
       {proxyControls}

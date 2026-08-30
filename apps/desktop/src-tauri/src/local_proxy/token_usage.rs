@@ -13,13 +13,17 @@ fn official_model_context_windows(paths: &Paths) -> HashMap<String, u64> {
         .unwrap_or_default()
 }
 
-fn update_cached_model_context_window(paths: &Paths, context_window: u64) -> Result<(), String> {
+fn update_cached_official_model_context_windows(
+    paths: &Paths,
+    global_context_window: u64,
+    model_context_windows: &std::collections::BTreeMap<String, u64>,
+) -> Result<(), String> {
     let path = paths.codex_home.join("models_cache.json");
     if !path.exists() {
         return Ok(());
     }
     let mut catalog = read_json(&path)?;
-    if apply_model_context_window(&mut catalog, GPT_5_6_SOL_MODEL, context_window) {
+    if apply_official_context_windows(&mut catalog, global_context_window, model_context_windows) {
         write_json_if_changed(&path, &catalog)?;
     }
     Ok(())

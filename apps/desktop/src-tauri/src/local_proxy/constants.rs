@@ -70,6 +70,7 @@ const TOKEN_USAGE_LIST_LIMIT: usize = 500;
 const TOKEN_USAGE_CAPTURE_MAX_BYTES: usize = 4 * 1024 * 1024;
 const PROXY_SESSION_REQUEST_KEEP_ROWS: usize = 500;
 const DEFAULT_EFFECTIVE_CONTEXT_WINDOW_PERCENT: u64 = 95;
+#[cfg(test)]
 const GPT_5_6_SOL_MODEL: &str = "gpt-5.6-sol";
 pub(crate) const TOKEN_USAGE_WINDOW_LABEL: &str = "token-usage";
 const CUSTOM_TOOL_INPUT_DESCRIPTION: &str =

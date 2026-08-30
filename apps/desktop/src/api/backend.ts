@@ -3352,6 +3352,49 @@ export function subscribeToProviderEvents(onProvidersChanged: () => void): () =>
   return () => void subscription.then((unlisten) => unlisten());
 }
 
+export interface OfficialModelContextSettings {
+  globalContextWindow: number;
+  modelContextWindows: Record<string, number>;
+  models: string[];
+}
+
+export async function loadOfficialModelContextSettings(): Promise<OfficialModelContextSettings> {
+  await loadGpt56SolContextWindow();
+  if (!hasLocalBackend) {
+    const settings = await loadAppSettings();
+    return {
+      globalContextWindow: settings.gpt56SolContextWindow ?? DEFAULT_GPT_5_6_SOL_CONTEXT_WINDOW,
+      modelContextWindows: settings.officialModelContextWindows ?? {},
+      models: Object.keys(settings.officialModelContextWindows ?? {}),
+    };
+  }
+  return invoke<OfficialModelContextSettings>("get_official_model_context_settings");
+}
+
+export async function updateOfficialModelContextWindow(
+  model: string,
+  contextWindow: number | null,
+): Promise<OfficialModelContextSettings> {
+  if (!hasLocalBackend) {
+    const settings = await loadAppSettings();
+    const modelContextWindows = { ...(settings.officialModelContextWindows ?? {}) };
+    if (contextWindow === null) delete modelContextWindows[model];
+    else modelContextWindows[model] = contextWindow;
+    window.localStorage.setItem(GPT_5_6_SOL_CONTEXT_WINDOW_LEGACY_KEY, String(
+      (settings.gpt56SolContextWindow ?? DEFAULT_GPT_5_6_SOL_CONTEXT_WINDOW) / 1_000,
+    ));
+    return {
+      globalContextWindow: settings.gpt56SolContextWindow ?? DEFAULT_GPT_5_6_SOL_CONTEXT_WINDOW,
+      modelContextWindows,
+      models: Object.keys(modelContextWindows),
+    };
+  }
+  return invoke<OfficialModelContextSettings>("set_official_model_context_window", {
+    model,
+    contextWindow,
+  });
+}
+
 export function subscribeToLocalProxyUpstreamConnectionFailures(onFailure: () => void): () => void {
   if (!isDesktopApp) return () => undefined;
   const subscription = listen(LOCAL_PROXY_UPSTREAM_CONNECTION_FAILED_EVENT, onFailure);

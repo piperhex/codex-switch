@@ -50,6 +50,8 @@ pub(crate) struct AppSettings {
     #[serde(default = "default_gpt_5_6_sol_context_window")]
     pub(crate) gpt_5_6_sol_context_window: u64,
     #[serde(default)]
+    pub(crate) official_model_context_windows: std::collections::BTreeMap<String, u64>,
+    #[serde(default)]
     pub(crate) web_proxy_port: Option<u16>,
     #[serde(default)]
     pub(crate) web_proxy_listen_on_all_interfaces: bool,
@@ -251,6 +253,7 @@ impl Default for AppSettings {
             upstream_429_retry_timeout_seconds: default_upstream_429_retry_timeout_seconds(),
             show_usage_network_errors: false,
             gpt_5_6_sol_context_window: default_gpt_5_6_sol_context_window(),
+            official_model_context_windows: std::collections::BTreeMap::new(),
             web_proxy_port: None,
             web_proxy_listen_on_all_interfaces: false,
             network_proxy: NetworkProxySettings::default(),

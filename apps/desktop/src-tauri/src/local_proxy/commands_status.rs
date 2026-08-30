@@ -121,6 +121,98 @@ pub(crate) async fn set_gpt_5_6_sol_context_window<R: Runtime + 'static>(
     .map_err(|error| format!("Model context window task failed: {error}"))?
 }
 
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct OfficialModelContextSettings {
+    pub(crate) global_context_window: u64,
+    pub(crate) model_context_windows: std::collections::BTreeMap<String, u64>,
+    pub(crate) models: Vec<String>,
+}
+
+fn official_model_names<R: Runtime>(app: &tauri::AppHandle<R>) -> Vec<String> {
+    resolve_paths(app)
+        .ok()
+        .and_then(|paths| read_json(&paths.codex_home.join("models_cache.json")).ok())
+        .map(|catalog| {
+            catalog
+                .get("models")
+                .and_then(serde_json::Value::as_array)
+                .into_iter()
+                .flatten()
+                .filter_map(|model| {
+                    ["slug", "id"].into_iter().find_map(|field| {
+                        model
+                            .get(field)
+                            .and_then(serde_json::Value::as_str)
+                            .map(str::to_string)
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn official_context_settings<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    settings: AppSettings,
+) -> OfficialModelContextSettings {
+    OfficialModelContextSettings {
+        global_context_window: settings.gpt_5_6_sol_context_window,
+        model_context_windows: settings.official_model_context_windows,
+        models: official_model_names(app),
+    }
+}
+
+#[tauri::command]
+pub(crate) async fn get_official_model_context_settings<R: Runtime + 'static>(
+    app: tauri::AppHandle<R>,
+) -> Result<OfficialModelContextSettings, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        Ok(official_context_settings(&app, read_app_settings(&app)?))
+    })
+    .await
+    .map_err(|error| format!("Official model context settings task failed: {error}"))?
+}
+
+#[tauri::command]
+pub(crate) async fn set_official_model_context_window<R: Runtime + 'static>(
+    app: tauri::AppHandle<R>,
+    model: String,
+    context_window: Option<u64>,
+) -> Result<OfficialModelContextSettings, String> {
+    let model = model.trim().to_string();
+    if model.is_empty() {
+        return Err("Model name cannot be empty".to_string());
+    }
+    if let Some(value) = context_window {
+        validate_gpt_5_6_sol_context_window(value)?;
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut settings = read_app_settings(&app)?;
+        match context_window {
+            Some(value) => {
+                settings.official_model_context_windows.insert(model, value);
+            }
+            None => {
+                settings.official_model_context_windows.remove(&model);
+            }
+        }
+        write_app_settings(&app, &settings)?;
+        if let Ok(paths) = resolve_paths(&app) {
+            if let Err(error) = update_cached_official_model_context_windows(
+                &paths,
+                settings.gpt_5_6_sol_context_window,
+                &settings.official_model_context_windows,
+            ) {
+                eprintln!("failed to update cached official model context windows: {error}");
+            }
+        }
+        Ok(official_context_settings(&app, settings))
+    })
+    .await
+    .map_err(|error| format!("Official model context update task failed: {error}"))?
+}
+
 #[tauri::command]
 pub(crate) async fn set_upstream_429_retry_timeout<R: Runtime + 'static>(
     app: tauri::AppHandle<R>,
@@ -161,7 +253,11 @@ fn set_gpt_5_6_sol_context_window_blocking<R: Runtime>(
     settings.gpt_5_6_sol_context_window = context_window;
     write_app_settings(app, &settings)?;
     let paths = resolve_paths(app)?;
-    if let Err(error) = update_cached_model_context_window(&paths, context_window) {
+    if let Err(error) = update_cached_official_model_context_windows(
+        &paths,
+        context_window,
+        &settings.official_model_context_windows,
+    ) {
         // The proxy applies the override on the next model request even if this best-effort cache refresh races Codex.
         eprintln!("failed to update the cached GPT-5.6 Sol context window: {error}");
     }

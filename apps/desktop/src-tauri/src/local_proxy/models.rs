@@ -36,8 +36,15 @@ fn models_payload<R: Runtime>(
         }
     };
     let payload = override_model_image_input(payload, image_input_route_enabled)?;
-    let context_window = read_app_settings(app)?.gpt_5_6_sol_context_window;
-    override_model_context_window(payload, GPT_5_6_SOL_MODEL, context_window)
+    if !matches!(target, ActiveTarget::Official { .. }) {
+        return Ok(payload);
+    }
+    let settings = read_app_settings(app)?;
+    override_official_model_context_windows(
+        payload,
+        settings.gpt_5_6_sol_context_window,
+        &settings.official_model_context_windows,
+    )
 }
 
 fn image_input_route_enabled<R: Runtime>(app: &tauri::AppHandle<R>) -> bool {
@@ -59,10 +66,10 @@ fn unconditional_model_catalog_headers(headers: &[(String, String)]) -> Vec<(Str
         .collect()
 }
 
-fn override_model_context_window(
+fn override_official_model_context_windows(
     mut payload: UpstreamPayload,
-    model: &str,
-    context_window: u64,
+    global_context_window: u64,
+    model_context_windows: &std::collections::BTreeMap<String, u64>,
 ) -> Result<UpstreamPayload, String> {
     if payload.status != 200 {
         return Ok(payload);
@@ -78,13 +85,67 @@ fn override_model_context_window(
     }
     let mut catalog = serde_json::from_slice::<Value>(&body)
         .map_err(|error| format!("Upstream model catalog is not valid JSON: {error}"))?;
-    if apply_model_context_window(&mut catalog, model, context_window) {
+    if apply_official_context_windows(
+        &mut catalog,
+        global_context_window,
+        model_context_windows,
+    ) {
         body = serde_json::to_vec(&catalog)
             .map_err(|error| format!("Failed to encode model catalog: {error}"))?;
         replace_model_catalog_etags(&mut payload.response_headers, &body);
     }
     payload.body = UpstreamBody::Buffered(body);
     Ok(payload)
+}
+
+fn apply_official_context_windows(
+    catalog: &mut Value,
+    global_context_window: u64,
+    model_context_windows: &std::collections::BTreeMap<String, u64>,
+) -> bool {
+    let Some(models) = catalog.get_mut("models").and_then(Value::as_array_mut) else {
+        return false;
+    };
+    let mut changed = false;
+    for entry in models {
+        let model = ["slug", "id"].into_iter().find_map(|field| {
+            entry.get(field).and_then(Value::as_str)
+        });
+        let Some(model) = model else { continue };
+        let context_window = effective_official_context_window(
+            global_context_window,
+            model_context_windows,
+            model,
+        );
+        if context_window == 0 { continue }
+        entry["context_window"] = json!(context_window);
+        entry["max_context_window"] = json!(context_window);
+        changed = true;
+    }
+    changed
+}
+
+fn effective_official_context_window(
+    global_context_window: u64,
+    model_context_windows: &std::collections::BTreeMap<String, u64>,
+    model: &str,
+) -> u64 {
+    model_context_windows
+        .get(model)
+        .copied()
+        .map_or(global_context_window, |override_window| {
+            global_context_window.min(override_window)
+        })
+}
+
+#[cfg(test)]
+fn override_model_context_window(
+    payload: UpstreamPayload,
+    model: &str,
+    context_window: u64,
+) -> Result<UpstreamPayload, String> {
+    let overrides = std::collections::BTreeMap::from([(model.to_string(), context_window)]);
+    override_official_model_context_windows(payload, context_window, &overrides)
 }
 
 fn override_model_image_input(
@@ -117,22 +178,6 @@ fn override_model_image_input(
     replace_model_catalog_etags(&mut payload.response_headers, &body);
     payload.body = UpstreamBody::Buffered(body);
     Ok(payload)
-}
-
-fn apply_model_context_window(catalog: &mut Value, model: &str, context_window: u64) -> bool {
-    let Some(models) = catalog.get_mut("models").and_then(Value::as_array_mut) else {
-        return false;
-    };
-    let Some(entry) = models.iter_mut().find(|entry| {
-        ["slug", "id"]
-            .into_iter()
-            .any(|field| entry.get(field).and_then(Value::as_str) == Some(model))
-    }) else {
-        return false;
-    };
-    entry["context_window"] = json!(context_window);
-    entry["max_context_window"] = json!(context_window);
-    true
 }
 
 fn replace_model_catalog_etags(headers: &mut Vec<(String, String)>, body: &[u8]) {
