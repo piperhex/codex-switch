@@ -53,10 +53,14 @@
     align-self: stretch;
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-end;
     gap: 8px;
   }
-  .account-topbar-controls > .topbar-actions { min-height: 40px; }
+  .account-topbar-controls > .topbar-actions {
+    min-height: 40px;
+    flex: 1 1 auto;
+    align-items: center;
+  }
   .account-topbar-controls > .proxy-image-model-fields { justify-content: flex-end; }
   .account-security-actions { display: inline-flex; align-items: center; gap: 10px; }
   .topbar.account-view-topbar.accounts-topbar { height: 136px; padding: 16px; }
@@ -159,8 +163,10 @@
   }
   .model-context-window-control .ant-select { width: 72px; }
   .model-context-window-control .ant-select-selector { min-height: 24px !important; }
+  .model-context-window-control .ant-select-selector,
   .model-context-window-control .ant-select-selection-search-input,
-  .model-context-window-control .ant-select-selection-item { font-size: 11px; }
+  .model-context-window-control .ant-select-selection-item,
+  .model-context-window-control .ant-select-selection-placeholder { font-size: 11px !important; }
   .model-context-window-control .table-icon-button { width: 24px; height: 24px; padding: 0; }
   .official-context-settings {
     width: min(360px, calc(100vw - 32px));
@@ -174,8 +180,15 @@
   .official-context-settings-title { color: var(--ink); font-size: 12px; font-weight: 700; }
   .official-context-settings-hint { margin-top: 4px; color: var(--muted); font-size: 10px; line-height: 1.4; }
   .official-context-settings-list { max-height: 220px; margin-top: 10px; overflow: auto; }
-  .official-context-settings-row { display: grid; grid-template-columns: minmax(0, 1fr) 72px 24px; gap: 6px; align-items: center; padding: 3px 0; }
+  .official-context-settings-row { display: grid; grid-template-columns: minmax(0, 1fr) 76px 24px; gap: 6px; align-items: center; padding: 3px 0; }
   .official-context-settings-row > span { overflow: hidden; color: var(--ink); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+  .official-context-settings-input { display: inline-flex; align-items: center; gap: 3px; }
+  .official-context-settings-input .ant-select { width: 58px; }
+  .official-context-settings-input .ant-select-selector,
+  .official-context-settings-input .ant-select-selection-search-input,
+  .official-context-settings-input .ant-select-selection-item,
+  .official-context-settings-input .ant-select-selection-placeholder { font-size: 11px !important; }
+  .official-context-settings-input > span { color: var(--muted); font-size: 10px; }
   .official-context-settings-add { display: flex; gap: 6px; margin-top: 8px; }
   .official-context-settings-add .ant-input { min-width: 0; }
   main.accounts-main .accounts-page { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; padding: 8px 0 16px; }

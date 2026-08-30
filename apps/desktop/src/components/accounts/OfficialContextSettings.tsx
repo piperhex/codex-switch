@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
-import { Button, Dropdown, Input, Tooltip } from "antd";
+import { AutoComplete, Button, Dropdown, Input, Tooltip } from "antd";
 import { Plus, Settings, Trash2 } from "lucide-react";
 import type { Translate } from "../../i18n";
+import { GPT_5_6_SOL_CONTEXT_WINDOW_OPTIONS_K } from "../../hooks/useGpt56SolContextWindow";
 
 interface OfficialContextSettingsProps {
   models: string[];
@@ -25,6 +26,10 @@ export function OfficialContextSettings({
   const [open, setOpen] = useState(false);
   const [newModel, setNewModel] = useState("");
   const modelNames = useMemo(() => [...new Set([...models, ...Object.keys(valuesK)])].sort(), [models, valuesK]);
+  const contextOptions = useMemo(() => GPT_5_6_SOL_CONTEXT_WINDOW_OPTIONS_K.map((value) => ({
+    label: `${value}K`,
+    value: String(value),
+  })), []);
   const addModel = () => {
     const model = newModel.trim();
     if (!model || modelNames.includes(model)) return;
@@ -41,9 +46,13 @@ export function OfficialContextSettings({
             {modelNames.map((model) => (
               <div className="official-context-settings-row" key={model}>
                 <span title={model}>{model}</span>
-                <Input size="small" value={valuesK[model] ?? ""} placeholder="—" disabled={saving}
-                  suffix="K" onChange={(event) => onChange(model, event.target.value)}
-                  onBlur={() => void onSave(model, valuesK[model] ?? "")} />
+                <span className="official-context-settings-input">
+                  <AutoComplete size="small" value={valuesK[model] ?? ""} options={contextOptions}
+                    placeholder="—" disabled={saving}
+                    onChange={(value) => onChange(model, value)}
+                    onBlur={() => void onSave(model, valuesK[model] ?? "")} />
+                  <span>K</span>
+                </span>
                 <Tooltip title={t("table.modelContextRemove")}>
                   <Button size="small" type="text" danger icon={<Trash2 size={13} />}
                     disabled={saving} onClick={() => void onClear(model)} />
