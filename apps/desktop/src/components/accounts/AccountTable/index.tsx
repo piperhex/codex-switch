@@ -1108,18 +1108,22 @@ export function AccountTable({
       <span>
         {t("table.currentAccountLabel")}{language === "zh" ? "：" : ": "}
         <Select size="small" className="account-summary-select" value={activeAccount?.id}
-          showSearch optionFilterProp="label" title={privacyMode ? undefined : activeAccount?.email}
+          allowClear showSearch optionFilterProp="label" title={privacyMode ? undefined : activeAccount?.email}
           options={accountSelectOptions} loading={busyAccountId !== null}
           disabled={busyAccountId !== null || !accountSelectOptions.length}
           aria-label={t("table.currentAccountLabel")}
           onChange={(accountId) => {
+            if (!accountId) {
+              if (activeAccount) onDeactivate(activeAccount.id);
+              return;
+            }
             if (accountId !== activeAccount?.id) onSwitch(accountId);
           }} />
       </span>
       <span>
         {t("table.officialAuthAccountLabel")}{language === "zh" ? "：" : ": "}
         <Select size="small" className="account-summary-select" value={officialAuthAccount?.id ?? ""}
-          showSearch optionFilterProp="label"
+          allowClear showSearch optionFilterProp="label"
           title={privacyMode ? undefined : officialAuthAccount?.email}
           options={officialAuthSelectOptions} loading={openaiAuthBusy}
           disabled={!hotSwitchEnabled || openaiAuthBusy}
