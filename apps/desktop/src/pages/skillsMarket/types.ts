@@ -1,7 +1,7 @@
 import type { Translate } from "../../i18n";
 import type { OfficialPluginItem, SkillMarketItem } from "../../types";
 
-export type SkillsMarketTab = "community" | "official";
+export type SkillsMarketTab = "community" | "official" | "prompt";
 
 export interface SkillsMarketNavigationProps {
   activeTab: SkillsMarketTab;

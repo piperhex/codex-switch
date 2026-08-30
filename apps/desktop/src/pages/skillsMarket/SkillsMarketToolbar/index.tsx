@@ -7,6 +7,7 @@ import styles from "./index.module.less";
 const SEARCH_COPY = {
   community: "skills.search",
   official: "skills.official.search",
+  prompt: "skills.prompt.search",
 } as const satisfies Record<SkillsMarketTab, string>;
 
 interface TopbarHosts {
@@ -33,7 +34,7 @@ function SkillsMarketTabs({ activeTab, onTabChange, t }: Pick<SkillsMarketToolba
   "activeTab" | "onTabChange" | "t">) {
   return (
     <div className={styles.tabs} role="tablist" aria-label={t("skills.tabs.label")}>
-      {(["community", "official"] as const).map((tab) => (
+      {(["community", "official", "prompt"] as const).map((tab) => (
         <button
           type="button"
           role="tab"

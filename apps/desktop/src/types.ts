@@ -609,6 +609,31 @@ export interface OfficialPluginItem {
   enabled: boolean;
 }
 
+export type PromptPluginType = "injection" | "filter";
+
+export interface PromptPluginItem {
+  id: string;
+  name: string;
+  version: string;
+  type: PromptPluginType;
+  text: string;
+  uploaderId?: string | null;
+  installCount: number;
+  createdAt: string;
+  updatedAt: string;
+  installed: boolean;
+  installedVersion?: string | null;
+  enabled: boolean;
+}
+
+export interface PromptPluginPublishInput {
+  pluginId?: string | null;
+  name: string;
+  version: string;
+  type: PromptPluginType;
+  text: string;
+}
+
 export type SkillPackageKind = "archive" | "folder";
 
 export interface SkillPackageSelection {

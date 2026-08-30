@@ -203,6 +203,7 @@ const LAN_COMMAND_ALLOWLIST: &[&str] = &[
     "list_aggregate_apis",
     "list_daily_token_usage",
     "list_market_skills",
+    "list_prompt_plugins",
     "list_official_plugins",
     "list_provider_token_usage",
     "list_providers",

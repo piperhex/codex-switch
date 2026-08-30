@@ -44,7 +44,8 @@ export function relativeTime(timestamp: number | null, language: Language) {
 
 export function groupLabel(cwd: string) {
   const normalized = cwd.replace(/\\/g, "/").replace(/\/$/, "");
-  return normalized.split("/").filter(Boolean).at(-1) || cwd;
+  const parts = normalized.split("/").filter(Boolean);
+  return parts[parts.length - 1] || cwd;
 }
 
 export function isUnassignedWorkspace(cwd: string) {

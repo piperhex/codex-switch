@@ -35,6 +35,7 @@ mod oauth;
 mod official_plugins;
 mod open_code;
 mod preset_provider;
+mod prompt_plugins;
 mod provider_api_cache;
 mod provider_connectivity;
 mod provider_models;
@@ -402,6 +403,11 @@ pub fn run() {
             skills_market::install_market_skill,
             skills_market::remove_market_skill,
             skills_market::set_market_skill_enabled,
+            prompt_plugins::list_prompt_plugins,
+            prompt_plugins::publish_prompt_plugin,
+            prompt_plugins::install_prompt_plugin,
+            prompt_plugins::remove_prompt_plugin,
+            prompt_plugins::set_prompt_plugin_enabled,
             official_plugins::list_official_plugins,
             official_plugins::install_official_plugin,
             official_plugins::remove_official_plugin,
