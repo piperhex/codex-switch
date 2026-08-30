@@ -139,7 +139,7 @@ curl -s -X POST http://KONG_ADMIN:8001/consumers/codex-switch-client/jwt \
 ```
 
 Create routes so the client-facing `/auth`, `/admin`, `/feedback`, `/announcements`, `/notifications`, `/faqs`, `/telemetry`, and `/device-switch` paths remain public, while `/sync`, `/devices`, and `/admin/api` are protected by the JWT plugin. Route `/web` to the independent `codex-switch-web` service with `strip_path=true`; static browser navigation cannot carry an Authorization header, so JWT is enforced on its protected API calls rather than on HTML and asset requests. The WebSocket authenticates its first message in NestJS. Authenticated sub-routes on a public prefix still enforce JWTs in NestJS:
-The `/currency-rates` endpoint is also public and does not require authentication.
+The `/currency-rates` and `/prompt-plugins` endpoints are also public and do not require authentication.
 
 ```bash
 curl -s -X POST http://KONG_ADMIN:8001/services \
@@ -157,6 +157,7 @@ curl -s -X POST http://KONG_ADMIN:8001/services/codex-switch-backend/routes \
   --data 'paths[]=/currency-rates' \
   --data 'paths[]=/telemetry' \
   --data 'paths[]=/device-switch' \
+  --data 'paths[]=/prompt-plugins' \
   --data strip_path=false
 
 curl -s -X POST http://KONG_ADMIN:8001/services/codex-switch-backend/routes \

@@ -27,6 +27,7 @@ services:
           - /currency-rates
           - /telemetry
           - /device-switch
+          - /prompt-plugins
         strip_path: false
       - name: codex-switch-protected
         paths:
