@@ -130,7 +130,29 @@
     font-size: 11px;
     line-height: 22px;
   }
-  .account-concurrent-routing-control { min-height: 24px; display: inline-flex; align-items: center; gap: 6px; color: var(--ink); font-size: 11px; font-weight: 600; white-space: nowrap; }
+  .account-concurrent-routing-control {
+    min-height: 24px;
+    padding: 2px 7px;
+    border-radius: 7px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #d14343;
+    background: rgba(209, 67, 67, .08);
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    transition: color .16s ease, background .16s ease;
+  }
+  .account-concurrent-routing-control.is-enabled { color: var(--green-dark); background: var(--green-soft); }
+  .account-concurrent-routing-control .ant-switch:not(.ant-switch-checked) { background: rgba(209, 67, 67, .35); }
+  .account-concurrent-routing-control .ant-switch:not(.ant-switch-checked):hover:not(.ant-switch-disabled) {
+    background: rgba(209, 67, 67, .48);
+  }
+  .account-concurrent-routing-control .ant-switch.ant-switch-checked { background: var(--green); }
+  .account-concurrent-routing-control .ant-switch.ant-switch-checked:hover:not(.ant-switch-disabled) {
+    background: var(--green-dark);
+  }
   .model-context-window-control { display: inline-flex; align-items: center; gap: 4px; }
   .model-context-window-control .ant-select { width: 72px; }
   .model-context-window-control .ant-select-selector { min-height: 24px !important; }
@@ -298,6 +320,14 @@
   :root[data-theme="dark"] .account-card.account-alert-card { border-color: #6a3a3d; background: #3d2527; }
   :root[data-theme="dark"] .account-card.account-alert-card:hover { background: #512d30; }
   :root[data-theme="dark"] .account-table-toolbar { border-color: var(--line); color: var(--ink); background: #202328; }
+  :root[data-theme="dark"] .account-concurrent-routing-control { color: #ef8d8d; background: rgba(209, 67, 67, .14); }
+  :root[data-theme="dark"] .account-concurrent-routing-control.is-enabled {
+    color: var(--green-highlight);
+    background: rgba(var(--green-rgb), .16);
+  }
+  :root[data-theme="dark"] .account-concurrent-routing-control .ant-switch:not(.ant-switch-checked) {
+    background: rgba(209, 67, 67, .5);
+  }
   :root[data-theme="dark"] .account-card-usage { border-color: var(--line); color: #b7bcc5; background: #202328; }
   :root[data-theme="dark"] .account-table-wrap .ant-table-thead > tr > th { color: #bdc2ca; background: #1e2125; }
   :root[data-theme="dark"] .account-table-wrap col.ant-table-selection-col { background: #1e2125; }

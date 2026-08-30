@@ -1150,7 +1150,7 @@ export function AccountTable({
   );
   const concurrentRoutingControl = (
     <Tooltip title={t("table.concurrentRoutingTooltip")} styles={{ root: { maxWidth: 400 } }}>
-      <span className="account-concurrent-routing-control">
+      <span className={`account-concurrent-routing-control${concurrentRoutingActive ? " is-enabled" : ""}`}>
         <span>{t("table.concurrentRouting")}</span>
         <Switch size="small" checked={concurrentAccountRoutingEnabled}
           loading={concurrentAccountRoutingBusy}
