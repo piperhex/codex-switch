@@ -17,3 +17,4 @@ apps/desktop/src-tauri/.updater/
 .webview2-test
 .tar.gz
 .codex-tmp
+.worktrees/
