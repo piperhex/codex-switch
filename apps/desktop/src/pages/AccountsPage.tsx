@@ -42,6 +42,8 @@ export function AccountsPage({
   onOpenaiAuthAccountChange,
   onConcurrentRoutingChange,
   privacyMode,
+  privacyModeLoading,
+  onPrivacyModeChange,
   hideAccountNotes,
   showUsageNetworkErrors,
   displayMode,
@@ -83,6 +85,8 @@ export function AccountsPage({
   onOpenaiAuthAccountChange: (accountId: string | null) => void;
   onConcurrentRoutingChange: (enabled: boolean) => void;
   privacyMode: boolean;
+  privacyModeLoading: boolean;
+  onPrivacyModeChange: (enabled: boolean) => void;
   hideAccountNotes: boolean;
   showUsageNetworkErrors: boolean;
   displayMode: AccountDisplayMode;
@@ -135,6 +139,7 @@ export function AccountsPage({
         resetCredits={resetCredits} onLoadResetCredits={onLoadResetCredits}
         onUseResetCredit={onUseResetCredit} resetCreditBusyAccountId={resetCreditBusyAccountId}
         hotSwitchEnabled={hotSwitchEnabled} privacyMode={privacyMode}
+        privacyModeLoading={privacyModeLoading} onPrivacyModeChange={onPrivacyModeChange}
         hideAccountNotes={hideAccountNotes}
         concurrentAccountRoutingEnabled={localProxy?.concurrentAccountRoutingEnabled ?? false}
         concurrentAccountRoutingBusy={proxyBusy}

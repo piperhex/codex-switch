@@ -72,6 +72,7 @@ import { getOfficialAuthAccounts, getSwitchableAccounts } from "../accountSelect
 import styles from "./index.module.less";
 import {
   AccountNoteEditButton,
+  AccountPrivacyToggle,
   AccountResetCreditCount,
   AutoSwitchPriorityInput,
   AutoSwitchThresholdInput,
@@ -125,6 +126,8 @@ interface AccountTableProps {
   openaiAuthBusy: boolean;
   onOpenaiAuthAccountChange: (accountId: string | null) => void;
   privacyMode: boolean;
+  privacyModeLoading: boolean;
+  onPrivacyModeChange: (enabled: boolean) => void;
   hideAccountNotes: boolean;
   showUsageNetworkErrors: boolean;
   displayMode: AccountDisplayMode;
@@ -355,6 +358,8 @@ export function AccountTable({
   openaiAuthBusy,
   onOpenaiAuthAccountChange,
   privacyMode,
+  privacyModeLoading,
+  onPrivacyModeChange,
   hideAccountNotes,
   showUsageNetworkErrors,
   displayMode,
@@ -594,7 +599,13 @@ export function AccountTable({
   const columns: ColumnsType<Account> = [
     Table.EXPAND_COLUMN as ColumnsType<Account>[number],
     {
-      title: t("table.account"), key: "account", dataIndex: "email", width: 280, fixed: "left",
+      title: (
+        <span className="account-column-title">
+          <span>{t("table.account")}</span>
+          <AccountPrivacyToggle enabled={privacyMode} loading={privacyModeLoading}
+            onChange={onPrivacyModeChange} t={t} />
+        </span>
+      ), key: "account", dataIndex: "email", width: 280, fixed: "left",
       sorter: (left, right, sortOrder) => compareKeepingAttentionLast(
         left,
         right,

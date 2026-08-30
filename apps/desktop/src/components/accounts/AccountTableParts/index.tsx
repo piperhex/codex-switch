@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Button, InputNumber, Popover, Tooltip } from "antd";
-import { CalendarClock, Check, Copy, Pencil, Settings, X } from "lucide-react";
+import { CalendarClock, Check, Copy, Eye, EyeOff, Pencil, Settings, X } from "lucide-react";
 import type { Language, Translate } from "../../../i18n";
 import type {
   Account,
@@ -18,6 +18,30 @@ import { ResetCreditsPanel } from "../ResetCreditsPanel";
 import styles from "./index.module.less";
 
 const EMAIL_COPY_FEEDBACK_DURATION_MS = 1_600;
+
+export function AccountPrivacyToggle({ enabled, loading, onChange, t }: {
+  enabled: boolean;
+  loading: boolean;
+  onChange: (enabled: boolean) => void;
+  t: Translate;
+}) {
+  const label = enabled ? t("table.showAccountDetails") : t("table.hideAccountDetails");
+  return (
+    <Tooltip title={label}>
+      <Button
+        type="text"
+        size="small"
+        className="account-privacy-toggle"
+        loading={loading}
+        aria-label={label}
+        aria-pressed={enabled}
+        title={label}
+        onClick={() => onChange(!enabled)}
+        icon={enabled ? <EyeOff size={14} aria-hidden="true" /> : <Eye size={14} aria-hidden="true" />}
+      />
+    </Tooltip>
+  );
+}
 
 export function resetCreditsCount(state?: ResetCreditsLoadState) {
   return state?.status === "loaded" ? state.data.credits.length : null;

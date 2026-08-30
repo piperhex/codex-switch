@@ -1556,6 +1556,8 @@ export function DashboardApp() {
               onOpenaiAuthAccountChange={providerManager.setProxyOpenaiAuthAccount}
               onConcurrentRoutingChange={providerManager.setProxyConcurrentRouting}
               privacyMode={privacyMode.enabled}
+              privacyModeLoading={privacyMode.loading}
+              onPrivacyModeChange={(enabled) => void privacyMode.setEnabled(enabled)}
               hideAccountNotes={privacyMode.hideAccountNotes}
               showUsageNetworkErrors={showUsageNetworkErrors}
               displayMode={accountDisplayMode.displayMode}
