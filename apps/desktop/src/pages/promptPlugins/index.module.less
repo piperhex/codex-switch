@@ -1,6 +1,8 @@
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 18px; }
 .card { position: relative; display: grid; gap: 10px; padding: 18px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); box-shadow: 0 10px 28px rgba(18, 42, 27, .055); }
+.titleRow { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
 .card h3 { margin: 0; color: var(--ink); font-size: 16px; }
+.titleRow small { flex: none; color: var(--muted); font-size: 10px; }
 .card p { min-height: 66px; margin: 0; overflow: hidden; color: var(--muted); font-size: 12px; line-height: 1.5; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; white-space: pre-wrap; }
 .badge { justify-self: start; padding: 4px 8px; border-radius: 999px; color: var(--green-dark); background: var(--green-soft); font-size: 10px; font-weight: 700; }
 .meta, .actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 10px; }
