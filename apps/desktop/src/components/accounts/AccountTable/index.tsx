@@ -734,7 +734,8 @@ export function AccountTable({
       ),
     }] : []),
     {
-      title: t("table.actions"), key: "actions", width: 190, align: "center", fixed: "right",
+      title: t("table.actions"), key: "actions", width: 95, align: "center", fixed: "right",
+      className: "account-actions-column",
       render: (_, account) => {
         const waiting = busyAccountId === account.id;
         const resetWaiting = resetCreditBusyAccountId === account.id;

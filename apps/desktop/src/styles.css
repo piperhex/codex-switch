@@ -451,6 +451,7 @@ h1 { margin: 5px 0 0; font: 700 26px/1.1 Manrope, sans-serif; letter-spacing: -.
 .updated-cell .ant-tag { margin-left: 3px; font-size: 10px; line-height: 16px; }
 .table-actions { justify-content: flex-end; }
 .table-actions .ant-btn { display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+.account-table-wrap .account-actions-column { padding-inline: 6px !important; }
 .reset-credit-action { min-width: 86px; padding-inline: 8px; }
 .reset-credit-popconfirm { width: 320px; max-width: calc(100vw - 32px); }
 .reset-credit-confirm-description { display: block; max-width: 250px; white-space: normal; overflow-wrap: anywhere; line-height: 1.5; }
