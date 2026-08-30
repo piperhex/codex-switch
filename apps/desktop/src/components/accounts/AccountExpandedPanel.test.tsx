@@ -47,8 +47,14 @@ describe("AccountExpandedPanel", () => {
     expect(markup).toContain("2026-12-31");
     expect(markup).toContain("+65 1234 5678");
     expect(markup).toContain("secret");
-    expect(markup).toContain("JBSWY3DPEHPK3PXP");
+    expect(markup).not.toContain("JBSWY3DPEHPK3PXP");
+    expect(markup).toContain("note.copyPhoneNumber");
+    expect(markup).toContain("note.copyPassword");
+    expect(markup).toContain("account-totp-preview-inline");
+    expect(markup).toContain("totp.copy");
     expect(markup).toContain("Updated:");
+    expect(markup).toContain('class="account-expanded-details-grid"');
+    expect(markup).not.toContain('class="account-details-grid"');
   });
 
   it("masks private values when privacy mode is enabled", () => {
@@ -60,6 +66,19 @@ describe("AccountExpandedPanel", () => {
     expect(markup).not.toContain("secret");
     expect(markup).not.toContain("+65 1234 5678");
     expect(markup).not.toContain("JBSWY3DPEHPK3PXP");
+  });
+
+  it("does not show copy controls for empty private details", () => {
+    const emptyAccount = account();
+    emptyAccount.privateDetails = { password: "", phoneNumber: "", totpSecret: "" };
+    const markup = renderToStaticMarkup(
+      <AccountExpandedPanel account={emptyAccount} resetCredits={undefined} privacyMode={false}
+        hideAccountNotes={false} onRefreshResetCredits={vi.fn()} language={"en" as Language} t={t} />,
+    );
+
+    expect(markup).not.toContain("note.copyPhoneNumber");
+    expect(markup).not.toContain("note.copyPassword");
+    expect(markup).not.toContain("account-totp-preview-inline");
   });
 
   it("does not imply a reset-card refresh before the user requests one", () => {

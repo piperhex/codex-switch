@@ -1,14 +1,14 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { Button, DatePicker, Input, Progress, Spin } from "antd";
+import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { Button, DatePicker, Input, Spin } from "antd";
 import dayjs from "dayjs";
 import { Camera, Check, Copy, ScanQrCode, StickyNote, X } from "lucide-react";
 import type { Translate } from "../../i18n";
 import type { Account, AccountDetailsDraft } from "../../types";
-import { generateTotp, normalizeTotpSecret, parseOtpAuthUri } from "../../utils/totp";
+import { normalizeTotpSecret, parseOtpAuthUri } from "../../utils/totp";
+import { AccountTotpPreview } from "../accounts/AccountTotpPreview";
 import { decodeQrImage, qrImportErrorMessage } from "../totp/qr";
 import { TotpCameraScanner } from "../totp/TotpCameraScanner";
 
-const ACCOUNT_TOTP_PERIOD = 30;
 const COPY_FEEDBACK_DURATION_MS = 1_600;
 
 function initialPreviewSecret(secret: string) {
@@ -44,67 +44,6 @@ function CopyableAccountField({ children, label, value, t }: {
       {copied ? <Check size={15} /> : <Copy size={15} />}
     </button>
   </div>;
-}
-
-function AccountTotpPreview({ accountName, secret, t }: {
-  accountName: string;
-  secret: string;
-  t: Translate;
-}) {
-  const [now, setNow] = useState(Date.now());
-  const [code, setCode] = useState("");
-  const [copied, setCopied] = useState(false);
-  const remaining = ACCOUNT_TOTP_PERIOD - (Math.floor(now / 1000) % ACCOUNT_TOTP_PERIOD);
-
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 1_000);
-    return () => window.clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-    void generateTotp({
-      id: "account-preview",
-      issuer: "ChatGPT",
-      accountName,
-      secret,
-      algorithm: "SHA1",
-      digits: 6,
-      period: ACCOUNT_TOTP_PERIOD,
-      createdAt: "1970-01-01T00:00:00.000Z",
-      updatedAt: "1970-01-01T00:00:00.000Z",
-    }, now).then((value) => {
-      if (active) setCode(value);
-    }).catch(() => {
-      if (active) setCode("");
-    });
-    return () => { active = false; };
-  }, [accountName, now, secret]);
-
-  const copyCode = async () => {
-    if (!code) return;
-    try {
-      await navigator.clipboard.writeText(code);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), COPY_FEEDBACK_DURATION_MS);
-    } catch {
-      setCopied(false);
-    }
-  };
-
-  return <button type="button" className="account-totp-preview" disabled={!code}
-    onClick={() => void copyCode()} aria-label={t("totp.copy")} title={t("totp.copy")}>
-    <span>
-      <small>{t("note.totpPreview")}</small>
-      <strong>{code ? `${code.slice(0, 3)} ${code.slice(3)}` : "••• •••"}</strong>
-    </span>
-    <span className="account-totp-copy">
-      {copied ? <Check size={13} /> : <Copy size={13} />}
-      {t(copied ? "totp.copied" : "totp.copy")}
-    </span>
-    <Progress type="circle" size={38} percent={(remaining / ACCOUNT_TOTP_PERIOD) * 100}
-      strokeWidth={8} format={() => remaining} />
-  </button>;
 }
 
 export function AccountNoteModal({
