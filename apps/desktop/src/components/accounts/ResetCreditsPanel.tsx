@@ -4,12 +4,16 @@ import type { Language, Translate } from "../../i18n";
 import type { ResetCreditsLoadState } from "../../types";
 import { formatSystemTime } from "../../utils/format";
 
-export function ResetCreditsPanel({ state, onRetry, language, t }: {
+export function ResetCreditsPanel({ state, onRetry, language, t, missingState = "loading" }: {
   state?: ResetCreditsLoadState;
   onRetry: () => void;
   language: Language;
   t: Translate;
+  missingState?: "loading" | "unknown";
 }) {
+  if (!state && missingState === "unknown") {
+    return <div className="reset-credits-status">{t("table.resetCreditsUnknown")}</div>;
+  }
   if (!state || state.status === "loading") {
     return <div className="reset-credits-status"><RefreshCw className="spin" size={16} />{t("reset.loading")}</div>;
   }
