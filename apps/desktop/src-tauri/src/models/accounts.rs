@@ -204,7 +204,11 @@ impl<'de> Deserialize<'de> for SystemPromptRule {
                 text,
                 enabled: true,
             }),
-            Input::Structured { name, text, enabled } => Ok(Self {
+            Input::Structured {
+                name,
+                text,
+                enabled,
+            } => Ok(Self {
                 name: name.unwrap_or_default(),
                 text,
                 enabled,

@@ -80,6 +80,8 @@ import type {
   ProviderTokenUsageTotals,
   ReasoningEffort,
   OfficialPluginItem,
+  PromptPluginItem,
+  PromptPluginPublishInput,
   ResetCreditsSummary,
   SavedCloudLogin,
   SkillMarketItem,
@@ -2239,7 +2241,8 @@ export async function fetchSkillMarket(): Promise<SkillMarketItem[]> {
 }
 
 function selectedPackage(path: string, kind: SkillPackageSelection["kind"]): SkillPackageSelection {
-  const name = path.split(/[\\/]/).filter(Boolean).at(-1) ?? (kind === "folder" ? "skill-folder" : "skill.zip");
+  const parts = path.split(/[\\/]/).filter(Boolean);
+  const name = parts[parts.length - 1] ?? (kind === "folder" ? "skill-folder" : "skill.zip");
   return { path, kind, name };
 }
 
@@ -2309,6 +2312,57 @@ export async function setMarketSkillEnabled(skillId: string, enabled: boolean): 
 export async function fetchOfficialPlugins(): Promise<OfficialPluginItem[]> {
   if (!hasLocalBackend) return [];
   return invoke<OfficialPluginItem[]>("list_official_plugins");
+}
+
+const PROMPT_PLUGIN_PREVIEW_KEY = "codex-switch:prompt-plugin-installed";
+
+function previewPromptPlugins(): Record<string, { version: string; enabled: boolean }> {
+  try {
+    const value = JSON.parse(window.localStorage.getItem(PROMPT_PLUGIN_PREVIEW_KEY) ?? "{}") as Record<string, { version: string; enabled?: boolean }>;
+    return Object.fromEntries(Object.entries(value).filter(([, item]) => item && typeof item.version === "string")
+      .map(([id, item]) => [id, { version: item.version, enabled: item.enabled !== false }]));
+  } catch { return {}; }
+}
+
+export async function fetchPromptPlugins(): Promise<PromptPluginItem[]> {
+  if (hasLocalBackend) return invoke<PromptPluginItem[]>("list_prompt_plugins");
+  const { baseUrl } = previewCloudState();
+  if (!baseUrl) return [];
+  const response = await fetch(`${baseUrl.replace(/\/+$/, "")}/prompt-plugins`, { headers: { Accept: "application/json" }, cache: "no-store" });
+  if (!response.ok) throw new Error(`Prompt plugin market request failed with HTTP ${response.status}`);
+  const payload = await response.json() as { items: PromptPluginItem[] };
+  const installed = previewPromptPlugins();
+  return payload.items.map((item) => ({ ...item, installedVersion: installed[item.id]?.version ?? null, installed: installed[item.id]?.version === item.version, enabled: installed[item.id]?.enabled ?? false }));
+}
+
+export async function publishPromptPlugin(input: PromptPluginPublishInput): Promise<PromptPluginItem> {
+  if (hasLocalBackend) return invoke<PromptPluginItem>("publish_prompt_plugin", { name: input.name, version: input.version, type: input.type, text: input.text });
+  const { baseUrl, authenticated } = previewCloudState();
+  if (!baseUrl || !authenticated) throw new Error("Please sign in before publishing a prompt plugin");
+  const response = await fetch(`${baseUrl.replace(/\/+$/, "")}/prompt-plugins`, { method: input.pluginId ? "PATCH" : "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ name: input.name, version: input.version, type: input.type, text: input.text }) });
+  if (!response.ok) throw new Error(`Prompt plugin publish failed with HTTP ${response.status}`);
+  return response.json() as Promise<PromptPluginItem>;
+}
+
+export async function installPromptPlugin(pluginId: string): Promise<void> {
+  if (hasLocalBackend) return invoke("install_prompt_plugin", { pluginId });
+  const installed = previewPromptPlugins();
+  installed[pluginId] = { version: "latest", enabled: true };
+  window.localStorage.setItem(PROMPT_PLUGIN_PREVIEW_KEY, JSON.stringify(installed));
+}
+
+export async function removePromptPlugin(pluginId: string): Promise<void> {
+  if (hasLocalBackend) return invoke("remove_prompt_plugin", { pluginId });
+  const installed = previewPromptPlugins(); delete installed[pluginId];
+  window.localStorage.setItem(PROMPT_PLUGIN_PREVIEW_KEY, JSON.stringify(installed));
+}
+
+export async function setPromptPluginEnabled(pluginId: string, enabled: boolean): Promise<void> {
+  if (hasLocalBackend) return invoke("set_prompt_plugin_enabled", { pluginId, enabled });
+  const installed = previewPromptPlugins();
+  if (!installed[pluginId]) throw new Error("Install this prompt plugin before changing its status");
+  installed[pluginId].enabled = enabled;
+  window.localStorage.setItem(PROMPT_PLUGIN_PREVIEW_KEY, JSON.stringify(installed));
 }
 
 export async function installOfficialPlugin(pluginId: string): Promise<void> {

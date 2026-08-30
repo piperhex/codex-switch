@@ -200,6 +200,27 @@ fn dispatch_extended_command(app: AppHandle, command: &str, args: Value) -> Resu
             argument(&args, "id")?,
         ))),
         "list_market_skills" => serialize(block_on(crate::skills_market::list_market_skills(app))),
+        "list_prompt_plugins" => serialize(block_on(crate::prompt_plugins::list_prompt_plugins(app))),
+        "publish_prompt_plugin" => serialize(block_on(crate::prompt_plugins::publish_prompt_plugin(
+            app,
+            argument(&args, "name")?,
+            argument(&args, "version")?,
+            argument(&args, "type")?,
+            argument(&args, "text")?,
+        ))),
+        "install_prompt_plugin" => serialize(block_on(crate::prompt_plugins::install_prompt_plugin(
+            app,
+            argument(&args, "pluginId")?,
+        ))),
+        "remove_prompt_plugin" => serialize(block_on(crate::prompt_plugins::remove_prompt_plugin(
+            app,
+            argument(&args, "pluginId")?,
+        ))),
+        "set_prompt_plugin_enabled" => serialize(block_on(crate::prompt_plugins::set_prompt_plugin_enabled(
+            app,
+            argument(&args, "pluginId")?,
+            argument(&args, "enabled")?,
+        ))),
         "install_market_skill" => serialize(block_on(crate::skills_market::install_market_skill(
             app,
             argument(&args, "skill")?,
