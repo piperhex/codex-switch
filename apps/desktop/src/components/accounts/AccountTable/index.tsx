@@ -28,11 +28,9 @@ import {
   MoreHorizontal,
   Pencil,
   RefreshCw,
-  RotateCcw,
   ToggleLeft,
   ToggleRight,
   Trash2,
-  X,
 } from "lucide-react";
 import {
   loadAccountTokenUsage,
@@ -759,14 +757,13 @@ export function AccountTable({
                       okButtonProps={{ danger: true }}
                       styles={{ root: { maxWidth: 400 } }}
                       onConfirm={() => onDeactivate(account.id)}>
-                      <Button danger size="small" loading={waiting} icon={<X size={14} />}>
+                      <Button danger size="small" loading={waiting}>
                         {t("table.deactivate")}
                       </Button>
                     </Popconfirm>
                   ) : (
                     <Button size="small" type="primary" disabled={switchBlocked}
-                      loading={waiting} icon={<RotateCcw size={14} />}
-                      onClick={() => onSwitch(account.id)}>
+                      loading={waiting} onClick={() => onSwitch(account.id)}>
                       {t("table.switch")}
                     </Button>
                   )}
@@ -985,7 +982,6 @@ export function AccountTable({
                   onDeactivate(account.id);
                 }}>
                 <button type="button" className="destructive" disabled={waiting}>
-                  <X size={14} />
                   {t("table.deactivate")}
                 </button>
               </Popconfirm>
@@ -995,7 +991,6 @@ export function AccountTable({
                   setContextMenu(null);
                   onSwitch(account.id);
                 }}>
-                <RotateCcw size={14} />
                 {t("table.switch")}
               </button>
             )}
