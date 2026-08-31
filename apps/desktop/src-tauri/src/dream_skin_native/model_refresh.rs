@@ -109,9 +109,25 @@ const CODEX_MODEL_OBSERVER_PATCH_HELPERS: &str = r#"
 const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
   (() => {
     const stateKey = "__CODEX_SWITCH_SPEED_SELECTOR__";
-    if (window[stateKey]?.installed) return;
     const endpoint = "http://127.0.0.1:__CODEX_SWITCH_PROXY_PORT__/codex-switch/service-tier";
     const token = "CODEX_SWITCH_LOCAL_PROXY";
+    const existing = window[stateKey];
+    if (existing?.installed) {
+      fetch(endpoint, { headers: { Authorization: `Bearer ${token}` } })
+        .then(response => response.ok ? response.json() : null)
+        .then(result => {
+          if (result?.service_tier !== "priority" && result?.service_tier !== "default") return;
+          existing.tier = result.service_tier;
+          const selector = document.querySelector("[data-codex-switch-speed-selector]");
+          for (const button of selector?.querySelectorAll("button") ?? []) {
+            const selected = button.dataset.serviceTier === existing.tier;
+            button.setAttribute("aria-pressed", String(selected));
+            button.style.background = selected ? "var(--background-primary-ghost)" : "transparent";
+            button.style.color = selected ? "var(--text-primary)" : "var(--text-secondary)";
+          }
+        }).catch(() => {});
+      return;
+    }
     const state = { installed: true, tier: "default", observer: null, timer: null };
     window[stateKey] = state;
     const callApi = async (method, body) => {
@@ -232,11 +248,11 @@ fn codex_model_refresh_expression(
   const imageInputModels = new Set({image_input_models});
   const selectedModel = {selected_model};
   const supportedReasoningEffortsByModel = {reasoning_efforts};
+{speed_selector_overlay}
   const root = window.__codexRoot;
   if (!root || !Array.isArray(expectedModels)) {{
     return {{ refreshed: false, reason: "unavailable" }};
   }}
-{speed_selector_overlay}
   const queue = [root._internalRoot?.current ?? root];
   const seen = new Set();
   let queryClient = null;

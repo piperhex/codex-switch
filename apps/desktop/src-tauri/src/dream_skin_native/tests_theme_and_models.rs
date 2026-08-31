@@ -267,6 +267,10 @@
         assert!(expression.contains("/codex-switch/service-tier"));
         assert!(!expression.contains("authMethod = \"chatgpt\""));
         assert!(!expression.contains("featureRequirements.fast_mode"));
+        assert!(
+            expression.find("__CODEX_SWITCH_SPEED_SELECTOR__")
+                < expression.find("const root = window.__codexRoot")
+        );
     }
 
     #[test]

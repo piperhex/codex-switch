@@ -355,6 +355,29 @@
     }
 
     #[test]
+    fn official_responses_body_applies_service_tier_to_existing_request() {
+        let body = serde_json::to_vec(&json!({
+            "model": "gpt-5.6-sol",
+            "reasoning": { "effort": "ultra" },
+            "input": "ping"
+        }))
+        .unwrap();
+
+        let forwarded = official_body_for_upstream_with_tier(
+            &Method::Post,
+            "/v1/responses",
+            body,
+            "gpt-5.5",
+            Some(ProxyServiceTier::Priority),
+        );
+        let forwarded: Value = serde_json::from_slice(&forwarded).unwrap();
+
+        assert_eq!(forwarded["model"], "gpt-5.6-sol");
+        assert_eq!(forwarded["reasoning"]["effort"], "ultra");
+        assert_eq!(forwarded["service_tier"], "priority");
+    }
+
+    #[test]
     fn proxy_service_tier_api_accepts_only_supported_values() {
         assert_eq!(
             parse_proxy_service_tier(&json!({ "service_tier": "default" })),

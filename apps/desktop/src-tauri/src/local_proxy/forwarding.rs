@@ -103,6 +103,16 @@ fn send_official_request(
 }
 
 fn official_body_for_upstream(method: &Method, url: &str, body: Vec<u8>, model: &str) -> Vec<u8> {
+    official_body_for_upstream_with_tier(method, url, body, model, proxy_service_tier_override())
+}
+
+fn official_body_for_upstream_with_tier(
+    method: &Method,
+    url: &str,
+    body: Vec<u8>,
+    model: &str,
+    service_tier: Option<ProxyServiceTier>,
+) -> Vec<u8> {
     if *method != Method::Post || !is_responses_endpoint(request_path(url)) {
         return body;
     }
@@ -123,13 +133,14 @@ fn official_body_for_upstream(method: &Method, url: &str, body: Vec<u8>, model: 
     if requested_model(&value).is_some()
         && !removed_incompatible_reasoning
         && !removed_unsupported_output_limit
+        && service_tier.is_none()
     {
         return body;
     }
     if requested_model(&value).is_none() {
         value["model"] = Value::String(selected_official_model(&value, model));
     }
-    apply_proxy_service_tier(&mut value, proxy_service_tier_override());
+    apply_proxy_service_tier(&mut value, service_tier);
     serde_json::to_vec(&value).unwrap_or(body)
 }
 
