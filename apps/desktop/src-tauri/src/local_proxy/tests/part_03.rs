@@ -189,6 +189,7 @@
             image_input_models_configured: false,
             context_window: None,
             model_selection_controlled_by_codex: false,
+            fast_mode_enabled: false,
             api_format: ProviderApiFormat::OpenaiResponses,
             balance_platform: None,
             balance_query_url: None,
@@ -243,6 +244,7 @@
             image_input_models_configured: false,
             context_window: None,
             model_selection_controlled_by_codex: false,
+            fast_mode_enabled: false,
             api_format: ProviderApiFormat::OpenaiChat,
             balance_platform: None,
             balance_query_url: None,
@@ -320,6 +322,21 @@
 
             assert_eq!(forwarded, body);
         }
+    }
+
+    #[test]
+    fn official_responses_body_preserves_service_tier() {
+        let body = serde_json::to_vec(&json!({
+            "model": "gpt-5.6-sol",
+            "input": "ping",
+            "service_tier": "priority"
+        }))
+        .unwrap();
+
+        let forwarded =
+            official_body_for_upstream(&Method::Post, "/v1/responses", body.clone(), "gpt-5.5");
+
+        assert_eq!(forwarded, body);
     }
 
     #[test]

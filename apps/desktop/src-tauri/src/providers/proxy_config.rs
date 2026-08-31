@@ -128,6 +128,7 @@ struct ModelCatalogOptions<'a> {
     context_windows: &'a ModelContextWindows,
     default_context_window: u64,
     reasoning_profile: ReasoningEffortProfile,
+    fast_mode_enabled: bool,
 }
 
 fn write_provider_group_local_proxy_config(
@@ -154,6 +155,7 @@ struct ProviderGroupCatalogData {
     image_input_models: Vec<String>,
     reasoning_efforts: ModelReasoningEfforts,
     context_windows: ModelContextWindows,
+    fast_mode_enabled: bool,
 }
 
 fn provider_group_catalog_data(providers: &[ProviderProfile]) -> ProviderGroupCatalogData {
@@ -162,6 +164,7 @@ fn provider_group_catalog_data(providers: &[ProviderProfile]) -> ProviderGroupCa
         image_input_models: Vec::new(),
         reasoning_efforts: ModelReasoningEfforts::new(),
         context_windows: ModelContextWindows::new(),
+        fast_mode_enabled: providers.iter().all(|provider| provider.fast_mode_enabled),
     };
     for provider in providers {
         for model in group_visible_models(provider) {

@@ -121,6 +121,7 @@ fn normalize_provider_profile(mut provider: ProviderProfile) -> Result<ProviderP
             provider.model = DEFAULT_OFFICIAL_MODEL.to_string();
         }
         provider.model_selection_controlled_by_codex = true;
+        provider.fast_mode_enabled = true;
         provider.api_format = ProviderApiFormat::OpenaiResponses;
         provider.group.clear();
     }

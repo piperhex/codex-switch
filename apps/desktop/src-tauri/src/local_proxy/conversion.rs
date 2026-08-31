@@ -108,6 +108,7 @@ fn responses_to_chat_completions_with_context(
         "presence_penalty",
         "frequency_penalty",
         "parallel_tool_calls",
+        "service_tier",
     ] {
         if let Some(value) = body.get(key) {
             result[key] = value.clone();

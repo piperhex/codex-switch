@@ -286,6 +286,7 @@ describe('AdminService', () => {
         imageInputModels: provider.imageInputModels,
         contextWindow: provider.contextWindow,
         modelSelectionControlledByCodex: provider.modelSelectionControlledByCodex,
+        fastModeEnabled: provider.fastModeEnabled,
         apiFormat: provider.apiFormat,
         lastModifiedAt: provider.lastModifiedAt,
         fieldModifiedAt: provider.fieldModifiedAt,

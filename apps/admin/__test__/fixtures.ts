@@ -35,6 +35,7 @@ export function makeProvider(overrides: Partial<SyncProviderDto> = {}): SyncProv
     imageInputModels: ['gpt-4.1'],
     contextWindow: 256_000,
     modelSelectionControlledByCodex: false,
+    fastModeEnabled: false,
     apiFormat: 'openaiResponses',
     lastModifiedAt: '2026-07-05T00:00:00.000Z',
     fieldModifiedAt: {
@@ -51,6 +52,7 @@ export function makeProvider(overrides: Partial<SyncProviderDto> = {}): SyncProv
       imageInputModels: '2026-07-05T00:00:00.000Z',
       contextWindow: '2026-07-05T00:00:00.000Z',
       modelSelectionControlledByCodex: '2026-07-05T00:00:00.000Z',
+      fastModeEnabled: '2026-07-05T00:00:00.000Z',
       apiFormat: '2026-07-05T00:00:00.000Z',
       balancePlatform: '2026-07-05T00:00:00.000Z',
       balanceQueryUrl: '2026-07-05T00:00:00.000Z',

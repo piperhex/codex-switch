@@ -51,6 +51,7 @@
             image_input_models_configured: true,
             context_window: None,
             model_selection_controlled_by_codex: true,
+            fast_mode_enabled: true,
             api_format: ProviderApiFormat::OpenaiResponses,
             balance_platform: None,
             balance_query_url: None,

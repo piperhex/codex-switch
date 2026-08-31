@@ -353,6 +353,7 @@ export interface SyncProvider {
   imageInputModels: string[];
   contextWindow?: number | null;
   modelSelectionControlledByCodex: boolean;
+  fastModeEnabled: boolean;
   apiFormat: "openaiResponses" | "openaiChat";
   lastModifiedAt?: string;
   hasApiKey: boolean;

@@ -56,6 +56,22 @@
     }
 
     #[test]
+    fn provider_group_exposes_fast_only_when_every_api_supports_it() {
+        let mut first = provider();
+        first.fast_mode_enabled = true;
+        let mut second = provider();
+        second.id = "p2".to_string();
+        second.name = "Gateway Two".to_string();
+
+        let mixed = model_catalog_for_provider_group(&[first.clone(), second.clone()]);
+        assert_eq!(mixed["models"][0]["service_tiers"], json!([]));
+
+        second.fast_mode_enabled = true;
+        let fast = model_catalog_for_provider_group(&[first, second]);
+        assert_eq!(fast["models"][0]["service_tiers"][0]["id"], "priority");
+    }
+
+    #[test]
     fn parses_new_api_remaining_quota_as_usd() {
         let balance = parse_provider_api_balance(
             ProviderBalancePlatform::NewApi,

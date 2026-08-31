@@ -75,6 +75,19 @@
     }
 
     #[test]
+    fn responses_chat_bridge_preserves_service_tier() {
+        let body = json!({
+            "model": "gpt-5.6-sol",
+            "input": "ping",
+            "service_tier": "priority"
+        });
+
+        let chat = responses_to_chat_completions(&body);
+
+        assert_eq!(chat["service_tier"], "priority");
+    }
+
+    #[test]
     fn buffered_kimi_tool_call_restores_reasoning_content() {
         let session = uuid::Uuid::new_v4().to_string();
         let scope = chat_bridge_continuation::ContinuationScope::new("kimi", &session);
@@ -367,6 +380,7 @@
             image_input_models_configured: false,
             context_window: None,
             model_selection_controlled_by_codex: true,
+            fast_mode_enabled: false,
             api_format: ProviderApiFormat::OpenaiChat,
             balance_platform: None,
             balance_query_url: None,
