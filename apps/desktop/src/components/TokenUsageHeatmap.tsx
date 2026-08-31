@@ -10,7 +10,7 @@ import {
 import type { Language, Translate } from "../i18n";
 import type { DailyTokenUsage, Provider, ProxySessionLatencySummary } from "../types";
 import { formatCompactTokenCount } from "../utils/tokenContext";
-import { estimateTokenCost, formatEstimatedCost } from "../utils/tokenCost";
+import { estimateTokenCost, formatEstimatedCost, formatEstimatedCostValue } from "../utils/tokenCost";
 import { useTokenCostDisplaySettings } from "./TokenCostUnitSettings";
 import {
   DailyTokenUsageTooltip,
@@ -107,6 +107,7 @@ export function TokenUsageHeatmap({
 }) {
   const [entries, setEntries] = useState<DailyTokenUsage[]>([]);
   const [todayEstimatedCost, setTodayEstimatedCost] = useState(0);
+  const [estimatedCostByDate, setEstimatedCostByDate] = useState<Map<string, number>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [calendarVersion, setCalendarVersion] = useState(0);
@@ -130,9 +131,13 @@ export function TokenUsageHeatmap({
         ]);
         if (!active) return;
         setEntries(nextEntries);
-        setTodayEstimatedCost(usageEntries
-          .filter((entry) => entry.ts >= todayStartTimestamp())
-          .reduce((totalCost, entry) => totalCost + estimateTokenCost(entry, providers), 0));
+        const costsByDate = new Map<string, number>();
+        usageEntries.forEach((entry) => {
+          const key = dateKey(new Date(entry.ts * 1_000));
+          costsByDate.set(key, (costsByDate.get(key) ?? 0) + estimateTokenCost(entry, providers));
+        });
+        setEstimatedCostByDate(costsByDate);
+        setTodayEstimatedCost(costsByDate.get(dateKey(new Date())) ?? 0);
         setError(null);
         setCalendarVersion((version) => version + 1);
       } catch (nextError) {
@@ -270,6 +275,10 @@ export function TokenUsageHeatmap({
                               <span><b>{t("tokenUsage.output")}</b>{formatTokenCount(usage?.outputTokens ?? 0, numberFormat)}</span>
                               <span><b>{t("tokenUsage.reasoning")}</b>{formatTokenCount(usage?.reasoningTokens ?? 0, numberFormat)}</span>
                               <span><b>{t("tokenUsage.cached")}</b>{formatTokenCount(usage?.cachedTokens ?? 0, numberFormat)}</span>
+                              <span><b>{t("table.cost")}</b>{formatEstimatedCostValue(
+                                estimatedCostByDate.get(key) ?? 0,
+                                tokenCostDisplay,
+                              )}</span>
                             </div>
                           </div>
                         )}

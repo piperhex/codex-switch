@@ -181,9 +181,13 @@ export function saveTokenCostDisplaySettings(settings: TokenCostDisplaySettings)
   window.dispatchEvent(new CustomEvent(TOKEN_COST_DISPLAY_EVENT));
 }
 
-export function formatEstimatedCost(value: number, settings = DEFAULT_TOKEN_COST_DISPLAY_SETTINGS) {
+export function formatEstimatedCostValue(value: number, settings = DEFAULT_TOKEN_COST_DISPLAY_SETTINGS) {
   const converted = Number.isFinite(value) ? value * settings.usdMultiplier : 0;
-  return `${converted < 0.01 && converted > 0 ? converted.toFixed(4) : converted.toFixed(2)} ${settings.unit}`;
+  return converted < 0.01 && converted > 0 ? converted.toFixed(4) : converted.toFixed(2);
+}
+
+export function formatEstimatedCost(value: number, settings = DEFAULT_TOKEN_COST_DISPLAY_SETTINGS) {
+  return `${formatEstimatedCostValue(value, settings)} ${settings.unit}`;
 }
 
 export function refreshTokenCostCurrencyRate(

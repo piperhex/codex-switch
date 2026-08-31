@@ -1086,6 +1086,7 @@ const translations = {
     "table.averageConversationLatencyTooltip": "First response time divided by requests that have begun responding across up to 5 of the most recently active proxy conversations ({requests} requests).",
     "table.todayTokenUsageLabel": "Today's Token usage",
     "table.todayEstimatedCost": "Today's estimated cost",
+    "table.cost": "Cost",
     "table.modelContextWindow": "gpt-5.6-sol context",
     "table.modelContextWindowTooltip":
       "Applies to new proxy conversations. Codex reserves 5%, so 1000K appears as 950K usable.",
@@ -3395,6 +3396,7 @@ const translations = {
     "table.averageConversationLatencyTooltip": "统计最多最近活动的 5 个代理会话内，所有已开始响应请求的首次响应耗时总和 ÷ 请求数（共 {requests} 个请求）。",
     "table.todayTokenUsageLabel": "今日 Token 消耗",
     "table.todayEstimatedCost": "今日预估成本",
+    "table.cost": "成本",
     "table.modelContextWindow": "gpt-5.6-sol 上下文",
     "table.modelContextWindowTooltip": "应用于代理模式下的新对话；Codex 会预留 5%，因此 1000K 的可用上下文显示为 950K。",
     "table.modelContextWindowInvalid": "请输入 1K 到 1050K 之间的整数。",
