@@ -25,6 +25,20 @@ function remainingLabel(account: AccountSummary) {
   return typeof remaining === 'number' ? `主额度剩余 ${Math.round(remaining)}%` : '主额度暂不可用';
 }
 
+function resetLabel(account: AccountSummary, now: number) {
+  const timestamp = account.usage.primary?.resetsAt;
+  if (!timestamp) return '主额度重置时间暂不可用';
+  const resetAt = new Date(timestamp * 1000);
+  if (Number.isNaN(resetAt.getTime())) return '主额度重置时间暂不可用';
+  const milliseconds = resetAt.getTime() - now;
+  if (milliseconds <= 0) return '主额度即将重置';
+  const totalMinutes = Math.floor(milliseconds / 60_000);
+  const days = Math.floor(totalMinutes / (60 * 24));
+  const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
+  const minutes = totalMinutes % 60;
+  return `主额度约 ${days ? `${days} 天 ` : ''}${hours} 小时 ${minutes} 分后重置`;
+}
+
 export function QuotaConsumptionSheet({
   visible,
   accounts,
@@ -37,6 +51,7 @@ export function QuotaConsumptionSheet({
   const accountIdsKey = accountIds.join('\n');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
   const busy = consuming || submitting;
   const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const selectedCount = accountIds.filter((id) => selectedIdSet.has(id)).length;
@@ -46,6 +61,12 @@ export function QuotaConsumptionSheet({
     if (!visible) return;
     setSelectedIds(accountIds);
   }, [accountIdsKey, visible]);
+
+  useEffect(() => {
+    if (!visible) return undefined;
+    const timer = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(timer);
+  }, [visible]);
 
   const toggleAccount = (accountId: string) => {
     if (busy) return;
@@ -124,6 +145,9 @@ export function QuotaConsumptionSheet({
             <Text style={styles.accountMeta} numberOfLines={1}>
               {account.plan || 'ChatGPT'} · {remainingLabel(account)}
             </Text>
+            <Text style={styles.accountReset} numberOfLines={1}>
+              {resetLabel(account, now)}
+            </Text>
           </View>
           <View style={[styles.checkbox, selected && styles.checkboxChecked]}>
             <Text style={styles.checkboxText}>{selected ? '✓' : ''}</Text>
@@ -151,7 +175,7 @@ const styles = StyleSheet.create({
   list: { maxHeight: 430 },
   listContent: { paddingTop: 8, paddingBottom: 4, gap: 8 },
   accountRow: {
-    minHeight: 66,
+    minHeight: 78,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
@@ -166,6 +190,7 @@ const styles = StyleSheet.create({
   accountIdentity: { flex: 1, minWidth: 0 },
   accountEmail: { color: '#13231c', fontSize: 14, fontWeight: '800' },
   accountMeta: { color: '#6f8177', fontSize: 11, marginTop: 5 },
+  accountReset: { color: '#708078', fontSize: 11, marginTop: 3 },
   checkbox: {
     width: 24,
     height: 24,
