@@ -3,8 +3,9 @@ mod tests {
     use std::fs;
 
     use super::{
-        apply_app_settings_version_migration, should_activate_import,
-        should_sync_current_as_active, write_managed_auth_if_unchanged, write_text_if_changed,
+        apply_app_settings_version_migration, change_concurrent_account_routing, read_state,
+        should_activate_import, should_sync_current_as_active, try_read_state, update_state,
+        write_managed_auth_if_unchanged, write_state, write_text_if_changed,
     };
     use crate::models::{AppSettings, ManagerStateFile, DEFAULT_CLOUD_BASE_URL};
     use crate::storage::{managed_auth_path, read_json, write_json_atomic, Paths};
@@ -42,6 +43,41 @@ mod tests {
         assert_eq!(fs::read_to_string(&path).unwrap(), "model = \"second\"\n");
 
         fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn stale_state_write_preserves_the_latest_concurrent_routing_setting() {
+        let paths = test_paths();
+        write_state(&paths, &ManagerStateFile::default()).unwrap();
+        let mut stale = read_state(&paths);
+
+        update_state(&paths, |state| {
+            change_concurrent_account_routing(state, true, "test update");
+            Ok(())
+        })
+        .unwrap();
+        stale.local_proxy_enabled = true;
+        write_state(&paths, &stale).unwrap();
+
+        let saved = try_read_state(&paths).unwrap();
+        assert!(saved.concurrent_account_routing_enabled);
+        assert!(saved.local_proxy_enabled);
+        fs::remove_dir_all(paths.codex_home.parent().unwrap()).unwrap();
+    }
+
+    #[test]
+    fn invalid_state_cannot_be_replaced_with_default_values() {
+        let paths = test_paths();
+        let mut initial = ManagerStateFile::default();
+        change_concurrent_account_routing(&mut initial, true, "test setup");
+        write_state(&paths, &initial).unwrap();
+        fs::write(&paths.state_file, b"{invalid").unwrap();
+
+        assert!(try_read_state(&paths).is_err());
+        assert!(read_state(&paths).concurrent_account_routing_enabled);
+        assert!(write_state(&paths, &ManagerStateFile::default()).is_err());
+        assert_eq!(fs::read(&paths.state_file).unwrap(), b"{invalid");
+        fs::remove_dir_all(paths.codex_home.parent().unwrap()).unwrap();
     }
 
     #[test]

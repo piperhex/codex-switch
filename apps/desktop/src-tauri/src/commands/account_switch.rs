@@ -15,11 +15,33 @@ pub(crate) fn switch_account_blocking<R: Runtime>(
     app: tauri::AppHandle<R>,
     id: String,
 ) -> Result<(), String> {
+    switch_account_blocking_with_reason(app, id, AccountSwitchReason::Manual)
+}
+
+pub(crate) fn switch_account_automatically_blocking<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    id: String,
+) -> Result<(), String> {
+    switch_account_blocking_with_reason(app, id, AccountSwitchReason::Automatic)
+}
+
+fn switch_account_blocking_with_reason<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    id: String,
+    reason: AccountSwitchReason,
+) -> Result<(), String> {
     let _switch_guard = account_switch_lock()
         .lock()
         .map_err(|_| "Account switch lock is poisoned".to_string())?;
     refresh_local_codex_path(&app);
-    switch_account_unlocked(&app, &id)
+    switch_account_unlocked_with_options(
+        &app,
+        &id,
+        AccountSwitchOptions {
+            preserve_previous: true,
+            reason,
+        },
+    )
 }
 
 /// Switch an official account without ever exposing a running ChatGPT/Codex
@@ -109,7 +131,7 @@ fn deactivate_account_unlocked<R: Runtime>(
     proxy_running: bool,
 ) -> Result<Option<String>, String> {
     let paths = resolve_paths(app)?;
-    let mut original_state = read_state(&paths);
+    let mut original_state = try_read_state(&paths)?;
     let previous_account_id = original_state.active_account_id.clone();
     crate::conversation_hub::mark_threads_before_account_switch(
         &paths,
@@ -122,7 +144,7 @@ fn deactivate_account_unlocked<R: Runtime>(
     crate::providers::preserve_refreshed_auth(&paths, &account_id);
     let mut state = original_state.clone();
     state.active_account_id = None;
-    state.concurrent_account_routing_enabled = false;
+    change_concurrent_account_routing(&mut state, false, "account deactivation");
     write_state(&paths, &state)?;
 
     let write_codex = crate::claude_code::should_write_codex_for_app(app)?;
@@ -138,7 +160,7 @@ fn deactivate_account_unlocked<R: Runtime>(
         }
     };
     if let Err(error) = auth_result {
-        let _ = write_state(&paths, &original_state);
+        restore_account_switch_state(&paths, original_state, "account deactivation rollback");
         return Err(error);
     }
 
@@ -209,12 +231,16 @@ pub(crate) fn reapply_active_account_after_login<R: Runtime>(
         .map_err(|_| "Account switch lock is poisoned".to_string())?;
     refresh_local_codex_path(&app);
     let paths = resolve_paths(&app)?;
-    if read_state(&paths).active_account_id.as_deref() != Some(&id) {
+    if try_read_state(&paths)?.active_account_id.as_deref() != Some(&id) {
         return Ok(false);
     }
     let write_codex = crate::claude_code::should_write_codex_for_app(&app)?;
     if !write_codex || crate::local_proxy::is_running() {
-        switch_account_unlocked_with_options(&app, &id, false)?;
+        switch_account_unlocked_with_options(
+            &app,
+            &id,
+            AccountSwitchOptions::credential_refresh(),
+        )?;
         return Ok(true);
     }
     let client_was_running = chatgpt_or_codex_is_running()?;
@@ -225,7 +251,11 @@ pub(crate) fn reapply_active_account_after_login<R: Runtime>(
         stop_chatgpt_processes()?;
         wait_for_chatgpt_processes_to_exit(Duration::from_secs(10))?;
     }
-    switch_account_unlocked_with_options(&app, &id, false)?;
+    switch_account_unlocked_with_options(
+        &app,
+        &id,
+        AccountSwitchOptions::credential_refresh(),
+    )?;
     if !client_was_running || crate::codex_runtime::restart_managed_session()? {
         return Ok(true);
     }
@@ -234,26 +264,26 @@ pub(crate) fn reapply_active_account_after_login<R: Runtime>(
 }
 
 fn switch_account_unlocked<R: Runtime>(app: &tauri::AppHandle<R>, id: &str) -> Result<(), String> {
-    switch_account_unlocked_with_options(app, id, true)
+    switch_account_unlocked_with_options(app, id, AccountSwitchOptions::manual())
 }
 
 fn switch_account_unlocked_with_options<R: Runtime>(
     app: &tauri::AppHandle<R>,
     id: &str,
-    preserve_previous: bool,
+    options: AccountSwitchOptions,
 ) -> Result<(), String> {
     let proxy_running = crate::local_proxy::is_running();
     let paths = resolve_paths(app)?;
     let selected = load_validated_managed_auth(&paths, id)?;
     ensure_account_switch_allowed(&selected, proxy_running)?;
-    let mut original_state = read_state(&paths);
+    let mut original_state = try_read_state(&paths)?;
     let previous_account_id = original_state.active_account_id.clone();
     crate::conversation_hub::mark_threads_before_account_switch(
         &paths,
         &mut original_state,
         previous_account_id.as_deref(),
     )?;
-    if preserve_previous {
+    if options.preserve_previous {
         if let Some(previous_account_id) = original_state.active_account_id.as_deref() {
             crate::providers::preserve_refreshed_auth(&paths, previous_account_id);
         }
@@ -266,70 +296,9 @@ fn switch_account_unlocked_with_options<R: Runtime>(
             paths,
             selected,
             original_state,
+            reason: options.reason,
         },
     )
-}
-
-struct AccountSwitchContext {
-    proxy_running: bool,
-    paths: Paths,
-    selected: Value,
-    original_state: ManagerStateFile,
-}
-
-fn apply_account_switch<R: Runtime>(
-    app: &tauri::AppHandle<R>,
-    id: &str,
-    context: AccountSwitchContext,
-) -> Result<(), String> {
-    let AccountSwitchContext {
-        proxy_running,
-        paths,
-        selected,
-        original_state,
-    } = context;
-    let mut state = original_state.clone();
-    state.active_provider_id = None;
-    state.active_provider_group = None;
-    state.active_account_id = Some(id.to_string());
-    state.concurrent_account_routing_enabled = false;
-
-    let write_codex = crate::claude_code::should_write_codex_for_app(app)?;
-    if !write_codex {
-        write_state(&paths, &state)?;
-    } else if proxy_running {
-        // Publish the official route before changing config.toml. Codex watches that
-        // file and may reconnect immediately; writing the config first would let the
-        // reconnect race through the previously selected third-party Provider.
-        write_state(&paths, &state)?;
-        if let Err(error) = crate::providers::write_official_local_proxy_config(&paths) {
-            let _ = write_state(&paths, &original_state);
-            return Err(error);
-        }
-        if let Err(error) = crate::providers::sync_local_proxy_openai_auth(&paths) {
-            let _ = write_state(&paths, &original_state);
-            return Err(error);
-        }
-    } else {
-        // The local proxy reads the selected managed credential.  Avoid modifying the
-        // authentication file watched by the already-running Codex application.
-        write_json_atomic(&paths.current_auth, &selected)?;
-        // Always remove a stale managed Provider block, even if an older or partially
-        // completed switch left active_provider_id out of sync with config.toml.
-        crate::providers::restore_official_config(&paths)?;
-        write_state(&paths, &state)?;
-    }
-    touch_account_field(&paths, id, AccountSyncField::Active)?;
-    app.emit("accounts-changed", ())
-        .map_err(|error| error.to_string())?;
-    app.emit("providers-changed", ())
-        .map_err(|error| error.to_string())?;
-    if proxy_running && write_codex {
-        crate::providers::refresh_official_codex_models();
-    }
-    crate::claude_code::sync_after_switch(app)?;
-    crate::system_tray::refresh_menu(app);
-    Ok(())
 }
 
 fn ensure_account_switch_allowed(auth: &Value, proxy_running: bool) -> Result<(), String> {
@@ -463,7 +432,7 @@ pub(crate) fn set_account_auto_switch_enabled_for_paths(
     let _guard = account_auto_switch_state_lock()
         .lock()
         .map_err(|_| "Account auto-switch state lock is poisoned".to_string())?;
-    let mut state = read_state(paths);
+    let mut state = try_read_state(paths)?;
     let changed = update_disabled_account_ids(&mut state, id, enabled);
     if changed {
         write_state(paths, &state)?;

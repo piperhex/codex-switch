@@ -9,8 +9,8 @@ use tauri::{Emitter, Runtime};
 use crate::{
     models::{AppSettings, ManagerStateFile},
     storage::{
-        read_app_settings, read_state, resolve_paths, sync_current_into_store, write_app_settings,
-        write_state, Paths,
+        change_concurrent_account_routing, read_app_settings, resolve_paths,
+        sync_current_into_store, try_read_state, write_app_settings, write_state, Paths,
     },
 };
 
@@ -118,7 +118,7 @@ fn inactive_state(mut state: ManagerStateFile) -> ManagerStateFile {
     state.active_account_id = None;
     state.active_provider_id = None;
     state.active_provider_group = None;
-    state.concurrent_account_routing_enabled = false;
+    change_concurrent_account_routing(&mut state, false, "Codex Home change");
     state.local_proxy_enabled = false;
     state
 }
@@ -135,13 +135,16 @@ fn prepare_home_change<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<ManagerS
     crate::providers::cleanup_stale_local_proxy_config(app)?;
     let paths = resolve_paths(app)?;
     remove_config_backup(&paths)?;
-    let state = read_state(&paths);
+    let state = try_read_state(&paths)?;
     write_state(&paths, &inactive_state(state.clone()))?;
     Ok(state)
 }
 
 fn restore_state_after_failed_save(paths: &Paths, state: &ManagerStateFile) {
-    if let Err(error) = write_state(paths, state) {
+    let mut state = state.clone();
+    let enabled = state.concurrent_account_routing_enabled;
+    change_concurrent_account_routing(&mut state, enabled, "Codex Home change rollback");
+    if let Err(error) = write_state(paths, &state) {
         eprintln!("failed to restore Codex Home state after settings save error: {error}");
     }
 }

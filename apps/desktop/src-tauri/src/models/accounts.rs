@@ -127,6 +127,11 @@ pub(crate) struct ManagerStateFile {
     pub(crate) auto_switch_on_quota_exhaustion: bool,
     #[serde(default)]
     pub(crate) concurrent_account_routing_enabled: bool,
+    /// Marks an intentional concurrent-routing change for the storage layer.
+    /// Ordinary state writes preserve the latest on-disk value instead of
+    /// allowing a stale snapshot to overwrite this setting.
+    #[serde(skip)]
+    pub(crate) concurrent_routing_change_reason: Option<String>,
     #[serde(default)]
     pub(crate) custom_auto_switch_priority_enabled: bool,
     #[serde(default)]

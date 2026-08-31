@@ -37,7 +37,7 @@ pub(crate) fn switch_provider_group_blocking<R: Runtime>(
     for provider in &providers {
         validate_provider_activation(provider)?;
     }
-    let original_state = read_state(&paths);
+    let original_state = try_read_state(&paths)?;
     let write_codex = crate::claude_code::should_write_codex_for_app(&app)?;
     if write_codex {
         backup_codex_config_if_needed(
@@ -50,7 +50,7 @@ pub(crate) fn switch_provider_group_blocking<R: Runtime>(
     state.active_provider_id = None;
     state.active_provider_group = Some(group.clone());
     state.active_account_id = None;
-    state.concurrent_account_routing_enabled = false;
+    change_concurrent_account_routing(&mut state, false, "Provider group switch");
     write_state(&paths, &state)?;
     let config_result = if write_codex {
         write_provider_group_local_proxy_config(&paths, &group, &providers)
@@ -58,7 +58,11 @@ pub(crate) fn switch_provider_group_blocking<R: Runtime>(
         Ok(())
     };
     if let Err(error) = config_result {
-        if let Err(rollback_error) = write_state(&paths, &original_state) {
+        if let Err(rollback_error) = restore_provider_activation_state(
+            &paths,
+            original_state,
+            "Provider group switch rollback",
+        ) {
             eprintln!("failed to restore Provider group state: {rollback_error}");
         }
         return Err(error);
@@ -97,7 +101,7 @@ fn activate_provider_profile<R: Runtime>(
     provider: &ProviderProfile,
 ) -> Result<(), String> {
     validate_provider_activation(provider)?;
-    let original_state = read_state(paths);
+    let original_state = try_read_state(paths)?;
     let write_codex = crate::claude_code::should_write_codex_for_app(app)?;
     if write_codex {
         backup_codex_config_if_needed(
@@ -110,7 +114,7 @@ fn activate_provider_profile<R: Runtime>(
     state.active_provider_id = Some(provider.id.clone());
     state.active_provider_group = None;
     state.active_account_id = None;
-    state.concurrent_account_routing_enabled = false;
+    change_concurrent_account_routing(&mut state, false, "Provider switch");
     write_state(paths, &state)?;
     let config_result = if write_codex {
         write_provider_local_proxy_config(paths, provider)
@@ -118,7 +122,11 @@ fn activate_provider_profile<R: Runtime>(
         Ok(())
     };
     if let Err(error) = config_result {
-        if let Err(rollback_error) = write_state(paths, &original_state) {
+        if let Err(rollback_error) = restore_provider_activation_state(
+            paths,
+            original_state,
+            "Provider switch rollback",
+        ) {
             eprintln!("failed to restore provider state after activation error: {rollback_error}");
         }
         return Err(error);
@@ -137,7 +145,7 @@ pub(crate) fn activate_logical_provider<R: Runtime>(
 ) -> Result<(), String> {
     ensure_local_proxy_running_for_provider()?;
     ensure_not_local_proxy_base_url(&provider.base_url)?;
-    let original_state = read_state(paths);
+    let original_state = try_read_state(paths)?;
     let write_codex = crate::claude_code::should_write_codex_for_app(app)?;
     if write_codex {
         backup_codex_config_if_needed(
@@ -150,7 +158,7 @@ pub(crate) fn activate_logical_provider<R: Runtime>(
     state.active_provider_id = Some(provider.id.clone());
     state.active_provider_group = None;
     state.active_account_id = None;
-    state.concurrent_account_routing_enabled = false;
+    change_concurrent_account_routing(&mut state, false, "logical Provider switch");
     write_state(paths, &state)?;
     let config_result = if write_codex {
         write_provider_local_proxy_config(paths, provider)
@@ -158,7 +166,11 @@ pub(crate) fn activate_logical_provider<R: Runtime>(
         Ok(())
     };
     if let Err(error) = config_result {
-        if let Err(rollback_error) = write_state(paths, &original_state) {
+        if let Err(rollback_error) = restore_provider_activation_state(
+            paths,
+            original_state,
+            "logical Provider switch rollback",
+        ) {
             eprintln!("failed to restore aggregate API state: {rollback_error}");
         }
         return Err(error);
@@ -168,6 +180,16 @@ pub(crate) fn activate_logical_provider<R: Runtime>(
     }
     crate::claude_code::sync_after_switch(app)?;
     emit_providers_changed(app)
+}
+
+fn restore_provider_activation_state(
+    paths: &Paths,
+    mut state: ManagerStateFile,
+    reason: &str,
+) -> Result<(), String> {
+    let enabled = state.concurrent_account_routing_enabled;
+    change_concurrent_account_routing(&mut state, enabled, reason);
+    write_state(paths, &state)
 }
 
 pub(crate) fn validate_provider_activation(provider: &ProviderProfile) -> Result<(), String> {
@@ -268,7 +290,7 @@ pub(crate) fn set_provider_auto_switch_enabled<R: Runtime>(
         return Err("Automatic fallback is only available for third-party Providers".to_string());
     }
 
-    let mut state = read_state(&paths);
+    let mut state = try_read_state(&paths)?;
     let next_provider_id = if enabled { Some(id.clone()) } else { None };
     if enabled || state.auto_switch_provider_id.as_deref() == Some(&id) {
         state.auto_switch_provider_id = next_provider_id;
@@ -291,7 +313,7 @@ pub(crate) fn disable_provider_blocking<R: Runtime>(
     app: tauri::AppHandle<R>,
 ) -> Result<(), String> {
     let paths = resolve_paths(&app)?;
-    let original_state = read_state(&paths);
+    let original_state = try_read_state(&paths)?;
     let mut state = original_state.clone();
     state.active_provider_id = None;
     state.active_provider_group = None;
@@ -328,7 +350,7 @@ pub(crate) fn delete_provider<R: Runtime>(
 ) -> Result<(), String> {
     let paths = resolve_paths(&app)?;
     validate_provider_id(&id)?;
-    let original_state = read_state(&paths);
+    let original_state = try_read_state(&paths)?;
     if let Ok(provider) = read_provider(&paths, &id) {
         if original_state.active_provider_group.as_deref() == Some(provider.group.as_str()) {
             return Err(
@@ -362,7 +384,7 @@ pub(crate) fn delete_provider<R: Runtime>(
             write_state(&paths, &state)?;
         }
     }
-    let mut image_state = read_state(&paths);
+    let mut image_state = try_read_state(&paths)?;
     let cleared_image_input = target_uses_provider(image_state.image_input_target.as_ref(), &id);
     let cleared_image_output = target_uses_provider(image_state.image_output_target.as_ref(), &id);
     if cleared_image_input {

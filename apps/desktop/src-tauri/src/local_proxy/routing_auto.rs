@@ -90,8 +90,8 @@ fn try_auto_switch_official_account<R: Runtime>(
     failed_account_id: &str,
 ) -> Result<AutoSwitchAttempt, String> {
     let paths = resolve_paths(app)?;
-    let state = read_state(&paths);
-    if !state.auto_switch_on_quota_exhaustion || state.active_provider_id.is_some() {
+    let state = try_read_state(&paths)?;
+    if automatic_switch_is_blocked(&state) {
         return Ok(AutoSwitchAttempt::Unchanged);
     }
     let Some(current_id) = state.active_account_id else {
@@ -137,8 +137,8 @@ fn try_auto_switch_official_account<R: Runtime>(
     }
 
     // Do not overwrite a manual account or Provider switch made while usage was refreshing.
-    let state = read_state(&paths);
-    if !state.auto_switch_on_quota_exhaustion || state.active_provider_id.is_some() {
+    let state = try_read_state(&paths)?;
+    if automatic_switch_is_blocked(&state) {
         return Ok(AutoSwitchAttempt::Unchanged);
     }
     if state.active_account_id.as_deref() != Some(&current_id) {
@@ -157,8 +157,10 @@ fn try_auto_switch_official_account<R: Runtime>(
         state.global_auto_switch_threshold,
     ) {
         let target_id = target.id.clone();
-        if let Err(error) = crate::commands::switch_account_blocking(app.clone(), target_id.clone())
-        {
+        if let Err(error) = crate::commands::switch_account_automatically_blocking(
+            app.clone(),
+            target_id.clone(),
+        ) {
             // switch_account writes the selected account before emitting UI events. If a
             // post-switch side effect failed, the new account is still active and concurrent
             // quota responses must be released to retry against it.
@@ -204,6 +206,13 @@ fn try_auto_switch_official_account<R: Runtime>(
         return Err(error);
     }
     Ok(AutoSwitchAttempt::Switched)
+}
+
+fn automatic_switch_is_blocked(state: &ManagerStateFile) -> bool {
+    !state.auto_switch_on_quota_exhaustion
+        || state.concurrent_account_routing_enabled
+        || state.active_provider_id.is_some()
+        || state.active_provider_group.is_some()
 }
 
 fn all_backup_accounts_have_exhausted_primary_quota(
@@ -312,6 +321,7 @@ fn account_to_disable_after_429_timeout<'a>(
 ) -> Option<&'a str> {
     if response.status != 429
         || !state.auto_switch_on_quota_exhaustion
+        || state.concurrent_account_routing_enabled
         || !state.auto_disable_unreachable_accounts
         || !settings.auto_disable_status_codes.contains(&429)
     {
@@ -330,6 +340,7 @@ pub(crate) fn maybe_switch_official_account_below_threshold<R: Runtime>(
     let paths = resolve_paths(app)?;
     let state = read_state(&paths);
     if !state.auto_switch_on_quota_exhaustion
+        || state.concurrent_account_routing_enabled
         || !state.custom_auto_switch_threshold_enabled
         || state.active_provider_id.is_some()
         || state.active_provider_group.is_some()

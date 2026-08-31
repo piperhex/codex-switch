@@ -1,0 +1,141 @@
+#[derive(Clone, Copy)]
+enum AccountSwitchReason {
+    Manual,
+    Automatic,
+    CredentialRefresh,
+}
+
+impl AccountSwitchReason {
+    fn disables_concurrent_routing(self) -> bool {
+        matches!(self, Self::Manual)
+    }
+}
+
+#[derive(Clone, Copy)]
+struct AccountSwitchOptions {
+    preserve_previous: bool,
+    reason: AccountSwitchReason,
+}
+
+impl AccountSwitchOptions {
+    fn manual() -> Self {
+        Self {
+            preserve_previous: true,
+            reason: AccountSwitchReason::Manual,
+        }
+    }
+
+    fn credential_refresh() -> Self {
+        Self {
+            preserve_previous: false,
+            reason: AccountSwitchReason::CredentialRefresh,
+        }
+    }
+}
+
+struct AccountSwitchContext {
+    proxy_running: bool,
+    paths: Paths,
+    selected: Value,
+    original_state: ManagerStateFile,
+    reason: AccountSwitchReason,
+}
+
+fn apply_account_switch<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    id: &str,
+    context: AccountSwitchContext,
+) -> Result<(), String> {
+    let AccountSwitchContext {
+        proxy_running,
+        paths,
+        selected,
+        original_state,
+        reason,
+    } = context;
+    let state = official_account_state(&original_state, id, reason);
+    let write_codex = crate::claude_code::should_write_codex_for_app(app)?;
+    if !write_codex {
+        write_state(&paths, &state)?;
+    } else if proxy_running {
+        write_proxy_account_state(&paths, &state, &original_state)?;
+    } else {
+        write_json_atomic(&paths.current_auth, &selected)?;
+        crate::providers::restore_official_config(&paths)?;
+        write_state(&paths, &state)?;
+    }
+    finish_account_switch(
+        app,
+        &paths,
+        id,
+        AccountSwitchCompletion {
+            proxy_running,
+            write_codex,
+        },
+    )
+}
+
+fn official_account_state(
+    original: &ManagerStateFile,
+    id: &str,
+    reason: AccountSwitchReason,
+) -> ManagerStateFile {
+    let mut state = original.clone();
+    state.active_provider_id = None;
+    state.active_provider_group = None;
+    state.active_account_id = Some(id.to_string());
+    if reason.disables_concurrent_routing() {
+        change_concurrent_account_routing(&mut state, false, "manual account switch");
+    }
+    state
+}
+
+fn write_proxy_account_state(
+    paths: &Paths,
+    state: &ManagerStateFile,
+    original: &ManagerStateFile,
+) -> Result<(), String> {
+    // Publish the official route before config.toml so reconnects cannot use the old Provider.
+    write_state(paths, state)?;
+    if let Err(error) = crate::providers::write_official_local_proxy_config(paths) {
+        restore_account_switch_state(paths, original.clone(), "account switch rollback");
+        return Err(error);
+    }
+    if let Err(error) = crate::providers::sync_local_proxy_openai_auth(paths) {
+        restore_account_switch_state(paths, original.clone(), "account switch rollback");
+        return Err(error);
+    }
+    Ok(())
+}
+
+fn finish_account_switch<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    paths: &Paths,
+    id: &str,
+    completion: AccountSwitchCompletion,
+) -> Result<(), String> {
+    touch_account_field(paths, id, AccountSyncField::Active)?;
+    app.emit("accounts-changed", ())
+        .map_err(|error| error.to_string())?;
+    app.emit("providers-changed", ())
+        .map_err(|error| error.to_string())?;
+    if completion.proxy_running && completion.write_codex {
+        crate::providers::refresh_official_codex_models();
+    }
+    crate::claude_code::sync_after_switch(app)?;
+    crate::system_tray::refresh_menu(app);
+    Ok(())
+}
+
+struct AccountSwitchCompletion {
+    proxy_running: bool,
+    write_codex: bool,
+}
+
+fn restore_account_switch_state(paths: &Paths, mut state: ManagerStateFile, reason: &str) {
+    let enabled = state.concurrent_account_routing_enabled;
+    change_concurrent_account_routing(&mut state, enabled, reason);
+    if let Err(error) = write_state(paths, &state) {
+        eprintln!("failed to restore account switch state: {error}");
+    }
+}

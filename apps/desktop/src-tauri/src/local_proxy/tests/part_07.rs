@@ -282,3 +282,24 @@
             None
         );
     }
+    #[test]
+    fn concurrent_routing_blocks_global_automatic_switches() {
+        let state = ManagerStateFile {
+            auto_switch_on_quota_exhaustion: true,
+            concurrent_account_routing_enabled: true,
+            ..ManagerStateFile::default()
+        };
+
+        assert!(automatic_switch_is_blocked(&state));
+    }
+
+    #[test]
+    fn automatic_switches_remain_available_outside_concurrent_routing() {
+        let state = ManagerStateFile {
+            auto_switch_on_quota_exhaustion: true,
+            active_account_id: Some("official-account".to_string()),
+            ..ManagerStateFile::default()
+        };
+
+        assert!(!automatic_switch_is_blocked(&state));
+    }

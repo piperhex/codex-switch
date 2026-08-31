@@ -70,7 +70,7 @@ pub(crate) fn activate_provider_for_sync(paths: &Paths, id: &str) -> Result<bool
         return Ok(false);
     }
 
-    let original_state = read_state(paths);
+    let original_state = try_read_state(paths)?;
     backup_codex_config_if_needed(
         paths,
         original_state.active_provider_id.is_none()
@@ -80,10 +80,16 @@ pub(crate) fn activate_provider_for_sync(paths: &Paths, id: &str) -> Result<bool
     state.active_provider_id = Some(provider.id.clone());
     state.active_provider_group = None;
     state.active_account_id = None;
-    state.concurrent_account_routing_enabled = false;
+    change_concurrent_account_routing(&mut state, false, "synced Provider activation");
     write_state(paths, &state)?;
     if let Err(error) = write_provider_local_proxy_config(paths, &provider) {
-        let _ = write_state(paths, &original_state);
+        if let Err(rollback_error) = restore_provider_activation_state(
+            paths,
+            original_state,
+            "synced Provider activation rollback",
+        ) {
+            eprintln!("failed to restore synced Provider state: {rollback_error}");
+        }
         return Err(error);
     }
     refresh_codex_models_best_effort(paths, &provider);
@@ -101,7 +107,7 @@ pub(crate) fn cleanup_stale_local_proxy_config<R: Runtime>(
 }
 
 fn cleanup_non_proxy_provider_state(paths: &Paths) -> Result<(), String> {
-    let mut state = read_state(paths);
+    let mut state = try_read_state(paths)?;
     let has_managed_proxy_config = if paths.current_config.exists() {
         let current = fs::read_to_string(&paths.current_config)
             .map_err(|error| format!("Failed to read Codex config: {error}"))?;

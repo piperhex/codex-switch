@@ -1,13 +1,102 @@
+fn read_state_unlocked(paths: &Paths) -> Result<ManagerStateFile, String> {
+    let bytes = match fs::read(&paths.state_file) {
+        Ok(bytes) => bytes,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {
+            return Ok(ManagerStateFile::default());
+        }
+        Err(error) => return Err(format!("Failed to read application state: {error}")),
+    };
+    let state = serde_json::from_slice(&bytes)
+        .map_err(|error| format!("Application state is invalid: {error}"))?;
+    cache_state(paths, &state);
+    Ok(state)
+}
+
+fn cache_state(paths: &Paths, state: &ManagerStateFile) {
+    let cache = STATE_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+    if let Ok(mut cache) = cache.lock() {
+        cache.insert(paths.state_file.clone(), state.clone());
+    }
+}
+
+fn cached_state(paths: &Paths) -> Option<ManagerStateFile> {
+    STATE_CACHE
+        .get()
+        .and_then(|cache| cache.lock().ok())
+        .and_then(|cache| cache.get(&paths.state_file).cloned())
+}
+
+pub(crate) fn try_read_state(paths: &Paths) -> Result<ManagerStateFile, String> {
+    let _guard = STATE_FILE_LOCK
+        .lock()
+        .map_err(|_| "Application state lock is poisoned".to_string())?;
+    read_state_unlocked(paths)
+}
+
 pub(crate) fn read_state(paths: &Paths) -> ManagerStateFile {
-    fs::read(&paths.state_file)
-        .ok()
-        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
-        .unwrap_or_default()
+    match try_read_state(paths) {
+        Ok(state) => state,
+        Err(error) => {
+            eprintln!("failed to read application state; using the last valid snapshot: {error}");
+            cached_state(paths).unwrap_or_default()
+        }
+    }
+}
+
+fn write_state_unlocked(paths: &Paths, requested: &ManagerStateFile) -> Result<(), String> {
+    let state_file_exists = paths.state_file.exists();
+    let current = read_state_unlocked(paths)?;
+    let mut state = requested.clone();
+    match state.concurrent_routing_change_reason.take() {
+        Some(reason) if current.concurrent_account_routing_enabled
+            != state.concurrent_account_routing_enabled =>
+        {
+            eprintln!(
+                "concurrent account routing changed: old={}, new={}, reason={reason}",
+                current.concurrent_account_routing_enabled,
+                state.concurrent_account_routing_enabled
+            );
+        }
+        Some(_) => {}
+        None if state_file_exists => {
+            state.concurrent_account_routing_enabled =
+                current.concurrent_account_routing_enabled;
+        }
+        None => {}
+    }
+    let value = serde_json::to_value(&state).map_err(|error| error.to_string())?;
+    write_json_atomic(&paths.state_file, &value)?;
+    cache_state(paths, &state);
+    Ok(())
 }
 
 pub(crate) fn write_state(paths: &Paths, state: &ManagerStateFile) -> Result<(), String> {
-    let value = serde_json::to_value(state).map_err(|error| error.to_string())?;
-    write_json_atomic(&paths.state_file, &value)
+    let _guard = STATE_FILE_LOCK
+        .lock()
+        .map_err(|_| "Application state lock is poisoned".to_string())?;
+    write_state_unlocked(paths, state)
+}
+
+pub(crate) fn update_state<T>(
+    paths: &Paths,
+    update: impl FnOnce(&mut ManagerStateFile) -> Result<T, String>,
+) -> Result<T, String> {
+    let _guard = STATE_FILE_LOCK
+        .lock()
+        .map_err(|_| "Application state lock is poisoned".to_string())?;
+    let mut state = read_state_unlocked(paths)?;
+    let result = update(&mut state)?;
+    write_state_unlocked(paths, &state)?;
+    Ok(result)
+}
+
+pub(crate) fn change_concurrent_account_routing(
+    state: &mut ManagerStateFile,
+    enabled: bool,
+    reason: &str,
+) {
+    state.concurrent_account_routing_enabled = enabled;
+    state.concurrent_routing_change_reason = Some(reason.to_string());
 }
 
 pub(crate) fn app_settings_path<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<PathBuf, String> {

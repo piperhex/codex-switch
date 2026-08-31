@@ -37,14 +37,16 @@ use crate::{
     },
     storage::{
         account_dir, account_private_details_path, auto_switch_priority_path,
-        auto_switch_threshold_path, expiration_path, import_value, load_account_private_details,
-        load_auto_switch_priority, load_auto_switch_threshold, load_expiration, load_note,
-        load_official_account_access, load_usage, managed_auth_path, note_path, read_app_settings,
-        read_json, read_state, resolve_paths, save_account_private_details,
-        save_auto_switch_priority, save_auto_switch_threshold, save_expiration, save_note,
-        save_usage, sync_current_into_store, touch_account_field, usage_path, write_app_settings,
-        write_json_atomic, write_json_if_changed, write_managed_auth_if_changed,
-        write_managed_auth_if_unchanged, write_state, AccountSyncField, Paths,
+        auto_switch_threshold_path, change_concurrent_account_routing, expiration_path,
+        import_value, load_account_private_details, load_auto_switch_priority,
+        load_auto_switch_threshold, load_expiration, load_note, load_official_account_access,
+        load_usage, managed_auth_path, note_path, read_app_settings, read_json, read_state,
+        resolve_paths, save_account_private_details, save_auto_switch_priority,
+        save_auto_switch_threshold, save_expiration, save_note, save_usage,
+        sync_current_into_store, touch_account_field, try_read_state, usage_path,
+        write_app_settings, write_json_atomic, write_json_if_changed,
+        write_managed_auth_if_changed, write_managed_auth_if_unchanged, write_state,
+        AccountSyncField, Paths,
     },
 };
 
@@ -53,6 +55,7 @@ include!("commands/compatible_import.rs");
 include!("commands/compatible_parse.rs");
 include!("commands/compatible_normalize.rs");
 include!("commands/account_switch.rs");
+include!("commands/account_switch_apply.rs");
 include!("commands/account_management.rs");
 include!("commands/conversation_sync.rs");
 include!("commands/usage_api.rs");

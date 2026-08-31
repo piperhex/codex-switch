@@ -9,7 +9,7 @@ pub(crate) fn set_auto_switch_on_quota_exhaustion<R: Runtime>(
         );
     }
     let paths = resolve_paths(&app)?;
-    let mut state = read_state(&paths);
+    let mut state = try_read_state(&paths)?;
     state.auto_switch_on_quota_exhaustion = enabled;
     write_state(&paths, &state)?;
     app.emit("providers-changed", ())
@@ -18,50 +18,51 @@ pub(crate) fn set_auto_switch_on_quota_exhaustion<R: Runtime>(
 }
 
 #[tauri::command]
-pub(crate) fn set_concurrent_account_routing_enabled<R: Runtime>(
+pub(crate) async fn set_concurrent_account_routing_enabled<R: Runtime + 'static>(
     app: tauri::AppHandle<R>,
     enabled: bool,
 ) -> Result<LocalProxyStatus, String> {
+    let status_app = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        set_concurrent_account_routing_enabled_blocking(&app, enabled)
+    })
+    .await
+    .map_err(|error| format!("Concurrent routing update task failed: {error}"))??;
+    Ok(status(&status_app))
+}
+
+fn set_concurrent_account_routing_enabled_blocking<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    enabled: bool,
+) -> Result<(), String> {
     if enabled && !is_running() {
         return Err("Start the local proxy before enabling concurrent account routing".to_string());
     }
-    let paths = resolve_paths(&app)?;
-    let original_state = read_state(&paths);
-    let mut state = original_state.clone();
-    let mut switched_from_provider = false;
-    if enabled {
-        let enabled_account_ids = enabled_concurrent_account_ids(&paths, &state)?;
-        let first_account_id = enabled_account_ids.first().ok_or_else(|| {
-            "Enable at least one official account before enabling concurrent routing".to_string()
-        })?;
-        if state.active_provider_id.take().is_some() || state.active_provider_group.take().is_some()
-        {
-            switched_from_provider = true;
-        }
-        if state
-            .active_account_id
-            .as_ref()
-            .is_none_or(|account_id| !enabled_account_ids.contains(account_id))
-        {
-            state.active_account_id = Some(first_account_id.clone());
-        }
-    }
-    state.concurrent_account_routing_enabled = enabled;
-    write_state(&paths, &state)?;
-    let write_codex = crate::claude_code::should_write_codex_for_app(&app)?;
+    let paths = resolve_paths(app)?;
+    let snapshot = try_read_state(&paths)?;
+    let enabled_account_ids = enabled
+        .then(|| enabled_concurrent_account_ids(&paths, &snapshot))
+        .transpose()?
+        .unwrap_or_default();
+    let (original_state, applied_state, switched_from_provider) = update_state(&paths, |state| {
+        let original_state = state.clone();
+        let switched_from_provider = apply_concurrent_routing_setting(
+            state,
+            enabled,
+            &enabled_account_ids,
+        )?;
+        Ok((original_state, state.clone(), switched_from_provider))
+    })?;
+    let write_codex = crate::claude_code::should_write_codex_for_app(app)?;
     if switched_from_provider && write_codex {
         if let Err(error) = providers::write_official_local_proxy_config(&paths) {
-            if let Err(rollback_error) = write_state(&paths, &original_state) {
-                eprintln!("failed to restore proxy state: {rollback_error}");
-            }
+            rollback_concurrent_routing_setting(&paths, &applied_state, &original_state);
             return Err(error);
         }
     }
     if enabled && write_codex {
         if let Err(error) = providers::sync_local_proxy_openai_auth(&paths) {
-            if let Err(rollback_error) = write_state(&paths, &original_state) {
-                eprintln!("failed to restore proxy state: {rollback_error}");
-            }
+            rollback_concurrent_routing_setting(&paths, &applied_state, &original_state);
             return Err(error);
         }
     }
@@ -77,7 +78,7 @@ pub(crate) fn set_concurrent_account_routing_enabled<R: Runtime>(
         .map_err(|error| error.to_string())?;
     app.emit("providers-changed", ())
         .map_err(|error| error.to_string())?;
-    Ok(status(&app))
+    Ok(())
 }
 
 #[tauri::command]
@@ -86,7 +87,7 @@ pub(crate) fn set_custom_auto_switch_priority_enabled<R: Runtime>(
     enabled: bool,
 ) -> Result<LocalProxyStatus, String> {
     let paths = resolve_paths(&app)?;
-    let mut state = read_state(&paths);
+    let mut state = try_read_state(&paths)?;
     if enabled && (!is_running() || !state.auto_switch_on_quota_exhaustion) {
         return Err(
             "Enable automatic account switching before enabling custom priorities".to_string(),
@@ -104,16 +105,76 @@ pub(crate) fn set_custom_auto_switch_threshold_enabled<R: Runtime>(
     app: tauri::AppHandle<R>,
     enabled: bool,
 ) -> Result<LocalProxyStatus, String> {
-    if enabled && (!is_running() || !read_state(&resolve_paths(&app)?).auto_switch_on_quota_exhaustion) {
+    if enabled
+        && (!is_running()
+            || !try_read_state(&resolve_paths(&app)?)?.auto_switch_on_quota_exhaustion)
+    {
         return Err("Enable automatic account switching before enabling custom thresholds".to_string());
     }
     let paths = resolve_paths(&app)?;
-    let mut state = read_state(&paths);
+    let mut state = try_read_state(&paths)?;
     state.custom_auto_switch_threshold_enabled = enabled;
     write_state(&paths, &state)?;
     app.emit("providers-changed", ())
         .map_err(|error| error.to_string())?;
     Ok(status(&app))
+}
+
+fn apply_concurrent_routing_setting(
+    state: &mut ManagerStateFile,
+    enabled: bool,
+    enabled_account_ids: &[String],
+) -> Result<bool, String> {
+    let mut switched_from_provider = false;
+    if enabled {
+        let first_account_id = enabled_account_ids
+            .iter()
+            .find(|id| !state.disabled_account_ids.contains(id))
+            .ok_or_else(|| {
+                "Enable at least one official account before enabling concurrent routing"
+                    .to_string()
+            })?;
+        switched_from_provider =
+            state.active_provider_id.take().is_some() || state.active_provider_group.take().is_some();
+        if state
+            .active_account_id
+            .as_ref()
+            .is_none_or(|account_id| !enabled_account_ids.contains(account_id))
+        {
+            state.active_account_id = Some(first_account_id.clone());
+        }
+    }
+    change_concurrent_account_routing(state, enabled, "user setting");
+    Ok(switched_from_provider)
+}
+
+fn rollback_concurrent_routing_setting(
+    paths: &Paths,
+    applied: &ManagerStateFile,
+    original: &ManagerStateFile,
+) {
+    let result = update_state(paths, |state| {
+        if state.active_account_id != applied.active_account_id
+            || state.active_provider_id != applied.active_provider_id
+            || state.active_provider_group != applied.active_provider_group
+            || state.concurrent_account_routing_enabled
+                != applied.concurrent_account_routing_enabled
+        {
+            return Ok(());
+        }
+        state.active_account_id = original.active_account_id.clone();
+        state.active_provider_id = original.active_provider_id.clone();
+        state.active_provider_group = original.active_provider_group.clone();
+        change_concurrent_account_routing(
+            state,
+            original.concurrent_account_routing_enabled,
+            "concurrent routing update rollback",
+        );
+        Ok(())
+    });
+    if let Err(error) = result {
+        eprintln!("failed to restore proxy state: {error}");
+    }
 }
 
 #[tauri::command]
@@ -127,7 +188,7 @@ pub(crate) async fn set_global_auto_switch_threshold<R: Runtime + 'static>(
     let task_app = app.clone();
     tauri::async_runtime::spawn_blocking(move || {
         let paths = resolve_paths(&task_app)?;
-        let mut state = read_state(&paths);
+    let mut state = try_read_state(&paths)?;
         state.global_auto_switch_threshold = threshold;
         write_state(&paths, &state)
     })
@@ -144,7 +205,7 @@ pub(crate) fn set_auto_disable_unreachable_accounts<R: Runtime>(
     enabled: bool,
 ) -> Result<LocalProxyStatus, String> {
     let paths = resolve_paths(&app)?;
-    let mut state = read_state(&paths);
+    let mut state = try_read_state(&paths)?;
     if enabled && (!is_running() || !state.auto_switch_on_quota_exhaustion) {
         return Err(
             "Enable automatic account switching before enabling automatic disabling by HTTP status"
@@ -178,7 +239,7 @@ pub(crate) fn set_image_generation_account<R: Runtime>(
         }
     }
 
-    let mut state = read_state(&paths);
+    let mut state = try_read_state(&paths)?;
     state.image_generation_account_id = account_id.clone();
     state.image_output_target =
         account_id.map(|account_id| ImageModelTarget::Official { account_id });
@@ -211,7 +272,7 @@ fn set_image_model_target_blocking<R: Runtime>(
     }
     let paths = resolve_paths(&app)?;
     validate_image_model_target(&paths, route_kind, target.as_ref())?;
-    let original_state = read_state(&paths);
+    let original_state = try_read_state(&paths)?;
     let mut state = original_state.clone();
     match route_kind {
         ImageRouteKind::Input => state.image_input_target = target,
@@ -310,7 +371,7 @@ pub(crate) fn set_local_proxy_openai_auth_account_blocking<R: Runtime>(
     let account_id = account_id.filter(|value| !value.trim().is_empty());
     providers::validate_local_proxy_openai_auth_account(&paths, account_id.as_deref())?;
 
-    let mut state = read_state(&paths);
+    let mut state = try_read_state(&paths)?;
     if state.local_proxy_openai_auth_account_id == account_id {
         return Ok(status(&app));
     }
@@ -373,7 +434,7 @@ pub(crate) fn set_local_proxy_listen_on_all_interfaces<R: Runtime>(
     }
 
     let paths = resolve_paths(&app)?;
-    let mut state = read_state(&paths);
+    let mut state = try_read_state(&paths)?;
     let previous_enabled = lan_listening_enabled(&state);
     if let Some(api_key) = api_key.map(|value| value.trim().to_string()) {
         if !api_key.is_empty() {
@@ -416,7 +477,7 @@ pub(crate) fn set_local_proxy_listen_on_all_interfaces<R: Runtime>(
 pub(crate) fn copy_local_proxy_lan_api_key<R: Runtime>(
     app: tauri::AppHandle<R>,
 ) -> Result<(), String> {
-    let state = read_state(&resolve_paths(&app)?);
+    let state = try_read_state(&resolve_paths(&app)?)?;
     let api_key = configured_lan_api_key(&state)
         .ok_or_else(|| "Local network API key is not configured".to_string())?;
     app.clipboard()

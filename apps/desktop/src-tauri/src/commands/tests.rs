@@ -21,6 +21,18 @@ mod windows_chatgpt_launch_tests {
 }
 
 #[cfg(test)]
+mod account_switch_reason_tests {
+    use super::AccountSwitchReason;
+
+    #[test]
+    fn only_manual_switches_disable_concurrent_routing() {
+        assert!(AccountSwitchReason::Manual.disables_concurrent_routing());
+        assert!(!AccountSwitchReason::Automatic.disables_concurrent_routing());
+        assert!(!AccountSwitchReason::CredentialRefresh.disables_concurrent_routing());
+    }
+}
+
+#[cfg(test)]
 mod compatible_json_import_tests {
     use super::{
         compatible_json_account_metadata, ensure_account_switch_allowed, is_sub2api_export,
