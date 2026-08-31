@@ -129,7 +129,17 @@ fn official_body_for_upstream(method: &Method, url: &str, body: Vec<u8>, model: 
     if requested_model(&value).is_none() {
         value["model"] = Value::String(selected_official_model(&value, model));
     }
+    apply_proxy_service_tier(&mut value, proxy_service_tier_override());
     serde_json::to_vec(&value).unwrap_or(body)
+}
+
+fn apply_proxy_service_tier(value: &mut Value, tier: Option<ProxyServiceTier>) {
+    let Some(tier) = tier else {
+        return;
+    };
+    if value.is_object() {
+        value["service_tier"] = Value::String(tier.as_str().to_string());
+    }
 }
 
 fn forward_provider(

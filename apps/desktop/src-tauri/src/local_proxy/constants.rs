@@ -46,7 +46,7 @@ use crate::{
     provider_api_cache,
     providers::{
         self, LOCAL_PROXY_ACTOR_AUTHORIZATION_HEADER, LOCAL_PROXY_BASE_URL, LOCAL_PROXY_HOST,
-        LOCAL_PROXY_PORT,
+        LOCAL_PROXY_PORT, LOCAL_PROXY_TOKEN,
     },
     storage::{
         auto_switch_threshold_path, load_auto_switch_threshold, load_usage, managed_auth_path,

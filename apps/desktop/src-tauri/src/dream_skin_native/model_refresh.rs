@@ -1,5 +1,6 @@
 #[cfg(test)]
 const CODEX_MODEL_QUERY_PREFIX: [&str; 2] = ["models", "list"];
+use crate::providers::LOCAL_PROXY_PORT;
 // Codex Desktop keys an unauthenticated model query with authMethod ?? "no-auth".
 // Seeding that exact cache entry lets a picker mounted after this refresh reuse the injected models.
 const CODEX_MODEL_QUERY_HOST: &str = "local";
@@ -105,78 +106,77 @@ const CODEX_MODEL_OBSERVER_PATCH_HELPERS: &str = r#"
   };
 "#;
 
-const CODEX_RENDERER_CAPABILITY_PATCH_HELPER: &str = r#"
-  const patchRendererCapabilities = (rootValue, expectedModels) => {
-    const queue = [rootValue];
-    const seen = new Set();
-    let changed = false;
-    while (queue.length && seen.size < 50000) {
-      const value = queue.shift();
-      if (!value || typeof value !== "object" || seen.has(value)) continue;
-      seen.add(value);
-      if (Object.prototype.hasOwnProperty.call(value, "authMethod") &&
-          (Object.prototype.hasOwnProperty.call(value, "requiresAuth") ||
-           Object.prototype.hasOwnProperty.call(value, "hasChatGptToken"))) {
-        if (value.authMethod !== "chatgpt") {
-          value.authMethod = "chatgpt";
-          changed = true;
-        }
-      }
-      for (const key of ["use_hidden_models", "useHiddenModels"]) {
-        if (value[key] === true) {
-          value[key] = false;
-          changed = true;
-        }
-      }
-      for (const key of ["available_models", "availableModels"]) {
-        if (Array.isArray(value[key])) {
-          const models = new Set(value[key].filter(model => typeof model === "string"));
-          for (const model of expectedModels) models.add(model);
-          const expanded = [...models];
-          if (expanded.length !== value[key].length ||
-              expanded.some((model, index) => model !== value[key][index])) {
-            value[key] = expanded;
-            changed = true;
-          }
-        }
-      }
-      for (const key of Object.keys(value).slice(0, 100)) {
-        try { queue.push(value[key]); } catch (_) {}
-      }
-    }
-    return changed;
-  };
-  const patchFastRequirement = value => {
-    if (!value || typeof value !== "object") return { value, changed: false };
-    if (Array.isArray(value)) {
-      let changed = false;
-      const next = value.map(item => {
-        const patched = patchFastRequirement(item);
-        changed ||= patched.changed;
-        return patched.value;
+const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
+  (() => {
+    const stateKey = "__CODEX_SWITCH_SPEED_SELECTOR__";
+    if (window[stateKey]?.installed) return;
+    const endpoint = "http://127.0.0.1:__CODEX_SWITCH_PROXY_PORT__/codex-switch/service-tier";
+    const token = "CODEX_SWITCH_LOCAL_PROXY";
+    const state = { installed: true, tier: "default", observer: null, timer: null };
+    window[stateKey] = state;
+    const callApi = async (method, body) => {
+      const response = await fetch(endpoint, {
+        method,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: body ? JSON.stringify(body) : undefined,
       });
-      return { value: changed ? next : value, changed };
-    }
-    let changed = false;
-    const next = { ...value };
-    for (const [key, item] of Object.entries(value)) {
-      if ((key === "fast_mode" || key === "fastMode") && item === false) {
-        next[key] = true;
-        changed = true;
-        continue;
+      if (!response.ok) throw new Error(`service-tier API returned ${response.status}`);
+      return response.json();
+    };
+    const syncButtons = container => {
+      for (const button of container.querySelectorAll("button")) {
+        const selected = button.dataset.serviceTier === state.tier;
+        button.setAttribute("aria-pressed", String(selected));
+        button.style.background = selected ? "var(--background-primary-ghost)" : "transparent";
+        button.style.color = selected ? "var(--text-primary)" : "var(--text-secondary)";
       }
-      const patched = patchFastRequirement(item);
-      if (patched.changed) {
-        next[key] = patched.value;
-        changed = true;
+    };
+    const createButton = (label, tier) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.serviceTier = tier;
+      button.textContent = label;
+      button.style.cssText = "border:0;border-radius:5px;padding:2px 6px;font-size:11px;line-height:16px;cursor:pointer;color:var(--text-secondary);background:transparent;";
+      button.addEventListener("click", async event => {
+        event.preventDefault();
+        event.stopPropagation();
+        try {
+          await callApi("POST", { service_tier: tier });
+          state.tier = tier;
+          syncButtons(button.parentElement);
+        } catch (error) {
+          console.warn("Codex Switch speed selection failed", error);
+        }
+      });
+      return button;
+    };
+    const render = () => {
+      const anchor = [...document.querySelectorAll("button.h-token-button-composer")]
+        .find(button => button.getAttribute("aria-haspopup") === "menu" && button.textContent.trim());
+      const parent = anchor?.parentElement;
+      if (!parent || parent.querySelector("[data-codex-switch-speed-selector]")) return;
+      const container = document.createElement("span");
+      container.dataset.codexSwitchSpeedSelector = "true";
+      container.style.cssText = "display:inline-flex;align-items:center;gap:1px;margin-left:4px;padding:1px;border:1px solid var(--border-default);border-radius:6px;";
+      container.append(createButton("普通", "default"), createButton("Fast", "priority"));
+      parent.insertBefore(container, anchor.nextSibling);
+      syncButtons(container);
+    };
+    state.observer = new MutationObserver(render);
+    state.observer.observe(document.documentElement, { childList: true, subtree: true });
+    state.timer = setInterval(render, 1000);
+    render();
+    callApi("GET").then(result => {
+      if (result?.service_tier === "priority" || result?.service_tier === "default") {
+        state.tier = result.service_tier;
+        const selector = document.querySelector("[data-codex-switch-speed-selector]");
+        if (selector) syncButtons(selector);
       }
-    }
-    return { value: changed ? next : value, changed };
-  };
-  const patchConfigQuery = (query, queryClient) => {
-    if (!query || !matchesConfigQuery(query)) return;
-    queryClient.setQueryData(query.queryKey, current => patchFastRequirement(current).value);
-  };
+    }).catch(() => {});
+  })();
 "#;
 
 fn codex_model_refresh_expression(
@@ -223,7 +223,8 @@ fn codex_model_refresh_expression(
     let fallback_query_key = serde_json::to_string(&codex_model_fallback_query_key())
         .map_err(|error| format!("Failed to prepare the fallback model query: {error}"))?;
     let observer_patch_helpers = CODEX_MODEL_OBSERVER_PATCH_HELPERS;
-    let renderer_capability_patch_helper = CODEX_RENDERER_CAPABILITY_PATCH_HELPER;
+    let speed_selector_overlay = CODEX_SPEED_SELECTOR_OVERLAY
+        .replace("__CODEX_SWITCH_PROXY_PORT__", &LOCAL_PROXY_PORT.to_string());
     Ok(format!(
         r#"(async () => {{
   const expectedModels = {models};
@@ -235,8 +236,7 @@ fn codex_model_refresh_expression(
   if (!root || !Array.isArray(expectedModels)) {{
     return {{ refreshed: false, reason: "unavailable" }};
   }}
-{renderer_capability_patch_helper}
-  patchRendererCapabilities(root._internalRoot?.current ?? root, expectedModels);
+{speed_selector_overlay}
   const queue = [root._internalRoot?.current ?? root];
   const seen = new Set();
   let queryClient = null;
@@ -268,11 +268,6 @@ fn codex_model_refresh_expression(
       (query.queryKey[1] === "user" || query.queryKey[1] === "read-response"))
   );
 {observer_patch_helpers}
-  const queryCache = queryClient.getQueryCache();
-  const patchConfigQueries = () => {{
-    for (const query of queryCache.getAll()) patchConfigQuery(query, queryClient);
-  }};
-  patchConfigQueries();
   if (expectedModels.length === 0) {{
     clearModelQueryPatch();
     // Inactive picker queries retain injected Provider data after invalidation, so reset their
@@ -289,7 +284,6 @@ fn codex_model_refresh_expression(
       predicate: matchesConfigQuery,
       refetchType: "active",
     }});
-    patchConfigQueries();
     const currentQueries = queryClient.getQueryCache().getAll().filter(matchesModelsQuery);
     return {{
       refreshed: currentQueries.length > 0,
@@ -302,7 +296,6 @@ fn codex_model_refresh_expression(
     predicate: query => matchesModelsQuery(query) || matchesConfigQuery(query),
     refetchType: "active",
   }});
-  patchConfigQueries();
 
   const currentQueries = queryClient.getQueryCache().getAll().filter(matchesModelsQuery);
   const expected = new Set(expectedModels);

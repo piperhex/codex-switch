@@ -340,6 +340,34 @@
     }
 
     #[test]
+    fn proxy_service_tier_override_keeps_model_and_reasoning_unchanged() {
+        let mut value = json!({
+            "model": "gpt-5.6-sol",
+            "reasoning": { "effort": "ultra" },
+            "input": "ping"
+        });
+
+        apply_proxy_service_tier(&mut value, Some(ProxyServiceTier::Priority));
+
+        assert_eq!(value["model"], "gpt-5.6-sol");
+        assert_eq!(value["reasoning"]["effort"], "ultra");
+        assert_eq!(value["service_tier"], "priority");
+    }
+
+    #[test]
+    fn proxy_service_tier_api_accepts_only_supported_values() {
+        assert_eq!(
+            parse_proxy_service_tier(&json!({ "service_tier": "default" })),
+            Ok(ProxyServiceTier::Default)
+        );
+        assert_eq!(
+            parse_proxy_service_tier(&json!({ "service_tier": "priority" })),
+            Ok(ProxyServiceTier::Priority)
+        );
+        assert!(parse_proxy_service_tier(&json!({ "service_tier": "fast" })).is_err());
+    }
+
+    #[test]
     fn official_responses_body_uses_preferred_model_when_request_has_none() {
         for requested in [None, Some(Value::Null), Some(json!("  "))] {
             let mut value = json!({ "input": "ping", "stream": false });

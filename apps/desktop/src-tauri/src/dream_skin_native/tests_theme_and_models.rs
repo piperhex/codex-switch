@@ -249,7 +249,7 @@
     }
 
     #[test]
-    fn codex_model_refresh_unlocks_service_tier_for_local_proxy() {
+    fn codex_model_refresh_adds_dom_speed_selector_without_capability_overrides() {
         let expression = codex_model_refresh_expression(
             &["gpt-5.6-sol".to_string()],
             &["gpt-5.6-sol".to_string()],
@@ -260,17 +260,13 @@
         )
         .unwrap();
 
-        assert!(expression.contains("authMethod"));
-        assert!(expression.contains("hasChatGptToken"));
-        assert!(expression.contains("authMethod = \"chatgpt\""));
-        assert!(expression.contains("use_hidden_models"));
-        assert!(expression.contains("useHiddenModels"));
-        assert!(expression.contains("patchFastRequirement"));
-        assert!(expression.contains("fast_mode"));
-        assert!(
-            expression.find("patchRendererCapabilities").unwrap()
-                < expression.find("if (!queryClient)").unwrap()
-        );
+        assert!(expression.contains("data-codex-switch-speed-selector"));
+        assert!(expression.contains("service_tier"));
+        assert!(expression.contains("普通"));
+        assert!(expression.contains("Fast"));
+        assert!(expression.contains("/codex-switch/service-tier"));
+        assert!(!expression.contains("authMethod = \"chatgpt\""));
+        assert!(!expression.contains("featureRequirements.fast_mode"));
     }
 
     #[test]

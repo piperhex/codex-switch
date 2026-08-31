@@ -316,6 +316,7 @@ fn provider_body_for_upstream(
     };
     remove_local_reasoning_from_input(&mut value);
     value["model"] = Value::String(selected_provider_model(&value, provider));
+    apply_proxy_service_tier(&mut value, proxy_service_tier_override());
     serde_json::to_vec(&value).unwrap_or(body)
 }
 
