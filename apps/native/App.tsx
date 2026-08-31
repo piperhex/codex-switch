@@ -68,6 +68,7 @@ import { AddAccountSheet } from './src/components/AddAccountSheet';
 import { AppToastHost, Toast } from './src/components/AppToast';
 import { BottomSheet } from './src/components/BottomSheet';
 import { RemoteModelSwitchSheet } from './src/components/RemoteModelSwitchSheet';
+import { QuotaConsumptionSheet } from './src/components/QuotaConsumptionSheet';
 import { TotpPage } from './src/totp/TotpPage';
 import { TotpSyncSettings } from './src/totp/TotpSyncSettings';
 import type { TotpManagerState } from './src/totp/types';
@@ -407,7 +408,7 @@ function Dashboard({
   switchingAccountId: string | null;
   onRefreshServer: () => Promise<void>;
   onRefreshUsage: () => Promise<void>;
-  onConsumeQuota: () => Promise<void>;
+  onConsumeQuota: (accountIds: string[]) => Promise<void>;
   onRefreshAccount: (accountId: string) => Promise<void>;
   onSwitch: (deviceId: string, accountId: string) => Promise<boolean>;
   onAccountUpdated: (account: AccountSummary) => void;
@@ -418,6 +419,7 @@ function Dashboard({
   const [privateDetailsAccountId, setPrivateDetailsAccountId] = useState<string | null>(null);
   const [addAccountOpen, setAddAccountOpen] = useState(false);
   const [switchAccount, setSwitchAccount] = useState<AccountSummary | null>(null);
+  const [quotaConsumptionOpen, setQuotaConsumptionOpen] = useState(false);
   const detailAccount = accounts.find((account) => account.id === detailAccountId) ?? null;
   const privateDetailsAccount = accounts.find((account) => account.id === privateDetailsAccountId) ?? null;
   const latestUpdate = useMemo(() => {
@@ -466,14 +468,7 @@ function Dashboard({
             style={({ pressed }) => [styles.consumeQuotaButton, pressed && styles.pressed,
               (refreshBusy || consumableQuotaCount === 0) && styles.disabled]}
             disabled={refreshBusy || consumableQuotaCount === 0}
-            onPress={() => Alert.alert(
-              `消耗 ${consumableQuotaCount} 个账号的额度？`,
-              '手机会直接向每个可用账号发送“今天天气如何？”。此操作会产生真实用量，完成后会自动刷新额度。',
-              [
-                { text: '取消', style: 'cancel' },
-                { text: '开始消耗', style: 'destructive', onPress: () => void onConsumeQuota() },
-              ],
-            )}>
+            onPress={() => setQuotaConsumptionOpen(true)}>
             {consumingQuota
               ? <ActivityIndicator color="#f7d09b" size="small" />
               : <Text style={styles.consumeQuotaText}>⚡ 消耗额度</Text>}
@@ -528,6 +523,14 @@ function Dashboard({
       onClose={() => setPrivateDetailsAccountId(null)} onUpdated={onAccountUpdated} />
     <AddAccountSheet session={session} visible={addAccountOpen}
       onClose={() => setAddAccountOpen(false)} onAdded={onRefreshServer} />
+    <QuotaConsumptionSheet
+      visible={quotaConsumptionOpen}
+      accounts={quotaConsumptionTargets(accounts)}
+      concealEmails={privateMode}
+      consuming={consumingQuota}
+      onClose={() => setQuotaConsumptionOpen(false)}
+      onConfirm={onConsumeQuota}
+    />
   </>;
 }
 
@@ -1802,9 +1805,10 @@ function AppContent() {
     }
   }, [accounts, session]);
 
-  const consumeAllQuota = useCallback(async () => {
+  const consumeSelectedQuota = useCallback(async (accountIds: string[]) => {
     if (!session || refreshingRef.current || refreshingAccountIdRef.current) return;
-    const targets = quotaConsumptionTargets(accounts);
+    const selectedIdSet = new Set(accountIds);
+    const targets = quotaConsumptionTargets(accounts.filter((account) => selectedIdSet.has(account.id)));
     if (!targets.length) {
       Toast.fail('没有可从手机直接消耗额度的账号');
       return;
@@ -2265,7 +2269,7 @@ function AppContent() {
       ? <Dashboard session={session} accounts={accounts} devices={devices} loading={loading}
         syncingServer={syncingServer} refreshingUsage={refreshingUsage} consumingQuota={consumingQuota}
         refreshingAccountId={refreshingAccountId} switchingAccountId={switchingAccountId}
-        onRefreshServer={refreshServerData} onRefreshUsage={refreshAllUsage} onConsumeQuota={consumeAllQuota}
+        onRefreshServer={refreshServerData} onRefreshUsage={refreshAllUsage} onConsumeQuota={consumeSelectedQuota}
         onRefreshAccount={refreshAccount} onSwitch={handleRemoteSwitch}
         onAccountUpdated={(updated) => setAccounts((current) => current.map((account) => (
           account.id === updated.id ? { ...account, ...updated } : account
