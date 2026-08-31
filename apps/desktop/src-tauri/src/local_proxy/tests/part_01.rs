@@ -439,11 +439,16 @@
     }
 
     fn official_payload(status: u16, active_account_generation: u64) -> UpstreamPayload {
+        let body = if status == 429 {
+            br#"{"error":{"type":"usage_limit_reached"}}"#.to_vec()
+        } else {
+            Vec::new()
+        };
         UpstreamPayload {
             status,
             content_type: Some("application/json".to_string()),
             response_headers: Vec::new(),
-            body: UpstreamBody::Buffered(Vec::new()),
+            body: UpstreamBody::Buffered(body),
             token_usage_account: Some(TokenUsageAccount {
                 account_id: "current".to_string(),
                 account_email: "current@example.com".to_string(),

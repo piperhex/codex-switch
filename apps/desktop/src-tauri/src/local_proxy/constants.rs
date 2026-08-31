@@ -88,6 +88,15 @@ const LOCAL_PROXY_REBIND_RETRY_TIMEOUT: Duration = Duration::from_secs(1);
 const LOCAL_PROXY_REBIND_RETRY_INTERVAL: Duration = Duration::from_millis(25);
 const UPSTREAM_429_INITIAL_DELAY_SECONDS: u64 = 1;
 const UPSTREAM_429_DELAY_STEP_SECONDS: u64 = 2;
+const CODEX_RATE_LIMIT_REACHED_TYPE_HEADER: &str = "x-codex-rate-limit-reached-type";
+const CODEX_USAGE_LIMIT_REACHED_ERROR_TYPE: &str = "usage_limit_reached";
+const CODEX_QUOTA_EXHAUSTION_TYPES: [&str; 5] = [
+    "rate_limit_reached",
+    "workspace_owner_credits_depleted",
+    "workspace_member_credits_depleted",
+    "workspace_owner_usage_limit_reached",
+    "workspace_member_usage_limit_reached",
+];
 
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]

@@ -36,27 +36,29 @@ fn credential_can_trigger_auto_switch(account: &TokenUsageAccount) -> bool {
 }
 
 fn is_official_quota_exhaustion(payload: &UpstreamPayload) -> bool {
-    if payload.status == 429 {
-        return true;
-    }
-    if payload.status != 403 {
+    if payload.status != 429 {
         return false;
     }
+    official_quota_exhaustion_body(payload) || official_quota_exhaustion_header(payload)
+}
+
+fn official_quota_exhaustion_body(payload: &UpstreamPayload) -> bool {
     let UpstreamBody::Buffered(body) = &payload.body else {
         return false;
     };
-    let message = String::from_utf8_lossy(body).to_ascii_lowercase();
-    [
-        "quota",
-        "usage_limit",
-        "rate_limit",
-        "rate limit",
-        "limit reached",
-        "额度",
-        "配额",
-    ]
-    .iter()
-    .any(|signal| message.contains(signal))
+    serde_json::from_slice::<Value>(body)
+        .ok()
+        .is_some_and(|value| {
+            value.pointer("/error/type").and_then(Value::as_str)
+                == Some(CODEX_USAGE_LIMIT_REACHED_ERROR_TYPE)
+        })
+}
+
+fn official_quota_exhaustion_header(payload: &UpstreamPayload) -> bool {
+    payload.response_headers.iter().any(|(name, value)| {
+        name.eq_ignore_ascii_case(CODEX_RATE_LIMIT_REACHED_TYPE_HEADER)
+            && CODEX_QUOTA_EXHAUSTION_TYPES.contains(&value.trim().to_ascii_lowercase().as_str())
+    })
 }
 
 fn auto_switch_official_account<R: Runtime>(

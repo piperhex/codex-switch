@@ -575,7 +575,6 @@ where
     W: FnMut(Duration) -> Duration,
 {
     let mut retry_number = 0_u16;
-    let mut retried_after_forbidden_quota = false;
     loop {
         let response = request()?;
         if response.status == 429 {
@@ -585,14 +584,9 @@ where
                 let _ = handle_quota_event(&response, UpstreamQuotaEvent::RetryTimedOut);
                 return Ok(response);
             }
-            let _ = handle_quota_event(&response, UpstreamQuotaEvent::Retry);
-            continue;
-        }
-        if !retried_after_forbidden_quota
-            && is_official_quota_exhaustion(&response)
-            && handle_quota_event(&response, UpstreamQuotaEvent::Retry)
-        {
-            retried_after_forbidden_quota = true;
+            if is_official_quota_exhaustion(&response) {
+                let _ = handle_quota_event(&response, UpstreamQuotaEvent::Retry);
+            }
             continue;
         }
         return Ok(response);

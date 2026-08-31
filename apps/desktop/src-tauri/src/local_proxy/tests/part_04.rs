@@ -303,6 +303,10 @@
         let mut headers = reqwest::header::HeaderMap::new();
         headers.insert(reqwest::header::ETAG, "\"models-5.6\"".parse().unwrap());
         headers.insert("x-models-etag", "models-refresh".parse().unwrap());
+        headers.insert(
+            "x-codex-rate-limit-reached-type",
+            "workspace_member_usage_limit_reached".parse().unwrap(),
+        );
         headers.insert(reqwest::header::SET_COOKIE, "secret=value".parse().unwrap());
 
         let forwarded = forwarded_response_headers(&headers);
@@ -312,6 +316,10 @@
             vec![
                 ("etag".to_string(), "\"models-5.6\"".to_string()),
                 ("x-models-etag".to_string(), "models-refresh".to_string()),
+                (
+                    "x-codex-rate-limit-reached-type".to_string(),
+                    "workspace_member_usage_limit_reached".to_string(),
+                ),
             ]
         );
     }

@@ -54,24 +54,84 @@
     }
 
     #[test]
-    fn quota_exhaustion_detection_ignores_unrelated_forbidden_responses() {
+    fn quota_exhaustion_detection_requires_official_codex_signal() {
         let quota_payload = UpstreamPayload {
-            status: 403,
+            status: 429,
             content_type: Some("application/json".to_string()),
             response_headers: Vec::new(),
-            body: UpstreamBody::Buffered(br#"{"error":{"code":"insufficient_quota"}}"#.to_vec()),
+            body: UpstreamBody::Buffered(
+                br#"{"error":{"type":"usage_limit_reached"}}"#.to_vec(),
+            ),
+            token_usage_account: None,
+        };
+        let transient_rate_limit = UpstreamPayload {
+            status: 429,
+            content_type: Some("application/json".to_string()),
+            response_headers: Vec::new(),
+            body: UpstreamBody::Buffered(
+                br#"{"error":{"code":"rate_limit_exceeded","type":"tokens"}}"#.to_vec(),
+            ),
+            token_usage_account: None,
+        };
+        let quota_header_payload = UpstreamPayload {
+            status: 429,
+            content_type: Some("application/json".to_string()),
+            response_headers: vec![(
+                "x-codex-rate-limit-reached-type".to_string(),
+                "workspace_member_usage_limit_reached".to_string(),
+            )],
+            body: UpstreamBody::Buffered(Vec::new()),
             token_usage_account: None,
         };
         let forbidden_payload = UpstreamPayload {
             status: 403,
             content_type: Some("application/json".to_string()),
             response_headers: Vec::new(),
-            body: UpstreamBody::Buffered(br#"{"error":{"code":"forbidden"}}"#.to_vec()),
+            body: UpstreamBody::Buffered(
+                br#"{"error":{"type":"usage_limit_reached"}}"#.to_vec(),
+            ),
             token_usage_account: None,
         };
 
         assert!(is_official_quota_exhaustion(&quota_payload));
+        assert!(is_official_quota_exhaustion(&quota_header_payload));
+        assert!(!is_official_quota_exhaustion(&transient_rate_limit));
         assert!(!is_official_quota_exhaustion(&forbidden_payload));
+    }
+
+    #[test]
+    fn transient_429_retries_without_triggering_quota_switch() {
+        let mut request_count = 0;
+        let switch_count = AtomicUsize::new(0);
+        let mut elapsed = Duration::ZERO;
+
+        let response = retry_upstream_request_with(
+            Duration::from_secs(10),
+            || {
+                request_count += 1;
+                let status = if request_count == 1 { 429 } else { 200 };
+                let mut response = official_payload(status, 0);
+                response.body = UpstreamBody::Buffered(
+                    br#"{"error":{"code":"rate_limit_exceeded","type":"tokens"}}"#.to_vec(),
+                );
+                Ok(response)
+            },
+            |_, event| {
+                if matches!(event, UpstreamQuotaEvent::Retry) {
+                    switch_count.fetch_add(1, AtomicOrdering::SeqCst);
+                }
+                false
+            },
+            |delay| {
+                elapsed += delay;
+                elapsed
+            },
+        )
+        .unwrap();
+
+        assert_eq!(response.status, 200);
+        assert_eq!(request_count, 2);
+        assert_eq!(switch_count.load(AtomicOrdering::SeqCst), 0);
     }
 
     #[test]

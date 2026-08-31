@@ -165,7 +165,11 @@ fn stream_response(response: ReqwestResponse) -> Result<UpstreamPayload, String>
 }
 
 fn forwarded_response_headers(headers: &reqwest::header::HeaderMap) -> Vec<(String, String)> {
-    ["etag", "x-models-etag"]
+    [
+        "etag",
+        "x-models-etag",
+        CODEX_RATE_LIMIT_REACHED_TYPE_HEADER,
+    ]
         .into_iter()
         .filter_map(|name| {
             headers
