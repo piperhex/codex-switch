@@ -72,7 +72,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   notice: {
-    maxWidth: 420,
+    maxWidth: 400,
     minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',

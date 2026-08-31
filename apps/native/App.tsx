@@ -45,6 +45,10 @@ import {
   switchRemoteDeviceProvider,
   switchRemoteDeviceProviderGroup,
 } from './src/api/client';
+import {
+  consumeAccountsQuota,
+  quotaConsumptionTargets,
+} from './src/api/quotaConsumption';
 import type {
   AccountSummary,
   AuthSession,
@@ -382,10 +386,12 @@ function Dashboard({
   loading,
   syncingServer,
   refreshingUsage,
+  consumingQuota,
   refreshingAccountId,
   switchingAccountId,
   onRefreshServer,
   onRefreshUsage,
+  onConsumeQuota,
   onRefreshAccount,
   onSwitch,
   onAccountUpdated,
@@ -396,10 +402,12 @@ function Dashboard({
   loading: boolean;
   syncingServer: boolean;
   refreshingUsage: boolean;
+  consumingQuota: boolean;
   refreshingAccountId: string | null;
   switchingAccountId: string | null;
   onRefreshServer: () => Promise<void>;
   onRefreshUsage: () => Promise<void>;
+  onConsumeQuota: () => Promise<void>;
   onRefreshAccount: (accountId: string) => Promise<void>;
   onSwitch: (deviceId: string, accountId: string) => Promise<boolean>;
   onAccountUpdated: (account: AccountSummary) => void;
@@ -416,7 +424,8 @@ function Dashboard({
     const timestamps = accounts.map((account) => account.usage.fetchedAt).filter(Boolean).sort();
     return timestamps.length ? timestamps[timestamps.length - 1] : null;
   }, [accounts]);
-  const refreshBusy = syncingServer || refreshingUsage || Boolean(refreshingAccountId);
+  const consumableQuotaCount = quotaConsumptionTargets(accounts).length;
+  const refreshBusy = syncingServer || refreshingUsage || consumingQuota || Boolean(refreshingAccountId);
   const openPrivateDetails = (account: AccountSummary) => {
     setPrivateDetailsAccountId(account.id);
     void onRefreshServer();
@@ -438,19 +447,38 @@ function Dashboard({
         </Pressable>
       </View>
       <View style={styles.overviewCard}>
-        <View>
+        <View style={styles.overviewSummary}>
           <Text style={styles.overviewEyebrow}>账户管理</Text>
           <Text style={styles.overviewTitle}>{accounts.length} 个账号</Text>
           <Text style={styles.overviewMeta}>{devices.length
             ? `${devices.length} 台 PC 设备 · ${devices.filter((device) => device.online).length} 台在线`
             : '请先登录一台 PC 设备'}</Text>
         </View>
-        <Pressable accessibilityRole="button" style={({ pressed }) => [styles.refreshButton, pressed && styles.pressed]}
-          disabled={refreshBusy || accounts.length === 0} onPress={() => void onRefreshUsage()}>
-          {refreshingUsage
-            ? <ActivityIndicator color="#fff" size="small" />
-            : <Text style={styles.refreshText}>↻ 刷新用量</Text>}
-        </Pressable>
+        <View style={styles.overviewActions}>
+          <Pressable accessibilityRole="button"
+            style={({ pressed }) => [styles.refreshButton, pressed && styles.pressed, refreshBusy && styles.disabled]}
+            disabled={refreshBusy || accounts.length === 0} onPress={() => void onRefreshUsage()}>
+            {refreshingUsage
+              ? <ActivityIndicator color="#fff" size="small" />
+              : <Text style={styles.refreshText}>↻ 刷新用量</Text>}
+          </Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="一键批量消耗账号额度"
+            style={({ pressed }) => [styles.consumeQuotaButton, pressed && styles.pressed,
+              (refreshBusy || consumableQuotaCount === 0) && styles.disabled]}
+            disabled={refreshBusy || consumableQuotaCount === 0}
+            onPress={() => Alert.alert(
+              `消耗 ${consumableQuotaCount} 个账号的额度？`,
+              '手机会直接向每个可用账号发送“今天天气如何？”。此操作会产生真实用量，完成后会自动刷新额度。',
+              [
+                { text: '取消', style: 'cancel' },
+                { text: '开始消耗', style: 'destructive', onPress: () => void onConsumeQuota() },
+              ],
+            )}>
+            {consumingQuota
+              ? <ActivityIndicator color="#f7d09b" size="small" />
+              : <Text style={styles.consumeQuotaText}>⚡ 消耗额度</Text>}
+          </Pressable>
+        </View>
       </View>
       <View style={styles.controlRow}>
         <Text style={styles.lastUpdate}>用量更新：{displayDate(latestUpdate)}</Text>
@@ -1680,6 +1708,7 @@ function AppContent() {
   const [loading, setLoading] = useState(false);
   const [syncingServer, setSyncingServer] = useState(false);
   const [refreshingUsage, setRefreshingUsage] = useState(false);
+  const [consumingQuota, setConsumingQuota] = useState(false);
   const [refreshingAccountId, setRefreshingAccountId] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<AccountSummary[]>([]);
   const [providers, setProviders] = useState<RemoteProviderSummary[]>([]);
@@ -1770,6 +1799,42 @@ function AppContent() {
     } finally {
       refreshingAccountIdRef.current = null;
       setRefreshingAccountId(null);
+    }
+  }, [accounts, session]);
+
+  const consumeAllQuota = useCallback(async () => {
+    if (!session || refreshingRef.current || refreshingAccountIdRef.current) return;
+    const targets = quotaConsumptionTargets(accounts);
+    if (!targets.length) {
+      Toast.fail('没有可从手机直接消耗额度的账号');
+      return;
+    }
+    refreshingRef.current = true;
+    setConsumingQuota(true);
+    try {
+      const result = await consumeAccountsQuota(targets);
+      let usageRefreshFailures = 0;
+      if (result.consumedAccounts.length) {
+        const refreshedAccounts = await fetchAccountUsageSummaries(result.consumedAccounts);
+        usageRefreshFailures = refreshedAccounts.filter((account) => Boolean(account.usage.error)).length;
+        setAccounts((current) => mergeRefreshedUsage(current, refreshedAccounts));
+        lastUsageRefreshAtRef.current = Date.now();
+      }
+      const consumedCount = result.consumedAccounts.length;
+      const issues: string[] = [];
+      if (result.failures.length) issues.push(`${result.failures.length} 个账号消耗额度失败`);
+      if (usageRefreshFailures) issues.push(`${usageRefreshFailures} 个账号用量刷新失败`);
+      if (issues.length) {
+        const completed = consumedCount ? `已完成 ${consumedCount} 个账号的额度消耗；` : '';
+        Toast.fail(`${completed}${issues.join('，')}`);
+      } else {
+        Toast.success(`已完成 ${consumedCount} 个账号的额度消耗并刷新用量`);
+      }
+    } catch (error) {
+      Toast.fail(`批量消耗额度失败：${errorMessage(error)}`);
+    } finally {
+      refreshingRef.current = false;
+      setConsumingQuota(false);
     }
   }, [accounts, session]);
 
@@ -2198,9 +2263,9 @@ function AppContent() {
     <StatusBar style="dark" />
     {activePage === 'accounts'
       ? <Dashboard session={session} accounts={accounts} devices={devices} loading={loading}
-        syncingServer={syncingServer} refreshingUsage={refreshingUsage}
+        syncingServer={syncingServer} refreshingUsage={refreshingUsage} consumingQuota={consumingQuota}
         refreshingAccountId={refreshingAccountId} switchingAccountId={switchingAccountId}
-        onRefreshServer={refreshServerData} onRefreshUsage={refreshAllUsage}
+        onRefreshServer={refreshServerData} onRefreshUsage={refreshAllUsage} onConsumeQuota={consumeAllQuota}
         onRefreshAccount={refreshAccount} onSwitch={handleRemoteSwitch}
         onAccountUpdated={(updated) => setAccounts((current) => current.map((account) => (
           account.id === updated.id ? { ...account, ...updated } : account
@@ -2244,6 +2309,20 @@ const styles = StyleSheet.create({
   flex: { flex: 1 }, app: { flex: 1, backgroundColor: COLORS.canvas }, boot: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.canvas, gap: 12 }, bootText: { color: COLORS.ink, fontSize: 18, fontWeight: '700' }, startupError: { flex: 1, padding: 28, justifyContent: 'center', backgroundColor: COLORS.canvas }, startupErrorTitle: { color: COLORS.ink, fontSize: 22, fontWeight: '800' }, startupErrorMessage: { color: COLORS.muted, fontSize: 15, lineHeight: 22, marginTop: 12 }, startupErrorDetail: { color: COLORS.danger, fontSize: 12, marginTop: 20 },
   loginScroll: { flexGrow: 1, backgroundColor: COLORS.canvas, padding: 28, justifyContent: 'center' }, logoMark: { width: 58, height: 58, borderRadius: 18, backgroundColor: '#a7e733', justifyContent: 'center', alignItems: 'center', alignSelf: 'center', marginBottom: 18, shadowColor: '#4f7915', shadowOpacity: 0.18, shadowRadius: 14, elevation: 4 }, logoGlyph: { color: '#184122', fontSize: 34, fontWeight: '900' }, loginTitle: { color: COLORS.ink, fontSize: 30, fontWeight: '800', textAlign: 'center' }, loginSubtitle: { color: COLORS.muted, fontSize: 15, textAlign: 'center', marginTop: 8, marginBottom: 30 }, loginCard: { backgroundColor: COLORS.card, borderColor: COLORS.border, borderWidth: 1, borderRadius: 18, padding: 20, shadowColor: '#314c3d', shadowOpacity: 0.06, shadowRadius: 18, elevation: 2 }, fieldLabelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 36 }, fieldLabel: { color: COLORS.ink, fontSize: 14, fontWeight: '700', marginBottom: 8, marginTop: 14 }, officialServerButton: { paddingVertical: 6, paddingHorizontal: 9, borderRadius: 8, backgroundColor: COLORS.paleBlue, marginTop: 6 }, officialServerButtonText: { color: '#168da2', fontWeight: '700', fontSize: 12 }, fieldHint: { color: COLORS.muted, fontSize: 12, marginTop: 8 }, input: { height: 48, borderColor: '#cbdcd0', borderWidth: 1, borderRadius: 10, paddingHorizontal: 13, color: COLORS.ink, fontSize: 16, backgroundColor: '#fbfdfb' }, primaryButton: { height: 50, justifyContent: 'center', alignItems: 'center', borderRadius: 11, backgroundColor: COLORS.cyan, marginTop: 24, shadowColor: COLORS.cyan, shadowOpacity: 0.22, shadowRadius: 10, elevation: 3 }, primaryButtonText: { color: '#fff', fontWeight: '800', fontSize: 16 }, pressed: { opacity: 0.82 }, disabled: { opacity: 0.6 }, securityNote: { color: COLORS.muted, fontSize: 12, textAlign: 'center', marginTop: 18 },
   dashboardScroll: { padding: 18, paddingBottom: 34 }, header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }, brand: { color: COLORS.ink, fontSize: 22, fontWeight: '400' }, brandStrong: { fontWeight: '800' }, headerCaption: { color: COLORS.muted, marginTop: 3, fontSize: 12 }, logoutButton: { paddingVertical: 8, paddingHorizontal: 12, borderWidth: 1, borderColor: '#e9b7b2', borderRadius: 9, backgroundColor: '#fffafa' }, logoutText: { color: '#bd3c35', fontWeight: '700', fontSize: 13 }, overviewCard: { backgroundColor: '#112b21', padding: 20, borderRadius: 18, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, overviewEyebrow: { color: '#b5c9bd', fontSize: 13, fontWeight: '700', letterSpacing: 1 }, overviewTitle: { color: '#fff', fontSize: 22, fontWeight: '800', marginTop: 4 }, overviewMeta: { color: '#c7d7cd', fontSize: 12, marginTop: 8, maxWidth: 195 }, refreshButton: { minWidth: 106, height: 40, borderRadius: 10, backgroundColor: COLORS.cyan, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 12 }, refreshText: { color: '#fff', fontWeight: '800', fontSize: 14 }, controlRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 15 }, lastUpdate: { color: COLORS.muted, fontSize: 12, flex: 1 }, privacyControl: { flexDirection: 'row', alignItems: 'center', gap: 7 }, privacyText: { color: COLORS.muted, fontSize: 12 }, loadingBox: { backgroundColor: COLORS.card, borderRadius: 16, padding: 38, alignItems: 'center', gap: 14, borderWidth: 1, borderColor: COLORS.border }, loadingText: { color: COLORS.muted }, emptyBox: { backgroundColor: COLORS.card, borderRadius: 16, padding: 28, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border }, emptyTitle: { color: COLORS.ink, fontWeight: '800', fontSize: 17 }, emptyText: { color: COLORS.muted, textAlign: 'center', marginTop: 9, lineHeight: 20 },
+  overviewSummary: { flex: 1, minWidth: 0, marginRight: 12 },
+  overviewActions: { gap: 8 },
+  consumeQuotaButton: {
+    minWidth: 106,
+    height: 40,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#8e6a3c',
+    backgroundColor: '#3d3121',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+  },
+  consumeQuotaText: { color: '#f7d09b', fontWeight: '800', fontSize: 13 },
   headerTitle: { flex: 1, minWidth: 0, marginRight: 10 },
   addAccountButton: {
     minHeight: 38,

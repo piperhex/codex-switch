@@ -132,7 +132,7 @@ async function parseCodexError(response: Response) {
   return `Codex 请求失败（HTTP ${response.status}）`;
 }
 
-async function codexRequest(
+export async function requestCodexDirect(
   account: AccountSummary,
   url: string,
   init: RequestInit = {},
@@ -151,6 +151,7 @@ async function codexRequest(
   try {
     response = await fetch(url, { ...init, headers });
   } catch {
+    if (init.signal?.aborted) throw new ApiError('Codex 请求超时，请稍后重试');
     throw new ApiError('无法从手机直接连接 Codex，请检查网络或 VPN');
   }
   if (!response.ok) {
@@ -177,7 +178,7 @@ function usageWindow(value: unknown): UsageWindow | null {
 }
 
 export async function fetchAccountUsage(account: AccountSummary): Promise<UsageSummary> {
-  const response = await codexRequest(account, CODEX_USAGE_URL);
+  const response = await requestCodexDirect(account, CODEX_USAGE_URL);
   const body = await codexResponseObject(response, '解析 Codex 用量失败');
   const rateLimit = objectValue(body.rate_limit);
   const plan = typeof body.plan_type === 'string' && body.plan_type.trim()
@@ -440,7 +441,7 @@ export async function fetchAccountUsageSummaries(
 }
 
 export async function fetchResetCredits(account: AccountSummary): Promise<ResetCreditsSummary> {
-  const response = await codexRequest(account, CODEX_RESET_CREDITS_URL);
+  const response = await requestCodexDirect(account, CODEX_RESET_CREDITS_URL);
   const body = await codexResponseObject(response, '解析 Codex 重置卡失败');
   if (!Array.isArray(body?.credits)) {
     throw new ApiError('Codex 返回的重置卡数据无效');
@@ -460,7 +461,7 @@ export async function consumeResetCredit(account: AccountSummary): Promise<void>
   const current = await fetchResetCredits(account);
   if (!current.credits.length) throw new ApiError('当前账号没有可用重置卡');
 
-  const response = await codexRequest(account, CODEX_RESET_CREDIT_CONSUME_URL, {
+  const response = await requestCodexDirect(account, CODEX_RESET_CREDIT_CONSUME_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
