@@ -49,6 +49,8 @@ pub(crate) struct ProviderFieldModifiedAt {
     #[serde(default)]
     pub(crate) model_selection_controlled_by_codex: String,
     #[serde(default)]
+    pub(crate) fast_mode_enabled: String,
+    #[serde(default)]
     pub(crate) api_format: String,
     #[serde(default)]
     pub(crate) balance_platform: String,
@@ -140,6 +142,8 @@ pub(crate) struct ProviderSyncPayload {
     pub(crate) context_window: Option<u64>,
     #[serde(default)]
     pub(crate) model_selection_controlled_by_codex: bool,
+    #[serde(default)]
+    pub(crate) fast_mode_enabled: bool,
     pub(crate) api_format: ProviderApiFormat,
     #[serde(default)]
     pub(crate) balance_platform: Option<ProviderBalancePlatform>,

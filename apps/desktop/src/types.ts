@@ -94,6 +94,7 @@ export interface Provider {
   imageInputModelsConfigured: boolean;
   contextWindow?: number | null;
   modelSelectionControlledByCodex: boolean;
+  fastModeEnabled: boolean;
   apiFormat: ProviderApiFormat;
   active: boolean;
   autoSwitchEnabled: boolean;
@@ -125,6 +126,7 @@ export interface ProviderInput {
   imageInputModelsConfigured?: boolean;
   contextWindow?: number | null;
   modelSelectionControlledByCodex: boolean;
+  fastModeEnabled?: boolean;
   apiKey?: string;
   apiFormat: ProviderApiFormat;
   balancePlatform?: ProviderBalancePlatform | null;

@@ -31,6 +31,7 @@
                 context_windows: &model_context_windows,
                 default_context_window: provider_context_window(&provider),
                 reasoning_profile: reasoning_effort_profile(&provider),
+                fast_mode_enabled: false,
             },
         );
         let efforts = catalog["models"][0]["supported_reasoning_levels"]
@@ -65,6 +66,7 @@
                 context_windows: &provider.model_context_windows,
                 default_context_window: provider_context_window(&provider),
                 reasoning_profile: ReasoningEffortProfile::DeepSeek,
+                fast_mode_enabled: false,
             },
         );
         let models = catalog["models"].as_array().unwrap();

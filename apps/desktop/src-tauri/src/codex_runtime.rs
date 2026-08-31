@@ -29,6 +29,7 @@ static MODEL_REFRESH_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 
 pub(crate) struct ModelRefreshRequest {
     pub(crate) models: Vec<String>,
+    pub(crate) fast_mode_models: Vec<String>,
     pub(crate) image_input_models: Vec<String>,
     pub(crate) model_reasoning_efforts: crate::models::ModelReasoningEfforts,
     pub(crate) selected_model: String,
@@ -50,6 +51,16 @@ struct OfficialModel {
     input_modalities: Vec<String>,
     #[serde(default)]
     supported_reasoning_levels: Vec<OfficialReasoningLevel>,
+    #[serde(default)]
+    additional_speed_tiers: Vec<String>,
+    #[serde(default)]
+    service_tiers: Vec<OfficialServiceTier>,
+}
+
+#[cfg(any(target_os = "windows", target_os = "macos"))]
+#[derive(Deserialize)]
+struct OfficialServiceTier {
+    id: String,
 }
 
 #[cfg(any(target_os = "windows", target_os = "macos"))]
@@ -65,6 +76,7 @@ struct OfficialCatalogBuilder {
     models: Vec<String>,
     image_input_models: Vec<String>,
     model_reasoning_efforts: crate::models::ModelReasoningEfforts,
+    fast_mode_models: Vec<String>,
 }
 
 /// Initializes the managed Codex renderer channel independently from Dream Skin.
@@ -189,6 +201,7 @@ fn apply_model_refresh(generation: u64, request: ModelRefreshRequest) {
     }
     match crate::dream_skin_native::refresh_codex_models(
         &request.models,
+        &request.fast_mode_models,
         &request.image_input_models,
         &request.model_reasoning_efforts,
         &request.selected_model,
@@ -258,6 +271,14 @@ impl OfficialCatalogBuilder {
         if model.input_modalities.iter().any(|value| value == "image") {
             self.image_input_models.push(slug.clone());
         }
+        if model
+            .additional_speed_tiers
+            .iter()
+            .any(|tier| tier == "fast")
+            || model.service_tiers.iter().any(|tier| tier.id == "priority")
+        {
+            self.fast_mode_models.push(slug.clone());
+        }
         let efforts = unique_reasoning_efforts(model.supported_reasoning_levels);
         if !efforts.is_empty() {
             self.model_reasoning_efforts.insert(slug.clone(), efforts);
@@ -271,6 +292,7 @@ impl OfficialCatalogBuilder {
         }
         Ok(ModelRefreshRequest {
             models: self.models,
+            fast_mode_models: self.fast_mode_models,
             image_input_models: self.image_input_models,
             model_reasoning_efforts: self.model_reasoning_efforts,
             selected_model,
@@ -297,7 +319,8 @@ fn unique_reasoning_efforts(
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 fn empty_official_model_refresh_payload(selected_model: String) -> ModelRefreshRequest {
     ModelRefreshRequest {
-        models: Vec::new(),
+        models: vec![selected_model.clone()],
+        fast_mode_models: vec![selected_model.clone()],
         image_input_models: Vec::new(),
         model_reasoning_efforts: crate::models::ModelReasoningEfforts::new(),
         selected_model,
@@ -320,7 +343,9 @@ mod tests {
                         { "effort": "low" },
                         { "effort": "ultra" },
                         { "effort": "ultra" }
-                    ]
+                    ],
+                    "additional_speed_tiers": ["fast"],
+                    "service_tiers": [{ "id": "priority" }]
                 },
                 { "slug": "gpt-5.4", "input_modalities": ["text"] },
                 { "slug": "gpt-5.6-sol" }
@@ -332,6 +357,7 @@ mod tests {
 
         assert_eq!(payload.models, vec!["gpt-5.6-sol", "gpt-5.4"]);
         assert_eq!(payload.image_input_models, vec!["gpt-5.6-sol"]);
+        assert_eq!(payload.fast_mode_models, vec!["gpt-5.6-sol"]);
         assert_eq!(
             payload.model_reasoning_efforts["gpt-5.6-sol"],
             vec![
@@ -350,5 +376,13 @@ mod tests {
             .unwrap();
 
         assert_eq!(error, "Official model catalog is empty");
+    }
+
+    #[test]
+    fn official_fallback_keeps_fast_available_without_login() {
+        let payload = empty_official_model_refresh_payload("gpt-5.6-sol".to_string());
+
+        assert_eq!(payload.models, vec!["gpt-5.6-sol"]);
+        assert_eq!(payload.fast_mode_models, vec!["gpt-5.6-sol"]);
     }
 }

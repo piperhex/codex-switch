@@ -854,6 +854,7 @@ export async function saveProviderProfile(provider: ProviderInput): Promise<Prov
       modelSelectionControlledByCodex: kind === "openai"
         ? true
         : provider.modelSelectionControlledByCodex,
+      fastModeEnabled: kind === "openai" ? true : (provider.fastModeEnabled ?? false),
       apiFormat,
       active: existing?.active ?? false,
       autoSwitchEnabled: kind === "custom" && Boolean(existing?.autoSwitchEnabled),

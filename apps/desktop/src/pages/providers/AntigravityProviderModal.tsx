@@ -9,6 +9,7 @@ import {
   ANTIGRAVITY_PROVIDER_NAME,
 } from "../../utils/antigravityProvider";
 import { modelOptions, normalizeModels } from "./providerUtils";
+import { ProviderSpeedTierControl } from "./ProviderFormFields";
 import type { ProviderModalProps } from "./ProviderModal";
 
 const ANTIGRAVITY_REASONING_EFFORTS: ReasoningEffort[] = ["low", "medium", "high", "xhigh"];
@@ -50,6 +51,7 @@ export function AntigravityProviderModal({ provider, saving, onClose, onSave, t 
   const [modelsLoading, setModelsLoading] = useState(false);
   const [modelsError, setModelsError] = useState("");
   const [modelsLoaded, setModelsLoaded] = useState(false);
+  const [fastModeEnabled, setFastModeEnabled] = useState(false);
   const modelRequestId = useRef(0);
 
   useEffect(() => {
@@ -62,6 +64,7 @@ export function AntigravityProviderModal({ provider, saving, onClose, onSave, t 
     setModel(provider?.model ?? nextModels[0] ?? "");
     setModelsError("");
     setModelsLoaded(false);
+    setFastModeEnabled(provider?.fastModeEnabled ?? false);
   }, [provider]);
 
   const loadLatestModels = async () => {
@@ -107,6 +110,7 @@ export function AntigravityProviderModal({ provider, saving, onClose, onSave, t 
       imageInputModels: provider?.imageInputModels?.filter((value) => normalizedModels.includes(value)) ?? [],
       contextWindow: null,
       modelSelectionControlledByCodex: true,
+      fastModeEnabled,
       apiKey: apiKey.trim() || undefined,
       apiFormat: "openaiResponses",
       balancePlatform: null,
@@ -145,6 +149,8 @@ export function AntigravityProviderModal({ provider, saving, onClose, onSave, t 
               ? t("providers.form.keepApiKey")
               : t("providers.antigravity.apiKeyPlaceholder")}
             onChange={(event) => setApiKey(event.target.value)} />
+          <ProviderSpeedTierControl fastModeEnabled={fastModeEnabled} saving={saving}
+            onChange={setFastModeEnabled} t={t} />
           <div className="provider-form-label-row">
             <label htmlFor="antigravity-models">{t("providers.antigravity.models")}</label>
             <Button size="small" icon={<RefreshCw size={13} />} loading={modelsLoading}

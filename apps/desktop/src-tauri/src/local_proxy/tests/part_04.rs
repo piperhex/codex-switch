@@ -82,6 +82,7 @@
             image_input_models_configured: true,
             context_window: Some(256_000),
             model_selection_controlled_by_codex: true,
+            fast_mode_enabled: true,
             api_format: ProviderApiFormat::OpenaiResponses,
             balance_platform: None,
             balance_query_url: None,
@@ -97,6 +98,9 @@
         assert_eq!(models.len(), 2);
         assert_eq!(models[0]["slug"], "deepseek-chat");
         assert_eq!(models[1]["slug"], "deepseek-reasoner");
+        assert_eq!(models[0]["additional_speed_tiers"], json!(["fast"]));
+        assert_eq!(models[0]["service_tiers"][0]["id"], "priority");
+        assert_eq!(models[0]["default_service_tier"], "default");
         assert_eq!(
             models[0]["context_window"],
             providers::DEFAULT_DEEPSEEK_MODEL_CONTEXT_WINDOW
@@ -138,6 +142,7 @@
             image_input_models_configured: false,
             context_window: None,
             model_selection_controlled_by_codex: false,
+            fast_mode_enabled: false,
             api_format: ProviderApiFormat::OpenaiResponses,
             balance_platform: None,
             balance_query_url: None,
@@ -149,6 +154,9 @@
         };
 
         let catalog = providers::model_catalog_for_provider(&provider);
+        assert_eq!(catalog["models"][0]["additional_speed_tiers"], json!([]));
+        assert_eq!(catalog["models"][0]["service_tiers"], json!([]));
+        assert!(catalog["models"][0]["default_service_tier"].is_null());
         assert_eq!(
             catalog["models"][0]["slug"],
             providers::CODEX_SWITCH_CONTROL_MODEL
@@ -180,6 +188,7 @@
             image_input_models_configured: false,
             context_window: None,
             model_selection_controlled_by_codex: true,
+            fast_mode_enabled: false,
             api_format: ProviderApiFormat::OpenaiChat,
             balance_platform: Some(ProviderBalancePlatform::DeepSeek),
             balance_query_url: Some("https://api.deepseek.com/user/balance".to_string()),

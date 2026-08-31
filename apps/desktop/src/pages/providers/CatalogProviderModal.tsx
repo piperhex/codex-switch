@@ -9,6 +9,7 @@ import {
   catalogReasoningEfforts,
 } from "../../utils/providerCatalogCapabilities";
 import { modelOptions, normalizeModels } from "./providerUtils";
+import { ProviderSpeedTierControl } from "./ProviderFormFields";
 import type { ProviderModalProps } from "./ProviderModal";
 import { usePresetModelLoader } from "./usePresetModelLoader";
 
@@ -34,6 +35,7 @@ export function CatalogProviderModal({
   const [apiKey, setApiKey] = useState("");
   const [model, setModel] = useState("");
   const [models, setModels] = useState<string[]>([]);
+  const [fastModeEnabled, setFastModeEnabled] = useState(false);
   const endpoint = preset.endpoints.find((candidate) => candidate.id === endpointId)
     ?? preset.endpoints[0];
 
@@ -52,6 +54,7 @@ export function CatalogProviderModal({
     setApiKey("");
     setModels(initialModels);
     setModel(provider?.model ?? initialModels[0] ?? "");
+    setFastModeEnabled(provider?.fastModeEnabled ?? false);
   }, [preset, provider]);
 
   const savedCredentialAvailable = Boolean(
@@ -127,6 +130,7 @@ export function CatalogProviderModal({
       ),
       contextWindow: null,
       modelSelectionControlledByCodex: true,
+      fastModeEnabled,
       apiKey: apiKey.trim() || undefined,
       apiFormat: endpoint.apiFormat,
       balancePlatform: null,
@@ -178,6 +182,8 @@ export function CatalogProviderModal({
               ? t("providers.form.keepApiKey")
               : t("providers.form.newApiKey")}
             onChange={(event) => setApiKey(event.target.value)} />
+          <ProviderSpeedTierControl fastModeEnabled={fastModeEnabled} saving={saving}
+            onChange={setFastModeEnabled} t={t} />
           <div className="provider-form-label-row">
             <label htmlFor="catalog-models">{t("providers.catalog.models")}</label>
             {preset.modelsAvailable && <Button size="small" icon={<RefreshCw size={13} />}

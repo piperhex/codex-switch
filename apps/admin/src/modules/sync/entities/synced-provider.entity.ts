@@ -64,6 +64,9 @@ export class SyncedProviderEntity {
   @Column({ type: 'boolean', default: false })
   modelSelectionControlledByCodex: boolean;
 
+  @Column({ type: 'boolean', default: false })
+  fastModeEnabled: boolean;
+
   @Column({ type: 'varchar', length: 24 })
   apiFormat: 'openaiResponses' | 'openaiChat';
 

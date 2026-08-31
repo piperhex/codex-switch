@@ -133,6 +133,7 @@ pub(crate) fn save_provider<R: Runtime>(
         image_input_models_configured,
         context_window: provider.context_window,
         model_selection_controlled_by_codex: provider.model_selection_controlled_by_codex,
+        fast_mode_enabled: provider.fast_mode_enabled,
         api_format: provider.api_format,
         balance_platform,
         balance_query_url,

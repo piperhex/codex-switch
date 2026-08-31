@@ -124,6 +124,7 @@
         assert!(!is_codex_model_query_key(&json!(["threads", "list"])));
         let expression = codex_model_refresh_expression(
             &["deepseek-chat".to_string(), "deepseek-reasoner".to_string()],
+            &[],
             &["deepseek-reasoner".to_string()],
             &Default::default(),
             "deepseek-chat",
@@ -150,6 +151,7 @@
         let expression = codex_model_refresh_expression(
             &["gpt-5.6-sol".to_string(), "claude-sonnet".to_string()],
             &[],
+            &[],
             &Default::default(),
             "gpt-5.6-sol",
             crate::providers::ReasoningEffortProfile::Standard,
@@ -175,6 +177,7 @@
         let expression = codex_model_refresh_expression(
             &["gpt-5.6-sol".to_string()],
             &[],
+            &[],
             &configured,
             "gpt-5.6-sol",
             crate::providers::ReasoningEffortProfile::Standard,
@@ -196,6 +199,7 @@
         let expression = codex_model_refresh_expression(
             &["deepseek-chat".to_string()],
             &[],
+            &[],
             &Default::default(),
             "deepseek-chat",
             crate::providers::ReasoningEffortProfile::DeepSeek,
@@ -209,9 +213,27 @@
     }
 
     #[test]
+    fn codex_model_refresh_injects_fast_service_tier() {
+        let expression = codex_model_refresh_expression(
+            &["gpt-5.6-sol".to_string()],
+            &["gpt-5.6-sol".to_string()],
+            &[],
+            &Default::default(),
+            "gpt-5.6-sol",
+            crate::providers::ReasoningEffortProfile::Standard,
+        )
+        .unwrap();
+
+        assert!(expression.contains("additionalSpeedTiers"));
+        assert!(expression.contains("id: \"priority\""));
+        assert!(expression.contains("defaultServiceTier"));
+    }
+
+    #[test]
     fn codex_model_refresh_bypasses_the_renderer_available_model_filter() {
         let expression = codex_model_refresh_expression(
             &["deepseek-chat".to_string()],
+            &[],
             &[],
             &Default::default(),
             "deepseek-chat",
@@ -244,6 +266,7 @@
         let expression = codex_model_refresh_expression(
             &[],
             &[],
+            &[],
             &Default::default(),
             "gpt-5.6-sol",
             crate::providers::ReasoningEffortProfile::Standard,
@@ -259,6 +282,7 @@
     #[test]
     fn codex_model_refresh_normalizes_switch_control_display() {
         let expression = codex_model_refresh_expression(
+            &[crate::providers::CODEX_SWITCH_CONTROL_MODEL.to_string()],
             &[crate::providers::CODEX_SWITCH_CONTROL_MODEL.to_string()],
             &[crate::providers::CODEX_SWITCH_CONTROL_MODEL.to_string()],
             &Default::default(),

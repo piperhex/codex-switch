@@ -107,6 +107,7 @@ const CODEX_MODEL_OBSERVER_PATCH_HELPERS: &str = r#"
 
 fn codex_model_refresh_expression(
     models: &[String],
+    fast_mode_models: &[String],
     image_input_models: &[String],
     model_reasoning_efforts: &crate::models::ModelReasoningEfforts,
     selected_model: &str,
@@ -137,6 +138,8 @@ fn codex_model_refresh_expression(
         .collect::<Map<String, Value>>();
     let models = serde_json::to_string(models)
         .map_err(|error| format!("Failed to prepare the Codex model list: {error}"))?;
+    let fast_mode_models = serde_json::to_string(fast_mode_models)
+        .map_err(|error| format!("Failed to prepare Fast-capable models: {error}"))?;
     let image_input_models = serde_json::to_string(image_input_models)
         .map_err(|error| format!("Failed to prepare image-capable models: {error}"))?;
     let selected_model = serde_json::to_string(selected_model)
@@ -149,6 +152,7 @@ fn codex_model_refresh_expression(
     Ok(format!(
         r#"(async () => {{
   const expectedModels = {models};
+  const fastModeModels = new Set({fast_mode_models});
   const imageInputModels = new Set({image_input_models});
   const selectedModel = {selected_model};
   const supportedReasoningEffortsByModel = {reasoning_efforts};
@@ -233,9 +237,11 @@ fn codex_model_refresh_expression(
     inputModalities: imageInputModels.has(model) ? ["text", "image"] : ["text"],
     supportsPersonality: false,
     multiAgentVersion: null,
-    additionalSpeedTiers: [],
-    serviceTiers: [],
-    defaultServiceTier: null,
+    additionalSpeedTiers: fastModeModels.has(model) ? ["fast"] : [],
+    serviceTiers: fastModeModels.has(model)
+      ? [{{ id: "priority", name: "Fast", description: "Faster responses with increased usage" }}]
+      : [],
+    defaultServiceTier: fastModeModels.has(model) ? "default" : null,
     isDefault: model === selectedModel || (!expected.has(selectedModel) && index === 0),
   }}));
   const previousPatchState = window[patchStateKey];
@@ -273,6 +279,11 @@ fn codex_model_refresh_expression(
       const data = matches
         ? currentModels.map((model, index) => ({{
             ...model,
+            additionalSpeedTiers: fastModeModels.has(model.model ?? model.id) ? ["fast"] : [],
+            serviceTiers: fastModeModels.has(model.model ?? model.id)
+              ? [{{ id: "priority", name: "Fast", description: "Faster responses with increased usage" }}]
+              : [],
+            defaultServiceTier: fastModeModels.has(model.model ?? model.id) ? "default" : null,
             inputModalities: imageInputModels.has(model.model ?? model.id)
               ? ["text", "image"]
               : ["text"],

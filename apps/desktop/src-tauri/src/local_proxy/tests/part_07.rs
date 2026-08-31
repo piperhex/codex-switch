@@ -61,6 +61,7 @@
             image_input_models_configured: false,
             context_window: None,
             model_selection_controlled_by_codex: false,
+            fast_mode_enabled: false,
             api_format: ProviderApiFormat::OpenaiChat,
             balance_platform: None,
             balance_query_url: None,

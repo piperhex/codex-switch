@@ -260,6 +260,7 @@ fn pending_provider_input(
         image_input_models_configured: Some(false),
         context_window: None,
         model_selection_controlled_by_codex: pending.controlled_by_codex,
+        fast_mode_enabled: false,
         api_format: pending.api_format,
         balance_platform: pending.balance.platform,
         balance_query_url: pending.balance.query_url,

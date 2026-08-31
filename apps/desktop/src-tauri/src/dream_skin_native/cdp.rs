@@ -193,6 +193,7 @@ fn is_codex_model_query_key(value: &Value) -> bool {
 
 pub(crate) fn refresh_codex_models(
     models: &[String],
+    fast_mode_models: &[String],
     image_input_models: &[String],
     model_reasoning_efforts: &crate::models::ModelReasoningEfforts,
     selected_model: &str,
@@ -211,6 +212,7 @@ pub(crate) fn refresh_codex_models(
         .ok_or_else(|| "The Codex main window is not available.".to_string())?;
     let expression = codex_model_refresh_expression(
         models,
+        fast_mode_models,
         image_input_models,
         model_reasoning_efforts,
         selected_model,

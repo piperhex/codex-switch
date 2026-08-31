@@ -11,6 +11,7 @@ import {
   claudeCodeReasoningEfforts,
 } from "../../utils/claudeCodeProvider";
 import { modelOptions, normalizeModels } from "./providerUtils";
+import { ProviderSpeedTierControl } from "./ProviderFormFields";
 import type { ProviderModalProps } from "./ProviderModal";
 
 const API_KEY_AUTOFETCH_DELAY_MS = 800;
@@ -23,6 +24,7 @@ export function ClaudeCodeProviderModal({ provider, saving, onClose, onSave, t }
   const [modelsLoading, setModelsLoading] = useState(false);
   const [modelsError, setModelsError] = useState("");
   const [modelsLoaded, setModelsLoaded] = useState(false);
+  const [fastModeEnabled, setFastModeEnabled] = useState(false);
   const modelRequestId = useRef(0);
 
   useEffect(() => {
@@ -35,6 +37,7 @@ export function ClaudeCodeProviderModal({ provider, saving, onClose, onSave, t }
     setModel(provider?.model ?? nextModels[0] ?? "");
     setModelsError("");
     setModelsLoaded(false);
+    setFastModeEnabled(provider?.fastModeEnabled ?? false);
   }, [provider]);
 
   const loadLatestModels = async () => {
@@ -95,6 +98,7 @@ export function ClaudeCodeProviderModal({ provider, saving, onClose, onSave, t }
       imageInputModels: claudeCodeImageInputModels(normalizedModels),
       contextWindow: null,
       modelSelectionControlledByCodex: true,
+      fastModeEnabled,
       apiKey: apiKey.trim() || undefined,
       apiFormat: "openaiChat",
       balancePlatform: null,
@@ -135,6 +139,8 @@ export function ClaudeCodeProviderModal({ provider, saving, onClose, onSave, t }
               ? t("providers.form.keepApiKey")
               : t("providers.form.newApiKey")}
             onChange={(event) => setApiKey(event.target.value)} />
+          <ProviderSpeedTierControl fastModeEnabled={fastModeEnabled} saving={saving}
+            onChange={setFastModeEnabled} t={t} />
           <div className="provider-form-label-row">
             <label htmlFor="claude-code-models">{t("providers.claudeCode.models")}</label>
             <Button size="small" icon={<RefreshCw size={13} />} loading={modelsLoading}

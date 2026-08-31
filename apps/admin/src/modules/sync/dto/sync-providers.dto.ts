@@ -27,6 +27,7 @@ export class ProviderFieldModifiedAtDto {
   @IsOptional() @IsString() @MaxLength(40) imageInputModels?: string;
   @IsOptional() @IsString() @MaxLength(40) contextWindow?: string;
   @IsOptional() @IsString() @MaxLength(40) modelSelectionControlledByCodex?: string;
+  @IsOptional() @IsString() @MaxLength(40) fastModeEnabled?: string;
   @IsOptional() @IsString() @MaxLength(40) apiFormat?: string;
   @IsOptional() @IsString() @MaxLength(40) balancePlatform?: string;
   @IsOptional() @IsString() @MaxLength(40) balanceQueryUrl?: string;
@@ -98,6 +99,10 @@ export class SyncProviderDto {
 
   @IsBoolean()
   modelSelectionControlledByCodex: boolean = false;
+
+  @IsOptional()
+  @IsBoolean()
+  fastModeEnabled: boolean = false;
 
   @IsIn(['openaiResponses', 'openaiChat'])
   apiFormat: 'openaiResponses' | 'openaiChat';

@@ -210,6 +210,7 @@
             image_input_models_configured: true,
             context_window: None,
             model_selection_controlled_by_codex: false,
+            fast_mode_enabled: false,
             api_format: ProviderApiFormat::OpenaiResponses,
             balance_platform: None,
             balance_query_url: None,
@@ -310,6 +311,7 @@
                 context_windows: &ModelContextWindows::new(),
                 default_context_window: DEFAULT_MODEL_CONTEXT_WINDOW,
                 reasoning_profile: ReasoningEffortProfile::Standard,
+                fast_mode_enabled: false,
             },
         );
         let entries = catalog["models"].as_array().unwrap();
@@ -355,6 +357,7 @@
                 context_windows: &ModelContextWindows::new(),
                 default_context_window: DEFAULT_MODEL_CONTEXT_WINDOW,
                 reasoning_profile: ReasoningEffortProfile::Standard,
+                fast_mode_enabled: false,
             },
         );
         let efforts = catalog["models"][0]["supported_reasoning_levels"]

@@ -137,6 +137,7 @@ type ProviderFieldModifiedAt = {
   imageInputModels: string;
   contextWindow: string;
   modelSelectionControlledByCodex: string;
+  fastModeEnabled: string;
   apiFormat: string;
   balancePlatform: string;
   balanceQueryUrl: string;
@@ -1272,6 +1273,7 @@ export class SyncService {
       imageInputModels: row.imageInputModels ?? [],
       contextWindow: row.contextWindow,
       modelSelectionControlledByCodex: row.modelSelectionControlledByCodex,
+      fastModeEnabled: row.fastModeEnabled ?? false,
       apiFormat: row.apiFormat,
       balancePlatform: row.balancePlatform,
       balanceQueryUrl: row.balanceQueryUrl,
@@ -1315,6 +1317,7 @@ export class SyncService {
       imageInputModels: incoming.imageInputModels ?? [],
       contextWindow: incoming.contextWindow ?? null,
       modelSelectionControlledByCodex: incoming.modelSelectionControlledByCodex ?? false,
+      fastModeEnabled: incoming.fastModeEnabled ?? false,
       apiFormat: incoming.apiFormat,
       balancePlatform: incoming.balancePlatform ?? null,
       balanceQueryUrl: incoming.balanceQueryUrl ?? null,
@@ -1358,6 +1361,7 @@ export class SyncService {
       imageInputModels: existing.imageInputModels,
       contextWindow: existing.contextWindow,
       modelSelectionControlledByCodex: existing.modelSelectionControlledByCodex,
+      fastModeEnabled: existing.fastModeEnabled,
       apiFormat: existing.apiFormat,
       balancePlatform: existing.balancePlatform,
       balanceQueryUrl: existing.balanceQueryUrl,
@@ -1398,7 +1402,7 @@ export class SyncService {
       'kind', 'name', 'group', 'baseUrl', 'apiKey', 'model', 'models', 'modelReasoningEfforts',
       'modelContextWindows', 'modelApiFormats',
       'imageInputModels', 'contextWindow',
-      'modelSelectionControlledByCodex', 'apiFormat', 'balancePlatform',
+      'modelSelectionControlledByCodex', 'fastModeEnabled', 'apiFormat', 'balancePlatform',
       'balanceQueryUrl', 'balanceQueryToken', 'walletQueryUrl', 'walletQueryToken',
       'walletUsername', 'walletPassword',
     ] as (keyof ProviderFieldModifiedAt)[]) {

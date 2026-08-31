@@ -149,6 +149,7 @@ pub(crate) fn logical_profile(
     profile.image_input_models = common_image_input_models(aggregate, profiles);
     profile.image_input_models_configured = true;
     profile.model_selection_controlled_by_codex = true;
+    profile.fast_mode_enabled = profiles.iter().all(|provider| provider.fast_mode_enabled);
     profile.balance_platform = None;
     Ok(profile)
 }

@@ -99,6 +99,11 @@ fn provider_model_refresh_request(
         image_input_route_enabled(paths),
     );
     crate::codex_runtime::ModelRefreshRequest {
+        fast_mode_models: if provider.fast_mode_enabled {
+            models.clone()
+        } else {
+            Vec::new()
+        },
         models,
         image_input_models,
         model_reasoning_efforts: codex_model_reasoning_efforts(provider),
@@ -119,6 +124,11 @@ fn provider_group_model_refresh_request(
     );
     let selected_model = catalog.models.first().cloned()?;
     Some(crate::codex_runtime::ModelRefreshRequest {
+        fast_mode_models: if catalog.fast_mode_enabled {
+            catalog.models.clone()
+        } else {
+            Vec::new()
+        },
         models: catalog.models,
         image_input_models: catalog.image_input_models,
         model_reasoning_efforts: catalog.reasoning_efforts,
@@ -317,6 +327,8 @@ pub(crate) struct ProviderInput {
     pub(crate) context_window: Option<u64>,
     #[serde(default)]
     pub(crate) model_selection_controlled_by_codex: bool,
+    #[serde(default)]
+    pub(crate) fast_mode_enabled: bool,
     pub(crate) api_format: ProviderApiFormat,
     #[serde(default)]
     pub(crate) balance_platform: Option<ProviderBalancePlatform>,

@@ -36,6 +36,7 @@ export function ProviderModal({ provider, saving, onClose, onSave, t }: Provider
   const [model, setModel] = useState("");
   const [modelConfigs, setModelConfigs] = useState<ModelReasoningConfig[]>([]);
   const [apiKey, setApiKey] = useState("");
+  const [fastModeEnabled, setFastModeEnabled] = useState(false);
   const balance = useProviderBalanceDetection({ provider, baseUrl, apiKey });
 
   useEffect(() => {
@@ -63,6 +64,7 @@ export function ProviderModal({ provider, saving, onClose, onSave, t }: Provider
     }]);
     setModel(provider?.model ?? nextModels[0] ?? "");
     setApiKey("");
+    setFastModeEnabled(provider?.fastModeEnabled ?? false);
   }, [provider]);
 
   const rowModels = modelConfigs.map((config) => config.model.trim()).filter(Boolean);
@@ -108,6 +110,7 @@ export function ProviderModal({ provider, saving, onClose, onSave, t }: Provider
       imageInputModelsConfigured: true,
       contextWindow: null,
       modelSelectionControlledByCodex: provider?.modelSelectionControlledByCodex ?? true,
+      fastModeEnabled,
       apiKey: apiKey.trim() || undefined,
       apiFormat: provider?.apiFormat ?? "openaiResponses",
       balancePlatform: detectedPlatform,
@@ -131,7 +134,8 @@ export function ProviderModal({ provider, saving, onClose, onSave, t }: Provider
         <div className="modal-icon"><Server size={22} /></div>
         <h2>{provider ? t("providers.modal.editTitle") : t("providers.modal.addTitle")}</h2>
         <p>{t("providers.modal.description")}</p>
-        <ProviderFormFields apiKey={apiKey} baseUrl={baseUrl} modelConfigs={modelConfigs} name={name}
+        <ProviderFormFields apiKey={apiKey} baseUrl={baseUrl} fastModeEnabled={fastModeEnabled}
+          modelConfigs={modelConfigs} name={name}
           provider={provider} saving={saving} activeModel={activeModel}
           balanceSettings={{
             baseUrl,
@@ -155,6 +159,7 @@ export function ProviderModal({ provider, saving, onClose, onSave, t }: Provider
             onWalletPasswordChange: balance.setWalletPassword,
           }}
           onApiKeyChange={setApiKey}
+          onFastModeEnabledChange={setFastModeEnabled}
           onBaseUrlChange={(value) => {
             setBaseUrl(value);
             if (!nameTouched) setName(relayName(value));

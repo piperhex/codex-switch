@@ -24,6 +24,7 @@ fn model_catalog_for_models(models: &[String], options: ModelCatalogOptions<'_>)
                 model_context_window,
                 reasoning_levels,
                 options.image_input_models.contains(model),
+                options.fast_mode_enabled,
             )
         })
         .collect::<Vec<_>>();
@@ -112,11 +113,25 @@ fn provider_model_catalog_entry(
     context_window: u64,
     reasoning_levels: Value,
     supports_image_input: bool,
+    fast_mode_enabled: bool,
 ) -> Value {
     let input_modalities = if supports_image_input {
         json!(["text", "image"])
     } else {
         json!(["text"])
+    };
+    let (additional_speed_tiers, service_tiers, default_service_tier) = if fast_mode_enabled {
+        (
+            json!(["fast"]),
+            json!([{
+                "id": "priority",
+                "name": "Fast",
+                "description": "Faster responses with increased usage"
+            }]),
+            json!("default"),
+        )
+    } else {
+        (json!([]), json!([]), Value::Null)
     };
     json!({
         "slug": model,
@@ -153,9 +168,9 @@ fn provider_model_catalog_entry(
         "auto_review_model_override": null,
         "tool_mode": null,
         "multi_agent_version": null,
-        "additional_speed_tiers": [],
-        "service_tiers": [],
-        "default_service_tier": null,
+        "additional_speed_tiers": additional_speed_tiers,
+        "service_tiers": service_tiers,
+        "default_service_tier": default_service_tier,
         "availability_nux": null,
         "upgrade": null
     })
@@ -192,6 +207,7 @@ pub(crate) fn model_catalog_for_provider_with_image_route(
             context_windows: &context_windows,
             default_context_window: provider_context_window(provider),
             reasoning_profile: reasoning_effort_profile(provider),
+            fast_mode_enabled: provider.fast_mode_enabled,
         },
     )
 }
@@ -219,6 +235,7 @@ pub(crate) fn model_catalog_for_provider_group_with_image_route(
             context_windows: &data.context_windows,
             default_context_window: DEFAULT_MODEL_CONTEXT_WINDOW,
             reasoning_profile: ReasoningEffortProfile::Standard,
+            fast_mode_enabled: data.fast_mode_enabled,
         },
     )
 }
