@@ -38,13 +38,16 @@ pub(crate) fn resize_floating_bubble<R: Runtime>(
 pub(crate) async fn resize_floating_bubble_for_provider_card<R: Runtime>(
     app: AppHandle<R>,
     provider_card: bool,
+    concurrent_card: bool,
 ) -> Result<(), String> {
     let settings_app = app.clone();
     let style = tauri::async_runtime::spawn_blocking(move || read_app_settings(&settings_app))
         .await
         .map_err(|error| error.to_string())??
         .bubble_style;
-    let size = if provider_card {
+    let size = if concurrent_card {
+        (CONCURRENT_CARD_WIDTH, CONCURRENT_CARD_HEIGHT)
+    } else if provider_card {
         (GLASS_WIDTH, GLASS_HEIGHT)
     } else {
         bubble_size(&style)

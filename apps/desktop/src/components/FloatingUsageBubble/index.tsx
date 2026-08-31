@@ -13,6 +13,7 @@ import {
   fetchResetCredits,
   loadAppSettings,
   loadDashboard,
+  loadLocalProxyStatus,
   loadProviders,
   queryProviderUsage,
   refreshAccountUsage,
@@ -27,9 +28,18 @@ import {
 import { useFloatingProviderStats } from "../../hooks/useFloatingProviderStats";
 import { useLanguage } from "../../hooks/useLanguage";
 import { useThemeColor } from "../../hooks/useThemeColor";
-import type { Account, BubbleResetDisplay, BubbleStyle, Provider, UsageSummary } from "../../types";
+import type {
+  Account,
+  BubbleResetDisplay,
+  BubbleStyle,
+  LocalProxyStatus,
+  Provider,
+  UsageSummary,
+} from "../../types";
 import { remainingTone, resetClockTime } from "../../utils/format";
+import { ConcurrentUsageCard } from "./ConcurrentUsageCard";
 import { FloatingProviderCard } from "../FloatingProviderCard";
+import { useConcurrentUsageStats } from "./useConcurrentUsageStats";
 import styles from "./index.module.less";
 
 function usageColor(remaining: number) {
@@ -62,17 +72,22 @@ function clampPercent(value: number) {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
-function bubbleActionLabel(language: "en" | "zh", refreshing: boolean, providerCard: boolean) {
+type FloatingUsageMode = "account" | "concurrent" | "provider";
+
+function bubbleActionLabel(language: "en" | "zh", refreshing: boolean, mode: FloatingUsageMode) {
   if (language === "zh") {
-    if (refreshing) return providerCard ? "正在刷新余额和 Token" : "正在刷新当前额度";
-    return providerCard ? "点击刷新余额和 Token" : "点击刷新当前额度";
+    if (refreshing) return mode === "concurrent" ? "正在刷新并发账号与统计" : "正在刷新当前用量";
+    return mode === "concurrent" ? "点击刷新并发账号与统计" : "点击刷新当前用量";
   }
-  if (refreshing) return providerCard ? "Refreshing balance and tokens" : "Refreshing current quota";
-  return providerCard ? "Click to refresh balance and tokens" : "Click to refresh current quota";
+  if (refreshing) return mode === "concurrent" ? "Refreshing concurrent accounts and totals" : "Refreshing usage";
+  return mode === "concurrent" ? "Click to refresh concurrent accounts and totals" : "Click to refresh usage";
 }
 
-function bubbleClassName(providerCard: boolean, glass: boolean, settling: boolean, refreshing: boolean) {
-  const modeClass = providerCard ? "floating-provider-card" : glass ? "floating-bubble-glass" : "";
+function bubbleClassName(mode: FloatingUsageMode, glass: boolean, settling: boolean, refreshing: boolean) {
+  let modeClass = "";
+  if (mode === "concurrent") modeClass = "floating-concurrent-card";
+  else if (mode === "provider") modeClass = "floating-provider-card";
+  else if (glass) modeClass = "floating-bubble-glass";
   return ["floating-bubble", modeClass, settling ? "is-water-settling" : "", refreshing ? "is-refreshing" : ""]
     .filter(Boolean)
     .join(" ");
@@ -138,6 +153,7 @@ export function FloatingUsageBubble() {
   useThemeColor(ignoreThemeError);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [activeProvider, setActiveProvider] = useState<Provider | null>(null);
+  const [localProxy, setLocalProxy] = useState<LocalProxyStatus | null>(null);
   const [providerUsage, setProviderUsage] = useState<UsageSummary | null>(null);
   const [resetDisplay, setResetDisplay] = useState<BubbleResetDisplay>("countdown");
   const [bubbleStyle, setBubbleStyle] = useState<BubbleStyle>("classic");
@@ -157,6 +173,8 @@ export function FloatingUsageBubble() {
       loadProviders(),
     ]);
     setAccounts(nextAccounts);
+    const proxy = await loadLocalProxyStatus().catch(() => null);
+    if (proxy) setLocalProxy(proxy);
     const active = providers.find((item) => item.active) ?? null;
     const provider = active?.kind === "openai" ? active : null;
     setActiveProvider(active);
@@ -199,13 +217,25 @@ export function FloatingUsageBubble() {
   const account = useMemo(() => accounts.find((item) => item.active), [accounts]);
   const activeUpstreamProvider = activeProvider?.kind === "openai" ? activeProvider : null;
   const activeCustomProvider = activeProvider?.kind === "custom" ? activeProvider : null;
+  const concurrentRoutingActive = Boolean(localProxy?.concurrentAccountRoutingEnabled);
+  let floatingMode: FloatingUsageMode = "account";
+  if (concurrentRoutingActive) floatingMode = "concurrent";
+  else if (activeCustomProvider) floatingMode = "provider";
+  const concurrentProviders = useMemo(
+    () => activeProvider ? [activeProvider] : [],
+    [activeProvider],
+  );
   const providerStats = useFloatingProviderStats(activeCustomProvider);
+  const concurrentStats = useConcurrentUsageStats(concurrentRoutingActive, accounts, concurrentProviders);
   const refreshProviderStats = providerStats.refresh;
   const accountId = account?.id ?? null;
 
   useEffect(() => {
-    void resizeFloatingBubbleForProviderCard(Boolean(activeCustomProvider)).catch(() => undefined);
-  }, [activeCustomProvider?.id, bubbleStyle]);
+    void resizeFloatingBubbleForProviderCard(
+      Boolean(activeCustomProvider) && !concurrentRoutingActive,
+      concurrentRoutingActive,
+    ).catch(() => undefined);
+  }, [activeCustomProvider?.id, bubbleStyle, concurrentRoutingActive]);
   useEffect(() => {
     let active = true;
     if (!accountId) {
@@ -237,7 +267,7 @@ export function FloatingUsageBubble() {
       : remainingTone(remaining) === "warning"
         ? (language === "zh" ? "额度注意" : "Quota warning")
         : (language === "zh" ? "额度充足" : "Quota healthy");
-  const bubbleLabel = bubbleActionLabel(language, refreshing, Boolean(activeCustomProvider));
+  const bubbleLabel = bubbleActionLabel(language, refreshing, floatingMode);
   const ringStyle = {
     "--bubble-progress": `${ringRemaining ?? 0}%`,
     "--bubble-color": ringRemaining === null ? "#7b8780" : usageColor(ringRemaining),
@@ -263,11 +293,15 @@ export function FloatingUsageBubble() {
   }, [remaining]);
 
   const refreshCurrentUsage = useCallback(async () => {
-    if ((!account && !activeProvider) || refreshingRef.current) return;
+    if ((!account && !activeProvider && !concurrentRoutingActive) || refreshingRef.current) return;
     refreshingRef.current = true;
     setRefreshing(true);
     try {
-      if (activeCustomProvider) {
+      if (concurrentRoutingActive) {
+        const enabledAccounts = accounts.filter((item) => item.autoSwitchEnabled);
+        await Promise.allSettled(enabledAccounts.map((item) => refreshAccountUsage(item.id)));
+        await Promise.all([load(), concurrentStats.refresh()]);
+      } else if (activeCustomProvider) {
         await refreshProviderStats();
       } else if (activeUpstreamProvider) {
         const usage = await queryProviderUsage(activeUpstreamProvider.id);
@@ -282,7 +316,17 @@ export function FloatingUsageBubble() {
       refreshingRef.current = false;
       setRefreshing(false);
     }
-  }, [account, activeCustomProvider, activeProvider, activeUpstreamProvider, load, refreshProviderStats]);
+  }, [
+    account,
+    accounts,
+    activeCustomProvider,
+    activeProvider,
+    activeUpstreamProvider,
+    concurrentRoutingActive,
+    concurrentStats.refresh,
+    load,
+    refreshProviderStats,
+  ]);
 
   useEffect(() => () => {
     if (pendingClickRefresh.current !== null) {
@@ -355,7 +399,7 @@ export function FloatingUsageBubble() {
     <div className={`${styles.styleScope} floating-usage-window`} onContextMenu={openContextMenu}>
       <button
         type="button"
-        className={bubbleClassName(Boolean(activeCustomProvider), bubbleStyle === "glass", waterSettling, refreshing)}
+        className={bubbleClassName(floatingMode, bubbleStyle === "glass", waterSettling, refreshing)}
         style={ringStyle}
         aria-label={bubbleLabel}
         title={bubbleLabel}
@@ -365,7 +409,11 @@ export function FloatingUsageBubble() {
         onPointerUp={finishPointerGesture}
         onPointerCancel={cancelPointerGesture}
         onClick={(event) => { if (event.detail === 0) void refreshCurrentUsage(); }}>
-        {activeCustomProvider ? <FloatingProviderCard
+        {concurrentRoutingActive ? <ConcurrentUsageCard
+          display={concurrentStats.display}
+          language={language}
+          summary={concurrentStats.summary}
+        /> : activeCustomProvider ? <FloatingProviderCard
           balance={providerStats.balance}
           balanceError={providerStats.balanceError}
           language={language}
