@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Button,
   Card,
@@ -232,40 +238,80 @@ function LoginView() {
   </main>;
 }
 
-function AccountCard({ account, privateMode, onOpen, onSwitch }: {
+function countOnlineDevicesUsingAccount(accountId: string, devices: RemoteDevice[]) {
+  return devices.filter((device) => (
+    !device.activeProviderId
+    && !device.activeProviderGroup
+    && device.activeAccountId === accountId
+  )).length;
+}
+
+function accountActivityLabel(account: AccountSummary, activeDeviceCount: number) {
+  if (activeDeviceCount > 0) return `${activeDeviceCount} 台在线设备正在使用`;
+  if (account.active) return "最近使用";
+  return `更新于 ${formatDate(account.usage.fetchedAt)}`;
+}
+
+interface AccountCardProps {
   account: AccountSummary;
+  activeDeviceCount: number;
   privateMode: boolean;
   onOpen: () => void;
   onSwitch: () => void;
-}) {
+}
+
+function AccountCard({
+  account,
+  activeDeviceCount,
+  privateMode,
+  onOpen,
+  onSwitch,
+}: AccountCardProps) {
   const switching = useAppSelector((state) => state.data.switchingAccountId === account.id);
   const remaining = account.usage.primary
     ? Math.max(0, Math.min(100, Math.round(account.usage.primary.remainingPercent)))
     : null;
-  return <Card className="account-card" onClick={onOpen}>
-    <div className="account-topline">
-      <span className={`plan-badge ${account.source === "system" ? "managed" : ""}`}>{account.plan || "ChatGPT"}</span>
-      <button type="button" className="more-button" onClick={(event) => { event.stopPropagation(); onOpen(); }} aria-label="查看账号详情"><MoreHorizontal size={20} /></button>
-    </div>
-    <h3>{privateMode ? maskEmail(account.email) : account.email}</h3>
-    <div className="account-usage-row">
-      <div className={`usage-orb ${remaining !== null && remaining <= 20 ? "low" : ""}`}>
-        <strong>{remaining === null ? "--" : remaining}</strong><span>{remaining === null ? "" : "%"}</span>
+  const activityLabel = accountActivityLabel(account, activeDeviceCount);
+  return <div className="account-card-shell">
+    <Card className="account-card" onClick={onOpen}>
+      <div className="account-topline">
+        <span className={`plan-badge ${account.source === "system" ? "managed" : ""}`}>
+          {account.plan || "ChatGPT"}
+        </span>
+        <button type="button" className="more-button"
+          onClick={(event) => { event.stopPropagation(); onOpen(); }}
+          aria-label="查看账号详情">
+          <MoreHorizontal size={20} />
+        </button>
       </div>
-      <div className="account-usage-copy">
-        <span>主窗口剩余</span>
-        <p>{account.usage.primary ? resetLabel(account.usage.primary.resetsAt) : "暂无实时数据"}</p>
+      <h3>{privateMode ? maskEmail(account.email) : account.email}</h3>
+      <div className="account-usage-row">
+        <div className={`usage-orb ${remaining !== null && remaining <= 20 ? "low" : ""}`}>
+          <strong>{remaining === null ? "--" : remaining}</strong>
+          <span>{remaining === null ? "" : "%"}</span>
+        </div>
+        <div className="account-usage-copy">
+          <span>主窗口剩余</span>
+          <p>{account.usage.primary
+            ? resetLabel(account.usage.primary.resetsAt)
+            : "暂无实时数据"}</p>
+        </div>
       </div>
-    </div>
-    {account.usage.error ? <div className="account-refresh-error" role="alert">
-      <CircleAlert size={14} />
-      <div><strong>刷新失败</strong><span>{account.usage.error}</span></div>
-    </div> : null}
-    <div className="account-card-footer">
-      <span className={account.active ? "active-account" : ""}>{account.active ? "当前活跃" : formatDate(account.usage.fetchedAt)}</span>
-      <Button size="mini" color="primary" loading={switching} onClick={(event) => { event.stopPropagation(); onSwitch(); }}>切换到设备</Button>
-    </div>
-  </Card>;
+      {account.usage.error ? <div className="account-refresh-error" role="alert">
+        <CircleAlert size={14} />
+        <div><strong>刷新失败</strong><span>{account.usage.error}</span></div>
+      </div> : null}
+      <div className="account-card-footer">
+        <span className={activeDeviceCount > 0 ? "active-account" : ""}>
+          {activityLabel}
+        </span>
+        <Button size="mini" color="primary" loading={switching}
+          onClick={(event) => { event.stopPropagation(); onSwitch(); }}>
+          在设备上使用
+        </Button>
+      </div>
+    </Card>
+  </div>;
 }
 
 function ResetCreditsPanel({ account, open, onClose, onConsumed }: {
@@ -340,21 +386,54 @@ function AccountsPage() {
   }, [dispatch]);
 
   const content = <div className="page-body accounts-page">
-    <header className="page-heading mobile-only"><div><span>账户中心</span><h1>账号用量</h1></div>
-      <button className="icon-button" type="button" onClick={() => void performRefresh()} aria-label="刷新全部"><RefreshCw size={19} className={refreshing ? "spin" : ""} /></button>
+    <header className="page-heading mobile-only">
+      <div><span>账户中心</span><h1>账号用量</h1></div>
+      <button className="icon-button" type="button" onClick={() => void performRefresh()}
+        aria-label="刷新全部">
+        <RefreshCw size={19} className={refreshing ? "spin" : ""} />
+      </button>
     </header>
     <section className="overview-hero">
-      <div className="hero-copy"><span>账户概览</span><h2>{accounts.length} 个账号，<br />都在掌控之中。</h2>
-        <p>{onlineDevices.length} 台 PC 在线 · {lastRefreshAt ? `更新于 ${formatDate(new Date(lastRefreshAt).toISOString())}` : "尚未刷新"}</p></div>
-      <div className="hero-stats"><div><strong>{accounts.length}</strong><span>账号</span></div><i /><div><strong>{onlineDevices.length}</strong><span>在线设备</span></div></div>
+      <div className="hero-copy">
+        <span>账户概览</span>
+        <h2>{accounts.length} 个账号，<br />状态一目了然。</h2>
+        <p>
+          {onlineDevices.length} 台 PC 在线 · {lastRefreshAt
+            ? `更新于 ${formatDate(new Date(lastRefreshAt).toISOString())}`
+            : "尚未刷新"}
+        </p>
+      </div>
+      <div className="hero-stats">
+        <div><strong>{accounts.length}</strong><span>账号</span></div>
+        <i />
+        <div><strong>{onlineDevices.length}</strong><span>在线设备</span></div>
+      </div>
       <div className="hero-glow" />
     </section>
-    <div className="section-toolbar"><div><h2>我的账号</h2><span>{accounts.length} 个已同步账号</span></div>
-      <div className="account-toolbar-actions"><Button size="small" color="primary" onClick={() => setAddAccountOpen(true)}>＋ 添加账户</Button><div className="privacy-toggle"><span>{privateMode ? <EyeOff size={16} /> : <Eye size={16} />} 隐藏信息</span><Switch checked={privateMode} onChange={setPrivateMode} /></div></div></div>
+    <div className="section-toolbar">
+      <div><h2>我的账号</h2><span>{accounts.length} 个已同步账号</span></div>
+      <div className="account-toolbar-actions">
+        <Button size="small" color="primary" onClick={() => setAddAccountOpen(true)}>
+          ＋ 添加账户
+        </Button>
+        <div className="privacy-toggle">
+          <span>
+            {privateMode ? <EyeOff size={16} /> : <Eye size={16} />}
+            <span>隐私模式</span>
+            <b>{privateMode ? "已开启" : "已关闭"}</b>
+          </span>
+          <Switch checked={privateMode} onChange={setPrivateMode} aria-label="切换隐私模式" />
+        </div>
+      </div>
+    </div>
     {loading ? <div className="page-loading"><SpinLoading color="primary" /><span>正在读取账户概览</span></div>
       : !accounts.length ? <Empty className="page-empty" description="暂无可展示的账号，请点击“添加账户”" />
-        : <div className="account-grid">{accounts.map((account) => <AccountCard key={account.id} account={account} privateMode={privateMode}
-          onOpen={() => setDetailId(account.id)} onSwitch={() => setSwitchId(account.id)} />)}</div>}
+        : <div className={`account-grid ${accounts.length === 1 ? "single-account" : ""}`}>
+          {accounts.map((account) => <AccountCard key={account.id} account={account}
+            activeDeviceCount={countOnlineDevicesUsingAccount(account.id, onlineDevices)}
+            privateMode={privateMode} onOpen={() => setDetailId(account.id)}
+            onSwitch={() => setSwitchId(account.id)} />)}
+        </div>}
   </div>;
 
   return <>

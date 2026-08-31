@@ -110,23 +110,98 @@ h1, h2, h3, .brand-lockup { font-family: "Manrope", "PingFang SC", "Microsoft Ya
 .mobile-only, .mobile-tabbar { display: none; }
 
 /* Accounts */
-.overview-hero { position: relative; min-height: 230px; overflow: hidden; display: flex; align-items: center; justify-content: space-between; gap: 40px; padding: clamp(26px, 4vw, 46px); border-radius: 25px; color: #fff; background: linear-gradient(115deg, #0c2d22, #123f30 62%, #0d5f4c); box-shadow: 0 24px 55px rgba(12, 45, 34, 0.17); }
+.overview-hero {
+  position: relative;
+  min-height: 188px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 36px;
+  padding: clamp(28px, 3.2vw, 38px);
+  border-radius: 22px;
+  color: #fff;
+  background: linear-gradient(115deg, #0c2d22, #123f30 62%, #0d5f4c);
+  box-shadow: 0 20px 46px rgba(12, 45, 34, 0.14);
+}
 .overview-hero::after { content: ""; position: absolute; width: 350px; height: 350px; right: -90px; top: -160px; border: 1px solid rgba(185, 237, 91, .23); border-radius: 50%; box-shadow: 0 0 0 54px rgba(185,237,91,.025), 0 0 0 108px rgba(185,237,91,.018); }
 .hero-copy, .hero-stats { position: relative; z-index: 1; }
 .hero-copy > span { color: #9fc0b2; font-size: 11px; font-weight: 800; letter-spacing: 1.7px; text-transform: uppercase; }
-.hero-copy h2 { margin-top: 10px; font-size: clamp(29px, 3.2vw, 45px); line-height: 1.16; letter-spacing: -1.8px; }
-.hero-copy p { margin-top: 15px; color: #b8cdc4; font-size: 12px; }
-.hero-stats { display: flex; align-items: center; gap: clamp(20px, 3vw, 42px); min-width: 270px; padding: 26px 31px; border: 1px solid rgba(224, 243, 234, .13); border-radius: 18px; background: rgba(255,255,255,.06); backdrop-filter: blur(10px); }
+.hero-copy h2 {
+  margin-top: 9px;
+  font-size: clamp(29px, 2.8vw, 39px);
+  line-height: 1.14;
+  letter-spacing: -1.6px;
+}
+.hero-copy p { margin-top: 13px; color: #c3d6ce; font-size: 12px; }
+.hero-stats {
+  display: flex;
+  align-items: center;
+  gap: clamp(20px, 3vw, 36px);
+  min-width: 250px;
+  padding: 20px 27px;
+  border: 1px solid rgba(224, 243, 234, .15);
+  border-radius: 16px;
+  background: rgba(255,255,255,.07);
+  backdrop-filter: blur(10px);
+}
 .hero-stats div { display: flex; flex-direction: column; align-items: center; }
-.hero-stats strong { color: var(--lime); font-family: "Manrope", sans-serif; font-size: 36px; line-height: 1; }
+.hero-stats strong {
+  color: var(--lime);
+  font-family: "Manrope", sans-serif;
+  font-size: 32px;
+  line-height: 1;
+}
 .hero-stats span { margin-top: 8px; color: #b8cdc4; font-size: 11px; }.hero-stats i { width: 1px; height: 48px; background: rgba(225,241,233,.16); }
-.section-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin: 34px 0 18px; }
+.section-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin: 28px 0 16px;
+}
 .section-toolbar h2 { color: var(--ink); font-size: 20px; letter-spacing: -.5px; }.section-toolbar > div > span { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; }
-.privacy-toggle { display: flex; align-items: center; gap: 11px; }.privacy-toggle > span { display: flex !important; align-items: center; gap: 6px; margin: 0 !important; color: #66776f !important; font-size: 11px !important; font-weight: 600; }
+.privacy-toggle { display: flex; align-items: center; gap: 11px; }
+.privacy-toggle > span {
+  display: flex !important;
+  align-items: center;
+  gap: 6px;
+  margin: 0 !important;
+  color: #52665d !important;
+  font-size: 11px !important;
+  font-weight: 600;
+}
+.privacy-toggle > span b {
+  padding: 3px 6px;
+  border-radius: 6px;
+  color: #08725d;
+  background: #e2f4ed;
+  font-size: 9px;
+}
 .account-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.account-grid.single-account { grid-template-columns: minmax(0, 760px); }
+.account-card-shell { min-width: 0; border-radius: 18px; }
 .account-card.adm-card { padding: 0; border: 1px solid #dde8e2; border-radius: 18px; background: #fff; box-shadow: 0 8px 28px rgba(35, 75, 57, .045); cursor: pointer; transition: 180ms ease; }
 .account-card.adm-card:hover { border-color: #addbcc; box-shadow: var(--shadow); transform: translateY(-3px); }
+.more-button:focus-visible,
+.account-card-footer .adm-button:focus-visible {
+  outline: 3px solid rgba(11, 155, 124, .2);
+  outline-offset: 2px;
+}
 .account-card .adm-card-body { padding: 19px; }
+.single-account .account-card .adm-card-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(220px, .7fr);
+  column-gap: 34px;
+  padding: 24px 26px;
+}
+.single-account .account-topline { grid-column: 1; grid-row: 1; }
+.single-account .account-card h3 { grid-column: 1; grid-row: 2; margin-top: 12px; font-size: 16px; }
+.single-account .account-usage-row { grid-column: 2; grid-row: 1 / span 2; align-self: center; margin: 0; }
+.single-account .account-refresh-error,
+.single-account .account-card-footer { grid-column: 1 / -1; }
+.single-account .account-refresh-error { margin: 20px 0 0; }
+.single-account .account-card-footer { margin-top: 22px; }
 .account-topline { display: flex; align-items: center; justify-content: space-between; }
 .plan-badge { width: fit-content; display: inline-flex; align-items: center; min-height: 24px; padding: 0 9px; border-radius: 7px; color: #087560; background: #e1f5ed; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; }
 .plan-badge.managed { color: #5e6a28; background: #f0f6da; }
@@ -140,8 +215,15 @@ h1, h2, h3, .brand-lockup { font-family: "Manrope", "PingFang SC", "Microsoft Ya
 .account-refresh-error { display: grid; grid-template-columns: 14px minmax(0, 1fr); gap: 8px; margin: -7px 0 15px; padding: 9px 10px; border: 1px solid #f4d0cd; border-radius: 9px; color: #aa423c; background: #fff4f3; }
 .account-refresh-error > svg { margin-top: 1px; }.account-refresh-error strong, .account-refresh-error span { display: block; }.account-refresh-error strong { font-size: 10px; }.account-refresh-error span { margin-top: 2px; font-size: 9px; line-height: 1.45; overflow-wrap: anywhere; }
 .account-card-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 15px; border-top: 1px solid #edf2ef; }
-.account-card-footer > span { color: #9aa59f; font-size: 9px; }.account-card-footer .active-account { color: var(--green); font-weight: 700; }
-.account-card-footer .adm-button { border-radius: 8px; font-size: 10px; font-weight: 700; }
+.account-card-footer > span { color: #7d8b84; font-size: 10px; }
+.account-card-footer .active-account { color: var(--green); font-weight: 700; }
+.account-card-footer .adm-button {
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 700;
+}
 .page-loading, .sheet-loading { min-height: 230px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: var(--muted); font-size: 12px; }
 .page-empty { min-height: 300px; display: flex; flex-direction: column; justify-content: center; border: 1px dashed #d8e4de; border-radius: 18px; background: #fff; }
 
@@ -219,12 +301,35 @@ h1, h2, h3, .brand-lockup { font-family: "Manrope", "PingFang SC", "Microsoft Ya
   .mobile-tabbar { position: fixed; z-index: 30; right: 0; bottom: 0; left: 0; display: block; border-top: 1px solid #dfe7e3; background: rgba(255,255,255,.96); box-shadow: 0 -10px 30px rgba(37,66,54,.06); backdrop-filter: blur(16px); }
   .mobile-tabbar .adm-tab-bar { min-height: 61px; }.mobile-tabbar .adm-tab-bar-item { color: #85918b; }.mobile-tabbar .adm-tab-bar-item-active { color: var(--green); }.mobile-tabbar .adm-tab-bar-item-title { font-size: 10px; }
   .page-heading { margin-bottom: 20px; }.page-heading h1 { font-size: 25px; }.devices-page .page-heading, .settings-page .page-heading { display: flex; }
-  .overview-hero { min-height: 215px; display: block; padding: 25px 23px; border-radius: 21px; }
-  .hero-copy h2 { font-size: 31px; }.hero-copy p { font-size: 10px; }
-  .hero-stats { width: fit-content; min-width: 230px; gap: 25px; margin-top: 24px; padding: 14px 19px; border-radius: 14px; }.hero-stats strong { font-size: 24px; }.hero-stats span { margin-top: 4px; font-size: 9px; }.hero-stats i { height: 32px; }
+  .overview-hero {
+    min-height: 194px;
+    display: block;
+    padding: 23px;
+    border-radius: 19px;
+  }
+  .hero-copy h2 { font-size: 29px; }.hero-copy p { font-size: 10px; }
+  .hero-stats {
+    width: fit-content;
+    min-width: 218px;
+    gap: 23px;
+    margin-top: 18px;
+    padding: 12px 17px;
+    border-radius: 13px;
+  }
+  .hero-stats strong { font-size: 23px; }
+  .hero-stats span { margin-top: 4px; font-size: 9px; }
+  .hero-stats i { height: 30px; }
   .section-toolbar { margin: 28px 2px 15px; }.section-toolbar h2 { font-size: 18px; }.privacy-toggle > span { display: none !important; }
   .account-grid, .device-grid, .settings-columns { grid-template-columns: 1fr; }
   .account-grid { gap: 12px; }.account-card.adm-card:hover { transform: none; }
+  .single-account .account-card .adm-card-body {
+    display: block;
+    padding: 19px;
+  }
+  .single-account .account-card h3 { margin-top: 14px; font-size: 14px; }
+  .single-account .account-usage-row { margin: 20px 0; }
+  .single-account .account-refresh-error { margin: -7px 0 15px; }
+  .single-account .account-card-footer { margin-top: 0; }
   .device-summary { min-height: 104px; padding: 20px; border-radius: 18px; }.summary-icon { width: 44px; height: 44px; }.device-summary strong { font-size: 25px; }.live-pill { padding: 7px 9px; font-size: 9px; }
   .device-grid { gap: 12px; }
   .settings-columns { gap: 25px; }.profile-card { padding: 17px; }.profile-avatar { width: 46px; height: 46px; }.profile-card > span { padding: 5px 8px; }
@@ -234,7 +339,7 @@ h1, h2, h3, .brand-lockup { font-family: "Manrope", "PingFang SC", "Microsoft Ya
 @media (max-width: 420px) {
   .mobile-login-brand { margin-bottom: 58px; }
   .story-points { display: none; }
-  .overview-hero { min-height: 224px; }
+  .overview-hero { min-height: 200px; }
   .hero-copy h2 { font-size: 28px; }
   .hero-stats { min-width: 215px; }
   .account-card .adm-card-body, .device-card .adm-card-body { padding: 17px; }
