@@ -224,6 +224,7 @@ static RUNTIME_LAUNCHING: AtomicBool = AtomicBool::new(false);
 #[derive(Clone)]
 struct RuntimePaths {
     bundled_root: PathBuf,
+    codex_paths: Option<crate::storage::Paths>,
 }
 
 struct MonitorControl {

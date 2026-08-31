@@ -18,6 +18,7 @@ fn start_managed_runtime(
     ensure_monitor(paths.clone());
     wake_monitor();
     wait_for_targets(port, CODEX_RENDERER_START_TIMEOUT)?;
+    refresh_models_after_runtime_ready(paths);
     let skin_installed = marker_path()?.is_file();
     let skin_paused = pause_path()?.is_file();
     if skin_verification_required(skin_installed, skin_paused) {
@@ -27,6 +28,25 @@ fn start_managed_runtime(
         }
     }
     Ok(())
+}
+
+fn runtime_paths_for_app(app: &AppHandle) -> Result<RuntimePaths, String> {
+    Ok(RuntimePaths {
+        bundled_root: bundled_root(app)?,
+        codex_paths: Some(crate::storage::resolve_paths(app)?),
+    })
+}
+
+fn refresh_models_after_runtime_ready(paths: &RuntimePaths) {
+    let Some(codex_paths) = paths.codex_paths.clone() else {
+        return;
+    };
+    let _ = thread::Builder::new()
+        .name("codex-model-refresh-after-launch".to_string())
+        .spawn(move || {
+            thread::sleep(Duration::from_millis(500));
+            crate::providers::refresh_codex_models_for_current_target(&codex_paths);
+        });
 }
 
 fn managed_runtime_arguments(port: u16, profile: &Path) -> Vec<String> {
@@ -84,14 +104,13 @@ fn restart_managed_runtime(
 }
 
 pub(crate) fn setup_runtime(app: &AppHandle) -> Result<(), String> {
-    let root = bundled_root(app)?;
     if marker_path()?.is_file() {
         initialize_store()?;
     }
     if !session_path()?.is_file() {
         write_session(&NativeSessionState::default())?;
     }
-    ensure_monitor(RuntimePaths { bundled_root: root });
+    ensure_monitor(runtime_paths_for_app(app)?);
     Ok(())
 }
 
@@ -113,7 +132,6 @@ pub(crate) fn restart_runtime_session() -> Result<(), String> {
 }
 
 fn install_unlocked(app: &AppHandle, restart_chatgpt: bool) -> Result<(), String> {
-    let root = bundled_root(app)?;
     initialize_store()?;
     if restart_chatgpt {
         load_theme(&active_theme_root()?).map_err(|_| {
@@ -132,7 +150,7 @@ fn install_unlocked(app: &AppHandle, restart_chatgpt: bool) -> Result<(), String
     if !session_path()?.is_file() {
         write_session(&NativeSessionState::default())?;
     }
-    let paths = RuntimePaths { bundled_root: root };
+    let paths = runtime_paths_for_app(app)?;
     if restart_chatgpt {
         restart_managed_runtime(&paths, SkinVerificationMode::Required)
     } else {
@@ -152,9 +170,7 @@ fn ensure_installed(app: &AppHandle) -> Result<RuntimePaths, String> {
     if !marker_path()?.is_file() {
         install_unlocked(app, false)?;
     }
-    let paths = RuntimePaths {
-        bundled_root: bundled_root(app)?,
-    };
+    let paths = runtime_paths_for_app(app)?;
     initialize_store()?;
     ensure_monitor(paths.clone());
     Ok(paths)

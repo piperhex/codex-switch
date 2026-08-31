@@ -310,7 +310,10 @@
         .unwrap();
         write_session(&NativeSessionState::default()).unwrap();
         restart_managed_runtime(
-            &RuntimePaths { bundled_root },
+            &RuntimePaths {
+                bundled_root,
+                codex_paths: None,
+            },
             SkinVerificationMode::Required,
         )
         .expect("native runtime should launch and inject Codex");

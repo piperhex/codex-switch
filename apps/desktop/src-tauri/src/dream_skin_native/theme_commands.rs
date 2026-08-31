@@ -128,9 +128,7 @@ pub(crate) fn restore(app: &AppHandle) -> Result<(), String> {
     }
     wake_monitor();
     restart_managed_runtime(
-        &RuntimePaths {
-            bundled_root: bundled_root(app)?,
-        },
+        &runtime_paths_for_app(app)?,
         SkinVerificationMode::Required,
     )
 }
