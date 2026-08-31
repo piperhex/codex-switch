@@ -105,6 +105,49 @@ const CODEX_MODEL_OBSERVER_PATCH_HELPERS: &str = r#"
   };
 "#;
 
+const CODEX_RENDERER_CAPABILITY_PATCH_HELPER: &str = r#"
+  const patchRendererCapabilities = (rootValue, expectedModels) => {
+    const queue = [rootValue];
+    const seen = new Set();
+    let changed = false;
+    while (queue.length && seen.size < 50000) {
+      const value = queue.shift();
+      if (!value || typeof value !== "object" || seen.has(value)) continue;
+      seen.add(value);
+      if (Object.prototype.hasOwnProperty.call(value, "authMethod") &&
+          (Object.prototype.hasOwnProperty.call(value, "requiresAuth") ||
+           Object.prototype.hasOwnProperty.call(value, "hasChatGptToken"))) {
+        if (value.authMethod !== "chatgpt") {
+          value.authMethod = "chatgpt";
+          changed = true;
+        }
+      }
+      for (const key of ["use_hidden_models", "useHiddenModels"]) {
+        if (value[key] === true) {
+          value[key] = false;
+          changed = true;
+        }
+      }
+      for (const key of ["available_models", "availableModels"]) {
+        if (Array.isArray(value[key])) {
+          const models = new Set(value[key].filter(model => typeof model === "string"));
+          for (const model of expectedModels) models.add(model);
+          const expanded = [...models];
+          if (expanded.length !== value[key].length ||
+              expanded.some((model, index) => model !== value[key][index])) {
+            value[key] = expanded;
+            changed = true;
+          }
+        }
+      }
+      for (const key of Object.keys(value).slice(0, 100)) {
+        try { queue.push(value[key]); } catch (_) {}
+      }
+    }
+    return changed;
+  };
+"#;
+
 fn codex_model_refresh_expression(
     models: &[String],
     fast_mode_models: &[String],
@@ -149,6 +192,7 @@ fn codex_model_refresh_expression(
     let fallback_query_key = serde_json::to_string(&codex_model_fallback_query_key())
         .map_err(|error| format!("Failed to prepare the fallback model query: {error}"))?;
     let observer_patch_helpers = CODEX_MODEL_OBSERVER_PATCH_HELPERS;
+    let renderer_capability_patch_helper = CODEX_RENDERER_CAPABILITY_PATCH_HELPER;
     Ok(format!(
         r#"(async () => {{
   const expectedModels = {models};
@@ -160,6 +204,8 @@ fn codex_model_refresh_expression(
   if (!root || !Array.isArray(expectedModels)) {{
     return {{ refreshed: false, reason: "unavailable" }};
   }}
+{renderer_capability_patch_helper}
+  patchRendererCapabilities(root._internalRoot?.current ?? root, expectedModels);
   const queue = [root._internalRoot?.current ?? root];
   const seen = new Set();
   let queryClient = null;

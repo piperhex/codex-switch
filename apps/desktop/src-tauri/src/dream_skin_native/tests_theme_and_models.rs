@@ -249,6 +249,29 @@
     }
 
     #[test]
+    fn codex_model_refresh_unlocks_service_tier_for_local_proxy() {
+        let expression = codex_model_refresh_expression(
+            &["gpt-5.6-sol".to_string()],
+            &["gpt-5.6-sol".to_string()],
+            &[],
+            &Default::default(),
+            "gpt-5.6-sol",
+            crate::providers::ReasoningEffortProfile::Standard,
+        )
+        .unwrap();
+
+        assert!(expression.contains("authMethod"));
+        assert!(expression.contains("hasChatGptToken"));
+        assert!(expression.contains("authMethod = \"chatgpt\""));
+        assert!(expression.contains("use_hidden_models"));
+        assert!(expression.contains("useHiddenModels"));
+        assert!(
+            expression.find("patchRendererCapabilities").unwrap()
+                < expression.find("if (!queryClient)").unwrap()
+        );
+    }
+
+    #[test]
     fn validates_theme_overlay_opacity() {
         let normalized =
             normalize_theme_document(json!({ "art": { "overlayOpacity": 0.45 } }), "preset-test")

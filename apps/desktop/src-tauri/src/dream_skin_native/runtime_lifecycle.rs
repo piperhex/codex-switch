@@ -38,14 +38,21 @@ fn runtime_paths_for_app(app: &AppHandle) -> Result<RuntimePaths, String> {
 }
 
 fn refresh_models_after_runtime_ready(paths: &RuntimePaths) {
+    const RETRIES: usize = 8;
+    const RETRY_DELAY: Duration = Duration::from_millis(500);
     let Some(codex_paths) = paths.codex_paths.clone() else {
         return;
     };
     let _ = thread::Builder::new()
         .name("codex-model-refresh-after-launch".to_string())
         .spawn(move || {
-            thread::sleep(Duration::from_millis(500));
-            crate::providers::refresh_codex_models_for_current_target(&codex_paths);
+            for attempt in 0..RETRIES {
+                thread::sleep(RETRY_DELAY);
+                crate::providers::refresh_codex_models_for_current_target(&codex_paths);
+                if attempt + 1 < RETRIES {
+                    thread::sleep(RETRY_DELAY);
+                }
+            }
         });
 }
 
