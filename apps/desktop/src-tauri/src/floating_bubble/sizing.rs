@@ -34,25 +34,36 @@ pub(crate) fn resize_floating_bubble<R: Runtime>(
         .map_err(|error| error.to_string())
 }
 
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) enum FloatingUsageWindowMode {
+    Classic,
+    Glass,
+    ProviderCard,
+    ConcurrentCard,
+}
+
 #[tauri::command]
-pub(crate) async fn resize_floating_bubble_for_provider_card<R: Runtime>(
+pub(crate) async fn resize_floating_usage_window<R: Runtime>(
     app: AppHandle<R>,
-    provider_card: bool,
-    concurrent_card: bool,
+    mode: FloatingUsageWindowMode,
 ) -> Result<(), String> {
-    let settings_app = app.clone();
-    let style = tauri::async_runtime::spawn_blocking(move || read_app_settings(&settings_app))
+    let target_size = floating_usage_window_size(mode);
+    tauri::async_runtime::spawn_blocking(move || resize_window(&app, target_size))
         .await
-        .map_err(|error| error.to_string())??
-        .bubble_style;
-    let size = if concurrent_card {
-        (CONCURRENT_CARD_WIDTH, CONCURRENT_CARD_HEIGHT)
-    } else if provider_card {
-        (GLASS_WIDTH, GLASS_HEIGHT)
-    } else {
-        bubble_size(&style)
-    };
-    resize_window(&app, size)
+        .map_err(|error| error.to_string())?
+}
+
+fn floating_usage_window_size(mode: FloatingUsageWindowMode) -> (f64, f64) {
+    match mode {
+        FloatingUsageWindowMode::Classic => (CLASSIC_WIDTH, CLASSIC_HEIGHT),
+        FloatingUsageWindowMode::Glass | FloatingUsageWindowMode::ProviderCard => {
+            (GLASS_WIDTH, GLASS_HEIGHT)
+        }
+        FloatingUsageWindowMode::ConcurrentCard => {
+            (CONCURRENT_CARD_WIDTH, CONCURRENT_CARD_HEIGHT)
+        }
+    }
 }
 
 fn bubble_size(style: &BubbleStyle) -> (f64, f64) {

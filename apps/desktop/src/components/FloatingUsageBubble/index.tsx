@@ -17,7 +17,7 @@ import {
   loadProviders,
   queryProviderUsage,
   refreshAccountUsage,
-  resizeFloatingBubbleForProviderCard,
+  resizeFloatingUsageWindow,
   showDashboardFromBubble,
   showFloatingBubbleMenu,
   subscribeToBubbleResetDisplayChanges,
@@ -83,10 +83,12 @@ function bubbleActionLabel(language: "en" | "zh", refreshing: boolean, mode: Flo
   return mode === "concurrent" ? "Click to refresh concurrent accounts and totals" : "Click to refresh usage";
 }
 
-function bubbleClassName(mode: FloatingUsageMode, glass: boolean, settling: boolean, refreshing: boolean) {
+function floatingUsageClassName(mode: FloatingUsageMode, glass: boolean, settling: boolean, refreshing: boolean) {
+  if (mode === "concurrent") {
+    return ["floating-concurrent-card", refreshing ? "is-refreshing" : ""].filter(Boolean).join(" ");
+  }
   let modeClass = "";
-  if (mode === "concurrent") modeClass = "floating-concurrent-card";
-  else if (mode === "provider") modeClass = "floating-provider-card";
+  if (mode === "provider") modeClass = "floating-provider-card";
   else if (glass) modeClass = "floating-bubble-glass";
   return ["floating-bubble", modeClass, settling ? "is-water-settling" : "", refreshing ? "is-refreshing" : ""]
     .filter(Boolean)
@@ -231,10 +233,10 @@ export function FloatingUsageBubble() {
   const accountId = account?.id ?? null;
 
   useEffect(() => {
-    void resizeFloatingBubbleForProviderCard(
-      Boolean(activeCustomProvider) && !concurrentRoutingActive,
-      concurrentRoutingActive,
-    ).catch(() => undefined);
+    const windowMode = concurrentRoutingActive
+      ? "concurrentCard"
+      : activeCustomProvider ? "providerCard" : bubbleStyle;
+    void resizeFloatingUsageWindow(windowMode).catch(() => undefined);
   }, [activeCustomProvider?.id, bubbleStyle, concurrentRoutingActive]);
   useEffect(() => {
     let active = true;
@@ -399,8 +401,8 @@ export function FloatingUsageBubble() {
     <div className={`${styles.styleScope} floating-usage-window`} onContextMenu={openContextMenu}>
       <button
         type="button"
-        className={bubbleClassName(floatingMode, bubbleStyle === "glass", waterSettling, refreshing)}
-        style={ringStyle}
+        className={floatingUsageClassName(floatingMode, bubbleStyle === "glass", waterSettling, refreshing)}
+        style={concurrentRoutingActive ? undefined : ringStyle}
         aria-label={bubbleLabel}
         title={bubbleLabel}
         aria-busy={refreshing}

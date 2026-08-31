@@ -2493,13 +2493,10 @@ export async function resizeFloatingBubble(expanded: boolean): Promise<void> {
   if (isDesktopApp) await invoke("resize_floating_bubble", { expanded });
 }
 
-export async function resizeFloatingBubbleForProviderCard(
-  providerCard: boolean,
-  concurrentCard = false,
-): Promise<void> {
-  if (isDesktopApp) {
-    await invoke("resize_floating_bubble_for_provider_card", { providerCard, concurrentCard });
-  }
+export type FloatingUsageWindowMode = "classic" | "glass" | "providerCard" | "concurrentCard";
+
+export async function resizeFloatingUsageWindow(mode: FloatingUsageWindowMode): Promise<void> {
+  if (isDesktopApp) await invoke("resize_floating_usage_window", { mode });
 }
 
 export async function dragFloatingBubble(): Promise<void> {

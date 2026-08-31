@@ -114,6 +114,7 @@
   .floating-bubble-glass .floating-glass-details .floating-glass-reset { max-width: 100px; padding: 0; display: block; overflow: visible; color: #fff !important; background: transparent; box-shadow: none; font: 800 10px/1.15 Manrope, sans-serif; text-align: right; text-overflow: clip; white-space: nowrap; }
   .floating-bubble-glass .floating-glass-details .floating-glass-reset span { max-width: 100px; overflow: visible; line-height: 1.15; text-overflow: clip; }
   .floating-concurrent-card {
+    position: absolute;
     right: 8px;
     bottom: 8px;
     width: calc(100% - 16px);
@@ -123,6 +124,9 @@
     border: 1px solid rgba(255, 255, 255, .48);
     border-radius: 20px;
     color: #fff;
+    cursor: grab;
+    font: inherit;
+    text-align: left;
     background:
       linear-gradient(135deg, rgba(255, 255, 255, .24), rgba(255, 255, 255, .07) 45%,
         rgba(255, 255, 255, .14)),
@@ -131,8 +135,10 @@
       0 5px 14px rgba(0, 0, 0, .2),
       inset 0 1px 0 rgba(255, 255, 255, .36),
       inset 0 0 26px rgba(80, 211, 159, .08);
+    isolation: isolate;
+    overflow: hidden;
   }
-  .floating-concurrent-card::before { display: none; }
+  .floating-concurrent-card:active { cursor: grabbing; }
   .floating-concurrent-card::after {
     content: "";
     position: absolute;
@@ -146,7 +152,7 @@
     );
     pointer-events: none;
   }
-  .floating-concurrent-card.is-refreshing { filter: brightness(1.08); }
+  .floating-concurrent-card.is-refreshing { cursor: progress; filter: brightness(1.08); }
   .floating-concurrent-details {
     position: relative;
     z-index: 1;

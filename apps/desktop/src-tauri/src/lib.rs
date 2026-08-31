@@ -361,7 +361,7 @@ pub fn run() {
             web_server::set_web_proxy_listen_on_all_interfaces,
             web_server::copy_web_proxy_lan_api_key,
             floating_bubble::resize_floating_bubble,
-            floating_bubble::resize_floating_bubble_for_provider_card,
+            floating_bubble::resize_floating_usage_window,
             floating_bubble::drag_floating_bubble,
             floating_bubble::show_floating_bubble_menu,
             floating_bubble::show_dashboard_from_bubble,
