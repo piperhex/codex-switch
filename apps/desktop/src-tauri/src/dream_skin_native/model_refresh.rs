@@ -146,6 +146,37 @@ const CODEX_RENDERER_CAPABILITY_PATCH_HELPER: &str = r#"
     }
     return changed;
   };
+  const patchFastRequirement = value => {
+    if (!value || typeof value !== "object") return { value, changed: false };
+    if (Array.isArray(value)) {
+      let changed = false;
+      const next = value.map(item => {
+        const patched = patchFastRequirement(item);
+        changed ||= patched.changed;
+        return patched.value;
+      });
+      return { value: changed ? next : value, changed };
+    }
+    let changed = false;
+    const next = { ...value };
+    for (const [key, item] of Object.entries(value)) {
+      if ((key === "fast_mode" || key === "fastMode") && item === false) {
+        next[key] = true;
+        changed = true;
+        continue;
+      }
+      const patched = patchFastRequirement(item);
+      if (patched.changed) {
+        next[key] = patched.value;
+        changed = true;
+      }
+    }
+    return { value: changed ? next : value, changed };
+  };
+  const patchConfigQuery = (query, queryClient) => {
+    if (!query || !matchesConfigQuery(query)) return;
+    queryClient.setQueryData(query.queryKey, current => patchFastRequirement(current).value);
+  };
 "#;
 
 fn codex_model_refresh_expression(
@@ -237,6 +268,11 @@ fn codex_model_refresh_expression(
       (query.queryKey[1] === "user" || query.queryKey[1] === "read-response"))
   );
 {observer_patch_helpers}
+  const queryCache = queryClient.getQueryCache();
+  const patchConfigQueries = () => {{
+    for (const query of queryCache.getAll()) patchConfigQuery(query, queryClient);
+  }};
+  patchConfigQueries();
   if (expectedModels.length === 0) {{
     clearModelQueryPatch();
     // Inactive picker queries retain injected Provider data after invalidation, so reset their
@@ -253,6 +289,7 @@ fn codex_model_refresh_expression(
       predicate: matchesConfigQuery,
       refetchType: "active",
     }});
+    patchConfigQueries();
     const currentQueries = queryClient.getQueryCache().getAll().filter(matchesModelsQuery);
     return {{
       refreshed: currentQueries.length > 0,
@@ -265,6 +302,7 @@ fn codex_model_refresh_expression(
     predicate: query => matchesModelsQuery(query) || matchesConfigQuery(query),
     refetchType: "active",
   }});
+  patchConfigQueries();
 
   const currentQueries = queryClient.getQueryCache().getAll().filter(matchesModelsQuery);
   const expected = new Set(expectedModels);

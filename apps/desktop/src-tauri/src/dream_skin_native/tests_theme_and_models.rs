@@ -265,6 +265,8 @@
         assert!(expression.contains("authMethod = \"chatgpt\""));
         assert!(expression.contains("use_hidden_models"));
         assert!(expression.contains("useHiddenModels"));
+        assert!(expression.contains("patchFastRequirement"));
+        assert!(expression.contains("fast_mode"));
         assert!(
             expression.find("patchRendererCapabilities").unwrap()
                 < expression.find("if (!queryClient)").unwrap()
