@@ -306,6 +306,8 @@ main.providers-main .providers-page-panel { flex: 1; display: flex; flex-directi
 }
 .token-heatmap-today { display: flex; align-items: baseline; gap: 3px; letter-spacing: 0; white-space: nowrap; }
 .token-heatmap-today b { color: var(--green-dark); font-size: 11px; letter-spacing: -.01em; cursor: help; }
+.token-heatmap-cost { display: flex; align-items: baseline; gap: 3px; white-space: nowrap; }
+.token-heatmap-cost b { color: var(--green-dark); font-size: 10px; letter-spacing: -.01em; }
 .token-heatmap-details .conversation-latency-indicator { white-space: nowrap; }
 .token-heatmap-details .conversation-latency-indicator svg {
   margin: 0 3px;

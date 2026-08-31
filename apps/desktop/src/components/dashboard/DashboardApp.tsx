@@ -1283,7 +1283,8 @@ export function DashboardApp() {
           }${page === "settings" ? " settings-topbar" : ""}`}>
             {page === "accounts" && providerManager.localProxy?.running ? (
               <TokenUsageHeatmap weeks={tokenUsagePreferences.weeks}
-                refreshSeconds={tokenUsagePreferences.refreshSeconds} language={language} t={t} />
+                refreshSeconds={tokenUsagePreferences.refreshSeconds} language={language} t={t}
+                providers={providerManager.providers} />
             ) : (
               <div className={page === "accounts" ? "accounts-heading"
                 : page === "skills" ? "skills-market-heading"

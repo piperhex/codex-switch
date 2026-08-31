@@ -4,11 +4,14 @@ import { Signal } from "lucide-react";
 import {
   loadDailyTokenUsage,
   loadRecentProxySessionLatency,
+  loadTokenUsageEntries,
   subscribeToTokenUsageChanges,
 } from "../api/backend";
 import type { Language, Translate } from "../i18n";
-import type { DailyTokenUsage, ProxySessionLatencySummary } from "../types";
+import type { DailyTokenUsage, Provider, ProxySessionLatencySummary } from "../types";
 import { formatCompactTokenCount } from "../utils/tokenContext";
+import { estimateTokenCost, formatEstimatedCost } from "../utils/tokenCost";
+import { useTokenCostDisplaySettings } from "./TokenCostUnitSettings";
 import {
   DailyTokenUsageTooltip,
   EMPTY_TOKEN_TOTALS,
@@ -39,6 +42,11 @@ function conversationLatencyLevel(summary: ProxySessionLatencySummary): Conversa
 
 function dateKey(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function todayStartTimestamp() {
+  const today = new Date();
+  return Math.floor(new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime() / 1_000);
 }
 
 function startOfCalendar(weeks: number) {
@@ -89,13 +97,16 @@ export function TokenUsageHeatmap({
   refreshSeconds,
   language,
   t,
+  providers,
 }: {
   weeks: number;
   refreshSeconds: number;
   language: Language;
   t: Translate;
+  providers: Provider[];
 }) {
   const [entries, setEntries] = useState<DailyTokenUsage[]>([]);
+  const [todayEstimatedCost, setTodayEstimatedCost] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [calendarVersion, setCalendarVersion] = useState(0);
@@ -113,9 +124,15 @@ export function TokenUsageHeatmap({
       refreshing = true;
       try {
         const startTs = Math.floor(startOfCalendar(weeks).getTime() / 1000);
-        const nextEntries = await loadDailyTokenUsage(startTs);
+        const [nextEntries, usageEntries] = await Promise.all([
+          loadDailyTokenUsage(startTs),
+          loadTokenUsageEntries(startTs),
+        ]);
         if (!active) return;
         setEntries(nextEntries);
+        setTodayEstimatedCost(usageEntries
+          .filter((entry) => entry.ts >= todayStartTimestamp())
+          .reduce((totalCost, entry) => totalCost + estimateTokenCost(entry, providers), 0));
         setError(null);
         setCalendarVersion((version) => version + 1);
       } catch (nextError) {
@@ -135,7 +152,7 @@ export function TokenUsageHeatmap({
       window.clearInterval(timer);
       unsubscribe();
     };
-  }, [refreshSeconds, weeks]);
+  }, [providers, refreshSeconds, weeks]);
 
   useEffect(() => {
     let active = true;
@@ -170,6 +187,7 @@ export function TokenUsageHeatmap({
     [columns, totals],
   );
   const numberFormat = useMemo(() => new Intl.NumberFormat(language === "zh" ? "zh-CN" : "en-US"), [language]);
+  const tokenCostDisplay = useTokenCostDisplaySettings();
   const dateFormat = useMemo(() => new Intl.DateTimeFormat(language === "zh" ? "zh-CN" : "en-US", {
     year: "numeric",
     month: "long",
@@ -196,6 +214,10 @@ export function TokenUsageHeatmap({
             <Tooltip title={<DailyTokenUsageTooltip totals={todayTokenTotals} language={language} />} placement="top">
               <b>{formatCompactTokenCount(todayTokenTotals.total, language)}</b>
             </Tooltip>
+          </span>
+          <span className="token-heatmap-cost">
+            {t("table.todayEstimatedCost")}{language === "zh" ? "：" : ": "}
+            <b>{formatEstimatedCost(todayEstimatedCost, tokenCostDisplay)}</b>
           </span>
           <Tooltip title={t("table.averageConversationLatencyTooltip", {
             requests: proxySessionLatency.requestCount,
