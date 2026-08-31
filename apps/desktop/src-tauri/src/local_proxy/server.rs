@@ -3,7 +3,6 @@ fn set_local_proxy_enabled(paths: &Paths, enabled: bool) -> Result<(), String> {
     state.local_proxy_enabled = enabled;
     write_state(paths, &state)
 }
-
 fn start_server<R: Runtime>(app: tauri::AppHandle<R>) -> Result<bool, String> {
     let mut guard = runtime()
         .lock()
@@ -407,6 +406,8 @@ fn handle_proxy_request<R: Runtime>(
     } else {
         inject_system_prompts(filter_system_prompts(body))
     };
+    let mut image_account_pool = image_account_pool_for_request(app, path, &body, &target)?;
+    let image_account_failover_enabled = image_account_pool.is_some();
     let route = proxy_diagnostic_route(path, &target);
     let diagnostic = proxy_diagnostic_entry(method, url, headers, &body, Some(&target), route);
     let usage_context = token_usage_context(
@@ -448,8 +449,31 @@ fn handle_proxy_request<R: Runtime>(
     let retry_timeout = upstream_429_retry_timeout(app)?;
     let result = retry_upstream_request(
         retry_timeout,
-        || forward_active_request(app, method, url, headers, body.clone(), &target, session_id),
-        |response, event| handle_upstream_quota_event(app, response, event),
+        || {
+            let account_id_override = image_account_pool
+                .as_ref()
+                .map(|pool| pool.current_account_id().to_string());
+            let result = forward_active_request(ActiveForwardRequest {
+                app,
+                method,
+                url,
+                headers,
+                body: body.clone(),
+                target: &target,
+                session_id,
+                account_id_override: account_id_override.as_deref(),
+            });
+            if let Ok(response) = result.as_ref() {
+                advance_image_account_after_429(&mut image_account_pool, response);
+            }
+            result
+        },
+        |response, event| {
+            if image_account_failover_enabled {
+                return false;
+            }
+            handle_upstream_quota_event(app, response, event)
+        },
     );
     let result = result.map(|mut payload| {
         if let Some(etag) = provider_models_etag {
@@ -465,130 +489,4 @@ fn handle_proxy_request<R: Runtime>(
     let result = attach_token_usage_capture(app, usage_context, result);
     append_proxy_diagnostic_result(app, diagnostic, &result, started_at.elapsed());
     result
-}
-
-fn forward_active_request<R: Runtime>(
-    app: &tauri::AppHandle<R>,
-    method: &Method,
-    url: &str,
-    headers: &[(String, String)],
-    body: Vec<u8>,
-    target: &ActiveTarget,
-    session_id: Option<&str>,
-) -> Result<UpstreamPayload, String> {
-    match target {
-        ActiveTarget::Official { model } => {
-            if is_anthropic_messages_endpoint(request_path(url)) {
-                return forward_anthropic_official(app, headers, body, session_id);
-            }
-            forward_official(app, method, url, headers, body, model, session_id)
-        }
-        ActiveTarget::Provider(provider) => {
-            if is_anthropic_messages_endpoint(request_path(url)) {
-                let settings = read_app_settings(app)?;
-                let subagent_model =
-                    crate::third_party_apps::effective_settings(&settings).claude_subagent_model;
-                return forward_anthropic_provider(body, provider, &subagent_model);
-            }
-            forward_provider_request(method, url, headers, body, provider)
-        }
-        ActiveTarget::Aggregate(target) => forward_aggregate_request(AggregateForwardRequest {
-            method,
-            url,
-            headers,
-            body,
-            session_id,
-            target,
-        }),
-        ActiveTarget::ProviderGroup(_) => {
-            Err("Provider group requests must select a model".to_string())
-        }
-    }
-}
-
-fn current_usage_payload<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<UpstreamPayload, String> {
-    let paths = resolve_paths(app)?;
-    let state = read_state(&paths);
-    let usage = if let Some(provider_id) = state.active_provider_id {
-        let provider_id =
-            if aggregate_api::is_active_id(&provider_id) {
-                let config = aggregate_api::read_active_config(&paths, &provider_id)?;
-                config.member_provider_ids.first().cloned().ok_or_else(|| {
-                    "Aggregate API does not contain any available APIs".to_string()
-                })?
-            } else {
-                provider_id
-            };
-        providers::query_provider_usage_blocking(app.clone(), provider_id)?
-    } else if let Some(group) = state.active_provider_group.as_deref() {
-        let provider = providers::provider_group_profiles(&paths, group)?
-            .into_iter()
-            .next()
-            .ok_or_else(|| "Provider group does not contain any available APIs".to_string())?;
-        providers::query_provider_usage_blocking(app.clone(), provider.id)?
-    } else {
-        let account_id = state
-            .active_account_id
-            .ok_or_else(|| "No active account is available for usage sync".to_string())?;
-        crate::commands::refresh_usage_blocking(app.clone(), account_id)?
-    };
-    let payload = serde_json::to_value(usage)
-        .map_err(|error| format!("Failed to serialize current usage: {error}"))?;
-    Ok(json_payload(200, payload))
-}
-
-fn upstream_429_retry_timeout<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<Duration, String> {
-    let seconds = read_app_settings(app)?
-        .upstream_429_retry_timeout_seconds
-        .clamp(
-            MIN_UPSTREAM_429_RETRY_TIMEOUT_SECONDS,
-            MAX_UPSTREAM_429_RETRY_TIMEOUT_SECONDS,
-        );
-    Ok(Duration::from_secs(seconds))
-}
-
-fn retry_upstream_request<F, S>(
-    timeout: Duration,
-    request: F,
-    handle_quota_event: S,
-) -> Result<UpstreamPayload, String>
-where
-    F: FnMut() -> Result<UpstreamPayload, String>,
-    S: FnMut(&UpstreamPayload, UpstreamQuotaEvent) -> bool,
-{
-    let started_at = Instant::now();
-    retry_upstream_request_with(timeout, request, handle_quota_event, |delay| {
-        thread::sleep(delay.min(timeout.saturating_sub(started_at.elapsed())));
-        started_at.elapsed()
-    })
-}
-
-fn retry_upstream_request_with<F, S, W>(
-    timeout: Duration,
-    mut request: F,
-    mut handle_quota_event: S,
-    mut wait_before_retry: W,
-) -> Result<UpstreamPayload, String>
-where
-    F: FnMut() -> Result<UpstreamPayload, String>,
-    S: FnMut(&UpstreamPayload, UpstreamQuotaEvent) -> bool,
-    W: FnMut(Duration) -> Duration,
-{
-    let mut retry_number = 0_u16;
-    loop {
-        let response = request()?;
-        if response.status == 429 {
-            retry_number = retry_number.saturating_add(1);
-            let elapsed = wait_before_retry(upstream_429_retry_delay(retry_number));
-            if elapsed >= timeout {
-                let _ = handle_quota_event(&response, UpstreamQuotaEvent::RetryTimedOut);
-                return Ok(response);
-            }
-            if is_official_quota_exhaustion(&response) {
-                let _ = handle_quota_event(&response, UpstreamQuotaEvent::Retry);
-            }
-            continue;
-        }
-        return Ok(response);
-    }
 }

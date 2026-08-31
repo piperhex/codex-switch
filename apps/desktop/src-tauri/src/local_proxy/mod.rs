@@ -8,8 +8,11 @@ include!("settings.rs");
 include!("system_prompt_filter.rs");
 include!("system_prompt_injection.rs");
 include!("server.rs");
+include!("active_forwarding.rs");
+include!("retry.rs");
 include!("routing_auto.rs");
 include!("routing_target.rs");
+include!("image_account_pool.rs");
 include!("capture.rs");
 include!("diagnostics_helpers.rs");
 include!("token_usage.rs");
@@ -35,4 +38,5 @@ mod tests {
     include!("tests/part_05.rs");
     include!("tests/part_06.rs");
     include!("tests/part_07.rs");
+    include!("tests/part_08.rs");
 }

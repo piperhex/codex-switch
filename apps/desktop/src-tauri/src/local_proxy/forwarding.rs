@@ -1,22 +1,40 @@
-fn forward_official<R: Runtime>(
-    app: &tauri::AppHandle<R>,
-    method: &Method,
-    url: &str,
-    headers: &[(String, String)],
+struct OfficialForwardRequest<'a, R: Runtime> {
+    app: &'a tauri::AppHandle<R>,
+    method: &'a Method,
+    url: &'a str,
+    headers: &'a [(String, String)],
     body: Vec<u8>,
-    model: &str,
-    session_id: Option<&str>,
+    model: &'a str,
+    session_id: Option<&'a str>,
+    account_id_override: Option<&'a str>,
+}
+
+fn forward_official<R: Runtime>(
+    request: OfficialForwardRequest<'_, R>,
 ) -> Result<UpstreamPayload, String> {
+    let OfficialForwardRequest {
+        app,
+        method,
+        url,
+        headers,
+        body,
+        model,
+        session_id,
+        account_id_override,
+    } = request;
     let client = http_client()?;
     let upstream_endpoint = upstream_endpoint_for_codex_request(url);
-    let credential_purpose = if is_image_generation_endpoint(request_path(&upstream_endpoint)) {
-        OfficialCredentialPurpose::ImageGeneration
-    } else if request_contains_input_image(&body) {
-        OfficialCredentialPurpose::ImageInput
-    } else {
-        OfficialCredentialPurpose::Default
-    };
-    let mut credentials = official_credentials(app, &client, credential_purpose, session_id)?;
+    let credential_purpose =
+        official_credential_purpose(request_path(&upstream_endpoint), &body);
+    let mut credentials = official_credentials(
+        app,
+        &client,
+        OfficialCredentialOptions {
+            purpose: credential_purpose,
+            session_id,
+            account_id_override,
+        },
+    )?;
     let upstream_url = official_url(&upstream_endpoint);
     let body = official_body_for_upstream(method, &upstream_endpoint, body, model);
     let mut payload = send_official_request(

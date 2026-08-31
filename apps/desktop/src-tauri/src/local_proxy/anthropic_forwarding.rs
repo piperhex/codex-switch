@@ -42,8 +42,11 @@ fn forward_anthropic_official<R: tauri::Runtime>(
     let credentials = official_credentials(
         app,
         &client,
-        OfficialCredentialPurpose::Default,
-        session_id,
+        OfficialCredentialOptions {
+            purpose: OfficialCredentialPurpose::Default,
+            session_id,
+            account_id_override: None,
+        },
     )?;
     let request: Value = serde_json::from_slice(&body)
         .map_err(|error| format!("Anthropic request body is not valid JSON: {error}"))?;

@@ -211,38 +211,46 @@ fn concurrent_account_for_session(
 fn official_credentials<R: Runtime>(
     app: &tauri::AppHandle<R>,
     client: &Client,
-    purpose: OfficialCredentialPurpose,
-    session_id: Option<&str>,
+    options: OfficialCredentialOptions<'_>,
 ) -> Result<OfficialProxyCredentials, String> {
+    let OfficialCredentialOptions {
+        purpose,
+        session_id,
+        account_id_override,
+    } = options;
     let paths = resolve_paths(app)?;
     // Bind the selected account to both coordinator generations. Requests that start
     // during a switch wait here and use the new account generation; requests from the
     // same failed attempt can later tell that another thread already handled it.
     let (active_account_generation, auto_switch_attempt_generation, state) =
         auto_switch_coordinator().account_snapshot(|| Ok(read_state(&paths)))?;
-    let active_account_id = state
-        .active_account_id
-        .as_deref()
-        .ok_or_else(|| "Select an official account before using the local proxy".to_string())?;
-    let concurrent_account_id = if state.concurrent_account_routing_enabled
+    let active_account_id = state.active_account_id.as_deref();
+    let concurrent_account_id = if account_id_override.is_none()
+        && state.concurrent_account_routing_enabled
         && matches!(purpose, OfficialCredentialPurpose::Default)
     {
         concurrent_account_for_session(&paths, &state, session_id)?
     } else {
         None
     };
-    let selected_account_id = concurrent_account_id
-        .as_deref()
-        .unwrap_or(active_account_id);
+    let selected_account_id = account_id_override
+        .or(concurrent_account_id.as_deref())
+        .or(active_account_id)
+        .ok_or_else(|| "Select an official account before using the local proxy".to_string())?;
     let active_auth = read_json(&managed_auth_path(&paths, selected_account_id))?;
     validate_auth(&active_auth)?;
-    let credential_account_id = if concurrent_account_id.is_some() {
+    let credential_account_id = if account_id_override.is_some() || concurrent_account_id.is_some()
+    {
         selected_account_id.to_string()
     } else {
         credential_account_id(&state, &active_auth, purpose)?
     };
-    let auto_switch_eligible =
-        concurrent_account_id.is_none() && credential_account_id == active_account_id;
+    let auto_switch_eligible = credential_is_auto_switch_eligible(
+        purpose,
+        concurrent_account_id.as_deref(),
+        &credential_account_id,
+        active_account_id,
+    );
     let mut auth = if credential_account_id == selected_account_id {
         active_auth
     } else {
@@ -306,6 +314,23 @@ fn official_credentials<R: Runtime>(
         },
         token_usage_account,
     })
+}
+
+struct OfficialCredentialOptions<'a> {
+    purpose: OfficialCredentialPurpose,
+    session_id: Option<&'a str>,
+    account_id_override: Option<&'a str>,
+}
+
+fn credential_is_auto_switch_eligible(
+    purpose: OfficialCredentialPurpose,
+    concurrent_account_id: Option<&str>,
+    credential_account_id: &str,
+    active_account_id: Option<&str>,
+) -> bool {
+    purpose == OfficialCredentialPurpose::Default
+        && concurrent_account_id.is_none()
+        && active_account_id == Some(credential_account_id)
 }
 
 fn credential_account_id(

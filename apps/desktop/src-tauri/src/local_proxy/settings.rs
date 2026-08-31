@@ -399,7 +399,7 @@ pub(crate) fn set_local_proxy_openai_auth_account_blocking<R: Runtime>(
     Ok(proxy_status)
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum OfficialCredentialPurpose {
     Default,
     ImageInput,

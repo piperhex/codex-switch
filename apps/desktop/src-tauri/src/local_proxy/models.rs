@@ -7,15 +7,16 @@ fn models_payload<R: Runtime>(
     let upstream_headers = unconditional_model_catalog_headers(headers);
     let image_input_route_enabled = image_input_route_enabled(app);
     let payload = match target {
-        ActiveTarget::Official { model } => forward_official(
+        ActiveTarget::Official { model } => forward_official(OfficialForwardRequest {
             app,
-            &Method::Get,
+            method: &Method::Get,
             url,
-            &upstream_headers,
-            Vec::new(),
+            headers: &upstream_headers,
+            body: Vec::new(),
             model,
-            None,
-        )?,
+            session_id: None,
+            account_id_override: None,
+        })?,
         ActiveTarget::Provider(provider) if providers::uses_upstream_official_models(provider) => {
             forward_provider(&Method::Get, url, &upstream_headers, Vec::new(), provider)?
         }
