@@ -6,7 +6,9 @@ Codex Switch 是一款面向 Codex / ChatGPT 用户的多账号管理工作台�
 
 [![许可证](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE) [![发布版本](https://img.shields.io/github/v/release/piperhex/codex-switch)](https://github.com/piperhex/codex-switch/releases)
 
-QQ 技术交流群：`1051213898`。
+QQ 技术交流群1：`1051213898`（已满）。
+
+QQ 技术交流群2：`972062132`。
 
 ## 产品截图
 
