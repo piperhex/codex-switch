@@ -156,9 +156,21 @@ fn parse_windows_claude_commands(output: &[u8]) -> Vec<PathBuf> {
 
 #[cfg(windows)]
 fn claude_desktop_installed() -> bool {
-    RegKey::predef(HKEY_CLASSES_ROOT)
+    if RegKey::predef(HKEY_CLASSES_ROOT)
         .open_subkey(r"claude\shell\open\command")
         .is_ok()
+    {
+        return true;
+    }
+
+    let status = windows_hidden_command("powershell")
+        .args([
+            "-NoProfile",
+            "-Command",
+            "if (Get-AppxPackage -Name Claude -ErrorAction SilentlyContinue) { exit 0 } else { exit 1 }",
+        ])
+        .status();
+    status.is_ok_and(|status| status.success())
 }
 
 #[cfg(target_os = "macos")]
