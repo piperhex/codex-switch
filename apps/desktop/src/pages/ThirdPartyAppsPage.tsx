@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Button, Card, Popconfirm, Select, Space, Switch, Typography } from "antd";
+import { Button, Card, Modal, Popconfirm, Select, Space, Switch, Typography } from "antd";
 import { Play, RefreshCw, SquareTerminal } from "lucide-react";
 import type { Translate, TranslationKey } from "../i18n";
 import type {
@@ -134,6 +134,13 @@ export function ThirdPartyAppsPage(props: ThirdPartyAppsPageProps) {
   const handleEnabledChange = (enabled: boolean) => {
     if (!proxyRunning) {
       notify(t("thirdPartyApps.proxyRequired"));
+      return;
+    }
+    if (enabled && !hasProxyTarget) {
+      Modal.warning({
+        title: t("thirdPartyApps.targetRequiredTitle"),
+        content: t("thirdPartyApps.targetRequired"),
+      });
       return;
     }
     onEnabledChange(enabled);
