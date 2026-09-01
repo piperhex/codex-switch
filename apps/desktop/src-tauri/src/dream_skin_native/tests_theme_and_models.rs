@@ -261,25 +261,22 @@
         .unwrap();
 
         assert!(expression.contains("data-codex-switch-speed-selector"));
-        assert!(expression.contains("service_tier"));
-        assert!(expression.contains("普通"));
         assert!(expression.contains("Fast"));
-        assert!(expression.contains("/codex-switch/service-tier"));
-        assert!(expression.contains("findReasoningItem"));
-        assert!(expression.contains("reasoningItem.after(container)"));
-        assert!(expression.contains("setAttribute(\"role\", \"menuitem\")"));
-        assert!(expression.contains("menuitemradio"));
-        assert!(expression.contains("openSubmenu"));
-        assert!(expression.contains("--advanced-view-height"));
+        assert!(expression.contains("codexSwitchSetServiceTier"));
+        assert!(!expression.contains("fetch(endpoint"));
+        assert!(expression.contains("data-composer-navigation-target"));
+        assert!(expression.contains("modelWrapper.before(container)"));
+        assert!(expression.contains("pointerdown"));
+        assert!(expression.contains("data-speed-switch"));
+        assert!(expression.contains("setAttribute(\"role\", \"switch\")"));
+        assert!(expression.contains("border-radius:9999px"));
+        assert!(!expression.contains("menuitemradio"));
+        assert!(!expression.contains("openSubmenu"));
         assert!(!expression.contains("button.h-token-button-composer"));
         assert!(expression.contains("__CODEX_SWITCH_SPEED_SELECTOR_ALLOWED__"));
         assert!(expression.contains("key[3] === \"no-auth\""));
         assert!(!expression.contains("authMethod = \"chatgpt\""));
         assert!(!expression.contains("featureRequirements.fast_mode"));
-        assert!(
-            expression.find("__CODEX_SWITCH_SPEED_SELECTOR__").unwrap()
-                > expression.find("const root = window.__codexRoot").unwrap()
-        );
     }
 
     #[test]

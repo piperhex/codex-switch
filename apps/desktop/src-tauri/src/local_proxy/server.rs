@@ -30,6 +30,10 @@ fn proxy_service_tier() -> ProxyServiceTier {
         .unwrap_or(ProxyServiceTier::Default)
 }
 
+pub(crate) fn proxy_service_tier_name() -> &'static str {
+    proxy_service_tier().as_str()
+}
+
 fn proxy_service_tier_override() -> Option<ProxyServiceTier> {
     PROXY_SERVICE_TIER
         .get_or_init(|| RwLock::new(None))
@@ -47,54 +51,25 @@ fn set_proxy_service_tier(tier: Option<ProxyServiceTier>) {
     }
 }
 
+#[cfg(test)]
 fn parse_proxy_service_tier(value: &Value) -> Result<ProxyServiceTier, &'static str> {
-    match value.get("service_tier").and_then(Value::as_str) {
+    parse_proxy_service_tier_name(value.get("service_tier").and_then(Value::as_str))
+}
+
+fn parse_proxy_service_tier_name(value: Option<&str>) -> Result<ProxyServiceTier, &'static str> {
+    match value {
         Some("default") => Ok(ProxyServiceTier::Default),
         Some("priority") => Ok(ProxyServiceTier::Priority),
         _ => Err("service_tier must be either default or priority"),
     }
 }
 
-fn service_tier_api_payload(status: u16, value: Value) -> UpstreamPayload {
-    let mut payload = json_payload(status, value);
-    payload.response_headers = vec![
-        ("Access-Control-Allow-Origin".to_string(), "*".to_string()),
-        (
-            "Access-Control-Allow-Headers".to_string(),
-            "Authorization, Content-Type".to_string(),
-        ),
-        ("Access-Control-Allow-Methods".to_string(), "GET, POST, OPTIONS".to_string()),
-    ];
-    payload
-}
-
-fn handle_service_tier_api(method: &Method, headers: &[(String, String)], body: &[u8]) -> UpstreamPayload {
-    if *method == Method::Options {
-        return service_tier_api_payload(204, Value::Null);
-    }
-    if !request_has_valid_api_key(headers, LOCAL_PROXY_TOKEN) {
-        return service_tier_api_payload(401, json!({ "error": { "message": "Unauthorized" } }));
-    }
-    if *method == Method::Get {
-        return service_tier_api_payload(200, json!({ "service_tier": proxy_service_tier().as_str() }));
-    }
-    if *method != Method::Post {
-        return service_tier_api_payload(405, json!({ "error": { "message": "Method not allowed" } }));
-    }
-    let value = match serde_json::from_slice::<Value>(body) {
-        Ok(value) => value,
-        Err(_) => {
-            return service_tier_api_payload(400, json!({ "error": { "message": "Invalid JSON" } }));
-        }
-    };
-    let tier = match parse_proxy_service_tier(&value) {
-        Ok(tier) => tier,
-        Err(message) => {
-            return service_tier_api_payload(400, json!({ "error": { "message": message } }));
-        }
+pub(crate) fn set_proxy_service_tier_from_renderer(value: &str) -> bool {
+    let Ok(tier) = parse_proxy_service_tier_name(Some(value)) else {
+        return false;
     };
     set_proxy_service_tier(Some(tier));
-    service_tier_api_payload(200, json!({ "service_tier": tier.as_str() }))
+    true
 }
 
 fn start_server<R: Runtime>(app: tauri::AppHandle<R>) -> Result<bool, String> {
@@ -371,9 +346,6 @@ fn handle_proxy_request<R: Runtime>(
 ) -> Result<UpstreamPayload, String> {
     let path = request_path(url);
     let started_at = Instant::now();
-    if path == "/codex-switch/service-tier" {
-        return Ok(handle_service_tier_api(method, headers, &body));
-    }
     if *method == Method::Get && path == "/health" {
         let diagnostic = proxy_diagnostic_entry(
             method,

@@ -1,6 +1,5 @@
 #[cfg(test)]
 const CODEX_MODEL_QUERY_PREFIX: [&str; 2] = ["models", "list"];
-use crate::providers::LOCAL_PROXY_PORT;
 // Codex Desktop keys an unauthenticated model query with authMethod ?? "no-auth".
 // Seeding that exact cache entry lets a picker mounted after this refresh reuse the injected models.
 const CODEX_MODEL_QUERY_HOST: &str = "local";
@@ -109,9 +108,8 @@ const CODEX_MODEL_OBSERVER_PATCH_HELPERS: &str = r#"
 const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
   (() => {
     const stateKey = "__CODEX_SWITCH_SPEED_SELECTOR__";
-    const overlayVersion = 3;
-    const endpoint = "http://127.0.0.1:__CODEX_SWITCH_PROXY_PORT__/codex-switch/service-tier";
-    const token = "CODEX_SWITCH_LOCAL_PROXY";
+    const overlayVersion = 8;
+    const initialTier = __CODEX_SWITCH_SERVICE_TIER__;
     const existing = window[stateKey];
     const removeSelectors = () => {
       existing?.cleanup?.();
@@ -128,209 +126,111 @@ const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
       return;
     }
     if (existing?.installed && existing.version === overlayVersion) {
-      fetch(endpoint, { headers: { Authorization: `Bearer ${token}` } })
-        .then(response => response.ok ? response.json() : null)
-        .then(result => {
-          if (result?.service_tier !== "priority" && result?.service_tier !== "default") return;
-          existing.tier = result.service_tier;
-          for (const selector of document.querySelectorAll("[data-codex-switch-speed-selector]")) {
-            const value = selector.querySelector("[data-speed-value]");
-            if (value) value.textContent = existing.tier === "priority" ? "Fast" : "普通";
-          }
-        }).catch(() => {});
+      if (!existing.pendingTier) existing.tier = initialTier;
+      existing.syncAll?.();
       return;
     }
     removeSelectors();
     const state = {
-      installed: true, version: overlayVersion, tier: "default", observer: null, timer: null,
-      submenu: null, trigger: null, refreshing: false,
+      installed: true, version: overlayVersion, tier: initialTier, observer: null, timer: null,
+      pendingTier: null, previousTier: null, syncAll: null, completeSelection: null,
     };
     window[stateKey] = state;
-    const callApi = async (method, body) => {
-      const response = await fetch(endpoint, {
-        method,
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: body ? JSON.stringify(body) : undefined,
-      });
-      if (!response.ok) throw new Error(`service-tier API returned ${response.status}`);
-      return response.json();
+    const syncSwitch = selector => {
+      const toggle = selector.querySelector("[data-speed-switch]");
+      if (!toggle) return;
+      const enabled = state.tier === "priority";
+      toggle.setAttribute("aria-checked", String(enabled));
+      toggle.style.background = enabled ? "rgb(16,163,127)" : "rgb(142,142,147)";
+      toggle.firstElementChild.style.transform = enabled ? "translateX(12px)" : "translateX(0)";
     };
-    const closeSubmenu = () => {
-      state.submenu?.remove();
-      state.submenu = null;
-      state.trigger?.setAttribute("aria-expanded", "false");
-      state.trigger = null;
-    };
-    const syncOptions = () => {
-      for (const option of state.submenu?.querySelectorAll("[data-service-tier]") ?? []) {
-        const selected = option.dataset.serviceTier === state.tier;
-        option.setAttribute("aria-checked", String(selected));
-        option.style.background = selected ? "var(--background-primary-ghost)" : "transparent";
-        option.querySelector("[data-speed-check]")?.style.setProperty(
-          "visibility", selected ? "visible" : "hidden",
-        );
+    const syncAll = () => {
+      for (const selector of document.querySelectorAll("[data-codex-switch-speed-selector]")) {
+        syncSwitch(selector);
+        const toggle = selector.querySelector("[data-speed-switch]");
+        if (toggle) toggle.disabled = Boolean(state.pendingTier);
       }
     };
-    const selectTier = async (option, tier) => {
-      try {
-        await callApi("POST", { service_tier: tier });
-        state.tier = tier;
-        const selector = state.trigger;
-        if (selector) selector.querySelector("[data-speed-value]").textContent = tier === "priority" ? "Fast" : "普通";
-        syncOptions();
-        closeSubmenu();
-      } catch (error) {
-        console.warn("Codex Switch speed selection failed", error);
-      }
+    state.syncAll = syncAll;
+    state.completeSelection = (tier, succeeded) => {
+      if (state.pendingTier !== tier) return;
+      if (!succeeded) state.tier = state.previousTier;
+      state.pendingTier = null;
+      state.previousTier = null;
+      syncAll();
     };
-    const createOption = (label, tier) => {
-      const option = document.createElement("button");
-      option.type = "button";
-      option.dataset.serviceTier = tier;
-      option.setAttribute("role", "menuitemradio");
-      option.style.cssText = "display:flex;width:100%;justify-content:space-between;border:0;border-radius:8px;"
-        + "padding:6px 8px;font-size:14px;line-height:20px;text-align:start;"
-        + "cursor:pointer;color:var(--text-primary);background:transparent;";
-      const optionLabel = document.createElement("span");
-      const check = document.createElement("span");
-      optionLabel.textContent = label;
-      check.dataset.speedCheck = "true";
-      check.textContent = "✓";
-      check.style.visibility = "hidden";
-      option.append(optionLabel, check);
-      option.addEventListener("click", event => {
-        event.preventDefault();
-        event.stopPropagation();
-        selectTier(option, tier);
-      });
-      return option;
+    const selectTier = tier => {
+      if (state.pendingTier || typeof window.codexSwitchSetServiceTier !== "function") return;
+      state.previousTier = state.tier;
+      state.tier = tier;
+      state.pendingTier = tier;
+      syncAll();
+      window.codexSwitchSetServiceTier(tier);
     };
-    const findReasoningItem = () => {
-      const menu = [...document.querySelectorAll('[role="menu"][data-state="open"]')]
-        .find(element => element.querySelector("[data-model-picker-view-toggle]"));
-      const activePanel = menu?.querySelector('[data-active="true"]');
-      const submenuItems = [...activePanel?.querySelectorAll('[role="menuitem"][aria-haspopup="menu"]') ?? []];
-      return submenuItems.length >= 2 ? submenuItems.at(-1) : null;
-    };
-    const openSubmenu = (container, isChinese) => {
-      closeSubmenu();
-      const submenu = document.createElement("div");
-      const rect = container.getBoundingClientRect();
-      submenu.dataset.codexSwitchSpeedSubmenu = "true";
-      submenu.setAttribute("role", "menu");
-      submenu.className = "no-drag z-50 m-px flex select-none flex-col overflow-y-auto px-1 py-1 "
-        + "bg-surface-elevated-secondary/90 text-default ring-border rounded-xl ring-[0.5px] "
-        + "shadow-xl-spread backdrop-blur-sm";
-      submenu.style.cssText = "position:fixed;z-index:60;min-width:224px;";
-      submenu.append(
-        createOption(isChinese ? "普通" : "Standard", "default"),
-        createOption("Fast", "priority"),
-      );
-      document.body.append(submenu);
-      const width = submenu.getBoundingClientRect().width;
-      const height = submenu.getBoundingClientRect().height;
-      submenu.style.left = `${Math.max(8, rect.left - width - 4)}px`;
-      submenu.style.top = `${Math.max(8, Math.min(rect.top, innerHeight - height - 8))}px`;
-      state.submenu = submenu;
-      state.trigger = container;
-      container.setAttribute("aria-expanded", "true");
-      syncOptions();
-    };
-    const createSelector = reasoningItem => {
-      const isChinese = document.documentElement.lang.toLowerCase().startsWith("zh");
+    const createSelector = anchor => {
       const container = document.createElement("div");
       const content = document.createElement("div");
       const label = document.createElement("span");
-      const value = document.createElement("span");
-      const arrow = document.createElement("span");
+      const toggle = document.createElement("button");
+      const thumb = document.createElement("span");
       container.dataset.codexSwitchSpeedSelector = "true";
-      container.className = reasoningItem.className;
-      container.setAttribute("role", "menuitem");
-      container.setAttribute("aria-haspopup", "menu");
-      container.setAttribute("aria-expanded", "false");
-      container.setAttribute("aria-label", isChinese ? "速度" : "Speed");
-      content.className = "flex w-full min-w-0 items-center gap-3";
-      label.textContent = isChinese ? "速度" : "Speed";
-      value.dataset.speedValue = "true";
-      value.className = "min-w-0 truncate text-tertiary";
-      value.textContent = isChinese ? "普通" : "Standard";
-      const valueWrap = document.createElement("span");
-      valueWrap.className = "flex min-w-0 flex-1 justify-end text-tertiary";
-      valueWrap.append(value);
-      arrow.textContent = "›";
-      arrow.className = "shrink-0 text-xl leading-none text-tertiary";
-      content.append(label, valueWrap, arrow);
-      container.append(content);
-      container.addEventListener("click", event => {
+      container.className = "no-drag cursor-interaction select-none";
+      container.setAttribute("role", "group");
+      container.setAttribute("aria-label", "快速模式");
+      container.style.cssText = "display:inline-flex;align-items:center;flex:0 0 auto;width:auto;"
+        + "white-space:nowrap;margin-right:4px;padding:3px 8px;gap:6px;"
+        + "border-radius:9999px;background:var(--background-primary-ghost);"
+        + "font-size:14px;line-height:18px;color:var(--text-tertiary);";
+      container.style.setProperty("display", "inline-flex", "important");
+      content.className = "flex items-center gap-2";
+      label.className = "text-tertiary text-sm leading-[18px]";
+      label.textContent = "快速模式";
+      toggle.type = "button";
+      toggle.dataset.speedSwitch = "true";
+      toggle.setAttribute("role", "switch");
+      toggle.setAttribute("aria-label", "快速模式");
+      toggle.style.cssText = "display:block;flex:0 0 auto;width:28px;height:16px;padding:2px;"
+        + "appearance:none;border:0;border-radius:9999px;cursor:pointer;"
+        + "background:rgb(142,142,147);transition:background 120ms ease;";
+      thumb.style.cssText = "display:block;width:12px;height:12px;border-radius:50%;"
+        + "background:rgb(255,255,255);transition:transform 120ms ease;";
+      toggle.append(thumb);
+      toggle.addEventListener("click", event => {
         event.preventDefault();
         event.stopPropagation();
-        if (state.trigger === container) closeSubmenu();
-        else openSubmenu(container, isChinese);
+        selectTier(state.tier === "priority" ? "default" : "priority");
       });
+      content.append(label, toggle);
+      container.append(content);
+      for (const eventName of ["pointerdown", "mousedown", "click"]) {
+        container.addEventListener(eventName, event => {
+          event.stopPropagation();
+        }, eventName !== "click");
+      }
+      syncSwitch(container);
       return container;
-    };
-    const fitMenuToSelector = (reasoningItem, container) => {
-      const advancedView = reasoningItem.parentElement;
-      const menuRoot = advancedView?.closest("[data-view]");
-      if (!advancedView || !menuRoot || menuRoot.dataset.view !== "advanced") return;
-      menuRoot.style.setProperty("--advanced-view-height", `${advancedView.scrollHeight}px`);
-      menuRoot.style.height = "calc(var(--simple-view-height) + var(--advanced-view-height))";
     };
     const render = () => {
       if (window.__CODEX_SWITCH_SPEED_SELECTOR_ALLOWED__ !== true) {
-        closeSubmenu();
         for (const selector of document.querySelectorAll("[data-codex-switch-speed-selector]")) selector.remove();
         return;
       }
-      const reasoningItem = findReasoningItem();
-      if (!reasoningItem) {
-        closeSubmenu();
+      const anchor = document.querySelector('[data-composer-navigation-target="reasoning"]');
+      if (!anchor) {
         return;
       }
-      const advancedView = reasoningItem.parentElement;
-      let container = advancedView.querySelector("[data-codex-switch-speed-selector]");
+      const modelWrapper = anchor.parentElement?.parentElement;
+      const parent = modelWrapper?.parentElement;
+      let container = parent?.querySelector(":scope > [data-codex-switch-speed-selector]");
       if (!container) {
-        container = createSelector(reasoningItem);
-        reasoningItem.after(container);
+        container = createSelector(anchor);
+        modelWrapper.before(container);
       }
-      fitMenuToSelector(reasoningItem, container);
     };
     state.observer = new MutationObserver(render);
-    state.cleanup = () => document.removeEventListener("pointerdown", state.pointerListener, true);
-    state.pointerListener = event => {
-      if (!state.trigger?.contains(event.target) && !state.submenu?.contains(event.target)) closeSubmenu();
-    };
-    document.addEventListener("pointerdown", state.pointerListener, true);
     state.observer.observe(document.documentElement, { childList: true, subtree: true });
-    state.timer = setInterval(async () => {
-      if (state.refreshing) return;
-      state.refreshing = true;
-      try {
-        const result = await callApi("GET");
-        if (result?.service_tier !== "priority" && result?.service_tier !== "default") return;
-        state.tier = result.service_tier;
-        render();
-      } catch {
-        window.__CODEX_SWITCH_SPEED_SELECTOR_ALLOWED__ = false;
-        render();
-      } finally {
-        state.refreshing = false;
-      }
-    }, 1000);
+    state.timer = setInterval(render, 1000);
     render();
-    callApi("GET").then(result => {
-      if (result?.service_tier === "priority" || result?.service_tier === "default") {
-        state.tier = result.service_tier;
-        for (const selector of document.querySelectorAll("[data-codex-switch-speed-selector]")) {
-          const value = selector.querySelector("[data-speed-value]");
-          if (value) value.textContent = state.tier === "priority" ? "Fast" : "普通";
-        }
-        syncOptions();
-      }
-    }).catch(() => {});
   })();
 "#;
 
@@ -378,8 +278,10 @@ fn codex_model_refresh_expression(
     let fallback_query_key = serde_json::to_string(&codex_model_fallback_query_key())
         .map_err(|error| format!("Failed to prepare the fallback model query: {error}"))?;
     let observer_patch_helpers = CODEX_MODEL_OBSERVER_PATCH_HELPERS;
-    let speed_selector_overlay = CODEX_SPEED_SELECTOR_OVERLAY
-        .replace("__CODEX_SWITCH_PROXY_PORT__", &LOCAL_PROXY_PORT.to_string());
+    let service_tier = serde_json::to_string(crate::local_proxy::proxy_service_tier_name())
+        .map_err(|error| format!("Failed to prepare the proxy service tier: {error}"))?;
+    let speed_selector_overlay =
+        CODEX_SPEED_SELECTOR_OVERLAY.replace("__CODEX_SWITCH_SERVICE_TIER__", &service_tier);
     Ok(format!(
         r#"(async () => {{
   const expectedModels = {models};
