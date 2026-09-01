@@ -214,6 +214,7 @@ export function ProvidersPage({
     accounts,
     busyProviderId,
     proxyRunning,
+    fastModeEnabled: localProxy?.fastModeEnabled ?? false,
     proxyBusy,
     proxyStartDisabledReason,
     language,

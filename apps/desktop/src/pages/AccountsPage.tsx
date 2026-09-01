@@ -138,7 +138,8 @@ export function AccountsPage({
         onLoadAccountDetails={onLoadAccountDetails}
         resetCredits={resetCredits} onLoadResetCredits={onLoadResetCredits}
         onUseResetCredit={onUseResetCredit} resetCreditBusyAccountId={resetCreditBusyAccountId}
-        hotSwitchEnabled={hotSwitchEnabled} privacyMode={privacyMode}
+        hotSwitchEnabled={hotSwitchEnabled} fastModeEnabled={localProxy?.fastModeEnabled ?? false}
+        privacyMode={privacyMode}
         privacyModeLoading={privacyModeLoading} onPrivacyModeChange={onPrivacyModeChange}
         hideAccountNotes={hideAccountNotes}
         concurrentAccountRoutingEnabled={localProxy?.concurrentAccountRoutingEnabled ?? false}

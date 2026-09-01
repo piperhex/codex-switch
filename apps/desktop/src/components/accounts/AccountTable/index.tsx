@@ -119,6 +119,7 @@ interface AccountTableProps {
   onUseResetCredit: (id: string) => void;
   resetCreditBusyAccountId: string | null;
   hotSwitchEnabled: boolean;
+  fastModeEnabled: boolean;
   concurrentAccountRoutingEnabled: boolean;
   concurrentAccountRoutingBusy: boolean;
   onConcurrentAccountRoutingChange: (enabled: boolean) => void;
@@ -351,6 +352,7 @@ export function AccountTable({
   onUseResetCredit,
   resetCreditBusyAccountId,
   hotSwitchEnabled,
+  fastModeEnabled,
   concurrentAccountRoutingEnabled,
   concurrentAccountRoutingBusy,
   onConcurrentAccountRoutingChange,
@@ -717,7 +719,7 @@ export function AccountTable({
         const usage = accountTokenUsage.find((item) => tokenUsageMatchesAccount(item, account));
         return <Tooltip title={t("table.estimatedTokenCostHint", { unit: tokenCostDisplay.unit })}
           styles={{ root: { maxWidth: 400 } }}>
-          <strong className="account-token-cost">
+          <strong className={`account-token-cost${fastModeEnabled ? " token-cost-burning" : ""}`}>
             {formatEstimatedCost(usage?.estimatedCost ?? 0, tokenCostDisplay)}
           </strong>
         </Tooltip>;

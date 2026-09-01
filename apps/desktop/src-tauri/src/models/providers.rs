@@ -102,6 +102,7 @@ pub(crate) struct ProviderBalanceItem {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct LocalProxyStatus {
     pub(crate) running: bool,
+    pub(crate) fast_mode_enabled: bool,
     pub(crate) address: String,
     pub(crate) port: u16,
     pub(crate) base_url: String,

@@ -64,8 +64,10 @@ fn status<R: Runtime>(app: &tauri::AppHandle<R>) -> LocalProxyStatus {
             None,
             None,
         ));
+    let running = is_running();
     LocalProxyStatus {
-        running: is_running(),
+        running,
+        fast_mode_enabled: running && proxy_service_tier_name() == "priority",
         address: proxy_bind_host(listen_on_all_interfaces).to_string(),
         port: LOCAL_PROXY_PORT,
         base_url: LOCAL_PROXY_BASE_URL.to_string(),

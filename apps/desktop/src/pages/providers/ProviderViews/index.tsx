@@ -41,6 +41,7 @@ interface ProviderViewProps {
   accounts: Account[];
   busyProviderId: string | null;
   proxyRunning: boolean;
+  fastModeEnabled: boolean;
   proxyBusy: boolean;
   proxyStartDisabledReason?: string;
   language: Language;
@@ -290,7 +291,7 @@ function buildColumns(
         settings={tokenCostDisplay} providers={options.providers} t={t} />,
       key: "estimatedCost", width: 145, align: "center",
       render: (_, provider) => <ProviderEstimatedCostCell usage={usageForProvider(provider)}
-        settings={tokenCostDisplay} t={t} />,
+        settings={tokenCostDisplay} burning={options.fastModeEnabled} t={t} />,
     },
     {
       title: t("providers.table.actions"), key: "actions", width: 285, align: "right", fixed: "right",

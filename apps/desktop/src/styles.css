@@ -392,6 +392,46 @@ h1 { margin: 5px 0 0; font: 700 26px/1.1 Manrope, sans-serif; letter-spacing: -.
 .token-cost-column-title { display: inline-flex; align-items: center; gap: 3px; }
 .token-cost-settings-button { width: 22px; height: 22px; padding: 0; color: var(--muted); }
 .token-cost-settings-button:hover { color: var(--green-dark); }
+.token-cost-burning {
+  position: relative; z-index: 0; display: inline-flex; align-items: center; padding: 1px 5px;
+  isolation: isolate; color: #d94b16 !important;
+  text-shadow: 0 0 4px rgba(255, 91, 0, .72), 0 -2px 7px rgba(255, 183, 0, .5);
+  animation: token-cost-ember-flicker .7s ease-in-out infinite alternate;
+}
+.token-cost-burning::before,
+.token-cost-burning::after {
+  content: ""; position: absolute; z-index: -1; pointer-events: none; transform-origin: 50% 100%;
+}
+.token-cost-burning::before {
+  right: 4%; bottom: -3px; left: 4%; height: 17px; border-radius: 48% 52% 38% 42%;
+  background:
+    radial-gradient(ellipse at 22% 100%, rgba(255, 195, 0, .88) 0 18%, transparent 48%),
+    radial-gradient(ellipse at 52% 100%, rgba(255, 77, 0, .82) 0 26%, transparent 62%),
+    radial-gradient(ellipse at 82% 100%, rgba(255, 145, 0, .78) 0 17%, transparent 50%);
+  filter: blur(2px); animation: token-cost-flame-rise .58s ease-in-out infinite alternate;
+}
+.token-cost-burning::after {
+  right: 18%; bottom: -1px; left: 18%; height: 10px; border-radius: 50%;
+  background: rgba(255, 219, 95, .58); filter: blur(4px);
+  animation: token-cost-flame-glow .82s ease-in-out infinite alternate-reverse;
+}
+@keyframes token-cost-ember-flicker {
+  from { text-shadow: 0 0 3px rgba(255, 91, 0, .62), 0 -2px 6px rgba(255, 183, 0, .42); }
+  to { text-shadow: 0 0 6px rgba(255, 91, 0, .92), 0 -3px 10px rgba(255, 183, 0, .7); }
+}
+@keyframes token-cost-flame-rise {
+  from { opacity: .6; transform: translateY(1px) scale(.94, .78) skewX(-3deg); }
+  to { opacity: .95; transform: translateY(-2px) scale(1.03, 1.16) skewX(3deg); }
+}
+@keyframes token-cost-flame-glow {
+  from { opacity: .42; transform: scaleX(.84); }
+  to { opacity: .75; transform: scaleX(1.08); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .token-cost-burning,
+  .token-cost-burning::before,
+  .token-cost-burning::after { animation: none; }
+}
 .token-cost-unit-settings {
   width: min(290px, calc(100vw - 32px)); max-width: 400px; display: grid; gap: 7px;
   padding: 10px 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel);

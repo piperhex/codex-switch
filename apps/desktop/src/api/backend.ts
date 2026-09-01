@@ -484,6 +484,7 @@ function previewLocalProxyStatus(): LocalProxyStatus {
     : 0;
   return {
     running: port > 0 && window.localStorage.getItem(LOCAL_PROXY_PREVIEW_KEY) === "true",
+    fastModeEnabled: false,
     address: window.localStorage.getItem(LOCAL_PROXY_LISTEN_ALL_INTERFACES_PREVIEW_KEY) === "true" ? "0.0.0.0" : "127.0.0.1",
     port,
     baseUrl: port > 0 ? `http://127.0.0.1:${port}/v1` : "",

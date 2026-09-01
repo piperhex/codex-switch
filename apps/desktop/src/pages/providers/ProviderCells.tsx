@@ -209,15 +209,16 @@ export function ProviderTokenCell({ usage, period, language, t }: TokenCellProps
   );
 }
 
-export function ProviderEstimatedCostCell({ usage, settings, t }: {
+export function ProviderEstimatedCostCell({ usage, settings, burning, t }: {
   usage?: ProviderTokenUsageTotals;
   settings: TokenCostDisplaySettings;
+  burning?: boolean;
   t: Translate;
 }) {
   return (
     <Tooltip title={t("providers.tokenUsage.costHint", { unit: settings.unit })}
       styles={{ root: { maxWidth: 400 } }}>
-      <strong className="provider-token-value">
+      <strong className={`provider-token-value${burning ? " token-cost-burning" : ""}`}>
         {formatEstimatedCost(usage?.todayEstimatedCost ?? 0, settings)}
       </strong>
     </Tooltip>

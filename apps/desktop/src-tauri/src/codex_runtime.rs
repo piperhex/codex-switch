@@ -14,6 +14,8 @@ use reqwest::blocking::Client;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 use serde::Deserialize;
 use tauri::AppHandle;
+#[cfg(any(target_os = "windows", target_os = "macos"))]
+use tauri::Emitter;
 
 #[cfg(target_os = "windows")]
 use std::path::Path;
@@ -26,6 +28,9 @@ static MODEL_REFRESH_GENERATION: AtomicU64 = AtomicU64::new(0);
 
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 static MODEL_REFRESH_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+
+#[cfg(any(target_os = "windows", target_os = "macos"))]
+static CODEX_RUNTIME_APP: OnceLock<AppHandle> = OnceLock::new();
 
 pub(crate) struct ModelRefreshRequest {
     pub(crate) models: Vec<String>,
@@ -82,11 +87,24 @@ struct OfficialCatalogBuilder {
 /// Initializes the managed Codex renderer channel independently from Dream Skin.
 pub(crate) fn setup(app: &AppHandle) -> Result<(), String> {
     #[cfg(any(target_os = "windows", target_os = "macos"))]
-    return crate::dream_skin_native::setup_runtime(app);
+    {
+        let _ = CODEX_RUNTIME_APP.set(app.clone());
+        crate::dream_skin_native::setup_runtime(app)
+    }
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     {
         let _ = app;
         Ok(())
+    }
+}
+
+#[cfg(any(target_os = "windows", target_os = "macos"))]
+pub(crate) fn notify_service_tier_changed() {
+    let Some(app) = CODEX_RUNTIME_APP.get() else {
+        return;
+    };
+    if let Err(error) = app.emit("providers-changed", ()) {
+        eprintln!("Failed to publish the Codex service tier change: {error}");
     }
 }
 
