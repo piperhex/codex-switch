@@ -45,6 +45,7 @@ const HIDDEN_COLUMNS_STORAGE_KEY = "codex-switch:proxy-session-hidden-columns";
 const COLUMN_ORDER_STORAGE_KEY = "codex-switch:proxy-session-column-order";
 const REQUEST_DETAIL_DEFAULT_PAGE_SIZE = 50;
 const REQUEST_DETAIL_PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
+const REQUEST_DETAIL_TABLE_SCROLL_X = 1_150;
 const PROXY_SESSION_COLUMN_KEYS: ProxySessionColumnKey[] = [
   "conversation",
   "connection",
@@ -258,6 +259,19 @@ function RequestTokenUsage({ request, t }: { request: ProxySessionRequest; t: Tr
       <strong className={styles.requestTokens}>{formatTokens(request.totalTokens)}</strong>
     </Tooltip>
   );
+}
+
+function RequestSpeed({ serviceTier, t }: {
+  serviceTier?: ProxySessionRequest["serviceTier"];
+  t: Translate;
+}) {
+  if (serviceTier === "priority") {
+    return <Tag color="orange">{t("providers.proxy.sessionsRequestSpeedFast")}</Tag>;
+  }
+  if (serviceTier === "default") {
+    return <Tag>{t("providers.proxy.sessionsRequestSpeedStandard")}</Tag>;
+  }
+  return <span className={styles.muted}>{t("providers.proxy.sessionsRequestUnknown")}</span>;
 }
 
 export function ProxySessionManager({
@@ -581,6 +595,15 @@ export function ProxySessionManager({
       ellipsis: true,
       render: (model?: string | null) => (
         model || <span className={styles.muted}>{t("providers.proxy.sessionsRequestUnknown")}</span>
+      ),
+    },
+    {
+      title: t("providers.proxy.sessionsRequestSpeed"),
+      dataIndex: "serviceTier",
+      key: "serviceTier",
+      width: 110,
+      render: (serviceTier?: ProxySessionRequest["serviceTier"]) => (
+        <RequestSpeed serviceTier={serviceTier} t={t} />
       ),
     },
     {
@@ -913,7 +936,7 @@ export function ProxySessionManager({
             size: "small",
           } : false}
           locale={{ emptyText: t("providers.proxy.sessionsRequestDetailsEmpty") }}
-          scroll={{ x: 1_040, y: "calc(80vh - 260px)" }}
+          scroll={{ x: REQUEST_DETAIL_TABLE_SCROLL_X, y: "calc(80vh - 260px)" }}
         />
       </Modal>
       <Modal

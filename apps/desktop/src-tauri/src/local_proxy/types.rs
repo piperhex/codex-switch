@@ -29,6 +29,7 @@ struct ProxySessionRequestState {
     started_at: u64,
     model: Option<String>,
     reasoning_effort: Option<String>,
+    service_tier: Option<ProxyServiceTier>,
     conversation: Option<String>,
     first_response_time_ms: Option<u64>,
     response_time_ms: Option<u64>,

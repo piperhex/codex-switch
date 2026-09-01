@@ -64,11 +64,37 @@ fn parse_proxy_service_tier_name(value: Option<&str>) -> Result<ProxyServiceTier
     }
 }
 
+fn effective_proxy_service_tier(
+    body: &[u8],
+    override_tier: Option<ProxyServiceTier>,
+) -> Option<ProxyServiceTier> {
+    if override_tier.is_some() {
+        return override_tier;
+    }
+    let Ok(value) = serde_json::from_slice::<Value>(body) else {
+        return None;
+    };
+    match value.get("service_tier").and_then(Value::as_str) {
+        None => Some(ProxyServiceTier::Default),
+        value => parse_proxy_service_tier_name(value).ok(),
+    }
+}
+
 pub(crate) fn set_proxy_service_tier_from_renderer(value: &str) -> bool {
     let Ok(tier) = parse_proxy_service_tier_name(Some(value)) else {
         return false;
     };
     set_proxy_service_tier(Some(tier));
+    true
+}
+
+fn update_proxy_service_tier_for_openai_auth(account_id: Option<&str>) -> bool {
+    if account_id.is_none()
+        || proxy_service_tier_override() == Some(ProxyServiceTier::Default)
+    {
+        return false;
+    }
+    set_proxy_service_tier(Some(ProxyServiceTier::Default));
     true
 }
 
@@ -262,8 +288,10 @@ fn handle_request<R: Runtime>(app: tauri::AppHandle<R>, mut request: Request) {
         return;
     }
 
-    let session = (method == Method::Post && is_responses_endpoint(request_path(&url)))
-        .then(|| begin_proxy_session_request(&headers, remote_address, &body));
+    let session = (method == Method::Post && is_responses_endpoint(request_path(&url))).then(|| {
+        let service_tier = effective_proxy_service_tier(&body, proxy_service_tier_override());
+        begin_proxy_session_request(&headers, remote_address, &body, service_tier)
+    });
     let result = handle_proxy_request(
         &app,
         &method,

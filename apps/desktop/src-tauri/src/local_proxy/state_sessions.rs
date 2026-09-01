@@ -75,6 +75,7 @@ fn begin_proxy_session_request(
     headers: &[(String, String)],
     remote_address: Option<String>,
     body: &[u8],
+    service_tier: Option<ProxyServiceTier>,
 ) -> ProxySessionRequestGuard {
     let id = proxy_session_id(headers)
         .or_else(|| {
@@ -126,6 +127,7 @@ fn begin_proxy_session_request(
             started_at: now,
             model,
             reasoning_effort,
+            service_tier,
             conversation,
             first_response_time_ms: None,
             response_time_ms: None,

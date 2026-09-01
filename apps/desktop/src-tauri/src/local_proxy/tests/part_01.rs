@@ -342,7 +342,12 @@
     fn proxy_session_records_the_first_streamed_response_chunk() {
         let session_id = format!("first-response-{}", uuid::Uuid::new_v4());
         let headers = vec![("thread-id".to_string(), session_id.clone())];
-        let guard = begin_proxy_session_request(&headers, None, br#"{"model":"gpt-5.6-sol"}"#);
+        let guard = begin_proxy_session_request(
+            &headers,
+            None,
+            br#"{"model":"gpt-5.6-sol"}"#,
+            Some(ProxyServiceTier::Default),
+        );
         let payload = attach_first_response_capture(
             UpstreamPayload {
                 status: 200,
@@ -371,6 +376,30 @@
                 .is_some()
         );
         drop(guard);
+        proxy_sessions().lock().unwrap().remove(&session_id);
+    }
+
+    #[test]
+    fn proxy_session_request_details_preserve_each_request_service_tier() {
+        let session_id = format!("request-speed-{}", uuid::Uuid::new_v4());
+        let headers = vec![("thread-id".to_string(), session_id.clone())];
+        drop(begin_proxy_session_request(
+            &headers,
+            None,
+            br#"{"model":"gpt-5.6-sol"}"#,
+            Some(ProxyServiceTier::Default),
+        ));
+        drop(begin_proxy_session_request(
+            &headers,
+            None,
+            br#"{"model":"gpt-5.6-sol"}"#,
+            Some(ProxyServiceTier::Priority),
+        ));
+
+        let requests = list_proxy_session_requests_blocking(&session_id).unwrap();
+        assert_eq!(requests[0].service_tier.as_deref(), Some("priority"));
+        assert_eq!(requests[1].service_tier.as_deref(), Some("default"));
+
         proxy_sessions().lock().unwrap().remove(&session_id);
     }
 

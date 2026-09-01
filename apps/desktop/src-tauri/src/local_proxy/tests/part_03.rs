@@ -391,6 +391,45 @@
     }
 
     #[test]
+    fn effective_request_speed_uses_override_then_request_then_standard_default() {
+        let priority = br#"{"service_tier":"priority"}"#;
+        let standard = br#"{"input":"ping"}"#;
+        let invalid = br#"{"service_tier":"turbo"}"#;
+
+        assert_eq!(
+            effective_proxy_service_tier(priority, Some(ProxyServiceTier::Default)),
+            Some(ProxyServiceTier::Default)
+        );
+        assert_eq!(
+            effective_proxy_service_tier(priority, None),
+            Some(ProxyServiceTier::Priority)
+        );
+        assert_eq!(
+            effective_proxy_service_tier(standard, None),
+            Some(ProxyServiceTier::Default)
+        );
+        assert_eq!(effective_proxy_service_tier(invalid, None), None);
+    }
+
+    #[test]
+    fn selecting_openai_login_disables_fast_mode_without_restoring_it_on_clear() {
+        set_proxy_service_tier(None);
+        assert!(update_proxy_service_tier_for_openai_auth(Some("oauth-account")));
+        assert_eq!(
+            proxy_service_tier_override(),
+            Some(ProxyServiceTier::Default)
+        );
+
+        assert!(set_proxy_service_tier_from_renderer("priority"));
+
+        assert!(update_proxy_service_tier_for_openai_auth(Some("oauth-account")));
+        assert_eq!(proxy_service_tier_name(), "default");
+
+        assert!(!update_proxy_service_tier_for_openai_auth(None));
+        assert_eq!(proxy_service_tier_name(), "default");
+    }
+
+    #[test]
     fn official_responses_body_uses_preferred_model_when_request_has_none() {
         for requested in [None, Some(Value::Null), Some(json!("  "))] {
             let mut value = json!({ "input": "ping", "stream": false });

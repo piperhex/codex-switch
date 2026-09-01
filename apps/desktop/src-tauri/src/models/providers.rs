@@ -158,6 +158,7 @@ pub(crate) struct ProxySessionRequestSummary {
     pub(crate) started_at: u64,
     pub(crate) model: Option<String>,
     pub(crate) reasoning_effort: Option<String>,
+    pub(crate) service_tier: Option<String>,
     pub(crate) conversation: Option<String>,
     pub(crate) first_response_time_ms: Option<u64>,
     pub(crate) response_time_ms: Option<u64>,

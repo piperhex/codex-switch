@@ -373,6 +373,11 @@ pub(crate) fn set_local_proxy_openai_auth_account_blocking<R: Runtime>(
 
     let mut state = try_read_state(&paths)?;
     if state.local_proxy_openai_auth_account_id == account_id {
+        if update_proxy_service_tier_for_openai_auth(account_id.as_deref()) {
+            app.emit("providers-changed", ())
+                .map_err(|error| error.to_string())?;
+            providers::refresh_codex_models_for_current_target(&paths);
+        }
         return Ok(status(&app));
     }
     if let Some(previous_account_id) = state.local_proxy_openai_auth_account_id.as_deref() {
@@ -380,6 +385,7 @@ pub(crate) fn set_local_proxy_openai_auth_account_blocking<R: Runtime>(
     }
     state.local_proxy_openai_auth_account_id = account_id;
     write_state(&paths, &state)?;
+    update_proxy_service_tier_for_openai_auth(state.local_proxy_openai_auth_account_id.as_deref());
     let write_codex = crate::claude_code::should_write_codex_for_app(&app)?;
     if write_codex {
         providers::apply_local_proxy_config_for_state(&app)?;

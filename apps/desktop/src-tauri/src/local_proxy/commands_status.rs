@@ -389,6 +389,7 @@ fn list_proxy_session_requests_blocking(
             started_at: request.started_at,
             model: request.model.clone(),
             reasoning_effort: request.reasoning_effort.clone(),
+            service_tier: request.service_tier.map(|tier| tier.as_str().to_string()),
             conversation: request.conversation.clone(),
             first_response_time_ms: request.first_response_time_ms,
             response_time_ms: request.response_time_ms,

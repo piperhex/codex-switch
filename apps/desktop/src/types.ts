@@ -272,6 +272,7 @@ export interface ProxySessionRequest {
     startedAt: number;
     model?: string | null;
     reasoningEffort?: string | null;
+    serviceTier?: "default" | "priority" | null;
     conversation?: string | null;
     firstResponseTimeMs?: number | null;
     responseTimeMs?: number | null;
