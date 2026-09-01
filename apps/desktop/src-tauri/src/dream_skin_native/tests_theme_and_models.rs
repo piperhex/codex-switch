@@ -265,11 +265,20 @@
         assert!(expression.contains("普通"));
         assert!(expression.contains("Fast"));
         assert!(expression.contains("/codex-switch/service-tier"));
+        assert!(expression.contains("findReasoningItem"));
+        assert!(expression.contains("reasoningItem.after(container)"));
+        assert!(expression.contains("setAttribute(\"role\", \"menuitem\")"));
+        assert!(expression.contains("menuitemradio"));
+        assert!(expression.contains("openSubmenu"));
+        assert!(expression.contains("--advanced-view-height"));
+        assert!(!expression.contains("button.h-token-button-composer"));
+        assert!(expression.contains("__CODEX_SWITCH_SPEED_SELECTOR_ALLOWED__"));
+        assert!(expression.contains("key[3] === \"no-auth\""));
         assert!(!expression.contains("authMethod = \"chatgpt\""));
         assert!(!expression.contains("featureRequirements.fast_mode"));
         assert!(
-            expression.find("__CODEX_SWITCH_SPEED_SELECTOR__")
-                < expression.find("const root = window.__codexRoot")
+            expression.find("__CODEX_SWITCH_SPEED_SELECTOR__").unwrap()
+                > expression.find("const root = window.__codexRoot").unwrap()
         );
     }
 

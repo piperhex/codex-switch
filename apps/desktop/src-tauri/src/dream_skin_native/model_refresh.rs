@@ -109,26 +109,42 @@ const CODEX_MODEL_OBSERVER_PATCH_HELPERS: &str = r#"
 const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
   (() => {
     const stateKey = "__CODEX_SWITCH_SPEED_SELECTOR__";
+    const overlayVersion = 3;
     const endpoint = "http://127.0.0.1:__CODEX_SWITCH_PROXY_PORT__/codex-switch/service-tier";
     const token = "CODEX_SWITCH_LOCAL_PROXY";
     const existing = window[stateKey];
-    if (existing?.installed) {
+    const removeSelectors = () => {
+      existing?.cleanup?.();
+      existing?.observer?.disconnect();
+      if (existing?.timer) clearInterval(existing.timer);
+      const injectedNodes = "[data-codex-switch-speed-selector], [data-codex-switch-speed-submenu]";
+      for (const selector of document.querySelectorAll(injectedNodes)) {
+        selector.remove();
+      }
+      delete window[stateKey];
+    };
+    if (window.__CODEX_SWITCH_SPEED_SELECTOR_ALLOWED__ !== true) {
+      removeSelectors();
+      return;
+    }
+    if (existing?.installed && existing.version === overlayVersion) {
       fetch(endpoint, { headers: { Authorization: `Bearer ${token}` } })
         .then(response => response.ok ? response.json() : null)
         .then(result => {
           if (result?.service_tier !== "priority" && result?.service_tier !== "default") return;
           existing.tier = result.service_tier;
-          const selector = document.querySelector("[data-codex-switch-speed-selector]");
-          for (const button of selector?.querySelectorAll("button") ?? []) {
-            const selected = button.dataset.serviceTier === existing.tier;
-            button.setAttribute("aria-pressed", String(selected));
-            button.style.background = selected ? "var(--background-primary-ghost)" : "transparent";
-            button.style.color = selected ? "var(--text-primary)" : "var(--text-secondary)";
+          for (const selector of document.querySelectorAll("[data-codex-switch-speed-selector]")) {
+            const value = selector.querySelector("[data-speed-value]");
+            if (value) value.textContent = existing.tier === "priority" ? "Fast" : "普通";
           }
         }).catch(() => {});
       return;
     }
-    const state = { installed: true, tier: "default", observer: null, timer: null };
+    removeSelectors();
+    const state = {
+      installed: true, version: overlayVersion, tier: "default", observer: null, timer: null,
+      submenu: null, trigger: null, refreshing: false,
+    };
     window[stateKey] = state;
     const callApi = async (method, body) => {
       const response = await fetch(endpoint, {
@@ -142,54 +158,177 @@ const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
       if (!response.ok) throw new Error(`service-tier API returned ${response.status}`);
       return response.json();
     };
-    const syncButtons = container => {
-      for (const button of container.querySelectorAll("button")) {
-        const selected = button.dataset.serviceTier === state.tier;
-        button.setAttribute("aria-pressed", String(selected));
-        button.style.background = selected ? "var(--background-primary-ghost)" : "transparent";
-        button.style.color = selected ? "var(--text-primary)" : "var(--text-secondary)";
+    const closeSubmenu = () => {
+      state.submenu?.remove();
+      state.submenu = null;
+      state.trigger?.setAttribute("aria-expanded", "false");
+      state.trigger = null;
+    };
+    const syncOptions = () => {
+      for (const option of state.submenu?.querySelectorAll("[data-service-tier]") ?? []) {
+        const selected = option.dataset.serviceTier === state.tier;
+        option.setAttribute("aria-checked", String(selected));
+        option.style.background = selected ? "var(--background-primary-ghost)" : "transparent";
+        option.querySelector("[data-speed-check]")?.style.setProperty(
+          "visibility", selected ? "visible" : "hidden",
+        );
       }
     };
-    const createButton = (label, tier) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.dataset.serviceTier = tier;
-      button.textContent = label;
-      button.style.cssText = "border:0;border-radius:5px;padding:2px 6px;font-size:11px;line-height:16px;cursor:pointer;color:var(--text-secondary);background:transparent;";
-      button.addEventListener("click", async event => {
+    const selectTier = async (option, tier) => {
+      try {
+        await callApi("POST", { service_tier: tier });
+        state.tier = tier;
+        const selector = state.trigger;
+        if (selector) selector.querySelector("[data-speed-value]").textContent = tier === "priority" ? "Fast" : "普通";
+        syncOptions();
+        closeSubmenu();
+      } catch (error) {
+        console.warn("Codex Switch speed selection failed", error);
+      }
+    };
+    const createOption = (label, tier) => {
+      const option = document.createElement("button");
+      option.type = "button";
+      option.dataset.serviceTier = tier;
+      option.setAttribute("role", "menuitemradio");
+      option.style.cssText = "display:flex;width:100%;justify-content:space-between;border:0;border-radius:8px;"
+        + "padding:6px 8px;font-size:14px;line-height:20px;text-align:start;"
+        + "cursor:pointer;color:var(--text-primary);background:transparent;";
+      const optionLabel = document.createElement("span");
+      const check = document.createElement("span");
+      optionLabel.textContent = label;
+      check.dataset.speedCheck = "true";
+      check.textContent = "✓";
+      check.style.visibility = "hidden";
+      option.append(optionLabel, check);
+      option.addEventListener("click", event => {
         event.preventDefault();
         event.stopPropagation();
-        try {
-          await callApi("POST", { service_tier: tier });
-          state.tier = tier;
-          syncButtons(button.parentElement);
-        } catch (error) {
-          console.warn("Codex Switch speed selection failed", error);
-        }
+        selectTier(option, tier);
       });
-      return button;
+      return option;
+    };
+    const findReasoningItem = () => {
+      const menu = [...document.querySelectorAll('[role="menu"][data-state="open"]')]
+        .find(element => element.querySelector("[data-model-picker-view-toggle]"));
+      const activePanel = menu?.querySelector('[data-active="true"]');
+      const submenuItems = [...activePanel?.querySelectorAll('[role="menuitem"][aria-haspopup="menu"]') ?? []];
+      return submenuItems.length >= 2 ? submenuItems.at(-1) : null;
+    };
+    const openSubmenu = (container, isChinese) => {
+      closeSubmenu();
+      const submenu = document.createElement("div");
+      const rect = container.getBoundingClientRect();
+      submenu.dataset.codexSwitchSpeedSubmenu = "true";
+      submenu.setAttribute("role", "menu");
+      submenu.className = "no-drag z-50 m-px flex select-none flex-col overflow-y-auto px-1 py-1 "
+        + "bg-surface-elevated-secondary/90 text-default ring-border rounded-xl ring-[0.5px] "
+        + "shadow-xl-spread backdrop-blur-sm";
+      submenu.style.cssText = "position:fixed;z-index:60;min-width:224px;";
+      submenu.append(
+        createOption(isChinese ? "普通" : "Standard", "default"),
+        createOption("Fast", "priority"),
+      );
+      document.body.append(submenu);
+      const width = submenu.getBoundingClientRect().width;
+      const height = submenu.getBoundingClientRect().height;
+      submenu.style.left = `${Math.max(8, rect.left - width - 4)}px`;
+      submenu.style.top = `${Math.max(8, Math.min(rect.top, innerHeight - height - 8))}px`;
+      state.submenu = submenu;
+      state.trigger = container;
+      container.setAttribute("aria-expanded", "true");
+      syncOptions();
+    };
+    const createSelector = reasoningItem => {
+      const isChinese = document.documentElement.lang.toLowerCase().startsWith("zh");
+      const container = document.createElement("div");
+      const content = document.createElement("div");
+      const label = document.createElement("span");
+      const value = document.createElement("span");
+      const arrow = document.createElement("span");
+      container.dataset.codexSwitchSpeedSelector = "true";
+      container.className = reasoningItem.className;
+      container.setAttribute("role", "menuitem");
+      container.setAttribute("aria-haspopup", "menu");
+      container.setAttribute("aria-expanded", "false");
+      container.setAttribute("aria-label", isChinese ? "速度" : "Speed");
+      content.className = "flex w-full min-w-0 items-center gap-3";
+      label.textContent = isChinese ? "速度" : "Speed";
+      value.dataset.speedValue = "true";
+      value.className = "min-w-0 truncate text-tertiary";
+      value.textContent = isChinese ? "普通" : "Standard";
+      const valueWrap = document.createElement("span");
+      valueWrap.className = "flex min-w-0 flex-1 justify-end text-tertiary";
+      valueWrap.append(value);
+      arrow.textContent = "›";
+      arrow.className = "shrink-0 text-xl leading-none text-tertiary";
+      content.append(label, valueWrap, arrow);
+      container.append(content);
+      container.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (state.trigger === container) closeSubmenu();
+        else openSubmenu(container, isChinese);
+      });
+      return container;
+    };
+    const fitMenuToSelector = (reasoningItem, container) => {
+      const advancedView = reasoningItem.parentElement;
+      const menuRoot = advancedView?.closest("[data-view]");
+      if (!advancedView || !menuRoot || menuRoot.dataset.view !== "advanced") return;
+      menuRoot.style.setProperty("--advanced-view-height", `${advancedView.scrollHeight}px`);
+      menuRoot.style.height = "calc(var(--simple-view-height) + var(--advanced-view-height))";
     };
     const render = () => {
-      const anchor = [...document.querySelectorAll("button.h-token-button-composer")]
-        .find(button => button.getAttribute("aria-haspopup") === "menu" && button.textContent.trim());
-      const parent = anchor?.parentElement;
-      if (!parent || parent.querySelector("[data-codex-switch-speed-selector]")) return;
-      const container = document.createElement("span");
-      container.dataset.codexSwitchSpeedSelector = "true";
-      container.style.cssText = "display:inline-flex;align-items:center;gap:1px;margin-left:4px;padding:1px;border:1px solid var(--border-default);border-radius:6px;";
-      container.append(createButton("普通", "default"), createButton("Fast", "priority"));
-      parent.insertBefore(container, anchor.nextSibling);
-      syncButtons(container);
+      if (window.__CODEX_SWITCH_SPEED_SELECTOR_ALLOWED__ !== true) {
+        closeSubmenu();
+        for (const selector of document.querySelectorAll("[data-codex-switch-speed-selector]")) selector.remove();
+        return;
+      }
+      const reasoningItem = findReasoningItem();
+      if (!reasoningItem) {
+        closeSubmenu();
+        return;
+      }
+      const advancedView = reasoningItem.parentElement;
+      let container = advancedView.querySelector("[data-codex-switch-speed-selector]");
+      if (!container) {
+        container = createSelector(reasoningItem);
+        reasoningItem.after(container);
+      }
+      fitMenuToSelector(reasoningItem, container);
     };
     state.observer = new MutationObserver(render);
+    state.cleanup = () => document.removeEventListener("pointerdown", state.pointerListener, true);
+    state.pointerListener = event => {
+      if (!state.trigger?.contains(event.target) && !state.submenu?.contains(event.target)) closeSubmenu();
+    };
+    document.addEventListener("pointerdown", state.pointerListener, true);
     state.observer.observe(document.documentElement, { childList: true, subtree: true });
-    state.timer = setInterval(render, 1000);
+    state.timer = setInterval(async () => {
+      if (state.refreshing) return;
+      state.refreshing = true;
+      try {
+        const result = await callApi("GET");
+        if (result?.service_tier !== "priority" && result?.service_tier !== "default") return;
+        state.tier = result.service_tier;
+        render();
+      } catch {
+        window.__CODEX_SWITCH_SPEED_SELECTOR_ALLOWED__ = false;
+        render();
+      } finally {
+        state.refreshing = false;
+      }
+    }, 1000);
     render();
     callApi("GET").then(result => {
       if (result?.service_tier === "priority" || result?.service_tier === "default") {
         state.tier = result.service_tier;
-        const selector = document.querySelector("[data-codex-switch-speed-selector]");
-        if (selector) syncButtons(selector);
+        for (const selector of document.querySelectorAll("[data-codex-switch-speed-selector]")) {
+          const value = selector.querySelector("[data-speed-value]");
+          if (value) value.textContent = state.tier === "priority" ? "Fast" : "普通";
+        }
+        syncOptions();
       }
     }).catch(() => {});
   })();
@@ -248,7 +387,6 @@ fn codex_model_refresh_expression(
   const imageInputModels = new Set({image_input_models});
   const selectedModel = {selected_model};
   const supportedReasoningEffortsByModel = {reasoning_efforts};
-{speed_selector_overlay}
   const root = window.__codexRoot;
   if (!root || !Array.isArray(expectedModels)) {{
     return {{ refreshed: false, reason: "unavailable" }};
@@ -283,6 +421,15 @@ fn codex_model_refresh_expression(
     (query.queryKey[0] === "config" &&
       (query.queryKey[1] === "user" || query.queryKey[1] === "read-response"))
   );
+  const hasNoAuthModelQuery = queryClient.getQueryCache().getAll().some(query => {{
+    const key = query.queryKey;
+    const active = typeof query.isActive === "function"
+      ? query.isActive()
+      : (query.observers?.length ?? 0) > 0;
+    return active && matchesModelsQuery(query) && key[2] === "local" && key[3] === "no-auth";
+  }});
+  window.__CODEX_SWITCH_SPEED_SELECTOR_ALLOWED__ = expectedModels.length > 0 && hasNoAuthModelQuery;
+{speed_selector_overlay}
 {observer_patch_helpers}
   if (expectedModels.length === 0) {{
     clearModelQueryPatch();
