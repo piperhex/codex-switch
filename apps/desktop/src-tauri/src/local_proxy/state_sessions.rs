@@ -249,6 +249,15 @@ fn mark_proxy_session_concurrent_account(
     }
 }
 
+fn should_mark_proxy_session_concurrent_account(
+    state: &ManagerStateFile,
+    concurrent_account_id: Option<&str>,
+    account_id_override: Option<&str>,
+) -> bool {
+    state.concurrent_account_routing_enabled
+        && (concurrent_account_id.is_some() || account_id_override.is_some())
+}
+
 fn update_proxy_session_request_usage(
     session_id: Option<&str>,
     request_id: Option<u64>,

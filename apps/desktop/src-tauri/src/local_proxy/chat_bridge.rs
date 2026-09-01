@@ -265,7 +265,11 @@ fn official_credentials<R: Runtime>(
         ));
     }
     let (email, _, account_id, id) = account_fields(&auth)?;
-    if concurrent_account_id.is_some() {
+    if should_mark_proxy_session_concurrent_account(
+        &state,
+        concurrent_account_id.as_deref(),
+        account_id_override,
+    ) {
         mark_proxy_session_concurrent_account(session_id, &id, &email);
     }
     let token_usage_account = TokenUsageAccount {

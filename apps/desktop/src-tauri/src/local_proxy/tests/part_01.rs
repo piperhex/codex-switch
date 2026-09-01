@@ -270,6 +270,30 @@
     }
 
     #[test]
+    fn concurrent_routing_marks_account_overrides_for_active_sessions() {
+        let state = ManagerStateFile {
+            concurrent_account_routing_enabled: true,
+            ..ManagerStateFile::default()
+        };
+
+        assert!(should_mark_proxy_session_concurrent_account(
+            &state,
+            None,
+            Some("image-account"),
+        ));
+        assert!(should_mark_proxy_session_concurrent_account(
+            &state,
+            Some("routed-account"),
+            None,
+        ));
+        assert!(!should_mark_proxy_session_concurrent_account(
+            &ManagerStateFile::default(),
+            None,
+            Some("image-account"),
+        ));
+    }
+
+    #[test]
     fn proxy_request_metadata_reads_codex_model_and_reasoning_effort() {
         let body = br#"{
             "model": "gpt-5.6-sol",
