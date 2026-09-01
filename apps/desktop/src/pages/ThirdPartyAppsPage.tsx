@@ -36,6 +36,7 @@ interface ThirdPartyAppsPageProps {
   onStartProxy: () => void;
   onOpenAccounts: () => void;
   onOpenProviders: () => void;
+  notify: (message: string) => void;
   onAppChange: (appId: ThirdPartyAppId, enabled: boolean) => void;
   onSubagentModelChange: (model: ClaudeSubagentModel) => void;
   subagentModels: string[];
@@ -125,10 +126,22 @@ export function ThirdPartyAppsPage(props: ThirdPartyAppsPageProps) {
   const {
     settings, saving, proxyBusy, proxyRunning, proxyStartDisabledReason, hasProxyTarget, busy,
     onEnabledChange, onWriteCodexChange, onStartProxy, onOpenAccounts, onOpenProviders,
-    onAppChange, onSubagentModelChange, onLaunch, onRestart, t,
+    onAppChange, onSubagentModelChange, onLaunch, onRestart, notify, t,
     subagentModels, subagentModel,
   } = props;
   const [topbarHost, setTopbarHost] = useState<HTMLElement | null>(null);
+
+  const handleEnabledChange = (enabled: boolean) => {
+    if (!proxyRunning) {
+      notify(t("thirdPartyApps.proxyRequired"));
+      return;
+    }
+    if (!hasProxyTarget) {
+      notify(t("thirdPartyApps.targetRequired"));
+      return;
+    }
+    onEnabledChange(enabled);
+  };
 
   useEffect(() => {
     setTopbarHost(document.getElementById("third-party-apps-topbar-actions"));
@@ -166,7 +179,7 @@ export function ThirdPartyAppsPage(props: ThirdPartyAppsPageProps) {
           <label className="third-party-apps-topbar-control">
             <Typography.Text strong>{t("thirdPartyApps.masterWrite")}</Typography.Text>
             <Switch checked={settings.enabled} loading={saving}
-              disabled={!proxyRunning || !hasProxyTarget} onChange={onEnabledChange}
+              disabled={saving} onChange={handleEnabledChange}
               aria-label={t("thirdPartyApps.masterWrite")} />
           </label>
           <label className="third-party-apps-topbar-control">

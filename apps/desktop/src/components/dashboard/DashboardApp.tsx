@@ -1373,6 +1373,7 @@ export function DashboardApp() {
                 onStartProxy={() => void providerManager.startProxy()}
                 onOpenAccounts={() => setPage("accounts")}
                 onOpenProviders={() => setPage("providers")}
+                notify={notify}
                 onAppChange={thirdPartyAppIntegration.changeApp}
                 onSubagentModelChange={thirdPartyAppIntegration.changeSubagentModel}
                 subagentModels={thirdPartySubagentModels}
