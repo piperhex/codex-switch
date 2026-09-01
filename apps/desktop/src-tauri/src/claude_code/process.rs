@@ -73,7 +73,18 @@ fn is_claude_desktop_executable(path: &Path) -> bool {
     path.file_stem()
         .and_then(|value| value.to_str())
         .is_some_and(|value| value.eq_ignore_ascii_case("claude"))
-        && is_windows_app_execution_alias(path)
+        && is_windows_claude_desktop_path(path)
+}
+
+#[cfg(windows)]
+fn is_windows_claude_desktop_path(path: &Path) -> bool {
+    is_windows_app_execution_alias(path)
+        || path.components().any(|component| {
+            component
+                .as_os_str()
+                .to_string_lossy()
+                .eq_ignore_ascii_case("AnthropicClaude")
+        })
 }
 
 #[cfg(all(unix, not(target_os = "macos")))]
@@ -278,7 +289,9 @@ pub(super) async fn launch_claude_code<R: Runtime + 'static>(
             return Ok(false);
         }
         spawn_claude(&target)?;
-        Ok(!was_running)
+        // A Desktop deep link intentionally opens a new Code session even when the app is
+        // already running, so a successful dispatch is always a successful launch action.
+        Ok(true)
     })
     .await
     .map_err(|_| "启动 Claude Code 失败，请重试。".to_string())?
@@ -352,6 +365,20 @@ mod tests {
                 .join("bin")
                 .join("claude.exe")
         ));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn recognizes_both_windows_claude_desktop_installations() {
+        assert!(is_claude_desktop_executable(Path::new(
+            r"C:\Program Files\WindowsApps\Claude_1.0.0.0_x64__hash\app\Claude.exe",
+        )));
+        assert!(is_claude_desktop_executable(Path::new(
+            r"C:\Users\me\AppData\Local\AnthropicClaude\app-1.0.0\claude.exe",
+        )));
+        assert!(!is_claude_desktop_executable(Path::new(
+            r"C:\Users\me\AppData\Roaming\npm\claude.cmd",
+        )));
     }
 
     #[cfg(target_os = "macos")]
