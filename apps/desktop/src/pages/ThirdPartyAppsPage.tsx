@@ -136,10 +136,6 @@ export function ThirdPartyAppsPage(props: ThirdPartyAppsPageProps) {
       notify(t("thirdPartyApps.proxyRequired"));
       return;
     }
-    if (!hasProxyTarget) {
-      notify(t("thirdPartyApps.targetRequired"));
-      return;
-    }
     onEnabledChange(enabled);
   };
 
