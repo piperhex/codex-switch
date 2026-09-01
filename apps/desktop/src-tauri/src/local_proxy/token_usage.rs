@@ -18,6 +18,9 @@ fn update_cached_official_model_context_windows(
     global_context_window: u64,
     model_context_windows: &std::collections::BTreeMap<String, u64>,
 ) -> Result<(), String> {
+    if !should_update_official_model_cache(paths) {
+        return Ok(());
+    }
     let path = paths.codex_home.join("models_cache.json");
     if !path.exists() {
         return Ok(());
@@ -27,6 +30,19 @@ fn update_cached_official_model_context_windows(
         write_json_if_changed(&path, &catalog)?;
     }
     Ok(())
+}
+
+fn should_update_official_model_cache(paths: &Paths) -> bool {
+    let state = read_state(paths);
+    if state.active_provider_group.is_some() {
+        return false;
+    }
+    let Some(provider_id) = state.active_provider_id.as_deref() else {
+        return true;
+    };
+    providers::read_provider(paths, provider_id)
+        .map(|provider| providers::uses_upstream_official_models(&provider))
+        .unwrap_or(false)
 }
 
 fn upstream_official_provider_names(paths: &Paths) -> HashSet<String> {

@@ -131,25 +131,48 @@ pub(crate) struct OfficialModelContextSettings {
     pub(crate) models: Vec<String>,
 }
 
+const KNOWN_OFFICIAL_MODEL_NAMES: [&str; 3] = [
+    "gpt-5.6-sol",
+    "gpt-5.6-terra",
+    "gpt-5.6-luna",
+];
+
+fn non_official_provider_models(paths: &crate::storage::Paths) -> HashSet<String> {
+    providers::list_provider_profiles(paths)
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|provider| !providers::uses_upstream_official_models(provider))
+        .flat_map(|provider| provider.models)
+        .collect()
+}
+
+fn official_model_names_from_catalog(catalog: &Value, provider_models: &HashSet<String>) -> Vec<String> {
+    let mut names = KNOWN_OFFICIAL_MODEL_NAMES
+        .iter()
+        .map(|model| (*model).to_string())
+        .collect::<Vec<_>>();
+    let Some(models) = catalog.get("models").and_then(Value::as_array) else {
+        return names;
+    };
+    for model in models {
+        let Some(name) = ["slug", "id"].into_iter().find_map(|field| {
+            model.get(field).and_then(Value::as_str)
+        }) else {
+            continue;
+        };
+        if !provider_models.contains(name) && !names.iter().any(|known| known == name) {
+            names.push(name.to_string());
+        }
+    }
+    names
+}
+
 fn official_model_names<R: Runtime>(app: &tauri::AppHandle<R>) -> Vec<String> {
     resolve_paths(app)
         .ok()
-        .and_then(|paths| read_json(&paths.codex_home.join("models_cache.json")).ok())
-        .map(|catalog| {
-            catalog
-                .get("models")
-                .and_then(serde_json::Value::as_array)
-                .into_iter()
-                .flatten()
-                .filter_map(|model| {
-                    ["slug", "id"].into_iter().find_map(|field| {
-                        model
-                            .get(field)
-                            .and_then(serde_json::Value::as_str)
-                            .map(str::to_string)
-                    })
-                })
-                .collect()
+        .map(|paths| {
+            let catalog = read_json(&paths.codex_home.join("models_cache.json")).unwrap_or_else(|_| json!({}));
+            official_model_names_from_catalog(&catalog, &non_official_provider_models(&paths))
         })
         .unwrap_or_default()
 }
