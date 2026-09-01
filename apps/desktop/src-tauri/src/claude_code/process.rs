@@ -11,23 +11,38 @@ use std::os::windows::process::CommandExt;
 use sysinfo::{ProcessesToUpdate, System};
 use tauri::{AppHandle, Runtime};
 
+#[cfg(windows)]
+use winreg::{enums::HKEY_CLASSES_ROOT, RegKey};
+
 use crate::third_party_apps::runtime_paths::LaunchableApp;
 
 const PROCESS_EXIT_TIMEOUT: Duration = Duration::from_secs(10);
 const PROCESS_POLL_INTERVAL: Duration = Duration::from_millis(100);
+const CLAUDE_CODE_DEEP_LINK: &str = "claude://code/new";
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 
-fn claude_process_running(command_path: &Path) -> bool {
+enum ClaudeLaunchTarget {
+    Desktop,
+    Command(PathBuf),
+}
+
+fn claude_process_running(target: &ClaudeLaunchTarget) -> bool {
     let mut system = System::new_all();
     system.refresh_processes(ProcessesToUpdate::All, true);
     system
         .processes()
         .values()
-        .any(|process| is_claude_code_process(process, command_path))
+        .any(|process| is_claude_code_process(process, target))
 }
 
-fn is_claude_code_process(process: &sysinfo::Process, command_path: &Path) -> bool {
+fn is_claude_code_process(process: &sysinfo::Process, target: &ClaudeLaunchTarget) -> bool {
+    if matches!(target, ClaudeLaunchTarget::Desktop) {
+        return process.exe().is_some_and(is_claude_desktop_executable);
+    }
+    let ClaudeLaunchTarget::Command(command_path) = target else {
+        return false;
+    };
     if process
         .exe()
         .is_some_and(|executable| paths_refer_to_same_command(executable, command_path))
@@ -38,6 +53,32 @@ fn is_claude_code_process(process: &sysinfo::Process, command_path: &Path) -> bo
         let argument = argument.to_string_lossy().to_ascii_lowercase();
         argument.contains("@anthropic-ai/claude-code") || argument.contains("claude-code/cli.js")
     })
+}
+
+#[cfg(target_os = "macos")]
+fn is_claude_desktop_executable(path: &Path) -> bool {
+    path.file_stem()
+        .and_then(|value| value.to_str())
+        .is_some_and(|value| value.eq_ignore_ascii_case("claude"))
+        && path.components().any(|component| {
+            component
+                .as_os_str()
+                .to_string_lossy()
+                .eq_ignore_ascii_case("Claude.app")
+        })
+}
+
+#[cfg(windows)]
+fn is_claude_desktop_executable(path: &Path) -> bool {
+    path.file_stem()
+        .and_then(|value| value.to_str())
+        .is_some_and(|value| value.eq_ignore_ascii_case("claude"))
+        && is_windows_app_execution_alias(path)
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+fn is_claude_desktop_executable(_path: &Path) -> bool {
+    false
 }
 
 fn paths_refer_to_same_command(left: &Path, right: &Path) -> bool {
@@ -103,6 +144,22 @@ fn parse_windows_claude_commands(output: &[u8]) -> Vec<PathBuf> {
 }
 
 #[cfg(windows)]
+fn claude_desktop_installed() -> bool {
+    RegKey::predef(HKEY_CLASSES_ROOT)
+        .open_subkey(r"claude\shell\open\command")
+        .is_ok()
+}
+
+#[cfg(target_os = "macos")]
+fn claude_desktop_installed() -> bool {
+    let system_app = Path::new("/Applications/Claude.app");
+    if system_app.is_dir() {
+        return true;
+    }
+    dirs::home_dir().is_some_and(|home| home.join("Applications").join("Claude.app").is_dir())
+}
+
+#[cfg(windows)]
 fn resolve_claude_command<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
     let mut candidates = known_windows_claude_commands();
     if let Some(path) = remembered_or_running_command(app, LaunchableApp::ClaudeCode) {
@@ -116,8 +173,7 @@ fn resolve_claude_command<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, Str
         .into_iter()
         .find(|path| path.is_file() && !is_windows_app_execution_alias(path))
         .ok_or_else(|| {
-            "未找到 Claude Code。请先安装 Claude Code；如果已安装，请关闭 Windows 的 Claude 应用执行别名后重试。"
-                .to_string()
+            "未找到 Claude Code。请先安装 Claude Desktop 或 Claude Code CLI。".to_string()
         })
 }
 
@@ -140,6 +196,14 @@ fn resolve_claude_command<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, Str
     }
 }
 
+fn resolve_claude_target<R: Runtime>(app: &AppHandle<R>) -> Result<ClaudeLaunchTarget, String> {
+    #[cfg(any(windows, target_os = "macos"))]
+    if claude_desktop_installed() {
+        return Ok(ClaudeLaunchTarget::Desktop);
+    }
+    resolve_claude_command(app).map(ClaudeLaunchTarget::Command)
+}
+
 fn remembered_or_running_command<R: Runtime>(
     app: &AppHandle<R>,
     app_id: LaunchableApp,
@@ -155,7 +219,14 @@ fn windows_hidden_command(program: &str) -> Command {
     command
 }
 
-fn spawn_claude(command_path: &Path) -> Result<(), String> {
+fn spawn_claude(target: &ClaudeLaunchTarget) -> Result<(), String> {
+    if matches!(target, ClaudeLaunchTarget::Desktop) {
+        return tauri_plugin_opener::open_url(CLAUDE_CODE_DEEP_LINK, None::<&str>)
+            .map_err(|error| format!("无法启动 Claude Code：{error}"));
+    }
+    let ClaudeLaunchTarget::Command(command_path) = target else {
+        return Ok(());
+    };
     #[cfg(windows)]
     {
         let command_line = format!("\"{}\"", command_path.display());
@@ -167,10 +238,26 @@ fn spawn_claude(command_path: &Path) -> Result<(), String> {
     }
     #[cfg(target_os = "macos")]
     {
-        Command::new("open")
-            .args(["-a", "Claude Code"])
-            .spawn()
+        let script = format!(
+            "tell application \"Terminal\" to do script quoted form of \"{}\"",
+            command_path
+                .display()
+                .to_string()
+                .replace('\\', "\\\\")
+                .replace('"', "\\\"")
+        );
+        let status = Command::new("osascript")
+            .args([
+                "-e",
+                "tell application \"Terminal\" to activate",
+                "-e",
+                &script,
+            ])
+            .status()
             .map_err(|error| format!("无法启动 Claude Code：{error}"))?;
+        if !status.success() {
+            return Err("无法启动 Claude Code，请重试。".to_string());
+        }
     }
     #[cfg(all(unix, not(target_os = "macos")))]
     {
@@ -185,12 +272,13 @@ pub(super) async fn launch_claude_code<R: Runtime + 'static>(
     app: AppHandle<R>,
 ) -> Result<bool, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let command_path = resolve_claude_command(&app)?;
-        if claude_process_running(&command_path) {
+        let target = resolve_claude_target(&app)?;
+        let was_running = claude_process_running(&target);
+        if was_running && !matches!(target, ClaudeLaunchTarget::Desktop) {
             return Ok(false);
         }
-        spawn_claude(&command_path)?;
-        Ok(true)
+        spawn_claude(&target)?;
+        Ok(!was_running)
     })
     .await
     .map_err(|_| "启动 Claude Code 失败，请重试。".to_string())?
@@ -200,21 +288,21 @@ pub(super) async fn restart_claude_code<R: Runtime + 'static>(
     app: AppHandle<R>,
 ) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let command_path = resolve_claude_command(&app)?;
-        stop_claude_processes(&command_path)?;
-        wait_for_claude_processes_to_exit(&command_path)?;
-        spawn_claude(&command_path)
+        let target = resolve_claude_target(&app)?;
+        stop_claude_processes(&target)?;
+        wait_for_claude_processes_to_exit(&target)?;
+        spawn_claude(&target)
     })
     .await
     .map_err(|_| "重启 Claude Code 失败，请重试。".to_string())?
 }
 
-fn stop_claude_processes(command_path: &Path) -> Result<(), String> {
+fn stop_claude_processes(target: &ClaudeLaunchTarget) -> Result<(), String> {
     let mut system = System::new_all();
     system.refresh_processes(ProcessesToUpdate::All, true);
     let mut kill_failed = false;
     for process in system.processes().values() {
-        if is_claude_code_process(process, command_path) {
+        if is_claude_code_process(process, target) {
             kill_failed |= !process.kill();
         }
     }
@@ -224,9 +312,9 @@ fn stop_claude_processes(command_path: &Path) -> Result<(), String> {
     Ok(())
 }
 
-fn wait_for_claude_processes_to_exit(command_path: &Path) -> Result<(), String> {
+fn wait_for_claude_processes_to_exit(target: &ClaudeLaunchTarget) -> Result<(), String> {
     let deadline = Instant::now() + PROCESS_EXIT_TIMEOUT;
-    while claude_process_running(command_path) {
+    while claude_process_running(target) {
         if Instant::now() >= deadline {
             return Err("Claude Code 未能及时关闭，请手动关闭后重试。".to_string());
         }
@@ -264,5 +352,16 @@ mod tests {
                 .join("bin")
                 .join("claude.exe")
         ));
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn recognizes_claude_desktop_without_treating_the_cli_as_desktop() {
+        assert!(is_claude_desktop_executable(Path::new(
+            "/Applications/Claude.app/Contents/MacOS/Claude"
+        )));
+        assert!(!is_claude_desktop_executable(Path::new(
+            "/Users/me/.local/bin/claude"
+        )));
     }
 }
