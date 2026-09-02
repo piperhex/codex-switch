@@ -222,6 +222,23 @@
     }
 
     #[test]
+    fn official_model_names_keep_known_models_and_hide_provider_models() {
+        let catalog = json!({
+            "models": [
+                { "slug": "gpt-5.5" },
+                { "slug": "gpt-oss-20b-5080:latest" },
+            ]
+        });
+        let provider_models = HashSet::from(["gpt-oss-20b-5080:latest".to_string()]);
+
+        let names = official_model_names_from_catalog(&catalog, &provider_models);
+
+        assert!(names.contains(&"gpt-5.6-sol".to_string()));
+        assert!(names.contains(&"gpt-5.5".to_string()));
+        assert!(!names.contains(&"gpt-oss-20b-5080:latest".to_string()));
+    }
+
+    #[test]
     fn token_usage_database_migrates_account_columns() {
         let connection = Connection::open_in_memory().unwrap();
         connection
