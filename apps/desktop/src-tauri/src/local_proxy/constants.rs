@@ -57,7 +57,9 @@ use crate::{
 };
 
 const OFFICIAL_CODEX_BASE_URL: &str = "https://chatgpt.com/backend-api/codex";
-const UPSTREAM_TIMEOUT: Duration = Duration::from_secs(600);
+// Reqwest's blocking timeout applies while waiting for response headers and to each body read.
+// Successful SSE reads reset it, so active long-running streams can continue without a hard deadline.
+const UPSTREAM_RESPONSE_IDLE_TIMEOUT: Duration = Duration::from_secs(120);
 const UPSTREAM_CONNECT_TIMEOUT: Duration = Duration::from_secs(20);
 const TOOL_SEARCH_PROXY_NAME: &str = "tool_search";
 const CUSTOM_TOOL_INPUT_FIELD: &str = "input";
