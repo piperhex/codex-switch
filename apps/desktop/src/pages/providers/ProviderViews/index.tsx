@@ -198,10 +198,10 @@ function ProviderActions({ provider, options }: {
   );
 }
 
-function ProviderIdentityCell({ provider, error, success, conversationCount, t }: {
+function ProviderIdentityCell({ provider, error, successLatencyMs, conversationCount, t }: {
   provider: Provider;
   error?: string;
-  success?: boolean;
+  successLatencyMs?: number;
   conversationCount: number;
   t: Translate;
 }) {
@@ -215,8 +215,10 @@ function ProviderIdentityCell({ provider, error, success, conversationCount, t }
         {error && <Tooltip title={error} styles={{ root: { maxWidth: 400 } }}>
           <span className="provider-connectivity-error">{t("providers.connectivity.error")}</span>
         </Tooltip>}
-        {success && (
-          <span className="provider-connectivity-success">{t("providers.connectivity.success")}</span>
+        {successLatencyMs !== undefined && (
+          <span className="provider-connectivity-success">
+            {t("providers.connectivity.success", { latency: successLatencyMs })}
+          </span>
         )}
         <ExternalLink className="provider-external-link" size={12} />
       </span>
@@ -260,7 +262,7 @@ function buildColumns(
       title: t("providers.table.provider"), key: "provider", dataIndex: "name", width: 240,
       render: (_, provider) => <ProviderIdentityCell provider={provider}
         error={connectivityErrors[provider.id]}
-        success={connectivitySuccesses[provider.id]}
+        successLatencyMs={connectivitySuccesses[provider.id]}
         conversationCount={options.aggregateConversationCounts[provider.id] ?? 0} t={t} />,
     },
     {

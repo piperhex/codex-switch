@@ -5,7 +5,7 @@ const MAX_CONCURRENT_TESTS = 4;
 const SUCCESS_DISPLAY_DURATION_MS = 60_000;
 
 export type ProviderConnectivityErrors = Record<string, string>;
-export type ProviderConnectivitySuccesses = Record<string, true>;
+export type ProviderConnectivitySuccesses = Record<string, number>;
 
 function connectivityErrorMessage(error: unknown) {
   return String(error).replace(/^Error:\s*/, "");
@@ -19,9 +19,10 @@ async function collectConnectivityResults(ids: string[]) {
     while (nextIndex < ids.length) {
       const id = ids[nextIndex];
       nextIndex += 1;
+      const startedAt = performance.now();
       try {
         await testProviderConnectivity(id);
-        successes[id] = true;
+        successes[id] = Math.max(1, Math.round(performance.now() - startedAt));
       } catch (error) {
         errors[id] = connectivityErrorMessage(error);
       }
