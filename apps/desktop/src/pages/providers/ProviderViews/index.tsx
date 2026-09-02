@@ -30,6 +30,7 @@ import {
 } from "../ProviderGroupControls";
 import {
   type ProviderConnectivityErrors,
+  type ProviderConnectivitySuccesses,
   useProviderConnectivity,
 } from "../useProviderConnectivity";
 import styles from "./index.module.less";
@@ -197,9 +198,10 @@ function ProviderActions({ provider, options }: {
   );
 }
 
-function ProviderIdentityCell({ provider, error, conversationCount, t }: {
+function ProviderIdentityCell({ provider, error, success, conversationCount, t }: {
   provider: Provider;
   error?: string;
+  success?: boolean;
   conversationCount: number;
   t: Translate;
 }) {
@@ -213,6 +215,9 @@ function ProviderIdentityCell({ provider, error, conversationCount, t }: {
         {error && <Tooltip title={error} styles={{ root: { maxWidth: 400 } }}>
           <span className="provider-connectivity-error">{t("providers.connectivity.error")}</span>
         </Tooltip>}
+        {success && (
+          <span className="provider-connectivity-success">{t("providers.connectivity.success")}</span>
+        )}
         <ExternalLink className="provider-external-link" size={12} />
       </span>
       <span className="provider-base-url" title={provider.baseUrl}>{provider.baseUrl}</span>
@@ -246,6 +251,7 @@ function ProviderAvatar({ conversationCount, iconSize, t }: {
 function buildColumns(
   options: ProviderViewProps,
   connectivityErrors: ProviderConnectivityErrors,
+  connectivitySuccesses: ProviderConnectivitySuccesses,
   tokenCostDisplay: TokenCostDisplaySettings,
 ): ColumnsType<Provider> {
   const { busyProviderId, language, usageForProvider, onSwitchModel, onModelControlChange, t } = options;
@@ -254,6 +260,7 @@ function buildColumns(
       title: t("providers.table.provider"), key: "provider", dataIndex: "name", width: 240,
       render: (_, provider) => <ProviderIdentityCell provider={provider}
         error={connectivityErrors[provider.id]}
+        success={connectivitySuccesses[provider.id]}
         conversationCount={options.aggregateConversationCounts[provider.id] ?? 0} t={t} />,
     },
     {
@@ -315,7 +322,7 @@ export function ProviderTableView(options: ProviderTableProps) {
   const tokenCostDisplay = useTokenCostDisplaySettings();
   const providerIds = providers.map((provider) => provider.id);
   const connectivity = useProviderConnectivity(providerIds);
-  const columns = buildColumns(options, connectivity.errors, tokenCostDisplay);
+  const columns = buildColumns(options, connectivity.errors, connectivity.successes, tokenCostDisplay);
   const hiddenColumnSet = new Set(hiddenColumns);
   const selectedProviderIdSet = new Set(selectedProviderIds);
   const selectedProviders = providers.filter((provider) => selectedProviderIdSet.has(provider.id));
