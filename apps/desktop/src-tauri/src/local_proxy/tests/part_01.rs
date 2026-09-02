@@ -70,7 +70,7 @@
     }
 
     #[test]
-    fn upstream_transport_errors_are_classified_for_user_notifications() {
+    fn upstream_transport_errors_are_sanitized_for_client_responses() {
         assert!(is_upstream_transport_error(
             "Official Codex proxy request failed: error sending request for url (https://example.com)",
         ));
@@ -90,6 +90,54 @@
             upstream_error_message("Select an official account"),
             "Select an official account",
         );
+    }
+
+    #[test]
+    fn timeout_operation_succeeds_when_the_third_attempt_recovers() {
+        let attempts = AtomicUsize::new(0);
+        let result = retry_timeout_operation(
+            || {
+                let attempt = attempts.fetch_add(1, AtomicOrdering::SeqCst) + 1;
+                if attempt < UPSTREAM_TIMEOUT_ATTEMPT_LIMIT {
+                    return Err("timeout");
+                }
+                Ok("recovered")
+            },
+            |error| *error == "timeout",
+        );
+
+        assert_eq!(result, Ok("recovered"));
+        assert_eq!(attempts.load(AtomicOrdering::SeqCst), 3);
+    }
+
+    #[test]
+    fn timeout_operation_returns_after_three_consecutive_timeouts() {
+        let attempts = AtomicUsize::new(0);
+        let result: Result<(), &str> = retry_timeout_operation(
+            || {
+                attempts.fetch_add(1, AtomicOrdering::SeqCst);
+                Err("timeout")
+            },
+            |error| *error == "timeout",
+        );
+
+        assert_eq!(result, Err("timeout"));
+        assert_eq!(attempts.load(AtomicOrdering::SeqCst), 3);
+    }
+
+    #[test]
+    fn timeout_operation_does_not_retry_other_failures() {
+        let attempts = AtomicUsize::new(0);
+        let result: Result<(), &str> = retry_timeout_operation(
+            || {
+                attempts.fetch_add(1, AtomicOrdering::SeqCst);
+                Err("authentication failed")
+            },
+            |error| *error == "timeout",
+        );
+
+        assert_eq!(result, Err("authentication failed"));
+        assert_eq!(attempts.load(AtomicOrdering::SeqCst), 1);
     }
 
     #[test]

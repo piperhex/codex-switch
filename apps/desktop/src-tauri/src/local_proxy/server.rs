@@ -304,10 +304,6 @@ fn handle_request<R: Runtime>(app: tauri::AppHandle<R>, mut request: Request) {
     let payload = match result {
         Ok(payload) => payload,
         Err(error) => {
-            let is_transport_error = is_upstream_transport_error(&error);
-            if is_transport_error {
-                let _ = app.emit(LOCAL_PROXY_UPSTREAM_CONNECTION_FAILED_EVENT, ());
-            }
             let message = upstream_error_message(&error);
             json_payload(502, json!({ "error": { "message": message } }))
         }

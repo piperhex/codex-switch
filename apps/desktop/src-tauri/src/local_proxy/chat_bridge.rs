@@ -33,17 +33,19 @@ fn forward_chat_bridge(
     } else {
         build_upstream_url(&provider.base_url, "/chat/completions")
     };
-    let request = client.post(upstream_url);
-    let request = if provider.api_key.trim().is_empty() {
-        request
-    } else {
-        request.bearer_auth(provider.api_key.trim())
-    }
-    .json(&chat_body);
-    let request = apply_forward_headers(request, headers, true);
-    let response = request
-        .send()
-        .map_err(|error| format!("Chat bridge request failed: {error}"))?;
+    let response = send_with_timeout_retries(
+        || {
+            let request = client.post(&upstream_url);
+            let request = if provider.api_key.trim().is_empty() {
+                request
+            } else {
+                request.bearer_auth(provider.api_key.trim())
+            }
+            .json(&chat_body);
+            apply_forward_headers(request, headers, true)
+        },
+        "Chat bridge request failed",
+    )?;
     let status = response.status().as_u16();
     let content_type = response
         .headers()

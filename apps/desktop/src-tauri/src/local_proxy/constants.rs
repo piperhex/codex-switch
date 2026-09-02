@@ -14,7 +14,7 @@ use std::{
 };
 
 use chrono::{Local, TimeZone};
-use reqwest::blocking::{Client, Response as ReqwestResponse};
+use reqwest::blocking::{Client, RequestBuilder, Response as ReqwestResponse};
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -61,6 +61,7 @@ const OFFICIAL_CODEX_BASE_URL: &str = "https://chatgpt.com/backend-api/codex";
 // Successful SSE reads reset it, so active long-running streams can continue without a hard deadline.
 const UPSTREAM_RESPONSE_IDLE_TIMEOUT: Duration = Duration::from_secs(120);
 const UPSTREAM_CONNECT_TIMEOUT: Duration = Duration::from_secs(20);
+const UPSTREAM_TIMEOUT_ATTEMPT_LIMIT: usize = 3;
 const TOOL_SEARCH_PROXY_NAME: &str = "tool_search";
 const CUSTOM_TOOL_INPUT_FIELD: &str = "input";
 const CHAT_TOOL_NAME_MAX_LEN: usize = 64;
@@ -82,7 +83,6 @@ const CUSTOM_TOOL_PRESERVED_METADATA_HEADING: &str = "Original tool definition:"
 const LOCAL_PROXY_LAN_HOST: &str = "0.0.0.0";
 const LOCAL_PROXY_START_PROGRESS_EVENT: &str = "local-proxy-start-progress";
 const LOCAL_PROXY_STOP_PROGRESS_EVENT: &str = "local-proxy-stop-progress";
-const LOCAL_PROXY_UPSTREAM_CONNECTION_FAILED_EVENT: &str = "local-proxy-upstream-connection-failed";
 const UPSTREAM_CONNECTION_FAILURE_MESSAGE: &str = concat!(
     "Connection to the target service failed. Check your network, VPN/proxy, DNS, and firewall. ",
     "If multiple proxy tools or modes are enabled, keep only one enabled and try again.",

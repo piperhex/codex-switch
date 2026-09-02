@@ -1919,9 +1919,6 @@ const translations = {
     "toast.providerDeleted": "Provider deleted",
     "toast.providersDeleted": "Deleted {count} providers",
     "toast.localProxyStarted": "Local proxy started. Provider switching now uses hot routing.",
-    "toast.localProxyUpstreamConnectionFailed":
-      "Connection to the target service failed. Check your network, VPN/proxy, DNS, and firewall. "
-      + "If multiple proxy tools or modes are enabled, keep only one enabled and try again.",
     "toast.localProxyStopped": "Local proxy stopped and the selected auth.json was restored. Any running ChatGPT/Codex client was restarted.",
     "toast.localProxyStoppedProviderDeselected": "Third-party Provider deselected and local proxy stopped.",
     "toast.proxyAutoSwitchEnabled": "Automatic official-account switching is enabled",
@@ -4235,9 +4232,6 @@ const translations = {
     "toast.providerDeleted": "Provider 已删除",
     "toast.providersDeleted": "已删除 {count} 个 Provider",
     "toast.localProxyStarted": "本地代理已启动，现在切换 Provider 会走热路由。",
-    "toast.localProxyUpstreamConnectionFailed":
-      "连接目标服务失败。请检查网络、VPN/代理、DNS 和防火墙；"
-      + "如启用了多个代理工具或代理模式，请先只保留一种后重试。",
     "toast.localProxyStopped": "本地代理已停止，当前选中账号的 auth.json 已写入；如 ChatGPT/Codex 原先正在运行，现已完成重启。",
     "toast.localProxyStoppedProviderDeselected": "已取消使用三方 Provider，并关闭本地代理。",
     "toast.proxyAutoSwitchEnabled": "已开启官方账号自动切换",

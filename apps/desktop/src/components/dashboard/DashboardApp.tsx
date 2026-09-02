@@ -42,7 +42,6 @@ import {
   showTokenUsageWindow,
   submitFeedback,
   subscribeToCloudSessionExpired,
-  subscribeToLocalProxyUpstreamConnectionFailures,
   subscribeToOpenSettings,
   updateAutoDisableStatusCodes,
   updateNetworkProxy,
@@ -121,7 +120,6 @@ import type {
 
 const REPOSITORY_URL = "https://github.com/piperhex/codex-switch";
 const LATEST_RELEASE_API_URL = "https://api.github.com/repos/piperhex/codex-switch/releases/latest";
-const LOCAL_PROXY_CONNECTION_WARNING_COOLDOWN_MS = 30_000;
 const APP_LOGO_URL = new URL("../../../src-tauri/icons/128x128.png", import.meta.url).href;
 const CUSTOM_TITLEBAR_ENABLED = isDesktopApp && navigator.userAgent.includes("Windows");
 const MemoAccountsPage = memo(AccountsPage);
@@ -269,15 +267,6 @@ export function DashboardApp() {
   useEffect(() => subscribeToOpenSettings(() => setPage("settings")), []);
   const { message: toast, notify } = useToast();
   const { language, setLanguage, t } = useLanguage();
-  useEffect(() => {
-    let lastPromptAt = 0;
-    return subscribeToLocalProxyUpstreamConnectionFailures(() => {
-      const now = Date.now();
-      if (now - lastPromptAt < LOCAL_PROXY_CONNECTION_WARNING_COOLDOWN_MS) return;
-      lastPromptAt = now;
-      notify(t("toast.localProxyUpstreamConnectionFailed"));
-    });
-  }, [notify, t]);
   const thirdPartyAppIntegration = useThirdPartyAppIntegration(notify, t);
   const cloud = useCloudAuth(notify, t);
   const totpManager = useTotpEntries({

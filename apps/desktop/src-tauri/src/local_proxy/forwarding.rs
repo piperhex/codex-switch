@@ -68,38 +68,40 @@ fn send_official_request(
     body: &[u8],
     authentication: &OfficialRequestAuthentication,
 ) -> Result<UpstreamPayload, String> {
-    let mut request = client
-        .request(reqwest_method(method)?, upstream_url)
-        .header("originator", ORIGINATOR)
-        .header("User-Agent", "codex_cli_rs/0.1.0");
-    match authentication {
-        OfficialRequestAuthentication::OAuth {
-            access_token,
-            chatgpt_account_id,
-        } => {
-            request = request.bearer_auth(access_token);
-            if let Some(account_id) = chatgpt_account_id {
-                request = request.header("ChatGPT-Account-Id", account_id);
+    let request_method = reqwest_method(method)?;
+    let response = send_with_timeout_retries(
+        || {
+            let mut request = client
+                .request(request_method.clone(), upstream_url)
+                .header("originator", ORIGINATOR)
+                .header("User-Agent", "codex_cli_rs/0.1.0");
+            match authentication {
+                OfficialRequestAuthentication::OAuth {
+                    access_token,
+                    chatgpt_account_id,
+                } => {
+                    request = request.bearer_auth(access_token);
+                    if let Some(account_id) = chatgpt_account_id {
+                        request = request.header("ChatGPT-Account-Id", account_id);
+                    }
+                }
+                OfficialRequestAuthentication::AgentIdentity {
+                    request_authentication,
+                    ..
+                } => {
+                    request = request
+                        .header("Authorization", &request_authentication.authorization)
+                        .header("ChatGPT-Account-Id", &request_authentication.account_id);
+                    if request_authentication.is_fedramp {
+                        request = request.header("x-openai-fedramp", "true");
+                    }
+                }
             }
-        }
-        OfficialRequestAuthentication::AgentIdentity {
-            request_authentication,
-            ..
-        } => {
-            request = request
-                .header("Authorization", &request_authentication.authorization)
-                .header("ChatGPT-Account-Id", &request_authentication.account_id);
-            if request_authentication.is_fedramp {
-                request = request.header("x-openai-fedramp", "true");
-            }
-        }
-    }
-    stream_response(
-        apply_forward_headers(request, headers, true)
-            .body(body.to_vec())
-            .send()
-            .map_err(|error| format!("Official Codex proxy request failed: {error}"))?,
-    )
+            apply_forward_headers(request, headers, true).body(body.to_vec())
+        },
+        "Official Codex proxy request failed",
+    )?;
+    stream_response(response)
 }
 
 fn official_body_for_upstream(method: &Method, url: &str, body: Vec<u8>, model: &str) -> Vec<u8> {
@@ -164,19 +166,20 @@ fn forward_provider(
     let upstream_endpoint = upstream_endpoint_for_codex_request(url);
     let upstream_url = build_upstream_url(&provider.base_url, &upstream_endpoint);
     let body = provider_body_for_upstream(method, &upstream_endpoint, body, provider);
-    let request = client.request(reqwest_method(method)?, upstream_url);
-    let request = if provider.api_key.trim().is_empty() {
-        request
-    } else {
-        request.bearer_auth(provider.api_key.trim())
-    };
-    let request = apply_forward_headers(request, headers, true);
-    stream_response(
-        request
-            .body(body)
-            .send()
-            .map_err(|error| format!("Provider proxy request failed: {error}"))?,
-    )
+    let request_method = reqwest_method(method)?;
+    let response = send_with_timeout_retries(
+        || {
+            let request = client.request(request_method.clone(), &upstream_url);
+            let request = if provider.api_key.trim().is_empty() {
+                request
+            } else {
+                request.bearer_auth(provider.api_key.trim())
+            };
+            apply_forward_headers(request, headers, true).body(body.clone())
+        },
+        "Provider proxy request failed",
+    )?;
+    stream_response(response)
 }
 
 fn forward_provider_request(

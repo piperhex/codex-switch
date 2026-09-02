@@ -130,6 +130,35 @@ fn http_client() -> Result<Client, String> {
         .map_err(|error| format!("Failed to create proxy HTTP client: {error}"))
 }
 
+// Retry only before a response is returned. Replaying an active SSE stream could duplicate
+// generated content or tool calls, so body-read timeouts continue to terminate that stream.
+fn send_with_timeout_retries(
+    mut build_request: impl FnMut() -> RequestBuilder,
+    failure_context: &str,
+) -> Result<ReqwestResponse, String> {
+    let result = retry_timeout_operation(|| build_request().send(), reqwest::Error::is_timeout);
+    match result {
+        Ok(response) => Ok(response),
+        Err(error) if error.is_timeout() => Err(format!(
+            "{failure_context}: request timed out after {UPSTREAM_TIMEOUT_ATTEMPT_LIMIT} attempts"
+        )),
+        Err(error) => Err(format!("{failure_context}: {error}")),
+    }
+}
+
+fn retry_timeout_operation<T, E>(
+    mut operation: impl FnMut() -> Result<T, E>,
+    is_timeout: impl Fn(&E) -> bool,
+) -> Result<T, E> {
+    for attempt in 1..=UPSTREAM_TIMEOUT_ATTEMPT_LIMIT {
+        match operation() {
+            Err(error) if is_timeout(&error) && attempt < UPSTREAM_TIMEOUT_ATTEMPT_LIMIT => continue,
+            result => return result,
+        }
+    }
+    unreachable!("the retry loop always returns on its final attempt")
+}
+
 fn reqwest_method(method: &Method) -> Result<reqwest::Method, String> {
     reqwest::Method::from_bytes(method.as_str().as_bytes())
         .map_err(|error| format!("Unsupported HTTP method {}: {error}", method.as_str()))
