@@ -889,6 +889,11 @@ main.providers-main .provider-page {
 }
 .proxy-image-model-select { width: 210px; }
 .proxy-image-model-dropdown { min-width: 210px; }
+.account-image-model-popover { display: grid; gap: 10px; }
+.account-image-model-popover .proxy-image-model-field {
+  display: grid;
+  grid-template-columns: max-content 210px;
+}
 .proxy-session-description { margin: 0 0 14px; color: #68756d; font-size: 12px; line-height: 1.6; }
 .cloud-recycle-bin-modal .ant-alert { max-width: 400px; margin-bottom: 12px; }
 .cloud-recycle-bin-modal .proxy-session-description { max-width: 400px; }

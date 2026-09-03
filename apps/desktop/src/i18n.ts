@@ -1182,6 +1182,8 @@ const translations = {
     "providers.proxy.imageInputModel": "Image input model",
     "providers.proxy.imageOutputModel": "Image output model",
     "providers.proxy.imageModelPlaceholder": "Select custom image account or model",
+    "providers.proxy.customImageModel": "Custom image models",
+    "providers.proxy.customImageModelConfigured": "Custom image models configured",
     "providers.proxy.imageInputModelTooltip":
       "Choose the official account or Provider model used when a request contains an image.",
     "providers.proxy.imageOutputModelTooltip":
@@ -3516,6 +3518,8 @@ const translations = {
     "providers.proxy.imageInputModel": "图片输入模型",
     "providers.proxy.imageOutputModel": "图片输出模型",
     "providers.proxy.imageModelPlaceholder": "选择自定义图片账号或模型",
+    "providers.proxy.customImageModel": "自定义图片模型",
+    "providers.proxy.customImageModelConfigured": "已配置自定义图片模型",
     "providers.proxy.imageInputModelTooltip": "选择处理图片输入时使用的官方账号或三方 Provider 模型。",
     "providers.proxy.imageOutputModelTooltip": "选择图片生成和编辑时使用的官方账号或三方 Provider 模型。",
     "providers.proxy.openaiAuthAccount": "OpenAI 登录账号",

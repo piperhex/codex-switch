@@ -111,6 +111,7 @@ import { NetworkProxySettingsModal } from "../../pages/settings/NetworkProxySett
 import type { Translate } from "../../i18n";
 import { AccountDisplayTabs } from "./AccountDisplayTabs";
 import { AccountTopbarActions } from "./AccountTopbarActions";
+import { AccountImageModelButton } from "./AccountImageModelButton";
 import { AccountGroupManager } from "../accounts/AccountGroupManager";
 import type {
   AccountDetailsDraft,
@@ -1174,6 +1175,12 @@ export function DashboardApp() {
           groups={managedAccountGroups} onChangeMany={manager.changeAccountGroups}
           onConcurrentRoutingChange={providerManager.setProxyConcurrentRouting}
           onGroupsChange={saveAccountGroups} t={t} />}
+        {providerManager.localProxy?.running && <AccountImageModelButton accounts={manager.accounts}
+          providers={providerManager.providers}
+          inputTarget={providerManager.localProxy.imageInputTarget}
+          outputTarget={providerManager.localProxy.imageOutputTarget}
+          busy={providerManager.proxyBusy} onChange={providerManager.setProxyImageModel}
+          privacyMode={privacyMode.enabled} t={t} />}
         {!sidebarNavigationEnabled && <TotpWindowButton notify={notify} t={t} />}
       </>} t={t} />
   );
@@ -1334,10 +1341,7 @@ export function DashboardApp() {
                 onChange={accountDisplayMode.setDisplayMode} t={t} />
             )}
             {page === "accounts" && (
-              <AccountTopbarActions accounts={manager.accounts}
-                providers={providerManager.providers} localProxy={providerManager.localProxy}
-                proxyBusy={providerManager.proxyBusy} privacyMode={privacyMode.enabled}
-                onImageModelChange={providerManager.setProxyImageModel} t={t}>
+              <AccountTopbarActions>
                 <button className="primary-button" onClick={openLogin}>
                   <Plus size={18} />{t("actions.addAccount")}
                 </button>
