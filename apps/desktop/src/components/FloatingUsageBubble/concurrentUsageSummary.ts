@@ -15,11 +15,18 @@ function usageMatchesAccount(usage: AccountTokenUsageTotals, account: Account) {
   return Boolean(email && usageEmail && email === usageEmail);
 }
 
+export function accountParticipatesInConcurrentRouting(account: Account, accountGroup: string | null) {
+  return account.autoSwitchEnabled && (!accountGroup || account.group === accountGroup);
+}
+
 export function summarizeConcurrentUsage(
   accounts: Account[],
   usageTotals: AccountTokenUsageTotals[],
+  accountGroup: string | null = null,
 ): ConcurrentUsageSummary {
-  const enabledAccounts = accounts.filter((account) => account.autoSwitchEnabled);
+  const enabledAccounts = accounts.filter((account) => (
+    accountParticipatesInConcurrentRouting(account, accountGroup)
+  ));
   return enabledAccounts.reduce<ConcurrentUsageSummary>((summary, account) => {
     const usage = usageTotals.find((item) => usageMatchesAccount(item, account));
     summary.totalTokens += usage?.totalTokens ?? 0;

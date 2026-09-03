@@ -18,7 +18,12 @@ function todayStartTimestamp() {
   return Math.floor(new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime() / 1_000);
 }
 
-export function useConcurrentUsageStats(enabled: boolean, accounts: Account[], providers: Provider[]) {
+export function useConcurrentUsageStats(
+  enabled: boolean,
+  accounts: Account[],
+  providers: Provider[],
+  accountGroup: string | null,
+) {
   const [totals, setTotals] = useState<AccountTokenUsageTotals[]>([]);
   const [display, setDisplay] = useState(loadTokenCostDisplaySettings);
   const refreshingRef = useRef(false);
@@ -56,6 +61,6 @@ export function useConcurrentUsageStats(enabled: boolean, accounts: Account[], p
   return {
     display,
     refresh,
-    summary: summarizeConcurrentUsage(accounts, totals),
+    summary: summarizeConcurrentUsage(accounts, totals, accountGroup),
   };
 }

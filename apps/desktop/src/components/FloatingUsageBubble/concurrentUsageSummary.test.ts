@@ -71,4 +71,22 @@ describe("summarizeConcurrentUsage", () => {
 
     expect(summarizeConcurrentUsage(accounts, totals).totalTokens).toBe(12_000);
   });
+
+  it("only counts accounts in the selected concurrent group", () => {
+    const accounts = [
+      account({ group: "Work" }),
+      account({ id: "account-2", accountId: "workspace-2", email: "two@example.com", group: "Home" }),
+      account({ id: "account-3", accountId: "workspace-3", email: "three@example.com", group: "Work" }),
+    ];
+    const totals = [
+      usage(),
+      usage({ accountId: "workspace-2", accountEmail: "two@example.com", totalTokens: 20_000 }),
+      usage({ accountId: "workspace-3", accountEmail: "three@example.com", totalTokens: 30_000 }),
+    ];
+
+    expect(summarizeConcurrentUsage(accounts, totals, "Work")).toMatchObject({
+      accountCount: 2,
+      totalTokens: 42_000,
+    });
+  });
 });

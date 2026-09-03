@@ -40,6 +40,7 @@ import { remainingTone, resetClockTime } from "../../utils/format";
 import { ConcurrentUsageCard } from "./ConcurrentUsageCard";
 import { FloatingProviderCard } from "../FloatingProviderCard";
 import { useConcurrentUsageStats } from "./useConcurrentUsageStats";
+import { accountParticipatesInConcurrentRouting } from "./concurrentUsageSummary";
 import styles from "./index.module.less";
 
 function usageColor(remaining: number) {
@@ -228,7 +229,13 @@ export function FloatingUsageBubble() {
     [activeProvider],
   );
   const providerStats = useFloatingProviderStats(activeCustomProvider);
-  const concurrentStats = useConcurrentUsageStats(concurrentRoutingActive, accounts, concurrentProviders);
+  const concurrentAccountGroup = localProxy?.concurrentAccountGroup ?? null;
+  const concurrentStats = useConcurrentUsageStats(
+    concurrentRoutingActive,
+    accounts,
+    concurrentProviders,
+    concurrentAccountGroup,
+  );
   const refreshProviderStats = providerStats.refresh;
   const accountId = account?.id ?? null;
 
@@ -300,7 +307,9 @@ export function FloatingUsageBubble() {
     setRefreshing(true);
     try {
       if (concurrentRoutingActive) {
-        const enabledAccounts = accounts.filter((item) => item.autoSwitchEnabled);
+        const enabledAccounts = accounts.filter((item) => (
+          accountParticipatesInConcurrentRouting(item, concurrentAccountGroup)
+        ));
         await Promise.allSettled(enabledAccounts.map((item) => refreshAccountUsage(item.id)));
         await Promise.all([load(), concurrentStats.refresh()]);
       } else if (activeCustomProvider) {
@@ -325,6 +334,7 @@ export function FloatingUsageBubble() {
     activeProvider,
     activeUpstreamProvider,
     concurrentRoutingActive,
+    concurrentAccountGroup,
     concurrentStats.refresh,
     load,
     refreshProviderStats,
