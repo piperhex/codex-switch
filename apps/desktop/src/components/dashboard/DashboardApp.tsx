@@ -1599,6 +1599,7 @@ export function DashboardApp() {
               resetCreditBusyAccountId={resetCreditBusyAccountId}
               onOpenaiAuthAccountChange={providerManager.setProxyOpenaiAuthAccount}
               onConcurrentRoutingChange={providerManager.setProxyConcurrentRouting}
+              onFastModeChange={providerManager.setProxyFastMode}
               privacyMode={privacyMode.enabled}
               privacyModeLoading={privacyMode.loading}
               onPrivacyModeChange={(enabled) => void privacyMode.setEnabled(enabled)}

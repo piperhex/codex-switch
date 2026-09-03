@@ -242,6 +242,24 @@ fn codex_model_for_provider(provider: &ProviderProfile) -> &str {
     }
 }
 
+pub(crate) fn current_target_supports_fast_mode(paths: &Paths) -> bool {
+    let state = read_state(paths);
+    if let Some(group) = state.active_provider_group.as_deref() {
+        return provider_group_profiles(paths, group)
+            .is_ok_and(|providers| !providers.is_empty() && providers.iter().all(|provider| provider.fast_mode_enabled));
+    }
+    let Some(id) = state.active_provider_id.as_deref() else {
+        return true;
+    };
+    if crate::aggregate_api::is_active_id(id) {
+        return crate::aggregate_api::read_active_config(paths, id)
+            .and_then(|config| crate::aggregate_api::member_profiles(paths, &config)
+                .and_then(|profiles| crate::aggregate_api::logical_profile(&config, &profiles)))
+            .is_ok_and(|provider| provider.fast_mode_enabled);
+    }
+    read_provider(paths, id).is_ok_and(|provider| provider.fast_mode_enabled)
+}
+
 pub(crate) fn refresh_codex_models_for_current_target(paths: &Paths) {
     if !crate::local_proxy::is_running() {
         return;

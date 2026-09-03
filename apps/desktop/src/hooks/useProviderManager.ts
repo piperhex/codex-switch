@@ -17,6 +17,7 @@ import {
   setLocalProxyAutoDisableUnreachable,
   setLocalProxyCustomPriority,
   setLocalProxyCustomThreshold,
+  setLocalProxyFastMode,
   setLocalProxyGlobalThreshold,
   setLocalProxyImageAccount,
   setLocalProxyImageModelTarget,
@@ -89,6 +90,12 @@ function providerErrorMessage(error: unknown, t: Translate) {
   }
   if (message.includes("Third-party Providers require the local proxy")) {
     return t("providers.error.proxyRequired");
+  }
+  if (message.includes("Start the local proxy before changing request speed")) {
+    return t("usage.speedProxyRequired");
+  }
+  if (message.includes("Fast mode is not available for the current provider")) {
+    return t("usage.speedUnavailable");
   }
   if (message.includes("Provider API key is empty")) return t("providers.error.apiKeyEmpty");
   if (message.includes("Provider name is required")) return t("providers.error.nameRequired");
@@ -601,6 +608,19 @@ export function useProviderManager(
     }
   }, [load, notify, t]);
 
+  const setProxyFastMode = useCallback(async (enabled: boolean) => {
+    setProxyBusy(true);
+    try {
+      setLocalProxy(await setLocalProxyFastMode(enabled));
+      notify(t(enabled ? "toast.fastModeEnabled" : "toast.fastModeDisabled"));
+      await load();
+    } catch (error) {
+      notify(providerErrorMessage(error, t));
+    } finally {
+      setProxyBusy(false);
+    }
+  }, [load, notify, t]);
+
   const setProxyCustomThreshold = useCallback(async (enabled: boolean) => {
     setProxyBusy(true);
     try {
@@ -804,6 +824,7 @@ export function useProviderManager(
     deleteProviders,
     startProxy,
     stopProxy,
+    setProxyFastMode,
     setProxyAutoSwitch,
     setProxyConcurrentRouting,
     setProxyAutoDisableUnreachable,

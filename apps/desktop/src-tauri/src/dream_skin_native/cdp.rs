@@ -190,7 +190,7 @@ fn run_service_tier_binding(mut session: CdpSession, generation: u64) {
             return;
         }
         let succeeded = crate::local_proxy::is_running()
-            && crate::local_proxy::set_proxy_service_tier_from_renderer(&payload);
+            && crate::local_proxy::set_proxy_service_tier_by_name(&payload);
         acknowledge_service_tier(&mut session, &payload, succeeded);
         if succeeded {
             crate::codex_runtime::notify_service_tier_changed();

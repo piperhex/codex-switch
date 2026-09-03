@@ -187,6 +187,7 @@ export interface ProviderBalanceItem {
 export interface LocalProxyStatus {
   running: boolean;
   fastModeEnabled: boolean;
+  fastModeAvailable: boolean;
   address: string;
   port: number;
   baseUrl: string;

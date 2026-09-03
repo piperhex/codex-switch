@@ -80,7 +80,7 @@ fn effective_proxy_service_tier(
     }
 }
 
-pub(crate) fn set_proxy_service_tier_from_renderer(value: &str) -> bool {
+pub(crate) fn set_proxy_service_tier_by_name(value: &str) -> bool {
     let Ok(tier) = parse_proxy_service_tier_name(Some(value)) else {
         return false;
     };

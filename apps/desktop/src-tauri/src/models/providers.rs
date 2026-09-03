@@ -103,6 +103,7 @@ pub(crate) struct ProviderBalanceItem {
 pub(crate) struct LocalProxyStatus {
     pub(crate) running: bool,
     pub(crate) fast_mode_enabled: bool,
+    pub(crate) fast_mode_available: bool,
     pub(crate) address: String,
     pub(crate) port: u16,
     pub(crate) base_url: String,

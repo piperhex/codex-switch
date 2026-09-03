@@ -420,7 +420,7 @@
             Some(ProxyServiceTier::Default)
         );
 
-        assert!(set_proxy_service_tier_from_renderer("priority"));
+        assert!(set_proxy_service_tier_by_name("priority"));
 
         assert!(update_proxy_service_tier_for_openai_auth(Some("oauth-account")));
         assert_eq!(proxy_service_tier_name(), "default");

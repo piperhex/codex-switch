@@ -67,6 +67,7 @@ import { AccountExpandedPanel } from "../AccountExpandedPanel";
 import { AccountGroupCell, ConcurrentRoutingControl } from "../AccountGroupControls";
 import { OfficialContextSettings } from "../OfficialContextSettings";
 import { UsageMeter, UsageRefreshAge } from "../UsageMeter";
+import { UsageSpeedPill } from "../UsageSpeedPill";
 import { getAccountCardTokenUsage } from "../accountCardUsage";
 import { getOfficialAuthAccounts, getSwitchableAccounts } from "../accountSelectors";
 import styles from "./index.module.less";
@@ -122,6 +123,9 @@ interface AccountTableProps {
   resetCreditBusyAccountId: string | null;
   hotSwitchEnabled: boolean;
   fastModeEnabled: boolean;
+  fastModeAvailable: boolean;
+  fastModeBusy: boolean;
+  onFastModeChange: (enabled: boolean) => void;
   concurrentAccountRoutingEnabled: boolean;
   concurrentAccountGroup: string | null;
   concurrentAccountRoutingBusy: boolean;
@@ -363,6 +367,9 @@ export function AccountTable({
   resetCreditBusyAccountId,
   hotSwitchEnabled,
   fastModeEnabled,
+  fastModeAvailable,
+  fastModeBusy,
+  onFastModeChange,
   concurrentAccountRoutingEnabled,
   concurrentAccountGroup,
   concurrentAccountRoutingBusy,
@@ -692,7 +699,11 @@ export function AccountTable({
         onChange={onAccountGroupChange} t={t} />,
     },
     {
-      title: t("table.fiveHours"), key: "fiveHours", width: 260,
+      title: <span className="usage-column-title">
+        <span>{t("table.fiveHours")}</span>
+        <UsageSpeedPill fastModeEnabled={fastModeEnabled} fastModeAvailable={fastModeAvailable}
+          proxyRunning={hotSwitchEnabled} loading={fastModeBusy} onChange={onFastModeChange} t={t} />
+      </span>, key: "fiveHours", width: 260,
       sorter: (left, right, sortOrder) => compareKeepingAttentionLast(
         left,
         right,

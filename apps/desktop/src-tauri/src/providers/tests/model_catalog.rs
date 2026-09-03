@@ -170,6 +170,29 @@
     }
 
     #[test]
+    fn current_target_exposes_fast_only_for_supported_providers() {
+        let paths = test_paths();
+        assert!(current_target_supports_fast_mode(&paths));
+
+        let mut selected_provider = provider();
+        write_local_provider(&paths, &selected_provider, None).unwrap();
+        write_state(
+            &paths,
+            &ManagerStateFile {
+                active_provider_id: Some(selected_provider.id.clone()),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert!(!current_target_supports_fast_mode(&paths));
+
+        selected_provider.fast_mode_enabled = true;
+        write_local_provider(&paths, &selected_provider, None).unwrap();
+        assert!(current_target_supports_fast_mode(&paths));
+        fs::remove_dir_all(paths.codex_home.parent().unwrap()).unwrap();
+    }
+
+    #[test]
     fn provider_context_window_defaults_and_rejects_zero() {
         let provider = provider();
         assert_eq!(
