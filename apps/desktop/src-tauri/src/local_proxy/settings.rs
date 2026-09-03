@@ -68,15 +68,19 @@ fn set_concurrent_account_routing_enabled_blocking<R: Runtime>(
     })?;
     let write_codex = crate::claude_code::should_write_codex_for_app(app)?;
     if switched_from_provider && write_codex {
-        if let Err(error) = providers::write_official_local_proxy_config(&paths) {
-            rollback_concurrent_routing_setting(&paths, &applied_state, &original_state);
-            return Err(error);
+        for target in crate::storage::resolve_enabled_paths(app)? {
+            if let Err(error) = providers::write_official_local_proxy_config(&target) {
+                rollback_concurrent_routing_setting(&paths, &applied_state, &original_state);
+                return Err(error);
+            }
         }
     }
     if enabled && write_codex {
-        if let Err(error) = providers::sync_local_proxy_openai_auth(&paths) {
-            rollback_concurrent_routing_setting(&paths, &applied_state, &original_state);
-            return Err(error);
+        for target in crate::storage::resolve_enabled_paths(app)? {
+            if let Err(error) = providers::sync_local_proxy_openai_auth(&target) {
+                rollback_concurrent_routing_setting(&paths, &applied_state, &original_state);
+                return Err(error);
+            }
         }
     }
     if let Ok(mut router) = concurrent_account_router().lock() {
@@ -298,7 +302,7 @@ fn set_image_model_target_blocking<R: Runtime>(
     }
     write_state(&paths, &state)?;
     if route_kind == ImageRouteKind::Input {
-        if let Err(error) = providers::apply_local_proxy_config_for_paths(&paths) {
+        if let Err(error) = providers::apply_local_proxy_config_for_state(&app) {
             return match write_state(&paths, &original_state) {
                 Ok(()) => Err(error),
                 Err(rollback_error) => Err(format!(
@@ -306,7 +310,9 @@ fn set_image_model_target_blocking<R: Runtime>(
                 )),
             };
         }
-        providers::refresh_codex_models_for_current_target_blocking(&paths);
+        for target in crate::storage::resolve_enabled_paths(&app)? {
+            providers::refresh_codex_models_for_current_target_blocking(&target);
+        }
     }
     app.emit("providers-changed", ())
         .map_err(|error| error.to_string())?;

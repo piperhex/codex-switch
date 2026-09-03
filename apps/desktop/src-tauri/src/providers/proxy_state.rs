@@ -8,9 +8,10 @@ fn target_uses_provider(target: Option<&ImageModelTarget>, provider_id: &str) ->
 pub(crate) fn apply_local_proxy_config_for_state<R: Runtime>(
     app: &tauri::AppHandle<R>,
 ) -> Result<(), String> {
-    let paths = resolve_paths(app)?;
-    apply_local_proxy_config_for_paths(&paths)?;
-    refresh_codex_models_for_current_target(&paths);
+    for paths in crate::storage::resolve_enabled_paths(app)? {
+        apply_local_proxy_config_for_paths(&paths)?;
+        refresh_codex_models_for_current_target(&paths);
+    }
     Ok(())
 }
 
@@ -56,7 +57,11 @@ pub(crate) fn ensure_local_proxy_compatible_for_state(paths: &Paths) -> Result<(
     validate_official_auth_for_local_proxy(&auth)
 }
 
-pub(crate) fn activate_provider_for_sync(paths: &Paths, id: &str) -> Result<bool, String> {
+pub(crate) fn activate_provider_for_sync<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    paths: &Paths,
+    id: &str,
+) -> Result<bool, String> {
     let provider = read_provider(paths, id)?;
     ensure_not_local_proxy_base_url(&provider.base_url)?;
     if provider.kind != ProviderKind::OpenAi
@@ -71,18 +76,24 @@ pub(crate) fn activate_provider_for_sync(paths: &Paths, id: &str) -> Result<bool
     }
 
     let original_state = try_read_state(paths)?;
-    backup_codex_config_if_needed(
-        paths,
-        original_state.active_provider_id.is_none()
-            && original_state.active_provider_group.is_none(),
-    )?;
+    let targets = crate::storage::resolve_enabled_paths(app)?;
+    for target in &targets {
+        backup_codex_config_if_needed(
+            target,
+            original_state.active_provider_id.is_none()
+                && original_state.active_provider_group.is_none(),
+        )?;
+    }
     let mut state = original_state.clone();
     state.active_provider_id = Some(provider.id.clone());
     state.active_provider_group = None;
     state.active_account_id = None;
     change_concurrent_account_routing(&mut state, false, "synced Provider activation");
     write_state(paths, &state)?;
-    if let Err(error) = write_provider_local_proxy_config(paths, &provider) {
+    let config_result = targets
+        .iter()
+        .try_for_each(|target| write_provider_local_proxy_config(target, &provider));
+    if let Err(error) = config_result {
         if let Err(rollback_error) = restore_provider_activation_state(
             paths,
             original_state,
@@ -92,7 +103,9 @@ pub(crate) fn activate_provider_for_sync(paths: &Paths, id: &str) -> Result<bool
         }
         return Err(error);
     }
-    refresh_codex_models_best_effort(paths, &provider);
+    for target in &targets {
+        refresh_codex_models_best_effort(target, &provider);
+    }
     Ok(true)
 }
 
@@ -102,8 +115,10 @@ pub(crate) fn cleanup_stale_local_proxy_config<R: Runtime>(
     if !crate::claude_code::should_write_codex_for_app(app)? {
         return Ok(());
     }
-    let paths = resolve_paths(app)?;
-    cleanup_non_proxy_provider_state(&paths)
+    for paths in crate::storage::resolve_enabled_paths(app)? {
+        cleanup_non_proxy_provider_state(&paths)?;
+    }
+    Ok(())
 }
 
 fn cleanup_non_proxy_provider_state(paths: &Paths) -> Result<(), String> {

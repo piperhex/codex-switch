@@ -8,58 +8,74 @@ use std::{
 use tauri::{Emitter, Runtime};
 
 use crate::{
-    models::{AppSettings, CodexHomeEntry, ManagerStateFile},
+    models::{AppSettings, CodexHomeEntry},
     storage::{
-        change_concurrent_account_routing, read_app_settings, resolve_paths,
-        sync_current_into_store, try_read_state, write_app_settings, write_state, Paths,
+        read_app_settings, resolve_paths, sync_current_into_store, try_read_state,
+        write_app_settings,
     },
 };
 
-static CODEX_HOME_OVERRIDE: OnceLock<RwLock<Option<PathBuf>>> = OnceLock::new();
+static CODEX_HOME_OVERRIDES: OnceLock<RwLock<Vec<ConfiguredCodexHome>>> = OnceLock::new();
 
 const CODEX_HOME_ENV: &str = "CODEX_HOME";
 const DEFAULT_CODEX_HOME_DIRECTORY: &str = ".codex";
 const HOME_CHANGE_EVENTS: [&str; 2] = ["accounts-changed", "providers-changed"];
 
-fn override_store() -> &'static RwLock<Option<PathBuf>> {
-    CODEX_HOME_OVERRIDE.get_or_init(|| RwLock::new(None))
+#[derive(Clone, PartialEq, Eq)]
+pub(crate) struct ConfiguredCodexHome {
+    pub(crate) id: Option<String>,
+    pub(crate) path: PathBuf,
 }
 
 fn is_safe_home_path(path: &Path) -> bool {
     path.is_absolute() && path.parent().is_some()
 }
 
-fn normalized_override(value: Option<&str>) -> Option<PathBuf> {
-    value
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .map(PathBuf::from)
-        .filter(|path| is_safe_home_path(path))
+fn override_store() -> &'static RwLock<Vec<ConfiguredCodexHome>> {
+    CODEX_HOME_OVERRIDES.get_or_init(|| RwLock::new(Vec::new()))
 }
 
-fn replace_override(value: Option<PathBuf>) {
+fn replace_overrides(value: Vec<ConfiguredCodexHome>) {
     let mut configured = override_store()
         .write()
         .unwrap_or_else(|error| error.into_inner());
     *configured = value;
 }
 
-fn current_override() -> Option<PathBuf> {
+fn current_overrides() -> Vec<ConfiguredCodexHome> {
     override_store()
         .read()
         .unwrap_or_else(|error| error.into_inner())
         .clone()
 }
 
-fn active_entry(entries: &[CodexHomeEntry]) -> Option<&CodexHomeEntry> {
-    entries.iter().find(|entry| entry.enabled)
+fn configured_entries(entries: &[CodexHomeEntry]) -> Vec<ConfiguredCodexHome> {
+    entries
+        .iter()
+        .filter(|entry| entry.enabled)
+        .map(|entry| ConfiguredCodexHome {
+            id: Some(entry.id.clone()),
+            path: PathBuf::from(&entry.path),
+        })
+        .filter(|entry| is_safe_home_path(&entry.path))
+        .collect()
 }
 
 pub(crate) fn initialize(settings: &AppSettings) {
-    let value = active_entry(&settings.codex_homes)
-        .map(|entry| entry.path.as_str())
-        .or(settings.codex_home.as_deref());
-    replace_override(normalized_override(value));
+    let mut entries = configured_entries(&settings.codex_homes);
+    if entries.is_empty() {
+        entries.extend(
+            settings
+                .codex_home
+                .as_deref()
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(PathBuf::from)
+                .filter(|path| is_safe_home_path(path))
+                .map(|path| ConfiguredCodexHome { id: None, path }),
+        );
+    }
+    replace_overrides(entries);
 }
 
 fn environment_codex_home() -> Option<PathBuf> {
@@ -81,10 +97,38 @@ fn resolve_from_sources(
 
 pub(crate) fn resolve() -> Result<PathBuf, String> {
     resolve_from_sources(
-        current_override(),
+        current_overrides().first().map(|entry| entry.path.clone()),
         environment_codex_home(),
         dirs::home_dir(),
     )
+}
+
+pub(crate) fn resolve_all() -> Result<Vec<ConfiguredCodexHome>, String> {
+    let configured = current_overrides();
+    if !configured.is_empty() {
+        return Ok(configured);
+    }
+    Ok(vec![ConfiguredCodexHome {
+        id: None,
+        path: resolve_from_sources(None, environment_codex_home(), dirs::home_dir())?,
+    }])
+}
+
+pub(crate) fn replicated_paths(path: &Path) -> Vec<PathBuf> {
+    let Ok(primary) = resolve() else {
+        return vec![path.to_path_buf()];
+    };
+    let Ok(relative) = path.strip_prefix(primary) else {
+        return vec![path.to_path_buf()];
+    };
+    resolve_all()
+        .map(|homes| {
+            homes
+                .into_iter()
+                .map(|home| home.path.join(relative))
+                .collect()
+        })
+        .unwrap_or_else(|_| vec![path.to_path_buf()])
 }
 
 fn resolve_for_override(value: Option<&Path>) -> Result<PathBuf, String> {
@@ -148,9 +192,6 @@ fn normalize_entries(entries: Vec<CodexHomeEntry>) -> Result<Vec<CodexHomeEntry>
     if entries.len() > 20 {
         return Err("最多可添加 20 个 Codex Home".to_string());
     }
-    if entries.iter().filter(|entry| entry.enabled).count() > 1 {
-        return Err("同一时间只能启用一个 Codex Home".to_string());
-    }
     let mut normalized = Vec::with_capacity(entries.len());
     let mut ids = HashSet::with_capacity(entries.len());
     for entry in entries {
@@ -162,6 +203,7 @@ fn normalize_entries(entries: Vec<CodexHomeEntry>) -> Result<Vec<CodexHomeEntry>
             return Err("Codex Home 路径不能重复".to_string());
         }
         let id = normalized_entry_id(&entry.id);
+        validate_entry_id(&id)?;
         if !ids.insert(id.clone()) {
             return Err("Codex Home 记录标识不能重复".to_string());
         }
@@ -183,6 +225,18 @@ fn normalized_entry_id(id: &str) -> String {
     }
 }
 
+fn validate_entry_id(id: &str) -> Result<(), String> {
+    if id.is_empty()
+        || id.len() > 64
+        || !id
+            .bytes()
+            .all(|value| value.is_ascii_alphanumeric() || matches!(value, b'-' | b'_'))
+    {
+        return Err("Codex Home 记录标识无效".to_string());
+    }
+    Ok(())
+}
+
 fn paths_match(left: &Path, right: &Path) -> bool {
     match (fs::canonicalize(left), fs::canonicalize(right)) {
         (Ok(left), Ok(right)) => left == right,
@@ -190,47 +244,29 @@ fn paths_match(left: &Path, right: &Path) -> bool {
     }
 }
 
-fn inactive_state(mut state: ManagerStateFile) -> ManagerStateFile {
-    state.active_account_id = None;
-    state.active_provider_id = None;
-    state.active_provider_group = None;
-    change_concurrent_account_routing(&mut state, false, "Codex Home change");
-    state.local_proxy_enabled = false;
-    state
-}
-
-fn remove_config_backup(paths: &Paths) -> Result<(), String> {
-    match fs::remove_file(&paths.config_backup) {
-        Ok(()) => Ok(()),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-        Err(error) => Err(format!("无法清理旧的 Codex 配置备份：{error}")),
+fn sync_configured_homes<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<(), String> {
+    if !crate::claude_code::should_write_codex_for_app(app)? {
+        return Ok(());
     }
-}
-
-fn prepare_home_change<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<ManagerStateFile, String> {
-    crate::providers::cleanup_stale_local_proxy_config(app)?;
+    if crate::local_proxy::is_running() {
+        return crate::providers::apply_local_proxy_config_for_state(app);
+    }
     let paths = resolve_paths(app)?;
-    remove_config_backup(&paths)?;
     let state = try_read_state(&paths)?;
-    write_state(&paths, &inactive_state(state.clone()))?;
-    Ok(state)
+    let Some(account_id) = state.active_account_id.as_deref() else {
+        return Ok(());
+    };
+    let auth = crate::commands::load_validated_managed_auth(&paths, account_id)?;
+    for target in crate::storage::resolve_enabled_paths(app)? {
+        crate::storage::write_json_atomic(&target.current_auth, &auth)?;
+        crate::providers::restore_official_config(&target)?;
+    }
+    Ok(())
 }
 
-fn restore_state_after_failed_save(paths: &Paths, state: &ManagerStateFile) {
-    let mut state = state.clone();
-    let enabled = state.concurrent_account_routing_enabled;
-    change_concurrent_account_routing(&mut state, enabled, "Codex Home change rollback");
-    if let Err(error) = write_state(paths, &state) {
-        eprintln!("failed to restore Codex Home state after settings save error: {error}");
-    }
-}
-
-fn refresh_selected_home<R: Runtime>(app: &tauri::AppHandle<R>) {
-    if let Err(error) = crate::providers::cleanup_stale_local_proxy_config(app) {
-        eprintln!("failed to clean the selected Codex Home config: {error}");
-    }
-    if let Err(error) = sync_current_into_store(app) {
-        eprintln!("failed to import auth.json from the selected Codex Home: {error}");
+fn refresh_selected_homes<R: Runtime>(app: &tauri::AppHandle<R>) {
+    if let Err(error) = sync_configured_homes(app) {
+        eprintln!("failed to synchronize enabled Codex Homes: {error}");
     }
     for event in HOME_CHANGE_EVENTS {
         if let Err(error) = app.emit(event, ()) {
@@ -238,6 +274,40 @@ fn refresh_selected_home<R: Runtime>(app: &tauri::AppHandle<R>) {
         }
     }
     crate::system_tray::refresh_menu(app);
+}
+
+fn detach_disabled_homes<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    current: &[ConfiguredCodexHome],
+    requested: &[ConfiguredCodexHome],
+) -> Result<(), String> {
+    if !crate::claude_code::should_write_codex_for_app(app)? {
+        return Ok(());
+    }
+    let paths = crate::storage::resolve_enabled_paths(app)?;
+    let active_auth = if let Some(primary) = paths.first() {
+        let state = try_read_state(primary)?;
+        state
+            .active_account_id
+            .as_deref()
+            .map(|id| crate::commands::load_validated_managed_auth(primary, id))
+            .transpose()?
+    } else {
+        None
+    };
+    for (home, target) in current.iter().zip(paths.iter()) {
+        if requested
+            .iter()
+            .any(|next| paths_match(&home.path, &next.path))
+        {
+            continue;
+        }
+        if let Some(auth) = active_auth.as_ref() {
+            crate::storage::write_json_atomic(&target.current_auth, auth)?;
+        }
+        crate::providers::restore_default_official_config(target)?;
+    }
+    Ok(())
 }
 
 fn update_codex_home<R: Runtime>(
@@ -261,33 +331,40 @@ fn update_codex_homes<R: Runtime>(
     entries: Vec<CodexHomeEntry>,
 ) -> Result<AppSettings, String> {
     let entries = normalize_entries(entries)?;
-    let requested = active_entry(&entries).map(|entry| PathBuf::from(&entry.path));
+    let requested = configured_entries(&entries);
+    let requested_primary = requested.first().map(|entry| entry.path.as_path());
     let _switch_guard = crate::commands::account_switch_lock()
         .lock()
         .map_err(|_| "Codex Home 设置锁不可用".to_string())?;
+    let current = resolve_all()?;
     let current_home = resolve()?;
-    let next_home = resolve_for_override(requested.as_deref())?;
-    let changed = !paths_match(&current_home, &next_home);
-    if changed && crate::local_proxy::is_running() {
-        return Err("请先停止本地代理，再更改 Codex Home".to_string());
+    let next_home = resolve_for_override(requested_primary)?;
+    let requested_effective = if requested.is_empty() {
+        vec![ConfiguredCodexHome {
+            id: None,
+            path: next_home.clone(),
+        }]
+    } else {
+        requested.clone()
+    };
+    let primary_changed = !paths_match(&current_home, &next_home);
+    if primary_changed && !crate::local_proxy::is_running() {
+        if let Err(error) = sync_current_into_store(app) {
+            eprintln!("failed to import auth.json before changing Codex Homes: {error}");
+        }
     }
-    let old_paths = resolve_paths(app)?;
-    let previous_state = changed.then(|| prepare_home_change(app)).transpose()?;
+    detach_disabled_homes(app, &current, &requested_effective)?;
     let mut settings = read_app_settings(app)?;
     settings.codex_home = requested
-        .as_ref()
-        .map(|path| path.as_os_str().to_string_lossy().into_owned());
+        .first()
+        .map(|entry| entry.path.as_os_str().to_string_lossy().into_owned());
     settings.codex_homes = entries;
-    if let Err(error) = write_app_settings(app, &settings) {
-        if let Some(state) = previous_state.as_ref() {
-            restore_state_after_failed_save(&old_paths, state);
-        }
-        return Err(error);
-    }
+    write_app_settings(app, &settings)?;
 
-    replace_override(requested);
-    if changed {
-        refresh_selected_home(app);
+    let list_changed = current != requested_effective;
+    replace_overrides(requested);
+    if list_changed {
+        refresh_selected_homes(app);
     }
     Ok(settings)
 }
@@ -380,7 +457,7 @@ mod tests {
     }
 
     #[test]
-    fn multiple_enabled_homes_are_rejected() {
+    fn multiple_enabled_homes_are_preserved() {
         let root =
             std::env::temp_dir().join(format!("codex-switch-home-test-{}", uuid::Uuid::new_v4()));
         let second = root.join("second");
@@ -397,7 +474,9 @@ mod tests {
                 enabled: true,
             },
         ];
-        assert!(normalize_entries(entries).is_err());
+        let normalized = normalize_entries(entries).unwrap();
+        assert_eq!(normalized.len(), 2);
+        assert!(normalized.iter().all(|entry| entry.enabled));
         fs::remove_dir_all(root).unwrap();
     }
 }

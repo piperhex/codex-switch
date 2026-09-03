@@ -162,7 +162,7 @@ fn apply_archive<R: Runtime>(
             state.active_account_id = Some(id.clone());
             write_state(&paths, &state)?;
             if crate::local_proxy::is_running() {
-                crate::providers::apply_local_proxy_config_for_paths(&paths)?;
+                crate::providers::apply_local_proxy_config_for_state(app)?;
             }
             Some(id)
         }
@@ -195,7 +195,7 @@ fn apply_archive<R: Runtime>(
 
     let active_provider_id = if let Some(id) = payload.active_provider_id.as_deref() {
         if provider_ids.iter().any(|provider_id| provider_id == id)
-            && crate::providers::activate_provider_for_sync(&paths, id)?
+            && crate::providers::activate_provider_for_sync(app, &paths, id)?
         {
             Some(id.to_string())
         } else {

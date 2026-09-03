@@ -309,7 +309,13 @@ fn sync_local_proxy_openai_auth_for_state(
 /// This is intentionally best-effort: a partially written external file must
 /// never make an otherwise valid proxy configuration change fail.
 pub(crate) fn preserve_refreshed_auth(paths: &Paths, account_id: &str) {
-    let Ok(mut current_auth) = read_json(&paths.current_auth) else {
+    for current_auth in crate::codex_home::replicated_paths(&paths.current_auth) {
+        preserve_refreshed_auth_from(paths, account_id, &current_auth);
+    }
+}
+
+fn preserve_refreshed_auth_from(paths: &Paths, account_id: &str, source: &Path) {
+    let Ok(mut current_auth) = read_json(source) else {
         return;
     };
     if crate::auth::is_agent_identity_auth(&current_auth) {

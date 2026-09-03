@@ -162,7 +162,43 @@ pub(crate) fn migrate_app_settings_for_version<R: Runtime>(
     if apply_app_settings_version_migration(&mut settings, &current_version) {
         write_app_settings(app, &settings)?;
     }
-    Ok(())
+    migrate_legacy_config_backup(app, &settings)
+}
+
+fn migrate_legacy_config_backup<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    settings: &AppSettings,
+) -> Result<(), String> {
+    let Some(id) = settings
+        .codex_homes
+        .iter()
+        .find(|home| home.enabled)
+        .map(|home| home.id.as_str())
+        .filter(|id| {
+            !id.is_empty()
+                && id.len() <= 64
+                && id
+                    .bytes()
+                    .all(|value| value.is_ascii_alphanumeric() || matches!(value, b'-' | b'_'))
+        })
+    else {
+        return Ok(());
+    };
+    let app_data = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| format!("无法定位应用数据目录：{error}"))?;
+    let source = app_data.join("config-before-provider.toml");
+    if !source.exists() {
+        return Ok(());
+    }
+    let target = app_data.join("config-backups").join(format!("{id}.toml"));
+    if target.exists() {
+        return Ok(());
+    }
+    fs::create_dir_all(target.parent().unwrap_or(&app_data))
+        .map_err(|error| format!("无法创建 Codex 配置备份目录：{error}"))?;
+    fs::rename(&source, &target).map_err(|error| format!("无法迁移 Codex 配置备份：{error}"))
 }
 
 fn should_activate_import(
@@ -216,7 +252,7 @@ pub(crate) fn import_value<R: Runtime>(
             state.active_account_id = Some(id.clone());
             write_state(&paths, &state)?;
             if crate::local_proxy::is_running() {
-                crate::providers::apply_local_proxy_config_for_paths(&paths)?;
+                crate::providers::apply_local_proxy_config_for_state(app)?;
             }
         }
     }

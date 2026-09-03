@@ -150,6 +150,7 @@ fn sync_active_proxy_auth_for_restart<R: Runtime>(app: &tauri::AppHandle<R>) -> 
         return Ok(());
     }
 
-    let paths = resolve_paths(app)?;
-    crate::providers::sync_local_proxy_openai_auth(&paths)
+    crate::storage::resolve_enabled_paths(app)?
+        .iter()
+        .try_for_each(crate::providers::sync_local_proxy_openai_auth)
 }

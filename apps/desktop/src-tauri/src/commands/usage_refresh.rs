@@ -230,6 +230,8 @@ fn sync_current_auth_with_client_state(
     if client_running {
         return Ok(false);
     }
-    write_json_if_changed(&paths.current_auth, auth)?;
+    for path in crate::codex_home::replicated_paths(&paths.current_auth) {
+        write_json_if_changed(&path, auth)?;
+    }
     Ok(true)
 }

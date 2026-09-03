@@ -148,14 +148,22 @@ pub(crate) fn save_provider<R: Runtime>(
     let state = read_state(&paths);
     let write_codex = crate::claude_code::should_write_codex_for_app(&app)?;
     if write_codex && state.active_provider_id.as_deref() == Some(&profile.id) {
-        write_active_provider_config(&paths, &profile)?;
-        refresh_codex_models_best_effort(&paths, &profile);
+        for target in crate::storage::resolve_enabled_paths(&app)? {
+            write_active_provider_config(&target, &profile)?;
+            refresh_codex_models_best_effort(&target, &profile);
+        }
     } else if write_codex
         && state.active_provider_group.as_deref() == Some(profile.group.as_str())
     {
         let group_providers = provider_group_profiles(&paths, &profile.group)?;
-        write_provider_group_local_proxy_config(&paths, &profile.group, &group_providers)?;
-        refresh_codex_group_models_best_effort(&paths, &group_providers);
+        for target in crate::storage::resolve_enabled_paths(&app)? {
+            write_provider_group_local_proxy_config(
+                &target,
+                &profile.group,
+                &group_providers,
+            )?;
+            refresh_codex_group_models_best_effort(&target, &group_providers);
+        }
     }
     if state.active_provider_id.as_deref() == Some(&profile.id)
         || state.active_provider_group.as_deref() == Some(profile.group.as_str())

@@ -251,7 +251,9 @@ fn stop_local_proxy_blocking<R: Runtime>(
             if let Some(account_id) = selected_account_id.as_deref() {
                 crate::commands::write_managed_auth_to_current(&paths, account_id)?;
             }
-            providers::restore_default_official_config(&paths)?;
+            for target in crate::storage::resolve_enabled_paths(&app)? {
+                providers::restore_default_official_config(&target)?;
+            }
         }
         let state = stopped_proxy_state(read_state(&paths));
         write_state(&paths, &state)

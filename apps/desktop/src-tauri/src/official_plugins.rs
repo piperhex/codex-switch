@@ -124,8 +124,10 @@ pub(crate) async fn install_official_plugin(
     plugin_id: String,
 ) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let codex_home = crate::storage::resolve_paths(&app)?.codex_home;
-        install_official_plugin_blocking(&codex_home, &plugin_id)
+        for paths in crate::storage::resolve_enabled_paths(&app)? {
+            install_official_plugin_blocking(&paths.codex_home, &plugin_id)?;
+        }
+        Ok(())
     })
     .await
     .map_err(|_| "The official plugin installation stopped. Please try again.".to_string())?
@@ -137,8 +139,10 @@ pub(crate) async fn remove_official_plugin(
     plugin_id: String,
 ) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let codex_home = crate::storage::resolve_paths(&app)?.codex_home;
-        remove_official_plugin_blocking(&codex_home, &plugin_id)
+        for paths in crate::storage::resolve_enabled_paths(&app)? {
+            remove_official_plugin_blocking(&paths.codex_home, &plugin_id)?;
+        }
+        Ok(())
     })
     .await
     .map_err(|_| "The official plugin uninstall stopped. Please try again.".to_string())?
@@ -151,8 +155,10 @@ pub(crate) async fn set_official_plugin_enabled(
     enabled: bool,
 ) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let codex_home = crate::storage::resolve_paths(&app)?.codex_home;
-        set_official_plugin_enabled_blocking(&codex_home, &plugin_id, enabled)
+        for paths in crate::storage::resolve_enabled_paths(&app)? {
+            set_official_plugin_enabled_blocking(&paths.codex_home, &plugin_id, enabled)?;
+        }
+        Ok(())
     })
     .await
     .map_err(|_| "The official plugin setting stopped updating. Please try again.".to_string())?

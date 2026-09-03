@@ -134,8 +134,9 @@ The **Providers** page manages OpenAI Responses or Chat Completions-compatible e
 
 The **Skills** page can browse, search, and install community Skills locally. Publishing or updating a versioned Skill package requires a signed-in cloud account. The **One-click themes** page provides 300+ bundled Dream Skin presets plus custom-background and restore controls.
 
-Settings lets you add, edit, enable, and disable multiple Codex Home entries. One directory can be enabled at
-a time. Removing all entries resolves `CODEX_HOME` first and then `~/.codex`. Administrators can also publish
+Settings lets you add, edit, enable, and disable multiple Codex Home entries. Account and Provider changes are
+applied to every enabled directory. Removing all entries resolves `CODEX_HOME` first and then `~/.codex`.
+Administrators can also publish
 separate Windows and macOS path suggestions; the client shows only the path for its current system. This setting
 does not modify system environment variables. Managed account copies, Provider settings, application settings,
 cloud tokens, proxy logs, and token-usage history remain in the operating system's application data directory.

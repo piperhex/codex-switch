@@ -1,4 +1,10 @@
-use std::{collections::HashSet, fs, io::Read, path::PathBuf, time::Duration};
+use std::{
+    collections::HashSet,
+    fs,
+    io::Read,
+    path::{Path, PathBuf},
+    time::Duration,
+};
 
 use reqwest::blocking::Client;
 use serde::Deserialize;

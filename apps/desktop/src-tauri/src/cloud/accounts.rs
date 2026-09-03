@@ -260,7 +260,7 @@ pub(super) fn apply_remote_account<R: Runtime>(
             state.active_account_id = Some(account.id.clone());
             write_state(&paths, &state)?;
             if crate::local_proxy::is_running() {
-                crate::providers::apply_local_proxy_config_for_paths(&paths)?;
+                crate::providers::apply_local_proxy_config_for_state(app)?;
             }
         }
     }

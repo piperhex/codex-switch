@@ -151,13 +151,13 @@ fn deactivate_account_unlocked<R: Runtime>(
     let auth_result = if !write_codex {
         Ok(())
     } else if proxy_running {
-        crate::providers::sync_local_proxy_openai_auth(&paths)
+        resolve_enabled_paths(app)?.iter().try_for_each(|target| {
+            crate::providers::sync_local_proxy_openai_auth(target)
+        })
     } else {
-        match fs::remove_file(&paths.current_auth) {
-            Ok(()) => Ok(()),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-            Err(error) => Err(format!("Failed to remove current auth.json: {error}")),
-        }
+        resolve_enabled_paths(app)?
+            .iter()
+            .try_for_each(remove_current_auth)
     };
     if let Err(error) = auth_result {
         restore_account_switch_state(&paths, original_state, "account deactivation rollback");
@@ -322,7 +322,10 @@ pub(crate) fn load_validated_managed_auth(paths: &Paths, id: &str) -> Result<Val
 
 pub(crate) fn write_managed_auth_to_current(paths: &Paths, id: &str) -> Result<(), String> {
     let auth = load_validated_managed_auth(paths, id)?;
-    write_json_atomic(&paths.current_auth, &auth)
+    for path in crate::codex_home::replicated_paths(&paths.current_auth) {
+        write_json_atomic(&path, &auth)?;
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -344,6 +347,14 @@ pub(crate) fn set_account_auto_switch_enabled<R: Runtime>(
             .map_err(|error| error.to_string())?;
     }
     Ok(())
+}
+
+fn remove_current_auth(paths: &Paths) -> Result<(), String> {
+    match fs::remove_file(&paths.current_auth) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(format!("Failed to remove current auth.json: {error}")),
+    }
 }
 
 #[tauri::command]

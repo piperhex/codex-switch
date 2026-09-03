@@ -371,7 +371,6 @@ export function DashboardApp() {
   const codexHome = useCodexHome({
     cloudBaseUrl: cloud.state.baseUrl?.trim() || DEFAULT_CLOUD_BASE_URL,
     currentPath: manager.info?.codexHome,
-    localProxyRunning: Boolean(providerManager.localProxy?.running),
     notify,
     reload: manager.reload,
     t,

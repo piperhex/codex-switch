@@ -58,10 +58,12 @@ fn apply_account_switch<R: Runtime>(
     if !write_codex {
         write_state(&paths, &state)?;
     } else if proxy_running {
-        write_proxy_account_state(&paths, &state, &original_state)?;
+        write_proxy_account_state(app, &paths, &state, &original_state)?;
     } else {
-        write_json_atomic(&paths.current_auth, &selected)?;
-        crate::providers::restore_official_config(&paths)?;
+        for target in resolve_enabled_paths(app)? {
+            write_json_atomic(&target.current_auth, &selected)?;
+            crate::providers::restore_official_config(&target)?;
+        }
         write_state(&paths, &state)?;
     }
     finish_account_switch(
@@ -90,20 +92,23 @@ fn official_account_state(
     state
 }
 
-fn write_proxy_account_state(
+fn write_proxy_account_state<R: Runtime>(
+    app: &tauri::AppHandle<R>,
     paths: &Paths,
     state: &ManagerStateFile,
     original: &ManagerStateFile,
 ) -> Result<(), String> {
     // Publish the official route before config.toml so reconnects cannot use the old Provider.
     write_state(paths, state)?;
-    if let Err(error) = crate::providers::write_official_local_proxy_config(paths) {
-        restore_account_switch_state(paths, original.clone(), "account switch rollback");
-        return Err(error);
-    }
-    if let Err(error) = crate::providers::sync_local_proxy_openai_auth(paths) {
-        restore_account_switch_state(paths, original.clone(), "account switch rollback");
-        return Err(error);
+    for target in resolve_enabled_paths(app)? {
+        if let Err(error) = crate::providers::write_official_local_proxy_config(&target) {
+            restore_account_switch_state(paths, original.clone(), "account switch rollback");
+            return Err(error);
+        }
+        if let Err(error) = crate::providers::sync_local_proxy_openai_auth(&target) {
+            restore_account_switch_state(paths, original.clone(), "account switch rollback");
+            return Err(error);
+        }
     }
     Ok(())
 }

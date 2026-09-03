@@ -106,8 +106,7 @@ pub(super) fn apply_remote_provider<R: Runtime>(
                 .is_some_and(|local| active_group == Some(local.group.as_str()));
         crate::providers::write_synced_provider(&paths, merged, &local_versions)?;
         if crate::local_proxy::is_running() && active {
-            crate::providers::apply_local_proxy_config_for_paths(&paths)?;
-            crate::providers::refresh_codex_models_for_current_target(&paths);
+            crate::providers::apply_local_proxy_config_for_state(app)?;
         }
     }
     Ok(changed)

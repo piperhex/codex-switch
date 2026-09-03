@@ -12,7 +12,6 @@ import type { CodexHomeEntry, CodexHomePreset } from "../types";
 interface CodexHomeOptions {
   cloudBaseUrl: string;
   currentPath?: string;
-  localProxyRunning: boolean;
   notify: (message: string) => void;
   reload: () => Promise<void>;
   t: Translate;
@@ -24,9 +23,8 @@ function entryId() {
 }
 
 export function useCodexHome(options: CodexHomeOptions) {
-  const { cloudBaseUrl, currentPath, localProxyRunning, notify, reload, t } = options;
+  const { cloudBaseUrl, currentPath, notify, reload, t } = options;
   const [homes, setHomes] = useState<CodexHomeEntry[]>([]);
-  const [activePath, setActivePath] = useState<string | null>(null);
   const [presets, setPresets] = useState<CodexHomePreset[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -38,7 +36,6 @@ export function useCodexHome(options: CodexHomeOptions) {
     ]).then(([settings, availablePresets]) => {
       if (!active) return;
       setHomes(settings.codexHomes ?? []);
-      setActivePath(settings.codexHome?.trim() || null);
       setPresets(availablePresets);
     }).catch((error) => notify(String(error))).finally(() => {
       if (active) setLoading(false);
@@ -47,16 +44,10 @@ export function useCodexHome(options: CodexHomeOptions) {
   }, [cloudBaseUrl, notify]);
 
   const save = useCallback(async (nextHomes: CodexHomeEntry[]) => {
-    const nextActive = nextHomes.find((home) => home.enabled)?.path ?? null;
-    if (localProxyRunning && nextActive !== activePath) {
-      notify(t("toast.codexHomeProxyRunning"));
-      return false;
-    }
     setLoading(true);
     try {
       const settings = await updateCodexHomes(nextHomes);
       setHomes(settings.codexHomes ?? []);
-      setActivePath(settings.codexHome?.trim() || null);
       await reload();
       notify(t("toast.codexHomesUpdated"));
       return true;
@@ -66,7 +57,7 @@ export function useCodexHome(options: CodexHomeOptions) {
     } finally {
       setLoading(false);
     }
-  }, [activePath, localProxyRunning, notify, reload, t]);
+  }, [notify, reload, t]);
 
   const addEmpty = useCallback(() => {
     setHomes((items) => items.some((home) => !home.path.trim())
@@ -112,10 +103,7 @@ export function useCodexHome(options: CodexHomeOptions) {
   }, [currentPath, homes, notify, save, t]);
 
   const setEnabled = useCallback(async (id: string, enabled: boolean) => {
-    const next = homes.map((home) => ({
-      ...home,
-      enabled: home.id === id ? enabled : enabled ? false : home.enabled,
-    }));
+    const next = homes.map((home) => home.id === id ? { ...home, enabled } : home);
     await save(next);
   }, [homes, save]);
 

@@ -58,22 +58,40 @@ fn atomic_temp_path(path: &Path) -> PathBuf {
 }
 
 pub(crate) fn resolve_paths<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<Paths, String> {
-    let codex_home = crate::codex_home::resolve()?;
+    resolve_enabled_paths(app)?
+        .into_iter()
+        .next()
+        .ok_or_else(|| "无法定位 Codex Home".to_string())
+}
+
+pub(crate) fn resolve_enabled_paths<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+) -> Result<Vec<Paths>, String> {
     let app_data = app
         .path()
         .app_data_dir()
         .map_err(|error| format!("无法定位应用数据目录：{error}"))?;
     let accounts = app_data.join("accounts");
     let providers = app_data.join("providers");
-    Ok(Paths {
-        current_auth: codex_home.join("auth.json"),
-        current_config: codex_home.join("config.toml"),
-        codex_home,
-        config_backup: app_data.join("config-before-provider.toml"),
-        state_file: app_data.join("state.json"),
-        accounts,
-        providers,
-    })
+    let legacy_backup = app_data.join("config-before-provider.toml");
+    crate::codex_home::resolve_all()?
+        .into_iter()
+        .map(|home| {
+            let config_backup = match home.id {
+                Some(id) => app_data.join("config-backups").join(format!("{id}.toml")),
+                None => legacy_backup.clone(),
+            };
+            Ok(Paths {
+                current_auth: home.path.join("auth.json"),
+                current_config: home.path.join("config.toml"),
+                codex_home: home.path,
+                config_backup,
+                state_file: app_data.join("state.json"),
+                accounts: accounts.clone(),
+                providers: providers.clone(),
+            })
+        })
+        .collect()
 }
 
 pub(crate) fn read_json(path: &Path) -> Result<Value, String> {
