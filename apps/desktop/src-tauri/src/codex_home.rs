@@ -19,6 +19,7 @@ static CODEX_HOME_OVERRIDES: OnceLock<RwLock<Vec<ConfiguredCodexHome>>> = OnceLo
 
 const CODEX_HOME_ENV: &str = "CODEX_HOME";
 const DEFAULT_CODEX_HOME_DIRECTORY: &str = ".codex";
+pub(crate) const DEFAULT_CODEX_HOME_ID: &str = "default";
 const HOME_CHANGE_EVENTS: [&str; 2] = ["accounts-changed", "providers-changed"];
 
 #[derive(Clone, PartialEq, Eq)]
@@ -101,6 +102,10 @@ pub(crate) fn resolve() -> Result<PathBuf, String> {
         environment_codex_home(),
         dirs::home_dir(),
     )
+}
+
+pub(crate) fn resolve_default() -> Result<PathBuf, String> {
+    resolve_from_sources(None, environment_codex_home(), dirs::home_dir())
 }
 
 pub(crate) fn resolve_all() -> Result<Vec<ConfiguredCodexHome>, String> {
@@ -195,17 +200,21 @@ fn normalize_entries(entries: Vec<CodexHomeEntry>) -> Result<Vec<CodexHomeEntry>
     let mut normalized = Vec::with_capacity(entries.len());
     let mut ids = HashSet::with_capacity(entries.len());
     for entry in entries {
-        let path = validate_custom_home(&entry.path)?;
+        let id = normalized_entry_id(&entry.id);
+        validate_entry_id(&id)?;
+        if !ids.insert(id.clone()) {
+            return Err("Codex Home 记录标识不能重复".to_string());
+        }
+        let path = if id == DEFAULT_CODEX_HOME_ID {
+            PathBuf::from(&entry.path)
+        } else {
+            validate_custom_home(&entry.path)?
+        };
         if normalized
             .iter()
             .any(|existing: &CodexHomeEntry| paths_match(Path::new(&existing.path), &path))
         {
             return Err("Codex Home 路径不能重复".to_string());
-        }
-        let id = normalized_entry_id(&entry.id);
-        validate_entry_id(&id)?;
-        if !ids.insert(id.clone()) {
-            return Err("Codex Home 记录标识不能重复".to_string());
         }
         normalized.push(CodexHomeEntry {
             id,
@@ -214,6 +223,34 @@ fn normalize_entries(entries: Vec<CodexHomeEntry>) -> Result<Vec<CodexHomeEntry>
         });
     }
     Ok(normalized)
+}
+
+pub(crate) fn ensure_default_entry(entries: &mut Vec<CodexHomeEntry>, default_path: &Path) -> bool {
+    let path = default_path.to_string_lossy().into_owned();
+    let original = std::mem::take(entries);
+    let mut default_enabled = None;
+    let mut custom_entries = Vec::with_capacity(original.len());
+    for entry in &original {
+        let is_default =
+            entry.id == DEFAULT_CODEX_HOME_ID || paths_match(Path::new(&entry.path), default_path);
+        if is_default {
+            default_enabled = Some(default_enabled.unwrap_or(false) || entry.enabled);
+        } else {
+            custom_entries.push(entry.clone());
+        }
+    }
+    let mut normalized = vec![CodexHomeEntry {
+        id: DEFAULT_CODEX_HOME_ID.to_string(),
+        path,
+        enabled: default_enabled.unwrap_or(true),
+    }];
+    normalized.append(&mut custom_entries);
+    if !normalized.iter().any(|entry| entry.enabled) {
+        normalized[0].enabled = true;
+    }
+    let changed = original != normalized;
+    *entries = normalized;
+    changed
 }
 
 fn normalized_entry_id(id: &str) -> String {
@@ -328,8 +365,9 @@ fn update_codex_home<R: Runtime>(
 
 fn update_codex_homes<R: Runtime>(
     app: &tauri::AppHandle<R>,
-    entries: Vec<CodexHomeEntry>,
+    mut entries: Vec<CodexHomeEntry>,
 ) -> Result<AppSettings, String> {
+    ensure_default_entry(&mut entries, &resolve_default()?);
     let entries = normalize_entries(entries)?;
     let requested = configured_entries(&entries);
     let requested_primary = requested.first().map(|entry| entry.path.as_path());
@@ -390,93 +428,4 @@ pub(crate) async fn set_codex_homes<R: Runtime + 'static>(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{expand_home_alias, normalize_entries, resolve_from_sources, validate_custom_home};
-    use crate::models::CodexHomeEntry;
-    use std::{fs, path::PathBuf};
-
-    #[test]
-    fn configured_home_precedes_environment_and_default() {
-        let configured = PathBuf::from("configured-home");
-        let resolved = resolve_from_sources(
-            Some(configured.clone()),
-            Some(PathBuf::from("environment-home")),
-            Some(PathBuf::from("user-home")),
-        )
-        .unwrap();
-
-        assert_eq!(resolved, configured);
-    }
-
-    #[test]
-    fn environment_home_precedes_default() {
-        let environment = PathBuf::from("environment-home");
-        let resolved = resolve_from_sources(
-            None,
-            Some(environment.clone()),
-            Some(PathBuf::from("user-home")),
-        )
-        .unwrap();
-
-        assert_eq!(resolved, environment);
-    }
-
-    #[test]
-    fn default_home_uses_dot_codex() {
-        let home = PathBuf::from("user-home");
-        let resolved = resolve_from_sources(None, None, Some(home.clone())).unwrap();
-
-        assert_eq!(resolved, home.join(".codex"));
-    }
-
-    #[test]
-    fn custom_home_requires_an_existing_absolute_directory() {
-        let root =
-            std::env::temp_dir().join(format!("codex-switch-home-test-{}", uuid::Uuid::new_v4()));
-        fs::create_dir_all(&root).unwrap();
-        let file = root.join("not-a-directory");
-        fs::write(&file, b"test").unwrap();
-
-        let filesystem_root = root.ancestors().last().unwrap();
-        assert_eq!(validate_custom_home(root.to_str().unwrap()).unwrap(), root);
-        assert!(validate_custom_home("relative-home").is_err());
-        assert!(validate_custom_home(filesystem_root.to_str().unwrap()).is_err());
-        assert!(validate_custom_home(file.to_str().unwrap()).is_err());
-
-        fs::remove_dir_all(root).unwrap();
-    }
-
-    #[test]
-    fn home_aliases_expand_to_absolute_paths() {
-        let home = dirs::home_dir().unwrap();
-        assert_eq!(expand_home_alias("~/.codex"), home.join(".codex"));
-        assert_eq!(
-            expand_home_alias("%USERPROFILE%\\.codex"),
-            home.join(".codex")
-        );
-    }
-
-    #[test]
-    fn multiple_enabled_homes_are_preserved() {
-        let root =
-            std::env::temp_dir().join(format!("codex-switch-home-test-{}", uuid::Uuid::new_v4()));
-        let second = root.join("second");
-        fs::create_dir_all(&second).unwrap();
-        let entries = vec![
-            CodexHomeEntry {
-                id: "one".to_string(),
-                path: root.to_string_lossy().into_owned(),
-                enabled: true,
-            },
-            CodexHomeEntry {
-                id: "two".to_string(),
-                path: second.to_string_lossy().into_owned(),
-                enabled: true,
-            },
-        ];
-        let normalized = normalize_entries(entries).unwrap();
-        assert_eq!(normalized.len(), 2);
-        assert!(normalized.iter().all(|entry| entry.enabled));
-        fs::remove_dir_all(root).unwrap();
-    }
-}
+mod tests;

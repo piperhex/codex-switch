@@ -159,31 +159,43 @@ pub(crate) fn migrate_app_settings_for_version<R: Runtime>(
 ) -> Result<(), String> {
     let mut settings = read_app_settings(app)?;
     let current_version = app.package_info().version.to_string();
-    if apply_app_settings_version_migration(&mut settings, &current_version) {
+    let mut changed = apply_app_settings_version_migration(&mut settings, &current_version);
+    let mut backup_owner = settings
+        .codex_homes
+        .iter()
+        .find(|home| home.enabled)
+        .map(|home| home.id.clone())
+        .unwrap_or_else(|| crate::codex_home::DEFAULT_CODEX_HOME_ID.to_string());
+    changed |= crate::codex_home::ensure_default_entry(
+        &mut settings.codex_homes,
+        &crate::codex_home::resolve_default()?,
+    );
+    if !settings.codex_homes.iter().any(|home| home.id == backup_owner) {
+        backup_owner = crate::codex_home::DEFAULT_CODEX_HOME_ID.to_string();
+    }
+    if changed {
+        settings.codex_home = settings
+            .codex_homes
+            .iter()
+            .find(|home| home.enabled)
+            .map(|home| home.path.clone());
         write_app_settings(app, &settings)?;
     }
-    migrate_legacy_config_backup(app, &settings)
+    migrate_legacy_config_backup(app, &backup_owner)
 }
 
 fn migrate_legacy_config_backup<R: Runtime>(
     app: &tauri::AppHandle<R>,
-    settings: &AppSettings,
+    backup_owner: &str,
 ) -> Result<(), String> {
-    let Some(id) = settings
-        .codex_homes
-        .iter()
-        .find(|home| home.enabled)
-        .map(|home| home.id.as_str())
-        .filter(|id| {
-            !id.is_empty()
-                && id.len() <= 64
-                && id
-                    .bytes()
-                    .all(|value| value.is_ascii_alphanumeric() || matches!(value, b'-' | b'_'))
-        })
-    else {
+    if backup_owner.is_empty()
+        || backup_owner.len() > 64
+        || !backup_owner
+            .bytes()
+            .all(|value| value.is_ascii_alphanumeric() || matches!(value, b'-' | b'_'))
+    {
         return Ok(());
-    };
+    }
     let app_data = app
         .path()
         .app_data_dir()
@@ -192,7 +204,9 @@ fn migrate_legacy_config_backup<R: Runtime>(
     if !source.exists() {
         return Ok(());
     }
-    let target = app_data.join("config-backups").join(format!("{id}.toml"));
+    let target = app_data
+        .join("config-backups")
+        .join(format!("{backup_owner}.toml"));
     if target.exists() {
         return Ok(());
     }

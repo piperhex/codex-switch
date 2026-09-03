@@ -439,6 +439,8 @@ export interface UpdateInfo {
   releaseUrl: string;
 }
 
+export const DEFAULT_CODEX_HOME_ID = "default";
+
 export interface AppSettings {
   codexHome?: string | null;
   codexHomes?: CodexHomeEntry[];

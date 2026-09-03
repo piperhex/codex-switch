@@ -7,7 +7,7 @@ import {
   updateCodexHomes,
 } from "../api/backend";
 import type { Translate } from "../i18n";
-import type { CodexHomeEntry, CodexHomePreset } from "../types";
+import { DEFAULT_CODEX_HOME_ID, type CodexHomeEntry, type CodexHomePreset } from "../types";
 
 interface CodexHomeOptions {
   cloudBaseUrl: string;
@@ -20,6 +20,10 @@ interface CodexHomeOptions {
 function entryId() {
   return globalThis.crypto?.randomUUID?.()
     ?? `codex-home-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function defaultHomes(path?: string): CodexHomeEntry[] {
+  return path ? [{ id: DEFAULT_CODEX_HOME_ID, path, enabled: true }] : [];
 }
 
 export function useCodexHome(options: CodexHomeOptions) {
@@ -35,13 +39,14 @@ export function useCodexHome(options: CodexHomeOptions) {
       loadCodexHomePresets(cloudBaseUrl).catch(() => []),
     ]).then(([settings, availablePresets]) => {
       if (!active) return;
-      setHomes(settings.codexHomes ?? []);
+      const loadedHomes = settings.codexHomes ?? [];
+      setHomes(loadedHomes.length ? loadedHomes : defaultHomes(currentPath));
       setPresets(availablePresets);
     }).catch((error) => notify(String(error))).finally(() => {
       if (active) setLoading(false);
     });
     return () => { active = false; };
-  }, [cloudBaseUrl, notify]);
+  }, [cloudBaseUrl, currentPath, notify]);
 
   const save = useCallback(async (nextHomes: CodexHomeEntry[]) => {
     setLoading(true);
@@ -60,22 +65,26 @@ export function useCodexHome(options: CodexHomeOptions) {
   }, [notify, reload, t]);
 
   const addEmpty = useCallback(() => {
-    setHomes((items) => items.some((home) => !home.path.trim())
-      ? items
-      : [...items, { id: entryId(), path: "", enabled: false }]);
-  }, []);
+    setHomes((items) => {
+      const existing = items.length ? items : defaultHomes(currentPath);
+      return existing.some((home) => !home.path.trim())
+        ? existing
+        : [...existing, { id: entryId(), path: "", enabled: true }];
+    });
+  }, [currentPath]);
 
   const addPath = useCallback(async (path: string) => {
-    if (homes.some((home) => home.path.trim() === path.trim())) {
+    const existing = homes.length ? homes : defaultHomes(currentPath);
+    if (existing.some((home) => home.path.trim() === path.trim())) {
       notify(t("toast.codexHomeDuplicate"));
       return;
     }
-    const blank = homes.find((home) => !home.path.trim());
+    const blank = existing.find((home) => !home.path.trim());
     const next = blank
-      ? homes.map((home) => home.id === blank.id ? { ...home, path } : home)
-      : [...homes, { id: entryId(), path, enabled: false }];
+      ? existing.map((home) => home.id === blank.id ? { ...home, path } : home)
+      : [...existing, { id: entryId(), path, enabled: true }];
     await save(next);
-  }, [homes, notify, save, t]);
+  }, [currentPath, homes, notify, save, t]);
 
   const chooseNew = useCallback(async () => {
     if (!isDesktopApp) return notify(t("toast.previewChooseFolder"));

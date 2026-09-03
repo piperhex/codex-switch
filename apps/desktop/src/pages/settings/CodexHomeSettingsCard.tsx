@@ -1,5 +1,6 @@
 import { Button, Dropdown, Input, Switch, Tooltip } from "antd";
 import { FolderKey, FolderOpen, Plus, Sparkles, Trash2 } from "lucide-react";
+import { DEFAULT_CODEX_HOME_ID } from "../../types";
 import type { SettingsPageProps } from "./types";
 
 export function CodexHomeSettingsCard({ settings }: { settings: SettingsPageProps }) {
@@ -40,7 +41,10 @@ export function CodexHomeSettingsCard({ settings }: { settings: SettingsPageProp
         </div>
         <div className="codex-home-list" aria-busy={settings.codexHomeLoading}>
           {settings.codexHomes.map((home) => (
-            <div className="codex-home-row" key={home.id}>
+            <div
+              className={`codex-home-row${home.id === DEFAULT_CODEX_HOME_ID ? " is-default" : ""}`}
+              key={home.id}
+            >
               <Switch
                 size="small"
                 checked={home.enabled}
@@ -49,35 +53,39 @@ export function CodexHomeSettingsCard({ settings }: { settings: SettingsPageProp
                 aria-label={t("settings.codexHome.enabled")}
                 onChange={(enabled) => settings.onCodexHomeEnabledChange(home.id, enabled)}
               />
-              <Input
-                size="small"
-                value={home.path}
-                disabled={settings.codexHomeLoading}
-                placeholder={t("settings.codexHome.pathPlaceholder")}
-                onChange={(event) => settings.onCodexHomePathChange(home.id, event.target.value)}
-                onBlur={() => settings.onCommitCodexHomePath(home.id)}
-                onPressEnter={(event) => event.currentTarget.blur()}
-              />
-              <Tooltip title={t("settings.codexHome.chooseFolder")}>
-                <Button
-                  size="small"
-                  icon={<FolderOpen size={14} />}
-                  disabled={settings.codexHomeLoading}
-                  aria-label={t("settings.codexHome.chooseFolder")}
-                  onClick={() => settings.onChooseCodexHome(home.id)}
-                />
-              </Tooltip>
-              <Tooltip title={t("settings.codexHome.remove")}>
-                <Button
-                  danger
-                  size="small"
-                  type="text"
-                  icon={<Trash2 size={14} />}
-                  disabled={settings.codexHomeLoading}
-                  aria-label={t("settings.codexHome.remove")}
-                  onClick={() => settings.onRemoveCodexHome(home.id)}
-                />
-              </Tooltip>
+              {home.id === DEFAULT_CODEX_HOME_ID ? <code>{home.path}</code> : (
+                <>
+                  <Input
+                    size="small"
+                    value={home.path}
+                    disabled={settings.codexHomeLoading}
+                    placeholder={t("settings.codexHome.pathPlaceholder")}
+                    onChange={(event) => settings.onCodexHomePathChange(home.id, event.target.value)}
+                    onBlur={() => settings.onCommitCodexHomePath(home.id)}
+                    onPressEnter={(event) => event.currentTarget.blur()}
+                  />
+                  <Tooltip title={t("settings.codexHome.chooseFolder")}>
+                    <Button
+                      size="small"
+                      icon={<FolderOpen size={14} />}
+                      disabled={settings.codexHomeLoading}
+                      aria-label={t("settings.codexHome.chooseFolder")}
+                      onClick={() => settings.onChooseCodexHome(home.id)}
+                    />
+                  </Tooltip>
+                  <Tooltip title={t("settings.codexHome.remove")}>
+                    <Button
+                      danger
+                      size="small"
+                      type="text"
+                      icon={<Trash2 size={14} />}
+                      disabled={settings.codexHomeLoading}
+                      aria-label={t("settings.codexHome.remove")}
+                      onClick={() => settings.onRemoveCodexHome(home.id)}
+                    />
+                  </Tooltip>
+                </>
+              )}
             </div>
           ))}
           {!settings.codexHomes.length && (
