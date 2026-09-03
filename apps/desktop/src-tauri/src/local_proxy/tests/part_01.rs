@@ -261,7 +261,7 @@
     }
 
     #[test]
-    fn concurrent_routing_excludes_accounts_without_primary_quota() {
+    fn concurrent_routing_excludes_accounts_with_an_exhausted_quota_window() {
         let exhausted = UsageSummary {
             primary: Some(UsageWindow {
                 used_percent: 100.0,
@@ -280,26 +280,40 @@
             }),
             ..UsageSummary::default()
         };
+        let exhausted_secondary = UsageSummary {
+            primary: available.primary.clone(),
+            secondary: Some(UsageWindow {
+                used_percent: 100.0,
+                remaining_percent: 0.0,
+                resets_at: None,
+                window_minutes: None,
+            }),
+            ..UsageSummary::default()
+        };
 
-        assert!(!primary_quota_available_for_concurrent_routing(
+        assert!(!quota_available_for_concurrent_routing(
             &exhausted, None
         ));
-        assert!(primary_quota_available_for_concurrent_routing(
+        assert!(!quota_available_for_concurrent_routing(
+            &exhausted_secondary,
+            None
+        ));
+        assert!(quota_available_for_concurrent_routing(
             &available, None
         ));
-        assert!(primary_quota_available_for_concurrent_routing(
+        assert!(quota_available_for_concurrent_routing(
             &UsageSummary::default(),
             None
         ));
-        assert!(!primary_quota_available_for_concurrent_routing(
+        assert!(!quota_available_for_concurrent_routing(
             &available,
             Some(20.0)
         ));
-        assert!(primary_quota_available_for_concurrent_routing(
+        assert!(quota_available_for_concurrent_routing(
             &available,
             Some(1.0)
         ));
-        assert!(!primary_quota_available_for_concurrent_routing(
+        assert!(!quota_available_for_concurrent_routing(
             &UsageSummary::default(),
             Some(20.0)
         ));
@@ -610,6 +624,21 @@
                 .unwrap();
 
         assert_eq!(selected.id, "lowest-remaining");
+    }
+
+    #[test]
+    fn quota_switch_excludes_accounts_with_exhausted_secondary_quota() {
+        let accounts = vec![
+            account_with_usage("current", 0.0, 80.0),
+            account_with_usage("secondary-exhausted", 5.0, 0.0),
+            account_with_usage("available", 72.0, 1.0),
+        ];
+
+        let selected =
+            account_with_lowest_remaining_primary_quota(&accounts, "current", false, false, 0.0)
+                .unwrap();
+
+        assert_eq!(selected.id, "available");
     }
 
     #[test]

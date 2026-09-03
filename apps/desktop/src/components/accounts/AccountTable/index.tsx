@@ -68,6 +68,7 @@ import { AccountGroupCell, ConcurrentRoutingControl } from "../AccountGroupContr
 import { OfficialContextSettings } from "../OfficialContextSettings";
 import { UsageMeter, UsageRefreshAge } from "../UsageMeter";
 import { UsageSpeedPill } from "../UsageSpeedPill";
+import { canReceiveConcurrentConversation } from "../concurrentAccountEligibility";
 import { getAccountCardTokenUsage } from "../accountCardUsage";
 import { getOfficialAuthAccounts, getSwitchableAccounts } from "../accountSelectors";
 import styles from "./index.module.less";
@@ -306,15 +307,14 @@ function isAccountDisabled(account: Account, hotSwitchEnabled: boolean) {
   return hotSwitchEnabled && !account.autoSwitchEnabled;
 }
 
-function canReceiveConcurrentConversation(account: Account, group: string | null) {
-  return account.autoSwitchEnabled
-    && (!group || account.group === group)
-    && !(account.usage.primary && account.usage.primary.remainingPercent <= 0);
-}
-
-function isAccountHighlighted(account: Account, concurrentRoutingActive: boolean, group: string | null) {
+function isAccountHighlighted(
+  account: Account,
+  concurrentRoutingActive: boolean,
+  accountGroup: string | null,
+  minimumPrimaryRemaining: number | null,
+) {
   return concurrentRoutingActive
-    ? canReceiveConcurrentConversation(account, group)
+    ? canReceiveConcurrentConversation(account, { accountGroup, minimumPrimaryRemaining })
     : account.active;
 }
 
@@ -1258,7 +1258,12 @@ export function AccountTable({
         return (
           <article key={account.id} className={[
             "account-card",
-            isAccountHighlighted(account, concurrentRoutingActive, concurrentAccountGroup) ? "active" : "",
+            isAccountHighlighted(
+              account,
+              concurrentRoutingActive,
+              concurrentAccountGroup,
+              customThresholdActive ? Math.max(account.autoSwitchThreshold, globalAutoSwitchThreshold) : null,
+            ) ? "active" : "",
             isDisabled ? "account-alert-card" : "",
           ].filter(Boolean).join(" ")}
             title={switchBlocked ? switchBlockedReason : undefined}
@@ -1521,7 +1526,12 @@ export function AccountTable({
           onChange: (keys) => setSelectedAccountIds(keys.map(String)),
         }}
         rowClassName={(account) => [
-          isAccountHighlighted(account, concurrentRoutingActive, concurrentAccountGroup) ? "active-row" : "",
+          isAccountHighlighted(
+            account,
+            concurrentRoutingActive,
+            concurrentAccountGroup,
+            customThresholdActive ? Math.max(account.autoSwitchThreshold, globalAutoSwitchThreshold) : null,
+          ) ? "active-row" : "",
           isAccountDisabled(account, hotSwitchEnabled) ? "account-alert-row" : "",
           customThresholdActive && account.usage.primary?.remainingPercent !== undefined
             && account.usage.primary.remainingPercent

@@ -1,11 +1,19 @@
+fn reported_quota_windows_have_remaining(usage: &UsageSummary) -> bool {
+    usage
+        .primary
+        .as_ref()
+        .is_none_or(|window| window.remaining_percent > 0.0)
+        && usage
+            .secondary
+            .as_ref()
+            .is_none_or(|window| window.remaining_percent > 0.0)
+}
+
 fn primary_remaining_quota_score(usage: &UsageSummary) -> Option<f64> {
-    if usage.error.is_some() {
+    if usage.error.is_some() || !reported_quota_windows_have_remaining(usage) {
         return None;
     }
     let primary = usage.primary.as_ref()?;
-    if primary.remaining_percent <= 0.0 {
-        return None;
-    }
     Some(primary.remaining_percent)
 }
 

@@ -154,15 +154,12 @@ fn enabled_concurrent_account_ids(
     Ok(account_ids)
 }
 
-fn primary_quota_available_for_concurrent_routing(
+fn quota_available_for_concurrent_routing(
     usage: &UsageSummary,
     threshold: Option<f64>,
 ) -> bool {
     let Some(threshold) = threshold else {
-        return !usage
-            .primary
-            .as_ref()
-            .is_some_and(|primary| primary.remaining_percent <= 0.0);
+        return reported_quota_windows_have_remaining(usage);
     };
     primary_remaining_quota_score(usage).is_some_and(|remaining| remaining >= threshold)
 }
@@ -183,7 +180,7 @@ fn available_concurrent_account_ids(
                     true,
                 )
             });
-            primary_quota_available_for_concurrent_routing(
+            quota_available_for_concurrent_routing(
                 &load_usage(&usage_path(paths, account_id)),
                 threshold,
             )

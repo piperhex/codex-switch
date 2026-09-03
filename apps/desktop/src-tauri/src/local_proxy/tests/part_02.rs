@@ -18,28 +18,39 @@
     }
 
     #[test]
-    fn provider_fallback_requires_every_backup_primary_quota_to_be_exhausted() {
+    fn provider_fallback_requires_every_backup_account_to_have_exhausted_quota() {
         let exhausted = vec![
             account_with_usage("current", 0.0, 80.0),
             account_with_usage("backup-1", 0.0, 90.0),
             account_with_usage("backup-2", 0.0, 50.0),
         ];
-        assert!(all_backup_accounts_have_exhausted_primary_quota(
+        assert!(all_backup_accounts_have_exhausted_quota(
             &exhausted, "current", false, 0.0
+        ));
+
+        let exhausted_secondary = vec![
+            account_with_usage("current", 0.0, 80.0),
+            account_with_usage("backup-1", 0.0, 90.0),
+            account_with_usage("secondary-exhausted", 1.0, 0.0),
+        ];
+        assert!(all_backup_accounts_have_exhausted_quota(
+            &exhausted_secondary,
+            "current",
+            false,
+            0.0
         ));
 
         let available = vec![
             account_with_usage("current", 0.0, 80.0),
-            account_with_usage("backup-1", 0.0, 90.0),
-            account_with_usage("available", 1.0, 0.0),
+            account_with_usage("available", 1.0, 1.0),
         ];
-        assert!(!all_backup_accounts_have_exhausted_primary_quota(
+        assert!(!all_backup_accounts_have_exhausted_quota(
             &available, "current", false, 0.0
         ));
 
         let mut unknown = account_with_usage("unknown", 0.0, 0.0);
         unknown.usage.error = Some("network error".to_string());
-        assert!(!all_backup_accounts_have_exhausted_primary_quota(
+        assert!(!all_backup_accounts_have_exhausted_quota(
             &[account_with_usage("current", 0.0, 80.0), unknown],
             "current", false, 0.0
         ));
@@ -47,7 +58,7 @@
 
     #[test]
     fn provider_fallback_is_available_when_there_are_no_backup_accounts() {
-        assert!(all_backup_accounts_have_exhausted_primary_quota(
+        assert!(all_backup_accounts_have_exhausted_quota(
             &[account_with_usage("current", 0.0, 80.0)],
             "current", false, 0.0
         ));

@@ -179,10 +179,10 @@ fn try_auto_switch_official_account<R: Runtime>(
     }
 
     if backup_usage_unknown
-        || !all_backup_accounts_have_exhausted_primary_quota(
-        &refreshed_accounts,
-        &current_id,
-        state.custom_auto_switch_threshold_enabled,
+        || !all_backup_accounts_have_exhausted_quota(
+            &refreshed_accounts,
+            &current_id,
+            state.custom_auto_switch_threshold_enabled,
         state.global_auto_switch_threshold,
     )
     {
@@ -215,7 +215,7 @@ fn automatic_switch_is_blocked(state: &ManagerStateFile) -> bool {
         || state.active_provider_group.is_some()
 }
 
-fn all_backup_accounts_have_exhausted_primary_quota(
+fn all_backup_accounts_have_exhausted_quota(
     accounts: &[AccountSummary],
     current_id: &str,
     custom_threshold_enabled: bool,
@@ -229,11 +229,7 @@ fn all_backup_accounts_have_exhausted_primary_quota(
         })
         .all(|account| {
             account.usage.error.is_none()
-                && account
-                    .usage
-                    .primary
-                    .as_ref()
-                    .is_some_and(|primary| primary.remaining_percent <= 0.0)
+                && !reported_quota_windows_have_remaining(&account.usage)
         })
 }
 
