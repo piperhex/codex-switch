@@ -292,7 +292,7 @@ main.providers-main .providers-page-panel { flex: 1; display: flex; flex-directi
   font-size: 12px;
   line-height: normal;
 }
-.token-heatmap { min-width: 0; flex: 1 1 auto; display: flex; align-items: center; gap: 18px; overflow: hidden; }
+.token-heatmap { min-width: max-content; flex: 0 0 auto; display: flex; align-items: center; gap: 18px; }
 .token-heatmap-summary { min-width: max-content; display: grid; gap: 5px; }
 .token-heatmap-summary > span { color: #7b8980; font-size: 9px; font-weight: 700; letter-spacing: .1em; white-space: nowrap; }
 .token-heatmap-summary > strong { color: var(--ink); font: 700 22px/1 Manrope, sans-serif; letter-spacing: -.025em; white-space: nowrap; }
@@ -313,14 +313,20 @@ main.providers-main .providers-page-panel { flex: 1; display: flex; flex-directi
   margin: 0 3px;
   vertical-align: -.2em;
 }
-.token-heatmap-chart { min-width: 0; display: flex; align-items: center; gap: 6px; }
+.token-heatmap-chart { flex: 0 0 auto; display: flex; align-items: center; gap: 6px; }
 .token-heatmap-weekdays { width: 11px; height: 82px; flex: 0 0 auto; display: grid; grid-template-rows: repeat(7, 10px); gap: 2px; color: #849188; font-size: 8px; line-height: 10px; text-align: right; }
 .token-heatmap-weekdays span { height: 10px; display: block; }
 .token-heatmap-weekdays span:nth-child(1) { grid-row: 2; }
 .token-heatmap-weekdays span:nth-child(2) { grid-row: 4; }
 .token-heatmap-weekdays span:nth-child(3) { grid-row: 6; }
-.token-heatmap-content { min-width: 0; display: grid; gap: 5px; }
-.token-heatmap-scroll { min-width: 0; max-width: min(43vw, 590px); overflow-x: auto; padding: 2px 1px 1px; scrollbar-width: thin; }
+.token-heatmap-content { flex: 0 0 auto; display: grid; gap: 5px; }
+.token-heatmap-scroll {
+  width: max-content;
+  max-width: min(43vw, 590px);
+  overflow-x: auto;
+  padding: 2px 1px 1px;
+  scrollbar-width: thin;
+}
 .token-heatmap-columns { width: max-content; display: flex; gap: 3px; }
 .token-heatmap-week { display: grid; grid-template-rows: repeat(7, 10px); gap: 2px; }
 .token-heatmap-week > span { display: block; width: 10px; height: 10px; line-height: 0; }
