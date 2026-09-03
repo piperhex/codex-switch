@@ -158,6 +158,62 @@
   .account-concurrent-routing-control .ant-switch.ant-switch-checked:hover:not(.ant-switch-disabled) {
     background: var(--green-dark);
   }
+  .account-concurrent-routing-control .ant-select {
+    min-width: 96px;
+    max-width: 150px;
+  }
+  .account-concurrent-routing-control .ant-select-selector { min-height: 22px !important; }
+  .account-concurrent-routing-control .ant-select-selection-item {
+    font-size: 10px;
+    line-height: 20px !important;
+  }
+  .account-group-button {
+    max-width: 138px;
+    padding-inline: 4px;
+    color: var(--green-dark);
+  }
+  .account-group-button > span:last-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .account-group-editor {
+    width: min(300px, calc(100vw - 40px));
+    max-width: 400px;
+    display: grid;
+    gap: 10px;
+  }
+  .account-group-editor-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+  }
+  .account-group-manager-description {
+    max-width: 400px;
+    color: var(--muted);
+  }
+  .account-group-create-row { max-width: 400px; }
+  .account-group-manager-list {
+    max-height: 320px;
+    margin-top: 14px;
+    overflow-y: auto;
+    display: grid;
+    gap: 8px;
+  }
+  .account-group-manager-row {
+    min-height: 42px;
+    padding: 7px 9px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 8px;
+  }
+  .account-group-manager-row > strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   .model-context-window-control {
     display: inline-flex; align-items: center; gap: 4px; padding: 3px 5px;
     border-radius: 8px; background: color-mix(in srgb, var(--green) 8%, transparent);

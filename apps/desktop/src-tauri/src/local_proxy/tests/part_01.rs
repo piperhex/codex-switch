@@ -1,5 +1,6 @@
     use super::*;
     use crate::models::UsageWindow;
+    use crate::storage::{account_dir, save_account_group};
     use serde_json::json;
     use std::io::{Cursor, Read};
     use std::sync::{
@@ -318,6 +319,39 @@
     }
 
     #[test]
+    fn concurrent_routing_limits_accounts_to_the_selected_group() {
+        let root = std::env::temp_dir().join(format!(
+            "codex-switch-concurrent-group-test-{}",
+            uuid::Uuid::new_v4()
+        ));
+        let paths = Paths {
+            current_auth: root.join("codex-home/auth.json"),
+            current_config: root.join("codex-home/config.toml"),
+            codex_home: root.join("codex-home"),
+            accounts: root.join("app-data/accounts"),
+            providers: root.join("app-data/providers"),
+            config_backup: root.join("app-data/config-before-provider.toml"),
+            state_file: root.join("app-data/state.json"),
+        };
+        for (id, group) in [("work-1", "Work"), ("home-1", "Home"), ("work-2", "Work")] {
+            fs::create_dir_all(account_dir(&paths, id)).unwrap();
+            fs::write(managed_auth_path(&paths, id), b"{}").unwrap();
+            save_account_group(&account_group_path(&paths, id), group).unwrap();
+        }
+        let state = ManagerStateFile {
+            concurrent_account_group: Some("Work".to_string()),
+            disabled_account_ids: vec!["work-2".to_string()],
+            ..ManagerStateFile::default()
+        };
+
+        assert_eq!(
+            enabled_concurrent_account_ids(&paths, &state).unwrap(),
+            vec!["work-1".to_string()]
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn concurrent_routing_marks_account_overrides_for_active_sessions() {
         let state = ManagerStateFile {
             concurrent_account_routing_enabled: true,
@@ -505,6 +539,7 @@
         AccountSummary {
             id: id.to_string(),
             email: format!("{id}@example.com"),
+            group: String::new(),
             note: String::new(),
             expires_at: String::new(),
             private_details: Default::default(),

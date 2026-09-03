@@ -16,6 +16,7 @@ import {
   refreshAccountUsage,
   removeAccount,
   setAccountAutoSwitchEnabled,
+  setAccountGroup,
   setAccountAutoSwitchPriority,
   setAccountAutoSwitchThreshold,
   subscribeToBackendEvents,
@@ -377,6 +378,28 @@ export function useAccountManager(
     }
   }, [load, notify]);
 
+  const changeAccountGroup = useCallback(async (id: string, group: string) => {
+    try {
+      const savedGroup = await setAccountGroup(id, group);
+      setAccounts((items) => items.map((item) => item.id === id
+        ? { ...item, group: savedGroup }
+        : item));
+      if (hasLocalBackend) await load();
+      return true;
+    } catch (error) {
+      notify(String(error));
+      return false;
+    }
+  }, [load, notify]);
+
+  const changeAccountGroups = useCallback(async (ids: string[], group: string) => {
+    const changedIds: string[] = [];
+    for (const id of [...new Set(ids)]) {
+      if (await changeAccountGroup(id, group)) changedIds.push(id);
+    }
+    return changedIds;
+  }, [changeAccountGroup]);
+
   const setAutoSwitchAccounts = useCallback(async (ids: string[], enabled: boolean) => {
     const uniqueIds = [...new Set(ids)];
     if (!uniqueIds.length) return [];
@@ -508,6 +531,8 @@ export function useAccountManager(
     deleteAccount,
     deleteAccounts,
     setAutoSwitchEnabled,
+    changeAccountGroup,
+    changeAccountGroups,
     enableAutoSwitchAccounts,
     disableAutoSwitchAccounts,
     setAutoSwitchPriority,

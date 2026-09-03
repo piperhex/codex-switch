@@ -48,8 +48,9 @@ fn write_state_unlocked(paths: &Paths, requested: &ManagerStateFile) -> Result<(
     let current = read_state_unlocked(paths)?;
     let mut state = requested.clone();
     match state.concurrent_routing_change_reason.take() {
-        Some(reason) if current.concurrent_account_routing_enabled
-            != state.concurrent_account_routing_enabled =>
+        Some(reason)
+            if current.concurrent_account_routing_enabled != state.concurrent_account_routing_enabled
+                || current.concurrent_account_group != state.concurrent_account_group =>
         {
             eprintln!(
                 "concurrent account routing changed: old={}, new={}, reason={reason}",
@@ -61,6 +62,7 @@ fn write_state_unlocked(paths: &Paths, requested: &ManagerStateFile) -> Result<(
         None if state_file_exists => {
             state.concurrent_account_routing_enabled =
                 current.concurrent_account_routing_enabled;
+            state.concurrent_account_group = current.concurrent_account_group;
         }
         None => {}
     }

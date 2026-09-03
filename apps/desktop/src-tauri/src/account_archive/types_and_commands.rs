@@ -19,13 +19,13 @@ use crate::{
     auth::{account_fields, canonicalize_chatgpt_auth, validate_auth},
     models::{AccountPrivateDetails, ProviderProfile, ProviderSyncPayload, UsageSummary},
     storage::{
-        account_private_details_path, auto_switch_priority_path, auto_switch_threshold_path,
-        expiration_path, load_account_private_details, load_auto_switch_priority,
-        load_auto_switch_threshold, load_expiration, load_note,
-        load_or_init_last_modified, load_usage, managed_auth_path, note_path, parse_last_modified,
-        read_json, read_state, resolve_paths, save_account_last_modified,
-        save_account_private_details, save_auto_switch_priority, save_auto_switch_threshold,
-        save_expiration, save_note,
+        account_group_path, account_private_details_path, auto_switch_priority_path,
+        auto_switch_threshold_path, expiration_path, load_account_group,
+        load_account_private_details, load_auto_switch_priority, load_auto_switch_threshold,
+        load_expiration, load_note, load_or_init_last_modified, load_usage, managed_auth_path,
+        note_path, parse_last_modified, read_json, read_state, resolve_paths, save_account_group,
+        save_account_last_modified, save_account_private_details, save_auto_switch_priority,
+        save_auto_switch_threshold, save_expiration, save_note,
         save_usage, usage_path, write_json_if_changed, write_managed_auth_if_changed, write_state,
     },
 };
@@ -53,6 +53,8 @@ struct AccountArchivePayload {
 struct AccountArchiveEntry {
     id: String,
     auth: Value,
+    #[serde(default)]
+    group: String,
     note: String,
     expires_at: String,
     #[serde(default)]

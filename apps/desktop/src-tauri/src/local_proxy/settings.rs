@@ -21,10 +21,11 @@ pub(crate) fn set_auto_switch_on_quota_exhaustion<R: Runtime>(
 pub(crate) async fn set_concurrent_account_routing_enabled<R: Runtime + 'static>(
     app: tauri::AppHandle<R>,
     enabled: bool,
+    account_group: Option<String>,
 ) -> Result<LocalProxyStatus, String> {
     let status_app = app.clone();
     tauri::async_runtime::spawn_blocking(move || {
-        set_concurrent_account_routing_enabled_blocking(&app, enabled)
+        set_concurrent_account_routing_enabled_blocking(&app, enabled, account_group)
     })
     .await
     .map_err(|error| format!("Concurrent routing update task failed: {error}"))??;
@@ -34,18 +35,30 @@ pub(crate) async fn set_concurrent_account_routing_enabled<R: Runtime + 'static>
 fn set_concurrent_account_routing_enabled_blocking<R: Runtime>(
     app: &tauri::AppHandle<R>,
     enabled: bool,
+    account_group: Option<String>,
 ) -> Result<(), String> {
     if enabled && !is_running() {
         return Err("Start the local proxy before enabling concurrent account routing".to_string());
     }
     let paths = resolve_paths(app)?;
-    let snapshot = try_read_state(&paths)?;
+    let account_group = account_group
+        .map(|group| group.trim().to_string())
+        .filter(|group| !group.is_empty());
+    if account_group
+        .as_ref()
+        .is_some_and(|group| group.chars().count() > 80 || group.chars().any(char::is_control))
+    {
+        return Err("Account group is invalid".to_string());
+    }
+    let mut snapshot = try_read_state(&paths)?;
+    snapshot.concurrent_account_group.clone_from(&account_group);
     let enabled_account_ids = enabled
         .then(|| enabled_concurrent_account_ids(&paths, &snapshot))
         .transpose()?
         .unwrap_or_default();
     let (original_state, applied_state, switched_from_provider) = update_state(&paths, |state| {
         let original_state = state.clone();
+        state.concurrent_account_group.clone_from(&account_group);
         let switched_from_provider = apply_concurrent_routing_setting(
             state,
             enabled,
@@ -159,12 +172,14 @@ fn rollback_concurrent_routing_setting(
             || state.active_provider_group != applied.active_provider_group
             || state.concurrent_account_routing_enabled
                 != applied.concurrent_account_routing_enabled
+            || state.concurrent_account_group != applied.concurrent_account_group
         {
             return Ok(());
         }
         state.active_account_id = original.active_account_id.clone();
         state.active_provider_id = original.active_provider_id.clone();
         state.active_provider_group = original.active_provider_group.clone();
+        state.concurrent_account_group = original.concurrent_account_group.clone();
         change_concurrent_account_routing(
             state,
             original.concurrent_account_routing_enabled,

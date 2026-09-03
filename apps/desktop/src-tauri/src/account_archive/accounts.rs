@@ -27,6 +27,7 @@ fn collect_accounts<R: Runtime>(
             }
             let last_modified_at = Some(load_or_init_last_modified(&paths, &id)?.to_rfc3339());
             accounts.push(AccountArchiveEntry {
+                group: load_account_group(&account_group_path(&paths, &id)),
                 note: load_note(&note_path(&paths, &id)),
                 expires_at: load_expiration(&expiration_path(&paths, &id)),
                 private_details: load_account_private_details(&account_private_details_path(
@@ -118,6 +119,7 @@ fn apply_archive<R: Runtime>(
         let account_auth = if should_apply_archive {
             write_json_if_changed(&auth_path, &account.auth)?;
             save_note(&note_path(&paths, &account.id), &account.note)?;
+            save_account_group(&account_group_path(&paths, &account.id), &account.group)?;
             save_expiration(&expiration_path(&paths, &account.id), &account.expires_at)?;
             save_account_private_details(
                 &account_private_details_path(&paths, &account.id),

@@ -108,6 +108,7 @@ pub(crate) struct LocalProxyStatus {
     pub(crate) base_url: String,
     pub(crate) auto_switch_on_quota_exhaustion: bool,
     pub(crate) concurrent_account_routing_enabled: bool,
+    pub(crate) concurrent_account_group: Option<String>,
     pub(crate) custom_auto_switch_priority_enabled: bool,
     #[serde(default)]
     pub(crate) custom_auto_switch_threshold_enabled: bool,

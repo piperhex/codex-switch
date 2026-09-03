@@ -14,6 +14,10 @@ pub(crate) fn note_path(paths: &Paths, id: &str) -> PathBuf {
     account_dir(paths, id).join("note.txt")
 }
 
+pub(crate) fn account_group_path(paths: &Paths, id: &str) -> PathBuf {
+    account_dir(paths, id).join("group.txt")
+}
+
 pub(crate) fn expiration_path(paths: &Paths, id: &str) -> PathBuf {
     account_dir(paths, id).join("expires-at.txt")
 }
@@ -59,6 +63,13 @@ pub(crate) fn field_modified_at_path(paths: &Paths, id: &str) -> PathBuf {
 
 pub(crate) fn load_note(path: &Path) -> String {
     fs::read_to_string(path).unwrap_or_default()
+}
+
+pub(crate) fn load_account_group(path: &Path) -> String {
+    fs::read_to_string(path)
+        .unwrap_or_default()
+        .trim()
+        .to_string()
 }
 
 pub(crate) fn load_expiration(path: &Path) -> String {

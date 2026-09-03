@@ -232,6 +232,8 @@ pub fn run() {
             commands::set_account_auto_switch_enabled,
             commands::set_account_auto_switch_priority,
             commands::set_account_auto_switch_threshold,
+            commands::set_account_group,
+            commands::set_account_groups,
             commands::set_auto_disable_status_codes,
             commands::update_account_note,
             commands::delete_account,

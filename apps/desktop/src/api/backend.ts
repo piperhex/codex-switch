@@ -243,6 +243,7 @@ const BUBBLE_RESET_DISPLAY_PREVIEW_KEY = "codex-switch:bubble-reset-display";
 const BUBBLE_STYLE_PREVIEW_KEY = "codex-switch:bubble-style";
 const THEME_COLOR_PREVIEW_KEY = "codex-switch:theme-color";
 const PROVIDER_GROUPS_PREVIEW_KEY = "codex-switch:provider-groups";
+const ACCOUNT_GROUPS_PREVIEW_KEY = "codex-switch:account-groups";
 const CLAUDE_CODE_WRITE_TARGET_PREVIEW_KEY = "codex-switch:claude-code-write-target";
 const THIRD_PARTY_APP_WRITE_PREVIEW_KEY = "codex-switch:third-party-app-write";
 const CLOUD_BASE_URL_PREVIEW_KEY = "codex-switch:cloud-base-url";
@@ -256,6 +257,7 @@ const DEFAULT_OPENAI_PROVIDER_MODEL = "gpt-5.6-sol";
 const LOCAL_PROXY_PREVIEW_KEY = "codex-switch:local-proxy-running";
 const LOCAL_PROXY_AUTO_SWITCH_PREVIEW_KEY = "codex-switch:local-proxy-auto-switch";
 const LOCAL_PROXY_CONCURRENT_ROUTING_PREVIEW_KEY = "codex-switch:local-proxy-concurrent-routing";
+const LOCAL_PROXY_CONCURRENT_GROUP_PREVIEW_KEY = "codex-switch:local-proxy-concurrent-group";
 const LOCAL_PROXY_CUSTOM_PRIORITY_PREVIEW_KEY = "codex-switch:local-proxy-custom-priority";
 const LOCAL_PROXY_CUSTOM_THRESHOLD_PREVIEW_KEY = "codex-switch:local-proxy-custom-threshold";
 const LOCAL_PROXY_GLOBAL_THRESHOLD_PREVIEW_KEY = "codex-switch:local-proxy-global-threshold";
@@ -489,6 +491,7 @@ function previewLocalProxyStatus(): LocalProxyStatus {
     baseUrl: port > 0 ? `http://127.0.0.1:${port}/v1` : "",
     autoSwitchOnQuotaExhaustion: window.localStorage.getItem(LOCAL_PROXY_AUTO_SWITCH_PREVIEW_KEY) === "true",
     concurrentAccountRoutingEnabled: window.localStorage.getItem(LOCAL_PROXY_CONCURRENT_ROUTING_PREVIEW_KEY) === "true",
+    concurrentAccountGroup: window.localStorage.getItem(LOCAL_PROXY_CONCURRENT_GROUP_PREVIEW_KEY),
     customAutoSwitchPriorityEnabled: window.localStorage.getItem(LOCAL_PROXY_CUSTOM_PRIORITY_PREVIEW_KEY) === "true",
     customAutoSwitchThresholdEnabled: window.localStorage.getItem(LOCAL_PROXY_CUSTOM_THRESHOLD_PREVIEW_KEY) === "true",
     globalAutoSwitchThreshold: Number.isFinite(configuredGlobalThreshold)
@@ -613,6 +616,7 @@ export async function loadAppSettings(): Promise<AppSettings> {
         proxyPort: Number(window.localStorage.getItem(NETWORK_PROXY_PORT_PREVIEW_KEY)) || null,
       },
       providerGroups: previewProviderGroups(),
+      accountGroups: previewAccountGroups(),
       thirdPartyAppWrite: previewThirdPartyAppWriteSettings(),
       claudeCodeWriteTarget: previewClaudeCodeWriteTarget(),
     };
@@ -1116,6 +1120,24 @@ function previewProviderGroups(): string[] {
   } catch {
     return [];
   }
+}
+
+function previewAccountGroups(): string[] {
+  try {
+    const parsed: unknown = JSON.parse(window.localStorage.getItem(ACCOUNT_GROUPS_PREVIEW_KEY) ?? "[]");
+    return Array.isArray(parsed) ? parsed.filter((group): group is string => typeof group === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function updateAccountGroups(groups: string[]): Promise<string[]> {
+  const normalized = [...new Set(groups.map((group) => group.trim()).filter(Boolean))];
+  if (!hasLocalBackend) {
+    window.localStorage.setItem(ACCOUNT_GROUPS_PREVIEW_KEY, JSON.stringify(normalized));
+    return normalized;
+  }
+  return invoke<string[]>("set_account_groups", { groups: normalized });
 }
 
 export async function updateProviderGroups(groups: string[]): Promise<string[]> {
@@ -1943,15 +1965,20 @@ export async function updateTokenUsagePreferences(
   return invoke<AppSettings>("set_token_usage_preferences", { weeks, refreshSeconds });
 }
 
-export async function setLocalProxyConcurrentRouting(enabled: boolean): Promise<LocalProxyStatus> {
+export async function setLocalProxyConcurrentRouting(
+  enabled: boolean,
+  accountGroup: string | null = null,
+): Promise<LocalProxyStatus> {
   if (!hasLocalBackend) {
     if (enabled && !previewLocalProxyStatus().running) {
       throw new Error("Start the local proxy before enabling concurrent account routing");
     }
     window.localStorage.setItem(LOCAL_PROXY_CONCURRENT_ROUTING_PREVIEW_KEY, String(enabled));
+    if (accountGroup) window.localStorage.setItem(LOCAL_PROXY_CONCURRENT_GROUP_PREVIEW_KEY, accountGroup);
+    else window.localStorage.removeItem(LOCAL_PROXY_CONCURRENT_GROUP_PREVIEW_KEY);
     return previewLocalProxyStatus();
   }
-  return invoke<LocalProxyStatus>("set_concurrent_account_routing_enabled", { enabled });
+  return invoke<LocalProxyStatus>("set_concurrent_account_routing_enabled", { enabled, accountGroup });
 }
 
 export async function updateAutoDisableStatusCodes(statusCodes: number[]): Promise<AppSettings> {
@@ -2686,6 +2713,12 @@ export async function setAccountAutoSwitchEnabled(id: string, enabled: boolean):
 export async function setAccountAutoSwitchPriority(id: string, priority: number): Promise<void> {
   if (!Number.isInteger(priority)) throw new Error("Auto-switch priority must be an integer");
   if (hasLocalBackend) await invoke("set_account_auto_switch_priority", { id, priority });
+}
+
+export async function setAccountGroup(id: string, group: string): Promise<string> {
+  const normalized = group.trim();
+  if (!hasLocalBackend) return normalized;
+  return invoke<string>("set_account_group", { id, group: normalized });
 }
 
 export async function fetchCloudCurrencyRates(): Promise<CloudCurrencyRates> {

@@ -6,6 +6,7 @@ function account(overrides: Partial<Account> = {}): Account {
   return {
     id: "account-1",
     email: "one@example.com",
+    group: "",
     note: "",
     expiresAt: "",
     privateDetails: { password: "", phoneNumber: "", totpSecret: "" },

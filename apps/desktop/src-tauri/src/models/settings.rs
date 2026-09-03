@@ -60,6 +60,8 @@ pub(crate) struct AppSettings {
     #[serde(default)]
     pub(crate) provider_groups: Vec<String>,
     #[serde(default)]
+    pub(crate) account_groups: Vec<String>,
+    #[serde(default)]
     pub(crate) claude_code_write_target: ClaudeCodeWriteTarget,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) third_party_app_write: Option<ThirdPartyAppWriteSettings>,
@@ -258,6 +260,7 @@ impl Default for AppSettings {
             web_proxy_listen_on_all_interfaces: false,
             network_proxy: NetworkProxySettings::default(),
             provider_groups: Vec::new(),
+            account_groups: Vec::new(),
             claude_code_write_target: ClaudeCodeWriteTarget::default(),
             third_party_app_write: None,
             last_started_version: None,

@@ -13,6 +13,7 @@ function account(): Account {
   return {
     id: "official-1",
     email: "official@example.com",
+    group: "",
     note: "Primary account",
     expiresAt: "2026-12-31",
     privateDetails: { password: "secret", phoneNumber: "+65 1234 5678", totpSecret: "JBSWY3DPEHPK3PXP" },

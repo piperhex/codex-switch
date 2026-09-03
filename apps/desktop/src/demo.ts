@@ -4,6 +4,7 @@ export const DEMO_ACCOUNTS: Account[] = [
   {
     id: "demo-1",
     email: "alex.chen@example.com",
+    group: "",
     note: "Personal account for experiments and everyday Codex work.",
     expiresAt: "2026-12-31",
     privateDetails: { password: "", phoneNumber: "", totpSecret: "" },
@@ -27,6 +28,7 @@ export const DEMO_ACCOUNTS: Account[] = [
   {
     id: "demo-2",
     email: "studio@northwind.dev",
+    group: "",
     note: "",
     expiresAt: "",
     privateDetails: { password: "", phoneNumber: "", totpSecret: "" },
@@ -50,6 +52,7 @@ export const DEMO_ACCOUNTS: Account[] = [
   {
     id: "demo-3",
     email: "studio@northwind.dev",
+    group: "",
     note: "",
     expiresAt: "",
     privateDetails: { password: "", phoneNumber: "", totpSecret: "" },
@@ -73,6 +76,7 @@ export const DEMO_ACCOUNTS: Account[] = [
   {
     id: "demo-4",
     email: "studio@northwind.dev",
+    group: "",
     note: "",
     expiresAt: "",
     privateDetails: { password: "", phoneNumber: "", totpSecret: "" },

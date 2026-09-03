@@ -691,10 +691,13 @@ export function useProviderManager(
     }
   }, [load, notify, t]);
 
-  const setProxyConcurrentRouting = useCallback(async (enabled: boolean) => {
+  const setProxyConcurrentRouting = useCallback(async (
+    enabled: boolean,
+    accountGroup: string | null = null,
+  ) => {
     setProxyBusy(true);
     try {
-      setLocalProxy(await setLocalProxyConcurrentRouting(enabled));
+      setLocalProxy(await setLocalProxyConcurrentRouting(enabled, accountGroup));
       notify(t(enabled
         ? "toast.proxyConcurrentRoutingEnabled"
         : "toast.proxyConcurrentRoutingDisabled"));

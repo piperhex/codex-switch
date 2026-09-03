@@ -144,6 +144,11 @@ fn enabled_concurrent_account_ids(
         .filter(|entry| entry.path().is_dir() && entry.path().join("auth.json").is_file())
         .filter_map(|entry| entry.file_name().into_string().ok())
         .filter(|account_id| !state.disabled_account_ids.contains(account_id))
+        .filter(|account_id| {
+            state.concurrent_account_group.as_ref().is_none_or(|group| {
+                load_account_group(&account_group_path(paths, account_id)) == *group
+            })
+        })
         .collect::<Vec<_>>();
     account_ids.sort();
     Ok(account_ids)

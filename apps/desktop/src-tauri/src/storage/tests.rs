@@ -52,6 +52,7 @@ mod tests {
         let mut stale = read_state(&paths);
 
         update_state(&paths, |state| {
+            state.concurrent_account_group = Some("work".to_string());
             change_concurrent_account_routing(state, true, "test update");
             Ok(())
         })
@@ -61,6 +62,7 @@ mod tests {
 
         let saved = try_read_state(&paths).unwrap();
         assert!(saved.concurrent_account_routing_enabled);
+        assert_eq!(saved.concurrent_account_group.as_deref(), Some("work"));
         assert!(saved.local_proxy_enabled);
         fs::remove_dir_all(paths.codex_home.parent().unwrap()).unwrap();
     }

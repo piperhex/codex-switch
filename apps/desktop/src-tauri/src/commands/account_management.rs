@@ -19,6 +19,7 @@ pub(crate) fn delete_account<R: Runtime>(
         fs::remove_dir_all(&target).map_err(|error| format!("删除账户失败：{error}"))?;
     }
     set_account_auto_switch_enabled_for_paths(&paths, &id, true)?;
+    let cleared_concurrent_group = clear_empty_concurrent_account_group(&paths)?;
     let mut state = read_state(&paths);
     let mut cleared_image_model = state.image_generation_account_id.as_deref() == Some(&id);
     if cleared_image_model {
@@ -37,7 +38,7 @@ pub(crate) fn delete_account<R: Runtime>(
     }
     app.emit("accounts-changed", ())
         .map_err(|error| error.to_string())?;
-    if cleared_image_model {
+    if cleared_image_model || cleared_concurrent_group {
         app.emit("providers-changed", ())
             .map_err(|error| error.to_string())?;
     }

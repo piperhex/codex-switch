@@ -44,6 +44,7 @@ import {
   subscribeToCloudSessionExpired,
   subscribeToOpenSettings,
   updateAutoDisableStatusCodes,
+  updateAccountGroups,
   updateNetworkProxy,
   updateProviderGroups,
   updateShowUsageNetworkErrors,
@@ -110,6 +111,7 @@ import { NetworkProxySettingsModal } from "../../pages/settings/NetworkProxySett
 import type { Translate } from "../../i18n";
 import { AccountDisplayTabs } from "./AccountDisplayTabs";
 import { AccountTopbarActions } from "./AccountTopbarActions";
+import { AccountGroupManager } from "../accounts/AccountGroupManager";
 import type {
   AccountDetailsDraft,
   BubbleResetDisplay,
@@ -262,6 +264,7 @@ export function DashboardApp() {
   const [showUsageNetworkErrorsLoading, setShowUsageNetworkErrorsLoading] = useState(false);
   const [showCustomCloudServer, setShowCustomCloudServer] = useState(false);
   const [providerGroups, setProviderGroups] = useState<string[]>([]);
+  const [accountGroups, setAccountGroups] = useState<string[]>([]);
   const cloudSessionPromptedRef = useRef(false);
   const providerBalanceRefreshCountRef = useRef(0);
   useEffect(() => subscribeToOpenSettings(() => setPage("settings")), []);
@@ -383,6 +386,7 @@ export function DashboardApp() {
         setShowUsageNetworkErrors(settings.showUsageNetworkErrors ?? false);
         setShowCustomCloudServer(settings.showCustomCloudServer ?? false);
         setProviderGroups(settings.providerGroups ?? []);
+        setAccountGroups(settings.accountGroups ?? []);
       })
       .catch((error) => notify(String(error)));
   }, [notify]);
@@ -394,6 +398,28 @@ export function DashboardApp() {
       throw error;
     }
   }, [notify]);
+  const saveAccountGroups = useCallback(async (groups: string[]) => {
+    try {
+      setAccountGroups(await updateAccountGroups(groups));
+    } catch (error) {
+      notify(String(error));
+      throw error;
+    }
+  }, [notify]);
+  const changeAccountGroup = useCallback(async (id: string, group: string) => {
+    const changed = await manager.changeAccountGroup(id, group);
+    const normalizedGroup = group.trim();
+    if (changed && normalizedGroup) {
+      setAccountGroups((current) => current.includes(normalizedGroup)
+        ? current
+        : [...current, normalizedGroup]);
+    }
+    return changed;
+  }, [manager.changeAccountGroup]);
+  const managedAccountGroups = useMemo(() => [...new Set([
+    ...accountGroups,
+    ...manager.accounts.map((account) => account.group),
+  ].filter(Boolean))], [accountGroups, manager.accounts]);
   const resetCredits = useResetCredits(manager.accounts, notify, t);
   const activeAccount = manager.accounts.find((account) => account.active) ?? null;
   const activeProvider = providerManager.activeProvider;
@@ -412,9 +438,11 @@ export function DashboardApp() {
   );
   const concurrentAutoRefreshAccountIds = useMemo(
     () => manager.accounts
-      .filter((account) => account.autoSwitchEnabled)
+      .filter((account) => account.autoSwitchEnabled
+        && (!providerManager.localProxy?.concurrentAccountGroup
+          || account.group === providerManager.localProxy.concurrentAccountGroup))
       .map((account) => account.id),
-    [manager.accounts],
+    [manager.accounts, providerManager.localProxy?.concurrentAccountGroup],
   );
   const configuredBalanceProviders = useMemo(
     () => providerManager.providers.filter((provider) => Boolean(provider.balancePlatform)),
@@ -435,7 +463,9 @@ export function DashboardApp() {
   }, [configuredBalanceProviders]);
   const refreshCurrentSelection = useCallback(async () => {
     if (concurrentRoutingActive) {
-      await manager.refreshAll({ quiet: true, showSpinner: false, enabledOnly: true });
+      await Promise.allSettled(concurrentAutoRefreshAccountIds.map(
+        (id) => manager.refreshUsage(id, true, false),
+      ));
       return;
     }
     const tasks: Promise<unknown>[] = [];
@@ -446,7 +476,8 @@ export function DashboardApp() {
       tasks.push(manager.refreshUsage(activeAccount.id, true, false));
     }
     await Promise.allSettled(tasks);
-  }, [activeAccount, activeProvider, concurrentRoutingActive, manager.refreshAll, manager.refreshUsage]);
+  }, [activeAccount, activeProvider, concurrentAutoRefreshAccountIds,
+    concurrentRoutingActive, manager.refreshUsage]);
   const currentAutoRefreshTargetId = concurrentRoutingActive
     ? concurrentAutoRefreshAccountIds.length
       ? `concurrent:${concurrentAutoRefreshAccountIds.join(",")}`
@@ -1136,7 +1167,15 @@ export function DashboardApp() {
   const accountProxyTopbarActions = (
     <ProxyTopbarActions cloudAuthenticated={cloud.state.authenticated}
       manager={providerManager} showSessionManager={!sidebarNavigationEnabled}
-      trailingAction={sidebarNavigationEnabled ? undefined : <TotpWindowButton notify={notify} t={t} />} t={t} />
+      trailingAction={<>
+        {managedAccountGroups.length > 0 && <AccountGroupManager accounts={manager.accounts}
+          concurrentGroup={providerManager.localProxy?.concurrentAccountGroup ?? null}
+          concurrentRoutingEnabled={providerManager.localProxy?.concurrentAccountRoutingEnabled ?? false}
+          groups={managedAccountGroups} onChangeMany={manager.changeAccountGroups}
+          onConcurrentRoutingChange={providerManager.setProxyConcurrentRouting}
+          onGroupsChange={saveAccountGroups} t={t} />}
+        {!sidebarNavigationEnabled && <TotpWindowButton notify={notify} t={t} />}
+      </>} t={t} />
   );
   const menuTools = (
     <DashboardMenuTools actions={{
@@ -1518,6 +1557,7 @@ export function DashboardApp() {
           <section className="page-panel accounts-page-panel" hidden={page !== "accounts"}>
             <MemoAccountsPage active={page === "accounts"}
               accounts={manager.accounts}
+              accountGroups={managedAccountGroups}
               providers={providerManager.providers}
               loading={manager.loading}
               busyAccountId={manager.busyAccountId} onAdd={openLogin}
@@ -1531,6 +1571,7 @@ export function DashboardApp() {
               onDeleteMany={manager.deleteAccounts}
               onEnableMany={manager.enableAutoSwitchAccounts}
               onDisableMany={manager.disableAutoSwitchAccounts}
+              onAccountGroupChange={changeAccountGroup}
               onAutoSwitchEnabledChange={setAccountAutoSwitchEnabled}
               autoSwitchBusyAccountId={manager.autoSwitchBusyAccountId}
               onAutoSwitchPriorityChange={manager.setAutoSwitchPriority}

@@ -11,6 +11,7 @@ import { AccountTable } from "../components/accounts/AccountTable";
 export function AccountsPage({
   active,
   accounts,
+  accountGroups,
   providers,
   loading,
   busyAccountId,
@@ -27,6 +28,7 @@ export function AccountsPage({
   onDeleteMany,
   onEnableMany,
   onDisableMany,
+  onAccountGroupChange,
   onAutoSwitchEnabledChange,
   autoSwitchBusyAccountId,
   onAutoSwitchPriorityChange,
@@ -54,6 +56,7 @@ export function AccountsPage({
 }: {
   active: boolean;
   accounts: Account[];
+  accountGroups: string[];
   providers: Provider[];
   loading: boolean;
   busyAccountId: string | null;
@@ -70,6 +73,7 @@ export function AccountsPage({
   onDeleteMany: (ids: string[]) => Promise<string[]>;
   onEnableMany: (ids: string[]) => Promise<string[]>;
   onDisableMany: (ids: string[]) => Promise<string[]>;
+  onAccountGroupChange: (id: string, group: string) => Promise<boolean>;
   onAutoSwitchEnabledChange: (id: string, enabled: boolean) => void;
   autoSwitchBusyAccountId: string | null;
   onAutoSwitchPriorityChange: (id: string, priority: number) => Promise<boolean>;
@@ -83,7 +87,7 @@ export function AccountsPage({
   onUseResetCredit: (id: string) => void;
   resetCreditBusyAccountId: string | null;
   onOpenaiAuthAccountChange: (accountId: string | null) => void;
-  onConcurrentRoutingChange: (enabled: boolean) => void;
+  onConcurrentRoutingChange: (enabled: boolean, group: string | null) => void;
   privacyMode: boolean;
   privacyModeLoading: boolean;
   onPrivacyModeChange: (enabled: boolean) => void;
@@ -119,11 +123,13 @@ export function AccountsPage({
   }
   return (
     <div className="accounts-page">
-      <AccountTable active={active} accounts={accounts} providers={providers} busyAccountId={busyAccountId}
+      <AccountTable active={active} accounts={accounts} accountGroups={accountGroups}
+        providers={providers} busyAccountId={busyAccountId}
         onSwitch={onSwitch} onDeactivate={onDeactivate}
         onCopyAuthJson={onCopyAuthJson} onRefresh={onRefresh} onDelete={onDelete}
         onConsumeQuotaMany={onConsumeQuotaMany} onDeleteMany={onDeleteMany}
         onEnableMany={onEnableMany} onDisableMany={onDisableMany}
+        onAccountGroupChange={onAccountGroupChange}
         onAutoSwitchEnabledChange={onAutoSwitchEnabledChange} autoSwitchBusyAccountId={autoSwitchBusyAccountId}
         onAutoSwitchPriorityChange={onAutoSwitchPriorityChange}
         autoSwitchPriorityBusyAccountId={autoSwitchPriorityBusyAccountId}
@@ -143,6 +149,7 @@ export function AccountsPage({
         privacyModeLoading={privacyModeLoading} onPrivacyModeChange={onPrivacyModeChange}
         hideAccountNotes={hideAccountNotes}
         concurrentAccountRoutingEnabled={localProxy?.concurrentAccountRoutingEnabled ?? false}
+        concurrentAccountGroup={localProxy?.concurrentAccountGroup ?? null}
         concurrentAccountRoutingBusy={proxyBusy}
         onConcurrentAccountRoutingChange={onConcurrentRoutingChange}
         showUsageNetworkErrors={showUsageNetworkErrors} displayMode={displayMode}

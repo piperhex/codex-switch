@@ -9,6 +9,7 @@ pub(crate) const DEFAULT_CLOUD_BASE_URL: &str = "https://codex.onepiper.cloud";
 pub(crate) struct AccountSummary {
     pub(crate) id: String,
     pub(crate) email: String,
+    pub(crate) group: String,
     pub(crate) note: String,
     pub(crate) expires_at: String,
     pub(crate) private_details: AccountPrivateDetails,
@@ -127,6 +128,8 @@ pub(crate) struct ManagerStateFile {
     pub(crate) auto_switch_on_quota_exhaustion: bool,
     #[serde(default)]
     pub(crate) concurrent_account_routing_enabled: bool,
+    #[serde(default)]
+    pub(crate) concurrent_account_group: Option<String>,
     /// Marks an intentional concurrent-routing change for the storage layer.
     /// Ordinary state writes preserve the latest on-disk value instead of
     /// allowing a stale snapshot to overwrite this setting.

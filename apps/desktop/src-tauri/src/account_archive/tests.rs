@@ -18,6 +18,7 @@ mod tests {
                         "access_token": "plain-secret-access-token",
                     }
                 }),
+                group: "work".to_string(),
                 note: "plain-secret-note".to_string(),
                 expires_at: "2026-12-31".to_string(),
                 private_details: AccountPrivateDetails {

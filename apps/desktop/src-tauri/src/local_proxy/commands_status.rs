@@ -9,6 +9,7 @@ fn status<R: Runtime>(app: &tauri::AppHandle<R>) -> LocalProxyStatus {
     let (
         auto_switch_on_quota_exhaustion,
         concurrent_account_routing_enabled,
+        concurrent_account_group,
         custom_auto_switch_priority_enabled,
         custom_auto_switch_threshold_enabled,
         global_auto_switch_threshold,
@@ -30,6 +31,7 @@ fn status<R: Runtime>(app: &tauri::AppHandle<R>) -> LocalProxyStatus {
             (
                 state.auto_switch_on_quota_exhaustion,
                 state.concurrent_account_routing_enabled,
+                state.concurrent_account_group.clone(),
                 state.custom_auto_switch_priority_enabled,
                 state.custom_auto_switch_threshold_enabled,
                 state.global_auto_switch_threshold,
@@ -49,6 +51,7 @@ fn status<R: Runtime>(app: &tauri::AppHandle<R>) -> LocalProxyStatus {
         .unwrap_or((
             false,
             false,
+            None,
             false,
             false,
             0.0,
@@ -73,6 +76,7 @@ fn status<R: Runtime>(app: &tauri::AppHandle<R>) -> LocalProxyStatus {
         base_url: LOCAL_PROXY_BASE_URL.to_string(),
         auto_switch_on_quota_exhaustion,
         concurrent_account_routing_enabled,
+        concurrent_account_group,
         custom_auto_switch_priority_enabled,
         custom_auto_switch_threshold_enabled,
         global_auto_switch_threshold,

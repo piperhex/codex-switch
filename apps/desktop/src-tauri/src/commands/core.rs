@@ -119,6 +119,7 @@ pub(crate) fn list_accounts_blocking<R: Runtime>(
         accounts.push(AccountSummary {
             active: active_id.as_deref() == Some(&id),
             usage,
+            group: load_account_group(&account_group_path(&paths, &id)),
             note: load_note(&note_path(&paths, &id)),
             expires_at: load_expiration(&expiration_path(&paths, &id)),
             private_details: load_account_private_details(&account_private_details_path(

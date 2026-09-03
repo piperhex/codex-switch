@@ -336,8 +336,13 @@ pub(crate) fn set_account_auto_switch_enabled<R: Runtime>(
         return Err("Account does not exist".to_string());
     }
     set_account_auto_switch_enabled_for_paths(&paths, &id, enabled)?;
+    let cleared_concurrent_group = clear_empty_concurrent_account_group(&paths)?;
     app.emit("accounts-changed", ())
         .map_err(|error| error.to_string())?;
+    if cleared_concurrent_group {
+        app.emit("providers-changed", ())
+            .map_err(|error| error.to_string())?;
+    }
     Ok(())
 }
 

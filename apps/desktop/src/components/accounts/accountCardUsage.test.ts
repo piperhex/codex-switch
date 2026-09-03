@@ -7,6 +7,7 @@ function account(official: boolean): Account {
   return {
     id: "account-1",
     email: "official@example.com",
+    group: "",
     note: "",
     expiresAt: "",
     privateDetails: { password: "", phoneNumber: "", totpSecret: "" },

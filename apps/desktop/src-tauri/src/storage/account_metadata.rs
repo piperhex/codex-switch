@@ -23,6 +23,10 @@ pub(crate) fn save_expiration(path: &Path, expires_at: &str) -> Result<(), Strin
     save_note(path, expires_at)
 }
 
+pub(crate) fn save_account_group(path: &Path, group: &str) -> Result<(), String> {
+    save_note(path, group)
+}
+
 pub(crate) fn save_account_private_details(
     path: &Path,
     details: &AccountPrivateDetails,

@@ -8,7 +8,6 @@ import {
   Popconfirm,
   Select,
   Space,
-  Switch,
   Table,
   Tag,
   Tooltip,
@@ -65,6 +64,7 @@ import {
 import { TokenCostColumnTitle, useTokenCostDisplaySettings } from "../../TokenCostUnitSettings";
 import { AccountNoteModal } from "../../modals/AccountNoteModal";
 import { AccountExpandedPanel } from "../AccountExpandedPanel";
+import { AccountGroupCell, ConcurrentRoutingControl } from "../AccountGroupControls";
 import { OfficialContextSettings } from "../OfficialContextSettings";
 import { UsageMeter, UsageRefreshAge } from "../UsageMeter";
 import { getAccountCardTokenUsage } from "../accountCardUsage";
@@ -90,6 +90,7 @@ import {
 interface AccountTableProps {
   active: boolean;
   accounts: Account[];
+  accountGroups: string[];
   providers: Provider[];
   busyAccountId: string | null;
   onSwitch: (id: string) => void;
@@ -101,6 +102,7 @@ interface AccountTableProps {
   onDeleteMany: (ids: string[]) => Promise<string[]>;
   onEnableMany: (ids: string[]) => Promise<string[]>;
   onDisableMany: (ids: string[]) => Promise<string[]>;
+  onAccountGroupChange: (id: string, group: string) => Promise<boolean>;
   onAutoSwitchEnabledChange: (id: string, enabled: boolean) => void;
   autoSwitchBusyAccountId: string | null;
   onAutoSwitchPriorityChange: (id: string, priority: number) => Promise<boolean>;
@@ -121,8 +123,9 @@ interface AccountTableProps {
   hotSwitchEnabled: boolean;
   fastModeEnabled: boolean;
   concurrentAccountRoutingEnabled: boolean;
+  concurrentAccountGroup: string | null;
   concurrentAccountRoutingBusy: boolean;
-  onConcurrentAccountRoutingChange: (enabled: boolean) => void;
+  onConcurrentAccountRoutingChange: (enabled: boolean, group: string | null) => void;
   openaiAuthAccountId: string | null;
   openaiAuthBusy: boolean;
   onOpenaiAuthAccountChange: (accountId: string | null) => void;
@@ -140,6 +143,7 @@ interface AccountTableProps {
 
 const USAGE_SORT_STORAGE_KEY = "codex-switch:account-table-usage-sort";
 const HIDDEN_COLUMNS_STORAGE_KEY = "codex-switch:account-table-hidden-columns";
+const GROUP_COLUMN_PREFERENCE_STORAGE_KEY = "codex-switch:account-table-group-column-preference";
 const GPT_5_6_SOL_CONTEXT_WINDOW_OPTIONS = GPT_5_6_SOL_CONTEXT_WINDOW_OPTIONS_K.map((value) => ({
   label: `${value}K`,
   value: String(value),
@@ -155,6 +159,7 @@ type UsageSortColumn = "fiveHours" | "oneWeek";
 type UsageSortOrder = "ascend" | "descend";
 const ACCOUNT_TABLE_COLUMN_KEYS = [
   "account",
+  "group",
   "fiveHours",
   "oneWeek",
   "tokenTotals",
@@ -166,6 +171,7 @@ const ACCOUNT_TABLE_COLUMN_KEYS = [
 type AccountTableColumnKey = typeof ACCOUNT_TABLE_COLUMN_KEYS[number];
 type ReorderableAccountTableColumnKey = Exclude<AccountTableColumnKey, "account" | "actions">;
 const REORDERABLE_ACCOUNT_TABLE_COLUMN_KEYS: ReorderableAccountTableColumnKey[] = [
+  "group",
   "fiveHours",
   "oneWeek",
   "tokenTotals",
@@ -240,10 +246,11 @@ function isAccountTableColumnKey(value: unknown): value is AccountTableColumnKey
 function loadHiddenColumns(): AccountTableColumnKey[] {
   try {
     const parsed: unknown = JSON.parse(window.localStorage.getItem(HIDDEN_COLUMNS_STORAGE_KEY) ?? "[]");
-    if (!Array.isArray(parsed)) return [];
-    return [...new Set(parsed.filter(isAccountTableColumnKey))];
+    const stored = Array.isArray(parsed) ? parsed.filter(isAccountTableColumnKey) : [];
+    const groupPreferenceSaved = window.localStorage.getItem(GROUP_COLUMN_PREFERENCE_STORAGE_KEY) === "true";
+    return [...new Set(groupPreferenceSaved ? stored : [...stored, "group" as const])];
   } catch {
-    return [];
+    return ["group"];
   }
 }
 
@@ -295,14 +302,15 @@ function isAccountDisabled(account: Account, hotSwitchEnabled: boolean) {
   return hotSwitchEnabled && !account.autoSwitchEnabled;
 }
 
-function canReceiveConcurrentConversation(account: Account) {
+function canReceiveConcurrentConversation(account: Account, group: string | null) {
   return account.autoSwitchEnabled
+    && (!group || account.group === group)
     && !(account.usage.primary && account.usage.primary.remainingPercent <= 0);
 }
 
-function isAccountHighlighted(account: Account, concurrentRoutingActive: boolean) {
+function isAccountHighlighted(account: Account, concurrentRoutingActive: boolean, group: string | null) {
   return concurrentRoutingActive
-    ? canReceiveConcurrentConversation(account)
+    ? canReceiveConcurrentConversation(account, group)
     : account.active;
 }
 
@@ -323,6 +331,7 @@ function compareKeepingAttentionLast(
 export function AccountTable({
   active,
   accounts,
+  accountGroups,
   providers,
   busyAccountId,
   onSwitch,
@@ -334,6 +343,7 @@ export function AccountTable({
   onDeleteMany,
   onEnableMany,
   onDisableMany,
+  onAccountGroupChange,
   onAutoSwitchEnabledChange,
   autoSwitchBusyAccountId,
   onAutoSwitchPriorityChange,
@@ -354,6 +364,7 @@ export function AccountTable({
   hotSwitchEnabled,
   fastModeEnabled,
   concurrentAccountRoutingEnabled,
+  concurrentAccountGroup,
   concurrentAccountRoutingBusy,
   onConcurrentAccountRoutingChange,
   openaiAuthAccountId,
@@ -371,6 +382,10 @@ export function AccountTable({
   t,
 }: AccountTableProps) {
   const concurrentRoutingActive = hotSwitchEnabled && concurrentAccountRoutingEnabled;
+  const groups = useMemo(() => [...new Set([
+    ...accountGroups,
+    ...accounts.map((account) => account.group),
+  ].filter(Boolean))], [accountGroups, accounts]);
   const tableWrapRef = useRef<HTMLDivElement>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
@@ -666,6 +681,17 @@ export function AccountTable({
       ),
     },
     {
+      title: t("accounts.group.column"), key: "group", dataIndex: "group", width: 150,
+      sorter: (left, right) => left.group.localeCompare(right.group),
+      filters: [
+        { text: t("accounts.group.ungrouped"), value: "" },
+        ...groups.map((group) => ({ text: group, value: group })),
+      ],
+      onFilter: (value, account) => account.group === value,
+      render: (_, account) => <AccountGroupCell account={account} groups={groups}
+        onChange={onAccountGroupChange} t={t} />,
+    },
+    {
       title: t("table.fiveHours"), key: "fiveHours", width: 260,
       sorter: (left, right, sortOrder) => compareKeepingAttentionLast(
         left,
@@ -885,6 +911,7 @@ export function AccountTable({
   const hiddenColumnSet = new Set(hiddenColumns);
   const baseColumnSettings: { key: AccountTableColumnKey; label: string }[] = [
     { key: "account", label: t("table.account") },
+    { key: "group", label: t("accounts.group.column") },
     { key: "fiveHours", label: t("table.fiveHours") },
     { key: "oneWeek", label: t("table.oneWeek") },
     { key: "tokenTotals", label: t("table.tokenTotals") },
@@ -926,6 +953,7 @@ export function AccountTable({
     0,
   );
   const setColumnVisible = (key: AccountTableColumnKey, visible: boolean) => {
+    if (key === "group") window.localStorage.setItem(GROUP_COLUMN_PREFERENCE_STORAGE_KEY, "true");
     setHiddenColumns((current) => {
       if (!visible && !current.includes(key) && visibleConfigurableColumnCount <= 1) return current;
       const next = visible
@@ -1162,18 +1190,9 @@ export function AccountTable({
       {proxyControls}
     </div>
   );
-  const concurrentRoutingControl = (
-    <Tooltip title={t("table.concurrentRoutingTooltip")} styles={{ root: { maxWidth: 400 } }}>
-      <span className={`account-concurrent-routing-control${concurrentRoutingActive ? " is-enabled" : ""}`}>
-        <span>{t("table.concurrentRouting")}</span>
-        <Switch size="small" checked={concurrentAccountRoutingEnabled}
-          loading={concurrentAccountRoutingBusy}
-          disabled={!hotSwitchEnabled || concurrentAccountRoutingBusy}
-          aria-label={t("table.concurrentRouting")}
-          onChange={onConcurrentAccountRoutingChange} />
-      </span>
-    </Tooltip>
-  );
+  const concurrentRoutingControl = <ConcurrentRoutingControl busy={concurrentAccountRoutingBusy}
+    enabled={concurrentAccountRoutingEnabled} groups={groups} hotSwitchEnabled={hotSwitchEnabled}
+    selectedGroup={concurrentAccountGroup} onChange={onConcurrentAccountRoutingChange} t={t} />;
   const batchConsumeControl = (
     <Popconfirm title={t("table.batchConsumeQuotaConfirmTitle", {
       count: consumableSelectedAccountIds.length,
@@ -1226,7 +1245,11 @@ export function AccountTable({
           ? t("providers.proxy.agentIdentityUnsupported")
           : t("providers.proxy.agentIdentityProxyOnly");
         return (
-          <article key={account.id} className={`account-card${isAccountHighlighted(account, concurrentRoutingActive) ? " active" : ""}${isDisabled ? " account-alert-card" : ""}`}
+          <article key={account.id} className={[
+            "account-card",
+            isAccountHighlighted(account, concurrentRoutingActive, concurrentAccountGroup) ? "active" : "",
+            isDisabled ? "account-alert-card" : "",
+          ].filter(Boolean).join(" ")}
             title={switchBlocked ? switchBlockedReason : undefined}
             aria-disabled={switchBlocked}
             onClick={(event) => {
@@ -1487,7 +1510,7 @@ export function AccountTable({
           onChange: (keys) => setSelectedAccountIds(keys.map(String)),
         }}
         rowClassName={(account) => [
-          isAccountHighlighted(account, concurrentRoutingActive) ? "active-row" : "",
+          isAccountHighlighted(account, concurrentRoutingActive, concurrentAccountGroup) ? "active-row" : "",
           isAccountDisabled(account, hotSwitchEnabled) ? "account-alert-row" : "",
           customThresholdActive && account.usage.primary?.remainingPercent !== undefined
             && account.usage.primary.remainingPercent

@@ -10,6 +10,7 @@ fn dispatch_extended_command(app: AppHandle, command: &str, args: Value) -> Resu
             serialize(block_on(crate::local_proxy::set_concurrent_account_routing_enabled(
                 app,
                 argument(&args, "enabled")?,
+                argument(&args, "accountGroup")?,
             )))
         }
         "set_auto_disable_unreachable_accounts" => {
@@ -280,6 +281,15 @@ fn dispatch_extended_command(app: AppHandle, command: &str, args: Value) -> Resu
                 argument(&args, "threshold")?,
             ),
         )),
+        "set_account_group" => serialize(block_on(crate::commands::set_account_group(
+            app,
+            argument(&args, "id")?,
+            argument(&args, "group")?,
+        ))),
+        "set_account_groups" => serialize(block_on(crate::commands::set_account_groups(
+            app,
+            argument(&args, "groups")?,
+        ))),
         "refresh_usage" => serialize(block_on(crate::commands::refresh_usage(
             app,
             argument(&args, "id")?,

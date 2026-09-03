@@ -17,6 +17,7 @@ export interface UsageSummary {
 export interface Account {
   id: string;
   email: string;
+  group: string;
   note: string;
   expiresAt: string;
   privateDetails: AccountPrivateDetails;
@@ -191,6 +192,7 @@ export interface LocalProxyStatus {
   baseUrl: string;
   autoSwitchOnQuotaExhaustion: boolean;
   concurrentAccountRoutingEnabled: boolean;
+  concurrentAccountGroup?: string | null;
   customAutoSwitchPriorityEnabled: boolean;
   customAutoSwitchThresholdEnabled: boolean;
   globalAutoSwitchThreshold: number;
@@ -461,6 +463,7 @@ export interface AppSettings {
   webProxyListenOnAllInterfaces?: boolean;
   networkProxy?: NetworkProxySettings;
   providerGroups?: string[];
+  accountGroups?: string[];
   thirdPartyAppWrite?: ThirdPartyAppWriteSettings;
   claudeCodeWriteTarget?: ClaudeCodeWriteTarget;
 }
