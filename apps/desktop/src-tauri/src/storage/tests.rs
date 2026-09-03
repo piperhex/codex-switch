@@ -147,6 +147,23 @@ mod tests {
     }
 
     #[test]
+    fn legacy_codex_home_migrates_even_on_the_current_version() {
+        let mut settings = AppSettings {
+            codex_home: Some("C:\\Users\\tester\\.codex-work".to_string()),
+            last_started_version: Some("1.1.20".to_string()),
+            ..AppSettings::default()
+        };
+
+        assert!(apply_app_settings_version_migration(
+            &mut settings,
+            "1.1.20"
+        ));
+        assert_eq!(settings.codex_homes.len(), 1);
+        assert_eq!(settings.codex_homes[0].path, "C:\\Users\\tester\\.codex-work");
+        assert!(settings.codex_homes[0].enabled);
+    }
+
+    #[test]
     fn first_official_import_becomes_active_when_codex_has_no_auth() {
         assert!(should_activate_import(
             &ManagerStateFile::default(),

@@ -35,6 +35,8 @@ export enum Permission {
   DashboardRead = 'admin.dashboard.read',
   CurrencyRead = 'admin.currency.read',
   CurrencyManage = 'admin.currency.manage',
+  CodexHomePresetsRead = 'admin.codex-home-presets.read',
+  CodexHomePresetsManage = 'admin.codex-home-presets.manage',
 }
 
 export interface PermissionDefinition {
@@ -81,6 +83,18 @@ export const PERMISSION_CATALOG: readonly PermissionDefinition[] = [
   { code: Permission.DashboardRead, group: 'analytics', name: 'Read dashboard', description: 'View cross-system operational metrics and trends.' },
   { code: Permission.CurrencyRead, group: 'content', name: 'Read currency settings', description: 'View configured currency display options.' },
   { code: Permission.CurrencyManage, group: 'content', name: 'Manage currency settings', description: 'Configure CurrencyAPI and display currencies.' },
+  {
+    code: Permission.CodexHomePresetsRead,
+    group: 'content',
+    name: 'Read Codex Home presets',
+    description: 'View suggested Codex Home paths.',
+  },
+  {
+    code: Permission.CodexHomePresetsManage,
+    group: 'content',
+    name: 'Manage Codex Home presets',
+    description: 'Configure suggested paths for Windows and macOS.',
+  },
 ] as const;
 
 export const USER_ROLE_PERMISSIONS: readonly Permission[] = [
@@ -115,6 +129,7 @@ const PERMISSION_DEPENDENCIES: Partial<Record<Permission, readonly Permission[]>
   [Permission.SkillsManage]: [Permission.SkillsRead],
   [Permission.PromptPluginsManage]: [Permission.PromptPluginsRead],
   [Permission.CurrencyManage]: [Permission.CurrencyRead],
+  [Permission.CodexHomePresetsManage]: [Permission.CodexHomePresetsRead],
 };
 
 export function expandPermissionDependencies(permissions: readonly string[]): string[] {

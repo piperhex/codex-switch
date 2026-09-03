@@ -129,8 +129,19 @@ pub(crate) fn write_app_settings<R: Runtime>(
 }
 
 fn apply_app_settings_version_migration(settings: &mut AppSettings, current_version: &str) -> bool {
+    let mut changed = false;
+    if settings.codex_homes.is_empty() {
+        if let Some(path) = settings.codex_home.as_deref().filter(|path| !path.trim().is_empty()) {
+            settings.codex_homes.push(crate::models::CodexHomeEntry {
+                id: uuid::Uuid::new_v4().to_string(),
+                path: path.trim().to_string(),
+                enabled: true,
+            });
+            changed = true;
+        }
+    }
     if settings.last_started_version.as_deref() == Some(current_version) {
-        return false;
+        return changed;
     }
     if settings
         .cloud_base_url

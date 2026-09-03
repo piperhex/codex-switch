@@ -5,6 +5,8 @@ import type {
   AppInfo,
   BubbleResetDisplay,
   BubbleStyle,
+  CodexHomeEntry,
+  CodexHomePreset,
   NetworkProxySettings,
 } from "../../types";
 
@@ -78,10 +80,17 @@ export interface SettingsPageProps {
   onNetworkProxySave: (settings: NetworkProxySettings) => Promise<boolean>;
   onTokenUsageWeeksChange: (value: number | string | null) => void;
   onTokenUsageRefreshSecondsChange: (value: number | string | null) => void;
-  codexHomeCustomized: boolean;
+  codexHomes: CodexHomeEntry[];
+  codexHomePresets: CodexHomePreset[];
   codexHomeLoading: boolean;
-  onChangeCodexHome: () => void;
-  onResetCodexHome: () => void;
+  onAddCodexHome: () => void;
+  onAddCodexHomePath: (path: string) => void;
+  onChooseNewCodexHome: () => void;
+  onCodexHomePathChange: (id: string, path: string) => void;
+  onCommitCodexHomePath: (id: string) => void;
+  onChooseCodexHome: (id: string) => void;
+  onCodexHomeEnabledChange: (id: string, enabled: boolean) => void;
+  onRemoveCodexHome: (id: string) => void;
   onOpenCodexHome: () => void;
   onOpenAccountStore: () => void;
   onExportLogs: () => void;

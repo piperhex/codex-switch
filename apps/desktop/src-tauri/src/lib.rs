@@ -105,7 +105,7 @@ pub fn run() {
             storage::migrate_app_settings_for_version(app.handle())?;
             let settings = storage::read_app_settings(app.handle())?;
             third_party_apps::capture_running_app_paths(app.handle());
-            codex_home::initialize(settings.codex_home.as_deref());
+            codex_home::initialize(&settings);
             main_window::configure_close_behavior(app.handle(), settings.close_to_tray);
             if let Err(error) = system_proxy::configure(&settings.network_proxy) {
                 eprintln!("failed to restore the network proxy setting: {error}");
@@ -216,6 +216,7 @@ pub fn run() {
             ccs_import::confirm_ccswitch_provider_import,
             commands::open_managed_folder,
             codex_home::set_codex_home,
+            codex_home::set_codex_homes,
             commands::list_accounts,
             commands::copy_account_auth_json,
             commands::import_auth_file,

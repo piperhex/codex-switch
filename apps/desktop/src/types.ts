@@ -440,6 +440,7 @@ export interface UpdateInfo {
 
 export interface AppSettings {
   codexHome?: string | null;
+  codexHomes?: CodexHomeEntry[];
   launchAtStartup?: boolean;
   closeToTray?: boolean;
   floatingBubbleEnabled: boolean;
@@ -466,6 +467,18 @@ export interface AppSettings {
   accountGroups?: string[];
   thirdPartyAppWrite?: ThirdPartyAppWriteSettings;
   claudeCodeWriteTarget?: ClaudeCodeWriteTarget;
+}
+
+export interface CodexHomeEntry {
+  id: string;
+  path: string;
+  enabled: boolean;
+}
+
+export interface CodexHomePreset {
+  id: string;
+  name: string;
+  path: string;
 }
 
 export type ClaudeCodeWriteTarget = "all" | "codex" | "claudeCode";

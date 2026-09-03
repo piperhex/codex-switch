@@ -1,4 +1,5 @@
 use std::{
+    collections::HashSet,
     fs,
     path::{Path, PathBuf},
     sync::{OnceLock, RwLock},
@@ -7,7 +8,7 @@ use std::{
 use tauri::{Emitter, Runtime};
 
 use crate::{
-    models::{AppSettings, ManagerStateFile},
+    models::{AppSettings, CodexHomeEntry, ManagerStateFile},
     storage::{
         change_concurrent_account_routing, read_app_settings, resolve_paths,
         sync_current_into_store, try_read_state, write_app_settings, write_state, Paths,
@@ -50,7 +51,14 @@ fn current_override() -> Option<PathBuf> {
         .clone()
 }
 
-pub(crate) fn initialize(value: Option<&str>) {
+fn active_entry(entries: &[CodexHomeEntry]) -> Option<&CodexHomeEntry> {
+    entries.iter().find(|entry| entry.enabled)
+}
+
+pub(crate) fn initialize(settings: &AppSettings) {
+    let value = active_entry(&settings.codex_homes)
+        .map(|entry| entry.path.as_str())
+        .or(settings.codex_home.as_deref());
     replace_override(normalized_override(value));
 }
 
@@ -92,7 +100,7 @@ fn validate_custom_home(value: &str) -> Result<PathBuf, String> {
     if trimmed.is_empty() {
         return Err("请选择 Codex Home 文件夹".to_string());
     }
-    let path = PathBuf::from(trimmed);
+    let path = expand_home_alias(trimmed);
     if !path.is_absolute() {
         return Err("Codex Home 必须使用绝对路径".to_string());
     }
@@ -105,6 +113,74 @@ fn validate_custom_home(value: &str) -> Result<PathBuf, String> {
     }
     fs::read_dir(&path).map_err(|error| format!("无法读取所选文件夹：{error}"))?;
     Ok(path)
+}
+
+fn expand_home_alias(value: &str) -> PathBuf {
+    let Some(home) = dirs::home_dir() else {
+        return PathBuf::from(value);
+    };
+    if value == "~" {
+        return home;
+    }
+    if let Some(suffix) = value
+        .strip_prefix("~/")
+        .or_else(|| value.strip_prefix("~\\"))
+    {
+        return home.join(suffix);
+    }
+    for prefix in ["%USERPROFILE%", "%HOME%"] {
+        if value.eq_ignore_ascii_case(prefix) {
+            return home;
+        }
+        if value.len() > prefix.len()
+            && value
+                .get(..prefix.len())
+                .is_some_and(|value| value.eq_ignore_ascii_case(prefix))
+            && matches!(value.as_bytes()[prefix.len()], b'/' | b'\\')
+        {
+            return home.join(&value[prefix.len() + 1..]);
+        }
+    }
+    PathBuf::from(value)
+}
+
+fn normalize_entries(entries: Vec<CodexHomeEntry>) -> Result<Vec<CodexHomeEntry>, String> {
+    if entries.len() > 20 {
+        return Err("最多可添加 20 个 Codex Home".to_string());
+    }
+    if entries.iter().filter(|entry| entry.enabled).count() > 1 {
+        return Err("同一时间只能启用一个 Codex Home".to_string());
+    }
+    let mut normalized = Vec::with_capacity(entries.len());
+    let mut ids = HashSet::with_capacity(entries.len());
+    for entry in entries {
+        let path = validate_custom_home(&entry.path)?;
+        if normalized
+            .iter()
+            .any(|existing: &CodexHomeEntry| paths_match(Path::new(&existing.path), &path))
+        {
+            return Err("Codex Home 路径不能重复".to_string());
+        }
+        let id = normalized_entry_id(&entry.id);
+        if !ids.insert(id.clone()) {
+            return Err("Codex Home 记录标识不能重复".to_string());
+        }
+        normalized.push(CodexHomeEntry {
+            id,
+            path: path.to_string_lossy().into_owned(),
+            enabled: entry.enabled,
+        });
+    }
+    Ok(normalized)
+}
+
+fn normalized_entry_id(id: &str) -> String {
+    let trimmed = id.trim();
+    if trimmed.is_empty() {
+        uuid::Uuid::new_v4().to_string()
+    } else {
+        trimmed.to_string()
+    }
 }
 
 fn paths_match(left: &Path, right: &Path) -> bool {
@@ -168,10 +244,24 @@ fn update_codex_home<R: Runtime>(
     app: &tauri::AppHandle<R>,
     requested_path: Option<String>,
 ) -> Result<AppSettings, String> {
-    let requested = requested_path
-        .as_deref()
-        .map(validate_custom_home)
-        .transpose()?;
+    let entries = requested_path
+        .map(|path| {
+            vec![CodexHomeEntry {
+                id: uuid::Uuid::new_v4().to_string(),
+                path,
+                enabled: true,
+            }]
+        })
+        .unwrap_or_default();
+    update_codex_homes(app, entries)
+}
+
+fn update_codex_homes<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    entries: Vec<CodexHomeEntry>,
+) -> Result<AppSettings, String> {
+    let entries = normalize_entries(entries)?;
+    let requested = active_entry(&entries).map(|entry| PathBuf::from(&entry.path));
     let _switch_guard = crate::commands::account_switch_lock()
         .lock()
         .map_err(|_| "Codex Home 设置锁不可用".to_string())?;
@@ -187,6 +277,7 @@ fn update_codex_home<R: Runtime>(
     settings.codex_home = requested
         .as_ref()
         .map(|path| path.as_os_str().to_string_lossy().into_owned());
+    settings.codex_homes = entries;
     if let Err(error) = write_app_settings(app, &settings) {
         if let Some(state) = previous_state.as_ref() {
             restore_state_after_failed_save(&old_paths, state);
@@ -211,9 +302,20 @@ pub(crate) async fn set_codex_home<R: Runtime + 'static>(
         .map_err(|error| format!("Codex Home 设置任务失败：{error}"))?
 }
 
+#[tauri::command]
+pub(crate) async fn set_codex_homes<R: Runtime + 'static>(
+    app: tauri::AppHandle<R>,
+    homes: Vec<CodexHomeEntry>,
+) -> Result<AppSettings, String> {
+    tauri::async_runtime::spawn_blocking(move || update_codex_homes(&app, homes))
+        .await
+        .map_err(|error| format!("Codex Home 设置任务失败：{error}"))?
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{resolve_from_sources, validate_custom_home};
+    use super::{expand_home_alias, normalize_entries, resolve_from_sources, validate_custom_home};
+    use crate::models::CodexHomeEntry;
     use std::{fs, path::PathBuf};
 
     #[test]
@@ -264,6 +366,38 @@ mod tests {
         assert!(validate_custom_home(filesystem_root.to_str().unwrap()).is_err());
         assert!(validate_custom_home(file.to_str().unwrap()).is_err());
 
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn home_aliases_expand_to_absolute_paths() {
+        let home = dirs::home_dir().unwrap();
+        assert_eq!(expand_home_alias("~/.codex"), home.join(".codex"));
+        assert_eq!(
+            expand_home_alias("%USERPROFILE%\\.codex"),
+            home.join(".codex")
+        );
+    }
+
+    #[test]
+    fn multiple_enabled_homes_are_rejected() {
+        let root =
+            std::env::temp_dir().join(format!("codex-switch-home-test-{}", uuid::Uuid::new_v4()));
+        let second = root.join("second");
+        fs::create_dir_all(&second).unwrap();
+        let entries = vec![
+            CodexHomeEntry {
+                id: "one".to_string(),
+                path: root.to_string_lossy().into_owned(),
+                enabled: true,
+            },
+            CodexHomeEntry {
+                id: "two".to_string(),
+                path: second.to_string_lossy().into_owned(),
+                enabled: true,
+            },
+        ];
+        assert!(normalize_entries(entries).is_err());
         fs::remove_dir_all(root).unwrap();
     }
 }

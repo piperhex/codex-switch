@@ -18,6 +18,7 @@ import { DeviceModule } from '@/modules/devices/device.module';
 import { SkillsModule } from '@/modules/skills/skills.module';
 import { CurrencyModule } from '@/modules/currency/currency.module';
 import { PromptPluginsModule } from '@/modules/prompt-plugins/prompt-plugins.module';
+import { CodexHomePresetsModule } from '@/modules/codex-home-presets/codex-home-presets.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { PromptPluginsModule } from '@/modules/prompt-plugins/prompt-plugins.mod
     SkillsModule,
     CurrencyModule,
     PromptPluginsModule,
+    CodexHomePresetsModule,
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'public'),
       // API misses must remain API 404 responses. Without these exclusions,
@@ -59,6 +61,7 @@ import { PromptPluginsModule } from '@/modules/prompt-plugins/prompt-plugins.mod
         '/device-switch/{*any}',
         '/skills/{*any}',
         '/prompt-plugins/{*any}',
+        '/codex-home-presets/{*any}',
       ],
     }),
   ],

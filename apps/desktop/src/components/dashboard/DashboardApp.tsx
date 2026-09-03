@@ -369,6 +369,7 @@ export function DashboardApp() {
     t,
   });
   const codexHome = useCodexHome({
+    cloudBaseUrl: cloud.state.baseUrl?.trim() || DEFAULT_CLOUD_BASE_URL,
     currentPath: manager.info?.codexHome,
     localProxyRunning: Boolean(providerManager.localProxy?.running),
     notify,
@@ -1479,10 +1480,17 @@ export function DashboardApp() {
               onNetworkProxySave={saveNetworkProxy}
               onTokenUsageWeeksChange={tokenUsagePreferences.updateWeeks}
               onTokenUsageRefreshSecondsChange={tokenUsagePreferences.updateRefreshSeconds}
-              codexHomeCustomized={codexHome.customized}
+              codexHomes={codexHome.homes}
+              codexHomePresets={codexHome.presets}
               codexHomeLoading={codexHome.loading}
-              onChangeCodexHome={() => void codexHome.change()}
-              onResetCodexHome={codexHome.reset}
+              onAddCodexHome={codexHome.addEmpty}
+              onAddCodexHomePath={(path) => void codexHome.addPath(path)}
+              onChooseNewCodexHome={() => void codexHome.chooseNew()}
+              onCodexHomePathChange={codexHome.changePath}
+              onCommitCodexHomePath={(id) => void codexHome.commitPath(id)}
+              onChooseCodexHome={(id) => void codexHome.chooseFor(id)}
+              onCodexHomeEnabledChange={(id, enabled) => void codexHome.setEnabled(id, enabled)}
+              onRemoveCodexHome={(id) => void codexHome.remove(id)}
               onOpenCodexHome={openCodexHome} onOpenAccountStore={openAccountStore} language={language}
               onExportLogs={() => void exportLogs()} exportingLogs={exportingLogs}
               onLanguageChange={setLanguage} t={t} />

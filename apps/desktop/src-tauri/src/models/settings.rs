@@ -1,8 +1,11 @@
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct AppSettings {
+    /// Kept for clients released before multi-home settings were introduced.
     #[serde(default)]
     pub(crate) codex_home: Option<String>,
+    #[serde(default)]
+    pub(crate) codex_homes: Vec<CodexHomeEntry>,
     #[serde(default = "default_launch_at_startup")]
     pub(crate) launch_at_startup: bool,
     #[serde(default = "default_close_to_tray")]
@@ -67,6 +70,15 @@ pub(crate) struct AppSettings {
     pub(crate) third_party_app_write: Option<ThirdPartyAppWriteSettings>,
     #[serde(default)]
     pub(crate) last_started_version: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CodexHomeEntry {
+    pub(crate) id: String,
+    pub(crate) path: String,
+    #[serde(default)]
+    pub(crate) enabled: bool,
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
@@ -232,6 +244,7 @@ impl Default for AppSettings {
     fn default() -> Self {
         Self {
             codex_home: None,
+            codex_homes: Vec::new(),
             launch_at_startup: default_launch_at_startup(),
             close_to_tray: default_close_to_tray(),
             floating_bubble_enabled: default_floating_bubble_enabled(),

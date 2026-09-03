@@ -1,5 +1,6 @@
 import { Button, Switch } from "antd";
-import { FileDown, FolderKey, FolderOpen, KeyRound, RefreshCw, RotateCcw, ShieldCheck } from "lucide-react";
+import { FileDown, FolderOpen, KeyRound, RefreshCw, ShieldCheck } from "lucide-react";
+import { CodexHomeSettingsCard } from "./CodexHomeSettingsCard";
 import { DurationTimePicker } from "./DurationTimePicker";
 import type { SettingsPageProps } from "./types";
 
@@ -73,50 +74,6 @@ function AccountAutoRefreshCard({ settings }: { settings: SettingsPageProps }) {
             disabled={!currentAutoRefreshTarget || !accountAutoRefreshEnabled}
             onChange={onAccountAutoRefreshSecondsChange}
           />
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function CodexHomeCard({ settings }: { settings: SettingsPageProps }) {
-  const { t } = settings;
-  const path = settings.info?.codexHome;
-  return (
-    <section className="settings-card">
-      <div className="settings-icon"><FolderKey size={23} /></div>
-      <div className="settings-card-content">
-        <div className="settings-card-copy">
-          <h3>Codex Home</h3>
-          <p>{t("settings.codexHome.description")}</p>
-          <code>{path ?? t("settings.loading")}</code>
-        </div>
-        <div className="settings-folder-actions">
-          <Button
-            size="small"
-            loading={settings.codexHomeLoading}
-            onClick={settings.onChangeCodexHome}
-          >
-            {t("settings.codexHome.change")}
-          </Button>
-          {settings.codexHomeCustomized && (
-            <Button
-              size="small"
-              icon={<RotateCcw size={14} />}
-              disabled={settings.codexHomeLoading}
-              onClick={settings.onResetCodexHome}
-            >
-              {t("settings.codexHome.reset")}
-            </Button>
-          )}
-          <Button
-            size="small"
-            icon={<FolderOpen size={14} />}
-            disabled={!path || settings.codexHomeLoading}
-            onClick={settings.onOpenCodexHome}
-          >
-            {t("settings.openFolder")}
-          </Button>
         </div>
       </div>
     </section>
@@ -200,7 +157,7 @@ export function SecuritySettingsCard({ settings }: { settings: SettingsPageProps
 export function StorageSettingsCards({ settings }: { settings: SettingsPageProps }) {
   return (
     <>
-      <CodexHomeCard settings={settings} />
+      <CodexHomeSettingsCard settings={settings} />
       <AccountStoreCard settings={settings} />
       <LogsCard settings={settings} />
     </>

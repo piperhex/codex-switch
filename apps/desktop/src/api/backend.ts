@@ -41,6 +41,8 @@ import type {
   CloudNotification,
   CloudSyncResult,
   ClaudeCodeWriteTarget,
+  CodexHomeEntry,
+  CodexHomePreset,
   ThirdPartyAppWriteSettings,
   DeletedCloudProvider,
   CodexThreadBinEntry,
@@ -591,6 +593,7 @@ export async function loadAppSettings(): Promise<AppSettings> {
   if (!hasLocalBackend) {
     return {
       codexHome: null,
+      codexHomes: [],
       launchAtStartup: window.localStorage.getItem(LAUNCH_AT_STARTUP_PREVIEW_KEY) !== "false",
       closeToTray: window.localStorage.getItem(CLOSE_TO_TRAY_PREVIEW_KEY) !== "false",
       floatingBubbleEnabled: previewFloatingBubbleEnabled(),
@@ -681,6 +684,21 @@ export async function chooseCodexHome(defaultPath?: string): Promise<string | nu
 export async function updateCodexHome(path: string | null): Promise<AppSettings> {
   if (!isDesktopApp) return loadAppSettings();
   return invoke<AppSettings>("set_codex_home", { path });
+}
+
+export async function updateCodexHomes(homes: CodexHomeEntry[]): Promise<AppSettings> {
+  if (!isDesktopApp) return loadAppSettings();
+  return invoke<AppSettings>("set_codex_homes", { homes });
+}
+
+export async function loadCodexHomePresets(baseUrl: string): Promise<CodexHomePreset[]> {
+  const platform = navigator.platform.toLowerCase().includes("mac") ? "macos" : "windows";
+  const response = await fetch(
+    `${baseUrl.replace(/\/+$/, "")}/codex-home-presets?platform=${platform}`,
+    { headers: { Accept: "application/json" }, cache: "no-store" },
+  );
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return response.json() as Promise<CodexHomePreset[]>;
 }
 
 export async function loadGpt56SolContextWindow(): Promise<number> {

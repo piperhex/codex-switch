@@ -164,6 +164,16 @@ const BUILT_IN_PERMISSION_ZH: Record<string, PermissionMetadata> = {
     name: "管理系统提示词",
     description: "编辑或删除市场中的系统提示词。",
   },
+  "admin.codex-home-presets.read": {
+    group: "内容与通知",
+    name: "查看 Codex Home 路径",
+    description: "查看客户端可选的 Codex Home 推荐路径。",
+  },
+  "admin.codex-home-presets.manage": {
+    group: "内容与通知",
+    name: "管理 Codex Home 路径",
+    description: "配置 Windows 和 macOS 客户端的推荐路径。",
+  },
   "admin.telemetry.read": {
     group: "设备统计",
     name: "查看设备统计",

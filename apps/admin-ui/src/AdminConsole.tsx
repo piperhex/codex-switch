@@ -21,6 +21,7 @@ import { useAuthenticatedApi } from "./hooks/useAuthenticatedApi";
 import { ApprovalsPage } from "./pages/ApprovalsPage";
 import { AnnouncementPage } from "./pages/AnnouncementPage";
 import { CurrencyPage } from "./pages/CurrencyPage";
+import { CodexHomePresetsPage } from "./pages/CodexHomePresetsPage";
 import { AuditLogsPage } from "./pages/AuditLogsPage";
 import { FeedbackPage } from "./pages/FeedbackPage";
 import { EmailTemplatesPage } from "./pages/EmailTemplatesPage";
@@ -40,6 +41,8 @@ import type {
   AnnouncementConfig,
   CurrencyItem,
   CurrencySettings,
+  CodexHomePreset,
+  CodexHomePresetSettings,
   AdminSkillRow,
   AdminSkillUpdate,
   AdminPromptPluginRow,
@@ -120,6 +123,10 @@ const emptyCurrencySettings: CurrencySettings = {
   cacheExpiresAt: null,
   updatedAt: null,
 };
+const emptyCodexHomePresetSettings: CodexHomePresetSettings = {
+  presets: [],
+  updatedAt: null,
+};
 const emptyAnnouncementClicks: PageResult<AnnouncementClick> = {
   items: [], total: 0, page: 1, pageSize: 20,
 };
@@ -137,6 +144,7 @@ const menuPermissions: Record<MenuKey, Permission> = {
   officialAccounts: "admin.official-accounts.read",
   announcement: "admin.announcements.read",
   currency: "admin.currency.read",
+  codexHomePresets: "admin.codex-home-presets.read",
   emailTemplates: "admin.email-templates.read",
   skills: "admin.skills.read",
   promptPlugins: "admin.prompt-plugins.read",
@@ -155,6 +163,7 @@ const menuOrder: MenuKey[] = [
   "officialAccounts",
   "announcement",
   "currency",
+  "codexHomePresets",
   "emailTemplates",
   "skills",
   "promptPlugins",
@@ -227,6 +236,11 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
   const [currencySettings, setCurrencySettings] = useState<CurrencySettings>(emptyCurrencySettings);
   const [currencyLoading, setCurrencyLoading] = useState(false);
   const [currencySaving, setCurrencySaving] = useState(false);
+  const [codexHomePresetSettings, setCodexHomePresetSettings] = useState(
+    emptyCodexHomePresetSettings,
+  );
+  const [codexHomePresetsLoading, setCodexHomePresetsLoading] = useState(false);
+  const [codexHomePresetsSaving, setCodexHomePresetsSaving] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [notificationSaving, setNotificationSaving] = useState(false);
@@ -680,6 +694,35 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
     }
   }, [api, message, t]);
 
+  const loadCodexHomePresets = useCallback(async () => {
+    setCodexHomePresetsLoading(true);
+    try {
+      setCodexHomePresetSettings(
+        await api<CodexHomePresetSettings>("/admin/api/codex-home-presets"),
+      );
+    } catch (error) {
+      message.error((error as Error).message);
+    } finally {
+      setCodexHomePresetsLoading(false);
+    }
+  }, [api, message]);
+
+  const saveCodexHomePresets = useCallback(async (presets: CodexHomePreset[]) => {
+    setCodexHomePresetsSaving(true);
+    try {
+      setCodexHomePresetSettings(await api<CodexHomePresetSettings>(
+        "/admin/api/codex-home-presets",
+        { method: "PATCH", body: JSON.stringify({ presets }) },
+      ));
+      message.success(t("codexHomePresets.saved"));
+    } catch (error) {
+      message.error((error as Error).message);
+      throw error;
+    } finally {
+      setCodexHomePresetsSaving(false);
+    }
+  }, [api, message, t]);
+
   const loadNotifications = useCallback(async () => {
     setNotificationsLoading(true);
     try {
@@ -881,6 +924,7 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
       void loadAnnouncementClicks();
     }
     if (activeKey === "currency") void loadCurrency();
+    if (activeKey === "codexHomePresets") void loadCodexHomePresets();
     if (activeKey === "feedback") void loadFeedback();
     if (activeKey === "skills") void loadSkills();
     if (activeKey === "promptPlugins") void loadPromptPlugins();
@@ -906,6 +950,7 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
     loadDashboard,
     loadAnnouncement,
     loadCurrency,
+    loadCodexHomePresets,
     loadNotifications,
     loadFaqs,
     loadAnnouncementClickOverview,
@@ -939,6 +984,9 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
   const canManageApprovals = Boolean(profile?.permissions?.includes("admin.approvals.manage"));
   const canManageAnnouncements = Boolean(profile?.permissions?.includes("admin.announcements.manage"));
   const canManageCurrency = Boolean(profile?.permissions?.includes("admin.currency.manage"));
+  const canManageCodexHomePresets = Boolean(
+    profile?.permissions?.includes("admin.codex-home-presets.manage"),
+  );
   const canManageFeedback = Boolean(profile?.permissions?.includes("admin.feedback.manage"));
   const canManageSkills = Boolean(profile?.permissions?.includes("admin.skills.manage"));
   const canManagePromptPlugins = Boolean(profile?.permissions?.includes("admin.prompt-plugins.manage"));
@@ -1259,6 +1307,19 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
           canManage={canManageCurrency}
           onRefresh={loadCurrency}
           onSave={saveCurrency}
+        />
+      );
+    }
+
+    if (activeKey === "codexHomePresets") {
+      return (
+        <CodexHomePresetsPage
+          settings={codexHomePresetSettings}
+          loading={codexHomePresetsLoading}
+          saving={codexHomePresetsSaving}
+          canManage={canManageCodexHomePresets}
+          onRefresh={loadCodexHomePresets}
+          onSave={saveCodexHomePresets}
         />
       );
     }

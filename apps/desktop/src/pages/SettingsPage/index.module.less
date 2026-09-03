@@ -29,6 +29,22 @@
   .settings-card-copy > .cloud-settings-status { margin-top: 7px !important; }
   .settings-card code { display: block; padding: 6px 8px; border-radius: 7px; color: #456052; background: #f0f3ef; font-size: 10px; word-break: break-all; }
   .settings-folder-actions { flex: 0 0 auto; display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+  .codex-home-settings-card { align-items: flex-start; }
+  .codex-home-card-content { align-items: stretch; flex-direction: column; gap: 10px; }
+  .codex-home-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .codex-home-list { display: grid; gap: 7px; }
+  .codex-home-row {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: auto minmax(180px, 1fr) auto auto;
+    align-items: center;
+    gap: 8px;
+  }
+  .codex-home-row .ant-input { min-width: 0; font: 500 11px/1.4 "DM Sans", "Microsoft YaHei UI", sans-serif; }
+  .codex-home-default-row { min-width: 0; display: flex; align-items: center; gap: 9px; }
+  .codex-home-default-row > span { flex: 0 0 auto; color: var(--green-dark); font-size: 11px; font-weight: 700; }
+  .codex-home-default-row > code { min-width: 0; flex: 1 1 auto; }
+  .codex-home-hint { max-width: 400px; }
   .settings-field { flex: 0 0 auto; display: flex; align-items: center; justify-content: flex-end; gap: 10px; white-space: nowrap; }
   .settings-field label { color: #5d6a62; font-size: 11px; font-weight: 700; }
   .settings-field .ant-segmented-item-label { height: 100%; min-height: 0; display: flex; align-items: center; justify-content: center; line-height: 1; }
@@ -85,6 +101,7 @@
     .settings-card-content { align-items: flex-start; flex-direction: column; gap: 10px; }
     .settings-field { flex-wrap: wrap; justify-content: flex-start; white-space: normal; }
     .settings-folder-actions { justify-content: flex-start; }
+    .codex-home-row { grid-template-columns: auto minmax(0, 1fr) auto auto; }
     .settings-field-wide .ant-input-affix-wrapper { width: min(430px, 100%); }
     .network-proxy-editor { width: 100%; }
     .network-proxy-fields { grid-template-columns: 1fr 100px; }

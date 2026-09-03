@@ -1,7 +1,23 @@
 export type Role = string;
 export type UserStatus = "active" | "disabled";
 export type Permission = string;
-export type MenuKey = "dashboard" | "myAccounts" | "users" | "roles" | "officialAccounts" | "announcement" | "currency" | "emailTemplates" | "skills" | "promptPlugins" | "feedback" | "telemetry" | "audit" | "invitations" | "approvals";
+export type MenuKey =
+  | "dashboard"
+  | "myAccounts"
+  | "users"
+  | "roles"
+  | "officialAccounts"
+  | "announcement"
+  | "currency"
+  | "codexHomePresets"
+  | "emailTemplates"
+  | "skills"
+  | "promptPlugins"
+  | "feedback"
+  | "telemetry"
+  | "audit"
+  | "invitations"
+  | "approvals";
 
 export interface AuthTokens {
   accessToken: string;
@@ -61,6 +77,20 @@ export interface CurrencySettings {
   currencies: CurrencyItem[];
   cachedRates: CurrencyRate[];
   cacheExpiresAt?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface CodexHomePreset {
+  id: string;
+  name: string;
+  windowsPath: string;
+  macosPath: string;
+  enabled: boolean;
+  sortOrder: number;
+}
+
+export interface CodexHomePresetSettings {
+  presets: CodexHomePreset[];
   updatedAt?: string | null;
 }
 
