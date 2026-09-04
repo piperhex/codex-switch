@@ -11,7 +11,7 @@ import {
   grokReasoningEfforts,
 } from "../../utils/grokProvider";
 import { modelOptions, normalizeModels } from "./providerUtils";
-import { ProviderSpeedTierControl } from "./ProviderFormFields";
+import { ProviderFastModeSupportControl } from "./ProviderFormFields";
 import type { ProviderModalProps } from "./ProviderModal";
 
 const API_KEY_AUTOFETCH_DELAY_MS = 800;
@@ -24,7 +24,7 @@ export function GrokProviderModal({ provider, saving, onClose, onSave, t }: Prov
   const [modelsLoading, setModelsLoading] = useState(false);
   const [modelsError, setModelsError] = useState("");
   const [modelsLoaded, setModelsLoaded] = useState(false);
-  const [fastModeEnabled, setFastModeEnabled] = useState(false);
+  const [supportsFastMode, setSupportsFastMode] = useState(true);
   const modelRequestId = useRef(0);
 
   useEffect(() => {
@@ -37,7 +37,7 @@ export function GrokProviderModal({ provider, saving, onClose, onSave, t }: Prov
     setModel(provider?.model ?? nextModels[0] ?? "");
     setModelsError("");
     setModelsLoaded(false);
-    setFastModeEnabled(provider?.fastModeEnabled ?? false);
+    setSupportsFastMode(provider?.fastModeEnabled ?? true);
   }, [provider]);
 
   const loadLatestModels = async () => {
@@ -104,7 +104,7 @@ export function GrokProviderModal({ provider, saving, onClose, onSave, t }: Prov
       ),
       contextWindow: null,
       modelSelectionControlledByCodex: true,
-      fastModeEnabled,
+      fastModeEnabled: supportsFastMode,
       apiKey: apiKey.trim() || undefined,
       apiFormat: "openaiResponses",
       balancePlatform: null,
@@ -141,8 +141,8 @@ export function GrokProviderModal({ provider, saving, onClose, onSave, t }: Prov
               ? t("providers.form.keepApiKey")
               : t("providers.form.newApiKey")}
             onChange={(event) => setApiKey(event.target.value)} />
-          <ProviderSpeedTierControl fastModeEnabled={fastModeEnabled} saving={saving}
-            onChange={setFastModeEnabled} t={t} />
+          <ProviderFastModeSupportControl supportsFastMode={supportsFastMode} saving={saving}
+            onChange={setSupportsFastMode} t={t} />
           <div className="provider-form-label-row">
             <label htmlFor="grok-models">{t("providers.grok.models")}</label>
             <Button size="small" icon={<RefreshCw size={13} />} loading={modelsLoading}

@@ -561,6 +561,23 @@
     }
 
     #[test]
+    fn provider_without_fast_support_forces_standard_requests() {
+        let mut provider = openai_provider("https://upstream.example.com/v1".to_string());
+        provider.fast_mode_enabled = false;
+        let body = serde_json::to_vec(&json!({
+            "model": "gpt-5.6-sol",
+            "input": "ping",
+            "service_tier": "priority"
+        }))
+        .unwrap();
+
+        let forwarded = provider_body_for_upstream(&Method::Post, "/v1/responses", body, &provider);
+        let parsed: Value = serde_json::from_slice(&forwarded).unwrap();
+
+        assert_eq!(parsed["service_tier"], "default");
+    }
+
+    #[test]
     fn openai_provider_models_request_is_forwarded_with_api_key() {
         let catalog = json!({ "models": [{ "slug": "gpt-5.6-sol", "context_window": 372000 }] });
         let expected = serde_json::to_vec(&catalog).unwrap();

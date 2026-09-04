@@ -368,8 +368,9 @@ fn provider_body_for_upstream(
     body: Vec<u8>,
     provider: &ProviderProfile,
 ) -> Vec<u8> {
+    let service_tier = provider_service_tier(provider);
     if providers::uses_upstream_official_models(provider) {
-        return official_body_for_upstream(method, url, body, &provider.model);
+        return official_body_for_upstream_with_tier(method, url, body, &provider.model, service_tier);
     }
     if *method != Method::Post || !is_responses_endpoint(request_path(url)) {
         return body;
@@ -379,8 +380,15 @@ fn provider_body_for_upstream(
     };
     remove_local_reasoning_from_input(&mut value);
     value["model"] = Value::String(selected_provider_model(&value, provider));
-    apply_proxy_service_tier(&mut value, proxy_service_tier_override());
+    apply_proxy_service_tier(&mut value, service_tier);
     serde_json::to_vec(&value).unwrap_or(body)
+}
+
+fn provider_service_tier(provider: &ProviderProfile) -> Option<ProxyServiceTier> {
+    if provider.fast_mode_enabled {
+        return proxy_service_tier_override();
+    }
+    Some(ProxyServiceTier::Default)
 }
 
 fn body_with_selected_model(body: Vec<u8>, model: &str) -> Vec<u8> {

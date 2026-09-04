@@ -4,7 +4,7 @@ import { Bot, RefreshCw, Save, X } from "lucide-react";
 import { fetchDeepSeekModels } from "../../api/backend";
 import type { Provider, ProviderInput } from "../../types";
 import { CONTEXT_WINDOW_OPTIONS, modelOptions, normalizeModels, parseContextWindowK } from "./providerUtils";
-import { ProviderSpeedTierControl } from "./ProviderFormFields";
+import { ProviderFastModeSupportControl } from "./ProviderFormFields";
 import type { ProviderModalProps } from "./ProviderModal";
 export function OpenAiProviderModal({ provider, saving, onClose, onSave, t }: ProviderModalProps) {
   const [name, setName] = useState("Codex Switch");
@@ -90,7 +90,7 @@ export function DeepSeekProviderModal({ provider, saving, onClose, onSave, t }: 
   const [modelsLoading, setModelsLoading] = useState(false);
   const [modelsError, setModelsError] = useState("");
   const [modelsLoaded, setModelsLoaded] = useState(false);
-  const [fastModeEnabled, setFastModeEnabled] = useState(false);
+  const [supportsFastMode, setSupportsFastMode] = useState(true);
   const modelRequestId = useRef(0);
 
   useEffect(() => {
@@ -106,7 +106,7 @@ export function DeepSeekProviderModal({ provider, saving, onClose, onSave, t }: 
       : "1000");
     setModelsError("");
     setModelsLoaded(false);
-    setFastModeEnabled(provider?.fastModeEnabled ?? false);
+    setSupportsFastMode(provider?.fastModeEnabled ?? true);
   }, [provider]);
 
   const loadLatestModels = async () => {
@@ -170,7 +170,7 @@ export function DeepSeekProviderModal({ provider, saving, onClose, onSave, t }: 
       imageInputModels: [],
       contextWindow,
       modelSelectionControlledByCodex: provider?.modelSelectionControlledByCodex ?? true,
-      fastModeEnabled,
+      fastModeEnabled: supportsFastMode,
       apiKey: apiKey.trim() || undefined,
       apiFormat: "openaiChat",
       balancePlatform: "deepSeek",
@@ -198,8 +198,8 @@ export function DeepSeekProviderModal({ provider, saving, onClose, onSave, t }: 
           <Input.Password id="deepseek-api-key" value={apiKey} disabled={saving}
             placeholder={provider?.hasApiKey ? t("providers.form.keepApiKey") : t("providers.form.newApiKey")}
             onChange={(event) => setApiKey(event.target.value)} />
-          <ProviderSpeedTierControl fastModeEnabled={fastModeEnabled} saving={saving}
-            onChange={setFastModeEnabled} t={t} />
+          <ProviderFastModeSupportControl supportsFastMode={supportsFastMode} saving={saving}
+            onChange={setSupportsFastMode} t={t} />
           <div className="provider-form-label-row">
             <label htmlFor="deepseek-models">{t("providers.deepSeek.models")}</label>
             <Button size="small" icon={<RefreshCw size={13} />} loading={modelsLoading}

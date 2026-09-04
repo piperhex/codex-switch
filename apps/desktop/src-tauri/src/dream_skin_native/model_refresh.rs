@@ -330,7 +330,7 @@ fn codex_model_refresh_expression(
       : (query.observers?.length ?? 0) > 0;
     return active && matchesModelsQuery(query) && key[2] === "local" && key[3] === "no-auth";
   }});
-  window.__CODEX_SWITCH_SPEED_SELECTOR_ALLOWED__ = expectedModels.length > 0 && hasNoAuthModelQuery;
+  window.__CODEX_SWITCH_SPEED_SELECTOR_ALLOWED__ = fastModeModels.size > 0 && hasNoAuthModelQuery;
 {speed_selector_overlay}
 {observer_patch_helpers}
   if (expectedModels.length === 0) {{

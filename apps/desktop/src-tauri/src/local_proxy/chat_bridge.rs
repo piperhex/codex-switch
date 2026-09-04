@@ -10,6 +10,7 @@ fn forward_chat_bridge(
     }
     let mut responses_body: Value = serde_json::from_slice(&body)
         .map_err(|error| format!("Responses request body is not valid JSON: {error}"))?;
+    apply_proxy_service_tier(&mut responses_body, provider_service_tier(provider));
     let selected_model = selected_provider_model(&responses_body, provider);
     responses_body["model"] = Value::String(selected_model.clone());
     let tool_context = build_codex_tool_context_from_request(&responses_body);

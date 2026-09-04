@@ -1162,9 +1162,16 @@ export function DashboardApp() {
       startDisabledReason={proxyStartDisabledReason} t={t} />
   );
   const sidebarNavigationEnabled = navigationStyle.style === "sidebar";
+  const usageSpeedPill = providerManager.localProxy?.running
+    && providerManager.localProxy.fastModeAvailable
+    ? <UsageSpeedPill fastModeEnabled={providerManager.localProxy.fastModeEnabled}
+      fastModeAvailable proxyRunning loading={providerManager.proxyBusy}
+      onChange={providerManager.setProxyFastMode} t={t} />
+    : null;
   const proxyTopbarActions = (
     <ProxyTopbarActions cloudAuthenticated={cloud.state.authenticated}
-      manager={providerManager} showSessionManager={!sidebarNavigationEnabled} t={t} />
+      manager={providerManager} showSessionManager={!sidebarNavigationEnabled}
+      trailingAction={usageSpeedPill} t={t} />
   );
   const accountProxyTopbarActions = (
     <ProxyTopbarActions cloudAuthenticated={cloud.state.authenticated}
@@ -1182,11 +1189,7 @@ export function DashboardApp() {
           outputTarget={providerManager.localProxy.imageOutputTarget}
           busy={providerManager.proxyBusy} onChange={providerManager.setProxyImageModel}
           privacyMode={privacyMode.enabled} t={t} />}
-        {providerManager.localProxy?.running && <UsageSpeedPill
-          fastModeEnabled={providerManager.localProxy.fastModeEnabled}
-          fastModeAvailable={providerManager.localProxy.fastModeAvailable}
-          proxyRunning loading={providerManager.proxyBusy}
-          onChange={providerManager.setProxyFastMode} t={t} />}
+        {usageSpeedPill}
         {!sidebarNavigationEnabled && <TotpWindowButton notify={notify} t={t} />}
       </>} t={t} />
   );
