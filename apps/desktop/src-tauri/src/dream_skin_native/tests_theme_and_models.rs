@@ -249,6 +249,15 @@
     }
 
     #[test]
+    fn codex_notification_expression_escapes_untrusted_text() {
+        let expression = codex_notification_expression("saved </script> ' \" ✓").unwrap();
+
+        assert!(expression.contains("body.textContent = \"saved </script> ' \\\" ✓\""));
+        assert!(!expression.contains("innerHTML"));
+        assert!(expression.contains("width: min(400px"));
+    }
+
+    #[test]
     fn codex_model_refresh_preserves_metadata_while_removing_unexpected_models() {
         let expression = codex_model_refresh_expression(
             &["gpt-visible".to_string()],

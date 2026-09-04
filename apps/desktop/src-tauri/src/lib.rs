@@ -14,6 +14,7 @@ mod cloud;
 mod codex_api;
 mod codex_config;
 mod codex_home;
+mod codex_notification;
 mod codex_runtime;
 mod commands;
 mod conversation_hub;
@@ -247,6 +248,7 @@ pub fn run() {
             commands::consume_reset_credit,
             commands::restart_chatgpt,
             commands::launch_chatgpt,
+            codex_notification::sync_codex_notification,
             claude_code::set_claude_code_write_target,
             third_party_apps::set_third_party_app_write_settings,
             claude_code::launch_claude_code,

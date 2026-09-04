@@ -6,6 +6,61 @@ struct CdpSession {
 const SERVICE_TIER_BINDING: &str = "codexSwitchSetServiceTier";
 const SERVICE_TIER_BINDING_POLL: Duration = Duration::from_millis(500);
 static SERVICE_TIER_BINDING_GENERATION: AtomicU64 = AtomicU64::new(0);
+const CODEX_NOTIFICATION_HOST_ID: &str = "codex-switch-notification";
+const CODEX_NOTIFICATION_CSS: &str = r#"
+:host {
+  all: initial;
+  position: fixed;
+  z-index: 2147483647;
+  top: 30px;
+  left: 50%;
+  width: min(400px, calc(100vw - 32px));
+  transform: translateX(-50%);
+  pointer-events: none;
+  color-scheme: light dark;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+.notice {
+  box-sizing: border-box;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 14px;
+  border: 1px solid rgba(34, 197, 94, .28);
+  border-radius: 12px;
+  color: #163d27;
+  background: rgba(247, 252, 247, .97);
+  box-shadow: 0 14px 35px rgba(18, 41, 26, .18);
+  animation: codex-switch-notice-in .2s ease-out;
+}
+.mark {
+  display: grid;
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: #228b4e;
+  font: 700 13px/1 system-ui, sans-serif;
+}
+.content { min-width: 0; }
+.title { margin-bottom: 2px; color: #39704e; font-size: 11px; font-weight: 700; }
+.message { font-size: 13px; font-weight: 650; line-height: 1.45; overflow-wrap: anywhere; white-space: pre-wrap; }
+@media (prefers-color-scheme: dark) {
+  .notice {
+    border-color: rgba(74, 222, 128, .25);
+    color: #e6f5eb;
+    background: rgba(24, 35, 28, .97);
+    box-shadow: 0 14px 35px rgba(0, 0, 0, .32);
+  }
+  .title { color: #90c9a5; }
+}
+@keyframes codex-switch-notice-in {
+  from { opacity: 0; transform: translateY(-8px); }
+}
+"#;
 
 fn cdp_command_remaining(deadline: Instant, method: &str) -> Result<Duration, String> {
     let remaining = deadline.saturating_duration_since(Instant::now());
@@ -267,6 +322,66 @@ fn list_targets(port: u16) -> Result<Vec<CdpTarget>, String> {
         .into_iter()
         .filter(|target| validate_target(target, port).is_ok())
         .collect())
+}
+
+fn codex_notification_expression(message: &str) -> Result<String, String> {
+    let message = serde_json::to_string(message)
+        .map_err(|_| "Could not prepare the Codex notification.".to_string())?;
+    let host_id = serde_json::to_string(CODEX_NOTIFICATION_HOST_ID)
+        .map_err(|_| "Could not prepare the Codex notification.".to_string())?;
+    let css = serde_json::to_string(CODEX_NOTIFICATION_CSS)
+        .map_err(|_| "Could not prepare the Codex notification.".to_string())?;
+    Ok(format!(
+        r#"(() => {{
+  const hostId = {host_id};
+  let host = document.getElementById(hostId);
+  if (!host) {{
+    host = document.createElement('div');
+    host.id = hostId;
+    document.documentElement.append(host);
+  }}
+  const root = host.shadowRoot || host.attachShadow({{ mode: 'open' }});
+  const style = document.createElement('style');
+  style.textContent = {css};
+  const notice = document.createElement('div');
+  notice.className = 'notice';
+  notice.setAttribute('role', 'status');
+  notice.setAttribute('aria-live', 'polite');
+  const mark = document.createElement('span');
+  mark.className = 'mark';
+  mark.textContent = '\u2713';
+  const content = document.createElement('div');
+  content.className = 'content';
+  const title = document.createElement('div');
+  title.className = 'title';
+  title.textContent = 'Codex Switch';
+  const body = document.createElement('div');
+  body.className = 'message';
+  body.textContent = {message};
+  content.append(title, body);
+  notice.append(mark, content);
+  root.replaceChildren(style, notice);
+  clearTimeout(host.__codexSwitchNotificationTimer);
+  host.__codexSwitchNotificationTimer = setTimeout(() => host.remove(), 3400);
+  return true;
+}})()"#
+    ))
+}
+
+pub(crate) fn show_codex_notification(message: &str) -> Result<bool, String> {
+    let Some(port) = read_session().port else {
+        return Ok(false);
+    };
+    let Some(target) = list_targets(port)?
+        .into_iter()
+        .find(|target| target.url == "app://-/index.html")
+    else {
+        return Ok(false);
+    };
+    let expression = codex_notification_expression(message)?;
+    let mut session = CdpSession::connect(&target, port)?;
+    session.enable()?;
+    Ok(session.evaluate(&expression)?.as_bool() == Some(true))
 }
 
 #[cfg(test)]

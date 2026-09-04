@@ -101,6 +101,11 @@ export const isHostedWebApp = document
   ?.getAttribute("content") === "hosted";
 export const hasLocalBackend = isDesktopApp || isHostedWebApp;
 
+export async function syncCodexNotification(message: string): Promise<boolean> {
+  if (!isDesktopApp) return false;
+  return invoke<boolean>("sync_codex_notification", { message });
+}
+
 interface HostedInvokeResponse<T> {
   ok: boolean;
   result?: T;
