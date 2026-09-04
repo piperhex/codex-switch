@@ -5,6 +5,7 @@ const CODEX_MODEL_QUERY_PREFIX: [&str; 2] = ["models", "list"];
 const CODEX_MODEL_QUERY_HOST: &str = "local";
 const CODEX_MODEL_QUERY_NO_AUTH: &str = "no-auth";
 const CODEX_MODEL_QUERY_LIMIT: u16 = 100;
+const CODEX_COMPOSER_STATUS_ALLOWED_GLOBAL: &str = "__CODEX_SWITCH_COMPOSER_STATUS_ALLOWED__";
 
 /// Outcome reported by the Codex renderer after refreshing its model cache.
 #[derive(Debug, PartialEq, Eq)]

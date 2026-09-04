@@ -315,7 +315,13 @@
         assert!(!expression.contains("menuitemradio"));
         assert!(!expression.contains("openSubmenu"));
         assert!(!expression.contains("button.h-token-button-composer"));
-        assert!(expression.contains("__CODEX_SWITCH_COMPOSER_STATUS_ALLOWED__ = hasNoAuthModelQuery"));
+        assert!(expression.contains(&format!(
+            "window.{CODEX_COMPOSER_STATUS_ALLOWED_GLOBAL} = hasNoAuthModelQuery"
+        )));
+        assert_eq!(
+            composer_status_allowed_expression(),
+            "window.__CODEX_SWITCH_COMPOSER_STATUS_ALLOWED__ === true"
+        );
         assert!(expression.contains("__CODEX_SWITCH_FAST_MODE_ALLOWED__"));
         assert!(expression.contains("fastModeModels.size > 0 && hasNoAuthModelQuery"));
         assert!(expression.contains("state.fastModeAllowed || state.usage.enabled"));
