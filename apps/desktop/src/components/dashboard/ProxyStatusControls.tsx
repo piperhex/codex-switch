@@ -70,11 +70,13 @@ export function ProxyStatusControls(options: ProxyStatusControlsProps) {
       !customTitlebarEnabled ? " web-proxy-controls" : ""
     }${running ? " is-running" : ""}`}>
       {statusControl}
-      <button type="button" className="window-titlebar-proxy-endpoint-copy"
-        disabled={!manager.localProxy?.port} aria-label={t("providers.proxy.copyEndpoint")}
-        onClick={copyBaseUrl}>
-        <Copy size={12} aria-hidden="true" />
-      </button>
+      <Tooltip title={t("providers.proxy.copyEndpoint")}>
+        <button type="button" className="window-titlebar-proxy-endpoint-copy"
+          disabled={!manager.localProxy?.port} aria-label={t("providers.proxy.copyEndpoint")}
+          onClick={copyBaseUrl}>
+          <Copy size={12} aria-hidden="true" />
+        </button>
+      </Tooltip>
       {running && (
         <span className="window-titlebar-proxy-lan">
           <span>{t("providers.proxy.listenLan")}</span>
@@ -82,14 +84,17 @@ export function ProxyStatusControls(options: ProxyStatusControlsProps) {
             checked={manager.localProxy?.listenOnAllInterfaces ?? false} loading={manager.proxyBusy}
             disabled={manager.proxyBusy} aria-label={t("providers.proxy.listenLan")}
             onChange={changeLanListening} />
-          <span className="window-titlebar-proxy-lan-copy-wrap">
-            <button type="button" className="window-titlebar-proxy-lan-copy"
-              disabled={manager.proxyBusy || !manager.localProxy?.hasLanApiKey}
-              aria-label={t("providers.proxy.copyLanApiKey")}
-              onClick={() => void manager.copyProxyLanApiKey()}>
-              <Copy size={12} aria-hidden="true" />
-            </button>
-          </span>
+          <Tooltip title={manager.localProxy?.hasLanApiKey
+            ? t("providers.proxy.copyLanApiKey") : t("providers.proxy.copyLanApiKeyUnavailable")}>
+            <span className="window-titlebar-proxy-lan-copy-wrap">
+              <button type="button" className="window-titlebar-proxy-lan-copy"
+                disabled={manager.proxyBusy || !manager.localProxy?.hasLanApiKey}
+                aria-label={t("providers.proxy.copyLanApiKey")}
+                onClick={() => void manager.copyProxyLanApiKey()}>
+                <Copy size={12} aria-hidden="true" />
+              </button>
+            </span>
+          </Tooltip>
         </span>
       )}
     </div>
