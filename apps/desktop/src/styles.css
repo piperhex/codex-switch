@@ -66,12 +66,10 @@ button:focus-visible { outline: 3px solid rgba(45, 131, 87, .24); outline-offset
 .window-titlebar-tools { flex: 0 0 auto; margin-right: 40px; display: flex; align-items: center; }
 .window-titlebar-tools .menu-tools { gap: 6px; }
 .window-titlebar-proxy { min-width: 0; margin-right: 12px; padding-right: 12px; border-right: 1px solid rgba(var(--green-rgb), .18); display: flex; align-items: center; gap: 9px; color: var(--muted); white-space: nowrap; }
-.window-titlebar-proxy-endpoint { max-width: min(280px, 24vw); min-width: 0; padding: 3px 5px; border: 1px solid transparent; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; color: inherit; background: transparent; font-size: 11px; cursor: copy; transition: color .16s ease, border-color .16s ease, background .16s ease; }
-.window-titlebar-proxy-endpoint > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.window-titlebar-proxy-endpoint > svg { flex: 0 0 auto; color: var(--green); }
-.window-titlebar-proxy-endpoint:hover:not(:disabled) { border-color: rgba(var(--green-rgb), .22); color: var(--green-dark); background: var(--green-soft); }
-.window-titlebar-proxy-endpoint:focus-visible { outline: 2px solid rgba(var(--green-rgb), .34); outline-offset: 1px; }
-.window-titlebar-proxy-endpoint:disabled { cursor: default; opacity: .55; }
+.window-titlebar-proxy-endpoint-copy { width: 22px; height: 22px; padding: 0; border: 0; border-radius: 5px; display: inline-grid; place-items: center; color: var(--green); background: transparent; cursor: copy; transition: color .16s ease, background .16s ease; }
+.window-titlebar-proxy-endpoint-copy:hover:not(:disabled) { color: var(--green-dark); background: var(--green-soft); }
+.window-titlebar-proxy-endpoint-copy:focus-visible { outline: 2px solid rgba(var(--green-rgb), .34); outline-offset: 1px; }
+.window-titlebar-proxy-endpoint-copy:disabled { cursor: default; opacity: .55; }
 .window-titlebar-proxy-status-wrap { flex: 0 0 auto; display: inline-flex; }
 .window-titlebar-proxy-status { flex: 0 0 auto; min-height: 26px; padding: 2px 7px; border-radius: 7px; display: inline-flex; align-items: center; gap: 7px; color: #d14343; background: rgba(209, 67, 67, .08); font-size: 11px; font-weight: 700; transition: color .16s ease, background .16s ease, opacity .16s ease; }
 .window-titlebar-proxy .window-titlebar-proxy-switch.ant-switch { min-width: 32px; background: #d14343; box-shadow: 0 0 0 2px rgba(209, 67, 67, .1); }
@@ -367,7 +365,6 @@ h1 { margin: 5px 0 0; font: 700 26px/1.1 Manrope, sans-serif; letter-spacing: -.
 .topbar-actions .proxy-topbar-action.active { border-color: rgba(var(--green-rgb), .4); color: var(--green-dark); background: var(--green-soft); }
 .topbar-actions .proxy-topbar-action.active:hover:not(:disabled) { border-color: var(--green); color: var(--green-dark); background: var(--green-selection); }
 .web-proxy-controls { margin: 0; padding: 0 0 0 16px; border-right: 0; border-left: 1px solid rgba(var(--green-rgb), .18); gap: 7px; }
-.web-proxy-controls .window-titlebar-proxy-endpoint { max-width: min(260px, 22vw); }
 .conversation-latency-indicator.is-good svg { color: #22a06b; }
 .conversation-latency-indicator.is-warning svg { color: #d89614; }
 .conversation-latency-indicator.is-poor svg { color: #d14343; }
@@ -1281,7 +1278,6 @@ main.tokens-main { overflow: hidden; padding-bottom: 0; }
 @media (max-width: 1100px) {
   .window-menu-trigger { min-width: 46px; padding-inline: 10px; font-size: 12px; }
   .window-titlebar-proxy { gap: 6px; margin-right: 8px; padding-right: 8px; }
-  .window-titlebar-proxy-endpoint { max-width: 100px; font-size: 10px; }
   .window-titlebar-proxy-status { font-size: 10px; }
   .window-titlebar-tools .cloud-avatar-button { max-width: 120px; }
   .app-menu { gap: 8px; padding-inline: 16px; }

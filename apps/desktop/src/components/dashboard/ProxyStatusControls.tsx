@@ -42,7 +42,7 @@ export function ProxyStatusControls(options: ProxyStatusControlsProps) {
   const statusSwitch = (
     <span className="window-titlebar-proxy-status"
       title={t(running ? "providers.proxy.stop" : "providers.proxy.start")}>
-      <span>{t(running ? "providers.proxy.running" : "providers.proxy.stopped")}</span>
+      <span>{t(running ? "providers.proxy.localRunning" : "providers.proxy.stopped")}</span>
       <Switch className="window-titlebar-proxy-switch" size="small" checked={running}
         loading={manager.proxyBusy} disabled={toggleDisabled}
         aria-label={t(running ? "providers.proxy.stop" : "providers.proxy.start")}
@@ -69,13 +69,13 @@ export function ProxyStatusControls(options: ProxyStatusControlsProps) {
     <div className={`window-titlebar-proxy${
       !customTitlebarEnabled ? " web-proxy-controls" : ""
     }${running ? " is-running" : ""}`}>
-      <button type="button" className="window-titlebar-proxy-endpoint" disabled={!manager.localProxy?.port}
+      {statusControl}
+      <button type="button" className="window-titlebar-proxy-endpoint-copy"
+        disabled={!manager.localProxy?.port}
         aria-label={t("providers.proxy.copyEndpoint")} title={t("providers.proxy.copyEndpoint")}
         onClick={copyBaseUrl}>
-        <span>{t("providers.proxy.baseUrl", { url: baseUrl })}</span>
-        <Copy size={11} aria-hidden="true" />
+        <Copy size={12} aria-hidden="true" />
       </button>
-      {statusControl}
       {running && (
         <span className="window-titlebar-proxy-lan" title="0.0.0.0">
           <span>{t("providers.proxy.listenLan")}</span>
