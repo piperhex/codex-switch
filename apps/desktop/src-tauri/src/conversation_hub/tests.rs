@@ -401,6 +401,7 @@ mod tests {
         RolloutSnapshot {
             session_id: session_id.to_string(),
             title: session_id.to_string(),
+            explicit_name: None,
             cwd: "C:\\workspace".to_string(),
             updated_at: None,
             path: PathBuf::new(),

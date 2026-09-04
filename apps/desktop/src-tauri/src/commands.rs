@@ -13,7 +13,7 @@ use std::{os::windows::process::CommandExt, thread, time::Instant};
 
 use chrono::{NaiveDate, TimeZone, Utc};
 use reqwest::blocking::{Client, Response};
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::{Emitter, Runtime};

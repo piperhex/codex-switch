@@ -150,8 +150,8 @@ fn rebuild_index_from_snapshots(
             .unwrap_or_else(|| item.index_value.clone());
         if let Some(object) = value.as_object_mut() {
             object.insert("id".to_string(), Value::String(item.session_id.clone()));
-            if !object.contains_key("thread_name") {
-                object.insert("thread_name".to_string(), Value::String(item.title.clone()));
+            if let Some(name) = item.explicit_name.as_ref() {
+                object.insert("thread_name".to_string(), Value::String(name.clone()));
             }
             if let Some(updated_at) = item.updated_at {
                 object.insert(

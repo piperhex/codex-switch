@@ -126,6 +126,7 @@ pub(crate) struct VisibilityReport {
 struct RolloutSnapshot {
     session_id: String,
     title: String,
+    explicit_name: Option<String>,
     cwd: String,
     updated_at: Option<i64>,
     path: PathBuf,
@@ -219,6 +220,7 @@ struct BinSnapshot {
     rollouts: Vec<PathBuf>,
 }
 
+include!("thread_titles.rs");
 include!("discovery.rs");
 include!("ownership.rs");
 include!("state_storage.rs");
@@ -230,3 +232,7 @@ include!("migration.rs");
 include!("visibility.rs");
 include!("commands.rs");
 include!("tests.rs");
+
+#[cfg(test)]
+#[path = "thread_title_tests.rs"]
+mod thread_title_tests;

@@ -306,35 +306,7 @@ pub(crate) fn conversation_titles_by_id(
     codex_home: &Path,
     conversation_ids: &HashSet<String>,
 ) -> Result<HashMap<String, String>, String> {
-    if conversation_ids.is_empty() {
-        return Ok(HashMap::new());
-    }
-
-    let state_database = latest_codex_state_database(codex_home)?;
-    let connection = open_conversation_database(&state_database)?;
-    if !sqlite_table_has_column(&connection, "threads", "title")? {
-        return Ok(HashMap::new());
-    }
-
-    let mut statement = connection
-        .prepare("SELECT title FROM threads WHERE id = ?1")
-        .map_err(|error| format!("无法查询 {}：{error}", state_database.display()))?;
-    let mut titles = HashMap::new();
-    for id in conversation_ids {
-        let title = statement
-            .query_row(params![id], |row| row.get::<_, String>(0))
-            .optional()
-            .map_err(|error| {
-                format!(
-                    "无法读取 {} 中的对话标题：{error}",
-                    state_database.display()
-                )
-            })?;
-        if let Some(title) = title.filter(|title| !title.trim().is_empty()) {
-            titles.insert(id.clone(), title);
-        }
-    }
-    Ok(titles)
+    crate::conversation_hub::resolve_codex_thread_titles(codex_home, conversation_ids)
 }
 
 fn sqlite_table_has_column(

@@ -6,34 +6,6 @@ fn normalized_ids(values: Vec<String>) -> HashSet<String> {
         .collect()
 }
 
-fn index_values(codex_home: &Path) -> Result<HashMap<String, Value>, String> {
-    let path = codex_home.join(INDEX_NAME);
-    if !path.exists() {
-        return Ok(HashMap::new());
-    }
-    let content = fs::read_to_string(&path)
-        .map_err(|error| format!("无法读取会话索引 {}：{error}", path.display()))?;
-    let mut result = HashMap::new();
-    for line in content.lines() {
-        let Ok(value) = serde_json::from_str::<Value>(line.trim()) else {
-            continue;
-        };
-        if let Some(id) = value.get("id").and_then(Value::as_str) {
-            result.insert(id.to_string(), value);
-        }
-    }
-    Ok(result)
-}
-
-fn title_from_index(value: &Value) -> Option<String> {
-    ["thread_name", "threadName", "title", "name"]
-        .into_iter()
-        .filter_map(|key| value.get(key).and_then(Value::as_str))
-        .map(str::trim)
-        .find(|value| !value.is_empty())
-        .map(str::to_string)
-}
-
 fn unix_seconds(value: &Value) -> Option<i64> {
     if let Some(number) = value.as_i64() {
         return Some(if number > 10_000_000_000 {
@@ -192,6 +164,7 @@ fn snapshot_reference_id(meta: &Value, field: &str) -> Option<String> {
 
 fn gather_snapshots(codex_home: &Path) -> Result<Vec<RolloutSnapshot>, String> {
     let index = index_values(codex_home)?;
+    let state_titles = state_thread_titles(codex_home)?;
     let mut files = Vec::new();
     for folder in ROLLOUT_FOLDERS {
         collect_rollout_paths(&codex_home.join(folder), &mut files)?;
@@ -211,15 +184,19 @@ fn gather_snapshots(codex_home: &Path) -> Result<Vec<RolloutSnapshot>, String> {
             continue;
         };
         let indexed = index.get(&session_id);
-        let title = indexed
-            .and_then(title_from_index)
+        let state_title = state_titles.get(&session_id);
+        let explicit_name = explicit_thread_name(state_title, indexed);
+        let title = resolved_thread_title(state_title, indexed)
             .unwrap_or_else(|| session_id.clone());
         let cwd = snapshot_cwd(&meta).unwrap_or_else(|| "未知工作目录".to_string());
         let updated_at = index_timestamp(indexed).or_else(|| modified_seconds(&path));
         let relative_path = path.strip_prefix(codex_home).unwrap_or(&path).to_path_buf();
-        let index_value = indexed
-            .cloned()
-            .unwrap_or_else(|| json!({ "id": session_id, "thread_name": title }));
+        let index_value = indexed.cloned().unwrap_or_else(|| {
+            explicit_name.as_ref().map_or_else(
+                || json!({ "id": session_id }),
+                |name| json!({ "id": session_id, "thread_name": name }),
+            )
+        });
         let size_bytes = physical_paths
             .iter()
             .filter_map(|path| fs::metadata(path).ok())
@@ -231,6 +208,7 @@ fn gather_snapshots(codex_home: &Path) -> Result<Vec<RolloutSnapshot>, String> {
         snapshots.push(RolloutSnapshot {
             session_id,
             title,
+            explicit_name,
             cwd,
             updated_at,
             path,
