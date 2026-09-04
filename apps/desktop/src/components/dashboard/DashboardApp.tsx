@@ -1269,7 +1269,7 @@ export function DashboardApp() {
           </header>
         )}
         {sidebarNavigationEnabled && (
-          <aside className="app-sidebar">
+          <aside className="app-sidebar" data-tauri-drag-region>
             <button type="button" className="brand sidebar-brand" onClick={openRepository}
               aria-label={t("help.github")} title={t("help.github")}>
               <img className="brand-logo" src={APP_LOGO_URL} alt="" />
@@ -1319,7 +1319,9 @@ export function DashboardApp() {
               : page === "sessions" ? "sessions-main" : undefined}>
           {page !== "tokens" && page !== "dreamSkin" && (
           <>
-          <header className={`topbar${page === "accounts" || page === "providers" ? " account-view-topbar" : ""}${
+          <header data-tauri-drag-region className={`topbar${
+            page === "accounts" || page === "providers" ? " account-view-topbar" : ""
+          }${
             page === "accounts" && providerManager.localProxy?.running ? " accounts-topbar" : ""
           }${page === "settings" ? " settings-topbar" : ""}`}>
             {page === "accounts" && providerManager.localProxy?.running ? (

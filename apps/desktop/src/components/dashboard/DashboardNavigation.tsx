@@ -71,10 +71,11 @@ export function DashboardNavigation({
   };
   return (
     <nav className={variant === "sidebar" ? "sidebar-tabs" : "top-tabs"}
-      aria-label={t("nav.aria")}>
+      aria-label={t("nav.aria")}
+      data-tauri-drag-region={variant === "sidebar" ? true : undefined}>
       {NAVIGATION_ITEMS.map(navigationButton)}
       {variant === "sidebar" && (
-        <div className="sidebar-nav-tools">
+        <div className="sidebar-nav-tools" data-tauri-drag-region>
           {sidebarTools}
           {navigationButton({ page: "settings", icon: Settings, labelKey: "nav.settings" })}
         </div>

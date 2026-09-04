@@ -8,8 +8,8 @@ export function AccountTopbarActions({
   children,
 }: AccountTopbarActionsProps) {
   return (
-    <div className="account-topbar-controls">
-      <div className="topbar-actions">{children}</div>
+    <div className="account-topbar-controls" data-tauri-drag-region>
+      <div className="topbar-actions" data-tauri-drag-region>{children}</div>
     </div>
   );
 }
