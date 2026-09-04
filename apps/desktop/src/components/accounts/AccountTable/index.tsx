@@ -794,7 +794,7 @@ export function AccountTable({
                   {account.active ? (
                     <Popconfirm title={t("table.deactivateConfirmTitle")}
                       description={<span>{t("table.deactivateConfirmDescription")}</span>}
-                      okText={t("table.deactivate")} cancelText={t("table.cancel")}
+                      okText={t("table.deactivate")} cancelText={t("table.deactivateCancel")}
                       okButtonProps={{ danger: true }}
                       styles={{ root: { maxWidth: 400 } }}
                       onConfirm={() => onDeactivate(account.id)}>
@@ -1018,7 +1018,7 @@ export function AccountTable({
             {account.active ? (
               <Popconfirm title={t("table.deactivateConfirmTitle")}
                 description={<span>{t("table.deactivateConfirmDescription")}</span>}
-                okText={t("table.deactivate")} cancelText={t("table.cancel")}
+                okText={t("table.deactivate")} cancelText={t("table.deactivateCancel")}
                 okButtonProps={{ danger: true }} styles={{ root: { maxWidth: 400 } }}
                 onConfirm={() => {
                   setContextMenu(null);
