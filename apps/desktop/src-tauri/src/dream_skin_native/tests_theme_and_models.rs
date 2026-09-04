@@ -249,6 +249,25 @@
     }
 
     #[test]
+    fn codex_model_refresh_preserves_metadata_while_removing_unexpected_models() {
+        let expression = codex_model_refresh_expression(
+            &["gpt-visible".to_string()],
+            &[],
+            &[],
+            &Default::default(),
+            "gpt-visible",
+            crate::providers::ReasoningEffortProfile::Standard,
+        )
+        .unwrap();
+
+        assert!(expression.contains("const visibleCurrentModels = currentModels.filter"));
+        assert!(expression.contains("? visibleCurrentModels.map"));
+        assert!(expression.contains(
+            "!containsExpectedModels || currentIds.length !== expectedModels.length"
+        ));
+    }
+
+    #[test]
     fn codex_model_refresh_adds_dom_speed_selector_without_capability_overrides() {
         let expression = codex_model_refresh_expression(
             &["gpt-5.6-sol".to_string()],

@@ -415,11 +415,13 @@ fn codex_model_refresh_expression(
     queryClient.setQueryData(queryKey, current => {{
       const currentModels = Array.isArray(current?.data) ? current.data : [];
       const currentIds = currentModels.map(model => model?.model ?? model?.id).filter(Boolean);
-      const matches = expectedModels.length === currentIds.length &&
-        currentIds.every(model => expected.has(model));
-      if (!matches) injected = true;
-      const data = matches
-        ? currentModels.map((model, index) => ({{
+      const containsExpectedModels = expectedModels.every(model => currentIds.includes(model));
+      const visibleCurrentModels = currentModels.filter(model =>
+        expected.has(model?.model ?? model?.id)
+      );
+      if (!containsExpectedModels || currentIds.length !== expectedModels.length) injected = true;
+      const data = containsExpectedModels
+        ? visibleCurrentModels.map((model, index) => ({{
             ...model,
             additionalSpeedTiers: fastModeModels.has(model.model ?? model.id) ? ["fast"] : [],
             serviceTiers: fastModeModels.has(model.model ?? model.id)

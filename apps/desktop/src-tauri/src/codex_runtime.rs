@@ -24,6 +24,9 @@ use std::path::Path;
 const OFFICIAL_MODEL_REFRESH_TIMEOUT: Duration = Duration::from_secs(20);
 
 #[cfg(any(target_os = "windows", target_os = "macos"))]
+const HIDDEN_MODEL_VISIBILITY: &str = "hide";
+
+#[cfg(any(target_os = "windows", target_os = "macos"))]
 static MODEL_REFRESH_GENERATION: AtomicU64 = AtomicU64::new(0);
 
 #[cfg(any(target_os = "windows", target_os = "macos"))]
@@ -52,6 +55,8 @@ struct OfficialModelsResponse {
 #[derive(Deserialize)]
 struct OfficialModel {
     slug: String,
+    #[serde(default)]
+    visibility: Option<String>,
     #[serde(default)]
     input_modalities: Vec<String>,
     #[serde(default)]
@@ -287,6 +292,9 @@ fn official_model_refresh_payload(
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 impl OfficialCatalogBuilder {
     fn append(&mut self, model: OfficialModel) {
+        if model.visibility.as_deref() == Some(HIDDEN_MODEL_VISIBILITY) {
+            return;
+        }
         let slug = model.slug.trim().to_string();
         if slug.is_empty() || !self.seen_models.insert(slug.clone()) {
             return;
@@ -370,6 +378,13 @@ mod tests {
                     "additional_speed_tiers": ["fast"],
                     "service_tiers": [{ "id": "priority" }]
                 },
+                {
+                    "slug": "gpt-reserve",
+                    "visibility": "hide",
+                    "input_modalities": ["text", "image"],
+                    "supported_reasoning_levels": [{ "effort": "max" }],
+                    "additional_speed_tiers": ["fast"]
+                },
                 { "slug": "gpt-5.4", "input_modalities": ["text"] },
                 { "slug": "gpt-5.6-sol" }
             ]
@@ -381,6 +396,7 @@ mod tests {
         assert_eq!(payload.models, vec!["gpt-5.6-sol", "gpt-5.4"]);
         assert_eq!(payload.image_input_models, vec!["gpt-5.6-sol"]);
         assert_eq!(payload.fast_mode_models, vec!["gpt-5.6-sol"]);
+        assert!(!payload.model_reasoning_efforts.contains_key("gpt-reserve"));
         assert_eq!(
             payload.model_reasoning_efforts["gpt-5.6-sol"],
             vec![
