@@ -13,6 +13,8 @@ import type { SettingsPageProps } from "./types";
 
 function TokenUsageCard({ settings }: { settings: SettingsPageProps }) {
   const {
+    codexUsageSummaryEnabled,
+    onCodexUsageSummaryEnabledChange,
     onTokenUsageRefreshSecondsChange,
     onTokenUsageWeeksChange,
     t,
@@ -56,6 +58,17 @@ function TokenUsageCard({ settings }: { settings: SettingsPageProps }) {
             />
             <Button disabled>{t("settings.autoRefresh.seconds")}</Button>
           </Space.Compact>
+          <label htmlFor="codex-usage-summary">
+            {t("settings.tokenUsage.codexSummary")}
+          </label>
+          <Switch
+            id="codex-usage-summary"
+            checked={codexUsageSummaryEnabled}
+            loading={tokenUsagePreferencesLoading}
+            checkedChildren={t("settings.autoRefresh.on")}
+            unCheckedChildren={t("settings.autoRefresh.off")}
+            onChange={onCodexUsageSummaryEnabledChange}
+          />
         </div>
       </div>
     </section>

@@ -65,6 +65,18 @@
     }
 
     #[test]
+    fn app_settings_show_codex_usage_summary_by_default() {
+        let defaults = AppSettings::default();
+        let migrated: AppSettings = serde_json::from_str("{}").unwrap();
+        let disabled: AppSettings =
+            serde_json::from_str(r#"{"codexUsageSummaryEnabled":false}"#).unwrap();
+
+        assert!(defaults.codex_usage_summary_enabled);
+        assert!(migrated.codex_usage_summary_enabled);
+        assert!(!disabled.codex_usage_summary_enabled);
+    }
+
+    #[test]
     fn app_settings_default_to_writing_codex_only() {
         let defaults = AppSettings::default();
         let migrated: AppSettings = serde_json::from_str("{}").unwrap();

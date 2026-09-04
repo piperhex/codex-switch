@@ -100,11 +100,12 @@ fn dispatch_extended_command(app: AppHandle, command: &str, args: Value) -> Resu
             crate::floating_bubble::set_show_usage_network_errors(app, argument(&args, "enabled")?),
         ),
         "set_token_usage_preferences" => {
-            serialize(crate::floating_bubble::set_token_usage_preferences(
+            serialize(block_on(crate::floating_bubble::set_token_usage_preferences(
                 app,
                 argument(&args, "weeks")?,
                 argument(&args, "refreshSeconds")?,
-            ))
+                argument(&args, "codexSummaryEnabled")?,
+            )))
         }
         "set_auto_disable_status_codes" => serialize(
             crate::commands::set_auto_disable_status_codes(app, argument(&args, "statusCodes")?),

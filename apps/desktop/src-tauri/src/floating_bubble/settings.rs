@@ -54,10 +54,11 @@ pub(crate) fn set_show_usage_network_errors<R: Runtime>(
 }
 
 #[tauri::command]
-pub(crate) fn set_token_usage_preferences<R: Runtime>(
+pub(crate) async fn set_token_usage_preferences<R: Runtime + 'static>(
     app: AppHandle<R>,
     weeks: u16,
     refresh_seconds: u64,
+    codex_summary_enabled: Option<bool>,
 ) -> Result<AppSettings, String> {
     if !(MIN_TOKEN_USAGE_WEEKS..=MAX_TOKEN_USAGE_WEEKS).contains(&weeks) {
         return Err(format!(
@@ -77,10 +78,22 @@ pub(crate) fn set_token_usage_preferences<R: Runtime>(
         ));
     }
 
-    let mut settings = read_app_settings(&app)?;
-    settings.token_usage_weeks = weeks;
-    settings.token_usage_refresh_seconds = refresh_seconds;
-    write_app_settings(&app, &settings)?;
+    let summary_setting_changed = codex_summary_enabled.is_some();
+    let settings = tauri::async_runtime::spawn_blocking(move || {
+        let mut settings = read_app_settings(&app)?;
+        settings.token_usage_weeks = weeks;
+        settings.token_usage_refresh_seconds = refresh_seconds;
+        if let Some(enabled) = codex_summary_enabled {
+            settings.codex_usage_summary_enabled = enabled;
+        }
+        write_app_settings(&app, &settings)?;
+        Ok::<_, String>(settings)
+    })
+    .await
+    .map_err(|error| format!("Token usage settings task failed: {error}"))??;
+    if summary_setting_changed {
+        crate::codex_runtime::refresh_usage_summary();
+    }
     Ok(settings)
 }
 

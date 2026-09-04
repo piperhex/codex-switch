@@ -458,6 +458,7 @@ export interface AppSettings {
   showCustomCloudServer?: boolean;
   tokenUsageWeeks?: number;
   tokenUsageRefreshSeconds?: number;
+  codexUsageSummaryEnabled?: boolean;
   autoDisableStatusCodes?: number[];
   upstream429RetryTimeoutSeconds?: number;
   showUsageNetworkErrors?: boolean;

@@ -11,6 +11,7 @@ export const MAX_TOKEN_USAGE_REFRESH_SECONDS = 3_600;
 interface TokenUsagePreferences {
   weeks: number;
   refreshSeconds: number;
+  codexSummaryEnabled: boolean;
 }
 
 function clampInteger(value: unknown, min: number, max: number, fallback: number) {
@@ -23,6 +24,7 @@ function clampInteger(value: unknown, min: number, max: number, fallback: number
 function normalizePreferences(settings: {
   tokenUsageWeeks?: number | null;
   tokenUsageRefreshSeconds?: number | null;
+  codexUsageSummaryEnabled?: boolean | null;
 }): TokenUsagePreferences {
   return {
     weeks: clampInteger(
@@ -37,6 +39,7 @@ function normalizePreferences(settings: {
       MAX_TOKEN_USAGE_REFRESH_SECONDS,
       DEFAULT_TOKEN_USAGE_REFRESH_SECONDS,
     ),
+    codexSummaryEnabled: settings.codexUsageSummaryEnabled !== false,
   };
 }
 
@@ -44,6 +47,7 @@ export function useTokenUsagePreferences(notify: (message: string) => void) {
   const initial = useRef<TokenUsagePreferences>({
     weeks: DEFAULT_TOKEN_USAGE_WEEKS,
     refreshSeconds: DEFAULT_TOKEN_USAGE_REFRESH_SECONDS,
+    codexSummaryEnabled: true,
   });
   const preferencesRef = useRef(initial.current);
   const requestIdRef = useRef(0);
@@ -77,7 +81,11 @@ export function useTokenUsagePreferences(notify: (message: string) => void) {
     apply(next);
     setLoading(true);
     try {
-      const saved = await updateTokenUsagePreferences(next.weeks, next.refreshSeconds);
+      const saved = await updateTokenUsagePreferences(
+        next.weeks,
+        next.refreshSeconds,
+        next.codexSummaryEnabled,
+      );
       if (requestId === requestIdRef.current) apply(normalizePreferences(saved));
     } catch (error) {
       if (requestId === requestIdRef.current) notify(String(error));
@@ -106,5 +114,15 @@ export function useTokenUsagePreferences(notify: (message: string) => void) {
     void persist({ ...preferencesRef.current, refreshSeconds });
   }, [persist]);
 
-  return { ...preferences, loading, updateWeeks, updateRefreshSeconds };
+  const updateCodexSummaryEnabled = useCallback((codexSummaryEnabled: boolean) => {
+    void persist({ ...preferencesRef.current, codexSummaryEnabled });
+  }, [persist]);
+
+  return {
+    ...preferences,
+    loading,
+    updateWeeks,
+    updateRefreshSeconds,
+    updateCodexSummaryEnabled,
+  };
 }

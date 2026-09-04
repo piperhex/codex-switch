@@ -284,6 +284,7 @@ const LOCAL_PROXY_IMAGE_OUTPUT_TARGET_PREVIEW_KEY = "codex-switch:image-output-t
 const LOCAL_PROXY_OPENAI_AUTH_ACCOUNT_PREVIEW_KEY = "codex-switch:proxy-openai-auth-account";
 const TOKEN_USAGE_WEEKS_PREVIEW_KEY = "codex-switch:token-usage-weeks";
 const TOKEN_USAGE_REFRESH_PREVIEW_KEY = "codex-switch:token-usage-refresh-seconds";
+const CODEX_USAGE_SUMMARY_PREVIEW_KEY = "codex-switch:codex-usage-summary";
 const AUTO_DISABLE_STATUS_CODES_PREVIEW_KEY = "codex-switch:auto-disable-status-codes";
 const UPSTREAM_429_RETRY_TIMEOUT_PREVIEW_KEY = "codex-switch:upstream-429-retry-timeout";
 const SHOW_USAGE_NETWORK_ERRORS_PREVIEW_KEY = "codex-switch:show-usage-network-errors";
@@ -615,6 +616,7 @@ export async function loadAppSettings(): Promise<AppSettings> {
       showCustomCloudServer: false,
       tokenUsageWeeks: Number(window.localStorage.getItem(TOKEN_USAGE_WEEKS_PREVIEW_KEY)) || 20,
       tokenUsageRefreshSeconds: Number(window.localStorage.getItem(TOKEN_USAGE_REFRESH_PREVIEW_KEY)) || 60,
+      codexUsageSummaryEnabled: window.localStorage.getItem(CODEX_USAGE_SUMMARY_PREVIEW_KEY) !== "false",
       autoDisableStatusCodes: previewAutoDisableStatusCodes(),
       upstream429RetryTimeoutSeconds: previewUpstream429RetryTimeoutSeconds(),
       showUsageNetworkErrors: window.localStorage.getItem(SHOW_USAGE_NETWORK_ERRORS_PREVIEW_KEY) === "true",
@@ -1995,13 +1997,19 @@ export async function updateHideAccountNotes(enabled: boolean): Promise<AppSetti
 export async function updateTokenUsagePreferences(
   weeks: number,
   refreshSeconds: number,
+  codexSummaryEnabled: boolean,
 ): Promise<AppSettings> {
   if (!hasLocalBackend) {
     window.localStorage.setItem(TOKEN_USAGE_WEEKS_PREVIEW_KEY, String(weeks));
     window.localStorage.setItem(TOKEN_USAGE_REFRESH_PREVIEW_KEY, String(refreshSeconds));
+    window.localStorage.setItem(CODEX_USAGE_SUMMARY_PREVIEW_KEY, String(codexSummaryEnabled));
     return loadAppSettings();
   }
-  return invoke<AppSettings>("set_token_usage_preferences", { weeks, refreshSeconds });
+  return invoke<AppSettings>("set_token_usage_preferences", {
+    weeks,
+    refreshSeconds,
+    codexSummaryEnabled,
+  });
 }
 
 export async function setLocalProxyConcurrentRouting(

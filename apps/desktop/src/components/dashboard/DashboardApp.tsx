@@ -1468,6 +1468,7 @@ export function DashboardApp() {
               onNavigationStyleChange={navigationStyle.setStyle}
               tokenUsageWeeks={tokenUsagePreferences.weeks}
               tokenUsageRefreshSeconds={tokenUsagePreferences.refreshSeconds}
+              codexUsageSummaryEnabled={tokenUsagePreferences.codexSummaryEnabled}
               tokenUsagePreferencesLoading={tokenUsagePreferences.loading}
               upstream429RetryTimeoutSeconds={upstream429RetryTimeout.timeoutSeconds}
               upstream429RetryTimeoutLoading={upstream429RetryTimeout.loading}
@@ -1490,6 +1491,7 @@ export function DashboardApp() {
               onNetworkProxySave={saveNetworkProxy}
               onTokenUsageWeeksChange={tokenUsagePreferences.updateWeeks}
               onTokenUsageRefreshSecondsChange={tokenUsagePreferences.updateRefreshSeconds}
+              onCodexUsageSummaryEnabledChange={tokenUsagePreferences.updateCodexSummaryEnabled}
               codexHomes={codexHome.homes}
               codexHomePresets={codexHome.presets}
               codexHomeLoading={codexHome.loading}

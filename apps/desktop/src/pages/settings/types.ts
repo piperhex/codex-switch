@@ -58,6 +58,7 @@ export interface SettingsPageProps {
   onAccountDisplayModeChange: (mode: AccountDisplayMode) => void;
   tokenUsageWeeks: number;
   tokenUsageRefreshSeconds: number;
+  codexUsageSummaryEnabled: boolean;
   tokenUsagePreferencesLoading: boolean;
   autoDisableStatusCodes: number[];
   autoDisableStatusCodesLoading: boolean;
@@ -80,6 +81,7 @@ export interface SettingsPageProps {
   onNetworkProxySave: (settings: NetworkProxySettings) => Promise<boolean>;
   onTokenUsageWeeksChange: (value: number | string | null) => void;
   onTokenUsageRefreshSecondsChange: (value: number | string | null) => void;
+  onCodexUsageSummaryEnabledChange: (enabled: boolean) => void;
   codexHomes: CodexHomeEntry[];
   codexHomePresets: CodexHomePreset[];
   codexHomeLoading: boolean;

@@ -3,9 +3,6 @@ struct CdpSession {
     next_id: u64,
 }
 
-const SERVICE_TIER_BINDING: &str = "codexSwitchSetServiceTier";
-const SERVICE_TIER_BINDING_POLL: Duration = Duration::from_millis(500);
-static SERVICE_TIER_BINDING_GENERATION: AtomicU64 = AtomicU64::new(0);
 const CODEX_NOTIFICATION_HOST_ID: &str = "codex-switch-notification";
 const CODEX_NOTIFICATION_CSS: &str = r#"
 :host {
@@ -151,38 +148,6 @@ impl CdpSession {
         Ok(())
     }
 
-    fn read_binding_payload(&mut self, name: &str) -> Result<Option<String>, String> {
-        self.socket
-            .get_mut()
-            .set_read_timeout(Some(SERVICE_TIER_BINDING_POLL))
-            .map_err(|error| format!("Failed to configure CDP binding timeout: {error}"))?;
-        loop {
-            let message = match self.socket.read() {
-                Ok(message) => message,
-                Err(tungstenite::Error::Io(error))
-                    if matches!(error.kind(), ErrorKind::TimedOut | ErrorKind::WouldBlock) =>
-                {
-                    return Ok(None);
-                }
-                Err(error) => return Err(format!("Failed to read CDP binding event: {error}")),
-            };
-            let Message::Text(text) = message else {
-                continue;
-            };
-            let value: Value = serde_json::from_str(text.as_str())
-                .map_err(|error| format!("Invalid CDP binding event: {error}"))?;
-            let params = value.get("params");
-            if value.get("method").and_then(Value::as_str) == Some("Runtime.bindingCalled")
-                && params.and_then(|entry| entry.get("name")).and_then(Value::as_str) == Some(name)
-            {
-                return Ok(params
-                    .and_then(|entry| entry.get("payload"))
-                    .and_then(Value::as_str)
-                    .map(str::to_string));
-            }
-        }
-    }
-
     fn evaluate(&mut self, expression: &str) -> Result<Value, String> {
         let response = self.send(
             "Runtime.evaluate",
@@ -220,53 +185,6 @@ impl CdpSession {
             json!({ "identifier": identifier }),
         );
     }
-}
-
-fn acknowledge_service_tier(session: &mut CdpSession, tier: &str, succeeded: bool) {
-    let Ok(tier) = serde_json::to_string(tier) else {
-        return;
-    };
-    let _ = session.evaluate(&format!(
-        "window.__CODEX_SWITCH_SPEED_SELECTOR__?.completeSelection?.({tier}, {succeeded})"
-    ));
-}
-
-fn run_service_tier_binding(mut session: CdpSession, generation: u64) {
-    while SERVICE_TIER_BINDING_GENERATION.load(Ordering::Acquire) == generation {
-        let payload = match session.read_binding_payload(SERVICE_TIER_BINDING) {
-            Ok(Some(payload)) => payload,
-            Ok(None) => continue,
-            Err(error) => {
-                eprintln!("Codex speed selector binding stopped: {error}");
-                return;
-            }
-        };
-        if SERVICE_TIER_BINDING_GENERATION.load(Ordering::Acquire) != generation {
-            return;
-        }
-        let succeeded = crate::local_proxy::is_running()
-            && crate::local_proxy::set_proxy_service_tier_by_name(&payload);
-        acknowledge_service_tier(&mut session, &payload, succeeded);
-        if succeeded {
-            crate::codex_runtime::notify_service_tier_changed();
-        }
-    }
-}
-
-fn install_service_tier_binding(target: &CdpTarget, port: u16) -> Result<(), String> {
-    let generation = SERVICE_TIER_BINDING_GENERATION.fetch_add(1, Ordering::AcqRel) + 1;
-    let mut session = CdpSession::connect(target, port)?;
-    session.enable()?;
-    session.add_binding(SERVICE_TIER_BINDING)?;
-    thread::Builder::new()
-        .name("codex-speed-selector-binding".to_string())
-        .spawn(move || run_service_tier_binding(session, generation))
-        .map_err(|error| format!("Failed to start the Codex speed selector binding: {error}"))?;
-    Ok(())
-}
-
-fn cancel_service_tier_binding() {
-    SERVICE_TIER_BINDING_GENERATION.fetch_add(1, Ordering::AcqRel);
 }
 
 fn validate_target(target: &CdpTarget, port: u16) -> Result<(), String> {
@@ -429,9 +347,9 @@ pub(crate) fn refresh_codex_models(
         .as_bool()
         == Some(true);
     if speed_selector_allowed {
-        install_service_tier_binding(&target, port)?;
+        install_renderer_bindings(&target, port)?;
     } else {
-        cancel_service_tier_binding();
+        cancel_renderer_bindings();
     }
     Ok(CodexModelRefreshResult {
         refreshed: result

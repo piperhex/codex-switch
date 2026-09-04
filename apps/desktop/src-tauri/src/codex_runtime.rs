@@ -113,6 +113,24 @@ pub(crate) fn notify_service_tier_changed() {
     }
 }
 
+#[cfg(any(target_os = "windows", target_os = "macos"))]
+pub(crate) fn runtime_app_handle() -> Option<AppHandle> {
+    CODEX_RUNTIME_APP.get().cloned()
+}
+
+pub(crate) fn refresh_usage_summary() {
+    #[cfg(any(target_os = "windows", target_os = "macos"))]
+    {
+        let _ = thread::Builder::new()
+            .name("codex-usage-summary-refresh".to_string())
+            .spawn(|| {
+                if let Err(error) = crate::dream_skin_native::request_usage_summary_refresh() {
+                    eprintln!("Failed to refresh the Codex usage summary: {error}");
+                }
+            });
+    }
+}
+
 /// Relaunches Codex with the local renderer channel. Theme injection remains
 /// controlled exclusively by Dream Skin's installation and pause state.
 pub(crate) fn restart_managed_session() -> Result<bool, String> {

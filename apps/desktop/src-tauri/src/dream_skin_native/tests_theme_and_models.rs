@@ -296,6 +296,12 @@
         assert!(expression.contains("modelWrapper.before(container)"));
         assert!(expression.contains("pointerdown"));
         assert!(expression.contains("data-speed-switch"));
+        assert!(expression.contains("data-today-usage"));
+        assert!(expression.contains("今日 Token 用量"));
+        assert!(expression.contains("codexSwitchRequestUsageSummary"));
+        assert!(expression.contains("estimatedCostUsd"));
+        assert!(expression.contains("color-mix(in srgb,rgb(16,163,127)"));
+        assert!(expression.contains("color-mix(in srgb,rgb(217,119,6)"));
         assert!(expression.contains("setAttribute(\"role\", \"switch\")"));
         assert!(expression.contains("border-radius:9999px"));
         assert!(!expression.contains("menuitemradio"));

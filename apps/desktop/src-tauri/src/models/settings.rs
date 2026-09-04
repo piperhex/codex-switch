@@ -44,6 +44,8 @@ pub(crate) struct AppSettings {
     pub(crate) token_usage_weeks: u16,
     #[serde(default = "default_token_usage_refresh_seconds")]
     pub(crate) token_usage_refresh_seconds: u64,
+    #[serde(default = "default_codex_usage_summary_enabled")]
+    pub(crate) codex_usage_summary_enabled: bool,
     #[serde(default = "default_auto_disable_status_codes")]
     pub(crate) auto_disable_status_codes: Vec<u16>,
     #[serde(default = "default_upstream_429_retry_timeout_seconds")]
@@ -224,6 +226,10 @@ fn default_token_usage_refresh_seconds() -> u64 {
     60
 }
 
+fn default_codex_usage_summary_enabled() -> bool {
+    true
+}
+
 fn default_gpt_5_6_sol_context_window() -> u64 {
     DEFAULT_GPT_5_6_SOL_CONTEXT_WINDOW
 }
@@ -264,6 +270,7 @@ impl Default for AppSettings {
             cloud_session_expired: false,
             token_usage_weeks: default_token_usage_weeks(),
             token_usage_refresh_seconds: default_token_usage_refresh_seconds(),
+            codex_usage_summary_enabled: default_codex_usage_summary_enabled(),
             auto_disable_status_codes: default_auto_disable_status_codes(),
             upstream_429_retry_timeout_seconds: default_upstream_429_retry_timeout_seconds(),
             show_usage_network_errors: false,

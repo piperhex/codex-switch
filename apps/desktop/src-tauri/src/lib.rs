@@ -16,6 +16,8 @@ mod codex_config;
 mod codex_home;
 mod codex_notification;
 mod codex_runtime;
+#[cfg(any(target_os = "windows", target_os = "macos"))]
+mod codex_usage_summary;
 mod commands;
 mod conversation_hub;
 mod dream_skin;

@@ -541,7 +541,7 @@ fn list_token_usage_entries_blocking<R: Runtime>(
     Ok(entries)
 }
 
-fn list_token_usage_entries_since_blocking<R: Runtime>(
+pub(crate) fn list_token_usage_entries_since_blocking<R: Runtime>(
     app: &tauri::AppHandle<R>,
     start_ts: u64,
 ) -> Result<Vec<TokenUsageEntry>, String> {
