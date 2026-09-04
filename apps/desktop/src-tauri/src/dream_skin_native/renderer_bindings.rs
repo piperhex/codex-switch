@@ -137,10 +137,6 @@ fn install_renderer_bindings(target: &CdpTarget, port: u16) -> Result<(), String
     Ok(())
 }
 
-fn cancel_renderer_bindings() {
-    RENDERER_BINDING_GENERATION.fetch_add(1, Ordering::AcqRel);
-}
-
 pub(crate) fn request_usage_summary_refresh() -> Result<(), String> {
     let Some(port) = read_session().port else {
         return Ok(());

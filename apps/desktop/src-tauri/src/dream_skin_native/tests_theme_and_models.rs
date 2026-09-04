@@ -316,14 +316,17 @@
         assert!(!expression.contains("openSubmenu"));
         assert!(!expression.contains("button.h-token-button-composer"));
         assert!(expression.contains(&format!(
-            "window.{CODEX_COMPOSER_STATUS_ALLOWED_GLOBAL} = hasNoAuthModelQuery"
+            "window.{CODEX_COMPOSER_STATUS_ALLOWED_GLOBAL} = allowed"
         )));
-        assert_eq!(
-            composer_status_allowed_expression(),
-            "window.__CODEX_SWITCH_COMPOSER_STATUS_ALLOWED__ === true"
-        );
+        assert!(expression.contains("const hasActiveNoAuthModelQuery = () =>"));
+        assert!(expression.contains("const syncComposerStatus = () =>"));
+        assert!(expression.contains("window.__CODEX_SWITCH_REFRESH_SPEED_SELECTOR__?.()"));
+        assert!(expression.contains("__CODEX_SWITCH_COMPOSER_STATUS_OBSERVER__"));
+        assert!(expression.contains("patchState.unsubscribe?.()"));
+        assert!(expression.contains("if (matchesModelsQuery(event?.query)) syncComposerStatus()"));
         assert!(expression.contains("__CODEX_SWITCH_FAST_MODE_ALLOWED__"));
-        assert!(expression.contains("fastModeModels.size > 0 && hasNoAuthModelQuery"));
+        assert!(expression.contains("const fastModeAllowed = fastModeModels.size > 0 && allowed"));
+        assert!(expression.contains("if (changed) window.__CODEX_SWITCH_REFRESH_SPEED_SELECTOR__?.()"));
         assert!(expression.contains("state.fastModeAllowed || state.usage.enabled"));
         assert!(expression.contains("controls.hidden = !state.fastModeAllowed"));
         assert!(expression.contains("key[3] === \"no-auth\""));

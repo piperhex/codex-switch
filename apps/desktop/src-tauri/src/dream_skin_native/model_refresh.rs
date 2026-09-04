@@ -6,6 +6,7 @@ const CODEX_MODEL_QUERY_HOST: &str = "local";
 const CODEX_MODEL_QUERY_NO_AUTH: &str = "no-auth";
 const CODEX_MODEL_QUERY_LIMIT: u16 = 100;
 const CODEX_COMPOSER_STATUS_ALLOWED_GLOBAL: &str = "__CODEX_SWITCH_COMPOSER_STATUS_ALLOWED__";
+const CODEX_COMPOSER_STATUS_OBSERVER_GLOBAL: &str = "__CODEX_SWITCH_COMPOSER_STATUS_OBSERVER__";
 
 /// Outcome reported by the Codex renderer after refreshing its model cache.
 #[derive(Debug, PartialEq, Eq)]
@@ -154,6 +155,8 @@ fn codex_model_refresh_expression(
         .map_err(|error| format!("Failed to prepare the proxy service tier: {error}"))?;
     let speed_selector_overlay =
         CODEX_SPEED_SELECTOR_OVERLAY.replace("__CODEX_SWITCH_SERVICE_TIER__", &service_tier);
+    let composer_status_allowed_global = CODEX_COMPOSER_STATUS_ALLOWED_GLOBAL;
+    let composer_status_observer_global = CODEX_COMPOSER_STATUS_OBSERVER_GLOBAL;
     Ok(format!(
         r#"(async () => {{
   const expectedModels = {models};
@@ -195,17 +198,32 @@ fn codex_model_refresh_expression(
     (query.queryKey[0] === "config" &&
       (query.queryKey[1] === "user" || query.queryKey[1] === "read-response"))
   );
-  const hasNoAuthModelQuery = queryClient.getQueryCache().getAll().some(query => {{
+  const hasActiveNoAuthModelQuery = () => queryClient.getQueryCache().getAll().some(query => {{
     const key = query.queryKey;
     const active = typeof query.isActive === "function"
       ? query.isActive()
       : (query.observers?.length ?? 0) > 0;
     return active && matchesModelsQuery(query) && key[2] === "local" && key[3] === "no-auth";
   }});
-  window.__CODEX_SWITCH_COMPOSER_STATUS_ALLOWED__ = hasNoAuthModelQuery;
-  window.__CODEX_SWITCH_FAST_MODE_ALLOWED__ = fastModeModels.size > 0 && hasNoAuthModelQuery;
+  const syncComposerStatus = () => {{
+    const allowed = hasActiveNoAuthModelQuery();
+    const fastModeAllowed = fastModeModels.size > 0 && allowed;
+    const changed = window.{composer_status_allowed_global} !== allowed ||
+      window.__CODEX_SWITCH_FAST_MODE_ALLOWED__ !== fastModeAllowed;
+    window.{composer_status_allowed_global} = allowed;
+    window.__CODEX_SWITCH_FAST_MODE_ALLOWED__ = fastModeAllowed;
+    if (changed) window.__CODEX_SWITCH_REFRESH_SPEED_SELECTOR__?.();
+  }};
+  syncComposerStatus();
 {speed_selector_overlay}
 {observer_patch_helpers}
+  window.{composer_status_observer_global}?.unsubscribe?.();
+  window.{composer_status_observer_global} = {{
+    unsubscribe: queryClient.getQueryCache().subscribe(event => {{
+      if (matchesModelsQuery(event?.query)) syncComposerStatus();
+    }}),
+  }};
+  syncComposerStatus();
   if (expectedModels.length === 0) {{
     clearModelQueryPatch();
     // Inactive picker queries retain injected Provider data after invalidation, so reset their
@@ -274,11 +292,10 @@ fn codex_model_refresh_expression(
   patchState.models = injectedModels;
   patchState.queryClient = queryClient;
   window[patchStateKey] = patchState;
-  if (!patchState.unsubscribe) {{
-    patchState.unsubscribe = queryClient.getQueryCache().subscribe(event => {{
-      if (event?.type === "added") patchQuery(event.query);
-    }});
-  }}
+  patchState.unsubscribe?.();
+  patchState.unsubscribe = queryClient.getQueryCache().subscribe(event => {{
+    if (event?.type === "added") patchQuery(event.query);
+  }});
   for (const query of currentQueries) patchQuery(query);
   const targetQueryKeys = currentQueries.length > 0
     ? currentQueries.map(query => query.queryKey)

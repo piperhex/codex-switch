@@ -3,10 +3,6 @@ struct CdpSession {
     next_id: u64,
 }
 
-fn composer_status_allowed_expression() -> String {
-    format!("window.{CODEX_COMPOSER_STATUS_ALLOWED_GLOBAL} === true")
-}
-
 const CODEX_NOTIFICATION_HOST_ID: &str = "codex-switch-notification";
 const CODEX_NOTIFICATION_CSS: &str = r#"
 :host {
@@ -346,15 +342,7 @@ pub(crate) fn refresh_codex_models(
     let mut session = CdpSession::connect(&target, port)?;
     session.enable()?;
     let result = session.evaluate(&expression)?;
-    let composer_status_allowed = session
-        .evaluate(&composer_status_allowed_expression())?
-        .as_bool()
-        == Some(true);
-    if composer_status_allowed {
-        install_renderer_bindings(&target, port)?;
-    } else {
-        cancel_renderer_bindings();
-    }
+    install_renderer_bindings(&target, port)?;
     Ok(CodexModelRefreshResult {
         refreshed: result
             .get("refreshed")

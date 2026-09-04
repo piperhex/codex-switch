@@ -1,5 +1,5 @@
 const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
-  (() => {
+  window.__CODEX_SWITCH_REFRESH_SPEED_SELECTOR__ = () => {
     const stateKey = "__CODEX_SWITCH_SPEED_SELECTOR__";
     const overlayVersion = 14;
     const usageRefreshMs = 30000;
@@ -283,5 +283,6 @@ const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
     state.usageTimer = setInterval(state.requestUsage, usageRefreshMs);
     render();
     setTimeout(state.requestUsage, 0);
-  })();
+  };
+  window.__CODEX_SWITCH_REFRESH_SPEED_SELECTOR__();
 "#;
