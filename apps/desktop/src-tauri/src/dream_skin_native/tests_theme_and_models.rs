@@ -297,6 +297,8 @@
         assert!(expression.contains("pointerdown"));
         assert!(expression.contains("data-speed-switch"));
         assert!(expression.contains("data-today-usage"));
+        assert!(expression.contains("align-items:center"));
+        assert!(expression.contains("transform:translateY(1px)"));
         assert!(expression.contains("今日 Token 用量"));
         assert!(expression.contains("codexSwitchRequestUsageSummary"));
         assert!(expression.contains("estimatedCostUsd"));

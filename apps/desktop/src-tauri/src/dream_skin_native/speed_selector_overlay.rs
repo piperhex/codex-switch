@@ -1,7 +1,7 @@
 const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
   (() => {
     const stateKey = "__CODEX_SWITCH_SPEED_SELECTOR__";
-    const overlayVersion = 10;
+    const overlayVersion = 11;
     const usageRefreshMs = 30000;
     const initialTier = __CODEX_SWITCH_SERVICE_TIER__;
     const existing = window[stateKey];
@@ -126,8 +126,9 @@ const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
       const cost = document.createElement("strong");
       usage.dataset.todayUsage = "true";
       usage.hidden = true;
-      usage.style.cssText = "display:inline-flex;align-items:baseline;gap:3px;margin-right:2px;"
-        + "font-size:12px;line-height:18px;font-variant-numeric:tabular-nums;";
+      usage.style.cssText = "display:inline-flex;align-items:center;gap:3px;margin-right:2px;"
+        + "font-size:12px;line-height:18px;font-variant-numeric:tabular-nums;"
+        + "transform:translateY(1px);";
       today.textContent = "今日";
       today.style.color = "var(--text-tertiary)";
       tokens.dataset.todayTokens = "true";
