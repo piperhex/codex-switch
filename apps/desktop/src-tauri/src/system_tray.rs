@@ -17,6 +17,7 @@ pub(crate) use refresh::refresh_menu;
 
 const TRAY_ID: &str = "main-tray";
 const DASHBOARD_ID: &str = "tray:dashboard";
+const FLOATING_BUBBLE_TOGGLE_ID: &str = "tray:toggle-floating-bubble";
 const SETTINGS_ID: &str = "tray:settings";
 const OPEN_SETTINGS_EVENT: &str = "open-settings";
 const RESTART_CHATGPT_ID: &str = "tray:restart-chatgpt";
@@ -107,6 +108,15 @@ fn show_settings<R: Runtime>(app: &AppHandle<R>) {
 
 pub(crate) fn handle_menu_event<R: Runtime>(app: &AppHandle<R>, event: MenuEvent) {
     let id = event.id().as_ref();
+    if id == FLOATING_BUBBLE_TOGGLE_ID {
+        let app = app.clone();
+        tauri::async_runtime::spawn(async move {
+            if let Err(error) = crate::floating_bubble::toggle_floating_bubble(app).await {
+                eprintln!("failed to toggle floating usage window from menu: {error}");
+            }
+        });
+        return;
+    }
     if id == SETTINGS_ID {
         show_settings(app);
         return;
@@ -172,11 +182,18 @@ pub(crate) fn build_menu<R: Runtime>(
     app: &AppHandle<R>,
 ) -> Result<Menu<R>, Box<dyn std::error::Error>> {
     let menu = Menu::new(app)?;
-    let chinese = read_app_settings(app)
-        .ok()
-        .and_then(|settings| settings.language)
-        .as_deref()
+    let settings = read_app_settings(app).ok();
+    let chinese = settings
+        .as_ref()
+        .and_then(|settings| settings.language.as_deref())
         == Some("zh");
+    let floating_bubble_enabled = settings
+        .as_ref()
+        .map(|settings| settings.floating_bubble_enabled)
+        .unwrap_or_else(|| {
+            app.get_webview_window(crate::floating_bubble::BUBBLE_LABEL)
+                .is_some()
+        });
 
     let accounts_header = MenuItem::with_id(
         app,
@@ -223,6 +240,13 @@ pub(crate) fn build_menu<R: Runtime>(
     menu.append(&PredefinedMenuItem::separator(app)?)?;
     menu.append(&MenuItem::with_id(
         app,
+        FLOATING_BUBBLE_TOGGLE_ID,
+        floating_bubble_toggle_label(chinese, floating_bubble_enabled),
+        true,
+        None::<&str>,
+    )?)?;
+    menu.append(&MenuItem::with_id(
+        app,
         SETTINGS_ID,
         if chinese { "设置" } else { "Settings" },
         true,
@@ -265,6 +289,15 @@ pub(crate) fn build_menu<R: Runtime>(
         None::<&str>,
     )?)?;
     Ok(menu)
+}
+
+fn floating_bubble_toggle_label(chinese: bool, enabled: bool) -> &'static str {
+    match (chinese, enabled) {
+        (true, true) => "隐藏用量悬浮球/卡片",
+        (true, false) => "显示用量悬浮球/卡片",
+        (false, true) => "Hide Usage Bubble/Card",
+        (false, false) => "Show Usage Bubble/Card",
+    }
 }
 
 fn append_provider_items<R: Runtime>(

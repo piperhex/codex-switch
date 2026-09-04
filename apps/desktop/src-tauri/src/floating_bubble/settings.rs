@@ -8,15 +8,35 @@ pub(crate) async fn set_floating_bubble<R: Runtime>(
     app: AppHandle<R>,
     enabled: bool,
 ) -> Result<AppSettings, String> {
-    let mut settings = read_app_settings(&app)?;
-    settings.floating_bubble_enabled = enabled;
-    write_app_settings(&app, &settings)?;
+    update_floating_bubble(app, Some(enabled)).await
+}
 
-    if enabled {
+pub(crate) async fn toggle_floating_bubble<R: Runtime>(
+    app: AppHandle<R>,
+) -> Result<AppSettings, String> {
+    update_floating_bubble(app, None).await
+}
+
+async fn update_floating_bubble<R: Runtime>(
+    app: AppHandle<R>,
+    enabled: Option<bool>,
+) -> Result<AppSettings, String> {
+    let storage_app = app.clone();
+    let settings = tauri::async_runtime::spawn_blocking(move || {
+        let mut settings = read_app_settings(&storage_app)?;
+        settings.floating_bubble_enabled = enabled.unwrap_or(!settings.floating_bubble_enabled);
+        write_app_settings(&storage_app, &settings)?;
+        Ok::<_, String>(settings)
+    })
+    .await
+    .map_err(|error| format!("Floating usage setting task failed: {error}"))??;
+
+    if settings.floating_bubble_enabled {
         create(&app, &settings)?;
     } else if let Some(window) = app.get_webview_window(BUBBLE_LABEL) {
         window.close().map_err(|error| error.to_string())?;
     }
+    crate::system_tray::refresh_menu(&app);
     Ok(settings)
 }
 
