@@ -86,6 +86,17 @@ pub(crate) fn restore_official(
     Ok(document.to_string())
 }
 
+pub(crate) fn default_official(model: &str, reasoning_effort: &str) -> String {
+    let mut document = DocumentMut::new();
+    set_root_value(&mut document, "model", Value::from(model));
+    set_root_value(
+        &mut document,
+        "model_reasoning_effort",
+        Value::from(reasoning_effort),
+    );
+    document.to_string()
+}
+
 pub(crate) fn contains_local_proxy(content: &str) -> bool {
     content.parse::<DocumentMut>().is_ok_and(|document| {
         document
@@ -110,6 +121,19 @@ fn parse_document(content: &str) -> Result<DocumentMut, ConfigError> {
     remove_legacy_marked_blocks(content)
         .parse::<DocumentMut>()
         .map_err(|error| ConfigError::InvalidToml(error.to_string()))
+}
+
+#[cfg(test)]
+mod default_official_tests {
+    use super::*;
+
+    #[test]
+    fn default_official_matches_codex_model_persistence_format() {
+        assert_eq!(
+            default_official("gpt-5.6-sol", "low"),
+            "model = \"gpt-5.6-sol\"\nmodel_reasoning_effort = \"low\"\n"
+        );
+    }
 }
 
 fn set_proxy_root(document: &mut DocumentMut, options: &LocalProxyConfig<'_>) {

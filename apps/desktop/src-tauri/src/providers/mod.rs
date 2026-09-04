@@ -1,4 +1,5 @@
 include!("model_refresh.rs");
+include!("config_repair.rs");
 include!("provider_commands.rs");
 include!("balance_queries.rs");
 include!("activation.rs");
@@ -17,4 +18,5 @@ mod tests {
     include!("tests/proxy_config.rs");
     include!("tests/presets.rs");
     include!("tests/model_catalog.rs");
+    include!("tests/config_repair.rs");
 }

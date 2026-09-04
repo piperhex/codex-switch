@@ -1276,6 +1276,18 @@ export async function deactivateProvider(): Promise<void> {
   await invoke("disable_provider");
 }
 
+export interface CodexConfigRepairResult {
+  repairedConfigCount: number;
+  proxyConfigReapplied: boolean;
+}
+
+export async function repairCodexConfig(): Promise<CodexConfigRepairResult> {
+  if (!hasLocalBackend) {
+    throw new Error("Codex config repair is unavailable in browser preview");
+  }
+  return invoke<CodexConfigRepairResult>("repair_codex_config");
+}
+
 export async function removeProvider(id: string): Promise<void> {
   if (!hasLocalBackend) {
     writePreviewProviders(readPreviewProviders().filter((provider) => provider.id !== id));

@@ -112,6 +112,7 @@ import type { Translate } from "../../i18n";
 import { AccountDisplayTabs } from "./AccountDisplayTabs";
 import { AccountTopbarActions } from "./AccountTopbarActions";
 import { AccountImageModelButton } from "./AccountImageModelButton";
+import { CodexConfigRepairButton } from "./CodexConfigRepairButton";
 import { AccountGroupManager } from "../accounts/AccountGroupManager";
 import { UsageSpeedPill } from "../accounts/UsageSpeedPill";
 import type {
@@ -1359,6 +1360,8 @@ export function DashboardApp() {
                 {refreshActionMenu}
                 {chatGptActionMenu}
                 {accountProxyTopbarActions}
+                <CodexConfigRepairButton disabled={providerManager.proxyBusy}
+                  notify={notify} t={t} />
               </AccountTopbarActions>
             )}
             {page === "providers" && (

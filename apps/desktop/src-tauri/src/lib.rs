@@ -312,6 +312,7 @@ pub fn run() {
             providers::set_provider_group,
             providers::set_provider_groups,
             providers::set_provider_auto_switch_enabled,
+            providers::repair_codex_config,
             providers::disable_provider,
             providers::delete_provider,
             aggregate_api::list_aggregate_apis,

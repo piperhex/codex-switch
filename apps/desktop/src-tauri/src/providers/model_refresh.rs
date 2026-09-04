@@ -37,6 +37,7 @@ pub(crate) use codex_config::{
 pub(crate) const CODEX_SWITCH_CONTROL_MODEL: &str = "codex switch control";
 const LOCAL_PROXY_PROVIDER_NAME: &str = "Codex Switch Local Proxy";
 pub(crate) const DEFAULT_OFFICIAL_MODEL: &str = "gpt-5.6-sol";
+pub(crate) const DEFAULT_OFFICIAL_REASONING_EFFORT: &str = "low";
 const MODEL_CATALOG_FILENAME: &str = "codex-switch-model-catalog.json";
 pub(crate) const DEFAULT_MODEL_CONTEXT_WINDOW: u64 = 256_000;
 pub(crate) const DEFAULT_DEEPSEEK_MODEL_CONTEXT_WINDOW: u64 = 1_000_000;
