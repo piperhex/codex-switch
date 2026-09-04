@@ -1,5 +1,6 @@
 import { Tooltip } from "antd";
 import type { Translate } from "../../i18n";
+import styles from "./UsageSpeedPill.module.less";
 
 interface UsageSpeedPillProps {
   fastModeEnabled: boolean;
@@ -27,14 +28,14 @@ export function UsageSpeedPill({
     : fastModeAvailable ? "usage.speedHint" : "usage.speedUnavailable");
 
   return <Tooltip title={tooltip} styles={{ root: { maxWidth: 400 } }}>
-    <span className={`usage-speed-pill${loading ? " is-loading" : ""}`}
+    <span className={`${styles.pill}${loading ? ` ${styles.loading}` : ""}`}
       role="group" aria-label={t("usage.speedMode")} onClick={(event) => event.stopPropagation()}>
-      <button type="button" className={fastModeEnabled ? undefined : "selected"}
+      <button type="button" className={fastModeEnabled ? undefined : styles.selected}
         aria-pressed={!fastModeEnabled} disabled={!proxyRunning || loading}
         onPointerDown={(event) => event.stopPropagation()} onClick={() => selectMode(false)}>
         {t("usage.speedNormal")}
       </button>
-      <button type="button" className={fastModeEnabled ? "selected" : undefined}
+      <button type="button" className={fastModeEnabled ? styles.selected : undefined}
         aria-pressed={fastModeEnabled} disabled={!proxyRunning || loading || !fastModeAvailable}
         onPointerDown={(event) => event.stopPropagation()} onClick={() => selectMode(true)}>
         {t("usage.speedFast")}

@@ -113,6 +113,7 @@ import { AccountDisplayTabs } from "./AccountDisplayTabs";
 import { AccountTopbarActions } from "./AccountTopbarActions";
 import { AccountImageModelButton } from "./AccountImageModelButton";
 import { AccountGroupManager } from "../accounts/AccountGroupManager";
+import { UsageSpeedPill } from "../accounts/UsageSpeedPill";
 import type {
   AccountDetailsDraft,
   BubbleResetDisplay,
@@ -1181,6 +1182,11 @@ export function DashboardApp() {
           outputTarget={providerManager.localProxy.imageOutputTarget}
           busy={providerManager.proxyBusy} onChange={providerManager.setProxyImageModel}
           privacyMode={privacyMode.enabled} t={t} />}
+        {providerManager.localProxy?.running && <UsageSpeedPill
+          fastModeEnabled={providerManager.localProxy.fastModeEnabled}
+          fastModeAvailable={providerManager.localProxy.fastModeAvailable}
+          proxyRunning loading={providerManager.proxyBusy}
+          onChange={providerManager.setProxyFastMode} t={t} />}
         {!sidebarNavigationEnabled && <TotpWindowButton notify={notify} t={t} />}
       </>} t={t} />
   );
@@ -1598,7 +1604,6 @@ export function DashboardApp() {
               resetCreditBusyAccountId={resetCreditBusyAccountId}
               onOpenaiAuthAccountChange={providerManager.setProxyOpenaiAuthAccount}
               onConcurrentRoutingChange={providerManager.setProxyConcurrentRouting}
-              onFastModeChange={providerManager.setProxyFastMode}
               privacyMode={privacyMode.enabled}
               privacyModeLoading={privacyMode.loading}
               onPrivacyModeChange={(enabled) => void privacyMode.setEnabled(enabled)}
