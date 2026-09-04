@@ -2,7 +2,7 @@ use chrono::{Local, TimeZone};
 use serde::Serialize;
 
 use crate::{
-    models::{ManagerStateFile, TokenUsageEntry, UsageSummary},
+    models::{ManagerStateFile, ProviderBalance, TokenUsageEntry, UsageSummary},
     storage::Paths,
 };
 
@@ -53,6 +53,14 @@ pub(crate) struct CodexUsageSummary {
     estimated_cost_usd: f64,
     primary_remaining_percent: Option<f64>,
     primary_remaining_aggregated: bool,
+    provider_wallet_balance: Option<ProviderWalletBalance>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ProviderWalletBalance {
+    amount: f64,
+    unit: String,
 }
 
 pub(crate) fn load() -> Result<CodexUsageSummary, String> {
@@ -66,16 +74,42 @@ pub(crate) fn load() -> Result<CodexUsageSummary, String> {
             estimated_cost_usd: 0.0,
             primary_remaining_percent: None,
             primary_remaining_aggregated: false,
+            provider_wallet_balance: None,
         });
     }
     let paths = crate::storage::resolve_paths(&app)?;
     let state = crate::storage::read_state(&paths);
     let primary_remaining = displayed_primary_remaining(&paths, &state);
+    let provider_wallet_balance = displayed_provider_wallet_balance(&state);
     let entries = crate::local_proxy::list_token_usage_entries_since_blocking(
         &app,
         local_day_start_timestamp()?,
     )?;
-    Ok(summarize(&entries, primary_remaining))
+    Ok(summarize(
+        &entries,
+        primary_remaining,
+        provider_wallet_balance,
+    ))
+}
+
+fn displayed_provider_wallet_balance(state: &ManagerStateFile) -> Option<ProviderWalletBalance> {
+    if state.active_provider_group.is_some() {
+        return None;
+    }
+    let provider_id = state.active_provider_id.as_deref()?;
+    let balance = crate::providers::cached_provider_balance(provider_id)?;
+    provider_wallet_balance(&balance)
+}
+
+fn provider_wallet_balance(balance: &ProviderBalance) -> Option<ProviderWalletBalance> {
+    let amount = balance.wallet_amount.filter(|amount| amount.is_finite())?;
+    let unit = balance
+        .wallet_unit
+        .trim()
+        .chars()
+        .take(12)
+        .collect::<String>();
+    (!unit.is_empty()).then_some(ProviderWalletBalance { amount, unit })
 }
 
 fn displayed_primary_remaining(paths: &Paths, state: &ManagerStateFile) -> Option<(f64, bool)> {
@@ -129,6 +163,7 @@ fn local_day_start_timestamp() -> Result<u64, String> {
 fn summarize(
     entries: &[TokenUsageEntry],
     primary_remaining: Option<(f64, bool)>,
+    provider_wallet_balance: Option<ProviderWalletBalance>,
 ) -> CodexUsageSummary {
     CodexUsageSummary {
         enabled: true,
@@ -139,6 +174,7 @@ fn summarize(
         estimated_cost_usd: entries.iter().map(estimate_cost).sum(),
         primary_remaining_percent: primary_remaining.map(|(remaining, _)| remaining),
         primary_remaining_aggregated: primary_remaining.is_some_and(|(_, aggregated)| aggregated),
+        provider_wallet_balance,
     }
 }
 
@@ -196,7 +232,7 @@ mod tests {
 
     #[test]
     fn summarizes_tokens_and_estimated_model_cost() {
-        let summary = summarize(&[usage_entry("gpt-5.6-sol")], None);
+        let summary = summarize(&[usage_entry("gpt-5.6-sol")], None, None);
 
         assert_eq!(summary.total_tokens, 1_100_000);
         assert!((summary.estimated_cost_usd - 5.28).abs() < f64::EPSILON);
@@ -227,5 +263,40 @@ mod tests {
             sum_primary_remaining(&[usage(79.0), usage(65.0)]),
             Some(144.0)
         );
+    }
+
+    #[test]
+    fn displays_a_finite_provider_wallet_balance() {
+        let balance = ProviderBalance {
+            api_amount: None,
+            api_unit: String::new(),
+            api_unlimited: false,
+            wallet_amount: Some(66.6),
+            wallet_unit: " USD ".to_string(),
+            wallet_error: None,
+            balance_items: Vec::new(),
+            queried_at: 0,
+        };
+
+        let wallet = provider_wallet_balance(&balance).expect("wallet balance should be displayed");
+
+        assert_eq!(wallet.amount, 66.6);
+        assert_eq!(wallet.unit, "USD");
+    }
+
+    #[test]
+    fn hides_a_missing_provider_wallet_balance() {
+        let balance = ProviderBalance {
+            api_amount: Some(10.0),
+            api_unit: "USD".to_string(),
+            api_unlimited: false,
+            wallet_amount: None,
+            wallet_unit: "USD".to_string(),
+            wallet_error: None,
+            balance_items: Vec::new(),
+            queried_at: 0,
+        };
+
+        assert!(provider_wallet_balance(&balance).is_none());
     }
 }

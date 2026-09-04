@@ -303,8 +303,10 @@
         assert!(expression.contains("codexSwitchRequestUsageSummary"));
         assert!(expression.contains("estimatedCostUsd"));
         assert!(expression.contains("primaryRemainingPercent"));
+        assert!(expression.contains("providerWalletBalance"));
+        assert!(expression.contains("当前三方 API 钱包额度"));
         assert!(expression.contains("并发账号主用量余额合计"));
-        assert!(expression.contains("data-primary-remaining"));
+        assert!(expression.contains("data-trailing-balance"));
         assert!(expression.contains("rgb(10,132,105)"));
         assert!(expression.contains("rgb(180,93,0)"));
         assert!(expression.contains("style.setProperty(\"color\", tokens, \"important\")"));

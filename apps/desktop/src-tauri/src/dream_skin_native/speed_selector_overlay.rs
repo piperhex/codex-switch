@@ -1,7 +1,7 @@
 const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
   (() => {
     const stateKey = "__CODEX_SWITCH_SPEED_SELECTOR__";
-    const overlayVersion = 12;
+    const overlayVersion = 13;
     const usageRefreshMs = 30000;
     const initialTier = __CODEX_SWITCH_SERVICE_TIER__;
     const existing = window[stateKey];
@@ -31,6 +31,7 @@ const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
       usage: {
         enabled: false, totalTokens: 0, estimatedCostUsd: 0,
         primaryRemainingPercent: null, primaryRemainingAggregated: false,
+        providerWalletBalance: null,
       },
     };
     window[stateKey] = state;
@@ -47,6 +48,23 @@ const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
       const maximumFractionDigits = value > 0 && value < 0.01 ? 4 : 2;
       return `${new Intl.NumberFormat("en-US", { maximumFractionDigits }).format(value)}USD`;
     };
+    const displayedBalance = () => {
+      if (Number.isFinite(state.usage.primaryRemainingPercent)) {
+        const value = `${Math.round(state.usage.primaryRemainingPercent)}%`;
+        return {
+          value,
+          amount: state.usage.primaryRemainingPercent,
+          kind: "quota",
+          label: state.usage.primaryRemainingAggregated
+            ? "并发账号主用量余额合计"
+            : "当前账号主用量余额",
+        };
+      }
+      const wallet = state.usage.providerWalletBalance;
+      if (!wallet || !Number.isFinite(wallet.amount) || !wallet.unit) return null;
+      const value = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(wallet.amount);
+      return { value: `${value}${wallet.unit}`, amount: wallet.amount, kind: "wallet", label: "当前三方 API 钱包额度" };
+    };
     const usesDarkPalette = element => {
       const channels = getComputedStyle(element).color.match(/[\d.]+/g)?.map(Number);
       if (!channels || channels.length < 3) return false;
@@ -57,15 +75,16 @@ const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
       const dark = usesDarkPalette(usage);
       const tokens = dark ? "rgb(84,214,177)" : "rgb(10,132,105)";
       const cost = dark ? "rgb(245,177,65)" : "rgb(180,93,0)";
-      const remaining = state.usage.primaryRemainingPercent;
-      const quota = remaining <= 20
+      const balance = displayedBalance();
+      const balanceColor = balance?.kind === "quota" && balance.amount <= 20
+        || balance?.kind === "wallet" && balance.amount < 0
         ? (dark ? "rgb(255,113,113)" : "rgb(190,45,45)")
-        : remaining <= 50
+        : balance?.kind === "quota" && balance.amount <= 50
           ? (dark ? "rgb(245,177,65)" : "rgb(180,93,0)")
           : (dark ? "rgb(96,211,148)" : "rgb(22,135,78)");
       usage.querySelector("[data-today-tokens]").style.setProperty("color", tokens, "important");
       usage.querySelector("[data-today-cost]").style.setProperty("color", cost, "important");
-      usage.querySelector("[data-primary-remaining]").style.setProperty("color", quota, "important");
+      usage.querySelector("[data-trailing-balance]").style.setProperty("color", balanceColor, "important");
     };
     const syncSwitch = selector => {
       const toggle = selector.querySelector("[data-speed-switch]");
@@ -84,26 +103,20 @@ const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
       syncUsageColors(usage);
       const tokens = formatTokens(state.usage.totalTokens);
       const cost = formatCost(state.usage.estimatedCostUsd);
-      const hasPrimaryRemaining = Number.isFinite(state.usage.primaryRemainingPercent);
-      const primaryRemaining = hasPrimaryRemaining
-        ? `${Math.round(state.usage.primaryRemainingPercent)}%`
-        : "";
-      const primarySeparator = usage.querySelector("[data-primary-separator]");
-      const primary = usage.querySelector("[data-primary-remaining]");
-      primarySeparator.hidden = !hasPrimaryRemaining;
-      primary.hidden = !hasPrimaryRemaining;
-      primary.textContent = primaryRemaining;
+      const balance = displayedBalance();
+      const balanceSeparator = usage.querySelector("[data-balance-separator]");
+      const balanceValue = usage.querySelector("[data-trailing-balance]");
+      balanceSeparator.hidden = !balance;
+      balanceValue.hidden = !balance;
+      balanceValue.textContent = balance?.value ?? "";
       usage.querySelector("[data-today-tokens]").textContent = tokens;
       usage.querySelector("[data-today-cost]").textContent = cost;
-      const primaryLabel = state.usage.primaryRemainingAggregated
-        ? "并发账号主用量余额合计"
-        : "当前账号主用量余额";
-      const primaryTitle = hasPrimaryRemaining ? `\n${primaryLabel}：${primaryRemaining}` : "";
-      usage.title = `今日 Token 用量：${tokens}\n今日预估成本：${cost}${primaryTitle}`;
-      const primaryAria = hasPrimaryRemaining ? `，${primaryLabel} ${primaryRemaining}` : "";
+      const balanceTitle = balance ? `\n${balance.label}：${balance.value}` : "";
+      usage.title = `今日 Token 用量：${tokens}\n今日预估成本：${cost}${balanceTitle}`;
+      const balanceAria = balance ? `，${balance.label} ${balance.value}` : "";
       usage.setAttribute(
         "aria-label",
-        `今日 Token 用量 ${tokens}，今日预估成本 ${cost}${primaryAria}`,
+        `今日 Token 用量 ${tokens}，今日预估成本 ${cost}${balanceAria}`,
       );
     };
     const syncAll = () => {
@@ -119,6 +132,7 @@ const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
       const totalTokens = Number(summary?.totalTokens);
       const estimatedCostUsd = Number(summary?.estimatedCostUsd);
       const primaryRemainingPercent = summary?.primaryRemainingPercent;
+      const providerWalletBalance = summary?.providerWalletBalance;
       state.usage = {
         enabled: summary?.enabled === true,
         totalTokens: Number.isFinite(totalTokens) ? Math.max(0, totalTokens) : 0,
@@ -128,6 +142,12 @@ const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
           ? Math.max(0, primaryRemainingPercent)
           : null,
         primaryRemainingAggregated: summary?.primaryRemainingAggregated === true,
+        providerWalletBalance: providerWalletBalance
+          && typeof providerWalletBalance.amount === "number"
+          && Number.isFinite(providerWalletBalance.amount)
+          && typeof providerWalletBalance.unit === "string"
+          ? { amount: providerWalletBalance.amount, unit: providerWalletBalance.unit }
+          : null,
       };
       syncAll();
     };
@@ -157,8 +177,8 @@ const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
       const tokens = document.createElement("strong");
       const separator = document.createElement("span");
       const cost = document.createElement("strong");
-      const primarySeparator = document.createElement("span");
-      const primary = document.createElement("strong");
+      const balanceSeparator = document.createElement("span");
+      const balance = document.createElement("strong");
       usage.dataset.todayUsage = "true";
       usage.hidden = true;
       usage.style.cssText = "display:inline-flex;align-items:center;gap:3px;margin-right:2px;"
@@ -172,14 +192,14 @@ const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
       separator.style.color = "var(--text-tertiary)";
       cost.dataset.todayCost = "true";
       cost.style.fontWeight = "650";
-      primarySeparator.dataset.primarySeparator = "true";
-      primarySeparator.textContent = "·";
-      primarySeparator.style.color = "var(--text-tertiary)";
-      primary.dataset.primaryRemaining = "true";
-      primary.style.fontWeight = "650";
-      primarySeparator.hidden = true;
-      primary.hidden = true;
-      usage.append(today, tokens, separator, cost, primarySeparator, primary);
+      balanceSeparator.dataset.balanceSeparator = "true";
+      balanceSeparator.textContent = "·";
+      balanceSeparator.style.color = "var(--text-tertiary)";
+      balance.dataset.trailingBalance = "true";
+      balance.style.fontWeight = "650";
+      balanceSeparator.hidden = true;
+      balance.hidden = true;
+      usage.append(today, tokens, separator, cost, balanceSeparator, balance);
       return usage;
     };
     const createSelector = () => {

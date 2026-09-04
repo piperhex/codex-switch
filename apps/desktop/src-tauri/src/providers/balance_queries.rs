@@ -1,3 +1,25 @@
+static PROVIDER_BALANCE_CACHE: OnceLock<Mutex<HashMap<String, ProviderBalance>>> = OnceLock::new();
+
+fn provider_balance_cache() -> &'static Mutex<HashMap<String, ProviderBalance>> {
+    PROVIDER_BALANCE_CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn cache_provider_balance(provider_id: &str, balance: &ProviderBalance) {
+    if let Ok(mut cache) = provider_balance_cache().lock() {
+        cache.insert(provider_id.to_string(), balance.clone());
+    }
+}
+
+fn clear_cached_provider_balance(provider_id: &str) {
+    if let Ok(mut cache) = provider_balance_cache().lock() {
+        cache.remove(provider_id);
+    }
+}
+
+pub(crate) fn cached_provider_balance(provider_id: &str) -> Option<ProviderBalance> {
+    provider_balance_cache().lock().ok()?.get(provider_id).cloned()
+}
+
 fn query_balance_payload(
     client: &Client,
     query_url: &str,

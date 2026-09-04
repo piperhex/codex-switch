@@ -449,6 +449,7 @@ pub(crate) fn delete_provider<R: Runtime>(
     if path.exists() {
         fs::remove_file(&path).map_err(|error| format!("Failed to delete provider: {error}"))?;
     }
+    clear_cached_provider_balance(&id);
     crate::aggregate_api::remove_provider_membership(&paths, &id)?;
     if let Some(active_id) = original_state
         .active_provider_id

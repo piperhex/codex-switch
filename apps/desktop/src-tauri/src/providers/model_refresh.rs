@@ -1,8 +1,9 @@
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     fs,
     io::Read,
     path::{Path, PathBuf},
+    sync::{Mutex, OnceLock},
     time::Duration,
 };
 
@@ -57,6 +58,7 @@ fn emit_providers_changed<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<(), S
     app.emit("providers-changed", ())
         .map_err(|error| error.to_string())?;
     crate::system_tray::refresh_menu(app);
+    crate::codex_runtime::refresh_usage_summary();
     Ok(())
 }
 
