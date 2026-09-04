@@ -65,6 +65,7 @@ import { TokenCostColumnTitle, useTokenCostDisplaySettings } from "../../TokenCo
 import { AccountNoteModal } from "../../modals/AccountNoteModal";
 import { AccountExpandedPanel } from "../AccountExpandedPanel";
 import { AccountGroupCell, ConcurrentRoutingControl } from "../AccountGroupControls";
+import { AccountUseActionIcon } from "../AccountUseActionIcon";
 import { OfficialContextSettings } from "../OfficialContextSettings";
 import { UsageMeter, UsageRefreshAge } from "../UsageMeter";
 import { canReceiveConcurrentConversation } from "../concurrentAccountEligibility";
@@ -1025,6 +1026,7 @@ export function AccountTable({
                   onDeactivate(account.id);
                 }}>
                 <button type="button" className="destructive" disabled={waiting}>
+                  <AccountUseActionIcon active />
                   {t("table.deactivate")}
                 </button>
               </Popconfirm>
@@ -1034,6 +1036,7 @@ export function AccountTable({
                   setContextMenu(null);
                   onSwitch(account.id);
                 }}>
+                <AccountUseActionIcon active={false} />
                 {t("table.switch")}
               </button>
             )}
