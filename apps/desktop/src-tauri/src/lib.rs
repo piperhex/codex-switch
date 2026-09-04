@@ -32,6 +32,7 @@ mod main_window;
 mod models;
 mod network_proxy;
 mod oauth;
+mod official_models;
 mod official_plugins;
 mod open_code;
 mod preset_provider;
@@ -150,6 +151,7 @@ pub fn run() {
                     providers::cleanup_stale_local_proxy_config(app.handle())?;
                 }
             }
+            official_models::refresh_on_startup(app.handle().clone());
             if !launch_options.headless {
                 system_tray::setup(app)?;
                 floating_bubble::setup(app.handle())?;
@@ -239,6 +241,7 @@ pub fn run() {
             commands::update_account_note,
             commands::delete_account,
             commands::refresh_usage,
+            official_models::refresh_official_model_catalog,
             commands::consume_account_quota,
             commands::fetch_reset_credits,
             commands::consume_reset_credit,

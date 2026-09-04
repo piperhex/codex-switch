@@ -2,7 +2,7 @@ mod json_targets;
 pub(crate) mod runtime_paths;
 mod yaml_targets;
 
-use std::{fs, path::Path};
+use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Runtime};
@@ -21,7 +21,6 @@ use crate::{
 pub(crate) use runtime_paths::capture_running_app_paths;
 
 pub(crate) const MANAGED_PROVIDER_ID: &str = "codex-switch";
-const KNOWN_OFFICIAL_MODELS: [&str; 3] = ["gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ProviderProtocol {
@@ -256,7 +255,7 @@ fn active_provider<R: Runtime>(app: &AppHandle<R>) -> Result<Option<ProviderProf
         && crate::local_proxy::is_running()
     {
         let context_window = read_app_settings(app)?.gpt_5_6_sol_context_window;
-        let catalog = official_local_proxy_catalog(&paths.codex_home);
+        let catalog = crate::official_models::cached_catalog(&paths);
         return Ok(Some(official_local_proxy_profile(
             context_window,
             catalog.models,
@@ -266,11 +265,6 @@ fn active_provider<R: Runtime>(app: &AppHandle<R>) -> Result<Option<ProviderProf
     Ok(None)
 }
 
-struct OfficialLocalProxyCatalog {
-    models: Vec<String>,
-    image_input_models: Vec<String>,
-}
-
 fn official_local_proxy_profile(
     context_window: u64,
     models: Vec<String>,
@@ -278,12 +272,11 @@ fn official_local_proxy_profile(
 ) -> ProviderProfile {
     let model = DEFAULT_OFFICIAL_MODEL.to_string();
     let image_input_models_configured = !image_input_models.is_empty();
-    let mut models = models;
-    for known_model in KNOWN_OFFICIAL_MODELS {
-        if !models.iter().any(|candidate| candidate == known_model) {
-            models.push(known_model.to_string());
-        }
-    }
+    let models = if models.is_empty() {
+        vec![model.clone()]
+    } else {
+        models
+    };
     ProviderProfile {
         id: MANAGED_PROVIDER_ID.to_string(),
         kind: ProviderKind::OpenAi,
@@ -309,49 +302,6 @@ fn official_local_proxy_profile(
         wallet_query_token: None,
         wallet_username: None,
         wallet_password: None,
-    }
-}
-
-fn official_local_proxy_catalog(codex_home: &Path) -> OfficialLocalProxyCatalog {
-    let path = codex_home.join("codex-switch-model-catalog.json");
-    let entries = fs::read_to_string(path)
-        .ok()
-        .and_then(|source| serde_json::from_str::<serde_json::Value>(&source).ok())
-        .and_then(|catalog| catalog.get("models").cloned())
-        .and_then(|models| models.as_array().cloned())
-        .unwrap_or_default();
-    let mut models = Vec::new();
-    let mut image_input_models = Vec::new();
-    for entry in entries {
-        let Some(model) = ["slug", "id"]
-            .into_iter()
-            .find_map(|field| entry.get(field).and_then(serde_json::Value::as_str))
-        else {
-            continue;
-        };
-        let model = model.trim();
-        if !model.is_empty() && !models.iter().any(|known| known == model) {
-            let model = model.to_string();
-            if entry
-                .get("input_modalities")
-                .and_then(serde_json::Value::as_array)
-                .is_some_and(|modalities| {
-                    modalities
-                        .iter()
-                        .any(|modality| modality.as_str() == Some("image"))
-                })
-            {
-                image_input_models.push(model.clone());
-            }
-            models.push(model);
-        }
-    }
-    if !models.iter().any(|model| model == DEFAULT_OFFICIAL_MODEL) {
-        models.insert(0, DEFAULT_OFFICIAL_MODEL.to_string());
-    }
-    OfficialLocalProxyCatalog {
-        models,
-        image_input_models,
     }
 }
 
@@ -413,14 +363,7 @@ pub(crate) mod tests {
         assert_eq!(profile.base_url, LOCAL_PROXY_BASE_URL);
         assert_eq!(profile.api_key, LOCAL_PROXY_TOKEN);
         assert_eq!(profile.api_format, ProviderApiFormat::OpenaiResponses);
-        assert_eq!(
-            profile.models,
-            vec![
-                "gpt-5.6-sol".to_string(),
-                "gpt-5.6-terra".to_string(),
-                "gpt-5.6-luna".to_string()
-            ]
-        );
+        assert_eq!(profile.models, vec!["gpt-5.6-sol".to_string()]);
         assert_eq!(profile.context_window, Some(1_000_000));
         assert_eq!(profile.image_input_models, vec!["gpt-5.6-sol"]);
     }

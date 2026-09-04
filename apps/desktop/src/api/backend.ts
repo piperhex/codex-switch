@@ -3486,6 +3486,11 @@ export interface OfficialModelContextSettings {
   models: string[];
 }
 
+export async function refreshOfficialModelCatalog(): Promise<string[]> {
+  if (!hasLocalBackend) return [];
+  return invoke<string[]>("refresh_official_model_catalog");
+}
+
 export async function loadOfficialModelContextSettings(): Promise<OfficialModelContextSettings> {
   await loadGpt56SolContextWindow();
   if (!hasLocalBackend) {

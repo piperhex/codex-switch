@@ -238,11 +238,16 @@ fn apply_model_refresh(generation: u64, request: ModelRefreshRequest) {
 fn load_official_model_refresh_payload(
     selected_model: String,
 ) -> Result<ModelRefreshRequest, String> {
+    let client_version = CODEX_RUNTIME_APP
+        .get()
+        .and_then(|app| crate::storage::resolve_paths(app).ok())
+        .map(|paths| crate::official_models::model_client_version(&paths))
+        .unwrap_or_else(|| crate::official_models::MIN_CODEX_MODEL_CLIENT_VERSION.to_string());
     let url = format!(
         "http://{}:{}/v1/models?client_version={}",
         crate::providers::LOCAL_PROXY_HOST,
         crate::providers::LOCAL_PROXY_PORT,
-        env!("CARGO_PKG_VERSION")
+        client_version
     );
     let response = Client::builder()
         .timeout(OFFICIAL_MODEL_REFRESH_TIMEOUT)

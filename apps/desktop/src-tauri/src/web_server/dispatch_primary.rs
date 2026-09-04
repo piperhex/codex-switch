@@ -28,6 +28,9 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
         "get_official_model_context_settings" => serialize(block_on(
             crate::local_proxy::get_official_model_context_settings(app),
         )),
+        "refresh_official_model_catalog" => serialize(block_on(
+            crate::official_models::refresh_official_model_catalog(app),
+        )),
         "set_official_model_context_window" => serialize(block_on(
             crate::local_proxy::set_official_model_context_window(
                 app,

@@ -164,60 +164,22 @@ pub(crate) struct OfficialModelContextSettings {
     pub(crate) models: Vec<String>,
 }
 
-const KNOWN_OFFICIAL_MODEL_NAMES: [&str; 3] = [
-    "gpt-5.6-sol",
-    "gpt-5.6-terra",
-    "gpt-5.6-luna",
-];
-
-fn non_official_provider_models(paths: &crate::storage::Paths) -> HashSet<String> {
-    providers::list_provider_profiles(paths)
-        .unwrap_or_default()
-        .into_iter()
-        .filter(|provider| !providers::uses_upstream_official_models(provider))
-        .flat_map(|provider| provider.models)
-        .collect()
-}
-
-fn official_model_names_from_catalog(catalog: &Value, provider_models: &HashSet<String>) -> Vec<String> {
-    let mut names = KNOWN_OFFICIAL_MODEL_NAMES
-        .iter()
-        .map(|model| (*model).to_string())
-        .collect::<Vec<_>>();
-    let Some(models) = catalog.get("models").and_then(Value::as_array) else {
-        return names;
-    };
-    for model in models {
-        let Some(name) = ["slug", "id"].into_iter().find_map(|field| {
-            model.get(field).and_then(Value::as_str)
-        }) else {
-            continue;
-        };
-        if !provider_models.contains(name) && !names.iter().any(|known| known == name) {
-            names.push(name.to_string());
-        }
-    }
-    names
-}
-
-fn official_model_names<R: Runtime>(app: &tauri::AppHandle<R>) -> Vec<String> {
-    resolve_paths(app)
-        .ok()
-        .map(|paths| {
-            let catalog = read_json(&paths.codex_home.join("models_cache.json")).unwrap_or_else(|_| json!({}));
-            official_model_names_from_catalog(&catalog, &non_official_provider_models(&paths))
-        })
-        .unwrap_or_default()
-}
-
 fn official_context_settings<R: Runtime>(
     app: &tauri::AppHandle<R>,
     settings: AppSettings,
 ) -> OfficialModelContextSettings {
+    let mut models = resolve_paths(app)
+        .map(|paths| crate::official_models::cached_model_names(&paths))
+        .unwrap_or_default();
+    for model in settings.official_model_context_windows.keys() {
+        if !models.contains(model) {
+            models.push(model.clone());
+        }
+    }
     OfficialModelContextSettings {
         global_context_window: settings.gpt_5_6_sol_context_window,
         model_context_windows: settings.official_model_context_windows,
-        models: official_model_names(app),
+        models,
     }
 }
 

@@ -4,6 +4,7 @@ import {
   loadOfficialModelContextSettings,
   MAX_GPT_5_6_SOL_CONTEXT_WINDOW,
   MIN_GPT_5_6_SOL_CONTEXT_WINDOW,
+  subscribeToProviderEvents,
   updateGpt56SolContextWindow,
   updateOfficialModelContextWindow,
 } from "../api/backend";
@@ -37,7 +38,7 @@ export function useGpt56SolContextWindow() {
 
   useEffect(() => {
     let active = true;
-    void loadOfficialModelContextSettings()
+    const load = () => loadOfficialModelContextSettings()
       .then((settings) => {
         if (!active) return;
         const loadedValueK = String(settings.globalContextWindow / 1_000);
@@ -53,8 +54,11 @@ export function useGpt56SolContextWindow() {
       .finally(() => {
         if (active) setSaving(false);
       });
+    void load();
+    const unsubscribe = subscribeToProviderEvents(() => void load());
     return () => {
       active = false;
+      unsubscribe();
     };
   }, []);
 

@@ -1,3 +1,66 @@
+const MAX_OFFICIAL_MODEL_CATALOG_BYTES: u64 = 2 * 1024 * 1024;
+
+pub(crate) struct OfficialModelCatalogFetch {
+    pub(crate) catalog: Value,
+    pub(crate) etag: Option<String>,
+}
+
+pub(crate) fn fetch_official_model_catalog<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    account_id: &str,
+    client_version: &str,
+) -> Result<OfficialModelCatalogFetch, String> {
+    let url = format!("/v1/models?client_version={client_version}");
+    let payload = forward_official(OfficialForwardRequest {
+        app,
+        method: &Method::Get,
+        url: &url,
+        headers: &[],
+        body: Vec::new(),
+        model: providers::DEFAULT_OFFICIAL_MODEL,
+        session_id: None,
+        account_id_override: Some(account_id),
+    })?;
+    parse_official_model_catalog_payload(payload)
+}
+
+fn parse_official_model_catalog_payload(
+    mut payload: UpstreamPayload,
+) -> Result<OfficialModelCatalogFetch, String> {
+    if !(200..300).contains(&payload.status) {
+        return Err(format!(
+            "Official model catalog returned HTTP {}",
+            payload.status
+        ));
+    }
+    let etag = payload
+        .response_headers
+        .iter()
+        .find(|(name, _)| matches!(name.to_ascii_lowercase().as_str(), "etag" | "x-models-etag"))
+        .map(|(_, value)| value.clone());
+    let body = read_official_model_catalog_body(&mut payload.body)?;
+    let catalog = serde_json::from_slice(&body)
+        .map_err(|error| format!("Official model catalog is invalid: {error}"))?;
+    Ok(OfficialModelCatalogFetch { catalog, etag })
+}
+
+fn read_official_model_catalog_body(body: &mut UpstreamBody) -> Result<Vec<u8>, String> {
+    let mut bytes = Vec::new();
+    match body {
+        UpstreamBody::Buffered(value) => bytes.extend_from_slice(value),
+        UpstreamBody::Streaming(reader) => {
+            reader
+                .take(MAX_OFFICIAL_MODEL_CATALOG_BYTES + 1)
+                .read_to_end(&mut bytes)
+                .map_err(|error| format!("Failed to read the official model catalog: {error}"))?;
+        }
+    };
+    if bytes.len() as u64 > MAX_OFFICIAL_MODEL_CATALOG_BYTES {
+        return Err("Official model catalog is too large".to_string());
+    }
+    Ok(bytes)
+}
+
 fn models_payload<R: Runtime>(
     app: &tauri::AppHandle<R>,
     url: &str,

@@ -222,20 +222,19 @@
     }
 
     #[test]
-    fn official_model_names_keep_known_models_and_hide_provider_models() {
-        let catalog = json!({
-            "models": [
-                { "slug": "gpt-5.5" },
-                { "slug": "gpt-oss-20b-5080:latest" },
-            ]
-        });
-        let provider_models = HashSet::from(["gpt-oss-20b-5080:latest".to_string()]);
+    fn direct_official_catalog_fetch_preserves_models_and_etag() {
+        let payload = UpstreamPayload {
+            status: 200,
+            content_type: Some("application/json".to_string()),
+            response_headers: vec![("etag".to_string(), "catalog-v2".to_string())],
+            body: UpstreamBody::Buffered(br#"{"models":[{"slug":"gpt-new"}]}"#.to_vec()),
+            token_usage_account: None,
+        };
 
-        let names = official_model_names_from_catalog(&catalog, &provider_models);
+        let fetched = parse_official_model_catalog_payload(payload).unwrap();
 
-        assert!(names.contains(&"gpt-5.6-sol".to_string()));
-        assert!(names.contains(&"gpt-5.5".to_string()));
-        assert!(!names.contains(&"gpt-oss-20b-5080:latest".to_string()));
+        assert_eq!(fetched.etag.as_deref(), Some("catalog-v2"));
+        assert_eq!(fetched.catalog["models"][0]["slug"], "gpt-new");
     }
 
     #[test]
