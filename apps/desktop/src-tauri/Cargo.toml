@@ -9,6 +9,16 @@ edition = "2021"
 [lib]
 name = "codex_switch_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
+test = false
+
+[[bin]]
+name = "csw"
+path = "src/main.rs"
+test = false
+
+[[test]]
+name = "codex_switch_lib_tests"
+path = "src/test_main.rs"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
