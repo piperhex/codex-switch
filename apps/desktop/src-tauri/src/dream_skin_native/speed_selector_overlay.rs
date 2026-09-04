@@ -1,7 +1,7 @@
 const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
   (() => {
     const stateKey = "__CODEX_SWITCH_SPEED_SELECTOR__";
-    const overlayVersion = 9;
+    const overlayVersion = 10;
     const usageRefreshMs = 30000;
     const initialTier = __CODEX_SWITCH_SERVICE_TIER__;
     const existing = window[stateKey];
@@ -44,6 +44,19 @@ const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
       const maximumFractionDigits = value > 0 && value < 0.01 ? 4 : 2;
       return `${new Intl.NumberFormat("en-US", { maximumFractionDigits }).format(value)}USD`;
     };
+    const usesDarkPalette = element => {
+      const channels = getComputedStyle(element).color.match(/[\d.]+/g)?.map(Number);
+      if (!channels || channels.length < 3) return false;
+      const luminance = channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
+      return luminance > 150;
+    };
+    const syncUsageColors = usage => {
+      const dark = usesDarkPalette(usage);
+      const tokens = dark ? "rgb(84,214,177)" : "rgb(10,132,105)";
+      const cost = dark ? "rgb(245,177,65)" : "rgb(180,93,0)";
+      usage.querySelector("[data-today-tokens]").style.setProperty("color", tokens, "important");
+      usage.querySelector("[data-today-cost]").style.setProperty("color", cost, "important");
+    };
     const syncSwitch = selector => {
       const toggle = selector.querySelector("[data-speed-switch]");
       if (!toggle) return;
@@ -58,6 +71,7 @@ const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
       usage.hidden = !state.usage.enabled;
       usage.style.display = usage.hidden ? "none" : "inline-flex";
       if (usage.hidden) return;
+      syncUsageColors(usage);
       const tokens = formatTokens(state.usage.totalTokens);
       const cost = formatCost(state.usage.estimatedCostUsd);
       usage.querySelector("[data-today-tokens]").textContent = tokens;
@@ -117,11 +131,11 @@ const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
       today.textContent = "今日";
       today.style.color = "var(--text-tertiary)";
       tokens.dataset.todayTokens = "true";
-      tokens.style.cssText = "font-weight:650;color:color-mix(in srgb,rgb(16,163,127) 82%,var(--text-primary));";
+      tokens.style.fontWeight = "650";
       separator.textContent = "·";
       separator.style.color = "var(--text-tertiary)";
       cost.dataset.todayCost = "true";
-      cost.style.cssText = "font-weight:650;color:color-mix(in srgb,rgb(217,119,6) 76%,var(--text-primary));";
+      cost.style.fontWeight = "650";
       usage.append(today, tokens, separator, cost);
       return usage;
     };

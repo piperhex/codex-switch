@@ -300,8 +300,9 @@
         assert!(expression.contains("今日 Token 用量"));
         assert!(expression.contains("codexSwitchRequestUsageSummary"));
         assert!(expression.contains("estimatedCostUsd"));
-        assert!(expression.contains("color-mix(in srgb,rgb(16,163,127)"));
-        assert!(expression.contains("color-mix(in srgb,rgb(217,119,6)"));
+        assert!(expression.contains("rgb(10,132,105)"));
+        assert!(expression.contains("rgb(180,93,0)"));
+        assert!(expression.contains("style.setProperty(\"color\", tokens, \"important\")"));
         assert!(expression.contains("setAttribute(\"role\", \"switch\")"));
         assert!(expression.contains("border-radius:9999px"));
         assert!(!expression.contains("menuitemradio"));
