@@ -30,6 +30,13 @@ mod account_switch_reason_tests {
         assert!(!AccountSwitchReason::Automatic.disables_concurrent_routing());
         assert!(!AccountSwitchReason::CredentialRefresh.disables_concurrent_routing());
     }
+
+    #[test]
+    fn actual_account_switches_refresh_the_official_model_catalog() {
+        assert!(AccountSwitchReason::Manual.refreshes_official_model_catalog());
+        assert!(AccountSwitchReason::Automatic.refreshes_official_model_catalog());
+        assert!(!AccountSwitchReason::CredentialRefresh.refreshes_official_model_catalog());
+    }
 }
 
 #[cfg(test)]

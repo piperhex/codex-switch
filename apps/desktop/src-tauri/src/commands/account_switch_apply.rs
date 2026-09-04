@@ -9,6 +9,10 @@ impl AccountSwitchReason {
     fn disables_concurrent_routing(self) -> bool {
         matches!(self, Self::Manual)
     }
+
+    fn refreshes_official_model_catalog(self) -> bool {
+        !matches!(self, Self::CredentialRefresh)
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -73,6 +77,7 @@ fn apply_account_switch<R: Runtime>(
         AccountSwitchCompletion {
             proxy_running,
             write_codex,
+            refresh_model_catalog: reason.refreshes_official_model_catalog(),
         },
     )
 }
@@ -127,6 +132,9 @@ fn finish_account_switch<R: Runtime>(
     if completion.proxy_running && completion.write_codex {
         crate::providers::refresh_official_codex_models();
     }
+    if completion.refresh_model_catalog {
+        crate::official_models::refresh_after_account_switch(id);
+    }
     crate::claude_code::sync_after_switch(app)?;
     crate::system_tray::refresh_menu(app);
     Ok(())
@@ -135,6 +143,7 @@ fn finish_account_switch<R: Runtime>(
 struct AccountSwitchCompletion {
     proxy_running: bool,
     write_codex: bool,
+    refresh_model_catalog: bool,
 }
 
 fn restore_account_switch_state(paths: &Paths, mut state: ManagerStateFile, reason: &str) {

@@ -19,6 +19,7 @@ use crate::{
 pub(crate) const MIN_CODEX_MODEL_CLIENT_VERSION: &str = "0.152.0";
 const OFFICIAL_MODEL_CACHE_FILENAME: &str = "official-models-cache.json";
 static OFFICIAL_MODEL_REFRESH_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+static OFFICIAL_MODELS_APP: OnceLock<AppHandle> = OnceLock::new();
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct OfficialModelCatalog {
@@ -53,11 +54,26 @@ fn select_model_client_version(cached: Option<&str>) -> String {
 }
 
 pub(crate) fn refresh_on_startup(app: AppHandle) {
+    let _ = OFFICIAL_MODELS_APP.set(app.clone());
     let _ = thread::Builder::new()
         .name("official-model-catalog-startup-refresh".to_string())
         .spawn(move || {
             if let Err(error) = refresh_official_model_catalog_blocking(&app) {
                 eprintln!("Failed to refresh the official model catalog at startup: {error}");
+            }
+        });
+}
+
+pub(crate) fn refresh_after_account_switch(account_id: &str) {
+    let Some(app) = OFFICIAL_MODELS_APP.get().cloned() else {
+        return;
+    };
+    let account_id = account_id.to_string();
+    let _ = thread::Builder::new()
+        .name("official-model-catalog-account-refresh".to_string())
+        .spawn(move || {
+            if let Err(error) = refresh_for_account_blocking(&app, &account_id) {
+                eprintln!("Failed to refresh the official model catalog after switching: {error}");
             }
         });
 }
@@ -74,15 +90,23 @@ pub(crate) async fn refresh_official_model_catalog<R: Runtime + 'static>(
 fn refresh_official_model_catalog_blocking<R: Runtime>(
     app: &AppHandle<R>,
 ) -> Result<Vec<String>, String> {
+    let paths = resolve_paths(app)?;
+    let account_id = preferred_account_id(&paths)?;
+    refresh_for_account_blocking(app, &account_id)
+}
+
+fn refresh_for_account_blocking<R: Runtime>(
+    app: &AppHandle<R>,
+    account_id: &str,
+) -> Result<Vec<String>, String> {
     let _guard = OFFICIAL_MODEL_REFRESH_LOCK
         .get_or_init(|| Mutex::new(()))
         .lock()
         .unwrap_or_else(|error| error.into_inner());
     let paths = resolve_paths(app)?;
-    let account_id = preferred_account_id(&paths)?;
     let client_version = model_client_version(&paths);
     let fetched =
-        crate::local_proxy::fetch_official_model_catalog(app, &account_id, &client_version)?;
+        crate::local_proxy::fetch_official_model_catalog(app, account_id, &client_version)?;
     let cache = model_cache_value(fetched.catalog, fetched.etag, &client_version)?;
     write_json_atomic(&cache_path(&paths), &cache)?;
     let catalog = catalog_from_value(&cache);
