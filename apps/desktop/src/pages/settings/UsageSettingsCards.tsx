@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Button, Checkbox, InputNumber, Select, Space, Switch } from "antd";
-import { CalendarDays, Network, ShieldCheck, TimerReset } from "lucide-react";
+import { CalendarDays, Gauge, Network, ShieldCheck, TimerReset } from "lucide-react";
 import {
   MAX_TOKEN_USAGE_REFRESH_SECONDS,
   MAX_TOKEN_USAGE_WEEKS,
@@ -13,8 +13,6 @@ import type { SettingsPageProps } from "./types";
 
 function TokenUsageCard({ settings }: { settings: SettingsPageProps }) {
   const {
-    codexUsageSummaryEnabled,
-    onCodexUsageSummaryEnabledChange,
     onTokenUsageRefreshSecondsChange,
     onTokenUsageWeeksChange,
     t,
@@ -58,9 +56,29 @@ function TokenUsageCard({ settings }: { settings: SettingsPageProps }) {
             />
             <Button disabled>{t("settings.autoRefresh.seconds")}</Button>
           </Space.Compact>
-          <label htmlFor="codex-usage-summary">
-            {t("settings.tokenUsage.codexSummary")}
-          </label>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function CodexUsageSummaryCard({ settings }: { settings: SettingsPageProps }) {
+  const {
+    codexUsageSummaryEnabled,
+    onCodexUsageSummaryEnabledChange,
+    t,
+    tokenUsagePreferencesLoading,
+  } = settings;
+  return (
+    <section className="settings-card">
+      <div className="settings-icon"><Gauge size={23} /></div>
+      <div className="settings-card-content">
+        <div className="settings-card-copy">
+          <h3>{t("settings.codexUsageSummary.title")}</h3>
+          <p>{t("settings.codexUsageSummary.description")}</p>
+        </div>
+        <div className="settings-field">
+          <label htmlFor="codex-usage-summary">{t("settings.codexUsageSummary.enabled")}</label>
           <Switch
             id="codex-usage-summary"
             checked={codexUsageSummaryEnabled}
@@ -197,6 +215,7 @@ function AutoDisableStatusCodesCard({ settings }: { settings: SettingsPageProps 
 export function UsageSettingsCards({ settings }: { settings: SettingsPageProps }) {
   return (
     <>
+      <CodexUsageSummaryCard settings={settings} />
       <TokenUsageCard settings={settings} />
       <Upstream429RetryCard settings={settings} />
       <UsageNetworkErrorsCard settings={settings} />

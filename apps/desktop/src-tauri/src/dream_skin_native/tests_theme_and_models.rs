@@ -315,8 +315,11 @@
         assert!(!expression.contains("menuitemradio"));
         assert!(!expression.contains("openSubmenu"));
         assert!(!expression.contains("button.h-token-button-composer"));
-        assert!(expression.contains("__CODEX_SWITCH_SPEED_SELECTOR_ALLOWED__"));
+        assert!(expression.contains("__CODEX_SWITCH_COMPOSER_STATUS_ALLOWED__ = hasNoAuthModelQuery"));
+        assert!(expression.contains("__CODEX_SWITCH_FAST_MODE_ALLOWED__"));
         assert!(expression.contains("fastModeModels.size > 0 && hasNoAuthModelQuery"));
+        assert!(expression.contains("state.fastModeAllowed || state.usage.enabled"));
+        assert!(expression.contains("controls.hidden = !state.fastModeAllowed"));
         assert!(expression.contains("key[3] === \"no-auth\""));
         assert!(!expression.contains("authMethod = \"chatgpt\""));
         assert!(!expression.contains("featureRequirements.fast_mode"));

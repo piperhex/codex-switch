@@ -854,11 +854,14 @@ const translations = {
     "settings.accountDisplay.cards": "Cards",
     "settings.tokenUsage.title": "Token usage heatmap",
     "settings.tokenUsage.description":
-      "Set the visible range, refresh interval, and whether today's usage appears beside Fast mode in Codex.",
+      "Set the visible range and refresh interval for Token statistics.",
     "settings.tokenUsage.weeks": "Visible range",
     "settings.tokenUsage.weeksUnit": "weeks",
     "settings.tokenUsage.refreshInterval": "Refresh interval",
-    "settings.tokenUsage.codexSummary": "Show today's usage in Codex",
+    "settings.codexUsageSummary.title": "Codex daily usage",
+    "settings.codexUsageSummary.description":
+      "Show today's Token usage, estimated cost, and available quota beside the Codex composer.",
+    "settings.codexUsageSummary.enabled": "Show daily usage",
     "settings.upstream429Retry.title": "Upstream rate-limit retries",
     "settings.upstream429Retry.description":
       "For HTTP 429 responses, retry after 1, 3, 5 seconds and continue with increasing waits. "
@@ -3228,11 +3231,14 @@ const translations = {
     "settings.accountDisplay.cards": "卡片",
     "settings.tokenUsage.title": "Token 用量热力图",
     "settings.tokenUsage.description":
-      "配置 Token 统计的展示范围、刷新频率，以及是否在 Codex 的快速模式旁显示今日用量。",
+      "配置 Token 统计的展示范围和刷新频率。",
     "settings.tokenUsage.weeks": "展示范围",
     "settings.tokenUsage.weeksUnit": "周",
     "settings.tokenUsage.refreshInterval": "刷新间隔",
-    "settings.tokenUsage.codexSummary": "在 Codex 中显示今日用量",
+    "settings.codexUsageSummary.title": "Codex 今日用量",
+    "settings.codexUsageSummary.description":
+      "在 Codex 输入区旁显示今日 Token 用量、预估成本和可用额度。",
+    "settings.codexUsageSummary.enabled": "显示今日用量",
     "settings.upstream429Retry.title": "上游限流重试",
     "settings.upstream429Retry.description":
       "上游返回 HTTP 429 后按 1、3、5 秒逐渐增加等待时间，默认最长重试 1 分钟；达到时限仍失败时，先按设置自动禁用账号，再返回错误。",

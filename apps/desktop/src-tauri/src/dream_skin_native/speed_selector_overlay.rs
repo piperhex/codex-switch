@@ -1,9 +1,10 @@
 const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
   (() => {
     const stateKey = "__CODEX_SWITCH_SPEED_SELECTOR__";
-    const overlayVersion = 13;
+    const overlayVersion = 14;
     const usageRefreshMs = 30000;
     const initialTier = __CODEX_SWITCH_SERVICE_TIER__;
+    const fastModeAllowed = window.__CODEX_SWITCH_FAST_MODE_ALLOWED__ === true;
     const existing = window[stateKey];
     const removeSelectors = () => {
       existing?.observer?.disconnect();
@@ -13,19 +14,21 @@ const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
       for (const selector of document.querySelectorAll(injectedNodes)) selector.remove();
       delete window[stateKey];
     };
-    if (window.__CODEX_SWITCH_SPEED_SELECTOR_ALLOWED__ !== true) {
+    if (window.__CODEX_SWITCH_COMPOSER_STATUS_ALLOWED__ !== true) {
       removeSelectors();
       return;
     }
     if (existing?.installed && existing.version === overlayVersion) {
       if (!existing.pendingTier) existing.tier = initialTier;
+      existing.fastModeAllowed = fastModeAllowed;
       existing.syncAll?.();
       existing.requestUsage?.();
       return;
     }
     removeSelectors();
     const state = {
-      installed: true, version: overlayVersion, tier: initialTier, observer: null, timer: null,
+      installed: true, version: overlayVersion, tier: initialTier, fastModeAllowed,
+      observer: null, timer: null,
       usageTimer: null, pendingTier: null, previousTier: null, syncAll: null,
       completeSelection: null, updateUsage: null, requestUsage: null,
       usage: {
@@ -87,8 +90,13 @@ const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
       usage.querySelector("[data-trailing-balance]").style.setProperty("color", balanceColor, "important");
     };
     const syncSwitch = selector => {
+      const controls = selector.querySelector("[data-speed-controls]");
+      if (controls) {
+        controls.hidden = !state.fastModeAllowed;
+        controls.style.display = controls.hidden ? "none" : "inline-flex";
+      }
       const toggle = selector.querySelector("[data-speed-switch]");
-      if (!toggle) return;
+      if (!toggle || !state.fastModeAllowed) return;
       const enabled = state.tier === "priority";
       toggle.setAttribute("aria-checked", String(enabled));
       toggle.style.background = enabled ? "rgb(16,163,127)" : "rgb(142,142,147)";
@@ -123,8 +131,11 @@ const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
       for (const selector of document.querySelectorAll("[data-codex-switch-speed-selector]")) {
         syncUsage(selector);
         syncSwitch(selector);
+        const visible = state.fastModeAllowed || state.usage.enabled;
+        selector.hidden = !visible;
+        selector.style.setProperty("display", visible ? "inline-flex" : "none", "important");
         const toggle = selector.querySelector("[data-speed-switch]");
-        if (toggle) toggle.disabled = Boolean(state.pendingTier);
+        if (toggle) toggle.disabled = !state.fastModeAllowed || Boolean(state.pendingTier);
       }
     };
     state.syncAll = syncAll;
@@ -164,7 +175,8 @@ const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
       syncAll();
     };
     const selectTier = tier => {
-      if (state.pendingTier || typeof window.codexSwitchSetServiceTier !== "function") return;
+      if (!state.fastModeAllowed || state.pendingTier
+        || typeof window.codexSwitchSetServiceTier !== "function") return;
       state.previousTier = state.tier;
       state.tier = tier;
       state.pendingTier = tier;
@@ -205,19 +217,22 @@ const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
     const createSelector = () => {
       const container = document.createElement("div");
       const content = document.createElement("div");
+      const controls = document.createElement("span");
       const label = document.createElement("span");
       const toggle = document.createElement("button");
       const thumb = document.createElement("span");
       container.dataset.codexSwitchSpeedSelector = "true";
       container.className = "no-drag cursor-interaction select-none";
       container.setAttribute("role", "group");
-      container.setAttribute("aria-label", "快速模式");
+      container.setAttribute("aria-label", "今日用量与快速模式");
       container.style.cssText = "display:inline-flex;align-items:center;flex:0 0 auto;width:auto;"
         + "white-space:nowrap;margin-right:4px;padding:3px 8px;border-radius:9999px;"
         + "background:var(--background-primary-ghost);font-size:14px;line-height:18px;"
         + "color:var(--text-tertiary);";
       container.style.setProperty("display", "inline-flex", "important");
       content.style.cssText = "display:flex;align-items:center;gap:6px;";
+      controls.dataset.speedControls = "true";
+      controls.style.cssText = "display:inline-flex;align-items:center;gap:6px;";
       label.className = "text-tertiary text-sm leading-[18px]";
       label.textContent = "快速模式";
       toggle.type = "button";
@@ -235,7 +250,8 @@ const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
         event.stopPropagation();
         selectTier(state.tier === "priority" ? "default" : "priority");
       });
-      content.append(createUsage(), label, toggle);
+      controls.append(label, toggle);
+      content.append(createUsage(), controls);
       container.append(content);
       for (const eventName of ["pointerdown", "mousedown", "click"]) {
         container.addEventListener(eventName, event => {
@@ -247,7 +263,7 @@ const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
       return container;
     };
     const render = () => {
-      if (window.__CODEX_SWITCH_SPEED_SELECTOR_ALLOWED__ !== true) {
+      if (window.__CODEX_SWITCH_COMPOSER_STATUS_ALLOWED__ !== true) {
         for (const selector of document.querySelectorAll("[data-codex-switch-speed-selector]")) selector.remove();
         return;
       }
