@@ -95,6 +95,7 @@ fn set_concurrent_account_routing_enabled_blocking<R: Runtime>(
         .map_err(|error| error.to_string())?;
     app.emit("providers-changed", ())
         .map_err(|error| error.to_string())?;
+    crate::codex_runtime::refresh_usage_summary();
     Ok(())
 }
 

@@ -135,7 +135,7 @@ fn selected_official_model(body: &Value, fallback: &str) -> String {
         .to_string()
 }
 
-fn enabled_concurrent_account_ids(
+pub(crate) fn enabled_concurrent_account_ids(
     paths: &Paths,
     state: &ManagerStateFile,
 ) -> Result<Vec<String>, String> {

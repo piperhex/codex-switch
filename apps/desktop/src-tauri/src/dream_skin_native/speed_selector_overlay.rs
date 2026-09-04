@@ -1,7 +1,7 @@
 const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
   (() => {
     const stateKey = "__CODEX_SWITCH_SPEED_SELECTOR__";
-    const overlayVersion = 11;
+    const overlayVersion = 12;
     const usageRefreshMs = 30000;
     const initialTier = __CODEX_SWITCH_SERVICE_TIER__;
     const existing = window[stateKey];
@@ -28,7 +28,10 @@ const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
       installed: true, version: overlayVersion, tier: initialTier, observer: null, timer: null,
       usageTimer: null, pendingTier: null, previousTier: null, syncAll: null,
       completeSelection: null, updateUsage: null, requestUsage: null,
-      usage: { enabled: false, totalTokens: 0, estimatedCostUsd: 0 },
+      usage: {
+        enabled: false, totalTokens: 0, estimatedCostUsd: 0,
+        primaryRemainingPercent: null, primaryRemainingAggregated: false,
+      },
     };
     window[stateKey] = state;
     const formatTokens = value => {
@@ -54,8 +57,15 @@ const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
       const dark = usesDarkPalette(usage);
       const tokens = dark ? "rgb(84,214,177)" : "rgb(10,132,105)";
       const cost = dark ? "rgb(245,177,65)" : "rgb(180,93,0)";
+      const remaining = state.usage.primaryRemainingPercent;
+      const quota = remaining <= 20
+        ? (dark ? "rgb(255,113,113)" : "rgb(190,45,45)")
+        : remaining <= 50
+          ? (dark ? "rgb(245,177,65)" : "rgb(180,93,0)")
+          : (dark ? "rgb(96,211,148)" : "rgb(22,135,78)");
       usage.querySelector("[data-today-tokens]").style.setProperty("color", tokens, "important");
       usage.querySelector("[data-today-cost]").style.setProperty("color", cost, "important");
+      usage.querySelector("[data-primary-remaining]").style.setProperty("color", quota, "important");
     };
     const syncSwitch = selector => {
       const toggle = selector.querySelector("[data-speed-switch]");
@@ -74,10 +84,27 @@ const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
       syncUsageColors(usage);
       const tokens = formatTokens(state.usage.totalTokens);
       const cost = formatCost(state.usage.estimatedCostUsd);
+      const hasPrimaryRemaining = Number.isFinite(state.usage.primaryRemainingPercent);
+      const primaryRemaining = hasPrimaryRemaining
+        ? `${Math.round(state.usage.primaryRemainingPercent)}%`
+        : "";
+      const primarySeparator = usage.querySelector("[data-primary-separator]");
+      const primary = usage.querySelector("[data-primary-remaining]");
+      primarySeparator.hidden = !hasPrimaryRemaining;
+      primary.hidden = !hasPrimaryRemaining;
+      primary.textContent = primaryRemaining;
       usage.querySelector("[data-today-tokens]").textContent = tokens;
       usage.querySelector("[data-today-cost]").textContent = cost;
-      usage.title = `今日 Token 用量：${tokens}\n今日预估成本：${cost}`;
-      usage.setAttribute("aria-label", `今日 Token 用量 ${tokens}，今日预估成本 ${cost}`);
+      const primaryLabel = state.usage.primaryRemainingAggregated
+        ? "并发账号主用量余额合计"
+        : "当前账号主用量余额";
+      const primaryTitle = hasPrimaryRemaining ? `\n${primaryLabel}：${primaryRemaining}` : "";
+      usage.title = `今日 Token 用量：${tokens}\n今日预估成本：${cost}${primaryTitle}`;
+      const primaryAria = hasPrimaryRemaining ? `，${primaryLabel} ${primaryRemaining}` : "";
+      usage.setAttribute(
+        "aria-label",
+        `今日 Token 用量 ${tokens}，今日预估成本 ${cost}${primaryAria}`,
+      );
     };
     const syncAll = () => {
       for (const selector of document.querySelectorAll("[data-codex-switch-speed-selector]")) {
@@ -91,10 +118,16 @@ const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
     state.updateUsage = summary => {
       const totalTokens = Number(summary?.totalTokens);
       const estimatedCostUsd = Number(summary?.estimatedCostUsd);
+      const primaryRemainingPercent = summary?.primaryRemainingPercent;
       state.usage = {
         enabled: summary?.enabled === true,
         totalTokens: Number.isFinite(totalTokens) ? Math.max(0, totalTokens) : 0,
         estimatedCostUsd: Number.isFinite(estimatedCostUsd) ? Math.max(0, estimatedCostUsd) : 0,
+        primaryRemainingPercent: typeof primaryRemainingPercent === "number"
+          && Number.isFinite(primaryRemainingPercent)
+          ? Math.max(0, primaryRemainingPercent)
+          : null,
+        primaryRemainingAggregated: summary?.primaryRemainingAggregated === true,
       };
       syncAll();
     };
@@ -124,6 +157,8 @@ const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
       const tokens = document.createElement("strong");
       const separator = document.createElement("span");
       const cost = document.createElement("strong");
+      const primarySeparator = document.createElement("span");
+      const primary = document.createElement("strong");
       usage.dataset.todayUsage = "true";
       usage.hidden = true;
       usage.style.cssText = "display:inline-flex;align-items:center;gap:3px;margin-right:2px;"
@@ -137,7 +172,14 @@ const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
       separator.style.color = "var(--text-tertiary)";
       cost.dataset.todayCost = "true";
       cost.style.fontWeight = "650";
-      usage.append(today, tokens, separator, cost);
+      primarySeparator.dataset.primarySeparator = "true";
+      primarySeparator.textContent = "·";
+      primarySeparator.style.color = "var(--text-tertiary)";
+      primary.dataset.primaryRemaining = "true";
+      primary.style.fontWeight = "650";
+      primarySeparator.hidden = true;
+      primary.hidden = true;
+      usage.append(today, tokens, separator, cost, primarySeparator, primary);
       return usage;
     };
     const createSelector = () => {

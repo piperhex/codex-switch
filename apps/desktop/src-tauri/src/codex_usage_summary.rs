@@ -1,7 +1,10 @@
 use chrono::{Local, TimeZone};
 use serde::Serialize;
 
-use crate::models::TokenUsageEntry;
+use crate::{
+    models::{ManagerStateFile, TokenUsageEntry, UsageSummary},
+    storage::Paths,
+};
 
 const TOKENS_PER_MILLION: f64 = 1_000_000.0;
 const SOL_FALLBACK_RATE: TokenCostRate = TokenCostRate::new(1.25, 0.125, 10.0);
@@ -48,6 +51,8 @@ pub(crate) struct CodexUsageSummary {
     enabled: bool,
     total_tokens: u64,
     estimated_cost_usd: f64,
+    primary_remaining_percent: Option<f64>,
+    primary_remaining_aggregated: bool,
 }
 
 pub(crate) fn load() -> Result<CodexUsageSummary, String> {
@@ -59,13 +64,53 @@ pub(crate) fn load() -> Result<CodexUsageSummary, String> {
             enabled: false,
             total_tokens: 0,
             estimated_cost_usd: 0.0,
+            primary_remaining_percent: None,
+            primary_remaining_aggregated: false,
         });
     }
+    let paths = crate::storage::resolve_paths(&app)?;
+    let state = crate::storage::read_state(&paths);
+    let primary_remaining = displayed_primary_remaining(&paths, &state);
     let entries = crate::local_proxy::list_token_usage_entries_since_blocking(
         &app,
         local_day_start_timestamp()?,
     )?;
-    Ok(summarize(&entries))
+    Ok(summarize(&entries, primary_remaining))
+}
+
+fn displayed_primary_remaining(paths: &Paths, state: &ManagerStateFile) -> Option<(f64, bool)> {
+    if state.active_provider_id.is_some() || state.active_provider_group.is_some() {
+        return None;
+    }
+    if !state.concurrent_account_routing_enabled {
+        let account_id = state.active_account_id.as_deref()?;
+        let usage = crate::storage::load_usage(&crate::storage::usage_path(paths, account_id));
+        return primary_remaining(&usage).map(|remaining| (remaining, false));
+    }
+    let account_ids = crate::local_proxy::enabled_concurrent_account_ids(paths, state).ok()?;
+    let usages = account_ids
+        .iter()
+        .map(|account_id| {
+            crate::storage::load_usage(&crate::storage::usage_path(paths, account_id))
+        })
+        .collect::<Vec<_>>();
+    sum_primary_remaining(&usages).map(|remaining| (remaining, true))
+}
+
+fn primary_remaining(usage: &UsageSummary) -> Option<f64> {
+    usage
+        .primary
+        .as_ref()
+        .map(|primary| primary.remaining_percent)
+        .filter(|remaining| remaining.is_finite())
+        .map(|remaining| remaining.clamp(0.0, 100.0))
+}
+
+fn sum_primary_remaining(usages: &[UsageSummary]) -> Option<f64> {
+    usages
+        .iter()
+        .filter_map(primary_remaining)
+        .reduce(|total, remaining| total + remaining)
 }
 
 fn local_day_start_timestamp() -> Result<u64, String> {
@@ -81,7 +126,10 @@ fn local_day_start_timestamp() -> Result<u64, String> {
     u64::try_from(timestamp).map_err(|_| "The start of today is before the Unix epoch.".to_string())
 }
 
-fn summarize(entries: &[TokenUsageEntry]) -> CodexUsageSummary {
+fn summarize(
+    entries: &[TokenUsageEntry],
+    primary_remaining: Option<(f64, bool)>,
+) -> CodexUsageSummary {
     CodexUsageSummary {
         enabled: true,
         total_tokens: entries
@@ -89,6 +137,8 @@ fn summarize(entries: &[TokenUsageEntry]) -> CodexUsageSummary {
             .map(entry_total_tokens)
             .fold(0, u64::saturating_add),
         estimated_cost_usd: entries.iter().map(estimate_cost).sum(),
+        primary_remaining_percent: primary_remaining.map(|(remaining, _)| remaining),
+        primary_remaining_aggregated: primary_remaining.is_some_and(|(_, aggregated)| aggregated),
     }
 }
 
@@ -146,7 +196,7 @@ mod tests {
 
     #[test]
     fn summarizes_tokens_and_estimated_model_cost() {
-        let summary = summarize(&[usage_entry("gpt-5.6-sol")]);
+        let summary = summarize(&[usage_entry("gpt-5.6-sol")], None);
 
         assert_eq!(summary.total_tokens, 1_100_000);
         assert!((summary.estimated_cost_usd - 5.28).abs() < f64::EPSILON);
@@ -159,5 +209,23 @@ mod tests {
         assert_eq!(rate.input, 2.0);
         assert_eq!(rate.cached_input, 0.2);
         assert_eq!(rate.output, 12.0);
+    }
+
+    #[test]
+    fn sums_primary_remaining_for_concurrent_accounts() {
+        let usage = |remaining_percent| UsageSummary {
+            primary: Some(crate::models::UsageWindow {
+                used_percent: 100.0 - remaining_percent,
+                remaining_percent,
+                resets_at: None,
+                window_minutes: None,
+            }),
+            ..UsageSummary::default()
+        };
+
+        assert_eq!(
+            sum_primary_remaining(&[usage(79.0), usage(65.0)]),
+            Some(144.0)
+        );
     }
 }
