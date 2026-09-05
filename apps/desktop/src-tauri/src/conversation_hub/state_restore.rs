@@ -173,7 +173,15 @@ fn restore_table_snapshot(
     let Some(path) = related_database_path(codex_home, &snapshot.database) else {
         return Ok(());
     };
-    let mut connection = Connection::open(&path)
+    restore_table_at_path(&path, snapshot, session_id)
+}
+
+fn restore_table_at_path(
+    path: &Path,
+    snapshot: &SqliteTableSnapshot,
+    session_id: &str,
+) -> Result<(), String> {
+    let mut connection = Connection::open(path)
         .map_err(|error| format!("无法打开 Codex 数据库 {}：{error}", path.display()))?;
     connection
         .busy_timeout(std::time::Duration::from_secs(5))
@@ -248,32 +256,6 @@ fn restore_related_state(
     for snapshot in snapshots {
         restore_table_snapshot(codex_home, snapshot, session_id)?;
     }
-    Ok(())
-}
-
-fn hide_thread_in_state(
-    state_db: Option<&Path>,
-    session_id: &str,
-    recycle_path: &Path,
-) -> Result<(), String> {
-    let Some(state_db) = state_db else {
-        return Ok(());
-    };
-    let connection =
-        Connection::open(state_db).map_err(|error| format!("无法打开 Codex state DB：{error}"))?;
-    connection
-        .busy_timeout(std::time::Duration::from_secs(5))
-        .map_err(|error| error.to_string())?;
-    connection
-        .execute(
-            "UPDATE threads SET archived = 1, archived_at = ?1, preview = '', rollout_path = ?2 WHERE id = ?3",
-            params![
-                Utc::now().timestamp_millis(),
-                recycle_path.to_string_lossy(),
-                session_id
-            ],
-        )
-        .map_err(|error| format!("无法同步 Codex 会话状态：{error}"))?;
     Ok(())
 }
 
@@ -354,15 +336,4 @@ fn ensure_threads_are_not_referenced(
         }
     }
     Ok(())
-}
-
-fn restore_moved_files(moved: &[(PathBuf, PathBuf)]) {
-    for (source, target) in moved.iter().rev() {
-        if target.exists() {
-            if let Some(parent) = source.parent() {
-                let _ = fs::create_dir_all(parent);
-            }
-            let _ = fs::rename(target, source);
-        }
-    }
 }

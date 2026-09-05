@@ -111,57 +111,6 @@ mod tests {
     }
 
     #[test]
-    fn recycle_visibility_roundtrips_the_codex_state_row() {
-        let root = test_root("state-visibility");
-        fs::create_dir_all(&root).unwrap();
-        let state_db = root.join("state_5.sqlite");
-        let connection = Connection::open(&state_db).unwrap();
-        connection
-            .execute_batch(
-                "CREATE TABLE threads (
-                    id TEXT PRIMARY KEY,
-                    rollout_path TEXT NOT NULL,
-                    archived INTEGER NOT NULL,
-                    archived_at INTEGER,
-                    preview TEXT NOT NULL
-                );",
-            )
-            .unwrap();
-        connection
-            .execute(
-                "INSERT INTO threads (id, rollout_path, archived, archived_at, preview) VALUES (?1, ?2, 0, NULL, ?3)",
-                params!["thread-a", "sessions/rollout-thread-a.jsonl", "Visible thread"],
-            )
-            .unwrap();
-        drop(connection);
-
-        let visibility = state_visibility_snapshot(Some(&state_db), "thread-a")
-            .unwrap()
-            .unwrap();
-        hide_thread_in_state(
-            Some(&state_db),
-            "thread-a",
-            &root.join("bin/rollout-thread-a.jsonl"),
-        )
-        .unwrap();
-        let hidden = state_visibility_snapshot(Some(&state_db), "thread-a")
-            .unwrap()
-            .unwrap();
-        assert_eq!(hidden.archived, 1);
-        assert!(hidden.preview.is_empty());
-
-        restore_thread_visibility(Some(&state_db), "thread-a", Some(&visibility)).unwrap();
-        let restored = state_visibility_snapshot(Some(&state_db), "thread-a")
-            .unwrap()
-            .unwrap();
-        assert_eq!(restored.archived, 0);
-        assert_eq!(restored.preview, "Visible thread");
-        assert_eq!(restored.rollout_path, "sessions/rollout-thread-a.jsonl");
-
-        fs::remove_dir_all(&root).unwrap();
-    }
-
-    #[test]
     fn purging_a_thread_removes_its_codex_catalog_entry() {
         let root = test_root("catalog-purge");
         let catalog_dir = root.join("sqlite");
@@ -180,7 +129,7 @@ mod tests {
             .unwrap();
         drop(connection);
 
-        purge_thread_catalogs(&root, "thread-a").unwrap();
+        remove_bin_state(&root, "thread-a").unwrap();
 
         let connection = Connection::open(&catalog_path).unwrap();
         assert_eq!(

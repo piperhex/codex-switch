@@ -304,6 +304,7 @@ pub(crate) fn browse_codex_threads_blocking<R: Runtime>(
     title_query: Option<String>,
     content_query: Option<String>,
 ) -> Result<Vec<ThreadEntry>, String> {
+    reconcile_legacy_bin(&app)?;
     let paths = resolve_paths(&app)?;
     let codex_home = paths.codex_home.clone();
     let snapshots = gather_snapshots(&codex_home)?;

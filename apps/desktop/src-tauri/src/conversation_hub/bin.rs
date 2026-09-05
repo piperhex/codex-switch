@@ -1,6 +1,7 @@
 pub(crate) fn browse_codex_thread_bin_blocking<R: Runtime>(
     app: tauri::AppHandle<R>,
 ) -> Result<Vec<BinEntry>, String> {
+    let _guard = bin_operation_guard()?;
     let mut grouped = HashMap::<String, BinEntry>::new();
     for item in collect_bin_entries(&app)? {
         let deleted_at = DateTime::parse_from_rfc3339(&item.manifest.deleted_at)
@@ -51,59 +52,33 @@ pub(crate) fn recover_codex_threads_blocking<R: Runtime>(
     app: tauri::AppHandle<R>,
     session_ids: Vec<String>,
 ) -> Result<MutationReport, String> {
+    let _guard = bin_operation_guard()?;
     let requested = normalized_ids(session_ids);
     if requested.is_empty() {
         return Err("请至少选择一条待恢复会话".to_string());
     }
     let codex_home = resolve_paths(&app)?.codex_home;
-    let state_db = latest_state_db(&codex_home);
     let mut restored = HashSet::new();
-    for item in collect_bin_entries(&app)?
+    let mut restored_groups = HashSet::new();
+    let mut entries = collect_bin_entries(&app)?;
+    entries.sort_by(|a, b| b.manifest.deleted_at.cmp(&a.manifest.deleted_at));
+    for item in entries
         .into_iter()
         .filter(|item| requested.contains(&item.manifest.session_id))
     {
-        let files_root = item.folder.join("files");
-        let targets = item
-            .rollouts
-            .iter()
-            .filter_map(|source| {
-                source
-                    .strip_prefix(&files_root)
-                    .ok()
-                    .map(|relative| (source.clone(), codex_home.join(relative)))
-            })
-            .collect::<Vec<_>>();
-        if targets.is_empty() || targets.iter().any(|(_, target)| target.exists()) {
-            continue;
+        if !bin_belongs_to_home(&item, &codex_home) {
+            return Err("请切换到该会话原来的 Codex 目录后再恢复".to_string());
         }
-        let mut moved = Vec::new();
-        for (source, target) in &targets {
-            fs::create_dir_all(target.parent().unwrap_or(&codex_home))
-                .map_err(|error| format!("无法创建会话目录：{error}"))?;
-            if let Err(error) = fs::rename(source, target) {
-                restore_moved_files(&moved);
-                return Err(format!(
-                    "无法恢复会话 {}：{error}",
-                    item.manifest.session_id
-                ));
-            }
-            moved.push((source.clone(), target.clone()));
+        let group = legacy_bin_group(&item);
+        let recovered = if restored_groups.contains(&group) {
+            recover_additional_bin_files(&codex_home, &item)?
+        } else {
+            recover_bin_snapshot(&codex_home, &item)?
+        };
+        if recovered {
+            restored_groups.insert(group);
+            restored.insert(item.manifest.session_id);
         }
-        if let Err(error) = restore_thread_visibility(
-            state_db.as_deref(),
-            &item.manifest.session_id,
-            item.manifest.state_visibility.as_ref(),
-        ) {
-            restore_moved_files(&moved);
-            return Err(error);
-        }
-        append_index_entry(
-            &codex_home,
-            &item.manifest.session_id,
-            &item.manifest.session_index_entry,
-        )?;
-        let _ = fs::remove_dir_all(&item.folder);
-        restored.insert(item.manifest.session_id);
     }
     Ok(MutationReport {
         requested_count: requested.len(),
@@ -117,6 +92,7 @@ fn delete_bin_items<R: Runtime>(
     app: &tauri::AppHandle<R>,
     requested: Option<&HashSet<String>>,
 ) -> Result<MutationReport, String> {
+    let _guard = bin_operation_guard()?;
     let entries = collect_bin_entries(app)?;
     let codex_home = resolve_paths(app)?.codex_home;
     let target_ids = entries
@@ -124,17 +100,13 @@ fn delete_bin_items<R: Runtime>(
         .filter(|item| requested.is_none_or(|values| values.contains(&item.manifest.session_id)))
         .map(|item| item.manifest.session_id.clone())
         .collect::<HashSet<_>>();
-    ensure_threads_are_not_referenced(
-        &gather_snapshots(&codex_home)?,
-        &target_ids,
-        latest_state_db(&codex_home).as_deref(),
-    )?;
-    for id in &target_ids {
-        purge_thread_state(&codex_home, id)?;
-    }
+    let live_ids = gather_snapshots(&codex_home)?
+        .into_iter()
+        .map(|snapshot| snapshot.session_id)
+        .collect::<HashSet<_>>();
     let paths = resolve_paths(app)?;
     let mut manager_state = crate::storage::read_state(&paths);
-    for id in &target_ids {
+    for id in target_ids.difference(&live_ids) {
         manager_state.conversation_account_ids.remove(id);
         manager_state.observed_conversation_ids.remove(id);
     }

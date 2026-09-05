@@ -44,35 +44,6 @@ fn rewrite_index(codex_home: &Path, removed: &HashSet<String>) -> Result<(), Str
     write_text_atomic(&path, &next_content)
 }
 
-fn state_visibility_snapshot(
-    state_db: Option<&Path>,
-    session_id: &str,
-) -> Result<Option<StateVisibilitySnapshot>, String> {
-    let Some(state_db) = state_db else {
-        return Ok(None);
-    };
-    let connection =
-        Connection::open(state_db).map_err(|error| format!("无法打开 Codex state DB：{error}"))?;
-    connection
-        .busy_timeout(std::time::Duration::from_secs(5))
-        .map_err(|error| error.to_string())?;
-    connection
-        .query_row(
-            "SELECT rollout_path, archived, archived_at, preview FROM threads WHERE id = ?1",
-            params![session_id],
-            |row| {
-                Ok(StateVisibilitySnapshot {
-                    rollout_path: row.get(0)?,
-                    archived: row.get(1)?,
-                    archived_at: row.get(2)?,
-                    preview: row.get(3)?,
-                })
-            },
-        )
-        .optional()
-        .map_err(|error| error.to_string())
-}
-
 fn sqlite_cell(value: rusqlite::types::ValueRef<'_>) -> SqliteCell {
     match value {
         rusqlite::types::ValueRef::Null => SqliteCell::Null,

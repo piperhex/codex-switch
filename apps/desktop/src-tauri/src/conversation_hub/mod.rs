@@ -203,6 +203,10 @@ struct BinManifest {
     deleted_at: String,
     #[serde(default)]
     state_visibility: Option<StateVisibilitySnapshot>,
+    #[serde(default)]
+    state_backup: Option<BinStateBackup>,
+    #[serde(default)]
+    detached: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -225,6 +229,9 @@ include!("discovery.rs");
 include!("ownership.rs");
 include!("state_storage.rs");
 include!("state_restore.rs");
+include!("bin_state.rs");
+include!("bin_files.rs");
+include!("bin_migration.rs");
 include!("discard.rs");
 include!("bin.rs");
 include!("transfer.rs");
@@ -236,3 +243,6 @@ include!("tests.rs");
 #[cfg(test)]
 #[path = "thread_title_tests.rs"]
 mod thread_title_tests;
+
+#[cfg(test)]
+mod bin_tests;

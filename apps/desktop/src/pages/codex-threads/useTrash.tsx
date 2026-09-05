@@ -71,11 +71,16 @@ export function useTrash(options: TrashOptions) {
         notify(text.pickOne);
         return;
       }
-      const result = empty
-        ? await clearCodexThreadBin()
-        : await deleteCodexThreadsForever([...binSelected]);
-      notify(result.message);
-      await reload();
+      setBusy(true);
+      try {
+        const result = empty
+          ? await clearCodexThreadBin()
+          : await deleteCodexThreadsForever([...binSelected]);
+        notify(result.message);
+        await reload();
+      } finally {
+        setBusy(false);
+      }
     },
   });
   const confirmMove = () => {
@@ -90,10 +95,15 @@ export function useTrash(options: TrashOptions) {
       cancelText: text.close,
       okButtonProps: { danger: true },
       onOk: async () => {
-        const result = await moveCodexThreadsToBin([...selected]);
-        notify(result.message);
-        clearSelection();
-        await refresh();
+        setBusy(true);
+        try {
+          const result = await moveCodexThreadsToBin([...selected]);
+          notify(result.message);
+          clearSelection();
+        } finally {
+          setBusy(false);
+          await refresh();
+        }
       },
     });
   };
