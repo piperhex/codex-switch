@@ -166,6 +166,7 @@ pub(crate) struct ProxySessionRequestSummary {
     pub(crate) input_attachments: Vec<ProxyConversationAttachment>,
     pub(crate) output_attachments: Vec<ProxyConversationAttachment>,
     pub(crate) response_truncated: bool,
+    pub(crate) interrupted: bool,
     pub(crate) first_response_time_ms: Option<u64>,
     pub(crate) response_time_ms: Option<u64>,
     pub(crate) total_tokens: Option<u64>,
@@ -235,7 +236,7 @@ pub(crate) struct DailyTokenUsage {
     pub(crate) cached_tokens: u64,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ProxyConversationAttachment {
     pub(crate) id: String,

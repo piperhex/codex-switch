@@ -11,11 +11,9 @@ fn conversation_images_do_not_truncate_following_text() {
     assert!(text.contains("Describe the image"));
     assert!(!text.contains("base64"));
     assert_eq!(captured.attachments.len(), 1);
-    let stored = tauri::async_runtime::block_on(get_proxy_conversation_attachment(
-        captured.attachments[0].id.clone(),
-    ))
-    .unwrap()
-    .unwrap();
+    let stored = read_conversation_attachment(&captured.attachments[0].id)
+        .unwrap()
+        .unwrap();
     assert_eq!(stored, source);
 }
 
@@ -68,11 +66,9 @@ fn conversation_stream_preserves_utf8_and_deduplicates_completed_images() {
         let result = capture.finish();
         assert_eq!(result.attachments.len(), 1);
         assert!(result.text.unwrap().contains("画好了🌄"));
-        let source = tauri::async_runtime::block_on(get_proxy_conversation_attachment(
-            result.attachments[0].id.clone(),
-        ))
-        .unwrap()
-        .unwrap();
+        let source = read_conversation_attachment(&result.attachments[0].id)
+            .unwrap()
+            .unwrap();
         assert_eq!(source, "data:image/webp;base64,AA==");
     }
 }
@@ -197,9 +193,7 @@ fn conversation_reader_forwards_exact_bytes_and_keeps_polling_responsive() {
     );
     // A live request can be polled before its body is consumed; summaries carry no image payload.
     for _ in 0..3 {
-        let summaries =
-            tauri::async_runtime::block_on(list_proxy_session_requests(session_id.clone()))
-                .unwrap();
+        let summaries = list_proxy_session_requests_blocking(&session_id).unwrap();
         assert!(summaries[0].response.is_none());
         assert!(summaries[0].response_time_ms.is_none());
     }

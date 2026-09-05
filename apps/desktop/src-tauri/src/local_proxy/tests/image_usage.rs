@@ -98,9 +98,7 @@ fn image_usage_account_is_visible_during_polling_without_token_data() {
     let poll_session = session_id.clone();
     let poll = std::thread::spawn(move || {
         sender
-            .send(tauri::async_runtime::block_on(list_proxy_session_requests(
-                poll_session,
-            )))
+            .send(list_proxy_session_requests_blocking(&poll_session))
             .unwrap();
     });
     let summaries = receiver

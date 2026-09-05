@@ -122,7 +122,7 @@ function loadActivityFilter(): ActivityFilter[] {
   } catch {
     // Fall back to the default when local storage is unavailable.
   }
-  return ["active"];
+  return [];
 }
 
 function formatTokens(value: number) {
@@ -202,7 +202,7 @@ function RequestTokenUsage({ request, t }: { request: ProxySessionRequest; t: Tr
   if (request.totalTokens == null) {
     return (
       <span className={styles.muted}>
-        {request.responseTimeMs == null
+        {request.responseTimeMs == null && !request.interrupted
           ? t("providers.proxy.sessionsRequestTokensCalculating")
           : t("providers.proxy.sessionsRequestUnknown")}
       </span>
@@ -604,7 +604,7 @@ export function ProxySessionManager({
         if (firstResponseTimeMs != null) {
           return <strong>{formatResponseTime(firstResponseTimeMs)}</strong>;
         }
-        if (request.responseTimeMs != null) {
+        if (request.responseTimeMs != null || request.interrupted) {
           return <span className={styles.muted}>—</span>;
         }
         return (
@@ -623,6 +623,7 @@ export function ProxySessionManager({
       width: 120,
       align: "right",
       render: (responseTimeMs: number | null | undefined, request) => {
+        if (request.interrupted) return <Tag>{t("providers.proxy.sessionsRequestInterrupted")}</Tag>;
         const elapsedMs = responseTimeMs
           ?? Math.max(0, Date.now() - request.startedAt * 1_000);
         return responseTimeMs == null

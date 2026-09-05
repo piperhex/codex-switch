@@ -42,21 +42,13 @@ fn conversation_attachment_cache() -> &'static Mutex<ConversationAttachmentCache
 }
 
 #[tauri::command]
-pub(crate) async fn get_proxy_conversation_attachment(
+pub(crate) async fn get_proxy_conversation_attachment<R: Runtime + 'static>(
+    app: tauri::AppHandle<R>,
     id: String,
 ) -> Result<Option<String>, String> {
-    if id.len() != 64 || !id.bytes().all(|byte| byte.is_ascii_hexdigit()) {
-        return Err("Invalid attachment".to_string());
-    }
     tauri::async_runtime::spawn_blocking(move || {
-        let source = conversation_attachment_cache()
-            .lock()
-            .map_err(|_| "Attachment unavailable".to_string())?
-            .entries
-            .iter()
-            .find(|(key, _)| key == &id)
-            .map(|(_, source)| Arc::clone(source));
-        Ok(source.map(|source| source.to_string()))
+        ensure_proxy_history(&app)?;
+        read_conversation_attachment(&id)
     })
     .await
     .map_err(|_| "Attachment unavailable".to_string())?
@@ -159,14 +151,10 @@ fn replace_conversation_image(
         return;
     }
     let id = if safe_conversation_image_source(&source) {
-        conversation_attachment_cache()
-            .lock()
-            .ok()
-            .map(|mut cache| cache.insert(source))
+        retain_conversation_attachment(source)
     } else {
-        None
-    }
-    .unwrap_or_else(|| format!("{:x}", Sha256::digest(uuid::Uuid::new_v4().as_bytes())));
+        format!("{:x}", Sha256::digest(uuid::Uuid::new_v4().as_bytes()))
+    };
     *value = json!({ "type": "image_attachment", "attachment": attachments.len() + 1 });
     attachments.push(ProxyConversationAttachment { id });
 }

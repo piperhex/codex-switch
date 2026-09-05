@@ -61,7 +61,7 @@ function ConversationContent({ text, attachments = [], query, t }: ContentProps)
 
 export function ConversationModal({ request, onClose, t }: Props) {
   const [query, setQuery] = useState("");
-  const responseEmpty = request.responseTimeMs == null
+  const responseEmpty = request.responseTimeMs == null && !request.interrupted
     ? t("providers.proxy.conversationResponsePending")
     : t("providers.proxy.conversationResponseEmpty");
   return (
@@ -83,6 +83,8 @@ export function ConversationModal({ request, onClose, t }: Props) {
           key: "output",
           label: t("providers.proxy.conversationOutput"),
           children: <>
+            {request.interrupted && <Alert type="info" showIcon
+              message={t("providers.proxy.conversationResponseInterrupted")} />}
             {request.responseTruncated && <Alert type="info" showIcon
               message={t("providers.proxy.conversationResponseTruncated")} />}
             <ConversationContent text={request.response || responseEmpty}

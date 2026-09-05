@@ -166,10 +166,10 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
         }
         "list_proxy_sessions" => serialize(block_on(crate::local_proxy::list_proxy_sessions(app))),
         "list_proxy_session_requests" => serialize(block_on(
-            crate::local_proxy::list_proxy_session_requests(argument(&args, "sessionId")?),
+            crate::local_proxy::list_proxy_session_requests(app, argument(&args, "sessionId")?),
         )),
         "get_proxy_conversation_attachment" => serialize(block_on(
-            crate::local_proxy::get_proxy_conversation_attachment(argument(&args, "id")?),
+            crate::local_proxy::get_proxy_conversation_attachment(app, argument(&args, "id")?),
         )),
         "get_recent_proxy_session_latency" => serialize(block_on(
             crate::local_proxy::get_recent_proxy_session_latency(),

@@ -237,6 +237,7 @@ fn record_conversation_response(
             request.response_truncated = capture.truncated;
         }
     }
+    persist_proxy_session(session_id, Some(request_id));
 }
 
 struct ConversationResponseReader {

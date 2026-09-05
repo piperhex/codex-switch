@@ -5,6 +5,10 @@ include!("constants.rs");
 include!("types.rs");
 include!("state_core.rs");
 include!("state_sessions.rs");
+include!("history_store.rs");
+include!("history_attachments.rs");
+include!("history.rs");
+include!("history_commands.rs");
 include!("conversation_attachments.rs");
 include!("conversation_multipart.rs");
 include!("conversation_response.rs");
@@ -50,4 +54,5 @@ mod tests {
     include!("tests/part_09.rs");
     include!("tests/conversation.rs");
     include!("tests/image_usage.rs");
+    include!("tests/history.rs");
 }

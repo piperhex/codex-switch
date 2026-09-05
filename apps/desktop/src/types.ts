@@ -292,6 +292,7 @@ export interface ProxySessionRequest {
     inputAttachments?: ProxyConversationAttachment[];
     outputAttachments?: ProxyConversationAttachment[];
     responseTruncated?: boolean;
+    interrupted?: boolean;
     firstResponseTimeMs?: number | null;
     responseTimeMs?: number | null;
     totalTokens?: number | null;

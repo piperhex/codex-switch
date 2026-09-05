@@ -4,13 +4,16 @@ struct ProxyRuntime {
     handle: Option<JoinHandle<()>>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
 struct ProxySessionState {
     id: String,
+    #[serde(default)]
+    title: Option<String>,
     client: String,
     remote_address: Option<String>,
     connected_at: u64,
     last_seen_at: u64,
+    #[serde(skip)]
     active_requests: u64,
     request_count: u64,
     provider: Option<String>,
@@ -20,10 +23,11 @@ struct ProxySessionState {
     model: Option<String>,
     context_tokens: Option<u64>,
     token_totals: ProxySessionTokenTotals,
+    #[serde(skip)]
     requests: VecDeque<ProxySessionRequestState>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
 struct ProxySessionRequestState {
     id: u64,
     started_at: u64,
@@ -35,12 +39,14 @@ struct ProxySessionRequestState {
     input_attachments: Vec<ProxyConversationAttachment>,
     output_attachments: Vec<ProxyConversationAttachment>,
     response_truncated: bool,
+    #[serde(default)]
+    interrupted: bool,
     first_response_time_ms: Option<u64>,
     response_time_ms: Option<u64>,
     usage: Option<TokenUsageValues>,
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, serde::Serialize, serde::Deserialize)]
 struct ProxySessionTokenTotals {
     total_tokens: u64,
     input_tokens: u64,
@@ -171,7 +177,7 @@ struct AggregateForwardRequest<'a> {
     target: &'a AggregateTarget,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 struct TokenUsageValues {
     input_tokens: Option<u64>,
     output_tokens: Option<u64>,

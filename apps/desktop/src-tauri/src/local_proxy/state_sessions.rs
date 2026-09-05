@@ -78,12 +78,7 @@ fn begin_proxy_session_request(
     service_tier: Option<ProxyServiceTier>,
 ) -> ProxySessionRequestGuard {
     let id = proxy_session_id(headers)
-        .or_else(|| {
-            remote_address
-                .clone()
-                .map(|address| format!("client:{address}"))
-        })
-        .unwrap_or_else(|| "local-client".to_string());
+        .unwrap_or_else(|| unidentified_proxy_session_id(remote_address.as_deref()));
     let client = header_value(headers, "user-agent")
         .map(str::trim)
         .filter(|value| !value.is_empty())
@@ -99,6 +94,7 @@ fn begin_proxy_session_request(
             .entry(id.clone())
             .or_insert_with(|| ProxySessionState {
                 id: id.clone(),
+                title: None,
                 client: client.clone(),
                 remote_address: remote_address.clone(),
                 connected_at: now,
@@ -133,6 +129,7 @@ fn begin_proxy_session_request(
             response: None,
             output_attachments: Vec::new(),
             response_truncated: false,
+            interrupted: false,
             first_response_time_ms: None,
             response_time_ms: None,
             usage: None,
@@ -141,6 +138,7 @@ fn begin_proxy_session_request(
             session.requests.pop_front();
         }
     }
+    persist_proxy_session(&id, Some(request_id));
     ProxySessionRequestGuard {
         expects_event_stream: serde_json::from_slice::<Value>(body)
             .ok()
@@ -198,6 +196,7 @@ fn update_proxy_session_target(
             session.last_seen_at = unix_now();
         }
     }
+    persist_proxy_session(session_id, request_id);
 }
 
 fn update_proxy_session_usage(
@@ -226,6 +225,7 @@ fn update_proxy_session_usage(
             session.last_seen_at = unix_now();
         }
     }
+    persist_proxy_session(session_id, None);
 }
 
 fn mark_proxy_session_concurrent_account(
@@ -243,6 +243,7 @@ fn mark_proxy_session_concurrent_account(
             session.account_email = Some(account_email.to_string());
         }
     }
+    persist_proxy_session(session_id, None);
 }
 
 fn should_mark_proxy_session_concurrent_account(
@@ -272,6 +273,7 @@ fn update_proxy_session_request_usage(
             request.usage = Some(usage.clone());
         }
     }
+    persist_proxy_session(session_id, Some(request_id));
 }
 
 fn record_proxy_session_first_response(
@@ -291,6 +293,7 @@ fn record_proxy_session_first_response(
                 .get_or_insert(first_response_time_ms);
         }
     }
+    persist_proxy_session(session_id, Some(request_id));
 }
 
 fn finish_proxy_session_request(session_id: &str, request_id: u64, response_time_ms: u64) {
@@ -307,12 +310,10 @@ fn finish_proxy_session_request(session_id: &str, request_id: u64, response_time
             session.last_seen_at = unix_now();
         }
     }
+    persist_proxy_session(session_id, Some(request_id));
 }
 
-fn clear_proxy_sessions() {
-    if let Ok(mut sessions) = proxy_sessions().lock() {
-        sessions.clear();
-    }
+fn clear_proxy_session_routing() {
     if let Ok(mut router) = concurrent_account_router().lock() {
         router.clear();
     }

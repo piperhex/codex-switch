@@ -4,7 +4,7 @@ fn set_local_proxy_enabled(paths: &Paths, enabled: bool) -> Result<(), String> {
     write_state(paths, &state)
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 enum ProxyServiceTier {
     Default,
     Priority,
@@ -241,7 +241,7 @@ fn stop_server() {
     if let Some(proxy_runtime) = runtime {
         stop_proxy_runtime(proxy_runtime);
     }
-    clear_proxy_sessions();
+    clear_proxy_session_routing();
     aggregate_scheduler::clear();
 }
 
@@ -290,6 +290,12 @@ fn handle_request<R: Runtime>(app: tauri::AppHandle<R>, mut request: Request) {
 
     let captures_conversation = is_responses_endpoint(request_path(&url))
         || is_image_generation_endpoint(request_path(&url));
+    if captures_conversation {
+        if let Err(error) = ensure_proxy_history(&app) {
+            respond_error(request, 503, error);
+            return;
+        }
+    }
     let session = (method == Method::Post && captures_conversation).then(|| {
         let service_tier = effective_proxy_service_tier(&body, proxy_service_tier_override());
         begin_proxy_session_request(&headers, remote_address, &body, service_tier)
