@@ -132,8 +132,23 @@ pub(crate) fn write_app_settings<R: Runtime>(
     write_json_atomic(&path, &value)
 }
 
+fn migrate_upstream_429_retry_timeout(settings: &mut AppSettings) -> bool {
+    const LEGACY_UPSTREAM_429_RETRY_TIMEOUT_SECONDS: u64 = 300;
+
+    if settings.upstream_429_retry_timeout_migrated {
+        return false;
+    }
+    if settings.upstream_429_retry_timeout_seconds == LEGACY_UPSTREAM_429_RETRY_TIMEOUT_SECONDS {
+        settings.upstream_429_retry_timeout_seconds =
+            crate::models::DEFAULT_UPSTREAM_429_RETRY_TIMEOUT_SECONDS;
+    }
+    // Mark custom values too, so later user edits can never trigger this migration.
+    settings.upstream_429_retry_timeout_migrated = true;
+    true
+}
+
 fn apply_app_settings_version_migration(settings: &mut AppSettings, current_version: &str) -> bool {
-    let mut changed = false;
+    let mut changed = migrate_upstream_429_retry_timeout(settings);
     if settings.codex_homes.is_empty() {
         if let Some(path) = settings.codex_home.as_deref().filter(|path| !path.trim().is_empty()) {
             settings.codex_homes.push(crate::models::CodexHomeEntry {

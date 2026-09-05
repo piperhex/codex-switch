@@ -50,6 +50,9 @@ pub(crate) struct AppSettings {
     pub(crate) auto_disable_status_codes: Vec<u16>,
     #[serde(default = "default_upstream_429_retry_timeout_seconds")]
     pub(crate) upstream_429_retry_timeout_seconds: u64,
+    /// Records the one-time migration from the legacy five-minute retry default.
+    #[serde(default)]
+    pub(crate) upstream_429_retry_timeout_migrated: bool,
     #[serde(default)]
     pub(crate) show_usage_network_errors: bool,
     #[serde(default = "default_gpt_5_6_sol_context_window")]
@@ -273,6 +276,7 @@ impl Default for AppSettings {
             codex_usage_summary_enabled: default_codex_usage_summary_enabled(),
             auto_disable_status_codes: default_auto_disable_status_codes(),
             upstream_429_retry_timeout_seconds: default_upstream_429_retry_timeout_seconds(),
+            upstream_429_retry_timeout_migrated: false,
             show_usage_network_errors: false,
             gpt_5_6_sol_context_window: default_gpt_5_6_sol_context_window(),
             official_model_context_windows: std::collections::BTreeMap::new(),

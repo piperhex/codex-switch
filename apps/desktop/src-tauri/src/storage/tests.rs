@@ -164,6 +164,7 @@ mod tests {
         let mut settings = AppSettings {
             cloud_base_url: None,
             last_started_version: Some("1.1.20".to_string()),
+            upstream_429_retry_timeout_migrated: true,
             ..AppSettings::default()
         };
 
@@ -172,6 +173,67 @@ mod tests {
             "1.1.20"
         ));
         assert!(settings.cloud_base_url.is_none());
+    }
+
+    #[test]
+    fn upstream_429_retry_timeout_migrates_the_saved_legacy_default_once() {
+        let mut settings: AppSettings = serde_json::from_value(json!({
+            "upstream429RetryTimeoutSeconds": 300,
+            "lastStartedVersion": "1.4.2",
+        })).unwrap();
+        assert!(!settings.upstream_429_retry_timeout_migrated);
+
+        assert!(apply_app_settings_version_migration(&mut settings, "1.4.2"));
+        assert_eq!(settings.upstream_429_retry_timeout_seconds, 60);
+        assert!(settings.upstream_429_retry_timeout_migrated);
+
+        let paths = test_paths();
+        let path = paths.state_file.with_file_name("settings.json");
+        write_json_atomic(&path, &serde_json::to_value(&settings).unwrap()).unwrap();
+        let saved = read_json(&path).unwrap();
+        assert_eq!(saved["upstream429RetryTimeoutSeconds"], 60);
+        assert_eq!(saved["upstream429RetryTimeoutMigrated"], true);
+        let mut reloaded: AppSettings = serde_json::from_value(saved).unwrap();
+        assert!(!apply_app_settings_version_migration(&mut reloaded, "1.4.2"));
+
+        reloaded.upstream_429_retry_timeout_seconds = 300;
+        write_json_atomic(&path, &serde_json::to_value(&reloaded).unwrap()).unwrap();
+        let mut customized: AppSettings = serde_json::from_value(read_json(&path).unwrap()).unwrap();
+        assert!(!apply_app_settings_version_migration(&mut customized, "1.4.2"));
+        assert_eq!(customized.upstream_429_retry_timeout_seconds, 300);
+        assert!(apply_app_settings_version_migration(&mut customized, "1.4.3"));
+        assert_eq!(customized.upstream_429_retry_timeout_seconds, 300);
+        assert!(customized.upstream_429_retry_timeout_migrated);
+        fs::remove_dir_all(paths.codex_home.parent().unwrap()).unwrap();
+    }
+
+    #[test]
+    fn upstream_429_retry_timeout_migration_preserves_other_saved_values() {
+        for timeout_seconds in [1, 60, 90, 600, 3_600] {
+            let mut settings: AppSettings = serde_json::from_value(json!({
+                "upstream429RetryTimeoutSeconds": timeout_seconds,
+                "upstream429RetryTimeoutMigrated": false,
+                "lastStartedVersion": "1.4.2",
+            })).unwrap();
+
+            assert!(apply_app_settings_version_migration(&mut settings, "1.4.2"));
+            assert_eq!(settings.upstream_429_retry_timeout_seconds, timeout_seconds);
+            assert!(settings.upstream_429_retry_timeout_migrated);
+
+            settings.upstream_429_retry_timeout_seconds = 300;
+            assert!(apply_app_settings_version_migration(&mut settings, "1.4.3"));
+            assert_eq!(settings.upstream_429_retry_timeout_seconds, 300);
+        }
+    }
+
+    #[test]
+    fn upstream_429_retry_timeout_migration_marks_new_settings_as_complete() {
+        for mut settings in [AppSettings::default(), serde_json::from_str("{}").unwrap()] {
+            assert!(apply_app_settings_version_migration(&mut settings, "1.4.2"));
+            assert_eq!(settings.upstream_429_retry_timeout_seconds, 60);
+            assert!(settings.upstream_429_retry_timeout_migrated);
+            assert!(!apply_app_settings_version_migration(&mut settings, "1.4.2"));
+        }
     }
 
     #[test]
