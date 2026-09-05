@@ -8,6 +8,7 @@ const sourcePaths = {
   "./tokenCost": "../apps/desktop/src/utils/tokenCost.ts",
   "./tokenCostPresets": "../apps/desktop/src/utils/tokenCostPresets.ts",
   "./tokenCostFastMode": "../apps/desktop/src/utils/tokenCostFastMode.ts",
+  "./tokenCostLongContext": "../apps/desktop/src/utils/tokenCostLongContext.ts",
   "../pages/providers/providerUtils": "../apps/desktop/src/pages/providers/providerUtils.ts",
   sync: "../apps/desktop/src/utils/codexUsageCostSync.ts",
 };
@@ -65,12 +66,14 @@ test("coalesces edits during an active request and sends the latest prices", asy
   const { saveCustomTokenCostRules } = harness.require("./tokenCost");
   const { saveTokenCostReferenceModel } = harness.require("./tokenCostPresets");
   const { saveFastModeCostMultiplier } = harness.require("./tokenCostFastMode");
+  const { saveLongContextCostSettings, DEFAULT_LONG_CONTEXT_COST_SETTINGS } = harness.require("./tokenCostLongContext");
   const stop = installCodexUsageCostSync();
   persistStoredModelTokenCosts("relay", { model: 2 });
   persistStoredModelTokenCosts("relay", { model: 3 });
   saveCustomTokenCostRules([{ providerId: "relay", model: "model", input: 4, cachedInput: 1, output: 5 }]);
   saveTokenCostReferenceModel("gpt-5.6-terra");
   saveFastModeCostMultiplier(3);
+  saveLongContextCostSettings({ ...DEFAULT_LONG_CONTEXT_COST_SETTINGS, thresholdTokens: 300_000, outputMultiplier: 2 });
   assert.equal(harness.calls.length, 1);
   harness.calls[0].resolve();
   await flush();
@@ -82,8 +85,12 @@ test("coalesces edits during an active request and sends the latest prices", asy
   assert.equal(harness.calls[1].rates.referenceModel, "gpt-5.6-terra");
   assert.equal(harness.calls[0].rates.fastModeMultiplier, 2.5);
   assert.equal(harness.calls[1].rates.fastModeMultiplier, 3);
+  assert.equal(harness.calls[0].rates.longContext.thresholdTokens, 272_000);
+  assert.equal(harness.calls[1].rates.longContext.thresholdTokens, 300_000);
+  assert.equal(harness.calls[1].rates.longContext.outputMultiplier, 2);
   stop();
   persistStoredModelTokenCosts("relay", { model: 10 });
+  saveLongContextCostSettings({ ...DEFAULT_LONG_CONTEXT_COST_SETTINGS, enabled: false });
   harness.calls[1].resolve();
   await flush();
   assert.equal(harness.calls.length, 2);
@@ -133,4 +140,26 @@ test("does not send desktop commands in a web browser", () => {
   const harness = createHarness({ desktop: false });
   assert.equal(harness.require("sync").installCodexUsageCostSync(), undefined);
   assert.equal(harness.calls.length, 0);
+});
+
+test("long-context changes in another window sync once and stop after cleanup", async () => {
+  const harness = createHarness();
+  const context = harness.require("./tokenCostLongContext");
+  const stop = harness.require("sync").installCodexUsageCostSync();
+  harness.calls[0].resolve();
+  await flush();
+  const settings = { ...context.DEFAULT_LONG_CONTEXT_COST_SETTINGS, inputMultiplier: 3 };
+  harness.window.localStorage.setItem(context.LONG_CONTEXT_COST_STORAGE_KEY, JSON.stringify(settings));
+  const event = new Event("storage");
+  event.key = context.LONG_CONTEXT_COST_STORAGE_KEY;
+  event.storageArea = harness.window.localStorage;
+  harness.window.dispatchEvent(event);
+  assert.equal(harness.calls.length, 2);
+  assert.equal(harness.calls[1].rates.longContext.inputMultiplier, 3);
+  harness.calls[1].resolve();
+  await flush();
+  stop();
+  harness.window.dispatchEvent(event);
+  context.saveLongContextCostSettings({ ...settings, enabled: false });
+  assert.equal(harness.calls.length, 2);
 });

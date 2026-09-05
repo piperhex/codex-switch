@@ -2,6 +2,7 @@ import { Select } from "antd";
 import { ExternalLink } from "lucide-react";
 import type { Translate } from "../i18n";
 import { TokenCostFastModeSettings } from "./TokenCostFastModeSettings";
+import { TokenCostLongContextSettings } from "./TokenCostLongContextSettings";
 import {
   TOKEN_COST_PRESETS,
   TOKEN_COST_PRESETS_SOURCE_URL,
@@ -60,5 +61,6 @@ export function TokenCostPresets({ referenceModel, onReferenceChange, t }: Token
       <small>{t("tokenCost.customBilling.priorityHint")}</small>
     </div>
     <TokenCostFastModeSettings t={t} />
+    <TokenCostLongContextSettings t={t} />
   </section>;
 }

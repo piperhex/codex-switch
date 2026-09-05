@@ -20,6 +20,11 @@ import {
   FAST_MODE_COST_MULTIPLIER_STORAGE_KEY,
   loadFastModeCostMultiplier,
 } from "./tokenCostFastMode";
+import {
+  LONG_CONTEXT_COST_EVENT,
+  LONG_CONTEXT_COST_STORAGE_KEY,
+  loadLongContextCostSettings,
+} from "./tokenCostLongContext";
 
 const RETRY_DELAY_MS = 30_000;
 
@@ -43,6 +48,7 @@ function createCostRatesSynchronizer() {
             modelTokenCosts: loadStoredModelTokenCosts(),
             referenceModel: loadTokenCostReferenceModel(),
             fastModeMultiplier: loadFastModeCostMultiplier(),
+            longContext: loadLongContextCostSettings(),
           },
         });
       }
@@ -72,7 +78,7 @@ export function installCodexUsageCostSync() {
     if (event.storageArea && event.storageArea !== window.localStorage) return;
     if (event.key !== null && event.key !== TOKEN_COST_CUSTOM_RULES_STORAGE_KEY
       && event.key !== MODEL_TOKEN_COSTS_STORAGE_KEY && event.key !== TOKEN_COST_REFERENCE_MODEL_STORAGE_KEY
-      && event.key !== FAST_MODE_COST_MULTIPLIER_STORAGE_KEY) return;
+      && event.key !== FAST_MODE_COST_MULTIPLIER_STORAGE_KEY && event.key !== LONG_CONTEXT_COST_STORAGE_KEY) return;
     invalidateCustomTokenCostRulesCache();
     handleChange();
   };
@@ -80,6 +86,7 @@ export function installCodexUsageCostSync() {
   window.addEventListener(MODEL_TOKEN_COSTS_EVENT, handleChange);
   window.addEventListener(TOKEN_COST_REFERENCE_MODEL_EVENT, handleChange);
   window.addEventListener(FAST_MODE_COST_MULTIPLIER_EVENT, handleChange);
+  window.addEventListener(LONG_CONTEXT_COST_EVENT, handleChange);
   window.addEventListener("storage", handleStorage);
   handleChange();
   return () => {
@@ -88,6 +95,7 @@ export function installCodexUsageCostSync() {
     window.removeEventListener(MODEL_TOKEN_COSTS_EVENT, handleChange);
     window.removeEventListener(TOKEN_COST_REFERENCE_MODEL_EVENT, handleChange);
     window.removeEventListener(FAST_MODE_COST_MULTIPLIER_EVENT, handleChange);
+    window.removeEventListener(LONG_CONTEXT_COST_EVENT, handleChange);
     window.removeEventListener("storage", handleStorage);
   };
 }

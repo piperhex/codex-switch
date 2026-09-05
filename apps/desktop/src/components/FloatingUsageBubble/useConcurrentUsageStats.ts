@@ -16,6 +16,7 @@ import {
   FAST_MODE_COST_MULTIPLIER_EVENT,
   FAST_MODE_COST_MULTIPLIER_STORAGE_KEY,
 } from "../../utils/tokenCostFastMode";
+import { LONG_CONTEXT_COST_EVENT, LONG_CONTEXT_COST_STORAGE_KEY } from "../../utils/tokenCostLongContext";
 
 const STATS_REFRESH_INTERVAL_MS = 60_000;
 
@@ -56,13 +57,15 @@ export function useConcurrentUsageStats(
     const unsubscribe = subscribeToTokenUsageChanges(refreshCosts);
     const refreshStoredMultiplier = (event: StorageEvent) => {
       if (event.storageArea !== window.localStorage
-        || (event.key !== null && event.key !== FAST_MODE_COST_MULTIPLIER_STORAGE_KEY)) return;
+        || (event.key !== null && event.key !== FAST_MODE_COST_MULTIPLIER_STORAGE_KEY
+          && event.key !== LONG_CONTEXT_COST_STORAGE_KEY)) return;
       invalidateCustomTokenCostRulesCache();
       refreshCosts();
     };
     window.addEventListener(TOKEN_COST_CUSTOM_RULES_EVENT, refreshCosts);
     window.addEventListener(TOKEN_COST_REFERENCE_MODEL_EVENT, refreshCosts);
     window.addEventListener(FAST_MODE_COST_MULTIPLIER_EVENT, refreshCosts);
+    window.addEventListener(LONG_CONTEXT_COST_EVENT, refreshCosts);
     window.addEventListener("storage", refreshStoredMultiplier);
     window.addEventListener(TOKEN_COST_DISPLAY_EVENT, refreshDisplay);
     return () => {
@@ -71,6 +74,7 @@ export function useConcurrentUsageStats(
       window.removeEventListener(TOKEN_COST_CUSTOM_RULES_EVENT, refreshCosts);
       window.removeEventListener(TOKEN_COST_REFERENCE_MODEL_EVENT, refreshCosts);
       window.removeEventListener(FAST_MODE_COST_MULTIPLIER_EVENT, refreshCosts);
+      window.removeEventListener(LONG_CONTEXT_COST_EVENT, refreshCosts);
       window.removeEventListener("storage", refreshStoredMultiplier);
       window.removeEventListener(TOKEN_COST_DISPLAY_EVENT, refreshDisplay);
     };

@@ -1,6 +1,7 @@
 import type { Provider, TokenUsageEntry } from "../types";
 import { findTokenCostPreset, referenceTokenCostPreset } from "./tokenCostPresets";
 import { costMultiplierForServiceTier } from "./tokenCostFastMode";
+import { longContextMultipliersForEntry } from "./tokenCostLongContext";
 
 const TOKENS_PER_MILLION = 1_000_000;
 const TOKEN_COST_DISPLAY_STORAGE_KEY = "codex-switch:token-cost-display";
@@ -83,10 +84,11 @@ export function estimateTokenCost(entry: TokenUsageEntry, providers: Provider[])
   const cachedTokens = Math.min(inputTokens, Math.max(0, entry.cachedTokens ?? 0));
   const outputTokens = Math.max(0, entry.outputTokens ?? 0);
   const rate = rateForEntry(entry, providers, loadCustomTokenCostRules());
+  const context = longContextMultipliersForEntry(entry.model, inputTokens);
   return (
-    (inputTokens - cachedTokens) * rate.input
-    + cachedTokens * rate.cachedInput
-    + outputTokens * rate.output
+    (inputTokens - cachedTokens) * rate.input * context.input
+    + cachedTokens * rate.cachedInput * context.cachedInput
+    + outputTokens * rate.output * context.output
   ) / TOKENS_PER_MILLION * costMultiplierForServiceTier(entry.serviceTier);
 }
 

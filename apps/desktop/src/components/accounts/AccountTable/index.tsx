@@ -65,6 +65,7 @@ import {
   FAST_MODE_COST_MULTIPLIER_EVENT,
   FAST_MODE_COST_MULTIPLIER_STORAGE_KEY,
 } from "../../../utils/tokenCostFastMode";
+import { LONG_CONTEXT_COST_EVENT, LONG_CONTEXT_COST_STORAGE_KEY } from "../../../utils/tokenCostLongContext";
 import {
   DailyTokenUsageTooltip,
   EMPTY_TOKEN_TOTALS,
@@ -493,13 +494,15 @@ export function AccountTable({
     const unsubscribe = subscribeToTokenUsageChanges(() => void refresh());
     const refreshStoredMultiplier = (event: StorageEvent) => {
       if (event.storageArea !== window.localStorage
-        || (event.key !== null && event.key !== FAST_MODE_COST_MULTIPLIER_STORAGE_KEY)) return;
+        || (event.key !== null && event.key !== FAST_MODE_COST_MULTIPLIER_STORAGE_KEY
+          && event.key !== LONG_CONTEXT_COST_STORAGE_KEY)) return;
       invalidateCustomTokenCostRulesCache();
       void refresh();
     };
     window.addEventListener(TOKEN_COST_CUSTOM_RULES_EVENT, refresh);
     window.addEventListener(TOKEN_COST_REFERENCE_MODEL_EVENT, refresh);
     window.addEventListener(FAST_MODE_COST_MULTIPLIER_EVENT, refresh);
+    window.addEventListener(LONG_CONTEXT_COST_EVENT, refresh);
     window.addEventListener("storage", refreshStoredMultiplier);
     return () => {
       active = false;
@@ -508,6 +511,7 @@ export function AccountTable({
       window.removeEventListener(TOKEN_COST_CUSTOM_RULES_EVENT, refresh);
       window.removeEventListener(TOKEN_COST_REFERENCE_MODEL_EVENT, refresh);
       window.removeEventListener(FAST_MODE_COST_MULTIPLIER_EVENT, refresh);
+      window.removeEventListener(LONG_CONTEXT_COST_EVENT, refresh);
       window.removeEventListener("storage", refreshStoredMultiplier);
     };
   }, [hotSwitchEnabled, providers, tokenUsageRefreshSeconds]);

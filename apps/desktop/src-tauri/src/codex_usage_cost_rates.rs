@@ -12,6 +12,10 @@ use crate::{
     storage::Paths,
 };
 
+mod long_context;
+
+use long_context::LongContextCostSettings;
+
 const RATES_FILE_NAME: &str = "codex-usage-cost-rates.json";
 const MAX_RULES: usize = 10_000;
 const MAX_MODEL_PRICES: usize = 100_000;
@@ -34,6 +38,8 @@ pub(crate) struct CostRates {
     #[serde(default = "default_fast_mode_multiplier")]
     fast_mode_multiplier: f64,
     #[serde(default)]
+    long_context: LongContextCostSettings,
+    #[serde(default)]
     custom_rules: Vec<CustomCostRule>,
     #[serde(default)]
     model_token_costs: BTreeMap<String, BTreeMap<String, f64>>,
@@ -44,6 +50,7 @@ impl Default for CostRates {
         Self {
             reference_model: default_reference_model(),
             fast_mode_multiplier: default_fast_mode_multiplier(),
+            long_context: LongContextCostSettings::default(),
             custom_rules: Vec::new(),
             model_token_costs: BTreeMap::new(),
         }
@@ -56,27 +63,37 @@ struct CostPresetCatalog {
     default_reference_model: String,
     default_fast_mode_cost_multiplier: f64,
     max_fast_mode_cost_multiplier: f64,
+    default_long_context_cost_settings: LongContextCostSettings,
+    max_long_context_threshold_tokens: u64,
+    max_long_context_cost_multiplier: f64,
     models: Vec<CostPreset>,
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct CostPreset {
     model: String,
     #[serde(default)]
     aliases: Vec<String>,
+    long_context_pricing: bool,
     #[serde(flatten)]
     rate: CostRate,
 }
 
 impl CostPresetCatalog {
     fn rate_for_reference(&self, model: &str) -> Option<CostRate> {
-        self.models
-            .iter()
-            .find(|preset| preset.model == model)
-            .map(|preset| preset.rate)
+        self.preset_for_reference(model).map(|preset| preset.rate)
+    }
+
+    fn preset_for_reference(&self, model: &str) -> Option<&CostPreset> {
+        self.models.iter().find(|preset| preset.model == model)
     }
 
     fn rate_for_model(&self, model: &str) -> Option<CostRate> {
+        self.preset_for_model(model).map(|preset| preset.rate)
+    }
+
+    fn preset_for_model(&self, model: &str) -> Option<&CostPreset> {
         let normalized = model.trim().to_lowercase();
         self.models
             .iter()
@@ -86,7 +103,6 @@ impl CostPresetCatalog {
                     || normalized.starts_with(&format!("{}-", preset.model))
             })
             .max_by_key(|preset| preset.model.len())
-            .map(|preset| preset.rate)
     }
 
     fn default_rate(&self) -> CostRate {
@@ -184,7 +200,10 @@ impl CostRates {
             Some("priority" | "fast") => self.fast_mode_multiplier,
             _ => 1.0,
         };
-        rate.estimate(entry) * multiplier
+        self.long_context
+            .adjust_rate(rate, entry, &self.reference_model)
+            .estimate(entry)
+            * multiplier
     }
 
     fn custom_rate(&self, provider_id: Option<&str>, model: &str) -> Option<CostRate> {
@@ -232,6 +251,7 @@ impl CostRates {
             && self.fast_mode_multiplier <= PRESET_CATALOG.max_fast_mode_cost_multiplier;
         if reference_valid
             && multiplier_valid
+            && self.long_context.is_valid()
             && rule_count_valid
             && prices_count_valid
             && rules_valid

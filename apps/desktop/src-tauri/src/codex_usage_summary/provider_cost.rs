@@ -271,7 +271,7 @@ mod tests {
         .unwrap();
         let summary = summarize(&[legacy], &scope, &rates, &profiles);
 
-        assert!((summary.amount_usd - 2.2).abs() < 1e-10);
+        assert!((summary.amount_usd - 4.3).abs() < 1e-10);
     }
 
     #[test]
@@ -289,7 +289,7 @@ mod tests {
         ];
         let summary = summarize(&entries, &scope, &CostRates::default(), &profiles);
 
-        assert!((summary.amount_usd - 15.84).abs() < 1e-10);
+        assert!((summary.amount_usd - 28.68).abs() < 1e-10);
         assert!(!summary.aggregated);
     }
 
@@ -307,7 +307,7 @@ mod tests {
         ];
         let summary = summarize(&entries, &scope, &CostRates::default(), &profiles);
 
-        assert!((summary.amount_usd - 21.12).abs() < 1e-10);
+        assert!((summary.amount_usd - 38.24).abs() < 1e-10);
         assert!(summary.aggregated);
     }
 
@@ -326,7 +326,7 @@ mod tests {
             &CostRates::default(),
             &profiles,
         );
-        assert!((summary.amount_usd - 23.76).abs() < 1e-10);
+        assert!((summary.amount_usd - 43.02).abs() < 1e-10);
         assert!(summary.aggregated);
     }
 
@@ -349,7 +349,29 @@ mod tests {
             entry(Some("other"), "Shared"),
         ];
         let summary = summarize(&entries, &scope, &CostRates::default(), &profiles);
-        assert!((summary.amount_usd - 15.84).abs() < 1e-10);
+        assert!((summary.amount_usd - 28.68).abs() < 1e-10);
+        assert!(summary.aggregated);
+    }
+
+    #[test]
+    fn aggregate_prices_short_long_and_mini_requests_separately() {
+        let profiles = vec![profile("first", "First"), profile("second", "Second")];
+        let scope = ProviderCostScope::from_aggregate(&config(), &profiles);
+        let long = entry(Some("first"), "First");
+        let mut short = entry(Some("second"), "Second");
+        short.input_tokens = Some(200_000);
+        short.cached_tokens = Some(100_000);
+        short.output_tokens = Some(10_000);
+        let mut mini = entry(Some("aggregate:pool"), "Pool");
+        mini.model = "gpt-5.4-mini".to_string();
+        mini.service_tier = Some("priority".to_string());
+        let summary = summarize(
+            &[short, long, mini],
+            &scope,
+            &CostRates::default(),
+            &profiles,
+        );
+        assert!((summary.amount_usd - 12.8625).abs() < 1e-10);
         assert!(summary.aggregated);
     }
 }

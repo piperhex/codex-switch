@@ -2,12 +2,22 @@
   "defaultReferenceModel": "gpt-5.6-sol",
   "defaultFastModeCostMultiplier": 2.5,
   "maxFastModeCostMultiplier": 100,
+  "defaultLongContextCostSettings": {
+    "enabled": true,
+    "thresholdTokens": 272000,
+    "inputMultiplier": 2,
+    "cachedInputMultiplier": 2,
+    "outputMultiplier": 1.5
+  },
+  "maxLongContextThresholdTokens": 1000000000,
+  "maxLongContextCostMultiplier": 100,
   "verifiedAt": "2026-09-05",
   "sourceUrl": "https://developers.openai.com/api/docs/pricing",
   "unpricedModels": ["gpt-5.3-codex-spark"],
   "models": [
     {
       "model": "gpt-5.4-mini",
+      "longContextPricing": false,
       "input": 0.75,
       "cachedInput": 0.075,
       "output": 4.5,
@@ -15,6 +25,7 @@
     },
     {
       "model": "gpt-5.5",
+      "longContextPricing": true,
       "input": 5,
       "cachedInput": 0.5,
       "output": 30,
@@ -22,6 +33,7 @@
     },
     {
       "model": "gpt-5.6-luna",
+      "longContextPricing": true,
       "input": 0.2,
       "cachedInput": 0.02,
       "output": 1.2,
@@ -29,6 +41,7 @@
     },
     {
       "model": "gpt-5.6-sol",
+      "longContextPricing": true,
       "aliases": ["gpt-5.6"],
       "input": 4,
       "cachedInput": 0.4,
@@ -37,6 +50,7 @@
     },
     {
       "model": "gpt-5.6-terra",
+      "longContextPricing": true,
       "input": 2,
       "cachedInput": 0.2,
       "output": 12,
@@ -44,6 +58,7 @@
     },
     {
       "model": "gpt-6-astra",
+      "longContextPricing": true,
       "input": 10,
       "cachedInput": 1,
       "output": 50,

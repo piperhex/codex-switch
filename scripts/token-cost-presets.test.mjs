@@ -8,6 +8,7 @@ const sourcePaths = {
   "./tokenCost": "../apps/desktop/src/utils/tokenCost.ts",
   "./tokenCostPresets": "../apps/desktop/src/utils/tokenCostPresets.ts",
   "./tokenCostFastMode": "../apps/desktop/src/utils/tokenCostFastMode.ts",
+  "./tokenCostLongContext": "../apps/desktop/src/utils/tokenCostLongContext.ts",
 };
 const compiled = Object.fromEntries(Object.entries(sourcePaths).map(([name, path]) => [
   name,
@@ -52,6 +53,7 @@ function createHarness({ brokenStorage = false } = {}) {
   return {
     window, stored, cost: require("./tokenCost"), presets: require("./tokenCostPresets"),
     fastMode: require("./tokenCostFastMode"),
+    longContext: require("./tokenCostLongContext"),
   };
 }
 
@@ -86,7 +88,9 @@ test("contains the six verified official presets and a priced Sol default", () =
 test("official preset prices apply to custom, OpenAI, and unassociated usage", () => {
   const { cost } = createHarness();
   for (const [model, [input, cachedInput, output]] of Object.entries(verifiedRates)) {
-    const expected = 0.8 * input + 0.2 * cachedInput + 0.1 * output;
+    const expected = model === "gpt-5.4-mini"
+      ? 0.8 * input + 0.2 * cachedInput + 0.1 * output
+      : 1.6 * input + 0.4 * cachedInput + 0.15 * output;
     closeTo(cost.estimateTokenCost(entry(model), [provider()]), expected);
     closeTo(cost.estimateTokenCost(entry(model), [provider({ kind: "openai" })]), expected);
     closeTo(cost.estimateTokenCost(entry(model, null), []), expected);
@@ -96,8 +100,8 @@ test("official preset prices apply to custom, OpenAI, and unassociated usage", (
 test("does not use another API's custom price when only the display name matches", () => {
   const { cost } = createHarness();
   const profiles = [provider({ id: "other-api", modelTokenCosts: { "private-model": 9 } })];
-  closeTo(cost.estimateTokenCost(entry(), profiles), 5.28);
-  closeTo(cost.estimateTokenCost(entry("private-model", null), profiles), 9.9);
+  closeTo(cost.estimateTokenCost(entry(), profiles), 9.56);
+  closeTo(cost.estimateTokenCost(entry("private-model", null), profiles), 19.35);
 });
 
 test("a specific saved model price wins over an earlier inherited price", () => {
@@ -106,8 +110,8 @@ test("a specific saved model price wins over an earlier inherited price", () => 
     { providerId: "relay", model: "gpt-5.6-sol", input: 2, cachedInput: 0.5, output: 3 },
     { providerId: "relay", model: "gpt-5.6-sol-dated", input: 9, cachedInput: 1, output: 13 },
   ]);
-  closeTo(cost.estimateTokenCost(entry("gpt-5.6-sol-dated"), [provider()]), 8.7);
-  closeTo(cost.estimateTokenCost(entry("gpt-5.6-sol"), [provider()]), 2);
+  closeTo(cost.estimateTokenCost(entry("gpt-5.6-sol-dated"), [provider()]), 16.75);
+  closeTo(cost.estimateTokenCost(entry("gpt-5.6-sol"), [provider()]), 3.85);
 });
 
 test("custom rules override provider prices and official presets, including zero prices", () => {
@@ -117,7 +121,7 @@ test("custom rules override provider prices and official presets, including zero
   cost.saveCustomTokenCostRules([
     { providerId: "relay", model, input: 2, cachedInput: 0.5, output: 3 },
   ]);
-  closeTo(cost.estimateTokenCost(entry(model), profiles), 2);
+  closeTo(cost.estimateTokenCost(entry(model), profiles), 3.85);
   cost.saveCustomTokenCostRules([
     { providerId: "relay", model, input: 0, cachedInput: 0, output: 0 },
   ]);
@@ -128,7 +132,7 @@ test("configured provider model prices take precedence over preset and reference
   const { cost, presets } = createHarness();
   presets.saveTokenCostReferenceModel("gpt-6-astra");
   for (const model of ["gpt-5.6-sol", "private-model"]) {
-    closeTo(cost.estimateTokenCost(entry(model), [provider({ modelTokenCosts: { [model]: 2 } })]), 2.2);
+    closeTo(cost.estimateTokenCost(entry(model), [provider({ modelTokenCosts: { [model]: 2 } })]), 4.3);
     assert.equal(cost.estimateTokenCost(entry(model), [provider({ modelTokenCosts: { [model]: 0 } })]), 0);
   }
 });
@@ -137,14 +141,14 @@ test("unknown models use Sol by default and update immediately when the referenc
   const { cost, presets, window } = createHarness();
   let changes = 0;
   window.addEventListener(presets.TOKEN_COST_REFERENCE_MODEL_EVENT, () => { changes += 1; });
-  closeTo(cost.estimateTokenCost(entry(), [provider()]), 5.28);
-  closeTo(cost.estimateTokenCost(entry("private-model", null), []), 5.28);
+  closeTo(cost.estimateTokenCost(entry(), [provider()]), 9.56);
+  closeTo(cost.estimateTokenCost(entry("private-model", null), []), 9.56);
   presets.saveTokenCostReferenceModel("gpt-5.6-terra");
   assert.equal(changes, 1);
   assert.equal(presets.loadTokenCostReferenceModel(), "gpt-5.6-terra");
-  closeTo(cost.estimateTokenCost(entry(), [provider()]), 2.84);
-  closeTo(cost.estimateTokenCost(entry("private-model", null), []), 2.84);
-  closeTo(cost.estimateTokenCost(entry("gpt-5.6-sol"), [provider()]), 5.28);
+  closeTo(cost.estimateTokenCost(entry(), [provider()]), 5.08);
+  closeTo(cost.estimateTokenCost(entry("private-model", null), []), 5.08);
+  closeTo(cost.estimateTokenCost(entry("gpt-5.6-sol"), [provider()]), 9.56);
 });
 
 test("Spark is unpriced and uses an explicitly selected reference rather than another Codex price", () => {
@@ -152,9 +156,9 @@ test("Spark is unpriced and uses an explicitly selected reference rather than an
   const spark = "gpt-5.3-codex-spark";
   assert.ok(presets.UNPRICED_PRESET_MODELS.includes(spark));
   assert.equal(presets.findTokenCostPreset(spark), undefined);
-  closeTo(cost.estimateTokenCost(entry(spark), [provider()]), 5.28);
+  closeTo(cost.estimateTokenCost(entry(spark), [provider()]), 9.56);
   presets.saveTokenCostReferenceModel("gpt-5.6-terra");
-  closeTo(cost.estimateTokenCost(entry(spark), [provider()]), 2.84);
+  closeTo(cost.estimateTokenCost(entry(spark), [provider()]), 5.08);
   presets.saveTokenCostReferenceModel(spark);
   assert.equal(presets.loadTokenCostReferenceModel(), "gpt-5.6-terra");
 });
@@ -165,11 +169,11 @@ test("invalid or unreadable saved prices and references fall back to Sol", () =>
     stored.set(presets.TOKEN_COST_REFERENCE_MODEL_STORAGE_KEY, invalid);
     stored.set(cost.TOKEN_COST_CUSTOM_RULES_STORAGE_KEY, invalid);
     assert.equal(presets.loadTokenCostReferenceModel(), "gpt-5.6-sol");
-    closeTo(cost.estimateTokenCost(entry(), [provider()]), 5.28);
+    closeTo(cost.estimateTokenCost(entry(), [provider()]), 9.56);
   }
   const { cost, presets } = createHarness({ brokenStorage: true });
   assert.equal(presets.loadTokenCostReferenceModel(), "gpt-5.6-sol");
-  closeTo(cost.estimateTokenCost(entry(), [provider()]), 5.28);
+  closeTo(cost.estimateTokenCost(entry(), [provider()]), 9.56);
 });
 
 test("versioned preset models retain their most specific price", () => {
@@ -178,7 +182,10 @@ test("versioned preset models retain their most specific price", () => {
     const versioned = ` ${model.toUpperCase()}-2026-09-01 `;
     assert.equal(presets.findTokenCostPreset(versioned).model, model);
     const [input, cachedInput, output] = verifiedRates[model];
-    closeTo(cost.estimateTokenCost(entry(versioned), [provider()]), 0.8 * input + 0.2 * cachedInput + 0.1 * output);
+    const expected = model === "gpt-5.4-mini"
+      ? 0.8 * input + 0.2 * cachedInput + 0.1 * output
+      : 1.6 * input + 0.4 * cachedInput + 0.15 * output;
+    closeTo(cost.estimateTokenCost(entry(versioned), [provider()]), expected);
   }
 });
 
@@ -186,7 +193,7 @@ test("the GPT-5.6 alias retains Sol pricing when the fallback reference changes"
   const { cost, presets } = createHarness();
   presets.saveTokenCostReferenceModel("gpt-5.6-terra");
   assert.equal(presets.findTokenCostPreset("gpt-5.6").model, "gpt-5.6-sol");
-  closeTo(cost.estimateTokenCost(entry("gpt-5.6"), [provider()]), 5.28);
+  closeTo(cost.estimateTokenCost(entry("gpt-5.6"), [provider()]), 9.56);
 });
 
 test("versioned model names still use provider-specific custom rules", () => {
@@ -194,7 +201,7 @@ test("versioned model names still use provider-specific custom rules", () => {
   cost.saveCustomTokenCostRules([
     { providerId: "relay", model: "gpt-5.6-sol", input: 2, cachedInput: 0.5, output: 3 },
   ]);
-  closeTo(cost.estimateTokenCost(entry("GPT-5.6-SOL-2026-09-01"), [provider()]), 2);
+  closeTo(cost.estimateTokenCost(entry("GPT-5.6-SOL-2026-09-01"), [provider()]), 3.85);
 });
 
 test("fast requests use a default 2.5 multiplier for priority and fast tier names", () => {
@@ -203,7 +210,7 @@ test("fast requests use a default 2.5 multiplier for priority and fast tier name
   assert.equal(fastMode.MAX_FAST_MODE_COST_MULTIPLIER, 100);
   assert.equal(fastMode.loadFastModeCostMultiplier(), 2.5);
   for (const serviceTier of ["priority", "fast"]) {
-    closeTo(cost.estimateTokenCost({ ...entry("gpt-5.6-sol"), serviceTier }, [provider()]), 13.2);
+    closeTo(cost.estimateTokenCost({ ...entry("gpt-5.6-sol"), serviceTier }, [provider()]), 23.9);
   }
 });
 
@@ -214,9 +221,9 @@ test("changing the multiplier recalculates fast entries without changing normal 
   fastMode.saveFastModeCostMultiplier(3);
   assert.equal(changes, 1);
   assert.equal(fastMode.loadFastModeCostMultiplier(), 3);
-  closeTo(cost.estimateTokenCost({ ...entry(), serviceTier: "priority" }, [provider()]), 15.84);
+  closeTo(cost.estimateTokenCost({ ...entry(), serviceTier: "priority" }, [provider()]), 28.68);
   for (const serviceTier of ["default", "auto", "flex", "unknown", "", null, undefined]) {
-    closeTo(cost.estimateTokenCost({ ...entry(), serviceTier }, [provider()]), 5.28);
+    closeTo(cost.estimateTokenCost({ ...entry(), serviceTier }, [provider()]), 9.56);
   }
 });
 
@@ -229,24 +236,24 @@ test("mixed normal, fast, and legacy usage is priced separately for each request
     entry(),
   ];
   const total = entries.reduce((sum, usage) => sum + cost.estimateTokenCost(usage, [provider()]), 0);
-  closeTo(total, 36.96);
+  closeTo(total, 66.92);
 });
 
 test("fast multipliers apply after preset, provider, custom-rule, and reference prices", () => {
   const { cost, fastMode, presets } = createHarness();
   fastMode.saveFastModeCostMultiplier(3);
   const fast = model => ({ ...entry(model), serviceTier: "priority" });
-  closeTo(cost.estimateTokenCost(fast("gpt-5.6-sol"), [provider()]), 15.84);
-  closeTo(cost.estimateTokenCost(fast("gpt-5.6-sol"), [provider({ kind: "openai" })]), 15.84);
+  closeTo(cost.estimateTokenCost(fast("gpt-5.6-sol"), [provider()]), 28.68);
+  closeTo(cost.estimateTokenCost(fast("gpt-5.6-sol"), [provider({ kind: "openai" })]), 28.68);
   closeTo(cost.estimateTokenCost(fast("private-model"), [provider({
     modelTokenCosts: { "private-model": 2 },
-  })]), 6.6);
+  })]), 12.9);
   cost.saveCustomTokenCostRules([
     { providerId: "relay", model: "custom-priced", input: 2, cachedInput: 0.5, output: 3 },
   ]);
-  closeTo(cost.estimateTokenCost(fast("custom-priced"), [provider()]), 6);
+  closeTo(cost.estimateTokenCost(fast("custom-priced"), [provider()]), 11.55);
   presets.saveTokenCostReferenceModel("gpt-5.6-terra");
-  closeTo(cost.estimateTokenCost(fast("unknown-model"), [provider()]), 8.52);
+  closeTo(cost.estimateTokenCost(fast("unknown-model"), [provider()]), 15.24);
 });
 
 test("zero-cost provider prices and custom rules stay zero for fast requests", () => {
@@ -277,17 +284,116 @@ test("malformed and inaccessible multiplier storage uses the default fast multip
     const { cost, fastMode, stored } = createHarness();
     stored.set(fastMode.FAST_MODE_COST_MULTIPLIER_STORAGE_KEY, invalid);
     assert.equal(fastMode.loadFastModeCostMultiplier(), 2.5);
-    closeTo(cost.estimateTokenCost({ ...entry(), serviceTier: "priority" }, [provider()]), 13.2);
+    closeTo(cost.estimateTokenCost({ ...entry(), serviceTier: "priority" }, [provider()]), 23.9);
   }
   const { cost, fastMode } = createHarness({ brokenStorage: true });
   assert.equal(fastMode.loadFastModeCostMultiplier(), 2.5);
-  closeTo(cost.estimateTokenCost({ ...entry(), serviceTier: "priority" }, [provider()]), 13.2);
+  closeTo(cost.estimateTokenCost({ ...entry(), serviceTier: "priority" }, [provider()]), 23.9);
 });
 
 test("estimating fast-mode costs does not mutate token counts or the usage entry", () => {
   const { cost } = createHarness();
   const usage = Object.freeze({ ...entry(), serviceTier: "priority", totalTokens: 1_100_000 });
   const before = structuredClone(usage);
-  closeTo(cost.estimateTokenCost(usage, [provider()]), 13.2);
+  closeTo(cost.estimateTokenCost(usage, [provider()]), 23.9);
   assert.deepEqual(usage, before);
+});
+
+test("long context starts strictly above 272000 input tokens including cache", () => {
+  const { cost, longContext } = createHarness();
+  assert.deepEqual(structuredClone(longContext.loadLongContextCostSettings()), {
+    enabled: true, thresholdTokens: 272_000, inputMultiplier: 2, cachedInputMultiplier: 2, outputMultiplier: 1.5,
+  });
+  const usage = { ...entry("gpt-5.6-sol"), cachedTokens: 200_000, outputTokens: 1_000 };
+  closeTo(cost.estimateTokenCost({ ...usage, inputTokens: 271_999 }, []), 0.387996);
+  closeTo(cost.estimateTokenCost({ ...usage, inputTokens: 272_000 }, []), 0.388);
+  closeTo(cost.estimateTokenCost({ ...usage, inputTokens: 272_001 }, []), 0.766008);
+  closeTo(cost.estimateTokenCost({ ...usage, inputTokens: 300_000 }, []), 0.99);
+});
+
+test("output and cumulative tokens do not turn short requests into long requests", () => {
+  const { cost } = createHarness();
+  const usage = { ...entry(), inputTokens: 200_000, cachedTokens: 0, outputTokens: 100_000 };
+  closeTo(cost.estimateTokenCost({ ...usage, totalTokens: 2_000_000, modelContextWindow: 1_050_000 }, []), 2.8);
+  for (const inputTokens of [null, undefined, 0]) {
+    closeTo(cost.estimateTokenCost({ ...usage, inputTokens }, []), 2);
+  }
+  const total = [usage, usage].reduce((sum, item) => sum + cost.estimateTokenCost(item, []), 0);
+  closeTo(total, 5.6);
+});
+
+test("mixed short and long requests stack fast costs separately without changing usage", () => {
+  const { cost } = createHarness();
+  const base = { ...entry(), cachedTokens: 200_000, outputTokens: 1_000 };
+  const entries = [
+    Object.freeze({ ...base, inputTokens: 272_000 }),
+    Object.freeze({ ...base, inputTokens: 300_000 }),
+    Object.freeze({ ...base, inputTokens: 300_000, serviceTier: "fast" }),
+  ];
+  const before = structuredClone(entries);
+  closeTo(entries.reduce((sum, item) => sum + cost.estimateTokenCost(item, []), 0), 3.853);
+  assert.deepEqual(entries, before);
+});
+
+test("context threshold and each cost component multiplier are independently configurable", () => {
+  const { cost, longContext, window } = createHarness();
+  let changes = 0;
+  window.addEventListener(longContext.LONG_CONTEXT_COST_EVENT, () => { changes += 1; });
+  const settings = { enabled: true, thresholdTokens: 300_000,
+    inputMultiplier: 3, cachedInputMultiplier: 4, outputMultiplier: 2 };
+  longContext.saveLongContextCostSettings(settings);
+  assert.equal(changes, 1);
+  const usage = { ...entry(), inputTokens: 300_000, cachedTokens: 200_000, outputTokens: 1_000 };
+  closeTo(cost.estimateTokenCost(usage, []), 0.5);
+  closeTo(cost.estimateTokenCost({ ...usage, inputTokens: 300_001 }, []), 1.560012);
+  closeTo(cost.estimateTokenCost({ ...usage, inputTokens: 300_001, serviceTier: "priority" }, []), 3.90003);
+  longContext.saveLongContextCostSettings({ ...settings, enabled: false });
+  closeTo(cost.estimateTokenCost(entry(), []), 5.28);
+});
+
+test("known models follow their own context policy and unknown models inherit the reference policy", () => {
+  const { cost, presets } = createHarness();
+  presets.saveTokenCostReferenceModel("gpt-5.4-mini");
+  closeTo(cost.estimateTokenCost(entry("private-model"), []), 1.065);
+  closeTo(cost.estimateTokenCost(entry("gpt-5.6-sol"), []), 9.56);
+  closeTo(cost.estimateTokenCost(entry("gpt-5.4-mini"), []), 1.065);
+  cost.saveCustomTokenCostRules([
+    { providerId: "relay", model: "gpt-5.4-mini", input: 2, cachedInput: 0.5, output: 3 },
+    { providerId: "relay", model: "private-model", input: 2, cachedInput: 0.5, output: 3 },
+  ]);
+  closeTo(cost.estimateTokenCost(entry("gpt-5.4-mini"), []), 2);
+  closeTo(cost.estimateTokenCost(entry("private-model"), []), 2);
+  presets.saveTokenCostReferenceModel("gpt-5.6-sol");
+  closeTo(cost.estimateTokenCost(entry("private-model"), []), 3.85);
+  closeTo(cost.estimateTokenCost(entry("gpt-5.4-mini"), []), 2);
+});
+
+test("invalid long-context settings never replace valid settings, even when disabled", () => {
+  const { longContext } = createHarness();
+  const defaults = { ...longContext.DEFAULT_LONG_CONTEXT_COST_SETTINGS };
+  for (const invalid of [null, [], {}, { ...defaults, enabled: "true" },
+    ...[0, -1, 1.5, 1_000_000_001, NaN, Infinity, "272000"].map(thresholdTokens => ({ ...defaults, thresholdTokens })),
+    ...["inputMultiplier", "cachedInputMultiplier", "outputMultiplier"].flatMap(key =>
+      [0, -1, 101, NaN, Infinity, "2"].map(value => ({ ...defaults, [key]: value }))),
+    { ...defaults, enabled: false, outputMultiplier: 0 }]) {
+    assert.equal(longContext.isValidLongContextCostSettings(invalid), false);
+    longContext.saveLongContextCostSettings(invalid);
+    assert.deepEqual(structuredClone(longContext.loadLongContextCostSettings()), defaults);
+  }
+  const limits = { ...defaults, thresholdTokens: 1_000_000_000, inputMultiplier: 100,
+    cachedInputMultiplier: 0.01, outputMultiplier: 100 };
+  assert.equal(longContext.isValidLongContextCostSettings(limits), true);
+  longContext.saveLongContextCostSettings(limits);
+  assert.deepEqual(structuredClone(longContext.loadLongContextCostSettings()), limits);
+});
+
+test("malformed and unavailable context settings storage uses official defaults", () => {
+  for (const invalid of ["", "{invalid", "null", "{}", "[]", "false"]) {
+    const { cost, longContext, stored } = createHarness();
+    stored.set(longContext.LONG_CONTEXT_COST_STORAGE_KEY, invalid);
+    assert.equal(longContext.loadLongContextCostSettings().thresholdTokens, 272_000);
+    closeTo(cost.estimateTokenCost(entry(), []), 9.56);
+  }
+  const { cost } = createHarness({ brokenStorage: true });
+  closeTo(cost.estimateTokenCost(entry(), []), 9.56);
 });

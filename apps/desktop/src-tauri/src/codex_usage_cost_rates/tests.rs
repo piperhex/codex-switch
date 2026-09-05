@@ -6,11 +6,11 @@ fn only_fast_usage_gets_the_default_cost_multiplier() {
     let rates: CostRates = serde_json::from_value(json!({})).unwrap();
     assert_eq!(rates.fast_mode_multiplier, 2.5);
     for (tier, expected) in [
-        (None, 5.28),
-        (Some("default"), 5.28),
-        (Some("flex"), 5.28),
-        (Some("priority"), 13.2),
-        (Some("fast"), 13.2),
+        (None, 9.56),
+        (Some("default"), 9.56),
+        (Some("flex"), 9.56),
+        (Some("priority"), 23.9),
+        (Some("fast"), 23.9),
     ] {
         let mut entry = usage_entry("gpt-5.6-sol");
         entry.service_tier = tier.map(str::to_string);
@@ -30,10 +30,10 @@ fn custom_multiplier_applies_after_every_price_source() {
     .unwrap();
     let provider = provider(ProviderKind::Custom);
     for (model, base) in [
-        ("custom-rule", 2.0),
-        ("flat-price", 2.2),
-        ("gpt-5.6-sol", 5.28),
-        ("private-model", 2.84),
+        ("custom-rule", 3.85),
+        ("flat-price", 4.3),
+        ("gpt-5.6-sol", 9.56),
+        ("private-model", 5.08),
         ("free", 0.0),
     ] {
         let mut entry = usage_entry(model);
@@ -87,11 +87,11 @@ fn custom_providers_use_exact_model_prices_before_official_presets() {
     let provider = provider(ProviderKind::Custom);
     assert_eq!(
         rates.estimate_cost(&usage_entry("gpt-5.6-sol"), Some(&provider)),
-        2.2
+        4.3
     );
     assert_eq!(
         rates.estimate_cost(&usage_entry("gpt-5.6-sol-dated"), Some(&provider)),
-        5.28
+        9.56
     );
 }
 
@@ -106,11 +106,11 @@ fn custom_rules_override_model_prices_and_match_versioned_names() {
     let provider = provider(ProviderKind::Custom);
     assert_eq!(
         rates.estimate_cost(&usage_entry("gpt-5.6-sol"), Some(&provider)),
-        4.5
+        8.0
     );
     assert_eq!(
         rates.estimate_cost(&usage_entry("gpt-5.6-sol-dated"), None),
-        4.5
+        8.0
     );
 }
 
@@ -126,7 +126,7 @@ fn specific_model_rule_wins_over_an_earlier_prefix_rule() {
     }))
     .unwrap();
     let cost = rates.estimate_cost(&usage_entry("gpt-5.6-sol-dated"), None);
-    assert!((cost - 8.7).abs() < 1e-10);
+    assert!((cost - 16.75).abs() < 1e-10);
 }
 
 #[test]
@@ -137,7 +137,7 @@ fn official_providers_ignore_flat_api_prices_and_keep_the_model_preset() {
         "modelTokenCosts": { "relay": { "gpt-5.6-sol": 2.0 } },
     }))
     .unwrap();
-    assert_eq!(rates.estimate_cost(&entry, Some(&provider)), 5.28,);
+    assert_eq!(rates.estimate_cost(&entry, Some(&provider)), 9.56);
 }
 
 #[test]
@@ -145,7 +145,7 @@ fn cached_tokens_are_clamped_and_reasoning_is_not_charged_twice() {
     let mut entry = usage_entry("private-model");
     entry.cached_tokens = Some(2_000_000);
     entry.reasoning_tokens = Some(100_000);
-    assert_eq!(CostRates::default().estimate_cost(&entry, None), 2.4);
+    assert_eq!(CostRates::default().estimate_cost(&entry, None), 3.8);
 }
 
 #[test]
@@ -194,19 +194,19 @@ fn reference_changes_unknown_models_but_preserves_configured_model_presets() {
     .unwrap();
     let provider = provider(ProviderKind::Custom);
     for model in ["private-model", "", "gpt-4o", "gpt-5.6-private-model"] {
-        assert!((rates.estimate_cost(&usage_entry(model), Some(&provider)) - 0.284).abs() < 1e-10);
+        assert!((rates.estimate_cost(&usage_entry(model), Some(&provider)) - 0.508).abs() < 1e-10);
     }
     assert_eq!(
         rates.estimate_cost(&usage_entry("gpt-5.6-sol"), Some(&provider)),
-        5.28
+        9.56
     );
     assert_eq!(
         rates.estimate_cost(&usage_entry("gpt-5.6"), Some(&provider)),
-        5.28
+        9.56
     );
     assert_eq!(
         CostRates::default().estimate_cost(&usage_entry("private-model"), None),
-        5.28
+        9.56
     );
 }
 
@@ -218,7 +218,7 @@ fn spark_has_no_preset_and_uses_the_selected_reference() {
     .unwrap();
     for model in ["gpt-5.3-codex-spark", "gpt-5.6-spark", "gpt-5-spark"] {
         assert!(PRESET_CATALOG.rate_for_model(model).is_none());
-        assert_eq!(rates.estimate_cost(&usage_entry(model), None), 13.2);
+        assert_eq!(rates.estimate_cost(&usage_entry(model), None), 23.9);
     }
 }
 
@@ -228,9 +228,14 @@ fn model_presets_match_versioned_names_and_choose_the_longest_name() {
         "defaultReferenceModel": "model",
         "defaultFastModeCostMultiplier": 2.5,
         "maxFastModeCostMultiplier": 100,
+        "defaultLongContextCostSettings": PRESET_CATALOG.default_long_context_cost_settings,
+        "maxLongContextThresholdTokens": PRESET_CATALOG.max_long_context_threshold_tokens,
+        "maxLongContextCostMultiplier": PRESET_CATALOG.max_long_context_cost_multiplier,
         "models": [
-            {"model": "model", "input": 1.0, "cachedInput": 1.0, "output": 1.0},
-            {"model": "model-mini", "input": 2.0, "cachedInput": 2.0, "output": 2.0},
+            {"model": "model", "longContextPricing": true,
+             "input": 1.0, "cachedInput": 1.0, "output": 1.0},
+            {"model": "model-mini", "longContextPricing": false,
+             "input": 2.0, "cachedInput": 2.0, "output": 2.0},
         ],
     }))
     .unwrap();
@@ -249,6 +254,8 @@ fn model_presets_match_versioned_names_and_choose_the_longest_name() {
         (2.0, 0.2, 12.0)
     );
 }
+
+mod long_context;
 
 #[test]
 fn reference_settings_accept_only_priced_catalog_models() {

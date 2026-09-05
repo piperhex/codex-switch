@@ -212,7 +212,7 @@ mod tests {
         let normal_entry = usage_entry("gpt-5.6-sol");
         let summary = summarize_defaults(&[normal_entry, fast_entry], None, None);
         assert_eq!(summary.total_tokens, 2_200_000);
-        assert!((summary.estimated_cost_usd - 18.48).abs() < 1e-10);
+        assert!((summary.estimated_cost_usd - 33.46).abs() < 1e-10);
     }
 
     #[test]
@@ -220,7 +220,7 @@ mod tests {
         let summary = summarize_defaults(&[usage_entry("gpt-5.6-sol")], None, None);
 
         assert_eq!(summary.total_tokens, 1_100_000);
-        assert!((summary.estimated_cost_usd - 5.28).abs() < f64::EPSILON);
+        assert!((summary.estimated_cost_usd - 9.56).abs() < f64::EPSILON);
     }
 
     #[test]
@@ -243,7 +243,7 @@ mod tests {
         };
         let summary = summarize(&entries, None, None, &costs);
 
-        assert!((summary.estimated_cost_usd - 15.4).abs() < 1e-10);
+        assert!((summary.estimated_cost_usd - 28.2).abs() < 1e-10);
     }
 
     #[test]
@@ -284,10 +284,27 @@ mod tests {
         };
         let summary = summarize(std::slice::from_ref(&entry), None, None, &costs);
 
-        assert_eq!(summary.estimated_cost_usd, 4.5);
+        assert_eq!(summary.estimated_cost_usd, 8.0);
         entry.provider_id = Some("unrelated-provider".to_string());
         let summary = summarize(&[entry], None, None, &costs);
-        assert_eq!(summary.estimated_cost_usd, 5.28);
+        assert_eq!(summary.estimated_cost_usd, 9.56);
+    }
+
+    #[test]
+    fn mixed_context_lengths_are_priced_per_request_with_fast_mode() {
+        let long = usage_entry("gpt-5.6-sol");
+        let mut short = long.clone();
+        short.input_tokens = Some(200_000);
+        short.cached_tokens = Some(100_000);
+        short.output_tokens = Some(10_000);
+        short.total_tokens = Some(210_000);
+        let mut fast_short = short.clone();
+        fast_short.service_tier = Some("priority".to_string());
+        let mut fast_long = long.clone();
+        fast_long.service_tier = Some("fast".to_string());
+        let summary = summarize_defaults(&[short, long, fast_short, fast_long], None, None);
+        assert_eq!(summary.total_tokens, 2_620_000);
+        assert!((summary.estimated_cost_usd - 35.7).abs() < 1e-10);
     }
 
     #[test]
