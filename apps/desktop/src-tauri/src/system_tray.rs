@@ -4,14 +4,13 @@ use tauri::{
     App, AppHandle, Emitter, Manager, Runtime,
 };
 
-use crate::{
-    commands,
-    models::{AccountSummary, ProviderSummary, UsageWindow},
-    providers,
-    storage::read_app_settings,
-};
+use crate::{commands, models::ProviderSummary, providers, storage::read_app_settings};
 
+mod account_label;
+mod account_menu;
 mod refresh;
+#[cfg(windows)]
+pub(crate) mod windows_menu;
 
 pub(crate) use refresh::refresh_menu;
 
@@ -27,7 +26,6 @@ const ACCOUNT_PREFIX: &str = "tray:account:";
 const PROVIDER_PREFIX: &str = "tray:provider:";
 const PROVIDER_MODEL_PREFIX: &str = "tray:provider-model:";
 const PROVIDER_SUBMENU_PREFIX: &str = "tray:provider-submenu:";
-const MENU_EMAIL_CHARS: usize = 15;
 const MENU_PROVIDER_CHARS: usize = 28;
 
 pub(crate) fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
@@ -53,7 +51,11 @@ pub(crate) fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
         builder = builder.icon(icon);
     }
 
-    builder.build(app)?;
+    let tray = builder.build(app)?;
+    #[cfg(windows)]
+    windows_menu::install_for_tray(&tray).map_err(std::io::Error::other)?;
+    #[cfg(not(windows))]
+    let _ = tray;
     refresh_menu(app.handle());
     Ok(())
 }
@@ -204,35 +206,7 @@ pub(crate) fn build_menu<R: Runtime>(
     )?;
     menu.append(&accounts_header)?;
 
-    match commands::list_accounts_blocking(app.clone()) {
-        Ok(accounts) if accounts.is_empty() => {
-            let empty = MenuItem::with_id(app, "tray:empty", "暂无节点", false, None::<&str>)?;
-            menu.append(&empty)?;
-        }
-        Ok(accounts) => {
-            for account in accounts {
-                let item = CheckMenuItem::with_id(
-                    app,
-                    format!("{ACCOUNT_PREFIX}{}", account.id),
-                    account_label(&account),
-                    true,
-                    account.active,
-                    None::<&str>,
-                )?;
-                menu.append(&item)?;
-            }
-        }
-        Err(error) => {
-            let item = MenuItem::with_id(
-                app,
-                "tray:accounts-error",
-                format!("节点读取失败: {error}"),
-                false,
-                None::<&str>,
-            )?;
-            menu.append(&item)?;
-        }
-    }
+    account_menu::append_accounts(app, &menu, settings.as_ref(), chinese)?;
 
     menu.append(&PredefinedMenuItem::separator(app)?)?;
     append_provider_items(app, &menu, chinese)?;
@@ -424,15 +398,6 @@ fn parse_provider_model_menu_id(id: &str) -> Option<ProviderModelSelection> {
     })
 }
 
-fn account_label(account: &AccountSummary) -> String {
-    format!(
-        "{} | 5h {} | 1week {}",
-        escape_menu_text(&truncate_menu_email(&account.email)),
-        remaining_label(account.usage.primary.as_ref()),
-        remaining_label(account.usage.secondary.as_ref()),
-    )
-}
-
 pub(crate) fn provider_label(provider: &ProviderSummary) -> String {
     let name = escape_menu_text(&truncate_menu_provider(&provider.name));
     if provider.model_selection_controlled_by_codex || provider.model.trim().is_empty() {
@@ -443,12 +408,6 @@ pub(crate) fn provider_label(provider: &ProviderSummary) -> String {
             escape_menu_text(&truncate_menu_provider(&provider.model))
         )
     }
-}
-
-fn remaining_label(window: Option<&UsageWindow>) -> String {
-    window
-        .map(|window| format!("{}%", window.remaining_percent.round().clamp(0.0, 100.0)))
-        .unwrap_or_else(|| "--".to_string())
 }
 
 fn truncate_menu_provider(text: &str) -> String {
@@ -463,16 +422,6 @@ fn truncate_menu_provider(text: &str) -> String {
 
 fn escape_menu_text(text: &str) -> String {
     text.replace('&', "&&")
-}
-
-fn truncate_menu_email(text: &str) -> String {
-    let mut chars = text.chars();
-    let truncated = chars.by_ref().take(MENU_EMAIL_CHARS).collect::<String>();
-    if chars.next().is_some() {
-        format!("{truncated}...")
-    } else {
-        truncated
-    }
 }
 
 #[cfg(test)]

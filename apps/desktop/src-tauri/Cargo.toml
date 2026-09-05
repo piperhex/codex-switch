@@ -67,7 +67,16 @@ qrcode = "0.14.1"
 
 [target.'cfg(windows)'.dependencies]
 windows-version = "0.1.7"
-windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Networking_WinHttp", "Win32_Storage_FileSystem"] }
+windows-sys = { version = "0.61", features = [
+  "Win32_Foundation",
+  "Win32_Graphics_Gdi",
+  "Win32_Networking_WinHttp",
+  "Win32_Storage_FileSystem",
+  "Win32_UI_Controls",
+  "Win32_UI_HiDpi",
+  "Win32_UI_Shell",
+  "Win32_UI_WindowsAndMessaging",
+] }
 winreg = "0.55"
 windows = { version = "0.61", features = [
   "ApplicationModel",

@@ -173,6 +173,7 @@ pub(crate) fn set_theme_color<R: Runtime>(
     write_app_settings(&app, &settings)?;
     app.emit("theme-color-changed", normalized)
         .map_err(|error| error.to_string())?;
+    crate::system_tray::refresh_menu(&app);
     Ok(settings)
 }
 

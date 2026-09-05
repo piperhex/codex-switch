@@ -21,6 +21,8 @@ pub(crate) async fn show_floating_bubble_menu<R: Runtime>(
     })
     .await
     .map_err(|error| error.to_string())??;
+    #[cfg(windows)]
+    crate::system_tray::windows_menu::install_for_window(&window)?;
     window
         .popup_menu_at(&menu, position)
         .map_err(|error| error.to_string())
