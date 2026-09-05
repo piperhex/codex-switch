@@ -40,6 +40,7 @@ fn try_refresh_usage_blocking<R: Runtime>(
     app: &tauri::AppHandle<R>,
     id: &str,
 ) -> Result<UsageSummary, String> {
+    let refresh_started_at = std::time::Instant::now();
     let paths = resolve_paths(app)?;
     let mut auth = load_auth_for_request(app, &paths, id)?;
     let client = api_client()?;
@@ -83,6 +84,7 @@ fn try_refresh_usage_blocking<R: Runtime>(
     let mut usage = parse_usage(&payload);
     usage.api_expires_at = subscription_active_until(&auth.value);
     save_usage(&usage_path(&paths, id), &usage)?;
+    crate::local_proxy::concurrent_quota::record_usage_refresh(id, refresh_started_at, &usage)?;
     touch_account_field(&paths, id, AccountSyncField::Usage)?;
     auth.persist(&paths, id)?;
     app.emit("accounts-changed", ())

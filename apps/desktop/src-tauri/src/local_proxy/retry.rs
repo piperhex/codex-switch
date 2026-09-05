@@ -38,6 +38,11 @@ where
     let mut retry_number = 0_u16;
     loop {
         let response = request()?;
+        // A confirmed concurrent quota failure invalidates cached eligibility before
+        // any backoff, including when the normal 429 retry budget is exhausted.
+        if concurrent_quota::exclude_response(&response)? {
+            continue;
+        }
         if response.status == 429 {
             retry_number = retry_number.saturating_add(1);
             let elapsed = wait_before_retry(upstream_429_retry_delay(retry_number));

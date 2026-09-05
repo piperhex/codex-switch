@@ -47,6 +47,7 @@
                 active_account_generation: 0,
                 auto_switch_attempt_generation: 0,
                 auto_switch_eligible: false,
+                concurrent_request_started_at: None,
             }),
         };
 

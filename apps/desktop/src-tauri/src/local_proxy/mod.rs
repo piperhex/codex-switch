@@ -1,3 +1,5 @@
+pub(crate) mod concurrent_quota;
+
 include!("constants.rs");
 include!("types.rs");
 include!("state_core.rs");

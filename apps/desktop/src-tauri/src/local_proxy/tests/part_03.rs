@@ -147,6 +147,7 @@
             active_account_generation: 0,
             auto_switch_attempt_generation: 0,
             auto_switch_eligible: true,
+            concurrent_request_started_at: None,
         };
         let fallback = TokenUsageAccount {
             account_id: "oauth-account".to_string(),
@@ -154,6 +155,7 @@
             active_account_generation: 0,
             auto_switch_attempt_generation: 0,
             auto_switch_eligible: false,
+            concurrent_request_started_at: None,
         };
 
         assert!(credential_can_trigger_auto_switch(&active));

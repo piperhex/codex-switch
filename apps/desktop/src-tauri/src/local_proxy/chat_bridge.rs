@@ -173,7 +173,7 @@ fn available_concurrent_account_ids(
     paths: &Paths,
     state: &ManagerStateFile,
 ) -> Result<Vec<String>, String> {
-    Ok(enabled_concurrent_account_ids(paths, state)?
+    let mut account_ids = enabled_concurrent_account_ids(paths, state)?
         .into_iter()
         .filter(|account_id| {
             let custom_threshold_enabled = state.auto_switch_on_quota_exhaustion
@@ -190,7 +190,9 @@ fn available_concurrent_account_ids(
                 threshold,
             )
         })
-        .collect())
+        .collect();
+    concurrent_quota::retain_available(&mut account_ids)?;
+    Ok(account_ids)
 }
 
 fn preferred_concurrent_account_ids(
@@ -255,6 +257,7 @@ fn official_credentials<R: Runtime>(
     client: &Client,
     options: OfficialCredentialOptions<'_>,
 ) -> Result<OfficialProxyCredentials, String> {
+    let request_started_at = Instant::now();
     let OfficialCredentialOptions {
         purpose,
         session_id,
@@ -320,6 +323,7 @@ fn official_credentials<R: Runtime>(
         active_account_generation,
         auto_switch_attempt_generation,
         auto_switch_eligible,
+        concurrent_request_started_at: concurrent_account_id.as_ref().map(|_| request_started_at),
     };
     if matches!(purpose, OfficialCredentialPurpose::ImageGeneration)
         && is_agent_identity_auth(&auth)

@@ -182,6 +182,7 @@ struct TokenUsageAccount {
     active_account_generation: u64,
     auto_switch_attempt_generation: u64,
     auto_switch_eligible: bool,
+    concurrent_request_started_at: Option<Instant>,
 }
 
 #[derive(Clone)]
