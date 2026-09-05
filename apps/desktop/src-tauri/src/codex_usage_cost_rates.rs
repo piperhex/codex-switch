@@ -21,7 +21,7 @@ const TOKENS_PER_MILLION: f64 = 1_000_000.0;
 static RATES_WRITE_LOCK: Mutex<()> = Mutex::new(());
 static PRESET_CATALOG: LazyLock<CostPresetCatalog> = LazyLock::new(|| {
     // This is a bundled build artifact; malformed data cannot be repaired at runtime.
-    serde_json::from_str(include_str!("../../../src/data/tokenCostPresets.json"))
+    serde_json::from_str(include_str!("../../src/data/tokenCostPresets.json"))
         .expect("The bundled token-cost preset catalog must be valid JSON")
 });
 
@@ -150,7 +150,9 @@ impl CostRate {
 }
 
 impl CostRates {
-    pub(super) fn estimate_cost(
+    // Native summaries currently consume estimates only on Windows and macOS.
+    #[cfg_attr(not(any(target_os = "windows", target_os = "macos")), allow(dead_code))]
+    pub(crate) fn estimate_cost(
         &self,
         entry: &TokenUsageEntry,
         provider: Option<&ProviderProfile>,
@@ -234,7 +236,9 @@ fn rates_path(paths: &Paths) -> PathBuf {
     paths.state_file.with_file_name(RATES_FILE_NAME)
 }
 
-pub(super) fn load(paths: &Paths) -> Result<CostRates, String> {
+// Every platform saves rates; only native Windows/macOS summaries load them.
+#[cfg_attr(not(any(target_os = "windows", target_os = "macos")), allow(dead_code))]
+pub(crate) fn load(paths: &Paths) -> Result<CostRates, String> {
     read_rates(paths).map_err(|error| error.to_string())
 }
 

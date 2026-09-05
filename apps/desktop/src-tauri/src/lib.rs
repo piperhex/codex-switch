@@ -16,6 +16,7 @@ mod codex_config;
 mod codex_home;
 mod codex_notification;
 mod codex_runtime;
+mod codex_usage_cost_rates;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 mod codex_usage_summary;
 mod commands;
@@ -251,7 +252,7 @@ pub fn run() {
             commands::restart_chatgpt,
             commands::launch_chatgpt,
             codex_notification::sync_codex_notification,
-            codex_usage_summary::rates::set_codex_usage_cost_rates,
+            codex_usage_cost_rates::set_codex_usage_cost_rates,
             claude_code::set_claude_code_write_target,
             third_party_apps::set_third_party_app_write_settings,
             claude_code::launch_claude_code,

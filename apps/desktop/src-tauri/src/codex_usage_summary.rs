@@ -4,12 +4,12 @@ use chrono::{Local, TimeZone};
 use serde::Serialize;
 
 use crate::{
+    codex_usage_cost_rates as rates,
     models::{ManagerStateFile, ProviderProfile, TokenUsageEntry, UsageSummary},
     storage::Paths,
 };
 
 mod provider_cost;
-pub(crate) mod rates;
 
 use provider_cost::ProviderEstimatedCost;
 
