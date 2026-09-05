@@ -13,22 +13,25 @@ impl ConcurrentAccountRouter {
     fn account_for_session(
         &mut self,
         session_id: &str,
-        enabled_account_ids: &[String],
+        eligible_account_ids: &[String],
+        preferred_account_ids: &[String],
     ) -> Option<String> {
+        // Priority changes affect new assignments, not healthy existing conversations.
+        // Keep every eligible account here, including those outside the preferred tier.
         if let Some(account_id) = self.assignments.get(session_id) {
-            if enabled_account_ids
+            if eligible_account_ids
                 .iter()
                 .any(|candidate| candidate == account_id)
             {
                 return Some(account_id.clone());
             }
         }
-        if enabled_account_ids.is_empty() {
+        if preferred_account_ids.is_empty() {
             self.assignments.remove(session_id);
             return None;
         }
         self.assignments.remove(session_id);
-        let mut conversation_counts = enabled_account_ids
+        let mut conversation_counts = preferred_account_ids
             .iter()
             .map(|account_id| (account_id.as_str(), 0_usize))
             .collect::<HashMap<_, _>>();
@@ -37,7 +40,7 @@ impl ConcurrentAccountRouter {
                 *count = count.saturating_add(1);
             }
         }
-        let account_id = enabled_account_ids
+        let account_id = preferred_account_ids
             .iter()
             .min_by_key(|account_id| {
                 conversation_counts

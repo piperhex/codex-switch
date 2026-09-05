@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Popover, Switch } from "antd";
+import { Popover, Switch, Tooltip } from "antd";
 import { ChevronDown, Shuffle } from "lucide-react";
 import type { Translate } from "../../i18n";
 import type { useProviderManager } from "../../hooks/useProviderManager";
@@ -35,12 +35,14 @@ export function ProxyTopbarActions({
                 disabled={manager.proxyBusy}
                 onChange={(enabled) => void manager.setProxyAutoSwitch(enabled)} />
             </div>
-            <div className="proxy-auto-switch-menu-item" title={t("table.customPriorityTooltip")}>
-              <span>{t("table.customPriorityEnabled")}</span>
-              <Switch size="small" checked={localProxy?.customAutoSwitchPriorityEnabled}
-                disabled={manager.proxyBusy || !localProxy?.autoSwitchOnQuotaExhaustion}
-                onChange={(enabled) => void manager.setProxyCustomPriority(enabled)} />
-            </div>
+            <Tooltip title={t("table.customPriorityTooltip")} styles={{ root: { maxWidth: 400 } }}>
+              <div className="proxy-auto-switch-menu-item">
+                <span>{t("table.customPriorityEnabled")}</span>
+                <Switch size="small" checked={localProxy?.customAutoSwitchPriorityEnabled}
+                  disabled={manager.proxyBusy || !localProxy?.autoSwitchOnQuotaExhaustion}
+                  onChange={(enabled) => void manager.setProxyCustomPriority(enabled)} />
+              </div>
+            </Tooltip>
             <div className="proxy-auto-switch-menu-item" title={t("table.customThresholdTooltip")}>
               <span>{t("table.customThresholdEnabled")}</span>
               <Switch size="small" checked={localProxy?.customAutoSwitchThresholdEnabled}

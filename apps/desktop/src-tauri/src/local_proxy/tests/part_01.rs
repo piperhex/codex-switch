@@ -222,23 +222,33 @@
         let enabled = vec!["account-a".to_string(), "account-b".to_string()];
 
         assert_eq!(
-            router.account_for_session("thread-1", &enabled).as_deref(),
+            router
+                .account_for_session("thread-1", &enabled, &enabled)
+                .as_deref(),
             Some("account-a")
         );
         assert_eq!(
-            router.account_for_session("thread-2", &enabled).as_deref(),
+            router
+                .account_for_session("thread-2", &enabled, &enabled)
+                .as_deref(),
             Some("account-b")
         );
         assert_eq!(
-            router.account_for_session("thread-1", &enabled).as_deref(),
+            router
+                .account_for_session("thread-1", &enabled, &enabled)
+                .as_deref(),
             Some("account-a")
         );
         assert_eq!(
-            router.account_for_session("thread-3", &enabled).as_deref(),
+            router
+                .account_for_session("thread-3", &enabled, &enabled)
+                .as_deref(),
             Some("account-a")
         );
         assert_eq!(
-            router.account_for_session("thread-4", &enabled).as_deref(),
+            router
+                .account_for_session("thread-4", &enabled, &enabled)
+                .as_deref(),
             Some("account-b")
         );
     }
@@ -248,13 +258,16 @@
         let mut router = ConcurrentAccountRouter::default();
         let enabled = vec!["account-a".to_string(), "account-b".to_string()];
         assert_eq!(
-            router.account_for_session("thread-1", &enabled).as_deref(),
+            router
+                .account_for_session("thread-1", &enabled, &enabled)
+                .as_deref(),
             Some("account-a")
         );
 
+        let account_b = ["account-b".to_string()];
         assert_eq!(
             router
-                .account_for_session("thread-1", &["account-b".to_string()])
+                .account_for_session("thread-1", &account_b, &account_b)
                 .as_deref(),
             Some("account-b")
         );

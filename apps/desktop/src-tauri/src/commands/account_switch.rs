@@ -378,23 +378,27 @@ pub(crate) fn set_auto_disable_status_codes<R: Runtime>(
 }
 
 #[tauri::command]
-pub(crate) fn set_account_auto_switch_priority<R: Runtime>(
+pub(crate) async fn set_account_auto_switch_priority<R: Runtime + 'static>(
     app: tauri::AppHandle<R>,
     id: String,
     priority: i32,
 ) -> Result<(), String> {
-    let paths = resolve_paths(&app)?;
-    if !managed_auth_path(&paths, &id).exists() {
-        return Err("Account does not exist".to_string());
-    }
-    let path = auto_switch_priority_path(&paths, &id);
-    if load_auto_switch_priority(&path) != priority || !path.exists() {
-        save_auto_switch_priority(&path, priority)?;
-        touch_account_field(&paths, &id, AccountSyncField::AutoSwitchPriority)?;
-    }
-    app.emit("accounts-changed", ())
-        .map_err(|error| error.to_string())?;
-    Ok(())
+    tauri::async_runtime::spawn_blocking(move || {
+        let paths = resolve_paths(&app)?;
+        if !managed_auth_path(&paths, &id).exists() {
+            return Err("Account does not exist".to_string());
+        }
+        let path = auto_switch_priority_path(&paths, &id);
+        if load_auto_switch_priority(&path) != priority || !path.exists() {
+            save_auto_switch_priority(&path, priority)?;
+            touch_account_field(&paths, &id, AccountSyncField::AutoSwitchPriority)?;
+        }
+        app.emit("accounts-changed", ())
+            .map_err(|error| error.to_string())?;
+        Ok(())
+    })
+    .await
+    .map_err(|error| format!("Account priority update task failed: {error}"))?
 }
 
 #[tauri::command]

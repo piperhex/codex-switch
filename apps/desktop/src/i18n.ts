@@ -1075,7 +1075,9 @@ const translations = {
     "table.estimatedTokenCostHint": "Estimated from model pricing per 1M tokens; displayed in {unit}.",
     "table.autoSwitchPriority": "Auto-switch priority",
     "table.customPriorityEnabled": "Enable custom priority",
-    "table.customPriorityTooltip": "Prefer enabled accounts with smaller priority numbers. Accounts with the same priority continue to use the existing usage-based rule.",
+    "table.customPriorityTooltip":
+      "Smaller numbers take priority. Ties use quota-based switching normally "
+      + "and balance conversations in concurrent mode.",
     "table.customThresholdEnabled": "Enable custom thresholds",
     "table.customThresholdTooltip": "Accounts below the stricter of their own threshold and the global threshold are unavailable in both standard and concurrent routing.",
     "table.autoSwitchThreshold": "Auto-switch threshold",
@@ -3447,7 +3449,7 @@ const translations = {
     "table.estimatedTokenCostHint": "按模型每百万 Token 单价估算，当前显示单位为 {unit}。",
     "table.autoSwitchPriority": "自动切换优先级",
     "table.customPriorityEnabled": "启用自定义优先级",
-    "table.customPriorityTooltip": "优先选择数字较小且未禁用的账号；数字相同时继续按原有用量规则切换。",
+    "table.customPriorityTooltip": "数字越小越优先；优先级相同时，普通模式按用量切换，并发模式按对话数均衡分配。",
     "table.customThresholdEnabled": "启用自定义阈值",
     "table.customThresholdTooltip": "账号低于自身阈值与全局阈值中的较高值后，在普通路由和并发路由中都不可用。",
     "table.autoSwitchThreshold": "自动切号阈值",

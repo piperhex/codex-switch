@@ -155,6 +155,10 @@ pub(crate) fn enabled_concurrent_account_ids(
     Ok(account_ids)
 }
 
+fn concurrent_custom_priority_enabled(state: &ManagerStateFile) -> bool {
+    state.auto_switch_on_quota_exhaustion && state.custom_auto_switch_priority_enabled
+}
+
 fn quota_available_for_concurrent_routing(
     usage: &UsageSummary,
     threshold: Option<f64>,
@@ -189,17 +193,46 @@ fn available_concurrent_account_ids(
         .collect())
 }
 
+fn preferred_concurrent_account_ids(
+    paths: &Paths,
+    state: &ManagerStateFile,
+    eligible_account_ids: &[String],
+) -> Vec<String> {
+    if !concurrent_custom_priority_enabled(state) {
+        return eligible_account_ids.to_vec();
+    }
+    // Read each priority once per request, before taking the router lock. A setting
+    // change must not produce an empty tier by changing between two file reads.
+    let priorities = eligible_account_ids
+        .iter()
+        .map(|account_id| {
+            let priority = load_auto_switch_priority(&auto_switch_priority_path(paths, account_id));
+            (account_id, priority)
+        })
+        .collect::<Vec<_>>();
+    let Some(highest_priority) = priorities.iter().map(|(_, priority)| *priority).min() else {
+        return Vec::new();
+    };
+    priorities
+        .into_iter()
+        .filter(|(_, priority)| *priority == highest_priority)
+        .map(|(account_id, _)| account_id.clone())
+        .collect()
+}
+
 fn concurrent_account_for_session(
     paths: &Paths,
     state: &ManagerStateFile,
     session_id: Option<&str>,
 ) -> Result<Option<String>, String> {
-    let enabled_account_ids = available_concurrent_account_ids(paths, state)?;
+    let eligible_account_ids = available_concurrent_account_ids(paths, state)?;
+    let preferred_account_ids =
+        preferred_concurrent_account_ids(paths, state, &eligible_account_ids);
     let no_available_account = || {
         "No enabled official account currently meets the configured usage threshold".to_string()
     };
     let Some(session_id) = session_id else {
-        return enabled_account_ids
+        return preferred_account_ids
             .first()
             .cloned()
             .map(Some)
@@ -208,7 +241,11 @@ fn concurrent_account_for_session(
     let account_id = concurrent_account_router()
         .lock()
         .map_err(|_| "Concurrent account router lock is poisoned".to_string())?
-        .account_for_session(session_id, &enabled_account_ids)
+        .account_for_session(
+            session_id,
+            &eligible_account_ids,
+            &preferred_account_ids,
+        )
         .ok_or_else(no_available_account)?;
     Ok(Some(account_id))
 }

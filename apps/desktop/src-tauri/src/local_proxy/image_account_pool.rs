@@ -51,7 +51,7 @@ fn image_account_pool_for_request<R: Runtime>(
     let state = try_read_state(&paths)?;
     let preferred = preferred_image_account_id(&state, purpose);
     let enabled_account_ids = if image_account_failover_enabled(&state, purpose) {
-        enabled_concurrent_account_ids(&paths, &state)?
+        image_failover_account_ids(&paths, &state)?
     } else {
         Vec::new()
     };
@@ -64,6 +64,18 @@ fn image_account_pool_for_request<R: Runtime>(
         .ok_or_else(|| {
             "No compatible official account is available for this image request".to_string()
         })
+}
+
+fn image_failover_account_ids(paths: &Paths, state: &ManagerStateFile) -> Result<Vec<String>, String> {
+    let mut account_ids = enabled_concurrent_account_ids(paths, state)?;
+    if state.concurrent_account_routing_enabled && concurrent_custom_priority_enabled(state) {
+        // Keep every tier for 429 fallback; the explicitly selected image account
+        // is still prepended by ordered_image_account_ids.
+        account_ids.sort_by_cached_key(|account_id| {
+            load_auto_switch_priority(&auto_switch_priority_path(paths, account_id))
+        });
+    }
+    Ok(account_ids)
 }
 
 fn image_account_failover_enabled(

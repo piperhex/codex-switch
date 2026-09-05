@@ -39,4 +39,5 @@ mod tests {
     include!("tests/part_06.rs");
     include!("tests/part_07.rs");
     include!("tests/part_08.rs");
+    include!("tests/part_09.rs");
 }

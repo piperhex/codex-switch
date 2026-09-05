@@ -20,10 +20,10 @@ fn dispatch_extended_command(app: AppHandle, command: &str, args: Value) -> Resu
             ))
         }
         "set_custom_auto_switch_priority_enabled" => {
-            serialize(crate::local_proxy::set_custom_auto_switch_priority_enabled(
+            serialize(block_on(crate::local_proxy::set_custom_auto_switch_priority_enabled(
                 app,
                 argument(&args, "enabled")?,
-            ))
+            )))
         }
         "set_system_prompt_filter_enabled" => serialize(block_on(
             crate::local_proxy::set_system_prompt_filter_enabled(
@@ -269,11 +269,11 @@ fn dispatch_extended_command(app: AppHandle, command: &str, args: Value) -> Resu
             ))
         }
         "set_account_auto_switch_priority" => {
-            serialize(crate::commands::set_account_auto_switch_priority(
+            serialize(block_on(crate::commands::set_account_auto_switch_priority(
                 app,
                 argument(&args, "id")?,
                 argument(&args, "priority")?,
-            ))
+            )))
         }
         "set_account_auto_switch_threshold" => serialize(block_on(
             crate::commands::set_account_auto_switch_threshold(

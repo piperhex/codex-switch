@@ -107,13 +107,14 @@ export function LocalProxyCard({
                     <Switch size="small" checked={localProxy?.autoSwitchOnQuotaExhaustion ?? false}
                       disabled={proxyBusy} onChange={onAutoSwitchChange} />
                   </div>
-                  <div className="proxy-auto-switch-menu-item"
-                    title={t("table.customPriorityTooltip")}>
-                    <span>{t("table.customPriorityEnabled")}</span>
-                    <Switch size="small" checked={localProxy?.customAutoSwitchPriorityEnabled ?? false}
-                      disabled={proxyBusy || !localProxy?.autoSwitchOnQuotaExhaustion}
-                      onChange={onCustomAutoSwitchPriorityEnabledChange} />
-                  </div>
+                  <Tooltip title={t("table.customPriorityTooltip")} styles={{ root: { maxWidth: 400 } }}>
+                    <div className="proxy-auto-switch-menu-item">
+                      <span>{t("table.customPriorityEnabled")}</span>
+                      <Switch size="small" checked={localProxy?.customAutoSwitchPriorityEnabled ?? false}
+                        disabled={proxyBusy || !localProxy?.autoSwitchOnQuotaExhaustion}
+                        onChange={onCustomAutoSwitchPriorityEnabledChange} />
+                    </div>
+                  </Tooltip>
                   <div className="proxy-auto-switch-menu-item"
                     title={t("table.customThresholdTooltip")}>
                     <span>{t("table.customThresholdEnabled")}</span>
