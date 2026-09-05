@@ -1,3 +1,7 @@
+fn runtime_proxy_running() -> bool {
+    crate::local_proxy::is_running()
+}
+
 fn inject_target(
     target: &CdpTarget,
     port: u16,
@@ -83,14 +87,14 @@ fn monitor_iteration(
     paths: &RuntimePaths,
     injected: &mut HashMap<String, InjectedTarget>,
     last_port: &mut Option<u16>,
-    unavailable_iterations: &mut u8,
+    recovery: &mut RendererRecovery,
 ) -> Result<(), String> {
     let skin_enabled = marker_path()?.is_file();
     let state = read_session();
     let Some(port) = state.port else {
         injected.clear();
         *last_port = None;
-        *unavailable_iterations = 0;
+        recovery.reset();
         return Ok(());
     };
     if *last_port != Some(port) {
@@ -105,29 +109,17 @@ fn monitor_iteration(
     };
     let targets = match list_targets(port) {
         Ok(targets) => {
-            *unavailable_iterations = 0;
+            recovery.reset();
             targets
         }
         Err(error) if error.contains("CDP is unavailable") => {
-            if RUNTIME_LAUNCHING.load(Ordering::Acquire) {
-                *unavailable_iterations = 0;
-                return Ok(());
-            }
-            *unavailable_iterations = unavailable_iterations.saturating_add(1);
-            // A manually started Codex process has no renderer channel. Recover
-            // it only when Dream Skin or proxy model synchronization needs that
-            // channel; ordinary app startup must not interrupt the user.
-            let runtime_required =
-                renderer_recovery_required(skin_enabled, crate::local_proxy::is_running());
-            if runtime_required && *unavailable_iterations >= 1 && has_running_codex_install() {
-                *unavailable_iterations = 0;
-                if let Err(restart_error) = recover_running_codex(paths) {
-                    eprintln!("Codex renderer channel recovery failed: {restart_error}");
-                }
-            }
+            recover_after_outage(paths, &state, recovery)?;
             return Ok(());
         }
-        Err(error) => return Err(error),
+        Err(error) => {
+            recovery.reset();
+            return Err(error);
+        }
     };
     injected.retain(|id, _| targets.iter().any(|target| &target.id == id));
     for target in targets {
@@ -178,29 +170,10 @@ fn monitor_iteration(
     Ok(())
 }
 
-fn renderer_recovery_required(skin_enabled: bool, proxy_running: bool) -> bool {
-    skin_enabled || proxy_running
-}
-
-fn recover_running_codex(paths: &RuntimePaths) -> Result<(), String> {
-    let _operation = OPERATION_LOCK
-        .lock()
-        .map_err(|_| "Codex runtime operation lock is unavailable.".to_string())?;
-    if RUNTIME_LAUNCHING.load(Ordering::Acquire) {
-        return Ok(());
-    }
-    // A normal launch can leave renderer/helper processes alive after its
-    // shell exits.  Ensure the old instance is completely gone before asking
-    // the OS to start the managed instance with the debugging arguments.
-    crate::commands::stop_chatgpt_processes()?;
-    crate::commands::wait_for_chatgpt_processes_to_exit(Duration::from_secs(10))?;
-    restart_managed_runtime(paths, SkinVerificationMode::Background)
-}
-
 fn monitor_loop(control: Arc<MonitorControl>) {
     let mut injected = HashMap::new();
     let mut last_port = None;
-    let mut unavailable_iterations = 0;
+    let mut recovery = RendererRecovery::default();
     loop {
         let paths = {
             let guard = control
@@ -216,38 +189,13 @@ fn monitor_loop(control: Arc<MonitorControl>) {
         let Some(paths) = paths else {
             continue;
         };
-        if let Err(error) = monitor_iteration(
-            &paths,
-            &mut injected,
-            &mut last_port,
-            &mut unavailable_iterations,
-        ) {
+        if let Err(error) = monitor_iteration(&paths, &mut injected, &mut last_port, &mut recovery)
+        {
             if !error.contains("CDP is unavailable") {
                 eprintln!("Codex renderer monitor: {error}");
             }
         }
     }
-}
-
-#[cfg(target_os = "windows")]
-fn has_running_codex_install() -> bool {
-    // ChatGPT's bootstrap executable can exit shortly after handing control
-    // to the persistent `codex.exe` process.  Looking only for ChatGPT.exe
-    // therefore misses a manually started client before recovery begins.
-    let mut system = System::new_all();
-    system.refresh_processes(ProcessesToUpdate::All, true);
-    system.processes().values().any(|process| {
-        let name = process.name().to_string_lossy();
-        matches!(
-            name.as_ref().to_ascii_lowercase().as_str(),
-            "chatgpt" | "chatgpt.exe" | "codex" | "codex.exe"
-        )
-    })
-}
-
-#[cfg(not(target_os = "windows"))]
-fn has_running_codex_install() -> bool {
-    false
 }
 
 fn ensure_monitor(paths: RuntimePaths) {

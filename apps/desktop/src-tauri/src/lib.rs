@@ -56,6 +56,8 @@ mod totp_qr;
 mod totp_window;
 mod web_server;
 mod web_session_login;
+#[cfg(target_os = "windows")]
+mod windows_client_processes;
 
 use oauth::AppState;
 use tauri::Manager;

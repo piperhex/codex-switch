@@ -3,7 +3,7 @@ use std::{
     fs,
     io::{BufRead, BufReader, BufWriter, Write},
     path::{Path, PathBuf},
-    process::{Command, Output},
+    process::Command,
     sync::{Mutex, OnceLock},
     time::Duration,
 };

@@ -2,28 +2,51 @@ fn start_managed_runtime(
     paths: &RuntimePaths,
     install: &CodexInstall,
     verification_mode: SkinVerificationMode,
+    reason: RuntimeLaunchReason,
 ) -> Result<(), String> {
     let _launch = RuntimeLaunchGuard::acquire();
+    let mut state = read_session();
+    state.begin_launch(&install.executable, reason);
+    write_session(&state)?;
+    let result = launch_runtime_renderer(paths, install, &mut state)
+        .and_then(|()| verify_runtime_skin(verification_mode, state.port));
+    if result.is_err() {
+        state.fail_launch();
+        write_session(&state)?;
+    }
+    result
+}
+
+fn launch_runtime_renderer(
+    paths: &RuntimePaths,
+    install: &CodexInstall,
+    state: &mut NativeSessionState,
+) -> Result<(), String> {
     stop_codex(install)?;
     let port = select_port()?;
     let profile = cdp_profile_path()?;
     ensure_directory(&profile)?;
     let arguments = managed_runtime_arguments(port, &profile);
-    let mut state = read_session();
-    state.session = "active".to_string();
     state.port = Some(port);
-    state.codex_executable = Some(install.executable.display().to_string());
-    write_session(&state)?;
+    write_session(state)?;
     launch_codex(install, &arguments)?;
     ensure_monitor(paths.clone());
     wake_monitor();
     wait_for_targets(port, CODEX_RENDERER_START_TIMEOUT)?;
+    state.session = NativeRuntimeStatus::Active;
+    write_session(state)?;
     refresh_models_after_runtime_ready(paths);
+    Ok(())
+}
+
+fn verify_runtime_skin(mode: SkinVerificationMode, port: Option<u16>) -> Result<(), String> {
     let skin_installed = marker_path()?.is_file();
     let skin_paused = pause_path()?.is_file();
     if skin_verification_required(skin_installed, skin_paused) {
         wake_monitor();
-        if wait_for_skin_verification(skin_installed, skin_paused, verification_mode) {
+        if let Some(port) =
+            port.filter(|_| wait_for_skin_verification(skin_installed, skin_paused, mode))
+        {
             wait_for_verified(port, DREAM_SKIN_START_VERIFICATION_TIMEOUT)?;
         }
     }
@@ -81,41 +104,38 @@ fn restart_managed_runtime(
     paths: &RuntimePaths,
     verification_mode: SkinVerificationMode,
 ) -> Result<(), String> {
-    // The current process is often already gone on a normal restart.  Prefer
-    // the executable that originally activated the runtime instead of falling
-    // back to whichever Store installation happens to be discoverable.
-    let install = find_runtime_launch_install()?;
-    let fallback = find_default_codex_install()
-        .ok()
-        .filter(|fallback| !same_install(&install, fallback));
-    match start_managed_runtime(paths, &install, verification_mode) {
-        Ok(()) => Ok(()),
-        Err(primary_error) if fallback.is_some() => {
-            let _ = stop_codex(&install);
-            let fallback = fallback.expect("checked above");
-            start_managed_runtime(paths, &fallback, verification_mode).map_err(|fallback_error| {
-                format!(
-                    concat!(
-                        "Codex could not start from the running ChatGPT path ({}): {}; ",
-                        "fallback path ({}) also failed: {}"
-                    ),
-                    install.executable.display(),
-                    primary_error,
-                    fallback.executable.display(),
-                    fallback_error,
-                )
-            })
+    let install = find_runtime_launch_install().inspect_err(|_| {
+        let mut state = read_session();
+        state.session = NativeRuntimeStatus::Failed;
+        state.fail_launch();
+        if let Err(error) = write_session(&state) {
+            eprintln!("Could not save the failed Codex launch: {error}");
         }
-        Err(error) => Err(error),
-    }
+    })?;
+    // Select a valid installation before launching. A slow or failed renderer must
+    // never cause another destructive restart into a different installation.
+    start_managed_runtime(
+        paths,
+        &install,
+        verification_mode,
+        RuntimeLaunchReason::Explicit,
+    )
 }
 
 pub(crate) fn setup_runtime(app: &AppHandle) -> Result<(), String> {
+    let _operation = OPERATION_LOCK
+        .lock()
+        .map_err(|_| "Codex runtime operation lock is unavailable.".to_string())?;
     if marker_path()?.is_file() {
         initialize_store()?;
     }
     if !session_path()?.is_file() {
         write_session(&NativeSessionState::default())?;
+    }
+    let mut state = read_session();
+    if state.session == NativeRuntimeStatus::Starting {
+        state.fail_launch();
+        write_session(&state)?;
     }
     ensure_monitor(runtime_paths_for_app(app)?);
     Ok(())

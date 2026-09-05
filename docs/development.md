@@ -71,7 +71,7 @@ For local Windows ARM64 app builds, install the Rust `aarch64-pc-windows-msvc` t
 - Cloud issue: verify the configured Base URL, Kong route split, backend logs, and `lastModifiedAt` values. Use only fake credentials while debugging synchronization.
 - Mobile issue: verify the same Base URL reaches `/auth/login` and `/sync/accounts/summary` from the device; localhost on the development computer is not localhost on a physical phone.
 - Admin schema issue: when `POSTGRES_DB_SYNCHRONIZE=false`, apply every dated SQL migration listed in `apps/admin/README.md` in order.
-- Restart issue: test with a disposable Codex session. Windows uses `taskkill`; macOS and Linux use `pkill` plus the available relaunch strategy.
+- Restart issue: test with a disposable Codex session. Windows validates desktop process paths and creation times before using a process handle to stop an observed instance; macOS and Linux use their platform process and relaunch strategies. Recovery regression tests simulate CDP outages and process operations without restarting the installed desktop app.
 - Rust logic: prefer unit tests around the pure parsing functions in `auth.rs` and `codex_api.rs`.
 
 ## Release Workflow

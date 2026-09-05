@@ -178,6 +178,10 @@ fn write_session(state: &NativeSessionState) -> Result<(), String> {
 
 #[cfg(target_os = "windows")]
 pub(crate) fn record_runtime_executable(executable: &Path) -> Result<(), String> {
+    // Serialize read/modify/write with recovery so a path refresh cannot restore a spent attempt.
+    let _operation = OPERATION_LOCK
+        .lock()
+        .map_err(|_| "Codex runtime operation lock is unavailable.".to_string())?;
     if !executable.is_file() {
         return Err("The recorded ChatGPT executable is no longer available.".to_string());
     }

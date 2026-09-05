@@ -125,8 +125,11 @@ The desktop React frontend receives redacted models such as `AccountSummary`, `P
 ### Restart ChatGPT
 
 1. The dashboard, tray, or bubble calls `restart_chatgpt` when a config or credential switch is not picked up by a running session.
-2. On Windows, the backend prefers the StartApps/AppX ChatGPT entry, falls back to discovered `ChatGPT.exe` paths, stops ChatGPT and legacy `codex` processes, and relaunches ChatGPT.
+2. Windows process control verifies the desktop installation layout and executable paths. It stops only the initially observed desktop shell and bundled helper instances, using a checked process handle; standalone CLI processes and newly spawned instances are excluded. Store launches require a current, healthy package identity, and packages undergoing deployment or servicing are skipped.
 3. macOS and Linux use the available platform process and launch strategy. Restart is best effort and does not read or log credentials.
+4. Renderer recovery requires a continuous 30-second CDP outage, an active skin or running proxy, and a confirmed running desktop installation. Each explicit managed launch permits at most one automatic recovery, persisted before any process is stopped. Reconnecting or restarting Codex Switch does not reset that allowance. The monitor skips busy operations and rechecks the launch identity, current CDP availability, feature state, and installation before recovery.
+5. An interrupted or failed renderer launch clears the saved port while retaining the executable. Skin verification errors preserve an already working renderer channel. A startup timeout never triggers a second launch into a different installation. Pausing a skin disables recovery for that skin; a running proxy can still require the channel.
+6. The resource updater removes abandoned theme archives and staging directories before downloading, while holding its single-flight guard. Cleanup accepts only managed UUID names inside the resource cache and preserves unknown entries, the current pack, and trees containing links or Windows reparse points. This cleanup does not touch ChatGPT's own runtime directories.
 
 ## Persisted Data Layout
 

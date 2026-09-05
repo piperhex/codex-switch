@@ -21,6 +21,9 @@ use crate::{
     dream_skin_native::BUILT_IN_THEME_IDS,
 };
 
+#[path = "dream_skin_resource_cleanup.rs"]
+mod cleanup;
+
 const RELEASES_API: &str = "https://api.github.com/repos/piperhex/codex-switch/releases";
 const RELEASES_PER_PAGE: usize = 100;
 const RELEASE_TAG_PREFIX: &str = "dream-skin-";
@@ -134,11 +137,6 @@ pub(crate) fn start_background_update() {
     {
         return;
     }
-    if let Some(marker) = read_marker() {
-        if let Ok(root) = resources_root() {
-            cleanup_old_packs(&root, &marker.version);
-        }
-    }
     update_status(|current| {
         current.phase = "checking".to_string();
         current.downloaded_bytes = 0;
@@ -169,6 +167,17 @@ pub(crate) fn start_background_update() {
 }
 
 fn run_update() -> Result<(), String> {
+    // The single-instance app holds UPDATE_RUNNING for this entire worker. Clean
+    // interrupted downloads before creating any files for the next download.
+    let installed = read_marker();
+    cleanup::cleanup_resource_cache(
+        &resources_root()?,
+        installed.as_ref().map(|marker| marker.version.as_str()),
+    )
+    .map_err(|error| {
+        eprintln!("Failed to clean abandoned Dream Skin resources: {error}");
+        "Could not prepare theme resources. Please try again.".to_string()
+    })?;
     let client = crate::system_proxy::apply(Client::builder())
         .connect_timeout(Duration::from_secs(15))
         .timeout(Duration::from_secs(30 * 60))
@@ -176,7 +185,6 @@ fn run_update() -> Result<(), String> {
         .build()
         .map_err(|error| format!("Failed to initialize resource download: {error}"))?;
     let release = latest_release(&client)?;
-    let installed = read_marker();
     update_status(|current| {
         current.available_version = Some(release.version.clone());
         current.total_bytes = Some(release.size);
@@ -472,18 +480,6 @@ fn write_marker(root: &Path, version: &str) -> Result<(), String> {
         .map_err(|error| format!("Failed to serialize resource marker: {error}"))?;
     fs::write(root.join("current.json"), bytes)
         .map_err(|error| format!("Failed to activate resource version: {error}"))
-}
-
-fn cleanup_old_packs(root: &Path, current_version: &str) {
-    let Ok(entries) = fs::read_dir(root) else {
-        return;
-    };
-    for entry in entries.flatten() {
-        let name = entry.file_name().to_string_lossy().to_string();
-        if name != current_version && valid_version(&name) && entry.path().is_dir() {
-            let _ = fs::remove_dir_all(entry.path());
-        }
-    }
 }
 
 #[cfg(test)]

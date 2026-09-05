@@ -64,7 +64,7 @@ pub(crate) fn set_paused(app: &AppHandle, paused: bool) -> Result<(), String> {
             }
         }
         let mut state = state;
-        state.session = "paused".to_string();
+        state.session = NativeRuntimeStatus::Paused;
         write_session(&state)?;
         wake_monitor();
         Ok(())
@@ -127,10 +127,7 @@ pub(crate) fn restore(app: &AppHandle) -> Result<(), String> {
         }
     }
     wake_monitor();
-    restart_managed_runtime(
-        &runtime_paths_for_app(app)?,
-        SkinVerificationMode::Required,
-    )
+    restart_managed_runtime(&runtime_paths_for_app(app)?, SkinVerificationMode::Required)
 }
 
 fn list_saved_themes() -> Vec<DreamSkinThemeSummary> {
@@ -185,9 +182,9 @@ pub(crate) fn status(platform: &str) -> DreamSkinStatus {
         .and_then(|path| load_theme(&path).ok());
     let session = if !installed {
         "notInstalled"
-    } else if paused || session_state.session == "paused" {
+    } else if paused || session_state.session == NativeRuntimeStatus::Paused {
         "paused"
-    } else if session_state.port.is_some() && session_state.session == "active" {
+    } else if session_state.port.is_some() && session_state.session == NativeRuntimeStatus::Active {
         "active"
     } else {
         "ready"

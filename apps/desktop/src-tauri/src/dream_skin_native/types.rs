@@ -18,6 +18,7 @@ use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
+#[cfg(not(target_os = "windows"))]
 use sysinfo::{ProcessesToUpdate, System};
 use tauri::{AppHandle, Manager};
 use tungstenite::{client, Message, WebSocket};
@@ -258,9 +259,13 @@ impl Drop for RuntimeLaunchGuard {
 struct NativeSessionState {
     schema_version: u32,
     runtime_version: String,
-    session: String,
+    session: NativeRuntimeStatus,
     port: Option<u16>,
     codex_executable: Option<String>,
+    #[serde(default)]
+    launch_id: String,
+    #[serde(default)]
+    recovery_attempted: bool,
 }
 
 impl Default for NativeSessionState {
@@ -268,9 +273,11 @@ impl Default for NativeSessionState {
         Self {
             schema_version: 1,
             runtime_version: NATIVE_RUNTIME_VERSION.to_string(),
-            session: "ready".to_string(),
+            session: NativeRuntimeStatus::Ready,
             port: None,
             codex_executable: None,
+            launch_id: String::new(),
+            recovery_attempted: false,
         }
     }
 }

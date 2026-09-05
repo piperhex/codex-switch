@@ -320,17 +320,7 @@ pub(crate) fn start_chatgpt(_target: Option<&ChatGptLaunchTarget>) -> Result<(),
         .map_err(|error| format!("启动 ChatGPT 失败：{error}"))
 }
 
-fn command_output_error(action: &str, output: &Output) -> String {
-    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    let detail = if stderr.is_empty() { stdout } else { stderr };
-    if detail.is_empty() {
-        status_error(action, output.status)
-    } else {
-        format!("{action}：{detail}")
-    }
-}
-
+#[cfg(unix)]
 fn status_error(action: &str, status: std::process::ExitStatus) -> String {
     match status.code() {
         Some(code) => format!("{action}（退出码：{code}）"),

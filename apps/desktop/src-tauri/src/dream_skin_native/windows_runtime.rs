@@ -37,6 +37,16 @@ fn restore_package_identity(install: CodexInstall) -> CodexInstall {
     attach_matching_package_identity(install, &packaged_installs)
 }
 
+#[cfg(target_os = "windows")]
+fn stop_codex(install: &CodexInstall) -> Result<(), String> {
+    crate::windows_client_processes::stop_install_processes(
+        &install.executable,
+        Duration::from_secs(10),
+    )
+    .map_err(|error| error.to_string())
+}
+
+#[cfg(not(target_os = "windows"))]
 fn stop_codex(install: &CodexInstall) -> Result<(), String> {
     let expected = install
         .executable
@@ -118,6 +128,13 @@ fn find_codex_installs() -> Result<Vec<VersionedCodexInstall>, String> {
         {
             continue;
         }
+        if !package.Status().ok().is_some_and(|status| {
+            status.VerifyIsOK().unwrap_or(false)
+                && !status.Servicing().unwrap_or(true)
+                && !status.DeploymentInProgress().unwrap_or(true)
+        }) {
+            continue;
+        }
         let executable = PathBuf::from(
             package
                 .InstalledLocation()
@@ -169,35 +186,27 @@ fn find_codex_installs() -> Result<Vec<VersionedCodexInstall>, String> {
 
 #[cfg(target_os = "windows")]
 fn find_running_codex_install() -> Option<CodexInstall> {
-    let mut system = System::new_all();
-    system.refresh_processes(ProcessesToUpdate::All, true);
-    for process in system.processes().values() {
-        let Some(executable) = process.exe() else {
-            continue;
-        };
-        if !executable
-            .file_name()
-            .is_some_and(|name| name.eq_ignore_ascii_case("ChatGPT.exe"))
-        {
-            continue;
-        }
-        let executable = executable
-            .canonicalize()
-            .unwrap_or_else(|_| executable.to_path_buf());
-        let is_codex_shell = executable.parent().is_some_and(|app_dir| {
-            app_dir
-                .file_name()
-                .is_some_and(|name| name.eq_ignore_ascii_case("app"))
-                && app_dir.join("resources").join("codex.exe").is_file()
-        });
-        if is_codex_shell {
-            return Some(restore_package_identity(CodexInstall {
-                executable,
-                app_user_model_id: None,
-            }));
-        }
-    }
-    None
+    crate::windows_client_processes::running_desktop_shells()
+        .into_iter()
+        .find_map(resolve_runtime_install)
+}
+
+#[cfg(target_os = "windows")]
+fn runtime_install_can_launch(install: &CodexInstall) -> bool {
+    let is_store_path = install
+        .executable
+        .components()
+        .any(|component| component.as_os_str().eq_ignore_ascii_case("WindowsApps"));
+    !is_store_path || install.app_user_model_id.is_some()
+}
+
+#[cfg(target_os = "windows")]
+fn resolve_runtime_install(executable: PathBuf) -> Option<CodexInstall> {
+    let install = restore_package_identity(CodexInstall {
+        executable,
+        app_user_model_id: None,
+    });
+    runtime_install_can_launch(&install).then_some(install)
 }
 
 #[cfg(target_os = "windows")]
@@ -223,10 +232,7 @@ fn remembered_codex_install() -> Option<CodexInstall> {
         return None;
     }
     #[cfg(target_os = "windows")]
-    return Some(restore_package_identity(CodexInstall {
-        executable,
-        app_user_model_id: None,
-    }));
+    return resolve_runtime_install(executable);
     #[cfg(target_os = "macos")]
     Some(CodexInstall { executable })
 }
@@ -251,10 +257,11 @@ fn launch_codex(install: &CodexInstall, arguments: &[String]) -> Result<u32, Str
         },
     };
 
-    // A running or remembered Store install only gives us its executable path.
-    // Reattach the package identity before launch so Windows 10 does not try to
-    // CreateProcess the protected WindowsApps executable and fail with error 5.
-    let resolved_install = restore_package_identity(install.clone());
+    // Stopping the previous process can overlap a Store update. Resolve the path
+    // again without trusting its earlier identity, so only a currently healthy
+    // package is activated and a stale Store executable is never spawned directly.
+    let resolved_install = resolve_runtime_install(install.executable.clone())
+        .ok_or_else(|| "Codex 正在更新或暂时无法启动，请稍后重试。".to_string())?;
     if let Some(app_user_model_id) = &resolved_install.app_user_model_id {
         struct ComGuard(bool);
         impl Drop for ComGuard {
@@ -313,5 +320,35 @@ fn quote_windows_argument(argument: &str) -> String {
         format!("\"{argument}\"")
     } else {
         argument.to_string()
+    }
+}
+
+#[cfg(all(test, target_os = "windows"))]
+mod registered_runtime_install_tests {
+    use super::*;
+
+    #[test]
+    fn stale_store_paths_cannot_fall_back_to_direct_execution() {
+        for executable in [
+            r"C:\Program Files\WindowsApps\OpenAI.Codex_1\app\ChatGPT.exe",
+            r"\\?\C:\Program Files\WINDOWSAPPS\OpenAI.Codex_1\app\ChatGPT.exe",
+        ] {
+            let mut install = CodexInstall {
+                executable: PathBuf::from(executable),
+                app_user_model_id: None,
+            };
+            assert!(!runtime_install_can_launch(&install));
+            install.app_user_model_id = Some("OpenAI.Codex_example!App".to_string());
+            assert!(runtime_install_can_launch(&install));
+        }
+    }
+
+    #[test]
+    fn unpackaged_desktop_installations_can_launch_without_store_identity() {
+        let install = CodexInstall {
+            executable: PathBuf::from(r"C:\Apps\Codex\app\ChatGPT.exe"),
+            app_user_model_id: None,
+        };
+        assert!(runtime_install_can_launch(&install));
     }
 }
