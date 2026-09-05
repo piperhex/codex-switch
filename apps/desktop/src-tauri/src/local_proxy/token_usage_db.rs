@@ -6,7 +6,7 @@ fn list_token_usage_entries_from_db(
         .prepare(
             r#"
             SELECT id, ts, provider, provider_id, account_id, account_email, model, duration_ms,
-                   input_tokens, output_tokens, reasoning_tokens, cached_tokens, total_tokens
+                   input_tokens, output_tokens, reasoning_tokens, cached_tokens, total_tokens, service_tier
             FROM token_usage_entries
             ORDER BY ts DESC, id DESC
             LIMIT ?1
@@ -29,6 +29,7 @@ fn list_token_usage_entries_from_db(
                 reasoning_tokens: opt_i64_to_u64(row.get(10)?),
                 cached_tokens: opt_i64_to_u64(row.get(11)?),
                 total_tokens: opt_i64_to_u64(row.get(12)?),
+                service_tier: row.get(13)?,
                 model_context_window: None,
             })
         })
@@ -46,7 +47,7 @@ fn list_token_usage_entries_since_from_db(
         .prepare(
             r#"
             SELECT id, ts, provider, provider_id, account_id, account_email, model, duration_ms,
-                   input_tokens, output_tokens, reasoning_tokens, cached_tokens, total_tokens
+                   input_tokens, output_tokens, reasoning_tokens, cached_tokens, total_tokens, service_tier
             FROM token_usage_entries
             WHERE ts >= ?1
             ORDER BY ts DESC, id DESC
@@ -69,6 +70,7 @@ fn list_token_usage_entries_since_from_db(
                 reasoning_tokens: opt_i64_to_u64(row.get(10)?),
                 cached_tokens: opt_i64_to_u64(row.get(11)?),
                 total_tokens: opt_i64_to_u64(row.get(12)?),
+                service_tier: row.get(13)?,
                 model_context_window: None,
             })
         })
@@ -291,7 +293,7 @@ fn add_provider_token_usage_total(
         .map_err(|error| format!("Failed to update provider token usage total: {error}"))
 }
 
-fn token_usage_params(entry: &TokenUsageEntry) -> [rusqlite::types::Value; 14] {
+fn token_usage_params(entry: &TokenUsageEntry) -> [rusqlite::types::Value; 15] {
     [
         rusqlite::types::Value::Text(entry.id.clone()),
         rusqlite::types::Value::Integer(u64_to_i64(entry.ts)),
@@ -307,6 +309,7 @@ fn token_usage_params(entry: &TokenUsageEntry) -> [rusqlite::types::Value; 14] {
         optional_u64_value(entry.cached_tokens),
         optional_u64_value(entry.total_tokens),
         rusqlite::types::Value::Integer(u128_to_i64(unix_millis())),
+        optional_string_value(entry.service_tier.as_deref()),
     ]
 }
 

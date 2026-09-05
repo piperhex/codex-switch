@@ -149,11 +149,7 @@ fn override_official_model_context_windows(
     }
     let mut catalog = serde_json::from_slice::<Value>(&body)
         .map_err(|error| format!("Upstream model catalog is not valid JSON: {error}"))?;
-    if apply_official_context_windows(
-        &mut catalog,
-        global_context_window,
-        model_context_windows,
-    ) {
+    if apply_official_context_windows(&mut catalog, global_context_window, model_context_windows) {
         body = serde_json::to_vec(&catalog)
             .map_err(|error| format!("Failed to encode model catalog: {error}"))?;
         replace_model_catalog_etags(&mut payload.response_headers, &body);
@@ -172,16 +168,15 @@ fn apply_official_context_windows(
     };
     let mut changed = false;
     for entry in models {
-        let model = ["slug", "id"].into_iter().find_map(|field| {
-            entry.get(field).and_then(Value::as_str)
-        });
+        let model = ["slug", "id"]
+            .into_iter()
+            .find_map(|field| entry.get(field).and_then(Value::as_str));
         let Some(model) = model else { continue };
-        let context_window = effective_official_context_window(
-            global_context_window,
-            model_context_windows,
-            model,
-        );
-        if context_window == 0 { continue }
+        let context_window =
+            effective_official_context_window(global_context_window, model_context_windows, model);
+        if context_window == 0 {
+            continue;
+        }
         entry["context_window"] = json!(context_window);
         entry["max_context_window"] = json!(context_window);
         changed = true;
@@ -276,6 +271,7 @@ fn provider_models_payload_with_image_route(
         content_type: Some("application/json; charset=utf-8".to_string()),
         response_headers: vec![("ETag".to_string(), etag)],
         body: UpstreamBody::Buffered(body),
+        token_usage_service_tier: None,
         token_usage_account: None,
     }
 }
@@ -296,6 +292,7 @@ fn aggregate_models_payload(
             aggregate_models_etag(&target.config, image_input_route_enabled),
         )],
         body: UpstreamBody::Buffered(body),
+        token_usage_service_tier: None,
         token_usage_account: None,
     })
 }
@@ -335,6 +332,7 @@ fn provider_group_models_payload_with_image_route(
             provider_group_models_etag_with_image_route(providers, image_input_route_enabled),
         )],
         body: UpstreamBody::Buffered(body),
+        token_usage_service_tier: None,
         token_usage_account: None,
     }
 }
@@ -370,7 +368,13 @@ fn provider_body_for_upstream(
 ) -> Vec<u8> {
     let service_tier = provider_service_tier(provider);
     if providers::uses_upstream_official_models(provider) {
-        return official_body_for_upstream_with_tier(method, url, body, &provider.model, service_tier);
+        return official_body_for_upstream_with_tier(
+            method,
+            url,
+            body,
+            &provider.model,
+            service_tier,
+        );
     }
     if *method != Method::Post || !is_responses_endpoint(request_path(url)) {
         return body;
@@ -386,7 +390,7 @@ fn provider_body_for_upstream(
 
 fn provider_service_tier(provider: &ProviderProfile) -> Option<ProxyServiceTier> {
     if provider.fast_mode_enabled {
-        return proxy_service_tier_override();
+        return None;
     }
     Some(ProxyServiceTier::Default)
 }

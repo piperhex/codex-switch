@@ -194,6 +194,7 @@ mod tests {
             account_id: None,
             account_email: None,
             model: model.to_string(),
+            service_tier: None,
             duration_ms: None,
             input_tokens: Some(1_000_000),
             output_tokens: Some(100_000),
@@ -202,6 +203,16 @@ mod tests {
             total_tokens: Some(1_100_000),
             model_context_window: None,
         }
+    }
+
+    #[test]
+    fn mixed_modes_change_costs_without_multiplying_token_totals() {
+        let mut fast_entry = usage_entry("gpt-5.6-sol");
+        fast_entry.service_tier = Some("priority".to_string());
+        let normal_entry = usage_entry("gpt-5.6-sol");
+        let summary = summarize_defaults(&[normal_entry, fast_entry], None, None);
+        assert_eq!(summary.total_tokens, 2_200_000);
+        assert!((summary.estimated_cost_usd - 18.48).abs() < 1e-10);
     }
 
     #[test]

@@ -312,6 +312,25 @@ mod tests {
     }
 
     #[test]
+    fn aggregate_applies_fast_mode_only_to_the_matching_requests() {
+        let profiles = vec![profile("first", "First"), profile("second", "Second")];
+        let scope = ProviderCostScope::from_aggregate(&config(), &profiles);
+        let mut fast_entry = entry(Some("first"), "First");
+        fast_entry.service_tier = Some("fast".to_string());
+        let mut normal_entry = entry(Some("second"), "Second");
+        normal_entry.service_tier = Some("default".to_string());
+        let legacy_entry = entry(Some("aggregate:pool"), "Pool");
+        let summary = summarize(
+            &[fast_entry, normal_entry, legacy_entry],
+            &scope,
+            &CostRates::default(),
+            &profiles,
+        );
+        assert!((summary.amount_usd - 23.76).abs() < 1e-10);
+        assert!(summary.aggregated);
+    }
+
+    #[test]
     fn empty_usage_still_displays_zero_cost() {
         let scope = ProviderCostScope::from_aggregate(&config(), &[]);
         let summary = summarize(&[], &scope, &CostRates::default(), &[]);

@@ -43,10 +43,7 @@ fn proxy_service_tier_override() -> Option<ProxyServiceTier> {
 }
 
 fn set_proxy_service_tier(tier: Option<ProxyServiceTier>) {
-    if let Ok(mut current) = PROXY_SERVICE_TIER
-        .get_or_init(|| RwLock::new(None))
-        .write()
-    {
+    if let Ok(mut current) = PROXY_SERVICE_TIER.get_or_init(|| RwLock::new(None)).write() {
         *current = tier;
     }
 }
@@ -59,7 +56,7 @@ fn parse_proxy_service_tier(value: &Value) -> Result<ProxyServiceTier, &'static 
 fn parse_proxy_service_tier_name(value: Option<&str>) -> Result<ProxyServiceTier, &'static str> {
     match value {
         Some("default") => Ok(ProxyServiceTier::Default),
-        Some("priority") => Ok(ProxyServiceTier::Priority),
+        Some("priority" | "fast") => Ok(ProxyServiceTier::Priority),
         _ => Err("service_tier must be either default or priority"),
     }
 }
@@ -89,9 +86,7 @@ pub(crate) fn set_proxy_service_tier_by_name(value: &str) -> bool {
 }
 
 fn update_proxy_service_tier_for_openai_auth(account_id: Option<&str>) -> bool {
-    if account_id.is_none()
-        || proxy_service_tier_override() == Some(ProxyServiceTier::Default)
-    {
+    if account_id.is_none() || proxy_service_tier_override() == Some(ProxyServiceTier::Default) {
         return false;
     }
     set_proxy_service_tier(Some(ProxyServiceTier::Default));
@@ -296,8 +291,14 @@ fn handle_request<R: Runtime>(app: tauri::AppHandle<R>, mut request: Request) {
             return;
         }
     }
+    let body = snapshot_request_service_tier(
+        &method,
+        request_path(&url),
+        body,
+        proxy_service_tier_override(),
+    );
     let session = (method == Method::Post && captures_conversation).then(|| {
-        let service_tier = effective_proxy_service_tier(&body, proxy_service_tier_override());
+        let service_tier = effective_proxy_service_tier(&body, None);
         begin_proxy_session_request(&headers, remote_address, &body, service_tier)
     });
     let result = handle_proxy_request(

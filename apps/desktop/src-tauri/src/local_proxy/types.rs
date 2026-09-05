@@ -1,4 +1,3 @@
-
 struct ProxyRuntime {
     server: Arc<Server>,
     handle: Option<JoinHandle<()>>,
@@ -149,6 +148,7 @@ struct UpstreamPayload {
     response_headers: Vec<(String, String)>,
     body: UpstreamBody,
     token_usage_account: Option<TokenUsageAccount>,
+    token_usage_service_tier: Option<String>,
 }
 
 enum UpstreamBody {
@@ -202,6 +202,7 @@ struct TokenUsageContext {
     provider: String,
     provider_id: Option<String>,
     model: String,
+    service_tier: Option<String>,
     request_hash: String,
     started_at: Instant,
     content_type: Option<String>,

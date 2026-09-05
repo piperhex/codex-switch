@@ -10,7 +10,18 @@ import {
 import type { Language, Translate } from "../i18n";
 import type { DailyTokenUsage, Provider, ProxySessionLatencySummary } from "../types";
 import { formatCompactTokenCount } from "../utils/tokenContext";
-import { estimateTokenCost, formatEstimatedCost, formatEstimatedCostValue } from "../utils/tokenCost";
+import {
+  estimateTokenCost,
+  invalidateCustomTokenCostRulesCache,
+  formatEstimatedCost,
+  formatEstimatedCostValue,
+  TOKEN_COST_CUSTOM_RULES_EVENT,
+} from "../utils/tokenCost";
+import { TOKEN_COST_REFERENCE_MODEL_EVENT } from "../utils/tokenCostPresets";
+import {
+  FAST_MODE_COST_MULTIPLIER_EVENT,
+  FAST_MODE_COST_MULTIPLIER_STORAGE_KEY,
+} from "../utils/tokenCostFastMode";
 import { useTokenCostDisplaySettings } from "./TokenCostUnitSettings";
 import {
   DailyTokenUsageTooltip,
@@ -152,10 +163,24 @@ export function TokenUsageHeatmap({
     void refresh();
     const timer = window.setInterval(() => void refresh(), refreshSeconds * 1000);
     const unsubscribe = subscribeToTokenUsageChanges(() => void refresh());
+    const refreshStoredMultiplier = (event: StorageEvent) => {
+      if (event.storageArea !== window.localStorage
+        || (event.key !== null && event.key !== FAST_MODE_COST_MULTIPLIER_STORAGE_KEY)) return;
+      invalidateCustomTokenCostRulesCache();
+      void refresh();
+    };
+    window.addEventListener(TOKEN_COST_CUSTOM_RULES_EVENT, refresh);
+    window.addEventListener(TOKEN_COST_REFERENCE_MODEL_EVENT, refresh);
+    window.addEventListener(FAST_MODE_COST_MULTIPLIER_EVENT, refresh);
+    window.addEventListener("storage", refreshStoredMultiplier);
     return () => {
       active = false;
       window.clearInterval(timer);
       unsubscribe();
+      window.removeEventListener(TOKEN_COST_CUSTOM_RULES_EVENT, refresh);
+      window.removeEventListener(TOKEN_COST_REFERENCE_MODEL_EVENT, refresh);
+      window.removeEventListener(FAST_MODE_COST_MULTIPLIER_EVENT, refresh);
+      window.removeEventListener("storage", refreshStoredMultiplier);
     };
   }, [providers, refreshSeconds, weeks]);
 

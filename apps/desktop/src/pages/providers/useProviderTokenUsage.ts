@@ -2,8 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { loadProviderTokenUsage, subscribeToTokenUsageChanges } from "../../api/backend";
 import type { Provider, ProviderTokenUsageTotals } from "../../types";
 import { createProviderTokenUsageLookup } from "../../utils/providerTokenUsage";
-import { TOKEN_COST_CUSTOM_RULES_EVENT } from "../../utils/tokenCost";
+import { invalidateCustomTokenCostRulesCache, TOKEN_COST_CUSTOM_RULES_EVENT } from "../../utils/tokenCost";
 import { TOKEN_COST_REFERENCE_MODEL_EVENT } from "../../utils/tokenCostPresets";
+import {
+  FAST_MODE_COST_MULTIPLIER_EVENT,
+  FAST_MODE_COST_MULTIPLIER_STORAGE_KEY,
+} from "../../utils/tokenCostFastMode";
 
 export function useProviderTokenUsage(tokenUsageRefreshSeconds: number, providers: Provider[]) {
   const [providerTokenUsage, setProviderTokenUsage] = useState<ProviderTokenUsageTotals[]>([]);
@@ -33,14 +37,24 @@ export function useProviderTokenUsage(tokenUsageRefreshSeconds: number, provider
     const refreshInterval = Math.max(1, tokenUsageRefreshSeconds) * 1_000;
     const timer = window.setInterval(() => void refresh(), refreshInterval);
     const unsubscribe = subscribeToTokenUsageChanges(() => void refresh());
+    const refreshStoredMultiplier = (event: StorageEvent) => {
+      if (event.storageArea !== window.localStorage
+        || (event.key !== null && event.key !== FAST_MODE_COST_MULTIPLIER_STORAGE_KEY)) return;
+      invalidateCustomTokenCostRulesCache();
+      void refresh();
+    };
     window.addEventListener(TOKEN_COST_CUSTOM_RULES_EVENT, refresh);
     window.addEventListener(TOKEN_COST_REFERENCE_MODEL_EVENT, refresh);
+    window.addEventListener(FAST_MODE_COST_MULTIPLIER_EVENT, refresh);
+    window.addEventListener("storage", refreshStoredMultiplier);
     return () => {
       active = false;
       window.clearInterval(timer);
       unsubscribe();
       window.removeEventListener(TOKEN_COST_CUSTOM_RULES_EVENT, refresh);
       window.removeEventListener(TOKEN_COST_REFERENCE_MODEL_EVENT, refresh);
+      window.removeEventListener(FAST_MODE_COST_MULTIPLIER_EVENT, refresh);
+      window.removeEventListener("storage", refreshStoredMultiplier);
     };
   }, [providers, tokenUsageRefreshSeconds]);
 

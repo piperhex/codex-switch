@@ -24,6 +24,7 @@ fn quota_response(account_id: &str) -> UpstreamPayload {
         content_type: None,
         response_headers: Vec::new(),
         body: UpstreamBody::Buffered(br#"{"error":{"type":"usage_limit_reached"}}"#.to_vec()),
+        token_usage_service_tier: None,
         token_usage_account: Some(TokenUsageAccount {
             account_id: account_id.to_string(),
             account_email: String::new(),

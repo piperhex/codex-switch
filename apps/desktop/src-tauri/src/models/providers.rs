@@ -194,6 +194,8 @@ pub(crate) struct TokenUsageEntry {
     pub(crate) account_id: Option<String>,
     pub(crate) account_email: Option<String>,
     pub(crate) model: String,
+    #[serde(default)]
+    pub(crate) service_tier: Option<String>,
     pub(crate) duration_ms: Option<u64>,
     pub(crate) input_tokens: Option<u64>,
     pub(crate) output_tokens: Option<u64>,

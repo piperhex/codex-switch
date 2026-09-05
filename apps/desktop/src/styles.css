@@ -482,6 +482,13 @@ h1 { margin: 5px 0 0; font: 700 26px/1.1 Manrope, sans-serif; letter-spacing: -.
 }
 .custom-token-cost-source { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
 .custom-token-cost-reference { max-width: 400px; padding-top: 4px; }
+.custom-token-cost-fast-mode {
+  max-width: 400px; padding-top: 12px; border-top: 1px solid var(--line);
+}
+.custom-token-cost-fast-mode.custom-token-cost-field .ant-input-number { width: 140px; }
+.custom-token-cost-fast-mode small { color: var(--muted); font-size: 11px; line-height: 1.5; }
+.custom-token-cost-fast-mode .custom-token-cost-fast-mode-error { color: var(--ant-color-error, #b42318); }
+.custom-token-cost-fast-mode .custom-token-cost-source { justify-self: start; font-size: 11px; }
 .custom-token-cost-editor {
   display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px;
 }

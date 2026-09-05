@@ -24,8 +24,7 @@ fn forward_official<R: Runtime>(
     } = request;
     let client = http_client()?;
     let upstream_endpoint = upstream_endpoint_for_codex_request(url);
-    let credential_purpose =
-        official_credential_purpose(request_path(&upstream_endpoint), &body);
+    let credential_purpose = official_credential_purpose(request_path(&upstream_endpoint), &body);
     let mut credentials = official_credentials(
         app,
         &client,
@@ -101,11 +100,13 @@ fn send_official_request(
         },
         "Official Codex proxy request failed",
     )?;
-    stream_response(response)
+    let mut payload = stream_response(response)?;
+    payload.token_usage_service_tier = forwarded_request_service_tier(body, headers);
+    Ok(payload)
 }
 
 fn official_body_for_upstream(method: &Method, url: &str, body: Vec<u8>, model: &str) -> Vec<u8> {
-    official_body_for_upstream_with_tier(method, url, body, model, proxy_service_tier_override())
+    official_body_for_upstream_with_tier(method, url, body, model, None)
 }
 
 fn official_body_for_upstream_with_tier(
@@ -125,13 +126,14 @@ fn official_body_for_upstream_with_tier(
     let Ok(mut value) = serde_json::from_slice::<Value>(&body) else {
         return body;
     };
-    let removed_incompatible_reasoning = remove_incompatible_official_reasoning_from_input(&mut value);
+    let removed_incompatible_reasoning =
+        remove_incompatible_official_reasoning_from_input(&mut value);
     // ChatGPT's OAuth-backed Codex endpoint rejects the token-limit field that
     // OpenCode's Responses adapter sends. Codex itself leaves this field out,
     // so omit it when forwarding third-party requests to the official service.
-    let removed_unsupported_output_limit = value.as_object_mut().is_some_and(|object| {
-        object.remove("max_output_tokens").is_some()
-    });
+    let removed_unsupported_output_limit = value
+        .as_object_mut()
+        .is_some_and(|object| object.remove("max_output_tokens").is_some());
     if requested_model(&value).is_some()
         && !removed_incompatible_reasoning
         && !removed_unsupported_output_limit
@@ -165,6 +167,7 @@ fn forward_provider(
     let client = http_client()?;
     let upstream_endpoint = upstream_endpoint_for_codex_request(url);
     let upstream_url = build_upstream_url(&provider.base_url, &upstream_endpoint);
+    let body = enforce_provider_service_tier(body, headers, provider);
     let body = provider_body_for_upstream(method, &upstream_endpoint, body, provider);
     let request_method = reqwest_method(method)?;
     let response = send_with_timeout_retries(
@@ -179,7 +182,9 @@ fn forward_provider(
         },
         "Provider proxy request failed",
     )?;
-    stream_response(response)
+    let mut payload = stream_response(response)?;
+    payload.token_usage_service_tier = forwarded_request_service_tier(&body, headers);
+    Ok(payload)
 }
 
 fn forward_provider_request(

@@ -1,5 +1,7 @@
 {
   "defaultReferenceModel": "gpt-5.6-sol",
+  "defaultFastModeCostMultiplier": 2.5,
+  "maxFastModeCostMultiplier": 100,
   "verifiedAt": "2026-09-05",
   "sourceUrl": "https://developers.openai.com/api/docs/pricing",
   "unpricedModels": ["gpt-5.3-codex-spark"],

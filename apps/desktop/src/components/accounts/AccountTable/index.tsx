@@ -55,8 +55,16 @@ import { accountExpirationDate } from "../../../utils/expiration";
 import { initials } from "../../../utils/format";
 import { formatCompactTokenCount } from "../../../utils/tokenContext";
 import { shouldShowUsageError } from "../../../utils/usageErrors";
-import { formatEstimatedCost, TOKEN_COST_CUSTOM_RULES_EVENT } from "../../../utils/tokenCost";
+import {
+  formatEstimatedCost,
+  invalidateCustomTokenCostRulesCache,
+  TOKEN_COST_CUSTOM_RULES_EVENT,
+} from "../../../utils/tokenCost";
 import { TOKEN_COST_REFERENCE_MODEL_EVENT } from "../../../utils/tokenCostPresets";
+import {
+  FAST_MODE_COST_MULTIPLIER_EVENT,
+  FAST_MODE_COST_MULTIPLIER_STORAGE_KEY,
+} from "../../../utils/tokenCostFastMode";
 import {
   DailyTokenUsageTooltip,
   EMPTY_TOKEN_TOTALS,
@@ -483,14 +491,24 @@ export function AccountTable({
     void refresh();
     const timer = window.setInterval(() => void refresh(), Math.max(1, tokenUsageRefreshSeconds) * 1000);
     const unsubscribe = subscribeToTokenUsageChanges(() => void refresh());
+    const refreshStoredMultiplier = (event: StorageEvent) => {
+      if (event.storageArea !== window.localStorage
+        || (event.key !== null && event.key !== FAST_MODE_COST_MULTIPLIER_STORAGE_KEY)) return;
+      invalidateCustomTokenCostRulesCache();
+      void refresh();
+    };
     window.addEventListener(TOKEN_COST_CUSTOM_RULES_EVENT, refresh);
     window.addEventListener(TOKEN_COST_REFERENCE_MODEL_EVENT, refresh);
+    window.addEventListener(FAST_MODE_COST_MULTIPLIER_EVENT, refresh);
+    window.addEventListener("storage", refreshStoredMultiplier);
     return () => {
       active = false;
       window.clearInterval(timer);
       unsubscribe();
       window.removeEventListener(TOKEN_COST_CUSTOM_RULES_EVENT, refresh);
       window.removeEventListener(TOKEN_COST_REFERENCE_MODEL_EVENT, refresh);
+      window.removeEventListener(FAST_MODE_COST_MULTIPLIER_EVENT, refresh);
+      window.removeEventListener("storage", refreshStoredMultiplier);
     };
   }, [hotSwitchEnabled, providers, tokenUsageRefreshSeconds]);
   useEffect(() => {

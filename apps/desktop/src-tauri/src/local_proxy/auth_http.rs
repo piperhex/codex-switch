@@ -70,12 +70,7 @@ fn refresh_agent_identity_task<R: Runtime>(
     };
     let expected = auth.clone();
     agent_identity::register_task(client, auth)?;
-    persist_or_reload_managed_auth(
-        &resolve_paths(app)?,
-        active_account_id,
-        &expected,
-        auth,
-    )?;
+    persist_or_reload_managed_auth(&resolve_paths(app)?, active_account_id, &expected, auth)?;
     *request_authentication = agent_identity::request_authentication(auth)?;
     Ok(())
 }
@@ -152,7 +147,9 @@ fn retry_timeout_operation<T, E>(
 ) -> Result<T, E> {
     for attempt in 1..=UPSTREAM_TIMEOUT_ATTEMPT_LIMIT {
         match operation() {
-            Err(error) if is_timeout(&error) && attempt < UPSTREAM_TIMEOUT_ATTEMPT_LIMIT => continue,
+            Err(error) if is_timeout(&error) && attempt < UPSTREAM_TIMEOUT_ATTEMPT_LIMIT => {
+                continue
+            }
             result => return result,
         }
     }
@@ -181,6 +178,7 @@ fn stream_response(response: ReqwestResponse) -> Result<UpstreamPayload, String>
             content_type,
             response_headers,
             body: UpstreamBody::Buffered(body.to_vec()),
+            token_usage_service_tier: None,
             token_usage_account: None,
         });
     }
@@ -189,6 +187,7 @@ fn stream_response(response: ReqwestResponse) -> Result<UpstreamPayload, String>
         content_type,
         response_headers,
         body: UpstreamBody::Streaming(Box::new(response)),
+        token_usage_service_tier: None,
         token_usage_account: None,
     })
 }
@@ -199,14 +198,14 @@ fn forwarded_response_headers(headers: &reqwest::header::HeaderMap) -> Vec<(Stri
         "x-models-etag",
         CODEX_RATE_LIMIT_REACHED_TYPE_HEADER,
     ]
-        .into_iter()
-        .filter_map(|name| {
-            headers
-                .get(name)
-                .and_then(|value| value.to_str().ok())
-                .map(|value| (name.to_string(), value.to_string()))
-        })
-        .collect()
+    .into_iter()
+    .filter_map(|name| {
+        headers
+            .get(name)
+            .and_then(|value| value.to_str().ok())
+            .map(|value| (name.to_string(), value.to_string()))
+    })
+    .collect()
 }
 
 fn build_upstream_url(base_url: &str, endpoint: &str) -> String {
@@ -319,6 +318,7 @@ fn json_payload(status: u16, value: Value) -> UpstreamPayload {
         content_type: Some("application/json; charset=utf-8".to_string()),
         response_headers: Vec::new(),
         body: UpstreamBody::Buffered(serde_json::to_vec(&value).unwrap_or_else(|_| b"{}".to_vec())),
+        token_usage_service_tier: None,
         token_usage_account: None,
     }
 }

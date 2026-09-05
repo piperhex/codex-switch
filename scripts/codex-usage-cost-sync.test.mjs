@@ -7,6 +7,7 @@ import ts from "typescript";
 const sourcePaths = {
   "./tokenCost": "../apps/desktop/src/utils/tokenCost.ts",
   "./tokenCostPresets": "../apps/desktop/src/utils/tokenCostPresets.ts",
+  "./tokenCostFastMode": "../apps/desktop/src/utils/tokenCostFastMode.ts",
   "../pages/providers/providerUtils": "../apps/desktop/src/pages/providers/providerUtils.ts",
   sync: "../apps/desktop/src/utils/codexUsageCostSync.ts",
 };
@@ -63,11 +64,13 @@ test("coalesces edits during an active request and sends the latest prices", asy
   const { persistStoredModelTokenCosts } = harness.require("../pages/providers/providerUtils");
   const { saveCustomTokenCostRules } = harness.require("./tokenCost");
   const { saveTokenCostReferenceModel } = harness.require("./tokenCostPresets");
+  const { saveFastModeCostMultiplier } = harness.require("./tokenCostFastMode");
   const stop = installCodexUsageCostSync();
   persistStoredModelTokenCosts("relay", { model: 2 });
   persistStoredModelTokenCosts("relay", { model: 3 });
   saveCustomTokenCostRules([{ providerId: "relay", model: "model", input: 4, cachedInput: 1, output: 5 }]);
   saveTokenCostReferenceModel("gpt-5.6-terra");
+  saveFastModeCostMultiplier(3);
   assert.equal(harness.calls.length, 1);
   harness.calls[0].resolve();
   await flush();
@@ -77,6 +80,8 @@ test("coalesces edits during an active request and sends the latest prices", asy
   assert.equal(harness.calls[1].rates.customRules[0].input, 4);
   assert.equal(harness.calls[0].rates.referenceModel, "gpt-5.6-sol");
   assert.equal(harness.calls[1].rates.referenceModel, "gpt-5.6-terra");
+  assert.equal(harness.calls[0].rates.fastModeMultiplier, 2.5);
+  assert.equal(harness.calls[1].rates.fastModeMultiplier, 3);
   stop();
   persistStoredModelTokenCosts("relay", { model: 10 });
   harness.calls[1].resolve();

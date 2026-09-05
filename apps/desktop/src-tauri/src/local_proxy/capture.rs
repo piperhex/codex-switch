@@ -11,6 +11,7 @@ fn attach_token_usage_capture<R: Runtime + 'static>(
         update_proxy_session_response_account(&mut context, &payload);
         return Ok(payload);
     }
+    context.service_tier = payload.token_usage_service_tier.clone();
     if context.provider_id.is_none() && payload.token_usage_account.is_none() {
         if let Ok(paths) = resolve_paths(app) {
             if let Some(provider_id) = read_state(&paths).active_provider_id {
@@ -36,6 +37,12 @@ fn attach_token_usage_capture<R: Runtime + 'static>(
     update_proxy_session_response_account(&mut context, &payload);
     payload.body = match payload.body {
         UpstreamBody::Buffered(body) => {
+            context.service_tier = extract_service_tier_from_bytes(
+                &body,
+                context.content_type.as_deref(),
+                context.expects_event_stream,
+            )
+            .or(context.service_tier);
             let usage = extract_token_usage_from_bytes(
                 &body,
                 context.content_type.as_deref(),
@@ -111,6 +118,9 @@ impl<R: Runtime> TokenUsageCaptureReader<R> {
             return;
         }
         if let Ok(value) = serde_json::from_str::<Value>(&data) {
+            if let Some(tier) = extract_service_tier_from_value(&value) {
+                self.context.service_tier = Some(tier);
+            }
             if let Some(usage) = extract_token_usage_from_value(&value) {
                 self.usage = Some(usage);
             }
@@ -118,7 +128,11 @@ impl<R: Runtime> TokenUsageCaptureReader<R> {
     }
 
     fn captures_event_stream(&self) -> bool {
-        self.context.expects_event_stream || is_event_stream(self.context.content_type.as_deref())
+        let content_type = self.context.content_type.as_deref();
+        if content_type.is_some_and(|value| value.contains("application/json")) {
+            return false;
+        }
+        self.context.expects_event_stream || is_event_stream(content_type)
     }
 
     fn finish(&mut self) {
@@ -133,6 +147,12 @@ impl<R: Runtime> TokenUsageCaptureReader<R> {
                 self.process_sse_block(&block);
             }
         } else if self.usage.is_none() {
+            self.context.service_tier = extract_service_tier_from_bytes(
+                &self.body,
+                self.context.content_type.as_deref(),
+                self.context.expects_event_stream,
+            )
+            .or(self.context.service_tier.take());
             self.usage = extract_token_usage_from_bytes(
                 &self.body,
                 self.context.content_type.as_deref(),
@@ -173,6 +193,9 @@ fn extract_token_usage_from_bytes(
     content_type: Option<&str>,
     expects_event_stream: bool,
 ) -> Option<TokenUsageValues> {
+    if let Ok(value) = serde_json::from_slice::<Value>(bytes) {
+        return extract_token_usage_from_value(&value);
+    }
     if expects_event_stream || is_event_stream(content_type) {
         let text = String::from_utf8_lossy(bytes).replace("\r\n", "\n");
         let mut usage = None;
@@ -195,9 +218,7 @@ fn extract_token_usage_from_bytes(
         return usage;
     }
 
-    serde_json::from_slice::<Value>(bytes)
-        .ok()
-        .and_then(|value| extract_token_usage_from_value(&value))
+    None
 }
 
 fn extract_token_usage_from_value(value: &Value) -> Option<TokenUsageValues> {
@@ -316,6 +337,7 @@ fn record_token_usage_entry<R: Runtime>(
             .as_ref()
             .map(|account| account.account_email.clone()),
         model: context.model.clone(),
+        service_tier: context.service_tier.clone(),
         duration_ms: Some(duration_ms),
         input_tokens: usage.input_tokens,
         output_tokens: usage.output_tokens,

@@ -26,6 +26,7 @@ include!("routing_target.rs");
 include!("image_account_pool.rs");
 include!("capture.rs");
 include!("usage_context.rs");
+include!("service_tier.rs");
 include!("diagnostics_helpers.rs");
 include!("token_usage.rs");
 include!("token_usage_db.rs");
@@ -55,4 +56,6 @@ mod tests {
     include!("tests/conversation.rs");
     include!("tests/image_usage.rs");
     include!("tests/history.rs");
+    include!("tests/service_tier_db.rs");
+    include!("tests/service_tier_capture.rs");
 }

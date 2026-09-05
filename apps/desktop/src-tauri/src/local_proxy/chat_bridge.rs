@@ -27,6 +27,11 @@ fn forward_chat_bridge(
         .get("stream")
         .and_then(Value::as_bool)
         .unwrap_or(false);
+    let service_tier = chat_body
+        .get("service_tier")
+        .and_then(Value::as_str)
+        .and_then(normalized_usage_service_tier)
+        .or_else(|| Some("default".to_string()));
 
     let client = http_client()?;
     let upstream_url = if provider.balance_platform == Some(ProviderBalancePlatform::DeepSeek) {
@@ -65,6 +70,7 @@ fn forward_chat_bridge(
                 tool_context,
                 continuation_scope,
             ))),
+            token_usage_service_tier: service_tier,
             token_usage_account: None,
         });
     }
@@ -79,6 +85,7 @@ fn forward_chat_bridge(
                 .or_else(|| Some("application/json; charset=utf-8".to_string())),
             response_headers,
             body: UpstreamBody::Buffered(body.to_vec()),
+            token_usage_service_tier: service_tier,
             token_usage_account: None,
         });
     }
@@ -90,6 +97,7 @@ fn forward_chat_bridge(
         chat_to_responses_json(&json, &tool_context, continuation_scope.as_ref()),
     );
     payload.response_headers = response_headers;
+    payload.token_usage_service_tier = service_tier;
     Ok(payload)
 }
 
@@ -159,10 +167,7 @@ fn concurrent_custom_priority_enabled(state: &ManagerStateFile) -> bool {
     state.auto_switch_on_quota_exhaustion && state.custom_auto_switch_priority_enabled
 }
 
-fn quota_available_for_concurrent_routing(
-    usage: &UsageSummary,
-    threshold: Option<f64>,
-) -> bool {
+fn quota_available_for_concurrent_routing(usage: &UsageSummary, threshold: Option<f64>) -> bool {
     let Some(threshold) = threshold else {
         return reported_quota_windows_have_remaining(usage);
     };
@@ -176,8 +181,8 @@ fn available_concurrent_account_ids(
     let mut account_ids = enabled_concurrent_account_ids(paths, state)?
         .into_iter()
         .filter(|account_id| {
-            let custom_threshold_enabled = state.auto_switch_on_quota_exhaustion
-                && state.custom_auto_switch_threshold_enabled;
+            let custom_threshold_enabled =
+                state.auto_switch_on_quota_exhaustion && state.custom_auto_switch_threshold_enabled;
             let threshold = custom_threshold_enabled.then(|| {
                 effective_auto_switch_threshold(
                     load_auto_switch_threshold(&auto_switch_threshold_path(paths, account_id)),
@@ -230,9 +235,8 @@ fn concurrent_account_for_session(
     let eligible_account_ids = available_concurrent_account_ids(paths, state)?;
     let preferred_account_ids =
         preferred_concurrent_account_ids(paths, state, &eligible_account_ids);
-    let no_available_account = || {
-        "No enabled official account currently meets the configured usage threshold".to_string()
-    };
+    let no_available_account =
+        || "No enabled official account currently meets the configured usage threshold".to_string();
     let Some(session_id) = session_id else {
         return preferred_account_ids
             .first()
@@ -243,11 +247,7 @@ fn concurrent_account_for_session(
     let account_id = concurrent_account_router()
         .lock()
         .map_err(|_| "Concurrent account router lock is poisoned".to_string())?
-        .account_for_session(
-            session_id,
-            &eligible_account_ids,
-            &preferred_account_ids,
-        )
+        .account_for_session(session_id, &eligible_account_ids, &preferred_account_ids)
         .ok_or_else(no_available_account)?;
     Ok(Some(account_id))
 }
@@ -333,12 +333,7 @@ fn official_credentials<R: Runtime>(
     if is_agent_identity_auth(&auth) {
         let expected = auth.clone();
         if agent_identity::ensure_task(client, &mut auth)? {
-            persist_or_reload_managed_auth(
-                &paths,
-                &credential_account_id,
-                &expected,
-                &mut auth,
-            )?;
+            persist_or_reload_managed_auth(&paths, &credential_account_id, &expected, &mut auth)?;
         }
         return Ok(OfficialProxyCredentials {
             authentication: OfficialRequestAuthentication::AgentIdentity {

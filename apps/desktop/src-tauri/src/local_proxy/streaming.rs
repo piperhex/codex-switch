@@ -27,7 +27,7 @@ struct ChatSseReader<R> {
     tools: BTreeMap<usize, StreamingToolCall>,
     tool_context: CodexToolContext,
     continuation_scope: Option<chat_bridge_continuation::ContinuationScope>,
-    usage: Option<Value>,
+    metadata: ChatCompletionMetadata,
     completed: bool,
 }
 
@@ -59,7 +59,7 @@ impl<R: BufRead> ChatSseReader<R> {
             tools: BTreeMap::new(),
             tool_context,
             continuation_scope,
-            usage: None,
+            metadata: ChatCompletionMetadata::default(),
             completed: false,
         }
     }
@@ -118,13 +118,7 @@ impl<R: BufRead> ChatSseReader<R> {
         let Ok(value) = serde_json::from_str::<Value>(&data) else {
             return;
         };
-        if let Some(usage) = value
-            .get("usage")
-            .filter(|usage| !usage.is_null())
-            .and_then(chat_usage_to_responses_usage)
-        {
-            self.usage = Some(usage);
-        }
+        self.metadata.observe(&value);
         if let Some(reasoning) = chat_stream_reasoning_delta(&value) {
             self.append_reasoning_delta(reasoning);
         }
@@ -151,9 +145,13 @@ impl<R: BufRead> ChatSseReader<R> {
         let (tool_events, tool_items) = self.finalize_tools();
         self.ensure_message_started();
         self.capture_continuation();
-        let reasoning = self
-            .reasoning_output_index
-            .map(|index| (self.reasoning_id.as_str(), index, self.reasoning_content.as_str()));
+        let reasoning = self.reasoning_output_index.map(|index| {
+            (
+                self.reasoning_id.as_str(),
+                index,
+                self.reasoning_content.as_str(),
+            )
+        });
         let message_index = self.message_output_index.unwrap_or(0);
         self.push_pending(response_done_sse(
             &self.response_id,
@@ -162,7 +160,7 @@ impl<R: BufRead> ChatSseReader<R> {
             (&self.message_id, message_index, &self.text),
             &tool_events,
             tool_items,
-            self.usage.clone(),
+            self.metadata.clone(),
         ));
         self.completed = true;
     }
@@ -221,7 +219,11 @@ impl<R: BufRead> ChatSseReader<R> {
         self.ensure_message_started();
         self.text.push_str(delta);
         let output_index = self.message_output_index.unwrap_or(0);
-        self.push_pending(response_text_delta_sse(&self.message_id, output_index, delta));
+        self.push_pending(response_text_delta_sse(
+            &self.message_id,
+            output_index,
+            delta,
+        ));
     }
 
     fn append_reasoning_delta(&mut self, delta: &str) {
@@ -231,7 +233,10 @@ impl<R: BufRead> ChatSseReader<R> {
         if self.reasoning_output_index.is_none() {
             let output_index = self.allocate_output_index();
             self.reasoning_output_index = Some(output_index);
-            self.push_pending(response_reasoning_start_sse(&self.reasoning_id, output_index));
+            self.push_pending(response_reasoning_start_sse(
+                &self.reasoning_id,
+                output_index,
+            ));
         }
         self.reasoning_content.push_str(delta);
         let output_index = self.reasoning_output_index.unwrap_or(0);

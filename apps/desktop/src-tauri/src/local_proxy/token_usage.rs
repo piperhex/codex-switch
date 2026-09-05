@@ -171,7 +171,8 @@ fn init_token_usage_schema(connection: &Connection) -> Result<(), String> {
                 reasoning_tokens INTEGER,
                 cached_tokens INTEGER,
                 total_tokens INTEGER,
-                created_at_ms INTEGER NOT NULL
+                created_at_ms INTEGER NOT NULL,
+                service_tier TEXT
             );
             CREATE INDEX IF NOT EXISTS token_usage_entries_ts_id
                 ON token_usage_entries (ts DESC, id DESC);
@@ -188,10 +189,10 @@ fn init_token_usage_schema(connection: &Connection) -> Result<(), String> {
             "#,
         )
         .map_err(|error| format!("Failed to initialize token usage database: {error}"))?;
-    ensure_token_usage_account_columns(connection)
+    ensure_token_usage_optional_columns(connection)
 }
 
-fn ensure_token_usage_account_columns(connection: &Connection) -> Result<(), String> {
+fn ensure_token_usage_optional_columns(connection: &Connection) -> Result<(), String> {
     let columns = token_usage_table_columns(connection)?;
     for (name, sql) in [
         (
@@ -205,6 +206,10 @@ fn ensure_token_usage_account_columns(connection: &Connection) -> Result<(), Str
         (
             "account_email",
             "ALTER TABLE token_usage_entries ADD COLUMN account_email TEXT",
+        ),
+        (
+            "service_tier",
+            "ALTER TABLE token_usage_entries ADD COLUMN service_tier TEXT",
         ),
     ] {
         if !columns.contains(name) {
@@ -275,8 +280,8 @@ fn import_token_usage_jsonl(connection: &mut Connection, path: &Path) -> Result<
                 INSERT OR IGNORE INTO token_usage_entries (
                     id, ts, provider, provider_id, account_id, account_email, model, duration_ms,
                     input_tokens, output_tokens, reasoning_tokens, cached_tokens,
-                    total_tokens, created_at_ms
-                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
+                    total_tokens, created_at_ms, service_tier
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
                 "#,
             )
             .map_err(|error| format!("Failed to prepare token usage migration: {error}"))?;
@@ -313,8 +318,8 @@ fn insert_token_usage_entry(
             INSERT OR IGNORE INTO token_usage_entries (
                 id, ts, provider, provider_id, account_id, account_email, model, duration_ms,
                 input_tokens, output_tokens, reasoning_tokens, cached_tokens,
-                total_tokens, created_at_ms
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
+                total_tokens, created_at_ms, service_tier
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
             "#,
             token_usage_params(entry),
         )

@@ -5,12 +5,17 @@ import {
 } from "../../api/backend";
 import type { Account, AccountTokenUsageTotals, Provider } from "../../types";
 import {
+  invalidateCustomTokenCostRulesCache,
   loadTokenCostDisplaySettings,
   TOKEN_COST_CUSTOM_RULES_EVENT,
   TOKEN_COST_DISPLAY_EVENT,
 } from "../../utils/tokenCost";
 import { summarizeConcurrentUsage } from "./concurrentUsageSummary";
 import { TOKEN_COST_REFERENCE_MODEL_EVENT } from "../../utils/tokenCostPresets";
+import {
+  FAST_MODE_COST_MULTIPLIER_EVENT,
+  FAST_MODE_COST_MULTIPLIER_STORAGE_KEY,
+} from "../../utils/tokenCostFastMode";
 
 const STATS_REFRESH_INTERVAL_MS = 60_000;
 
@@ -49,14 +54,24 @@ export function useConcurrentUsageStats(
     refreshCosts();
     const timer = window.setInterval(refreshCosts, STATS_REFRESH_INTERVAL_MS);
     const unsubscribe = subscribeToTokenUsageChanges(refreshCosts);
+    const refreshStoredMultiplier = (event: StorageEvent) => {
+      if (event.storageArea !== window.localStorage
+        || (event.key !== null && event.key !== FAST_MODE_COST_MULTIPLIER_STORAGE_KEY)) return;
+      invalidateCustomTokenCostRulesCache();
+      refreshCosts();
+    };
     window.addEventListener(TOKEN_COST_CUSTOM_RULES_EVENT, refreshCosts);
     window.addEventListener(TOKEN_COST_REFERENCE_MODEL_EVENT, refreshCosts);
+    window.addEventListener(FAST_MODE_COST_MULTIPLIER_EVENT, refreshCosts);
+    window.addEventListener("storage", refreshStoredMultiplier);
     window.addEventListener(TOKEN_COST_DISPLAY_EVENT, refreshDisplay);
     return () => {
       window.clearInterval(timer);
       unsubscribe();
       window.removeEventListener(TOKEN_COST_CUSTOM_RULES_EVENT, refreshCosts);
       window.removeEventListener(TOKEN_COST_REFERENCE_MODEL_EVENT, refreshCosts);
+      window.removeEventListener(FAST_MODE_COST_MULTIPLIER_EVENT, refreshCosts);
+      window.removeEventListener("storage", refreshStoredMultiplier);
       window.removeEventListener(TOKEN_COST_DISPLAY_EVENT, refreshDisplay);
     };
   }, [enabled, refresh]);

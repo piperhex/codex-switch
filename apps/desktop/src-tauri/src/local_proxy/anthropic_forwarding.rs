@@ -14,22 +14,24 @@ fn anthropic_token_probe_payload(body: &[u8]) -> UpstreamPayload {
             status: 200,
             content_type: Some("text/event-stream; charset=utf-8".to_string()),
             response_headers: Vec::new(),
-            body: UpstreamBody::Buffered(
-                responses_sse_to_anthropic(&[], model).into_bytes(),
-            ),
+            body: UpstreamBody::Buffered(responses_sse_to_anthropic(&[], model).into_bytes()),
+            token_usage_service_tier: None,
             token_usage_account: None,
         };
     }
-    json_payload(200, json!({
-        "id": "msg_codex_switch_probe",
-        "type": "message",
-        "role": "assistant",
-        "model": model,
-        "content": [{ "type": "text", "text": "" }],
-        "stop_reason": "max_tokens",
-        "stop_sequence": Value::Null,
-        "usage": { "input_tokens": input_tokens, "output_tokens": 1 }
-    }))
+    json_payload(
+        200,
+        json!({
+            "id": "msg_codex_switch_probe",
+            "type": "message",
+            "role": "assistant",
+            "model": model,
+            "content": [{ "type": "text", "text": "" }],
+            "stop_reason": "max_tokens",
+            "stop_sequence": Value::Null,
+            "usage": { "input_tokens": input_tokens, "output_tokens": 1 }
+        }),
+    )
 }
 
 fn forward_anthropic_official<R: tauri::Runtime>(
@@ -59,8 +61,8 @@ fn forward_anthropic_official<R: tauri::Runtime>(
         .and_then(Value::as_str)
         .unwrap_or("claude");
     let app_settings = read_app_settings(app)?;
-    let subagent_model = crate::third_party_apps::effective_settings(&app_settings)
-        .claude_subagent_model;
+    let subagent_model =
+        crate::third_party_apps::effective_settings(&app_settings).claude_subagent_model;
     let responses_body = inject_system_prompt_value(filter_system_prompt_value(
         anthropic_to_responses(&request, &subagent_model),
     ));
@@ -100,6 +102,9 @@ fn forward_anthropic_provider(
     let mut responses_body = inject_system_prompt_value(filter_system_prompt_value(
         anthropic_to_responses(&request, subagent_model),
     ));
+    if let Some(tier) = request.get("service_tier") {
+        responses_body["service_tier"] = tier.clone();
+    }
     let target_model = if is_anthropic_subagent_request(&request) {
         provider
             .models
@@ -113,13 +118,7 @@ fn forward_anthropic_provider(
     responses_body["model"] = Value::String(target_model);
     let encoded = serde_json::to_vec(&responses_body)
         .map_err(|error| format!("Failed to encode Anthropic request: {error}"))?;
-    let payload = forward_provider_request(
-        &Method::Post,
-        "/v1/responses",
-        &[],
-        encoded,
-        provider,
-    )?;
+    let payload = forward_provider_request(&Method::Post, "/v1/responses", &[], encoded, provider)?;
     convert_responses_payload(payload, stream, model)
 }
 
@@ -140,6 +139,7 @@ fn convert_responses_payload(
             body: UpstreamBody::Buffered(
                 responses_sse_to_anthropic(&response_body, model).into_bytes(),
             ),
+            token_usage_service_tier: payload.token_usage_service_tier,
             token_usage_account: payload.token_usage_account,
         });
     }
@@ -149,6 +149,7 @@ fn convert_responses_payload(
     );
     converted.response_headers = payload.response_headers;
     converted.token_usage_account = payload.token_usage_account;
+    converted.token_usage_service_tier = payload.token_usage_service_tier;
     Ok(converted)
 }
 

@@ -242,6 +242,9 @@ fn chat_to_responses_json(
     if let Some(usage) = chat.get("usage").and_then(chat_usage_to_responses_usage) {
         response["usage"] = usage;
     }
+    if let Some(tier) = extract_service_tier_from_value(chat) {
+        response["service_tier"] = Value::String(tier);
+    }
     response
 }
 

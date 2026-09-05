@@ -409,6 +409,7 @@ export interface TokenUsageEntry {
   accountId?: string | null;
   accountEmail?: string | null;
   model: string;
+  serviceTier?: string | null;
   durationMs?: number | null;
   inputTokens?: number | null;
   outputTokens?: number | null;

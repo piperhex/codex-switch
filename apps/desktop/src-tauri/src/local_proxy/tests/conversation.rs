@@ -187,6 +187,7 @@ fn conversation_reader_forwards_exact_bytes_and_keeps_polling_responsive() {
             content_type: None,
             response_headers: Vec::new(),
             body: UpstreamBody::Streaming(Box::new(Cursor::new(bytes.clone()))),
+            token_usage_service_tier: None,
             token_usage_account: None,
         },
         Some(&guard),

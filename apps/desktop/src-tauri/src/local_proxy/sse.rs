@@ -155,7 +155,7 @@ fn response_done_sse(
     message: (&str, usize, &str),
     tool_events: &str,
     mut tool_items: Vec<(usize, Value)>,
-    usage: Option<Value>,
+    metadata: ChatCompletionMetadata,
 ) -> String {
     let mut output = String::new();
     let (message_id, message_index, text) = message;
@@ -255,8 +255,11 @@ fn response_done_sse(
         "model": model,
         "output": response_output.into_iter().map(|(_, item)| item).collect::<Vec<_>>()
     });
-    if let Some(usage) = usage {
+    if let Some(usage) = metadata.usage {
         response["usage"] = usage;
+    }
+    if let Some(tier) = metadata.service_tier {
+        response["service_tier"] = Value::String(tier);
     }
     push_sse(
         &mut output,

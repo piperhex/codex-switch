@@ -7,6 +7,7 @@ import ts from "typescript";
 const sourcePaths = {
   "./tokenCost": "../apps/desktop/src/utils/tokenCost.ts",
   "./tokenCostPresets": "../apps/desktop/src/utils/tokenCostPresets.ts",
+  "./tokenCostFastMode": "../apps/desktop/src/utils/tokenCostFastMode.ts",
 };
 const compiled = Object.fromEntries(Object.entries(sourcePaths).map(([name, path]) => [
   name,
@@ -48,7 +49,10 @@ function createHarness({ brokenStorage = false } = {}) {
     })(require, exports);
     return exports;
   };
-  return { window, stored, cost: require("./tokenCost"), presets: require("./tokenCostPresets") };
+  return {
+    window, stored, cost: require("./tokenCost"), presets: require("./tokenCostPresets"),
+    fastMode: require("./tokenCostFastMode"),
+  };
 }
 
 function entry(model = "private-model", providerId = "relay") {
@@ -191,4 +195,99 @@ test("versioned model names still use provider-specific custom rules", () => {
     { providerId: "relay", model: "gpt-5.6-sol", input: 2, cachedInput: 0.5, output: 3 },
   ]);
   closeTo(cost.estimateTokenCost(entry("GPT-5.6-SOL-2026-09-01"), [provider()]), 2);
+});
+
+test("fast requests use a default 2.5 multiplier for priority and fast tier names", () => {
+  const { cost, fastMode } = createHarness();
+  assert.equal(fastMode.DEFAULT_FAST_MODE_COST_MULTIPLIER, 2.5);
+  assert.equal(fastMode.MAX_FAST_MODE_COST_MULTIPLIER, 100);
+  assert.equal(fastMode.loadFastModeCostMultiplier(), 2.5);
+  for (const serviceTier of ["priority", "fast"]) {
+    closeTo(cost.estimateTokenCost({ ...entry("gpt-5.6-sol"), serviceTier }, [provider()]), 13.2);
+  }
+});
+
+test("changing the multiplier recalculates fast entries without changing normal or legacy entries", () => {
+  const { cost, fastMode, window } = createHarness();
+  let changes = 0;
+  window.addEventListener(fastMode.FAST_MODE_COST_MULTIPLIER_EVENT, () => { changes += 1; });
+  fastMode.saveFastModeCostMultiplier(3);
+  assert.equal(changes, 1);
+  assert.equal(fastMode.loadFastModeCostMultiplier(), 3);
+  closeTo(cost.estimateTokenCost({ ...entry(), serviceTier: "priority" }, [provider()]), 15.84);
+  for (const serviceTier of ["default", "auto", "flex", "unknown", "", null, undefined]) {
+    closeTo(cost.estimateTokenCost({ ...entry(), serviceTier }, [provider()]), 5.28);
+  }
+});
+
+test("mixed normal, fast, and legacy usage is priced separately for each request", () => {
+  const { cost } = createHarness();
+  const entries = [
+    { ...entry(), serviceTier: "default" },
+    { ...entry(), serviceTier: "priority" },
+    { ...entry(), serviceTier: "fast" },
+    entry(),
+  ];
+  const total = entries.reduce((sum, usage) => sum + cost.estimateTokenCost(usage, [provider()]), 0);
+  closeTo(total, 36.96);
+});
+
+test("fast multipliers apply after preset, provider, custom-rule, and reference prices", () => {
+  const { cost, fastMode, presets } = createHarness();
+  fastMode.saveFastModeCostMultiplier(3);
+  const fast = model => ({ ...entry(model), serviceTier: "priority" });
+  closeTo(cost.estimateTokenCost(fast("gpt-5.6-sol"), [provider()]), 15.84);
+  closeTo(cost.estimateTokenCost(fast("gpt-5.6-sol"), [provider({ kind: "openai" })]), 15.84);
+  closeTo(cost.estimateTokenCost(fast("private-model"), [provider({
+    modelTokenCosts: { "private-model": 2 },
+  })]), 6.6);
+  cost.saveCustomTokenCostRules([
+    { providerId: "relay", model: "custom-priced", input: 2, cachedInput: 0.5, output: 3 },
+  ]);
+  closeTo(cost.estimateTokenCost(fast("custom-priced"), [provider()]), 6);
+  presets.saveTokenCostReferenceModel("gpt-5.6-terra");
+  closeTo(cost.estimateTokenCost(fast("unknown-model"), [provider()]), 8.52);
+});
+
+test("zero-cost provider prices and custom rules stay zero for fast requests", () => {
+  const { cost, fastMode } = createHarness();
+  fastMode.saveFastModeCostMultiplier(100);
+  const fast = { ...entry(), serviceTier: "priority" };
+  assert.equal(cost.estimateTokenCost(fast, [provider({ modelTokenCosts: { "private-model": 0 } })]), 0);
+  cost.saveCustomTokenCostRules([
+    { providerId: "relay", model: "private-model", input: 0, cachedInput: 0, output: 0 },
+  ]);
+  assert.equal(cost.estimateTokenCost(fast, [provider()]), 0);
+});
+
+test("invalid multiplier values cannot replace a saved valid multiplier", () => {
+  const { fastMode } = createHarness();
+  assert.equal(fastMode.isValidFastModeCostMultiplier(2.5), true);
+  assert.equal(fastMode.isValidFastModeCostMultiplier(100), true);
+  fastMode.saveFastModeCostMultiplier(3);
+  for (const value of [0, -1, 101, Infinity, NaN, "3", null, undefined]) {
+    assert.equal(fastMode.isValidFastModeCostMultiplier(value), false);
+    fastMode.saveFastModeCostMultiplier(value);
+    assert.equal(fastMode.loadFastModeCostMultiplier(), 3);
+  }
+});
+
+test("malformed and inaccessible multiplier storage uses the default fast multiplier", () => {
+  for (const invalid of ["", "not-a-number", "{invalid", "0", "-1", "101", "Infinity", "NaN"]) {
+    const { cost, fastMode, stored } = createHarness();
+    stored.set(fastMode.FAST_MODE_COST_MULTIPLIER_STORAGE_KEY, invalid);
+    assert.equal(fastMode.loadFastModeCostMultiplier(), 2.5);
+    closeTo(cost.estimateTokenCost({ ...entry(), serviceTier: "priority" }, [provider()]), 13.2);
+  }
+  const { cost, fastMode } = createHarness({ brokenStorage: true });
+  assert.equal(fastMode.loadFastModeCostMultiplier(), 2.5);
+  closeTo(cost.estimateTokenCost({ ...entry(), serviceTier: "priority" }, [provider()]), 13.2);
+});
+
+test("estimating fast-mode costs does not mutate token counts or the usage entry", () => {
+  const { cost } = createHarness();
+  const usage = Object.freeze({ ...entry(), serviceTier: "priority", totalTokens: 1_100_000 });
+  const before = structuredClone(usage);
+  closeTo(cost.estimateTokenCost(usage, [provider()]), 13.2);
+  assert.deepEqual(usage, before);
 });
