@@ -6,6 +6,8 @@ include!("payload.rs");
 include!("speed_selector_overlay.rs");
 include!("model_refresh.rs");
 include!("cdp.rs");
+mod connection;
+pub(crate) use connection::inspect_connection;
 include!("renderer_bindings.rs");
 include!("injection_monitor.rs");
 include!("runtime_recovery.rs");

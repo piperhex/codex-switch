@@ -1,0 +1,46 @@
+.codex-connection-wrap {
+  display: inline-flex;
+  flex: 0 0 auto;
+  padding-right: 9px;
+  border-right: 1px solid rgba(var(--green-rgb), .18);
+}
+
+.codex-connection-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 26px;
+  padding: 2px 7px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: var(--muted);
+  background: transparent;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color .16s ease, background .16s ease;
+}
+
+.codex-connection-control:hover:not(:disabled) {
+  color: var(--green-dark);
+  background: var(--green-soft);
+  border-color: rgba(var(--green-rgb), .18);
+}
+
+.codex-connection-control:disabled { cursor: default; }
+.codex-connection-dot {
+  flex: 0 0 7px;
+  width: 7px;
+  height: 7px;
+  margin-left: 2px;
+  border-radius: 50%;
+  background: #d14343;
+}
+.codex-connection-control.is-connected .codex-connection-dot { background: #22a447; }
+.codex-connection-control.is-connected { color: var(--green-dark); background: var(--green-soft); }
+.codex-connection-control.is-connecting,
+.codex-connection-control.is-checking { color: var(--green-dark); }
+.codex-connection-control.is-unsupported { opacity: .6; }
+.codex-connection-control:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+.codex-connection-confirm-copy { max-width: 400px; white-space: normal; overflow-wrap: anywhere; }

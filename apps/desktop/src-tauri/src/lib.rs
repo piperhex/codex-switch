@@ -13,6 +13,7 @@ mod claude_desktop;
 mod cloud;
 mod codex_api;
 mod codex_config;
+mod codex_connection;
 mod codex_home;
 mod codex_notification;
 mod codex_runtime;
@@ -253,6 +254,8 @@ pub fn run() {
             commands::consume_reset_credit,
             commands::restart_chatgpt,
             commands::launch_chatgpt,
+            codex_connection::get_codex_connection_status,
+            codex_connection::connect_codex,
             codex_notification::sync_codex_notification,
             codex_usage_cost_rates::set_codex_usage_cost_rates,
             claude_code::set_claude_code_write_target,

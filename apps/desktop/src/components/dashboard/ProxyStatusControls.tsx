@@ -2,11 +2,14 @@ import { Popconfirm, Switch, Tooltip } from "antd";
 import { Copy } from "lucide-react";
 import type { Translate } from "../../i18n";
 import type { useProviderManager } from "../../hooks/useProviderManager";
+import { CodexConnectionControl } from "./CodexConnectionControl";
 
 type ProviderManager = ReturnType<typeof useProviderManager>;
 
 interface ProxyStatusControlsProps {
   customTitlebarEnabled: boolean;
+  clientOperation: "start" | "restart" | null;
+  onClientOperationChange: (operation: "start" | "restart" | null) => void;
   manager: ProviderManager;
   notify: (message: string) => void;
   onRequestLanAccess: () => void;
@@ -17,6 +20,8 @@ interface ProxyStatusControlsProps {
 export function ProxyStatusControls(options: ProxyStatusControlsProps) {
   const {
     customTitlebarEnabled,
+    clientOperation,
+    onClientOperationChange,
     manager,
     notify,
     onRequestLanAccess,
@@ -27,7 +32,8 @@ export function ProxyStatusControls(options: ProxyStatusControlsProps) {
   const baseUrl = manager.localProxy?.port
     ? `http://${manager.localProxy.address}:${manager.localProxy.port}/v1`
     : "--";
-  const toggleDisabled = manager.proxyBusy || (!running && Boolean(startDisabledReason));
+  const controlsBusy = manager.proxyBusy || clientOperation !== null;
+  const toggleDisabled = controlsBusy || (!running && Boolean(startDisabledReason));
 
   const copyBaseUrl = () => {
     if (!manager.localProxy) return;
@@ -36,6 +42,7 @@ export function ProxyStatusControls(options: ProxyStatusControlsProps) {
       .catch((error) => notify(String(error)));
   };
   const changeLanListening = (enabled: boolean) => {
+    if (controlsBusy) return;
     if (enabled) onRequestLanAccess();
     else void manager.setProxyListenOnAllInterfaces(false);
   };
@@ -47,7 +54,7 @@ export function ProxyStatusControls(options: ProxyStatusControlsProps) {
         loading={manager.proxyBusy} disabled={toggleDisabled}
         aria-label={t(running ? "providers.proxy.stop" : "providers.proxy.start")}
         onChange={(checked) => {
-          if (!checked && running) void manager.stopProxy();
+          if (!toggleDisabled && !checked && running) void manager.stopProxy();
         }} />
     </span>
   );
@@ -60,7 +67,7 @@ export function ProxyStatusControls(options: ProxyStatusControlsProps) {
     <Popconfirm title={t("providers.proxy.startConfirmTitle")}
       description={<span className="proxy-start-confirm-description">{t("providers.proxy.description")}</span>}
       okText={t("providers.proxy.start")} cancelText={t("providers.proxy.cancel")}
-      disabled={manager.proxyBusy} onConfirm={() => void manager.startProxy()}>
+      disabled={controlsBusy} onConfirm={() => { if (!toggleDisabled) void manager.startProxy(); }}>
       {statusSwitch}
     </Popconfirm>
   );
@@ -69,6 +76,8 @@ export function ProxyStatusControls(options: ProxyStatusControlsProps) {
     <div className={`window-titlebar-proxy${
       !customTitlebarEnabled ? " web-proxy-controls" : ""
     }${running ? " is-running" : ""}`}>
+      <CodexConnectionControl blocked={controlsBusy}
+        onOperationChange={onClientOperationChange} notify={notify} t={t} />
       {statusControl}
       <Tooltip title={t("providers.proxy.copyEndpoint")}>
         <button type="button" className="window-titlebar-proxy-endpoint-copy"
@@ -82,7 +91,7 @@ export function ProxyStatusControls(options: ProxyStatusControlsProps) {
           <span>{t("providers.proxy.listenLan")}</span>
           <Switch className="window-titlebar-proxy-lan-switch" size="small"
             checked={manager.localProxy?.listenOnAllInterfaces ?? false} loading={manager.proxyBusy}
-            disabled={manager.proxyBusy} aria-label={t("providers.proxy.listenLan")}
+            disabled={controlsBusy} aria-label={t("providers.proxy.listenLan")}
             onChange={changeLanListening} />
           <Tooltip title={manager.localProxy?.hasLanApiKey
             ? t("providers.proxy.copyLanApiKey") : t("providers.proxy.copyLanApiKeyUnavailable")}>

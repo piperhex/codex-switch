@@ -62,9 +62,8 @@ fn acknowledge_service_tier(target: &CdpTarget, port: u16, tier: &str, succeeded
     let Ok(tier) = serde_json::to_string(tier) else {
         return;
     };
-    let expression = format!(
-        "window.__CODEX_SWITCH_SPEED_SELECTOR__?.completeSelection?.({tier}, {succeeded})"
-    );
+    let expression =
+        format!("window.__CODEX_SWITCH_SPEED_SELECTOR__?.completeSelection?.({tier}, {succeeded})");
     let _ = evaluate_for_binding(target, port, &expression);
 }
 
@@ -85,9 +84,7 @@ fn publish_usage_summary(target: &CdpTarget, port: u16) {
             return;
         }
     };
-    let expression = format!(
-        "window.__CODEX_SWITCH_SPEED_SELECTOR__?.updateUsage?.({summary})"
-    );
+    let expression = format!("window.__CODEX_SWITCH_SPEED_SELECTOR__?.updateUsage?.({summary})");
     if let Err(error) = evaluate_for_binding(target, port, &expression) {
         eprintln!("Failed to publish the Codex usage summary: {error}");
         complete_usage_request(target, port);
@@ -114,12 +111,7 @@ fn handle_renderer_binding(call: RendererBindingCall, target: &CdpTarget, port: 
     }
 }
 
-fn run_renderer_bindings(
-    mut session: CdpSession,
-    target: CdpTarget,
-    port: u16,
-    generation: u64,
-) {
+fn run_renderer_bindings(mut session: CdpSession, target: CdpTarget, port: u16, generation: u64) {
     while RENDERER_BINDING_GENERATION.load(Ordering::Acquire) == generation {
         let call = match session.read_renderer_binding() {
             Ok(Some(call)) => call,
@@ -137,7 +129,6 @@ fn run_renderer_bindings(
 }
 
 fn install_renderer_bindings(target: &CdpTarget, port: u16) -> Result<(), String> {
-    let generation = RENDERER_BINDING_GENERATION.fetch_add(1, Ordering::AcqRel) + 1;
     let mut session = CdpSession::connect(target, port)?;
     session.enable()?;
     session.add_binding(SERVICE_TIER_BINDING)?;
@@ -149,11 +140,21 @@ fn install_renderer_bindings(target: &CdpTarget, port: u16) -> Result<(), String
         }, 0); true",
     )?;
     let target = target.clone();
+    let (ready, activation) = std::sync::mpsc::sync_channel(1);
     thread::Builder::new()
         .name("codex-renderer-bindings".to_string())
-        .spawn(move || run_renderer_bindings(session, target, port, generation))
+        .spawn(move || {
+            if let Ok(generation) = activation.recv() {
+                run_renderer_bindings(session, target, port, generation);
+            }
+        })
         .map_err(|error| format!("Failed to start the Codex renderer bindings: {error}"))?;
-    Ok(())
+    // Keep the previous listener alive until the replacement is fully initialized
+    // and its worker exists. The worker waits for this generation before reading.
+    let generation = RENDERER_BINDING_GENERATION.fetch_add(1, Ordering::AcqRel) + 1;
+    ready
+        .send(generation)
+        .map_err(|_| "Failed to activate the Codex renderer bindings.".to_string())
 }
 
 pub(crate) fn request_usage_summary_refresh() -> Result<(), String> {

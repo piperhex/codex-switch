@@ -4,6 +4,7 @@ import { open, save } from "@tauri-apps/plugin-dialog";
 import { exit as exitApp, relaunch } from "@tauri-apps/plugin-process";
 import { check, type DownloadEvent, type Update } from "@tauri-apps/plugin-updater";
 import { isAutoUpdateEnabled } from "./appUpdatePreferences";
+import type { CodexConnectionStatus, CodexConnectResult } from "./codexConnectionTypes";
 import { DEMO_ACCOUNTS, DEMO_INFO } from "../demo";
 import { BUILT_IN_DREAM_SKIN_THEMES } from "../dreamSkinBuiltIns";
 import { LANGUAGE_STORAGE_KEY, isLanguage, type Language } from "../i18n";
@@ -102,6 +103,8 @@ export const isHostedWebApp = document
   .querySelector('meta[name="codex-switch-runtime"]')
   ?.getAttribute("content") === "hosted";
 export const hasLocalBackend = isDesktopApp || isHostedWebApp;
+export const canManageCodexConnection = isDesktopApp || (isHostedWebApp
+  && ["localhost", "127.0.0.1", "[::1]", "::1"].includes(window.location.hostname));
 
 export async function syncCodexNotification(message: string): Promise<boolean> {
   if (!isDesktopApp) return false;
@@ -2865,6 +2868,16 @@ export async function consumeResetCredit(id: string): Promise<void> {
 
 export async function restartChatGpt(): Promise<void> {
   if (hasLocalBackend) await invoke("restart_chatgpt");
+}
+
+export async function loadCodexConnectionStatus(): Promise<CodexConnectionStatus> {
+  if (hasLocalBackend) return invoke<CodexConnectionStatus>("get_codex_connection_status");
+  return { state: "unsupported" };
+}
+
+export async function connectCodex(): Promise<CodexConnectResult> {
+  if (hasLocalBackend) return invoke<CodexConnectResult>("connect_codex");
+  return { state: "unsupported", restartRequired: false };
 }
 
 export async function launchChatGpt(): Promise<boolean> {

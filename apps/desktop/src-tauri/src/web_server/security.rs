@@ -192,6 +192,7 @@ const LAN_COMMAND_ALLOWLIST: &[&str] = &[
     "get_app_info",
     "get_app_settings",
     "get_cloud_auth_state",
+    "get_codex_connection_status",
     "get_dream_skin_community_page",
     "get_dream_skin_market",
     "get_dream_skin_resources_status",

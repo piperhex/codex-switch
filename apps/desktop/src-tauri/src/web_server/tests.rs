@@ -57,6 +57,9 @@ mod tests {
     fn lan_requests_have_an_explicit_read_only_allowlist() {
         assert!(LAN_COMMAND_ALLOWLIST.contains(&"list_accounts"));
         assert!(LAN_COMMAND_ALLOWLIST.contains(&"get_app_settings"));
+        assert!(LAN_COMMAND_ALLOWLIST.contains(&"get_codex_connection_status"));
+        assert!(!LAN_COMMAND_ALLOWLIST.contains(&"connect_codex"));
+        assert!(!LAN_COMMAND_ALLOWLIST.contains(&"restart_chatgpt"));
         assert!(!LAN_COMMAND_ALLOWLIST.contains(&"cloud_login"));
         assert!(!LAN_COMMAND_ALLOWLIST.contains(&"delete_account"));
         assert!(!LAN_COMMAND_ALLOWLIST.contains(&"save_provider"));

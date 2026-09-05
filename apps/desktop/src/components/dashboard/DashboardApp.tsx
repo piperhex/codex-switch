@@ -1159,6 +1159,7 @@ export function DashboardApp() {
       : undefined;
   const proxyStatusControls = (
     <ProxyStatusControls customTitlebarEnabled={CUSTOM_TITLEBAR_ENABLED} manager={providerManager}
+      clientOperation={chatGptOperation} onClientOperationChange={setChatGptOperation}
       notify={notify} onRequestLanAccess={() => setShowLanAccess(true)}
       startDisabledReason={proxyStartDisabledReason} t={t} />
   );

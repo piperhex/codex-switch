@@ -318,6 +318,10 @@ fn dispatch_extended_command(app: AppHandle, command: &str, args: Value) -> Resu
         ))),
         "restart_chatgpt" => serialize(block_on(crate::commands::restart_chatgpt(app))),
         "launch_chatgpt" => serialize(block_on(crate::commands::launch_chatgpt(app))),
+        "get_codex_connection_status" => serialize(block_on(
+            crate::codex_connection::get_codex_connection_status(),
+        )),
+        "connect_codex" => serialize(block_on(crate::codex_connection::connect_codex())),
         "open_managed_folder" => serialize(crate::commands::open_managed_folder(
             app,
             argument(&args, "target")?,
