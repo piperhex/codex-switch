@@ -12,6 +12,8 @@ import type {
 
 export interface SettingsPageProps {
   info: AppInfo | null;
+  autoUpdateEnabled: boolean;
+  onAutoUpdateChange: (enabled: boolean) => void;
   launchAtStartupEnabled: boolean;
   launchAtStartupLoading: boolean;
   onLaunchAtStartupChange: (enabled: boolean) => void;

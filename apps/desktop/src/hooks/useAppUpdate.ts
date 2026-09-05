@@ -14,8 +14,10 @@ import type { Translate } from "../i18n";
 import type { UpdateInfo } from "../types";
 import { useBackgroundUpdateCheck } from "./useBackgroundUpdateCheck";
 import { usePendingAppUpdateInstall } from "./usePendingAppUpdateInstall";
+import { useAutoUpdatePreference } from "./useAutoUpdatePreference";
 
 export function useAppUpdate(notify: (message: string) => void, t: Translate) {
+  const autoUpdate = useAutoUpdatePreference(notify, t);
   const [availableUpdate, setAvailableUpdate] = useState<UpdateInfo | null>(null);
   const [showUpdatePrompt, setShowUpdatePrompt] = useState(false);
   const [checkingForUpdate, setCheckingForUpdate] = useState(false);
@@ -144,6 +146,7 @@ export function useAppUpdate(notify: (message: string) => void, t: Translate) {
   }, []);
 
   return {
+    autoUpdateEnabled: autoUpdate.enabled, setAutoUpdateEnabled: autoUpdate.setEnabled,
     availableUpdate, checkingForUpdate, checkAboutVersion, checkForUpdates, downloadingUpdate,
     downloadRequested, downloadUpdate, helpVersionState, installingUpdate, installUpdate,
     setShowUpdatePrompt, showAvailableUpdate, showUpdatePrompt, updateDownloaded,

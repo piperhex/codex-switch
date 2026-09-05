@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { LANGUAGE_OPTIONS, type Language } from "../../i18n";
 import type { BubbleResetDisplay } from "../../types";
+import { AutoUpdateSettingsCard } from "./AutoUpdateSettingsCard";
 import type { SettingsPageProps } from "./types";
 
 const CLASSIC_BUBBLE_PREVIEW_STYLE = {
@@ -410,6 +411,7 @@ export function SystemSettingsCards({ settings }: { settings: SettingsPageProps 
     <>
       <LaunchAtStartupCard settings={settings} />
       <CloseToTrayCard settings={settings} />
+      <AutoUpdateSettingsCard settings={settings} />
     </>
   );
 }

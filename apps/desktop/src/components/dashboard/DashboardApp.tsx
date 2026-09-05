@@ -1432,6 +1432,8 @@ export function DashboardApp() {
           </section>
           <section className="page-panel" hidden={page !== "settings"}>
             <MemoSettingsPage info={manager.info} autoRefreshEnabled={autoRefresh.enabled}
+              autoUpdateEnabled={appUpdate.autoUpdateEnabled}
+              onAutoUpdateChange={appUpdate.setAutoUpdateEnabled}
               launchAtStartupEnabled={launchAtStartup.enabled}
               launchAtStartupLoading={launchAtStartup.loading}
               onLaunchAtStartupChange={changeLaunchAtStartup}

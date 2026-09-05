@@ -1,8 +1,9 @@
 # 应用内更新发布配置
 
-桌面应用现在使用 Tauri Updater。在启动时，它会从 GitHub Release 的
-`latest.json` 获取与当前平台匹配的已签名更新包；用户确认后，应用会下载、
-安装并自动重启。
+桌面应用使用 Tauri Updater，在后台检查并下载 GitHub Release 的 `latest.json`
+中与当前平台匹配的已签名更新包。设置中的“自动安装更新”默认开启，已下载的
+更新会在下次启动时自动安装。关闭后仍会检查和下载更新，但重启时不会自动
+安装；用户仍可手动安装更新。此设置保存在本机，重新开启后恢复启动时自动安装。
 
 Android 应用在“设置 → 关于 Codex Switch”中通过 GitHub Release API 检查
 最新正式版本。发现更新后，系统 DownloadManager 会在后台下载安装包，下载

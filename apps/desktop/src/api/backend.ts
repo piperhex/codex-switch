@@ -3,6 +3,7 @@ import { emit, listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { exit as exitApp, relaunch } from "@tauri-apps/plugin-process";
 import { check, type DownloadEvent, type Update } from "@tauri-apps/plugin-updater";
+import { isAutoUpdateEnabled } from "./appUpdatePreferences";
 import { DEMO_ACCOUNTS, DEMO_INFO } from "../demo";
 import { BUILT_IN_DREAM_SKIN_THEMES } from "../dreamSkinBuiltIns";
 import { LANGUAGE_STORAGE_KEY, isLanguage, type Language } from "../i18n";
@@ -3310,7 +3311,7 @@ function forgetPendingAppUpdate() {
 }
 
 export function hasPendingAppUpdateInstall(): boolean {
-  return isDesktopApp && readPendingAppUpdateVersion() !== null;
+  return isDesktopApp && isAutoUpdateEnabled() && readPendingAppUpdateVersion() !== null;
 }
 
 export function installPendingAppUpdateOnLaunch(): Promise<void> {
@@ -3323,7 +3324,9 @@ export function installPendingAppUpdateOnLaunch(): Promise<void> {
       forgetPendingAppUpdate();
       return;
     }
+    if (!hasPendingAppUpdateInstall()) return;
     await downloadAvailableUpdate();
+    if (!hasPendingAppUpdateInstall()) return;
     await installDownloadedUpdate();
   };
   const request = install();
