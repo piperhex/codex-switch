@@ -61,6 +61,7 @@ include!("commands/account_groups.rs");
 include!("commands/conversation_sync.rs");
 include!("commands/usage_api.rs");
 include!("commands/usage_refresh.rs");
+include!("commands/reset_credits.rs");
 include!("commands/client_path.rs");
 include!("commands/client_launch.rs");
 include!("commands/tests.rs");

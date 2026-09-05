@@ -342,6 +342,8 @@ pub fn run() {
             local_proxy::stop_local_proxy,
             local_proxy::stop_local_proxy_without_migrating,
             local_proxy::set_auto_switch_on_quota_exhaustion,
+            local_proxy::get_auto_reset_settings,
+            local_proxy::set_auto_reset_settings,
             local_proxy::set_concurrent_account_routing_enabled,
             local_proxy::set_custom_auto_switch_priority_enabled,
             local_proxy::set_custom_auto_switch_threshold_enabled,

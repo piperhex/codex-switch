@@ -274,7 +274,7 @@ fn official_credentials<R: Runtime>(
         && state.concurrent_account_routing_enabled
         && matches!(purpose, OfficialCredentialPurpose::Default)
     {
-        concurrent_account_for_session(&paths, &state, session_id)?
+        auto_reset::concurrent_account(app, &paths, &state, session_id)?
     } else {
         None
     };

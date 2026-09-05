@@ -52,6 +52,13 @@ export interface ResetCredit {
   expiresAt?: string | null;
 }
 
+export interface AutoResetSettings {
+  enabled: boolean;
+  accountIds: string[] | null;
+  maxCards: number;
+  reserveCards: number;
+}
+
 export interface ResetCreditsSummary {
   credits: ResetCredit[];
 }

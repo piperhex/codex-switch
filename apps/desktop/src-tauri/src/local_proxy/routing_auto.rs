@@ -188,6 +188,26 @@ fn try_auto_switch_official_account<R: Runtime>(
     {
         return Ok(AutoSwitchAttempt::Unchanged);
     }
+    match auto_reset::restore(app) {
+        Ok(restored) if !restored.is_empty() => {
+            let latest = try_read_state(&paths)?;
+            if automatic_switch_is_blocked(&latest)
+                || latest.active_account_id.as_deref() != Some(&current_id)
+            {
+                return Ok(AutoSwitchAttempt::Unchanged);
+            }
+            if restored[0] != current_id {
+                crate::commands::switch_account_automatically_blocking(app.clone(), restored[0].clone())?;
+            }
+            return Ok(AutoSwitchAttempt::Switched);
+        }
+        Err(error) => eprintln!("automatic quota reset failed: {error}"),
+        _ => {}
+    }
+    let state = try_read_state(&paths)?;
+    if automatic_switch_is_blocked(&state) || state.active_account_id.as_deref() != Some(&current_id) {
+        return Ok(AutoSwitchAttempt::Unchanged);
+    }
     let Some(provider_id) = state.auto_switch_provider_id else {
         return Ok(AutoSwitchAttempt::Unchanged);
     };

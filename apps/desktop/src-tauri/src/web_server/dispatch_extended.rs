@@ -1,5 +1,9 @@
 fn dispatch_extended_command(app: AppHandle, command: &str, args: Value) -> Result<Value, String> {
     match command {
+        "get_auto_reset_settings" => serialize(block_on(crate::local_proxy::get_auto_reset_settings(app))),
+        "set_auto_reset_settings" => serialize(block_on(crate::local_proxy::set_auto_reset_settings(
+            app, argument(&args, "settings")?,
+        ))),
         "set_auto_switch_on_quota_exhaustion" => {
             serialize(crate::local_proxy::set_auto_switch_on_quota_exhaustion(
                 app,

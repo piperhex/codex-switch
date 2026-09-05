@@ -879,8 +879,8 @@ main.providers-main .provider-page {
 .proxy-auto-switch { display: inline-flex; align-items: center; gap: 5px; color: #5d6a62; font-size: 11px; font-weight: 700; white-space: nowrap; }
 .proxy-auto-switch-entry { display: inline-flex; align-items: center; gap: 5px; padding: 3px 4px; border: 0; background: transparent; color: #5d6a62; font: 700 11px Manrope, sans-serif; white-space: nowrap; cursor: pointer; }
 .proxy-auto-switch-entry:hover, .proxy-auto-switch-entry.active { color: var(--green-dark); }
-.proxy-auto-switch-menu { min-width: 210px; display: grid; gap: 4px; }
-.proxy-auto-switch-menu-item { min-height: 30px; display: flex; align-items: center; justify-content: space-between; gap: 24px; color: #46534b; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.proxy-auto-switch-menu { min-width: 210px; max-width: 400px; display: grid; gap: 4px; }
+.proxy-auto-switch-menu-item { min-height: 30px; display: flex; align-items: center; justify-content: space-between; gap: 24px; color: #46534b; font-size: 12px; font-weight: 600; white-space: normal; }
 .proxy-image-model-fields { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; }
 .proxy-image-model-field {
   display: inline-flex;

@@ -47,6 +47,10 @@ fn write_state_unlocked(paths: &Paths, requested: &ManagerStateFile) -> Result<(
     let state_file_exists = paths.state_file.exists();
     let current = read_state_unlocked(paths)?;
     let mut state = requested.clone();
+    if state_file_exists && !state.auto_reset_settings_changed {
+        state.auto_reset = current.auto_reset.clone();
+    }
+    state.auto_reset_settings_changed = false;
     match state.concurrent_routing_change_reason.take() {
         Some(reason)
             if current.concurrent_account_routing_enabled != state.concurrent_account_routing_enabled

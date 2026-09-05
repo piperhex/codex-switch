@@ -68,6 +68,34 @@ mod tests {
     }
 
     #[test]
+    fn auto_reset_settings_survive_stale_writes_and_can_be_disabled() {
+        let paths = test_paths();
+        write_state(&paths, &ManagerStateFile::default()).unwrap();
+        let stale = read_state(&paths);
+        update_state(&paths, |state| {
+            state.auto_reset.enabled = true;
+            state.auto_reset.max_cards = 3;
+            state.auto_reset.reserve_cards = 1;
+            state.auto_reset.account_ids = Some(vec!["selected".into()]);
+            state.auto_reset_settings_changed = true;
+            Ok(())
+        }).unwrap();
+        write_state(&paths, &stale).unwrap();
+        let saved = try_read_state(&paths).unwrap().auto_reset;
+        assert!(saved.enabled);
+        assert_eq!(saved.max_cards, 3);
+        assert_eq!(saved.reserve_cards, 1);
+        assert_eq!(saved.account_ids, Some(vec!["selected".into()]));
+        update_state(&paths, |state| {
+            state.auto_reset.enabled = false;
+            state.auto_reset_settings_changed = true;
+            Ok(())
+        }).unwrap();
+        assert!(!try_read_state(&paths).unwrap().auto_reset.enabled);
+        fs::remove_dir_all(paths.codex_home.parent().unwrap()).unwrap();
+    }
+
+    #[test]
     fn invalid_state_cannot_be_replaced_with_default_values() {
         let paths = test_paths();
         let mut initial = ManagerStateFile::default();

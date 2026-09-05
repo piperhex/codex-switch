@@ -1,10 +1,11 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Popover, Switch, Tooltip } from "antd";
-import { ChevronDown, Shuffle } from "lucide-react";
+import { ChevronDown, Settings, Shuffle } from "lucide-react";
 import type { Translate } from "../../i18n";
 import type { useProviderManager } from "../../hooks/useProviderManager";
 import { CloudRecycleBin } from "../CloudRecycleBin";
 import { ProxySessionManager } from "../ProxySessionManager";
+import { AutoResetSettingsModal } from "./AutoResetSettingsModal";
 
 interface ProxyTopbarActionsProps {
   cloudAuthenticated: boolean;
@@ -22,10 +23,14 @@ export function ProxyTopbarActions({
   trailingAction,
 }: ProxyTopbarActionsProps) {
   const localProxy = manager.localProxy;
+  const [resetSettingsOpen, setResetSettingsOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const proxyRunning = Boolean(localProxy?.running);
   return (
     <>
       {proxyRunning && <Popover trigger="hover" placement="bottom"
+        open={menuOpen && !resetSettingsOpen} onOpenChange={setMenuOpen}
+        styles={{ body: { maxWidth: 400 } }}
         mouseEnterDelay={0.08} mouseLeaveDelay={0.12}
         content={(
           <div className="proxy-auto-switch-menu">
@@ -56,6 +61,11 @@ export function ProxyTopbarActions({
                 disabled={manager.proxyBusy || !localProxy?.autoSwitchOnQuotaExhaustion}
                 onChange={(enabled) => void manager.setProxyAutoDisableUnreachable(enabled)} />
             </div>
+            <button type="button" className="proxy-auto-switch-menu-item"
+              style={{ width: "100%", background: "none", border: 0, cursor: "pointer", color: "inherit" }}
+              onClick={() => { setMenuOpen(false); setResetSettingsOpen(true); }}>
+              <span>{t("autoReset.title")}</span><Settings size={15} />
+            </button>
           </div>
         )}>
         <button type="button"
@@ -68,6 +78,9 @@ export function ProxyTopbarActions({
           <ChevronDown size={12} />
         </button>
       </Popover>}
+      {resetSettingsOpen && <AutoResetSettingsModal t={t}
+        concurrent={Boolean(localProxy?.concurrentAccountRoutingEnabled)}
+        onClose={() => setResetSettingsOpen(false)} />}
       {proxyRunning && showSessionManager && <ProxySessionManager t={t}
         triggerClassName="refresh-all proxy-topbar-action" />}
       {(proxyRunning || trailingAction) && <span className="account-security-actions">

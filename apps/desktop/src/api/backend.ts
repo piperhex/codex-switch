@@ -21,6 +21,7 @@ import {
   THIRD_PARTY_APP_IDS,
 } from "../utils/thirdPartyApps";
 import type {
+  AutoResetSettings,
   Account,
   AccountDetailsDraft,
   AccountArchiveImportResult,
@@ -1628,6 +1629,20 @@ export async function showTokenUsageWindow(): Promise<void> {
 export async function loadAccounts(): Promise<Account[]> {
   if (!hasLocalBackend) return structuredClone(DEMO_ACCOUNTS);
   return invoke<Account[]>("list_accounts");
+}
+
+const AUTO_RESET_PREVIEW_KEY = "codex-switch-auto-reset";
+
+export async function loadAutoResetSettings(): Promise<AutoResetSettings> {
+  if (hasLocalBackend) return invoke<AutoResetSettings>("get_auto_reset_settings");
+  const saved = window.localStorage.getItem(AUTO_RESET_PREVIEW_KEY);
+  return saved ? JSON.parse(saved) as AutoResetSettings
+    : { enabled: false, accountIds: null, maxCards: 1, reserveCards: 0 };
+}
+
+export async function saveAutoResetSettings(settings: AutoResetSettings): Promise<void> {
+  if (hasLocalBackend) return invoke("set_auto_reset_settings", { settings });
+  window.localStorage.setItem(AUTO_RESET_PREVIEW_KEY, JSON.stringify(settings));
 }
 
 export async function showTotpWindow(): Promise<void> {

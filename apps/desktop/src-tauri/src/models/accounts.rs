@@ -127,6 +127,10 @@ pub(crate) struct ManagerStateFile {
     #[serde(default)]
     pub(crate) auto_switch_on_quota_exhaustion: bool,
     #[serde(default)]
+    pub(crate) auto_reset: AutoResetSettings,
+    #[serde(skip)]
+    pub(crate) auto_reset_settings_changed: bool,
+    #[serde(default)]
     pub(crate) concurrent_account_routing_enabled: bool,
     #[serde(default)]
     pub(crate) concurrent_account_group: Option<String>,
