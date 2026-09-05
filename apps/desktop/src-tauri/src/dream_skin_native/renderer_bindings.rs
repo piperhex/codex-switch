@@ -73,16 +73,32 @@ fn publish_usage_summary(target: &CdpTarget, port: u16) {
         Ok(summary) => summary,
         Err(error) => {
             eprintln!("Failed to load the Codex usage summary: {error}");
+            complete_usage_request(target, port);
             return;
         }
     };
-    let Ok(summary) = serde_json::to_string(&summary) else {
-        return;
+    let summary = match serde_json::to_string(&summary) {
+        Ok(summary) => summary,
+        Err(error) => {
+            eprintln!("Failed to serialize the Codex usage summary: {error}");
+            complete_usage_request(target, port);
+            return;
+        }
     };
     let expression = format!(
         "window.__CODEX_SWITCH_SPEED_SELECTOR__?.updateUsage?.({summary})"
     );
-    let _ = evaluate_for_binding(target, port, &expression);
+    if let Err(error) = evaluate_for_binding(target, port, &expression) {
+        eprintln!("Failed to publish the Codex usage summary: {error}");
+        complete_usage_request(target, port);
+    }
+}
+
+fn complete_usage_request(target: &CdpTarget, port: u16) {
+    let expression = "window.__CODEX_SWITCH_SPEED_SELECTOR__?.completeUsageRequest?.(); true";
+    if let Err(error) = evaluate_for_binding(target, port, expression) {
+        eprintln!("Failed to acknowledge the Codex usage request: {error}");
+    }
 }
 
 fn handle_renderer_binding(call: RendererBindingCall, target: &CdpTarget, port: u16) {
@@ -127,7 +143,10 @@ fn install_renderer_bindings(target: &CdpTarget, port: u16) -> Result<(), String
     session.add_binding(SERVICE_TIER_BINDING)?;
     session.add_binding(USAGE_SUMMARY_BINDING)?;
     session.evaluate(
-        "setTimeout(() => window.__CODEX_SWITCH_SPEED_SELECTOR__?.requestUsage?.(), 0); true",
+        "setTimeout(() => { \
+            window.__CODEX_SWITCH_SPEED_SELECTOR__?.completeUsageRequest?.(); \
+            window.__CODEX_SWITCH_SPEED_SELECTOR__?.requestUsage?.(); \
+        }, 0); true",
     )?;
     let target = target.clone();
     thread::Builder::new()

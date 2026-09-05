@@ -56,6 +56,7 @@ import { initials } from "../../../utils/format";
 import { formatCompactTokenCount } from "../../../utils/tokenContext";
 import { shouldShowUsageError } from "../../../utils/usageErrors";
 import { formatEstimatedCost, TOKEN_COST_CUSTOM_RULES_EVENT } from "../../../utils/tokenCost";
+import { TOKEN_COST_REFERENCE_MODEL_EVENT } from "../../../utils/tokenCostPresets";
 import {
   DailyTokenUsageTooltip,
   EMPTY_TOKEN_TOTALS,
@@ -483,11 +484,13 @@ export function AccountTable({
     const timer = window.setInterval(() => void refresh(), Math.max(1, tokenUsageRefreshSeconds) * 1000);
     const unsubscribe = subscribeToTokenUsageChanges(() => void refresh());
     window.addEventListener(TOKEN_COST_CUSTOM_RULES_EVENT, refresh);
+    window.addEventListener(TOKEN_COST_REFERENCE_MODEL_EVENT, refresh);
     return () => {
       active = false;
       window.clearInterval(timer);
       unsubscribe();
       window.removeEventListener(TOKEN_COST_CUSTOM_RULES_EVENT, refresh);
+      window.removeEventListener(TOKEN_COST_REFERENCE_MODEL_EVENT, refresh);
     };
   }, [hotSwitchEnabled, providers, tokenUsageRefreshSeconds]);
   useEffect(() => {

@@ -1,15 +1,17 @@
 const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
   window.__CODEX_SWITCH_REFRESH_SPEED_SELECTOR__ = () => {
     const stateKey = "__CODEX_SWITCH_SPEED_SELECTOR__";
-    const overlayVersion = 14;
+    const overlayVersion = 15;
     const usageRefreshMs = 30000;
     const initialTier = __CODEX_SWITCH_SERVICE_TIER__;
     const fastModeAllowed = window.__CODEX_SWITCH_FAST_MODE_ALLOWED__ === true;
     const existing = window[stateKey];
-    const removeSelectors = () => {
-      existing?.observer?.disconnect();
-      if (existing?.timer) clearInterval(existing.timer);
-      if (existing?.usageTimer) clearInterval(existing.usageTimer);
+    const removeSelectors = (installed = existing) => {
+      if (installed) installed.installed = false;
+      installed?.observer?.disconnect();
+      if (installed?.timer) clearInterval(installed.timer);
+      if (installed?.usageTimer) clearInterval(installed.usageTimer);
+      if (installed?.initialUsageTimer) clearTimeout(installed.initialUsageTimer);
       const injectedNodes = "[data-codex-switch-speed-selector], [data-codex-switch-speed-submenu]";
       for (const selector of document.querySelectorAll(injectedNodes)) selector.remove();
       delete window[stateKey];
@@ -29,12 +31,13 @@ const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
     const state = {
       installed: true, version: overlayVersion, tier: initialTier, fastModeAllowed,
       observer: null, timer: null,
-      usageTimer: null, pendingTier: null, previousTier: null, syncAll: null,
-      completeSelection: null, updateUsage: null, requestUsage: null,
+      usageTimer: null, initialUsageTimer: null, usagePending: false,
+      pendingTier: null, previousTier: null, syncAll: null,
+      completeSelection: null, completeUsageRequest: null, updateUsage: null, requestUsage: null,
       usage: {
         enabled: false, totalTokens: 0, estimatedCostUsd: 0,
         primaryRemainingPercent: null, primaryRemainingAggregated: false,
-        providerWalletBalance: null,
+        providerEstimatedCost: null,
       },
     };
     window[stateKey] = state;
@@ -51,7 +54,7 @@ const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
       const maximumFractionDigits = value > 0 && value < 0.01 ? 4 : 2;
       return `${new Intl.NumberFormat("en-US", { maximumFractionDigits }).format(value)}USD`;
     };
-    const displayedBalance = () => {
+    const displayedTrailingUsage = () => {
       if (Number.isFinite(state.usage.primaryRemainingPercent)) {
         const value = `${Math.round(state.usage.primaryRemainingPercent)}%`;
         return {
@@ -63,10 +66,14 @@ const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
             : "当前账号主用量余额",
         };
       }
-      const wallet = state.usage.providerWalletBalance;
-      if (!wallet || !Number.isFinite(wallet.amount) || !wallet.unit) return null;
-      const value = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(wallet.amount);
-      return { value: `${value}${wallet.unit}`, amount: wallet.amount, kind: "wallet", label: "当前三方 API 钱包额度" };
+      const estimate = state.usage.providerEstimatedCost;
+      if (!estimate || !Number.isFinite(estimate.amountUsd)) return null;
+      return {
+        value: formatCost(estimate.amountUsd),
+        amount: estimate.amountUsd,
+        kind: "cost",
+        label: estimate.aggregated ? "聚合 API 今日总预估成本" : "当前 API 今日预估成本",
+      };
     };
     const usesDarkPalette = element => {
       const channels = getComputedStyle(element).color.match(/[\d.]+/g)?.map(Number);
@@ -78,13 +85,12 @@ const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
       const dark = usesDarkPalette(usage);
       const tokens = dark ? "rgb(84,214,177)" : "rgb(10,132,105)";
       const cost = dark ? "rgb(245,177,65)" : "rgb(180,93,0)";
-      const balance = displayedBalance();
-      const balanceColor = balance?.kind === "quota" && balance.amount <= 20
-        || balance?.kind === "wallet" && balance.amount < 0
-        ? (dark ? "rgb(255,113,113)" : "rgb(190,45,45)")
-        : balance?.kind === "quota" && balance.amount <= 50
-          ? (dark ? "rgb(245,177,65)" : "rgb(180,93,0)")
-          : (dark ? "rgb(96,211,148)" : "rgb(22,135,78)");
+      const balance = displayedTrailingUsage();
+      let balanceColor = dark ? "rgb(96,211,148)" : "rgb(22,135,78)";
+      if (balance?.kind === "cost" || balance?.amount <= 50) balanceColor = cost;
+      if (balance?.kind === "quota" && balance.amount <= 20) {
+        balanceColor = dark ? "rgb(255,113,113)" : "rgb(190,45,45)";
+      }
       usage.querySelector("[data-today-tokens]").style.setProperty("color", tokens, "important");
       usage.querySelector("[data-today-cost]").style.setProperty("color", cost, "important");
       usage.querySelector("[data-trailing-balance]").style.setProperty("color", balanceColor, "important");
@@ -111,7 +117,7 @@ const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
       syncUsageColors(usage);
       const tokens = formatTokens(state.usage.totalTokens);
       const cost = formatCost(state.usage.estimatedCostUsd);
-      const balance = displayedBalance();
+      const balance = displayedTrailingUsage();
       const balanceSeparator = usage.querySelector("[data-balance-separator]");
       const balanceValue = usage.querySelector("[data-trailing-balance]");
       balanceSeparator.hidden = !balance;
@@ -139,11 +145,13 @@ const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
       }
     };
     state.syncAll = syncAll;
+    state.completeUsageRequest = () => { state.usagePending = false; };
     state.updateUsage = summary => {
+      state.completeUsageRequest();
       const totalTokens = Number(summary?.totalTokens);
       const estimatedCostUsd = Number(summary?.estimatedCostUsd);
       const primaryRemainingPercent = summary?.primaryRemainingPercent;
-      const providerWalletBalance = summary?.providerWalletBalance;
+      const providerEstimatedCost = summary?.providerEstimatedCost;
       state.usage = {
         enabled: summary?.enabled === true,
         totalTokens: Number.isFinite(totalTokens) ? Math.max(0, totalTokens) : 0,
@@ -153,18 +161,26 @@ const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
           ? Math.max(0, primaryRemainingPercent)
           : null,
         primaryRemainingAggregated: summary?.primaryRemainingAggregated === true,
-        providerWalletBalance: providerWalletBalance
-          && typeof providerWalletBalance.amount === "number"
-          && Number.isFinite(providerWalletBalance.amount)
-          && typeof providerWalletBalance.unit === "string"
-          ? { amount: providerWalletBalance.amount, unit: providerWalletBalance.unit }
+        providerEstimatedCost: providerEstimatedCost
+          && typeof providerEstimatedCost.amountUsd === "number"
+          && Number.isFinite(providerEstimatedCost.amountUsd)
+          ? {
+            amountUsd: Math.max(0, providerEstimatedCost.amountUsd),
+            aggregated: providerEstimatedCost.aggregated === true,
+          }
           : null,
       };
       syncAll();
     };
     state.requestUsage = () => {
-      if (typeof window.codexSwitchRequestUsageSummary === "function") {
+      if (!state.installed || window[stateKey] !== state || state.usagePending
+        || typeof window.codexSwitchRequestUsageSummary !== "function") return;
+      state.usagePending = true;
+      try {
         window.codexSwitchRequestUsageSummary("refresh");
+      } catch {
+        // A disconnected binding can throw before the request reaches the host.
+        state.completeUsageRequest();
       }
     };
     state.completeSelection = (tier, succeeded) => {
@@ -264,7 +280,7 @@ const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
     };
     const render = () => {
       if (window.__CODEX_SWITCH_COMPOSER_STATUS_ALLOWED__ !== true) {
-        for (const selector of document.querySelectorAll("[data-codex-switch-speed-selector]")) selector.remove();
+        removeSelectors(state);
         return;
       }
       const anchor = document.querySelector('[data-composer-navigation-target="reasoning"]');
@@ -282,7 +298,7 @@ const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
     state.timer = setInterval(render, 1000);
     state.usageTimer = setInterval(state.requestUsage, usageRefreshMs);
     render();
-    setTimeout(state.requestUsage, 0);
+    state.initialUsageTimer = setTimeout(state.requestUsage, 0);
   };
   window.__CODEX_SWITCH_REFRESH_SPEED_SELECTOR__();
 "#;

@@ -446,18 +446,51 @@ h1 { margin: 5px 0 0; font: 700 26px/1.1 Manrope, sans-serif; letter-spacing: -.
 .token-cost-unit-settings .ant-input-number { width: 100%; }
 .custom-token-cost-backdrop { z-index: 80; }
 .custom-token-cost-modal {
-  width: 80vw; max-width: none; height: 80vh; padding: 24px; overflow: hidden;
-  display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; gap: 18px;
+  width: min(1200px, calc(100vw - 48px)); max-width: none; height: 80vh; padding: 24px; overflow: hidden;
+  display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 18px;
 }
 .custom-token-cost-header { display: flex; align-items: flex-start; gap: 13px; padding-right: 32px; }
 .custom-token-cost-header h2 { margin-top: 4px; }
 .custom-token-cost-header p { max-width: 400px; margin-bottom: 0; }
-.custom-token-cost-editor { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr); gap: 12px 16px; }
+.custom-token-cost-body {
+  min-height: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start; gap: 22px; overflow: auto;
+}
+.custom-token-cost-presets, .custom-token-cost-custom { min-width: 0; display: grid; gap: 14px; }
+.custom-token-cost-section-heading { display: grid; gap: 5px; }
+.custom-token-cost-section-heading h3 { margin: 0; color: var(--ink); font-size: 13px; }
+.custom-token-cost-section-heading small, .custom-token-cost-reference small {
+  max-width: 400px; color: var(--muted); font-size: 11px; line-height: 1.5;
+}
+.custom-token-cost-table-scroll { min-width: 0; overflow-x: auto; }
+.custom-token-cost-preset-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.custom-token-cost-preset-table th, .custom-token-cost-preset-table td {
+  padding: 8px 6px; border-bottom: 1px solid var(--line); color: var(--ink); text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.custom-token-cost-preset-table thead th { color: var(--muted); font-weight: 600; }
+.custom-token-cost-preset-table th:first-child { text-align: left; }
+.custom-token-cost-preset-table th code { font-size: 11px; font-weight: 500; white-space: nowrap; }
+.custom-token-cost-preset-table td.custom-token-cost-unpriced {
+  max-width: 400px; color: var(--muted); text-align: left; line-height: 1.5;
+}
+.custom-token-cost-source { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
+.custom-token-cost-reference { max-width: 400px; padding-top: 4px; }
+.custom-token-cost-editor {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px;
+}
 .custom-token-cost-field { display: grid; gap: 5px; min-width: 0; }
 .custom-token-cost-field label { color: var(--muted); font-size: 11px; font-weight: 700; }
 .custom-token-cost-field .ant-select, .custom-token-cost-field .ant-input-number { width: 100%; }
-.custom-token-cost-rates { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(120px, 1fr)); gap: 12px; }
-.custom-token-cost-hint, .custom-token-cost-empty { grid-column: 1 / -1; color: var(--muted); font-size: 11px; line-height: 1.5; }
+.custom-token-cost-rates {
+  grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px;
+}
+.custom-token-cost-hint, .custom-token-cost-empty {
+  grid-column: 1 / -1; max-width: 400px; color: var(--muted); font-size: 11px; line-height: 1.5;
+}
+.custom-token-cost-save-action { display: flex; justify-content: flex-end; }
+.custom-token-cost-select-popup { min-width: 220px !important; max-width: min(400px, calc(100vw - 32px)); }
+.custom-token-cost-select-popup .ant-select-item-option-content { white-space: normal; overflow-wrap: anywhere; }
 .custom-token-cost-saved { min-height: 0; display: grid; align-content: start; gap: 8px; overflow: auto; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: rgba(var(--green-rgb), .035); }
 .custom-token-cost-saved > strong { color: var(--ink); font-size: 12px; }
 .custom-token-cost-saved > small { color: var(--muted); }
@@ -468,6 +501,10 @@ h1 { margin: 5px 0 0; font: 700 26px/1.1 Manrope, sans-serif; letter-spacing: -.
 .custom-token-cost-saved-row code { color: var(--muted); font-size: 10px; }
 .custom-token-cost-saved-row small { color: var(--muted); white-space: nowrap; }
 .custom-token-cost-footer { display: flex; justify-content: flex-end; }
+@media (max-width: 1000px) {
+  .custom-token-cost-body { grid-template-columns: minmax(0, 1fr); }
+  .custom-token-cost-modal { width: calc(100vw - 32px); padding: 20px; }
+}
 .reset-credits-panel { display: grid; gap: 8px; padding: 12px 18px 14px 52px; border-top: 1px solid #edf1ec; }
 .reset-credit { display: grid; grid-template-columns: 118px minmax(0, 1fr); align-items: center; gap: 16px; padding: 10px 13px; border: 1px solid #dfe7df; border-radius: 8px; background: #fff; }
 .reset-credit-index { display: flex; align-items: center; gap: 7px; color: var(--green-dark); font-weight: 700; }

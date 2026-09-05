@@ -10,6 +10,7 @@ import {
   TOKEN_COST_DISPLAY_EVENT,
 } from "../../utils/tokenCost";
 import { summarizeConcurrentUsage } from "./concurrentUsageSummary";
+import { TOKEN_COST_REFERENCE_MODEL_EVENT } from "../../utils/tokenCostPresets";
 
 const STATS_REFRESH_INTERVAL_MS = 60_000;
 
@@ -49,11 +50,13 @@ export function useConcurrentUsageStats(
     const timer = window.setInterval(refreshCosts, STATS_REFRESH_INTERVAL_MS);
     const unsubscribe = subscribeToTokenUsageChanges(refreshCosts);
     window.addEventListener(TOKEN_COST_CUSTOM_RULES_EVENT, refreshCosts);
+    window.addEventListener(TOKEN_COST_REFERENCE_MODEL_EVENT, refreshCosts);
     window.addEventListener(TOKEN_COST_DISPLAY_EVENT, refreshDisplay);
     return () => {
       window.clearInterval(timer);
       unsubscribe();
       window.removeEventListener(TOKEN_COST_CUSTOM_RULES_EVENT, refreshCosts);
+      window.removeEventListener(TOKEN_COST_REFERENCE_MODEL_EVENT, refreshCosts);
       window.removeEventListener(TOKEN_COST_DISPLAY_EVENT, refreshDisplay);
     };
   }, [enabled, refresh]);

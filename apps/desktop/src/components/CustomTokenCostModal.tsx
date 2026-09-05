@@ -1,14 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Button, InputNumber, Select, Space } from "antd";
+import { AutoComplete, Button, InputNumber, Select } from "antd";
 import { DollarSign, Trash2, X } from "lucide-react";
 import type { Provider } from "../types";
 import type { Translate } from "../i18n";
-import {
-  loadCustomTokenCostRules,
-  saveCustomTokenCostRules,
-  type CustomTokenCostRule,
-} from "../utils/tokenCost";
+import { useCustomTokenCostEditor } from "../hooks/useCustomTokenCostEditor";
+import { loadTokenCostReferenceModel, saveTokenCostReferenceModel } from "../utils/tokenCostPresets";
+import { TokenCostPresets } from "./TokenCostPresets";
 
 interface CustomTokenCostModalProps {
   open: boolean;
@@ -17,76 +15,16 @@ interface CustomTokenCostModalProps {
   onClose: () => void;
 }
 
-function modelsForProvider(provider: Provider | undefined) {
-  if (!provider) return [];
-  return [...new Set([provider.model, ...provider.models].map((model) => model.trim()).filter(Boolean))];
-}
-
-function ruleFor(rules: CustomTokenCostRule[], providerId: string, model: string) {
-  return rules.find((rule) => rule.providerId === providerId && rule.model === model);
-}
-
 export function CustomTokenCostModal({ open, providers, t, onClose }: CustomTokenCostModalProps) {
-  const [providerId, setProviderId] = useState("");
-  const [model, setModel] = useState("");
-  const [input, setInput] = useState<number | null>(null);
-  const [cachedInput, setCachedInput] = useState<number | null>(null);
-  const [output, setOutput] = useState<number | null>(null);
-  const [rules, setRules] = useState<CustomTokenCostRule[]>(loadCustomTokenCostRules);
-
-  const selectedProvider = providers.find((provider) => provider.id === providerId);
-  const models = useMemo(() => modelsForProvider(selectedProvider), [selectedProvider]);
-  const modelChoices = useMemo(() => [...new Set([
-    ...models,
-    ...rules.filter((rule) => rule.providerId === providerId).map((rule) => rule.model),
-    ...(model ? [model] : []),
-  ])], [model, models, providerId, rules]);
-  const providerOptions = providers.map((provider) => ({
-    label: provider.name,
-    value: provider.id,
-    title: provider.baseUrl,
-  }));
-  const modelOptions = modelChoices.map((value) => ({ label: value, value }));
-  const valid = input != null && cachedInput != null && output != null
-    && [input, cachedInput, output].every((rate) => Number.isFinite(rate) && rate >= 0);
-
+  const [referenceModel, setReferenceModel] = useState(loadTokenCostReferenceModel);
+  const editor = useCustomTokenCostEditor({ open, providers, referenceModel });
   useEffect(() => {
-    if (!open) return;
-    const nextProviderId = providers.some((provider) => provider.id === providerId)
-      ? providerId
-      : providers[0]?.id ?? "";
-    if (nextProviderId !== providerId) setProviderId(nextProviderId);
-    setRules(loadCustomTokenCostRules());
-  }, [open, providers, providerId]);
-
-  useEffect(() => {
-    if (!open) return;
-    const nextModel = modelChoices.includes(model) ? model : modelChoices[0] ?? "";
-    if (nextModel !== model) setModel(nextModel);
-  }, [open, modelChoices, model]);
-
-  useEffect(() => {
-    if (!open) return;
-    const rule = ruleFor(rules, providerId, model);
-    setInput(rule?.input ?? null);
-    setCachedInput(rule?.cachedInput ?? null);
-    setOutput(rule?.output ?? null);
-  }, [open, providerId, model, rules]);
-
+    if (open) setReferenceModel(loadTokenCostReferenceModel());
+  }, [open]);
   if (!open) return null;
-
-  const save = () => {
-    if (!valid || input == null || cachedInput == null || output == null || !providerId || !model) return;
-    const nextRule: CustomTokenCostRule = { providerId, model, input, cachedInput, output };
-    const nextRules = [...rules.filter((rule) => !(rule.providerId === providerId && rule.model === model)), nextRule];
-    saveCustomTokenCostRules(nextRules);
-    setRules(nextRules);
-  };
-
-  const remove = (rule: CustomTokenCostRule) => {
-    const nextRules = rules.filter((current) => current !== rule);
-    saveCustomTokenCostRules(nextRules);
-    setRules(nextRules);
+  const changeReference = (model: string) => {
+    saveTokenCostReferenceModel(model);
+    setReferenceModel(model);
   };
 
   return createPortal(
@@ -105,61 +43,66 @@ export function CustomTokenCostModal({ open, providers, t, onClose }: CustomToke
             <p>{t("tokenCost.customBilling.description")}</p>
           </div>
         </div>
-        <div className="custom-token-cost-editor">
-          <div className="custom-token-cost-field">
-            <label>{t("tokenCost.customBilling.api")}</label>
-            <Select showSearch optionFilterProp="label" value={providerId || undefined}
-              placeholder={t("tokenCost.customBilling.apiPlaceholder")} options={providerOptions}
-              onChange={(value) => {
-                setProviderId(value);
-                setModel("");
-              }} />
-          </div>
-          <div className="custom-token-cost-field">
-            <label>{t("tokenCost.customBilling.model")}</label>
-            <Select mode="tags" maxCount={1} showSearch optionFilterProp="label" value={model ? [model] : []}
-              placeholder={modelChoices.length ? t("tokenCost.customBilling.modelPlaceholder")
-                : t("tokenCost.customBilling.noModels")}
-              options={modelOptions} disabled={!providerId} onChange={(values) => setModel(values[0] ?? "")} />
-          </div>
-          <div className="custom-token-cost-rates">
-            <div className="custom-token-cost-field">
-              <label>{t("tokenCost.customBilling.input")}</label>
-              <InputNumber min={0} precision={6} value={input} onChange={setInput} />
+        <div className="custom-token-cost-body">
+          <TokenCostPresets referenceModel={referenceModel} onReferenceChange={changeReference} t={t} />
+          <div className="custom-token-cost-custom">
+            <div className="custom-token-cost-section-heading">
+              <h3>{t("tokenCost.customBilling.customTitle")}</h3>
+              <small>{t("tokenCost.customBilling.customHint")}</small>
             </div>
-            <div className="custom-token-cost-field">
-              <label>{t("tokenCost.customBilling.cachedInput")}</label>
-              <InputNumber min={0} precision={6} value={cachedInput} onChange={setCachedInput} />
+            <div className="custom-token-cost-editor">
+              <div className="custom-token-cost-field">
+                <label htmlFor="custom-token-cost-api">{t("tokenCost.customBilling.api")}</label>
+                <Select id="custom-token-cost-api" showSearch optionFilterProp="label"
+                  value={editor.providerId || undefined} placeholder={t("tokenCost.customBilling.apiPlaceholder")}
+                  classNames={{ popup: { root: "custom-token-cost-select-popup" } }} popupMatchSelectWidth={false}
+                  options={editor.providerOptions} onChange={editor.selectProvider} />
+              </div>
+              <div className="custom-token-cost-field">
+                <label htmlFor="custom-token-cost-model">{t("tokenCost.customBilling.model")}</label>
+                <AutoComplete id="custom-token-cost-model" value={editor.model}
+                  placeholder={t("tokenCost.customBilling.modelPlaceholder")}
+                  classNames={{ popup: { root: "custom-token-cost-select-popup" } }} popupMatchSelectWidth={false}
+                  options={editor.modelOptions} disabled={!editor.providerId}
+                  filterOption={(input, option) => String(option?.value ?? "").toLowerCase()
+                    .includes(input.toLowerCase())} onChange={editor.selectModel} />
+              </div>
+              <div className="custom-token-cost-rates">
+                {(["input", "cachedInput", "output"] as const).map((rate) => <div
+                  className="custom-token-cost-field" key={rate}>
+                  <label htmlFor={`custom-token-cost-${rate}`}>{t(`tokenCost.customBilling.${rate}`)}</label>
+                  <InputNumber id={`custom-token-cost-${rate}`} min={0} precision={6} value={editor.rates[rate]}
+                    onChange={(value) => editor.setRate(rate, value)} disabled={!editor.providerId} />
+                </div>)}
+              </div>
+              <small className="custom-token-cost-hint">
+                {t(`tokenCost.customBilling.rateSource.${editor.rateSource}`, { model: referenceModel })}
+              </small>
+              {!providers.length && <small className="custom-token-cost-empty">
+                {t("tokenCost.customBilling.noApis")}
+              </small>}
             </div>
-            <div className="custom-token-cost-field">
-              <label>{t("tokenCost.customBilling.output")}</label>
-              <InputNumber min={0} precision={6} value={output} onChange={setOutput} />
+            <div className="custom-token-cost-save-action">
+              <Button type="primary" disabled={!editor.valid} onClick={editor.save}>
+                {t("tokenCost.customBilling.save")}
+              </Button>
+            </div>
+            <div className="custom-token-cost-saved">
+              <strong>{t("tokenCost.customBilling.savedTitle")}</strong>
+              {editor.rules.length ? editor.rules.map((rule) => {
+                const provider = providers.find((item) => item.id === rule.providerId);
+                return <div className="custom-token-cost-saved-row" key={`${rule.providerId}:${rule.model}`}>
+                  <span><b>{provider?.name ?? rule.providerId}</b><code>{rule.model}</code></span>
+                  <small>{rule.input} / {rule.cachedInput} / {rule.output}</small>
+                  <Button type="text" danger size="small" aria-label={t("tokenCost.customBilling.remove")}
+                    icon={<Trash2 size={14} />} onClick={() => editor.remove(rule)} />
+                </div>;
+              }) : <small>{t("tokenCost.customBilling.empty")}</small>}
             </div>
           </div>
-          <small className="custom-token-cost-hint">{t("tokenCost.customBilling.perMillionHint")}</small>
-          {!providers.length && (
-            <small className="custom-token-cost-empty">{t("tokenCost.customBilling.noApis")}</small>
-          )}
-        </div>
-        <div className="custom-token-cost-saved">
-          <strong>{t("tokenCost.customBilling.savedTitle")}</strong>
-          {rules.length ? rules.map((rule) => {
-            const provider = providers.find((item) => item.id === rule.providerId);
-            return <div className="custom-token-cost-saved-row" key={`${rule.providerId}:${rule.model}`}>
-              <span><b>{provider?.name ?? rule.providerId}</b><code>{rule.model}</code></span>
-              <small>{rule.input} / {rule.cachedInput} / {rule.output}</small>
-              <Button type="text" danger size="small" aria-label={t("tokenCost.customBilling.remove")}
-                icon={<Trash2 size={14} />} onClick={() => remove(rule)} />
-            </div>;
-          }) : <small>{t("tokenCost.customBilling.empty")}</small>}
         </div>
         <div className="custom-token-cost-footer">
-          <Space>
-            <Button onClick={onClose}>{t("tokenCost.settings.cancel")}</Button>
-            <Button type="primary" disabled={!valid || !providerId || !model} onClick={save}>
-              {t("tokenCost.customBilling.save")}
-            </Button>
-          </Space>
+          <Button onClick={onClose}>{t("tokenCost.customBilling.done")}</Button>
         </div>
       </section>
     </div>,

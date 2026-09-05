@@ -10,7 +10,8 @@ import type {
 } from "../../types";
 
 const HIDDEN_COLUMNS_STORAGE_KEY = "codex-switch:provider-table-hidden-columns";
-const MODEL_TOKEN_COSTS_STORAGE_KEY = "codex-switch:provider-model-token-costs";
+export const MODEL_TOKEN_COSTS_STORAGE_KEY = "codex-switch:provider-model-token-costs";
+export const MODEL_TOKEN_COSTS_EVENT = "codex-switch:provider-model-token-costs-changed";
 
 export const PROVIDER_TABLE_COLUMN_KEYS = [
   "provider",
@@ -57,6 +58,7 @@ export function persistStoredModelTokenCosts(providerId: string, costs: ModelTok
   const stored = loadStoredModelTokenCosts();
   stored[providerId] = costs;
   window.localStorage.setItem(MODEL_TOKEN_COSTS_STORAGE_KEY, JSON.stringify(stored));
+  window.dispatchEvent(new CustomEvent(MODEL_TOKEN_COSTS_EVENT));
 }
 
 export function isProviderTableColumnKey(value: unknown): value is ProviderTableColumnKey {

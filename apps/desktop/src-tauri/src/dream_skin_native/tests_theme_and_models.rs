@@ -303,8 +303,10 @@
         assert!(expression.contains("codexSwitchRequestUsageSummary"));
         assert!(expression.contains("estimatedCostUsd"));
         assert!(expression.contains("primaryRemainingPercent"));
-        assert!(expression.contains("providerWalletBalance"));
-        assert!(expression.contains("当前三方 API 钱包额度"));
+        assert!(expression.contains("providerEstimatedCost"));
+        assert!(expression.contains("当前 API 今日预估成本"));
+        assert!(expression.contains("聚合 API 今日总预估成本"));
+        assert!(!expression.contains("providerWalletBalance"));
         assert!(expression.contains("并发账号主用量余额合计"));
         assert!(expression.contains("data-trailing-balance"));
         assert!(expression.contains("rgb(10,132,105)"));

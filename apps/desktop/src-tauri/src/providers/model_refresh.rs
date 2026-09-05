@@ -1,9 +1,8 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashSet,
     fs,
     io::Read,
     path::{Path, PathBuf},
-    sync::{Mutex, OnceLock},
     time::Duration,
 };
 

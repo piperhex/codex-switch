@@ -1,8 +1,9 @@
 import type { Provider, TokenUsageEntry } from "../types";
+import { findTokenCostPreset, referenceTokenCostPreset } from "./tokenCostPresets";
 
 const TOKENS_PER_MILLION = 1_000_000;
 const TOKEN_COST_DISPLAY_STORAGE_KEY = "codex-switch:token-cost-display";
-const TOKEN_COST_CUSTOM_RULES_STORAGE_KEY = "codex-switch:token-cost-custom-rules";
+export const TOKEN_COST_CUSTOM_RULES_STORAGE_KEY = "codex-switch:token-cost-custom-rules";
 export const TOKEN_COST_DISPLAY_EVENT = "codex-switch:token-cost-display-changed";
 export const TOKEN_COST_CUSTOM_RULES_EVENT = "codex-switch:token-cost-custom-rules-changed";
 
@@ -31,43 +32,16 @@ export interface CustomTokenCostRule extends TokenCostRate {
 
 let cachedCustomTokenCostRules: CustomTokenCostRule[] | null = null;
 
-// OpenAI API prices are USD per one million tokens. Unknown models intentionally
-// use the Sol fallback so estimates remain useful for private and relay models.
-const SOL_FALLBACK_RATE: TokenCostRate = { input: 1.25, cachedInput: 0.125, output: 10 };
-const OPENAI_API_RATES: Record<string, TokenCostRate> = {
-  "gpt-5": { input: 1.25, cachedInput: 0.125, output: 10 },
-  "gpt-5-mini": { input: 0.25, cachedInput: 0.025, output: 2 },
-  "gpt-5-nano": { input: 0.05, cachedInput: 0.005, output: 0.4 },
-  "gpt-4.1": { input: 2, cachedInput: 0.5, output: 8 },
-  "gpt-4.1-mini": { input: 0.4, cachedInput: 0.1, output: 1.6 },
-  "gpt-4.1-nano": { input: 0.1, cachedInput: 0.025, output: 0.4 },
-  "gpt-4o": { input: 2.5, cachedInput: 1.25, output: 10 },
-  "gpt-4o-mini": { input: 0.15, cachedInput: 0.075, output: 0.6 },
-  o3: { input: 2, cachedInput: 0.5, output: 8 },
-  "o4-mini": { input: 1.1, cachedInput: 0.275, output: 4.4 },
-  "gpt-5.6": { input: 4, cachedInput: 0.4, output: 20 },
-  "gpt-5.6-sol": { input: 4, cachedInput: 0.4, output: 20 },
-  "gpt-5.6-terra": { input: 2, cachedInput: 0.2, output: 12 },
-  "gpt-5.6-luna": { input: 0.2, cachedInput: 0.02, output: 1.2 },
-  "gpt-5.5": { input: 5, cachedInput: 0.5, output: 30 },
-  "gpt-5.4": { input: 2.5, cachedInput: 0.25, output: 15 },
-  "gpt-5.4-mini": { input: 0.75, cachedInput: 0.075, output: 4.5 },
-};
-
-function findOpenAiRate(model: string): TokenCostRate {
-  const normalized = model.trim().toLowerCase();
-  const key = Object.keys(OPENAI_API_RATES)
-    .sort((left, right) => right.length - left.length)
-    .find((candidate) => normalized === candidate || normalized.startsWith(`${candidate}-`));
-  return key ? OPENAI_API_RATES[key] : SOL_FALLBACK_RATE;
+export function invalidateCustomTokenCostRulesCache() {
+  cachedCustomTokenCostRules = null;
 }
 
 function providerForEntry(entry: TokenUsageEntry, providers: Provider[]) {
   if (entry.providerId) {
-    const byId = providers.find((provider) => provider.id === entry.providerId);
-    if (byId) return byId;
+    return providers.find((provider) => provider.id === entry.providerId);
   }
-  return providers.find((provider) => provider.name === entry.provider.trim());
+  const name = entry.provider.trim().toLowerCase();
+  return providers.find((provider) => provider.name.trim().toLowerCase() === name);
 }
 
 function matchesModel(configuredModel: string, entryModel: string) {
@@ -76,14 +50,14 @@ function matchesModel(configuredModel: string, entryModel: string) {
   return model === configured || model.startsWith(`${configured}-`);
 }
 
-function customRateForEntry(
-  entry: TokenUsageEntry,
-  provider: Provider | undefined,
+export function findCustomTokenCostRule(
   rules: CustomTokenCostRule[],
+  providerId: string | null | undefined,
+  model: string,
 ) {
-  const providerId = provider?.id ?? entry.providerId;
   if (!providerId) return undefined;
-  return rules.find((rule) => rule.providerId === providerId && matchesModel(rule.model, entry.model));
+  return rules.filter((rule) => rule.providerId === providerId && matchesModel(rule.model, model))
+    .sort((left, right) => right.model.trim().length - left.model.trim().length)[0];
 }
 
 function rateForEntry(
@@ -92,16 +66,15 @@ function rateForEntry(
   customRules: CustomTokenCostRule[],
 ): TokenCostRate {
   const provider = providerForEntry(entry, providers);
-  const customRate = customRateForEntry(entry, provider, customRules);
+  const customRate = findCustomTokenCostRule(customRules, provider?.id ?? entry.providerId, entry.model);
   if (customRate) return customRate;
   const configured = provider?.modelTokenCosts?.[entry.model];
   if (provider?.kind === "custom") {
-    if (typeof configured === "number" && configured >= 0) {
+    if (typeof configured === "number" && Number.isFinite(configured) && configured >= 0) {
       return { input: configured, cachedInput: configured, output: configured };
     }
-    return SOL_FALLBACK_RATE;
   }
-  return findOpenAiRate(entry.model);
+  return findTokenCostPreset(entry.model) ?? referenceTokenCostPreset();
 }
 
 export function estimateTokenCost(entry: TokenUsageEntry, providers: Provider[]): number {

@@ -144,7 +144,6 @@ pub(crate) fn save_provider<R: Runtime>(
         wallet_password,
     })?;
     write_local_provider(&paths, &profile, existing.as_ref())?;
-    clear_cached_provider_balance(&profile.id);
 
     let state = read_state(&paths);
     let write_codex = crate::claude_code::should_write_codex_for_app(&app)?;
@@ -391,7 +390,5 @@ fn query_provider_balance_blocking<R: Runtime>(
         balance_items: parsed.balance_items,
         queried_at: chrono::Utc::now().timestamp(),
     };
-    cache_provider_balance(&id, &balance);
-    crate::codex_runtime::refresh_usage_summary();
     Ok(balance)
 }

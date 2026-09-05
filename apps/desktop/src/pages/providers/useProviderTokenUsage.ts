@@ -3,6 +3,7 @@ import { loadProviderTokenUsage, subscribeToTokenUsageChanges } from "../../api/
 import type { Provider, ProviderTokenUsageTotals } from "../../types";
 import { createProviderTokenUsageLookup } from "../../utils/providerTokenUsage";
 import { TOKEN_COST_CUSTOM_RULES_EVENT } from "../../utils/tokenCost";
+import { TOKEN_COST_REFERENCE_MODEL_EVENT } from "../../utils/tokenCostPresets";
 
 export function useProviderTokenUsage(tokenUsageRefreshSeconds: number, providers: Provider[]) {
   const [providerTokenUsage, setProviderTokenUsage] = useState<ProviderTokenUsageTotals[]>([]);
@@ -33,11 +34,13 @@ export function useProviderTokenUsage(tokenUsageRefreshSeconds: number, provider
     const timer = window.setInterval(() => void refresh(), refreshInterval);
     const unsubscribe = subscribeToTokenUsageChanges(() => void refresh());
     window.addEventListener(TOKEN_COST_CUSTOM_RULES_EVENT, refresh);
+    window.addEventListener(TOKEN_COST_REFERENCE_MODEL_EVENT, refresh);
     return () => {
       active = false;
       window.clearInterval(timer);
       unsubscribe();
       window.removeEventListener(TOKEN_COST_CUSTOM_RULES_EVENT, refresh);
+      window.removeEventListener(TOKEN_COST_REFERENCE_MODEL_EVENT, refresh);
     };
   }, [providers, tokenUsageRefreshSeconds]);
 
