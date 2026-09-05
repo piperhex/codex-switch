@@ -30,13 +30,13 @@ impl ResetCoordinator {
     }
 }
 
-/// A missing or failed usage query is never evidence that an account needs a card.
+/// Automatic card use requires both reported windows to be exhausted.
+/// Missing windows and failed queries never authorize spending a card.
 pub(crate) fn quota_is_exhausted(usage: &UsageSummary) -> bool {
     usage.error.is_none()
         && [usage.primary.as_ref(), usage.secondary.as_ref()]
             .into_iter()
-            .flatten()
-            .any(|window| window.remaining_percent <= 0.0)
+            .all(|window| window.is_some_and(|window| window.remaining_percent == 0.0))
 }
 
 fn credit_expirations(credits: &ResetCreditsSummary) -> Vec<i64> {

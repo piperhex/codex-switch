@@ -3,13 +3,21 @@ use crate::models::{ResetCredit, UsageWindow};
 use std::collections::HashMap;
 
 fn usage(remaining: f64) -> UsageSummary {
-    UsageSummary {
-        primary: Some(UsageWindow {
+    usage_windows(remaining, remaining)
+}
+
+fn usage_windows(primary: f64, secondary: f64) -> UsageSummary {
+    let window = |remaining| {
+        Some(UsageWindow {
             used_percent: 100.0 - remaining,
             remaining_percent: remaining,
             resets_at: None,
             window_minutes: None,
-        }),
+        })
+    };
+    UsageSummary {
+        primary: window(primary),
+        secondary: window(secondary),
         ..UsageSummary::default()
     }
 }
@@ -149,9 +157,38 @@ fn unknown_failed_and_positive_usage_never_trigger() {
     }));
     assert!(!quota_is_exhausted(&usage(0.1)));
     assert!(quota_is_exhausted(&usage(0.0)));
-    let mut weekly_exhausted = usage(80.0);
-    weekly_exhausted.secondary = usage(0.0).primary;
-    assert!(quota_is_exhausted(&weekly_exhausted));
+    for (primary, secondary) in [(0.0, 80.0), (80.0, 0.0), (0.0, 0.1), (0.1, 0.0)] {
+        assert!(!quota_is_exhausted(&usage_windows(primary, secondary)));
+    }
+}
+
+#[test]
+fn a_missing_window_never_authorizes_a_reset_card() {
+    assert!(!quota_is_exhausted(&UsageSummary {
+        primary: None,
+        ..usage(0.0)
+    }));
+    assert!(!quota_is_exhausted(&UsageSummary {
+        secondary: None,
+        ..usage(0.0)
+    }));
+}
+
+#[test]
+fn either_remaining_window_on_any_backup_blocks_both_routing_modes() {
+    for concurrent in [false, true] {
+        for (primary, secondary) in [(0.0, 80.0), (80.0, 0.0)] {
+            let mut backend = FakeBackend::default();
+            backend.pool.concurrent = concurrent;
+            backend.pool.settings.max_cards = 3;
+            backend.pool.settings.account_ids = Some(vec!["b".into()]);
+            backend
+                .usages
+                .insert("a".into(), usage_windows(primary, secondary));
+            assert!(restore_pool(&mut backend).unwrap().is_empty());
+            assert!(backend.consumed.is_empty());
+        }
+    }
 }
 
 #[test]

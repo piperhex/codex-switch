@@ -15,7 +15,8 @@ const translations = {
     "autoReset.save": "Save",
     "autoReset.cancel": "Cancel",
     "autoReset.enabled": "Use reset cards automatically",
-    "autoReset.description": "With auto-switch enabled, use cards only when every backup account is out of quota. Prefer accounts with earlier-expiring cards.",
+    "autoReset.description": "With auto-switch enabled, use cards only when every backup account has zero quota in both "
+      + "its primary and secondary windows. Prefer accounts with earlier-expiring cards.",
     "autoReset.maxCards": "Maximum cards per concurrent batch",
     "autoReset.concurrentHint": "Defaults to 1. Use one card per exhausted account, up to this limit.",
     "autoReset.singleHint": "Outside concurrent mode, use at most 1 card per batch. This limit applies to concurrent mode.",
@@ -2417,7 +2418,7 @@ const translations = {
     "autoReset.save": "保存",
     "autoReset.cancel": "取消",
     "autoReset.enabled": "自动使用重置卡",
-    "autoReset.description": "开启自动切号后，仅当所有备选账户均无额度时使用重置卡。优先选择重置卡更早到期的账户。",
+    "autoReset.description": "开启自动切号后，仅当所有备选账户的主用量和次用量剩余额度均为 0 时使用重置卡。优先选择重置卡更早到期的账户。",
     "autoReset.maxCards": "并发模式每次最多使用（张）",
     "autoReset.concurrentHint": "默认 1 张。每次给不同的无额度账户各用 1 张，最多达到此上限。",
     "autoReset.singleHint": "当前为非并发模式，每次最多使用 1 张。此上限在并发模式下生效。",
