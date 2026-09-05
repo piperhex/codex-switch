@@ -8,6 +8,7 @@ fn attach_token_usage_capture<R: Runtime + 'static>(
         return Ok(payload);
     };
     if !status_ok(payload.status) {
+        update_proxy_session_response_account(&mut context, &payload);
         return Ok(payload);
     }
     if context.provider_id.is_none() && payload.token_usage_account.is_none() {
@@ -32,19 +33,7 @@ fn attach_token_usage_capture<R: Runtime + 'static>(
         }
     }
     context.content_type = payload.content_type.clone();
-    context.account = payload.token_usage_account.clone();
-    update_proxy_session_usage(
-        context.session_id.as_deref(),
-        context
-            .account
-            .as_ref()
-            .map(|account| account.account_id.as_str()),
-        context
-            .account
-            .as_ref()
-            .map(|account| account.account_email.as_str()),
-        None,
-    );
+    update_proxy_session_response_account(&mut context, &payload);
     payload.body = match payload.body {
         UpstreamBody::Buffered(body) => {
             let usage = extract_token_usage_from_bytes(

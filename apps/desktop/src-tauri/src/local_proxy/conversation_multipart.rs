@@ -65,3 +65,46 @@ fn conversation_multipart_part(part: &[u8]) -> Option<Value> {
     let data = base64::engine::general_purpose::STANDARD.encode(body);
     Some(json!({ "type": "input_image", "image_url": format!("data:{mime};base64,{data}") }))
 }
+
+fn multipart_request_text_field(
+    body: &[u8],
+    headers: &[(String, String)],
+    field_name: &str,
+) -> Option<String> {
+    let content_type = header_value(headers, "content-type")?;
+    if !content_type.starts_with("multipart/form-data") {
+        return None;
+    }
+    let boundary = multipart_boundary(content_type)?;
+    let marker = format!("--{boundary}");
+    let separator = format!("\r\n{marker}");
+    let mut remaining = body;
+    while let Some(start) = find_bytes(remaining, marker.as_bytes()) {
+        remaining = &remaining[start + marker.len()..];
+        let part = remaining.strip_prefix(b"\r\n")?;
+        let end = find_bytes(part, separator.as_bytes())?;
+        if let Some(value) = multipart_text_part(&part[..end], field_name) {
+            return Some(value);
+        }
+        remaining = &part[end + 2..];
+    }
+    None
+}
+
+fn multipart_text_part(part: &[u8], field_name: &str) -> Option<String> {
+    let header_end = find_bytes(part, b"\r\n\r\n")?;
+    let headers = std::str::from_utf8(&part[..header_end]).ok()?;
+    let disposition = headers.lines().find(|line| {
+        line.to_ascii_lowercase()
+            .starts_with("content-disposition:")
+    })?;
+    let mut fields = disposition.split(';').map(str::trim);
+    let expected_name = format!("name=\"{field_name}\"");
+    if !fields.clone().any(|field| field == expected_name)
+        || fields.any(|field| field.starts_with("filename="))
+    {
+        return None;
+    }
+    let value = std::str::from_utf8(&part[header_end + 4..]).ok()?.trim();
+    (!value.is_empty()).then(|| value.to_string())
+}

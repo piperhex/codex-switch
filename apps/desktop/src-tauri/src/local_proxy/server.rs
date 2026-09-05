@@ -509,15 +509,16 @@ fn handle_proxy_request<R: Runtime>(
     let image_account_failover_enabled = image_account_pool.is_some();
     let route = proxy_diagnostic_route(path, &target);
     let diagnostic = proxy_diagnostic_entry(method, url, headers, &body, Some(&target), route);
-    let usage_context = token_usage_context(
+    let usage_context = token_usage_context(TokenUsageRequest {
         method,
         path,
-        &body,
-        &target,
+        body: &body,
+        headers,
+        target: &target,
         started_at,
         session_id,
         session_request_id,
-    );
+    });
     if let Some(context) = usage_context.as_ref() {
         update_proxy_session_target(
             context.session_id.as_deref(),

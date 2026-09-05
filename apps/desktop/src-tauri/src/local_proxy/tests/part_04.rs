@@ -9,15 +9,16 @@
         }))
         .unwrap();
 
-        let context = token_usage_context(
-            &Method::Post,
-            "/v1/responses",
-            &body,
-            &target,
-            Instant::now(),
-            Some("session-test"),
-            None,
-        )
+        let context = token_usage_context(TokenUsageRequest {
+            method: &Method::Post,
+            path: "/v1/responses",
+            body: &body,
+            headers: &[],
+            target: &target,
+            started_at: Instant::now(),
+            session_id: Some("session-test"),
+            session_request_id: None,
+        })
         .unwrap();
 
         assert_eq!(context.model, "gpt-5.6-sol");
@@ -35,15 +36,16 @@
             "stream": true
         }))
         .unwrap();
-        let context = token_usage_context(
-            &Method::Post,
-            "/v1/responses",
-            &body,
-            &target,
-            Instant::now(),
-            None,
-            None,
-        )
+        let context = token_usage_context(TokenUsageRequest {
+            method: &Method::Post,
+            path: "/v1/responses",
+            body: &body,
+            headers: &[],
+            target: &target,
+            started_at: Instant::now(),
+            session_id: None,
+            session_request_id: None,
+        })
         .unwrap();
         let sse = concat!(
             "event: response.completed\n",

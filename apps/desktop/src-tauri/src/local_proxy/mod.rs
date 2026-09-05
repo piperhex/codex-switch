@@ -21,6 +21,7 @@ include!("routing_auto.rs");
 include!("routing_target.rs");
 include!("image_account_pool.rs");
 include!("capture.rs");
+include!("usage_context.rs");
 include!("diagnostics_helpers.rs");
 include!("token_usage.rs");
 include!("token_usage_db.rs");
@@ -48,4 +49,5 @@ mod tests {
     include!("tests/part_08.rs");
     include!("tests/part_09.rs");
     include!("tests/conversation.rs");
+    include!("tests/image_usage.rs");
 }
