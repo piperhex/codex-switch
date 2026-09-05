@@ -1365,6 +1365,11 @@ export async function loadProxySessions(): Promise<ProxySession[]> {
   return invoke<ProxySession[]>("list_proxy_sessions");
 }
 
+export async function loadProxyConversationAttachment(id: string): Promise<string | null> {
+  if (!hasLocalBackend) return null;
+  return invoke<string | null>("get_proxy_conversation_attachment", { id });
+}
+
 export async function loadProxySessionRequests(sessionId: string): Promise<ProxySessionRequest[]> {
   if (!hasLocalBackend) {
     const now = Math.floor(Date.now() / 1000);

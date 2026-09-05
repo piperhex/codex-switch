@@ -208,6 +208,7 @@ const LAN_COMMAND_ALLOWLIST: &[&str] = &[
     "list_provider_token_usage",
     "list_providers",
     "list_proxy_session_requests",
+    "get_proxy_conversation_attachment",
     "list_proxy_sessions",
     "list_token_usage_entries",
     "list_token_usage_entries_since",

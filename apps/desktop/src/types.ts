@@ -277,6 +277,10 @@ export interface ProxySession {
   cachedTokens: number;
 }
 
+export interface ProxyConversationAttachment {
+  id: string;
+}
+
 export interface ProxySessionRequest {
     id: number;
     startedAt: number;
@@ -284,6 +288,10 @@ export interface ProxySessionRequest {
     reasoningEffort?: string | null;
     serviceTier?: "default" | "priority" | null;
     conversation?: string | null;
+    response?: string | null;
+    inputAttachments?: ProxyConversationAttachment[];
+    outputAttachments?: ProxyConversationAttachment[];
+    responseTruncated?: boolean;
     firstResponseTimeMs?: number | null;
     responseTimeMs?: number | null;
     totalTokens?: number | null;

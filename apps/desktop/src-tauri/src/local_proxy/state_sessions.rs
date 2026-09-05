@@ -91,7 +91,7 @@ fn begin_proxy_session_request(
         .to_string();
     let now = unix_now();
     let (model, reasoning_effort) = proxy_request_metadata(body);
-    let conversation = proxy_request_conversation(body);
+    let conversation = capture_session_request_conversation(body, headers);
     let started_at = Instant::now();
     let mut request_id = 1;
     if let Ok(mut sessions) = proxy_sessions().lock() {
@@ -128,7 +128,11 @@ fn begin_proxy_session_request(
             model,
             reasoning_effort,
             service_tier,
-            conversation,
+            conversation: conversation.text,
+            input_attachments: conversation.attachments,
+            response: None,
+            output_attachments: Vec::new(),
+            response_truncated: false,
             first_response_time_ms: None,
             response_time_ms: None,
             usage: None,
@@ -138,6 +142,10 @@ fn begin_proxy_session_request(
         }
     }
     ProxySessionRequestGuard {
+        expects_event_stream: serde_json::from_slice::<Value>(body)
+            .ok()
+            .and_then(|value| value.get("stream").and_then(Value::as_bool))
+            .unwrap_or(false),
         session_id: id,
         request_id,
         started_at,
@@ -146,21 +154,9 @@ fn begin_proxy_session_request(
 
 const MAX_PROXY_SESSION_CONVERSATION_CHARS: usize = 12_000;
 
+#[cfg(test)]
 fn proxy_request_conversation(body: &[u8]) -> Option<String> {
-    let value = serde_json::from_slice::<Value>(body).ok()?;
-    let conversation = value
-        .get("messages")
-        .or_else(|| value.get("input"))
-        .or_else(|| value.get("prompt"))?;
-    let text = serde_json::to_string_pretty(conversation).ok()?;
-    if proxy_session_unlimited_conversation().load(Ordering::Relaxed) {
-        return Some(text);
-    }
-    let mut truncated = text.chars().take(MAX_PROXY_SESSION_CONVERSATION_CHARS).collect::<String>();
-    if text.chars().count() > MAX_PROXY_SESSION_CONVERSATION_CHARS {
-        truncated.push_str("\n…");
-    }
-    Some(truncated)
+    capture_request_conversation(body).text
 }
 
 fn proxy_request_metadata(body: &[u8]) -> (Option<String>, Option<String>) {

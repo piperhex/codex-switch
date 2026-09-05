@@ -1,0 +1,36 @@
+.content { max-height: 60vh; overflow: auto; }
+.attachments { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; }
+.attachment {
+  width: 130px;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  :global(.ant-image-img) { object-fit: contain; }
+  figcaption { padding: 6px 8px; color: var(--ink); font-size: 12px; }
+}
+.placeholder {
+  height: 96px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px;
+  color: var(--muted);
+  text-align: center;
+  font-size: 11px;
+}
+.searchMatch { padding: 0 1px; background: var(--green-selection); color: var(--ink); }
+.text {
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--ink);
+  font: 12px/1.6 ui-monospace, SFMono-Regular, Consolas, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

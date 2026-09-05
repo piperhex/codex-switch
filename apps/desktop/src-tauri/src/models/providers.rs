@@ -162,6 +162,10 @@ pub(crate) struct ProxySessionRequestSummary {
     pub(crate) reasoning_effort: Option<String>,
     pub(crate) service_tier: Option<String>,
     pub(crate) conversation: Option<String>,
+    pub(crate) response: Option<String>,
+    pub(crate) input_attachments: Vec<ProxyConversationAttachment>,
+    pub(crate) output_attachments: Vec<ProxyConversationAttachment>,
+    pub(crate) response_truncated: bool,
     pub(crate) first_response_time_ms: Option<u64>,
     pub(crate) response_time_ms: Option<u64>,
     pub(crate) total_tokens: Option<u64>,
@@ -229,4 +233,10 @@ pub(crate) struct DailyTokenUsage {
     pub(crate) output_tokens: u64,
     pub(crate) reasoning_tokens: u64,
     pub(crate) cached_tokens: u64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ProxyConversationAttachment {
+    pub(crate) id: String,
 }

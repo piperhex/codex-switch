@@ -5,6 +5,9 @@ include!("constants.rs");
 include!("types.rs");
 include!("state_core.rs");
 include!("state_sessions.rs");
+include!("conversation_attachments.rs");
+include!("conversation_multipart.rs");
+include!("conversation_response.rs");
 include!("commands_status.rs");
 include!("lifecycle.rs");
 include!("settings.rs");
@@ -44,4 +47,5 @@ mod tests {
     include!("tests/part_07.rs");
     include!("tests/part_08.rs");
     include!("tests/part_09.rs");
+    include!("tests/conversation.rs");
 }

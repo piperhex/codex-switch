@@ -288,7 +288,9 @@ fn handle_request<R: Runtime>(app: tauri::AppHandle<R>, mut request: Request) {
         return;
     }
 
-    let session = (method == Method::Post && is_responses_endpoint(request_path(&url))).then(|| {
+    let captures_conversation = is_responses_endpoint(request_path(&url))
+        || is_image_generation_endpoint(request_path(&url));
+    let session = (method == Method::Post && captures_conversation).then(|| {
         let service_tier = effective_proxy_service_tier(&body, proxy_service_tier_override());
         begin_proxy_session_request(&headers, remote_address, &body, service_tier)
     });
@@ -310,7 +312,10 @@ fn handle_request<R: Runtime>(app: tauri::AppHandle<R>, mut request: Request) {
     };
     respond_payload(
         request,
-        attach_first_response_capture(payload, session.as_ref()),
+        attach_first_response_capture(
+            attach_conversation_response_capture(payload, session.as_ref()),
+            session.as_ref(),
+        ),
     );
 }
 

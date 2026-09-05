@@ -31,6 +31,10 @@ struct ProxySessionRequestState {
     reasoning_effort: Option<String>,
     service_tier: Option<ProxyServiceTier>,
     conversation: Option<String>,
+    response: Option<String>,
+    input_attachments: Vec<ProxyConversationAttachment>,
+    output_attachments: Vec<ProxyConversationAttachment>,
+    response_truncated: bool,
     first_response_time_ms: Option<u64>,
     response_time_ms: Option<u64>,
     usage: Option<TokenUsageValues>,
@@ -66,6 +70,7 @@ impl ProxySessionTokenTotals {
 }
 
 struct ProxySessionRequestGuard {
+    expects_event_stream: bool,
     session_id: String,
     request_id: u64,
     started_at: Instant,
