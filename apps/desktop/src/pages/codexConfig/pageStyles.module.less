@@ -1,5 +1,9 @@
+:global(main).main {
+  display: flex; flex-direction: column; overflow: hidden; padding-bottom: 0; scrollbar-gutter: auto;
+}
+.panel { flex: 1; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; }
 .page { display: grid; gap: 20px; padding: 24px var(--page-x) 28px; min-width: 0; }
-:global(.topbar).topbar { height: auto; min-height: 110px; flex-wrap: wrap; column-gap: 32px; }
+:global(.topbar).topbar { flex-shrink: 0; height: auto; min-height: 110px; flex-wrap: wrap; column-gap: 32px; }
 .heading { flex: 0 0 auto; }
 .topbarHost { flex: 1 1 620px; min-width: 0; }
 .controls {

@@ -1325,7 +1325,8 @@ export function DashboardApp() {
           : page === "claudeCode" ? "claude-code-main"
           : page === "tokens" ? "tokens-main"
             : page === "dreamSkin" ? "dream-skin-main"
-              : page === "sessions" ? "sessions-main" : undefined}>
+              : page === "sessions" ? "sessions-main"
+              : page === "codexConfig" ? codexConfigStyles.main : undefined}>
           {page !== "tokens" && page !== "dreamSkin" && (
           <>
           <header data-tauri-drag-region className={`topbar${
@@ -1441,7 +1442,7 @@ export function DashboardApp() {
               />
             )}
           </section>
-          <section className="page-panel" hidden={page !== "codexConfig"}>
+          <section className={`page-panel ${codexConfigStyles.panel}`} hidden={page !== "codexConfig"}>
             <CodexConfigPage active={page === "codexConfig"} homeKey={manager.info?.codexHome} />
           </section>
           <section className="page-panel" hidden={page !== "settings"}>
