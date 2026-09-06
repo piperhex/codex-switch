@@ -124,7 +124,9 @@ export function defaultReasoningEfforts(model: string): ReasoningEffort[] {
   if (!normalized) return [];
   if (!normalized.startsWith("gpt-")) return ["none", "high"];
   const efforts: ReasoningEffort[] = ["low", "medium", "high", "xhigh"];
-  if (normalized.startsWith("gpt-5.6")) efforts.push("max");
+  if (normalized.startsWith("gpt-5.6") || normalized.startsWith("gpt-6-astra")) {
+    efforts.push("max");
+  }
   if (normalized.startsWith("gpt-5.6-sol") || normalized.startsWith("gpt-5.6-terra")) {
     efforts.push("ultra");
   }
@@ -135,11 +137,8 @@ export function supportsImageInputByDefault(model: string) {
   return model.trim().toLowerCase().startsWith("gpt-");
 }
 
-export function reasoningEffortOptions(model: string, t: Translate) {
-  const values = model.trim().toLowerCase().startsWith("gpt-")
-    ? defaultReasoningEfforts(model)
-    : REASONING_EFFORTS;
-  return values.map((value) => ({ label: t(REASONING_EFFORT_LABELS[value]), value }));
+export function reasoningEffortOptions(t: Translate) {
+  return REASONING_EFFORTS.map((value) => ({ label: t(REASONING_EFFORT_LABELS[value]), value }));
 }
 
 export function modelReasoningConfigs(

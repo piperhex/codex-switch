@@ -272,10 +272,10 @@
     }
 
     #[test]
-    fn gpt_reasoning_profiles_match_official_model_families_case_insensitively() {
+    fn gpt_reasoning_profiles_match_supported_model_families_case_insensitively() {
         assert_eq!(
-            reasoning_effort_profile_for_model("GPT-5.4", ReasoningEffortProfile::Standard),
-            ReasoningEffortProfile::OpenAi
+            reasoning_effort_profile_for_model("GPT-6-ASTRA", ReasoningEffortProfile::Standard),
+            ReasoningEffortProfile::OpenAiMax
         );
         assert_eq!(
             reasoning_effort_profile_for_model("gpt-5.6-luna", ReasoningEffortProfile::Standard),
@@ -298,6 +298,7 @@
     #[test]
     fn provider_model_catalog_uses_model_specific_reasoning_levels() {
         let models = vec![
+            "gpt-6-astra".to_string(),
             "gpt-5.6-sol".to_string(),
             "GPT-5.6-LUNA".to_string(),
             "gpt-5.4".to_string(),
@@ -326,11 +327,15 @@
 
         assert_eq!(
             efforts(0),
+            vec!["low", "medium", "high", "xhigh", "max"]
+        );
+        assert_eq!(
+            efforts(1),
             vec!["low", "medium", "high", "xhigh", "max", "ultra"]
         );
-        assert_eq!(efforts(1), vec!["low", "medium", "high", "xhigh", "max"]);
-        assert_eq!(efforts(2), vec!["low", "medium", "high", "xhigh"]);
-        assert_eq!(efforts(3), vec!["none", "high"]);
+        assert_eq!(efforts(2), vec!["low", "medium", "high", "xhigh", "max"]);
+        assert_eq!(efforts(3), vec!["low", "medium", "high", "xhigh"]);
+        assert_eq!(efforts(4), vec!["none", "high"]);
     }
 
     #[test]

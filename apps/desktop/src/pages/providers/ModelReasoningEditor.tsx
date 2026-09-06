@@ -98,7 +98,8 @@ export function ModelReasoningEditor({
       <Input value={config.model} disabled={disabled}
         placeholder="gpt-5.6-sol" onChange={(event) => updateModel(index, event.target.value)} />
       <Select mode="multiple" value={config.reasoningEfforts} disabled={disabled}
-        maxTagCount="responsive" options={reasoningEffortOptions(config.model, t)}
+        maxTagCount="responsive" options={reasoningEffortOptions(t)}
+        optionRender={(option) => <>{option.label}（{option.value}）</>}
         placeholder={t("providers.form.reasoningEffortsPlaceholder")}
         onChange={(efforts) => updateEfforts(index, efforts as ReasoningEffort[])} />
       <AutoComplete value={config.contextWindowK} disabled={disabled}
