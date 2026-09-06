@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import { ArrowRight, LogIn, RefreshCw } from "lucide-react";
 import type { Language, Translate } from "../i18n";
 import type { AccountDisplayMode } from "../hooks/useAccountDisplayMode";
@@ -50,7 +49,6 @@ export function AccountsPage({
   showUsageNetworkErrors,
   displayMode,
   tokenUsageRefreshSeconds,
-  proxyControls,
   language,
   t,
 }: {
@@ -95,7 +93,6 @@ export function AccountsPage({
   showUsageNetworkErrors: boolean;
   displayMode: AccountDisplayMode;
   tokenUsageRefreshSeconds: number;
-  proxyControls?: ReactNode;
   language: Language;
   t: Translate;
 }) {
@@ -110,7 +107,6 @@ export function AccountsPage({
   if (!accounts.length) {
     return (
       <div className="accounts-page">
-        {proxyControls && <div className="account-empty-proxy-toolbar">{proxyControls}</div>}
         <div className="empty-state">
           <div><LogIn size={28} /></div><h2>{t("accounts.empty.title")}</h2>
           <p>{t("accounts.empty.description")}</p>
@@ -156,7 +152,6 @@ export function AccountsPage({
         openaiAuthAccountId={localProxy?.openaiAuthAccountId ?? null} openaiAuthBusy={proxyBusy}
         onOpenaiAuthAccountChange={onOpenaiAuthAccountChange}
         tokenUsageRefreshSeconds={tokenUsageRefreshSeconds}
-        proxyControls={proxyControls}
         language={language} t={t} />
     </div>
   );

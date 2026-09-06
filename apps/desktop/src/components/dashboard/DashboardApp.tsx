@@ -1,24 +1,20 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ConfigProvider, Dropdown, Modal, theme as antdTheme, type MenuProps } from "antd";
+import { ConfigProvider, Dropdown, Modal, theme as antdTheme } from "antd";
 import enUS from "antd/locale/en_US";
 import zhCN from "antd/locale/zh_CN";
 import {
   CalendarClock,
   Check,
   CircleHelp,
-  Minus,
   PanelLeftClose,
   PanelLeftOpen,
   Play,
   Plus,
   RefreshCw,
   RotateCcw,
-  Search,
-  Square,
   X,
 } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
   chooseAndExportDiagnosticLogs,
   copyWebProxyLanApiKey,
@@ -69,6 +65,7 @@ import { ProxyStatusControls } from "./ProxyStatusControls";
 import { ProxyTopbarActions } from "./ProxyTopbarActions";
 import { AnnouncementBanner } from "./AnnouncementBanner";
 import { DashboardMenuTools } from "./DashboardMenuTools";
+import { DashboardTopbar } from "./DashboardTopbar";
 import { ProxyProgressModal } from "./ProxyProgressModal";
 import { buildDashboardMenuItems } from "./dashboardMenuItems";
 import { DashboardNavigation, type DashboardPage } from "./DashboardNavigation";
@@ -128,7 +125,7 @@ import type {
 const REPOSITORY_URL = "https://github.com/piperhex/codex-switch";
 const LATEST_RELEASE_API_URL = "https://api.github.com/repos/piperhex/codex-switch/releases/latest";
 const APP_LOGO_URL = new URL("../../../src-tauri/icons/128x128.png", import.meta.url).href;
-const CUSTOM_TITLEBAR_ENABLED = isDesktopApp && navigator.userAgent.includes("Windows");
+const NATIVE_WINDOW_CONTROLS_ENABLED = isDesktopApp && navigator.userAgent.includes("Windows");
 const MemoAccountsPage = memo(AccountsPage);
 const MemoThirdPartyAppsPage = memo(ThirdPartyAppsPage);
 const MemoDreamSkinPage = memo(DreamSkinPage);
@@ -1131,24 +1128,7 @@ export function DashboardApp() {
       </Dropdown>
     </div>
   );
-  const menuItems = buildDashboardMenuItems(t, cloud.state.authenticated);
-  const windowMenu = (label: string, items: MenuProps["items"], selectedKeys?: string[]) => (
-    <Dropdown
-      trigger={["click"]}
-      placement="bottomLeft"
-      overlayClassName="window-menu-dropdown"
-      menu={{
-        items,
-        selectedKeys,
-        onClick: ({ key }) => handleSystemMenuAction(key as SystemMenuAction),
-      }}
-    >
-      <button type="button" className="window-menu-trigger">{label}</button>
-    </Dropdown>
-  );
-  const toggleWindowMaximized = () => {
-    void getCurrentWindow().toggleMaximize().catch((error) => notify(String(error)));
-  };
+  const menuItems = buildDashboardMenuItems(t, cloud.state.authenticated, isDesktopApp);
   const titlebarProxyRunning = Boolean(providerManager.localProxy?.running);
   const proxyStartDisabledReason = !hasLocalBackend && !providerManager.localProxy?.port
     ? t("providers.proxy.webPortRequired")
@@ -1156,7 +1136,7 @@ export function DashboardApp() {
       ? t("providers.proxy.agentIdentityUnsupported")
       : undefined;
   const proxyStatusControls = (
-    <ProxyStatusControls customTitlebarEnabled={CUSTOM_TITLEBAR_ENABLED} manager={providerManager}
+    <ProxyStatusControls manager={providerManager}
       clientOperation={chatGptOperation} onClientOperationChange={setChatGptOperation}
       notify={notify} onRequestLanAccess={() => setShowLanAccess(true)}
       startDisabledReason={proxyStartDisabledReason} t={t} />
@@ -1225,52 +1205,14 @@ export function DashboardApp() {
         fontFamily: "\"DM Sans\", \"Microsoft YaHei UI\", sans-serif",
       },
     }}>
-      <div className={`app-shell${CUSTOM_TITLEBAR_ENABLED ? " custom-titlebar-shell" : ""}${
+      <div className={`app-shell${NATIVE_WINDOW_CONTROLS_ENABLED ? " custom-titlebar-shell" : ""}${
         sidebarNavigationEnabled ? " sidebar-navigation-shell" : ""
       }${sidebarNavigationEnabled && navigationStyle.sidebarCollapsed ? " sidebar-collapsed" : ""}`}>
-        {CUSTOM_TITLEBAR_ENABLED && (
-          <header className="window-titlebar">
-            <nav className="window-menu-bar" aria-label={t("windowMenu.aria")}>
-              {windowMenu(t("windowMenu.file"), menuItems.file)}
-              {windowMenu(t("windowMenu.view"), menuItems.view, [
-                `navigation-style-${navigationStyle.style}`,
-              ])}
-              {windowMenu(t("windowMenu.navigate"), menuItems.navigate)}
-              {windowMenu(t("windowMenu.tools"), menuItems.tools)}
-              {windowMenu(t("windowMenu.cloud"), menuItems.cloud)}
-              {windowMenu(t("windowMenu.help"), menuItems.help)}
-              <button
-                type="button"
-                className="window-menu-search-trigger"
-                aria-label={`${t("menuSearch.label")} (${t("menuSearch.shortcut")})`}
-                title={`${t("menuSearch.label")} (${t("menuSearch.shortcut")})`}
-                onClick={() => setShowMenuSearch(true)}
-              >
-                <Search size={14} />
-              </button>
-            </nav>
-            <div className="window-titlebar-drag-region" data-tauri-drag-region />
-            <div className="window-titlebar-tools">
-              {proxyStatusControls}
-              {menuTools}
-            </div>
-            <div className="window-controls">
-              <button type="button" className="window-control" aria-label={t("windowMenu.minimize")}
-                onClick={() => void getCurrentWindow().minimize().catch((error) => notify(String(error)))}>
-                <Minus size={16} />
-              </button>
-              <button type="button" className="window-control" aria-label={t("windowMenu.maximize")}
-                onClick={toggleWindowMaximized}>
-                <Square size={13} />
-              </button>
-              <button type="button" className="window-control window-control-close"
-                aria-label={t("windowMenu.close")}
-                onClick={() => void getCurrentWindow().close().catch((error) => notify(String(error)))}>
-                <X size={17} />
-              </button>
-            </div>
-          </header>
-        )}
+        <DashboardTopbar menuItems={menuItems} nativeWindowControls={NATIVE_WINDOW_CONTROLS_ENABLED}
+          navigationStyle={navigationStyle.style}
+          onMenuAction={(action) => handleSystemMenuAction(action as SystemMenuAction)}
+          onSearch={() => setShowMenuSearch(true)} onWindowError={notify} t={t}
+          tools={<>{proxyStatusControls}{menuTools}</>} />
         {sidebarNavigationEnabled && (
           <aside className="app-sidebar" data-tauri-drag-region>
             <button type="button" className="brand sidebar-brand" onClick={openRepository}
@@ -1311,7 +1253,6 @@ export function DashboardApp() {
           {!sidebarNavigationEnabled && (
             <DashboardNavigation onPageChange={setPage} page={page} t={t} />
           )}
-          {!CUSTOM_TITLEBAR_ENABLED && menuTools}
         </header>
 
         <main className={page === "accounts" ? "accounts-main"
@@ -1621,7 +1562,6 @@ export function DashboardApp() {
               showUsageNetworkErrors={showUsageNetworkErrors}
               displayMode={accountDisplayMode.displayMode}
               tokenUsageRefreshSeconds={tokenUsagePreferences.refreshSeconds}
-              proxyControls={!CUSTOM_TITLEBAR_ENABLED ? proxyStatusControls : undefined}
               language={language} t={t} />
           </section>
         </main>

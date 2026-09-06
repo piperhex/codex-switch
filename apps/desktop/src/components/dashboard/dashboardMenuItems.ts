@@ -12,7 +12,7 @@ export interface DashboardMenuItems {
   view: MenuProps["items"];
 }
 
-function fileItems(t: Translate): MenuProps["items"] {
+function fileItems(t: Translate, desktopApp: boolean): MenuProps["items"] {
   return [
     { key: "add-account", label: t("actions.addAccount") },
     { type: "divider" },
@@ -22,8 +22,8 @@ function fileItems(t: Translate): MenuProps["items"] {
     { key: "open-codex-home", label: t("windowMenu.openCodexHome") },
     { key: "open-account-store", label: t("windowMenu.openAccountStore") },
     { type: "divider" },
-    { key: "restart-app", label: t("windowMenu.restartApp") },
-    { key: "quit-app", label: t("windowMenu.quit") },
+    { key: "restart-app", label: t("windowMenu.restartApp"), disabled: !desktopApp },
+    { key: "quit-app", label: t("windowMenu.quit"), disabled: !desktopApp },
   ];
 }
 
@@ -88,7 +88,7 @@ function helpItems(t: Translate): MenuProps["items"] {
   ];
 }
 
-function searchItems(t: Translate, authenticated: boolean): MenuSearchItem[] {
+function searchItems(t: Translate, authenticated: boolean, desktopApp: boolean): MenuSearchItem[] {
   const item = (id: string, label: string, group: string, disabled = false) => (
     { id, label, group, disabled }
   );
@@ -98,8 +98,8 @@ function searchItems(t: Translate, authenticated: boolean): MenuSearchItem[] {
     item("export-archive", t("actions.exportArchive"), t("windowMenu.file")),
     item("open-codex-home", t("windowMenu.openCodexHome"), t("windowMenu.file")),
     item("open-account-store", t("windowMenu.openAccountStore"), t("windowMenu.file")),
-    item("restart-app", t("windowMenu.restartApp"), t("windowMenu.file")),
-    item("quit-app", t("windowMenu.quit"), t("windowMenu.file")),
+    item("restart-app", t("windowMenu.restartApp"), t("windowMenu.file"), !desktopApp),
+    item("quit-app", t("windowMenu.quit"), t("windowMenu.file"), !desktopApp),
     item("navigation-style-top", t("settings.navigationStyle.top"), t("windowMenu.view")),
     item("navigation-style-sidebar", t("settings.navigationStyle.sidebar"), t("windowMenu.view")),
     item("accounts", t("nav.accounts"), t("windowMenu.navigate")),
@@ -130,13 +130,13 @@ function searchItems(t: Translate, authenticated: boolean): MenuSearchItem[] {
   ];
 }
 
-export function buildDashboardMenuItems(t: Translate, authenticated: boolean): DashboardMenuItems {
+export function buildDashboardMenuItems(t: Translate, authenticated: boolean, desktopApp: boolean): DashboardMenuItems {
   return {
     cloud: cloudItems(t, authenticated),
-    file: fileItems(t),
+    file: fileItems(t, desktopApp),
     help: helpItems(t),
     navigate: navigateItems(t),
-    search: searchItems(t, authenticated),
+    search: searchItems(t, authenticated, desktopApp),
     tools: toolItems(t),
     view: viewItems(t),
   };

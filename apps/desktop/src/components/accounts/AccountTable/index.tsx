@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   AutoComplete,
@@ -148,7 +148,6 @@ interface AccountTableProps {
   showUsageNetworkErrors: boolean;
   displayMode: AccountDisplayMode;
   tokenUsageRefreshSeconds: number;
-  proxyControls?: ReactNode;
   language: Language;
   t: Translate;
 }
@@ -388,7 +387,6 @@ export function AccountTable({
   showUsageNetworkErrors,
   displayMode,
   tokenUsageRefreshSeconds,
-  proxyControls,
   language,
   t,
 }: AccountTableProps) {
@@ -1215,7 +1213,6 @@ export function AccountTable({
             onClear={modelContextWindow.clearModelValue} t={t} />
         </span>
       </Tooltip>
-      {proxyControls}
     </div>
   );
   const concurrentRoutingControl = <ConcurrentRoutingControl busy={concurrentAccountRoutingBusy}

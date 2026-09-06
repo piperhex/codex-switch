@@ -7,7 +7,6 @@ import { CodexConnectionControl } from "./CodexConnectionControl";
 type ProviderManager = ReturnType<typeof useProviderManager>;
 
 interface ProxyStatusControlsProps {
-  customTitlebarEnabled: boolean;
   clientOperation: "start" | "restart" | null;
   onClientOperationChange: (operation: "start" | "restart" | null) => void;
   manager: ProviderManager;
@@ -19,7 +18,6 @@ interface ProxyStatusControlsProps {
 
 export function ProxyStatusControls(options: ProxyStatusControlsProps) {
   const {
-    customTitlebarEnabled,
     clientOperation,
     onClientOperationChange,
     manager,
@@ -73,9 +71,7 @@ export function ProxyStatusControls(options: ProxyStatusControlsProps) {
   );
 
   return (
-    <div className={`window-titlebar-proxy${
-      !customTitlebarEnabled ? " web-proxy-controls" : ""
-    }${running ? " is-running" : ""}`}>
+    <div className={`window-titlebar-proxy${running ? " is-running" : ""}`}>
       <CodexConnectionControl blocked={controlsBusy}
         onOperationChange={onClientOperationChange} notify={notify} t={t} />
       {statusControl}
