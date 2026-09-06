@@ -114,7 +114,11 @@ impl<R: Runtime> TokenUsageCaptureReader<R> {
             .map(str::trim_start)
             .collect::<Vec<_>>()
             .join("\n");
-        if data.trim().is_empty() || data.trim() == "[DONE]" {
+        if data.trim() == "[DONE]" {
+            self.record_usage();
+            return;
+        }
+        if data.trim().is_empty() {
             return;
         }
         if let Ok(value) = serde_json::from_str::<Value>(&data) {
@@ -123,6 +127,13 @@ impl<R: Runtime> TokenUsageCaptureReader<R> {
             }
             if let Some(usage) = extract_token_usage_from_value(&value) {
                 self.usage = Some(usage);
+            }
+            if matches!(
+                value.get("type").and_then(Value::as_str),
+                Some("response.completed" | "response.incomplete" | "response.failed")
+            ) {
+                // A terminal event completes accounting even if the upstream keeps its socket open.
+                self.record_usage();
             }
         }
     }
@@ -139,7 +150,6 @@ impl<R: Runtime> TokenUsageCaptureReader<R> {
         if self.recorded {
             return;
         }
-        self.recorded = true;
         if self.captures_event_stream() {
             self.process_sse_blocks();
             if !self.sse_buffer.trim().is_empty() {
@@ -159,6 +169,14 @@ impl<R: Runtime> TokenUsageCaptureReader<R> {
                 self.context.expects_event_stream,
             );
         }
+        self.record_usage();
+    }
+
+    fn record_usage(&mut self) {
+        if self.recorded {
+            return;
+        }
+        self.recorded = true;
         record_token_usage_entry(&self.app, &self.context, self.usage.clone());
     }
 }
@@ -350,6 +368,7 @@ fn record_token_usage_entry<R: Runtime>(
         eprintln!("failed to write token usage entry: {error}");
     } else {
         let _ = app.emit("token-usage-updated", ());
+        crate::codex_runtime::refresh_usage_summary();
         crate::cloud::report_device_activity_after_usage(app.clone());
     }
 }

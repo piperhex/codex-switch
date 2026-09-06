@@ -70,6 +70,7 @@ mod tests {
     include!("tests/service_tier_capture.rs");
     include!("tests/token_usage_breakdown.rs");
     include!("tests/token_usage_responsiveness.rs");
+    include!("tests/token_usage_capture.rs");
     include!("tests/auto_switch_retry.rs");
     include!("tests/retry_target.rs");
     include!("tests/auto_switch_responsiveness.rs");

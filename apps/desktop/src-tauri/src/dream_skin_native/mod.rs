@@ -20,6 +20,9 @@ include!("theme_commands.rs");
 mod tests_recovery_integration;
 
 #[cfg(test)]
+mod tests_renderer_bindings;
+
+#[cfg(test)]
 mod tests {
     include!("tests_theme_and_models.rs");
     include!("tests_runtime.rs");

@@ -1,3 +1,12 @@
+/// Loads persisted usage without model-catalog enrichment for frequent summary refreshes.
+pub(crate) fn load_token_usage_summary_entries<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    start_ts: u64,
+) -> Result<Vec<TokenUsageEntry>, String> {
+    let connection = open_token_usage_db(app)?;
+    list_token_usage_entries_since_from_db(&connection, start_ts)
+}
+
 fn append_token_usage_entry<R: Runtime>(
     app: &tauri::AppHandle<R>,
     entry: &TokenUsageEntry,

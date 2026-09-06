@@ -11,7 +11,7 @@ const rustSource = readFileSync(sourcePath, "utf8");
 const overlaySource = rustSource.slice(rustSource.indexOf('r#"') + 3, rustSource.lastIndexOf('"#;'))
   .replace("__CODEX_SWITCH_SERVICE_TIER__", '"default"');
 const stateKey = "__CODEX_SWITCH_SPEED_SELECTOR__";
-const refreshIntervalMs = 30000;
+const refreshIntervalMs = 5000;
 
 class Element {
   constructor() {
@@ -21,11 +21,17 @@ class Element {
     this.style = { setProperty(name, value) { this[name] = value; } };
     this.hidden = false;
     this.textContent = "";
+    this.listeners = new Map();
   }
 
   get firstElementChild() { return this.children[0]; }
   setAttribute(name, value) { this.attributes[name] = value; }
-  addEventListener() {}
+  addEventListener(name, callback) {
+    if (!this.listeners.has(name)) this.listeners.set(name, new Set());
+    this.listeners.get(name).add(callback);
+  }
+  removeEventListener(name, callback) { this.listeners.get(name)?.delete(callback); }
+  dispatch(name) { for (const callback of this.listeners.get(name) ?? []) callback(); }
 
   append(...children) {
     for (const child of children) {
@@ -75,6 +81,7 @@ function createHarness({ dark = false, binding } = {}) {
   const timeouts = new Map();
   let timerId = 0;
   let requests = 0;
+  let now = 0;
   const window = {
     __CODEX_SWITCH_COMPOSER_STATUS_ALLOWED__: true,
     __CODEX_SWITCH_FAST_MODE_ALLOWED__: true,
@@ -82,6 +89,7 @@ function createHarness({ dark = false, binding } = {}) {
   };
   const context = {
     window, document,
+    Date: { now: () => now },
     MutationObserver: class {
       observe() {}
       disconnect() { this.disconnected = true; }
@@ -98,6 +106,7 @@ function createHarness({ dark = false, binding } = {}) {
     get state() { return window[stateKey]; },
     get usage() { return document.querySelector("[data-today-usage]"); },
     get requests() { return requests; },
+    advance(milliseconds) { now += milliseconds; },
     flushTimeouts() {
       for (const [id, callback] of timeouts) { timeouts.delete(id); callback(); }
     },
@@ -206,6 +215,37 @@ test("resumes polling after a failed response or a disconnected binding", () => 
   assert.equal(disconnected.requests, 2);
 });
 
+test("retries an unacknowledged request after the deadline instead of remaining stale forever", () => {
+  const harness = createHarness();
+  harness.flushTimeouts();
+  harness.advance(14999);
+  harness.poll();
+  assert.equal(harness.requests, 1);
+  harness.advance(1);
+  harness.poll();
+  assert.equal(harness.requests, 2);
+  update(harness, { totalTokens: 6789 });
+  assert.equal(harness.usage.querySelector("[data-today-tokens]").textContent, "6.8K");
+  harness.poll();
+  assert.equal(harness.requests, 3);
+});
+
+test("refreshes when visible again and accepts pushed updates between polls", () => {
+  const harness = createHarness();
+  harness.flushTimeouts();
+  update(harness);
+  harness.document.hidden = true;
+  harness.document.dispatch("visibilitychange");
+  assert.equal(harness.requests, 1);
+  harness.document.hidden = false;
+  harness.document.dispatch("visibilitychange");
+  assert.equal(harness.requests, 2);
+  update(harness, { totalTokens: 5000 });
+  update(harness, { totalTokens: 6000 });
+  assert.equal(harness.usage.querySelector("[data-today-tokens]").textContent, "6K");
+  assert.equal(harness.requests, 2);
+});
+
 test("clears old observers and all timers when reinstalling or disabling the overlay", () => {
   const harness = createHarness();
   const oldState = harness.state;
@@ -215,6 +255,7 @@ test("clears old observers and all timers when reinstalling or disabling the ove
   assert.equal(oldState.observer.disconnected, true);
   assert.equal(harness.intervals.size, 2);
   assert.equal(harness.timeouts.size, 1);
+  assert.equal(harness.document.listeners.get("visibilitychange").size, 1);
   oldState.requestUsage();
   assert.equal(harness.requests, 0);
   const activeState = harness.state;
@@ -224,6 +265,7 @@ test("clears old observers and all timers when reinstalling or disabling the ove
   assert.equal(activeState.observer.disconnected, true);
   assert.equal(harness.intervals.size, 0);
   assert.equal(harness.timeouts.size, 0);
+  assert.equal(harness.document.listeners.get("visibilitychange").size, 0);
   assert.equal(harness.document.querySelectorAll("[data-codex-switch-speed-selector]").length, 0);
   assert.equal(harness.state, undefined);
 });

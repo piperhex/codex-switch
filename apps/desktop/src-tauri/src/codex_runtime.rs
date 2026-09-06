@@ -44,6 +44,12 @@ pub(crate) struct ModelRefreshRequest {
     pub(crate) reasoning_profile: crate::providers::ReasoningEffortProfile,
 }
 
+/// Selects whether the renderer uses configured Provider models or the active upstream catalog.
+pub(crate) enum ModelRefreshSource {
+    Configured(ModelRefreshRequest),
+    Upstream { selected_model: String },
+}
+
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 #[derive(Deserialize)]
 struct OfficialModelsResponse {
@@ -120,15 +126,7 @@ pub(crate) fn runtime_app_handle() -> Option<AppHandle> {
 
 pub(crate) fn refresh_usage_summary() {
     #[cfg(any(target_os = "windows", target_os = "macos"))]
-    {
-        let _ = thread::Builder::new()
-            .name("codex-usage-summary-refresh".to_string())
-            .spawn(|| {
-                if let Err(error) = crate::dream_skin_native::request_usage_summary_refresh() {
-                    eprintln!("Failed to refresh the Codex usage summary: {error}");
-                }
-            });
-    }
+    crate::dream_skin_native::notify_usage_summary_changed();
 }
 
 /// Relaunches Codex with the local renderer channel. Theme injection remains
@@ -153,27 +151,27 @@ pub(crate) fn record_launch_executable(path: &str) -> Result<(), String> {
 }
 
 /// Refreshes Codex's model and config caches through the managed renderer channel.
-pub(crate) fn refresh_models(request: ModelRefreshRequest) {
+pub(crate) fn refresh_models(source: ModelRefreshSource) {
     #[cfg(any(target_os = "windows", target_os = "macos"))]
     {
-        schedule_model_refresh(request);
+        schedule_model_refresh(source);
     }
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     {
-        let _ = request;
+        let _ = source;
     }
 }
 
 /// Refreshes Codex's model and config caches before returning to the caller.
-pub(crate) fn refresh_models_blocking(request: ModelRefreshRequest) {
+pub(crate) fn refresh_models_blocking(source: ModelRefreshSource) {
     #[cfg(any(target_os = "windows", target_os = "macos"))]
     {
         let generation = next_model_refresh_generation();
-        apply_model_refresh(generation, request);
+        apply_model_refresh(generation, resolve_model_refresh(source));
     }
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     {
-        let _ = request;
+        let _ = source;
     }
 }
 
@@ -211,11 +209,38 @@ pub(crate) fn refresh_official_models_blocking(selected_model: String) {
 }
 
 #[cfg(any(target_os = "windows", target_os = "macos"))]
-fn schedule_model_refresh(request: ModelRefreshRequest) {
+fn schedule_model_refresh(source: ModelRefreshSource) {
     let generation = next_model_refresh_generation();
     let _ = thread::Builder::new()
         .name("codex-model-picker-refresh".to_string())
-        .spawn(move || apply_model_refresh(generation, request));
+        .spawn(move || apply_model_refresh(generation, resolve_model_refresh(source)));
+}
+
+#[cfg(any(target_os = "windows", target_os = "macos"))]
+fn resolve_model_refresh(source: ModelRefreshSource) -> ModelRefreshRequest {
+    match source {
+        ModelRefreshSource::Configured(request) => request,
+        ModelRefreshSource::Upstream { selected_model } => {
+            load_official_model_refresh_payload(selected_model.clone()).unwrap_or_else(|error| {
+                eprintln!("Failed to load the upstream Codex model catalog: {error}");
+                upstream_model_refresh_reset(selected_model)
+            })
+        }
+    }
+}
+
+#[cfg(any(target_os = "windows", target_os = "macos"))]
+fn upstream_model_refresh_reset(selected_model: String) -> ModelRefreshRequest {
+    // An empty list removes a previous Provider picker override so Codex can retry the upstream.
+    // Injecting the default model here would keep hiding every other model after recovery.
+    ModelRefreshRequest {
+        models: Vec::new(),
+        fast_mode_models: Vec::new(),
+        image_input_models: Vec::new(),
+        model_reasoning_efforts: crate::models::ModelReasoningEfforts::new(),
+        selected_model,
+        reasoning_profile: crate::providers::ReasoningEffortProfile::Standard,
+    }
 }
 
 #[cfg(any(target_os = "windows", target_os = "macos"))]
@@ -378,68 +403,4 @@ fn empty_official_model_refresh_payload(selected_model: String) -> ModelRefreshR
 }
 
 #[cfg(all(test, any(target_os = "windows", target_os = "macos")))]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn official_catalog_preserves_models_capabilities_and_reasoning() {
-        let catalog = serde_json::from_value::<OfficialModelsResponse>(serde_json::json!({
-            "models": [
-                {
-                    "slug": "gpt-5.6-sol",
-                    "input_modalities": ["text", "image"],
-                    "supported_reasoning_levels": [
-                        { "effort": "low" },
-                        { "effort": "ultra" },
-                        { "effort": "ultra" }
-                    ],
-                    "additional_speed_tiers": ["fast"],
-                    "service_tiers": [{ "id": "priority" }]
-                },
-                {
-                    "slug": "gpt-reserve",
-                    "visibility": "hide",
-                    "input_modalities": ["text", "image"],
-                    "supported_reasoning_levels": [{ "effort": "max" }],
-                    "additional_speed_tiers": ["fast"]
-                },
-                { "slug": "gpt-5.4", "input_modalities": ["text"] },
-                { "slug": "gpt-5.6-sol" }
-            ]
-        }))
-        .unwrap();
-
-        let payload = official_model_refresh_payload(catalog, "gpt-5.6-sol".to_string()).unwrap();
-
-        assert_eq!(payload.models, vec!["gpt-5.6-sol", "gpt-5.4"]);
-        assert_eq!(payload.image_input_models, vec!["gpt-5.6-sol"]);
-        assert_eq!(payload.fast_mode_models, vec!["gpt-5.6-sol"]);
-        assert!(!payload.model_reasoning_efforts.contains_key("gpt-reserve"));
-        assert_eq!(
-            payload.model_reasoning_efforts["gpt-5.6-sol"],
-            vec![
-                crate::models::ReasoningEffort::Low,
-                crate::models::ReasoningEffort::Ultra
-            ]
-        );
-    }
-
-    #[test]
-    fn official_catalog_rejects_empty_model_lists() {
-        let catalog = OfficialModelsResponse { models: Vec::new() };
-
-        let error = official_model_refresh_payload(catalog, "gpt-5.6-sol".to_string())
-            .err()
-            .unwrap();
-
-        assert_eq!(error, "Official model catalog is empty");
-    }
-
-    #[test]
-    fn official_fallback_keeps_fast_available_without_login() {
-        let payload = empty_official_model_refresh_payload("gpt-5.6-sol".to_string());
-
-        assert_eq!(payload.models, vec!["gpt-5.6-sol"]);
-        assert_eq!(payload.fast_mode_models, vec!["gpt-5.6-sol"]);
-    }
-}
+mod tests;

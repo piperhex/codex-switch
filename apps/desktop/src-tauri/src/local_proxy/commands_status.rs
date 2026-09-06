@@ -351,7 +351,10 @@ fn list_proxy_sessions_blocking<R: Runtime>(
             };
             ProxySessionSummary {
                 id: session.id.clone(),
-                title: conversation_titles.get(&session.id).cloned().or_else(|| session.title.clone()),
+                title: conversation_titles
+                    .get(&session.id)
+                    .cloned()
+                    .or_else(|| session.title.clone()),
                 client: session.client.clone(),
                 remote_address: session.remote_address.clone(),
                 connected_at: session.connected_at,
@@ -477,7 +480,9 @@ pub(crate) async fn get_proxy_session_unlimited_conversation() -> Result<bool, S
 }
 
 #[tauri::command]
-pub(crate) async fn set_proxy_session_unlimited_conversation(enabled: bool) -> Result<bool, String> {
+pub(crate) async fn set_proxy_session_unlimited_conversation(
+    enabled: bool,
+) -> Result<bool, String> {
     proxy_session_unlimited_conversation().store(enabled, Ordering::Relaxed);
     Ok(enabled)
 }
@@ -487,16 +492,20 @@ pub(crate) async fn list_token_usage_entries_since<R: Runtime + 'static>(
     app: tauri::AppHandle<R>,
     start_ts: u64,
 ) -> Result<Vec<TokenUsageEntry>, String> {
-    tauri::async_runtime::spawn_blocking(move || list_token_usage_entries_since_blocking(&app, start_ts))
-        .await
-        .map_err(|error| format!("Token usage range task failed: {error}"))?
+    tauri::async_runtime::spawn_blocking(move || {
+        list_token_usage_entries_since_blocking(&app, start_ts)
+    })
+    .await
+    .map_err(|error| format!("Token usage range task failed: {error}"))?
 }
 
 fn list_token_usage_entries_blocking<R: Runtime>(
     app: &tauri::AppHandle<R>,
 ) -> Result<Vec<TokenUsageEntry>, String> {
-    let connection = open_token_usage_db(app)?;
-    let mut entries = list_token_usage_entries_from_db(&connection, TOKEN_USAGE_LIST_LIMIT)?;
+    let mut entries = {
+        let connection = open_token_usage_db(app)?;
+        list_token_usage_entries_from_db(&connection, TOKEN_USAGE_LIST_LIMIT)?
+    };
     enrich_token_usage_entries(app, &mut entries);
     Ok(entries)
 }
@@ -505,8 +514,7 @@ pub(crate) fn list_token_usage_entries_since_blocking<R: Runtime>(
     app: &tauri::AppHandle<R>,
     start_ts: u64,
 ) -> Result<Vec<TokenUsageEntry>, String> {
-    let connection = open_token_usage_db(app)?;
-    let mut entries = list_token_usage_entries_since_from_db(&connection, start_ts)?;
+    let mut entries = load_token_usage_summary_entries(app, start_ts)?;
     enrich_token_usage_entries(app, &mut entries);
     Ok(entries)
 }
@@ -543,7 +551,7 @@ fn enrich_token_usage_entries<R: Runtime>(
                                 / 100,
                         ),
                 )
-        };
+            };
     }
 }
 

@@ -1,8 +1,9 @@
 const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
   window.__CODEX_SWITCH_REFRESH_SPEED_SELECTOR__ = () => {
     const stateKey = "__CODEX_SWITCH_SPEED_SELECTOR__";
-    const overlayVersion = 16;
-    const usageRefreshMs = 30000;
+    const overlayVersion = 17;
+    const usageRefreshMs = 5000;
+    const usageRequestTimeoutMs = 15000;
     const initialTier = __CODEX_SWITCH_SERVICE_TIER__;
     const fastModeAllowed = window.__CODEX_SWITCH_FAST_MODE_ALLOWED__ === true;
     const existing = window[stateKey];
@@ -12,6 +13,7 @@ const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
       if (installed?.timer) clearInterval(installed.timer);
       if (installed?.usageTimer) clearInterval(installed.usageTimer);
       if (installed?.initialUsageTimer) clearTimeout(installed.initialUsageTimer);
+      if (installed?.onUsageVisible) document.removeEventListener("visibilitychange", installed.onUsageVisible);
       const injectedNodes = "[data-codex-switch-speed-selector], [data-codex-switch-speed-submenu]";
       for (const selector of document.querySelectorAll(injectedNodes)) selector.remove();
       delete window[stateKey];
@@ -31,7 +33,8 @@ const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
     const state = {
       installed: true, version: overlayVersion, tier: initialTier, fastModeAllowed,
       observer: null, timer: null,
-      usageTimer: null, initialUsageTimer: null, usagePending: false,
+      usageTimer: null, initialUsageTimer: null, usagePending: false, usageRequestedAt: 0,
+      onUsageVisible: null,
       pendingTier: null, previousTier: null, syncAll: null,
       completeSelection: null, completeUsageRequest: null, updateUsage: null, requestUsage: null,
       usage: {
@@ -148,7 +151,7 @@ const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
       }
     };
     state.syncAll = syncAll;
-    state.completeUsageRequest = () => { state.usagePending = false; };
+    state.completeUsageRequest = () => { state.usagePending = false; state.usageRequestedAt = 0; };
     state.updateUsage = summary => {
       state.completeUsageRequest();
       const totalTokens = Number(summary?.totalTokens);
@@ -176,9 +179,13 @@ const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
       syncAll();
     };
     state.requestUsage = () => {
-      if (!state.installed || window[stateKey] !== state || state.usagePending
+      if (!state.installed || window[stateKey] !== state
         || typeof window.codexSwitchRequestUsageSummary !== "function") return;
+      const now = Date.now();
+      // Retry lost acknowledgements without overlapping ordinary polling requests.
+      if (state.usagePending && now - state.usageRequestedAt < usageRequestTimeoutMs) return;
       state.usagePending = true;
+      state.usageRequestedAt = now;
       try {
         window.codexSwitchRequestUsageSummary("refresh");
       } catch {
@@ -300,6 +307,8 @@ const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
     state.observer.observe(document.documentElement, { childList: true, subtree: true });
     state.timer = setInterval(render, 1000);
     state.usageTimer = setInterval(state.requestUsage, usageRefreshMs);
+    state.onUsageVisible = () => { if (!document.hidden) state.requestUsage(); };
+    document.addEventListener("visibilitychange", state.onUsageVisible);
     render();
     state.initialUsageTimer = setTimeout(state.requestUsage, 0);
   };

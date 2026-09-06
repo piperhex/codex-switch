@@ -10,6 +10,7 @@ use crate::{
 };
 
 mod provider_cost;
+mod quota_refresh;
 
 use provider_cost::ProviderEstimatedCost;
 
@@ -45,11 +46,10 @@ pub(crate) fn load() -> Result<CodexUsageSummary, String> {
     }
     let paths = crate::storage::resolve_paths(&app)?;
     let state = crate::storage::read_state(&paths);
+    quota_refresh::schedule(&app, &paths, &state);
     let primary_remaining = displayed_primary_remaining(&paths, &state);
-    let entries = crate::local_proxy::list_token_usage_entries_since_blocking(
-        &app,
-        local_day_start_timestamp()?,
-    )?;
+    let entries =
+        crate::local_proxy::load_token_usage_summary_entries(&app, local_day_start_timestamp()?)?;
     let profiles = crate::providers::list_provider_profiles(&paths)?;
     let rates = rates::load(&paths)?;
     let costs = CostContext {

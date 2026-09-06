@@ -18,5 +18,6 @@ mod tests {
     include!("tests/proxy_config.rs");
     include!("tests/presets.rs");
     include!("tests/model_catalog.rs");
+    include!("tests/model_refresh.rs");
     include!("tests/config_repair.rs");
 }

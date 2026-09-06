@@ -164,7 +164,11 @@
         provider.models = vec!["text-model".to_string(), "vision-model".to_string()];
         provider.model_selection_controlled_by_codex = true;
 
-        let request = provider_model_refresh_request(&paths, &provider);
+        let crate::codex_runtime::ModelRefreshSource::Configured(request) =
+            provider_model_refresh_request(&paths, &provider)
+        else {
+            panic!("Custom Provider models should use the configured catalog");
+        };
 
         assert_eq!(request.models, request.image_input_models);
     }

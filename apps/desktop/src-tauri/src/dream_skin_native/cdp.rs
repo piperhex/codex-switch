@@ -1,6 +1,7 @@
 struct CdpSession {
     socket: WebSocket<TcpStream>,
     next_id: u64,
+    pending_bindings: std::collections::VecDeque<RendererBindingCall>,
 }
 
 const CODEX_NOTIFICATION_HOST_ID: &str = "codex-switch-notification";
@@ -82,7 +83,11 @@ impl CdpSession {
             .map_err(|error| format!("Failed to configure CDP timeout: {error}"))?;
         let (socket, _) = client(target.web_socket_debugger_url.as_str(), stream)
             .map_err(|error| format!("Failed to open Codex CDP WebSocket: {error}"))?;
-        Ok(Self { socket, next_id: 1 })
+        Ok(Self {
+            socket,
+            next_id: 1,
+            pending_bindings: std::collections::VecDeque::new(),
+        })
     }
 
     fn send(&mut self, method: &str, params: Value) -> Result<Value, String> {
@@ -128,6 +133,10 @@ impl CdpSession {
             let value: Value = serde_json::from_str(text.as_str())
                 .map_err(|error| format!("Invalid CDP response: {error}"))?;
             if value.get("id").and_then(Value::as_u64) != Some(id) {
+                // The initial usage request can arrive before Runtime.evaluate acknowledges setup.
+                if let Some(call) = renderer_binding_call(&value) {
+                    self.pending_bindings.push_back(call);
+                }
                 continue;
             }
             if let Some(error) = value.get("error") {

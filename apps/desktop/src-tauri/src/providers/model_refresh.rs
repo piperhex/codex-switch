@@ -16,6 +16,7 @@ use uuid::Uuid;
 use crate::{
     auth::{is_agent_identity_auth, validate_auth},
     codex_config::{self, LocalProxyConfig},
+    codex_runtime::{ModelRefreshRequest, ModelRefreshSource},
     models::{
         ImageModelTarget, ManagerStateFile, ModelApiFormats, ModelContextWindows,
         ModelReasoningEfforts, ProviderApiFormat, ProviderBalance, ProviderBalanceItem,
@@ -99,14 +100,19 @@ fn refresh_codex_group_models_now_best_effort(paths: &Paths, providers: &[Provid
 fn provider_model_refresh_request(
     paths: &Paths,
     provider: &ProviderProfile,
-) -> crate::codex_runtime::ModelRefreshRequest {
+) -> ModelRefreshSource {
+    if uses_upstream_official_models(provider) {
+        return ModelRefreshSource::Upstream {
+            selected_model: provider.model.clone(),
+        };
+    }
     let models = codex_visible_models(provider);
     let image_input_models = routed_image_input_models(
         &models,
         &codex_image_input_models(provider),
         image_input_route_enabled(paths),
     );
-    crate::codex_runtime::ModelRefreshRequest {
+    ModelRefreshSource::Configured(ModelRefreshRequest {
         fast_mode_models: if provider.fast_mode_enabled {
             models.clone()
         } else {
@@ -117,13 +123,13 @@ fn provider_model_refresh_request(
         model_reasoning_efforts: codex_model_reasoning_efforts(provider),
         selected_model: codex_model_for_provider(provider).to_string(),
         reasoning_profile: reasoning_effort_profile(provider),
-    }
+    })
 }
 
 fn provider_group_model_refresh_request(
     paths: &Paths,
     providers: &[ProviderProfile],
-) -> Option<crate::codex_runtime::ModelRefreshRequest> {
+) -> Option<ModelRefreshSource> {
     let mut catalog = provider_group_catalog_data(providers);
     catalog.image_input_models = routed_image_input_models(
         &catalog.models,
@@ -131,7 +137,7 @@ fn provider_group_model_refresh_request(
         image_input_route_enabled(paths),
     );
     let selected_model = catalog.models.first().cloned()?;
-    Some(crate::codex_runtime::ModelRefreshRequest {
+    Some(ModelRefreshSource::Configured(ModelRefreshRequest {
         fast_mode_models: if catalog.fast_mode_enabled {
             catalog.models.clone()
         } else {
@@ -142,7 +148,7 @@ fn provider_group_model_refresh_request(
         model_reasoning_efforts: catalog.reasoning_efforts,
         selected_model,
         reasoning_profile: ReasoningEffortProfile::Standard,
-    })
+    }))
 }
 
 fn codex_visible_models(provider: &ProviderProfile) -> Vec<String> {

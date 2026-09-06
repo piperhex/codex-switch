@@ -578,7 +578,15 @@ fn provider_without_fast_support_forces_standard_requests() {
 
 #[test]
 fn openai_provider_models_request_is_forwarded_with_api_key() {
-    let catalog = json!({ "models": [{ "slug": "gpt-5.6-sol", "context_window": 372000 }] });
+    let catalog = json!({ "models": [
+        { "slug": "gpt-5.6-sol", "context_window": 372000 },
+        {
+            "slug": "gpt-5.6-terra",
+            "input_modalities": ["text", "image"],
+            "supported_reasoning_levels": [{ "effort": "ultra" }]
+        },
+        { "slug": "gpt-6-astra", "service_tiers": [{ "id": "priority" }] }
+    ] });
     let expected = serde_json::to_vec(&catalog).unwrap();
     let server = Server::http("127.0.0.1:0").unwrap();
     let addr = server.server_addr().to_ip().unwrap();

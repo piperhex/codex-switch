@@ -2,6 +2,7 @@ const SERVICE_TIER_BINDING: &str = "codexSwitchSetServiceTier";
 const USAGE_SUMMARY_BINDING: &str = "codexSwitchRequestUsageSummary";
 const RENDERER_BINDING_POLL: Duration = Duration::from_millis(500);
 static RENDERER_BINDING_GENERATION: AtomicU64 = AtomicU64::new(0);
+static USAGE_SUMMARY_REVISION: AtomicU64 = AtomicU64::new(1);
 
 struct RendererBindingCall {
     name: String,
@@ -10,11 +11,20 @@ struct RendererBindingCall {
 
 impl CdpSession {
     fn read_renderer_binding(&mut self) -> Result<Option<RendererBindingCall>, String> {
-        self.socket
-            .get_mut()
-            .set_read_timeout(Some(RENDERER_BINDING_POLL))
-            .map_err(|error| format!("Failed to configure CDP binding timeout: {error}"))?;
+        if let Some(call) = self.pending_bindings.pop_front() {
+            return Ok(Some(call));
+        }
+        let deadline = Instant::now() + RENDERER_BINDING_POLL;
         loop {
+            // Unrelated renderer events must not starve usage-change publication.
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            if remaining.is_zero() {
+                return Ok(None);
+            }
+            self.socket
+                .get_mut()
+                .set_read_timeout(Some(remaining))
+                .map_err(|error| format!("Failed to configure CDP binding timeout: {error}"))?;
             let message = match self.socket.read() {
                 Ok(message) => message,
                 Err(tungstenite::Error::Io(error))
@@ -112,10 +122,10 @@ fn handle_renderer_binding(call: RendererBindingCall, target: &CdpTarget, port: 
 }
 
 fn run_renderer_bindings(mut session: CdpSession, target: CdpTarget, port: u16, generation: u64) {
+    let mut published_revision = 0;
     while RENDERER_BINDING_GENERATION.load(Ordering::Acquire) == generation {
         let call = match session.read_renderer_binding() {
-            Ok(Some(call)) => call,
-            Ok(None) => continue,
+            Ok(call) => call,
             Err(error) => {
                 eprintln!("Codex renderer bindings stopped: {error}");
                 return;
@@ -124,7 +134,18 @@ fn run_renderer_bindings(mut session: CdpSession, target: CdpTarget, port: u16, 
         if RENDERER_BINDING_GENERATION.load(Ordering::Acquire) != generation {
             return;
         }
-        handle_renderer_binding(call, &target, port);
+        let revision = USAGE_SUMMARY_REVISION.load(Ordering::Acquire);
+        let requested_usage = call.as_ref().is_some_and(|call| call.name == USAGE_SUMMARY_BINDING);
+        if let Some(call) = call {
+            handle_renderer_binding(call, &target, port);
+        }
+        // Coalesce concurrent writes, including changes that arrive during a slow query.
+        if requested_usage || published_revision != revision {
+            if !requested_usage {
+                publish_usage_summary(&target, port);
+            }
+            published_revision = revision;
+        }
     }
 }
 
@@ -157,20 +178,7 @@ fn install_renderer_bindings(target: &CdpTarget, port: u16) -> Result<(), String
         .map_err(|_| "Failed to activate the Codex renderer bindings.".to_string())
 }
 
-pub(crate) fn request_usage_summary_refresh() -> Result<(), String> {
-    let Some(port) = read_session().port else {
-        return Ok(());
-    };
-    let Some(target) = list_targets(port)?
-        .into_iter()
-        .find(|target| target.url == "app://-/index.html")
-    else {
-        return Ok(());
-    };
-    evaluate_for_binding(
-        &target,
-        port,
-        "window.__CODEX_SWITCH_SPEED_SELECTOR__?.requestUsage?.(); true",
-    )?;
-    Ok(())
+/// Signals the existing background listener without I/O or a thread per completed request.
+pub(crate) fn notify_usage_summary_changed() {
+    USAGE_SUMMARY_REVISION.fetch_add(1, Ordering::AcqRel);
 }
