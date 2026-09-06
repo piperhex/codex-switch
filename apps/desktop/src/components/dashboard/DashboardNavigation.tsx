@@ -2,6 +2,7 @@ import {
   BarChart3,
   Bot,
   FolderOpen,
+  FileSliders,
   ListFilter,
   Sparkles,
   PackageOpen,
@@ -23,6 +24,7 @@ export type DashboardPage =
   | "promptFilter"
   | "promptInjection"
   | "settings"
+  | "codexConfig"
   | "claudeCode";
 
 interface DashboardNavigationProps {
@@ -55,9 +57,9 @@ export function DashboardNavigation({
   variant = "top",
 }: DashboardNavigationProps) {
   const navigationButton = (item: typeof NAVIGATION_ITEMS[number] | {
-    page: "settings";
+    page: "settings" | "codexConfig";
     icon: typeof Settings;
-    labelKey: "nav.settings";
+    labelKey: "nav.settings" | "nav.codexConfig";
   }) => {
     const Icon = item.icon;
     const label = t(item.labelKey);
@@ -77,6 +79,7 @@ export function DashboardNavigation({
       {variant === "sidebar" && (
         <div className="sidebar-nav-tools" data-tauri-drag-region>
           {sidebarTools}
+          {navigationButton({ page: "codexConfig", icon: FileSliders, labelKey: "nav.codexConfig" })}
           {navigationButton({ page: "settings", icon: Settings, labelKey: "nav.settings" })}
         </div>
       )}

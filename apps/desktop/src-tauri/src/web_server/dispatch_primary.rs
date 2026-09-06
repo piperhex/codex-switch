@@ -1,5 +1,15 @@
 fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value, String> {
     match command {
+        "read_codex_config_document" => serialize(block_on(crate::codex_settings::read_codex_config_document())),
+        "validate_codex_config_document" => serialize(block_on(crate::codex_settings::validate_codex_config_document(
+            argument(&args, "content")?,
+        ))),
+        "save_codex_config_document" => serialize(block_on(crate::codex_settings::save_codex_config_document(
+            argument(&args, "request")?,
+        ))),
+        "patch_codex_config_document" => serialize(block_on(crate::codex_settings::patch_codex_config_document(
+            argument(&args, "request")?,
+        ))),
         "get_app_info" => serialize(crate::commands::get_app_info(app)),
         "list_accounts" => serialize(block_on(crate::commands::list_accounts(app))),
         "get_app_settings" => serialize(crate::floating_bubble::get_app_settings(app)),

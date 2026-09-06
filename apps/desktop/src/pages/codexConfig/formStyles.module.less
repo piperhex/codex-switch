@@ -1,0 +1,75 @@
+.form { min-width: 0; color: var(--ink); }
+.toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+.toolbar > :first-child { max-width: 460px; }
+.toolbar :global(.ant-segmented) { flex-shrink: 0; }
+.layout { display: grid; grid-template-columns: 164px minmax(0, 1fr); align-items: start; gap: 24px; }
+.categories { position: sticky; top: 102px; display: grid; gap: 5px; }
+.categories button {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 11px 12px;
+  border: 1px solid transparent; border-radius: 10px; color: var(--muted); background: transparent;
+  text-align: left; font: inherit; font-size: 12px; cursor: pointer; transition: background .16s, color .16s;
+}
+.categories button:hover { background: var(--panel); color: var(--ink); }
+.categories button.activeCategory {
+  border-color: var(--line); color: var(--green-dark); background: var(--green-soft); font-weight: 700;
+}
+.categoryCount { color: var(--muted); font-size: 10px; font-variant-numeric: tabular-nums; }
+.content { min-width: 0; }
+.sectionHeading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.sectionHeading h2 { margin: 0; font-size: 16px; font-weight: 700; }
+.sectionHeading p { margin: 6px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.fields { display: grid; gap: 10px; }
+.field {
+  display: grid; grid-template-columns: minmax(160px, 1fr) minmax(210px, 1fr); align-items: center; gap: 20px;
+  min-width: 0; padding: 17px 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel);
+}
+.fieldHeading { display: flex; align-items: flex-start; justify-content: space-between; min-width: 0; gap: 8px; }
+.fieldCopy { min-width: 0; }
+.fieldTitle { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; font-size: 13px; font-weight: 650; }
+.fieldTitle > span:first-child { overflow-wrap: anywhere; }
+.fieldCopy code { display: block; margin-top: 4px; color: var(--muted); font-size: 10px; overflow-wrap: anywhere; }
+.fieldCopy p { margin: 7px 0 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
+.configuredTag { margin: 0 !important; color: var(--green-dark) !important; background: var(--green-soft) !important;
+  font-size: 10px !important; line-height: 18px !important; font-weight: 500; }
+.fieldControl { min-width: 0; display: grid; gap: 10px; }
+.complexField { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.complexField > .fieldHeading { align-items: center; }
+.select { width: 100%; min-width: 0; }
+.inputWrap { min-width: 0; display: grid; gap: 5px; }
+.variantSelect { width: min(100%, 270px); }
+.objectCollapse { min-width: 0; background: transparent !important; }
+.objectCollapse :global(.ant-collapse-header) { font-size: 12px; color: var(--muted) !important; }
+.objectCollapse :global(.ant-collapse-content-box) { padding: 0 10px 10px !important; }
+.objectFields { display: grid; gap: 8px; min-width: 0; }
+.objectFields > .field { background: transparent; border-radius: 9px; padding: 13px 12px; }
+.arrayFields { display: grid; gap: 8px; min-width: 0; }
+.arrayFields > .field { background: transparent; border-radius: 9px; padding: 12px; }
+.arrayFields :global(.ant-empty), .objectFields :global(.ant-empty) { margin: 10px 0; }
+.arrayFields :global(.ant-empty-description), .objectFields :global(.ant-empty-description) { font-size: 12px; }
+.arrayFields :global(.ant-empty-image), .objectFields :global(.ant-empty-image) { height: 26px; }
+.addRow { padding: 6px 0 0; }
+.arrayType { min-width: 92px; margin-right: 8px; }
+.addProperty { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.addProperty > :global(.ant-select) { min-width: 92px; }
+.addProperty > :global(.ant-input) { flex: 1; width: auto; min-width: 160px; }
+.error {
+  display: block; max-width: 400px; color: #cf4747; font-size: 11px; line-height: 1.55; overflow-wrap: anywhere;
+}
+.addProperty > .error { flex-basis: 100%; }
+.customSection { margin-top: 18px; padding: 18px; border: 1px dashed var(--line); border-radius: 12px; }
+.customSection h3 { margin: 0; font-size: 13px; }
+.customSection p { margin: 7px 0 12px; color: var(--muted); font-size: 12px; }
+
+@media (max-width: 1100px) {
+  .layout { grid-template-columns: 142px minmax(0, 1fr); gap: 16px; }
+  .field { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+}
+@media (max-width: 760px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  .categories { position: static; display: flex; flex-wrap: wrap; gap: 5px; }
+  .categories button { padding: 8px 9px; }
+  .toolbar { align-items: stretch; flex-direction: column; }
+  .toolbar > :first-child { max-width: none; }
+  .categoryCount { display: none; }
+  .field { padding: 14px; }
+}

@@ -105,6 +105,7 @@ import { ProvidersPage } from "../../pages/ProvidersPage";
 import { SettingsGroupsNav, SettingsPage } from "../../pages/SettingsPage";
 import { SkillsMarketPage } from "../../pages/SkillsMarketPage";
 import { CodexThreadsPage } from "../../pages/CodexThreadsPage";
+import { CodexConfigPage } from "../../pages/CodexConfigPage";
 import { SystemPromptFilterPage } from "../../pages/SystemPromptFilterPage";
 import { SystemPromptInjectionPage } from "../../pages/SystemPromptInjectionPage";
 import { NetworkProxySettingsModal } from "../../pages/settings/NetworkProxySettings";
@@ -215,6 +216,7 @@ async function refreshProviderBalances(providers: Provider[]) {
 }
 
 function dashboardEyebrow(page: DashboardPage, t: Translate) {
+  if (page === "codexConfig") return "CODEX / CONFIGURATION";
   if (page === "providers") return t("topbar.providersEyebrow");
   if (page === "skills") return t("topbar.skillsEyebrow");
   if (page === "sessions") return t("topbar.sessionsEyebrow");
@@ -228,6 +230,7 @@ function dashboardTitle(page: DashboardPage, t: Translate, options: {
   accountCount: number;
   providerCount: number;
 }) {
+  if (page === "codexConfig") return t("nav.codexConfig");
   if (page === "settings") return t("topbar.settings");
   if (page === "skills") return t("topbar.skills");
   if (page === "sessions") return t("topbar.sessions");
@@ -1430,6 +1433,9 @@ export function DashboardApp() {
                 t={t}
               />
             )}
+          </section>
+          <section className="page-panel" hidden={page !== "codexConfig"}>
+            <CodexConfigPage active={page === "codexConfig"} homeKey={manager.info?.codexHome} />
           </section>
           <section className="page-panel" hidden={page !== "settings"}>
             <MemoSettingsPage info={manager.info} autoRefreshEnabled={autoRefresh.enabled}

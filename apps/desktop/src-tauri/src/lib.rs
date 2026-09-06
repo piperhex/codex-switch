@@ -18,6 +18,7 @@ mod codex_connection;
 mod codex_home;
 mod codex_notification;
 mod codex_runtime;
+mod codex_settings;
 mod codex_usage_cost_rates;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 mod codex_usage_summary;
@@ -321,6 +322,10 @@ pub fn run() {
             providers::set_provider_groups,
             providers::set_provider_auto_switch_enabled,
             providers::repair_codex_config,
+            codex_settings::commands::read_codex_config_document,
+            codex_settings::commands::validate_codex_config_document,
+            codex_settings::commands::save_codex_config_document,
+            codex_settings::commands::patch_codex_config_document,
             providers::disable_provider,
             providers::delete_provider,
             aggregate_api::list_aggregate_apis,

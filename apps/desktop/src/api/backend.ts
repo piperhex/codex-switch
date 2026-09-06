@@ -177,7 +177,7 @@ function requestHostedWebApiKey() {
   return hostedWebApiKeyPrompt;
 }
 
-async function invoke<T = void>(command: string, args: Record<string, unknown> = {}): Promise<T> {
+export async function invoke<T = void>(command: string, args: Record<string, unknown> = {}): Promise<T> {
   if (isDesktopApp) return invokeTauri<T>(command, args);
   if (!isHostedWebApp) throw new Error(`Native command is unavailable in browser preview: ${command}`);
 
