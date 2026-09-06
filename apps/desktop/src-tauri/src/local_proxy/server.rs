@@ -283,8 +283,7 @@ fn handle_request<R: Runtime>(app: tauri::AppHandle<R>, mut request: Request) {
         return;
     }
 
-    let captures_conversation = is_responses_endpoint(request_path(&url))
-        || is_image_generation_endpoint(request_path(&url));
+    let captures_conversation = tracks_proxy_session(&method, request_path(&url), &body);
     if captures_conversation {
         if let Err(error) = ensure_proxy_history(&app) {
             respond_error(request, 503, error);
@@ -297,9 +296,13 @@ fn handle_request<R: Runtime>(app: tauri::AppHandle<R>, mut request: Request) {
         body,
         proxy_service_tier_override(),
     );
-    let session = (method == Method::Post && captures_conversation).then(|| {
-        let service_tier = effective_proxy_service_tier(&body, None);
-        begin_proxy_session_request(&headers, remote_address, &body, service_tier)
+    let session = begin_tracked_proxy_session(ProxySessionRequest {
+        method: &method,
+        path: request_path(&url),
+        headers: &headers,
+        remote_address,
+        service_tier: effective_proxy_service_tier(&body, None),
+        body: &body,
     });
     let result = handle_proxy_request(
         &app,

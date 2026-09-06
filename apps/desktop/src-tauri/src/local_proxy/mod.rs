@@ -1,7 +1,9 @@
+mod anthropic_stream;
 pub(crate) mod auto_reset;
 pub(crate) mod concurrent_quota;
 mod quota_detection;
 mod quota_sse;
+mod sse_transport;
 
 use quota_detection::is_official_quota_exhaustion;
 
@@ -9,6 +11,7 @@ include!("constants.rs");
 include!("types.rs");
 include!("state_core.rs");
 include!("state_sessions.rs");
+include!("request_session.rs");
 include!("history_store.rs");
 include!("history_attachments.rs");
 include!("history.rs");
@@ -45,6 +48,8 @@ include!("auth_http.rs");
 include!("conversion.rs");
 include!("tools.rs");
 include!("streaming.rs");
+include!("streaming_tools.rs");
+include!("chat_stream_status.rs");
 include!("sse.rs");
 
 #[cfg(test)]
@@ -68,4 +73,7 @@ mod tests {
     include!("tests/auto_switch_retry.rs");
     include!("tests/retry_target.rs");
     include!("tests/auto_switch_responsiveness.rs");
+    include!("tests/anthropic_sessions.rs");
+    include!("tests/chat_stream_status.rs");
+    include!("tests/http_streaming.rs");
 }

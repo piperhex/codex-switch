@@ -202,7 +202,8 @@ fn chat_to_responses_json(
         .pointer("/choices/0/message")
         .cloned()
         .unwrap_or_else(|| json!({}));
-    if let Some(scope) = continuation_scope {
+    let status = ChatCompletionStatus::from_chat(chat).unwrap_or(ChatCompletionStatus::Completed);
+    if let Some(scope) = continuation_scope.filter(|_| status == ChatCompletionStatus::Completed) {
         chat_bridge_continuation::capture_message(scope, &message);
     }
     let content = message
@@ -245,6 +246,7 @@ fn chat_to_responses_json(
     if let Some(tier) = extract_service_tier_from_value(chat) {
         response["service_tier"] = Value::String(tier);
     }
+    status.apply(&mut response);
     response
 }
 

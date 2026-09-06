@@ -364,7 +364,14 @@ fn respond_payload(request: Request, payload: UpstreamPayload) {
             let mut response = Response::new(StatusCode(status), Vec::new(), reader, None, None);
             add_content_type(&mut response, content_type.as_deref());
             add_forwarded_response_headers(&mut response, &response_headers);
-            let _ = request.respond(response);
+            let result = if is_event_stream(content_type.as_deref()) {
+                sse_transport::respond(request, response)
+            } else {
+                request.respond(response)
+            };
+            if let Err(error) = result {
+                eprintln!("Failed to send proxy response: {error}");
+            }
         }
     }
 }

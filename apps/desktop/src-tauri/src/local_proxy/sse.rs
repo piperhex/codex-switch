@@ -273,27 +273,6 @@ fn response_done_sse(
     output
 }
 
-fn response_failed_sse(response_id: &str, model: &str, message: &str) -> String {
-    let mut output = String::new();
-    push_sse(
-        &mut output,
-        "response.failed",
-        json!({
-            "type": "response.failed",
-            "response": {
-                "id": response_id,
-                "object": "response",
-                "created_at": unix_now(),
-                "status": "failed",
-                "model": model,
-                "error": { "message": message }
-            }
-        }),
-    );
-    output.push_str("data: [DONE]\n\n");
-    output
-}
-
 fn push_sse(output: &mut String, event: &str, value: Value) {
     output.push_str("event: ");
     output.push_str(event);

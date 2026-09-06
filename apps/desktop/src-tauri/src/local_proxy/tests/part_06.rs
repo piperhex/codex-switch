@@ -322,7 +322,10 @@
     #[test]
     fn buffered_chat_sse_conversion_keeps_reasoning_content() {
         let output = chat_sse_to_responses_sse(
-            "data: {\"choices\":[{\"delta\":{\"reasoning_content\":\"why\"}}]}\n\n",
+            concat!(
+                "data: {\"choices\":[{\"delta\":{\"reasoning_content\":\"why\"}}]}\n\n",
+                "data: [DONE]\n\n"
+            ),
             "deepseek-chat",
         );
 

@@ -3548,14 +3548,25 @@ export function subscribeToBubbleStyleChanges(onChange: (style: BubbleStyle) => 
   return () => void subscription.then((unlisten) => unlisten());
 }
 
-export function subscribeToProviderEvents(onProvidersChanged: () => void): () => void {
-  if (isHostedWebApp) return pollHostedBackend(onProvidersChanged);
-  if (!isDesktopApp) {
-    window.addEventListener(PROVIDERS_EVENT, onProvidersChanged);
-    return () => window.removeEventListener(PROVIDERS_EVENT, onProvidersChanged);
+export function subscribeToProviderEvents(onProvidersChanged: () => void | Promise<void>): () => void {
+  let active = true;
+  const onChange = () => {
+    if (active) return onProvidersChanged();
+  };
+  let unsubscribe: () => void;
+  if (isHostedWebApp) {
+    unsubscribe = pollHostedBackend(onChange);
+  } else if (!isDesktopApp) {
+    window.addEventListener(PROVIDERS_EVENT, onChange);
+    unsubscribe = () => window.removeEventListener(PROVIDERS_EVENT, onChange);
+  } else {
+    const subscription = listen("providers-changed", onChange);
+    unsubscribe = () => void subscription.then((unlisten) => unlisten());
   }
-  const subscription = listen("providers-changed", onProvidersChanged);
-  return () => void subscription.then((unlisten) => unlisten());
+  return () => {
+    active = false;
+    unsubscribe();
+  };
 }
 
 export interface OfficialModelContextSettings {

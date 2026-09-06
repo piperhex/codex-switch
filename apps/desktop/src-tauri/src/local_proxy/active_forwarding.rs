@@ -83,6 +83,10 @@ fn forward_active_request<R: Runtime>(
                 let settings = read_app_settings(app)?;
                 let subagent_model =
                     crate::third_party_apps::effective_settings(&settings).claude_subagent_model;
+                let request: Value = serde_json::from_slice(&body)
+                    .map_err(|_| "Anthropic request body is not valid JSON".to_string())?;
+                let model = anthropic_provider_model(&request, provider, &subagent_model);
+                update_proxy_session_target(session_id, None, &provider.name, &model);
                 return forward_anthropic_provider(body, provider, &subagent_model);
             }
             forward_provider_request(method, url, headers, body, provider)

@@ -1,4 +1,4 @@
-import { createElement, useCallback, useEffect, useState } from "react";
+import { createElement, useCallback, useState } from "react";
 import { Modal } from "antd";
 import {
   activateAggregateApi,
@@ -6,9 +6,6 @@ import {
   activateProviderGroup,
   copyLocalProxyLanApiKey,
   deactivateProvider,
-  loadAggregateApis,
-  loadLocalProxyStatus,
-  loadProviders,
   queryProviderBalance,
   removeAggregateApi,
   removeProvider,
@@ -37,22 +34,19 @@ import {
   stopLocalProxyWithoutMigrating,
   subscribeToLocalProxyStartProgress,
   subscribeToLocalProxyStopProgress,
-  subscribeToProviderEvents,
   switchProviderModel,
 } from "../api/backend";
 import type { Translate } from "../i18n";
 import type {
-  AggregateApi,
   AggregateApiInput,
   LocalProxyStartProgress,
-  LocalProxyStatus,
   LocalProxyStopProgress,
   ImageModelTarget,
   ImageRouteKind,
-  Provider,
   ProviderInput,
   SystemPromptRule,
 } from "../types";
+import { useProviderData } from "./useProviderData";
 
 interface ProviderCloudSync {
   pushProvider?: (id: string) => Promise<void> | void;
@@ -181,39 +175,12 @@ export function useProviderManager(
   t: Translate,
   cloudSync?: ProviderCloudSync,
 ) {
-  const [providers, setProviders] = useState<Provider[]>([]);
-  const [aggregateApis, setAggregateApis] = useState<AggregateApi[]>([]);
-  const [localProxy, setLocalProxy] = useState<LocalProxyStatus | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { providers, aggregateApis, localProxy, loading, load, setLocalProxy } = useProviderData(notify);
   const [busyProviderId, setBusyProviderId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [proxyBusy, setProxyBusy] = useState(false);
   const [proxyStartProgress, setProxyStartProgress] = useState<LocalProxyStartProgress | null>(null);
   const [proxyStopProgress, setProxyStopProgress] = useState<LocalProxyStopProgress | null>(null);
-
-  const load = useCallback(async () => {
-    try {
-      const [nextProviders, nextAggregates, nextProxy] = await Promise.all([
-        loadProviders(),
-        loadAggregateApis(),
-        loadLocalProxyStatus(),
-      ]);
-      setProviders(nextProviders);
-      setAggregateApis(nextAggregates);
-      setLocalProxy(nextProxy);
-    } catch (error) {
-      notify(String(error));
-    } finally {
-      setLoading(false);
-    }
-  }, [notify]);
-
-  useEffect(() => { void load(); }, [load]);
-  useEffect(() => subscribeToProviderEvents(() => void load()), [load]);
-
-  const refreshAggregateApis = useCallback(async () => {
-    setAggregateApis(await loadAggregateApis());
-  }, []);
 
   const saveProvider = useCallback(async (provider: ProviderInput) => {
     setSaving(true);
@@ -799,7 +766,7 @@ export function useProviderManager(
   return {
     providers,
     aggregateApis,
-    refreshAggregateApis,
+    refreshAggregateApis: load,
     localProxy,
     loading,
     busyProviderId,
