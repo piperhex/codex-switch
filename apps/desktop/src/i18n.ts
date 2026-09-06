@@ -13,6 +13,7 @@ const translations = {
   en: {
     "errorLogs.open": "View error logs",
     "errorLogs.title": "Error logs",
+    "errorLogs.eyebrow": "ACTIVITY LOG",
     "errorLogs.time": "Time",
     "errorLogs.source": "Source",
     "errorLogs.message": "Message",
@@ -2488,6 +2489,7 @@ const translations = {
   zh: {
     "errorLogs.open": "查看错误日志",
     "errorLogs.title": "错误日志",
+    "errorLogs.eyebrow": "运行记录",
     "errorLogs.time": "时间",
     "errorLogs.source": "来源",
     "errorLogs.message": "内容",

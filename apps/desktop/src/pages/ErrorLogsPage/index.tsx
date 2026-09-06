@@ -1,18 +1,17 @@
-import { useState } from "react";
-import { Alert, Button, Modal, Popconfirm, Segmented, Table, Tag, type TableColumnsType } from "antd";
-import { ClipboardList, RefreshCw, Trash2 } from "lucide-react";
+import { Alert, Button, Popconfirm, Segmented, Table, Tag, type TableColumnsType } from "antd";
+import { RefreshCw, Trash2 } from "lucide-react";
 import type { ErrorLogEntry } from "../../api/errorLogs";
 import type { Language, Translate } from "../../i18n";
 import { useErrorLogs, type ErrorLogFilter } from "./useErrorLogs";
 import { ERROR_LOG_RETENTION_LIMIT } from "./logEntries";
 import styles from "./index.module.less";
 
-interface ErrorLogManagerProps {
+interface ErrorLogsPageProps {
   language: Language;
   t: Translate;
 }
 
-function logColumns({ language, t }: ErrorLogManagerProps): TableColumnsType<ErrorLogEntry> {
+function logColumns({ language, t }: ErrorLogsPageProps): TableColumnsType<ErrorLogEntry> {
   return [
     {
       title: t("errorLogs.time"), dataIndex: "createdAt", width: 174,
@@ -65,36 +64,22 @@ function LogToolbar({ logs, t }: { logs: ReturnType<typeof useErrorLogs>; t: Tra
   );
 }
 
-function ErrorLogDialog({ language, t, onClose }: ErrorLogManagerProps & { onClose: () => void }) {
+export function ErrorLogsPage({ language, t }: ErrorLogsPageProps) {
   const logs = useErrorLogs();
   const busy = logs.operation !== null;
   return (
-    <Modal open title={t("errorLogs.title")} onCancel={onClose} footer={null}
-      width="min(1000px, calc(100vw - 32px))" centered className={styles.modal}>
+    <section className={styles.page} aria-label={t("errorLogs.title")}>
       <LogToolbar logs={logs} t={t} />
       {logs.error && <Alert type="error" showIcon className={styles.error}
         message={t(logs.error === "clear" ? "errorLogs.clearFailed" : "errorLogs.loadFailed")} />}
       <Table<ErrorLogEntry> rowKey="id" size="small" tableLayout="fixed" columns={logColumns({ language, t })}
         dataSource={logs.entries} pagination={false} loading={!logs.entries.length && busy}
-        locale={{ emptyText: t("errorLogs.empty") }} scroll={{ x: 700, y: "calc(75vh - 180px)" }} />
+        locale={{ emptyText: t("errorLogs.empty") }} scroll={{ x: 700 }} />
       <div className={styles.footer}>
         <span>{t("errorLogs.count", { count: logs.entries.length, limit: ERROR_LOG_RETENTION_LIMIT })}</span>
         {logs.hasMore && <Button size="small" loading={logs.operation === "more"} disabled={busy}
           onClick={() => void logs.load("more")}>{t("errorLogs.loadMore")}</Button>}
       </div>
-    </Modal>
-  );
-}
-
-export function ErrorLogManager({ language, t }: ErrorLogManagerProps) {
-  const [open, setOpen] = useState(false);
-  return (
-    <>
-      <button type="button" aria-label={t("errorLogs.open")} title={t("errorLogs.open")}
-        onClick={() => setOpen(true)}>
-        <ClipboardList size={19} aria-hidden="true" /><span>{t("errorLogs.open")}</span>
-      </button>
-      {open && <ErrorLogDialog language={language} t={t} onClose={() => setOpen(false)} />}
-    </>
+    </section>
   );
 }

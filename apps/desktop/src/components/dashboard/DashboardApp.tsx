@@ -6,6 +6,7 @@ import {
   CalendarClock,
   Check,
   CircleHelp,
+  ClipboardList,
   PanelLeftClose,
   PanelLeftOpen,
   Play,
@@ -54,7 +55,7 @@ import { TokenUsageHeatmap } from "../TokenUsageHeatmap";
 import { TokenUsageDashboard } from "../TokenUsageDashboard";
 import { TotpWindowButton } from "../TotpWindowButton";
 import { ProxySessionManager } from "../ProxySessionManager";
-import { ErrorLogManager } from "../ErrorLogManager";
+import { ErrorLogsPage } from "../../pages/ErrorLogsPage";
 import { CloudLoginModal } from "../modals/CloudLoginModal";
 import { CloudAccountModal } from "../modals/CloudAccountModal";
 import { LoginModal } from "../modals/LoginModal";
@@ -213,6 +214,7 @@ async function refreshProviderBalances(providers: Provider[]) {
 }
 
 function dashboardEyebrow(page: DashboardPage, t: Translate) {
+  if (page === "errorLogs") return t("errorLogs.eyebrow");
   if (page === "codexConfig") return "CODEX / CONFIGURATION";
   if (page === "providers") return t("topbar.providersEyebrow");
   if (page === "skills") return t("topbar.skillsEyebrow");
@@ -226,6 +228,7 @@ function dashboardTitle(page: DashboardPage, t: Translate, options: {
   accountCount: number;
   providerCount: number;
 }) {
+  if (page === "errorLogs") return t("errorLogs.title");
   if (page === "codexConfig") return t("nav.codexConfig");
   if (page === "settings") return t("topbar.settings");
   if (page === "skills") return t("topbar.skills");
@@ -1226,7 +1229,12 @@ export function DashboardApp() {
               sidebarTools={(
                 <>
                   {titlebarProxyRunning && <ProxySessionManager t={t} triggerVariant="sidebar" />}
-                  <ErrorLogManager language={language} t={t} />
+                  <button type="button" className={page === "errorLogs" ? "selected" : ""}
+                    aria-current={page === "errorLogs" ? "page" : undefined}
+                    aria-label={t("errorLogs.open")} title={t("errorLogs.open")}
+                    onClick={() => setPage("errorLogs")}>
+                    <ClipboardList size={19} aria-hidden="true" /><span>{t("errorLogs.open")}</span>
+                  </button>
                   <TotpWindowButton notify={notify} t={t} variant="sidebar" />
                 </>
               )} />
@@ -1347,6 +1355,7 @@ export function DashboardApp() {
           </>
           )}
 
+          {page === "errorLogs" && <ErrorLogsPage language={language} t={t} />}
           <section className="page-panel" hidden={page !== "dreamSkin"}>
             {page === "dreamSkin" && <MemoDreamSkinPage t={t} notify={notify} />}
           </section>

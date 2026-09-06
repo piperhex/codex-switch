@@ -14,7 +14,7 @@ function loadModule(relativePath, dependencies = {}, globals = {}) {
   return exports;
 }
 
-const merge = loadModule("../apps/desktop/src/components/ErrorLogManager/logEntries.ts");
+const merge = loadModule("../apps/desktop/src/pages/ErrorLogsPage/logEntries.ts");
 const entry = id => ({ id, createdAt: "2026-09-07T00:00:00Z", source: "toast", message: String(id) });
 const page = (ids, hasMore = false) => ({ entries: ids.map(entry), hasMore });
 const ids = result => Array.from(result.entries, item => item.id);
@@ -106,7 +106,7 @@ function createHookHarness() {
       });
     },
   };
-  const module = loadModule("../apps/desktop/src/components/ErrorLogManager/useErrorLogs.ts", {
+  const module = loadModule("../apps/desktop/src/pages/ErrorLogsPage/useErrorLogs.ts", {
     react,
     "./logEntries": merge,
     "../../api/errorLogs": {

@@ -23,6 +23,7 @@ export type DashboardPage =
   | "systemPrompts"
   | "settings"
   | "codexConfig"
+  | "errorLogs"
   | "claudeCode";
 
 interface DashboardNavigationProps {
