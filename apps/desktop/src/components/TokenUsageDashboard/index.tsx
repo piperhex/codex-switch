@@ -19,6 +19,7 @@ import type { Language } from "../../i18n";
 import type { DailyTokenUsage, TokenUsageEntry } from "../../types";
 import { normalizeThemeColor } from "../../utils/theme";
 import { EChart } from "./EChart";
+import { CustomBillingButton } from "./CustomBillingButton";
 import styles from "./index.module.less";
 
 const TOKEN_USAGE_MORE_THRESHOLD = 100_000_000;
@@ -403,6 +404,7 @@ export function TokenUsageDashboard({
           <small>{labels.period}{updatedAt ? ` · ${labels.updated} ${updatedAt.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : ""}<span className={styles.tokenDashboardProxyNote}> · {proxyOnlyHint}</span></small>
         </div>
         <div className={styles.tokenDashboardActions}>
+          <CustomBillingButton language={language} />
           <label className={styles.tokenDashboardRange}>
             <span>{rangeLabel}</span>
             <InputNumber min={MIN_TOKEN_USAGE_WEEKS} max={MAX_TOKEN_USAGE_WEEKS} step={1}
