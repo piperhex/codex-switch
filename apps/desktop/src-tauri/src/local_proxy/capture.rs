@@ -365,7 +365,7 @@ fn record_token_usage_entry<R: Runtime>(
         model_context_window: None,
     };
     if let Err(error) = append_token_usage_entry(app, &entry) {
-        eprintln!("failed to write token usage entry: {error}");
+        log_proxy_error!("failed to write token usage entry: {error}");
     } else {
         let _ = app.emit("token-usage-updated", ());
         crate::codex_runtime::refresh_usage_summary();

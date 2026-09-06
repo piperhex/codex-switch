@@ -32,6 +32,7 @@ fn ensure_proxy_history<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<(), Str
 }
 
 fn history_error_message(error: ProxyHistoryError) -> String {
+    // The caller records the safe message once at its response/background boundary.
     eprintln!("proxy conversation history: {error:?}");
     "Conversation history could not be saved or loaded. Check available disk space and try again."
         .to_string()
@@ -51,7 +52,7 @@ fn persist_proxy_session(session_id: &str, request_id: Option<u64>) {
     };
     if let Err(error) = store.save_with(|| capture_proxy_history_snapshot(session_id, request_id)) {
         PROXY_HISTORY_SAVE_FAILED.store(true, Ordering::Relaxed);
-        eprintln!("{}", history_error_message(error));
+        log_proxy_error!("{}", history_error_message(error));
     }
 }
 
@@ -129,7 +130,7 @@ fn retain_conversation_attachment(source: String) -> String {
             if !matches!(error, ProxyHistoryError::Attachment) {
                 PROXY_HISTORY_SAVE_FAILED.store(true, Ordering::Relaxed);
             }
-            eprintln!("{}", history_error_message(error));
+            log_proxy_error!("{}", history_error_message(error));
         }
     }
     match conversation_attachment_cache().lock() {

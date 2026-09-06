@@ -1,6 +1,15 @@
+macro_rules! log_proxy_error {
+    ($($argument:tt)*) => {{
+        let message = format!($($argument)*);
+        crate::error_logs::record_proxy_error(&message, None);
+        eprintln!("{message}");
+    }};
+}
+
 mod anthropic_stream;
 pub(crate) mod auto_reset;
 pub(crate) mod concurrent_quota;
+mod error_capture;
 mod quota_detection;
 mod quota_sse;
 mod sse_transport;
@@ -45,6 +54,7 @@ include!("anthropic_request.rs");
 include!("models.rs");
 include!("chat_bridge.rs");
 include!("auth_http.rs");
+include!("error_logging.rs");
 include!("conversion.rs");
 include!("tools.rs");
 include!("streaming.rs");
@@ -77,4 +87,5 @@ mod tests {
     include!("tests/anthropic_sessions.rs");
     include!("tests/chat_stream_status.rs");
     include!("tests/http_streaming.rs");
+    include!("tests/error_logging.rs");
 }

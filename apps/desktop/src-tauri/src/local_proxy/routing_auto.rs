@@ -27,7 +27,7 @@ fn try_switch_official_account_after_quota<R: Runtime>(
     ) {
         Ok(switched) => switched,
         Err(error) => {
-            eprintln!(
+            log_proxy_error!(
                 "failed to automatically switch official account after quota exhaustion: {error}"
             );
             false
@@ -112,7 +112,7 @@ fn try_auto_switch_official_account<R: Runtime>(
                 if account.id != current_id && !exhausted_account_ids.contains(&account.id) {
                     backup_usage_unknown = true;
                 }
-                eprintln!(
+                log_proxy_error!(
                     "failed to refresh usage for {} during automatic switch: {error}",
                     account.id
                 );
@@ -155,7 +155,7 @@ fn try_auto_switch_official_account<R: Runtime>(
             if state.active_provider_id.is_none()
                 && state.active_account_id.as_deref() == Some(&target_id)
             {
-                eprintln!(
+                log_proxy_error!(
                     "automatic account switch to {target_id} completed with a post-switch error: {error}"
                 );
                 return Ok(AutoSwitchAttempt::Switched);
@@ -188,7 +188,7 @@ fn try_auto_switch_official_account<R: Runtime>(
             }
             return Ok(AutoSwitchAttempt::Switched);
         }
-        Err(error) => eprintln!("automatic quota reset failed: {error}"),
+        Err(error) => log_proxy_error!("automatic quota reset failed: {error}"),
         _ => {}
     }
     let state = try_read_state(&paths)?;
@@ -205,7 +205,7 @@ fn try_auto_switch_official_account<R: Runtime>(
     if let Err(error) = providers::switch_provider_blocking(app.clone(), provider_id.clone()) {
         let state = read_state(&paths);
         if state.active_provider_id.as_deref() == Some(&provider_id) {
-            eprintln!(
+            log_proxy_error!(
                 "automatic fallback to Provider {provider_id} completed with a post-switch error: {error}"
             );
             return Ok(AutoSwitchAttempt::Switched);
@@ -297,7 +297,7 @@ fn handle_upstream_quota_event<R: Runtime>(
         }
         UpstreamQuotaEvent::RetryTimedOut => {
             if let Err(error) = try_disable_official_account_after_429_timeout(app, response) {
-                eprintln!(
+                log_proxy_error!(
                     "failed to automatically disable official account after 429 retry timeout: {error}"
                 );
             }

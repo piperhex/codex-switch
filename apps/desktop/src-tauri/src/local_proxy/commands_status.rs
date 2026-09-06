@@ -224,7 +224,7 @@ pub(crate) async fn set_official_model_context_window<R: Runtime + 'static>(
                 settings.gpt_5_6_sol_context_window,
                 &settings.official_model_context_windows,
             ) {
-                eprintln!("failed to update cached official model context windows: {error}");
+                log_proxy_error!("failed to update cached official model context windows: {error}");
             }
         }
         Ok(official_context_settings(&app, settings))
@@ -279,7 +279,7 @@ fn set_gpt_5_6_sol_context_window_blocking<R: Runtime>(
         &settings.official_model_context_windows,
     ) {
         // The proxy applies the override on the next model request even if this best-effort cache refresh races Codex.
-        eprintln!("failed to update the cached GPT-5.6 Sol context window: {error}");
+        log_proxy_error!("failed to update the cached GPT-5.6 Sol context window: {error}");
     }
     Ok(settings)
 }

@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { Button, message } from "antd";
 import { DollarSign } from "lucide-react";
 import { loadProviders } from "../../api/backend";
+import { recordToastLog } from "../../api/errorLogs";
 import { translate, type Language, type Translate } from "../../i18n";
 import type { Provider } from "../../types";
 import { CustomTokenCostModal } from "../CustomTokenCostModal";
@@ -22,8 +23,12 @@ export function CustomBillingButton({ language }: { language: Language }) {
       setProviders(await loadProviders());
       setOpen(true);
     } catch {
+      const content = t("tokenCost.customBilling.loadFailed");
+      void recordToastLog(content).catch(() => {
+        console.debug("The notification could not be added to the error log.");
+      });
       void messageApi.error({
-        content: t("tokenCost.customBilling.loadFailed"),
+        content,
         style: { maxWidth: 400, marginInline: "auto" },
       });
     } finally {

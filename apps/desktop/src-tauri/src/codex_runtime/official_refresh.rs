@@ -49,6 +49,10 @@ pub(super) fn refresh(generation: u64, selected_model: String) {
     match fetch_model_refresh_catalog(selected_model.clone(), OFFICIAL_MODEL_REFRESH_TIMEOUT) {
         Ok(loaded) => apply_success(&target, loaded),
         Err(error) => {
+            crate::error_logs::record_proxy_error(
+                &format!("Official model list update failed: {error}"),
+                None,
+            );
             eprintln!("Failed to load the official Codex model catalog: {error}");
             let retry = OfficialModelRetry {
                 target,
@@ -190,6 +194,10 @@ impl RetryOperations for OfficialModelRetry {
     fn fetch(&mut self, timeout: Duration) -> Result<Self::Payload, String> {
         let result = fetch_model_refresh_catalog(self.selected_model.clone(), timeout);
         if let Err(error) = &result {
+            crate::error_logs::record_proxy_error(
+                &format!("Official model list retry failed: {error}"),
+                None,
+            );
             eprintln!("Official Codex model catalog retry failed: {error}");
         }
         result

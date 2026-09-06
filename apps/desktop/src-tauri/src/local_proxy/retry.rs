@@ -42,9 +42,11 @@ where
         // A confirmed concurrent quota failure invalidates cached eligibility before
         // any backoff, including when the normal 429 retry budget is exhausted.
         if concurrent_quota::exclude_response(&response)? {
+            record_retried_proxy_response(&response);
             continue;
         }
         if switch_exhausted_account(&response, &mut quota_retry, &mut handle_quota_event) {
+            record_retried_proxy_response(&response);
             continue;
         }
         if response.status == 429 {
@@ -54,6 +56,7 @@ where
                 let _ = handle_quota_event(&response, UpstreamQuotaEvent::RetryTimedOut);
                 return Ok(response);
             }
+            record_retried_proxy_response(&response);
             continue;
         }
         return Ok(response);

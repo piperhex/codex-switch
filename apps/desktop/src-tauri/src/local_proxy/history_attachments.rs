@@ -97,7 +97,7 @@ impl ProxyHistoryStore {
         if let Err(error) = result {
             if let Err(cleanup) = fs::remove_file(&temporary) {
                 if cleanup.kind() != io::ErrorKind::NotFound {
-                    eprintln!("history attachment cleanup: {cleanup}");
+                    log_proxy_error!("history attachment cleanup: {cleanup}");
                 }
             }
             return Err(error.into());

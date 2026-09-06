@@ -104,7 +104,7 @@ fn ordered_candidates(backend: &mut impl ResetBackend, pool: &Pool) -> Vec<Strin
                     }
                 }
             }
-            Err(error) => eprintln!("automatic reset card lookup failed: {error}"),
+            Err(error) => log_proxy_error!("automatic reset card lookup failed: {error}"),
         }
     }
     // The consume endpoint chooses the card within an account; prioritize accounts
@@ -193,7 +193,7 @@ pub(super) fn concurrent_account<R: Runtime>(
         }
     }
     if let Err(error) = restore(app) {
-        eprintln!("automatic concurrent quota reset failed: {error}");
+        log_proxy_error!("automatic concurrent quota reset failed: {error}");
     }
     let latest = super::try_read_state(paths)?;
     if !latest.concurrent_account_routing_enabled

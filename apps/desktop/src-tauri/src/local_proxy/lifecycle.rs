@@ -270,7 +270,7 @@ fn stop_local_proxy_blocking<R: Runtime>(
     }
 
     if let Err(error) = crate::third_party_apps::sync_after_switch(&app) {
-        eprintln!("Third-party app configuration cleanup failed after proxy stop: {error}");
+        log_proxy_error!("Third-party app configuration cleanup failed after proxy stop: {error}");
     }
 
     let _ = app.emit("providers-changed", ());

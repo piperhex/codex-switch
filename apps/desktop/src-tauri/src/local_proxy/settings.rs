@@ -199,7 +199,7 @@ fn rollback_concurrent_routing_setting(
         Ok(())
     });
     if let Err(error) = result {
-        eprintln!("failed to restore proxy state: {error}");
+        log_proxy_error!("failed to restore proxy state: {error}");
     }
 }
 

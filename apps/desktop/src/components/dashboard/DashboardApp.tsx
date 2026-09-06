@@ -54,6 +54,7 @@ import { TokenUsageHeatmap } from "../TokenUsageHeatmap";
 import { TokenUsageDashboard } from "../TokenUsageDashboard";
 import { TotpWindowButton } from "../TotpWindowButton";
 import { ProxySessionManager } from "../ProxySessionManager";
+import { ErrorLogManager } from "../ErrorLogManager";
 import { CloudLoginModal } from "../modals/CloudLoginModal";
 import { CloudAccountModal } from "../modals/CloudAccountModal";
 import { LoginModal } from "../modals/LoginModal";
@@ -1225,6 +1226,7 @@ export function DashboardApp() {
               sidebarTools={(
                 <>
                   {titlebarProxyRunning && <ProxySessionManager t={t} triggerVariant="sidebar" />}
+                  <ErrorLogManager language={language} t={t} />
                   <TotpWindowButton notify={notify} t={t} variant="sidebar" />
                 </>
               )} />

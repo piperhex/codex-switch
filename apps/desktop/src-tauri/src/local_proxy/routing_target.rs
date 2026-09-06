@@ -234,6 +234,6 @@ fn append_proxy_diagnostic_result<R: Runtime>(
     }
 
     if let Err(error) = append_diagnostic_log(app, &entry) {
-        eprintln!("failed to write local proxy diagnostics: {error}");
+        log_proxy_error!("failed to write local proxy diagnostics: {error}");
     }
 }

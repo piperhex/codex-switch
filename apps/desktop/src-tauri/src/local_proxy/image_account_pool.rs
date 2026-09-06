@@ -170,7 +170,7 @@ fn advance_image_account_after_429(
     else {
         return;
     };
-    eprintln!(
+    log_proxy_error!(
         "image request account failover: failed={failed_account_id}, next={next_account_id}"
     );
 }

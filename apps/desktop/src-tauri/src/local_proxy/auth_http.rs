@@ -131,7 +131,23 @@ fn send_with_timeout_retries(
     mut build_request: impl FnMut() -> RequestBuilder,
     failure_context: &str,
 ) -> Result<ReqwestResponse, String> {
-    let result = retry_timeout_operation(|| build_request().send(), reqwest::Error::is_timeout);
+    let mut attempt = 0;
+    let result = retry_timeout_operation(
+        || {
+            attempt += 1;
+            let result = build_request().send();
+            if result.as_ref().is_err_and(reqwest::Error::is_timeout)
+                && attempt < UPSTREAM_TIMEOUT_ATTEMPT_LIMIT
+            {
+                crate::error_logs::record_proxy_error(
+                    &format!("{failure_context}: request timed out; retrying."),
+                    None,
+                );
+            }
+            result
+        },
+        reqwest::Error::is_timeout,
+    );
     match result {
         Ok(response) => Ok(response),
         Err(error) if error.is_timeout() => Err(format!(
@@ -346,6 +362,7 @@ fn attach_first_response_capture(
 }
 
 fn respond_payload(request: Request, payload: UpstreamPayload) {
+    let payload = attach_proxy_error_capture(payload);
     let UpstreamPayload {
         status,
         content_type,
@@ -358,7 +375,9 @@ fn respond_payload(request: Request, payload: UpstreamPayload) {
             let mut response = Response::from_data(body).with_status_code(StatusCode(status));
             add_content_type(&mut response, content_type.as_deref());
             add_forwarded_response_headers(&mut response, &response_headers);
-            let _ = request.respond(response);
+            if let Err(error) = request.respond(response) {
+                log_proxy_error!("Failed to send proxy response: {error}");
+            }
         }
         UpstreamBody::Streaming(reader) => {
             let mut response = Response::new(StatusCode(status), Vec::new(), reader, None, None);
@@ -370,7 +389,7 @@ fn respond_payload(request: Request, payload: UpstreamPayload) {
                 request.respond(response)
             };
             if let Err(error) = result {
-                eprintln!("Failed to send proxy response: {error}");
+                log_proxy_error!("Failed to send proxy response: {error}");
             }
         }
     }

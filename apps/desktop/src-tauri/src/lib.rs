@@ -31,6 +31,7 @@ mod dream_skin_market;
 mod dream_skin_native;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 mod dream_skin_resources;
+mod error_logs;
 mod floating_bubble;
 mod grok_provider;
 mod launch_options;
@@ -114,6 +115,9 @@ pub fn run() {
         .setup(move |app| {
             storage::migrate_app_settings_for_version(app.handle())?;
             let settings = storage::read_app_settings(app.handle())?;
+            if let Err(error) = error_logs::setup(app.handle()) {
+                eprintln!("failed to initialize error logs: {error}");
+            }
             third_party_apps::capture_running_app_paths(app.handle());
             codex_home::initialize(&settings);
             main_window::configure_close_behavior(app.handle(), settings.close_to_tray);
@@ -259,6 +263,9 @@ pub fn run() {
             codex_connection::get_codex_connection_status,
             codex_connection::connect_codex,
             codex_notification::sync_codex_notification,
+            error_logs::list_error_logs,
+            error_logs::clear_error_logs,
+            error_logs::record_toast_log,
             codex_usage_cost_rates::set_codex_usage_cost_rates,
             claude_code::set_claude_code_write_target,
             third_party_apps::set_third_party_app_write_settings,

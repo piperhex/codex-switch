@@ -204,6 +204,7 @@ const LAN_COMMAND_ALLOWLIST: &[&str] = &[
     "list_accounts",
     "list_aggregate_apis",
     "list_daily_token_usage",
+    "list_error_logs",
     "list_market_skills",
     "list_prompt_plugins",
     "list_official_plugins",
@@ -217,4 +218,6 @@ const LAN_COMMAND_ALLOWLIST: &[&str] = &[
     "list_token_usage_breakdown",
     "query_provider_balance",
     "query_provider_usage",
+    // Notification logging only appends bounded, sanitized text and does not change app settings.
+    "record_toast_log",
 ];

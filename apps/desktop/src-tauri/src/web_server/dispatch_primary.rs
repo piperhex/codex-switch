@@ -1,5 +1,14 @@
 fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value, String> {
     match command {
+        "list_error_logs" => serialize(block_on(crate::error_logs::list_error_logs(
+            argument(&args, "limit")?,
+            argument(&args, "beforeId")?,
+            argument(&args, "source")?,
+        ))),
+        "clear_error_logs" => serialize(block_on(crate::error_logs::clear_error_logs())),
+        "record_toast_log" => serialize(block_on(crate::error_logs::record_toast_log(
+            argument(&args, "message")?,
+        ))),
         "read_codex_config_document" => serialize(block_on(crate::codex_settings::read_codex_config_document())),
         "validate_codex_config_document" => serialize(block_on(crate::codex_settings::validate_codex_config_document(
             argument(&args, "content")?,

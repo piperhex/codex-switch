@@ -45,6 +45,7 @@ fn forward_official<R: Runtime>(
         &credentials.authentication,
     )?;
     if invalid_agent_identity_task_response(&credentials.authentication, &payload) {
+        record_retried_proxy_response(&payload);
         refresh_agent_identity_task(&mut credentials.authentication, app, &client)?;
         payload = send_official_request(
             &client,
@@ -229,6 +230,9 @@ fn forward_aggregate_request(
             Ok(member_id) => member_id,
             Err(error) => return last_result.unwrap_or(Err(error)),
         };
+        if let Some(previous) = last_result.take() {
+            record_discarded_proxy_attempt(&previous);
+        }
         let provider = request
             .target
             .profiles
@@ -305,6 +309,7 @@ fn forward_provider_with_api_fallback(
     let alternate = alternate_api_format(preferred);
     let second = forward_provider_with_format(alternate, method, url, headers, body, provider);
     if api_attempt_succeeded(&second) {
+        record_discarded_proxy_attempt(&first);
         remember_provider_api_format(provider, &model, alternate);
         return second;
     }
@@ -361,8 +366,14 @@ fn preferred_protocol_failure(
     second: Result<UpstreamPayload, String>,
 ) -> Result<UpstreamPayload, String> {
     match (first, second) {
-        (_, Ok(payload)) => Ok(payload),
-        (Ok(payload), Err(_)) => Ok(payload),
+        (first, Ok(payload)) => {
+            record_discarded_proxy_attempt(&first);
+            Ok(payload)
+        }
+        (Ok(payload), Err(error)) => {
+            crate::error_logs::record_proxy_error(&error, None);
+            Ok(payload)
+        }
         (Err(first_error), Err(second_error)) => Err(format!(
             "Provider request failed for both supported API formats: {first_error}; {second_error}"
         )),
