@@ -100,7 +100,7 @@ fn send_official_request(
         },
         "Official Codex proxy request failed",
     )?;
-    let mut payload = stream_response(response)?;
+    let mut payload = quota_sse::inspect_initial_official_sse(stream_response(response)?)?;
     payload.token_usage_service_tier = forwarded_request_service_tier(body, headers);
     Ok(payload)
 }

@@ -132,7 +132,7 @@ fn transient_429_retries_without_triggering_quota_switch() {
             Ok(response)
         },
         |_, event| {
-            if matches!(event, UpstreamQuotaEvent::Retry) {
+            if matches!(event, UpstreamQuotaEvent::Retry { .. }) {
                 switch_count.fetch_add(1, AtomicOrdering::SeqCst);
             }
             false
@@ -429,14 +429,14 @@ fn retry_timeout_returns_the_last_429_response() {
         },
         |_, event| {
             match event {
-                UpstreamQuotaEvent::Retry => {
+                UpstreamQuotaEvent::Retry { .. } => {
                     switch_count.fetch_add(1, AtomicOrdering::SeqCst);
                 }
                 UpstreamQuotaEvent::RetryTimedOut => {
                     timeout_count.fetch_add(1, AtomicOrdering::SeqCst);
                 }
             }
-            true
+            false
         },
         |delay| {
             elapsed += delay;
@@ -446,7 +446,7 @@ fn retry_timeout_returns_the_last_429_response() {
     .unwrap();
 
     assert_eq!(response.status, 429);
-    assert_eq!(switch_count.load(AtomicOrdering::SeqCst), 1);
+    assert_eq!(switch_count.load(AtomicOrdering::SeqCst), 2);
     assert_eq!(timeout_count.load(AtomicOrdering::SeqCst), 1);
     assert_eq!(request_count.load(AtomicOrdering::SeqCst), 2);
 }

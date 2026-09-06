@@ -7,6 +7,7 @@ fn upstream_429_retry_delay(retry_number: u16) -> Duration {
 fn try_switch_official_account_after_quota<R: Runtime>(
     app: &tauri::AppHandle<R>,
     response: &UpstreamPayload,
+    exhausted_account_ids: &HashSet<String>,
 ) -> bool {
     let Some(account) = response
         .token_usage_account
@@ -17,9 +18,12 @@ fn try_switch_official_account_after_quota<R: Runtime>(
     };
     match auto_switch_official_account(
         app,
-        account.active_account_generation,
-        account.auto_switch_attempt_generation,
-        &account.account_id,
+        AutoSwitchRequest {
+            observed_generation: account.active_account_generation,
+            observed_attempt_generation: account.auto_switch_attempt_generation,
+            failed_account_id: &account.account_id,
+            exhausted_account_ids,
+        },
     ) {
         Ok(switched) => switched,
         Err(error) => {
@@ -35,43 +39,22 @@ fn credential_can_trigger_auto_switch(account: &TokenUsageAccount) -> bool {
     account.auto_switch_eligible
 }
 
-fn is_official_quota_exhaustion(payload: &UpstreamPayload) -> bool {
-    if payload.status != 429 {
-        return false;
-    }
-    official_quota_exhaustion_body(payload) || official_quota_exhaustion_header(payload)
-}
-
-fn official_quota_exhaustion_body(payload: &UpstreamPayload) -> bool {
-    let UpstreamBody::Buffered(body) = &payload.body else {
-        return false;
-    };
-    serde_json::from_slice::<Value>(body)
-        .ok()
-        .is_some_and(|value| {
-            value.pointer("/error/type").and_then(Value::as_str)
-                == Some(CODEX_USAGE_LIMIT_REACHED_ERROR_TYPE)
-        })
-}
-
-fn official_quota_exhaustion_header(payload: &UpstreamPayload) -> bool {
-    payload.response_headers.iter().any(|(name, value)| {
-        name.eq_ignore_ascii_case(CODEX_RATE_LIMIT_REACHED_TYPE_HEADER)
-            && CODEX_QUOTA_EXHAUSTION_TYPES.contains(&value.trim().to_ascii_lowercase().as_str())
-    })
+struct AutoSwitchRequest<'a> {
+    observed_generation: u64,
+    observed_attempt_generation: u64,
+    failed_account_id: &'a str,
+    exhausted_account_ids: &'a HashSet<String>,
 }
 
 fn auto_switch_official_account<R: Runtime>(
     app: &tauri::AppHandle<R>,
-    observed_generation: u64,
-    observed_attempt_generation: u64,
-    failed_account_id: &str,
+    request: AutoSwitchRequest<'_>,
 ) -> Result<bool, String> {
     let should_retry = auto_switch_coordinator().switch_or_wait(
-        observed_generation,
-        observed_attempt_generation,
-        failed_account_id,
-        || try_auto_switch_official_account(app, failed_account_id),
+        request.observed_generation,
+        request.observed_attempt_generation,
+        request.failed_account_id,
+        || try_auto_switch_official_account(app, request.failed_account_id, request.exhausted_account_ids),
     )?;
     if !should_retry {
         return Ok(false);
@@ -88,6 +71,7 @@ fn auto_switch_official_account<R: Runtime>(
 fn try_auto_switch_official_account<R: Runtime>(
     app: &tauri::AppHandle<R>,
     failed_account_id: &str,
+    exhausted_account_ids: &HashSet<String>,
 ) -> Result<AutoSwitchAttempt, String> {
     let paths = resolve_paths(app)?;
     let state = try_read_state(&paths)?;
@@ -125,7 +109,7 @@ fn try_auto_switch_official_account<R: Runtime>(
                 refreshed_accounts.push(account);
             }
             Err(error) => {
-                if account.id != current_id {
+                if account.id != current_id && !exhausted_account_ids.contains(&account.id) {
                     backup_usage_unknown = true;
                 }
                 eprintln!(
@@ -135,6 +119,9 @@ fn try_auto_switch_official_account<R: Runtime>(
             }
         }
     }
+    // Keep refreshing failed accounts above for the UI and reset-card checks, but an
+    // actual quota failure in this request takes precedence over stale positive usage.
+    retain_untried_auto_switch_accounts(&mut refreshed_accounts, exhausted_account_ids);
 
     // Do not overwrite a manual account or Provider switch made while usage was refreshing.
     let state = try_read_state(&paths)?;
@@ -235,6 +222,13 @@ fn automatic_switch_is_blocked(state: &ManagerStateFile) -> bool {
         || state.active_provider_group.is_some()
 }
 
+fn retain_untried_auto_switch_accounts(
+    accounts: &mut Vec<AccountSummary>,
+    exhausted_account_ids: &HashSet<String>,
+) {
+    accounts.retain(|account| !exhausted_account_ids.contains(&account.id));
+}
+
 fn all_backup_accounts_have_exhausted_quota(
     accounts: &[AccountSummary],
     current_id: &str,
@@ -286,9 +280,9 @@ fn account_with_lowest_remaining_primary_quota<'a>(
         .map(|(account, _)| account)
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 enum UpstreamQuotaEvent {
-    Retry,
+    Retry { exhausted_account_ids: HashSet<String> },
     RetryTimedOut,
 }
 
@@ -298,7 +292,9 @@ fn handle_upstream_quota_event<R: Runtime>(
     event: UpstreamQuotaEvent,
 ) -> bool {
     match event {
-        UpstreamQuotaEvent::Retry => try_switch_official_account_after_quota(app, response),
+        UpstreamQuotaEvent::Retry { exhausted_account_ids } => {
+            try_switch_official_account_after_quota(app, response, &exhausted_account_ids)
+        }
         UpstreamQuotaEvent::RetryTimedOut => {
             if let Err(error) = try_disable_official_account_after_429_timeout(app, response) {
                 eprintln!(
@@ -385,9 +381,12 @@ pub(crate) fn maybe_switch_official_account_below_threshold<R: Runtime>(
         auto_switch_coordinator().account_snapshot(|| Ok(()))?;
     auto_switch_official_account(
         app,
-        observed_generation,
-        observed_attempt_generation,
-        &current_id,
+        AutoSwitchRequest {
+            observed_generation,
+            observed_attempt_generation,
+            failed_account_id: &current_id,
+            exhausted_account_ids: &HashSet::new(),
+        },
     )
 }
 

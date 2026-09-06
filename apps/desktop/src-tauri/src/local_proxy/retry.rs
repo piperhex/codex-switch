@@ -36,11 +36,15 @@ where
     W: FnMut(Duration) -> Duration,
 {
     let mut retry_number = 0_u16;
+    let mut quota_retry = QuotaRetryState::default();
     loop {
         let response = request()?;
         // A confirmed concurrent quota failure invalidates cached eligibility before
         // any backoff, including when the normal 429 retry budget is exhausted.
         if concurrent_quota::exclude_response(&response)? {
+            continue;
+        }
+        if switch_exhausted_account(&response, &mut quota_retry, &mut handle_quota_event) {
             continue;
         }
         if response.status == 429 {
@@ -50,11 +54,50 @@ where
                 let _ = handle_quota_event(&response, UpstreamQuotaEvent::RetryTimedOut);
                 return Ok(response);
             }
-            if is_official_quota_exhaustion(&response) {
-                let _ = handle_quota_event(&response, UpstreamQuotaEvent::Retry);
-            }
             continue;
         }
         return Ok(response);
     }
+}
+
+#[derive(Default)]
+struct QuotaRetryState {
+    exhausted_account_ids: HashSet<String>,
+    switched_account_ids: HashSet<String>,
+}
+
+fn switch_exhausted_account(
+    response: &UpstreamPayload,
+    quota_retry: &mut QuotaRetryState,
+    handle_quota_event: &mut impl FnMut(&UpstreamPayload, UpstreamQuotaEvent) -> bool,
+) -> bool {
+    let Some(account) = response.token_usage_account.as_ref() else {
+        return false;
+    };
+    if !is_official_quota_exhaustion(response) {
+        return false;
+    }
+    quota_retry
+        .exhausted_account_ids
+        .insert(account.account_id.clone());
+    if quota_retry
+        .switched_account_ids
+        .contains(&account.account_id)
+    {
+        return false;
+    }
+    // Exhaustion needs a different account, even if the transient-rate-limit budget has
+    // expired. Retry a successful switch immediately, before any backoff or auto-disable.
+    let event = UpstreamQuotaEvent::Retry {
+        exhausted_account_ids: quota_retry.exhausted_account_ids.clone(),
+    };
+    if !handle_quota_event(response, event) {
+        return false;
+    }
+    // Stale positive usage can send us back to an exhausted account. Bound immediate
+    // failovers per request so that cycle still reaches the normal retry timeout.
+    quota_retry
+        .switched_account_ids
+        .insert(account.account_id.clone());
+    true
 }

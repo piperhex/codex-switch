@@ -1,5 +1,9 @@
 pub(crate) mod auto_reset;
 pub(crate) mod concurrent_quota;
+mod quota_detection;
+mod quota_sse;
+
+use quota_detection::is_official_quota_exhaustion;
 
 include!("constants.rs");
 include!("types.rs");
@@ -61,4 +65,7 @@ mod tests {
     include!("tests/service_tier_capture.rs");
     include!("tests/token_usage_breakdown.rs");
     include!("tests/token_usage_responsiveness.rs");
+    include!("tests/auto_switch_retry.rs");
+    include!("tests/retry_target.rs");
+    include!("tests/auto_switch_responsiveness.rs");
 }

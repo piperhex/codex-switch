@@ -9,6 +9,46 @@ struct ActiveForwardRequest<'a, R: Runtime> {
     account_id_override: Option<&'a str>,
 }
 
+fn refresh_retry_target(
+    target: &mut ActiveTarget,
+    refresh_requested: &std::cell::Cell<bool>,
+    resolve: impl FnOnce() -> Result<ActiveTarget, String>,
+) -> Result<bool, String> {
+    if !refresh_requested.get() {
+        return Ok(false);
+    }
+    // Account switching can also activate a Provider. Resolve the whole route before
+    // replaying the request so it cannot keep using the previous official endpoint.
+    *target = resolve()?;
+    refresh_requested.set(false);
+    Ok(true)
+}
+
+fn forward_target_models_etag<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    target: &ActiveTarget,
+) -> Option<String> {
+    active_provider_group_models_etag(app).or_else(|| match target {
+        ActiveTarget::Provider(provider) if !providers::uses_upstream_official_models(provider) => {
+            Some(provider_models_etag_with_image_route(
+                provider,
+                image_input_route_enabled(app),
+            ))
+        }
+        ActiveTarget::ProviderGroup(group_providers) => {
+            Some(provider_group_models_etag_with_image_route(
+                group_providers,
+                image_input_route_enabled(app),
+            ))
+        }
+        ActiveTarget::Aggregate(target) => Some(aggregate_models_etag(
+            &target.config,
+            image_input_route_enabled(app),
+        )),
+        _ => None,
+    })
+}
+
 fn forward_active_request<R: Runtime>(
     request: ActiveForwardRequest<'_, R>,
 ) -> Result<UpstreamPayload, String> {

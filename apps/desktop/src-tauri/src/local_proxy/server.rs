@@ -456,7 +456,7 @@ fn handle_proxy_request<R: Runtime>(
         return current_usage_payload(app);
     }
     if *method == Method::Get && matches!(path, "/models" | "/v1/models") {
-        let target = match active_target(app) {
+        let mut target = match active_target(app) {
             Ok(target) => target,
             Err(error) => {
                 let diagnostic = proxy_diagnostic_entry(
@@ -472,7 +472,7 @@ fn handle_proxy_request<R: Runtime>(
                 return result;
             }
         };
-        let diagnostic = proxy_diagnostic_entry(
+        let mut diagnostic = proxy_diagnostic_entry(
             method,
             url,
             headers,
@@ -480,17 +480,34 @@ fn handle_proxy_request<R: Runtime>(
             Some(&target),
             ProxyDiagnosticRoute::LocalModels,
         );
+        let refresh_target = std::cell::Cell::new(false);
         let retry_timeout = upstream_429_retry_timeout(app)?;
         let result = retry_upstream_request(
             retry_timeout,
-            || models_payload(app, url, headers, &target),
-            |response, event| handle_upstream_quota_event(app, response, event),
+            || {
+                if refresh_retry_target(&mut target, &refresh_target, || active_target(app))? {
+                    diagnostic = proxy_diagnostic_entry(
+                        method,
+                        url,
+                        headers,
+                        &body,
+                        Some(&target),
+                        ProxyDiagnosticRoute::LocalModels,
+                    );
+                }
+                models_payload(app, url, headers, &target)
+            },
+            |response, event| {
+                let switched = handle_upstream_quota_event(app, response, event);
+                refresh_target.set(switched);
+                switched
+            },
         );
         append_proxy_diagnostic_result(app, diagnostic, &result, started_at.elapsed());
         return result;
     }
 
-    let target = match active_target_for_request(app, path, &body) {
+    let mut target = match active_target_for_request(app, path, &body) {
         Ok(target) => target,
         Err(error) => {
             let diagnostic = proxy_diagnostic_entry(
@@ -515,48 +532,41 @@ fn handle_proxy_request<R: Runtime>(
     let mut image_account_pool = image_account_pool_for_request(app, path, &body, &target)?;
     let image_account_failover_enabled = image_account_pool.is_some();
     let route = proxy_diagnostic_route(path, &target);
-    let diagnostic = proxy_diagnostic_entry(method, url, headers, &body, Some(&target), route);
-    let usage_context = token_usage_context(TokenUsageRequest {
-        method,
-        path,
-        body: &body,
-        headers,
-        target: &target,
-        started_at,
-        session_id,
-        session_request_id,
-    });
-    if let Some(context) = usage_context.as_ref() {
-        update_proxy_session_target(
-            context.session_id.as_deref(),
+    let mut diagnostic = proxy_diagnostic_entry(method, url, headers, &body, Some(&target), route);
+    let make_usage_context = |target: &ActiveTarget| {
+        let context = token_usage_context(TokenUsageRequest {
+            method,
+            path,
+            body: &body,
+            headers,
+            target,
+            started_at,
+            session_id,
             session_request_id,
-            &context.provider,
-            &context.model,
-        );
-    }
-    let provider_models_etag = active_provider_group_models_etag(app).or_else(|| match &target {
-        ActiveTarget::Provider(provider) if !providers::uses_upstream_official_models(provider) => {
-            Some(provider_models_etag_with_image_route(
-                provider,
-                image_input_route_enabled(app),
-            ))
+        });
+        if let Some(context) = context.as_ref() {
+            update_proxy_session_target(
+                context.session_id.as_deref(),
+                session_request_id,
+                &context.provider,
+                &context.model,
+            );
         }
-        ActiveTarget::ProviderGroup(group_providers) => {
-            Some(provider_group_models_etag_with_image_route(
-                group_providers,
-                image_input_route_enabled(app),
-            ))
-        }
-        ActiveTarget::Aggregate(target) => Some(aggregate_models_etag(
-            &target.config,
-            image_input_route_enabled(app),
-        )),
-        _ => None,
-    });
+        context
+    };
+    let mut usage_context = make_usage_context(&target);
+    let refresh_target = std::cell::Cell::new(false);
     let retry_timeout = upstream_429_retry_timeout(app)?;
     let result = retry_upstream_request(
         retry_timeout,
         || {
+            if refresh_retry_target(&mut target, &refresh_target, || {
+                active_target_for_request(app, path, &body)
+            })? {
+                let route = proxy_diagnostic_route(path, &target);
+                diagnostic = proxy_diagnostic_entry(method, url, headers, &body, Some(&target), route);
+                usage_context = make_usage_context(&target);
+            }
             let account_id_override = image_account_pool
                 .as_ref()
                 .map(|pool| pool.current_account_id().to_string());
@@ -579,9 +589,12 @@ fn handle_proxy_request<R: Runtime>(
             if image_account_failover_enabled {
                 return false;
             }
-            handle_upstream_quota_event(app, response, event)
+            let switched = handle_upstream_quota_event(app, response, event);
+            refresh_target.set(switched);
+            switched
         },
     );
+    let provider_models_etag = forward_target_models_etag(app, &target);
     let result = result.map(|mut payload| {
         if let Some(etag) = provider_models_etag {
             payload
