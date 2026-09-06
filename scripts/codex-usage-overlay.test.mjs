@@ -115,7 +115,7 @@ function update(harness, overrides = {}) {
 test("shows the current API daily estimate while preserving global daily usage", () => {
   const harness = createHarness();
   const trailing = update(harness, { providerEstimatedCost: { amountUsd: 1.25, aggregated: false } });
-  assert.equal(trailing.textContent, "1.25USD");
+  assert.equal(trailing.textContent, "API 1.25USD");
   assert.equal(trailing.hidden, false);
   assert.equal(trailing.style.color, "rgb(180,93,0)");
   assert.equal(harness.usage.querySelector("[data-today-tokens]").textContent, "1.2K");
@@ -129,7 +129,7 @@ test("shows aggregate daily estimates in the cost color in both palettes", () =>
   for (const dark of [false, true]) {
     const harness = createHarness({ dark });
     const trailing = update(harness, { providerEstimatedCost: { amountUsd: 1234.56, aggregated: true } });
-    assert.equal(trailing.textContent, "1,234.56USD");
+    assert.equal(trailing.textContent, "API 1,234.56USD");
     assert.equal(trailing.style.color, dark ? "rgb(245,177,65)" : "rgb(180,93,0)");
     assert.match(harness.usage.title, /聚合 API 今日总预估成本：1,234.56USD/);
   }
@@ -139,7 +139,7 @@ test("displays zero and small costs, and clamps negative costs", () => {
   const harness = createHarness();
   for (const [amountUsd, expected] of [[0, "0USD"], [0.0012, "0.0012USD"], [-2, "0USD"]]) {
     const trailing = update(harness, { providerEstimatedCost: { amountUsd } });
-    assert.equal(trailing.textContent, expected);
+    assert.equal(trailing.textContent, `API ${expected}`);
     assert.equal(trailing.hidden, false);
     assert.equal(trailing.style.color, "rgb(180,93,0)");
   }
@@ -170,7 +170,7 @@ test("switches between provider costs and official quota without retaining the p
     assert.doesNotMatch(harness.usage.title, /当前 API|聚合 API/);
   }
   const trailing = update(harness, { providerEstimatedCost: { amountUsd: 2, aggregated: true } });
-  assert.equal(trailing.textContent, "2USD");
+  assert.equal(trailing.textContent, "API 2USD");
   assert.match(harness.usage.title, /聚合 API 今日总预估成本/);
   assert.doesNotMatch(harness.usage.title, /主用量余额/);
 });
@@ -196,7 +196,7 @@ test("resumes polling after a failed response or a disconnected binding", () => 
   update(harness, { providerEstimatedCost: { amountUsd: 4 } });
   harness.flushTimeouts();
   harness.state.completeUsageRequest();
-  assert.equal(harness.usage.querySelector("[data-trailing-balance]").textContent, "4USD");
+  assert.equal(harness.usage.querySelector("[data-trailing-balance]").textContent, "API 4USD");
   harness.poll();
   assert.equal(harness.requests, 2);
   const disconnected = createHarness({ binding() { throw new Error("Disconnected"); } });

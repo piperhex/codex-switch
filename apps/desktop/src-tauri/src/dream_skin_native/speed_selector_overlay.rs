@@ -1,7 +1,7 @@
 const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
   window.__CODEX_SWITCH_REFRESH_SPEED_SELECTOR__ = () => {
     const stateKey = "__CODEX_SWITCH_SPEED_SELECTOR__";
-    const overlayVersion = 15;
+    const overlayVersion = 16;
     const usageRefreshMs = 30000;
     const initialTier = __CODEX_SWITCH_SERVICE_TIER__;
     const fastModeAllowed = window.__CODEX_SWITCH_FAST_MODE_ALLOWED__ === true;
@@ -59,6 +59,7 @@ const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
         const value = `${Math.round(state.usage.primaryRemainingPercent)}%`;
         return {
           value,
+          displayText: value,
           amount: state.usage.primaryRemainingPercent,
           kind: "quota",
           label: state.usage.primaryRemainingAggregated
@@ -68,8 +69,10 @@ const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
       }
       const estimate = state.usage.providerEstimatedCost;
       if (!estimate || !Number.isFinite(estimate.amountUsd)) return null;
+      const value = formatCost(estimate.amountUsd);
       return {
-        value: formatCost(estimate.amountUsd),
+        value,
+        displayText: `API ${value}`,
         amount: estimate.amountUsd,
         kind: "cost",
         label: estimate.aggregated ? "聚合 API 今日总预估成本" : "当前 API 今日预估成本",
@@ -122,7 +125,7 @@ const CODEX_SPEED_SELECTOR_OVERLAY: &str = r#"
       const balanceValue = usage.querySelector("[data-trailing-balance]");
       balanceSeparator.hidden = !balance;
       balanceValue.hidden = !balance;
-      balanceValue.textContent = balance?.value ?? "";
+      balanceValue.textContent = balance?.displayText ?? "";
       usage.querySelector("[data-today-tokens]").textContent = tokens;
       usage.querySelector("[data-today-cost]").textContent = cost;
       const balanceTitle = balance ? `\n${balance.label}：${balance.value}` : "";
