@@ -105,7 +105,8 @@ import { ProvidersPage } from "../../pages/ProvidersPage";
 import { SettingsGroupsNav, SettingsPage } from "../../pages/SettingsPage";
 import { SkillsMarketPage } from "../../pages/SkillsMarketPage";
 import { CodexThreadsPage } from "../../pages/CodexThreadsPage";
-import { CodexConfigPage } from "../../pages/CodexConfigPage";
+import { CODEX_CONFIG_TOPBAR_ID, CodexConfigPage } from "../../pages/CodexConfigPage";
+import codexConfigStyles from "../../pages/codexConfig/pageStyles.module.less";
 import { SystemPromptFilterPage } from "../../pages/SystemPromptFilterPage";
 import { SystemPromptInjectionPage } from "../../pages/SystemPromptInjectionPage";
 import { NetworkProxySettingsModal } from "../../pages/settings/NetworkProxySettings";
@@ -1331,7 +1332,9 @@ export function DashboardApp() {
             page === "accounts" || page === "providers" ? " account-view-topbar" : ""
           }${
             page === "accounts" && providerManager.localProxy?.running ? " accounts-topbar" : ""
-          }${page === "settings" ? " settings-topbar" : ""}`}>
+          }${page === "settings" ? " settings-topbar" : ""}${
+            page === "codexConfig" ? ` ${codexConfigStyles.topbar}` : ""
+          }`}>
             {page === "accounts" && providerManager.localProxy?.running ? (
               <TokenUsageHeatmap weeks={tokenUsagePreferences.weeks}
                 refreshSeconds={tokenUsagePreferences.refreshSeconds} language={language} t={t}
@@ -1339,7 +1342,8 @@ export function DashboardApp() {
             ) : (
               <div className={page === "accounts" ? "accounts-heading"
                 : page === "skills" ? "skills-market-heading"
-                : page === "settings" ? "settings-heading" : undefined}>
+                : page === "settings" ? "settings-heading"
+                : page === "codexConfig" ? codexConfigStyles.heading : undefined}>
                 <span className="eyebrow">{dashboardEyebrow(page, t)}</span>
                 <div className={page === "skills" ? "skills-market-title-row"
                   : page === "settings" ? "settings-title-row" : undefined}>
@@ -1384,6 +1388,9 @@ export function DashboardApp() {
             )}
             {page === "skills" && (
               <div id="skills-market-topbar-actions" className="topbar-actions skills-market-topbar-actions" />
+            )}
+            {page === "codexConfig" && (
+              <div id={CODEX_CONFIG_TOPBAR_ID} className={codexConfigStyles.topbarHost} />
             )}
             {page === "sessions" && <div id="codex-thread-topbar-actions" className="topbar-actions" />}
             {page === "promptFilter" && (

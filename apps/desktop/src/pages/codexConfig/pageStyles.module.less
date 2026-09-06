@@ -1,25 +1,18 @@
-.page { display: grid; gap: 20px; padding: 0 var(--page-x) 28px; min-width: 0; }
-.overview {
-  display: flex; align-items: center; gap: 18px; padding: 22px 24px;
-  border: 1px solid var(--line); border-radius: 14px; background: var(--panel);
+.page { display: grid; gap: 20px; padding: 24px var(--page-x) 28px; min-width: 0; }
+:global(.topbar).topbar { height: auto; min-height: 110px; flex-wrap: wrap; column-gap: 32px; }
+.heading { flex: 0 0 auto; }
+.topbarHost { flex: 1 1 620px; min-width: 0; }
+.controls {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px;
 }
-.fileIcon {
-  flex-shrink: 0; display: grid; place-items: center; width: 48px; height: 48px;
-  border-radius: 12px; color: var(--green-dark); background: var(--green-soft);
-}
-.copy {
-  flex: 1; min-width: 0;
-  h2 { margin: 0 0 7px; font-size: 17px; color: var(--ink); }
-  p { margin: 0 0 5px; color: var(--ink); font-size: 13px; line-height: 1.6; }
-  span { color: var(--muted); font-size: 12px; line-height: 1.6; }
+.filters {
+  display: flex; flex: 1 1 380px; max-width: 650px; align-items: center; gap: 12px; min-width: 0;
+  > :first-child { flex: 1; min-width: 140px; }
+  :global(.ant-segmented) { flex-shrink: 0; }
 }
 .actions {
-  display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 10px;
+  display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 10px; margin-left: auto;
   :global(.ant-tag) { display: inline-flex; align-items: center; gap: 5px; margin: 0; }
 }
 .notice { max-width: 400px; overflow-wrap: anywhere; }
 .loading { padding: 40px; text-align: center; }
-@media (max-width: 1200px) {
-  .overview { flex-wrap: wrap; }
-  .actions { width: 100%; }
-}

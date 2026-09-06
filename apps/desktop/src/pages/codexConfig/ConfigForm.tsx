@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
-import { Empty, Input, Segmented, Tag } from "antd";
-import { Search } from "lucide-react";
+import { Empty, Tag } from "antd";
 import { ConfigField } from "./ConfigField";
 import { ConfigFieldAddProperty } from "./ConfigFieldObject";
 import { categoryFor, CONFIG_CATEGORIES } from "./labels";
@@ -12,12 +11,12 @@ interface ConfigFormProps {
   values: ConfigValues;
   disabled?: boolean;
   onCommit: ConfigCommit;
+  view: { search: string; filter: string; onSearchChange: (value: string) => void };
 }
 
-export function ConfigForm({ values, disabled, onCommit }: ConfigFormProps) {
+export function ConfigForm({ values, disabled, onCommit, view }: ConfigFormProps) {
   const [category, setCategory] = useState("model");
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("all");
+  const { search, filter, onSearchChange } = view;
   const query = search.trim().toLowerCase();
   const keys = useMemo(() => {
     const known = CONFIG_CATEGORIES.flatMap((item) => item.fields)
@@ -31,18 +30,11 @@ export function ConfigForm({ values, disabled, onCommit }: ConfigFormProps) {
   });
   const activeCategory = CONFIG_CATEGORIES.find((item) => item.key === category) ?? CONFIG_CATEGORIES[0];
   return <div className={styles.form}>
-    <div className={styles.toolbar}>
-      <Input allowClear prefix={<Search size={16} />} aria-label="搜索配置" placeholder="搜索配置名称或关键字"
-        value={search} onChange={(event) => setSearch(event.target.value)} />
-      <Segmented value={filter} onChange={(next) => setFilter(String(next))} options={[
-        { value: "all", label: "全部配置" }, { value: "configured", label: "已配置" },
-      ]} />
-    </div>
     <div className={styles.layout}>
       <nav className={styles.categories} aria-label="配置分类">
         {CONFIG_CATEGORIES.map((item) => <button key={item.key} type="button"
           className={!query && category === item.key ? styles.activeCategory : ""}
-          onClick={() => { setCategory(item.key); setSearch(""); }}>
+          onClick={() => { setCategory(item.key); onSearchChange(""); }}>
           <span>{item.label}</span><span className={styles.categoryCount}>
             {keys.filter((key) => categoryFor(key) === item.key).length}
           </span>
