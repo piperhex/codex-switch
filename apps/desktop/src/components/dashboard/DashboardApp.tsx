@@ -107,8 +107,7 @@ import { SkillsMarketPage } from "../../pages/SkillsMarketPage";
 import { CodexThreadsPage } from "../../pages/CodexThreadsPage";
 import { CODEX_CONFIG_TOPBAR_ID, CodexConfigPage } from "../../pages/CodexConfigPage";
 import codexConfigStyles from "../../pages/codexConfig/pageStyles.module.less";
-import { SystemPromptFilterPage } from "../../pages/SystemPromptFilterPage";
-import { SystemPromptInjectionPage } from "../../pages/SystemPromptInjectionPage";
+import { SystemPromptPage } from "../../pages/SystemPromptPage";
 import { NetworkProxySettingsModal } from "../../pages/settings/NetworkProxySettings";
 import type { Translate } from "../../i18n";
 import { AccountDisplayTabs } from "./AccountDisplayTabs";
@@ -136,8 +135,7 @@ const MemoProvidersPage = memo(ProvidersPage);
 const MemoSettingsPage = memo(SettingsPage);
 const MemoSkillsMarketPage = memo(SkillsMarketPage);
 const MemoCodexThreadsPage = memo(CodexThreadsPage);
-const MemoSystemPromptFilterPage = memo(SystemPromptFilterPage);
-const MemoSystemPromptInjectionPage = memo(SystemPromptInjectionPage);
+const MemoSystemPromptPage = memo(SystemPromptPage);
 const PROXY_START_PHASE_KEYS = {
   preparingClient: "providers.proxy.startProgress.preparingClient",
   startingProxy: "providers.proxy.startProgress.startingProxy",
@@ -177,8 +175,7 @@ type SystemMenuAction =
   | "dream-skin"
   | "skills"
   | "sessions"
-  | "system-prompt-filter"
-  | "system-prompt-injection"
+  | "system-prompts"
   | "settings"
   | "refresh-all"
   | "refresh-reset-credits"
@@ -222,8 +219,7 @@ function dashboardEyebrow(page: DashboardPage, t: Translate) {
   if (page === "skills") return t("topbar.skillsEyebrow");
   if (page === "sessions") return t("topbar.sessionsEyebrow");
   if (page === "claudeCode") return t("topbar.claudeCodeEyebrow");
-  if (page === "promptFilter") return t("topbar.systemPromptFilterEyebrow");
-  if (page === "promptInjection") return t("topbar.systemPromptInjectionEyebrow");
+  if (page === "systemPrompts") return t("topbar.systemPromptsEyebrow");
   return t("topbar.eyebrow");
 }
 
@@ -236,8 +232,7 @@ function dashboardTitle(page: DashboardPage, t: Translate, options: {
   if (page === "skills") return t("topbar.skills");
   if (page === "sessions") return t("topbar.sessions");
   if (page === "claudeCode") return t("topbar.claudeCode");
-  if (page === "promptFilter") return t("topbar.systemPromptFilter");
-  if (page === "promptInjection") return t("topbar.systemPromptInjection");
+  if (page === "systemPrompts") return t("topbar.systemPrompts");
   if (page === "providers") return t("topbar.providers", { count: options.providerCount });
   return t("topbar.accounts", { count: options.accountCount });
 }
@@ -976,11 +971,8 @@ export function DashboardApp() {
       case "sessions":
         setPage("sessions");
         break;
-      case "system-prompt-filter":
-        setPage("promptFilter");
-        break;
-      case "system-prompt-injection":
-        setPage("promptInjection");
+      case "system-prompts":
+        setPage("systemPrompts");
         break;
       case "settings":
         setPage("settings");
@@ -1394,11 +1386,8 @@ export function DashboardApp() {
               <div id={CODEX_CONFIG_TOPBAR_ID} className={codexConfigStyles.topbarHost} />
             )}
             {page === "sessions" && <div id="codex-thread-topbar-actions" className="topbar-actions" />}
-            {page === "promptFilter" && (
-              <div id="system-prompt-filter-topbar-actions" className="topbar-actions" />
-            )}
-            {page === "promptInjection" && (
-              <div id="system-prompt-injection-topbar-actions" className="topbar-actions" />
+            {page === "systemPrompts" && (
+              <div id="system-prompt-topbar-actions" className="topbar-actions" />
             )}
             {page === "claudeCode" && (
               <div id="third-party-apps-topbar-actions"
@@ -1535,26 +1524,18 @@ export function DashboardApp() {
           <section className="page-panel sessions-page-panel" hidden={page !== "sessions"}>
             {page === "sessions" && <MemoCodexThreadsPage language={language} notify={notify} />}
           </section>
-          <section className="page-panel" hidden={page !== "promptFilter"}>
-            {page === "promptFilter" && (
-            <MemoSystemPromptFilterPage
-                enabled={providerManager.localProxy?.systemPromptFilterEnabled ?? false}
-                loading={providerManager.proxyBusy}
-                onEnabledChange={(enabled) => void providerManager.setSystemPromptFilter(enabled)}
-                onRulesChange={providerManager.saveSystemPromptFilterRules}
-                rules={providerManager.localProxy?.systemPromptFilterRules ?? []}
-                t={t}
-              />
-            )}
-          </section>
-          <section className="page-panel" hidden={page !== "promptInjection"}>
-            {page === "promptInjection" && (
-              <MemoSystemPromptInjectionPage
-                enabled={providerManager.localProxy?.systemPromptInjectionEnabled ?? false}
-                loading={providerManager.proxyBusy}
-                onEnabledChange={(enabled) => void providerManager.setSystemPromptInjection(enabled)}
-                onPromptsChange={providerManager.saveSystemPromptInjectionPrompts}
-                prompts={providerManager.localProxy?.systemPromptInjectionPrompts ?? []}
+          <section className="page-panel" hidden={page !== "systemPrompts"}>
+            {page === "systemPrompts" && (
+              <MemoSystemPromptPage
+                filterEnabled={providerManager.localProxy?.systemPromptFilterEnabled ?? false}
+                filterRules={providerManager.localProxy?.systemPromptFilterRules ?? []}
+                injectionEnabled={providerManager.localProxy?.systemPromptInjectionEnabled ?? false}
+                injectionPrompts={providerManager.localProxy?.systemPromptInjectionPrompts ?? []}
+                loading={providerManager.loading || providerManager.proxyBusy}
+                onFilterEnabledChange={(enabled) => void providerManager.setSystemPromptFilter(enabled)}
+                onFilterRulesChange={providerManager.saveSystemPromptFilterRules}
+                onInjectionEnabledChange={(enabled) => void providerManager.setSystemPromptInjection(enabled)}
+                onInjectionPromptsChange={providerManager.saveSystemPromptInjectionPrompts}
                 t={t}
               />
             )}
