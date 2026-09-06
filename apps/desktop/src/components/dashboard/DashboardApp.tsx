@@ -87,6 +87,7 @@ import { useCodexHome } from "../../hooks/useCodexHome";
 import { useLanguage } from "../../hooks/useLanguage";
 import { useLaunchAtStartup } from "../../hooks/useLaunchAtStartup";
 import { useNavigationStyle, type NavigationStyle } from "../../hooks/useNavigationStyle";
+import { useOfficialModelRefreshNotification } from "../../hooks/useOfficialModelRefreshNotification";
 import { useFloatingBubble } from "../../hooks/useFloatingBubble";
 import { useProviderManager } from "../../hooks/useProviderManager";
 import { usePrivacyMode } from "../../hooks/usePrivacyMode";
@@ -272,6 +273,7 @@ export function DashboardApp() {
   useEffect(() => subscribeToOpenSettings(() => setPage("settings")), []);
   const { message: toast, notify } = useToast();
   const { language, setLanguage, t } = useLanguage();
+  useOfficialModelRefreshNotification(notify, t);
   const thirdPartyAppIntegration = useThirdPartyAppIntegration(notify, t);
   const cloud = useCloudAuth(notify, t);
   const totpManager = useTotpEntries({

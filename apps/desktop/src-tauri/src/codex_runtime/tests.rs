@@ -66,9 +66,15 @@ fn official_catalog_rejects_empty_model_lists() {
 }
 
 #[test]
-fn official_fallback_keeps_fast_available_without_login() {
-    let payload = empty_official_model_refresh_payload("gpt-5.6-sol".to_string());
+fn official_cache_preserves_fast_capabilities_without_login() {
+    let cached = serde_json::json!({
+        "models": [
+            {"slug": "gpt-5.6-sol", "additional_speed_tiers": ["fast"]},
+            {"slug": "gpt-6-astra", "service_tiers": [{"id": "priority"}]}
+        ]
+    });
+    let payload = model_refresh_from_value(&cached, "gpt-5.6-sol".to_string()).unwrap();
 
-    assert_eq!(payload.models, vec!["gpt-5.6-sol"]);
-    assert_eq!(payload.fast_mode_models, vec!["gpt-5.6-sol"]);
+    assert_eq!(payload.models, vec!["gpt-5.6-sol", "gpt-6-astra"]);
+    assert_eq!(payload.fast_mode_models, payload.models);
 }

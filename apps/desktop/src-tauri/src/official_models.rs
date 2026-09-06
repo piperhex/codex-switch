@@ -36,6 +36,38 @@ pub(crate) fn cached_model_names(paths: &Paths) -> Vec<String> {
     cached_catalog(paths).models
 }
 
+/// Reads the last successful official response, including all model capabilities.
+pub(crate) fn cached_source_catalog(paths: &Paths) -> Result<Value, String> {
+    read_json(&cache_path(paths))
+}
+
+/// Replaces the saved official catalog only after a successful, nonempty response.
+pub(crate) struct OfficialCatalogUpdate<'a> {
+    pub(crate) account_id: &'a str,
+    pub(crate) catalog: Value,
+    pub(crate) etag: Option<String>,
+    pub(crate) client_version: &'a str,
+}
+
+/// Serializes cache writes and rejects responses belonging to an account that was replaced.
+pub(crate) fn save_source_catalog(
+    paths: &Paths,
+    update: OfficialCatalogUpdate<'_>,
+) -> Result<Value, String> {
+    let cache = model_cache_value(update.catalog, update.etag, update.client_version)?;
+    let _guard = OFFICIAL_MODEL_REFRESH_LOCK
+        .get_or_init(|| Mutex::new(()))
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    if preferred_account_id(paths)? != update.account_id {
+        return Err(
+            "The selected account changed. Please refresh the model list again.".to_string(),
+        );
+    }
+    write_json_atomic(&cache_path(paths), &cache)?;
+    Ok(cache)
+}
+
 pub(crate) fn model_client_version(paths: &Paths) -> String {
     let cached = read_json(&paths.codex_home.join("models_cache.json"))
         .ok()
@@ -99,16 +131,19 @@ fn refresh_for_account_blocking<R: Runtime>(
     app: &AppHandle<R>,
     account_id: &str,
 ) -> Result<Vec<String>, String> {
-    let _guard = OFFICIAL_MODEL_REFRESH_LOCK
-        .get_or_init(|| Mutex::new(()))
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
     let paths = resolve_paths(app)?;
     let client_version = model_client_version(&paths);
     let fetched =
         crate::local_proxy::fetch_official_model_catalog(app, account_id, &client_version)?;
-    let cache = model_cache_value(fetched.catalog, fetched.etag, &client_version)?;
-    write_json_atomic(&cache_path(&paths), &cache)?;
+    let cache = save_source_catalog(
+        &paths,
+        OfficialCatalogUpdate {
+            account_id,
+            catalog: fetched.catalog,
+            etag: fetched.etag,
+            client_version: &client_version,
+        },
+    )?;
     let catalog = catalog_from_value(&cache);
     app.emit("providers-changed", ())
         .map_err(|error| error.to_string())?;
@@ -125,7 +160,10 @@ fn model_cache_value(
         .and_then(Value::as_array)
         .cloned()
         .ok_or_else(|| "Official model catalog does not contain a model list".to_string())?;
-    if models.is_empty() {
+    if !models
+        .iter()
+        .any(|entry| visible_model_name(entry).is_some())
+    {
         return Err("Official model catalog is empty".to_string());
     }
     Ok(json!({
@@ -200,15 +238,7 @@ fn append_catalog_entry(
     seen: &mut HashSet<String>,
     entry: &Value,
 ) {
-    if entry.get("visibility").and_then(Value::as_str) == Some("hide") {
-        return;
-    }
-    let Some(model) = ["slug", "id"]
-        .into_iter()
-        .find_map(|field| entry.get(field).and_then(Value::as_str))
-        .map(str::trim)
-        .filter(|model| !model.is_empty())
-    else {
+    let Some(model) = visible_model_name(entry) else {
         return;
     };
     if !seen.insert(model.to_string()) {
@@ -218,6 +248,17 @@ fn append_catalog_entry(
     if supports_image_input(entry) {
         catalog.image_input_models.push(model.to_string());
     }
+}
+
+fn visible_model_name(entry: &Value) -> Option<&str> {
+    if entry.get("visibility").and_then(Value::as_str) == Some("hide") {
+        return None;
+    }
+    ["slug", "id"]
+        .into_iter()
+        .find_map(|field| entry.get(field).and_then(Value::as_str))
+        .map(str::trim)
+        .filter(|model| !model.is_empty())
 }
 
 fn supports_image_input(entry: &Value) -> bool {

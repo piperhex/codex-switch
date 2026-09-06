@@ -1984,6 +1984,9 @@ const translations = {
     "toast.switched": "Switched safely and restarted ChatGPT. Local-proxy switching remains hot.",
     "toast.accountSwitchedHot": "Official account switched through the local proxy. Restart ChatGPT/Codex if a fresh session is needed.",
     "toast.accountDeactivated": "The official account is no longer in use",
+    "toast.officialModelRefreshFailedWithCache":
+      "Couldn't update the model list. Using the last available list for now. Please try again later.",
+    "toast.officialModelRefreshFailed": "Couldn't update the model list. Please try again later.",
     "toast.usageRefreshed": "Usage refreshed",
     "toast.allUsageRefreshed": "All account usage refreshed",
     "toast.resetCreditsRefreshed": "Reset card counts refreshed",
@@ -4413,6 +4416,8 @@ const translations = {
     "toast.switched": "已安全切换并重启 ChatGPT；本地代理切换仍为热切换。",
     "toast.accountSwitchedHot": "已通过本地代理热切换官方账号；如需新会话使用当前模型，建议重启 ChatGPT/Codex。",
     "toast.accountDeactivated": "已取消使用当前官方账号",
+    "toast.officialModelRefreshFailedWithCache": "模型列表更新失败，暂用上次的列表，请稍后重试。",
+    "toast.officialModelRefreshFailed": "暂时无法更新模型列表，请稍后重试。",
     "toast.usageRefreshed": "用量已刷新",
     "toast.allUsageRefreshed": "所有账户用量已刷新",
     "toast.resetCreditsRefreshed": "重置卡数已刷新",

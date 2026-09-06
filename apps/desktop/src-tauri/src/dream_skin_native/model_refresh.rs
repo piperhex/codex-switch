@@ -159,6 +159,12 @@ fn codex_model_refresh_expression(
     let composer_status_observer_global = CODEX_COMPOSER_STATUS_OBSERVER_GLOBAL;
     Ok(format!(
         r#"(async () => {{
+  // A timed-out CDP call leaves its renderer promise alive, so newer refreshes must supersede it here.
+  const refreshSequenceKey = "__CODEX_SWITCH_MODEL_REFRESH_SEQUENCE__";
+  const refreshSequence = (window[refreshSequenceKey] ?? 0) + 1;
+  window[refreshSequenceKey] = refreshSequence;
+  const isCurrentRefresh = () => window[refreshSequenceKey] === refreshSequence;
+  const supersededRefresh = {{ refreshed: false, reason: "superseded-model-refresh" }};
   const expectedModels = {models};
   const fastModeModels = new Set({fast_mode_models});
   const imageInputModels = new Set({image_input_models});
@@ -236,10 +242,12 @@ fn codex_model_refresh_expression(
         refetchType: "all",
       }});
     }}
+    if (!isCurrentRefresh()) return supersededRefresh;
     await queryClient.invalidateQueries({{
       predicate: matchesConfigQuery,
       refetchType: "active",
     }});
+    if (!isCurrentRefresh()) return supersededRefresh;
     const currentQueries = queryClient.getQueryCache().getAll().filter(matchesModelsQuery);
     return {{
       refreshed: currentQueries.length > 0,
@@ -252,6 +260,7 @@ fn codex_model_refresh_expression(
     predicate: query => matchesModelsQuery(query) || matchesConfigQuery(query),
     refetchType: "active",
   }});
+  if (!isCurrentRefresh()) return supersededRefresh;
 
   const currentQueries = queryClient.getQueryCache().getAll().filter(matchesModelsQuery);
   const expected = new Set(expectedModels);

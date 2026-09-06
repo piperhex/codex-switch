@@ -35,6 +35,11 @@ static MODEL_REFRESH_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 static CODEX_RUNTIME_APP: OnceLock<AppHandle> = OnceLock::new();
 
+#[cfg(any(target_os = "windows", target_os = "macos"))]
+mod model_retry;
+#[cfg(any(target_os = "windows", target_os = "macos"))]
+mod official_refresh;
+
 pub(crate) struct ModelRefreshRequest {
     pub(crate) models: Vec<String>,
     pub(crate) fast_mode_models: Vec<String>,
@@ -183,10 +188,7 @@ pub(crate) fn refresh_official_models(selected_model: String) {
         let generation = next_model_refresh_generation();
         let _ = thread::Builder::new()
             .name("codex-official-model-refresh".to_string())
-            .spawn(move || {
-                let payload = official_model_refresh_payload_or_default(selected_model);
-                apply_model_refresh(generation, payload);
-            });
+            .spawn(move || official_refresh::refresh(generation, selected_model));
     }
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     {
@@ -199,8 +201,7 @@ pub(crate) fn refresh_official_models_blocking(selected_model: String) {
     #[cfg(any(target_os = "windows", target_os = "macos"))]
     {
         let generation = next_model_refresh_generation();
-        let payload = official_model_refresh_payload_or_default(selected_model);
-        apply_model_refresh(generation, payload);
+        official_refresh::refresh(generation, selected_model);
     }
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     {
@@ -244,14 +245,6 @@ fn upstream_model_refresh_reset(selected_model: String) -> ModelRefreshRequest {
 }
 
 #[cfg(any(target_os = "windows", target_os = "macos"))]
-fn official_model_refresh_payload_or_default(selected_model: String) -> ModelRefreshRequest {
-    load_official_model_refresh_payload(selected_model.clone()).unwrap_or_else(|error| {
-        eprintln!("Failed to load the official Codex model catalog: {error}");
-        empty_official_model_refresh_payload(selected_model)
-    })
-}
-
-#[cfg(any(target_os = "windows", target_os = "macos"))]
 fn next_model_refresh_generation() -> u64 {
     MODEL_REFRESH_GENERATION.fetch_add(1, Ordering::AcqRel) + 1
 }
@@ -286,6 +279,23 @@ fn apply_model_refresh(generation: u64, request: ModelRefreshRequest) {
 fn load_official_model_refresh_payload(
     selected_model: String,
 ) -> Result<ModelRefreshRequest, String> {
+    fetch_model_refresh_catalog(selected_model, OFFICIAL_MODEL_REFRESH_TIMEOUT)
+        .map(|loaded| loaded.request)
+}
+
+#[cfg(any(target_os = "windows", target_os = "macos"))]
+struct LoadedOfficialCatalog {
+    request: ModelRefreshRequest,
+    catalog: serde_json::Value,
+    etag: Option<String>,
+    client_version: String,
+}
+
+#[cfg(any(target_os = "windows", target_os = "macos"))]
+fn fetch_model_refresh_catalog(
+    selected_model: String,
+    timeout: Duration,
+) -> Result<LoadedOfficialCatalog, String> {
     let client_version = CODEX_RUNTIME_APP
         .get()
         .and_then(|app| crate::storage::resolve_paths(app).ok())
@@ -298,7 +308,7 @@ fn load_official_model_refresh_payload(
         client_version
     );
     let response = Client::builder()
-        .timeout(OFFICIAL_MODEL_REFRESH_TIMEOUT)
+        .timeout(timeout)
         .build()
         .map_err(|error| format!("Failed to create the model catalog client: {error}"))?
         .get(url)
@@ -306,16 +316,38 @@ fn load_official_model_refresh_payload(
         .send()
         .and_then(reqwest::blocking::Response::error_for_status)
         .map_err(|error| format!("Official model catalog request failed: {error}"))?;
-    parse_official_model_catalog(response, selected_model)
+    parse_official_model_catalog(response, selected_model, client_version)
 }
 
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 fn parse_official_model_catalog(
     response: reqwest::blocking::Response,
     selected_model: String,
-) -> Result<ModelRefreshRequest, String> {
+    client_version: String,
+) -> Result<LoadedOfficialCatalog, String> {
+    let etag = response
+        .headers()
+        .get(reqwest::header::ETAG)
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_string);
     let catalog = response
-        .json::<OfficialModelsResponse>()
+        .json::<serde_json::Value>()
+        .map_err(|error| format!("Official model catalog is invalid: {error}"))?;
+    let request = model_refresh_from_value(&catalog, selected_model)?;
+    Ok(LoadedOfficialCatalog {
+        request,
+        catalog,
+        etag,
+        client_version,
+    })
+}
+
+#[cfg(any(target_os = "windows", target_os = "macos"))]
+fn model_refresh_from_value(
+    catalog: &serde_json::Value,
+    selected_model: String,
+) -> Result<ModelRefreshRequest, String> {
+    let catalog = serde_json::from_value(catalog.clone())
         .map_err(|error| format!("Official model catalog is invalid: {error}"))?;
     official_model_refresh_payload(catalog, selected_model)
 }
@@ -388,18 +420,6 @@ fn unique_reasoning_efforts(
             }
             efforts
         })
-}
-
-#[cfg(any(target_os = "windows", target_os = "macos"))]
-fn empty_official_model_refresh_payload(selected_model: String) -> ModelRefreshRequest {
-    ModelRefreshRequest {
-        models: vec![selected_model.clone()],
-        fast_mode_models: vec![selected_model.clone()],
-        image_input_models: Vec::new(),
-        model_reasoning_efforts: crate::models::ModelReasoningEfforts::new(),
-        selected_model,
-        reasoning_profile: crate::providers::ReasoningEffortProfile::Standard,
-    }
 }
 
 #[cfg(all(test, any(target_os = "windows", target_os = "macos")))]
