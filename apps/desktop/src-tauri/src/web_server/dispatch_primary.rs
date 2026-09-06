@@ -189,6 +189,20 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
         "list_account_token_usage" => serialize(block_on(
             crate::local_proxy::list_account_token_usage(app, argument(&args, "startTs")?),
         )),
+        "list_token_usage_breakdown" => serialize(block_on(
+            crate::local_proxy::list_token_usage_breakdown(
+                app,
+                argument(&args, "startTs")?,
+                argument(&args, "longContextThresholdTokens")?,
+            ),
+        )),
+        "list_account_quota_history" => serialize(block_on(
+            crate::account_quota_history::list_account_quota_history(
+                app,
+                argument(&args, "startTs")?,
+                argument(&args, "endTs")?,
+            ),
+        )),
         "list_provider_token_usage" => serialize(block_on(
             crate::local_proxy::list_provider_token_usage(app, argument(&args, "startTs")?),
         )),

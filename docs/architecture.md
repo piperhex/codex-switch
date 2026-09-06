@@ -122,6 +122,14 @@ The desktop React frontend receives redacted models such as `AccountSummary`, `P
 3. The tray and floating-bubble context menus are rebuilt after account, usage, or Provider changes.
 4. Auxiliary Tauri windows use dedicated labels (`usage-bubble`, `token-usage`, and `login`) and must be listed in the default capability file.
 
+### Token Usage Analytics
+
+1. The summary includes daily stacked token charts for short/long context and standard/fast mode. These charts scan all requests in the selected range, independently of the recent-request ranking limit. Long context means input tokens exceed the configured long-context threshold, including cached input. Each request contributes its raw total once per chart; cached input and reasoning output are not added again.
+2. Missing input or service-mode metadata stays in an unknown category. `priority`/`fast` identify fast mode and `default`/`standard` identify standard mode. Billing multipliers do not change these token totals.
+3. Successful official-account quota refreshes append remaining primary/secondary percentages and reset times to `account-quota-history.sqlite3`. The chart starts accumulating history after this feature is installed; it cannot reconstruct earlier quota levels. Failed refreshes never create observations.
+4. Quota queries return the latest observation before the selected range as a baseline. Hourly, six-hour, and daily decreases are assigned to observation times. Resets, increases, missing values, and observation gaps longer than the selected interval are not inferred as usage. The remaining-quota view breaks the curve at those boundaries.
+5. Both analytics commands perform their complete filesystem/database work on blocking workers. Dashboard polling is single-flight, and range changes queue the latest selection while discarding obsolete results.
+
 ### Restart ChatGPT
 
 1. The dashboard, tray, or bubble calls `restart_chatgpt` when a config or credential switch is not picked up by a running session.
@@ -141,6 +149,7 @@ OS application data/
   cloud-auth.json
   config-before-provider.toml
   token-usage.sqlite3
+  account-quota-history.sqlite3
   accounts/
     <stable account ID>/
       auth.json

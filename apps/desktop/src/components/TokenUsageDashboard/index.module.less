@@ -4,10 +4,10 @@
   min-height: 0;
   padding: 22px;
   display: grid;
-  grid-template-rows: auto minmax(0, 1.08fr) minmax(0, .92fr);
-  align-content: stretch;
+  grid-auto-rows: max-content;
+  align-content: start;
   gap: 14px;
-  overflow: hidden;
+  overflow: auto;
   background: #f3f5f1;
   color: var(--ink);
 }
@@ -92,8 +92,21 @@
 }
 
 .tokenDashboardGridTop,
-.tokenDashboardGridBottom { min-height: 0; }
+.tokenDashboardGridBottom { min-height: 300px; }
 .tokenDashboardGridBottom { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+.consumptionGrid { min-height: 360px; }
+.analyticsHint { color: #7c8981; font-size: 11px; line-height: 1.6; margin: 8px 0 12px; }
+.consumptionTotals {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+  > div { display: flex; flex-wrap: wrap; align-items: baseline; gap: 5px; min-width: 0; }
+  span { flex-basis: 100%; color: #7c8981; font-size: 11px; }
+  strong { font-size: 20px; font-weight: 650; }
+  small { color: #7c8981; font-size: 10px; }
+}
 
 .tokenEchart {
   width: 100%;
@@ -130,6 +143,9 @@
 
 :global(.token-chart-tooltip) {
   min-width: 178px;
+  max-width: 400px;
+  white-space: normal;
+  overflow-wrap: anywhere;
   display: grid;
   gap: 5px;
 }
@@ -174,12 +190,15 @@
   box-shadow: none;
 }
 
+@media (max-width: 1050px) {
+  .tokenDashboardHeader { align-items: flex-start; flex-direction: column; }
+  .tokenDashboardActions { flex-wrap: wrap; }
+  .tokenDashboardGridBottom { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tokenDashboardGridBottom .tokenChartPanel { min-height: 280px; }
+}
+
 @media (max-width: 620px) {
   .tokenDashboard {
-    height: auto;
-    min-height: 100%;
-    grid-template-rows: auto;
-    overflow: visible;
     padding: 16px;
   }
 
@@ -187,4 +206,5 @@
   .tokenDashboardActions { width: 100%; flex-wrap: wrap; justify-content: space-between; }
   .tokenDashboardGrid { grid-template-columns: 1fr; }
   .tokenChartPanel { min-height: 280px; }
+  .consumptionGrid .tokenChartPanel { min-height: 360px; }
 }

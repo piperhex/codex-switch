@@ -30,6 +30,7 @@ include!("service_tier.rs");
 include!("diagnostics_helpers.rs");
 include!("token_usage.rs");
 include!("token_usage_db.rs");
+include!("token_usage_breakdown.rs");
 include!("forwarding.rs");
 include!("anthropic_bridge.rs");
 include!("anthropic_forwarding.rs");
@@ -58,4 +59,6 @@ mod tests {
     include!("tests/history.rs");
     include!("tests/service_tier_db.rs");
     include!("tests/service_tier_capture.rs");
+    include!("tests/token_usage_breakdown.rs");
+    include!("tests/token_usage_responsiveness.rs");
 }

@@ -84,6 +84,11 @@ pub(crate) fn try_refresh_usage_blocking<R: Runtime>(
     let mut usage = parse_usage(&payload);
     usage.api_expires_at = subscription_active_until(&auth.value);
     save_usage(&usage_path(&paths, id), &usage)?;
+    // History is supplementary: a storage failure must not turn a successful quota refresh
+    // into an account error or trigger automatic account exclusion.
+    if let Err(error) = crate::account_quota_history::record_usage(&paths, id, &usage) {
+        eprintln!("Failed to save account quota history: {error}");
+    }
     crate::local_proxy::concurrent_quota::record_usage_refresh(id, refresh_started_at, &usage)?;
     touch_account_field(&paths, id, AccountSyncField::Usage)?;
     auth.persist(&paths, id)?;

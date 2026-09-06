@@ -1,0 +1,49 @@
+.panel {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: 0 5px 18px rgba(24, 45, 31, .035);
+}
+
+.heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+
+  h2 { margin: 0; color: var(--ink); font: 700 13px Manrope, sans-serif; }
+}
+
+.accountSelect { width: 280px; max-width: 60%; }
+.intervalSelect { min-width: 128px; }
+
+.controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 8px;
+}
+
+.chart { display: flex; height: 300px; min-width: 0; }
+.empty { margin: auto; color: #7c8981; font-size: 12px; text-align: center; }
+.hint { margin: 6px 0 0; color: #7c8981; font-size: 10px; line-height: 1.6; }
+.error { margin: 8px 0 0; color: #a25046; font-size: 11px; }
+
+:global(:root[data-theme="dark"]) {
+  .panel { box-shadow: none; }
+  .hint, .empty { color: #9eaaa2; }
+  .error { color: #f3a59b; }
+}
+
+@media (max-width: 620px) {
+  .heading { align-items: flex-start; flex-direction: column; }
+  .accountSelect { width: 100%; max-width: 100%; }
+  .chart { height: 280px; }
+  .controls > :global(.ant-segmented) { max-width: 100%; }
+  .controls :global(.ant-segmented-item-label) { padding: 0 9px; }
+}

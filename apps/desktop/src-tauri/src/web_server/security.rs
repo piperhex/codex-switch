@@ -200,6 +200,7 @@ const LAN_COMMAND_ALLOWLIST: &[&str] = &[
     "get_local_proxy_status",
     "get_recent_proxy_session_latency",
     "list_account_token_usage",
+    "list_account_quota_history",
     "list_accounts",
     "list_aggregate_apis",
     "list_daily_token_usage",
@@ -213,6 +214,7 @@ const LAN_COMMAND_ALLOWLIST: &[&str] = &[
     "list_proxy_sessions",
     "list_token_usage_entries",
     "list_token_usage_entries_since",
+    "list_token_usage_breakdown",
     "query_provider_balance",
     "query_provider_usage",
 ];

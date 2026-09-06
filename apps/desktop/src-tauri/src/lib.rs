@@ -1,4 +1,5 @@
 mod account_archive;
+mod account_quota_history;
 mod agent_identity;
 mod aggregate_api;
 mod aggregate_scheduler;
@@ -343,6 +344,8 @@ pub fn run() {
             local_proxy::list_token_usage_entries_since,
             local_proxy::list_daily_token_usage,
             local_proxy::list_account_token_usage,
+            local_proxy::list_token_usage_breakdown,
+            account_quota_history::list_account_quota_history,
             local_proxy::list_provider_token_usage,
             local_proxy::show_token_usage_window,
             totp_window::show_totp_window,

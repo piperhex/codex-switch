@@ -17,6 +17,8 @@ import { GROK_FALLBACK_MODELS } from "../utils/grokProvider";
 import { findProviderPreset } from "../utils/providerCatalog";
 import { loadStoredModelTokenCosts, persistStoredModelTokenCosts } from "../pages/providers/providerUtils";
 import { estimateTokenCost } from "../utils/tokenCost";
+import type { AccountQuotaHistory, DailyTokenUsageBreakdown } from "../types/tokenUsageAnalytics";
+import { previewAccountQuotaHistory, previewTokenBreakdown } from "./tokenUsagePreview";
 import { normalizeTotpVault, TOTP_STORAGE_KEY, type TotpVault } from "../utils/totp";
 import {
   normalizeThirdPartyAppWriteSettings,
@@ -1625,6 +1627,21 @@ export async function loadDailyTokenUsage(startTs: number): Promise<DailyTokenUs
     return entries;
   }
   return invoke<DailyTokenUsage[]>("list_daily_token_usage", { startTs });
+}
+
+export async function loadTokenUsageBreakdown(
+  startTs: number,
+  longContextThresholdTokens: number,
+): Promise<DailyTokenUsageBreakdown[]> {
+  if (!hasLocalBackend) return previewTokenBreakdown(await loadDailyTokenUsage(startTs));
+  return invoke<DailyTokenUsageBreakdown[]>("list_token_usage_breakdown", {
+    startTs, longContextThresholdTokens,
+  });
+}
+
+export async function loadAccountQuotaHistory(startTs: number, endTs: number): Promise<AccountQuotaHistory[]> {
+  if (!hasLocalBackend) return previewAccountQuotaHistory(startTs, endTs);
+  return invoke<AccountQuotaHistory[]>("list_account_quota_history", { startTs, endTs });
 }
 
 export async function showTokenUsageWindow(): Promise<void> {
