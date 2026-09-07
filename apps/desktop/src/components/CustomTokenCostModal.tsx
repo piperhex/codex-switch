@@ -82,10 +82,8 @@ export function CustomTokenCostModal({ open, providers, t, onClose }: CustomToke
               </div>
               <small className="custom-token-cost-hint">
                 {t(`tokenCost.customBilling.rateSource.${editor.rateSource}`, { model: referenceModel })}
+                {!providers.length && <> {t("tokenCost.customBilling.noApis")}</>}
               </small>
-              {!providers.length && <small className="custom-token-cost-empty">
-                {t("tokenCost.customBilling.noApis")}
-              </small>}
             </div>
             <div className="custom-token-cost-saved">
               <strong>{t("tokenCost.customBilling.savedTitle")}</strong>

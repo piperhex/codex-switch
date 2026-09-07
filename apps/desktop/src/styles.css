@@ -525,7 +525,7 @@ h1 { margin: 5px 0 0; font: 700 26px/1.1 Manrope, sans-serif; letter-spacing: -.
 .custom-token-cost-rates {
   grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px;
 }
-.custom-token-cost-hint, .custom-token-cost-empty {
+.custom-token-cost-hint {
   grid-column: 1 / -1; max-width: 400px; color: var(--muted); font-size: 11px; line-height: 1.5;
 }
 .custom-token-cost-custom-header {
