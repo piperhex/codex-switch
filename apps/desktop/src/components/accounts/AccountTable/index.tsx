@@ -82,6 +82,7 @@ import { UsageMeter, UsageRefreshAge } from "../UsageMeter";
 import { canReceiveConcurrentConversation } from "../concurrentAccountEligibility";
 import { getAccountCardTokenUsage } from "../accountCardUsage";
 import { getOfficialAuthAccounts, getSwitchableAccounts } from "../accountSelectors";
+import { confirmOfficialAuthAccountChange } from "../confirmOfficialAuthAccountChange";
 import styles from "./index.module.less";
 import {
   AccountNoteEditButton,
@@ -598,6 +599,17 @@ export function AccountTable({
     .map((account) => account.id);
   const activeAccount = accounts.find((account) => account.active) ?? null;
   const officialAuthAccount = accounts.find((account) => account.id === openaiAuthAccountId) ?? null;
+  const requestOpenaiAuthAccountChange = (accountId: string | null) => {
+    if (openaiAuthBusy || accountId === openaiAuthAccountId) return;
+    confirmOfficialAuthAccountChange({
+      accountId,
+      t,
+      onConfirm: (confirmedAccountId) => {
+        setOpenaiAuthPendingAccountId(confirmedAccountId ?? openaiAuthAccountId);
+        onOpenaiAuthAccountChange(confirmedAccountId);
+      },
+    });
+  };
   const accountSummaryLabel = (account: Account | null) => {
     if (!account) return "-";
     return privacyMode ? maskAccountEmail(account.email) : account.email;
@@ -855,8 +867,7 @@ export function AccountTable({
                         disabled={openaiAuthBusy || officialAuthUnsupported}
                         onClick={() => {
                           setTableActionMenuAccountId(null);
-                          setOpenaiAuthPendingAccountId(account.id);
-                          onOpenaiAuthAccountChange(officialAuthActive ? null : account.id);
+                          requestOpenaiAuthAccountChange(officialAuthActive ? null : account.id);
                         }}>
                         {officialAuthActive ? <LogOut size={14} /> : <LogIn size={14} />}
                         {t(officialAuthActive
@@ -1080,8 +1091,7 @@ export function AccountTable({
               disabled={openaiAuthBusy || officialAuthUnsupported}
               onClick={() => {
                 setContextMenu(null);
-                setOpenaiAuthPendingAccountId(account.id);
-                onOpenaiAuthAccountChange(officialAuthActive ? null : account.id);
+                requestOpenaiAuthAccountChange(officialAuthActive ? null : account.id);
               }}>
               {officialAuthActive ? <LogOut size={14} /> : <LogIn size={14} />}
               {t(officialAuthActive
@@ -1193,7 +1203,7 @@ export function AccountTable({
           options={officialAuthSelectOptions} loading={openaiAuthBusy}
           disabled={!hotSwitchEnabled || openaiAuthBusy}
           aria-label={t("table.officialAuthAccountLabel")}
-          onChange={(accountId) => onOpenaiAuthAccountChange(accountId || null)} />
+          onChange={(accountId) => requestOpenaiAuthAccountChange(accountId || null)} />
       </span>
       <Tooltip title={t(modelContextWindowTooltipKey(modelContextWindow.error))}
         styles={{ root: { maxWidth: 400 } }}>

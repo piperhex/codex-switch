@@ -1268,6 +1268,11 @@ const translations = {
       "Optional. Selecting an account uses its official login and quota and turns off Fast mode. "
       + "Clearing the selection keeps Fast mode off until you turn it on again.",
     "providers.proxy.activateOpenaiAuthAccount": "Activate official login",
+    "providers.proxy.openaiAuthConfirmTitle": "Enable official login?",
+    "providers.proxy.openaiAuthConfirmDescription":
+      "Unless you need remote access from your phone, we recommend keeping your current login method. "
+      + "Enabling official login may prevent you from reusing some conversations.",
+    "providers.proxy.openaiAuthConfirmButton": "Confirm and enable",
     "providers.proxy.deactivateOpenaiAuthAccount": "Cancel official login",
     "providers.proxy.openaiAuthAccountTooltipRemote": "In proxy mode, ChatGPT mobile remote control requires an active official login on the PC. Remote control is unavailable when the PC is signed out.",
     "providers.proxy.openaiAuthAccountTooltipCapabilities": "If an account cannot use image generation or certain plugins, activate a compatible account as the official login to restore full capabilities.",
@@ -3729,6 +3734,10 @@ const translations = {
     "providers.proxy.openaiAuthAccountEmpty": "没有可用的 OAuth 账号",
     "providers.proxy.openaiAuthAccountTooltip": "可选。选择账号后使用其官方登录和额度，并关闭快速模式；清除选择后仍保持关闭，需要时可手动重新开启。",
     "providers.proxy.activateOpenaiAuthAccount": "激活官方登录态",
+    "providers.proxy.openaiAuthConfirmTitle": "确认启用官方登录态？",
+    "providers.proxy.openaiAuthConfirmDescription":
+      "如无需使用手机远程功能，建议保持当前登录方式。启用官方登录态可能导致部分会话无法复用。",
+    "providers.proxy.openaiAuthConfirmButton": "确认启用",
     "providers.proxy.deactivateOpenaiAuthAccount": "取消官方登录态",
     "providers.proxy.openaiAuthAccountTooltipRemote": "代理模式下，ChatGPT 移动端远控依赖 PC 端保持官方登录态；未登录时将无法远程控制。",
     "providers.proxy.openaiAuthAccountTooltipCapabilities": "如果当前账号无法使用图片生成或部分插件，可激活一个兼容账号作为官方登录态，以恢复完整能力。",
