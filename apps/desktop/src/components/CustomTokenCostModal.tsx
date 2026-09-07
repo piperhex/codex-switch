@@ -101,9 +101,6 @@ export function CustomTokenCostModal({ open, providers, t, onClose }: CustomToke
             </div>
           </div>
         </div>
-        <div className="custom-token-cost-footer">
-          <Button onClick={onClose}>{t("tokenCost.customBilling.done")}</Button>
-        </div>
       </section>
     </div>,
     document.body,

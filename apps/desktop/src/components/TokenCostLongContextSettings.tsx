@@ -97,11 +97,13 @@ export function TokenCostLongContextSettings({ t }: { t: Translate }) {
       threshold: defaults.thresholdTokens.toLocaleString("en-US"), input: defaults.inputMultiplier,
       cachedInput: defaults.cachedInputMultiplier, output: defaults.outputMultiplier,
     })}</small>
-    <CostField field="thresholdTokens" value={draft.thresholdTokens} disabled={!draft.enabled}
-      onChange={updateField} t={t} />
-    <div className="custom-token-cost-long-context-rates">
-      {MULTIPLIER_FIELDS.map((field) => <CostField key={field} field={field} value={draft[field]}
-        disabled={!draft.enabled} onChange={updateField} t={t} />)}
+    <div className="custom-token-cost-long-context-inputs">
+      <CostField field="thresholdTokens" value={draft.thresholdTokens} disabled={!draft.enabled}
+        onChange={updateField} t={t} />
+      <div className="custom-token-cost-long-context-rates">
+        {MULTIPLIER_FIELDS.map((field) => <CostField key={field} field={field} value={draft[field]}
+          disabled={!draft.enabled} onChange={updateField} t={t} />)}
+      </div>
     </div>
     <small>{t("tokenCost.longContext.models")}</small>
     <small>{t("tokenCost.longContext.reference")}</small>

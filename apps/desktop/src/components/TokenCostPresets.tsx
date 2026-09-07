@@ -52,15 +52,17 @@ export function TokenCostPresets({ referenceModel, onReferenceChange, t }: Token
         </tbody>
       </table>
     </div>
-    <div className="custom-token-cost-reference custom-token-cost-field">
-      <label htmlFor="token-cost-reference-model">{t("tokenCost.customBilling.referenceModel")}</label>
-      <Select id="token-cost-reference-model" value={referenceModel} onChange={onReferenceChange}
-        classNames={{ popup: { root: "custom-token-cost-select-popup" } }} popupMatchSelectWidth={false}
-        options={TOKEN_COST_PRESETS.map((preset) => ({ value: preset.model, label: preset.model }))} />
-      <small>{t("tokenCost.customBilling.referenceHint")}</small>
-      <small>{t("tokenCost.customBilling.priorityHint")}</small>
+    <div className="custom-token-cost-estimate-settings">
+      <div className="custom-token-cost-reference custom-token-cost-field">
+        <label htmlFor="token-cost-reference-model">{t("tokenCost.customBilling.referenceModel")}</label>
+        <Select id="token-cost-reference-model" value={referenceModel} onChange={onReferenceChange}
+          classNames={{ popup: { root: "custom-token-cost-select-popup" } }} popupMatchSelectWidth={false}
+          options={TOKEN_COST_PRESETS.map((preset) => ({ value: preset.model, label: preset.model }))} />
+        <small>{t("tokenCost.customBilling.referenceHint")}</small>
+        <small>{t("tokenCost.customBilling.priorityHint")}</small>
+      </div>
+      <TokenCostFastModeSettings t={t} />
     </div>
-    <TokenCostFastModeSettings t={t} />
     <TokenCostLongContextSettings t={t} />
   </section>;
 }
