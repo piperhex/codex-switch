@@ -157,12 +157,15 @@ fn diagnostic_response_body(bytes: &[u8], content_type: Option<&str>) -> Value {
     };
     json!({
         "captured": true,
+        "redacted": true,
         "bytes": bytes.len(),
         "hash": short_hash_bytes(bytes),
         "contentType": content_type,
         "utf8": utf8,
         "truncated": text.chars().count() > DIAGNOSTIC_RESPONSE_BODY_MAX_CHARS,
-        "text": truncate_for_log(&text, DIAGNOSTIC_RESPONSE_BODY_MAX_CHARS)
+        "text": crate::error_logs::sanitize_diagnostic_message(
+            &truncate_for_log(&text, DIAGNOSTIC_RESPONSE_BODY_MAX_CHARS)
+        )
     })
 }
 
@@ -217,7 +220,24 @@ fn append_diagnostic_log<R: Runtime>(
     entry: &Value,
 ) -> Result<(), String> {
     let path = diagnostic_log_path(app)?;
-    rotate_diagnostic_log_if_needed(&path)?;
+    let mut entry = entry.clone();
+    if let Some(context) = current_diagnostic_context() {
+        context.annotate(&mut entry);
+    }
+    append_diagnostic_entry(&path, &entry)
+}
+
+// Serialize the entire append/rotation and snapshot, so concurrent requests cannot interleave JSON lines.
+static DIAGNOSTIC_FILE_LOCK: Mutex<()> = Mutex::new(());
+
+fn append_diagnostic_entry(path: &Path, entry: &Value) -> Result<(), String> {
+    let mut bytes = serde_json::to_vec(entry)
+        .map_err(|error| format!("Failed to serialize diagnostic log: {error}"))?;
+    bytes.push(b'\n');
+    let _guard = DIAGNOSTIC_FILE_LOCK
+        .lock()
+        .map_err(|_| "Diagnostic log lock unavailable".to_string())?;
+    rotate_diagnostic_log_if_needed(path)?;
     let parent = path
         .parent()
         .ok_or_else(|| "Diagnostic log path has no parent directory".to_string())?;
@@ -226,11 +246,9 @@ fn append_diagnostic_log<R: Runtime>(
     let mut file = OpenOptions::new()
         .create(true)
         .append(true)
-        .open(&path)
+        .open(path)
         .map_err(|error| format!("Failed to open {}: {error}", path.display()))?;
-    serde_json::to_writer(&mut file, entry)
-        .map_err(|error| format!("Failed to serialize diagnostic log: {error}"))?;
-    file.write_all(b"\n")
+    file.write_all(&bytes)
         .map_err(|error| format!("Failed to write {}: {error}", path.display()))
 }
 

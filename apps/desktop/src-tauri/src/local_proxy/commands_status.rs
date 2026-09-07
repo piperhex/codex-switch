@@ -427,42 +427,13 @@ fn get_recent_proxy_session_latency_blocking() -> Result<ProxySessionLatencySumm
 }
 
 #[tauri::command]
-pub(crate) fn export_diagnostic_logs<R: Runtime>(
+pub(crate) async fn export_diagnostic_logs<R: Runtime>(
     app: tauri::AppHandle<R>,
     path: String,
 ) -> Result<String, String> {
-    let destination = PathBuf::from(path);
-    let parent = destination
-        .parent()
-        .ok_or_else(|| "Diagnostic log export path has no parent directory".to_string())?;
-    fs::create_dir_all(parent)
-        .map_err(|error| format!("Failed to create {}: {error}", parent.display()))?;
-
-    let source = diagnostic_log_path(&app)?;
-    if source.exists() {
-        fs::copy(&source, &destination).map_err(|error| {
-            format!(
-                "Failed to export diagnostics from {} to {}: {error}",
-                source.display(),
-                destination.display()
-            )
-        })?;
-    } else {
-        let empty_log = json!({
-            "ts": unix_now(),
-            "event": "no_diagnostic_logs",
-            "message": "No local proxy diagnostic logs have been recorded yet."
-        })
-        .to_string();
-        fs::write(&destination, format!("{empty_log}\n")).map_err(|error| {
-            format!(
-                "Failed to write diagnostic export {}: {error}",
-                destination.display()
-            )
-        })?;
-    }
-
-    Ok(destination.display().to_string())
+    tauri::async_runtime::spawn_blocking(move || export_diagnostic_logs_blocking(&app, &path))
+        .await
+        .map_err(|_| "日志导出失败，请重试。".to_string())?
 }
 
 #[tauri::command]

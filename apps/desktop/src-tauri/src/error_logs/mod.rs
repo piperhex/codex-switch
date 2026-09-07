@@ -14,6 +14,8 @@ pub(crate) use models::{ErrorLogPage, ErrorLogSource};
 use models::{ListQuery, LogError};
 use worker::LogService;
 
+pub(crate) const DIAGNOSTIC_MESSAGE_MAX_CHARS: usize = sanitize::MAX_MESSAGE_CHARS;
+
 const DATABASE_FILENAME: &str = "error-logs.sqlite";
 static SERVICE: OnceLock<LogService> = OnceLock::new();
 
@@ -42,6 +44,24 @@ pub(crate) fn record_proxy_error(message: &str, status_code: Option<u16>) {
 
 fn service() -> Result<&'static LogService, LogError> {
     SERVICE.get().ok_or(LogError::Unavailable)
+}
+
+/// Reuses the error log redaction policy for diagnostic summaries and upstream failures.
+pub(crate) fn sanitize_diagnostic_message(message: &str) -> String {
+    sanitize::message(message).unwrap_or_default()
+}
+
+/// Returns a bounded snapshot after preceding queued writes, entirely on the database worker.
+pub(crate) fn export_proxy_errors() -> Result<ErrorLogPage, String> {
+    service()
+        .and_then(|service| {
+            service.list(ListQuery {
+                limit: models::MAX_ENTRIES as u32,
+                before_id: None,
+                source: Some(ErrorLogSource::Proxy),
+            })
+        })
+        .map_err(|error| error.to_string())
 }
 
 #[tauri::command]

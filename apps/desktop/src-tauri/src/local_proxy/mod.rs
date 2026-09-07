@@ -2,6 +2,10 @@ macro_rules! log_proxy_error {
     ($($argument:tt)*) => {{
         let message = format!($($argument)*);
         crate::error_logs::record_proxy_error(&message, None);
+        $crate::local_proxy::diagnostic_event(serde_json::json!({
+            "event": "proxy_error",
+            "error": crate::error_logs::sanitize_diagnostic_message(&message)
+        }));
         eprintln!("{message}");
     }};
 }
@@ -44,6 +48,9 @@ include!("capture.rs");
 include!("usage_context.rs");
 include!("service_tier.rs");
 include!("diagnostics_helpers.rs");
+include!("diagnostics_trace.rs");
+include!("diagnostics_stream.rs");
+include!("diagnostics_export.rs");
 include!("token_usage.rs");
 include!("token_usage_db.rs");
 include!("token_usage_breakdown.rs");
@@ -64,6 +71,7 @@ include!("sse.rs");
 
 #[cfg(test)]
 mod tests {
+    include!("tests/diagnostics.rs");
     include!("tests/part_01.rs");
     include!("tests/part_02.rs");
     include!("tests/part_03.rs");

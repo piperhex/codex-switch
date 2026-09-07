@@ -52,9 +52,8 @@ use crate::{
         account_group_path, auto_switch_priority_path, auto_switch_threshold_path,
         change_concurrent_account_routing, load_account_group, load_auto_switch_priority,
         load_auto_switch_threshold, load_usage, managed_auth_path, read_app_settings, read_json,
-        read_state, resolve_paths,
-        try_read_state, update_state, usage_path, write_app_settings, write_json_if_changed,
-        write_managed_auth_if_unchanged, write_state, Paths,
+        read_state, resolve_paths, try_read_state, update_state, usage_path, write_app_settings,
+        write_json_if_changed, write_managed_auth_if_unchanged, write_state, Paths,
     },
 };
 
@@ -67,9 +66,11 @@ const UPSTREAM_TIMEOUT_ATTEMPT_LIMIT: usize = 3;
 const TOOL_SEARCH_PROXY_NAME: &str = "tool_search";
 const CUSTOM_TOOL_INPUT_FIELD: &str = "input";
 const CHAT_TOOL_NAME_MAX_LEN: usize = 64;
-const DIAGNOSTIC_LOG_MAX_BYTES: u64 = 2 * 1024 * 1024;
+const DIAGNOSTIC_SCHEMA_VERSION: u32 = 2;
+const DIAGNOSTIC_REQUEST_OPTION_MAX_CHARS: usize = 128;
+const DIAGNOSTIC_LOG_MAX_BYTES: u64 = 10 * 1024 * 1024;
 const DIAGNOSTIC_LOG_FILE_NAME: &str = "local-proxy-diagnostics.jsonl";
-const DIAGNOSTIC_RESPONSE_BODY_MAX_CHARS: usize = 4_000;
+const DIAGNOSTIC_RESPONSE_BODY_MAX_CHARS: usize = crate::error_logs::DIAGNOSTIC_MESSAGE_MAX_CHARS;
 const TOKEN_USAGE_JSONL_FILE_NAME: &str = "token-usage.jsonl";
 const TOKEN_USAGE_DB_FILE_NAME: &str = "token-usage.sqlite3";
 const TOKEN_USAGE_LIST_LIMIT: usize = 500;

@@ -241,6 +241,17 @@ fn stop_server() {
 }
 
 fn handle_request<R: Runtime>(app: tauri::AppHandle<R>, mut request: Request) {
+    let _diagnostic_scope = match diagnostic_log_path(&app) {
+        Ok(path) => Some(DiagnosticScope::enter(path)),
+        Err(_) => {
+            eprintln!("Could not initialize proxy request diagnostics");
+            None
+        }
+    };
+    diagnostic_event(json!({
+        "event": "request_started", "method": request.method().as_str(),
+        "path": request_path(request.url())
+    }));
     let method = request.method().clone();
     let url = request.url().to_string();
     let remote_address = request.remote_addr().map(|address| address.to_string());
@@ -283,6 +294,11 @@ fn handle_request<R: Runtime>(app: tauri::AppHandle<R>, mut request: Request) {
         return;
     }
 
+    diagnostic_event(json!({
+        "event": "request_received", "request": diagnostic_request_options(&body),
+        "body": request_body_diagnostic(&body, serde_json::from_slice::<Value>(&body).ok().as_ref()),
+        "headers": diagnostic_header_summary(&headers)
+    }));
     let captures_conversation = tracks_proxy_session(&method, request_path(&url), &body);
     if captures_conversation {
         if let Err(error) = ensure_proxy_history(&app) {
@@ -316,6 +332,10 @@ fn handle_request<R: Runtime>(app: tauri::AppHandle<R>, mut request: Request) {
     let payload = match result {
         Ok(payload) => payload,
         Err(error) => {
+            diagnostic_event(json!({
+                "event": "request_failed",
+                "error": crate::error_logs::sanitize_diagnostic_message(&error)
+            }));
             let message = upstream_error_message(&error);
             json_payload(502, json!({ "error": { "message": message } }))
         }
@@ -567,7 +587,8 @@ fn handle_proxy_request<R: Runtime>(
                 active_target_for_request(app, path, &body)
             })? {
                 let route = proxy_diagnostic_route(path, &target);
-                diagnostic = proxy_diagnostic_entry(method, url, headers, &body, Some(&target), route);
+                diagnostic =
+                    proxy_diagnostic_entry(method, url, headers, &body, Some(&target), route);
                 usage_context = make_usage_context(&target);
             }
             let account_id_override = image_account_pool

@@ -136,9 +136,11 @@ fn send_with_timeout_retries(
         || {
             attempt += 1;
             let result = build_request().send();
+            diagnostic_http_result(&result, attempt);
             if result.as_ref().is_err_and(reqwest::Error::is_timeout)
                 && attempt < UPSTREAM_TIMEOUT_ATTEMPT_LIMIT
             {
+                diagnostic_retry("transport_timeout", Duration::ZERO);
                 crate::error_logs::record_proxy_error(
                     &format!("{failure_context}: request timed out; retrying."),
                     None,
@@ -362,7 +364,7 @@ fn attach_first_response_capture(
 }
 
 fn respond_payload(request: Request, payload: UpstreamPayload) {
-    let payload = attach_proxy_error_capture(payload);
+    let payload = attach_proxy_error_capture(attach_diagnostic_response(payload));
     let UpstreamPayload {
         status,
         content_type,
@@ -376,6 +378,9 @@ fn respond_payload(request: Request, payload: UpstreamPayload) {
             add_content_type(&mut response, content_type.as_deref());
             add_forwarded_response_headers(&mut response, &response_headers);
             if let Err(error) = request.respond(response) {
+                diagnostic_event(
+                    json!({ "event": "response_delivery_failed", "kind": format!("{:?}", error.kind()) }),
+                );
                 log_proxy_error!("Failed to send proxy response: {error}");
             }
         }
@@ -389,6 +394,9 @@ fn respond_payload(request: Request, payload: UpstreamPayload) {
                 request.respond(response)
             };
             if let Err(error) = result {
+                diagnostic_event(
+                    json!({ "event": "response_delivery_failed", "kind": format!("{:?}", error.kind()) }),
+                );
                 log_proxy_error!("Failed to send proxy response: {error}");
             }
         }

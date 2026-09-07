@@ -282,6 +282,11 @@ fn official_credentials<R: Runtime>(
         .or(concurrent_account_id.as_deref())
         .or(active_account_id)
         .ok_or_else(|| "Select an official account before using the local proxy".to_string())?;
+    diagnostic_event(json!({
+        "event": "official_account_selected", "idHash": short_hash_str(selected_account_id),
+        "assignment": if account_id_override.is_some() { "override" }
+            else if concurrent_account_id.is_some() { "concurrent" } else { "active" }
+    }));
     let active_auth = read_json(&managed_auth_path(&paths, selected_account_id))?;
     validate_auth(&active_auth)?;
     let credential_account_id = if account_id_override.is_some() || concurrent_account_id.is_some()
@@ -347,7 +352,11 @@ fn official_credentials<R: Runtime>(
     if token_expiring(&auth) {
         // An old in-flight request must not overwrite Codex's watched auth.json after a
         // hot switch.  Refresh only the managed credential for the account it started with.
+        diagnostic_event(json!({ "event": "official_token_refresh_started",
+            "idHash": short_hash_str(&credential_account_id) }));
         refresh_or_reload_managed_auth(client, &paths, &credential_account_id, &mut auth)?;
+        diagnostic_event(json!({ "event": "official_token_refresh_finished",
+            "idHash": short_hash_str(&credential_account_id) }));
     }
     let access_token = token_string(&auth, "access_token")
         .ok_or_else(|| "auth.json is missing tokens.access_token".to_string())?

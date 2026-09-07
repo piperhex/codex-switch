@@ -34,6 +34,10 @@ fn forward_official<R: Runtime>(
             account_id_override,
         },
     )?;
+    diagnostic_event(json!({
+        "event": "official_credentials_ready",
+        "account": diagnostic_account(&credentials.token_usage_account)
+    }));
     let upstream_url = official_url(&upstream_endpoint);
     let body = official_body_for_upstream(method, &upstream_endpoint, body, model);
     let mut payload = send_official_request(
@@ -45,6 +49,7 @@ fn forward_official<R: Runtime>(
         &credentials.authentication,
     )?;
     if invalid_agent_identity_task_response(&credentials.authentication, &payload) {
+        diagnostic_retry("agent_identity_task_refresh", Duration::ZERO);
         record_retried_proxy_response(&payload);
         refresh_agent_identity_task(&mut credentials.authentication, app, &client)?;
         payload = send_official_request(
@@ -68,6 +73,9 @@ fn send_official_request(
     body: &[u8],
     authentication: &OfficialRequestAuthentication,
 ) -> Result<UpstreamPayload, String> {
+    diagnostic_event(json!({
+        "event": "official_request_prepared", "request": diagnostic_request_options(body)
+    }));
     let request_method = reqwest_method(method)?;
     let response = send_with_timeout_retries(
         || {

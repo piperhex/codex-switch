@@ -1006,7 +1006,7 @@ const translations = {
     "settings.security.description":
       "The frontend only receives email, plan, and usage summaries. Access tokens and refresh tokens stay in the Rust backend and never enter UI logs.",
     "settings.logs.title": "Diagnostic logs",
-    "settings.logs.description": "Export local proxy diagnostics for troubleshooting provider routing and Responses request state.",
+    "settings.logs.description": "Export diagnostic logs to troubleshoot official account and Provider requests, retries, and interrupted responses.",
     "settings.logs.export": "Export logs",
     "accounts.loading": "Reading local accounts...",
     "accounts.empty.title": "No saved accounts yet",
@@ -3473,7 +3473,7 @@ const translations = {
     "settings.security.title": "安全说明",
     "settings.security.description": "前端只接收邮箱、套餐和用量摘要。访问令牌、刷新令牌不会离开 Rust 后端，也不会进入界面日志。",
     "settings.logs.title": "诊断日志",
-    "settings.logs.description": "导出本地代理诊断日志，用于排查 Provider 路由和 Responses 请求状态。",
+    "settings.logs.description": "导出诊断日志，用于排查官方账户和 Provider 的请求、重试及回复中断问题。",
     "settings.logs.export": "导出日志",
     "accounts.loading": "正在读取本地账户...",
     "accounts.empty.title": "还没有保存的账户",

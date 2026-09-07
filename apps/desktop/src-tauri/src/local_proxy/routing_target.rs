@@ -200,6 +200,7 @@ fn append_proxy_diagnostic_result<R: Runtime>(
     duration: Duration,
 ) {
     entry["durationMs"] = json!(duration.as_millis() as u64);
+    entry["durationPhase"] = json!("response_ready");
     match result {
         Ok(payload) => {
             let mut result = json!({
@@ -227,7 +228,7 @@ fn append_proxy_diagnostic_result<R: Runtime>(
         Err(error) => {
             entry["result"] = json!({
                 "ok": false,
-                "error": truncate_for_log(error, 240),
+                "error": crate::error_logs::sanitize_diagnostic_message(error),
                 "errorHash": short_hash_str(error)
             });
         }

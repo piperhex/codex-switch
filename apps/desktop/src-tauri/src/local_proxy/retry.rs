@@ -35,24 +35,35 @@ where
     S: FnMut(&UpstreamPayload, UpstreamQuotaEvent) -> bool,
     W: FnMut(Duration) -> Duration,
 {
+    let mut attempt = 0_u64;
     let mut retry_number = 0_u16;
     let mut quota_retry = QuotaRetryState::default();
     loop {
-        let response = request()?;
+        attempt = attempt.saturating_add(1);
+        let started = Instant::now();
+        diagnostic_event(json!({ "event": "upstream_attempt_started", "attempt": attempt }));
+        let result = request();
+        diagnostic_attempt(&result, attempt, started);
+        let response = result?;
         // A confirmed concurrent quota failure invalidates cached eligibility before
         // any backoff, including when the normal 429 retry budget is exhausted.
         if concurrent_quota::exclude_response(&response)? {
+            diagnostic_retry("concurrent_account_excluded", Duration::ZERO);
             record_retried_proxy_response(&response);
             continue;
         }
         if switch_exhausted_account(&response, &mut quota_retry, &mut handle_quota_event) {
+            diagnostic_retry("quota_account_switch", Duration::ZERO);
             record_retried_proxy_response(&response);
             continue;
         }
         if response.status == 429 {
             retry_number = retry_number.saturating_add(1);
-            let elapsed = wait_before_retry(upstream_429_retry_delay(retry_number));
+            let delay = upstream_429_retry_delay(retry_number);
+            diagnostic_retry("rate_limit", delay);
+            let elapsed = wait_before_retry(delay);
             if elapsed >= timeout {
+                diagnostic_event(json!({ "event": "retry_budget_exhausted", "attempt": attempt }));
                 let _ = handle_quota_event(&response, UpstreamQuotaEvent::RetryTimedOut);
                 return Ok(response);
             }
@@ -94,7 +105,12 @@ fn switch_exhausted_account(
     let event = UpstreamQuotaEvent::Retry {
         exhausted_account_ids: quota_retry.exhausted_account_ids.clone(),
     };
-    if !handle_quota_event(response, event) {
+    let switched = handle_quota_event(response, event);
+    diagnostic_event(json!({
+        "event": "quota_switch_result", "switched": switched,
+        "account": diagnostic_account(account)
+    }));
+    if !switched {
         return false;
     }
     // Stale positive usage can send us back to an exhausted account. Bound immediate

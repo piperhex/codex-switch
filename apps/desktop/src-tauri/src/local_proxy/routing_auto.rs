@@ -50,12 +50,23 @@ fn auto_switch_official_account<R: Runtime>(
     app: &tauri::AppHandle<R>,
     request: AutoSwitchRequest<'_>,
 ) -> Result<bool, String> {
+    diagnostic_event(json!({
+        "event": "account_switch_started", "failedAccountHash": short_hash_str(request.failed_account_id),
+        "exhaustedAccountCount": request.exhausted_account_ids.len()
+    }));
     let should_retry = auto_switch_coordinator().switch_or_wait(
         request.observed_generation,
         request.observed_attempt_generation,
         request.failed_account_id,
-        || try_auto_switch_official_account(app, request.failed_account_id, request.exhausted_account_ids),
+        || {
+            try_auto_switch_official_account(
+                app,
+                request.failed_account_id,
+                request.exhausted_account_ids,
+            )
+        },
     )?;
+    diagnostic_event(json!({ "event": "account_switch_finished", "retry": should_retry }));
     if !should_retry {
         return Ok(false);
     }
@@ -144,10 +155,9 @@ fn try_auto_switch_official_account<R: Runtime>(
         state.global_auto_switch_threshold,
     ) {
         let target_id = target.id.clone();
-        if let Err(error) = crate::commands::switch_account_automatically_blocking(
-            app.clone(),
-            target_id.clone(),
-        ) {
+        if let Err(error) =
+            crate::commands::switch_account_automatically_blocking(app.clone(), target_id.clone())
+        {
             // switch_account writes the selected account before emitting UI events. If a
             // post-switch side effect failed, the new account is still active and concurrent
             // quota responses must be released to retry against it.
@@ -170,8 +180,8 @@ fn try_auto_switch_official_account<R: Runtime>(
             &refreshed_accounts,
             &current_id,
             state.custom_auto_switch_threshold_enabled,
-        state.global_auto_switch_threshold,
-    )
+            state.global_auto_switch_threshold,
+        )
     {
         return Ok(AutoSwitchAttempt::Unchanged);
     }
@@ -184,7 +194,10 @@ fn try_auto_switch_official_account<R: Runtime>(
                 return Ok(AutoSwitchAttempt::Unchanged);
             }
             if restored[0] != current_id {
-                crate::commands::switch_account_automatically_blocking(app.clone(), restored[0].clone())?;
+                crate::commands::switch_account_automatically_blocking(
+                    app.clone(),
+                    restored[0].clone(),
+                )?;
             }
             return Ok(AutoSwitchAttempt::Switched);
         }
@@ -192,7 +205,9 @@ fn try_auto_switch_official_account<R: Runtime>(
         _ => {}
     }
     let state = try_read_state(&paths)?;
-    if automatic_switch_is_blocked(&state) || state.active_account_id.as_deref() != Some(&current_id) {
+    if automatic_switch_is_blocked(&state)
+        || state.active_account_id.as_deref() != Some(&current_id)
+    {
         return Ok(AutoSwitchAttempt::Unchanged);
     }
     let Some(provider_id) = state.auto_switch_provider_id else {
@@ -242,8 +257,7 @@ fn all_backup_accounts_have_exhausted_quota(
             account_meets_threshold(account, custom_threshold_enabled, global_threshold)
         })
         .all(|account| {
-            account.usage.error.is_none()
-                && !reported_quota_windows_have_remaining(&account.usage)
+            account.usage.error.is_none() && !reported_quota_windows_have_remaining(&account.usage)
         })
 }
 
@@ -282,7 +296,9 @@ fn account_with_lowest_remaining_primary_quota<'a>(
 
 #[derive(Clone)]
 enum UpstreamQuotaEvent {
-    Retry { exhausted_account_ids: HashSet<String> },
+    Retry {
+        exhausted_account_ids: HashSet<String>,
+    },
     RetryTimedOut,
 }
 
@@ -292,9 +308,9 @@ fn handle_upstream_quota_event<R: Runtime>(
     event: UpstreamQuotaEvent,
 ) -> bool {
     match event {
-        UpstreamQuotaEvent::Retry { exhausted_account_ids } => {
-            try_switch_official_account_after_quota(app, response, &exhausted_account_ids)
-        }
+        UpstreamQuotaEvent::Retry {
+            exhausted_account_ids,
+        } => try_switch_official_account_after_quota(app, response, &exhausted_account_ids),
         UpstreamQuotaEvent::RetryTimedOut => {
             if let Err(error) = try_disable_official_account_after_429_timeout(app, response) {
                 log_proxy_error!(
@@ -414,8 +430,7 @@ fn account_meets_threshold(
         global_threshold,
         custom_threshold_enabled,
     );
-    primary_remaining_quota_score(&account.usage)
-        .is_some_and(|remaining| remaining >= threshold)
+    primary_remaining_quota_score(&account.usage).is_some_and(|remaining| remaining >= threshold)
 }
 
 fn ensure_active_official_account_meets_threshold<R: Runtime>(

@@ -38,6 +38,14 @@ impl ErrorCapture {
         }
     }
 
+    pub(super) fn terminal_seen(&self) -> bool {
+        self.terminal
+    }
+
+    pub(super) fn error_seen(&self) -> bool {
+        self.reported
+    }
+
     /// Returns at most one failure for this response, including across subsequent calls.
     pub(super) fn observe(&mut self, bytes: &[u8]) -> Vec<ProxyCapturedError> {
         let mut errors = Vec::new();
