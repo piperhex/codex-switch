@@ -91,6 +91,10 @@ export function TokenCostLongContextSettings({ t }: { t: Translate }) {
       </label>
       <Switch id="token-cost-long-context-enabled" size="small" checked={draft.enabled}
         onChange={updateEnabled} aria-labelledby="token-cost-long-context-title" />
+      <a href={LONG_CONTEXT_GUIDE_URL} target="_blank" rel="noopener noreferrer"
+        className="custom-token-cost-source" onClick={openGuide}>
+        {t("tokenCost.longContext.officialGuide")}<ExternalLink size={11} aria-hidden="true" />
+      </a>
     </div>
     <small id="token-cost-long-context-rule">{t("tokenCost.longContext.rule")}</small>
     <small>{t("tokenCost.longContext.defaults", {
@@ -111,9 +115,5 @@ export function TokenCostLongContextSettings({ t }: { t: Translate }) {
     {error && <small className="custom-token-cost-long-context-error" role="alert">
       {t(`tokenCost.longContext.${error}`)}
     </small>}
-    <a href={LONG_CONTEXT_GUIDE_URL} target="_blank" rel="noopener noreferrer"
-      className="custom-token-cost-source" onClick={openGuide}>
-      {t("tokenCost.longContext.officialGuide")}<ExternalLink size={11} aria-hidden="true" />
-    </a>
   </section>;
 }
