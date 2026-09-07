@@ -8,6 +8,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "check": "npm run build",
+    "test": "vitest run --exclude src/pages/codexConfig/schema.test.mjs && node --test src/pages/codexConfig/schema.test.mjs",
     "check:rust": "cargo fmt --manifest-path src-tauri/Cargo.toml -- --check && cargo test --manifest-path src-tauri/Cargo.toml",
     "preview": "vite preview",
     "tauri": "tauri",
@@ -36,8 +37,10 @@
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",
+    "jsdom": "^26.1.0",
     "less": "^4.9.0",
     "typescript": "~5.6.3",
-    "vite": "^6.0.5"
+    "vite": "^6.0.5",
+    "vitest": "^4.1.9"
   }
 }

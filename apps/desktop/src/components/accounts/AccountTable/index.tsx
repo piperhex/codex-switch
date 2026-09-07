@@ -74,6 +74,7 @@ import {
 import { TokenCostColumnTitle, useTokenCostDisplaySettings } from "../../TokenCostUnitSettings";
 import { AccountNoteModal } from "../../modals/AccountNoteModal";
 import { AccountExpandedPanel } from "../AccountExpandedPanel";
+import { AccountCardAutoSwitchSettings } from "../AccountCardAutoSwitchSettings";
 import { AccountGroupCell, ConcurrentRoutingControl } from "../AccountGroupControls";
 import { AccountUseActionIcon } from "../AccountUseActionIcon";
 import { OfficialContextSettings } from "../OfficialContextSettings";
@@ -1324,10 +1325,16 @@ export function AccountTable({
                     && <Tooltip title={account.usage.error}><Tag color="error">{t("table.error")}</Tag></Tooltip>}
                 </div>
               </div>
-              <div className="card-header-actions">
+              <div className={`card-header-actions${customPriorityActive || customThresholdActive
+                ? " has-auto-switch-settings" : ""}`}>
                 <Tooltip title={t("table.refreshUsage")}><Button size="small" className="table-icon-button" loading={waiting}
                   icon={<RefreshCw size={14} />} onClick={() => onRefresh(account.id)} /></Tooltip>
                 <UsageRefreshAge fetchedAt={account.usage.fetchedAt} t={t} />
+                <AccountCardAutoSwitchSettings account={account} t={t}
+                  priorityEnabled={customPriorityActive} thresholdEnabled={customThresholdActive}
+                  priorityBusy={autoSwitchPriorityBusyAccountId !== null}
+                  thresholdBusy={autoSwitchThresholdBusyAccountId !== null}
+                  onPrioritySave={onAutoSwitchPriorityChange} onThresholdSave={onAutoSwitchThresholdChange} />
               </div>
             </header>
             <div className="account-card-usage">

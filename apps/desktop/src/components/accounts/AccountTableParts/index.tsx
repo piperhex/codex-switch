@@ -148,48 +148,72 @@ export function AccountNoteEditButton({ account, hideAccountNotes, onEdit, t }: 
   </button>;
 }
 
-export function AutoSwitchPriorityInput({ account, disabled, onSave, t }: {
+export function AutoSwitchPriorityInput({ account, disabled, onSave, t, autoFocus, onFinish }: {
   account: Account;
   disabled: boolean;
   onSave: (id: string, priority: number) => Promise<boolean>;
   t: Translate;
+  autoFocus?: boolean;
+  onFinish?: () => void;
 }) {
   const [value, setValue] = useState<number | null>(account.autoSwitchPriority);
-  useEffect(() => setValue(account.autoSwitchPriority), [account.autoSwitchPriority]);
+  const latestValue = useRef(value);
+  const updateValue = (nextValue: number | null) => {
+    latestValue.current = nextValue;
+    setValue(nextValue);
+  };
+  useEffect(() => updateValue(account.autoSwitchPriority), [account.autoSwitchPriority]);
 
   const save = async () => {
-    const priority = value === null ? 0 : Math.trunc(value);
-    setValue(priority);
-    if (priority === account.autoSwitchPriority) return;
-    if (!await onSave(account.id, priority)) setValue(account.autoSwitchPriority);
+    const priority = latestValue.current === null ? 0 : Math.trunc(latestValue.current);
+    updateValue(priority);
+    if (priority !== account.autoSwitchPriority && !await onSave(account.id, priority)) {
+      updateValue(account.autoSwitchPriority);
+    }
+    onFinish?.();
   };
 
   return <InputNumber className="auto-switch-priority-input" size="small" precision={0} step={1}
-    min={-2_147_483_648} max={2_147_483_647} value={value} disabled={disabled}
-    aria-label={t("table.autoSwitchPriority")} onChange={setValue}
-    onBlur={() => void save()} onPressEnter={(event) => event.currentTarget.blur()} />;
+    min={-2_147_483_648} max={2_147_483_647} value={value} disabled={disabled} autoFocus={autoFocus}
+    aria-label={t("table.autoSwitchPriority")} onChange={updateValue}
+    // InputNumber finishes range/precision correction while the blur event bubbles.
+    onBlur={() => queueMicrotask(() => void save())} onPressEnter={(event) => {
+      if (event.target instanceof HTMLInputElement) event.target.blur();
+    }} />;
 }
 
-export function AutoSwitchThresholdInput({ account, disabled, onSave, t }: {
+export function AutoSwitchThresholdInput({ account, disabled, onSave, t, autoFocus, onFinish }: {
   account: Account;
   disabled: boolean;
   onSave: (id: string, threshold: number) => Promise<boolean>;
   t: Translate;
+  autoFocus?: boolean;
+  onFinish?: () => void;
 }) {
   const [value, setValue] = useState<number | null>(account.autoSwitchThreshold);
-  useEffect(() => setValue(account.autoSwitchThreshold), [account.autoSwitchThreshold]);
+  const latestValue = useRef(value);
+  const updateValue = (nextValue: number | null) => {
+    latestValue.current = nextValue;
+    setValue(nextValue);
+  };
+  useEffect(() => updateValue(account.autoSwitchThreshold), [account.autoSwitchThreshold]);
 
   const save = async () => {
-    const threshold = value === null ? 0 : Math.min(100, Math.max(0, value));
-    setValue(threshold);
-    if (threshold === account.autoSwitchThreshold) return;
-    if (!await onSave(account.id, threshold)) setValue(account.autoSwitchThreshold);
+    const threshold = latestValue.current === null ? 0 : Math.min(100, Math.max(0, latestValue.current));
+    updateValue(threshold);
+    if (threshold !== account.autoSwitchThreshold && !await onSave(account.id, threshold)) {
+      updateValue(account.autoSwitchThreshold);
+    }
+    onFinish?.();
   };
 
   return <InputNumber className="auto-switch-threshold-input" size="small" precision={1} step={1}
-    min={0} max={100} suffix="%" value={value} disabled={disabled}
-    aria-label={t("table.autoSwitchThreshold")} onChange={setValue}
-    onBlur={() => void save()} onPressEnter={(event) => event.currentTarget.blur()} />;
+    min={0} max={100} suffix="%" value={value} disabled={disabled} autoFocus={autoFocus}
+    aria-label={t("table.autoSwitchThreshold")} onChange={updateValue}
+    // InputNumber finishes range/precision correction while the blur event bubbles.
+    onBlur={() => queueMicrotask(() => void save())} onPressEnter={(event) => {
+      if (event.target instanceof HTMLInputElement) event.target.blur();
+    }} />;
 }
 
 function GlobalThresholdEditor({ value, disabled, saving, onChange, onSave, t }: {
