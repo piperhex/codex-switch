@@ -1,0 +1,34 @@
+.settings {
+  position: absolute;
+  top: 37px;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 24px;
+  color: var(--green-dark);
+}
+
+.setting {
+  display: flex;
+  align-items: center;
+  font-size: 10px;
+  white-space: nowrap;
+
+  button {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+
+    &:hover, &:focus-visible { text-decoration: underline; }
+    &:disabled { cursor: default; opacity: .55; }
+  }
+
+  :global(.ant-input-number) { width: 68px; font-size: 10px; }
+}

@@ -1110,6 +1110,8 @@ const translations = {
     "table.estimatedTokenCost": "Estimated Cost",
     "table.estimatedTokenCostHint": "Estimated from model pricing per 1M tokens; displayed in {unit}.",
     "table.autoSwitchPriority": "Auto-switch priority",
+    "table.cardSwitchPriority": "Priority",
+    "table.cardSwitchThreshold": "Threshold",
     "table.customPriorityEnabled": "Enable custom priority",
     "table.customPriorityTooltip":
       "Smaller numbers take priority. Ties use quota-based switching normally "
@@ -3575,6 +3577,8 @@ const translations = {
     "table.estimatedTokenCost": "Token 预估成本",
     "table.estimatedTokenCostHint": "按模型每百万 Token 单价估算，当前显示单位为 {unit}。",
     "table.autoSwitchPriority": "自动切换优先级",
+    "table.cardSwitchPriority": "优先级",
+    "table.cardSwitchThreshold": "阈值",
     "table.customPriorityEnabled": "启用自定义优先级",
     "table.customPriorityTooltip": "数字越小越优先；优先级相同时，普通模式按用量切换，并发模式按对话数均衡分配。",
     "table.customThresholdEnabled": "启用自定义阈值",
