@@ -25,6 +25,7 @@ export function TopbarControls(props: TopbarControlsProps) {
   } = props;
   return (
     <div className={styles.topbarControls}>
+      <span className={styles.masterSwitchLabel}>{t("systemPrompts.masterSwitch")}</span>
       <label className={styles.enabledControl}>
         <span>{t("systemPrompts.filter")}</span>
         <Switch

@@ -50,6 +50,7 @@
 
 .topbarControls {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
   font-size: 11px;
@@ -59,11 +60,21 @@
   background: var(--green);
 }
 
+.masterSwitchLabel {
+  color: var(--muted);
+  white-space: nowrap;
+}
+
 .enabledControl {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  color: var(--muted);
+  gap: 8px;
+  min-height: 30px;
+  padding: 0 11px;
+  border-radius: 999px;
+  color: var(--green-dark);
+  background: var(--green-soft);
+  font-weight: 600;
   white-space: nowrap;
 }
 
