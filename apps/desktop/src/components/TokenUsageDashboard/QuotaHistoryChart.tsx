@@ -46,7 +46,7 @@ export function AccountQuotaChart(props: AccountQuotaChartProps) {
       <div className={styles.controls}>
         <Segmented value={view} onChange={(value) => setView(value as QuotaView)}
           aria-label={labels.view} options={[
-            { value: "drop", label: labels.drop }, { value: "remaining", label: labels.remaining },
+            { value: "remaining", label: labels.remaining }, { value: "drop", label: labels.drop },
           ]} />
         <Select value={interval} onChange={setInterval} aria-label={labels.interval}
           className={styles.intervalSelect} options={[
