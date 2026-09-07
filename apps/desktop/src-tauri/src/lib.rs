@@ -103,6 +103,7 @@ pub fn run() {
         .manage(ccs_import::ImportState::default())
         .manage(main_window::MainWindowStateCache::default())
         .manage(main_window::CloseBehaviorState::default())
+        .manage(floating_bubble::BubbleLifecycle::default())
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             None,
@@ -218,11 +219,7 @@ pub fn run() {
                     }
                 }
             }
-            if window.label() == floating_bubble::BUBBLE_LABEL
-                && matches!(event, tauri::WindowEvent::Moved(_))
-            {
-                floating_bubble::remember_position(window);
-            }
+            floating_bubble::handle_window_event(window, event);
         })
         .invoke_handler(tauri::generate_handler![
             commands::get_app_info,
@@ -462,6 +459,7 @@ pub fn run() {
                 system_tray::show_dashboard(app);
             }
             if matches!(event, tauri::RunEvent::ExitRequested { .. }) {
+                floating_bubble::shutdown(app);
                 web_server::shutdown();
                 // Window move/resize events keep this cache current. Reading the
                 // native window again while macOS is tearing it down can return a

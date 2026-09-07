@@ -58,23 +58,6 @@ pub(crate) fn show_dashboard_from_bubble<R: Runtime>(app: AppHandle<R>) {
     crate::system_tray::show_dashboard(&app);
 }
 
-pub(crate) fn remember_position<R: Runtime>(window: &Window<R>) {
-    let Ok(scale) = window.scale_factor() else {
-        return;
-    };
-    let (Ok(position), Ok(size)) = (window.outer_position(), window.inner_size()) else {
-        return;
-    };
-    let position = position.to_logical::<f64>(scale);
-    let size = size.to_logical::<f64>(scale);
-    let Ok(mut settings) = read_app_settings(window.app_handle()) else {
-        return;
-    };
-    settings.bubble_x = Some(position.x + size.width - CLASSIC_WIDTH);
-    settings.bubble_y = Some(position.y + size.height - CLASSIC_HEIGHT);
-    let _ = write_app_settings(window.app_handle(), &settings);
-}
-
 #[cfg(test)]
 mod tests {
     use super::validate_menu_position;

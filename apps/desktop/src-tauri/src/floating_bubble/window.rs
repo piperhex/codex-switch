@@ -1,6 +1,6 @@
 use tauri::{
     webview::Color, AppHandle, Emitter, LogicalPosition, LogicalSize, Manager, Runtime, WebviewUrl,
-    WebviewWindowBuilder, Window,
+    WebviewWindowBuilder,
 };
 
 use crate::{
@@ -24,15 +24,12 @@ const SCREEN_MARGIN: f64 = 22.0;
 const HEX_COLOR_LEN: usize = 7;
 
 pub(crate) fn setup<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
-    let settings = read_app_settings(app)?;
-    if settings.floating_bubble_enabled {
-        create(app, &settings)?;
-    }
-    Ok(())
+    lifecycle::start(app.clone())
 }
 
 fn create<R: Runtime>(app: &AppHandle<R>, settings: &AppSettings) -> Result<(), String> {
     if let Some(window) = app.get_webview_window(BUBBLE_LABEL) {
+        window.unminimize().map_err(|error| error.to_string())?;
         window.show().map_err(|error| error.to_string())?;
         return Ok(());
     }

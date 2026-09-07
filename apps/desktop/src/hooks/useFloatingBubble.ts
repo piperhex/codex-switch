@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { loadAppSettings, updateFloatingBubble } from "../api/backend";
+import { loadAppSettings, subscribeToFloatingBubbleChanges, updateFloatingBubble } from "../api/backend";
 
 export function useFloatingBubble(notify: (message: string) => void) {
   const [enabled, setEnabled] = useState(false);
@@ -7,15 +7,23 @@ export function useFloatingBubble(notify: (message: string) => void) {
 
   useEffect(() => {
     let active = true;
+    let changed = false;
+    const unsubscribe = subscribeToFloatingBubbleChanges((nextEnabled) => {
+      changed = true;
+      if (active) setEnabled(nextEnabled);
+    });
     void loadAppSettings()
       .then((settings) => {
-        if (active) setEnabled(settings.floatingBubbleEnabled);
+        if (active && !changed) setEnabled(settings.floatingBubbleEnabled);
       })
       .catch((error) => notify(String(error)))
       .finally(() => {
         if (active) setLoading(false);
       });
-    return () => { active = false; };
+    return () => {
+      active = false;
+      unsubscribe();
+    };
   }, [notify]);
 
   const updateEnabled = useCallback(async (nextEnabled: boolean) => {
@@ -26,7 +34,9 @@ export function useFloatingBubble(notify: (message: string) => void) {
       const settings = await updateFloatingBubble(nextEnabled);
       setEnabled(settings.floatingBubbleEnabled);
     } catch (error) {
-      setEnabled(previous);
+      // A window operation can fail after the preference was saved for automatic recovery.
+      const settings = await loadAppSettings().catch(() => null);
+      setEnabled(settings?.floatingBubbleEnabled ?? previous);
       notify(String(error));
     } finally {
       setLoading(false);

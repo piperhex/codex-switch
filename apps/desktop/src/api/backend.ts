@@ -3520,6 +3520,18 @@ export function subscribeToBubbleResetDisplayChanges(
   return () => void subscription.then((unlisten) => unlisten());
 }
 
+export function subscribeToFloatingBubbleChanges(onChange: (enabled: boolean) => void): () => void {
+  if (!isDesktopApp) return () => undefined;
+  let active = true;
+  const subscription = listen<boolean>("floating-bubble-enabled-changed", ({ payload }) => {
+    if (active && typeof payload === "boolean") onChange(payload);
+  });
+  return () => {
+    active = false;
+    void subscription.then((unlisten) => unlisten());
+  };
+}
+
 export function subscribeToBubbleStyleChanges(onChange: (style: BubbleStyle) => void): () => void {
   const handleChange = (value: unknown) => {
     if (value === "classic" || value === "glass") onChange(value);
