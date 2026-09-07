@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { AutoComplete, Input, Select } from "antd";
+import { ChevronDown } from "lucide-react";
 import { optionLabel, stringSuggestions } from "./labels";
 import { schemaType, type ConfigSchema, type ConfigValue } from "./schema";
 import styles from "./formStyles.module.less";
@@ -70,6 +71,7 @@ function useConfigDraft({ schema, value, disabled, onCommit }: ConfigFieldInputP
 function DraftInput(props: ConfigFieldInputProps) {
   const { fieldKey, label, value, disabled } = props;
   const { draft, error, numeric, change, commit } = useConfigDraft(props);
+  const [search, setSearch] = useState("");
   const shared = {
     value: draft, disabled, "aria-label": label, status: error ? "error" as const : undefined,
     placeholder: value === "" ? "空文本" : "使用默认值", onBlur: () => { void commit(); },
@@ -83,9 +85,12 @@ function DraftInput(props: ConfigFieldInputProps) {
   if (multiline) input = <Input.TextArea {...shared} autoSize={{ minRows: 3, maxRows: 10 }} />;
   else if (secret) input = <Input.Password {...shared} autoComplete="off" />;
   else if (suggestions.length) input = <AutoComplete value={draft} disabled={disabled} onChange={change}
-    options={suggestions.map((item) => ({ value: item, label: optionLabel(item) }))}
+    className={styles.select} onSearch={setSearch} onFocus={() => setSearch("")}
+    options={suggestions.filter((item) => optionLabel(item).toLowerCase().includes(search.toLowerCase()))
+      .map((item) => ({ value: item, label: optionLabel(item) }))}
     onSelect={(next) => { change(next); void commit(); }} onBlur={() => { void commit(); }}>
-    <Input aria-label={label} placeholder="选择或输入自定义值" status={shared.status} />
+    <Input aria-label={label} placeholder="选择或输入自定义值" status={shared.status}
+      suffix={<ChevronDown size={14} aria-hidden="true" />} />
   </AutoComplete>;
   return <div className={styles.inputWrap}>
     {input}

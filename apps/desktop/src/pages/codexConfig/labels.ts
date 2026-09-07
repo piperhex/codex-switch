@@ -91,7 +91,8 @@ const FIELD_LABELS: Record<string, string> = {
 };
 
 const FIELD_HELP: Record<string, string> = {
-  model: "新任务默认使用的模型。", model_provider: "填写已配置的服务商名称，例如 openai。",
+  model: "选择新任务默认使用的模型，也可输入自定义模型名称。",
+  model_provider: "选择模型服务商，也可输入其他已配置的服务商名称。",
   model_reasoning_effort: "提高思考深度通常需要更多时间。", model_verbosity: "控制回答的篇幅和细节。",
   profile: "填写下方配置方案中的名称。", profiles: "为不同工作场景保存独立的模型与权限设置。",
   model_providers: "管理服务地址、身份验证和请求设置。", mcp_servers: "连接本地或远程 MCP 工具。",
@@ -114,6 +115,11 @@ export const TYPE_LABELS: Record<string, string> = {
 };
 
 export function stringSuggestions(key: string): string[] {
+  if (key === "model") return [
+    "gpt-6-astra", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna",
+    "gpt-5.5", "gpt-5.4-mini", "gpt-5.3-codex-spark",
+  ];
+  if (key === "model_provider") return ["codex-switch-local", "openai"];
   if (key.endsWith("reasoning_effort")) return ["none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"];
   if (key === "service_tier") return ["default", "priority", "flex"];
   return [];
