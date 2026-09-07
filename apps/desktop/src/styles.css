@@ -500,6 +500,7 @@ h1 { margin: 5px 0 0; font: 700 26px/1.1 Manrope, sans-serif; letter-spacing: -.
   display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 16px; padding-top: 4px;
 }
 .custom-token-cost-reference, .custom-token-cost-fast-mode { align-content: start; }
+.custom-token-cost-fast-mode-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; }
 .custom-token-cost-fast-mode small { color: var(--muted); font-size: 11px; line-height: 1.5; }
 .custom-token-cost-fast-mode .custom-token-cost-fast-mode-error { color: var(--ant-color-error, #b42318); }
 .custom-token-cost-fast-mode .custom-token-cost-source { justify-self: start; font-size: 11px; }

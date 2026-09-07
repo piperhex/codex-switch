@@ -38,7 +38,13 @@ export function TokenCostFastModeSettings({ t }: { t: Translate }) {
   };
 
   return <div className="custom-token-cost-fast-mode custom-token-cost-field">
-    <label htmlFor="token-cost-fast-mode-multiplier">{t("tokenCost.fastMode.multiplier")}</label>
+    <div className="custom-token-cost-fast-mode-heading">
+      <label htmlFor="token-cost-fast-mode-multiplier">{t("tokenCost.fastMode.multiplier")}</label>
+      <a href={CODEX_QUOTA_GUIDE_URL} target="_blank" rel="noopener noreferrer"
+        className="custom-token-cost-source" onClick={openQuotaGuide}>
+        {t("tokenCost.fastMode.officialGuide")}<ExternalLink size={11} aria-hidden="true" />
+      </a>
+    </div>
     <InputNumber id="token-cost-fast-mode-multiplier" value={multiplier} onChange={updateMultiplier}
       min={MULTIPLIER_INPUT_STEP} max={MAX_FAST_MODE_COST_MULTIPLIER} step={MULTIPLIER_INPUT_STEP}
       precision={MULTIPLIER_INPUT_PRECISION} status={!valid || error === "saveError" ? "error" : undefined}
@@ -53,9 +59,5 @@ export function TokenCostFastModeSettings({ t }: { t: Translate }) {
     {error && <small className="custom-token-cost-fast-mode-error" role="alert">
       {t(`tokenCost.fastMode.${error}`)}
     </small>}
-    <a href={CODEX_QUOTA_GUIDE_URL} target="_blank" rel="noopener noreferrer"
-      className="custom-token-cost-source" onClick={openQuotaGuide}>
-      {t("tokenCost.fastMode.officialGuide")}<ExternalLink size={11} aria-hidden="true" />
-    </a>
   </div>;
 }
