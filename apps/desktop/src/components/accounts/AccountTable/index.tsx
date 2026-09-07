@@ -603,6 +603,7 @@ export function AccountTable({
     if (openaiAuthBusy || accountId === openaiAuthAccountId) return;
     confirmOfficialAuthAccountChange({
       accountId,
+      currentAccountId: openaiAuthAccountId,
       t,
       onConfirm: (confirmedAccountId) => {
         setOpenaiAuthPendingAccountId(confirmedAccountId ?? openaiAuthAccountId);

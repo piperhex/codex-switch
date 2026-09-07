@@ -26,9 +26,9 @@ afterEach(async () => {
   vi.restoreAllMocks();
 });
 
-async function requestChange(accountId: string | null) {
+async function requestChange(accountId: string | null, currentAccountId: string | null = null) {
   await act(async () => {
-    confirmOfficialAuthAccountChange({ accountId, onConfirm, t });
+    confirmOfficialAuthAccountChange({ accountId, currentAccountId, onConfirm, t });
     await vi.runAllTimersAsync();
   });
 }
@@ -60,7 +60,13 @@ it("does not change the login when the user cancels", async () => {
 });
 
 it("clears the official login without an activation confirmation", async () => {
-  await requestChange(null);
+  await requestChange(null, "official-account");
   expect(onConfirm).toHaveBeenCalledExactlyOnceWith(null);
+  expect(document.querySelector(".ant-modal")).toBeNull();
+});
+
+it("switches an existing official login to another account without confirmation", async () => {
+  await requestChange("another-official-account", "official-account");
+  expect(onConfirm).toHaveBeenCalledExactlyOnceWith("another-official-account");
   expect(document.querySelector(".ant-modal")).toBeNull();
 });
