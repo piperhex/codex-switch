@@ -231,8 +231,9 @@ fn non_success_upstream_response_is_buffered_for_diagnostics() {
         request.respond(response).unwrap();
     });
 
-    let response = Client::new()
-        .get(format!("http://{addr}/fail"))
+    let response = upstream_transport::Request::prepare(Client::new()
+        .get(format!("http://{addr}/fail")))
+        .unwrap()
         .send()
         .unwrap();
     let payload = stream_response(response).unwrap();
@@ -288,8 +289,9 @@ fn official_models_response_preserves_full_5_6_catalog_and_etag() {
         request.respond(response).unwrap();
     });
 
-    let response = Client::new()
-        .get(format!("http://{addr}/models?client_version=0.144.0"))
+    let response = upstream_transport::Request::prepare(Client::new()
+        .get(format!("http://{addr}/models?client_version=0.144.0")))
+        .unwrap()
         .send()
         .unwrap();
     let mut payload = stream_response(response).unwrap();

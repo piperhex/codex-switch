@@ -90,6 +90,18 @@ pub(crate) fn proxy_for_target(target: &Url) -> Option<Url> {
     platform::current_system_proxy().and_then(|config| config.proxy_for(target))
 }
 
+pub(crate) fn apply_async(builder: reqwest::ClientBuilder) -> reqwest::ClientBuilder {
+    if configured_network_proxy().is_some() {
+        return builder.no_proxy().proxy(Proxy::custom(move |target| {
+            configured_network_proxy().filter(|_| should_proxy_target(target))
+        }));
+    }
+    let Some(config) = platform::current_system_proxy() else {
+        return builder;
+    };
+    builder.proxy(Proxy::custom(move |target| config.proxy_for(target)))
+}
+
 pub(crate) fn configure(settings: &NetworkProxySettings) -> Result<(), String> {
     let proxy_url = network_proxy_url(settings)?;
     let mut configured = NETWORK_PROXY

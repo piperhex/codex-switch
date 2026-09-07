@@ -125,19 +125,21 @@ fn http_client() -> Result<Client, String> {
         .map_err(|error| format!("Failed to create proxy HTTP client: {error}"))
 }
 
-// Retry only before a response is returned. Replaying an active SSE stream could duplicate
-// generated content or tool calls, so body-read timeouts continue to terminate that stream.
+// Once any request body has been handed to the transport, a timeout is ambiguous:
+// the upstream may already be working. Only retry timeouts before that point.
 fn send_with_timeout_retries(
     mut build_request: impl FnMut() -> RequestBuilder,
     failure_context: &str,
 ) -> Result<ReqwestResponse, String> {
+    let request = upstream_transport::Request::prepare(build_request())
+        .map_err(|error| format!("{failure_context}: {error}"))?;
     let mut attempt = 0;
     let result = retry_timeout_operation(
         || {
             attempt += 1;
-            let result = build_request().send();
+            let result = request.send();
             diagnostic_http_result(&result, attempt);
-            if result.as_ref().is_err_and(reqwest::Error::is_timeout)
+            if result.as_ref().is_err_and(upstream_transport::Error::can_retry)
                 && attempt < UPSTREAM_TIMEOUT_ATTEMPT_LIMIT
             {
                 diagnostic_retry("transport_timeout", Duration::ZERO);
@@ -148,13 +150,13 @@ fn send_with_timeout_retries(
             }
             result
         },
-        reqwest::Error::is_timeout,
+        upstream_transport::Error::can_retry,
     );
     match result {
         Ok(response) => Ok(response),
-        Err(error) if error.is_timeout() => Err(format!(
-            "{failure_context}: request timed out after {UPSTREAM_TIMEOUT_ATTEMPT_LIMIT} attempts"
-        )),
+        Err(error) if error.is_timeout() => {
+            Err(format!("{failure_context}: {error} (attempts: {attempt})"))
+        }
         Err(error) => Err(format!("{failure_context}: {error}")),
     }
 }

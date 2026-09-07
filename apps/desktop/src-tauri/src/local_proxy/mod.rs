@@ -17,6 +17,7 @@ mod error_capture;
 mod quota_detection;
 mod quota_sse;
 mod sse_transport;
+mod upstream_transport;
 
 use quota_detection::is_official_quota_exhaustion;
 

@@ -105,7 +105,7 @@ fn diagnostic_retry(reason: &str, delay: Duration) {
     }));
 }
 
-fn diagnostic_http_result(result: &Result<ReqwestResponse, reqwest::Error>, attempt: usize) {
+fn diagnostic_http_result(result: &Result<ReqwestResponse, upstream_transport::Error>, attempt: usize) {
     let result = match result {
         Ok(response) => json!({
             "status": response.status().as_u16(),

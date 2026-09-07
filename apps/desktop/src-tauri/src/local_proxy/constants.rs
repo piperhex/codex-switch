@@ -14,7 +14,8 @@ use std::{
 };
 
 use chrono::{Local, TimeZone};
-use reqwest::blocking::{Client, RequestBuilder, Response as ReqwestResponse};
+use reqwest::blocking::{Client, RequestBuilder};
+use upstream_transport::Response as ReqwestResponse;
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -58,8 +59,8 @@ use crate::{
 };
 
 const OFFICIAL_CODEX_BASE_URL: &str = "https://chatgpt.com/backend-api/codex";
-// Reqwest's blocking timeout applies while waiting for response headers and to each body read.
-// Successful SSE reads reset it, so active long-running streams can continue without a hard deadline.
+// Forwarded uploads, response headers, and individual response reads receive independent
+// budgets. Credential and model-catalog requests also use this as their blocking timeout.
 const UPSTREAM_RESPONSE_IDLE_TIMEOUT: Duration = Duration::from_secs(120);
 const UPSTREAM_CONNECT_TIMEOUT: Duration = Duration::from_secs(20);
 const UPSTREAM_TIMEOUT_ATTEMPT_LIMIT: usize = 3;

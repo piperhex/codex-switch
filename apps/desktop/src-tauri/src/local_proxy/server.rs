@@ -356,6 +356,12 @@ fn is_upstream_transport_error(error: &str) -> bool {
 }
 
 fn upstream_error_message(error: &str) -> &str {
+    if error.contains("request timed out during request upload") {
+        return "The request could not be uploaded in time. Please check your connection and try again.";
+    }
+    if error.contains("request timed out during response headers") {
+        return "The service took too long to respond. Please try again shortly.";
+    }
     if is_upstream_transport_error(error) {
         UPSTREAM_CONNECTION_FAILURE_MESSAGE
     } else {
