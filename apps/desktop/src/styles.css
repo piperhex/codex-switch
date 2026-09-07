@@ -459,7 +459,7 @@ h1 { margin: 5px 0 0; font: 700 26px/1.1 Manrope, sans-serif; letter-spacing: -.
 .token-cost-unit-settings .ant-input-number { width: 100%; }
 .custom-token-cost-backdrop { z-index: 80; }
 .modal.custom-token-cost-modal {
-  width: 80vw; max-width: none; height: 80vh; padding: 24px; overflow: hidden;
+  width: 90vw; max-width: none; height: 80vh; padding: 24px; overflow: hidden;
   display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 18px;
 }
 .custom-token-cost-header { display: flex; align-items: flex-start; gap: 13px; padding-right: 32px; }

@@ -109,9 +109,9 @@ export function TokenCostLongContextSettings({ t }: { t: Translate }) {
           disabled={!draft.enabled} onChange={updateField} t={t} />)}
       </div>
     </div>
-    <small>{t("tokenCost.longContext.models")}</small>
-    <small>{t("tokenCost.longContext.reference")}</small>
-    <small>{t("tokenCost.longContext.stacking")}</small>
+    <small>
+      {t("tokenCost.longContext.models")} {t("tokenCost.longContext.reference")} {t("tokenCost.longContext.stacking")}
+    </small>
     {error && <small className="custom-token-cost-long-context-error" role="alert">
       {t(`tokenCost.longContext.${error}`)}
     </small>}
