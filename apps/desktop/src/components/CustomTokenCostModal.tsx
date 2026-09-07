@@ -46,9 +46,14 @@ export function CustomTokenCostModal({ open, providers, t, onClose }: CustomToke
         <div className="custom-token-cost-body">
           <TokenCostPresets referenceModel={referenceModel} onReferenceChange={changeReference} t={t} />
           <div className="custom-token-cost-custom">
-            <div className="custom-token-cost-section-heading">
-              <h3>{t("tokenCost.customBilling.customTitle")}</h3>
-              <small>{t("tokenCost.customBilling.customHint")}</small>
+            <div className="custom-token-cost-custom-header">
+              <div className="custom-token-cost-section-heading">
+                <h3>{t("tokenCost.customBilling.customTitle")}</h3>
+                <small>{t("tokenCost.customBilling.customHint")}</small>
+              </div>
+              <Button type="primary" disabled={!editor.valid} onClick={editor.save}>
+                {t("tokenCost.customBilling.save")}
+              </Button>
             </div>
             <div className="custom-token-cost-editor">
               <div className="custom-token-cost-field">
@@ -81,11 +86,6 @@ export function CustomTokenCostModal({ open, providers, t, onClose }: CustomToke
               {!providers.length && <small className="custom-token-cost-empty">
                 {t("tokenCost.customBilling.noApis")}
               </small>}
-            </div>
-            <div className="custom-token-cost-save-action">
-              <Button type="primary" disabled={!editor.valid} onClick={editor.save}>
-                {t("tokenCost.customBilling.save")}
-              </Button>
             </div>
             <div className="custom-token-cost-saved">
               <strong>{t("tokenCost.customBilling.savedTitle")}</strong>

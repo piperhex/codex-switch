@@ -528,7 +528,9 @@ h1 { margin: 5px 0 0; font: 700 26px/1.1 Manrope, sans-serif; letter-spacing: -.
 .custom-token-cost-hint, .custom-token-cost-empty {
   grid-column: 1 / -1; max-width: 400px; color: var(--muted); font-size: 11px; line-height: 1.5;
 }
-.custom-token-cost-save-action { display: flex; justify-content: flex-end; }
+.custom-token-cost-custom-header {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 12px;
+}
 .custom-token-cost-select-popup { min-width: 220px !important; max-width: min(400px, calc(100vw - 32px)); }
 .custom-token-cost-select-popup .ant-select-item-option-content { white-space: normal; overflow-wrap: anywhere; }
 .custom-token-cost-saved { min-height: 0; display: grid; align-content: start; gap: 8px; overflow: auto; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: rgba(var(--green-rgb), .035); }
