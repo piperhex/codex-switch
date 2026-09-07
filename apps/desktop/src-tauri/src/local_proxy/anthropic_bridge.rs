@@ -110,7 +110,7 @@ mod anthropic_bridge_tests {
         );
         assert_eq!(
             convert(&json!({ "model": "claude-opus-5" }))["model"],
-            "gpt-5.6-sol"
+            "gpt-6-astra"
         );
         let image = json!({
             "messages": [{

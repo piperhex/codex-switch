@@ -267,7 +267,7 @@ const NETWORK_PROXY_PORT_PREVIEW_KEY = "codex-switch:network-proxy-port";
 const CLOUD_USER_PREVIEW_KEY = "codex-switch:cloud-user-email";
 const PROVIDERS_PREVIEW_KEY = "codex-switch:providers";
 const AGGREGATE_APIS_PREVIEW_KEY = "codex-switch:aggregate-apis";
-const DEFAULT_OPENAI_PROVIDER_MODEL = "gpt-5.6-sol";
+const DEFAULT_OPENAI_PROVIDER_MODEL = "gpt-6-astra";
 const LOCAL_PROXY_PREVIEW_KEY = "codex-switch:local-proxy-running";
 const LOCAL_PROXY_FAST_MODE_PREVIEW_KEY = "codex-switch:local-proxy-fast-mode";
 const LOCAL_PROXY_AUTO_SWITCH_PREVIEW_KEY = "codex-switch:local-proxy-auto-switch";
@@ -1044,7 +1044,7 @@ export async function fetchPresetModels(
 
 export async function fetchRelayModels(baseUrl: string, apiKey: string): Promise<string[]> {
   if (!hasLocalBackend) {
-    return ["gpt-5.6-sol", "gpt-5.4"];
+    return [DEFAULT_OPENAI_PROVIDER_MODEL, "gpt-5.6-sol", "gpt-5.4"];
   }
   return invoke<string[]>("fetch_relay_models", {
     baseUrl,

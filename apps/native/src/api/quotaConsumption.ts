@@ -3,7 +3,7 @@ import type { AccountSummary } from '../types';
 import { ApiError, requestCodexDirect } from './client';
 
 const CODEX_RESPONSES_URL = 'https://chatgpt.com/backend-api/codex/responses';
-const DEFAULT_OFFICIAL_MODEL = 'gpt-5.6-sol';
+const DEFAULT_OFFICIAL_MODEL = 'gpt-6-astra';
 const QUOTA_CONSUMPTION_PROMPT = '今天天气如何？';
 const QUOTA_CONSUMPTION_CONCURRENCY = 4;
 const QUOTA_CONSUMPTION_TIMEOUT_MS = 120_000;

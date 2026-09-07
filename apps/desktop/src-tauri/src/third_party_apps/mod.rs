@@ -359,12 +359,13 @@ pub(crate) mod tests {
     #[test]
     fn official_local_proxy_profile_targets_the_responses_endpoint() {
         let profile =
-            official_local_proxy_profile(1_000_000, Vec::new(), vec!["gpt-5.6-sol".to_string()]);
+            official_local_proxy_profile(1_000_000, Vec::new(), vec!["gpt-6-astra".to_string()]);
         assert_eq!(profile.base_url, LOCAL_PROXY_BASE_URL);
         assert_eq!(profile.api_key, LOCAL_PROXY_TOKEN);
         assert_eq!(profile.api_format, ProviderApiFormat::OpenaiResponses);
-        assert_eq!(profile.models, vec!["gpt-5.6-sol".to_string()]);
+        assert_eq!(profile.model, "gpt-6-astra");
+        assert_eq!(profile.models, vec!["gpt-6-astra".to_string()]);
         assert_eq!(profile.context_window, Some(1_000_000));
-        assert_eq!(profile.image_input_models, vec!["gpt-5.6-sol"]);
+        assert_eq!(profile.image_input_models, vec!["gpt-6-astra"]);
     }
 }

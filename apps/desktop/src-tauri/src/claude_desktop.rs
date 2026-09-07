@@ -236,8 +236,8 @@ fn gateway_profile(context_window: u64) -> Value {
         "inferenceProvider": "gateway",
         "inferenceModels": [
             model("claude-haiku-4-5", "gpt-5.6-luna"),
-            model("claude-sonnet-5", "gpt-5.6-sol"),
-            model("claude-opus-5", "gpt-5.6-sol")
+            model("claude-sonnet-5", crate::providers::DEFAULT_OFFICIAL_MODEL),
+            model("claude-opus-5", crate::providers::DEFAULT_OFFICIAL_MODEL)
         ]
     })
 }
@@ -282,7 +282,7 @@ mod tests {
         assert_eq!(profile["inferenceGatewayApiKey"], "PROXY_MANAGED");
         assert_eq!(
             profile["inferenceModels"][1]["labelOverride"],
-            "gpt-5.6-sol"
+            "gpt-6-astra"
         );
         assert!(profile["inferenceModels"]
             .as_array()

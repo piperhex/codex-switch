@@ -5,7 +5,8 @@
         upstream.model.clear();
         upstream.models.clear();
         let upstream = normalize_provider_profile(upstream).unwrap();
-        assert_eq!(upstream.models, vec![DEFAULT_OFFICIAL_MODEL]);
+        assert_eq!(upstream.model, "gpt-6-astra");
+        assert_eq!(upstream.models, vec!["gpt-6-astra"]);
 
         let crate::codex_runtime::ModelRefreshSource::Upstream { selected_model } =
             provider_model_refresh_request(&test_paths(), &upstream)
@@ -13,7 +14,7 @@
             panic!("Upstream Providers must load their live model catalog");
         };
 
-        assert_eq!(selected_model, DEFAULT_OFFICIAL_MODEL);
+        assert_eq!(selected_model, "gpt-6-astra");
     }
 
     #[test]

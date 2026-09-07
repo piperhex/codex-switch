@@ -59,7 +59,7 @@ describe('mobile quota consumption', () => {
     expect(headers.get('session-id')).toBe('10000000-0000-4000-8000-000000000001');
     expect(request.method).toBe('POST');
     expect(JSON.parse(request.body as string)).toEqual(expect.objectContaining({
-      model: 'gpt-5.6-sol',
+      model: 'gpt-6-astra',
       stream: true,
       input: expect.arrayContaining([
         expect.objectContaining({ role: 'user' }),
