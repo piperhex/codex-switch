@@ -235,10 +235,13 @@ pub(crate) fn reasoning_effort_profile_for_model(
     if !normalized.starts_with("gpt-") {
         return ReasoningEffortProfile::Standard;
     }
-    if normalized.starts_with("gpt-5.6-sol") || normalized.starts_with("gpt-5.6-terra") {
+    if normalized.starts_with("gpt-5.6-sol")
+        || normalized.starts_with("gpt-5.6-terra")
+        || normalized.starts_with("gpt-6-astra")
+    {
         return ReasoningEffortProfile::OpenAiUltra;
     }
-    if normalized.starts_with("gpt-5.6") || normalized.starts_with("gpt-6-astra") {
+    if normalized.starts_with("gpt-5.6") {
         return ReasoningEffortProfile::OpenAiMax;
     }
     ReasoningEffortProfile::OpenAi

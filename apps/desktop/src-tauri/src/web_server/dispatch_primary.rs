@@ -121,8 +121,10 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
             )))
         }
         "fetch_relay_models" => serialize(block_on(crate::provider_models::fetch_relay_models(
+            app,
             argument(&args, "baseUrl")?,
             argument(&args, "apiKey")?,
+            argument(&args, "providerId")?,
         ))),
         "fetch_deepseek_models" => serialize(block_on(crate::providers::fetch_deepseek_models(
             app,

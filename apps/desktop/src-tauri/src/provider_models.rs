@@ -2,19 +2,68 @@ use std::{io::Read, time::Duration};
 
 use reqwest::blocking::Client;
 use serde_json::Value;
+use tauri::Runtime;
 use url::Url;
+
+use crate::{models::ProviderProfile, providers::read_provider, storage::resolve_paths};
 
 const MAX_MODEL_RESPONSE_BYTES: u64 = 1024 * 1024;
 const MODEL_QUERY_TIMEOUT: Duration = Duration::from_secs(15);
 
 #[tauri::command]
-pub(crate) async fn fetch_relay_models(
+pub(crate) async fn fetch_relay_models<R: Runtime + 'static>(
+    app: tauri::AppHandle<R>,
     base_url: String,
     api_key: String,
+    provider_id: Option<String>,
 ) -> Result<Vec<String>, String> {
-    tauri::async_runtime::spawn_blocking(move || fetch_relay_models_blocking(&base_url, &api_key))
-        .await
-        .map_err(|error| format!("Relay model query task failed: {error}"))?
+    tauri::async_runtime::spawn_blocking(move || {
+        let token = required_api_key(&app, &base_url, &api_key, provider_id.as_deref())?;
+        fetch_relay_models_blocking(&base_url, &token)
+    })
+    .await
+    .map_err(|_| "Could not load models. Please try again".to_string())?
+}
+
+fn required_api_key<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    base_url: &str,
+    api_key: &str,
+    provider_id: Option<&str>,
+) -> Result<String, String> {
+    if !api_key.trim().is_empty() {
+        return Ok(api_key.trim().to_string());
+    }
+    if let Some(id) = provider_id {
+        let paths = resolve_paths(app).map_err(|_| "Saved provider could not be loaded")?;
+        let provider =
+            read_provider(&paths, id).map_err(|_| "Saved provider could not be loaded")?;
+        if let Some(token) = reusable_api_key(&provider, base_url) {
+            return Ok(token);
+        }
+    }
+    Err("Enter the API key before loading models".to_string())
+}
+
+fn reusable_api_key(provider: &ProviderProfile, base_url: &str) -> Option<String> {
+    // Reuse credentials only for the saved endpoint, including its API path.
+    let saved_url = normalized_relay_models_url(&provider.base_url)?;
+    let requested_url = relay_models_url(base_url).ok()?;
+    (saved_url == requested_url)
+        .then(|| provider.api_key.trim().to_string())
+        .filter(|key| !key.is_empty())
+}
+
+fn normalized_relay_models_url(base_url: &str) -> Option<Url> {
+    let mut url = relay_models_url(base_url).ok()?;
+    let path = url.path().strip_suffix("/models")?.trim_end_matches('/');
+    let root = if path.to_ascii_lowercase().ends_with("/v1") {
+        &path[..path.len() - "/v1".len()]
+    } else {
+        path
+    };
+    url.set_path(&format!("{root}/v1/models"));
+    Some(url)
 }
 
 pub(crate) fn fetch_relay_models_blocking(
@@ -114,6 +163,39 @@ mod tests {
     use super::*;
     use serde_json::json;
     use tiny_http::{Header, Response, Server};
+
+    fn saved_provider() -> ProviderProfile {
+        serde_json::from_value(json!({
+            "id": "relay-test", "name": "Relay", "baseUrl": "https://relay.example.com/api/v1/",
+            "apiKey": "sk-saved-test", "model": "gpt-6-astra", "apiFormat": "openaiResponses"
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn reuses_saved_credentials_only_for_the_same_relay_endpoint() {
+        let mut provider = saved_provider();
+        assert_eq!(
+            reusable_api_key(&provider, "https://relay.example.com/api/v1").as_deref(),
+            Some("sk-saved-test")
+        );
+        for url in [
+            "https://other.example.com/api/v1",
+            "http://relay.example.com/api/v1",
+            "https://relay.example.com:444/api/v1",
+            "https://relay.example.com/other/v1",
+            "https://relay.example.com/api",
+        ] {
+            assert!(reusable_api_key(&provider, url).is_none());
+        }
+        provider.base_url = "https://relay.example.com/api".to_string();
+        assert_eq!(
+            reusable_api_key(&provider, "https://relay.example.com/api/v1").as_deref(),
+            Some("sk-saved-test")
+        );
+        provider.api_key.clear();
+        assert!(reusable_api_key(&provider, &provider.base_url).is_none());
+    }
 
     #[test]
     fn builds_models_url_from_openai_compatible_base_url() {

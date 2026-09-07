@@ -275,7 +275,7 @@
     fn gpt_reasoning_profiles_match_supported_model_families_case_insensitively() {
         assert_eq!(
             reasoning_effort_profile_for_model("GPT-6-ASTRA", ReasoningEffortProfile::Standard),
-            ReasoningEffortProfile::OpenAiMax
+            ReasoningEffortProfile::OpenAiUltra
         );
         assert_eq!(
             reasoning_effort_profile_for_model("gpt-5.6-luna", ReasoningEffortProfile::Standard),
@@ -327,7 +327,7 @@
 
         assert_eq!(
             efforts(0),
-            vec!["low", "medium", "high", "xhigh", "max"]
+            vec!["low", "medium", "high", "xhigh", "max", "ultra"]
         );
         assert_eq!(
             efforts(1),

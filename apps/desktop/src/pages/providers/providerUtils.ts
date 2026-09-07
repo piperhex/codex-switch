@@ -127,7 +127,7 @@ export function defaultReasoningEfforts(model: string): ReasoningEffort[] {
   if (normalized.startsWith("gpt-5.6") || normalized.startsWith("gpt-6-astra")) {
     efforts.push("max");
   }
-  if (normalized.startsWith("gpt-5.6-sol") || normalized.startsWith("gpt-5.6-terra")) {
+  if (["gpt-5.6-sol", "gpt-5.6-terra", "gpt-6-astra"].some((prefix) => normalized.startsWith(prefix))) {
     efforts.push("ultra");
   }
   return efforts;

@@ -81,7 +81,9 @@ export function ProviderFormFields({
     <ProviderFastModeSupportControl supportsFastMode={supportsFastMode} saving={saving}
       onChange={onSupportsFastModeChange} t={t} />
     <RelayModelPicker baseUrl={relayApiUrl(baseUrl)} apiKey={apiKey}
-      enabled={Boolean(baseUrl.trim() && apiKey.trim())} disabled={saving}
+      providerId={provider?.hasApiKey && relayApiUrl(provider.baseUrl) === relayApiUrl(baseUrl)
+        ? provider.id : undefined}
+      enabled={Boolean(baseUrl.trim())} disabled={saving}
       modelConfigs={modelConfigs} activeModel={activeModel}
       onModelConfigsChange={onModelConfigsChange} onActiveModelChange={onActiveModelChange} t={t} />
     <ProviderBalanceSettings {...balanceSettings} t={t} />

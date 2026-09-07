@@ -17,6 +17,7 @@ import {
 interface RelayModelPickerProps {
   baseUrl: string;
   apiKey: string;
+  providerId?: string;
   enabled: boolean;
   disabled: boolean;
   modelConfigs: ModelReasoningConfig[];
@@ -31,6 +32,7 @@ const AUTO_FETCH_DELAY_MS = 800;
 export function RelayModelPicker({
   baseUrl,
   apiKey,
+  providerId,
   enabled,
   disabled,
   modelConfigs,
@@ -43,19 +45,27 @@ export function RelayModelPicker({
   const [error, setError] = useState("");
   const [loaded, setLoaded] = useState(false);
   const requestId = useRef(0);
-  const canFetch = enabled && Boolean(baseUrl.trim() && apiKey.trim());
+  const pendingRequest = useRef<number | null>(null);
+  const autoFetchTimer = useRef<number>();
+  const selection = useRef({ modelConfigs, activeModel });
+  selection.current = { modelConfigs, activeModel };
+  const canFetch = enabled && Boolean(baseUrl.trim() && (apiKey.trim() || providerId));
 
   const loadModels = async () => {
+    if (disabled || pendingRequest.current !== null) return;
+    window.clearTimeout(autoFetchTimer.current);
     if (!canFetch) {
       setError(t("providers.form.modelsNeedConnection"));
       return;
     }
     const currentRequestId = ++requestId.current;
+    pendingRequest.current = currentRequestId;
     setLoading(true);
     setError("");
     try {
-      const latest = await fetchRelayModels(baseUrl, apiKey);
+      const latest = await fetchRelayModels(baseUrl, apiKey, providerId);
       if (currentRequestId !== requestId.current) return;
+      const { modelConfigs, activeModel } = selection.current;
       onModelConfigsChange(modelReasoningConfigs(latest, {
         reasoningEfforts: modelReasoningEfforts(modelConfigs),
         contextWindows: modelContextWindows(modelConfigs),
@@ -73,23 +83,28 @@ export function RelayModelPicker({
       setError(t("providers.form.modelsFetchFailed"));
       setLoaded(false);
     } finally {
+      if (pendingRequest.current === currentRequestId) pendingRequest.current = null;
       if (currentRequestId === requestId.current) setLoading(false);
     }
   };
 
   useEffect(() => {
     requestId.current += 1;
+    pendingRequest.current = null;
     setLoading(false);
-    if (!canFetch) {
-      setError("");
-      setLoaded(false);
-      return;
+    setError("");
+    setLoaded(false);
+    // Opening an existing provider must leave its saved model list intact until refresh is requested.
+    if (canFetch && apiKey.trim() && !disabled) {
+      autoFetchTimer.current = window.setTimeout(() => void loadModels(), AUTO_FETCH_DELAY_MS);
     }
-    const timer = window.setTimeout(() => void loadModels(), AUTO_FETCH_DELAY_MS);
-    return () => window.clearTimeout(timer);
+    return () => {
+      window.clearTimeout(autoFetchTimer.current);
+      requestId.current += 1;
+    };
     // Fetch only when the connection fields change; selection callbacks must not retrigger discovery.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [baseUrl, apiKey, enabled]);
+  }, [baseUrl, apiKey, providerId, enabled, disabled]);
 
   const updateModels = (configs: ModelReasoningConfig[]) => {
     onModelConfigsChange(configs);
@@ -100,7 +115,7 @@ export function RelayModelPicker({
     ? <small className="provider-form-error">{error}</small>
     : <small>{loaded
       ? t("providers.form.modelsUpdated", { count: modelConfigs.length })
-      : t("providers.form.modelsAutoHint")}</small>;
+      : t(providerId ? "providers.form.modelsRefreshHint" : "providers.form.modelsAutoHint")}</small>;
 
   return <>
     <div className="provider-form-label-row">
@@ -116,7 +131,7 @@ export function RelayModelPicker({
     {status}
     <label htmlFor="relay-active-model">{t("providers.form.activeModel")}</label>
     <Select id="relay-active-model" value={activeModel || undefined}
-      disabled={disabled || !modelConfigs.length}
+      disabled={disabled || loading || !modelConfigs.length}
       options={modelOptions(modelConfigs.map(({ model }) => model.trim()).filter(Boolean))}
       onChange={onActiveModelChange} />
   </>;
