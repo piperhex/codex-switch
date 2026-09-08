@@ -1,11 +1,12 @@
 import { memo, useEffect, useRef, useState } from "react";
 import { Button, Spin } from "antd";
 import { Check, Copy, Terminal } from "lucide-react";
-import Markdown from "react-markdown";
+import Markdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import type { Content, Conversation, Item } from "./types";
 import { ActivityRow } from "./ActivityRow";
+import { useStreamingText } from "./useStreamingText";
 import styles from "./styles.module.less";
 
 const TOOL_LABELS: Record<string, string> = { fileChange: "文件修改",
@@ -27,16 +28,29 @@ function CopyButton({ text }: { text: string }) {
       .then(() => setCopied(true)).catch(() => setCopied(false))} />;
 }
 
-function RichText({ text }: { text: string }) {
-  return <div className={styles.markdown}><Markdown remarkPlugins={[remarkGfm]} skipHtml components={{
-    a: ({ href, children }) => <a href={href} onClick={(event) => {
-      event.preventDefault();
-      if (href && /^https?:\/\//i.test(href)) void openUrl(href);
-    }}>{children}</a>,
-    // Do not fetch remote tracking images embedded in generated Markdown.
-    img: ({ alt }) => <span>[图片{alt ? `：${alt}` : ""}]</span>,
-    pre: ({ children }) => <pre>{children}</pre>,
-  }}>{text}</Markdown></div>;
+const MARKDOWN_COMPONENTS: Components = {
+  a: ({ href, children }) => <a href={href} onClick={(event) => {
+    event.preventDefault();
+    if (href && /^https?:\/\//i.test(href)) void openUrl(href);
+  }}>{children}</a>,
+  // Do not fetch remote tracking images embedded in generated Markdown.
+  img: ({ alt }) => <span>[图片{alt ? `：${alt}` : ""}]</span>,
+  pre: ({ children }) => <pre>{children}</pre>,
+};
+const REMARK_PLUGINS = [remarkGfm];
+
+const RichText = memo(function RichText({ text }: { text: string }) {
+  return <div className={styles.markdown}>
+    <Markdown remarkPlugins={REMARK_PLUGINS} skipHtml components={MARKDOWN_COMPONENTS}>{text}</Markdown>
+  </div>;
+});
+
+function AgentMessage({ text, streaming }: { text: string; streaming: boolean }) {
+  const visible = useStreamingText(text, streaming);
+  return <article className={styles.agentMessage}>
+    <div className={styles.agentLabel}><Terminal size={15} /> Codex</div>
+    <RichText text={visible} /><CopyButton text={text} />
+  </article>;
 }
 
 function toolText(item: Item) {
@@ -51,7 +65,7 @@ function toolText(item: Item) {
   return item.text ?? item.query ?? JSON.stringify(item.result ?? item.arguments ?? {}, null, 2);
 }
 
-const Message = memo(function Message({ item }: { item: Item }) {
+const Message = memo(function Message({ item, streaming }: { item: Item; streaming: boolean }) {
   if (item.type === "userMessage") {
     const parts = (item.content ?? []) as Content[];
     const text = parts.filter((part) => part.type === "text").map((part) => part.text).join("\n");
@@ -61,10 +75,7 @@ const Message = memo(function Message({ item }: { item: Item }) {
       <div>{text}</div><CopyButton text={text} />
     </article>;
   }
-  if (item.type === "agentMessage") return <article className={styles.agentMessage}>
-    <div className={styles.agentLabel}><Terminal size={15} /> Codex</div>
-    <RichText text={item.text ?? ""} /><CopyButton text={item.text ?? ""} />
-  </article>;
+  if (item.type === "agentMessage") return <AgentMessage text={item.text ?? ""} streaming={streaming} />;
   const text = toolText(item);
   if (item.type === "reasoning" && !text.trim()) return null;
   if (item.type === "reasoning" || item.type === "commandExecution") return <ActivityRow item={item} text={text} />;
@@ -103,7 +114,7 @@ export function Messages({ value, selected }: { value?: Conversation; selected: 
       </div>}
       {selected && !value && <div className={styles.listEmpty}><Spin /><p>正在读取对话…</p></div>}
       {value?.turns.map((turn) => <div key={turn.id} className={styles.turn}>
-        {turn.items.map((item) => <Message key={item.id} item={item} />)}
+        {turn.items.map((item) => <Message key={item.id} item={item} streaming={value.activeTurn === turn.id} />)}
         {turn.status === "interrupted" && <p className={styles.muted}>已停止生成</p>}
         {turn.status === "failed" && <p className={styles.turnError}>本次回复未完成，可以继续发送消息重试。</p>}
       </div>)}

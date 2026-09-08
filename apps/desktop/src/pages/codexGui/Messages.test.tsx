@@ -57,10 +57,43 @@ beforeEach(async () => {
 afterEach(async () => {
   await act(async () => root.unmount());
   controller.dispose();
+  vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
   if (originalScrollTo) Object.defineProperty(HTMLElement.prototype, "scrollTo", originalScrollTo);
   else Reflect.deleteProperty(HTMLElement.prototype, "scrollTo");
+});
+
+it("renders deltas between arrivals, preserves code blocks, and flushes when stopped", async () => {
+  vi.useFakeTimers();
+  vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) =>
+    window.setTimeout(() => callback(performance.now()), 16));
+  vi.stubGlobal("cancelAnimationFrame", (id: number) => window.clearTimeout(id));
+  vi.spyOn(document, "hidden", "get").mockReturnValue(false);
+  const params = { threadId: thread.id, turnId: "live", itemId: "reply" };
+  await act(async () => {
+    receive({ method: "turn/started", params: { threadId: thread.id,
+      turn: { id: "live", status: "inProgress", items: [] } } });
+    receive({ method: "item/started", params: { ...params,
+      item: { id: "reply", type: "agentMessage", text: "```text\n开始\n" } } });
+  });
+  const codeBlock = container.querySelector("pre");
+  expect(codeBlock?.textContent).toContain("开始");
+  const delta = "连续输出的文字".repeat(20);
+  await act(async () => receive({ method: "item/agentMessage/delta", params: { ...params, delta } }));
+  await act(async () => { vi.advanceTimersByTime(32); });
+  await act(async () => { vi.advanceTimersByTime(32); });
+  const intermediate = codeBlock!.textContent!;
+  expect(intermediate.length).toBeGreaterThan("开始\n".length);
+  expect(intermediate).not.toContain(delta);
+  expect(container.querySelector("pre")).toBe(codeBlock);
+  await act(async () => { vi.advanceTimersByTime(32); });
+  expect(codeBlock!.textContent!.length).toBeGreaterThan(intermediate.length);
+  await act(async () => receive({ method: "turn/completed", params: { threadId: thread.id,
+    turn: { id: "live", status: "interrupted", items: [] } } }));
+  expect(codeBlock!.textContent).toContain(delta);
+  expect(container.textContent).toContain("已停止生成");
+  expect(container.textContent).not.toContain("Codex 正在处理");
 });
 
 function expectHistory() {
