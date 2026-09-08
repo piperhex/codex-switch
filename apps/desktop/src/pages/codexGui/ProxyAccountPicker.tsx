@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Input, Popover, Spin } from "antd";
 import { Check, ChevronsUpDown, Search, Server, UserRound } from "lucide-react";
 import type { Account, AggregateApi, Provider } from "../../types";
+import { ProxyAccountDetails } from "./ProxyAccountDetails";
 import styles from "./ProxyAccountPicker.module.less";
 
 export interface ProxyAccountPickerProps {
@@ -16,7 +17,9 @@ export interface ProxyAccountPickerProps {
   onSwitchProvider: (id: string) => Promise<boolean>;
 }
 
-type Choice = { id: string; name: string; detail: string; selected: boolean; disabled?: boolean };
+type Choice = {
+  id: string; name: string; detail: string; selected: boolean; disabled?: boolean; usage?: Account["usage"];
+};
 
 function AccountGroup({ title, choices, onSelect, disabled }: {
   title: string; choices: Choice[]; onSelect: (id: string) => void; disabled: boolean;
@@ -27,7 +30,12 @@ function AccountGroup({ title, choices, onSelect, disabled }: {
       className={`${styles.option} ${choice.selected ? styles.selected : ""}`}
       aria-pressed={choice.selected} disabled={disabled || choice.disabled}
       onClick={() => { if (!choice.selected) onSelect(choice.id); }}>
-      <span><span>{choice.name}</span>{choice.detail && <small>{choice.detail}</small>}</span>
+      <span>
+        <span>{choice.name}</span>
+        {choice.usage ? <ProxyAccountDetails plan={choice.detail} usage={choice.usage} />
+          : choice.detail && <small>{choice.detail}</small>}
+        {choice.disabled && <small>此账号暂不支持代理</small>}
+      </span>
       {choice.selected && <Check size={15} aria-label="当前使用" />}
     </button>) : <p className={styles.hint}>暂无匹配项</p>}
   </section>;
@@ -52,7 +60,7 @@ export function ProxyAccountPicker(props: ProxyAccountPickerProps) {
   // `official` describes account-pool provenance, not whether the account can use the official API.
   const accounts = props.accounts.map((entry) => ({
     id: entry.id, name: entry.email,
-    detail: entry.localProxyCompatible ? entry.note || entry.plan : "此账号暂不支持代理",
+    detail: entry.plan, usage: entry.usage,
     selected: !thirdParty && entry.active, disabled: !entry.localProxyCompatible,
   })).filter(matches);
   const providers = props.providers.filter((entry) => entry.kind === "custom").map((entry) => ({

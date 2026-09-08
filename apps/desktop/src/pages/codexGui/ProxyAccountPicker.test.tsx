@@ -6,6 +6,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { Account, Provider } from "../../types";
 import { ProxyAccountPicker, type ProxyAccountPickerProps } from "./ProxyAccountPicker";
 import { useUsageStatus } from "./useUsageStatus";
+import detailsStyles from "./ProxyAccountDetails.module.less";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 const account: Account = {
@@ -104,11 +105,50 @@ it("keeps usage polling and the open list responsive while a switch is pending",
   expect(invoke).toHaveBeenCalledTimes(6);
   expect(props.onSwitchProvider).toHaveBeenCalledOnce();
   expect(trigger().getAttribute("aria-expanded")).toBe("true");
+  props.accounts = [{ ...account, usage: { primary: { usedPercent: 75, remainingPercent: 25 } } }];
+  await render();
+  expect(option(account.email).textContent).toContain("主25%");
   await act(async () => {
     document.querySelector("input")!.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
   });
   expect(trigger().getAttribute("aria-expanded")).toBe("false");
   await act(async () => finish(true));
+});
+
+it.each([
+  { remaining: 0, tone: "danger" },
+  { remaining: 15, tone: "danger" },
+  { remaining: 16, tone: "warning" },
+  { remaining: 35, tone: "warning" },
+  { remaining: 36, tone: "good" },
+  { remaining: 100, tone: "good" },
+])("shows plan and remaining quotas with the account-table tone at $remaining%", async ({ remaining, tone }) => {
+  props.accounts = [{ ...account, usage: {
+    primary: { usedPercent: 100 - remaining, remainingPercent: remaining },
+    secondary: { usedPercent: 72.6, remainingPercent: 27.4 },
+  } }];
+  await render();
+  await click(trigger());
+  const item = option(account.email);
+  expect(item.textContent).toContain(account.plan);
+  expect(item.textContent).not.toContain(account.note);
+  const primary = item.querySelector(`[aria-label="主用量剩余 ${remaining}%"] strong`);
+  expect(primary?.classList.contains(detailsStyles[tone])).toBe(true);
+  const secondary = item.querySelector('[aria-label="次用量剩余 27%"] strong');
+  expect(secondary?.classList.contains(detailsStyles.warning)).toBe(true);
+  expect(option(provider.name).textContent).toContain(provider.model);
+  expect(option(provider.name).textContent).not.toContain("主");
+});
+
+it("shows neutral placeholders for unavailable quotas", async () => {
+  props.accounts = [{ ...account, usage: { primary: null,
+    secondary: { usedPercent: Number.NaN, remainingPercent: Number.NaN } } }];
+  await render();
+  await click(trigger());
+  const item = option(account.email);
+  expect(item.textContent).toContain("主—次—");
+  expect(item.querySelectorAll(`.${detailsStyles.quota} strong[class]`)).toHaveLength(0);
+  expect(item.textContent).not.toContain(account.note);
 });
 
 it("preserves selection on failure and allows retry without exposing internal errors", async () => {
