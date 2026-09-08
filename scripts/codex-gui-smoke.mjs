@@ -18,8 +18,13 @@ const projectless = join(root, "dev.codex.switch", "codex-gui-workspaces", "proj
 await Promise.all([mkdir(home, { recursive: true }), mkdir(project), mkdir(projectless, { recursive: true })]);
 let delayed = false;
 let responseCount = 0;
+const imageUrl = "data:image/png;base64,"
+  + (await readFile(new URL("../apps/desktop/src-tauri/icons/32x32.png", import.meta.url))).toString("base64");
+const requestBodies = [];
 const server = createServer((request, response) => {
-  request.resume();
+  let body = "";
+  request.on("data", (chunk) => { body += chunk; });
+  request.on("end", () => requestBodies.push(JSON.parse(body)));
   if (!request.url?.includes("/responses")) { response.writeHead(404); response.end(); return; }
   responseCount += 1;
   response.writeHead(200, { "Content-Type": "text/event-stream" });
@@ -111,12 +116,15 @@ try {
   assert.ok(Array.isArray(models.data));
   const { thread } = await client.rpc("thread/start", { cwd: project, sandbox: "read-only", approvalPolicy: "on-request" });
   const { turn } = await client.rpc("turn/start", { threadId: thread.id,
-    input: [{ type: "text", text: "Say hello", text_elements: [] }] });
+    input: [{ type: "image", url: imageUrl }] });
   await client.waitFor("item/agentMessage/delta");
   const during = await client.rpc("thread/list", { limit: 50, archived: false, modelProviders: [], sortKey: "updated_at" });
   assert.ok(Array.isArray(during.data));
   const done = await client.waitFor("turn/completed", (params) => params.turn.id === turn.id);
   assert.equal(done.params.turn.status, "completed");
+  assert.ok(requestBodies.some((body) => body.input?.some((item) => item.content?.some((part) =>
+    part.type === "input_image" && /^data:image\/(png|jpeg);base64,/.test(part.image_url)))),
+  "Pasted image reaches the model request");
   const read = await client.rpc("thread/read", { threadId: thread.id, includeTurns: true });
   const listed = await client.rpc("thread/list", { archived: false, modelProviders: [] });
   assert.ok(listed.data.some((entry) => entry.id === thread.id));
@@ -155,7 +163,7 @@ try {
   assert.ok(entries.includes("sessions"));
   assert.ok(entries.some((entry) => /^state_.*\.sqlite$/.test(entry)));
   assert.equal((await readFile(join(home, "config.toml"), "utf8")).includes("gui_fixture"), true);
-  console.log("PASS: official CLI handshake, streaming, history, projectless start/continue, restart/resume, archive/restore, interrupt, isolated storage");
+  console.log("PASS: official CLI handshake, image-only input, streaming, history, projectless start/continue, restart/resume, archive/restore, interrupt, isolated storage");
 } catch (error) {
   console.error(error);
   process.exitCode = 1;

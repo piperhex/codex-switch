@@ -1,10 +1,10 @@
-import { useRef, useState } from "react";
-import { Button, Input, Select, Tag, Tooltip } from "antd";
-import { ArrowUp, ImagePlus, ShieldCheck, Square, X } from "lucide-react";
-import { open } from "@tauri-apps/plugin-dialog";
+import { useRef } from "react";
+import { Button, Input, Select, Tooltip } from "antd";
+import { ArrowUp, ImagePlus, ShieldCheck, Square } from "lucide-react";
 import type { GuiController } from "./controller";
 import type { AccessMode, GuiState } from "./types";
-import { projectName } from "./ThreadSidebar";
+import { ImageAttachments } from "./ImageAttachments";
+import { IMAGE_TYPES, MAX_IMAGES, useComposerDraft } from "./useComposerDraft";
 import { ModelPicker } from "./ModelPicker";
 import { UsageStatus } from "./UsageStatus";
 import { ProjectPicker } from "./ProjectPicker";
@@ -16,48 +16,34 @@ const ACCESS_OPTIONS = [{ value: "read-only", label: "只读" }, { value: "works
 export function Composer({ state, controller, active }: {
   state: GuiState; controller: GuiController; active: boolean;
 }) {
-  const [drafts, setDrafts] = useState<Record<string, { text: string; images: string[] }>>({});
   const composing = useRef(false);
+  const fileInput = useRef<HTMLInputElement>(null);
   const key = state.selected ?? "new";
-  const draft = drafts[key] ?? { text: "", images: [] };
-  const edit = (patch: Partial<typeof draft>) => setDrafts((values) => ({ ...values, [key]: { ...draft, ...patch } }));
+  const { draft, reading, editText, removeImage, addImages, paste, send: sendDraft } = useComposerDraft(key, controller);
   const current = state.selected ? state.conversations[state.selected] : undefined;
   const project = state.selected
     ? state.projectOverrides[state.selected] ?? current?.thread.cwd ?? "" : state.settings.cwd;
   const running = Boolean(current?.activeTurn);
-  const canSend = state.connection === "ready" && !state.sending && !state.archived
+  const disabled = state.connection !== "ready" || state.sending || state.archived;
+  const canSend = !disabled && !reading
     && Boolean(draft.text.trim() || draft.images.length);
   const send = async () => {
     if (!canSend || running) return;
-    if (await controller.send(draft.text, draft.images)) {
-      setDrafts((values) => ({ ...values, [key]: { text: "", images: [] } }));
-    } else {
-      const selected = controller.getSnapshot().selected ?? "new";
-      setDrafts((values) => ({ ...values, [selected]: draft }));
-    }
-  };
-  const attach = async () => {
-    try {
-      const paths = await open({ multiple: true, title: "添加图片",
-        filters: [{ name: "图片", extensions: ["png", "jpg", "jpeg", "webp", "gif"] }] });
-      if (paths) {
-        edit({ images: [...new Set([...draft.images, ...(Array.isArray(paths) ? paths : [paths])])].slice(0, 8) });
-      }
-    } catch (error) { controller.report(error); }
+    await sendDraft();
   };
   return <div className={styles.composerWrap}>
     <ProjectPicker value={project} projects={state.projects} disabled={running || state.sending || state.archived}
       onChange={controller.setProject} onError={controller.report} />
     <div className={styles.composer}>
-      {draft.images.length > 0 && <div className={styles.attachments}>{draft.images.map((path) => <Tag key={path}
-        closable closeIcon={<X size={12} />}
-        onClose={() => edit({ images: draft.images.filter((entry) => entry !== path) })}>
-        {projectName(path)}
-      </Tag>)}</div>}
+      <ImageAttachments images={draft.images} disabled={state.sending} onRemove={removeImage} />
+      <input ref={fileInput} type="file" accept={IMAGE_TYPES.join(",")} multiple hidden disabled={disabled}
+        aria-label="选择图片" onChange={(event) => {
+          addImages(Array.from(event.target.files ?? [])); event.target.value = "";
+        }} />
       <Input.TextArea value={draft.text} autoSize={{ minRows: 3, maxRows: 9 }} maxLength={128000}
         placeholder={state.archived ? "恢复对话后即可继续" : "描述任务，或提出问题…"} aria-label="消息"
-        disabled={state.connection !== "ready" || state.archived}
-        onChange={(event) => edit({ text: event.target.value })}
+        disabled={disabled} onPaste={paste}
+        onChange={(event) => editText(event.target.value)}
         onCompositionStart={() => { composing.current = true; }} onCompositionEnd={() => { composing.current = false; }}
         onKeyDown={(event) => {
           if (event.key === "Enter" && !event.shiftKey && !composing.current && !event.nativeEvent.isComposing) {
@@ -66,8 +52,8 @@ export function Composer({ state, controller, active }: {
         }} />
       <div className={styles.composerControls}>
         <Tooltip title="添加图片" styles={{ root: { maxWidth: 400 } }}>
-          <Button type="text" icon={<ImagePlus size={18} />} aria-label="添加图片" disabled={draft.images.length >= 8}
-            onClick={() => void attach()} />
+          <Button type="text" icon={<ImagePlus size={18} />} aria-label="添加图片"
+            disabled={disabled || draft.images.length >= MAX_IMAGES} onClick={() => fileInput.current?.click()} />
         </Tooltip>
         <ShieldCheck size={15} />
         <Select size="small" variant="borderless" aria-label="访问权限"

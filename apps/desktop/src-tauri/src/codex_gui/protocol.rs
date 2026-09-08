@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use super::error::{GuiError, Result};
+use super::images::{self, MAX_IMAGES};
 
 const MAX_PROMPT_BYTES: usize = 256_000;
 const PAGE_SIZE: u32 = 50;
@@ -219,7 +220,7 @@ fn send_params(
     let (text, images) = input;
     if (text.trim().is_empty() && images.is_empty())
         || text.len() > MAX_PROMPT_BYTES
-        || images.len() > 8
+        || images.len() > MAX_IMAGES
     {
         return Err(GuiError::InvalidRequest);
     }
@@ -234,19 +235,7 @@ fn send_params(
     let mut params = thread_params(thread_id)?;
     let mut content = vec![json!({"type": "text", "text": text, "text_elements": []})];
     for image in images {
-        let path = PathBuf::from(&image);
-        let extension = path
-            .extension()
-            .and_then(|value| value.to_str())
-            .unwrap_or_default()
-            .to_lowercase();
-        if !path.is_absolute()
-            || !path.is_file()
-            || !["png", "jpg", "jpeg", "webp", "gif"].contains(&extension.as_str())
-        {
-            return Err(GuiError::InvalidRequest);
-        }
-        content.push(json!({"type": "localImage", "path": image}));
+        content.push(images::input(image)?);
     }
     params["input"] = json!(content);
     params["model"] = json!(options.model);

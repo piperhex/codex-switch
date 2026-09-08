@@ -1,6 +1,7 @@
 mod client;
 mod error;
 mod home;
+mod images;
 mod platform;
 mod protocol;
 pub(crate) mod releases;

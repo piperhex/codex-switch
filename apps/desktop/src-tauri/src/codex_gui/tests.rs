@@ -55,6 +55,38 @@ fn user_input_stays_in_a_structured_turn() {
 }
 
 #[test]
+fn pasted_images_are_sent_inline_even_without_text() {
+    let image = concat!(
+        "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwC",
+        "AAAAC0lEQVR42mP8/x8AAwMCAO+aN1sAAAAASUVORK5CYII="
+    );
+    let (method, params) = request(json!({"operation": "send", "threadId": "thread-1",
+        "text": "", "images": [image]}))
+    .into_rpc()
+    .unwrap();
+    assert_eq!(method, "turn/start");
+    assert_eq!(params["input"][1], json!({"type": "image", "url": image}));
+}
+
+#[test]
+fn invalid_inline_images_and_excess_attachments_are_rejected() {
+    for images in [
+        json!(["data:image/svg+xml;base64,PHN2Zz4="]),
+        json!(["data:image/png;base64,not base64"]),
+        json!(["data:image/png;base64,aGVsbG8="]),
+        json!(["data:image/jpeg;base64,iVBORw0KGgo="]),
+        json!(["data:image/png;base64,"]),
+        json!(["https://example.com/image.png"]),
+        json!(vec!["data:image/png;base64,iVBORw0KGgo="; 9]),
+    ] {
+        assert!(request(json!({"operation": "send", "threadId": "thread-1",
+            "text": "", "images": images}))
+        .into_rpc()
+        .is_err());
+    }
+}
+
+#[test]
 fn approvals_do_not_allow_unoffered_decisions() {
     let event = GuiEvent {
         method: "item/commandExecution/requestApproval".into(),

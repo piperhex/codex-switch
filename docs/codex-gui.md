@@ -5,6 +5,11 @@ Providers (三方模型及中转). It supports project folders, text and image i
 streamed Markdown replies, command output, file diffs, plans, permission approvals, questions, interruption,
 history, search, renaming, pinning, and archiving/restoring conversations.
 
+Paste images directly into the message box with Ctrl+V (Cmd+V on macOS), or use the image button to select files.
+Attachments appear as thumbnails above the text, each with a remove button. A message can contain up to eight
+PNG, JPEG, WebP, or GIF images, at most 20 MB each, and can be sent without text. Failed sends retain the draft
+and its images for retrying; switching conversations keeps each draft separate.
+
 Selecting a project is optional. Hovering a selected folder reveals a removal button on its left; removing
 the selection leaves the actual folder intact and applies to the next message. Project changes are disabled
 while a turn is running. Projectless conversations appear under the “无项目” group.
@@ -77,5 +82,6 @@ cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --test codex_switch
 node scripts/codex-gui-smoke.mjs <downloaded-package>/bin/codex.exe
 ```
 
-The protocol smoke test covers initialization, models, live deltas while listing conversations, persisted
+The protocol smoke test covers initialization, models, image-only input reaching the model request,
+live deltas while listing conversations, persisted
 history, rename, process restart/resume, archive/restore, interruption, and independent on-disk storage.
