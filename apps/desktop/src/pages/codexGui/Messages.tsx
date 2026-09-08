@@ -3,11 +3,11 @@ import { Spin } from "antd";
 import { Terminal } from "lucide-react";
 import Markdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { openUrl } from "@tauri-apps/plugin-opener";
 import type { Conversation, Item } from "./types";
 import { ActivityRow } from "./ActivityRow";
 import { TurnDuration } from "./TurnDuration";
 import { MessageImage } from "./MessageImage";
+import { MessageLink } from "./MessageLink";
 import { CopyButton } from "./CopyButton";
 import { UserMessage } from "./UserMessage";
 import { useStreamingText } from "./useStreamingText";
@@ -19,10 +19,7 @@ const TOOL_LABELS: Record<string, string> = { fileChange: "文件修改",
 const FOLLOW_SCROLL_DISTANCE = 100;
 
 const MARKDOWN_COMPONENTS: Components = {
-  a: ({ href, children }) => <a href={href} onClick={(event) => {
-    event.preventDefault();
-    if (href && /^https?:\/\//i.test(href)) void openUrl(href);
-  }}>{children}</a>,
+  a: ({ href, children }) => <MessageLink href={href}>{children}</MessageLink>,
   img: ({ src, alt, title }) => <MessageImage key={src} src={src} alt={alt} title={title} />,
   pre: ({ children }) => <pre>{children}</pre>,
 };
