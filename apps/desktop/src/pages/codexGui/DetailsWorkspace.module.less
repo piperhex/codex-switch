@@ -1,5 +1,6 @@
 .host { --gui-border: var(--line); --gui-muted: var(--muted); position: relative; display: flex;
   height: 100%; min-height: 0; min-width: 0; color: var(--ink); background: var(--panel); overflow: hidden; }
+:global(:root[data-theme='dark']) .host { --bg: #121416; --green-soft: #1c3430; }
 .conversation { flex: 1; min-width: 0; min-height: 0; height: 100%; }
 .drawer { position: absolute; inset: 0 0 0 auto; display: flex; flex-direction: column; min-width: 0;
   max-width: 100%; background: var(--panel); border-left: 1px solid var(--gui-border); z-index: 25;
