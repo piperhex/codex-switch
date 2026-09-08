@@ -1,6 +1,7 @@
 import { useRef } from "react";
-import { Button, Select, Tooltip } from "antd";
-import { ImagePlus, ShieldCheck } from "lucide-react";
+import { Button, Tooltip } from "antd";
+import { ImagePlus } from "lucide-react";
+import { AccessPicker } from "./AccessPicker";
 import { ComposerSubmit } from "./ComposerSubmit";
 import type { GuiController } from "./controller";
 import type { AccessMode, GuiState } from "./types";
@@ -12,9 +13,6 @@ import { ProjectPicker } from "./ProjectPicker";
 import { SkillInput } from "./SkillInput";
 import { QueuedMessages } from "./QueuedMessages";
 import styles from "./styles.module.less";
-
-const ACCESS_OPTIONS = [{ value: "read-only", label: "只读" }, { value: "workspace-write", label: "项目内编辑" },
-  { value: "danger-full-access", label: "完全访问" }];
 
 export function Composer({ state, controller, active }: {
   state: GuiState; controller: GuiController; active: boolean;
@@ -53,10 +51,7 @@ export function Composer({ state, controller, active }: {
           <Button type="text" icon={<ImagePlus size={18} />} aria-label="添加图片"
             disabled={disabled || draft.images.length >= MAX_IMAGES} onClick={() => fileInput.current?.click()} />
         </Tooltip>
-        <ShieldCheck size={15} />
-        <Select size="small" variant="borderless" aria-label="访问权限"
-          value={state.settings.access} options={ACCESS_OPTIONS.map((option) =>
-            option.value === "workspace-write" && !project ? { ...option, label: "允许编辑" } : option)}
+        <AccessPicker value={state.settings.access}
           disabled={running || state.sending} onChange={(access: AccessMode) => controller.settings({ access })} />
         <div className={styles.modelControls}>
           <UsageStatus active={active} />

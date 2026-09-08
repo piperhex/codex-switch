@@ -1,0 +1,28 @@
+.trigger {
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px;
+  border: 0; border-radius: 999px; background: transparent; color: var(--muted);
+  font: inherit; font-size: 12px; line-height: 20px; cursor: pointer;
+  &:hover, &[aria-expanded="true"] { background: var(--bg); }
+  &:disabled { cursor: default; opacity: .5; }
+}
+.panel { box-sizing: border-box; width: min(400px, calc(100vw - 24px));
+  max-width: 100%; padding: 12px 8px 8px; }
+.heading { padding: 0 8px 7px; color: var(--muted); font-size: 13px; }
+.option {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 9px;
+  border: 0; border-radius: 10px; background: transparent; color: var(--ink);
+  text-align: left; font: inherit; font-size: 14px; line-height: 1.5; cursor: pointer;
+  > svg { flex-shrink: 0; }
+  &:hover { background: var(--bg); }
+  &:disabled { cursor: default; opacity: .5; }
+}
+.copy { flex: 1; min-width: 0; overflow-wrap: anywhere;
+  small { display: block; color: var(--muted); font-size: 12px; line-height: 1.5; } }
+.check { margin-left: auto; }
+.fullAccess { color: #b8860b;
+  .copy small { color: inherit; }
+  &.trigger { background: #d4a01712; }
+  &:hover, &.trigger[aria-expanded="true"] { background: #d4a01720; }
+}
+.trigger:focus-visible, .option:focus-visible { outline: 2px solid currentColor; outline-offset: -2px; }
+:global(:root[data-theme='dark']) .fullAccess { color: #f2c94c; }
