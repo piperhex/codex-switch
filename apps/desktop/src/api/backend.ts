@@ -1744,52 +1744,58 @@ export async function restoreNonProxyConversations(): Promise<DirectConversation
 export async function loadCodexThreads(filters: {
   titleQuery?: string;
   contentQuery?: string;
-} = {}): Promise<CodexThreadEntry[]> {
+} = {}, homeId?: string): Promise<CodexThreadEntry[]> {
   if (!hasLocalBackend) return [];
-  return invoke<CodexThreadEntry[]>("browse_codex_threads", {
+  return invoke<CodexThreadEntry[]>("browse_codex_threads", { homeId,
     titleQuery: filters.titleQuery?.trim() || null,
     contentQuery: filters.contentQuery?.trim() || null,
   });
 }
 
-export async function loadCodexThreadTokens(sessionIds: string[]): Promise<CodexThreadTokenTotals[]> {
+export async function loadCodexThreadTokens(sessionIds: string[], homeId?: string): Promise<CodexThreadTokenTotals[]> {
   if (!hasLocalBackend) return [];
-  return invoke<CodexThreadTokenTotals[]>("measure_codex_thread_tokens", { sessionIds });
+  return invoke<CodexThreadTokenTotals[]>("measure_codex_thread_tokens", { homeId, sessionIds });
 }
 
-export async function moveCodexThreadsToBin(sessionIds: string[]): Promise<CodexThreadMutationReport> {
-  return invoke<CodexThreadMutationReport>("discard_codex_threads", { sessionIds });
+export async function moveCodexThreadsToBin(sessionIds: string[], homeId?: string): Promise<CodexThreadMutationReport> {
+  return invoke<CodexThreadMutationReport>("discard_codex_threads", { homeId, sessionIds });
 }
 
-export async function loadCodexThreadBin(): Promise<CodexThreadBinEntry[]> {
+export async function loadCodexThreadBin(homeId?: string): Promise<CodexThreadBinEntry[]> {
   if (!hasLocalBackend) return [];
-  return invoke<CodexThreadBinEntry[]>("browse_codex_thread_bin");
+  return invoke<CodexThreadBinEntry[]>("browse_codex_thread_bin", { homeId });
 }
 
-export async function restoreCodexThreads(sessionIds: string[]): Promise<CodexThreadMutationReport> {
-  return invoke<CodexThreadMutationReport>("recover_codex_threads", { sessionIds });
+export async function restoreCodexThreads(sessionIds: string[], homeId?: string): Promise<CodexThreadMutationReport> {
+  return invoke<CodexThreadMutationReport>("recover_codex_threads", { homeId, sessionIds });
 }
 
-export async function deleteCodexThreadsForever(sessionIds: string[]): Promise<CodexThreadMutationReport> {
-  return invoke<CodexThreadMutationReport>("purge_codex_threads", { sessionIds });
+export async function deleteCodexThreadsForever(
+  sessionIds: string[], homeId?: string,
+): Promise<CodexThreadMutationReport> {
+  return invoke<CodexThreadMutationReport>("purge_codex_threads", { homeId, sessionIds });
 }
 
-export async function clearCodexThreadBin(): Promise<CodexThreadMutationReport> {
-  return invoke<CodexThreadMutationReport>("empty_codex_thread_bin");
+export async function clearCodexThreadBin(homeId?: string): Promise<CodexThreadMutationReport> {
+  return invoke<CodexThreadMutationReport>("empty_codex_thread_bin", { homeId });
 }
 
-export async function previewCodexThreadExport(sessionIds: string[]): Promise<CodexThreadBundlePreview> {
-  return invoke<CodexThreadBundlePreview>("inspect_codex_thread_export", { sessionIds });
+export async function previewCodexThreadExport(
+  sessionIds: string[], homeId?: string,
+): Promise<CodexThreadBundlePreview> {
+  return invoke<CodexThreadBundlePreview>("inspect_codex_thread_export", { homeId, sessionIds });
 }
 
-export async function saveCodexThreadPackage(sessionIds: string[]): Promise<CodexThreadBundleResult | null> {
+export async function saveCodexThreadPackage(
+  sessionIds: string[], homeId?: string,
+): Promise<CodexThreadBundleResult | null> {
   const exportPath = await save({
     title: "导出 Codex 会话",
     defaultPath: `codex-sessions-${new Date().toISOString().slice(0, 10)}.zip`,
     filters: [{ name: "Codex session package", extensions: ["zip"] }],
   });
   if (!exportPath) return null;
-  return invoke<CodexThreadBundleResult>("pack_codex_threads", { sessionIds, exportPath });
+  return invoke<CodexThreadBundleResult>("pack_codex_threads", { homeId, sessionIds, exportPath });
 }
 
 export async function chooseCodexThreadPackage(): Promise<string | null> {
@@ -1802,41 +1808,41 @@ export async function chooseCodexThreadPackage(): Promise<string | null> {
   return typeof selected === "string" ? selected : null;
 }
 
-export async function previewCodexThreadImport(importPath: string): Promise<CodexThreadBundlePreview> {
-  return invoke<CodexThreadBundlePreview>("inspect_codex_thread_import", { importPath });
+export async function previewCodexThreadImport(importPath: string, homeId?: string): Promise<CodexThreadBundlePreview> {
+  return invoke<CodexThreadBundlePreview>("inspect_codex_thread_import", { homeId, importPath });
 }
 
-export async function importCodexThreads(importPath: string, sessionIds: string[]): Promise<CodexThreadBundleResult> {
-  return invoke<CodexThreadBundleResult>("unpack_codex_threads", { importPath, sessionIds });
+export async function importCodexThreads(
+  importPath: string, sessionIds: string[], homeId?: string,
+): Promise<CodexThreadBundleResult> {
+  return invoke<CodexThreadBundleResult>("unpack_codex_threads", { homeId, importPath, sessionIds });
 }
 
 export function copyWebProxyLanApiKey(): Promise<void> {
   return invoke<void>("copy_web_proxy_lan_api_key");
 }
 
-export async function migrateCodexThreads(sessionIds: string[]): Promise<CodexThreadMigrationReport> {
+export async function migrateCodexThreads(sessionIds: string[], homeId?: string): Promise<CodexThreadMigrationReport> {
   if (!hasLocalBackend) throw new Error("会话迁移需要桌面版 Codex Switch");
-  return invoke<CodexThreadMigrationReport>("migrate_codex_threads", { sessionIds });
+  return invoke<CodexThreadMigrationReport>("migrate_codex_threads", { homeId, sessionIds });
 }
 
 export async function repairCodexThreadVisibility(options: {
   mode: "quick" | "deep";
   sessionIds?: string[] | null;
   dryRun?: boolean;
-}): Promise<CodexThreadVisibilityReport> {
+}, homeId?: string): Promise<CodexThreadVisibilityReport> {
   return invoke<CodexThreadVisibilityReport>("reconcile_codex_thread_visibility", {
-    mode: options.mode,
-    sessionIds: options.sessionIds ?? null,
-    dryRun: options.dryRun ?? false,
+    request: { homeId, mode: options.mode, sessionIds: options.sessionIds ?? null, dryRun: options.dryRun ?? false },
   });
 }
 
-export async function syncCodexThreadIndex(): Promise<CodexThreadVisibilityReport> {
-  return invoke<CodexThreadVisibilityReport>("rebuild_codex_thread_index");
+export async function syncCodexThreadIndex(homeId?: string): Promise<CodexThreadVisibilityReport> {
+  return invoke<CodexThreadVisibilityReport>("rebuild_codex_thread_index", { homeId });
 }
 
-export async function openCodexThreadPath(sessionId: string, folderOnly: boolean): Promise<void> {
-  return invoke<void>("open_codex_thread_file", { sessionId, folderOnly });
+export async function openCodexThreadPath(sessionId: string, folderOnly: boolean, homeId?: string): Promise<void> {
+  return invoke<void>("open_codex_thread_file", { homeId, sessionId, folderOnly });
 }
 
 export async function setLocalProxyAutoSwitch(enabled: boolean): Promise<LocalProxyStatus> {

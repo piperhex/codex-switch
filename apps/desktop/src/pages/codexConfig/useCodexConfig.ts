@@ -52,10 +52,10 @@ export function useCodexConfig(active: boolean, homeKey: string) {
   }, []);
 
   const reload = useCallback(async () => {
-    const success = await run(readCodexConfigDocument, false);
+    const success = await run(() => readCodexConfigDocument(homeKey), false);
     if (success && mounted.current) setReloadKey((key) => key + 1);
     return success;
-  }, [run]);
+  }, [homeKey, run]);
 
   useEffect(() => {
     if (!active || requestedHome.current === homeKey || !hasLocalBackend) return;
@@ -65,8 +65,8 @@ export function useCodexConfig(active: boolean, homeKey: string) {
 
   const commit = useCallback((path: string[], value: ConfigValue | null) => run(async (current) => {
     if (!current) throw new Error("请先重新读取配置。");
-    return patchCodexConfigDocument({ path, value, expectedRevision: current.revision });
-  }, true), [run]);
+    return patchCodexConfigDocument({ path, value, expectedRevision: current.revision }, homeKey);
+  }, true), [homeKey, run]);
 
   const saveContent = useCallback(async (content: string, expectedRevision: string): Promise<string | false> => {
     let savedRevision = expectedRevision;
@@ -75,12 +75,13 @@ export function useCodexConfig(active: boolean, homeKey: string) {
       if (current.revision !== expectedRevision) {
         throw new Error("配置已发生变化，修改内容已保留。请重新读取后再编辑。");
       }
-      const result = current.content === content ? current : await saveCodexConfigDocument(content, expectedRevision);
+      const result = current.content === content
+        ? current : await saveCodexConfigDocument(content, expectedRevision, homeKey);
       savedRevision = result.revision;
       return result;
     }, true);
     return success ? savedRevision : false;
-  }, [run]);
+  }, [homeKey, run]);
 
   return { document, pending, error, loaded, reloadKey, saved, reload, commit, saveContent };
 }

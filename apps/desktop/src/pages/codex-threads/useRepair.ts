@@ -1,3 +1,4 @@
+import { useSelectedCodexHome } from "../../components/CodexHomeScope";
 import { useState } from "react";
 import { repairCodexThreadVisibility } from "../../api/backend";
 import type { CodexThreadVisibilityReport } from "../../types";
@@ -12,6 +13,7 @@ interface RepairOptions {
 }
 
 export function useRepair(options: RepairOptions) {
+  const homeId = useSelectedCodexHome();
   const { selected, text, notify, reportError, refresh } = options;
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"quick" | "deep">("quick");
@@ -27,7 +29,7 @@ export function useRepair(options: RepairOptions) {
     setBusy(true);
     try {
       const sessionIds = scope === "selected" ? [...selected] : null;
-      const result = await repairCodexThreadVisibility({ mode, sessionIds, dryRun });
+      const result = await repairCodexThreadVisibility({ mode, sessionIds, dryRun }, homeId);
       if (dryRun) {
         setPreview(result);
         return;

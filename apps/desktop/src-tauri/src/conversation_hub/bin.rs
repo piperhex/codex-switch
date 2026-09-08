@@ -1,5 +1,5 @@
 pub(crate) fn browse_codex_thread_bin_blocking<R: Runtime>(
-    app: tauri::AppHandle<R>,
+    app: ThreadContext<R>,
 ) -> Result<Vec<BinEntry>, String> {
     let _guard = bin_operation_guard()?;
     let mut grouped = HashMap::<String, BinEntry>::new();
@@ -49,7 +49,7 @@ fn append_index_entry(codex_home: &Path, session_id: &str, entry: &Value) -> Res
 }
 
 pub(crate) fn recover_codex_threads_blocking<R: Runtime>(
-    app: tauri::AppHandle<R>,
+    app: ThreadContext<R>,
     session_ids: Vec<String>,
 ) -> Result<MutationReport, String> {
     let _guard = bin_operation_guard()?;
@@ -57,7 +57,7 @@ pub(crate) fn recover_codex_threads_blocking<R: Runtime>(
     if requested.is_empty() {
         return Err("请至少选择一条待恢复会话".to_string());
     }
-    let codex_home = resolve_paths(&app)?.codex_home;
+    let codex_home = app.paths.codex_home.clone();
     let mut restored = HashSet::new();
     let mut restored_groups = HashSet::new();
     let mut entries = collect_bin_entries(&app)?;
@@ -89,12 +89,12 @@ pub(crate) fn recover_codex_threads_blocking<R: Runtime>(
 }
 
 fn delete_bin_items<R: Runtime>(
-    app: &tauri::AppHandle<R>,
+    app: &ThreadContext<R>,
     requested: Option<&HashSet<String>>,
 ) -> Result<MutationReport, String> {
     let _guard = bin_operation_guard()?;
     let entries = collect_bin_entries(app)?;
-    let codex_home = resolve_paths(app)?.codex_home;
+    let codex_home = app.paths.codex_home.clone();
     let target_ids = entries
         .iter()
         .filter(|item| requested.is_none_or(|values| values.contains(&item.manifest.session_id)))
@@ -104,7 +104,7 @@ fn delete_bin_items<R: Runtime>(
         .into_iter()
         .map(|snapshot| snapshot.session_id)
         .collect::<HashSet<_>>();
-    let paths = resolve_paths(app)?;
+    let paths = app.paths.clone();
     let mut manager_state = crate::storage::read_state(&paths);
     for id in target_ids.difference(&live_ids) {
         manager_state.conversation_account_ids.remove(id);
@@ -131,7 +131,7 @@ fn delete_bin_items<R: Runtime>(
 }
 
 pub(crate) fn purge_codex_threads_blocking<R: Runtime>(
-    app: tauri::AppHandle<R>,
+    app: ThreadContext<R>,
     session_ids: Vec<String>,
 ) -> Result<MutationReport, String> {
     let requested = normalized_ids(session_ids);
@@ -142,7 +142,7 @@ pub(crate) fn purge_codex_threads_blocking<R: Runtime>(
 }
 
 pub(crate) fn empty_codex_thread_bin_blocking<R: Runtime>(
-    app: tauri::AppHandle<R>,
+    app: ThreadContext<R>,
 ) -> Result<MutationReport, String> {
     delete_bin_items(&app, None)
 }

@@ -152,7 +152,7 @@ fn upgrade_legacy_bin_entries(
     Ok(())
 }
 
-fn reconcile_legacy_bin<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<(), String> {
+fn reconcile_legacy_bin<R: Runtime>(app: &ThreadContext<R>) -> Result<(), String> {
     let _guard = bin_operation_guard()?;
     collect_bin_entries(app)?;
     Ok(())

@@ -9,14 +9,18 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
         "record_toast_log" => serialize(block_on(crate::error_logs::record_toast_log(
             argument(&args, "message")?,
         ))),
-        "read_codex_config_document" => serialize(block_on(crate::codex_settings::read_codex_config_document())),
+        "read_codex_config_document" => serialize(block_on(
+            crate::codex_settings::read_codex_config_document(app, argument(&args, "homeId")?),
+        )),
         "validate_codex_config_document" => serialize(block_on(crate::codex_settings::validate_codex_config_document(
             argument(&args, "content")?,
         ))),
         "save_codex_config_document" => serialize(block_on(crate::codex_settings::save_codex_config_document(
+            app, argument(&args, "homeId")?,
             argument(&args, "request")?,
         ))),
         "patch_codex_config_document" => serialize(block_on(crate::codex_settings::patch_codex_config_document(
+            app, argument(&args, "homeId")?,
             argument(&args, "request")?,
         ))),
         "get_app_info" => serialize(crate::commands::get_app_info(app)),
@@ -237,83 +241,84 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
         )),
         "browse_codex_threads" => {
             serialize(crate::conversation_hub::browse_codex_threads_blocking(
-                app,
+                crate::conversation_hub::ThreadContext::new(app, argument(&args, "homeId")?)?,
                 argument(&args, "titleQuery")?,
                 argument(&args, "contentQuery")?,
             ))
         }
         "measure_codex_thread_tokens" => serialize(
             crate::conversation_hub::measure_codex_thread_tokens_blocking(
-                app,
+                crate::conversation_hub::ThreadContext::new(app, argument(&args, "homeId")?)?,
                 argument(&args, "sessionIds")?,
             ),
         ),
         "discard_codex_threads" => {
             serialize(crate::conversation_hub::discard_codex_threads_blocking(
-                app,
+                crate::conversation_hub::ThreadContext::new(app, argument(&args, "homeId")?)?,
                 argument(&args, "sessionIds")?,
             ))
         }
         "browse_codex_thread_bin" => serialize(
-            crate::conversation_hub::browse_codex_thread_bin_blocking(app),
+            crate::conversation_hub::browse_codex_thread_bin_blocking(
+                crate::conversation_hub::ThreadContext::new(app, argument(&args, "homeId")?)?,
+            ),
         ),
         "recover_codex_threads" => {
             serialize(crate::conversation_hub::recover_codex_threads_blocking(
-                app,
+                crate::conversation_hub::ThreadContext::new(app, argument(&args, "homeId")?)?,
                 argument(&args, "sessionIds")?,
             ))
         }
         "purge_codex_threads" => serialize(crate::conversation_hub::purge_codex_threads_blocking(
-            app,
+            crate::conversation_hub::ThreadContext::new(app, argument(&args, "homeId")?)?,
             argument(&args, "sessionIds")?,
         )),
         "empty_codex_thread_bin" => serialize(
-            crate::conversation_hub::empty_codex_thread_bin_blocking(app),
+            crate::conversation_hub::empty_codex_thread_bin_blocking(
+                crate::conversation_hub::ThreadContext::new(app, argument(&args, "homeId")?)?,
+            ),
         ),
         "inspect_codex_thread_export" => serialize(
             crate::conversation_hub::inspect_codex_thread_export_blocking(
-                app,
+                crate::conversation_hub::ThreadContext::new(app, argument(&args, "homeId")?)?,
                 argument(&args, "sessionIds")?,
             ),
         ),
         "pack_codex_threads" => serialize(crate::conversation_hub::pack_codex_threads_blocking(
-            app,
+            crate::conversation_hub::ThreadContext::new(app, argument(&args, "homeId")?)?,
             argument(&args, "sessionIds")?,
             argument(&args, "exportPath")?,
         )),
         "inspect_codex_thread_import" => serialize(
             crate::conversation_hub::inspect_codex_thread_import_blocking(
-                app,
+                crate::conversation_hub::ThreadContext::new(app, argument(&args, "homeId")?)?,
                 argument(&args, "importPath")?,
             ),
         ),
         "unpack_codex_threads" => {
             serialize(crate::conversation_hub::unpack_codex_threads_blocking(
-                app,
+                crate::conversation_hub::ThreadContext::new(app, argument(&args, "homeId")?)?,
                 argument(&args, "importPath")?,
                 argument(&args, "sessionIds")?,
             ))
         }
         "migrate_codex_threads" => serialize(
             crate::conversation_hub::migrate_codex_threads_blocking(
-                app,
+                crate::conversation_hub::ThreadContext::new(app, argument(&args, "homeId")?)?,
                 argument(&args, "sessionIds")?,
             ),
         ),
-        "reconcile_codex_thread_visibility" => serialize(
-            crate::conversation_hub::reconcile_codex_thread_visibility_blocking(
-                app,
-                argument(&args, "mode")?,
-                argument(&args, "sessionIds")?,
-                argument(&args, "dryRun")?,
-            ),
-        ),
+        "reconcile_codex_thread_visibility" => serialize(block_on(
+            crate::conversation_hub::reconcile_codex_thread_visibility(app, argument(&args, "request")?),
+        )),
         "rebuild_codex_thread_index" => {
-            serialize(crate::conversation_hub::rebuild_codex_thread_index_blocking(app))
+            serialize(crate::conversation_hub::rebuild_codex_thread_index_blocking(
+                crate::conversation_hub::ThreadContext::new(app, argument(&args, "homeId")?)?,
+            ))
         }
         "open_codex_thread_file" => {
             serialize(crate::conversation_hub::open_codex_thread_file_blocking(
-                app,
+                crate::conversation_hub::ThreadContext::new(app, argument(&args, "homeId")?)?,
                 argument(&args, "sessionId")?,
                 argument(&args, "folderOnly")?,
             ))

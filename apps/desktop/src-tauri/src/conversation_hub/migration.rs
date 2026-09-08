@@ -126,12 +126,12 @@ fn clone_thread(codex_home: &Path, snapshot: &RolloutSnapshot) -> Result<String,
 }
 
 fn prepare_migration_client<R: Runtime>(
-    app: &tauri::AppHandle<R>,
+    app: &ThreadContext<R>,
     has_eligible_threads: bool,
 ) -> Result<MigrationClientState, String> {
     let was_running = has_eligible_threads && crate::commands::chatgpt_or_codex_is_running()?;
     let launch_target = was_running
-        .then(|| crate::commands::refresh_and_get_chatgpt_launch_target(app))
+        .then(|| crate::commands::refresh_and_get_chatgpt_launch_target(&app.app))
         .flatten();
     if was_running {
         crate::commands::stop_chatgpt_processes()?;
@@ -144,13 +144,13 @@ fn prepare_migration_client<R: Runtime>(
 }
 
 fn restart_migration_client<R: Runtime>(
-    app: &tauri::AppHandle<R>,
+    app: &ThreadContext<R>,
     client: &MigrationClientState,
 ) -> Result<(), String> {
     if !client.was_running {
         return Ok(());
     }
-    crate::commands::restart_chatgpt_from_target(app, client.launch_target.as_ref())
+    crate::commands::restart_chatgpt_from_target(&app.app, client.launch_target.as_ref())
 }
 
 fn migrate_selected_threads(
@@ -179,7 +179,7 @@ fn migrate_selected_threads(
 }
 
 pub(crate) fn migrate_codex_threads_blocking<R: Runtime>(
-    app: tauri::AppHandle<R>,
+    app: ThreadContext<R>,
     session_ids: Vec<String>,
 ) -> Result<MigrationReport, String> {
     let requested = normalized_ids(session_ids);
@@ -189,7 +189,7 @@ pub(crate) fn migrate_codex_threads_blocking<R: Runtime>(
     let _switch_guard = crate::commands::account_switch_lock()
         .lock()
         .map_err(|_| "账户切换锁不可用".to_string())?;
-    let paths = resolve_paths(&app)?;
+    let paths = app.paths.clone();
     let snapshots = gather_snapshots(&paths.codex_home)?;
     let mut state = sync_thread_ownership(&paths, &snapshots)?;
     let target_account_id = state

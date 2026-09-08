@@ -142,10 +142,13 @@ fn gui_home_imports_only_config_and_auth_and_preserves_its_history() {
         std::fs::read_to_string(source.join("sessions/official.jsonl")).unwrap(),
         "official"
     );
-    assert!(super::home::prepare_from(&source, &source).is_err());
+    std::fs::write(target.join("config.toml"), "model = 'edited-gui-model'\n").unwrap();
+    super::home::prepare_from(&target, &target).unwrap();
     std::fs::remove_file(source.join("auth.json")).unwrap();
     super::home::prepare_from(&source, &target).unwrap();
     assert!(!target.join("auth.json").exists());
+    let updated = std::fs::read_to_string(target.join("config.toml")).unwrap();
+    assert!(updated.contains("edited-gui-model"));
     assert!(root.starts_with(std::env::temp_dir()));
     std::fs::remove_dir_all(root).unwrap();
 }

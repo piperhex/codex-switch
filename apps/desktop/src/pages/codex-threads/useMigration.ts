@@ -1,3 +1,4 @@
+import { useSelectedCodexHome } from "../../components/CodexHomeScope";
 import { useCallback } from "react";
 import { migrateCodexThreads } from "../../api/backend";
 import type { ThreadCopy } from "./copy";
@@ -12,6 +13,7 @@ interface MigrationOptions {
 }
 
 export function useMigration(options: MigrationOptions) {
+  const homeId = useSelectedCodexHome();
   const { text, notify, reportError, refresh, setBusy, clearSelection } = options;
   return useCallback(async (sessionIds: string[]) => {
     if (!sessionIds.length) {
@@ -20,7 +22,7 @@ export function useMigration(options: MigrationOptions) {
     }
     setBusy(true);
     try {
-      const result = await migrateCodexThreads(sessionIds);
+      const result = await migrateCodexThreads(sessionIds, homeId);
       notify(result.message);
       clearSelection();
       await refresh();
@@ -29,5 +31,5 @@ export function useMigration(options: MigrationOptions) {
     } finally {
       setBusy(false);
     }
-  }, [clearSelection, notify, refresh, reportError, setBusy, text]);
+  }, [homeId, clearSelection, notify, refresh, reportError, setBusy, text]);
 }

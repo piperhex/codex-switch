@@ -189,6 +189,9 @@ pub(crate) fn migrate_app_settings_for_version<R: Runtime>(
         &mut settings.codex_homes,
         &crate::codex_home::resolve_default()?,
     );
+    changed |= crate::codex_home::ensure_gui_entry(
+        &mut settings.codex_homes, &crate::codex_home::gui_home(app)?,
+    );
     if !settings.codex_homes.iter().any(|home| home.id == backup_owner) {
         backup_owner = crate::codex_home::DEFAULT_CODEX_HOME_ID.to_string();
     }

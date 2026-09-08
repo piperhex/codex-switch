@@ -1,3 +1,4 @@
+import { useSelectedCodexHome } from "../../components/CodexHomeScope";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { loadCodexThreads, loadCodexThreadTokens } from "../../api/backend";
 import type { CodexThreadEntry, CodexThreadKind, CodexThreadTokenTotals } from "../../types";
@@ -6,6 +7,7 @@ import { groupThreads } from "./utils";
 const SEARCH_DELAY_MS = 300;
 
 export function useThreadList(reportError: (error: unknown) => void) {
+  const homeId = useSelectedCodexHome();
   const [threads, setThreads] = useState<CodexThreadEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
@@ -22,7 +24,7 @@ export function useThreadList(reportError: (error: unknown) => void) {
     const requestId = latestReadRef.current + 1;
     latestReadRef.current = requestId;
     try {
-      const result = await loadCodexThreads({ titleQuery: nextQuery, contentQuery: nextQuery });
+      const result = await loadCodexThreads({ titleQuery: nextQuery, contentQuery: nextQuery }, homeId);
       if (requestId !== latestReadRef.current) return;
       setThreads(result);
       const normalizedQuery = nextQuery.trim();
@@ -36,7 +38,7 @@ export function useThreadList(reportError: (error: unknown) => void) {
     } finally {
       if (!silent) setLoading(false);
     }
-  }, [reportError]);
+  }, [homeId, reportError]);
 
   useEffect(() => { void refresh(""); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => {
@@ -70,7 +72,7 @@ export function useThreadList(reportError: (error: unknown) => void) {
     const missing = items.map((item) => item.sessionId).filter((id) => !tokens[id]);
     if (!missing.length) return;
     try {
-      const totals = await loadCodexThreadTokens(missing);
+      const totals = await loadCodexThreadTokens(missing, homeId);
       setTokens((current) => ({
         ...current,
         ...Object.fromEntries(totals.map((item) => [item.sessionId, item])),

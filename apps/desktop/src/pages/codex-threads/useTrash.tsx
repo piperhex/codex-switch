@@ -1,6 +1,7 @@
+import { useSelectedCodexHome } from "../../components/CodexHomeScope";
 import { useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
-import { Modal } from "antd";
+import { useThreadConfirmation } from "./useThreadConfirmation";
 import {
   clearCodexThreadBin,
   deleteCodexThreadsForever,
@@ -22,6 +23,8 @@ interface TrashOptions {
 }
 
 export function useTrash(options: TrashOptions) {
+  const homeId = useSelectedCodexHome();
+  const { confirm, confirming } = useThreadConfirmation();
   const { selected, clearSelection, text, notify, reportError, refresh, setBusy } = options;
   const [open, setOpen] = useState(false);
   const [entries, setEntries] = useState<CodexThreadBinEntry[]>([]);
@@ -30,7 +33,7 @@ export function useTrash(options: TrashOptions) {
   const openBin = async () => {
     setBusy(true);
     try {
-      setEntries(await loadCodexThreadBin());
+      setEntries(await loadCodexThreadBin(homeId));
       setBinSelected(new Set());
       setOpen(true);
     } catch (error) {
@@ -40,7 +43,7 @@ export function useTrash(options: TrashOptions) {
     }
   };
   const reload = async () => {
-    setEntries(await loadCodexThreadBin());
+    setEntries(await loadCodexThreadBin(homeId));
     setBinSelected(new Set());
     await refresh();
   };
@@ -51,7 +54,7 @@ export function useTrash(options: TrashOptions) {
     }
     setBusy(true);
     try {
-      const result = await restoreCodexThreads([...binSelected]);
+      const result = await restoreCodexThreads([...binSelected], homeId);
       notify(result.message);
       await reload();
     } catch (error) {
@@ -60,7 +63,7 @@ export function useTrash(options: TrashOptions) {
       setBusy(false);
     }
   };
-  const confirmDelete = (empty = false) => Modal.confirm({
+  const confirmDelete = (empty = false) => confirm({
     title: empty ? text.emptyBin : text.deleteForever,
     content: <span className="compact-confirm-copy">{empty ? text.confirmEmpty : text.confirmDelete}</span>,
     okText: empty ? text.emptyBin : text.deleteForever,
@@ -74,8 +77,8 @@ export function useTrash(options: TrashOptions) {
       setBusy(true);
       try {
         const result = empty
-          ? await clearCodexThreadBin()
-          : await deleteCodexThreadsForever([...binSelected]);
+          ? await clearCodexThreadBin(homeId)
+          : await deleteCodexThreadsForever([...binSelected], homeId);
         notify(result.message);
         await reload();
       } finally {
@@ -88,7 +91,7 @@ export function useTrash(options: TrashOptions) {
       notify(text.pickOne);
       return;
     }
-    Modal.confirm({
+    confirm({
       title: text.moveToBin,
       content: <span className="compact-confirm-copy">{text.confirmTrash}</span>,
       okText: text.moveToBin,
@@ -97,7 +100,7 @@ export function useTrash(options: TrashOptions) {
       onOk: async () => {
         setBusy(true);
         try {
-          const result = await moveCodexThreadsToBin([...selected]);
+          const result = await moveCodexThreadsToBin([...selected], homeId);
           notify(result.message);
           clearSelection();
         } finally {
@@ -110,6 +113,6 @@ export function useTrash(options: TrashOptions) {
 
   return {
     open, setOpen, entries, selected: binSelected, setSelected: setBinSelected,
-    openBin, restore, confirmDelete, confirmMove,
+    openBin, restore, confirmDelete, confirmMove, confirming,
   };
 }

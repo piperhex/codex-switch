@@ -50,7 +50,7 @@ fn table_has_column(connection: &Connection, table: &str, column: &str) -> Resul
 }
 
 fn create_visibility_checkpoint<R: Runtime>(
-    app: &tauri::AppHandle<R>,
+    app: &ThreadContext<R>,
     codex_home: &Path,
     state_db: Option<&Path>,
     snapshots: &[&RolloutSnapshot],
@@ -59,7 +59,7 @@ fn create_visibility_checkpoint<R: Runtime>(
     if state_db.is_none() && snapshots.is_empty() && !index_path.exists() {
         return Ok(None);
     }
-    let root = app
+    let root = app.app
         .path()
         .app_data_dir()
         .map_err(|error| error.to_string())?
@@ -283,12 +283,12 @@ fn update_catalogs(
 }
 
 pub(crate) fn reconcile_codex_thread_visibility_blocking<R: Runtime>(
-    app: tauri::AppHandle<R>,
+    app: ThreadContext<R>,
     mode: String,
     session_ids: Option<Vec<String>>,
     dry_run: bool,
 ) -> Result<VisibilityReport, String> {
-    let paths = resolve_paths(&app)?;
+    let paths = app.paths.clone();
     let mode = if mode == "deep" { "deep" } else { "quick" }.to_string();
     let snapshots = gather_snapshots(&paths.codex_home)?;
     let selected = session_ids
@@ -367,9 +367,9 @@ pub(crate) fn reconcile_codex_thread_visibility_blocking<R: Runtime>(
 }
 
 pub(crate) fn rebuild_codex_thread_index_blocking<R: Runtime>(
-    app: tauri::AppHandle<R>,
+    app: ThreadContext<R>,
 ) -> Result<VisibilityReport, String> {
-    let paths = resolve_paths(&app)?;
+    let paths = app.paths.clone();
     let snapshots = gather_snapshots(&paths.codex_home)?;
     let backup = create_visibility_checkpoint(&app, &paths.codex_home, None, &[])?;
     let count = rebuild_index_from_snapshots(&paths.codex_home, &snapshots)?;
@@ -387,11 +387,11 @@ pub(crate) fn rebuild_codex_thread_index_blocking<R: Runtime>(
 }
 
 pub(crate) fn open_codex_thread_file_blocking<R: Runtime>(
-    app: tauri::AppHandle<R>,
+    app: ThreadContext<R>,
     session_id: String,
     folder_only: bool,
 ) -> Result<(), String> {
-    let codex_home = resolve_paths(&app)?.codex_home;
+    let codex_home = app.paths.codex_home.clone();
     let snapshot = gather_snapshots(&codex_home)?
         .into_iter()
         .find(|item| item.session_id == session_id)
@@ -401,7 +401,7 @@ pub(crate) fn open_codex_thread_file_blocking<R: Runtime>(
     } else {
         snapshot.path
     };
-    app.opener()
+    app.app.opener()
         .open_path(path.to_string_lossy().to_string(), None::<&str>)
         .map_err(|error| format!("无法打开 {}：{error}", path.display()))
 }

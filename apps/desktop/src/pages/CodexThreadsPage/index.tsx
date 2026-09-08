@@ -1,6 +1,7 @@
+import { CodexHomeScope, CodexHomeSelect, useSelectedCodexHome } from "../../components/CodexHomeScope";
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Modal } from "antd";
+import { useThreadConfirmation } from "../codex-threads/useThreadConfirmation";
 import { restartChatGpt, syncCodexThreadIndex } from "../../api/backend";
 import type { Language } from "../../i18n";
 import { threadCopy } from "../codex-threads/copy";
@@ -20,7 +21,13 @@ interface CodexThreadsPageProps {
   notify: (message: string) => void;
 }
 
-export function CodexThreadsPage({ language, notify }: CodexThreadsPageProps) {
+export function CodexThreadsPage(props: CodexThreadsPageProps) {
+  return <CodexHomeScope><CodexThreadsContent {...props} /></CodexHomeScope>;
+}
+
+function CodexThreadsContent({ language, notify }: CodexThreadsPageProps) {
+  const homeId = useSelectedCodexHome();
+  const { confirm, confirming } = useThreadConfirmation();
   const text = threadCopy[language];
   const [busy, setBusy] = useState(false);
   const [topbarHost, setTopbarHost] = useState<HTMLElement | null>(null);
@@ -60,7 +67,7 @@ export function CodexThreadsPage({ language, notify }: CodexThreadsPageProps) {
     setBusy(true);
     try {
       await refresh();
-      const result = await syncCodexThreadIndex();
+      const result = await syncCodexThreadIndex(homeId);
       notify(result.message);
       await refresh();
     } catch (error) {
@@ -83,7 +90,7 @@ export function CodexThreadsPage({ language, notify }: CodexThreadsPageProps) {
   };
 
   const confirmRestartChatGpt = () => {
-    Modal.confirm({
+    confirm({
       title: text.restartChatGptConfirmTitle,
       content: <span className="compact-confirm-copy">{text.restartChatGptConfirmDescription}</span>,
       okText: text.restartChatGpt,
@@ -94,7 +101,7 @@ export function CodexThreadsPage({ language, notify }: CodexThreadsPageProps) {
   };
 
   const confirmMigration = (sessionIds: string[]) => {
-    Modal.confirm({
+    confirm({
       title: text.migrateConfirmTitle,
       content: <span className="compact-confirm-copy">{text.migrateConfirmDescription}</span>,
       okText: text.migrate,
@@ -106,6 +113,9 @@ export function CodexThreadsPage({ language, notify }: CodexThreadsPageProps) {
   return (
     <>
       {topbarHost && createPortal(
+        <>
+        <CodexHomeSelect disabled={busy || confirming || trash.confirming || repair.busy
+          || trash.open || transfer.open || repair.open} />
         <ThreadTopbar
           text={text}
           busy={busy}
@@ -117,7 +127,7 @@ export function CodexThreadsPage({ language, notify }: CodexThreadsPageProps) {
           migrateSelected={() => confirmMigration([...list.selected])}
           openRepair={repair.openModal}
           openBin={() => void trash.openBin()}
-        />,
+        /></>,
         topbarHost,
       )}
       <div className={styles.codexThreadManager}>

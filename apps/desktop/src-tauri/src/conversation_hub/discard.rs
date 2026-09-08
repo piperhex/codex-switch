@@ -1,5 +1,5 @@
 pub(crate) fn discard_codex_threads_blocking<R: Runtime>(
-    app: tauri::AppHandle<R>,
+    app: ThreadContext<R>,
     session_ids: Vec<String>,
 ) -> Result<MutationReport, String> {
     let _guard = bin_operation_guard()?;
@@ -7,7 +7,7 @@ pub(crate) fn discard_codex_threads_blocking<R: Runtime>(
     if requested.is_empty() {
         return Err("请至少选择一条会话".to_string());
     }
-    let paths = resolve_paths(&app)?;
+    let paths = app.paths.clone();
     let all_snapshots = gather_snapshots(&paths.codex_home)?;
     let state_db = latest_state_db(&paths.codex_home);
     ensure_threads_are_not_referenced(&all_snapshots, &requested, state_db.as_deref())?;
@@ -44,11 +44,15 @@ pub(crate) fn discard_codex_threads_blocking<R: Runtime>(
     })
 }
 
-fn collect_bin_entries<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<Vec<BinSnapshot>, String> {
+fn collect_bin_entries<R: Runtime>(app: &ThreadContext<R>) -> Result<Vec<BinSnapshot>, String> {
     let root = bin_root(app)?;
-    let codex_home = resolve_paths(app)?.codex_home;
-    let mut entries = collect_bin_entries_at(&root)?;
-    upgrade_legacy_bin_entries(&codex_home, &mut entries)?;
+    collect_home_bin_entries(&root, &app.paths.codex_home)
+}
+
+fn collect_home_bin_entries(root: &Path, codex_home: &Path) -> Result<Vec<BinSnapshot>, String> {
+    let mut entries = collect_bin_entries_at(root)?;
+    entries.retain(|item| bin_belongs_to_home(item, codex_home));
+    upgrade_legacy_bin_entries(codex_home, &mut entries)?;
     Ok(entries)
 }
 

@@ -1,5 +1,5 @@
-fn bin_root<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<PathBuf, String> {
-    Ok(app
+fn bin_root<R: Runtime>(app: &ThreadContext<R>) -> Result<PathBuf, String> {
+    Ok(app.app
         .path()
         .app_data_dir()
         .map_err(|error| format!("无法定位应用数据目录：{error}"))?

@@ -14,17 +14,17 @@ export interface CodexConfigDocument {
   error: CodexConfigDiagnostic | null;
 }
 
-export function readCodexConfigDocument() {
-  return invoke<CodexConfigDocument>("read_codex_config_document");
+export function readCodexConfigDocument(homeId?: string) {
+  return invoke<CodexConfigDocument>("read_codex_config_document", { homeId });
 }
 
 export function validateCodexConfigDocument(content: string) {
   return invoke<CodexConfigDiagnostic | null>("validate_codex_config_document", { content });
 }
 
-export function saveCodexConfigDocument(content: string, expectedRevision: string) {
+export function saveCodexConfigDocument(content: string, expectedRevision: string, homeId?: string) {
   return invoke<CodexConfigDocument>("save_codex_config_document", {
-    request: { content, expectedRevision },
+    homeId, request: { content, expectedRevision },
   });
 }
 
@@ -32,6 +32,6 @@ export function patchCodexConfigDocument(request: {
   path: string[];
   value: ConfigValue | null;
   expectedRevision: string;
-}) {
-  return invoke<CodexConfigDocument>("patch_codex_config_document", { request });
+}, homeId?: string) {
+  return invoke<CodexConfigDocument>("patch_codex_config_document", { request, homeId });
 }

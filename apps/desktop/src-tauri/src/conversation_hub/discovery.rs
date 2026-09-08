@@ -300,12 +300,12 @@ fn locate_rollout_text(path: &Path, needle: &str) -> Result<Option<String>, Stri
 }
 
 pub(crate) fn browse_codex_threads_blocking<R: Runtime>(
-    app: tauri::AppHandle<R>,
+    app: ThreadContext<R>,
     title_query: Option<String>,
     content_query: Option<String>,
 ) -> Result<Vec<ThreadEntry>, String> {
     reconcile_legacy_bin(&app)?;
-    let paths = resolve_paths(&app)?;
+    let paths = app.paths.clone();
     let codex_home = paths.codex_home.clone();
     let snapshots = gather_snapshots(&codex_home)?;
     let state = sync_thread_ownership(&paths, &snapshots)?;
@@ -397,11 +397,11 @@ fn token_totals(path: &Path) -> Option<(u64, u64, u64)> {
 }
 
 pub(crate) fn measure_codex_thread_tokens_blocking<R: Runtime>(
-    app: tauri::AppHandle<R>,
+    app: ThreadContext<R>,
     session_ids: Vec<String>,
 ) -> Result<Vec<ThreadTokenTotals>, String> {
     let requested = normalized_ids(session_ids);
-    let codex_home = resolve_paths(&app)?.codex_home;
+    let codex_home = app.paths.codex_home.clone();
     Ok(gather_snapshots(&codex_home)?
         .into_iter()
         .filter(|item| requested.contains(&item.session_id))

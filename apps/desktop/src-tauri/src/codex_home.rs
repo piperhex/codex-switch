@@ -1,3 +1,6 @@
+mod selection;
+pub(crate) use selection::{ensure_gui_entry, gui_home, resolve_selected, GUI_CODEX_HOME_ID};
+
 use std::{
     collections::HashSet,
     fs,
@@ -205,7 +208,7 @@ fn normalize_entries(entries: Vec<CodexHomeEntry>) -> Result<Vec<CodexHomeEntry>
         if !ids.insert(id.clone()) {
             return Err("Codex Home 记录标识不能重复".to_string());
         }
-        let path = if id == DEFAULT_CODEX_HOME_ID {
+        let path = if id == DEFAULT_CODEX_HOME_ID || id == GUI_CODEX_HOME_ID {
             PathBuf::from(&entry.path)
         } else {
             validate_custom_home(&entry.path)?
@@ -368,6 +371,7 @@ fn update_codex_homes<R: Runtime>(
     mut entries: Vec<CodexHomeEntry>,
 ) -> Result<AppSettings, String> {
     ensure_default_entry(&mut entries, &resolve_default()?);
+    ensure_gui_entry(&mut entries, &gui_home(app)?);
     let entries = normalize_entries(entries)?;
     let requested = configured_entries(&entries);
     let requested_primary = requested.first().map(|entry| entry.path.as_path());

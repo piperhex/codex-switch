@@ -39,6 +39,37 @@ fn path(segments: &[&str]) -> Vec<String> {
 }
 
 #[test]
+fn selected_home_writes_are_isolated_and_revisions_cannot_cross_homes() {
+    let first = Fixture::new("model = 'same'\n");
+    let second = Fixture::new("model = 'same'\n");
+    let first_home = first.0.parent().unwrap();
+    let second_home = second.0.parent().unwrap();
+    let original = persistence::with_current_config(first_home, persistence::read).unwrap();
+    let cross_home = persistence::with_current_config(second_home, |path| {
+        persistence::save(
+            path,
+            SaveConfigRequest {
+                content: "model = 'wrong'\n".into(),
+                expected_revision: original.revision.clone(),
+            },
+        )
+    });
+    assert!(matches!(cross_home, Err(ConfigError::Conflict)));
+    persistence::with_current_config(first_home, |path| {
+        persistence::save(
+            path,
+            SaveConfigRequest {
+                content: "model = 'edited'\n".into(),
+                expected_revision: original.revision,
+            },
+        )
+    })
+    .unwrap();
+    assert_eq!(first.content(), "model = 'edited'\n");
+    assert_eq!(second.content(), "model = 'same'\n");
+}
+
+#[test]
 fn invalid_toml_reports_position_without_exposing_source() {
     let error = document::parse("model = \"secret-token\"\nfeatures = [\n").unwrap_err();
     let diagnostic = error.diagnostic();

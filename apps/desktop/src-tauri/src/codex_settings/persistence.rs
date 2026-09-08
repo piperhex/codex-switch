@@ -18,12 +18,11 @@ use super::{
 static CONFIG_EDIT_LOCK: Mutex<()> = Mutex::new(());
 
 pub(super) fn with_current_config<T>(
+    home: &Path,
     operation: impl FnOnce(&Path) -> Result<T, ConfigError>,
 ) -> Result<T, ConfigError> {
     let _guard = CONFIG_EDIT_LOCK.lock().map_err(|_| ConfigError::Busy)?;
-    let path = crate::codex_home::resolve()
-        .map_err(|_| ConfigError::HomeUnavailable)?
-        .join("config.toml");
+    let path = home.join("config.toml");
     operation(&path)
 }
 

@@ -3,18 +3,14 @@ use std::{
     fs,
     path::{Path, PathBuf},
 };
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
 use toml_edit::{value, DocumentMut};
 
 /// Only configuration and authentication are imported. Rollouts, databases, indexes and logs
 /// always belong to the application's private Codex home.
 pub(super) fn prepare(app: &AppHandle) -> Result<PathBuf> {
     let source = crate::storage::resolve_paths(app).map_err(|_| GuiError::Startup)?;
-    let target = app
-        .path()
-        .app_data_dir()
-        .map_err(|_| GuiError::Startup)?
-        .join(".codex");
+    let target = crate::codex_home::gui_home(app).map_err(|_| GuiError::Startup)?;
     prepare_from(&source.codex_home, &target)?;
     Ok(target)
 }
@@ -30,13 +26,10 @@ pub(super) fn prepare_from(source: &Path, target: &Path) -> Result<()> {
         source.to_path_buf()
     };
     let target = target.canonicalize().map_err(|_| GuiError::Startup)?;
+    prepare_config(&source, &target)?;
     if source == target {
-        return Err(GuiError::Startup);
+        return Ok(());
     }
-    let config = read_optional(&source.join("config.toml"))?.unwrap_or_default();
-    let config = isolated_config(&config, &source, &target)?;
-    crate::storage::write_text_if_changed(&target.join("config.toml"), &config)
-        .map_err(|_| GuiError::Startup)?;
     let auth_path = target.join("auth.json");
     if let Some(auth) = read_optional(&source.join("auth.json"))? {
         crate::storage::write_text_if_changed(&auth_path, &auth).map_err(|_| GuiError::Startup)?;
@@ -45,6 +38,21 @@ pub(super) fn prepare_from(source: &Path, target: &Path) -> Result<()> {
         // Do not silently retain credentials after the selected account has signed out.
         fs::remove_file(auth_path).map_err(|_| GuiError::Startup)?;
     }
+    Ok(())
+}
+
+fn prepare_config(source: &Path, target: &Path) -> Result<()> {
+    // Import once; subsequent connections preserve edits made to the GUI's own configuration.
+    let (config, origin) = match read_optional(&target.join("config.toml"))? {
+        Some(config) => (config, target),
+        None => (
+            read_optional(&source.join("config.toml"))?.unwrap_or_default(),
+            source,
+        ),
+    };
+    let config = isolated_config(&config, origin, target)?;
+    crate::storage::write_text_if_changed(&target.join("config.toml"), &config)
+        .map_err(|_| GuiError::Startup)?;
     Ok(())
 }
 

@@ -1,0 +1,15 @@
+.selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 400px;
+  > span { flex-shrink: 0; font-size: 12px; }
+  :global(.ant-select) { width: 280px; min-width: 140px; max-width: 100%; }
+}
+.popup {
+  max-width: min(400px, calc(100vw - 32px));
+  :global(.ant-select-item-option-content) { white-space: normal; overflow-wrap: anywhere; }
+}
+.notice { margin: 20px; max-width: 400px; }
+.loading { display: block; margin: 40px auto; }

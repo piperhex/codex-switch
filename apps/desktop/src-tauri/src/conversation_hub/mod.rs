@@ -1,3 +1,6 @@
+mod context;
+pub(crate) use context::ThreadContext;
+
 use std::{
     collections::{HashMap, HashSet},
     fs::{self, File},
@@ -16,7 +19,7 @@ use tauri_plugin_opener::OpenerExt;
 use uuid::Uuid;
 use zip::{write::SimpleFileOptions, CompressionMethod, ZipArchive, ZipWriter};
 
-use crate::storage::{replace_file, resolve_paths, write_text_atomic};
+use crate::storage::{replace_file, write_text_atomic};
 
 const INDEX_NAME: &str = "session_index.jsonl";
 const ROLLOUT_FOLDERS: [&str; 2] = ["sessions", "archived_sessions"];

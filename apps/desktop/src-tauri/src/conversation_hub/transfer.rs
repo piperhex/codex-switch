@@ -34,14 +34,14 @@ fn ensure_export_dependencies(snapshots: &[RolloutSnapshot]) -> Result<HashSet<S
 }
 
 pub(crate) fn inspect_codex_thread_export_blocking<R: Runtime>(
-    app: tauri::AppHandle<R>,
+    app: ThreadContext<R>,
     session_ids: Vec<String>,
 ) -> Result<BundlePreview, String> {
     let requested = normalized_ids(session_ids);
     if requested.is_empty() {
         return Err("请至少选择一条会话".to_string());
     }
-    let snapshots = selected_snapshots(&resolve_paths(&app)?.codex_home, &requested)?;
+    let snapshots = selected_snapshots(&app.paths.codex_home.clone(), &requested)?;
     ensure_export_dependencies(&snapshots)?;
     let items = snapshots
         .into_iter()
@@ -66,7 +66,7 @@ pub(crate) fn inspect_codex_thread_export_blocking<R: Runtime>(
 }
 
 pub(crate) fn pack_codex_threads_blocking<R: Runtime>(
-    app: tauri::AppHandle<R>,
+    app: ThreadContext<R>,
     session_ids: Vec<String>,
     export_path: String,
 ) -> Result<BundleResult, String> {
@@ -74,7 +74,7 @@ pub(crate) fn pack_codex_threads_blocking<R: Runtime>(
     if requested.is_empty() {
         return Err("请至少选择一条会话".to_string());
     }
-    let codex_home = resolve_paths(&app)?.codex_home;
+    let codex_home = app.paths.codex_home.clone();
     let snapshots = selected_snapshots(&codex_home, &requested)?;
     let included_ids = ensure_export_dependencies(&snapshots)?;
     let state_db = latest_state_db(&codex_home);
@@ -170,12 +170,12 @@ fn read_package(path: &Path) -> Result<PackageManifest, String> {
 }
 
 pub(crate) fn inspect_codex_thread_import_blocking<R: Runtime>(
-    app: tauri::AppHandle<R>,
+    app: ThreadContext<R>,
     import_path: String,
 ) -> Result<BundlePreview, String> {
     let path = PathBuf::from(import_path.trim());
     let manifest = read_package(&path)?;
-    let existing = gather_snapshots(&resolve_paths(&app)?.codex_home)?
+    let existing = gather_snapshots(&app.paths.codex_home.clone())?
         .into_iter()
         .map(|item| item.session_id)
         .collect::<HashSet<_>>();
@@ -223,7 +223,7 @@ fn safe_relative_path(value: &str) -> Option<PathBuf> {
 }
 
 pub(crate) fn unpack_codex_threads_blocking<R: Runtime>(
-    app: tauri::AppHandle<R>,
+    app: ThreadContext<R>,
     import_path: String,
     session_ids: Vec<String>,
 ) -> Result<BundleResult, String> {
@@ -233,7 +233,7 @@ pub(crate) fn unpack_codex_threads_blocking<R: Runtime>(
     }
     let path = PathBuf::from(import_path.trim());
     let manifest = read_package(&path)?;
-    let codex_home = resolve_paths(&app)?.codex_home;
+    let codex_home = app.paths.codex_home.clone();
     let state_db = latest_state_db(&codex_home);
     let mut existing = gather_snapshots(&codex_home)?
         .into_iter()

@@ -6,8 +6,15 @@ use super::{
 };
 
 #[tauri::command]
-pub(crate) async fn read_codex_config_document() -> Result<ConfigDocument, String> {
-    run_blocking(|| persistence::with_current_config(persistence::read)).await
+pub(crate) async fn read_codex_config_document<R: tauri::Runtime + 'static>(
+    app: tauri::AppHandle<R>,
+    home_id: Option<String>,
+) -> Result<ConfigDocument, String> {
+    run_blocking(move || {
+        let home = selected_home(&app, home_id)?;
+        persistence::with_current_config(&home, persistence::read)
+    })
+    .await
 }
 
 #[tauri::command]
@@ -23,19 +30,29 @@ pub(crate) async fn validate_codex_config_document(
 }
 
 #[tauri::command]
-pub(crate) async fn save_codex_config_document(
+pub(crate) async fn save_codex_config_document<R: tauri::Runtime + 'static>(
+    app: tauri::AppHandle<R>,
+    home_id: Option<String>,
     request: SaveConfigRequest,
 ) -> Result<ConfigDocument, String> {
-    run_blocking(move || persistence::with_current_config(|path| persistence::save(path, request)))
-        .await
+    run_blocking(move || {
+        let home = selected_home(&app, home_id)?;
+        persistence::with_current_config(&home, |path| persistence::save(path, request))
+    })
+    .await
 }
 
 #[tauri::command]
-pub(crate) async fn patch_codex_config_document(
+pub(crate) async fn patch_codex_config_document<R: tauri::Runtime + 'static>(
+    app: tauri::AppHandle<R>,
+    home_id: Option<String>,
     request: PatchConfigRequest,
 ) -> Result<ConfigDocument, String> {
-    run_blocking(move || persistence::with_current_config(|path| persistence::patch(path, request)))
-        .await
+    run_blocking(move || {
+        let home = selected_home(&app, home_id)?;
+        persistence::with_current_config(&home, |path| persistence::patch(path, request))
+    })
+    .await
 }
 
 async fn run_blocking<T: Send + 'static>(
@@ -45,4 +62,12 @@ async fn run_blocking<T: Send + 'static>(
         .await
         .map_err(|_| ConfigError::Busy.to_string())?
         .map_err(|error| error.to_string())
+}
+
+fn selected_home<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    home_id: Option<String>,
+) -> Result<std::path::PathBuf, ConfigError> {
+    crate::codex_home::resolve_selected(app, home_id.as_deref())
+        .map_err(|_| ConfigError::HomeUnavailable)
 }

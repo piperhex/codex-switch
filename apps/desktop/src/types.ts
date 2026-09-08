@@ -457,6 +457,7 @@ export interface UpdateInfo {
 }
 
 export const DEFAULT_CODEX_HOME_ID = "default";
+export const GUI_CODEX_HOME_ID = "codex-gui";
 
 export interface AppSettings {
   codexHome?: string | null;

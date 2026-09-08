@@ -1,6 +1,6 @@
 import { Button, Dropdown, Input, Switch, Tooltip } from "antd";
 import { FolderKey, FolderOpen, Plus, Sparkles, Trash2 } from "lucide-react";
-import { DEFAULT_CODEX_HOME_ID } from "../../types";
+import { DEFAULT_CODEX_HOME_ID, GUI_CODEX_HOME_ID } from "../../types";
 import type { SettingsPageProps } from "./types";
 
 export function CodexHomeSettingsCard({ settings }: { settings: SettingsPageProps }) {
@@ -42,7 +42,7 @@ export function CodexHomeSettingsCard({ settings }: { settings: SettingsPageProp
         <div className="codex-home-list" aria-busy={settings.codexHomeLoading}>
           {settings.codexHomes.map((home) => (
             <div
-              className={`codex-home-row${home.id === DEFAULT_CODEX_HOME_ID ? " is-default" : ""}`}
+              className={`codex-home-row${isBuiltInHome(home.id) ? " is-default" : ""}`}
               key={home.id}
             >
               <Switch
@@ -53,7 +53,12 @@ export function CodexHomeSettingsCard({ settings }: { settings: SettingsPageProp
                 aria-label={t("settings.codexHome.enabled")}
                 onChange={(enabled) => settings.onCodexHomeEnabledChange(home.id, enabled)}
               />
-              {home.id === DEFAULT_CODEX_HOME_ID ? <code>{home.path}</code> : (
+              {isBuiltInHome(home.id) ? (
+                <code>
+                  {home.id === GUI_CODEX_HOME_ID && <strong>{t("settings.codexHome.builtInGui")} · </strong>}
+                  {home.path}
+                </code>
+              ) : (
                 <>
                   <Input
                     size="small"
@@ -99,4 +104,8 @@ export function CodexHomeSettingsCard({ settings }: { settings: SettingsPageProp
       </div>
     </section>
   );
+}
+
+function isBuiltInHome(id: string) {
+  return id === DEFAULT_CODEX_HOME_ID || id === GUI_CODEX_HOME_ID;
 }

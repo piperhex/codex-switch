@@ -1,3 +1,4 @@
+import { CodexHomeScope, CodexHomeSelect, useSelectedCodexHome } from "../components/CodexHomeScope";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Alert, Button, Empty, Input, Segmented, Spin, Tag } from "antd";
@@ -11,7 +12,12 @@ import styles from "./codexConfig/pageStyles.module.less";
 export const CODEX_CONFIG_TOPBAR_ID = "codex-config-topbar-controls";
 
 export function CodexConfigPage({ active, homeKey = "" }: { active: boolean; homeKey?: string }) {
-  const config = useCodexConfig(active, homeKey);
+  return <CodexHomeScope active={active}><CodexConfigContent active={active} key={homeKey} /></CodexHomeScope>;
+}
+
+function CodexConfigContent({ active }: { active: boolean }) {
+  const homeId = useSelectedCodexHome();
+  const config = useCodexConfig(active, homeId);
   const [editorOpen, setEditorOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
@@ -26,6 +32,7 @@ export function CodexConfigPage({ active, homeKey = "" }: { active: boolean; hom
   return (
     <div className={styles.page}>
       {active && topbarHost && createPortal(<div className={styles.controls}>
+        <CodexHomeSelect disabled={busy || editorOpen} />
         <div className={styles.filters}>
           <Input allowClear prefix={<Search size={16} />} aria-label="搜索配置" placeholder="搜索配置名称或关键字"
             value={search} onChange={(event) => setSearch(event.target.value)} />

@@ -1,3 +1,4 @@
+import { useSelectedCodexHome } from "../../components/CodexHomeScope";
 import { useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import {
@@ -20,6 +21,7 @@ interface TransferOptions {
 }
 
 export function useTransfer(options: TransferOptions) {
+  const homeId = useSelectedCodexHome();
   const { selected, text, notify, reportError, refresh, setBusy } = options;
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"export" | "import">("export");
@@ -34,7 +36,7 @@ export function useTransfer(options: TransferOptions) {
     }
     setBusy(true);
     try {
-      const nextPreview = await previewCodexThreadExport([...selected]);
+      const nextPreview = await previewCodexThreadExport([...selected], homeId);
       setMode("export");
       setPreview(nextPreview);
       setBundleSelected(new Set(nextPreview.items.map((item) => item.sessionId)));
@@ -51,7 +53,7 @@ export function useTransfer(options: TransferOptions) {
     try {
       const nextPath = await chooseCodexThreadPackage();
       if (!nextPath) return;
-      const nextPreview = await previewCodexThreadImport(nextPath);
+      const nextPreview = await previewCodexThreadImport(nextPath, homeId);
       setMode("import");
       setPreview(nextPreview);
       setBundleSelected(new Set(
@@ -73,8 +75,8 @@ export function useTransfer(options: TransferOptions) {
     setBusy(true);
     try {
       const result = mode === "export"
-        ? await saveCodexThreadPackage([...bundleSelected])
-        : path ? await importCodexThreads(path, [...bundleSelected]) : null;
+        ? await saveCodexThreadPackage([...bundleSelected], homeId)
+        : path ? await importCodexThreads(path, [...bundleSelected], homeId) : null;
       if (!result) return;
       notify(result.message);
       setOpen(false);

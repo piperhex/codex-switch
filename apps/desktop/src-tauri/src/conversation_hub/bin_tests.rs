@@ -5,6 +5,24 @@ mod support;
 use support::*;
 
 #[test]
+fn selected_home_cannot_list_or_purge_another_homes_bin_entries() {
+    let fixture = Fixture::new();
+    let item = fixture.discard();
+    let other_home = fixture.root.join("other-home");
+    fs::create_dir_all(&other_home).unwrap();
+    assert!(collect_home_bin_entries(&fixture.bin, &other_home)
+        .unwrap()
+        .is_empty());
+    assert!(item.folder.exists());
+    assert_eq!(
+        collect_home_bin_entries(&fixture.bin, &fixture.home)
+            .unwrap()
+            .len(),
+        1
+    );
+}
+
+#[test]
 fn cross_volume_copy_preserves_content_and_never_overwrites_a_destination() {
     let fixture = Fixture::new();
     let source = fixture.root.join("source.jsonl");

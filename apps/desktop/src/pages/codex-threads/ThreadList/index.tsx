@@ -1,3 +1,4 @@
+import { useSelectedCodexHome } from "../../../components/CodexHomeScope";
 import { Checkbox, Dropdown, Spin } from "antd";
 import {
   ChevronDown, ChevronRight, Copy, FileJson, Folder, FolderOpen, MoreHorizontal, Search,
@@ -56,13 +57,14 @@ function TokenStats({ stats, thread, text }: Pick<SessionRowProps, "stats" | "th
 }
 
 function SessionRow(props: SessionRowProps) {
+  const homeId = useSelectedCodexHome();
   const { thread, selected, stats, language, text, query, toggle, notify, reportError, migrate } = props;
   const openPath = (key: string) => {
     if (key === "copy") {
       void navigator.clipboard.writeText(thread.sessionId).then(() => notify(text.copyId));
       return;
     }
-    void openCodexThreadPath(thread.sessionId, key === "folder").catch(reportError);
+    void openCodexThreadPath(thread.sessionId, key === "folder", homeId).catch(reportError);
   };
   return (
     <div className={styles.threadSessionRow}>
