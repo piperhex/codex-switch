@@ -963,6 +963,22 @@ main.providers-main .provider-page {
 .proxy-auto-switch-entry:hover, .proxy-auto-switch-entry.active { color: var(--green-dark); }
 .proxy-auto-switch-menu { min-width: 210px; max-width: 400px; display: grid; gap: 4px; }
 .proxy-auto-switch-menu-item { min-height: 30px; display: flex; align-items: center; justify-content: space-between; gap: 24px; color: #46534b; font-size: 12px; font-weight: 600; white-space: normal; }
+.proxy-auto-switch-menu-action {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  line-height: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.proxy-auto-switch-menu-action-icon {
+  width: 24px;
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+}
 .proxy-image-model-fields { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; }
 .proxy-image-model-field {
   display: inline-flex;

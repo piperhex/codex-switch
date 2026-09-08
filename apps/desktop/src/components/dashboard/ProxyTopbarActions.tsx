@@ -61,10 +61,10 @@ export function ProxyTopbarActions({
                 disabled={manager.proxyBusy || !localProxy?.autoSwitchOnQuotaExhaustion}
                 onChange={(enabled) => void manager.setProxyAutoDisableUnreachable(enabled)} />
             </div>
-            <button type="button" className="proxy-auto-switch-menu-item"
-              style={{ width: "100%", background: "none", border: 0, cursor: "pointer", color: "inherit" }}
+            <button type="button" className="proxy-auto-switch-menu-item proxy-auto-switch-menu-action"
               onClick={() => { setMenuOpen(false); setResetSettingsOpen(true); }}>
-              <span>{t("autoReset.title")}</span><Settings size={15} />
+              <span>{t("autoReset.title")}</span>
+              <span className="proxy-auto-switch-menu-action-icon"><Settings size={15} /></span>
             </button>
           </div>
         )}>
