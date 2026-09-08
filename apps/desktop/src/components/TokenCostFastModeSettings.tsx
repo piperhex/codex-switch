@@ -52,7 +52,6 @@ export function TokenCostFastModeSettings({ t }: { t: Translate }) {
     <small id="token-cost-fast-mode-hint">
       {t("tokenCost.fastMode.hint", { multiplier: DEFAULT_FAST_MODE_COST_MULTIPLIER })}
     </small>
-    <small>{t("tokenCost.fastMode.legacyHint")}</small>
     {!valid && <small className="custom-token-cost-fast-mode-error" role="alert">
       {t("tokenCost.fastMode.invalid", { max: MAX_FAST_MODE_COST_MULTIPLIER })}
     </small>}
