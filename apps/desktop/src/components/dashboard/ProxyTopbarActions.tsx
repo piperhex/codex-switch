@@ -3,12 +3,10 @@ import { Popover, Switch, Tooltip } from "antd";
 import { ChevronDown, Settings, Shuffle } from "lucide-react";
 import type { Translate } from "../../i18n";
 import type { useProviderManager } from "../../hooks/useProviderManager";
-import { CloudRecycleBin } from "../CloudRecycleBin";
 import { ProxySessionManager } from "../ProxySessionManager";
 import { AutoResetSettingsModal } from "./AutoResetSettingsModal";
 
 interface ProxyTopbarActionsProps {
-  cloudAuthenticated: boolean;
   manager: ReturnType<typeof useProviderManager>;
   showSessionManager?: boolean;
   trailingAction?: ReactNode;
@@ -16,7 +14,6 @@ interface ProxyTopbarActionsProps {
 }
 
 export function ProxyTopbarActions({
-  cloudAuthenticated,
   manager,
   showSessionManager = true,
   t,
@@ -83,9 +80,7 @@ export function ProxyTopbarActions({
         onClose={() => setResetSettingsOpen(false)} />}
       {proxyRunning && showSessionManager && <ProxySessionManager t={t}
         triggerClassName="refresh-all proxy-topbar-action" />}
-      {(proxyRunning || trailingAction) && <span className="account-security-actions">
-        {proxyRunning && <CloudRecycleBin t={t} disabled={!cloudAuthenticated}
-          triggerClassName="refresh-all proxy-topbar-action" />}
+      {trailingAction && <span className="account-security-actions">
         {trailingAction}
       </span>}
     </>

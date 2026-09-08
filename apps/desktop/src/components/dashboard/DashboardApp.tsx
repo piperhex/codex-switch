@@ -58,6 +58,7 @@ import { ProxySessionManager } from "../ProxySessionManager";
 import { ErrorLogsPage } from "../../pages/ErrorLogsPage";
 import { CloudLoginModal } from "../modals/CloudLoginModal";
 import { CloudAccountModal } from "../modals/CloudAccountModal";
+import { CloudRecycleBin } from "../CloudRecycleBin";
 import { LoginModal } from "../modals/LoginModal";
 import { LanAccessModal } from "../modals/LanAccessModal";
 import { UpdateModal } from "../modals/UpdateModal";
@@ -1153,13 +1154,11 @@ export function DashboardApp() {
       onChange={providerManager.setProxyFastMode} t={t} />
     : null;
   const proxyTopbarActions = (
-    <ProxyTopbarActions cloudAuthenticated={cloud.state.authenticated}
-      manager={providerManager} showSessionManager={!sidebarNavigationEnabled}
+    <ProxyTopbarActions manager={providerManager} showSessionManager={!sidebarNavigationEnabled}
       t={t} />
   );
   const accountProxyTopbarActions = (
-    <ProxyTopbarActions cloudAuthenticated={cloud.state.authenticated}
-      manager={providerManager} showSessionManager={!sidebarNavigationEnabled}
+    <ProxyTopbarActions manager={providerManager} showSessionManager={!sidebarNavigationEnabled}
       trailingAction={<>
         {managedAccountGroups.length > 0 && <AccountGroupManager accounts={manager.accounts}
           concurrentGroup={providerManager.localProxy?.concurrentAccountGroup ?? null}
@@ -1264,7 +1263,11 @@ export function DashboardApp() {
             scrollDurationSeconds={announcement?.scrollDurationSeconds ?? 22}
             style={announcementStyle} text={announcementText}
             trackKey={`${language}:${announcementText}`} />
-          {(page === "accounts" || page === "providers") && usageSpeedPill}
+          {(page === "accounts" || page === "providers") && <>
+            {usageSpeedPill}
+            {titlebarProxyRunning && <CloudRecycleBin t={t} disabled={!cloud.state.authenticated}
+              triggerClassName="refresh-all announcement-recycle-bin-button" />}
+          </>}
           {!sidebarNavigationEnabled && (
             <DashboardNavigation onPageChange={setPage} page={page} t={t} />
           )}
