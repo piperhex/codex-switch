@@ -256,7 +256,7 @@ export function ProvidersPage({
         </Space>,
         topbarHost,
       )}
-      <div className="provider-page">
+      <div className={`provider-page${displayMode === "table" && providers.length ? " provider-table-page" : ""}`}>
 
       <AggregateApiOverview aggregates={aggregateApis} providers={providers}
         busyId={busyProviderId} proxyRunning={proxyRunning}

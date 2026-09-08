@@ -118,7 +118,7 @@ export function AccountsPage({
     );
   }
   return (
-    <div className="accounts-page">
+    <div className={`accounts-page${displayMode === "table" ? " accounts-table-page" : ""}`}>
       <AccountTable active={active} accounts={accounts} accountGroups={accountGroups}
         providers={providers} busyAccountId={busyAccountId}
         onSwitch={onSwitch} onDeactivate={onDeactivate}

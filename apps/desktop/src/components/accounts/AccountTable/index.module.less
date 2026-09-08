@@ -82,15 +82,15 @@
   .account-card-heading-controls .account-table-toolbar-summary { flex: 1 1 auto; }
   .account-list { margin: 0 var(--page-x); display: grid; gap: 14px; }
   .account-table-wrap {
-    width: calc(100% - 32px);
-    max-width: calc(100% - 32px);
+    width: 100%;
+    max-width: 100%;
     min-width: 0;
-    margin: 30px 16px 0;
-    border: 1px solid var(--line);
-    border-radius: 8px;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
     overflow: hidden;
     background: white;
-    box-shadow: 0 5px 18px rgba(24,45,31,.035);
+    box-shadow: none;
   }
   .account-table-toolbar {
     min-height: 40px;
@@ -241,7 +241,8 @@
   .official-context-settings-add { display: flex; gap: 6px; margin-top: 8px; }
   .official-context-settings-add .ant-input { min-width: 0; }
   main.accounts-main .accounts-page { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; padding: 8px 0 16px; }
-  main.accounts-main .accounts-page .account-table-wrap { flex: 1; min-height: 0; margin: 0 16px; }
+  main.accounts-main .accounts-table-page { gap: 0; padding: 0; }
+  main.accounts-main .accounts-page .account-table-wrap { flex: 1; min-height: 0; }
   main.accounts-main .accounts-page .account-card-grid { flex: 1; min-height: 0; }
   .account-card-grid {
     width: calc(100% - 32px);
