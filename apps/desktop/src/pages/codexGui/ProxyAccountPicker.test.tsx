@@ -73,6 +73,25 @@ it("shows the selected proxy target and switches between providers and official 
   expect(props.onSwitchAccount).toHaveBeenCalledWith(account.id);
 });
 
+it.each([
+  { label: "personal login", official: false, agentIdentity: false },
+  { label: "pool account", official: true, agentIdentity: false },
+  { label: "proxy-compatible agent account", official: false, agentIdentity: true },
+])("shows and switches a $label regardless of account provenance", async ({ official, agentIdentity }) => {
+  props.accounts = [{ ...account, official, agentIdentity }];
+  await render();
+  await click(trigger());
+  expect(option(account.email).getAttribute("aria-pressed")).toBe("true");
+  expect(option(account.email).disabled).toBe(false);
+
+  props.providers = [{ ...provider, active: true }];
+  await render();
+  expect(option(account.email).getAttribute("aria-pressed")).toBe("false");
+  await click(option(account.email));
+  expect(props.onSwitchAccount).toHaveBeenCalledWith(account.id);
+  expect(trigger().getAttribute("aria-expanded")).toBe("false");
+});
+
 it("keeps usage polling and the open list responsive while a switch is pending", async () => {
   let finish!: (success: boolean) => void;
   props.onSwitchProvider = vi.fn(() => new Promise<boolean>((resolve) => { finish = resolve; }));
@@ -117,7 +136,7 @@ it("disables switching when the proxy is stopped or another operation is pending
   await click(option(provider.name));
   expect(props.onSwitchProvider).not.toHaveBeenCalled();
   props.busy = false;
-  props.accounts = [{ ...account, localProxyCompatible: false }];
+  props.accounts = [{ ...account, official: false, localProxyCompatible: false }];
   await render();
   expect(option(account.email).disabled).toBe(true);
 });

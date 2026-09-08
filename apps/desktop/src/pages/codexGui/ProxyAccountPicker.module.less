@@ -11,10 +11,20 @@
   > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   small { color: var(--muted); font-size: 10px; }
 }
-.panel { width: min(320px, calc(100vw - 48px)); max-width: 400px; color: var(--ink); overflow-wrap: anywhere; }
+// Reduce the previous 320px content plus 24px popover padding by 20%.
+@panel-width: (344px * 0.8);
+.panel {
+  width: min(@panel-width, calc(100vw - 24px)); max-width: 400px; box-sizing: border-box;
+  padding: 12px 0; color: var(--ink); overflow-wrap: anywhere;
+}
+.header { padding: 0 12px; }
 .heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; font-size: 13px; }
-.list { max-height: min(380px, 55vh); overflow-y: auto; margin-top: 10px; }
+.list {
+  max-height: min(380px, 55vh); overflow-y: auto; margin-top: 10px; padding-left: 12px;
+  overscroll-behavior: contain;
+}
 .group {
+  margin-right: 12px;
   + .group { border-top: 1px solid var(--line); margin-top: 8px; padding-top: 8px; }
   h3 { margin: 0; padding: 5px 8px; color: var(--muted); font-size: 11px; font-weight: 500; }
 }

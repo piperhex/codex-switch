@@ -49,7 +49,8 @@ export function ProxyAccountPicker(props: ProxyAccountPickerProps) {
   const subtitle = props.proxyRunning ? category : "代理未启动";
   const disabled = props.busy || props.loading || saving || !props.proxyRunning;
   const matches = (choice: Choice) => `${choice.name} ${choice.detail}`.toLowerCase().includes(query.trim().toLowerCase());
-  const accounts = props.accounts.filter((entry) => entry.official).map((entry) => ({
+  // `official` describes account-pool provenance, not whether the account can use the official API.
+  const accounts = props.accounts.map((entry) => ({
     id: entry.id, name: entry.email,
     detail: entry.localProxyCompatible ? entry.note || entry.plan : "此账号暂不支持代理",
     selected: !thirdParty && entry.active, disabled: !entry.localProxyCompatible,
@@ -74,11 +75,13 @@ export function ProxyAccountPicker(props: ProxyAccountPickerProps) {
   const panel = <div className={styles.panel} onKeyDown={(event) => {
     if (event.key === "Escape") { event.stopPropagation(); setOpen(false); trigger.current?.focus(); }
   }}>
-    <div className={styles.heading}><strong>切换代理账户</strong>{(saving || props.loading) && <Spin size="small" />}</div>
-    <Input size="small" prefix={<Search size={13} />} placeholder="搜索账号或 Provider" aria-label="搜索账号或 Provider"
-      value={query} allowClear onChange={(event) => setQuery(event.target.value)} />
-    {!props.proxyRunning && <p className={styles.hint}>开启本地代理后，即可在这里切换。</p>}
-    {error && <p className={styles.error} role="alert">{error}</p>}
+    <div className={styles.header}>
+      <div className={styles.heading}><strong>切换代理账户</strong>{(saving || props.loading) && <Spin size="small" />}</div>
+      <Input size="small" prefix={<Search size={13} />} placeholder="搜索账号或 Provider" aria-label="搜索账号或 Provider"
+        value={query} allowClear onChange={(event) => setQuery(event.target.value)} />
+      {!props.proxyRunning && <p className={styles.hint}>开启本地代理后，即可在这里切换。</p>}
+      {error && <p className={styles.error} role="alert">{error}</p>}
+    </div>
     <div className={styles.list} aria-busy={saving || props.loading}>
       <AccountGroup title="官方账号" choices={accounts} disabled={disabled}
         onSelect={(id) => void select(id, props.onSwitchAccount)} />
@@ -87,7 +90,7 @@ export function ProxyAccountPicker(props: ProxyAccountPickerProps) {
     </div>
   </div>;
   return <Popover trigger="click" placement="topLeft" open={open && props.active} content={panel}
-    styles={{ root: { maxWidth: 400 } }} onOpenChange={(next) => {
+    styles={{ root: { maxWidth: 400 }, body: { padding: 0, overflow: "hidden" } }} onOpenChange={(next) => {
       setOpen(next); if (next) { setQuery(""); setError(""); }
     }}>
     <button ref={trigger} type="button" className={styles.trigger} aria-expanded={open && props.active}
