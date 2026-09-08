@@ -1255,15 +1255,13 @@ export function DashboardApp() {
               <span>Codex<br /><b>Switch</b></span>
             </button>
           )}
-          {(page === "accounts" || page === "providers") && (
-            <AccountDisplayTabs displayMode={accountDisplayMode.displayMode}
-              onChange={accountDisplayMode.setDisplayMode} t={t} />
-          )}
           <AnnouncementBanner link={announcementLink} onOpenLink={openAnnouncementLink}
             scrollDurationSeconds={announcement?.scrollDurationSeconds ?? 22}
             style={announcementStyle} text={announcementText}
             trackKey={`${language}:${announcementText}`} />
           {(page === "accounts" || page === "providers") && <>
+            <AccountDisplayTabs displayMode={accountDisplayMode.displayMode}
+              onChange={accountDisplayMode.setDisplayMode} t={t} />
             {usageSpeedPill}
             {titlebarProxyRunning && <CloudRecycleBin t={t} disabled={!cloud.state.authenticated}
               triggerClassName="refresh-all announcement-recycle-bin-button" />}
