@@ -13,9 +13,6 @@ import { UserMessage } from "./UserMessage";
 import { useStreamingText } from "./useStreamingText";
 import styles from "./styles.module.less";
 
-const TOOL_LABELS: Record<string, string> = { fileChange: "文件修改",
-  mcpToolCall: "调用工具", dynamicToolCall: "调用工具", collabAgentToolCall: "协作任务", webSearch: "搜索网页",
-  contextCompaction: "已整理对话上下文", imageView: "查看图片", imageGeneration: "生成图片", plan: "计划" };
 const FOLLOW_SCROLL_DISTANCE = 100;
 
 const MARKDOWN_COMPONENTS: Components = {
@@ -58,12 +55,7 @@ const Message = memo(function Message({ item, streaming, startedAt }: {
   if (item.type === "agentMessage") return <AgentMessage text={item.text ?? ""} streaming={streaming} />;
   const text = toolText(item);
   if (item.type === "reasoning" && !text.trim()) return null;
-  if (item.type === "reasoning" || item.type === "commandExecution") return <ActivityRow item={item} text={text} />;
-  return <details className={styles.toolMessage}>
-    <summary><span>{TOOL_LABELS[item.type] ?? "任务活动"}{item.tool ? ` · ${item.tool}` : ""}</span>
-      <span className={styles.muted}>{item.status === "inProgress" ? "进行中" : "查看详情"}</span></summary>
-    <pre>{text}</pre>
-  </details>;
+  return <ActivityRow item={item} text={text} />;
 });
 
 export function Messages({ value, selected, active = true }: {
