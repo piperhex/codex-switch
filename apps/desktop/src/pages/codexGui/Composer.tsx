@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { Button, Input, Select, Tooltip } from "antd";
+import { Button, Select, Tooltip } from "antd";
 import { ImagePlus, ShieldCheck } from "lucide-react";
 import { ComposerSubmit } from "./ComposerSubmit";
 import type { GuiController } from "./controller";
@@ -9,6 +9,7 @@ import { IMAGE_TYPES, MAX_IMAGES, useComposerDraft } from "./useComposerDraft";
 import { ModelPicker } from "./ModelPicker";
 import { UsageStatus } from "./UsageStatus";
 import { ProjectPicker } from "./ProjectPicker";
+import { SkillInput } from "./SkillInput";
 import styles from "./styles.module.less";
 
 const ACCESS_OPTIONS = [{ value: "read-only", label: "只读" }, { value: "workspace-write", label: "项目内编辑" },
@@ -17,10 +18,9 @@ const ACCESS_OPTIONS = [{ value: "read-only", label: "只读" }, { value: "works
 export function Composer({ state, controller, active }: {
   state: GuiState; controller: GuiController; active: boolean;
 }) {
-  const composing = useRef(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const key = state.selected ?? "new";
-  const { draft, reading, editText, removeImage, addImages, paste, send: sendDraft } = useComposerDraft(key, controller);
+  const { draft, reading, editContent, removeImage, addImages, paste, send: sendDraft } = useComposerDraft(key, controller);
   const current = state.selected ? state.conversations[state.selected] : undefined;
   const project = state.selected
     ? state.projectOverrides[state.selected] ?? current?.thread.cwd ?? "" : state.settings.cwd;
@@ -41,16 +41,10 @@ export function Composer({ state, controller, active }: {
         aria-label="选择图片" onChange={(event) => {
           addImages(Array.from(event.target.files ?? [])); event.target.value = "";
         }} />
-      <Input.TextArea value={draft.text} autoSize={{ minRows: 3, maxRows: 9 }} maxLength={128000}
-        placeholder={state.archived ? "恢复对话后即可继续" : "描述任务，或提出问题…"} aria-label="消息"
-        disabled={disabled} onPaste={paste}
-        onChange={(event) => editText(event.target.value)}
-        onCompositionStart={() => { composing.current = true; }} onCompositionEnd={() => { composing.current = false; }}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" && !event.shiftKey && !composing.current && !event.nativeEvent.isComposing) {
-            event.preventDefault(); void send();
-          }
-        }} />
+      <SkillInput value={draft} draftKey={key} cwd={project} active={active}
+        connected={state.connection === "ready"} disabled={disabled}
+        placeholder={state.archived ? "恢复对话后即可继续" : "描述任务，或输入 / 选择 Skill…"}
+        onChange={editContent} onPaste={paste} onSend={() => void send()} />
       <div className={styles.composerControls}>
         <Tooltip title="添加图片" styles={{ root: { maxWidth: 400 } }}>
           <Button type="text" icon={<ImagePlus size={18} />} aria-label="添加图片"

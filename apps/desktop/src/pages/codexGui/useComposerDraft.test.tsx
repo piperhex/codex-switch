@@ -60,7 +60,7 @@ it("leaves ordinary text paste alone and sends pasted images without requiring t
   expect(controller.send).not.toHaveBeenCalled();
   await finish();
   await act(async () => editor.send());
-  expect(controller.send).toHaveBeenCalledWith("", [imageUrl]);
+  expect(controller.send).toHaveBeenCalledWith("", [imageUrl], []);
   expect(editor.draft.images).toEqual([]);
 });
 
@@ -72,7 +72,7 @@ it("keeps edits and images with their original conversation when reads finish la
   act(() => editor.editText("另一条草稿"));
   await finish(readers[0]);
   await finish(readers[1]);
-  expect(editor.draft).toEqual({ text: "另一条草稿", images: [] });
+  expect(editor.draft).toEqual({ text: "另一条草稿", mentions: [], images: [] });
   await render();
   expect(editor.draft.text).toBe("原来的草稿");
   expect(editor.draft.images).toHaveLength(1);
@@ -109,4 +109,18 @@ it("removes failed reads so they do not leave the composer stuck", async () => {
   expect(editor.reading).toBe(false);
   expect(editor.draft.images).toEqual([]);
   expect(controller.report).toHaveBeenCalledWith("图片读取失败，请重新粘贴或选择图片。");
+});
+
+it("preserves skill references with each draft and on failed sends, then clears them on success", async () => {
+  const skill = { name: "deploy", path: "D:/skills/deploy/SKILL.md", description: "部署", enabled: true };
+  act(() => editor.editContent({ text: "$deploy", mentions: [{ start: 0, end: 7, skill }] }));
+  await render("other");
+  expect(editor.draft.mentions).toEqual([]);
+  await render();
+  vi.mocked(controller.send).mockResolvedValueOnce(false);
+  await act(async () => editor.send());
+  expect(editor.draft.mentions[0].skill).toEqual(skill);
+  expect(controller.send).toHaveBeenLastCalledWith("$deploy", [], [{ name: skill.name, path: skill.path }]);
+  await act(async () => editor.send());
+  expect(editor.draft.mentions).toEqual([]);
 });

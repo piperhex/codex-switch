@@ -1,4 +1,14 @@
 export type AccessMode = "read-only" | "workspace-write" | "danger-full-access";
+export interface SkillReference { name: string; path: string }
+export interface Skill extends SkillReference {
+  description: string;
+  shortDescription?: string;
+  interface?: { displayName?: string; shortDescription?: string };
+  enabled: boolean;
+}
+export interface SkillMention { start: number; end: number; skill: Skill }
+export interface ComposerText { text: string; mentions: SkillMention[] }
+export interface SkillsResponse { data: { skills: Skill[]; errors: { message: string }[] }[] }
 export interface Model {
   id: string;
   model: string;
@@ -107,12 +117,13 @@ export type ApprovalReply = {
   answers?: Record<string, { answers: string[] }>;
 };
 export type Request =
+  | { operation: "skills"; cwd?: string }
   | { operation: "models"; cursor?: string }
   | { operation: "list"; cursor?: string; archived: boolean; search?: string }
   | { operation: "start"; cwd?: string; model?: string; access: AccessMode }
   | { operation: "resume"; threadId: string; access: AccessMode; cwd?: string }
   | { operation: "send"; threadId: string; text: string; images: string[];
-      model?: string; effort?: string; cwd?: string }
+      model?: string; effort?: string; cwd?: string; skills?: SkillReference[] }
   | { operation: "read" | "archive" | "unarchive"; threadId: string }
   | { operation: "rename"; threadId: string; name: string }
   | { operation: "interrupt"; threadId: string; turnId: string };

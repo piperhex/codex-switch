@@ -55,6 +55,44 @@ fn user_input_stays_in_a_structured_turn() {
 }
 
 #[test]
+fn skills_are_listed_for_the_selected_project_and_sent_as_structured_input() {
+    let project = std::env::current_dir().unwrap();
+    let (method, params) = request(json!({"operation": "skills", "cwd": project}))
+        .into_rpc()
+        .unwrap();
+    assert_eq!(method, "skills/list");
+    assert_eq!(params["cwds"], json!([project]));
+    assert_eq!(params["forceReload"], true);
+    assert!(request(json!({"operation": "skills", "cwd": "relative"}))
+        .into_rpc()
+        .is_err());
+    let root = std::env::temp_dir().join(format!("gui-skill-test-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir(&root).unwrap();
+    let path = root.join("SKILL.md");
+    std::fs::write(&path, "---\nname: deploy\ndescription: Test\n---\n").unwrap();
+    let (_, params) = request(
+        json!({"operation": "send", "threadId": "thread-1", "text": "$deploy",
+        "images": [], "skills": [{"name": "deploy", "path": path}]}),
+    )
+    .into_rpc()
+    .unwrap();
+    assert_eq!(
+        params["input"][1],
+        json!({"type": "skill", "name": "deploy", "path": path})
+    );
+    for invalid in ["relative/SKILL.md", "D:/missing/SKILL.md", "config.toml"] {
+        assert!(request(
+            json!({"operation": "send", "threadId": "thread-1", "text": "$deploy",
+            "images": [], "skills": [{"name": "deploy", "path": invalid}]})
+        )
+        .into_rpc()
+        .is_err());
+    }
+    assert!(root.starts_with(std::env::temp_dir()));
+    std::fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
 fn pasted_images_are_sent_inline_even_without_text() {
     let image = concat!(
         "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwC",

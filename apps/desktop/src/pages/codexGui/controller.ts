@@ -2,6 +2,7 @@ import { guiApi } from "./api";
 import { conversation, reduceEvent } from "./events";
 import { initialState, savePreferences } from "./preferences";
 import type { ApprovalReply, GuiEvent, GuiState, ListResponse, Model, Settings, Thread, Turn } from "./types";
+import type { SkillReference } from "./types";
 
 const STREAM_FRAME_MS = 32;
 
@@ -128,7 +129,7 @@ export class GuiController {
     } catch (error) { if (generation === this.selectionGeneration) this.report(error); }
   };
 
-  send = async (text: string, images: string[]) => {
+  send = async (text: string, images: string[], skills: SkillReference[] = []) => {
     const { selected, settings, conversations } = this.state;
     const projectOverride = selected ? this.state.projectOverrides[selected] : undefined;
     if (this.state.sending || this.state.connection !== "ready") return false;
@@ -146,7 +147,8 @@ export class GuiController {
       this.settings({ cwd: projectOverride ?? thread.cwd });
       // Loaded threads can ignore resume overrides; apply project changes to the next turn explicitly.
       const { turn } = await guiApi.request<{ turn: Turn }>({ operation: "send", threadId: thread.id,
-        text, images, model: settings.model || undefined, effort: settings.effort || undefined, cwd: projectOverride });
+        text, images, skills, model: settings.model || undefined,
+        effort: settings.effort || undefined, cwd: projectOverride });
       const current = this.state.conversations[thread.id];
       // Completion can arrive before the request promise resolves. Never resurrect a completed turn.
       if (!current.turns.some((entry) => entry.id === turn.id)) {

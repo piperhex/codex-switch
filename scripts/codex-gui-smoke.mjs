@@ -16,6 +16,11 @@ const home = join(root, "dev.codex.switch", ".codex");
 const project = join(root, "project");
 const projectless = join(root, "dev.codex.switch", "codex-gui-workspaces", "projectless-test");
 await Promise.all([mkdir(home, { recursive: true }), mkdir(project), mkdir(projectless, { recursive: true })]);
+const skillDirectory = join(home, "skills", "gui-fixture");
+const skillPath = join(skillDirectory, "SKILL.md");
+await mkdir(skillDirectory, { recursive: true });
+await writeFile(skillPath, "---\nname: gui-fixture\ndescription: GUI skill smoke test\n---\n"
+  + "The selected skill marker is GUI_SKILL_SELECTED.\n");
 let delayed = false;
 let responseCount = 0;
 const imageUrl = "data:image/png;base64,"
@@ -114,9 +119,13 @@ try {
   await initialize(client);
   const models = await client.rpc("model/list", { limit: 50 });
   assert.ok(Array.isArray(models.data));
+  const catalog = await client.rpc("skills/list", { cwds: [project], forceReload: true });
+  const skill = catalog.data.flatMap((entry) => entry.skills).find((entry) => entry.name === "gui-fixture");
+  assert.ok(skill?.enabled, "Installed skills are discoverable in the GUI home");
   const { thread } = await client.rpc("thread/start", { cwd: project, sandbox: "read-only", approvalPolicy: "on-request" });
   const { turn } = await client.rpc("turn/start", { threadId: thread.id,
-    input: [{ type: "image", url: imageUrl }] });
+    input: [{ type: "image", url: imageUrl }, { type: "text", text: "$gui-fixture", text_elements: [] },
+      { type: "skill", name: skill.name, path: skill.path }] });
   await client.waitFor("item/agentMessage/delta");
   const during = await client.rpc("thread/list", { limit: 50, archived: false, modelProviders: [], sortKey: "updated_at" });
   assert.ok(Array.isArray(during.data));
@@ -125,6 +134,8 @@ try {
   assert.ok(requestBodies.some((body) => body.input?.some((item) => item.content?.some((part) =>
     part.type === "input_image" && /^data:image\/(png|jpeg);base64,/.test(part.image_url)))),
   "Pasted image reaches the model request");
+  assert.ok(requestBodies.some((body) => JSON.stringify(body.input).includes("GUI_SKILL_SELECTED")),
+    "The selected skill's instructions reach the model request");
   const read = await client.rpc("thread/read", { threadId: thread.id, includeTurns: true });
   const listed = await client.rpc("thread/list", { archived: false, modelProviders: [] });
   assert.ok(listed.data.some((entry) => entry.id === thread.id));
@@ -163,7 +174,8 @@ try {
   assert.ok(entries.includes("sessions"));
   assert.ok(entries.some((entry) => /^state_.*\.sqlite$/.test(entry)));
   assert.equal((await readFile(join(home, "config.toml"), "utf8")).includes("gui_fixture"), true);
-  console.log("PASS: official CLI handshake, image-only input, streaming, history, projectless start/continue, restart/resume, archive/restore, interrupt, isolated storage");
+  console.log("PASS: official CLI handshake, skill discovery/input, images, streaming, history, "
+    + "projectless start/continue, restart/resume, archive/restore, interrupt, isolated storage");
 } catch (error) {
   console.error(error);
   process.exitCode = 1;

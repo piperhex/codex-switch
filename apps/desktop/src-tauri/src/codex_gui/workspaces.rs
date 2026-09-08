@@ -28,6 +28,9 @@ pub(super) fn prepare_root(app: &AppHandle) -> Result<PathBuf> {
 
 pub(super) fn prepare_request(request: &mut GuiRequest, root: &Path) -> Result<()> {
     match request {
+        GuiRequest::Skills { cwd } if cwd.as_ref().is_none_or(|value| value.trim().is_empty()) => {
+            *cwd = Some(execution_path(root));
+        }
         GuiRequest::Start { cwd, .. } => {
             *cwd = Some(resolve_directory(cwd.as_deref(), root, None)?)
         }

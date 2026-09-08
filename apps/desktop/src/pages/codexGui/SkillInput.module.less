@@ -1,0 +1,32 @@
+.inputWrap { position: relative; }
+.editor { min-height: 83px; max-height: 240px; overflow-y: auto; padding: 5px 8px 12px;
+  outline: none; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; line-height: 1.7;
+  &[data-empty='true']::before { content: attr(data-placeholder); color: var(--gui-muted); pointer-events: none;
+    position: absolute; }
+  &[aria-disabled='true'] { opacity: .55; }
+}
+.skillChip { color: #2786df; font-weight: 500; white-space: normal;
+  padding: 0 2px; border-radius: 4px; box-decoration-break: clone;
+  &::before { content: ''; display: inline-block; width: 16px; height: 18px; margin-right: 5px;
+    vertical-align: -4px; background: currentColor;
+    mask: url("./skill-icon.svg") center / contain no-repeat;
+  }
+}
+.menu { position: absolute; bottom: calc(100% + 12px); left: 0; z-index: 20; width: min(400px, 100%);
+  border: 1px solid var(--gui-border); border-radius: 12px; background: var(--panel);
+  box-shadow: 0 8px 30px #0002; padding: 6px; overflow-wrap: anywhere;
+  p { padding: 8px; margin: 0; color: var(--gui-muted); font-size: 12px; }
+}
+.menuHeading { color: var(--gui-muted); font-size: 12px; padding: 6px 8px; }
+.options { overflow-y: auto; max-height: min(320px, 40vh);
+  button { display: flex; align-items: flex-start; gap: 10px; width: 100%; border: 0; border-radius: 7px;
+    padding: 9px 8px; background: transparent; color: inherit; text-align: left; cursor: pointer;
+    &[aria-selected='true'], &:hover { background: var(--green-selection); }
+    &[aria-disabled='true'] { opacity: .5; cursor: default; }
+    > svg { flex-shrink: 0; color: #2786df; margin-top: 2px; }
+    > span { min-width: 0; }
+    strong { display: block; font-size: 13px; font-weight: 500; }
+    small { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+      margin-top: 3px; font-size: 11px; line-height: 1.5; color: var(--gui-muted); }
+  }
+}

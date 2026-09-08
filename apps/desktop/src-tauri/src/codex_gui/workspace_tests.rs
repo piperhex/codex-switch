@@ -37,6 +37,13 @@ fn new_projectless_chats_get_separate_workspaces() {
 }
 
 #[test]
+fn projectless_skills_use_the_app_workspace_instead_of_the_process_directory() {
+    let fixture = Fixture::new();
+    let params = prepare(json!({"operation": "skills"}), &fixture.0).unwrap();
+    assert_eq!(params["cwds"], json!([execution_path(&fixture.0)]));
+}
+
+#[test]
 fn removing_a_project_reuses_the_threads_scratch_folder_without_deleting_the_project() {
     let fixture = Fixture::new();
     let project = fixture.0.join("project");

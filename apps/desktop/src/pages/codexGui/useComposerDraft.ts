@@ -1,12 +1,13 @@
 import { useState, type ClipboardEvent } from "react";
 import type { GuiController } from "./controller";
+import type { ComposerText } from "./types";
 
 export const MAX_IMAGES = 8;
 export const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
 export const IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 export interface DraftImage { id: string; name: string; url?: string }
-interface Draft { text: string; images: DraftImage[] }
-const EMPTY_DRAFT: Draft = { text: "", images: [] };
+interface Draft extends ComposerText { images: DraftImage[] }
+const EMPTY_DRAFT: Draft = { text: "", mentions: [], images: [] };
 
 export function readImage(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -23,7 +24,8 @@ export function useComposerDraft(key: string, controller: GuiController) {
   const draft = drafts[key] ?? EMPTY_DRAFT;
   const update = (change: (value: Draft) => Draft) => setDrafts((values) =>
     ({ ...values, [key]: change(values[key] ?? EMPTY_DRAFT) }));
-  const editText = (text: string) => update((value) => ({ ...value, text }));
+  const editText = (text: string) => update((value) => ({ ...value, text, mentions: [] }));
+  const editContent = (content: ComposerText) => update((value) => ({ ...value, ...content }));
   const removeImage = (id: string) => update((value) =>
     ({ ...value, images: value.images.filter((image) => image.id !== id) }));
   const addImages = (files: File[]) => {
@@ -41,7 +43,7 @@ export function useComposerDraft(key: string, controller: GuiController) {
         .catch(() => { removeImage(id); controller.report("图片读取失败，请重新粘贴或选择图片。"); });
     }
   };
-  const paste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
+  const paste = (event: ClipboardEvent<HTMLElement>) => {
     const files = Array.from(event.clipboardData.items)
       .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
       .map((item) => item.getAsFile()).filter((file): file is File => file !== null);
@@ -52,12 +54,14 @@ export function useComposerDraft(key: string, controller: GuiController) {
   const reading = draft.images.some((image) => !image.url);
   const send = async () => {
     if (reading) return;
-    if (await controller.send(draft.text, draft.images.flatMap((image) => image.url ? [image.url] : []))) {
+    const skills = [...new Map(draft.mentions.map(({ skill }) =>
+      [skill.path, { name: skill.name, path: skill.path }])).values()];
+    if (await controller.send(draft.text, draft.images.flatMap((image) => image.url ? [image.url] : []), skills)) {
       setDrafts((values) => ({ ...values, [key]: EMPTY_DRAFT }));
     } else {
       const selected = controller.getSnapshot().selected ?? "new";
       setDrafts((values) => ({ ...values, [key]: EMPTY_DRAFT, [selected]: draft }));
     }
   };
-  return { draft, reading, editText, removeImage, addImages, paste, send };
+  return { draft, reading, editText, editContent, removeImage, addImages, paste, send };
 }

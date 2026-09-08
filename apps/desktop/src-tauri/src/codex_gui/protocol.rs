@@ -19,6 +19,9 @@ pub(crate) enum GuiRequest {
     Models {
         cursor: Option<String>,
     },
+    Skills {
+        cwd: Option<String>,
+    },
     List {
         cursor: Option<String>,
         archived: bool,
@@ -41,6 +44,8 @@ pub(crate) enum GuiRequest {
         thread_id: String,
         text: String,
         images: Vec<String>,
+        #[serde(default)]
+        skills: Vec<SkillInput>,
         model: Option<String>,
         effort: Option<String>,
         cwd: Option<String>,
@@ -67,6 +72,28 @@ pub(crate) enum AccessMode {
     ReadOnly,
     WorkspaceWrite,
     DangerFullAccess,
+}
+
+#[derive(Debug, Deserialize)]
+pub(crate) struct SkillInput {
+    name: String,
+    path: String,
+}
+
+impl SkillInput {
+    fn into_input(self) -> Result<Value> {
+        let path = std::path::Path::new(&self.path);
+        if self.name.trim().is_empty()
+            || self.name.len() > 200
+            || self.name.chars().any(char::is_control)
+            || !path.is_absolute()
+            || path.file_name().is_none_or(|name| name != "SKILL.md")
+            || !path.is_file()
+        {
+            return Err(GuiError::InvalidRequest);
+        }
+        Ok(json!({"type": "skill", "name": self.name, "path": self.path}))
+    }
 }
 
 #[derive(Serialize)]
@@ -132,6 +159,15 @@ impl GuiRequest {
     // Only this closed set of methods is exposed to the WebView.
     pub(super) fn into_rpc(self) -> Result<(&'static str, Value)> {
         match self {
+            Self::Skills { cwd } => {
+                if let Some(cwd) = &cwd {
+                    directory(cwd)?;
+                }
+                Ok((
+                    "skills/list",
+                    json!({"cwds": cwd.into_iter().collect::<Vec<_>>(), "forceReload": true}),
+                ))
+            }
             Self::Models { cursor } => {
                 Ok(("model/list", json!({"limit": PAGE_SIZE, "cursor": cursor})))
             }
@@ -178,12 +214,13 @@ impl GuiRequest {
                 thread_id,
                 text,
                 images,
+                skills,
                 model,
                 effort,
                 cwd,
             } => send_params(
                 thread_id,
-                (text, images),
+                (text, images, skills),
                 TurnOptions { model, effort, cwd },
             ),
             Self::Interrupt { thread_id, turn_id } => {
@@ -214,11 +251,11 @@ struct TurnOptions {
 
 fn send_params(
     thread_id: String,
-    input: (String, Vec<String>),
+    input: (String, Vec<String>, Vec<SkillInput>),
     options: TurnOptions,
 ) -> Result<(&'static str, Value)> {
-    let (text, images) = input;
-    if (text.trim().is_empty() && images.is_empty())
+    let (text, images, skills) = input;
+    if (text.trim().is_empty() && images.is_empty() && skills.is_empty())
         || text.len() > MAX_PROMPT_BYTES
         || images.len() > MAX_IMAGES
     {
@@ -236,6 +273,9 @@ fn send_params(
     let mut content = vec![json!({"type": "text", "text": text, "text_elements": []})];
     for image in images {
         content.push(images::input(image)?);
+    }
+    for skill in skills {
+        content.push(skill.into_input()?);
     }
     params["input"] = json!(content);
     params["model"] = json!(options.model);
