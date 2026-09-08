@@ -107,6 +107,7 @@ import { SettingsGroupsNav, SettingsPage } from "../../pages/SettingsPage";
 import { SkillsMarketPage } from "../../pages/SkillsMarketPage";
 import { CodexThreadsPage } from "../../pages/CodexThreadsPage";
 import { CodexGuiPage } from "../../pages/CodexGuiPage";
+import { ProxyAccountPicker } from "../../pages/codexGui/ProxyAccountPicker";
 import codexGuiStyles from "../../pages/codexGui/styles.module.less";
 import { CODEX_CONFIG_TOPBAR_ID, CodexConfigPage } from "../../pages/CodexConfigPage";
 import codexConfigStyles from "../../pages/codexConfig/pageStyles.module.less";
@@ -1486,7 +1487,15 @@ export function DashboardApp() {
             {page === "sessions" && <MemoCodexThreadsPage language={language} notify={notify} />}
           </section>
           <section className={codexGuiStyles.panel} hidden={page !== "codexGui"}>
-            <CodexGuiPage active={page === "codexGui"} />
+            <CodexGuiPage active={page === "codexGui"} accountPicker={
+              <ProxyAccountPicker active={page === "codexGui"} accounts={manager.accounts}
+                providers={providerManager.providers} aggregateApis={providerManager.aggregateApis}
+                proxyRunning={Boolean(providerManager.localProxy?.running)}
+                busy={providerManager.proxyBusy || Boolean(manager.busyAccountId || providerManager.busyProviderId)}
+                loading={manager.loading || providerManager.loading}
+                onSwitchAccount={(id) => manager.switchAccount(id, true)}
+                onSwitchProvider={providerManager.switchProvider} />
+            } />
           </section>
           <section className="page-panel" hidden={page !== "systemPrompts"}>
             {page === "systemPrompts" && (

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Button, Dropdown, Input, Modal, Segmented, Spin } from "antd";
 import { Archive, Folder, MoreHorizontal, Pencil, Pin, Plus, RefreshCw, Search } from "lucide-react";
 import type { GuiController } from "./controller";
@@ -8,7 +8,9 @@ import styles from "./styles.module.less";
 export function threadTitle(thread: Thread) { return thread.name || thread.preview || "新对话"; }
 export function projectName(path: string) { return path.split(/[\\/]/).filter(Boolean).pop() || "未选择项目"; }
 
-export function ThreadSidebar({ state, controller }: { state: GuiState; controller: GuiController }) {
+export function ThreadSidebar({ state, controller, accountPicker }: {
+  state: GuiState; controller: GuiController; accountPicker: ReactNode;
+}) {
   const [search, setSearch] = useState(state.search);
   const [renaming, setRenaming] = useState<Thread | null>(null);
   const [name, setName] = useState("");
@@ -71,10 +73,7 @@ export function ThreadSidebar({ state, controller }: { state: GuiState; controll
       {state.cursor && <Button type="text" block loading={state.loading}
         onClick={() => void controller.refresh(true)}>加载更多</Button>}
     </div>
-    <div className={styles.sidebarFooter}>
-      <span className={state.connection === "ready" ? styles.runningDot : styles.idleDot} />
-      {state.connection === "ready" ? "Codex 已连接" : state.connection === "connecting" ? "正在连接…" : "Codex 未连接"}
-    </div>
+    {accountPicker}
     <Modal title="重命名对话" open={Boolean(renaming)} width={400} okText="保存" cancelText="取消"
       okButtonProps={{ disabled: !name.trim() }} onCancel={() => setRenaming(null)}
       onOk={() => { if (renaming) void controller.manage("rename", renaming.id, name); setRenaming(null); }}>

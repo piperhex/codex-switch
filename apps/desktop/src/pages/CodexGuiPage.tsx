@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Alert, Button, Popover } from "antd";
 import { Download, PanelLeftClose, PanelLeftOpen, RefreshCw } from "lucide-react";
 import { isDesktopApp } from "../api/backend";
@@ -11,15 +11,17 @@ import { Installer } from "./codexGui/Installer";
 import { useCliInstaller } from "./codexGui/useCliInstaller";
 import styles from "./codexGui/styles.module.less";
 
-export function CodexGuiPage({ active }: { active: boolean }) {
+type CodexGuiPageProps = { active: boolean; accountPicker: ReactNode };
+
+export function CodexGuiPage({ active, accountPicker }: CodexGuiPageProps) {
   const [visited, setVisited] = useState(active);
   useEffect(() => { if (active) setVisited(true); }, [active]);
   if (!visited) return null;
   if (!isDesktopApp) return <div className={styles.install}><h2>Codex GUI</h2><p>请在 Codex Switch 桌面版中开始对话。</p></div>;
-  return <Workspace active={active} />;
+  return <Workspace active={active} accountPicker={accountPicker} />;
 }
 
-function Workspace({ active }: { active: boolean }) {
+function Workspace({ active, accountPicker }: CodexGuiPageProps) {
   const [controller] = useState(() => new GuiController());
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const [collapsed, setCollapsed] = useState(false);
@@ -31,7 +33,7 @@ function Workspace({ active }: { active: boolean }) {
   const otherApproval = state.approvals.find((event) => event.params.threadId !== state.selected);
   const running = state.sending || Object.values(state.conversations).some((value) => value.activeTurn);
   return <div className={`${styles.page} ${collapsed ? styles.collapsed : ""}`}>
-    {!collapsed && <ThreadSidebar state={state} controller={controller} />}
+    {!collapsed && <ThreadSidebar state={state} controller={controller} accountPicker={accountPicker} />}
     <div className={styles.workspace}>
       <header className={styles.header}>
         <Button type="text" icon={collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
