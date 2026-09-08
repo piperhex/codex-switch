@@ -14,6 +14,7 @@ include!("runtime_recovery.rs");
 include!("windows_runtime.rs");
 include!("macos_runtime.rs");
 include!("runtime_lifecycle.rs");
+include!("runtime_entry.rs");
 include!("theme_commands.rs");
 
 #[cfg(all(test, target_os = "windows"))]
@@ -21,6 +22,9 @@ mod tests_recovery_integration;
 
 #[cfg(test)]
 mod tests_renderer_bindings;
+
+#[cfg(test)]
+mod tests_runtime_entry;
 
 #[cfg(test)]
 mod tests {

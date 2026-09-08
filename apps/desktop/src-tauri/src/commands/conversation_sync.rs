@@ -60,13 +60,7 @@ fn restore_non_proxy_conversations_blocking<R: Runtime>(
 
     let restore_result = restore_conversation_metadata_if_present(&paths.codex_home);
     let restart_result = if client_was_running {
-        crate::codex_runtime::restart_managed_session().and_then(|restarted| {
-            if restarted {
-                Ok(())
-            } else {
-                start_chatgpt(launch_target.as_ref())
-            }
-        })
+        restart_chatgpt_from_target(&app, launch_target.as_ref())
     } else {
         Ok(())
     };

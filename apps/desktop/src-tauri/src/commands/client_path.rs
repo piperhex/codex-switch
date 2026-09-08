@@ -11,7 +11,6 @@ fn refresh_local_codex_path<R: Runtime>(app: &tauri::AppHandle<R>) {
         state.local_codex_path = Some(path.clone());
         let _ = write_state(&paths, &state);
     }
-    let _ = crate::codex_runtime::record_launch_executable(&path);
 }
 
 #[cfg(not(target_os = "windows"))]
@@ -36,7 +35,9 @@ pub(crate) fn refresh_and_get_chatgpt_launch_target<R: Runtime>(
             .ok()
             .and_then(|paths| read_state(&paths).local_codex_path)
             .filter(|path| Path::new(path).is_file())
-            .map(ChatGptLaunchTarget::Executable);
+            .map(|path| ChatGptLaunchTarget {
+                executable: path.into(),
+            });
         saved_target.or_else(official_default_chatgpt_target)
     }
 
@@ -58,26 +59,8 @@ fn official_default_chatgpt_target() -> Option<ChatGptLaunchTarget> {
             .is_file()
             .then(|| target.as_os_str().to_string_lossy().into_owned())
     })
-    .map(ChatGptLaunchTarget::Executable)
-    .or_else(|| official_chatgpt_shell_app_id().map(ChatGptLaunchTarget::ShellApp))
-}
-
-#[cfg(target_os = "windows")]
-fn official_chatgpt_shell_app_id() -> Option<String> {
-    // Reading the package manifest avoids depending on the localized Start menu
-    // display name. Get-StartApps remains a fallback for older package layouts.
-    windows_powershell_line(concat!(
-        "$package = Get-AppxPackage -Name OpenAI.Codex -ErrorAction SilentlyContinue | ",
-        "Select-Object -First 1; if ($package) { $manifest = Get-AppxPackageManifest ",
-        "-Package $package.PackageFullName -ErrorAction SilentlyContinue; $application = ",
-        "@($manifest.Package.Applications.Application) | Select-Object -First 1; ",
-        "if ($application) { \"$($package.PackageFamilyName)!$($application.Id)\" } }"
-    ))
-    .or_else(|| {
-        windows_powershell_line(concat!(
-            "$app = Get-StartApps | Where-Object { $_.AppID -like 'OpenAI.Codex_*!*' } | ",
-            "Select-Object -First 1; if ($app) { $app.AppID }"
-        ))
+    .map(|path| ChatGptLaunchTarget {
+        executable: path.into(),
     })
 }
 

@@ -141,23 +141,6 @@ pub(crate) fn setup_runtime(app: &AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-pub(crate) fn restart_runtime_session() -> Result<(), String> {
-    let _operation = OPERATION_LOCK
-        .lock()
-        .map_err(|_| "Codex runtime operation lock is unavailable.".to_string())?;
-    let paths = MONITOR
-        .get()
-        .and_then(|control| {
-            control
-                .paths
-                .lock()
-                .unwrap_or_else(|error| error.into_inner())
-                .clone()
-        })
-        .ok_or_else(|| "Codex runtime is not initialized.".to_string())?;
-    restart_managed_runtime(&paths, SkinVerificationMode::Background)
-}
-
 fn install_unlocked(app: &AppHandle, restart_chatgpt: bool) -> Result<(), String> {
     initialize_store()?;
     if restart_chatgpt {

@@ -143,14 +143,14 @@ fn prepare_migration_client<R: Runtime>(
     })
 }
 
-fn restart_migration_client(client: &MigrationClientState) -> Result<(), String> {
+fn restart_migration_client<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    client: &MigrationClientState,
+) -> Result<(), String> {
     if !client.was_running {
         return Ok(());
     }
-    if crate::codex_runtime::restart_managed_session()? {
-        return Ok(());
-    }
-    crate::commands::start_chatgpt(client.launch_target.as_ref())
+    crate::commands::restart_chatgpt_from_target(app, client.launch_target.as_ref())
 }
 
 fn migrate_selected_threads(
@@ -208,7 +208,7 @@ pub(crate) fn migrate_codex_threads_blocking<R: Runtime>(
     });
     let client = prepare_migration_client(&app, has_eligible_threads)?;
     let migration = migrate_selected_threads(&paths, &mut state, selected, &target_account_id);
-    let restart = restart_migration_client(&client);
+    let restart = restart_migration_client(&app, &client);
     let (migrated_count, skipped_count) = match (migration, restart) {
         (Ok(result), Ok(())) => result,
         (Ok(_), Err(error)) => return Err(format!("会话迁移完成，但无法重新启动 ChatGPT/Codex：{error}")),

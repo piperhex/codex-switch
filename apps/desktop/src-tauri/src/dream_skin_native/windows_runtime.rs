@@ -43,7 +43,11 @@ fn stop_codex(install: &CodexInstall) -> Result<(), String> {
         &install.executable,
         Duration::from_secs(10),
     )
-    .map_err(|error| error.to_string())
+    .map_err(|error| error.to_string())?;
+    // Another installation can appear during an update. Do not create a managed
+    // instance beside it or terminate a process outside the selected installation.
+    crate::windows_client_processes::wait_for_desktop_exit(Duration::ZERO)
+        .map_err(|error| error.to_string())
 }
 
 #[cfg(not(target_os = "windows"))]
@@ -238,6 +242,12 @@ fn remembered_codex_install() -> Option<CodexInstall> {
 }
 
 fn find_runtime_launch_install() -> Result<CodexInstall, String> {
+    // Theme actions have no captured launch target. Prefer the running package
+    // after an update rather than a still-readable path from the previous session.
+    #[cfg(target_os = "windows")]
+    if let Some(running) = find_running_codex_install() {
+        return Ok(running);
+    }
     remembered_codex_install()
         .map(Ok)
         .unwrap_or_else(find_codex_install)

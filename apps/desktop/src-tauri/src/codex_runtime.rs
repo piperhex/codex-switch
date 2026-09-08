@@ -17,7 +17,7 @@ use tauri::AppHandle;
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 use tauri::Emitter;
 
-#[cfg(target_os = "windows")]
+#[cfg(any(target_os = "windows", target_os = "macos"))]
 use std::path::Path;
 
 #[cfg(any(target_os = "windows", target_os = "macos"))]
@@ -136,23 +136,9 @@ pub(crate) fn refresh_usage_summary() {
 
 /// Relaunches Codex with the local renderer channel. Theme injection remains
 /// controlled exclusively by Dream Skin's installation and pause state.
-pub(crate) fn restart_managed_session() -> Result<bool, String> {
-    #[cfg(any(target_os = "windows", target_os = "macos"))]
-    return match crate::dream_skin_native::restart_runtime_session() {
-        Ok(()) => Ok(true),
-        Err(error) if error == "Codex runtime is not initialized." => Ok(false),
-        Err(error) => Err(error),
-    };
-    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
-    Ok(false)
-}
-
-/// Updates the executable used by the next managed restart. ChatGPT updates can
-/// leave the previously remembered Store path valid, so restart callers must
-/// publish the path observed for the current process before stopping it.
-#[cfg(target_os = "windows")]
-pub(crate) fn record_launch_executable(path: &str) -> Result<(), String> {
-    crate::dream_skin_native::record_runtime_executable(Path::new(path))
+#[cfg(any(target_os = "windows", target_os = "macos"))]
+pub(crate) fn restart_managed_session(executable: Option<&Path>) -> Result<(), String> {
+    crate::dream_skin_native::restart_runtime_session(executable)
 }
 
 /// Refreshes Codex's model and config caches through the managed renderer channel.

@@ -6,9 +6,6 @@ const LOCAL_PROXY_CONVERSATION_PROVIDER: &str = "codex-switch-local";
 const LEGACY_CODEX_COMMAND: &str = "codex";
 #[cfg(target_os = "windows")]
 const CREATE_NO_WINDOW: u32 = 0x08000000;
-#[cfg(target_os = "windows")]
-const WINDOWS_11_FIRST_BUILD: u32 = 22_000;
-
 static ACCOUNT_AUTO_SWITCH_STATE_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 static ACCOUNT_SWITCH_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 
@@ -27,14 +24,13 @@ pub(crate) fn initialize_local_state<R: Runtime>(app: &tauri::AppHandle<R>) {
     refresh_local_codex_path(app);
 }
 
-#[cfg(target_os = "windows")]
+#[cfg(any(target_os = "windows", target_os = "macos"))]
 #[derive(Clone)]
-pub(crate) enum ChatGptLaunchTarget {
-    ShellApp(String),
-    Executable(String),
+pub(crate) struct ChatGptLaunchTarget {
+    executable: std::path::PathBuf,
 }
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
 pub(crate) type ChatGptLaunchTarget = String;
 
 #[derive(Deserialize)]

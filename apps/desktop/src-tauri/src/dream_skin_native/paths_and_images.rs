@@ -176,24 +176,6 @@ fn write_session(state: &NativeSessionState) -> Result<(), String> {
     write_json(&session_path()?, state)
 }
 
-#[cfg(target_os = "windows")]
-pub(crate) fn record_runtime_executable(executable: &Path) -> Result<(), String> {
-    // Serialize read/modify/write with recovery so a path refresh cannot restore a spent attempt.
-    let _operation = OPERATION_LOCK
-        .lock()
-        .map_err(|_| "Codex runtime operation lock is unavailable.".to_string())?;
-    if !executable.is_file() {
-        return Err("The recorded ChatGPT executable is no longer available.".to_string());
-    }
-    let executable = executable.display().to_string();
-    let mut state = read_session();
-    if state.codex_executable.as_deref() == Some(executable.as_str()) {
-        return Ok(());
-    }
-    state.codex_executable = Some(executable);
-    write_session(&state)
-}
-
 fn image_details(path: &Path) -> Result<(&'static str, u32, u32), String> {
     let metadata = fs::metadata(path)
         .map_err(|error| format!("Failed to inspect {}: {error}", path.display()))?;

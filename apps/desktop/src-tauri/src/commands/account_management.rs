@@ -105,28 +105,19 @@ fn launch_chatgpt_blocking<R: Runtime>(app: tauri::AppHandle<R>) -> Result<bool,
     Ok(true)
 }
 
+/// Shared launch entry for account, proxy, login and conversation operations.
+/// Callers performing an account change already hold the account-switch lock.
 pub(crate) fn restart_chatgpt_from_target<R: Runtime>(
     app: &tauri::AppHandle<R>,
     launch_target: Option<&ChatGptLaunchTarget>,
 ) -> Result<(), String> {
-    record_managed_launch_target(launch_target)?;
-    if !crate::codex_runtime::restart_managed_session()? {
-        start_chatgpt(launch_target)?;
-    }
+    #[cfg(any(target_os = "windows", target_os = "macos"))]
+    crate::codex_runtime::restart_managed_session(
+        launch_target.map(|target| target.executable.as_path()),
+    )?;
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    start_unmanaged_chatgpt(launch_target)?;
     refresh_local_codex_path_after_restart(app);
-    Ok(())
-}
-
-#[cfg(target_os = "windows")]
-fn record_managed_launch_target(target: Option<&ChatGptLaunchTarget>) -> Result<(), String> {
-    let Some(ChatGptLaunchTarget::Executable(path)) = target else {
-        return Ok(());
-    };
-    crate::codex_runtime::record_launch_executable(path)
-}
-
-#[cfg(not(target_os = "windows"))]
-fn record_managed_launch_target(_target: Option<&ChatGptLaunchTarget>) -> Result<(), String> {
     Ok(())
 }
 

@@ -1,25 +1,3 @@
-#[cfg(all(test, target_os = "windows"))]
-mod windows_chatgpt_launch_tests {
-    use super::{is_windows_10_version, is_windows_store_package_executable};
-
-    #[test]
-    fn selects_the_windows_10_launcher_only_for_windows_10_builds() {
-        assert!(is_windows_10_version(10, 19_045));
-        assert!(!is_windows_10_version(10, 22_000));
-        assert!(!is_windows_10_version(11, 22_000));
-    }
-
-    #[test]
-    fn detects_executables_inside_the_protected_windows_apps_directory() {
-        assert!(is_windows_store_package_executable(
-            r"C:\Program Files\WindowsApps\OpenAI.Codex_1.0.0.0_x64__example\app\ChatGPT.exe"
-        ));
-        assert!(!is_windows_store_package_executable(
-            r"C:\Users\Example\Apps\ChatGPT.exe"
-        ));
-    }
-}
-
 #[cfg(test)]
 mod account_switch_reason_tests {
     use super::AccountSwitchReason;

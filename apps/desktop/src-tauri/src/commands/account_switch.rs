@@ -98,13 +98,7 @@ fn deactivate_account_and_restart_chatgpt_blocking<R: Runtime>(
         return deactivate_result.map(|_| ());
     }
 
-    let restart_result = crate::codex_runtime::restart_managed_session().and_then(|restarted| {
-        if restarted {
-            Ok(())
-        } else {
-            start_chatgpt(launch_target.as_ref())
-        }
-    });
+    let restart_result = restart_chatgpt_from_target(&app, launch_target.as_ref());
     match (deactivate_result, restart_result) {
         (Ok(_), Ok(())) => Ok(()),
         (Err(error), Ok(())) => Err(error),
@@ -209,11 +203,7 @@ pub(crate) fn switch_account_and_restart_chatgpt_blocking<R: Runtime>(
     // When no client is running, write the replacement credential immediately.
     // When one is running, the preceding shutdown gives the same guarantee.
     switch_account_unlocked(&app, &id)?;
-    if crate::codex_runtime::restart_managed_session()? {
-        return Ok(());
-    }
-
-    start_chatgpt(launch_target.as_ref()).map_err(|error| {
+    restart_chatgpt_from_target(&app, launch_target.as_ref()).map_err(|error| {
         format!(
             "账户已切换，但无法自动启动 ChatGPT/Codex（{error}）。请手动启动 ChatGPT 或 Codex。"
         )
@@ -256,10 +246,9 @@ pub(crate) fn reapply_active_account_after_login<R: Runtime>(
         &id,
         AccountSwitchOptions::credential_refresh(),
     )?;
-    if !client_was_running || crate::codex_runtime::restart_managed_session()? {
-        return Ok(true);
+    if client_was_running {
+        restart_chatgpt_from_target(&app, launch_target.as_ref())?;
     }
-    start_chatgpt(launch_target.as_ref())?;
     Ok(true)
 }
 
