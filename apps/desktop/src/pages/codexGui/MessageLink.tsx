@@ -2,8 +2,17 @@ import type { ReactNode } from "react";
 import { message } from "antd";
 import { isTauri } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { CopyButton } from "./CopyButton";
+import styles from "./MessageLink.module.less";
+
+export function isFileReference(href: string) {
+  return /^(?:[a-z]:[\\/]|\/[^/]|\.\.?[\\/])/i.test(href) && !/^\/__codex_switch__\//.test(href);
+}
 
 export function MessageLink({ href, children }: { href?: string; children?: ReactNode }) {
+  if (href && isFileReference(href)) return <span className={styles.fileReference}>
+    <span>{children}</span><CopyButton text={href} label="复制文件路径" />
+  </span>;
   if (!href || !/^https?:\/\//i.test(href)) return <span>{children}</span>;
   return <a href={href} target="_blank" rel="noopener noreferrer" onClick={(event) => {
     // Browser navigation must stay native, including Ctrl/Cmd-click and the link context menu.

@@ -1,5 +1,6 @@
 import type { Content, Item } from "./types";
 import { CopyButton } from "./CopyButton";
+import { MessageImage } from "./MessageImage";
 import styles from "./styles.module.less";
 
 const MILLISECONDS_PER_SECOND = 1000;
@@ -13,7 +14,8 @@ export function UserMessage({ item, startedAt }: { item: Item; startedAt?: numbe
   return <article className={styles.userMessage}>
     <div className={styles.userBubble}>
       {parts.filter((part) => part.type === "localImage" || part.type === "image").map((part, index) =>
-        <span className={styles.imageLabel} key={index}>图片：{part.path?.split(/[\\/]/).pop() ?? "附件"}</span>)}
+        part.url ? <MessageImage key={index} src={part.url} alt={`图片附件 ${index + 1}`} />
+          : <span className={styles.imageLabel} key={index}>图片：{part.path?.split(/[\\/]/).pop() ?? "附件"}</span>)}
       <div>{text}</div>
     </div>
     <div className={styles.userMessageActions}>

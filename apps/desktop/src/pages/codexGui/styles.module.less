@@ -33,6 +33,15 @@
   > span { color: var(--gui-muted); font-size: 11px; } }
 .headerActions { margin-left: auto; display: flex; align-items: center; flex-shrink: 0; }
 .messageViewport { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.messageArea { display: flex; flex-direction: column; position: relative; flex: 1; min-height: 0; }
+.jumpToLatest { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 6px; padding: 7px 12px; border: 1px solid var(--gui-border);
+  border-radius: 20px; background: var(--panel); box-shadow: 0 3px 12px #0001; color: var(--ink); cursor: pointer;
+  font-size: 12px; white-space: nowrap; }
+.workGroup { min-width: 0; font-size: 12px; color: var(--gui-muted);
+  > summary { cursor: pointer; padding: 5px 0; span { margin-left: 10px; } } }
+.workItems { display: flex; flex-direction: column; gap: 14px; padding: 12px 0 4px;
+  .agentMessage { font-size: 13px; color: var(--gui-muted); line-height: 1.7; } }
 .messageContent { max-width: 900px; margin: 0 auto; padding: 28px 32px; }
 .welcome { display: flex; flex-direction: column; justify-content: center; align-items: center;
   min-height: clamp(210px, 35vh, 400px); text-align: center;
@@ -55,7 +64,6 @@
   > button { color: inherit; } }
 @media (hover: none) { .userMessageActions { opacity: 1; pointer-events: auto; } }
 .agentMessage { min-width: 0; line-height: 1.8; font-size: 14px; > button { color: var(--gui-muted); } }
-.agentLabel { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 12px; margin-bottom: 10px; }
 .markdown { overflow-wrap: anywhere; p { margin: 10px 0; } ul, ol { padding-left: 24px; }
   pre { padding: 16px; border-radius: 10px; background: var(--bg, #f4f6f5); overflow: auto; line-height: 1.6; }
   code { font-family: Consolas, monospace; font-size: 12px; }
@@ -64,10 +72,6 @@
   th, td { border: 1px solid var(--gui-border); padding: 6px 12px; }
   blockquote { border-left: 3px solid var(--gui-border); padding-left: 16px; margin-left: 0; color: var(--gui-muted); }
   a { color: var(--green-dark); text-decoration: underline; } }
-.toolMessage { border: 1px solid var(--gui-border); border-radius: 9px; font-size: 12px; margin: 5px 0;
-  summary { padding: 10px 13px; cursor: pointer; > span:last-child { float: right; } }
-  pre { border-top: 1px solid var(--gui-border); margin: 0; padding: 12px; max-height: 360px;
-    overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 11px; font-family: Consolas, monospace; } }
 .imageLabel { display: block; font-size: 12px; color: var(--gui-muted); }
 .working { display: flex; align-items: center; gap: 10px; padding: 8px 0; color: var(--gui-muted); font-size: 12px; }
 .muted { color: var(--gui-muted); font-size: 12px; }

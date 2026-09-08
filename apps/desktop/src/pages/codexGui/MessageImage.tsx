@@ -4,12 +4,16 @@ import styles from "./MessageImage.module.less";
 
 interface MessageImageProps { src?: string; alt?: string; title?: string }
 
+export function isInlineImage(src: string) {
+  return /^data:image\/(png|jpeg|webp|gif);base64,[a-z0-9+/=]+$/i.test(src);
+}
+
 export function MessageImage({ src, alt, title }: MessageImageProps) {
   const [failed, setFailed] = useState(false);
   const [preview, setPreview] = useState(false);
   const description = alt?.trim() || "图片";
   // Only load explicit web images; relative paths must not invoke local application endpoints.
-  if (!src || !/^https?:\/\//i.test(src)) {
+  if (!src || (!/^https?:\/\//i.test(src) && !isInlineImage(src))) {
     return <span className={styles.unavailable}>{description}（暂不支持预览）</span>;
   }
   if (failed) return <span className={styles.unavailable} role="status">

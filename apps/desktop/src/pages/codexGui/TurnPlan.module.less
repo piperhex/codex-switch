@@ -1,0 +1,8 @@
+.plan { border: 1px solid var(--gui-border); border-radius: 10px; padding: 12px 14px; font-size: 13px;
+  summary { cursor: pointer; span { float: right; color: var(--gui-muted); } }
+  ol { list-style: none; padding: 0; margin: 10px 0 0; }
+  li { display: flex; gap: 9px; align-items: baseline; padding: 7px 0;
+    svg { flex-shrink: 0; align-self: center; } span { flex: 1; } small { color: var(--gui-muted); flex-shrink: 0; } }
+  li[data-status='completed'] svg { color: var(--green-dark); }
+  li[data-status='inProgress'] { font-weight: 600; }
+}

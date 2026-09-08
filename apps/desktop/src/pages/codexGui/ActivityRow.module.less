@@ -13,10 +13,22 @@
 .row[open] .toggle { transform: rotate(180deg); }
 .commandBody, .reasoningBody {
   margin: 7px 0 3px 24px; padding: 10px 14px; border-left: 2px solid var(--line);
-  max-height: 360px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere;
+  max-height: 600px; overflow: auto; white-space: normal; overflow-wrap: anywhere;
   color: var(--ink); line-height: 1.7; font-size: 12px;
+  pre { white-space: pre-wrap; overflow-wrap: anywhere; font-family: Consolas, monospace; margin: 8px 0; }
 }
-.commandBody { font-family: Consolas, monospace; }
-.reasoningBody { font-family: inherit; font-size: 13px; }
+.reasoningBody { font-size: 13px; }
+.commandToolbar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; color: var(--gui-muted);
+  > span:first-child { flex: 1; min-width: 0; overflow-wrap: anywhere; } }
+.commandCode { padding: 8px 10px; background: var(--bg); border-radius: 5px; }
+.output { padding: 8px 0; max-height: 340px; overflow: auto; }
+.payload { padding: 8px 0; summary { cursor: pointer; color: var(--gui-muted); } }
+.searchResult { margin: 10px 0; padding: 8px 0; border-top: 1px solid var(--gui-border);
+  p { color: var(--gui-muted); margin: 4px 0; font-family: inherit; } }
+.failure { color: #c24047; white-space: pre-wrap; overflow-wrap: anywhere; }
+.emptyBody { color: var(--gui-muted); }
+.row[data-status='inProgress'] .icon { color: var(--green-dark); animation: breathe 1.5s ease-in-out infinite; }
+.row[data-status='failed'] .icon { color: #c24047; }
+@keyframes breathe { 50% { opacity: .4; } }
 @media (hover: none) { .toggle { opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .toggle { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .toggle { transition: none; } .icon { animation: none !important; } }

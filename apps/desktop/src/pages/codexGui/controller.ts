@@ -2,6 +2,7 @@ import { guiApi } from "./api";
 import { conversation, reduceEvent } from "./events";
 import { completeTurnTiming, restoreTurnTiming } from "./turnTiming";
 import { MessageQueue } from "./messageQueue";
+import { rememberTurnDetails } from "./turnDetailsStorage";
 import { initialState, savePreferences } from "./preferences";
 import type { ApprovalReply, GuiEvent, GuiState, ListResponse, Model, Settings, Thread, Turn } from "./types";
 import type { SkillReference } from "./types";
@@ -58,6 +59,11 @@ export class GuiController {
     }
     this.flushStream();
     this.patch(reduceEvent(this.state, event));
+    if (["turn/diff/updated", "turn/plan/updated"].includes(event.method) && event.params.threadId) {
+      const value = this.state.conversations[event.params.threadId];
+      const turnId = event.params.turnId ?? value?.activeTurn;
+      if (value && turnId) rememberTurnDetails(value, turnId);
+    }
     if (event.method === "turn/completed" && event.params.threadId) void this.queue.flush(event.params.threadId);
     if (event.method === "turn/completed" || event.method === "thread/name/updated") void this.refresh();
   };

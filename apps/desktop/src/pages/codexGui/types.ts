@@ -18,6 +18,9 @@ export interface Model {
   supportedReasoningEfforts: { reasoningEffort: string; description: string }[];
 }
 export interface Content { type: string; text?: string; path?: string; url?: string }
+export interface FileChange { path: string; diff: string; kind: { type: string; movePath?: string | null } }
+export interface PlanStep { step: string; status: string }
+export interface SearchResult { title?: string; url?: string; snippet?: string }
 export interface Item {
   id: string;
   type: string;
@@ -25,11 +28,31 @@ export interface Item {
   content?: Content[] | string[];
   summary?: string[];
   command?: string;
+  commandActions?: { type: string; name?: string; path?: string | null; query?: string | null }[];
   cwd?: string;
   status?: string;
   aggregatedOutput?: string;
   exitCode?: number | null;
-  changes?: { path: string; diff: string; kind: { type: string } }[];
+  changes?: FileChange[];
+  phase?: "commentary" | "final_answer" | null;
+  durationMs?: number | null;
+  path?: string;
+  imageUrl?: string;
+  revisedPrompt?: string;
+  savedPath?: string;
+  failure?: { message?: string } | null;
+  contentItems?: unknown[];
+  success?: boolean;
+  progress?: string[];
+  action?: { type: string; query?: string; queries?: string[]; url?: string; pattern?: string };
+  results?: SearchResult[];
+  prompt?: string;
+  receiverThreadIds?: string[];
+  agentsStates?: Record<string, { status?: string; message?: string | null }>;
+  agentStatus?: unknown;
+  review?: string;
+  name?: string;
+  output?: unknown;
   tool?: string;
   server?: string;
   query?: string;
@@ -41,6 +64,9 @@ export interface Turn {
   id: string; status: string; items: Item[]; startedAt?: number | null; error?: { message: string } | null;
   completedAt?: number | null;
   durationMs?: number | null;
+  diff?: string;
+  plan?: PlanStep[];
+  planExplanation?: string | null;
 }
 export interface Thread {
   id: string;
@@ -66,6 +92,8 @@ export interface EventParams {
   itemId?: string;
   item?: Item;
   delta?: string;
+  message?: string;
+  explanation?: string | null;
   summaryIndex?: number;
   contentIndex?: number;
   requestId?: string | number;
@@ -80,7 +108,7 @@ export interface EventParams {
   availableDecisions?: unknown[];
   questions?: Question[];
   diff?: string;
-  plan?: { step: string; status: string }[];
+  plan?: PlanStep[];
   tokenUsage?: { total: { totalTokens: number }; last: { totalTokens: number }; modelContextWindow?: number };
   error?: { message: string };
   willRetry?: boolean;
@@ -90,8 +118,6 @@ export interface Conversation {
   thread: Thread;
   turns: Turn[];
   activeTurn: string | null;
-  diff: string;
-  plan: { step: string; status: string }[];
   tokens: number;
   error: string;
 }

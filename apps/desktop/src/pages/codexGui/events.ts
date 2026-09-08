@@ -1,11 +1,19 @@
 import type { Conversation, GuiEvent, GuiState, Item, Thread, Turn } from "./types";
 import { completeTurnTiming, restoreTurnTiming } from "./turnTiming";
+import { cachedTurnDetails } from "./turnDetailsStorage";
 
 export function conversation(thread: Thread, previous?: Conversation): Conversation {
   const previousTurns = new Map(previous?.turns.map((turn) => [turn.id, turn]));
-  const turns = (thread.turns ?? []).map((turn) => restoreTurnTiming(turn, previousTurns.get(turn.id)));
+  const cached = cachedTurnDetails(thread.id);
+  const turns = (thread.turns ?? []).map((turn) => {
+    const previousTurn = previousTurns.get(turn.id);
+    return { diff: previousTurn?.diff ?? cached.get(turn.id)?.diff,
+      plan: previousTurn?.plan ?? cached.get(turn.id)?.plan,
+      planExplanation: previousTurn?.planExplanation ?? cached.get(turn.id)?.planExplanation,
+      ...restoreTurnTiming(turn, previousTurn) };
+  });
   return { thread, turns, activeTurn: turns.find((turn) => turn.status === "inProgress")?.id ?? null,
-    diff: "", plan: [], tokens: 0, error: "" };
+    tokens: 0, error: "" };
 }
 
 function updateTurn(value: Conversation, id: string, update: (turn: Turn) => Turn): Conversation {
@@ -31,7 +39,7 @@ function updateItem(value: Conversation, event: GuiEvent, update: (item: Item) =
   return updateTurn(value, turnId, (turn) => {
     const items = [...turn.items];
     const index = items.findIndex((entry) => entry.id === id);
-    const next = update(items[index] ?? { id, type: "agentMessage", text: "" });
+    const next = update(items[index] ?? { id, type: "agentMessage" });
     if (index === -1) items.push(next);
     else items[index] = next;
     return { ...turn, items };
@@ -44,6 +52,9 @@ function applyDelta(value: Conversation, event: GuiEvent): Conversation {
     if (event.method === "item/commandExecution/outputDelta") {
       return { ...item, type: "commandExecution", aggregatedOutput: (item.aggregatedOutput ?? "") + delta };
     }
+    if (event.method === "item/fileChange/outputDelta") {
+      return { ...item, type: "fileChange", aggregatedOutput: (item.aggregatedOutput ?? "") + delta };
+    }
     if (event.method.startsWith("item/reasoning/")) {
       const key = event.method.includes("summary") ? "summary" : "content";
       const parts = [...((item[key] as string[] | undefined) ?? [])];
@@ -51,8 +62,20 @@ function applyDelta(value: Conversation, event: GuiEvent): Conversation {
       parts[index] = (parts[index] ?? "") + delta;
       return { ...item, type: "reasoning", [key]: parts };
     }
-    return { ...item, text: (item.text ?? "") + delta };
+    return { ...item, type: event.method === "item/plan/delta" ? "plan" : "agentMessage",
+      text: (item.text ?? "") + delta };
   });
+}
+
+const TEXT_DELTAS = new Set(["item/agentMessage/delta", "item/plan/delta", "item/commandExecution/outputDelta",
+  "item/fileChange/outputDelta", "item/reasoning/summaryTextDelta", "item/reasoning/textDelta"]);
+
+function updateTurnDetails(value: Conversation, event: GuiEvent): Conversation {
+  const id = event.params.turnId ?? value.activeTurn;
+  if (!id) return value;
+  return updateTurn(value, id, (turn) => event.method === "turn/diff/updated"
+    ? { ...turn, diff: event.params.diff ?? "" }
+    : { ...turn, plan: event.params.plan ?? [], planExplanation: event.params.explanation });
 }
 
 export function reduceConversation(value: Conversation, event: GuiEvent): Conversation {
@@ -67,7 +90,7 @@ export function reduceConversation(value: Conversation, event: GuiEvent): Conver
       error: params.turn.status === "failed" ? "本次回复未完成，请检查连接后重试。" : "" };
   }
   if ((method === "item/started" || method === "item/completed") && params.item) {
-    const updated = updateItem(value, event, () => params.item!);
+    const updated = updateItem(value, event, (previous) => ({ ...previous, ...params.item! }));
     if (params.item.type === "userMessage" && !value.thread.preview) {
       const content = params.item.content?.filter((part) => typeof part === "object" && part.type === "text") ?? [];
       const preview = content.map((part) => typeof part === "object" ? part.text : "").join(" ");
@@ -75,9 +98,10 @@ export function reduceConversation(value: Conversation, event: GuiEvent): Conver
     }
     return updated;
   }
-  if (method.endsWith("Delta") || method.endsWith("/delta")) return applyDelta(value, event);
-  if (method === "turn/diff/updated") return { ...value, diff: params.diff ?? "" };
-  if (method === "turn/plan/updated") return { ...value, plan: params.plan ?? [] };
+  if (TEXT_DELTAS.has(method)) return applyDelta(value, event);
+  if (method === "item/mcpToolCall/progress") return updateItem(value, event, (item) => ({ ...item,
+    type: "mcpToolCall", progress: [...(item.progress ?? []), params.message ?? ""].slice(-50) }));
+  if (method === "turn/diff/updated" || method === "turn/plan/updated") return updateTurnDetails(value, event);
   if (method === "thread/tokenUsage/updated") return { ...value, tokens: params.tokenUsage?.total.totalTokens ?? 0 };
   if (method === "error") return { ...value,
     error: params.willRetry ? "连接暂时中断，Codex 正在重试…" : "本次回复遇到问题，请检查账户和连接后重试。" };

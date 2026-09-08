@@ -9,6 +9,36 @@ const event = (method: string, params: GuiEvent["params"]): GuiEvent => ({
 });
 
 describe("Codex GUI event projection", () => {
+  it("attaches plan and net diff to their turn and retains both when reopening history", () => {
+    let value = conversation(thread);
+    const first = { id: "turn", status: "inProgress", items: [] };
+    value = reduceConversation(value, event("turn/started", { turn: first }));
+    value = reduceConversation(value, event("turn/diff/updated", { diff: "first diff" }));
+    value = reduceConversation(value, event("turn/plan/updated", {
+      plan: [{ step: "测试", status: "inProgress" }], explanation: "检查修改" }));
+    value = reduceConversation(value, event("turn/completed", { turn: { ...first, status: "completed" } }));
+    value = reduceConversation(value, event("turn/started", { turn: { ...first, id: "next" } }));
+    value = reduceConversation(value, event("turn/diff/updated", { turnId: "next", diff: "second diff" }));
+    const restored = conversation({ ...thread, turns: value.turns.map(({ diff, plan, planExplanation, ...turn }) => turn) },
+      value);
+    expect(restored.turns[0]).toMatchObject({ diff: "first diff", planExplanation: "检查修改",
+      plan: [{ step: "测试", status: "inProgress" }] });
+    expect(restored.turns[1].diff).toBe("second diff");
+    expect(restored.turns[1].plan).toBeUndefined();
+  });
+
+  it("never treats tool output or unknown deltas as an assistant reply", () => {
+    let value = conversation(thread);
+    value = reduceConversation(value, event("item/fileChange/outputDelta", { itemId: "patch", delta: "applied" }));
+    value = reduceConversation(value, event("item/plan/delta", { itemId: "plan", delta: "Check tests" }));
+    value = reduceConversation(value, event("item/unknown/delta", { itemId: "unknown", delta: "internal" }));
+    expect(value.turns[0].items.map((item) => item.type)).toEqual(["fileChange", "plan"]);
+    expect(value.turns[0].items[0].aggregatedOutput).toBe("applied");
+    value = reduceConversation(value, event("item/completed", { item: { id: "patch", type: "fileChange",
+      status: "completed", changes: [] } }));
+    expect(value.turns[0].items[0].aggregatedOutput).toBe("applied");
+  });
+
   it("keeps the question and execution history when completion contains only the final answer", () => {
     const items: Item[] = [
       { id: "question", type: "userMessage", content: [{ type: "text", text: "Check the project" },
