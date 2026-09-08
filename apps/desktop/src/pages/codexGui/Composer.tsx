@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import { Button, Input, Select, Tooltip } from "antd";
-import { ArrowUp, ImagePlus, ShieldCheck, Square } from "lucide-react";
+import { ImagePlus, ShieldCheck } from "lucide-react";
+import { ComposerSubmit } from "./ComposerSubmit";
 import type { GuiController } from "./controller";
 import type { AccessMode, GuiState } from "./types";
 import { ImageAttachments } from "./ImageAttachments";
@@ -64,10 +65,8 @@ export function Composer({ state, controller, active }: {
           <UsageStatus active={active} />
           <ModelPicker models={state.models} model={state.settings.model} effort={state.settings.effort}
             disabled={running || state.sending} onChange={controller.settings} />
-          {running ? <Button type="primary" shape="circle" icon={<Square size={14} fill="currentColor" />}
-            aria-label="停止生成" onClick={() => void controller.interrupt()} />
-            : <Button type="primary" shape="circle" icon={<ArrowUp size={19} />} aria-label="发送消息"
-              loading={state.sending} disabled={!canSend} onClick={() => void send()} />}
+          <ComposerSubmit state={state} controller={controller}
+            hasDraft={Boolean(draft.text.trim() || draft.images.length)} reading={reading} onSend={send} />
         </div>
       </div>
     </div>
