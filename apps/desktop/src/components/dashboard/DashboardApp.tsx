@@ -1267,6 +1267,7 @@ export function DashboardApp() {
             {usageSpeedPill}
             {titlebarProxyRunning && <CloudRecycleBin t={t} disabled={!cloud.state.authenticated}
               triggerClassName="refresh-all announcement-recycle-bin-button" />}
+            {chatGptActionMenu}
           </>}
           {!sidebarNavigationEnabled && (
             <DashboardNavigation onPageChange={setPage} page={page} t={t} />
@@ -1316,7 +1317,6 @@ export function DashboardApp() {
                   <Plus size={18} />{t("actions.addAccount")}
                 </button>
                 {refreshActionMenu}
-                {chatGptActionMenu}
                 {accountProxyTopbarActions}
                 <CodexConfigRepairButton disabled={providerManager.proxyBusy}
                   notify={notify} t={t} />
@@ -1325,7 +1325,6 @@ export function DashboardApp() {
             {page === "providers" && (
               <div className="topbar-actions">
                 <div id="provider-topbar-actions" className="provider-topbar-action-slot" />
-                {chatGptActionMenu}
                 {proxyTopbarActions}
               </div>
             )}

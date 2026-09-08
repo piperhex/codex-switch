@@ -206,7 +206,8 @@ button:focus-visible { outline: 3px solid rgba(45, 131, 87, .24); outline-offset
 .brand span { font-size: 15px; color: #66756c; }
 .brand b { color: #213028; font-weight: 700; }
 .announcement-slot { min-width: 0; flex: 1 1 0; overflow: hidden; }
-.app-menu .announcement-recycle-bin-button.ant-btn {
+.app-menu .announcement-recycle-bin-button.ant-btn,
+.app-menu .chatgpt-menu-button {
   height: var(--announcement-height);
   flex: 0 0 auto;
   padding: 0 13px;
