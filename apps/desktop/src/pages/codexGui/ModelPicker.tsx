@@ -38,9 +38,10 @@ function ModelList({ models, model, onSelect, onBack }: {
     .filter((option) => `${option.label} ${option.value}`.toLowerCase().includes(query.trim().toLowerCase()));
   return <div className={styles.models}>
     <button className={styles.listHeading} onClick={onBack} aria-label="返回推理强度设置">
-      <ChevronLeft size={15} /><span>选择模型</span>
+      <ChevronLeft size={12} /><span>选择模型</span>
     </button>
-    {models.length > MODEL_SEARCH_THRESHOLD && <Input className={styles.search} prefix={<Search size={14} />}
+    {models.length > MODEL_SEARCH_THRESHOLD && <Input size="small" className={styles.search}
+      prefix={<Search size={12} />}
       placeholder="搜索模型" aria-label="搜索模型" value={query} allowClear
       onChange={(event) => setQuery(event.target.value)} />}
     <div className={styles.modelList} role="menu" aria-label="选择模型" onKeyDown={moveModelFocus}>
@@ -49,7 +50,7 @@ function ModelList({ models, model, onSelect, onBack }: {
         autoFocus={models.length <= MODEL_SEARCH_THRESHOLD && model === option.value}
         onClick={() => onSelect(option.value)}>
         <span><span>{option.label}</span>{option.description && <small>{option.description}</small>}</span>
-        {model === option.value && <Check size={18} />}
+        {model === option.value && <Check size={14} />}
       </button>)}
       {!options.length && <p className={styles.hint}>未找到模型</p>}
     </div>
@@ -82,11 +83,11 @@ export function ModelPicker({ models, model, effort, disabled, onChange }: Model
       onBack={() => setChoosingModel(false)} /> : <div className={styles.reasoning}>
       <div className={styles.summary}>
         <button className={styles.modelHeading} onClick={() => setChoosingModel(true)} aria-label="选择模型">
-          <span className={styles.effortName}>{effortLabel}<ChevronRight size={16} /></span>
+          <span className={styles.effortName}>{effortLabel}<ChevronRight size={12} /></span>
           <span className={styles.modelName}>{modelLabel}</span>
         </button>
         <Tooltip title="恢复默认推理强度" styles={{ root: { maxWidth: 400 } }}>
-          <Button type="text" className={styles.reset} icon={<RotateCcw size={18} />}
+          <Button type="text" size="small" className={styles.reset} icon={<RotateCcw size={14} />}
             disabled={!effort} aria-label="恢复默认推理强度" onClick={() => onChange({ model, effort: "" })} />
         </Tooltip>
       </div>
@@ -103,7 +104,7 @@ export function ModelPicker({ models, model, effort, disabled, onChange }: Model
   </div>;
   return <Popover trigger="click" placement="topRight" arrow={false} open={open && !disabled}
     onOpenChange={changeOpen} content={panel} styles={{ root: { maxWidth: 400 },
-      body: { padding: 0, borderRadius: 20, overflow: "hidden" } }}>
+      body: { padding: 0, borderRadius: 16, overflow: "hidden", boxShadow: "0 4px 16px rgb(0 0 0 / 8%)" } }}>
     <button type="button" className={styles.trigger} disabled={disabled} aria-expanded={open && !disabled}
       aria-label={`模型与推理强度：${modelLabel} ${effortLabel}`}>
       <span className={styles.triggerModel}>{modelLabel}</span>
