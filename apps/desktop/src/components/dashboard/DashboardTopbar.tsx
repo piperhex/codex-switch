@@ -13,6 +13,7 @@ interface DashboardTopbarProps {
   onMenuAction: (action: string) => void;
   onSearch: () => void;
   onWindowError: (message: string) => void;
+  sidebarToggle?: ReactNode;
   t: Translate;
   tools: ReactNode;
 }
@@ -41,6 +42,7 @@ export function DashboardTopbar(props: DashboardTopbarProps) {
   return (
     <header className={`window-titlebar${nativeWindowControls ? "" : " window-titlebar-content"}`}>
       <nav className="window-menu-bar" aria-label={t("windowMenu.aria")}>
+        {props.sidebarToggle}
         {MENU_GROUPS.map((group) => (
           <Dropdown key={group} trigger={["click"]} placement="bottomLeft"
             overlayClassName="window-menu-dropdown" menu={{

@@ -1216,6 +1216,15 @@ export function DashboardApp() {
           navigationStyle={navigationStyle.style}
           onMenuAction={(action) => handleSystemMenuAction(action as SystemMenuAction)}
           onSearch={() => setShowMenuSearch(true)} onWindowError={notify} t={t}
+          sidebarToggle={sidebarNavigationEnabled && (
+            <button type="button" className="sidebar-collapse-button" aria-label={sidebarToggleLabel}
+              title={sidebarToggleLabel} aria-expanded={!navigationStyle.sidebarCollapsed}
+              onClick={() => navigationStyle.setSidebarCollapsed(!navigationStyle.sidebarCollapsed)}>
+              {navigationStyle.sidebarCollapsed
+                ? <PanelLeftOpen size="1em" aria-hidden="true" />
+                : <PanelLeftClose size="1em" aria-hidden="true" />}
+            </button>
+          )}
           tools={<>{proxyStatusControls}{menuTools}</>} />
         {sidebarNavigationEnabled && (
           <aside className="app-sidebar" data-tauri-drag-region>
@@ -1241,15 +1250,7 @@ export function DashboardApp() {
           </aside>
         )}
         <header className="app-menu">
-          {sidebarNavigationEnabled ? (
-            <button type="button" className="sidebar-collapse-button" aria-label={sidebarToggleLabel}
-              title={sidebarToggleLabel}
-              onClick={() => navigationStyle.setSidebarCollapsed(!navigationStyle.sidebarCollapsed)}>
-              {navigationStyle.sidebarCollapsed
-                ? <PanelLeftOpen size={19} />
-                : <PanelLeftClose size={19} />}
-            </button>
-          ) : (
+          {!sidebarNavigationEnabled && (
             <button type="button" className="brand" onClick={openRepository}
               aria-label={t("help.github")} title={t("help.github")}>
               <img className="brand-logo" src={APP_LOGO_URL} alt="" />
