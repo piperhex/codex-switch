@@ -1,5 +1,7 @@
 .status { display: flex; flex-wrap: wrap; align-items: center; gap: 7px 10px; font-size: 12px; min-width: 0; }
 .usage { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; color: var(--ink); }
+.value { cursor: help;
+  &:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; border-radius: 2px; } }
 .tokens { color: #0a8469; }
 .cost { color: #b45d00; }
 .quota { color: #16874e; }
