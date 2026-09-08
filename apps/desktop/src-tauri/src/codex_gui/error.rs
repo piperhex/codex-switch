@@ -1,0 +1,27 @@
+#[derive(Debug, thiserror::Error)]
+pub(super) enum GuiError {
+    #[error("请先下载 Codex，即可开始对话。")]
+    Executable,
+    #[error("请选择有效的本地文件夹。")]
+    Directory,
+    #[error("对话请求无效，请刷新后重试。")]
+    InvalidRequest,
+    #[error("Codex 已断开连接，请重新连接后继续。")]
+    Disconnected,
+    #[error("Codex 响应超时，请检查连接状态。")]
+    Timeout,
+    #[error("Codex 未能完成操作，请检查当前账户、模型和 Codex 配置。")]
+    Rpc,
+    #[error("Codex 暂时无法启动，请检查 Codex 配置后重试。")]
+    Startup,
+    #[error("暂时无法访问 GitHub，请检查网络后重试。")]
+    Release,
+    #[error("下载文件校验未通过，请重新下载。")]
+    Integrity,
+    #[error("Codex 安装未完成，请检查磁盘空间后重试。")]
+    Install,
+    #[error("Codex 正在下载，请稍候。")]
+    Installing,
+}
+
+pub(super) type Result<T> = std::result::Result<T, GuiError>;

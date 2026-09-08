@@ -1,0 +1,152 @@
+// Runs the official CLI against a local Responses fixture, without using an account or model credits.
+// Usage: node scripts/codex-gui-smoke.mjs <path-to-release-bin/codex.exe>
+import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
+import { createServer } from "node:http";
+import { mkdtemp, mkdir, writeFile, readFile, readdir, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
+import { createInterface } from "node:readline";
+import { once } from "node:events";
+
+const executable = process.argv[2];
+assert.ok(executable, "Pass the downloaded official Codex executable path");
+const root = await mkdtemp(join(tmpdir(), "codex-gui-protocol-"));
+const home = join(root, "dev.codex.switch", ".codex");
+const project = join(root, "project");
+await Promise.all([mkdir(home, { recursive: true }), mkdir(project)]);
+let delayed = false;
+let responseCount = 0;
+const server = createServer((request, response) => {
+  request.resume();
+  if (!request.url?.includes("/responses")) { response.writeHead(404); response.end(); return; }
+  responseCount += 1;
+  response.writeHead(200, { "Content-Type": "text/event-stream" });
+  const event = (value) => response.write(`data: ${JSON.stringify(value)}\n\n`);
+  const id = `response-${responseCount}`;
+  const item = { id: `message-${responseCount}`, type: "message", role: "assistant", content: [] };
+  event({ type: "response.created", response: { id } });
+  event({ type: "response.output_item.added", item });
+  event({ type: "response.output_text.delta", delta: "GUI " });
+  const timer = setTimeout(() => {
+    event({ type: "response.output_text.delta", delta: "smoke passed" });
+    event({ type: "response.output_item.done", item: { ...item,
+      content: [{ type: "output_text", text: "GUI smoke passed" }] } });
+    event({ type: "response.completed", response: { id,
+      usage: { input_tokens: 10, output_tokens: 5, total_tokens: 15 } } });
+    response.end();
+  }, delayed ? 15000 : 400);
+  response.on("close", () => clearTimeout(timer));
+});
+server.listen(0, "127.0.0.1");
+await once(server, "listening");
+const port = server.address().port;
+await writeFile(join(home, "config.toml"), `model = "gui-fixture"
+model_provider = "gui_fixture"
+approval_policy = "on-request"
+cli_auth_credentials_store = "file"
+[model_providers.gui_fixture]
+name = "Local GUI test"
+base_url = "http://127.0.0.1:${port}/v1"
+wire_api = "responses"
+requires_openai_auth = false
+supports_websockets = false
+`);
+
+function launch() {
+  const child = spawn(resolve(executable), ["app-server", "-c", `sqlite_home=${JSON.stringify(home)}`,
+    "-c", `log_dir=${JSON.stringify(join(home, "log"))}`], {
+    env: { ...process.env, CODEX_HOME: home }, cwd: project, windowsHide: true, stdio: ["pipe", "pipe", "pipe"],
+  });
+  const pending = new Map();
+  const notifications = [];
+  let sequence = 0;
+  let stderr = "";
+  child.stderr.on("data", (chunk) => { stderr = (stderr + chunk.toString()).slice(-4000); });
+  const lines = createInterface({ input: child.stdout });
+  lines.on("line", (line) => {
+    const value = JSON.parse(line);
+    if (value.method) notifications.push(value);
+    else if (pending.has(value.id)) {
+      const { resolve, reject, timer } = pending.get(value.id);
+      clearTimeout(timer); pending.delete(value.id);
+      if (value.error) reject(new Error(JSON.stringify(value.error)));
+      else resolve(value.result);
+    }
+  });
+  const rpc = (method, params = {}) => new Promise((resolve, reject) => {
+    const id = ++sequence;
+    const timer = setTimeout(() => { pending.delete(id); reject(new Error(`Timed out: ${method}\n${stderr}`)); }, 25000);
+    pending.set(id, { resolve, reject, timer });
+    child.stdin.write(`${JSON.stringify({ id, method, params })}\n`);
+  });
+  const waitFor = async (method, predicate = () => true) => {
+    const deadline = Date.now() + 25000;
+    while (Date.now() < deadline) {
+      const event = notifications.find((event) => event.method === method && predicate(event.params));
+      if (event) return event;
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+    throw new Error(`Missing notification: ${method}\n${stderr}\n${JSON.stringify(notifications.slice(-4))}`);
+  };
+  return { child, rpc, notifications, waitFor, stop: async () => {
+    lines.close();
+    for (const { timer } of pending.values()) clearTimeout(timer);
+    if (child.exitCode === null) { child.kill(); await once(child, "exit"); }
+  } };
+}
+
+async function initialize(client) {
+  const response = await client.rpc("initialize", { clientInfo: { name: "codex_switch_gui", version: "1.0.0" },
+    capabilities: { experimentalApi: true } });
+  assert.equal(resolve(response.codexHome).replace(/^\\\\\?\\/, ""), resolve(home));
+  client.child.stdin.write(`${JSON.stringify({ method: "initialized" })}\n`);
+}
+
+let client = launch();
+try {
+  await initialize(client);
+  const models = await client.rpc("model/list", { limit: 50 });
+  assert.ok(Array.isArray(models.data));
+  const { thread } = await client.rpc("thread/start", { cwd: project, sandbox: "read-only", approvalPolicy: "on-request" });
+  const { turn } = await client.rpc("turn/start", { threadId: thread.id,
+    input: [{ type: "text", text: "Say hello", text_elements: [] }] });
+  await client.waitFor("item/agentMessage/delta");
+  const during = await client.rpc("thread/list", { limit: 50, archived: false, modelProviders: [], sortKey: "updated_at" });
+  assert.ok(Array.isArray(during.data));
+  const done = await client.waitFor("turn/completed", (params) => params.turn.id === turn.id);
+  assert.equal(done.params.turn.status, "completed");
+  const read = await client.rpc("thread/read", { threadId: thread.id, includeTurns: true });
+  const listed = await client.rpc("thread/list", { archived: false, modelProviders: [] });
+  assert.ok(listed.data.some((entry) => entry.id === thread.id));
+  assert.ok(read.thread.turns.flatMap((turn) => turn.items).some((item) => item.text === "GUI smoke passed"));
+  await client.rpc("thread/name/set", { threadId: thread.id, name: "GUI smoke conversation" });
+  await client.stop(); client = launch(); await initialize(client);
+  const resumed = await client.rpc("thread/resume", { threadId: thread.id, sandbox: "read-only", approvalPolicy: "on-request" });
+  assert.equal(resumed.thread.name, "GUI smoke conversation");
+  assert.ok(resumed.thread.turns.length > 0);
+  await client.rpc("thread/archive", { threadId: thread.id });
+  const archived = await client.rpc("thread/list", { archived: true, modelProviders: [] });
+  assert.ok(archived.data.some((entry) => entry.id === thread.id));
+  await client.rpc("thread/unarchive", { threadId: thread.id });
+  await client.rpc("thread/resume", { threadId: thread.id, sandbox: "read-only", approvalPolicy: "on-request" });
+  delayed = true;
+  const next = await client.rpc("turn/start", { threadId: thread.id, input: [{ type: "text", text: "Continue" }] });
+  await client.waitFor("item/agentMessage/delta", (params) => params.turnId === next.turn.id);
+  await client.rpc("turn/interrupt", { threadId: thread.id, turnId: next.turn.id });
+  const interrupted = await client.waitFor("turn/completed", (params) => params.turn.id === next.turn.id);
+  assert.equal(interrupted.params.turn.status, "interrupted");
+  const entries = await readdir(home);
+  assert.ok(entries.includes("sessions"));
+  assert.ok(entries.some((entry) => /^state_.*\.sqlite$/.test(entry)));
+  assert.equal((await readFile(join(home, "config.toml"), "utf8")).includes("gui_fixture"), true);
+  console.log("PASS: official CLI handshake, models, streaming, concurrent list, history, rename, restart/resume, archive/restore, interrupt, isolated storage");
+} catch (error) {
+  console.error(error);
+  process.exitCode = 1;
+} finally {
+  await client.stop();
+  server.closeAllConnections(); server.close();
+  assert.ok(root.startsWith(join(tmpdir(), "codex-gui-protocol-")));
+  await rm(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
+}

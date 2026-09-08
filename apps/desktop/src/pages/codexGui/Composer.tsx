@@ -1,0 +1,105 @@
+import { useRef, useState } from "react";
+import { Button, Input, Select, Tag, Tooltip } from "antd";
+import { ArrowUp, FolderOpen, ImagePlus, ShieldCheck, Square, X } from "lucide-react";
+import { open } from "@tauri-apps/plugin-dialog";
+import type { GuiController } from "./controller";
+import type { AccessMode, GuiState } from "./types";
+import { projectName } from "./ThreadSidebar";
+import styles from "./styles.module.less";
+
+const ACCESS_OPTIONS = [{ value: "read-only", label: "只读" }, { value: "workspace-write", label: "项目内编辑" },
+  { value: "danger-full-access", label: "完全访问" }];
+const EFFORT_LABELS: Record<string, string> = { none: "无", minimal: "极低", low: "低", medium: "中", high: "高",
+  xhigh: "极高", max: "最高", ultra: "超高" };
+
+export function Composer({ state, controller }: { state: GuiState; controller: GuiController }) {
+  const [drafts, setDrafts] = useState<Record<string, { text: string; images: string[] }>>({});
+  const composing = useRef(false);
+  const key = state.selected ?? "new";
+  const draft = drafts[key] ?? { text: "", images: [] };
+  const edit = (patch: Partial<typeof draft>) => setDrafts((values) => ({ ...values, [key]: { ...draft, ...patch } }));
+  const current = state.selected ? state.conversations[state.selected] : undefined;
+  const running = Boolean(current?.activeTurn);
+  const model = state.models.find((entry) => entry.model === state.settings.model);
+  const canSend = state.connection === "ready" && !state.sending && !state.archived
+    && Boolean(draft.text.trim() || draft.images.length) && Boolean(state.selected || state.settings.cwd);
+  const send = async () => {
+    if (!canSend || running) return;
+    if (await controller.send(draft.text, draft.images)) {
+      setDrafts((values) => ({ ...values, [key]: { text: "", images: [] } }));
+    } else {
+      const selected = controller.getSnapshot().selected ?? "new";
+      setDrafts((values) => ({ ...values, [selected]: draft }));
+    }
+  };
+  const chooseFolder = async () => {
+    try {
+      const path = await open({ directory: true, multiple: false, title: "选择项目文件夹" });
+      if (typeof path === "string") controller.settings({ cwd: path });
+    } catch (error) { controller.report(error); }
+  };
+  const attach = async () => {
+    try {
+      const paths = await open({ multiple: true, title: "添加图片",
+        filters: [{ name: "图片", extensions: ["png", "jpg", "jpeg", "webp", "gif"] }] });
+      if (paths) {
+        edit({ images: [...new Set([...draft.images, ...(Array.isArray(paths) ? paths : [paths])])].slice(0, 8) });
+      }
+    } catch (error) { controller.report(error); }
+  };
+  return <div className={styles.composerWrap}>
+    <div className={styles.projectBar}>
+      <Button type="text" size="small" icon={<FolderOpen size={16} />} disabled={Boolean(state.selected) || running}
+        onClick={() => void chooseFolder()}>{projectName(current?.thread.cwd || state.settings.cwd)}</Button>
+      {!state.selected && state.projects.length > 0 && <Select size="small" variant="borderless" aria-label="最近项目"
+        placeholder="最近项目" value={undefined}
+        options={state.projects.map((path) => ({ value: path, label: projectName(path) }))}
+        onChange={(cwd: string) => controller.settings({ cwd })} />}
+      <span className={styles.localLabel}>本地</span>
+    </div>
+    <div className={styles.composer}>
+      {draft.images.length > 0 && <div className={styles.attachments}>{draft.images.map((path) => <Tag key={path}
+        closable closeIcon={<X size={12} />}
+        onClose={() => edit({ images: draft.images.filter((entry) => entry !== path) })}>
+        {projectName(path)}
+      </Tag>)}</div>}
+      <Input.TextArea value={draft.text} autoSize={{ minRows: 3, maxRows: 9 }} maxLength={128000}
+        placeholder={state.archived ? "恢复对话后即可继续" : "描述任务，或提出问题…"} aria-label="消息"
+        disabled={state.connection !== "ready" || state.archived}
+        onChange={(event) => edit({ text: event.target.value })}
+        onCompositionStart={() => { composing.current = true; }} onCompositionEnd={() => { composing.current = false; }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" && !event.shiftKey && !composing.current && !event.nativeEvent.isComposing) {
+            event.preventDefault(); void send();
+          }
+        }} />
+      <div className={styles.composerControls}>
+        <Tooltip title="添加图片" styles={{ root: { maxWidth: 400 } }}>
+          <Button type="text" icon={<ImagePlus size={18} />} aria-label="添加图片" disabled={draft.images.length >= 8}
+            onClick={() => void attach()} />
+        </Tooltip>
+        <ShieldCheck size={15} />
+        <Select size="small" variant="borderless" aria-label="访问权限"
+          value={state.settings.access} options={ACCESS_OPTIONS}
+          disabled={running || state.sending} onChange={(access: AccessMode) => controller.settings({ access })} />
+        <div className={styles.modelControls}>
+          <Select showSearch size="small" variant="borderless" aria-label="模型" optionFilterProp="label"
+            value={state.settings.model} onChange={(value) => controller.settings({ model: value, effort: "" })}
+            disabled={running || state.sending} options={[{ value: "", label: "当前配置模型" },
+              ...state.models.map((entry) => ({ value: entry.model, label: entry.displayName || entry.model }))]} />
+          <Select size="small" variant="borderless" aria-label="思考强度" value={state.settings.effort}
+            disabled={running || state.sending} onChange={(effort: string) => controller.settings({ effort })}
+            options={[{ value: "", label: "默认" }, ...(model?.supportedReasoningEfforts ?? []).map((entry) => ({
+              value: entry.reasoningEffort,
+              label: EFFORT_LABELS[entry.reasoningEffort] ?? entry.reasoningEffort }))]} />
+          {running ? <Button type="primary" shape="circle" icon={<Square size={14} fill="currentColor" />}
+            aria-label="停止生成" onClick={() => void controller.interrupt()} />
+            : <Button type="primary" shape="circle" icon={<ArrowUp size={19} />} aria-label="发送消息"
+              loading={state.sending} disabled={!canSend} onClick={() => void send()} />}
+        </div>
+      </div>
+    </div>
+    <div className={styles.composerHint}><span>Enter 发送 · Shift + Enter 换行</span>
+      {current && current.tokens > 0 && <span>{current.tokens.toLocaleString()} tokens</span>}</div>
+  </div>;
+}

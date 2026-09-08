@@ -1,0 +1,64 @@
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { Alert, Button, Popover } from "antd";
+import { Download, PanelLeftClose, PanelLeftOpen, RefreshCw } from "lucide-react";
+import { isDesktopApp } from "../api/backend";
+import { GuiController } from "./codexGui/controller";
+import { ThreadSidebar, threadTitle } from "./codexGui/ThreadSidebar";
+import { Composer } from "./codexGui/Composer";
+import { Messages } from "./codexGui/Messages";
+import { Approvals } from "./codexGui/Approvals";
+import { Installer } from "./codexGui/Installer";
+import { useCliInstaller } from "./codexGui/useCliInstaller";
+import styles from "./codexGui/styles.module.less";
+
+export function CodexGuiPage({ active }: { active: boolean }) {
+  const [visited, setVisited] = useState(active);
+  useEffect(() => { if (active) setVisited(true); }, [active]);
+  if (!visited) return null;
+  if (!isDesktopApp) return <div className={styles.install}><h2>Codex GUI</h2><p>请在 Codex Switch 桌面版中开始对话。</p></div>;
+  return <Workspace active={active} />;
+}
+
+function Workspace({ active }: { active: boolean }) {
+  const [controller] = useState(() => new GuiController());
+  const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
+  const [collapsed, setCollapsed] = useState(false);
+  const installer = useCliInstaller(active, controller);
+  useEffect(() => { controller.activate(); return controller.dispose; }, [controller]);
+  const current = state.selected ? state.conversations[state.selected] : undefined;
+  const thread = current?.thread ?? state.threads.find((entry) => entry.id === state.selected);
+  const pending = state.approvals.filter((event) => event.params.threadId === state.selected);
+  const otherApproval = state.approvals.find((event) => event.params.threadId !== state.selected);
+  const running = state.sending || Object.values(state.conversations).some((value) => value.activeTurn);
+  return <div className={`${styles.page} ${collapsed ? styles.collapsed : ""}`}>
+    {!collapsed && <ThreadSidebar state={state} controller={controller} />}
+    <div className={styles.workspace}>
+      <header className={styles.header}>
+        <Button type="text" icon={collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+          aria-label={collapsed ? "展开对话列表" : "收起对话列表"} onClick={() => setCollapsed(!collapsed)} />
+        <div className={styles.heading}><strong>{thread ? threadTitle(thread) : "Codex GUI"}</strong>
+          <span>{thread ? "本地对话" : "在这里，把想法变成现实"}</span></div>
+        <div className={styles.headerActions}>
+          {installer.version && <Button type="text" icon={<RefreshCw size={16} />} aria-label="重新连接 Codex"
+            disabled={Boolean(running)} loading={state.connection === "connecting"}
+            onClick={() => void controller.connect()} />}
+          <Popover trigger="click" placement="bottomRight"
+            content={<Installer installer={installer} compact running={Boolean(running)} />}
+            styles={{ root: { maxWidth: 400 } }}>
+            <Button type="text" icon={<Download size={16} />}>
+              {installer.version ? `v${installer.version}` : "Codex"}</Button>
+          </Popover>
+        </div>
+      </header>
+      {state.error && <Alert className={styles.error} message={state.error}
+        type="error" closable onClose={controller.clearError} />}
+      {otherApproval && <button className={styles.pendingBanner}
+        onClick={() => void controller.select(otherApproval.params.threadId!)}>另一个对话需要你的确认，点击查看</button>}
+      {!installer.version ? <Installer installer={installer} /> : <>
+        <Messages value={current} selected={state.selected} />
+        <Approvals events={pending} controller={controller} />
+        <Composer state={state} controller={controller} />
+      </>}
+    </div>
+  </div>;
+}

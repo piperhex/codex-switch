@@ -58,7 +58,8 @@ tauri-plugin-deep-link = "2"
 tauri-plugin-updater = "2.10.1"
 tiny_http = "0.12"
 thiserror = "2"
-tokio = { version = "1", features = ["macros", "sync", "time"] }
+tar = "0.4"
+tokio = { version = "1", features = ["macros", "sync", "time", "process", "io-util"] }
 toml_edit = "0.25"
 tungstenite = { version = "0.28", default-features = false, features = ["handshake", "rustls-tls-webpki-roots"] }
 url = "2"

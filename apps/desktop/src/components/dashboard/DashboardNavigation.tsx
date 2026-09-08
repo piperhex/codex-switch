@@ -7,6 +7,7 @@ import {
   PackageOpen,
   Palette,
   Server,
+  SquareTerminal,
   Settings,
   UserRound,
 } from "lucide-react";
@@ -16,6 +17,7 @@ import type { Translate } from "../../i18n";
 export type DashboardPage =
   | "accounts"
   | "providers"
+  | "codexGui"
   | "tokens"
   | "dreamSkin"
   | "skills"
@@ -39,6 +41,7 @@ const NAVIGATION_ITEMS = [
   { page: "accounts", icon: UserRound, labelKey: "nav.accounts" },
   { page: "sessions", icon: FolderOpen, labelKey: "nav.sessions" },
   { page: "providers", icon: Server, labelKey: "nav.providers" },
+  { page: "codexGui", icon: SquareTerminal, labelKey: "nav.codexGui" },
   { page: "systemPrompts", icon: MessageSquareText, labelKey: "nav.systemPrompts" },
   { page: "claudeCode", icon: Bot, labelKey: "nav.claudeCode" },
   { page: "tokens", icon: BarChart3, labelKey: "nav.tokenUsage" },

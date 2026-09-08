@@ -15,6 +15,7 @@ mod cloud;
 mod codex_api;
 mod codex_config;
 mod codex_connection;
+mod codex_gui;
 mod codex_home;
 mod codex_notification;
 mod codex_runtime;
@@ -100,6 +101,7 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_deep_link::init())
         .manage(AppState::default())
+        .manage(codex_gui::GuiState::default())
         .manage(ccs_import::ImportState::default())
         .manage(main_window::MainWindowStateCache::default())
         .manage(main_window::CloseBehaviorState::default())
@@ -222,6 +224,12 @@ pub fn run() {
             floating_bubble::handle_window_event(window, event);
         })
         .invoke_handler(tauri::generate_handler![
+            codex_gui::codex_gui_connect,
+            codex_gui::releases::codex_gui_cli_status,
+            codex_gui::releases::codex_gui_cli_release,
+            codex_gui::releases::codex_gui_cli_install,
+            codex_gui::codex_gui_request,
+            codex_gui::codex_gui_respond,
             commands::get_app_info,
             ccs_import::take_ccswitch_import_request,
             ccs_import::cancel_ccswitch_provider_import,
@@ -459,6 +467,7 @@ pub fn run() {
                 system_tray::show_dashboard(app);
             }
             if matches!(event, tauri::RunEvent::ExitRequested { .. }) {
+                codex_gui::shutdown(app);
                 floating_bubble::shutdown(app);
                 web_server::shutdown();
                 // Window move/resize events keep this cache current. Reading the

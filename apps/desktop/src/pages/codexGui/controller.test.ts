@@ -1,0 +1,87 @@
+// @vitest-environment jsdom
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { GuiEvent, Request, Thread } from "./types";
+import { GuiController } from "./controller";
+import { guiApi } from "./api";
+
+vi.mock("./api", () => ({ guiApi: { connect: vi.fn(), request: vi.fn(), subscribe: vi.fn(), respond: vi.fn() } }));
+const thread: Thread = { id: "one", cwd: "D:/project", preview: "hello", updatedAt: 1, turns: [] };
+let receive: (event: GuiEvent) => void;
+
+beforeEach(() => {
+  vi.resetAllMocks();
+  localStorage.clear();
+  vi.mocked(guiApi.connect).mockResolvedValue([]);
+  vi.mocked(guiApi.subscribe).mockImplementation(async (callback) => {
+    receive = callback;
+    return vi.fn<() => void>();
+  });
+  vi.mocked(guiApi.request).mockImplementation(async (request) => {
+    if (request.operation === "list" || request.operation === "models") return { data: [], nextCursor: null };
+    return { thread };
+  });
+});
+
+describe("Codex GUI controller", () => {
+  it("batches rapid deltas and flushes them before completion", async () => {
+    const controller = new GuiController();
+    await controller.connect();
+    await controller.select("one");
+    const changed = vi.fn();
+    controller.subscribe(changed);
+    for (let index = 0; index < 100; index += 1) {
+      receive({ method: "item/agentMessage/delta", params: {
+        threadId: "one", turnId: "turn", itemId: "answer", delta: "a" } });
+    }
+    expect(changed).not.toHaveBeenCalled();
+    receive({ method: "turn/completed", params: { threadId: "one",
+      turn: { id: "turn", status: "completed", items: [] } } });
+    expect(controller.getSnapshot().conversations.one.turns[0].items[0].text).toBe("a".repeat(100));
+    expect(controller.getSnapshot().conversations.one.activeTurn).toBeNull();
+    controller.dispose();
+  });
+
+  it("ignores a stale history response when the user switches conversations", async () => {
+    const controller = new GuiController();
+    await controller.connect();
+    let resolve!: (value: { thread: Thread }) => void;
+    vi.mocked(guiApi.request).mockImplementationOnce(() => new Promise((done) => { resolve = done; }));
+    const opening = controller.select("one");
+    controller.newConversation();
+    resolve({ thread });
+    await opening;
+    expect(controller.getSnapshot().selected).toBeNull();
+    expect(controller.getSnapshot().conversations.one).toBeUndefined();
+  });
+
+  it("keeps a fast completed turn completed and submits a double click only once", async () => {
+    const controller = new GuiController();
+    await controller.connect();
+    controller.settings({ cwd: thread.cwd });
+    const requests: Request[] = [];
+    vi.mocked(guiApi.request).mockImplementation(async (request) => {
+      requests.push(request);
+      if (request.operation === "send") {
+        receive({ method: "turn/completed", params: { threadId: thread.id,
+          turn: { id: "turn", status: "completed", items: [{ id: "answer", type: "agentMessage", text: "ok" }] } } });
+        return { turn: { id: "turn", status: "inProgress", items: [] } };
+      }
+      if (request.operation === "list") return { data: [thread], nextCursor: null };
+      return { thread };
+    });
+    const result = controller.send("hello", []);
+    expect(await controller.send("hello", [])).toBe(false);
+    expect(await result).toBe(true);
+    expect(requests.filter((request) => request.operation === "send")).toHaveLength(1);
+    expect(controller.getSnapshot().conversations.one.activeTurn).toBeNull();
+    expect(controller.getSnapshot().conversations.one.turns[0].status).toBe("completed");
+  });
+
+  it("restores the normal list for a new conversation opened from the archive", async () => {
+    const controller = new GuiController();
+    await controller.connect();
+    controller.filter("", true);
+    controller.newConversation();
+    expect(controller.getSnapshot().archived).toBe(false);
+  });
+});

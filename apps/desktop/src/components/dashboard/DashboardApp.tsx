@@ -106,6 +106,8 @@ import { ProvidersPage } from "../../pages/ProvidersPage";
 import { SettingsGroupsNav, SettingsPage } from "../../pages/SettingsPage";
 import { SkillsMarketPage } from "../../pages/SkillsMarketPage";
 import { CodexThreadsPage } from "../../pages/CodexThreadsPage";
+import { CodexGuiPage } from "../../pages/CodexGuiPage";
+import codexGuiStyles from "../../pages/codexGui/styles.module.less";
 import { CODEX_CONFIG_TOPBAR_ID, CodexConfigPage } from "../../pages/CodexConfigPage";
 import codexConfigStyles from "../../pages/codexConfig/pageStyles.module.less";
 import { SystemPromptPage } from "../../pages/SystemPromptPage";
@@ -171,6 +173,7 @@ type SystemMenuAction =
   | `navigation-style-${NavigationStyle}`
   | "accounts"
   | "providers"
+  | "codex-gui"
   | "claude-code"
   | "token-usage"
   | "dream-skin"
@@ -960,6 +963,9 @@ export function DashboardApp() {
       case "providers":
         setPage("providers");
         break;
+      case "codex-gui":
+        setPage("codexGui");
+        break;
       case "claude-code":
         setPage("claudeCode");
         break;
@@ -1274,13 +1280,14 @@ export function DashboardApp() {
         </header>
 
         <main className={page === "accounts" ? "accounts-main"
+          : page === "codexGui" ? codexGuiStyles.main
           : page === "providers" ? "providers-main"
           : page === "claudeCode" ? "claude-code-main"
           : page === "tokens" ? "tokens-main"
             : page === "dreamSkin" ? "dream-skin-main"
               : page === "sessions" ? "sessions-main"
               : page === "codexConfig" ? codexConfigStyles.main : undefined}>
-          {page !== "tokens" && page !== "dreamSkin" && (
+          {page !== "tokens" && page !== "dreamSkin" && page !== "codexGui" && (
           <>
           <header data-tauri-drag-region className={`topbar${
             page === "accounts" || page === "providers" ? " account-view-topbar" : ""
@@ -1477,6 +1484,9 @@ export function DashboardApp() {
           </section>
           <section className="page-panel sessions-page-panel" hidden={page !== "sessions"}>
             {page === "sessions" && <MemoCodexThreadsPage language={language} notify={notify} />}
+          </section>
+          <section className={codexGuiStyles.panel} hidden={page !== "codexGui"}>
+            <CodexGuiPage active={page === "codexGui"} />
           </section>
           <section className="page-panel" hidden={page !== "systemPrompts"}>
             {page === "systemPrompts" && (
