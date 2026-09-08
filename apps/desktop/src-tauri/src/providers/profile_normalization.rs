@@ -82,6 +82,13 @@ fn normalize_model_reasoning_efforts(
         }
         normalized.insert(model.to_string(), unique);
     }
+    for model in models {
+        if let Some(efforts) = known_model_reasoning_efforts(model) {
+            normalized
+                .entry(model.clone())
+                .or_insert_with(|| efforts.to_vec());
+        }
+    }
     normalized
 }
 

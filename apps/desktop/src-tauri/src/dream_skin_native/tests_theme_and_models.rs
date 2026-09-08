@@ -190,6 +190,24 @@
     }
 
     #[test]
+    fn codex_model_refresh_defaults_to_a_supported_reasoning_effort() {
+        let configured = [("custom".to_string(), vec![crate::models::ReasoningEffort::Low])].into();
+        let expression = codex_model_refresh_expression(
+            &["qwen3.8-max".to_string(), "custom".to_string()],
+            &[],
+            &[],
+            &configured,
+            "qwen3.8-max",
+            crate::providers::ReasoningEffortProfile::Standard,
+        )
+        .unwrap();
+        assert!(expression.contains(
+            "const defaultReasoningEffortsByModel = {\"custom\":\"low\",\"qwen3.8-max\":\"xhigh\"}"
+        ));
+        assert!(expression.contains("defaultReasoningEffort: defaultReasoningEffortsByModel[model]"));
+    }
+
+    #[test]
     fn codex_model_refresh_falls_back_to_the_no_auth_query() {
         assert_eq!(
             codex_model_fallback_query_key(),

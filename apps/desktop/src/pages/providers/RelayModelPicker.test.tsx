@@ -4,7 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { Translate } from "../../i18n";
 import { RelayModelPicker } from "./RelayModelPicker";
-import { modelReasoningConfigs } from "./providerUtils";
+import { modelReasoningConfigs, type ModelReasoningConfig } from "./providerUtils";
 
 const backend = vi.hoisted(() => ({ fetchRelayModels: vi.fn() }));
 vi.mock("../../api/backend", () => backend);
@@ -27,10 +27,12 @@ const existingConfigs = modelReasoningConfigs(["gpt-5.6-sol"], {
   tokenCosts: { "gpt-5.6-sol": 2 },
 });
 
-function renderPicker(options: { providerId?: string; apiKey?: string; baseUrl?: string } = {}) {
+function renderPicker(options: {
+  providerId?: string; apiKey?: string; baseUrl?: string; modelConfigs?: ModelReasoningConfig[];
+} = {}) {
   return act(async () => root.render(<RelayModelPicker
     baseUrl={options.baseUrl ?? "https://relay.example/v1"} apiKey={options.apiKey ?? ""}
-    providerId={options.providerId} enabled disabled={false} modelConfigs={existingConfigs}
+    providerId={options.providerId} enabled disabled={false} modelConfigs={options.modelConfigs ?? existingConfigs}
     activeModel="gpt-5.6-sol" onModelConfigsChange={onModelConfigsChange}
     onActiveModelChange={onActiveModelChange} t={t} />));
 }
@@ -75,6 +77,38 @@ it("requires a key for a new connection and still automatically fetches after ke
   await renderPicker({ apiKey: "sk-new-test" });
   await act(async () => vi.advanceTimersByTimeAsync(1000));
   expect(backend.fetchRelayModels).toHaveBeenCalledWith("https://relay.example/v1", "sk-new-test", undefined);
+});
+
+it("auto-fetches model defaults and keeps custom reasoning on repeated refreshes", async () => {
+  const models = ["glm-5.3", "deepseek-v4-pro-0813", "kimi-k2.7-code", "qwen3.8-flash"];
+  backend.fetchRelayModels.mockResolvedValue(models);
+  await renderPicker({ apiKey: "sk-test", modelConfigs: [] });
+  await act(async () => vi.advanceTimersByTimeAsync(1000));
+  const fetched: ModelReasoningConfig[] = onModelConfigsChange.mock.calls[0][0];
+  expect(fetched.map(({ reasoningEfforts }) => reasoningEfforts)).toEqual([
+    ["low", "high", "max"], ["none", "low", "high", "max"],
+    ["high"], ["none", "low", "medium", "xhigh"],
+  ]);
+  const edited = fetched.map((config): ModelReasoningConfig => ({
+    ...config, reasoningEfforts: config.model === "glm-5.3" ? [] : ["medium", "ultra"],
+  }));
+  await renderPicker({ apiKey: "sk-test", modelConfigs: edited });
+  await refresh();
+  await refresh();
+  expect(onModelConfigsChange.mock.calls.slice(1).map(([configs]) => configs)).toEqual([edited, edited]);
+});
+
+it("uses the latest user settings when an in-flight refresh finishes", async () => {
+  let complete!: (models: string[]) => void;
+  backend.fetchRelayModels.mockReturnValue(new Promise<string[]>((resolve) => { complete = resolve; }));
+  await renderPicker({ providerId: "saved-provider" });
+  await refresh();
+  const edited = modelReasoningConfigs(["gpt-5.6-sol"], {
+    reasoningEfforts: { "gpt-5.6-sol": ["none", "max"] },
+  });
+  await renderPicker({ providerId: "saved-provider", modelConfigs: edited });
+  await act(async () => complete(["gpt-5.6-sol", "glm-5.3"]));
+  expect(onModelConfigsChange.mock.calls[0][0][0]).toEqual(edited[0]);
 });
 
 it("keeps polling responsive during a request and avoids duplicate manual or automatic requests", async () => {

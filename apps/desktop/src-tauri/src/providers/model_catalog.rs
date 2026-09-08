@@ -57,10 +57,27 @@ pub(crate) fn supported_reasoning_levels_for_model(
     fallback: ReasoningEffortProfile,
     configured: &ModelReasoningEfforts,
 ) -> Value {
-    configured.get(model).map_or_else(
-        || supported_reasoning_levels(fallback),
-        |efforts| Value::Array(efforts.iter().map(reasoning_level).collect()),
-    )
+    configured
+        .get(model)
+        .map(Vec::as_slice)
+        .or_else(|| known_model_reasoning_efforts(model))
+        .map_or_else(
+            || supported_reasoning_levels(fallback),
+            |efforts| Value::Array(efforts.iter().map(reasoning_level).collect()),
+        )
+}
+
+/// Keep the preferred high mode when available, otherwise select a supported mode.
+pub(crate) fn default_reasoning_level(levels: &Value) -> &str {
+    let Some(levels) = levels.as_array() else {
+        return "none";
+    };
+    levels
+        .iter()
+        .find(|level| level["effort"] == "high")
+        .or_else(|| levels.last())
+        .and_then(|level| level["effort"].as_str())
+        .unwrap_or("none")
 }
 
 fn reasoning_level(effort: &ReasoningEffort) -> Value {
@@ -141,7 +158,7 @@ fn provider_model_catalog_entry(
             "You are Codex, a coding agent. You and the user share the same workspace ",
             "and collaborate to achieve the user's goals."
         ),
-        "default_reasoning_level": "high",
+        "default_reasoning_level": default_reasoning_level(&reasoning_levels),
         "supported_reasoning_levels": reasoning_levels,
         "shell_type": "shell_command",
         "visibility": "list",

@@ -1,4 +1,5 @@
 import type { Translate, TranslationKey } from "../../i18n";
+import modelReasoningDefaults from "../../modelReasoningDefaults.json";
 import type {
   ModelApiFormats,
   ModelContextWindows,
@@ -122,6 +123,13 @@ const REASONING_EFFORT_LABELS: Record<ReasoningEffort, TranslationKey> = {
 export function defaultReasoningEfforts(model: string): ReasoningEffort[] {
   const normalized = model.trim().toLowerCase();
   if (!normalized) return [];
+  const modelName = normalized.split("/").pop() ?? normalized;
+  const known: Record<string, readonly string[]> = modelReasoningDefaults;
+  if (Object.prototype.hasOwnProperty.call(known, modelName)) {
+    return known[modelName].filter((effort): effort is ReasoningEffort => (
+      REASONING_EFFORTS.some((supported) => supported === effort)
+    ));
+  }
   if (!normalized.startsWith("gpt-")) return ["none", "high"];
   const efforts: ReasoningEffort[] = ["low", "medium", "high", "xhigh"];
   if (normalized.startsWith("gpt-5.6") || normalized.startsWith("gpt-6-astra")) {
@@ -158,9 +166,8 @@ export function modelReasoningConfigs(
     : DEFAULT_CONTEXT_WINDOW_K;
   return models.map((model) => ({
     model,
-    reasoningEfforts: options.reasoningEfforts?.[model]?.length
-      ? [...options.reasoningEfforts[model]]
-      : defaultReasoningEfforts(model),
+    // An empty selection can be an unfinished user edit; only missing settings get defaults.
+    reasoningEfforts: [...(options.reasoningEfforts?.[model] ?? defaultReasoningEfforts(model))],
     contextWindowK: options.contextWindows?.[model]
       ? String(options.contextWindows[model] / 1000)
       : defaultContextWindowK(model, fallbackContextWindowK),

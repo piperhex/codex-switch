@@ -1,0 +1,23 @@
+{
+  "deepseek-v4-flash-0731": ["none", "low", "high", "max"],
+  "deepseek-v4-pro-0813": ["none", "low", "high", "max"],
+  "glm-5": ["none", "high"],
+  "glm-5.1": ["none", "high"],
+  "glm-5.2": ["none", "high", "max"],
+  "glm-5.3": ["low", "high", "max"],
+  "glm-5.3-flash": ["low", "high", "max"],
+  "kimi-k2.5": ["none", "high"],
+  "kimi-k2.6": ["none", "high"],
+  "kimi-k2.7-code": ["high"],
+  "longcat-2.0": ["none", "high"],
+  "mimo-v2.5-pro": ["none", "high"],
+  "minimax-m2.5": ["high"],
+  "minimax-m2.7": ["high"],
+  "qwen3.7-flash": ["none", "high"],
+  "qwen3.7-max": ["none", "high"],
+  "qwen3.8-27b": ["none", "low", "medium", "xhigh"],
+  "qwen3.8-flash": ["none", "low", "medium", "xhigh"],
+  "qwen3.8-max": ["none", "low", "medium", "xhigh"],
+  "seed-2.1-pro": ["none", "low", "medium", "high"],
+  "seed-2.1-turbo": ["none", "low", "medium", "high"]
+}

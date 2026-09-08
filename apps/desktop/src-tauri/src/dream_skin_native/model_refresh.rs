@@ -115,6 +115,7 @@ fn codex_model_refresh_expression(
     selected_model: &str,
     reasoning_profile: crate::providers::ReasoningEffortProfile,
 ) -> Result<String, String> {
+    let mut default_reasoning_efforts = Map::new();
     let reasoning_efforts = models
         .iter()
         .map(|model| {
@@ -124,20 +125,26 @@ fn codex_model_refresh_expression(
                 model,
                 profile,
                 model_reasoning_efforts,
-            )
-            .as_array()
-            .into_iter()
-            .flatten()
-            .map(|level| {
-                json!({
-                    "reasoningEffort": level["effort"],
-                    "description": level["description"],
+            );
+            default_reasoning_efforts.insert(
+                model.clone(),
+                json!(crate::providers::default_reasoning_level(&efforts)),
+            );
+            let efforts = efforts
+                .as_array()
+                .into_iter()
+                .flatten()
+                .map(|level| {
+                    json!({
+                        "reasoningEffort": level["effort"],
+                        "description": level["description"],
+                    })
                 })
-            })
-            .collect::<Vec<_>>();
+                .collect::<Vec<_>>();
             (model.clone(), Value::Array(efforts))
         })
         .collect::<Map<String, Value>>();
+    let default_reasoning_efforts = Value::Object(default_reasoning_efforts);
     let models = serde_json::to_string(models)
         .map_err(|error| format!("Failed to prepare the Codex model list: {error}"))?;
     let fast_mode_models = serde_json::to_string(fast_mode_models)
@@ -170,6 +177,7 @@ fn codex_model_refresh_expression(
   const imageInputModels = new Set({image_input_models});
   const selectedModel = {selected_model};
   const supportedReasoningEffortsByModel = {reasoning_efforts};
+  const defaultReasoningEffortsByModel = {default_reasoning_efforts};
   const root = window.__codexRoot;
   if (!root || !Array.isArray(expectedModels)) {{
     return {{ refreshed: false, reason: "unavailable" }};
@@ -275,7 +283,7 @@ fn codex_model_refresh_expression(
     modelSpecialty: null,
     hidden: false,
     supportedReasoningEfforts: supportedReasoningEffortsByModel[model] ?? [],
-    defaultReasoningEffort: "high",
+    defaultReasoningEffort: defaultReasoningEffortsByModel[model],
     inputModalities: imageInputModels.has(model) ? ["text", "image"] : ["text"],
     supportsPersonality: false,
     multiAgentVersion: null,

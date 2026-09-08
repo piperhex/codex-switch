@@ -1,3 +1,6 @@
+mod reasoning_defaults;
+use reasoning_defaults::known_model_reasoning_efforts;
+
 include!("model_refresh.rs");
 include!("config_repair.rs");
 include!("provider_commands.rs");
@@ -19,5 +22,6 @@ mod tests {
     include!("tests/presets.rs");
     include!("tests/model_catalog.rs");
     include!("tests/model_refresh.rs");
+    include!("tests/reasoning_defaults.rs");
     include!("tests/config_repair.rs");
 }
