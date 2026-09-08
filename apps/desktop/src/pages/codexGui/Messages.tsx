@@ -5,9 +5,10 @@ import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import type { Content, Conversation, Item } from "./types";
+import { ActivityRow } from "./ActivityRow";
 import styles from "./styles.module.less";
 
-const TOOL_LABELS: Record<string, string> = { reasoning: "思考过程", commandExecution: "执行命令", fileChange: "文件修改",
+const TOOL_LABELS: Record<string, string> = { fileChange: "文件修改",
   mcpToolCall: "调用工具", dynamicToolCall: "调用工具", collabAgentToolCall: "协作任务", webSearch: "搜索网页",
   contextCompaction: "已整理对话上下文", imageView: "查看图片", imageGeneration: "生成图片", plan: "计划" };
 const COPY_FEEDBACK_MS = 1800;
@@ -66,6 +67,7 @@ const Message = memo(function Message({ item }: { item: Item }) {
   </article>;
   const text = toolText(item);
   if (item.type === "reasoning" && !text.trim()) return null;
+  if (item.type === "reasoning" || item.type === "commandExecution") return <ActivityRow item={item} text={text} />;
   return <details className={styles.toolMessage}>
     <summary><span>{TOOL_LABELS[item.type] ?? "任务活动"}{item.tool ? ` · ${item.tool}` : ""}</span>
       <span className={styles.muted}>{item.status === "inProgress" ? "进行中" : "查看详情"}</span></summary>
