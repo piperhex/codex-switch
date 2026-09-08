@@ -5,6 +5,7 @@ import { TokenUsageWindow } from "./components/TokenUsageWindow";
 import { TotpWindow } from "./components/TotpWindow";
 import { DashboardApp } from "./components/dashboard/DashboardApp";
 import { installCodexUsageCostSync } from "./utils/codexUsageCostSync";
+import { installWindowDragDismissal } from "./utils/windowDragDismissal";
 
 function normalizeWindowName(value: string | null) {
   return (value ?? "").replace(/^#\/?/, "").split(/[?#]/)[0];
@@ -17,6 +18,7 @@ function currentWindowName() {
 
 export default function App() {
   const windowName = currentWindowName();
+  useEffect(installWindowDragDismissal, []);
   useEffect(() => {
     if (!windowName) return installCodexUsageCostSync();
   }, [windowName]);
