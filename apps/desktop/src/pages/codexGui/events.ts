@@ -15,6 +15,13 @@ function updateTurn(value: Conversation, id: string, update: (turn: Turn) => Tur
   return { ...value, turns };
 }
 
+function mergeTurn(previous: Turn, incoming: Turn): Turn {
+  // Lifecycle notifications can contain only a summary. Omitted items are not deletions.
+  const items = new Map(previous.items.map((item) => [item.id, item]));
+  for (const item of incoming.items ?? []) items.set(item.id, { ...items.get(item.id), ...item });
+  return { ...previous, ...incoming, items: [...items.values()] };
+}
+
 function updateItem(value: Conversation, event: GuiEvent, update: (item: Item) => Item): Conversation {
   const { turnId, itemId, item } = event.params;
   const id = itemId ?? item?.id;
@@ -49,12 +56,11 @@ function applyDelta(value: Conversation, event: GuiEvent): Conversation {
 export function reduceConversation(value: Conversation, event: GuiEvent): Conversation {
   const { method, params } = event;
   if (method === "turn/started" && params.turn) {
-    return { ...updateTurn(value, params.turn.id, (old) => ({ ...old, status: params.turn!.status })),
+    return { ...updateTurn(value, params.turn.id, (old) => mergeTurn(old, params.turn!)),
       activeTurn: params.turn.id, error: "" };
   }
   if (method === "turn/completed" && params.turn) {
-    return { ...updateTurn(value, params.turn.id, (old) => ({ ...old, ...params.turn,
-      items: params.turn!.items?.length ? params.turn!.items : old.items })), activeTurn: null,
+    return { ...updateTurn(value, params.turn.id, (old) => mergeTurn(old, params.turn!)), activeTurn: null,
       error: params.turn.status === "failed" ? "本次回复未完成，请检查连接后重试。" : "" };
   }
   if ((method === "item/started" || method === "item/completed") && params.item) {

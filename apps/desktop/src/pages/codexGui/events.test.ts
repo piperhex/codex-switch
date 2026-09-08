@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { conversation, reduceConversation, reduceEvent } from "./events";
 import { initialState } from "./preferences";
-import type { GuiEvent, Thread } from "./types";
+import type { GuiEvent, Item, Thread } from "./types";
 
 const thread: Thread = { id: "one", cwd: "D:/project", preview: "hello", updatedAt: 1, turns: [] };
 const event = (method: string, params: GuiEvent["params"]): GuiEvent => ({
@@ -9,6 +9,37 @@ const event = (method: string, params: GuiEvent["params"]): GuiEvent => ({
 });
 
 describe("Codex GUI event projection", () => {
+  it("keeps the question and execution history when completion contains only the final answer", () => {
+    const items: Item[] = [
+      { id: "question", type: "userMessage", content: [{ type: "text", text: "Check the project" },
+        { type: "image", url: "data:image/png;base64,fixture" }] },
+      { id: "reason", type: "reasoning", summary: ["Inspect the project first"] },
+      { id: "command", type: "commandExecution", command: "npm test", aggregatedOutput: "PASS",
+        status: "completed", exitCode: 0 },
+      { id: "answer", type: "agentMessage", text: "Tests" },
+    ];
+    let value = conversation(thread);
+    for (const item of items) value = reduceConversation(value, event("item/completed", { item }));
+    const completion = event("turn/completed", { turn: { id: "turn", status: "completed",
+      items: [{ ...items[3], text: "Tests passed" }] } });
+    value = reduceConversation(value, completion);
+    value = reduceConversation(value, completion);
+    expect(value.turns[0].items).toEqual([...items.slice(0, 3), { ...items[3], text: "Tests passed" }]);
+    expect(value.turns[0].status).toBe("completed");
+    expect(value.activeTurn).toBeNull();
+  });
+
+  it("includes items delivered with turn start and appends a new final answer on completion", () => {
+    const question: Item = { id: "question", type: "userMessage", content: [{ type: "text", text: "Hello" }] };
+    let value = reduceConversation(conversation(thread), event("turn/started", {
+      turn: { id: "turn", status: "inProgress", items: [question] } }));
+    expect(value.turns[0].items).toEqual([question]);
+    const answer: Item = { id: "answer", type: "agentMessage", text: "Hello!" };
+    value = reduceConversation(value, event("turn/completed", {
+      turn: { id: "turn", status: "completed", items: [answer] } }));
+    expect(value.turns[0].items).toEqual([question, answer]);
+  });
+
   it("reconciles streamed deltas with authoritative completed items without duplicates", () => {
     let value = conversation(thread);
     value = reduceConversation(value, event("turn/started", { turn: { id: "turn", status: "inProgress", items: [] } }));
