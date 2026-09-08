@@ -64,10 +64,12 @@ const Message = memo(function Message({ item }: { item: Item }) {
     <div className={styles.agentLabel}><Terminal size={15} /> Codex</div>
     <RichText text={item.text ?? ""} /><CopyButton text={item.text ?? ""} />
   </article>;
+  const text = toolText(item);
+  if (item.type === "reasoning" && !text.trim()) return null;
   return <details className={styles.toolMessage}>
     <summary><span>{TOOL_LABELS[item.type] ?? "任务活动"}{item.tool ? ` · ${item.tool}` : ""}</span>
       <span className={styles.muted}>{item.status === "inProgress" ? "进行中" : "查看详情"}</span></summary>
-    <pre>{toolText(item)}</pre>
+    <pre>{text}</pre>
   </details>;
 });
 
