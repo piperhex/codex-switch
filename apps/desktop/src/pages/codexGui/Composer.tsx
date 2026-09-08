@@ -24,6 +24,8 @@ export function Composer({ state, controller, active }: {
   const project = state.selected
     ? state.projectOverrides[state.selected] ?? current?.thread.cwd ?? "" : state.settings.cwd;
   const running = Boolean(current?.activeTurn);
+  const queuedMessages = state.selected ? state.queued[state.selected] ?? [] : [];
+  const attachedQueue = running && queuedMessages.length > 0;
   const disabled = state.connection !== "ready" || state.sending || state.archived;
   const canSend = !disabled && !reading
     && Boolean(draft.text.trim() || draft.images.length);
@@ -32,11 +34,11 @@ export function Composer({ state, controller, active }: {
     await sendDraft();
   };
   return <div className={styles.composerWrap}>
-    {state.selected && <QueuedMessages threadId={state.selected} messages={state.queued[state.selected] ?? []}
+    {state.selected && <QueuedMessages threadId={state.selected} messages={queuedMessages}
       running={running} connected={state.connection === "ready"} queue={controller.queue} />}
-    <ProjectPicker value={project} projects={state.projects} disabled={running || state.sending || state.archived}
-      onChange={controller.setProject} onError={controller.report} />
-    <div className={styles.composer}>
+    {!running && <ProjectPicker value={project} projects={state.projects} disabled={state.sending || state.archived}
+      onChange={controller.setProject} onError={controller.report} />}
+    <div className={`${styles.composer} ${attachedQueue ? styles.composerAttached : ""}`}>
       <ImageAttachments images={draft.images} disabled={state.sending} onRemove={removeImage} />
       <input ref={fileInput} type="file" accept={IMAGE_TYPES.join(",")} multiple hidden disabled={disabled}
         aria-label="选择图片" onChange={(event) => {
