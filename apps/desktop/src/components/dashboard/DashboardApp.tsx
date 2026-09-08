@@ -1268,6 +1268,7 @@ export function DashboardApp() {
             {titlebarProxyRunning && <CloudRecycleBin t={t} disabled={!cloud.state.authenticated}
               triggerClassName="refresh-all announcement-recycle-bin-button" />}
             {chatGptActionMenu}
+            <CodexConfigRepairButton disabled={providerManager.proxyBusy} notify={notify} t={t} />
           </>}
           {!sidebarNavigationEnabled && (
             <DashboardNavigation onPageChange={setPage} page={page} t={t} />
@@ -1318,8 +1319,6 @@ export function DashboardApp() {
                 </button>
                 {refreshActionMenu}
                 {accountProxyTopbarActions}
-                <CodexConfigRepairButton disabled={providerManager.proxyBusy}
-                  notify={notify} t={t} />
               </AccountTopbarActions>
             )}
             {page === "providers" && (

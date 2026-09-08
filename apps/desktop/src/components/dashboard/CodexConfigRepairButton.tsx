@@ -46,7 +46,7 @@ export function CodexConfigRepairButton({
   };
 
   return (
-    <button type="button" className="refresh-all proxy-topbar-action"
+    <button type="button" className="refresh-all codex-config-repair-button"
       disabled={disabled || repairing || !hasLocalBackend} onClick={confirmRepair}>
       <Wrench size={14} />
       <span>{t(repairing ? "actions.repairingCodexConfig" : "actions.repairCodexConfig")}</span>
