@@ -1,0 +1,19 @@
+.selection { display: inline-flex; align-items: center; max-width: min(50%, 300px); min-width: 0;
+  background: var(--bg, #f1f4f2); border-radius: 6px; }
+.remove { display: grid; place-items: center; position: relative; flex-shrink: 0;
+  width: 26px; height: 26px; padding: 5px; border: 0; border-radius: 5px; background: transparent;
+  color: var(--ink); cursor: pointer;
+  &:disabled { cursor: default; color: var(--muted); } }
+.folder, .cross { grid-area: 1 / 1; }
+.cross { opacity: 0; }
+.selection:hover .remove:not(:disabled), .selection:focus-within .remove:not(:disabled) {
+  .cross { opacity: 1; }
+  .folder { opacity: 0; }
+}
+.name { border: 0; background: transparent; padding: 3px 8px 3px 0; min-width: 0;
+  color: var(--ink); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; cursor: pointer;
+  &:disabled { color: var(--muted); cursor: default; } }
+.remove:hover:not(:disabled) { color: var(--green-dark); background: var(--green-soft); }
+@media (hover: none) {
+  .remove:not(:disabled) { .cross { opacity: 1; } .folder { opacity: 0; } }
+}

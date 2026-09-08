@@ -6,7 +6,7 @@ import type { GuiState, Thread } from "./types";
 import styles from "./styles.module.less";
 
 export function threadTitle(thread: Thread) { return thread.name || thread.preview || "新对话"; }
-export function projectName(path: string) { return path.split(/[\\/]/).filter(Boolean).pop() || "未选择项目"; }
+export function projectName(path: string) { return path.split(/[\\/]/).filter(Boolean).pop() || "无项目"; }
 
 export function ThreadSidebar({ state, controller, accountPicker }: {
   state: GuiState; controller: GuiController; accountPicker: ReactNode;

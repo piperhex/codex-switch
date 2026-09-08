@@ -27,13 +27,14 @@ pub(crate) enum GuiRequest {
         thread_id: String,
     },
     Start {
-        cwd: String,
+        cwd: Option<String>,
         model: Option<String>,
         access: AccessMode,
     },
     Resume {
         thread_id: String,
         access: AccessMode,
+        cwd: Option<String>,
     },
     Send {
         thread_id: String,
@@ -41,6 +42,7 @@ pub(crate) enum GuiRequest {
         images: Vec<String>,
         model: Option<String>,
         effort: Option<String>,
+        cwd: Option<String>,
     },
     Interrupt {
         thread_id: String,
@@ -144,6 +146,7 @@ impl GuiRequest {
                 }),
             )),
             Self::Start { cwd, model, access } => {
+                let cwd = cwd.ok_or(GuiError::Directory)?;
                 directory(&cwd)?;
                 Ok((
                     "thread/start",
@@ -151,8 +154,16 @@ impl GuiRequest {
                     "sandbox": access, "approvalPolicy": "on-request"}),
                 ))
             }
-            Self::Resume { thread_id, access } => {
+            Self::Resume {
+                thread_id,
+                access,
+                cwd,
+            } => {
                 let mut params = thread_params(thread_id)?;
+                if let Some(cwd) = cwd {
+                    directory(&cwd)?;
+                    params["cwd"] = json!(cwd);
+                }
                 params["sandbox"] = json!(access);
                 params["approvalPolicy"] = json!("on-request");
                 Ok(("thread/resume", params))
@@ -168,7 +179,12 @@ impl GuiRequest {
                 images,
                 model,
                 effort,
-            } => send_params(thread_id, (text, images), (model, effort)),
+                cwd,
+            } => send_params(
+                thread_id,
+                (text, images),
+                TurnOptions { model, effort, cwd },
+            ),
             Self::Interrupt { thread_id, turn_id } => {
                 id(&turn_id)?;
                 let mut params = thread_params(thread_id)?;
@@ -189,10 +205,16 @@ impl GuiRequest {
     }
 }
 
+struct TurnOptions {
+    model: Option<String>,
+    effort: Option<String>,
+    cwd: Option<String>,
+}
+
 fn send_params(
     thread_id: String,
     input: (String, Vec<String>),
-    options: (Option<String>, Option<String>),
+    options: TurnOptions,
 ) -> Result<(&'static str, Value)> {
     let (text, images) = input;
     if (text.trim().is_empty() && images.is_empty())
@@ -201,7 +223,7 @@ fn send_params(
     {
         return Err(GuiError::InvalidRequest);
     }
-    if options.1.as_ref().is_some_and(|value| {
+    if options.effort.as_ref().is_some_and(|value| {
         ![
             "none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra",
         ]
@@ -227,8 +249,12 @@ fn send_params(
         content.push(json!({"type": "localImage", "path": image}));
     }
     params["input"] = json!(content);
-    params["model"] = json!(options.0);
-    params["effort"] = json!(options.1);
+    params["model"] = json!(options.model);
+    params["effort"] = json!(options.effort);
+    if let Some(cwd) = options.cwd {
+        directory(&cwd)?;
+        params["cwd"] = json!(cwd);
+    }
     Ok(("turn/start", params))
 }
 

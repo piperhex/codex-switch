@@ -7,6 +7,7 @@ pub(crate) mod releases;
 #[cfg(test)]
 mod tests;
 pub(crate) mod usage;
+mod workspaces;
 
 use std::{
     path::PathBuf,
@@ -24,10 +25,12 @@ pub(crate) struct GuiState {
     client: Mutex<Option<Arc<Client>>>,
 }
 
-async fn home(app: AppHandle) -> Result<PathBuf> {
-    tauri::async_runtime::spawn_blocking(move || home::prepare(&app))
-        .await
-        .map_err(|_| GuiError::Startup)?
+async fn prepare_paths(app: AppHandle) -> Result<(PathBuf, PathBuf)> {
+    tauri::async_runtime::spawn_blocking(move || {
+        Ok((home::prepare(&app)?, workspaces::prepare_root(&app)?))
+    })
+    .await
+    .map_err(|_| GuiError::Startup)?
 }
 
 async fn connected(state: &GuiState) -> Result<Arc<Client>> {
@@ -59,12 +62,12 @@ async fn connect(app: AppHandle, state: &GuiState) -> Result<Vec<GuiEvent>> {
         }
         client.stop().await;
     }
-    let home = home(app.clone()).await?;
+    let (home, projectless_root) = prepare_paths(app.clone()).await?;
     let release_app = app.clone();
     let binary = tauri::async_runtime::spawn_blocking(move || releases::executable(&release_app))
         .await
         .map_err(|_| GuiError::Executable)??;
-    *current = Some(Client::start(app, binary, home).await?);
+    *current = Some(Client::start(app, binary, home, projectless_root).await?);
     Ok(Vec::new())
 }
 
@@ -75,9 +78,14 @@ pub(crate) async fn codex_gui_request(
 ) -> std::result::Result<GuiResponse, String> {
     async {
         let client = connected(&state).await?;
-        let (method, params) = tauri::async_runtime::spawn_blocking(move || request.into_rpc())
-            .await
-            .map_err(|_| GuiError::InvalidRequest)??;
+        let projectless_root = client.projectless_root.clone();
+        let (method, params) = tauri::async_runtime::spawn_blocking(move || {
+            let mut request = request;
+            workspaces::prepare_request(&mut request, &projectless_root)?;
+            request.into_rpc()
+        })
+        .await
+        .map_err(|_| GuiError::InvalidRequest)??;
         Ok(GuiResponse {
             data: client.request(method, params).await?,
         })

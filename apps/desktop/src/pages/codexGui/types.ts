@@ -99,6 +99,7 @@ export interface GuiState {
   error: string;
   pins: string[];
   projects: string[];
+  projectOverrides: Record<string, string>;
 }
 export type ApprovalReply = {
   id: string | number;
@@ -108,9 +109,10 @@ export type ApprovalReply = {
 export type Request =
   | { operation: "models"; cursor?: string }
   | { operation: "list"; cursor?: string; archived: boolean; search?: string }
-  | { operation: "start"; cwd: string; model?: string; access: AccessMode }
-  | { operation: "resume"; threadId: string; access: AccessMode }
-  | { operation: "send"; threadId: string; text: string; images: string[]; model?: string; effort?: string }
+  | { operation: "start"; cwd?: string; model?: string; access: AccessMode }
+  | { operation: "resume"; threadId: string; access: AccessMode; cwd?: string }
+  | { operation: "send"; threadId: string; text: string; images: string[];
+      model?: string; effort?: string; cwd?: string }
   | { operation: "read" | "archive" | "unarchive"; threadId: string }
   | { operation: "rename"; threadId: string; name: string }
   | { operation: "interrupt"; threadId: string; turnId: string };

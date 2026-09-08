@@ -98,7 +98,7 @@ export function Messages({ value, selected }: { value?: Conversation; selected: 
     <div ref={content} className={styles.messageContent}>
       {!selected && <div className={styles.welcome}>
         <div className={styles.welcomeIcon}><Terminal size={28} /></div>
-        <h1>想一起完成什么？</h1><p>选择一个项目，开始你的下一项任务。</p>
+        <h1>想一起完成什么？</h1><p>直接提问，或选择一个项目开始任务。</p>
         <div className={styles.suggestions}><span>理解代码</span><span>实现功能</span><span>排查问题</span></div>
       </div>}
       {selected && !value && <div className={styles.listEmpty}><Spin /><p>正在读取对话…</p></div>}

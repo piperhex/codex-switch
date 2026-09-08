@@ -14,7 +14,8 @@ assert.ok(executable, "Pass the downloaded official Codex executable path");
 const root = await mkdtemp(join(tmpdir(), "codex-gui-protocol-"));
 const home = join(root, "dev.codex.switch", ".codex");
 const project = join(root, "project");
-await Promise.all([mkdir(home, { recursive: true }), mkdir(project)]);
+const projectless = join(root, "dev.codex.switch", "codex-gui-workspaces", "projectless-test");
+await Promise.all([mkdir(home, { recursive: true }), mkdir(project), mkdir(projectless, { recursive: true })]);
 let delayed = false;
 let responseCount = 0;
 const server = createServer((request, response) => {
@@ -125,6 +126,20 @@ try {
   const resumed = await client.rpc("thread/resume", { threadId: thread.id, sandbox: "read-only", approvalPolicy: "on-request" });
   assert.equal(resumed.thread.name, "GUI smoke conversation");
   assert.ok(resumed.thread.turns.length > 0);
+  const movedTurn = await client.rpc("turn/start", { threadId: thread.id, cwd: projectless,
+    input: [{ type: "text", text: "Continue without a project" }] });
+  await client.waitFor("turn/completed", (params) => params.turn.id === movedTurn.turn.id);
+  const moved = await client.rpc("thread/read", { threadId: thread.id, includeTurns: true });
+  assert.equal(resolve(moved.thread.cwd).replace(/^\\\\\?\\/, ""), resolve(projectless));
+  const standalone = await client.rpc("thread/start", { cwd: projectless,
+    sandbox: "workspace-write", approvalPolicy: "on-request" });
+  const standaloneTurn = await client.rpc("turn/start", { threadId: standalone.thread.id,
+    input: [{ type: "text", text: "Start a chat without a project" }] });
+  await client.waitFor("turn/completed", (params) => params.turn.id === standaloneTurn.turn.id);
+  await client.stop(); client = launch(); await initialize(client);
+  const standaloneRead = await client.rpc("thread/read", { threadId: standalone.thread.id, includeTurns: true });
+  assert.equal(resolve(standaloneRead.thread.cwd).replace(/^\\\\\?\\/, ""), resolve(projectless));
+  assert.ok(standaloneRead.thread.turns.length > 0);
   await client.rpc("thread/archive", { threadId: thread.id });
   const archived = await client.rpc("thread/list", { archived: true, modelProviders: [] });
   assert.ok(archived.data.some((entry) => entry.id === thread.id));
@@ -140,7 +155,7 @@ try {
   assert.ok(entries.includes("sessions"));
   assert.ok(entries.some((entry) => /^state_.*\.sqlite$/.test(entry)));
   assert.equal((await readFile(join(home, "config.toml"), "utf8")).includes("gui_fixture"), true);
-  console.log("PASS: official CLI handshake, models, streaming, concurrent list, history, rename, restart/resume, archive/restore, interrupt, isolated storage");
+  console.log("PASS: official CLI handshake, streaming, history, projectless start/continue, restart/resume, archive/restore, interrupt, isolated storage");
 } catch (error) {
   console.error(error);
   process.exitCode = 1;

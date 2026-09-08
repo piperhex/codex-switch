@@ -23,6 +23,41 @@ beforeEach(() => {
 });
 
 describe("Codex GUI controller", () => {
+  it("starts a conversation without a selected project and keeps scratch folders out of recent projects", async () => {
+    const controller = new GuiController();
+    await controller.connect();
+    vi.mocked(guiApi.request).mockImplementation(async (request) => {
+      if (request.operation === "list") return { data: [], nextCursor: null };
+      if (request.operation === "send") return { turn: { id: "turn", status: "completed", items: [] } };
+      return { thread: { ...thread, cwd: "" } };
+    });
+    expect(await controller.send("hello", [])).toBe(true);
+    expect(guiApi.request).toHaveBeenCalledWith(expect.objectContaining({ operation: "start", cwd: undefined }));
+    expect(controller.getSnapshot().settings.cwd).toBe("");
+    expect(controller.getSnapshot().projects).toEqual([]);
+  });
+
+  it("remembers a removed project and changes the next turn instead of relying on cached resume settings", async () => {
+    const controller = new GuiController();
+    await controller.connect();
+    await controller.select("one");
+    controller.settings({ cwd: thread.cwd });
+    controller.setProject("");
+    expect(new GuiController().getSnapshot().projectOverrides.one).toBe("");
+    vi.mocked(guiApi.request).mockImplementation(async (request) => {
+      if (request.operation === "list") return { data: [thread], nextCursor: null };
+      if (request.operation === "send") return { turn: { id: "turn", status: "completed", items: [] } };
+      return { thread };
+    });
+    expect(await controller.send("continue", [])).toBe(true);
+    expect(guiApi.request).toHaveBeenCalledWith(expect.objectContaining({
+      operation: "send", threadId: "one", cwd: "" }));
+    await controller.refresh();
+    expect(controller.getSnapshot().threads[0].cwd).toBe("");
+    expect(controller.getSnapshot().settings.cwd).toBe("");
+    expect(controller.getSnapshot().projects).toEqual([thread.cwd]);
+  });
+
   it("batches rapid deltas and flushes them before completion", async () => {
     const controller = new GuiController();
     await controller.connect();

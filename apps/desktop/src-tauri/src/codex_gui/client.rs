@@ -21,12 +21,14 @@ use super::{
     error::{GuiError, Result},
     platform,
     protocol::{approval_response, ApprovalReply, GuiEvent},
+    workspaces,
 };
 
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
 type Pending = HashMap<u64, oneshot::Sender<Result<Value>>>;
 
 pub(super) struct Client {
+    pub(super) projectless_root: PathBuf,
     writer: Mutex<ChildStdin>,
     process: Mutex<Child>,
     pending: Mutex<Pending>,
@@ -42,6 +44,7 @@ impl Client {
         app: AppHandle,
         executable: PathBuf,
         home: PathBuf,
+        projectless_root: PathBuf,
     ) -> Result<Arc<Self>> {
         let mut command = Command::new(executable);
         command
@@ -63,6 +66,7 @@ impl Client {
         let writer = process.stdin.take().ok_or(GuiError::Startup)?;
         let stdout = process.stdout.take().ok_or(GuiError::Startup)?;
         let client = Arc::new(Self {
+            projectless_root,
             writer: Mutex::new(writer),
             process: Mutex::new(process),
             pending: Mutex::new(HashMap::new()),
@@ -133,11 +137,12 @@ impl Client {
             if method.starts_with("codex/event/") {
                 return;
             }
-            let event = GuiEvent {
+            let mut event = GuiEvent {
                 method: method.to_owned(),
                 params: value["params"].clone(),
                 id: value.get("id").cloned(),
             };
+            workspaces::hide_project_paths(&mut event.params, &self.projectless_root);
             if method == "turn/started" {
                 if let Some(id) = event.params["turn"]["id"].as_str() {
                     self.active_turns.lock().await.insert(id.to_owned());
@@ -187,7 +192,9 @@ impl Client {
                 let result = if value.get("error").is_some() {
                     Err(GuiError::Rpc)
                 } else {
-                    Ok(value["result"].clone())
+                    let mut result = value["result"].clone();
+                    workspaces::hide_project_paths(&mut result, &self.projectless_root);
+                    Ok(result)
                 };
                 // A timed-out caller can drop its receiver before the response arrives.
                 let _ = sender.send(result);

@@ -5,6 +5,10 @@ Providers (三方模型及中转). It supports project folders, text and image i
 streamed Markdown replies, command output, file diffs, plans, permission approvals, questions, interruption,
 history, search, renaming, pinning, and archiving/restoring conversations.
 
+Selecting a project is optional. Hovering a selected folder reveals a removal button on its left; removing
+the selection leaves the actual folder intact and applies to the next message. Project changes are disabled
+while a turn is running. Projectless conversations appear under the “无项目” group.
+
 ## Installation and storage
 
 The first visit offers a download from [official Codex Releases](https://github.com/openai/codex/releases).
@@ -23,6 +27,7 @@ dev.codex.switch/
 │       ├── bin/codex[.exe]
 │       ├── codex-resources/
 │       └── codex-path/
+├── codex-gui-workspaces/     # Separate scratch folders for projectless conversations
 └── .codex/
     ├── config.toml
     ├── auth.json
@@ -36,7 +41,8 @@ On Windows this normally resolves to `%APPDATA%/dev.codex.switch`. Only the curr
 authentication and Codex configuration are imported. Official conversation files, indexes, and databases are
 never imported or edited. SQLite and log locations are overridden on the private process command line, even
 if the imported configuration specifies other locations. Reconnect after switching accounts or configuration.
-Recent folder choices and pins are UI preferences stored in the Switch WebView; message content stays in `.codex`.
+Recent folders, pins, and per-conversation project choices are UI preferences stored in the Switch WebView;
+message content stays in `.codex`. Scratch folders are excluded from project labels and recent folder choices.
 
 ## Architecture
 

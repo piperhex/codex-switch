@@ -1,12 +1,13 @@
 import { useRef, useState } from "react";
 import { Button, Input, Select, Tag, Tooltip } from "antd";
-import { ArrowUp, FolderOpen, ImagePlus, ShieldCheck, Square, X } from "lucide-react";
+import { ArrowUp, ImagePlus, ShieldCheck, Square, X } from "lucide-react";
 import { open } from "@tauri-apps/plugin-dialog";
 import type { GuiController } from "./controller";
 import type { AccessMode, GuiState } from "./types";
 import { projectName } from "./ThreadSidebar";
 import { ModelPicker } from "./ModelPicker";
 import { UsageStatus } from "./UsageStatus";
+import { ProjectPicker } from "./ProjectPicker";
 import styles from "./styles.module.less";
 
 const ACCESS_OPTIONS = [{ value: "read-only", label: "只读" }, { value: "workspace-write", label: "项目内编辑" },
@@ -21,9 +22,11 @@ export function Composer({ state, controller, active }: {
   const draft = drafts[key] ?? { text: "", images: [] };
   const edit = (patch: Partial<typeof draft>) => setDrafts((values) => ({ ...values, [key]: { ...draft, ...patch } }));
   const current = state.selected ? state.conversations[state.selected] : undefined;
+  const project = state.selected
+    ? state.projectOverrides[state.selected] ?? current?.thread.cwd ?? "" : state.settings.cwd;
   const running = Boolean(current?.activeTurn);
   const canSend = state.connection === "ready" && !state.sending && !state.archived
-    && Boolean(draft.text.trim() || draft.images.length) && Boolean(state.selected || state.settings.cwd);
+    && Boolean(draft.text.trim() || draft.images.length);
   const send = async () => {
     if (!canSend || running) return;
     if (await controller.send(draft.text, draft.images)) {
@@ -32,12 +35,6 @@ export function Composer({ state, controller, active }: {
       const selected = controller.getSnapshot().selected ?? "new";
       setDrafts((values) => ({ ...values, [selected]: draft }));
     }
-  };
-  const chooseFolder = async () => {
-    try {
-      const path = await open({ directory: true, multiple: false, title: "选择项目文件夹" });
-      if (typeof path === "string") controller.settings({ cwd: path });
-    } catch (error) { controller.report(error); }
   };
   const attach = async () => {
     try {
@@ -49,15 +46,8 @@ export function Composer({ state, controller, active }: {
     } catch (error) { controller.report(error); }
   };
   return <div className={styles.composerWrap}>
-    <div className={styles.projectBar}>
-      <Button type="text" size="small" icon={<FolderOpen size={16} />} disabled={Boolean(state.selected) || running}
-        onClick={() => void chooseFolder()}>{projectName(current?.thread.cwd || state.settings.cwd)}</Button>
-      {!state.selected && state.projects.length > 0 && <Select size="small" variant="borderless" aria-label="最近项目"
-        placeholder="最近项目" value={undefined}
-        options={state.projects.map((path) => ({ value: path, label: projectName(path) }))}
-        onChange={(cwd: string) => controller.settings({ cwd })} />}
-      <span className={styles.localLabel}>本地</span>
-    </div>
+    <ProjectPicker value={project} projects={state.projects} disabled={running || state.sending || state.archived}
+      onChange={controller.setProject} onError={controller.report} />
     <div className={styles.composer}>
       {draft.images.length > 0 && <div className={styles.attachments}>{draft.images.map((path) => <Tag key={path}
         closable closeIcon={<X size={12} />}
@@ -81,7 +71,8 @@ export function Composer({ state, controller, active }: {
         </Tooltip>
         <ShieldCheck size={15} />
         <Select size="small" variant="borderless" aria-label="访问权限"
-          value={state.settings.access} options={ACCESS_OPTIONS}
+          value={state.settings.access} options={ACCESS_OPTIONS.map((option) =>
+            option.value === "workspace-write" && !project ? { ...option, label: "允许编辑" } : option)}
           disabled={running || state.sending} onChange={(access: AccessMode) => controller.settings({ access })} />
         <div className={styles.modelControls}>
           <UsageStatus active={active} />

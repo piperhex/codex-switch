@@ -84,7 +84,8 @@ export class GuiController {
       const response = await guiApi.request<ListResponse<Thread>>({ operation: "list", archived: this.state.archived,
         search: this.state.search || undefined, cursor: more ? this.state.cursor ?? undefined : undefined });
       if (generation !== this.listGeneration) return;
-      const threads = more ? [...this.state.threads, ...response.data] : response.data;
+      const threads = (more ? [...this.state.threads, ...response.data] : response.data)
+        .map((thread) => ({ ...thread, cwd: this.state.projectOverrides[thread.id] ?? thread.cwd }));
       const live = this.state.archived || this.state.search ? [] : Object.values(this.state.conversations)
         .filter((value) => value.activeTurn).map((value) => value.thread);
       this.patch({ threads: [...new Map([...live, ...threads].map((thread) => [thread.id, thread])).values()],
@@ -98,6 +99,12 @@ export class GuiController {
     this.patch({ settings: { ...this.state.settings, ...settings } });
     if (settings.cwd) this.patch({ projects: [...new Set([settings.cwd, ...this.state.projects])].slice(0, 20) });
     savePreferences(this.state);
+  };
+  setProject = (cwd: string) => {
+    const id = this.state.selected;
+    if (this.state.sending || (id && this.state.conversations[id]?.activeTurn)) return;
+    if (id) this.patch({ projectOverrides: { ...this.state.projectOverrides, [id]: cwd } });
+    this.settings({ cwd });
   };
   pin = (id: string) => {
     const pins = this.state.pins.includes(id) ? this.state.pins.filter((pin) => pin !== id) : [...this.state.pins, id];
@@ -123,20 +130,23 @@ export class GuiController {
 
   send = async (text: string, images: string[]) => {
     const { selected, settings, conversations } = this.state;
+    const projectOverride = selected ? this.state.projectOverrides[selected] : undefined;
     if (this.state.sending || this.state.connection !== "ready") return false;
     if (selected && conversations[selected]?.activeTurn) return false;
     this.patch({ sending: true, error: "" });
     try {
       const response = selected
-        ? await guiApi.request<{ thread: Thread }>({ operation: "resume", threadId: selected, access: settings.access })
-        : await guiApi.request<{ thread: Thread }>({ operation: "start", cwd: settings.cwd,
+        ? await guiApi.request<{ thread: Thread }>({ operation: "resume", threadId: selected,
+          access: settings.access, cwd: projectOverride })
+        : await guiApi.request<{ thread: Thread }>({ operation: "start", cwd: settings.cwd || undefined,
           model: settings.model || undefined, access: settings.access });
       const { thread } = response;
       this.patch({ selected: thread.id,
         conversations: { ...this.state.conversations, [thread.id]: conversation(thread) } });
-      this.settings({ cwd: thread.cwd });
+      this.settings({ cwd: projectOverride ?? thread.cwd });
+      // Loaded threads can ignore resume overrides; apply project changes to the next turn explicitly.
       const { turn } = await guiApi.request<{ turn: Turn }>({ operation: "send", threadId: thread.id,
-        text, images, model: settings.model || undefined, effort: settings.effort || undefined });
+        text, images, model: settings.model || undefined, effort: settings.effort || undefined, cwd: projectOverride });
       const current = this.state.conversations[thread.id];
       // Completion can arrive before the request promise resolves. Never resurrect a completed turn.
       if (!current.turns.some((entry) => entry.id === turn.id)) {
