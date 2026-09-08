@@ -1,7 +1,9 @@
 import type { Conversation, GuiEvent, GuiState, Item, Thread, Turn } from "./types";
+import { completeTurnTiming, restoreTurnTiming } from "./turnTiming";
 
-export function conversation(thread: Thread): Conversation {
-  const turns = thread.turns ?? [];
+export function conversation(thread: Thread, previous?: Conversation): Conversation {
+  const previousTurns = new Map(previous?.turns.map((turn) => [turn.id, turn]));
+  const turns = (thread.turns ?? []).map((turn) => restoreTurnTiming(turn, previousTurns.get(turn.id)));
   return { thread, turns, activeTurn: turns.find((turn) => turn.status === "inProgress")?.id ?? null,
     diff: "", plan: [], tokens: 0, error: "" };
 }
@@ -19,7 +21,7 @@ function mergeTurn(previous: Turn, incoming: Turn): Turn {
   // Lifecycle notifications can contain only a summary. Omitted items are not deletions.
   const items = new Map(previous.items.map((item) => [item.id, item]));
   for (const item of incoming.items ?? []) items.set(item.id, { ...items.get(item.id), ...item });
-  return { ...previous, ...incoming, items: [...items.values()] };
+  return { ...previous, ...restoreTurnTiming(incoming, previous), items: [...items.values()] };
 }
 
 function updateItem(value: Conversation, event: GuiEvent, update: (item: Item) => Item): Conversation {
@@ -60,7 +62,8 @@ export function reduceConversation(value: Conversation, event: GuiEvent): Conver
       activeTurn: params.turn.id, error: "" };
   }
   if (method === "turn/completed" && params.turn) {
-    return { ...updateTurn(value, params.turn.id, (old) => mergeTurn(old, params.turn!)), activeTurn: null,
+    return { ...updateTurn(value, params.turn.id, (old) => completeTurnTiming(mergeTurn(old, params.turn!))),
+      activeTurn: value.activeTurn === params.turn.id ? null : value.activeTurn,
       error: params.turn.status === "failed" ? "本次回复未完成，请检查连接后重试。" : "" };
   }
   if ((method === "item/started" || method === "item/completed") && params.item) {

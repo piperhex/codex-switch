@@ -1,4 +1,4 @@
-import { useState, type ClipboardEvent } from "react";
+import { useRef, useState, type ClipboardEvent } from "react";
 import type { GuiController } from "./controller";
 import type { ComposerText } from "./types";
 
@@ -20,6 +20,7 @@ export function readImage(file: File): Promise<string> {
 }
 
 export function useComposerDraft(key: string, controller: GuiController) {
+  const submitting = useRef(false);
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const draft = drafts[key] ?? EMPTY_DRAFT;
   const update = (change: (value: Draft) => Draft) => setDrafts((values) =>
@@ -53,15 +54,18 @@ export function useComposerDraft(key: string, controller: GuiController) {
   };
   const reading = draft.images.some((image) => !image.url);
   const send = async () => {
-    if (reading) return;
+    if (reading || submitting.current) return;
+    submitting.current = true;
     const skills = [...new Map(draft.mentions.map(({ skill }) =>
       [skill.path, { name: skill.name, path: skill.path }])).values()];
-    if (await controller.send(draft.text, draft.images.flatMap((image) => image.url ? [image.url] : []), skills)) {
-      setDrafts((values) => ({ ...values, [key]: EMPTY_DRAFT }));
-    } else {
-      const selected = controller.getSnapshot().selected ?? "new";
-      setDrafts((values) => ({ ...values, [key]: EMPTY_DRAFT, [selected]: draft }));
-    }
+    try {
+      if (await controller.send(draft.text, draft.images.flatMap((image) => image.url ? [image.url] : []), skills)) {
+        setDrafts((values) => values[key] === draft ? { ...values, [key]: EMPTY_DRAFT } : values);
+      } else {
+        const selected = controller.getSnapshot().selected ?? "new";
+        setDrafts((values) => ({ ...values, [key]: EMPTY_DRAFT, [selected]: draft }));
+      }
+    } finally { submitting.current = false; }
   };
   return { draft, reading, editText, editContent, removeImage, addImages, paste, send };
 }

@@ -54,6 +54,20 @@ pub(crate) enum GuiRequest {
         thread_id: String,
         turn_id: String,
     },
+    Steer {
+        thread_id: String,
+        turn_id: String,
+        text: String,
+        images: Vec<String>,
+        #[serde(default)]
+        skills: Vec<SkillInput>,
+    },
+    SendBatch {
+        thread_id: String,
+        messages: Vec<PromptInput>,
+        model: Option<String>,
+        effort: Option<String>,
+    },
     Rename {
         thread_id: String,
         name: String,
@@ -78,6 +92,14 @@ pub(crate) enum AccessMode {
 pub(crate) struct SkillInput {
     name: String,
     path: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub(crate) struct PromptInput {
+    text: String,
+    images: Vec<String>,
+    #[serde(default)]
+    skills: Vec<SkillInput>,
 }
 
 impl SkillInput {
@@ -229,6 +251,44 @@ impl GuiRequest {
                 params["turnId"] = json!(turn_id);
                 Ok(("turn/interrupt", params))
             }
+            Self::Steer {
+                thread_id,
+                turn_id,
+                text,
+                images,
+                skills,
+            } => {
+                id(&turn_id)?;
+                let (_, mut params) = send_params(
+                    thread_id,
+                    (text, images, skills),
+                    TurnOptions {
+                        model: None,
+                        effort: None,
+                        cwd: None,
+                    },
+                )?;
+                params["expectedTurnId"] = json!(turn_id);
+                if let Some(object) = params.as_object_mut() {
+                    object.remove("model");
+                    object.remove("effort");
+                }
+                Ok(("turn/steer", params))
+            }
+            Self::SendBatch {
+                thread_id,
+                messages,
+                model,
+                effort,
+            } => batch_params(
+                thread_id,
+                messages,
+                TurnOptions {
+                    model,
+                    effort,
+                    cwd: None,
+                },
+            ),
             Self::Rename { thread_id, name } => {
                 if name.trim().is_empty() || name.len() > 500 {
                     return Err(GuiError::InvalidRequest);
@@ -247,6 +307,38 @@ struct TurnOptions {
     model: Option<String>,
     effort: Option<String>,
     cwd: Option<String>,
+}
+
+fn batch_params(
+    thread_id: String,
+    messages: Vec<PromptInput>,
+    options: TurnOptions,
+) -> Result<(&'static str, Value)> {
+    const MAX_QUEUED_MESSAGES: usize = 100;
+    if messages.is_empty() || messages.len() > MAX_QUEUED_MESSAGES {
+        return Err(GuiError::InvalidRequest);
+    }
+    let mut content = Vec::new();
+    for message in messages {
+        let (_, mut params) = send_params(
+            thread_id.clone(),
+            (message.text, message.images, message.skills),
+            TurnOptions {
+                model: None,
+                effort: options.effort.clone(),
+                cwd: None,
+            },
+        )?;
+        let input = params["input"]
+            .as_array_mut()
+            .ok_or(GuiError::InvalidRequest)?;
+        content.append(input);
+    }
+    let mut params = thread_params(thread_id)?;
+    params["input"] = json!(content);
+    params["model"] = json!(options.model);
+    params["effort"] = json!(options.effort);
+    Ok(("turn/start", params))
 }
 
 fn send_params(

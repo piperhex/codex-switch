@@ -89,6 +89,18 @@ it("preserves attachments after failed sends and clears them after a successful 
   expect(editor.draft.images).toEqual([]);
 });
 
+it("submits the same draft once and preserves text typed while submission is pending", async () => {
+  act(() => editor.editText("待发送的内容"));
+  let resolve!: (accepted: boolean) => void;
+  vi.mocked(controller.send).mockImplementationOnce(() => new Promise((done) => { resolve = done; }));
+  let pending!: Promise<void>;
+  act(() => { pending = editor.send(); void editor.send(); });
+  expect(controller.send).toHaveBeenCalledOnce();
+  act(() => editor.editText("下一条消息"));
+  await act(async () => { resolve(true); await pending; });
+  expect(editor.draft.text).toBe("下一条消息");
+});
+
 it("limits attachment count and rejects unsupported, empty, or oversized files", async () => {
   const oversized = file();
   Object.defineProperty(oversized, "size", { value: MAX_IMAGE_BYTES + 1 });

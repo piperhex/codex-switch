@@ -39,6 +39,8 @@ export interface Item {
 }
 export interface Turn {
   id: string; status: string; items: Item[]; startedAt?: number | null; error?: { message: string } | null;
+  completedAt?: number | null;
+  durationMs?: number | null;
 }
 export interface Thread {
   id: string;
@@ -96,6 +98,7 @@ export interface Conversation {
 export interface ListResponse<T> { data: T[]; nextCursor: string | null }
 export interface Settings { cwd: string; model: string; effort: string; access: AccessMode }
 export interface GuiState {
+  queued: Record<string, QueuedMessage[]>;
   connection: "offline" | "connecting" | "ready";
   threads: Thread[];
   conversations: Record<string, Conversation>;
@@ -119,6 +122,8 @@ export type ApprovalReply = {
   answers?: Record<string, { answers: string[] }>;
 };
 export type Request =
+  | { operation: "sendBatch"; threadId: string; messages: MessageInput[]; model?: string; effort?: string }
+  | { operation: "steer"; threadId: string; turnId: string; text: string; images: string[]; skills: SkillReference[] }
   | { operation: "skills"; cwd?: string }
   | { operation: "models"; cursor?: string }
   | { operation: "list"; cursor?: string; archived: boolean; search?: string }
@@ -129,3 +134,13 @@ export type Request =
   | { operation: "read" | "archive" | "unarchive"; threadId: string }
   | { operation: "rename"; threadId: string; name: string }
   | { operation: "interrupt"; threadId: string; turnId: string };
+
+export interface MessageInput { text: string; images: string[]; skills: SkillReference[] }
+export interface QueuedMessage extends MessageInput {
+  id: string;
+  editing?: boolean;
+  busy?: boolean;
+  model: string;
+  effort: string;
+  access: AccessMode;
+}

@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef } from "react";
+import { Fragment, memo, useEffect, useRef } from "react";
 import { Spin } from "antd";
 import { Terminal } from "lucide-react";
 import Markdown, { type Components } from "react-markdown";
@@ -6,6 +6,7 @@ import remarkGfm from "remark-gfm";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import type { Conversation, Item } from "./types";
 import { ActivityRow } from "./ActivityRow";
+import { TurnDuration } from "./TurnDuration";
 import { MessageImage } from "./MessageImage";
 import { CopyButton } from "./CopyButton";
 import { UserMessage } from "./UserMessage";
@@ -68,7 +69,9 @@ const Message = memo(function Message({ item, streaming, startedAt }: {
   </details>;
 });
 
-export function Messages({ value, selected }: { value?: Conversation; selected: string | null }) {
+export function Messages({ value, selected, active = true }: {
+  value?: Conversation; selected: string | null; active?: boolean;
+}) {
   const viewport = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
   const follow = useRef(true);
@@ -95,12 +98,20 @@ export function Messages({ value, selected }: { value?: Conversation; selected: 
         <div className={styles.suggestions}><span>理解代码</span><span>实现功能</span><span>排查问题</span></div>
       </div>}
       {selected && !value && <div className={styles.listEmpty}><Spin /><p>正在读取对话…</p></div>}
-      {value?.turns.map((turn) => <div key={turn.id} className={styles.turn}>
-        {turn.items.map((item) => <Message key={item.id} item={item} startedAt={turn.startedAt}
-          streaming={value.activeTurn === turn.id} />)}
+      {value?.turns.map((turn) => {
+        const responseIndex = turn.items.findIndex((item) => item.type !== "userMessage");
+        return <div key={turn.id} className={styles.turn}>
+        {turn.items.map((item, index) => <Fragment key={item.id}>
+          {index === responseIndex &&
+            <TurnDuration turn={turn} running={value.activeTurn === turn.id} active={active} />}
+          <Message item={item} startedAt={turn.startedAt} streaming={value.activeTurn === turn.id} />
+        </Fragment>)}
+        {responseIndex === -1 &&
+          <TurnDuration turn={turn} running={value.activeTurn === turn.id} active={active} />}
         {turn.status === "interrupted" && <p className={styles.muted}>已停止生成</p>}
         {turn.status === "failed" && <p className={styles.turnError}>本次回复未完成，可以继续发送消息重试。</p>}
-      </div>)}
+      </div>;
+      })}
       {value?.plan.length ? <details className={styles.toolMessage}><summary>任务计划</summary>
         <ul>{value.plan.map((step, index) =>
           <li key={index}>{step.status === "completed" ? "✓ " : "○ "}{step.step}</li>)}</ul>

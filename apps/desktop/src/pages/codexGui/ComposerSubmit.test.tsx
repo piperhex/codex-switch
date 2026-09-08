@@ -80,7 +80,7 @@ it("changes stop to play and continues in the same conversation only once on a d
     operation: "send", threadId: "one", text: "请继续完成刚才中断的任务。", images: [],
   }));
   expect(vi.mocked(guiApi.request).mock.calls.filter(([request]) => request.operation === "send")).toHaveLength(1);
-  expect(controller.getSnapshot().conversations.one.turns[0]).toEqual(stopped);
+  expect(controller.getSnapshot().conversations.one.turns[0]).toMatchObject(stopped);
   expect(button().getAttribute("aria-label")).toBe("停止生成");
   expect(onSend).not.toHaveBeenCalled();
 });
@@ -98,6 +98,20 @@ it("sends a draft instead of a continuation and waits for attachments to finish 
   await click();
   expect(onSend).toHaveBeenCalledOnce();
   expect(guiApi.request).not.toHaveBeenCalledWith(expect.objectContaining({ operation: "send" }));
+});
+
+it("queues a draft during generation and shows stop again when the draft is empty", async () => {
+  await act(async () => receive({ method: "turn/started", params: {
+    threadId: thread.id, turn: { ...stopped, status: "inProgress" },
+  } }));
+  hasDraft = true;
+  await render();
+  expect(button().getAttribute("aria-label")).toBe("加入待发送");
+  await click();
+  expect(onSend).toHaveBeenCalledOnce();
+  hasDraft = false;
+  await render();
+  expect(button().getAttribute("aria-label")).toBe("停止生成");
 });
 
 it("keeps the play button available for retry after a failed continuation", async () => {

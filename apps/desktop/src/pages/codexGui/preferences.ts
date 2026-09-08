@@ -19,7 +19,7 @@ export function initialState(): GuiState {
         .filter((entry): entry is [string, string] => typeof entry[1] === "string"));
     }
   } catch { /* Preferences are optional; corrupted or unavailable storage uses defaults. */ }
-  return { connection: "offline", threads: [], conversations: {}, selected: null, models: [], approvals: [],
+  return { connection: "offline", threads: [], conversations: {}, queued: {}, selected: null, models: [], approvals: [],
     settings, loading: false, sending: false, archived: false, search: "", cursor: null, error: "", pins, projects,
     projectOverrides };
 }

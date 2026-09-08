@@ -55,6 +55,48 @@ fn user_input_stays_in_a_structured_turn() {
 }
 
 #[test]
+fn queued_messages_are_sent_together_in_order() {
+    let (method, params) = request(json!({"operation": "sendBatch", "threadId": "thread-1",
+        "messages": [{"text": "first", "images": []}, {"text": "second", "images": []}],
+        "model": "test-model", "effort": "high"}))
+    .into_rpc()
+    .unwrap();
+    assert_eq!(method, "turn/start");
+    assert_eq!(params["input"][0]["text"], "first");
+    assert_eq!(params["input"][1]["text"], "second");
+    assert_eq!(params["model"], "test-model");
+    assert_eq!(params["effort"], "high");
+    for messages in [
+        json!([]),
+        json!([{"text": "", "images": []}]),
+        json!([{"text": "hello", "images": ["relative.png"]}]),
+    ] {
+        assert!(
+            request(json!({"operation": "sendBatch", "threadId": "thread-1",
+            "messages": messages}))
+            .into_rpc()
+            .is_err()
+        );
+    }
+}
+
+#[test]
+fn steering_is_scoped_to_the_expected_turn() {
+    let (method, params) = request(json!({"operation": "steer", "threadId": "thread-1",
+        "turnId": "turn-1", "text": "new direction", "images": []}))
+    .into_rpc()
+    .unwrap();
+    assert_eq!(method, "turn/steer");
+    assert_eq!(params["expectedTurnId"], "turn-1");
+    assert_eq!(params["input"][0]["text"], "new direction");
+    assert!(params.get("model").is_none());
+    assert!(request(json!({"operation": "steer", "threadId": "thread-1",
+        "turnId": "../invalid", "text": "hello", "images": []}))
+    .into_rpc()
+    .is_err());
+}
+
+#[test]
 fn skills_are_listed_for_the_selected_project_and_sent_as_structured_input() {
     let project = std::env::current_dir().unwrap();
     let (method, params) = request(json!({"operation": "skills", "cwd": project}))

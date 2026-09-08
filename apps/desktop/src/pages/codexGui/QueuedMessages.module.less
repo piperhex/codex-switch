@@ -1,0 +1,12 @@
+.queue { margin: 0 8px 8px; border: 1px solid var(--gui-border); border-radius: 12px;
+  background: var(--panel); font-size: 13px;
+  ul { list-style: none; padding: 0; margin: 0; max-height: 240px; overflow-y: auto; } }
+.heading { display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 12px; color: var(--gui-muted); font-size: 12px; }
+.item { border-top: 1px solid var(--gui-border); }
+.row { display: flex; align-items: center; gap: 6px; padding: 8px 10px; min-width: 0;
+  > svg, > button { flex-shrink: 0; } }
+.text { flex: 1; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 72px; overflow-y: auto;
+  small { color: var(--gui-muted); } }
+.editor { padding: 0 10px 10px;
+  > div:last-child { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; } }

@@ -164,9 +164,23 @@ try {
   assert.ok(archived.data.some((entry) => entry.id === thread.id));
   await client.rpc("thread/unarchive", { threadId: thread.id });
   await client.rpc("thread/resume", { threadId: thread.id, sandbox: "read-only", approvalPolicy: "on-request" });
+  const queued = await client.rpc("turn/start", { threadId: thread.id, input: [
+    { type: "text", text: "QUEUE_FIRST_MESSAGE", text_elements: [] },
+    { type: "text", text: "QUEUE_SECOND_MESSAGE", text_elements: [] },
+  ] });
+  await client.waitFor("turn/completed", (params) => params.turn.id === queued.turn.id);
+  assert.ok(requestBodies.some((body) => {
+    const input = JSON.stringify(body.input);
+    return input.includes("QUEUE_FIRST_MESSAGE") && input.includes("QUEUE_SECOND_MESSAGE");
+  }), "All queued messages reach the next model request together");
   delayed = true;
   const next = await client.rpc("turn/start", { threadId: thread.id, input: [{ type: "text", text: "Continue" }] });
   await client.waitFor("item/agentMessage/delta", (params) => params.turnId === next.turn.id);
+  await assert.rejects(client.rpc("turn/steer", { threadId: thread.id, expectedTurnId: "stale-turn",
+    input: [{ type: "text", text: "Must not redirect another turn" }] }));
+  const steered = await client.rpc("turn/steer", { threadId: thread.id, expectedTurnId: next.turn.id,
+    input: [{ type: "text", text: "Apply the new direction" }] });
+  assert.equal(steered.turnId, next.turn.id);
   await client.rpc("turn/interrupt", { threadId: thread.id, turnId: next.turn.id });
   const interrupted = await client.waitFor("turn/completed", (params) => params.turn.id === next.turn.id);
   assert.equal(interrupted.params.turn.status, "interrupted");
@@ -175,7 +189,7 @@ try {
   assert.ok(entries.some((entry) => /^state_.*\.sqlite$/.test(entry)));
   assert.equal((await readFile(join(home, "config.toml"), "utf8")).includes("gui_fixture"), true);
   console.log("PASS: official CLI handshake, skill discovery/input, images, streaming, history, "
-    + "projectless start/continue, restart/resume, archive/restore, interrupt, isolated storage");
+    + "projectless start/continue, restart/resume, archive/restore, queued inputs, steer, interrupt, isolated storage");
 } catch (error) {
   console.error(error);
   process.exitCode = 1;

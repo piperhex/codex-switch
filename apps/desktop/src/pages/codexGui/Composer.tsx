@@ -10,6 +10,7 @@ import { ModelPicker } from "./ModelPicker";
 import { UsageStatus } from "./UsageStatus";
 import { ProjectPicker } from "./ProjectPicker";
 import { SkillInput } from "./SkillInput";
+import { QueuedMessages } from "./QueuedMessages";
 import styles from "./styles.module.less";
 
 const ACCESS_OPTIONS = [{ value: "read-only", label: "只读" }, { value: "workspace-write", label: "项目内编辑" },
@@ -29,10 +30,12 @@ export function Composer({ state, controller, active }: {
   const canSend = !disabled && !reading
     && Boolean(draft.text.trim() || draft.images.length);
   const send = async () => {
-    if (!canSend || running) return;
+    if (!canSend) return;
     await sendDraft();
   };
   return <div className={styles.composerWrap}>
+    {state.selected && <QueuedMessages threadId={state.selected} messages={state.queued[state.selected] ?? []}
+      running={running} connected={state.connection === "ready"} queue={controller.queue} />}
     <ProjectPicker value={project} projects={state.projects} disabled={running || state.sending || state.archived}
       onChange={controller.setProject} onError={controller.report} />
     <div className={styles.composer}>

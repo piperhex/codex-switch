@@ -17,19 +17,20 @@ export function ComposerSubmit({ state, controller, hasDraft, reading, onSend }:
   const continuing = interrupted && !hasDraft;
   const disabled = state.connection !== "ready" || state.sending || state.archived || reading;
   const submit = async () => {
-    if (disabled || current?.activeTurn) return;
+    if (disabled) return;
     if (continuing) await controller.send(CONTINUE_MESSAGE, []);
     else if (hasDraft) await onSend();
   };
 
-  if (current?.activeTurn) return <Button type="primary" shape="circle"
+  if (current?.activeTurn && !hasDraft) return <Button type="primary" shape="circle"
     icon={<Square size={14} fill="currentColor" />} aria-label="停止生成"
     onClick={() => void controller.interrupt()} />;
 
-  return <Tooltip title={continuing ? "继续生成" : "发送消息"} styles={{ root: { maxWidth: 400 } }}>
+  const label = current?.activeTurn ? "加入待发送" : (continuing ? "继续生成" : "发送消息");
+  return <Tooltip title={label} styles={{ root: { maxWidth: 400 } }}>
     <Button type="primary" shape="circle"
       icon={continuing ? <Play size={17} fill="currentColor" /> : <ArrowUp size={19} />}
-      aria-label={continuing ? "继续生成" : "发送消息"} loading={state.sending}
+      aria-label={label} loading={state.sending}
       disabled={disabled || (!hasDraft && !continuing)} onClick={() => void submit()} />
   </Tooltip>;
 }
