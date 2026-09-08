@@ -2356,8 +2356,8 @@ function savePreviewInstalledSkills(installed: Record<string, PreviewInstalledSk
   window.localStorage.setItem(SKILL_MARKET_INSTALLED_PREVIEW_KEY, JSON.stringify(installed));
 }
 
-export async function fetchSkillMarket(): Promise<SkillMarketItem[]> {
-  if (hasLocalBackend) return invoke<SkillMarketItem[]>("list_market_skills");
+export async function fetchSkillMarket(homeId?: string): Promise<SkillMarketItem[]> {
+  if (hasLocalBackend) return invoke<SkillMarketItem[]>("list_market_skills", { homeId });
   const { baseUrl } = previewCloudState();
   if (!baseUrl) return [];
   const response = await fetch(`${baseUrl.replace(/\/+$/, "")}/skills`, {
@@ -2412,27 +2412,27 @@ export async function publishSkill(input: SkillPublishInput): Promise<SkillMarke
   });
 }
 
-export async function installMarketSkill(skill: SkillMarketItem): Promise<void> {
+export async function installMarketSkill(skill: SkillMarketItem, homeId?: string): Promise<void> {
   if (!hasLocalBackend) {
     const installed = previewInstalledSkills();
     installed[skill.id] = { enabled: installed[skill.id]?.enabled ?? true, version: skill.version };
     savePreviewInstalledSkills(installed);
     return;
   }
-  await invoke("install_market_skill", { skill });
+  await invoke("install_market_skill", { skill, homeId });
 }
 
-export async function removeMarketSkill(skillId: string): Promise<void> {
+export async function removeMarketSkill(skillId: string, homeId?: string): Promise<void> {
   if (!hasLocalBackend) {
     const installed = previewInstalledSkills();
     delete installed[skillId];
     savePreviewInstalledSkills(installed);
     return;
   }
-  await invoke("remove_market_skill", { skillId });
+  await invoke("remove_market_skill", { skillId, homeId });
 }
 
-export async function setMarketSkillEnabled(skillId: string, enabled: boolean): Promise<void> {
+export async function setMarketSkillEnabled(skillId: string, enabled: boolean, homeId?: string): Promise<void> {
   if (!hasLocalBackend) {
     const installed = previewInstalledSkills();
     const current = installed[skillId];
@@ -2441,7 +2441,7 @@ export async function setMarketSkillEnabled(skillId: string, enabled: boolean): 
     savePreviewInstalledSkills(installed);
     return;
   }
-  await invoke("set_market_skill_enabled", { skillId, enabled });
+  await invoke("set_market_skill_enabled", { skillId, enabled, homeId });
 }
 
 export async function fetchOfficialPlugins(homeId: string): Promise<OfficialPluginItem[]> {

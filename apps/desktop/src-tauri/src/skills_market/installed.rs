@@ -5,11 +5,9 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
-use tauri::{Manager, Runtime};
 use uuid::Uuid;
 
-use super::{skills_root, SkillMarketItem};
-use crate::storage::write_json_atomic;
+use super::{registry::SkillHome, SkillMarketItem};
 
 const ACTIVE_MANIFEST: &str = "SKILL.md";
 const DISABLED_MANIFEST: &str = "SKILL.md.codex-switch-disabled";
@@ -31,38 +29,6 @@ pub(super) struct InstalledSkill {
 
 const fn enabled_by_default() -> bool {
     true
-}
-
-fn registry_path<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<PathBuf, String> {
-    app.path()
-        .app_data_dir()
-        .map(|path| path.join("skill-market-installs.json"))
-        .map_err(|error| format!("Could not resolve the skill install registry: {error}"))
-}
-
-pub(super) fn read_registry<R: Runtime>(app: &tauri::AppHandle<R>) -> SkillInstallRegistry {
-    let Ok(path) = registry_path(app) else {
-        return SkillInstallRegistry::default();
-    };
-    let Ok(data) = fs::read(path) else {
-        return SkillInstallRegistry::default();
-    };
-    serde_json::from_slice(&data).unwrap_or_default()
-}
-
-pub(super) fn write_registry<R: Runtime>(
-    app: &tauri::AppHandle<R>,
-    registry: &SkillInstallRegistry,
-) -> Result<(), String> {
-    let path = registry_path(app)?;
-    let parent = path
-        .parent()
-        .ok_or_else(|| "Skill install registry path has no parent".to_string())?;
-    fs::create_dir_all(parent)
-        .map_err(|error| format!("Could not create the skill registry directory: {error}"))?;
-    let value = serde_json::to_value(registry)
-        .map_err(|error| format!("Could not serialize the skill registry: {error}"))?;
-    write_json_atomic(&path, &value)
 }
 
 pub(super) fn installed_path(root: &Path, value: &str) -> Option<PathBuf> {
@@ -111,17 +77,17 @@ pub(super) fn set_directory_enabled(directory: &Path, enabled: bool) -> Result<(
         .map_err(|error| format!("Could not update the installed plugin status: {error}"))
 }
 
-pub(super) fn mark_installed<R: Runtime>(
-    app: &tauri::AppHandle<R>,
+pub(super) fn mark_installed(
+    home: &SkillHome,
     items: &mut [SkillMarketItem],
 ) -> Result<(), String> {
-    let root = skills_root(app)?;
-    let mut registry = read_registry(app);
+    let root = &home.root;
+    let mut registry = home.read().map_err(|error| error.to_string())?;
     registry
         .installed
-        .retain(|_, installed| skill_exists(&root, installed));
+        .retain(|_, installed| skill_exists(root, installed));
     for installed in registry.installed.values_mut() {
-        let Some(directory) = installed_path(&root, &installed.directory) else {
+        let Some(directory) = installed_path(root, &installed.directory) else {
             continue;
         };
         installed.enabled = manifest_path(&directory, true).is_file();
@@ -132,27 +98,27 @@ pub(super) fn mark_installed<R: Runtime>(
         item.installed = item.installed_version.as_deref() == Some(item.version.as_str());
         item.enabled = installed.is_some_and(|value| value.enabled);
     }
-    write_registry(app, &registry)
+    home.write(&registry).map_err(|error| error.to_string())
 }
 
-pub(super) fn set_market_skill_enabled<R: Runtime>(
-    app: &tauri::AppHandle<R>,
+pub(super) fn set_market_skill_enabled(
+    home: &SkillHome,
     skill_id: &str,
     enabled: bool,
 ) -> Result<(), String> {
-    let root = skills_root(app)?;
-    let mut registry = read_registry(app);
+    let root = &home.root;
+    let mut registry = home.read().map_err(|error| error.to_string())?;
     let installed = registry
         .installed
         .get_mut(skill_id)
         .ok_or_else(|| "Install this plugin before changing whether it is enabled.".to_string())?;
-    let directory = installed_path(&root, &installed.directory).ok_or_else(|| {
+    let directory = installed_path(root, &installed.directory).ok_or_else(|| {
         "The installed plugin path is invalid. Delete and reinstall it.".to_string()
     })?;
     let previous = installed.enabled;
     set_directory_enabled(&directory, enabled)?;
     installed.enabled = enabled;
-    if let Err(error) = write_registry(app, &registry) {
+    if let Err(error) = home.write(&registry).map_err(|error| error.to_string()) {
         set_directory_enabled(&directory, previous).map_err(|rollback| {
             format!("{error} The previous status could not be restored: {rollback}")
         })?;
@@ -161,16 +127,13 @@ pub(super) fn set_market_skill_enabled<R: Runtime>(
     Ok(())
 }
 
-pub(super) fn remove_market_skill<R: Runtime>(
-    app: &tauri::AppHandle<R>,
-    skill_id: &str,
-) -> Result<(), String> {
-    let root = skills_root(app)?;
-    let mut registry = read_registry(app);
+pub(super) fn remove_market_skill(home: &SkillHome, skill_id: &str) -> Result<(), String> {
+    let root = &home.root;
+    let mut registry = home.read().map_err(|error| error.to_string())?;
     let installed = registry.installed.get(skill_id).ok_or_else(|| {
         "This plugin is not installed. Refresh the list and try again.".to_string()
     })?;
-    let directory = installed_path(&root, &installed.directory).ok_or_else(|| {
+    let directory = installed_path(root, &installed.directory).ok_or_else(|| {
         "The installed plugin path is invalid. Refresh the list and try again.".to_string()
     })?;
     let temporary = root.join(format!(".codex-switch-skill-remove-{}", Uuid::new_v4()));
@@ -181,7 +144,7 @@ pub(super) fn remove_market_skill<R: Runtime>(
         })?;
     }
     registry.installed.remove(skill_id);
-    if let Err(error) = write_registry(app, &registry) {
+    if let Err(error) = home.write(&registry).map_err(|error| error.to_string()) {
         if existed {
             fs::rename(&temporary, &directory).map_err(|rollback| {
                 format!("{error} The plugin files could not be restored: {rollback}")

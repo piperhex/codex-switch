@@ -1,20 +1,26 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { LoaderCircle, PackageOpen } from "lucide-react";
-import {
-  fetchSkillMarket,
-  installMarketSkill,
-  removeMarketSkill,
-  setMarketSkillEnabled,
-  skillPreviewUrl,
-} from "../../../api/backend";
+import { hasLocalBackend, skillPreviewUrl } from "../../../api/backend";
+import { CodexHomeScope, CodexHomeSelect, useSelectedCodexHome } from "../../../components/CodexHomeScope";
+import { useCommunitySkills } from "./useCommunitySkills";
 import type { SkillMarketItem } from "../../../types";
 import { SkillDetailModal } from "../SkillDetailModal";
 import { SkillMarketGrid } from "../SkillMarketGrid";
 import { SkillPublishModal } from "../SkillPublishModal";
 import { SkillsMarketToolbar } from "../SkillsMarketToolbar";
-import type { CommunitySkillBusyAction, CommunitySkillsMarketProps } from "../types";
+import type { CommunitySkillsMarketProps } from "../types";
 
-export function CommunitySkillsMarket({
+export function CommunitySkillsMarket(props: CommunitySkillsMarketProps) {
+  if (!hasLocalBackend) return <CommunitySkillsContent {...props} />;
+  return <CodexHomeScope active={props.active}><ScopedCommunitySkills {...props} /></CodexHomeScope>;
+}
+
+function ScopedCommunitySkills(props: CommunitySkillsMarketProps) {
+  const homeId = useSelectedCodexHome();
+  return <CommunitySkillsContent {...props} homeId={homeId} />;
+}
+
+function CommunitySkillsContent({
   active,
   activeTab,
   authenticated,
@@ -24,32 +30,16 @@ export function CommunitySkillsMarket({
   onLogin,
   onTabChange,
   t,
-}: CommunitySkillsMarketProps) {
-  const [items, setItems] = useState<SkillMarketItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  homeId,
+}: CommunitySkillsMarketProps & { homeId?: string }) {
+  const { items, loading, error, busyAction, load, install, setEnabled, remove } = useCommunitySkills({
+    homeId, notify, t,
+  });
   const [query, setQuery] = useState("");
   const [publishing, setPublishing] = useState(false);
   const [editing, setEditing] = useState<SkillMarketItem | null>(null);
   const [detailSkillId, setDetailSkillId] = useState<string | null>(null);
-  const [busyAction, setBusyAction] = useState<CommunitySkillBusyAction | null>(null);
   const [brokenPreviews, setBrokenPreviews] = useState<Set<string>>(() => new Set());
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      setItems(await fetchSkillMarket());
-    } catch (caught) {
-      setError(String(caught instanceof Error ? caught.message : caught));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase();
@@ -69,45 +59,6 @@ export function CommunitySkillsMarket({
     setPublishing(true);
   };
 
-  const install = async (skill: SkillMarketItem) => {
-    setBusyAction({ action: "install", skillId: skill.id });
-    try {
-      await installMarketSkill(skill);
-      notify(skill.installedVersion ? t("skills.toast.updated") : t("skills.toast.installed"));
-      await load();
-    } catch (caught) {
-      setError(String(caught instanceof Error ? caught.message : caught));
-    } finally {
-      setBusyAction(null);
-    }
-  };
-
-  const setEnabled = async (skill: SkillMarketItem, enabled: boolean) => {
-    setBusyAction({ action: "toggle", skillId: skill.id });
-    try {
-      await setMarketSkillEnabled(skill.id, enabled);
-      notify(t(enabled ? "skills.toast.enabled" : "skills.toast.disabled", { name: skill.title }));
-      await load();
-    } catch (caught) {
-      setError(String(caught instanceof Error ? caught.message : caught));
-    } finally {
-      setBusyAction(null);
-    }
-  };
-
-  const remove = async (skill: SkillMarketItem) => {
-    setBusyAction({ action: "remove", skillId: skill.id });
-    try {
-      await removeMarketSkill(skill.id);
-      notify(t("skills.toast.deleted", { name: skill.title }));
-      await load();
-    } catch (caught) {
-      setError(String(caught instanceof Error ? caught.message : caught));
-    } finally {
-      setBusyAction(null);
-    }
-  };
-
   const markPreviewBroken = (skillId: string) => {
     setBrokenPreviews((current) => new Set(current).add(skillId));
   };
@@ -117,13 +68,14 @@ export function CommunitySkillsMarket({
       <SkillsMarketToolbar
         active={active}
         activeTab={activeTab}
-        loading={loading}
+        loading={loading || busyAction !== null}
         onPublish={openPublish}
         onQueryChange={setQuery}
         onRefresh={() => void load()}
         onTabChange={onTabChange}
         query={query}
         t={t}
+        homeSelector={homeId && <CodexHomeSelect disabled={busyAction !== null} />}
       />
 
       {!authenticated && (

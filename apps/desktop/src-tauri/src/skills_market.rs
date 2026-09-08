@@ -13,6 +13,10 @@ use crate::cloud;
 
 mod install;
 mod installed;
+mod registry;
+
+// Catalog refreshes also update installation records; serialize them with mutations off the UI thread.
+static SKILL_CHANGES: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 pub(crate) const MAX_SKILL_ARCHIVE_BYTES: usize = 1024 * 1024;
 const MAX_SKILL_EXPANDED_BYTES: u64 = 10 * 1024 * 1024;
@@ -78,10 +82,6 @@ pub(crate) struct SkillPreview {
 #[derive(Debug)]
 struct ArchiveLayout {
     root_prefix: Option<PathBuf>,
-}
-
-fn skills_root<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<PathBuf, String> {
-    crate::storage::resolve_paths(app).map(|paths| paths.codex_home.join("skills"))
 }
 
 fn safe_relative_path(path: &Path) -> bool {
@@ -312,10 +312,14 @@ fn extract_archive(data: &[u8], destination: &Path, layout: &ArchiveLayout) -> R
 #[tauri::command]
 pub(crate) async fn list_market_skills<R: Runtime>(
     app: tauri::AppHandle<R>,
+    home_id: Option<String>,
 ) -> Result<Vec<SkillMarketItem>, String> {
     tauri::async_runtime::spawn_blocking(move || {
+        let _guard = SKILL_CHANGES.blocking_lock();
+        let home = registry::SkillHome::resolve(&app, home_id.as_deref())
+            .map_err(|error| error.to_string())?;
         let mut items = cloud::fetch_skill_market_items(&app)?;
-        installed::mark_installed(&app, &mut items)?;
+        installed::mark_installed(&home, &mut items)?;
         Ok(items)
     })
     .await
@@ -385,10 +389,16 @@ pub(crate) async fn upload_market_skill<R: Runtime>(
 pub(crate) async fn install_market_skill<R: Runtime>(
     app: tauri::AppHandle<R>,
     skill: SkillMarketItem,
+    home_id: Option<String>,
 ) -> Result<(), String> {
-    tauri::async_runtime::spawn_blocking(move || install::install_market_skill(&app, skill))
-        .await
-        .map_err(|error| format!("Skill install task failed: {error}"))?
+    tauri::async_runtime::spawn_blocking(move || {
+        let _guard = SKILL_CHANGES.blocking_lock();
+        let home = registry::SkillHome::resolve(&app, home_id.as_deref())
+            .map_err(|error| error.to_string())?;
+        install::install_market_skill(&app, skill, &home)
+    })
+    .await
+    .map_err(|error| format!("Skill install task failed: {error}"))?
 }
 
 #[tauri::command]
@@ -396,9 +406,13 @@ pub(crate) async fn set_market_skill_enabled<R: Runtime>(
     app: tauri::AppHandle<R>,
     skill_id: String,
     enabled: bool,
+    home_id: Option<String>,
 ) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        installed::set_market_skill_enabled(&app, &skill_id, enabled)
+        let _guard = SKILL_CHANGES.blocking_lock();
+        let home = registry::SkillHome::resolve(&app, home_id.as_deref())
+            .map_err(|error| error.to_string())?;
+        installed::set_market_skill_enabled(&home, &skill_id, enabled)
     })
     .await
     .map_err(|error| format!("Skill status task failed: {error}"))?
@@ -408,10 +422,16 @@ pub(crate) async fn set_market_skill_enabled<R: Runtime>(
 pub(crate) async fn remove_market_skill<R: Runtime>(
     app: tauri::AppHandle<R>,
     skill_id: String,
+    home_id: Option<String>,
 ) -> Result<(), String> {
-    tauri::async_runtime::spawn_blocking(move || installed::remove_market_skill(&app, &skill_id))
-        .await
-        .map_err(|error| format!("Skill removal task failed: {error}"))?
+    tauri::async_runtime::spawn_blocking(move || {
+        let _guard = SKILL_CHANGES.blocking_lock();
+        let home = registry::SkillHome::resolve(&app, home_id.as_deref())
+            .map_err(|error| error.to_string())?;
+        installed::remove_market_skill(&home, &skill_id)
+    })
+    .await
+    .map_err(|error| format!("Skill removal task failed: {error}"))?
 }
 
 #[cfg(test)]

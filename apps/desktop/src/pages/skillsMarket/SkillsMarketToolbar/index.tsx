@@ -52,7 +52,7 @@ function SkillsMarketTabs({ activeTab, onTabChange, t }: Pick<SkillsMarketToolba
 
 function SkillsMarketActions(props: SkillsMarketToolbarProps) {
   return (
-    <div className={`${styles.toolbarActions}${props.homeSelector ? ` ${styles.withHome}` : ""}`}>
+    <div className={styles.toolbarActions}>
       {props.beforeSearch}
       <label className={styles.search}>
         <Search size={16} />
@@ -70,19 +70,17 @@ function SkillsMarketActions(props: SkillsMarketToolbarProps) {
           <Upload size={16} />{props.t("skills.publish.action")}
         </button>
       )}
-      {props.homeSelector && <div className={styles.homeSelector}>{props.homeSelector}</div>}
     </div>
   );
 }
 
 export function SkillsMarketToolbar(props: SkillsMarketToolbarProps) {
   const hosts = useTopbarHosts(props.active);
-  if (!hosts.actions || !hosts.tabs) return null;
-
   return (
     <>
-      {createPortal(<SkillsMarketTabs {...props} />, hosts.tabs)}
-      {createPortal(<SkillsMarketActions {...props} />, hosts.actions)}
+      {hosts.tabs && createPortal(<SkillsMarketTabs {...props} />, hosts.tabs)}
+      {hosts.actions && createPortal(<SkillsMarketActions {...props} />, hosts.actions)}
+      {props.homeSelector && <div className={styles.homeSelector}>{props.homeSelector}</div>}
     </>
   );
 }

@@ -65,6 +65,8 @@ it("offers installation before search and loads the selected home after installi
   await render();
   expect(backend.fetchOfficialPlugins).not.toHaveBeenCalled();
   const actions = document.getElementById("skills-market-topbar-actions")!;
+  expect(actions.querySelector(".ant-select")).toBeNull();
+  expect(container.querySelector(".skills-market-page > div .ant-select")).not.toBeNull();
   const install = actions.querySelector<HTMLButtonElement>("button")!;
   expect(install.textContent).toContain("安装 Codex");
   expect(install.compareDocumentPosition(actions.querySelector("input")!) & Node.DOCUMENT_POSITION_FOLLOWING)

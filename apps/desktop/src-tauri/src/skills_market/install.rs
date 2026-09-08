@@ -5,7 +5,7 @@ use tauri::Runtime;
 use uuid::Uuid;
 
 use super::{
-    cloud, extract_archive, inspect_archive, installed, skills_root, ArchiveLayout,
+    cloud, extract_archive, inspect_archive, installed, registry::SkillHome, ArchiveLayout,
     SkillMarketItem, MAX_SKILL_ARCHIVE_BYTES,
 };
 
@@ -105,14 +105,14 @@ fn managed_destination(
     Ok(destination)
 }
 
-fn save_install<R: Runtime>(
-    app: &tauri::AppHandle<R>,
+fn save_install(
+    home: &SkillHome,
     registry: &mut installed::SkillInstallRegistry,
     skill_id: String,
     record: installed::InstalledSkill,
 ) -> Result<(), String> {
     registry.installed.insert(skill_id, record);
-    installed::write_registry(app, registry)
+    home.write(registry).map_err(|error| error.to_string())
 }
 
 fn rollback_install(destination: &std::path::Path, backup: &std::path::Path) -> Result<(), String> {
@@ -129,15 +129,16 @@ fn rollback_install(destination: &std::path::Path, backup: &std::path::Path) -> 
 pub(super) fn install_market_skill<R: Runtime>(
     app: &tauri::AppHandle<R>,
     skill: SkillMarketItem,
+    home: &SkillHome,
 ) -> Result<(), String> {
-    let root = skills_root(app)?;
-    fs::create_dir_all(&root)
+    let root = &home.root;
+    fs::create_dir_all(root)
         .map_err(|error| format!("Could not create {}: {error}", root.display()))?;
-    let mut registry = installed::read_registry(app);
+    let mut registry = home.read().map_err(|error| error.to_string())?;
     if registry
         .installed
         .get(&skill.id)
-        .is_some_and(|item| item.version == skill.version && installed::skill_exists(&root, item))
+        .is_some_and(|item| item.version == skill.version && installed::skill_exists(root, item))
     {
         return Ok(());
     }
@@ -148,16 +149,16 @@ pub(super) fn install_market_skill<R: Runtime>(
         .unwrap_or(true);
     let (archive, layout) = download_archive(app, &skill)?;
     let directory = directory_name(&skill.id);
-    let destination = managed_destination(&root, &registry, &skill, &directory)?;
-    let temporary = prepare_temporary(&root, &archive, &layout, enabled)?;
-    let backup = replace_destination(&root, &temporary, &destination)?;
+    let destination = managed_destination(root, &registry, &skill, &directory)?;
+    let temporary = prepare_temporary(root, &archive, &layout, enabled)?;
+    let backup = replace_destination(root, &temporary, &destination)?;
     let SkillMarketItem { id, version, .. } = skill;
     let record = installed::InstalledSkill {
         directory,
         version,
         enabled,
     };
-    if let Err(error) = save_install(app, &mut registry, id, record) {
+    if let Err(error) = save_install(home, &mut registry, id, record) {
         rollback_install(&destination, &backup)
             .map_err(|rollback| format!("{error} {rollback}"))?;
         return Err(error);
