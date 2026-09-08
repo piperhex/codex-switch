@@ -1,6 +1,5 @@
 /* Account table and card presentation. Selectors stay global while the
  * stylesheet is owned by the AccountTable component. */
-/* The account view switch stays aligned with the table's left edge. */
 .styleScope { --component-style-scope: 1; }
 
 :global {
@@ -8,10 +7,7 @@
   .accounts-heading { min-width: 0; }
   .account-display-tabs {
     width: max-content;
-    position: absolute;
-    bottom: 4px;
-    left: 8px;
-    z-index: 2;
+    flex: 0 0 auto;
     padding: 2px;
     display: inline-flex;
     align-items: center;
@@ -19,11 +15,6 @@
     border: 1px solid var(--line);
     border-radius: 6px;
     background: #edf1ee;
-  }
-  .accounts-topbar .account-display-tabs {
-    top: auto;
-    bottom: 4px;
-    left: 16px;
   }
   .account-display-tabs button {
     min-width: 20px;

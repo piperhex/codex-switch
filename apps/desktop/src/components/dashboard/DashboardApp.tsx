@@ -1257,6 +1257,10 @@ export function DashboardApp() {
               <span>Codex<br /><b>Switch</b></span>
             </button>
           )}
+          {(page === "accounts" || page === "providers") && (
+            <AccountDisplayTabs displayMode={accountDisplayMode.displayMode}
+              onChange={accountDisplayMode.setDisplayMode} t={t} />
+          )}
           <AnnouncementBanner link={announcementLink} onOpenLink={openAnnouncementLink}
             scrollDurationSeconds={announcement?.scrollDurationSeconds ?? 22}
             style={announcementStyle} text={announcementText}
@@ -1302,10 +1306,6 @@ export function DashboardApp() {
                   {page === "settings" && <SettingsGroupsNav t={t} />}
                 </div>
               </div>
-            )}
-            {(page === "accounts" || page === "providers") && (
-              <AccountDisplayTabs displayMode={accountDisplayMode.displayMode}
-                onChange={accountDisplayMode.setDisplayMode} t={t} />
             )}
             {page === "accounts" && (
               <AccountTopbarActions>

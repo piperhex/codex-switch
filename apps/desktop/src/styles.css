@@ -49,7 +49,7 @@ button:focus-visible { outline: 3px solid rgba(45, 131, 87, .24); outline-offset
 }
 .app-shell.sidebar-navigation-shell.sidebar-collapsed { --sidebar-width: 64px; }
 .sidebar-navigation-shell .window-titlebar { grid-column: 1 / -1; }
-.sidebar-navigation-shell .app-menu { grid-column: 2; grid-row: 2; min-height: 0; padding: 2px; }
+.sidebar-navigation-shell .app-menu { grid-column: 2; grid-row: 2; min-height: 0; gap: 2px; padding: 2px; }
 .sidebar-navigation-shell main { grid-column: 2; grid-row: 3; }
 .window-titlebar { position: relative; z-index: 1000; min-width: 0; height: var(--window-titlebar-height); display: flex; align-items: stretch; color: #1f2c24; background: #f5fafc; border-bottom: 1px solid #d7e2e5; user-select: none; }
 .window-menu-bar { min-width: 0; flex: 0 0 auto; display: flex; align-items: stretch; font-size: 13px; }
