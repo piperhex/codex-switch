@@ -43,9 +43,15 @@
 .suggestions { display: flex; gap: 10px; margin-top: 28px;
   span { font-size: 12px; border: 1px solid var(--gui-border); border-radius: 8px; padding: 8px 13px; color: var(--gui-muted); } }
 .turn { display: flex; flex-direction: column; gap: 18px; padding-bottom: 26px; }
-.userMessage { align-self: flex-end; background: var(--green-soft); border-radius: 16px 16px 4px 16px;
-  max-width: 90%; padding: 15px 19px 6px; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.75;
-  > button { display: flex; margin-left: auto; color: var(--gui-muted); } }
+.userMessage { align-self: flex-end; max-width: 90%; min-width: 0;
+  &:hover .userMessageActions, &:focus-within .userMessageActions { opacity: 1; pointer-events: auto; } }
+.userBubble { background: var(--green-soft); border-radius: 16px 16px 4px 16px;
+  padding: 15px 19px; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.75; }
+.userMessageActions { display: flex; justify-content: flex-end; align-items: center; gap: 10px;
+  min-height: 28px; padding: 3px 2px 0; opacity: 0; pointer-events: none;
+  color: var(--gui-muted); font-size: 12px;
+  > button { color: inherit; } }
+@media (hover: none) { .userMessageActions { opacity: 1; pointer-events: auto; } }
 .agentMessage { min-width: 0; line-height: 1.8; font-size: 14px; > button { color: var(--gui-muted); } }
 .agentLabel { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 12px; margin-bottom: 10px; }
 .markdown { overflow-wrap: anywhere; p { margin: 10px 0; } ul, ol { padding-left: 24px; }

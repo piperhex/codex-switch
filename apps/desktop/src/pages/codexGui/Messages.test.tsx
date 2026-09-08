@@ -5,6 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { guiApi } from "./api";
 import { GuiController } from "./controller";
 import { Messages } from "./Messages";
+import { conversation } from "./events";
 import type { GuiEvent, Item, Thread } from "./types";
 
 vi.mock("./api", () => ({ guiApi: {
@@ -132,4 +133,58 @@ it("keeps visible messages and expanded activity after completion, reopening, an
   await act(async () => { expect(await controller.send("继续检查", [])).toBe(true); });
   expectHistory();
   expect(container.textContent).toContain("Codex 正在处理");
+});
+
+it("renders Markdown photos and lets failed images retry without changing the reply", async () => {
+  const text = "![新加坡滨海湾](https://example.com/singapore.jpg)\n\n图片来源";
+  const value = conversation({ ...thread, turns: [{ id: "images", status: "completed", items: [
+    { id: "photo", type: "agentMessage", text },
+  ] }] });
+  await act(async () => root.render(<Messages selected={thread.id} value={value} />));
+  const image = container.querySelector("img")!;
+  expect(image.getAttribute("src")).toBe("https://example.com/singapore.jpg");
+  expect(image.alt).toBe("新加坡滨海湾");
+  expect(image.getAttribute("referrerpolicy")).toBe("no-referrer");
+  expect(container.querySelector('button[aria-label="放大查看：新加坡滨海湾"]')).not.toBeNull();
+  await act(async () => image.dispatchEvent(new Event("error")));
+  expect(container.querySelector('[role="status"]')?.textContent).toContain("图片加载失败");
+  await act(async () => (container.querySelector('[role="status"] button') as HTMLButtonElement).click());
+  expect(container.querySelector("img")?.src).toBe(image.src);
+  expect(container.textContent).toContain("图片来源");
+});
+
+it("does not load local endpoints or executable URLs as Markdown images", async () => {
+  const value = conversation({ ...thread, turns: [{ id: "unsafe", status: "completed", items: [
+    { id: "photo", type: "agentMessage",
+      text: "![本地](/__codex_switch__/api/invoke) ![脚本](javascript:alert%281%29)" },
+  ] }] });
+  await act(async () => root.render(<Messages selected={thread.id} value={value} />));
+  expect(container.querySelector("img")).toBeNull();
+  expect(container.textContent).toContain("暂不支持预览");
+});
+
+it("places the real send time and copy action outside the user bubble and copies only message text", async () => {
+  const startedAt = 1788873505;
+  const value = conversation({ ...thread, turns: [{ id: "timed", status: "completed", startedAt,
+    items: [items[0]] }] });
+  const writeText = vi.fn().mockResolvedValue(undefined);
+  vi.stubGlobal("navigator", { clipboard: { writeText } });
+  await act(async () => root.render(<Messages selected={thread.id} value={value} />));
+  const article = container.querySelector("article")!;
+  const bubble = article.firstElementChild!;
+  const time = article.querySelector("time")!;
+  const copy = article.querySelector("button")!;
+  expect(time.dateTime).toBe(new Date(startedAt * 1000).toISOString());
+  expect(time.textContent).toMatch(/^\d{2}:\d{2}$/);
+  expect(bubble.contains(time)).toBe(false);
+  expect(bubble.contains(copy)).toBe(false);
+  expect(time.parentElement).toBe(copy.parentElement);
+  await act(async () => copy.click());
+  expect(writeText).toHaveBeenCalledWith("检查这个项目");
+  expect(copy.getAttribute("aria-label")).toBe("已复制");
+});
+
+it("does not invent a send time when older history has no timestamp", async () => {
+  await act(async () => root.render(<Messages selected={thread.id} value={conversation(thread)} />));
+  expect(container.querySelector("time")).toBeNull();
 });

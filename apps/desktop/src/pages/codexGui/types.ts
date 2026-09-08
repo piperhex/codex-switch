@@ -37,7 +37,9 @@ export interface Item {
   result?: unknown;
   error?: unknown;
 }
-export interface Turn { id: string; status: string; items: Item[]; error?: { message: string } | null }
+export interface Turn {
+  id: string; status: string; items: Item[]; startedAt?: number | null; error?: { message: string } | null;
+}
 export interface Thread {
   id: string;
   name?: string | null;
