@@ -1,9 +1,10 @@
 .pill {
   box-sizing: border-box;
-  height: 34px;
+  height: var(--announcement-height);
+  flex: 0 0 auto;
   padding: 3px;
   border: 1px solid #d7ded8;
-  border-radius: 999px;
+  border-radius: var(--announcement-radius);
   display: inline-flex;
   align-items: center;
   gap: 1px;
@@ -12,14 +13,17 @@
 
 .pill button {
   min-width: 44px;
-  height: 26px;
+  height: 100%;
   padding: 0 10px;
   border: 0;
-  border-radius: 999px;
+  border-radius: 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   color: #748078;
   background: transparent;
   cursor: pointer;
-  font: 600 11px/26px Manrope, sans-serif;
+  font: 600 11px/1 Manrope, sans-serif;
 }
 
 .pill button.selected {

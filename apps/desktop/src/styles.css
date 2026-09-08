@@ -23,6 +23,7 @@
   --sidebar-width: 208px;
   --window-titlebar-height: 38px;
   --announcement-height: 36px;
+  --announcement-radius: 9px;
 }
 
 * { box-sizing: border-box; scrollbar-width: thin; scrollbar-color: #9eaca2 #edf1ed; }
@@ -205,7 +206,7 @@ button:focus-visible { outline: 3px solid rgba(45, 131, 87, .24); outline-offset
 .brand span { font-size: 15px; color: #66756c; }
 .brand b { color: #213028; font-weight: 700; }
 .announcement-slot { min-width: 0; flex: 1 1 0; overflow: hidden; }
-.announcement-marquee { width: 100%; min-width: 0; max-width: 100%; height: var(--announcement-height); padding: 0; overflow: hidden; display: flex; align-items: center; border: 1px solid rgba(var(--green-rgb), .22); border-radius: 9px; color: var(--green-dark); background: var(--green-soft); text-align: left; }
+.announcement-marquee { width: 100%; min-width: 0; max-width: 100%; height: var(--announcement-height); padding: 0; overflow: hidden; display: flex; align-items: center; border: 1px solid rgba(var(--green-rgb), .22); border-radius: var(--announcement-radius); color: var(--green-dark); background: var(--green-soft); text-align: left; }
 .announcement-marquee-link,
 .announcement-marquee-link * { cursor: pointer; }
 .announcement-marquee-link:focus-visible { outline: 3px solid rgba(var(--green-rgb), .22); outline-offset: 2px; }

@@ -1155,7 +1155,7 @@ export function DashboardApp() {
   const proxyTopbarActions = (
     <ProxyTopbarActions cloudAuthenticated={cloud.state.authenticated}
       manager={providerManager} showSessionManager={!sidebarNavigationEnabled}
-      trailingAction={usageSpeedPill} t={t} />
+      t={t} />
   );
   const accountProxyTopbarActions = (
     <ProxyTopbarActions cloudAuthenticated={cloud.state.authenticated}
@@ -1173,7 +1173,6 @@ export function DashboardApp() {
           outputTarget={providerManager.localProxy.imageOutputTarget}
           busy={providerManager.proxyBusy} onChange={providerManager.setProxyImageModel}
           privacyMode={privacyMode.enabled} t={t} />}
-        {usageSpeedPill}
         {!sidebarNavigationEnabled && <TotpWindowButton notify={notify} t={t} />}
       </>} t={t} />
   );
@@ -1265,6 +1264,7 @@ export function DashboardApp() {
             scrollDurationSeconds={announcement?.scrollDurationSeconds ?? 22}
             style={announcementStyle} text={announcementText}
             trackKey={`${language}:${announcementText}`} />
+          {(page === "accounts" || page === "providers") && usageSpeedPill}
           {!sidebarNavigationEnabled && (
             <DashboardNavigation onPageChange={setPage} page={page} t={t} />
           )}
