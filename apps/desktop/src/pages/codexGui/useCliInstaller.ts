@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { invoke, isDesktopApp } from "../../api/backend";
-import { listen } from "@tauri-apps/api/event";
+import { invoke } from "../../api/backend";
+import { subscribeGuiEvent } from "./webEvents";
 import type { GuiController } from "./controller";
 
 interface Release { version: string; size: number }
@@ -40,9 +40,9 @@ export function useCliInstaller(active: boolean, controller: Pick<GuiController,
   }, [active, check, controller]);
 
   useEffect(() => {
-    if (!active || !isDesktopApp) return;
+    if (!active) return;
     let cancelled = false;
-    const subscription = listen<Progress>("codex-gui-download", ({ payload }) => setProgress(payload));
+    const subscription = subscribeGuiEvent<Progress>("codex-gui-download", setProgress);
     void subscription.then((stop) => { if (cancelled) stop(); }).catch(controller.report);
     return () => { cancelled = true; void subscription.then((stop) => stop()).catch(controller.report); };
   }, [active, controller]);

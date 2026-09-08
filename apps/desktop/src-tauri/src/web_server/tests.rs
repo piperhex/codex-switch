@@ -54,7 +54,12 @@ mod tests {
     }
 
     #[test]
-    fn lan_requests_have_an_explicit_read_only_allowlist() {
+    fn lan_requests_allow_gui_conversations_but_restrict_host_administration() {
+        for command in ["codex_gui_connect", "codex_gui_request", "codex_gui_respond",
+            "codex_gui_events", "codex_gui_cli_status", "codex_gui_cli_release",
+            "codex_gui_cli_install", "codex_gui_usage_summary"] {
+            assert!(WebRequestAccess::Lan.allows_command(command));
+        }
         assert!(LAN_COMMAND_ALLOWLIST.contains(&"list_accounts"));
         assert!(LAN_COMMAND_ALLOWLIST.contains(&"get_app_settings"));
         assert!(LAN_COMMAND_ALLOWLIST.contains(&"get_codex_connection_status"));

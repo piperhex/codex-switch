@@ -23,6 +23,34 @@ beforeEach(() => {
 });
 
 describe("Codex GUI controller", () => {
+  it("reloads a live conversation after a browser connection gap", async () => {
+    const controller = new GuiController();
+    await controller.connect();
+    await controller.select(thread.id);
+    receive({ method: "turn/started", params: { threadId: thread.id,
+      turn: { id: "live", status: "inProgress", items: [] } } });
+    receive({ method: "connection/closed", params: {} });
+    expect(controller.getSnapshot().connection).toBe("offline");
+    vi.mocked(guiApi.request).mockClear();
+    receive({ method: "connection/restored", params: {} });
+    await controller.connect();
+    expect(guiApi.request).toHaveBeenCalledWith({ operation: "read", threadId: thread.id });
+    expect(controller.getSnapshot().connection).toBe("ready");
+    controller.dispose();
+  });
+
+  it("stops the browser subscription while hidden and reloads the selected thread on return", async () => {
+    const controller = new GuiController();
+    await controller.connect();
+    await controller.select(thread.id);
+    const stop = await vi.mocked(guiApi.subscribe).mock.results[0].value;
+    controller.suspend();
+    expect(stop).toHaveBeenCalledOnce();
+    await controller.connect();
+    expect(guiApi.subscribe).toHaveBeenCalledTimes(2);
+    controller.dispose();
+  });
+
   it("starts a conversation without a selected project and keeps scratch folders out of recent projects", async () => {
     const controller = new GuiController();
     await controller.connect();

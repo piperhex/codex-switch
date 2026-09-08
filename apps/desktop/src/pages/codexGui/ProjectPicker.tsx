@@ -1,4 +1,6 @@
-import { Button, Select } from "antd";
+import { useState } from "react";
+import { Button, Input, Modal, Select } from "antd";
+import { isDesktopApp } from "../../api/backend";
 import { FolderOpen, X } from "lucide-react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { projectName } from "./ThreadSidebar";
@@ -14,7 +16,15 @@ interface ProjectPickerProps {
 }
 
 export function ProjectPicker({ value, projects, disabled, onChange, onError }: ProjectPickerProps) {
+  const [choosing, setChoosing] = useState(false);
+  const [path, setPath] = useState("");
+  const confirm = () => {
+    if (disabled || !path.trim()) return;
+    onChange(path.trim());
+    setChoosing(false);
+  };
   const chooseFolder = async () => {
+    if (!isDesktopApp) { setPath(value); setChoosing(true); return; }
     try {
       const path = await open({ directory: true, multiple: false, title: "选择项目文件夹" });
       if (typeof path === "string") onChange(path);
@@ -36,6 +46,12 @@ export function ProjectPicker({ value, projects, disabled, onChange, onError }: 
     {projects.length > 0 && <Select size="small" variant="borderless" aria-label="最近项目" disabled={disabled}
       placeholder="最近项目" value={undefined}
       options={projects.map((path) => ({ value: path, label: projectName(path) }))} onChange={onChange} />}
-    <span className={layout.localLabel}>本地</span>
+    <span className={layout.localLabel}>{isDesktopApp ? "本地" : "Codex Switch 主机"}</span>
+    <Modal title="选择主机上的项目" open={choosing} width={400} okText="选择" cancelText="取消"
+      onCancel={() => setChoosing(false)} onOk={confirm} okButtonProps={{ disabled: disabled || !path.trim() }}>
+      <p>填写运行 Codex Switch 的主机上的文件夹路径。也可以不选项目，直接开始对话。</p>
+      <Input aria-label="主机项目路径" value={path} placeholder="项目文件夹的完整路径" disabled={disabled}
+        onChange={(event) => setPath(event.target.value)} onPressEnter={confirm} />
+    </Modal>
   </div>;
 }

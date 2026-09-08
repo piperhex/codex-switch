@@ -2,13 +2,13 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../../api/backend";
 import type { Account, Provider } from "../../types";
 import { ProxyAccountPicker, type ProxyAccountPickerProps } from "./ProxyAccountPicker";
 import { useUsageStatus } from "./useUsageStatus";
 import detailsStyles from "./ProxyAccountDetails.module.less";
 
-vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
+vi.mock("../../api/backend", () => ({ invoke: vi.fn(), isHostedWebApp: false, canManageCodexConnection: true }));
 const account: Account = {
   id: "official", email: "user@example.com", group: "", note: "工作账号", expiresAt: "", plan: "Plus",
   privateDetails: { password: "", phoneNumber: "", totpSecret: "" }, active: true, autoSwitchEnabled: true,

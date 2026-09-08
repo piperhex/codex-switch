@@ -9,7 +9,7 @@ use std::{
 };
 
 use serde_json::{json, Value};
-use tauri::{AppHandle, Emitter};
+use tauri::AppHandle;
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
     process::{Child, ChildStdin, ChildStdout, Command},
@@ -232,9 +232,7 @@ impl Client {
     }
 
     fn emit(&self, event: GuiEvent) {
-        if self.app.emit_to("main", "codex-gui-event", event).is_err() {
-            eprintln!("Codex GUI could not deliver an event");
-        }
+        super::web::publish(&self.app, "codex-gui-event", event);
     }
 
     async fn disconnect(&self, notify: bool) {

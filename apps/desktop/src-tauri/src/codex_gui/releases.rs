@@ -12,7 +12,7 @@ use std::{
     sync::Mutex,
     time::Duration,
 };
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Manager};
 
 const RELEASE_API: &str = "https://api.github.com/repos/openai/codex/releases";
 const MAX_DOWNLOAD: u64 = 512 * 1024 * 1024;
@@ -151,9 +151,7 @@ fn release(client: &Client, version: Option<&str>) -> Result<(String, Asset)> {
 }
 
 fn publish(app: &AppHandle, progress: Progress) {
-    if app.emit_to("main", "codex-gui-download", progress).is_err() {
-        eprintln!("Codex GUI could not publish download progress");
-    }
+    super::web::publish(app, "codex-gui-download", progress);
 }
 
 fn download(

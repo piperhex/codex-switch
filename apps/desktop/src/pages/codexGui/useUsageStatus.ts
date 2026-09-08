@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, isHostedWebApp, canManageCodexConnection } from "../../api/backend";
 import type { LocalProxyStatus } from "../../types";
 
 const REFRESH_INTERVAL_MS = 5_000;
+const CAN_CHANGE_FAST_MODE = !isHostedWebApp || canManageCodexConnection;
 export interface UsageSummary {
   totalTokens: number;
   estimatedCostUsd: number;
@@ -53,7 +54,7 @@ export function useUsageStatus(active: boolean) {
   }, [active]);
 
   const setFastMode = async (enabled: boolean) => {
-    if (changing.current || !proxy?.running || (enabled && !proxy.fastModeAvailable)) return;
+    if (!CAN_CHANGE_FAST_MODE || changing.current || !proxy?.running || (enabled && !proxy.fastModeAvailable)) return;
     changing.current = true;
     revision.current += 1;
     setSaving(true);
@@ -67,5 +68,5 @@ export function useUsageStatus(active: boolean) {
       if (mounted.current) setSaving(false);
     }
   };
-  return { usage, proxy, saving, error, setFastMode };
+  return { usage, proxy, saving, error, setFastMode, canChangeFastMode: CAN_CHANGE_FAST_MODE };
 }

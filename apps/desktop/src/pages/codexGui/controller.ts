@@ -23,7 +23,10 @@ export class GuiController {
     this.state = { ...this.state, ...patch };
     this.listeners.forEach((listener) => listener());
   };
-  report = (error: unknown) => this.patch({ error: typeof error === "string" ? error : "操作未完成，请重试。" });
+  report = (error: unknown) => {
+    const message = error instanceof Error ? error.message : error;
+    this.patch({ error: typeof message === "string" ? message : "操作未完成，请重试。" });
+  };
   clearError = () => this.patch({ error: "" });
 
   private flushStream = () => {
@@ -34,6 +37,7 @@ export class GuiController {
     this.streamEvents = [];
   };
   private receive = (event: GuiEvent) => {
+    if (event.method === "connection/restored") { void this.connect(); return; }
     if (event.method.endsWith("Delta") || event.method.endsWith("/delta")) {
       this.streamEvents.push(event);
       this.streamTimer ??= setTimeout(this.flushStream, STREAM_FRAME_MS);
@@ -193,6 +197,11 @@ export class GuiController {
   };
 
   activate = () => { this.disposed = false; };
+  suspend = () => {
+    this.unlisten?.(); this.unlisten = undefined;
+    this.flushStream();
+    this.patch({ ...reduceEvent(this.state, { method: "connection/closed", params: {} }), error: "" });
+  };
   dispose = () => {
     this.disposed = true; this.unlisten?.(); this.unlisten = undefined;
     clearTimeout(this.streamTimer); this.streamTimer = undefined; this.streamEvents = []; this.listeners.clear();

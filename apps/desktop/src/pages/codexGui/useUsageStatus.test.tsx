@@ -2,10 +2,10 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../../api/backend";
 import { useUsageStatus } from "./useUsageStatus";
 
-vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
+vi.mock("../../api/backend", () => ({ invoke: vi.fn(), isHostedWebApp: false, canManageCodexConnection: true }));
 const usage = { totalTokens: 50290000, estimatedCostUsd: 74.32, primaryRemainingPercent: 95,
   primaryRemainingAggregated: false, providerEstimatedCost: null };
 const proxy = { running: true, fastModeEnabled: false, fastModeAvailable: true };

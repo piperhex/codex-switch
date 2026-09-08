@@ -314,6 +314,7 @@ include!("requests.rs");
 include!("security.rs");
 include!("dispatch_primary.rs");
 include!("dispatch_extended.rs");
+include!("dispatch_gui.rs");
 include!("dispatch_helpers.rs");
 include!("responses.rs");
 include!("tests.rs");

@@ -42,7 +42,7 @@ function quotaColor(remaining: number | null | undefined) {
 }
 
 export function UsageStatus({ active }: { active: boolean }) {
-  const { usage, proxy, saving, error, setFastMode } = useUsageStatus(active);
+  const { usage, proxy, saving, error, setFastMode, canChangeFastMode } = useUsageStatus(active);
   const [hint, setHint] = useState<UsageHint | null>(null);
   const remaining = usage?.primaryRemainingPercent;
   const estimate = usage?.providerEstimatedCost;
@@ -64,7 +64,7 @@ export function UsageStatus({ active }: { active: boolean }) {
       return current === key ? null : current;
     });
   };
-  const speedHint = !proxy?.running ? "开启本地代理后可使用快速模式"
+  const speedHint = canChangeFastMode === false ? "请在主机上切换快速模式" : !proxy?.running ? "开启本地代理后可使用快速模式"
     : proxy.fastModeAvailable ? "切换后对新请求生效" : "当前模型暂不支持快速模式";
   return <div className={styles.status} onKeyDown={(event) => {
     if (event.key === "Escape" && hint) { event.stopPropagation(); setHint(null); }
@@ -88,7 +88,7 @@ export function UsageStatus({ active }: { active: boolean }) {
       mouseLeaveDelay={0} open={active && hint === "speed"} onOpenChange={(open) => changeHint("speed", open)}>
       <label className={styles.speed}><span>快速模式</span>
         <Switch size="small" aria-label="快速模式" checked={proxy?.fastModeEnabled ?? false} loading={saving}
-          disabled={!proxy?.running || (!proxy.fastModeEnabled && !proxy.fastModeAvailable)}
+          disabled={canChangeFastMode === false || !proxy?.running || (!proxy.fastModeEnabled && !proxy.fastModeAvailable)}
           onChange={(enabled) => void setFastMode(enabled)} />
       </label>
     </Tooltip>

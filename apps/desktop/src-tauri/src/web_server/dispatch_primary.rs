@@ -323,6 +323,6 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
                 argument(&args, "folderOnly")?,
             ))
         }
-        _ => dispatch_extended_command(app, command, args),
+        _ => dispatch_gui_command(app, command, args),
     }
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Alert, Button, Popover } from "antd";
 import { Download, PanelLeftClose, PanelLeftOpen, RefreshCw } from "lucide-react";
-import { isDesktopApp } from "../api/backend";
+import { hasLocalBackend, isDesktopApp } from "../api/backend";
 import { GuiController } from "./codexGui/controller";
 import { ThreadSidebar, threadTitle } from "./codexGui/ThreadSidebar";
 import { Composer } from "./codexGui/Composer";
@@ -17,7 +17,7 @@ export function CodexGuiPage({ active, accountPicker }: CodexGuiPageProps) {
   const [visited, setVisited] = useState(active);
   useEffect(() => { if (active) setVisited(true); }, [active]);
   if (!visited) return null;
-  if (!isDesktopApp) return <div className={styles.install}><h2>Codex GUI</h2><p>请在 Codex Switch 桌面版中开始对话。</p></div>;
+  if (!hasLocalBackend) return <div className={styles.install}><h2>Codex GUI</h2><p>请打开 Codex Switch 提供的网页地址，开始对话。</p></div>;
   return <Workspace active={active} accountPicker={accountPicker} />;
 }
 
@@ -27,6 +27,11 @@ function Workspace({ active, accountPicker }: CodexGuiPageProps) {
   const [collapsed, setCollapsed] = useState(false);
   const installer = useCliInstaller(active, controller);
   useEffect(() => { controller.activate(); return controller.dispose; }, [controller]);
+  useEffect(() => {
+    if (isDesktopApp || !installer.version) return;
+    if (active) void controller.connect();
+    else controller.suspend();
+  }, [active, controller, installer.version]);
   const current = state.selected ? state.conversations[state.selected] : undefined;
   const thread = current?.thread ?? state.threads.find((entry) => entry.id === state.selected);
   const pending = state.approvals.filter((event) => event.params.threadId === state.selected);
@@ -39,7 +44,7 @@ function Workspace({ active, accountPicker }: CodexGuiPageProps) {
         <Button type="text" icon={collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
           aria-label={collapsed ? "展开对话列表" : "收起对话列表"} onClick={() => setCollapsed(!collapsed)} />
         <div className={styles.heading}><strong>{thread ? threadTitle(thread) : "Codex GUI"}</strong>
-          <span>{thread ? "本地对话" : "在这里，把想法变成现实"}</span></div>
+          <span>{thread ? (isDesktopApp ? "本地对话" : "主机对话") : "在这里，把想法变成现实"}</span></div>
         <div className={styles.headerActions}>
           {installer.version && <Button type="text" icon={<RefreshCw size={16} />} aria-label="重新连接 Codex"
             disabled={Boolean(running)} loading={state.connection === "connecting"}
