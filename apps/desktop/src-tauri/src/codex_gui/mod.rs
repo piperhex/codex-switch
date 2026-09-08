@@ -3,6 +3,7 @@ mod error;
 mod home;
 mod images;
 mod platform;
+pub(crate) mod plugin_client;
 mod protocol;
 pub(crate) mod releases;
 #[cfg(test)]

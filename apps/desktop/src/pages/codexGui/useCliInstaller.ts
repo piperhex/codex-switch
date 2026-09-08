@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, isDesktopApp } from "../../api/backend";
 import { listen } from "@tauri-apps/api/event";
 import type { GuiController } from "./controller";
 
 interface Release { version: string; size: number }
 interface Progress { downloaded: number; total: number; phase: "downloading" | "installing" }
 
-export function useCliInstaller(active: boolean, controller: GuiController) {
+export function useCliInstaller(active: boolean, controller: Pick<GuiController, "report" | "clearError" | "connect">) {
   const [version, setVersion] = useState<string | null>(null);
   const [release, setRelease] = useState<Release | null>(null);
   const [checking, setChecking] = useState(false);
@@ -40,11 +40,12 @@ export function useCliInstaller(active: boolean, controller: GuiController) {
   }, [active, check, controller]);
 
   useEffect(() => {
+    if (!active || !isDesktopApp) return;
     let cancelled = false;
     const subscription = listen<Progress>("codex-gui-download", ({ payload }) => setProgress(payload));
     void subscription.then((stop) => { if (cancelled) stop(); }).catch(controller.report);
     return () => { cancelled = true; void subscription.then((stop) => stop()).catch(controller.report); };
-  }, [controller]);
+  }, [active, controller]);
 
   const install = async () => {
     if (!release || busy.current) return;

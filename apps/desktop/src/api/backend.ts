@@ -2444,9 +2444,9 @@ export async function setMarketSkillEnabled(skillId: string, enabled: boolean): 
   await invoke("set_market_skill_enabled", { skillId, enabled });
 }
 
-export async function fetchOfficialPlugins(): Promise<OfficialPluginItem[]> {
+export async function fetchOfficialPlugins(homeId: string): Promise<OfficialPluginItem[]> {
   if (!hasLocalBackend) return [];
-  return invoke<OfficialPluginItem[]>("list_official_plugins");
+  return invoke<OfficialPluginItem[]>("list_official_plugins", { homeId });
 }
 
 const PROMPT_PLUGIN_PREVIEW_KEY = "codex-switch:prompt-plugin-installed";
@@ -2505,25 +2505,25 @@ export async function setPromptPluginEnabled(pluginId: string, enabled: boolean)
   window.localStorage.setItem(PROMPT_PLUGIN_PREVIEW_KEY, JSON.stringify(installed));
 }
 
-export async function installOfficialPlugin(pluginId: string): Promise<void> {
+export async function installOfficialPlugin(pluginId: string, homeId: string): Promise<void> {
   if (!hasLocalBackend) {
     throw new Error("Official plugins are available when Codex Switch is running locally");
   }
-  await invoke("install_official_plugin", { pluginId });
+  await invoke("install_official_plugin", { pluginId, homeId });
 }
 
-export async function removeOfficialPlugin(pluginId: string): Promise<void> {
+export async function removeOfficialPlugin(pluginId: string, homeId: string): Promise<void> {
   if (!hasLocalBackend) {
     throw new Error("Official plugins are available when Codex Switch is running locally");
   }
-  await invoke("remove_official_plugin", { pluginId });
+  await invoke("remove_official_plugin", { pluginId, homeId });
 }
 
-export async function setOfficialPluginEnabled(pluginId: string, enabled: boolean): Promise<void> {
+export async function setOfficialPluginEnabled(pluginId: string, enabled: boolean, homeId: string): Promise<void> {
   if (!hasLocalBackend) {
     throw new Error("Official plugins are available when Codex Switch is running locally");
   }
-  await invoke("set_official_plugin_enabled", { pluginId, enabled });
+  await invoke("set_official_plugin_enabled", { pluginId, enabled, homeId });
 }
 
 export function skillPreviewUrl(baseUrl: string | null | undefined, skill: SkillMarketItem) {

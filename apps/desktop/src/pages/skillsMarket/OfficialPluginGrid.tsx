@@ -30,7 +30,7 @@ function installedActions(
     && options.busyAction.action === toggleAction;
   const removeBusy = options.busyAction?.pluginId === plugin.id
     && options.busyAction.action === "remove";
-  const busy = options.busyAction?.pluginId === plugin.id;
+  const busy = options.busyAction !== null;
   return (
     <div className="official-plugin-actions">
       <button
@@ -69,7 +69,7 @@ function OfficialPluginCard(options: Omit<OfficialPluginGridProps, "items"> & {
       <div className="skill-card-preview official-plugin-preview" style={previewStyle}>
         <div className="official-plugin-icon"><PluginIcon plugin={plugin} /></div>
         <span className="skill-official-badge">{t("skills.official.badge")}</span>
-        <span className="skill-version">v{plugin.version}</span>
+        {plugin.version && <span className="skill-version">v{plugin.version}</span>}
       </div>
       <div className="skill-card-body">
         <div className="skill-card-title"><h3>{plugin.title}</h3></div>
@@ -82,7 +82,7 @@ function OfficialPluginCard(options: Omit<OfficialPluginGridProps, "items"> & {
           <button
             type="button"
             className="skill-install-button"
-            disabled={installBusy}
+            disabled={options.busyAction !== null}
             onClick={() => void options.onAction(plugin, "install")}
           >
             <InstallIcon busy={installBusy} />

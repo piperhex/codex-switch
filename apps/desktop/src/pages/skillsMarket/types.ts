@@ -1,4 +1,5 @@
 import type { Translate } from "../../i18n";
+import type { ReactNode } from "react";
 import type { OfficialPluginItem, SkillMarketItem } from "../../types";
 
 export type SkillsMarketTab = "community" | "official" | "prompt";
@@ -28,6 +29,8 @@ export interface OfficialPluginsMarketProps extends SkillsMarketNavigationProps 
 }
 
 export interface SkillsMarketToolbarProps extends SkillsMarketNavigationProps {
+  beforeSearch?: ReactNode;
+  homeSelector?: ReactNode;
   active: boolean;
   loading: boolean;
   onPublish?: () => void;

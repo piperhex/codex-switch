@@ -52,7 +52,8 @@ function SkillsMarketTabs({ activeTab, onTabChange, t }: Pick<SkillsMarketToolba
 
 function SkillsMarketActions(props: SkillsMarketToolbarProps) {
   return (
-    <div className={styles.toolbarActions}>
+    <div className={`${styles.toolbarActions}${props.homeSelector ? ` ${styles.withHome}` : ""}`}>
+      {props.beforeSearch}
       <label className={styles.search}>
         <Search size={16} />
         <input
@@ -69,6 +70,7 @@ function SkillsMarketActions(props: SkillsMarketToolbarProps) {
           <Upload size={16} />{props.t("skills.publish.action")}
         </button>
       )}
+      {props.homeSelector && <div className={styles.homeSelector}>{props.homeSelector}</div>}
     </div>
   );
 }

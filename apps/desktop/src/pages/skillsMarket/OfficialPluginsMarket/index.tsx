@@ -1,4 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CodexHomeScope, CodexHomeSelect, useSelectedCodexHome } from "../../../components/CodexHomeScope";
+import { useCliInstaller } from "../../codexGui/useCliInstaller";
+import { CliInstallButton } from "./CliInstallButton";
 import { LoaderCircle, Puzzle } from "lucide-react";
 import {
   fetchOfficialPlugins,
@@ -23,34 +26,54 @@ const ACTION_TOAST = {
   remove: "skills.official.toast.uninstalled",
 } as const;
 
-export function OfficialPluginsMarket({
+export function OfficialPluginsMarket(props: OfficialPluginsMarketProps) {
+  return <CodexHomeScope active={props.active}><OfficialPluginsContent {...props} /></CodexHomeScope>;
+}
+
+function OfficialPluginsContent({
   active,
   activeTab,
   notify,
   onTabChange,
   t,
 }: OfficialPluginsMarketProps) {
+  const homeId = useSelectedCodexHome();
   const [items, setItems] = useState<OfficialPluginItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [busyAction, setBusyAction] = useState<OfficialPluginBusyAction | null>(null);
+  const busy = useRef(false);
+  const loadingRef = useRef(false);
+  const mounted = useRef(true);
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
 
   const load = useCallback(async () => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
     setLoading(true);
     setError(null);
     try {
-      setItems(await fetchOfficialPlugins());
+      const plugins = await fetchOfficialPlugins(homeId);
+      if (mounted.current) setItems(plugins);
     } catch (caught) {
-      setError(String(caught instanceof Error ? caught.message : caught));
+      if (mounted.current) setError(String(caught instanceof Error ? caught.message : caught));
     } finally {
-      setLoading(false);
+      loadingRef.current = false;
+      if (mounted.current) setLoading(false);
     }
-  }, []);
+  }, [homeId]);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const installerCallbacks = useMemo(() => ({
+    connect: load,
+    clearError: () => setError(null),
+    report: (caught: unknown) => setError(typeof caught === "string" ? caught : "操作未完成，请重试。"),
+  }), [load]);
+  const installer = useCliInstaller(active && hasLocalBackend, installerCallbacks);
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase();
@@ -60,22 +83,26 @@ export function OfficialPluginsMarket({
   }, [items, query]);
 
   const runAction = async (plugin: OfficialPluginItem, action: OfficialPluginAction) => {
+    if (busy.current || loadingRef.current) return;
+    busy.current = true;
     setBusyAction({ pluginId: plugin.id, action });
     setError(null);
     try {
       if (action === "install") {
-        await installOfficialPlugin(plugin.id);
+        await installOfficialPlugin(plugin.id, homeId);
       } else if (action === "remove") {
-        await removeOfficialPlugin(plugin.id);
+        await removeOfficialPlugin(plugin.id, homeId);
       } else {
-        await setOfficialPluginEnabled(plugin.id, action === "enable");
+        await setOfficialPluginEnabled(plugin.id, action === "enable", homeId);
       }
+      if (!mounted.current) return;
       notify(t(ACTION_TOAST[action], { name: plugin.title }));
       await load();
     } catch (caught) {
-      setError(String(caught instanceof Error ? caught.message : caught));
+      if (mounted.current) setError(String(caught instanceof Error ? caught.message : caught));
     } finally {
-      setBusyAction(null);
+      busy.current = false;
+      if (mounted.current) setBusyAction(null);
     }
   };
 
@@ -89,12 +116,14 @@ export function OfficialPluginsMarket({
   );
   if (!hasLocalBackend) {
     content = <div className="skills-market-state"><Puzzle size={26} />{t("skills.official.localOnly")}</div>;
-  } else if (loading && items.length === 0) {
+  } else if (!installer.checked || (loading && items.length === 0)) {
     content = (
       <div className="skills-market-state">
         <LoaderCircle className="spin" size={22} />{t("skills.official.loading")}
       </div>
     );
+  } else if (!installer.version) {
+    content = <div className="skills-market-state"><Puzzle size={26} />安装 Codex 后，即可浏览官方插件。</div>;
   } else if (filtered.length === 0) {
     content = <div className="skills-market-state"><Puzzle size={26} />{t("skills.official.empty")}</div>;
   }
@@ -104,12 +133,14 @@ export function OfficialPluginsMarket({
       <SkillsMarketToolbar
         active={active}
         activeTab={activeTab}
-        loading={loading}
+        loading={loading || busyAction !== null || !installer.version}
         onQueryChange={setQuery}
         onRefresh={() => void load()}
         onTabChange={onTabChange}
         query={query}
         t={t}
+        beforeSearch={hasLocalBackend && <CliInstallButton installer={installer} />}
+        homeSelector={<CodexHomeSelect disabled={busyAction !== null || installer.installing} />}
       />
       {error && <div className="skills-market-error" role="alert">{error}</div>}
       {content}

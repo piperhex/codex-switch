@@ -1,5 +1,10 @@
 fn dispatch_extended_command(app: AppHandle, command: &str, args: Value) -> Result<Value, String> {
     match command {
+        "codex_gui_cli_status" => serialize(block_on(crate::codex_gui::releases::codex_gui_cli_status(app))),
+        "codex_gui_cli_release" => serialize(block_on(crate::codex_gui::releases::codex_gui_cli_release())),
+        "codex_gui_cli_install" => serialize(block_on(crate::codex_gui::releases::codex_gui_cli_install(
+            app, argument(&args, "version")?,
+        ))),
         "get_auto_reset_settings" => serialize(block_on(crate::local_proxy::get_auto_reset_settings(app))),
         "set_auto_reset_settings" => serialize(block_on(crate::local_proxy::set_auto_reset_settings(
             app, argument(&args, "settings")?,
@@ -244,19 +249,24 @@ fn dispatch_extended_command(app: AppHandle, command: &str, args: Value) -> Resu
             )))
         }
         "list_official_plugins" => serialize(block_on(
-            crate::official_plugins::list_official_plugins(app),
+            crate::official_plugins::list_official_plugins(app, argument(&args, "homeId")?),
         )),
         "install_official_plugin" => serialize(block_on(
-            crate::official_plugins::install_official_plugin(app, argument(&args, "pluginId")?),
+            crate::official_plugins::install_official_plugin(
+                app, argument(&args, "pluginId")?, argument(&args, "homeId")?,
+            ),
         )),
         "remove_official_plugin" => serialize(block_on(
-            crate::official_plugins::remove_official_plugin(app, argument(&args, "pluginId")?),
+            crate::official_plugins::remove_official_plugin(
+                app, argument(&args, "pluginId")?, argument(&args, "homeId")?,
+            ),
         )),
         "set_official_plugin_enabled" => serialize(block_on(
             crate::official_plugins::set_official_plugin_enabled(
                 app,
                 argument(&args, "pluginId")?,
                 argument(&args, "enabled")?,
+                argument(&args, "homeId")?,
             ),
         )),
         "switch_account_and_restart_chatgpt" => serialize(block_on(
