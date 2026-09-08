@@ -8,6 +8,7 @@ mod auth;
 mod autostart;
 mod browser;
 mod ccs_import;
+mod chrome_plugin;
 mod claude_code;
 mod claude_code_provider;
 mod claude_desktop;
@@ -68,6 +69,9 @@ use tauri::Manager;
 use tauri_plugin_deep_link::DeepLinkExt;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    if chrome_plugin::run_helper() {
+        return;
+    }
     if std::env::args_os().any(|argument| argument == "--print-local-proxy-token") {
         println!("{}", providers::LOCAL_PROXY_TOKEN);
         return;
@@ -443,6 +447,8 @@ pub fn run() {
             cloud::cloud_pull_totp,
             totp_qr::decode_totp_qr_image,
             skills_market::list_market_skills,
+            chrome_plugin::commands::chrome_plugin_status,
+            chrome_plugin::commands::chrome_plugin_action,
             skills_market::upload_market_skill,
             skills_market::install_market_skill,
             skills_market::remove_market_skill,

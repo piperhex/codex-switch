@@ -74,6 +74,7 @@ function SkillCard({ options, skill }: { options: SkillMarketGridProps; skill: S
 export function SkillMarketGrid(props: SkillMarketGridProps) {
   return (
     <div className="skills-market-grid">
+      {props.leadingCard}
       {props.items.map((skill) => <SkillCard key={skill.id} options={props} skill={skill} />)}
     </div>
   );

@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>允许访问网站</title><link rel="stylesheet" href="ui.css"></head>
+<body class="approval">
+  <header><img src="icon.png" alt=""><div><h1>允许访问这个网站？</h1><p>Codex Switch 浏览器助手</p></div></header>
+  <p>允许当前 Codex Home 查看页面，并根据你的要求点击、输入和截图。</p>
+  <p id="origin" class="origin">正在读取请求…</p>
+  <p id="error" role="alert" hidden></p>
+  <div class="stack">
+    <button data-decision="session">本次浏览器会话允许</button>
+    <button data-decision="always" class="secondary">始终允许这个网站</button>
+    <button data-decision="deny" class="secondary">不允许</button>
+  </div>
+  <script type="module" src="approval.js"></script>
+</body></html>

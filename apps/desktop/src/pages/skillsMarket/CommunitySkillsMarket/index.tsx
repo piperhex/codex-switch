@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
 import { LoaderCircle, PackageOpen } from "lucide-react";
-import { hasLocalBackend, skillPreviewUrl } from "../../../api/backend";
+import { hasLocalBackend, isDesktopApp, skillPreviewUrl } from "../../../api/backend";
 import { CodexHomeScope, CodexHomeSelect, useSelectedCodexHome } from "../../../components/CodexHomeScope";
 import { useCommunitySkills } from "./useCommunitySkills";
+import { ChromePluginCard, chromePluginMatches } from "../ChromePluginCard";
 import type { SkillMarketItem } from "../../../types";
 import { SkillDetailModal } from "../SkillDetailModal";
 import { SkillMarketGrid } from "../SkillMarketGrid";
@@ -36,6 +37,7 @@ function CommunitySkillsContent({
     homeId, notify, t,
   });
   const [query, setQuery] = useState("");
+  const [chromeBusy, setChromeBusy] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [editing, setEditing] = useState<SkillMarketItem | null>(null);
   const [detailSkillId, setDetailSkillId] = useState<string | null>(null);
@@ -62,6 +64,8 @@ function CommunitySkillsContent({
   const markPreviewBroken = (skillId: string) => {
     setBrokenPreviews((current) => new Set(current).add(skillId));
   };
+  const browserCard = isDesktopApp && homeId && (chromeBusy || chromePluginMatches(query))
+    ? <ChromePluginCard key={homeId} homeId={homeId} active={active} onBusyChange={setChromeBusy} /> : null;
 
   return (
     <div className="skills-market-page">
@@ -75,7 +79,7 @@ function CommunitySkillsContent({
         onTabChange={onTabChange}
         query={query}
         t={t}
-        homeSelector={homeId && <CodexHomeSelect disabled={busyAction !== null} />}
+        homeSelector={homeId && <CodexHomeSelect disabled={busyAction !== null || chromeBusy} />}
       />
 
       {!authenticated && (
@@ -86,14 +90,9 @@ function CommunitySkillsContent({
       )}
 
       {error && <div className="skills-market-error" role="alert">{error}</div>}
-      {loading && items.length === 0 ? (
-        <div className="skills-market-state">
-          <LoaderCircle className="spin" size={22} />{t("skills.loading")}
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="skills-market-state"><PackageOpen size={26} />{t("skills.empty")}</div>
-      ) : (
+      {(browserCard || filtered.length > 0) && (
         <SkillMarketGrid
+          leadingCard={browserCard}
           authenticated={authenticated}
           baseUrl={baseUrl}
           brokenPreviews={brokenPreviews}
@@ -108,6 +107,12 @@ function CommunitySkillsContent({
           onPreviewError={markPreviewBroken}
           t={t}
         />
+      )}
+      {loading && items.length === 0 && (
+        <div className="skills-market-state"><LoaderCircle className="spin" size={22} />{t("skills.loading")}</div>
+      )}
+      {!loading && !browserCard && filtered.length === 0 && (
+        <div className="skills-market-state"><PackageOpen size={26} />{t("skills.empty")}</div>
       )}
 
       {detailSkill && (

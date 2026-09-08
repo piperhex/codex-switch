@@ -80,6 +80,7 @@ export interface SkillDetailModalProps extends SkillInstallButtonProps {
 }
 
 export interface SkillMarketGridProps {
+  leadingCard?: ReactNode;
   authenticated: boolean;
   baseUrl?: string | null;
   brokenPreviews: Set<string>;

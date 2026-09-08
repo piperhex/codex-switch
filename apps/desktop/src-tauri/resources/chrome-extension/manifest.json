@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "Codex Switch 浏览器助手",
+  "version": "1.0.0",
+  "description": "让 Codex Switch 在你允许的网站上查看和操作 Chrome，无需安装 ChatGPT。",
+  "minimum_chrome_version": "125",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAv8ljU5o5M2fErYFE69cj75ydJ91ilH6DWffO4ud7g/c0aKDDbJScenPeLC4FSvcGUa4OeqeTN+Nxidyk9HZISKxv8+hoC9NdeoLQiDYynKk8bYmr6+rTnhcNyXdRwuGz4O1H7G034x+15wL8lZMKti5br2pIaf6Az7Yy6gH0NNV0wFOGBVMX4PItYuWcFV6mzcDGLZ3GtPlRgOwSktvSH0NAIGmoS0OhQZUSJkmvISsbhamHRwj9HB2tHhkOKLmilWIMLNdZ2XPT7VqgPC39bYeXyDBVumLYiNXvhlUymk3aVd044JNayxxJTPsqiYPU33wKfM5MorJnkd8SyYeYjQIDAQAB",
+  "permissions": [
+    "nativeMessaging",
+    "tabs",
+    "debugger",
+    "storage",
+    "alarms"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Codex Switch 浏览器助手"
+  },
+  "icons": {
+    "128": "icon.png"
+  }
+}

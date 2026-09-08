@@ -1,0 +1,18 @@
+.card { min-width: 0; }
+.preview { display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(145deg, #d1eee4, #9dcfc1); }
+.icon { display: grid; place-items: center; width: 72px; height: 72px; color: #258476;
+  background: #fbfffd; border-radius: 20px; box-shadow: 0 12px 25px #42695726; }
+.connection { font-size: 12px; color: var(--muted); margin: 0 0 12px; }
+.error { max-width: 400px; overflow-wrap: anywhere; color: #b6473e; font-size: 12px; margin-bottom: 10px; }
+.setupButton { width: 100%; justify-content: center; margin-bottom: 8px; }
+.setup { max-width: 400px; overflow-wrap: anywhere;
+  ol { padding-left: 20px; line-height: 1.8; }
+  p { margin: 10px 0; }
+}
+.path { border: 1px solid var(--line); padding: 10px; border-radius: 8px; background: var(--panel);
+  font-size: 12px; user-select: all; overflow-wrap: anywhere; }
+.setupActions { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
+.hint { font-size: 12px; color: var(--muted); }
+.confirm { max-width: min(400px, calc(100vw - 32px)); overflow-wrap: anywhere; }
+:global(:root[data-theme="dark"]) .preview { background: linear-gradient(145deg, #244e42, #397f6c); }

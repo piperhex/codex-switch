@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><title>浏览器助手功能测试</title>
+  <style>
+    body { max-width: 760px; margin: 32px auto; font: 16px/1.6 system-ui; color: #16352d; padding: 20px; }
+    label { display: block; margin: 16px 0; } input, select, button { font: inherit; padding: 8px; }
+    button { cursor: pointer; } output { display: block; padding: 16px; background: #e0f4eb; margin-top: 16px; }
+    #spacer { height: 1000px; background: linear-gradient(#fff,#d8f1e6); margin: 24px 0; }
+    iframe { width: 100%; height: 160px; border: 1px solid #9fbcaf; }
+    #drag-area { display: flex; gap: 60px; margin: 24px 0; }
+    #drag-area > div { border: 2px dashed #38977a; padding: 24px; }
+  </style>
+</head>
+<body>
+  <h1>浏览器助手功能测试</h1>
+  <p>此页面仅处理测试内容，不会发送表单或上传数据。</p>
+  <form id="form">
+    <label>测试名称 <input name="name" id="name" autocomplete="off"></label>
+    <label>测试密码 <input type="password" value="password-must-not-appear-in-snapshot" autocomplete="off"></label>
+    <label>颜色 <select name="color"><option value="green">绿色</option><option value="blue">蓝色</option></select></label>
+    <label><input name="checked" type="checkbox">选择此项</label>
+    <button>显示测试结果</button>
+  </form>
+  <output id="result">等待操作</output>
+  <p><button id="double">双击测试</button> <span id="count">双击次数：0</span></p>
+  <div id="editable" contenteditable="true" role="textbox" aria-label="可编辑内容">初始内容</div>
+  <div id="frame-slot"></div>
+  <div id="drag-area"><div id="drag-source" draggable="true" role="button" aria-label="拖动测试项">拖动测试项</div>
+    <div id="drop-target" role="button" aria-label="放到这里">放到这里</div></div>
+  <output id="drag-result">等待拖放</output>
+  <div id="spacer"></div>
+  <h2>页面底部</h2><button id="bottom">确认已滚动到底部</button><output id="scroll-result">等待滚动</output>
+  <script>
+    const form = document.querySelector('#form');
+    form.addEventListener('submit', event => {
+      event.preventDefault();
+      const values = new FormData(form);
+      document.querySelector('#result').textContent =
+        `名称：${values.get('name')}；颜色：${values.get('color')}；已勾选：${values.has('checked')}`;
+    });
+    let doubles = 0;
+    document.querySelector('#double').addEventListener('dblclick', () => {
+      document.querySelector('#count').textContent = `双击次数：${++doubles}`;
+    });
+    document.querySelector('#bottom').addEventListener('click', () => {
+      document.querySelector('#scroll-result').textContent = '已完成滚动和底部点击';
+    });
+    const options = new URLSearchParams(location.search);
+    const depth = Number(options.get('depth') ?? 0);
+    if (options.has('nested') ? depth < 2 : !options.has('frame')) {
+      const frame = document.createElement('iframe');
+      frame.title = '内嵌测试页面';
+      const address = new URL(location.href);
+      address.search = options.has('nested') ? `?nested&depth=${depth + 1}` : '?frame';
+      if (options.has('cross') || options.has('nested')) {
+        address.hostname = location.hostname === '127.0.0.1' ? 'localhost' : '127.0.0.1';
+      }
+      frame.src = address.href;
+      document.querySelector('#frame-slot').append(frame);
+    }
+    document.querySelector('#drag-source').addEventListener('dragstart',event=>event.dataTransfer.setData('text/plain','test'));
+    document.querySelector('#drop-target').addEventListener('dragover',event=>event.preventDefault());
+    document.querySelector('#drop-target').addEventListener('drop',event=>{
+      event.preventDefault();document.querySelector('#drag-result').textContent='拖放完成';
+    });
+  </script>
+</body>
+</html>
