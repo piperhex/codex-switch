@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Button, Dropdown, Input, Modal, Segmented, Spin } from "antd";
-import { Archive, Folder, MoreHorizontal, Pencil, Pin, Plus, RefreshCw, Search } from "lucide-react";
+import { Archive, MoreHorizontal, Pencil, Pin, Plus, RefreshCw, Search } from "lucide-react";
 import type { GuiController } from "./controller";
 import type { GuiState, Thread } from "./types";
+import { ThreadGroup } from "./ThreadGroup";
+import { useThreadGroupViews } from "./useThreadGroupViews";
 import styles from "./styles.module.less";
 
 export function threadTitle(thread: Thread) { return thread.name || thread.preview || "新对话"; }
@@ -14,6 +16,7 @@ export function ThreadSidebar({ state, controller, accountPicker }: {
   const [search, setSearch] = useState(state.search);
   const [renaming, setRenaming] = useState<Thread | null>(null);
   const [name, setName] = useState("");
+  const { views, toggle } = useThreadGroupViews();
   useEffect(() => {
     if (search === state.search || state.connection !== "ready") return;
     const timer = setTimeout(() => controller.filter(search, state.archived), 300);
@@ -26,7 +29,12 @@ export function ThreadSidebar({ state, controller, accountPicker }: {
       const key = thread.cwd || "";
       byProject.set(key, [...(byProject.get(key) ?? []), thread]);
     });
-    return [...(pinned.length ? [["置顶", pinned] as const] : []), ...byProject.entries()];
+    return [
+      ...(pinned.length ? [{ id: "pinned", label: "置顶", pinned: true, threads: pinned }] : []),
+      ...Array.from(byProject, ([path, threads]) => ({
+        id: `project:${path}`, label: projectName(path), pinned: false, threads,
+      })),
+    ];
   }, [state.threads, state.pins]);
   const renderThread = (thread: Thread) => {
     const running = Boolean(state.conversations[thread.id]?.activeTurn);
@@ -65,10 +73,13 @@ export function ThreadSidebar({ state, controller, accountPicker }: {
       options={[{ label: "最近", value: "recent" }, { label: "已归档", value: "archived" }]}
       onChange={(value) => controller.filter(search, value === "archived")} disabled={state.connection !== "ready"} />
     <div className={styles.threadList}>
-      {groups.map(([project, threads]) => <div className={styles.threadGroup} key={project}>
-        <div className={styles.projectHeading}><Folder size={14} /><span>{projectName(project)}</span></div>
-        {threads.map(renderThread)}
-      </div>)}
+      {groups.map((group) => {
+        const key = `${state.archived ? "archived" : "recent"}:${group.id}`;
+        return <ThreadGroup key={key} label={group.label} pinned={group.pinned} threads={group.threads}
+          selected={state.selected} collapsed={views.collapsed.includes(key)} expanded={views.expanded.includes(key)}
+          filtering={Boolean(state.search.trim())} onToggle={(field) => toggle(field, key)}
+          renderThread={renderThread} />;
+      })}
       {!state.threads.length && <p className={styles.listEmpty}>{state.loading ? <Spin size="small" /> : "还没有对话"}</p>}
       {state.cursor && <Button type="text" block loading={state.loading}
         onClick={() => void controller.refresh(true)}>加载更多</Button>}

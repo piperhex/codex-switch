@@ -1,0 +1,22 @@
+.group { margin: 10px 0 20px; font-size: 12px; line-height: 18px; }
+.heading {
+  display: flex; align-items: center; gap: 8px; width: 100%; min-width: 0;
+  padding: 7px 9px; border: 0; border-radius: 6px; background: transparent; color: var(--gui-muted);
+  font: inherit; text-align: left; cursor: pointer;
+  &:disabled { cursor: default; }
+  &:hover:not(:disabled), &:focus-visible { color: var(--ink); }
+}
+.icon { display: grid; place-items: center; flex-shrink: 0; }
+.folder, .arrow { grid-area: 1 / 1; }
+.arrow { opacity: 0; }
+.heading[aria-expanded="true"] .arrow { transform: rotate(90deg); }
+.heading:hover:not(:disabled), .heading:focus-visible, .heading[aria-expanded="false"] {
+  .arrow { opacity: 1; }
+  .folder { opacity: 0; }
+}
+.label { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.content { padding-left: 10px; }
+.more { display: block; padding: 6px 9px 6px 21px; border: 0; border-radius: 5px;
+  background: transparent; color: var(--gui-muted); font: inherit; cursor: pointer;
+  &:hover, &:focus-visible { color: var(--ink); } }
+@media (hover: none) { .arrow { opacity: 1; } .folder { opacity: 0; } }
