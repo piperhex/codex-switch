@@ -23,6 +23,16 @@ beforeEach(() => {
 });
 
 describe("Codex GUI controller", () => {
+  it("reopens the selected conversation after refresh and clears it for a new chat", async () => {
+    const first = new GuiController();
+    await first.connect(); await first.select(thread.id); first.dispose();
+    const restored = new GuiController();
+    expect(restored.getSnapshot().selected).toBe(thread.id);
+    await restored.connect();
+    expect(restored.getSnapshot().conversations[thread.id].thread).toEqual(thread);
+    restored.newConversation(); restored.dispose();
+    expect(new GuiController().getSnapshot().selected).toBeNull();
+  });
   it("reloads a live conversation after a browser connection gap", async () => {
     const controller = new GuiController();
     await controller.connect();

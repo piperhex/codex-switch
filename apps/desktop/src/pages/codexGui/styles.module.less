@@ -2,6 +2,7 @@
 .panel { flex: 1; min-height: 0; overflow: hidden; }
 .panel[hidden] { display: none; }
 .page {
+  container-type: inline-size;
   --gui-border: var(--line);
   --gui-muted: var(--muted, #7b8781);
   display: grid; grid-template-columns: 236px minmax(0, 1fr); height: 100%; min-height: 0;
@@ -120,3 +121,14 @@
 }
 
 :global(:root[data-theme='dark']) .page { --bg: #121416; --green-soft: #1c3430; --green-selection: #25443e; --green-selection-hover: #213a35; }
+
+@container (max-width: 700px) {
+  .header { gap: 4px; padding: 10px 8px; min-height: 58px; }
+  .headerActions { gap: 0; :global(.ant-btn) { padding-inline: 7px; } }
+  .messageContent { padding: 18px 14px; }
+  .composerWrap { padding: 0 10px 10px; }
+  .modelControls { flex-basis: auto; flex-wrap: wrap; gap: 6px; }
+  .localLabel { display: none; }
+  .approvals { padding: 0 12px; }
+  .userMessage { max-width: 95%; }
+}

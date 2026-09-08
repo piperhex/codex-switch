@@ -1,0 +1,11 @@
+body.codex-gui-active { min-width: 0; }
+
+@media (max-width: 900px) {
+  body.codex-gui-active {
+    .app-menu { gap: 8px; padding: 8px; }
+    .announcement-slot { display: none; }
+    .top-tabs { flex: 1; min-width: 0; overflow-x: auto; }
+    .window-titlebar { flex-wrap: wrap; height: auto; min-height: var(--window-titlebar-height); }
+    .window-titlebar-actions { min-width: 0; max-width: 100%; flex-wrap: wrap; }
+  }
+}

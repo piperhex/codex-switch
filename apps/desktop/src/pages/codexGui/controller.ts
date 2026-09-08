@@ -23,7 +23,9 @@ export class GuiController {
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => this.listeners.delete(listener); };
   private patch = (patch: Partial<GuiState>) => {
     if (this.disposed) return;
+    const previousSelection = this.state.selected;
     this.state = { ...this.state, ...patch };
+    if (previousSelection !== this.state.selected) savePreferences(this.state);
     this.listeners.forEach((listener) => listener());
   };
   report = (error: unknown) => {

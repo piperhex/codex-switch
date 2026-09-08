@@ -245,7 +245,8 @@ function dashboardTitle(page: DashboardPage, t: Translate, options: {
 }
 
 export function DashboardApp() {
-  const [page, setPage] = useState<DashboardPage>("accounts");
+  const [page, setPage] = useState<DashboardPage>(() =>
+    new URLSearchParams(window.location.search).get("page") === "codexGui" ? "codexGui" : "accounts");
   const [showLogin, setShowLogin] = useState(false);
   const [showCloudLogin, setShowCloudLogin] = useState(false);
   const [cloudSessionExpired, setCloudSessionExpired] = useState(false);

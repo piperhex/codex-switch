@@ -1,0 +1,27 @@
+.host { --gui-border: var(--line); --gui-muted: var(--muted); position: relative; display: flex;
+  height: 100%; min-height: 0; min-width: 0; color: var(--ink); background: var(--panel); overflow: hidden; }
+.conversation { flex: 1; min-width: 0; min-height: 0; height: 100%; }
+.drawer { position: absolute; inset: 0 0 0 auto; display: flex; flex-direction: column; min-width: 0;
+  max-width: 100%; background: var(--panel); border-left: 1px solid var(--gui-border); z-index: 25;
+  box-shadow: -8px 0 24px #0000000b; animation: enter .16s ease-out; }
+.drawer[hidden] { display: none; }
+.header { display: flex; align-items: center; gap: 8px; padding: 8px 12px 8px 18px; min-height: 49px;
+  border-bottom: 1px solid var(--gui-border); flex-shrink: 0; }
+.tab { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; font-size: 13px; font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; svg { flex-shrink: 0; } }
+.controls { display: flex; gap: 3px; flex-shrink: 0;
+  button { display: grid; place-items: center; width: 29px; height: 29px; border: 0; background: transparent;
+    border-radius: 7px; color: var(--gui-muted); cursor: pointer;
+    &:hover { background: var(--green-soft); color: var(--ink); } } }
+.content { overflow: auto; min-height: 0; padding: 14px 18px 24px; flex: 1; overscroll-behavior: contain; }
+.resizeHandle { position: absolute; top: 0; bottom: 0; left: -5px; width: 10px; z-index: 2;
+  touch-action: none; cursor: col-resize;
+  &::after { content: ''; position: absolute; inset: 0 4px; background: transparent; }
+  &:hover::after, &:focus-visible::after { background: var(--green); }
+  &:focus-visible { outline: none; } }
+.host[data-dragging='true'] .resizeHandle::after { background: var(--green); }
+.restore { position: absolute; right: 14px; bottom: 14px; z-index: 26; display: flex; align-items: center;
+  gap: 8px; padding: 9px 13px; border: 1px solid var(--gui-border); border-radius: 10px; color: var(--ink);
+  background: var(--panel); box-shadow: 0 3px 12px #0002; cursor: pointer; font-size: 12px; }
+@keyframes enter { from { transform: translateX(30px); opacity: .4; } to { transform: translateX(0); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .drawer { animation: none; } }

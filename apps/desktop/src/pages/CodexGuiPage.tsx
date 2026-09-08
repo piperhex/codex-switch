@@ -9,11 +9,15 @@ import { Messages } from "./codexGui/Messages";
 import { Approvals } from "./codexGui/Approvals";
 import { Installer } from "./codexGui/Installer";
 import { useCliInstaller } from "./codexGui/useCliInstaller";
+import { DetailsWorkspace } from "./codexGui/DetailsWorkspace";
+import { ConversationChangesButton } from "./codexGui/ConversationChangesButton";
+import { useGuiLayout } from "./codexGui/useGuiLayout";
 import styles from "./codexGui/styles.module.less";
 
 type CodexGuiPageProps = { active: boolean; accountPicker: ReactNode };
 
 export function CodexGuiPage({ active, accountPicker }: CodexGuiPageProps) {
+  useGuiLayout(active);
   const [visited, setVisited] = useState(active);
   useEffect(() => { if (active) setVisited(true); }, [active]);
   if (!visited) return null;
@@ -24,7 +28,7 @@ export function CodexGuiPage({ active, accountPicker }: CodexGuiPageProps) {
 function Workspace({ active, accountPicker }: CodexGuiPageProps) {
   const [controller] = useState(() => new GuiController());
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => window.innerWidth < 900);
   const installer = useCliInstaller(active, controller);
   useEffect(() => { controller.activate(); return controller.dispose; }, [controller]);
   useEffect(() => {
@@ -37,7 +41,8 @@ function Workspace({ active, accountPicker }: CodexGuiPageProps) {
   const pending = state.approvals.filter((event) => event.params.threadId === state.selected);
   const otherApproval = state.approvals.find((event) => event.params.threadId !== state.selected);
   const running = state.sending || Object.values(state.conversations).some((value) => value.activeTurn);
-  return <div className={`${styles.page} ${collapsed ? styles.collapsed : ""}`}>
+  return <DetailsWorkspace selected={state.selected} active={active}>
+    <div className={`${styles.page} ${collapsed ? styles.collapsed : ""}`}>
     {!collapsed && <ThreadSidebar state={state} controller={controller} accountPicker={accountPicker} />}
     <div className={styles.workspace}>
       <header className={styles.header}>
@@ -46,6 +51,7 @@ function Workspace({ active, accountPicker }: CodexGuiPageProps) {
         <div className={styles.heading}><strong>{thread ? threadTitle(thread) : "Codex GUI"}</strong>
           <span>{thread ? (isDesktopApp ? "本地对话" : "主机对话") : "在这里，把想法变成现实"}</span></div>
         <div className={styles.headerActions}>
+          <ConversationChangesButton value={current} />
           {installer.version && <Button type="text" icon={<RefreshCw size={16} />} aria-label="重新连接 Codex"
             disabled={Boolean(running)} loading={state.connection === "connecting"}
             onClick={() => void controller.connect()} />}
@@ -67,5 +73,6 @@ function Workspace({ active, accountPicker }: CodexGuiPageProps) {
         <Composer state={state} controller={controller} active={active} />
       </>}
     </div>
-  </div>;
+    </div>
+  </DetailsWorkspace>;
 }
