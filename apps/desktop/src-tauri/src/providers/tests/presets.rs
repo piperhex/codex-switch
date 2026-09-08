@@ -331,10 +331,10 @@
         );
         assert_eq!(
             efforts(1),
-            vec!["low", "medium", "high", "xhigh", "max", "ultra"]
+            vec!["none", "low", "medium", "high", "xhigh", "max"]
         );
-        assert_eq!(efforts(2), vec!["low", "medium", "high", "xhigh", "max"]);
-        assert_eq!(efforts(3), vec!["low", "medium", "high", "xhigh"]);
+        assert_eq!(efforts(2), vec!["none", "low", "medium", "high", "xhigh", "max"]);
+        assert_eq!(efforts(3), vec!["none", "low", "medium", "high", "xhigh"]);
         assert_eq!(efforts(4), vec!["none", "high"]);
     }
 

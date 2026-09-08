@@ -20,12 +20,17 @@ describe("provider reasoning effort defaults", () => {
     ["MiniMax-M2.7", ["high"]],
     ["qwen3.8-max", ["none", "low", "medium", "xhigh"]],
     ["seed-2.1-turbo", ["none", "low", "medium", "high"]],
+    ["deepseek-v4-flash-vision-exp", ["none", "low", "high", "max"]],
+    ["doubao-seed-2-0-code-preview-260215", ["none", "low", "medium", "high"]],
+    ["gpt-oss:20b", ["low", "medium", "high"]],
+    ["gpt-5.4-mini", ["none", "low", "medium", "high", "xhigh"]],
+    ["GPT-5.6-SOL", ["none", "low", "medium", "high", "xhigh", "max"]],
   ])("assigns distinct reasoning modes to %s", (model, expected) => {
     expect(defaultReasoningEfforts(model)).toEqual(expected);
   });
 
   it("accepts every bundled default without dropping unsupported values", () => {
-    expect(Object.keys(modelReasoningDefaults)).toHaveLength(21);
+    expect(Object.keys(modelReasoningDefaults)).toHaveLength(35);
     for (const [model, efforts] of Object.entries(modelReasoningDefaults)) {
       expect(defaultReasoningEfforts(model)).toEqual(efforts);
     }
@@ -39,6 +44,14 @@ describe("provider reasoning effort defaults", () => {
     expect(configs[0].reasoningEfforts).toEqual(["none", "ultra"]);
     expect(configs[1].reasoningEfforts).toEqual([]);
     expect(configs[2].reasoningEfforts).toEqual(["none", "low", "medium", "high"]);
+  });
+
+  it("keeps provider-specific GPT efforts when refreshing public-model defaults", () => {
+    const [custom] = modelReasoningConfigs(["gpt-5.6-sol"], {
+      reasoningEfforts: { "gpt-5.6-sol": ["high", "ultra"] },
+    });
+    expect(custom.reasoningEfforts).toEqual(["high", "ultra"]);
+    expect(defaultReasoningEfforts("gpt-5.6-sol-openai-compact")).toContain("ultra");
   });
 
   it("includes max and ultra for GPT-6 Astra", () => {

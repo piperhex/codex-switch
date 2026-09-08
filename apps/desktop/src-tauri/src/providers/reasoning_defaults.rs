@@ -25,7 +25,7 @@ mod tests {
     fn bundled_defaults_are_valid_and_have_distinct_nonempty_efforts() {
         let defaults: ModelReasoningEfforts =
             serde_json::from_str(BUNDLED_REASONING_DEFAULTS).unwrap();
-        assert_eq!(defaults.len(), 21);
+        assert_eq!(defaults.len(), 35);
         for (model, efforts) in defaults {
             assert!(!efforts.is_empty(), "{model}");
             for (index, effort) in efforts.iter().enumerate() {

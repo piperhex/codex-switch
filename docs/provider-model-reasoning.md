@@ -1,6 +1,7 @@
 # 三方模型推理强度默认值
 
 核对日期：2026-09-08。规则保存在 `apps/desktop/src/modelReasoningDefaults.json`，由前端和 Rust 共用。
+目前覆盖 35 个公开模型 ID（包含官方模型的常用 Ollama 名称）。
 仅在缺少设置时填充默认值；已保存的用户选择不与默认值合并，也不按默认能力表过滤。
 刷新期间用户暂时清空的选择也会保留，保存时仍需至少选择一个档位。
 
@@ -10,6 +11,11 @@
 
 | 模型 | 自动分配的选项 | 依据 |
 | --- | --- | --- |
+| deepseek-v4-flash、deepseek-v4-pro、deepseek-v4-flash-vision-exp | none、low、high、max | [DeepSeek Responses 接口](https://api-docs.deepseek.com/api/create-response/)；兼容别名归并为四种有效模式。 |
+| doubao-seed-2-0-code-preview-260215、doubao-seed-2-0-pro-260215、doubao-seed-2-0-lite-260215 | none、low、medium、high | [火山方舟深度思考](https://www.volcengine.com/docs/82379/1449737)；minimal 等同关闭，xhigh/max 映射为 high。 |
+| gpt-oss-20b、gpt-oss:20b | low、medium、high | [OpenAI 模型文档](https://developers.openai.com/api/docs/models/gpt-oss-20b)；没有独立的 xhigh 档位。 |
+| gpt-5.4、gpt-5.4-mini、gpt-5.5 | none、low、medium、high、xhigh | [GPT-5.4](https://developers.openai.com/api/docs/models/gpt-5.4)、[Mini](https://developers.openai.com/api/docs/models/gpt-5.4-mini)、[GPT-5.5](https://developers.openai.com/api/docs/models/gpt-5.5)。 |
+| gpt-5.6-sol、gpt-5.6-terra、gpt-5.6-luna | none、low、medium、high、xhigh、max | [Sol](https://developers.openai.com/api/docs/models/gpt-5.6-sol)、[Terra](https://developers.openai.com/api/docs/models/gpt-5.6-terra)、[Luna](https://developers.openai.com/api/docs/models/gpt-5.6-luna)；按公开 API 能力预设，不自动添加 ultra。 |
 | deepseek-v4-flash-0731、deepseek-v4-pro-0813 | none、low、high、max | [DeepSeek 思考模式](https://api-docs.deepseek.com/guides/thinking_mode/)；medium、xhigh 均映射到 high。 |
 | glm-5、glm-5.1 | none、high | [智谱深度思考](https://docs.bigmodel.cn/cn/guide/capabilities/thinking)；原生接口的强度调节从 GLM-5.2 开始。 |
 | glm-5.2 | none、high、max | [智谱深度思考](https://docs.bigmodel.cn/cn/guide/capabilities/thinking)；low/medium 映射到 high，xhigh 映射到 max。 |
@@ -32,3 +38,7 @@ GLM-5/5.1 使用智谱原生能力作为通用默认值。[百炼托管接口](h
 匹配忽略大小写和首尾空格，支持 `厂商/模型名`；不对未核实的版本号猜测能力。
 未知型号沿用原有默认规则。已保存的旧配置无法可靠区分“旧默认值”和“用户手动值”，因此一律保留。
 模型目录的默认选中档位必须属于可选列表：优先 high，否则使用列表最后一项。
+
+`codex-auto-review`、`*-openai-compact` 和用户自建的 Ollama 名称不纳入公开模型表，
+不根据相似名称推断其能力。GPT-6 Astra 及其他未列入本表的型号继续沿用现有规则。
+已配置的 GPT-5.6 自定义档位（包括转发商支持的 ultra）仍然优先，刷新不会删改。

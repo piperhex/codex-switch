@@ -59,3 +59,25 @@ fn catalog_default_stays_within_the_users_custom_reasoning_selection() {
     let catalog = provider_model_catalog_entry("custom", 0, 256_000, levels, false, false);
     assert_eq!(catalog["default_reasoning_level"], "low");
 }
+
+#[test]
+fn public_gpt_defaults_do_not_remove_provider_specific_customizations() {
+    let models = vec!["gpt-5.6-sol".to_string(), "gpt-oss:20b".to_string()];
+    let custom = vec![ReasoningEffort::High, ReasoningEffort::Ultra];
+    let configured = [(models[0].clone(), custom.clone())].into();
+    let normalized = normalize_model_reasoning_efforts(&models, configured);
+    assert_eq!(normalized[&models[0]], custom);
+    assert_eq!(
+        normalized[&models[1]],
+        vec![
+            ReasoningEffort::Low,
+            ReasoningEffort::Medium,
+            ReasoningEffort::High
+        ]
+    );
+    assert_eq!(
+        known_model_reasoning_efforts("gpt-5.6-sol-openai-compact"),
+        None
+    );
+    assert_eq!(known_model_reasoning_efforts("codex-auto-review"), None);
+}

@@ -160,7 +160,8 @@
 
         assert!(expression.contains("supportedReasoningEffortsByModel[model]"));
         assert!(expression.contains("\"gpt-5.6-sol\":[{\"description\""));
-        assert!(expression.contains("\"reasoningEffort\":\"ultra\""));
+        assert!(expression.contains("\"reasoningEffort\":\"max\""));
+        assert!(!expression.contains("\"reasoningEffort\":\"ultra\""));
         assert!(expression.contains("\"claude-sonnet\":[{\"description\":\"Disable Thinking\""));
     }
 
