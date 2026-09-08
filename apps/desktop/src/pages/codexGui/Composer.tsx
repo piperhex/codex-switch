@@ -5,14 +5,16 @@ import { open } from "@tauri-apps/plugin-dialog";
 import type { GuiController } from "./controller";
 import type { AccessMode, GuiState } from "./types";
 import { projectName } from "./ThreadSidebar";
+import { ModelPicker } from "./ModelPicker";
+import { UsageStatus } from "./UsageStatus";
 import styles from "./styles.module.less";
 
 const ACCESS_OPTIONS = [{ value: "read-only", label: "只读" }, { value: "workspace-write", label: "项目内编辑" },
   { value: "danger-full-access", label: "完全访问" }];
-const EFFORT_LABELS: Record<string, string> = { none: "无", minimal: "极低", low: "低", medium: "中", high: "高",
-  xhigh: "极高", max: "最高", ultra: "超高" };
 
-export function Composer({ state, controller }: { state: GuiState; controller: GuiController }) {
+export function Composer({ state, controller, active }: {
+  state: GuiState; controller: GuiController; active: boolean;
+}) {
   const [drafts, setDrafts] = useState<Record<string, { text: string; images: string[] }>>({});
   const composing = useRef(false);
   const key = state.selected ?? "new";
@@ -20,7 +22,6 @@ export function Composer({ state, controller }: { state: GuiState; controller: G
   const edit = (patch: Partial<typeof draft>) => setDrafts((values) => ({ ...values, [key]: { ...draft, ...patch } }));
   const current = state.selected ? state.conversations[state.selected] : undefined;
   const running = Boolean(current?.activeTurn);
-  const model = state.models.find((entry) => entry.model === state.settings.model);
   const canSend = state.connection === "ready" && !state.sending && !state.archived
     && Boolean(draft.text.trim() || draft.images.length) && Boolean(state.selected || state.settings.cwd);
   const send = async () => {
@@ -83,15 +84,9 @@ export function Composer({ state, controller }: { state: GuiState; controller: G
           value={state.settings.access} options={ACCESS_OPTIONS}
           disabled={running || state.sending} onChange={(access: AccessMode) => controller.settings({ access })} />
         <div className={styles.modelControls}>
-          <Select showSearch size="small" variant="borderless" aria-label="模型" optionFilterProp="label"
-            value={state.settings.model} onChange={(value) => controller.settings({ model: value, effort: "" })}
-            disabled={running || state.sending} options={[{ value: "", label: "当前配置模型" },
-              ...state.models.map((entry) => ({ value: entry.model, label: entry.displayName || entry.model }))]} />
-          <Select size="small" variant="borderless" aria-label="思考强度" value={state.settings.effort}
-            disabled={running || state.sending} onChange={(effort: string) => controller.settings({ effort })}
-            options={[{ value: "", label: "默认" }, ...(model?.supportedReasoningEfforts ?? []).map((entry) => ({
-              value: entry.reasoningEffort,
-              label: EFFORT_LABELS[entry.reasoningEffort] ?? entry.reasoningEffort }))]} />
+          <UsageStatus active={active} />
+          <ModelPicker models={state.models} model={state.settings.model} effort={state.settings.effort}
+            disabled={running || state.sending} onChange={controller.settings} />
           {running ? <Button type="primary" shape="circle" icon={<Square size={14} fill="currentColor" />}
             aria-label="停止生成" onClick={() => void controller.interrupt()} />
             : <Button type="primary" shape="circle" icon={<ArrowUp size={19} />} aria-label="发送消息"

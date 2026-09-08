@@ -6,6 +6,7 @@ mod protocol;
 pub(crate) mod releases;
 #[cfg(test)]
 mod tests;
+pub(crate) mod usage;
 
 use std::{
     path::PathBuf,

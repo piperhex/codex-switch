@@ -21,7 +21,6 @@ mod codex_notification;
 mod codex_runtime;
 mod codex_settings;
 mod codex_usage_cost_rates;
-#[cfg(any(target_os = "windows", target_os = "macos"))]
 mod codex_usage_summary;
 mod commands;
 mod conversation_hub;
@@ -230,6 +229,7 @@ pub fn run() {
             codex_gui::releases::codex_gui_cli_install,
             codex_gui::codex_gui_request,
             codex_gui::codex_gui_respond,
+            codex_gui::usage::codex_gui_usage_summary,
             commands::get_app_info,
             ccs_import::take_ccswitch_import_request,
             ccs_import::cancel_ccswitch_provider_import,

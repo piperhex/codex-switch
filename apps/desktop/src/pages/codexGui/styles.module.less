@@ -82,9 +82,9 @@
 .composerControls { display: flex; align-items: center; gap: 2px; flex-wrap: wrap;
   > svg { margin-left: 5px; color: var(--gui-muted); }
   > :global(.ant-select) { width: 115px; } }
-.modelControls { margin-left: auto; display: flex; gap: 2px; align-items: center;
-  > :global(.ant-select):first-child { width: clamp(110px, 15vw, 210px); }
-  > :global(.ant-select):nth-child(2) { width: 70px; } }
+.modelControls { margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  flex: 1 1 510px; justify-content: flex-end; min-width: 0;
+  > :first-child { margin-right: auto; } }
 .composerHint { display: flex; justify-content: space-between; font-size: 10px; color: var(--gui-muted); padding: 7px 5px 0; }
 .attachments { padding: 3px 8px 8px; display: flex; flex-wrap: wrap; gap: 5px;
   :global(.ant-tag) { max-width: 240px; white-space: normal; overflow-wrap: anywhere; } }
@@ -112,7 +112,6 @@
   .collapsed { grid-template-columns: minmax(0, 1fr); }
   .composerWrap { padding: 0 16px 10px; }
   .messageContent { padding: 20px; }
-  .modelControls > :global(.ant-select):first-child { width: 120px; }
 }
 
 :global(:root[data-theme='dark']) .page { --bg: #121416; --green-soft: #1c3430; --green-selection: #25443e; --green-selection-hover: #213a35; }

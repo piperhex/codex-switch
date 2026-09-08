@@ -57,7 +57,7 @@ function Workspace({ active }: { active: boolean }) {
       {!installer.version ? <Installer installer={installer} /> : <>
         <Messages value={current} selected={state.selected} />
         <Approvals events={pending} controller={controller} />
-        <Composer state={state} controller={controller} />
+        <Composer state={state} controller={controller} active={active} />
       </>}
     </div>
   </div>;

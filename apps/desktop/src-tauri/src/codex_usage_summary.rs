@@ -30,6 +30,7 @@ pub(crate) struct CodexUsageSummary {
     provider_estimated_cost: Option<ProviderEstimatedCost>,
 }
 
+#[cfg(any(target_os = "windows", target_os = "macos"))]
 pub(crate) fn load() -> Result<CodexUsageSummary, String> {
     let app = crate::codex_runtime::runtime_app_handle()
         .ok_or_else(|| "Codex runtime is not initialized.".to_string())?;
@@ -44,12 +45,17 @@ pub(crate) fn load() -> Result<CodexUsageSummary, String> {
             provider_estimated_cost: None,
         });
     }
-    let paths = crate::storage::resolve_paths(&app)?;
+    load_for_gui(&app)
+}
+
+/// Shares the desktop summary's accounting with the GUI without depending on the official app's overlay setting.
+pub(crate) fn load_for_gui(app: &tauri::AppHandle) -> Result<CodexUsageSummary, String> {
+    let paths = crate::storage::resolve_paths(app)?;
     let state = crate::storage::read_state(&paths);
-    quota_refresh::schedule(&app, &paths, &state);
+    quota_refresh::schedule(app, &paths, &state);
     let primary_remaining = displayed_primary_remaining(&paths, &state);
     let entries =
-        crate::local_proxy::load_token_usage_summary_entries(&app, local_day_start_timestamp()?)?;
+        crate::local_proxy::load_token_usage_summary_entries(app, local_day_start_timestamp()?)?;
     let profiles = crate::providers::list_provider_profiles(&paths)?;
     let rates = rates::load(&paths)?;
     let costs = CostContext {

@@ -1,0 +1,13 @@
+.status { display: flex; flex-wrap: wrap; align-items: center; gap: 7px 10px; font-size: 12px; min-width: 0; }
+.usage { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; color: var(--ink); }
+.tokens { color: #0a8469; }
+.cost { color: #b45d00; }
+.quota { color: #16874e; }
+.low { color: #be2d2d; }
+.speed { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); white-space: nowrap; }
+:global(:root[data-theme="dark"]) {
+  .tokens { color: #54d6b1; }
+  .cost { color: #f5b141; }
+  .quota { color: #60d394; }
+  .low { color: #ff7171; }
+}
