@@ -4188,7 +4188,7 @@ const translations = {
     "tokenCost.customBilling.source": "来源",
     "tokenCost.customBilling.sourceForModel": "查看 {model} 的官方来源",
     "tokenCost.customBilling.unpriced": "暂未查到官方价格，按参考模型估算",
-    "tokenCost.customBilling.referenceModel": "未配置模型的参考模型",
+    "tokenCost.customBilling.referenceModel": "未配置模型的价格参考模型",
     "tokenCost.customBilling.referenceHint": "未找到对应价格时按此模型估算，修改后立即生效。",
     "tokenCost.customBilling.priorityHint": "优先使用自定义价格，其次使用对应模型的默认价格。",
     "tokenCost.customBilling.customTitle": "API 自定义价格",
