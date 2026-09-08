@@ -41,8 +41,9 @@ export function ProjectPicker({ value, projects, disabled, onChange, onError }: 
         aria-label={`选择项目文件夹：${projectName(value)}`} onClick={() => void chooseFolder()}>
         {projectName(value)}
       </button>
-    </span> : <Button type="text" size="small" icon={<FolderOpen size={16} />} disabled={disabled}
-      aria-label="选择项目文件夹" onClick={() => void chooseFolder()}>选择项目（可选）</Button>}
+    </span> : <Button className={styles.choose} type="text" size="small"
+      icon={<FolderOpen size={16} />} disabled={disabled}
+      aria-label="选择项目文件夹" onClick={() => void chooseFolder()}>选择项目</Button>}
     {projects.length > 0 && <Select size="small" variant="borderless" aria-label="最近项目" disabled={disabled}
       placeholder="最近项目" value={undefined}
       options={projects.map((path) => ({ value: path, label: projectName(path) }))} onChange={onChange} />}
