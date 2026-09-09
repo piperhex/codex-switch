@@ -1,6 +1,6 @@
 import { useId, type ReactNode } from "react";
 import { Tooltip } from "antd";
-import { ChevronRight, Folder, Pin, Plus } from "lucide-react";
+import { ChevronRight, Folder, Pin, SquarePen } from "lucide-react";
 import type { Thread } from "./types";
 import styles from "./ThreadGroup.module.less";
 
@@ -46,7 +46,7 @@ export function ThreadGroup({ label, pinned, threads, selected, collapsed, expan
       {onNewConversation && <Tooltip title="新建对话" overlayStyle={{ maxWidth: 400 }}>
         <button type="button" className={styles.add} aria-label={`在 ${label} 中新建对话`}
           disabled={creatingDisabled} onClick={onNewConversation}>
-          <Plus size={16} aria-hidden="true" />
+          <SquarePen size={16} strokeWidth={1.6} aria-hidden="true" />
         </button>
       </Tooltip>}
     </div>
