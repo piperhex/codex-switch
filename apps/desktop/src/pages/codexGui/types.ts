@@ -1,5 +1,6 @@
 import type { ThreadGoal } from "./goalTypes";
 import type { AttachmentReference } from "./attachmentTypes";
+import type { PendingRequest, ProcessingState } from "./processing";
 
 export type AccessMode = "read-only" | "workspace-write" | "danger-full-access";
 export interface SkillReference { name: string; path: string }
@@ -126,6 +127,7 @@ export interface EventParams {
 }
 export interface GuiEvent { method: string; params: EventParams; id?: string | number | null }
 export interface Conversation {
+  processing?: ProcessingState;
   thread: Thread;
   turns: Turn[];
   activeTurn: string | null;
@@ -136,6 +138,7 @@ export interface Conversation {
 export interface ListResponse<T> { data: T[]; nextCursor: string | null }
 export interface Settings { cwd: string; model: string; effort: string; access: AccessMode }
 export interface GuiState {
+  pendingRequest?: PendingRequest;
   goals?: Record<string, ThreadGoal | null>;
   goalErrors?: Record<string, string>;
   goalBusy?: boolean;

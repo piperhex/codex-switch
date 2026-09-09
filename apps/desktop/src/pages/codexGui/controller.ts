@@ -7,6 +7,8 @@ import { completeTurnTiming, restoreTurnTiming } from "./turnTiming";
 import { MessageQueue } from "./messageQueue";
 import { compactUnavailableReason } from "./composerOptions";
 import { rememberTurnDetails } from "./turnDetailsStorage";
+import { restoreProcessing } from "./processing";
+import { trackProcessingApproval } from "./processingApprovals";
 import { initialState, savePreferences } from "./preferences";
 import type { ApprovalReply, GuiEvent, GuiState, ListResponse, Model, Settings, Thread, Turn } from "./types";
 import type { SkillReference } from "./types";
@@ -48,7 +50,8 @@ export class GuiController {
     if (!current || current.turns.some((entry) => entry.id === turn.id)) return;
     const timedTurn = turn.status === "inProgress" ? restoreTurnTiming(turn) : completeTurnTiming(turn);
     this.patch({ conversations: { ...this.state.conversations, [threadId]: { ...current,
-      turns: [...current.turns, timedTurn], activeTurn: turn.status === "inProgress" ? turn.id : null } } });
+      turns: [...current.turns, timedTurn], activeTurn: turn.status === "inProgress" ? turn.id : null,
+      processing: turn.status === "inProgress" ? restoreProcessing(timedTurn) : undefined } } });
   }
 
   private flushStream = () => {
@@ -102,6 +105,7 @@ export class GuiController {
       const results = await Promise.allSettled([this.refresh(), this.loadModels()]);
       results.forEach((result) => { if (result.status === "rejected") this.report(result.reason); });
       if (this.state.selected) await this.select(this.state.selected);
+      this.patch(this.state.approvals.reduce(trackProcessingApproval, this.state));
     } catch (error) { this.patch({ connection: "offline" }); this.report(error); }
   }
 
@@ -168,6 +172,7 @@ export class GuiController {
       if (generation !== this.selectionGeneration || this.state.conversations[id]?.activeTurn) return;
       this.patch({ conversations: { ...this.state.conversations,
         [id]: conversation(thread, this.state.conversations[id]) } });
+      this.patch(this.state.approvals.reduce(trackProcessingApproval, this.state));
       void this.goals.load(id);
       if (!this.state.archived) void this.queue.flush(id);
     } catch (error) { if (generation === this.selectionGeneration) this.report(error); }
@@ -184,7 +189,8 @@ export class GuiController {
       if (accepted) void this.queue.flush(selected);
       return accepted;
     }
-    this.patch({ sending: true, error: "" });
+    const startedAtMs = Date.now();
+    this.patch({ sending: true, pendingRequest: { threadId: selected, startedAtMs }, error: "" });
     try {
       const response = selected
         ? await guiApi.request<{ thread: Thread }>({ operation: "resume", threadId: selected,
@@ -192,7 +198,7 @@ export class GuiController {
         : await guiApi.request<{ thread: Thread }>({ operation: "start", cwd: settings.cwd || undefined,
           model: settings.model || undefined, access: settings.access });
       const { thread } = response;
-      this.patch({ selected: thread.id,
+      this.patch({ selected: thread.id, pendingRequest: { threadId: thread.id, startedAtMs },
         conversations: { ...this.state.conversations,
           [thread.id]: conversation(thread, this.state.conversations[thread.id]) } });
       this.settings({ cwd: projectOverride ?? thread.cwd });
@@ -206,7 +212,7 @@ export class GuiController {
       return true;
     } catch (error) { this.report(error); return false; }
     finally {
-      this.patch({ sending: false });
+      this.patch({ sending: false, pendingRequest: undefined });
       Object.keys(this.state.queued).forEach((id) => void this.queue.flush(id));
     }
   };
@@ -304,7 +310,7 @@ export class GuiController {
   respond = async (reply: ApprovalReply) => {
     try {
       await guiApi.respond(reply);
-      this.patch({ approvals: this.state.approvals.filter((event) => event.id !== reply.id) });
+      this.patch(reduceEvent(this.state, { method: "serverRequest/resolved", params: { requestId: reply.id } }));
     } catch (error) { this.report(error); }
   };
 

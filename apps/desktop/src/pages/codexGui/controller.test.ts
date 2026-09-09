@@ -157,4 +157,54 @@ describe("Codex GUI controller", () => {
     controller.newConversation();
     expect(controller.getSnapshot().archived).toBe(false);
   });
+
+  it("times the outgoing request until the turn starts without reviving it after an early completion", async () => {
+    const controller = new GuiController();
+    await controller.connect();
+    let resolveStart!: (value: unknown) => void;
+    let resolveSend!: (value: unknown) => void;
+    vi.mocked(guiApi.request).mockImplementation(async (request) => {
+      if (request.operation === "start") return new Promise((done) => { resolveStart = done; });
+      if (request.operation === "send") return new Promise((done) => { resolveSend = done; });
+      return { data: [], nextCursor: null };
+    });
+    const result = controller.send("hello", []);
+    const startedAtMs = controller.getSnapshot().pendingRequest?.startedAtMs;
+    expect(startedAtMs).toBeTypeOf("number");
+    expect(controller.getSnapshot().pendingRequest?.threadId).toBeNull();
+    resolveStart({ thread });
+    await vi.waitFor(() => expect(resolveSend).toBeTypeOf("function"));
+    expect(controller.getSnapshot().pendingRequest).toEqual({ threadId: thread.id, startedAtMs });
+    receive({ method: "turn/started", params: { threadId: thread.id,
+      turn: { id: "live", status: "inProgress", items: [] } } });
+    expect(controller.getSnapshot().pendingRequest).toBeUndefined();
+    expect(controller.getSnapshot().conversations.one.processing?.phase).toBe("request");
+    receive({ method: "turn/completed", params: { threadId: thread.id,
+      turn: { id: "live", status: "completed", items: [] } } });
+    expect(controller.getSnapshot().conversations.one.processing).toBeUndefined();
+    resolveSend({ turn: { id: "live", status: "inProgress", items: [] } });
+    await result;
+    expect(controller.getSnapshot().pendingRequest).toBeUndefined();
+    expect(controller.getSnapshot().conversations.one.activeTurn).toBeNull();
+    controller.dispose();
+  });
+
+  it("clears request timing after failure and resumes the phase after an approval reply", async () => {
+    const controller = new GuiController();
+    await controller.connect();
+    vi.mocked(guiApi.request).mockRejectedValueOnce(new Error("offline"));
+    expect(await controller.send("hello", [])).toBe(false);
+    expect(controller.getSnapshot().pendingRequest).toBeUndefined();
+    await controller.select(thread.id);
+    receive({ method: "turn/started", params: { threadId: thread.id,
+      turn: { id: "live", status: "inProgress", items: [] } } });
+    receive({ method: "item/started", params: { threadId: thread.id, turnId: "live",
+      item: { id: "command", type: "commandExecution", status: "inProgress" } } });
+    receive({ method: "item/commandExecution/requestApproval", id: 0,
+      params: { threadId: thread.id, turnId: "live" } });
+    expect(controller.getSnapshot().conversations.one.processing?.phase).toBe("approval");
+    await controller.respond({ id: 0, decision: "accept" });
+    expect(controller.getSnapshot().conversations.one.processing?.phase).toBe("command");
+    controller.dispose();
+  });
 });

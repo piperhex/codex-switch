@@ -30,7 +30,8 @@ const originalScrollTo = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 
 
 function Fixture() {
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
-  return <Messages selected={state.selected} value={state.conversations[state.selected ?? ""]} />;
+  return <Messages selected={state.selected} value={state.conversations[state.selected ?? ""]}
+    pendingRequest={state.pendingRequest} />;
 }
 
 beforeEach(async () => {
@@ -95,7 +96,7 @@ it("renders deltas between arrivals, preserves code blocks, and flushes when sto
     turn: { id: "live", status: "interrupted", items: [] } } }));
   expect(codeBlock!.textContent).toContain(delta);
   expect(container.textContent).toContain("已停止生成");
-  expect(container.textContent).not.toContain("Codex 正在处理");
+  expect(container.querySelector("[data-processing-phase]")).toBeNull();
 });
 
 function expectHistory() {
@@ -121,7 +122,7 @@ it("keeps visible messages and expanded activity after completion, reopening, an
   expectHistory();
   expect(container.querySelectorAll("details")[1]).toBe(activity);
   expect(activity.open).toBe(true);
-  expect(container.textContent).not.toContain("Codex 正在处理");
+  expect(container.querySelector("[data-processing-phase]")).toBeNull();
 
   vi.mocked(guiApi.request).mockImplementation(async (request) => {
     if (request.operation === "list") return { data: [thread], nextCursor: null };
@@ -133,7 +134,7 @@ it("keeps visible messages and expanded activity after completion, reopening, an
   expectHistory();
   await act(async () => { expect(await controller.send("继续检查", [])).toBe(true); });
   expectHistory();
-  expect(container.textContent).toContain("Codex 正在处理");
+  expect(container.querySelector("[data-processing-phase]")?.textContent).toContain("等待响应");
 });
 
 it("renders Markdown photos and lets failed images retry without changing the reply", async () => {
@@ -203,7 +204,7 @@ it("hides the continue instruction during streaming and after reopening history"
   });
   expect(container.textContent).not.toContain(CONTINUE_MESSAGE);
   expect(container.textContent).toContain("检查这个项目");
-  expect(container.textContent).toContain("Codex 正在处理");
+  expect(container.querySelector("[data-processing-phase]")?.textContent).toContain("等待响应");
   await act(async () => receive({ method: "turn/completed", params: { threadId: thread.id, turn: continued } }));
   vi.mocked(guiApi.request).mockImplementation(async (request) => request.operation === "read"
     ? { thread: { ...thread, turns: [stopped, continued] } } : { data: [], nextCursor: null });

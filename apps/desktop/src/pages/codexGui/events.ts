@@ -1,6 +1,8 @@
 import type { Conversation, GuiEvent, GuiState, Item, Thread, Turn } from "./types";
 import { completeTurnTiming, restoreTurnTiming } from "./turnTiming";
 import { cachedTurnDetails } from "./turnDetailsStorage";
+import { restoreProcessing, trackProcessing } from "./processing";
+import { trackProcessingApproval } from "./processingApprovals";
 
 export function conversation(thread: Thread, previous?: Conversation): Conversation {
   const previousTurns = new Map(previous?.turns.map((turn) => [turn.id, turn]));
@@ -12,7 +14,9 @@ export function conversation(thread: Thread, previous?: Conversation): Conversat
       planExplanation: previousTurn?.planExplanation ?? cached.get(turn.id)?.planExplanation,
       ...restoreTurnTiming(turn, previousTurn) };
   });
-  return { thread, turns, activeTurn: turns.find((turn) => turn.status === "inProgress")?.id ?? null,
+  const active = turns.find((turn) => turn.status === "inProgress");
+  return { thread, turns, activeTurn: active?.id ?? null,
+    ...(active ? { processing: restoreProcessing(active, previous?.processing) } : {}),
     tokens: previous?.tokens ?? 0, tokenUsage: previous?.tokenUsage, error: "" };
 }
 
@@ -78,7 +82,7 @@ function updateTurnDetails(value: Conversation, event: GuiEvent): Conversation {
     : { ...turn, plan: event.params.plan ?? [], planExplanation: event.params.explanation });
 }
 
-export function reduceConversation(value: Conversation, event: GuiEvent): Conversation {
+function reduceConversationContent(value: Conversation, event: GuiEvent): Conversation {
   const { method, params } = event;
   if (method === "turn/started" && params.turn) {
     return { ...updateTurn(value, params.turn.id, (old) => mergeTurn(old, params.turn!)),
@@ -110,15 +114,20 @@ export function reduceConversation(value: Conversation, event: GuiEvent): Conver
   return value;
 }
 
+export function reduceConversation(value: Conversation, event: GuiEvent): Conversation {
+  return trackProcessing(reduceConversationContent(value, event), event);
+}
+
 export function reduceEvent(state: GuiState, event: GuiEvent): GuiState {
+  state = trackProcessingApproval(state, event);
   if (event.params.threadId && ["thread/goal/updated", "thread/goal/cleared"].includes(event.method)) {
     return { ...state, goals: { ...state.goals, [event.params.threadId]: event.params.goal ?? null } };
   }
   if (event.method === "connection/closed") {
     const conversations = Object.fromEntries(Object.entries(state.conversations)
-      .map(([id, value]) => [id, { ...value, activeTurn: null }]));
+      .map(([id, value]) => [id, { ...value, activeTurn: null, processing: undefined }]));
     return { ...state, connection: "offline", approvals: [], conversations, sending: false, compacting: undefined,
-      error: "Codex 已断开连接。重新连接后可以继续对话。" };
+      pendingRequest: undefined, error: "Codex 已断开连接。重新连接后可以继续对话。" };
   }
   if (event.id != null) return { ...state,
     approvals: [...state.approvals.filter((entry) => entry.id !== event.id), event] };
@@ -135,5 +144,7 @@ export function reduceEvent(state: GuiState, event: GuiEvent): GuiState {
     ? state.approvals.filter((entry) => entry.params.turnId !== event.params.turn?.id) : state.approvals;
   const compactFinished = event.method === "turn/completed" || (event.method === "error" && !event.params.willRetry);
   const compacting = state.compacting === id && compactFinished ? undefined : state.compacting;
-  return { ...state, approvals, compacting, conversations: { ...state.conversations, [id]: value } };
+  const turnAcknowledged = event.method === "turn/started" || event.method === "turn/completed";
+  const pendingRequest = turnAcknowledged && state.pendingRequest?.threadId === id ? undefined : state.pendingRequest;
+  return { ...state, approvals, compacting, pendingRequest, conversations: { ...state.conversations, [id]: value } };
 }
