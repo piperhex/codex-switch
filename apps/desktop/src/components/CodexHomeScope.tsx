@@ -70,7 +70,7 @@ export function CodexHomeSelect({ disabled = false, showLabel = true }: {
 }
 
 export function homeLabel(home: CodexHomeEntry) {
-  if (home.id === GUI_CODEX_HOME_ID) return `内置 Codex GUI · ${home.path}`;
+  if (home.id === GUI_CODEX_HOME_ID) return "内置 Codex GUI";
   if (home.id === DEFAULT_CODEX_HOME_ID) return `默认目录 · ${home.path}`;
   return home.path;
 }
