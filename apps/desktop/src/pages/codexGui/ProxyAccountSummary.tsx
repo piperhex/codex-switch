@@ -13,7 +13,7 @@ function PrimaryQuota({ account }: { account?: Account }) {
       aria-valuemin={0} aria-valuemax={100} aria-valuenow={remaining}>
       <span className={styles.fill} style={{ width: `${remaining}%` }} />
     </span>
-    <small>剩余 {remaining}%</small>
+    <small>{remaining}%</small>
   </span>;
 }
 

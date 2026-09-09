@@ -237,7 +237,8 @@ it.each([0, 25, 100])("shows the current plan and primary remaining progress at 
   } }];
   await render();
   expect(trigger().textContent).toContain("Plus");
-  expect(trigger().textContent).toContain(`剩余 ${remaining}%`);
+  expect(trigger().textContent).toContain(`${remaining}%`);
+  expect(trigger().textContent).not.toContain("剩余");
   expect(trigger().textContent).not.toContain("官方账号");
   expect(trigger().querySelector('[role="progressbar"]')?.getAttribute("aria-valuenow")).toBe(`${remaining}`);
 });
