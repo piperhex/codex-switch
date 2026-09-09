@@ -18,6 +18,7 @@ import styles from "./codexGui/styles.module.less";
 import { WorkspaceOperationContext } from "./codexGui/workspaceOperationContext";
 import type { AggregateApi, Provider } from "../types";
 import { providerModels } from "./codexGui/providerModels";
+import { useDreamSkin } from "./codexGui/useDreamSkin";
 
 type CodexGuiPageProps = {
   active: boolean; accountPicker: ReactNode; providers: Provider[]; aggregateApis: AggregateApi[];
@@ -34,6 +35,7 @@ export function CodexGuiPage(props: CodexGuiPageProps) {
 }
 
 function Workspace({ active, accountPicker, providers, aggregateApis }: CodexGuiPageProps) {
+  const skinStyle = useDreamSkin(active);
   const [controller] = useState(() => new GuiController());
   useConversationReadState(active, controller);
   const composer = useRef<ComposerHandle>(null);
@@ -57,7 +59,8 @@ function Workspace({ active, accountPicker, providers, aggregateApis }: CodexGui
     && state.compacting !== state.selected;
   return <WorkspaceOperationContext.Provider value={{ busy: Boolean(state.workspaceBusy),
     setBusy: controller.setWorkspaceBusy }}><DetailsWorkspace selected={state.selected} active={active}>
-    <div className={`${styles.page} ${collapsed ? styles.collapsed : ""}`}>
+    <div className={`${styles.page} ${collapsed ? styles.collapsed : ""}`}
+      data-dream-skin={skinStyle ? "true" : undefined} style={skinStyle}>
     {!collapsed && <ThreadSidebar state={state} controller={controller} accountPicker={accountPicker} />}
     <div className={styles.workspace}>
       <header className={styles.header}>

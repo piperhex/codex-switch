@@ -342,7 +342,7 @@ fn dispatch_extended_command(app: AppHandle, command: &str, args: Value) -> Resu
             app,
             argument(&args, "target")?,
         )),
-        "get_dream_skin_status" => serialize(Ok(crate::dream_skin::get_dream_skin_status())),
+        "get_dream_skin_status" => serialize(block_on(crate::dream_skin::get_dream_skin_status())),
         "get_dream_skin_resources_status" => {
             serialize(Ok(crate::dream_skin::get_dream_skin_resources_status()))
         }
@@ -375,9 +375,9 @@ fn dispatch_extended_command(app: AppHandle, command: &str, args: Value) -> Resu
         "verify_dream_skin" => serialize(block_on(crate::dream_skin::verify_dream_skin(app))),
         "restore_dream_skin" => serialize(block_on(crate::dream_skin::restore_dream_skin(app))),
         "open_dream_skin_folder" => serialize(crate::dream_skin::open_dream_skin_folder(app)),
-        "get_dream_skin_theme_preview" => serialize(
+        "get_dream_skin_theme_preview" => serialize(block_on(
             crate::dream_skin::get_dream_skin_theme_preview(argument(&args, "themeId")?),
-        ),
+        )),
         "get_dream_skin_market" => serialize(block_on(crate::dream_skin::get_dream_skin_market())),
         "install_dream_skin_market_theme" => serialize(block_on(
             crate::dream_skin::install_dream_skin_market_theme(argument(&args, "themeId")?),

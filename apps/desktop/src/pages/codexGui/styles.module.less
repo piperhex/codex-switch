@@ -13,6 +13,17 @@
   button { font: inherit; }
 }
 .collapsed { grid-template-columns: minmax(0, 1fr); }
+.page[data-dream-skin='true'] {
+  background-image: linear-gradient(
+    color-mix(in srgb, var(--panel) var(--gui-skin-overlay), transparent),
+    color-mix(in srgb, var(--panel) var(--gui-skin-overlay), transparent)
+  ), var(--gui-skin-image);
+  background-size: cover; background-position: center; background-repeat: no-repeat;
+  .sidebar, .messageFooter { background: transparent; }
+  .composer { background: color-mix(in srgb, var(--panel) 92%, transparent); }
+  :global(.ant-btn-text), textarea:global(.ant-input) { color: var(--ink); }
+  textarea:global(.ant-input)::placeholder { color: var(--gui-muted); }
+}
 .sidebar { --sidebar-inline-padding: 14px; --sidebar-bottom-padding: 12px;
   display: flex; flex-direction: column; gap: 8px;
   padding: 8px var(--sidebar-inline-padding) var(--sidebar-bottom-padding);

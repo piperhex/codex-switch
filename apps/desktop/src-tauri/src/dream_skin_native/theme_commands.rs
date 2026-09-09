@@ -227,6 +227,18 @@ pub(crate) fn theme_preview(theme_id: &str) -> Result<Option<String>, String> {
     if !valid_theme_id(theme_id) {
         return Err("Theme id is invalid.".to_string());
     }
+    // Imported images may only exist in the active theme until the user saves them.
+    if let Ok(root) = active_theme_root() {
+        if let Ok(theme) = load_theme(&root) {
+            if theme.document.get("id").and_then(Value::as_str) == Some(theme_id) {
+                return Ok(Some(format!(
+                    "data:{};base64,{}",
+                    theme.mime,
+                    BASE64.encode(theme.image_bytes)
+                )));
+            }
+        }
+    }
     if BUILT_IN_THEME_IDS.contains(&theme_id) {
         let root = crate::dream_skin_resources::installed_pack_root()?;
         let theme = load_theme(&built_in_theme_directory(&root, theme_id)?)?;

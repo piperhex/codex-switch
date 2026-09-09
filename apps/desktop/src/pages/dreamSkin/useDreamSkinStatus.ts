@@ -4,6 +4,7 @@ import { loadDreamSkinResourcesStatus, loadDreamSkinStatus } from "../../api/bac
 import type { Translate } from "../../i18n";
 import type { DreamSkinResourcesStatus, DreamSkinStatus } from "../../types";
 import type { StatusState } from "./types";
+import { publishDreamSkinStatus } from "./statusEvents";
 
 export function useDreamSkinStatus(t: Translate, notify: (message: string) => void): StatusState {
   const [status, setStatus] = useState<DreamSkinStatus | null>(null);
@@ -60,7 +61,9 @@ export function useDreamSkinStatus(t: Translate, notify: (message: string) => vo
     setBusy(key);
     setError(null);
     try {
-      setStatus(await operation());
+      const next = await operation();
+      setStatus(next);
+      publishDreamSkinStatus(next);
       notify(successMessage);
       return true;
     } catch (operationError) {

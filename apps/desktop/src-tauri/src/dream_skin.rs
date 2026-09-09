@@ -150,7 +150,11 @@ where
 }
 
 #[tauri::command]
-pub(crate) fn get_dream_skin_status() -> DreamSkinStatus {
+pub(crate) async fn get_dream_skin_status() -> Result<DreamSkinStatus, String> {
+    run_blocking(|| Ok(read_dream_skin_status())).await
+}
+
+fn read_dream_skin_status() -> DreamSkinStatus {
     #[cfg(any(target_os = "windows", target_os = "macos"))]
     return crate::dream_skin_native::status(platform_name());
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]
@@ -164,7 +168,7 @@ pub(crate) async fn install_dream_skin(app: AppHandle) -> Result<DreamSkinStatus
         crate::dream_skin_native::install(&app)?;
         #[cfg(not(any(target_os = "windows", target_os = "macos")))]
         return Err("Codex Dream Skin currently supports Windows and macOS.".to_string());
-        Ok(get_dream_skin_status())
+        Ok(read_dream_skin_status())
     })
     .await
 }
@@ -179,7 +183,7 @@ pub(crate) async fn apply_dream_skin_theme(
         crate::dream_skin_native::apply_theme(&app, &theme_id)?;
         #[cfg(not(any(target_os = "windows", target_os = "macos")))]
         return Err("Codex Dream Skin currently supports Windows and macOS.".to_string());
-        Ok(get_dream_skin_status())
+        Ok(read_dream_skin_status())
     })
     .await
 }
@@ -195,7 +199,7 @@ pub(crate) async fn import_dream_skin_image(
         crate::dream_skin_native::import_image(&app, &path, &options)?;
         #[cfg(not(any(target_os = "windows", target_os = "macos")))]
         return Err("Codex Dream Skin currently supports Windows and macOS.".to_string());
-        Ok(get_dream_skin_status())
+        Ok(read_dream_skin_status())
     })
     .await
 }
@@ -210,7 +214,7 @@ pub(crate) async fn save_dream_skin_theme(
         crate::dream_skin_native::save_theme(&app, &name)?;
         #[cfg(not(any(target_os = "windows", target_os = "macos")))]
         return Err("Codex Dream Skin currently supports Windows and macOS.".to_string());
-        Ok(get_dream_skin_status())
+        Ok(read_dream_skin_status())
     })
     .await
 }
@@ -224,7 +228,7 @@ pub(crate) async fn delete_dream_skin_themes(
         crate::dream_skin_native::delete_themes(&theme_ids)?;
         #[cfg(not(any(target_os = "windows", target_os = "macos")))]
         return Err("Codex Dream Skin currently supports Windows and macOS.".to_string());
-        Ok(get_dream_skin_status())
+        Ok(read_dream_skin_status())
     })
     .await
 }
@@ -239,7 +243,7 @@ pub(crate) async fn set_dream_skin_appearance(
         crate::dream_skin_native::set_appearance(&app, &appearance)?;
         #[cfg(not(any(target_os = "windows", target_os = "macos")))]
         return Err("Codex Dream Skin currently supports Windows and macOS.".to_string());
-        Ok(get_dream_skin_status())
+        Ok(read_dream_skin_status())
     })
     .await
 }
@@ -254,7 +258,7 @@ pub(crate) async fn set_dream_skin_overlay_opacity(
         crate::dream_skin_native::set_overlay_opacity(&app, opacity)?;
         #[cfg(not(any(target_os = "windows", target_os = "macos")))]
         return Err("Codex Dream Skin currently supports Windows and macOS.".to_string());
-        Ok(get_dream_skin_status())
+        Ok(read_dream_skin_status())
     })
     .await
 }
@@ -269,7 +273,7 @@ pub(crate) async fn set_dream_skin_paused(
         crate::dream_skin_native::set_paused(&app, paused)?;
         #[cfg(not(any(target_os = "windows", target_os = "macos")))]
         return Err("Codex Dream Skin currently supports Windows and macOS.".to_string());
-        Ok(get_dream_skin_status())
+        Ok(read_dream_skin_status())
     })
     .await
 }
@@ -281,7 +285,7 @@ pub(crate) async fn reapply_dream_skin(app: AppHandle) -> Result<DreamSkinStatus
         crate::dream_skin_native::reapply(&app)?;
         #[cfg(not(any(target_os = "windows", target_os = "macos")))]
         return Err("Codex Dream Skin currently supports Windows and macOS.".to_string());
-        Ok(get_dream_skin_status())
+        Ok(read_dream_skin_status())
     })
     .await
 }
@@ -304,7 +308,7 @@ pub(crate) async fn restore_dream_skin(app: AppHandle) -> Result<DreamSkinStatus
         crate::dream_skin_native::restore(&app)?;
         #[cfg(not(any(target_os = "windows", target_os = "macos")))]
         return Err("Codex Dream Skin currently supports Windows and macOS.".to_string());
-        Ok(get_dream_skin_status())
+        Ok(read_dream_skin_status())
     })
     .await
 }
@@ -320,7 +324,13 @@ pub(crate) fn open_dream_skin_folder(app: AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub(crate) fn get_dream_skin_theme_preview(theme_id: String) -> Result<Option<String>, String> {
+pub(crate) async fn get_dream_skin_theme_preview(
+    theme_id: String,
+) -> Result<Option<String>, String> {
+    run_blocking(move || read_dream_skin_theme_preview(theme_id)).await
+}
+
+fn read_dream_skin_theme_preview(theme_id: String) -> Result<Option<String>, String> {
     #[cfg(any(target_os = "windows", target_os = "macos"))]
     return crate::dream_skin_native::theme_preview(&theme_id);
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]
@@ -342,7 +352,7 @@ pub(crate) async fn install_dream_skin_market_theme(
 ) -> Result<DreamSkinStatus, String> {
     run_blocking(move || {
         crate::dream_skin_market::install(&theme_id)?;
-        Ok(get_dream_skin_status())
+        Ok(read_dream_skin_status())
     })
     .await
 }
@@ -361,7 +371,7 @@ pub(crate) async fn install_dream_skin_community_theme(
 ) -> Result<DreamSkinStatus, String> {
     run_blocking(move || {
         crate::dream_skin_community::install(&version_id)?;
-        Ok(get_dream_skin_status())
+        Ok(read_dream_skin_status())
     })
     .await
 }
