@@ -12,7 +12,7 @@ function loadViews(): GroupViews {
     const parsed: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
     if (parsed && typeof parsed === "object") {
       const saved = parsed as Record<string, unknown>;
-      return { collapsed: stringList(saved.collapsed), expanded: stringList(saved.expanded) };
+      return { collapsed: stringList(saved.collapsed), expanded: [] };
     }
   } catch { /* Folding also works when stored preferences are unavailable. */ }
   return { collapsed: [], expanded: [] };
@@ -20,10 +20,12 @@ function loadViews(): GroupViews {
 
 export function useThreadGroupViews() {
   const [views, setViews] = useState(loadViews);
+  const { collapsed } = views;
   useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(views)); }
+    // Only remember closed folders so each visit starts with five conversations per open group.
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ collapsed })); }
     catch { /* Keep the current in-memory view if storage is full or unavailable. */ }
-  }, [views]);
+  }, [collapsed]);
   const toggle = (field: keyof GroupViews, key: string) => setViews((current) => ({
     ...current,
     [field]: current[field].includes(key) ? current[field].filter((value) => value !== key) : [...current[field], key],
