@@ -13,10 +13,12 @@
   button { font: inherit; }
 }
 .collapsed { grid-template-columns: minmax(0, 1fr); }
-.sidebar { display: flex; flex-direction: column; gap: 8px; padding: 20px 14px 12px;
+.sidebar { display: flex; flex-direction: column; gap: 8px; padding: 8px 14px 12px;
   min-height: 0; border-right: 1px solid var(--gui-border); background: var(--bg, #f6f8f7); }
-.sidebarHeading { display: flex; align-items: center; justify-content: flex-end; padding: 0 6px; }
-.sidebarActions { display: flex; align-items: center; gap: 4px; }
+.sidebarHeading { display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  min-height: 24px; flex-shrink: 0; padding: 0 6px; }
+.sidebarTitle { margin: 0; font-size: 13px; font-weight: 600; line-height: 18px; white-space: nowrap; }
+.sidebarActions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
 .newButton {
   display: flex; align-items: center; justify-content: flex-start; gap: 10px;
   width: 100%; min-height: 36px; padding: 8px 7px; border: 0; border-radius: 9px;

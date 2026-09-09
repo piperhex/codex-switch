@@ -62,6 +62,7 @@ export function ThreadSidebar({ state, controller, accountPicker }: {
   };
   return <aside className={styles.sidebar}>
     <div className={styles.sidebarHeading}>
+      <h2 className={styles.sidebarTitle}>Codex GUI</h2>
       <div className={styles.sidebarActions}>
         <Button type="text" size="small" icon={<RefreshCw size={15} />} aria-label="刷新对话"
           loading={state.loading} disabled={state.connection !== "ready"} onClick={() => void controller.refresh()} />
