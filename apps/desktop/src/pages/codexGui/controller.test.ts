@@ -23,6 +23,35 @@ beforeEach(() => {
 });
 
 describe("Codex GUI controller", () => {
+  it("keeps in-flight settings stable and uses changes for the next request", async () => {
+    const controller = new GuiController();
+    await controller.connect();
+    await controller.select(thread.id);
+    const previous = { model: "old-model", effort: "low", access: "read-only" } as const;
+    const next = { model: "next-model", effort: "high", access: "workspace-write" } as const;
+    controller.settings(previous);
+    const original = vi.mocked(guiApi.request).getMockImplementation()!;
+    let resume!: (value: unknown) => void;
+    vi.mocked(guiApi.request).mockImplementation((request) => {
+      if (request.operation === "resume") return new Promise((resolve) => { resume = resolve; });
+      if (request.operation === "send") return Promise.resolve({
+        turn: { id: crypto.randomUUID(), status: "completed", items: [] } });
+      return original(request);
+    });
+    const sending = controller.send("first", []);
+    expect(controller.getSnapshot().sending).toBe(true);
+    controller.settings(next);
+    resume({ thread });
+    expect(await sending).toBe(true);
+    expect(guiApi.request).toHaveBeenCalledWith(expect.objectContaining({ operation: "send", ...previous }));
+    const following = controller.send("second", []);
+    resume({ thread });
+    expect(await following).toBe(true);
+    const sends = vi.mocked(guiApi.request).mock.calls.filter(([request]) => request.operation === "send");
+    expect(sends.at(-1)?.[0]).toMatchObject(next);
+    controller.dispose();
+  });
+
   it("applies access changes to each turn even when resume returns the same loaded thread", async () => {
     const controller = new GuiController();
     await controller.connect();

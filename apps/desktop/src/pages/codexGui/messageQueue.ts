@@ -1,6 +1,6 @@
 import { guiApi } from "./api";
 import { conversation } from "./events";
-import type { GuiState, MessageInput, QueuedMessage, Thread, Turn } from "./types";
+import type { GuiState, MessageInput, QueuedMessage, Settings, Thread, Turn } from "./types";
 
 const MAX_QUEUED_MESSAGES = 100;
 interface QueueHost {
@@ -31,6 +31,12 @@ export class MessageQueue {
   remove = (threadId: string, id: string) => {
     this.update(threadId, this.list(threadId).filter((item) => item.id !== id || item.busy));
     void this.flush(threadId);
+  };
+  updateSettings = (threadId: string, settings: Pick<Settings, "model" | "effort" | "access">) => {
+    const messages = this.list(threadId);
+    if (!messages.some((item) => !item.busy)) return;
+    // Keep dispatched batches stable and apply changes only to this conversation's waiting messages.
+    this.update(threadId, messages.map((item) => item.busy ? item : { ...item, ...settings }));
   };
   edit = (threadId: string, id: string, change: { editing: boolean; text?: string }) => {
     this.update(threadId, this.list(threadId).map((item) =>

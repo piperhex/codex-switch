@@ -150,6 +150,11 @@ export class GuiController {
   filter = (search: string, archived: boolean) => { this.patch({ search, archived }); void this.refresh(); };
   settings = (settings: Partial<Settings>) => {
     this.patch({ settings: { ...this.state.settings, ...settings } });
+    if (this.state.selected && (settings.model !== undefined || settings.effort !== undefined
+      || settings.access !== undefined)) {
+      const { model, effort, access } = this.state.settings;
+      this.queue.updateSettings(this.state.selected, { model, effort, access });
+    }
     if (settings.cwd) this.patch({ projects: [...new Set([settings.cwd, ...this.state.projects])].slice(0, 20) });
     savePreferences(this.state);
   };

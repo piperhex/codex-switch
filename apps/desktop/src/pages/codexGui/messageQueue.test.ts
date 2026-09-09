@@ -47,6 +47,43 @@ it("sends queued turns with the access saved when queued, including after switch
     operation: "sendBatch", threadId: "one", access: "danger-full-access" }));
 });
 
+it("applies settings changed during generation to all waiting messages on the next turn", async () => {
+  controller.settings({ model: "old-model", effort: "low", access: "read-only" });
+  await controller.send("first", []);
+  await controller.send("second", []);
+  vi.mocked(guiApi.request).mockClear();
+  const settings = { model: "next-model", effort: "high", access: "workspace-write" } as const;
+  controller.settings(settings);
+  expect(guiApi.request).not.toHaveBeenCalled();
+  expect(controller.getSnapshot().conversations.one.activeTurn).toBe("live");
+  expect(messages()).toHaveLength(2);
+  messages().forEach((message) => expect(message).toMatchObject(settings));
+  await finish();
+  expect(guiApi.request).toHaveBeenCalledWith(expect.objectContaining({ operation: "resume", access: settings.access }));
+  expect(guiApi.request).toHaveBeenCalledWith(expect.objectContaining({ operation: "sendBatch", ...settings }));
+});
+
+it("keeps a dispatched batch stable when settings change while resuming", async () => {
+  const previous = { model: "old-model", effort: "low", access: "read-only" } as const;
+  const next = { model: "next-model", effort: "high", access: "workspace-write" } as const;
+  controller.settings(previous);
+  await controller.send("first", []);
+  const original = vi.mocked(guiApi.request).getMockImplementation()!;
+  let resume!: (value: unknown) => void;
+  vi.mocked(guiApi.request).mockImplementation((request) => request.operation === "resume"
+    ? new Promise((resolve) => { resume = resolve; }) : original(request));
+  await finish();
+  controller.settings(next);
+  expect(messages()[0]).toMatchObject({ ...previous, busy: true });
+  await controller.send("second", []);
+  expect(messages()[1]).toMatchObject(next);
+  resume({ thread });
+  await settle();
+  expect(guiApi.request).toHaveBeenCalledWith(expect.objectContaining({ operation: "sendBatch", ...previous }));
+  expect(messages()).toHaveLength(1);
+  expect(messages()[0]).toMatchObject(next);
+});
+
 it("queues separate messages and submits all in order to their original background conversation", async () => {
   await controller.send("first", ["image"], [{ name: "skill", path: "skill-path" }]);
   await controller.send("second", []);

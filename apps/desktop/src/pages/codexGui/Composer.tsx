@@ -88,11 +88,11 @@ export const Composer = forwardRef<ComposerHandle, {
           onFiles={() => setDialog("files")} onGoal={() => setDialog("goal")}
           onPlugin={(plugin) => addAttachments([plugin])} onSkill={(skill) => skillInput.current?.addSkill(skill)} />
         <AccessPicker value={state.settings.access}
-          disabled={running || state.sending} onChange={(access: AccessMode) => controller.settings({ access })} />
+          disabled={false} onChange={(access: AccessMode) => controller.settings({ access })} />
         <div className={styles.modelControls}>
           <UsageStatus active={active} threadId={state.selected} tokenUsage={current?.tokenUsage} />
           <ModelPicker models={state.models} model={state.settings.model} effort={state.settings.effort}
-            disabled={running || state.sending} onChange={controller.settings} />
+            disabled={false} onChange={controller.settings} />
           <ComposerSubmit state={state} controller={controller}
             hasDraft={hasDraft} reading={reading} onSend={send} />
         </div>
