@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Button, Dropdown, Input, Modal, Segmented, Spin } from "antd";
 import { Archive, MoreHorizontal, Pencil, Pin, Plus, RefreshCw, Search } from "lucide-react";
 import type { GuiController } from "./controller";
 import type { GuiState, Thread } from "./types";
 import { ThreadGroup } from "./ThreadGroup";
+import { ThreadSearch } from "./ThreadSearch";
 import { useThreadGroupViews } from "./useThreadGroupViews";
 import styles from "./styles.module.less";
 
@@ -13,15 +14,14 @@ export function projectName(path: string) { return path.split(/[\\/]/).filter(Bo
 export function ThreadSidebar({ state, controller, accountPicker }: {
   state: GuiState; controller: GuiController; accountPicker: ReactNode;
 }) {
-  const [search, setSearch] = useState(state.search);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [renaming, setRenaming] = useState<Thread | null>(null);
   const [name, setName] = useState("");
   const { views, toggle } = useThreadGroupViews();
-  useEffect(() => {
-    if (search === state.search || state.connection !== "ready") return;
-    const timer = setTimeout(() => controller.filter(search, state.archived), 300);
-    return () => clearTimeout(timer);
-  }, [search, state.search, state.archived, state.connection, controller]);
+  const closeSearch = () => {
+    setSearchOpen(false);
+    if (state.search) controller.filter("", state.archived);
+  };
   const groups = useMemo(() => {
     const pinned = state.threads.filter((thread) => state.pins.includes(thread.id));
     const byProject = new Map<string, Thread[]>();
@@ -62,16 +62,18 @@ export function ThreadSidebar({ state, controller, accountPicker }: {
   };
   return <aside className={styles.sidebar}>
     <div className={styles.sidebarHeading}><strong>对话</strong>
-      <Button type="text" size="small" icon={<RefreshCw size={15} />} aria-label="刷新对话"
-        loading={state.loading} disabled={state.connection !== "ready"} onClick={() => void controller.refresh()} />
+      <div className={styles.sidebarActions}>
+        <Button type="text" size="small" icon={<RefreshCw size={15} />} aria-label="刷新对话"
+          loading={state.loading} disabled={state.connection !== "ready"} onClick={() => void controller.refresh()} />
+        <Button type="text" size="small" icon={<Search size={15} />} aria-label="搜索对话"
+          disabled={state.connection !== "ready"} onClick={() => setSearchOpen(true)} />
+      </div>
     </div>
     <Button className={styles.newButton} icon={<Plus size={16} />} disabled={state.sending}
       onClick={controller.newConversation}>新对话</Button>
-    <Input prefix={<Search size={14} />} placeholder="搜索对话" aria-label="搜索对话" value={search}
-      allowClear onChange={(event) => setSearch(event.target.value)} />
     <Segmented block size="small" value={state.archived ? "archived" : "recent"}
       options={[{ label: "最近", value: "recent" }, { label: "已归档", value: "archived" }]}
-      onChange={(value) => controller.filter(search, value === "archived")} disabled={state.connection !== "ready"} />
+      onChange={(value) => controller.filter("", value === "archived")} disabled={state.connection !== "ready"} />
     <div className={styles.threadList}>
       {groups.map((group) => {
         const key = `${state.archived ? "archived" : "recent"}:${group.id}`;
@@ -85,6 +87,7 @@ export function ThreadSidebar({ state, controller, accountPicker }: {
         onClick={() => void controller.refresh(true)}>加载更多</Button>}
     </div>
     {accountPicker}
+    {searchOpen && <ThreadSearch state={state} controller={controller} onClose={closeSearch} />}
     <Modal title="重命名对话" open={Boolean(renaming)} width={400} okText="保存" cancelText="取消"
       okButtonProps={{ disabled: !name.trim() }} onCancel={() => setRenaming(null)}
       onOk={() => { if (renaming) void controller.manage("rename", renaming.id, name); setRenaming(null); }}>

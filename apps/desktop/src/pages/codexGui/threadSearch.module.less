@@ -1,0 +1,13 @@
+.results { max-height: min(420px, 55vh); overflow-y: auto; margin-top: 12px; }
+.label { margin: 0 8px 6px; color: var(--muted); font-size: 12px; }
+.result {
+  display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 8px;
+  border: 0; border-radius: 9px; background: transparent; color: var(--ink);
+  font: inherit; text-align: left; cursor: pointer;
+  &:hover, &:focus-visible { background: var(--green-selection-hover); }
+  &:disabled { opacity: 0.5; cursor: default; }
+}
+.title { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.project { max-width: 35%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  color: var(--muted); font-size: 12px; }
+.empty { padding: 24px 8px; margin: 0; text-align: center; color: var(--muted); }
