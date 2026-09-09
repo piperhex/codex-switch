@@ -48,6 +48,29 @@ it("uses the desktop opener inside Tauri", async () => {
   expect(openUrl).toHaveBeenCalledWith(href);
 });
 
+it("loads only the website favicon without forwarding the page or referrer", async () => {
+  await act(async () => root.render(
+    <MessageLink href="https://user:secret@example.com/news?token=private#section">新闻来源</MessageLink>,
+  ));
+  const icon = container.querySelector("a img")!;
+  expect(icon.getAttribute("src")).toBe("https://example.com/favicon.ico");
+  expect(icon.getAttribute("referrerpolicy")).toBe("no-referrer");
+  expect(icon.getAttribute("alt")).toBe("");
+  expect(container.querySelector("a svg")).not.toBeNull();
+  await act(async () => icon.dispatchEvent(new Event("load")));
+  expect(icon.getAttribute("data-loaded")).toBe("true");
+  expect(container.querySelector("a svg")).toBeNull();
+});
+
+it("keeps a fallback on failure and retries when the destination changes", async () => {
+  await act(async () => container.querySelector("a img")!.dispatchEvent(new Event("error")));
+  expect(container.querySelector("a img")).toBeNull();
+  expect(container.querySelector("a svg")).not.toBeNull();
+  expect(container.querySelector("a")!.textContent).toBe("图片来源");
+  await act(async () => root.render(<MessageLink href="https://other.example/news">新来源</MessageLink>));
+  expect(container.querySelector("a img")!.getAttribute("src")).toBe("https://other.example/favicon.ico");
+});
+
 it("handles a desktop opener failure with a compact message", async () => {
   vi.mocked(isTauri).mockReturnValue(true);
   vi.mocked(openUrl).mockRejectedValue(new Error("Internal failure"));

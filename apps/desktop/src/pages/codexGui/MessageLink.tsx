@@ -3,6 +3,7 @@ import { message } from "antd";
 import { isTauri } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { CopyButton } from "./CopyButton";
+import { WebsiteIcon } from "./WebsiteIcon";
 import styles from "./MessageLink.module.less";
 
 export function isFileReference(href: string) {
@@ -21,5 +22,5 @@ export function MessageLink({ href, children }: { href?: string; children?: Reac
     void openUrl(href).catch(() => { void message.error({
       content: "链接暂时无法打开，请稍后重试。", style: { maxWidth: 400, marginInline: "auto" },
     }); });
-  }}>{children}</a>;
+  }}><WebsiteIcon key={href} href={href} />{children}</a>;
 }
