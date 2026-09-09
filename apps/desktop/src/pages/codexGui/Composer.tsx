@@ -24,6 +24,16 @@ import styles from "./styles.module.less";
 
 export interface ComposerHandle { addQuote: (quote: ReplyQuote) => boolean }
 
+const TOKENS_PER_THOUSAND = 1_000;
+const TOKENS_PER_MILLION = 1_000_000;
+const TOKEN_DECIMAL_PLACES = 2;
+
+function formatConversationTokens(value: number) {
+  if (value >= TOKENS_PER_MILLION) return `${(value / TOKENS_PER_MILLION).toFixed(TOKEN_DECIMAL_PLACES)}M`;
+  if (value >= TOKENS_PER_THOUSAND) return `${(value / TOKENS_PER_THOUSAND).toFixed(TOKEN_DECIMAL_PLACES)}k`;
+  return value.toLocaleString();
+}
+
 export const Composer = forwardRef<ComposerHandle, {
   state: GuiState; controller: GuiController; active: boolean;
 }>(function Composer({ state, controller, active }, ref) {
@@ -99,7 +109,7 @@ export const Composer = forwardRef<ComposerHandle, {
       </div>
     </div>
     <div className={styles.composerHint}><span>Enter 发送 · Shift + Enter 换行</span>
-      {current && current.tokens > 0 && <span>{current.tokens.toLocaleString()} tokens</span>}</div>
+      {current && current.tokens > 0 && <span>{formatConversationTokens(current.tokens)} tokens</span>}</div>
     {dialog === "files" && <ComposerFilesDialog onAdd={addAttachments} onImages={() => fileInput.current?.click()}
       onClose={() => setDialog(null)} onError={controller.report} />}
     {dialog === "goal" && <GoalDialog state={state} controller={controller} onClose={() => setDialog(null)} />}
