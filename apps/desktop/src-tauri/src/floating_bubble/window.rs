@@ -35,7 +35,7 @@ fn create<R: Runtime>(app: &AppHandle<R>, settings: &AppSettings) -> Result<(), 
     }
 
     let (x, y) = restored_or_default_position(app, settings);
-    let window = WebviewWindowBuilder::new(
+    WebviewWindowBuilder::new(
         app,
         BUBBLE_LABEL,
         WebviewUrl::App("index.html#bubble".into()),
@@ -59,9 +59,8 @@ fn create<R: Runtime>(app: &AppHandle<R>, settings: &AppSettings) -> Result<(), 
     .focused(false)
     .build()
     .map_err(|error| error.to_string())?;
-    window.on_menu_event(|window, event| {
-        crate::system_tray::handle_menu_event(window.app_handle(), event);
-    });
+    // The tray registers an app-wide menu listener, including this window's popup menu.
+    // A second listener would execute every action twice while the bubble exists.
     Ok(())
 }
 
