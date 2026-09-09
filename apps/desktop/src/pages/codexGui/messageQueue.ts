@@ -1,5 +1,6 @@
 import { guiApi } from "./api";
 import { conversation } from "./events";
+import { withSentMessage } from "./sentMessages";
 import type { GuiState, MessageInput, QueuedMessage, Settings, Thread, Turn } from "./types";
 
 const MAX_QUEUED_MESSAGES = 100;
@@ -46,6 +47,18 @@ export class MessageQueue {
   private markBusy = (threadId: string, ids: Set<string>, busy: boolean) => {
     this.update(threadId, this.list(threadId).map((item) => ids.has(item.id) ? { ...item, busy } : item));
   };
+  private completeSend = (threadId: string, turnId: string, messages: QueuedMessage[], userMessageIndex: number) => {
+    const state = this.host.getSnapshot();
+    const current = state.conversations[threadId];
+    if (!current) return;
+    const ids = new Set(messages.map((item) => item.id));
+    this.host.patch({
+      queued: { ...state.queued, [threadId]: this.list(threadId).filter((item) => !ids.has(item.id)) },
+      conversations: { ...state.conversations, [threadId]: { ...current,
+        turns: current.turns.map((turn) => turn.id === turnId
+          ? withSentMessage(turn, messages, userMessageIndex) : turn) } },
+    });
+  };
   private resume = async (threadId: string, message: QueuedMessage): Promise<boolean> => {
     const { thread } = await guiApi.request<{ thread: Thread }>({
       operation: "resume", threadId, access: message.access });
@@ -71,8 +84,8 @@ export class MessageQueue {
         messages: messages.map(({ text, images, skills, attachments }) => ({ text, images, skills,
           ...(attachments?.length ? { attachments: attachments } : {}) })),
         model: messages[0].model || undefined, effort: messages[0].effort || undefined, access: messages[0].access });
-      this.update(threadId, this.list(threadId).filter((item) => !ids.has(item.id)));
       this.host.acceptTurn(threadId, turn);
+      this.completeSend(threadId, turn.id, messages, 0);
       sent = true;
     } catch (error) { this.host.report(error); }
     finally { this.pending.delete(threadId); this.markBusy(threadId, ids, false); }
@@ -86,12 +99,14 @@ export class MessageQueue {
       || this.pending.has(threadId)) return;
     this.pending.add(threadId);
     const ids = new Set([id]);
+    const userMessageIndex = state.conversations[threadId].turns.find((turn) => turn.id === turnId)
+      ?.items.filter((entry) => entry.type === "userMessage").length ?? 0;
     this.markBusy(threadId, ids, true);
     try {
       await guiApi.request({ operation: "steer", threadId, turnId,
         text: item.text, images: item.images, skills: item.skills,
         ...(item.attachments?.length ? { attachments: item.attachments } : {}) });
-      this.update(threadId, this.list(threadId).filter((entry) => entry.id !== id));
+      this.completeSend(threadId, turnId, [item], userMessageIndex);
     } catch (error) { this.host.report(error); }
     finally { this.pending.delete(threadId); this.markBusy(threadId, ids, false); }
     void this.flush(threadId);

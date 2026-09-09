@@ -30,6 +30,8 @@ export interface SearchResult { title?: string; url?: string; snippet?: string }
 export interface Item {
   id: string;
   type: string;
+  /** Frontend-only echo of an acknowledged message awaiting its server item. */
+  localEcho?: boolean;
   text?: string;
   content?: Content[] | string[];
   summary?: string[];
