@@ -6,6 +6,7 @@ mod error;
 mod goals;
 mod home;
 mod icons;
+mod identity;
 mod images;
 mod platform;
 pub(crate) mod plugin_client;
@@ -28,9 +29,6 @@ use tokio::sync::Mutex;
 use client::Client;
 use error::{GuiError, Result};
 use protocol::{ApprovalReply, GuiEvent, GuiRequest, GuiResponse};
-
-// Use the CLI identity for both chat and plugin app-server connections.
-const CLI_CLIENT_NAME: &str = "codex_cli_rs";
 
 #[derive(Default)]
 pub(crate) struct GuiState {

@@ -77,9 +77,17 @@ pub(super) fn installed(app: &AppHandle) -> Result<Installed> {
     Ok(Installed { version })
 }
 
-pub(super) fn executable(app: &AppHandle) -> Result<PathBuf> {
+pub(super) struct Executable {
+    pub(super) path: PathBuf,
+    pub(super) version: String,
+}
+
+pub(super) fn executable(app: &AppHandle) -> Result<Executable> {
     let version = installed(app)?.version.ok_or(GuiError::Executable)?;
-    Ok(root(app)?.join(version).join(entrypoint()))
+    Ok(Executable {
+        path: root(app)?.join(&version).join(entrypoint()),
+        version,
+    })
 }
 
 fn entrypoint() -> &'static str {

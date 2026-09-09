@@ -1,5 +1,6 @@
 //! Short-lived plugin sessions use the GUI-managed binary and the selected home.
 //! They never share the chat connection or forward its events.
+use super::{identity, releases::Executable};
 use serde_json::{json, Value};
 use std::{path::PathBuf, process::Stdio, time::Duration};
 use tokio::{
@@ -50,12 +51,15 @@ impl PluginClient {
         Self::connect(binary, home).await
     }
 
-    async fn connect(binary: PathBuf, home: PathBuf) -> Result<Self> {
-        let mut command = Command::new(binary);
+    async fn connect(binary: Executable, home: PathBuf) -> Result<Self> {
+        let mut command = Command::new(binary.path);
         command
             .arg("app-server")
             .env("CODEX_HOME", &home)
-            .env("CODEX_INTERNAL_ORIGINATOR_OVERRIDE", super::CLI_CLIENT_NAME)
+            .env(
+                "CODEX_INTERNAL_ORIGINATOR_OVERRIDE",
+                identity::CLI_ORIGINATOR,
+            )
             .current_dir(&home)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -71,10 +75,9 @@ impl PluginClient {
             reader,
             next_id: 1,
         };
-        client.request("initialize", json!({
-            "clientInfo": {"name": super::CLI_CLIENT_NAME, "version": env!("CARGO_PKG_VERSION")},
-            "capabilities": {"experimentalApi": true}
-        })).await?;
+        client
+            .request("initialize", identity::initialize_params(&binary.version))
+            .await?;
         client.write(json!({"method": "initialized"})).await?;
         Ok(client)
     }

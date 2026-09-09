@@ -19,7 +19,7 @@ use tokio::{
 
 use super::{
     error::{GuiError, Result},
-    platform,
+    identity, platform,
     protocol::{approval_response, ApprovalReply, GuiEvent},
     workspaces,
 };
@@ -42,11 +42,11 @@ pub(super) struct Client {
 impl Client {
     pub(super) async fn start(
         app: AppHandle,
-        executable: PathBuf,
+        executable: super::releases::Executable,
         home: PathBuf,
         projectless_root: PathBuf,
     ) -> Result<Arc<Self>> {
-        let mut command = Command::new(executable);
+        let mut command = Command::new(executable.path);
         command
             .arg("app-server")
             .arg("-c")
@@ -57,7 +57,10 @@ impl Client {
                 json!(home.join("log").to_string_lossy())
             ))
             .env("CODEX_HOME", &home)
-            .env("CODEX_INTERNAL_ORIGINATOR_OVERRIDE", super::CLI_CLIENT_NAME)
+            .env(
+                "CODEX_INTERNAL_ORIGINATOR_OVERRIDE",
+                identity::CLI_ORIGINATOR,
+            )
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
@@ -78,10 +81,12 @@ impl Client {
             app,
         });
         tokio::spawn(client.clone().read(stdout));
-        let handshake = client.request("initialize", json!({
-            "clientInfo": {"name": super::CLI_CLIENT_NAME, "title": "Codex Switch", "version": "1.0.0"},
-            "capabilities": {"experimentalApi": true}
-        })).await;
+        let handshake = client
+            .request(
+                "initialize",
+                identity::initialize_params(&executable.version),
+            )
+            .await;
         if handshake.is_err() {
             client.stop().await;
             return Err(GuiError::Startup);
