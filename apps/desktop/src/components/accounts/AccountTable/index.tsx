@@ -52,6 +52,7 @@ import type {
   ResetCreditsLoadState,
 } from "../../../types";
 import { accountExpirationDate } from "../../../utils/expiration";
+import { maskAccountEmail } from "../../../utils/accountPrivacy";
 import { initials } from "../../../utils/format";
 import { formatCompactTokenCount } from "../../../utils/tokenContext";
 import { shouldShowUsageError } from "../../../utils/usageErrors";
@@ -216,11 +217,6 @@ function contextMenuPosition(event: { clientX: number; clientY: number }, menuHe
     x: Math.max(8, Math.min(event.clientX, window.innerWidth - ACCOUNT_CONTEXT_MENU_WIDTH - 8)),
     y: Math.max(8, Math.min(event.clientY, window.innerHeight - menuHeight - 8)),
   };
-}
-
-function maskAccountEmail(email: string) {
-  if (email.length <= 10) return "*****";
-  return `${email.slice(0, 5)}*****${email.slice(-5)}`;
 }
 
 function isUsageSortColumn(value: unknown): value is UsageSortColumn {

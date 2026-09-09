@@ -1492,6 +1492,7 @@ export function DashboardApp() {
           <section className={codexGuiStyles.panel} hidden={page !== "codexGui"}>
             <CodexGuiPage active={page === "codexGui"} accountPicker={
               <ProxyAccountPicker active={page === "codexGui"} accounts={manager.accounts}
+                privacyMode={privacyMode.enabled}
                 providers={providerManager.providers} aggregateApis={providerManager.aggregateApis}
                 proxyRunning={Boolean(providerManager.localProxy?.running)}
                 busy={providerManager.proxyBusy || Boolean(manager.busyAccountId || providerManager.busyProviderId)}

@@ -45,7 +45,8 @@ beforeEach(() => {
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
-  props = { active: true, accounts: [account], providers: [provider], aggregateApis: [], proxyRunning: true,
+  props = { active: true, privacyMode: false, accounts: [account], providers: [provider],
+    aggregateApis: [], proxyRunning: true,
     busy: false, loading: false, onSwitchAccount: vi.fn().mockResolvedValue(true),
     onSwitchProvider: vi.fn().mockResolvedValue(true) };
 });
@@ -54,6 +55,36 @@ afterEach(async () => {
   container.remove();
   vi.useRealTimers();
   vi.unstubAllGlobals();
+});
+
+it.each([
+  { email: "user@example.com", masked: "user@*****e.com" },
+  { email: "ab@cd.test", masked: "*****" },
+  { email: "a@b.co", masked: "*****" },
+])("masks $email only in the trigger while privacy mode is enabled", async ({ email, masked }) => {
+  props.accounts = [{ ...account, email }];
+  props.privacyMode = true;
+  await render();
+  expect(trigger().textContent).toContain(masked);
+  expect(trigger().outerHTML).not.toContain(email);
+  expect(trigger().getAttribute("aria-label")).toBe(`切换代理账户：${masked}`);
+  await click(trigger());
+  expect(option(email).textContent).toContain(email);
+  props.privacyMode = false;
+  await render();
+  expect(trigger().textContent).toContain(email);
+  expect(trigger().getAttribute("aria-label")).toBe(`切换代理账户：${email}`);
+  props.privacyMode = true;
+  await render();
+  expect(trigger().outerHTML).not.toContain(email);
+  expect(option(email).textContent).toContain(email);
+});
+
+it("keeps provider names visible in privacy mode", async () => {
+  props.privacyMode = true;
+  props.providers = [{ ...provider, active: true }];
+  await render();
+  expect(trigger().textContent).toContain(provider.name);
 });
 
 it("shows the selected proxy target and switches between providers and official accounts", async () => {
