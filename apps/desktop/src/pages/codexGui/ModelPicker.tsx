@@ -2,19 +2,18 @@ import { useEffect, useState, type KeyboardEvent } from "react";
 import { Button, Input, Popover, Tooltip } from "antd";
 import { Check, ChevronLeft, ChevronRight, RotateCcw, Search } from "lucide-react";
 import type { Model } from "./types";
+import { resolveModelSelection, type ModelSelection } from "./modelSelection";
 import styles from "./ModelPicker.module.less";
 
 const EFFORT_LABELS: Record<string, string> = {
   none: "无", minimal: "极低", low: "低", medium: "中", high: "高", xhigh: "极高", max: "最高", ultra: "Ultra",
 };
 const EFFORT_ORDER = Object.keys(EFFORT_LABELS);
-const DEFAULT_MODEL_LABEL = "当前配置模型";
 const MODEL_SEARCH_THRESHOLD = 8;
-type Selection = { model: string; effort: string };
-interface ModelPickerProps extends Selection {
+interface ModelPickerProps extends ModelSelection {
   models: Model[];
   disabled: boolean;
-  onChange: (selection: Selection) => void;
+  onChange: (selection: ModelSelection) => void;
 }
 
 function moveModelFocus(event: KeyboardEvent<HTMLDivElement>) {
@@ -33,8 +32,7 @@ function ModelList({ models, model, onSelect, onBack }: {
   models: Model[]; model: string; onSelect: (model: string) => void; onBack: () => void;
 }) {
   const [query, setQuery] = useState("");
-  const options = [{ value: "", label: "默认", description: "使用当前配置的模型" },
-    ...models.map((entry) => ({ value: entry.model, label: entry.displayName || entry.model, description: "" }))]
+  const options = models.map((entry) => ({ value: entry.model, label: entry.displayName || entry.model }))
     .filter((option) => `${option.label} ${option.value}`.toLowerCase().includes(query.trim().toLowerCase()));
   return <div className={styles.models}>
     <button className={styles.listHeading} onClick={onBack} aria-label="返回推理强度设置">
@@ -49,7 +47,7 @@ function ModelList({ models, model, onSelect, onBack }: {
         className={styles.modelOption} aria-checked={model === option.value}
         autoFocus={models.length <= MODEL_SEARCH_THRESHOLD && model === option.value}
         onClick={() => onSelect(option.value)}>
-        <span><span>{option.label}</span>{option.description && <small>{option.description}</small>}</span>
+        <span>{option.label}</span>
         {model === option.value && <Check size={14} />}
       </button>)}
       {!options.length && <p className={styles.hint}>未找到模型</p>}
@@ -57,12 +55,16 @@ function ModelList({ models, model, onSelect, onBack }: {
   </div>;
 }
 
-export function ModelPicker({ models, model, effort, disabled, onChange }: ModelPickerProps) {
+export function ModelPicker(props: ModelPickerProps) {
+  const { models, onChange } = props;
+  const { model, effort } = resolveModelSelection(models, props);
+  const disabled = props.disabled || !model;
   const [open, setOpen] = useState(false);
   const [choosingModel, setChoosingModel] = useState(false);
   const selected = models.find((entry) => entry.model === model);
-  const modelLabel = selected?.displayName || model || DEFAULT_MODEL_LABEL;
-  const effortLabel = EFFORT_LABELS[effort] || effort || "默认";
+  const modelLabel = selected?.displayName || model || "正在加载模型…";
+  const effortLabel = EFFORT_LABELS[effort] || effort;
+  const recommended = resolveModelSelection(models, { model, effort: "" });
   const levels = [...(selected?.supportedReasoningEfforts ?? [])].sort((left, right) =>
     EFFORT_ORDER.indexOf(left.reasoningEffort) - EFFORT_ORDER.indexOf(right.reasoningEffort));
   const index = Math.max(0, levels.findIndex((level) =>
@@ -73,7 +75,7 @@ export function ModelPicker({ models, model, effort, disabled, onChange }: Model
     if (next) setChoosingModel(false);
   };
   const selectModel = (value: string) => {
-    onChange({ model: value, effort: "" });
+    onChange(resolveModelSelection(models, { model: value, effort: "" }));
     setChoosingModel(false);
   };
   const panel = <div className={styles.panel} onKeyDown={(event) => {
@@ -86,9 +88,10 @@ export function ModelPicker({ models, model, effort, disabled, onChange }: Model
           <span className={styles.effortName}>{effortLabel}<ChevronRight size={12} /></span>
           <span className={styles.modelName}>{modelLabel}</span>
         </button>
-        <Tooltip title="恢复默认推理强度" styles={{ root: { maxWidth: 400 } }}>
+        <Tooltip title="恢复推荐推理强度" styles={{ root: { maxWidth: 400 } }}>
           <Button type="text" size="small" className={styles.reset} icon={<RotateCcw size={14} />}
-            disabled={!effort} aria-label="恢复默认推理强度" onClick={() => onChange({ model, effort: "" })} />
+            disabled={effort === recommended.effort} aria-label="恢复推荐推理强度"
+            onClick={() => onChange(recommended)} />
         </Tooltip>
       </div>
       {levels.length > 0 ? <div className={styles.sliderWrap}>
@@ -99,7 +102,7 @@ export function ModelPicker({ models, model, effort, disabled, onChange }: Model
         <div className={styles.stops} aria-hidden="true">
           {levels.map((level) => <i key={level.reasoningEffort} />)}
         </div>
-      </div> : <p className={styles.hint}>{selected ? "该模型使用默认推理强度" : "选择模型后可调整推理强度"}</p>}
+      </div> : <p className={styles.hint}>该模型不支持调整推理强度</p>}
     </div>}
   </div>;
   return <Popover trigger="click" placement="topRight" arrow={false} open={open && !disabled}
@@ -108,7 +111,7 @@ export function ModelPicker({ models, model, effort, disabled, onChange }: Model
     <button type="button" className={styles.trigger} disabled={disabled} aria-expanded={open && !disabled}
       aria-label={`模型与推理强度：${modelLabel} ${effortLabel}`}>
       <span className={styles.triggerModel}>{modelLabel}</span>
-      <span className={styles.triggerEffort}>{effortLabel}</span>
+      {effortLabel && <span className={styles.triggerEffort}>{effortLabel}</span>}
     </button>
   </Popover>;
 }

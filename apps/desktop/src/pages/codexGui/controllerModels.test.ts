@@ -20,19 +20,20 @@ beforeEach(() => {
   }));
 });
 
-it("updates the menu and clears incompatible selections when switching Providers and back", async () => {
+it("resolves concrete model and effort selections when switching Providers and back", async () => {
   const controller = new GuiController();
   await controller.connect();
+  expect(controller.getSnapshot().settings).toMatchObject({ model: official.model, effort: "high" });
   controller.settings({ model: official.model, effort: "high" });
   controller.setProviderModels([thirdParty]);
   expect(controller.getSnapshot().models).toEqual([thirdParty]);
-  expect(controller.getSnapshot().settings).toMatchObject({ model: "", effort: "" });
+  expect(controller.getSnapshot().settings).toMatchObject({ model: thirdParty.model, effort: "high" });
   controller.settings({ model: thirdParty.model, effort: "max" });
   controller.setProviderModels([thirdParty]);
-  expect(controller.getSnapshot().settings).toMatchObject({ model: thirdParty.model, effort: "" });
+  expect(controller.getSnapshot().settings).toMatchObject({ model: thirdParty.model, effort: "high" });
   controller.setProviderModels(null);
   expect(controller.getSnapshot().models).toEqual([official]);
-  expect(controller.getSnapshot().settings.model).toBe("");
+  expect(controller.getSnapshot().settings).toMatchObject({ model: official.model, effort: "high" });
   controller.dispose();
 });
 
@@ -70,5 +71,19 @@ it("updates the catalog during an active turn without reconnecting or changing t
   expect(controller.getSnapshot().conversations.live.activeTurn).toBe("turn");
   expect(guiApi.connect).not.toHaveBeenCalled();
   expect(guiApi.request).not.toHaveBeenCalled();
+  controller.dispose();
+});
+
+it("sends the concrete model and effort shown after loading the catalog", async () => {
+  const controller = new GuiController();
+  await controller.connect();
+  vi.mocked(guiApi.request).mockImplementation(async (request) => request.operation === "start"
+    ? { thread: { id: "new", cwd: "", preview: "", updatedAt: 1 } }
+    : { turn: { id: "turn", status: "completed", items: [] } });
+  expect(await controller.send("hello", [])).toBe(true);
+  expect(guiApi.request).toHaveBeenCalledWith(expect.objectContaining({ operation: "start", model: official.model }));
+  expect(guiApi.request).toHaveBeenCalledWith(expect.objectContaining({
+    operation: "send", model: official.model, effort: "high",
+  }));
   controller.dispose();
 });

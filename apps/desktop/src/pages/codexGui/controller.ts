@@ -14,6 +14,7 @@ import { rememberTurnDetails } from "./turnDetailsStorage";
 import { restoreProcessing } from "./processing";
 import { trackProcessingApproval } from "./processingApprovals";
 import { initialState, savePreferences } from "./preferences";
+import { resolveModelSelection } from "./modelSelection";
 import type { ApprovalReply, GuiEvent, GuiState, ListResponse, Model, Settings, Thread, Turn } from "./types";
 import type { SkillReference } from "./types";
 
@@ -157,11 +158,8 @@ export class GuiController {
     if (!models) { this.patch({ models: [] }); return; }
     this.patch({ models });
     const { model, effort } = this.state.settings;
-    const selected = models.find((entry) => entry.model === model);
-    if (model && !selected) this.settings({ model: "", effort: "" });
-    else if (selected && effort && !selected.supportedReasoningEfforts.some((entry) => entry.reasoningEffort === effort)) {
-      this.settings({ effort: "" });
-    }
+    const selection = resolveModelSelection(models, { model, effort });
+    if (selection.model !== model || selection.effort !== effort) this.settings(selection);
   }
 
   refresh = async (more = false) => {

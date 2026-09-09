@@ -48,6 +48,7 @@ it("updates an open menu and accepts selections while usage polling waits for a 
   const finish: ((value: unknown) => void)[] = [];
   vi.mocked(invoke).mockReset().mockImplementation(() => new Promise((resolve) => finish.push(resolve)));
   await act(async () => root.render(<Fixture catalog={[models[0]]} />));
+  expect(container.querySelector("button")?.textContent).toBe("kimi-k3高");
   await act(async () => container.querySelector<HTMLButtonElement>("button")!.click());
   await act(async () => document.querySelector<HTMLButtonElement>('[aria-label="选择模型"]')!.click());
   expect(document.querySelector('[role="menu"]')?.textContent).toContain("kimi-k3");
@@ -55,13 +56,33 @@ it("updates an open menu and accepts selections while usage polling waits for a 
   const menu = document.querySelector('[role="menu"]')!;
   expect(menu.textContent).toContain("deepseek-v3");
   expect(menu.textContent).not.toContain("kimi-k3");
+  expect(menu.textContent).not.toContain("默认");
+  expect(container.querySelector("button")?.textContent).toBe("deepseek-v3高");
   await act(async () => {
     await vi.advanceTimersByTimeAsync(15_000);
-    menu.querySelectorAll<HTMLButtonElement>("button")[1].click();
+    menu.querySelector<HTMLButtonElement>("button")!.click();
   });
   expect(controller.getSnapshot().settings.model).toBe("deepseek-v3");
   expect(invoke).toHaveBeenCalledTimes(2);
   await act(async () => finish.forEach((resolve) => resolve({ totalTokens: 123, running: true })));
   expect(container.textContent).toContain("123");
   expect(controller.getSnapshot().settings.model).toBe("deepseek-v3");
+});
+
+it("shows a concrete initial selection and restores the recommended effort by name", async () => {
+  const catalog = [{ ...models[0], displayName: "Kimi K3",
+    supportedReasoningEfforts: ["low", "high", "max"].map((reasoningEffort) => ({ reasoningEffort, description: "" })) }];
+  const onChange = vi.fn();
+  const render = (effort: string) => act(async () => root.render(<ModelPicker models={catalog}
+    model="" effort={effort} disabled={false} onChange={onChange} />));
+  await render("");
+  const trigger = container.querySelector<HTMLButtonElement>("button")!;
+  expect(trigger.textContent).toBe("Kimi K3高");
+  expect(trigger.getAttribute("aria-label")).toBe("模型与推理强度：Kimi K3 高");
+  await act(async () => root.render(<ModelPicker models={catalog} model="kimi-k3"
+    effort="max" disabled={false} onChange={onChange} />));
+  expect(trigger.textContent).toBe("Kimi K3最高");
+  await act(async () => trigger.click());
+  await act(async () => document.querySelector<HTMLButtonElement>('[aria-label="恢复推荐推理强度"]')!.click());
+  expect(onChange).toHaveBeenLastCalledWith({ model: "kimi-k3", effort: "high" });
 });
