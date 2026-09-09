@@ -1,8 +1,6 @@
-import { memo, useMemo } from "react";
+import { memo } from "react";
 import type { Item } from "./types";
 import { ActivityRow } from "./ActivityRow";
-import { DiffView } from "./DiffView";
-import { changedFiles } from "./diff";
 import { RichText } from "./RichText";
 import { CopyButton } from "./CopyButton";
 import { UserMessage } from "./UserMessage";
@@ -32,12 +30,9 @@ export const MessageItem = memo(function MessageItem({ item, streaming, startedA
   item: Item; streaming: boolean; startedAt?: number | null;
   onEdit?: (text: string) => Promise<boolean>; editDisabled?: boolean;
 }) {
-  const files = useMemo(() => changedFiles(item.changes ?? []), [item.changes]);
   if (item.type === "userMessage") return <UserMessage item={item} startedAt={startedAt}
     onEdit={onEdit} editDisabled={editDisabled} />;
   if (item.type === "agentMessage") return <AgentMessage item={item} streaming={streaming} />;
-  if (item.type === "fileChange" && files.length) return <DiffView files={files} status={
-    { inProgress: "正在修改", failed: "修改失败", declined: "未应用", completed: "已修改" }[item.status ?? ""]} />;
   const text = toolText(item);
   if (item.type === "reasoning" && !text.trim()) return null;
   return <ActivityRow item={item} text={text} />;

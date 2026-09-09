@@ -77,7 +77,7 @@ it("renders tool inputs, rich outputs, search results, failures, and inline imag
 it("keeps rejected changes out of the applied file summary", async () => {
   await render([{ id: "rejected", type: "fileChange", status: "declined",
     changes: [{ path: "file.txt", kind: { type: "add" }, diff: "new" }] }]);
-  expect(container.textContent).toContain("未应用");
+  expect(container.textContent).toContain("已拒绝");
   expect(container.textContent).not.toContain("文件修改记录");
 });
 
