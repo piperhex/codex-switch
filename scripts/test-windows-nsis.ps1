@@ -8,19 +8,44 @@ $repository = Split-Path -Parent $PSScriptRoot
 $hooks = Join-Path $repository 'apps/desktop/src-tauri/windows/installer-hooks.nsh'
 $compiler = Join-Path $env:LOCALAPPDATA 'tauri/NSIS/makensis.exe'
 $installer = Join-Path $TestRoot 'fixture-setup.exe'
+$failedInstaller = Join-Path $TestRoot 'fixture-failed-setup.exe'
+$InstallRoot = Join-Path $InstallRoot 'NSIS application with spaces'
+$helper = Join-Path $InstallRoot 'csw-installer-helper.exe'
 $source = @'
 Unicode true
 !include "LogicLib.nsh"
 Name "Codex Switch Installer Test"
-OutFile "INSTALLER_PATH"
+!ifndef CSW_TEST_OUTPUT
+  !define CSW_TEST_OUTPUT "INSTALLER_PATH"
+!endif
+OutFile "${CSW_TEST_OUTPUT}"
 RequestExecutionLevel user
 SilentInstall silent
 SilentUnInstall silent
 !macro CheckIfAppIsRunning executableName productName
 !macroend
 !include "HOOK_PATH"
+!macro VerifyHelperLocation
+  ; This fixture uses no plugins, so the shutdown hook must not initialize $PLUGINSDIR.
+  ${If} $PLUGINSDIR != ""
+    Abort "The helper initialized a temporary plugin directory."
+  ${EndIf}
+  ${If} ${FileExists} "$INSTDIR\csw.exe"
+  ${AndIfNot} ${FileExists} "$INSTDIR\csw-installer-helper.exe"
+    Abort "The helper was not extracted into the installation directory."
+  ${EndIf}
+  ${IfNot} ${FileExists} "$INSTDIR\csw.exe"
+  ${AndIf} ${FileExists} "$INSTDIR\csw-installer-helper.exe"
+    Abort "A fresh installation unexpectedly prepared a helper."
+  ${EndIf}
+!macroend
 Section
   !insertmacro CheckIfAppIsRunning "csw.exe" "Codex Switch"
+  !insertmacro VerifyHelperLocation
+  !ifdef CSW_TEST_FAILURE
+    SetErrorLevel 2
+    Abort "Simulated installation failure."
+  !endif
   SetOutPath "$INSTDIR"
   File /oname=csw.exe "FIXTURE_BINARY"
   WriteUninstaller "$INSTDIR\uninstall.exe"
@@ -28,6 +53,7 @@ Section
 SectionEnd
 Section "Uninstall"
   !insertmacro CheckIfAppIsRunning "csw.exe" "Codex Switch"
+  !insertmacro VerifyHelperLocation
   Delete "$INSTDIR\csw.exe"
   !insertmacro NSIS_HOOK_POSTUNINSTALL
 SectionEnd
@@ -38,8 +64,10 @@ $sourcePath = Join-Path $TestRoot 'fixture.nsi'
 [IO.File]::WriteAllText($sourcePath, $source)
 & $compiler /V2 $sourcePath
 if ($LASTEXITCODE) { throw 'NSIS fixture compilation failed.' }
+& $compiler /V2 /DCSW_TEST_FAILURE "/DCSW_TEST_OUTPUT=$failedInstaller" $sourcePath
+if ($LASTEXITCODE) { throw 'NSIS failure fixture compilation failed.' }
 
-function Invoke-TestNsis([string]$Executable, [string]$Arguments) {
+function Invoke-TestNsis([string]$Executable, [string]$Arguments, [int]$ExpectedExitCode = 0) {
     $process = Start-Process $Executable -ArgumentList $Arguments -WindowStyle Hidden -PassThru
     try {
         if (-not $process.WaitForExit(30000)) {
@@ -47,14 +75,20 @@ function Invoke-TestNsis([string]$Executable, [string]$Arguments) {
             $process.WaitForExit()
             throw 'NSIS fixture timed out.'
         }
-        if ($process.ExitCode -ne 0) { throw "NSIS returned $($process.ExitCode)." }
+        if ($process.ExitCode -ne $ExpectedExitCode) { throw "NSIS returned $($process.ExitCode)." }
     } finally { $process.Dispose() }
+    if (Test-Path -LiteralPath $helper) { throw 'NSIS left its helper executable behind.' }
 }
 
 $children = @()
 try {
-    New-Item -ItemType Directory -Path $InstallRoot -Force | Out-Null
-    Copy-Item -LiteralPath $FixtureBinary -Destination (Join-Path $InstallRoot 'csw.exe')
+    Invoke-TestNsis $installer "/S /D=$InstallRoot"
+    if (-not (Test-Path -LiteralPath (Join-Path $InstallRoot 'csw.exe'))) {
+        throw 'NSIS did not install its application.'
+    }
+    Write-Output 'PASS NSIS installs into a new directory without preparing a helper.'
+    # An existing file must be replaced with the embedded helper before execution.
+    [IO.File]::WriteAllText($helper, 'This is not the installer helper.')
     $children += Start-Process (Join-Path $InstallRoot 'csw.exe') -ArgumentList 'fixture','stubborn' `
         -WindowStyle Hidden -PassThru
     Invoke-TestNsis $installer "/S /D=$InstallRoot"
@@ -64,8 +98,15 @@ try {
         -WindowStyle Hidden -PassThru
     Start-Sleep -Milliseconds 300
     if ($children[1].HasExited) { throw 'NSIS left the startup gate active after success.' }
+    Invoke-TestNsis $failedInstaller "/S /D=$InstallRoot" -ExpectedExitCode 2
+    if (-not $children[1].HasExited) { throw 'NSIS failure fixture did not close its application.' }
+    $children += Start-Process (Join-Path $InstallRoot 'csw.exe') -ArgumentList 'fixture','cooperative' `
+        -WindowStyle Hidden -PassThru
+    Start-Sleep -Milliseconds 300
+    if ($children[2].HasExited) { throw 'NSIS left the startup gate active after failure.' }
+    Write-Output 'PASS NSIS removes the helper and releases the startup gate after failure.'
     Invoke-TestNsis (Join-Path $InstallRoot 'uninstall.exe') "/S _?=$InstallRoot"
-    if (-not $children[1].HasExited) { throw 'NSIS uninstall left its application running.' }
+    if (-not $children[2].HasExited) { throw 'NSIS uninstall left its application running.' }
     if (Test-Path -LiteralPath (Join-Path $InstallRoot 'csw.exe')) { throw 'NSIS did not remove its application.' }
     Write-Output 'PASS NSIS releases the startup gate and closes the application on uninstall.'
 } finally {
