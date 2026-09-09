@@ -2,13 +2,14 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { invoke } from "../../api/backend";
-import type { Account, Provider } from "../../types";
+import { invoke, queryProviderBalance, subscribeToProviderBalance } from "../../api/backend";
+import type { Account, Provider, ProviderBalance } from "../../types";
 import { ProxyAccountPicker, type ProxyAccountPickerProps } from "./ProxyAccountPicker";
 import { useUsageStatus } from "./useUsageStatus";
 import detailsStyles from "./ProxyAccountDetails.module.less";
 
-vi.mock("../../api/backend", () => ({ invoke: vi.fn(), isHostedWebApp: false, canManageCodexConnection: true }));
+vi.mock("../../api/backend", () => ({ invoke: vi.fn(), queryProviderBalance: vi.fn(),
+  subscribeToProviderBalance: vi.fn(), isHostedWebApp: false, canManageCodexConnection: true }));
 const account: Account = {
   id: "official", email: "user@example.com", group: "", note: "工作账号", expiresAt: "", plan: "Plus",
   privateDetails: { password: "", phoneNumber: "", totpSecret: "" }, active: true, autoSwitchEnabled: true,
@@ -42,6 +43,8 @@ beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   vi.stubGlobal("matchMedia", vi.fn(() => ({ matches: false, addListener: vi.fn(), removeListener: vi.fn() })));
   vi.mocked(invoke).mockReset().mockResolvedValue({ running: true });
+  vi.mocked(queryProviderBalance).mockReset();
+  vi.mocked(subscribeToProviderBalance).mockReset().mockReturnValue(vi.fn());
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -225,4 +228,84 @@ it("tracks external selection updates and closes the list when leaving the page"
   const calls = vi.mocked(invoke).mock.calls.length;
   await act(async () => vi.advanceTimersByTimeAsync(10_000));
   expect(invoke).toHaveBeenCalledTimes(calls);
+});
+
+it.each([0, 25, 100])("shows the current plan and primary remaining progress at %s%%", async (remaining) => {
+  props.accounts = [{ ...account, usage: {
+    primary: { usedPercent: 100 - remaining, remainingPercent: remaining },
+    secondary: { usedPercent: 90, remainingPercent: 10 },
+  } }];
+  await render();
+  expect(trigger().textContent).toContain("Plus");
+  expect(trigger().textContent).toContain(`剩余 ${remaining}%`);
+  expect(trigger().textContent).not.toContain("官方账号");
+  expect(trigger().querySelector('[role="progressbar"]')?.getAttribute("aria-valuenow")).toBe(`${remaining}`);
+});
+
+it("does not present missing usage as zero remaining", async () => {
+  await render();
+  expect(trigger().textContent).toContain("主用量剩余 —");
+  expect(trigger().querySelector('[role="progressbar"]')).toBeNull();
+});
+
+const balance: ProviderBalance = { apiAmount: 99, apiUnit: "USD", apiUnlimited: false,
+  walletAmount: 12.34, walletUnit: "CNY", queriedAt: 1 };
+
+it.each([0, 12.34, -2, null, Number.NaN])("prefers the wallet amount %s over API quota", async (amount) => {
+  props.providers = [{ ...provider, active: true, balancePlatform: "newApi" }];
+  vi.mocked(queryProviderBalance).mockResolvedValue({ ...balance, walletAmount: amount });
+  await render();
+  expect(trigger().textContent).toContain(typeof amount === "number" && Number.isFinite(amount)
+    ? `钱包余额 ${amount.toFixed(2)} CNY` : "第三方 Provider");
+  expect(trigger().textContent).not.toContain("Plus");
+  expect(trigger().textContent).not.toContain("99");
+  expect(trigger().querySelector('[role="progressbar"]')).toBeNull();
+});
+
+it("keeps wallet polling single-flight and the list responsive, then cleans up on page exit", async () => {
+  let finish!: (value: ProviderBalance) => void;
+  const unsubscribe = vi.fn();
+  props.providers = [{ ...provider, active: true, balancePlatform: "newApi" }];
+  vi.mocked(subscribeToProviderBalance).mockReturnValue(unsubscribe);
+  vi.mocked(queryProviderBalance).mockImplementation(() => new Promise((resolve) => { finish = resolve; }));
+  await render();
+  await act(async () => vi.advanceTimersByTimeAsync(120_000));
+  expect(queryProviderBalance).toHaveBeenCalledOnce();
+  await click(trigger());
+  expect(trigger().getAttribute("aria-expanded")).toBe("true");
+  expect(option(account.email).disabled).toBe(false);
+  await act(async () => finish(balance));
+  expect(trigger().textContent).toContain("钱包余额 12.34 CNY");
+  await act(async () => vi.advanceTimersByTimeAsync(60_000));
+  expect(queryProviderBalance).toHaveBeenCalledTimes(2);
+  props.active = false;
+  await render();
+  await act(async () => finish({ ...balance, walletAmount: 55 }));
+  await act(async () => vi.advanceTimersByTimeAsync(120_000));
+  expect(queryProviderBalance).toHaveBeenCalledTimes(2);
+  expect(unsubscribe).toHaveBeenCalledOnce();
+  expect(trigger().textContent).not.toContain("55");
+});
+
+it("ignores a previous provider's late wallet response and falls back after query failure", async () => {
+  let finish!: (value: ProviderBalance) => void;
+  props.providers = [{ ...provider, active: true, balancePlatform: "newApi" }];
+  vi.mocked(queryProviderBalance).mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }))
+    .mockRejectedValueOnce(new Error("private-query-error"));
+  await render();
+  props.providers = [{ ...provider, id: "other", name: "另一个 Provider", active: true, balancePlatform: "newApi" }];
+  await render();
+  await act(async () => finish(balance));
+  expect(trigger().textContent).toContain("另一个 Provider第三方 Provider");
+  expect(trigger().textContent).not.toContain("12.34");
+  expect(trigger().textContent).not.toContain("private-query-error");
+});
+
+it("does not use an unrelated provider wallet for an aggregate API", async () => {
+  props.providers = [{ ...provider, active: true, balancePlatform: "newApi" }];
+  props.aggregateApis = [{ id: "aggregate", name: "聚合 API", model: "model", enabled: true, active: true,
+    memberProviderIds: [provider.id], memberConversationCounts: {} }];
+  await render();
+  expect(trigger().textContent).toContain("聚合 API第三方 Provider");
+  expect(queryProviderBalance).not.toHaveBeenCalled();
 });

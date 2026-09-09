@@ -4,6 +4,7 @@ import { Check, ChevronsUpDown, Search, Server, UserRound } from "lucide-react";
 import type { Account, AggregateApi, Provider } from "../../types";
 import { maskAccountEmail } from "../../utils/accountPrivacy";
 import { ProxyAccountDetails } from "./ProxyAccountDetails";
+import { ProxyAccountSummary } from "./ProxyAccountSummary";
 import styles from "./ProxyAccountPicker.module.less";
 
 export interface ProxyAccountPickerProps {
@@ -56,8 +57,6 @@ export function ProxyAccountPicker(props: ProxyAccountPickerProps) {
   const thirdParty = Boolean(provider || aggregate);
   const email = account?.email && (props.privacyMode ? maskAccountEmail(account.email) : account.email);
   const name = aggregate?.name || provider?.name || email || "选择代理账户";
-  const category = thirdParty ? "第三方 Provider" : "官方账号";
-  const subtitle = props.proxyRunning ? category : "代理未启动";
   const disabled = props.busy || props.loading || saving || !props.proxyRunning;
   const matches = (choice: Choice) => `${choice.name} ${choice.detail}`.toLowerCase().includes(query.trim().toLowerCase());
   // `official` describes account-pool provenance, not whether the account can use the official API.
@@ -107,7 +106,8 @@ export function ProxyAccountPicker(props: ProxyAccountPickerProps) {
     <button ref={trigger} type="button" className={styles.trigger} aria-expanded={open && props.active}
       aria-label={`切换代理账户：${name}`}>
       {saving ? <Spin size="small" /> : thirdParty ? <Server size={17} /> : <UserRound size={17} />}
-      <span className={styles.current}><span>{name}</span><small>{subtitle}</small></span>
+      <ProxyAccountSummary name={name} account={account} provider={aggregate ? undefined : provider}
+        thirdParty={thirdParty} running={props.proxyRunning} active={props.active} />
       <ChevronsUpDown size={14} />
     </button>
   </Popover>;

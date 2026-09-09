@@ -6,11 +6,6 @@
   &:hover { background: var(--green-selection-hover); }
   &:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; border-radius: 6px; }
 }
-.current {
-  display: flex; flex: 1; flex-direction: column; gap: 3px; min-width: 0; font-size: 12px;
-  > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  small { color: var(--muted); font-size: 10px; }
-}
 // Reduce the previous 320px content plus 24px popover padding by 20%.
 @panel-width: (344px * 0.8);
 .panel {
