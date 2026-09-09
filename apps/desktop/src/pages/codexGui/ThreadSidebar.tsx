@@ -6,10 +6,11 @@ import type { GuiState, Thread } from "./types";
 import { ThreadGroup } from "./ThreadGroup";
 import { ThreadSearch } from "./ThreadSearch";
 import { useThreadGroupViews } from "./useThreadGroupViews";
+import { projectName } from "./projectCatalog";
 import styles from "./styles.module.less";
 
 export function threadTitle(thread: Thread) { return thread.name || thread.preview || "新对话"; }
-export function projectName(path: string) { return path.split(/[\\/]/).filter(Boolean).pop() || "无项目"; }
+export { projectName } from "./projectCatalog";
 
 export function ThreadSidebar({ state, controller, accountPicker }: {
   state: GuiState; controller: GuiController; accountPicker: ReactNode;
@@ -37,7 +38,7 @@ export function ThreadSidebar({ state, controller, accountPicker }: {
         id: `project:${path}`, label: projectName(path), pinned: false, threads,
       })),
     ];
-  }, [state.threads, state.pins]);
+  }, [state.threads, state.pins, state.projects]);
   const renderThread = (thread: Thread) => {
     const running = Boolean(state.conversations[thread.id]?.activeTurn) || thread.status?.type === "active";
     const busy = state.sending || Boolean(state.deleting);

@@ -2,11 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { Input, Popover, Spin } from "antd";
 import { Check, ChevronsUpDown, Search, Server, UserRound } from "lucide-react";
 import type { Account, AggregateApi, Provider } from "../../types";
+import { maskAccountEmail } from "../../utils/accountPrivacy";
 import { ProxyAccountDetails } from "./ProxyAccountDetails";
 import styles from "./ProxyAccountPicker.module.less";
 
 export interface ProxyAccountPickerProps {
   active: boolean;
+  privacyMode: boolean;
   accounts: Account[];
   providers: Provider[];
   aggregateApis: AggregateApi[];
@@ -52,7 +54,8 @@ export function ProxyAccountPicker(props: ProxyAccountPickerProps) {
   const aggregate = props.aggregateApis.find((entry) => entry.active);
   const account = props.accounts.find((entry) => entry.active);
   const thirdParty = Boolean(provider || aggregate);
-  const name = aggregate?.name || provider?.name || account?.email || "选择代理账户";
+  const email = account?.email && (props.privacyMode ? maskAccountEmail(account.email) : account.email);
+  const name = aggregate?.name || provider?.name || email || "选择代理账户";
   const category = thirdParty ? "第三方 Provider" : "官方账号";
   const subtitle = props.proxyRunning ? category : "代理未启动";
   const disabled = props.busy || props.loading || saving || !props.proxyRunning;
