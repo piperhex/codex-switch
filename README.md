@@ -2,7 +2,10 @@
 
 > For English documentation, please see [README_EN.md](README_EN.md).
 
-Codex Switch 是一款面向 Codex / ChatGPT 用户的多账号管理工作台，以 Tauri 2 桌面应用为完整管理入口，并支持在本机启动网页版。它集账号登录、用量查看、快捷切换、第三方 Provider、本地热切换代理、Token 分析、Skills 市场和一键换肤于一体，同时支持连接自建后端与移动端，实现跨设备协同管理。
+Codex Switch 是一款面向 Codex / ChatGPT 用户的桌面工作台，集 Codex GUI 编程助手与多账号管理于一体。
+你可以直接在应用中与 Codex 对话，理解代码、实现功能、排查问题，并随时查看执行进度和文件改动。
+它还提供账号登录与切换、用量查看、第三方 Provider、本地热切换代理、Token 分析、Skills 市场和一键换肤，
+支持在本机启动网页版，也可连接自建后端与移动端，实现跨设备协同管理。
 
 [![许可证](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE) [![发布版本](https://img.shields.io/github/v/release/piperhex/codex-switch)](https://github.com/piperhex/codex-switch/releases)
 
@@ -11,6 +14,22 @@ QQ 技术交流群1：`1051213898`（已满）。
 QQ 技术交流群2：`972062132`。
 
 ## 产品截图
+
+### Codex GUI 编程助手
+
+Codex GUI 是内置的图形化对话工作区。选择项目后，用自然语言描述任务即可开始，也可以不选项目直接提问。
+从提出需求到查看结果，项目、对话和改动都集中在同一个界面中。
+
+![Codex GUI 项目与对话工作区](docs/assets/codex-switch-codex-gui.png)
+
+- **围绕项目开展任务**：选择本地文件夹，查看或切换 Git 分支，并按项目整理对话。
+- **灵活提供上下文**：输入文字、粘贴图片、引用文件或文件夹，输入 `/` 选择命令或技能。
+- **按需选择模型**：调整模型、思考强度和访问权限，适应不同任务。
+- **随时掌握进展**：实时查看回复、计划、命令输出和文件差异，处理权限确认，也可中断任务。
+- **接着上次继续**：搜索、重命名、置顶或归档对话，重新打开后继续交流。
+- **桌面与浏览器均可使用**：通过 Codex Switch 提供的网页版访问同一工作区，任务在运行 Switch 的电脑上执行。
+
+首次使用可按页面提示下载 Codex。更多操作请参阅 [Codex GUI 使用说明](docs/codex-gui.md)。
 
 ### 账号管理与本地代理
 

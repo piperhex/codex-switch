@@ -2,11 +2,31 @@
 
 > Chinese is the default documentation language. For the Chinese README, see [README.md](README.md).
 
-Codex Switch is a local-first multi-account workspace for Codex / ChatGPT. Its Tauri 2 desktop app is the full management surface and can also serve a local browser UI. Alongside sign-in, usage monitoring, and account switching, it includes third-party Providers, a hot-switching proxy, token analytics, a Skills Market, one-click themes, and optional self-hosted backend/mobile coordination.
+Codex Switch is a desktop workspace for Codex / ChatGPT that brings together Codex GUI and multi-account management.
+Chat with Codex to understand code, build features, and troubleshoot problems while following progress and file changes.
+It also includes account sign-in and switching, usage monitoring, third-party Providers, a hot-switching local proxy,
+token analytics, a Skills Market, and one-click themes. Use its hosted browser UI or connect a self-hosted backend
+and mobile companion to manage accounts across devices.
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE) [![Release](https://img.shields.io/github/v/release/piperhex/codex-switch)](https://github.com/piperhex/codex-switch/releases)
 
 ## Screenshots
+
+### Codex GUI coding assistant
+
+Codex GUI is the built-in chat workspace. Select a project and describe your task in plain language,
+or ask a question without selecting a project. Keep projects, conversations, and changes together in one interface.
+
+![Codex GUI project and conversation workspace](docs/assets/codex-switch-codex-gui.png)
+
+- **Work with projects**: select a local folder, view or switch Git branches, and organize conversations by project.
+- **Add context**: type a message, paste images, reference files or folders, or type `/` to choose a command or skill.
+- **Choose how to work**: adjust the model, reasoning effort, and access permissions for each task.
+- **Follow progress**: see replies, plans, command output, and file diffs as they arrive; answer approvals or stop a task.
+- **Pick up where you left off**: search, rename, pin, or archive conversations, then reopen them to continue.
+- **Use desktop or browser**: access the same workspace through Switch's hosted web UI; tasks run on the Switch host.
+
+On first use, follow the page's prompt to download Codex. See the [Codex GUI guide](docs/codex-gui.md) for more details.
 
 ### Account management and local proxy
 
