@@ -28,6 +28,7 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
 type Pending = HashMap<u64, oneshot::Sender<Result<Value>>>;
 
 pub(super) struct Client {
+    pub(super) home: PathBuf,
     pub(super) projectless_root: PathBuf,
     writer: Mutex<ChildStdin>,
     process: Mutex<Child>,
@@ -70,6 +71,7 @@ impl Client {
         let writer = process.stdin.take().ok_or(GuiError::Startup)?;
         let stdout = process.stdout.take().ok_or(GuiError::Startup)?;
         let client = Arc::new(Self {
+            home,
             projectless_root,
             writer: Mutex::new(writer),
             process: Mutex::new(process),
@@ -198,9 +200,7 @@ impl Client {
                 let result = if value.get("error").is_some() {
                     Err(GuiError::Rpc)
                 } else {
-                    let mut result = value["result"].clone();
-                    workspaces::hide_project_paths(&mut result, &self.projectless_root);
-                    Ok(result)
+                    Ok(value["result"].clone())
                 };
                 // A timed-out caller can drop its receiver before the response arrives.
                 let _ = sender.send(result);

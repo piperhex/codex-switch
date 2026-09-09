@@ -2,7 +2,8 @@ import { memo, useMemo } from "react";
 import Markdown, { defaultUrlTransform, type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { CodeBlock } from "./CodeBlock";
-import { MessageImage, isInlineImage } from "./MessageImage";
+import { MessageImage } from "./MessageImage";
+import { isInlineImage, localImageSource } from "./imageSources";
 import { MessageLink, isFileReference } from "./MessageLink";
 import styles from "./styles.module.less";
 import { CodeReviewComment } from "./CodeReviewComment";
@@ -21,7 +22,7 @@ export const RichText = memo(function RichText({ text }: { text: string }) {
     {sections.map((section, index) => section.type === "review"
       ? <CodeReviewComment key={index} comment={section.comment} />
       : <Markdown key={index} remarkPlugins={PLUGINS} skipHtml components={COMPONENTS} urlTransform={(url, key) => {
-      if (key === "src" && isInlineImage(url)) return url;
+      if (key === "src" && (isInlineImage(url) || localImageSource(url))) return url;
       if (key === "href" && isFileReference(url)) return url;
       return defaultUrlTransform(url);
     }}>{section.text}</Markdown>)}

@@ -5,17 +5,12 @@ import { MessageLink } from "./MessageLink";
 import { CopyButton } from "./CopyButton";
 import { formatTurnDuration } from "./turnTiming";
 import styles from "./ActivityRow.module.less";
+import { generatedImageSource } from "./imageSources";
 
 function record(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
 }
 function serialized(value: unknown) { return typeof value === "string" ? value : JSON.stringify(value, null, 2); }
-
-function generatedImage(item: Item) {
-  if (item.imageUrl) return item.imageUrl;
-  if (typeof item.result !== "string" || !item.result) return undefined;
-  return /^(https?:|data:)/i.test(item.result) ? item.result : `data:image/png;base64,${item.result}`;
-}
 
 function OutputPart({ value }: { value: unknown }) {
   const part = record(value);
@@ -85,7 +80,7 @@ export function ToolDetails({ item, text }: { item: Item; text: string }) {
       {result.snippet && <p>{result.snippet}</p>}</div>)}
   </>;
   if (item.type === "imageView" || item.type === "imageGeneration") return <>
-    <MessageImage src={generatedImage(item)} alt={item.path || "生成的图片"} />
+    {item.type === "imageView" && <MessageImage src={generatedImageSource(item)} alt="查看的图片" />}
     {(item.path || item.savedPath) && <MessageLink href={item.path || item.savedPath}>
       {item.path || item.savedPath}</MessageLink>}
     {item.failure?.message && <p className={styles.failure}>{item.failure.message}</p>}

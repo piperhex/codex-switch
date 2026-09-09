@@ -18,6 +18,10 @@ const PAGE_SIZE: u32 = 50;
     rename_all_fields = "camelCase"
 )]
 pub(crate) enum GuiRequest {
+    ImagePreview {
+        thread_id: String,
+        source: String,
+    },
     Models {
         cursor: Option<String>,
     },
@@ -174,6 +178,8 @@ impl GuiRequest {
     // Only this closed set of methods is exposed to the WebView.
     pub(super) fn into_rpc(self) -> Result<(&'static str, Value)> {
         match self {
+            // Image previews are served locally, never forwarded as an app-server operation.
+            Self::ImagePreview { .. } => Err(GuiError::InvalidRequest),
             Self::Plugins { cwd } => {
                 if let Some(cwd) = &cwd {
                     directory(cwd)?;

@@ -7,6 +7,7 @@ mod goals;
 mod home;
 mod icons;
 mod identity;
+mod image_preview;
 mod images;
 mod platform;
 pub(crate) mod plugin_client;
@@ -88,7 +89,11 @@ pub(crate) async fn codex_gui_request(
 ) -> std::result::Result<GuiResponse, String> {
     async {
         let client = connected(&state).await?;
+        if let GuiRequest::ImagePreview { thread_id, source } = request {
+            return image_preview::preview(&client, thread_id, source).await;
+        }
         let projectless_root = client.projectless_root.clone();
+        let response_root = projectless_root.clone();
         let (method, params) = tauri::async_runtime::spawn_blocking(move || {
             let mut request = request;
             workspaces::prepare_request(&mut request, &projectless_root)?;
@@ -96,9 +101,9 @@ pub(crate) async fn codex_gui_request(
         })
         .await
         .map_err(|_| GuiError::InvalidRequest)??;
-        Ok(GuiResponse {
-            data: icons::resolve(method, client.request(method, params).await?).await?,
-        })
+        let mut data = icons::resolve(method, client.request(method, params).await?).await?;
+        workspaces::hide_project_paths(&mut data, &response_root);
+        Ok(GuiResponse { data })
     }
     .await
     .map_err(|error: GuiError| error.to_string())

@@ -1,35 +1,31 @@
 import { useState } from "react";
 import { Modal } from "antd";
 import styles from "./MessageImage.module.less";
+import { useImageSource } from "./useImageSource";
 
 interface MessageImageProps { src?: string; alt?: string; title?: string }
 
-export function isInlineImage(src: string) {
-  return /^data:image\/(png|jpeg|webp|gif);base64,[a-z0-9+/=]+$/i.test(src);
-}
-
 export function MessageImage({ src, alt, title }: MessageImageProps) {
-  const [failed, setFailed] = useState(false);
+  const [failedSource, setFailedSource] = useState<string>();
   const [preview, setPreview] = useState(false);
+  const image = useImageSource(src);
   const description = alt?.trim() || "图片";
-  // Only load explicit web images; relative paths must not invoke local application endpoints.
-  if (!src || (!/^https?:\/\//i.test(src) && !isInlineImage(src))) {
-    return <span className={styles.unavailable}>{description}（暂不支持预览）</span>;
-  }
-  if (failed) return <span className={styles.unavailable} role="status">
+  if (image.loading) return <span className={styles.unavailable} role="status">正在加载{description}…</span>;
+  if (image.failed || (image.url && failedSource === image.url)) return <span className={styles.unavailable} role="status">
     <span>{description}：图片加载失败</span>
-    <button type="button" onClick={() => setFailed(false)}>重试</button>
+    <button type="button" onClick={() => { setFailedSource(undefined); image.retry(); }}>重试</button>
   </span>;
+  if (!image.url) return <span className={styles.unavailable}>{description}（暂不支持预览）</span>;
 
   return <>
     <button type="button" className={styles.thumbnail} aria-label={`放大查看：${description}`}
       title={title} onClick={() => setPreview(true)}>
-      <img src={src} alt={description} loading="lazy" decoding="async" referrerPolicy="no-referrer"
-        onError={() => setFailed(true)} />
+      <img src={image.url} alt={description} loading="lazy" decoding="async" referrerPolicy="no-referrer"
+        onError={() => setFailedSource(image.url)} />
     </button>
     <Modal open={preview} title={description} footer={null} centered width="min(960px, 94vw)"
       onCancel={() => setPreview(false)} destroyOnClose>
-      {preview && <img className={styles.preview} src={src} alt={description} referrerPolicy="no-referrer" />}
+      {preview && <img className={styles.preview} src={image.url} alt={description} referrerPolicy="no-referrer" />}
     </Modal>
   </>;
 }

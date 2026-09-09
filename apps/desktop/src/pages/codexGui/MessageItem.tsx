@@ -19,6 +19,8 @@ function AgentMessage({ item, streaming }: { item: Item; streaming: boolean }) {
 }
 
 function toolText(item: Item) {
+  // Image payloads can be several megabytes; activity text only needs the description.
+  if (item.type === "imageGeneration" || item.type === "imageView") return item.revisedPrompt ?? item.path ?? "";
   if (item.type === "reasoning") {
     return [...(item.summary ?? []), ...(item.content ?? []).filter((part): part is string => typeof part === "string")]
       .join("\n\n");

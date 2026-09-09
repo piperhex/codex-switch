@@ -1,5 +1,7 @@
 #[derive(Debug, thiserror::Error)]
 pub(super) enum GuiError {
+    #[error("图片暂时无法显示，请确认文件仍在当前任务目录中。")]
+    ImagePreview,
     #[error("对话仍在回复中，请等待结束后再删除。")]
     Busy,
     #[error("未能删除对话。请稍后重试；如有相关子对话，请在会话管理中一并选择后删除。")]

@@ -7,6 +7,7 @@ import { DiffView } from "./DiffView";
 import { changedFiles, parseDiff } from "./diff";
 import { visibleContinuationItems } from "./continuation";
 import styles from "./styles.module.less";
+import { GeneratedImages } from "./GeneratedImages";
 
 interface Group { type: "work" | "message"; items: Item[] }
 
@@ -44,6 +45,7 @@ export const TurnMessage = memo(function TurnMessage({ turn, running, active, fo
         streaming={running && group.items[0].status !== "completed"} />}
     </Fragment>)}
     {responseIndex === -1 && <TurnDuration turn={turn} running={running} active={active} />}
+    <GeneratedImages items={turn.items} />
     <TurnPlan turn={turn} />
     <DiffView files={files} title={turn.diff ? "本轮修改" : "文件修改记录"} />
     {turn.status === "interrupted" && <p className={styles.muted}>已停止生成</p>}

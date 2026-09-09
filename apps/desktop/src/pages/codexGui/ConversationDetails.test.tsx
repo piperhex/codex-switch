@@ -80,3 +80,35 @@ it("keeps rejected changes out of the applied file summary", async () => {
   expect(container.textContent).toContain("未应用");
   expect(container.textContent).not.toContain("文件修改记录");
 });
+
+it("shows completed imagegen results below the final reply outside collapsed activity", async () => {
+  const generated: Item = { id: "generated", type: "imageGeneration", status: "inProgress" };
+  const final: Item = { id: "final", type: "agentMessage", phase: "final_answer", text: "已生成卡通小鸟。" };
+  await render([generated], { status: "inProgress" });
+  expect(container.querySelector('[aria-label="生成的图片"]')).toBeNull();
+  const completed = { ...generated, status: "completed", result: "iVBORw0KGgo=",
+    savedPath: "C:/generated_images/task/bird.png" };
+  await render([completed, final]);
+  const gallery = container.querySelector('[aria-label="生成的图片"]')!;
+  expect(gallery.querySelector("img")?.getAttribute("src")).toBe(image);
+  expect(gallery.closest("details")).toBeNull();
+  expect(container.querySelectorAll("img")).toHaveLength(1);
+  expect(container.querySelector("article")!.compareDocumentPosition(gallery)
+    & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  // A fresh render of persisted turn items must restore the same visible result.
+  await render([]);
+  await render([completed, final]);
+  expect(container.querySelector('[aria-label="生成的图片"] img')).not.toBeNull();
+});
+
+it("keeps multiple generated images visible but excludes failed generations and viewed inputs", async () => {
+  await render([
+    { id: "one", type: "imageGeneration", status: "completed", result: "iVBORw0KGgo=" },
+    { id: "duplicate", type: "imageGeneration", status: "completed", result: "iVBORw0KGgo=" },
+    { id: "two", type: "imageGeneration", status: "completed", imageUrl: "https://example.com/two.png" },
+    { id: "failed", type: "imageGeneration", status: "failed", failure: { message: "生成失败" } },
+    { id: "view", type: "imageView", imageUrl: "https://example.com/reference.png" },
+  ]);
+  expect(container.querySelectorAll('[aria-label="生成的图片"] img')).toHaveLength(2);
+  expect(container.textContent).toContain("生成失败");
+});
