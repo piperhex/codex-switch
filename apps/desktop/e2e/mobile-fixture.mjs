@@ -13,14 +13,31 @@ const devices = [{ deviceId: 'computer', name: '我的工作电脑', platform: '
   localProxyRunning: false, capabilities: [], lastSeenAt: new Date().toISOString() }];
 let page;
 const httpServer = http.createServer((request, response) => {
+  if (request.url?.startsWith('/test/') && !page) {
+    response.writeHead(503).end('{}');
+    return;
+  }
   if (request.url === '/test/state') {
-    void page.evaluate(() => window.chatTest.demoState()).then((state) => {
+    void page.evaluate(() => window.chatTest ? ({ ...window.chatTest.demoState(), modes: window.chatTest.modes,
+      errors: window.chatTest.errors }) : null).then((state) => {
+      if (!state) { response.writeHead(503).end('{}'); return; }
       response.setHeader('Content-Type', 'application/json');
       response.end(JSON.stringify({ ...state, connectedMobiles: mobileClients.size, mobileConnections, relayFrames }));
     }).catch((error) => {
       console.error('Could not read local fixture state:', error);
       response.writeHead(503).end('{}');
     });
+    return;
+  }
+  if (request.url === '/test/reset' && request.method === 'POST') {
+    for (const client of mobileClients) client.terminate();
+    relayFrames = 0;
+    void page.reload().then(() => response.end('{}')).catch(() => response.writeHead(503).end('{}'));
+    return;
+  }
+  if (request.url === '/test/fallback' && request.method === 'POST') {
+    void page.evaluate(() => window.chatTest.fallback()).then(() => response.end('{}'))
+      .catch(() => response.writeHead(503).end('{}'));
     return;
   }
   if (request.url === '/test/disconnect' && request.method === 'POST') {
@@ -30,9 +47,11 @@ const httpServer = http.createServer((request, response) => {
   }
   const routes = {
     '/auth/login': { accessToken: 'local-test-token', refreshToken: 'local-test-refresh', user: profile },
+    '/auth/refresh': { accessToken: 'renewed-test-token', refreshToken: 'renewed-test-refresh', user: profile },
     '/auth/me': profile,
     '/devices': { devices }, '/devices/providers': { providers: [] },
     '/sync/accounts/summary': { accounts: [] },
+    '/sync/accounts/web-summary': { accounts: [] },
   };
   response.setHeader('Content-Type', 'application/json');
   response.end(JSON.stringify(routes[request.url] ?? {}));
@@ -61,7 +80,9 @@ wss.on('connection', (socket, request) => {
         expiresAt: Date.now() + 3600_000 }, frame, []);
     } else {
       if (frame.type === 'relay') relayFrames += 1;
-      session.route(socket, frame);
+      // Like the real gateway, reject frames from a closed session without crashing the fixture server.
+      try { session.route(socket, frame); }
+      catch { socket.close(4001, 'Chat connection rejected'); }
     }
   });
   socket.on('close', () => { mobileClients.delete(socket); session.disconnect(socket); });

@@ -14,6 +14,15 @@ const thread: Thread = { id: 'chat', preview: '', cwd: '/project', updatedAt: 1,
 beforeEach(() => { mocks.request.mockReset(); });
 
 describe('mobile chat actions', () => {
+  it('creates an active chat when starting from archived search results', async () => {
+    mocks.request.mockResolvedValueOnce({ data: [], nextCursor: null }).mockResolvedValue({ thread });
+    const controller = new ChatController(session, 'computer');
+    await controller.list({ archived: true, search: 'old chat' });
+    expect(controller.snapshot().archived).toBe(true);
+    expect(await controller.send({ text: 'new task', access: 'workspace-write' })).toBe(true);
+    expect(controller.snapshot()).toMatchObject({ archived: false, search: '', selected: thread });
+  });
+
   it('resumes the existing PC thread and does not silently replace its model', async () => {
     mocks.request.mockResolvedValue({ thread });
     const controller = new ChatController(session, 'computer');

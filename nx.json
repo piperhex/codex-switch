@@ -3,18 +3,21 @@
   "targetDefaults": {
     "build": {
       "cache": true,
+      "inputs": ["default", "^default", "{workspaceRoot}/shared/**/*"],
       "dependsOn": [
         "^build"
       ]
     },
     "check": {
       "cache": true,
+      "inputs": ["default", "^default", "{workspaceRoot}/shared/**/*"],
       "dependsOn": [
         "^check"
       ]
     },
     "test": {
-      "cache": true
+      "cache": true,
+      "inputs": ["default", "^default", "{workspaceRoot}/shared/**/*"]
     },
     "test:typecheck": {
       "cache": true

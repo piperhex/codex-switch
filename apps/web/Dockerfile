@@ -10,6 +10,7 @@ ARG VITE_API_BASE_URL=
 ENV VITE_WEB_BASE_PATH=${VITE_WEB_BASE_PATH}
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 COPY apps/web ./apps/web
+COPY shared ./shared
 RUN npm run build -w @codex-switch/web
 
 FROM nginx:1.27-alpine AS runtime

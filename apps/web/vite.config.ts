@@ -7,6 +7,7 @@ const currentDir = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, currentDir, "");
+  const apiTarget = env.VITE_DEV_API_URL || "http://127.0.0.1:8080";
   return {
     plugins: [react()],
     clearScreen: false,
@@ -16,11 +17,12 @@ export default defineConfig(({ mode }) => {
       port: 1422,
       host: "127.0.0.1",
       proxy: {
-        "/auth": { target: "http://127.0.0.1:8080", ws: true },
-        "/sync": "http://127.0.0.1:8080",
-        "/devices": "http://127.0.0.1:8080",
-        "/admin/api": "http://127.0.0.1:8080",
-        "/device-switch": { target: "ws://127.0.0.1:8080", ws: true },
+        "/auth": { target: apiTarget, ws: true },
+        "/sync": apiTarget,
+        "/devices": apiTarget,
+        "/admin/api": apiTarget,
+        "/device-chat": { target: apiTarget, ws: true },
+        "/device-switch": { target: apiTarget, ws: true },
       },
     },
     build: {

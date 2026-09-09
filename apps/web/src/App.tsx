@@ -28,6 +28,7 @@ import {
   LogOut,
   Menu,
   MonitorCog,
+  MessageSquare,
   MoreHorizontal,
   RefreshCw,
   Server,
@@ -70,6 +71,8 @@ import { AccountDetailsSheet } from "./components/AccountDetailsSheet";
 import { AddAccountSheet } from "./components/AddAccountSheet";
 import { RemoteModelSwitchSheet } from "./components/RemoteModelSwitchSheet";
 import { TotpPage } from "./components/TotpPage";
+
+import { ChatPage } from "./chat/ChatPage";
 
 const REFRESH_INTERVAL_KEY = "codex-switch.web.refresh-minutes.v1";
 const PULL_REFRESH_TEXT = {
@@ -651,6 +654,7 @@ function SettingsPage() {
 }
 
 const navItems: Array<{ key: AppPage; label: string; icon: typeof LayoutDashboard }> = [
+  { key: "chat", label: "聊天", icon: MessageSquare },
   { key: "accounts", label: "账号", icon: LayoutDashboard },
   { key: "devices", label: "设备", icon: Laptop },
   { key: "totp", label: "2FA", icon: ShieldCheck },
@@ -734,7 +738,12 @@ function AppShell() {
     { key: "logout", label: "退出登录", danger: true, icon: <LogOut size={16} />, onClick: () => void dispatch(signOut()) },
   ];
 
-  return <div className="app-shell">
+  const pageDescriptions: Record<AppPage, string> = {
+    chat: "把电脑上的对话带在身边。", accounts: "欢迎回来，今天也保持从容。",
+    devices: "查看并控制你的桌面设备。", totp: "管理并同步你的 2FA 验证码。", settings: "管理偏好与账户安全。",
+  };
+  const otherPages = { accounts: <AccountsPage />, devices: <DevicesPage />, totp: <TotpPage />, settings: <SettingsPage /> };
+  return <div className={page === "chat" ? "app-shell chat-active" : "app-shell"}>
     <aside className="desktop-sidebar">
       <div className="brand-lockup"><span className="brand-mark"><Zap size={21} fill="currentColor" /></span><b>Codex Switch</b></div>
       <nav>{navItems.map((item) => <button key={item.key} type="button" className={page === item.key ? "active" : ""} onClick={() => dispatch(pageChanged(item.key))}><item.icon size={19} /><span>{item.label}</span>{item.key === "devices" && onlineCount ? <b>{onlineCount}</b> : null}</button>)}</nav>
@@ -742,9 +751,13 @@ function AppShell() {
       <Dropdown menu={{ items: userMenu }} trigger={["click"]}><button type="button" className="sidebar-profile"><span>{(profile?.email || session?.email || "U").slice(0, 2).toUpperCase()}</span><div><strong>{profile?.email || session?.email}</strong><small>{profile?.roleName || (profile?.role === "admin" ? "管理员" : "用户")}</small></div><Menu size={17} /></button></Dropdown>
     </aside>
     <div className="content-shell">
-      <header className="desktop-topbar"><div><span>{navItems.find((item) => item.key === page)?.label}</span><strong>{page === "accounts" ? "欢迎回来，今天也保持从容。" : page === "devices" ? "查看并控制你的桌面设备。" : page === "totp" ? "管理并同步你的 2FA 验证码。" : "管理偏好与账户安全。"}</strong></div>
+      <header className="desktop-topbar"><div><span>{navItems.find((item) => item.key === page)?.label}</span><strong>{pageDescriptions[page]}</strong></div>
         <div><Tooltip title="刷新全部数据"><button className="icon-button" type="button" onClick={() => void dispatch(refreshAll())}><RefreshCw size={18} className={refreshing ? "spin" : ""} /></button></Tooltip><span className="topbar-date">{new Intl.DateTimeFormat("zh-CN", { month: "long", day: "numeric", weekday: "short" }).format(new Date())}</span></div></header>
-      <main className="main-content">{page === "accounts" ? <AccountsPage /> : page === "devices" ? <DevicesPage /> : page === "totp" ? <TotpPage /> : <SettingsPage />}</main>
+      <main className="main-content">
+        {session && <ChatPage key={session.baseUrl + session.email} session={session} devices={devices}
+          active={page === "chat"} />}
+        {page !== "chat" && otherPages[page]}
+      </main>
     </div>
     <div className="mobile-tabbar"><TabBar activeKey={page} onChange={(key) => dispatch(pageChanged(key as AppPage))}>{navItems.map((item) => <TabBar.Item key={item.key} title={item.label} icon={<item.icon size={21} />} badge={item.key === "devices" && onlineCount ? onlineCount : undefined} />)}</TabBar><SafeArea position="bottom" /></div>
   </div>;

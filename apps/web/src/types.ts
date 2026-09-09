@@ -98,7 +98,7 @@ export interface ResetCreditsSummary {
   credits: ResetCredit[];
 }
 
-export type AppPage = "accounts" | "devices" | "totp" | "settings";
+export type AppPage = "chat" | "accounts" | "devices" | "totp" | "settings";
 export type TotpAlgorithm = "SHA1" | "SHA256" | "SHA512";
 
 export interface TotpEntry {

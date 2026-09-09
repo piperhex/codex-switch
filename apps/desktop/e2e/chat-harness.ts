@@ -9,7 +9,7 @@ const query = new URLSearchParams(location.search);
 const desktop = query.get('role') === 'desktop';
 const blocked = query.get('blocked') === 'true';
 const keys = keyPair((size) => crypto.getRandomValues(new Uint8Array(size)));
-const socket = new WebSocket(query.get('socket')!);
+let socket: WebSocket;
 let link: ChatLink;
 const events: unknown[] = [];
 const modes: string[] = [];
@@ -19,9 +19,20 @@ let heartbeats = 0;
 setInterval(() => { heartbeats += 1; }, 20);
 const requests = new Map<string, RpcMessage>();
 const rpc = new ChatRpc({ prefix: 'browser', send: (request) => link.send(request), event: (event) => events.push(event) });
-socket.onopen = () => socket.send(JSON.stringify({ type: 'authenticate', role: desktop ? 'desktop' : 'mobile',
+function connectSocket() {
+  socket = new WebSocket(query.get('socket')!);
+  socket.onopen = () => socket.send(JSON.stringify({ type: 'authenticate', role: desktop ? 'desktop' : 'mobile',
   deviceId: 'computer', publicKey: keys.publicKey }));
-socket.onmessage = async ({ data }) => {
+  socket.onmessage = receive;
+  socket.onclose = () => {
+    link?.close();
+    // The PC stays running when a phone leaves; preserve demo history across coordinator reconnections.
+    if (desktop && query.has('demo')) setTimeout(connectSocket, 200);
+  };
+}
+connectSocket();
+
+async function receive({ data }: MessageEvent<string>) {
   const frame = parseMessage(data);
   if (frame.type === 'registered') { document.querySelector('#status')!.textContent = 'registered'; return; }
   if (frame.type === 'paired' || frame.type === 'peer-open') {
@@ -53,7 +64,7 @@ socket.onmessage = async ({ data }) => {
   if (frame.type === 'relay-ready') link.enableRelay();
   if (frame.type === 'relay') link.receive(String(frame.payload));
   if (frame.type === 'peer-close') link.close();
-};
+}
 
 declare global {
   interface Window {
