@@ -15,6 +15,8 @@ export function DetailsWorkspace({ selected, active, children }: {
   const opener = useRef<HTMLElement | null>(null);
   const panelId = useId();
   const [entry, setEntry] = useState<DiffPanelEntry | null>(null);
+  // Explicit opens reset collapsed files and scroll; live updates preserve the current view.
+  const [viewId, setViewId] = useState(0);
   const [minimized, setMinimized] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const resize = useDrawerResize(host);
@@ -23,14 +25,15 @@ export function DetailsWorkspace({ selected, active, children }: {
   const width = expanded ? resize.available : resize.width;
   const open = useCallback((next: DiffPanelEntry) => {
     opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    setEntry(next); setMinimized(false);
+    setEntry(next); setMinimized(false); setViewId((value) => value + 1);
   }, []);
   const update = useCallback((next: DiffPanelEntry) => {
-    setEntry((current) => current?.id === next.id ? next : current);
+    setEntry((current) => current?.id === next.id ? { ...next,
+      filePath: next.files.some((file) => file.path === current.filePath) ? current.filePath : undefined } : current);
   }, []);
   const context = useMemo(() => ({ open, update }), [open, update]);
   useEffect(() => { setEntry(null); setMinimized(false); setExpanded(false); }, [selected]);
-  useEffect(() => { if (visible) closeButton.current?.focus(); }, [visible, entry?.id]);
+  useEffect(() => { if (visible) closeButton.current?.focus(); }, [visible, viewId]);
   useEffect(() => { if (!visible || expanded) resize.cancel(); }, [visible, expanded, resize.cancel]);
   const close = () => { setEntry(null); setExpanded(false); opener.current?.focus(); };
   return <DetailsContext.Provider value={context}>
@@ -51,8 +54,9 @@ export function DetailsWorkspace({ selected, active, children }: {
             <button ref={closeButton} aria-label="关闭详情抽屉" onClick={close}><X size={17} /></button>
           </div>
         </header>
-        <div className={styles.content}>
-          <DiffDocument key={entry.id} files={entry.files} title={entry.title} status={entry.status}
+        <div key={`${entry.id}:${entry.filePath ?? ""}:${viewId}`} className={styles.content}>
+          <DiffDocument files={entry.files} filePath={entry.filePath}
+            title={entry.title} status={entry.status}
             initialOpen continuous />
         </div>
       </aside>}

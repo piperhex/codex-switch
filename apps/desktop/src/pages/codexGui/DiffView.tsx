@@ -80,11 +80,13 @@ const FileCard = memo(function FileCard({ file, split, initialOpen }: {
 interface DiffViewProps {
   files: DiffFile[]; title?: string; status?: string; initialOpen?: boolean; continuous?: boolean;
   undo?: ReactNode;
+  filePath?: string;
 }
 
-export const DiffDocument = memo(function DiffDocument({ files, title = "文件修改", status,
-  initialOpen = false, continuous = false }: DiffViewProps) {
+export const DiffDocument = memo(function DiffDocument({ files: allFiles, title = "文件修改", status,
+  initialOpen = false, continuous = false, filePath }: DiffViewProps) {
   const [split, setSplit] = useState(false);
+  const files = filePath === undefined ? allFiles : allFiles.filter((file) => file.path === filePath);
   if (!files.length) return null;
   const added = files.reduce((sum, file) => sum + file.added, 0);
   const removed = files.reduce((sum, file) => sum + file.removed, 0);
@@ -99,7 +101,7 @@ export const DiffDocument = memo(function DiffDocument({ files, title = "文件�
       </div>
     </div>
     {files.map((file, index) => <FileCard key={`${file.path}:${index}`} file={file} split={split}
-      initialOpen={initialOpen && index === 0} />)}
+      initialOpen={initialOpen && (filePath !== undefined || index === 0)} />)}
   </div>;
 });
 
@@ -110,5 +112,5 @@ export const DiffView = memo(function DiffView({ files, title = "文件修改", 
   if (!files.length) return null;
   if (!panel) return <>{undo}<DiffDocument files={files} title={title} status={status} /></>;
   return <EditedFilesSummary files={files} title={title} status={status} undo={undo}
-    onReview={() => panel.open(entry)} />;
+    onReview={() => panel.open(entry)} onReviewFile={(filePath) => panel.open({ ...entry, filePath })} />;
 });

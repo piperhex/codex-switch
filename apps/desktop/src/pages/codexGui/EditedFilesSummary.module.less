@@ -33,7 +33,11 @@
   background: color-mix(in srgb, var(--panel) 55%, transparent);
   li { display: flex; align-items: baseline; gap: 14px; padding: 10px 16px; }
 }
-.path { flex: 1; min-width: 0; color: var(--gui-muted); overflow-wrap: anywhere; }
+.path { flex: 1; min-width: 0; padding: 0; border: 0; background: transparent;
+  color: var(--gui-muted); font: inherit; text-align: left; overflow-wrap: anywhere; cursor: pointer;
+  &:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+  &:focus-visible { outline: 2px solid var(--green); outline-offset: 3px; border-radius: 2px; }
+}
 .toggle {
   display: flex; align-items: center; gap: 8px; width: 100%; padding: 10px 16px;
   border: 0; background: transparent; text-align: left;

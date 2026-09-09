@@ -118,3 +118,55 @@ it.each([1, 3])("does not offer expansion for %i distinct files", async (count) 
   expect(card.querySelector("button[aria-expanded]")).toBeNull();
   expect(card.querySelector("li")?.textContent).toContain("+2−2");
 });
+
+function fileTrigger(path: string) {
+  return [...container.querySelectorAll<HTMLButtonElement>('section[aria-label="本轮修改"] li button')]
+    .find((node) => node.textContent === path)!;
+}
+
+it("opens the clicked full path directly and keeps review scoped to all files", async () => {
+  const path = "F:\\projects\\codex-switch\\src\\example.ts";
+  const changes = changedFiles([
+    { path: "other/example.ts", kind: { type: "add" }, diff: "unrelated code\n" },
+    { path, kind: { type: "add" }, diff: "selected code\n" },
+  ]);
+  await act(async () => root.render(<Fixture changes={changes} />));
+  const selected = fileTrigger(path);
+  selected.focus();
+  await act(async () => selected.click());
+  expect([...panel().querySelectorAll('[aria-label]')].some((node) =>
+    node.getAttribute("aria-label") === `${path} 的代码差异`)).toBe(true);
+  expect(panel().textContent).toContain(path);
+  expect(panel().textContent).toContain("selected code");
+  expect(panel().textContent).not.toContain("other/example.ts");
+  expect(panel().textContent).not.toContain("unrelated code");
+  expect(panel().querySelector('button[aria-expanded="true"]')).not.toBeNull();
+  await act(async () => button("关闭详情抽屉").click());
+  expect(document.activeElement).toBe(selected);
+  await act(async () => trigger().click());
+  expect(panel().textContent).toContain("2 个文件");
+  expect(panel().textContent).toContain("unrelated code");
+});
+
+it("shows every edit to a selected file, keeps live updates scoped, and reopens collapsed diffs", async () => {
+  const changes = changedFiles([
+    { path: "first.ts", kind: { type: "add" }, diff: "first file\n" },
+    { path: "target.ts", kind: { type: "add" }, diff: "initial change\n" },
+    { path: "target.ts", kind: { type: "update" }, diff: "@@ -1 +1 @@\n-initial change\n+later change\n" },
+  ]);
+  await act(async () => root.render(<Fixture changes={changes} />));
+  await act(async () => fileTrigger("target.ts").click());
+  expect(panel().querySelectorAll('button[aria-expanded="true"]')).toHaveLength(2);
+  expect(panel().textContent).toContain("later change");
+  const updated = changedFiles([{ path: "target.ts", kind: { type: "add" }, diff: "live change\n" }]);
+  await act(async () => root.render(<Fixture changes={[changes[0], ...updated]} />));
+  expect(panel().textContent).toContain("live change");
+  expect(panel().textContent).not.toContain("first file");
+  await act(async () => panel().querySelector<HTMLButtonElement>('button[aria-expanded]')!.click());
+  expect(panel().textContent).not.toContain("live change");
+  await act(async () => fileTrigger("target.ts").click());
+  expect(panel().textContent).toContain("live change");
+  await act(async () => fileTrigger("first.ts").click());
+  expect(panel().textContent).toContain("first file");
+  expect(panel().textContent).not.toContain("live change");
+});

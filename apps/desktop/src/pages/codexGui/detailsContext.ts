@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect } from "react";
 import type { DiffFile } from "./diff";
 
-export interface DiffPanelEntry { id: string; title: string; files: DiffFile[]; status?: string }
+export interface DiffPanelEntry { id: string; title: string; files: DiffFile[]; status?: string; filePath?: string }
 interface DetailsContextValue {
   open: (entry: DiffPanelEntry) => void;
   update: (entry: DiffPanelEntry) => void;

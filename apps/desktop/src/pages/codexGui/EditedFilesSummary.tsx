@@ -21,8 +21,9 @@ function summarizeFiles(files: DiffFile[]) {
   return [...paths.values()];
 }
 
-export function EditedFilesSummary({ files, title, status, onReview, undo }: {
+export function EditedFilesSummary({ files, title, status, onReview, onReviewFile, undo }: {
   files: DiffFile[]; title: string; status?: string; onReview: () => void;
+  onReviewFile: (path: string) => void;
   undo?: ReactNode;
 }) {
   const listId = useId();
@@ -45,7 +46,9 @@ export function EditedFilesSummary({ files, title, status, onReview, undo }: {
     </header>
     <ul className={styles.files} id={listId}>
       {visibleFiles.map((file) => <li key={file.path}>
-        <span className={styles.path}>{file.path}</span><Counts added={file.added} removed={file.removed} />
+        <button type="button" className={styles.path} onClick={() => onReviewFile(file.path)}
+          aria-label={`查看 ${file.path} 的差异`}>{file.path}</button>
+        <Counts added={file.added} removed={file.removed} />
       </li>)}
     </ul>
     {hiddenCount > 0 && <button type="button" className={styles.toggle} aria-expanded={expanded}
