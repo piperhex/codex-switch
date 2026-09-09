@@ -7,18 +7,30 @@ import { useFollowScroll } from "./useFollowScroll";
 import { WorkingStatus } from "./WorkingStatus";
 import type { PendingRequest } from "./processing";
 import { SECOND_MS } from "./turnTiming";
+import { useQuoteSelection } from "./useQuoteSelection";
+import { QuoteSelectionButton } from "./QuoteSelectionButton";
+import { selectedQuote } from "./selectedQuote";
+import type { ReplyQuote } from "./replyQuotes";
 import styles from "./styles.module.less";
 
-export function Messages({ value, selected, active = true, footer, pendingRequest }: {
+export function Messages({ value, selected, active = true, footer, pendingRequest, onQuote }: {
   value?: Conversation; selected: string | null; active?: boolean; footer?: ReactNode;
   pendingRequest?: PendingRequest;
+  onQuote?: (quote: ReplyQuote) => boolean;
 }) {
   const { viewport, content, away, onScroll, jumpToLatest } = useFollowScroll(selected);
+  const quote = useQuoteSelection({ root: content, selected, enabled: active && Boolean(onQuote) });
   const turn = value?.turns.find((entry) => entry.id === value.activeTurn);
   const sending = pendingRequest && pendingRequest.threadId === selected && !value?.activeTurn;
   const processing = value?.processing;
   const startedAtMs = processing?.startedAtMs ?? (turn?.startedAt == null ? undefined : turn.startedAt * SECOND_MS);
   return <div className={styles.messageArea}>
+    {quote.selection && <QuoteSelectionButton selection={quote.selection} onQuote={() => {
+      const current = content.current ? selectedQuote(content.current) : null;
+      if (!current || !onQuote?.(current.quote)) return;
+      quote.dismiss();
+      jumpToLatest();
+    }} />}
     <div ref={viewport} className={styles.messageViewport} onScroll={onScroll}>
       <div ref={content} className={styles.messageScrollBody}>
         <div className={styles.messageContent}>

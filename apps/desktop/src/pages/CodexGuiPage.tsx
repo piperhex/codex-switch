@@ -1,10 +1,10 @@
-import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Alert, Button, Popover } from "antd";
 import { Download, PanelLeftClose, PanelLeftOpen, RefreshCw } from "lucide-react";
 import { hasLocalBackend, isDesktopApp } from "../api/backend";
 import { GuiController } from "./codexGui/controller";
 import { ThreadSidebar, threadTitle } from "./codexGui/ThreadSidebar";
-import { Composer } from "./codexGui/Composer";
+import { Composer, type ComposerHandle } from "./codexGui/Composer";
 import { Messages } from "./codexGui/Messages";
 import { Approvals } from "./codexGui/Approvals";
 import { Installer } from "./codexGui/Installer";
@@ -27,6 +27,7 @@ export function CodexGuiPage({ active, accountPicker }: CodexGuiPageProps) {
 
 function Workspace({ active, accountPicker }: CodexGuiPageProps) {
   const [controller] = useState(() => new GuiController());
+  const composer = useRef<ComposerHandle>(null);
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const [collapsed, setCollapsed] = useState(() => window.innerWidth < 900);
   const installer = useCliInstaller(active, controller);
@@ -41,6 +42,8 @@ function Workspace({ active, accountPicker }: CodexGuiPageProps) {
   const pending = state.approvals.filter((event) => event.params.threadId === state.selected);
   const otherApproval = state.approvals.find((event) => event.params.threadId !== state.selected);
   const running = state.sending || Object.values(state.conversations).some((value) => value.activeTurn);
+  const canQuote = state.connection === "ready" && !state.sending && !state.archived
+    && state.compacting !== state.selected;
   return <DetailsWorkspace selected={state.selected} active={active}>
     <div className={`${styles.page} ${collapsed ? styles.collapsed : ""}`}>
     {!collapsed && <ThreadSidebar state={state} controller={controller} accountPicker={accountPicker} />}
@@ -69,9 +72,10 @@ function Workspace({ active, accountPicker }: CodexGuiPageProps) {
         onClick={() => void controller.select(otherApproval.params.threadId!)}>另一个对话需要你的确认，点击查看</button>}
       {!installer.version ? <Installer installer={installer} /> :
         <Messages value={current} selected={state.selected} active={active}
+          onQuote={canQuote ? (quote) => composer.current?.addQuote(quote) ?? false : undefined}
           pendingRequest={state.pendingRequest} footer={<>
           <Approvals events={pending} controller={controller} />
-          <Composer state={state} controller={controller} active={active} />
+          <Composer ref={composer} state={state} controller={controller} active={active} />
         </>} />}
     </div>
     </div>

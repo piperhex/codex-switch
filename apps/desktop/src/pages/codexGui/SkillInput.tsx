@@ -8,7 +8,18 @@ import { useComposerSkills } from "./useComposerSkills";
 import { SkillMenu } from "./SkillMenu";
 import styles from "./SkillInput.module.less";
 
-export interface SkillInputHandle { addSkill: (skill: Skill) => void }
+export interface SkillInputHandle { addSkill: (skill: Skill) => void; focus: () => void }
+
+function focusEditor(node: HTMLDivElement, saved: Range | null): Range {
+  const range = saved && node.contains(saved.startContainer) && node.contains(saved.endContainer)
+    ? saved.cloneRange() : document.createRange();
+  if (!node.contains(range.startContainer)) { range.selectNodeContents(node); range.collapse(false); }
+  node.focus();
+  const selection = window.getSelection();
+  selection?.removeAllRanges();
+  selection?.addRange(range);
+  return range;
+}
 
 export const SkillInput = forwardRef<SkillInputHandle, {
   value: ComposerText; draftKey: string; cwd: string; active: boolean; connected: boolean; disabled: boolean;
@@ -38,17 +49,13 @@ export const SkillInput = forwardRef<SkillInputHandle, {
   }, [value]);
   useLayoutEffect(() => { setTrigger(null); savedCaret.current = null; }, [draftKey, cwd, disabled, active]);
 
-  useImperativeHandle(ref, () => ({ addSkill: (skill) => {
+  useImperativeHandle(ref, () => ({ focus: () => {
+    if (editor.current && active && !disabled) focusEditor(editor.current, savedCaret.current);
+    setTrigger(null);
+  }, addSkill: (skill) => {
     const node = editor.current;
     if (!node || disabled || !active || !connected || !skill.enabled) return;
-    const saved = savedCaret.current;
-    const range = saved && node.contains(saved.startContainer) && node.contains(saved.endContainer)
-      ? saved.cloneRange() : document.createRange();
-    if (!saved || !node.contains(range.startContainer)) {
-      range.selectNodeContents(node);
-      range.collapse(false);
-    }
-    node.focus();
+    const range = focusEditor(node, savedCaret.current);
     insertSkill({ query: "", range }, skill);
     onChange(readEditor(node));
     setTrigger(null);

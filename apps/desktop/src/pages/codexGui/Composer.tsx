@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { Target } from "lucide-react";
 import { ComposerAddMenu } from "./ComposerAddMenu";
 import { ComposerFilesDialog } from "./ComposerFilesDialog";
 import { ComposerReferences } from "./ComposerReferences";
+import { ComposerQuotes } from "./ComposerQuotes";
+import type { ReplyQuote } from "./replyQuotes";
 import { GoalDialog } from "./GoalDialog";
 import { GOAL_STATUS } from "./goalTypes";
 import extras from "./ComposerExtras.module.less";
@@ -20,16 +22,18 @@ import { compactCommand } from "./composerOptions";
 import { QueuedMessages } from "./QueuedMessages";
 import styles from "./styles.module.less";
 
-export function Composer({ state, controller, active }: {
+export interface ComposerHandle { addQuote: (quote: ReplyQuote) => boolean }
+
+export const Composer = forwardRef<ComposerHandle, {
   state: GuiState; controller: GuiController; active: boolean;
-}) {
+}>(function Composer({ state, controller, active }, ref) {
   const fileInput = useRef<HTMLInputElement>(null);
   const composer = useRef<HTMLDivElement>(null);
   const skillInput = useRef<SkillInputHandle>(null);
   const key = state.selected ?? "new";
   const [dialog, setDialog] = useState<"files" | "goal" | null>(null);
   const { draft, reading, editContent, removeImage, addImages, paste, send: sendDraft,
-    addAttachments, removeAttachment } = useComposerDraft(key, controller);
+    addAttachments, removeAttachment, addQuote, removeQuote, clearQuotes } = useComposerDraft(key, controller);
   // Creating a goal first creates its conversation; keep the form until the goal request succeeds.
   useEffect(() => { if (!controller.getSnapshot().goalBusy || !active) setDialog(null); }, [key, active, controller]);
   const current = state.selected ? state.conversations[state.selected] : undefined;
@@ -40,7 +44,15 @@ export function Composer({ state, controller, active }: {
   const attachedQueue = running && queuedMessages.length > 0;
   const disabled = state.connection !== "ready" || state.sending || state.archived
     || state.compacting === state.selected;
-  const hasDraft = Boolean(draft.text.trim() || draft.images.length || draft.attachments?.length);
+  const hasDraft = Boolean(draft.text.trim() || draft.images.length
+    || draft.attachments?.length || draft.quotes?.length);
+  useImperativeHandle(ref, () => ({ addQuote: (quote) => {
+    if (disabled || !active || !current?.turns.some((turn) => turn.items.some((item) =>
+      item.id === quote.messageId && item.type === "agentMessage"))) return false;
+    if (!addQuote(quote)) return false;
+    skillInput.current?.focus();
+    return true;
+  } }));
   const goal = state.selected ? state.goals?.[state.selected] : null;
   const canSend = !disabled && !reading
     && hasDraft;
@@ -56,6 +68,8 @@ export function Composer({ state, controller, active }: {
     <div ref={composer} className={`${styles.composer} ${attachedQueue ? styles.composerAttached : ""}`}>
       <ImageAttachments images={draft.images} disabled={state.sending} onRemove={removeImage} />
       <ComposerReferences items={draft.attachments ?? []} disabled={disabled} onRemove={removeAttachment} />
+      <ComposerQuotes quotes={draft.quotes ?? []} draftKey={key} active={active} disabled={disabled}
+        onRemove={removeQuote} onClear={() => { clearQuotes(); skillInput.current?.focus(); }} />
       {goal && <button type="button" className={extras.goalChip} onClick={() => setDialog("goal")}>
         <Target size={15} /><span>{goal.objective}</span><small>{GOAL_STATUS[goal.status]}</small>
       </button>}
@@ -89,4 +103,4 @@ export function Composer({ state, controller, active }: {
       onClose={() => setDialog(null)} onError={controller.report} />}
     {dialog === "goal" && <GoalDialog state={state} controller={controller} onClose={() => setDialog(null)} />}
   </div>;
-}
+});

@@ -14,7 +14,7 @@ export function CodeBlock({ children }: { children?: ReactNode }) {
   const diff = useMemo(() => ["diff", "patch"].includes(language) ? parseDiff(text) : [], [language, text]);
   if (diff.length) return <DiffView files={diff} title="代码差异" />;
   return <div className={styles.block}>
-    <div className={styles.toolbar}><span>{language || "代码"}</span>
+    <div className={styles.toolbar} data-quote-exclude><span>{language || "代码"}</span>
       <button type="button" aria-pressed={wrapped} onClick={() => setWrapped(!wrapped)}>自动换行</button>
       <CopyButton text={text.replace(/\n$/, "")} label="复制代码" />
     </div>

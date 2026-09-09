@@ -1,0 +1,24 @@
+.selectionButton { position: fixed; z-index: 1100; display: flex; align-items: center; gap: 6px;
+  max-width: min(400px, calc(100vw - 16px)); padding: 7px 10px; border: 1px solid var(--line);
+  border-radius: 9px; box-shadow: 0 4px 16px #0002; background: var(--panel); color: var(--ink);
+  font: inherit; font-size: 12px; line-height: 20px; cursor: pointer; }
+.quotes { padding: 3px 8px 8px; }
+.chip { display: inline-flex; align-items: center; gap: 3px; padding: 3px 5px;
+  border: 1px solid var(--line); border-radius: 10px; color: var(--ink); background: var(--panel); }
+.chip .previewButton { display: flex; align-items: center; gap: 6px; padding: 3px 4px;
+  border: 0; border-radius: 6px; background: transparent; color: inherit;
+  font: inherit; font-size: 12px; line-height: 20px; cursor: pointer; }
+.remove { display: grid; place-items: center; flex-shrink: 0; padding: 4px; border: 0;
+  border-radius: 50%; background: transparent; color: var(--muted); cursor: pointer;
+  &:disabled { cursor: default; opacity: .45; } }
+.preview { box-sizing: border-box; width: min(400px, calc(100vw - 24px)); max-height: min(300px, 50vh);
+  padding: 12px; overflow-y: auto; color: var(--ink); font-size: 13px; line-height: 1.6;
+  ol { padding-left: 22px; margin: 6px 0 0; }
+  li { position: relative; padding-right: 25px; margin-top: 8px; }
+  li::marker { color: var(--muted); }
+  blockquote { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .remove { position: absolute; top: 0; right: 0; } }
+.heading { color: var(--muted); font-size: 12px; }
+.selectionButton:hover, .previewButton:hover, .remove:hover:not(:disabled) { background: var(--green-selection-hover); }
+.selectionButton:focus-visible, .previewButton:focus-visible, .remove:focus-visible {
+  outline: 2px solid var(--green); outline-offset: 1px; }

@@ -13,7 +13,7 @@ function AgentMessage({ item, streaming }: { item: Item; streaming: boolean }) {
   const text = item.text ?? "";
   const visible = useStreamingText(text, streaming);
   return <article className={styles.agentMessage} data-phase={item.phase ?? "final_answer"}>
-    <RichText text={visible} />
+    <div data-quote-source={item.id}><RichText text={visible} /></div>
     {!streaming && <CopyButton text={text} />}
   </article>;
 }

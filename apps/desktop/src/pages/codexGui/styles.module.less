@@ -84,6 +84,8 @@
   > button { color: inherit; } }
 @media (hover: none) { .userMessageActions { opacity: 1; pointer-events: auto; } }
 .agentMessage { min-width: 0; line-height: 1.8; font-size: 14px; > button { color: var(--gui-muted); } }
+[data-quote-source] { user-select: text; }
+[data-quote-exclude] { user-select: none; }
 .markdown { overflow-wrap: anywhere; p { margin: 10px 0; } ul, ol { padding-left: 24px; }
   pre { padding: 16px; border-radius: 10px; background: var(--bg, #f4f6f5); overflow: auto; line-height: 1.6; }
   code { font-family: Consolas, monospace; font-size: 12px; }

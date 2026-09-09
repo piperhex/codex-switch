@@ -4,6 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { GuiController } from "./controller";
 import { MAX_IMAGE_BYTES, useComposerDraft } from "./useComposerDraft";
+import { MAX_REPLY_QUOTES, MAX_QUOTE_CHARACTERS, quoteKey } from "./replyQuotes";
 
 let root: Root;
 let container: HTMLDivElement;
@@ -150,4 +151,41 @@ it("preserves skill references with each draft and on failed sends, then clears 
   expect(controller.send).toHaveBeenLastCalledWith("$deploy", [], [{ name: skill.name, path: skill.path }]);
   await act(async () => editor.send());
   expect(editor.draft.mentions).toEqual([]);
+});
+
+it("preserves quotes with each draft and after failed sends, including edits made while sending", async () => {
+  const quote = { messageId: "answer", text: "第一行\n第二行" };
+  await render("one");
+  act(() => { editor.addQuote(quote); editor.editText("为什么？"); });
+  await render("two");
+  expect(editor.draft.quotes).toBeUndefined();
+  await render("one");
+  let resolve!: (accepted: boolean) => void;
+  vi.mocked(controller.send).mockImplementationOnce(() => new Promise((done) => { resolve = done; }));
+  let pending!: Promise<void>;
+  act(() => { pending = editor.send(); });
+  act(() => editor.editText("请详细说明"));
+  await act(async () => { resolve(false); await pending; });
+  expect(editor.draft.text).toBe("请详细说明");
+  expect(editor.draft.quotes).toEqual([quote]);
+  await act(async () => editor.send());
+  expect(controller.send).toHaveBeenLastCalledWith("引用 AI 回答：\n> 第一行\n> 第二行\n\n请详细说明", [], []);
+  expect(editor.draft.quotes).toBeUndefined();
+});
+
+it("bounds quote count and length, deduplicates selections and supports removing quotes", () => {
+  const quote = { messageId: "answer", text: "选中文字" };
+  act(() => { editor.addQuote(quote); editor.addQuote(quote); });
+  expect(editor.draft.quotes).toEqual([quote]);
+  act(() => editor.addQuote({ ...quote, text: "x".repeat(MAX_QUOTE_CHARACTERS + 1) }));
+  expect(editor.draft.quotes).toEqual([quote]);
+  for (let index = 1; index <= MAX_REPLY_QUOTES; index++) {
+    act(() => editor.addQuote({ messageId: String(index), text: "片段" }));
+  }
+  expect(editor.draft.quotes).toHaveLength(MAX_REPLY_QUOTES);
+  expect(controller.report).toHaveBeenCalledWith("每条消息最多添加 8 条引用。");
+  act(() => editor.removeQuote(quoteKey(quote)));
+  expect(editor.draft.quotes).toHaveLength(MAX_REPLY_QUOTES - 1);
+  act(() => editor.clearQuotes());
+  expect(editor.draft.quotes).toEqual([]);
 });
