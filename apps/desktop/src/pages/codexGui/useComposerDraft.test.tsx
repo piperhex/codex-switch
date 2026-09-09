@@ -89,6 +89,21 @@ it("preserves attachments after failed sends and clears them after a successful 
   expect(editor.draft.images).toEqual([]);
 });
 
+it("keeps file and plugin references with their draft and preserves them after a failed send", async () => {
+  const attachment = { kind: "plugin" as const, name: "Documents", path: "plugin://documents@openai" };
+  act(() => editor.addAttachments([attachment, attachment]));
+  expect(editor.draft.attachments).toEqual([attachment]);
+  await render("other");
+  expect(editor.draft.attachments).toBeUndefined();
+  await render();
+  vi.mocked(controller.send).mockResolvedValueOnce(false);
+  await act(async () => editor.send());
+  expect(controller.send).toHaveBeenLastCalledWith("", [], [], [attachment]);
+  expect(editor.draft.attachments).toEqual([attachment]);
+  await act(async () => editor.send());
+  expect(editor.draft.attachments).toBeUndefined();
+});
+
 it("submits the same draft once and preserves text typed while submission is pending", async () => {
   act(() => editor.editText("待发送的内容"));
   let resolve!: (accepted: boolean) => void;

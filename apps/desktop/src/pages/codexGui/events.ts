@@ -111,6 +111,9 @@ export function reduceConversation(value: Conversation, event: GuiEvent): Conver
 }
 
 export function reduceEvent(state: GuiState, event: GuiEvent): GuiState {
+  if (event.params.threadId && ["thread/goal/updated", "thread/goal/cleared"].includes(event.method)) {
+    return { ...state, goals: { ...state.goals, [event.params.threadId]: event.params.goal ?? null } };
+  }
   if (event.method === "connection/closed") {
     const conversations = Object.fromEntries(Object.entries(state.conversations)
       .map(([id, value]) => [id, { ...value, activeTurn: null }]));

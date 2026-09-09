@@ -1,10 +1,14 @@
+#[cfg(test)]
+mod attachment_tests;
 mod client;
 pub(crate) mod deletion;
 mod error;
+mod goals;
 mod home;
 mod images;
 mod platform;
 pub(crate) mod plugin_client;
+mod prompt;
 mod protocol;
 pub(crate) mod releases;
 #[cfg(test)]

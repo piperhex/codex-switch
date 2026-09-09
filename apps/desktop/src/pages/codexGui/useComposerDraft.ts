@@ -1,12 +1,13 @@
 import { useRef, useState, type ClipboardEvent } from "react";
 import type { GuiController } from "./controller";
 import type { ComposerText } from "./types";
+import { MAX_ATTACHMENTS, type AttachmentReference } from "./attachmentTypes";
 
 export const MAX_IMAGES = 8;
 export const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
 export const IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 export interface DraftImage { id: string; name: string; url?: string }
-interface Draft extends ComposerText { images: DraftImage[] }
+interface Draft extends ComposerText { images: DraftImage[]; attachments?: AttachmentReference[] }
 const EMPTY_DRAFT: Draft = { text: "", mentions: [], images: [] };
 
 export function readImage(file: File): Promise<string> {
@@ -27,6 +28,15 @@ export function useComposerDraft(key: string, controller: GuiController) {
     ({ ...values, [key]: change(values[key] ?? EMPTY_DRAFT) }));
   const editText = (text: string) => update((value) => ({ ...value, text, mentions: [] }));
   const editContent = (content: ComposerText) => update((value) => ({ ...value, ...content }));
+  const addAttachments = (attachments: AttachmentReference[]) => {
+    if ((draft.attachments?.length ?? 0) + attachments.length > MAX_ATTACHMENTS) {
+      controller.report("每条消息最多添加 32 个文件、文件夹或插件。");
+    }
+    update((value) => ({ ...value, attachments: [...new Map([...(value.attachments ?? []), ...attachments]
+      .map((item) => [item.path, item])).values()].slice(0, MAX_ATTACHMENTS) }));
+  };
+  const removeAttachment = (path: string) => update((value) =>
+    ({ ...value, attachments: value.attachments?.filter((item) => item.path !== path) }));
   const removeImage = (id: string) => update((value) =>
     ({ ...value, images: value.images.filter((image) => image.id !== id) }));
   const addImages = (files: File[]) => {
@@ -59,7 +69,11 @@ export function useComposerDraft(key: string, controller: GuiController) {
     const skills = [...new Map(draft.mentions.map(({ skill }) =>
       [skill.path, { name: skill.name, path: skill.path }])).values()];
     try {
-      if (await controller.send(draft.text, draft.images.flatMap((image) => image.url ? [image.url] : []), skills)) {
+      const images = draft.images.flatMap((image) => image.url ? [image.url] : []);
+      const accepted = draft.attachments?.length
+        ? await controller.send(draft.text, images, skills, draft.attachments)
+        : await controller.send(draft.text, images, skills);
+      if (accepted) {
         setDrafts((values) => values[key] === draft ? { ...values, [key]: EMPTY_DRAFT } : values);
       } else {
         const selected = controller.getSnapshot().selected ?? "new";
@@ -67,5 +81,5 @@ export function useComposerDraft(key: string, controller: GuiController) {
       }
     } finally { submitting.current = false; }
   };
-  return { draft, reading, editText, editContent, removeImage, addImages, paste, send };
+  return { draft, reading, editText, editContent, removeImage, addImages, paste, send, addAttachments, removeAttachment };
 }

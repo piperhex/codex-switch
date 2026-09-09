@@ -16,6 +16,10 @@ export function UserMessage({ item, startedAt }: { item: Item; startedAt?: numbe
       {parts.filter((part) => part.type === "localImage" || part.type === "image").map((part, index) =>
         part.url ? <MessageImage key={index} src={part.url} alt={`图片附件 ${index + 1}`} />
           : <span className={styles.imageLabel} key={index}>图片：{part.path?.split(/[\\/]/).pop() ?? "附件"}</span>)}
+      {parts.filter((part) => part.type === "mention").map((part, index) =>
+        <span className={styles.imageLabel} key={`reference-${index}`}>
+          {part.path?.startsWith("plugin://") ? "插件" : "附件"}：{part.name || part.path}
+        </span>)}
       <div>{text}</div>
     </div>
     <div className={styles.userMessageActions}>

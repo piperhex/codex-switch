@@ -1,4 +1,6 @@
 import { guiApi } from "./api";
+import { GuiGoals } from "./goals";
+import type { AttachmentReference } from "./attachmentTypes";
 import { deleteGuiThread } from "./deleteThread";
 import { conversation, reduceEvent } from "./events";
 import { completeTurnTiming, restoreTurnTiming } from "./turnTiming";
@@ -36,6 +38,7 @@ export class GuiController {
     this.patch({ error: typeof message === "string" ? message : "操作未完成，请重试。" });
   };
   clearError = () => this.patch({ error: "" });
+  readonly goals = new GuiGoals({ getSnapshot: this.getSnapshot, patch: this.patch, report: this.report });
   readonly queue = new MessageQueue({ getSnapshot: this.getSnapshot, patch: this.patch,
     active: () => !this.disposed, report: this.report,
     acceptTurn: (threadId, turn) => this.acceptTurn(threadId, turn) });
@@ -165,18 +168,19 @@ export class GuiController {
       if (generation !== this.selectionGeneration || this.state.conversations[id]?.activeTurn) return;
       this.patch({ conversations: { ...this.state.conversations,
         [id]: conversation(thread, this.state.conversations[id]) } });
+      void this.goals.load(id);
       if (!this.state.archived) void this.queue.flush(id);
     } catch (error) { if (generation === this.selectionGeneration) this.report(error); }
   };
 
-  send = async (text: string, images: string[], skills: SkillReference[] = []) => {
+  send = async (text: string, images: string[], skills: SkillReference[] = [], attachments: AttachmentReference[] = []) => {
     const { selected, settings, conversations } = this.state;
     const projectOverride = selected ? this.state.projectOverrides[selected] : undefined;
     if (this.state.sending || this.state.deleting || this.state.compacting === selected
       || this.state.connection !== "ready" || this.state.archived
-      || (!text.trim() && !images.length && !skills.length)) return false;
+      || (!text.trim() && !images.length && !skills.length && !attachments.length)) return false;
     if (selected && (conversations[selected]?.activeTurn || this.state.queued[selected]?.length)) {
-      const accepted = this.queue.enqueue(selected, { text, images, skills });
+      const accepted = this.queue.enqueue(selected, { text, images, skills, ...(attachments.length ? { attachments } : {}) });
       if (accepted) void this.queue.flush(selected);
       return accepted;
     }
@@ -194,7 +198,7 @@ export class GuiController {
       this.settings({ cwd: projectOverride ?? thread.cwd });
       // Loaded threads can ignore resume overrides; apply project changes to the next turn explicitly.
       const { turn } = await guiApi.request<{ turn: Turn }>({ operation: "send", threadId: thread.id,
-        text, images, skills, model: settings.model || undefined,
+        text, images, skills, ...(attachments.length ? { attachments } : {}), model: settings.model || undefined,
         effort: settings.effort || undefined, cwd: projectOverride });
       // Completion can arrive before the request promise resolves. Never resurrect a completed turn.
       this.acceptTurn(thread.id, turn);
@@ -235,6 +239,8 @@ export class GuiController {
     const id = this.state.selected;
     const turnId = id ? this.state.conversations[id]?.activeTurn : null;
     if (!id || !turnId) return;
+    if (this.state.goals?.[id]?.status === "active"
+      && !await this.goals.set({ threadId: id, status: "paused" })) return;
     try { await guiApi.request({ operation: "interrupt", threadId: id, turnId }); }
     catch (error) { this.report(error); }
   };

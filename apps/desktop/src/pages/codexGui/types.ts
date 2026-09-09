@@ -1,3 +1,6 @@
+import type { ThreadGoal } from "./goalTypes";
+import type { AttachmentReference } from "./attachmentTypes";
+
 export type AccessMode = "read-only" | "workspace-write" | "danger-full-access";
 export interface SkillReference { name: string; path: string }
 export interface Skill extends SkillReference {
@@ -17,7 +20,7 @@ export interface Model {
   defaultReasoningEffort: string;
   supportedReasoningEfforts: { reasoningEffort: string; description: string }[];
 }
-export interface Content { type: string; text?: string; path?: string; url?: string }
+export interface Content { type: string; text?: string; name?: string; path?: string; url?: string }
 export interface FileChange { path: string; diff: string; kind: { type: string; movePath?: string | null } }
 export interface PlanStep { step: string; status: string }
 export interface SearchResult { title?: string; url?: string; snippet?: string }
@@ -90,6 +93,7 @@ export interface ThreadTokenUsage {
   modelContextWindow?: number | null;
 }
 export interface EventParams {
+  goal?: ThreadGoal;
   threadId?: string;
   thread?: Thread;
   turnId?: string;
@@ -130,6 +134,9 @@ export interface Conversation {
 export interface ListResponse<T> { data: T[]; nextCursor: string | null }
 export interface Settings { cwd: string; model: string; effort: string; access: AccessMode }
 export interface GuiState {
+  goals?: Record<string, ThreadGoal | null>;
+  goalErrors?: Record<string, string>;
+  goalBusy?: boolean;
   queued: Record<string, QueuedMessage[]>;
   connection: "offline" | "connecting" | "ready";
   threads: Thread[];
@@ -156,20 +163,26 @@ export type ApprovalReply = {
   answers?: Record<string, { answers: string[] }>;
 };
 export type Request =
+  | { operation: "goalGet" | "goalClear"; threadId: string }
+  | { operation: "goalSet"; threadId: string; objective?: string; status: "active" | "paused" }
+  | { operation: "plugins"; cwd?: string }
   | { operation: "sendBatch"; threadId: string; messages: MessageInput[]; model?: string; effort?: string }
-  | { operation: "steer"; threadId: string; turnId: string; text: string; images: string[]; skills: SkillReference[] }
+  | { operation: "steer"; threadId: string; turnId: string; text: string; images: string[];
+      skills: SkillReference[]; attachments?: AttachmentReference[] }
   | { operation: "skills"; cwd?: string }
   | { operation: "models"; cursor?: string }
   | { operation: "list"; cursor?: string; archived: boolean; search?: string }
   | { operation: "start"; cwd?: string; model?: string; access: AccessMode }
   | { operation: "resume"; threadId: string; access: AccessMode; cwd?: string }
   | { operation: "send"; threadId: string; text: string; images: string[];
-      model?: string; effort?: string; cwd?: string; skills?: SkillReference[] }
+      model?: string; effort?: string; cwd?: string; skills?: SkillReference[]; attachments?: AttachmentReference[] }
   | { operation: "read" | "archive" | "unarchive" | "compact"; threadId: string }
   | { operation: "rename"; threadId: string; name: string }
   | { operation: "interrupt"; threadId: string; turnId: string };
 
-export interface MessageInput { text: string; images: string[]; skills: SkillReference[] }
+export interface MessageInput {
+  text: string; images: string[]; skills: SkillReference[]; attachments?: AttachmentReference[];
+}
 export interface QueuedMessage extends MessageInput {
   id: string;
   editing?: boolean;

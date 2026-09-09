@@ -21,8 +21,9 @@ function QueueItem({ item, context }: { item: QueuedMessage; context: Omit<Queue
   return <li className={styles.item}>
     <div className={styles.row}>
       <CornerDownRight size={15} />
-      <span className={styles.text}>{item.text || "图片消息"}
-        {item.images.length > 0 && <small> · {item.images.length} 张图片</small>}</span>
+      <span className={styles.text}>{item.text || item.attachments?.map((item) => item.name).join("、") || "图片消息"}
+        {item.images.length > 0 && <small> · {item.images.length} 张图片</small>}
+        {Boolean(item.attachments?.length) && <small> · {item.attachments?.length} 个附件</small>}</span>
       <Button type="text" size="small" disabled={!running || !connected || item.busy || item.editing}
         onClick={() => void queue.steer(threadId, item.id)}>调整方向</Button>
       <Button type="text" size="small" aria-label="删除待发送消息" icon={<Trash2 size={14} />}
@@ -38,7 +39,8 @@ function QueueItem({ item, context }: { item: QueuedMessage; context: Omit<Queue
       <Input.TextArea aria-label="编辑待发送消息" value={text} autoSize={{ minRows: 2, maxRows: 6 }}
         onChange={(event) => setText(event.target.value)} />
       <div><Button size="small" onClick={() => edit(false)}>取消</Button>
-        <Button size="small" type="primary" disabled={!text.trim() && !item.images.length}
+        <Button size="small" type="primary"
+          disabled={!text.trim() && !item.images.length && !item.attachments?.length && !item.skills.length}
           onClick={() => edit(false, text)}>保存</Button></div>
     </div>}
   </li>;

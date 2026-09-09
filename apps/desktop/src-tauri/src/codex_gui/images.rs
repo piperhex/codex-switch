@@ -24,6 +24,10 @@ pub(super) fn input(image: String) -> Result<Value> {
         .to_lowercase();
     if !path.is_absolute()
         || !path.is_file()
+        || path
+            .metadata()
+            .map(|metadata| metadata.len() == 0 || metadata.len() > MAX_IMAGE_BYTES as u64)
+            .unwrap_or(true)
         || !["png", "jpg", "jpeg", "webp", "gif"].contains(&extension.as_str())
     {
         return Err(GuiError::InvalidRequest);

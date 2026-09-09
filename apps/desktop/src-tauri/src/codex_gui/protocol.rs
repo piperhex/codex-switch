@@ -4,9 +4,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use super::error::{GuiError, Result};
-use super::images::{self, MAX_IMAGES};
+use super::goals::{self, GoalStatus};
+use super::prompt::{
+    batch_params, send_params, AttachmentInput, PromptInput, SkillInput, TurnOptions,
+};
 
-const MAX_PROMPT_BYTES: usize = 256_000;
 const PAGE_SIZE: u32 = 50;
 
 #[derive(Debug, Deserialize)]
@@ -21,6 +23,20 @@ pub(crate) enum GuiRequest {
     },
     Skills {
         cwd: Option<String>,
+    },
+    Plugins {
+        cwd: Option<String>,
+    },
+    GoalGet {
+        thread_id: String,
+    },
+    GoalSet {
+        thread_id: String,
+        objective: Option<String>,
+        status: GoalStatus,
+    },
+    GoalClear {
+        thread_id: String,
     },
     List {
         cursor: Option<String>,
@@ -49,6 +65,8 @@ pub(crate) enum GuiRequest {
         images: Vec<String>,
         #[serde(default)]
         skills: Vec<SkillInput>,
+        #[serde(default)]
+        attachments: Vec<AttachmentInput>,
         model: Option<String>,
         effort: Option<String>,
         cwd: Option<String>,
@@ -64,6 +82,8 @@ pub(crate) enum GuiRequest {
         images: Vec<String>,
         #[serde(default)]
         skills: Vec<SkillInput>,
+        #[serde(default)]
+        attachments: Vec<AttachmentInput>,
     },
     SendBatch {
         thread_id: String,
@@ -89,36 +109,6 @@ pub(crate) enum AccessMode {
     ReadOnly,
     WorkspaceWrite,
     DangerFullAccess,
-}
-
-#[derive(Debug, Deserialize)]
-pub(crate) struct SkillInput {
-    name: String,
-    path: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub(crate) struct PromptInput {
-    text: String,
-    images: Vec<String>,
-    #[serde(default)]
-    skills: Vec<SkillInput>,
-}
-
-impl SkillInput {
-    fn into_input(self) -> Result<Value> {
-        let path = std::path::Path::new(&self.path);
-        if self.name.trim().is_empty()
-            || self.name.len() > 200
-            || self.name.chars().any(char::is_control)
-            || !path.is_absolute()
-            || path.file_name().is_none_or(|name| name != "SKILL.md")
-            || !path.is_file()
-        {
-            return Err(GuiError::InvalidRequest);
-        }
-        Ok(json!({"type": "skill", "name": self.name, "path": self.path}))
-    }
 }
 
 #[derive(Serialize)]
@@ -175,7 +165,7 @@ fn id(value: &str) -> Result<()> {
     Ok(())
 }
 
-fn thread_params(thread_id: String) -> Result<Value> {
+pub(super) fn thread_params(thread_id: String) -> Result<Value> {
     id(&thread_id)?;
     Ok(json!({"threadId": thread_id}))
 }
@@ -184,6 +174,22 @@ impl GuiRequest {
     // Only this closed set of methods is exposed to the WebView.
     pub(super) fn into_rpc(self) -> Result<(&'static str, Value)> {
         match self {
+            Self::Plugins { cwd } => {
+                if let Some(cwd) = &cwd {
+                    directory(cwd)?;
+                }
+                Ok((
+                    "plugin/installed",
+                    json!({"cwds": cwd.into_iter().collect::<Vec<_>>()}),
+                ))
+            }
+            Self::GoalGet { thread_id } => Ok(("thread/goal/get", thread_params(thread_id)?)),
+            Self::GoalClear { thread_id } => Ok(("thread/goal/clear", thread_params(thread_id)?)),
+            Self::GoalSet {
+                thread_id,
+                objective,
+                status,
+            } => goals::set_params(thread_id, objective, status),
             Self::Skills { cwd } => {
                 if let Some(cwd) = &cwd {
                     directory(cwd)?;
@@ -240,12 +246,18 @@ impl GuiRequest {
                 text,
                 images,
                 skills,
+                attachments,
                 model,
                 effort,
                 cwd,
             } => send_params(
                 thread_id,
-                (text, images, skills),
+                PromptInput {
+                    text,
+                    images,
+                    skills,
+                    attachments,
+                },
                 TurnOptions { model, effort, cwd },
             ),
             Self::Interrupt { thread_id, turn_id } => {
@@ -260,11 +272,17 @@ impl GuiRequest {
                 text,
                 images,
                 skills,
+                attachments,
             } => {
                 id(&turn_id)?;
                 let (_, mut params) = send_params(
                     thread_id,
-                    (text, images, skills),
+                    PromptInput {
+                        text,
+                        images,
+                        skills,
+                        attachments,
+                    },
                     TurnOptions {
                         model: None,
                         effort: None,
@@ -305,82 +323,6 @@ impl GuiRequest {
             Self::Unarchive { thread_id } => Ok(("thread/unarchive", thread_params(thread_id)?)),
         }
     }
-}
-
-struct TurnOptions {
-    model: Option<String>,
-    effort: Option<String>,
-    cwd: Option<String>,
-}
-
-fn batch_params(
-    thread_id: String,
-    messages: Vec<PromptInput>,
-    options: TurnOptions,
-) -> Result<(&'static str, Value)> {
-    const MAX_QUEUED_MESSAGES: usize = 100;
-    if messages.is_empty() || messages.len() > MAX_QUEUED_MESSAGES {
-        return Err(GuiError::InvalidRequest);
-    }
-    let mut content = Vec::new();
-    for message in messages {
-        let (_, mut params) = send_params(
-            thread_id.clone(),
-            (message.text, message.images, message.skills),
-            TurnOptions {
-                model: None,
-                effort: options.effort.clone(),
-                cwd: None,
-            },
-        )?;
-        let input = params["input"]
-            .as_array_mut()
-            .ok_or(GuiError::InvalidRequest)?;
-        content.append(input);
-    }
-    let mut params = thread_params(thread_id)?;
-    params["input"] = json!(content);
-    params["model"] = json!(options.model);
-    params["effort"] = json!(options.effort);
-    Ok(("turn/start", params))
-}
-
-fn send_params(
-    thread_id: String,
-    input: (String, Vec<String>, Vec<SkillInput>),
-    options: TurnOptions,
-) -> Result<(&'static str, Value)> {
-    let (text, images, skills) = input;
-    if (text.trim().is_empty() && images.is_empty() && skills.is_empty())
-        || text.len() > MAX_PROMPT_BYTES
-        || images.len() > MAX_IMAGES
-    {
-        return Err(GuiError::InvalidRequest);
-    }
-    if options.effort.as_ref().is_some_and(|value| {
-        ![
-            "none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra",
-        ]
-        .contains(&value.as_str())
-    }) {
-        return Err(GuiError::InvalidRequest);
-    }
-    let mut params = thread_params(thread_id)?;
-    let mut content = vec![json!({"type": "text", "text": text, "text_elements": []})];
-    for image in images {
-        content.push(images::input(image)?);
-    }
-    for skill in skills {
-        content.push(skill.into_input()?);
-    }
-    params["input"] = json!(content);
-    params["model"] = json!(options.model);
-    params["effort"] = json!(options.effort);
-    if let Some(cwd) = options.cwd {
-        directory(&cwd)?;
-        params["cwd"] = json!(cwd);
-    }
-    Ok(("turn/start", params))
 }
 
 pub(super) fn approval_response(event: &GuiEvent, reply: ApprovalReply) -> Result<Value> {

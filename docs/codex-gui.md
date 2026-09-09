@@ -18,7 +18,17 @@ are skipped. Initialize the destination with a compatible Codex version first; i
 storage cannot preserve the complete history, the backup stays in the recycle bin for retrying.
 Conversations with active replies or queued messages cannot be deleted until those are handled.
 
-Paste images directly into the message box with Ctrl+V (Cmd+V on macOS), or use the image button to select files.
+Use **+** to add files, folders, or an installed and enabled plugin. File and folder selections add references
+to their full paths; the selected access mode still controls what Codex can read or edit. The hosted web UI
+accepts paths on the Switch host. Plugin selections stay attached to the draft and are included when sending,
+including queued messages and steering. Plan mode is not included in this menu.
+
+Choose **+ → 目标** to describe a result and start working toward it. Goals are saved with the conversation;
+Codex continues until the goal is completed, paused, blocked, or reaches a usage limit. Click the goal above
+the input to edit, pause, continue or remove it. **停止生成** pauses an active goal before stopping its current
+reply. Goal progress comes from Codex itself and survives reopening the conversation.
+
+Paste images directly into the message box with Ctrl+V (Cmd+V on macOS), or choose **+ → 文件和文件夹 → 添加图片**.
 Attachments appear as thumbnails above the text, each with a remove button. A message can contain up to eight
 PNG, JPEG, WebP, or GIF images, at most 20 MB each, and can be sent without text. Failed sends retain the draft
 and its images for retrying; switching conversations keeps each draft separate.

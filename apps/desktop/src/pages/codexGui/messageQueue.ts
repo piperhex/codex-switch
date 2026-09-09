@@ -62,7 +62,8 @@ export class MessageQueue {
     try {
       if (!await this.resume(threadId, messages[0])) return;
       const { turn } = await guiApi.request<{ turn: Turn }>({ operation: "sendBatch", threadId,
-        messages: messages.map(({ text, images, skills }) => ({ text, images, skills })),
+        messages: messages.map(({ text, images, skills, attachments }) => ({ text, images, skills,
+          ...(attachments?.length ? { attachments: attachments } : {}) })),
         model: messages[0].model || undefined, effort: messages[0].effort || undefined });
       this.update(threadId, this.list(threadId).filter((item) => !ids.has(item.id)));
       this.host.acceptTurn(threadId, turn);
@@ -82,7 +83,8 @@ export class MessageQueue {
     this.markBusy(threadId, ids, true);
     try {
       await guiApi.request({ operation: "steer", threadId, turnId,
-        text: item.text, images: item.images, skills: item.skills });
+        text: item.text, images: item.images, skills: item.skills,
+        ...(item.attachments?.length ? { attachments: item.attachments } : {}) });
       this.update(threadId, this.list(threadId).filter((entry) => entry.id !== id));
     } catch (error) { this.host.report(error); }
     finally { this.pending.delete(threadId); this.markBusy(threadId, ids, false); }

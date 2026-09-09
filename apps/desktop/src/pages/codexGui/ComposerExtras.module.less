@@ -1,0 +1,22 @@
+.fileChoices { display: flex; flex-direction: column; gap: 10px; padding-top: 12px; }
+.copy { max-width: 400px; color: var(--muted); font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.references { display: flex; flex-wrap: wrap; gap: 6px; padding: 3px 8px 8px; }
+.reference { display: inline-flex; align-items: center; gap: 6px; max-width: min(100%, 300px);
+  padding: 5px 8px; border: 1px solid var(--line); border-radius: 9px; font-size: 12px; color: var(--ink);
+  > svg { flex-shrink: 0; }
+  > span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  > button { display: grid; place-items: center; padding: 2px; border: 0; background: transparent;
+    color: var(--muted); cursor: pointer; }
+}
+.goalChip { display: flex; align-items: center; gap: 7px; width: fit-content; max-width: 100%; margin: 0 8px 8px;
+  padding: 6px 9px; border: 1px solid var(--line); border-radius: 10px; color: var(--ink);
+  background: var(--bg, #edf1f0); cursor: pointer; font-size: 12px;
+  > svg, > small { flex-shrink: 0; }
+  > span { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  > small { color: var(--muted); }
+}
+.goalActions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.goalStatus { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; color: var(--ink); font-size: 12px;
+  > span { color: var(--muted); }
+}
+.goalError { margin-top: 12px; }

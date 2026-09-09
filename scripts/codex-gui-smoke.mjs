@@ -8,6 +8,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import { once } from "node:events";
+import { verifyComposerAdditions } from "./codex-gui-add-menu-smoke.mjs";
 
 const executable = process.argv[2];
 assert.ok(executable, "Pass the downloaded official Codex executable path");
@@ -136,6 +137,7 @@ try {
   "Pasted image reaches the model request");
   assert.ok(requestBodies.some((body) => JSON.stringify(body.input).includes("GUI_SKILL_SELECTED")),
     "The selected skill's instructions reach the model request");
+  await verifyComposerAdditions({ client, project, root, requestBodies });
   const read = await client.rpc("thread/read", { threadId: thread.id, includeTurns: true });
   const listed = await client.rpc("thread/list", { archived: false, modelProviders: [] });
   assert.ok(listed.data.some((entry) => entry.id === thread.id));
