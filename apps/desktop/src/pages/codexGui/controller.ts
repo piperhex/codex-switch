@@ -1,4 +1,5 @@
 import { guiApi } from "./api";
+import { GuiMessageEditor } from "./editMessage";
 import { GuiGoals } from "./goals";
 import { GuiProjects } from "./projectActions";
 import { GuiReadState } from "./threadReadState";
@@ -43,6 +44,9 @@ export class GuiController {
     this.patch({ error: typeof message === "string" ? message : "操作未完成，请重试。" });
   };
   clearError = () => this.patch({ error: "" });
+  readonly messageEditor = new GuiMessageEditor({ getSnapshot: this.getSnapshot, patch: this.patch, report: this.report,
+    acceptTurn: (threadId, turn) => this.acceptTurn(threadId, turn), refresh: () => this.refresh(),
+    flushQueue: () => Object.keys(this.state.queued).forEach((id) => void this.queue.flush(id)) });
   readonly goals = new GuiGoals({ getSnapshot: this.getSnapshot, patch: this.patch, report: this.report });
   readonly projectActions = new GuiProjects({ getSnapshot: this.getSnapshot, patch: this.patch, report: this.report });
   readonly readState = new GuiReadState({ getSnapshot: this.getSnapshot, patch: this.patch });

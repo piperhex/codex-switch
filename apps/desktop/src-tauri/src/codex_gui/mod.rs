@@ -10,6 +10,7 @@ mod icons;
 mod identity;
 mod image_preview;
 mod images;
+mod message_edit;
 mod platform;
 pub(crate) mod plugin_client;
 mod prompt;
@@ -90,6 +91,9 @@ pub(crate) async fn codex_gui_request(
 ) -> std::result::Result<GuiResponse, String> {
     async {
         let client = connected(&state).await?;
+        if let GuiRequest::EditMessage(edit) = request {
+            return message_edit::submit(&client, edit).await;
+        }
         if let GuiRequest::ImagePreview { thread_id, source } = request {
             return image_preview::preview(&client, thread_id, source).await;
         }

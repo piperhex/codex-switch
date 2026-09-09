@@ -24,8 +24,10 @@ export function groupTurnItems(items: Item[]): Group[] {
   }, []);
 }
 
-export const TurnMessage = memo(function TurnMessage({ turn, running, active, followsInterruption = false }: {
+export const TurnMessage = memo(function TurnMessage({ turn, running, active, followsInterruption = false,
+  editableItemId, onEdit, editDisabled }: {
   turn: Turn; running: boolean; active: boolean; followsInterruption?: boolean;
+  editableItemId?: string; onEdit?: (text: string) => Promise<boolean>; editDisabled?: boolean;
 }) {
   const groups = useMemo(() => groupTurnItems(followsInterruption
     ? visibleContinuationItems(turn.items) : turn.items), [turn.items, followsInterruption]);
@@ -42,6 +44,7 @@ export const TurnMessage = memo(function TurnMessage({ turn, running, active, fo
         <div className={styles.workItems}>{group.items.map((item) => <MessageItem key={item.id}
           item={item} startedAt={turn.startedAt} streaming={running && item.status !== "completed"} />)}</div>
       </details> : <MessageItem item={group.items[0]} startedAt={turn.startedAt}
+        onEdit={group.items[0].id === editableItemId ? onEdit : undefined} editDisabled={editDisabled}
         streaming={running && group.items[0].status !== "completed"} />}
     </Fragment>)}
     {responseIndex === -1 && <TurnDuration turn={turn} running={running} active={active} />}

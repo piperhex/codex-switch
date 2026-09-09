@@ -18,6 +18,7 @@ const PAGE_SIZE: u32 = 50;
     rename_all_fields = "camelCase"
 )]
 pub(crate) enum GuiRequest {
+    EditMessage(super::message_edit::EditRequest),
     ImagePreview {
         thread_id: String,
         source: String,
@@ -159,7 +160,7 @@ pub(super) fn directory(value: &str) -> Result<PathBuf> {
     path.canonicalize().map_err(|_| GuiError::Directory)
 }
 
-fn id(value: &str) -> Result<()> {
+pub(super) fn id(value: &str) -> Result<()> {
     if value.is_empty()
         || value.len() > 200
         || value
@@ -180,6 +181,7 @@ impl GuiRequest {
     // Only this closed set of methods is exposed to the WebView.
     pub(super) fn into_rpc(self) -> Result<(&'static str, Value)> {
         match self {
+            Self::EditMessage(_) => Err(GuiError::InvalidRequest),
             // Image previews are served locally, never forwarded as an app-server operation.
             Self::ImagePreview { .. } => Err(GuiError::InvalidRequest),
             Self::Plugins { cwd } => {

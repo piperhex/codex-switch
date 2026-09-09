@@ -1,4 +1,8 @@
+import { useState } from "react";
+import { Button } from "antd";
+import { Pencil } from "lucide-react";
 import type { Content, Item } from "./types";
+import { UserMessageEditor } from "./UserMessageEditor";
 import { CopyButton } from "./CopyButton";
 import { MessageImage } from "./MessageImage";
 import userStyles from "./UserMessage.module.less";
@@ -7,7 +11,10 @@ import styles from "./styles.module.less";
 const MILLISECONDS_PER_SECOND = 1000;
 const timeFormatter = new Intl.DateTimeFormat("zh-CN", { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 
-export function UserMessage({ item, startedAt }: { item: Item; startedAt?: number | null }) {
+export function UserMessage({ item, startedAt, onEdit, editDisabled = false }: {
+  item: Item; startedAt?: number | null; onEdit?: (text: string) => Promise<boolean>; editDisabled?: boolean;
+}) {
+  const [editing, setEditing] = useState(false);
   const parts = (item.content ?? []) as Content[];
   const text = parts.filter((part) => part.type === "text").map((part) => part.text).join("\n");
   const date = startedAt == null ? null : new Date(startedAt * MILLISECONDS_PER_SECOND);
@@ -21,13 +28,16 @@ export function UserMessage({ item, startedAt }: { item: Item; startedAt?: numbe
         <span className={styles.imageLabel} key={`reference-${index}`}>
           {part.path?.startsWith("plugin://") ? "插件" : "附件"}：{part.name || part.path}
         </span>)}
-      <div>{text}</div>
+      {editing && onEdit ? <UserMessageEditor text={text} disabled={editDisabled} onSubmit={onEdit}
+        onCancel={() => setEditing(false)} /> : <div>{text}</div>}
     </div>
     <div className={styles.userMessageActions}>
       {sentAt && <time dateTime={sentAt.toISOString()} title={sentAt.toLocaleString("zh-CN")}>
         {timeFormatter.format(sentAt)}
       </time>}
       <CopyButton text={text} />
+      {onEdit && !editing && <Button type="text" size="small" aria-label="编辑消息" disabled={editDisabled}
+        icon={<Pencil size={14} />} onClick={() => setEditing(true)} />}
     </div>
   </article>;
 }

@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Spin } from "antd";
 import { ArrowDown, Terminal } from "lucide-react";
 import type { Conversation } from "./types";
+import { lastUserMessage, type EditMessage } from "./editMessage";
 import { TurnMessage } from "./TurnMessage";
 import { useFollowScroll } from "./useFollowScroll";
 import { WorkingStatus } from "./WorkingStatus";
@@ -14,11 +15,13 @@ import type { ReplyQuote } from "./replyQuotes";
 import styles from "./styles.module.less";
 import { ImageThreadContext } from "./useImageSource";
 
-export function Messages({ value, selected, active = true, footer, pendingRequest, onQuote }: {
+export function Messages({ value, selected, active = true, footer, pendingRequest, onQuote, onEdit, editDisabled }: {
   value?: Conversation; selected: string | null; active?: boolean; footer?: ReactNode;
   pendingRequest?: PendingRequest;
   onQuote?: (quote: ReplyQuote) => boolean;
+  onEdit?: EditMessage; editDisabled?: boolean;
 }) {
+  const last = lastUserMessage(value);
   const { viewport, content, away, onScroll, jumpToLatest } = useFollowScroll(selected);
   const quote = useQuoteSelection({ root: content, selected, enabled: active && Boolean(onQuote) });
   const turn = value?.turns.find((entry) => entry.id === value.activeTurn);
@@ -41,7 +44,11 @@ export function Messages({ value, selected, active = true, footer, pendingReques
             <div className={styles.suggestions}><span>理解代码</span><span>实现功能</span><span>排查问题</span></div>
           </div>}
           {selected && !value && <div className={styles.listEmpty}><Spin /><p>正在读取对话…</p></div>}
-          {value?.turns.map((turn, index) => <TurnMessage key={turn.id} turn={turn}
+          {value?.turns.map((turn, index) => <TurnMessage key={`${selected}:${turn.id}`} turn={turn}
+            editableItemId={last?.turnId === turn.id ? last.item.id : undefined}
+            editDisabled={editDisabled || Boolean(value.activeTurn || pendingRequest || last?.item.localEcho)}
+            onEdit={onEdit && selected && last ? (text) => onEdit({ threadId: selected,
+              turnId: turn.id, itemId: last.item.id, text }) : undefined}
             followsInterruption={value.turns[index - 1]?.status === "interrupted"}
             running={value.activeTurn === turn.id} active={active} />)}
           {value?.error && <p className={styles.turnError} role="status">{value.error}</p>}

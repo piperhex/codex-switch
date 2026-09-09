@@ -3,6 +3,7 @@ import { Alert, Button, Popover } from "antd";
 import { Download, PanelLeftClose, PanelLeftOpen, RefreshCw } from "lucide-react";
 import { hasLocalBackend, isDesktopApp } from "../api/backend";
 import { GuiController } from "./codexGui/controller";
+import { canEditMessage } from "./codexGui/editMessage";
 import { ThreadSidebar, threadTitle } from "./codexGui/ThreadSidebar";
 import { Composer, type ComposerHandle } from "./codexGui/Composer";
 import { Messages } from "./codexGui/Messages";
@@ -74,6 +75,7 @@ function Workspace({ active, accountPicker }: CodexGuiPageProps) {
         onClick={() => void controller.select(otherApproval.params.threadId!)}>另一个对话需要你的确认，点击查看</button>}
       {!installer.version ? <Installer installer={installer} /> :
         <Messages value={current} selected={state.selected} active={active}
+          onEdit={controller.messageEditor.submit} editDisabled={!canEditMessage(state)}
           onQuote={canQuote ? (quote) => composer.current?.addQuote(quote) ?? false : undefined}
           pendingRequest={state.pendingRequest} footer={<>
           <Approvals events={pending} controller={controller} />

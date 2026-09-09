@@ -28,11 +28,13 @@ function toolText(item: Item) {
   return item.text ?? item.review ?? item.aggregatedOutput ?? item.query ?? JSON.stringify(item, null, 2);
 }
 
-export const MessageItem = memo(function MessageItem({ item, streaming, startedAt }: {
+export const MessageItem = memo(function MessageItem({ item, streaming, startedAt, onEdit, editDisabled }: {
   item: Item; streaming: boolean; startedAt?: number | null;
+  onEdit?: (text: string) => Promise<boolean>; editDisabled?: boolean;
 }) {
   const files = useMemo(() => changedFiles(item.changes ?? []), [item.changes]);
-  if (item.type === "userMessage") return <UserMessage item={item} startedAt={startedAt} />;
+  if (item.type === "userMessage") return <UserMessage item={item} startedAt={startedAt}
+    onEdit={onEdit} editDisabled={editDisabled} />;
   if (item.type === "agentMessage") return <AgentMessage item={item} streaming={streaming} />;
   if (item.type === "fileChange" && files.length) return <DiffView files={files} status={
     { inProgress: "正在修改", failed: "修改失败", declined: "未应用", completed: "已修改" }[item.status ?? ""]} />;
