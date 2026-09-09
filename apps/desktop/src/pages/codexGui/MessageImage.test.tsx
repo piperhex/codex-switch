@@ -44,6 +44,19 @@ it("reports failed reads and retries them without loading a local endpoint", asy
   expect(container.querySelector("img")?.getAttribute("src")).toBe(image);
 });
 
+it("previews local screenshot links while preserving ordinary file references", async () => {
+  vi.mocked(guiApi.request).mockResolvedValue({ url: image });
+  for (const source of ["C:/Users/ZH/AppData/Local/Temp/baidu-screenshot-20260909.png",
+    "file:///C:/Users/ZH/AppData/Local/Temp/baidu-screenshot-20260909.png", "./page.png"]) {
+    await render(`已重新截图：[查看最新截图](${source})。 [说明](./README.md)`);
+    expect(guiApi.request).toHaveBeenLastCalledWith({ operation: "imagePreview", threadId: "task", source });
+    expect(container.querySelector("img")?.getAttribute("src")).toBe(image);
+    expect(container.querySelector("img")?.alt).toBe("查看最新截图");
+    expect(container.querySelector('[aria-label="放大查看：查看最新截图"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="复制文件路径"]')).not.toBeNull();
+  }
+});
+
 it("ignores late results when switching tasks and shares in-flight reads", async () => {
   let resolveFirst: (value: { url: string }) => void = () => {};
   vi.mocked(guiApi.request).mockReturnValueOnce(new Promise((resolve) => { resolveFirst = resolve; }))

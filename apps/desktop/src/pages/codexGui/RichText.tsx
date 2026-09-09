@@ -23,7 +23,7 @@ export const RichText = memo(function RichText({ text }: { text: string }) {
       ? <CodeReviewComment key={index} comment={section.comment} />
       : <Markdown key={index} remarkPlugins={PLUGINS} skipHtml components={COMPONENTS} urlTransform={(url, key) => {
       if (key === "src" && (isInlineImage(url) || localImageSource(url))) return url;
-      if (key === "href" && isFileReference(url)) return url;
+      if (key === "href" && (isFileReference(url) || localImageSource(url))) return url;
       return defaultUrlTransform(url);
     }}>{section.text}</Markdown>)}
   </div>;

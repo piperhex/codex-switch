@@ -18,8 +18,54 @@ impl Fixture {
     }
 
     fn read(&self, source: &str) -> Result<String> {
-        read_image(source, &self.0.join("workspace"), &self.0.join("generated"))
+        self.read_with_references(source, &[])
     }
+
+    fn read_with_references(&self, source: &str, references: &[&str]) -> Result<String> {
+        read_image(
+            source,
+            &self.0.join("workspace"),
+            &self.0.join("generated"),
+            references,
+        )
+    }
+}
+
+#[test]
+fn previews_only_the_external_image_recorded_in_the_current_thread() {
+    let fixture = Fixture::new();
+    let screenshot = fixture.write_image("outside/页面 截图.png");
+    let sibling = fixture.write_image("outside/unrelated.png");
+    let file_url = url::Url::from_file_path(&screenshot).unwrap();
+    let thread = json!({"turns": [{"items": [
+        {"type": "imageView", "path": file_url.as_str()}
+    ]}]});
+    let references = image_references(&thread);
+    for source in [screenshot.to_str().unwrap(), file_url.as_str()] {
+        assert!(fixture.read(source).is_err());
+        assert!(fixture
+            .read_with_references(source, &references)
+            .unwrap()
+            .starts_with("data:image/png;base64,"));
+    }
+    assert!(fixture
+        .read_with_references(sibling.to_str().unwrap(), &references)
+        .is_err());
+}
+
+#[test]
+fn collects_structured_image_references_without_trusting_message_text_or_tool_arguments() {
+    let thread = json!({"turns": [{"items": [
+        {"type": "userMessage", "content": [
+            {"type": "localImage", "path": "attached.png"},
+            {"type": "text", "text": "secret.png", "path": "secret.png"}
+        ]},
+        {"type": "imageGeneration", "savedPath": "generated.png"},
+        {"type": "agentMessage", "text": "![image](secret.png)", "path": "secret.png"},
+        {"type": "mcpToolCall", "arguments": {"path": "secret.png"}}
+    ]}]});
+    assert_eq!(image_references(&thread), ["attached.png", "generated.png"]);
+    assert!(image_references(&json!({})).is_empty());
 }
 
 impl Drop for Fixture {

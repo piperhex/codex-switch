@@ -1,4 +1,4 @@
-//! Read raster images within the server-owned task workspace or its generated-image directory.
+//! Preview workspace images and exact image references recorded by the task's app server.
 use std::{
     fs::File,
     io::Read,
@@ -7,7 +7,7 @@ use std::{
 
 use base64::{engine::general_purpose::STANDARD, Engine};
 use image::ImageFormat;
-use serde_json::json;
+use serde_json::{json, Value};
 
 use super::{
     client::Client,
@@ -24,7 +24,8 @@ pub(super) async fn preview(
     source: String,
 ) -> Result<GuiResponse> {
     uuid::Uuid::parse_str(&thread_id).map_err(|_| GuiError::InvalidRequest)?;
-    let params = thread_params(thread_id.clone())?;
+    let mut params = thread_params(thread_id.clone())?;
+    params["includeTurns"] = json!(true);
     // Read the actual workspace before the presentation layer hides projectless paths.
     let response = client.request("thread/read", params).await?;
     let workspace = response["thread"]["cwd"]
@@ -32,10 +33,12 @@ pub(super) async fn preview(
         .ok_or(GuiError::ImagePreview)?;
     let workspace = PathBuf::from(workspace);
     let generated = client.home.join("generated_images").join(thread_id);
-    let data =
-        tauri::async_runtime::spawn_blocking(move || read_image(&source, &workspace, &generated))
-            .await
-            .map_err(|_| GuiError::ImagePreview)??;
+    let data = tauri::async_runtime::spawn_blocking(move || {
+        let references = image_references(&response["thread"]);
+        read_image(&source, &workspace, &generated, &references)
+    })
+    .await
+    .map_err(|_| GuiError::ImagePreview)??;
     Ok(GuiResponse {
         data: json!({ "url": data }),
     })
@@ -72,13 +75,63 @@ fn within(path: &Path, root: &Path) -> bool {
     root.canonicalize().is_ok_and(|root| path.starts_with(root))
 }
 
-fn read_image(source: &str, workspace: &Path, generated: &Path) -> Result<String> {
+fn image_references(thread: &Value) -> Vec<&str> {
+    thread["turns"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .flat_map(|turn| turn["items"].as_array().into_iter().flatten())
+        .flat_map(item_image_references)
+        .collect()
+}
+
+fn item_image_references(item: &Value) -> Vec<&str> {
+    match item["type"].as_str() {
+        Some("imageView") => item["path"].as_str().into_iter().collect(),
+        Some("imageGeneration") => ["savedPath", "path", "result"]
+            .into_iter()
+            .filter_map(|key| item[key].as_str())
+            .collect(),
+        Some("userMessage") => item["content"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter(|content| content["type"] == "localImage")
+            .filter_map(|content| content["path"].as_str())
+            .collect(),
+        _ => Vec::new(),
+    }
+}
+
+fn matches_reference(path: &Path, workspace: &Path, references: &[&str]) -> bool {
+    // Grant only the recorded file, never its parent directory or arbitrary message text.
+    references.iter().any(|source| {
+        source_path(source)
+            .and_then(|source| {
+                workspace
+                    .join(source)
+                    .canonicalize()
+                    .map_err(|_| GuiError::ImagePreview)
+            })
+            .is_ok_and(|reference| reference == path)
+    })
+}
+
+fn read_image(
+    source: &str,
+    workspace: &Path,
+    generated: &Path,
+    references: &[&str],
+) -> Result<String> {
     let source = source_path(source)?;
     let path = workspace
         .join(source)
         .canonicalize()
         .map_err(|_| GuiError::ImagePreview)?;
-    if !within(&path, workspace) && !within(&path, generated) {
+    if !within(&path, workspace)
+        && !within(&path, generated)
+        && !matches_reference(&path, workspace, references)
+    {
         return Err(GuiError::ImagePreview);
     }
     let extension = path

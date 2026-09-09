@@ -4,6 +4,8 @@ import { isTauri } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { CopyButton } from "./CopyButton";
 import { WebsiteIcon } from "./WebsiteIcon";
+import { MessageImage } from "./MessageImage";
+import { localImageSource } from "./imageSources";
 import styles from "./MessageLink.module.less";
 
 export function isFileReference(href: string) {
@@ -11,6 +13,8 @@ export function isFileReference(href: string) {
 }
 
 export function MessageLink({ href, children }: { href?: string; children?: ReactNode }) {
+  if (href && localImageSource(href)) return <MessageImage src={href}
+    alt={typeof children === "string" ? children : "图片"} />;
   if (href && isFileReference(href)) return <span className={styles.fileReference}>
     <span>{children}</span><CopyButton text={href} label="复制文件路径" />
   </span>;
