@@ -1,4 +1,5 @@
 import { guiApi } from "./api";
+import { deleteGuiThread } from "./deleteThread";
 import { conversation, reduceEvent } from "./events";
 import { completeTurnTiming, restoreTurnTiming } from "./turnTiming";
 import { MessageQueue } from "./messageQueue";
@@ -14,6 +15,7 @@ export class GuiController {
   private listeners = new Set<() => void>();
   private listGeneration = 0;
   private selectionGeneration = 0;
+  private deletedThreads = new Set<string>();
   private unlisten?: () => void;
   private disposed = false;
   private connecting?: Promise<void>;
@@ -53,6 +55,13 @@ export class GuiController {
     this.streamEvents = [];
   };
   private receive = (event: GuiEvent) => {
+    const threadId = event.params.threadId ?? event.params.thread?.id;
+    if (event.method === "thread/deleted" && threadId) {
+      this.forgetThread(threadId);
+      void this.refresh();
+      return;
+    }
+    if (threadId && this.deletedThreads.has(threadId)) return;
     if (event.method === "connection/restored") { void this.connect(); return; }
     if (event.method.endsWith("Delta") || event.method.endsWith("/delta")) {
       this.streamEvents.push(event);
@@ -145,6 +154,8 @@ export class GuiController {
   };
 
   select = async (id: string) => {
+    if (this.state.deleting === id) return;
+    this.deletedThreads.delete(id);
     const generation = ++this.selectionGeneration;
     this.patch({ selected: id, error: "" });
     if (this.state.conversations[id]?.activeTurn) return;
@@ -160,7 +171,7 @@ export class GuiController {
   send = async (text: string, images: string[], skills: SkillReference[] = []) => {
     const { selected, settings, conversations } = this.state;
     const projectOverride = selected ? this.state.projectOverrides[selected] : undefined;
-    if (this.state.sending || this.state.connection !== "ready" || this.state.archived
+    if (this.state.sending || this.state.deleting || this.state.connection !== "ready" || this.state.archived
       || (!text.trim() && !images.length && !skills.length)) return false;
     if (selected && (conversations[selected]?.activeTurn || this.state.queued[selected]?.length)) {
       const accepted = this.queue.enqueue(selected, { text, images, skills });
@@ -203,7 +214,7 @@ export class GuiController {
   };
 
   manage = async (operation: "rename" | "archive" | "unarchive", id: string, name?: string) => {
-    if (this.state.conversations[id]?.activeTurn) return;
+    if (this.state.conversations[id]?.activeTurn || this.state.deleting === id) return;
     if (operation === "archive" && this.state.queued[id]?.length) {
       this.report("请先发送或删除待发送消息，再归档对话。");
       return;
@@ -221,6 +232,42 @@ export class GuiController {
       await this.refresh();
     } catch (error) { this.report(error); }
   };
+
+  deleteThread = async (id: string) => {
+    if (this.state.deleting || this.state.sending || this.state.connection !== "ready"
+      || this.state.conversations[id]?.activeTurn || this.state.queued[id]?.length
+      || this.state.threads.some((thread) => thread.id === id && thread.status?.type === "active")
+      || this.state.approvals.some((event) => event.params.threadId === id)) {
+      this.report("请等待回复结束，并处理待发送消息后再删除对话。");
+      return false;
+    }
+    if (this.state.selected === id) ++this.selectionGeneration;
+    this.patch({ deleting: id, error: "" });
+    try {
+      await deleteGuiThread(id);
+      this.forgetThread(id);
+      await this.refresh();
+      return true;
+    } catch (error) { this.report(error); return false; }
+    finally { this.patch({ deleting: undefined }); }
+  };
+
+  private forgetThread(id: string) {
+    if (this.state.selected === id) ++this.selectionGeneration;
+    this.flushStream();
+    this.deletedThreads.add(id);
+    ++this.listGeneration;
+    const conversations = { ...this.state.conversations };
+    const queued = { ...this.state.queued };
+    const projectOverrides = { ...this.state.projectOverrides };
+    delete conversations[id]; delete queued[id]; delete projectOverrides[id];
+    this.patch({ conversations, queued, projectOverrides,
+      threads: this.state.threads.filter((thread) => thread.id !== id),
+      pins: this.state.pins.filter((pin) => pin !== id),
+      approvals: this.state.approvals.filter((event) => event.params.threadId !== id),
+      selected: this.state.selected === id ? null : this.state.selected });
+    savePreferences(this.state);
+  }
 
   respond = async (reply: ApprovalReply) => {
     try {

@@ -170,9 +170,6 @@ fn finish_bin_removal(codex_home: &Path, session_id: &str) -> Result<(), String>
 }
 
 fn recover_bin_snapshot(codex_home: &Path, item: &BinSnapshot) -> Result<bool, String> {
-    if !bin_belongs_to_home(item, codex_home) {
-        return Err("请切换到该会话原来的 Codex 目录后再恢复".to_string());
-    }
     if snapshot_thread_row(
         latest_state_db(codex_home).as_deref(),
         &item.manifest.session_id,
@@ -219,7 +216,7 @@ fn recover_bin_files(codex_home: &Path, item: &BinSnapshot) -> Result<bool, Stri
         return Ok(false);
     }
     move_bin_files(&targets)?;
-    let restore = restore_bin_state(codex_home, &item.manifest).and_then(|()| {
+    let restore = restore_recovered_bin_state(codex_home, item).and_then(|()| {
         append_index_entry(
             codex_home,
             &item.manifest.session_id,

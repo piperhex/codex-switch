@@ -29,12 +29,14 @@ export function useTrash(options: TrashOptions) {
   const [open, setOpen] = useState(false);
   const [entries, setEntries] = useState<CodexThreadBinEntry[]>([]);
   const [binSelected, setBinSelected] = useState<Set<string>>(new Set());
+  const [targetHomeId, setTargetHomeId] = useState(homeId);
 
   const openBin = async () => {
     setBusy(true);
     try {
       setEntries(await loadCodexThreadBin(homeId));
       setBinSelected(new Set());
+      setTargetHomeId(homeId);
       setOpen(true);
     } catch (error) {
       reportError(error);
@@ -54,7 +56,7 @@ export function useTrash(options: TrashOptions) {
     }
     setBusy(true);
     try {
-      const result = await restoreCodexThreads([...binSelected], homeId);
+      const result = await restoreCodexThreads([...binSelected], homeId, targetHomeId);
       notify(result.message);
       await reload();
     } catch (error) {
@@ -113,6 +115,6 @@ export function useTrash(options: TrashOptions) {
 
   return {
     open, setOpen, entries, selected: binSelected, setSelected: setBinSelected,
-    openBin, restore, confirmDelete, confirmMove, confirming,
+    openBin, restore, confirmDelete, confirmMove, confirming, targetHomeId, setTargetHomeId,
   };
 }

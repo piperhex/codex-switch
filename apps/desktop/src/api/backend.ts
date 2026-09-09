@@ -1766,8 +1766,10 @@ export async function loadCodexThreadBin(homeId?: string): Promise<CodexThreadBi
   return invoke<CodexThreadBinEntry[]>("browse_codex_thread_bin", { homeId });
 }
 
-export async function restoreCodexThreads(sessionIds: string[], homeId?: string): Promise<CodexThreadMutationReport> {
-  return invoke<CodexThreadMutationReport>("recover_codex_threads", { homeId, sessionIds });
+export async function restoreCodexThreads(
+  sessionIds: string[], homeId?: string, targetHomeId?: string,
+): Promise<CodexThreadMutationReport> {
+  return invoke<CodexThreadMutationReport>("recover_codex_threads", { homeId, sessionIds, targetHomeId });
 }
 
 export async function deleteCodexThreadsForever(

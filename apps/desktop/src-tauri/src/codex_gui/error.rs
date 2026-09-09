@@ -1,5 +1,9 @@
 #[derive(Debug, thiserror::Error)]
 pub(super) enum GuiError {
+    #[error("对话仍在回复中，请等待结束后再删除。")]
+    Busy,
+    #[error("未能删除对话。请稍后重试；如有相关子对话，请在会话管理中一并选择后删除。")]
+    Delete,
     #[error("请先下载 Codex，即可开始对话。")]
     Executable,
     #[error("请选择有效的本地文件夹。")]

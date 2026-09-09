@@ -1,4 +1,5 @@
 mod client;
+pub(crate) mod deletion;
 mod error;
 mod home;
 mod images;

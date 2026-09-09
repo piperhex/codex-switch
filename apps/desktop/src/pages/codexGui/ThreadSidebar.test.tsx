@@ -1,0 +1,64 @@
+// @vitest-environment jsdom
+import { act } from "react";
+import { App, ConfigProvider } from "antd";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { GuiController } from "./controller";
+import { ThreadSidebar } from "./ThreadSidebar";
+import { initialState } from "./preferences";
+import type { GuiState } from "./types";
+
+let root: Root;
+let container: HTMLDivElement;
+let controller: GuiController;
+let state: GuiState;
+const render = () => act(async () => root.render(<ConfigProvider theme={{ token: { motion: false } }}>
+  <App><ThreadSidebar state={state} controller={controller} accountPicker={null} /></App>
+</ConfigProvider>));
+const button = (text: string) => [...document.querySelectorAll<HTMLButtonElement>("button")]
+  .find((entry) => entry.textContent === text)!;
+
+beforeEach(() => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const getComputedStyle = window.getComputedStyle.bind(window);
+  vi.spyOn(window, "getComputedStyle").mockImplementation((element) => getComputedStyle(element));
+  vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
+  vi.stubGlobal("matchMedia", vi.fn(() => ({ matches: false, addListener() {}, removeListener() {} })));
+  localStorage.clear();
+  container = document.createElement("div");
+  document.body.append(container);
+  root = createRoot(container);
+  controller = new GuiController();
+  state = { ...initialState(), connection: "ready",
+    threads: [{ id: "one", cwd: "D:/project", preview: "会话示例", updatedAt: 1, turns: [] }] };
+  vi.spyOn(controller, "deleteThread").mockResolvedValue(true);
+});
+afterEach(async () => {
+  await act(async () => root.unmount());
+  container.remove(); controller.dispose(); vi.restoreAllMocks(); vi.unstubAllGlobals();
+});
+
+it("offers a compact confirmation and sends the selected conversation to trash", async () => {
+  await render();
+  await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="管理对话：会话示例"]')!.click());
+  const remove = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')]
+    .find((entry) => entry.textContent === "删除")!;
+  expect(remove).toBeTruthy();
+  await act(async () => remove.click());
+  const dialog = document.querySelector<HTMLElement>('[role="dialog"]')!;
+  expect(dialog.style.width).toBe("400px");
+  expect(dialog.textContent).toContain("会话管理");
+  expect(dialog.textContent).toContain("指定的 Codex Home");
+  await act(async () => button("移入回收站").click());
+  expect(controller.deleteThread).toHaveBeenCalledWith("one");
+});
+
+it("disables deletion while Codex reports an active reply", async () => {
+  state.threads[0].status = { type: "active" };
+  await render();
+  await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="管理对话：会话示例"]')!.click());
+  const remove = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')]
+    .find((entry) => entry.textContent === "删除")!;
+  expect(remove.getAttribute("aria-disabled")).toBe("true");
+  expect(controller.deleteThread).not.toHaveBeenCalled();
+});

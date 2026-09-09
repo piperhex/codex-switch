@@ -1,4 +1,5 @@
-import { Button, Checkbox, Modal } from "antd";
+import { Button, Checkbox, Modal, Select } from "antd";
+import { homeLabel, useCodexHomes } from "../../../components/CodexHomeScope";
 import { ArchiveRestore, RefreshCw, Search, Trash2 } from "lucide-react";
 import type { Dispatch, SetStateAction } from "react";
 import type {
@@ -19,10 +20,13 @@ interface TrashModalProps {
   text: ThreadCopy;
   language: Language;
   restore: () => void;
+  targetHomeId: string;
+  setTargetHomeId: (id: string) => void;
   confirmDelete: (empty?: boolean) => void;
 }
 
 export function TrashModal(props: TrashModalProps) {
+  const homes = useCodexHomes();
   const { open, setOpen, entries, selected, setSelected, busy, text, language } = props;
   const { restore, confirmDelete } = props;
   const toggleEntry = (sessionId: string) => setSelected((current) => {
@@ -32,7 +36,8 @@ export function TrashModal(props: TrashModalProps) {
     return next;
   });
   return (
-    <Modal open={open} title={text.trashTitle} width={760} onCancel={() => setOpen(false)} footer={[
+    <Modal open={open} title={text.trashTitle} width={760} closable={!busy} maskClosable={!busy}
+      keyboard={!busy} onCancel={() => { if (!busy) setOpen(false); }} footer={[
       <Button key="empty" danger disabled={!entries.length || busy} onClick={() => confirmDelete(true)}>
         {text.emptyBin}
       </Button>,
@@ -48,12 +53,19 @@ export function TrashModal(props: TrashModalProps) {
       >
         {text.restore}
       </Button>,
-      <Button key="close" onClick={() => setOpen(false)}>{text.close}</Button>,
+      <Button key="close" disabled={busy} onClick={() => setOpen(false)}>{text.close}</Button>,
     ]}>
+      <label className={styles.restoreTarget}>
+        <span>{text.restoreTarget}</span>
+        <Select aria-label={text.restoreTarget} value={props.targetHomeId} onChange={props.setTargetHomeId}
+          disabled={busy} options={homes.map((home) => ({ value: home.id, label: homeLabel(home) }))} />
+      </label>
+      <p className={styles.threadModalHint}>{text.restoreHint}</p>
       <div className={styles.threadBinList}>
         {entries.length ? entries.map((entry) => (
           <label className={styles.threadBinRow} key={entry.sessionId}>
-            <Checkbox checked={selected.has(entry.sessionId)} onChange={() => toggleEntry(entry.sessionId)} />
+            <Checkbox disabled={busy} checked={selected.has(entry.sessionId)}
+              onChange={() => toggleEntry(entry.sessionId)} />
             <Trash2 size={18} />
             <span><strong>{entry.title || text.untitled}</strong><small>{entry.cwd}</small></span>
             <time>{relativeTime(entry.deletedAt, language)}</time>

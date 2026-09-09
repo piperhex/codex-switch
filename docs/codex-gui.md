@@ -6,6 +6,13 @@ Providers (三方模型及中转). It supports project folders, text and image i
 streamed Markdown replies, command output, file diffs, plans, permission approvals, questions, interruption,
 history, search, renaming, pinning, and archiving/restoring conversations.
 
+Choose **删除** from a conversation's menu to move it to the session manager's recycle bin.
+In **会话管理**, select **内置 Codex GUI** as the source home and open **回收站**. Select conversations
+and a destination under **恢复到 Codex Home**, then restore. Existing conversations in the destination
+are skipped. Initialize the destination with a compatible Codex version first; if its conversation
+storage cannot preserve the complete history, the backup stays in the recycle bin for retrying.
+Conversations with active replies or queued messages cannot be deleted until those are handled.
+
 Paste images directly into the message box with Ctrl+V (Cmd+V on macOS), or use the image button to select files.
 Attachments appear as thumbnails above the text, each with a remove button. A message can contain up to eight
 PNG, JPEG, WebP, or GIF images, at most 20 MB each, and can be sent without text. Failed sends retain the draft

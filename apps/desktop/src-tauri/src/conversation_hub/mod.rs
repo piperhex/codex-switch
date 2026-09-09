@@ -234,6 +234,7 @@ include!("state_storage.rs");
 include!("state_restore.rs");
 include!("bin_state.rs");
 include!("bin_files.rs");
+include!("bin_recovery.rs");
 include!("bin_migration.rs");
 include!("discard.rs");
 include!("bin.rs");

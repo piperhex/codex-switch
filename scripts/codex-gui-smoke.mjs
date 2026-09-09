@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { createServer } from "node:http";
-import { mkdtemp, mkdir, writeFile, readFile, readdir, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile, readFile, readdir, rename, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { createInterface } from "node:readline";
@@ -184,12 +184,22 @@ try {
   await client.rpc("turn/interrupt", { threadId: thread.id, turnId: next.turn.id });
   const interrupted = await client.waitFor("turn/completed", (params) => params.turn.id === next.turn.id);
   assert.equal(interrupted.params.turn.status, "interrupted");
+  const detached = await client.rpc("thread/unsubscribe", { threadId: thread.id });
+  assert.equal(detached.status, "unsubscribed");
+  const detachedRead = await client.rpc("thread/read", { threadId: thread.id, includeTurns: true });
+  const rolloutPath = detachedRead.thread.path;
+  assert.ok(rolloutPath, "Unsubscribed conversations remain readable from disk");
+  await rename(rolloutPath, `${rolloutPath}.trash`);
+  await rename(`${rolloutPath}.trash`, rolloutPath);
+  const unarchived = await client.rpc("thread/list", { archived: false, modelProviders: [] });
+  assert.ok(unarchived.data.some((entry) => entry.id === thread.id), "Unsubscribe preserves archive status");
   const entries = await readdir(home);
   assert.ok(entries.includes("sessions"));
   assert.ok(entries.some((entry) => /^state_.*\.sqlite$/.test(entry)));
   assert.equal((await readFile(join(home, "config.toml"), "utf8")).includes("gui_fixture"), true);
   console.log("PASS: official CLI handshake, skill discovery/input, images, streaming, history, "
-    + "projectless start/continue, restart/resume, archive/restore, queued inputs, steer, interrupt, isolated storage");
+    + "projectless start/continue, restart/resume, archive/restore, queued inputs, steer, interrupt, "
+    + "unsubscribe/file release, isolated storage");
 } catch (error) {
   console.error(error);
   process.exitCode = 1;

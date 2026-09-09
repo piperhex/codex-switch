@@ -59,9 +59,10 @@ pub(crate) async fn recover_codex_threads<R: Runtime + 'static>(
     app: tauri::AppHandle<R>,
     home_id: Option<String>,
     session_ids: Vec<String>,
+    target_home_id: Option<String>,
 ) -> Result<MutationReport, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        recover_codex_threads_blocking(ThreadContext::new(app, home_id)?, session_ids)
+        recover_codex_threads_blocking(ThreadContext::new(app, home_id)?, session_ids, target_home_id)
     })
     .await
     .map_err(|error| format!("Recover conversations task failed: {error}"))?

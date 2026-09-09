@@ -4,6 +4,9 @@ use super::*;
 mod support;
 use support::*;
 
+#[path = "bin_recovery_tests.rs"]
+mod recovery;
+
 #[test]
 fn selected_home_cannot_list_or_purge_another_homes_bin_entries() {
     let fixture = Fixture::new();

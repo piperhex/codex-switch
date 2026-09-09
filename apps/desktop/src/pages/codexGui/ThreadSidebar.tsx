@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { Button, Dropdown, Input, Modal, Segmented, Spin } from "antd";
-import { Archive, MoreHorizontal, Pencil, Pin, RefreshCw, Search, SquarePen } from "lucide-react";
+import { App, Button, Dropdown, Input, Modal, Segmented, Spin } from "antd";
+import { Archive, MoreHorizontal, Pencil, Pin, RefreshCw, Search, SquarePen, Trash2 } from "lucide-react";
 import type { GuiController } from "./controller";
 import type { GuiState, Thread } from "./types";
 import { ThreadGroup } from "./ThreadGroup";
@@ -16,6 +16,8 @@ export function ThreadSidebar({ state, controller, accountPicker }: {
 }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [renaming, setRenaming] = useState<Thread | null>(null);
+  const [deleting, setDeleting] = useState<Thread | null>(null);
+  const { message } = App.useApp();
   const [name, setName] = useState("");
   const { views, toggle } = useThreadGroupViews();
   const closeSearch = () => {
@@ -37,12 +39,16 @@ export function ThreadSidebar({ state, controller, accountPicker }: {
     ];
   }, [state.threads, state.pins]);
   const renderThread = (thread: Thread) => {
-    const running = Boolean(state.conversations[thread.id]?.activeTurn);
+    const running = Boolean(state.conversations[thread.id]?.activeTurn) || thread.status?.type === "active";
+    const busy = state.sending || Boolean(state.deleting);
     const needsInput = state.approvals.some((event) => event.params.threadId === thread.id);
     const items = [
       { key: "pin", label: state.pins.includes(thread.id) ? "取消置顶" : "置顶", icon: <Pin size={14} /> },
       { key: "rename", label: "重命名", icon: <Pencil size={14} />, disabled: running },
       { key: "archive", label: state.archived ? "恢复对话" : "归档", icon: <Archive size={14} />, disabled: running },
+      { key: "delete", label: "删除", icon: <Trash2 size={14} />, danger: true,
+        disabled: running || busy || needsInput || Boolean(state.queued[thread.id]?.length)
+          || state.connection !== "ready" },
     ];
     return <div className={`${styles.thread} ${state.selected === thread.id ? styles.selected : ""}`} key={thread.id}>
       <button className={styles.threadSelect} disabled={state.sending}
@@ -54,6 +60,7 @@ export function ThreadSidebar({ state, controller, accountPicker }: {
         if (key === "pin") controller.pin(thread.id);
         if (key === "rename") { setRenaming(thread); setName(threadTitle(thread)); }
         if (key === "archive") void controller.manage(state.archived ? "unarchive" : "archive", thread.id);
+        if (key === "delete") setDeleting(thread);
       } }}>
         <button className={styles.threadMenu} aria-label={`管理对话：${threadTitle(thread)}`}>
           <MoreHorizontal size={16} /></button>
@@ -90,6 +97,21 @@ export function ThreadSidebar({ state, controller, accountPicker }: {
     </div>
     {accountPicker}
     {searchOpen && <ThreadSearch state={state} controller={controller} onClose={closeSearch} />}
+    <Modal title="删除这条对话？" open={Boolean(deleting)} width={400} okText="移入回收站" cancelText="取消"
+      confirmLoading={Boolean(state.deleting)} okButtonProps={{ danger: true }}
+      closable={!state.deleting} maskClosable={!state.deleting} keyboard={!state.deleting}
+      cancelButtonProps={{ disabled: Boolean(state.deleting) }}
+      onCancel={() => { if (!state.deleting) setDeleting(null); }}
+      onOk={async () => {
+        if (deleting && await controller.deleteThread(deleting.id)) {
+          setDeleting(null);
+          void message.success(<span className="compact-confirm-copy">
+            已移入会话管理的回收站，可在那里恢复。
+          </span>);
+        }
+      }}>
+      <p className="compact-confirm-copy">删除后可在“会话管理”的回收站中找到，并恢复到指定的 Codex Home。</p>
+    </Modal>
     <Modal title="重命名对话" open={Boolean(renaming)} width={400} okText="保存" cancelText="取消"
       okButtonProps={{ disabled: !name.trim() }} onCancel={() => setRenaming(null)}
       onOk={() => { if (renaming) void controller.manage("rename", renaming.id, name); setRenaming(null); }}>

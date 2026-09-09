@@ -51,13 +51,17 @@ fn append_index_entry(codex_home: &Path, session_id: &str, entry: &Value) -> Res
 pub(crate) fn recover_codex_threads_blocking<R: Runtime>(
     app: ThreadContext<R>,
     session_ids: Vec<String>,
+    target_home_id: Option<String>,
 ) -> Result<MutationReport, String> {
     let _guard = bin_operation_guard()?;
     let requested = normalized_ids(session_ids);
     if requested.is_empty() {
         return Err("请至少选择一条待恢复会话".to_string());
     }
-    let codex_home = app.paths.codex_home.clone();
+    let codex_home = match target_home_id {
+        Some(id) => crate::codex_home::resolve_selected(&app.app, Some(&id))?,
+        None => app.paths.codex_home.clone(),
+    };
     let mut restored = HashSet::new();
     let mut restored_groups = HashSet::new();
     let mut entries = collect_bin_entries(&app)?;
@@ -66,9 +70,6 @@ pub(crate) fn recover_codex_threads_blocking<R: Runtime>(
         .into_iter()
         .filter(|item| requested.contains(&item.manifest.session_id))
     {
-        if !bin_belongs_to_home(&item, &codex_home) {
-            return Err("请切换到该会话原来的 Codex 目录后再恢复".to_string());
-        }
         let group = legacy_bin_group(&item);
         let recovered = if restored_groups.contains(&group) {
             recover_additional_bin_files(&codex_home, &item)?
@@ -84,7 +85,7 @@ pub(crate) fn recover_codex_threads_blocking<R: Runtime>(
         requested_count: requested.len(),
         affected_count: restored.len(),
         released_bytes: 0,
-        message: format!("已恢复 {} 条会话", restored.len()),
+        message: format!("已恢复 {} 条会话，跳过 {} 条", restored.len(), requested.len() - restored.len()),
     })
 }
 

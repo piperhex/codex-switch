@@ -267,6 +267,7 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
             serialize(crate::conversation_hub::recover_codex_threads_blocking(
                 crate::conversation_hub::ThreadContext::new(app, argument(&args, "homeId")?)?,
                 argument(&args, "sessionIds")?,
+                argument(&args, "targetHomeId")?,
             ))
         }
         "purge_codex_threads" => serialize(crate::conversation_hub::purge_codex_threads_blocking(

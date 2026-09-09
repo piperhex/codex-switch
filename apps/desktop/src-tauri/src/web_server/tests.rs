@@ -57,7 +57,7 @@ mod tests {
     fn lan_requests_allow_gui_conversations_but_restrict_host_administration() {
         for command in ["codex_gui_connect", "codex_gui_request", "codex_gui_respond",
             "codex_gui_events", "codex_gui_cli_status", "codex_gui_cli_release",
-            "codex_gui_cli_install", "codex_gui_usage_summary"] {
+            "codex_gui_cli_install", "codex_gui_usage_summary", "codex_gui_delete_thread"] {
             assert!(WebRequestAccess::Lan.allows_command(command));
         }
         assert!(LAN_COMMAND_ALLOWLIST.contains(&"list_accounts"));
@@ -67,6 +67,8 @@ mod tests {
         assert!(!LAN_COMMAND_ALLOWLIST.contains(&"restart_chatgpt"));
         assert!(!LAN_COMMAND_ALLOWLIST.contains(&"cloud_login"));
         assert!(!LAN_COMMAND_ALLOWLIST.contains(&"delete_account"));
+        assert!(!LAN_COMMAND_ALLOWLIST.contains(&"discard_codex_threads"));
+        assert!(!LAN_COMMAND_ALLOWLIST.contains(&"recover_codex_threads"));
         assert!(!LAN_COMMAND_ALLOWLIST.contains(&"save_provider"));
         assert!(!LAN_COMMAND_ALLOWLIST.contains(&"launch_chatgpt"));
     }

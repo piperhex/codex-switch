@@ -173,6 +173,8 @@ function CodexThreadsContent({ language, notify }: CodexThreadsPageProps) {
           text={text}
           language={language}
           restore={() => void trash.restore()}
+          targetHomeId={trash.targetHomeId}
+          setTargetHomeId={trash.setTargetHomeId}
           confirmDelete={trash.confirmDelete}
         />
         <TransferModal

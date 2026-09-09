@@ -194,7 +194,7 @@ fn restore_bin_state(codex_home: &Path, manifest: &BinManifest) -> Result<(), St
     };
     let state_db = latest_state_db(codex_home);
     if backup.thread.is_some() && state_db.is_none() {
-        return Err("找不到原来的 Codex 会话数据，请启动 Codex 后再恢复".to_string());
+        return Err("请先使用目标 Codex Home 启动一次 Codex，再恢复会话".to_string());
     }
     let relative = safe_relative_path(&manifest.relative_rollout_path)
         .ok_or_else(|| "回收站中的会话路径无效".to_string())?;
@@ -206,7 +206,7 @@ fn restore_bin_state(codex_home: &Path, manifest: &BinManifest) -> Result<(), St
     )?;
     for snapshot in &backup.tables {
         let path = bin_snapshot_path(codex_home, snapshot)?
-            .ok_or_else(|| "找不到原来的 Codex 会话数据，备份仍保留在回收站中".to_string())?;
+            .ok_or_else(|| "目标 Codex Home 暂不支持完整恢复，请更新并启动 Codex 后重试。备份仍在回收站中".to_string())?;
         let connection = Connection::open(&path).map_err(|error| error.to_string())?;
         if !table_exists(&connection, &snapshot.table)? {
             return Err("Codex 会话数据格式已变化，备份仍保留在回收站中".to_string());

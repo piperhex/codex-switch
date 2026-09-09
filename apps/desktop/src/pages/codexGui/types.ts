@@ -140,6 +140,7 @@ export interface GuiState {
   settings: Settings;
   loading: boolean;
   sending: boolean;
+  deleting?: string;
   archived: boolean;
   search: string;
   cursor: string | null;

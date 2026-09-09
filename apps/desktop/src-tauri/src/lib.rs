@@ -234,6 +234,7 @@ pub fn run() {
             codex_gui::releases::codex_gui_cli_install,
             codex_gui::codex_gui_request,
             codex_gui::codex_gui_respond,
+            codex_gui::deletion::codex_gui_delete_thread,
             codex_gui::usage::codex_gui_usage_summary,
             commands::get_app_info,
             ccs_import::take_ccswitch_import_request,
