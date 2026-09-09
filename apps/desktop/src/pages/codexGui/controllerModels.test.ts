@@ -1,0 +1,74 @@
+// @vitest-environment jsdom
+import { beforeEach, expect, it, vi } from "vitest";
+import { guiApi } from "./api";
+import { GuiController } from "./controller";
+import type { Model } from "./types";
+
+vi.mock("./api", () => ({ guiApi: { connect: vi.fn(), request: vi.fn(), subscribe: vi.fn() } }));
+const model = (name: string): Model => ({ id: name, model: name, displayName: name, isDefault: true,
+  defaultReasoningEffort: "high", supportedReasoningEfforts: [{ reasoningEffort: "high", description: "" }] });
+const official = model("gpt-6-astra");
+const thirdParty = model("kimi-k3");
+
+beforeEach(() => {
+  vi.resetAllMocks();
+  localStorage.clear();
+  vi.mocked(guiApi.connect).mockResolvedValue([]);
+  vi.mocked(guiApi.subscribe).mockResolvedValue(vi.fn());
+  vi.mocked(guiApi.request).mockImplementation(async (request) => ({
+    data: request.operation === "models" ? [official] : [], nextCursor: null,
+  }));
+});
+
+it("updates the menu and clears incompatible selections when switching Providers and back", async () => {
+  const controller = new GuiController();
+  await controller.connect();
+  controller.settings({ model: official.model, effort: "high" });
+  controller.setProviderModels([thirdParty]);
+  expect(controller.getSnapshot().models).toEqual([thirdParty]);
+  expect(controller.getSnapshot().settings).toMatchObject({ model: "", effort: "" });
+  controller.settings({ model: thirdParty.model, effort: "max" });
+  controller.setProviderModels([thirdParty]);
+  expect(controller.getSnapshot().settings).toMatchObject({ model: thirdParty.model, effort: "" });
+  controller.setProviderModels(null);
+  expect(controller.getSnapshot().models).toEqual([official]);
+  expect(controller.getSnapshot().settings.model).toBe("");
+  controller.dispose();
+});
+
+it("keeps the latest Provider visible while the account model request is still running", async () => {
+  let finish!: (value: unknown) => void;
+  vi.mocked(guiApi.request).mockImplementation((request) => request.operation === "models"
+    ? new Promise((resolve) => { finish = resolve; }) : Promise.resolve({ data: [], nextCursor: null }));
+  const controller = new GuiController();
+  const connecting = controller.connect();
+  await vi.waitFor(() => expect(finish).toBeTypeOf("function"));
+  controller.setProviderModels([thirdParty]);
+  controller.settings({ model: thirdParty.model, effort: "high" });
+  controller.setProviderModels([model("deepseek-v3")]);
+  finish({ data: [official], nextCursor: null });
+  await connecting;
+  expect(controller.getSnapshot().models.map((entry) => entry.model)).toEqual(["deepseek-v3"]);
+  controller.setProviderModels(null);
+  expect(controller.getSnapshot().models).toEqual([official]);
+  controller.dispose();
+});
+
+it("updates the catalog during an active turn without reconnecting or changing that turn", async () => {
+  const controller = new GuiController();
+  await controller.connect();
+  const receive = vi.mocked(guiApi.subscribe).mock.calls[0][0];
+  receive({ method: "thread/started", params: { thread: { id: "live", cwd: "", preview: "", updatedAt: 1 } } });
+  receive({ method: "turn/started", params: { threadId: "live",
+    turn: { id: "turn", status: "inProgress", items: [] } } });
+  const before = controller.getSnapshot().conversations.live;
+  vi.mocked(guiApi.connect).mockClear();
+  vi.mocked(guiApi.request).mockClear();
+  controller.setProviderModels([thirdParty]);
+  expect(controller.getSnapshot().models).toEqual([thirdParty]);
+  expect(controller.getSnapshot().conversations.live).toBe(before);
+  expect(controller.getSnapshot().conversations.live.activeTurn).toBe("turn");
+  expect(guiApi.connect).not.toHaveBeenCalled();
+  expect(guiApi.request).not.toHaveBeenCalled();
+  controller.dispose();
+});

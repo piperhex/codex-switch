@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Alert, Button, Popover } from "antd";
 import { Download, PanelLeftClose, PanelLeftOpen, RefreshCw } from "lucide-react";
 import { hasLocalBackend, isDesktopApp } from "../api/backend";
@@ -16,19 +16,24 @@ import { useGuiLayout } from "./codexGui/useGuiLayout";
 import { useConversationReadState } from "./codexGui/useConversationReadState";
 import styles from "./codexGui/styles.module.less";
 import { WorkspaceOperationContext } from "./codexGui/workspaceOperationContext";
+import type { AggregateApi, Provider } from "../types";
+import { providerModels } from "./codexGui/providerModels";
 
-type CodexGuiPageProps = { active: boolean; accountPicker: ReactNode };
+type CodexGuiPageProps = {
+  active: boolean; accountPicker: ReactNode; providers: Provider[]; aggregateApis: AggregateApi[];
+};
 
-export function CodexGuiPage({ active, accountPicker }: CodexGuiPageProps) {
+export function CodexGuiPage(props: CodexGuiPageProps) {
+  const { active } = props;
   useGuiLayout(active);
   const [visited, setVisited] = useState(active);
   useEffect(() => { if (active) setVisited(true); }, [active]);
   if (!visited) return null;
   if (!hasLocalBackend) return <div className={styles.install}><h2>Codex GUI</h2><p>请打开 Codex Switch 提供的网页地址，开始对话。</p></div>;
-  return <Workspace active={active} accountPicker={accountPicker} />;
+  return <Workspace {...props} />;
 }
 
-function Workspace({ active, accountPicker }: CodexGuiPageProps) {
+function Workspace({ active, accountPicker, providers, aggregateApis }: CodexGuiPageProps) {
   const [controller] = useState(() => new GuiController());
   useConversationReadState(active, controller);
   const composer = useRef<ComposerHandle>(null);
@@ -36,6 +41,8 @@ function Workspace({ active, accountPicker }: CodexGuiPageProps) {
   const [collapsed, setCollapsed] = useState(() => window.innerWidth < 900);
   const installer = useCliInstaller(active, controller);
   useEffect(() => { controller.activate(); return controller.dispose; }, [controller]);
+  const models = useMemo(() => providerModels(providers, aggregateApis), [providers, aggregateApis]);
+  useEffect(() => { controller.setProviderModels(models); }, [controller, models]);
   useEffect(() => {
     if (isDesktopApp || !installer.version) return;
     if (active) void controller.connect();

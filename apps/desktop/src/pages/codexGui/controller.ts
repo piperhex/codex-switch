@@ -28,6 +28,8 @@ export class GuiController {
   private unlisten?: () => void;
   private disposed = false;
   private connecting?: Promise<void>;
+  private accountModels: Model[] | null = null;
+  private providerModels: Model[] | null = null;
   private streamEvents: GuiEvent[] = [];
   private streamTimer?: ReturnType<typeof setTimeout>;
   getSnapshot = () => this.state;
@@ -140,7 +142,26 @@ export class GuiController {
       models.push(...response.data);
       cursor = response.nextCursor || undefined;
     } while (cursor && !this.disposed);
+    this.accountModels = models;
+    this.applyModels();
+  }
+
+  setProviderModels = (models: Model[] | null) => {
+    this.providerModels = models;
+    this.applyModels();
+  };
+
+  private applyModels() {
+    if (this.disposed) return;
+    const models = this.providerModels ?? this.accountModels;
+    if (!models) { this.patch({ models: [] }); return; }
     this.patch({ models });
+    const { model, effort } = this.state.settings;
+    const selected = models.find((entry) => entry.model === model);
+    if (model && !selected) this.settings({ model: "", effort: "" });
+    else if (selected && effort && !selected.supportedReasoningEfforts.some((entry) => entry.reasoningEffort === effort)) {
+      this.settings({ effort: "" });
+    }
   }
 
   refresh = async (more = false) => {

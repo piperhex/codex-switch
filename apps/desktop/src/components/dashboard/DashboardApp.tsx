@@ -1488,7 +1488,8 @@ export function DashboardApp() {
             {page === "sessions" && <MemoCodexThreadsPage language={language} notify={notify} />}
           </section>
           <section className={codexGuiStyles.panel} hidden={page !== "codexGui"}>
-            <CodexGuiPage active={page === "codexGui"} accountPicker={
+            <CodexGuiPage active={page === "codexGui"}
+              providers={providerManager.providers} aggregateApis={providerManager.aggregateApis} accountPicker={
               <ProxyAccountPicker active={page === "codexGui"} accounts={manager.accounts}
                 privacyMode={privacyMode.enabled}
                 providers={providerManager.providers} aggregateApis={providerManager.aggregateApis}
