@@ -132,10 +132,29 @@ it("keeps failed batches available for retry and does not loop", async () => {
   });
   await finish();
   expect(messages()[0]).toMatchObject({ text: "keep me", busy: false });
+  expect(controller.getSnapshot().conversations.one.turns.flatMap((turn) => turn.items)).toEqual([]);
   expect(controller.getSnapshot().error).toBe("暂时无法发送");
   expect(vi.mocked(guiApi.request).mock.calls.filter(([request]) => request.operation === "sendBatch")).toHaveLength(1);
   vi.mocked(guiApi.request).mockImplementation(original);
   await controller.queue.flush("one");
+  expect(messages()).toEqual([]);
+});
+
+it("merges acknowledgement items after an earlier turn event without reviving a completed turn", async () => {
+  await controller.send("continue", []);
+  const original = vi.mocked(guiApi.request).getMockImplementation()!;
+  const input = { id: "input", type: "userMessage", content: [{ type: "text", text: "continue" }] };
+  const answer = { id: "answer", type: "agentMessage", text: "Finished checking" };
+  vi.mocked(guiApi.request).mockImplementation(async (request) => {
+    if (request.operation !== "sendBatch") return original(request);
+    receive({ method: "turn/completed", params: { threadId: "one",
+      turn: { id: "batch", status: "completed", items: [answer] } } });
+    return { turn: { id: "batch", status: "inProgress", items: [input, { ...answer, text: "" }] } };
+  });
+  await finish();
+  const completed = controller.getSnapshot().conversations.one.turns.find((turn) => turn.id === "batch");
+  expect(completed).toMatchObject({ status: "completed", items: [input, answer] });
+  expect(controller.getSnapshot().conversations.one.activeTurn).toBeNull();
   expect(messages()).toEqual([]);
 });
 

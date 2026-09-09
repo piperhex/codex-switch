@@ -3,6 +3,7 @@ import { completeTurnTiming, restoreTurnTiming } from "./turnTiming";
 import { cachedTurnDetails } from "./turnDetailsStorage";
 import { restoreProcessing, trackProcessing } from "./processing";
 import { trackProcessingApproval } from "./processingApprovals";
+import { mergeMessageItems } from "./sentMessages";
 
 export function conversation(thread: Thread, previous?: Conversation): Conversation {
   const previousTurns = new Map(previous?.turns.map((turn) => [turn.id, turn]));
@@ -12,7 +13,8 @@ export function conversation(thread: Thread, previous?: Conversation): Conversat
     return { diff: previousTurn?.diff ?? cached.get(turn.id)?.diff,
       plan: previousTurn?.plan ?? cached.get(turn.id)?.plan,
       planExplanation: previousTurn?.planExplanation ?? cached.get(turn.id)?.planExplanation,
-      ...restoreTurnTiming(turn, previousTurn) };
+      ...restoreTurnTiming(turn, previousTurn),
+      items: mergeMessageItems(previousTurn?.items ?? [], turn.items ?? []) };
   });
   const active = turns.find((turn) => turn.status === "inProgress");
   return { thread, turns, activeTurn: active?.id ?? null,
@@ -31,9 +33,8 @@ function updateTurn(value: Conversation, id: string, update: (turn: Turn) => Tur
 
 function mergeTurn(previous: Turn, incoming: Turn): Turn {
   // Lifecycle notifications can contain only a summary. Omitted items are not deletions.
-  const items = new Map(previous.items.map((item) => [item.id, item]));
-  for (const item of incoming.items ?? []) items.set(item.id, { ...items.get(item.id), ...item });
-  return { ...previous, ...restoreTurnTiming(incoming, previous), items: [...items.values()] };
+  return { ...previous, ...restoreTurnTiming(incoming, previous),
+    items: mergeMessageItems(previous.items, incoming.items ?? []) };
 }
 
 function updateItem(value: Conversation, event: GuiEvent, update: (item: Item) => Item): Conversation {
@@ -94,7 +95,9 @@ function reduceConversationContent(value: Conversation, event: GuiEvent): Conver
       error: params.turn.status === "failed" ? "本次回复未完成，请检查连接后重试。" : "" };
   }
   if ((method === "item/started" || method === "item/completed") && params.item) {
-    const updated = updateItem(value, event, (previous) => ({ ...previous, ...params.item! }));
+    if (!params.turnId) return value;
+    const updated = updateTurn(value, params.turnId, (turn) => ({ ...turn,
+      items: mergeMessageItems(turn.items, [params.item!]) }));
     if (params.item.type === "userMessage" && !value.thread.preview) {
       const content = params.item.content?.filter((part) => typeof part === "object" && part.type === "text") ?? [];
       const preview = content.map((part) => typeof part === "object" ? part.text : "").join(" ");

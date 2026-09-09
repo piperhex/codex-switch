@@ -7,6 +7,7 @@ import { deleteGuiThread } from "./deleteThread";
 import { conversation, reduceEvent } from "./events";
 import { completeTurnTiming, restoreTurnTiming } from "./turnTiming";
 import { MessageQueue } from "./messageQueue";
+import { mergeMessageItems } from "./sentMessages";
 import { compactUnavailableReason } from "./composerOptions";
 import { rememberTurnDetails } from "./turnDetailsStorage";
 import { restoreProcessing } from "./processing";
@@ -51,7 +52,14 @@ export class GuiController {
 
   private acceptTurn(threadId: string, turn: Turn) {
     const current = this.state.conversations[threadId];
-    if (!current || current.turns.some((entry) => entry.id === turn.id)) return;
+    if (!current) return;
+    if (current.turns.some((entry) => entry.id === turn.id)) {
+      // Events may beat the acknowledgement; their newer content and final status must win.
+      this.patch({ conversations: { ...this.state.conversations, [threadId]: { ...current,
+        turns: current.turns.map((entry) => entry.id === turn.id
+          ? { ...entry, items: mergeMessageItems(turn.items ?? [], entry.items) } : entry) } } });
+      return;
+    }
     const timedTurn = turn.status === "inProgress" ? restoreTurnTiming(turn) : completeTurnTiming(turn);
     this.patch({ conversations: { ...this.state.conversations, [threadId]: { ...current,
       turns: [...current.turns, timedTurn], activeTurn: turn.status === "inProgress" ? turn.id : null,

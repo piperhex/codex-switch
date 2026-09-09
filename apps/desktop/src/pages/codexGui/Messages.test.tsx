@@ -67,6 +67,33 @@ afterEach(async () => {
   else Reflect.deleteProperty(HTMLElement.prototype, "scrollTo");
 });
 
+it.each(["batch", "steer"])("shows %s queue messages on acknowledgement before server items arrive", async (mode) => {
+  const live = { id: "live", status: "inProgress", items: [items[0]] };
+  const targetId = mode === "batch" ? "batch" : live.id;
+  const original = vi.mocked(guiApi.request).getMockImplementation()!;
+  vi.mocked(guiApi.request).mockImplementation(async (request) => request.operation === "sendBatch"
+    ? { turn: { id: targetId, status: "inProgress", items: [] } } : original(request));
+  await act(async () => {
+    receive({ method: "turn/started", params: { threadId: thread.id, turn: live } });
+    await controller.send("也检查待发送消息", []);
+  });
+  expect(container.textContent).not.toContain("也检查待发送消息");
+  await act(async () => {
+    if (mode === "steer") await controller.queue.steer(thread.id, controller.getSnapshot().queued.one[0].id);
+    else receive({ method: "turn/completed", params: { threadId: thread.id, turn: { ...live, status: "completed" } } });
+  });
+  expect(controller.getSnapshot().queued.one).toEqual([]);
+  const visibleCount = () => container.textContent?.split("也检查待发送消息").length;
+  expect(visibleCount()).toBe(2);
+  const delivered: Item = { id: "delivered", type: "userMessage",
+    content: [{ type: "text", text: "也检查待发送消息" }] };
+  await act(async () => {
+    for (const method of ["item/started", "item/completed"]) receive({ method,
+      params: { threadId: thread.id, turnId: targetId, item: delivered } });
+  });
+  expect(visibleCount()).toBe(2);
+});
+
 it("renders deltas between arrivals, preserves code blocks, and flushes when stopped", async () => {
   vi.useFakeTimers();
   vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) =>
