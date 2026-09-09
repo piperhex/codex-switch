@@ -15,6 +15,8 @@ interface ThreadGroupProps {
   filtering: boolean;
   creatingDisabled: boolean;
   onNewConversation?: () => void;
+  projectMenu?: ReactNode;
+  projectPinned?: boolean;
   onToggle: (field: "collapsed" | "expanded") => void;
   renderThread: (thread: Thread) => ReactNode;
 }
@@ -28,7 +30,7 @@ function previewThreads(threads: Thread[], selected: string | null) {
 }
 
 export function ThreadGroup({ label, pinned, threads, selected, collapsed, expanded, filtering,
-  creatingDisabled, onNewConversation, onToggle, renderThread }: ThreadGroupProps) {
+  creatingDisabled, onNewConversation, projectMenu, projectPinned, onToggle, renderThread }: ThreadGroupProps) {
   const contentId = useId();
   const isCollapsed = collapsed && !filtering;
   const showAll = expanded || filtering;
@@ -42,7 +44,9 @@ export function ThreadGroup({ label, pinned, threads, selected, collapsed, expan
           <ChevronRight size={14} className={styles.arrow} />
         </span>
         <span className={styles.label}>{label}</span>
+        {projectPinned && <Pin size={12} className={styles.pin} aria-label="已置顶" />}
       </button>
+      {projectMenu}
       {onNewConversation && <Tooltip title="新建对话" overlayStyle={{ maxWidth: 400 }}>
         <button type="button" className={styles.add} aria-label={`在 ${label} 中新建对话`}
           disabled={creatingDisabled} onClick={onNewConversation}>

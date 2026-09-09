@@ -1,5 +1,6 @@
 import { guiApi } from "./api";
 import { GuiGoals } from "./goals";
+import { GuiProjects } from "./projectActions";
 import type { AttachmentReference } from "./attachmentTypes";
 import { deleteGuiThread } from "./deleteThread";
 import { conversation, reduceEvent } from "./events";
@@ -41,6 +42,7 @@ export class GuiController {
   };
   clearError = () => this.patch({ error: "" });
   readonly goals = new GuiGoals({ getSnapshot: this.getSnapshot, patch: this.patch, report: this.report });
+  readonly projectActions = new GuiProjects({ getSnapshot: this.getSnapshot, patch: this.patch, report: this.report });
   readonly queue = new MessageQueue({ getSnapshot: this.getSnapshot, patch: this.patch,
     active: () => !this.disposed, report: this.report,
     acceptTurn: (threadId, turn) => this.acceptTurn(threadId, turn) });
@@ -128,11 +130,12 @@ export class GuiController {
       const response = await guiApi.request<ListResponse<Thread>>({ operation: "list", archived: this.state.archived,
         search: this.state.search || undefined, cursor: more ? this.state.cursor ?? undefined : undefined });
       if (generation !== this.listGeneration) return;
-      const threads = (more ? [...this.state.threads, ...response.data] : response.data)
-        .map((thread) => ({ ...thread, cwd: this.state.projectOverrides[thread.id] ?? thread.cwd }));
+      const threads = more ? [...this.state.threads, ...response.data] : response.data;
       const live = this.state.archived || this.state.search ? [] : Object.values(this.state.conversations)
         .filter((value) => value.activeTurn).map((value) => value.thread);
-      this.patch({ threads: [...new Map([...live, ...threads].map((thread) => [thread.id, thread])).values()],
+      const grouped = [...new Map([...live, ...threads].map((thread) => [thread.id, thread])).values()]
+        .map((thread) => ({ ...thread, cwd: this.state.projectOverrides[thread.id] ?? thread.cwd }));
+      this.patch({ threads: grouped,
         cursor: response.nextCursor });
     } catch (error) { if (generation === this.listGeneration) this.report(error); }
     finally { if (generation === this.listGeneration) this.patch({ loading: false }); }

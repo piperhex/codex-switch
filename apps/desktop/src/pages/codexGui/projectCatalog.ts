@@ -3,7 +3,7 @@ export interface SavedProject { path: string; name: string }
 const STORAGE_KEY = "codex-switch:gui-projects";
 
 export function folderName(path: string) {
-  return path.split(/[\\/]/).filter(Boolean).pop() || "无项目";
+  return path.split(/[\\/]/).filter(Boolean).pop() || "最近";
 }
 
 export function readProjects(): SavedProject[] {
@@ -24,4 +24,8 @@ export function saveProject(project: SavedProject) {
   const projects = [project, ...readProjects().filter((item) => item.path !== project.path)];
   localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
   return projects;
+}
+
+export function removeSavedProject(path: string) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(readProjects().filter((project) => project.path !== path)));
 }

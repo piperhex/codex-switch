@@ -160,6 +160,8 @@ export interface GuiState {
   error: string;
   pins: string[];
   projects: string[];
+  pinnedProjects: string[];
+  removingProject?: string;
   projectOverrides: Record<string, string>;
 }
 export type ApprovalReply = {

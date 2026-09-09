@@ -6,7 +6,8 @@ import type { GuiState, Thread } from "./types";
 import { ThreadGroup } from "./ThreadGroup";
 import { ThreadSearch } from "./ThreadSearch";
 import { useThreadGroupViews } from "./useThreadGroupViews";
-import { projectName } from "./projectCatalog";
+import { threadGroups } from "./threadGroups";
+import { ProjectGroupMenu } from "./ProjectGroupMenu";
 import styles from "./styles.module.less";
 
 export function threadTitle(thread: Thread) { return thread.name || thread.preview || "新对话"; }
@@ -25,20 +26,8 @@ export function ThreadSidebar({ state, controller, accountPicker }: {
     setSearchOpen(false);
     if (state.search) controller.filter("", state.archived);
   };
-  const groups = useMemo(() => {
-    const pinned = state.threads.filter((thread) => state.pins.includes(thread.id));
-    const byProject = new Map<string, Thread[]>();
-    state.threads.filter((thread) => !state.pins.includes(thread.id)).forEach((thread) => {
-      const key = thread.cwd || "";
-      byProject.set(key, [...(byProject.get(key) ?? []), thread]);
-    });
-    return [
-      ...(pinned.length ? [{ id: "pinned", label: "置顶", pinned: true, cwd: "", threads: pinned }] : []),
-      ...Array.from(byProject, ([path, threads]) => ({
-        id: `project:${path}`, label: projectName(path), pinned: false, cwd: path, threads,
-      })),
-    ];
-  }, [state.threads, state.pins, state.projects]);
+  const groups = useMemo(() => threadGroups(state),
+    [state.threads, state.pins, state.projects, state.pinnedProjects]);
   const renderThread = (thread: Thread) => {
     const running = Boolean(state.conversations[thread.id]?.activeTurn) || thread.status?.type === "active";
     const busy = state.sending || Boolean(state.deleting);
@@ -90,6 +79,9 @@ export function ThreadSidebar({ state, controller, accountPicker }: {
         return <ThreadGroup key={key} label={group.label} pinned={group.pinned} threads={group.threads}
           selected={state.selected} collapsed={views.collapsed.includes(key)} expanded={views.expanded.includes(key)}
           filtering={Boolean(state.search.trim())} onToggle={(field) => toggle(field, key)}
+          projectPinned={state.pinnedProjects.includes(group.cwd)}
+          projectMenu={group.cwd ? <ProjectGroupMenu path={group.cwd} label={group.label}
+            state={state} controller={controller} /> : undefined}
           creatingDisabled={state.sending} onNewConversation={group.cwd ? () => {
             controller.newConversation();
             controller.setProject(group.cwd);

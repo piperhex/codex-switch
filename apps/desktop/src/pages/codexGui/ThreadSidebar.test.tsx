@@ -86,3 +86,28 @@ it("starts a new chat in the clicked project without moving the current conversa
   expect(controller.getSnapshot().conversations.previous.thread.cwd).toBe("D:/other");
   expect(new GuiController().getSnapshot().settings.cwd).toBe("D:/project");
 });
+
+it("offers pin and remove actions on projects while keeping the recent group unmanaged", async () => {
+  state.threads.push({ ...state.threads[0], id: "recent", cwd: "" });
+  const pin = vi.spyOn(controller.projectActions, "pin");
+  const remove = vi.spyOn(controller.projectActions, "remove").mockResolvedValue(true);
+  await render();
+  expect(container.querySelector('section[aria-label="最近"]')).toBeTruthy();
+  expect(container.querySelector('[aria-label="管理项目：最近"]')).toBeNull();
+  const trigger = container.querySelector<HTMLButtonElement>('[aria-label="管理项目：project"]')!;
+  const choose = async (label: string) => {
+    await act(async () => trigger.click());
+    const item = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')]
+      .find((entry) => entry.textContent === label)!;
+    await act(async () => item.click());
+  };
+  await choose("置顶");
+  expect(pin).toHaveBeenCalledWith("D:/project");
+  state = { ...state, pinnedProjects: ["D:/project"] };
+  await render();
+  await choose("取消置顶");
+  expect(controller.getSnapshot().pinnedProjects).toEqual([]);
+  await choose("移除项目");
+  expect(remove).toHaveBeenCalledWith("D:/project");
+  expect(button("project").getAttribute("aria-expanded")).toBe("true");
+});
