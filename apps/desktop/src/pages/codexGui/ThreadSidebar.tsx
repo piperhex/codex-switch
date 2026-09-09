@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { Button, Dropdown, Input, Modal, Segmented, Spin } from "antd";
-import { Archive, MoreHorizontal, Pencil, Pin, Plus, RefreshCw, Search } from "lucide-react";
+import { Archive, MoreHorizontal, Pencil, Pin, RefreshCw, Search, SquarePen } from "lucide-react";
 import type { GuiController } from "./controller";
 import type { GuiState, Thread } from "./types";
 import { ThreadGroup } from "./ThreadGroup";
@@ -69,8 +69,10 @@ export function ThreadSidebar({ state, controller, accountPicker }: {
           disabled={state.connection !== "ready"} onClick={() => setSearchOpen(true)} />
       </div>
     </div>
-    <Button className={styles.newButton} icon={<Plus size={16} />} disabled={state.sending}
-      onClick={controller.newConversation}>新对话</Button>
+    <button type="button" className={styles.newButton} disabled={state.sending}
+      onClick={controller.newConversation}>
+      <SquarePen size={18} strokeWidth={1.6} aria-hidden="true" /><span>新对话</span>
+    </button>
     <Segmented block size="small" value={state.archived ? "archived" : "recent"}
       options={[{ label: "最近", value: "recent" }, { label: "已归档", value: "archived" }]}
       onChange={(value) => controller.filter("", value === "archived")} disabled={state.connection !== "ready"} />

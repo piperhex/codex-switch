@@ -14,7 +14,17 @@
   min-height: 0; border-right: 1px solid var(--gui-border); background: var(--bg, #f6f8f7); }
 .sidebarHeading { display: flex; align-items: center; justify-content: space-between; padding: 0 6px; }
 .sidebarActions { display: flex; align-items: center; gap: 4px; }
-.newButton { width: 100%; min-height: 36px; box-shadow: none; }
+.newButton {
+  display: flex; align-items: center; justify-content: flex-start; gap: 10px;
+  width: 100%; min-height: 36px; padding: 8px 7px; border: 0; border-radius: 9px;
+  background: transparent; color: inherit; text-align: left; cursor: pointer;
+  transition: background-color 150ms ease;
+  &:hover:not(:disabled), &:focus-visible { background: var(--green-selection-hover); }
+  &:focus-visible { outline: 2px solid var(--green-dark); outline-offset: 2px; }
+  &:active:not(:disabled) { background: var(--green-selection); }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+  > svg { flex-shrink: 0; }
+}
 .threadList { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; margin: 2px -6px; }
 .thread { display: flex; align-items: center; border-radius: 9px; min-width: 0; margin: 2px 0; }
 .thread:hover { background: var(--green-selection-hover); }
