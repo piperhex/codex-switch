@@ -111,3 +111,18 @@ it("offers pin and remove actions on projects while keeping the recent group unm
   expect(remove).toHaveBeenCalledWith("D:/project");
   expect(button("project").getAttribute("aria-expanded")).toBe("true");
 });
+
+it("shows a spinner for active chats, a dot for completed unread chats, and no dot for read chats", async () => {
+  state.threadReadState.one = { turnId: "turn", unread: true };
+  state.threads[0].status = { type: "active" };
+  await render();
+  expect(container.querySelector('[aria-label="正在回复"]')).toBeTruthy();
+  expect(container.querySelector('[aria-label="未读回复"]')).toBeNull();
+  state = { ...state, threads: [{ ...state.threads[0], status: { type: "idle" } }] };
+  await render();
+  expect(container.querySelector('[aria-label="正在回复"]')).toBeNull();
+  expect(container.querySelector('[aria-label="未读回复"]')).toBeTruthy();
+  state = { ...state, threadReadState: { one: { turnId: "turn", unread: false } } };
+  await render();
+  expect(container.querySelector('[aria-label="未读回复"]')).toBeNull();
+});

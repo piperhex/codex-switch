@@ -8,6 +8,7 @@ import { ThreadSearch } from "./ThreadSearch";
 import { useThreadGroupViews } from "./useThreadGroupViews";
 import { threadGroups } from "./threadGroups";
 import { ProjectGroupMenu } from "./ProjectGroupMenu";
+import { ThreadStatus } from "./ThreadStatus";
 import styles from "./styles.module.less";
 
 export function threadTitle(thread: Thread) { return thread.name || thread.preview || "新对话"; }
@@ -29,7 +30,8 @@ export function ThreadSidebar({ state, controller, accountPicker }: {
   const groups = useMemo(() => threadGroups(state),
     [state.threads, state.pins, state.projects, state.pinnedProjects]);
   const renderThread = (thread: Thread) => {
-    const running = Boolean(state.conversations[thread.id]?.activeTurn) || thread.status?.type === "active";
+    const running = Boolean(state.conversations[thread.id]?.activeTurn) || thread.status?.type === "active"
+      || state.pendingRequest?.threadId === thread.id;
     const busy = state.sending || Boolean(state.deleting);
     const needsInput = state.approvals.some((event) => event.params.threadId === thread.id);
     const items = [
@@ -43,7 +45,8 @@ export function ThreadSidebar({ state, controller, accountPicker }: {
     return <div className={`${styles.thread} ${state.selected === thread.id ? styles.selected : ""}`} key={thread.id}>
       <button className={styles.threadSelect} disabled={state.sending}
         onClick={() => void controller.select(thread.id)}>
-        <span className={needsInput ? styles.waitingDot : running ? styles.runningDot : styles.idleDot} />
+        <ThreadStatus running={running} needsInput={needsInput}
+          unread={Boolean(state.threadReadState[thread.id]?.unread)} />
         <span>{threadTitle(thread)}</span>
       </button>
       <Dropdown trigger={["click"]} menu={{ items, onClick: ({ key }) => {

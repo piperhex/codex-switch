@@ -1,6 +1,7 @@
 import { guiApi } from "./api";
 import { GuiGoals } from "./goals";
 import { GuiProjects } from "./projectActions";
+import { GuiReadState } from "./threadReadState";
 import type { AttachmentReference } from "./attachmentTypes";
 import { deleteGuiThread } from "./deleteThread";
 import { conversation, reduceEvent } from "./events";
@@ -43,6 +44,7 @@ export class GuiController {
   clearError = () => this.patch({ error: "" });
   readonly goals = new GuiGoals({ getSnapshot: this.getSnapshot, patch: this.patch, report: this.report });
   readonly projectActions = new GuiProjects({ getSnapshot: this.getSnapshot, patch: this.patch, report: this.report });
+  readonly readState = new GuiReadState({ getSnapshot: this.getSnapshot, patch: this.patch });
   readonly queue = new MessageQueue({ getSnapshot: this.getSnapshot, patch: this.patch,
     active: () => !this.disposed, report: this.report,
     acceptTurn: (threadId, turn) => this.acceptTurn(threadId, turn) });
@@ -54,6 +56,8 @@ export class GuiController {
     this.patch({ conversations: { ...this.state.conversations, [threadId]: { ...current,
       turns: [...current.turns, timedTurn], activeTurn: turn.status === "inProgress" ? turn.id : null,
       processing: turn.status === "inProgress" ? restoreProcessing(timedTurn) : undefined } } });
+    this.readState.receive({ method: turn.status === "inProgress" ? "turn/started" : "turn/completed",
+      params: { threadId, turn } });
   }
 
   private flushStream = () => {
@@ -79,6 +83,7 @@ export class GuiController {
     }
     this.flushStream();
     this.patch(reduceEvent(this.state, event));
+    this.readState.receive(event);
     if (["turn/diff/updated", "turn/plan/updated"].includes(event.method) && event.params.threadId) {
       const value = this.state.conversations[event.params.threadId];
       const turnId = event.params.turnId ?? value?.activeTurn;
@@ -130,6 +135,7 @@ export class GuiController {
       const response = await guiApi.request<ListResponse<Thread>>({ operation: "list", archived: this.state.archived,
         search: this.state.search || undefined, cursor: more ? this.state.cursor ?? undefined : undefined });
       if (generation !== this.listGeneration) return;
+      this.readState.observeThreads(response.data);
       const threads = more ? [...this.state.threads, ...response.data] : response.data;
       const live = this.state.archived || this.state.search ? [] : Object.values(this.state.conversations)
         .filter((value) => value.activeTurn).map((value) => value.thread);
@@ -169,12 +175,13 @@ export class GuiController {
     this.deletedThreads.delete(id);
     const generation = ++this.selectionGeneration;
     this.patch({ selected: id, error: "" });
-    if (this.state.conversations[id]?.activeTurn) return;
+    if (this.state.conversations[id]?.activeTurn) { this.readState.markRead(id); return; }
     try {
       const { thread } = await guiApi.request<{ thread: Thread }>({ operation: "read", threadId: id });
       if (generation !== this.selectionGeneration || this.state.conversations[id]?.activeTurn) return;
       this.patch({ conversations: { ...this.state.conversations,
         [id]: conversation(thread, this.state.conversations[id]) } });
+      this.readState.markRead(id);
       this.patch(this.state.approvals.reduce(trackProcessingApproval, this.state));
       void this.goals.load(id);
       if (!this.state.archived) void this.queue.flush(id);
@@ -301,8 +308,10 @@ export class GuiController {
     const conversations = { ...this.state.conversations };
     const queued = { ...this.state.queued };
     const projectOverrides = { ...this.state.projectOverrides };
+    const threadReadState = { ...this.state.threadReadState };
+    delete threadReadState[id];
     delete conversations[id]; delete queued[id]; delete projectOverrides[id];
-    this.patch({ conversations, queued, projectOverrides,
+    this.patch({ conversations, queued, projectOverrides, threadReadState,
       threads: this.state.threads.filter((thread) => thread.id !== id),
       pins: this.state.pins.filter((pin) => pin !== id),
       approvals: this.state.approvals.filter((event) => event.params.threadId !== id),

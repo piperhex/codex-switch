@@ -137,6 +137,7 @@ export interface Conversation {
 }
 export interface ListResponse<T> { data: T[]; nextCursor: string | null }
 export interface Settings { cwd: string; model: string; effort: string; access: AccessMode }
+export interface ThreadReadState { turnId: string; unread: boolean }
 export interface GuiState {
   pendingRequest?: PendingRequest;
   goals?: Record<string, ThreadGoal | null>;
@@ -161,6 +162,7 @@ export interface GuiState {
   pins: string[];
   projects: string[];
   pinnedProjects: string[];
+  threadReadState: Record<string, ThreadReadState>;
   removingProject?: string;
   projectOverrides: Record<string, string>;
 }

@@ -12,6 +12,7 @@ import { useCliInstaller } from "./codexGui/useCliInstaller";
 import { DetailsWorkspace } from "./codexGui/DetailsWorkspace";
 import { ConversationChangesButton } from "./codexGui/ConversationChangesButton";
 import { useGuiLayout } from "./codexGui/useGuiLayout";
+import { useConversationReadState } from "./codexGui/useConversationReadState";
 import styles from "./codexGui/styles.module.less";
 
 type CodexGuiPageProps = { active: boolean; accountPicker: ReactNode };
@@ -27,6 +28,7 @@ export function CodexGuiPage({ active, accountPicker }: CodexGuiPageProps) {
 
 function Workspace({ active, accountPicker }: CodexGuiPageProps) {
   const [controller] = useState(() => new GuiController());
+  useConversationReadState(active, controller);
   const composer = useRef<ComposerHandle>(null);
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const [collapsed, setCollapsed] = useState(() => window.innerWidth < 900);
