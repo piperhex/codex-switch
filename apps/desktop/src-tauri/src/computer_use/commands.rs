@@ -1,0 +1,85 @@
+use super::{install, package, platform, state, ComputerError, Result, VERSION};
+use serde::{Deserialize, Serialize};
+use std::{path::Path, sync::Mutex};
+
+static CHANGES: Mutex<()> = Mutex::new(());
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ComputerUseStatus {
+    installed: bool,
+    enabled: bool,
+    needs_repair: bool,
+    supported: bool,
+    version: &'static str,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) enum ComputerUseAction {
+    Install,
+    Enable,
+    Disable,
+    Remove,
+}
+
+#[tauri::command]
+pub(crate) async fn computer_use_status(
+    app: tauri::AppHandle,
+    home_id: String,
+) -> std::result::Result<ComputerUseStatus, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let home = crate::codex_home::resolve_selected(&app, Some(&home_id))
+            .map_err(|_| ComputerError::Storage)?;
+        status(&super::root()?, &home)
+    })
+    .await
+    .map_err(|_| ComputerError::Storage.to_string())?
+    .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub(crate) async fn computer_use_action(
+    app: tauri::AppHandle,
+    home_id: String,
+    action: ComputerUseAction,
+) -> std::result::Result<ComputerUseStatus, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let _guard = CHANGES.lock().map_err(|_| ComputerError::Storage)?;
+        platform::asset()?;
+        let home = crate::codex_home::resolve_selected(&app, Some(&home_id))
+            .map_err(|_| ComputerError::Storage)?;
+        let root = super::root()?;
+        match action {
+            ComputerUseAction::Install | ComputerUseAction::Enable => {
+                install::install(&root, &home)?
+            }
+            ComputerUseAction::Disable => install::disable(&root, &home, false)?,
+            ComputerUseAction::Remove => install::disable(&root, &home, true)?,
+        }
+        status(&root, &home)
+    })
+    .await
+    .map_err(|_| ComputerError::Storage.to_string())?
+    .map_err(|error| error.to_string())
+}
+
+fn status(root: &Path, home: &Path) -> Result<ComputerUseStatus> {
+    let supported = platform::asset().is_ok();
+    let record = state::read(root, &state::home_id(home))?;
+    let requested = record.as_ref().is_some_and(|record| record.enabled);
+    let needs_repair = if record.is_some() && supported {
+        !package::present(root)?
+            || !install::configured(home, requested)?
+            || (requested && !install::skill_matches(home))
+    } else {
+        false
+    };
+    Ok(ComputerUseStatus {
+        installed: record.is_some(),
+        enabled: requested && !needs_repair,
+        needs_repair,
+        supported,
+        version: VERSION,
+    })
+}

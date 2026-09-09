@@ -24,6 +24,7 @@ mod codex_settings;
 mod codex_usage_cost_rates;
 mod codex_usage_summary;
 mod commands;
+mod computer_use;
 mod conversation_hub;
 mod dream_skin;
 mod dream_skin_community;
@@ -77,6 +78,9 @@ pub fn run() {
         return;
     }
     if chrome_plugin::run_helper() {
+        return;
+    }
+    if computer_use::run_helper() {
         return;
     }
     if std::env::args_os().any(|argument| argument == "--print-local-proxy-token") {
@@ -459,6 +463,8 @@ pub fn run() {
             skills_market::list_market_skills,
             chrome_plugin::commands::chrome_plugin_status,
             chrome_plugin::commands::chrome_plugin_action,
+            computer_use::commands::computer_use_status,
+            computer_use::commands::computer_use_action,
             skills_market::upload_market_skill,
             skills_market::install_market_skill,
             skills_market::remove_market_skill,

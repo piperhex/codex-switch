@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "codex_switch_computer_use": {
+      "command": "cua-driver",
+      "args": ["mcp", "--direct"],
+      "env": {"CUA_DRIVER_PERMISSION_MODE": "standard", "CUA_DRIVER_RS_TELEMETRY_ENABLED": "0"}
+    }
+  }
+}

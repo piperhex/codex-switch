@@ -4,6 +4,7 @@ import { hasLocalBackend, isDesktopApp, skillPreviewUrl } from "../../../api/bac
 import { CodexHomeScope, CodexHomeSelect, useSelectedCodexHome } from "../../../components/CodexHomeScope";
 import { useCommunitySkills } from "./useCommunitySkills";
 import { ChromePluginCard, chromePluginMatches } from "../ChromePluginCard";
+import { ComputerUseCard, computerUseMatches } from "../ComputerUseCard";
 import type { SkillMarketItem } from "../../../types";
 import { SkillDetailModal } from "../SkillDetailModal";
 import { SkillMarketGrid } from "../SkillMarketGrid";
@@ -38,6 +39,7 @@ function CommunitySkillsContent({
   });
   const [query, setQuery] = useState("");
   const [chromeBusy, setChromeBusy] = useState(false);
+  const [computerBusy, setComputerBusy] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [editing, setEditing] = useState<SkillMarketItem | null>(null);
   const [detailSkillId, setDetailSkillId] = useState<string | null>(null);
@@ -66,6 +68,8 @@ function CommunitySkillsContent({
   };
   const browserCard = isDesktopApp && homeId && (chromeBusy || chromePluginMatches(query))
     ? <ChromePluginCard key={homeId} homeId={homeId} active={active} onBusyChange={setChromeBusy} /> : null;
+  const computerCard = isDesktopApp && homeId && (computerBusy || computerUseMatches(query))
+    ? <ComputerUseCard key={homeId} homeId={homeId} active={active} onBusyChange={setComputerBusy} /> : null;
 
   return (
     <div className="skills-market-page">
@@ -79,7 +83,7 @@ function CommunitySkillsContent({
         onTabChange={onTabChange}
         query={query}
         t={t}
-        homeSelector={homeId && <CodexHomeSelect disabled={busyAction !== null || chromeBusy} />}
+        homeSelector={homeId && <CodexHomeSelect disabled={busyAction !== null || chromeBusy || computerBusy} />}
       />
 
       {!authenticated && (
@@ -90,9 +94,9 @@ function CommunitySkillsContent({
       )}
 
       {error && <div className="skills-market-error" role="alert">{error}</div>}
-      {(browserCard || filtered.length > 0) && (
+      {(browserCard || computerCard || filtered.length > 0) && (
         <SkillMarketGrid
-          leadingCard={browserCard}
+          leadingCard={<>{browserCard}{computerCard}</>}
           authenticated={authenticated}
           baseUrl={baseUrl}
           brokenPreviews={brokenPreviews}
@@ -111,7 +115,7 @@ function CommunitySkillsContent({
       {loading && items.length === 0 && (
         <div className="skills-market-state"><LoaderCircle className="spin" size={22} />{t("skills.loading")}</div>
       )}
-      {!loading && !browserCard && filtered.length === 0 && (
+      {!loading && !browserCard && !computerCard && filtered.length === 0 && (
         <div className="skills-market-state"><PackageOpen size={26} />{t("skills.empty")}</div>
       )}
 
