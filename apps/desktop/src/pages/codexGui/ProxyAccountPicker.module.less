@@ -1,10 +1,13 @@
 .trigger {
-  display: flex; align-items: center; gap: 9px; width: 100%; min-width: 0; padding: 11px 6px 3px;
+  display: flex; align-items: center; gap: 9px; flex-shrink: 0; min-width: 0; box-sizing: border-box;
+  width: calc(100% + 2 * var(--sidebar-inline-padding, 0px));
+  margin: 0 calc(-1 * var(--sidebar-inline-padding, 0px)) calc(-1 * var(--sidebar-bottom-padding, 0px));
+  padding: 11px calc(6px + var(--sidebar-inline-padding, 0px)) calc(3px + var(--sidebar-bottom-padding, 0px));
   border: 0; border-top: 1px solid var(--line); background: transparent; color: var(--ink);
   text-align: left; cursor: pointer;
   > svg { flex-shrink: 0; color: var(--muted); }
   &:hover { background: var(--green-selection-hover); }
-  &:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; border-radius: 6px; }
+  &:focus-visible { outline: 2px solid var(--green); outline-offset: -2px; }
 }
 // Reduce the previous 320px content plus 24px popover padding by 20%.
 @panel-width: (344px * 0.8);
