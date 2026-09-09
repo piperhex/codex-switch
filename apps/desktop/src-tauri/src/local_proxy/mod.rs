@@ -16,6 +16,7 @@ pub(crate) mod concurrent_quota;
 mod error_capture;
 mod quota_detection;
 mod quota_sse;
+mod session_titles;
 mod sse_transport;
 mod upstream_transport;
 

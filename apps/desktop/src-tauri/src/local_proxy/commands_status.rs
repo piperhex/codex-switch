@@ -321,12 +321,7 @@ fn list_proxy_sessions_blocking<R: Runtime>(
         .iter()
         .map(|session| session.id.clone())
         .collect::<HashSet<_>>();
-    let conversation_titles = paths
-        .as_ref()
-        .and_then(|paths| {
-            crate::commands::conversation_titles_by_id(&paths.codex_home, &session_ids).ok()
-        })
-        .unwrap_or_default();
+    let conversation_titles = session_titles::resolve(app, &session_ids);
     remember_proxy_session_titles(&conversation_titles);
     let default_provider_context_window = providers::DEFAULT_MODEL_CONTEXT_WINDOW
         .saturating_mul(DEFAULT_EFFECTIVE_CONTEXT_WINDOW_PERCENT)
