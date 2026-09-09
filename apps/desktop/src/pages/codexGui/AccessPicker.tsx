@@ -8,7 +8,7 @@ const ACCESS_OPTIONS = [
   { value: "read-only", label: "请求批准", icon: Hand,
     description: "编辑外部文件和使用互联网时始终询问" },
   { value: "workspace-write", label: "帮我批准", icon: ShieldCheck,
-    description: "仅对检测到的风险操作请求批准" },
+    description: "自动判断风险，帮你批准安全操作" },
   { value: "danger-full-access", label: "完全访问权限", icon: ShieldAlert,
     description: "可不受限制地访问互联网和你电脑上的任何文件" },
 ] satisfies { value: AccessMode; label: string; icon: typeof Hand; description: string }[];

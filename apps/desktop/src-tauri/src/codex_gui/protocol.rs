@@ -224,11 +224,9 @@ impl GuiRequest {
             Self::Start { cwd, model, access } => {
                 let cwd = cwd.ok_or(GuiError::Directory)?;
                 directory(&cwd)?;
-                Ok((
-                    "thread/start",
-                    json!({"cwd": cwd, "model": model,
-                    "sandbox": access, "approvalPolicy": access.approval_policy()}),
-                ))
+                let mut params = json!({"cwd": cwd, "model": model});
+                access.apply_to_thread(&mut params);
+                Ok(("thread/start", params))
             }
             Self::Resume {
                 thread_id,
@@ -240,8 +238,7 @@ impl GuiRequest {
                     directory(&cwd)?;
                     params["cwd"] = json!(cwd);
                 }
-                params["sandbox"] = json!(access);
-                params["approvalPolicy"] = json!(access.approval_policy());
+                access.apply_to_thread(&mut params);
                 Ok(("thread/resume", params))
             }
             Self::Read { thread_id } => {

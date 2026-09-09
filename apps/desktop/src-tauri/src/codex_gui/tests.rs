@@ -197,10 +197,10 @@ fn approvals_do_not_allow_unoffered_decisions() {
 #[test]
 fn start_and_resume_align_approvals_with_the_selected_access() {
     let cwd = std::env::current_dir().unwrap();
-    for (access, approval) in [
-        ("read-only", "on-request"),
-        ("workspace-write", "on-request"),
-        ("danger-full-access", "never"),
+    for (access, approval, reviewer) in [
+        ("read-only", "on-request", "user"),
+        ("workspace-write", "on-request", "auto_review"),
+        ("danger-full-access", "never", "user"),
     ] {
         for operation in ["start", "resume"] {
             let (_, params) = request(json!({"operation": operation, "threadId": "thread-1",
@@ -208,6 +208,7 @@ fn start_and_resume_align_approvals_with_the_selected_access() {
             .into_rpc()
             .unwrap();
             assert_eq!(params["approvalPolicy"], approval);
+            assert_eq!(params["approvalsReviewer"], reviewer);
             assert_eq!(params["sandbox"], access);
         }
     }
@@ -215,20 +216,23 @@ fn start_and_resume_align_approvals_with_the_selected_access() {
 
 #[test]
 fn new_turns_override_cached_permissions_in_both_directions() {
-    for (access, approval, sandbox) in [
+    for (access, approval, reviewer, sandbox) in [
         (
             "danger-full-access",
             "never",
+            "user",
             json!({"type": "dangerFullAccess"}),
         ),
         (
             "read-only",
             "on-request",
+            "user",
             json!({"type": "readOnly", "networkAccess": false}),
         ),
         (
             "workspace-write",
             "on-request",
+            "auto_review",
             json!({"type": "workspaceWrite", "writableRoots": [],
             "networkAccess": false, "excludeTmpdirEnvVar": false, "excludeSlashTmp": false}),
         ),
@@ -241,6 +245,7 @@ fn new_turns_override_cached_permissions_in_both_directions() {
             .unwrap();
             assert_eq!(method, "turn/start");
             assert_eq!(params["approvalPolicy"], approval);
+            assert_eq!(params["approvalsReviewer"], reviewer);
             assert_eq!(params["sandboxPolicy"], sandbox);
         }
     }
@@ -253,6 +258,7 @@ fn omitted_turn_access_inherits_permissions_and_invalid_access_is_rejected() {
             "text": "continue", "images": [], "messages": [{"text": "queued", "images": []}]});
         let (_, params) = request(value.clone()).into_rpc().unwrap();
         assert!(params.get("approvalPolicy").is_none());
+        assert!(params.get("approvalsReviewer").is_none());
         assert!(params.get("sandboxPolicy").is_none());
         if operation != "steer" {
             value["access"] = json!("unknown");
@@ -262,13 +268,14 @@ fn omitted_turn_access_inherits_permissions_and_invalid_access_is_rejected() {
 }
 
 #[test]
-fn resume_explicitly_restores_user_review_and_sandbox() {
+fn resume_restores_automatic_review_with_workspace_sandbox() {
     let (method, params) = request(json!({"operation": "resume", "threadId": "thread-1",
         "access": "workspace-write"}))
     .into_rpc()
     .unwrap();
     assert_eq!(method, "thread/resume");
     assert_eq!(params["approvalPolicy"], "on-request");
+    assert_eq!(params["approvalsReviewer"], "auto_review");
     assert_eq!(params["sandbox"], "workspace-write");
 }
 
