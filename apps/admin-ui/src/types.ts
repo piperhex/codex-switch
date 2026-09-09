@@ -66,6 +66,8 @@ export interface AnnouncementConfig {
   enabled: boolean;
   textColor: string;
   backgroundColor: string;
+  darkTextColor: string;
+  darkBackgroundColor: string;
   scrollDurationSeconds: number;
   updatedAt?: string | null;
 }

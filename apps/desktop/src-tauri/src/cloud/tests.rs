@@ -8,6 +8,30 @@ use super::{
 use crate::models::AppSettings;
 use reqwest::StatusCode;
 
+#[test]
+fn announcement_response_preserves_dark_colors_across_ipc() {
+    let value = serde_json::json!({
+        "content": "Notice", "enabled": true,
+        "textColor": "#008271", "backgroundColor": "#CEFDEE",
+        "darkTextColor": "#ABCDEF", "darkBackgroundColor": "#123456"
+    });
+    let announcement: super::CloudAnnouncement = serde_json::from_value(value).unwrap();
+    let serialized = serde_json::to_value(announcement).unwrap();
+    assert_eq!(serialized["darkTextColor"], "#ABCDEF");
+    assert_eq!(serialized["darkBackgroundColor"], "#123456");
+}
+
+#[test]
+fn announcement_response_accepts_legacy_colors() {
+    let value = serde_json::json!({
+        "content": "Notice", "enabled": true,
+        "textColor": "#008271", "backgroundColor": "#CEFDEE"
+    });
+    let announcement: super::CloudAnnouncement = serde_json::from_value(value).unwrap();
+    assert!(announcement.dark_text_color.is_none());
+    assert!(announcement.dark_background_color.is_none());
+}
+
 fn valid_totp_entry() -> CloudTotpEntry {
     CloudTotpEntry {
         id: "10000000-0000-4000-8000-000000000001".to_string(),

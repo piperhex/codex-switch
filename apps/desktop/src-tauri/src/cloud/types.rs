@@ -102,6 +102,10 @@ pub(crate) struct CloudAnnouncement {
     pub(super) enabled: bool,
     pub(super) text_color: String,
     pub(super) background_color: String,
+    #[serde(default)]
+    pub(super) dark_text_color: Option<String>,
+    #[serde(default)]
+    pub(super) dark_background_color: Option<String>,
     #[serde(default = "default_announcement_scroll_duration_seconds")]
     pub(super) scroll_duration_seconds: u16,
     pub(super) updated_at: Option<String>,

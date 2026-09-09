@@ -578,6 +578,9 @@ export interface CloudAnnouncement {
   enabled: boolean;
   textColor: string;
   backgroundColor: string;
+  /** Older servers omit dark colors; desktop uses a readable dark palette in that case. */
+  darkTextColor?: string | null;
+  darkBackgroundColor?: string | null;
   scrollDurationSeconds: number;
   updatedAt?: string | null;
 }

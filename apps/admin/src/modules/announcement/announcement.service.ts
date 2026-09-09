@@ -26,6 +26,8 @@ export interface AnnouncementResponse {
   enabled: boolean;
   textColor: string;
   backgroundColor: string;
+  darkTextColor: string;
+  darkBackgroundColor: string;
   scrollDurationSeconds: number;
   updatedAt: string | null;
 }
@@ -94,6 +96,8 @@ export class AnnouncementService {
       enabled,
       textColor: announcement?.textColor ?? DEFAULT_TEXT_COLOR,
       backgroundColor: announcement?.backgroundColor ?? DEFAULT_BACKGROUND_COLOR,
+      darkTextColor: announcement?.darkTextColor ?? DEFAULT_TEXT_COLOR,
+      darkBackgroundColor: announcement?.darkBackgroundColor ?? DEFAULT_BACKGROUND_COLOR,
       scrollDurationSeconds: announcement?.scrollDurationSeconds
         ?? DEFAULT_SCROLL_DURATION_SECONDS,
       updatedAt: announcement?.updatedAt?.toISOString() ?? null,
@@ -110,6 +114,8 @@ export class AnnouncementService {
       enabled: announcement?.enabled ?? false,
       textColor: announcement?.textColor ?? DEFAULT_TEXT_COLOR,
       backgroundColor: announcement?.backgroundColor ?? DEFAULT_BACKGROUND_COLOR,
+      darkTextColor: announcement?.darkTextColor ?? DEFAULT_TEXT_COLOR,
+      darkBackgroundColor: announcement?.darkBackgroundColor ?? DEFAULT_BACKGROUND_COLOR,
       scrollDurationSeconds: announcement?.scrollDurationSeconds
         ?? DEFAULT_SCROLL_DURATION_SECONDS,
       updatedAt: announcement?.updatedAt?.toISOString() ?? null,
@@ -297,6 +303,10 @@ export class AnnouncementService {
     announcement.enabled = dto.enabled;
     announcement.textColor = dto.textColor.toUpperCase();
     announcement.backgroundColor = dto.backgroundColor.toUpperCase();
+    announcement.darkTextColor = dto.darkTextColor?.toUpperCase()
+      ?? existing?.darkTextColor ?? DEFAULT_TEXT_COLOR;
+    announcement.darkBackgroundColor = dto.darkBackgroundColor?.toUpperCase()
+      ?? existing?.darkBackgroundColor ?? DEFAULT_BACKGROUND_COLOR;
     announcement.scrollDurationSeconds = dto.scrollDurationSeconds;
     announcement.updatedById = actor.id;
     announcement.updatedByEmail = actor.email;
@@ -322,6 +332,8 @@ export class AnnouncementService {
       enabled: saved.enabled,
       textColor: saved.textColor,
       backgroundColor: saved.backgroundColor,
+      darkTextColor: saved.darkTextColor,
+      darkBackgroundColor: saved.darkBackgroundColor,
       scrollDurationSeconds: saved.scrollDurationSeconds,
       updatedAt: saved.updatedAt.toISOString(),
     };

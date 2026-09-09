@@ -64,6 +64,8 @@ describe('AnnouncementService', () => {
       enabled: false,
       textColor: '#C4D7C8',
       backgroundColor: '#203128',
+      darkTextColor: '#C4D7C8',
+      darkBackgroundColor: '#203128',
       scrollDurationSeconds: 22,
       updatedAt: null,
     });
@@ -79,6 +81,8 @@ describe('AnnouncementService', () => {
       enabled: true,
       textColor: '#FFFFFF',
       backgroundColor: '#000000',
+      darkTextColor: '#ABCDEF',
+      darkBackgroundColor: '#123456',
       scrollDurationSeconds: 18,
       updatedAt,
     });
@@ -91,6 +95,8 @@ describe('AnnouncementService', () => {
       enabled: true,
       textColor: '#FFFFFF',
       backgroundColor: '#000000',
+      darkTextColor: '#ABCDEF',
+      darkBackgroundColor: '#123456',
       scrollDurationSeconds: 18,
       updatedAt: updatedAt.toISOString(),
     });
@@ -109,6 +115,8 @@ describe('AnnouncementService', () => {
       enabled: true,
       textColor: '#aabbcc',
       backgroundColor: '#112233',
+      darkTextColor: '#ddeeff',
+      darkBackgroundColor: '#102030',
       scrollDurationSeconds: 15,
     })).resolves.toEqual({
       content: '今晚服务维护',
@@ -118,6 +126,8 @@ describe('AnnouncementService', () => {
       enabled: true,
       textColor: '#AABBCC',
       backgroundColor: '#112233',
+      darkTextColor: '#DDEEFF',
+      darkBackgroundColor: '#102030',
       scrollDurationSeconds: 15,
       updatedAt: updatedAt.toISOString(),
     });
@@ -128,6 +138,22 @@ describe('AnnouncementService', () => {
       targetId: 'current',
       metadata: { enabled: true, scrollDurationSeconds: 15 },
     }));
+  });
+
+  it('preserves dark colors when an older admin omits them', async () => {
+    const { service, announcements } = createService();
+    const existing = {
+      contentZh: '通知', contentEn: 'Notice', link: '', enabled: true,
+      textColor: '#008271', backgroundColor: '#CEFDEE', scrollDurationSeconds: 22,
+      darkTextColor: '#ABCDEF', darkBackgroundColor: '#123456', updatedAt: new Date(),
+    };
+    announcements.findOne.mockResolvedValue(existing);
+    announcements.save.mockImplementation(async (value) => value);
+    const { darkTextColor, darkBackgroundColor, updatedAt, ...legacyInput } = existing;
+
+    expect(await service.update(actor, legacyInput)).toMatchObject({ darkTextColor, darkBackgroundColor });
+    expect(await service.getAdmin()).toMatchObject({ darkTextColor, darkBackgroundColor });
+    expect(await service.getPublic()).toMatchObject({ darkTextColor, darkBackgroundColor });
   });
 
   it('rejects publishing an empty announcement', async () => {

@@ -67,6 +67,7 @@ import { MenuSearchModal } from "../MenuSearchModal";
 import { ProxyStatusControls } from "./ProxyStatusControls";
 import { ProxyTopbarActions } from "./ProxyTopbarActions";
 import { AnnouncementBanner } from "./AnnouncementBanner";
+import { announcementColors } from "./announcementColors";
 import { DashboardMenuTools } from "./DashboardMenuTools";
 import { DashboardTopbar } from "./DashboardTopbar";
 import { ProxyProgressModal } from "./ProxyProgressModal";
@@ -1051,10 +1052,7 @@ export function DashboardApp() {
     : "";
   const announcementText = localizedAnnouncementContent || t("announcement.welcome");
   const announcementLink = normalizeHttpUrl(announcement?.link);
-  const announcementStyle = announcement ? {
-    color: announcement.textColor,
-    backgroundColor: announcement.backgroundColor,
-  } : undefined;
+  const announcementStyle = announcementColors(announcement, themeMode.mode);
   const openAnnouncementLink = () => {
     if (!announcementLink) return;
     if (isDesktopApp) {

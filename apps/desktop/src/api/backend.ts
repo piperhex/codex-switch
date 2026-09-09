@@ -2207,6 +2207,8 @@ export async function fetchCloudAnnouncement(): Promise<CloudAnnouncement> {
     enabled: false,
     textColor: "#C4D7C8",
     backgroundColor: "#203128",
+    darkTextColor: "#C4D7C8",
+    darkBackgroundColor: "#203128",
     scrollDurationSeconds: 22,
     updatedAt: null,
   };

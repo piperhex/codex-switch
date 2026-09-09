@@ -29,6 +29,12 @@ export class AppAnnouncementEntity {
   @Column({ type: 'varchar', length: 7, default: '#203128' })
   backgroundColor: string;
 
+  @Column({ type: 'varchar', length: 7, default: '#C4D7C8' })
+  darkTextColor: string;
+
+  @Column({ type: 'varchar', length: 7, default: '#203128' })
+  darkBackgroundColor: string;
+
   @Column({ type: 'integer', default: 22 })
   scrollDurationSeconds: number;
 

@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import {
   App,
   Button,
-  ColorPicker,
   DatePicker,
   Form,
   Input,
@@ -19,7 +18,7 @@ import {
 } from "antd";
 import type { TableColumnsType } from "antd";
 import dayjs, { type Dayjs } from "dayjs";
-import { BellRing, Pencil, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
+import { Pencil, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
 import { useI18n } from "../i18n-context";
 import type {
   AnnouncementClick,
@@ -34,11 +33,15 @@ import type {
   TelemetryPlatform,
 } from "../types";
 import { formatDate } from "../utils/format";
+import { AnnouncementAppearance } from "./AnnouncementAppearance";
+
+const DEFAULT_DARK_TEXT_COLOR = "#C4D7C8";
+const DEFAULT_DARK_BACKGROUND_COLOR = "#203128";
 
 type EditableAnnouncement = Pick<
   AnnouncementConfig,
   "contentZh" | "contentEn" | "link" | "enabled" | "textColor"
-  | "backgroundColor" | "scrollDurationSeconds"
+  | "backgroundColor" | "darkTextColor" | "darkBackgroundColor" | "scrollDurationSeconds"
 >;
 
 function announcementsMatch(left: EditableAnnouncement, right: EditableAnnouncement) {
@@ -47,6 +50,8 @@ function announcementsMatch(left: EditableAnnouncement, right: EditableAnnouncem
     && left.link === right.link
     && left.enabled === right.enabled
     && left.textColor === right.textColor
+    && left.darkTextColor === right.darkTextColor
+    && left.darkBackgroundColor === right.darkBackgroundColor
     && left.backgroundColor === right.backgroundColor
     && left.scrollDurationSeconds === right.scrollDurationSeconds;
 }
@@ -59,6 +64,8 @@ function editableAnnouncement(announcement: EditableAnnouncement): EditableAnnou
     enabled: announcement.enabled,
     textColor: announcement.textColor,
     backgroundColor: announcement.backgroundColor,
+    darkTextColor: announcement.darkTextColor ?? DEFAULT_DARK_TEXT_COLOR,
+    darkBackgroundColor: announcement.darkBackgroundColor ?? DEFAULT_DARK_BACKGROUND_COLOR,
     scrollDurationSeconds: announcement.scrollDurationSeconds,
   };
 }
@@ -94,7 +101,7 @@ interface AnnouncementPageProps {
   onSave: (announcement: Pick<
     AnnouncementConfig,
     "contentZh" | "contentEn" | "link" | "enabled" | "textColor"
-    | "backgroundColor" | "scrollDurationSeconds"
+    | "backgroundColor" | "darkTextColor" | "darkBackgroundColor" | "scrollDurationSeconds"
   >) => Promise<void>;
   onSaveNotification: (id: string | null, notification: AppNotificationInput) => Promise<void>;
   onDeleteNotification: (id: string) => Promise<void>;
@@ -152,6 +159,10 @@ export function AnnouncementPage({
   const [enabled, setEnabled] = useState(announcement.enabled);
   const [textColor, setTextColor] = useState(announcement.textColor);
   const [backgroundColor, setBackgroundColor] = useState(announcement.backgroundColor);
+  const [darkTextColor, setDarkTextColor] = useState(announcement.darkTextColor ?? DEFAULT_DARK_TEXT_COLOR);
+  const [darkBackgroundColor, setDarkBackgroundColor] = useState(
+    announcement.darkBackgroundColor ?? DEFAULT_DARK_BACKGROUND_COLOR,
+  );
   const [scrollDurationSeconds, setScrollDurationSeconds] = useState(
     announcement.scrollDurationSeconds,
   );
@@ -173,6 +184,8 @@ export function AnnouncementPage({
     setEnabled(announcement.enabled);
     setTextColor(announcement.textColor);
     setBackgroundColor(announcement.backgroundColor);
+    setDarkTextColor(announcement.darkTextColor ?? DEFAULT_DARK_TEXT_COLOR);
+    setDarkBackgroundColor(announcement.darkBackgroundColor ?? DEFAULT_DARK_BACKGROUND_COLOR);
     setScrollDurationSeconds(announcement.scrollDurationSeconds);
     lastSubmitted.current = editableAnnouncement(announcement);
   }, [announcement]);
@@ -351,6 +364,8 @@ export function AnnouncementPage({
       enabled,
       textColor,
       backgroundColor,
+      darkTextColor,
+      darkBackgroundColor,
       scrollDurationSeconds,
       ...overrides,
     });
@@ -561,29 +576,20 @@ export function AnnouncementPage({
                       allowClear
                     />
                   </Form.Item>
+                  <AnnouncementAppearance
+                    colors={{ textColor, backgroundColor, darkTextColor, darkBackgroundColor }}
+                    preview={preview}
+                    scrollDurationSeconds={scrollDurationSeconds}
+                    disabled={!canManage}
+                    onChange={(colors) => {
+                      if (colors.textColor) setTextColor(colors.textColor);
+                      if (colors.backgroundColor) setBackgroundColor(colors.backgroundColor);
+                      if (colors.darkTextColor) setDarkTextColor(colors.darkTextColor);
+                      if (colors.darkBackgroundColor) setDarkBackgroundColor(colors.darkBackgroundColor);
+                    }}
+                    onSave={() => autoSave()}
+                  />
                   <Space size="large" wrap>
-                    <Form.Item label={t("announcement.textColor")}>
-                      <ColorPicker
-                        value={textColor}
-                        showText
-                        onChange={(color) => setTextColor(color.toHexString().toUpperCase())}
-                        onOpenChange={(open) => {
-                          if (!open) autoSave();
-                        }}
-                        disabled={!canManage}
-                      />
-                    </Form.Item>
-                    <Form.Item label={t("announcement.backgroundColor")}>
-                      <ColorPicker
-                        value={backgroundColor}
-                        showText
-                        onChange={(color) => setBackgroundColor(color.toHexString().toUpperCase())}
-                        onOpenChange={(open) => {
-                          if (!open) autoSave();
-                        }}
-                        disabled={!canManage}
-                      />
-                    </Form.Item>
                     <Form.Item
                       label={t("announcement.scrollSpeed")}
                       extra={t("announcement.scrollSpeedHint")}
@@ -600,21 +606,6 @@ export function AnnouncementPage({
                       />
                     </Form.Item>
                   </Space>
-                  <Form.Item
-                    label={t("announcement.preview")}
-                    extra={t("announcement.previewLanguageHint")}
-                  >
-                    <div className="announcement-preview" style={{ color: textColor, backgroundColor }}>
-                      <div
-                        className="announcement-preview-track"
-                        key={preview}
-                        style={{ animationDuration: `${scrollDurationSeconds}s` }}
-                      >
-                        <BellRing size={15} />
-                        <span>{preview}</span>
-                      </div>
-                    </div>
-                  </Form.Item>
                 </Form>
               </div>
             ),

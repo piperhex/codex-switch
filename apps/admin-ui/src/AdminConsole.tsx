@@ -113,6 +113,8 @@ const emptyAnnouncement: AnnouncementConfig = {
   enabled: false,
   textColor: "#C4D7C8",
   backgroundColor: "#203128",
+  darkTextColor: "#C4D7C8",
+  darkBackgroundColor: "#203128",
   scrollDurationSeconds: 22,
   updatedAt: null,
 };
@@ -858,7 +860,7 @@ export function AdminConsole({ dark, onThemeChange }: AdminConsoleProps) {
     next: Pick<
       AnnouncementConfig,
       "contentZh" | "contentEn" | "link" | "enabled" | "textColor"
-      | "backgroundColor" | "scrollDurationSeconds"
+      | "backgroundColor" | "darkTextColor" | "darkBackgroundColor" | "scrollDurationSeconds"
     >,
   ) => {
     setAnnouncementSaving(true);

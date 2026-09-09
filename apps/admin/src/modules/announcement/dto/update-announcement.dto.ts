@@ -36,6 +36,17 @@ export class UpdateAnnouncementDto {
   @Matches(/^#[0-9a-fA-F]{6}$/)
   backgroundColor: string;
 
+  // Older admin clients omit dark colors; null and invalid colors must still be rejected.
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsString()
+  @Matches(/^#[0-9a-fA-F]{6}$/)
+  darkTextColor?: string;
+
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsString()
+  @Matches(/^#[0-9a-fA-F]{6}$/)
+  darkBackgroundColor?: string;
+
   @IsInt()
   @Min(5)
   @Max(120)
