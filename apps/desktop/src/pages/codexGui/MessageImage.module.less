@@ -1,7 +1,7 @@
 .thumbnail {
   display: block;
   width: fit-content;
-  max-width: min(100%, 640px);
+  max-width: min(100%, var(--message-image-max-width, 640px));
   margin: 12px 0 8px;
   padding: 0;
   overflow: hidden;
@@ -10,7 +10,12 @@
   background: var(--bg, #f4f6f5);
   cursor: zoom-in;
 
-  img { display: block; max-width: 100%; max-height: 360px; object-fit: contain; }
+  img {
+    display: block;
+    max-width: 100%;
+    max-height: var(--message-image-max-height, 360px);
+    object-fit: contain;
+  }
   &:focus-visible { outline: 2px solid var(--green); outline-offset: 3px; }
 }
 
