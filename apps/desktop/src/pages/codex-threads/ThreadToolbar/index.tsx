@@ -1,11 +1,13 @@
 import { Button, Input, Select } from "antd";
 import { Search, Trash2, X } from "lucide-react";
 import type { Dispatch, SetStateAction } from "react";
+import { CodexHomeSelect } from "../../../components/CodexHomeScope";
 import type { CodexThreadKind } from "../../../types";
 import type { ThreadCopy } from "../copy";
 import styles from "./index.module.less";
 
 interface ThreadToolbarProps {
+  homeSelectDisabled: boolean;
   text: ThreadCopy;
   query: string;
   setQuery: Dispatch<SetStateAction<string>>;
@@ -24,6 +26,7 @@ export function ThreadToolbar(props: ThreadToolbarProps) {
   const { selectedCount, busy, confirmTrash } = props;
   return (
     <div className={styles.codexThreadToolbar}>
+      <CodexHomeSelect showLabel={false} disabled={props.homeSelectDisabled} />
       <Input
         value={query}
         onChange={(event) => {
