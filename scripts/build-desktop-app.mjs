@@ -41,7 +41,22 @@ if (
   tauriArgs.push("--no-sign");
 }
 
-run(process.execPath, [tauriCli, "build", ...tauriArgs], desktopRoot);
+// Keep packaging assets separate from `dist`, which other builds and checks
+// can replace while Cargo is compiling. Tauri forwards this configuration to
+// both the asset embedder and the beforeBundleCommand verifier.
+const packagingConfig = {
+  build: {
+    beforeBuildCommand: "npm run build -- --outDir src-tauri/target/frontend-dist",
+    frontendDist: "target/frontend-dist",
+  },
+};
+run(process.execPath, [
+  tauriCli,
+  "build",
+  ...tauriArgs,
+  "--config",
+  JSON.stringify(packagingConfig),
+], desktopRoot);
 
 function run(command, args, cwd = repositoryRoot) {
   const result = spawnSync(command, args, {

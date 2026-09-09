@@ -17,7 +17,10 @@ import { fileURLToPath } from "node:url";
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(scriptDirectory, "..");
 const desktopRoot = join(repositoryRoot, "apps", "desktop");
-const distRoot = join(desktopRoot, "dist");
+const tauriRoot = join(desktopRoot, "src-tauri");
+const baseConfig = JSON.parse(readFileSync(join(tauriRoot, "tauri.conf.json"), "utf8"));
+const buildConfig = JSON.parse(process.env.TAURI_CONFIG || "{}").build;
+const distRoot = resolve(tauriRoot, buildConfig?.frontendDist ?? baseConfig.build.frontendDist);
 const indexPath = join(distRoot, "index.html");
 const cargoTargetRoot = resolveCargoTargetRoot();
 
@@ -57,12 +60,15 @@ const packagedExecutable = executableCandidates.sort(
   (left, right) => statSync(right).mtimeMs - statSync(left).mtimeMs,
 )[0];
 
-if (!containsEveryAssetName(packagedExecutable, embeddedAssetNames)) {
+const executable = readFileSync(packagedExecutable);
+const missingAssetNames = embeddedAssetNames.filter((name) => !executable.includes(Buffer.from(name)));
+if (missingAssetNames.length > 0) {
   fail(
     [
-      "Packaged executable does not contain the Vite frontend assets.",
-      "A plain `cargo build --release` may have overwritten the custom-protocol executable.",
-      "Use `npm run build:app` so the release artifact is cleaned and rebuilt safely.",
+      `Executable ${relative(repositoryRoot, packagedExecutable)} is missing: ${missingAssetNames.join(", ")}.`,
+      `Expected assets from ${relative(repositoryRoot, indexPath)}.`,
+      "The executable or frontend output may have been replaced by another build.",
+      "Use `npm run build:app` and avoid concurrent builds of the same release executable.",
     ].join(" "),
   );
 }
@@ -99,11 +105,6 @@ function findFiles(root, predicate) {
   }
 
   return matches;
-}
-
-function containsEveryAssetName(executablePath, assetNames) {
-  const executable = readFileSync(executablePath);
-  return assetNames.every((name) => executable.includes(Buffer.from(name)));
 }
 
 function fail(message) {
