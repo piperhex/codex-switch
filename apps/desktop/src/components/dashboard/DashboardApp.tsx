@@ -116,6 +116,7 @@ import { NetworkProxySettingsModal } from "../../pages/settings/NetworkProxySett
 import type { Translate } from "../../i18n";
 import { AccountDisplayTabs } from "./AccountDisplayTabs";
 import { AccountTopbarActions } from "./AccountTopbarActions";
+import { AccountToolbox } from "./AccountToolbox";
 import { AccountImageModelButton } from "./AccountImageModelButton";
 import { CodexConfigRepairButton } from "./CodexConfigRepairButton";
 import { AccountGroupManager } from "../accounts/AccountGroupManager";
@@ -1267,15 +1268,14 @@ export function DashboardApp() {
             scrollDurationSeconds={announcement?.scrollDurationSeconds ?? 22}
             style={announcementStyle} text={announcementText}
             trackKey={`${language}:${announcementText}`} />
-          {(page === "accounts" || page === "providers") && <>
+          {(page === "accounts" || page === "providers") && <AccountToolbox t={t}>
             <AccountDisplayTabs displayMode={accountDisplayMode.displayMode}
               onChange={accountDisplayMode.setDisplayMode} t={t} />
             {usageSpeedPill}
             {titlebarProxyRunning && <CloudRecycleBin t={t} disabled={!cloud.state.authenticated}
               triggerClassName="refresh-all announcement-recycle-bin-button" />}
-            {chatGptActionMenu}
             <CodexConfigRepairButton disabled={providerManager.proxyBusy} notify={notify} t={t} />
-          </>}
+          </AccountToolbox>}
           {!sidebarNavigationEnabled && (
             <DashboardNavigation onPageChange={setPage} page={page} t={t} />
           )}
@@ -1325,12 +1325,14 @@ export function DashboardApp() {
                   <Plus size={18} />{t("actions.addAccount")}
                 </button>
                 {refreshActionMenu}
+                {chatGptActionMenu}
                 {accountProxyTopbarActions}
               </AccountTopbarActions>
             )}
             {page === "providers" && (
               <div className="topbar-actions">
                 <div id="provider-topbar-actions" className="provider-topbar-action-slot" />
+                {chatGptActionMenu}
                 {proxyTopbarActions}
               </div>
             )}
