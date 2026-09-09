@@ -3,19 +3,24 @@ import { Popover } from "antd";
 import { Paperclip, Plus, Target } from "lucide-react";
 import { ComposerPluginIcon } from "./ComposerPluginIcon";
 import { useComposerPlugins } from "./useComposerPlugins";
+import { useComposerSkills } from "./useComposerSkills";
+import { ComposerSkillSection } from "./ComposerSkillSection";
 import type { AttachmentReference } from "./attachmentTypes";
+import type { Skill } from "./types";
 import styles from "./ComposerAddMenu.module.less";
 
-export function ComposerAddMenu({ cwd, disabled, active, anchor, onFiles, onGoal, onPlugin }: {
+export function ComposerAddMenu({ cwd, disabled, active, anchor, onFiles, onGoal, onPlugin, onSkill }: {
   cwd: string; disabled: boolean; active: boolean; onFiles: () => void; onGoal: () => void;
   anchor: RefObject<HTMLDivElement>;
   onPlugin: (plugin: AttachmentReference) => void;
+  onSkill: (skill: Skill) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [offset, setOffset] = useState(8);
   const trigger = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const catalog = useComposerPlugins({ cwd, active: open && active && !disabled });
+  const skills = useComposerSkills({ cwd, active: open && active && !disabled, connected: !disabled });
   useEffect(() => { setOpen(false); }, [cwd, disabled, active]);
   const close = () => { setOpen(false); trigger.current?.focus(); };
   const content = <div ref={panel} className={styles.panel} role="menu" aria-label="添加"
@@ -36,6 +41,8 @@ export function ComposerAddMenu({ cwd, disabled, active, anchor, onFiles, onGoal
     <button type="button" role="menuitem" className={styles.option} onClick={() => { close(); onGoal(); }}>
       <Target size={19} /><span>目标 <small>设置要持续追求的目标</small></span>
     </button>
+    <ComposerSkillSection catalog={skills}
+      onChoose={(skill) => { close(); onSkill(skill); }} />
     <div className={styles.heading}>插件</div>
     {catalog.plugins.map((plugin) => <button type="button" role="menuitem" key={plugin.id}
       className={styles.option} onClick={() => {

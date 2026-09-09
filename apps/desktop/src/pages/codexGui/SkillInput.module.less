@@ -12,7 +12,8 @@
     mask: url("./skill-icon.svg") center / contain no-repeat;
   }
 }
-.menu { position: absolute; bottom: calc(100% + 12px); left: 0; z-index: 20; width: min(400px, 100%);
+.menu { box-sizing: border-box; position: absolute; bottom: calc(100% + 12px); left: 0;
+  z-index: 20; width: min(400px, 100%);
   border: 1px solid var(--gui-border); border-radius: 12px; background: var(--panel);
   box-shadow: 0 8px 30px #0002; padding: 6px; overflow-wrap: anywhere;
   p { padding: 8px; margin: 0; color: var(--gui-muted); font-size: 12px; }
@@ -23,7 +24,7 @@
     padding: 9px 8px; background: transparent; color: inherit; text-align: left; cursor: pointer;
     &[aria-selected='true'], &:hover { background: var(--green-selection); }
     &[aria-disabled='true'] { opacity: .5; cursor: default; }
-    > svg { flex-shrink: 0; color: #2786df; margin-top: 2px; }
+    > svg, > img { flex-shrink: 0; color: #2786df; margin-top: 2px; }
     > span { min-width: 0; }
     strong { display: block; font-size: 13px; font-weight: 500; }
     small { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;

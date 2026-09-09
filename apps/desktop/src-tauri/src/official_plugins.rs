@@ -4,6 +4,7 @@ use serde_json::json;
 
 mod catalog;
 mod icons;
+pub(crate) use icons::local_icon;
 
 // Separate CLI processes must not race when updating the same home configuration.
 static PLUGIN_CHANGES: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());

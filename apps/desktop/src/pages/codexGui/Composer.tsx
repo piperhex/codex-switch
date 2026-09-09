@@ -15,7 +15,7 @@ import { IMAGE_TYPES, useComposerDraft } from "./useComposerDraft";
 import { ModelPicker } from "./ModelPicker";
 import { UsageStatus } from "./UsageStatus";
 import { ProjectPicker } from "./ProjectPicker";
-import { SkillInput } from "./SkillInput";
+import { SkillInput, type SkillInputHandle } from "./SkillInput";
 import { compactCommand } from "./composerOptions";
 import { QueuedMessages } from "./QueuedMessages";
 import styles from "./styles.module.less";
@@ -25,6 +25,7 @@ export function Composer({ state, controller, active }: {
 }) {
   const fileInput = useRef<HTMLInputElement>(null);
   const composer = useRef<HTMLDivElement>(null);
+  const skillInput = useRef<SkillInputHandle>(null);
   const key = state.selected ?? "new";
   const [dialog, setDialog] = useState<"files" | "goal" | null>(null);
   const { draft, reading, editContent, removeImage, addImages, paste, send: sendDraft,
@@ -62,7 +63,7 @@ export function Composer({ state, controller, active }: {
         aria-label="选择图片" onChange={(event) => {
           addImages(Array.from(event.target.files ?? [])); event.target.value = "";
         }} />
-      <SkillInput value={draft} draftKey={key} cwd={project} active={active}
+      <SkillInput ref={skillInput} value={draft} draftKey={key} cwd={project} active={active}
         connected={state.connection === "ready"} disabled={disabled}
         compact={compactCommand(state, () => void controller.compact())}
         placeholder={state.archived ? "恢复对话后即可继续" : "描述任务，或输入 / 选择命令和技能…"}
@@ -70,7 +71,7 @@ export function Composer({ state, controller, active }: {
       <div className={styles.composerControls}>
         <ComposerAddMenu cwd={project} active={active} disabled={disabled} anchor={composer}
           onFiles={() => setDialog("files")} onGoal={() => setDialog("goal")}
-          onPlugin={(plugin) => addAttachments([plugin])} />
+          onPlugin={(plugin) => addAttachments([plugin])} onSkill={(skill) => skillInput.current?.addSkill(skill)} />
         <AccessPicker value={state.settings.access}
           disabled={running || state.sending} onChange={(access: AccessMode) => controller.settings({ access })} />
         <div className={styles.modelControls}>

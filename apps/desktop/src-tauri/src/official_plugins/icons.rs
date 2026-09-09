@@ -4,10 +4,10 @@ use std::{fs::File, io::Read, path::Path};
 const MAX_ICON_BYTES: u64 = 512 * 1024;
 
 /// Only load bounded image assets inside the plugin package reported by the CLI.
-pub(super) fn local_icon(source: Option<&str>, icon: Option<&str>) -> Option<String> {
+pub(crate) fn local_icon(source: Option<&str>, icon: Option<&str>) -> Option<String> {
     let root = Path::new(source?).canonicalize().ok()?;
-    let path = Path::new(icon?).canonicalize().ok()?;
-    if !path.starts_with(root) {
+    let path = root.join(icon?).canonicalize().ok()?;
+    if !path.starts_with(&root) {
         return None;
     }
     let mime = match path.extension()?.to_str()?.to_ascii_lowercase().as_str() {

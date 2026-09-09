@@ -1,5 +1,6 @@
-import { useId, useLayoutEffect, useRef, useState, type ClipboardEvent, type KeyboardEvent } from "react";
-import type { ComposerText } from "./types";
+import { forwardRef, useId, useImperativeHandle, useLayoutEffect, useRef, useState,
+  type ClipboardEvent, type KeyboardEvent } from "react";
+import type { ComposerText, Skill } from "./types";
 import { insertSkill, readEditor, skillTrigger, writeEditor } from "./skillEditorDom";
 import { composerOptions, type CompactCommand, type ComposerOption } from "./composerOptions";
 import type { SkillTrigger } from "./skillEditorDom";
@@ -7,14 +8,17 @@ import { useComposerSkills } from "./useComposerSkills";
 import { SkillMenu } from "./SkillMenu";
 import styles from "./SkillInput.module.less";
 
-export function SkillInput({ value, draftKey, cwd, active, connected, disabled, placeholder,
-  compact, onChange, onPaste, onSend }: {
+export interface SkillInputHandle { addSkill: (skill: Skill) => void }
+
+export const SkillInput = forwardRef<SkillInputHandle, {
   value: ComposerText; draftKey: string; cwd: string; active: boolean; connected: boolean; disabled: boolean;
   placeholder: string; onChange: (value: ComposerText) => void;
   compact: CompactCommand;
   onPaste: (event: ClipboardEvent<HTMLElement>) => void; onSend: () => void;
-}) {
+}>(function SkillInput({ value, draftKey, cwd, active, connected, disabled, placeholder,
+  compact, onChange, onPaste, onSend }, ref) {
   const editor = useRef<HTMLDivElement>(null);
+  const savedCaret = useRef<Range | null>(null);
   const composing = useRef(false);
   const [trigger, setTrigger] = useState<SkillTrigger | null>(null);
   const [selected, setSelected] = useState(0);
@@ -29,9 +33,26 @@ export function SkillInput({ value, draftKey, cwd, active, connected, disabled, 
     const node = editor.current;
     if (node && JSON.stringify(readEditor(node)) !== JSON.stringify({ text: value.text, mentions: value.mentions })) {
       writeEditor(node, value);
+      savedCaret.current = null;
     }
   }, [value]);
-  useLayoutEffect(() => { setTrigger(null); }, [draftKey, cwd, disabled, active]);
+  useLayoutEffect(() => { setTrigger(null); savedCaret.current = null; }, [draftKey, cwd, disabled, active]);
+
+  useImperativeHandle(ref, () => ({ addSkill: (skill) => {
+    const node = editor.current;
+    if (!node || disabled || !active || !connected || !skill.enabled) return;
+    const saved = savedCaret.current;
+    const range = saved && node.contains(saved.startContainer) && node.contains(saved.endContainer)
+      ? saved.cloneRange() : document.createRange();
+    if (!saved || !node.contains(range.startContainer)) {
+      range.selectNodeContents(node);
+      range.collapse(false);
+    }
+    node.focus();
+    insertSkill({ query: "", range }, skill);
+    onChange(readEditor(node));
+    setTrigger(null);
+  } }));
 
   const inspect = () => {
     if (!editor.current || composing.current) return;
@@ -87,8 +108,12 @@ export function SkillInput({ value, draftKey, cwd, active, connected, disabled, 
       className={styles.editor} contentEditable={!disabled} suppressContentEditableWarning
       data-placeholder={placeholder} data-empty={!value.text} onInput={change} onKeyDown={keyDown}
       onKeyUp={(event) => { if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) inspect(); }}
-      onClick={inspect} onBlur={() => setTrigger(null)} onPaste={paste} onDrop={(event) => event.preventDefault()}
+      onClick={inspect} onBlur={() => {
+        const selection = window.getSelection();
+        savedCaret.current = selection?.rangeCount ? selection.getRangeAt(0).cloneRange() : null;
+        setTrigger(null);
+      }} onPaste={paste} onDrop={(event) => event.preventDefault()}
       onCompositionStart={() => { composing.current = true; setTrigger(null); }}
       onCompositionEnd={() => { composing.current = false; change(); }} />
   </div>;
-}
+});

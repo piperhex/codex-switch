@@ -115,7 +115,7 @@ it("discards stale lists after a project change", async () => {
 it("shows load failures and retries when slash is entered again", async () => {
   vi.mocked(guiApi.request).mockRejectedValueOnce(new Error("unavailable"));
   await type("/");
-  expect(host.textContent).toContain("Skill 加载失败");
+  expect(host.textContent).toContain("技能加载失败");
   await key("Escape");
   await type("/");
   expect(host.querySelectorAll('[role="option"]')).toHaveLength(3);

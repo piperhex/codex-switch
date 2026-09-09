@@ -34,7 +34,8 @@ export function skillNode(skill: Skill) {
   const node = document.createElement("span");
   node.className = styles.skillChip;
   node.setAttribute("contenteditable", "false");
-  node.dataset.skill = JSON.stringify(skill);
+  // Inline references do not need to duplicate potentially large embedded catalog icons.
+  node.dataset.skill = JSON.stringify({ ...skill, iconUrl: undefined });
   node.textContent = skillLabel(skill);
   node.setAttribute("aria-label", `Skill：${skillLabel(skill)}`);
   return node;

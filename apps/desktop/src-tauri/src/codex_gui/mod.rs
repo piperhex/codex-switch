@@ -5,6 +5,7 @@ pub(crate) mod deletion;
 mod error;
 mod goals;
 mod home;
+mod icons;
 mod images;
 mod platform;
 pub(crate) mod plugin_client;
@@ -95,7 +96,7 @@ pub(crate) async fn codex_gui_request(
         .await
         .map_err(|_| GuiError::InvalidRequest)??;
         Ok(GuiResponse {
-            data: client.request(method, params).await?,
+            data: icons::resolve(method, client.request(method, params).await?).await?,
         })
     }
     .await

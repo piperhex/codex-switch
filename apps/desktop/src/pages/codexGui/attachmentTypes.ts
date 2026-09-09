@@ -10,7 +10,9 @@ export interface ComposerPlugin {
   name: string;
   installed: boolean;
   enabled: boolean;
-  interface?: { displayName?: string | null; shortDescription?: string | null; composerIconUrl?: string | null };
+  iconUrl?: string;
+  interface?: { displayName?: string | null; shortDescription?: string | null;
+    composerIconUrl?: string | null; logoUrl?: string | null };
 }
 export interface PluginsResponse {
   marketplaces: { plugins: ComposerPlugin[] }[];

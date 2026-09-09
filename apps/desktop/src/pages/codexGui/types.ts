@@ -6,7 +6,9 @@ export interface SkillReference { name: string; path: string }
 export interface Skill extends SkillReference {
   description: string;
   shortDescription?: string;
-  interface?: { displayName?: string; shortDescription?: string };
+  iconUrl?: string;
+  interface?: { displayName?: string; shortDescription?: string;
+    iconSmallUrl?: string | null; iconLargeUrl?: string | null };
   enabled: boolean;
 }
 export interface SkillMention { start: number; end: number; skill: Skill }

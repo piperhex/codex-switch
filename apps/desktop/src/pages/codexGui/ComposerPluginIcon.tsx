@@ -1,5 +1,5 @@
-import { useState } from "react";
 import { Blocks, FileText, Globe, LayoutTemplate, Presentation, Sheet } from "lucide-react";
+import { ComposerCatalogIcon } from "./ComposerCatalogIcon";
 import type { ComposerPlugin } from "./attachmentTypes";
 
 const ICONS = [
@@ -12,10 +12,7 @@ const ICONS = [
 ];
 
 export function ComposerPluginIcon({ plugin }: { plugin: ComposerPlugin }) {
-  const [failed, setFailed] = useState(false);
-  const url = plugin.interface?.composerIconUrl;
-  if (!failed && url?.startsWith("https://")) return <img src={url} width={19} height={19} alt=""
-    referrerPolicy="no-referrer" onError={() => setFailed(true)} style={{ flexShrink: 0, objectFit: "contain" }} />;
   const { Icon, color } = ICONS.find((entry) => entry.match.test(plugin.name)) ?? { Icon: Blocks, color: "#579aaa" };
-  return <Icon size={19} style={{ color }} aria-hidden="true" />;
+  return <ComposerCatalogIcon urls={[plugin.iconUrl, plugin.interface?.composerIconUrl, plugin.interface?.logoUrl]}
+    size={19} fallback={<Icon size={19} style={{ color }} aria-hidden="true" />} />;
 }
