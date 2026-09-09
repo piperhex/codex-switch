@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "test:chat:e2e": "playwright test --config playwright.chat.config.ts",
+    "test:chat:android": "node e2e/android-chat-regression.mjs",
     "dev": "vite",
     "build": "tsc && vite build",
     "check": "npm run build",

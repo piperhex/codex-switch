@@ -3,7 +3,7 @@ import { ChatLink } from '../../../shared/remote-chat/link';
 import { RtcPeer } from '../../../shared/remote-chat/rtcPeer';
 import { ChatRpc } from '../../../shared/remote-chat/rpc';
 import { parseMessage, type IceServer, type RpcMessage, type Signal } from '../../../shared/remote-chat/protocol';
-import { demoResponse } from './demo-conversation';
+import { demoResponse, demoState } from './demo-conversation';
 
 const query = new URLSearchParams(location.search);
 const desktop = query.get('role') === 'desktop';
@@ -38,7 +38,7 @@ socket.onmessage = async ({ data }) => {
         if (!response) {
           executions += 1;
           response = { kind: 'response', id: message.id,
-            data: query.has('demo') ? demoResponse(message, link) : message.body };
+            data: query.has('demo') ? structuredClone(demoResponse(message, link)) : message.body };
           requests.set(message.id, response);
         }
         void link.send(response);
@@ -52,14 +52,16 @@ socket.onmessage = async ({ data }) => {
   if (frame.type === 'signal') await link.acceptSignal(frame.payload as Signal);
   if (frame.type === 'relay-ready') link.enableRelay();
   if (frame.type === 'relay') link.receive(String(frame.payload));
+  if (frame.type === 'peer-close') link.close();
 };
 
 declare global {
   interface Window {
     chatTest: { modes: string[]; errors: string[]; events: unknown[]; request: (text: string) => Promise<unknown>;
-      fallback: () => void; stream: (text: string) => Promise<void>; executions: () => number; beats: () => number };
+      fallback: () => void; stream: (text: string) => Promise<void>; executions: () => number; beats: () => number;
+      demoState: typeof demoState };
   }
 }
 window.chatTest = { modes, errors, events, request: (text) => rpc.request('request', { text }),
   fallback: () => link.fallback(), stream: (text) => link.send({ kind: 'event', event: { text } }),
-  executions: () => executions, beats: () => heartbeats };
+  executions: () => executions, beats: () => heartbeats, demoState };

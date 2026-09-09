@@ -86,3 +86,31 @@ npm run test:chat:e2e -w @codex-switch/desktop
 
 接口参考：[Codex App Server 官方文档](https://learn.chatgpt.com/docs/app-server)、
 [React Native WebRTC 数据通道](https://react-native-webrtc.github.io/handbook/guides/basic-usage.html)。
+
+## Android 模拟器回归
+
+新增 `npm run test:chat:android -w @codex-switch/desktop`，直接安装并操作发布 APK。
+测试覆盖登录、聊天入口、连接与历史同步、发送与流式回复、键盘布局、补充消息、停止、审批允许/拒绝、
+补充问题、新建聊天、归档恢复、强制断线恢复、切换 Tab 和前后台切换，共 11 个场景。
+每个场景同时检查原生界面及 PC 测试端收到的操作，保存截图、APK SHA-256、结构化结果和运行日志。
+
+使用 **Android 15 / API 35 的可丢弃模拟器**、JDK 17、Android SDK Platform 35 和 Build Tools 35.0.0。
+脚本拒绝操作实体手机。由于需要清除测试应用数据，必须设置 `ANDROID_CHAT_DISPOSABLE=1`；
+请用 `-read-only -no-snapshot` 启动模拟器，避免影响已有 AVD 数据。流式输出期间用轻量 UI Automator
+读取器获取实时界面，避免系统 `uiautomator dump` 在等待界面空闲时返回旧文件。
+
+1. 构建 APK：`npm run build:apk`，并构建后端：`npm run build:backend`。
+2. 启动临时模拟器，如 `emulator -avd Pixel_9 -port 5580 -read-only -no-snapshot`。
+3. 在 desktop 目录启动新的 `node e2e/mobile-fixture.mjs`，每次完整回归前重新启动该测试服务。
+4. 设置环境并运行：
+
+```powershell
+$env:ANDROID_HOME = '你的 Android SDK 路径'
+$env:JAVA_HOME = '你的 JDK 17 路径'
+$env:ANDROID_SERIAL = 'emulator-5580'
+$env:ANDROID_CHAT_DISPOSABLE = '1'
+npm run test:chat:android -w @codex-switch/desktop
+```
+
+结果位于仓库 `.codex-tmp/android-chat-regression/report.md`，详细数据为同目录的 `report.json`，
+每项操作对应一张 PNG。测试端只使用虚构账号和聊天，运行时不请求真实 Codex 模型，也不修改生产数据。
