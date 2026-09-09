@@ -2,27 +2,27 @@
   display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px;
   border: 0; border-radius: 999px; background: transparent; color: var(--muted);
   font: inherit; font-size: 12px; line-height: 20px; cursor: pointer;
-  &:hover, &[aria-expanded="true"] { background: var(--bg); }
+  &:hover:not(:disabled), &[aria-expanded="true"] { background: var(--green-selection-hover); }
   &:disabled { cursor: default; opacity: .5; }
 }
-.panel { box-sizing: border-box; width: min(400px, calc(100vw - 24px));
-  max-width: 100%; padding: 12px 8px 8px; }
-.heading { padding: 0 8px 7px; color: var(--muted); font-size: 13px; }
+.panel { box-sizing: border-box; width: min(320px, calc(100vw - 24px));
+  max-width: 100%; padding: 8px 6px 6px; }
+.heading { padding: 0 8px 5px; color: var(--muted); font-size: 12px; }
 .option {
-  display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 9px;
-  border: 0; border-radius: 10px; background: transparent; color: var(--ink);
-  text-align: left; font: inherit; font-size: 14px; line-height: 1.5; cursor: pointer;
+  display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 8px;
+  border: 0; border-radius: 8px; background: transparent; color: var(--ink);
+  text-align: left; font: inherit; font-size: 12px; line-height: 1.5; cursor: pointer;
   > svg { flex-shrink: 0; }
-  &:hover { background: var(--bg); }
+  &:hover:not(:disabled), &:focus-visible { background: var(--green-selection-hover); }
   &:disabled { cursor: default; opacity: .5; }
 }
 .copy { flex: 1; min-width: 0; overflow-wrap: anywhere;
-  small { display: block; color: var(--muted); font-size: 12px; line-height: 1.5; } }
+  small { display: block; color: var(--muted); font-size: 11px; line-height: 1.5; } }
 .check { margin-left: auto; }
 .fullAccess { color: #b8860b;
   .copy small { color: inherit; }
   &.trigger { background: #d4a01712; }
-  &:hover, &.trigger[aria-expanded="true"] { background: #d4a01720; }
+  &:hover:not(:disabled), &:focus-visible, &.trigger[aria-expanded="true"] { background: #d4a01720; }
 }
 .trigger:focus-visible, .option:focus-visible { outline: 2px solid currentColor; outline-offset: -2px; }
 :global(:root[data-theme='dark']) .fullAccess { color: #f2c94c; }

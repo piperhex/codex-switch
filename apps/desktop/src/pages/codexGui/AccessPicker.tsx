@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
-import { Popover, Tooltip } from "antd";
+import { Popover } from "antd";
 import { Check, Hand, ShieldAlert, ShieldCheck } from "lucide-react";
 import type { AccessMode } from "./types";
 import styles from "./AccessPicker.module.less";
@@ -43,22 +43,20 @@ export function AccessPicker({ value, disabled, onChange }: {
         className={`${styles.option} ${option.value === "danger-full-access" ? styles.fullAccess : ""}`}
         aria-checked={value === option.value} disabled={disabled}
         onClick={() => { if (!disabled) { onChange(option.value); close(); } }}>
-        <option.icon size={19} aria-hidden="true" />
+        <option.icon size={16} aria-hidden="true" />
         <span className={styles.copy}><span>{option.label}</span><small>{option.description}</small></span>
-        {value === option.value && <Check className={styles.check} size={18} aria-hidden="true" />}
+        {value === option.value && <Check className={styles.check} size={16} aria-hidden="true" />}
       </button>)}
     </div>
   </div>;
   return <Popover trigger="click" placement="topLeft" arrow={false} open={open && !disabled}
     onOpenChange={setOpen} content={panel} styles={{ root: { maxWidth: 400 },
-      body: { padding: 0, borderRadius: 18, overflow: "hidden" } }}>
-    <Tooltip title={open ? null : "更改权限"} styles={{ root: { maxWidth: 400 } }}>
-      <button ref={trigger} type="button" disabled={disabled}
-        onKeyDown={(event) => { if (event.key === "Escape") close(); }}
-        className={`${styles.trigger} ${fullAccess ? styles.fullAccess : ""}`}
-        aria-haspopup="menu" aria-expanded={open && !disabled} aria-label={`访问权限：${selected.label}`}>
-        <Icon size={16} aria-hidden="true" /><span>{fullAccess ? "完全访问" : selected.label}</span>
-      </button>
-    </Tooltip>
+      body: { padding: 0, borderRadius: 12, overflow: "hidden" } }}>
+    <button ref={trigger} type="button" disabled={disabled}
+      onKeyDown={(event) => { if (event.key === "Escape") close(); }}
+      className={`${styles.trigger} ${fullAccess ? styles.fullAccess : ""}`}
+      aria-haspopup="menu" aria-expanded={open && !disabled} aria-label={`访问权限：${selected.label}`}>
+      <Icon size={16} aria-hidden="true" /><span>{fullAccess ? "完全访问" : selected.label}</span>
+    </button>
   </Popover>;
 }
