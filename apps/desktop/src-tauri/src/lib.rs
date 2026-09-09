@@ -35,6 +35,8 @@ mod dream_skin_resources;
 mod error_logs;
 mod floating_bubble;
 mod grok_provider;
+#[cfg(windows)]
+mod installer_lifecycle;
 mod launch_options;
 mod local_proxy;
 mod main_window;
@@ -69,6 +71,11 @@ use tauri::Manager;
 use tauri_plugin_deep_link::DeepLinkExt;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    #[cfg(windows)]
+    if let Err(error) = installer_lifecycle::wait_before_startup() {
+        eprintln!("failed to wait for the Windows installer: {error}");
+        return;
+    }
     if chrome_plugin::run_helper() {
         return;
     }
@@ -120,6 +127,8 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(move |app| {
+            #[cfg(windows)]
+            installer_lifecycle::setup(app.handle())?;
             storage::migrate_app_settings_for_version(app.handle())?;
             let settings = storage::read_app_settings(app.handle())?;
             if let Err(error) = error_logs::setup(app.handle()) {

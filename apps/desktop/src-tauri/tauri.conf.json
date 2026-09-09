@@ -7,7 +7,7 @@
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://127.0.0.1:1420",
     "beforeBuildCommand": "npm run build",
-    "beforeBundleCommand": "node ../../scripts/verify-tauri-assets.mjs",
+    "beforeBundleCommand": "node ../../scripts/prepare-desktop-bundle.mjs",
     "frontendDist": "../dist"
   },
   "app": {
@@ -64,7 +64,12 @@
     "longDescription": "A local-first manager for Codex auth.json files and account usage windows.",
     "windows": {
       "wix": {
-        "version": "1.4.14"
+        "version": "1.4.14",
+        "fragmentPaths": ["windows/installer-lifecycle.wxs"],
+        "featureRefs": ["CswInstallerLifecycle"]
+      },
+      "nsis": {
+        "installerHooks": "windows/installer-hooks.nsh"
       }
     },
     "macOS": {

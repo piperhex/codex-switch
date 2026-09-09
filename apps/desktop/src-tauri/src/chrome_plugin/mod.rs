@@ -59,6 +59,17 @@ fn bridge_root() -> Result<PathBuf> {
 pub(crate) fn run_helper() -> bool {
     let args = std::env::args().skip(1).collect::<Vec<_>>();
     let expected_origin = format!("chrome-extension://{}/", EXTENSION_ID.trim());
+    #[cfg(windows)]
+    if args
+        .first()
+        .is_some_and(|arg| arg == &expected_origin || arg.starts_with("--chrome-mcp="))
+    {
+        // STDIO helpers have no message loop and can be blocked waiting for their client.
+        if let Err(error) = crate::installer_lifecycle::watch(|| std::process::exit(0)) {
+            eprintln!("failed to watch for installer shutdown: {error}");
+            return true;
+        }
+    }
     let result = if args.first() == Some(&expected_origin) {
         bridge_root().and_then(native::run)
     } else if let Some(client_id) = args

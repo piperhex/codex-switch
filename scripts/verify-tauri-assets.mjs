@@ -56,7 +56,7 @@ if (executableCandidates.length === 0) {
   );
 }
 
-const packagedExecutable = executableCandidates.sort(
+export const packagedExecutable = executableCandidates.sort(
   (left, right) => statSync(right).mtimeMs - statSync(left).mtimeMs,
 )[0];
 

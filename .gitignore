@@ -4,6 +4,7 @@ dist/
 apps/*/dist/
 apps/backend/coverage/
 apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/installer-helper/target/
 apps/native/android/
 apps/native/ios/
 apps/native/.expo/
