@@ -2,18 +2,8 @@ import { useId } from "react";
 import { Popover } from "antd";
 import { formatCompactTokenCount } from "../../utils/tokenContext";
 import type { ThreadTokenUsage } from "./types";
+import { contextUsage, FULL_PERCENT } from "./contextUsage";
 import styles from "./ContextUsageButton.module.less";
-
-const FULL_PERCENT = 100;
-
-function contextUsage(usage?: ThreadTokenUsage) {
-  const used = usage?.last.totalTokens;
-  const total = usage?.modelContextWindow;
-  if (typeof used !== "number" || !Number.isFinite(used) || used < 0) return null;
-  const capacity = typeof total === "number" && Number.isFinite(total) && total > 0 ? total : null;
-  const percent = capacity === null ? null : Math.min(FULL_PERCENT, Math.round(used / capacity * FULL_PERCENT));
-  return { used, capacity, percent };
-}
 
 export function ContextUsageButton({ usage, open, onOpenChange }: {
   usage?: ThreadTokenUsage; open: boolean; onOpenChange: (open: boolean) => void;

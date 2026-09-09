@@ -3,6 +3,7 @@ import { deleteGuiThread } from "./deleteThread";
 import { conversation, reduceEvent } from "./events";
 import { completeTurnTiming, restoreTurnTiming } from "./turnTiming";
 import { MessageQueue } from "./messageQueue";
+import { compactUnavailableReason } from "./composerOptions";
 import { rememberTurnDetails } from "./turnDetailsStorage";
 import { initialState, savePreferences } from "./preferences";
 import type { ApprovalReply, GuiEvent, GuiState, ListResponse, Model, Settings, Thread, Turn } from "./types";
@@ -171,7 +172,8 @@ export class GuiController {
   send = async (text: string, images: string[], skills: SkillReference[] = []) => {
     const { selected, settings, conversations } = this.state;
     const projectOverride = selected ? this.state.projectOverrides[selected] : undefined;
-    if (this.state.sending || this.state.deleting || this.state.connection !== "ready" || this.state.archived
+    if (this.state.sending || this.state.deleting || this.state.compacting === selected
+      || this.state.connection !== "ready" || this.state.archived
       || (!text.trim() && !images.length && !skills.length)) return false;
     if (selected && (conversations[selected]?.activeTurn || this.state.queued[selected]?.length)) {
       const accepted = this.queue.enqueue(selected, { text, images, skills });
@@ -205,6 +207,30 @@ export class GuiController {
     }
   };
 
+  compact = async () => {
+    const id = this.state.selected;
+    if (!id || compactUnavailableReason(this.state)) return false;
+    this.patch({ compacting: id, error: "" });
+    try {
+      // Reading history does not load the thread into the app-server's active session.
+      const { thread } = await guiApi.request<{ thread: Thread }>({ operation: "resume", threadId: id,
+        access: this.state.settings.access });
+      const current = conversation(thread, this.state.conversations[id]);
+      if (current.activeTurn || this.state.conversations[id]?.activeTurn) {
+        this.patch({ compacting: undefined });
+        return false;
+      }
+      this.patch({ conversations: { ...this.state.conversations, [id]: current } });
+      await guiApi.request({ operation: "compact", threadId: id });
+      // The acknowledgement precedes completion; lifecycle events release the guard.
+      return true;
+    } catch (error) {
+      this.patch({ compacting: undefined });
+      this.report(error);
+      return false;
+    }
+  };
+
   interrupt = async () => {
     const id = this.state.selected;
     const turnId = id ? this.state.conversations[id]?.activeTurn : null;
@@ -214,7 +240,7 @@ export class GuiController {
   };
 
   manage = async (operation: "rename" | "archive" | "unarchive", id: string, name?: string) => {
-    if (this.state.conversations[id]?.activeTurn || this.state.deleting === id) return;
+    if (this.state.conversations[id]?.activeTurn || this.state.deleting === id || this.state.compacting === id) return;
     if (operation === "archive" && this.state.queued[id]?.length) {
       this.report("请先发送或删除待发送消息，再归档对话。");
       return;
@@ -234,7 +260,7 @@ export class GuiController {
   };
 
   deleteThread = async (id: string) => {
-    if (this.state.deleting || this.state.sending || this.state.connection !== "ready"
+    if (this.state.deleting || this.state.sending || this.state.compacting === id || this.state.connection !== "ready"
       || this.state.conversations[id]?.activeTurn || this.state.queued[id]?.length
       || this.state.threads.some((thread) => thread.id === id && thread.status?.type === "active")
       || this.state.approvals.some((event) => event.params.threadId === id)) {

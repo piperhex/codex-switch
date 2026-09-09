@@ -6,6 +6,11 @@ Providers (三方模型及中转). It supports project folders, text and image i
 streamed Markdown replies, command output, file diffs, plans, permission approvals, questions, interruption,
 history, search, renaming, pinning, and archiving/restoring conversations.
 
+Type `/` in the message box to choose a command or skill. **压缩** (also searchable as `/compact`)
+compacts the current conversation's context and shows its latest context usage when available.
+Select it with the mouse or Enter/Tab; it runs directly without sending the command as a message.
+Wait for the current task and queued messages to finish before compacting. Progress appears in the conversation.
+
 Choose **删除** from a conversation's menu to move it to the session manager's recycle bin.
 In **会话管理**, select **内置 Codex GUI** as the source home and open **回收站**. Select conversations
 and a destination under **恢复到 Codex Home**, then restore. Existing conversations in the destination
@@ -118,4 +123,5 @@ node scripts/codex-gui-smoke.mjs <downloaded-package>/bin/codex.exe
 
 The protocol smoke test covers initialization, models, image-only input reaching the model request,
 live deltas while listing conversations, persisted
-history, rename, process restart/resume, archive/restore, interruption, and independent on-disk storage.
+history, rename, process restart/resume, archive/restore, compaction and context usage updates,
+interruption, and independent on-disk storage.

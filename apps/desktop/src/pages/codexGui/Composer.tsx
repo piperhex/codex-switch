@@ -11,6 +11,7 @@ import { ModelPicker } from "./ModelPicker";
 import { UsageStatus } from "./UsageStatus";
 import { ProjectPicker } from "./ProjectPicker";
 import { SkillInput } from "./SkillInput";
+import { compactCommand } from "./composerOptions";
 import { QueuedMessages } from "./QueuedMessages";
 import styles from "./styles.module.less";
 
@@ -26,7 +27,8 @@ export function Composer({ state, controller, active }: {
   const running = Boolean(current?.activeTurn);
   const queuedMessages = state.selected ? state.queued[state.selected] ?? [] : [];
   const attachedQueue = running && queuedMessages.length > 0;
-  const disabled = state.connection !== "ready" || state.sending || state.archived;
+  const disabled = state.connection !== "ready" || state.sending || state.archived
+    || state.compacting === state.selected;
   const canSend = !disabled && !reading
     && Boolean(draft.text.trim() || draft.images.length);
   const send = async () => {
@@ -46,7 +48,8 @@ export function Composer({ state, controller, active }: {
         }} />
       <SkillInput value={draft} draftKey={key} cwd={project} active={active}
         connected={state.connection === "ready"} disabled={disabled}
-        placeholder={state.archived ? "恢复对话后即可继续" : "描述任务，或输入 / 选择 Skill…"}
+        compact={compactCommand(state, () => void controller.compact())}
+        placeholder={state.archived ? "恢复对话后即可继续" : "描述任务，或输入 / 选择命令和技能…"}
         onChange={editContent} onPaste={paste} onSend={() => void send()} />
       <div className={styles.composerControls}>
         <Tooltip title="添加图片" styles={{ root: { maxWidth: 400 } }}>

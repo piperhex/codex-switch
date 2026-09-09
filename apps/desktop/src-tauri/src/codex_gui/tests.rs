@@ -19,6 +19,22 @@ fn only_supported_operations_cross_the_boundary() {
 }
 
 #[test]
+fn compaction_is_scoped_to_a_valid_thread() {
+    let (method, params) = request(json!({"operation": "compact", "threadId": "thread-1"}))
+        .into_rpc()
+        .unwrap();
+    assert_eq!(method, "thread/compact/start");
+    assert_eq!(params, json!({"threadId": "thread-1"}));
+    for thread_id in ["", "../invalid", "thread\n1"] {
+        assert!(
+            request(json!({"operation": "compact", "threadId": thread_id}))
+                .into_rpc()
+                .is_err()
+        );
+    }
+}
+
+#[test]
 fn reads_include_history_and_lists_include_all_providers() {
     let (method, params) = request(json!({"operation": "read", "threadId": "thread-1"}))
         .into_rpc()

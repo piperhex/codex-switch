@@ -1,28 +1,35 @@
 import { useEffect, useRef } from "react";
 import { Box } from "lucide-react";
-import type { Skill } from "./types";
-import { skillDescription, skillLabel } from "./skillEditorDom";
+import type { ComposerOption } from "./composerOptions";
 import styles from "./SkillInput.module.less";
 
-export function SkillMenu({ id, skills, selected, loading, error, onChoose }: {
-  id: string; skills: Skill[]; selected: number; loading: boolean; error: string; onChoose: (skill: Skill) => void;
+export function SkillMenu({ id, options, selected, loading, error, onChoose }: {
+  id: string; options: ComposerOption[]; selected: number; loading: boolean; error: string;
+  onChoose: (option: ComposerOption) => void;
 }) {
   const list = useRef<HTMLDivElement>(null);
   useEffect(() => {
     list.current?.querySelector('[aria-selected="true"]')?.scrollIntoView?.({ block: "nearest" });
   }, [selected]);
   return <div className={styles.menu} onMouseDown={(event) => event.preventDefault()}>
-    <div className={styles.menuHeading}>选择 Skill</div>
-    <div ref={list} id={id} role="listbox" aria-label="Skills" className={styles.options}>
-      {skills.map((skill, index) => <button type="button" role="option" id={`${id}-${index}`}
-        key={skill.path} tabIndex={-1} aria-selected={selected === index} aria-disabled={!skill.enabled}
-        onClick={() => skill.enabled && onChoose(skill)}>
-        <Box size={18} /><span><strong>{skillLabel(skill)}{!skill.enabled && "（已停用）"}</strong>
-          <small>{skillDescription(skill)}</small></span>
+    <div className={styles.menuHeading}>选择命令或技能</div>
+    <div ref={list} id={id} role="listbox" aria-label="命令和技能" className={styles.options}>
+      {options.map((option, index) => <button type="button" role="option" id={`${id}-${index}`}
+        key={`${option.kind}-${option.key}`} tabIndex={-1}
+        aria-selected={selected === index} aria-disabled={!option.enabled}
+        onClick={() => option.enabled && onChoose(option)}>
+        {option.kind === "skill" ? <Box size={18} /> : <svg width="18" height="18" viewBox="0 0 16 16"
+          fill="none" aria-hidden="true">
+          <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" opacity=".25" />
+          <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" pathLength="100"
+            strokeDasharray={`${option.command.percent ?? 0} 100`} transform="rotate(-90 8 8)" />
+        </svg>}
+        <span><strong>{option.label}{option.kind === "skill" && !option.enabled && "（已停用）"}</strong>
+          <small>{option.description}</small></span>
       </button>)}
     </div>
     {loading && <p role="status">正在加载 Skill…</p>}
     {error && <p role="status">{error}</p>}
-    {!loading && !error && !skills.length && <p role="status">没有找到匹配的 Skill</p>}
+    {!loading && !error && !options.length && <p role="status">没有找到匹配的命令或技能</p>}
   </div>;
 }

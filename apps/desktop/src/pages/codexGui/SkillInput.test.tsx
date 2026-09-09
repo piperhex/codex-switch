@@ -17,9 +17,11 @@ let root: Root;
 let host: HTMLDivElement;
 const send = vi.fn();
 const paste = vi.fn();
-function Fixture({ cwd = "D:/project" }: { cwd?: string }) {
+const compact = vi.fn();
+function Fixture({ cwd = "D:/project", canCompact = true }: { cwd?: string; canCompact?: boolean }) {
   const [value, setValue] = useState<ComposerText>({ text: "", mentions: [] });
   return <SkillInput value={value} draftKey="new" cwd={cwd} active connected disabled={false}
+    compact={{ enabled: canCompact, description: "压缩此对话的上下文（已使用 30%）", percent: 30, run: compact }}
     placeholder="输入 / 选择 Skill" onChange={setValue} onPaste={paste} onSend={send} />;
 }
 const editor = () => host.querySelector<HTMLDivElement>('[role="textbox"]')!;
@@ -54,8 +56,9 @@ afterEach(async () => {
 
 it("lists every skill after an initial slash and inserts a named, atomic inline skill", async () => {
   await type("/");
-  expect(host.querySelectorAll('[role="option"]')).toHaveLength(2);
+  expect(host.querySelectorAll('[role="option"]')).toHaveLength(3);
   expect(guiApi.request).toHaveBeenCalledWith({ operation: "skills", cwd: "D:/project" });
+  await key("ArrowDown");
   await key("Enter");
   expect(send).not.toHaveBeenCalled();
   expect(host.querySelector('[data-skill]')?.textContent).toBe("Deploy Codex Switch");
@@ -81,6 +84,7 @@ it("does not trigger inside paths or URLs and supports keyboard navigation and d
   }
   await type("使用 /");
   await key("ArrowDown");
+  await key("ArrowDown");
   await key("Tab");
   expect(readEditor(editor()).mentions[0].skill.name).toBe("review");
   await type("/");
@@ -90,7 +94,7 @@ it("does not trigger inside paths or URLs and supports keyboard navigation and d
 
 it("does not send while choosing an empty result or composing Chinese text", async () => {
   await type("/missing");
-  expect(host.textContent).toContain("没有找到匹配的 Skill");
+  expect(host.textContent).toContain("没有找到匹配的命令或技能");
   await key("Enter");
   await key("Escape");
   await key("Enter", { isComposing: true });
@@ -114,5 +118,35 @@ it("shows load failures and retries when slash is entered again", async () => {
   expect(host.textContent).toContain("Skill 加载失败");
   await key("Escape");
   await type("/");
-  expect(host.querySelectorAll('[role="option"]')).toHaveLength(2);
+  expect(host.querySelectorAll('[role="option"]')).toHaveLength(3);
+});
+
+it.each(["/", "/compact", "/压缩"])("runs compaction from %s without sending a message", async (query) => {
+  await type(query);
+  expect(host.querySelector('[role="option"]')?.textContent).toContain("已使用 30%");
+  await key("Enter");
+  expect(compact).toHaveBeenCalledOnce();
+  expect(send).not.toHaveBeenCalled();
+  expect(readEditor(editor())).toEqual({ text: "", mentions: [] });
+  expect(host.querySelector('[role="listbox"]')).toBeNull();
+});
+
+it("keeps compaction available when skill loading fails and preserves surrounding draft text", async () => {
+  vi.mocked(guiApi.request).mockRejectedValueOnce(new Error("offline"));
+  await type("稍后 /compact 继续", "稍后 /compact".length);
+  await act(async () => host.querySelector<HTMLButtonElement>('[role="option"]')!.click());
+  expect(compact).toHaveBeenCalledOnce();
+  expect(readEditor(editor()).text).toBe("稍后  继续");
+  expect(send).not.toHaveBeenCalled();
+});
+
+it("does not run or erase the draft when compaction is unavailable", async () => {
+  await act(async () => root.render(<Fixture canCompact={false} />));
+  await type("/compact");
+  expect(host.querySelector('[role="option"]')?.getAttribute("aria-disabled")).toBe("true");
+  await key("Enter");
+  await act(async () => host.querySelector<HTMLButtonElement>('[role="option"]')!.click());
+  expect(compact).not.toHaveBeenCalled();
+  expect(send).not.toHaveBeenCalled();
+  expect(readEditor(editor()).text).toBe("/compact");
 });

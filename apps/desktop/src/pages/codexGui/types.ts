@@ -141,6 +141,7 @@ export interface GuiState {
   loading: boolean;
   sending: boolean;
   deleting?: string;
+  compacting?: string;
   archived: boolean;
   search: string;
   cursor: string | null;
@@ -164,7 +165,7 @@ export type Request =
   | { operation: "resume"; threadId: string; access: AccessMode; cwd?: string }
   | { operation: "send"; threadId: string; text: string; images: string[];
       model?: string; effort?: string; cwd?: string; skills?: SkillReference[] }
-  | { operation: "read" | "archive" | "unarchive"; threadId: string }
+  | { operation: "read" | "archive" | "unarchive" | "compact"; threadId: string }
   | { operation: "rename"; threadId: string; name: string }
   | { operation: "interrupt"; threadId: string; turnId: string };
 

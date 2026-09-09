@@ -114,7 +114,7 @@ export function reduceEvent(state: GuiState, event: GuiEvent): GuiState {
   if (event.method === "connection/closed") {
     const conversations = Object.fromEntries(Object.entries(state.conversations)
       .map(([id, value]) => [id, { ...value, activeTurn: null }]));
-    return { ...state, connection: "offline", approvals: [], conversations, sending: false,
+    return { ...state, connection: "offline", approvals: [], conversations, sending: false, compacting: undefined,
       error: "Codex 已断开连接。重新连接后可以继续对话。" };
   }
   if (event.id != null) return { ...state,
@@ -130,5 +130,7 @@ export function reduceEvent(state: GuiState, event: GuiEvent): GuiState {
   const value = reduceConversation(existing ?? conversation(thread!), event);
   const approvals = event.method === "turn/completed"
     ? state.approvals.filter((entry) => entry.params.turnId !== event.params.turn?.id) : state.approvals;
-  return { ...state, approvals, conversations: { ...state.conversations, [id]: value } };
+  const compactFinished = event.method === "turn/completed" || (event.method === "error" && !event.params.willRetry);
+  const compacting = state.compacting === id && compactFinished ? undefined : state.compacting;
+  return { ...state, approvals, compacting, conversations: { ...state.conversations, [id]: value } };
 }

@@ -1,14 +1,17 @@
 import { useId, useLayoutEffect, useRef, useState, type ClipboardEvent, type KeyboardEvent } from "react";
-import type { ComposerText, Skill } from "./types";
-import { insertSkill, readEditor, skillDescription, skillLabel, skillTrigger, writeEditor } from "./skillEditorDom";
+import type { ComposerText } from "./types";
+import { insertSkill, readEditor, skillTrigger, writeEditor } from "./skillEditorDom";
+import { composerOptions, type CompactCommand, type ComposerOption } from "./composerOptions";
 import type { SkillTrigger } from "./skillEditorDom";
 import { useComposerSkills } from "./useComposerSkills";
 import { SkillMenu } from "./SkillMenu";
 import styles from "./SkillInput.module.less";
 
-export function SkillInput({ value, draftKey, cwd, active, connected, disabled, placeholder, onChange, onPaste, onSend }: {
+export function SkillInput({ value, draftKey, cwd, active, connected, disabled, placeholder,
+  compact, onChange, onPaste, onSend }: {
   value: ComposerText; draftKey: string; cwd: string; active: boolean; connected: boolean; disabled: boolean;
   placeholder: string; onChange: (value: ComposerText) => void;
+  compact: CompactCommand;
   onPaste: (event: ClipboardEvent<HTMLElement>) => void; onSend: () => void;
 }) {
   const editor = useRef<HTMLDivElement>(null);
@@ -19,9 +22,8 @@ export function SkillInput({ value, draftKey, cwd, active, connected, disabled, 
   const open = Boolean(trigger) && active && !disabled;
   const catalog = useComposerSkills({ cwd, active: open, connected });
   const query = trigger?.query.toLocaleLowerCase() ?? "";
-  const skills = catalog.skills.filter((skill) =>
-    `${skill.name} ${skillLabel(skill)} ${skillDescription(skill)}`.toLocaleLowerCase().includes(query));
-  const selectedIndex = Math.min(selected, Math.max(0, skills.length - 1));
+  const options = composerOptions(catalog.skills, query, compact);
+  const selectedIndex = Math.min(selected, Math.max(0, options.length - 1));
 
   useLayoutEffect(() => {
     const node = editor.current;
@@ -42,12 +44,14 @@ export function SkillInput({ value, draftKey, cwd, active, connected, disabled, 
     onChange(readEditor(editor.current));
     inspect();
   };
-  const choose = (skill: Skill) => {
-    if (!trigger || !editor.current || !skill.enabled) return;
+  const choose = (option: ComposerOption) => {
+    if (!trigger || !editor.current || !option.enabled) return;
     editor.current.focus();
-    insertSkill(trigger, skill);
+    if (option.kind === "skill") insertSkill(trigger, option.skill);
+    else trigger.range.deleteContents();
     change();
     setTrigger(null);
+    if (option.kind === "compact") option.command.run();
   };
   const keyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (composing.current || event.nativeEvent.isComposing || event.keyCode === 229) return;
@@ -57,8 +61,8 @@ export function SkillInput({ value, draftKey, cwd, active, connected, disabled, 
       if (event.key === "Escape") setTrigger(null);
       else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
         const step = event.key === "ArrowDown" ? 1 : -1;
-        setSelected((selectedIndex + step + skills.length) % (skills.length || 1));
-      } else if (skills[selectedIndex]?.enabled) choose(skills[selectedIndex]);
+        setSelected((selectedIndex + step + options.length) % (options.length || 1));
+      } else if (options[selectedIndex]?.enabled) choose(options[selectedIndex]);
       return;
     }
     if (event.key !== "Enter") return;
@@ -75,11 +79,11 @@ export function SkillInput({ value, draftKey, cwd, active, connected, disabled, 
     change();
   };
   return <div className={styles.inputWrap}>
-    {open && <SkillMenu id={listId} skills={skills} selected={selectedIndex}
+    {open && <SkillMenu id={listId} options={options} selected={selectedIndex}
       loading={catalog.loading} error={catalog.error} onChoose={choose} />}
     <div ref={editor} role="textbox" aria-label="消息" aria-multiline="true" aria-disabled={disabled}
       aria-autocomplete="list" aria-controls={open ? listId : undefined}
-      aria-activedescendant={open && skills.length ? `${listId}-${selectedIndex}` : undefined}
+      aria-activedescendant={open && options.length ? `${listId}-${selectedIndex}` : undefined}
       className={styles.editor} contentEditable={!disabled} suppressContentEditableWarning
       data-placeholder={placeholder} data-empty={!value.text} onInput={change} onKeyDown={keyDown}
       onKeyUp={(event) => { if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) inspect(); }}

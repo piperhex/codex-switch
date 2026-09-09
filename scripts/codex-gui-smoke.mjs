@@ -173,6 +173,18 @@ try {
     const input = JSON.stringify(body.input);
     return input.includes("QUEUE_FIRST_MESSAGE") && input.includes("QUEUE_SECOND_MESSAGE");
   }), "All queued messages reach the next model request together");
+  const beforeCompaction = client.notifications.length;
+  assert.deepEqual(await client.rpc("thread/compact/start", { threadId: thread.id }), {});
+  const compaction = await client.waitFor("item/started", (params) =>
+    params.threadId === thread.id && params.item.type === "contextCompaction");
+  const duringCompaction = await client.rpc("thread/list", { archived: false, modelProviders: [] });
+  assert.ok(Array.isArray(duringCompaction.data), "Conversation listing responds during compaction");
+  await client.waitFor("item/completed", (params) => params.item.id === compaction.params.item.id);
+  const compacted = await client.waitFor("turn/completed", (params) => params.turn.id === compaction.params.turnId);
+  assert.equal(compacted.params.turn.status, "completed");
+  assert.ok(client.notifications.slice(beforeCompaction).some((event) =>
+    event.method === "thread/tokenUsage/updated" && event.params.threadId === thread.id),
+  "Compaction refreshes context usage");
   delayed = true;
   const next = await client.rpc("turn/start", { threadId: thread.id, input: [{ type: "text", text: "Continue" }] });
   await client.waitFor("item/agentMessage/delta", (params) => params.turnId === next.turn.id);
@@ -198,7 +210,7 @@ try {
   assert.ok(entries.some((entry) => /^state_.*\.sqlite$/.test(entry)));
   assert.equal((await readFile(join(home, "config.toml"), "utf8")).includes("gui_fixture"), true);
   console.log("PASS: official CLI handshake, skill discovery/input, images, streaming, history, "
-    + "projectless start/continue, restart/resume, archive/restore, queued inputs, steer, interrupt, "
+    + "projectless start/continue, restart/resume, archive/restore, queued inputs, compaction, steer, interrupt, "
     + "unsubscribe/file release, isolated storage");
 } catch (error) {
   console.error(error);

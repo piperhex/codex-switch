@@ -30,6 +30,9 @@ pub(crate) enum GuiRequest {
     Read {
         thread_id: String,
     },
+    Compact {
+        thread_id: String,
+    },
     Start {
         cwd: Option<String>,
         model: Option<String>,
@@ -297,6 +300,7 @@ impl GuiRequest {
                 params["name"] = json!(name.trim());
                 Ok(("thread/name/set", params))
             }
+            Self::Compact { thread_id } => Ok(("thread/compact/start", thread_params(thread_id)?)),
             Self::Archive { thread_id } => Ok(("thread/archive", thread_params(thread_id)?)),
             Self::Unarchive { thread_id } => Ok(("thread/unarchive", thread_params(thread_id)?)),
         }
