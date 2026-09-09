@@ -49,7 +49,12 @@
 .headerActions { margin-left: auto; display: flex; align-items: center; flex-shrink: 0; }
 .messageViewport { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 .messageArea { display: flex; flex-direction: column; position: relative; flex: 1; min-height: 0; }
-.jumpToLatest { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
+.messageScrollBody { display: flex; flex-direction: column; min-height: 100%; }
+// Keep the footer in the scroll flow so its full height remains available below the final message.
+.messageFooter { position: sticky; bottom: 0; z-index: 1; display: flex; flex-direction: column;
+  flex-shrink: 0; background: var(--panel);
+  .approvals { max-height: 45vh; } }
+.jumpToLatest { position: absolute; bottom: calc(100% + 12px); left: 50%; transform: translateX(-50%);
   display: flex; align-items: center; gap: 6px; padding: 7px 12px; border: 1px solid var(--gui-border);
   border-radius: 20px; background: var(--panel); box-shadow: 0 3px 12px #0001; color: var(--ink); cursor: pointer;
   font-size: 12px; white-space: nowrap; }
@@ -57,7 +62,7 @@
   > summary { cursor: pointer; padding: 5px 0; span { margin-left: 10px; } } }
 .workItems { display: flex; flex-direction: column; gap: 14px; padding: 12px 0 4px;
   .agentMessage { font-size: 13px; color: var(--gui-muted); line-height: 1.7; } }
-.messageContent { max-width: 900px; margin: 0 auto; padding: 28px 32px; }
+.messageContent { flex: 1 0 auto; width: 100%; max-width: 900px; margin: 0 auto; padding: 28px 32px; }
 .welcome { display: flex; flex-direction: column; justify-content: center; align-items: center;
   min-height: clamp(210px, 35vh, 400px); text-align: center;
   h1 { font-size: clamp(23px, 2.3vw, 34px); font-weight: 650; letter-spacing: -1px; margin: 20px 0 9px; }

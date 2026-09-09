@@ -67,11 +67,11 @@ function Workspace({ active, accountPicker }: CodexGuiPageProps) {
         type="error" closable onClose={controller.clearError} />}
       {otherApproval && <button className={styles.pendingBanner}
         onClick={() => void controller.select(otherApproval.params.threadId!)}>另一个对话需要你的确认，点击查看</button>}
-      {!installer.version ? <Installer installer={installer} /> : <>
-        <Messages value={current} selected={state.selected} active={active} />
-        <Approvals events={pending} controller={controller} />
-        <Composer state={state} controller={controller} active={active} />
-      </>}
+      {!installer.version ? <Installer installer={installer} /> :
+        <Messages value={current} selected={state.selected} active={active} footer={<>
+          <Approvals events={pending} controller={controller} />
+          <Composer state={state} controller={controller} active={active} />
+        </>} />}
     </div>
     </div>
   </DetailsWorkspace>;

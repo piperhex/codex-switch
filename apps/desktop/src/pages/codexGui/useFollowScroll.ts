@@ -19,6 +19,7 @@ export function useFollowScroll(selected: string | null) {
       if (follow.current && viewport.current) viewport.current.scrollTop = viewport.current.scrollHeight;
     });
     observer.observe(content.current);
+    if (viewport.current) observer.observe(viewport.current);
     return () => observer.disconnect();
   }, []);
   const onScroll = () => {
