@@ -1,15 +1,22 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="popup">
 <head><meta charset="utf-8"><title>浏览器助手</title><link rel="stylesheet" href="ui.css"></head>
 <body>
   <header><img src="icon.png" alt=""><div><h1>浏览器助手</h1><p>Codex Switch</p></div></header>
   <p id="status" role="status">正在检查连接…</p>
   <p id="error" role="alert" hidden></p>
   <div class="buttons"><button id="connect">重新连接</button><button id="pause">暂停控制</button></div>
-  <label class="name-label">浏览器名称<input id="name" maxlength="60" placeholder="例如：工作 Chrome"></label>
-  <button id="save-name" class="secondary">保存名称</button>
-  <section><h2>待确认的网站</h2><div id="requests"></div></section>
-  <section><h2>已允许的网站</h2><div id="origins"></div></section>
-  <p class="hint">你可以随时暂停控制或撤销网站许可。网页中的指令不会自动获得你的授权。</p>
+  <div class="name-field">
+    <label for="name">浏览器名称</label>
+    <div class="name-controls">
+      <input id="name" maxlength="60" placeholder="例如：工作 Chrome">
+      <button id="save-name" class="secondary">保存</button>
+    </div>
+  </div>
+  <div class="sites">
+    <section><h2>待确认的网站</h2><div id="requests"></div></section>
+    <section><h2>已允许的网站</h2><div id="origins"></div></section>
+  </div>
+  <p class="hint">只会操作你允许的网站。你可以随时暂停控制或撤销许可。</p>
   <script type="module" src="popup.js"></script>
 </body></html>
