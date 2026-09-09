@@ -5,6 +5,7 @@ import { TurnDuration } from "./TurnDuration";
 import { TurnPlan } from "./TurnPlan";
 import { DiffView } from "./DiffView";
 import { changedFiles, parseDiff } from "./diff";
+import { visibleContinuationItems } from "./continuation";
 import styles from "./styles.module.less";
 
 interface Group { type: "work" | "message"; items: Item[] }
@@ -22,10 +23,11 @@ export function groupTurnItems(items: Item[]): Group[] {
   }, []);
 }
 
-export const TurnMessage = memo(function TurnMessage({ turn, running, active }: {
-  turn: Turn; running: boolean; active: boolean;
+export const TurnMessage = memo(function TurnMessage({ turn, running, active, followsInterruption = false }: {
+  turn: Turn; running: boolean; active: boolean; followsInterruption?: boolean;
 }) {
-  const groups = useMemo(() => groupTurnItems(turn.items), [turn.items]);
+  const groups = useMemo(() => groupTurnItems(followsInterruption
+    ? visibleContinuationItems(turn.items) : turn.items), [turn.items, followsInterruption]);
   const netFiles = useMemo(() => parseDiff(turn.diff ?? ""), [turn.diff]);
   const files = useMemo(() => turn.diff ? netFiles : turn.items
     .filter((item) => item.type === "fileChange" && !["declined", "failed", "inProgress"].includes(item.status ?? ""))

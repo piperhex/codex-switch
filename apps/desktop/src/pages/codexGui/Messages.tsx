@@ -20,7 +20,8 @@ export function Messages({ value, selected, active = true, footer }: {
             <div className={styles.suggestions}><span>理解代码</span><span>实现功能</span><span>排查问题</span></div>
           </div>}
           {selected && !value && <div className={styles.listEmpty}><Spin /><p>正在读取对话…</p></div>}
-          {value?.turns.map((turn) => <TurnMessage key={turn.id} turn={turn}
+          {value?.turns.map((turn, index) => <TurnMessage key={turn.id} turn={turn}
+            followsInterruption={value.turns[index - 1]?.status === "interrupted"}
             running={value.activeTurn === turn.id} active={active} />)}
           {value?.error && <p className={styles.turnError} role="status">{value.error}</p>}
           {value?.activeTurn && <div className={styles.working} role="status">

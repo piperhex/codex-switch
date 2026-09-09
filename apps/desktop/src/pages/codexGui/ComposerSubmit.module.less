@@ -1,0 +1,15 @@
+.button {
+  flex-shrink: 0;
+
+  :global(.ant-btn-icon) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+
+    > svg { display: block; }
+  }
+}
+
+// A right-pointing triangle needs an optical offset toward its tip.
+.play { transform: translateX(1px); }

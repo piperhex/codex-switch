@@ -6,7 +6,8 @@ import { guiApi } from "./api";
 import { GuiController } from "./controller";
 import { Messages } from "./Messages";
 import { conversation } from "./events";
-import type { GuiEvent, Item, Thread } from "./types";
+import { CONTINUE_MESSAGE } from "./continuation";
+import type { GuiEvent, Item, Thread, Turn } from "./types";
 
 vi.mock("./api", () => ({ guiApi: {
   connect: vi.fn(), request: vi.fn(), subscribe: vi.fn(), respond: vi.fn(),
@@ -187,4 +188,50 @@ it("places the real send time and copy action outside the user bubble and copies
 it("does not invent a send time when older history has no timestamp", async () => {
   await act(async () => root.render(<Messages selected={thread.id} value={conversation(thread)} />));
   expect(container.querySelector("time")).toBeNull();
+});
+
+it("hides the continue instruction during streaming and after reopening history", async () => {
+  const stopped: Turn = { id: "stopped", status: "interrupted", items: [items[0]] };
+  const instruction: Item = { id: "continue", type: "userMessage",
+    content: [{ type: "text", text: CONTINUE_MESSAGE }] };
+  const continued: Turn = { id: "continued", status: "completed", items: [instruction, items[3]] };
+  await act(async () => {
+    receive({ method: "turn/completed", params: { threadId: thread.id, turn: stopped } });
+    receive({ method: "turn/started", params: { threadId: thread.id,
+      turn: { ...continued, status: "inProgress", items: [] } } });
+    receive({ method: "item/completed", params: { threadId: thread.id, turnId: continued.id, item: instruction } });
+  });
+  expect(container.textContent).not.toContain(CONTINUE_MESSAGE);
+  expect(container.textContent).toContain("检查这个项目");
+  expect(container.textContent).toContain("Codex 正在处理");
+  await act(async () => receive({ method: "turn/completed", params: { threadId: thread.id, turn: continued } }));
+  vi.mocked(guiApi.request).mockImplementation(async (request) => request.operation === "read"
+    ? { thread: { ...thread, turns: [stopped, continued] } } : { data: [], nextCursor: null });
+  await act(async () => controller.newConversation());
+  await act(async () => controller.select(thread.id));
+  expect(container.textContent).not.toContain(CONTINUE_MESSAGE);
+  expect(container.textContent).toContain("项目检查通过");
+  expect(controller.getSnapshot().conversations.one.turns[1].items).toContainEqual(instruction);
+});
+
+it("keeps normal continuation requests, attachments, and later steering visible", async () => {
+  const instruction: Item = { id: "input", type: "userMessage",
+    content: [{ type: "text", text: CONTINUE_MESSAGE }] };
+  const ordinary = conversation({ ...thread, turns: [{ id: "ordinary", status: "completed", items: [instruction] }] });
+  await act(async () => root.render(<Messages selected={thread.id} value={ordinary} />));
+  expect(container.textContent).toContain(CONTINUE_MESSAGE);
+  const value = conversation({ ...thread, turns: [
+    { id: "stopped", status: "interrupted", items: [] },
+    { id: "next", status: "completed", items: [
+      { ...instruction, content: [{ type: "text", text: "继续检查测试结果" }] },
+      { ...instruction, id: "steering" },
+      { ...instruction, id: "attachment", content: [{ type: "text", text: CONTINUE_MESSAGE },
+        { type: "localImage", path: "D:/reference.png" }] },
+    ] },
+  ] });
+  await act(async () => root.render(<Messages selected={thread.id} value={value} />));
+  expect(container.textContent).toContain("继续检查测试结果");
+  expect(container.textContent).toContain(CONTINUE_MESSAGE);
+  expect(container.textContent).toContain("reference.png");
+  expect(container.querySelectorAll("article")).toHaveLength(3);
 });

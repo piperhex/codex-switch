@@ -2,8 +2,8 @@ import { Button, Tooltip } from "antd";
 import { ArrowUp, Play, Square } from "lucide-react";
 import type { GuiController } from "./controller";
 import type { GuiState } from "./types";
-
-const CONTINUE_MESSAGE = "请继续完成刚才中断的任务。";
+import styles from "./ComposerSubmit.module.less";
+import { CONTINUE_MESSAGE } from "./continuation";
 
 export function ComposerSubmit({ state, controller, hasDraft, reading, onSend }: {
   state: GuiState;
@@ -22,14 +22,14 @@ export function ComposerSubmit({ state, controller, hasDraft, reading, onSend }:
     else if (hasDraft) await onSend();
   };
 
-  if (current?.activeTurn && !hasDraft) return <Button type="primary" shape="circle"
+  if (current?.activeTurn && !hasDraft) return <Button type="primary" shape="circle" className={styles.button}
     icon={<Square size={14} fill="currentColor" />} aria-label="停止生成"
     onClick={() => void controller.interrupt()} />;
 
   const label = current?.activeTurn ? "加入待发送" : (continuing ? "继续生成" : "发送消息");
   return <Tooltip title={label} styles={{ root: { maxWidth: 400 } }}>
-    <Button type="primary" shape="circle"
-      icon={continuing ? <Play size={17} fill="currentColor" /> : <ArrowUp size={19} />}
+    <Button type="primary" shape="circle" className={styles.button}
+      icon={continuing ? <Play className={styles.play} size={17} fill="currentColor" /> : <ArrowUp size={19} />}
       aria-label={label} loading={state.sending}
       disabled={disabled || (!hasDraft && !continuing)} onClick={() => void submit()} />
   </Tooltip>;
