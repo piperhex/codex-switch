@@ -118,6 +118,16 @@ export function reduceConversation(value: Conversation, event: GuiEvent): Conver
   return trackProcessing(reduceConversationContent(value, event), event);
 }
 
+function syncThreadPreview(state: GuiState, thread: Thread): Thread[] {
+  const update = (entry: Thread) => ({ ...entry, preview: thread.preview,
+    cwd: state.projectOverrides[entry.id] ?? entry.cwd });
+  if (state.threads.some((entry) => entry.id === thread.id)) {
+    return state.threads.map((entry) => entry.id === thread.id ? update(entry) : entry);
+  }
+  if (state.archived || state.search) return state.threads;
+  return [update(thread), ...state.threads];
+}
+
 export function reduceEvent(state: GuiState, event: GuiEvent): GuiState {
   state = trackProcessingApproval(state, event);
   if (event.params.threadId && ["thread/goal/updated", "thread/goal/cleared"].includes(event.method)) {
@@ -140,11 +150,14 @@ export function reduceEvent(state: GuiState, event: GuiEvent): GuiState {
   const existing = state.conversations[id];
   if (!existing && !thread) return state;
   const value = reduceConversation(existing ?? conversation(thread!), event);
+  const threads = value.thread.preview && value.thread.preview !== existing?.thread.preview
+    ? syncThreadPreview(state, value.thread) : state.threads;
   const approvals = event.method === "turn/completed"
     ? state.approvals.filter((entry) => entry.params.turnId !== event.params.turn?.id) : state.approvals;
   const compactFinished = event.method === "turn/completed" || (event.method === "error" && !event.params.willRetry);
   const compacting = state.compacting === id && compactFinished ? undefined : state.compacting;
   const turnAcknowledged = event.method === "turn/started" || event.method === "turn/completed";
   const pendingRequest = turnAcknowledged && state.pendingRequest?.threadId === id ? undefined : state.pendingRequest;
-  return { ...state, approvals, compacting, pendingRequest, conversations: { ...state.conversations, [id]: value } };
+  return { ...state, threads, approvals, compacting, pendingRequest,
+    conversations: { ...state.conversations, [id]: value } };
 }

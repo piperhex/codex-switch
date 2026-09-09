@@ -140,7 +140,9 @@ export class GuiController {
       const live = this.state.archived || this.state.search ? [] : Object.values(this.state.conversations)
         .filter((value) => value.activeTurn).map((value) => value.thread);
       const grouped = [...new Map([...live, ...threads].map((thread) => [thread.id, thread])).values()]
-        .map((thread) => ({ ...thread, cwd: this.state.projectOverrides[thread.id] ?? thread.cwd }));
+        .map((thread) => ({ ...thread, cwd: this.state.projectOverrides[thread.id] ?? thread.cwd,
+          // The list can lag behind the first user-message notification.
+          preview: thread.preview || this.state.conversations[thread.id]?.thread.preview || "" }));
       this.patch({ threads: grouped,
         cursor: response.nextCursor });
     } catch (error) { if (generation === this.listGeneration) this.report(error); }
