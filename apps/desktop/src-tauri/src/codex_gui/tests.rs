@@ -195,6 +195,73 @@ fn approvals_do_not_allow_unoffered_decisions() {
 }
 
 #[test]
+fn start_and_resume_align_approvals_with_the_selected_access() {
+    let cwd = std::env::current_dir().unwrap();
+    for (access, approval) in [
+        ("read-only", "on-request"),
+        ("workspace-write", "on-request"),
+        ("danger-full-access", "never"),
+    ] {
+        for operation in ["start", "resume"] {
+            let (_, params) = request(json!({"operation": operation, "threadId": "thread-1",
+                "cwd": cwd, "access": access}))
+            .into_rpc()
+            .unwrap();
+            assert_eq!(params["approvalPolicy"], approval);
+            assert_eq!(params["sandbox"], access);
+        }
+    }
+}
+
+#[test]
+fn new_turns_override_cached_permissions_in_both_directions() {
+    for (access, approval, sandbox) in [
+        (
+            "danger-full-access",
+            "never",
+            json!({"type": "dangerFullAccess"}),
+        ),
+        (
+            "read-only",
+            "on-request",
+            json!({"type": "readOnly", "networkAccess": false}),
+        ),
+        (
+            "workspace-write",
+            "on-request",
+            json!({"type": "workspaceWrite", "writableRoots": [],
+            "networkAccess": false, "excludeTmpdirEnvVar": false, "excludeSlashTmp": false}),
+        ),
+    ] {
+        for operation in ["send", "sendBatch"] {
+            let (method, params) = request(json!({"operation": operation, "threadId": "thread-1",
+                "text": "continue", "images": [], "messages": [{"text": "queued", "images": []}],
+                "access": access}))
+            .into_rpc()
+            .unwrap();
+            assert_eq!(method, "turn/start");
+            assert_eq!(params["approvalPolicy"], approval);
+            assert_eq!(params["sandboxPolicy"], sandbox);
+        }
+    }
+}
+
+#[test]
+fn omitted_turn_access_inherits_permissions_and_invalid_access_is_rejected() {
+    for operation in ["send", "sendBatch", "steer"] {
+        let mut value = json!({"operation": operation, "threadId": "thread-1", "turnId": "turn-1",
+            "text": "continue", "images": [], "messages": [{"text": "queued", "images": []}]});
+        let (_, params) = request(value.clone()).into_rpc().unwrap();
+        assert!(params.get("approvalPolicy").is_none());
+        assert!(params.get("sandboxPolicy").is_none());
+        if operation != "steer" {
+            value["access"] = json!("unknown");
+            assert!(serde_json::from_value::<GuiRequest>(value).is_err());
+        }
+    }
+}
+
+#[test]
 fn resume_explicitly_restores_user_review_and_sandbox() {
     let (method, params) = request(json!({"operation": "resume", "threadId": "thread-1",
         "access": "workspace-write"}))

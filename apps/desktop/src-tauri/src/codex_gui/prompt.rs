@@ -1,7 +1,7 @@
 //! Validated user inputs shared by ordinary, queued and steering turns.
 use super::error::{GuiError, Result};
 use super::images::{self, MAX_IMAGES};
-use super::protocol::{directory, thread_params};
+use super::protocol::{directory, thread_params, AccessMode};
 use serde::Deserialize;
 use serde_json::{json, Value};
 const MAX_PROMPT_BYTES: usize = 256_000;
@@ -108,6 +108,7 @@ pub(super) struct TurnOptions {
     pub(super) model: Option<String>,
     pub(super) effort: Option<String>,
     pub(super) cwd: Option<String>,
+    pub(super) access: Option<AccessMode>,
 }
 
 pub(super) fn batch_params(
@@ -128,6 +129,7 @@ pub(super) fn batch_params(
                 model: None,
                 effort: options.effort.clone(),
                 cwd: None,
+                access: None,
             },
         )?;
         let input = params["input"]
@@ -139,6 +141,9 @@ pub(super) fn batch_params(
     params["input"] = json!(content);
     params["model"] = json!(options.model);
     params["effort"] = json!(options.effort);
+    if let Some(access) = options.access {
+        access.apply_to_turn(&mut params);
+    }
     Ok(("turn/start", params))
 }
 
@@ -191,6 +196,9 @@ pub(super) fn send_params(
     params["input"] = json!(content);
     params["model"] = json!(options.model);
     params["effort"] = json!(options.effort);
+    if let Some(access) = options.access {
+        access.apply_to_turn(&mut params);
+    }
     if let Some(cwd) = options.cwd {
         directory(&cwd)?;
         params["cwd"] = json!(cwd);

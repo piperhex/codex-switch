@@ -37,6 +37,16 @@ beforeEach(async () => {
 });
 afterEach(() => controller.dispose());
 
+it("sends queued turns with the access saved when queued, including after switching conversations", async () => {
+  controller.settings({ access: "danger-full-access" });
+  await controller.send("continue", []);
+  controller.newConversation();
+  controller.settings({ access: "read-only" });
+  await finish();
+  expect(guiApi.request).toHaveBeenCalledWith(expect.objectContaining({
+    operation: "sendBatch", threadId: "one", access: "danger-full-access" }));
+});
+
 it("queues separate messages and submits all in order to their original background conversation", async () => {
   await controller.send("first", ["image"], [{ name: "skill", path: "skill-path" }]);
   await controller.send("second", []);

@@ -23,6 +23,22 @@ beforeEach(() => {
 });
 
 describe("Codex GUI controller", () => {
+  it("applies access changes to each turn even when resume returns the same loaded thread", async () => {
+    const controller = new GuiController();
+    await controller.connect();
+    await controller.select(thread.id);
+    const original = vi.mocked(guiApi.request).getMockImplementation()!;
+    vi.mocked(guiApi.request).mockImplementation(async (request) => request.operation === "send"
+      ? { turn: { id: crypto.randomUUID(), status: "completed", items: [] } } : original(request));
+    for (const access of ["danger-full-access", "read-only", "workspace-write"] as const) {
+      controller.settings({ access });
+      expect(await controller.send("continue", [])).toBe(true);
+      const sends = vi.mocked(guiApi.request).mock.calls.filter(([request]) => request.operation === "send");
+      expect(sends.at(-1)?.[0]).toMatchObject({ threadId: thread.id, access });
+    }
+    controller.dispose();
+  });
+
   it("reopens the selected conversation after refresh and clears it for a new chat", async () => {
     const first = new GuiController();
     await first.connect(); await first.select(thread.id); first.dispose();

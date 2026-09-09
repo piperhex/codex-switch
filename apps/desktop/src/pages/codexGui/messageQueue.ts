@@ -64,7 +64,7 @@ export class MessageQueue {
       const { turn } = await guiApi.request<{ turn: Turn }>({ operation: "sendBatch", threadId,
         messages: messages.map(({ text, images, skills, attachments }) => ({ text, images, skills,
           ...(attachments?.length ? { attachments: attachments } : {}) })),
-        model: messages[0].model || undefined, effort: messages[0].effort || undefined });
+        model: messages[0].model || undefined, effort: messages[0].effort || undefined, access: messages[0].access });
       this.update(threadId, this.list(threadId).filter((item) => !ids.has(item.id)));
       this.host.acceptTurn(threadId, turn);
       sent = true;

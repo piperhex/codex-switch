@@ -176,7 +176,8 @@ export type Request =
   | { operation: "goalGet" | "goalClear"; threadId: string }
   | { operation: "goalSet"; threadId: string; objective?: string; status: "active" | "paused" }
   | { operation: "plugins"; cwd?: string }
-  | { operation: "sendBatch"; threadId: string; messages: MessageInput[]; model?: string; effort?: string }
+  | { operation: "sendBatch"; threadId: string; messages: MessageInput[]; model?: string; effort?: string;
+      access: AccessMode }
   | { operation: "steer"; threadId: string; turnId: string; text: string; images: string[];
       skills: SkillReference[]; attachments?: AttachmentReference[] }
   | { operation: "skills"; cwd?: string }
@@ -184,7 +185,7 @@ export type Request =
   | { operation: "list"; cursor?: string; archived: boolean; search?: string }
   | { operation: "start"; cwd?: string; model?: string; access: AccessMode }
   | { operation: "resume"; threadId: string; access: AccessMode; cwd?: string }
-  | { operation: "send"; threadId: string; text: string; images: string[];
+  | { operation: "send"; threadId: string; text: string; images: string[]; access: AccessMode;
       model?: string; effort?: string; cwd?: string; skills?: SkillReference[]; attachments?: AttachmentReference[] }
   | { operation: "read" | "archive" | "unarchive" | "compact"; threadId: string }
   | { operation: "rename"; threadId: string; name: string }

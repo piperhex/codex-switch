@@ -65,6 +65,7 @@ pub(crate) enum GuiRequest {
     },
     Send {
         thread_id: String,
+        access: Option<AccessMode>,
         text: String,
         images: Vec<String>,
         #[serde(default)]
@@ -91,6 +92,7 @@ pub(crate) enum GuiRequest {
     },
     SendBatch {
         thread_id: String,
+        access: Option<AccessMode>,
         messages: Vec<PromptInput>,
         model: Option<String>,
         effort: Option<String>,
@@ -225,7 +227,7 @@ impl GuiRequest {
                 Ok((
                     "thread/start",
                     json!({"cwd": cwd, "model": model,
-                    "sandbox": access, "approvalPolicy": "on-request"}),
+                    "sandbox": access, "approvalPolicy": access.approval_policy()}),
                 ))
             }
             Self::Resume {
@@ -239,7 +241,7 @@ impl GuiRequest {
                     params["cwd"] = json!(cwd);
                 }
                 params["sandbox"] = json!(access);
-                params["approvalPolicy"] = json!("on-request");
+                params["approvalPolicy"] = json!(access.approval_policy());
                 Ok(("thread/resume", params))
             }
             Self::Read { thread_id } => {
@@ -249,6 +251,7 @@ impl GuiRequest {
             }
             Self::Send {
                 thread_id,
+                access,
                 text,
                 images,
                 skills,
@@ -264,7 +267,12 @@ impl GuiRequest {
                     skills,
                     attachments,
                 },
-                TurnOptions { model, effort, cwd },
+                TurnOptions {
+                    model,
+                    effort,
+                    cwd,
+                    access,
+                },
             ),
             Self::Interrupt { thread_id, turn_id } => {
                 id(&turn_id)?;
@@ -293,6 +301,7 @@ impl GuiRequest {
                         model: None,
                         effort: None,
                         cwd: None,
+                        access: None,
                     },
                 )?;
                 params["expectedTurnId"] = json!(turn_id);
@@ -304,6 +313,7 @@ impl GuiRequest {
             }
             Self::SendBatch {
                 thread_id,
+                access,
                 messages,
                 model,
                 effort,
@@ -314,6 +324,7 @@ impl GuiRequest {
                     model,
                     effort,
                     cwd: None,
+                    access,
                 },
             ),
             Self::Rename { thread_id, name } => {

@@ -212,10 +212,10 @@ export class GuiController {
         conversations: { ...this.state.conversations,
           [thread.id]: conversation(thread, this.state.conversations[thread.id]) } });
       this.settings({ cwd: projectOverride ?? thread.cwd });
-      // Loaded threads can ignore resume overrides; apply project changes to the next turn explicitly.
+      // Loaded threads can ignore resume overrides; apply project and access settings to each new turn.
       const { turn } = await guiApi.request<{ turn: Turn }>({ operation: "send", threadId: thread.id,
         text, images, skills, ...(attachments.length ? { attachments } : {}), model: settings.model || undefined,
-        effort: settings.effort || undefined, cwd: projectOverride });
+        effort: settings.effort || undefined, cwd: projectOverride, access: settings.access });
       // Completion can arrive before the request promise resolves. Never resurrect a completed turn.
       this.acceptTurn(thread.id, turn);
       void this.refresh();
