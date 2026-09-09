@@ -1,0 +1,32 @@
+.trigger {
+  height: var(--announcement-height);
+  flex: 0 0 auto;
+  padding: 0 10px;
+  border-radius: var(--announcement-radius);
+  font-size: 12px;
+
+  svg { transition: transform .18s ease; }
+}
+
+.expanded { transform: rotate(180deg); }
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  width: max-content;
+  max-width: min(384px, calc(100vw - 160px));
+
+  :global(.refresh-all) {
+    height: var(--announcement-height);
+    padding: 0 10px;
+    border-radius: var(--announcement-radius);
+    font-size: 12px;
+    box-shadow: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trigger svg { transition: none; }
+}
