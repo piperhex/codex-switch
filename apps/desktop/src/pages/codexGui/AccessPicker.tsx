@@ -5,12 +5,12 @@ import type { AccessMode } from "./types";
 import styles from "./AccessPicker.module.less";
 
 const ACCESS_OPTIONS = [
-  { value: "read-only", label: "只读", icon: Hand,
-    description: "可以查看文件，修改文件或访问网络时需请求批准" },
-  { value: "workspace-write", label: "允许编辑", icon: ShieldCheck,
-    description: "可以编辑项目内的文件，访问项目外文件或网络时需请求批准" },
+  { value: "read-only", label: "请求批准", icon: Hand,
+    description: "编辑外部文件和使用互联网时始终询问" },
+  { value: "workspace-write", label: "帮我批准", icon: ShieldCheck,
+    description: "仅对检测到的风险操作请求批准" },
   { value: "danger-full-access", label: "完全访问权限", icon: ShieldAlert,
-    description: "可以访问互联网和你电脑上的任何文件" },
+    description: "可不受限制地访问互联网和你电脑上的任何文件" },
 ] satisfies { value: AccessMode; label: string; icon: typeof Hand; description: string }[];
 
 function moveOptionFocus(event: KeyboardEvent<HTMLDivElement>) {
@@ -37,7 +37,7 @@ export function AccessPicker({ value, disabled, onChange }: {
   const panel = <div className={styles.panel} onKeyDown={(event) => {
     if (event.key === "Escape") { event.stopPropagation(); close(); }
   }}>
-    <div className={styles.heading}>允许 Codex 做什么？</div>
+    <div className={styles.heading}>应如何批准 ChatGPT 操作？</div>
     <div role="menu" aria-label="访问权限" onKeyDown={moveOptionFocus}>
       {ACCESS_OPTIONS.map((option) => <button key={option.value} type="button" role="menuitemradio"
         className={`${styles.option} ${option.value === "danger-full-access" ? styles.fullAccess : ""}`}
