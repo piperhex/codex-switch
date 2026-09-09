@@ -89,3 +89,32 @@ it("updates an open live diff and clears it when switching conversations", async
   await act(async () => root.render(<Fixture changes={updated} selected="two" />));
   expect(panel()).toBeNull();
 });
+
+it("previews three files, expands the remainder, and reviews every file", async () => {
+  const changes = Array.from({ length: 17 }, (_, index) => ({ ...files[0], path: `src/file-${index}.ts` }));
+  await act(async () => root.render(<Fixture changes={changes} />));
+  const card = container.querySelector('section[aria-label="本轮修改"]')!;
+  const toggle = () => card.querySelector<HTMLButtonElement>('button[aria-expanded]')!;
+  expect(card.textContent).toContain("已编辑 17 个文件");
+  expect(card.querySelector('[aria-label="新增 17 行，删除 17 行"]')).not.toBeNull();
+  expect(card.querySelectorAll("li")).toHaveLength(3);
+  expect(toggle().textContent).toBe("再显示 14 个文件");
+  expect(toggle().getAttribute("aria-expanded")).toBe("false");
+  await act(async () => toggle().click());
+  expect(card.querySelectorAll("li")).toHaveLength(17);
+  expect(toggle().getAttribute("aria-expanded")).toBe("true");
+  await act(async () => toggle().click());
+  expect(card.querySelectorAll("li")).toHaveLength(3);
+  await act(async () => trigger().click());
+  expect(panel().textContent).toContain("file-16.ts");
+});
+
+it.each([1, 3])("does not offer expansion for %i distinct files", async (count) => {
+  const changes = Array.from({ length: count }, (_, index) => ({ ...files[0], path: `src/file-${index}.ts` }));
+  await act(async () => root.render(<Fixture changes={[...changes, changes[0]]} />));
+  const card = container.querySelector('section[aria-label="本轮修改"]')!;
+  expect(card.textContent).toContain(`已编辑 ${count} 个文件`);
+  expect(card.querySelectorAll("li")).toHaveLength(count);
+  expect(card.querySelector("button[aria-expanded]")).toBeNull();
+  expect(card.querySelector("li")?.textContent).toContain("+2−2");
+});

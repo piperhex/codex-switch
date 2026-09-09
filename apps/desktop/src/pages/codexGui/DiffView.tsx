@@ -1,8 +1,9 @@
 import { memo, useId, useMemo, useState } from "react";
-import { ChevronDown, FileDiff, PanelRightOpen } from "lucide-react";
+import { ChevronDown, FileDiff } from "lucide-react";
 import type { DiffFile, DiffLine } from "./diff";
 import { pairDiffLines } from "./diff";
 import { CopyButton } from "./CopyButton";
+import { EditedFilesSummary } from "./EditedFilesSummary";
 import { useDetailsEntry } from "./detailsContext";
 import { fileLanguage, HighlightedCode } from "./CodeHighlight";
 import styles from "./DiffView.module.less";
@@ -107,14 +108,5 @@ export const DiffView = memo(function DiffView({ files, title = "文件修改", 
   const panel = useDetailsEntry(entry);
   if (!files.length) return null;
   if (!panel) return <DiffDocument files={files} title={title} status={status} />;
-  const count = new Set(files.map((file) => file.path)).size;
-  const changed = !["未应用", "修改失败", "正在修改"].includes(status ?? "");
-  const added = files.reduce((sum, file) => sum + file.added, 0);
-  const removed = files.reduce((sum, file) => sum + file.removed, 0);
-  return <button className={styles.changeSummary} onClick={() => panel.open(entry)}
-    aria-label={`查看${title}：${count} 个文件，新增 ${added} 行，删除 ${removed} 行`}>
-    <FileDiff size={16} /><span>{count} 个文件{changed ? "已更改" : "的修改"}</span>
-    <Counts added={added} removed={removed} />
-    {status && <span className={styles.kind}>{status}</span>}<PanelRightOpen size={15} />
-  </button>;
+  return <EditedFilesSummary files={files} title={title} status={status} onReview={() => panel.open(entry)} />;
 });
