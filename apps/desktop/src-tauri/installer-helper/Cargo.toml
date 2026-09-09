@@ -12,8 +12,10 @@ windows-sys = { version = "0.61", features = [
   "Win32_System_Diagnostics_ToolHelp", "Win32_UI_WindowsAndMessaging",
 ] }
 
+[dev-dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Storage_FileSystem"] }
+
 [profile.release]
 opt-level = "s"
 strip = true
 lto = true
-

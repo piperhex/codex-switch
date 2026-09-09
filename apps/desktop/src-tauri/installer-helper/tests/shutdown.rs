@@ -1,11 +1,13 @@
 use std::{
     fs,
     io::{BufRead, BufReader},
-    path::PathBuf,
+    os::windows::ffi::{OsStrExt, OsStringExt},
+    path::{Path, PathBuf},
     process::{Child, Command, Stdio},
     thread,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
+use windows_sys::Win32::Storage::FileSystem::GetShortPathNameW;
 
 const HELPER: &str = env!("CARGO_BIN_EXE_csw-installer-helper");
 
@@ -39,8 +41,12 @@ impl Fixture {
             fs::create_dir_all(target.parent().unwrap()).unwrap();
             fs::copy(HELPER, &target).unwrap();
         }
+        self.spawn_at(&target, behavior)
+    }
+
+    fn spawn_at(&mut self, target: &Path, behavior: &str) -> usize {
         self.children.push(
-            Command::new(&target)
+            Command::new(target)
                 .args(["fixture", behavior])
                 .stdin(Stdio::null())
                 .stdout(Stdio::null())
@@ -64,7 +70,12 @@ impl Fixture {
     fn wait_exit(&mut self, index: usize) {
         let deadline = Instant::now() + Duration::from_secs(3);
         while self.children[index].try_wait().unwrap().is_none() {
-            assert!(Instant::now() < deadline, "fixture did not exit");
+            assert!(
+                Instant::now() < deadline,
+                "fixture {index} (pid {}) did not exit under {}",
+                self.children[index].id(),
+                self.root.display()
+            );
             thread::sleep(Duration::from_millis(50));
         }
     }
@@ -111,6 +122,45 @@ fn legacy_processes_and_their_relaunches_are_stopped_until_installation_finishes
     fixture.wait_exit(relaunched);
     assert!(fixture.action("finish", "target"));
     let restarted = fixture.spawn("target", "stubborn");
+    assert!(fixture.children[restarted].try_wait().unwrap().is_none());
+}
+
+fn short_path(path: &Path) -> PathBuf {
+    let path: Vec<u16> = path.as_os_str().encode_wide().chain([0]).collect();
+    // SAFETY: the input is null-terminated; a null output queries the required size.
+    let capacity = unsafe { GetShortPathNameW(path.as_ptr(), std::ptr::null_mut(), 0) };
+    assert_ne!(capacity, 0, "{}", std::io::Error::last_os_error());
+    let mut buffer = vec![0u16; capacity as usize];
+    // SAFETY: the output contains capacity writable UTF-16 units and the input remains live.
+    let length = unsafe { GetShortPathNameW(path.as_ptr(), buffer.as_mut_ptr(), capacity) };
+    assert!(length > 0 && length < capacity);
+    PathBuf::from(std::ffi::OsString::from_wide(&buffer[..length as usize]))
+}
+
+#[test]
+fn short_path_relaunches_are_stopped_without_touching_other_installations() {
+    let mut fixture = Fixture::new();
+    let other = fixture.spawn("other", "stubborn");
+    let target = fixture.target("target");
+    fs::create_dir_all(target.parent().unwrap()).unwrap();
+    fs::copy(HELPER, &target).unwrap();
+    let alias = short_path(&target);
+    if alias == target {
+        eprintln!("8.3 aliases are unavailable on this volume");
+        return;
+    }
+    assert_eq!(
+        alias.canonicalize().unwrap(),
+        target.canonicalize().unwrap()
+    );
+    let first = fixture.spawn_at(&alias, "stubborn");
+    assert!(fixture.action("stop", "target"));
+    fixture.wait_exit(first);
+    let relaunched = fixture.spawn_at(&alias, "stubborn");
+    fixture.wait_exit(relaunched);
+    assert!(fixture.children[other].try_wait().unwrap().is_none());
+    assert!(fixture.action("finish", "target"));
+    let restarted = fixture.spawn_at(&alias, "stubborn");
     assert!(fixture.children[restarted].try_wait().unwrap().is_none());
 }
 

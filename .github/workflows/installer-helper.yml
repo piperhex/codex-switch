@@ -1,0 +1,57 @@
+name: Windows installer helper
+
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "apps/desktop/src-tauri/installer-helper/**"
+      - "apps/desktop/src-tauri/src/installer_lifecycle/protocol.rs"
+      - "scripts/check-installer-helper.mjs"
+      - ".github/workflows/installer-helper.yml"
+  pull_request:
+    paths:
+      - "apps/desktop/src-tauri/installer-helper/**"
+      - "apps/desktop/src-tauri/src/installer_lifecycle/protocol.rs"
+      - "scripts/check-installer-helper.mjs"
+      - ".github/workflows/installer-helper.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Check ${{ matrix.target }}
+    runs-on: windows-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-pc-windows-msvc
+            msvcArch: amd64
+          - target: aarch64-pc-windows-msvc
+            msvcArch: amd64_arm64
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+          components: rustfmt, clippy
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ matrix.msvcArch }}
+      - name: Check formatting, lint, and shutdown behavior
+        run: node scripts/check-installer-helper.mjs
+      - name: Build release helper for target architecture
+        working-directory: apps/desktop/src-tauri/installer-helper
+        run: cargo build --release --locked --target ${{ matrix.target }}
+      - name: Show installer diagnostics
+        if: failure()
+        shell: pwsh
+        run: |
+          $logPath = Join-Path $env:TEMP "codex-switch-installer.log"
+          if (Test-Path $logPath) { Get-Content $logPath -Tail 100 }

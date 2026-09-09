@@ -1,8 +1,10 @@
 //! Process handles are verified against the exact target path before any action.
 use crate::protocol::path_key;
 use std::{
+    ffi::OsString,
     io,
     mem::size_of,
+    os::windows::ffi::OsStringExt,
     path::{Path, PathBuf},
 };
 use windows_sys::Win32::{
@@ -52,9 +54,9 @@ impl Process {
         if unsafe { QueryFullProcessImageNameW(self.0, 0, buffer.as_mut_ptr(), &mut length) } == 0 {
             return Err(io::Error::last_os_error());
         }
-        Ok(PathBuf::from(String::from_utf16_lossy(
-            &buffer[..length as usize],
-        )))
+        // The process image may retain 8.3 aliases (for example RUNNER~1), while
+        // target_path resolves them. Normalize both handles before comparing paths.
+        PathBuf::from(OsString::from_wide(&buffer[..length as usize])).canonicalize()
     }
 
     pub fn exited(&self) -> bool {
