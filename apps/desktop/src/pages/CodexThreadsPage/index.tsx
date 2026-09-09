@@ -1,4 +1,4 @@
-import { CodexHomeScope, CodexHomeSelect, useSelectedCodexHome } from "../../components/CodexHomeScope";
+import { CodexHomeScope, useSelectedCodexHome } from "../../components/CodexHomeScope";
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useThreadConfirmation } from "../codex-threads/useThreadConfirmation";
@@ -113,9 +113,6 @@ function CodexThreadsContent({ language, notify }: CodexThreadsPageProps) {
   return (
     <>
       {topbarHost && createPortal(
-        <>
-        <CodexHomeSelect disabled={busy || confirming || trash.confirming || repair.busy
-          || trash.open || transfer.open || repair.open} />
         <ThreadTopbar
           text={text}
           busy={busy}
@@ -127,11 +124,13 @@ function CodexThreadsContent({ language, notify }: CodexThreadsPageProps) {
           migrateSelected={() => confirmMigration([...list.selected])}
           openRepair={repair.openModal}
           openBin={() => void trash.openBin()}
-        /></>,
+        />,
         topbarHost,
       )}
       <div className={styles.codexThreadManager}>
         <ThreadToolbar
+          homeSelectDisabled={busy || confirming || trash.confirming || repair.busy
+            || trash.open || transfer.open || repair.open}
           text={text}
           query={list.query}
           setQuery={list.setQuery}

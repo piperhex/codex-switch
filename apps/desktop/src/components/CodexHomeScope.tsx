@@ -52,10 +52,13 @@ export function CodexHomeScope({ active = true, children }: { active?: boolean; 
   </HomeContext.Provider>;
 }
 
-export function CodexHomeSelect({ disabled = false }: { disabled?: boolean }) {
+export function CodexHomeSelect({ disabled = false, showLabel = true }: {
+  disabled?: boolean;
+  showLabel?: boolean;
+}) {
   const { homes, homeId, select } = useHomeScope();
   return <label className={styles.selector}>
-    <span>Codex Home</span>
+    {showLabel && <span>Codex Home</span>}
     <Select aria-label="选择管理的 Codex Home" value={homeId} onChange={select} disabled={disabled}
       popupClassName={styles.popup} popupMatchSelectWidth={false}
       options={homes.map((home) => ({ value: home.id, label: homeLabel(home) }))} />
