@@ -57,6 +57,7 @@ impl Client {
                 json!(home.join("log").to_string_lossy())
             ))
             .env("CODEX_HOME", &home)
+            .env("CODEX_INTERNAL_ORIGINATOR_OVERRIDE", super::CLI_CLIENT_NAME)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
@@ -78,7 +79,7 @@ impl Client {
         });
         tokio::spawn(client.clone().read(stdout));
         let handshake = client.request("initialize", json!({
-            "clientInfo": {"name": "codex_switch_gui", "title": "Codex Switch", "version": "1.0.0"},
+            "clientInfo": {"name": super::CLI_CLIENT_NAME, "title": "Codex Switch", "version": "1.0.0"},
             "capabilities": {"experimentalApi": true}
         })).await;
         if handshake.is_err() {

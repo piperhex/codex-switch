@@ -29,6 +29,9 @@ use client::Client;
 use error::{GuiError, Result};
 use protocol::{ApprovalReply, GuiEvent, GuiRequest, GuiResponse};
 
+// Use the CLI identity for both chat and plugin app-server connections.
+const CLI_CLIENT_NAME: &str = "codex_cli_rs";
+
 #[derive(Default)]
 pub(crate) struct GuiState {
     client: Mutex<Option<Arc<Client>>>,

@@ -55,6 +55,7 @@ impl PluginClient {
         command
             .arg("app-server")
             .env("CODEX_HOME", &home)
+            .env("CODEX_INTERNAL_ORIGINATOR_OVERRIDE", super::CLI_CLIENT_NAME)
             .current_dir(&home)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -71,7 +72,7 @@ impl PluginClient {
             next_id: 1,
         };
         client.request("initialize", json!({
-            "clientInfo": {"name": "codex_switch_plugins", "version": env!("CARGO_PKG_VERSION")},
+            "clientInfo": {"name": super::CLI_CLIENT_NAME, "version": env!("CARGO_PKG_VERSION")},
             "capabilities": {"experimentalApi": true}
         })).await?;
         client.write(json!({"method": "initialized"})).await?;
