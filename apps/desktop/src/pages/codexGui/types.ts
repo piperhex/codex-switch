@@ -84,6 +84,11 @@ export interface Question {
   isSecret?: boolean;
   options?: { label: string; description: string }[];
 }
+export interface ThreadTokenUsage {
+  total: { totalTokens: number };
+  last: { totalTokens: number };
+  modelContextWindow?: number | null;
+}
 export interface EventParams {
   threadId?: string;
   thread?: Thread;
@@ -109,7 +114,7 @@ export interface EventParams {
   questions?: Question[];
   diff?: string;
   plan?: PlanStep[];
-  tokenUsage?: { total: { totalTokens: number }; last: { totalTokens: number }; modelContextWindow?: number };
+  tokenUsage?: ThreadTokenUsage;
   error?: { message: string };
   willRetry?: boolean;
 }
@@ -119,6 +124,7 @@ export interface Conversation {
   turns: Turn[];
   activeTurn: string | null;
   tokens: number;
+  tokenUsage?: ThreadTokenUsage;
   error: string;
 }
 export interface ListResponse<T> { data: T[]; nextCursor: string | null }

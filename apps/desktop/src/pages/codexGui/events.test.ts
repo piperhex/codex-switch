@@ -9,6 +9,20 @@ const event = (method: string, params: GuiEvent["params"]): GuiEvent => ({
 });
 
 describe("Codex GUI event projection", () => {
+  it("keeps current context separate from cumulative tokens and retains it when reopening a conversation", () => {
+    const usage = { total: { totalTokens: 11_670_000 }, last: { totalTokens: 121_260 }, modelContextWindow: 258_000 };
+    const value = reduceConversation(conversation(thread), event("thread/tokenUsage/updated", { tokenUsage: usage }));
+    expect(value.tokens).toBe(11_670_000);
+    expect(value.tokenUsage).toEqual(usage);
+    expect(conversation(thread, value).tokenUsage).toEqual(usage);
+    expect(conversation(thread, value).tokens).toBe(value.tokens);
+    expect(conversation({ ...thread, id: "two" }).tokenUsage).toBeUndefined();
+    expect(reduceConversation(value, event("thread/tokenUsage/updated", {})).tokenUsage).toEqual(usage);
+    const compacted = { ...usage, last: { totalTokens: 20_000 } };
+    expect(reduceConversation(value, event("thread/tokenUsage/updated", { tokenUsage: compacted })).tokenUsage)
+      .toEqual(compacted);
+  });
+
   it("attaches plan and net diff to their turn and retains both when reopening history", () => {
     let value = conversation(thread);
     const first = { id: "turn", status: "inProgress", items: [] };

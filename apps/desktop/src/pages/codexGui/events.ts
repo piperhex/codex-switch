@@ -13,7 +13,7 @@ export function conversation(thread: Thread, previous?: Conversation): Conversat
       ...restoreTurnTiming(turn, previousTurn) };
   });
   return { thread, turns, activeTurn: turns.find((turn) => turn.status === "inProgress")?.id ?? null,
-    tokens: 0, error: "" };
+    tokens: previous?.tokens ?? 0, tokenUsage: previous?.tokenUsage, error: "" };
 }
 
 function updateTurn(value: Conversation, id: string, update: (turn: Turn) => Turn): Conversation {
@@ -102,7 +102,9 @@ export function reduceConversation(value: Conversation, event: GuiEvent): Conver
   if (method === "item/mcpToolCall/progress") return updateItem(value, event, (item) => ({ ...item,
     type: "mcpToolCall", progress: [...(item.progress ?? []), params.message ?? ""].slice(-50) }));
   if (method === "turn/diff/updated" || method === "turn/plan/updated") return updateTurnDetails(value, event);
-  if (method === "thread/tokenUsage/updated") return { ...value, tokens: params.tokenUsage?.total.totalTokens ?? 0 };
+  if (method === "thread/tokenUsage/updated" && params.tokenUsage) return {
+    ...value, tokens: params.tokenUsage.total.totalTokens, tokenUsage: params.tokenUsage,
+  };
   if (method === "error") return { ...value,
     error: params.willRetry ? "连接暂时中断，Codex 正在重试…" : "本次回复遇到问题，请检查账户和连接后重试。" };
   return value;

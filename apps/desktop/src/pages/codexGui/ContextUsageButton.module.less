@@ -1,0 +1,18 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  &:hover, &[aria-expanded="true"] { background: var(--bg); color: var(--ink); }
+  &:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+}
+.track { opacity: 0.2; }
+.content { max-width: 100%; text-align: center; font-size: 12px; line-height: 20px; overflow-wrap: anywhere; }
+.heading { color: var(--muted); }

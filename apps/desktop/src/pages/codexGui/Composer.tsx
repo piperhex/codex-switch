@@ -56,7 +56,7 @@ export function Composer({ state, controller, active }: {
         <AccessPicker value={state.settings.access}
           disabled={running || state.sending} onChange={(access: AccessMode) => controller.settings({ access })} />
         <div className={styles.modelControls}>
-          <UsageStatus active={active} />
+          <UsageStatus active={active} threadId={state.selected} tokenUsage={current?.tokenUsage} />
           <ModelPicker models={state.models} model={state.settings.model} effort={state.settings.effort}
             disabled={running || state.sending} onChange={controller.settings} />
           <ComposerSubmit state={state} controller={controller}

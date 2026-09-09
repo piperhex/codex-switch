@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Switch, Tooltip } from "antd";
 import { useUsageStatus } from "./useUsageStatus";
+import { ContextUsageButton } from "./ContextUsageButton";
+import type { ThreadTokenUsage } from "./types";
 import styles from "./UsageStatus.module.less";
 
 const MILLION = 1_000_000;
@@ -11,7 +13,7 @@ const TOOLTIP_STYLES = {
   root: { maxWidth: 400 },
   body: { fontSize: 12, lineHeight: "18px", padding: "6px 8px", overflowWrap: "anywhere" },
 } as const;
-type UsageHint = "tokens" | "cost" | "remaining" | "speed";
+type UsageHint = "context" | "tokens" | "cost" | "remaining" | "speed";
 
 function tooltipStyles(open: boolean) {
   // Closing animations must not overlap the next hovered or focused value's tooltip.
@@ -41,7 +43,9 @@ function quotaColor(remaining: number | null | undefined) {
   return remaining <= WARNING_QUOTA_PERCENT ? styles.cost : styles.quota;
 }
 
-export function UsageStatus({ active }: { active: boolean }) {
+export function UsageStatus({ active, threadId, tokenUsage }: {
+  active: boolean; threadId?: string | null; tokenUsage?: ThreadTokenUsage;
+}) {
   const { usage, proxy, saving, error, setFastMode, canChangeFastMode } = useUsageStatus(active);
   const [hint, setHint] = useState<UsageHint | null>(null);
   const remaining = usage?.primaryRemainingPercent;
@@ -58,6 +62,7 @@ export function UsageStatus({ active }: { active: boolean }) {
   useEffect(() => {
     if (!active || (hint === "remaining" && !trailing)) setHint(null);
   }, [active, hint, trailing]);
+  useEffect(() => { setHint(null); }, [threadId]);
   const changeHint = (key: UsageHint, open: boolean) => {
     setHint((current) => {
       if (open) return key;
@@ -70,6 +75,8 @@ export function UsageStatus({ active }: { active: boolean }) {
     if (event.key === "Escape" && hint) { event.stopPropagation(); setHint(null); }
   }}>
     <span className={styles.usage} role="group" aria-label="今日用量">
+      <ContextUsageButton usage={tokenUsage} open={active && hint === "context"}
+        onOpenChange={(open) => changeHint("context", open)} />
       <span>今日</span>
       <UsageValue className={styles.tokens} text={usage ? formatTokens(usage.totalTokens) : "—"}
         open={active && hint === "tokens"} onOpenChange={(open) => changeHint("tokens", open)}
