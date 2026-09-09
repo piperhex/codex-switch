@@ -1254,7 +1254,7 @@ export function DashboardApp() {
               )} />
           </aside>
         )}
-        <header className="app-menu">
+        <header className="app-menu" hidden={sidebarNavigationEnabled && page === "codexGui"}>
           {!sidebarNavigationEnabled && (
             <button type="button" className="brand" onClick={openRepository}
               aria-label={t("help.github")} title={t("help.github")}>
@@ -1262,10 +1262,10 @@ export function DashboardApp() {
               <span>Codex<br /><b>Switch</b></span>
             </button>
           )}
-          <AnnouncementBanner link={announcementLink} onOpenLink={openAnnouncementLink}
+          {page !== "codexGui" && <AnnouncementBanner link={announcementLink} onOpenLink={openAnnouncementLink}
             scrollDurationSeconds={announcement?.scrollDurationSeconds ?? 22}
             style={announcementStyle} text={announcementText}
-            trackKey={`${language}:${announcementText}`} />
+            trackKey={`${language}:${announcementText}`} />}
           {(page === "accounts" || page === "providers") && <AccountToolbox t={t}>
             <AccountDisplayTabs displayMode={accountDisplayMode.displayMode}
               onChange={accountDisplayMode.setDisplayMode} t={t} />
