@@ -79,9 +79,22 @@ Both the GUI-managed Codex CLI and the separately installed Codex CLI loaded all
 `mcpServerStatus/list`. These checks did not require a model generation request. The marketplace card
 and setup dialog were visually checked, and the user completed the real installation flow.
 
-Live pause/revoke controls require the user to operate the Chrome popup; automated permission and
-protocol tests cover their cancellation behavior. The browser's extension installation/refresh UI
-must also be operated by the user through its normal workflow.
+The final extension refresh and native reconnection were verified with the installed release.
+The user paused control in the real Chrome popup; the MCP tab operation was immediately rejected.
+After the user resumed control and revoked the local test-site grants, the grant list was empty.
+A new request for the revoked test site displayed a permission prompt and was rejected when the
+user denied it. No test page opened, no grant was restored and no permission window remained.
+These live checks complement the automated cancellation and permission-window cleanup tests.
+
+The toolbar popup uses a fixed 360 x 460 CSS-pixel document with an internally scrolling site list.
+Its root dimensions do not depend on the viewport, avoiding a feedback loop with Chrome's automatic
+popup sizing. The name field and save button share one row. Browser previews of empty/long lists,
+connection errors and narrow/wide viewports retained the same outer dimensions without horizontal overflow.
+
+The tested Windows release replaced the user's installed application and restarted successfully.
+Its SHA-256 is `D740D33AF9B42B5EA0F789E699D4D7EC8910D6F9E5A00FA1C9A3A2FD1FBB9C92`.
+The exported extension assets match the committed sources. Browser extension installation/refresh
+remains a user action through Chrome's normal workflow.
 
 ## Repeatable checks
 
