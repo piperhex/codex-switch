@@ -14,7 +14,7 @@ use std::path::PathBuf;
 
 const HOST_NAME: &str = "dev.codex_switch.chrome";
 const EXTENSION_ID: &str = include_str!("../../resources/chrome-extension/extension-id.txt");
-const PLUGIN_VERSION: &str = "1.0.0";
+const PLUGIN_VERSION: &str = "1.1.0";
 const MCP_SERVER: &str = "codex_switch_chrome";
 
 #[derive(Debug, thiserror::Error)]

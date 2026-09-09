@@ -1,4 +1,5 @@
 import { website } from './validation.js';
+import { allSitesAllowed, assertWebsitePermission, siteAccessMode } from './site-access.js';
 
 const pending = new Map();
 const REQUEST_TIMEOUT_MS = 120000;
@@ -34,12 +35,23 @@ export async function status() {
   const { siteGrants = [] } = await chrome.storage.local.get('siteGrants');
   const { sessionGrants = [] } = await chrome.storage.session.get('sessionGrants');
   const allowedOrigins = [...new Set([...siteGrants, ...sessionGrants].map((grant) => grant.origin))];
-  return { paused, allowedOrigins, pending: [...pending.values()].map(({ id, origin }) => ({ id, origin })) };
+  return { paused, allowedOrigins, allSitesAllowed: await allSitesAllowed(),
+    pending: [...pending.values()].map(({ id, origin }) => ({ id, origin })) };
+}
+
+export function setSiteAccessMode(allowAll) {
+  return change(async () => {
+    await chrome.storage.local.set({ siteAccessMode: allowAll ? 'all' : 'ask' });
+    for (const item of pending.values()) item.finish(false);
+  });
 }
 
 export async function authorize(value, clientId, signal) {
   assertRunning(signal);
   const origin = website(value).origin;
+  await assertWebsitePermission(origin);
+  assertRunning(signal);
+  if (await siteAccessMode() === 'all') { assertRunning(signal); return; }
   const { siteGrants = [] } = await chrome.storage.local.get('siteGrants');
   const { sessionGrants = [] } = await chrome.storage.session.get('sessionGrants');
   if (![...siteGrants, ...sessionGrants].some((grant) => grant.clientId === clientId && grant.origin === origin)) {

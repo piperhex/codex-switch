@@ -9,7 +9,8 @@ The plugin is available in the desktop application's community marketplace for t
 1. Select the intended Codex Home in the plugin marketplace and install the Chrome browser assistant.
 2. Follow the setup dialog to load the exported extension through Chrome's normal extension interface.
 3. Confirm that the card reports a connected browser, then start a new Codex session using that home.
-4. Approve website requests in Chrome. Grants can last for the browser session or be remembered.
+4. Accept Chrome's website permissions when installing the extension. All HTTP(S) websites are allowed
+   by default. Turn off "Allow all websites" in the popup to use per-site session or remembered grants.
 5. Use the extension popup to pause control, revoke a site's permission, rename the browser profile,
    or reconnect. The marketplace provides repair, disable and uninstall actions for each home.
 
@@ -46,8 +47,13 @@ paths are implemented but have not received equivalent live platform verificatio
 - Tauri commands delegate filesystem, process and connection work to blocking workers. The marketplace
   polls only while active, permits one refresh at a time and ignores obsolete responses after actions.
 
-Website grants are scoped to the requesting home. Denial, closing or expiry of a permission request
-does not authorize access. Pause/revoke cancels pending work and detaches browser control. Expired
+Chrome's required host permissions cover HTTP(S) websites, so ordinary installations request permission
+once and do not display an extra prompt for each website. The all-site mode applies to authenticated
+Codex Switch clients in that Chrome profile. Users can select per-site confirmation instead; those
+additional grants are scoped to the requesting home. Neither mode bypasses Chrome's own host permissions.
+Denial, closing or expiry of a per-site permission request does not authorize access. Pause/revoke
+cancels pending work and detaches browser control. Removing host permissions in Chrome also stops
+pending work and detaches control. Expired
 permission windows are closed automatically. Browser profile names and site origins are visible in
 the extension, while credentials are never passed to websites or returned as tool output.
 
@@ -61,8 +67,8 @@ Automated validation passed:
 
 - Rust formatting and Clippy with warnings denied; 898 Rust tests passed, with 4 pre-existing ignored tests.
 - 12 marketplace React tests covering lifecycle, single-flight polling and obsolete responses.
-- 10 extension tests covering consent, cancellation/window cleanup, grant isolation, stale references,
-  password masking and child-frame session routing.
+- 13 extension tests covering consent, cancellation/window cleanup, grant isolation, stale references,
+  password masking, child-frame session routing, default all-site access, and returning to per-site mode.
 - Compiled MCP/native-host protocol checks for startup, tool discovery, authentication, relay,
   per-home revocation, cancellation and disconnect handling.
 - Desktop TypeScript/Vite production build and Windows release build. Vite reports the existing
@@ -86,13 +92,19 @@ A new request for the revoked test site displayed a permission prompt and was re
 user denied it. No test page opened, no grant was restored and no permission window remained.
 These live checks complement the automated cancellation and permission-window cleanup tests.
 
+Version 1.1.0 was refreshed in real Chrome and reported all-site access with an empty per-site grant list.
+Opening the local fixture and reading/filling/clicking its cross-origin child frame succeeded immediately,
+without a per-site permission prompt. The resulting form contained the entered Chinese test text.
+After the operations, all-site access remained enabled, the per-site grant list stayed empty and no
+permission requests were pending. The task-created page was closed after verification.
+
 The toolbar popup uses a fixed 360 x 460 CSS-pixel document with an internally scrolling site list.
 Its root dimensions do not depend on the viewport, avoiding a feedback loop with Chrome's automatic
 popup sizing. The name field and save button share one row. Browser previews of empty/long lists,
 connection errors and narrow/wide viewports retained the same outer dimensions without horizontal overflow.
 
 The tested Windows release replaced the user's installed application and restarted successfully.
-Its SHA-256 is `D740D33AF9B42B5EA0F789E699D4D7EC8910D6F9E5A00FA1C9A3A2FD1FBB9C92`.
+Its SHA-256 is `FD7E3A3A6F9D80E0A0DEE1382696A342884C43FA02A73D564844D1E941B9D34F`.
 The exported extension assets match the committed sources. Browser extension installation/refresh
 remains a user action through Chrome's normal workflow.
 

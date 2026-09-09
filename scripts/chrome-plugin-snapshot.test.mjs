@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { snapshot, reference, invalidate } from '../apps/desktop/src-tauri/resources/chrome-extension/snapshot.js';
 
-globalThis.chrome={storage:{local:{get:async()=>({siteGrants:[{clientId:'fixture',origin:'https://example.com'}]})},
+globalThis.chrome={permissions:{contains:async()=>true},
+  storage:{local:{get:async()=>({siteGrants:[{clientId:'fixture',origin:'https://example.com'}]})},
   session:{get:async()=>({})}}};
 
 function fixture() {

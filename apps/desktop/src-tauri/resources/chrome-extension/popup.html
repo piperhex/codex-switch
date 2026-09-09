@@ -14,8 +14,14 @@
     </div>
   </div>
   <div class="sites">
-    <section><h2>待确认的网站</h2><div id="requests"></div></section>
-    <section><h2>已允许的网站</h2><div id="origins"></div></section>
+    <section class="site-access">
+      <label for="allow-all"><span>允许所有网站</span><input id="allow-all" type="checkbox" role="switch"></label>
+      <p class="hint">开启后无需逐站确认，关闭后可按网站授权。</p>
+    </section>
+    <div id="site-details">
+      <section><h2>待确认的网站</h2><div id="requests"></div></section>
+      <section><h2>已允许的网站</h2><div id="origins"></div></section>
+    </div>
   </div>
   <p class="hint">只会操作你允许的网站。你可以随时暂停控制或撤销许可。</p>
   <script type="module" src="popup.js"></script>

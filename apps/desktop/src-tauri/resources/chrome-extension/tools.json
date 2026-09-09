@@ -39,7 +39,7 @@
     },
     {
       "name": "browser_open",
-      "description": "Open an HTTP(S) page in Chrome. A new website requires user approval in Chrome.",
+      "description": "Open an HTTP(S) page in Chrome within the user's granted website access.",
       "inputSchema": {
         "type": "object",
         "properties": {

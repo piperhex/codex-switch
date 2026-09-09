@@ -1,4 +1,7 @@
+import { ALL_WEBSITES } from './site-access.js';
+
 const error = document.querySelector('#error');
+const allowAll = document.querySelector('#allow-all');
 let paused = false;
 
 async function send(message) {
@@ -25,6 +28,8 @@ async function refresh() {
   document.querySelector('#status').textContent = state.connected
     ? paused ? '已连接 · 控制已暂停' : '已连接 · 等待你的任务' : '尚未连接 Codex Switch';
   document.querySelector('#pause').textContent = paused ? '继续控制' : '暂停控制';
+  allowAll.checked = state.allSitesAllowed;
+  document.querySelector('#site-details').hidden = state.allSitesAllowed;
   error.hidden = !state.connectionError;
   error.textContent = state.connectionError;
   rows(document.querySelector('#requests'), state.pending, (item) => item.origin, '查看', (item) =>
@@ -40,6 +45,14 @@ async function perform(action) {
 
 document.querySelector('#connect').addEventListener('click', () => perform(() => send({ operation: 'connect' })));
 document.querySelector('#pause').addEventListener('click', () => perform(() => send({ operation: 'pause', paused: !paused })));
+allowAll.addEventListener('change', () => {
+  const requested = allowAll.checked;
+  void perform(async () => {
+    // Call Chrome directly from the user's gesture when required host permissions were withheld.
+    if (requested && !await chrome.permissions.request(ALL_WEBSITES)) return;
+    await send({ operation: 'siteAccess', allowAll: requested });
+  });
+});
 document.querySelector('#save-name').addEventListener('click', () => perform(() =>
   send({ operation: 'profileName', name: document.querySelector('#name').value })));
 const { profileName = 'Chrome' } = await chrome.storage.local.get('profileName');

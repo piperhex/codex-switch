@@ -35,7 +35,9 @@ export function ChromeSetup({ status, busy, onClose, onAction, onRefresh }: Prop
       <button className="refresh-all" disabled={busy} onClick={() => void onRefresh()}>
         <RefreshCw size={15} />检查连接
       </button>
-      <p className={styles.hint}>完成后，在所选 Codex Home 中开启新任务即可使用。首次访问网站时，Chrome 会请你确认。</p>
+      <p className={styles.hint}>
+        在 Chrome 中允许网站访问后，开启新任务即可使用。默认允许所有网站，也可在浏览器助手中改为逐站确认。
+      </p>
     </div>
   </Modal>;
 }

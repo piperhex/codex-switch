@@ -14,6 +14,10 @@ html.popup { width: 360px; min-width: 360px; height: 460px; overflow: hidden; }
 .name-controls { display: flex; gap: 8px; }
 .name-controls input { flex: 1; min-width: 0; }
 .name-controls button { flex-shrink: 0; }
+.site-access { padding: 10px; margin-bottom: 14px; border: 1px solid #c8d8d1; border-radius: 8px; }
+.site-access label { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.site-access input { width: 18px; height: 18px; padding: 0; margin: 0; accent-color: #278b7f; }
+.popup .site-access .hint { margin-top: 6px; }
 header { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
 header img { width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0; }
 h1 { font-size: 17px; margin: 0; }
@@ -42,5 +46,6 @@ input { width: 100%; padding: 8px 10px; border: 1px solid #c8d8d1; border-radius
   header p, .hint { color: #a9bbb1; }
   button.secondary, .origin { background: #2d4237; color: #e2ece6; }
   input { background: #24372d; color: #e2ece6; border-color: #496353; }
+  .site-access { border-color: #496353; }
   [role="alert"] { color: #ffb5a9; background: #472f2c; }
 }

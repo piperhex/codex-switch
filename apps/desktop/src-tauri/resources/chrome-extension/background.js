@@ -71,6 +71,12 @@ async function localMessage(message) {
       await permissions.revoke(message.origin);
       await stopDebugging();
       return {};
+    case 'siteAccess':
+      if (typeof message.allowAll !== 'boolean') throw new Error('网站访问设置无效。');
+      for (const controller of running.values()) controller.abort();
+      await permissions.setSiteAccessMode(message.allowAll);
+      await stopDebugging();
+      return {};
     case 'request': return permissions.accessRequest(message.id);
     case 'decide': await permissions.decideAccess(message.id, message.decision); return {};
     case 'profileName':
@@ -92,6 +98,11 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
 chrome.tabs.onUpdated.addListener((tabId, change) => { if (change.status === 'loading' || change.url) invalidate(tabId); });
 chrome.tabs.onRemoved.addListener(invalidate);
 chrome.windows.onRemoved.addListener(permissions.windowClosed);
+chrome.permissions.onRemoved.addListener(({ origins }) => {
+  if (!origins?.length) return;
+  for (const controller of running.values()) controller.abort();
+  void stopDebugging();
+});
 chrome.runtime.onInstalled.addListener(() => { void connect(); });
 chrome.runtime.onStartup.addListener(() => { void connect(); });
 chrome.alarms.onAlarm.addListener((alarm) => { if (alarm.name === 'reconnect') void connect(); });

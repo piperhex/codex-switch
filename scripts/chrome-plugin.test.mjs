@@ -5,13 +5,16 @@ import { validate, website } from '../apps/desktop/src-tauri/resources/chrome-ex
 let storage;
 let permissionModule;
 let closedWindows;
+let chromeWebsiteAccess;
 beforeEach(async () => {
-  storage = {local:{},session:{}};
+  storage = {local:{siteAccessMode:'ask'},session:{}};
   closedWindows = [];
+  chromeWebsiteAccess = true;
   const area = name => ({get: async key => ({[key]:storage[name][key]}),
     set: async value => Object.assign(storage[name],value)});
   globalThis.chrome = {
     storage:{local:area('local'),session:area('session')},
+    permissions:{contains:async()=>chromeWebsiteAccess},
     runtime:{getURL:path=>'chrome-extension://test/'+path},
     action:{setBadgeText:async()=>{},setBadgeBackgroundColor:async()=>{}},
     windows:{create:async()=>({id:1}),remove:async id=>{closedWindows.push(id);}},
@@ -40,7 +43,7 @@ test('website access remains pending until the user decides and denial grants no
   const denied=assert.rejects(pending,/许可/);
   await permissionModule.decideAccess(state.pending[0].id,'deny');
   await denied;
-  assert.deepEqual(storage.local,{});
+  assert.deepEqual(storage.local,{siteAccessMode:'ask'});
   assert.deepEqual(storage.session,{});
 });
 
@@ -101,6 +104,47 @@ test('abort cancels a pending request without persisting authorization',async()=
   const rejected=assert.rejects(pending,/许可/);
   await new Promise(resolve=>setImmediate(resolve));controller.abort();await rejected;
   assert.equal((await permissionModule.status()).pending.length,0);
+  assert.deepEqual(storage.local,{siteAccessMode:'ask'});
+  assert.deepEqual(closedWindows,[1]);
+});
+
+test('installation-time Chrome access defaults to all sites without per-site prompts or grants',async()=>{
+  delete storage.local.siteAccessMode;
+  await permissionModule.authorize('https://first.example/a','first');
+  await permissionModule.authorize('http://second.example/b','second');
+  assert.equal((await permissionModule.status()).allSitesAllowed,true);
+  assert.equal((await permissionModule.status()).pending.length,0);
   assert.deepEqual(storage.local,{});
+  assert.deepEqual(storage.session,{});
+  assert.deepEqual(closedWindows,[]);
+});
+
+test('all-site mode still respects pause and host permission removal in Chrome',async()=>{
+  delete storage.local.siteAccessMode;
+  await permissionModule.setPaused(true);
+  await assert.rejects(permissionModule.authorize('https://first.example','first'),/暂停/);
+  await permissionModule.setPaused(false);
+  chromeWebsiteAccess=false;
+  storage.local.siteGrants=[{origin:'https://first.example',clientId:'first'}];
+  for (const mode of ['all','ask']) {
+    storage.local.siteAccessMode=mode;
+    await assert.rejects(permissionModule.authorize('https://first.example','first'),/Chrome/);
+  }
+  assert.equal((await permissionModule.status()).allSitesAllowed,false);
+  assert.equal((await permissionModule.status()).pending.length,0);
+});
+
+test('switching back to per-site mode restores confirmation and mode changes cancel pending requests',async()=>{
+  await permissionModule.setSiteAccessMode(true);
+  await permissionModule.authorize('https://first.example','first');
+  await permissionModule.setSiteAccessMode(false);
+  const pending=permissionModule.authorize('https://first.example','first');
+  const rejected=assert.rejects(pending,/许可/);
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal((await permissionModule.status()).pending.length,1);
+  await permissionModule.setSiteAccessMode(true);
+  await rejected;
+  assert.equal((await permissionModule.status()).pending.length,0);
+  assert.equal((await permissionModule.status()).allSitesAllowed,true);
   assert.deepEqual(closedWindows,[1]);
 });
