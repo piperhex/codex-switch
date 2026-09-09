@@ -4,8 +4,9 @@ fn set_local_proxy_enabled(paths: &Paths, enabled: bool) -> Result<(), String> {
     write_state(paths, &state)
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 enum ProxyServiceTier {
+    #[default]
     Default,
     Priority,
 }
@@ -19,31 +20,25 @@ impl ProxyServiceTier {
     }
 }
 
-static PROXY_SERVICE_TIER: OnceLock<RwLock<Option<ProxyServiceTier>>> = OnceLock::new();
+static PROXY_SERVICE_TIER: OnceLock<RwLock<ProxyServiceTier>> = OnceLock::new();
 
 fn proxy_service_tier() -> ProxyServiceTier {
     PROXY_SERVICE_TIER
-        .get_or_init(|| RwLock::new(None))
+        .get_or_init(|| RwLock::new(ProxyServiceTier::default()))
         .read()
-        .ok()
-        .and_then(|tier| *tier)
-        .unwrap_or(ProxyServiceTier::Default)
+        .map(|tier| *tier)
+        .unwrap_or_default()
 }
 
 pub(crate) fn proxy_service_tier_name() -> &'static str {
     proxy_service_tier().as_str()
 }
 
-fn proxy_service_tier_override() -> Option<ProxyServiceTier> {
-    PROXY_SERVICE_TIER
-        .get_or_init(|| RwLock::new(None))
-        .read()
-        .ok()
-        .and_then(|tier| *tier)
-}
-
-fn set_proxy_service_tier(tier: Option<ProxyServiceTier>) {
-    if let Ok(mut current) = PROXY_SERVICE_TIER.get_or_init(|| RwLock::new(None)).write() {
+fn set_proxy_service_tier(tier: ProxyServiceTier) {
+    if let Ok(mut current) = PROXY_SERVICE_TIER
+        .get_or_init(|| RwLock::new(ProxyServiceTier::default()))
+        .write()
+    {
         *current = tier;
     }
 }
@@ -81,15 +76,15 @@ pub(crate) fn set_proxy_service_tier_by_name(value: &str) -> bool {
     let Ok(tier) = parse_proxy_service_tier_name(Some(value)) else {
         return false;
     };
-    set_proxy_service_tier(Some(tier));
+    set_proxy_service_tier(tier);
     true
 }
 
 fn update_proxy_service_tier_for_openai_auth(account_id: Option<&str>) -> bool {
-    if account_id.is_none() || proxy_service_tier_override() == Some(ProxyServiceTier::Default) {
+    if account_id.is_none() || proxy_service_tier() == ProxyServiceTier::Default {
         return false;
     }
-    set_proxy_service_tier(Some(ProxyServiceTier::Default));
+    set_proxy_service_tier(ProxyServiceTier::Default);
     true
 }
 
@@ -100,7 +95,7 @@ fn start_server<R: Runtime>(app: tauri::AppHandle<R>) -> Result<bool, String> {
     if guard.is_some() {
         return Ok(false);
     }
-    set_proxy_service_tier(None);
+    set_proxy_service_tier(ProxyServiceTier::default());
 
     let state = read_state(&resolve_paths(&app)?);
     set_system_prompt_filter_runtime_config(
@@ -306,11 +301,12 @@ fn handle_request<R: Runtime>(app: tauri::AppHandle<R>, mut request: Request) {
             return;
         }
     }
+    // Use the same explicit choice as the UI, including normal mode before the first toggle.
     let body = snapshot_request_service_tier(
         &method,
         request_path(&url),
         body,
-        proxy_service_tier_override(),
+        Some(proxy_service_tier()),
     );
     let session = begin_tracked_proxy_session(ProxySessionRequest {
         method: &method,

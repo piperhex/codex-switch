@@ -416,18 +416,23 @@ fn effective_request_speed_uses_override_then_request_then_standard_default() {
 }
 
 #[test]
-fn selecting_openai_login_disables_fast_mode_without_restoring_it_on_clear() {
-    set_proxy_service_tier(None);
-    assert!(update_proxy_service_tier_for_openai_auth(Some(
+fn proxy_speed_stays_explicit_through_toggles_restarts_and_openai_login() {
+    set_proxy_service_tier(ProxyServiceTier::default());
+    assert_proxy_speed_matches_forwarded_requests("default");
+    assert!(!update_proxy_service_tier_for_openai_auth(Some(
         "oauth-account"
     )));
-    assert_eq!(
-        proxy_service_tier_override(),
-        Some(ProxyServiceTier::Default)
-    );
 
     assert!(set_proxy_service_tier_by_name("priority"));
+    assert_proxy_speed_matches_forwarded_requests("priority");
+    assert!(set_proxy_service_tier_by_name("default"));
+    assert_proxy_speed_matches_forwarded_requests("default");
 
+    assert!(set_proxy_service_tier_by_name("priority"));
+    set_proxy_service_tier(ProxyServiceTier::default());
+    assert_proxy_speed_matches_forwarded_requests("default");
+
+    assert!(set_proxy_service_tier_by_name("priority"));
     assert!(update_proxy_service_tier_for_openai_auth(Some(
         "oauth-account"
     )));

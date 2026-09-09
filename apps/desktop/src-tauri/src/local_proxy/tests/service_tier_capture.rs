@@ -1,5 +1,37 @@
 const SERVICE_TIER_TEST_MODEL: &str = "gpt-5.6-sol";
 
+fn assert_proxy_speed_matches_forwarded_requests(expected: &str) {
+    assert_eq!(proxy_service_tier_name(), expected);
+    for api_format in [
+        ProviderApiFormat::OpenaiResponses,
+        ProviderApiFormat::OpenaiChat,
+    ] {
+        for requested in [None, Some("priority"), Some("fast"), Some("default")] {
+            let (base_url, handle) = service_tier_local_upstream(api_format, true);
+            let mut provider = openai_provider(base_url);
+            provider.fast_mode_enabled = true;
+            provider.api_format = api_format;
+            let mut request =
+                json!({"model": SERVICE_TIER_TEST_MODEL, "input": "ping", "stream": true});
+            if let Some(tier) = requested {
+                request["service_tier"] = json!(tier);
+            }
+            let snapshot = snapshot_request_service_tier(
+                &Method::Post,
+                "/v1/responses",
+                serde_json::to_vec(&request).unwrap(),
+                Some(proxy_service_tier()),
+            );
+            let payload =
+                forward_provider_request(&Method::Post, "/v1/responses", &[], snapshot, &provider)
+                    .unwrap();
+            let (_, sent) = handle.join().unwrap();
+            assert_eq!(sent["service_tier"], expected, "client tier: {requested:?}");
+            assert_eq!(payload.token_usage_service_tier.as_deref(), Some(expected));
+        }
+    }
+}
+
 fn service_tier_sse(events: &[Value]) -> Vec<u8> {
     let mut output = events
         .iter()
