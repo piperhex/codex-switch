@@ -41,7 +41,7 @@ export class GuiGoals {
   set = async (options: { objective?: string; status: "active" | "paused"; threadId?: string }) => {
     const state = this.host.getSnapshot();
     const id = options.threadId ?? state.selected;
-    if (state.connection !== "ready" || state.sending || state.goalBusy || state.archived
+    if (state.workspaceBusy || state.connection !== "ready" || state.sending || state.goalBusy || state.archived
       || state.deleting || state.compacting || (!id && !options.objective?.trim())) return false;
     if (options.status === "active" && id && (state.conversations[id]?.activeTurn
       || state.queued[id]?.length || state.approvals.some((event) => event.params.threadId === id))) return false;

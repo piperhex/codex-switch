@@ -3,7 +3,7 @@ import type { Item, Turn } from "./types";
 import { MessageItem } from "./MessageItem";
 import { TurnDuration } from "./TurnDuration";
 import { TurnPlan } from "./TurnPlan";
-import { DiffView } from "./DiffView";
+import { TurnDiff } from "./TurnDiff";
 import { changedFiles, parseDiff } from "./diff";
 import { visibleContinuationItems } from "./continuation";
 import styles from "./styles.module.less";
@@ -25,9 +25,10 @@ export function groupTurnItems(items: Item[]): Group[] {
 }
 
 export const TurnMessage = memo(function TurnMessage({ turn, running, active, followsInterruption = false,
-  editableItemId, onEdit, editDisabled }: {
+  editableItemId, onEdit, editDisabled, threadId }: {
   turn: Turn; running: boolean; active: boolean; followsInterruption?: boolean;
   editableItemId?: string; onEdit?: (text: string) => Promise<boolean>; editDisabled?: boolean;
+  threadId?: string;
 }) {
   const groups = useMemo(() => groupTurnItems(followsInterruption
     ? visibleContinuationItems(turn.items) : turn.items), [turn.items, followsInterruption]);
@@ -50,7 +51,8 @@ export const TurnMessage = memo(function TurnMessage({ turn, running, active, fo
     {responseIndex === -1 && <TurnDuration turn={turn} running={running} active={active} />}
     <GeneratedImages items={turn.items} />
     <TurnPlan turn={turn} />
-    <DiffView files={files} title={turn.diff ? "本轮修改" : "文件修改记录"} />
+    {files.length > 0 && <TurnDiff files={files} title={turn.diff ? "本轮修改" : "文件修改记录"}
+      threadId={threadId} turnId={turn.id} disabled={running || turn.status === "inProgress" || Boolean(editDisabled)} />}
     {turn.status === "interrupted" && <p className={styles.muted}>已停止生成</p>}
     {turn.status === "failed" && <p className={styles.turnError} role="status">本次回复未完成，可以继续发送消息重试。</p>}
   </div>;

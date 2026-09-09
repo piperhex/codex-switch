@@ -4,6 +4,7 @@ mod attachment_tests;
 mod client;
 pub(crate) mod deletion;
 mod error;
+pub(crate) mod git;
 mod goals;
 mod home;
 mod icons;
@@ -18,6 +19,7 @@ mod protocol;
 pub(crate) mod releases;
 #[cfg(test)]
 mod tests;
+pub(crate) mod undo;
 pub(crate) mod usage;
 pub(crate) mod web;
 mod workspaces;

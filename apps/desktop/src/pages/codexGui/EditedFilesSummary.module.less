@@ -20,6 +20,14 @@
   flex-shrink: 0; border: 0; border-radius: 10px; padding: 5px 12px; background: var(--panel);
   &:hover { background: var(--green-soft); }
 }
+.undo { display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0; padding: 5px 7px;
+  border: 0; border-radius: 10px; background: transparent; color: inherit; font: inherit; cursor: pointer;
+  &:hover:not(:disabled) { background: var(--green-soft); }
+  &:disabled { cursor: default; opacity: .5; }
+  &:focus-visible { outline: 2px solid var(--green); outline-offset: -2px; }
+}
+.error { max-width: 400px; margin: 6px 0; color: var(--danger, #c24047); font-size: 13px; overflow-wrap: anywhere; }
+@media (max-width: 480px) { .header { gap: 6px; padding: 10px; } .icon { display: none; } }
 .files {
   margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--gui-border);
   background: color-mix(in srgb, var(--panel) 55%, transparent);

@@ -45,6 +45,7 @@ export function Messages({ value, selected, active = true, footer, pendingReques
           </div>}
           {selected && !value && <div className={styles.listEmpty}><Spin /><p>正在读取对话…</p></div>}
           {value?.turns.map((turn, index) => <TurnMessage key={`${selected}:${turn.id}`} turn={turn}
+            threadId={selected ?? undefined}
             editableItemId={last?.turnId === turn.id ? last.item.id : undefined}
             editDisabled={editDisabled || Boolean(value.activeTurn || pendingRequest || last?.item.localEcho)}
             onEdit={onEdit && selected && last ? (text) => onEdit({ threadId: selected,

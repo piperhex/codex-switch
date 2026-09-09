@@ -71,7 +71,8 @@ export class MessageQueue {
   flush = async (threadId: string): Promise<void> => {
     const state = this.host.getSnapshot();
     const messages = this.list(threadId);
-    if (!this.host.active() || state.connection !== "ready" || state.sending || state.compacting === threadId
+    if (!this.host.active() || state.workspaceBusy || state.connection !== "ready" || state.sending
+      || state.compacting === threadId
       || this.pending.has(threadId)
       || state.conversations[threadId]?.activeTurn || !messages.length || messages.some((item) => item.editing)) return;
     this.pending.add(threadId);

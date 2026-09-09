@@ -1,4 +1,4 @@
-import { memo, useId, useMemo, useState } from "react";
+import { memo, useId, useMemo, useState, type ReactNode } from "react";
 import { ChevronDown, FileDiff } from "lucide-react";
 import type { DiffFile, DiffLine } from "./diff";
 import { pairDiffLines } from "./diff";
@@ -79,6 +79,7 @@ const FileCard = memo(function FileCard({ file, split, initialOpen }: {
 
 interface DiffViewProps {
   files: DiffFile[]; title?: string; status?: string; initialOpen?: boolean; continuous?: boolean;
+  undo?: ReactNode;
 }
 
 export const DiffDocument = memo(function DiffDocument({ files, title = "文件修改", status,
@@ -102,11 +103,12 @@ export const DiffDocument = memo(function DiffDocument({ files, title = "文件�
   </div>;
 });
 
-export const DiffView = memo(function DiffView({ files, title = "文件修改", status }: DiffViewProps) {
+export const DiffView = memo(function DiffView({ files, title = "文件修改", status, undo }: DiffViewProps) {
   const id = useId();
   const entry = useMemo(() => ({ id, files, title, status }), [id, files, title, status]);
   const panel = useDetailsEntry(entry);
   if (!files.length) return null;
-  if (!panel) return <DiffDocument files={files} title={title} status={status} />;
-  return <EditedFilesSummary files={files} title={title} status={status} onReview={() => panel.open(entry)} />;
+  if (!panel) return <>{undo}<DiffDocument files={files} title={title} status={status} /></>;
+  return <EditedFilesSummary files={files} title={title} status={status} undo={undo}
+    onReview={() => panel.open(entry)} />;
 });

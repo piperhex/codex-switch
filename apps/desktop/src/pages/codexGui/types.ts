@@ -141,6 +141,7 @@ export interface ListResponse<T> { data: T[]; nextCursor: string | null }
 export interface Settings { cwd: string; model: string; effort: string; access: AccessMode }
 export interface ThreadReadState { turnId: string; unread: boolean }
 export interface GuiState {
+  workspaceBusy?: boolean;
   pendingRequest?: PendingRequest;
   goals?: Record<string, ThreadGoal | null>;
   goalErrors?: Record<string, string>;

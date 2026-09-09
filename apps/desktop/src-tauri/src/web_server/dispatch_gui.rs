@@ -3,6 +3,12 @@ fn dispatch_gui_command(app: AppHandle, command: &str, args: Value) -> Result<Va
     use tauri::Manager;
 
     match command {
+        "codex_gui_git" => serialize(block_on(codex_gui::git::codex_gui_git(
+            app.clone(), app.state::<codex_gui::git::GitState>(), argument(&args, "request")?,
+        ))),
+        "codex_gui_undo" => serialize(block_on(codex_gui::undo::codex_gui_undo(
+            app.clone(), app.state::<GuiState>(), argument(&args, "request")?,
+        ))),
         "codex_gui_delete_thread" => serialize(block_on(codex_gui::deletion::codex_gui_delete_thread(
             app.clone(), app.state::<GuiState>(), argument(&args, "threadId")?,
         ))),

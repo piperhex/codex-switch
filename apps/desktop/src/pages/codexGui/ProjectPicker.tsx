@@ -6,6 +6,7 @@ import { CreateProjectDialog } from "./CreateProjectDialog";
 import { folderName, readProjects, saveProject, type SavedProject } from "./projectCatalog";
 import layout from "./styles.module.less";
 import styles from "./ProjectPicker.module.less";
+import { WorkspacePicker } from "./WorkspacePicker";
 
 interface ProjectPickerProps {
   value: string;
@@ -13,9 +14,12 @@ interface ProjectPickerProps {
   disabled: boolean;
   onChange: (cwd: string) => void;
   onError: (error: unknown) => void;
+  gitEnabled?: boolean;
+  onBusyChange?: (busy: boolean) => void;
 }
 
-export function ProjectPicker({ value, projects, disabled, onChange, onError }: ProjectPickerProps) {
+export function ProjectPicker({ value, projects, disabled, onChange, onError,
+  gitEnabled, onBusyChange }: ProjectPickerProps) {
   const [expanded, setExpanded] = useState(false);
   const [creating, setCreating] = useState(false);
   const [query, setQuery] = useState("");
@@ -82,7 +86,9 @@ export function ProjectPicker({ value, projects, disabled, onChange, onError }: 
         </button>
       </Popover>
     </span>
-    <span className={layout.localLabel}>{isDesktopApp ? "本地" : "Codex Switch 主机"}</span>
+    {gitEnabled && onBusyChange ? <WorkspacePicker key={value} cwd={value} disabled={disabled}
+      onChange={onChange} onBusyChange={onBusyChange} />
+      : <span className={layout.localLabel}>{isDesktopApp ? "本地" : "Codex Switch 主机"}</span>}
     {creating && <CreateProjectDialog disabled={disabled} onCreate={create} onError={onError}
       onClose={() => { setCreating(false); trigger.current?.focus(); }} />}
   </div>;

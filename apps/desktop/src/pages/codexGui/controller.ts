@@ -44,6 +44,10 @@ export class GuiController {
     this.patch({ error: typeof message === "string" ? message : "操作未完成，请重试。" });
   };
   clearError = () => this.patch({ error: "" });
+  setWorkspaceBusy = (workspaceBusy: boolean) => {
+    this.patch({ workspaceBusy });
+    if (!workspaceBusy) Object.keys(this.state.queued).forEach((id) => void this.queue.flush(id));
+  };
   readonly messageEditor = new GuiMessageEditor({ getSnapshot: this.getSnapshot, patch: this.patch, report: this.report,
     acceptTurn: (threadId, turn) => this.acceptTurn(threadId, turn), refresh: () => this.refresh(),
     flushQueue: () => Object.keys(this.state.queued).forEach((id) => void this.queue.flush(id)) });
@@ -210,7 +214,7 @@ export class GuiController {
   send = async (text: string, images: string[], skills: SkillReference[] = [], attachments: AttachmentReference[] = []) => {
     const { selected, settings, conversations } = this.state;
     const projectOverride = selected ? this.state.projectOverrides[selected] : undefined;
-    if (this.state.sending || this.state.deleting || this.state.compacting === selected
+    if (this.state.workspaceBusy || this.state.sending || this.state.deleting || this.state.compacting === selected
       || this.state.connection !== "ready" || this.state.archived
       || (!text.trim() && !images.length && !skills.length && !attachments.length)) return false;
     if (selected && (conversations[selected]?.activeTurn || this.state.queued[selected]?.length)) {

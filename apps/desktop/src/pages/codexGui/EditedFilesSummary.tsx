@@ -1,4 +1,4 @@
-import { useId, useMemo, useState } from "react";
+import { useId, useMemo, useState, type ReactNode } from "react";
 import { ChevronDown, FileDiff } from "lucide-react";
 import type { DiffFile } from "./diff";
 import styles from "./EditedFilesSummary.module.less";
@@ -21,15 +21,16 @@ function summarizeFiles(files: DiffFile[]) {
   return [...paths.values()];
 }
 
-export function EditedFilesSummary({ files, title, status, onReview }: {
+export function EditedFilesSummary({ files, title, status, onReview, undo }: {
   files: DiffFile[]; title: string; status?: string; onReview: () => void;
+  undo?: ReactNode;
 }) {
   const listId = useId();
   const [expanded, setExpanded] = useState(false);
   const summary = useMemo(() => summarizeFiles(files), [files]);
   const added = summary.reduce((sum, file) => sum + file.added, 0);
   const removed = summary.reduce((sum, file) => sum + file.removed, 0);
-  const changed = !["未应用", "修改失败", "正在修改"].includes(status ?? "");
+  const changed = !["未应用", "修改失败", "正在修改", "已撤销"].includes(status ?? "");
   const hiddenCount = summary.length - COLLAPSED_FILE_COUNT;
   const visibleFiles = expanded ? summary : summary.slice(0, COLLAPSED_FILE_COUNT);
   return <section className={styles.card} aria-label={title}>
@@ -39,7 +40,7 @@ export function EditedFilesSummary({ files, title, status, onReview }: {
         <strong>{changed ? "已编辑" : status} {summary.length} 个文件</strong>
         <Counts added={added} removed={removed} />
       </div>
-      <button type="button" className={styles.review} onClick={onReview}
+      {undo}<button type="button" className={styles.review} onClick={onReview}
         aria-label={`查看${title}：${summary.length} 个文件，新增 ${added} 行，删除 ${removed} 行`}>审核</button>
     </header>
     <ul className={styles.files} id={listId}>

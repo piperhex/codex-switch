@@ -115,6 +115,18 @@ release. Tests use a local Responses fixture rather than a paid model.
 
 ## Verification
 
+New conversations can search and switch local Git branches, create a branch, or create a local worktree
+from the selected checkout's current commit. Worktrees live in the app data directory under `git-worktrees`;
+the new conversation uses the new directory, while uncommitted files stay in the original checkout.
+Checkout never uses force, and branches checked out in another worktree are marked unavailable.
+
+Edited-file cards support undo after a reply finishes. The backend reads the selected turn's completed
+file-change records, prepares inverse edits in a temporary directory, and checks every affected file before
+applying them. Conflicts leave the workspace untouched; unrelated edits and the Git index are preserved.
+Undo receipts survive reopening the conversation. Text updates require Git, including for folders without
+a Git repository; unsupported changes and paths outside the conversation directory are rejected.
+Git and undo commands run on blocking workers, with authenticated browser dispatch sharing the same implementation.
+
 ```powershell
 npm test -w @codex-switch/desktop
 npm run build:desktop

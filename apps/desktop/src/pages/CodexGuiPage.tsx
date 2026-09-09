@@ -15,6 +15,7 @@ import { ConversationChangesButton } from "./codexGui/ConversationChangesButton"
 import { useGuiLayout } from "./codexGui/useGuiLayout";
 import { useConversationReadState } from "./codexGui/useConversationReadState";
 import styles from "./codexGui/styles.module.less";
+import { WorkspaceOperationContext } from "./codexGui/workspaceOperationContext";
 
 type CodexGuiPageProps = { active: boolean; accountPicker: ReactNode };
 
@@ -47,7 +48,8 @@ function Workspace({ active, accountPicker }: CodexGuiPageProps) {
   const running = state.sending || Object.values(state.conversations).some((value) => value.activeTurn);
   const canQuote = state.connection === "ready" && !state.sending && !state.archived
     && state.compacting !== state.selected;
-  return <DetailsWorkspace selected={state.selected} active={active}>
+  return <WorkspaceOperationContext.Provider value={{ busy: Boolean(state.workspaceBusy),
+    setBusy: controller.setWorkspaceBusy }}><DetailsWorkspace selected={state.selected} active={active}>
     <div className={`${styles.page} ${collapsed ? styles.collapsed : ""}`}>
     {!collapsed && <ThreadSidebar state={state} controller={controller} accountPicker={accountPicker} />}
     <div className={styles.workspace}>
@@ -83,5 +85,5 @@ function Workspace({ active, accountPicker }: CodexGuiPageProps) {
         </>} />}
     </div>
     </div>
-  </DetailsWorkspace>;
+  </DetailsWorkspace></WorkspaceOperationContext.Provider>;
 }

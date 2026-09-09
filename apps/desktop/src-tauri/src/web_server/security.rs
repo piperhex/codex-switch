@@ -189,6 +189,8 @@ const LAN_COMMAND_ALLOWLIST: &[&str] = &[
     "codex_gui_connect",
     "codex_gui_request",
     "codex_gui_respond",
+    "codex_gui_git",
+    "codex_gui_undo",
     "codex_gui_delete_thread",
     "codex_gui_events",
     "codex_gui_usage_summary",

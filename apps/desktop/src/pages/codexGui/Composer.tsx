@@ -42,6 +42,7 @@ export const Composer = forwardRef<ComposerHandle, {
   const skillInput = useRef<SkillInputHandle>(null);
   const key = state.selected ?? "new";
   const [dialog, setDialog] = useState<"files" | "goal" | null>(null);
+  const workspaceBusy = Boolean(state.workspaceBusy);
   const { draft, reading, editContent, removeImage, addImages, paste, send: sendDraft,
     addAttachments, removeAttachment, addQuote, removeQuote, clearQuotes } = useComposerDraft(key, controller);
   // Creating a goal first creates its conversation; keep the form until the goal request succeeds.
@@ -52,7 +53,7 @@ export const Composer = forwardRef<ComposerHandle, {
   const running = Boolean(current?.activeTurn);
   const queuedMessages = state.selected ? state.queued[state.selected] ?? [] : [];
   const attachedQueue = running && queuedMessages.length > 0;
-  const disabled = state.connection !== "ready" || state.sending || state.archived
+  const disabled = workspaceBusy || state.connection !== "ready" || state.sending || state.archived
     || state.compacting === state.selected;
   const hasDraft = Boolean(draft.text.trim() || draft.images.length
     || draft.attachments?.length || draft.quotes?.length);
@@ -73,7 +74,9 @@ export const Composer = forwardRef<ComposerHandle, {
   return <div className={styles.composerWrap}>
     {state.selected && <QueuedMessages threadId={state.selected} messages={queuedMessages}
       running={running} connected={state.connection === "ready"} queue={controller.queue} />}
-    {!running && <ProjectPicker value={project} projects={state.projects} disabled={state.sending || state.archived}
+    {!running && <ProjectPicker key={key} value={project} projects={state.projects}
+      disabled={state.sending || state.archived || workspaceBusy} gitEnabled={!state.selected}
+      onBusyChange={controller.setWorkspaceBusy}
       onChange={controller.setProject} onError={controller.report} />}
     <div ref={composer} className={`${styles.composer} ${attachedQueue ? styles.composerAttached : ""}`}>
       <ImageAttachments key={key} images={draft.images} active={active}
@@ -104,7 +107,7 @@ export const Composer = forwardRef<ComposerHandle, {
           <ModelPicker models={state.models} model={state.settings.model} effort={state.settings.effort}
             disabled={false} onChange={controller.settings} />
           <ComposerSubmit state={state} controller={controller}
-            hasDraft={hasDraft} reading={reading} onSend={send} />
+            hasDraft={hasDraft} reading={reading || workspaceBusy} onSend={send} />
         </div>
       </div>
     </div>

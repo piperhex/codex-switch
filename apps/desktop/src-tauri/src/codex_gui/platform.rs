@@ -36,6 +36,16 @@ pub(super) fn hide_window(command: &mut Command) {
     let _ = command;
 }
 
+pub(super) fn hide_git_window(command: &mut std::process::Command) {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x08000000); // CREATE_NO_WINDOW for background Git operations.
+    }
+    #[cfg(not(windows))]
+    let _ = command;
+}
+
 pub(super) fn protect_auth(path: &Path) -> Result<()> {
     #[cfg(unix)]
     {
