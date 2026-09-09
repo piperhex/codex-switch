@@ -50,7 +50,7 @@ export function ThreadGroup({ label, pinned, threads, selected, collapsed, expan
       {onNewConversation && <Tooltip title="新建对话" overlayStyle={{ maxWidth: 400 }}>
         <button type="button" className={styles.add} aria-label={`在 ${label} 中新建对话`}
           disabled={creatingDisabled} onClick={onNewConversation}>
-          <SquarePen size={16} strokeWidth={1.6} aria-hidden="true" />
+          <SquarePen size={14} strokeWidth={1.6} aria-hidden="true" />
         </button>
       </Tooltip>}
     </div>

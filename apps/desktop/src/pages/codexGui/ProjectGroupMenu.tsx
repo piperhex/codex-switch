@@ -24,7 +24,7 @@ export function ProjectGroupMenu({ path, label, state, controller }: {
     if (key === "remove") void remove();
   } }}>
     <button type="button" className={styles.add} aria-label={`管理项目：${label}`}>
-      <MoreHorizontal size={16} aria-hidden="true" />
+      <MoreHorizontal size={14} aria-hidden="true" />
     </button>
   </Dropdown>;
 }
