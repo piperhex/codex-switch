@@ -70,6 +70,7 @@ import { BottomSheet } from './src/components/BottomSheet';
 import { RemoteModelSwitchSheet } from './src/components/RemoteModelSwitchSheet';
 import { QuotaConsumptionSheet } from './src/components/QuotaConsumptionSheet';
 import { TotpPage } from './src/totp/TotpPage';
+import { ChatPage } from './src/chat/ChatPage';
 import { TotpSyncSettings } from './src/totp/TotpSyncSettings';
 import type { TotpManagerState } from './src/totp/types';
 import { useTotpVault } from './src/totp/useTotpVault';
@@ -1348,7 +1349,7 @@ function SettingsPage({ session, profile, globalRefreshMinutes, onGlobalRefreshM
   </KeyboardAvoidingView>;
 }
 
-type AppPage = 'accounts' | 'devices' | 'totp' | 'admin' | 'settings' | 'about';
+type AppPage = 'accounts' | 'devices' | 'chat' | 'totp' | 'admin' | 'settings' | 'about';
 
 function BottomNavigation({ activePage, onChange }: {
   activePage: AppPage;
@@ -1356,6 +1357,11 @@ function BottomNavigation({ activePage, onChange }: {
 }) {
   const settingsActive = ['admin', 'about', 'settings'].includes(activePage);
   return <View style={styles.bottomNavigation} accessibilityRole="tablist">
+    <Pressable accessibilityRole="tab" accessibilityState={{ selected: activePage === 'chat' }}
+      onPress={() => onChange('chat')} style={styles.navItem}>
+      <Text style={[styles.navIcon, activePage === 'chat' && styles.navTextActive]}>☷</Text>
+      <Text style={[styles.navText, activePage === 'chat' && styles.navTextActive]}>聊天</Text>
+    </Pressable>
     <Pressable accessibilityRole="tab" accessibilityState={{ selected: activePage === 'accounts' }}
       onPress={() => onChange('accounts')} style={styles.navItem}>
       <Text style={[styles.navIcon, activePage === 'accounts' && styles.navTextActive]}>▦</Text>
@@ -2265,7 +2271,8 @@ function AppContent() {
   </View>;
   return <SafeAreaView style={styles.app}>
     <StatusBar style="dark" />
-    {activePage === 'accounts'
+    <ChatPage session={session} devices={devices} active={activePage === 'chat'} />
+    {activePage === 'chat' ? null : activePage === 'accounts'
       ? <Dashboard session={session} accounts={accounts} devices={devices} loading={loading}
         syncingServer={syncingServer} refreshingUsage={refreshingUsage} consumingQuota={consumingQuota}
         refreshingAccountId={refreshingAccountId} switchingAccountId={switchingAccountId}

@@ -40,6 +40,7 @@ services:
       - redis
     ports:
       - "9999:8080"
+      - "3478:3478/udp"
     networks:
       backend-internal:
       kong-net:

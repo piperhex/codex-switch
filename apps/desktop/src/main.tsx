@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
+import { RemoteChatHost } from "./remoteChat/useChatHost";
 import { applyThemeMode, loadThemeMode } from "./utils/themeMode";
 import "antd/dist/reset.css";
 import "./styles.css";
@@ -24,6 +25,7 @@ document.documentElement.classList.toggle("totp-window-page", currentWindowRoute
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
+    {!currentWindowRoute && '__TAURI_INTERNALS__' in window && <RemoteChatHost />}
     <App />
   </React.StrictMode>,
 );

@@ -27,6 +27,12 @@
       "permissions": [
         "android.permission.REQUEST_INSTALL_PACKAGES"
       ],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.BLUETOOTH",
+        "android.permission.SYSTEM_ALERT_WINDOW"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#f7faf7"
@@ -35,12 +41,20 @@
     "plugins": [
       "expo-secure-store",
       [
+        "@config-plugins/react-native-webrtc",
+        {
+          "cameraPermission": "允许 Codex Switch 扫描 2FA 二维码",
+          "microphonePermission": "聊天不需要使用麦克风"
+        }
+      ],
+      [
         "expo-camera",
         {
           "cameraPermission": "允许 Codex Switch 扫描 2FA 二维码",
           "recordAudioAndroid": false
         }
-      ]
+      ],
+      "./plugins/withChatTransport.cjs"
     ]
   }
 }

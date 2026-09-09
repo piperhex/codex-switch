@@ -1,0 +1,88 @@
+# 手机连接 PC 聊天
+
+手机底部的“聊天”页连接同一云端账号下的 PC，访问 **Codex Switch 内置 Codex GUI** 的同一个
+app-server 和独立 GUI 对话库。它不会复制其他 Codex Home 的历史，也不会启动第二个对话进程。
+PC 主窗口关闭到托盘后仍可使用；退出 PC 应用、云端退出登录或设备离线后，手机会断开或重新连接。
+
+手机支持查看和搜索历史、加载更多、继续聊天、新建聊天、流式回复、处理中补充消息、停止任务、
+归档/恢复、选择模型与思考深度、查看工具活动，以及处理审批和补充问题。未主动选择模型时沿用电脑设置。
+新聊天默认使用 PC GUI 的无项目工作区。历史和执行结果均以 PC 为准，手机不持久化聊天正文。
+
+## 连接方式
+
+连接设计参考 RustDesk `src/client.rs` 中 `connect` / `request_relay` 和
+`src/rendezvous_mediator.rs` 的协调流程：注册设备、交换候选地址、尝试直连、超时后回退。
+没有复制 RustDesk 源码，也不使用 RustDesk 的 hbbs/hbbr 二进制或其私有协议。
+
+1. PC 与手机连接 admin 的 `/device-chat` WebSocket，首帧发送登录令牌。
+2. admin 校验令牌、用户状态和设备归属，只给同一账号的 PC 和手机配对。
+3. admin 转发 WebRTC SDP 和 ICE 候选；内置 STUN 提供公网地址发现，手机与 PC 尝试直接建立数据通道。
+4. 最多尝试约 10 秒。连接成功时，聊天数据直接在手机与 PC 之间传输，admin 只维持协调连接。
+5. 直连失败或已建立的直连中断时，双方切换到 admin 的 WebSocket 加密中转。
+
+两端以临时 X25519 密钥协商共享密钥，通过 HKDF-SHA256 派生会话密钥，使用 ChaCha20-Poly1305
+加密聊天帧。会话 ID 参与密钥派生及附加认证，发送方向使用独立 nonce 空间；重复、篡改和跨会话帧会被拒绝。
+admin 转发密文，不解析和保存正文。信令服务器及其 TLS 证书属于配对的信任边界。
+
+大消息分片传输，双方有缓冲上限和背压。RPC 请求 ID 在连接方式切换时保持不变，PC 同时缓存处理中和已完成的
+请求，避免重放发送操作。完整断线后不自动重发结果未知的消息，而是重新读取 PC 对话。
+手机切换到其他 Tab 或退到后台时停止连接、定时器和订阅；回到聊天后重新连接并同步。
+
+## 部署 admin
+
+需要同步更新 admin、PC 应用和手机应用。仅安装手机 APK 无法让旧版 PC 或 admin 支持聊天。
+
+- HTTP 反向代理必须转发 `/device-chat` 的 WebSocket Upgrade。它和 `/device-switch` 一样，
+  在 WebSocket 首帧校验 JWT，不能要求浏览器握手时携带 Authorization 请求头。
+- Kong 示例已添加 `/device-chat`。更新已有 Kong 路由时，保留其他所有已有路径。
+- 生产环境使用 HTTPS/WSS。PC CSP 允许连接用户选择的云端 WebSocket 地址；令牌不放入 URL。
+- `.env` 设置 `CHAT_STUN_URLS=stun:你的公网域名:3478`，放行 **UDP 3478**。
+  Docker Compose 已映射该 UDP 端口；STUN 的 UDP 流量不经过 HTTP/Kong 路由。
+- `CHAT_STUN_PORT` 默认 `3478`，`CHAT_STUN_BIND` 默认 `0.0.0.0`。填 `CHAT_STUN_PORT=0`
+  可停用内置 IPv4 STUN，并在 `CHAT_STUN_URLS` 中配置其他 STUN 服务，多个地址用逗号分隔。
+- 未配置 STUN 时仍会尝试本地候选地址，但跨 NAT 的直连成功率降低；中转仍可工作。
+- 本版会话注册表在单个 admin 进程内，生产部署应使用一个后端实例。多个副本需要按账号路由到同一实例，
+  或先增加共享会话路由。Redis 账号缓存不承担聊天转发。
+- WebSocket 有鉴权超时、令牌到期断开、心跳、帧大小、速率、缓冲和每台 PC 最多 4 个手机连接的限制。
+- 设备与网络环境会影响直连率；对称 NAT、UDP 被封锁等场景会自动使用中转。
+
+## 移动端构建
+
+使用原生 WebRTC 数据通道，不请求相机或麦克风用于聊天。扫码功能继续使用已有相机权限。
+Expo Go 不包含该原生模块，需要开发构建或安装 APK；升级旧 APK 后需完整重启应用。
+`withChatTransport.cjs` 为 iOS 添加本地网络说明，并将已有的 Android HTTP 配置写入 release manifest，
+以支持自部署的局域网服务器。生产地址应使用 HTTPS。
+
+```powershell
+npm run check -w @codex-switch/native
+npm run export:android -w @codex-switch/native
+npm run build:apk
+```
+
+iOS 可以在 macOS 上使用现有 `prebuild:ios` / Xcode 工作流构建；Windows 无法验证 iOS 签名安装。
+
+## 验证
+
+```powershell
+npm run test -w @codex-switch/backend
+npm run build:backend
+npm run test -w @codex-switch/native
+npm run test -w @codex-switch/desktop
+npm run build:desktop
+cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml -- --check
+cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml
+cargo clippy --manifest-path apps/desktop/src-tauri/Cargo.toml --all-targets -- -D warnings
+npm run test:chat:e2e -w @codex-switch/desktop
+```
+
+浏览器端到端测试使用本机 Edge。其他环境可设置 `CHAT_TEST_BROWSER=chromium` 并安装 Playwright Chromium。
+它使用真实 WebRTC、同一套密文分片和 admin 会话路由，检查直连不产生中转流量、直连失败回退、
+连接切换后的收发、大段流式内容传输时的界面计时器响应。认证与权限边界由后端测试独立覆盖。
+这些测试不会请求模型，也不能替代蜂窝网络、不同 NAT 和真实 iOS 设备的部署验收。
+
+`apps/desktop/e2e/mobile-fixture.mjs` 是仅绑定本机的 Android 模拟器测试服务，提供虚构设备和对话，
+不得用于部署。在 desktop 目录运行它后，模拟器可使用 `http://10.0.2.2:1490`，或通过
+`adb reverse tcp:1490 tcp:1490` 使用 `http://127.0.0.1:1490`。测试账号为 `mobile-test@example.test`，密码任意非空。
+
+接口参考：[Codex App Server 官方文档](https://learn.chatgpt.com/docs/app-server)、
+[React Native WebRTC 数据通道](https://react-native-webrtc.github.io/handbook/guides/basic-usage.html)。

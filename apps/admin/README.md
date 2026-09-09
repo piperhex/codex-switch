@@ -2,6 +2,9 @@
 
 NestJS backend for Codex Switch cloud login, account and Provider synchronization, remote device model controls, and administration.
 
+Mobile chat uses `/device-chat` for authenticated rendezvous and encrypted fallback relay, plus UDP STUN discovery.
+See [mobile chat deployment and verification](../../docs/mobile-chat.md) before enabling the new clients.
+
 ## Stack
 
 - NestJS + TypeORM
@@ -157,6 +160,7 @@ curl -s -X POST http://KONG_ADMIN:8001/services/codex-switch-backend/routes \
   --data 'paths[]=/currency-rates' \
   --data 'paths[]=/telemetry' \
   --data 'paths[]=/device-switch' \
+  --data 'paths[]=/device-chat' \
   --data 'paths[]=/prompt-plugins' \
   --data strip_path=false
 
@@ -234,6 +238,7 @@ tokens remain valid when a signed link is copied for an invitation created by an
 - `GET /currency-rates`
 - `POST /telemetry/installations`
 - `WS /device-switch`
+- `WS /device-chat`
 - `GET /devices`
 - `POST /devices/:deviceId/account`
 - `GET /sync/accounts`

@@ -21,4 +21,5 @@ COPY --from=build /app/apps/admin/dist ./apps/admin/dist
 COPY --from=build /app/apps/admin/public ./apps/admin/public
 WORKDIR /app/apps/admin
 EXPOSE 8080
+EXPOSE 3478/udp
 CMD ["node", "dist/main.js"]

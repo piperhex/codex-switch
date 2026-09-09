@@ -2,6 +2,10 @@
 
 React Native（Expo）移动端，用已登录的 Codex Switch 云端账号查看官方账号与用量概览，并远程切换指定 PC 的官方模型或已同步第三方 Provider。
 
+底部“聊天”页可以连接同一账号下的 PC，继续 Codex Switch 内置 GUI 的对话。优先 WebRTC 直连，
+失败后经 admin 加密中转。配置、协议和验证方法见 [手机聊天说明](../../docs/mobile-chat.md)。
+聊天需要原生 WebRTC 模块，请安装 APK 或使用开发构建，Expo Go 不支持此模块。
+
 ## 启动
 
 ```bash

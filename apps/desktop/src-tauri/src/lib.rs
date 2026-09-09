@@ -54,6 +54,7 @@ mod provider_connectivity;
 mod provider_models;
 mod provider_platform;
 mod providers;
+mod remote_chat;
 mod remote_control;
 mod skills_market;
 mod storage;
@@ -243,6 +244,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             codex_gui::codex_gui_connect,
+            remote_chat::remote_chat_config,
             codex_gui::releases::codex_gui_cli_status,
             codex_gui::releases::codex_gui_cli_release,
             codex_gui::releases::codex_gui_cli_install,
