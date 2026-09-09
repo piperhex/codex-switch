@@ -1,10 +1,17 @@
 .group { margin: 10px 0 20px; font-size: 12px; line-height: 18px; }
+.header { display: flex; align-items: center; gap: 4px; }
 .heading {
-  display: flex; align-items: center; gap: 8px; width: 100%; min-width: 0;
+  display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0;
   padding: 7px 9px; border: 0; border-radius: 6px; background: transparent; color: var(--gui-muted);
   font: inherit; text-align: left; cursor: pointer;
   &:disabled { cursor: default; }
   &:hover:not(:disabled), &:focus-visible { color: var(--ink); }
+}
+.add {
+  display: grid; place-items: center; flex-shrink: 0; width: 28px; height: 28px; margin-right: 3px;
+  padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--gui-muted); cursor: pointer;
+  &:hover:not(:disabled), &:focus-visible { color: var(--ink); background: var(--green-soft); }
+  &:disabled { opacity: 0.4; cursor: default; }
 }
 .icon { display: grid; place-items: center; flex-shrink: 0; }
 .folder, .arrow { grid-area: 1 / 1; }

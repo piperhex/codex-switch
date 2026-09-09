@@ -33,9 +33,9 @@ export function ThreadSidebar({ state, controller, accountPicker }: {
       byProject.set(key, [...(byProject.get(key) ?? []), thread]);
     });
     return [
-      ...(pinned.length ? [{ id: "pinned", label: "置顶", pinned: true, threads: pinned }] : []),
+      ...(pinned.length ? [{ id: "pinned", label: "置顶", pinned: true, cwd: "", threads: pinned }] : []),
       ...Array.from(byProject, ([path, threads]) => ({
-        id: `project:${path}`, label: projectName(path), pinned: false, threads,
+        id: `project:${path}`, label: projectName(path), pinned: false, cwd: path, threads,
       })),
     ];
   }, [state.threads, state.pins, state.projects]);
@@ -90,6 +90,10 @@ export function ThreadSidebar({ state, controller, accountPicker }: {
         return <ThreadGroup key={key} label={group.label} pinned={group.pinned} threads={group.threads}
           selected={state.selected} collapsed={views.collapsed.includes(key)} expanded={views.expanded.includes(key)}
           filtering={Boolean(state.search.trim())} onToggle={(field) => toggle(field, key)}
+          creatingDisabled={state.sending} onNewConversation={group.cwd ? () => {
+            controller.newConversation();
+            controller.setProject(group.cwd);
+          } : undefined}
           renderThread={renderThread} />;
       })}
       {!state.threads.length && <p className={styles.listEmpty}>{state.loading ? <Spin size="small" /> : "还没有对话"}</p>}

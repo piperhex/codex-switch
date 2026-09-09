@@ -4,6 +4,7 @@ import { App, ConfigProvider } from "antd";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { GuiController } from "./controller";
+import { guiApi } from "./api";
 import { ThreadSidebar } from "./ThreadSidebar";
 import { initialState } from "./preferences";
 import type { GuiState } from "./types";
@@ -61,4 +62,27 @@ it("disables deletion while Codex reports an active reply", async () => {
     .find((entry) => entry.textContent === "删除")!;
   expect(remove.getAttribute("aria-disabled")).toBe("true");
   expect(controller.deleteThread).not.toHaveBeenCalled();
+});
+
+it("starts a new chat in the clicked project without moving the current conversation or toggling its folder", async () => {
+  const previous = { ...state.threads[0], id: "previous", cwd: "D:/other" };
+  vi.spyOn(guiApi, "request").mockImplementation(async (request) => {
+    if (request.operation === "read") return { thread: previous };
+    return { goals: [] };
+  });
+  await controller.select(previous.id);
+  controller.settings({ cwd: previous.cwd });
+  state = { ...state, selected: previous.id, archived: true };
+  await render();
+  const heading = button("project");
+  await act(async () => heading.click());
+  const add = container.querySelector<HTMLButtonElement>('[aria-label="在 project 中新建对话"]')!;
+  await act(async () => add.click());
+  expect(heading.getAttribute("aria-expanded")).toBe("false");
+  expect(controller.getSnapshot().selected).toBeNull();
+  expect(controller.getSnapshot().archived).toBe(false);
+  expect(controller.getSnapshot().settings.cwd).toBe("D:/project");
+  expect(controller.getSnapshot().projectOverrides).toEqual({});
+  expect(controller.getSnapshot().conversations.previous.thread.cwd).toBe("D:/other");
+  expect(new GuiController().getSnapshot().settings.cwd).toBe("D:/project");
 });
