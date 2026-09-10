@@ -8,6 +8,7 @@
     "test:chat:e2e": "playwright test --config playwright.chat.config.ts",
     "test:chat:android": "node e2e/android-chat-regression.mjs",
     "test:chat:android:history": "node e2e/android-history-regression.mjs",
+    "test:chat:android:drawer": "node e2e/android-drawer-regression.mjs",
     "dev": "vite",
     "build": "tsc && vite build",
     "check": "npm run build",

@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, SectionList, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { ChatController } from './controller';
-import type { ChatState } from './types';
+import type { ChatState, Thread } from './types';
 import { threadPresentation } from '../../../../shared/remote-chat/sidebar';
 import { useThreadGroups } from '../../../../shared/remote-chat/client/useThreadGroups';
 import { palette, styles } from './styles';
@@ -9,10 +9,12 @@ import { palette, styles } from './styles';
 interface Props {
   state: ChatState; controller: ChatController; newChat: () => void; onClose: () => void;
   chooseDevice: () => void; deviceName: string;
+  select: (thread: Thread) => void;
 }
 
-export function ChatThreads({ state, controller, newChat, onClose, chooseDevice, deviceName }: Props) {
+export function ChatThreads({ state, controller, newChat, onClose, chooseDevice, deviceName, select }: Props) {
   const [search, setSearch] = useState(state.search);
+  useEffect(() => setSearch(state.search), [state.search]);
   const { groups, toggle } = useThreadGroups(state);
   const ready = state.ready;
   return <View style={styles.fill}>
@@ -46,7 +48,7 @@ export function ChatThreads({ state, controller, newChat, onClose, chooseDevice,
         return <Pressable accessibilityRole="button" accessibilityLabel={view.title}
           accessibilityState={{ selected: state.selected?.id === item.id }} disabled={!ready || state.sending}
           style={[listStyles.thread, state.selected?.id === item.id && listStyles.selected]}
-          onPress={() => { void controller.select(item); onClose(); }}>
+          onPress={() => select(item)}>
           <Text numberOfLines={1} style={listStyles.title}>{view.title}</Text>
           <View style={listStyles.status}>
             {view.running ? <ActivityIndicator size="small" color={palette.muted} accessibilityLabel="正在回复" />

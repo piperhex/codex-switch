@@ -1,8 +1,9 @@
 import type { ChatConnection, ConnectionEvents } from './connection';
 import { applyChatEvent } from './events';
 import { mergeHistory } from './history';
-import { HISTORY_CHANGED, historyVersion, applyHistoryDelta } from '../historySync';
-import type { HistoryPage, PagedHistoryDelta } from '../historyPage';
+import { HISTORY_CHANGED } from '../historySync';
+import type { HistoryPage } from '../historyPage';
+import { HistoryReader } from './historyReader';
 import { ImageCache } from './imageCache';
 import type { ConnectionMode } from '../protocol';
 import { COMPOSER_EVENT, composerPatch, type ComposerModelsResponse,
@@ -27,6 +28,7 @@ export class ChatController {
   private readonly images = new ImageCache(<T>(body: Parameters<ConstructorParameters<typeof ImageCache>[0]>[0]) =>
     this.connection.request<T>('request', body));
   private readonly histories = new Map<string, Thread>();
+  private readonly historyReader = new HistoryReader((body) => this.connection.request('request', body));
   private readonly historyPages = new Map<string, HistoryPage>();
   private historyTimer?: ReturnType<typeof setTimeout>;
   private historyDirty = false;
@@ -57,6 +59,7 @@ export class ChatController {
   }
 
   private changeMode(mode: ConnectionMode) {
+    this.historyReader.reset();
     if (mode === 'offline') {
       this.composerRevision = -1;
       this.update({ sidebar: { ...this.state.sidebar, revision: -1 } });
@@ -115,6 +118,7 @@ export class ChatController {
   start() { this.active = true; this.connection.start(); }
   stop() {
     this.active = false;
+    this.historyReader.reset();
     this.olderQueued = false;
     clearTimeout(this.syncTimer);
     clearTimeout(this.historyTimer);
@@ -284,15 +288,13 @@ export class ChatController {
     const generation = ++this.readGeneration;
     this.update({ historyLoading: true, historyLoadingMore: older });
     try {
-      const result = await this.connection.request<PagedHistoryDelta>('request', {
-        operation: 'syncHistory', threadId: selected.id, known: historyVersion(selected),
-        window: { start: this.historyPages.get(selected.id)?.start, older },
-      });
+      const result = await this.historyReader.read(selected,
+        { start: this.historyPages.get(selected.id)?.start, older });
       if (generation === this.readGeneration && this.state.selected?.id === selected.id) {
         this.loadedThreadId = selected.id;
         if (result.page) this.historyPages.set(selected.id, result.page);
-        this.update({ selected: mergeHistory(applyHistoryDelta(selected, result), this.state.selected, selected),
-          historyHasMore: result.page?.hasMore ?? false });
+        this.update({ selected: mergeHistory(result.thread, this.state.selected, selected), error: '',
+          historyHasMore: result.page.hasMore });
         this.rememberHistory();
         this.markViewed();
       }

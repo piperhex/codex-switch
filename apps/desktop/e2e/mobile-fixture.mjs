@@ -42,6 +42,15 @@ const httpServer = http.createServer((request, response) => {
     })().catch(() => response.writeHead(400).end('{}'));
     return;
   }
+  if (request.url === '/test/legacy-history' && request.method === 'POST') {
+    void (async () => {
+      let body = '';
+      for await (const chunk of request) body += chunk.toString();
+      await page.evaluate((enabled) => window.chatTest.setLegacyHistory(enabled), JSON.parse(body).enabled === true);
+      response.end('{}');
+    })().catch(() => response.writeHead(400).end('{}'));
+    return;
+  }
   if (['/test/settings-delay', '/test/history-delay'].includes(request.url) && request.method === 'POST') {
     void (async () => {
       let body = '';

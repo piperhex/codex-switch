@@ -1,4 +1,4 @@
-import { memo, useRef, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, ScrollView, Text, View } from 'react-native';
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { ChatMarkdown } from './Markdown';
@@ -51,9 +51,24 @@ export function ChatMessages({ thread, loading, loadingMore, hasMore, loadOlder 
   const following = useRef(true);
   const scrolling = useRef(false);
   const position = useRef(0);
+  const contentHeight = useRef(0);
+  const followFrame = useRef<ReturnType<typeof requestAnimationFrame> | undefined>(undefined);
   const [preservePosition, setPreservePosition] = useState(false);
   const items = thread?.turns?.flatMap((turn) => turn.items) ?? [];
   const lastTurn = thread?.turns?.at(-1);
+  const followLatest = () => {
+    if (followFrame.current !== undefined) cancelAnimationFrame(followFrame.current);
+    // A fast history read can arrive before the new list has a viewport. Scroll after native layout settles.
+    followFrame.current = requestAnimationFrame(() => {
+      followFrame.current = undefined;
+      if (following.current && !scrolling.current) {
+        list.current?.scrollToOffset({ offset: contentHeight.current, animated: false });
+      }
+    });
+  };
+  useEffect(() => () => {
+    if (followFrame.current !== undefined) cancelAnimationFrame(followFrame.current);
+  }, []);
   const updateFollowing = ({ nativeEvent }: NativeSyntheticEvent<NativeScrollEvent>) => {
     following.current = nativeEvent.contentSize.height - nativeEvent.layoutMeasurement.height
       - nativeEvent.contentOffset.y < SCROLL_EDGE_DISTANCE;
@@ -89,10 +104,8 @@ export function ChatMessages({ thread, loading, loadingMore, hasMore, loadOlder 
       }
       position.current = top;
     }} scrollEventThrottle={100}
-    onContentSizeChange={(_, height) => {
-      // Cell estimates can still be zero on the first layout; use the measured content height.
-      if (following.current && !scrolling.current) list.current?.scrollToOffset({ offset: height, animated: false });
-    }}
+    onLayout={followLatest}
+    onContentSizeChange={(_, height) => { contentHeight.current = height; followLatest(); }}
     ListHeaderComponent={hasMore || (loading && !items.length) ? <View style={styles.historyStatus}>
       {loadingMore || (loading && !items.length) ? <>
         <ActivityIndicator size="small" accessibilityLabel="正在加载聊天记录" />
