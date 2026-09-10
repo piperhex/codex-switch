@@ -14,6 +14,7 @@ import { selectedQuote } from "./selectedQuote";
 import type { ReplyQuote } from "./replyQuotes";
 import styles from "./styles.module.less";
 import { ImageThreadContext } from "./useImageSource";
+import { FileThreadContext } from "./fileApi";
 
 export function Messages({ value, selected, active = true, footer, pendingRequest, onQuote, onEdit, editDisabled }: {
   value?: Conversation; selected: string | null; active?: boolean; footer?: ReactNode;
@@ -28,7 +29,8 @@ export function Messages({ value, selected, active = true, footer, pendingReques
   const sending = pendingRequest && pendingRequest.threadId === selected && !value?.activeTurn;
   const processing = value?.processing;
   const startedAtMs = processing?.startedAtMs ?? (turn?.startedAt == null ? undefined : turn.startedAt * SECOND_MS);
-  return <ImageThreadContext.Provider value={selected}><div className={styles.messageArea}>
+  return <FileThreadContext.Provider value={selected}>
+    <ImageThreadContext.Provider value={selected}><div className={styles.messageArea}>
     {quote.selection && <QuoteSelectionButton selection={quote.selection} onQuote={() => {
       const current = content.current ? selectedQuote(content.current) : null;
       if (!current || !onQuote?.(current.quote)) return;
@@ -65,5 +67,5 @@ export function Messages({ value, selected, active = true, footer, pendingReques
         </div>
       </div>
     </div>
-  </div></ImageThreadContext.Provider>;
+  </div></ImageThreadContext.Provider></FileThreadContext.Provider>;
 }

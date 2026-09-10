@@ -1,6 +1,7 @@
 import { useId, useMemo, useState, type ReactNode } from "react";
 import { ChevronDown, FileDiff } from "lucide-react";
 import type { DiffFile } from "./diff";
+import { FileMenu } from "./FileMenu";
 import styles from "./EditedFilesSummary.module.less";
 
 const COLLAPSED_FILE_COUNT = 3;
@@ -46,8 +47,8 @@ export function EditedFilesSummary({ files, title, status, onReview, onReviewFil
     </header>
     <ul className={styles.files} id={listId}>
       {visibleFiles.map((file) => <li key={file.path}>
-        <button type="button" className={styles.path} onClick={() => onReviewFile(file.path)}
-          aria-label={`查看 ${file.path} 的差异`}>{file.path}</button>
+        <FileMenu path={file.path} className={styles.path}
+          onReview={() => onReviewFile(file.path)}>{file.path}</FileMenu>
         <Counts added={file.added} removed={file.removed} />
       </li>)}
     </ul>

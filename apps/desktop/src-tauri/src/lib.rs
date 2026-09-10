@@ -251,6 +251,8 @@ pub fn run() {
             codex_gui::codex_gui_request,
             codex_gui::codex_gui_respond,
             codex_gui::git::codex_gui_git,
+            codex_gui::file_actions::codex_gui_file_applications,
+            codex_gui::file_actions::codex_gui_file_action,
             codex_gui::undo::codex_gui_undo,
             codex_gui::deletion::codex_gui_delete_thread,
             codex_gui::usage::codex_gui_usage_summary,

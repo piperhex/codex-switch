@@ -5,6 +5,8 @@ import type { Content, Item } from "./types";
 import { UserMessageEditor } from "./UserMessageEditor";
 import { CopyButton } from "./CopyButton";
 import { MessageImage } from "./MessageImage";
+import { FileMenu } from "./FileMenu";
+import { isFileReference } from "./fileReference";
 import userStyles from "./UserMessage.module.less";
 import styles from "./styles.module.less";
 
@@ -25,7 +27,9 @@ export function UserMessage({ item, startedAt, onEdit, editDisabled = false }: {
         part.url ? <MessageImage key={index} src={part.url} alt={`图片附件 ${index + 1}`} />
           : <span className={styles.imageLabel} key={index}>图片：{part.path?.split(/[\\/]/).pop() ?? "附件"}</span>)}
       {parts.filter((part) => part.type === "mention").map((part, index) =>
-        <span className={styles.imageLabel} key={`reference-${index}`}>
+        part.path && isFileReference(part.path)
+          ? <FileMenu path={part.path} key={`reference-${index}`}>{part.name || part.path}</FileMenu>
+          : <span className={styles.imageLabel} key={`reference-${index}`}>
           {part.path?.startsWith("plugin://") ? "插件" : "附件"}：{part.name || part.path}
         </span>)}
       {editing && onEdit ? <UserMessageEditor text={text} disabled={editDisabled} onSubmit={onEdit}

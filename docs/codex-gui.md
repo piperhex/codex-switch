@@ -23,6 +23,15 @@ to their full paths; the selected access mode still controls what Codex can read
 accepts paths on the Switch host. Plugin selections stay attached to the draft and are included when sending,
 including queued messages and steering. Plan mode is not included in this menu.
 
+In the desktop app, click or right-click a file link or an edited-file name to open its file menu.
+**打开方式** lists recognized local editors and terminals; Windows also offers **其他应用…** to open
+the system application chooser. The menu supports opening with the default app, saving a copy, copying
+the absolute path or text contents, and revealing the file in the file manager. Edited-file menus retain
+**查看差异**, and **审核** still opens the complete diff. VS Code and JetBrains editors retain supported
+line references. Relative paths resolve against the conversation's actual workspace, including projectless tasks.
+Text copying accepts UTF-8 files up to 2 MB. Application discovery and file I/O run on background workers.
+These native actions are desktop-only; browsers retain path copying and diff viewing.
+
 Choose **+ → 目标** to describe a result and start working toward it. Goals are saved with the conversation;
 Codex continues until the goal is completed, paused, blocked, or reaches a usage limit. Click the goal above
 the input to edit, pause, continue or remove it. **停止生成** pauses an active goal before stopping its current
@@ -133,6 +142,7 @@ npm run build:desktop
 cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml -- --check
 cargo clippy --manifest-path apps/desktop/src-tauri/Cargo.toml --all-targets -- -D warnings
 cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --test codex_switch_lib_tests
+npm exec -w @codex-switch/desktop -- playwright test --config playwright.chat.config.ts file-menu.pw.ts
 ```
 
 The opt-in installer smoke test downloads and verifies a real release into a temporary directory:

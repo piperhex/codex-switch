@@ -4,6 +4,7 @@ mod attachment_tests;
 mod client;
 pub(crate) mod deletion;
 mod error;
+pub(crate) mod file_actions;
 pub(crate) mod git;
 mod goals;
 mod home;
