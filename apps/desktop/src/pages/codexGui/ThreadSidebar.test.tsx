@@ -14,7 +14,8 @@ let container: HTMLDivElement;
 let controller: GuiController;
 let state: GuiState;
 const render = () => act(async () => root.render(<ConfigProvider theme={{ token: { motion: false } }}>
-  <App><ThreadSidebar state={state} controller={controller} accountPicker={null} /></App>
+  <App><ThreadSidebar state={state} controller={controller} accountPicker={null}
+    focused={false} onToggleFocus={vi.fn()} /></App>
 </ConfigProvider>));
 const button = (text: string) => [...document.querySelectorAll<HTMLButtonElement>("button")]
   .find((entry) => entry.textContent === text)!;

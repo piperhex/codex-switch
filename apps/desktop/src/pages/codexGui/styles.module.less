@@ -32,6 +32,7 @@
   min-height: 24px; flex-shrink: 0; padding: 0 6px; }
 .sidebarTitle { margin: 0; font-size: 13px; font-weight: 600; line-height: 18px; white-space: nowrap; }
 .sidebarActions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.sidebarHeading[data-tauri-drag-region], .header[data-tauri-drag-region] { user-select: none; }
 .newButton {
   display: flex; align-items: center; justify-content: flex-start; gap: 10px;
   width: 100%; min-height: 36px; padding: 8px 7px; border: 0; border-radius: 9px;
@@ -79,6 +80,7 @@
   > span { color: var(--gui-muted); font-size: 10px; line-height: 12px;
     overflow: hidden; white-space: nowrap; text-overflow: ellipsis; } }
 .headerActions { margin-left: auto; display: flex; align-items: center; flex-shrink: 0; }
+.focusWindowControls { align-self: stretch; display: flex; flex-shrink: 0; margin: -4px -14px -4px 4px; }
 .messageViewport { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 .messageArea { display: flex; flex-direction: column; position: relative; flex: 1; min-height: 0; }
 .messageScrollBody { display: flex; flex-direction: column; min-height: 100%; }
@@ -177,6 +179,8 @@
 
 @container (max-width: 700px) {
   .header { gap: 4px; padding: 0 8px; height: 28px; min-height: 28px; }
+  .focusWindowControls { margin: 0 -8px 0 4px;
+    :global(.window-control) { width: 36px; height: 28px; } }
   .heading > span { display: none; }
   .headerActions { gap: 0; }
   .messageContent { padding: 18px 14px; }

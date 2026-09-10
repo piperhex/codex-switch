@@ -1,5 +1,16 @@
 body.codex-gui-active { min-width: 0; }
 
+body.codex-gui-active.codex-gui-focused {
+  --window-titlebar-height: 0px;
+  .app-shell {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    transition: none;
+    > .window-titlebar, > .app-sidebar, > .app-menu { display: none; }
+    > main { grid-column: 1; grid-row: 1; }
+  }
+}
+
 @media (max-width: 900px) {
   body.codex-gui-active {
     .app-menu { gap: 8px; padding: 8px; }

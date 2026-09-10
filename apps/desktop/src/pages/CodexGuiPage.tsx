@@ -21,9 +21,11 @@ import { providerModels } from "./codexGui/providerModels";
 import { useDreamSkin } from "./codexGui/useDreamSkin";
 import { guiComposer } from "./codexGui/composerBridge";
 import { guiSidebar } from "./codexGui/sidebarBridge";
+import { FocusModeButton, type GuiFocusMode } from "./codexGui/FocusModeButton";
 
 type CodexGuiPageProps = {
   active: boolean; accountPicker: ReactNode; providers: Provider[]; aggregateApis: AggregateApi[];
+  windowControls?: ReactNode;
 };
 
 export function CodexGuiPage(props: CodexGuiPageProps) {
@@ -31,15 +33,16 @@ export function CodexGuiPage(props: CodexGuiPageProps) {
   const models = useMemo(() => providerModels(props.providers, props.aggregateApis),
     [props.providers, props.aggregateApis]);
   useEffect(() => { guiComposer.setProviderModels(models); }, [models]);
-  useGuiLayout(active);
+  const focusMode = useGuiLayout(active);
   const [visited, setVisited] = useState(active);
   useEffect(() => { if (active) setVisited(true); }, [active]);
   if (!visited) return null;
   if (!hasLocalBackend) return <div className={styles.install}><h2>Codex GUI</h2><p>请打开 Codex Switch 提供的网页地址，开始对话。</p></div>;
-  return <Workspace {...props} />;
+  return <Workspace {...props} {...focusMode} />;
 }
 
-function Workspace({ active, accountPicker, providers, aggregateApis }: CodexGuiPageProps) {
+function Workspace({ active, accountPicker, providers, aggregateApis, windowControls,
+  focused, onToggleFocus }: CodexGuiPageProps & GuiFocusMode) {
   const skinStyle = useDreamSkin(active);
   const [controller] = useState(() => new GuiController());
   useConversationReadState(active, controller);
@@ -68,14 +71,18 @@ function Workspace({ active, accountPicker, providers, aggregateApis }: CodexGui
     setBusy: controller.setWorkspaceBusy }}><DetailsWorkspace selected={state.selected} active={active}>
     <div className={`${styles.page} ${collapsed ? styles.collapsed : ""}`}
       data-dream-skin={skinStyle ? "true" : undefined} style={skinStyle}>
-    {!collapsed && <ThreadSidebar state={state} controller={controller} accountPicker={accountPicker} />}
+    {!collapsed && <ThreadSidebar state={state} controller={controller} accountPicker={accountPicker}
+      focused={focused} onToggleFocus={onToggleFocus} />}
     <div className={styles.workspace}>
-      <header className={styles.header}>
+      <header className={styles.header} data-tauri-drag-region={isDesktopApp || undefined}>
         <Button type="text" icon={collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
           aria-label={collapsed ? "展开对话列表" : "收起对话列表"} onClick={() => setCollapsed(!collapsed)} />
-        <div className={styles.heading}><strong>{thread ? threadTitle(thread) : "Codex GUI"}</strong>
-          <span>{thread ? (isDesktopApp ? "本地对话" : "主机对话") : "在这里，把想法变成现实"}</span></div>
-        <div className={styles.headerActions}>
+        {collapsed && <FocusModeButton focused={focused} onToggleFocus={onToggleFocus} />}
+        <div className={styles.heading} data-tauri-drag-region={isDesktopApp || undefined}>
+          <strong data-tauri-drag-region={isDesktopApp || undefined}>{thread ? threadTitle(thread) : "Codex GUI"}</strong>
+          <span data-tauri-drag-region={isDesktopApp || undefined}>
+            {thread ? (isDesktopApp ? "本地对话" : "主机对话") : "在这里，把想法变成现实"}</span></div>
+        <div className={styles.headerActions} data-tauri-drag-region={isDesktopApp || undefined}>
           <ConversationChangesButton value={current} />
           {installer.version && <Button type="text" icon={<RefreshCw size={16} />} aria-label="重新连接 Codex"
             disabled={Boolean(running)} loading={state.connection === "connecting"}
@@ -87,6 +94,7 @@ function Workspace({ active, accountPicker, providers, aggregateApis }: CodexGui
               {installer.version ? `v${installer.version}` : "Codex"}</Button>
           </Popover>
         </div>
+        {focused && windowControls && <div className={styles.focusWindowControls}>{windowControls}</div>}
       </header>
       {state.error && <Alert className={styles.error} message={state.error}
         type="error" closable onClose={controller.clearError} />}

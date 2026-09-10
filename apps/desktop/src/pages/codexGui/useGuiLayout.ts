@@ -1,8 +1,13 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { isHostedWebApp } from "../../api/backend";
 import "./responsive.less";
 
 export function useGuiLayout(active: boolean) {
+  const [focused, setFocused] = useState(false);
+  useEffect(() => {
+    document.body.classList.toggle("codex-gui-focused", active && focused);
+    return () => document.body.classList.remove("codex-gui-focused");
+  }, [active, focused]);
   useEffect(() => {
     document.body.classList.toggle("codex-gui-active", active);
     if (isHostedWebApp) {
@@ -13,4 +18,5 @@ export function useGuiLayout(active: boolean) {
     }
     return () => document.body.classList.remove("codex-gui-active");
   }, [active]);
+  return { focused, onToggleFocus: () => setFocused((value) => !value) };
 }

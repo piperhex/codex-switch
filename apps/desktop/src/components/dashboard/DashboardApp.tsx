@@ -108,6 +108,7 @@ import { SettingsGroupsNav, SettingsPage } from "../../pages/SettingsPage";
 import { SkillsMarketPage } from "../../pages/SkillsMarketPage";
 import { CodexThreadsPage } from "../../pages/CodexThreadsPage";
 import { CodexGuiPage } from "../../pages/CodexGuiPage";
+import { WindowControls } from "../WindowControls";
 import { ProxyAccountPicker } from "../../pages/codexGui/ProxyAccountPicker";
 import codexGuiStyles from "../../pages/codexGui/styles.module.less";
 import { CODEX_CONFIG_TOPBAR_ID, CodexConfigPage } from "../../pages/CodexConfigPage";
@@ -1489,6 +1490,7 @@ export function DashboardApp() {
           </section>
           <section className={codexGuiStyles.panel} hidden={page !== "codexGui"}>
             <CodexGuiPage active={page === "codexGui"}
+              windowControls={NATIVE_WINDOW_CONTROLS_ENABLED && <WindowControls onError={notify} t={t} />}
               providers={providerManager.providers} aggregateApis={providerManager.aggregateApis} accountPicker={
               <ProxyAccountPicker active={page === "codexGui"} accounts={manager.accounts}
                 privacyMode={privacyMode.enabled}

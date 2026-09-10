@@ -9,14 +9,16 @@ import { useThreadGroupViews } from "./useThreadGroupViews";
 import { threadGroups } from "./threadGroups";
 import { ProjectGroupMenu } from "./ProjectGroupMenu";
 import { ThreadStatus } from "./ThreadStatus";
+import { isDesktopApp } from "../../api/backend";
+import { FocusModeButton, type GuiFocusMode } from "./FocusModeButton";
 import styles from "./styles.module.less";
 
 export function threadTitle(thread: Thread) { return thread.name || thread.preview || "新对话"; }
 export { projectName } from "./projectCatalog";
 
-export function ThreadSidebar({ state, controller, accountPicker }: {
+export function ThreadSidebar({ state, controller, accountPicker, focused, onToggleFocus }: {
   state: GuiState; controller: GuiController; accountPicker: ReactNode;
-}) {
+} & GuiFocusMode) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [renaming, setRenaming] = useState<Thread | null>(null);
   const [deleting, setDeleting] = useState<Thread | null>(null);
@@ -61,9 +63,10 @@ export function ThreadSidebar({ state, controller, accountPicker }: {
     </div>;
   };
   return <aside className={styles.sidebar}>
-    <div className={styles.sidebarHeading}>
-      <h2 className={styles.sidebarTitle}>Codex GUI</h2>
-      <div className={styles.sidebarActions}>
+    <div className={styles.sidebarHeading} data-tauri-drag-region={isDesktopApp || undefined}>
+      <h2 className={styles.sidebarTitle} data-tauri-drag-region={isDesktopApp || undefined}>Codex GUI</h2>
+      <div className={styles.sidebarActions} data-tauri-drag-region={isDesktopApp || undefined}>
+        <FocusModeButton focused={focused} onToggleFocus={onToggleFocus} />
         <Button type="text" size="small" icon={<RefreshCw size={15} />} aria-label="刷新对话"
           loading={state.loading} disabled={state.connection !== "ready"} onClick={() => void controller.refresh()} />
         <Button type="text" size="small" icon={<Search size={15} />} aria-label="搜索对话"
