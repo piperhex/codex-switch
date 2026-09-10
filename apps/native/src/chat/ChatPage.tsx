@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { BackHandler, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import type { AuthSession, RemoteDevice } from '../types';
 import { ChatApproval } from './ChatApprovals';
@@ -10,6 +10,7 @@ import { ChatThreads } from './ChatThreads';
 import { ChatDrawer } from './ChatDrawer';
 import { ChatDevices } from './ChatDevices';
 import { useChat } from './useChat';
+import { useChatDrawerSwipe } from './useChatDrawerSwipe';
 import { styles } from './styles';
 
 interface Props { session: AuthSession; devices: RemoteDevice[]; active: boolean }
@@ -32,6 +33,8 @@ function ConnectedChat({ session, device, devices, active, chooseDevice }: Props
   const { state, controller } = useChat(session, device?.deviceId ?? '', active && Boolean(device));
   const [drawer, setDrawer] = useState(false);
   const [pickingDevice, setPickingDevice] = useState(false);
+  const openDrawer = useCallback(() => { Keyboard.dismiss(); setDrawer(true); }, []);
+  const drawerSwipeHandlers = useChatDrawerSwipe(active && !drawer && !pickingDevice, openDrawer);
   const ready = state.ready;
   const runningTurn = state.selected?.turns?.find((turn) => turn.status === 'inProgress');
   const running = Boolean(runningTurn);
@@ -44,10 +47,11 @@ function ConnectedChat({ session, device, devices, active, chooseDevice }: Props
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => { newChat(); return true; });
     return () => subscription.remove();
   }, [active, state.selected?.id, controller]);
-  return <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+  return <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    {...drawerSwipeHandlers}>
     <View style={styles.header}>
       <Pressable accessibilityRole="button" accessibilityLabel="打开聊天列表" style={styles.back}
-        onPress={() => { Keyboard.dismiss(); setDrawer(true); }}><Text style={styles.backText}>☰</Text></Pressable>
+        onPress={openDrawer}><Text style={styles.backText}>☰</Text></Pressable>
       <View style={styles.fill}>
         <Text numberOfLines={1} style={styles.headerTitle}>{state.selected?.name || '新聊天'}</Text>
         <Pressable accessibilityRole="button" accessibilityLabel="选择电脑" onPress={() => setPickingDevice(true)}>
