@@ -4,13 +4,17 @@ import type { AuthSession } from '../types';
 import type { Thread } from './types';
 import type { ConnectionEvents } from '../../../../shared/remote-chat/client/connection';
 import { COMPOSER_EVENT, type ComposerSnapshot } from '../../../../shared/remote-chat/composer';
+import { historyDelta, type HistoryVersion } from '../../../../shared/remote-chat/historySync';
 
 const mocks = vi.hoisted(() => ({ request: vi.fn(), events: null as ConnectionEvents | null }));
 vi.mock('./connection', () => ({ MobileChatConnection: class {
   constructor(events: ConnectionEvents) { mocks.events = events; }
   start() { mocks.events!.mode('relay'); mocks.events!.ready(); }
   stop() {}
-  request = mocks.request;
+  async request(method: string, body?: { operation: string; known?: HistoryVersion }) {
+    const result = await mocks.request(method, body);
+    return body?.operation === 'syncHistory' && result?.thread ? historyDelta(result.thread, body.known) : result;
+  }
 } }));
 const session: AuthSession = { baseUrl: 'https://test', accessToken: 'test', refreshToken: 'test', email: 'test' };
 const thread: Thread = { id: 'chat', preview: '', cwd: '/project', updatedAt: 1, turns: [] };
@@ -34,7 +38,7 @@ describe('mobile chat actions', () => {
     expect(controller.snapshot().archived).toBe(true);
     expect(await controller.send({ text: 'new task', access: 'workspace-write' })).toBe(true);
     expect(controller.snapshot()).toMatchObject({ archived: false, search: '', selected: thread });
-    expect(mocks.request.mock.calls.map(([, body]) => body.operation)).toEqual(['list', 'start', 'send', 'read']);
+    expect(mocks.request.mock.calls.map(([, body]) => body.operation)).toEqual(['list', 'start', 'send', 'syncHistory']);
   });
 
   it('resumes the existing PC thread and does not silently replace its model', async () => {
@@ -145,7 +149,7 @@ describe('mobile chat actions', () => {
     });
     await controller.setSettings({ access: 'danger-full-access' });
     expect(controller.snapshot().settings.effort).toBe('ultra');
-    expect(controller.snapshot().settingsBusy).toBe(false);
+    await vi.waitFor(() => expect(controller.snapshot().settingsBusy).toBe(false));
     mocks.request.mockResolvedValue({ thread });
     await controller.send({ text: 'test', ...controller.snapshot().settings });
     expect(mocks.request).toHaveBeenCalledWith('request', expect.objectContaining({ operation: 'send',

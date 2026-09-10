@@ -129,13 +129,13 @@ try {
   });
   await check('10-disconnect-and-resynchronize', async () => {
     const sent = await operationCount('send');
-    const reads = await operationCount('read');
+    const reads = await operationCount('syncHistory');
     const connections = (await serverState()).mobileConnections;
     const response = await fetch('http://127.0.0.1:1490/test/disconnect', { method: 'POST' });
     assert.equal(response.ok, true);
     await waitFor(async () => (await serverState()).mobileConnections > connections, 'new connection established');
     await ready();
-    await waitFor(async () => (await operationCount('read')) > reads, 'history resynchronized');
+    await waitFor(async () => (await operationCount('syncHistory')) > reads, 'history resynchronized');
     assert.equal(await operationCount('send'), sent);
     await waitText('移动端聊天体验');
   });
@@ -158,10 +158,16 @@ try {
       await screenshot(`12-${label === '本地图片' ? 'local' : 'remote'}-image`);
       await tap(`放大查看：${label}`);
       await waitText('关闭图片');
+      await waitFor(async () => !(await hasText('正在加载原图…')), 'original image loaded');
+      assert.equal(await hasText('原图加载失败'), false);
+      await tap('放大图片');
+      await waitText('150%');
+      await tap('旋转图片');
       await screenshot(`12-${label === '本地图片' ? 'local' : 'remote'}-preview`);
       await tap('关闭图片');
     }
     assert.ok(await operationCount('imagePreview') > 0);
+    assert.ok(await operationCount('imageChunk') > 1);
     await send('message after images');
     await settled();
   });

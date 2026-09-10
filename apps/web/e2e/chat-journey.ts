@@ -98,9 +98,36 @@ async function imagePreview({ page, request, info }: Journey) {
   }
   await click(page.getByRole('button', { name: '放大查看：本地图片', exact: true }));
   await expect(page.getByRole('dialog', { name: '本地图片' })).toBeVisible();
+  const original = page.getByRole('dialog').getByRole('img');
+  await expect.poll(() => original.evaluate((node) => (node as HTMLImageElement).naturalWidth),
+    { timeout: 30_000 }).toBe(900);
+  await expect(page.getByText('正在加载原图…', { exact: true })).toHaveCount(0);
+  await click(page.getByRole('button', { name: '放大图片', exact: true }));
+  await expect(page.getByRole('button', { name: '还原图片' })).toHaveText('150%');
+  await click(page.getByRole('button', { name: '旋转图片', exact: true }));
+  await expect(original).toHaveCSS('transform', /matrix\(0, 1.5, -1.5, 0, 0, 0\)/);
+  await screenshot(page, info, '04-original-zoom-rotation');
+  const chunks = await operationCount(request, 'imageChunk');
+  expect(chunks).toBeGreaterThan(1);
+  await click(page.getByRole('button', { name: '关闭图片', exact: true }));
+  await click(page.getByRole('button', { name: '放大查看：本地图片', exact: true }));
+  await expect.poll(() => page.getByRole('dialog').getByRole('img')
+    .evaluate((node) => (node as HTMLImageElement).naturalWidth)).toBe(900);
+  expect(await operationCount(request, 'imageChunk')).toBe(chunks);
   await click(page.getByRole('button', { name: '关闭图片', exact: true }));
   expect(await operationCount(request, 'imagePreview')).toBeGreaterThan(0);
   await screenshot(page, info, '04-inline-images');
+}
+
+async function incrementalRecovery({ page, request, info }: Journey) {
+  const before = (await state(request)).synchronization.length;
+  await request.post(`${fixtureUrl}/test/disconnect`);
+  await expect.poll(async () => (await state(request)).synchronization.length).toBeGreaterThan(before);
+  await ready(page, 'either');
+  const updates = (await state(request)).synchronization.slice(before);
+  expect(updates.every((update) => update.changedItems === 0 && update.bytes < 512)).toBe(true);
+  expect(await operationCount(request, 'read')).toBe(0);
+  await info.attach('incremental-reconnect-payloads', { body: JSON.stringify(updates), contentType: 'application/json' });
 }
 
 async function synchronizeComposer({ page, request, info }: Journey) {
@@ -138,11 +165,11 @@ async function synchronizeComposer({ page, request, info }: Journey) {
 async function recoverConnection({ page, request, info, transport }: Journey) {
   const before = await state(request);
   const sent = await operationCount(request, 'send');
-  const reads = await operationCount(request, 'read');
+  const reads = await operationCount(request, 'syncHistory');
   await request.post(`${fixtureUrl}/test/disconnect`);
   await expect.poll(async () => (await state(request)).mobileConnections).toBeGreaterThan(before.mobileConnections);
   await ready(page, transport);
-  await expect.poll(() => operationCount(request, 'read')).toBeGreaterThan(reads);
+  await expect.poll(() => operationCount(request, 'syncHistory')).toBeGreaterThan(reads);
   expect(await operationCount(request, 'send')).toBe(sent);
   await navigate(page, '账号');
   await expect.poll(async () => (await state(request)).connectedMobiles).toBe(0);
@@ -169,6 +196,7 @@ export async function chatJourney(context: Journey) {
   await manageHistory(context);
   await recoverConnection(context);
   await imagePreview(context);
+  await incrementalRecovery(context);
   await synchronizeComposer(context);
   await existingChatSettings(context);
   await sidebarJourney(context);

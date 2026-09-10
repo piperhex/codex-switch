@@ -2,6 +2,7 @@ import { expect, type Locator, type Page, type APIRequestContext, type TestInfo 
 import type { Thread } from '../src/chat/types';
 
 interface FixtureState {
+  synchronization: Array<{ bytes: number; changedItems: number; text: string }>;
   sidebar: import('../../../shared/remote-chat/sidebar').SidebarSnapshot;
   composer: import('../../../shared/remote-chat/composer').ComposerSnapshot;
   operations: Array<Record<string, unknown>>;

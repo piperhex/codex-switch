@@ -22,6 +22,8 @@ pub(crate) enum GuiRequest {
     ImagePreview {
         thread_id: String,
         source: String,
+        #[serde(default)]
+        variant: super::image_thumbnail::ImageVariant,
     },
     Models {
         cursor: Option<String>,

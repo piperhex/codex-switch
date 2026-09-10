@@ -36,5 +36,6 @@ export function useImageSource(source?: string) {
   const current = result?.source === local && result?.threadId === threadId ? result : undefined;
   const remote = source && (/^https?:\/\//i.test(source) || isInlineImage(source)) ? source : undefined;
   return { url: remote || current?.url, failed: current?.failed,
+    original: async () => remote || (local && threadId ? loadImage(threadId, local) : ''),
     loading: Boolean(local && threadId && !current), retry: () => setAttempt((value) => value + 1) };
 }

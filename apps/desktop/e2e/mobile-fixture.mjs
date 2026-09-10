@@ -118,18 +118,26 @@ wss.on('connection', (socket, request) => {
       if (frame.type === 'relay') relayFrames += 1;
       // Like the real gateway, reject frames from a closed session without crashing the fixture server.
       try { session.route(socket, frame); }
-      catch { socket.close(4001, 'Chat connection rejected'); }
+      catch (error) {
+        console.error('Fixture rejected chat frame:', frame.type, error instanceof Error ? error.message : String(error));
+        socket.close(4001, 'Chat connection rejected');
+      }
     }
   });
   socket.on('close', () => { mobileClients.delete(socket); session.disconnect(socket); });
 });
 await new Promise((resolve) => httpServer.listen(1490, '127.0.0.1', resolve));
-const vite = await createServer({ server: { port: 1488, host: '127.0.0.1' } });
+const vite = await createServer({ optimizeDeps: { entries: ['e2e/chat-harness.html'] },
+  cacheDir: process.env.CHAT_TEST_CACHE, server: { port: 1488, host: '127.0.0.1' } });
 await vite.listen();
-const browser = await chromium.launch({ channel: 'msedge', headless: true });
+const browser = await chromium.launch({ channel: process.env.CHAT_TEST_BROWSER
+  ?? (process.platform === 'win32' ? 'msedge' : 'chromium'), headless: true });
 page = await browser.newPage();
 page.on('pageerror', (error) => console.error(error.message));
-await page.goto('http://127.0.0.1:1488/e2e/chat-harness.html?role=desktop&demo&socket=ws://127.0.0.1:1490/device-chat');
+page.on('console', (message) => { if (message.type() === 'error') console.error(message.text()); });
+page.on('requestfailed', (request) => console.error('Fixture request failed:', request.url(), request.failure()));
+await page.goto('http://127.0.0.1:1488/e2e/chat-harness.html?role=desktop&demo&socket=ws://127.0.0.1:1490/device-chat',
+  { timeout: 60_000 });
 console.log('Emulator fixture ready at http://10.0.2.2:1490 (local test data only).');
 process.on('SIGINT', async () => {
   await browser.close();

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Modal } from "antd";
+import { ImageViewer } from "../../../../../shared/chat/ImageViewer";
 import styles from "./MessageImage.module.less";
 import { useImageSource } from "./useImageSource";
 
@@ -23,9 +23,7 @@ export function MessageImage({ src, alt, title }: MessageImageProps) {
       <img src={image.url} alt={description} loading="lazy" decoding="async" referrerPolicy="no-referrer"
         onError={() => setFailedSource(image.url)} />
     </button>
-    <Modal open={preview} title={description} footer={null} centered width="min(960px, 94vw)"
-      onCancel={() => setPreview(false)} destroyOnClose>
-      {preview && <img className={styles.preview} src={image.url} alt={description} referrerPolicy="no-referrer" />}
-    </Modal>
+    {preview && <ImageViewer key={src} thumbnail={image.url} description={description}
+      load={image.original} close={() => setPreview(false)} />}
   </>;
 }

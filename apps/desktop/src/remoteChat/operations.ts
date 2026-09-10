@@ -4,13 +4,18 @@ import { object, type RpcRequest, type RpcResponse } from '../../../../shared/re
 import { chunks } from '../../../../shared/remote-chat/framing';
 import { guiComposer } from '../pages/codexGui/composerBridge';
 import { guiSidebar } from '../pages/codexGui/sidebarBridge';
+import { historyDelta, parseHistoryVersion } from '../../../../shared/remote-chat/historySync';
+import { RemoteImages } from './images';
 
 const OPERATIONS = new Set([
   'models', 'list', 'read', 'start', 'resume', 'send', 'steer', 'interrupt', 'rename', 'archive', 'unarchive',
   'compact', 'imagePreview', 'goalGet', 'goalSet', 'goalClear',
 ]);
 const CACHE_TTL_MS = 5 * 60_000;
-interface Cached { fingerprint: string; result: Promise<RpcResponse>; expires: number; completed: boolean }
+interface Cached {
+  fingerprint: string; result: Promise<RpcResponse>; expires: number; completed: boolean; readOnly: boolean;
+}
+const READ_OPERATIONS = new Set(['syncHistory', 'imageChunk', 'imagePreview', 'models', 'list', 'read', 'goalGet']);
 
 function operationError(error: unknown) {
   // Tauri rejects with the safe string produced by the Rust command boundary.
@@ -27,6 +32,7 @@ function response(request: RpcRequest, data: unknown): RpcResponse {
 
 export class ChatOperations {
   private readonly cache = new Map<string, Cached>();
+  private readonly images = new RemoteImages();
 
   execute(request: RpcRequest): Promise<RpcResponse> {
     if (typeof request.id !== 'string' || request.id.length > 160) return Promise.reject(new Error('Invalid request'));
@@ -40,7 +46,9 @@ export class ChatOperations {
     if (this.cache.size >= 512) return Promise.reject(new Error('请求较多，请稍后重试。'));
     const result = this.run(request).then((data) => response(request, data))
       .catch((error: unknown): RpcResponse => ({ kind: 'response', id: request.id, error: operationError(error) }));
-    const entry: Cached = { fingerprint, result, expires: Date.now() + CACHE_TTL_MS, completed: false };
+    const operation = (request.body as { operation?: string } | undefined)?.operation;
+    const readOnly = request.method === 'request' && READ_OPERATIONS.has(operation ?? '');
+    const entry: Cached = { fingerprint, result, expires: Date.now() + CACHE_TTL_MS, completed: false, readOnly };
     this.cache.set(request.id, entry);
     void result.then(() => { entry.completed = true; });
     return result;
@@ -49,6 +57,15 @@ export class ChatOperations {
   private async run(request: RpcRequest): Promise<unknown> {
     if (request.method === 'connect') return guiApi.connect({ reuseExisting: true });
     const body = object(request.body);
+    if (request.method === 'request' && ['imagePreview', 'imageChunk'].includes(String(body.operation))) {
+      return this.images.request(body);
+    }
+    if (request.method === 'request' && body.operation === 'syncHistory') {
+      if (typeof body.threadId !== 'string') throw new Error('请选择聊天后重试。');
+      const known = parseHistoryVersion(body.known);
+      const { thread } = await guiApi.request<{ thread: Thread }>({ operation: 'read', threadId: body.threadId });
+      return historyDelta(this.images.prepare(thread, thread.id), known);
+    }
     if (request.method === 'request' && body.operation === 'composerSet') return guiComposer.update(body.settings);
     if (request.method === 'request' && body.operation === 'threadRead') return guiSidebar.markRead(body);
     if (request.method === 'request' && body.operation === 'models') {
@@ -67,12 +84,19 @@ export class ChatOperations {
     const result = await guiApi.request(body as unknown as Request);
     if (body.operation === 'list') {
       const list = result as ListResponse<Thread>;
-      return { ...list, sidebar: guiSidebar.observe(list.data, sidebarVersion) };
+      return { ...list, data: list.data.map(({ turns: _turns, ...thread }) => thread),
+        sidebar: guiSidebar.observe(list.data, sidebarVersion) };
     }
-    return result;
+    if (body.operation === 'resume' || body.operation === 'send' || body.operation === 'steer') return {};
+    return this.images.prepare(result, String(body.threadId ?? ''));
   }
 
   private prune() {
     for (const [id, entry] of this.cache) if (entry.completed && entry.expires <= Date.now()) this.cache.delete(id);
+    // Frequent history/image reads must not exhaust the retry cache reserved for exactly-once mutations.
+    for (const [id, entry] of this.cache) {
+      if (this.cache.size < 512) break;
+      if (entry.completed && entry.readOnly) this.cache.delete(id);
+    }
   }
 }

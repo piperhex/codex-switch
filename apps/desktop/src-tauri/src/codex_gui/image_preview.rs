@@ -22,8 +22,26 @@ pub(super) async fn preview(
     client: &Client,
     thread_id: String,
     source: String,
+    variant: super::image_thumbnail::ImageVariant,
 ) -> Result<GuiResponse> {
     uuid::Uuid::parse_str(&thread_id).map_err(|_| GuiError::InvalidRequest)?;
+    let source = if source.starts_with("https://") || source.starts_with("http://") {
+        super::image_download::download(&source).await?
+    } else {
+        source
+    };
+    if source.starts_with("data:image/") {
+        // Inline bytes grant no filesystem access; use the same input validation as attachments.
+        let data = tauri::async_runtime::spawn_blocking(move || {
+            super::images::input(source.clone())?;
+            super::image_thumbnail::render(source, variant)
+        })
+        .await
+        .map_err(|_| GuiError::ImagePreview)??;
+        return Ok(GuiResponse {
+            data: json!({ "url": data }),
+        });
+    }
     let mut params = thread_params(thread_id.clone())?;
     params["includeTurns"] = json!(true);
     // Read the actual workspace before the presentation layer hides projectless paths.
@@ -35,7 +53,8 @@ pub(super) async fn preview(
     let generated = client.home.join("generated_images").join(thread_id);
     let data = tauri::async_runtime::spawn_blocking(move || {
         let references = image_references(&response["thread"]);
-        read_image(&source, &workspace, &generated, &references)
+        let original = read_image(&source, &workspace, &generated, &references)?;
+        super::image_thumbnail::render(original, variant)
     })
     .await
     .map_err(|_| GuiError::ImagePreview)??;

@@ -33,7 +33,7 @@ dirs = "6"
 ed25519-dalek = { version = "2.2", features = ["pkcs8"] }
 flate2 = "1"
 futures-util = "0.3"
-image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp"] }
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp", "gif"] }
 json5 = "0.4"
 md-5 = "0.10"
 keyring = "4.1.5"

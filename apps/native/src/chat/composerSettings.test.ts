@@ -4,6 +4,7 @@ import type { AuthSession } from '../types';
 import type { Thread } from './types';
 import type { ConnectionEvents } from '../../../../shared/remote-chat/client/connection';
 import { COMPOSER_EVENT, type ComposerSettings, type ComposerSnapshot } from '../../../../shared/remote-chat/composer';
+import { historyDelta, type HistoryVersion } from '../../../../shared/remote-chat/historySync';
 
 const mocks = vi.hoisted(() => ({ request: vi.fn(), events: null as ConnectionEvents | null }));
 vi.mock('./connection', () => ({ MobileChatConnection: class {
@@ -25,11 +26,11 @@ beforeEach(() => {
         .map((reasoningEffort) => ({ reasoningEffort, description: '' })),
     })) };
   mocks.request.mockImplementation(async (method: string, body?: {
-    operation: string; settings?: Partial<ComposerSettings>;
+    operation: string; settings?: Partial<ComposerSettings>; known?: HistoryVersion;
   }) => {
     if (method === 'connect') return [];
     if (body?.operation === 'models') return { data: pc.models, nextCursor: null, composer: pc };
-    if (body?.operation === 'read') return { thread };
+    if (body?.operation === 'syncHistory') return historyDelta(thread, body.known);
     if (body?.operation === 'composerSet') {
       pc = { ...pc, revision: pc.revision + 1, settings: { ...pc.settings, ...body.settings } };
       return pc;

@@ -1,4 +1,6 @@
 export const DIRECT_TIMEOUT_MS = 10_000;
+// Leave room for timer/clock differences before the gateway's enforced direct-attempt deadline.
+export const RELAY_START_GRACE_MS = 1000;
 export const REQUEST_TIMEOUT_MS = 60_000;
 export const MAX_MESSAGE_CHARS = 8 * 1024 * 1024;
 export const MAX_BUFFER_BYTES = 512 * 1024;

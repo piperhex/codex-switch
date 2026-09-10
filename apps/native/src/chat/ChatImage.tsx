@@ -1,7 +1,8 @@
 import { createContext, useContext, useState } from 'react';
-import { Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useChatImage, type ImagePreviewOptions } from '../../../../shared/remote-chat/client/useChatImage';
 import { palette, styles } from './styles';
+import { ImageViewer } from './ImageViewer';
 
 export const ChatImageContext = createContext<ImagePreviewOptions | null>(null);
 const DEFAULT_ASPECT_RATIO = 4 / 3;
@@ -27,14 +28,8 @@ export function ChatImage({ source, description = '图片' }: { source?: string;
           if (width > 0 && height > 0) setAspectRatio(width / height);
         }} />
     </Pressable>
-    <Modal visible={preview} transparent animationType="fade" onRequestClose={() => setPreview(false)}>
-      <View style={imageStyles.overlay}>
-        <Image source={{ uri: image.url }} accessibilityLabel={description}
-          resizeMode="contain" style={imageStyles.preview} />
-        <Pressable accessibilityRole="button" accessibilityLabel="关闭图片" onPress={() => setPreview(false)}
-          style={imageStyles.close}><Text style={imageStyles.closeText}>关闭</Text></Pressable>
-      </View>
-    </Modal>
+    {preview && <ImageViewer key={image.key} thumbnail={image.url} description={description}
+      load={image.original} close={() => setPreview(false)} />}
   </View>;
 }
 
@@ -42,8 +37,4 @@ const imageStyles = StyleSheet.create({
   container: { width: '100%', marginVertical: 8 },
   thumbnail: { width: '100%', maxHeight: 420, borderRadius: 12, backgroundColor: palette.pale },
   notice: { maxWidth: 400, gap: 8, paddingVertical: 10 },
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.94)', justifyContent: 'center' },
-  preview: { width: '100%', height: '85%' },
-  close: { position: 'absolute', top: 48, right: 20, padding: 14, backgroundColor: '#fff', borderRadius: 12 },
-  closeText: { color: palette.ink, fontWeight: '700' },
 });

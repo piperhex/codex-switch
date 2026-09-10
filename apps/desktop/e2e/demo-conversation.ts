@@ -6,6 +6,13 @@ import { changeDemoComposer, composerErrors, demoComposer } from './demo-compose
 import { guiSidebar } from '../src/pages/codexGui/sidebarBridge';
 import { SIDEBAR_EVENT } from '../../../shared/remote-chat/sidebar';
 import { saveProject } from '../src/pages/codexGui/projectCatalog';
+import { historyDelta, type HistoryVersion } from '../../../shared/remote-chat/historySync';
+import { historyNotification } from '../../../shared/remote-chat/historyNotification';
+import { RemoteImages } from '../src/remoteChat/images';
+import { demoImageResponse } from './demo-images';
+
+const images = new RemoteImages();
+const synchronization: { bytes: number; changedItems: number; text: string }[] = [];
 
 saveProject({ path: 'F:/projects/demo', name: '演示项目' });
 let sidebarLink: ChatLink | undefined;
@@ -29,7 +36,8 @@ let sequence = 0;
 const uniqueId = (name: string) => `${name}-${++sequence}`;
 
 export function demoState() {
-  return { threads: [...threads.values()], operations, approvals: [...approvals.values()].map(({ event }) => event),
+  return { threads: [...threads.values()], operations, synchronization,
+    approvals: [...approvals.values()].map(({ event }) => event),
     streamErrors: [...streamErrors, ...composerErrors], archived: [...archived], composer: demoComposer(),
     sidebar: guiSidebar.snapshot() };
 }
@@ -45,7 +53,8 @@ export function demoResponse(request: RpcRequest, link: ChatLink): unknown {
   if (input.operation === 'threadRead') return guiSidebar.markRead(input);
   if (input.operation === 'list') return { data: [...threads.values()].filter((thread) =>
     archived.has(thread.id) === (input.archived === true)
-      && `${thread.name} ${thread.preview}`.includes(String(input.search ?? ''))), nextCursor: null,
+      && `${thread.name} ${thread.preview}`.includes(String(input.search ?? '')))
+      .map(({ turns: _turns, ...thread }) => thread), nextCursor: null,
     sidebar: guiSidebar.observe([...threads.values()]) };
   if (input.operation === 'start') {
     const thread: Thread = { id: uniqueId('chat'), name: '手机新聊天', preview: '', cwd: '',
@@ -60,14 +69,22 @@ export function demoResponse(request: RpcRequest, link: ChatLink): unknown {
 }
 
 function threadOperation(thread: Thread, input: Record<string, unknown>, link: ChatLink) {
+  if (input.operation === 'syncHistory') {
+    const delta = historyDelta(images.prepare(thread, thread.id), input.known as HistoryVersion | undefined);
+    const text = JSON.stringify(delta);
+    synchronization.push({ bytes: new TextEncoder().encode(text).length,
+      changedItems: delta.turns.reduce((count, turn) => count + turn.items.length, 0), text });
+    return delta;
+  }
   if (input.operation === 'resume' && !thread.turns?.length) {
     throw new Error('New threads have no persisted rollout before the first turn');
   }
-  if (input.operation === 'read' || input.operation === 'resume') return { thread };
-  if (input.operation === 'imagePreview') return { url: previewImage };
+  if (input.operation === 'read') return { thread };
+  if (input.operation === 'resume') return {};
+  if (input.operation === 'imagePreview' || input.operation === 'imageChunk') return demoImageResponse(input);
   if (input.operation === 'archive') { archived.add(thread.id); return {}; }
   if (input.operation === 'unarchive') { archived.delete(thread.id); return {}; }
-  if (input.operation === 'send') return { turn: startTurn(thread, String(input.text), link) };
+  if (input.operation === 'send') { startTurn(thread, String(input.text), link); return {}; }
   const turn = thread.turns?.find((entry) => entry.id === input.turnId);
   if (input.operation === 'interrupt' && turn) {
     finish({ thread, turn, link }, 'interrupted');
@@ -84,7 +101,7 @@ function threadOperation(thread: Thread, input: Record<string, unknown>, link: C
 
 function notify(link: ChatLink, event: GuiEvent) {
   guiSidebar.receive(event);
-  void link.send({ kind: 'event', event: structuredClone(event) }).catch((error: unknown) => {
+  void link.send({ kind: 'event', event: structuredClone(historyNotification(event)) }).catch((error: unknown) => {
     streamErrors.push(error instanceof Error ? error.message : 'Could not send demo event');
   });
 }

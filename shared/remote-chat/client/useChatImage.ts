@@ -4,12 +4,13 @@ import { isInlineImage, localImageSource } from '../../chat/imageSources';
 export interface ImagePreviewOptions {
   threadId: string | null;
   ready: boolean;
-  load: (threadId: string, source: string) => Promise<string>;
+  load: (threadId: string, source: string, original?: boolean) => Promise<string>;
 }
 
 export function useChatImage(source: string | undefined, options: ImagePreviewOptions | null) {
-  const local = source ? localImageSource(source) : undefined;
-  const remote = source && (/^https?:\/\//i.test(source) || isInlineImage(source)) ? source : undefined;
+  const network = source && /^https?:\/\//i.test(source) ? source : undefined;
+  const local = source ? (localImageSource(source) ?? (options?.load ? network : undefined)) : undefined;
+  const remote = source && (isInlineImage(source) || (network && !local)) ? source : undefined;
   const [attempt, setAttempt] = useState(0);
   const [result, setResult] = useState<{ key: string; url?: string; failed?: boolean }>();
   const [failedKey, setFailedKey] = useState<string>();
@@ -29,6 +30,11 @@ export function useChatImage(source: string | undefined, options: ImagePreviewOp
   return {
     key, url: remote || current?.url, failed: current?.failed || failedKey === key || !supported,
     loading: Boolean(local && supported && !current),
+    original: async () => {
+      if (remote) return remote;
+      if (!threadId || !local || !load) throw new Error('图片暂时无法加载，请重试。');
+      return load(threadId, local, true);
+    },
     fail: () => setFailedKey(key), retry: () => setAttempt((value) => value + 1),
   };
 }

@@ -33,6 +33,19 @@ it('preserves a running desktop session when a phone reconnects', async () => {
   expect(guiApi.connect).toHaveBeenCalledWith({ reuseExisting: true });
 });
 
+it('keeps accepting mutations after more than 512 incremental polls', async () => {
+  vi.mocked(guiApi.request).mockResolvedValue({ data: [], nextCursor: null });
+  const operations = new ChatOperations();
+  for (let index = 0; index < 550; index++) {
+    const result = await operations.execute({ kind: 'request', id: `poll:${index}`, method: 'request',
+      body: { operation: 'list' } });
+    expect(result.error).toBeUndefined();
+  }
+  const result = await operations.execute({ kind: 'request', id: 'send', method: 'request',
+    body: { operation: 'send', threadId: 'chat', text: 'continue' } });
+  expect(result.error).toBeUndefined();
+});
+
 it('preserves the safe error string returned by Tauri', async () => {
   vi.mocked(guiApi.request).mockRejectedValue('Codex 已断开连接，请重新连接后继续。');
   const result = await new ChatOperations().execute({ kind: 'request', id: 'read', method: 'request',
@@ -45,7 +58,7 @@ it('returns a bounded error for an oversized preview and still handles the next 
   const operations = new ChatOperations();
   const preview = await operations.execute({ kind: 'request', id: 'image', method: 'request',
     body: { operation: 'imagePreview', threadId: 'chat', source: 'large.png' } });
-  expect(preview.error).toContain('内容过大');
+  expect(preview.error).toContain('图片暂时无法加载');
   expect(preview.data).toBeUndefined();
   expect(await operations.execute({ kind: 'request', id: 'list', method: 'request', body: { operation: 'list' } }))
     .toMatchObject({ data: { data: [] } });

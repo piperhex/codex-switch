@@ -2,16 +2,17 @@ import { expect, it, vi } from 'vitest';
 import { ChatController } from '../../../../shared/remote-chat/client/controller';
 import type { ChatConnection, ConnectionEvents } from '../../../../shared/remote-chat/client/connection';
 import { SIDEBAR_EVENT, type SidebarSnapshot } from '../../../../shared/remote-chat/sidebar';
+import { historyDelta, type HistoryVersion } from '../../../../shared/remote-chat/historySync';
 
 it('acknowledges loaded visible replies and keeps newer PC read state ahead of stale responses', async () => {
   const thread = { id: 'one', cwd: '', preview: '', updatedAt: 1,
     turns: [{ id: 'turn', status: 'completed', items: [] }] };
   const sidebar: SidebarSnapshot = { revision: 1, threads: {}, readState: { one: { turnId: 'turn', unread: true } } };
   let events: ConnectionEvents;
-  const request = vi.fn(async (method: string, body?: { operation: string }) => {
+  const request = vi.fn(async (method: string, body?: { operation: string; known?: HistoryVersion }) => {
     if (method === 'connect') return [];
     if (body?.operation === 'list') return { data: [thread], nextCursor: null, sidebar };
-    if (body?.operation === 'read') return { thread };
+    if (body?.operation === 'syncHistory') return historyDelta(thread, body.known);
     if (body?.operation === 'threadRead') return { ...sidebar, revision: 3,
       readState: { one: { turnId: 'turn', unread: false } } };
     return { data: [], nextCursor: null };

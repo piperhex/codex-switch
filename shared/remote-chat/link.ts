@@ -1,7 +1,7 @@
 import { SessionCipher } from './cipher';
 import { Assembler, chunks } from './framing';
 import {
-  DIRECT_TIMEOUT_MS, MAX_BUFFER_BYTES, type Channel, type ConnectionMode, type IceServer,
+  DIRECT_TIMEOUT_MS, RELAY_START_GRACE_MS, MAX_BUFFER_BYTES, type Channel, type ConnectionMode, type IceServer,
   type Peer, type PeerFactory, type RpcMessage, type Signal,
 } from './protocol';
 
@@ -36,7 +36,7 @@ export class ChatLink {
 
   constructor(private readonly options: LinkOptions) {
     if (options.publicKey) this.setKey(options.publicKey);
-    this.fallbackTimer = setTimeout(() => this.fallback(), DIRECT_TIMEOUT_MS + 150);
+    this.fallbackTimer = setTimeout(() => this.fallback(), DIRECT_TIMEOUT_MS + RELAY_START_GRACE_MS);
     try {
       this.peer = options.createPeer({
         iceServers: options.iceServers,
@@ -96,7 +96,8 @@ export class ChatLink {
     if (this.mode === 'direct') {
       this.changeMode('connecting');
       this.signal({ type: 'relay-request', reason: 'disconnected' });
-    } else if (Date.now() - this.startedAt >= DIRECT_TIMEOUT_MS && this.channel?.readyState !== 'open') {
+    } else if (Date.now() - this.startedAt >= DIRECT_TIMEOUT_MS + RELAY_START_GRACE_MS
+      && this.channel?.readyState !== 'open') {
       // Early ICE failures keep the initial timer so both endpoints give direct discovery its full budget.
       this.signal({ type: 'relay-request', reason: 'timeout' });
     }

@@ -8,6 +8,7 @@ import { guiComposer } from '../pages/codexGui/composerBridge';
 import { COMPOSER_EVENT } from '../../../../shared/remote-chat/composer';
 import { SIDEBAR_EVENT } from '../../../../shared/remote-chat/sidebar';
 import { guiSidebar } from '../pages/codexGui/sidebarBridge';
+import { historyNotification } from '../../../../shared/remote-chat/historyNotification';
 
 export interface ChatHostConfig { websocketUrl: string; accessToken: string; deviceId: string }
 
@@ -35,7 +36,9 @@ export class ChatHost {
     };
     this.socket.onclose = () => this.close();
     this.socket.onerror = () => this.close();
-    void guiApi.subscribe((event) => { guiSidebar.receive(event); this.broadcast(event); }).then((unsubscribe) => {
+    void guiApi.subscribe((event) => {
+      guiSidebar.receive(event); this.broadcast(historyNotification(event));
+    }).then((unsubscribe) => {
       if (this.closed) unsubscribe();
       else this.unsubscribe = unsubscribe;
     }).catch(() => this.close());

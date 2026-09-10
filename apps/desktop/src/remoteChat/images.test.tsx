@@ -22,17 +22,18 @@ async function render(source: string, ready = true, threadId = 'task') {
   </ChatImageContext.Provider>));
 }
 
-it('renders remote images directly and remounts a failed image when retrying', async () => {
+it('loads bounded remote previews through the PC and remounts a failed image when retrying', async () => {
+  load.mockResolvedValue(dataUrl);
   await render('https://example.test/photo.jpg');
   const first = container.querySelector('img')!;
-  expect(first.getAttribute('src')).toBe('https://example.test/photo.jpg');
+  expect(first.getAttribute('src')).toBe(dataUrl);
   expect(first.getAttribute('referrerpolicy')).toBe('no-referrer');
-  expect(load).not.toHaveBeenCalled();
+  expect(load).toHaveBeenCalledWith('task', 'https://example.test/photo.jpg');
   await act(async () => first.dispatchEvent(new Event('error')));
   expect(container.textContent).toContain('图片加载失败');
   await act(async () => container.querySelector('button')!.click());
   expect(container.querySelector('img')).not.toBe(first);
-  expect(container.querySelector('img')?.getAttribute('src')).toBe('https://example.test/photo.jpg');
+  expect(container.querySelector('img')?.getAttribute('src')).toBe(dataUrl);
 });
 
 it('waits for the PC, uses scoped image previews, and retries failed reads', async () => {

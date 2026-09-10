@@ -3,7 +3,8 @@ import { keyPair, SessionCipher } from '../../../../shared/remote-chat/cipher';
 import { Assembler, chunks } from '../../../../shared/remote-chat/framing';
 import { ChatLink } from '../../../../shared/remote-chat/link';
 import { ChatRpc } from '../../../../shared/remote-chat/rpc';
-import { chatSocketUrl, type Channel, type PeerOptions, type RpcMessage } from '../../../../shared/remote-chat/protocol';
+import { chatSocketUrl, DIRECT_TIMEOUT_MS, RELAY_START_GRACE_MS,
+  type Channel, type PeerOptions, type RpcMessage } from '../../../../shared/remote-chat/protocol';
 
 function cipherPair(sessionId = 'test-session') {
   const phone = keyPair((size) => crypto.getRandomValues(new Uint8Array(size)));
@@ -80,7 +81,10 @@ describe('direct preference and relay fallback', () => {
     const harness = linkHarness();
     harness.peer().disconnected();
     expect(harness.signal).not.toHaveBeenCalled();
-    await vi.advanceTimersByTimeAsync(10_200);
+    await vi.advanceTimersByTimeAsync(DIRECT_TIMEOUT_MS);
+    harness.peer().disconnected();
+    expect(harness.signal).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(RELAY_START_GRACE_MS);
     expect(harness.signal).toHaveBeenCalledWith(expect.objectContaining({ type: 'relay-request', reason: 'timeout' }));
     harness.link.enableRelay();
     expect(harness.modes).toEqual(['relay']);

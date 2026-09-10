@@ -9,7 +9,9 @@ mod goals;
 mod home;
 mod icons;
 mod identity;
+mod image_download;
 mod image_preview;
+mod image_thumbnail;
 mod images;
 mod message_edit;
 mod platform;
@@ -98,8 +100,13 @@ pub(crate) async fn codex_gui_request(
         if let GuiRequest::EditMessage(edit) = request {
             return message_edit::submit(&client, edit).await;
         }
-        if let GuiRequest::ImagePreview { thread_id, source } = request {
-            return image_preview::preview(&client, thread_id, source).await;
+        if let GuiRequest::ImagePreview {
+            thread_id,
+            source,
+            variant,
+        } = request
+        {
+            return image_preview::preview(&client, thread_id, source, variant).await;
         }
         let projectless_root = client.projectless_root.clone();
         let response_root = projectless_root.clone();

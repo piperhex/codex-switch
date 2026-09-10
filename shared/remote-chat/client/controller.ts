@@ -1,6 +1,8 @@
 import type { ChatConnection, ConnectionEvents } from './connection';
 import { applyChatEvent } from './events';
 import { mergeHistory } from './history';
+import { HISTORY_CHANGED, historyVersion, applyHistoryDelta, type HistoryDelta } from '../historySync';
+import { ImageCache } from './imageCache';
 import type { ConnectionMode } from '../protocol';
 import { COMPOSER_EVENT, composerPatch, type ComposerModelsResponse,
   type ComposerSettings, type ComposerSnapshot } from '../composer';
@@ -21,7 +23,11 @@ export class ChatController {
   private synchronization = 0;
   private active = false;
   private syncTimer?: ReturnType<typeof setTimeout>;
-  private readonly previews = new Map<string, Promise<string>>();
+  private readonly images = new ImageCache(<T>(body: Parameters<ConstructorParameters<typeof ImageCache>[0]>[0]) =>
+    this.connection.request<T>('request', body));
+  private readonly histories = new Map<string, Thread>();
+  private historyTimer?: ReturnType<typeof setTimeout>;
+  private historyDirty = false;
   private composerRevision = -1;
   private remoteSettings = this.state.settings;
   private pendingSettings: Partial<ComposerSettings> = {};
@@ -57,10 +63,18 @@ export class ChatController {
     this.readGeneration += 1;
     this.refreshThreadId = null;
     clearTimeout(this.syncTimer);
+    clearTimeout(this.historyTimer);
+    this.historyTimer = undefined;
     this.update({ mode, ready: false, loading: false });
   }
 
   private receive(event: GuiEvent) {
+    if (event?.method === HISTORY_CHANGED) {
+      if (event.params.threadId === this.state.selected?.id) this.scheduleHistory();
+      if (event.params.reason?.startsWith('thread/')
+        || !this.state.threads.some((thread) => thread.id === event.params.threadId)) void this.list();
+      return;
+    }
     if (event?.method === COMPOSER_EVENT) { this.applyComposer(event.params as unknown as ComposerSnapshot); return; }
     if (event?.method === SIDEBAR_EVENT) { this.applySidebar(event.params as unknown as SidebarSnapshot); return; }
     this.state = applyChatEvent(this.state, event);
@@ -81,10 +95,21 @@ export class ChatController {
     this.syncTimer = setTimeout(() => { void this.synchronize(); }, SYNCHRONIZATION_RETRY_MS);
   }
 
+  private scheduleHistory() {
+    this.historyDirty = true;
+    if (this.historyTimer || this.refreshThreadId || !this.active) return;
+    this.historyTimer = setTimeout(() => {
+      this.historyTimer = undefined;
+      void this.refreshSelected();
+    }, 100);
+  }
+
   start() { this.active = true; this.connection.start(); }
   stop() {
     this.active = false;
     clearTimeout(this.syncTimer);
+    clearTimeout(this.historyTimer);
+    this.historyTimer = undefined;
     this.synchronization += 1;
     this.listGeneration += 1;
     this.readGeneration += 1;
@@ -221,8 +246,10 @@ export class ChatController {
   }
 
   async select(thread: Thread) {
+    this.rememberHistory();
     this.loadedThreadId = null;
-    this.update({ selected: thread, selectedArchived: this.state.archived, error: '' });
+    this.update({ selected: this.histories.get(thread.id) ?? thread,
+      selectedArchived: this.state.archived, error: '' });
     await this.refreshSelected();
   }
 
@@ -230,19 +257,37 @@ export class ChatController {
     const selected = this.state.selected;
     if (!selected || this.refreshThreadId === selected.id) return;
     this.refreshThreadId = selected.id;
+    this.historyDirty = false;
     const generation = ++this.readGeneration;
     try {
-      const result = await this.request<{ thread: Thread }>({ operation: 'read', threadId: selected.id });
+      const result = await this.connection.request<HistoryDelta>('request', {
+        operation: 'syncHistory', threadId: selected.id, known: historyVersion(selected),
+      });
       if (generation === this.readGeneration && this.state.selected?.id === selected.id) {
         this.loadedThreadId = selected.id;
-        this.update({ selected: mergeHistory(result.thread, this.state.selected, selected) });
+        this.update({ selected: mergeHistory(applyHistoryDelta(selected, result), this.state.selected, selected) });
+        this.rememberHistory();
         this.markViewed();
       }
     } catch (error) { if (generation === this.readGeneration) this.failure(error); }
-    finally { if (generation === this.readGeneration) this.refreshThreadId = null; }
+    finally {
+      if (generation === this.readGeneration) {
+        this.refreshThreadId = null;
+        if (this.historyDirty) this.scheduleHistory();
+      }
+    }
+  }
+
+  private rememberHistory() {
+    const thread = this.state.selected;
+    if (!thread) return;
+    this.histories.delete(thread.id);
+    this.histories.set(thread.id, thread);
+    if (this.histories.size > 8) this.histories.delete(this.histories.keys().next().value!);
   }
 
   back() {
+    this.rememberHistory();
     this.readGeneration += 1;
     this.refreshThreadId = null;
     this.loadedThreadId = null;
@@ -287,15 +332,7 @@ export class ChatController {
     if (generation !== this.synchronization || !this.state.ready) throw new Error('连接已中断，请连接后再发送。');
   }
 
-  imagePreview = (threadId: string, source: string): Promise<string> => {
-    const key = JSON.stringify([threadId, source]);
-    const pending = this.previews.get(key);
-    if (pending) return pending;
-    const request = this.request<{ url: string }>({ operation: 'imagePreview', threadId, source })
-      .then(({ url }) => url).finally(() => this.previews.delete(key));
-    this.previews.set(key, request);
-    return request;
-  };
+  imagePreview = (threadId: string, source: string, original = false) => this.images.load(threadId, source, original);
 
   async interrupt() {
     const thread = this.state.selected;

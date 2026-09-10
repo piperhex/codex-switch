@@ -54,7 +54,8 @@
           "recordAudioAndroid": false
         }
       ],
-      "./plugins/withChatTransport.cjs"
+      "./plugins/withChatTransport.cjs",
+      "./plugins/withSharedBundleInputs.cjs"
     ]
   }
 }

@@ -177,7 +177,7 @@ export type ApprovalReply = {
 export type Request =
   | { operation: "editMessage"; threadId: string; turnId: string; itemId: string; text: string;
       model?: string; effort?: string; access: AccessMode; cwd?: string }
-  | { operation: "imagePreview"; threadId: string; source: string }
+  | { operation: "imagePreview"; threadId: string; source: string; variant?: "thumbnail" | "original" }
   | { operation: "goalGet" | "goalClear"; threadId: string }
   | { operation: "goalSet"; threadId: string; objective?: string; status: "active" | "paused" }
   | { operation: "plugins"; cwd?: string }
@@ -201,7 +201,6 @@ export interface MessageInput {
 }
 export interface QueuedMessage extends MessageInput {
   id: string;
-  editing?: boolean;
   busy?: boolean;
   model: string;
   effort: string;
