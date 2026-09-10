@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { BackHandler, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { BackHandler, Keyboard, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import type { AuthSession, RemoteDevice } from '../types';
 import { ChatApproval } from './ChatApprovals';
 import { ChatComposer } from './ChatComposer';
@@ -10,31 +10,57 @@ import { ChatThreads } from './ChatThreads';
 import { ChatDrawer, type ChatDrawerMethods } from './ChatDrawer';
 import { ChatDevices } from './ChatDevices';
 import { useChat } from './useChat';
+import { useChatBackground } from './useChatBackground';
+import { useChatCompletionNotifications, useOpenChatNotification } from './useChatNotifications';
+import { notificationId, type ChatNotificationTarget } from './notificationTarget';
 import { styles } from './styles';
 import { threadPresentation } from '../../../../shared/remote-chat/sidebar';
 
-interface Props { session: AuthSession; devices: RemoteDevice[]; active: boolean }
+interface Props {
+  session: AuthSession; devices: RemoteDevice[]; active: boolean;
+  notification: ChatNotificationTarget | null; notificationError: string;
+  notificationHandled: (id: string) => void;
+}
 const modeLabels = { connecting: '正在连接…', direct: '已直连', relay: '通过服务器连接', offline: '等待重新连接' };
 
-export function ChatPage({ session, devices, active }: Props) {
+export function ChatPage({ session, devices, active, notification, notificationError, notificationHandled }: Props) {
   const [deviceId, setDeviceId] = useState<string | null>(null);
-  const device = devices.find((entry) => entry.deviceId === deviceId)
-    ?? devices.find((entry) => entry.online) ?? devices[0];
+  const requestedId = notification?.deviceId ?? deviceId;
+  const device = requestedId ? devices.find((entry) => entry.deviceId === requestedId)
+    : devices.find((entry) => entry.online) ?? devices[0];
+  useEffect(() => { if (notification) setDeviceId(notification.deviceId); }, [notification]);
+  const backgroundError = useChatBackground(Boolean(device));
+  const chooseDevice = (id: string) => {
+    if (notification) notificationHandled(notificationId(notification));
+    setDeviceId(id);
+  };
   useEffect(() => { if (!deviceId && device) setDeviceId(device.deviceId); }, [deviceId, device?.deviceId]);
   return <View style={[styles.page, !active && styles.hidden]}>
+    {notification && devices.length > 0 && !device && <Text style={styles.error}>
+      通知对应的电脑暂不可用，请选择其他电脑。</Text>}
+    {!!backgroundError && <Text accessibilityRole="alert" style={styles.error}>{backgroundError}</Text>}
+    {!!notificationError && <Pressable accessibilityRole="button" accessibilityLabel="打开通知设置"
+      onPress={() => { void Linking.openSettings(); }}><Text style={styles.error}>{notificationError}</Text></Pressable>}
     <ConnectedChat key={`${session.baseUrl}:${session.email}:${device?.deviceId ?? ''}`} session={session}
-      device={device} devices={devices} active={active} chooseDevice={setDeviceId} />
+      device={device} devices={devices} active={active} chooseDevice={chooseDevice}
+      notification={notification} notificationError={notificationError} notificationHandled={notificationHandled} />
   </View>;
 }
 
-function ConnectedChat({ session, device, devices, active, chooseDevice }: Props & {
+function ConnectedChat({ session, device, devices, active, chooseDevice, notification, notificationHandled }: Props & {
   device?: RemoteDevice; chooseDevice: (id: string) => void;
 }) {
-  const { state, controller } = useChat(session, device?.deviceId ?? '', active && Boolean(device));
+  const { state, controller, foreground } = useChat(session, device?.deviceId ?? '', Boolean(device));
+  useChatCompletionNotifications(controller, session, device?.deviceId ?? '');
+  useOpenChatNotification({ controller, target: notification?.deviceId === device?.deviceId ? notification : null,
+    ready: state.ready, sending: state.sending, handled: notificationHandled });
   const [drawer, setDrawer] = useState(false);
   const drawerRef = useRef<ChatDrawerMethods>(null);
   const afterClose = useRef<(() => void) | undefined>(undefined);
   const [pickingDevice, setPickingDevice] = useState(false);
+  useEffect(() => {
+    if (notification) { afterClose.current = undefined; drawerRef.current?.closeDrawer(); setPickingDevice(false); }
+  }, [notification]);
   const ready = state.ready;
   const runningTurn = state.selected?.turns?.find((turn) => turn.status === 'inProgress');
   const running = Boolean(runningTurn);
@@ -47,8 +73,8 @@ function ConnectedChat({ session, device, devices, active, chooseDevice }: Props
     action?.();
   }, []);
   const newChat = () => { if (!state.sending) closeDrawer(() => controller.back()); };
-  useEffect(() => { controller.setViewing(active && !drawer && !pickingDevice); },
-    [active, drawer, pickingDevice, controller]);
+  useEffect(() => { controller.setViewing(active && foreground && !drawer && !pickingDevice); },
+    [active, foreground, drawer, pickingDevice, controller]);
   useEffect(() => {
     if (!active) { afterClose.current = undefined; drawerRef.current?.closeDrawer(); setPickingDevice(false); }
   }, [active]);

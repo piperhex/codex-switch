@@ -125,6 +125,9 @@ export async function prepare() {
   await adb('install', '-r', apk);
   // The documented command uses a read-only, disposable emulator; never target a physical phone or normal AVD session.
   await adb('shell', 'pm', 'clear', 'com.codexswitch.mobile');
+  if (Number(await adb('shell', 'getprop', 'ro.build.version.sdk')) >= 33) {
+    await adb('shell', 'pm', 'grant', 'com.codexswitch.mobile', 'android.permission.POST_NOTIFICATIONS');
+  }
   await adb('reverse', 'tcp:1490', 'tcp:1490');
   await adb('logcat', '-c');
   await adb('shell', 'am', 'start', '-n', 'com.codexswitch.mobile/.MainActivity');

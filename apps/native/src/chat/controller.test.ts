@@ -32,6 +32,23 @@ async function connectedController() {
 
 describe('mobile chat actions', () => {
 
+  it('delivers completion events for unselected chats and cleans up event subscriptions', async () => {
+    const controller = await connectedController();
+    const listener = vi.fn();
+    const unsubscribe = controller.subscribeEvents(listener);
+    controller.setViewing(false);
+    const event = { method: 'turn/completed', params: {
+      threadId: 'other-chat', turn: { id: 'done', status: 'completed', items: [] },
+    } };
+    mocks.events!.event(event);
+    expect(listener).toHaveBeenCalledWith(event);
+    expect(mocks.request).not.toHaveBeenCalled();
+    unsubscribe();
+    mocks.events!.event(event);
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+
   it.each(['new', 'existing', 'running'])('sends image-only input in a %s chat', async (mode) => {
     const controller = await connectedController();
     const selected = mode === 'running'

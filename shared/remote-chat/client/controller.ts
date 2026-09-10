@@ -19,6 +19,7 @@ const SYNCHRONIZATION_RETRY_MS = 3000;
 export class ChatController {
   private state = initialChatState();
   private readonly listeners = new Set<() => void>();
+  private readonly eventListeners = new Set<(event: GuiEvent) => void>();
   private readonly connection: ChatConnection;
   private listGeneration = 0;
   private readGeneration = 0;
@@ -52,6 +53,10 @@ export class ChatController {
 
   snapshot = () => this.state;
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => this.listeners.delete(listener); };
+  subscribeEvents = (listener: (event: GuiEvent) => void) => {
+    this.eventListeners.add(listener);
+    return () => { this.eventListeners.delete(listener); };
+  };
   private emit() { for (const listener of this.listeners) listener(); }
   private update(patch: Partial<ChatState>) { this.state = { ...this.state, ...patch }; this.emit(); }
   private request<T>(body: Request) { return this.connection.request<T>('request', body); }
@@ -77,6 +82,8 @@ export class ChatController {
   }
 
   private receive(event: GuiEvent) {
+    if (!event?.params || typeof event.method !== 'string') return;
+    for (const listener of this.eventListeners) listener(event);
     if (event?.method === HISTORY_CHANGED) {
       if (event.params.threadId === this.state.selected?.id) this.scheduleHistory();
       if (event.params.reason?.startsWith('thread/')
