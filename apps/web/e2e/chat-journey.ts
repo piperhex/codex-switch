@@ -1,6 +1,7 @@
 import { expect, type Page, type APIRequestContext, type TestInfo } from '@playwright/test';
 import { click, connect, navigate, operationCount, send, settled, screenshot, state, fixtureUrl } from './chat-helpers';
 import { sidebarJourney } from './chat-sidebar';
+import { existingChatSettings } from './chat-existing-settings';
 
 interface Journey { page: Page; request: APIRequestContext; info: TestInfo; transport?: 'direct' | 'either' }
 const ready = (page: Page, transport?: Journey['transport']) => expect(page.getByRole('status')
@@ -168,6 +169,7 @@ export async function chatJourney(context: Journey) {
   await recoverConnection(context);
   await imagePreview(context);
   await synchronizeComposer(context);
+  await existingChatSettings(context);
   await sidebarJourney(context);
   expect(errors).toEqual([]);
 }

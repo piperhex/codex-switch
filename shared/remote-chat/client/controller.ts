@@ -2,7 +2,9 @@ import type { ChatConnection, ConnectionEvents } from './connection';
 import { applyChatEvent } from './events';
 import { mergeHistory } from './history';
 import type { ConnectionMode } from '../protocol';
-import { COMPOSER_EVENT, type ComposerModelsResponse, type ComposerSettings, type ComposerSnapshot } from '../composer';
+import { COMPOSER_EVENT, composerPatch, type ComposerModelsResponse,
+  type ComposerSettings, type ComposerSnapshot } from '../composer';
+import { resolveModelSelection } from '../../../apps/desktop/src/pages/codexGui/modelSelection';
 import { SIDEBAR_EVENT, type SidebarSnapshot } from '../sidebar';
 import { initialChatState, type ApprovalReply, type ChatState, type GuiEvent,
   type ListResponse, type Request, type Thread } from './types';
@@ -21,6 +23,9 @@ export class ChatController {
   private syncTimer?: ReturnType<typeof setTimeout>;
   private readonly previews = new Map<string, Promise<string>>();
   private composerRevision = -1;
+  private remoteSettings = this.state.settings;
+  private pendingSettings: Partial<ComposerSettings> = {};
+  private savingSettings = false;
   private viewing = true;
   private loadedThreadId: string | null = null;
   private readonly reading = new Set<string>();
@@ -96,7 +101,10 @@ export class ChatController {
       if (!this.active || generation !== this.synchronization) return;
       this.update({ approvals, error: '' });
       await Promise.all([this.list(), this.loadModels(generation), this.refreshSelected()]);
-      if (this.active && generation === this.synchronization) this.update({ ready: true });
+      if (this.active && generation === this.synchronization) {
+        this.update({ ready: true });
+        void this.flushSettings();
+      }
     } catch (error) {
       if (!this.active || generation !== this.synchronization) return;
       this.failure(error);
@@ -111,7 +119,7 @@ export class ChatController {
     else {
       const model = result.data.find((entry) => entry.isDefault) ?? result.data[0];
       this.update({ models: result.data, settings: { ...this.state.settings,
-        model: model?.model ?? '', effort: model?.defaultReasoningEffort ?? '' } });
+        model: model?.model ?? '', effort: model?.defaultReasoningEffort ?? '', ...this.pendingSettings } });
     }
   }
 
@@ -119,7 +127,8 @@ export class ChatController {
     if (!snapshot || !Array.isArray(snapshot.models) || !snapshot.settings
       || !Number.isSafeInteger(snapshot.revision) || snapshot.revision < this.composerRevision) return;
     this.composerRevision = snapshot.revision;
-    this.update({ models: snapshot.models, settings: snapshot.settings });
+    this.remoteSettings = snapshot.settings;
+    this.update({ models: snapshot.models, settings: { ...snapshot.settings, ...this.pendingSettings } });
   }
 
   private applySidebar(sidebar?: SidebarSnapshot) {
@@ -151,14 +160,45 @@ export class ChatController {
   }
 
   async setSettings(settings: Partial<ComposerSettings>) {
-    if (!this.state.ready || this.state.settingsBusy) return;
+    const patch = composerPatch(settings);
+    if (!Object.keys(patch).length) return;
+    if (patch.model && patch.model !== this.state.settings.model) {
+      const selection = resolveModelSelection(this.state.models, { model: patch.model, effort: patch.effort ?? '' });
+      patch.effort = selection.effort;
+    }
+    this.pendingSettings = { ...this.pendingSettings, ...patch };
+    this.update({ settings: { ...this.state.settings, ...patch }, settingsBusy: true, settingsError: '' });
+    // Editing remains available during reconnects and while the PC acknowledges an earlier choice.
+    void this.flushSettings();
+  }
+
+  private async flushSettings() {
+    if (!this.active || !this.state.ready || this.savingSettings || !Object.keys(this.pendingSettings).length) return;
+    this.savingSettings = true;
+    const settings = { ...this.pendingSettings };
     const generation = this.synchronization;
-    this.update({ settingsBusy: true, error: '' });
+    let accepted = false;
     try {
       const result = await this.connection.request<ComposerSnapshot>('request', { operation: 'composerSet', settings });
-      if (generation === this.synchronization) this.applyComposer(result);
-    } catch (error) { if (generation === this.synchronization) this.failure(error); }
-    finally { this.update({ settingsBusy: false }); }
+      if (generation !== this.synchronization) return;
+      if (!result?.settings || !Number.isSafeInteger(result.revision)) throw new Error('电脑尚未确认设置，请重试。');
+      for (const field of ['model', 'effort', 'access'] as const) {
+        if (settings[field] !== undefined && this.pendingSettings[field] === settings[field]) {
+          delete this.pendingSettings[field];
+        }
+      }
+      if (result.revision < this.composerRevision) {
+        this.update({ settings: { ...this.remoteSettings, ...this.pendingSettings } });
+      } else this.applyComposer(result);
+      this.update({ settingsBusy: Object.keys(this.pendingSettings).length > 0, settingsError: '' });
+      accepted = true;
+    } catch (error) {
+      if (generation === this.synchronization) this.update({ settingsError: error instanceof Error
+        ? error.message : '设置尚未保存，请重试。' });
+    } finally {
+      this.savingSettings = false;
+      if (accepted || generation !== this.synchronization) void this.flushSettings();
+    }
   }
 
   async list(options: { search?: string; archived?: boolean; more?: boolean } = {}) {

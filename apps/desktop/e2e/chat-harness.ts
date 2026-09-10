@@ -16,6 +16,7 @@ const events: unknown[] = [];
 const modes: string[] = [];
 const errors: string[] = [];
 let executions = 0;
+let settingsDelay = 0;
 let heartbeats = 0;
 setInterval(() => { heartbeats += 1; }, 20);
 const requests = new Map<string, RpcMessage>();
@@ -53,7 +54,11 @@ async function receive({ data }: MessageEvent<string>) {
             data: query.has('demo') ? structuredClone(demoResponse(message, link)) : message.body };
           requests.set(message.id, response);
         }
-        void link.send(response);
+        const target = link;
+        const isSettings = (message.body as { operation?: string } | undefined)?.operation === 'composerSet';
+        const send = () => { void target.send(response).catch((error: unknown) => errors.push(String(error))); };
+        if (isSettings && settingsDelay) setTimeout(send, settingsDelay);
+        else send();
       },
     });
     if (desktop) socket.send(JSON.stringify({ type: 'signal', sessionId: frame.sessionId,
@@ -71,11 +76,13 @@ declare global {
   interface Window {
     chatTest: { modes: string[]; errors: string[]; events: unknown[]; request: (text: string) => Promise<unknown>;
       fallback: () => void; stream: (text: string) => Promise<void>; executions: () => number; beats: () => number;
-      demoState: typeof demoState; setComposer: (input: unknown) => void; setSidebar: (action: string) => void };
+      demoState: typeof demoState; setComposer: (input: unknown) => void; setSidebar: (action: string) => void;
+      setSettingsDelay: (milliseconds: number) => void };
   }
 }
 window.chatTest = { modes, errors, events, request: (text) => rpc.request('request', { text }),
   fallback: () => link.fallback(), stream: (text) => link.send({ kind: 'event', event: { text } }),
   executions: () => executions, beats: () => heartbeats, demoState,
   setComposer: (input) => { changeDemoComposer(input, link); },
+  setSettingsDelay: (milliseconds) => { settingsDelay = Math.max(0, Math.min(5000, milliseconds)); },
   setSidebar: (action) => { changeDemoSidebar(action, link); } };

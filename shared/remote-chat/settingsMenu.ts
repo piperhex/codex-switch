@@ -24,3 +24,9 @@ export function settingValue(field: SettingField, models: Model[], selection: Co
   return settingOptions(field, models, selection).find((option) => option.value === selection[field])?.label
     || selection[field] || '正在同步…';
 }
+
+export function settingsNotice({ saving, ready, error }: { saving: boolean; ready: boolean; error: string }) {
+  if (error) return error;
+  if (!saving) return '';
+  return ready ? '正在保存设置…' : '已保留选择，连接后自动保存。';
+}

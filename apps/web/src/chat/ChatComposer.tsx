@@ -7,6 +7,7 @@ interface Props {
   models: Model[];
   selection: ComposerSettings;
   settingsBusy: boolean;
+  settingsError: string;
   updateSettings: (settings: Partial<ComposerSettings>) => Promise<void>;
   active: boolean;
   ready: boolean;
@@ -15,7 +16,7 @@ interface Props {
   send: (input: SendInput) => Promise<boolean>;
   interrupt: () => void;
 }
-export function ChatComposer({ models, selection, settingsBusy, updateSettings,
+export function ChatComposer({ models, selection, settingsBusy, settingsError, updateSettings,
   active, ready, sending, running, send, interrupt }: Props) {
   const [text, setText] = useState('');
   const [settings, setSettings] = useState(false);
@@ -46,7 +47,8 @@ export function ChatComposer({ models, selection, settingsBusy, updateSettings,
           disabled={disabled || sending || !text.trim()}>{buttonText}</button>
       </div>
     </form>
-    {settings && <ChatSettings models={models} selection={selection} disabled={disabled}
+    {settings && <ChatSettings models={models} selection={selection}
+      saving={settingsBusy} error={settingsError} ready={ready}
       updateSettings={updateSettings} onClose={() => setSettings(false)} />}
   </>;
 }

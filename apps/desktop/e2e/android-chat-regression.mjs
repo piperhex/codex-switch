@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { markdownReport } from './android-chat-report.mjs';
+import { existingChatSettings } from './android-existing-settings.mjs';
 import { adb, output, prepare, serverState, waitFor, waitText, tap, input, send, screenshot, hasText }
   from './android-chat-driver.mjs';
 
@@ -233,6 +234,7 @@ try {
     await waitText('想一起完成什么？');
     await waitText('聊天消息');
   });
+  await check('15-existing-chat-settings-stay-editable', existingChatSettings);
   report.fixture = await serverState();
   assert.deepEqual(report.fixture.streamErrors, []);
   report.passed = true;

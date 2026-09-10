@@ -73,7 +73,9 @@ export class ComposerBridge {
     const current = await this.read();
     const selected = current.models.find((model) => model.model === (patch.model ?? current.settings.model));
     if (!selected) throw new Error('这个模型已不可用，请重新选择。');
-    if (patch.effort && !selected.supportedReasoningEfforts.some((entry) => entry.reasoningEffort === patch.effort)) {
+    const efforts = selected.supportedReasoningEfforts.map((entry) => entry.reasoningEffort);
+    if (!efforts.length) efforts.push(resolveModelSelection([selected], { model: selected.model, effort: '' }).effort);
+    if (patch.effort && !efforts.includes(patch.effort)) {
       throw new Error('这个模型不支持所选思考深度，请重新选择。');
     }
     const settings = { ...current.settings, ...patch,

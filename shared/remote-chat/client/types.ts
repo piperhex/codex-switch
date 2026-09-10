@@ -15,6 +15,7 @@ export interface ChatState {
   models: Model[];
   settings: ComposerSettings;
   settingsBusy: boolean;
+  settingsError: string;
   sidebar: SidebarSnapshot;
   approvals: GuiEvent[];
   cursor: string | null;
@@ -28,6 +29,6 @@ export interface ChatState {
 export function initialChatState(): ChatState {
   return { mode: 'offline', ready: false, threads: [], selected: null, selectedArchived: false,
     models: [], approvals: [], cursor: null,
-    settings: { ...DEFAULT_COMPOSER }, settingsBusy: false, sidebar: emptySidebar(),
+    settings: { ...DEFAULT_COMPOSER }, settingsBusy: false, settingsError: '', sidebar: emptySidebar(),
     search: '', archived: false, loading: false, sending: false, error: '' };
 }

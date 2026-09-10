@@ -42,6 +42,16 @@ const httpServer = http.createServer((request, response) => {
     })().catch(() => response.writeHead(400).end('{}'));
     return;
   }
+  if (request.url === '/test/settings-delay' && request.method === 'POST') {
+    void (async () => {
+      let body = '';
+      for await (const chunk of request) body += chunk.toString();
+      await page.evaluate((milliseconds) => window.chatTest.setSettingsDelay(milliseconds),
+        JSON.parse(body).milliseconds);
+      response.end('{}');
+    })().catch(() => response.writeHead(400).end('{}'));
+    return;
+  }
   if (request.url === '/test/state') {
     void page.evaluate(() => window.chatTest ? ({ ...window.chatTest.demoState(), modes: window.chatTest.modes,
       errors: window.chatTest.errors }) : null).then((state) => {

@@ -10,6 +10,7 @@ interface Props {
   models: Model[];
   selection: ComposerSettings;
   settingsBusy: boolean;
+  settingsError: string;
   updateSettings: (settings: Partial<ComposerSettings>) => Promise<void>;
   ready: boolean;
   sending: boolean;
@@ -18,7 +19,7 @@ interface Props {
   interrupt: () => void;
 }
 
-export function ChatComposer({ models, selection, settingsBusy, updateSettings,
+export function ChatComposer({ models, selection, settingsBusy, settingsError, updateSettings,
   ready, sending, running, send, interrupt }: Props) {
   const [text, setText] = useState('');
   const [settings, setSettings] = useState(false);
@@ -46,7 +47,8 @@ export function ChatComposer({ models, selection, settingsBusy, updateSettings,
         <Text style={[styles.buttonText, styles.primaryText]}>{sending ? '发送中' : running ? '补充' : '发送 ↑'}</Text>
       </Pressable>
     </View>
-    {settings && <ChatSettings models={models} selection={selection} disabled={disabled}
+    {settings && <ChatSettings models={models} selection={selection}
+      saving={settingsBusy} error={settingsError} ready={ready}
       updateSettings={updateSettings} onClose={() => setSettings(false)} />}
   </View>;
 }

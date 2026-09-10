@@ -67,7 +67,8 @@ function ConnectedChat({ session, device, devices, active, chooseDevice }: Props
           <ChatApproval key={String(event.id)} event={event} respond={(reply) => controller.respond(reply)} />)}
       </ScrollView>}
     <ChatComposer key={state.selected?.id ?? 'new'} models={state.models} selection={state.settings}
-      settingsBusy={state.settingsBusy} updateSettings={(settings) => controller.setSettings(settings)}
+      settingsBusy={state.settingsBusy} settingsError={state.settingsError}
+      updateSettings={(settings) => controller.setSettings(settings)}
       ready={ready} sending={state.sending} running={running}
       send={(input) => controller.send(input)} interrupt={() => { void controller.interrupt(); }} />
     {drawer && <ChatDrawer onClose={() => setDrawer(false)}>

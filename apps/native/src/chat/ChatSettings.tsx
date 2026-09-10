@@ -3,23 +3,26 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomSheet } from '../components/BottomSheet';
 import type { Model } from './types';
 import type { ComposerSettings } from '../../../../shared/remote-chat/composer';
-import { SETTINGS_FIELDS, settingOptions, settingValue,
+import { SETTINGS_FIELDS, settingOptions, settingValue, settingsNotice,
   type SettingField } from '../../../../shared/remote-chat/settingsMenu';
 import { palette, styles } from './styles';
 
 interface Props {
   models: Model[];
   selection: ComposerSettings;
-  disabled: boolean;
+  saving: boolean;
+  ready: boolean;
+  error: string;
   updateSettings: (settings: Partial<ComposerSettings>) => Promise<void>;
   onClose: () => void;
 }
 
-export function ChatSettings({ models, selection, disabled, updateSettings, onClose }: Props) {
+export function ChatSettings({ models, selection, saving, ready, error, updateSettings, onClose }: Props) {
   const [field, setField] = useState<SettingField | null>(null);
+  const notice = settingsNotice({ saving, ready, error });
   const choose = async (value: string) => {
-    if (!field || disabled) return;
-    if (value !== selection[field]) await updateSettings({ [field]: value });
+    if (!field) return;
+    if (value !== selection[field] || error) await updateSettings({ [field]: value });
     setField((current) => current === field ? null : current);
   };
   return <BottomSheet visible title="聊天设置" onClose={onClose}>
@@ -31,14 +34,18 @@ export function ChatSettings({ models, selection, disabled, updateSettings, onCl
         <Text numberOfLines={1} style={menuStyles.value}>{settingValue(entry.field, models, selection)}</Text>
         <Text style={menuStyles.arrow}>›</Text>
       </Pressable>)}
+      {!!notice && <Text accessibilityRole={error ? 'alert' : undefined}
+        style={error ? styles.error : styles.subtitle}>{notice}</Text>}
+      {!!error && <Pressable accessibilityRole="button" style={styles.button}
+        onPress={() => { void updateSettings(selection); }}><Text style={styles.buttonText}>重新保存</Text></Pressable>}
     </View>
     {field && <BottomSheet visible title={SETTINGS_FIELDS.find((entry) => entry.field === field)!.title}
       onBack={() => setField(null)} onClose={() => setField(null)}>
       <ScrollView key={field} contentContainerStyle={[styles.settings, menuStyles.content]}>
         {settingOptions(field, models, selection).map((option) => <Pressable key={option.value}
-          accessibilityRole="radio" accessibilityLabel={option.label} disabled={disabled}
-          accessibilityState={{ checked: selection[field] === option.value, disabled }}
-          style={[styles.choice, selection[field] === option.value && styles.chosen, disabled && styles.disabled]}
+          accessibilityRole="radio" accessibilityLabel={option.label}
+          accessibilityState={{ checked: selection[field] === option.value }}
+          style={[styles.choice, selection[field] === option.value && styles.chosen]}
           onPress={() => { void choose(option.value); }}>
           <View style={styles.row}>
             <Text style={[styles.buttonText, styles.fill]}>{option.label}</Text>

@@ -66,3 +66,10 @@ it('loads all account model pages when the desktop GUI has not been opened', asy
   expect(snapshot.models).toEqual(models);
   expect(guiApi.request).toHaveBeenLastCalledWith({ operation: 'models', cursor: 'next' });
 });
+
+it('accepts the resolved default when changing to a model without selectable reasoning levels', async () => {
+  const bridge = new ComposerBridge();
+  bridge.setProviderModels([{ ...models[1], supportedReasoningEfforts: [], defaultReasoningEffort: 'none' }]);
+  expect((await bridge.update({ model: 'second', effort: 'none' })).settings.effort).toBe('none');
+  await expect(bridge.update({ effort: 'xhigh' })).rejects.toThrow();
+});
