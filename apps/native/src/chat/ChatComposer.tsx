@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { ChatSettings } from './ChatSettings';
-import type { Model } from './types';
+import { ChatPhotoPicker } from './ChatPhotoPicker';
+import { useChatPhotos } from './useChatPhotos';
+import type { Model, SendInput } from './types';
 import { styles } from './styles';
 import { composerLabel, type ComposerSettings } from '../../../../shared/remote-chat/composer';
 
-interface SendInput { text: string; model?: string; effort?: string; access: ComposerSettings['access'] }
 interface Props {
   models: Model[];
   selection: ComposerSettings;
@@ -23,14 +24,21 @@ export function ChatComposer({ models, selection, settingsBusy, settingsError, u
   ready, sending, running, send, interrupt }: Props) {
   const [text, setText] = useState('');
   const [settings, setSettings] = useState(false);
+  const photos = useChatPhotos();
   const disabled = !ready || settingsBusy;
+  const cannotSend = disabled || sending || photos.busy || (!text.trim() && !photos.photos.length);
   const submit = async () => {
     const submitted = text;
-    if (disabled || sending || !submitted.trim()) return;
-    const sent = await send({ text: submitted, ...selection });
-    if (sent) setText((current) => current === submitted ? '' : current);
+    const submittedPhotos = photos.photos;
+    if (cannotSend) return;
+    const sent = await send({ text: submitted, images: submittedPhotos.map((photo) => photo.dataUrl), ...selection });
+    if (sent) {
+      setText((current) => current === submitted ? '' : current);
+      photos.clearSubmitted(submittedPhotos);
+    }
   };
   return <View style={styles.composer}>
+    <ChatPhotoPicker photos={photos} disabled={sending} />
     <TextInput accessibilityLabel="聊天消息" style={styles.input} multiline value={text} maxLength={100_000}
       onChangeText={setText} placeholder={ready ? '发消息给 Codex…' : '连接后即可发送消息'} />
     <View style={styles.row}>
@@ -41,8 +49,8 @@ export function ChatComposer({ models, selection, settingsBusy, settingsError, u
       {running && <Pressable accessibilityRole="button" accessibilityLabel="停止回复" style={styles.compactButton}
         disabled={!ready} onPress={interrupt}><Text style={styles.buttonText}>停止</Text></Pressable>}
       <Pressable accessibilityRole="button" accessibilityLabel={running ? '补充消息' : '发送消息'}
-        disabled={disabled || sending || !text.trim()}
-        style={[styles.button, styles.primary, (disabled || sending || !text.trim()) && styles.disabled]}
+        disabled={cannotSend}
+        style={[styles.button, styles.primary, cannotSend && styles.disabled]}
         onPress={() => { void submit(); }}>
         <Text style={[styles.buttonText, styles.primaryText]}>{sending ? '发送中' : running ? '补充' : '发送 ↑'}</Text>
       </Pressable>

@@ -43,15 +43,23 @@
       [
         "@config-plugins/react-native-webrtc",
         {
-          "cameraPermission": "允许 Codex Switch 扫描 2FA 二维码",
+          "cameraPermission": "允许 Codex Switch 拍摄照片和扫描二维码",
           "microphonePermission": "聊天不需要使用麦克风"
         }
       ],
       [
         "expo-camera",
         {
-          "cameraPermission": "允许 Codex Switch 扫描 2FA 二维码",
+          "cameraPermission": "允许 Codex Switch 拍摄照片和扫描二维码",
           "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "允许 Codex Switch 读取你选择的照片，用于聊天",
+          "cameraPermission": "允许 Codex Switch 拍摄照片和扫描二维码",
+          "microphonePermission": false
         }
       ],
       "./plugins/withChatTransport.cjs",

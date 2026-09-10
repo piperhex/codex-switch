@@ -10,7 +10,7 @@ import { COMPOSER_EVENT, composerPatch, type ComposerModelsResponse,
 import { resolveModelSelection } from '../../../apps/desktop/src/pages/codexGui/modelSelection';
 import { SIDEBAR_EVENT, type SidebarSnapshot } from '../sidebar';
 import { initialChatState, type ApprovalReply, type ChatState, type GuiEvent,
-  type ListResponse, type Request, type Thread } from './types';
+  type ListResponse, type Request, type SendInput, type Thread } from './types';
 
 const SYNCHRONIZATION_RETRY_MS = 3000;
 
@@ -331,8 +331,9 @@ export class ChatController {
     void this.list();
   }
 
-  async send(input: { text: string; model?: string; effort?: string; access: ComposerSettings['access'] }) {
-    if (this.state.sending || this.state.settingsBusy || !input.text.trim()) return false;
+  async send(input: SendInput) {
+    const images = input.images ?? [];
+    if (this.state.sending || this.state.settingsBusy || (!input.text.trim() && !images.length)) return false;
     if (!this.state.ready) { this.update({ error: '正在连接电脑，请稍候再发送。' }); return false; }
     const generation = this.synchronization;
     this.update({ sending: true, error: '' });
@@ -351,12 +352,12 @@ export class ChatController {
       const running = this.state.selected?.turns?.find((turn) => turn.status === 'inProgress');
       if (running) {
         await this.request({ operation: 'steer', threadId: thread.id, turnId: running.id,
-          text: input.text, images: [], skills: [] });
+          text: input.text, images, skills: [] });
       } else {
         // A new thread is already loaded and may not have a persisted rollout until its first turn.
         if (!created) await this.request({ operation: 'resume', threadId: thread.id, access: input.access });
         this.ensureCurrent(generation);
-        await this.request({ operation: 'send', threadId: thread.id, ...input, images: [] });
+        await this.request({ operation: 'send', threadId: thread.id, ...input, images });
       }
       await this.refreshSelected();
       return true;

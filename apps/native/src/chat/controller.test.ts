@@ -31,6 +31,28 @@ async function connectedController() {
 }
 
 describe('mobile chat actions', () => {
+  it('sends photos without text when creating a chat', async () => {
+    const controller = await connectedController();
+    mocks.request.mockResolvedValue({ thread });
+    const images = ['data:image/jpeg;base64,/9j/photo'];
+    expect(await controller.send({ text: '', images, access: 'workspace-write' })).toBe(true);
+    expect(mocks.request).toHaveBeenCalledWith('request', {
+      operation: 'send', threadId: 'chat', text: '', images, access: 'workspace-write',
+    });
+  });
+
+  it('includes photos when supplementing a running turn', async () => {
+    const controller = await connectedController();
+    const running = { ...thread, turns: [{ id: 'turn', status: 'inProgress', items: [] }] };
+    mocks.request.mockResolvedValue({ thread: running });
+    await controller.select(running);
+    const images = ['data:image/jpeg;base64,/9j/photo'];
+    expect(await controller.send({ text: '看这张照片', images, access: 'workspace-write' })).toBe(true);
+    expect(mocks.request).toHaveBeenCalledWith('request', {
+      operation: 'steer', threadId: 'chat', turnId: 'turn', text: '看这张照片', images, skills: [],
+    });
+  });
+
   it('creates an active chat when starting from archived search results', async () => {
     const controller = await connectedController();
     mocks.request.mockResolvedValueOnce({ data: [], nextCursor: null }).mockResolvedValue({ thread });

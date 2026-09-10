@@ -6,6 +6,14 @@ import type { ConnectionMode } from '../protocol';
 import { DEFAULT_COMPOSER, type ComposerSettings } from '../composer';
 import { emptySidebar, type SidebarSnapshot } from '../sidebar';
 
+export interface SendInput {
+  text: string;
+  images?: string[];
+  model?: string;
+  effort?: string;
+  access: ComposerSettings['access'];
+}
+
 export interface ChatState {
   mode: ConnectionMode;
   ready: boolean;
