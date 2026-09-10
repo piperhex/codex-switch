@@ -75,16 +75,18 @@ async function manageHistory({ page, request }: Journey) {
   await expect(page.getByText('暂时没有聊天')).toBeVisible();
   await page.getByRole('textbox', { name: '搜索聊天' }).fill('');
   await click(page.getByRole('button', { name: '搜索', exact: true }));
-  await click(page.getByRole('button', { name: '最近聊天 ▾' }));
-  await click(page.getByRole('button', { name: '新聊天', exact: true }));
+  await click(page.getByRole('button', { name: '在 演示项目 中新建对话', exact: true }));
+  await expect(page.locator('.chat-header')).toContainText('演示项目');
   await send(page, 'new chat from H5');
+  await expect.poll(async () => (await state(request)).threads.at(-1)?.turns?.at(-1)?.status).toBe('completed');
   await settled(page);
   expect((await state(request)).threads).toHaveLength(2);
-  await click(page.getByRole('button', { name: '归档', exact: true }));
-  await click(page.getByRole('button', { name: '最近聊天 ▾' }));
-  await click(page.getByRole('button', { name: /手机新聊天/ }));
-  await click(page.getByRole('button', { name: '恢复', exact: true }));
-  await click(page.getByRole('button', { name: '已归档 ▾' }));
+  expect((await state(request)).operations.findLast((entry) => entry.operation === 'start'))
+    .toMatchObject({ cwd: 'F:/projects/demo' });
+  await expect(page.locator('.chat-header').getByRole('button', { name: '归档', exact: true })).toHaveCount(0);
+  await click(page.getByRole('button', { name: '打开聊天列表', exact: true }));
+  await expect(page.getByRole('region', { name: '演示项目', exact: true })
+    .getByRole('button', { name: '手机新聊天', exact: true })).toBeVisible();
   await click(page.getByRole('button', { name: /移动端聊天体验/ }));
 }
 

@@ -11,7 +11,7 @@ import { COMPOSER_EVENT, composerPatch, type ComposerModelsResponse,
   type ComposerSettings, type ComposerSnapshot } from '../composer';
 import { resolveModelSelection } from '../../../apps/desktop/src/pages/codexGui/modelSelection';
 import { SIDEBAR_EVENT, type SidebarSnapshot } from '../sidebar';
-import { initialChatState, type ApprovalReply, type ChatState, type GuiEvent,
+import { initialChatState, type ApprovalReply, type ChatProject, type ChatState, type GuiEvent,
   type ListResponse, type Request, type SendInput, type Thread } from './types';
 
 const SYNCHRONIZATION_RETRY_MS = 3000;
@@ -270,7 +270,7 @@ export class ChatController {
     this.rememberHistory();
     this.olderQueued = false;
     this.loadedThreadId = null;
-    this.update({ selected: this.histories.get(thread.id) ?? thread,
+    this.update({ selected: this.histories.get(thread.id) ?? thread, draftProject: null,
       selectedArchived: this.state.archived, error: '',
       historyHasMore: this.historyPages.get(thread.id)?.hasMore ?? false });
     await this.refreshSelected();
@@ -331,13 +331,15 @@ export class ChatController {
     }
   }
 
-  back() {
+  back(project: ChatProject | null = null) {
+    if (this.state.sending) return;
     this.rememberHistory();
     this.olderQueued = false;
     this.readGeneration += 1;
     this.refreshThreadId = null;
     this.loadedThreadId = null;
-    this.update({ selected: null, error: '', historyHasMore: false, historyLoading: false, historyLoadingMore: false });
+    this.update({ selected: null, draftProject: project ? { cwd: project.cwd, label: project.label } : null,
+      selectedArchived: false, error: '', historyHasMore: false, historyLoading: false, historyLoadingMore: false });
     void this.list();
   }
 
@@ -354,9 +356,9 @@ export class ChatController {
       const created = !thread;
       if (!thread) {
         const result = await this.request<{ thread: Thread }>({ operation: 'start', model: input.model,
-          access: input.access });
+          access: input.access, cwd: this.state.draftProject?.cwd });
         thread = result.thread;
-        this.update({ selected: thread, selectedArchived: false,
+        this.update({ selected: thread, draftProject: null, selectedArchived: false,
           threads: [thread, ...this.state.threads.filter((entry) => entry.id !== result.thread.id)],
           archived: false, search: '', cursor: null });
       }

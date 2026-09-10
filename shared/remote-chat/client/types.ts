@@ -14,11 +14,14 @@ export interface SendInput {
   access: ComposerSettings['access'];
 }
 
+export interface ChatProject { cwd: string; label: string }
+
 export interface ChatState {
   mode: ConnectionMode;
   ready: boolean;
   threads: Thread[];
   selected: Thread | null;
+  draftProject: ChatProject | null;
   selectedArchived: boolean;
   models: Model[];
   settings: ComposerSettings;
@@ -38,7 +41,7 @@ export interface ChatState {
 }
 
 export function initialChatState(): ChatState {
-  return { mode: 'offline', ready: false, threads: [], selected: null, selectedArchived: false,
+  return { mode: 'offline', ready: false, threads: [], selected: null, draftProject: null, selectedArchived: false,
     models: [], approvals: [], cursor: null,
     settings: { ...DEFAULT_COMPOSER }, settingsBusy: false, settingsError: '', sidebar: emptySidebar(),
     search: '', archived: false, loading: false, historyLoading: false, historyLoadingMore: false,

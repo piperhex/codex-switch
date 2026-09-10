@@ -59,7 +59,7 @@ export function demoResponse(request: RpcRequest, link: ChatLink): unknown {
       .map(({ turns: _turns, ...thread }) => thread), nextCursor: null,
     sidebar: guiSidebar.observe([...threads.values()]) };
   if (input.operation === 'start') {
-    const thread: Thread = { id: uniqueId('chat'), name: '手机新聊天', preview: '', cwd: '',
+    const thread: Thread = { id: uniqueId('chat'), name: '手机新聊天', preview: '', cwd: String(input.cwd ?? ''),
       updatedAt: Math.floor(Date.now() / 1000), turns: [] };
     threads.set(thread.id, thread);
     notify(link, { method: 'thread/started', params: { thread } });

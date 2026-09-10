@@ -15,6 +15,7 @@ import { useChatCompletionNotifications, useOpenChatNotification } from './useCh
 import { notificationId, type ChatNotificationTarget } from './notificationTarget';
 import { styles } from './styles';
 import { threadPresentation } from '../../../../shared/remote-chat/sidebar';
+import type { ChatProject } from './types';
 
 interface Props {
   session: AuthSession; devices: RemoteDevice[]; active: boolean;
@@ -72,7 +73,7 @@ function ConnectedChat({ session, device, devices, active, chooseDevice, notific
     afterClose.current = undefined;
     action?.();
   }, []);
-  const newChat = () => { if (!state.sending) closeDrawer(() => controller.back()); };
+  const newChat = (project?: ChatProject) => { if (!state.sending) closeDrawer(() => controller.back(project)); };
   useEffect(() => { controller.setViewing(active && foreground && !drawer && !pickingDevice); },
     [active, foreground, drawer, pickingDevice, controller]);
   useEffect(() => {
@@ -99,14 +100,17 @@ function ConnectedChat({ session, device, devices, active, chooseDevice, notific
       <View style={styles.fill}>
         <Text numberOfLines={1} style={styles.headerTitle}>
           {state.selected ? threadPresentation(state.selected, state.sidebar).title : '新聊天'}</Text>
+        {!state.selected && state.draftProject && <Text numberOfLines={1} style={styles.headerMeta}>
+          {state.draftProject.label}</Text>}
         <Pressable accessibilityRole="button" accessibilityLabel="选择电脑" onPress={() => setPickingDevice(true)}>
           <Text numberOfLines={1} style={styles.headerMeta}>{device ? `${device.name} · ${
             !ready && state.mode !== 'offline' ? '正在同步聊天…' : modeLabels[state.mode]}` : '选择电脑，开始聊天'}</Text>
         </Pressable>
       </View>
-      {state.selected && <Pressable accessibilityRole="button" style={styles.compactButton} disabled={!ready || running}
+      {state.selected && state.selectedArchived && <Pressable accessibilityRole="button"
+        style={styles.compactButton} disabled={!ready || running}
         onPress={() => { void controller.archive().then(openDrawer); }}>
-        <Text style={styles.buttonText}>{state.selectedArchived ? '恢复' : '归档'}</Text></Pressable>}
+        <Text style={styles.buttonText}>恢复</Text></Pressable>}
     </View>
     {!!state.error && <Text accessibilityRole="alert" style={styles.error}>{state.error}</Text>}
     <ChatImageContext.Provider value={{ threadId: state.selected?.id ?? null, ready, load: controller.imagePreview }}>

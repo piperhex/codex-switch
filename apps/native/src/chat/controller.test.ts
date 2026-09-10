@@ -98,6 +98,45 @@ describe('mobile chat actions', () => {
     });
   });
 
+  it('starts in the chosen project and clears it before a later general chat', async () => {
+    const controller = await connectedController();
+    mocks.request.mockImplementation(async (_method, body) => body?.operation === 'list'
+      ? { data: [thread], nextCursor: null } : { thread });
+    await controller.select(thread);
+    const project = { cwd: '/other-project', label: '另一个项目' };
+    controller.back(project);
+    expect(controller.snapshot()).toMatchObject({ selected: null, draftProject: project });
+    expect(await controller.send({ text: 'project task', access: 'workspace-write' })).toBe(true);
+    expect(mocks.request).toHaveBeenCalledWith('request', expect.objectContaining({
+      operation: 'start', cwd: project.cwd,
+    }));
+    expect(controller.snapshot().draftProject).toBeNull();
+    expect(thread.cwd).toBe('/project');
+    controller.back(project);
+    controller.back();
+    mocks.request.mockClear();
+    expect(await controller.send({ text: 'general task', access: 'workspace-write' })).toBe(true);
+    expect(mocks.request).toHaveBeenCalledWith('request', expect.objectContaining({
+      operation: 'start', cwd: undefined,
+    }));
+    controller.stop();
+  });
+
+  it('keeps an existing chat in its own project after leaving a project draft', async () => {
+    const controller = await connectedController();
+    mocks.request.mockImplementation(async (_method, body) => body?.operation === 'list'
+      ? { data: [thread], nextCursor: null } : { thread });
+    controller.back({ cwd: '/other-project', label: '另一个项目' });
+    await controller.select(thread);
+    expect(controller.snapshot().draftProject).toBeNull();
+    expect(await controller.send({ text: 'continue here', access: 'workspace-write' })).toBe(true);
+    expect(mocks.request).toHaveBeenCalledWith('request', {
+      operation: 'resume', threadId: thread.id, access: 'workspace-write',
+    });
+    expect(mocks.request.mock.calls.some(([, body]) => body.operation === 'start')).toBe(false);
+    controller.stop();
+  });
+
   it('steers an active PC turn and stops that same turn', async () => {
     const controller = await connectedController();
     const running = { ...thread, turns: [{ id: 'turn', status: 'inProgress', items: [] }] };

@@ -108,23 +108,23 @@ try {
   });
   await check('08-create-new-thread', async () => {
     await tap('打开聊天列表');
-    await tap('＋ 新聊天');
+    await tap('在 演示项目 中新建对话');
+    await waitText('演示项目');
     await send('new chat from Android');
     await settled();
     await waitText('手机新聊天');
     const state = await serverState();
     assert.equal(state.threads.length, 2);
     assert.equal(state.operations.filter((entry) => entry.operation === 'start').length, 1);
+    assert.equal(state.operations.findLast((entry) => entry.operation === 'start').cwd, 'F:/projects/demo');
+    assert.equal(state.threads[1].cwd, 'F:/projects/demo');
     assert.equal(state.operations.filter((entry) => entry.operation === 'send').at(-1).threadId, state.threads[1].id);
   });
-  await check('09-archive-and-restore', async () => {
-    await tap('归档');
-    await waitFor(async () => (await serverState()).archived.length === 1, 'archived');
-    await tap('最近聊天 ▾');
-    await tap('手机新聊天');
-    await tap('恢复');
-    await waitFor(async () => (await serverState()).archived.length === 0, 'restored');
-    await tap('已归档 ▾');
+  await check('09-project-chat-header-and-list', async () => {
+    assert.equal(await hasText('归档'), false);
+    await tap('打开聊天列表');
+    await waitText('演示项目');
+    await waitText('手机新聊天');
     await tap('移动端聊天体验');
   });
   await check('10-disconnect-and-resynchronize', async () => {

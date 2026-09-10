@@ -8,7 +8,8 @@ export async function sidebarJourney({ page, request, info }: {
   await click(page.getByRole('button', { name: '打开聊天列表' }));
   const drawer = page.locator('.chat-drawer');
   await expect(drawer.getByRole('region', { name: '演示项目' })).toBeVisible();
-  await expect(drawer.getByRole('region', { name: '最近', exact: true })).toBeVisible();
+  await expect(drawer.getByRole('region', { name: '演示项目', exact: true })
+    .getByRole('button', { name: '手机新聊天', exact: true })).toBeVisible();
   const row = drawer.getByRole('button', { name: '移动端聊天体验', exact: true });
   await expect(row).toHaveText('移动端聊天体验');
   await change('start');

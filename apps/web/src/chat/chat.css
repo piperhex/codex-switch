@@ -17,6 +17,9 @@
 .chat-drawer .ant-drawer-content { border-radius: 0 20px 20px 0; }
 .chat-drawer .chat-thread-list { padding: 0 14px 16px; }
 .chat-drawer .chat-project-group h3 { color: var(--chat-muted); font-size: 12px; margin: 12px 10px; }
+.chat-project-heading { display: flex; align-items: center; gap: 6px; }
+.chat-project-heading .chat-back { color: var(--chat-muted); flex-shrink: 0; }
+.chat-project-heading .chat-back:disabled { opacity: .4; cursor: default; }
 .chat-thread {
   display: flex; align-items: center; gap: 10px; width: 100%; min-height: 46px; padding: 10px;
   background: transparent; border: 0; border-radius: 10px; color: var(--chat-ink); font: inherit; text-align: left;

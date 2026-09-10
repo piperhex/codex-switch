@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, SectionList, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { ChatController } from './controller';
-import type { ChatState, Thread } from './types';
+import type { ChatProject, ChatState, Thread } from './types';
 import { threadPresentation } from '../../../../shared/remote-chat/sidebar';
 import { useThreadGroups } from '../../../../shared/remote-chat/client/useThreadGroups';
 import { palette, styles } from './styles';
 
 interface Props {
-  state: ChatState; controller: ChatController; newChat: () => void; onClose: () => void;
+  state: ChatState; controller: ChatController; newChat: (project?: ChatProject) => void; onClose: () => void;
   chooseDevice: () => void; deviceName: string;
   select: (thread: Thread) => void;
 }
@@ -24,7 +24,7 @@ export function ChatThreads({ state, controller, newChat, onClose, chooseDevice,
         <Pressable accessibilityRole="button" accessibilityLabel="收起聊天列表" onPress={onClose}
           style={styles.back}><Text style={styles.backText}>×</Text></Pressable>
       </View>
-      <Pressable accessibilityRole="button" style={styles.button} disabled={state.sending} onPress={newChat}>
+      <Pressable accessibilityRole="button" style={styles.button} disabled={state.sending} onPress={() => newChat()}>
         <Text style={styles.buttonText}>＋ 新聊天</Text></Pressable>
       <TextInput accessibilityLabel="搜索聊天" placeholder="搜索聊天" value={search} onChangeText={setSearch}
         style={styles.search} returnKeyType="search" onSubmitEditing={() => { void controller.list({ search }); }} />
@@ -36,8 +36,13 @@ export function ChatThreads({ state, controller, newChat, onClose, chooseDevice,
     <SectionList sections={groups} keyExtractor={(thread) => thread.id}
       contentContainerStyle={listStyles.content} stickySectionHeadersEnabled={false} keyboardShouldPersistTaps="handled"
       refreshing={state.loading} onRefresh={() => { void controller.list(); }}
-      renderSectionHeader={({ section }) => <Text accessibilityRole="header" style={listStyles.project}>
-        {section.label}</Text>}
+      renderSectionHeader={({ section }) => <View style={styles.row}>
+        <Text accessibilityRole="header" numberOfLines={1} style={[listStyles.project, styles.fill]}>
+          {section.label}</Text>
+        {!!section.cwd && <Pressable accessibilityRole="button" accessibilityLabel={`在 ${section.label} 中新建对话`}
+          disabled={state.sending} style={[listStyles.add, state.sending && styles.disabled]}
+          onPress={() => newChat(section)}><Text style={listStyles.plus}>＋</Text></Pressable>}
+      </View>}
       renderSectionFooter={({ section }) => section.canToggle ? <Pressable accessibilityRole="button"
         accessibilityLabel={`${section.expanded ? '收起' : '展开显示'}：${section.label}`}
         accessibilityState={{ expanded: section.expanded }} style={listStyles.more} onPress={() => toggle(section.cwd)}>
@@ -70,6 +75,8 @@ export function ChatThreads({ state, controller, newChat, onClose, chooseDevice,
 const listStyles = StyleSheet.create({
   content: { paddingHorizontal: 14, paddingBottom: 16 },
   project: { color: palette.muted, fontSize: 12, fontWeight: '600', paddingHorizontal: 10, marginVertical: 12 },
+  add: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  plus: { color: palette.muted, fontSize: 22 },
   thread: { minHeight: 46, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center',
     gap: 10, borderRadius: 10 },
   selected: { backgroundColor: '#e6f8f1' },

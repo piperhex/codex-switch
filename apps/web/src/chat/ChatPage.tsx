@@ -11,6 +11,7 @@ import { ChatThreads } from './ChatThreads';
 import { ChatDevices } from './ChatDevices';
 import { useChat } from './useChat';
 import { useChatViewport } from './useChatViewport';
+import type { ChatProject } from './types';
 import './chat.css';
 
 interface Props { session: AuthSession; devices: RemoteDevice[]; active: boolean }
@@ -38,7 +39,7 @@ function ConnectedChat({ session, device, devices, active, chooseDevice }: Props
   const runningTurn = state.selected?.turns?.find((turn) => turn.status === 'inProgress');
   const running = Boolean(runningTurn);
   const approvals = state.approvals.filter((event) => event.params.threadId === state.selected?.id);
-  const newChat = () => { if (!state.sending) { controller.back(); setDrawer(false); } };
+  const newChat = (project?: ChatProject) => { if (!state.sending) { controller.back(project); setDrawer(false); } };
   useEffect(() => { controller.setViewing(active && !drawer && !pickingDevice); },
     [active, drawer, pickingDevice, controller]);
   useEffect(() => { if (!active) { setDrawer(false); setPickingDevice(false); } }, [active]);
@@ -47,15 +48,18 @@ function ConnectedChat({ session, device, devices, active, chooseDevice }: Props
       <button type="button" className="chat-back" aria-label="打开聊天列表" onClick={() => setDrawer(true)}>
         <PanelLeft size={21} /></button>
       <div className="chat-grow"><h2>{state.selected?.name || '新聊天'}</h2>
+        {!state.selected && state.draftProject && <p className="chat-muted chat-ellipsis">
+          {state.draftProject.label}</p>}
         <button className="chat-connection chat-muted" type="button" aria-label="选择电脑"
           onClick={() => setPickingDevice(true)}>
           {device ? <>{device.name} · <span role="status">
             {!ready && state.mode !== 'offline' ? '正在同步聊天…' : modeLabels[state.mode]}</span></>
             : '选择电脑，开始聊天'}
         </button></div>
-      {state.selected && <button type="button" className="chat-button" disabled={!ready || running}
+      {state.selected && state.selectedArchived && <button type="button" className="chat-button"
+        disabled={!ready || running}
         onClick={() => { void controller.archive().then(() => setDrawer(true)); }}>
-        {state.selectedArchived ? '恢复' : '归档'}</button>}
+        恢复</button>}
     </header>
     {!!state.error && <p role="alert" className="chat-error">{state.error}</p>}
     <ChatImageContext.Provider value={{ threadId: state.selected?.id ?? null, ready, load: controller.imagePreview }}>
