@@ -443,7 +443,7 @@ function Dashboard({
         <View style={styles.headerTitle}>
           <Text style={styles.brand}>Codex <Text style={styles.brandStrong}>Switch</Text></Text>
           <Text style={styles.headerCaption} numberOfLines={1}>
-            仓库地址：https://github.com/piperhex/codex-switch
+            github.com/piperhex/codex-switch
           </Text>
         </View>
         <Pressable accessibilityRole="button" onPress={() => setAddAccountOpen(true)}
