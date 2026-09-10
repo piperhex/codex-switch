@@ -5,6 +5,7 @@ import type { Conversation } from "./types";
 import { lastUserMessage, type EditMessage } from "./editMessage";
 import { TurnMessage } from "./TurnMessage";
 import { useFollowScroll } from "./useFollowScroll";
+import { useMessageWindow } from "./useMessageWindow";
 import { WorkingStatus } from "./WorkingStatus";
 import type { PendingRequest } from "./processing";
 import { SECOND_MS } from "./turnTiming";
@@ -23,7 +24,8 @@ export function Messages({ value, selected, active = true, footer, pendingReques
   onEdit?: EditMessage; editDisabled?: boolean;
 }) {
   const last = lastUserMessage(value);
-  const { viewport, content, away, onScroll, jumpToLatest } = useFollowScroll(selected);
+  const { viewport, content, away, onScroll, jumpToLatest, pauseFollowing } = useFollowScroll(selected, active);
+  const history = useMessageWindow({ turns: value?.turns, selected, active, viewport, pauseFollowing });
   const quote = useQuoteSelection({ root: content, selected, enabled: active && Boolean(onQuote) });
   const turn = value?.turns.find((entry) => entry.id === value.activeTurn);
   const sending = pendingRequest && pendingRequest.threadId === selected && !value?.activeTurn;
@@ -37,7 +39,10 @@ export function Messages({ value, selected, active = true, footer, pendingReques
       quote.dismiss();
       jumpToLatest();
     }} />}
-    <div ref={viewport} className={styles.messageViewport} onScroll={onScroll}>
+    <div ref={viewport} className={styles.messageViewport} aria-label="对话消息" onScroll={() => {
+      onScroll();
+      history.onScroll();
+    }}>
       <div ref={content} className={styles.messageScrollBody}>
         <div className={styles.messageContent}>
           {!selected && <div className={styles.welcome}>
@@ -46,14 +51,19 @@ export function Messages({ value, selected, active = true, footer, pendingReques
             <div className={styles.suggestions}><span>理解代码</span><span>实现功能</span><span>排查问题</span></div>
           </div>}
           {selected && !value && <div className={styles.listEmpty}><Spin /><p>正在读取对话…</p></div>}
-          {value?.turns.map((turn, index) => <TurnMessage key={`${selected}:${turn.id}`} turn={turn}
+          {history.hasMore && <div className={styles.historyLoader}>
+            {history.loading ? <span role="status"><Spin size="small" />正在加载更早的消息…</span>
+              : <button type="button" onClick={history.loadOlder}>加载更早的消息</button>}
+          </div>}
+          {history.entries.map(({ turn, items, followsInterruption }) => <TurnMessage
+            key={`${selected}:${turn.id}`} turn={turn} visibleItems={items}
             threadId={selected ?? undefined}
             editableItemId={last?.turnId === turn.id ? last.item.id : undefined}
-            editDisabled={editDisabled || Boolean(value.activeTurn || pendingRequest || last?.item.localEcho)}
+            editDisabled={editDisabled || Boolean(value?.activeTurn || pendingRequest || last?.item.localEcho)}
             onEdit={onEdit && selected && last ? (text) => onEdit({ threadId: selected,
               turnId: turn.id, itemId: last.item.id, text }) : undefined}
-            followsInterruption={value.turns[index - 1]?.status === "interrupted"}
-            running={value.activeTurn === turn.id} active={active} />)}
+            followsInterruption={followsInterruption}
+            running={value?.activeTurn === turn.id} active={active} />)}
           {value?.error && <p className={styles.turnError} role="status">{value.error}</p>}
           {value?.activeTurn && <WorkingStatus key={`${selected}:${value.activeTurn}`} active={active}
             phase={processing?.phase ?? "request"} startedAtMs={startedAtMs} />}

@@ -81,7 +81,11 @@
     overflow: hidden; white-space: nowrap; text-overflow: ellipsis; } }
 .headerActions { margin-left: auto; display: flex; align-items: center; flex-shrink: 0; }
 .focusWindowControls { align-self: stretch; display: flex; flex-shrink: 0; margin: -4px -14px -4px 4px; }
-.messageViewport { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.messageViewport { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; overflow-anchor: none; }
+.messageEntry { display: flex; flex-direction: column; min-width: 0; }
+.historyLoader { height: 40px; display: flex; justify-content: center; align-items: center; margin-bottom: 12px;
+  > span { display: flex; align-items: center; gap: 8px; color: var(--gui-muted); font-size: 12px; max-width: 400px; }
+  > button { border: 0; background: none; color: var(--gui-muted); font-size: 12px; cursor: pointer; } }
 .messageArea { display: flex; flex-direction: column; position: relative; flex: 1; min-height: 0; }
 .messageScrollBody { display: flex; flex-direction: column; min-height: 100%; }
 // Keep the footer in the scroll flow so its full height remains available below the final message.

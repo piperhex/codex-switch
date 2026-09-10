@@ -25,31 +25,39 @@ export function groupTurnItems(items: Item[]): Group[] {
 }
 
 export const TurnMessage = memo(function TurnMessage({ turn, running, active, followsInterruption = false,
-  editableItemId, onEdit, editDisabled, threadId }: {
+  editableItemId, onEdit, editDisabled, threadId, visibleItems = turn.items }: {
   turn: Turn; running: boolean; active: boolean; followsInterruption?: boolean;
   editableItemId?: string; onEdit?: (text: string) => Promise<boolean>; editDisabled?: boolean;
   threadId?: string;
+  visibleItems?: Item[];
 }) {
-  const groups = useMemo(() => groupTurnItems(followsInterruption
-    ? visibleContinuationItems(turn.items) : turn.items), [turn.items, followsInterruption]);
+  const groups = useMemo(() => {
+    const visible = new Set(visibleItems.map((item) => item.id));
+    return groupTurnItems(followsInterruption ? visibleContinuationItems(turn.items) : turn.items)
+      .map((group) => ({ ...group, key: group.items[0].id, items: group.items.filter((item) => visible.has(item.id)) }))
+      .filter((group) => group.items.length > 0);
+  }, [turn.items, followsInterruption, visibleItems]);
   const netFiles = useMemo(() => parseDiff(turn.diff ?? ""), [turn.diff]);
   const files = useMemo(() => turn.diff ? netFiles : turn.items
     .filter((item) => item.type === "fileChange" && !["declined", "failed", "inProgress"].includes(item.status ?? ""))
     .flatMap((item) => changedFiles(item.changes ?? [])), [turn.diff, turn.items, netFiles]);
   const responseIndex = groups.findIndex((group) => group.items[0].type !== "userMessage");
   return <div className={styles.turn} data-turn-id={turn.id}>
-    {groups.map((group, index) => <Fragment key={group.items[0].id}>
+    {groups.map((group, index) => <Fragment key={group.key}>
       {index === responseIndex && <TurnDuration turn={turn} running={running} active={active} />}
       {group.type === "work" ? <details className={styles.workGroup} open={running ? true : undefined}>
-        <summary>{running ? "正在处理" : "查看处理过程"}<span>{group.items.length} 项活动</span></summary>
-        <div className={styles.workItems}>{group.items.map((item) => <MessageItem key={item.id}
-          item={item} startedAt={turn.startedAt} streaming={running && item.status !== "completed"} />)}</div>
-      </details> : <MessageItem item={group.items[0]} startedAt={turn.startedAt}
+        <summary data-history-anchor>{running ? "正在处理" : "查看处理过程"}
+          <span>{group.items.length} 项活动</span></summary>
+        <div className={styles.workItems}>{group.items.map((item) => <div key={item.id} data-message-id={item.id}>
+          <MessageItem item={item} startedAt={turn.startedAt} streaming={running && item.status !== "completed"} />
+        </div>)}</div>
+      </details> : <div className={styles.messageEntry} data-message-id={group.items[0].id}>
+        <MessageItem item={group.items[0]} startedAt={turn.startedAt}
         onEdit={group.items[0].id === editableItemId ? onEdit : undefined} editDisabled={editDisabled}
-        streaming={running && group.items[0].status !== "completed"} />}
+        streaming={running && group.items[0].status !== "completed"} /></div>}
     </Fragment>)}
     {responseIndex === -1 && <TurnDuration turn={turn} running={running} active={active} />}
-    <GeneratedImages items={turn.items} />
+    <GeneratedImages items={visibleItems} />
     <TurnPlan turn={turn} />
     {files.length > 0 && <TurnDiff files={files} title={turn.diff ? "本轮修改" : "文件修改记录"}
       threadId={threadId} turnId={turn.id} disabled={running || turn.status === "inProgress" || Boolean(editDisabled)} />}

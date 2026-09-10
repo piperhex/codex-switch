@@ -6,6 +6,10 @@ Providers (三方模型及中转). It supports project folders, text and image i
 streamed Markdown replies, command output, file diffs, plans, permission approvals, questions, interruption,
 history, search, renaming, pinning, and archiving/restoring conversations.
 
+Opening or reopening a conversation displays its latest ten messages. Scroll upward to load ten earlier
+messages at a time; a loading indicator appears and the current reading position is preserved.
+Incoming replies continue updating while browsing history.
+
 Type `/` in the message box to choose a command or skill. **压缩** (also searchable as `/compact`)
 compacts the current conversation's context and shows its latest context usage when available.
 Select it with the mouse or Enter/Tab; it runs directly without sending the command as a message.
@@ -114,6 +118,10 @@ The frontend batches streaming updates, correlates events by thread/turn/item, r
 streamed text, and keeps command/permission approval requests pending until the user responds. Unknown server
 requests are rejected explicitly. This is a local workspace; cloud tasks, the official app's extensions and
 remote-control features are outside this page's scope.
+
+The desktop message view lazily mounts items, including processing activities and generated images.
+Its ten-item window expands from a stable item cursor so live replies do not evict loaded history.
+The controller retains complete turns for editing, continuation, and file review actions.
 
 Browser event replay uses an independent cursor per browser, with a bounded in-memory log. Polls are single-flight,
 shared between conversation and download subscribers, and never scan storage. Stale cursors and server restarts
