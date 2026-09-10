@@ -17,7 +17,8 @@ export function useChatDraft({ threadId, sending, disabled, selection, send }: O
   const [content, setContent] = useState(emptySkillDraft);
   const { text } = content;
   const setText = (value: string) => setContent((draft) => editSkillDraft(draft, value));
-  const insertSkill = (range: TextSelection, skill: Skill) => setContent((draft) => insertDraftSkill(draft, range, skill));
+  const insertSkill = (range: TextSelection, skill: Skill) =>
+    setContent((draft) => insertDraftSkill(draft, range, skill));
   const removeText = (range: TextSelection, expected: string) => setContent((draft) => draft.text === expected
     ? editSkillDraft(draft, expected.slice(0, range.start) + expected.slice(range.end)) : draft);
   const [images, setImages] = useState<DraftImage[]>([]);

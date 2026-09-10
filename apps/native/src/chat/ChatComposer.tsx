@@ -32,7 +32,8 @@ interface Props {
 }
 
 export function ChatComposer({ models, selection, settingsBusy, settingsError, updateSettings,
-  threadId, active, ready, sending, running, send, interrupt, catalog, cwd, compactReason, compacting, compact }: Props) {
+  threadId, active, ready, sending, running, send, interrupt,
+  catalog, cwd, compactReason, compacting, compact }: Props) {
   const [settings, setSettings] = useState(false);
   const [attachments, setAttachments] = useState(false);
   const disabled = !ready || settingsBusy || compacting;
@@ -50,7 +51,8 @@ export function ChatComposer({ models, selection, settingsBusy, settingsError, u
     {draft.picking && <Text style={styles.subtitle}>正在添加图片…</Text>}
     {compacting && <Text style={styles.subtitle}>正在压缩上下文…</Text>}
     {menu.open && <ChatCommandMenu catalog={catalog} query={menu.query} skillsOnly={menu.skillsOnly}
-      compactReason={compactReason} choose={menu.choose} compact={() => { void menu.runCompact(); }} close={menu.close} />}
+      compactReason={compactReason} choose={menu.choose}
+      compact={() => { void menu.runCompact(); }} close={menu.close} />}
     <TextInput ref={menu.input} accessibilityLabel="聊天消息" style={styles.input} multiline value={draft.text}
       maxLength={100_000} selection={menu.selection}
       onSelectionChange={(event) => menu.setSelection(event.nativeEvent.selection)}

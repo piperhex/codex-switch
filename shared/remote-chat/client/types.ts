@@ -1,5 +1,6 @@
 export type {
-  AccessMode, ApprovalReply, GuiEvent, Item, ListResponse, Model, Request, Skill, SkillReference, SkillsResponse, Thread, Turn,
+  AccessMode, ApprovalReply, GuiEvent, Item, ListResponse, Model, Request,
+  Skill, SkillReference, SkillsResponse, Thread, Turn,
 } from '../../../apps/desktop/src/pages/codexGui/types';
 import type { GuiEvent, Model, SkillReference, Thread } from '../../../apps/desktop/src/pages/codexGui/types';
 import type { ConnectionMode } from '../protocol';

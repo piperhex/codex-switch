@@ -23,6 +23,7 @@ export function useComposerMenu({ draft, scope, active, refresh, compact }: Opti
   const triggerKey = trigger ? JSON.stringify(trigger) : '';
   const open = active && (expanded || (!!trigger && triggerKey !== dismissed));
   useEffect(() => { setExpanded(false); setDismissed(triggerKey); }, [scope, active]);
+  useEffect(() => { if (!triggerKey) setDismissed(''); }, [triggerKey]);
   useEffect(() => { if (open) refresh(); }, [open, refresh]);
   const close = () => { setExpanded(false); setDismissed(triggerKey); };
   const choose = (skill: Skill) => {

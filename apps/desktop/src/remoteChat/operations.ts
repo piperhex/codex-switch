@@ -19,7 +19,9 @@ const CACHE_TTL_MS = 5 * 60_000;
 interface Cached {
   fingerprint: string; result: Promise<RpcResponse>; expires: number; completed: boolean; readOnly: boolean;
 }
-const READ_OPERATIONS = new Set(['syncHistory', 'imageChunk', 'imagePreview', 'models', 'list', 'read', 'goalGet', 'skills']);
+const READ_OPERATIONS = new Set([
+  'syncHistory', 'imageChunk', 'imagePreview', 'models', 'list', 'read', 'goalGet', 'skills',
+]);
 
 function operationError(error: unknown) {
   // Tauri rejects with the safe string produced by the Rust command boundary.

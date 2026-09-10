@@ -4,16 +4,18 @@ export const skillLabel = (skill: Skill) => skill.interface?.displayName || skil
 export const skillDescription = (skill: Skill) =>
   skill.interface?.shortDescription || skill.shortDescription || skill.description;
 
+function isSkill(value: unknown): value is Skill {
+  if (!value || typeof value !== 'object') return false;
+  const fields = value as Record<string, unknown>;
+  return ['name', 'path', 'description'].every((key) => typeof fields[key] === 'string')
+    && typeof fields.enabled === 'boolean';
+}
+
 /** Transfer and cache menu text and references without potentially large embedded icons. */
 export function normalizeSkills(value: unknown): Skill[] {
   if (!Array.isArray(value)) throw new Error('暂时无法读取技能列表。');
-  const skills = value.map((entry: unknown): Skill => {
-    if (!entry || typeof entry !== 'object' || !('name' in entry) || typeof entry.name !== 'string'
-      || !('path' in entry) || typeof entry.path !== 'string' || !('description' in entry)
-      || typeof entry.description !== 'string' || !('enabled' in entry) || typeof entry.enabled !== 'boolean') {
-      throw new Error('暂时无法读取技能列表。');
-    }
-    const skill = entry as Skill;
+  const skills = value.map((skill: unknown): Skill => {
+    if (!isSkill(skill)) throw new Error('暂时无法读取技能列表。');
     const label = skill.interface?.displayName;
     const description = skill.interface?.shortDescription ?? skill.shortDescription;
     return { name: skill.name, path: skill.path, description: skill.description, enabled: skill.enabled,

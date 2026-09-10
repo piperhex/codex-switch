@@ -41,7 +41,8 @@ it('does not insert disabled skills or duplicate a reference selected twice', ()
   const empty = emptySkillDraft();
   expect(insertDraftSkill(empty, { start: 0, end: 0 }, { ...skill, enabled: false })).toBe(empty);
   const first = insertDraftSkill(empty, { start: 0, end: 0 }, skill);
-  expect(draftSkills(insertDraftSkill(first, { start: first.text.length, end: first.text.length }, skill))).toHaveLength(1);
+  const repeated = insertDraftSkill(first, { start: first.text.length, end: first.text.length }, skill);
+  expect(draftSkills(repeated)).toHaveLength(1);
   const replacement = { ...skill, path: 'C:/other/SKILL.md' };
   expect(draftSkills(insertDraftSkill(first, { start: 0, end: 7 }, replacement)))
     .toEqual([{ name: replacement.name, path: replacement.path }]);

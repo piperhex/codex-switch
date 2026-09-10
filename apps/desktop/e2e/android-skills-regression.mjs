@@ -58,12 +58,14 @@ try {
     await input('聊天消息', 'slow task');
     await tap('发送消息');
     await waitText('停止回复');
-    await input('聊天消息', '/rev');
-    await waitText('使用技能 代码检查（已更新）');
-    await tap('使用技能 代码检查（已更新）');
-    await tap('补充消息');
-    await waitFor(async () => (await operations('steer')).length > 0, 'skill steer');
-    assert.deepEqual((await operations('steer')).at(-1).skills, [expectedSkill]);
+    for (let count = 1; count <= 2; count++) {
+      await input('聊天消息', '/rev');
+      await waitText('使用技能 代码检查（已更新）');
+      await tap('使用技能 代码检查（已更新）');
+      await tap('补充消息');
+      await waitFor(async () => (await operations('steer')).length === count, 'repeated skill steer');
+      assert.deepEqual((await operations('steer')).at(-1).skills, [expectedSkill]);
+    }
     await tap('停止回复');
   });
 

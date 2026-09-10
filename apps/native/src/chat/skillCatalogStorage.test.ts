@@ -2,7 +2,9 @@ import { expect, it, vi } from 'vitest';
 import { skillCatalogKey, skillCatalogStorage } from './skillCatalogStorage';
 import type { Skill } from './types';
 
-const disk = vi.hoisted(() => ({ exists: vi.fn(), readFile: vi.fn(), writeFile: vi.fn().mockResolvedValue(undefined) }));
+const disk = vi.hoisted(() => ({
+  exists: vi.fn(), readFile: vi.fn(), writeFile: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock('react-native-blob-util', () => ({ default: { fs: { ...disk, dirs: { CacheDir: '/private-cache' } } } }));
 const account = { baseUrl: 'https://example.test', email: 'test@example.test' };
 const skill: Skill = { name: 'review', path: 'C:/skills/review/SKILL.md', description: '检查', enabled: true };

@@ -3,7 +3,8 @@ import { normalizeSkills, SkillCatalog, type SkillCatalogStorage } from './skill
 import type { Skill, SkillsResponse } from './types';
 
 const skill: Skill = { name: 'review', path: 'C:/skills/review/SKILL.md', description: '检查代码', enabled: true };
-const response = (skills: Skill[], errors: { message: string }[] = []): SkillsResponse => ({ data: [{ skills, errors }] });
+const response = (skills: Skill[], errors: { message: string }[] = []): SkillsResponse =>
+  ({ data: [{ skills, errors }] });
 function deferred<T>() {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>((done) => { resolve = done; });
