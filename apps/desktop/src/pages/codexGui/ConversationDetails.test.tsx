@@ -29,6 +29,15 @@ async function render(items: Item[], extra: Partial<Turn> = {}) {
   await act(async () => root.render(<Messages selected="test" value={value} />));
 }
 
+async function openDetails() {
+  for (let level = 0; level < 3; level++) {
+    await act(async () => container.querySelectorAll<HTMLDetailsElement>("details:not([open])").forEach((entry) => {
+      entry.open = true;
+      entry.dispatchEvent(new Event("toggle"));
+    }));
+  }
+}
+
 it("keeps commentary in expandable process groups while showing steering and final replies", async () => {
   await render([
     { id: "commentary", type: "agentMessage", phase: "commentary", text: "正在检查" },
@@ -36,8 +45,12 @@ it("keeps commentary in expandable process groups while showing steering and fin
     { id: "command", type: "commandExecution", command: "npm test", status: "completed", aggregatedOutput: "PASS" },
     { id: "final", type: "agentMessage", phase: "final_answer", text: "检查完成" },
   ]);
+  expect(container.querySelectorAll("article")).toHaveLength(2);
+  expect(container.textContent).not.toContain("正在检查");
+  expect(container.textContent).not.toContain("PASS");
+  await openDetails();
   const articles = [...container.querySelectorAll("article")];
-  expect(articles[0].closest("details")?.open).toBe(false);
+  expect(articles[0].closest("details")?.open).toBe(true);
   expect(articles[1].closest("details")).toBeNull();
   expect(articles[2].closest("details")).toBeNull();
   expect(container.textContent).toContain("PASS");
@@ -66,6 +79,7 @@ it("renders tool inputs, rich outputs, search results, failures, and inline imag
       results: [{ title: "官方文档", url: "https://example.com/docs", snippet: "相关说明" }] },
     { id: "generated", type: "imageGeneration", result: "iVBORw0KGgo=", status: "completed" },
   ]);
+  await openDetails();
   expect(container.textContent).toContain('"query": "test"');
   expect(container.querySelector("strong")?.textContent).toBe("工具结果");
   expect(container.textContent).toContain("工具执行失败");
@@ -77,6 +91,7 @@ it("renders tool inputs, rich outputs, search results, failures, and inline imag
 it("keeps rejected changes out of the applied file summary", async () => {
   await render([{ id: "rejected", type: "fileChange", status: "declined",
     changes: [{ path: "file.txt", kind: { type: "add" }, diff: "new" }] }]);
+  await openDetails();
   expect(container.textContent).toContain("已拒绝");
   expect(container.textContent).not.toContain("文件修改记录");
 });
@@ -110,5 +125,6 @@ it("keeps multiple generated images visible but excludes failed generations and 
     { id: "view", type: "imageView", imageUrl: "https://example.com/reference.png" },
   ]);
   expect(container.querySelectorAll('[aria-label="生成的图片"] img')).toHaveLength(2);
+  await openDetails();
   expect(container.textContent).toContain("生成失败");
 });

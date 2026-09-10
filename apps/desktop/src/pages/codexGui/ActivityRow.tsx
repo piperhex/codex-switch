@@ -5,6 +5,7 @@ import {
 import type { Item } from "./types";
 import { ToolDetails } from "./ToolDetails";
 import { formatTurnDuration } from "./turnTiming";
+import { DeferredDetails } from "./DeferredDetails";
 import styles from "./ActivityRow.module.less";
 
 const TOOL_ACTIVITIES: Record<string, { label: string; icon: LucideIcon }> = {
@@ -26,7 +27,7 @@ const TOOL_ACTIVITIES: Record<string, { label: string; icon: LucideIcon }> = {
   hookPrompt: { label: "任务补充", icon: ListChecks },
 };
 const DEFAULT_ACTIVITY = { label: "任务活动", icon: Activity };
-const MAX_REASONING_PREVIEW = 160;
+const MAX_ACTIVITY_PREVIEW = 160;
 const TOOL_STATUS_LABELS: Record<string, string> = {
   inProgress: "进行中", completed: "已完成", failed: "失败", declined: "已拒绝", interrupted: "已停止",
 };
@@ -41,7 +42,7 @@ function commandLabel(status: Item["status"]) {
 
 function activitySummary(item: Item, text: string) {
   if (item.type === "reasoning") return { icon: Brain,
-    preview: text.trim().split("\n")[0].replace(/[*_`#]/g, "").slice(0, MAX_REASONING_PREVIEW) };
+    preview: text.slice(0, MAX_ACTIVITY_PREVIEW).trim().split("\n")[0].replace(/[*_`#]/g, "") };
   if (item.type === "commandExecution") {
     const action = item.commandActions?.find((entry) => entry.type !== "unknown");
     const labels: Record<string, string> = { read: "读取文件", listFiles: "浏览文件", search: "搜索代码" };
@@ -66,13 +67,14 @@ export function ActivityRow({ item, text }: { item: Item; text: string }) {
   const reasoning = item.type === "reasoning";
   const summary = activitySummary(item, text);
   const Icon = summary.icon;
-  const preview = summary.preview.replace(/\s+/g, " ").trim();
-  return <details className={styles.row} data-status={item.status}>
-    <summary className={styles.summary} aria-label={reasoning ? `思考过程：${preview}` : preview}>
+  const preview = summary.preview.slice(0, MAX_ACTIVITY_PREVIEW).replace(/\s+/g, " ").trim();
+  return <DeferredDetails className={styles.row} status={item.status}
+    summary={<summary className={styles.summary} aria-label={reasoning ? `思考过程：${preview}` : preview}>
       <Icon className={styles.icon} size={15} aria-hidden="true" />
       <span className={styles.preview}>{preview}</span>
       <ChevronDown className={styles.toggle} size={15} aria-hidden="true" />
-    </summary>
-    <div className={reasoning ? styles.reasoningBody : styles.commandBody}><ToolDetails item={item} text={text} /></div>
-  </details>;
+    </summary>}>
+    {() => <div className={reasoning ? styles.reasoningBody : styles.commandBody}>
+      <ToolDetails item={item} text={text} /></div>}
+  </DeferredDetails>;
 }

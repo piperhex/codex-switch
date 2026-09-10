@@ -85,7 +85,7 @@ it("keeps streamed items and an expanded partial activity group while older comp
   value.turns[0].items.forEach((entry) => { entry.phase = "commentary"; });
   await render(value);
   const details = container.querySelector("details")!;
-  details.open = true;
+  await act(async () => { details.open = true; details.dispatchEvent(new Event("toggle")); });
   await act(async () => button().click());
   const next = { ...value, turns: [{ ...value.turns[0], items: [...value.turns[0].items, item(35)] }] };
   await render(next);

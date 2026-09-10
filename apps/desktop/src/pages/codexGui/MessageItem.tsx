@@ -23,7 +23,8 @@ function toolText(item: Item) {
     return [...(item.summary ?? []), ...(item.content ?? []).filter((part): part is string => typeof part === "string")]
       .join("\n\n");
   }
-  return item.text ?? item.review ?? item.aggregatedOutput ?? item.query ?? JSON.stringify(item, null, 2);
+  // Structured results can include large screenshots. Serialize unknown tools only when their details are opened.
+  return item.text ?? item.review ?? item.aggregatedOutput ?? item.query ?? "";
 }
 
 export const MessageItem = memo(function MessageItem({ item, streaming, startedAt, onEdit, editDisabled }: {

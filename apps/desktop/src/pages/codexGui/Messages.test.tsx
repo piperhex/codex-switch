@@ -135,6 +135,15 @@ function expectHistory() {
   expect(container.querySelectorAll("article")).toHaveLength(2);
 }
 
+async function openHistory() {
+  for (let level = 0; level < 2; level++) {
+    await act(async () => container.querySelectorAll<HTMLDetailsElement>("details:not([open])").forEach((entry) => {
+      entry.open = true;
+      entry.dispatchEvent(new Event("toggle"));
+    }));
+  }
+}
+
 it("keeps visible messages and expanded activity after completion, reopening, and continuing", async () => {
   await act(async () => {
     receive({ method: "turn/started", params: { threadId: thread.id,
@@ -142,8 +151,8 @@ it("keeps visible messages and expanded activity after completion, reopening, an
     for (const item of items) receive({ method: "item/completed", params: {
       threadId: thread.id, turnId: "turn", item } });
   });
+  await openHistory();
   const activity = container.querySelectorAll("details")[1];
-  activity.open = true;
   await act(async () => receive({ method: "turn/completed", params: { threadId: thread.id,
     turn: { id: "turn", status: "completed", items: [items[3]] } } }));
   expectHistory();
@@ -158,6 +167,8 @@ it("keeps visible messages and expanded activity after completion, reopening, an
   });
   await act(async () => controller.newConversation());
   await act(async () => controller.select(thread.id));
+  expect(container.textContent).not.toContain("PASS: project tests");
+  await openHistory();
   expectHistory();
   await act(async () => { expect(await controller.send("继续检查", [])).toBe(true); });
   expectHistory();

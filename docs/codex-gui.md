@@ -9,6 +9,8 @@ history, search, renaming, pinning, and archiving/restoring conversations.
 Opening or reopening a conversation displays its latest ten messages. Scroll upward to load ten earlier
 messages at a time; a loading indicator appears and the current reading position is preserved.
 Incoming replies continue updating while browsing history.
+Processing details and their screenshots load when expanded. Long tool outputs appear in short pages;
+**复制完整内容** copies the complete output regardless of the page being viewed.
 
 Type `/` in the message box to choose a command or skill. **压缩** (also searchable as `/compact`)
 compacts the current conversation's context and shows its latest context usage when available.
@@ -122,6 +124,8 @@ remote-control features are outside this page's scope.
 The desktop message view lazily mounts items, including processing activities and generated images.
 Its ten-item window expands from a stable item cursor so live replies do not evict loaded history.
 The controller retains complete turns for editing, continuation, and file review actions.
+Collapsed process groups, individual activities, and structured payloads do not mount their contents.
+Tool text is limited to 8,000 characters per page to bound Markdown parsing and DOM work for oversized records.
 
 Browser event replay uses an independent cursor per browser, with a bounded in-memory log. Polls are single-flight,
 shared between conversation and download subscribers, and never scan storage. Stale cursors and server restarts

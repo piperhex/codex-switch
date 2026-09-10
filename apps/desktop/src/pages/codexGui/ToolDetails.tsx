@@ -6,6 +6,8 @@ import { CopyButton } from "./CopyButton";
 import { formatTurnDuration } from "./turnTiming";
 import styles from "./ActivityRow.module.less";
 import { generatedImageSource } from "./imageSources";
+import { DeferredDetails } from "./DeferredDetails";
+import { ToolText } from "./ToolText";
 
 function record(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
@@ -14,7 +16,7 @@ function serialized(value: unknown) { return typeof value === "string" ? value :
 
 function OutputPart({ value }: { value: unknown }) {
   const part = record(value);
-  if (typeof part?.text === "string") return <RichText text={part.text} />;
+  if (typeof part?.text === "string") return <ToolText text={part.text} markdown />;
   if (part?.type === "image" && typeof part.data === "string" && typeof part.mimeType === "string") {
     return <MessageImage src={`data:${part.mimeType};base64,${part.data}`} alt="工具返回的图片" />;
   }
@@ -28,7 +30,7 @@ function OutputPart({ value }: { value: unknown }) {
   if ((part?.type === "resource_link" || part?.type === "resource") && typeof part.uri === "string") {
     return <MessageLink href={part.uri}>{typeof part.name === "string" ? part.name : part.uri}</MessageLink>;
   }
-  return <pre>{serialized(value)}</pre>;
+  return <ToolText text={serialized(value) ?? ""} />;
 }
 
 function ToolResult({ item }: { item: Item }) {
@@ -36,13 +38,14 @@ function ToolResult({ item }: { item: Item }) {
   const content = item.contentItems ?? (Array.isArray(result?.content) ? result.content : undefined);
   const structured = result?.structuredContent;
   return <>
-    {item.arguments != null && <details className={styles.payload}><summary>输入</summary>
-      <pre>{serialized(item.arguments)}</pre><CopyButton text={serialized(item.arguments) ?? ""} label="复制工具输入" />
-    </details>}
+    {item.arguments != null && <DeferredDetails className={styles.payload} summary={<summary>输入</summary>}>
+      {() => <><ToolText text={serialized(item.arguments) ?? ""} />
+        <CopyButton text={serialized(item.arguments) ?? ""} label="复制工具输入" /></>}
+    </DeferredDetails>}
     {item.progress?.map((text, index) => <p key={index}>{text}</p>)}
     {content?.map((part, index) => <OutputPart key={index} value={part} />)}
-    {structured != null && <details className={styles.payload}><summary>结构化结果</summary>
-      <pre>{serialized(structured)}</pre></details>}
+    {structured != null && <DeferredDetails className={styles.payload} summary={<summary>结构化结果</summary>}>
+      {() => <ToolText text={serialized(structured) ?? ""} />}</DeferredDetails>}
     {!content && item.result != null && <OutputPart value={item.result} />}
     {item.output != null && <OutputPart value={item.output} />}
     {item.error != null && <div className={styles.failure} role="status">
@@ -55,7 +58,7 @@ function ToolResult({ item }: { item: Item }) {
 
 export function ToolDetails({ item, text }: { item: Item; text: string }) {
   if (["reasoning", "plan", "enteredReviewMode", "exitedReviewMode"].includes(item.type)) {
-    return <RichText text={text} />;
+    return <ToolText text={text} markdown />;
   }
   if (item.type === "sleep") return <p>等待时长：{formatTurnDuration(item.durationMs ?? 0)}</p>;
   if (item.type === "contextCompaction") return <p>较早的对话已整理为摘要，可以继续处理当前任务。</p>;
@@ -63,8 +66,9 @@ export function ToolDetails({ item, text }: { item: Item; text: string }) {
     <div className={styles.commandToolbar}><span>{item.cwd}</span>
       {item.durationMs != null && <span>{formatTurnDuration(item.durationMs)}</span>}
       <CopyButton text={item.command ?? ""} label="复制命令" /></div>
-    <pre className={styles.commandCode}>{item.command}</pre>
-    <pre className={styles.output}>{item.aggregatedOutput || (item.status === "inProgress" ? "等待输出…" : "没有文本输出")}</pre>
+    <ToolText className={styles.commandCode} text={item.command ?? ""} />
+    <ToolText className={styles.output}
+      text={item.aggregatedOutput || (item.status === "inProgress" ? "等待输出…" : "没有文本输出")} />
     <div className={styles.commandToolbar}>
       {item.exitCode != null && <span>退出码：{item.exitCode}</span>}
       <CopyButton text={item.aggregatedOutput ?? ""} label="复制输出" /></div>
@@ -91,7 +95,7 @@ export function ToolDetails({ item, text }: { item: Item; text: string }) {
     {Object.entries(item.agentsStates ?? {}).map(([id, state]) => <div key={id}>
       <p>{state.status === "completed" ? "任务已完成" : "协作任务"} · {id}</p>
       {state.message && <RichText text={state.message} />}</div>)}
-    {item.agentStatus != null && <pre>{serialized(item.agentStatus)}</pre>}
+    {item.agentStatus != null && <ToolText text={serialized(item.agentStatus) ?? ""} />}
   </>;
-  return <pre>{text}</pre>;
+  return <ToolText text={text || serialized(item) || ""} />;
 }
