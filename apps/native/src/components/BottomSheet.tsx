@@ -35,6 +35,7 @@ interface BottomSheetProps {
   actions?: BottomSheetAction[];
   dismissible?: boolean;
   tall?: boolean;
+  dragFromHeaderOnly?: boolean;
 }
 
 export function BottomSheet({
@@ -47,6 +48,7 @@ export function BottomSheet({
   actions = [],
   dismissible = true,
   tall = false,
+  dragFromHeaderOnly = false,
 }: BottomSheetProps) {
   const translateY = useRef(new Animated.Value(0)).current;
 
@@ -113,9 +115,9 @@ export function BottomSheet({
           tall && styles.sheetTall,
           { transform: [{ translateY }] },
         ]}
-        {...dragResponder.panHandlers}
+        {...(!dragFromHeaderOnly ? dragResponder.panHandlers : {})}
       >
-        <View>
+        <View {...(dragFromHeaderOnly ? dragResponder.panHandlers : {})}>
           <View style={styles.handle} />
           <View style={styles.header}>
             {onBack && <Pressable accessibilityRole="button" accessibilityLabel="返回上一层"
