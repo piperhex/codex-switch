@@ -1,0 +1,16 @@
+.questions { padding: 0 28px; }
+.card {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto 12px;
+  padding: 16px;
+  border: 1px solid var(--line, #d9d9d9);
+  border-radius: 12px;
+  background: var(--panel, #fff);
+  overflow-wrap: anywhere;
+  fieldset { border: 0; padding: 0; margin: 12px 0; min-width: 0; }
+  legend { width: 100%; margin-bottom: 8px; font-size: inherit; }
+  :global(.ant-radio-group) { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+}
+@media (max-width: 600px) { .questions { padding: 0 12px; } }

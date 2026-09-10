@@ -8,6 +8,7 @@ import { ThreadSidebar, threadTitle } from "./codexGui/ThreadSidebar";
 import { Composer, type ComposerHandle } from "./codexGui/Composer";
 import { Messages } from "./codexGui/Messages";
 import { Approvals } from "./codexGui/Approvals";
+import { AsyncQuestions } from "./codexGui/AsyncQuestions";
 import { Installer } from "./codexGui/Installer";
 import { useCliInstaller } from "./codexGui/useCliInstaller";
 import { DetailsWorkspace } from "./codexGui/DetailsWorkspace";
@@ -106,6 +107,9 @@ function Workspace({ active, accountPicker, providers, aggregateApis, windowCont
           onQuote={canQuote ? (quote) => composer.current?.addQuote(quote) ?? false : undefined}
           pendingRequest={state.pendingRequest} footer={<>
           <Approvals events={pending} controller={controller} />
+          <AsyncQuestions value={current} onAnswer={controller.answerAsyncQuestion}
+            disabled={state.connection !== "ready" || state.sending || state.archived || Boolean(state.workspaceBusy)
+              || Boolean(state.deleting) || state.compacting === state.selected} />
           <Composer ref={composer} state={state} controller={controller} active={active} />
         </>} />}
     </div>

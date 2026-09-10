@@ -9,6 +9,7 @@ import { conversation, reduceEvent } from "./events";
 import { completeTurnTiming, restoreTurnTiming } from "./turnTiming";
 import { MessageQueue } from "./messageQueue";
 import { mergeMessageItems } from "./sentMessages";
+import { asyncAnswerText, pendingAsyncQuestions, withAsyncAnswer } from "./asyncQuestionState";
 import { compactUnavailableReason } from "./composerOptions";
 import { rememberTurnDetails } from "./turnDetailsStorage";
 import { restoreProcessing } from "./processing";
@@ -16,7 +17,7 @@ import { trackProcessingApproval } from "./processingApprovals";
 import { initialState, savePreferences } from "./preferences";
 import { resolveModelSelection } from "./modelSelection";
 import type { ApprovalReply, GuiEvent, GuiState, ListResponse, Model, Settings, Thread, Turn } from "./types";
-import type { SkillReference } from "./types";
+import type { Item, SkillReference } from "./types";
 
 const STREAM_FRAME_MS = 32;
 
@@ -265,6 +266,33 @@ export class GuiController {
     } catch (error) { this.report(error); return false; }
     finally {
       this.patch({ sending: false, pendingRequest: undefined });
+      Object.keys(this.state.queued).forEach((id) => void this.queue.flush(id));
+    }
+  };
+
+  answerAsyncQuestion = async (item: Item, answers: string[]): Promise<boolean> => {
+    const state = this.state;
+    const threadId = state.selected;
+    const current = threadId ? state.conversations[threadId] : undefined;
+    const text = asyncAnswerText(item, answers);
+    if (!threadId || !current || !text || state.connection !== "ready" || state.archived
+      || state.sending || state.workspaceBusy || state.deleting || state.compacting === threadId
+      || !pendingAsyncQuestions(current).some((question) => question.id === item.id)) return false;
+    if (!current.activeTurn) return this.send(text, []);
+    const turnId = current.activeTurn;
+    const userMessageIndex = current.turns.find((turn) => turn.id === turnId)
+      ?.items.filter((entry) => entry.type === "userMessage").length ?? 0;
+    this.patch({ sending: true, error: "" });
+    try {
+      await guiApi.request({ operation: "steer", threadId, turnId, text, images: [], skills: [] });
+      const latest = this.state.conversations[threadId];
+      if (latest) this.patch({ conversations: { ...this.state.conversations, [threadId]: { ...latest,
+        turns: latest.turns.map((turn) => turn.id === turnId
+          ? withAsyncAnswer(turn, text, userMessageIndex) : turn) } } });
+      return true;
+    } catch (error) { this.report(error); return false; }
+    finally {
+      this.patch({ sending: false });
       Object.keys(this.state.queued).forEach((id) => void this.queue.flush(id));
     }
   };
