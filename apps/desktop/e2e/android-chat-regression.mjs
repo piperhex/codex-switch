@@ -165,14 +165,29 @@ try {
     await waitText('第二模型 · 极高');
     await screenshot('13-pc-model-synced');
     await tap('第二模型 · 极高，聊天设置');
-    await waitText('访问权限');
+    await waitText('设置访问权限');
+    assert.equal(await hasText('请求批准'), false);
+    await screenshot('13-settings-menu');
+    await tap('设置模型');
+    await waitText('选择模型');
+    await screenshot('13-model-drawer');
+    await tap('返回上一层');
+    await waitText('设置模型');
+    await tap('设置推理强度');
+    await waitText('关闭推理强度');
+    await screenshot('13-effort-drawer');
+    await tap('极高');
+    await waitText('设置推理强度');
     for (const [label, access] of [['请求批准', 'read-only'], ['帮我批准', 'workspace-write'],
       ['完全访问', 'danger-full-access']]) {
+      await tap('设置访问权限');
+      await waitText('请求批准');
+      await screenshot('13-access-options');
       await tap(label, { scroll: true });
       await waitFor(async () => (await serverState()).composer.settings.access === access, `${label} synced`);
+      await waitText('设置访问权限');
     }
-    await screenshot('13-access-options');
-    await adb('shell', 'input', 'keyevent', 'KEYCODE_BACK');
+    await tap('关闭聊天设置');
     await send('send with synced settings');
     await settled();
     assert.deepEqual((await serverState()).operations.filter((entry) => entry.operation === 'send').at(-1), {

@@ -21,9 +21,9 @@ async function initialChat({ page, request, info, transport }: Journey) {
 
 async function settingsAndSteer({ page, request }: Journey) {
   await click(page.getByRole('button', { name: /测试模型 · 中/ }));
-  await page.getByLabel('模型', { exact: true }).selectOption('test-model');
-  await page.getByLabel('思考深度', { exact: true }).selectOption('high');
-  await page.getByLabel('访问权限', { exact: true }).selectOption('read-only');
+  await chooseSetting(page, '模型', '测试模型');
+  await chooseSetting(page, '推理强度', '高');
+  await chooseSetting(page, '访问权限', '请求批准');
   await click(page.getByRole('button', { name: '完成', exact: true }));
   await send(page, 'slow task');
   await expect(page.getByRole('button', { name: '停止回复' })).toBeVisible();
@@ -33,6 +33,13 @@ async function settingsAndSteer({ page, request }: Journey) {
   await settled(page);
   expect((await state(request)).operations.filter((entry) => entry.operation === 'send').at(-1))
     .toMatchObject({ model: 'test-model', effort: 'high', access: 'read-only' });
+}
+
+async function chooseSetting(page: Page, label: string, value: string) {
+  await click(page.getByRole('button', { name: `设置${label}`, exact: true }));
+  await click(page.getByRole('radio', { name: value, exact: true }));
+  await expect(page.getByRole('button', { name: `设置${label}`, exact: true })).toBeVisible();
+  await expect(page.getByRole('radio')).toHaveCount(0);
 }
 
 async function approvals({ page, request, info }: Journey) {
@@ -95,14 +102,23 @@ async function synchronizeComposer({ page, request, info }: Journey) {
   } });
   await expect(page.getByRole('button', { name: /第二模型 · 极高/ })).toBeVisible();
   await click(page.getByRole('button', { name: /第二模型 · 极高/ }));
-  await expect(page.getByLabel('模型', { exact: true })).toHaveValue('second-model');
-  await expect(page.getByLabel('思考深度', { exact: true })).toHaveValue('xhigh');
-  for (const access of ['read-only', 'workspace-write', 'danger-full-access']) {
-    await page.getByLabel('访问权限', { exact: true }).selectOption(access);
+  await expect(page.locator('.chat-setting-entry')).toHaveCount(3);
+  await expect(page.getByRole('radio')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '设置模型' })).toContainText('第二模型');
+  await expect(page.getByRole('button', { name: '设置推理强度' })).toContainText('极高');
+  await screenshot(page, info, '05-settings-menu');
+  await click(page.getByRole('button', { name: '设置模型' }));
+  await expect(page.getByRole('radio', { name: '第二模型', exact: true })).toBeChecked();
+  await screenshot(page, info, '06-model-drawer');
+  await click(page.getByRole('button', { name: '返回上一层' }));
+  await expect(page.getByRole('button', { name: '设置模型' })).toBeVisible();
+  for (const [label, access] of [['请求批准', 'read-only'], ['帮我批准', 'workspace-write'],
+    ['完全访问', 'danger-full-access']]) {
+    await chooseSetting(page, '访问权限', label);
     await expect.poll(async () => (await state(request)).composer.settings.access).toBe(access);
   }
-  await page.getByLabel('模型', { exact: true }).selectOption('test-model');
-  await page.getByLabel('思考深度', { exact: true }).selectOption('high');
+  await chooseSetting(page, '模型', '测试模型');
+  await chooseSetting(page, '推理强度', '高');
   await click(page.getByRole('button', { name: '完成', exact: true }));
   await expect(page.getByRole('button', { name: /测试模型 · 高/ })).toBeVisible();
   await send(page, 'send with synced settings');

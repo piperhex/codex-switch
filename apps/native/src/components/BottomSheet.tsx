@@ -30,6 +30,7 @@ interface BottomSheetProps {
   title: string;
   subtitle?: string;
   onClose: () => void;
+  onBack?: () => void;
   children?: ReactNode;
   actions?: BottomSheetAction[];
   dismissible?: boolean;
@@ -41,6 +42,7 @@ export function BottomSheet({
   title,
   subtitle,
   onClose,
+  onBack,
   children,
   actions = [],
   dismissible = true,
@@ -116,6 +118,10 @@ export function BottomSheet({
         <View>
           <View style={styles.handle} />
           <View style={styles.header}>
+            {onBack && <Pressable accessibilityRole="button" accessibilityLabel="返回上一层"
+              hitSlop={8} onPress={onBack} style={styles.closeButton}>
+              <Text style={styles.closeText}>‹</Text>
+            </Pressable>}
             <View style={styles.heading}>
               <Text style={styles.title}>{title}</Text>
               {subtitle ? <Text style={styles.subtitle} numberOfLines={2}>{subtitle}</Text> : null}

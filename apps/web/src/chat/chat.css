@@ -5,9 +5,11 @@
 .chat-active .content-shell { min-height: 0; flex: 1; display: flex; flex-direction: column; }
 .chat-active .desktop-topbar { flex-shrink: 0; }
 .chat-active .main-content { display: flex; flex: 1; min-height: 0; }
-.chat-page {
+.chat-page, .chat-settings {
   --chat-green: #14806f; --chat-ink: #13231c; --chat-muted: #6f8177; --chat-border: #dce8df;
   --chat-background: #f7faf7; --chat-pale: #e6f8f1;
+}
+.chat-page {
   flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column;
   color: var(--chat-ink); background: var(--chat-background); font-size: 15px; line-height: 1.6;
 }
@@ -110,11 +112,25 @@
 }
 .chat-model { justify-content: flex-start; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chat-settings { width: 100%; max-width: 400px; margin: auto; display: flex; flex-direction: column; gap: 16px; }
-.chat-settings label { display: flex; flex-direction: column; gap: 8px; font-size: 14px; color: #13231c; }
-.chat-settings select, .chat-answer {
+.chat-answer {
   width: 100%; padding: 12px; border: 1px solid #dce8df; border-radius: 10px;
   background: white; font-size: 16px; color: #13231c;
 }
+.chat-setting-entry, .chat-setting-option {
+  width: 100%; padding: 14px; border: 1px solid var(--chat-border); border-radius: 12px;
+  background: white; color: var(--chat-ink); font: inherit; text-align: left; cursor: pointer;
+}
+.chat-setting-entry { display: flex; align-items: center; gap: 12px; min-height: 60px; }
+.chat-setting-entry > span:first-of-type {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--chat-green); text-align: right; font-size: 13px;
+}
+.chat-setting-entry > span:last-child { color: var(--chat-muted); font-size: 22px; }
+.chat-setting-options { max-height: 60vh; overflow: auto; }
+.chat-setting-option { color: var(--chat-green); }
+.chat-setting-option[aria-checked="true"] { border-color: var(--chat-green); background: var(--chat-pale); }
+.chat-setting-option:disabled { opacity: .5; cursor: default; }
+.chat-setting-option small { display: block; margin-top: 6px; color: var(--chat-muted); line-height: 1.5; }
 .chat-approvals { max-height: min(40%, 320px); flex-shrink: 0; padding: 12px; }
 .chat-approval {
   width: 100%; max-width: 400px; margin: 0 auto 10px; padding: 14px;
