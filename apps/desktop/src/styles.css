@@ -86,10 +86,6 @@ button:focus-visible { outline: 3px solid rgba(45, 131, 87, .24); outline-offset
   gap: 4px 0;
 }
 .window-titlebar-proxy { min-width: 0; margin-right: 12px; padding-right: 12px; border-right: 1px solid rgba(var(--green-rgb), .18); display: flex; align-items: center; gap: 9px; color: var(--muted); white-space: nowrap; }
-.window-titlebar-proxy-endpoint-copy { width: 22px; height: 22px; padding: 0; border: 0; border-radius: 5px; display: inline-grid; place-items: center; color: var(--green); background: transparent; cursor: copy; transition: color .16s ease, background .16s ease; }
-.window-titlebar-proxy-endpoint-copy:hover:not(:disabled) { color: var(--green-dark); background: var(--green-soft); }
-.window-titlebar-proxy-endpoint-copy:focus-visible { outline: 2px solid rgba(var(--green-rgb), .34); outline-offset: 1px; }
-.window-titlebar-proxy-endpoint-copy:disabled { cursor: default; opacity: .55; }
 .window-titlebar-proxy-status-wrap { flex: 0 0 auto; display: inline-flex; }
 .window-titlebar-proxy-status { flex: 0 0 auto; min-height: 26px; padding: 2px 7px; border-radius: 7px; display: inline-flex; align-items: center; gap: 7px; color: #d14343; background: rgba(209, 67, 67, .08); font-size: 11px; font-weight: 700; transition: color .16s ease, background .16s ease, opacity .16s ease; }
 .window-titlebar-proxy .window-titlebar-proxy-switch.ant-switch { min-width: 32px; background: #d14343; box-shadow: 0 0 0 2px rgba(209, 67, 67, .1); }
@@ -102,7 +98,6 @@ button:focus-visible { outline: 3px solid rgba(45, 131, 87, .24); outline-offset
 .window-titlebar-proxy .window-titlebar-proxy-lan-switch.ant-switch { min-width: 32px; }
 .window-titlebar-proxy .window-titlebar-proxy-lan-switch.ant-switch-checked { background: var(--green); box-shadow: 0 0 0 2px rgba(var(--green-rgb), .12); }
 .window-titlebar-proxy .window-titlebar-proxy-lan-switch.ant-switch-checked:hover:not(.ant-switch-disabled) { background: var(--green-dark); }
-.window-titlebar-proxy-lan-copy-wrap { display: inline-flex; }
 .window-titlebar-proxy-lan-copy { width: 22px; height: 22px; padding: 0; border: 0; border-radius: 5px; display: inline-grid; place-items: center; color: var(--muted); background: transparent; cursor: pointer; }
 .window-titlebar-proxy-lan-copy:hover:not(:disabled) { color: var(--green-dark); background: var(--green-soft); }
 .window-titlebar-proxy-lan-copy:disabled { opacity: .38; cursor: not-allowed; }

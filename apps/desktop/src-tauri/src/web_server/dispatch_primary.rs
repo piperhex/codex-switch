@@ -189,6 +189,9 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
         "get_local_proxy_status" => {
             serialize(block_on(crate::local_proxy::get_local_proxy_status(app)))
         }
+        "list_local_proxy_ipv4_addresses" => serialize(block_on(
+            crate::local_proxy::endpoints::list_local_proxy_ipv4_addresses(),
+        )),
         "list_proxy_sessions" => serialize(block_on(crate::local_proxy::list_proxy_sessions(app))),
         "list_proxy_session_requests" => serialize(block_on(
             crate::local_proxy::list_proxy_session_requests(app, argument(&args, "sessionId")?),

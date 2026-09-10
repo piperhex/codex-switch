@@ -210,6 +210,7 @@ const LAN_COMMAND_ALLOWLIST: &[&str] = &[
     "get_dream_skin_resources_status",
     "get_dream_skin_status",
     "get_local_proxy_status",
+    "list_local_proxy_ipv4_addresses",
     "get_recent_proxy_session_latency",
     "list_account_token_usage",
     "list_account_quota_history",
