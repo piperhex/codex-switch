@@ -33,6 +33,7 @@ export const styles = StyleSheet.create({
   centerText: { textAlign: 'center' },
   error: { color: palette.danger, fontSize: 12, lineHeight: 18, padding: 12, maxWidth: 400 },
   messages: { padding: 16, gap: 20 },
+  historyStatus: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 36 },
   userMessage: { alignSelf: 'flex-end', maxWidth: '92%', borderRadius: 18,
     backgroundColor: '#e6f1eb', paddingHorizontal: 15, paddingVertical: 10 },
   messageText: { color: palette.ink, fontSize: 15, lineHeight: 24 },

@@ -53,7 +53,7 @@ it("previews local screenshot links while preserving ordinary file references", 
     expect(container.querySelector("img")?.getAttribute("src")).toBe(image);
     expect(container.querySelector("img")?.alt).toBe("查看最新截图");
     expect(container.querySelector('[aria-label="放大查看：查看最新截图"]')).not.toBeNull();
-    expect(container.querySelector('[aria-label="复制文件路径"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="文件操作：./README.md"]')).not.toBeNull();
   }
 });
 

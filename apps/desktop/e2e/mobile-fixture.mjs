@@ -42,12 +42,14 @@ const httpServer = http.createServer((request, response) => {
     })().catch(() => response.writeHead(400).end('{}'));
     return;
   }
-  if (request.url === '/test/settings-delay' && request.method === 'POST') {
+  if (['/test/settings-delay', '/test/history-delay'].includes(request.url) && request.method === 'POST') {
     void (async () => {
       let body = '';
       for await (const chunk of request) body += chunk.toString();
-      await page.evaluate((milliseconds) => window.chatTest.setSettingsDelay(milliseconds),
-        JSON.parse(body).milliseconds);
+      await page.evaluate(({ milliseconds, history }) => history ? window.chatTest.setHistoryDelay(milliseconds)
+        : window.chatTest.setSettingsDelay(milliseconds), {
+        milliseconds: JSON.parse(body).milliseconds, history: request.url === '/test/history-delay',
+      });
       response.end('{}');
     })().catch(() => response.writeHead(400).end('{}'));
     return;

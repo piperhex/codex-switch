@@ -78,8 +78,14 @@
 
 }
 .chat-empty-glyph { color: var(--chat-green); font-size: 36px; }
-.chat-messages { flex: 1; padding: 16px; }
+.chat-messages { flex: 1; padding: 16px; overflow-anchor: none; }
 .chat-message-content { display: flex; flex-direction: column; gap: 20px; max-width: 900px; margin: 0 auto; }
+.chat-message-content > [data-message-id] { display: flex; flex-direction: column; }
+.chat-history-more { display: flex; align-items: center; justify-content: center; height: 44px; flex-shrink: 0; }
+.chat-processing { display: flex; align-items: center; gap: 8px; font-variant-numeric: tabular-nums; }
+.chat-processing-status { flex-shrink: 0; margin: 0; padding: 6px 16px; }
+.chat-processing > span.chat-spinner { width: 14px; height: 14px; flex-shrink: 0;
+  border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; }
 .chat-user-message {
   align-self: flex-end; max-width: 92%; border-radius: 18px; background: #e6f1eb;
   padding: 10px 15px; white-space: pre-wrap; overflow-wrap: anywhere;

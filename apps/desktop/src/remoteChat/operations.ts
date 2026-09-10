@@ -1,11 +1,14 @@
 import { guiApi } from '../pages/codexGui/api';
-import type { ApprovalReply, ListResponse, Request, Thread } from '../pages/codexGui/types';
+import type { ApprovalReply, GuiEvent, ListResponse, Request, Thread } from '../pages/codexGui/types';
 import { object, type RpcRequest, type RpcResponse } from '../../../../shared/remote-chat/protocol';
 import { chunks } from '../../../../shared/remote-chat/framing';
 import { guiComposer } from '../pages/codexGui/composerBridge';
 import { guiSidebar } from '../pages/codexGui/sidebarBridge';
 import { historyDelta, parseHistoryVersion } from '../../../../shared/remote-chat/historySync';
 import { RemoteImages } from './images';
+import { parseHistoryWindow, sliceHistory } from '../../../../shared/remote-chat/historyPage';
+import { historyNotification } from '../../../../shared/remote-chat/historyNotification';
+import { LiveHistory } from './liveHistory';
 
 const OPERATIONS = new Set([
   'models', 'list', 'read', 'start', 'resume', 'send', 'steer', 'interrupt', 'rename', 'archive', 'unarchive',
@@ -33,6 +36,7 @@ function response(request: RpcRequest, data: unknown): RpcResponse {
 export class ChatOperations {
   private readonly cache = new Map<string, Cached>();
   private readonly images = new RemoteImages();
+  private readonly liveHistory = new LiveHistory();
 
   execute(request: RpcRequest): Promise<RpcResponse> {
     if (typeof request.id !== 'string' || request.id.length > 160) return Promise.reject(new Error('Invalid request'));
@@ -63,8 +67,10 @@ export class ChatOperations {
     if (request.method === 'request' && body.operation === 'syncHistory') {
       if (typeof body.threadId !== 'string') throw new Error('请选择聊天后重试。');
       const known = parseHistoryVersion(body.known);
+      const window = parseHistoryWindow(body.window);
       const { thread } = await guiApi.request<{ thread: Thread }>({ operation: 'read', threadId: body.threadId });
-      return historyDelta(this.images.prepare(thread, thread.id), known);
+      const sliced = sliceHistory(this.liveHistory.merge(thread), window);
+      return { ...historyDelta(this.images.prepare(sliced.thread, thread.id), known), page: sliced.page };
     }
     if (request.method === 'request' && body.operation === 'composerSet') return guiComposer.update(body.settings);
     if (request.method === 'request' && body.operation === 'threadRead') return guiSidebar.markRead(body);
@@ -89,6 +95,11 @@ export class ChatOperations {
     }
     if (body.operation === 'resume' || body.operation === 'send' || body.operation === 'steer') return {};
     return this.images.prepare(result, String(body.threadId ?? ''));
+  }
+
+  prepareEvent(event: GuiEvent) {
+    this.liveHistory.receive(event);
+    return this.images.prepare(historyNotification(event), event.params.threadId ?? event.params.thread?.id ?? '');
   }
 
   private prune() {

@@ -1,20 +1,26 @@
-import { useLayoutEffect, useRef } from 'react';
-import ReactMarkdown from 'react-markdown';
+import { memo } from 'react';
+import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import type { Item, Thread } from './types';
+import type { Item } from './types';
+import type { ChatMessagesProps } from '../../../../shared/remote-chat/client/messageProps';
+import { useHistoryScroll } from './useHistoryScroll';
 import { ChatImage } from './ChatImage';
 import { itemImageSources, isInlineImage, localImageSource } from '../../../../shared/chat/imageSources';
 
-const FOLLOW_DISTANCE = 100;
 const toolLabels: Record<string, string> = {
   commandExecution: '执行命令', fileChange: '文件修改', reasoning: '思考过程', webSearch: '搜索网页',
   mcpToolCall: '使用工具', collabAgentToolCall: '协作任务', plan: '执行计划',
+};
+// Stable renderers keep an open image viewer mounted while history or live text updates.
+const markdownComponents: Components = {
+  a: ({ children, ...props }) => <a {...props} target="_blank" rel="noopener noreferrer">{children}</a>,
+  img: ({ src, alt }) => <ChatImage source={src} description={alt || '图片'} />,
 };
 function content(item: Item) {
   return item.text || (item.content ?? [])
     .map((entry) => typeof entry === 'string' ? entry : entry.text ?? '').join('\n');
 }
-function ChatMessage({ item }: { item: Item }) {
+const ChatMessage = memo(function ChatMessage({ item }: { item: Item }) {
   const images = itemImageSources(item);
   if (item.type === 'userMessage') return <div className="chat-user-message">{content(item)}
     {images.map((source, index) => <ChatImage key={index} source={source} />)}</div>;
@@ -24,10 +30,7 @@ function ChatMessage({ item }: { item: Item }) {
     <div className="chat-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]} urlTransform={(url, key) => {
       if (/^https?:\/\//i.test(url)) return url;
       return key === 'src' && (isInlineImage(url) || localImageSource(url)) ? url : '';
-    }} components={{
-      a: ({ children, ...props }) => <a {...props} target="_blank" rel="noopener noreferrer">{children}</a>,
-      img: ({ src, alt }) => <ChatImage source={src} description={alt || '图片'} />,
-    }}>{content(item)}</ReactMarkdown></div>
+    }} components={markdownComponents}>{content(item)}</ReactMarkdown></div>
   </article>;
   const details = item.aggregatedOutput || item.summary?.join('\n') || content(item)
     || item.changes?.map((change) => `${change.path}\n${change.diff}`).join('\n')
@@ -36,33 +39,24 @@ function ChatMessage({ item }: { item: Item }) {
     {item.status === 'inProgress' ? ' · 进行中' : ''}{item.command && <code>{item.command}</code>}</summary>
     {!!details && <pre>{details}</pre>}
   </details>;
-}
+});
 
-export function ChatMessages({ thread }: { thread: Thread | null }) {
-  const list = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
-  const following = useRef(true);
+export function ChatMessages(props: ChatMessagesProps) {
+  const { thread, loading, loadingMore, hasMore } = props;
+  const scroll = useHistoryScroll(props);
   const items = thread?.turns?.flatMap((turn) => turn.items) ?? [];
-  const running = thread?.turns?.some((turn) => turn.status === 'inProgress');
   const lastTurn = thread?.turns?.at(-1);
-  useLayoutEffect(() => {
-    const follow = () => {
-      if (following.current && list.current) list.current.scrollTop = list.current.scrollHeight;
-    };
-    const observer = new ResizeObserver(follow);
-    if (contentRef.current) observer.observe(contentRef.current);
-    if (list.current) observer.observe(list.current);
-    follow();
-    return () => observer.disconnect();
-  }, []);
-  return <div ref={list} className="chat-scroll chat-messages" aria-label="聊天记录" onScroll={() => {
-    const node = list.current;
-    if (node) following.current = node.scrollHeight - node.clientHeight - node.scrollTop < FOLLOW_DISTANCE;
-  }}><div ref={contentRef} className="chat-message-content">
-    {items.map((item) => <ChatMessage key={item.id} item={item} />)}
-    {!items.length && <div className="chat-empty"><span className="chat-empty-glyph">✳</span>
+  return <div ref={scroll.list} className="chat-scroll chat-messages" aria-label="聊天记录" onScroll={scroll.onScroll}>
+    <div ref={scroll.content} className="chat-message-content">
+    {(hasMore || (loading && !items.length)) && <div className="chat-history-more">
+      {loadingMore || (loading && !items.length)
+        ? <span role="status" className="chat-processing"><span className="chat-spinner" aria-hidden="true" />
+          正在加载聊天记录…</span>
+        : <button type="button" className="chat-button" onClick={scroll.more}>加载更早的消息</button>}
+    </div>}
+    {items.map((item) => <div key={item.id} data-message-id={item.id}><ChatMessage item={item} /></div>)}
+    {!items.length && !loading && <div className="chat-empty"><span className="chat-empty-glyph">✳</span>
       <h2>想一起完成什么？</h2><p className="chat-muted">消息会发送到你的电脑，随时可以接着聊。</p></div>}
-    {running && <p role="status" className="chat-muted">Codex 正在处理…</p>}
     {lastTurn?.error && <p role="alert" className="chat-error">{lastTurn.error.message}</p>}
   </div></div>;
 }

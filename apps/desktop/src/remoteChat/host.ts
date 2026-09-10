@@ -8,7 +8,7 @@ import { guiComposer } from '../pages/codexGui/composerBridge';
 import { COMPOSER_EVENT } from '../../../../shared/remote-chat/composer';
 import { SIDEBAR_EVENT } from '../../../../shared/remote-chat/sidebar';
 import { guiSidebar } from '../pages/codexGui/sidebarBridge';
-import { historyNotification } from '../../../../shared/remote-chat/historyNotification';
+import { EventStream } from './eventStream';
 
 export interface ChatHostConfig { websocketUrl: string; accessToken: string; deviceId: string }
 
@@ -16,6 +16,7 @@ export class ChatHost {
   private readonly socket: WebSocket;
   private readonly links = new Map<string, ChatLink>();
   private readonly operations = new ChatOperations();
+  private readonly stream = new EventStream((event) => this.broadcast(event));
   private unsubscribe?: () => void;
   private readonly unsubscribeComposer: () => void;
   private readonly unsubscribeSidebar: () => void;
@@ -37,7 +38,7 @@ export class ChatHost {
     this.socket.onclose = () => this.close();
     this.socket.onerror = () => this.close();
     void guiApi.subscribe((event) => {
-      guiSidebar.receive(event); this.broadcast(historyNotification(event));
+      guiSidebar.receive(event); this.stream.receive(this.operations.prepareEvent(event));
     }).then((unsubscribe) => {
       if (this.closed) unsubscribe();
       else this.unsubscribe = unsubscribe;
@@ -80,7 +81,11 @@ export class ChatHost {
       error: () => this.drop(sessionId),
       message: (request) => {
         if (request.kind !== 'request') return;
-        void this.operations.execute(request).then((response) => link.send(response)).catch(() => link.close());
+        void this.operations.execute(request).then((response) => {
+          // A history response may include buffered fragments. Deliver those first to avoid replaying them afterward.
+          this.stream.flush();
+          return link.send(response);
+        }).catch(() => link.close());
       },
     });
     keys.secret.fill(0);
@@ -101,6 +106,7 @@ export class ChatHost {
     this.unsubscribe?.();
     this.unsubscribeComposer();
     this.unsubscribeSidebar();
+    this.stream.close();
     for (const link of this.links.values()) link.close();
     this.links.clear();
     this.socket.close();

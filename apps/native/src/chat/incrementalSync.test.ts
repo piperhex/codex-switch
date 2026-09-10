@@ -15,7 +15,8 @@ it('zooms around the pinch midpoint without drifting toward the first finger', (
 
 it('repairs an update received during a pending read without overlapping requests or duplicating text', async () => {
   const remote: Thread = { id: 'chat', preview: '', cwd: '', updatedAt: 1,
-    turns: [{ id: 'turn', status: 'inProgress', items: [{ id: 'item', type: 'agentMessage', text: 'first' }] }] };
+    turns: [{ id: 'turn', status: 'inProgress', startedAt: Date.now() / 1000,
+      items: [{ id: 'item', type: 'agentMessage', text: 'first' }] }] };
   let events: ConnectionEvents;
   let finish: ((delta: HistoryDelta) => void) | undefined;
   let delay = false;

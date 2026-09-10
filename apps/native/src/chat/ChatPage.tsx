@@ -4,6 +4,7 @@ import type { AuthSession, RemoteDevice } from '../types';
 import { ChatApproval } from './ChatApprovals';
 import { ChatComposer } from './ChatComposer';
 import { ChatMessages } from './ChatMessages';
+import { ChatProcessing } from './ChatProcessing';
 import { ChatImageContext } from './ChatImage';
 import { ChatThreads } from './ChatThreads';
 import { ChatDrawer } from './ChatDrawer';
@@ -32,7 +33,8 @@ function ConnectedChat({ session, device, devices, active, chooseDevice }: Props
   const [drawer, setDrawer] = useState(false);
   const [pickingDevice, setPickingDevice] = useState(false);
   const ready = state.ready;
-  const running = state.selected?.turns?.some((turn) => turn.status === 'inProgress') ?? false;
+  const runningTurn = state.selected?.turns?.find((turn) => turn.status === 'inProgress');
+  const running = Boolean(runningTurn);
   const newChat = () => { if (!state.sending) { controller.back(); setDrawer(false); } };
   useEffect(() => { controller.setViewing(active && !drawer && !pickingDevice); },
     [active, drawer, pickingDevice, controller]);
@@ -59,8 +61,11 @@ function ConnectedChat({ session, device, devices, active, chooseDevice }: Props
     </View>
     {!!state.error && <Text accessibilityRole="alert" style={styles.error}>{state.error}</Text>}
     <ChatImageContext.Provider value={{ threadId: state.selected?.id ?? null, ready, load: controller.imagePreview }}>
-      <ChatMessages key={state.selected?.id ?? 'new'} thread={state.selected} />
+      <ChatMessages key={state.selected?.id ?? 'new'} thread={state.selected}
+        loading={state.historyLoading} loadingMore={state.historyLoadingMore} hasMore={state.historyHasMore}
+        loadOlder={() => controller.loadOlder()} />
     </ChatImageContext.Provider>
+    {runningTurn && <ChatProcessing key={runningTurn.id} turn={runningTurn} active={active && ready} />}
     {state.approvals.some((event) => event.params.threadId === state.selected?.id) &&
       <ScrollView style={{ maxHeight: 280 }} contentContainerStyle={styles.padded} keyboardShouldPersistTaps="handled">
         {state.approvals.filter((event) => event.params.threadId === state.selected?.id).map((event) =>

@@ -1,4 +1,5 @@
 import type { ChatState, GuiEvent, Item, Thread, Turn } from './types';
+import { restoreTurnTiming } from '../../../apps/desktop/src/pages/codexGui/turnTiming';
 
 function mergeItems(previous: Item[], incoming: Item[]) {
   const items = [...previous];
@@ -10,7 +11,7 @@ function mergeItems(previous: Item[], incoming: Item[]) {
   return items;
 }
 
-function updateTurn(thread: Thread, event: GuiEvent): Thread {
+export function updateThread(thread: Thread, event: GuiEvent): Thread {
   const { params, method } = event;
   const id = params.turnId ?? params.turn?.id;
   if (!id) return thread;
@@ -22,6 +23,7 @@ function updateTurn(thread: Thread, event: GuiEvent): Thread {
   if (method === 'turn/diff/updated') turn = { ...turn, diff: params.diff };
   if (method === 'turn/plan/updated') turn = { ...turn, plan: params.plan, planExplanation: params.explanation };
   if (method.endsWith('Delta') || method.endsWith('/delta')) turn = applyDelta(turn, event);
+  turn = restoreTurnTiming(turn, turns[index]);
   if (index < 0) turns.push(turn);
   else turns[index] = turn;
   return { ...thread, turns };
@@ -30,7 +32,8 @@ function updateTurn(thread: Thread, event: GuiEvent): Thread {
 function applyDelta(turn: Turn, event: GuiEvent): Turn {
   const { itemId, delta = '', summaryIndex = 0 } = event.params;
   if (!itemId) return turn;
-  const old = turn.items.find((item) => item.id === itemId) ?? { id: itemId, type: 'agentMessage' };
+  const old = turn.items.find((item) => item.id === itemId)
+    ?? { id: itemId, type: event.method.includes('outputDelta') ? 'commandExecution' : 'agentMessage' };
   let item: Item = { ...old, text: (old.text ?? '') + delta };
   if (event.method.includes('outputDelta')) item = { ...old, aggregatedOutput: (old.aggregatedOutput ?? '') + delta };
   if (event.method.includes('/reasoning/')) {
@@ -61,7 +64,7 @@ export function applyChatEvent(state: ChatState, event: GuiEvent): ChatState {
       ? { ...thread, status: { type: method === 'turn/started' ? 'active' : 'idle' } } : thread);
   }
   let selected = state.selected;
-  if (selected && selected.id === threadId) selected = updateTurn(selected, event);
+  if (selected && selected.id === threadId) selected = updateThread(selected, event);
   const approvals = method === 'turn/completed'
     ? state.approvals.filter((entry) => entry.params.turnId !== params.turn?.id) : state.approvals;
   const error = method === 'error' && !params.willRetry ? (params.error?.message ?? '本次回复未完成。') : state.error;

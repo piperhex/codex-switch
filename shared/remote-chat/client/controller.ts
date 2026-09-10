@@ -1,7 +1,8 @@
 import type { ChatConnection, ConnectionEvents } from './connection';
 import { applyChatEvent } from './events';
 import { mergeHistory } from './history';
-import { HISTORY_CHANGED, historyVersion, applyHistoryDelta, type HistoryDelta } from '../historySync';
+import { HISTORY_CHANGED, historyVersion, applyHistoryDelta } from '../historySync';
+import type { HistoryPage, PagedHistoryDelta } from '../historyPage';
 import { ImageCache } from './imageCache';
 import type { ConnectionMode } from '../protocol';
 import { COMPOSER_EVENT, composerPatch, type ComposerModelsResponse,
@@ -26,8 +27,10 @@ export class ChatController {
   private readonly images = new ImageCache(<T>(body: Parameters<ConstructorParameters<typeof ImageCache>[0]>[0]) =>
     this.connection.request<T>('request', body));
   private readonly histories = new Map<string, Thread>();
+  private readonly historyPages = new Map<string, HistoryPage>();
   private historyTimer?: ReturnType<typeof setTimeout>;
   private historyDirty = false;
+  private olderQueued = false;
   private composerRevision = -1;
   private remoteSettings = this.state.settings;
   private pendingSettings: Partial<ComposerSettings> = {};
@@ -62,10 +65,11 @@ export class ChatController {
     this.listGeneration += 1;
     this.readGeneration += 1;
     this.refreshThreadId = null;
+    this.olderQueued = false;
     clearTimeout(this.syncTimer);
     clearTimeout(this.historyTimer);
     this.historyTimer = undefined;
-    this.update({ mode, ready: false, loading: false });
+    this.update({ mode, ready: false, loading: false, historyLoading: false, historyLoadingMore: false });
   }
 
   private receive(event: GuiEvent) {
@@ -80,8 +84,12 @@ export class ChatController {
     this.state = applyChatEvent(this.state, event);
     this.emit();
     this.markViewed();
+    if (event?.method === 'turn/completed' && event.params.threadId === this.state.selected?.id) {
+      this.scheduleHistory();
+    }
     if (['thread/name/updated', 'thread/archived', 'thread/unarchived', 'thread/deleted'].includes(event?.method)) {
       void this.list();
+      if (event.params.threadId === this.state.selected?.id) this.scheduleHistory();
     }
     if (event?.method === 'connection/closed' || event?.method === 'codex/disconnected') {
       this.update({ ready: false });
@@ -107,6 +115,7 @@ export class ChatController {
   start() { this.active = true; this.connection.start(); }
   stop() {
     this.active = false;
+    this.olderQueued = false;
     clearTimeout(this.syncTimer);
     clearTimeout(this.historyTimer);
     this.historyTimer = undefined;
@@ -114,7 +123,7 @@ export class ChatController {
     this.listGeneration += 1;
     this.readGeneration += 1;
     this.refreshThreadId = null;
-    this.update({ ready: false });
+    this.update({ ready: false, historyLoading: false, historyLoadingMore: false });
     this.connection.stop();
   }
 
@@ -247,25 +256,43 @@ export class ChatController {
 
   async select(thread: Thread) {
     this.rememberHistory();
+    this.olderQueued = false;
     this.loadedThreadId = null;
     this.update({ selected: this.histories.get(thread.id) ?? thread,
-      selectedArchived: this.state.archived, error: '' });
+      selectedArchived: this.state.archived, error: '',
+      historyHasMore: this.historyPages.get(thread.id)?.hasMore ?? false });
     await this.refreshSelected();
   }
 
-  async refreshSelected() {
+  async loadOlder() {
+    if (!this.state.historyHasMore || !this.state.ready) return;
+    if (this.refreshThreadId === this.state.selected?.id) {
+      if (!this.state.historyLoadingMore) {
+        this.olderQueued = true;
+        this.update({ historyLoadingMore: true });
+      }
+      return;
+    }
+    await this.refreshSelected(true);
+  }
+
+  async refreshSelected(older = false) {
     const selected = this.state.selected;
     if (!selected || this.refreshThreadId === selected.id) return;
     this.refreshThreadId = selected.id;
     this.historyDirty = false;
     const generation = ++this.readGeneration;
+    this.update({ historyLoading: true, historyLoadingMore: older });
     try {
-      const result = await this.connection.request<HistoryDelta>('request', {
+      const result = await this.connection.request<PagedHistoryDelta>('request', {
         operation: 'syncHistory', threadId: selected.id, known: historyVersion(selected),
+        window: { start: this.historyPages.get(selected.id)?.start, older },
       });
       if (generation === this.readGeneration && this.state.selected?.id === selected.id) {
         this.loadedThreadId = selected.id;
-        this.update({ selected: mergeHistory(applyHistoryDelta(selected, result), this.state.selected, selected) });
+        if (result.page) this.historyPages.set(selected.id, result.page);
+        this.update({ selected: mergeHistory(applyHistoryDelta(selected, result), this.state.selected, selected),
+          historyHasMore: result.page?.hasMore ?? false });
         this.rememberHistory();
         this.markViewed();
       }
@@ -273,7 +300,11 @@ export class ChatController {
     finally {
       if (generation === this.readGeneration) {
         this.refreshThreadId = null;
-        if (this.historyDirty) this.scheduleHistory();
+        const olderQueued = this.olderQueued;
+        this.olderQueued = false;
+        this.update({ historyLoading: false, historyLoadingMore: false });
+        if (olderQueued) void this.loadOlder();
+        else if (this.historyDirty) this.scheduleHistory();
       }
     }
   }
@@ -283,15 +314,20 @@ export class ChatController {
     if (!thread) return;
     this.histories.delete(thread.id);
     this.histories.set(thread.id, thread);
-    if (this.histories.size > 8) this.histories.delete(this.histories.keys().next().value!);
+    if (this.histories.size > 8) {
+      const oldest = this.histories.keys().next().value!;
+      this.histories.delete(oldest);
+      this.historyPages.delete(oldest);
+    }
   }
 
   back() {
     this.rememberHistory();
+    this.olderQueued = false;
     this.readGeneration += 1;
     this.refreshThreadId = null;
     this.loadedThreadId = null;
-    this.update({ selected: null, error: '' });
+    this.update({ selected: null, error: '', historyHasMore: false, historyLoading: false, historyLoadingMore: false });
     void this.list();
   }
 

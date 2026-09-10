@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { connect, navigate, send, settled, screenshot, state, fixtureUrl } from './chat-helpers';
 import { chatJourney } from './chat-journey';
+import { historyJourney } from './chat-history';
 
 test.beforeEach(async ({ page, request }) => {
   await request.post(`${fixtureUrl}/test/reset`);
@@ -15,6 +16,11 @@ test.beforeEach(async ({ page, request }) => {
 
 test('syncs PC chats over direct transport, supports actions and reconnects without duplicate sends',
   async ({ page, request }, info) => chatJourney({ page, request, info }));
+
+for (const relay of [false, true]) {
+  test(`pages history and streams with a processing timer over ${relay ? 'relay' : 'direct'}`,
+    async ({ page, request }, info) => historyJourney({ page, request, info, relay }));
+}
 
 test('keeps the PC chat after login renewal and disconnects on logout', async ({ page, request }) => {
   await connect(page);

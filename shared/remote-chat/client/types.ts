@@ -22,6 +22,9 @@ export interface ChatState {
   search: string;
   archived: boolean;
   loading: boolean;
+  historyLoading: boolean;
+  historyLoadingMore: boolean;
+  historyHasMore: boolean;
   sending: boolean;
   error: string;
 }
@@ -30,5 +33,6 @@ export function initialChatState(): ChatState {
   return { mode: 'offline', ready: false, threads: [], selected: null, selectedArchived: false,
     models: [], approvals: [], cursor: null,
     settings: { ...DEFAULT_COMPOSER }, settingsBusy: false, settingsError: '', sidebar: emptySidebar(),
-    search: '', archived: false, loading: false, sending: false, error: '' };
+    search: '', archived: false, loading: false, historyLoading: false, historyLoadingMore: false,
+    historyHasMore: false, sending: false, error: '' };
 }

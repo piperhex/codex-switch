@@ -10,6 +10,8 @@ import { historyDelta, type HistoryVersion } from '../../../shared/remote-chat/h
 import { historyNotification } from '../../../shared/remote-chat/historyNotification';
 import { RemoteImages } from '../src/remoteChat/images';
 import { demoImageResponse } from './demo-images';
+import { parseHistoryWindow, sliceHistory } from '../../../shared/remote-chat/historyPage';
+import { seedDemoHistory } from './demo-history';
 
 const images = new RemoteImages();
 const synchronization: { bytes: number; changedItems: number; text: string }[] = [];
@@ -70,7 +72,9 @@ export function demoResponse(request: RpcRequest, link: ChatLink): unknown {
 
 function threadOperation(thread: Thread, input: Record<string, unknown>, link: ChatLink) {
   if (input.operation === 'syncHistory') {
-    const delta = historyDelta(images.prepare(thread, thread.id), input.known as HistoryVersion | undefined);
+    const sliced = sliceHistory(thread, parseHistoryWindow(input.window));
+    const delta = { ...historyDelta(images.prepare(sliced.thread, thread.id), input.known as HistoryVersion | undefined),
+      page: sliced.page };
     const text = JSON.stringify(delta);
     synchronization.push({ bytes: new TextEncoder().encode(text).length,
       changedItems: delta.turns.reduce((count, turn) => count + turn.items.length, 0), text });
@@ -101,13 +105,14 @@ function threadOperation(thread: Thread, input: Record<string, unknown>, link: C
 
 function notify(link: ChatLink, event: GuiEvent) {
   guiSidebar.receive(event);
-  void link.send({ kind: 'event', event: structuredClone(historyNotification(event)) }).catch((error: unknown) => {
+  const prepared = images.prepare(historyNotification(event), event.params.threadId ?? event.params.thread?.id ?? '');
+  void link.send({ kind: 'event', event: structuredClone(prepared) }).catch((error: unknown) => {
     streamErrors.push(error instanceof Error ? error.message : 'Could not send demo event');
   });
 }
 
 function startTurn(thread: Thread, text: string, link: ChatLink) {
-  const turn: Turn = { id: uniqueId('turn'), status: 'inProgress', items: [
+  const turn: Turn = { id: uniqueId('turn'), status: 'inProgress', startedAt: Date.now() / 1000, items: [
     { id: uniqueId('user'), type: 'userMessage', content: [{ type: 'text', text }] },
   ] };
   thread.turns?.push(turn);
@@ -143,6 +148,7 @@ function finish(context: Context, status = 'completed') {
 export function changeDemoSidebar(action: string, link: ChatLink) {
   sidebarLink = link;
   if (action === 'group-preview') seedThreadGroups(link);
+  if (action === 'history-pages') seedDemoHistory(welcome);
   if (action === 'start' && welcome.turns?.some((turn) => turn.status === 'inProgress')) {
     throw new Error('Wait for the current demo turn before starting a background turn');
   }

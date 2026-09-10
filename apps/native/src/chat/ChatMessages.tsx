@@ -1,11 +1,14 @@
-import { useRef, useState } from 'react';
-import { FlatList, Pressable, ScrollView, Text, View } from 'react-native';
+import { memo, useRef, useState } from 'react';
+import { ActivityIndicator, FlatList, Pressable, ScrollView, Text, View } from 'react-native';
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { ChatMarkdown } from './Markdown';
 import { ChatImage } from './ChatImage';
 import { itemImageSources } from '../../../../shared/chat/imageSources';
-import type { Item, Thread } from './types';
+import type { Item } from './types';
+import type { ChatMessagesProps } from '../../../../shared/remote-chat/client/messageProps';
 import { styles } from './styles';
+
+const SCROLL_EDGE_DISTANCE = 100;
 
 function content(item: Item) {
   if (item.text) return item.text;
@@ -29,7 +32,7 @@ function ToolMessage({ item }: { item: Item }) {
   </View>;
 }
 
-function ChatMessage({ item }: { item: Item }) {
+const ChatMessage = memo(function ChatMessage({ item }: { item: Item }) {
   const images = itemImageSources(item);
   if (item.type === 'userMessage') return <View style={[styles.userMessage, images.length > 0 && { width: '92%' }]}>
     <Text selectable style={styles.messageText}>{content(item)}</Text>
@@ -41,37 +44,67 @@ function ChatMessage({ item }: { item: Item }) {
     <Text style={styles.speaker}>Codex</Text>
     <ChatMarkdown text={content(item)} />
   </View>;
-}
+});
 
-export function ChatMessages({ thread }: { thread: Thread | null }) {
+export function ChatMessages({ thread, loading, loadingMore, hasMore, loadOlder }: ChatMessagesProps) {
   const list = useRef<FlatList<Item>>(null);
   const following = useRef(true);
   const scrolling = useRef(false);
+  const position = useRef(0);
+  const [preservePosition, setPreservePosition] = useState(false);
   const items = thread?.turns?.flatMap((turn) => turn.items) ?? [];
-  const running = thread?.turns?.some((turn) => turn.status === 'inProgress');
   const lastTurn = thread?.turns?.at(-1);
   const updateFollowing = ({ nativeEvent }: NativeSyntheticEvent<NativeScrollEvent>) => {
     following.current = nativeEvent.contentSize.height - nativeEvent.layoutMeasurement.height
-      - nativeEvent.contentOffset.y < 100;
+      - nativeEvent.contentOffset.y < SCROLL_EDGE_DISTANCE;
+    setPreservePosition(!following.current);
+  };
+  const more = () => {
+    if (!hasMore || loadingMore || !loadOlder) return;
+    following.current = false;
+    setPreservePosition(true);
+    void loadOlder();
+  };
+  const finishScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    updateFollowing(event);
+    scrolling.current = false;
+    // Android can deliver the final scroll position after the drag event has ended.
+    if (event.nativeEvent.contentOffset.y < SCROLL_EDGE_DISTANCE) more();
   };
   return <FlatList ref={list} data={items} keyExtractor={(item) => item.id}
     contentContainerStyle={items.length ? styles.messages : styles.empty}
     renderItem={({ item }) => <ChatMessage item={item} />}
-    keyboardShouldPersistTaps="handled" initialNumToRender={16}
+    keyboardShouldPersistTaps="handled" initialNumToRender={10}
+    maintainVisibleContentPosition={preservePosition ? { minIndexForVisible: 1 } : undefined}
     // Image loads also emit scroll events. Only a user's gesture should turn off following new replies.
     onScrollBeginDrag={() => { scrolling.current = true; }}
-    onScrollEndDrag={(event) => { updateFollowing(event); scrolling.current = false; }}
+    onScrollEndDrag={finishScroll}
     onMomentumScrollBegin={() => { scrolling.current = true; }}
-    onMomentumScrollEnd={(event) => { updateFollowing(event); scrolling.current = false; }}
-    onScroll={(event) => { if (scrolling.current) updateFollowing(event); }} scrollEventThrottle={100}
-    onContentSizeChange={() => {
-      if (following.current && !scrolling.current) list.current?.scrollToEnd({ animated: false });
+    onMomentumScrollEnd={finishScroll}
+    onScroll={(event) => {
+      const top = event.nativeEvent.contentOffset.y;
+      if (scrolling.current) {
+        updateFollowing(event);
+        if (top < position.current && top < SCROLL_EDGE_DISTANCE) more();
+      }
+      position.current = top;
+    }} scrollEventThrottle={100}
+    onContentSizeChange={(_, height) => {
+      // Cell estimates can still be zero on the first layout; use the measured content height.
+      if (following.current && !scrolling.current) list.current?.scrollToOffset({ offset: height, animated: false });
     }}
-    ListEmptyComponent={<View style={styles.empty}>
+    ListHeaderComponent={hasMore || (loading && !items.length) ? <View style={styles.historyStatus}>
+      {loadingMore || (loading && !items.length) ? <>
+        <ActivityIndicator size="small" accessibilityLabel="正在加载聊天记录" />
+        <Text style={styles.subtitle}>正在加载聊天记录…</Text>
+      </> : <Pressable accessibilityRole="button" onPress={more}>
+        <Text style={styles.subtitle}>加载更早的消息</Text>
+      </Pressable>}
+    </View> : null}
+    ListEmptyComponent={loading ? null : <View style={styles.empty}>
       <Text style={styles.emptyGlyph}>✳</Text>
       <Text style={styles.title}>想一起完成什么？</Text>
       <Text style={[styles.subtitle, styles.centerText]}>消息会发送到你的电脑，随时可以接着聊。</Text>
     </View>}
-    ListFooterComponent={running ? <Text style={styles.status}>Codex 正在处理…</Text>
-      : lastTurn?.error ? <Text style={styles.error}>{lastTurn.error.message}</Text> : null} />;
+    ListFooterComponent={lastTurn?.error ? <Text style={styles.error}>{lastTurn.error.message}</Text> : null} />;
 }
