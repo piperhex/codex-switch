@@ -10,6 +10,7 @@
     "test:chat:android:background": "node e2e/android-background-chat.mjs",
     "test:chat:android:history": "node e2e/android-history-regression.mjs",
     "test:chat:android:drawer": "node e2e/android-drawer-regression.mjs",
+    "test:chat:android:skills": "node e2e/android-skills-regression.mjs",
     "dev": "vite",
     "build": "tsc && vite build",
     "check": "npm run build",

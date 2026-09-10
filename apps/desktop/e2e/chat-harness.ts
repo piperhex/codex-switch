@@ -5,6 +5,7 @@ import { ChatRpc } from '../../../shared/remote-chat/rpc';
 import { parseMessage, type IceServer, type RpcMessage, type Signal } from '../../../shared/remote-chat/protocol';
 import { demoResponse, demoState, changeDemoSidebar } from './demo-conversation';
 import { changeDemoComposer } from './demo-composer';
+import { demoSkillsDelay, setDemoSkills } from './demo-skills';
 
 const query = new URLSearchParams(location.search);
 const desktop = query.get('role') === 'desktop';
@@ -61,9 +62,11 @@ async function receive({ data }: MessageEvent<string>) {
         const target = link;
         const isSettings = (message.body as { operation?: string } | undefined)?.operation === 'composerSet';
         const isHistory = (message.body as { operation?: string } | undefined)?.operation === 'syncHistory';
+        const isSkills = (message.body as { operation?: string } | undefined)?.operation === 'skills';
         const send = () => { void target.send(response).catch((error: unknown) => errors.push(String(error))); };
         if (isSettings && settingsDelay) setTimeout(send, settingsDelay);
         else if (isHistory && historyDelay) setTimeout(send, historyDelay);
+        else if (isSkills && demoSkillsDelay()) setTimeout(send, demoSkillsDelay());
         else send();
       },
     });
@@ -84,6 +87,7 @@ declare global {
       fallback: () => void; stream: (text: string) => Promise<void>; executions: () => number; beats: () => number;
       demoState: typeof demoState; setComposer: (input: unknown) => void; setSidebar: (action: string) => void;
       setSettingsDelay: (milliseconds: number) => void; setHistoryDelay: (milliseconds: number) => void;
+      setSkills: typeof setDemoSkills;
       setLegacyHistory: (enabled: boolean) => void };
   }
 }
@@ -91,6 +95,7 @@ window.chatTest = { modes, errors, events, request: (text) => rpc.request('reque
   fallback: () => link.fallback(), stream: (text) => link.send({ kind: 'event', event: { text } }),
   executions: () => executions, beats: () => heartbeats, demoState,
   setComposer: (input) => { changeDemoComposer(input, link); },
+  setSkills: setDemoSkills,
   setSettingsDelay: (milliseconds) => { settingsDelay = Math.max(0, Math.min(5000, milliseconds)); },
   setHistoryDelay: (milliseconds) => { historyDelay = Math.max(0, Math.min(5000, milliseconds)); },
   setLegacyHistory: (enabled) => { legacyHistory = enabled; },

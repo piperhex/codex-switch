@@ -1,5 +1,5 @@
 import { guiApi } from '../pages/codexGui/api';
-import type { ApprovalReply, GuiEvent, ListResponse, Request, Thread } from '../pages/codexGui/types';
+import type { ApprovalReply, GuiEvent, ListResponse, Request, SkillsResponse, Thread } from '../pages/codexGui/types';
 import { object, type RpcRequest, type RpcResponse } from '../../../../shared/remote-chat/protocol';
 import { chunks } from '../../../../shared/remote-chat/framing';
 import { guiComposer } from '../pages/codexGui/composerBridge';
@@ -9,16 +9,17 @@ import { RemoteImages } from './images';
 import { parseHistoryWindow, sliceHistory } from '../../../../shared/remote-chat/historyPage';
 import { historyNotification } from '../../../../shared/remote-chat/historyNotification';
 import { LiveHistory } from './liveHistory';
+import { remoteSkills } from '../../../../shared/remote-chat/skills';
 
 const OPERATIONS = new Set([
   'models', 'list', 'read', 'start', 'resume', 'send', 'steer', 'interrupt', 'rename', 'archive', 'unarchive',
-  'compact', 'imagePreview', 'goalGet', 'goalSet', 'goalClear',
+  'compact', 'skills', 'imagePreview', 'goalGet', 'goalSet', 'goalClear',
 ]);
 const CACHE_TTL_MS = 5 * 60_000;
 interface Cached {
   fingerprint: string; result: Promise<RpcResponse>; expires: number; completed: boolean; readOnly: boolean;
 }
-const READ_OPERATIONS = new Set(['syncHistory', 'imageChunk', 'imagePreview', 'models', 'list', 'read', 'goalGet']);
+const READ_OPERATIONS = new Set(['syncHistory', 'imageChunk', 'imagePreview', 'models', 'list', 'read', 'goalGet', 'skills']);
 
 function operationError(error: unknown) {
   // Tauri rejects with the safe string produced by the Rust command boundary.
@@ -88,6 +89,7 @@ export class ChatOperations {
     // The existing typed Rust boundary validates directories, thread ids, inputs and approval replies.
     const sidebarVersion = guiSidebar.version();
     const result = await guiApi.request(body as unknown as Request);
+    if (body.operation === 'skills') return remoteSkills(result as SkillsResponse);
     if (body.operation === 'list') {
       const list = result as ListResponse<Thread>;
       return { ...list, data: list.data.map(({ turns: _turns, ...thread }) => thread),

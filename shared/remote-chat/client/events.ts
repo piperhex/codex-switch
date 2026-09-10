@@ -52,7 +52,7 @@ export function applyChatEvent(state: ChatState, event: GuiEvent): ChatState {
   if (method === 'serverRequest/resolved') return { ...state,
     approvals: state.approvals.filter((entry) => entry.id !== params.requestId) };
   if (method === 'codex/disconnected' || method === 'connection/closed') {
-    return { ...state, ready: false, error: '电脑上的聊天已断开，正在重新连接…' };
+    return { ...state, ready: false, compacting: undefined, error: '电脑上的聊天已断开，正在重新连接…' };
   }
   const threadId = params.threadId ?? params.thread?.id;
   let threads = state.threads;
@@ -68,5 +68,8 @@ export function applyChatEvent(state: ChatState, event: GuiEvent): ChatState {
   const approvals = method === 'turn/completed'
     ? state.approvals.filter((entry) => entry.params.turnId !== params.turn?.id) : state.approvals;
   const error = method === 'error' && !params.willRetry ? (params.error?.message ?? '本次回复未完成。') : state.error;
-  return { ...state, threads, selected, approvals, error };
+  const compactFinished = method === 'turn/completed' || method === 'thread/compacted'
+    || (method === 'error' && !params.willRetry);
+  const compacting = state.compacting === threadId && compactFinished ? undefined : state.compacting;
+  return { ...state, threads, selected, approvals, error, compacting };
 }

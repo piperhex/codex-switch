@@ -6,13 +6,14 @@ import type { HistoryPage } from '../historyPage';
 import { HistoryReader } from './historyReader';
 import { ImageCache } from './imageCache';
 import { validateChatImages } from '../attachments';
+import { compactUnavailableReason } from './composerCommands';
 import type { ConnectionMode } from '../protocol';
 import { COMPOSER_EVENT, composerPatch, type ComposerModelsResponse,
   type ComposerSettings, type ComposerSnapshot } from '../composer';
 import { resolveModelSelection } from '../../../apps/desktop/src/pages/codexGui/modelSelection';
 import { SIDEBAR_EVENT, type SidebarSnapshot } from '../sidebar';
 import { initialChatState, type ApprovalReply, type ChatProject, type ChatState, type GuiEvent,
-  type ListResponse, type Request, type SendInput, type Thread } from './types';
+  type ListResponse, type Request, type SendInput, type SkillsResponse, type Thread } from './types';
 
 const SYNCHRONIZATION_RETRY_MS = 3000;
 
@@ -25,6 +26,7 @@ export class ChatController {
   private readGeneration = 0;
   private refreshThreadId: string | null = null;
   private synchronization = 0;
+  private skillGeneration = 0;
   private active = false;
   private syncTimer?: ReturnType<typeof setTimeout>;
   private readonly images = new ImageCache(<T>(body: Parameters<ConstructorParameters<typeof ImageCache>[0]>[0]) =>
@@ -67,6 +69,7 @@ export class ChatController {
   private changeMode(mode: ConnectionMode) {
     this.historyReader.reset();
     if (mode === 'offline') {
+      this.skillGeneration += 1;
       this.composerRevision = -1;
       this.update({ sidebar: { ...this.state.sidebar, revision: -1 } });
     }
@@ -78,7 +81,8 @@ export class ChatController {
     clearTimeout(this.syncTimer);
     clearTimeout(this.historyTimer);
     this.historyTimer = undefined;
-    this.update({ mode, ready: false, loading: false, historyLoading: false, historyLoadingMore: false });
+    this.update({ mode, ready: false, loading: false, historyLoading: false, historyLoadingMore: false,
+      compacting: undefined });
   }
 
   private receive(event: GuiEvent) {
@@ -103,6 +107,7 @@ export class ChatController {
       if (event.params.threadId === this.state.selected?.id) this.scheduleHistory();
     }
     if (event?.method === 'connection/closed' || event?.method === 'codex/disconnected') {
+      this.skillGeneration += 1;
       this.update({ ready: false });
       this.scheduleSynchronization();
     }
@@ -126,6 +131,7 @@ export class ChatController {
   start() { this.active = true; this.connection.start(); }
   stop() {
     this.active = false;
+    this.skillGeneration += 1;
     this.historyReader.reset();
     this.olderQueued = false;
     clearTimeout(this.syncTimer);
@@ -135,7 +141,7 @@ export class ChatController {
     this.listGeneration += 1;
     this.readGeneration += 1;
     this.refreshThreadId = null;
-    this.update({ ready: false, historyLoading: false, historyLoadingMore: false });
+    this.update({ ready: false, historyLoading: false, historyLoadingMore: false, compacting: undefined });
     this.connection.stop();
   }
 
@@ -345,7 +351,9 @@ export class ChatController {
 
   async send(input: SendInput) {
     const images = input.images ?? [];
-    if (this.state.sending || this.state.settingsBusy || (!input.text.trim() && !images.length)) return false;
+    if (this.state.sending || this.state.settingsBusy || (this.state.compacting
+      && this.state.compacting === this.state.selected?.id)
+      || (!input.text.trim() && !images.length && !input.skills?.length)) return false;
     try { validateChatImages(images); }
     catch (error) { this.failure(error); return false; }
     if (!this.state.ready) { this.update({ error: '正在连接电脑，请稍候再发送。' }); return false; }
@@ -366,7 +374,7 @@ export class ChatController {
       const running = this.state.selected?.turns?.find((turn) => turn.status === 'inProgress');
       if (running) {
         await this.request({ operation: 'steer', threadId: thread.id, turnId: running.id,
-          text: input.text, images, skills: [] });
+          text: input.text, images, skills: input.skills ?? [] });
       } else {
         // A new thread is already loaded and may not have a persisted rollout until its first turn.
         if (!created) await this.request({ operation: 'resume', threadId: thread.id, access: input.access });
@@ -384,6 +392,44 @@ export class ChatController {
   }
 
   imagePreview = (threadId: string, source: string, original = false) => this.images.load(threadId, source, original);
+
+  loadSkills = async (cwd: string) => {
+    const generation = this.skillGeneration;
+    const result = await this.request<SkillsResponse>({ operation: 'skills', cwd: cwd || undefined });
+    // Switching between relay and direct transport still returns the same computer's catalog.
+    if (!this.active || generation !== this.skillGeneration) throw new Error('连接已中断，请重新打开技能菜单。');
+    return result;
+  };
+
+  compact = async () => {
+    const selected = this.state.selected;
+    if (!selected || compactUnavailableReason(this.state)) return false;
+    const threadId = selected.id;
+    const generation = this.synchronization;
+    this.update({ compacting: threadId, error: '' });
+    try {
+      await this.request({ operation: 'resume', threadId,
+        access: this.state.settings.access });
+      this.ensureCurrent(generation);
+      const { thread } = await this.historyReader.read(selected, {});
+      this.ensureCurrent(generation);
+      if (this.state.selected?.id !== threadId || thread.turns?.some((turn) => turn.status === 'inProgress')
+        || this.state.selected.turns?.some((turn) => turn.status === 'inProgress')
+        || this.state.approvals.some((event) => event.params.threadId === threadId)) {
+        this.update({ compacting: undefined });
+        return false;
+      }
+      await this.request({ operation: 'compact', threadId });
+      // The acknowledgement precedes completion; lifecycle events release the guard.
+      return true;
+    } catch (error) {
+      if (generation === this.synchronization) {
+        this.update({ compacting: undefined });
+        this.failure(error);
+      }
+      return false;
+    }
+  };
 
   async interrupt() {
     const thread = this.state.selected;

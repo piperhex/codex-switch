@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { ChatImageError, MAX_CHAT_IMAGES, validateChatImages, type DraftImage } from '../attachments';
 import type { SendInput } from './types';
 import type { ComposerSettings } from '../composer';
+import type { Skill } from './types';
+import { draftSkills, editSkillDraft, emptySkillDraft, insertDraftSkill, type TextSelection } from './skillDraft';
 
 interface Options {
   threadId: string | null;
@@ -12,7 +14,12 @@ interface Options {
 }
 
 export function useChatDraft({ threadId, sending, disabled, selection, send }: Options) {
-  const [text, setText] = useState('');
+  const [content, setContent] = useState(emptySkillDraft);
+  const { text } = content;
+  const setText = (value: string) => setContent((draft) => editSkillDraft(draft, value));
+  const insertSkill = (range: TextSelection, skill: Skill) => setContent((draft) => insertDraftSkill(draft, range, skill));
+  const removeText = (range: TextSelection, expected: string) => setContent((draft) => draft.text === expected
+    ? editSkillDraft(draft, expected.slice(0, range.start) + expected.slice(range.end)) : draft);
   const [images, setImages] = useState<DraftImage[]>([]);
   const [error, setError] = useState('');
   const [picking, setPicking] = useState(false);
@@ -56,9 +63,11 @@ export function useChatDraft({ threadId, sending, disabled, selection, send }: O
     const current = generation.current;
     submitting.current = true; setError('');
     try {
-      const sent = await send({ text, images: images.map((image) => image.url), ...selection });
+      const skills = draftSkills(content);
+      const sent = await send({ text, images: images.map((image) => image.url), ...selection,
+        ...(skills.length ? { skills } : {}) });
       if (!sent || current !== generation.current) return;
-      setText((value) => value === text ? '' : value);
+      setContent((value) => value.text === text ? emptySkillDraft() : value);
       setImages((value) => value.filter((image) => !images.includes(image)));
     } catch {
       if (current === generation.current) setError('消息未发送，请稍后重试。');
@@ -70,6 +79,6 @@ export function useChatDraft({ threadId, sending, disabled, selection, send }: O
     if (sending || busy.current || submitting.current) return;
     setImages((value) => value.filter((image) => image.id !== id)); setError('');
   };
-  return { text, setText, images, error, picking, addImages, removeImage, submit,
+  return { text, setText, insertSkill, removeText, images, error, picking, addImages, removeImage, submit,
     hasContent: Boolean(text.trim() || images.length) };
 }

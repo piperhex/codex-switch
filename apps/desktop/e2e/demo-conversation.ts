@@ -12,6 +12,7 @@ import { RemoteImages } from '../src/remoteChat/images';
 import { demoImageResponse } from './demo-images';
 import { parseHistoryWindow, sliceHistory } from '../../../shared/remote-chat/historyPage';
 import { seedDemoHistory } from './demo-history';
+import { demoSkills } from './demo-skills';
 
 const images = new RemoteImages();
 const synchronization: { bytes: number; changedItems: number; text: string }[] = [];
@@ -51,6 +52,7 @@ export function demoResponse(request: RpcRequest, link: ChatLink): unknown {
   operations.push({ ...input, method: request.method });
   if (request.method === 'respond') return respond(input);
   if (input.operation === 'models') return { data: demoComposer().models, nextCursor: null, composer: demoComposer() };
+  if (input.operation === 'skills') return demoSkills();
   if (input.operation === 'composerSet') return changeDemoComposer(input.settings, link);
   if (input.operation === 'threadRead') return guiSidebar.markRead(input);
   if (input.operation === 'list') return { data: [...threads.values()].filter((thread) =>
@@ -85,6 +87,10 @@ function threadOperation(thread: Thread, input: Record<string, unknown>, link: C
   }
   if (input.operation === 'read') return { thread };
   if (input.operation === 'resume') return {};
+  if (input.operation === 'compact') {
+    setTimeout(() => notify(link, { method: 'thread/compacted', params: { threadId: thread.id } }), 500);
+    return {};
+  }
   if (input.operation === 'imagePreview' || input.operation === 'imageChunk') return demoImageResponse(input);
   if (input.operation === 'archive') { archived.add(thread.id); return {}; }
   if (input.operation === 'unarchive') { archived.delete(thread.id); return {}; }

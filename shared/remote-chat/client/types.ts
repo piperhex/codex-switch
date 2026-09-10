@@ -1,7 +1,7 @@
 export type {
-  AccessMode, ApprovalReply, GuiEvent, Item, ListResponse, Model, Request, Thread, Turn,
+  AccessMode, ApprovalReply, GuiEvent, Item, ListResponse, Model, Request, Skill, SkillReference, SkillsResponse, Thread, Turn,
 } from '../../../apps/desktop/src/pages/codexGui/types';
-import type { GuiEvent, Model, Thread } from '../../../apps/desktop/src/pages/codexGui/types';
+import type { GuiEvent, Model, SkillReference, Thread } from '../../../apps/desktop/src/pages/codexGui/types';
 import type { ConnectionMode } from '../protocol';
 import { DEFAULT_COMPOSER, type ComposerSettings } from '../composer';
 import { emptySidebar, type SidebarSnapshot } from '../sidebar';
@@ -9,6 +9,7 @@ import { emptySidebar, type SidebarSnapshot } from '../sidebar';
 export interface SendInput {
   text: string;
   images?: string[];
+  skills?: SkillReference[];
   model?: string;
   effort?: string;
   access: ComposerSettings['access'];
@@ -37,6 +38,7 @@ export interface ChatState {
   historyLoadingMore: boolean;
   historyHasMore: boolean;
   sending: boolean;
+  compacting?: string;
   error: string;
 }
 

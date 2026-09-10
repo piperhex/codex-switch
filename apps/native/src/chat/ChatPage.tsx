@@ -16,6 +16,7 @@ import { notificationId, type ChatNotificationTarget } from './notificationTarge
 import { styles } from './styles';
 import { threadPresentation } from '../../../../shared/remote-chat/sidebar';
 import type { ChatProject } from './types';
+import { compactUnavailableReason } from '../../../../shared/remote-chat/client/composerCommands';
 
 interface Props {
   session: AuthSession; devices: RemoteDevice[]; active: boolean;
@@ -51,7 +52,7 @@ export function ChatPage({ session, devices, active, notification, notificationE
 function ConnectedChat({ session, device, devices, active, chooseDevice, notification, notificationHandled }: Props & {
   device?: RemoteDevice; chooseDevice: (id: string) => void;
 }) {
-  const { state, controller, foreground } = useChat(session, device?.deviceId ?? '', Boolean(device));
+  const { state, controller, foreground, catalog } = useChat(session, device?.deviceId ?? '', Boolean(device));
   useChatCompletionNotifications(controller, session, device?.deviceId ?? '');
   useOpenChatNotification({ controller, target: notification?.deviceId === device?.deviceId ? notification : null,
     ready: state.ready, sending: state.sending, handled: notificationHandled });
@@ -125,6 +126,9 @@ function ConnectedChat({ session, device, devices, active, chooseDevice, notific
           <ChatApproval key={String(event.id)} event={event} respond={(reply) => controller.respond(reply)} />)}
       </ScrollView>}
     <ChatComposer threadId={state.selected?.id ?? null} models={state.models} selection={state.settings}
+      catalog={catalog} cwd={state.selected?.cwd ?? state.draftProject?.cwd ?? ''}
+      compactReason={compactUnavailableReason(state)} compacting={!!state.compacting
+        && state.compacting === state.selected?.id} compact={controller.compact}
       settingsBusy={state.settingsBusy} settingsError={state.settingsError}
       updateSettings={(settings) => controller.setSettings(settings)}
       active={active} ready={ready} sending={state.sending} running={running}
