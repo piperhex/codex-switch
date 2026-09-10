@@ -102,7 +102,11 @@ export async function send(text, { steer = false, dismissKeyboard = true } = {})
   const count = (await serverState()).operations.filter((entry) => entry.operation === operation).length;
   await input('聊天消息', text);
   await tap(steer ? '补充消息' : '发送消息');
-  if (dismissKeyboard) await adb('shell', 'input', 'keyevent', 'KEYCODE_BACK');
+  if (dismissKeyboard) {
+    const keyboard = await adb('shell', 'dumpsys', 'input_method');
+    // Back navigates away from chat when an image modal has already dismissed the keyboard.
+    if (/mInputShown=true/.test(keyboard)) await adb('shell', 'input', 'keyevent', 'KEYCODE_BACK');
+  }
   await waitFor(async () => (await serverState()).operations.filter((entry) => entry.operation === operation).length
     === count + 1, `PC received ${operation}`);
 }

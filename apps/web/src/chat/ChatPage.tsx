@@ -96,7 +96,9 @@ function ConnectedChat({ session, device, active, disconnect }: {
         {approvals.map((event) => <ChatApproval key={String(event.id)} event={event}
           ready={ready} respond={(reply) => controller.respond(reply)} />)}
       </div>}
-      <ChatComposer models={state.models} active={active} ready={ready} sending={state.sending} running={running}
+      <ChatComposer models={state.models} selection={state.settings} settingsBusy={state.settingsBusy}
+        updateSettings={(settings) => controller.setSettings(settings)}
+        active={active} ready={ready} sending={state.sending} running={running}
         send={(input) => controller.send(input)} interrupt={() => { void controller.interrupt(); }} />
     </> : <ChatThreads state={state} controller={controller} newChat={() => setComposing(true)} />}
   </>;

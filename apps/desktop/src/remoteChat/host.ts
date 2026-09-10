@@ -4,6 +4,8 @@ import { ChatLink } from '../../../../shared/remote-chat/link';
 import { RtcPeer } from '../../../../shared/remote-chat/rtcPeer';
 import { parseMessage, type IceServer, type Signal } from '../../../../shared/remote-chat/protocol';
 import { ChatOperations } from './operations';
+import { guiComposer } from '../pages/codexGui/composerBridge';
+import { COMPOSER_EVENT } from '../../../../shared/remote-chat/composer';
 
 export interface ChatHostConfig { websocketUrl: string; accessToken: string; deviceId: string }
 
@@ -12,9 +14,13 @@ export class ChatHost {
   private readonly links = new Map<string, ChatLink>();
   private readonly operations = new ChatOperations();
   private unsubscribe?: () => void;
+  private readonly unsubscribeComposer: () => void;
   private closed = false;
 
   constructor(readonly config: ChatHostConfig) {
+    this.unsubscribeComposer = guiComposer.subscribe((snapshot) => {
+      this.broadcast({ method: COMPOSER_EVENT, params: snapshot });
+    });
     this.socket = new WebSocket(config.websocketUrl);
     this.socket.onopen = () => this.send({ type: 'authenticate', role: 'desktop',
       accessToken: config.accessToken, deviceId: config.deviceId });
@@ -23,17 +29,17 @@ export class ChatHost {
     };
     this.socket.onclose = () => this.close();
     this.socket.onerror = () => this.close();
-    void guiApi.subscribe((event) => {
-      for (const link of this.links.values()) {
-        void link.send({ kind: 'event', event }).catch(() => link.close());
-      }
-    }).then((unsubscribe) => {
+    void guiApi.subscribe((event) => this.broadcast(event)).then((unsubscribe) => {
       if (this.closed) unsubscribe();
       else this.unsubscribe = unsubscribe;
     }).catch(() => this.close());
   }
 
   get alive() { return !this.closed; }
+
+  private broadcast(event: unknown) {
+    for (const link of this.links.values()) void link.send({ kind: 'event', event }).catch(() => link.close());
+  }
 
   private send(message: object) {
     if (this.socket.readyState !== WebSocket.OPEN) throw new Error('Disconnected');
@@ -84,6 +90,7 @@ export class ChatHost {
     if (this.closed) return;
     this.closed = true;
     this.unsubscribe?.();
+    this.unsubscribeComposer();
     for (const link of this.links.values()) link.close();
     this.links.clear();
     this.socket.close();

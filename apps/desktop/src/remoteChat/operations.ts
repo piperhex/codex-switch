@@ -2,6 +2,7 @@ import { guiApi } from '../pages/codexGui/api';
 import type { ApprovalReply, Request } from '../pages/codexGui/types';
 import { object, type RpcRequest, type RpcResponse } from '../../../../shared/remote-chat/protocol';
 import { chunks } from '../../../../shared/remote-chat/framing';
+import { guiComposer } from '../pages/codexGui/composerBridge';
 
 const OPERATIONS = new Set([
   'models', 'list', 'read', 'start', 'resume', 'send', 'steer', 'interrupt', 'rename', 'archive', 'unarchive',
@@ -47,6 +48,11 @@ export class ChatOperations {
   private async run(request: RpcRequest): Promise<unknown> {
     if (request.method === 'connect') return guiApi.connect({ reuseExisting: true });
     const body = object(request.body);
+    if (request.method === 'request' && body.operation === 'composerSet') return guiComposer.update(body.settings);
+    if (request.method === 'request' && body.operation === 'models') {
+      const composer = await guiComposer.read();
+      return { data: composer.models, nextCursor: null, composer };
+    }
     if (request.method === 'respond') {
       if (typeof body.id !== 'string' && typeof body.id !== 'number') throw new Error('审批请求已失效，请刷新对话。');
       return guiApi.respond(body as ApprovalReply);

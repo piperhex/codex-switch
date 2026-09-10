@@ -60,6 +60,10 @@ try {
   await check('04-steer-and-stop', async () => {
     await send('slow task');
     await waitText('停止回复');
+    const changed = await fetch('http://127.0.0.1:1490/test/composer', { method: 'POST',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ effort: 'high' }) });
+    assert.equal(changed.ok, true);
+    await waitText('测试模型 · 高');
     await send('additional detail', { steer: true });
     await waitFor(async () => (await operationCount('steer')) === 1, 'steered');
     await tap('停止回复');
@@ -151,6 +155,30 @@ try {
     assert.ok(await operationCount('imagePreview') > 0);
     await send('message after images');
     await settled();
+  });
+  await check('13-model-effort-and-access-sync', async () => {
+    const response = await fetch('http://127.0.0.1:1490/test/composer', { method: 'POST',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+        model: 'second-model', effort: 'xhigh', access: 'danger-full-access',
+      }) });
+    assert.equal(response.ok, true);
+    await waitText('第二模型 · 极高');
+    await screenshot('13-pc-model-synced');
+    await tap('第二模型 · 极高，聊天设置');
+    await waitText('访问权限');
+    for (const [label, access] of [['请求批准', 'read-only'], ['帮我批准', 'workspace-write'],
+      ['完全访问', 'danger-full-access']]) {
+      await tap(label, { scroll: true });
+      await waitFor(async () => (await serverState()).composer.settings.access === access, `${label} synced`);
+    }
+    await screenshot('13-access-options');
+    await adb('shell', 'input', 'keyevent', 'KEYCODE_BACK');
+    await send('send with synced settings');
+    await settled();
+    assert.deepEqual((await serverState()).operations.filter((entry) => entry.operation === 'send').at(-1), {
+      operation: 'send', threadId: 'demo-chat', text: 'send with synced settings', model: 'second-model',
+      effort: 'xhigh', access: 'danger-full-access', images: [], method: 'request',
+    });
   });
   report.fixture = await serverState();
   assert.deepEqual(report.fixture.streamErrors, []);

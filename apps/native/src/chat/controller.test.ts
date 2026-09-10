@@ -3,6 +3,7 @@ import { ChatController } from './controller';
 import type { AuthSession } from '../types';
 import type { Thread } from './types';
 import type { ConnectionEvents } from '../../../../shared/remote-chat/client/connection';
+import { COMPOSER_EVENT, type ComposerSnapshot } from '../../../../shared/remote-chat/composer';
 
 const mocks = vi.hoisted(() => ({ request: vi.fn(), events: null as ConnectionEvents | null }));
 vi.mock('./connection', () => ({ MobileChatConnection: class {
@@ -129,5 +130,25 @@ describe('mobile chat actions', () => {
     await vi.advanceTimersByTimeAsync(3000);
     expect(controller.snapshot().ready).toBe(true);
     controller.stop();
+  });
+
+  it('synchronizes PC settings and keeps a newer change ahead of an older acknowledgement', async () => {
+    const controller = await connectedController();
+    const current: ComposerSnapshot = { models: [], revision: 2,
+      settings: { model: 'astra', effort: 'xhigh', access: 'danger-full-access' } };
+    mocks.events!.event({ method: COMPOSER_EVENT, params: current });
+    expect(controller.snapshot().settings).toEqual(current.settings);
+    mocks.request.mockImplementationOnce(async () => {
+      mocks.events!.event({ method: COMPOSER_EVENT, params: { ...current, revision: 4,
+        settings: { ...current.settings, effort: 'ultra' } } });
+      return { ...current, revision: 3 };
+    });
+    await controller.setSettings({ access: 'danger-full-access' });
+    expect(controller.snapshot().settings.effort).toBe('ultra');
+    expect(controller.snapshot().settingsBusy).toBe(false);
+    mocks.request.mockResolvedValue({ thread });
+    await controller.send({ text: 'test', ...controller.snapshot().settings });
+    expect(mocks.request).toHaveBeenCalledWith('request', expect.objectContaining({ operation: 'send',
+      model: 'astra', effort: 'ultra', access: 'danger-full-access' }));
   });
 });

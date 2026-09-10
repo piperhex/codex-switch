@@ -4,10 +4,7 @@ import { Check, ChevronLeft, ChevronRight, RotateCcw, Search } from "lucide-reac
 import type { Model } from "./types";
 import { resolveModelSelection, type ModelSelection } from "./modelSelection";
 import styles from "./ModelPicker.module.less";
-
-const EFFORT_LABELS: Record<string, string> = {
-  none: "无", minimal: "极低", low: "低", medium: "中", high: "高", xhigh: "极高", max: "最高", ultra: "Ultra",
-};
+import { EFFORT_LABELS } from '../../../../../shared/remote-chat/composer';
 const EFFORT_ORDER = Object.keys(EFFORT_LABELS);
 const MODEL_SEARCH_THRESHOLD = 8;
 interface ModelPickerProps extends ModelSelection {

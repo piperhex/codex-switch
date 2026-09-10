@@ -2,6 +2,7 @@ import type { RpcRequest } from '../../../shared/remote-chat/protocol';
 import type { ChatLink } from '../../../shared/remote-chat/link';
 import type { GuiEvent, Item, Thread, Turn } from '../src/pages/codexGui/types';
 import previewImage from '../src-tauri/icons/32x32.png?inline';
+import { changeDemoComposer, composerErrors, demoComposer } from './demo-composer';
 
 const welcome: Thread = { id: 'demo-chat', name: '移动端聊天体验', preview: '继续电脑上的任务', cwd: 'F:/projects/demo',
   updatedAt: Math.floor(Date.now() / 1000), turns: [{ id: 'welcome', status: 'completed', items: [
@@ -19,7 +20,7 @@ const uniqueId = (name: string) => `${name}-${++sequence}`;
 
 export function demoState() {
   return { threads: [...threads.values()], operations, approvals: [...approvals.values()].map(({ event }) => event),
-    streamErrors, archived: [...archived] };
+    streamErrors: [...streamErrors, ...composerErrors], archived: [...archived], composer: demoComposer() };
 }
 
 export function demoResponse(request: RpcRequest, link: ChatLink): unknown {
@@ -27,10 +28,8 @@ export function demoResponse(request: RpcRequest, link: ChatLink): unknown {
   const input = (request.body ?? {}) as Record<string, unknown>;
   operations.push({ ...input, method: request.method });
   if (request.method === 'respond') return respond(input);
-  if (input.operation === 'models') return { data: [{ id: 'demo', model: 'test-model', displayName: '测试模型',
-    isDefault: true, defaultReasoningEffort: 'medium', supportedReasoningEfforts: [
-      { reasoningEffort: 'medium', description: '标准' }, { reasoningEffort: 'high', description: '深入' },
-    ] }], nextCursor: null };
+  if (input.operation === 'models') return { data: demoComposer().models, nextCursor: null, composer: demoComposer() };
+  if (input.operation === 'composerSet') return changeDemoComposer(input.settings, link);
   if (input.operation === 'list') return { data: [...threads.values()].filter((thread) =>
     archived.has(thread.id) === (input.archived === true)
       && `${thread.name} ${thread.preview}`.includes(String(input.search ?? ''))), nextCursor: null };

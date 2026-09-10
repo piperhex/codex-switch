@@ -19,6 +19,7 @@ import { WorkspaceOperationContext } from "./codexGui/workspaceOperationContext"
 import type { AggregateApi, Provider } from "../types";
 import { providerModels } from "./codexGui/providerModels";
 import { useDreamSkin } from "./codexGui/useDreamSkin";
+import { guiComposer } from "./codexGui/composerBridge";
 
 type CodexGuiPageProps = {
   active: boolean; accountPicker: ReactNode; providers: Provider[]; aggregateApis: AggregateApi[];
@@ -26,6 +27,9 @@ type CodexGuiPageProps = {
 
 export function CodexGuiPage(props: CodexGuiPageProps) {
   const { active } = props;
+  const models = useMemo(() => providerModels(props.providers, props.aggregateApis),
+    [props.providers, props.aggregateApis]);
+  useEffect(() => { guiComposer.setProviderModels(models); }, [models]);
   useGuiLayout(active);
   const [visited, setVisited] = useState(active);
   useEffect(() => { if (active) setVisited(true); }, [active]);
@@ -45,6 +49,7 @@ function Workspace({ active, accountPicker, providers, aggregateApis }: CodexGui
   useEffect(() => { controller.activate(); return controller.dispose; }, [controller]);
   const models = useMemo(() => providerModels(providers, aggregateApis), [providers, aggregateApis]);
   useEffect(() => { controller.setProviderModels(models); }, [controller, models]);
+  useEffect(() => guiComposer.attach(controller), [controller]);
   useEffect(() => {
     if (isDesktopApp || !installer.version) return;
     if (active) void controller.connect();

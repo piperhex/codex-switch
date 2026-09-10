@@ -5,5 +5,5 @@ export interface SendInput {
   text: string;
   model?: string;
   effort?: string;
-  access: 'read-only' | 'workspace-write';
+  access: import('../../../../shared/remote-chat/composer').ComposerSettings['access'];
 }

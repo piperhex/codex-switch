@@ -20,10 +20,10 @@ async function initialChat({ page, request, info, transport }: Journey) {
 }
 
 async function settingsAndSteer({ page, request }: Journey) {
-  await click(page.getByRole('button', { name: /沿用电脑模型/ }));
+  await click(page.getByRole('button', { name: /测试模型 · 中/ }));
   await page.getByLabel('模型', { exact: true }).selectOption('test-model');
   await page.getByLabel('思考深度', { exact: true }).selectOption('high');
-  await page.getByLabel('文件权限', { exact: true }).selectOption('read-only');
+  await page.getByLabel('访问权限', { exact: true }).selectOption('read-only');
   await click(page.getByRole('button', { name: '完成', exact: true }));
   await send(page, 'slow task');
   await expect(page.getByRole('button', { name: '停止回复' })).toBeVisible();
@@ -89,6 +89,29 @@ async function imagePreview({ page, request, info }: Journey) {
   await screenshot(page, info, '04-inline-images');
 }
 
+async function synchronizeComposer({ page, request, info }: Journey) {
+  await request.post(`${fixtureUrl}/test/composer`, { data: {
+    model: 'second-model', effort: 'xhigh', access: 'danger-full-access',
+  } });
+  await expect(page.getByRole('button', { name: /第二模型 · 极高/ })).toBeVisible();
+  await click(page.getByRole('button', { name: /第二模型 · 极高/ }));
+  await expect(page.getByLabel('模型', { exact: true })).toHaveValue('second-model');
+  await expect(page.getByLabel('思考深度', { exact: true })).toHaveValue('xhigh');
+  for (const access of ['read-only', 'workspace-write', 'danger-full-access']) {
+    await page.getByLabel('访问权限', { exact: true }).selectOption(access);
+    await expect.poll(async () => (await state(request)).composer.settings.access).toBe(access);
+  }
+  await page.getByLabel('模型', { exact: true }).selectOption('test-model');
+  await page.getByLabel('思考深度', { exact: true }).selectOption('high');
+  await click(page.getByRole('button', { name: '完成', exact: true }));
+  await expect(page.getByRole('button', { name: /测试模型 · 高/ })).toBeVisible();
+  await send(page, 'send with synced settings');
+  await settled(page);
+  expect((await state(request)).operations.filter((entry) => entry.operation === 'send').at(-1))
+    .toMatchObject({ model: 'test-model', effort: 'high', access: 'danger-full-access' });
+  await screenshot(page, info, '05-synced-composer');
+}
+
 async function recoverConnection({ page, request, info, transport }: Journey) {
   const before = await state(request);
   const sent = await operationCount(request, 'send');
@@ -123,5 +146,6 @@ export async function chatJourney(context: Journey) {
   await manageHistory(context);
   await recoverConnection(context);
   await imagePreview(context);
+  await synchronizeComposer(context);
   expect(errors).toEqual([]);
 }

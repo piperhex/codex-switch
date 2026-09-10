@@ -2,6 +2,7 @@ import { expect, type Locator, type Page, type APIRequestContext, type TestInfo 
 import type { Thread } from '../src/chat/types';
 
 interface FixtureState {
+  composer: import('../../../shared/remote-chat/composer').ComposerSnapshot;
   operations: Array<Record<string, unknown>>;
   threads: Thread[];
   streamErrors: string[];

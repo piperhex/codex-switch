@@ -2,8 +2,9 @@ import type { ChatConnection, ConnectionEvents } from './connection';
 import { applyChatEvent } from './events';
 import { mergeHistory } from './history';
 import type { ConnectionMode } from '../protocol';
+import { COMPOSER_EVENT, type ComposerModelsResponse, type ComposerSettings, type ComposerSnapshot } from '../composer';
 import { initialChatState, type ApprovalReply, type ChatState, type GuiEvent,
-  type ListResponse, type Model, type Request, type Thread } from './types';
+  type ListResponse, type Request, type Thread } from './types';
 
 const SYNCHRONIZATION_RETRY_MS = 3000;
 
@@ -18,6 +19,7 @@ export class ChatController {
   private active = false;
   private syncTimer?: ReturnType<typeof setTimeout>;
   private readonly previews = new Map<string, Promise<string>>();
+  private composerRevision = -1;
 
   constructor(createConnection: (events: ConnectionEvents) => ChatConnection) {
     this.connection = createConnection({
@@ -37,6 +39,7 @@ export class ChatController {
   }
 
   private changeMode(mode: ConnectionMode) {
+    if (mode === 'offline') this.composerRevision = -1;
     this.synchronization += 1;
     this.listGeneration += 1;
     this.readGeneration += 1;
@@ -46,6 +49,7 @@ export class ChatController {
   }
 
   private receive(event: GuiEvent) {
+    if (event?.method === COMPOSER_EVENT) { this.applyComposer(event.params as unknown as ComposerSnapshot); return; }
     this.state = applyChatEvent(this.state, event);
     this.emit();
     if (event?.method === 'connection/closed' || event?.method === 'codex/disconnected') {
@@ -78,8 +82,9 @@ export class ChatController {
     try {
       const approvals = await this.connection.request<GuiEvent[]>('connect');
       if (!this.active || generation !== this.synchronization) return;
-      this.update({ approvals, error: '', ready: true });
+      this.update({ approvals, error: '' });
       await Promise.all([this.list(), this.loadModels(generation), this.refreshSelected()]);
+      if (this.active && generation === this.synchronization) this.update({ ready: true });
     } catch (error) {
       if (!this.active || generation !== this.synchronization) return;
       this.failure(error);
@@ -88,8 +93,32 @@ export class ChatController {
   }
 
   private async loadModels(generation: number) {
-    const result = await this.request<ListResponse<Model>>({ operation: 'models' });
-    if (this.active && generation === this.synchronization) this.update({ models: result.data });
+    const result = await this.request<ComposerModelsResponse>({ operation: 'models' });
+    if (!this.active || generation !== this.synchronization) return;
+    if (result.composer) this.applyComposer(result.composer);
+    else {
+      const model = result.data.find((entry) => entry.isDefault) ?? result.data[0];
+      this.update({ models: result.data, settings: { ...this.state.settings,
+        model: model?.model ?? '', effort: model?.defaultReasoningEffort ?? '' } });
+    }
+  }
+
+  private applyComposer(snapshot: ComposerSnapshot) {
+    if (!snapshot || !Array.isArray(snapshot.models) || !snapshot.settings
+      || !Number.isSafeInteger(snapshot.revision) || snapshot.revision < this.composerRevision) return;
+    this.composerRevision = snapshot.revision;
+    this.update({ models: snapshot.models, settings: snapshot.settings });
+  }
+
+  async setSettings(settings: Partial<ComposerSettings>) {
+    if (!this.state.ready || this.state.settingsBusy) return;
+    const generation = this.synchronization;
+    this.update({ settingsBusy: true, error: '' });
+    try {
+      const result = await this.connection.request<ComposerSnapshot>('request', { operation: 'composerSet', settings });
+      if (generation === this.synchronization) this.applyComposer(result);
+    } catch (error) { if (generation === this.synchronization) this.failure(error); }
+    finally { this.update({ settingsBusy: false }); }
   }
 
   async list(options: { search?: string; archived?: boolean; more?: boolean } = {}) {
@@ -134,8 +163,8 @@ export class ChatController {
     void this.list();
   }
 
-  async send(input: { text: string; model?: string; effort?: string; access: 'read-only' | 'workspace-write' }) {
-    if (this.state.sending || !input.text.trim()) return false;
+  async send(input: { text: string; model?: string; effort?: string; access: ComposerSettings['access'] }) {
+    if (this.state.sending || this.state.settingsBusy || !input.text.trim()) return false;
     if (!this.state.ready) { this.update({ error: '正在连接电脑，请稍候再发送。' }); return false; }
     const generation = this.synchronization;
     this.update({ sending: true, error: '' });
