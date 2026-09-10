@@ -1,5 +1,7 @@
 import type { Channel, Peer, PeerOptions, Signal } from './protocol';
 
+const MAX_PENDING_CANDIDATES = 128;
+
 function dataChannel(channel: RTCDataChannel): Channel {
   return {
     get readyState() { return channel.readyState; },
@@ -53,16 +55,26 @@ export class RtcPeer implements Peer {
   private async apply(signal: Exclude<Signal, { kind: 'key' }>) {
     if (this.closed) return;
     if (signal.kind === 'ice') {
-      if (this.pc.remoteDescription) await this.pc.addIceCandidate(signal);
-      else if (this.candidates.length < 128) this.candidates.push(signal);
+      if (this.pc.remoteDescription) await this.addCandidate(signal);
+      else if (this.candidates.length < MAX_PENDING_CANDIDATES) this.candidates.push(signal);
       return;
     }
     await this.pc.setRemoteDescription({ type: signal.type, sdp: signal.sdp });
-    for (const candidate of this.candidates.splice(0)) await this.pc.addIceCandidate(candidate);
+    for (const candidate of this.candidates.splice(0)) await this.addCandidate(candidate);
     if (signal.type !== 'offer' || this.closed) return;
     const answer = await this.pc.createAnswer();
     await this.pc.setLocalDescription(answer);
     this.options.signal({ kind: 'sdp', type: 'answer', sdp: answer.sdp ?? '' });
+  }
+
+  private async addCandidate(candidate: RTCIceCandidateInit) {
+    if (this.closed) return;
+    try {
+      await this.pc.addIceCandidate(candidate);
+    } catch {
+      // A platform can reject one address (for example an unsupported mDNS candidate).
+      // Keep negotiating with the remaining addresses; ICE state and the link timer decide fallback.
+    }
   }
 
   close() {
