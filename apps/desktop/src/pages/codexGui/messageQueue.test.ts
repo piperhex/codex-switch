@@ -98,18 +98,31 @@ it("queues separate messages and submits all in order to their original backgrou
   expect(controller.getSnapshot().selected).toBeNull();
 });
 
-it("holds the queue while editing, deletes one item, and sends the saved text", async () => {
+it("takes a message out for editing while the remaining queue still sends", async () => {
   await controller.send("first", []);
   await controller.send("second", []);
   const [first, second] = messages();
-  controller.queue.edit("one", first.id, { editing: true });
-  controller.queue.remove("one", second.id);
+  expect(controller.queue.take("one", first.id)).toMatchObject({ text: "first", images: [], skills: [] });
+  expect(controller.queue.take("one", first.id)).toBeUndefined();
+  expect(messages()).toEqual([second]);
   await finish();
-  expect(guiApi.request).not.toHaveBeenCalledWith(expect.objectContaining({ operation: "sendBatch" }));
-  controller.queue.edit("one", first.id, { editing: false, text: "edited" });
-  await settle();
   expect(guiApi.request).toHaveBeenCalledWith(expect.objectContaining({
-    operation: "sendBatch", messages: [{ text: "edited", images: [], skills: [] }] }));
+    operation: "sendBatch", messages: [{ text: "second", images: [], skills: [] }] }));
+});
+
+it("does not take a message that is already being sent", async () => {
+  await controller.send("first", []);
+  const first = messages()[0];
+  const original = vi.mocked(guiApi.request).getMockImplementation()!;
+  let resume!: (value: unknown) => void;
+  vi.mocked(guiApi.request).mockImplementation((request) => request.operation === "resume"
+    ? new Promise((resolve) => { resume = resolve; }) : original(request));
+  await finish();
+  expect(controller.queue.take("one", first.id)).toBeUndefined();
+  expect(messages()).toHaveLength(1);
+  resume({ thread });
+  await settle();
+  expect(messages()).toEqual([]);
 });
 
 it("steers only the chosen item and prevents duplicate clicks", async () => {

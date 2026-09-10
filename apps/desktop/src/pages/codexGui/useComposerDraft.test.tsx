@@ -189,3 +189,37 @@ it("bounds quote count and length, deduplicates selections and supports removing
   act(() => editor.clearQuotes());
   expect(editor.draft.quotes).toEqual([]);
 });
+
+it("replaces the draft with a queued message and preserves its images, attachments and skills when resending", async () => {
+  await render("one");
+  act(() => {
+    editor.editText("丢弃这份草稿");
+    editor.addQuote({ messageId: "old-answer", text: "丢弃这条引用" });
+    editor.addAttachments([{ kind: "file", name: "old.txt", path: "D:/old.txt" }]);
+    editor.addImages([file()]);
+  });
+  await finish();
+  const attachments = [{ kind: "file" as const, name: "notes.txt", path: "D:/notes.txt" }];
+  const skills = [{ name: "review", path: "D:/skills/review/SKILL.md" }];
+  controller.queue.enqueue("one", { text: "请用 $review 检查", images: [imageUrl], skills, attachments });
+  const id = controller.getSnapshot().queued.one[0].id;
+  act(() => { expect(editor.editQueued(id)).toBe(true); });
+  expect(controller.getSnapshot().queued.one).toEqual([]);
+  expect(editor.draft).toMatchObject({ text: "请用 $review 检查", images: [{ url: imageUrl }], attachments });
+  expect(editor.draft.images).toHaveLength(1);
+  expect(editor.draft.quotes).toBeUndefined();
+  expect(editor.draft.mentions[0]).toMatchObject({ start: 3, end: 10, skill: skills[0] });
+  expect(controller.send).not.toHaveBeenCalled();
+  await render("other");
+  expect(editor.draft.text).toBe("");
+  await render("one");
+  await act(async () => editor.send());
+  expect(controller.send).toHaveBeenCalledWith("请用 $review 检查", [imageUrl], skills, attachments);
+  expect(editor.draft.text).toBe("");
+});
+
+it("keeps the current draft when a queued message is unavailable", () => {
+  act(() => editor.editText("保留草稿"));
+  act(() => { expect(editor.editQueued("missing")).toBe(false); });
+  expect(editor.draft.text).toBe("保留草稿");
+});

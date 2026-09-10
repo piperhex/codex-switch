@@ -39,10 +39,11 @@ export class MessageQueue {
     // Keep dispatched batches stable and apply changes only to this conversation's waiting messages.
     this.update(threadId, messages.map((item) => item.busy ? item : { ...item, ...settings }));
   };
-  edit = (threadId: string, id: string, change: { editing: boolean; text?: string }) => {
-    this.update(threadId, this.list(threadId).map((item) =>
-      item.id === id && !item.busy ? { ...item, ...change } : item));
-    if (!change.editing) void this.flush(threadId);
+  take = (threadId: string, id: string): MessageInput | undefined => {
+    const item = this.list(threadId).find((message) => message.id === id);
+    if (!item || item.busy) return;
+    this.remove(threadId, id);
+    return { text: item.text, images: item.images, skills: item.skills, attachments: item.attachments };
   };
   private markBusy = (threadId: string, ids: Set<string>, busy: boolean) => {
     this.update(threadId, this.list(threadId).map((item) => ids.has(item.id) ? { ...item, busy } : item));
@@ -74,7 +75,7 @@ export class MessageQueue {
     if (!this.host.active() || state.workspaceBusy || state.connection !== "ready" || state.sending
       || state.compacting === threadId
       || this.pending.has(threadId)
-      || state.conversations[threadId]?.activeTurn || !messages.length || messages.some((item) => item.editing)) return;
+      || state.conversations[threadId]?.activeTurn || !messages.length) return;
     this.pending.add(threadId);
     const ids = new Set(messages.map((item) => item.id));
     this.markBusy(threadId, ids, true);
@@ -96,7 +97,7 @@ export class MessageQueue {
     const state = this.host.getSnapshot();
     const turnId = state.conversations[threadId]?.activeTurn;
     const item = this.list(threadId).find((entry) => entry.id === id);
-    if (!this.host.active() || state.connection !== "ready" || !turnId || !item || item.busy || item.editing
+    if (!this.host.active() || state.connection !== "ready" || !turnId || !item || item.busy
       || this.pending.has(threadId)) return;
     this.pending.add(threadId);
     const ids = new Set([id]);

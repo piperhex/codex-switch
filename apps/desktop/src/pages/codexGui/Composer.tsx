@@ -1,4 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { Target } from "lucide-react";
 import { ComposerAddMenu } from "./ComposerAddMenu";
 import { ComposerFilesDialog } from "./ComposerFilesDialog";
@@ -44,7 +45,7 @@ export const Composer = forwardRef<ComposerHandle, {
   const [dialog, setDialog] = useState<"files" | "goal" | null>(null);
   const workspaceBusy = Boolean(state.workspaceBusy);
   const { draft, reading, editContent, removeImage, addImages, paste, send: sendDraft,
-    addAttachments, removeAttachment, addQuote, removeQuote, clearQuotes } = useComposerDraft(key, controller);
+    addAttachments, removeAttachment, addQuote, removeQuote, clearQuotes, editQueued } = useComposerDraft(key, controller);
   // Creating a goal first creates its conversation; keep the form until the goal request succeeds.
   useEffect(() => { if (!controller.getSnapshot().goalBusy || !active) setDialog(null); }, [key, active, controller]);
   const current = state.selected ? state.conversations[state.selected] : undefined;
@@ -71,9 +72,16 @@ export const Composer = forwardRef<ComposerHandle, {
     if (!canSend) return;
     await sendDraft();
   };
+  const editQueuedMessage = (id: string) => {
+    if (disabled || reading || !active) return;
+    let restored = false;
+    flushSync(() => { restored = editQueued(id); });
+    if (restored) skillInput.current?.focus();
+  };
   return <div className={styles.composerWrap}>
     {state.selected && <QueuedMessages threadId={state.selected} messages={queuedMessages}
-      running={running} connected={state.connection === "ready"} queue={controller.queue} />}
+      running={running} connected={state.connection === "ready"} queue={controller.queue}
+      editDisabled={disabled || reading || !active} onEdit={editQueuedMessage} />}
     {!running && <ProjectPicker key={key} value={project} projects={state.projects}
       disabled={state.sending || state.archived || workspaceBusy} gitEnabled={!state.selected}
       onBusyChange={controller.setWorkspaceBusy}

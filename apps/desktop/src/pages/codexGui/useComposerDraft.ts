@@ -3,6 +3,7 @@ import type { GuiController } from "./controller";
 import type { ComposerText } from "./types";
 import { MAX_ATTACHMENTS, type AttachmentReference } from "./attachmentTypes";
 import { MAX_REPLY_QUOTES, MAX_QUOTE_CHARACTERS, quoteKey, quotedReply, type ReplyQuote } from "./replyQuotes";
+import { queuedMessageText } from "./queuedMessageDraft";
 
 export const MAX_IMAGES = 8;
 export const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
@@ -33,6 +34,15 @@ export function useComposerDraft(key: string, controller: GuiController) {
     ({ ...values, [key]: change(values[key] ?? EMPTY_DRAFT) }));
   const editText = (text: string) => update((value) => ({ ...value, text, mentions: [] }));
   const editContent = (content: ComposerText) => update((value) => ({ ...value, ...content }));
+  const editQueued = (id: string) => {
+    if (submitting.current) return false;
+    const message = controller.queue.take(key, id);
+    if (!message) return false;
+    const restored: Draft = { ...queuedMessageText(message), attachments: message.attachments,
+      images: message.images.map((url, index) => ({ id: crypto.randomUUID(), name: `图片 ${index + 1}`, url })) };
+    update(() => restored);
+    return true;
+  };
   const addQuote = (quote: ReplyQuote) => {
     if (!quote.text.trim() || !quote.messageId) return false;
     if (quote.text.length > MAX_QUOTE_CHARACTERS) {
@@ -105,5 +115,5 @@ export function useComposerDraft(key: string, controller: GuiController) {
     } finally { submitting.current = false; }
   };
   return { draft, reading, editText, editContent, removeImage, addImages, paste, send, addAttachments, removeAttachment,
-    addQuote, removeQuote, clearQuotes };
+    addQuote, removeQuote, clearQuotes, editQueued };
 }
