@@ -90,19 +90,24 @@ it("keeps provider names visible in privacy mode", async () => {
   expect(trigger().textContent).toContain(provider.name);
 });
 
-it("shows the selected proxy target and switches between providers and official accounts", async () => {
+it.each(["custom", "openai"] as const)(
+  "shows and switches a %s Provider alongside official accounts", async (kind) => {
+  const target = { ...provider, kind, name: kind === "openai" ? "Codex Switch" : provider.name };
+  props.providers = [target];
   await render();
   expect(trigger().textContent).toContain(account.email);
   await click(trigger());
   expect(option(account.email).getAttribute("aria-pressed")).toBe("true");
-  await click(option(provider.name));
-  expect(props.onSwitchProvider).toHaveBeenCalledWith(provider.id);
+  await click(option(target.name));
+  expect(props.onSwitchProvider).toHaveBeenCalledWith(target.id);
   expect(trigger().getAttribute("aria-expanded")).toBe("false");
   // An active login account may coexist with a third-party proxy target.
-  props.providers = [{ ...provider, active: true }];
+  props.providers = [{ ...target, active: true }];
   await render();
-  expect(trigger().textContent).toContain(provider.name);
+  expect(trigger().textContent).toContain(target.name);
+  expect(trigger().textContent).not.toContain(account.email);
   await click(trigger());
+  expect(option(target.name).getAttribute("aria-pressed")).toBe("true");
   expect(option(account.email).getAttribute("aria-pressed")).toBe("false");
   await click(option(account.email));
   expect(props.onSwitchAccount).toHaveBeenCalledWith(account.id);
@@ -127,7 +132,9 @@ it.each([
   expect(trigger().getAttribute("aria-expanded")).toBe("false");
 });
 
-it("keeps usage polling and the open list responsive while a switch is pending", async () => {
+it.each(["custom", "openai"] as const)(
+  "keeps polling and the open list responsive while switching a %s Provider", async (kind) => {
+  props.providers = [{ ...provider, kind }];
   let finish!: (success: boolean) => void;
   props.onSwitchProvider = vi.fn(() => new Promise<boolean>((resolve) => { finish = resolve; }));
   await render();

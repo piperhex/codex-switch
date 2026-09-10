@@ -51,7 +51,7 @@ export function ProxyAccountPicker(props: ProxyAccountPickerProps) {
   const [error, setError] = useState("");
   const switching = useRef(false);
   const trigger = useRef<HTMLButtonElement>(null);
-  const provider = props.providers.find((entry) => entry.active && entry.kind === "custom");
+  const provider = props.providers.find((entry) => entry.active);
   const aggregate = props.aggregateApis.find((entry) => entry.active);
   const account = props.accounts.find((entry) => entry.active);
   const thirdParty = Boolean(provider || aggregate);
@@ -65,7 +65,7 @@ export function ProxyAccountPicker(props: ProxyAccountPickerProps) {
     detail: entry.plan, usage: entry.usage,
     selected: !thirdParty && entry.active, disabled: !entry.localProxyCompatible,
   })).filter(matches);
-  const providers = props.providers.filter((entry) => entry.kind === "custom").map((entry) => ({
+  const providers = props.providers.map((entry) => ({
     id: entry.id, name: entry.name, detail: entry.group || entry.model,
     selected: !aggregate && entry.active,
   })).filter(matches);

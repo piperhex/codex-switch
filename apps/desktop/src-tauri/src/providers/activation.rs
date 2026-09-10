@@ -144,9 +144,9 @@ fn activate_provider_profile<R: Runtime>(
         return Err(error);
     }
     if write_codex {
-        for target in crate::storage::resolve_enabled_paths(app)? {
-            refresh_codex_models_now_best_effort(&target, provider);
-        }
+        // Routing and all home configurations are already committed. Refresh the shared
+        // renderer once in the background so a slow upstream catalog cannot delay switching.
+        refresh_codex_models_best_effort(paths, provider);
     }
     crate::claude_code::sync_after_switch(app)?;
     emit_providers_changed(app)
