@@ -48,11 +48,14 @@ export function FileMenu({ path, line, column, children, className, onReview }: 
   // The browser retains its existing diff shortcut; local file operations belong to the desktop.
   if (!menu.desktop && onReview) return <button type="button" className={className}
     onClick={onReview} aria-label={`查看 ${path} 的差异`}>{children}</button>;
-  return <Dropdown trigger={["click", "contextMenu"]} open={menu.open} onOpenChange={menu.setOpen} autoFocus
+  return <Dropdown trigger={onReview ? ["contextMenu"] : ["click", "contextMenu"]}
+    open={menu.open} onOpenChange={menu.setOpen} autoFocus
     overlayClassName={styles.popup} overlayStyle={{ maxWidth: 400 }}
     menu={{ items, builtinPlacements: SUBMENU_PLACEMENTS, expandIcon: <ChevronRight size={14} aria-hidden="true" />,
       onClick: () => menu.setOpen(false) }} disabled={menu.busy}>
-    <button type="button" className={className ?? styles.link} aria-label={`文件操作：${path}`}
+    <button type="button" className={className ?? styles.link}
+      aria-label={onReview ? `查看 ${path} 的差异` : `文件操作：${path}`}
+      onClick={() => { if (onReview) { menu.setOpen(false); onReview(); } }}
       aria-haspopup="menu" aria-expanded={menu.open} disabled={menu.busy}>{children}</button>
   </Dropdown>;
 }

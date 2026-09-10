@@ -41,8 +41,8 @@ export function sliceHistory(thread: Thread, window: HistoryWindow = {}): { thre
   const selected = turns.flatMap((turn) => {
     const from = Math.max(0, start - offset);
     offset += turn.items.length;
-    // Keep the empty active turn so processing status is visible before its first item arrives.
-    return offset > start || (offset === count && turn.status === 'inProgress')
+    // Trailing empty turns still carry processing, completion and read-receipt state.
+    return offset > start || (offset === count && turn.items.length === 0)
       ? [{ ...turn, items: turn.items.slice(from) }] : [];
   });
   const first = selected.find((turn) => turn.items.length > 0);

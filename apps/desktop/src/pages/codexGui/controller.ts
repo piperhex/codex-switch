@@ -9,6 +9,7 @@ import { conversation, reduceEvent } from "./events";
 import { completeTurnTiming, restoreTurnTiming } from "./turnTiming";
 import { MessageQueue } from "./messageQueue";
 import { mergeMessageItems } from "./sentMessages";
+import { asyncAnswerText, pendingAsyncQuestions, withAsyncAnswer } from "./asyncQuestionState";
 import { compactUnavailableReason } from "./composerOptions";
 import { rememberTurnDetails } from "./turnDetailsStorage";
 import { restoreProcessing } from "./processing";
@@ -16,7 +17,7 @@ import { trackProcessingApproval } from "./processingApprovals";
 import { initialState, savePreferences } from "./preferences";
 import { resolveModelSelection } from "./modelSelection";
 import type { ApprovalReply, GuiEvent, GuiState, ListResponse, Model, Settings, Thread, Turn } from "./types";
-import type { SkillReference } from "./types";
+import type { Item, SkillReference } from "./types";
 
 const STREAM_FRAME_MS = 32;
 
@@ -33,6 +34,8 @@ export class GuiController {
   private providerModels: Model[] | null = null;
   private streamEvents: GuiEvent[] = [];
   private streamTimer?: ReturnType<typeof setTimeout>;
+  private remoteReads = new Map<string, Promise<void>>();
+  private remoteTurnEvents = new Map<string, GuiEvent[]>();
   getSnapshot = () => this.state;
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => this.listeners.delete(listener); };
   private patch = (patch: Partial<GuiState>) => {
@@ -88,6 +91,9 @@ export class GuiController {
   };
   private receive = (event: GuiEvent) => {
     const threadId = event.params.threadId ?? event.params.thread?.id;
+    if (threadId && ["turn/started", "turn/completed"].includes(event.method)) {
+      this.remoteTurnEvents.get(threadId)?.push(event);
+    }
     if (event.method === "thread/deleted" && threadId) {
       this.forgetThread(threadId);
       void this.refresh();
@@ -112,13 +118,13 @@ export class GuiController {
     if (event.method === "turn/completed" || event.method === "thread/name/updated") void this.refresh();
   };
 
-  connect = () => {
+  connect = (options?: { reuseExisting: boolean }) => {
     if (this.connecting) return this.connecting;
-    this.connecting = this.initialize().finally(() => { this.connecting = undefined; });
+    this.connecting = this.initialize(options).finally(() => { this.connecting = undefined; });
     return this.connecting;
   };
 
-  private async initialize() {
+  private async initialize(options?: { reuseExisting: boolean }) {
     this.patch({ connection: "connecting", error: "" });
     try {
       if (!this.unlisten) {
@@ -126,12 +132,13 @@ export class GuiController {
         if (this.disposed) { stop(); return; }
         this.unlisten = stop;
       }
-      const approvals = await guiApi.connect();
+      const approvals = await (options ? guiApi.connect(options) : guiApi.connect());
       this.patch({ connection: "ready", approvals, error: "" });
       const results = await Promise.allSettled([this.refresh(), this.loadModels()]);
       results.forEach((result) => { if (result.status === "rejected") this.report(result.reason); });
       if (this.state.selected) await this.select(this.state.selected);
       this.patch(this.state.approvals.reduce(trackProcessingApproval, this.state));
+      Object.keys(this.state.queued).forEach((id) => void this.queue.flush(id));
     } catch (error) { this.patch({ connection: "offline" }); this.report(error); }
   }
 
@@ -230,6 +237,30 @@ export class GuiController {
     } catch (error) { if (generation === this.selectionGeneration) this.report(error); }
   };
 
+  /** Load the phone's conversation without changing the conversation selected on the PC. */
+  loadRemoteThread = (threadId: string): Promise<void> => {
+    const pending = this.remoteReads.get(threadId);
+    if (pending) return pending;
+    const reading = this.readRemoteThread(threadId).finally(() => {
+      this.remoteReads.delete(threadId); this.remoteTurnEvents.delete(threadId);
+    });
+    this.remoteReads.set(threadId, reading);
+    return reading;
+  };
+
+  private async readRemoteThread(threadId: string) {
+    const before = this.state.conversations[threadId];
+    const events: GuiEvent[] = [];
+    this.remoteTurnEvents.set(threadId, events);
+    const { thread } = await guiApi.request<{ thread: Thread }>({ operation: "read", threadId });
+    // Lifecycle events received during the read are newer than its history response.
+    if (this.state.conversations[threadId] === before) {
+      const loaded = { ...this.state,
+        conversations: { ...this.state.conversations, [threadId]: conversation(thread, before) } };
+      this.patch(events.reduce(reduceEvent, loaded));
+    }
+  }
+
   send = async (text: string, images: string[], skills: SkillReference[] = [], attachments: AttachmentReference[] = []) => {
     const { selected, settings, conversations } = this.state;
     const projectOverride = selected ? this.state.projectOverrides[selected] : undefined;
@@ -265,6 +296,33 @@ export class GuiController {
     } catch (error) { this.report(error); return false; }
     finally {
       this.patch({ sending: false, pendingRequest: undefined });
+      Object.keys(this.state.queued).forEach((id) => void this.queue.flush(id));
+    }
+  };
+
+  answerAsyncQuestion = async (item: Item, answers: string[]): Promise<boolean> => {
+    const state = this.state;
+    const threadId = state.selected;
+    const current = threadId ? state.conversations[threadId] : undefined;
+    const text = asyncAnswerText(item, answers);
+    if (!threadId || !current || !text || state.connection !== "ready" || state.archived
+      || state.sending || state.workspaceBusy || state.deleting || state.compacting === threadId
+      || !pendingAsyncQuestions(current).some((question) => question.id === item.id)) return false;
+    if (!current.activeTurn) return this.send(text, []);
+    const turnId = current.activeTurn;
+    const userMessageIndex = current.turns.find((turn) => turn.id === turnId)
+      ?.items.filter((entry) => entry.type === "userMessage").length ?? 0;
+    this.patch({ sending: true, error: "" });
+    try {
+      await guiApi.request({ operation: "steer", threadId, turnId, text, images: [], skills: [] });
+      const latest = this.state.conversations[threadId];
+      if (latest) this.patch({ conversations: { ...this.state.conversations, [threadId]: { ...latest,
+        turns: latest.turns.map((turn) => turn.id === turnId
+          ? withAsyncAnswer(turn, text, userMessageIndex) : turn) } } });
+      return true;
+    } catch (error) { this.report(error); return false; }
+    finally {
+      this.patch({ sending: false });
       Object.keys(this.state.queued).forEach((id) => void this.queue.flush(id));
     }
   };

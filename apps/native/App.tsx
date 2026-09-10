@@ -1,4 +1,5 @@
 import 'react-native-gesture-handler';
+import './src/chat/backgroundConnection';
 import { StatusBar } from 'expo-status-bar';
 import { Component, useCallback, useEffect, useMemo, useRef, useState, type ErrorInfo, type ReactNode } from 'react';
 import {
@@ -71,6 +72,7 @@ import { RemoteModelSwitchSheet } from './src/components/RemoteModelSwitchSheet'
 import { QuotaConsumptionSheet } from './src/components/QuotaConsumptionSheet';
 import { TotpPage } from './src/totp/TotpPage';
 import { ChatPage } from './src/chat/ChatPage';
+import { useChatNotificationNavigation } from './src/chat/useChatNotificationNavigation';
 import { TotpSyncSettings } from './src/totp/TotpSyncSettings';
 import type { TotpManagerState } from './src/totp/types';
 import { useTotpVault } from './src/totp/useTotpVault';
@@ -441,7 +443,7 @@ function Dashboard({
         <View style={styles.headerTitle}>
           <Text style={styles.brand}>Codex <Text style={styles.brandStrong}>Switch</Text></Text>
           <Text style={styles.headerCaption} numberOfLines={1}>
-            仓库地址：https://github.com/piperhex/codex-switch
+            github.com/piperhex/codex-switch
           </Text>
         </View>
         <Pressable accessibilityRole="button" onPress={() => setAddAccountOpen(true)}
@@ -1713,6 +1715,8 @@ function AppContent() {
   const [session, setSession] = useState<AuthSession | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [activePage, setActivePage] = useState<AppPage>('accounts');
+  const openChat = useCallback(() => setActivePage('chat'), []);
+  const chatNotification = useChatNotificationNavigation(session, openChat);
   const [initializing, setInitializing] = useState(true);
   const [loading, setLoading] = useState(false);
   const [syncingServer, setSyncingServer] = useState(false);
@@ -2271,7 +2275,9 @@ function AppContent() {
   </View>;
   return <SafeAreaView style={styles.app}>
     <StatusBar style="dark" />
-    <ChatPage session={session} devices={devices} active={activePage === 'chat'} />
+    <ChatPage session={session} devices={devices} active={activePage === 'chat'}
+      notification={chatNotification.target} notificationError={chatNotification.error}
+      notificationHandled={chatNotification.handled} />
     {activePage === 'chat' ? null : activePage === 'accounts'
       ? <Dashboard session={session} accounts={accounts} devices={devices} loading={loading}
         syncingServer={syncingServer} refreshingUsage={refreshingUsage} consumingQuota={consumingQuota}

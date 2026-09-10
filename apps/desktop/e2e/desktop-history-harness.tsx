@@ -13,11 +13,18 @@ const message = (index: number): Item => index % 2 === 0
   : { id: `message-${index}`, type: "agentMessage", phase: "final_answer",
     text: `### 检查结果 ${index}\n\n这是一条包含格式和代码的历史回复。\n\n`
       + `\`\`\`typescript\nconst result = ${index};\nconsole.log(result);\n\`\`\`\n\n已完成检查，可以继续。` };
-const cached: Conversation = { thread: { id: "large", cwd: "", preview: "长对话", updatedAt: 1 },
+const large: Conversation = { thread: { id: "large", cwd: "", preview: "长对话", updatedAt: 1 },
   activeTurn: null, tokens: 0, error: "", turns: Array.from({ length: MESSAGE_COUNT / ITEMS_PER_TURN }, (_, turn) => ({
     id: `turn-${turn}`, status: "completed", items: Array.from({ length: ITEMS_PER_TURN },
       (_, index) => message(turn * ITEMS_PER_TURN + index)),
   })) };
+const compact: Conversation = { ...large, turns: [{ id: "compact", status: "completed", items: [
+  message(0),
+  ...Array.from({ length: 30 }, (_, index): Item => ({ id: `activity-${index}`, type: "agentMessage",
+    phase: "commentary", text: `正在检查第 ${index} 项。` })),
+  { id: "final", type: "agentMessage", phase: "final_answer", text: "最新回复已完成。" },
+] }] };
+const cached = new URLSearchParams(location.search).has("compact") ? compact : large;
 const other: Conversation = { ...cached, thread: { ...cached.thread, id: "other" }, turns: [] };
 
 function Harness() {

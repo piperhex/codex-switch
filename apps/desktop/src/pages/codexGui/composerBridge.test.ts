@@ -48,6 +48,17 @@ it('preserves phone settings until the desktop GUI is opened', async () => {
   controller.dispose();
 });
 
+it('keeps the background queue controller on the configured Provider catalog before opening the GUI', async () => {
+  const bridge = new ComposerBridge();
+  const controller = new GuiController();
+  const detach = bridge.attach(controller);
+  bridge.setProviderModels(models);
+  expect(controller.getSnapshot().models).toEqual(models);
+  await bridge.update({ model: 'second', effort: 'xhigh' });
+  expect(controller.getSnapshot().settings).toMatchObject({ model: 'second', effort: 'xhigh' });
+  detach(); controller.dispose();
+});
+
 it('rejects unsupported models, efforts, permissions and unrelated settings', async () => {
   const bridge = new ComposerBridge();
   bridge.setProviderModels(models);

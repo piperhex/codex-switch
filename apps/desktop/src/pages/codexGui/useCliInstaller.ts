@@ -32,7 +32,7 @@ export function useCliInstaller(active: boolean, controller: Pick<GuiController,
         const installed = await invoke<{ version: string | null }>("codex_gui_cli_status");
         setVersion(installed.version);
         setChecked(true);
-        if (installed.version) await controller.connect();
+        if (installed.version) await controller.connect({ reuseExisting: true });
         else await check();
       } catch (error) { setChecked(true); controller.report(error); }
     });

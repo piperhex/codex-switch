@@ -1,6 +1,7 @@
 import type { Item } from "./types";
 
-export const CONTINUE_MESSAGE = "请继续完成刚才中断的任务。";
+import { CONTINUE_MESSAGE } from "../../../../../shared/remote-chat/composerAction";
+export { CONTINUE_MESSAGE } from "../../../../../shared/remote-chat/composerAction";
 
 /** History stores the continue button's instruction as an ordinary user message. */
 export function visibleContinuationItems(items: Item[]): Item[] {

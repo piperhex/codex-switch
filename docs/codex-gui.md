@@ -6,6 +6,11 @@ Providers (三方模型及中转). It supports project folders, text and image i
 streamed Markdown replies, command output, file diffs, plans, permission approvals, questions, interruption,
 history, search, renaming, pinning, and archiving/restoring conversations.
 
+The proxy account picker includes official accounts, custom Providers, and upstream Codex Switch Providers.
+Switching updates the selected target after its configuration is saved; the official Codex window's model
+catalog refresh runs in the background, so a slow upstream catalog does not keep the switch indicator spinning.
+Upstream Codex Switch Providers continue to use the live Codex model catalog.
+
 Opening or reopening a conversation displays its latest ten messages. Scroll upward to load ten earlier
 messages at a time; a loading indicator appears and the current reading position is preserved.
 Incoming replies continue updating while browsing history.

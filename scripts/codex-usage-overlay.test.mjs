@@ -66,7 +66,7 @@ class Element {
   }
 }
 
-function createHarness({ dark = false, binding } = {}) {
+function createHarness({ dark = false, binding, fastModeAllowed = true } = {}) {
   const document = new Element();
   document.documentElement = document;
   document.createElement = () => new Element();
@@ -84,7 +84,7 @@ function createHarness({ dark = false, binding } = {}) {
   let now = 0;
   const window = {
     __CODEX_SWITCH_COMPOSER_STATUS_ALLOWED__: true,
-    __CODEX_SWITCH_FAST_MODE_ALLOWED__: true,
+    __CODEX_SWITCH_FAST_MODE_ALLOWED__: fastModeAllowed,
     codexSwitchRequestUsageSummary() { requests += 1; binding?.(); },
   };
   const context = {
@@ -120,6 +120,28 @@ function update(harness, overrides = {}) {
   harness.state.updateUsage({ enabled: true, totalTokens: 1234, estimatedCostUsd: 7.5, ...overrides });
   return harness.usage.querySelector("[data-trailing-balance]");
 }
+
+test("daily usage renders and keeps polling without Fast controls, and respects the display setting", () => {
+  const harness = createHarness({ fastModeAllowed: false });
+  harness.flushTimeouts();
+  update(harness, { primaryRemainingPercent: 80 });
+  const selector = harness.document.querySelector("[data-codex-switch-speed-selector]");
+  assert.equal(selector.hidden, false);
+  assert.equal(harness.usage.hidden, false);
+  assert.equal(harness.usage.querySelector("[data-today-tokens]").textContent, "1.2K");
+  assert.equal(selector.querySelector("[data-speed-controls]").hidden, true);
+  harness.poll();
+  harness.poll();
+  harness.state.syncAll();
+  assert.equal(harness.requests, 2);
+  assert.equal(harness.usage.hidden, false);
+  update(harness, { enabled: false });
+  assert.equal(harness.usage.hidden, true);
+  assert.equal(selector.hidden, true);
+  update(harness);
+  assert.equal(harness.usage.hidden, false);
+  assert.equal(selector.hidden, false);
+});
 
 test("shows the current API daily estimate while preserving global daily usage", () => {
   const harness = createHarness();

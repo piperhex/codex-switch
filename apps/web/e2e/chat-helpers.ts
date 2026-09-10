@@ -30,13 +30,28 @@ export async function connect(page: Page) {
   await expect(page.getByRole('heading', { name: '新聊天', exact: true })).toBeVisible();
   await expect(page.getByRole('textbox', { name: '搜索聊天' })).toHaveCount(0);
 }
-export async function send(page: Page, text: string, steer = false) {
+export async function send(page: Page, text: string) {
   await page.getByRole('textbox', { name: '聊天消息' }).fill(text);
-  await click(page.getByRole('button', { name: steer ? '补充消息' : '发送消息', exact: true }));
+  await click(page.getByRole('button', { name: '发送消息', exact: true }));
 }
 export async function settled(page: Page) {
-  await expect(page.getByRole('button', { name: '停止回复' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '暂停生成' })).toHaveCount(0);
   await expect(page.getByRole('textbox', { name: '聊天消息' })).toHaveValue('');
+}
+export async function openChatSettings(page: Page) {
+  await page.getByRole('textbox', { name: '聊天消息' }).click();
+  const emulateKeyboard = !beforeClick.has(page);
+  if (emulateKeyboard) await page.evaluate(() => {
+    if (!matchMedia('(pointer: coarse)').matches || !window.visualViewport) return;
+    Object.defineProperty(window.visualViewport, 'height', { configurable: true, get: () => innerHeight - 300 });
+    window.visualViewport.dispatchEvent(new Event('resize'));
+  });
+  await page.getByRole('button', { name: /聊天设置/ }).click();
+  if (emulateKeyboard) await page.evaluate(() => {
+    if (!window.visualViewport) return;
+    Reflect.deleteProperty(window.visualViewport, 'height');
+    window.visualViewport.dispatchEvent(new Event('resize'));
+  });
 }
 export async function screenshot(page: Page, info: TestInfo, name: string) {
   const path = info.outputPath(`${name}.png`);

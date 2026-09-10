@@ -1,7 +1,7 @@
 import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
-  testDir: './e2e', testMatch: '**/chat.pw.ts', workers: 1, timeout: 150_000,
+  testDir: './e2e', testMatch: ['**/chat.pw.ts', '**/queue.pw.ts'], workers: 1, timeout: 150_000,
   outputDir: '../../.codex-tmp/h5-chat-playwright',
   reporter: [['list'], ['html', { outputFolder: '../../.codex-tmp/h5-chat-report', open: 'never' }]],
   use: { baseURL: 'http://127.0.0.1:1422/web/', channel: process.env.CHAT_TEST_BROWSER ?? 'msedge',

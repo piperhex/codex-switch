@@ -205,23 +205,25 @@ fn codex_model_refresh_expression(
   }}
   if (!queryClient) return {{ refreshed: false, reason: "query-client-not-found" }};
 
-  const matchesModelsQuery = query => Array.isArray(query.queryKey) &&
+  const matchesModelsQuery = query => Array.isArray(query?.queryKey) &&
     query.queryKey[0] === "models" && query.queryKey[1] === "list";
   const matchesConfigQuery = query => Array.isArray(query.queryKey) && (
     query.queryKey[0] === "user-saved-config" ||
     (query.queryKey[0] === "config" &&
       (query.queryKey[1] === "user" || query.queryKey[1] === "read-response"))
   );
-  const hasActiveNoAuthModelQuery = () => queryClient.getQueryCache().getAll().some(query => {{
+  const hasActiveLocalModelQuery = (authMethod = null) => queryClient.getQueryCache().getAll().some(query => {{
     const key = query.queryKey;
     const active = typeof query.isActive === "function"
       ? query.isActive()
       : (query.observers?.length ?? 0) > 0;
-    return active && matchesModelsQuery(query) && key[2] === "local" && key[3] === "no-auth";
+    return active && matchesModelsQuery(query) && key[2] === "local" &&
+      (authMethod === null || key[3] === authMethod);
   }});
   const syncComposerStatus = () => {{
-    const allowed = hasActiveNoAuthModelQuery();
-    const fastModeAllowed = fastModeModels.size > 0 && allowed;
+    // Daily usage is independent of login mode; authenticated Codex owns its native Fast control.
+    const allowed = hasActiveLocalModelQuery();
+    const fastModeAllowed = fastModeModels.size > 0 && hasActiveLocalModelQuery("no-auth");
     const changed = window.{composer_status_allowed_global} !== allowed ||
       window.__CODEX_SWITCH_FAST_MODE_ALLOWED__ !== fastModeAllowed;
     window.{composer_status_allowed_global} = allowed;

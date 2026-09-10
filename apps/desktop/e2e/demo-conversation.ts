@@ -12,6 +12,8 @@ import { RemoteImages } from '../src/remoteChat/images';
 import { demoImageResponse } from './demo-images';
 import { parseHistoryWindow, sliceHistory } from '../../../shared/remote-chat/historyPage';
 import { seedDemoHistory } from './demo-history';
+import { demoSkills } from './demo-skills';
+import { demoQueueRequest, demoQueueSnapshot, flushDemoQueue } from './demo-queue';
 
 const images = new RemoteImages();
 const synchronization: { bytes: number; changedItems: number; text: string }[] = [];
@@ -41,7 +43,7 @@ export function demoState() {
   return { threads: [...threads.values()], operations, synchronization,
     approvals: [...approvals.values()].map(({ event }) => event),
     streamErrors: [...streamErrors, ...composerErrors], archived: [...archived], composer: demoComposer(),
-    sidebar: guiSidebar.snapshot() };
+    sidebar: guiSidebar.snapshot(), queue: demoQueueSnapshot() };
 }
 
 export function demoResponse(request: RpcRequest, link: ChatLink): unknown {
@@ -51,15 +53,17 @@ export function demoResponse(request: RpcRequest, link: ChatLink): unknown {
   operations.push({ ...input, method: request.method });
   if (request.method === 'respond') return respond(input);
   if (input.operation === 'models') return { data: demoComposer().models, nextCursor: null, composer: demoComposer() };
+  if (input.operation === 'skills') return demoSkills();
   if (input.operation === 'composerSet') return changeDemoComposer(input.settings, link);
   if (input.operation === 'threadRead') return guiSidebar.markRead(input);
+  if (input.operation === 'queueRead') return demoQueueSnapshot();
   if (input.operation === 'list') return { data: [...threads.values()].filter((thread) =>
     archived.has(thread.id) === (input.archived === true)
       && `${thread.name} ${thread.preview}`.includes(String(input.search ?? '')))
       .map(({ turns: _turns, ...thread }) => thread), nextCursor: null,
     sidebar: guiSidebar.observe([...threads.values()]) };
   if (input.operation === 'start') {
-    const thread: Thread = { id: uniqueId('chat'), name: '手机新聊天', preview: '', cwd: '',
+    const thread: Thread = { id: uniqueId('chat'), name: '手机新聊天', preview: '', cwd: String(input.cwd ?? ''),
       updatedAt: Math.floor(Date.now() / 1000), turns: [] };
     threads.set(thread.id, thread);
     notify(link, { method: 'thread/started', params: { thread } });
@@ -71,6 +75,7 @@ export function demoResponse(request: RpcRequest, link: ChatLink): unknown {
 }
 
 function threadOperation(thread: Thread, input: Record<string, unknown>, link: ChatLink) {
+  if (String(input.operation).startsWith('queue')) return demoQueueRequest(input, queueHost(thread, link));
   if (input.operation === 'syncHistory') {
     const sliced = sliceHistory(thread, parseHistoryWindow(input.window));
     const delta = { ...historyDelta(images.prepare(sliced.thread, thread.id), input.known as HistoryVersion | undefined),
@@ -85,6 +90,10 @@ function threadOperation(thread: Thread, input: Record<string, unknown>, link: C
   }
   if (input.operation === 'read') return { thread };
   if (input.operation === 'resume') return {};
+  if (input.operation === 'compact') {
+    setTimeout(() => notify(link, { method: 'thread/compacted', params: { threadId: thread.id } }), 500);
+    return {};
+  }
   if (input.operation === 'imagePreview' || input.operation === 'imageChunk') return demoImageResponse(input);
   if (input.operation === 'archive') { archived.add(thread.id); return {}; }
   if (input.operation === 'unarchive') { archived.delete(thread.id); return {}; }
@@ -106,7 +115,7 @@ function threadOperation(thread: Thread, input: Record<string, unknown>, link: C
 function notify(link: ChatLink, event: GuiEvent) {
   guiSidebar.receive(event);
   const prepared = images.prepare(historyNotification(event), event.params.threadId ?? event.params.thread?.id ?? '');
-  void link.send({ kind: 'event', event: structuredClone(prepared) }).catch((error: unknown) => {
+  void (sidebarLink ?? link).send({ kind: 'event', event: structuredClone(prepared) }).catch((error: unknown) => {
     streamErrors.push(error instanceof Error ? error.message : 'Could not send demo event');
   });
 }
@@ -143,6 +152,17 @@ function finish(context: Context, status = 'completed') {
   context.turn.status = status;
   context.thread.status = { type: 'idle' };
   notify(context.link, { method: 'turn/completed', params: { threadId: context.thread.id, turn: context.turn } });
+  flushDemoQueue(queueHost(context.thread, context.link));
+}
+
+function queueHost(thread: Thread, link: ChatLink) {
+  const execute = (input: Record<string, unknown>) => {
+    operations.push(input);
+    threadOperation(thread, input, link);
+  };
+  return { thread, link: sidebarLink ?? link,
+    send: (input: Record<string, unknown>) => execute({ ...input, operation: 'send' }),
+    steer: (input: Record<string, unknown>) => execute({ ...input, operation: 'steer' }) };
 }
 
 export function changeDemoSidebar(action: string, link: ChatLink) {

@@ -13,6 +13,7 @@ macro_rules! log_proxy_error {
 mod anthropic_stream;
 pub(crate) mod auto_reset;
 pub(crate) mod concurrent_quota;
+pub(crate) mod endpoints;
 mod error_capture;
 mod quota_detection;
 mod quota_sse;

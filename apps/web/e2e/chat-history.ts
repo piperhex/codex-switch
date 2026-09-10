@@ -33,7 +33,7 @@ export async function historyJourney({ page, request, info, relay }: {
   await request.post(`${fixtureUrl}/test/history-delay`, { data: { milliseconds: 0 } });
   await page.locator('.chat-messages').evaluate((node) => { node.scrollTop = node.scrollHeight; });
   await request.post(`${fixtureUrl}/test/sidebar`, { data: { action: 'start' } });
-  await expect(page.getByRole('button', { name: '停止回复' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '暂停生成' })).toBeVisible();
   const processing = page.getByRole('status').filter({ hasText: '正在处理' });
   await expect(processing).toContainText(/正在处理 · [2-9]秒/, { timeout: 10_000 });
   const response = items.last();
@@ -45,7 +45,7 @@ export async function historyJourney({ page, request, info, relay }: {
   await screenshot(page, info, `history-stream-${relay ? 'relay' : 'direct'}`);
   await page.locator('.chat-messages').evaluate((node) => { node.scrollTop = 0; });
   await expect(processing).toBeVisible();
-  await page.getByRole('button', { name: '停止回复' }).click();
+  await page.getByRole('button', { name: '暂停生成' }).click();
   await expect(processing).toHaveCount(0);
   expect((await state(request)).streamErrors).toEqual([]);
 }

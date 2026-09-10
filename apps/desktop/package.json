@@ -1,13 +1,16 @@
 {
   "name": "@codex-switch/desktop",
   "private": true,
-  "version": "1.4.19",
+  "version": "1.4.22",
   "license": "Apache-2.0",
   "type": "module",
   "scripts": {
     "test:chat:e2e": "playwright test --config playwright.chat.config.ts",
     "test:chat:android": "node e2e/android-chat-regression.mjs",
+    "test:chat:android:background": "node e2e/android-background-chat.mjs",
     "test:chat:android:history": "node e2e/android-history-regression.mjs",
+    "test:chat:android:drawer": "node e2e/android-drawer-regression.mjs",
+    "test:chat:android:skills": "node e2e/android-skills-regression.mjs",
     "dev": "vite",
     "build": "tsc && vite build",
     "check": "npm run build",

@@ -1,8 +1,8 @@
 import { Popconfirm, Switch, Tooltip } from "antd";
-import { Copy } from "lucide-react";
 import type { Translate } from "../../i18n";
 import type { useProviderManager } from "../../hooks/useProviderManager";
 import { CodexConnectionControl } from "./CodexConnectionControl";
+import { ProxyCopyDropdown } from "./ProxyCopyDropdown";
 
 type ProviderManager = ReturnType<typeof useProviderManager>;
 
@@ -27,18 +27,9 @@ export function ProxyStatusControls(options: ProxyStatusControlsProps) {
     t,
   } = options;
   const running = Boolean(manager.localProxy?.running);
-  const baseUrl = manager.localProxy?.port
-    ? `http://${manager.localProxy.address}:${manager.localProxy.port}/v1`
-    : "--";
   const controlsBusy = manager.proxyBusy || clientOperation !== null;
   const toggleDisabled = controlsBusy || (!running && Boolean(startDisabledReason));
 
-  const copyBaseUrl = () => {
-    if (!manager.localProxy) return;
-    void navigator.clipboard.writeText(baseUrl)
-      .then(() => notify(t("providers.proxy.endpointCopied")))
-      .catch((error) => notify(String(error)));
-  };
   const changeLanListening = (enabled: boolean) => {
     if (controlsBusy) return;
     if (enabled) onRequestLanAccess();
@@ -75,13 +66,6 @@ export function ProxyStatusControls(options: ProxyStatusControlsProps) {
       <CodexConnectionControl blocked={controlsBusy}
         onOperationChange={onClientOperationChange} notify={notify} t={t} />
       {statusControl}
-      <Tooltip title={t("providers.proxy.copyEndpoint")}>
-        <button type="button" className="window-titlebar-proxy-endpoint-copy"
-          disabled={!manager.localProxy?.port} aria-label={t("providers.proxy.copyEndpoint")}
-          onClick={copyBaseUrl}>
-          <Copy size={12} aria-hidden="true" />
-        </button>
-      </Tooltip>
       {running && (
         <span className="window-titlebar-proxy-lan">
           <span>{t("providers.proxy.listenLan")}</span>
@@ -89,17 +73,8 @@ export function ProxyStatusControls(options: ProxyStatusControlsProps) {
             checked={manager.localProxy?.listenOnAllInterfaces ?? false} loading={manager.proxyBusy}
             disabled={controlsBusy} aria-label={t("providers.proxy.listenLan")}
             onChange={changeLanListening} />
-          <Tooltip title={manager.localProxy?.hasLanApiKey
-            ? t("providers.proxy.copyLanApiKey") : t("providers.proxy.copyLanApiKeyUnavailable")}>
-            <span className="window-titlebar-proxy-lan-copy-wrap">
-              <button type="button" className="window-titlebar-proxy-lan-copy"
-                disabled={manager.proxyBusy || !manager.localProxy?.hasLanApiKey}
-                aria-label={t("providers.proxy.copyLanApiKey")}
-                onClick={() => void manager.copyProxyLanApiKey()}>
-                <Copy size={12} aria-hidden="true" />
-              </button>
-            </span>
-          </Tooltip>
+          {manager.localProxy && <ProxyCopyDropdown proxy={manager.localProxy} busy={manager.proxyBusy}
+            copyApiKey={manager.copyProxyLanApiKey} notify={notify} t={t} />}
         </span>
       )}
     </div>

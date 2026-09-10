@@ -5,7 +5,7 @@ import type { Model, ListResponse } from './types';
 import { composerPatch, DEFAULT_COMPOSER, type ComposerSettings,
   type ComposerSnapshot } from '../../../../../shared/remote-chat/composer';
 
-type Binding = Pick<GuiController, 'getSnapshot' | 'subscribe' | 'settings'>;
+type Binding = Pick<GuiController, 'getSnapshot' | 'subscribe' | 'settings' | 'setProviderModels'>;
 
 /** Owns the small shared composer state while the main GUI is mounted or the phone is its only client. */
 export class ComposerBridge {
@@ -22,6 +22,7 @@ export class ComposerBridge {
 
   attach(binding: Binding) {
     this.binding = binding;
+    if (this.providerModels) binding.setProviderModels(this.providerModels);
     if (this.value.settings.model) binding.settings(this.value.settings);
     const update = () => {
       const { models, settings } = binding.getSnapshot();
@@ -35,7 +36,8 @@ export class ComposerBridge {
   setProviderModels(models: Model[] | null) {
     if (this.providerModels === models) return;
     this.providerModels = models;
-    if (models && !this.binding) this.publish(models, this.value.settings);
+    if (this.binding) this.binding.setProviderModels(models);
+    else if (models) this.publish(models, this.value.settings);
   }
 
   private publish(models: Model[], selection: ComposerSettings) {

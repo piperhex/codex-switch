@@ -19,14 +19,14 @@ export class MessageQueue {
   private update = (threadId: string, messages: QueuedMessage[]) => {
     this.host.patch({ queued: { ...this.host.getSnapshot().queued, [threadId]: messages } });
   };
-  enqueue = (threadId: string, input: MessageInput): boolean => {
-    const state = this.host.getSnapshot();
+  enqueue = (threadId: string, input: MessageInput,
+    settings: Pick<Settings, "model" | "effort" | "access"> = this.host.getSnapshot().settings): boolean => {
     if (this.list(threadId).length >= MAX_QUEUED_MESSAGES) {
       this.host.report("待发送消息已满，请等待发送后再添加。");
       return false;
     }
     this.update(threadId, [...this.list(threadId), { ...input, id: crypto.randomUUID(),
-      model: state.settings.model, effort: state.settings.effort, access: state.settings.access }]);
+      model: settings.model, effort: settings.effort, access: settings.access }]);
     return true;
   };
   remove = (threadId: string, id: string) => {
@@ -46,7 +46,13 @@ export class MessageQueue {
     return { text: item.text, images: item.images, skills: item.skills, attachments: item.attachments };
   };
   private markBusy = (threadId: string, ids: Set<string>, busy: boolean) => {
-    this.update(threadId, this.list(threadId).map((item) => ids.has(item.id) ? { ...item, busy } : item));
+    this.update(threadId, this.list(threadId).map((item) => ids.has(item.id)
+      ? { ...item, busy, ...(busy ? { error: undefined } : {}) } : item));
+  };
+  private fail = (threadId: string, ids: Set<string>, error: unknown) => {
+    this.host.report(error);
+    this.update(threadId, this.list(threadId).map((item) => ids.has(item.id)
+      ? { ...item, error: "发送失败，请重试。" } : item));
   };
   private completeSend = (threadId: string, turnId: string, messages: QueuedMessage[], userMessageIndex: number) => {
     const state = this.host.getSnapshot();
@@ -89,7 +95,7 @@ export class MessageQueue {
       this.host.acceptTurn(threadId, turn);
       this.completeSend(threadId, turn.id, messages, 0);
       sent = true;
-    } catch (error) { this.host.report(error); }
+    } catch (error) { this.fail(threadId, ids, error); }
     finally { this.pending.delete(threadId); this.markBusy(threadId, ids, false); }
     if (sent) void this.flush(threadId);
   };
@@ -109,7 +115,7 @@ export class MessageQueue {
         text: item.text, images: item.images, skills: item.skills,
         ...(item.attachments?.length ? { attachments: item.attachments } : {}) });
       this.completeSend(threadId, turnId, [item], userMessageIndex);
-    } catch (error) { this.host.report(error); }
+    } catch (error) { this.fail(threadId, ids, error); }
     finally { this.pending.delete(threadId); this.markBusy(threadId, ids, false); }
     void this.flush(threadId);
   };

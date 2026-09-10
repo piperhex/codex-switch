@@ -39,10 +39,11 @@ export function Messages({ value, selected, active = true, footer, pendingReques
       quote.dismiss();
       jumpToLatest();
     }} />}
-    <div ref={viewport} className={styles.messageViewport} aria-label="对话消息" onScroll={() => {
-      onScroll();
-      history.onScroll();
-    }}>
+    <div ref={viewport} className={styles.messageViewport} aria-label="对话消息"
+      onWheel={history.onWheel} onScroll={() => {
+        onScroll();
+        history.onScroll();
+      }}>
       <div ref={content} className={styles.messageScrollBody}>
         <div className={styles.messageContent}>
           {!selected && <div className={styles.welcome}>

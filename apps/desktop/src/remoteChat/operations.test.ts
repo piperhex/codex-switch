@@ -1,6 +1,8 @@
+// @vitest-environment jsdom
 import { beforeEach, expect, it, vi } from 'vitest';
 import { ChatOperations } from './operations';
 import { guiApi } from '../pages/codexGui/api';
+import { remoteQueue } from './queue';
 vi.mock('../pages/codexGui/api', () => ({ guiApi: { connect: vi.fn(), request: vi.fn(), respond: vi.fn() } }));
 beforeEach(() => vi.resetAllMocks());
 
@@ -18,6 +20,17 @@ it('executes a retried mutation once even while the original is still running', 
   expect(await operations.execute(request)).toEqual(await first);
   expect(guiApi.request).toHaveBeenCalledTimes(1);
   await expect(operations.execute({ ...request, body: { ...request.body, text: 'different' } })).rejects.toThrow();
+});
+
+it('acknowledges a retried enqueue only once through the PC queue', async () => {
+  const enqueue = vi.spyOn(remoteQueue, 'request').mockResolvedValue({ revision: 1, threads: {} });
+  const operations = new ChatOperations();
+  const request = { kind: 'request' as const, id: 'queue:1', method: 'request' as const,
+    body: { operation: 'queueEnqueue', threadId: 'phone', text: 'next', images: [] } };
+  expect(await operations.execute(request)).toEqual(await operations.execute(request));
+  expect(enqueue).toHaveBeenCalledTimes(1);
+  expect(guiApi.request).not.toHaveBeenCalled();
+  enqueue.mockRestore();
 });
 
 it('blocks arbitrary operations before reaching the desktop boundary', async () => {

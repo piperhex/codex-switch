@@ -49,8 +49,51 @@ describe('mobile chat actions', () => {
     const images = ['data:image/jpeg;base64,/9j/photo'];
     expect(await controller.send({ text: '看这张照片', images, access: 'workspace-write' })).toBe(true);
     expect(mocks.request).toHaveBeenCalledWith('request', {
-      operation: 'steer', threadId: 'chat', turnId: 'turn', text: '看这张照片', images, skills: [],
+      operation: 'queueEnqueue', threadId: 'chat', text: '看这张照片', images, access: 'workspace-write',
     });
+  });
+
+  it('delivers completion events for unselected chats and cleans up event subscriptions', async () => {
+    const controller = await connectedController();
+    const listener = vi.fn();
+    const unsubscribe = controller.subscribeEvents(listener);
+    controller.setViewing(false);
+    const event = { method: 'turn/completed', params: {
+      threadId: 'other-chat', turn: { id: 'done', status: 'completed', items: [] },
+    } };
+    mocks.events!.event(event);
+    expect(listener).toHaveBeenCalledWith(event);
+    expect(mocks.request).not.toHaveBeenCalled();
+    unsubscribe();
+    mocks.events!.event(event);
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+
+  it.each(['new', 'existing', 'running'])('sends image-only input in a %s chat', async (mode) => {
+    const controller = await connectedController();
+    const selected = mode === 'running'
+      ? { ...thread, turns: [{ id: 'turn', status: 'inProgress', items: [] }] } : thread;
+    mocks.request.mockResolvedValue({ thread: selected });
+    if (mode !== 'new') await controller.select(selected);
+    const images = ['data:image/jpeg;base64,aW1hZ2U='];
+    expect(await controller.send({ text: '', images, access: 'workspace-write' })).toBe(true);
+    expect(mocks.request).toHaveBeenCalledWith('request', expect.objectContaining({
+      operation: mode === 'new' ? 'send' : 'queueEnqueue', text: '', images,
+    }));
+  });
+
+  it('rejects invalid, excessive and oversized images before creating a PC thread', async () => {
+    const controller = await connectedController();
+    for (const images of [
+      ['file:///phone/photo.jpg'],
+      Array(9).fill('data:image/jpeg;base64,aW1hZ2U='),
+      ['data:image/jpeg;base64,' + 'a'.repeat(6 * 1024 * 1024)],
+    ]) {
+      expect(await controller.send({ text: '', images, access: 'workspace-write' })).toBe(false);
+      expect(controller.snapshot().error).not.toBe('');
+    }
+    expect(mocks.request).not.toHaveBeenCalled();
   });
 
   it('creates an active chat when starting from archived search results', async () => {
@@ -63,27 +106,64 @@ describe('mobile chat actions', () => {
     expect(mocks.request.mock.calls.map(([, body]) => body.operation)).toEqual(['list', 'start', 'send', 'syncHistory']);
   });
 
-  it('resumes the existing PC thread and does not silently replace its model', async () => {
+  it('lets the PC queue decide when to send an existing conversation message', async () => {
     const controller = await connectedController();
     mocks.request.mockResolvedValue({ thread });
     await controller.select(thread);
     expect(await controller.send({ text: 'continue', access: 'workspace-write' })).toBe(true);
+    expect(mocks.request).not.toHaveBeenCalledWith('request', expect.objectContaining({ operation: 'resume' }));
     expect(mocks.request).toHaveBeenCalledWith('request', {
-      operation: 'resume', threadId: 'chat', access: 'workspace-write',
-    });
-    expect(mocks.request).toHaveBeenCalledWith('request', {
-      operation: 'send', threadId: 'chat', text: 'continue', access: 'workspace-write', images: [],
+      operation: 'queueEnqueue', threadId: 'chat', text: 'continue', access: 'workspace-write', images: [],
     });
   });
 
-  it('steers an active PC turn and stops that same turn', async () => {
+  it('starts in the chosen project and clears it before a later general chat', async () => {
+    const controller = await connectedController();
+    mocks.request.mockImplementation(async (_method, body) => body?.operation === 'list'
+      ? { data: [thread], nextCursor: null } : { thread });
+    await controller.select(thread);
+    const project = { cwd: '/other-project', label: '另一个项目' };
+    controller.back(project);
+    expect(controller.snapshot()).toMatchObject({ selected: null, draftProject: project });
+    expect(await controller.send({ text: 'project task', access: 'workspace-write' })).toBe(true);
+    expect(mocks.request).toHaveBeenCalledWith('request', expect.objectContaining({
+      operation: 'start', cwd: project.cwd,
+    }));
+    expect(controller.snapshot().draftProject).toBeNull();
+    expect(thread.cwd).toBe('/project');
+    controller.back(project);
+    controller.back();
+    mocks.request.mockClear();
+    expect(await controller.send({ text: 'general task', access: 'workspace-write' })).toBe(true);
+    expect(mocks.request).toHaveBeenCalledWith('request', expect.objectContaining({
+      operation: 'start', cwd: undefined,
+    }));
+    controller.stop();
+  });
+
+  it('keeps an existing chat in its own project after leaving a project draft', async () => {
+    const controller = await connectedController();
+    mocks.request.mockImplementation(async (_method, body) => body?.operation === 'list'
+      ? { data: [thread], nextCursor: null } : { thread });
+    controller.back({ cwd: '/other-project', label: '另一个项目' });
+    await controller.select(thread);
+    expect(controller.snapshot().draftProject).toBeNull();
+    expect(await controller.send({ text: 'continue here', access: 'workspace-write' })).toBe(true);
+    expect(mocks.request).toHaveBeenCalledWith('request', {
+      operation: 'queueEnqueue', threadId: thread.id, text: 'continue here', images: [], access: 'workspace-write',
+    });
+    expect(mocks.request.mock.calls.some(([, body]) => body.operation === 'start')).toBe(false);
+    controller.stop();
+  });
+
+  it('queues a supplement on the PC and stops the original turn', async () => {
     const controller = await connectedController();
     const running = { ...thread, turns: [{ id: 'turn', status: 'inProgress', items: [] }] };
     mocks.request.mockResolvedValue({ thread: running });
     await controller.select(running);
     await controller.send({ text: 'add detail', access: 'workspace-write' });
     expect(mocks.request).toHaveBeenCalledWith('request', {
-      operation: 'steer', threadId: 'chat', turnId: 'turn', text: 'add detail', images: [], skills: [],
+      operation: 'queueEnqueue', threadId: 'chat', text: 'add detail', images: [], access: 'workspace-write',
     });
     await controller.interrupt();
     expect(mocks.request).toHaveBeenCalledWith('request', { operation: 'interrupt', threadId: 'chat', turnId: 'turn' });

@@ -5,6 +5,7 @@ import { ChatRpc } from '../../../shared/remote-chat/rpc';
 import { parseMessage, type IceServer, type RpcMessage, type Signal } from '../../../shared/remote-chat/protocol';
 import { demoResponse, demoState, changeDemoSidebar } from './demo-conversation';
 import { changeDemoComposer } from './demo-composer';
+import { demoSkillsDelay, setDemoSkills } from './demo-skills';
 
 const query = new URLSearchParams(location.search);
 const desktop = query.get('role') === 'desktop';
@@ -18,6 +19,7 @@ const errors: string[] = [];
 let executions = 0;
 let settingsDelay = 0;
 let historyDelay = 0;
+let legacyHistory = false;
 let heartbeats = 0;
 setInterval(() => { heartbeats += 1; }, 20);
 const requests = new Map<string, RpcMessage>();
@@ -51,16 +53,20 @@ async function receive({ data }: MessageEvent<string>) {
         let response = requests.get(message.id);
         if (!response) {
           executions += 1;
-          response = { kind: 'response', id: message.id,
-            data: query.has('demo') ? structuredClone(demoResponse(message, link)) : message.body };
+          response = legacyHistory && (message.body as { operation?: string })?.operation === 'syncHistory'
+            ? { kind: 'response', id: message.id, error: '当前手机端暂不支持此操作。' }
+            : { kind: 'response', id: message.id,
+              data: query.has('demo') ? structuredClone(demoResponse(message, link)) : message.body };
           requests.set(message.id, response);
         }
         const target = link;
         const isSettings = (message.body as { operation?: string } | undefined)?.operation === 'composerSet';
         const isHistory = (message.body as { operation?: string } | undefined)?.operation === 'syncHistory';
+        const isSkills = (message.body as { operation?: string } | undefined)?.operation === 'skills';
         const send = () => { void target.send(response).catch((error: unknown) => errors.push(String(error))); };
         if (isSettings && settingsDelay) setTimeout(send, settingsDelay);
         else if (isHistory && historyDelay) setTimeout(send, historyDelay);
+        else if (isSkills && demoSkillsDelay()) setTimeout(send, demoSkillsDelay());
         else send();
       },
     });
@@ -80,13 +86,17 @@ declare global {
     chatTest: { modes: string[]; errors: string[]; events: unknown[]; request: (text: string) => Promise<unknown>;
       fallback: () => void; stream: (text: string) => Promise<void>; executions: () => number; beats: () => number;
       demoState: typeof demoState; setComposer: (input: unknown) => void; setSidebar: (action: string) => void;
-      setSettingsDelay: (milliseconds: number) => void; setHistoryDelay: (milliseconds: number) => void };
+      setSettingsDelay: (milliseconds: number) => void; setHistoryDelay: (milliseconds: number) => void;
+      setSkills: typeof setDemoSkills;
+      setLegacyHistory: (enabled: boolean) => void };
   }
 }
 window.chatTest = { modes, errors, events, request: (text) => rpc.request('request', { text }),
   fallback: () => link.fallback(), stream: (text) => link.send({ kind: 'event', event: { text } }),
   executions: () => executions, beats: () => heartbeats, demoState,
   setComposer: (input) => { changeDemoComposer(input, link); },
+  setSkills: setDemoSkills,
   setSettingsDelay: (milliseconds) => { settingsDelay = Math.max(0, Math.min(5000, milliseconds)); },
   setHistoryDelay: (milliseconds) => { historyDelay = Math.max(0, Math.min(5000, milliseconds)); },
+  setLegacyHistory: (enabled) => { legacyHistory = enabled; },
   setSidebar: (action) => { changeDemoSidebar(action, link); } };

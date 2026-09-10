@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { LoaderCircle, Plus, RefreshCw, Search } from 'lucide-react';
-import type { ChatController, ChatState } from './types';
+import type { ChatController, ChatProject, ChatState } from './types';
 import { threadPresentation } from '../../../../shared/remote-chat/sidebar';
 import { useThreadGroups } from '../../../../shared/remote-chat/client/useThreadGroups';
 
 interface Props {
-  state: ChatState; controller: ChatController; newChat: () => void; onClose: () => void;
+  state: ChatState; controller: ChatController; newChat: (project?: ChatProject) => void; onClose: () => void;
   chooseDevice: () => void; deviceName: string;
 }
 
@@ -15,7 +15,7 @@ export function ChatThreads({ state, controller, newChat, onClose, chooseDevice,
   const ready = state.ready;
   return <>
     <div className="chat-padded chat-thread-controls">
-      <button className="chat-button" type="button" disabled={state.sending} onClick={newChat}>
+      <button className="chat-button" type="button" disabled={state.sending} onClick={() => newChat()}>
         <Plus size={16} />新聊天</button>
       <form className="chat-search chat-row" onSubmit={(event) => {
         event.preventDefault(); void controller.list({ search });
@@ -35,7 +35,11 @@ export function ChatThreads({ state, controller, newChat, onClose, chooseDevice,
     <div className="chat-scroll chat-thread-list" aria-busy={state.loading}>
       {groups.map((group) =>
         <section className="chat-project-group" aria-label={group.label} key={group.cwd}>
-          <h3>{group.label}</h3>
+          <div className="chat-project-heading">
+            <h3 className="chat-grow chat-ellipsis">{group.label}</h3>
+            {group.cwd && <button type="button" className="chat-back" aria-label={`在 ${group.label} 中新建对话`}
+              disabled={state.sending} onClick={() => newChat(group)}><Plus size={18} aria-hidden="true" /></button>}
+          </div>
           {group.data.map((thread) => {
             const view = threadPresentation(thread, state.sidebar);
             return <button type="button" className="chat-thread" key={thread.id} aria-label={view.title}

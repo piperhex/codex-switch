@@ -9,6 +9,8 @@ import { COMPOSER_EVENT } from '../../../../shared/remote-chat/composer';
 import { SIDEBAR_EVENT } from '../../../../shared/remote-chat/sidebar';
 import { guiSidebar } from '../pages/codexGui/sidebarBridge';
 import { EventStream } from './eventStream';
+import { remoteQueue } from './queue';
+import { QUEUE_EVENT } from '../../../../shared/remote-chat/queue';
 
 export interface ChatHostConfig { websocketUrl: string; accessToken: string; deviceId: string }
 
@@ -20,9 +22,13 @@ export class ChatHost {
   private unsubscribe?: () => void;
   private readonly unsubscribeComposer: () => void;
   private readonly unsubscribeSidebar: () => void;
+  private readonly unsubscribeQueue: () => void;
   private closed = false;
 
   constructor(readonly config: ChatHostConfig) {
+    this.unsubscribeQueue = remoteQueue.subscribe((snapshot) => {
+      this.broadcast({ method: QUEUE_EVENT, params: snapshot });
+    });
     this.unsubscribeComposer = guiComposer.subscribe((snapshot) => {
       this.broadcast({ method: COMPOSER_EVENT, params: snapshot });
     });
@@ -106,6 +112,7 @@ export class ChatHost {
     this.unsubscribe?.();
     this.unsubscribeComposer();
     this.unsubscribeSidebar();
+    this.unsubscribeQueue();
     this.stream.close();
     for (const link of this.links.values()) link.close();
     this.links.clear();

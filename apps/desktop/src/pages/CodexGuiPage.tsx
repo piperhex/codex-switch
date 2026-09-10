@@ -2,12 +2,13 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactN
 import { Alert, Button, Popover } from "antd";
 import { Download, PanelLeftClose, PanelLeftOpen, RefreshCw } from "lucide-react";
 import { hasLocalBackend, isDesktopApp } from "../api/backend";
-import { GuiController } from "./codexGui/controller";
+import { getGuiController, retainGuiSession } from "./codexGui/session";
 import { canEditMessage } from "./codexGui/editMessage";
 import { ThreadSidebar, threadTitle } from "./codexGui/ThreadSidebar";
 import { Composer, type ComposerHandle } from "./codexGui/Composer";
 import { Messages } from "./codexGui/Messages";
 import { Approvals } from "./codexGui/Approvals";
+import { AsyncQuestions } from "./codexGui/AsyncQuestions";
 import { Installer } from "./codexGui/Installer";
 import { useCliInstaller } from "./codexGui/useCliInstaller";
 import { DetailsWorkspace } from "./codexGui/DetailsWorkspace";
@@ -20,7 +21,6 @@ import type { AggregateApi, Provider } from "../types";
 import { providerModels } from "./codexGui/providerModels";
 import { useDreamSkin } from "./codexGui/useDreamSkin";
 import { guiComposer } from "./codexGui/composerBridge";
-import { guiSidebar } from "./codexGui/sidebarBridge";
 import { FocusModeButton, type GuiFocusMode } from "./codexGui/FocusModeButton";
 
 type CodexGuiPageProps = {
@@ -44,17 +44,15 @@ export function CodexGuiPage(props: CodexGuiPageProps) {
 function Workspace({ active, accountPicker, providers, aggregateApis, windowControls,
   focused, onToggleFocus }: CodexGuiPageProps & GuiFocusMode) {
   const skinStyle = useDreamSkin(active);
-  const [controller] = useState(() => new GuiController());
+  const [controller] = useState(getGuiController);
   useConversationReadState(active, controller);
   const composer = useRef<ComposerHandle>(null);
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const [collapsed, setCollapsed] = useState(() => window.innerWidth < 900);
   const installer = useCliInstaller(active, controller);
-  useEffect(() => { controller.activate(); return controller.dispose; }, [controller]);
+  useEffect(retainGuiSession, [controller]);
   const models = useMemo(() => providerModels(providers, aggregateApis), [providers, aggregateApis]);
   useEffect(() => { controller.setProviderModels(models); }, [controller, models]);
-  useEffect(() => guiComposer.attach(controller), [controller]);
-  useEffect(() => guiSidebar.attach(controller), [controller]);
   useEffect(() => {
     if (isDesktopApp || !installer.version) return;
     if (active) void controller.connect();
@@ -106,6 +104,9 @@ function Workspace({ active, accountPicker, providers, aggregateApis, windowCont
           onQuote={canQuote ? (quote) => composer.current?.addQuote(quote) ?? false : undefined}
           pendingRequest={state.pendingRequest} footer={<>
           <Approvals events={pending} controller={controller} />
+          <AsyncQuestions value={current} onAnswer={controller.answerAsyncQuestion}
+            disabled={state.connection !== "ready" || state.sending || state.archived || Boolean(state.workspaceBusy)
+              || Boolean(state.deleting) || state.compacting === state.selected} />
           <Composer ref={composer} state={state} controller={controller} active={active} />
         </>} />}
     </div>

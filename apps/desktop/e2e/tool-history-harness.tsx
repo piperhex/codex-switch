@@ -2,6 +2,7 @@ import { Profiler, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "antd";
 import { Messages } from "../src/pages/codexGui/Messages";
+import { AsyncQuestions } from "../src/pages/codexGui/AsyncQuestions";
 import { TurnMessage } from "../src/pages/codexGui/TurnMessage";
 import type { Conversation } from "../src/pages/codexGui/types";
 import styles from "../src/pages/codexGui/styles.module.less";
@@ -21,7 +22,10 @@ function Harness() {
         }}>
           {full ? value?.turns.map((turn) => <TurnMessage key={turn.id} turn={turn} running={false} active={active} />)
             : <Messages selected={value?.thread.id ?? null} value={value} active={active}
-              footer={<input aria-label="消息" placeholder="输入消息…" style={{ padding: 12 }} />} />}
+              footer={<><AsyncQuestions value={value} onAnswer={async (item, answers) => {
+                const response = await fetch("/async-answer", { method: "POST", body: JSON.stringify({ item, answers }) });
+                return response.ok;
+              }} /><input aria-label="消息" placeholder="输入消息…" style={{ padding: 12 }} /></>} />}
         </Profiler>
       </div>
     </main>

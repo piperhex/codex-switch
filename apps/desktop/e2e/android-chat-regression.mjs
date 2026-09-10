@@ -63,7 +63,7 @@ try {
     await settled();
     await waitText('const connected = true;');
     assert.equal(await operationCount('send'), 1);
-    await waitText('发送消息');
+    await waitText('添加图片');
   });
   await adb('shell', 'input', 'keyevent', 'KEYCODE_BACK');
   await check('04-steer-and-stop', async () => {
@@ -108,23 +108,23 @@ try {
   });
   await check('08-create-new-thread', async () => {
     await tap('打开聊天列表');
-    await tap('＋ 新聊天');
+    await tap('在 演示项目 中新建对话');
+    await waitText('演示项目');
     await send('new chat from Android');
     await settled();
     await waitText('手机新聊天');
     const state = await serverState();
     assert.equal(state.threads.length, 2);
     assert.equal(state.operations.filter((entry) => entry.operation === 'start').length, 1);
+    assert.equal(state.operations.findLast((entry) => entry.operation === 'start').cwd, 'F:/projects/demo');
+    assert.equal(state.threads[1].cwd, 'F:/projects/demo');
     assert.equal(state.operations.filter((entry) => entry.operation === 'send').at(-1).threadId, state.threads[1].id);
   });
-  await check('09-archive-and-restore', async () => {
-    await tap('归档');
-    await waitFor(async () => (await serverState()).archived.length === 1, 'archived');
-    await tap('最近聊天 ▾');
-    await tap('手机新聊天');
-    await tap('恢复');
-    await waitFor(async () => (await serverState()).archived.length === 0, 'restored');
-    await tap('已归档 ▾');
+  await check('09-project-chat-header-and-list', async () => {
+    assert.equal(await hasText('归档'), false);
+    await tap('打开聊天列表');
+    await waitText('演示项目');
+    await waitText('手机新聊天');
     await tap('移动端聊天体验');
   });
   await check('10-disconnect-and-resynchronize', async () => {
@@ -139,13 +139,16 @@ try {
     assert.equal(await operationCount('send'), sent);
     await waitText('移动端聊天体验');
   });
-  await check('11-tab-and-background-reconnect', async () => {
+  await check('11-tab-and-background-connection', async () => {
+    const connections = (await serverState()).mobileConnections;
     await tap('账号', { last: true });
-    await waitFor(async () => (await serverState()).connectedMobiles === 0, 'tab cleanup');
+    assert.equal((await serverState()).connectedMobiles, 1);
     await tap('聊天', { last: true });
     await ready();
     await adb('shell', 'input', 'keyevent', 'KEYCODE_HOME');
-    await waitFor(async () => (await serverState()).connectedMobiles === 0, 'background cleanup');
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    assert.equal((await serverState()).connectedMobiles, 1);
+    assert.equal((await serverState()).mobileConnections, connections);
     await adb('shell', 'am', 'start', '-n', 'com.codexswitch.mobile/.MainActivity');
     await ready();
   });

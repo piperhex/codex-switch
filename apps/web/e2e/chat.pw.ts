@@ -2,6 +2,8 @@ import { test, expect } from '@playwright/test';
 import { connect, navigate, send, settled, screenshot, state, fixtureUrl } from './chat-helpers';
 import { chatJourney } from './chat-journey';
 import { historyJourney } from './chat-history';
+import { attachmentJourney } from './chat-attachments';
+import { composerLayout } from './chat-composer';
 
 test.beforeEach(async ({ page, request }) => {
   await request.post(`${fixtureUrl}/test/reset`);
@@ -14,10 +16,14 @@ test.beforeEach(async ({ page, request }) => {
 });
 
 
+test('keeps composer icons below single and multiline drafts', async ({ page }) => composerLayout(page));
+
 test('syncs PC chats over direct transport, supports actions and reconnects without duplicate sends',
   async ({ page, request }, info) => chatJourney({ page, request, info }));
 
 for (const relay of [false, true]) {
+  test(`sends album photos over ${relay ? 'relay' : 'direct'}`,
+    async ({ page, request }, info) => attachmentJourney({ page, request, info, relay }));
   test(`pages history and streams with a processing timer over ${relay ? 'relay' : 'direct'}`,
     async ({ page, request }, info) => historyJourney({ page, request, info, relay }));
 }
@@ -66,7 +72,7 @@ test('falls back after direct discovery fails and keeps the composer within a sm
     await settled(page);
     await page.setViewportSize({ width: 390, height: 480 });
     await page.getByRole('textbox', { name: '聊天消息' }).focus();
-    const bounds = await page.getByRole('button', { name: '发送消息' }).boundingBox();
+    const bounds = await page.getByRole('button', { name: '添加内容', exact: true }).boundingBox();
     expect(bounds).not.toBeNull();
     expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(480);
     expect((await state(request)).relayFrames).toBeGreaterThan(0);

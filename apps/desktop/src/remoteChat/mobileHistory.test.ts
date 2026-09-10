@@ -173,3 +173,4 @@ it('queues one older page behind a background refresh instead of dropping the sc
   controller.stop();
   stream.close();
 });
+vi.mock('./queue', () => ({ remoteQueue: { request: async () => ({ revision: 0, threads: {} }) } }));

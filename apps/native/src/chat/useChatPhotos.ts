@@ -4,29 +4,40 @@ import { getPendingResultAsync, type ImagePickerResult, type ImagePickerErrorRes
 import { MAX_CHAT_PHOTOS, PhotoPermissionError, preparePhoto, selectPhotos, validatePhotos,
   type ChatPhoto, type PhotoSource } from './chatPhotos';
 
-export function useChatPhotos() {
+export function useChatPhotos({ threadId, sending }: { threadId: string | null; sending: boolean }) {
   const [photos, setPhotos] = useState<ChatPhoto[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [settingsRequired, setSettingsRequired] = useState(false);
   const picking = useRef(true);
   const mounted = useRef(true);
+  const scope = useRef(threadId);
+  const generation = useRef(0);
 
-  const appendResult = async (result: ImagePickerResult | ImagePickerErrorResult | null) => {
-    if (!result || !mounted.current) return;
+  useEffect(() => {
+    if (scope.current === threadId) return;
+    const creating = scope.current === null && sending;
+    scope.current = threadId;
+    if (creating) return;
+    generation.current += 1;
+    setPhotos([]); setError(''); setSettingsRequired(false);
+  }, [threadId, sending]);
+
+  const appendResult = async (result: ImagePickerResult | ImagePickerErrorResult | null, current = generation.current) => {
+    if (!result || !mounted.current || current !== generation.current) return;
     if ('code' in result) throw new Error('photo-picker-failed');
     if (result.canceled) return;
     const additions: ChatPhoto[] = [];
     for (const asset of result.assets) {
-      if (!mounted.current) return;
+      if (!mounted.current || current !== generation.current) return;
       additions.push(await preparePhoto(asset));
       validatePhotos([...photos, ...additions]);
     }
-    if (mounted.current) setPhotos((current) => [...current, ...additions]);
+    if (mounted.current && current === generation.current) setPhotos((existing) => [...existing, ...additions]);
   };
 
-  const fail = (failure: unknown) => {
-    if (!mounted.current) return;
+  const fail = (failure: unknown, current: number) => {
+    if (!mounted.current || current !== generation.current) return;
     setSettingsRequired(failure instanceof PhotoPermissionError && !failure.canAskAgain);
     setError(failure instanceof PhotoPermissionError ? failure.message : '照片添加失败，请减少照片或重新选择后再试。');
   };
@@ -40,7 +51,9 @@ export function useChatPhotos() {
     picking.current = true;
     setBusy(true);
     // Android may recreate the activity while the system picker or camera is open.
-    void getPendingResultAsync().then(appendResult).catch(fail).finally(finish);
+    const current = generation.current;
+    void getPendingResultAsync().then((result) => appendResult(result, current))
+      .catch((failure) => fail(failure, current)).finally(finish);
     return () => { mounted.current = false; };
   }, []);
 
@@ -54,9 +67,10 @@ export function useChatPhotos() {
     }
     picking.current = true;
     setBusy(true);
+    const current = generation.current;
     try {
-      await appendResult(await selectPhotos(source, MAX_CHAT_PHOTOS - photos.length));
-    } catch (failure) { fail(failure); }
+      await appendResult(await selectPhotos(source, MAX_CHAT_PHOTOS - photos.length), current);
+    } catch (failure) { fail(failure, current); }
     finally { finish(); }
   };
 

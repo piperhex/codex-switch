@@ -3,6 +3,7 @@ import { click, connect, navigate, operationCount, send, settled, screenshot, st
 import { sidebarJourney } from './chat-sidebar';
 import { existingChatSettings } from './chat-existing-settings';
 import { groupPreviewJourney } from './chat-group-preview';
+import { openChatSettings } from './chat-helpers';
 
 interface Journey { page: Page; request: APIRequestContext; info: TestInfo; transport?: 'direct' | 'either' }
 const ready = (page: Page, transport?: Journey['transport']) => expect(page.getByRole('status')
@@ -26,20 +27,21 @@ async function initialChat({ page, request, info, transport }: Journey) {
   await screenshot(page, info, '01-connected-chat');
 }
 
-async function settingsAndSteer({ page, request }: Journey) {
-  await click(page.getByRole('button', { name: /测试模型 · 中/ }));
+async function settingsAndContinue({ page, request }: Journey) {
+  await openChatSettings(page);
   await chooseSetting(page, '模型', '测试模型');
   await chooseSetting(page, '推理强度', '高');
   await chooseSetting(page, '访问权限', '请求批准');
   await click(page.getByRole('button', { name: '完成', exact: true }));
   await send(page, 'slow task');
-  await expect(page.getByRole('button', { name: '停止回复' })).toBeVisible();
-  await send(page, 'additional detail', true);
-  await expect.poll(() => operationCount(request, 'steer')).toBe(1);
-  await click(page.getByRole('button', { name: '停止回复' }));
+  await expect(page.getByRole('button', { name: '暂停生成' })).toBeVisible();
+  const input = page.getByRole('textbox', { name: '聊天消息' });
+  await click(page.getByRole('button', { name: '暂停生成' }));
+  await expect(input).toHaveValue('');
+  await click(page.getByRole('button', { name: '继续生成' }));
   await settled(page);
   expect((await state(request)).operations.filter((entry) => entry.operation === 'send').at(-1))
-    .toMatchObject({ model: 'test-model', effort: 'high', access: 'read-only' });
+    .toMatchObject({ text: '请继续完成刚才中断的任务。', model: 'test-model', effort: 'high', access: 'read-only' });
 }
 
 async function chooseSetting(page: Page, label: string, value: string) {
@@ -75,16 +77,18 @@ async function manageHistory({ page, request }: Journey) {
   await expect(page.getByText('暂时没有聊天')).toBeVisible();
   await page.getByRole('textbox', { name: '搜索聊天' }).fill('');
   await click(page.getByRole('button', { name: '搜索', exact: true }));
-  await click(page.getByRole('button', { name: '最近聊天 ▾' }));
-  await click(page.getByRole('button', { name: '新聊天', exact: true }));
+  await click(page.getByRole('button', { name: '在 演示项目 中新建对话', exact: true }));
+  await expect(page.locator('.chat-header')).toContainText('演示项目');
   await send(page, 'new chat from H5');
+  await expect.poll(async () => (await state(request)).threads.at(-1)?.turns?.at(-1)?.status).toBe('completed');
   await settled(page);
   expect((await state(request)).threads).toHaveLength(2);
-  await click(page.getByRole('button', { name: '归档', exact: true }));
-  await click(page.getByRole('button', { name: '最近聊天 ▾' }));
-  await click(page.getByRole('button', { name: /手机新聊天/ }));
-  await click(page.getByRole('button', { name: '恢复', exact: true }));
-  await click(page.getByRole('button', { name: '已归档 ▾' }));
+  expect((await state(request)).operations.findLast((entry) => entry.operation === 'start'))
+    .toMatchObject({ cwd: 'F:/projects/demo' });
+  await expect(page.locator('.chat-header').getByRole('button', { name: '归档', exact: true })).toHaveCount(0);
+  await click(page.getByRole('button', { name: '打开聊天列表', exact: true }));
+  await expect(page.getByRole('region', { name: '演示项目', exact: true })
+    .getByRole('button', { name: '手机新聊天', exact: true })).toBeVisible();
   await click(page.getByRole('button', { name: /移动端聊天体验/ }));
 }
 
@@ -134,8 +138,8 @@ async function synchronizeComposer({ page, request, info }: Journey) {
   await request.post(`${fixtureUrl}/test/composer`, { data: {
     model: 'second-model', effort: 'xhigh', access: 'danger-full-access',
   } });
-  await expect(page.getByRole('button', { name: /第二模型 · 极高/ })).toBeVisible();
-  await click(page.getByRole('button', { name: /第二模型 · 极高/ }));
+  await expect.poll(async () => (await state(request)).composer.settings.model).toBe('second-model');
+  await openChatSettings(page);
   await expect(page.locator('.chat-setting-entry')).toHaveCount(3);
   await expect(page.getByRole('radio')).toHaveCount(0);
   await expect(page.getByRole('button', { name: '设置模型' })).toContainText('第二模型');
@@ -154,7 +158,6 @@ async function synchronizeComposer({ page, request, info }: Journey) {
   await chooseSetting(page, '模型', '测试模型');
   await chooseSetting(page, '推理强度', '高');
   await click(page.getByRole('button', { name: '完成', exact: true }));
-  await expect(page.getByRole('button', { name: /测试模型 · 高/ })).toBeVisible();
   await send(page, 'send with synced settings');
   await settled(page);
   expect((await state(request)).operations.filter((entry) => entry.operation === 'send').at(-1))
@@ -191,7 +194,7 @@ export async function chatJourney(context: Journey) {
   const errors: string[] = [];
   context.page.on('pageerror', (error) => errors.push(error.message));
   await initialChat(context);
-  await settingsAndSteer(context);
+  await settingsAndContinue(context);
   await approvals(context);
   await manageHistory(context);
   await recoverConnection(context);

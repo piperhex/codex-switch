@@ -33,11 +33,29 @@ const httpServer = http.createServer((request, response) => {
     })().catch(() => response.writeHead(400).end('{}'));
     return;
   }
+  if (request.url === '/test/skills' && request.method === 'POST') {
+    void (async () => {
+      let body = '';
+      for await (const chunk of request) body += chunk.toString();
+      await page.evaluate((input) => window.chatTest.setSkills(input), JSON.parse(body));
+      response.end('{}');
+    })().catch(() => response.writeHead(400).end('{}'));
+    return;
+  }
   if (request.url === '/test/sidebar' && request.method === 'POST') {
     void (async () => {
       let body = '';
       for await (const chunk of request) body += chunk.toString();
       await page.evaluate((action) => window.chatTest.setSidebar(action), JSON.parse(body).action);
+      response.end('{}');
+    })().catch(() => response.writeHead(400).end('{}'));
+    return;
+  }
+  if (request.url === '/test/legacy-history' && request.method === 'POST') {
+    void (async () => {
+      let body = '';
+      for await (const chunk of request) body += chunk.toString();
+      await page.evaluate((enabled) => window.chatTest.setLegacyHistory(enabled), JSON.parse(body).enabled === true);
       response.end('{}');
     })().catch(() => response.writeHead(400).end('{}'));
     return;

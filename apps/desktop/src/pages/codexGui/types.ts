@@ -43,6 +43,8 @@ export interface Item {
   exitCode?: number | null;
   changes?: FileChange[];
   phase?: "commentary" | "final_answer" | null;
+  delivery?: "async" | null;
+  questions?: AsyncQuestion[] | null;
   durationMs?: number | null;
   path?: string;
   imageUrl?: string;
@@ -68,6 +70,7 @@ export interface Item {
   result?: unknown;
   error?: unknown;
 }
+export interface AsyncQuestion { title: string; options?: string[] | null }
 export interface Turn {
   id: string; status: string; items: Item[]; startedAt?: number | null; error?: { message: string } | null;
   completedAt?: number | null;
@@ -202,6 +205,7 @@ export interface MessageInput {
 export interface QueuedMessage extends MessageInput {
   id: string;
   busy?: boolean;
+  error?: string;
   model: string;
   effort: string;
   access: AccessMode;
