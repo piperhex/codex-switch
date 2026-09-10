@@ -16,7 +16,25 @@ test("file links show an application submenu, preserve line numbers and close on
   await expect(trigger).toHaveAttribute("aria-expanded", "true");
   await page.keyboard.press("Escape");
   await expect(trigger).toHaveAttribute("aria-expanded", "false");
-  await page.getByRole("button", { name: "文件操作：src/report.ts" }).click();
+});
+
+test("edited file links open diffs on left click and keep file actions on right click", async ({ page }) => {
+  await page.goto("/e2e/file-menu-harness.html");
+  const trigger = page.getByRole("button", { name: "查看 src/report.ts 的差异" });
+  await trigger.click();
+  await expect(page.getByLabel("操作结果")).toHaveText("差异：src/report.ts");
+  await expect(page.getByRole("menu")).toHaveCount(0);
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
+
+  await trigger.click({ button: "right" });
+  await expect(page.getByRole("menuitem", { name: "打开文件", exact: true })).toBeVisible();
+  await page.getByRole("menuitem", { name: "在 VS Code 中打开", exact: true }).click();
+  await expect(page.getByLabel("操作结果")).toContainText('"application":"vscode"');
+  await trigger.focus(); await page.keyboard.press("Enter");
+  await expect(page.getByLabel("操作结果")).toHaveText("差异：src/report.ts");
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
+
+  await trigger.click({ button: "right" });
   await page.getByRole("menuitem", { name: "查看差异", exact: true }).click();
   await expect(page.getByLabel("操作结果")).toHaveText("差异：src/report.ts");
 });

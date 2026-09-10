@@ -20,9 +20,9 @@ function item(label: string) {
   return [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')]
     .find((element) => element.textContent === label)!;
 }
-async function render(path = "C:/project/report.txt", thread = "thread-one") {
+async function render(path = "C:/project/report.txt", thread = "thread-one", onReview?: () => void) {
   await act(async () => root.render(<FileThreadContext.Provider value={thread}>
-    <FileMenu path={path} line={12} column={3}>报告</FileMenu>
+    <FileMenu path={path} line={12} column={3} onReview={onReview}>报告</FileMenu>
   </FileThreadContext.Provider>));
 }
 
@@ -51,6 +51,19 @@ it("opens a file menu without launching anything and passes the chosen editor an
   expect(fileApi.perform).toHaveBeenCalledWith({ path: "C:/project/report.txt", line: 12, column: 3,
     threadId: "thread-one" }, { type: "open", application: "vscode" });
   expect(trigger().getAttribute("aria-expanded")).toBe("false");
+});
+
+it.each([true, false])("opens available diffs directly without loading a menu (desktop: %s)", async (desktop) => {
+  vi.mocked(isTauri).mockReturnValue(desktop);
+  const onReview = vi.fn();
+  await render("src/report.ts", "thread-one", onReview);
+  const button = host.querySelector<HTMLButtonElement>("button")!;
+  expect(button.getAttribute("aria-label")).toBe("查看 src/report.ts 的差异");
+  await click(button);
+  expect(onReview).toHaveBeenCalledOnce();
+  expect(document.querySelector('[role="menu"]')).toBeNull();
+  expect(fileApi.applications).not.toHaveBeenCalled();
+  expect(fileApi.perform).not.toHaveBeenCalled();
 });
 
 it.each([["复制路径", "copyPath", "C:/project/report.txt"], ["复制文件内容", "copyContents", "文件内容"]])(
