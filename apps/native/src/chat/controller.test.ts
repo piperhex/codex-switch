@@ -31,6 +31,33 @@ async function connectedController() {
 }
 
 describe('mobile chat actions', () => {
+
+  it.each(['new', 'existing', 'running'])('sends image-only input in a %s chat', async (mode) => {
+    const controller = await connectedController();
+    const selected = mode === 'running'
+      ? { ...thread, turns: [{ id: 'turn', status: 'inProgress', items: [] }] } : thread;
+    mocks.request.mockResolvedValue({ thread: selected });
+    if (mode !== 'new') await controller.select(selected);
+    const images = ['data:image/jpeg;base64,aW1hZ2U='];
+    expect(await controller.send({ text: '', images, access: 'workspace-write' })).toBe(true);
+    expect(mocks.request).toHaveBeenCalledWith('request', expect.objectContaining({
+      operation: mode === 'running' ? 'steer' : 'send', text: '', images,
+    }));
+  });
+
+  it('rejects invalid, excessive and oversized images before creating a PC thread', async () => {
+    const controller = await connectedController();
+    for (const images of [
+      ['file:///phone/photo.jpg'],
+      Array(9).fill('data:image/jpeg;base64,aW1hZ2U='),
+      ['data:image/jpeg;base64,' + 'a'.repeat(6 * 1024 * 1024)],
+    ]) {
+      expect(await controller.send({ text: '', images, access: 'workspace-write' })).toBe(false);
+      expect(controller.snapshot().error).not.toBe('');
+    }
+    expect(mocks.request).not.toHaveBeenCalled();
+  });
+
   it('creates an active chat when starting from archived search results', async () => {
     const controller = await connectedController();
     mocks.request.mockResolvedValueOnce({ data: [], nextCursor: null }).mockResolvedValue({ thread });

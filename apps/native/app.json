@@ -54,6 +54,14 @@
           "recordAudioAndroid": false
         }
       ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "允许 Codex Switch 选择照片发送到聊天",
+          "cameraPermission": "允许 Codex Switch 扫描 2FA 二维码",
+          "microphonePermission": false
+        }
+      ],
       "./plugins/withChatTransport.cjs",
       "./plugins/withSharedBundleInputs.cjs"
     ]

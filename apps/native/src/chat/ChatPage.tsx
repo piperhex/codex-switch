@@ -94,10 +94,10 @@ function ConnectedChat({ session, device, devices, active, chooseDevice }: Props
         {state.approvals.filter((event) => event.params.threadId === state.selected?.id).map((event) =>
           <ChatApproval key={String(event.id)} event={event} respond={(reply) => controller.respond(reply)} />)}
       </ScrollView>}
-    <ChatComposer key={state.selected?.id ?? 'new'} models={state.models} selection={state.settings}
+    <ChatComposer threadId={state.selected?.id ?? null} models={state.models} selection={state.settings}
       settingsBusy={state.settingsBusy} settingsError={state.settingsError}
       updateSettings={(settings) => controller.setSettings(settings)}
-      ready={ready} sending={state.sending} running={running}
+      active={active} ready={ready} sending={state.sending} running={running}
       send={(input) => controller.send(input)} interrupt={() => { void controller.interrupt(); }} />
     {pickingDevice && <ChatDevices devices={devices} onClose={() => setPickingDevice(false)}
       choose={(id) => { chooseDevice(id); setPickingDevice(false); }} />}

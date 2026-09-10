@@ -68,7 +68,7 @@ function ConnectedChat({ session, device, devices, active, chooseDevice }: Props
       {approvals.map((event) => <ChatApproval key={String(event.id)} event={event}
         ready={ready} respond={(reply) => controller.respond(reply)} />)}
     </div>}
-    <ChatComposer key={state.selected?.id ?? 'new'} models={state.models} selection={state.settings}
+    <ChatComposer threadId={state.selected?.id ?? null} models={state.models} selection={state.settings}
       settingsBusy={state.settingsBusy} settingsError={state.settingsError}
       updateSettings={(settings) => controller.setSettings(settings)}
       active={active} ready={ready} sending={state.sending} running={running}
