@@ -196,7 +196,16 @@ fn provider_model_catalog_entry(
 fn write_provider_model_catalog(paths: &Paths, provider: &ProviderProfile) -> Result<(), String> {
     let catalog =
         model_catalog_for_provider_with_image_route(provider, image_input_route_enabled(paths));
-    write_json_if_changed(&paths.codex_home.join(MODEL_CATALOG_FILENAME), &catalog).map(|_| ())
+    write_model_catalog(paths, catalog)
+}
+
+fn write_model_catalog(paths: &Paths, catalog: Value) -> Result<(), String> {
+    catalog_storage::write_catalog(&paths.codex_home.join(MODEL_CATALOG_FILENAME), catalog)
+        .map_err(|error| {
+            eprintln!("Model catalog update failed: {error}");
+            "Could not update the model catalog. Check its contents and file permissions, then try again."
+                .to_string()
+        })
 }
 
 #[cfg(test)]

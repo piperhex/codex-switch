@@ -31,7 +31,16 @@ pub(crate) fn list_providers_blocking<R: Runtime>(
 }
 
 #[tauri::command]
-pub(crate) fn save_provider<R: Runtime>(
+pub(crate) async fn save_provider<R: Runtime + 'static>(
+    app: tauri::AppHandle<R>,
+    provider: ProviderInput,
+) -> Result<ProviderSummary, String> {
+    tauri::async_runtime::spawn_blocking(move || save_provider_blocking(app, provider))
+        .await
+        .map_err(|error| format!("Provider save task failed: {error}"))?
+}
+
+pub(crate) fn save_provider_blocking<R: Runtime>(
     app: tauri::AppHandle<R>,
     provider: ProviderInput,
 ) -> Result<ProviderSummary, String> {

@@ -226,7 +226,17 @@ pub(crate) fn validate_provider_activation(provider: &ProviderProfile) -> Result
 }
 
 #[tauri::command]
-pub(crate) fn switch_provider_model<R: Runtime>(
+pub(crate) async fn switch_provider_model<R: Runtime + 'static>(
+    app: tauri::AppHandle<R>,
+    id: String,
+    model: String,
+) -> Result<ProviderSummary, String> {
+    tauri::async_runtime::spawn_blocking(move || switch_provider_model_blocking(app, id, model))
+        .await
+        .map_err(|error| format!("Provider model switch task failed: {error}"))?
+}
+
+fn switch_provider_model_blocking<R: Runtime>(
     app: tauri::AppHandle<R>,
     id: String,
     model: String,
@@ -274,7 +284,19 @@ pub(crate) fn switch_provider_model<R: Runtime>(
 }
 
 #[tauri::command]
-pub(crate) fn set_provider_model_control<R: Runtime>(
+pub(crate) async fn set_provider_model_control<R: Runtime + 'static>(
+    app: tauri::AppHandle<R>,
+    id: String,
+    controlled_by_codex: bool,
+) -> Result<ProviderSummary, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        set_provider_model_control_blocking(app, id, controlled_by_codex)
+    })
+    .await
+    .map_err(|error| format!("Provider model control task failed: {error}"))?
+}
+
+fn set_provider_model_control_blocking<R: Runtime>(
     app: tauri::AppHandle<R>,
     id: String,
     controlled_by_codex: bool,

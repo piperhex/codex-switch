@@ -235,7 +235,7 @@ fn save_pending_import<R: Runtime>(
         .collect::<Vec<_>>();
     let name = unique_provider_name(&requested_name, &existing_names);
     let models = pending.models.clone();
-    providers::save_provider(app.clone(), pending_provider_input(pending, name, models))
+    providers::save_provider_blocking(app.clone(), pending_provider_input(pending, name, models))
 }
 
 fn pending_provider_input(

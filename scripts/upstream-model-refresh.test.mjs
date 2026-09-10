@@ -33,12 +33,18 @@ const expressionTemplate = extractSource(
 );
 
 function modelRefreshExpression(models, capabilities = {}) {
+  const defaultReasoningEfforts = Object.fromEntries(models.map(model => {
+    const efforts = capabilities.reasoningEfforts?.[model] ?? [];
+    const selected = efforts.find(effort => effort.reasoningEffort === "high") ?? efforts.at(-1);
+    return [model, selected?.reasoningEffort ?? "high"];
+  }));
   const substitutions = {
     models: JSON.stringify(models),
     fast_mode_models: JSON.stringify(capabilities.fastModeModels ?? []),
     image_input_models: JSON.stringify(capabilities.imageInputModels ?? []),
     selected_model: JSON.stringify(capabilities.selectedModel ?? models[0] ?? defaultModel),
     reasoning_efforts: JSON.stringify(capabilities.reasoningEfforts ?? {}),
+    default_reasoning_efforts: JSON.stringify(defaultReasoningEfforts),
     fallback_query_key: JSON.stringify(modelQueryKey),
     composer_status_allowed_global: "__CODEX_SWITCH_COMPOSER_STATUS_ALLOWED__",
     composer_status_observer_global: "__CODEX_SWITCH_COMPOSER_STATUS_OBSERVER__",

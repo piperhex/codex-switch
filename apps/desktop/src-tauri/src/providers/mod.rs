@@ -1,3 +1,4 @@
+mod catalog_storage;
 mod reasoning_defaults;
 use reasoning_defaults::known_model_reasoning_efforts;
 
@@ -21,6 +22,7 @@ mod tests {
     include!("tests/proxy_config.rs");
     include!("tests/presets.rs");
     include!("tests/model_catalog.rs");
+    include!("tests/catalog_storage.rs");
     include!("tests/model_refresh.rs");
     include!("tests/reasoning_defaults.rs");
     include!("tests/config_repair.rs");

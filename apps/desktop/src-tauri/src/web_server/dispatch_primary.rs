@@ -88,10 +88,10 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
         ))),
         "list_aggregate_apis" => serialize(block_on(crate::aggregate_api::list_aggregate_apis(app))),
         "list_providers" => serialize(block_on(crate::providers::list_providers(app))),
-        "save_provider" => serialize(crate::providers::save_provider(
+        "save_provider" => serialize(block_on(crate::providers::save_provider(
             app,
             argument(&args, "provider")?,
-        )),
+        ))),
         "fetch_antigravity_models" => serialize(block_on(
             crate::antigravity_provider::fetch_antigravity_models(
                 app,
@@ -152,16 +152,16 @@ fn dispatch_command(app: AppHandle, command: &str, args: Value) -> Result<Value,
             app,
             argument(&args, "group")?,
         ))),
-        "switch_provider_model" => serialize(crate::providers::switch_provider_model(
+        "switch_provider_model" => serialize(block_on(crate::providers::switch_provider_model(
             app,
             argument(&args, "id")?,
             argument(&args, "model")?,
-        )),
-        "set_provider_model_control" => serialize(crate::providers::set_provider_model_control(
+        ))),
+        "set_provider_model_control" => serialize(block_on(crate::providers::set_provider_model_control(
             app,
             argument(&args, "id")?,
             argument(&args, "controlledByCodex")?,
-        )),
+        ))),
         "set_provider_group" => serialize(block_on(crate::providers::set_provider_group(
             app,
             argument(&args, "id")?,

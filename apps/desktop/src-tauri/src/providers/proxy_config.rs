@@ -141,7 +141,7 @@ fn write_provider_group_local_proxy_config(
         providers,
         image_input_route_enabled(paths),
     );
-    write_json_if_changed(&paths.codex_home.join(MODEL_CATALOG_FILENAME), &catalog)?;
+    write_model_catalog(paths, catalog)?;
     let selected_model = provider_group_catalog_data(providers)
         .models
         .into_iter()
