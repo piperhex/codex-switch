@@ -2,7 +2,7 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { ChatOperations } from './operations';
 import { guiApi } from '../pages/codexGui/api';
 vi.mock('../pages/codexGui/api', () => ({ guiApi: { connect: vi.fn(), request: vi.fn(), respond: vi.fn() } }));
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => vi.resetAllMocks());
 
 it('executes a retried mutation once even while the original is still running', async () => {
   let finish: (value: unknown) => void = () => undefined;
@@ -25,4 +25,28 @@ it('blocks arbitrary operations before reaching the desktop boundary', async () 
     body: { operation: 'execute_command', command: 'private operation' } });
   expect(result.error).toContain('暂不支持');
   expect(guiApi.request).not.toHaveBeenCalled();
+});
+
+it('preserves a running desktop session when a phone reconnects', async () => {
+  vi.mocked(guiApi.connect).mockResolvedValue([]);
+  await new ChatOperations().execute({ kind: 'request', id: 'connect', method: 'connect' });
+  expect(guiApi.connect).toHaveBeenCalledWith({ reuseExisting: true });
+});
+
+it('preserves the safe error string returned by Tauri', async () => {
+  vi.mocked(guiApi.request).mockRejectedValue('Codex 已断开连接，请重新连接后继续。');
+  const result = await new ChatOperations().execute({ kind: 'request', id: 'read', method: 'request',
+    body: { operation: 'read', threadId: 'chat' } });
+  expect(result.error).toBe('Codex 已断开连接，请重新连接后继续。');
+});
+
+it('returns a bounded error for an oversized preview and still handles the next request', async () => {
+  vi.mocked(guiApi.request).mockResolvedValueOnce({ url: 'a'.repeat(8 * 1024 * 1024) }).mockResolvedValue({ data: [] });
+  const operations = new ChatOperations();
+  const preview = await operations.execute({ kind: 'request', id: 'image', method: 'request',
+    body: { operation: 'imagePreview', threadId: 'chat', source: 'large.png' } });
+  expect(preview.error).toContain('内容过大');
+  expect(preview.data).toBeUndefined();
+  expect(await operations.execute({ kind: 'request', id: 'list', method: 'request', body: { operation: 'list' } }))
+    .toMatchObject({ data: { data: [] } });
 });

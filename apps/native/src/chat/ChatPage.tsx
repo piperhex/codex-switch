@@ -4,6 +4,7 @@ import type { AuthSession, RemoteDevice } from '../types';
 import { ChatApproval } from './ChatApprovals';
 import { ChatComposer } from './ChatComposer';
 import { ChatMessages } from './ChatMessages';
+import { ChatImageContext } from './ChatImage';
 import { ChatThreads } from './ChatThreads';
 import { useChat } from './useChat';
 import { styles } from './styles';
@@ -47,8 +48,10 @@ function ConnectedChat({ session, device, active, disconnect }: {
   const { state, controller } = useChat(session, device.deviceId, active);
   const [composing, setComposing] = useState(false);
   const showingChat = composing || !!state.selected;
-  const ready = state.mode === 'direct' || state.mode === 'relay';
-  const modeLabels = { connecting: '正在连接…', direct: '已直连', relay: '通过服务器连接', offline: '等待重新连接' };
+  const connected = state.mode === 'direct' || state.mode === 'relay';
+  const ready = connected && state.ready;
+  const modeLabels = { connecting: '正在连接…', direct: '已直连', relay: '通过服务器连接',
+    offline: '等待重新连接' };
   const goBack = () => {
     if (showingChat) { setComposing(false); controller.back(); }
     else disconnect();
@@ -64,7 +67,8 @@ function ConnectedChat({ session, device, active, disconnect }: {
         <Text style={styles.backText}>‹</Text></Pressable>
       <View style={styles.fill}>
         <Text numberOfLines={1} style={styles.headerTitle}>{state.selected?.name || device.name}</Text>
-        <Text style={styles.headerMeta}>{device.name} · {modeLabels[state.mode]}</Text>
+        <Text style={styles.headerMeta}>{device.name} ·
+          {connected && !ready ? '正在同步聊天…' : modeLabels[state.mode]}</Text>
       </View>
       {showingChat && state.selected && <Pressable accessibilityRole="button" style={styles.compactButton}
         disabled={!ready || state.selected.turns?.some((turn) => turn.status === 'inProgress')}
@@ -74,7 +78,9 @@ function ConnectedChat({ session, device, active, disconnect }: {
     </View>
     {!!state.error && <Text accessibilityRole="alert" style={styles.error}>{state.error}</Text>}
     {showingChat ? <>
-      <ChatMessages key={state.selected?.id ?? 'new'} thread={state.selected} />
+      <ChatImageContext.Provider value={{ threadId: state.selected?.id ?? null, ready, load: controller.imagePreview }}>
+        <ChatMessages key={state.selected?.id ?? 'new'} thread={state.selected} />
+      </ChatImageContext.Provider>
       {state.approvals.some((event) => event.params.threadId === state.selected?.id) &&
         <ScrollView style={{ maxHeight: 280 }} contentContainerStyle={styles.padded} keyboardShouldPersistTaps="handled">
           {state.approvals.filter((event) => event.params.threadId === state.selected?.id).map((event) =>

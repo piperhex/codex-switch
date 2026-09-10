@@ -3,6 +3,7 @@ import http from 'node:http';
 import { createRequire } from 'node:module';
 import { createServer } from 'vite';
 import { chromium } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
 
 const require = createRequire(new URL('../../admin/package.json', import.meta.url));
 const { WebSocketServer } = require('ws');
@@ -12,7 +13,13 @@ const profile = { id: 'test-owner', email: 'mobile-test@example.test', role: 'us
 const devices = [{ deviceId: 'computer', name: '我的工作电脑', platform: 'Windows', online: true,
   localProxyRunning: false, capabilities: [], lastSeenAt: new Date().toISOString() }];
 let page;
+const previewImage = await readFile(new URL('../src-tauri/icons/32x32.png', import.meta.url));
 const httpServer = http.createServer((request, response) => {
+  if (request.url === '/test/preview.png') {
+    response.setHeader('Content-Type', 'image/png');
+    response.end(previewImage);
+    return;
+  }
   if (request.url?.startsWith('/test/') && !page) {
     response.writeHead(503).end('{}');
     return;

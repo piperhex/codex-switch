@@ -6,6 +6,7 @@ import type { ConnectionMode } from '../protocol';
 
 export interface ChatState {
   mode: ConnectionMode;
+  ready: boolean;
   threads: Thread[];
   selected: Thread | null;
   models: Model[];
@@ -19,6 +20,6 @@ export interface ChatState {
 }
 
 export function initialChatState(): ChatState {
-  return { mode: 'offline', threads: [], selected: null, models: [], approvals: [], cursor: null,
+  return { mode: 'offline', ready: false, threads: [], selected: null, models: [], approvals: [], cursor: null,
     search: '', archived: false, loading: false, sending: false, error: '' };
 }

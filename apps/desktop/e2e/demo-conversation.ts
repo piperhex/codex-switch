@@ -1,6 +1,7 @@
 import type { RpcRequest } from '../../../shared/remote-chat/protocol';
 import type { ChatLink } from '../../../shared/remote-chat/link';
 import type { GuiEvent, Item, Thread, Turn } from '../src/pages/codexGui/types';
+import previewImage from '../src-tauri/icons/32x32.png?inline';
 
 const welcome: Thread = { id: 'demo-chat', name: '移动端聊天体验', preview: '继续电脑上的任务', cwd: 'F:/projects/demo',
   updatedAt: Math.floor(Date.now() / 1000), turns: [{ id: 'welcome', status: 'completed', items: [
@@ -45,7 +46,11 @@ export function demoResponse(request: RpcRequest, link: ChatLink): unknown {
 }
 
 function threadOperation(thread: Thread, input: Record<string, unknown>, link: ChatLink) {
+  if (input.operation === 'resume' && !thread.turns?.length) {
+    throw new Error('New threads have no persisted rollout before the first turn');
+  }
   if (input.operation === 'read' || input.operation === 'resume') return { thread };
+  if (input.operation === 'imagePreview') return { url: previewImage };
   if (input.operation === 'archive') { archived.add(thread.id); return {}; }
   if (input.operation === 'unarchive') { archived.delete(thread.id); return {}; }
   if (input.operation === 'send') return { turn: startTurn(thread, String(input.text), link) };
@@ -77,11 +82,24 @@ function startTurn(thread: Thread, text: string, link: ChatLink) {
   thread.preview = text;
   notify(link, { method: 'turn/started', params: { threadId: thread.id, turn } });
   if (text.includes('approval') || text.includes('question')) requestApproval({ thread, turn, link }, text);
+  else if (text.includes('image preview')) previewTurn({ thread, turn, link }, text);
   else void stream({ thread, turn, link }, text.includes('slow'));
   return turn;
 }
 
 interface Context { thread: Thread; turn: Turn; link: ChatLink }
+
+function previewTurn(context: Context, text: string) {
+  const local = text.includes('remote image preview') ? '' : '![本地图片](./preview.png)\n\n';
+  const remote = text.includes('local image preview') ? ''
+    : '![网络图片](http://127.0.0.1:1490/test/preview.png)\n\n';
+  const item: Item = { id: uniqueId('image'), type: 'agentMessage', text: '图片前的文字。\n\n'
+    + local + remote + '图片后的文字。' };
+  context.turn.items.push(item);
+  notify(context.link, { method: 'item/completed',
+    params: { threadId: context.thread.id, turnId: context.turn.id, item } });
+  finish(context);
+}
 
 function finish(context: Context, status = 'completed') {
   context.turn.status = status;

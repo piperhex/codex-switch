@@ -19,7 +19,10 @@ export function useChatHost() {
         if (host?.alive && JSON.stringify(host.config) === JSON.stringify(config)) return;
         host?.close();
         host = new ChatHost(config);
-      } catch { host?.close(); host = undefined; }
+      } catch {
+        // A transient configuration refresh failure must not tear down a healthy active chat.
+        if (host && !host.alive) host = undefined;
+      }
       finally { refreshing = false; }
     };
     void refresh();

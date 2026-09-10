@@ -2,6 +2,8 @@ import { useLayoutEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { Item, Thread } from './types';
+import { ChatImage } from './ChatImage';
+import { itemImageSources, isInlineImage, localImageSource } from '../../../../shared/chat/imageSources';
 
 const FOLLOW_DISTANCE = 100;
 const toolLabels: Record<string, string> = {
@@ -13,13 +15,18 @@ function content(item: Item) {
     .map((entry) => typeof entry === 'string' ? entry : entry.text ?? '').join('\n');
 }
 function ChatMessage({ item }: { item: Item }) {
-  if (item.type === 'userMessage') return <div className="chat-user-message">{content(item)}</div>;
+  const images = itemImageSources(item);
+  if (item.type === 'userMessage') return <div className="chat-user-message">{content(item)}
+    {images.map((source, index) => <ChatImage key={index} source={source} />)}</div>;
+  if (images.length) return <div>{images.map((source, index) => <ChatImage key={index} source={source} />)}</div>;
   if (item.type === 'agentMessage') return <article className="chat-assistant-message">
     <strong className="chat-speaker">Codex</strong>
-    <div className="chat-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]} components={{
+    <div className="chat-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]} urlTransform={(url, key) => {
+      if (/^https?:\/\//i.test(url)) return url;
+      return key === 'src' && (isInlineImage(url) || localImageSource(url)) ? url : '';
+    }} components={{
       a: ({ children, ...props }) => <a {...props} target="_blank" rel="noopener noreferrer">{children}</a>,
-      // Remote content is opened deliberately instead of making background requests from the conversation.
-      img: ({ src, alt }) => src ? <a href={src} target="_blank" rel="noopener noreferrer">{alt || '查看图片'}</a> : null,
+      img: ({ src, alt }) => <ChatImage source={src} description={alt || '图片'} />,
     }}>{content(item)}</ReactMarkdown></div>
   </article>;
   const details = item.aggregatedOutput || item.summary?.join('\n') || content(item)

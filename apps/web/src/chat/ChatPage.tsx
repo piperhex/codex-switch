@@ -4,6 +4,7 @@ import type { AuthSession, RemoteDevice } from '../types';
 import { ChatApproval } from './ChatApproval';
 import { ChatComposer } from './ChatComposer';
 import { ChatMessages } from './ChatMessages';
+import { ChatImageContext } from './ChatImage';
 import { ChatThreads } from './ChatThreads';
 import { useChat } from './useChat';
 import './chat.css';
@@ -68,7 +69,8 @@ function ConnectedChat({ session, device, active, disconnect }: {
   const { state, controller } = useChat(session, device.deviceId, active);
   const [composing, setComposing] = useState(false);
   const showingChat = composing || !!state.selected;
-  const ready = state.mode === 'direct' || state.mode === 'relay';
+  const connected = state.mode === 'direct' || state.mode === 'relay';
+  const ready = connected && state.ready;
   const running = state.selected?.turns?.some((turn) => turn.status === 'inProgress') ?? false;
   const approvals = state.approvals.filter((event) => event.params.threadId === state.selected?.id);
   const back = () => {
@@ -79,14 +81,17 @@ function ConnectedChat({ session, device, active, disconnect }: {
     <header className="chat-header">
       <button type="button" className="chat-back" aria-label="返回" onClick={back}><ArrowLeft size={21} /></button>
       <div className="chat-grow"><h2>{state.selected?.name || device.name}</h2>
-        <p className="chat-muted">{device.name} · <span role="status">{modeLabels[state.mode]}</span></p></div>
+        <p className="chat-muted">{device.name} · <span role="status">
+          {connected && !ready ? '正在同步聊天…' : modeLabels[state.mode]}</span></p></div>
       {showingChat && state.selected && <button type="button" className="chat-button" disabled={!ready || running}
         onClick={() => { void controller.archive().then(() => setComposing(false)); }}>
         {state.archived ? '恢复' : '归档'}</button>}
     </header>
     {!!state.error && <p role="alert" className="chat-error">{state.error}</p>}
     {showingChat ? <>
-      <ChatMessages key={state.selected?.id ?? 'new'} thread={state.selected} />
+      <ChatImageContext.Provider value={{ threadId: state.selected?.id ?? null, ready, load: controller.imagePreview }}>
+        <ChatMessages key={state.selected?.id ?? 'new'} thread={state.selected} />
+      </ChatImageContext.Provider>
       {!!approvals.length && <div className="chat-approvals chat-scroll">
         {approvals.map((event) => <ChatApproval key={String(event.id)} event={event}
           ready={ready} respond={(reply) => controller.respond(reply)} />)}

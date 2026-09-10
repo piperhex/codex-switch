@@ -1,6 +1,7 @@
 import { guiApi } from '../pages/codexGui/api';
 import type { ApprovalReply, Request } from '../pages/codexGui/types';
 import { object, type RpcRequest, type RpcResponse } from '../../../../shared/remote-chat/protocol';
+import { chunks } from '../../../../shared/remote-chat/framing';
 
 const OPERATIONS = new Set([
   'models', 'list', 'read', 'start', 'resume', 'send', 'steer', 'interrupt', 'rename', 'archive', 'unarchive',
@@ -8,6 +9,19 @@ const OPERATIONS = new Set([
 ]);
 const CACHE_TTL_MS = 5 * 60_000;
 interface Cached { fingerprint: string; result: Promise<RpcResponse>; expires: number; completed: boolean }
+
+function operationError(error: unknown) {
+  // Tauri rejects with the safe string produced by the Rust command boundary.
+  if (typeof error === 'string' && error.trim()) return error;
+  return error instanceof Error ? error.message : '电脑暂时无法处理请求，请稍后重试。';
+}
+
+function response(request: RpcRequest, data: unknown): RpcResponse {
+  const result: RpcResponse = { kind: 'response', id: request.id, data };
+  // Fail just this request if an image/history exceeds the transport limit, preserving the connection.
+  chunks(result, request.id).next();
+  return result;
+}
 
 export class ChatOperations {
   private readonly cache = new Map<string, Cached>();
@@ -22,9 +36,8 @@ export class ChatOperations {
     }
     this.prune();
     if (this.cache.size >= 512) return Promise.reject(new Error('请求较多，请稍后重试。'));
-    const result = this.run(request).then((data): RpcResponse => ({ kind: 'response', id: request.id, data }),
-      (error: unknown): RpcResponse => ({ kind: 'response', id: request.id,
-        error: error instanceof Error ? error.message : '电脑暂时无法处理请求，请稍后重试。' }));
+    const result = this.run(request).then((data) => response(request, data))
+      .catch((error: unknown): RpcResponse => ({ kind: 'response', id: request.id, error: operationError(error) }));
     const entry: Cached = { fingerprint, result, expires: Date.now() + CACHE_TTL_MS, completed: false };
     this.cache.set(request.id, entry);
     void result.then(() => { entry.completed = true; });
@@ -32,7 +45,7 @@ export class ChatOperations {
   }
 
   private async run(request: RpcRequest): Promise<unknown> {
-    if (request.method === 'connect') return guiApi.connect();
+    if (request.method === 'connect') return guiApi.connect({ reuseExisting: true });
     const body = object(request.body);
     if (request.method === 'respond') {
       if (typeof body.id !== 'string' && typeof body.id !== 'number') throw new Error('审批请求已失效，请刷新对话。');

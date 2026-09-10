@@ -63,16 +63,18 @@ async fn connected(state: &GuiState) -> Result<Arc<Client>> {
 pub(crate) async fn codex_gui_connect(
     app: AppHandle,
     state: State<'_, GuiState>,
+    reuse_existing: Option<bool>,
 ) -> std::result::Result<Vec<GuiEvent>, String> {
-    connect(app, &state)
+    connect(app, &state, reuse_existing.unwrap_or(false))
         .await
         .map_err(|error| error.to_string())
 }
 
-async fn connect(app: AppHandle, state: &GuiState) -> Result<Vec<GuiEvent>> {
+async fn connect(app: AppHandle, state: &GuiState, reuse_existing: bool) -> Result<Vec<GuiEvent>> {
     let mut current = state.client.lock().await;
     if let Some(client) = current.as_ref() {
-        if client.alive.load(Ordering::Acquire) && client.is_running().await {
+        // A phone reconnect or transport switch must preserve idle, already loaded threads.
+        if client.alive.load(Ordering::Acquire) && (reuse_existing || client.is_running().await) {
             return Ok(client.pending_approvals().await);
         }
         client.stop().await;

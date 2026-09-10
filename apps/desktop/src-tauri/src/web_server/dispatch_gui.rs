@@ -13,7 +13,7 @@ fn dispatch_gui_command(app: AppHandle, command: &str, args: Value) -> Result<Va
             app.clone(), app.state::<GuiState>(), argument(&args, "threadId")?,
         ))),
         "codex_gui_connect" => serialize(block_on(codex_gui::codex_gui_connect(
-            app.clone(), app.state::<GuiState>(),
+            app.clone(), app.state::<GuiState>(), argument(&args, "reuseExisting")?,
         ))),
         "codex_gui_request" => serialize(block_on(codex_gui::codex_gui_request(
             app.state::<GuiState>(), argument(&args, "request")?,

@@ -5,7 +5,8 @@ import type { ApprovalReply, GuiEvent, Request } from "./types";
 const MAX_WEB_REQUEST_BYTES = 8 * 1024 * 1024;
 
 export const guiApi = {
-  connect: () => invoke<GuiEvent[]>("codex_gui_connect"),
+  connect: (options?: { reuseExisting: boolean }) => options
+    ? invoke<GuiEvent[]>("codex_gui_connect", options) : invoke<GuiEvent[]>("codex_gui_connect"),
   async request<T>(request: Request) {
     if (isHostedWebApp && new TextEncoder().encode(JSON.stringify({ command: "codex_gui_request", args: { request } }))
       .length > MAX_WEB_REQUEST_BYTES) {

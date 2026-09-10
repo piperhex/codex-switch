@@ -19,11 +19,14 @@ interface ConnectionOptions extends ConnectionEvents {
   createPeer: (options: import('../protocol').PeerOptions) => import('../protocol').Peer;
 }
 
+const CONNECTION_TIMEOUT_MS = 30_000;
+
 export class ChatConnection {
   private socket?: WebSocket;
   private link?: ChatLink;
   private rpc?: ChatRpc;
   private timer?: ReturnType<typeof setTimeout>;
+  private connectTimer?: ReturnType<typeof setTimeout>;
   private attempt = 0;
   private generation = 0;
   private active = false;
@@ -39,17 +42,25 @@ export class ChatConnection {
   private async connect() {
     const generation = ++this.generation;
     this.options.mode('connecting');
+    this.connectTimer = setTimeout(() => {
+      if (generation !== this.generation) return;
+      this.options.error('连接耗时较长，正在重新连接…');
+      this.disconnected();
+    }, CONNECTION_TIMEOUT_MS);
     try {
       const session = await this.options.authorize();
       if (!this.active || generation !== this.generation) return;
       const keys = keyPair(this.options.randomBytes);
       const socket = new WebSocket(chatSocketUrl(session.baseUrl));
       this.socket = socket;
-      socket.onopen = () => socket.send(JSON.stringify({ type: 'authenticate', role: 'mobile',
-        accessToken: session.accessToken, deviceId: this.options.deviceId, publicKey: keys.publicKey }));
+      socket.onopen = () => {
+        if (generation !== this.generation) { socket.close(); return; }
+        socket.send(JSON.stringify({ type: 'authenticate', role: 'mobile',
+          accessToken: session.accessToken, deviceId: this.options.deviceId, publicKey: keys.publicKey }));
+      };
       socket.onmessage = ({ data }: { data: unknown }) => {
         if (generation !== this.generation || typeof data !== 'string') return;
-        void this.receive(data, keys).catch(() => socket.close());
+        void this.receive(data, keys).catch(() => { if (generation === this.generation) this.disconnected(); });
       };
       socket.onclose = (event) => {
         keys.secret.fill(0);
@@ -57,7 +68,7 @@ export class ChatConnection {
         if (event.code === 4004) this.options.error('电脑上的聊天暂未就绪，请保持 Codex Switch 运行。');
         this.disconnected();
       };
-      socket.onerror = () => socket.close();
+      socket.onerror = () => { if (generation === this.generation) this.disconnected(); };
     } catch {
       if (generation !== this.generation) return;
       this.options.error('暂时无法连接，请检查登录状态和网络。');
@@ -74,11 +85,12 @@ export class ChatConnection {
     if (message.type === 'signal') await this.link?.acceptSignal(message.payload as Signal);
     if (message.type === 'relay-ready') this.link?.enableRelay();
     if (message.type === 'relay' && typeof message.payload === 'string') this.link?.receive(message.payload);
-    if (message.type === 'peer-close') this.socket?.close();
+    if (message.type === 'peer-close') this.disconnected();
   }
 
   private paired(input: { id: string; iceServers: IceServer[]; keys: ReturnType<typeof keyPair> }) {
     if (this.link) throw new Error('Already paired');
+    const generation = this.generation;
     this.rpc = new ChatRpc({ prefix: input.keys.publicKey.slice(0, 24),
       send: (message) => this.link!.send(message), event: this.options.event });
     this.link = new ChatLink({
@@ -88,9 +100,11 @@ export class ChatConnection {
       relayBuffered: () => this.socket?.bufferedAmount ?? 0,
       message: (message) => this.rpc?.receive(message), error: this.options.error,
       mode: (mode) => {
+        if (generation !== this.generation) return;
         this.options.mode(mode);
-        if (mode === 'offline' && this.active) this.socket?.close();
+        if (mode === 'offline') { this.disconnected(); return; }
         if (mode !== 'direct' && mode !== 'relay') return;
+        clearTimeout(this.connectTimer);
         this.attempt = 0;
         this.rpc?.retry();
         this.options.ready();
@@ -105,6 +119,12 @@ export class ChatConnection {
   }
 
   private disconnected() {
+    this.generation += 1;
+    clearTimeout(this.timer);
+    clearTimeout(this.connectTimer);
+    const socket = this.socket;
+    this.socket = undefined;
+    socket?.close();
     this.link?.close();
     this.link = undefined;
     this.rpc?.close();
@@ -117,10 +137,6 @@ export class ChatConnection {
 
   stop() {
     this.active = false;
-    this.generation += 1;
-    clearTimeout(this.timer);
-    this.socket?.close();
-    this.socket = undefined;
     this.disconnected();
   }
 }

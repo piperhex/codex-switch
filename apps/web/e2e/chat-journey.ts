@@ -74,6 +74,21 @@ async function manageHistory({ page, request }: Journey) {
   await click(page.getByRole('button', { name: /移动端聊天体验/ }));
 }
 
+async function imagePreview({ page, request, info }: Journey) {
+  await send(page, 'image preview');
+  await settled(page);
+  for (const description of ['本地图片', '网络图片']) {
+    const image = page.getByRole('img', { name: description, exact: true });
+    await expect(image).toBeVisible();
+    await expect.poll(() => image.evaluate((node) => (node as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+  }
+  await click(page.getByRole('button', { name: '放大查看：本地图片', exact: true }));
+  await expect(page.getByRole('dialog', { name: '本地图片' })).toBeVisible();
+  await click(page.getByRole('button', { name: '关闭图片', exact: true }));
+  expect(await operationCount(request, 'imagePreview')).toBeGreaterThan(0);
+  await screenshot(page, info, '04-inline-images');
+}
+
 async function recoverConnection({ page, request, info, transport }: Journey) {
   const before = await state(request);
   const sent = await operationCount(request, 'send');
@@ -107,5 +122,6 @@ export async function chatJourney(context: Journey) {
   await approvals(context);
   await manageHistory(context);
   await recoverConnection(context);
+  await imagePreview(context);
   expect(errors).toEqual([]);
 }

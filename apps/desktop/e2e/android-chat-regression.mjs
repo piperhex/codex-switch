@@ -136,6 +136,22 @@ try {
     await adb('shell', 'am', 'start', '-n', 'com.codexswitch.mobile/.MainActivity');
     await ready();
   });
+  await check('12-inline-images-and-preview', async () => {
+    for (const [prompt, label] of [['local image preview', '本地图片'], ['remote image preview', '网络图片']]) {
+      await send(prompt);
+      await settled();
+      await waitText(`放大查看：${label}`);
+      assert.equal(await hasText('图片加载失败'), false);
+      await screenshot(`12-${label === '本地图片' ? 'local' : 'remote'}-image`);
+      await tap(`放大查看：${label}`);
+      await waitText('关闭图片');
+      await screenshot(`12-${label === '本地图片' ? 'local' : 'remote'}-preview`);
+      await tap('关闭图片');
+    }
+    assert.ok(await operationCount('imagePreview') > 0);
+    await send('message after images');
+    await settled();
+  });
   report.fixture = await serverState();
   assert.deepEqual(report.fixture.streamErrors, []);
   report.passed = true;

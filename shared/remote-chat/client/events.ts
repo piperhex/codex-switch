@@ -48,7 +48,9 @@ export function applyChatEvent(state: ChatState, event: GuiEvent): ChatState {
     approvals: [...state.approvals.filter((entry) => entry.id !== event.id), event] };
   if (method === 'serverRequest/resolved') return { ...state,
     approvals: state.approvals.filter((entry) => entry.id !== params.requestId) };
-  if (method === 'codex/disconnected') return { ...state, error: '电脑上的 Codex 已断开，请重新连接。' };
+  if (method === 'codex/disconnected' || method === 'connection/closed') {
+    return { ...state, ready: false, error: '电脑上的聊天已断开，正在重新连接…' };
+  }
   const threadId = params.threadId ?? params.thread?.id;
   let threads = state.threads;
   if (method === 'thread/started' && params.thread) {

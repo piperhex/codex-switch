@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import MarkdownIt from 'markdown-it';
 import { palette, styles } from './styles';
+import { ChatImage } from './ChatImage';
 
 const parser = new MarkdownIt({ html: false, linkify: false, typographer: false, maxNesting: 20 });
 type Token = ReturnType<typeof parser.parse>[number];
@@ -27,8 +28,6 @@ function openLink(url: string) {
 function Inline({ nodes }: { nodes: Node[] }) {
   return <>{nodes.map(({ token, children }, index) => {
     if (token.type === 'softbreak' || token.type === 'hardbreak') return '\n';
-    if (token.type === 'image') return <Text key={index} style={{ color: palette.green }}
-      onPress={() => openLink(String(token.attrGet('src') ?? ''))}>[图片：{token.content || '查看图片'}]</Text>;
     const style = token.type === 'strong_open' ? { fontWeight: '700' as const }
       : token.type === 'em_open' ? { fontStyle: 'italic' as const }
         : token.type === 'code_inline' ? styles.code : undefined;
@@ -36,6 +35,27 @@ function Inline({ nodes }: { nodes: Node[] }) {
       onPress={() => openLink(String(token.attrGet('href') ?? ''))}><Inline nodes={children} /></Text>;
     return <Text key={index} style={style}>{children.length ? <Inline nodes={children} /> : token.content}</Text>;
   })}</>;
+}
+
+function hasImage(node: Node): boolean {
+  return node.token.type === 'image' || node.children.some(hasImage);
+}
+
+function Paragraph({ nodes, heading }: { nodes: Node[]; heading: boolean }) {
+  const parts: Node[][] = [];
+  for (const node of nodes) {
+    if (hasImage(node)) parts.push([node], []);
+    else (parts[parts.length - 1] ?? (parts[0] = [])).push(node);
+  }
+  return <View>{parts.map((part, index) => {
+    if (!part.length) return null;
+    const first = part[0];
+    if (first.token.type === 'image') return <ChatImage key={index}
+      source={String(first.token.attrGet('src') ?? '')} description={first.token.content || '图片'} />;
+    if (hasImage(first)) return <Paragraph key={index} nodes={first.children} heading={heading} />;
+    return <Text key={index} selectable style={[styles.messageText, { marginVertical: 6 },
+      heading && { fontWeight: '700', fontSize: 19 }]}><Inline nodes={part} /></Text>;
+  })}</View>;
 }
 
 function Block({ node }: { node: Node }) {
@@ -46,8 +66,7 @@ function Block({ node }: { node: Node }) {
   </ScrollView>;
   if (token.type === 'paragraph_open' || token.type === 'heading_open' || token.type === 'inline') {
     const inline = token.type === 'inline' ? children : children.flatMap((child) => child.children);
-    return <Text selectable style={[styles.messageText, { marginVertical: 6 },
-      token.type === 'heading_open' && { fontWeight: '700', fontSize: 19 }]}><Inline nodes={inline} /></Text>;
+    return <Paragraph nodes={inline} heading={token.type === 'heading_open'} />;
   }
   if (token.type === 'bullet_list_open' || token.type === 'ordered_list_open') return <View>
     {children.map((child, index) => <View key={index} style={[styles.row, { alignItems: 'flex-start' }]}>
