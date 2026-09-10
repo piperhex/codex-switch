@@ -33,6 +33,15 @@ const httpServer = http.createServer((request, response) => {
     })().catch(() => response.writeHead(400).end('{}'));
     return;
   }
+  if (request.url === '/test/sidebar' && request.method === 'POST') {
+    void (async () => {
+      let body = '';
+      for await (const chunk of request) body += chunk.toString();
+      await page.evaluate((action) => window.chatTest.setSidebar(action), JSON.parse(body).action);
+      response.end('{}');
+    })().catch(() => response.writeHead(400).end('{}'));
+    return;
+  }
   if (request.url === '/test/state') {
     void page.evaluate(() => window.chatTest ? ({ ...window.chatTest.demoState(), modes: window.chatTest.modes,
       errors: window.chatTest.errors }) : null).then((state) => {
@@ -48,7 +57,8 @@ const httpServer = http.createServer((request, response) => {
   if (request.url === '/test/reset' && request.method === 'POST') {
     for (const client of mobileClients) client.terminate();
     relayFrames = 0;
-    void page.reload().then(() => response.end('{}')).catch(() => response.writeHead(503).end('{}'));
+    void page.evaluate(() => localStorage.clear()).then(() => page.reload()).then(() => response.end('{}'))
+      .catch(() => response.writeHead(503).end('{}'));
     return;
   }
   if (request.url === '/test/fallback' && request.method === 'POST') {

@@ -1,49 +1,70 @@
 import { useState } from 'react';
-import { FlatList, Pressable, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, SectionList, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { ChatController } from './controller';
 import type { ChatState } from './types';
-import { styles } from './styles';
+import { projectThreadGroups, threadPresentation } from '../../../../shared/remote-chat/sidebar';
+import { palette, styles } from './styles';
 
-function projectName(cwd: string) { return cwd?.split(/[\\/]/).filter(Boolean).at(-1) ?? '聊天'; }
+interface Props {
+  state: ChatState; controller: ChatController; newChat: () => void; onClose: () => void;
+  chooseDevice: () => void; deviceName: string;
+}
 
-export function ChatThreads({ state, controller, newChat }: {
-  state: ChatState; controller: ChatController; newChat: () => void;
-}) {
+export function ChatThreads({ state, controller, newChat, onClose, chooseDevice, deviceName }: Props) {
   const [search, setSearch] = useState(state.search);
-  const ready = state.mode === 'direct' || state.mode === 'relay';
+  const ready = state.ready;
   return <View style={styles.fill}>
     <View style={styles.padded}>
       <View style={styles.row}>
         <Text style={[styles.heading, styles.fill]}>聊天</Text>
-        <Pressable accessibilityRole="button" style={[styles.button, !ready && styles.disabled]} disabled={!ready}
-          onPress={newChat}><Text style={styles.buttonText}>＋ 新聊天</Text></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="收起聊天列表" onPress={onClose}
+          style={styles.back}><Text style={styles.backText}>×</Text></Pressable>
       </View>
-      <TextInput accessibilityLabel="搜索聊天" placeholder="搜索电脑上的聊天" value={search} onChangeText={setSearch}
+      <Pressable accessibilityRole="button" style={styles.button} disabled={state.sending} onPress={newChat}>
+        <Text style={styles.buttonText}>＋ 新聊天</Text></Pressable>
+      <TextInput accessibilityLabel="搜索聊天" placeholder="搜索聊天" value={search} onChangeText={setSearch}
         style={styles.search} returnKeyType="search" onSubmitEditing={() => { void controller.list({ search }); }} />
-      <View style={styles.row}>
-        <Pressable style={styles.compactButton} onPress={() => { void controller.list({ archived: !state.archived }); }}>
-          <Text style={styles.buttonText}>{state.archived ? '已归档 ▾' : '最近聊天 ▾'}</Text>
-        </Pressable>
-        <Text style={styles.subtitle}>与电脑保持同步</Text>
-      </View>
+      <Pressable accessibilityRole="button" style={styles.compactButton} disabled={!ready || state.loading}
+        onPress={() => { void controller.list({ archived: !state.archived }); }}>
+        <Text style={styles.buttonText}>{state.archived ? '已归档 ▾' : '最近聊天 ▾'}</Text>
+      </Pressable>
     </View>
-    <FlatList data={state.threads} keyExtractor={(thread) => thread.id} contentContainerStyle={styles.list}
+    <SectionList sections={projectThreadGroups(state.threads, state.sidebar)} keyExtractor={(thread) => thread.id}
+      contentContainerStyle={listStyles.content} stickySectionHeadersEnabled={false} keyboardShouldPersistTaps="handled"
       refreshing={state.loading} onRefresh={() => { void controller.list(); }}
-      renderItem={({ item }) => <Pressable accessibilityRole="button" style={styles.card}
-        disabled={!ready} onPress={() => { void controller.select(item); }}>
-        <Text numberOfLines={1} style={styles.title}>{item.name || item.preview || '新聊天'}</Text>
-        <Text numberOfLines={2} style={styles.threadPreview}>{item.preview}</Text>
-        <View style={styles.row}>
-          <Text numberOfLines={1} style={[styles.subtitle, styles.fill]}>{projectName(item.cwd)}</Text>
-          <Text style={styles.subtitle}>{new Date(item.updatedAt * 1000).toLocaleDateString('zh-CN')}</Text>
-        </View>
-      </Pressable>}
-      ListEmptyComponent={<View style={styles.empty}><Text style={styles.title}>
-        {ready ? '暂时没有聊天' : '正在连接你的电脑…'}</Text>
-        <Text style={[styles.subtitle, styles.centerText]}>{ready ? '创建新聊天，或换个关键词搜索。'
-          : '请保持电脑上的 Codex Switch 运行，并登录同一账号。'}</Text></View>}
+      renderSectionHeader={({ section }) => <Text accessibilityRole="header" style={listStyles.project}>
+        {section.label}</Text>}
+      renderItem={({ item }) => {
+        const view = threadPresentation(item, state.sidebar);
+        return <Pressable accessibilityRole="button" accessibilityLabel={view.title}
+          accessibilityState={{ selected: state.selected?.id === item.id }} disabled={!ready || state.sending}
+          style={[listStyles.thread, state.selected?.id === item.id && listStyles.selected]}
+          onPress={() => { void controller.select(item); onClose(); }}>
+          <Text numberOfLines={1} style={listStyles.title}>{view.title}</Text>
+          <View style={listStyles.status}>
+            {view.running ? <ActivityIndicator size="small" color={palette.muted} accessibilityLabel="正在回复" />
+              : view.unread && <View accessible accessibilityLabel="未读回复" style={listStyles.dot} />}
+          </View>
+        </Pressable>;
+      }}
+      ListEmptyComponent={<View style={styles.empty}><Text style={styles.subtitle}>
+        {ready ? '暂时没有聊天' : '连接电脑后查看聊天'}</Text></View>}
       ListFooterComponent={state.cursor ? <Pressable style={styles.button} disabled={state.loading || !ready}
         onPress={() => { void controller.list({ more: true }); }}><Text style={styles.buttonText}>加载更多</Text></Pressable>
         : null} />
+    <Pressable accessibilityRole="button" accessibilityLabel="切换电脑" style={styles.padded} onPress={chooseDevice}>
+      <Text numberOfLines={1} style={styles.subtitle}>{deviceName} ›</Text>
+    </Pressable>
   </View>;
 }
+
+const listStyles = StyleSheet.create({
+  content: { paddingHorizontal: 14, paddingBottom: 16 },
+  project: { color: palette.muted, fontSize: 12, fontWeight: '600', paddingHorizontal: 10, marginVertical: 12 },
+  thread: { minHeight: 46, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center',
+    gap: 10, borderRadius: 10 },
+  selected: { backgroundColor: '#e6f8f1' },
+  title: { flex: 1, color: palette.ink, fontSize: 14 },
+  status: { width: 18, alignItems: 'center', justifyContent: 'center' },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#a7b1ab' },
+});

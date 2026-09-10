@@ -56,6 +56,10 @@ export function applyChatEvent(state: ChatState, event: GuiEvent): ChatState {
   if (method === 'thread/started' && params.thread) {
     threads = [params.thread, ...threads.filter((thread) => thread.id !== params.thread!.id)];
   }
+  if (threadId && ['turn/started', 'turn/completed'].includes(method)) {
+    threads = threads.map((thread) => thread.id === threadId
+      ? { ...thread, status: { type: method === 'turn/started' ? 'active' : 'idle' } } : thread);
+  }
   let selected = state.selected;
   if (selected && selected.id === threadId) selected = updateTurn(selected, event);
   const approvals = method === 'turn/completed'

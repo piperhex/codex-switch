@@ -20,6 +20,7 @@ import type { AggregateApi, Provider } from "../types";
 import { providerModels } from "./codexGui/providerModels";
 import { useDreamSkin } from "./codexGui/useDreamSkin";
 import { guiComposer } from "./codexGui/composerBridge";
+import { guiSidebar } from "./codexGui/sidebarBridge";
 
 type CodexGuiPageProps = {
   active: boolean; accountPicker: ReactNode; providers: Provider[]; aggregateApis: AggregateApi[];
@@ -50,6 +51,7 @@ function Workspace({ active, accountPicker, providers, aggregateApis }: CodexGui
   const models = useMemo(() => providerModels(providers, aggregateApis), [providers, aggregateApis]);
   useEffect(() => { controller.setProviderModels(models); }, [controller, models]);
   useEffect(() => guiComposer.attach(controller), [controller]);
+  useEffect(() => guiSidebar.attach(controller), [controller]);
   useEffect(() => {
     if (isDesktopApp || !installer.version) return;
     if (active) void controller.connect();

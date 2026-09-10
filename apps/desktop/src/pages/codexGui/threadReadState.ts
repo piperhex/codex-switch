@@ -24,6 +24,15 @@ export class GuiReadState {
     savePreferences(this.host.getSnapshot());
   };
 
+  markRemoteRead = (id: string, turnId: string) => {
+    const state = this.host.getSnapshot();
+    const current = state.threadReadState[id];
+    // A delayed phone acknowledgement must not clear a newer unread reply.
+    if (!current?.unread || current.turnId !== turnId) return;
+    this.host.patch({ threadReadState: { ...state.threadReadState, [id]: { ...current, unread: false } } });
+    savePreferences(this.host.getSnapshot());
+  };
+
   observeThreads = (threads: Thread[]) => {
     const state = this.host.getSnapshot();
     const previous = new Map(state.threads.map((thread) => [thread.id, thread]));

@@ -3,6 +3,16 @@ import type { ChatLink } from '../../../shared/remote-chat/link';
 import type { GuiEvent, Item, Thread, Turn } from '../src/pages/codexGui/types';
 import previewImage from '../src-tauri/icons/32x32.png?inline';
 import { changeDemoComposer, composerErrors, demoComposer } from './demo-composer';
+import { guiSidebar } from '../src/pages/codexGui/sidebarBridge';
+import { SIDEBAR_EVENT } from '../../../shared/remote-chat/sidebar';
+import { saveProject } from '../src/pages/codexGui/projectCatalog';
+
+saveProject({ path: 'F:/projects/demo', name: '演示项目' });
+let sidebarLink: ChatLink | undefined;
+guiSidebar.subscribe((snapshot) => {
+  if (sidebarLink) void sidebarLink.send({ kind: 'event', event: { method: SIDEBAR_EVENT, params: snapshot } })
+    .catch((error: unknown) => streamErrors.push(String(error)));
+});
 
 const welcome: Thread = { id: 'demo-chat', name: '移动端聊天体验', preview: '继续电脑上的任务', cwd: 'F:/projects/demo',
   updatedAt: Math.floor(Date.now() / 1000), turns: [{ id: 'welcome', status: 'completed', items: [
@@ -20,23 +30,28 @@ const uniqueId = (name: string) => `${name}-${++sequence}`;
 
 export function demoState() {
   return { threads: [...threads.values()], operations, approvals: [...approvals.values()].map(({ event }) => event),
-    streamErrors: [...streamErrors, ...composerErrors], archived: [...archived], composer: demoComposer() };
+    streamErrors: [...streamErrors, ...composerErrors], archived: [...archived], composer: demoComposer(),
+    sidebar: guiSidebar.snapshot() };
 }
 
 export function demoResponse(request: RpcRequest, link: ChatLink): unknown {
+  sidebarLink = link;
   if (request.method === 'connect') return [...approvals.values()].map(({ event }) => event);
   const input = (request.body ?? {}) as Record<string, unknown>;
   operations.push({ ...input, method: request.method });
   if (request.method === 'respond') return respond(input);
   if (input.operation === 'models') return { data: demoComposer().models, nextCursor: null, composer: demoComposer() };
   if (input.operation === 'composerSet') return changeDemoComposer(input.settings, link);
+  if (input.operation === 'threadRead') return guiSidebar.markRead(input);
   if (input.operation === 'list') return { data: [...threads.values()].filter((thread) =>
     archived.has(thread.id) === (input.archived === true)
-      && `${thread.name} ${thread.preview}`.includes(String(input.search ?? ''))), nextCursor: null };
+      && `${thread.name} ${thread.preview}`.includes(String(input.search ?? ''))), nextCursor: null,
+    sidebar: guiSidebar.observe([...threads.values()]) };
   if (input.operation === 'start') {
-    const thread: Thread = { id: uniqueId('chat'), name: '手机新聊天', preview: '', cwd: 'F:/projects/demo',
+    const thread: Thread = { id: uniqueId('chat'), name: '手机新聊天', preview: '', cwd: '',
       updatedAt: Math.floor(Date.now() / 1000), turns: [] };
     threads.set(thread.id, thread);
+    notify(link, { method: 'thread/started', params: { thread } });
     return { thread };
   }
   const thread = threads.get(String(input.threadId));
@@ -68,6 +83,7 @@ function threadOperation(thread: Thread, input: Record<string, unknown>, link: C
 }
 
 function notify(link: ChatLink, event: GuiEvent) {
+  guiSidebar.receive(event);
   void link.send({ kind: 'event', event: structuredClone(event) }).catch((error: unknown) => {
     streamErrors.push(error instanceof Error ? error.message : 'Could not send demo event');
   });
@@ -78,6 +94,7 @@ function startTurn(thread: Thread, text: string, link: ChatLink) {
     { id: uniqueId('user'), type: 'userMessage', content: [{ type: 'text', text }] },
   ] };
   thread.turns?.push(turn);
+  thread.status = { type: 'active' };
   thread.preview = text;
   notify(link, { method: 'turn/started', params: { threadId: thread.id, turn } });
   if (text.includes('approval') || text.includes('question')) requestApproval({ thread, turn, link }, text);
@@ -102,7 +119,20 @@ function previewTurn(context: Context, text: string) {
 
 function finish(context: Context, status = 'completed') {
   context.turn.status = status;
+  context.thread.status = { type: 'idle' };
   notify(context.link, { method: 'turn/completed', params: { threadId: context.thread.id, turn: context.turn } });
+}
+
+export function changeDemoSidebar(action: string, link: ChatLink) {
+  sidebarLink = link;
+  if (action === 'start' && welcome.turns?.some((turn) => turn.status === 'inProgress')) {
+    throw new Error('Wait for the current demo turn before starting a background turn');
+  }
+  if (action === 'start') startTurn(welcome, 'slow task', link);
+  const turn = welcome.turns?.at(-1);
+  if (action === 'complete' && turn) finish({ thread: welcome, turn, link });
+  if (action === 'read' && turn) guiSidebar.markRead({ threadId: welcome.id, turnId: turn.id });
+  return guiSidebar.observe([...threads.values()]);
 }
 
 async function stream(context: Context, slow: boolean) {

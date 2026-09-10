@@ -11,7 +11,11 @@ const report = {
 const operationCount = async (operation) =>
   (await serverState()).operations.filter((entry) => entry.operation === operation).length;
 const ready = () => waitFor(async () => (await hasText('通过服务器连接')) || (await hasText('已直连')), 'chat connected');
-const latestTurn = async () => (await serverState()).threads.flatMap((thread) => thread.turns ?? []).at(-1);
+const latestTurn = async () => {
+  const state = await serverState();
+  const operation = state.operations.findLast((entry) => ['send', 'steer'].includes(entry.operation));
+  return state.threads.find((thread) => thread.id === operation?.threadId)?.turns?.at(-1);
+};
 const settled = () => waitFor(async () => (await latestTurn())?.status !== 'inProgress', 'turn settled');
 
 async function check(name, action) {
@@ -40,11 +44,14 @@ try {
     await tap('登录并查看');
     await waitText('账户管理');
     await tap('聊天', { last: true });
-    await waitText('选择电脑');
+    await waitText('聊天消息');
+    assert.equal(await hasText('搜索聊天'), false);
+    await screenshot('01-new-chat');
   });
   await check('02-connect-and-history', async () => {
-    await tap('我的工作电脑');
     await ready();
+    await tap('打开聊天列表');
+    await waitText('演示项目');
     await tap('移动端聊天体验');
     await waitText('帮我整理今天的工作计划');
     assert.equal((await serverState()).connectedMobiles, 1);
@@ -98,7 +105,7 @@ try {
     assert.deepEqual(response.answers.choice.answers, ['继续验证']);
   });
   await check('08-create-new-thread', async () => {
-    await tap('返回');
+    await tap('打开聊天列表');
     await tap('＋ 新聊天');
     await send('new chat from Android');
     await settled();
@@ -194,6 +201,37 @@ try {
       operation: 'send', threadId: 'demo-chat', text: 'send with synced settings', model: 'second-model',
       effort: 'xhigh', access: 'danger-full-access', images: [], method: 'request',
     });
+  });
+  await check('14-project-drawer-and-read-sync', async () => {
+    const change = async (action) => {
+      const response = await fetch('http://127.0.0.1:1490/test/sidebar', { method: 'POST',
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }) });
+      assert.equal(response.ok, true);
+    };
+    await tap('打开聊天列表');
+    await waitText('演示项目');
+    await waitText('最近');
+    await change('start');
+    await waitText('正在回复');
+    await screenshot('14-project-drawer-running');
+    await change('complete');
+    await waitText('未读回复');
+    assert.equal(await hasText('正在回复'), false);
+    await screenshot('14-project-drawer-unread');
+    await change('read');
+    await waitFor(async () => !(await hasText('未读回复')), 'PC read receipt synced');
+    await change('start');
+    await change('complete');
+    await waitText('未读回复');
+    await tap('移动端聊天体验');
+    await waitFor(async () => !(await serverState()).sidebar.readState['demo-chat'].unread,
+      'phone read receipt synced');
+    assert.equal(await hasText('搜索聊天'), false);
+    await tap('打开聊天列表');
+    assert.equal(await hasText('未读回复'), false);
+    await tap('＋ 新聊天');
+    await waitText('想一起完成什么？');
+    await waitText('聊天消息');
   });
   report.fixture = await serverState();
   assert.deepEqual(report.fixture.streamErrors, []);

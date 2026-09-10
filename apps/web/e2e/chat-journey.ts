@@ -1,5 +1,6 @@
 import { expect, type Page, type APIRequestContext, type TestInfo } from '@playwright/test';
 import { click, connect, navigate, operationCount, send, settled, screenshot, state, fixtureUrl } from './chat-helpers';
+import { sidebarJourney } from './chat-sidebar';
 
 interface Journey { page: Page; request: APIRequestContext; info: TestInfo; transport?: 'direct' | 'either' }
 const ready = (page: Page, transport?: Journey['transport']) => expect(page.getByRole('status')
@@ -9,6 +10,10 @@ const ready = (page: Page, transport?: Journey['transport']) => expect(page.getB
 async function initialChat({ page, request, info, transport }: Journey) {
   await connect(page);
   await ready(page, transport);
+  await expect(page.getByText('欢迎回来', { exact: true })).toHaveCount(0);
+  await screenshot(page, info, '00-new-chat');
+  await click(page.getByRole('button', { name: '打开聊天列表' }));
+  await expect(page.getByRole('region', { name: '演示项目', exact: true })).toBeVisible();
   await click(page.getByRole('button', { name: /移动端聊天体验/ }));
   await expect(page.getByText('帮我整理今天的工作计划。')).toBeVisible();
   await send(page, 'H5 regression message');
@@ -62,7 +67,7 @@ async function approvals({ page, request, info }: Journey) {
 }
 
 async function manageHistory({ page, request }: Journey) {
-  await click(page.getByRole('button', { name: '返回', exact: true }));
+  await click(page.getByRole('button', { name: '打开聊天列表', exact: true }));
   await page.getByRole('textbox', { name: '搜索聊天' }).fill('不存在的任务');
   await click(page.getByRole('button', { name: '搜索', exact: true }));
   await expect(page.getByText('暂时没有聊天')).toBeVisible();
@@ -163,5 +168,6 @@ export async function chatJourney(context: Journey) {
   await recoverConnection(context);
   await imagePreview(context);
   await synchronizeComposer(context);
+  await sidebarJourney(context);
   expect(errors).toEqual([]);
 }

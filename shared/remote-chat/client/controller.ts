@@ -3,6 +3,7 @@ import { applyChatEvent } from './events';
 import { mergeHistory } from './history';
 import type { ConnectionMode } from '../protocol';
 import { COMPOSER_EVENT, type ComposerModelsResponse, type ComposerSettings, type ComposerSnapshot } from '../composer';
+import { SIDEBAR_EVENT, type SidebarSnapshot } from '../sidebar';
 import { initialChatState, type ApprovalReply, type ChatState, type GuiEvent,
   type ListResponse, type Request, type Thread } from './types';
 
@@ -20,6 +21,9 @@ export class ChatController {
   private syncTimer?: ReturnType<typeof setTimeout>;
   private readonly previews = new Map<string, Promise<string>>();
   private composerRevision = -1;
+  private viewing = true;
+  private loadedThreadId: string | null = null;
+  private readonly reading = new Set<string>();
 
   constructor(createConnection: (events: ConnectionEvents) => ChatConnection) {
     this.connection = createConnection({
@@ -39,7 +43,10 @@ export class ChatController {
   }
 
   private changeMode(mode: ConnectionMode) {
-    if (mode === 'offline') this.composerRevision = -1;
+    if (mode === 'offline') {
+      this.composerRevision = -1;
+      this.update({ sidebar: { ...this.state.sidebar, revision: -1 } });
+    }
     this.synchronization += 1;
     this.listGeneration += 1;
     this.readGeneration += 1;
@@ -50,8 +57,13 @@ export class ChatController {
 
   private receive(event: GuiEvent) {
     if (event?.method === COMPOSER_EVENT) { this.applyComposer(event.params as unknown as ComposerSnapshot); return; }
+    if (event?.method === SIDEBAR_EVENT) { this.applySidebar(event.params as unknown as SidebarSnapshot); return; }
     this.state = applyChatEvent(this.state, event);
     this.emit();
+    this.markViewed();
+    if (['thread/name/updated', 'thread/archived', 'thread/unarchived', 'thread/deleted'].includes(event?.method)) {
+      void this.list();
+    }
     if (event?.method === 'connection/closed' || event?.method === 'codex/disconnected') {
       this.update({ ready: false });
       this.scheduleSynchronization();
@@ -110,6 +122,34 @@ export class ChatController {
     this.update({ models: snapshot.models, settings: snapshot.settings });
   }
 
+  private applySidebar(sidebar?: SidebarSnapshot) {
+    if (!sidebar || !Number.isSafeInteger(sidebar.revision) || sidebar.revision < this.state.sidebar.revision
+      || !sidebar.threads || !sidebar.readState) return;
+    this.update({ sidebar });
+    this.markViewed();
+  }
+
+  setViewing(viewing: boolean) { this.viewing = viewing; this.markViewed(); }
+
+  private markViewed() {
+    const thread = this.state.selected;
+    if (!this.active || !this.viewing || !thread || this.loadedThreadId !== thread.id) return;
+    const receipt = this.state.sidebar.readState[thread.id];
+    if (!receipt?.unread) return;
+    const seen = thread.turns?.some((turn) => turn.id === receipt.turnId && turn.status !== 'inProgress')
+      || (receipt.turnId.startsWith('refresh:') && thread.updatedAt >= Number(receipt.turnId.slice(8)));
+    const key = JSON.stringify([thread.id, receipt.turnId]);
+    if (!seen || this.reading.has(key)) return;
+    this.reading.add(key);
+    const generation = this.synchronization;
+    void this.connection.request<SidebarSnapshot>('request', {
+      operation: 'threadRead', threadId: thread.id, turnId: receipt.turnId,
+    }).then((sidebar) => {
+      if (generation === this.synchronization) this.applySidebar(sidebar);
+    }).catch(() => { /* Reconnection or the next history refresh retries this read receipt. */ })
+      .finally(() => { this.reading.delete(key); });
+  }
+
   async setSettings(settings: Partial<ComposerSettings>) {
     if (!this.state.ready || this.state.settingsBusy) return;
     const generation = this.synchronization;
@@ -128,8 +168,11 @@ export class ChatController {
     const cursor = options.more ? this.state.cursor ?? undefined : undefined;
     this.update({ search, archived, loading: true });
     try {
-      const result = await this.request<ListResponse<Thread>>({ operation: 'list', search, archived, cursor });
+      const result = await this.request<ListResponse<Thread> & { sidebar?: SidebarSnapshot }>({
+        operation: 'list', search, archived, cursor,
+      });
       if (generation !== this.listGeneration) return;
+      this.applySidebar(result.sidebar);
       const threads = options.more ? [...this.state.threads, ...result.data] : result.data;
       this.update({ threads: [...new Map(threads.map((thread) => [thread.id, thread])).values()],
         cursor: result.nextCursor });
@@ -138,7 +181,8 @@ export class ChatController {
   }
 
   async select(thread: Thread) {
-    this.update({ selected: thread, error: '' });
+    this.loadedThreadId = null;
+    this.update({ selected: thread, selectedArchived: this.state.archived, error: '' });
     await this.refreshSelected();
   }
 
@@ -150,7 +194,9 @@ export class ChatController {
     try {
       const result = await this.request<{ thread: Thread }>({ operation: 'read', threadId: selected.id });
       if (generation === this.readGeneration && this.state.selected?.id === selected.id) {
+        this.loadedThreadId = selected.id;
         this.update({ selected: mergeHistory(result.thread, this.state.selected, selected) });
+        this.markViewed();
       }
     } catch (error) { if (generation === this.readGeneration) this.failure(error); }
     finally { if (generation === this.readGeneration) this.refreshThreadId = null; }
@@ -159,7 +205,8 @@ export class ChatController {
   back() {
     this.readGeneration += 1;
     this.refreshThreadId = null;
-    this.update({ selected: null });
+    this.loadedThreadId = null;
+    this.update({ selected: null, error: '' });
     void this.list();
   }
 
@@ -175,7 +222,7 @@ export class ChatController {
         const result = await this.request<{ thread: Thread }>({ operation: 'start', model: input.model,
           access: input.access });
         thread = result.thread;
-        this.update({ selected: thread,
+        this.update({ selected: thread, selectedArchived: false,
           threads: [thread, ...this.state.threads.filter((entry) => entry.id !== result.thread.id)],
           archived: false, search: '', cursor: null });
       }
@@ -229,7 +276,7 @@ export class ChatController {
     const thread = this.state.selected;
     if (!thread) return;
     try {
-      await this.request({ operation: this.state.archived ? 'unarchive' : 'archive', threadId: thread.id });
+      await this.request({ operation: this.state.selectedArchived ? 'unarchive' : 'archive', threadId: thread.id });
       this.back();
     } catch (error) { this.failure(error); }
   }

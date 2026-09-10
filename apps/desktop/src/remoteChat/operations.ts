@@ -1,8 +1,9 @@
 import { guiApi } from '../pages/codexGui/api';
-import type { ApprovalReply, Request } from '../pages/codexGui/types';
+import type { ApprovalReply, ListResponse, Request, Thread } from '../pages/codexGui/types';
 import { object, type RpcRequest, type RpcResponse } from '../../../../shared/remote-chat/protocol';
 import { chunks } from '../../../../shared/remote-chat/framing';
 import { guiComposer } from '../pages/codexGui/composerBridge';
+import { guiSidebar } from '../pages/codexGui/sidebarBridge';
 
 const OPERATIONS = new Set([
   'models', 'list', 'read', 'start', 'resume', 'send', 'steer', 'interrupt', 'rename', 'archive', 'unarchive',
@@ -49,6 +50,7 @@ export class ChatOperations {
     if (request.method === 'connect') return guiApi.connect({ reuseExisting: true });
     const body = object(request.body);
     if (request.method === 'request' && body.operation === 'composerSet') return guiComposer.update(body.settings);
+    if (request.method === 'request' && body.operation === 'threadRead') return guiSidebar.markRead(body);
     if (request.method === 'request' && body.operation === 'models') {
       const composer = await guiComposer.read();
       return { data: composer.models, nextCursor: null, composer };
@@ -61,7 +63,13 @@ export class ChatOperations {
       throw new Error('当前手机端暂不支持此操作。');
     }
     // The existing typed Rust boundary validates directories, thread ids, inputs and approval replies.
-    return guiApi.request(body as unknown as Request);
+    const sidebarVersion = guiSidebar.version();
+    const result = await guiApi.request(body as unknown as Request);
+    if (body.operation === 'list') {
+      const list = result as ListResponse<Thread>;
+      return { ...list, sidebar: guiSidebar.observe(list.data, sidebarVersion) };
+    }
+    return result;
   }
 
   private prune() {

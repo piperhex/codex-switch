@@ -2,6 +2,7 @@ import { expect, type Locator, type Page, type APIRequestContext, type TestInfo 
 import type { Thread } from '../src/chat/types';
 
 interface FixtureState {
+  sidebar: import('../../../shared/remote-chat/sidebar').SidebarSnapshot;
   composer: import('../../../shared/remote-chat/composer').ComposerSnapshot;
   operations: Array<Record<string, unknown>>;
   threads: Thread[];
@@ -24,7 +25,9 @@ export async function navigate(page: Page, label: string) {
 }
 export async function connect(page: Page) {
   await navigate(page, '聊天');
-  await click(page.getByRole('button', { name: /我的工作电脑/ }));
+  await expect(page.getByRole('textbox', { name: '聊天消息' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '新聊天', exact: true })).toBeVisible();
+  await expect(page.getByRole('textbox', { name: '搜索聊天' })).toHaveCount(0);
 }
 export async function send(page: Page, text: string, steer = false) {
   await page.getByRole('textbox', { name: '聊天消息' }).fill(text);
@@ -36,7 +39,7 @@ export async function settled(page: Page) {
 }
 export async function screenshot(page: Page, info: TestInfo, name: string) {
   const path = info.outputPath(`${name}.png`);
-  await page.screenshot({ path });
+  await page.screenshot({ path, animations: 'disabled' });
   await info.attach(name, { path, contentType: 'image/png' });
 }
 

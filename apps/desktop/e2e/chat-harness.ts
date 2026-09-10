@@ -3,7 +3,7 @@ import { ChatLink } from '../../../shared/remote-chat/link';
 import { RtcPeer } from '../../../shared/remote-chat/rtcPeer';
 import { ChatRpc } from '../../../shared/remote-chat/rpc';
 import { parseMessage, type IceServer, type RpcMessage, type Signal } from '../../../shared/remote-chat/protocol';
-import { demoResponse, demoState } from './demo-conversation';
+import { demoResponse, demoState, changeDemoSidebar } from './demo-conversation';
 import { changeDemoComposer } from './demo-composer';
 
 const query = new URLSearchParams(location.search);
@@ -71,10 +71,11 @@ declare global {
   interface Window {
     chatTest: { modes: string[]; errors: string[]; events: unknown[]; request: (text: string) => Promise<unknown>;
       fallback: () => void; stream: (text: string) => Promise<void>; executions: () => number; beats: () => number;
-      demoState: typeof demoState; setComposer: (input: unknown) => void };
+      demoState: typeof demoState; setComposer: (input: unknown) => void; setSidebar: (action: string) => void };
   }
 }
 window.chatTest = { modes, errors, events, request: (text) => rpc.request('request', { text }),
   fallback: () => link.fallback(), stream: (text) => link.send({ kind: 'event', event: { text } }),
   executions: () => executions, beats: () => heartbeats, demoState,
-  setComposer: (input) => { changeDemoComposer(input, link); } };
+  setComposer: (input) => { changeDemoComposer(input, link); },
+  setSidebar: (action) => { changeDemoSidebar(action, link); } };
