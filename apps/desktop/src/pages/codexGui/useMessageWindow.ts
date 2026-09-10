@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useLayoutEffect, useMemo, useRef, useState, type RefObject, type WheelEvent } from "react";
 import { messageWindow, type MessageCursor } from "./messageWindow";
 import type { Turn } from "./types";
 
@@ -10,6 +10,16 @@ interface Options {
   active: boolean;
   viewport: RefObject<HTMLDivElement>;
   pauseFollowing: () => void;
+}
+
+function hasNestedScroller(target: EventTarget, viewport: Element): boolean {
+  let node = target instanceof Element ? target : null;
+  while (node && node !== viewport) {
+    // Keep scrolling inside code, tool output, and the composer independent from history loading.
+    if (node.scrollHeight > node.clientHeight && /auto|scroll/.test(getComputedStyle(node).overflowY)) return true;
+    node = node.parentElement;
+  }
+  return false;
 }
 
 export function useMessageWindow({ turns = EMPTY_TURNS, selected, active, viewport, pauseFollowing }: Options) {
@@ -77,5 +87,14 @@ export function useMessageWindow({ turns = EMPTY_TURNS, selected, active, viewpo
     position.current = top;
     if (upward && top < LOAD_DISTANCE) loadOlder();
   };
-  return { entries: range.entries, hasMore: range.hasMore, loading, onScroll, loadOlder };
+  const onWheel = (event: WheelEvent<HTMLDivElement>) => {
+    if (event.defaultPrevented || event.ctrlKey || event.deltaY >= 0
+      || Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
+    const node = viewport.current;
+    if (!node || node.scrollTop > 0) return;
+    if (hasNestedScroller(event.target, node)) return;
+    // Collapsed activity can leave the viewport too short to emit a scroll event.
+    loadOlder();
+  };
+  return { entries: range.entries, hasMore: range.hasMore, loading, onScroll, onWheel, loadOlder };
 }

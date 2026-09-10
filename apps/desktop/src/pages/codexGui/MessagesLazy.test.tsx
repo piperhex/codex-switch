@@ -80,6 +80,43 @@ it("resets cached conversations to ten items on reentry and cancels pending work
   await older(); await render(cached, false); await render(cached); expect(count()).toBe(10);
 });
 
+it("loads only one batch for repeated upward wheels at the top without a scroll event", async () => {
+  await render(conversation());
+  const viewport = container.querySelector('[aria-label="对话消息"]')!;
+  await act(async () => {
+    viewport.dispatchEvent(new WheelEvent("wheel", { bubbles: true, deltaY: -120 }));
+    viewport.dispatchEvent(new WheelEvent("wheel", { bubbles: true, deltaY: -120 }));
+  });
+  expect(container.textContent).toContain("正在加载更早的消息");
+  await frame(); await frame();
+  expect(count()).toBe(20);
+});
+
+it("ignores zoom, horizontal wheels, and scrolling inside nested output or away from the top", async () => {
+  await render(conversation());
+  const viewport = container.querySelector<HTMLElement>('[aria-label="对话消息"]')!;
+  const wheel = (node: Element, options: WheelEventInit = {}) => act(async () => {
+    node.dispatchEvent(new WheelEvent("wheel", { bubbles: true, deltaY: -120, ...options }));
+  });
+  await wheel(viewport, { deltaY: 120 });
+  await wheel(viewport, { ctrlKey: true });
+  await wheel(viewport, { deltaX: 200 });
+  viewport.scrollTop = 200;
+  await wheel(viewport);
+  viewport.scrollTop = 0;
+  const output = container.querySelector<HTMLElement>('[data-message-id] p')!;
+  const nested = document.createElement("span");
+  output.append(nested);
+  Object.defineProperties(output, { scrollHeight: { value: 800 }, clientHeight: { value: 200 } });
+  output.style.overflowY = "auto";
+  await wheel(nested);
+  expect(frames.size).toBe(0);
+  expect(count()).toBe(10);
+  await wheel(viewport);
+  await frame(); await frame();
+  expect(count()).toBe(20);
+});
+
 it("keeps streamed items and an expanded partial activity group while older components mount", async () => {
   const value = conversation();
   value.turns[0].items.forEach((entry) => { entry.phase = "commentary"; });

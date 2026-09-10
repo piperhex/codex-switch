@@ -1,5 +1,29 @@
 import { test, expect, type Page } from "@playwright/test";
 
+test("upward mouse wheels reveal history when collapsed activity leaves no scrollbar", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/e2e/desktop-history-harness.html?compact");
+  const viewport = page.getByLabel("对话消息");
+  const group = viewport.locator("summary");
+  await expect(group).toContainText("9 项活动");
+  await expect(page.locator('[data-message-id="message-0"]')).toHaveCount(0);
+  expect(await viewport.evaluate((node) => node.scrollHeight - node.clientHeight)).toBe(0);
+  await viewport.hover();
+  await page.mouse.wheel(0, 200);
+  await expect(group).toContainText("9 项活动");
+  await page.mouse.wheel(0, -200);
+  await expect(group).toContainText("19 项活动");
+  await page.mouse.wheel(0, -200);
+  await expect(group).toContainText("29 项活动");
+  await page.mouse.wheel(0, -200);
+  await expect(page.locator('[data-message-id="message-0"]')).toBeInViewport();
+  await expect(group).toContainText("30 项活动");
+  await expect(viewport.locator("details")).not.toHaveAttribute("open");
+  await expect(page.getByRole("button", { name: "加载更早的消息" })).toHaveCount(0);
+  await expect(page.getByText("最新回复已完成。", { exact: true })).toBeInViewport();
+  await page.screenshot({ path: "../../.codex-tmp/desktop-history-wheel.png", animations: "disabled" });
+});
+
 async function older(page: Page, count: number) {
   const viewport = page.getByLabel("对话消息");
   // The scroll event captures the original anchor before the two-frame prepend.
