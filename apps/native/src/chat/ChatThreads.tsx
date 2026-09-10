@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, SectionList, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { ChatController } from './controller';
 import type { ChatState } from './types';
-import { projectThreadGroups, threadPresentation } from '../../../../shared/remote-chat/sidebar';
+import { threadPresentation } from '../../../../shared/remote-chat/sidebar';
+import { useThreadGroups } from '../../../../shared/remote-chat/client/useThreadGroups';
 import { palette, styles } from './styles';
 
 interface Props {
@@ -12,6 +13,7 @@ interface Props {
 
 export function ChatThreads({ state, controller, newChat, onClose, chooseDevice, deviceName }: Props) {
   const [search, setSearch] = useState(state.search);
+  const { groups, toggle } = useThreadGroups(state);
   const ready = state.ready;
   return <View style={styles.fill}>
     <View style={styles.padded}>
@@ -29,11 +31,16 @@ export function ChatThreads({ state, controller, newChat, onClose, chooseDevice,
         <Text style={styles.buttonText}>{state.archived ? '已归档 ▾' : '最近聊天 ▾'}</Text>
       </Pressable>
     </View>
-    <SectionList sections={projectThreadGroups(state.threads, state.sidebar)} keyExtractor={(thread) => thread.id}
+    <SectionList sections={groups} keyExtractor={(thread) => thread.id}
       contentContainerStyle={listStyles.content} stickySectionHeadersEnabled={false} keyboardShouldPersistTaps="handled"
       refreshing={state.loading} onRefresh={() => { void controller.list(); }}
       renderSectionHeader={({ section }) => <Text accessibilityRole="header" style={listStyles.project}>
         {section.label}</Text>}
+      renderSectionFooter={({ section }) => section.canToggle ? <Pressable accessibilityRole="button"
+        accessibilityLabel={`${section.expanded ? '收起' : '展开显示'}：${section.label}`}
+        accessibilityState={{ expanded: section.expanded }} style={listStyles.more} onPress={() => toggle(section.cwd)}>
+        <Text style={styles.subtitle}>{section.expanded ? '收起' : '展开显示'}</Text>
+      </Pressable> : null}
       renderItem={({ item }) => {
         const view = threadPresentation(item, state.sidebar);
         return <Pressable accessibilityRole="button" accessibilityLabel={view.title}
@@ -67,4 +74,5 @@ const listStyles = StyleSheet.create({
   title: { flex: 1, color: palette.ink, fontSize: 14 },
   status: { width: 18, alignItems: 'center', justifyContent: 'center' },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#a7b1ab' },
+  more: { paddingHorizontal: 10, minHeight: 40, justifyContent: 'center' },
 });

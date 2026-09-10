@@ -2,9 +2,9 @@ import { useId, type ReactNode } from "react";
 import { Tooltip } from "antd";
 import { ChevronRight, Folder, Pin, SquarePen } from "lucide-react";
 import type { Thread } from "./types";
+import { previewThreads, THREAD_GROUP_PREVIEW_COUNT } from "../../../../../shared/chat/threadGroupPreview";
 import styles from "./ThreadGroup.module.less";
 
-const PREVIEW_COUNT = 5;
 interface ThreadGroupProps {
   label: string;
   pinned: boolean;
@@ -19,14 +19,6 @@ interface ThreadGroupProps {
   projectPinned?: boolean;
   onToggle: (field: "collapsed" | "expanded") => void;
   renderThread: (thread: Thread) => ReactNode;
-}
-
-function previewThreads(threads: Thread[], selected: string | null) {
-  const preview = threads.slice(0, PREVIEW_COUNT);
-  const active = threads.find((thread) => thread.id === selected);
-  if (!active || preview.includes(active)) return preview;
-  // Keep the current conversation reachable when the older rows are folded away.
-  return [...preview.slice(0, PREVIEW_COUNT - 1), active];
 }
 
 export function ThreadGroup({ label, pinned, threads, selected, collapsed, expanded, filtering,
@@ -56,7 +48,7 @@ export function ThreadGroup({ label, pinned, threads, selected, collapsed, expan
     </div>
     <div id={contentId} className={styles.content} hidden={isCollapsed}>
       {(showAll ? threads : previewThreads(threads, selected)).map(renderThread)}
-      {threads.length > PREVIEW_COUNT && !filtering && <button type="button" className={styles.more}
+      {threads.length > THREAD_GROUP_PREVIEW_COUNT && !filtering && <button type="button" className={styles.more}
         aria-expanded={showAll} aria-controls={contentId} onClick={() => onToggle("expanded")}>
         {showAll ? "收起" : "展开显示"}
       </button>}

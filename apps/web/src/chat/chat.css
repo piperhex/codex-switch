@@ -23,6 +23,10 @@
   cursor: pointer;
 }
 .chat-thread:hover, .chat-thread[aria-current="page"] { background: var(--chat-pale); }
+.chat-group-more {
+  min-height: 40px; padding: 8px 10px; border: 0; background: transparent;
+  color: var(--chat-muted); font: inherit; font-size: 13px; text-align: left; cursor: pointer;
+}
 .chat-thread-status { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 14px; }
 .chat-spinner { color: var(--chat-muted); animation: chat-spin 1s linear infinite; }
 .chat-unread-dot { width: 6px; height: 6px; border-radius: 50%; background: #a7b1ab; }

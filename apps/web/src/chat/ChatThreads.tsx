@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { LoaderCircle, Plus, RefreshCw, Search } from 'lucide-react';
 import type { ChatController, ChatState } from './types';
-import { projectThreadGroups, threadPresentation } from '../../../../shared/remote-chat/sidebar';
+import { threadPresentation } from '../../../../shared/remote-chat/sidebar';
+import { useThreadGroups } from '../../../../shared/remote-chat/client/useThreadGroups';
 
 interface Props {
   state: ChatState; controller: ChatController; newChat: () => void; onClose: () => void;
@@ -10,6 +11,7 @@ interface Props {
 
 export function ChatThreads({ state, controller, newChat, onClose, chooseDevice, deviceName }: Props) {
   const [search, setSearch] = useState(state.search);
+  const { groups, toggle } = useThreadGroups(state);
   const ready = state.ready;
   return <>
     <div className="chat-padded chat-thread-controls">
@@ -31,7 +33,7 @@ export function ChatThreads({ state, controller, newChat, onClose, chooseDevice,
       </div>
     </div>
     <div className="chat-scroll chat-thread-list" aria-busy={state.loading}>
-      {projectThreadGroups(state.threads, state.sidebar).map((group) =>
+      {groups.map((group) =>
         <section className="chat-project-group" aria-label={group.label} key={group.cwd}>
           <h3>{group.label}</h3>
           {group.data.map((thread) => {
@@ -45,6 +47,9 @@ export function ChatThreads({ state, controller, newChat, onClose, chooseDevice,
                 : view.unread && <span className="chat-unread-dot" aria-label="未读回复" />}</span>
             </button>;
           })}
+          {group.canToggle && <button type="button" className="chat-group-more" aria-expanded={group.expanded}
+            aria-label={`${group.expanded ? '收起' : '展开显示'}：${group.label}`} onClick={() => toggle(group.cwd)}>
+            {group.expanded ? '收起' : '展开显示'}</button>}
         </section>)}
       {!state.threads.length && <p className="chat-empty chat-muted">
         {ready ? '暂时没有聊天' : '连接电脑后查看聊天'}</p>}

@@ -125,6 +125,7 @@ function finish(context: Context, status = 'completed') {
 
 export function changeDemoSidebar(action: string, link: ChatLink) {
   sidebarLink = link;
+  if (action === 'group-preview') seedThreadGroups(link);
   if (action === 'start' && welcome.turns?.some((turn) => turn.status === 'inProgress')) {
     throw new Error('Wait for the current demo turn before starting a background turn');
   }
@@ -133,6 +134,21 @@ export function changeDemoSidebar(action: string, link: ChatLink) {
   if (action === 'complete' && turn) finish({ thread: welcome, turn, link });
   if (action === 'read' && turn) guiSidebar.markRead({ threadId: welcome.id, turnId: turn.id });
   return guiSidebar.observe([...threads.values()]);
+}
+
+function seedThreadGroups(link: ChatLink) {
+  saveProject({ path: 'F:/projects/five', name: '五条项目' });
+  for (const group of [
+    { cwd: welcome.cwd, title: '项目聊天' }, { cwd: '', title: '最近聊天' },
+    { cwd: 'F:/projects/five', title: '五条聊天' },
+  ]) {
+    for (let index = 1; index <= 5; index++) {
+      const thread: Thread = { id: uniqueId('group'), name: `${group.title} ${index}`, cwd: group.cwd,
+        preview: '', updatedAt: Math.floor(Date.now() / 1000), turns: [] };
+      threads.set(thread.id, thread);
+      notify(link, { method: 'thread/started', params: { thread } });
+    }
+  }
 }
 
 async function stream(context: Context, slow: boolean) {
