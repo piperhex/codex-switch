@@ -34,7 +34,7 @@ async function keyboardAndBackground(device: AndroidDevice, page: Page, request:
   await expect.poll(() => page.evaluate(() => document.visibilityState)).toBe('hidden');
   await expect.poll(async () => (await state(request)).connectedMobiles).toBe(0);
   await device.shell('am start -n com.android.chrome/com.google.android.apps.chrome.Main');
-  await expect(page.getByRole('status').filter({ hasText: /已直连|通过服务器连接/ }))
+  await expect(page.getByRole('status').filter({ hasText: /P2P|Relay/ }))
     .toBeVisible({ timeout: 16_000 });
   await expect(page.getByRole('textbox', { name: '聊天消息' })).toHaveValue('Android Chrome keyboard check');
 }

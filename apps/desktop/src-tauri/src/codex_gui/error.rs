@@ -4,6 +4,8 @@ pub(super) enum GuiError {
     Attachment,
     #[error("暂时无法读取当前项目文件，请确认项目仍可访问。")]
     ProjectFiles,
+    #[error("暂时无法读取文件夹，请确认文件夹仍可访问。")]
+    ProjectDirectories,
     #[error("图片暂时无法显示，请确认文件仍在当前任务目录中。")]
     ImagePreview,
     #[error("对话仍在回复中，请等待结束后再删除。")]

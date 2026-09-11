@@ -19,6 +19,9 @@ const PAGE_SIZE: u32 = 50;
 )]
 pub(crate) enum GuiRequest {
     ProjectFiles(super::project_files::ProjectFilesRequest),
+    ProjectDirectories {
+        directory: String,
+    },
     EditMessage(super::message_edit::EditRequest),
     ImagePreview {
         thread_id: String,
@@ -185,6 +188,7 @@ impl GuiRequest {
     pub(super) fn into_rpc(self) -> Result<(&'static str, Value)> {
         match self {
             Self::ProjectFiles(_) => Err(GuiError::InvalidRequest),
+            Self::ProjectDirectories { .. } => Err(GuiError::InvalidRequest),
             Self::EditMessage(_) => Err(GuiError::InvalidRequest),
             // Image previews are served locally, never forwarded as an app-server operation.
             Self::ImagePreview { .. } => Err(GuiError::InvalidRequest),

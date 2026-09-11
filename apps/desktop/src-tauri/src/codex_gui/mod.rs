@@ -23,6 +23,7 @@ mod message_edit;
 pub(crate) mod model_settings;
 mod platform;
 pub(crate) mod plugin_client;
+mod project_directories;
 mod project_files;
 mod prompt;
 mod protocol;
@@ -126,6 +127,9 @@ pub(crate) async fn codex_gui_request(
         let client = connected(&state).await?;
         if let GuiRequest::ProjectFiles(options) = request {
             return project_files::list(&client, options).await;
+        }
+        if let GuiRequest::ProjectDirectories { directory } = request {
+            return project_directories::list(directory).await;
         }
         if let GuiRequest::EditMessage(edit) = request {
             return message_edit::submit(&client, edit).await;

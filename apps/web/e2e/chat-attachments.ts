@@ -20,7 +20,7 @@ export async function attachmentJourney({ page, request, info, relay }: {
     } as unknown as typeof RTCPeerConnection;
   });
   await connect(page);
-  await expect(page.getByRole('status').filter({ hasText: relay ? '通过服务器连接' : '已直连' }))
+  await expect(page.getByRole('status').filter({ hasText: relay ? 'Relay' : 'P2P' }))
     .toBeVisible({ timeout: 20_000 });
   await expect(page.getByRole('button', { name: '发送消息', exact: true })).toBeDisabled();
   await page.getByRole('button', { name: '添加内容', exact: true }).click();

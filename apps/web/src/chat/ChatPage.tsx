@@ -11,13 +11,13 @@ import { ChatProcessing } from './ChatProcessing';
 import { ChatImageContext } from './ChatImage';
 import { ChatThreads } from './ChatThreads';
 import { ChatDevices } from './ChatDevices';
+import { ChatConnectionInfo } from './ChatConnectionInfo';
 import { useChat } from './useChat';
 import { useChatViewport } from './useChatViewport';
 import type { ChatProject } from './types';
 import './chat.css';
 
 interface Props { session: AuthSession; devices: RemoteDevice[]; active: boolean }
-const modeLabels = { connecting: '正在连接…', direct: '已直连', relay: '通过服务器连接', offline: '等待重新连接' };
 
 export function ChatPage({ session, devices, active }: Props) {
   const [deviceId, setDeviceId] = useState<string | null>(null);
@@ -50,14 +50,8 @@ function ConnectedChat({ session, device, devices, active, chooseDevice }: Props
       <button type="button" className="chat-back" aria-label="打开聊天列表" onClick={() => setDrawer(true)}>
         <PanelLeft size={21} /></button>
       <div className="chat-grow"><h2>{state.selected?.name || '新聊天'}</h2>
-        {!state.selected && state.draftProject && <p className="chat-muted chat-ellipsis">
-          {state.draftProject.label}</p>}
-        <button className="chat-connection chat-muted" type="button" aria-label="选择电脑"
-          onClick={() => setPickingDevice(true)}>
-          {device ? <>{device.name} · <span role="status">
-            {!ready && state.mode !== 'offline' ? '正在同步聊天…' : modeLabels[state.mode]}</span></>
-            : '选择电脑，开始聊天'}
-        </button></div>
+        <ChatConnectionInfo state={state} controller={controller} device={device} active={active}
+          chooseDevice={() => setPickingDevice(true)} /></div>
       {state.selected && state.selectedArchived && <button type="button" className="chat-button"
         disabled={!ready || running}
         onClick={() => { void controller.archive().then(() => setDrawer(true)); }}>

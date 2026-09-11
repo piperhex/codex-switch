@@ -1,6 +1,19 @@
 use std::path::Path;
 use tokio::process::Command;
 
+/// Enumerate filesystem roots only from a blocking worker, since a drive may be slow to respond.
+pub(super) fn directory_roots() -> Vec<std::path::PathBuf> {
+    #[cfg(windows)]
+    {
+        (b'A'..=b'Z')
+            .map(|letter| std::path::PathBuf::from(format!("{}:\\", char::from(letter))))
+            .filter(|path| path.is_dir())
+            .collect()
+    }
+    #[cfg(not(windows))]
+    vec![std::path::PathBuf::from("/")]
+}
+
 pub(super) fn execution_path(path: &Path) -> String {
     let value = path.to_string_lossy();
     #[cfg(windows)]

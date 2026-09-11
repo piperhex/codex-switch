@@ -7,7 +7,7 @@ import { adb, output, prepare, serverState, waitFor, waitText, tap, input, scree
 const expectedSkill = { name: 'review', path: 'F:/skills/review/SKILL.md' };
 const report = { startedAt: new Date().toISOString(), cases: [] };
 const operations = async (name) => (await serverState()).operations.filter((entry) => entry.operation === name);
-const ready = () => waitFor(async () => await hasText('已直连') || await hasText('通过服务器连接'), 'connected');
+const ready = () => waitFor(async () => await hasText('P2P') || await hasText('Relay'), 'connected');
 async function setSkills(input) {
   const response = await fetch('http://127.0.0.1:1490/test/skills', { method: 'POST',
     headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) });

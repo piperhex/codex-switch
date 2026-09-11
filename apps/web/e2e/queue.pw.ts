@@ -25,7 +25,7 @@ test('queues supplements on the PC, sends one immediately and restores the rest 
     await expect(queue.getByRole('listitem')).toHaveCount(1);
     expect(await operationCount(request, 'steer')).toBe(1);
     await request.post(`${fixtureUrl}/test/disconnect`);
-    await expect(page.getByRole('status').filter({ hasText: /已直连|通过服务器连接/ }))
+    await expect(page.getByRole('status').filter({ hasText: /P2P|Relay/ }))
       .toBeVisible({ timeout: 20_000 });
     await expect(queue).toContainText('再补充回归测试');
     await page.setViewportSize({ width: 390, height: 480 });

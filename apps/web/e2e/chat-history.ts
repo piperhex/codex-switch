@@ -10,7 +10,7 @@ export async function historyJourney({ page, request, info, relay }: {
     } as unknown as typeof RTCPeerConnection;
   });
   await connect(page);
-  await expect(page.getByRole('status').filter({ hasText: relay ? '通过服务器连接' : '已直连' }))
+  await expect(page.getByRole('status').filter({ hasText: relay ? 'Relay' : 'P2P' }))
     .toBeVisible({ timeout: 16_000 });
   await request.post(`${fixtureUrl}/test/sidebar`, { data: { action: 'history-pages' } });
   await request.post(`${fixtureUrl}/test/history-delay`, { data: { milliseconds: 600 } });

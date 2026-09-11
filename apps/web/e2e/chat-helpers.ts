@@ -13,7 +13,7 @@ interface FixtureState {
   connectedMobiles: number;
   relayFrames: number;
 }
-export const fixtureUrl = 'http://127.0.0.1:1490';
+export const fixtureUrl = process.env.CHAT_TEST_FIXTURE_URL ?? 'http://127.0.0.1:1490';
 export async function state(request: APIRequestContext): Promise<FixtureState> {
   return (await request.get(`${fixtureUrl}/test/state`)).json();
 }

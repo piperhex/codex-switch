@@ -453,6 +453,16 @@ export class ChatController {
   loadProjectFiles = (options: ProjectFilesRequest) =>
     this.connection.request<ProjectFilesResponse>('request', { operation: 'projectFiles', ...options });
 
+  loadProjectDirectories = (directory: string) =>
+    this.connection.request<import('../projectDirectories').ProjectDirectoriesResponse>('request', {
+      operation: 'projectDirectories', directory,
+    });
+
+  chooseDraftProject = (project: ChatProject) => {
+    if (!this.state.ready || this.state.selected || this.state.sending || !project.cwd.trim()) return;
+    this.update({ draftProject: { cwd: project.cwd, label: project.label }, error: '' });
+  };
+
   compact = async () => {
     const selected = this.state.selected;
     if (!selected || compactUnavailableReason(this.state)) return false;

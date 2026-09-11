@@ -53,10 +53,15 @@ async function receive({ data }: MessageEvent<string>) {
         let response = requests.get(message.id);
         if (!response) {
           executions += 1;
-          response = legacyHistory && (message.body as { operation?: string })?.operation === 'syncHistory'
-            ? { kind: 'response', id: message.id, error: '当前手机端暂不支持此操作。' }
-            : { kind: 'response', id: message.id,
-              data: query.has('demo') ? structuredClone(demoResponse(message, link)) : message.body };
+          try {
+            response = legacyHistory && (message.body as { operation?: string })?.operation === 'syncHistory'
+              ? { kind: 'response', id: message.id, error: '当前手机端暂不支持此操作。' }
+              : { kind: 'response', id: message.id,
+                data: query.has('demo') ? structuredClone(demoResponse(message, link)) : message.body };
+          } catch {
+            // Match the desktop boundary: a failed operation must not tear down the encrypted connection.
+            response = { kind: 'response', id: message.id, error: '暂时无法完成此操作，请重试。' };
+          }
           requests.set(message.id, response);
         }
         const target = link;

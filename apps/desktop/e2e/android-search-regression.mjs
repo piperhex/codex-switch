@@ -12,7 +12,7 @@ async function login() {
   await adb('shell', 'input', 'keyevent', 'KEYCODE_BACK');
   await tap('登录并查看');
   await waitText('聊天消息');
-  await waitFor(async () => (await hasText('已直连')) || (await hasText('通过服务器连接')), 'connected');
+  await waitFor(async () => (await hasText('P2P')) || (await hasText('Relay')), 'connected');
 }
 
 async function profileJourney() {

@@ -14,6 +14,7 @@ import { remoteQueue } from './queue';
 import { readGuiAccounts, selectGuiAccount } from './guiAccounts';
 
 const OPERATIONS = new Set([
+  'projectDirectories',
   'models', 'list', 'read', 'start', 'resume', 'send', 'steer', 'interrupt', 'rename', 'archive', 'unarchive',
   'compact', 'skills', 'projectFiles', 'imagePreview', 'goalGet', 'goalSet', 'goalClear',
 ]);
@@ -22,6 +23,7 @@ interface Cached {
   fingerprint: string; result: Promise<RpcResponse>; expires: number; completed: boolean; readOnly: boolean;
 }
 const READ_OPERATIONS = new Set([
+  'projectDirectories',
   'guiAccountsRead', 'syncHistory', 'imageChunk', 'imagePreview', 'models', 'list', 'read', 'goalGet', 'skills', 'projectFiles', 'queueRead',
 ]);
 const QUEUE_OPERATIONS = new Set(['queueRead', 'queueEnqueue', 'queueSendNow', 'queueRemove', 'queueFlush']);

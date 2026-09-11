@@ -14,6 +14,7 @@ import { ChatProfileMenu } from './ChatProfileMenu';
 import { ChatSearch } from './ChatSearch';
 import { ChatDrawer, type ChatDrawerMethods } from './ChatDrawer';
 import { ChatDevices } from './ChatDevices';
+import { ChatConnectionInfo } from './ChatConnectionInfo';
 import { useChat } from './useChat';
 import { useChatDrawerSwipe } from './useChatDrawerSwipe';
 import { useChatBackground } from './useChatBackground';
@@ -29,7 +30,6 @@ interface Props {
   notification: ChatNotificationTarget | null; notificationError: string;
   notificationHandled: (id: string) => void;
 }
-const modeLabels = { connecting: '正在连接…', direct: '已直连', relay: '通过服务器连接', offline: '等待重新连接' };
 
 export function ChatPage(props: Props) {
   const { session, devices, active, notification, notificationError, notificationHandled } = props;
@@ -119,12 +119,7 @@ function ConnectedChat({ session, device, devices, active, chooseDevice, notific
       <View style={styles.fill}>
         <Text numberOfLines={1} style={styles.headerTitle}>
           {state.selected ? threadPresentation(state.selected, state.sidebar).title : '新聊天'}</Text>
-        {!state.selected && state.draftProject && <Text numberOfLines={1} style={styles.headerMeta}>
-          {state.draftProject.label}</Text>}
-        <View>
-          <Text numberOfLines={1} style={styles.headerMeta}>{device ? `${device.name} · ${
-            !ready && state.mode !== 'offline' ? '正在同步聊天…' : modeLabels[state.mode]}` : '选择电脑，开始聊天'}</Text>
-        </View>
+        <ChatConnectionInfo state={state} controller={controller} device={device} active={active} />
       </View>
       {state.selected && state.selectedArchived && <Pressable accessibilityRole="button"
         style={styles.compactButton} disabled={!ready || running}

@@ -4,6 +4,7 @@ import { chatJourney } from './chat-journey';
 import { historyJourney } from './chat-history';
 import { attachmentJourney } from './chat-attachments';
 import { composerLayout } from './chat-composer';
+import { projectPickerJourney } from './chat-project-picker';
 
 test.beforeEach(async ({ page, request }) => {
   await request.post(`${fixtureUrl}/test/reset`);
@@ -22,6 +23,8 @@ test('syncs PC chats over direct transport, supports actions and reconnects with
   async ({ page, request }, info) => chatJourney({ page, request, info }));
 
 for (const relay of [false, true]) {
+  test(`selects a computer folder for a new chat over ${relay ? 'relay' : 'direct'}`,
+    async ({ page, request }) => projectPickerJourney({ page, request, relay }));
   test(`sends album photos over ${relay ? 'relay' : 'direct'}`,
     async ({ page, request }, info) => attachmentJourney({ page, request, info, relay }));
   test(`pages history and streams with a processing timer over ${relay ? 'relay' : 'direct'}`,
@@ -30,7 +33,7 @@ for (const relay of [false, true]) {
 
 test('keeps the PC chat after login renewal and disconnects on logout', async ({ page, request }) => {
   await connect(page);
-  await expect(page.getByRole('status').filter({ hasText: '已直连' })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('status').filter({ hasText: 'P2P' })).toBeVisible({ timeout: 15_000 });
   await page.getByRole('button', { name: '打开聊天列表' }).click();
   await page.getByRole('button', { name: /移动端聊天体验/ }).click();
   await navigate(page, '账号');
@@ -44,7 +47,7 @@ test('keeps the PC chat after login renewal and disconnects on logout', async ({
   const refreshed = page.waitForResponse((response) => response.url().endsWith('/auth/refresh'));
   await navigate(page, '聊天');
   expect((await refreshed).status()).toBe(200);
-  await expect(page.getByRole('status').filter({ hasText: '已直连' })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('status').filter({ hasText: 'P2P' })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByRole('heading', { name: '移动端聊天体验', exact: true })).toBeVisible();
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('codex-switch.web.session.v1') ?? '{}').accessToken))
     .toBe('renewed-test-token');
@@ -64,7 +67,7 @@ test('falls back after direct discovery fails and keeps the composer within a sm
     });
     const started = Date.now();
     await connect(page);
-    await expect(page.getByRole('status').filter({ hasText: '通过服务器连接' })).toBeVisible({ timeout: 16_000 });
+    await expect(page.getByRole('status').filter({ hasText: 'Relay' })).toBeVisible({ timeout: 16_000 });
     expect(Date.now() - started).toBeGreaterThanOrEqual(10_000);
     await page.getByRole('button', { name: '打开聊天列表' }).click();
     await page.getByRole('button', { name: /移动端聊天体验/ }).click();

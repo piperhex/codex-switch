@@ -188,6 +188,7 @@ export type ApprovalReply = {
 };
 export type Request =
   | ({ operation: "projectFiles" } & import('../../../../../shared/remote-chat/projectFiles').ProjectFilesRequest)
+  | { operation: "projectDirectories"; directory: string }
   | { operation: "editMessage"; threadId: string; turnId: string; itemId: string; text: string;
       model?: string; effort?: string; access: AccessMode; cwd?: string }
   | { operation: "imagePreview"; threadId: string; source: string; variant?: "thumbnail" | "original" }

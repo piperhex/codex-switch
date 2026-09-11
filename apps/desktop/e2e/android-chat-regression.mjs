@@ -12,7 +12,7 @@ const report = {
 };
 const operationCount = async (operation) =>
   (await serverState()).operations.filter((entry) => entry.operation === operation).length;
-const ready = () => waitFor(async () => (await hasText('通过服务器连接')) || (await hasText('已直连')), 'chat connected');
+const ready = () => waitFor(async () => (await hasText('Relay')) || (await hasText('P2P')), 'chat connected');
 const latestTurn = async () => {
   const state = await serverState();
   const operation = state.operations.findLast((entry) => ['send', 'steer'].includes(entry.operation));

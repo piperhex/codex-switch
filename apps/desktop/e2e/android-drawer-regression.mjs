@@ -24,7 +24,7 @@ try {
   await tap('登录并查看');
   await waitText('账户管理');
   await tap('聊天', { last: true });
-  await waitFor(async () => (await hasText('已直连')) || (await hasText('通过服务器连接')), 'connected');
+  await waitFor(async () => (await hasText('P2P')) || (await hasText('Relay')), 'connected');
   const size = (await adb('shell', 'wm', 'size')).match(/(\d+)x(\d+)/);
   const width = Number(size[1]);
   const y = Math.round(Number(size[2]) * 0.4);

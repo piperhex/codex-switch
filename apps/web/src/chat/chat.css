@@ -35,7 +35,15 @@
 .chat-unread-dot { width: 6px; height: 6px; border-radius: 50%; background: #a7b1ab; }
 .chat-device-switch, .chat-connection { border: 0; background: transparent; text-align: left; cursor: pointer; }
 .chat-device-switch { padding: 18px; border-top: 1px solid var(--chat-border); }
-.chat-connection { padding: 0; font: inherit; font-size: 12px; }
+.chat-connection { max-width: 100%; padding: 0; font: inherit; font-size: 12px; }
+.chat-connection-info { display: flex; align-items: center; min-width: 0; }
+.chat-connection-info > span { white-space: pre; flex-shrink: 0; }
+.chat-connection-info .chat-connection { min-width: 0; }
+.chat-project-name { max-width: 60%; }
+.chat-project-picker { max-width: 400px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+.chat-project-path { overflow-wrap: anywhere; }
+.chat-project-folders { max-height: 340px; }
+.chat-project-folders svg { flex-shrink: 0; }
 @keyframes chat-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .chat-spinner { animation-duration: 3s; } }
 .chat-page[hidden] { display: none; }

@@ -50,7 +50,7 @@ try {
   await tap('登录并查看');
   await waitText('账户管理');
   await tap('聊天', { last: true });
-  await waitFor(async () => (await hasText('已直连')) || (await hasText('通过服务器连接')), 'chat connected');
+  await waitFor(async () => (await hasText('P2P')) || (await hasText('Relay')), 'chat connected');
   await action('sidebar', { action: 'history-pages' });
   await action('history-delay', { milliseconds: 5000 });
   await tap('打开聊天列表');
