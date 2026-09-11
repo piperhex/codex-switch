@@ -9,6 +9,7 @@ import { ChatMessages } from './ChatMessages';
 import { ChatProcessing } from './ChatProcessing';
 import { ChatImageContext } from './ChatImage';
 import { ChatThreads } from './ChatThreads';
+import { ChatAccountPicker, type ChatAccountSelection } from './ChatAccountPicker';
 import { ChatDrawer, type ChatDrawerMethods } from './ChatDrawer';
 import { ChatDevices } from './ChatDevices';
 import { useChat } from './useChat';
@@ -25,10 +26,12 @@ interface Props {
   session: AuthSession; devices: RemoteDevice[]; active: boolean;
   notification: ChatNotificationTarget | null; notificationError: string;
   notificationHandled: (id: string) => void;
+  accountSelection: ChatAccountSelection;
 }
 const modeLabels = { connecting: '正在连接…', direct: '已直连', relay: '通过服务器连接', offline: '等待重新连接' };
 
-export function ChatPage({ session, devices, active, notification, notificationError, notificationHandled }: Props) {
+export function ChatPage(props: Props) {
+  const { session, devices, active, notification, notificationError, notificationHandled, accountSelection } = props;
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const requestedId = notification?.deviceId ?? deviceId;
   const device = requestedId ? devices.find((entry) => entry.deviceId === requestedId)
@@ -48,11 +51,13 @@ export function ChatPage({ session, devices, active, notification, notificationE
       onPress={() => { void Linking.openSettings(); }}><Text style={styles.error}>{notificationError}</Text></Pressable>}
     <ConnectedChat key={`${session.baseUrl}:${session.email}:${device?.deviceId ?? ''}`} session={session}
       device={device} devices={devices} active={active} chooseDevice={chooseDevice}
+      accountSelection={accountSelection}
       notification={notification} notificationError={notificationError} notificationHandled={notificationHandled} />
   </View>;
 }
 
-function ConnectedChat({ session, device, devices, active, chooseDevice, notification, notificationHandled }: Props & {
+function ConnectedChat({ session, device, devices, active, chooseDevice, notification, notificationHandled,
+  accountSelection }: Props & {
   device?: RemoteDevice; chooseDevice: (id: string) => void;
 }) {
   const { state, controller, foreground, catalog } = useChat(session, device?.deviceId ?? '', Boolean(device));
@@ -97,6 +102,7 @@ function ConnectedChat({ session, device, devices, active, chooseDevice, notific
     onOpen={() => setDrawer(true)} onMoving={() => setDrawer(true)} onClose={closed}
     navigation={<ChatThreads state={state} controller={controller} newChat={newChat} onClose={() => closeDrawer()}
       deviceName={device?.name ?? '选择电脑'} chooseDevice={() => closeDrawer(() => setPickingDevice(true))}
+      accountPicker={<ChatAccountPicker {...accountSelection} device={device} active={active && drawer} />}
       select={(thread) => closeDrawer(() => { void controller.select(thread); })} />}>
     <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       {...drawerSwipeHandlers}>

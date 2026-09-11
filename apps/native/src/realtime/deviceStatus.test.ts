@@ -110,6 +110,21 @@ describe('mobile device status WebSocket protocol', () => {
     expect(applyDeviceStatusSocketMessage([device], snapshot!)).toEqual([device]);
   });
 
+  it('syncs a desktop account change without changing another computer or the login account', () => {
+    const otherDevice = { ...device, deviceId: 'device-2' };
+    const message = parseDeviceStatusSocketMessage(JSON.stringify({
+      type: 'device-online',
+      device: { ...device, activeAccountId: 'account-3', activeProviderId: null },
+    }));
+
+    expect(message).not.toBeNull();
+    const updated = applyDeviceStatusSocketMessage([device, otherDevice], message!);
+    expect(updated.find((entry) => entry.deviceId === device.deviceId)).toMatchObject({
+      activeAccountId: 'account-3', activeProviderId: null, openaiAuthAccountId: 'account-2',
+    });
+    expect(updated.find((entry) => entry.deviceId === otherDevice.deviceId)).toEqual(otherDevice);
+  });
+
   it('removes a deleted device from the live list', () => {
     const removed = parseDeviceStatusSocketMessage(JSON.stringify({
       type: 'device-removed',

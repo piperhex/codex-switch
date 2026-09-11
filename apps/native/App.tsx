@@ -2276,6 +2276,8 @@ function AppContent() {
   return <SafeAreaView style={styles.app}>
     <StatusBar style="dark" />
     <ChatPage session={session} devices={devices} active={activePage === 'chat'}
+      accountSelection={{ accounts, busy: Boolean(switchingAccountId || switchingProvider),
+        onSwitchAccount: handleRemoteSwitch }}
       notification={chatNotification.target} notificationError={chatNotification.error}
       notificationHandled={chatNotification.handled} />
     {activePage === 'chat' ? null : activePage === 'accounts'

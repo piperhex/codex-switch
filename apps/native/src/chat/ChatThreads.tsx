@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, SectionList, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { ChatController } from './controller';
 import type { ChatProject, ChatState, Thread } from './types';
@@ -10,9 +10,11 @@ interface Props {
   state: ChatState; controller: ChatController; newChat: (project?: ChatProject) => void; onClose: () => void;
   chooseDevice: () => void; deviceName: string;
   select: (thread: Thread) => void;
+  accountPicker: ReactNode;
 }
 
-export function ChatThreads({ state, controller, newChat, onClose, chooseDevice, deviceName, select }: Props) {
+export function ChatThreads(props: Props) {
+  const { state, controller, newChat, onClose, chooseDevice, deviceName, select, accountPicker } = props;
   const [search, setSearch] = useState(state.search);
   useEffect(() => setSearch(state.search), [state.search]);
   const { groups, toggle } = useThreadGroups(state);
@@ -66,13 +68,19 @@ export function ChatThreads({ state, controller, newChat, onClose, chooseDevice,
       ListFooterComponent={state.cursor ? <Pressable style={styles.button} disabled={state.loading || !ready}
         onPress={() => { void controller.list({ more: true }); }}><Text style={styles.buttonText}>加载更多</Text></Pressable>
         : null} />
-    <Pressable accessibilityRole="button" accessibilityLabel="切换电脑" style={styles.padded} onPress={chooseDevice}>
-      <Text numberOfLines={1} style={styles.subtitle}>{deviceName} ›</Text>
-    </Pressable>
+    <View style={listStyles.footer}>
+      <Pressable accessibilityRole="button" accessibilityLabel="切换电脑" style={listStyles.device} onPress={chooseDevice}>
+        <Text numberOfLines={1} style={styles.subtitle}>{deviceName} ›</Text>
+      </Pressable>
+      {accountPicker}
+    </View>
   </View>;
 }
 
 const listStyles = StyleSheet.create({
+  footer: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingVertical: 10,
+    borderTopWidth: 1, borderTopColor: palette.border },
+  device: { flex: 1, minWidth: 0, minHeight: 48, justifyContent: 'center' },
   content: { paddingHorizontal: 14, paddingBottom: 16 },
   project: { color: palette.muted, fontSize: 12, fontWeight: '600', paddingHorizontal: 10, marginVertical: 12 },
   add: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
