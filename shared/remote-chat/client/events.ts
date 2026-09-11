@@ -1,11 +1,15 @@
 import type { ChatState, GuiEvent, Item, Thread, Turn } from './types';
 import { restoreTurnTiming } from '../../../apps/desktop/src/pages/codexGui/turnTiming';
+import { acknowledgeMessage, MESSAGE_ACKNOWLEDGED } from '../../chat/acknowledgedMessages';
 
 function mergeItems(previous: Item[], incoming: Item[]) {
   const items = [...previous];
   for (const item of incoming) {
     const index = items.findIndex((entry) => entry.id === item.id);
-    if (index < 0) items.push(item);
+    if (index < 0 && item.type === 'userMessage' && !item.localEcho && items.some((entry) => entry.localEcho)) {
+      const echo = items.findIndex((entry) => entry.localEcho);
+      items[echo] = item;
+    } else if (index < 0) items.push(item);
     else items[index] = { ...items[index], ...item };
   }
   return items;
@@ -19,7 +23,8 @@ export function updateThread(thread: Thread, event: GuiEvent): Thread {
   const index = turns.findIndex((turn) => turn.id === id);
   let turn: Turn = turns[index] ?? { id, status: 'inProgress', items: [] };
   if (params.turn) turn = { ...turn, ...params.turn, items: mergeItems(turn.items, params.turn.items ?? []) };
-  if (params.item) turn = { ...turn, items: mergeItems(turn.items, [params.item]) };
+  if (method === MESSAGE_ACKNOWLEDGED) turn = acknowledgeMessage(turn, event);
+  else if (params.item) turn = { ...turn, items: mergeItems(turn.items, [params.item]) };
   if (method === 'turn/diff/updated') turn = { ...turn, diff: params.diff };
   if (method === 'turn/plan/updated') turn = { ...turn, plan: params.plan, planExplanation: params.explanation };
   if (method.endsWith('Delta') || method.endsWith('/delta')) turn = applyDelta(turn, event);

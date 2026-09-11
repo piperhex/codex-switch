@@ -30,6 +30,7 @@ mod protocol;
 pub(crate) mod releases;
 #[cfg(test)]
 mod tests;
+mod text_preview;
 pub(crate) mod undo;
 pub(crate) mod usage;
 pub(crate) mod web;
@@ -125,6 +126,9 @@ pub(crate) async fn codex_gui_request(
 ) -> std::result::Result<GuiResponse, String> {
     async {
         let client = connected(&state).await?;
+        if let GuiRequest::TextPreview { thread_id, path } = request {
+            return text_preview::preview(&client, thread_id, path).await;
+        }
         if let GuiRequest::ProjectFiles(options) = request {
             return project_files::list(&client, options).await;
         }

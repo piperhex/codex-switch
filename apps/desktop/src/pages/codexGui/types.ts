@@ -106,6 +106,7 @@ export interface ThreadTokenUsage {
   modelContextWindow?: number | null;
 }
 export interface EventParams {
+  userMessageIndex?: number;
   computerUseSetup?: ComputerUseSetup;
   goal?: ThreadGoal;
   threadId?: string;
@@ -187,6 +188,7 @@ export type ApprovalReply = {
   answers?: Record<string, { answers: string[] }>;
 };
 export type Request =
+  | { operation: "textPreview"; threadId: string; path: string }
   | ({ operation: "projectFiles" } & import('../../../../../shared/remote-chat/projectFiles').ProjectFilesRequest)
   | { operation: "projectDirectories"; directory: string }
   | { operation: "editMessage"; threadId: string; turnId: string; itemId: string; text: string;

@@ -1,10 +1,17 @@
-import { useMemo } from 'react';
+import { useContext, useMemo } from 'react';
 import { Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import MarkdownIt from 'markdown-it';
 import { palette, styles } from './styles';
 import { ChatImage } from './ChatImage';
+import { ChatCodeBlock } from './ChatCodeBlock';
+import { ChatDiff } from './ChatDiff';
+import { ChatFileContext } from './ChatFilePreview';
+import { parseFileReference } from '../../../../shared/chat/fileReference';
+import { parseDiff } from '../../../../shared/chat/diff';
 
 const parser = new MarkdownIt({ html: false, linkify: false, typographer: false, maxNesting: 20 });
+const validateLink = parser.validateLink.bind(parser);
+parser.validateLink = (url) => validateLink(url) || Boolean(parseFileReference(url));
 type Token = ReturnType<typeof parser.parse>[number];
 interface Node { token: Token; children: Node[] }
 const PREVIEW_LENGTH = 20_000;
@@ -26,13 +33,19 @@ function openLink(url: string) {
 }
 
 function Inline({ nodes }: { nodes: Node[] }) {
+  const openFile = useContext(ChatFileContext);
   return <>{nodes.map(({ token, children }, index) => {
     if (token.type === 'softbreak' || token.type === 'hardbreak') return '\n';
     const style = token.type === 'strong_open' ? { fontWeight: '700' as const }
       : token.type === 'em_open' ? { fontStyle: 'italic' as const }
         : token.type === 'code_inline' ? styles.code : undefined;
     if (token.type === 'link_open') return <Text key={index} style={{ color: palette.green }}
-      onPress={() => openLink(String(token.attrGet('href') ?? ''))}><Inline nodes={children} /></Text>;
+      onPress={() => {
+        const url = String(token.attrGet('href') ?? '');
+        const file = parseFileReference(url);
+        if (file && openFile) openFile(file);
+        else openLink(url);
+      }}><Inline nodes={children} /></Text>;
     return <Text key={index} style={style}>{children.length ? <Inline nodes={children} /> : token.content}</Text>;
   })}</>;
 }
@@ -60,10 +73,11 @@ function Paragraph({ nodes, heading }: { nodes: Node[]; heading: boolean }) {
 
 function Block({ node }: { node: Node }) {
   const { token, children } = node;
-  if (token.type === 'fence' || token.type === 'code_block') return <ScrollView horizontal
-    style={{ backgroundColor: '#eef3ef', borderRadius: 10, padding: 12, marginVertical: 8 }}>
-    <Text selectable style={styles.code}>{token.content.trimEnd()}</Text>
-  </ScrollView>;
+  if (token.type === 'fence' || token.type === 'code_block') {
+    const language = token.info.trim().split(/\s/)[0].toLowerCase();
+    if (language === 'diff' || language === 'patch') return <ChatDiff files={parseDiff(token.content)} />;
+    return <ChatCodeBlock text={token.content} label={language || '代码'} />;
+  }
   if (token.type === 'paragraph_open' || token.type === 'heading_open' || token.type === 'inline') {
     const inline = token.type === 'inline' ? children : children.flatMap((child) => child.children);
     return <Paragraph nodes={inline} heading={token.type === 'heading_open'} />;

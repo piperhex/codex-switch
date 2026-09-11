@@ -3,7 +3,12 @@ import { ActivityIndicator, FlatList, Keyboard, Pressable, Text, View } from 're
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { ChatMarkdown } from './Markdown';
 import { ChatImage } from './ChatImage';
-import { ChatToolDetails, messageContent, toolLabel } from './ChatToolDetails';
+import { ChatToolDetails } from './ChatToolDetails';
+import { messageContent, messageLabel as toolLabel, turnFiles } from '../../../../shared/chat/messageDetails';
+import { ChatDiff } from './ChatDiff';
+import { BottomSheet } from '../components/BottomSheet';
+import { ScrollView } from 'react-native';
+import { CopyTextButton } from './CopyTextButton';
 import { itemImageSources } from '../../../../shared/chat/imageSources';
 import type { Item } from './types';
 import type { ChatMessagesProps } from '../../../../shared/remote-chat/client/messageProps';
@@ -27,12 +32,22 @@ const ChatMessage = memo(function ChatMessage({ item, onOpen }: { item: Item; on
   if (item.type === 'userMessage') return <View style={[styles.userMessage, images.length > 0 && { width: '92%' }]}>
     <Text selectable style={styles.messageText}>{messageContent(item)}</Text>
     {images.map((source, index) => <ChatImage key={index} source={source} />)}
+    <Pressable accessibilityRole="button" onPress={() => onOpen(item.id)}>
+      <Text style={styles.buttonText}>查看全文</Text></Pressable>
   </View>;
-  if (images.length) return <View>{images.map((source, index) => <ChatImage key={index} source={source} />)}</View>;
+  if (images.length) return <View>
+    {images.map((source, index) => <ChatImage key={index} source={source} />)}
+    <ToolMessage item={item} onOpen={onOpen} />
+  </View>;
   if (item.type !== 'agentMessage') return <ToolMessage item={item} onOpen={onOpen} />;
   return <View style={styles.assistantMessage}>
     <Text style={styles.speaker}>Codex</Text>
     <ChatMarkdown text={messageContent(item)} />
+    <View style={styles.row}>
+      <Pressable accessibilityRole="button" style={styles.compactButton} onPress={() => onOpen(item.id)}>
+        <Text style={styles.buttonText}>查看全文</Text></Pressable>
+      <CopyTextButton text={messageContent(item)} label="复制回复" />
+    </View>
   </View>;
 });
 
@@ -45,11 +60,14 @@ export function ChatMessages({ thread, loading, loadingMore, hasMore, loadOlder 
   const followFrame = useRef<ReturnType<typeof requestAnimationFrame> | undefined>(undefined);
   const [preservePosition, setPreservePosition] = useState(false);
   const [selectedToolId, setSelectedToolId] = useState<string | null>(null);
+  const [changesOpen, setChangesOpen] = useState(false);
   const openTool = useCallback((id: string) => { Keyboard.dismiss(); setSelectedToolId(id); }, []);
   const items = thread?.turns?.flatMap((turn) => turn.items) ?? [];
   // Resolve from the live messages so output keeps updating while the drawer is open.
   const selectedTool = items.find((item) => item.id === selectedToolId);
   const lastTurn = thread?.turns?.at(-1);
+  const changedTurn = thread?.turns?.slice().reverse().find((turn) => turn.diff?.trim()
+    || turn.items.some((item) => item.changes?.length));
   const followLatest = () => {
     if (followFrame.current !== undefined) cancelAnimationFrame(followFrame.current);
     // A fast history read can arrive before the new list has a viewport. Scroll after native layout settles.
@@ -113,8 +131,19 @@ export function ChatMessages({ thread, loading, loadingMore, hasMore, loadOlder 
       <Text style={styles.title}>想一起完成什么？</Text>
       <Text style={[styles.subtitle, styles.centerText]}>消息会发送到你的电脑，随时可以接着聊。</Text>
     </View>}
-    ListFooterComponent={lastTurn?.error ? <Text style={styles.error}>{lastTurn.error.message}</Text> : null} />
+    ListFooterComponent={<View style={{ gap: 12 }}>
+      {changedTurn && <Pressable accessibilityRole="button" style={styles.button}
+        onPress={() => { Keyboard.dismiss(); setChangesOpen(true); }}>
+        <Text style={styles.buttonText}>查看最近一轮文件修改</Text></Pressable>}
+      {lastTurn?.error && <Text style={styles.error}>{lastTurn.error.message}</Text>}
+    </View>} />
     {selectedTool && <ChatToolDetails key={selectedTool.id} item={selectedTool}
       onClose={() => setSelectedToolId(null)} />}
+    {changesOpen && changedTurn && <BottomSheet visible tall title="文件修改"
+      onClose={() => setChangesOpen(false)} dragFromHeaderOnly>
+      <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ paddingBottom: 20 }}>
+        <ChatDiff files={turnFiles(changedTurn)} />
+      </ScrollView>
+    </BottomSheet>}
   </>;
 }

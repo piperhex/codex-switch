@@ -13,6 +13,7 @@ import { remoteQueue } from './queue';
 import { QUEUE_EVENT } from '../../../../shared/remote-chat/queue';
 import { GUI_ACCOUNTS_EVENT } from '../../../../shared/remote-chat/guiAccounts';
 import { subscribeGuiEvent } from '../pages/codexGui/webEvents';
+import { acknowledgedMessages } from './acknowledgedMessages';
 
 export interface ChatHostConfig { websocketUrl: string; accessToken: string; deviceId: string }
 
@@ -26,9 +27,13 @@ export class ChatHost {
   private readonly unsubscribeComposer: () => void;
   private readonly unsubscribeSidebar: () => void;
   private readonly unsubscribeQueue: () => void;
+  private readonly unsubscribeMessages: () => void;
   private closed = false;
 
   constructor(readonly config: ChatHostConfig) {
+    this.unsubscribeMessages = acknowledgedMessages.subscribe((event) => {
+      this.stream.receive(this.operations.prepareEvent(event));
+    });
     this.unsubscribeQueue = remoteQueue.subscribe((snapshot) => {
       this.broadcast({ method: QUEUE_EVENT, params: snapshot });
     });
@@ -123,6 +128,7 @@ export class ChatHost {
     this.unsubscribeComposer();
     this.unsubscribeSidebar();
     this.unsubscribeQueue();
+    this.unsubscribeMessages();
     this.stream.close();
     for (const link of this.links.values()) link.close();
     this.links.clear();

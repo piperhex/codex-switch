@@ -224,7 +224,7 @@ export class ChatController {
     try {
       const queue = await this.connection.request<QueueSnapshot>('request', { operation, threadId, id });
       if (generation === this.synchronization) this.applyQueue(queue);
-      await this.refreshSelected();
+      void this.refreshSelected();
     } catch (error) { this.failure(error); }
     finally { this.update({ queueBusy: false }); }
   }
@@ -421,7 +421,7 @@ export class ChatController {
       } else {
         await this.request({ operation: 'send', threadId: thread.id, ...input, images });
       }
-      await this.refreshSelected();
+      void this.refreshSelected();
       return true;
     } catch (error) { this.failure(error); return false; }
     finally { this.update({ sending: false }); }
@@ -432,6 +432,9 @@ export class ChatController {
   }
 
   imagePreview = (threadId: string, source: string, original = false) => this.images.load(threadId, source, original);
+
+  textPreview = (threadId: string, path: string) =>
+    this.connection.request<import('../textPreview').TextPreview>('request', { operation: 'textPreview', threadId, path });
 
   loadSkills = async (cwd: string) => {
     const generation = this.skillGeneration;

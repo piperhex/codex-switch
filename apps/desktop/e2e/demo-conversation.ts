@@ -17,6 +17,7 @@ import { demoPlugins, demoProjectFiles } from './demo-attachments';
 import { demoProjectDirectories } from './demo-project-directories';
 import { demoQueueRequest, demoQueueSnapshot, flushDemoQueue } from './demo-queue';
 import { demoGuiAccounts } from './demo-gui-accounts';
+import { detailText, seedDemoDetails } from './demo-details';
 
 const images = new RemoteImages();
 const synchronization: { bytes: number; changedItems: number; text: string }[] = [];
@@ -81,6 +82,7 @@ export function demoResponse(request: RpcRequest, link: ChatLink): unknown {
 }
 
 function threadOperation(thread: Thread, input: Record<string, unknown>, link: ChatLink) {
+  if (input.operation === 'textPreview') return { path: String(input.path), text: detailText };
   if (String(input.operation).startsWith('queue')) return demoQueueRequest(input, queueHost(thread, link));
   if (input.operation === 'syncHistory') {
     const sliced = sliceHistory(thread, parseHistoryWindow(input.window));
@@ -175,6 +177,7 @@ export function changeDemoSidebar(action: string, link: ChatLink) {
   sidebarLink = link;
   if (action === 'group-preview') seedThreadGroups(link);
   if (action === 'history-pages') seedDemoHistory(welcome);
+  if (action === 'message-details') seedDemoDetails(welcome);
   if (action === 'start' && welcome.turns?.some((turn) => turn.status === 'inProgress')) {
     throw new Error('Wait for the current demo turn before starting a background turn');
   }

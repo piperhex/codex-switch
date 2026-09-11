@@ -18,6 +18,10 @@ const PAGE_SIZE: u32 = 50;
     rename_all_fields = "camelCase"
 )]
 pub(crate) enum GuiRequest {
+    TextPreview {
+        thread_id: String,
+        path: String,
+    },
     ProjectFiles(super::project_files::ProjectFilesRequest),
     ProjectDirectories {
         directory: String,
@@ -189,6 +193,7 @@ impl GuiRequest {
         match self {
             Self::ProjectFiles(_) => Err(GuiError::InvalidRequest),
             Self::ProjectDirectories { .. } => Err(GuiError::InvalidRequest),
+            Self::TextPreview { .. } => Err(GuiError::InvalidRequest),
             Self::EditMessage(_) => Err(GuiError::InvalidRequest),
             // Image previews are served locally, never forwarded as an app-server operation.
             Self::ImagePreview { .. } => Err(GuiError::InvalidRequest),

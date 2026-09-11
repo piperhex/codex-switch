@@ -4,6 +4,8 @@ import { GuiController } from '../pages/codexGui/controller';
 import { guiApi } from '../pages/codexGui/api';
 import type { GuiEvent, Thread } from '../pages/codexGui/types';
 import { RemoteQueue } from './queue';
+import { AcknowledgedMessages } from './acknowledgedMessages';
+import { updateThread } from '../../../../shared/remote-chat/client/events';
 
 vi.mock('../pages/codexGui/api', () => ({ guiApi: {
   connect: vi.fn(), request: vi.fn(), subscribe: vi.fn(),
@@ -30,6 +32,36 @@ beforeEach(async () => {
   await controller.connect();
 });
 afterEach(() => controller.dispose());
+
+it('publishes confirmed supplements before history catches up and restores them after reconnecting', async () => {
+  const acknowledgements = new AcknowledgedMessages(() => controller);
+  let mobile = structuredClone(thread);
+  const events = vi.fn((event: GuiEvent) => { mobile = updateThread(mobile, event); });
+  const unsubscribe = acknowledgements.subscribe(events);
+  await queue.request(input);
+  const id = queue.read().threads.phone[0].id;
+  expect(events).not.toHaveBeenCalled();
+  await queue.request({ operation: 'queueSendNow', threadId: 'phone', id });
+  expect(events).toHaveBeenCalledTimes(1);
+  expect(mobile.turns![0].items).toMatchObject([{ localEcho: true, content: [{ text: 'next task' }] }]);
+  expect(thread.turns![0].items).toEqual([]);
+  expect(acknowledgements.merge(thread).turns![0].items).toEqual(mobile.turns![0].items);
+  const serverItem = { id: 'server-message', type: 'userMessage', content: [{ type: 'text', text: 'next task' }] };
+  const event = { method: 'item/completed', params: { threadId: 'phone', turnId: 'live', item: serverItem } };
+  receive(event); mobile = updateThread(mobile, event);
+  expect(mobile.turns![0].items).toEqual([serverItem]);
+  unsubscribe();
+});
+
+it('never publishes an acknowledgement for a failed send', async () => {
+  const events = vi.fn();
+  const unsubscribe = new AcknowledgedMessages(() => controller).subscribe(events);
+  await queue.request(input);
+  vi.mocked(guiApi.request).mockRejectedValueOnce(new Error('send failed'));
+  await queue.request({ operation: 'queueSendNow', threadId: 'phone', id: queue.read().threads.phone[0].id });
+  expect(events).not.toHaveBeenCalled();
+  unsubscribe();
+});
 
 it('queues on the PC without steering or changing its selection, then sends after completion', async () => {
   const updates = vi.fn(); const unsubscribe = queue.subscribe(updates);

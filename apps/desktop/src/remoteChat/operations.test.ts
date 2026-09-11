@@ -6,6 +6,18 @@ import { remoteQueue } from './queue';
 vi.mock('../pages/codexGui/api', () => ({ guiApi: { connect: vi.fn(), request: vi.fn(), respond: vi.fn() } }));
 beforeEach(() => vi.resetAllMocks());
 
+it('passes scoped text previews to the desktop and retains safe failure messages', async () => {
+  const body = { operation: 'textPreview', threadId: 'chat', path: 'src/example.ts' };
+  const data = { path: 'src/example.ts', text: 'const value = 1;\n' };
+  vi.mocked(guiApi.request).mockResolvedValueOnce(data).mockRejectedValueOnce('文件暂时无法读取。');
+  const operations = new ChatOperations();
+  expect(await operations.execute({ kind: 'request', id: 'file:1', method: 'request', body }))
+    .toMatchObject({ data });
+  expect(guiApi.request).toHaveBeenCalledWith(body);
+  expect(await operations.execute({ kind: 'request', id: 'file:2', method: 'request', body }))
+    .toMatchObject({ error: '文件暂时无法读取。' });
+});
+
 it('executes a retried mutation once even while the original is still running', async () => {
   let finish: (value: unknown) => void = () => undefined;
   vi.mocked(guiApi.request).mockImplementation(() => new Promise((resolve) => { finish = resolve; }));

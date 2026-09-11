@@ -12,11 +12,12 @@ import { LiveHistory } from './liveHistory';
 import { composerCatalog } from './composerCatalog';
 import { remoteQueue } from './queue';
 import { readGuiAccounts, selectGuiAccount } from './guiAccounts';
+import { acknowledgedMessages } from './acknowledgedMessages';
 
 const OPERATIONS = new Set([
   'projectDirectories',
   'models', 'list', 'read', 'start', 'resume', 'send', 'steer', 'interrupt', 'rename', 'archive', 'unarchive',
-  'compact', 'skills', 'projectFiles', 'imagePreview', 'goalGet', 'goalSet', 'goalClear',
+  'compact', 'skills', 'projectFiles', 'imagePreview', 'textPreview', 'goalGet', 'goalSet', 'goalClear',
 ]);
 const CACHE_TTL_MS = 5 * 60_000;
 interface Cached {
@@ -24,6 +25,7 @@ interface Cached {
 }
 const READ_OPERATIONS = new Set([
   'projectDirectories',
+  'textPreview',
   'guiAccountsRead', 'syncHistory', 'imageChunk', 'imagePreview', 'models', 'list', 'read', 'goalGet', 'skills', 'projectFiles', 'queueRead',
 ]);
 const QUEUE_OPERATIONS = new Set(['queueRead', 'queueEnqueue', 'queueSendNow', 'queueRemove', 'queueFlush']);
@@ -82,7 +84,7 @@ export class ChatOperations {
       const known = parseHistoryVersion(body.known);
       const window = parseHistoryWindow(body.window);
       const { thread } = await guiApi.request<{ thread: Thread }>({ operation: 'read', threadId: body.threadId });
-      const sliced = sliceHistory(this.liveHistory.merge(thread), window);
+      const sliced = sliceHistory(acknowledgedMessages.merge(this.liveHistory.merge(thread)), window);
       return { ...historyDelta(this.images.prepare(sliced.thread, thread.id), known), page: sliced.page };
     }
     if (request.method === 'request' && body.operation === 'composerSet') return guiComposer.update(body.settings);

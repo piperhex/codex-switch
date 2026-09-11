@@ -31,6 +31,23 @@ async function connectedController() {
 }
 
 describe('mobile chat actions', () => {
+  it('releases the composer after enqueue acknowledgement while history is still loading', async () => {
+    const controller = await connectedController();
+    mocks.request.mockResolvedValue({ thread });
+    await controller.select(thread);
+    let finishHistory!: (value: unknown) => void;
+    mocks.request.mockImplementation((_method, body) => body?.operation === 'queueEnqueue'
+      ? Promise.resolve({ revision: 1, threads: { chat: [
+        { id: 'pending', text: 'next', imageCount: 0, attachmentCount: 0, busy: false },
+      ] } }) : new Promise((resolve) => { finishHistory = resolve; }));
+    expect(await controller.send({ text: 'next', access: 'workspace-write' })).toBe(true);
+    expect(controller.snapshot().sending).toBe(false);
+    expect(controller.snapshot().historyLoading).toBe(true);
+    expect(controller.snapshot().queue.threads.chat[0].text).toBe('next');
+    finishHistory({ thread });
+    await vi.waitFor(() => expect(controller.snapshot().historyLoading).toBe(false));
+    controller.stop();
+  });
   it('keeps independent search results and failures out of the sidebar state', async () => {
     const controller = await connectedController();
     mocks.request.mockResolvedValueOnce({ data: [thread], nextCursor: 'sidebar-next' });

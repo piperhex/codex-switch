@@ -8,7 +8,9 @@ import { prepareHierarchy, hierarchy } from './android-hierarchy.mjs';
 
 const exec = promisify(execFile);
 const root = fileURLToPath(new URL('../../../', import.meta.url));
-export const output = path.join(root, '.codex-tmp', 'android-chat-regression');
+export const output = path.join(root, '.codex-tmp', process.env.ANDROID_CHAT_OUTPUT ?? 'android-chat-regression');
+export const apiPort = Number(process.env.CHAT_TEST_API_PORT ?? 1490);
+export const apiUrl = `http://127.0.0.1:${apiPort}`;
 export const apk = path.join(root, 'apps/native/android/app/build/outputs/apk/release/app-release.apk');
 export const serial = process.env.ANDROID_SERIAL ?? 'emulator-5580';
 if (!serial.startsWith('emulator-')) throw new Error('This test is restricted to an Android emulator.');
@@ -22,7 +24,7 @@ export async function adb(...args) {
 }
 
 export async function serverState() {
-  const response = await fetch('http://127.0.0.1:1490/test/state', { signal: AbortSignal.timeout(5_000) });
+  const response = await fetch(`${apiUrl}/test/state`, { signal: AbortSignal.timeout(5_000) });
   if (!response.ok) throw new Error(`Local fixture is unavailable: ${response.status}`);
   return response.json();
 }
@@ -128,7 +130,7 @@ export async function prepare() {
   if (Number(await adb('shell', 'getprop', 'ro.build.version.sdk')) >= 33) {
     await adb('shell', 'pm', 'grant', 'com.codexswitch.mobile', 'android.permission.POST_NOTIFICATIONS');
   }
-  await adb('reverse', 'tcp:1490', 'tcp:1490');
+  await adb('reverse', `tcp:${apiPort}`, `tcp:${apiPort}`);
   await adb('logcat', '-c');
   await adb('shell', 'am', 'start', '-n', 'com.codexswitch.mobile/.MainActivity');
   return { serial, apk, sha256: createHash('sha256').update(await readFile(apk)).digest('hex'),
