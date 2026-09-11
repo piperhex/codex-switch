@@ -1,0 +1,95 @@
+.proxy-settings-modal .ant-modal-body {
+  max-height: calc(100dvh - 160px);
+  overflow-y: auto;
+}
+
+.proxy-settings-content {
+  display: grid;
+  gap: 18px;
+  max-width: 400px;
+  overflow-wrap: anywhere;
+}
+
+.proxy-settings-section {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.proxy-settings-section + .proxy-settings-section {
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.proxy-settings-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.proxy-settings-section h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.proxy-settings-section p,
+.proxy-settings-notice {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.proxy-settings-endpoints {
+  display: grid;
+  gap: 8px;
+  max-height: 180px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.proxy-settings-endpoints li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--green-soft);
+}
+
+.proxy-settings-endpoints li > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.proxy-settings-endpoints small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.proxy-settings-endpoints code {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.proxy-settings-endpoints .ant-btn {
+  flex: 0 0 auto;
+}
+
+.proxy-settings-key-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.proxy-settings-key-actions .ant-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}

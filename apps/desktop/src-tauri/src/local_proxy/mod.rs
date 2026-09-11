@@ -38,6 +38,7 @@ include!("conversation_response.rs");
 include!("commands_status.rs");
 include!("lifecycle.rs");
 include!("settings.rs");
+include!("lan_settings.rs");
 include!("auto_reset_commands.rs");
 include!("system_prompt_filter.rs");
 include!("system_prompt_injection.rs");

@@ -1,0 +1,23 @@
+.window-titlebar-proxy-settings {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.window-titlebar-proxy-settings:hover {
+  color: var(--green-dark);
+  background: var(--green-soft);
+}
+
+.window-titlebar-proxy-settings:focus-visible {
+  outline: 2px solid rgba(var(--green-rgb), .34);
+  outline-offset: 1px;
+}

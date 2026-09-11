@@ -1,8 +1,9 @@
 import { Popconfirm, Switch, Tooltip } from "antd";
+import { Settings } from "lucide-react";
 import type { Translate } from "../../i18n";
 import type { useProviderManager } from "../../hooks/useProviderManager";
 import { CodexConnectionControl } from "./CodexConnectionControl";
-import { ProxyCopyDropdown } from "./ProxyCopyDropdown";
+import "./ProxySettingsButton.css";
 
 type ProviderManager = ReturnType<typeof useProviderManager>;
 
@@ -11,7 +12,7 @@ interface ProxyStatusControlsProps {
   onClientOperationChange: (operation: "start" | "restart" | null) => void;
   manager: ProviderManager;
   notify: (message: string) => void;
-  onRequestLanAccess: () => void;
+  onOpenSettings: () => void;
   startDisabledReason?: string;
   t: Translate;
 }
@@ -22,7 +23,7 @@ export function ProxyStatusControls(options: ProxyStatusControlsProps) {
     onClientOperationChange,
     manager,
     notify,
-    onRequestLanAccess,
+    onOpenSettings,
     startDisabledReason,
     t,
   } = options;
@@ -30,11 +31,6 @@ export function ProxyStatusControls(options: ProxyStatusControlsProps) {
   const controlsBusy = manager.proxyBusy || clientOperation !== null;
   const toggleDisabled = controlsBusy || (!running && Boolean(startDisabledReason));
 
-  const changeLanListening = (enabled: boolean) => {
-    if (controlsBusy) return;
-    if (enabled) onRequestLanAccess();
-    else void manager.setProxyListenOnAllInterfaces(false);
-  };
   const statusSwitch = (
     <span className="window-titlebar-proxy-status"
       title={t(running ? "providers.proxy.stop" : "providers.proxy.start")}>
@@ -66,17 +62,12 @@ export function ProxyStatusControls(options: ProxyStatusControlsProps) {
       <CodexConnectionControl blocked={controlsBusy}
         onOperationChange={onClientOperationChange} notify={notify} t={t} />
       {statusControl}
-      {running && (
-        <span className="window-titlebar-proxy-lan">
-          <span>{t("providers.proxy.listenLan")}</span>
-          <Switch className="window-titlebar-proxy-lan-switch" size="small"
-            checked={manager.localProxy?.listenOnAllInterfaces ?? false} loading={manager.proxyBusy}
-            disabled={controlsBusy} aria-label={t("providers.proxy.listenLan")}
-            onChange={changeLanListening} />
-          {manager.localProxy && <ProxyCopyDropdown proxy={manager.localProxy} busy={manager.proxyBusy}
-            copyApiKey={manager.copyProxyLanApiKey} notify={notify} t={t} />}
-        </span>
-      )}
+      <Tooltip title={t("providers.proxy.settings")}>
+        <button type="button" className="window-titlebar-proxy-settings"
+          aria-label={t("providers.proxy.settings")} aria-haspopup="dialog" onClick={onOpenSettings}>
+          <Settings size={14} aria-hidden="true" />
+        </button>
+      </Tooltip>
     </div>
   );
 }
