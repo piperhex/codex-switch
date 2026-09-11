@@ -1,14 +1,18 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import Feather from '@expo/vector-icons/Feather';
 import { BottomSheet } from '../components/BottomSheet';
 import type { GuiAccountChoice, GuiAccountsClient } from '../../../../shared/remote-chat/guiAccounts';
 import { useGuiAccounts } from '../../../../shared/remote-chat/client/useGuiAccounts';
 import { palette, styles } from './styles';
 
-interface Props { client: GuiAccountsClient; deviceName?: string; ready: boolean; active: boolean }
+interface Props {
+  client: GuiAccountsClient; deviceName?: string; ready: boolean; active: boolean;
+  email: string; chooseDevice: () => void;
+}
 
-export function ChatAccountPicker({ client, deviceName, ready, active }: Props) {
-  const [open, setOpen] = useState(false);
+export function ChatProfileMenu({ client, deviceName, ready, active, email, chooseDevice }: Props) {
+  const [panel, setPanel] = useState<'profile' | 'accounts' | null>(null);
   const [query, setQuery] = useState('');
   const accounts = useGuiAccounts(client, active && ready);
   const selection = accounts.snapshot?.selection;
@@ -19,24 +23,40 @@ export function ChatAccountPicker({ client, deviceName, ready, active }: Props) 
   const search = query.trim().toLowerCase();
   const choices = accounts.snapshot?.choices.filter((choice) =>
     `${choice.name} ${choice.detail}`.toLowerCase().includes(search)) ?? [];
-  useEffect(() => { if (!active) setOpen(false); }, [active]);
+  useEffect(() => { if (!active) setPanel(null); }, [active]);
 
   const select = async (choice: GuiAccountChoice) => {
     if (disabled || !choice.available || choice === current) return;
-    if (await accounts.select({ kind: choice.kind, id: choice.id })) setOpen(false);
+    if (await accounts.select({ kind: choice.kind, id: choice.id })) setPanel('profile');
   };
 
   return <>
-    <Pressable accessibilityRole="button" accessibilityLabel={`选择 Codex GUI 账户：${name}`}
-      accessibilityState={{ expanded: open && active }} style={pickerStyles.trigger}
-      onPress={() => { setQuery(''); setOpen(true); if (ready) accounts.refresh(); }}>
-      <Text numberOfLines={1} style={pickerStyles.caption}>Codex GUI</Text>
-      <Text numberOfLines={1} style={pickerStyles.name}>{name} ▾</Text>
+    <Pressable accessibilityRole="button" accessibilityLabel="打开头像菜单"
+      accessibilityState={{ expanded: panel !== null && active }} style={pickerStyles.trigger}
+      onPress={() => setPanel('profile')}>
+      <Text style={pickerStyles.initials}>{email.trim().slice(0, 2).toUpperCase() || '我'}</Text>
     </Pressable>
-    <BottomSheet visible={open && active} title="选择 Codex GUI 账户"
-      subtitle={deviceName ? `${deviceName} · 与电脑共用当前账户` : undefined}
-      onClose={() => setOpen(false)} dismissible={!accounts.saving} dragFromHeaderOnly>
-      <View style={pickerStyles.panel}>
+    <BottomSheet visible={panel !== null && active} title={panel === 'accounts' ? '切换账户' : '账户与电脑'}
+      subtitle={panel === 'accounts' ? '与电脑共用当前聊天账户' : undefined}
+      onClose={() => setPanel(null)} dismissible={!accounts.saving} dragFromHeaderOnly
+      onBack={panel === 'accounts' && !accounts.saving ? () => setPanel('profile') : undefined}>
+      {panel === 'profile' ? <View style={pickerStyles.panel}>
+        <Text style={pickerStyles.email}>{email}</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel="切换电脑" style={pickerStyles.option}
+          onPress={() => { setPanel(null); chooseDevice(); }}>
+          <Feather name="monitor" size={22} color={palette.ink} />
+          <View style={pickerStyles.copy}><Text style={styles.title}>切换电脑</Text>
+            <Text numberOfLines={1} style={styles.subtitle}>{deviceName || '选择电脑'}</Text></View>
+          <Feather name="chevron-right" size={18} color={palette.muted} />
+        </Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="切换账户" style={pickerStyles.option}
+          onPress={() => { setQuery(''); setPanel('accounts'); if (ready) accounts.refresh(); }}>
+          <Feather name="user" size={22} color={palette.ink} />
+          <View style={pickerStyles.copy}><Text style={styles.title}>切换账户</Text>
+            <Text numberOfLines={1} style={styles.subtitle}>{name}</Text></View>
+          <Feather name="chevron-right" size={18} color={palette.muted} />
+        </Pressable>
+      </View> : <View style={pickerStyles.panel}>
         <TextInput accessibilityLabel="搜索账户" placeholder="搜索名称或备注" value={query} onChangeText={setQuery}
           autoCapitalize="none" autoCorrect={false} style={styles.search} />
         {!ready && <Text style={styles.subtitle}>连接电脑后即可切换账户。</Text>}
@@ -72,15 +92,16 @@ export function ChatAccountPicker({ client, deviceName, ready, active }: Props) 
           {!choices.length && accounts.snapshot && !accounts.loading && <Text style={pickerStyles.empty}>
             {accounts.snapshot.choices.length ? '没有找到匹配的账户。' : '暂无可选账户，请先在电脑上添加账户。'}</Text>}
         </ScrollView>
-      </View>
+      </View>}
     </BottomSheet>
   </>;
 }
 
 const pickerStyles = StyleSheet.create({
-  trigger: { flex: 1, minWidth: 0, minHeight: 48, justifyContent: 'center', alignItems: 'flex-end' },
-  caption: { color: palette.muted, fontSize: 11 },
-  name: { color: palette.green, fontSize: 13, lineHeight: 20, maxWidth: '100%' },
+  trigger: { width: 52, height: 52, borderRadius: 26, backgroundColor: '#304e63',
+    justifyContent: 'center', alignItems: 'center', borderWidth: 5, borderColor: palette.background },
+  initials: { color: '#fff', fontSize: 15, fontWeight: '500' },
+  email: { color: palette.muted, fontSize: 14, lineHeight: 21 },
   panel: { width: '100%', maxWidth: 400, alignSelf: 'center', gap: 12, paddingBottom: 16 },
   list: { maxHeight: 360 },
   option: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 64, padding: 12, borderRadius: 12 },

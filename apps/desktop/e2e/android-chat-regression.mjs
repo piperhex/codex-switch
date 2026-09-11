@@ -240,7 +240,7 @@ try {
     assert.equal(await hasText('搜索聊天'), false);
     await tap('打开聊天列表');
     assert.equal(await hasText('未读回复'), false);
-    await tap('＋ 新聊天');
+    await tap('新聊天');
     await waitText('想一起完成什么？');
     await waitText('聊天消息');
   });

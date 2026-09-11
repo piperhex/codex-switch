@@ -31,6 +31,24 @@ async function connectedController() {
 }
 
 describe('mobile chat actions', () => {
+  it('keeps independent search results and failures out of the sidebar state', async () => {
+    const controller = await connectedController();
+    mocks.request.mockResolvedValueOnce({ data: [thread], nextCursor: 'sidebar-next' });
+    await controller.list();
+    const sidebar = controller.snapshot();
+    const result = { data: [{ ...thread, id: 'match' }], nextCursor: 'search-next' };
+    mocks.request.mockResolvedValueOnce(result);
+    expect(await controller.searchThreads({ search: 'match', archived: true, cursor: 'search-page' })).toEqual(result);
+    expect(mocks.request).toHaveBeenLastCalledWith('request', {
+      operation: 'list', search: 'match', archived: true, cursor: 'search-page',
+    });
+    expect(controller.snapshot()).toBe(sidebar);
+    mocks.request.mockRejectedValueOnce(new Error('Search unavailable'));
+    await expect(controller.searchThreads({ search: 'other', archived: false })).rejects.toThrow('Search unavailable');
+    expect(controller.snapshot()).toBe(sidebar);
+    controller.stop();
+  });
+
   it('sends photos without text when creating a chat', async () => {
     const controller = await connectedController();
     mocks.request.mockResolvedValue({ thread });

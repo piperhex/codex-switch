@@ -15,6 +15,7 @@ import { seedDemoHistory } from './demo-history';
 import { demoSkills } from './demo-skills';
 import { demoPlugins, demoProjectFiles } from './demo-attachments';
 import { demoQueueRequest, demoQueueSnapshot, flushDemoQueue } from './demo-queue';
+import { demoGuiAccounts } from './demo-gui-accounts';
 
 const images = new RemoteImages();
 const synchronization: { bytes: number; changedItems: number; text: string }[] = [];
@@ -59,6 +60,7 @@ export function demoResponse(request: RpcRequest, link: ChatLink): unknown {
   if (input.operation === 'composerSet') return changeDemoComposer(input.settings, link);
   if (input.operation === 'threadRead') return guiSidebar.markRead(input);
   if (input.operation === 'queueRead') return demoQueueSnapshot();
+  if (input.operation === 'guiAccountsRead' || input.operation === 'guiAccountSelect') return demoGuiAccounts(input);
   if (input.operation === 'list') return { data: [...threads.values()].filter((thread) =>
     archived.has(thread.id) === (input.archived === true)
       && `${thread.name} ${thread.preview}`.includes(String(input.search ?? '')))

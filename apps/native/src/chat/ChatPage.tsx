@@ -10,7 +10,8 @@ import { ChatMessages } from './ChatMessages';
 import { ChatProcessing } from './ChatProcessing';
 import { ChatImageContext } from './ChatImage';
 import { ChatThreads } from './ChatThreads';
-import { ChatAccountPicker } from './ChatAccountPicker';
+import { ChatProfileMenu } from './ChatProfileMenu';
+import { ChatSearch } from './ChatSearch';
 import { ChatDrawer, type ChatDrawerMethods } from './ChatDrawer';
 import { ChatDevices } from './ChatDevices';
 import { useChat } from './useChat';
@@ -66,8 +67,11 @@ function ConnectedChat({ session, device, devices, active, chooseDevice, notific
   const drawerRef = useRef<ChatDrawerMethods>(null);
   const afterClose = useRef<(() => void) | undefined>(undefined);
   const [pickingDevice, setPickingDevice] = useState(false);
+  const [searching, setSearching] = useState(false);
   useEffect(() => {
-    if (notification) { afterClose.current = undefined; drawerRef.current?.closeDrawer(); setPickingDevice(false); }
+    if (!notification) return;
+    afterClose.current = undefined;
+    drawerRef.current?.closeDrawer(); setPickingDevice(false); setSearching(false);
   }, [notification]);
   const ready = state.ready;
   const runningTurn = state.selected?.turns?.find((turn) => turn.status === 'inProgress');
@@ -82,10 +86,12 @@ function ConnectedChat({ session, device, devices, active, chooseDevice, notific
     action?.();
   }, []);
   const newChat = (project?: ChatProject) => { if (!state.sending) closeDrawer(() => controller.back(project)); };
-  useEffect(() => { controller.setViewing(active && foreground && !drawer && !pickingDevice); },
-    [active, foreground, drawer, pickingDevice, controller]);
+  useEffect(() => { controller.setViewing(active && foreground && !drawer && !pickingDevice && !searching); },
+    [active, foreground, drawer, pickingDevice, searching, controller]);
   useEffect(() => {
-    if (!active) { afterClose.current = undefined; drawerRef.current?.closeDrawer(); setPickingDevice(false); }
+    if (active) return;
+    afterClose.current = undefined;
+    drawerRef.current?.closeDrawer(); setPickingDevice(false); setSearching(false);
   }, [active]);
   useEffect(() => {
     if (!active || pickingDevice || (!drawer && !state.selected)) return;
@@ -98,10 +104,11 @@ function ConnectedChat({ session, device, devices, active, chooseDevice, notific
   }, [active, drawer, pickingDevice, state.selected?.id, state.sending, controller]);
   return <ChatDrawer ref={drawerRef} enabled={active && !pickingDevice}
     onOpen={() => setDrawer(true)} onMoving={() => setDrawer(true)} onClose={closed}
-    navigation={<ChatThreads state={state} controller={controller} newChat={newChat} onClose={() => closeDrawer()}
-      deviceName={device?.name ?? '选择电脑'} chooseDevice={() => closeDrawer(() => setPickingDevice(true))}
-      accountPicker={<ChatAccountPicker client={controller.guiAccounts} deviceName={device?.name}
-        ready={ready} active={active && foreground && drawer} />}
+    navigation={<ChatThreads state={state} controller={controller} newChat={newChat}
+      openSearch={() => setSearching(true)}
+      profileMenu={<ChatProfileMenu client={controller.guiAccounts} deviceName={device?.name} email={session.email}
+        chooseDevice={() => closeDrawer(() => setPickingDevice(true))}
+        ready={ready} active={active && foreground && drawer && !searching} />}
       select={(thread) => closeDrawer(() => { void controller.select(thread); })} />}>
     <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       {...drawerSwipeHandlers}>
@@ -114,10 +121,10 @@ function ConnectedChat({ session, device, devices, active, chooseDevice, notific
           {state.selected ? threadPresentation(state.selected, state.sidebar).title : '新聊天'}</Text>
         {!state.selected && state.draftProject && <Text numberOfLines={1} style={styles.headerMeta}>
           {state.draftProject.label}</Text>}
-        <Pressable accessibilityRole="button" accessibilityLabel="选择电脑" onPress={() => setPickingDevice(true)}>
+        <View>
           <Text numberOfLines={1} style={styles.headerMeta}>{device ? `${device.name} · ${
             !ready && state.mode !== 'offline' ? '正在同步聊天…' : modeLabels[state.mode]}` : '选择电脑，开始聊天'}</Text>
-        </Pressable>
+        </View>
       </View>
       {state.selected && state.selectedArchived && <Pressable accessibilityRole="button"
         style={styles.compactButton} disabled={!ready || running}
@@ -149,6 +156,8 @@ function ConnectedChat({ session, device, devices, active, chooseDevice, notific
       interrupt={() => controller.interrupt()} />
     {pickingDevice && <ChatDevices devices={devices} onClose={() => setPickingDevice(false)}
       choose={(id) => { chooseDevice(id); setPickingDevice(false); }} />}
+    {searching && active && <ChatSearch state={state} controller={controller} onClose={() => setSearching(false)}
+      select={(thread) => { setSearching(false); closeDrawer(() => { void controller.select(thread); }); }} />}
     </ChatOverlay>
   </KeyboardAvoidingView></ChatDrawer>;
 }

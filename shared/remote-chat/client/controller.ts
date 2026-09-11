@@ -292,6 +292,10 @@ export class ChatController {
     }
   }
 
+  /** Search without replacing the sidebar list or its pagination. */
+  searchThreads = (options: { search: string; archived: boolean; cursor?: string }) =>
+    this.request<ListResponse<Thread>>({ operation: 'list', ...options });
+
   async list(options: { search?: string; archived?: boolean; more?: boolean } = {}) {
     const generation = ++this.listGeneration;
     const search = options.search ?? this.state.search;

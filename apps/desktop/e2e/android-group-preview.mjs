@@ -3,7 +3,7 @@ import { hasText, screenshot, tap, waitText } from './android-chat-driver.mjs';
 
 export async function groupPreviewJourney() {
   await tap('打开聊天列表');
-  await tap('＋ 新聊天');
+  await tap('新聊天');
   const response = await fetch('http://127.0.0.1:1490/test/sidebar', { method: 'POST',
     headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'group-preview' }) });
   assert.equal(response.ok, true);

@@ -75,7 +75,7 @@ try {
   });
   await check('background-03-complete-and-open-from-home', async () => {
     const connections = (await serverState()).mobileConnections;
-    await tap('打开聊天列表'); await tap('＋ 新聊天');
+    await tap('打开聊天列表'); await tap('新聊天');
     await action('start');
     await adb('shell', 'input', 'keyevent', 'KEYCODE_HOME');
     await pause(5000); await connectionUnchanged(connections);
