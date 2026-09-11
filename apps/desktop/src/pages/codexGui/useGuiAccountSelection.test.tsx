@@ -1,0 +1,103 @@
+// @vitest-environment jsdom
+import { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { invoke } from "../../api/backend";
+import { DEMO_ACCOUNTS } from "../../demo";
+import { subscribeGuiEvent } from "./webEvents";
+import { selectedGuiEntries, useGuiAccountSelection, type GuiAccountSelection } from "./useGuiAccountSelection";
+import { useUsageStatus } from "./useUsageStatus";
+
+vi.mock("../../api/backend", () => ({ invoke: vi.fn(), hasLocalBackend: true, isHostedWebApp: false }));
+vi.mock("./webEvents", () => ({ subscribeGuiEvent: vi.fn() }));
+let root: Root;
+let container: HTMLDivElement;
+let selection: ReturnType<typeof useGuiAccountSelection>;
+let active: boolean;
+const stop = vi.fn();
+const first = { ...DEMO_ACCOUNTS[0], id: "first", active: false };
+const second = { ...DEMO_ACCOUNTS[0], id: "second", active: true };
+
+function Fixture() {
+  selection = useGuiAccountSelection({ active, accounts: [first, second], providers: [] });
+  useUsageStatus(active);
+  return <output>{selection.accounts.find((account) => account.active)?.id}</output>;
+}
+const render = () => act(async () => root.render(<Fixture />));
+
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  vi.mocked(invoke).mockReset().mockImplementation(async (command) =>
+    command === "codex_gui_account_selection" ? { kind: "account", id: "first" } : { running: true });
+  vi.mocked(subscribeGuiEvent).mockReset().mockResolvedValue(stop);
+  stop.mockClear();
+  active = true;
+  container = document.createElement("div");
+  root = createRoot(container);
+});
+
+afterEach(async () => {
+  await act(async () => root.unmount());
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
+
+it("ignores shared active flags and does not mutate the shared catalog", () => {
+  const entries = [{ id: "shared", active: true }, { id: "gui", active: false }];
+  expect(selectedGuiEntries(entries, { kind: "account", id: "gui" }, "account"))
+    .toEqual([{ id: "shared", active: false }, { id: "gui", active: true }]);
+  expect(entries[0].active).toBe(true);
+  expect(selectedGuiEntries(entries, { kind: "provider", id: "gui" }, "account").some((entry) => entry.active))
+    .toBe(false);
+  expect(selectedGuiEntries(entries, { kind: "account", id: "deleted" }, "account").some((entry) => entry.active))
+    .toBe(false);
+});
+
+it("keeps usage polling responsive during a GUI switch and rejects overlapping switches", async () => {
+  await render();
+  expect(container.textContent).toBe("first");
+  let finish!: (selection: GuiAccountSelection) => void;
+  vi.mocked(invoke).mockImplementation(async (command) => command === "codex_gui_switch_account"
+    ? new Promise((resolve) => { finish = resolve; }) : { running: true });
+  let switching!: Promise<boolean>;
+  await act(async () => { switching = selection.switchAccount("second"); });
+  expect(await selection.switchProvider("third")).toBe(false);
+  await act(async () => vi.advanceTimersByTimeAsync(10_000));
+  expect(container.textContent).toBe("first");
+  expect(vi.mocked(invoke).mock.calls.filter(([command]) => command === "codex_gui_usage_summary").length)
+    .toBeGreaterThan(1);
+  await act(async () => { finish({ kind: "account", id: "second" }); await switching; });
+  expect(container.textContent).toBe("second");
+  expect(invoke).toHaveBeenCalledWith("codex_gui_switch_account", { selection: { kind: "account", id: "second" } });
+  expect(vi.mocked(invoke).mock.calls.some(([command]) => command === "switch_account" || command === "switch_provider"))
+    .toBe(false);
+});
+
+it("retains selection on failure and receives changes from another GUI client", async () => {
+  await render();
+  vi.mocked(invoke).mockRejectedValueOnce(new Error("switch failed"));
+  await act(async () => { await expect(selection.switchAccount("second")).rejects.toThrow("switch failed"); });
+  expect(container.textContent).toBe("first");
+  const receive = vi.mocked(subscribeGuiEvent).mock.calls[0][1];
+  await act(async () => receive({ kind: "account", id: "second" }));
+  expect(container.textContent).toBe("second");
+  active = false;
+  await render();
+  expect(stop).toHaveBeenCalledOnce();
+  vi.mocked(invoke).mockClear();
+  await act(async () => vi.advanceTimersByTimeAsync(10_000));
+  expect(invoke).not.toHaveBeenCalled();
+});
+
+it("does not let a slow initial read overwrite a newer GUI selection", async () => {
+  let finish!: (selection: GuiAccountSelection) => void;
+  vi.mocked(invoke).mockImplementation(async (command) => command === "codex_gui_account_selection"
+    ? new Promise((resolve) => { finish = resolve; }) : { running: true });
+  await render();
+  const receive = vi.mocked(subscribeGuiEvent).mock.calls[0][1];
+  await act(async () => receive({ kind: "account", id: "second" }));
+  await act(async () => finish({ kind: "account", id: "first" }));
+  expect(container.textContent).toBe("second");
+  expect(selection.loading).toBe(false);
+});

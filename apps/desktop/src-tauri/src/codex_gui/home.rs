@@ -6,11 +6,20 @@ use std::{
 use tauri::AppHandle;
 use toml_edit::{value, DocumentMut};
 
-/// Only configuration and authentication are imported. Rollouts, databases, indexes and logs
-/// always belong to the application's private Codex home.
+const GUI_PROVIDER_ID: &str = "codex-switch-gui";
+
+/// Older conversations can contain the shared provider; always resume them on the GUI route.
+pub(super) fn scope_thread_request(method: &str, params: &mut serde_json::Value) {
+    if matches!(method, "thread/start" | "thread/resume" | "thread/fork") {
+        params["modelProvider"] = serde_json::json!(GUI_PROVIDER_ID);
+    }
+}
+
+/// Import initial preferences while keeping GUI authentication and routing independent.
 pub(super) fn prepare(app: &AppHandle) -> Result<PathBuf> {
     let source = crate::storage::resolve_paths(app).map_err(|_| GuiError::Startup)?;
     let target = crate::codex_home::gui_home(app).map_err(|_| GuiError::Startup)?;
+    super::account_selection::read(app).map_err(|_| GuiError::Startup)?;
     prepare_from(&source.codex_home, &target)?;
     Ok(target)
 }
@@ -27,30 +36,16 @@ pub(super) fn prepare_from(source: &Path, target: &Path) -> Result<()> {
     };
     let target = target.canonicalize().map_err(|_| GuiError::Startup)?;
     prepare_config(&source, &target)?;
-    if source == target {
-        return Ok(());
-    }
-    let auth_path = target.join("auth.json");
-    if let Some(auth) = read_optional(&source.join("auth.json"))? {
-        crate::storage::write_text_if_changed(&auth_path, &auth).map_err(|_| GuiError::Startup)?;
-        super::platform::protect_auth(&auth_path)?;
-    } else if auth_path.exists() {
-        // Do not silently retain credentials after the selected account has signed out.
-        fs::remove_file(auth_path).map_err(|_| GuiError::Startup)?;
-    }
     Ok(())
 }
 
 fn prepare_config(source: &Path, target: &Path) -> Result<()> {
     // Import once; subsequent connections preserve edits made to the GUI's own configuration.
-    let (config, origin) = match read_optional(&target.join("config.toml"))? {
-        Some(config) => (config, target),
-        None => (
-            read_optional(&source.join("config.toml"))?.unwrap_or_default(),
-            source,
-        ),
+    let config = match read_optional(&target.join("config.toml"))? {
+        Some(config) => config,
+        None => read_optional(&source.join("config.toml"))?.unwrap_or_default(),
     };
-    let config = isolated_config(&config, origin, target)?;
+    let config = isolated_config(&config, target)?;
     crate::storage::write_text_if_changed(&target.join("config.toml"), &config)
         .map_err(|_| GuiError::Startup)?;
     Ok(())
@@ -64,21 +59,39 @@ fn read_optional(path: &Path) -> Result<Option<String>> {
     }
 }
 
-fn isolated_config(config: &str, source: &Path, target: &Path) -> Result<String> {
+fn isolated_config(config: &str, target: &Path) -> Result<String> {
     let mut document = config
         .parse::<DocumentMut>()
         .map_err(|_| GuiError::Startup)?;
     document["sqlite_home"] = value(target.to_string_lossy().as_ref());
     document["log_dir"] = value(target.join("log").to_string_lossy().as_ref());
     document["cli_auth_credentials_store"] = value("file");
-    if let Some(catalog) = document
-        .get("model_catalog_json")
-        .and_then(|item| item.as_str())
-    {
-        let path = Path::new(catalog);
-        if path.is_relative() {
-            document["model_catalog_json"] = value(source.join(path).to_string_lossy().as_ref());
-        }
-    }
+    configure_gui_proxy(&mut document)?;
     Ok(document.to_string())
+}
+
+fn configure_gui_proxy(document: &mut DocumentMut) -> Result<()> {
+    use toml_edit::{Item, Table};
+    document["model_provider"] = value(GUI_PROVIDER_ID);
+    // A shared catalog may describe a different account or fixed Provider model.
+    document.remove("model_catalog_json");
+    let mut provider = Table::new();
+    provider["name"] = value("Codex GUI");
+    provider["base_url"] = value(format!(
+        "http://{}:{}/codex-gui/v1",
+        crate::codex_config::LOCAL_PROXY_HOST,
+        crate::codex_config::LOCAL_PROXY_PORT,
+    ));
+    provider["wire_api"] = value("responses");
+    provider["requires_openai_auth"] = value(false);
+    provider["experimental_bearer_token"] = value(crate::codex_config::LOCAL_PROXY_TOKEN);
+    provider["supports_websockets"] = value(false);
+    if !document.contains_key("model_providers") {
+        document["model_providers"] = Item::Table(Table::new());
+    }
+    document["model_providers"]
+        .as_table_mut()
+        .ok_or(GuiError::Startup)?
+        .insert(GUI_PROVIDER_ID, Item::Table(provider));
+    Ok(())
 }

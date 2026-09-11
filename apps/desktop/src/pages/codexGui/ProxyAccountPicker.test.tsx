@@ -70,13 +70,13 @@ it.each([
   await render();
   expect(trigger().textContent).toContain(masked);
   expect(trigger().outerHTML).not.toContain(email);
-  expect(trigger().getAttribute("aria-label")).toBe(`切换代理账户：${masked}`);
+  expect(trigger().getAttribute("aria-label")).toBe(`切换 GUI 账户：${masked}`);
   await click(trigger());
   expect(option(email).textContent).toContain(email);
   props.privacyMode = false;
   await render();
   expect(trigger().textContent).toContain(email);
-  expect(trigger().getAttribute("aria-label")).toBe(`切换代理账户：${email}`);
+  expect(trigger().getAttribute("aria-label")).toBe(`切换 GUI 账户：${email}`);
   props.privacyMode = true;
   await render();
   expect(trigger().outerHTML).not.toContain(email);

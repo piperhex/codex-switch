@@ -3,6 +3,12 @@ fn dispatch_gui_command(app: AppHandle, command: &str, args: Value) -> Result<Va
     use tauri::Manager;
 
     match command {
+        "codex_gui_account_selection" => serialize(block_on(
+            codex_gui::account_selection::codex_gui_account_selection(app),
+        )),
+        "codex_gui_switch_account" => serialize(block_on(
+            codex_gui::account_selection::codex_gui_switch_account(app, argument(&args, "selection")?),
+        )),
         "codex_gui_git" => serialize(block_on(codex_gui::git::codex_gui_git(
             app.clone(), app.state::<codex_gui::git::GitState>(), argument(&args, "request")?,
         ))),

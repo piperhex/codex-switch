@@ -246,6 +246,8 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             codex_gui::codex_gui_connect,
+            codex_gui::account_selection::codex_gui_account_selection,
+            codex_gui::account_selection::codex_gui_switch_account,
             gui_terminal::codex_gui_terminal_open,
             gui_terminal::codex_gui_terminal_command,
             remote_chat::remote_chat_config,

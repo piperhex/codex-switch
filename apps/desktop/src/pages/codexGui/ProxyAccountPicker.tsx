@@ -16,6 +16,7 @@ export interface ProxyAccountPickerProps {
   proxyRunning: boolean;
   busy: boolean;
   loading: boolean;
+  selectionError?: string;
   onSwitchAccount: (id: string) => Promise<boolean>;
   onSwitchProvider: (id: string) => Promise<boolean>;
 }
@@ -56,7 +57,7 @@ export function ProxyAccountPicker(props: ProxyAccountPickerProps) {
   const account = props.accounts.find((entry) => entry.active);
   const thirdParty = Boolean(provider || aggregate);
   const email = account?.email && (props.privacyMode ? maskAccountEmail(account.email) : account.email);
-  const name = aggregate?.name || provider?.name || email || "选择代理账户";
+  const name = aggregate?.name || provider?.name || email || "选择 GUI 账户";
   const disabled = props.busy || props.loading || saving || !props.proxyRunning;
   const matches = (choice: Choice) => `${choice.name} ${choice.detail}`.toLowerCase().includes(query.trim().toLowerCase());
   // `official` describes account-pool provenance, not whether the account can use the official API.
@@ -86,11 +87,13 @@ export function ProxyAccountPicker(props: ProxyAccountPickerProps) {
     if (event.key === "Escape") { event.stopPropagation(); setOpen(false); trigger.current?.focus(); }
   }}>
     <div className={styles.header}>
-      <div className={styles.heading}><strong>切换代理账户</strong>{(saving || props.loading) && <Spin size="small" />}</div>
+      <div className={styles.heading}><strong>切换 GUI 账户</strong>{(saving || props.loading) && <Spin size="small" />}</div>
+      <p className={styles.hint}>仅用于 Codex GUI，其他应用保持各自的账户。</p>
       <Input size="small" prefix={<Search size={13} />} placeholder="搜索账号或 Provider" aria-label="搜索账号或 Provider"
         value={query} allowClear onChange={(event) => setQuery(event.target.value)} />
       {!props.proxyRunning && <p className={styles.hint}>开启本地代理后，即可在这里切换。</p>}
       {error && <p className={styles.error} role="alert">{error}</p>}
+      {props.selectionError && <p className={styles.error} role="alert">{props.selectionError}</p>}
     </div>
     <div className={styles.list} aria-busy={saving || props.loading}>
       <AccountGroup title="官方账号" choices={accounts} disabled={disabled}
@@ -106,7 +109,7 @@ export function ProxyAccountPicker(props: ProxyAccountPickerProps) {
       setOpen(next); if (next) { setQuery(""); setError(""); }
     }}>
     <button ref={trigger} type="button" className={styles.trigger} aria-expanded={open && props.active}
-      aria-label={`切换代理账户：${name}`}>
+      aria-label={`切换 GUI 账户：${name}`}>
       {saving ? <Spin size="small" /> : thirdParty ? <Server size={17} /> : <UserRound size={17} />}
       <ProxyAccountSummary name={name} account={account} provider={aggregate ? undefined : provider}
         thirdParty={thirdParty} running={props.proxyRunning} active={props.active} />

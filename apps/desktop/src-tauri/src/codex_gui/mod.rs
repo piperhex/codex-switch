@@ -1,4 +1,5 @@
 mod access;
+pub(crate) mod account_selection;
 #[cfg(test)]
 mod attachment_tests;
 mod attachment_uploads;

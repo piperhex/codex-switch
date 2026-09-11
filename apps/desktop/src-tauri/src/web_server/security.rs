@@ -187,6 +187,8 @@ fn request_header<'a>(request: &'a Request, name: &str) -> Option<&'a str> {
 const LAN_COMMAND_ALLOWLIST: &[&str] = &[
     // The authenticated browser GUI controls Codex on this host using its existing approval flow.
     "codex_gui_connect",
+    "codex_gui_account_selection",
+    "codex_gui_switch_account",
     "codex_gui_request",
     "codex_gui_respond",
     "codex_gui_git",

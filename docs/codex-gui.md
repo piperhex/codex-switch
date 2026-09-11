@@ -6,10 +6,13 @@ Providers (三方模型及中转). It supports project folders, text and image i
 streamed Markdown replies, command output, file diffs, plans, permission approvals, questions, interruption,
 history, search, renaming, pinning, and archiving/restoring conversations.
 
-The proxy account picker includes official accounts, custom Providers, and upstream Codex Switch Providers.
-Switching updates the selected target after its configuration is saved; the official Codex window's model
-catalog refresh runs in the background, so a slow upstream catalog does not keep the switch indicator spinning.
-Upstream Codex Switch Providers continue to use the live Codex model catalog.
+The GUI account picker includes official accounts, custom Providers, and upstream Codex Switch Providers.
+Codex GUI remembers its own account independently of the account manager and other applications. The first
+visit starts with the current supported account; later switches and restarts preserve the GUI's choice.
+With the local proxy running, a GUI switch applies to subsequent requests without interrupting an existing
+reply. Shared automatic fallback and concurrent account routing do not change the GUI's selected account.
+The GUI's remaining quota and Provider model choices follow its own selection. All connected GUI browsers
+share this selection, and upstream Codex Switch Providers continue to use the live Codex model catalog.
 
 Opening or reopening a conversation displays its latest ten messages. Scroll upward to load ten earlier
 messages at a time; a loading indicator appears and the current reading position is preserved.
@@ -106,10 +109,12 @@ dev.codex.switch/
     └── log/
 ```
 
-On Windows this normally resolves to `%APPDATA%/dev.codex.switch`. Only the currently selected account's
-authentication and Codex configuration are imported. Official conversation files, indexes, and databases are
+On Windows this normally resolves to `%APPDATA%/dev.codex.switch`. Initial Codex preferences are imported once;
+GUI account selection is stored separately in `codex-gui-account.json`. GUI requests use a dedicated local
+proxy route, and reconnecting does not import another application's authentication. The GUI home is excluded
+from shared account and Provider synchronization. Official conversation files, indexes, and databases are
 never imported or edited. SQLite and log locations are overridden on the private process command line, even
-if the imported configuration specifies other locations. Reconnect after switching accounts or configuration.
+if the imported configuration specifies other locations. Reconnect after editing Codex configuration.
 Recent folders, pins, and per-conversation project choices are UI preferences stored in the Switch WebView;
 message content stays in `.codex`. Scratch folders are excluded from project labels and recent folder choices.
 

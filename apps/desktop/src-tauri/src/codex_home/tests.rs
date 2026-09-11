@@ -14,6 +14,22 @@ fn entry(id: &str, path: &str, enabled: bool) -> CodexHomeEntry {
 }
 
 #[test]
+fn gui_home_never_receives_shared_switches_even_if_legacy_settings_enable_it() {
+    let root = std::env::temp_dir();
+    let entries = vec![
+        entry(
+            super::GUI_CODEX_HOME_ID,
+            root.join("gui").to_str().unwrap(),
+            true,
+        ),
+        entry("default", root.join("official").to_str().unwrap(), true),
+    ];
+    let configured = super::configured_entries(&entries);
+    assert_eq!(configured.len(), 1);
+    assert_eq!(configured[0].id.as_deref(), Some("default"));
+}
+
+#[test]
 fn configured_home_precedes_environment_and_default() {
     let configured = PathBuf::from("configured-home");
     let resolved = resolve_from_sources(

@@ -56,7 +56,7 @@ fn current_overrides() -> Vec<ConfiguredCodexHome> {
 fn configured_entries(entries: &[CodexHomeEntry]) -> Vec<ConfiguredCodexHome> {
     entries
         .iter()
-        .filter(|entry| entry.enabled)
+        .filter(|entry| entry.enabled && entry.id != GUI_CODEX_HOME_ID)
         .map(|entry| ConfiguredCodexHome {
             id: Some(entry.id.clone()),
             path: PathBuf::from(&entry.path),

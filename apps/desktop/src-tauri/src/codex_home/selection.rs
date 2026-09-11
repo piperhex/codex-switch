@@ -15,22 +15,14 @@ pub(crate) fn gui_home<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<PathBuf,
 
 pub(crate) fn ensure_gui_entry(entries: &mut Vec<CodexHomeEntry>, path: &Path) -> bool {
     let original = entries.clone();
-    let enabled = entries
-        .iter()
-        .filter(|entry| {
-            entry.id == GUI_CODEX_HOME_ID || super::paths_match(Path::new(&entry.path), path)
-        })
-        .map(|entry| entry.enabled)
-        .reduce(|enabled, saved| enabled || saved)
-        .unwrap_or(true);
     entries.retain(|entry| {
         entry.id != GUI_CODEX_HOME_ID && !super::paths_match(Path::new(&entry.path), path)
     });
     entries.push(CodexHomeEntry {
         id: GUI_CODEX_HOME_ID.to_string(),
         path: path.to_string_lossy().into_owned(),
-        // Enable new GUI homes by default while preserving saved synchronization choices.
-        enabled,
+        // GUI credentials and routing must never be overwritten by global account switches.
+        enabled: false,
     });
     *entries != original
 }
@@ -61,11 +53,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn gui_entry_is_fixed_deduplicated_and_preserves_sync_choice() {
+    fn gui_entry_is_fixed_deduplicated_and_excluded_from_shared_switches() {
         let path = std::env::temp_dir().join("gui-home");
         let mut entries = Vec::new();
         assert!(ensure_gui_entry(&mut entries, &path));
-        assert!(entries[0].enabled);
+        assert!(!entries[0].enabled);
         assert!(!ensure_gui_entry(&mut entries, &path));
         entries[0].enabled = false;
         assert!(!ensure_gui_entry(&mut entries, &path));
@@ -77,7 +69,7 @@ mod tests {
         });
         ensure_gui_entry(&mut entries, &path);
         assert_eq!(entries.len(), 1);
-        assert!(entries[0].enabled);
+        assert!(!entries[0].enabled);
         assert_eq!(entries[0].id, GUI_CODEX_HOME_ID);
     }
 
