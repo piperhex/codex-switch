@@ -14,10 +14,16 @@ const provider: Provider = {
   hasApiKey: true, supportsDirectSwitch: false, balanceQueryUsesApiKey: true, hasBalanceQueryToken: false,
   hasWalletQueryToken: false, hasWalletLoginCredentials: false,
 };
-const accounts = Array.from({ length: 6 }, (_, index) => ({ ...DEMO_ACCOUNTS[index % DEMO_ACCOUNTS.length],
+const accountCount = new URLSearchParams(location.search).has("manyAccounts") ? 40 : 6;
+const resetTime = Math.floor(Date.now() / 1_000);
+const accounts = Array.from({ length: accountCount }, (_, index) => ({ ...DEMO_ACCOUNTS[index % DEMO_ACCOUNTS.length],
   id: `account-${index}`, email: `workspace${index + 1}@example.com`, active: index === 0, localProxyCompatible: true,
   autoSwitchEnabled: false, autoSwitchPriority: 20, autoSwitchThreshold: 50,
-  usage: { primary: { usedPercent: 90 - index * 10, remainingPercent: 10 + index * 10 } },
+  usage: {
+    primary: { usedPercent: 90 - index % 6 * 10, remainingPercent: 10 + index % 6 * 10,
+      resetsAt: resetTime + 14_400 },
+    secondary: { usedPercent: 25, remainingPercent: 75, resetsAt: resetTime + 172_800 },
+  },
 }));
 const TICK_MS = 50;
 

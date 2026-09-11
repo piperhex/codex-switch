@@ -6,6 +6,7 @@ import {
 } from "./autoSwitchSettings";
 import type { GuiAutoSwitchAccountRule, GuiAutoSwitchSettings } from "./autoSwitchSettings";
 import { useGuiAutoSwitchSettings } from "./useGuiAutoSwitchSettings";
+import { GuiAccountUsage } from "./GuiAccountUsage";
 import styles from "./GuiAutoSwitchSettingsDialog.module.less";
 
 type SettingsEditor = ReturnType<typeof useGuiAutoSwitchSettings>;
@@ -58,12 +59,14 @@ function GeneralSettings({ settings, editor, providers }: FieldsProps) {
 }
 
 function AccountRule({ account, rule, disabled, onChange }: {
-  account: { email: string; localProxyCompatible: boolean }; rule: GuiAutoSwitchAccountRule;
+  account: Pick<Account, "email" | "localProxyCompatible" | "usage">; rule: GuiAutoSwitchAccountRule;
   disabled: boolean; onChange: (rule: GuiAutoSwitchAccountRule) => void;
 }) {
   const unavailable = disabled || !account.localProxyCompatible;
   return <tr className={styles.account}>
     <td><span className={styles.email} title={account.email}>{account.email}</span></td>
+    <td><GuiAccountUsage usage={account.usage.primary} label="主用量" /></td>
+    <td><GuiAccountUsage usage={account.usage.secondary} label="次用量" /></td>
     <td>
       <Switch size="small" aria-label={`${account.email} 参与自动切换`} checked={rule.enabled}
         disabled={unavailable} onChange={(enabled) => onChange({ ...rule, enabled })} />
@@ -93,13 +96,15 @@ function AccountSettings({ settings, editor, accounts, privacyMode }: {
     </div>
     {accounts.length ? <div className={styles.accountTableScroll}>
       <table className={styles.accountTable} aria-label="参与自动切换的账号">
-        <colgroup><col /><col className={styles.participationColumn} />
+        <colgroup><col /><col className={styles.usageColumn} /><col className={styles.usageColumn} />
+          <col className={styles.participationColumn} />
           <col className={styles.numberColumn} /><col className={styles.numberColumn} /></colgroup>
-        <thead><tr><th scope="col">账号</th><th scope="col">参与切换</th>
+        <thead><tr><th scope="col">账号</th><th scope="col">主用量</th><th scope="col">次用量</th>
+          <th scope="col">参与切换</th>
           <th scope="col">优先级</th><th scope="col">剩余阈值</th></tr></thead>
         <tbody>{accounts.map((account) => <AccountRule key={account.id}
           account={{ email: privacyMode ? maskAccountEmail(account.email) : account.email,
-            localProxyCompatible: account.localProxyCompatible }}
+            localProxyCompatible: account.localProxyCompatible, usage: account.usage }}
           rule={guiAccountRule(settings, account.id)} disabled={editor.saving || !settings.enabled}
           onChange={editor.updateAccount} />)}</tbody>
       </table>

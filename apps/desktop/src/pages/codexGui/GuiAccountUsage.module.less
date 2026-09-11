@@ -1,0 +1,14 @@
+.usage {
+  --usage-color: var(--green, #1cafad);
+  display: flex; flex-direction: column; gap: 5px; text-align: left; font-variant-numeric: tabular-nums;
+  &[data-tone='warning'] { --usage-color: #b38a27; }
+  &[data-tone='danger'] { --usage-color: #cb655b; }
+}
+.value { display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+  color: var(--muted); font-size: 11px;
+  > strong { color: var(--usage-color); font-size: 12px; font-weight: 600; }
+}
+.track { height: 5px; overflow: hidden; border-radius: 4px; background: var(--line, #e3eae7);
+  > span { display: block; height: 100%; border-radius: inherit; background: var(--usage-color); }
+}
+.reset, .missing { color: var(--muted); font-size: 10px; line-height: 16px; overflow-wrap: anywhere; }

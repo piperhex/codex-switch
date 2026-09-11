@@ -107,3 +107,48 @@ test("gear opens an aligned 80vw settings dialog and saves GUI settings", async 
     ] });
   await expect(triggerFor(page)).toBeFocused();
 });
+
+test("quota countdowns stay live while the account table scrolls inside a fixed dialog", async ({ page }) => {
+  await mockCommands(page);
+  await page.route("**/__codex_switch__/api/invoke", async (route) => {
+    if (route.request().postDataJSON().command === "get_local_proxy_status") {
+      await new Promise((resolve) => setTimeout(resolve, 1_500));
+    }
+    await route.fallback();
+  });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/e2e/account-picker-harness.html?manyAccounts");
+  await triggerFor(page).click();
+  await page.getByRole("button", { name: "自动切号设置", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "GUI 自动切号设置" });
+  const table = dialog.getByRole("table");
+  const scroll = table.locator("..");
+  await expect(table.getByRole("columnheader", { name: "主用量" })).toBeVisible();
+  await expect(table.getByRole("columnheader", { name: "次用量" })).toBeVisible();
+  const first = table.locator("tbody tr").first();
+  await expect(first.getByRole("progressbar", { name: "主用量剩余" })).toHaveAttribute("aria-valuenow", "10");
+  await expect(first.getByRole("progressbar", { name: "次用量剩余" })).toHaveAttribute("aria-valuenow", "75");
+  const before = await first.locator("td").nth(2).textContent();
+  await expect.poll(() => first.locator("td").nth(2).textContent()).not.toBe(before);
+  await page.getByRole("switch", { name: "自动切换账号", exact: true }).click();
+  await first.getByRole("spinbutton", { name: "workspace1@example.com 优先级", exact: true }).fill("3");
+  const beats = Number(await page.getByLabel("刷新次数").textContent());
+  await expect.poll(async () => Number(await page.getByLabel("刷新次数").textContent())).toBeGreaterThan(beats + 3);
+  const headerTop = (await table.locator("thead").boundingBox())!.y;
+  const save = dialog.getByRole("button", { name: /^保\s*存$/ });
+  const footerTop = (await save.boundingBox())!.y;
+  const bounds = (await scroll.boundingBox())!;
+  expect(footerTop - bounds.y - bounds.height).toBeLessThan(30);
+  await scroll.evaluate((element) => { element.scrollTop = element.scrollHeight; });
+  await expect(first).not.toBeInViewport();
+  expect((await table.getByRole("columnheader").first().boundingBox())!.y).toBeCloseTo(headerTop, 0);
+  expect((await save.boundingBox())!.y).toBeCloseTo(footerTop, 0);
+  expect(await dialog.locator(".ant-modal-body").evaluate((element) => element.scrollHeight <= element.clientHeight))
+    .toBe(true);
+  await page.screenshot({ path: "../../.codex-tmp/gui-auto-switch-usage-scroll.png", animations: "disabled" });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(save).toBeInViewport();
+  await expect(scroll).toBeInViewport();
+  expect(await scroll.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
+  await page.screenshot({ path: "../../.codex-tmp/gui-auto-switch-usage-narrow.png", animations: "disabled" });
+});
