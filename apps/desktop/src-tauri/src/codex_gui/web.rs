@@ -99,7 +99,11 @@ impl EventLog {
 #[derive(Default)]
 pub(crate) struct WebEventState(Mutex<EventLog>);
 
-pub(super) fn publish(app: &AppHandle, name: &str, payload: impl Serialize + Clone) {
+pub(super) fn publish<R: tauri::Runtime>(
+    app: &AppHandle<R>,
+    name: &str,
+    payload: impl Serialize + Clone,
+) {
     if app.emit_to("main", name, payload.clone()).is_err() {
         eprintln!("Codex GUI could not deliver a desktop event");
     }

@@ -14,6 +14,23 @@ reply. Shared automatic fallback and concurrent account routing do not change th
 The GUI's remaining quota and Provider model choices follow its own selection. All connected GUI browsers
 share this selection, and upstream Codex Switch Providers continue to use the live Codex model catalog.
 
+The gear at the top right of the account list opens **GUI 自动切号设置**. Automatic switching is off by
+default and has its own account membership, priorities, quota thresholds, exhaustion toggle, fallback
+Provider, and sequential/concurrent mode. New accounts participate by default after it is enabled;
+these choices never edit the account manager's rules. The list follows the width of the account bar below.
+
+Sequential mode keeps the current account until it is excluded, its primary quota falls below the larger
+of the default/account thresholds, or quota exhaustion requires a replacement. Smaller priority numbers
+come first; equal priorities prefer the smaller positive remaining quota. Concurrent mode keeps an eligible
+account assigned to each conversation and distributes new conversations among the highest-priority available
+accounts. With no eligible account, the configured fallback Provider is used; a manually selected Provider
+stays selected. A normal temporary rate limit retries without rotating accounts. Once a reply has streamed,
+it is never replayed on another account. Settings are saved in `codex-gui-auto-switch.json` and survive restart.
+
+Quota refreshes run outside settings and selection locks. A manual account change or a settings save
+invalidates older automatic decisions, so a slow refresh cannot overwrite the newer choice. Confirmed
+exhausted accounts stay excluded until a later successful quota refresh shows usable quota again.
+
 Opening or reopening a conversation displays its latest ten messages. Scroll upward to load ten earlier
 messages at a time; a loading indicator appears and the current reading position is preserved.
 Incoming replies continue updating while browsing history.

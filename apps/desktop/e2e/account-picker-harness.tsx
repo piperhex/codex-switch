@@ -1,0 +1,50 @@
+import { useEffect, useState } from "react";
+import { createRoot } from "react-dom/client";
+import { App, ConfigProvider } from "antd";
+import { DEMO_ACCOUNTS } from "../src/demo";
+import type { Provider } from "../src/types";
+import { ProxyAccountPicker } from "../src/pages/codexGui/ProxyAccountPicker";
+import { useUsageStatus } from "../src/pages/codexGui/useUsageStatus";
+
+const provider: Provider = {
+  id: "backup", name: "备用服务", kind: "custom", group: "", baseUrl: "https://example.com/v1",
+  model: "test-model", models: [], modelReasoningEfforts: {}, modelContextWindows: {}, modelApiFormats: {},
+  imageInputModels: [], imageInputModelsConfigured: false, modelSelectionControlledByCodex: true,
+  fastModeEnabled: false, apiFormat: "openaiResponses", active: false, autoSwitchEnabled: false,
+  hasApiKey: true, supportsDirectSwitch: false, balanceQueryUsesApiKey: true, hasBalanceQueryToken: false,
+  hasWalletQueryToken: false, hasWalletLoginCredentials: false,
+};
+const accounts = Array.from({ length: 6 }, (_, index) => ({ ...DEMO_ACCOUNTS[index % DEMO_ACCOUNTS.length],
+  id: `account-${index}`, email: `workspace${index + 1}@example.com`, active: index === 0, localProxyCompatible: true,
+  autoSwitchEnabled: false, autoSwitchPriority: 20, autoSwitchThreshold: 50,
+  usage: { primary: { usedPercent: 90 - index * 10, remainingPercent: 10 + index * 10 } },
+}));
+const TICK_MS = 50;
+
+function Harness() {
+  const [beats, setBeats] = useState(0);
+  useUsageStatus(true);
+  useEffect(() => {
+    const timer = setInterval(() => setBeats((value) => value + 1), TICK_MS);
+    return () => clearInterval(timer);
+  }, []);
+  return <ConfigProvider theme={{ token: { colorPrimary: "#168348" } }}><App>
+    <main><input aria-label="消息" placeholder="输入消息…" /><output aria-label="刷新次数" hidden>{beats}</output></main>
+    <aside aria-label="会话侧栏">
+      <ProxyAccountPicker active privacyMode={false} accounts={accounts} providers={[provider]}
+        aggregateApis={[]} proxyRunning busy={false} loading={false}
+        onSwitchAccount={async () => true} onSwitchProvider={async () => true} />
+    </aside>
+  </App></ConfigProvider>;
+}
+
+const css = document.createElement("style");
+css.textContent = "*{box-sizing:border-box}body{margin:0;font-family:Microsoft YaHei,sans-serif;background:#f4f7f5}"
+  + "main{position:absolute;left:12px;top:12px}input{font:inherit}"
+  + "aside{position:absolute;left:12px;bottom:12px;width:var(--fixture-sidebar-width,352px);"
+  + "max-width:calc(100vw - 24px);padding:16px;background:#fff;--sidebar-inline-padding:16px;"
+  + "--sidebar-bottom-padding:16px}:root{--ink:#233329;--panel:#fff;--line:#dfe6e1;"
+  + "--muted:#66796d;--green:#168348;--green-dark:#126a3b;--green-selection:#c6f4e8;"
+  + "--green-selection-hover:#e7f4ec}";
+document.head.append(css);
+createRoot(document.getElementById("root")!).render(<Harness />);

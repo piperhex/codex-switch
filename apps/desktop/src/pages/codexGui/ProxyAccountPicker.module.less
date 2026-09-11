@@ -9,14 +9,20 @@
   &:hover { background: var(--green-selection-hover); }
   &:focus-visible { outline: 2px solid var(--green); outline-offset: -2px; }
 }
-// Reduce the previous 320px content plus 24px popover padding by 20%.
-@panel-width: (344px * 0.8);
 .panel {
-  width: min(@panel-width, calc(100vw - 24px)); max-width: 400px; box-sizing: border-box;
+  width: 100%; max-width: min(400px, calc(100vw - 24px)); box-sizing: border-box;
   padding: 12px 0; color: var(--ink); overflow-wrap: anywhere;
 }
 .header { padding: 0 12px; }
 .heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; font-size: 13px; }
+.headingActions { display: flex; align-items: center; gap: 8px; }
+.settings {
+  display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0;
+  border: 0; border-radius: 5px; background: transparent; color: var(--muted); cursor: pointer;
+  &:hover:not(:disabled) { background: var(--green-selection-hover); color: var(--ink); }
+  &:focus-visible { outline: 2px solid var(--green); outline-offset: -2px; }
+  &:disabled { cursor: default; opacity: 0.5; }
+}
 .list {
   max-height: min(380px, 55vh); overflow-y: auto; margin-top: 10px; padding-left: 12px;
   overscroll-behavior: contain;

@@ -15,6 +15,8 @@ pub(crate) mod auto_reset;
 pub(crate) mod concurrent_quota;
 pub(crate) mod endpoints;
 mod error_capture;
+mod gui_auto_switch;
+mod gui_forwarding;
 mod gui_routing;
 mod quota_detection;
 mod quota_sse;

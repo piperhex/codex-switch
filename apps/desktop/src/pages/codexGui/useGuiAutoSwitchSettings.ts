@@ -1,0 +1,55 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+import { loadGuiAutoSwitchSettings, saveGuiAutoSwitchSettings, updateGuiAccountRule } from "./autoSwitchSettings";
+import type { GuiAutoSwitchAccountRule, GuiAutoSwitchSettings } from "./autoSwitchSettings";
+
+export function useGuiAutoSwitchSettings() {
+  const [settings, setSettings] = useState<GuiAutoSwitchSettings | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const revision = useRef(0);
+  const pendingSave = useRef(false);
+  const load = useCallback(async () => {
+    const request = ++revision.current;
+    setLoading(true);
+    setError("");
+    try {
+      const saved = await loadGuiAutoSwitchSettings();
+      if (request === revision.current) setSettings(saved);
+    } catch {
+      if (request === revision.current) setError("暂时无法读取设置，请重试。");
+    } finally {
+      if (request === revision.current) setLoading(false);
+    }
+  }, []);
+  useEffect(() => {
+    void load();
+    return () => { revision.current += 1; };
+  }, [load]);
+  const save = async (availableAccountIds: readonly string[]) => {
+    if (!settings || loading || pendingSave.current) return false;
+    const request = ++revision.current;
+    pendingSave.current = true;
+    setSaving(true);
+    setError("");
+    try {
+      const available = new Set(availableAccountIds);
+      const saved = await saveGuiAutoSwitchSettings({ ...settings,
+        accounts: settings.accounts.filter((rule) => available.has(rule.accountId)) });
+      if (request !== revision.current) return false;
+      setSettings(saved);
+      return true;
+    } catch {
+      if (request === revision.current) setError("设置未保存，请重试。");
+      return false;
+    } finally {
+      pendingSave.current = false;
+      if (request === revision.current) setSaving(false);
+    }
+  };
+  const update = (patch: Partial<GuiAutoSwitchSettings>) =>
+    setSettings((current) => current ? { ...current, ...patch } : current);
+  const updateAccount = (rule: GuiAutoSwitchAccountRule) =>
+    setSettings((current) => current ? updateGuiAccountRule(current, rule) : current);
+  return { settings, loading, saving, error, load, save, update, updateAccount };
+}

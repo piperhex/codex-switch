@@ -248,6 +248,8 @@ pub fn run() {
             codex_gui::codex_gui_connect,
             codex_gui::account_selection::codex_gui_account_selection,
             codex_gui::account_selection::codex_gui_switch_account,
+            codex_gui::auto_switch_settings::codex_gui_auto_switch_settings,
+            codex_gui::auto_switch_settings::codex_gui_set_auto_switch_settings,
             gui_terminal::codex_gui_terminal_open,
             gui_terminal::codex_gui_terminal_command,
             remote_chat::remote_chat_config,

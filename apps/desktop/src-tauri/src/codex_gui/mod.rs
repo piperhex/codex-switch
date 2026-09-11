@@ -3,6 +3,8 @@ pub(crate) mod account_selection;
 #[cfg(test)]
 mod attachment_tests;
 mod attachment_uploads;
+pub(crate) mod auto_switch_policy;
+pub(crate) mod auto_switch_settings;
 mod client;
 mod computer_use_setup;
 pub(crate) mod deletion;

@@ -1,0 +1,30 @@
+.dialog {
+  :global(.ant-modal-body) { max-height: 65vh; overflow-y: auto; overscroll-behavior: contain; }
+}
+.intro, .hint { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.intro { margin: 0 0 16px; }
+.hint { margin: 0; line-height: 1.6; }
+.fields { display: flex; flex-direction: column; gap: 12px; }
+.row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0;
+  > :global(.ant-input-number) { width: 86px; flex-shrink: 0; }
+  > :global(.ant-select) { min-width: 112px; }
+  > :global(.ant-switch) { flex-shrink: 0; }
+}
+.providerField {
+  display: flex; flex-direction: column; gap: 8px;
+  > :global(.ant-select) { width: 100%; }
+}
+.accounts { border-top: 1px solid var(--line); margin-top: 16px; padding-top: 14px; }
+.accounts h3 { margin: 0 0 8px; font-size: 13px; }
+.account { padding: 12px 0; border-bottom: 1px solid var(--line); }
+.account:last-child { border-bottom: 0; padding-bottom: 0; }
+.email { min-width: 0; overflow-wrap: anywhere; font-size: 12px; }
+.accountFields {
+  display: flex; gap: 12px; margin-top: 10px;
+  > label { display: flex; flex: 1; flex-direction: column; gap: 4px; min-width: 0; }
+  label > span { color: var(--muted); font-size: 11px; }
+  :global(.ant-input-number), :global(.ant-input-number-affix-wrapper) { width: 100%; }
+}
+.loading, .error { display: flex; align-items: center; gap: 8px; margin: 12px 0; font-size: 12px; }
+.error { color: var(--ant-color-error, #c43c3c); }

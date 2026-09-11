@@ -24,6 +24,15 @@ pub(crate) enum GuiAccountSelection {
     Provider(String),
 }
 
+/// The revision also changes for a manual re-selection of the same account (A → B → A).
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub(crate) struct SelectionSnapshot {
+    #[serde(flatten)]
+    pub(crate) selection: GuiAccountSelection,
+    #[serde(default)]
+    pub(crate) revision: u64,
+}
+
 impl GuiAccountSelection {
     /// Adapt a disposable summary snapshot; never persist it as the manager's state.
     pub(crate) fn apply_to_summary(&self, state: &mut crate::models::ManagerStateFile) {
@@ -42,26 +51,49 @@ impl GuiAccountSelection {
 fn read_or_initialize(
     path: &Path,
     initial: impl FnOnce() -> Result<GuiAccountSelection, SelectionError>,
-) -> Result<GuiAccountSelection, SelectionError> {
+) -> Result<SelectionSnapshot, SelectionError> {
     match fs::read(path) {
         Ok(bytes) => serde_json::from_slice(&bytes).map_err(|_| SelectionError::Storage),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
             let selection = initial()?;
-            save(path, &selection)?;
-            Ok(selection)
+            save(path, &selection)
         }
         Err(_) => Err(SelectionError::Storage),
     }
 }
 
-fn save(path: &Path, selection: &GuiAccountSelection) -> Result<(), SelectionError> {
-    let value = serde_json::to_value(selection).map_err(|_| SelectionError::Storage)?;
-    crate::storage::write_json_atomic(path, &value).map_err(|_| SelectionError::Storage)
+fn save(path: &Path, selection: &GuiAccountSelection) -> Result<SelectionSnapshot, SelectionError> {
+    let revision = match fs::read(path) {
+        Ok(bytes) => {
+            serde_json::from_slice::<SelectionSnapshot>(&bytes)
+                .map_err(|_| SelectionError::Storage)?
+                .revision
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => 0,
+        Err(_) => return Err(SelectionError::Storage),
+    };
+    let snapshot = SelectionSnapshot {
+        selection: selection.clone(),
+        revision: revision.checked_add(1).ok_or(SelectionError::Storage)?,
+    };
+    let value = serde_json::to_value(&snapshot).map_err(|_| SelectionError::Storage)?;
+    crate::storage::write_json_atomic(path, &value).map_err(|_| SelectionError::Storage)?;
+    Ok(snapshot)
 }
 
 /// Copy the previous selection once, then ignore changes to the shared switch state.
 pub(crate) fn read<R: Runtime>(app: &AppHandle<R>) -> Result<GuiAccountSelection, SelectionError> {
+    snapshot(app).map(|snapshot| snapshot.selection)
+}
+
+pub(crate) fn snapshot<R: Runtime>(
+    app: &AppHandle<R>,
+) -> Result<SelectionSnapshot, SelectionError> {
     let _guard = SELECTION_LOCK.lock().map_err(|_| SelectionError::Storage)?;
+    snapshot_unlocked(app)
+}
+
+fn snapshot_unlocked<R: Runtime>(app: &AppHandle<R>) -> Result<SelectionSnapshot, SelectionError> {
     let root = app
         .path()
         .app_data_dir()
@@ -82,6 +114,35 @@ pub(crate) fn read<R: Runtime>(app: &AppHandle<R>) -> Result<GuiAccountSelection
             },
         )
     })
+}
+
+/// Automatic decisions can update GUI selection only while their starting revision is current.
+pub(crate) fn compare_and_switch<R: Runtime>(
+    app: &AppHandle<R>,
+    expected: u64,
+    selection: &GuiAccountSelection,
+) -> Result<Option<SelectionSnapshot>, SelectionError> {
+    with_current(app, expected, || {
+        let root = app
+            .path()
+            .app_data_dir()
+            .map_err(|_| SelectionError::Storage)?;
+        let updated = save(&root.join(FILE_NAME), selection)?;
+        super::web::publish(app, CHANGED_EVENT, selection);
+        Ok(updated)
+    })?
+    .transpose()
+}
+
+/// Guards only a short state update; callers must complete network work before entering.
+pub(crate) fn with_current<R: Runtime, T>(
+    app: &AppHandle<R>,
+    expected: u64,
+    apply: impl FnOnce() -> T,
+) -> Result<Option<T>, SelectionError> {
+    let _guard = SELECTION_LOCK.lock().map_err(|_| SelectionError::Storage)?;
+    let current = snapshot_unlocked(app)?;
+    Ok((current.revision == expected).then(apply))
 }
 
 fn validate(app: &AppHandle, selection: &GuiAccountSelection) -> Result<(), SelectionError> {
@@ -180,13 +241,17 @@ mod tests {
         let path = root.join(FILE_NAME);
         let first = GuiAccountSelection::Account("first".into());
         assert_eq!(
-            read_or_initialize(&path, || Ok(first.clone())).unwrap(),
+            read_or_initialize(&path, || Ok(first.clone()))
+                .unwrap()
+                .selection,
             first
         );
         let second = GuiAccountSelection::Provider("second".into());
         save(&path, &second).unwrap();
         assert_eq!(
-            read_or_initialize(&path, || panic!("must not read shared state")).unwrap(),
+            read_or_initialize(&path, || panic!("must not read shared state"))
+                .unwrap()
+                .selection,
             second
         );
         fs::write(&path, "broken").unwrap();

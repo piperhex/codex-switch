@@ -18,7 +18,7 @@ pub(super) struct GuiProxyRequest<'a, R: Runtime> {
     pub session_request_id: Option<u64>,
 }
 
-fn selected_target<R: Runtime>(
+pub(super) fn selected_target<R: Runtime>(
     app: &tauri::AppHandle<R>,
     selection: &GuiAccountSelection,
 ) -> Result<ActiveTarget, String> {
@@ -35,8 +35,8 @@ fn selected_target<R: Runtime>(
     }
 }
 
-/// Snapshot the GUI target for this request, including retries. Shared fallback and concurrent
-/// routing must never replace it, even when the same account is active in both workspaces.
+/// GUI requests and retries use only GUI switching rules. Shared fallback and concurrent
+/// routing cannot replace the target, even when both workspaces select the same account.
 pub(super) fn handle<R: Runtime>(
     request: GuiProxyRequest<'_, R>,
 ) -> Result<UpstreamPayload, String> {
@@ -47,18 +47,18 @@ fn handle_selected<R: Runtime>(request: GuiProxyRequest<'_, R>) -> Result<Upstre
     if is_anthropic_messages_endpoint(request_path(request.url)) {
         return Err("Codex GUI only supports Codex requests".to_string());
     }
-    let selection = account_selection::read(request.app).map_err(|error| error.to_string())?;
-    let target = selected_target(request.app, &selection)?;
-    let account_id = match &selection {
-        GuiAccountSelection::Account(id) => Some(id.as_str()),
-        _ => None,
-    };
     if *request.method == Method::Get
         && matches!(request_path(request.url), "/models" | "/v1/models")
     {
+        let selection = account_selection::read(request.app).map_err(|error| error.to_string())?;
+        let target = selected_target(request.app, &selection)?;
+        let account_id = match &selection {
+            GuiAccountSelection::Account(id) => Some(id.as_str()),
+            _ => None,
+        };
         return models(&request, &target, account_id);
     }
-    forward(request, &target, account_id)
+    super::gui_forwarding::forward(request)
 }
 
 fn models<R: Runtime>(
@@ -89,85 +89,6 @@ fn models<R: Runtime>(
         payload,
         settings.gpt_5_6_sol_context_window,
         &settings.official_model_context_windows,
-    )
-}
-
-fn forward<R: Runtime>(
-    mut request: GuiProxyRequest<'_, R>,
-    target: &ActiveTarget,
-    account_id: Option<&str>,
-) -> Result<UpstreamPayload, String> {
-    let started_at = Instant::now();
-    request.body = inject_system_prompts(filter_system_prompts(request.body));
-    let context = token_usage_context(TokenUsageRequest {
-        method: request.method,
-        path: request_path(request.url),
-        body: &request.body,
-        headers: request.headers,
-        target,
-        started_at,
-        session_id: request.session_id,
-        session_request_id: request.session_request_id,
-    });
-    if let Some(context) = &context {
-        update_proxy_session_target(
-            request.session_id,
-            request.session_request_id,
-            &context.provider,
-            &context.model,
-        );
-    }
-    let diagnostic = proxy_diagnostic_entry(
-        request.method,
-        request.url,
-        request.headers,
-        &request.body,
-        Some(target),
-        proxy_diagnostic_route(request_path(request.url), target),
-    );
-    let result = send(&request, target, account_id);
-    let result = attach_token_usage_capture(request.app, context, result);
-    append_proxy_diagnostic_result(request.app, diagnostic, &result, started_at.elapsed());
-    result
-}
-
-fn send<R: Runtime>(
-    request: &GuiProxyRequest<'_, R>,
-    target: &ActiveTarget,
-    account_id: Option<&str>,
-) -> Result<UpstreamPayload, String> {
-    retry_upstream_request(
-        upstream_429_retry_timeout(request.app)?,
-        || {
-            forward_active_request(ActiveForwardRequest {
-                app: request.app,
-                method: request.method,
-                url: request.url,
-                headers: request.headers,
-                body: request.body.clone(),
-                target,
-                session_id: request.session_id,
-                account_id_override: account_id,
-            })
-            .map(|mut payload| {
-                if let Some(account) = payload.token_usage_account.as_mut() {
-                    account.auto_switch_eligible = false;
-                }
-                if let ActiveTarget::Provider(provider) = target {
-                    if !providers::uses_upstream_official_models(provider) {
-                        payload
-                            .response_headers
-                            .retain(|(name, _)| !name.eq_ignore_ascii_case("x-models-etag"));
-                        payload.response_headers.push((
-                            "x-models-etag".into(),
-                            provider_models_etag_with_image_route(provider, false),
-                        ));
-                    }
-                }
-                payload
-            })
-        },
-        |_, _| false,
     )
 }
 
