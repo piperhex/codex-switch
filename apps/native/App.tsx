@@ -1352,6 +1352,7 @@ function SettingsPage({ session, profile, globalRefreshMinutes, onGlobalRefreshM
 }
 
 type AppPage = 'accounts' | 'devices' | 'chat' | 'totp' | 'admin' | 'settings' | 'about';
+const DEFAULT_APP_PAGE: AppPage = 'chat';
 
 function BottomNavigation({ activePage, onChange }: {
   activePage: AppPage;
@@ -1714,7 +1715,7 @@ function DeviceSwitchDrawer({ account, devices, switching, onClose, onSwitch }: 
 function AppContent() {
   const [session, setSession] = useState<AuthSession | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [activePage, setActivePage] = useState<AppPage>('accounts');
+  const [activePage, setActivePage] = useState<AppPage>(DEFAULT_APP_PAGE);
   const openChat = useCallback(() => setActivePage('chat'), []);
   const chatNotification = useChatNotificationNavigation(session, openChat);
   const [initializing, setInitializing] = useState(true);
@@ -1764,7 +1765,7 @@ function AppContent() {
         setAccounts([]);
         setDevices([]);
         setProviders([]);
-        setActivePage('accounts');
+        setActivePage(DEFAULT_APP_PAGE);
       }
       if (!quiet) Toast.fail(errorMessage(error));
     } finally {
@@ -1973,7 +1974,7 @@ function AppContent() {
             setAccounts([]);
             setDevices([]);
             setProviders([]);
-            setActivePage('accounts');
+            setActivePage(DEFAULT_APP_PAGE);
           }
         }
       } finally {
@@ -2041,9 +2042,9 @@ function AppContent() {
   useEffect(() => {
     // Android's system Back action also covers the edge-swipe gesture. Keep
     // top-level tabs in the app before allowing the Activity to finish.
-    if (!session || activePage === 'accounts' || activePage === 'admin') return undefined;
+    if (!session || activePage === DEFAULT_APP_PAGE || activePage === 'admin') return undefined;
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-      setActivePage(activePage === 'about' ? 'settings' : 'accounts');
+      setActivePage(activePage === 'about' ? 'settings' : DEFAULT_APP_PAGE);
       return true;
     });
     return () => subscription.remove();
@@ -2053,7 +2054,7 @@ function AppContent() {
     void reportMobileInstallation(nextSession.baseUrl).catch(() => undefined);
     setSession(nextSession);
     setProfile(nextSession.profile ?? null);
-    setActivePage('accounts');
+    setActivePage(DEFAULT_APP_PAGE);
     setLoading(true);
     void fetchAccountSummary(nextSession)
       .then((nextAccounts) => {
@@ -2100,7 +2101,7 @@ function AppContent() {
         setAccounts([]);
         setDevices([]);
         setProviders([]);
-        setActivePage('accounts');
+        setActivePage(DEFAULT_APP_PAGE);
       } else {
         Toast.fail(`删除失败：${errorMessage(error)}`);
         void fetchRemoteDevices(session).then(setDevices).catch(() => undefined);
@@ -2244,7 +2245,7 @@ function AppContent() {
         setAccounts([]);
         setDevices([]);
         setProviders([]);
-        setActivePage('accounts');
+        setActivePage(DEFAULT_APP_PAGE);
       } else {
         Toast.fail(`更新代理登录态失败：${errorMessage(error)}`);
         void fetchRemoteDevices(session).then(setDevices).catch(() => undefined);
@@ -2266,7 +2267,7 @@ function AppContent() {
     setSwitchingProvider(null);
     setSwitchingOpenAiAuth(null);
     setRestartingDeviceId(null);
-    setActivePage('accounts');
+    setActivePage(DEFAULT_APP_PAGE);
   }, []);
 
   if (initializing) return <View style={styles.boot}><StatusBar style="dark" /><ActivityIndicator size="large" color={COLORS.green} /><Text style={styles.bootText}>Codex Switch</Text></View>;
