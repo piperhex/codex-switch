@@ -5,6 +5,8 @@ export interface DiffPanelEntry { id: string; title: string; files: DiffFile[]; 
 interface DetailsContextValue {
   open: (entry: DiffPanelEntry) => void;
   update: (entry: DiffPanelEntry) => void;
+  visible: boolean;
+  close: () => void;
 }
 export const DetailsContext = createContext<DetailsContextValue | null>(null);
 

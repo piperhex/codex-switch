@@ -36,6 +36,7 @@ mod dream_skin_resources;
 mod error_logs;
 mod floating_bubble;
 mod grok_provider;
+mod gui_terminal;
 #[cfg(windows)]
 mod installer_lifecycle;
 mod launch_options;
@@ -117,6 +118,7 @@ pub fn run() {
         .plugin(tauri_plugin_deep_link::init())
         .manage(AppState::default())
         .manage(codex_gui::GuiState::default())
+        .manage(std::sync::Arc::new(gui_terminal::TerminalState::default()))
         .manage(codex_gui::git::GitState::default())
         .manage(codex_gui::web::WebEventState::default())
         .manage(ccs_import::ImportState::default())
@@ -244,6 +246,8 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             codex_gui::codex_gui_connect,
+            gui_terminal::codex_gui_terminal_open,
+            gui_terminal::codex_gui_terminal_command,
             remote_chat::remote_chat_config,
             codex_gui::releases::codex_gui_cli_status,
             codex_gui::releases::codex_gui_cli_release,
@@ -497,7 +501,10 @@ pub fn run() {
             if matches!(event, tauri::RunEvent::Reopen { .. }) {
                 system_tray::show_dashboard(app);
             }
-            if matches!(event, tauri::RunEvent::ExitRequested { .. }) {
+            if let tauri::RunEvent::ExitRequested { api, .. } = event {
+                if gui_terminal::defer_exit(app, &api) {
+                    return;
+                }
                 codex_gui::shutdown(app);
                 floating_bubble::shutdown(app);
                 web_server::shutdown();

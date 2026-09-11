@@ -1,0 +1,28 @@
+.panel { --terminal-background: #fff; position: relative; display: flex; flex-direction: column;
+  flex-shrink: 0; min-height: 0; box-sizing: border-box;
+  max-height: 70%; border-top: 1px solid var(--line); background: var(--terminal-background); color: #242424; }
+.panel[hidden], .pane[hidden] { display: none; }
+.toolbar { display: flex; align-items: center; gap: 6px; min-height: 38px; padding: 5px 10px; }
+.tabs { display: flex; min-width: 0; gap: 4px; overflow-x: auto; scrollbar-width: thin; }
+.tab { display: flex; align-items: center; flex-shrink: 0; border-radius: 8px;
+  &[data-selected='true'] { background: #f3f3f3; }
+  button { display: flex; align-items: center; gap: 8px; background: none; border: 0; color: inherit;
+    border-radius: 6px; padding: 6px; cursor: pointer; }
+  button[role='tab'] { padding-left: 10px; }
+  span { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+}
+.iconButton { display: grid; place-items: center; flex-shrink: 0; width: 27px; height: 27px;
+  border: 0; border-radius: 6px; background: none; color: inherit; cursor: pointer;
+  &:disabled { cursor: default; opacity: .4; } }
+.tab button:hover, .iconButton:hover:not(:disabled) { background: #0000000c; }
+.close { margin-left: auto; }
+.pane { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: 5px 10px 10px 16px; }
+.screen { flex: 1; min-height: 0; overflow: hidden; :global(.xterm) { height: 100%; }
+  :global(.xterm-viewport) { background-color: var(--terminal-background); } }
+.status { flex-shrink: 0; max-width: 400px; font-size: 12px; padding-top: 6px; overflow-wrap: anywhere; }
+.resize { position: absolute; top: -4px; left: 0; right: 0; height: 8px; z-index: 2;
+  cursor: row-resize; touch-action: none;
+  &:hover, &:focus-visible { background: var(--green); opacity: .5; } }
+:global(:root[data-theme='dark']) .panel { --terminal-background: #000; color: #e5e5e5;
+  .tab[data-selected='true'] { background: #202020; }
+  .tab button:hover, .iconButton:hover:not(:disabled) { background: #ffffff18; } }

@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import { Alert, Button, Popover } from "antd";
-import { Download, PanelLeftClose, PanelLeftOpen, RefreshCw } from "lucide-react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { Alert, Button, Popover, Tooltip } from "antd";
+import { Download, PanelBottom, PanelLeftClose, PanelLeftOpen, RefreshCw } from "lucide-react";
 import { hasLocalBackend, isDesktopApp } from "../api/backend";
 import { getGuiController, retainGuiSession } from "./codexGui/session";
 import { canEditMessage } from "./codexGui/editMessage";
@@ -22,6 +22,9 @@ import { providerModels } from "./codexGui/providerModels";
 import { useDreamSkin } from "./codexGui/useDreamSkin";
 import { guiComposer } from "./codexGui/composerBridge";
 import { FocusModeButton, type GuiFocusMode } from "./codexGui/FocusModeButton";
+import { useTerminalPanel } from "./codexGui/terminal/useTerminalPanel";
+
+const TerminalPanel = lazy(() => import("./codexGui/terminal/TerminalPanel"));
 
 type CodexGuiPageProps = {
   active: boolean; accountPicker: ReactNode; providers: Provider[]; aggregateApis: AggregateApi[];
@@ -60,6 +63,7 @@ function Workspace({ active, accountPicker, providers, aggregateApis, windowCont
   }, [active, controller, installer.version]);
   const current = state.selected ? state.conversations[state.selected] : undefined;
   const thread = current?.thread ?? state.threads.find((entry) => entry.id === state.selected);
+  const terminal = useTerminalPanel(thread?.cwd ?? state.settings.cwd);
   const pending = state.approvals.filter((event) => event.params.threadId === state.selected);
   const otherApproval = state.approvals.find((event) => event.params.threadId !== state.selected);
   const running = state.sending || Object.values(state.conversations).some((value) => value.activeTurn);
@@ -80,7 +84,6 @@ function Workspace({ active, accountPicker, providers, aggregateApis, windowCont
           <strong data-tauri-drag-region={isDesktopApp || undefined}>{thread ? threadTitle(thread) : "Codex GUI"}</strong>
         </div>
         <div className={styles.headerActions} data-tauri-drag-region={isDesktopApp || undefined}>
-          <ConversationChangesButton value={current} />
           {installer.version && <Button type="text" icon={<RefreshCw size={16} />} aria-label="重新连接 Codex"
             disabled={Boolean(running)} loading={state.connection === "connecting"}
             onClick={() => void controller.connect()} />}
@@ -90,6 +93,12 @@ function Workspace({ active, accountPicker, providers, aggregateApis, windowCont
             <Button type="text" icon={<Download size={16} />}>
               {installer.version ? `v${installer.version}` : "Codex"}</Button>
           </Popover>
+          {isDesktopApp && <Tooltip title={terminal.open ? "收起终端" : "打开终端"}
+            styles={{ root: { maxWidth: 400 } }}>
+            <Button type="text" icon={<PanelBottom size={16} />} aria-label={terminal.open ? "收起终端" : "打开终端"}
+              aria-expanded={terminal.open} onClick={terminal.toggle} />
+          </Tooltip>}
+          <ConversationChangesButton value={current} />
         </div>
         {focused && windowControls && <div className={styles.focusWindowControls}>{windowControls}</div>}
       </header>
@@ -108,6 +117,9 @@ function Workspace({ active, accountPicker, providers, aggregateApis, windowCont
               || Boolean(state.deleting) || state.compacting === state.selected} />
           <Composer ref={composer} state={state} controller={controller} active={active} />
         </>} />}
+      {isDesktopApp && terminal.tabs.length > 0 && <Suspense fallback={null}>
+        <TerminalPanel panel={terminal} active={active} />
+      </Suspense>}
     </div>
     </div>
   </DetailsWorkspace></WorkspaceOperationContext.Provider>;

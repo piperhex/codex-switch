@@ -31,11 +31,11 @@ export function DetailsWorkspace({ selected, active, children }: {
     setEntry((current) => current?.id === next.id ? { ...next,
       filePath: next.files.some((file) => file.path === current.filePath) ? current.filePath : undefined } : current);
   }, []);
-  const context = useMemo(() => ({ open, update }), [open, update]);
+  const close = useCallback(() => { setEntry(null); setExpanded(false); opener.current?.focus(); }, []);
+  const context = useMemo(() => ({ open, update, close, visible }), [open, update, close, visible]);
   useEffect(() => { setEntry(null); setMinimized(false); setExpanded(false); }, [selected]);
   useEffect(() => { if (visible) closeButton.current?.focus(); }, [visible, viewId]);
   useEffect(() => { if (!visible || expanded) resize.cancel(); }, [visible, expanded, resize.cancel]);
-  const close = () => { setEntry(null); setExpanded(false); opener.current?.focus(); };
   return <DetailsContext.Provider value={context}>
     <div ref={host} className={styles.host} data-dragging={resize.dragging || undefined}>
       <div className={styles.conversation} style={{ marginRight: docked ? width : 0 }}>{children}</div>
@@ -55,6 +55,7 @@ export function DetailsWorkspace({ selected, active, children }: {
           </div>
         </header>
         <div key={`${entry.id}:${entry.filePath ?? ""}:${viewId}`} className={styles.content}>
+          {!entry.files.length && <p className={styles.empty}>暂无文件更改</p>}
           <DiffDocument files={entry.files} filePath={entry.filePath}
             title={entry.title} status={entry.status}
             initialOpen continuous />

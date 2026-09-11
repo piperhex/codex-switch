@@ -18,7 +18,7 @@ let container: HTMLDivElement;
 const setBusy = vi.fn();
 function Fixture({ disabled = false }: { disabled?: boolean }) {
   return <WorkspaceOperationContext.Provider value={{ busy: false, setBusy }}>
-    <DetailsContext.Provider value={{ open: vi.fn(), update: vi.fn() }}>
+    <DetailsContext.Provider value={{ open: vi.fn(), update: vi.fn(), close: vi.fn(), visible: false }}>
       <TurnDiff files={files} title="本轮修改" threadId="thread" turnId="turn" disabled={disabled} />
     </DetailsContext.Provider>
   </WorkspaceOperationContext.Provider>;
