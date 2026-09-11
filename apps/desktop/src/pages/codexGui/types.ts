@@ -103,6 +103,7 @@ export interface ThreadTokenUsage {
   modelContextWindow?: number | null;
 }
 export interface EventParams {
+  computerUseSetup?: ComputerUseSetup;
   goal?: ThreadGoal;
   threadId?: string;
   thread?: Thread;
@@ -132,6 +133,7 @@ export interface EventParams {
   error?: import("./requestError").RequestError;
   willRetry?: boolean;
 }
+export type ComputerUseSetup = "installing" | "ready" | "failed";
 export interface GuiEvent { method: string; params: EventParams; id?: string | number | null }
 export interface Conversation {
   processing?: ProcessingState;
@@ -146,6 +148,7 @@ export interface ListResponse<T> { data: T[]; nextCursor: string | null }
 export interface Settings { cwd: string; model: string; effort: string; access: AccessMode }
 export interface ThreadReadState { turnId: string; unread: boolean }
 export interface GuiState {
+  computerUseSetup?: ComputerUseSetup;
   workspaceBusy?: boolean;
   pendingRequest?: PendingRequest;
   goals?: Record<string, ThreadGoal | null>;

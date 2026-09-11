@@ -1,4 +1,5 @@
 //! Managed CUA installation and per-home, revocable STDIO sessions.
+mod automatic;
 pub(crate) mod commands;
 mod install;
 mod package;
@@ -8,12 +9,15 @@ mod state;
 
 use std::path::PathBuf;
 
+pub(crate) use automatic::setup_gui;
+static CHANGES: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 const VERSION: &str = "0.25.0";
 const MCP_SERVER: &str = "codex_switch_computer_use";
 const HELPER_ARGUMENT: &str = "--computer-use-mcp=";
 
 #[derive(Debug, thiserror::Error)]
-enum ComputerError {
+pub(crate) enum ComputerError {
     #[error("电脑助手操作未完成，请重试。")]
     Storage,
     #[error("当前版本仅支持 Windows 64 位系统。")]

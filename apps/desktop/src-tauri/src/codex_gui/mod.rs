@@ -3,6 +3,7 @@ mod access;
 mod attachment_tests;
 mod attachment_uploads;
 mod client;
+mod computer_use_setup;
 pub(crate) mod deletion;
 mod error;
 pub(crate) mod file_actions;
@@ -70,12 +71,28 @@ pub(crate) async fn codex_gui_connect(
     state: State<'_, GuiState>,
     reuse_existing: Option<bool>,
 ) -> std::result::Result<Vec<GuiEvent>, String> {
-    connect(app, &state, reuse_existing.unwrap_or(false))
+    connect(app, &state, reuse_existing.unwrap_or(false), true)
         .await
         .map_err(|error| error.to_string())
 }
 
-async fn connect(app: AppHandle, state: &GuiState, reuse_existing: bool) -> Result<Vec<GuiEvent>> {
+/// Browser connections do not opt the host into desktop control installation.
+pub(crate) async fn connect_web(
+    app: AppHandle,
+    state: State<'_, GuiState>,
+    reuse_existing: Option<bool>,
+) -> std::result::Result<Vec<GuiEvent>, String> {
+    connect(app, &state, reuse_existing.unwrap_or(false), false)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+async fn connect(
+    app: AppHandle,
+    state: &GuiState,
+    reuse_existing: bool,
+    setup_computer_use: bool,
+) -> Result<Vec<GuiEvent>> {
     let mut current = state.client.lock().await;
     if let Some(client) = current.as_ref() {
         // A phone reconnect or transport switch must preserve idle, already loaded threads.
@@ -89,6 +106,9 @@ async fn connect(app: AppHandle, state: &GuiState, reuse_existing: bool) -> Resu
     let binary = tauri::async_runtime::spawn_blocking(move || releases::executable(&release_app))
         .await
         .map_err(|_| GuiError::Executable)??;
+    if setup_computer_use {
+        computer_use_setup::prepare(app.clone(), home.clone()).await;
+    }
     *current = Some(Client::start(app, binary, home, projectless_root).await?);
     Ok(Vec::new())
 }

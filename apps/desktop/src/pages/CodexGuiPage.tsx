@@ -104,6 +104,12 @@ function Workspace({ active, accountPicker, providers, aggregateApis, windowCont
       </header>
       {state.error && <Alert className={styles.error} message={state.error}
         type="error" closable onClose={controller.clearError} />}
+      {state.computerUseSetup === "installing" && <Alert className={styles.error} type="info" showIcon
+        message={<span style={{ display: "block", maxWidth: 400 }}>正在安装电脑助手，首次准备可能需要几分钟…</span>} />}
+      {state.computerUseSetup === "failed" && <Alert className={styles.error} type="warning" showIcon closable
+        message={<span style={{ display: "block", maxWidth: 400 }}>
+          电脑助手安装未完成。你可以继续对话，稍后到社区插件页安装或修复电脑助手。
+        </span>} />}
       {otherApproval && <button className={styles.pendingBanner}
         onClick={() => void controller.select(otherApproval.params.threadId!)}>另一个对话需要你的确认，点击查看</button>}
       {!installer.version ? <Installer installer={installer} /> :
