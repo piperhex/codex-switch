@@ -364,10 +364,9 @@ pub(super) fn after_quota<R: Runtime>(
         };
         return Ok((reusable && latest.selection != route.selection).then_some(latest));
     }
-    if quota_failure_is_stale(app, route)? {
+    if !remember_exhaustion(app, route)? {
         return Ok(None);
     }
-    remember_exhaustion(app, route, failed)?;
     match choose(app, route.clone(), ChoiceRequest { session, failed }) {
         Ok(next) if next.selection != route.selection => Ok(Some(next)),
         Ok(_) | Err(AutoSwitchError::Changed | AutoSwitchError::NoAccount) => Ok(None),
@@ -375,35 +374,32 @@ pub(super) fn after_quota<R: Runtime>(
     }
 }
 
-fn quota_failure_is_stale<R: Runtime>(
-    app: &AppHandle<R>,
-    route: &Route,
-) -> Result<bool, AutoSwitchError> {
-    with_routing(app, route, |state| match &route.selection {
-        GuiAccountSelection::Account(id) => state
-            .recovered
-            .get(id)
-            .is_some_and(|recovered| *recovered > route.attempt_started_at),
-        _ => false,
-    })
-}
-
 fn remember_exhaustion<R: Runtime>(
     app: &AppHandle<R>,
     route: &Route,
-    failed: &HashSet<String>,
-) -> Result<(), AutoSwitchError> {
+) -> Result<bool, AutoSwitchError> {
+    let GuiAccountSelection::Account(id) = &route.selection else {
+        return Ok(false);
+    };
     with_routing(app, route, |state| {
-        for id in failed {
-            state
-                .exhausted
-                .entry(id.clone())
-                .or_insert_with(|| Exhaustion {
-                    observed_at: Instant::now(),
-                    next_check_at: Instant::now() + EXHAUSTED_COOLDOWN,
-                });
-            state.scheduler.invalidate_account(id);
+        // Check recovery and record this attempt together, without replaying prior retry failures.
+        if state
+            .recovered
+            .get(id)
+            .is_some_and(|recovered| *recovered > route.attempt_started_at)
+        {
+            return false;
         }
+        let observed_at = Instant::now();
+        state.exhausted.insert(
+            id.clone(),
+            Exhaustion {
+                observed_at,
+                next_check_at: observed_at + EXHAUSTED_COOLDOWN,
+            },
+        );
+        state.scheduler.invalidate_account(id);
+        true
     })
 }
 

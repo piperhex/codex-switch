@@ -118,14 +118,20 @@ impl GuiAccountScheduler {
         candidates: &[Candidate],
         now: Instant,
     ) -> Option<String> {
-        self.prune(candidates, now);
+        self.expire_idle_bindings(now);
         let Some(session) = session.filter(|session| !session.trim().is_empty()) else {
             return candidates.first().map(|candidate| candidate.id.clone());
         };
-        if let Some(binding) = self.bindings.get_mut(session) {
+        if let Some(binding) = self.bindings.get_mut(session).filter(|binding| {
+            candidates
+                .iter()
+                .any(|candidate| candidate.id == binding.account_id)
+        }) {
             binding.last_used = now;
             return Some(binding.account_id.clone());
         }
+        // Request-local exclusions cannot invalidate another conversation's binding.
+        self.bindings.remove(session);
         let account_id = self.least_assigned(candidates)?;
         self.make_room();
         self.bindings.insert(
@@ -143,14 +149,9 @@ impl GuiAccountScheduler {
             .retain(|_, binding| binding.account_id != account_id);
     }
 
-    fn prune(&mut self, candidates: &[Candidate], now: Instant) {
-        let eligible = candidates
-            .iter()
-            .map(|candidate| candidate.id.as_str())
-            .collect::<HashSet<_>>();
+    fn expire_idle_bindings(&mut self, now: Instant) {
         self.bindings.retain(|_, binding| {
             now.saturating_duration_since(binding.last_used) < BINDING_IDLE_TIMEOUT
-                && eligible.contains(binding.account_id.as_str())
         });
     }
 

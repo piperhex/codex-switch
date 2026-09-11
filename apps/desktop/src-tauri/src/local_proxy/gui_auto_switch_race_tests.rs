@@ -1,6 +1,74 @@
 use super::*;
 
 #[test]
+fn retry_history_excludes_recovered_accounts_only_for_the_failing_request() {
+    let fixture = Fixture::new(GuiAutoSwitchMode::Concurrent);
+    let first = fixture.managed_account("recovered-account", 10.0);
+    let second = fixture.managed_account("next-failure", 40.0);
+    let third = fixture.managed_account("healthy-account", 70.0);
+    fixture.select(&first);
+    let mut failed = HashSet::from([first.clone()]);
+    let mut next = after_quota(
+        fixture.app.handle(),
+        &fixture.route(),
+        Some("retry"),
+        &failed,
+    )
+    .unwrap()
+    .unwrap();
+    assert_eq!(next.selection, account(&second));
+
+    with_routing(fixture.app.handle(), &next, |state| {
+        state.exhausted.remove(&first);
+        state.recovered.insert(first.clone(), Instant::now());
+    })
+    .unwrap();
+    next.begin_attempt();
+    failed.insert(second.clone());
+    let last = after_quota(fixture.app.handle(), &next, Some("retry"), &failed)
+        .unwrap()
+        .unwrap();
+    assert_eq!(last.selection, account(&third));
+    with_routing(fixture.app.handle(), &last, |state| {
+        assert!(!state.exhausted.contains_key(&first));
+        assert!(state.exhausted.contains_key(&second));
+    })
+    .unwrap();
+
+    let fresh = prepare(fixture.app.handle(), Some("fresh")).unwrap();
+    assert_eq!(fresh.selection, account(&first));
+    fixture.assert_shared_unchanged();
+}
+
+#[test]
+fn a_new_quota_failure_replaces_the_observation_used_by_an_inflight_recovery() {
+    let fixture = Fixture::new(GuiAutoSwitchMode::Concurrent);
+    let route = fixture.route();
+    let old_observation = Instant::now() - Duration::from_secs(1);
+    with_routing(fixture.app.handle(), &route, |state| {
+        state.exhausted.insert(
+            "gui-a".into(),
+            Exhaustion {
+                observed_at: old_observation,
+                next_check_at: Instant::now(),
+            },
+        );
+    })
+    .unwrap();
+
+    assert!(remember_exhaustion(fixture.app.handle(), &route).unwrap());
+    with_routing(fixture.app.handle(), &route, |state| {
+        let failure = state.exhausted.get("gui-a").unwrap();
+        assert!(failure.observed_at > old_observation);
+        assert_eq!(
+            failure.next_check_at,
+            failure.observed_at + EXHAUSTED_COOLDOWN
+        );
+    })
+    .unwrap();
+}
+
+#[test]
 fn late_quota_response_reuses_a_completed_gui_switch_without_switching_again() {
     let fixture = Fixture::new(GuiAutoSwitchMode::Sequential);
     let current = fixture.managed_account("failed-account", 90.0);

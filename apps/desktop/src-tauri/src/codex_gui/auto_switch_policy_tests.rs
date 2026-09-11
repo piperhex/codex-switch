@@ -311,6 +311,56 @@ fn scheduler_rebinds_when_an_account_becomes_ineligible_or_is_invalidated() {
 }
 
 #[test]
+fn scheduler_request_exclusions_preserve_other_conversations() {
+    let mut scheduler = GuiAccountScheduler::default();
+    let now = Instant::now();
+    scheduler.assign(Some("healthy"), &pool(&["a", "b"]), now);
+    scheduler.assign(Some("retrying"), &pool(&["a", "b"]), now);
+    assert_eq!(
+        scheduler
+            .assign(Some("retrying"), &pool(&["b"]), now)
+            .as_deref(),
+        Some("b")
+    );
+    assert_eq!(scheduler.bindings.len(), 2);
+    assert_eq!(scheduler.bindings["healthy"].account_id, "a");
+    assert_eq!(
+        scheduler
+            .assign(Some("healthy"), &pool(&["b", "a"]), now)
+            .as_deref(),
+        Some("a")
+    );
+    assert_eq!(
+        scheduler
+            .assign(Some("retrying"), &pool(&["a"]), now)
+            .as_deref(),
+        Some("a")
+    );
+    assert_eq!(scheduler.bindings["healthy"].account_id, "a");
+    assert_eq!(scheduler.bindings["retrying"].account_id, "a");
+}
+
+#[test]
+fn scheduler_empty_candidate_request_removes_only_its_own_binding() {
+    let mut scheduler = GuiAccountScheduler::default();
+    let now = Instant::now();
+    scheduler.assign(Some("healthy"), &pool(&["a", "b"]), now);
+    scheduler.assign(Some("retrying"), &pool(&["a", "b"]), now);
+    assert!(scheduler.assign(Some("retrying"), &[], now).is_none());
+    assert!(!scheduler.bindings.contains_key("retrying"));
+    assert_eq!(scheduler.bindings.len(), 1);
+    assert_eq!(scheduler.bindings["healthy"].account_id, "a");
+    assert!(scheduler.assign(None, &[], now).is_none());
+    assert_eq!(scheduler.bindings.len(), 1);
+    assert_eq!(
+        scheduler
+            .assign(Some("healthy"), &pool(&["b", "a"]), now)
+            .as_deref(),
+        Some("a")
+    );
+}
+
+#[test]
 fn scheduler_expires_idle_conversations_and_refreshes_active_bindings() {
     let mut scheduler = GuiAccountScheduler::default();
     let candidates = pool(&["a", "b"]);
