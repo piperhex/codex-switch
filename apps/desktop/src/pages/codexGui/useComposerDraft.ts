@@ -1,4 +1,4 @@
-import { useRef, useState, type ClipboardEvent } from "react";
+import { useEffect, useRef, useState, type ClipboardEvent } from "react";
 import type { GuiController } from "./controller";
 import type { ComposerText } from "./types";
 import { MAX_ATTACHMENTS, type AttachmentReference } from "./attachmentTypes";
@@ -29,6 +29,23 @@ export function readImage(file: File): Promise<string> {
 export function useComposerDraft(key: string, controller: GuiController) {
   const submitting = useRef(false);
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
+  const recovered = controller.messageEditor.recoveredDrafts.get(key);
+  useEffect(() => {
+    if (!recovered || controller.messageEditor.recoveredDrafts.get(key) !== recovered) return;
+    controller.messageEditor.recoveredDrafts.delete(key);
+    setDrafts((values) => {
+      const previous = values[key] ?? EMPTY_DRAFT;
+      const restored = queuedMessageText(recovered);
+      const prefix = previous.text + (previous.text && restored.text ? "\n\n" : "");
+      const mentions = restored.mentions.map((mention) => ({ ...mention,
+        start: mention.start + prefix.length, end: mention.end + prefix.length }));
+      return { ...values, [key]: { ...previous, text: prefix + restored.text,
+        mentions: [...previous.mentions, ...mentions],
+        attachments: [...(previous.attachments ?? []), ...(recovered.attachments ?? [])],
+        images: [...previous.images, ...recovered.images.map((url) =>
+          ({ id: crypto.randomUUID(), name: "图片", url }))] } };
+    });
+  }, [controller, key, recovered]);
   const draft = drafts[key] ?? EMPTY_DRAFT;
   const update = (change: (value: Draft) => Draft) => setDrafts((values) =>
     ({ ...values, [key]: change(values[key] ?? EMPTY_DRAFT) }));

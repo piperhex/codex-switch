@@ -23,7 +23,7 @@ export function UserMessageEditor({ text, disabled, onSubmit, onCancel }: {
         if (event.key === "Escape" && !saving) { event.preventDefault(); onCancel(); }
         if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) { event.preventDefault(); void submit(); }
       }} />
-    <p>将从这里开始新对话，保留此前的内容。</p>
+    <p>将在当前对话中替换这条消息，并重新生成回复。</p>
     <div className={styles.editorActions}>
       <Button size="small" aria-label="取消编辑" disabled={saving} onClick={onCancel}>取消</Button>
       <Button size="small" type="primary" loading={saving} disabled={disabled || !draft.trim()}
