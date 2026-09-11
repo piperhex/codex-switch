@@ -9,6 +9,8 @@ import { useThreadGroupViews } from "./useThreadGroupViews";
 import { threadGroups } from "./threadGroups";
 import { ProjectGroupMenu } from "./ProjectGroupMenu";
 import { ThreadStatus } from "./ThreadStatus";
+import { ThreadPagination } from "./ThreadPagination";
+import { useThreadPagination } from "./useThreadPagination";
 import { isDesktopApp } from "../../api/backend";
 import { FocusModeButton, type GuiFocusMode } from "./FocusModeButton";
 import styles from "./styles.module.less";
@@ -20,6 +22,7 @@ export function ThreadSidebar({ state, controller, accountPicker, focused, onTog
   state: GuiState; controller: GuiController; accountPicker: ReactNode;
 } & GuiFocusMode) {
   const [searchOpen, setSearchOpen] = useState(false);
+  const pagination = useThreadPagination({ state, controller, enabled: !searchOpen });
   const [renaming, setRenaming] = useState<Thread | null>(null);
   const [deleting, setDeleting] = useState<Thread | null>(null);
   const { message } = App.useApp();
@@ -79,7 +82,7 @@ export function ThreadSidebar({ state, controller, accountPicker, focused, onTog
     <Segmented block size="small" value={state.archived ? "archived" : "recent"}
       options={[{ label: "最近", value: "recent" }, { label: "已归档", value: "archived" }]}
       onChange={(value) => controller.filter("", value === "archived")} disabled={state.connection !== "ready"} />
-    <div className={styles.threadList}>
+    <div className={styles.threadList} {...pagination}>
       {groups.map((group) => {
         const key = `${state.archived ? "archived" : "recent"}:${group.id}`;
         return <ThreadGroup key={key} label={group.label} pinned={group.pinned} threads={group.threads}
@@ -95,8 +98,7 @@ export function ThreadSidebar({ state, controller, accountPicker, focused, onTog
           renderThread={renderThread} />;
       })}
       {!state.threads.length && <p className={styles.listEmpty}>{state.loading ? <Spin size="small" /> : "还没有对话"}</p>}
-      {state.cursor && <Button type="text" block loading={state.loading}
-        onClick={() => void controller.refresh(true)}>加载更多</Button>}
+      {state.cursor && <ThreadPagination loading={state.loading} />}
     </div>
     {accountPicker}
     {searchOpen && <ThreadSearch state={state} controller={controller} onClose={closeSearch} />}

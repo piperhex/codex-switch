@@ -8,6 +8,7 @@ import { guiApi } from "./api";
 import { ThreadSidebar } from "./ThreadSidebar";
 import { initialState } from "./preferences";
 import type { GuiState } from "./types";
+import styles from "./styles.module.less";
 
 let root: Root;
 let container: HTMLDivElement;
@@ -146,4 +147,75 @@ it("shows a spinner for active chats, a dot for completed unread chats, and no d
   state = { ...state, threadReadState: { one: { turnId: "turn", unread: false } } };
   await render();
   expect(container.querySelector('[aria-label="未读回复"]')).toBeNull();
+});
+
+function scrollList() {
+  const list = container.querySelector<HTMLDivElement>(`.${styles.threadList}`)!;
+  Object.defineProperties(list, { clientHeight: { configurable: true, value: 400 },
+    scrollHeight: { configurable: true, value: 1000 } });
+  const scroll = (top: number) => act(async () => {
+    list.scrollTop = top;
+    list.dispatchEvent(new Event("scroll", { bubbles: true }));
+  });
+  const wheel = (deltaY: number) => act(async () => {
+    list.dispatchEvent(new WheelEvent("wheel", { bubbles: true, deltaY }));
+  });
+  return { list, scroll, wheel };
+}
+
+it("loads near the bottom without a button and keeps rapid scrolling single-flight", async () => {
+  let finish!: () => void;
+  const refresh = vi.spyOn(controller, "refresh").mockImplementation(() => new Promise<void>((resolve) => {
+    finish = resolve;
+  }));
+  state = { ...state, cursor: "next" };
+  await render();
+  expect(button("加载更多")).toBeUndefined();
+  expect(container.textContent).toContain("向下滚动，查看更多");
+  const { scroll, wheel } = scrollList();
+  await scroll(200);
+  expect(refresh).not.toHaveBeenCalled();
+  await scroll(490);
+  await scroll(510);
+  await wheel(50);
+  expect(refresh).toHaveBeenCalledExactlyOnceWith(true);
+  state = { ...state, loading: true };
+  await render();
+  expect(container.querySelector('[role="status"]')?.textContent).toContain("正在加载更多对话…");
+  await act(async () => finish());
+  state = { ...state, loading: false, cursor: "next-page" };
+  await render();
+  await scroll(520);
+  expect(refresh).toHaveBeenCalledTimes(2);
+  await act(async () => finish());
+});
+
+it("ignores upward scrolling and pauses pagination while loading, disconnected, or exhausted", async () => {
+  const refresh = vi.spyOn(controller, "refresh").mockResolvedValue();
+  state = { ...state, cursor: "next", loading: true };
+  await render();
+  const { scroll, wheel } = scrollList();
+  await scroll(500);
+  state = { ...state, loading: false };
+  await render();
+  await scroll(490);
+  await wheel(-50);
+  state = { ...state, connection: "offline" };
+  await render();
+  await wheel(50);
+  state = { ...state, connection: "ready", cursor: null };
+  await render();
+  await wheel(50);
+  expect(refresh).not.toHaveBeenCalled();
+  expect(container.textContent).not.toContain("向下滚动，查看更多");
+});
+
+it("loads on downward wheel gestures even when collapsed groups do not fill the list", async () => {
+  const refresh = vi.spyOn(controller, "refresh").mockResolvedValue();
+  state = { ...state, cursor: "next", archived: true };
+  await render();
+  const { list, wheel } = scrollList();
+  Object.defineProperty(list, "scrollHeight", { value: 400 });
+  await wheel(50);
+  expect(refresh).toHaveBeenCalledExactlyOnceWith(true);
 });
