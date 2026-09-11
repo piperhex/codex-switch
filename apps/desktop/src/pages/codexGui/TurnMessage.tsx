@@ -9,6 +9,7 @@ import { visibleContinuationItems } from "./continuation";
 import styles from "./styles.module.less";
 import { GeneratedImages } from "./GeneratedImages";
 import { DeferredDetails } from "./DeferredDetails";
+import { RequestErrorNotice } from "./RequestErrorNotice";
 
 interface Group { type: "work" | "message"; items: Item[] }
 
@@ -63,6 +64,6 @@ export const TurnMessage = memo(function TurnMessage({ turn, running, active, fo
     {files.length > 0 && <TurnDiff files={files} title={turn.diff ? "本轮修改" : "文件修改记录"}
       threadId={threadId} turnId={turn.id} disabled={running || turn.status === "inProgress" || Boolean(editDisabled)} />}
     {turn.status === "interrupted" && <p className={styles.muted}>已停止生成</p>}
-    {turn.status === "failed" && <p className={styles.turnError} role="status">本次回复未完成，可以继续发送消息重试。</p>}
+    <RequestErrorNotice turn={turn} />
   </div>;
 });

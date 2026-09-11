@@ -72,7 +72,9 @@ export interface Item {
 }
 export interface AsyncQuestion { title: string; options?: string[] | null }
 export interface Turn {
-  id: string; status: string; items: Item[]; startedAt?: number | null; error?: { message: string } | null;
+  id: string; status: string; items: Item[]; startedAt?: number | null;
+  error?: import("./requestError").RequestError | null;
+  retryError?: import("./requestError").RequestError;
   completedAt?: number | null;
   durationMs?: number | null;
   diff?: string;
@@ -127,7 +129,7 @@ export interface EventParams {
   diff?: string;
   plan?: PlanStep[];
   tokenUsage?: ThreadTokenUsage;
-  error?: { message: string };
+  error?: import("./requestError").RequestError;
   willRetry?: boolean;
 }
 export interface GuiEvent { method: string; params: EventParams; id?: string | number | null }
