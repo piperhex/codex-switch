@@ -58,14 +58,27 @@ test("picker edges match the footer across sidebar and viewport resizing", async
   await page.screenshot({ path: "../../.codex-tmp/gui-account-picker-narrow.png", animations: "disabled" });
 });
 
-test("gear opens a compact dialog and saves enabled controls using the GUI settings DTO", async ({ page }) => {
+test("gear opens an aligned 80vw settings dialog and saves GUI settings", async ({ page }) => {
   const saved = await mockCommands(page);
-  await page.setViewportSize({ width: 390, height: 844 });
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/e2e/account-picker-harness.html");
   await triggerFor(page).click();
   await page.getByRole("button", { name: "自动切号设置", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "GUI 自动切号设置" });
   await expect(dialog).toBeVisible();
+  await expect.poll(async () => (await dialog.boundingBox())!.width).toBeCloseTo(1440 * 0.8, 0);
+  const rows = dialog.locator("tbody tr");
+  const firstCells = await rows.first().locator("td").all();
+  const reference = await Promise.all(firstCells.map(async (cell) => (await cell.boundingBox())!));
+  for (const row of await rows.all()) {
+    const cells = await row.locator("td").all();
+    for (const [index, cell] of cells.entries()) {
+      const bounds = (await cell.boundingBox())!;
+      expect(bounds.x).toBeCloseTo(reference[index].x, 0);
+      expect(Math.abs(bounds.height - reference[index].height)).toBeLessThanOrEqual(1);
+    }
+  }
+  await page.screenshot({ path: "../../.codex-tmp/gui-auto-switch-settings-desktop.png", animations: "disabled" });
   await expect(page.getByRole("switch", { name: "自动切换账号", exact: true })).toHaveAttribute("aria-checked", "false");
   await expect(page.getByRole("spinbutton", { name: "默认剩余额度阈值", exact: true })).toBeDisabled();
   await page.getByRole("switch", { name: "自动切换账号", exact: true }).click();
@@ -76,8 +89,9 @@ test("gear opens a compact dialog and saves enabled controls using the GUI setti
   await expect(priority).toHaveValue("0");
   await priority.fill("-2");
   await page.getByRole("switch", { name: "workspace2@example.com 参与自动切换", exact: true }).click();
+  await page.setViewportSize({ width: 390, height: 844 });
   const bounds = (await dialog.boundingBox())!;
-  expect(bounds.width).toBeLessThanOrEqual(366);
+  expect(bounds.width).toBeCloseTo(390 * 0.8, 0);
   expect(bounds.x).toBeGreaterThanOrEqual(0);
   expect(bounds.x + bounds.width).toBeLessThanOrEqual(390);
   const beats = Number(await page.getByLabel("刷新次数").textContent());

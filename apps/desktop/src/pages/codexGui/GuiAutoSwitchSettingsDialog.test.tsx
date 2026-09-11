@@ -62,7 +62,7 @@ afterEach(async () => {
 it("loads GUI rules independently and saves participation, priority and thresholds together", async () => {
   await render();
   expect(invoke).toHaveBeenCalledExactlyOnceWith("codex_gui_auto_switch_settings");
-  expect(document.querySelector<HTMLElement>(".ant-modal")?.style.width).toBe("400px");
+  expect(document.querySelector<HTMLElement>(".ant-modal")?.style.width).toBe("80vw");
   expect(button(`${account.email} 参与自动切换`).getAttribute("aria-checked")).toBe("true");
   expect(input(`${account.email} 优先级`).value).toBe("0");
   expect(Number(input(`${account.email} 剩余阈值`).value)).toBe(0);

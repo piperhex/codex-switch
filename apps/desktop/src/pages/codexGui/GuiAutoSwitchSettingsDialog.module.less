@@ -1,30 +1,49 @@
 .dialog {
+  :global(.ant-modal-header) { padding-right: 24px; margin-bottom: 16px; }
   :global(.ant-modal-body) { max-height: 65vh; overflow-y: auto; overscroll-behavior: contain; }
 }
-.intro, .hint { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
-.intro { margin: 0 0 16px; }
-.hint { margin: 0; line-height: 1.6; }
+.hint { color: var(--muted); font-size: 12px; font-weight: 400; overflow-wrap: anywhere; margin: 0; line-height: 1.6; }
+.heading {
+  display: flex; align-items: baseline; gap: 16px;
+  > :first-child { flex-shrink: 0; }
+  > .hint { min-width: 0; }
+}
 .fields { display: flex; flex-direction: column; gap: 12px; }
 .row {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0;
-  > :global(.ant-input-number) { width: 86px; flex-shrink: 0; }
-  > :global(.ant-select) { min-width: 112px; }
-  > :global(.ant-switch) { flex-shrink: 0; }
-}
-.providerField {
-  display: flex; flex-direction: column; gap: 8px;
-  > :global(.ant-select) { width: 100%; }
+  display: grid; grid-template-columns: 140px 180px minmax(0, 1fr); align-items: center; gap: 8px 16px;
+  > :global(.ant-input-number), > :global(.ant-input-number-affix-wrapper) { width: 100%; }
+  > :global(.ant-select) { width: 100%; min-width: 0; }
+  > :global(.ant-switch) { justify-self: start; }
 }
 .accounts { border-top: 1px solid var(--line); margin-top: 16px; padding-top: 14px; }
-.accounts h3 { margin: 0 0 8px; font-size: 13px; }
-.account { padding: 12px 0; border-bottom: 1px solid var(--line); }
-.account:last-child { border-bottom: 0; padding-bottom: 0; }
-.email { min-width: 0; overflow-wrap: anywhere; font-size: 12px; }
-.accountFields {
-  display: flex; gap: 12px; margin-top: 10px;
-  > label { display: flex; flex: 1; flex-direction: column; gap: 4px; min-width: 0; }
-  label > span { color: var(--muted); font-size: 11px; }
+.accounts h3 { margin: 0; font-size: 13px; }
+.accountTableScroll { margin-top: 12px; overflow-x: auto; }
+.accountTable {
+  width: 100%; min-width: 440px; table-layout: fixed; border-collapse: collapse; font-size: 12px;
+  th, td { padding: 10px 8px; text-align: center; vertical-align: middle; }
+  th { color: var(--muted); font-weight: 400; white-space: nowrap; border-bottom: 1px solid var(--line); }
+  th:first-child, td:first-child { padding-left: 0; text-align: left; }
+  th:last-child, td:last-child { padding-right: 0; }
+}
+.participationColumn { width: 80px; }
+.numberColumn { width: 112px; }
+.account {
+  border-bottom: 1px solid var(--line);
+  &:last-child { border-bottom: 0; }
   :global(.ant-input-number), :global(.ant-input-number-affix-wrapper) { width: 100%; }
 }
+.email { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .loading, .error { display: flex; align-items: center; gap: 8px; margin: 12px 0; font-size: 12px; }
 .error { color: var(--ant-color-error, #c43c3c); }
+
+@media (max-width: 1100px) {
+  .row {
+    grid-template-columns: 140px minmax(0, 1fr);
+    > .hint { grid-column: 1 / -1; }
+  }
+}
+
+@media (max-width: 600px) {
+  .row { grid-template-columns: minmax(0, 1fr) minmax(100px, 1fr); column-gap: 12px; }
+  .heading { gap: 12px; }
+}
