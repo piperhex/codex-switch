@@ -17,6 +17,7 @@ import type { ColumnsType } from "antd/es/table";
 import {
   CalendarClock,
   Check,
+  CircleHelp,
   Columns3,
   Copy,
   Gauge,
@@ -693,7 +694,11 @@ export function AccountTable({
                   })}</span>
                 )}
                 {shouldShowUsageError(account.usage.error, showUsageNetworkErrors)
-                  && <Tooltip title={account.usage.error}><Tag color="error">{t("table.error")}</Tag></Tooltip>}
+                  && <Tooltip title={account.usage.error}>
+                    <Tag color="error" className="account-error-tag" icon={<CircleHelp size={12} aria-hidden="true" />}>
+                      {t("table.error")}
+                    </Tag>
+                  </Tooltip>}
               </div>
             </div>
           </div>
@@ -1305,7 +1310,11 @@ export function AccountTable({
                     })}</span>
                   )}
                   {shouldShowUsageError(account.usage.error, showUsageNetworkErrors)
-                    && <Tooltip title={account.usage.error}><Tag color="error">{t("table.error")}</Tag></Tooltip>}
+                    && <Tooltip title={account.usage.error}>
+                      <Tag color="error" className="account-error-tag" icon={<CircleHelp size={12} aria-hidden="true" />}>
+                        {t("table.error")}
+                      </Tag>
+                    </Tooltip>}
                 </div>
               </div>
               <div className={`card-header-actions${customPriorityActive || customThresholdActive
