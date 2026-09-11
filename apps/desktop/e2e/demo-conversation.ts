@@ -13,6 +13,7 @@ import { demoImageResponse } from './demo-images';
 import { parseHistoryWindow, sliceHistory } from '../../../shared/remote-chat/historyPage';
 import { seedDemoHistory } from './demo-history';
 import { demoSkills } from './demo-skills';
+import { demoPlugins, demoProjectFiles } from './demo-attachments';
 import { demoQueueRequest, demoQueueSnapshot, flushDemoQueue } from './demo-queue';
 
 const images = new RemoteImages();
@@ -53,7 +54,8 @@ export function demoResponse(request: RpcRequest, link: ChatLink): unknown {
   operations.push({ ...input, method: request.method });
   if (request.method === 'respond') return respond(input);
   if (input.operation === 'models') return { data: demoComposer().models, nextCursor: null, composer: demoComposer() };
-  if (input.operation === 'skills') return demoSkills();
+  if (input.operation === 'skills') return { ...demoSkills(), ...(input.includePlugins ? { plugins: demoPlugins } : {}) };
+  if (input.operation === 'projectFiles') return demoProjectFiles(input);
   if (input.operation === 'composerSet') return changeDemoComposer(input.settings, link);
   if (input.operation === 'threadRead') return guiSidebar.markRead(input);
   if (input.operation === 'queueRead') return demoQueueSnapshot();

@@ -32,14 +32,17 @@ pub(super) enum AttachmentKind {
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct AttachmentInput {
-    kind: AttachmentKind,
-    name: String,
-    path: String,
+    pub(super) kind: AttachmentKind,
+    pub(super) name: String,
+    pub(super) path: String,
+    #[serde(default)]
+    pub(super) data: Option<String>,
 }
 
 impl AttachmentInput {
     fn into_inputs(self) -> Result<Vec<Value>> {
-        if self.name.trim().is_empty()
+        if self.data.is_some()
+            || self.name.trim().is_empty()
             || self.name.len() > 500
             || self.name.chars().any(char::is_control)
         {

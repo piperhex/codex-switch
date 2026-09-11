@@ -1,6 +1,7 @@
 mod access;
 #[cfg(test)]
 mod attachment_tests;
+mod attachment_uploads;
 mod client;
 pub(crate) mod deletion;
 mod error;
@@ -17,6 +18,7 @@ mod images;
 mod message_edit;
 mod platform;
 pub(crate) mod plugin_client;
+mod project_files;
 mod prompt;
 mod protocol;
 pub(crate) mod releases;
@@ -98,6 +100,9 @@ pub(crate) async fn codex_gui_request(
 ) -> std::result::Result<GuiResponse, String> {
     async {
         let client = connected(&state).await?;
+        if let GuiRequest::ProjectFiles(options) = request {
+            return project_files::list(&client, options).await;
+        }
         if let GuiRequest::EditMessage(edit) = request {
             return message_edit::submit(&client, edit).await;
         }

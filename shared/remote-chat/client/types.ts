@@ -3,6 +3,7 @@ export type {
   Skill, SkillReference, SkillsResponse, Thread, Turn,
 } from '../../../apps/desktop/src/pages/codexGui/types';
 import type { GuiEvent, Model, SkillReference, Thread } from '../../../apps/desktop/src/pages/codexGui/types';
+import type { AttachmentReference } from '../../../apps/desktop/src/pages/codexGui/attachmentTypes';
 import type { ConnectionMode } from '../protocol';
 import { DEFAULT_COMPOSER, type ComposerSettings } from '../composer';
 import { emptySidebar, type SidebarSnapshot } from '../sidebar';
@@ -12,6 +13,7 @@ export interface SendInput {
   text: string;
   images?: string[];
   skills?: SkillReference[];
+  attachments?: AttachmentReference[];
   model?: string;
   effort?: string;
   access: ComposerSettings['access'];

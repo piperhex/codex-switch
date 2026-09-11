@@ -10,7 +10,7 @@ const require = createRequire(import.meta.url);
 const projectRoot = fileURLToPath(new URL('../', import.meta.url));
 const autolinkingRoot = dirname(require.resolve('expo-modules-autolinking/package.json'));
 
-it('registers the native filesystem and image services used by chat photos', () => {
+it('registers native file, image, document picker and icon services used by chat attachments', () => {
   const directory = mkdtempSync(join(tmpdir(), 'codex-switch-native-modules-'));
   const target = join(directory, 'ExpoModulesPackageList.java');
   try {
@@ -23,6 +23,8 @@ it('registers the native filesystem and image services used by chat photos', () 
     expect(packages).toContain('new expo.modules.imageloader.ImageLoaderPackage()');
     expect(packages).toContain('expo.modules.imagepicker.ImagePickerModule.class');
     expect(packages).toContain('expo.modules.imagemanipulator.ImageManipulatorModule.class');
+    expect(packages).toContain('expo.modules.documentpicker.DocumentPickerModule.class');
+    expect(packages).toContain('expo.modules.font.FontLoaderModule.class');
   } finally {
     rmSync(target, { force: true });
     rmdirSync(directory);

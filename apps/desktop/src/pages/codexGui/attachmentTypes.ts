@@ -2,6 +2,8 @@ export interface AttachmentReference {
   kind: "file" | "folder" | "plugin";
   name: string;
   path: string;
+  /** Inline bytes selected on a phone; materialized by the PC before sending. */
+  data?: string;
 }
 export const MAX_ATTACHMENTS = 32;
 

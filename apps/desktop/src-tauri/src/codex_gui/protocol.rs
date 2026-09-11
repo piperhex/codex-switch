@@ -18,6 +18,7 @@ const PAGE_SIZE: u32 = 50;
     rename_all_fields = "camelCase"
 )]
 pub(crate) enum GuiRequest {
+    ProjectFiles(super::project_files::ProjectFilesRequest),
     EditMessage(super::message_edit::EditRequest),
     ImagePreview {
         thread_id: String,
@@ -183,6 +184,7 @@ impl GuiRequest {
     // Only this closed set of methods is exposed to the WebView.
     pub(super) fn into_rpc(self) -> Result<(&'static str, Value)> {
         match self {
+            Self::ProjectFiles(_) => Err(GuiError::InvalidRequest),
             Self::EditMessage(_) => Err(GuiError::InvalidRequest),
             // Image previews are served locally, never forwarded as an app-server operation.
             Self::ImagePreview { .. } => Err(GuiError::InvalidRequest),

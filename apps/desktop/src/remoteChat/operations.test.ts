@@ -46,6 +46,25 @@ it('preserves a running desktop session when a phone reconnects', async () => {
   expect(guiApi.connect).toHaveBeenCalledWith({ reuseExisting: true });
 });
 
+it('passes project photo browsing to the typed desktop boundary', async () => {
+  const body = { operation: 'projectFiles', threadId: 'chat', directory: '', imagesOnly: true };
+  vi.mocked(guiApi.request).mockResolvedValue({ directory: 'C:/project', parent: null, entries: [], truncated: false });
+  const result = await new ChatOperations().execute({ kind: 'request', id: 'files', method: 'request', body });
+  expect(result.error).toBeUndefined();
+  expect(guiApi.request).toHaveBeenCalledWith(body);
+  expect(result.data).toMatchObject({ directory: 'C:/project', entries: [] });
+});
+
+it('retains available skills when the plugin catalog fails', async () => {
+  const skills = { data: [{ cwd: 'C:/project', skills: [], errors: [] }] };
+  vi.mocked(guiApi.request).mockResolvedValueOnce(skills).mockRejectedValueOnce(new Error('unavailable'));
+  const result = await new ChatOperations().execute({ kind: 'request', id: 'catalog', method: 'request',
+    body: { operation: 'skills', cwd: 'C:/project', includePlugins: true } });
+  expect(result.error).toBeUndefined();
+  expect(result.data).toMatchObject({ data: [{ skills: [], errors: [] }], plugins: [], pluginsError: expect.any(String) });
+  expect(guiApi.request).toHaveBeenLastCalledWith({ operation: 'plugins', cwd: 'C:/project' });
+});
+
 it('keeps accepting mutations after more than 512 incremental polls', async () => {
   vi.mocked(guiApi.request).mockResolvedValue({ data: [], nextCursor: null });
   const operations = new ChatOperations();

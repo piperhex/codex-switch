@@ -113,3 +113,24 @@ it('does not leave a message waiting when an unseen PC turn completes during its
   await vi.waitFor(() => expect(queue.read().threads.phone).toBeUndefined());
   expect(guiApi.request).toHaveBeenCalledWith(expect.objectContaining({ operation: 'sendBatch' }));
 });
+
+it('preserves phone bytes, PC files and plugins for attachment-only queued and immediate sends', async () => {
+  const attachments = [
+    { kind: 'file', name: 'note.txt', path: '', data: 'aGVsbG8=' },
+    { kind: 'file', name: 'photo.png', path: 'C:/project/photo.png' },
+    { kind: 'plugin', name: 'GitHub', path: 'plugin://github@openai' },
+  ];
+  await queue.request({ ...input, text: '', attachments });
+  const id = queue.read().threads.phone[0].id;
+  expect(queue.read().threads.phone[0]).toMatchObject({ text: 'note.txt、photo.png、GitHub', attachmentCount: 3 });
+  expect(JSON.stringify(queue.read())).not.toContain(attachments[0].data);
+  expect(JSON.stringify(queue.read())).not.toContain(attachments[1].path);
+  await queue.request({ operation: 'queueSendNow', threadId: 'phone', id });
+  expect(guiApi.request).toHaveBeenLastCalledWith(expect.objectContaining({ operation: 'steer', attachments }));
+  thread.turns![0].status = 'completed';
+  receive({ method: 'turn/completed', params: { threadId: thread.id, turn: thread.turns![0] } });
+  await queue.request({ ...input, text: '', attachments });
+  await vi.waitFor(() => expect(guiApi.request).toHaveBeenCalledWith(expect.objectContaining({
+    operation: 'sendBatch', messages: [expect.objectContaining({ text: '', attachments })],
+  })));
+});

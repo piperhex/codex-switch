@@ -3,6 +3,7 @@ import { BackHandler, Keyboard, KeyboardAvoidingView, Linking, Platform, Pressab
 import type { AuthSession, RemoteDevice } from '../types';
 import { ChatApproval } from './ChatApprovals';
 import { ChatComposer } from './ChatComposer';
+import { ChatOverlay } from './ChatOverlay';
 import { ChatQueue } from './ChatQueue';
 import { queueProps } from '../../../../shared/remote-chat/client/queueProps';
 import { ChatMessages } from './ChatMessages';
@@ -100,6 +101,7 @@ function ConnectedChat({ session, device, devices, active, chooseDevice, notific
       select={(thread) => closeDrawer(() => { void controller.select(thread); })} />}>
     <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       {...drawerSwipeHandlers}>
+    <ChatOverlay>
     <View style={styles.header}>
       <Pressable accessibilityRole="button" accessibilityLabel="打开聊天列表" style={styles.back}
         onPress={openDrawer}><Text style={styles.backText}>☰</Text></Pressable>
@@ -132,6 +134,7 @@ function ConnectedChat({ session, device, devices, active, chooseDevice, notific
       </ScrollView>}
     <ChatQueue {...queueProps(state, controller)} />
     <ChatComposer threadId={state.selected?.id ?? null} models={state.models} selection={state.settings}
+      loadCatalog={controller.loadComposerCatalog} loadFiles={controller.loadProjectFiles}
       catalog={catalog} cwd={state.selected?.cwd ?? state.draftProject?.cwd ?? ''}
       compactReason={compactUnavailableReason(state)} compacting={!!state.compacting
         && state.compacting === state.selected?.id} compact={controller.compact}
@@ -142,5 +145,6 @@ function ConnectedChat({ session, device, devices, active, chooseDevice, notific
       interrupt={() => controller.interrupt()} />
     {pickingDevice && <ChatDevices devices={devices} onClose={() => setPickingDevice(false)}
       choose={(id) => { chooseDevice(id); setPickingDevice(false); }} />}
+    </ChatOverlay>
   </KeyboardAvoidingView></ChatDrawer>;
 }
