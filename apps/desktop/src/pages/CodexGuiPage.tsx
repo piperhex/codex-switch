@@ -78,8 +78,7 @@ function Workspace({ active, accountPicker, providers, aggregateApis, windowCont
         {collapsed && <FocusModeButton focused={focused} onToggleFocus={onToggleFocus} />}
         <div className={styles.heading} data-tauri-drag-region={isDesktopApp || undefined}>
           <strong data-tauri-drag-region={isDesktopApp || undefined}>{thread ? threadTitle(thread) : "Codex GUI"}</strong>
-          <span data-tauri-drag-region={isDesktopApp || undefined}>
-            {thread ? (isDesktopApp ? "本地对话" : "主机对话") : "在这里，把想法变成现实"}</span></div>
+        </div>
         <div className={styles.headerActions} data-tauri-drag-region={isDesktopApp || undefined}>
           <ConversationChangesButton value={current} />
           {installer.version && <Button type="text" icon={<RefreshCw size={16} />} aria-label="重新连接 Codex"

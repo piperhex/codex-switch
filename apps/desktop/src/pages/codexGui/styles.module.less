@@ -75,10 +75,8 @@
   button:global(.ant-btn-icon-only) { width: 26px; padding: 0; }
   :global(.ant-btn) svg { width: 14px; height: 14px; }
 }
-.heading { display: flex; flex-direction: column; min-width: 0;
-  strong { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 13px; line-height: 16px; }
-  > span { color: var(--gui-muted); font-size: 10px; line-height: 12px;
-    overflow: hidden; white-space: nowrap; text-overflow: ellipsis; } }
+.heading { display: flex; min-width: 0;
+  strong { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 13px; line-height: 16px; } }
 .headerActions { margin-left: auto; display: flex; align-items: center; flex-shrink: 0; }
 .focusWindowControls { align-self: stretch; display: flex; flex-shrink: 0; margin: -4px -14px -4px 4px; }
 .messageViewport { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; overflow-anchor: none; }
@@ -185,7 +183,6 @@
   .header { gap: 4px; padding: 0 8px; height: 28px; min-height: 28px; }
   .focusWindowControls { margin: 0 -8px 0 4px;
     :global(.window-control) { width: 36px; height: 28px; } }
-  .heading > span { display: none; }
   .headerActions { gap: 0; }
   .messageContent { padding: 18px 14px; }
   .composerWrap { padding: 0 10px 10px; }
