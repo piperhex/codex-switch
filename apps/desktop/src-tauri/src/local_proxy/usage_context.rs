@@ -9,9 +9,34 @@ struct TokenUsageRequest<'a> {
     session_request_id: Option<u64>,
 }
 
+fn request_chat_usage(method: &Method, url: &str, body: Vec<u8>) -> Vec<u8> {
+    if *method != Method::Post || !request_path(url).ends_with("/chat/completions") {
+        return body;
+    }
+    let Ok(mut value) = serde_json::from_slice::<Value>(&body) else {
+        return body;
+    };
+    if value.get("stream").and_then(Value::as_bool) != Some(true) {
+        return body;
+    }
+    if !value.get("stream_options").is_some_and(Value::is_object) {
+        value["stream_options"] = json!({});
+    }
+    value["stream_options"]["include_usage"] = json!(true);
+    serde_json::to_vec(&value).unwrap_or(body)
+}
+
 fn token_usage_context(request: TokenUsageRequest<'_>) -> Option<TokenUsageContext> {
     let image_request = is_image_generation_endpoint(request.path);
-    if *request.method != Method::Post || (!is_responses_endpoint(request.path) && !image_request) {
+    let message_request = is_anthropic_messages_endpoint(request.path)
+        || matches!(request.path, "/chat/completions" | "/v1/chat/completions");
+    let lan_api_key_id = lan_keys::RequestKeyScope::current();
+    if *request.method != Method::Post
+        || (!is_responses_endpoint(request.path)
+            && !image_request
+            && !message_request
+            && lan_api_key_id.is_none())
+    {
         return None;
     }
     let request_body = serde_json::from_slice::<Value>(request.body).ok();
@@ -43,6 +68,7 @@ fn token_usage_context(request: TokenUsageRequest<'_>) -> Option<TokenUsageConte
         account: None,
         session_id: request.session_id.map(ToString::to_string),
         session_request_id: request.session_request_id,
+        lan_api_key_id,
     })
 }
 

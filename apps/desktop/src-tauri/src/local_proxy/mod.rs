@@ -18,12 +18,16 @@ mod error_capture;
 mod gui_auto_switch;
 mod gui_forwarding;
 mod gui_routing;
+pub(crate) mod lan_keys;
 mod quota_detection;
 mod quota_sse;
 mod session_titles;
 mod sse_transport;
 mod upstream_transport;
 
+pub(crate) use lan_keys::{
+    delete_local_proxy_lan_api_key, list_local_proxy_lan_api_keys, save_local_proxy_lan_api_key,
+};
 use quota_detection::is_official_quota_exhaustion;
 
 include!("constants.rs");
@@ -46,6 +50,7 @@ include!("auto_reset_commands.rs");
 include!("system_prompt_filter.rs");
 include!("system_prompt_injection.rs");
 include!("server.rs");
+include!("request_routing.rs");
 include!("active_forwarding.rs");
 include!("retry.rs");
 include!("routing_auto.rs");
@@ -102,6 +107,7 @@ mod tests {
     include!("tests/anthropic_sessions.rs");
     include!("tests/chat_stream_status.rs");
     include!("tests/http_streaming.rs");
+    include!("tests/lan_http.rs");
     include!("tests/gui_routing.rs");
     include!("tests/error_logging.rs");
 }

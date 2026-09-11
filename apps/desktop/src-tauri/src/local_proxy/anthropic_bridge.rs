@@ -21,10 +21,32 @@ fn is_anthropic_count_tokens_endpoint(path: &str) -> bool {
 }
 
 fn anthropic_usage(usage: Option<&Value>) -> Value {
-    json!({
-        "input_tokens": usage.and_then(|v| v.get("input_tokens")).cloned().unwrap_or(json!(0)),
-        "output_tokens": usage.and_then(|v| v.get("output_tokens")).cloned().unwrap_or(json!(0))
-    })
+    let mut converted = json!({});
+    for (field, missing_flag) in [
+        ("input_tokens", MISSING_INPUT_TOKENS_FLAG),
+        ("output_tokens", MISSING_OUTPUT_TOKENS_FLAG),
+    ] {
+        let count = usage
+            .and_then(|usage| usage.get(field))
+            .and_then(Value::as_u64);
+        converted[field] = json!(count.unwrap_or(0));
+        if count.is_none() {
+            // Messages clients require integer counters even before the upstream reports usage.
+            converted[missing_flag] = json!(true);
+        }
+    }
+    // Keep token details through conversion so downstream accounting uses the original cache rates.
+    for field in [
+        "input_tokens_details",
+        "output_tokens_details",
+        "total_tokens",
+        INCOMPLETE_USAGE_FLAG,
+    ] {
+        if let Some(value) = usage.and_then(|usage| usage.get(field)) {
+            converted[field] = value.clone();
+        }
+    }
+    converted
 }
 
 fn anthropic_text(value: &Value) -> Option<String> {

@@ -39,6 +39,7 @@ impl CaptureUsageFixture {
             account: None,
             session_id: None,
             session_request_id: None,
+            lan_api_key_id: None,
         };
         let inner = CaptureUsageChunkReader {
             chunks: chunks

@@ -263,6 +263,22 @@ it("does not present missing usage as zero remaining", async () => {
 const balance: ProviderBalance = { apiAmount: 99, apiUnit: "USD", apiUnlimited: false,
   walletAmount: 12.34, walletUnit: "CNY", queriedAt: 1 };
 
+it.each([0, 7.5])("shows Codex Switch key quota %s in the proxy summary", async (amount) => {
+  props.providers = [{ ...provider, active: true, balancePlatform: "codexSwitch" }];
+  vi.mocked(queryProviderBalance).mockResolvedValue({ ...balance, apiAmount: amount, walletAmount: null });
+  await render();
+  expect(trigger().textContent).toContain(`剩余额度 ${amount.toFixed(2)} USD`);
+  expect(trigger().textContent).not.toContain("钱包余额");
+});
+
+it("shows unlimited Codex Switch keys without treating them as a zero balance", async () => {
+  props.providers = [{ ...provider, active: true, balancePlatform: "codexSwitch" }];
+  vi.mocked(queryProviderBalance).mockResolvedValue({ ...balance,
+    apiAmount: null, apiUnlimited: true, walletAmount: null });
+  await render();
+  expect(trigger().textContent).toContain("剩余额度 不限额");
+});
+
 it.each([0, 12.34, -2, null, Number.NaN])("prefers the wallet amount %s over API quota", async (amount) => {
   props.providers = [{ ...provider, active: true, balancePlatform: "newApi" }];
   vi.mocked(queryProviderBalance).mockResolvedValue({ ...balance, walletAmount: amount });

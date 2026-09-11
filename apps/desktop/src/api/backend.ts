@@ -19,6 +19,7 @@ import { loadStoredModelTokenCosts, persistStoredModelTokenCosts } from "../page
 import { estimateTokenCost } from "../utils/tokenCost";
 import type { AccountQuotaHistory, DailyTokenUsageBreakdown } from "../types/tokenUsageAnalytics";
 import { previewAccountQuotaHistory, previewTokenBreakdown } from "./tokenUsagePreview";
+import { previewHasLocalProxyLanApiKey, previewSetLegacyLanApiKey } from "./localProxyLanKeysPreview";
 import { normalizeTotpVault, TOTP_STORAGE_KEY, type TotpVault } from "../utils/totp";
 import {
   normalizeThirdPartyAppWriteSettings,
@@ -282,7 +283,6 @@ const SYSTEM_PROMPT_FILTER_RULES_PREVIEW_KEY = "codex-switch:system-prompt-filte
 const SYSTEM_PROMPT_INJECTION_PREVIEW_KEY = "codex-switch:system-prompt-injection";
 const SYSTEM_PROMPT_INJECTION_PROMPTS_PREVIEW_KEY = "codex-switch:system-prompt-injection-prompts";
 const LOCAL_PROXY_LISTEN_ALL_INTERFACES_PREVIEW_KEY = "codex-switch:local-proxy-listen-all-interfaces";
-const LOCAL_PROXY_LAN_API_KEY_PREVIEW_KEY = "codex-switch:local-proxy-lan-api-key";
 const LOCAL_PROXY_PORT_PREVIEW_KEY = "codex-switch:local-proxy-port";
 const WEB_PROXY_LISTEN_ALL_INTERFACES_PREVIEW_KEY = "codex-switch:web-proxy-listen-all-interfaces";
 const LOCAL_PROXY_IMAGE_ACCOUNT_PREVIEW_KEY = "codex-switch:image-generation-account";
@@ -522,7 +522,7 @@ function previewLocalProxyStatus(): LocalProxyStatus {
     systemPromptInjectionEnabled: window.localStorage.getItem(SYSTEM_PROMPT_INJECTION_PREVIEW_KEY) === "true",
     systemPromptInjectionPrompts: readPreviewSystemPromptInjectionPrompts(),
     listenOnAllInterfaces: window.localStorage.getItem(LOCAL_PROXY_LISTEN_ALL_INTERFACES_PREVIEW_KEY) === "true",
-    hasLanApiKey: Boolean(window.localStorage.getItem(LOCAL_PROXY_LAN_API_KEY_PREVIEW_KEY)),
+    hasLanApiKey: previewHasLocalProxyLanApiKey(),
     imageGenerationAccountId: window.localStorage.getItem(LOCAL_PROXY_IMAGE_ACCOUNT_PREVIEW_KEY),
     imageInputTarget: readPreviewImageModelTarget(LOCAL_PROXY_IMAGE_INPUT_TARGET_PREVIEW_KEY),
     imageOutputTarget: readPreviewImageModelTarget(LOCAL_PROXY_IMAGE_OUTPUT_TARGET_PREVIEW_KEY),
@@ -2738,22 +2738,12 @@ export async function setLocalProxyListenOnAllInterfaces(
       throw new Error("API key is required before listening on the local network");
     }
     if (normalizedApiKey) {
-      window.localStorage.setItem(LOCAL_PROXY_LAN_API_KEY_PREVIEW_KEY, normalizedApiKey);
+      previewSetLegacyLanApiKey(normalizedApiKey);
     }
     window.localStorage.setItem(LOCAL_PROXY_LISTEN_ALL_INTERFACES_PREVIEW_KEY, String(enabled));
     return previewLocalProxyStatus();
   }
   return invoke<LocalProxyStatus>("set_local_proxy_listen_on_all_interfaces", { enabled, apiKey });
-}
-
-export async function copyLocalProxyLanApiKey(): Promise<void> {
-  if (!hasLocalBackend) {
-    const apiKey = window.localStorage.getItem(LOCAL_PROXY_LAN_API_KEY_PREVIEW_KEY);
-    if (!apiKey) throw new Error("Local network API key is not configured");
-    await navigator.clipboard.writeText(apiKey);
-    return;
-  }
-  await invoke("copy_local_proxy_lan_api_key");
 }
 
 export async function chooseAndImportSub2apiJson(): Promise<CompatibleJsonImportResult> {

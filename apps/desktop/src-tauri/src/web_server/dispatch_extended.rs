@@ -91,8 +91,19 @@ fn dispatch_extended_command(app: AppHandle, command: &str, args: Value) -> Resu
             ),
         )),
         "copy_local_proxy_lan_api_key" => {
-            serialize(block_on(crate::local_proxy::copy_local_proxy_lan_api_key(app)))
+            serialize(block_on(crate::local_proxy::copy_local_proxy_lan_api_key(
+                app, argument(&args, "id")?,
+            )))
         }
+        "list_local_proxy_lan_api_keys" => serialize(block_on(
+            crate::local_proxy::list_local_proxy_lan_api_keys(app),
+        )),
+        "save_local_proxy_lan_api_key" => serialize(block_on(
+            crate::local_proxy::save_local_proxy_lan_api_key(app, argument(&args, "key")?),
+        )),
+        "delete_local_proxy_lan_api_key" => serialize(block_on(
+            crate::local_proxy::delete_local_proxy_lan_api_key(app, argument(&args, "id")?),
+        )),
         "set_floating_bubble" => serialize(block_on(crate::floating_bubble::set_floating_bubble(
             app,
             argument(&args, "enabled")?,

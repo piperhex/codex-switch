@@ -32,6 +32,7 @@ const PLATFORM_LABELS: Record<ProviderBalancePlatform, string> = {
   newApi: "New API",
   sub2Api: "Sub2API",
   deepSeek: "DeepSeek",
+  codexSwitch: "Codex Switch",
 };
 
 export function ProviderBalanceSettings({
@@ -71,7 +72,8 @@ export function ProviderBalanceSettings({
         <small className={detectionState === "notFound" ? "provider-form-error" : undefined}>
           {detectionCopy}
         </small>
-        {balancePlatform && <>
+        {balancePlatform === "codexSwitch" && <small>{t("providers.balance.codexSwitchHint")}</small>}
+        {balancePlatform && balancePlatform !== "codexSwitch" && <>
           <label htmlFor="provider-balance-url">{t("providers.form.balanceQueryUrl")}</label>
           <Input id="provider-balance-url" value={balanceQueryUrl} disabled={saving}
             placeholder={defaultBalanceUrl(baseUrl, balancePlatform)}

@@ -1,0 +1,29 @@
+.proxy-lan-key-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.proxy-lan-key-row,
+.proxy-lan-key-editor {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  min-width: 0;
+}
+
+.proxy-lan-key-identity { display: grid; gap: 4px; min-width: 0; }
+.proxy-lan-key-identity strong { font-size: 13px; overflow-wrap: anywhere; }
+.proxy-lan-key-identity code { color: var(--muted); font-size: 12px; }
+.proxy-lan-key-usage { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; margin: 0; }
+.proxy-lan-key-usage dt { color: var(--muted); font-size: 11px; }
+.proxy-lan-key-usage dd { margin: 3px 0 0; font-size: 13px; font-variant-numeric: tabular-nums; }
+.proxy-lan-key-editor label { font-size: 12px; font-weight: 500; }
+.proxy-lan-key-usage-review { display: grid; gap: 8px; max-width: 400px; }
+.proxy-lan-key-input { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.proxy-lan-key-error { color: #c34236 !important; }
+.proxy-lan-key-confirm { max-width: min(400px, calc(100vw - 32px)); overflow-wrap: anywhere; }

@@ -4,7 +4,6 @@ import {
   activateAggregateApi,
   activateProvider,
   activateProviderGroup,
-  copyLocalProxyLanApiKey,
   deactivateProvider,
   queryProviderBalance,
   removeAggregateApi,
@@ -754,17 +753,6 @@ export function useProviderManager(
     }
   }, [load, notify, t]);
 
-  const copyProxyLanApiKey = useCallback(async () => {
-    try {
-      await copyLocalProxyLanApiKey();
-      notify(t("toast.proxyLanApiKeyCopied"));
-    } catch (error) {
-      notify(String(error).includes("Local network API key is not configured")
-        ? t("providers.error.lanApiKeyRequired")
-        : String(error));
-    }
-  }, [notify, t]);
-
   return {
     providers,
     aggregateApis,
@@ -808,7 +796,6 @@ export function useProviderManager(
     saveSystemPromptFilterRules,
     setSystemPromptInjection,
     saveSystemPromptInjectionPrompts,
-    copyProxyLanApiKey,
     reload: load,
   };
 }

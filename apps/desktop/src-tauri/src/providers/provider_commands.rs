@@ -101,9 +101,15 @@ pub(crate) fn save_provider_blocking<R: Runtime>(
         return Err("API key is required for a new provider".to_string());
     }
 
+    let (requested_balance_platform, requested_balance_url) = resolve_codex_switch_balance_settings(
+        &base_url,
+        &api_key,
+        kind,
+        (provider.balance_platform, provider.balance_query_url),
+    );
     let (balance_platform, balance_query_url, balance_query_token) = normalize_balance_settings(
-        provider.balance_platform,
-        provider.balance_query_url,
+        requested_balance_platform,
+        requested_balance_url,
         provider.balance_query_token,
         provider.balance_query_uses_api_key,
         existing.as_ref(),
@@ -376,7 +382,7 @@ fn query_provider_balance_blocking<R: Runtime>(
                     })
                 })
             }
-            ProviderBalancePlatform::DeepSeek => None,
+            ProviderBalancePlatform::DeepSeek | ProviderBalancePlatform::CodexSwitch => None,
         };
         if let Some(wallet_result) = wallet_result {
             match wallet_result {

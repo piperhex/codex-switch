@@ -25,6 +25,7 @@ fn normalize_balance_settings(
     if platform == ProviderBalancePlatform::DeepSeek {
         validate_deepseek_balance_query_url(&query_url)?;
     }
+    let uses_api_key = uses_api_key || platform == ProviderBalancePlatform::CodexSwitch;
     let query_token = if uses_api_key {
         None
     } else {
@@ -55,7 +56,7 @@ fn normalize_wallet_settings(
     if platform.is_none() {
         return Ok((None, None, None, None));
     }
-    if platform == Some(ProviderBalancePlatform::DeepSeek) {
+    if matches!(platform, Some(ProviderBalancePlatform::DeepSeek | ProviderBalancePlatform::CodexSwitch)) {
         return Ok((None, None, None, None));
     }
     let query_url = query_url
@@ -247,6 +248,7 @@ fn parse_provider_api_balance(
                     balance_items,
                 )
             }
+            ProviderBalancePlatform::CodexSwitch => return parse_codex_switch_balance(payload),
         };
     Ok(ParsedProviderApiBalance {
         amount,
@@ -351,6 +353,9 @@ fn parse_provider_wallet_balance(
         }
         ProviderBalancePlatform::DeepSeek => {
             Err("DeepSeek does not use a separate wallet balance endpoint".to_string())
+        }
+        ProviderBalancePlatform::CodexSwitch => {
+            Err("Codex Switch does not use a separate wallet balance endpoint".to_string())
         }
     }
 }

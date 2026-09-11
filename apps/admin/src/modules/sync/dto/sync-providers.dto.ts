@@ -108,8 +108,8 @@ export class SyncProviderDto {
   apiFormat: 'openaiResponses' | 'openaiChat';
 
   @IsOptional()
-  @IsIn(['newApi', 'sub2Api', 'deepSeek'])
-  balancePlatform?: 'newApi' | 'sub2Api' | 'deepSeek' | null;
+  @IsIn(['newApi', 'sub2Api', 'deepSeek', 'codexSwitch'])
+  balancePlatform?: 'newApi' | 'sub2Api' | 'deepSeek' | 'codexSwitch' | null;
 
   @IsOptional()
   @IsString()

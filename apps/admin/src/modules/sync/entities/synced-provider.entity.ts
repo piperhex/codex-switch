@@ -71,7 +71,7 @@ export class SyncedProviderEntity {
   apiFormat: 'openaiResponses' | 'openaiChat';
 
   @Column({ type: 'varchar', length: 24, nullable: true })
-  balancePlatform: 'newApi' | 'sub2Api' | 'deepSeek' | null;
+  balancePlatform: 'newApi' | 'sub2Api' | 'deepSeek' | 'codexSwitch' | null;
 
   @Column({ type: 'varchar', length: 1000, nullable: true })
   balanceQueryUrl: string | null;

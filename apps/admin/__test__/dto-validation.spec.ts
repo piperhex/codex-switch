@@ -338,7 +338,9 @@ describe('request DTO validation', () => {
   });
 
   it('validates nested sync providers and accepts complete provider payloads', async () => {
-    const valid = plainToInstance(PutSyncProvidersDto, { providers: [makeProvider()] });
+    const valid = plainToInstance(PutSyncProvidersDto, {
+      providers: [makeProvider(), makeProvider({ balancePlatform: 'codexSwitch' })],
+    });
     expect(valid.providers[0]).toBeInstanceOf(SyncProviderDto);
     await expect(validate(valid)).resolves.toEqual([]);
 

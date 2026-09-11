@@ -103,6 +103,10 @@ impl<R: BufRead> ChatSseReader<R> {
         });
         if let Some(usage) = &self.metadata.usage {
             response["usage"] = usage.clone();
+            if matches!(status, ChatCompletionStatus::Failed(_)) {
+                // A synthesized failure may only contain usage from an earlier partial event.
+                response["usage"][INCOMPLETE_USAGE_FLAG] = json!(true);
+            }
         }
         if let Some(tier) = &self.metadata.service_tier {
             response["service_tier"] = json!(tier);

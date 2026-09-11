@@ -5,13 +5,21 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { loadLocalProxyIpv4Addresses } from "../../api/proxyEndpoints";
 import { loadProxySessions } from "../../api/backend";
-import type { LocalProxyStatus, ProxySession } from "../../types";
+import { copyLocalProxyLanApiKey, deleteLocalProxyLanApiKey, loadLocalProxyLanApiKeys,
+  saveLocalProxyLanApiKey } from "../../api/localProxyLanKeys";
+import type { LocalProxyLanApiKey, LocalProxyStatus, ProxySession } from "../../types";
 import { ProxySessionManager } from "../ProxySessionManager";
 import { ProxySettingsModal } from "./ProxySettingsModal";
 
 vi.mock("../../api/proxyEndpoints", () => ({
   LOOPBACK_IPV4: "127.0.0.1",
   loadLocalProxyIpv4Addresses: vi.fn(),
+}));
+vi.mock("../../api/localProxyLanKeys", () => ({
+  loadLocalProxyLanApiKeys: vi.fn(),
+  saveLocalProxyLanApiKey: vi.fn(),
+  deleteLocalProxyLanApiKey: vi.fn(),
+  copyLocalProxyLanApiKey: vi.fn(),
 }));
 vi.mock("../../api/backend", () => ({
   loadProxySessions: vi.fn(),
@@ -36,7 +44,10 @@ const session: ProxySession = {
   outputTokens: 0, reasoningTokens: 0, cachedTokens: 0,
 };
 const onSave = vi.fn<(enabled: boolean, key?: string) => Promise<boolean>>();
-const onCopyApiKey = vi.fn<() => Promise<void>>();
+const lanKey: LocalProxyLanApiKey = {
+  id: "office", name: "Office laptop", keyPreview: "cs_a…1234", enabled: true,
+  quotaUsd: 10, usedTokens: 12345, usedCostUsd: 2.5, remainingUsd: 7.5,
+};
 const onClose = vi.fn();
 const notify = vi.fn();
 const writeText = vi.fn();
@@ -52,11 +63,19 @@ function button(key: string) {
 }
 const keyInput = () => document.querySelector<HTMLInputElement>("#local-proxy-api-key")!;
 
+async function fillInput(selector: string, value: string) {
+  const input = document.querySelector<HTMLInputElement>(selector)!;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, value);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+}
+
 async function render(overrides: Partial<LocalProxyStatus> = {}, open = true) {
   await act(async () => root.render(<ConfigProvider theme={{ token: { motion: false } }}>
     <ProxySessionManager t={t} />
     <ProxySettingsModal open={open} proxy={{ ...proxy, ...overrides }} loading={false}
-      onSave={onSave} onCopyApiKey={onCopyApiKey} onClose={onClose} notify={notify} t={t} />
+      onSave={onSave} onClose={onClose} notify={notify} t={t} />
   </ConfigProvider>));
 }
 
@@ -71,7 +90,10 @@ beforeEach(() => {
   Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
   writeText.mockResolvedValue(undefined);
   onSave.mockResolvedValue(true);
-  onCopyApiKey.mockResolvedValue(undefined);
+  vi.mocked(loadLocalProxyLanApiKeys).mockReset().mockResolvedValue([]);
+  vi.mocked(saveLocalProxyLanApiKey).mockReset().mockResolvedValue([lanKey]);
+  vi.mocked(deleteLocalProxyLanApiKey).mockReset().mockResolvedValue([]);
+  vi.mocked(copyLocalProxyLanApiKey).mockReset().mockResolvedValue(undefined);
   vi.mocked(loadLocalProxyIpv4Addresses).mockReset().mockResolvedValue(["127.0.0.1", "192.168.1.8"]);
   vi.mocked(loadProxySessions).mockResolvedValue([session]);
   localStorage.clear();
@@ -88,48 +110,57 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-it("saves a generated key before allowing LAN access and copies the saved key after reopening", async () => {
+it("adds a generated key with a spending limit and shows its usage beside the copy action", async () => {
   await render({}, false);
   expect(loadLocalProxyIpv4Addresses).not.toHaveBeenCalled();
   await render();
   expect(button("providers.proxy.listenLan").disabled).toBe(true);
+  await act(async () => button("providers.proxy.lanKeyAdd").click());
+  await fillInput("#proxy-lan-key-name", lanKey.name);
+  await fillInput("#proxy-lan-key-quota", "10");
   await act(async () => button("providers.proxy.generateApiKey").click());
   const generated = keyInput().value;
   expect(generated).toMatch(/^cs_[a-f0-9]{48}$/);
   expect(onSave).not.toHaveBeenCalled();
-  expect(document.body.textContent).toContain("providers.proxy.apiKeyUnsaved");
-  await act(async () => button("providers.proxy.copyLanApiKey").click());
-  expect(writeText).toHaveBeenCalledWith(generated);
   await act(async () => button("providers.proxy.saveApiKey").click());
-  expect(onSave).toHaveBeenCalledWith(false, generated);
-  expect(keyInput().value).toBe("");
-  await render({ hasLanApiKey: true });
+  expect(saveLocalProxyLanApiKey).toHaveBeenCalledWith({ id: undefined, name: lanKey.name,
+    apiKey: generated, enabled: true, quotaUsd: 10 });
+  expect(keyInput()).toBeNull();
+  expect(document.body.textContent).toContain("12,345");
+  expect(document.body.textContent).toContain("$2.50");
+  expect(document.body.textContent).toContain("$7.50");
   await act(async () => button("providers.proxy.listenLan").click());
-  expect(onSave).toHaveBeenLastCalledWith(true, undefined);
+  expect(onSave).toHaveBeenLastCalledWith(true);
+  vi.mocked(loadLocalProxyLanApiKeys).mockResolvedValue([lanKey]);
   await render({ hasLanApiKey: true, listenOnAllInterfaces: true }, false);
   await render({ hasLanApiKey: true, listenOnAllInterfaces: true });
-  await act(async () => button("providers.proxy.copyLanApiKey").click());
-  expect(onCopyApiKey).toHaveBeenCalledOnce();
+  await act(async () => button(`providers.proxy.copyLanApiKey: ${lanKey.name}`).click());
+  expect(copyLocalProxyLanApiKey).toHaveBeenCalledWith(lanKey.id);
+  expect(button(`providers.proxy.lanKeyEnabled: ${lanKey.name}`).disabled).toBe(true);
+  expect(button(`providers.proxy.lanKeyDelete: ${lanKey.name}`).disabled).toBe(true);
 });
 
 it("retains the new key after a failed update and prevents overlapping saves", async () => {
+  vi.mocked(loadLocalProxyLanApiKeys).mockResolvedValue([lanKey]);
   await render({ hasLanApiKey: true, listenOnAllInterfaces: true });
+  await act(async () => button(`providers.proxy.lanKeyEdit: ${lanKey.name}`).click());
   await act(async () => button("providers.proxy.generateApiKey").click());
   const generated = keyInput().value;
-  let completeSave!: (success: boolean) => void;
-  onSave.mockImplementationOnce(() => new Promise((resolve) => { completeSave = resolve; }));
+  let rejectSave!: (error: Error) => void;
+  vi.mocked(saveLocalProxyLanApiKey).mockImplementationOnce(() => new Promise((_, reject) => { rejectSave = reject; }));
   await act(async () => {
-    button("providers.proxy.updateApiKey").click();
-    button("providers.proxy.updateApiKey").click();
+    button("providers.proxy.saveApiKey").click();
+    button("providers.proxy.saveApiKey").click();
   });
-  expect(onSave).toHaveBeenCalledTimes(1);
-  expect(onSave).toHaveBeenCalledWith(true, generated);
+  expect(saveLocalProxyLanApiKey).toHaveBeenCalledTimes(1);
   expect(button("providers.proxy.listenLan").disabled).toBe(true);
-  await act(async () => completeSave(false));
+  await act(async () => rejectSave(new Error("Secret internal path")));
   expect(keyInput().value).toBe(generated);
+  expect(notify).toHaveBeenCalledWith("providers.proxy.lanKeysSaveFailed");
+  expect(document.body.textContent).not.toContain("Secret internal path");
   expect(button("providers.proxy.listenLan").getAttribute("aria-checked")).toBe("true");
-  await act(async () => button("providers.proxy.updateApiKey").click());
-  expect(keyInput().value).toBe("");
+  await act(async () => button("providers.proxy.saveApiKey").click());
+  expect(keyInput()).toBeNull();
 });
 
 it("copies each endpoint and keeps the local endpoint available when address loading fails", async () => {
@@ -157,6 +188,7 @@ it("stays interactive while an active session poll and address scan are pending"
   await render();
   await act(async () => vi.advanceTimersByTime(6_000));
   expect(loadProxySessions).toHaveBeenCalledTimes(2);
+  await act(async () => button("providers.proxy.lanKeyAdd").click());
   await act(async () => button("providers.proxy.generateApiKey").click());
   expect(keyInput().value).toMatch(/^cs_/);
   await act(async () => document.querySelector<HTMLButtonElement>(".proxy-settings-modal .ant-modal-close")!.click());
@@ -169,4 +201,57 @@ it("stays interactive while an active session poll and address scan are pending"
     completePoll([session]);
   });
   expect(document.body.textContent).toContain("http://192.168.1.8:15722/v1");
+});
+
+it("allows unlimited keys, preserves totals on edits, and removes only the selected key", async () => {
+  const second = { ...lanKey, id: "home", name: "Home", quotaUsd: null, remainingUsd: null };
+  vi.mocked(loadLocalProxyLanApiKeys).mockResolvedValue([lanKey, second]);
+  vi.mocked(saveLocalProxyLanApiKey).mockResolvedValue([lanKey, second]);
+  await render({ hasLanApiKey: true, listenOnAllInterfaces: true });
+  await act(async () => button(`providers.proxy.lanKeyEdit: ${second.name}`).click());
+  await act(async () => button("providers.proxy.saveApiKey").click());
+  expect(saveLocalProxyLanApiKey).toHaveBeenCalledWith({ id: second.id, name: second.name,
+    apiKey: undefined, enabled: true, quotaUsd: null });
+  expect(document.body.textContent).toContain("providers.proxy.lanKeyUnlimited");
+  vi.mocked(deleteLocalProxyLanApiKey).mockResolvedValue([lanKey]);
+  await act(async () => button(`providers.proxy.lanKeyDelete: ${second.name}`).click());
+  const confirm = document.querySelector<HTMLButtonElement>(".proxy-lan-key-confirm .ant-btn-primary")!;
+  await act(async () => confirm.click());
+  expect(deleteLocalProxyLanApiKey).toHaveBeenCalledWith(second.id);
+  expect(document.querySelectorAll(".proxy-lan-key-row")).toHaveLength(1);
+});
+
+it("keeps usage polling single flight and ignores stale responses after saving a key", async () => {
+  await render();
+  let completePoll!: (keys: LocalProxyLanApiKey[]) => void;
+  vi.mocked(loadLocalProxyLanApiKeys).mockImplementationOnce(() => new Promise((resolve) => {
+    completePoll = resolve;
+  }));
+  await act(async () => vi.advanceTimersByTime(5_000));
+  await act(async () => vi.advanceTimersByTime(20_000));
+  expect(loadLocalProxyLanApiKeys).toHaveBeenCalledTimes(2);
+  await act(async () => button("providers.proxy.lanKeyAdd").click());
+  await fillInput("#proxy-lan-key-name", lanKey.name);
+  await act(async () => button("providers.proxy.saveApiKey").click());
+  expect(saveLocalProxyLanApiKey).toHaveBeenCalledWith({ id: undefined, name: lanKey.name,
+    apiKey: undefined, enabled: true, quotaUsd: null });
+  await act(async () => completePoll([]));
+  expect(document.body.textContent).toContain(lanKey.name);
+  await render({}, false);
+  await act(async () => vi.advanceTimersByTime(20_000));
+  expect(loadLocalProxyLanApiKeys).toHaveBeenCalledTimes(2);
+});
+
+it("requires an explicit selection to acknowledge incomplete usage", async () => {
+  vi.mocked(loadLocalProxyLanApiKeys).mockResolvedValue([{ ...lanKey, usageIncomplete: true }]);
+  await render();
+  expect(document.body.textContent).toContain("providers.proxy.lanKeyUsageIncomplete");
+  await act(async () => button(`providers.proxy.lanKeyEdit: ${lanKey.name}`).click());
+  const checkbox = document.querySelector<HTMLInputElement>(".proxy-lan-key-usage-review input[type=checkbox]")!;
+  expect(checkbox.checked).toBe(false);
+  await act(async () => checkbox.click());
+  await act(async () => button("providers.proxy.saveApiKey").click());
+  expect(saveLocalProxyLanApiKey).toHaveBeenCalledWith(expect.objectContaining({
+    id: lanKey.id, acknowledgeUsage: true,
+  }));
 });

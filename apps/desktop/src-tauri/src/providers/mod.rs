@@ -10,6 +10,7 @@ include!("activation.rs");
 include!("proxy_state.rs");
 include!("groups_and_storage.rs");
 include!("balance_normalization.rs");
+include!("codex_switch_balance.rs");
 include!("profile_normalization.rs");
 include!("proxy_config.rs");
 include!("model_catalog.rs");
@@ -18,6 +19,7 @@ include!("model_catalog.rs");
 mod tests {
     include!("tests/common.rs");
     include!("tests/balance.rs");
+    include!("tests/codex_switch_balance.rs");
     include!("tests/auth_refresh.rs");
     include!("tests/proxy_config.rs");
     include!("tests/presets.rs");

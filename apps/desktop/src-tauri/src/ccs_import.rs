@@ -387,6 +387,7 @@ fn parse_balance_platform(value: &str) -> Option<ProviderBalancePlatform> {
         "newapi" | "new-api" => Some(ProviderBalancePlatform::NewApi),
         "sub2api" | "sub-2-api" => Some(ProviderBalancePlatform::Sub2Api),
         "deepseek" | "deep-seek" => Some(ProviderBalancePlatform::DeepSeek),
+        "codexswitch" | "codex-switch" => Some(ProviderBalancePlatform::CodexSwitch),
         _ => None,
     }
 }
@@ -424,6 +425,7 @@ fn default_balance_query_url(
         ProviderBalancePlatform::NewApi => NEW_API_BALANCE_PATH,
         ProviderBalancePlatform::Sub2Api => SUB2API_BALANCE_PATH,
         ProviderBalancePlatform::DeepSeek => DEEPSEEK_BALANCE_PATH,
+        ProviderBalancePlatform::CodexSwitch => return providers::codex_switch_quota_url(endpoint),
     };
     url.set_path(&format!("{root_path}{balance_path}"));
     url.set_query(None);

@@ -38,11 +38,21 @@ fn detect_relay_platform_blocking(
         .map_err(|error| format!("Failed to create relay detection client: {error}"))?;
 
     for (platform, path) in [
+        (
+            ProviderBalancePlatform::CodexSwitch,
+            crate::providers::CODEX_SWITCH_QUOTA_PATH,
+        ),
         (ProviderBalancePlatform::NewApi, "/api/usage/token/"),
         (ProviderBalancePlatform::Sub2Api, "/v1/usage"),
     ] {
         let query_url = format!("{root}{path}");
-        let response = match client.get(&query_url).bearer_auth(token).send() {
+        let request = client.get(&query_url).bearer_auth(token);
+        let request = if platform == ProviderBalancePlatform::CodexSwitch {
+            request.timeout(crate::providers::CODEX_SWITCH_QUOTA_DETECTION_TIMEOUT)
+        } else {
+            request
+        };
+        let response = match request.send() {
             Ok(response) => response,
             Err(_) => continue,
         };
@@ -107,12 +117,15 @@ fn matches_platform(platform: ProviderBalancePlatform, payload: &Value) -> bool 
             payload.get("remaining").is_some() && payload.get("unit").is_some()
         }
         ProviderBalancePlatform::DeepSeek => false,
+        ProviderBalancePlatform::CodexSwitch => {
+            crate::providers::is_codex_switch_quota_payload(payload)
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use serde_json::json;
+    use serde_json::{json, Value};
 
     use super::{matches_platform, relay_root};
     use crate::models::ProviderBalancePlatform;
@@ -129,6 +142,21 @@ mod tests {
     fn recognizes_sub2api_usage_payload() {
         assert!(matches_platform(
             ProviderBalancePlatform::Sub2Api,
+            &json!({"remaining": 12.5, "unit": "USD"})
+        ));
+    }
+
+    #[test]
+    fn recognizes_codex_switch_exhausted_and_unlimited_quotas() {
+        for (remaining, unlimited) in [(json!(0), false), (Value::Null, true)] {
+            assert!(matches_platform(
+                ProviderBalancePlatform::CodexSwitch,
+                &json!({"object": "codex_switch_quota", "remainingUsd": remaining,
+                    "unlimited": unlimited, "unit": "USD"})
+            ));
+        }
+        assert!(!matches_platform(
+            ProviderBalancePlatform::CodexSwitch,
             &json!({"remaining": 12.5, "unit": "USD"})
         ));
     }

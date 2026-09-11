@@ -1638,7 +1638,7 @@ export function DashboardApp() {
           loading={providerManager.proxyBusy || chatGptOperation !== null}
           onClose={() => setShowProxySettings(false)}
           onSave={providerManager.setProxyListenOnAllInterfaces}
-          onCopyApiKey={providerManager.copyProxyLanApiKey} notify={notify} t={t} />
+          notify={notify} t={t} />
         <NetworkProxySettingsModal open={showNetworkProxy} value={networkProxy}
           loading={networkProxyLoading} onSave={saveNetworkProxy}
           onClose={() => setShowNetworkProxy(false)} t={t} />

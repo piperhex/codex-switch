@@ -210,6 +210,7 @@ struct TokenUsageContext {
     account: Option<TokenUsageAccount>,
     session_id: Option<String>,
     session_request_id: Option<u64>,
+    lan_api_key_id: Option<String>,
 }
 
 #[derive(Clone, Copy)]

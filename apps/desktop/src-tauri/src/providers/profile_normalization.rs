@@ -133,6 +133,14 @@ fn normalize_provider_profile(mut provider: ProviderProfile) -> Result<ProviderP
         provider.group.clear();
     }
     provider.group = normalize_provider_group(&provider.group)?;
+    if provider.balance_platform == Some(ProviderBalancePlatform::CodexSwitch) {
+        provider.balance_query_url = Some(codex_switch_quota_url(&provider.base_url)?);
+        provider.balance_query_token = None;
+        provider.wallet_query_url = None;
+        provider.wallet_query_token = None;
+        provider.wallet_username = None;
+        provider.wallet_password = None;
+    }
     if provider.balance_platform == Some(ProviderBalancePlatform::DeepSeek) {
         if provider.kind != ProviderKind::Custom {
             return Err("DeepSeek presets must be third-party proxy providers".to_string());

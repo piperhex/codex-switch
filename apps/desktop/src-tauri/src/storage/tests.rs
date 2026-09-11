@@ -96,6 +96,43 @@ mod tests {
     }
 
     #[test]
+    fn lan_key_changes_survive_stale_writes_without_restoring_revoked_keys() {
+        let paths = test_paths();
+        let initial = ManagerStateFile {
+            local_proxy_lan_api_key: Some("legacy-secret".into()),
+            ..Default::default()
+        };
+        write_state(&paths, &initial).unwrap();
+        update_state(&paths, |state| {
+            state.local_proxy_lan_api_key = None;
+            state.local_proxy_lan_api_keys = vec![crate::models::LocalProxyLanApiKey {
+                id: "first".into(), name: "First".into(), api_key: "new-secret".into(),
+                enabled: true, quota_usd: Some(5.0),
+            }];
+            state.local_proxy_lan_api_keys_changed = true;
+            Ok(())
+        }).unwrap();
+        write_state(&paths, &initial).unwrap();
+        let migrated = try_read_state(&paths).unwrap();
+        assert!(migrated.local_proxy_lan_api_key.is_none());
+        assert_eq!(migrated.local_proxy_lan_api_keys.len(), 1);
+        assert!(!migrated.local_proxy_lan_api_keys_changed);
+
+        update_state(&paths, |state| {
+            state.local_proxy_lan_api_keys.clear();
+            state.local_proxy_lan_api_keys_changed = true;
+            Ok(())
+        }).unwrap();
+        write_state(&paths, &migrated).unwrap();
+        let revoked = try_read_state(&paths).unwrap();
+        assert!(revoked.local_proxy_lan_api_key.is_none());
+        assert!(revoked.local_proxy_lan_api_keys.is_empty());
+        let serialized = read_json(&paths.state_file).unwrap();
+        assert!(serialized.get("localProxyLanApiKeysChanged").is_none());
+        fs::remove_dir_all(paths.codex_home.parent().unwrap()).unwrap();
+    }
+
+    #[test]
     fn invalid_state_cannot_be_replaced_with_default_values() {
         let paths = test_paths();
         let mut initial = ManagerStateFile::default();

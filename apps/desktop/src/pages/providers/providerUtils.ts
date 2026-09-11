@@ -219,12 +219,12 @@ function relayRoot(value: string) {
   if (!trimmed) return "";
   try {
     const url = new URL(trimmed);
-    url.pathname = url.pathname.replace(/\/v1\/?$/i, "").replace(/\/+$/, "");
+    url.pathname = url.pathname.replace(/\/(?:api\/)?v1\/?$/i, "").replace(/\/+$/, "");
     url.search = "";
     url.hash = "";
     return url.toString().replace(/\/+$/, "");
   } catch {
-    return trimmed.replace(/\/v1$/i, "");
+    return trimmed.replace(/\/(?:api\/)?v1$/i, "");
   }
 }
 
@@ -238,10 +238,12 @@ export function defaultBalanceUrl(value: string, platform: ProviderBalancePlatfo
   if (!root) return "";
   if (platform === "newApi") return `${root}/api/usage/token/`;
   if (platform === "deepSeek") return `${root}/user/balance`;
+  if (platform === "codexSwitch") return `${root}/v1/codex-switch/quota`;
   return `${root}/v1/usage`;
 }
 
 export function defaultWalletUrl(value: string, platform: ProviderBalancePlatform) {
+  if (platform === "codexSwitch" || platform === "deepSeek") return "";
   const root = relayRoot(value);
   if (!root) return "";
   return platform === "newApi" ? `${root}/api/user/self` : `${root}/api/v1/user/profile`;

@@ -36,8 +36,8 @@ export function OpenAiProviderModal({ provider, saving, onClose, onSave, t }: Pr
       modelSelectionControlledByCodex: true,
       apiKey: apiKey.trim() || undefined,
       apiFormat: "openaiResponses",
-      balancePlatform: null,
-      balanceQueryUrl: null,
+      balancePlatform: provider?.balancePlatform ?? null,
+      balanceQueryUrl: provider?.balanceQueryUrl ?? null,
       balanceQueryUsesApiKey: true,
       walletQueryUrl: null,
     });

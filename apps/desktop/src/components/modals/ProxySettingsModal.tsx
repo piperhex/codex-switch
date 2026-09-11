@@ -1,10 +1,11 @@
-import { Button, Input, Modal, Switch } from "antd";
-import { Copy, Save, Sparkles } from "lucide-react";
+import { Modal, Switch } from "antd";
+import { useLocalProxyLanKeys } from "../../hooks/useLocalProxyLanKeys";
 import { useProxyEndpointAddresses } from "../../hooks/useProxyEndpointAddresses";
 import { useProxySettings } from "../../hooks/useProxySettings";
 import type { Translate } from "../../i18n";
 import type { LocalProxyStatus } from "../../types";
 import { ProxyEndpointList } from "./ProxyEndpointList";
+import { ProxyLanKeyList } from "./ProxyLanKeyList";
 import "./ProxySettingsModal.css";
 
 interface ProxySettingsModalProps {
@@ -13,18 +14,18 @@ interface ProxySettingsModalProps {
   loading: boolean;
   onClose: () => void;
   onSave: (enabled: boolean, apiKey?: string) => Promise<boolean>;
-  onCopyApiKey: () => Promise<void>;
   notify: (message: string) => void;
   t: Translate;
 }
 
 export function ProxySettingsModal(options: ProxySettingsModalProps) {
-  const { open, proxy, loading, onClose, onSave, onCopyApiKey, notify, t } = options;
+  const { open, proxy, loading, onClose, onSave, notify, t } = options;
   const listenOnAllInterfaces = proxy?.listenOnAllInterfaces ?? false;
-  const hasConfiguredKey = proxy?.hasLanApiKey ?? false;
+  const keyManager = useLocalProxyLanKeys({ open, notify, t });
+  const hasConfiguredKey = keyManager.keys?.some((key) => key.enabled) ?? proxy?.hasLanApiKey ?? false;
   const disabled = loading || !proxy?.running;
-  const settings = useProxySettings({ open, disabled, listenOnAllInterfaces, onSave, onCopyApiKey, notify, t });
-  const busy = disabled || settings.saving;
+  const settings = useProxySettings({ disabled: disabled || keyManager.saving, onSave });
+  const busy = disabled || settings.saving || keyManager.saving;
   const endpoints = useProxyEndpointAddresses(open);
 
   return (
@@ -45,34 +46,8 @@ export function ProxySettingsModal(options: ProxySettingsModalProps) {
         </section>
         <ProxyEndpointList endpoints={endpoints} port={proxy?.port} listenOnAllInterfaces={listenOnAllInterfaces}
           notify={notify} t={t} />
-        <section className="proxy-settings-section" aria-labelledby="proxy-api-key-title">
-          <h3 id="proxy-api-key-title">
-            <label htmlFor="local-proxy-api-key">{t("providers.proxy.lanApiKey")}</label>
-          </h3>
-          <Input.Password id="local-proxy-api-key" value={settings.apiKey} disabled={busy}
-            autoComplete="new-password"
-            placeholder={t(hasConfiguredKey ? "providers.proxy.configuredLanApiKey"
-              : "providers.proxy.lanApiKeyPlaceholder")}
-            onChange={(event) => settings.setApiKey(event.target.value)}
-            onPressEnter={() => void settings.saveApiKey()} />
-          <div className="proxy-settings-key-actions">
-            <Button disabled={busy} icon={<Sparkles size={14} />} onClick={settings.generateApiKey}>
-              {t("providers.proxy.generateApiKey")}
-            </Button>
-            <Button type="primary" disabled={busy || !settings.normalizedApiKey} loading={settings.saving}
-              icon={<Save size={14} />} onClick={() => void settings.saveApiKey()}>
-              {t(hasConfiguredKey ? "providers.proxy.updateApiKey" : "providers.proxy.saveApiKey")}
-            </Button>
-            <Button disabled={loading || settings.saving || (!settings.normalizedApiKey && !hasConfiguredKey)}
-              icon={<Copy size={14} />} aria-label={t("providers.proxy.copyLanApiKey")}
-              onClick={() => void settings.copyApiKey()}>
-              {t("providers.proxy.copyApiKey")}
-            </Button>
-          </div>
-          <p role="status">{t(settings.normalizedApiKey
-            ? "providers.proxy.apiKeyUnsaved" : "providers.proxy.apiKeyUsageHint")}</p>
-          {hasConfiguredKey && <p>{t("providers.proxy.apiKeyUpdateHint")}</p>}
-        </section>
+        <ProxyLanKeyList open={open} manager={keyManager} disabled={busy}
+          listenOnAllInterfaces={listenOnAllInterfaces} t={t} />
       </div>
     </Modal>
   );

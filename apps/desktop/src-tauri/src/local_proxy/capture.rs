@@ -1,3 +1,7 @@
+const MISSING_INPUT_TOKENS_FLAG: &str = "input_tokens_missing";
+const MISSING_OUTPUT_TOKENS_FLAG: &str = "output_tokens_missing";
+const INCOMPLETE_USAGE_FLAG: &str = "usage_incomplete";
+
 fn attach_token_usage_capture<R: Runtime + 'static>(
     app: &tauri::AppHandle<R>,
     context: Option<TokenUsageContext>,
@@ -48,7 +52,7 @@ fn attach_token_usage_capture<R: Runtime + 'static>(
                 context.content_type.as_deref(),
                 context.expects_event_stream,
             );
-            record_token_usage_entry(app, &context, usage);
+            record_token_usage_entry(app, &context, usage, buffered_usage_complete(&body));
             UpstreamBody::Buffered(body)
         }
         UpstreamBody::Streaming(reader) => UpstreamBody::Streaming(Box::new(
@@ -66,6 +70,7 @@ struct TokenUsageCaptureReader<R: Runtime> {
     sse_buffer: String,
     usage: Option<TokenUsageValues>,
     recorded: bool,
+    complete: bool,
 }
 
 impl<R: Runtime> TokenUsageCaptureReader<R> {
@@ -82,6 +87,7 @@ impl<R: Runtime> TokenUsageCaptureReader<R> {
             sse_buffer: String::new(),
             usage: None,
             recorded: false,
+            complete: false,
         }
     }
 
@@ -115,6 +121,7 @@ impl<R: Runtime> TokenUsageCaptureReader<R> {
             .collect::<Vec<_>>()
             .join("\n");
         if data.trim() == "[DONE]" {
+            self.complete = true;
             self.record_usage();
             return;
         }
@@ -125,14 +132,10 @@ impl<R: Runtime> TokenUsageCaptureReader<R> {
             if let Some(tier) = extract_service_tier_from_value(&value) {
                 self.context.service_tier = Some(tier);
             }
-            if let Some(usage) = extract_token_usage_from_value(&value) {
-                self.usage = Some(usage);
-            }
-            if matches!(
-                value.get("type").and_then(Value::as_str),
-                Some("response.completed" | "response.incomplete" | "response.failed")
-            ) {
+            merge_token_usage_event(&mut self.usage, &value);
+            if is_terminal_usage_event(&value) {
                 // A terminal event completes accounting even if the upstream keeps its socket open.
+                self.complete = !event_usage_incomplete(&value);
                 self.record_usage();
             }
         }
@@ -157,6 +160,7 @@ impl<R: Runtime> TokenUsageCaptureReader<R> {
                 self.process_sse_block(&block);
             }
         } else if self.usage.is_none() {
+            self.complete = buffered_usage_complete(&self.body);
             self.context.service_tier = extract_service_tier_from_bytes(
                 &self.body,
                 self.context.content_type.as_deref(),
@@ -177,12 +181,15 @@ impl<R: Runtime> TokenUsageCaptureReader<R> {
             return;
         }
         self.recorded = true;
-        record_token_usage_entry(&self.app, &self.context, self.usage.clone());
+        record_token_usage_entry(&self.app, &self.context, self.usage.clone(), self.complete);
     }
 }
 
 impl<R: Runtime> Read for TokenUsageCaptureReader<R> {
     fn read(&mut self, target: &mut [u8]) -> io::Result<usize> {
+        if target.is_empty() {
+            return Ok(0);
+        }
         match self.inner.read(target) {
             Ok(0) => {
                 self.finish();
@@ -228,15 +235,60 @@ fn extract_token_usage_from_bytes(
                 continue;
             }
             if let Ok(value) = serde_json::from_str::<Value>(&data) {
-                if let Some(next) = extract_token_usage_from_value(&value) {
-                    usage = Some(next);
-                }
+                merge_token_usage_event(&mut usage, &value);
             }
         }
         return usage;
     }
 
     None
+}
+
+fn is_terminal_usage_event(value: &Value) -> bool {
+    matches!(
+        value.get("type").and_then(Value::as_str),
+        Some("response.completed" | "response.incomplete" | "response.failed" | "message_stop")
+    )
+}
+
+fn buffered_usage_complete(body: &[u8]) -> bool {
+    if let Ok(value) = serde_json::from_slice::<Value>(body) {
+        return !event_usage_incomplete(&value);
+    }
+    let mut complete = false;
+    for block in String::from_utf8_lossy(body)
+        .replace("\r\n", "\n")
+        .split("\n\n")
+    {
+        let data = block
+            .lines()
+            .filter_map(|line| line.trim_start().strip_prefix("data:"))
+            .map(str::trim_start)
+            .collect::<Vec<_>>()
+            .join("\n");
+        if data.trim() == "[DONE]" {
+            complete = true;
+        }
+        if let Ok(value) = serde_json::from_str::<Value>(&data) {
+            if event_usage_incomplete(&value) {
+                return false;
+            }
+            complete |= is_terminal_usage_event(&value);
+        }
+    }
+    complete
+}
+
+fn event_usage_incomplete(value: &Value) -> bool {
+    ["/usage", "/response/usage", "/message/usage"]
+        .iter()
+        .any(|path| {
+            value
+                .pointer(path)
+                .and_then(|usage| usage.get(INCOMPLETE_USAGE_FLAG))
+                .and_then(Value::as_bool)
+                == Some(true)
+        })
 }
 
 fn extract_token_usage_from_value(value: &Value) -> Option<TokenUsageValues> {
@@ -252,13 +304,48 @@ fn extract_token_usage_from_value(value: &Value) -> Option<TokenUsageValues> {
             value
                 .pointer("/choices/0/usage")
                 .filter(|usage| !usage.is_null())
+        })
+        .or_else(|| {
+            value
+                .pointer("/message/usage")
+                .filter(|usage| !usage.is_null())
         })?;
     Some(token_usage_values_from_usage(usage))
 }
 
+fn merge_token_usage_event(current: &mut Option<TokenUsageValues>, value: &Value) {
+    let Some(mut next) = extract_token_usage_from_value(value) else {
+        return;
+    };
+    if value.get("type").and_then(Value::as_str) == Some("message_delta") {
+        if let Some(previous) = current.as_ref() {
+            let usage = value.get("usage").unwrap_or(&Value::Null);
+            if !usage_field_missing(usage, MISSING_INPUT_TOKENS_FLAG) {
+                next.input_tokens = next.input_tokens.or(previous.input_tokens);
+            }
+            if !usage_field_missing(usage, MISSING_OUTPUT_TOKENS_FLAG) {
+                next.output_tokens = next.output_tokens.or(previous.output_tokens);
+            }
+            next.cached_tokens = next.cached_tokens.or(previous.cached_tokens);
+            next.reasoning_tokens = next.reasoning_tokens.or(previous.reasoning_tokens);
+            next.total_tokens = next
+                .input_tokens
+                .zip(next.output_tokens)
+                .map(|(input, output)| input.saturating_add(output));
+        }
+    }
+    *current = Some(next);
+}
+
+fn usage_field_missing(usage: &Value, flag: &str) -> bool {
+    usage.get(flag).and_then(Value::as_bool) == Some(true)
+}
+
 fn token_usage_values_from_usage(usage: &Value) -> TokenUsageValues {
-    let input_tokens = first_usage_number(usage, &[&["input_tokens"], &["prompt_tokens"]]);
-    let output_tokens = first_usage_number(usage, &[&["output_tokens"], &["completion_tokens"]]);
+    let input_tokens = first_usage_number(usage, &[&["input_tokens"], &["prompt_tokens"]])
+        .filter(|_| !usage_field_missing(usage, MISSING_INPUT_TOKENS_FLAG));
+    let output_tokens = first_usage_number(usage, &[&["output_tokens"], &["completion_tokens"]])
+        .filter(|_| !usage_field_missing(usage, MISSING_OUTPUT_TOKENS_FLAG));
     let reasoning_tokens = first_usage_number(
         usage,
         &[
@@ -312,6 +399,7 @@ fn record_token_usage_entry<R: Runtime>(
     app: &tauri::AppHandle<R>,
     context: &TokenUsageContext,
     usage: Option<TokenUsageValues>,
+    usage_complete: bool,
 ) {
     let usage = usage.unwrap_or_default();
     update_proxy_session_request_usage(
@@ -364,6 +452,11 @@ fn record_token_usage_entry<R: Runtime>(
         total_tokens: usage.total_tokens,
         model_context_window: None,
     };
+    if let Some(key_id) = context.lan_api_key_id.as_deref() {
+        if let Err(error) = lan_keys::record_usage(app, key_id, &entry, usage_complete) {
+            log_proxy_error!("failed to record LAN API key usage: {error}");
+        }
+    }
     if let Err(error) = append_token_usage_entry(app, &entry) {
         log_proxy_error!("failed to write token usage entry: {error}");
     } else {

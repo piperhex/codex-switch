@@ -140,10 +140,17 @@ fn proxy_bind_host(listen_on_all_interfaces: bool) -> &'static str {
 
 fn configured_lan_api_key(state: &ManagerStateFile) -> Option<&str> {
     state
-        .local_proxy_lan_api_key
-        .as_deref()
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
+        .local_proxy_lan_api_keys
+        .iter()
+        .find(|key| key.enabled && !key.api_key.trim().is_empty())
+        .map(|key| key.api_key.as_str())
+        .or_else(|| {
+            state
+                .local_proxy_lan_api_key
+                .as_deref()
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+        })
 }
 
 fn lan_listening_enabled(state: &ManagerStateFile) -> bool {
@@ -265,19 +272,56 @@ fn handle_request<R: Runtime>(app: tauri::AppHandle<R>, mut request: Request) {
         .remote_addr()
         .map(|address| address.ip().is_loopback())
         .unwrap_or(false);
-    if !is_loopback {
-        let configured_key = resolve_paths(&app)
-            .ok()
-            .map(|paths| read_state(&paths))
-            .and_then(|state| configured_lan_api_key(&state).map(str::to_string));
-        if !configured_key
-            .as_deref()
-            .is_some_and(|expected| request_has_valid_api_key(&headers, expected))
-        {
-            respond_error(request, 401, "A valid API key is required".to_string());
+    let quota_query = method == Method::Get && lan_keys::is_quota_endpoint(request_path(&url));
+    let lan_key = match lan_keys::authorize_request(&app, &headers, is_loopback, quota_query) {
+        Ok(key) => key,
+        Err(error) => {
+            let status = if matches!(error, lan_keys::LanKeyError::Unauthorized) {
+                401
+            } else {
+                503
+            };
+            respond_error(request, status, error.to_string());
             return;
         }
+    };
+    if quota_query {
+        if let Some(key) = lan_key.as_ref() {
+            respond_payload(request, lan_keys::quota_payload(key));
+        }
+        return;
     }
+    if method == Method::Post
+        && lan_key
+            .as_ref()
+            .is_some_and(|key| key.remaining_usd == Some(0.0))
+    {
+        respond_payload(
+            request,
+            json_payload(
+                429,
+                json!({"error": {
+                    "message": "This API key has reached its spending limit.",
+                    "type": "insufficient_quota", "code": "quota_exceeded"
+                }}),
+            ),
+        );
+        return;
+    }
+    if method == Method::Post
+        && lan_key
+            .as_ref()
+            .is_some_and(|key| key.quota_usd.is_some() && key.usage_incomplete)
+    {
+        respond_error(
+            request,
+            503,
+            "Usage could not be confirmed. Ask the owner to review this API key's usage and quota."
+                .to_string(),
+        );
+        return;
+    }
+    let _lan_key_scope = lan_keys::RequestKeyScope::enter(lan_key.map(|key| key.id));
 
     let mut body = Vec::new();
     if let Err(error) = request.as_reader().read_to_end(&mut body) {
@@ -394,250 +438,4 @@ fn api_keys_equal(expected: &str, actual: &str) -> bool {
                 difference | (left ^ right)
             })
             == 0
-}
-
-fn handle_proxy_request<R: Runtime>(
-    app: &tauri::AppHandle<R>,
-    method: &Method,
-    url: &str,
-    headers: &[(String, String)],
-    body: Vec<u8>,
-    session_id: Option<&str>,
-    session_request_id: Option<u64>,
-) -> Result<UpstreamPayload, String> {
-    if let Some(url) = gui_routing::upstream_path(url) {
-        return gui_routing::handle(gui_routing::GuiProxyRequest {
-            app, method, url, headers, body, session_id, session_request_id,
-        });
-    }
-    let path = request_path(url);
-    let started_at = Instant::now();
-    if *method == Method::Get && path == "/health" {
-        let diagnostic = proxy_diagnostic_entry(
-            method,
-            url,
-            headers,
-            &body,
-            None,
-            ProxyDiagnosticRoute::LocalHealth,
-        );
-        let result = Ok(json_payload(200, json!({ "status": "ok" })));
-        append_proxy_diagnostic_result(app, diagnostic, &result, started_at.elapsed());
-        return result;
-    }
-    if matches!(*method, Method::Get | Method::Head) && path == "/claude-desktop/api/hello" {
-        let result = Ok(json_payload(200, json!({ "status": "ok" })));
-        append_proxy_diagnostic_result(
-            app,
-            proxy_diagnostic_entry(
-                method,
-                url,
-                headers,
-                &body,
-                None,
-                ProxyDiagnosticRoute::LocalHealth,
-            ),
-            &result,
-            started_at.elapsed(),
-        );
-        return result;
-    }
-    if *method == Method::Post && is_anthropic_count_tokens_endpoint(path) {
-        let result = Ok(json_payload(
-            200,
-            json!({ "input_tokens": body.len().saturating_div(4) }),
-        ));
-        append_proxy_diagnostic_result(
-            app,
-            proxy_diagnostic_entry(
-                method,
-                url,
-                headers,
-                &body,
-                None,
-                ProxyDiagnosticRoute::LocalHealth,
-            ),
-            &result,
-            started_at.elapsed(),
-        );
-        return result;
-    }
-    if *method == Method::Post
-        && is_anthropic_messages_endpoint(path)
-        && is_anthropic_token_probe(&body)
-    {
-        let result = Ok(anthropic_token_probe_payload(&body));
-        append_proxy_diagnostic_result(
-            app,
-            proxy_diagnostic_entry(
-                method,
-                url,
-                headers,
-                &body,
-                None,
-                ProxyDiagnosticRoute::LocalHealth,
-            ),
-            &result,
-            started_at.elapsed(),
-        );
-        return result;
-    }
-    if *method == Method::Get && matches!(path, "/usage" | "/v1/usage") {
-        return current_usage_payload(app);
-    }
-    if *method == Method::Get && matches!(path, "/models" | "/v1/models") {
-        let mut target = match active_target(app) {
-            Ok(target) => target,
-            Err(error) => {
-                let diagnostic = proxy_diagnostic_entry(
-                    method,
-                    url,
-                    headers,
-                    &body,
-                    None,
-                    ProxyDiagnosticRoute::LocalModels,
-                );
-                let result = Err(error);
-                append_proxy_diagnostic_result(app, diagnostic, &result, started_at.elapsed());
-                return result;
-            }
-        };
-        let mut diagnostic = proxy_diagnostic_entry(
-            method,
-            url,
-            headers,
-            &body,
-            Some(&target),
-            ProxyDiagnosticRoute::LocalModels,
-        );
-        let refresh_target = std::cell::Cell::new(false);
-        let retry_timeout = upstream_429_retry_timeout(app)?;
-        let result = retry_upstream_request(
-            retry_timeout,
-            || {
-                if refresh_retry_target(&mut target, &refresh_target, || active_target(app))? {
-                    diagnostic = proxy_diagnostic_entry(
-                        method,
-                        url,
-                        headers,
-                        &body,
-                        Some(&target),
-                        ProxyDiagnosticRoute::LocalModels,
-                    );
-                }
-                models_payload(app, url, headers, &target)
-            },
-            |response, event| {
-                let switched = handle_upstream_quota_event(app, response, event);
-                refresh_target.set(switched);
-                switched
-            },
-        );
-        append_proxy_diagnostic_result(app, diagnostic, &result, started_at.elapsed());
-        return result;
-    }
-
-    let mut target = match active_target_for_request(app, path, &body) {
-        Ok(target) => target,
-        Err(error) => {
-            let diagnostic = proxy_diagnostic_entry(
-                method,
-                url,
-                headers,
-                &body,
-                None,
-                ProxyDiagnosticRoute::TargetResolutionError,
-            );
-            let result = Err(error);
-            append_proxy_diagnostic_result(app, diagnostic, &result, started_at.elapsed());
-            return result;
-        }
-    };
-    let body = apply_image_output_model(app, path, headers, body, &target);
-    let body = if is_anthropic_messages_endpoint(path) {
-        body
-    } else {
-        inject_system_prompts(filter_system_prompts(body))
-    };
-    let mut image_account_pool = image_account_pool_for_request(app, path, &body, &target)?;
-    let image_account_failover_enabled = image_account_pool.is_some();
-    let route = proxy_diagnostic_route(path, &target);
-    let mut diagnostic = proxy_diagnostic_entry(method, url, headers, &body, Some(&target), route);
-    let make_usage_context = |target: &ActiveTarget| {
-        let context = token_usage_context(TokenUsageRequest {
-            method,
-            path,
-            body: &body,
-            headers,
-            target,
-            started_at,
-            session_id,
-            session_request_id,
-        });
-        if let Some(context) = context.as_ref() {
-            update_proxy_session_target(
-                context.session_id.as_deref(),
-                session_request_id,
-                &context.provider,
-                &context.model,
-            );
-        }
-        context
-    };
-    let mut usage_context = make_usage_context(&target);
-    let refresh_target = std::cell::Cell::new(false);
-    let retry_timeout = upstream_429_retry_timeout(app)?;
-    let result = retry_upstream_request(
-        retry_timeout,
-        || {
-            if refresh_retry_target(&mut target, &refresh_target, || {
-                active_target_for_request(app, path, &body)
-            })? {
-                let route = proxy_diagnostic_route(path, &target);
-                diagnostic =
-                    proxy_diagnostic_entry(method, url, headers, &body, Some(&target), route);
-                usage_context = make_usage_context(&target);
-            }
-            let account_id_override = image_account_pool
-                .as_ref()
-                .map(|pool| pool.current_account_id().to_string());
-            let result = forward_active_request(ActiveForwardRequest {
-                app,
-                method,
-                url,
-                headers,
-                body: body.clone(),
-                target: &target,
-                session_id,
-                account_id_override: account_id_override.as_deref(),
-            });
-            if let Ok(response) = result.as_ref() {
-                advance_image_account_after_429(&mut image_account_pool, response);
-            }
-            result
-        },
-        |response, event| {
-            if image_account_failover_enabled {
-                return false;
-            }
-            let switched = handle_upstream_quota_event(app, response, event);
-            refresh_target.set(switched);
-            switched
-        },
-    );
-    let provider_models_etag = forward_target_models_etag(app, &target);
-    let result = result.map(|mut payload| {
-        if let Some(etag) = provider_models_etag {
-            payload
-                .response_headers
-                .retain(|(name, _)| !name.eq_ignore_ascii_case("x-models-etag"));
-            payload
-                .response_headers
-                .push(("x-models-etag".to_string(), etag));
-        }
-        payload
-    });
-    let result = attach_token_usage_capture(app, usage_context, result);
-    append_proxy_diagnostic_result(app, diagnostic, &result, started_at.elapsed());
-    result
 }

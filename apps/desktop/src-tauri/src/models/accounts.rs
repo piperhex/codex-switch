@@ -159,6 +159,11 @@ pub(crate) struct ManagerStateFile {
     pub(crate) local_proxy_listen_on_all_interfaces: bool,
     #[serde(default)]
     pub(crate) local_proxy_lan_api_key: Option<String>,
+    #[serde(default)]
+    pub(crate) local_proxy_lan_api_keys: Vec<LocalProxyLanApiKey>,
+    /// Only explicit Key updates may replace authentication settings in an older state snapshot.
+    #[serde(skip)]
+    pub(crate) local_proxy_lan_api_keys_changed: bool,
     /// Authentication secret for the hosted web control plane. This is kept in
     /// the local state file and is never included in AppSettings responses.
     #[serde(default)]
@@ -284,6 +289,7 @@ pub(crate) enum ProviderBalancePlatform {
     NewApi,
     Sub2Api,
     DeepSeek,
+    CodexSwitch,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]

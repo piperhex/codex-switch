@@ -19,6 +19,7 @@ function apiBalanceValue(
   error: string,
   t: Translate,
 ) {
+  if (error && provider.balancePlatform === "codexSwitch") return t("providers.balance.failed");
   if (balance?.apiUnlimited) {
     return provider.balancePlatform === "deepSeek"
       ? t("providers.balance.unavailable")
@@ -52,6 +53,9 @@ function BalanceValues({ options }: { options: {
   walletValue: string;
 } }) {
   const { apiValue, deepSeekValues, provider, t, walletValue } = options;
+  if (provider.balancePlatform === "codexSwitch") {
+    return <strong><span>{t("providers.balance.remainingQuota")}</span>{apiValue}</strong>;
+  }
   if (provider.balancePlatform === "deepSeek") {
     return <>{deepSeekValues.map((value, index) => (
       <strong key={`${value}-${index}`}>
@@ -121,7 +125,8 @@ export function ProviderBalanceCell({ provider, t }: { provider: Provider; t: Tr
   const walletValue = walletBalanceValue(balance, provider, t);
   return (
     <div className="provider-balance">
-      <Tooltip title={error || balance?.walletError || t("providers.balance.refresh")}>
+      <Tooltip title={error || balance?.walletError || t("providers.balance.refresh")}
+        styles={{ root: { maxWidth: 400 } }}>
         <Button type="text" size="small" className="provider-balance-refresh"
           loading={loading} icon={!loading ? <RefreshCw size={13} /> : undefined}
           onClick={() => void refresh()} />
@@ -129,7 +134,7 @@ export function ProviderBalanceCell({ provider, t }: { provider: Provider; t: Tr
       <div className="provider-balance-values">
         <BalanceValues options={{ apiValue, deepSeekValues: deepSeekBalanceValues,
           provider, t, walletValue }} />
-        {balance && <span>{t("providers.balance.justNow")}</span>}
+        {balance && !error && <span>{t("providers.balance.justNow")}</span>}
       </div>
     </div>
   );

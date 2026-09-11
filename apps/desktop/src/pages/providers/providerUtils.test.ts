@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { Translate } from "../../i18n";
 import modelReasoningDefaults from "../../modelReasoningDefaults.json";
 import {
+  defaultBalanceUrl,
+  defaultWalletUrl,
   defaultReasoningEfforts,
   modelReasoningConfigs,
   REASONING_EFFORTS,
@@ -9,6 +11,22 @@ import {
 } from "./providerUtils";
 
 const translateKey: Translate = (key) => key;
+
+describe("Codex Switch quota endpoints", () => {
+  it.each([
+    ["http://192.168.1.2:15721", "http://192.168.1.2:15721/v1/codex-switch/quota"],
+    ["http://192.168.1.2:15721/v1/", "http://192.168.1.2:15721/v1/codex-switch/quota"],
+    ["https://relay.test/team/api/v1", "https://relay.test/team/v1/codex-switch/quota"],
+    ["https://relay.test/team/v1?key=private#fragment", "https://relay.test/team/v1/codex-switch/quota"],
+    ["https://relay.test/team/api", "https://relay.test/team/api/v1/codex-switch/quota"],
+  ])("resolves the quota beside %s", (baseUrl, expected) => {
+    expect(defaultBalanceUrl(baseUrl, "codexSwitch")).toBe(expected);
+  });
+
+  it("does not request a separate wallet for LAN API keys", () => {
+    expect(defaultWalletUrl("http://192.168.1.2:15721/v1", "codexSwitch")).toBe("");
+  });
+});
 
 describe("provider reasoning effort defaults", () => {
   it.each<[string, string[]]>([

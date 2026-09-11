@@ -75,7 +75,7 @@ export function ProviderModal({ provider, saving, onClose, onSave, t }: Provider
       config.reasoningEfforts.length > 0 && Boolean(parseContextWindowK(config.contextWindowK))
     ));
   const activeModel = model.trim() || (normalizedModels[0] ?? "");
-  const hasBalanceToken = balance.balanceQueryUsesApiKey
+  const hasBalanceToken = balance.balancePlatform === "codexSwitch" || balance.balanceQueryUsesApiKey
     || Boolean(balance.balanceQueryToken.trim() || provider?.hasBalanceQueryToken);
   const canSave = Boolean(
     name.trim()
@@ -116,7 +116,7 @@ export function ProviderModal({ provider, saving, onClose, onSave, t }: Provider
       balancePlatform: detectedPlatform,
       balanceQueryUrl: detectedPlatform ? detectedBalanceQueryUrl : null,
       balanceQueryToken: balance.balanceQueryToken.trim() || undefined,
-      balanceQueryUsesApiKey: balance.balanceQueryUsesApiKey,
+      balanceQueryUsesApiKey: detectedPlatform === "codexSwitch" || balance.balanceQueryUsesApiKey,
       walletQueryUrl: detectedPlatform ? detectedWalletQueryUrl || null : null,
       walletQueryToken: balance.walletQueryToken.trim() || undefined,
       walletUsername: balance.walletUsername.trim() || undefined,

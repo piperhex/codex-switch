@@ -80,7 +80,7 @@ export interface AppInfo {
 export type ProviderApiFormat = "openaiResponses" | "openaiChat";
 export type ModelApiFormats = Record<string, ProviderApiFormat>;
 export type ProviderKind = "custom" | "openai";
-export type ProviderBalancePlatform = "newApi" | "sub2Api" | "deepSeek";
+export type ProviderBalancePlatform = "newApi" | "sub2Api" | "deepSeek" | "codexSwitch";
 export type ReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh" | "max" | "ultra";
 export type ModelReasoningEfforts = Record<string, ReasoningEffort[]>;
 export type ModelContextWindows = Record<string, number>;
@@ -189,6 +189,27 @@ export interface ProviderBalance {
 export interface ProviderBalanceItem {
   amount: number;
   unit: string;
+}
+
+export interface LocalProxyLanApiKey {
+  id: string;
+  name: string;
+  keyPreview: string;
+  enabled: boolean;
+  quotaUsd: number | null;
+  usedTokens: number;
+  usedCostUsd: number;
+  remainingUsd: number | null;
+  usageIncomplete?: boolean;
+}
+
+export interface LocalProxyLanApiKeyInput {
+  id?: string;
+  name: string;
+  apiKey?: string;
+  enabled: boolean;
+  quotaUsd: number | null;
+  acknowledgeUsage?: boolean;
 }
 
 export interface LocalProxyStatus {

@@ -47,6 +47,11 @@ fn write_state_unlocked(paths: &Paths, requested: &ManagerStateFile) -> Result<(
     let state_file_exists = paths.state_file.exists();
     let current = read_state_unlocked(paths)?;
     let mut state = requested.clone();
+    if state_file_exists && !state.local_proxy_lan_api_keys_changed {
+        state.local_proxy_lan_api_key = current.local_proxy_lan_api_key.clone();
+        state.local_proxy_lan_api_keys = current.local_proxy_lan_api_keys.clone();
+    }
+    state.local_proxy_lan_api_keys_changed = false;
     if state_file_exists && !state.auto_reset_settings_changed {
         state.auto_reset = current.auto_reset.clone();
     }
