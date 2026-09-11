@@ -58,6 +58,9 @@ export interface Item {
   results?: SearchResult[];
   prompt?: string;
   receiverThreadIds?: string[];
+  kind?: string;
+  agentThreadId?: string;
+  agentPath?: string;
   agentsStates?: Record<string, { status?: string; message?: string | null }>;
   agentStatus?: unknown;
   review?: string;
