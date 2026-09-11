@@ -95,6 +95,16 @@ Web 容器构建包含共享代码，开发代理包含 `/device-chat`；部署�
 - 生产环境使用 HTTPS/WSS。PC CSP 允许连接用户选择的云端 WebSocket 地址；令牌不放入 URL。
 - `.env` 设置 `CHAT_STUN_URLS=stun:你的公网域名:3478`，放行 **UDP 3478**。
   Docker Compose 已映射该 UDP 端口；STUN 的 UDP 流量不经过 HTTP/Kong 路由。
+  域名需要解析到服务器公网 IPv4 地址，也可以直接填写公网 IPv4 地址。
+  云安全组和服务器防火墙均需允许 UDP 3478；面向任意网络的客户端时，IPv4 来源设为 `0.0.0.0/0`。
+  无需开放 TCP 3478，也无需新增 Kong STUN 路由。
+- 通用生产覆盖示例见
+  [`docker-compose.override.example.yml`](../apps/admin/docker-compose.override.example.yml)。
+  新部署可复制为 `docker-compose.override.yml`；已有覆盖文件应合并相关配置，保留其他设置。
+  示例需要 Docker Compose 2.24.4+，将 HTTP 健康检查端口限制在本机，同时保留公网 UDP 3478。
+  **`ports: !override` 会替换整个端口列表，必须显式保留 UDP 3478，否则基础文件中的映射会丢失。**
+  修改后先运行 `docker compose config --quiet`，再按后端 README 应用配置，并从服务器外部验证
+  STUN Binding 响应；HTTP 正常或 Docker 显示端口已发布，都不能替代公网 UDP 实测。
 - `CHAT_STUN_PORT` 默认 `3478`，`CHAT_STUN_BIND` 默认 `0.0.0.0`。填 `CHAT_STUN_PORT=0`
   可停用内置 IPv4 STUN，并在 `CHAT_STUN_URLS` 中配置其他 STUN 服务，多个地址用逗号分隔。
 - 未配置 STUN 时仍会尝试本地候选地址，但跨 NAT 的直连成功率降低；中转仍可工作。

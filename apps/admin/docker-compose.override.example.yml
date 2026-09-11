@@ -1,0 +1,10 @@
+# Requires Docker Compose 2.24.4+ for !override.
+# Copy to docker-compose.override.yml for a new deployment, or merge into an existing override.
+# Set CHAT_STUN_URLS in .env to advertise your public STUN hostname or IPv4 address.
+services:
+  backend:
+    # Replacing ports must retain UDP STUN alongside the local HTTP health-check port.
+    # Kong reaches the backend over kong-net; STUN reaches this published UDP port directly.
+    ports: !override
+      - "127.0.0.1:9999:8080"
+      - "3478:3478/udp"

@@ -23,7 +23,12 @@ See [mobile chat deployment and verification](../../docs/mobile-chat.md) before 
 
 The first registered account becomes an admin. For local development without Kong, configure the desktop app Settings cloud Base URL as `http://127.0.0.1:8080`.
 
-The default Docker Compose file does not publish PostgreSQL, Redis, or the backend on host ports. In production, Kong should reach the backend through the external `kong-net` network at `http://codex-switch-backend:8080`. For local host debugging, add a temporary compose override with explicit `ports`.
+The default Docker Compose file keeps PostgreSQL and Redis private and publishes backend HTTP on
+TCP 9999 and STUN on UDP 3478. In production, Kong reaches the backend through the external
+`kong-net` network at `http://codex-switch-backend:8080`. Use
+[`docker-compose.override.example.yml`](docker-compose.override.example.yml) to restrict host HTTP
+access to loopback while keeping STUN available publicly. Copy it to `docker-compose.override.yml`
+for a new deployment, or merge its backend port settings into an existing override.
 
 PostgreSQL data is bind-mounted from `/srv/codex-switch/postgres` on the Linux host. Prepare the
 directory before the first deployment:
@@ -57,6 +62,39 @@ announcements, desktop FAQs, email templates, telemetry, and feedback management
 optional 2FA key synchronization.
 The RBAC migration must be applied before starting this version because application startup
 synchronizes the permission catalog and protected system roles.
+
+## Mobile Chat STUN
+
+Set the following values in `.env`, replacing `stun.example.com` with a DNS name that resolves to
+your server's public IPv4 address, or with that IPv4 address directly:
+
+```dotenv
+CHAT_STUN_URLS=stun:stun.example.com:3478
+CHAT_STUN_PORT=3478
+CHAT_STUN_BIND=0.0.0.0
+```
+
+Allow inbound **UDP 3478** in the cloud security group and host firewall. For clients connecting
+from arbitrary networks, the IPv4 source range is `0.0.0.0/0`. No TCP 3478 or Kong STUN route is needed:
+the backend serves STUN directly, while `/device-chat` WebSocket traffic continues through Kong.
+
+The override example requires Docker Compose 2.24.4 or newer. Its `ports: !override` replaces the
+entire base port list, so UDP 3478 must be included even though the base Compose file already lists it.
+If you change the STUN port, update the listener, advertised URL, Docker mapping, and firewall rule
+together. Leaving `CHAT_STUN_URLS` empty still permits LAN discovery; setting `CHAT_STUN_PORT=0`
+disables the built-in listener, for example when advertising an external STUN service instead.
+
+From `apps/admin`, validate and apply configuration changes to an already deployed backend:
+
+```bash
+docker compose config --quiet
+docker compose up -d --no-deps --no-build --pull never backend
+docker compose port backend 3478 --protocol udp
+```
+
+The backend briefly restarts and clients reconnect. Verify a STUN Binding response from outside
+the server; a successful HTTP check or a published port alone does not prove UDP reachability.
+See [mobile chat deployment and verification](../../docs/mobile-chat.md#部署-admin) for more detail.
 
 ## Docker Troubleshooting
 
