@@ -56,8 +56,17 @@ impl CaptureUsageFixture {
 
 impl Drop for CaptureUsageFixture {
     fn drop(&mut self) {
-        fs::remove_file(&self.database_path).unwrap();
-        fs::remove_dir(self.database_path.parent().unwrap()).unwrap();
+        // Cleanup must not panic during unwinding and hide the original test failure.
+        for result in [
+            fs::remove_file(&self.database_path),
+            fs::remove_dir(self.database_path.parent().unwrap()),
+        ] {
+            if let Err(error) = result {
+                if error.kind() != io::ErrorKind::NotFound {
+                    eprintln!("failed to clean up token usage test fixture: {error}");
+                }
+            }
+        }
     }
 }
 
