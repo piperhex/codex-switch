@@ -113,7 +113,14 @@ impl ResetBackend for FakeBackend {
             return Err("ambiguous response".into());
         }
         if self.recover {
-            self.usages.insert(id.into(), usage(100.0));
+            let usage = self.usages.get_mut(id).unwrap();
+            for window in [&mut usage.primary, &mut usage.secondary]
+                .into_iter()
+                .flatten()
+            {
+                window.used_percent = 0.0;
+                window.remaining_percent = 100.0;
+            }
         }
         Ok(true)
     }
@@ -163,15 +170,90 @@ fn unknown_failed_and_positive_usage_never_trigger() {
 }
 
 #[test]
-fn a_missing_window_never_authorizes_a_reset_card() {
-    assert!(!quota_is_exhausted(&UsageSummary {
-        primary: None,
-        ..usage(0.0)
-    }));
-    assert!(!quota_is_exhausted(&UsageSummary {
-        secondary: None,
-        ..usage(0.0)
-    }));
+fn single_window_quota_requires_a_successful_exhausted_report() {
+    for primary_only in [false, true] {
+        for remaining in [0.0, 0.1, 100.0, f64::NAN] {
+            let mut report = usage(remaining);
+            if primary_only {
+                report.secondary = None;
+            } else {
+                report.primary = None;
+            }
+            assert_eq!(quota_is_exhausted(&report), remaining == 0.0);
+            report.error = Some("failed".into());
+            assert!(!quota_is_exhausted(&report));
+        }
+    }
+}
+
+fn single_weekly_usage() -> UsageSummary {
+    crate::codex_api::parse_usage(&serde_json::json!({
+        "plan_type": "pro",
+        "rate_limit": {
+            "primary_window": { "used_percent": 100, "limit_window_seconds": 604800 },
+            "secondary_window": null
+        }
+    }))
+}
+
+#[test]
+fn single_window_accounts_recover_in_both_routing_modes() {
+    for concurrent in [false, true] {
+        let mut backend = FakeBackend::default();
+        backend.pool.concurrent = concurrent;
+        backend.pool.settings.max_cards = 2;
+        backend.usages.insert("b".into(), single_weekly_usage());
+        let expected = if concurrent {
+            vec!["b", "c"]
+        } else {
+            vec!["b"]
+        };
+        assert_eq!(restore_pool(&mut backend).unwrap(), expected);
+        assert_eq!(backend.consumed, expected);
+        assert!(backend.usages["b"].secondary.is_none());
+        assert!(!quota_is_exhausted(&backend.usages["b"]));
+    }
+}
+
+#[test]
+fn single_window_accounts_respect_card_reserves() {
+    for card_count in [2, 3] {
+        let mut backend = FakeBackend::default();
+        backend.pool.concurrent = false;
+        backend.pool.account_ids = vec!["a".into()];
+        backend.pool.redeemable_ids = vec!["a".into()];
+        backend.pool.settings.reserve_cards = 2;
+        backend.usages.insert("a".into(), single_weekly_usage());
+        backend
+            .credits
+            .insert("a".into(), cards(&vec![30; card_count]));
+        let expected = if card_count > 2 { vec!["a"] } else { vec![] };
+        assert_eq!(restore_pool(&mut backend).unwrap(), expected);
+        assert_eq!(backend.consumed, expected);
+    }
+}
+
+#[test]
+fn invalid_reported_windows_prevent_reset_in_both_routing_modes() {
+    for concurrent in [false, true] {
+        for invalid_window in [
+            serde_json::json!({}),
+            serde_json::json!({ "used_percent": "unknown" }),
+        ] {
+            let mut backend = FakeBackend::default();
+            backend.pool.concurrent = concurrent;
+            let report = crate::codex_api::parse_usage(&serde_json::json!({
+                "rate_limit": {
+                    "primary_window": { "used_percent": 100 },
+                    "secondary_window": invalid_window
+                }
+            }));
+            assert!(report.error.is_some());
+            backend.usages.insert("b".into(), report);
+            assert!(restore_pool(&mut backend).unwrap().is_empty());
+            assert!(backend.consumed.is_empty());
+        }
+    }
 }
 
 #[test]

@@ -269,9 +269,18 @@ fn window_from(value: Option<&Value>) -> Option<UsageWindow> {
 
 pub(crate) fn parse_usage(payload: &Value) -> UsageSummary {
     let rate_limit = payload.get("rate_limit").filter(|value| !value.is_null());
+    let primary_value = rate_limit.and_then(|value| value.get("primary_window"));
+    let secondary_value = rate_limit.and_then(|value| value.get("secondary_window"));
+    let primary = window_from(primary_value);
+    let secondary = window_from(secondary_value);
+    // An invalid reported window must not look like a valid single-window account
+    // when automatic reset checks whether it is allowed to spend a card.
+    let invalid_window = [(primary_value, &primary), (secondary_value, &secondary)]
+        .into_iter()
+        .any(|(value, window)| value.is_some_and(|value| !value.is_null()) && window.is_none());
     UsageSummary {
-        primary: window_from(rate_limit.and_then(|value| value.get("primary_window"))),
-        secondary: window_from(rate_limit.and_then(|value| value.get("secondary_window"))),
+        primary,
+        secondary,
         api_expires_at: None,
         plan: payload
             .get("plan_type")
@@ -280,7 +289,7 @@ pub(crate) fn parse_usage(payload: &Value) -> UsageSummary {
             .filter(|value| !value.is_empty())
             .map(str::to_string),
         fetched_at: Some(Utc::now().to_rfc3339()),
-        error: None,
+        error: invalid_window.then(|| "用量信息不完整，请刷新后重试".to_string()),
     }
 }
 
