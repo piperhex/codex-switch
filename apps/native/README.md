@@ -11,6 +11,10 @@ React Native（Expo）移动端，用已登录的 Codex Switch 云端账号查�
 相册使用系统照片选择器，只读取主动选择的照片；拍照时请求相机权限。
 新增的图片模块和权限说明需要重新构建并安装 APK，单独更新 JS 不会生效。
 
+`expo-file-system` 必须保留为 native 工作区的直接依赖。仅由 `expo` 间接安装时，原生自动链接可能
+漏掉它，导致相册和相机返回照片时出现 `AppDirectories not found`。`npm test -w @codex-switch/native`
+会检查生成的 Android 模块注册列表，确认文件和图片服务均已注册。
+
 ## 启动
 
 ```bash
