@@ -33,6 +33,17 @@ export class MessageQueue {
     this.update(threadId, this.list(threadId).filter((item) => item.id !== id || item.busy));
     void this.flush(threadId);
   };
+  move = (threadId: string, id: string, direction: "up" | "down") => {
+    const messages = this.list(threadId);
+    const index = messages.findIndex((item) => item.id === id);
+    const targetIndex = index + (direction === "up" ? -1 : 1);
+    const item = messages[index];
+    const neighbor = messages[targetIndex];
+    if (!item || !neighbor || item.busy || neighbor.busy) return;
+    const reordered = [...messages];
+    [reordered[index], reordered[targetIndex]] = [neighbor, item];
+    this.update(threadId, reordered);
+  };
   updateSettings = (threadId: string, settings: Pick<Settings, "model" | "effort" | "access">) => {
     const messages = this.list(threadId);
     if (!messages.some((item) => !item.busy)) return;

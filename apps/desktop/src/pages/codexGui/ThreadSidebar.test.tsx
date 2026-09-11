@@ -19,6 +19,9 @@ const render = () => act(async () => root.render(<ConfigProvider theme={{ token:
 </ConfigProvider>));
 const button = (text: string) => [...document.querySelectorAll<HTMLButtonElement>("button")]
   .find((entry) => entry.textContent === text)!;
+const openThreadMenu = () => act(async () => {
+  button("会话示例").dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, button: 2 }));
+});
 
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
@@ -42,7 +45,7 @@ afterEach(async () => {
 
 it("offers a compact confirmation and sends the selected conversation to trash", async () => {
   await render();
-  await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="管理对话：会话示例"]')!.click());
+  await openThreadMenu();
   const remove = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')]
     .find((entry) => entry.textContent === "删除")!;
   expect(remove).toBeTruthy();
@@ -58,11 +61,28 @@ it("offers a compact confirmation and sends the selected conversation to trash",
 it("disables deletion while Codex reports an active reply", async () => {
   state.threads[0].status = { type: "active" };
   await render();
-  await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="管理对话：会话示例"]')!.click());
+  await openThreadMenu();
   const remove = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')]
     .find((entry) => entry.textContent === "删除")!;
   expect(remove.getAttribute("aria-disabled")).toBe("true");
   expect(controller.deleteThread).not.toHaveBeenCalled();
+});
+
+it("selects on left click and opens management actions only on right click", async () => {
+  const select = vi.spyOn(controller, "select").mockResolvedValue();
+  const pin = vi.spyOn(controller, "pin");
+  await render();
+  expect(container.querySelector('[aria-label="管理对话：会话示例"]')).toBeNull();
+  await act(async () => button("会话示例").click());
+  expect(select).toHaveBeenCalledExactlyOnceWith("one");
+  expect(document.querySelector('[role="menu"]')).toBeNull();
+  select.mockClear();
+  await openThreadMenu();
+  expect(select).not.toHaveBeenCalled();
+  const item = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')]
+    .find((entry) => entry.textContent === "置顶")!;
+  await act(async () => item.click());
+  expect(pin).toHaveBeenCalledWith("one");
 });
 
 it("starts a new chat in the clicked project without moving the current conversation or toggling its folder", async () => {

@@ -62,9 +62,9 @@
 .thread:hover { background: var(--green-selection-hover); }
 .thread.selected { background: var(--green-selection); }
 .threadSelect { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; text-align: left;
-  border: 0; background: transparent; color: inherit; padding: 10px 7px; cursor: pointer;
-  > span:last-child { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 13px; } }
-.threadMenu { background: none; border: 0; color: var(--gui-muted); padding: 6px; cursor: pointer; border-radius: 6px; }
+  border: 0; background: transparent; color: inherit; padding: 10px 7px; cursor: pointer; }
+.threadTitle { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap;
+  text-overflow: ellipsis; font-size: 13px; }
 .runningDot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
 .runningDot { background: #21a779; box-shadow: 0 0 0 3px #21a77915; }
 .workspace { display: flex; flex-direction: column; min-width: 0; min-height: 0; }

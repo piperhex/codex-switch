@@ -100,7 +100,9 @@ export function ProxyAccountPicker(props: ProxyAccountPickerProps) {
     </div>
   </div>;
   return <Popover trigger="click" placement="topLeft" open={open && props.active} content={panel}
-    styles={{ root: { maxWidth: 400 }, body: { padding: 0, overflow: "hidden" } }} onOpenChange={(next) => {
+    arrow={false} align={{ offset: [0, -2] }}
+    styles={{ root: { maxWidth: 400 }, body: { padding: 0, overflow: "hidden", borderRadius: 0 } }}
+    onOpenChange={(next) => {
       setOpen(next); if (next) { setQuery(""); setError(""); }
     }}>
     <button ref={trigger} type="button" className={styles.trigger} aria-expanded={open && props.active}
