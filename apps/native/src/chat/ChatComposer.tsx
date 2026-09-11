@@ -16,6 +16,7 @@ import { MAX_CHAT_ATTACHMENT_DATA } from '../../../../shared/remote-chat/compose
 import { composerAction, CONTINUE_MESSAGE } from '../../../../shared/remote-chat/composerAction';
 import { ChatPhotoPicker } from './ChatPhotoPicker';
 import { useChatPhotos } from './useChatPhotos';
+import { useChatKeyboard } from './useChatKeyboard';
 import { ChatCommandMenu } from './ChatCommandMenu';
 import { useComposerMenu } from './useComposerMenu';
 import type { SkillCatalogState } from './skillCatalog';
@@ -53,7 +54,7 @@ export function ChatComposer({ models, selection, settingsBusy, settingsError, u
   const [settings, setSettings] = useState(false);
   const [adding, setAdding] = useState(false);
   const [pausing, setPausing] = useState(false);
-  const [focused, setFocused] = useState(false);
+  const keyboardVisible = useChatKeyboard();
   const [projectFiles, setProjectFiles] = useState<'files' | 'photos' | null>(null);
   const [attachmentError, setAttachmentError] = useState('');
   const anchor = useRef<View>(null);
@@ -65,7 +66,8 @@ export function ChatComposer({ models, selection, settingsBusy, settingsError, u
   const draft = useChatDraft({ threadId, sending, disabled: disabled || photos.busy || attachments.busy, selection, send });
   const menu = useComposerMenu({ draft, scope: `${threadId ?? ''}:${cwd}`, active,
     refresh: catalog.refresh, compact });
-  const compactField = !focused && draft.text.length === 0 && photos.photos.length === 0 && !attachments.items.length;
+  const compactField = !keyboardVisible && draft.text.length === 0
+    && photos.photos.length === 0 && !attachments.items.length;
   const hasDraft = draft.hasContent || photos.photos.length > 0 || attachments.items.length > 0;
   useEffect(() => { if (!active) { setSettings(false); setAdding(false); setProjectFiles(null); } }, [active]);
   useEffect(() => { setSettings(false); setAdding(false); setProjectFiles(null); setAttachmentError(''); }, [threadId]);
@@ -127,7 +129,6 @@ export function ChatComposer({ models, selection, settingsBusy, settingsError, u
         style={[styles.input, compactField && styles.composerEmptyInput]}
         multiline value={draft.text} maxLength={100_000} selection={menu.selection}
         onSelectionChange={(event) => menu.setSelection(event.nativeEvent.selection)}
-        onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
         onChangeText={draft.setText} placeholder={ready ? '发消息，输入 @ 选择插件…' : '连接后即可发送消息'} />
       <View pointerEvents="box-none" style={[styles.composerActions, compactField && styles.composerEmptyActions]}>
         <Pressable accessibilityRole="button" accessibilityLabel="添加内容" style={styles.composerAdd}
