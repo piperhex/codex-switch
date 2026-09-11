@@ -6,15 +6,13 @@ import type { Item } from "./types";
 import { ToolDetails } from "./ToolDetails";
 import { formatTurnDuration } from "./turnTiming";
 import { DeferredDetails } from "./DeferredDetails";
+import { collaborationSummary, isCollaborationActivity } from "./collaborationActivity";
 import styles from "./ActivityRow.module.less";
 
 const TOOL_ACTIVITIES: Record<string, { label: string; icon: LucideIcon }> = {
   fileChange: { label: "文件修改", icon: FilePenLine },
   mcpToolCall: { label: "调用工具", icon: Wrench },
   dynamicToolCall: { label: "调用工具", icon: Wrench },
-  collabAgentToolCall: { label: "协作任务", icon: Users },
-  collabToolCall: { label: "协作任务", icon: Users },
-  subAgentActivity: { label: "协作进度", icon: Users },
   webSearch: { label: "搜索网页", icon: Search },
   contextCompaction: { label: "已整理对话上下文", icon: ListChecks },
   imageView: { label: "查看图片", icon: Image },
@@ -41,6 +39,7 @@ function commandLabel(status: Item["status"]) {
 }
 
 function activitySummary(item: Item, text: string) {
+  if (isCollaborationActivity(item)) return { icon: Users, preview: collaborationSummary(item) };
   if (item.type === "reasoning") return { icon: Brain,
     preview: text.slice(0, MAX_ACTIVITY_PREVIEW).trim().split("\n")[0].replace(/[*_`#]/g, "") };
   if (item.type === "commandExecution") {

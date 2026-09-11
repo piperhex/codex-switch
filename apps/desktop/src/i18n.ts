@@ -52,8 +52,8 @@ const translations = {
     "autoReset.save": "Save",
     "autoReset.cancel": "Cancel",
     "autoReset.enabled": "Use reset cards automatically",
-    "autoReset.description": "With auto-switch enabled, use cards only when every backup account has zero quota in both "
-      + "its primary and secondary windows. Prefer accounts with earlier-expiring cards.",
+    "autoReset.description": "With auto-switch enabled, use cards only when every backup account has no quota left. "
+      + "For accounts with two quota windows, both must be exhausted. Prefer accounts with earlier-expiring cards.",
     "autoReset.maxCards": "Maximum cards per concurrent batch",
     "autoReset.concurrentHint": "Defaults to 1. Use one card per exhausted account, up to this limit.",
     "autoReset.singleHint": "Outside concurrent mode, use at most 1 card per batch. This limit applies to concurrent mode.",
@@ -1148,8 +1148,6 @@ const translations = {
     "table.copyEmail": "Copy email",
     "table.editNoteAndExpiry": "Edit note",
     "table.currentAccountLabel": "Current account",
-    "table.officialAuthAccountLabel": "Current login state",
-    "table.officialAuthAccountNotSet": "Not set",
     "table.averageConversationLatencyLabel": "Average conversation latency",
     "table.averageConversationLatencyTooltip": "First response time divided by requests that have begun responding across up to 5 of the most recently active proxy conversations ({requests} requests).",
     "table.todayTokenUsageLabel": "Today's Token usage",
@@ -2560,7 +2558,8 @@ const translations = {
     "autoReset.save": "保存",
     "autoReset.cancel": "取消",
     "autoReset.enabled": "自动使用重置卡",
-    "autoReset.description": "开启自动切号后，仅当所有备选账户的主用量和次用量剩余额度均为 0 时使用重置卡。优先选择重置卡更早到期的账户。",
+    "autoReset.description": "开启自动切号后，所有备选账户的额度均用尽时才使用重置卡。有两项额度的账户需两项都用尽。"
+      + "优先选择重置卡更早到期的账户。",
     "autoReset.maxCards": "并发模式每次最多使用（张）",
     "autoReset.concurrentHint": "默认 1 张。每次给不同的无额度账户各用 1 张，最多达到此上限。",
     "autoReset.singleHint": "当前为非并发模式，每次最多使用 1 张。此上限在并发模式下生效。",
@@ -3642,8 +3641,6 @@ const translations = {
     "table.copyEmail": "复制邮箱",
     "table.editNoteAndExpiry": "编辑备注",
     "table.currentAccountLabel": "当前账户",
-    "table.officialAuthAccountLabel": "当前登录态",
-    "table.officialAuthAccountNotSet": "未设置",
     "table.averageConversationLatencyLabel": "平均对话延迟",
     "table.averageConversationLatencyTooltip": "统计最多最近活动的 5 个代理会话内，所有已开始响应请求的首次响应耗时总和 ÷ 请求数（共 {requests} 个请求）。",
     "table.todayTokenUsageLabel": "今日 Token 消耗",

@@ -48,7 +48,7 @@ pub(super) fn prepare_request(request: &mut GuiRequest, root: &Path) -> Result<(
         }
         _ => {}
     }
-    Ok(())
+    super::attachment_uploads::prepare_request(request, root)
 }
 
 fn resolve_directory(cwd: Option<&str>, root: &Path, thread_id: Option<&str>) -> Result<String> {

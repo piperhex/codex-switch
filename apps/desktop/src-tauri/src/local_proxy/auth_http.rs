@@ -275,6 +275,7 @@ fn official_url(endpoint: &str) -> String {
 }
 
 fn request_path(url: &str) -> &str {
+    let url = gui_routing::upstream_path(url).unwrap_or(url);
     url.split_once('?').map_or(url, |(path, _)| path)
 }
 

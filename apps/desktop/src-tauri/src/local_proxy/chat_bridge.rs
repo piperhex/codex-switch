@@ -264,11 +264,10 @@ fn official_credentials<R: Runtime>(
         account_id_override,
     } = options;
     let paths = resolve_paths(app)?;
-    // Bind the selected account to both coordinator generations. Requests that start
-    // during a switch wait here and use the new account generation; requests from the
-    // same failed attempt can later tell that another thread already handled it.
     let (active_account_generation, auto_switch_attempt_generation, state) =
-        auto_switch_coordinator().account_snapshot(|| Ok(read_state(&paths)))?;
+        official_account_snapshot(account_id_override, || {
+            auto_switch_coordinator().account_snapshot(|| Ok(read_state(&paths)))
+        })?;
     let active_account_id = state.active_account_id.as_deref();
     let concurrent_account_id = if account_id_override.is_none()
         && state.concurrent_account_routing_enabled
@@ -375,6 +374,23 @@ struct OfficialCredentialOptions<'a> {
     session_id: Option<&'a str>,
     account_id_override: Option<&'a str>,
 }
+
+fn official_account_snapshot(
+    account_id_override: Option<&str>,
+    shared_snapshot: impl FnOnce() -> Result<(u64, u64, ManagerStateFile), String>,
+) -> Result<(u64, u64, ManagerStateFile), String> {
+    // Explicit credentials belong to their caller's route. They must neither wait for
+    // a shared switch nor inherit its automatic-switch or concurrent-session flags.
+    if account_id_override.is_some() {
+        return Ok((0, 0, ManagerStateFile::default()));
+    }
+    // Ordinary requests still bind credentials to the shared coordinator generations.
+    shared_snapshot()
+}
+
+#[cfg(test)]
+#[path = "official_credential_isolation_tests.rs"]
+mod official_credential_isolation_tests;
 
 fn credential_is_auto_switch_eligible(
     purpose: OfficialCredentialPurpose,

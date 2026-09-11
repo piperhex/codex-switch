@@ -1,8 +1,8 @@
-use super::{install, package, platform, state, ComputerError, Result, VERSION};
+use super::{
+    automatic, install, package, platform, state, ComputerError, Result, CHANGES, VERSION,
+};
 use serde::{Deserialize, Serialize};
-use std::{path::Path, sync::Mutex};
-
-static CHANGES: Mutex<()> = Mutex::new(());
+use std::path::Path;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -50,6 +50,7 @@ pub(crate) async fn computer_use_action(
         let home = crate::codex_home::resolve_selected(&app, Some(&home_id))
             .map_err(|_| ComputerError::Storage)?;
         let root = super::root()?;
+        automatic::remember(&root, &home)?;
         match action {
             ComputerUseAction::Install | ComputerUseAction::Enable => {
                 install::install(&root, &home)?

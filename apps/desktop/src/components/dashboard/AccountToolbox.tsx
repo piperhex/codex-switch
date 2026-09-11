@@ -16,7 +16,7 @@ export function AccountToolbox({ children, t }: AccountToolboxProps) {
 
   return (
     <Popover open={open} onOpenChange={setOpen} placement="leftTop" arrow={false}
-      trigger={["hover", "click"]} mouseLeaveDelay={0.2}
+      trigger="hover" mouseLeaveDelay={0.2}
       styles={{ root: { maxWidth: 400 }, body: { padding: 8 } }}
       content={(
         <div id={panelId} className={styles.actions} role="group" aria-label={t("actions.toolbox")}

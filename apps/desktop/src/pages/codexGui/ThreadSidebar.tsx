@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { App, Button, Dropdown, Input, Modal, Segmented, Spin } from "antd";
-import { Archive, MoreHorizontal, Pencil, Pin, RefreshCw, Search, SquarePen, Trash2 } from "lucide-react";
+import { Archive, Pencil, Pin, RefreshCw, Search, SquarePen, Trash2 } from "lucide-react";
 import type { GuiController } from "./controller";
 import type { GuiState, Thread } from "./types";
 import { ThreadGroup } from "./ThreadGroup";
@@ -9,6 +9,8 @@ import { useThreadGroupViews } from "./useThreadGroupViews";
 import { threadGroups } from "./threadGroups";
 import { ProjectGroupMenu } from "./ProjectGroupMenu";
 import { ThreadStatus } from "./ThreadStatus";
+import { ThreadPagination } from "./ThreadPagination";
+import { useThreadPagination } from "./useThreadPagination";
 import { isDesktopApp } from "../../api/backend";
 import { FocusModeButton, type GuiFocusMode } from "./FocusModeButton";
 import styles from "./styles.module.less";
@@ -20,6 +22,7 @@ export function ThreadSidebar({ state, controller, accountPicker, focused, onTog
   state: GuiState; controller: GuiController; accountPicker: ReactNode;
 } & GuiFocusMode) {
   const [searchOpen, setSearchOpen] = useState(false);
+  const pagination = useThreadPagination({ state, controller, enabled: !searchOpen });
   const [renaming, setRenaming] = useState<Thread | null>(null);
   const [deleting, setDeleting] = useState<Thread | null>(null);
   const { message } = App.useApp();
@@ -44,23 +47,22 @@ export function ThreadSidebar({ state, controller, accountPicker, focused, onTog
         disabled: running || busy || needsInput || Boolean(state.queued[thread.id]?.length)
           || state.connection !== "ready" },
     ];
-    return <div className={`${styles.thread} ${state.selected === thread.id ? styles.selected : ""}`} key={thread.id}>
-      <button className={styles.threadSelect} disabled={state.sending}
-        onClick={() => void controller.select(thread.id)}>
-        <ThreadStatus running={running} needsInput={needsInput}
-          unread={Boolean(state.threadReadState[thread.id]?.unread)} />
-        <span>{threadTitle(thread)}</span>
-      </button>
-      <Dropdown trigger={["click"]} menu={{ items, onClick: ({ key }) => {
+    return <Dropdown key={thread.id} trigger={["contextMenu"]} overlayStyle={{ maxWidth: 400 }}
+      menu={{ items, onClick: ({ key }) => {
         if (key === "pin") controller.pin(thread.id);
         if (key === "rename") { setRenaming(thread); setName(threadTitle(thread)); }
         if (key === "archive") void controller.manage(state.archived ? "unarchive" : "archive", thread.id);
         if (key === "delete") setDeleting(thread);
       } }}>
-        <button className={styles.threadMenu} aria-label={`管理对话：${threadTitle(thread)}`}>
-          <MoreHorizontal size={16} /></button>
-      </Dropdown>
-    </div>;
+      <div className={`${styles.thread} ${state.selected === thread.id ? styles.selected : ""}`}>
+        <button className={styles.threadSelect} disabled={state.sending}
+          onClick={() => void controller.select(thread.id)}>
+          <span className={styles.threadTitle}>{threadTitle(thread)}</span>
+          <ThreadStatus running={running} needsInput={needsInput}
+            unread={Boolean(state.threadReadState[thread.id]?.unread)} />
+        </button>
+      </div>
+    </Dropdown>;
   };
   return <aside className={styles.sidebar}>
     <div className={styles.sidebarHeading} data-tauri-drag-region={isDesktopApp || undefined}>
@@ -80,7 +82,7 @@ export function ThreadSidebar({ state, controller, accountPicker, focused, onTog
     <Segmented block size="small" value={state.archived ? "archived" : "recent"}
       options={[{ label: "最近", value: "recent" }, { label: "已归档", value: "archived" }]}
       onChange={(value) => controller.filter("", value === "archived")} disabled={state.connection !== "ready"} />
-    <div className={styles.threadList}>
+    <div className={styles.threadList} {...pagination}>
       {groups.map((group) => {
         const key = `${state.archived ? "archived" : "recent"}:${group.id}`;
         return <ThreadGroup key={key} label={group.label} pinned={group.pinned} threads={group.threads}
@@ -96,8 +98,7 @@ export function ThreadSidebar({ state, controller, accountPicker, focused, onTog
           renderThread={renderThread} />;
       })}
       {!state.threads.length && <p className={styles.listEmpty}>{state.loading ? <Spin size="small" /> : "还没有对话"}</p>}
-      {state.cursor && <Button type="text" block loading={state.loading}
-        onClick={() => void controller.refresh(true)}>加载更多</Button>}
+      {state.cursor && <ThreadPagination loading={state.loading} />}
     </div>
     {accountPicker}
     {searchOpen && <ThreadSearch state={state} controller={controller} onClose={closeSearch} />}

@@ -8,6 +8,7 @@ import { guiApi } from "./api";
 import { ThreadSidebar } from "./ThreadSidebar";
 import { initialState } from "./preferences";
 import type { GuiState } from "./types";
+import styles from "./styles.module.less";
 
 let root: Root;
 let container: HTMLDivElement;
@@ -19,6 +20,9 @@ const render = () => act(async () => root.render(<ConfigProvider theme={{ token:
 </ConfigProvider>));
 const button = (text: string) => [...document.querySelectorAll<HTMLButtonElement>("button")]
   .find((entry) => entry.textContent === text)!;
+const openThreadMenu = () => act(async () => {
+  button("会话示例").dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, button: 2 }));
+});
 
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
@@ -42,7 +46,7 @@ afterEach(async () => {
 
 it("offers a compact confirmation and sends the selected conversation to trash", async () => {
   await render();
-  await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="管理对话：会话示例"]')!.click());
+  await openThreadMenu();
   const remove = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')]
     .find((entry) => entry.textContent === "删除")!;
   expect(remove).toBeTruthy();
@@ -58,11 +62,28 @@ it("offers a compact confirmation and sends the selected conversation to trash",
 it("disables deletion while Codex reports an active reply", async () => {
   state.threads[0].status = { type: "active" };
   await render();
-  await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="管理对话：会话示例"]')!.click());
+  await openThreadMenu();
   const remove = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')]
     .find((entry) => entry.textContent === "删除")!;
   expect(remove.getAttribute("aria-disabled")).toBe("true");
   expect(controller.deleteThread).not.toHaveBeenCalled();
+});
+
+it("selects on left click and opens management actions only on right click", async () => {
+  const select = vi.spyOn(controller, "select").mockResolvedValue();
+  const pin = vi.spyOn(controller, "pin");
+  await render();
+  expect(container.querySelector('[aria-label="管理对话：会话示例"]')).toBeNull();
+  await act(async () => button("会话示例").click());
+  expect(select).toHaveBeenCalledExactlyOnceWith("one");
+  expect(document.querySelector('[role="menu"]')).toBeNull();
+  select.mockClear();
+  await openThreadMenu();
+  expect(select).not.toHaveBeenCalled();
+  const item = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')]
+    .find((entry) => entry.textContent === "置顶")!;
+  await act(async () => item.click());
+  expect(pin).toHaveBeenCalledWith("one");
 });
 
 it("starts a new chat in the clicked project without moving the current conversation or toggling its folder", async () => {
@@ -126,4 +147,75 @@ it("shows a spinner for active chats, a dot for completed unread chats, and no d
   state = { ...state, threadReadState: { one: { turnId: "turn", unread: false } } };
   await render();
   expect(container.querySelector('[aria-label="未读回复"]')).toBeNull();
+});
+
+function scrollList() {
+  const list = container.querySelector<HTMLDivElement>(`.${styles.threadList}`)!;
+  Object.defineProperties(list, { clientHeight: { configurable: true, value: 400 },
+    scrollHeight: { configurable: true, value: 1000 } });
+  const scroll = (top: number) => act(async () => {
+    list.scrollTop = top;
+    list.dispatchEvent(new Event("scroll", { bubbles: true }));
+  });
+  const wheel = (deltaY: number) => act(async () => {
+    list.dispatchEvent(new WheelEvent("wheel", { bubbles: true, deltaY }));
+  });
+  return { list, scroll, wheel };
+}
+
+it("loads near the bottom without a button and keeps rapid scrolling single-flight", async () => {
+  let finish!: () => void;
+  const refresh = vi.spyOn(controller, "refresh").mockImplementation(() => new Promise<void>((resolve) => {
+    finish = resolve;
+  }));
+  state = { ...state, cursor: "next" };
+  await render();
+  expect(button("加载更多")).toBeUndefined();
+  expect(container.textContent).toContain("向下滚动，查看更多");
+  const { scroll, wheel } = scrollList();
+  await scroll(200);
+  expect(refresh).not.toHaveBeenCalled();
+  await scroll(490);
+  await scroll(510);
+  await wheel(50);
+  expect(refresh).toHaveBeenCalledExactlyOnceWith(true);
+  state = { ...state, loading: true };
+  await render();
+  expect(container.querySelector('[role="status"]')?.textContent).toContain("正在加载更多对话…");
+  await act(async () => finish());
+  state = { ...state, loading: false, cursor: "next-page" };
+  await render();
+  await scroll(520);
+  expect(refresh).toHaveBeenCalledTimes(2);
+  await act(async () => finish());
+});
+
+it("ignores upward scrolling and pauses pagination while loading, disconnected, or exhausted", async () => {
+  const refresh = vi.spyOn(controller, "refresh").mockResolvedValue();
+  state = { ...state, cursor: "next", loading: true };
+  await render();
+  const { scroll, wheel } = scrollList();
+  await scroll(500);
+  state = { ...state, loading: false };
+  await render();
+  await scroll(490);
+  await wheel(-50);
+  state = { ...state, connection: "offline" };
+  await render();
+  await wheel(50);
+  state = { ...state, connection: "ready", cursor: null };
+  await render();
+  await wheel(50);
+  expect(refresh).not.toHaveBeenCalled();
+  expect(container.textContent).not.toContain("向下滚动，查看更多");
+});
+
+it("loads on downward wheel gestures even when collapsed groups do not fill the list", async () => {
+  const refresh = vi.spyOn(controller, "refresh").mockResolvedValue();
+  state = { ...state, cursor: "next", archived: true };
+  await render();
+  const { list, wheel } = scrollList();
+  Object.defineProperty(list, "scrollHeight", { value: 400 });
+  await wheel(50);
+  expect(refresh).toHaveBeenCalledExactlyOnceWith(true);
 });

@@ -187,7 +187,7 @@ const authSlice = createSlice({
 });
 
 const initialDataState: DataState = {
-  accounts: [], providers: [], devices: [], profile: null, page: "accounts",
+  accounts: [], providers: [], devices: [], profile: null, page: "chat",
   loading: false, refreshing: false, refreshingAccountId: null, deletingDeviceId: null,
   switchingAccountId: null, switchingProvider: null, switchingOpenAiAuth: null,
   restartingDeviceId: null, lastRefreshAt: null, error: null,

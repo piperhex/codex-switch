@@ -30,13 +30,15 @@ impl ResetCoordinator {
     }
 }
 
-/// Automatic card use requires both reported windows to be exhausted.
-/// Missing windows and failed queries never authorize spending a card.
+/// Single-window accounts may reset when their only reported quota is exhausted.
+/// Every reported window must be exhausted; absent usage and failed queries never authorize a card.
 pub(crate) fn quota_is_exhausted(usage: &UsageSummary) -> bool {
     usage.error.is_none()
+        && (usage.primary.is_some() || usage.secondary.is_some())
         && [usage.primary.as_ref(), usage.secondary.as_ref()]
             .into_iter()
-            .all(|window| window.is_some_and(|window| window.remaining_percent == 0.0))
+            .flatten()
+            .all(|window| window.remaining_percent == 0.0)
 }
 
 fn credit_expirations(credits: &ResetCreditsSummary) -> Vec<i64> {

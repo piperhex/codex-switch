@@ -6,10 +6,30 @@ Providers (三方模型及中转). It supports project folders, text and image i
 streamed Markdown replies, command output, file diffs, plans, permission approvals, questions, interruption,
 history, search, renaming, pinning, and archiving/restoring conversations.
 
-The proxy account picker includes official accounts, custom Providers, and upstream Codex Switch Providers.
-Switching updates the selected target after its configuration is saved; the official Codex window's model
-catalog refresh runs in the background, so a slow upstream catalog does not keep the switch indicator spinning.
-Upstream Codex Switch Providers continue to use the live Codex model catalog.
+The GUI account picker includes official accounts, custom Providers, and upstream Codex Switch Providers.
+Codex GUI remembers its own account independently of the account manager and other applications. The first
+visit starts with the current supported account; later switches and restarts preserve the GUI's choice.
+With the local proxy running, a GUI switch applies to subsequent requests without interrupting an existing
+reply. Shared automatic fallback and concurrent account routing do not change the GUI's selected account.
+The GUI's remaining quota and Provider model choices follow its own selection. All connected GUI browsers
+share this selection, and upstream Codex Switch Providers continue to use the live Codex model catalog.
+
+The gear at the top right of the account list opens **GUI 自动切号设置**. Automatic switching is off by
+default and has its own account membership, priorities, quota thresholds, exhaustion toggle, fallback
+Provider, and sequential/concurrent mode. New accounts participate by default after it is enabled;
+these choices never edit the account manager's rules. The list follows the width of the account bar below.
+
+Sequential mode keeps the current account until it is excluded, its primary quota falls below the larger
+of the default/account thresholds, or quota exhaustion requires a replacement. Smaller priority numbers
+come first; equal priorities prefer the smaller positive remaining quota. Concurrent mode keeps an eligible
+account assigned to each conversation and distributes new conversations among the highest-priority available
+accounts. With no eligible account, the configured fallback Provider is used; a manually selected Provider
+stays selected. A normal temporary rate limit retries without rotating accounts. Once a reply has streamed,
+it is never replayed on another account. Settings are saved in `codex-gui-auto-switch.json` and survive restart.
+
+Quota refreshes run outside settings and selection locks. A manual account change or a settings save
+invalidates older automatic decisions, so a slow refresh cannot overwrite the newer choice. Confirmed
+exhausted accounts stay excluded until a later successful quota refresh shows usable quota again.
 
 Opening or reopening a conversation displays its latest ten messages. Scroll upward to load ten earlier
 messages at a time; a loading indicator appears and the current reading position is preserved.
@@ -106,10 +126,12 @@ dev.codex.switch/
     └── log/
 ```
 
-On Windows this normally resolves to `%APPDATA%/dev.codex.switch`. Only the currently selected account's
-authentication and Codex configuration are imported. Official conversation files, indexes, and databases are
+On Windows this normally resolves to `%APPDATA%/dev.codex.switch`. Initial Codex preferences are imported once;
+GUI account selection is stored separately in `codex-gui-account.json`. GUI requests use a dedicated local
+proxy route, and reconnecting does not import another application's authentication. The GUI home is excluded
+from shared account and Provider synchronization. Official conversation files, indexes, and databases are
 never imported or edited. SQLite and log locations are overridden on the private process command line, even
-if the imported configuration specifies other locations. Reconnect after switching accounts or configuration.
+if the imported configuration specifies other locations. Reconnect after editing Codex configuration.
 Recent folders, pins, and per-conversation project choices are UI preferences stored in the Switch WebView;
 message content stays in `.codex`. Scratch folders are excluded from project labels and recent folder choices.
 

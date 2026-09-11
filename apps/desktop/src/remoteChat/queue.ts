@@ -3,6 +3,7 @@ import { composerPatch } from '../../../../shared/remote-chat/composer';
 import type { QueueSnapshot } from '../../../../shared/remote-chat/queue';
 import type { GuiController } from '../pages/codexGui/controller';
 import type { GuiState, SkillReference } from '../pages/codexGui/types';
+import { remoteAttachments } from '../../../../shared/remote-chat/composerAttachments';
 
 const MAX_TEXT_LENGTH = 100_000;
 const MAX_IMAGES = 12;
@@ -38,11 +39,14 @@ function identifier(value: unknown): string {
 function messageInput(body: Record<string, unknown>) {
   const { text, images = [] } = body;
   const skills = skillInput(body.skills);
+  const attachments = remoteAttachments(body.attachments);
   if (typeof text !== 'string' || text.length > MAX_TEXT_LENGTH || !Array.isArray(images)
     || images.length > MAX_IMAGES || images.some((image) => typeof image !== 'string'
       || image.length > MAX_IMAGE_LENGTH || !/^data:image\/(png|jpeg|webp|gif);base64,/.test(image))
-    || (!text.trim() && !images.length && !skills.length)) throw new Error('消息内容无效，请检查后重试。');
-  return { text, images: images as string[], skills };
+    || (!text.trim() && !images.length && !skills.length && !attachments.length)) {
+    throw new Error('消息内容无效，请检查后重试。');
+  }
+  return { text, images: images as string[], skills, ...(attachments.length ? { attachments } : {}) };
 }
 
 /** Adapts the PC queue to compact remote snapshots; transport retries are deduplicated by ChatOperations. */

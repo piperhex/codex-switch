@@ -9,6 +9,21 @@ const event = (method: string, params: GuiEvent["params"]): GuiEvent => ({
 });
 
 describe("Codex GUI event projection", () => {
+  it("tracks assistant setup separately from chat connection errors", () => {
+    const initial = { ...initialState(), connection: "connecting" as const, error: "existing error" };
+    const installing = reduceEvent(initial, { method: "computerUse/setup",
+      params: { computerUseSetup: "installing" } });
+    expect(installing.computerUseSetup).toBe("installing");
+    const failed = reduceEvent(installing, { method: "computerUse/setup",
+      params: { computerUseSetup: "failed" } });
+    expect(failed.computerUseSetup).toBe("failed");
+    expect(failed.connection).toBe("connecting");
+    expect(failed.error).toBe("existing error");
+    expect(failed.approvals).toEqual([]);
+    expect(reduceEvent(failed, { method: "computerUse/setup", params: { computerUseSetup: "ready" } })
+      .computerUseSetup).toBe("ready");
+  });
+
   it("keeps current context separate from cumulative tokens and retains it when reopening a conversation", () => {
     const usage = { total: { totalTokens: 11_670_000 }, last: { totalTokens: 121_260 }, modelContextWindow: 258_000 };
     const value = reduceConversation(conversation(thread), event("thread/tokenUsage/updated", { tokenUsage: usage }));

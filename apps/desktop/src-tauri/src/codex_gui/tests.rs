@@ -280,7 +280,7 @@ fn resume_restores_automatic_review_with_workspace_sandbox() {
 }
 
 #[test]
-fn gui_home_imports_only_config_and_auth_and_preserves_its_history() {
+fn gui_home_preserves_history_and_preferences_without_importing_shared_auth() {
     let root = std::env::temp_dir().join(format!("codex-gui-home-test-{}", uuid::Uuid::new_v4()));
     let source = root.join("official");
     let target = root.join("dev.codex.switch/.codex");
@@ -296,6 +296,7 @@ fn gui_home_imports_only_config_and_auth_and_preserves_its_history() {
     std::fs::write(source.join("state_5.sqlite"), "official database").unwrap();
     std::fs::write(target.join("sessions/gui.jsonl"), "gui").unwrap();
     super::home::prepare_from(&source, &target).unwrap();
+    assert!(!target.join("auth.json").exists());
     assert!(!target.join("sessions/official.jsonl").exists());
     assert!(!target.join("state_5.sqlite").exists());
     assert_eq!(
@@ -304,6 +305,18 @@ fn gui_home_imports_only_config_and_auth_and_preserves_its_history() {
     );
     let config = std::fs::read_to_string(target.join("config.toml")).unwrap();
     let document: toml_edit::DocumentMut = config.parse().unwrap();
+    assert_eq!(
+        document["model_provider"].as_str(),
+        Some("codex-switch-gui")
+    );
+    assert_eq!(
+        document["model_providers"]["codex-switch-gui"]["base_url"].as_str(),
+        Some("http://127.0.0.1:15722/codex-gui/v1")
+    );
+    assert_eq!(
+        document["model_providers"]["codex-switch-gui"]["requires_openai_auth"].as_bool(),
+        Some(false)
+    );
     assert_eq!(
         std::path::Path::new(document["sqlite_home"].as_str().unwrap()),
         target.canonicalize().unwrap()
@@ -321,6 +334,19 @@ fn gui_home_imports_only_config_and_auth_and_preserves_its_history() {
     assert!(updated.contains("edited-gui-model"));
     assert!(root.starts_with(std::env::temp_dir()));
     std::fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn resumed_and_forked_threads_cannot_restore_the_shared_provider() {
+    for method in ["thread/start", "thread/resume", "thread/fork"] {
+        let mut params = json!({"threadId": "existing", "modelProvider": "codex-switch-local"});
+        super::home::scope_thread_request(method, &mut params);
+        assert_eq!(params["modelProvider"], "codex-switch-gui");
+        assert_eq!(params["threadId"], "existing");
+    }
+    let mut params = json!({"threadId": "existing"});
+    super::home::scope_thread_request("thread/read", &mut params);
+    assert!(params.get("modelProvider").is_none());
 }
 
 #[test]

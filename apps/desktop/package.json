@@ -1,7 +1,7 @@
 {
   "name": "@codex-switch/desktop",
   "private": true,
-  "version": "1.4.23",
+  "version": "1.4.25",
   "license": "Apache-2.0",
   "type": "module",
   "scripts": {
@@ -32,6 +32,8 @@
     "@tauri-apps/plugin-opener": "^2.5.0",
     "@tauri-apps/plugin-process": "^2.3.1",
     "@tauri-apps/plugin-updater": "^2.10.1",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
     "antd": "^5.29.3",
     "dayjs": "^1.11.21",
     "echarts": "^6.1.0",

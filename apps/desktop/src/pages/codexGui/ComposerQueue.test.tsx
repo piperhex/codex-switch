@@ -57,6 +57,20 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
+it("reorders pending messages with separate arrow buttons and disables queue boundaries", async () => {
+  const buttons = (direction: string) => Array.from(host.querySelectorAll<HTMLButtonElement>(
+    `[aria-label="${direction}待发送消息"]`));
+  expect(buttons("上移")[0].disabled).toBe(true);
+  expect(buttons("下移")[0].disabled).toBe(true);
+  await act(async () => { await controller.send("第二条", []); });
+  expect(buttons("上移").map((button) => button.disabled)).toEqual([true, false]);
+  expect(buttons("下移").map((button) => button.disabled)).toEqual([false, true]);
+  await act(async () => buttons("下移")[0].click());
+  expect(queued().map((message) => message.text)).toEqual(["第二条", "待修改的消息"]);
+  await act(async () => buttons("上移")[1].click());
+  expect(queued().map((message) => message.text)).toEqual(["待修改的消息", "第二条"]);
+});
+
 it("moves a queued message into the focused composer and only queues it again on send", async () => {
   await act(async () => {
     editor().textContent = "将被替换的草稿";

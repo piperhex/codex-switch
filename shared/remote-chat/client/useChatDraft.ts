@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ChatImageError, MAX_CHAT_IMAGES, validateChatImages, type DraftImage } from '../attachments';
 import type { SendInput } from './types';
+import type { AttachmentReference } from '../../../apps/desktop/src/pages/codexGui/attachmentTypes';
 import type { ComposerSettings } from '../composer';
 import type { Skill } from './types';
 import { draftSkills, editSkillDraft, emptySkillDraft, insertDraftSkill, type TextSelection } from './skillDraft';
@@ -59,16 +60,17 @@ export function useChatDraft({ threadId, sending, disabled, selection, send }: O
       if (current === generation.current) { busy.current = false; setPicking(false); }
     }
   };
-  const submit = async (override: { text?: string; images?: string[] } = {}) => {
+  const submit = async (override: { text?: string; images?: string[]; attachments?: AttachmentReference[] } = {}) => {
     const submittedText = override.text ?? text;
     const submittedImages = override.images ?? images.map((image) => image.url);
     if (disabled || sending || busy.current || submitting.current
-      || (!submittedText.trim() && !submittedImages.length)) return false;
+      || (!submittedText.trim() && !submittedImages.length && !override.attachments?.length)) return false;
     const current = generation.current;
     submitting.current = true; setError('');
     try {
       const skills = draftSkills(content);
       const sent = await send({ text: submittedText, images: submittedImages, ...selection,
+        ...(override.attachments?.length ? { attachments: override.attachments } : {}),
         ...(skills.length ? { skills } : {}) });
       if (!sent || current !== generation.current) return false;
       setContent((value) => value.text === text ? emptySkillDraft() : value);

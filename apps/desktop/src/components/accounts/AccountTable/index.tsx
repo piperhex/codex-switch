@@ -17,6 +17,7 @@ import type { ColumnsType } from "antd/es/table";
 import {
   CalendarClock,
   Check,
+  CircleHelp,
   Columns3,
   Copy,
   Gauge,
@@ -82,7 +83,7 @@ import { OfficialContextSettings } from "../OfficialContextSettings";
 import { UsageMeter, UsageRefreshAge } from "../UsageMeter";
 import { canReceiveConcurrentConversation } from "../concurrentAccountEligibility";
 import { getAccountCardTokenUsage } from "../accountCardUsage";
-import { getOfficialAuthAccounts, getSwitchableAccounts } from "../accountSelectors";
+import { getSwitchableAccounts } from "../accountSelectors";
 import { confirmOfficialAuthAccountChange } from "../confirmOfficialAuthAccountChange";
 import styles from "./index.module.less";
 import {
@@ -594,7 +595,6 @@ export function AccountTable({
     .filter((account) => selectedAccountIdSet.has(account.id) && account.autoSwitchEnabled)
     .map((account) => account.id);
   const activeAccount = accounts.find((account) => account.active) ?? null;
-  const officialAuthAccount = accounts.find((account) => account.id === openaiAuthAccountId) ?? null;
   const requestOpenaiAuthAccountChange = (accountId: string | null) => {
     if (openaiAuthBusy || accountId === openaiAuthAccountId) return;
     confirmOfficialAuthAccountChange({
@@ -615,7 +615,6 @@ export function AccountTable({
     () => getSwitchableAccounts(accounts, hotSwitchEnabled),
     [accounts, hotSwitchEnabled],
   );
-  const officialAuthAccounts = useMemo(() => getOfficialAuthAccounts(accounts), [accounts]);
   const switchableAccountIds = new Set(switchableAccounts.map((account) => account.id));
   const accountSelectAccounts = activeAccount && !switchableAccountIds.has(activeAccount.id)
     ? [...switchableAccounts, activeAccount]
@@ -625,18 +624,6 @@ export function AccountTable({
     value: account.id,
     disabled: !switchableAccountIds.has(account.id),
   }));
-  const officialAuthAccountIds = new Set(officialAuthAccounts.map((account) => account.id));
-  const officialAuthSelectAccounts = officialAuthAccount && !officialAuthAccountIds.has(officialAuthAccount.id)
-    ? [...officialAuthAccounts, officialAuthAccount]
-    : officialAuthAccounts;
-  const officialAuthSelectOptions = [
-    { label: t("table.officialAuthAccountNotSet"), value: "" },
-    ...officialAuthSelectAccounts.map((account) => ({
-      label: accountSummaryLabel(account),
-      value: account.id,
-      disabled: !officialAuthAccountIds.has(account.id),
-    })),
-  ];
   const handleTableChange: NonNullable<TableProps<Account>["onChange"]> = (_, __, sorter) => {
     const activeSorter = Array.isArray(sorter) ? sorter[0] : sorter;
     const nextSort = isUsageSortColumn(activeSorter.columnKey) && isUsageSortOrder(activeSorter.order)
@@ -707,7 +694,11 @@ export function AccountTable({
                   })}</span>
                 )}
                 {shouldShowUsageError(account.usage.error, showUsageNetworkErrors)
-                  && <Tooltip title={account.usage.error}><Tag color="error">{t("table.error")}</Tag></Tooltip>}
+                  && <Tooltip title={account.usage.error}>
+                    <Tag color="error" className="account-error-tag" icon={<CircleHelp size={12} aria-hidden="true" />}>
+                      {t("table.error")}
+                    </Tag>
+                  </Tooltip>}
               </div>
             </div>
           </div>
@@ -1192,16 +1183,6 @@ export function AccountTable({
             if (accountId !== activeAccount?.id) onSwitch(accountId);
           }} />
       </span>
-      <span>
-        {t("table.officialAuthAccountLabel")}{language === "zh" ? "：" : ": "}
-        <Select size="small" className="account-summary-select" value={officialAuthAccount?.id ?? ""}
-          allowClear showSearch optionFilterProp="label"
-          title={privacyMode ? undefined : officialAuthAccount?.email}
-          options={officialAuthSelectOptions} loading={openaiAuthBusy}
-          disabled={!hotSwitchEnabled || openaiAuthBusy}
-          aria-label={t("table.officialAuthAccountLabel")}
-          onChange={(accountId) => requestOpenaiAuthAccountChange(accountId || null)} />
-      </span>
       <Tooltip title={t(modelContextWindowTooltipKey(modelContextWindow.error))}
         styles={{ root: { maxWidth: 400 } }}>
         <span className="model-context-window-control">
@@ -1329,7 +1310,11 @@ export function AccountTable({
                     })}</span>
                   )}
                   {shouldShowUsageError(account.usage.error, showUsageNetworkErrors)
-                    && <Tooltip title={account.usage.error}><Tag color="error">{t("table.error")}</Tag></Tooltip>}
+                    && <Tooltip title={account.usage.error}>
+                      <Tag color="error" className="account-error-tag" icon={<CircleHelp size={12} aria-hidden="true" />}>
+                        {t("table.error")}
+                      </Tag>
+                    </Tooltip>}
                 </div>
               </div>
               <div className={`card-header-actions${customPriorityActive || customThresholdActive

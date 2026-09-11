@@ -9,6 +9,7 @@ import { sliceHistory, type PagedHistoryDelta } from '../../../../shared/remote-
 import { EventStream } from './eventStream';
 
 vi.mock('../pages/codexGui/api', () => ({ guiApi: { connect: vi.fn(), request: vi.fn(), respond: vi.fn() } }));
+vi.mock('../api/backend', () => ({ invoke: vi.fn() }));
 beforeEach(() => vi.resetAllMocks());
 afterEach(() => vi.useRealTimers());
 

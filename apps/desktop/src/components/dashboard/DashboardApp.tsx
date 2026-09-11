@@ -107,9 +107,8 @@ import { ProvidersPage } from "../../pages/ProvidersPage";
 import { SettingsGroupsNav, SettingsPage } from "../../pages/SettingsPage";
 import { SkillsMarketPage } from "../../pages/SkillsMarketPage";
 import { CodexThreadsPage } from "../../pages/CodexThreadsPage";
-import { CodexGuiPage } from "../../pages/CodexGuiPage";
 import { WindowControls } from "../WindowControls";
-import { ProxyAccountPicker } from "../../pages/codexGui/ProxyAccountPicker";
+import { GuiWorkspace } from "../../pages/codexGui/GuiWorkspace";
 import codexGuiStyles from "../../pages/codexGui/styles.module.less";
 import { CODEX_CONFIG_TOPBAR_ID, CodexConfigPage } from "../../pages/CodexConfigPage";
 import codexConfigStyles from "../../pages/codexConfig/pageStyles.module.less";
@@ -1489,18 +1488,13 @@ export function DashboardApp() {
             {page === "sessions" && <MemoCodexThreadsPage language={language} notify={notify} />}
           </section>
           <section className={codexGuiStyles.panel} hidden={page !== "codexGui"}>
-            <CodexGuiPage active={page === "codexGui"}
+            <GuiWorkspace active={page === "codexGui"}
               windowControls={NATIVE_WINDOW_CONTROLS_ENABLED && <WindowControls onError={notify} t={t} />}
-              providers={providerManager.providers} aggregateApis={providerManager.aggregateApis} accountPicker={
-              <ProxyAccountPicker active={page === "codexGui"} accounts={manager.accounts}
+              accounts={manager.accounts}
                 privacyMode={privacyMode.enabled}
-                providers={providerManager.providers} aggregateApis={providerManager.aggregateApis}
+                providers={providerManager.providers}
                 proxyRunning={Boolean(providerManager.localProxy?.running)}
-                busy={providerManager.proxyBusy || Boolean(manager.busyAccountId || providerManager.busyProviderId)}
-                loading={manager.loading || providerManager.loading}
-                onSwitchAccount={(id) => manager.switchAccount(id, true)}
-                onSwitchProvider={providerManager.switchProvider} />
-            } />
+                loading={manager.loading || providerManager.loading} />
           </section>
           <section className="page-panel" hidden={page !== "systemPrompts"}>
             {page === "systemPrompts" && (

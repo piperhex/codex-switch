@@ -47,8 +47,8 @@ export function CodexHomeSettingsCard({ settings }: { settings: SettingsPageProp
             >
               <Switch
                 size="small"
-                checked={home.enabled}
-                disabled={!home.path.trim()}
+                checked={home.id !== GUI_CODEX_HOME_ID && home.enabled}
+                disabled={home.id === GUI_CODEX_HOME_ID || !home.path.trim()}
                 loading={settings.codexHomeLoading}
                 aria-label={t("settings.codexHome.enabled")}
                 onChange={(enabled) => settings.onCodexHomeEnabledChange(home.id, enabled)}

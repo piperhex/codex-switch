@@ -1,14 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { getOfficialAuthAccounts, getSwitchableAccounts } from "./accountSelectors";
+import { getSwitchableAccounts } from "./accountSelectors";
 
 const account = (overrides: Partial<{
   id: string;
-  agentIdentity: boolean;
   localProxyCompatible: boolean;
   directSwitchCompatible: boolean;
 }>) => ({
   id: "account-1",
-  agentIdentity: false,
   localProxyCompatible: true,
   directSwitchCompatible: true,
   ...overrides,
@@ -24,14 +22,5 @@ describe("account selectors", () => {
 
     expect(getSwitchableAccounts(accounts, true).map(({ id }) => id)).toEqual(["proxy", "both"]);
     expect(getSwitchableAccounts(accounts, false).map(({ id }) => id)).toEqual(["direct", "both"]);
-  });
-
-  it("returns only accounts that support official OAuth login state", () => {
-    const accounts = [
-      account({ id: "oauth", agentIdentity: false }),
-      account({ id: "agent", agentIdentity: true }),
-    ];
-
-    expect(getOfficialAuthAccounts(accounts).map(({ id }) => id)).toEqual(["oauth"]);
   });
 });

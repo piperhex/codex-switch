@@ -56,3 +56,14 @@ it('sends native photo-only input and does not erase a different chat draft afte
   expect(await pending).toBe(false);
   expect(draft.text).toBe('另一条消息');
 });
+
+it('sends an attachment-only first message and preserves text and attachments on retry', async () => {
+  const attachments = [{ kind: 'file' as const, name: 'note.txt', path: '', data: 'aGVsbG8=' }];
+  const send = vi.fn().mockResolvedValueOnce(false).mockResolvedValue(true);
+  await render({ send });
+  await act(async () => { expect(await draft.submit({ attachments })).toBe(false); });
+  await act(async () => { expect(await draft.submit({ attachments })).toBe(true); });
+  expect(send).toHaveBeenCalledTimes(2);
+  expect(send).toHaveBeenNthCalledWith(1, { text: '', images: [], attachments, ...options.selection });
+  expect(send).toHaveBeenNthCalledWith(2, { text: '', images: [], attachments, ...options.selection });
+});

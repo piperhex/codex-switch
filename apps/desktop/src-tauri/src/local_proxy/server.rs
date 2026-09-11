@@ -405,6 +405,11 @@ fn handle_proxy_request<R: Runtime>(
     session_id: Option<&str>,
     session_request_id: Option<u64>,
 ) -> Result<UpstreamPayload, String> {
+    if let Some(url) = gui_routing::upstream_path(url) {
+        return gui_routing::handle(gui_routing::GuiProxyRequest {
+            app, method, url, headers, body, session_id, session_request_id,
+        });
+    }
     let path = request_path(url);
     let started_at = Instant::now();
     if *method == Method::Get && path == "/health" {

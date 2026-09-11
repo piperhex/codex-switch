@@ -45,24 +45,37 @@ pub(crate) fn load() -> Result<CodexUsageSummary, String> {
             provider_estimated_cost: None,
         });
     }
-    load_for_gui(&app)
+    let paths = crate::storage::resolve_paths(&app)?;
+    let state = crate::storage::read_state(&paths);
+    load_for_selection(&app, &paths, &state)
 }
 
 /// Shares the desktop summary's accounting with the GUI without depending on the official app's overlay setting.
 pub(crate) fn load_for_gui(app: &tauri::AppHandle) -> Result<CodexUsageSummary, String> {
     let paths = crate::storage::resolve_paths(app)?;
-    let state = crate::storage::read_state(&paths);
-    quota_refresh::schedule(app, &paths, &state);
-    let primary_remaining = displayed_primary_remaining(&paths, &state);
+    let mut state = crate::storage::read_state(&paths);
+    crate::codex_gui::account_selection::read(app)
+        .map_err(|error| error.to_string())?
+        .apply_to_summary(&mut state);
+    load_for_selection(app, &paths, &state)
+}
+
+fn load_for_selection(
+    app: &tauri::AppHandle,
+    paths: &Paths,
+    state: &ManagerStateFile,
+) -> Result<CodexUsageSummary, String> {
+    quota_refresh::schedule(app, paths, state);
+    let primary_remaining = displayed_primary_remaining(paths, state);
     let entries =
         crate::local_proxy::load_token_usage_summary_entries(app, local_day_start_timestamp()?)?;
-    let profiles = crate::providers::list_provider_profiles(&paths)?;
-    let rates = rates::load(&paths)?;
+    let profiles = crate::providers::list_provider_profiles(paths)?;
+    let rates = rates::load(paths)?;
     let costs = CostContext {
         rates: &rates,
         profiles: &profiles,
     };
-    let provider_estimated_cost = provider_cost::load(&paths, &state, &entries, &costs)?;
+    let provider_estimated_cost = provider_cost::load(paths, state, &entries, &costs)?;
     Ok(summarize(
         &entries,
         primary_remaining,

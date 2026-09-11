@@ -7,6 +7,7 @@ import type { Account, Provider, ProviderBalance } from "../../types";
 import { ProxyAccountPicker, type ProxyAccountPickerProps } from "./ProxyAccountPicker";
 import { useUsageStatus } from "./useUsageStatus";
 import detailsStyles from "./ProxyAccountDetails.module.less";
+import type { GuiAutoSwitchSettings } from "./autoSwitchSettings";
 
 vi.mock("../../api/backend", () => ({ invoke: vi.fn(), queryProviderBalance: vi.fn(),
   subscribeToProviderBalance: vi.fn(), isHostedWebApp: false, canManageCodexConnection: true }));
@@ -42,6 +43,8 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   vi.stubGlobal("matchMedia", vi.fn(() => ({ matches: false, addListener: vi.fn(), removeListener: vi.fn() })));
+  const getComputedStyle = window.getComputedStyle;
+  vi.spyOn(window, "getComputedStyle").mockImplementation((element) => getComputedStyle(element));
   vi.mocked(invoke).mockReset().mockResolvedValue({ running: true });
   vi.mocked(queryProviderBalance).mockReset();
   vi.mocked(subscribeToProviderBalance).mockReset().mockReturnValue(vi.fn());
@@ -58,6 +61,7 @@ afterEach(async () => {
   container.remove();
   vi.useRealTimers();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 it.each([
@@ -70,13 +74,13 @@ it.each([
   await render();
   expect(trigger().textContent).toContain(masked);
   expect(trigger().outerHTML).not.toContain(email);
-  expect(trigger().getAttribute("aria-label")).toBe(`切换代理账户：${masked}`);
+  expect(trigger().getAttribute("aria-label")).toBe(`切换 GUI 账户：${masked}`);
   await click(trigger());
   expect(option(email).textContent).toContain(email);
   props.privacyMode = false;
   await render();
   expect(trigger().textContent).toContain(email);
-  expect(trigger().getAttribute("aria-label")).toBe(`切换代理账户：${email}`);
+  expect(trigger().getAttribute("aria-label")).toBe(`切换 GUI 账户：${email}`);
   props.privacyMode = true;
   await render();
   expect(trigger().outerHTML).not.toContain(email);
@@ -316,4 +320,73 @@ it("does not use an unrelated provider wallet for an aggregate API", async () =>
   await render();
   expect(trigger().textContent).toContain("聚合 API第三方 Provider");
   expect(queryProviderBalance).not.toHaveBeenCalled();
+});
+
+it("opens independent auto-switch settings from the list header and closes them on page exit", async () => {
+  const settings: GuiAutoSwitchSettings = { enabled: false, switchOnQuotaExhaustion: true,
+    minimumRemainingPercent: 0, mode: "sequential", fallbackProviderId: null, accounts: [] };
+  vi.mocked(invoke).mockImplementation(async (command) => command === "codex_gui_auto_switch_settings"
+    ? settings : { running: true });
+  await render();
+  expect(invoke).not.toHaveBeenCalledWith("codex_gui_auto_switch_settings");
+  await click(trigger());
+  const settingsButton = document.querySelector<HTMLButtonElement>('button[aria-label="自动切号设置"]')!;
+  expect(settingsButton.getAttribute("aria-haspopup")).toBe("dialog");
+  await click(settingsButton);
+  expect(trigger().getAttribute("aria-expanded")).toBe("false");
+  expect(document.querySelector('[role="dialog"]')?.textContent).toContain("GUI 自动切号设置");
+  expect(invoke).toHaveBeenCalledWith("codex_gui_auto_switch_settings");
+  expect(props.onSwitchAccount).not.toHaveBeenCalled();
+  props.active = false;
+  await render();
+  expect(document.querySelector('[role="dialog"]')).toBeNull();
+});
+
+it("waits for the account catalog before allowing automatic switching settings to open", async () => {
+  props.loading = true;
+  await render();
+  await click(trigger());
+  const settingsButton = document.querySelector<HTMLButtonElement>('button[aria-label="自动切号设置"]')!;
+  expect(settingsButton.disabled).toBe(true);
+  await click(settingsButton);
+  expect(invoke).not.toHaveBeenCalledWith("codex_gui_auto_switch_settings");
+  props.loading = false;
+  await render();
+  expect(settingsButton.disabled).toBe(false);
+});
+
+it("matches the trigger's outer width on resize and cleans up size tracking on page exit", async () => {
+  const observers: { observe: ReturnType<typeof vi.fn>; disconnect: ReturnType<typeof vi.fn>; resize: () => void }[] = [];
+  vi.stubGlobal("ResizeObserver", class {
+    observe = vi.fn();
+    disconnect = vi.fn();
+    unobserve = vi.fn();
+    resize: () => void;
+    constructor(callback: ResizeObserverCallback) {
+      this.resize = () => callback([], this);
+      observers.push(this);
+    }
+  });
+  const removeListener = vi.spyOn(window, "removeEventListener");
+  await render();
+  let measuredWidth = 351;
+  trigger().getBoundingClientRect = () => new DOMRect(0, 0, measuredWidth, 60);
+  const observer = observers.find((entry) => entry.observe.mock.calls.some(([element]) => element === trigger()))!;
+  await act(async () => observer.resize());
+  await click(trigger());
+  const popup = () => document.querySelector<HTMLElement>(".ant-popover")!;
+  expect(popup().style.width).toBe("351px");
+  measuredWidth = 298;
+  await act(async () => observer.resize());
+  expect(popup().style.width).toBe("298px");
+  measuredWidth = 450;
+  await act(async () => observer.resize());
+  expect(popup().style.width).toBe("400px");
+  vi.stubGlobal("innerWidth", 300);
+  await act(async () => window.dispatchEvent(new Event("resize")));
+  expect(popup().style.width).toBe("276px");
+  props.active = false;
+  await render();
+  expect(observer.disconnect).toHaveBeenCalledOnce();
+  expect(removeListener).toHaveBeenCalledWith("resize", expect.any(Function));
 });

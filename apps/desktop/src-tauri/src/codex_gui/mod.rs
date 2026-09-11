@@ -1,7 +1,12 @@
 mod access;
+pub(crate) mod account_selection;
 #[cfg(test)]
 mod attachment_tests;
+mod attachment_uploads;
+pub(crate) mod auto_switch_policy;
+pub(crate) mod auto_switch_settings;
 mod client;
+mod computer_use_setup;
 pub(crate) mod deletion;
 mod error;
 pub(crate) mod file_actions;
@@ -15,8 +20,10 @@ mod image_preview;
 mod image_thumbnail;
 mod images;
 mod message_edit;
+pub(crate) mod model_settings;
 mod platform;
 pub(crate) mod plugin_client;
+mod project_files;
 mod prompt;
 mod protocol;
 pub(crate) mod releases;
@@ -68,12 +75,28 @@ pub(crate) async fn codex_gui_connect(
     state: State<'_, GuiState>,
     reuse_existing: Option<bool>,
 ) -> std::result::Result<Vec<GuiEvent>, String> {
-    connect(app, &state, reuse_existing.unwrap_or(false))
+    connect(app, &state, reuse_existing.unwrap_or(false), true)
         .await
         .map_err(|error| error.to_string())
 }
 
-async fn connect(app: AppHandle, state: &GuiState, reuse_existing: bool) -> Result<Vec<GuiEvent>> {
+/// Browser connections do not opt the host into desktop control installation.
+pub(crate) async fn connect_web(
+    app: AppHandle,
+    state: State<'_, GuiState>,
+    reuse_existing: Option<bool>,
+) -> std::result::Result<Vec<GuiEvent>, String> {
+    connect(app, &state, reuse_existing.unwrap_or(false), false)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+async fn connect(
+    app: AppHandle,
+    state: &GuiState,
+    reuse_existing: bool,
+    setup_computer_use: bool,
+) -> Result<Vec<GuiEvent>> {
     let mut current = state.client.lock().await;
     if let Some(client) = current.as_ref() {
         // A phone reconnect or transport switch must preserve idle, already loaded threads.
@@ -87,6 +110,9 @@ async fn connect(app: AppHandle, state: &GuiState, reuse_existing: bool) -> Resu
     let binary = tauri::async_runtime::spawn_blocking(move || releases::executable(&release_app))
         .await
         .map_err(|_| GuiError::Executable)??;
+    if setup_computer_use {
+        computer_use_setup::prepare(app.clone(), home.clone()).await;
+    }
     *current = Some(Client::start(app, binary, home, projectless_root).await?);
     Ok(Vec::new())
 }
@@ -98,6 +124,9 @@ pub(crate) async fn codex_gui_request(
 ) -> std::result::Result<GuiResponse, String> {
     async {
         let client = connected(&state).await?;
+        if let GuiRequest::ProjectFiles(options) = request {
+            return project_files::list(&client, options).await;
+        }
         if let GuiRequest::EditMessage(edit) = request {
             return message_edit::submit(&client, edit).await;
         }

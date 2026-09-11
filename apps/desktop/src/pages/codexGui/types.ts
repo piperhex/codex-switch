@@ -58,6 +58,9 @@ export interface Item {
   results?: SearchResult[];
   prompt?: string;
   receiverThreadIds?: string[];
+  kind?: string;
+  agentThreadId?: string;
+  agentPath?: string;
   agentsStates?: Record<string, { status?: string; message?: string | null }>;
   agentStatus?: unknown;
   review?: string;
@@ -72,7 +75,9 @@ export interface Item {
 }
 export interface AsyncQuestion { title: string; options?: string[] | null }
 export interface Turn {
-  id: string; status: string; items: Item[]; startedAt?: number | null; error?: { message: string } | null;
+  id: string; status: string; items: Item[]; startedAt?: number | null;
+  error?: import("./requestError").RequestError | null;
+  retryError?: import("./requestError").RequestError;
   completedAt?: number | null;
   durationMs?: number | null;
   diff?: string;
@@ -101,6 +106,7 @@ export interface ThreadTokenUsage {
   modelContextWindow?: number | null;
 }
 export interface EventParams {
+  computerUseSetup?: ComputerUseSetup;
   goal?: ThreadGoal;
   threadId?: string;
   thread?: Thread;
@@ -127,9 +133,10 @@ export interface EventParams {
   diff?: string;
   plan?: PlanStep[];
   tokenUsage?: ThreadTokenUsage;
-  error?: { message: string };
+  error?: import("./requestError").RequestError;
   willRetry?: boolean;
 }
+export type ComputerUseSetup = "installing" | "ready" | "failed";
 export interface GuiEvent { method: string; params: EventParams; id?: string | number | null }
 export interface Conversation {
   processing?: ProcessingState;
@@ -144,6 +151,8 @@ export interface ListResponse<T> { data: T[]; nextCursor: string | null }
 export interface Settings { cwd: string; model: string; effort: string; access: AccessMode }
 export interface ThreadReadState { turnId: string; unread: boolean }
 export interface GuiState {
+  modelSettingsLoading?: boolean;
+  computerUseSetup?: ComputerUseSetup;
   workspaceBusy?: boolean;
   pendingRequest?: PendingRequest;
   goals?: Record<string, ThreadGoal | null>;
@@ -178,6 +187,7 @@ export type ApprovalReply = {
   answers?: Record<string, { answers: string[] }>;
 };
 export type Request =
+  | ({ operation: "projectFiles" } & import('../../../../../shared/remote-chat/projectFiles').ProjectFilesRequest)
   | { operation: "editMessage"; threadId: string; turnId: string; itemId: string; text: string;
       model?: string; effort?: string; access: AccessMode; cwd?: string }
   | { operation: "imagePreview"; threadId: string; source: string; variant?: "thumbnail" | "original" }

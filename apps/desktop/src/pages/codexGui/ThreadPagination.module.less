@@ -1,0 +1,16 @@
+.footer {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  min-height: 40px; padding: 8px 12px; margin: 4px 0;
+  color: var(--gui-muted); font-size: 11px; line-height: 18px;
+  &::before, &::after {
+    content: ""; flex: 1; max-width: 28px; height: 1px;
+    background: color-mix(in srgb, var(--gui-muted) 20%, transparent);
+  }
+}
+.hint { display: flex; align-items: center; justify-content: center; gap: 6px; max-width: 400px;
+  > svg { flex-shrink: 0; }
+  > span { overflow-wrap: anywhere; }
+}
+.spinner { animation: rotate 1s linear infinite; }
+@keyframes rotate { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }

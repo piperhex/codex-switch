@@ -23,6 +23,30 @@ beforeEach(() => {
 });
 
 describe("Codex GUI controller", () => {
+  it("keeps setup single-flight and permits chatting after assistant installation fails", async () => {
+    const controller = new GuiController();
+    let finish!: (events: GuiEvent[]) => void;
+    vi.mocked(guiApi.connect).mockImplementation(() => {
+      receive({ method: "computerUse/setup", params: { computerUseSetup: "installing" } });
+      return new Promise((resolve) => { finish = resolve; });
+    });
+    const connection = controller.connect();
+    await Promise.resolve();
+    expect(controller.connect()).toBe(connection);
+    expect(controller.getSnapshot().computerUseSetup).toBe("installing");
+    expect(await controller.send("wait", [])).toBe(false);
+    receive({ method: "computerUse/setup", params: { computerUseSetup: "failed" } });
+    finish([]);
+    await connection;
+    expect(controller.getSnapshot()).toMatchObject({ connection: "ready", computerUseSetup: "failed", error: "" });
+    expect(guiApi.connect).toHaveBeenCalledTimes(1);
+    const original = vi.mocked(guiApi.request).getMockImplementation()!;
+    vi.mocked(guiApi.request).mockImplementation(async (request) => request.operation === "send"
+      ? { turn: { id: "reply", status: "completed", items: [] } } : original(request));
+    expect(await controller.send("hello", [])).toBe(true);
+    controller.dispose();
+  });
+
   it("keeps in-flight settings stable and uses changes for the next request", async () => {
     const controller = new GuiController();
     await controller.connect();

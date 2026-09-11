@@ -84,3 +84,15 @@ it('accepts the resolved default when changing to a model without selectable rea
   expect((await bridge.update({ model: 'second', effort: 'none' })).settings.effort).toBe('none');
   await expect(bridge.update({ effort: 'xhigh' })).rejects.toThrow();
 });
+
+it('does not replay a detached conversation choice when the GUI attaches again', () => {
+  const bridge = new ComposerBridge(); const controller = new GuiController();
+  controller.setProviderModels(models);
+  const detach = bridge.attach(controller);
+  controller.settings({ model: 'second', effort: 'xhigh' });
+  detach();
+  controller.settings({ model: 'first', effort: 'high' });
+  const stop = bridge.attach(controller);
+  expect(controller.getSnapshot().settings).toMatchObject({ model: 'first', effort: 'high' });
+  stop(); controller.dispose();
+});

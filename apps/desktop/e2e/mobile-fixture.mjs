@@ -9,6 +9,8 @@ const require = createRequire(new URL('../../admin/package.json', import.meta.ur
 const { WebSocketServer } = require('ws');
 const { ChatSessions } = require('./dist/modules/devices/chat/chat-sessions.js');
 const session = new ChatSessions();
+const apiPort = Number(process.env.CHAT_TEST_API_PORT ?? 1490);
+const uiPort = Number(process.env.CHAT_TEST_UI_PORT ?? 1488);
 const profile = { id: 'test-owner', email: 'mobile-test@example.test', role: 'user' };
 const devices = [{ deviceId: 'computer', name: '我的工作电脑', platform: 'Windows', online: true,
   localProxyRunning: false, capabilities: [], lastSeenAt: new Date().toISOString() }];
@@ -146,9 +148,9 @@ wss.on('connection', (socket, request) => {
   });
   socket.on('close', () => { mobileClients.delete(socket); session.disconnect(socket); });
 });
-await new Promise((resolve) => httpServer.listen(1490, '127.0.0.1', resolve));
+await new Promise((resolve) => httpServer.listen(apiPort, '127.0.0.1', resolve));
 const vite = await createServer({ optimizeDeps: { entries: ['e2e/chat-harness.html'] },
-  cacheDir: process.env.CHAT_TEST_CACHE, server: { port: 1488, host: '127.0.0.1' } });
+  cacheDir: process.env.CHAT_TEST_CACHE, server: { port: uiPort, host: '127.0.0.1' } });
 await vite.listen();
 const browser = await chromium.launch({ channel: process.env.CHAT_TEST_BROWSER
   ?? (process.platform === 'win32' ? 'msedge' : 'chromium'), headless: true });
@@ -156,9 +158,9 @@ page = await browser.newPage();
 page.on('pageerror', (error) => console.error(error.message));
 page.on('console', (message) => { if (message.type() === 'error') console.error(message.text()); });
 page.on('requestfailed', (request) => console.error('Fixture request failed:', request.url(), request.failure()));
-await page.goto('http://127.0.0.1:1488/e2e/chat-harness.html?role=desktop&demo&socket=ws://127.0.0.1:1490/device-chat',
+await page.goto(`http://127.0.0.1:${uiPort}/e2e/chat-harness.html?role=desktop&demo&socket=ws://127.0.0.1:${apiPort}/device-chat`,
   { timeout: 60_000 });
-console.log('Emulator fixture ready at http://10.0.2.2:1490 (local test data only).');
+console.log(`Mobile fixture ready on port ${apiPort} (local test data only).`);
 process.on('SIGINT', async () => {
   await browser.close();
   await vite.close();

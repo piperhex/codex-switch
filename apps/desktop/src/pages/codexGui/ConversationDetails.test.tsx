@@ -3,7 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { Messages } from "./Messages";
-import { conversation } from "./events";
+import { conversation, reduceConversation } from "./events";
 import type { Item, Turn } from "./types";
 
 let root: Root;
@@ -37,6 +37,29 @@ async function openDetails() {
     }));
   }
 }
+
+it("keeps expandable proxy errors inside the affected reply when later replies arrive", async () => {
+  let value = conversation({ id: "test", cwd: "", preview: "", updatedAt: 1,
+    turns: [{ id: "first", status: "inProgress", items: [] }] });
+  value = reduceConversation(value, { method: "error", params: { turnId: "first", willRetry: true,
+    error: { message: "HTTP 502 Bad Gateway", additionalDetails: "<script>upstream timed out</script>" } } });
+  await act(async () => root.render(<Messages selected="test" value={value} />));
+  expect(container.textContent).toContain("Codex 正在重试");
+  expect(container.textContent).not.toContain("HTTP 502");
+  await openDetails();
+  expect(container.textContent).toContain("HTTP 502 Bad Gateway");
+  expect(container.textContent).toContain("<script>upstream timed out</script>");
+  expect(container.querySelector("script")).toBeNull();
+  value = reduceConversation(value, { method: "turn/completed", params: {
+    turn: { id: "first", status: "completed", items: [] } } });
+  value = reduceConversation(value, { method: "turn/started", params: {
+    turn: { id: "second", status: "inProgress", items: [] } } });
+  await act(async () => root.render(<Messages selected="test" value={value} />));
+  const notice = container.querySelector("summary")!;
+  expect(notice.closest("[data-turn-id]")?.getAttribute("data-turn-id")).toBe("first");
+  expect(notice.textContent).toContain("现已恢复");
+  expect(container.querySelector('[data-turn-id="second"]')?.textContent).not.toContain("报错");
+});
 
 it("keeps commentary in expandable process groups while showing steering and final replies", async () => {
   await render([

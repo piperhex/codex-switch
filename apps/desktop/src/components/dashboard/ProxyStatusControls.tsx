@@ -34,6 +34,13 @@ export function ProxyStatusControls(options: ProxyStatusControlsProps) {
   const statusSwitch = (
     <span className="window-titlebar-proxy-status"
       title={t(running ? "providers.proxy.stop" : "providers.proxy.start")}>
+      <Tooltip title={t("providers.proxy.settings")}>
+        <button type="button" className="window-titlebar-proxy-settings"
+          aria-label={t("providers.proxy.settings")} aria-haspopup="dialog"
+          onClick={(event) => { event.stopPropagation(); onOpenSettings(); }}>
+          <Settings size={14} aria-hidden="true" />
+        </button>
+      </Tooltip>
       <span>{t(running ? "providers.proxy.localRunning" : "providers.proxy.stopped")}</span>
       <Switch className="window-titlebar-proxy-switch" size="small" checked={running}
         loading={manager.proxyBusy} disabled={toggleDisabled}
@@ -62,12 +69,6 @@ export function ProxyStatusControls(options: ProxyStatusControlsProps) {
       <CodexConnectionControl blocked={controlsBusy}
         onOperationChange={onClientOperationChange} notify={notify} t={t} />
       {statusControl}
-      <Tooltip title={t("providers.proxy.settings")}>
-        <button type="button" className="window-titlebar-proxy-settings"
-          aria-label={t("providers.proxy.settings")} aria-haspopup="dialog" onClick={onOpenSettings}>
-          <Settings size={14} aria-hidden="true" />
-        </button>
-      </Tooltip>
     </div>
   );
 }

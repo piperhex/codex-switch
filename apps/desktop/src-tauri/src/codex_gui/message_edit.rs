@@ -1,4 +1,4 @@
-//! Create an edited branch without mutating the source conversation.
+//! Replace the latest user message within its existing conversation.
 use serde::Deserialize;
 use serde_json::{json, Value};
 
@@ -97,10 +97,6 @@ fn edited_input(thread: &Value, edit: &EditRequest) -> Result<Vec<Value>> {
 }
 
 async fn prepare(client: &Client, edit: &EditRequest) -> Result<Value> {
-    let mut read = thread_params(edit.thread_id.clone())?;
-    read["includeTurns"] = json!(true);
-    let source = client.request("thread/read", read).await?;
-    let input = edited_input(&source["thread"], edit)?;
     let mut request = GuiRequest::Send {
         thread_id: edit.thread_id.clone(),
         text: edit.text.clone(),
@@ -119,42 +115,76 @@ async fn prepare(client: &Client, edit: &EditRequest) -> Result<Value> {
     })
     .await
     .map_err(|_| GuiError::InvalidRequest)??;
-    // Attachments come from the server's stored message, never arbitrary frontend content.
-    params["input"] = json!(input);
     edit.access.apply_to_turn(&mut params);
     Ok(params)
 }
 
+fn rollback_params(thread: &Value, edit: &EditRequest) -> Result<Value> {
+    let turns = thread["turns"].as_array().ok_or(GuiError::InvalidRequest)?;
+    let index = turns
+        .iter()
+        .position(|turn| turn["id"] == edit.turn_id)
+        .ok_or(GuiError::InvalidRequest)?;
+    Ok(json!({"threadId": edit.thread_id, "numTurns": turns.len() - index}))
+}
+
+fn rewind_request(thread: &Value, edit: &EditRequest) -> Result<(&'static str, Value)> {
+    if thread["historyMode"] == "paginated" {
+        return Ok((
+            "thread/revert",
+            json!({"threadId": edit.thread_id, "beforeTurnId": edit.turn_id}),
+        ));
+    }
+    Ok(("thread/rollback", rollback_params(thread, edit)?))
+}
+
 pub(super) async fn submit(client: &Client, edit: EditRequest) -> Result<GuiResponse> {
     validate(&edit)?;
-    let mut params = prepare(client, &edit).await?;
-    let mut fork = thread_params(edit.thread_id)?;
-    fork["beforeTurnId"] = json!(edit.turn_id);
-    fork["deferGoalContinuation"] = json!(true);
-    edit.access.apply_to_thread(&mut fork);
-    if let Some(cwd) = params.get("cwd") {
-        fork["cwd"] = cwd.clone();
-    }
-    let mut data = client.request("thread/fork", fork).await?;
-    let thread_id = data["thread"]["id"]
-        .as_str()
-        .ok_or(GuiError::Rpc)?
-        .to_owned();
-    params["threadId"] = json!(thread_id);
-    match client.request("turn/start", params).await {
-        Ok(response) => data["turn"] = response["turn"].clone(),
-        Err(error) => {
-            // A timeout can leave an active turn. The server refuses to archive such a branch.
-            if client
-                .request("thread/archive", json!({"threadId": thread_id}))
-                .await
-                .is_err()
-            {
-                eprintln!("Codex GUI could not archive an unfinished edited branch");
-            }
-            return Err(error);
-        }
-    }
+    let params = prepare(client, &edit).await?;
+    let mut data = replace_message(&edit, params, |method, params| {
+        client.request(method, params)
+    })
+    .await?;
     workspaces::hide_project_paths(&mut data, &client.projectless_root);
     Ok(GuiResponse { data })
+}
+
+async fn replace_message<F, Fut>(
+    edit: &EditRequest,
+    mut params: Value,
+    mut request: F,
+) -> Result<Value>
+where
+    F: FnMut(&'static str, Value) -> Fut,
+    Fut: std::future::Future<Output = Result<Value>>,
+{
+    // Read-only history loads do not activate the session required by rollback.
+    let mut resume = thread_params(edit.thread_id.clone())?;
+    edit.access.apply_to_thread(&mut resume);
+    if let Some(cwd) = params.get("cwd") {
+        resume["cwd"] = cwd.clone();
+    }
+    let source = request("thread/resume", resume).await?;
+    // Attachments come from the server's stored message, never arbitrary frontend content.
+    params["input"] = json!(edited_input(&source["thread"], edit)?);
+    let (method, rewind) = rewind_request(&source["thread"], edit)?;
+    let mut data = request(method, rewind).await?;
+    // Paginated revert returns metadata only. The validated prefix remains unchanged.
+    if method == "thread/revert" {
+        data["thread"]["turns"] = json!(source["thread"]["turns"]
+            .as_array()
+            .ok_or(GuiError::Rpc)?
+            .iter()
+            .take_while(|turn| turn["id"] != edit.turn_id)
+            .collect::<Vec<_>>());
+    }
+    match request("turn/start", params).await {
+        Ok(response) => data["turn"] = response["turn"].clone(),
+        Err(error) => {
+            // Rollback already succeeded. Return its history so the UI can reconcile it
+            // and retain the edited input as a draft instead of retrying a stale target.
+            data["error"] = json!(error.to_string());
+        }
+    }
+    Ok(data)
 }

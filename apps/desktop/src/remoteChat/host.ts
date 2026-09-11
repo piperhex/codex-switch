@@ -11,6 +11,8 @@ import { guiSidebar } from '../pages/codexGui/sidebarBridge';
 import { EventStream } from './eventStream';
 import { remoteQueue } from './queue';
 import { QUEUE_EVENT } from '../../../../shared/remote-chat/queue';
+import { GUI_ACCOUNTS_EVENT } from '../../../../shared/remote-chat/guiAccounts';
+import { subscribeGuiEvent } from '../pages/codexGui/webEvents';
 
 export interface ChatHostConfig { websocketUrl: string; accessToken: string; deviceId: string }
 
@@ -20,6 +22,7 @@ export class ChatHost {
   private readonly operations = new ChatOperations();
   private readonly stream = new EventStream((event) => this.broadcast(event));
   private unsubscribe?: () => void;
+  private unsubscribeAccounts?: () => void;
   private readonly unsubscribeComposer: () => void;
   private readonly unsubscribeSidebar: () => void;
   private readonly unsubscribeQueue: () => void;
@@ -35,6 +38,12 @@ export class ChatHost {
     this.unsubscribeSidebar = guiSidebar.subscribe((snapshot) => {
       this.broadcast({ method: SIDEBAR_EVENT, params: snapshot });
     });
+    void subscribeGuiEvent('codex-gui-account-changed', () => {
+      this.broadcast({ method: GUI_ACCOUNTS_EVENT, params: {} });
+    }).then((unsubscribe) => {
+      if (this.closed) unsubscribe();
+      else this.unsubscribeAccounts = unsubscribe;
+    }).catch(() => this.close());
     this.socket = new WebSocket(config.websocketUrl);
     this.socket.onopen = () => this.send({ type: 'authenticate', role: 'desktop',
       accessToken: config.accessToken, deviceId: config.deviceId });
@@ -110,6 +119,7 @@ export class ChatHost {
     if (this.closed) return;
     this.closed = true;
     this.unsubscribe?.();
+    this.unsubscribeAccounts?.();
     this.unsubscribeComposer();
     this.unsubscribeSidebar();
     this.unsubscribeQueue();

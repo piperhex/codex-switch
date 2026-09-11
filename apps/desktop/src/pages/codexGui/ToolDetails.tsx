@@ -8,6 +8,8 @@ import styles from "./ActivityRow.module.less";
 import { generatedImageSource } from "./imageSources";
 import { DeferredDetails } from "./DeferredDetails";
 import { ToolText } from "./ToolText";
+import { CollaborationDetails } from "./CollaborationDetails";
+import { isCollaborationActivity } from "./collaborationActivity";
 
 function record(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
@@ -90,12 +92,6 @@ export function ToolDetails({ item, text }: { item: Item; text: string }) {
     {item.failure?.message && <p className={styles.failure}>{item.failure.message}</p>}
     {item.revisedPrompt && <RichText text={item.revisedPrompt} />}
   </>;
-  if (item.type === "collabAgentToolCall" || item.type === "collabToolCall") return <>
-    {item.prompt && <RichText text={item.prompt} />}
-    {Object.entries(item.agentsStates ?? {}).map(([id, state]) => <div key={id}>
-      <p>{state.status === "completed" ? "任务已完成" : "协作任务"} · {id}</p>
-      {state.message && <RichText text={state.message} />}</div>)}
-    {item.agentStatus != null && <ToolText text={serialized(item.agentStatus) ?? ""} />}
-  </>;
+  if (isCollaborationActivity(item)) return <CollaborationDetails item={item} />;
   return <ToolText text={text || serialized(item) || ""} />;
 }

@@ -13,6 +13,7 @@ export function conversation(thread: Thread, previous?: Conversation): Conversat
     return { diff: previousTurn?.diff ?? cached.get(turn.id)?.diff,
       plan: previousTurn?.plan ?? cached.get(turn.id)?.plan,
       planExplanation: previousTurn?.planExplanation ?? cached.get(turn.id)?.planExplanation,
+      retryError: previousTurn?.retryError,
       ...restoreTurnTiming(turn, previousTurn),
       items: mergeMessageItems(previousTurn?.items ?? [], turn.items ?? []) };
   });
@@ -92,7 +93,7 @@ function reduceConversationContent(value: Conversation, event: GuiEvent): Conver
   if (method === "turn/completed" && params.turn) {
     return { ...updateTurn(value, params.turn.id, (old) => completeTurnTiming(mergeTurn(old, params.turn!))),
       activeTurn: value.activeTurn === params.turn.id ? null : value.activeTurn,
-      error: params.turn.status === "failed" ? "本次回复未完成，请检查连接后重试。" : "" };
+      error: "" };
   }
   if ((method === "item/started" || method === "item/completed") && params.item) {
     if (!params.turnId) return value;
@@ -112,8 +113,13 @@ function reduceConversationContent(value: Conversation, event: GuiEvent): Conver
   if (method === "thread/tokenUsage/updated" && params.tokenUsage) return {
     ...value, tokens: params.tokenUsage.total.totalTokens, tokenUsage: params.tokenUsage,
   };
-  if (method === "error") return { ...value,
-    error: params.willRetry ? "连接暂时中断，Codex 正在重试…" : "本次回复遇到问题，请检查账户和连接后重试。" };
+  if (method === "error") {
+    const turnId = params.turnId ?? value.activeTurn;
+    if (!turnId) return value;
+    const error = params.error ?? { message: "" };
+    return updateTurn(value, turnId, (turn) => params.willRetry
+      ? { ...turn, retryError: error, error: null } : { ...turn, error });
+  }
   return value;
 }
 
@@ -132,6 +138,9 @@ function syncThreadPreview(state: GuiState, thread: Thread): Thread[] {
 }
 
 export function reduceEvent(state: GuiState, event: GuiEvent): GuiState {
+  if (event.method === "computerUse/setup") {
+    return { ...state, computerUseSetup: event.params.computerUseSetup };
+  }
   state = trackProcessingApproval(state, event);
   if (event.params.threadId && ["thread/goal/updated", "thread/goal/cleared"].includes(event.method)) {
     return { ...state, goals: { ...state.goals, [event.params.threadId]: event.params.goal ?? null } };

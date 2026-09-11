@@ -1,0 +1,27 @@
+.notice {
+  max-width: 400px;
+  min-width: 0;
+  margin: 12px 0;
+  color: #c96c3d;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+
+  summary { cursor: pointer; }
+  summary:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+}
+
+.hint { margin-left: 8px; text-decoration: underline; }
+
+.details {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  max-height: 240px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

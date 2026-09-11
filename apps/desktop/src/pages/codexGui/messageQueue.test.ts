@@ -98,6 +98,43 @@ it("queues separate messages and submits all in order to their original backgrou
   expect(controller.getSnapshot().selected).toBeNull();
 });
 
+it("sends messages in their reordered sequence and ignores moves beyond the queue", async () => {
+  await controller.send("first", ["image"], [{ name: "skill", path: "skill-path" }]);
+  await controller.send("second", []);
+  await controller.send("third", []);
+  const [first, second, third] = messages();
+  controller.queue.move("one", first.id, "up");
+  controller.queue.move("one", third.id, "down");
+  controller.queue.move("one", "missing", "down");
+  expect(messages()).toEqual([first, second, third]);
+  controller.queue.move("one", third.id, "up");
+  controller.queue.move("one", first.id, "down");
+  expect(messages()).toEqual([third, first, second]);
+  await finish();
+  expect(guiApi.request).toHaveBeenCalledWith(expect.objectContaining({ operation: "sendBatch",
+    messages: [{ text: "third", images: [], skills: [] },
+      { text: "first", images: ["image"], skills: [{ name: "skill", path: "skill-path" }] },
+      { text: "second", images: [], skills: [] }] }));
+});
+
+it("prevents reordering a dispatched message or moving another message across it", async () => {
+  await controller.send("sending", []);
+  const original = vi.mocked(guiApi.request).getMockImplementation()!;
+  let resume!: (value: unknown) => void;
+  vi.mocked(guiApi.request).mockImplementation((request) => request.operation === "resume"
+    ? new Promise((resolve) => { resume = resolve; }) : original(request));
+  await finish();
+  await controller.send("waiting", []);
+  const [sending, waiting] = messages();
+  expect(sending.busy).toBe(true);
+  controller.queue.move("one", sending.id, "down");
+  controller.queue.move("one", waiting.id, "up");
+  expect(messages()).toEqual([sending, waiting]);
+  resume({ thread });
+  await settle();
+  expect(messages().map((item) => item.text)).toEqual(["waiting"]);
+});
+
 it("takes a message out for editing while the remaining queue still sends", async () => {
   await controller.send("first", []);
   await controller.send("second", []);

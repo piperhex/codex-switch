@@ -15,6 +15,9 @@ pub(crate) mod auto_reset;
 pub(crate) mod concurrent_quota;
 pub(crate) mod endpoints;
 mod error_capture;
+mod gui_auto_switch;
+mod gui_forwarding;
+mod gui_routing;
 mod quota_detection;
 mod quota_sse;
 mod session_titles;
@@ -99,5 +102,6 @@ mod tests {
     include!("tests/anthropic_sessions.rs");
     include!("tests/chat_stream_status.rs");
     include!("tests/http_streaming.rs");
+    include!("tests/gui_routing.rs");
     include!("tests/error_logging.rs");
 }

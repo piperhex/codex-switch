@@ -1,4 +1,6 @@
 import type { ChatConnection, ConnectionEvents } from './connection';
+import type { RemoteComposerCatalog } from '../composerCatalog';
+import type { ProjectFilesRequest, ProjectFilesResponse } from '../projectFiles';
 import { applyChatEvent } from './events';
 import { mergeHistory } from './history';
 import { HISTORY_CHANGED } from '../historySync';
@@ -14,6 +16,7 @@ import { resolveModelSelection } from '../../../apps/desktop/src/pages/codexGui/
 import { SIDEBAR_EVENT, type SidebarSnapshot } from '../sidebar';
 import { emptyQueue, QUEUE_EVENT, type QueueAction, type QueueSnapshot } from '../queue';
 import { QueueConnection } from './queueConnection';
+import { createGuiAccountsClient } from './guiAccounts';
 import { initialChatState, type ApprovalReply, type ChatProject, type ChatState, type GuiEvent,
   type ListResponse, type Request, type SendInput, type SkillsResponse, type Thread } from './types';
 
@@ -25,6 +28,9 @@ export class ChatController {
   private readonly eventListeners = new Set<(event: GuiEvent) => void>();
   private readonly connection: Pick<ChatConnection, 'request' | 'start' | 'stop'>;
   private readonly queueConnection = new QueueConnection((body) => this.connection.request('request', body));
+  readonly guiAccounts = createGuiAccountsClient({
+    request: (body) => this.connection.request('request', body), subscribe: (listener) => this.subscribeEvents(listener),
+  });
   private listGeneration = 0;
   private readGeneration = 0;
   private refreshThreadId: string | null = null;
@@ -387,7 +393,7 @@ export class ChatController {
     if (this.state.selectedArchived) { this.update({ error: '请先恢复聊天，再发送消息。' }); return false; }
     if (this.state.sending || this.state.settingsBusy || (this.state.compacting
       && this.state.compacting === this.state.selected?.id)
-      || (!input.text.trim() && !images.length && !input.skills?.length)) return false;
+      || (!input.text.trim() && !images.length && !input.skills?.length && !input.attachments?.length)) return false;
     try { validateChatImages(images); }
     catch (error) { this.failure(error); return false; }
     if (!this.state.ready) { this.update({ error: '正在连接电脑，请稍候再发送。' }); return false; }
@@ -430,6 +436,18 @@ export class ChatController {
     if (!this.active || generation !== this.skillGeneration) throw new Error('连接已中断，请重新打开技能菜单。');
     return result;
   };
+
+  loadComposerCatalog = async (cwd: string) => {
+    const generation = this.skillGeneration;
+    const result = await this.connection.request<RemoteComposerCatalog>('request', {
+      operation: 'skills', cwd: cwd || undefined, includePlugins: true,
+    });
+    if (!this.active || generation !== this.skillGeneration) throw new Error('请连接电脑后重新打开插件。');
+    return result;
+  };
+
+  loadProjectFiles = (options: ProjectFilesRequest) =>
+    this.connection.request<ProjectFilesResponse>('request', { operation: 'projectFiles', ...options });
 
   compact = async () => {
     const selected = this.state.selected;

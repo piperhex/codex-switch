@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, type ClipboardEvent } from "react";
+import { act, StrictMode, type ClipboardEvent } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { GuiController } from "./controller";
@@ -48,6 +48,27 @@ function clipboard(files: File[]): ClipboardEvent<HTMLTextAreaElement> {
   return { clipboardData: { items: files.map((value) => ({ kind: "file", type: value.type,
     getAsFile: () => value })) }, preventDefault: vi.fn() } as unknown as ClipboardEvent<HTMLTextAreaElement>;
 }
+
+it("restores a failed edit to its conversation without discarding an existing draft", async () => {
+  act(() => editor.editText("existing draft"));
+  controller.messageEditor.recoveredDrafts.set("new", { text: "edited message", images: [imageUrl],
+    skills: [{ name: "check", path: "D:/SKILL.md" }],
+    attachments: [{ kind: "plugin", name: "plugin", path: "plugin://example" }] });
+  await render("other");
+  expect(editor.draft.text).toBe("");
+  await render();
+  expect(editor.draft.text).toBe("existing draft\n\nedited message $check");
+  expect(editor.draft.images[0].url).toBe(imageUrl);
+  expect(editor.draft.attachments?.[0].path).toBe("plugin://example");
+  expect(controller.messageEditor.recoveredDrafts.size).toBe(0);
+});
+
+it("restores a failed edit only once when React repeats mount effects", async () => {
+  controller.messageEditor.recoveredDrafts.set("new", { text: "edited message", images: [], skills: [] });
+  await act(async () => root.render(<StrictMode><Fixture draftKey="new" /></StrictMode>));
+  expect(editor.draft.text).toBe("edited message");
+  expect(controller.messageEditor.recoveredDrafts.size).toBe(0);
+});
 
 it("leaves ordinary text paste alone and sends pasted images without requiring text", async () => {
   const textPaste = clipboard([]);

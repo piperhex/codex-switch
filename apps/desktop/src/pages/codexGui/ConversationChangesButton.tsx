@@ -1,6 +1,6 @@
 import { useId, useMemo } from "react";
-import { FileDiff } from "lucide-react";
-import { Button } from "antd";
+import { PanelRight, PanelRightClose } from "lucide-react";
+import { Button, Tooltip } from "antd";
 import type { Conversation } from "./types";
 import { changedFiles, parseDiff } from "./diff";
 import { useDetailsEntry } from "./detailsContext";
@@ -15,6 +15,10 @@ export function ConversationChangesButton({ value }: { value?: Conversation }) {
     .flatMap((item) => changedFiles(item.changes ?? [])), [turn?.diff, turn?.items, netFiles]);
   const entry = useMemo(() => ({ id, title: "文件更改", files }), [id, files]);
   const panel = useDetailsEntry(entry);
-  return <Button type="text" icon={<FileDiff size={16} />} disabled={!files.length}
-    aria-label="查看文件更改" onClick={() => panel?.open(entry)}>更改</Button>;
+  const label = panel?.visible ? "收起文件更改" : "查看文件更改";
+  return <Tooltip title={label} styles={{ root: { maxWidth: 400 } }}>
+    <Button type="text" icon={panel?.visible ? <PanelRightClose size={16} /> : <PanelRight size={16} />}
+      aria-label={label} aria-expanded={Boolean(panel?.visible)}
+      onClick={() => panel?.visible ? panel.close() : panel?.open(entry)} />
+  </Tooltip>;
 }

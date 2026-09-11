@@ -8,8 +8,10 @@ permission flows are not implemented here.
 
 ## Use
 
-1. Build/run the updated desktop application, open the community plugin page and select a Codex Home.
-2. Install **Computer Use 电脑助手**. The first installation downloads approximately 28 MB from GitHub.
+1. Open Codex GUI in the Windows desktop application. On its first connection, **Computer Use 电脑助手**
+   is automatically installed in the GUI's private Codex Home before the conversation service starts.
+   The first installation downloads approximately 28 MB from GitHub; the GUI shows a preparation notice.
+2. Other Codex Homes can still install the assistant from the community plugin page.
 3. Open a new Codex GUI conversation using the same Home. For example: “打开计算器，计算 6 × 7，并确认结果。”
 4. The model can discover CUA tools, inspect applications, operate their controls and receive screenshots.
    The existing GUI tool-result viewer renders the MCP image content directly.
@@ -22,6 +24,11 @@ Windows secure desktop, UAC prompts and elevated applications remain subject to 
 
 ## Lifecycle
 
+- Automatic setup runs on a blocking worker and shares the manual installer's serialization guard.
+  A per-home marker survives uninstall; existing installations and manual choices are preserved.
+  Setup is attempted once. If it fails, ordinary chat remains available and the GUI directs the user
+  to the community plugin page to install or repair it. Unsupported platforms skip setup, and browser
+  connections never trigger it.
 - `computer_use` owns installation, records, downloads and process lifecycle in separate Rust modules.
   Both Tauri commands delegate blocking work to worker threads. Status polling only checks local files
   and serialized configuration; it neither starts a driver nor scans applications. The frontend permits

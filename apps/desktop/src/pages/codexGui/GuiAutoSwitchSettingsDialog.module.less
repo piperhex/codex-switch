@@ -1,0 +1,60 @@
+.dialog {
+  :global(.ant-modal-content) {
+    display: flex; flex-direction: column; height: min(860px, calc(100dvh - 48px)); overflow: hidden;
+  }
+  :global(.ant-modal-header) { flex-shrink: 0; padding-right: 24px; margin-bottom: 16px; }
+  :global(.ant-modal-body) { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+  :global(.ant-modal-footer) { flex-shrink: 0; }
+}
+.hint { color: var(--muted); font-size: 12px; font-weight: 400; overflow-wrap: anywhere; margin: 0; line-height: 1.6; }
+.heading {
+  display: flex; align-items: baseline; gap: 16px;
+  > :first-child { flex-shrink: 0; }
+  > .hint { min-width: 0; }
+}
+.fields { display: flex; flex-direction: column; flex-shrink: 0; gap: 12px;
+  max-height: 50%; overflow-y: auto; overscroll-behavior: contain; }
+.row {
+  display: grid; grid-template-columns: 140px 180px minmax(0, 1fr); align-items: center; gap: 8px 16px;
+  > :global(.ant-input-number), > :global(.ant-input-number-affix-wrapper) { width: 100%; }
+  > :global(.ant-select) { width: 100%; min-width: 0; }
+  > :global(.ant-switch) { justify-self: start; }
+}
+.accounts { display: flex; flex-direction: column; flex: 1; min-height: 0;
+  border-top: 1px solid var(--line); margin-top: 16px; padding-top: 14px;
+  > .heading { flex-shrink: 0; }
+}
+.accounts h3 { margin: 0; font-size: 13px; }
+.accountTableScroll { flex: 1; min-height: 0; margin-top: 12px; overflow: auto;
+  overscroll-behavior: contain; scrollbar-gutter: stable; }
+.accountTable {
+  width: 100%; min-width: 820px; table-layout: fixed; border-collapse: separate; border-spacing: 0; font-size: 12px;
+  th, td { padding: 10px 8px; text-align: center; vertical-align: middle; }
+  th { position: sticky; top: 0; z-index: 1; background: var(--panel, #fff);
+    color: var(--muted); font-weight: 400; white-space: nowrap; border-bottom: 1px solid var(--line); }
+  th:first-child, td:first-child { padding-left: 0; text-align: left; }
+  th:last-child, td:last-child { padding-right: 0; }
+}
+.usageColumn { width: 180px; }
+.participationColumn { width: 80px; }
+.numberColumn { width: 112px; }
+.account {
+  > td { border-bottom: 1px solid var(--line); }
+  &:last-child > td { border-bottom: 0; }
+  :global(.ant-input-number), :global(.ant-input-number-affix-wrapper) { width: 100%; }
+}
+.email { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.loading, .error { display: flex; align-items: center; gap: 8px; margin: 12px 0; font-size: 12px; }
+.error { color: var(--ant-color-error, #c43c3c); }
+
+@media (max-width: 1100px) {
+  .row {
+    grid-template-columns: 140px minmax(0, 1fr);
+    > .hint { grid-column: 1 / -1; }
+  }
+}
+
+@media (max-width: 600px) {
+  .row { grid-template-columns: minmax(0, 1fr) minmax(100px, 1fr); column-gap: 12px; }
+  .heading { gap: 12px; }
+}

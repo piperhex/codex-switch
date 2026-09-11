@@ -107,7 +107,8 @@ impl Client {
             .map_err(|_| GuiError::Disconnected)
     }
 
-    pub(super) async fn request(&self, method: &str, params: Value) -> Result<Value> {
+    pub(super) async fn request(&self, method: &str, mut params: Value) -> Result<Value> {
+        super::home::scope_thread_request(method, &mut params);
         if !self.alive.load(Ordering::Acquire) {
             return Err(GuiError::Disconnected);
         }
