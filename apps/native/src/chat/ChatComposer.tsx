@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Keyboard, Pressable, Text, TextInput, View } from 'react-native';
 import { ChatSettings } from './ChatSettings';
 import { ComposerActionButton } from './ComposerActionButton';
+import Feather from '@expo/vector-icons/Feather';
+import { modelLabelTail } from './modelLabel';
 import { ComposerAddMenu, type ComposerAddAction } from './ComposerAddMenu';
 import { ComposerPopover } from './ComposerPopover';
 import { ComposerPluginMenu } from './ComposerPluginMenu';
@@ -135,7 +137,9 @@ export function ChatComposer({ models, selection, settingsBusy, settingsError, u
         <View style={styles.composerTrailing}>
           {!compactField && <Pressable accessibilityRole="button" style={styles.composerModel}
             accessibilityLabel={`${composerLabel(models, selection)}，聊天设置`} onPress={() => setSettings(true)}>
-            <Text numberOfLines={1} style={styles.composerModelText}>{composerLabel(models, selection)} ▾</Text>
+            <Text numberOfLines={1} ellipsizeMode="head" style={styles.composerModelText}>
+              {modelLabelTail(composerLabel(models, selection))}</Text>
+            <Feather name="chevron-down" size={12} color={styles.composerModelText.color} />
           </Pressable>}
           <ComposerActionButton action={action} disabled={actionDisabled} busy={pausing || sending}
             onPress={() => { void submit(); }} />
