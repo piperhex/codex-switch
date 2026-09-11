@@ -15,7 +15,7 @@ import { rememberTurnDetails } from "./turnDetailsStorage";
 import { restoreProcessing } from "./processing";
 import { trackProcessingApproval } from "./processingApprovals";
 import { initialState, savePreferences } from "./preferences";
-import { resolveModelSelection } from "./modelSelection";
+import { ThreadModelSettings } from "./threadModelSettings";
 import type { ApprovalReply, GuiEvent, GuiState, ListResponse, Model, Settings, Thread, Turn } from "./types";
 import type { Item, SkillReference } from "./types";
 
@@ -38,12 +38,12 @@ export class GuiController {
   private remoteTurnEvents = new Map<string, GuiEvent[]>();
   getSnapshot = () => this.state;
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => this.listeners.delete(listener); };
-  private patch = (patch: Partial<GuiState>) => {
+  private patch = (patch: Partial<GuiState>, notify = true) => {
     if (this.disposed) return;
     const previousSelection = this.state.selected;
     this.state = { ...this.state, ...patch };
     if (previousSelection !== this.state.selected) savePreferences(this.state);
-    this.listeners.forEach((listener) => listener());
+    if (notify) this.listeners.forEach((listener) => listener());
   };
   report = (error: unknown) => {
     const message = error instanceof Error ? error.message : error;
@@ -63,6 +63,8 @@ export class GuiController {
   readonly queue = new MessageQueue({ getSnapshot: this.getSnapshot, patch: this.patch,
     active: () => !this.disposed, report: this.report,
     acceptTurn: (threadId, turn) => this.acceptTurn(threadId, turn) });
+  readonly modelSettings = new ThreadModelSettings({ getSnapshot: this.getSnapshot, patch: this.patch,
+    updateQueue: (threadId, selection) => this.queue.updateSettings(threadId, selection), report: this.report });
 
   private acceptTurn(threadId: string, turn: Turn) {
     const current = this.state.conversations[threadId];
@@ -134,7 +136,7 @@ export class GuiController {
       }
       const approvals = await (options ? guiApi.connect(options) : guiApi.connect());
       this.patch({ connection: "ready", approvals, error: "" });
-      const results = await Promise.allSettled([this.refresh(), this.loadModels()]);
+      const results = await Promise.allSettled([this.refresh(), this.loadModels(), this.modelSettings.refresh()]);
       results.forEach((result) => { if (result.status === "rejected") this.report(result.reason); });
       if (this.state.selected) await this.select(this.state.selected);
       this.patch(this.state.approvals.reduce(trackProcessingApproval, this.state));
@@ -164,9 +166,7 @@ export class GuiController {
     const models = this.providerModels ?? this.accountModels;
     if (!models) { this.patch({ models: [] }); return; }
     this.patch({ models });
-    const { model, effort } = this.state.settings;
-    const selection = resolveModelSelection(models, { model, effort });
-    if (selection.model !== model || selection.effort !== effort) this.settings(selection);
+    this.modelSettings.catalogChanged();
   }
 
   refresh = async (more = false) => {
@@ -193,7 +193,13 @@ export class GuiController {
 
   filter = (search: string, archived: boolean) => { this.patch({ search, archived }); void this.refresh(); };
   settings = (settings: Partial<Settings>) => {
-    this.patch({ settings: { ...this.state.settings, ...settings } });
+    const modelChanged = settings.model !== undefined || settings.effort !== undefined;
+    // Publish combined permission/model changes only after the model choice has been resolved.
+    this.patch({ settings: { ...this.state.settings, ...settings } }, !modelChanged);
+    if (modelChanged) this.modelSettings.change({
+      ...(settings.model !== undefined ? { model: settings.model } : {}),
+      ...(settings.effort !== undefined ? { effort: settings.effort } : {}),
+    });
     if (this.state.selected && (settings.model !== undefined || settings.effort !== undefined
       || settings.access !== undefined)) {
       const { model, effort, access } = this.state.settings;
@@ -216,6 +222,7 @@ export class GuiController {
   newConversation = () => {
     ++this.selectionGeneration;
     this.patch({ selected: null, error: "", archived: false });
+    void this.modelSettings.select(null);
     if (this.state.connection === "ready") void this.refresh();
   };
 
@@ -224,6 +231,8 @@ export class GuiController {
     this.deletedThreads.delete(id);
     const generation = ++this.selectionGeneration;
     this.patch({ selected: id, error: "" });
+    await this.modelSettings.select(id);
+    if (generation !== this.selectionGeneration) return;
     if (this.state.conversations[id]?.activeTurn) { this.readState.markRead(id); return; }
     try {
       const { thread } = await guiApi.request<{ thread: Thread }>({ operation: "read", threadId: id });
@@ -261,10 +270,26 @@ export class GuiController {
     }
   }
 
+  private acceptSentThread(thread: Thread, context: {
+    selected: string | null; startedAtMs: number; projectOverride?: string;
+  }) {
+    const { selected, startedAtMs, projectOverride } = context;
+    if (!selected) this.modelSettings.created(thread.id);
+    const stillSelected = this.state.selected === selected;
+    this.patch({ selected: stillSelected ? thread.id : this.state.selected,
+      pendingRequest: { threadId: thread.id, startedAtMs },
+      conversations: { ...this.state.conversations,
+        [thread.id]: conversation(thread, this.state.conversations[thread.id]) } });
+    if (!stillSelected) return;
+    this.settings({ cwd: projectOverride ?? thread.cwd });
+    this.modelSettings.catalogChanged();
+  }
+
   send = async (text: string, images: string[], skills: SkillReference[] = [], attachments: AttachmentReference[] = []) => {
     const { selected, settings, conversations } = this.state;
     const projectOverride = selected ? this.state.projectOverrides[selected] : undefined;
-    if (this.state.workspaceBusy || this.state.sending || this.state.deleting || this.state.compacting === selected
+    if (this.state.modelSettingsLoading || this.state.workspaceBusy || this.state.sending
+      || this.state.deleting || this.state.compacting === selected
       || this.state.connection !== "ready" || this.state.archived
       || (!text.trim() && !images.length && !skills.length && !attachments.length)) return false;
     if (selected && (conversations[selected]?.activeTurn || this.state.queued[selected]?.length)) {
@@ -281,10 +306,7 @@ export class GuiController {
         : await guiApi.request<{ thread: Thread }>({ operation: "start", cwd: settings.cwd || undefined,
           model: settings.model || undefined, access: settings.access });
       const { thread } = response;
-      this.patch({ selected: thread.id, pendingRequest: { threadId: thread.id, startedAtMs },
-        conversations: { ...this.state.conversations,
-          [thread.id]: conversation(thread, this.state.conversations[thread.id]) } });
-      this.settings({ cwd: projectOverride ?? thread.cwd });
+      this.acceptSentThread(thread, { selected, startedAtMs, projectOverride });
       // Loaded threads can ignore resume overrides; apply project and access settings to each new turn.
       const { turn } = await guiApi.request<{ turn: Turn }>({ operation: "send", threadId: thread.id,
         text, images, skills, ...(attachments.length ? { attachments } : {}), model: settings.model || undefined,

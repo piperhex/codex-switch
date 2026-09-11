@@ -121,6 +121,7 @@ pub fn run() {
         .manage(std::sync::Arc::new(gui_terminal::TerminalState::default()))
         .manage(codex_gui::git::GitState::default())
         .manage(codex_gui::web::WebEventState::default())
+        .manage(codex_gui::model_settings::ModelSettingsState::default())
         .manage(ccs_import::ImportState::default())
         .manage(main_window::MainWindowStateCache::default())
         .manage(main_window::CloseBehaviorState::default())
@@ -248,6 +249,8 @@ pub fn run() {
             codex_gui::codex_gui_connect,
             codex_gui::account_selection::codex_gui_account_selection,
             codex_gui::account_selection::codex_gui_switch_account,
+            codex_gui::model_settings::codex_gui_model_settings,
+            codex_gui::model_settings::codex_gui_set_model_settings,
             codex_gui::auto_switch_settings::codex_gui_auto_switch_settings,
             codex_gui::auto_switch_settings::codex_gui_set_auto_switch_settings,
             gui_terminal::codex_gui_terminal_open,

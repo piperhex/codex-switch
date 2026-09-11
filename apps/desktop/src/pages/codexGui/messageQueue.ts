@@ -44,7 +44,7 @@ export class MessageQueue {
     [reordered[index], reordered[targetIndex]] = [neighbor, item];
     this.update(threadId, reordered);
   };
-  updateSettings = (threadId: string, settings: Pick<Settings, "model" | "effort" | "access">) => {
+  updateSettings = (threadId: string, settings: Partial<Pick<Settings, "model" | "effort" | "access">>) => {
     const messages = this.list(threadId);
     if (!messages.some((item) => !item.busy)) return;
     // Keep dispatched batches stable and apply changes only to this conversation's waiting messages.

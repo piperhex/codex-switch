@@ -14,6 +14,7 @@ export class ComposerBridge {
   private value: ComposerSnapshot = { models: [], settings: { ...DEFAULT_COMPOSER }, revision: 0 };
   private readonly listeners = new Set<(snapshot: ComposerSnapshot) => void>();
   private loading?: Promise<void>;
+  private pendingSettings = false;
 
   subscribe = (listener: (snapshot: ComposerSnapshot) => void) => {
     this.listeners.add(listener);
@@ -23,7 +24,8 @@ export class ComposerBridge {
   attach(binding: Binding) {
     this.binding = binding;
     if (this.providerModels) binding.setProviderModels(this.providerModels);
-    if (this.value.settings.model) binding.settings(this.value.settings);
+    if (this.pendingSettings) binding.settings(this.value.settings);
+    this.pendingSettings = false;
     const update = () => {
       const { models, settings } = binding.getSnapshot();
       if (models.length) this.publish(models, settings);
@@ -84,6 +86,7 @@ export class ComposerBridge {
       ...(patch.model && patch.model !== current.settings.model && patch.effort === undefined ? { effort: '' } : {}) };
     const normalized = { ...resolveModelSelection(current.models, settings), access: settings.access };
     if (this.binding) this.binding.settings(normalized);
+    else this.pendingSettings = true;
     this.publish(current.models, normalized);
     return this.value;
   }

@@ -189,6 +189,8 @@ const LAN_COMMAND_ALLOWLIST: &[&str] = &[
     "codex_gui_connect",
     "codex_gui_account_selection",
     "codex_gui_switch_account",
+    "codex_gui_model_settings",
+    "codex_gui_set_model_settings",
     "codex_gui_auto_switch_settings",
     "codex_gui_set_auto_switch_settings",
     "codex_gui_request",

@@ -20,7 +20,8 @@ export function lastUserMessage(value?: Conversation): { turnId: string; item: I
 
 export function canEditMessage(state: GuiState): boolean {
   const id = state.selected;
-  return Boolean(id && state.connection === "ready" && !state.archived && !state.sending && !state.deleting
+  return Boolean(id && state.connection === "ready" && !state.modelSettingsLoading
+    && !state.archived && !state.sending && !state.deleting
     && !state.workspaceBusy
     && state.compacting !== id && !state.conversations[id]?.activeTurn && !state.queued[id]?.length
     && !state.approvals.some((event) => event.params.threadId === id));

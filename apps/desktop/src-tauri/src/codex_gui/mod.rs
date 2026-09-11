@@ -20,6 +20,7 @@ mod image_preview;
 mod image_thumbnail;
 mod images;
 mod message_edit;
+pub(crate) mod model_settings;
 mod platform;
 pub(crate) mod plugin_client;
 mod project_files;

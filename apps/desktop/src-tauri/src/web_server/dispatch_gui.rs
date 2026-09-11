@@ -3,6 +3,14 @@ fn dispatch_gui_command(app: AppHandle, command: &str, args: Value) -> Result<Va
     use tauri::Manager;
 
     match command {
+        "codex_gui_model_settings" => serialize(block_on(
+            codex_gui::model_settings::codex_gui_model_settings(app, argument(&args, "threadId")?),
+        )),
+        "codex_gui_set_model_settings" => serialize(block_on(
+            codex_gui::model_settings::codex_gui_set_model_settings(
+                app, argument(&args, "threadId")?, argument(&args, "selection")?,
+            ),
+        )),
         "codex_gui_auto_switch_settings" => serialize(block_on(
             codex_gui::auto_switch_settings::codex_gui_auto_switch_settings(app),
         )),

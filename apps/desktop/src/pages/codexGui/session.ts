@@ -1,6 +1,8 @@
 import { GuiController } from './controller';
 import { guiComposer } from './composerBridge';
 import { guiSidebar } from './sidebarBridge';
+import { hasLocalBackend } from '../../api/backend';
+import { modelSettingsApi } from './modelSettingsApi';
 
 let controller: GuiController | undefined;
 let owners = 0;
@@ -13,9 +15,10 @@ export function retainGuiSession() {
   const current = getGuiController();
   if (owners++ === 0) {
     current.activate();
+    const models = hasLocalBackend ? current.modelSettings.start(modelSettingsApi) : undefined;
     const composer = guiComposer.attach(current);
     const sidebar = guiSidebar.attach(current);
-    detach = () => { composer(); sidebar(); current.dispose(); };
+    detach = () => { models?.(); composer(); sidebar(); current.dispose(); };
   }
   return () => { if (--owners === 0) { detach?.(); detach = undefined; } };
 }
