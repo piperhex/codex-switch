@@ -15,6 +15,7 @@ interface Options {
 
 export function useComposerMenu({ draft, scope, active, refresh, compact }: Options) {
   const input = useRef<TextInput>(null);
+  const focusFrame = useRef<number | null>(null);
   const [selection, setSelection] = useState<TextSelection>({ start: 0, end: 0 });
   const [expanded, setExpanded] = useState(false);
   const [dismissed, setDismissed] = useState('');
@@ -26,11 +27,17 @@ export function useComposerMenu({ draft, scope, active, refresh, compact }: Opti
   useEffect(() => { setExpanded(false); setDismissed(triggerKey); }, [scope, active]);
   useEffect(() => { if (!triggerKey) setDismissed(''); }, [triggerKey]);
   useEffect(() => { if (open) refresh(); }, [open, refresh]);
+  useEffect(() => () => {
+    if (focusFrame.current !== null) cancelAnimationFrame(focusFrame.current);
+  }, [scope, active]);
   const close = () => { setExpanded(false); setDismissed(triggerKey); };
   const openPlugins = () => {
     const next = insertPluginTrigger(draft.text, trigger ?? range);
     draft.setText(next.text); setSelection(next.selection); setDismissed(''); setExpanded(false);
-    input.current?.focus();
+    // Android can leave the input focused after Back hides its keyboard; refocus must cross a frame.
+    if (focusFrame.current !== null) cancelAnimationFrame(focusFrame.current);
+    input.current?.blur();
+    focusFrame.current = requestAnimationFrame(() => { focusFrame.current = null; input.current?.focus(); });
   };
   const consumeTrigger = () => {
     if (trigger) {
