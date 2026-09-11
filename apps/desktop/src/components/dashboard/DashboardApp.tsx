@@ -60,7 +60,7 @@ import { CloudLoginModal } from "../modals/CloudLoginModal";
 import { CloudAccountModal } from "../modals/CloudAccountModal";
 import { CloudRecycleBin } from "../CloudRecycleBin";
 import { LoginModal } from "../modals/LoginModal";
-import { LanAccessModal } from "../modals/LanAccessModal";
+import { ProxySettingsModal } from "../modals/ProxySettingsModal";
 import { UpdateModal } from "../modals/UpdateModal";
 import { CcSwitchImportModal } from "../modals/CcSwitchImportModal";
 import { MenuSearchModal } from "../MenuSearchModal";
@@ -258,7 +258,7 @@ export function DashboardApp() {
   const [showHelp, setShowHelp] = useState(false);
   const [showMenuSearch, setShowMenuSearch] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
-  const [showLanAccess, setShowLanAccess] = useState(false);
+  const [showProxySettings, setShowProxySettings] = useState(false);
   const [showNetworkProxy, setShowNetworkProxy] = useState(false);
   const [chatGptOperation, setChatGptOperation] = useState<"start" | "restart" | null>(null);
   const [exportingLogs, setExportingLogs] = useState(false);
@@ -1151,7 +1151,7 @@ export function DashboardApp() {
   const proxyStatusControls = (
     <ProxyStatusControls manager={providerManager}
       clientOperation={chatGptOperation} onClientOperationChange={setChatGptOperation}
-      notify={notify} onRequestLanAccess={() => setShowLanAccess(true)}
+      notify={notify} onOpenSettings={() => setShowProxySettings(true)}
       startDisabledReason={proxyStartDisabledReason} t={t} />
   );
   const sidebarNavigationEnabled = navigationStyle.style === "sidebar";
@@ -1640,12 +1640,11 @@ export function DashboardApp() {
           onInstall={() => void installUpdate()} downloading={downloadingUpdate}
           downloadRequested={installAfterDownloadRequested} downloaded={updateDownloaded}
           installing={installingUpdate} progress={updateProgress} error={updateInstallError} t={t} />}
-        <LanAccessModal open={showLanAccess}
-          hasConfiguredKey={providerManager.localProxy?.hasLanApiKey ?? false}
-          loading={providerManager.proxyBusy}
-          onClose={() => setShowLanAccess(false)}
-          onConfirm={(apiKey) => providerManager.setProxyListenOnAllInterfaces(true, apiKey)}
-          t={t} />
+        <ProxySettingsModal open={showProxySettings} proxy={providerManager.localProxy}
+          loading={providerManager.proxyBusy || chatGptOperation !== null}
+          onClose={() => setShowProxySettings(false)}
+          onSave={providerManager.setProxyListenOnAllInterfaces}
+          onCopyApiKey={providerManager.copyProxyLanApiKey} notify={notify} t={t} />
         <NetworkProxySettingsModal open={showNetworkProxy} value={networkProxy}
           loading={networkProxyLoading} onSave={saveNetworkProxy}
           onClose={() => setShowNetworkProxy(false)} t={t} />

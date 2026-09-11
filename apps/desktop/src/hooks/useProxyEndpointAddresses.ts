@@ -12,7 +12,7 @@ export function useProxyEndpointAddresses(open: boolean) {
     let cancelled = false;
     setLoading(true);
     setFailed(false);
-    // Reuse an unfinished scan if the menu is quickly closed and reopened.
+    // Reuse an unfinished scan if the settings dialog is quickly closed and reopened.
     pending.current ??= loadLocalProxyIpv4Addresses().finally(() => { pending.current = null; });
     void pending.current.then((result) => {
       if (!cancelled) setAddresses([...new Set([LOOPBACK_IPV4, ...result])]);

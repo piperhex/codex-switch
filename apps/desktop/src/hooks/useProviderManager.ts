@@ -666,7 +666,9 @@ export function useProviderManager(
     setProxyBusy(true);
     try {
       setLocalProxy(await setLocalProxyListenOnAllInterfaces(enabled, apiKey));
-      notify(t(enabled ? "toast.proxyLanListeningEnabled" : "toast.proxyLanListeningDisabled"));
+      const keyOnlyUpdate = Boolean(apiKey?.trim()) && enabled === localProxy?.listenOnAllInterfaces;
+      const listeningMessage = enabled ? "toast.proxyLanListeningEnabled" : "toast.proxyLanListeningDisabled";
+      notify(t(keyOnlyUpdate ? "toast.proxyLanApiKeySaved" : listeningMessage));
       await load();
       return true;
     } catch (error) {
@@ -676,7 +678,7 @@ export function useProviderManager(
     } finally {
       setProxyBusy(false);
     }
-  }, [load, notify, t]);
+  }, [load, localProxy?.listenOnAllInterfaces, notify, t]);
 
   const setProxyConcurrentRouting = useCallback(async (
     enabled: boolean,

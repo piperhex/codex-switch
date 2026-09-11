@@ -83,15 +83,15 @@ fn dispatch_extended_command(app: AppHandle, command: &str, args: Value) -> Resu
                 argument(&args, "accountId")?,
             ),
         )),
-        "set_local_proxy_listen_on_all_interfaces" => serialize(
+        "set_local_proxy_listen_on_all_interfaces" => serialize(block_on(
             crate::local_proxy::set_local_proxy_listen_on_all_interfaces(
                 app,
                 argument(&args, "enabled")?,
                 argument(&args, "apiKey")?,
             ),
-        ),
+        )),
         "copy_local_proxy_lan_api_key" => {
-            serialize(crate::local_proxy::copy_local_proxy_lan_api_key(app))
+            serialize(block_on(crate::local_proxy::copy_local_proxy_lan_api_key(app)))
         }
         "set_floating_bubble" => serialize(block_on(crate::floating_bubble::set_floating_bubble(
             app,
