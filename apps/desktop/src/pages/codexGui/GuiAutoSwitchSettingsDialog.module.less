@@ -28,13 +28,15 @@
 .accountTableScroll { flex: 1; min-height: 0; margin-top: 12px; overflow: auto;
   overscroll-behavior: contain; scrollbar-gutter: stable; }
 .accountTable {
-  width: 100%; min-width: 820px; table-layout: fixed; border-collapse: separate; border-spacing: 0; font-size: 12px;
+  width: 100%; min-width: 932px; table-layout: fixed; border-collapse: separate; border-spacing: 0; font-size: 12px;
   th, td { padding: 10px 8px; text-align: center; vertical-align: middle; }
   th { position: sticky; top: 0; z-index: 1; background: var(--panel, #fff);
     color: var(--muted); font-weight: 400; white-space: nowrap; border-bottom: 1px solid var(--line); }
   th:first-child, td:first-child { padding-left: 0; text-align: left; }
   th:last-child, td:last-child { padding-right: 0; }
 }
+.expirationColumn { width: 112px; }
+.expiration { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .usageColumn { width: 180px; }
 .participationColumn { width: 80px; }
 .numberColumn { width: 112px; }

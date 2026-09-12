@@ -29,11 +29,13 @@ export function GuiAccountUsage({ usage, label }: { usage?: UsageWindow | null; 
   const resetLabel = countdown ? `${countdown} 后重置` : "重置时间未知";
   const expired = hasResetTime && (resetsAt ?? 0) * COUNTDOWN_INTERVAL_MS <= now;
   return <div className={styles.usage} data-tone={remainingTone(remaining)}>
-    <div className={styles.value}><span>剩余</span><strong>{remaining}%</strong></div>
+    <div className={styles.value}>
+      <span className={styles.reset}>{expired ? "已到重置时间，等待刷新" : resetLabel}</span>
+      <strong>{remaining}%</strong>
+    </div>
     <div className={styles.track} role="progressbar" aria-label={`${label}剩余`}
       aria-valuemin={0} aria-valuemax={MAX_REMAINING_PERCENT} aria-valuenow={remaining}>
       <span style={{ width: `${remaining}%` }} />
     </div>
-    <span className={styles.reset}>{expired ? "已到重置时间，等待刷新" : resetLabel}</span>
   </div>;
 }

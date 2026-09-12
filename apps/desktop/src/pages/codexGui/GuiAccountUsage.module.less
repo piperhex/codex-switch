@@ -6,7 +6,7 @@
 }
 .value { display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
   color: var(--muted); font-size: 11px;
-  > strong { color: var(--usage-color); font-size: 12px; font-weight: 600; }
+  > strong { flex-shrink: 0; color: var(--usage-color); font-size: 12px; font-weight: 600; }
 }
 .track { height: 5px; overflow: hidden; border-radius: 4px; background: var(--line, #e3eae7);
   > span { display: block; height: 100%; border-radius: inherit; background: var(--usage-color); }
