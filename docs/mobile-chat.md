@@ -212,6 +212,11 @@ npm run test:chat:android -w @codex-switch/desktop
 它检查空输入框与草稿反复开关输入法时布局稳定、最新消息可见、旧消息阅读位置不变，
 以及输入法打开时的流式回复；结果写入同一目录的 `keyboard-report.json`。
 
+打开对话专项回归同样使用新的测试服务，并要求 `ffmpeg` 在 PATH 中，以及 1080×2424 的 Pixel 9 模拟器。
+在仓库根目录运行 `node apps/desktop/e2e/android-history-opening-regression.mjs`，
+逐帧检查首次加载、缓存重开和长回复的首屏位置，并验证实时回复、空对话与较长错误提示不会卡住加载。
+录像、逐帧结果和 `history-opening-report.json` 保存在同一结果目录。
+
 抽屉与旧版电脑兼容回归使用相同配置和新的测试服务，运行
 `npm run test:chat:android:drawer -w @codex-switch/desktop`。
 它模拟电脑拒绝新版历史接口，验证旧记录读取，以及边缘右滑打开、左滑收起、遮罩和返回键关闭。

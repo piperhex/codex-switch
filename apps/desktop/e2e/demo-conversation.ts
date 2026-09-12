@@ -11,7 +11,7 @@ import { historyNotification } from '../../../shared/remote-chat/historyNotifica
 import { RemoteImages } from '../src/remoteChat/images';
 import { demoImageResponse } from './demo-images';
 import { parseHistoryWindow, sliceHistory } from '../../../shared/remote-chat/historyPage';
-import { seedDemoHistory } from './demo-history';
+import { seedDemoFooterHistory, seedDemoHistory, seedDemoOpeningHistory } from './demo-history';
 import { demoSkills } from './demo-skills';
 import { demoPlugins, demoProjectFiles } from './demo-attachments';
 import { demoProjectDirectories } from './demo-project-directories';
@@ -177,6 +177,9 @@ export function changeDemoSidebar(action: string, link: ChatLink) {
   sidebarLink = link;
   if (action === 'group-preview') seedThreadGroups(link);
   if (action === 'history-pages') seedDemoHistory(welcome);
+  if (action === 'history-opening') seedDemoOpeningHistory(welcome);
+  if (action === 'history-empty') welcome.turns = [];
+  if (action === 'history-footer') seedDemoFooterHistory(welcome);
   if (action === 'message-details') seedDemoDetails(welcome);
   if (action === 'start' && welcome.turns?.some((turn) => turn.status === 'inProgress')) {
     throw new Error('Wait for the current demo turn before starting a background turn');
