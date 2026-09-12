@@ -35,7 +35,7 @@ export function ChatPhotoPicker({ photos, disabled, active }: Props) {
       <Text style={styles.buttonText}>打开设置</Text>
     </Pressable>}
     {active && preview && <ImageViewer key={preview.id} thumbnail={preview.uri}
-      description={`照片 ${photos.photos.indexOf(preview) + 1}`} load={async () => preview.uri}
+      description={`照片 ${photos.photos.indexOf(preview) + 1}`} load={async () => preview.dataUrl}
       close={() => setPreviewId(null)} />}
   </View>;
 }

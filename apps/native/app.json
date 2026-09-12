@@ -16,8 +16,14 @@
       "infoPlist": {
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true
-        }
-      }
+        },
+        "UISupportedInterfaceOrientations": [
+          "UIInterfaceOrientationPortrait",
+          "UIInterfaceOrientationLandscapeLeft",
+          "UIInterfaceOrientationLandscapeRight"
+        ]
+      },
+      "requireFullScreen": true
     },
     "android": {
       "icon": "./assets/icon.png",
@@ -31,7 +37,11 @@
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS",
         "android.permission.BLUETOOTH",
-        "android.permission.SYSTEM_ALERT_WINDOW"
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_AUDIO",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED"
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -65,7 +75,27 @@
       "expo-notifications",
       "./plugins/withChatBackground.cjs",
       "./plugins/withChatTransport.cjs",
-      "./plugins/withSharedBundleInputs.cjs"
+      "./plugins/withSharedBundleInputs.cjs",
+      [
+        "expo-screen-orientation",
+        {
+          "initialOrientation": "PORTRAIT_UP"
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "允许 Codex Switch 选择照片发送到聊天",
+          "savePhotosPermission": "允许 Codex Switch 将图片保存到相册",
+          "isAccessMediaLocationEnabled": false
+        }
+      ],
+      [
+        "expo-sensors",
+        {
+          "motionPermission": "允许 Codex Switch 根据手机方向旋转图片"
+        }
+      ]
     ]
   }
 }

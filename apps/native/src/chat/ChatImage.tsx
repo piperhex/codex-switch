@@ -2,14 +2,14 @@ import { createContext, useContext, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useChatImage, type ImagePreviewOptions } from '../../../../shared/remote-chat/client/useChatImage';
 import { palette, styles } from './styles';
-import { ImageViewer } from './ImageViewer';
+import { useChatImagePreview } from './ChatImagePreview';
 
 export const ChatImageContext = createContext<ImagePreviewOptions | null>(null);
 const DEFAULT_ASPECT_RATIO = 4 / 3;
 
 export function ChatImage({ source, description = '图片' }: { source?: string; description?: string }) {
   const image = useChatImage(source, useContext(ChatImageContext));
-  const [preview, setPreview] = useState(false);
+  const openPreview = useChatImagePreview();
   const [aspectRatio, setAspectRatio] = useState(DEFAULT_ASPECT_RATIO);
   if (image.failed) return <View style={imageStyles.notice}>
     <Text style={styles.subtitle}>{description}：图片加载失败</Text>
@@ -20,7 +20,8 @@ export function ChatImage({ source, description = '图片' }: { source?: string;
   if (image.loading || !image.url) return <Text style={styles.status}>正在加载图片…</Text>;
   return <View style={imageStyles.container}>
     <Pressable accessibilityRole="button" accessibilityLabel={`放大查看：${description}`}
-      onPress={() => setPreview(true)}>
+      onPress={() => { if (image.url) openPreview({ key: image.key, thumbnail: image.url,
+        description, load: image.original }); }}>
       <Image key={image.key} source={{ uri: image.url }} accessibilityLabel={description}
         resizeMode="contain" style={[imageStyles.thumbnail, { aspectRatio }]}
         onError={image.fail} onLoad={({ nativeEvent }) => {
@@ -28,8 +29,6 @@ export function ChatImage({ source, description = '图片' }: { source?: string;
           if (width > 0 && height > 0) setAspectRatio(width / height);
         }} />
     </Pressable>
-    {preview && <ImageViewer key={image.key} thumbnail={image.url} description={description}
-      load={image.original} close={() => setPreview(false)} />}
   </View>;
 }
 

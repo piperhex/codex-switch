@@ -24,7 +24,8 @@ export async function adb(...args) {
 }
 
 export async function serverState() {
-  const response = await fetch(`${apiUrl}/test/state`, { signal: AbortSignal.timeout(5_000) });
+  const timeoutMs = Number(process.env.CHAT_TEST_TIMEOUT_MS ?? 5_000);
+  const response = await fetch(`${apiUrl}/test/state`, { signal: AbortSignal.timeout(timeoutMs) });
   if (!response.ok) throw new Error(`Local fixture is unavailable: ${response.status}`);
   return response.json();
 }

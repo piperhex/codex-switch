@@ -9,6 +9,7 @@ import { queueProps } from '../../../../shared/remote-chat/client/queueProps';
 import { ChatMessages } from './ChatMessages';
 import { ChatProcessing } from './ChatProcessing';
 import { ChatImageContext } from './ChatImage';
+import { ChatImagePreviewProvider } from './ChatImagePreview';
 import { ChatFileProvider } from './ChatFilePreview';
 import { ChatThreads } from './ChatThreads';
 import { ChatProfileMenu } from './ChatProfileMenu';
@@ -129,12 +130,14 @@ function ConnectedChat({ session, device, devices, active, chooseDevice, notific
     </View>
     {!!state.error && <Text accessibilityRole="alert" style={styles.error}>{state.error}</Text>}
     <ChatImageContext.Provider value={{ threadId: state.selected?.id ?? null, ready, load: controller.imagePreview }}>
+      <ChatImagePreviewProvider key={state.selected?.id ?? 'new'}>
       <ChatFileProvider key={state.selected?.id ?? 'new'} threadId={state.selected?.id ?? null}
         ready={ready} load={controller.textPreview}>
       <ChatMessages key={state.selected?.id ?? 'new'} thread={state.selected}
         loading={state.historyLoading} loadingMore={state.historyLoadingMore} hasMore={state.historyHasMore}
         loadOlder={() => controller.loadOlder()} />
       </ChatFileProvider>
+      </ChatImagePreviewProvider>
     </ChatImageContext.Provider>
     {runningTurn && <ChatProcessing key={runningTurn.id} turn={runningTurn} active={active && ready} />}
     {state.approvals.some((event) => event.params.threadId === state.selected?.id) &&

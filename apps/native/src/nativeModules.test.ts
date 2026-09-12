@@ -25,6 +25,9 @@ it('registers native file, image, document picker and icon services used by chat
     expect(packages).toContain('expo.modules.imagemanipulator.ImageManipulatorModule.class');
     expect(packages).toContain('expo.modules.documentpicker.DocumentPickerModule.class');
     expect(packages).toContain('expo.modules.font.FontLoaderModule.class');
+    expect(packages).toContain('expo.modules.medialibrary.MediaLibraryModule.class');
+    expect(packages).toContain('expo.modules.screenorientation.ScreenOrientationModule.class');
+    expect(packages).toContain('expo.modules.sensors.modules.AccelerometerModule.class');
   } finally {
     rmSync(target, { force: true });
     rmdirSync(directory);

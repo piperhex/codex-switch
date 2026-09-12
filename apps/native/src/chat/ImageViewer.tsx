@@ -1,71 +1,72 @@
-import { useMemo, useRef, useState } from 'react';
-import { Image, Modal, PanResponder, Pressable, StyleSheet, Text, View,
-  type GestureResponderEvent } from 'react-native';
+import { ActivityIndicator, Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { useImageViewer } from '../../../../shared/chat/useImageViewer';
-import { INITIAL_TRANSFORM, clampZoom, moveImage, type Point } from '../../../../shared/chat/imageTransform';
+import { useImageOrientation } from './useImageOrientation';
+import { useImageGestures } from './useImageGestures';
+import { useSaveImage } from './useSaveImage';
 
 interface Props { thumbnail: string; description: string; load: () => Promise<string>; close: () => void }
-const points = (event: GestureResponderEvent): Point[] => event.nativeEvent.touches.map((touch) =>
-  ({ x: touch.pageX, y: touch.pageY }));
 
 export function ImageViewer({ thumbnail, description, load, close }: Props) {
   const image = useImageViewer(load);
-  const [transform, setTransform] = useState(INITIAL_TRANSFORM);
-  const current = useRef(transform);
-  current.current = transform;
-  const anchor = useRef({ before: transform, start: [] as Point[] });
-  const responder = useMemo(() => PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponder: () => true,
-    onPanResponderGrant: (event) => { anchor.current = { before: current.current, start: points(event) }; },
-    onPanResponderMove: (event) => {
-      const touches = points(event);
-      if (touches.length !== anchor.current.start.length) {
-        anchor.current = { before: current.current, start: touches };
-      }
-      setTransform(moveImage({ ...anchor.current, current: touches }));
-    },
-  }), []);
-  return <Modal visible transparent animationType="fade" onRequestClose={close}>
-    <View style={styles.overlay}>
-      <View style={styles.stage} {...responder.panHandlers}>
-        <Image source={{ uri: image.url ?? thumbnail }} accessibilityLabel={description} resizeMode="contain"
-          onError={image.fail} style={[styles.image, { transform: [{ translateX: transform.x },
-            { translateY: transform.y }, { rotate: `${transform.rotation}deg` }, { scale: transform.scale }] }]} />
-      </View>
-      <Pressable accessibilityRole="button" accessibilityLabel="关闭图片" onPress={close} style={styles.close}>
-        <Text style={styles.closeText}>×</Text></Pressable>
-      <View style={styles.toolbar}>
-        <Pressable accessibilityRole="button" accessibilityLabel="缩小图片" style={styles.button}
-          onPress={() => setTransform((v) => ({ ...v, scale: clampZoom(v.scale / 1.5) }))}>
-          <Text style={styles.label}>−</Text></Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel="还原图片" style={styles.button}
-          onPress={() => setTransform(INITIAL_TRANSFORM)}><Text style={styles.label}>
-            {Math.round(transform.scale * 100)}%</Text></Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel="放大图片" style={styles.button}
-          onPress={() => setTransform((v) => ({ ...v, scale: clampZoom(v.scale * 1.5) }))}>
-          <Text style={styles.label}>+</Text></Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel="旋转图片" style={styles.button}
-          onPress={() => setTransform((v) => ({ ...v, rotation: (v.rotation + 90) % 360 }))}>
-          <Text style={styles.label}>↻</Text></Pressable>
-      </View>
-      {!image.url && !image.error && <Text style={styles.status}>正在加载原图…</Text>}
-      {image.error && <View style={styles.status}><Text style={styles.label}>原图加载失败</Text>
-        <Pressable accessibilityRole="button" accessibilityLabel="重新加载原图" onPress={image.retry}>
-          <Text style={styles.label}>重试</Text></Pressable></View>}
-    </View>
+  const orientation = useImageOrientation();
+  const { transform, panHandlers } = useImageGestures(close, orientation.displayed);
+  const saving = useSaveImage(image.error ? undefined : image.url);
+  const message = saving.message || orientation.error;
+  return <Modal visible animationType="fade" onRequestClose={close} statusBarTranslucent
+    navigationBarTranslucent supportedOrientations={['portrait', 'portrait-upside-down',
+      'landscape-left', 'landscape-right']}>
+    <SafeAreaProvider>
+      <SafeAreaView style={styles.overlay}>
+        <View style={styles.stage} {...panHandlers} onAccessibilityEscape={close}>
+          <Image source={{ uri: image.url ?? thumbnail }} accessibilityLabel={description}
+            accessibilityHint="轻点关闭，双指缩放" accessibilityActions={[{ name: 'activate', label: '关闭预览' }]}
+            onAccessibilityAction={close} resizeMode="contain" onError={image.fail}
+            style={[styles.image, { transform: [{ translateX: transform.x },
+              { translateY: transform.y }, { scale: transform.scale }] }]} />
+        </View>
+        <View pointerEvents="box-none" style={styles.footer}>
+          <View pointerEvents="box-none" style={styles.actions}>
+            {orientation.suggested && <Pressable accessibilityRole="button" accessibilityLabel="转到手机当前方向"
+              disabled={orientation.rotating} onPress={orientation.rotate} style={styles.rotate}>
+              <MaterialCommunityIcons name="screen-rotation" size={28} color="#fff" />
+            </Pressable>}
+            <Pressable accessibilityRole="button" accessibilityLabel="保存到相册"
+              accessibilityState={{ disabled: !image.url || image.error || saving.saving, busy: saving.saving }}
+              disabled={!image.url || image.error || saving.saving} onPress={saving.save}
+              style={[styles.save, (!image.url || image.error) && styles.disabled]}>
+              {saving.saving ? <ActivityIndicator color="#fff" />
+                : <MaterialCommunityIcons name="download" size={30} color="#fff" />}
+            </Pressable>
+          </View>
+          <View pointerEvents="box-none" style={styles.notices}>
+            {!!message && <Text accessibilityLiveRegion="polite" style={styles.status}>{message}</Text>}
+            {!image.url && !image.error && <Text style={styles.status}>正在加载原图…</Text>}
+            {image.error && <View style={styles.error}>
+              <Text style={styles.status}>原图加载失败</Text>
+              <Pressable accessibilityRole="button" accessibilityLabel="重新加载原图" onPress={image.retry}
+                style={styles.retry}><Text style={styles.status}>重试</Text></Pressable>
+            </View>}
+          </View>
+        </View>
+      </SafeAreaView>
+    </SafeAreaProvider>
   </Modal>;
 }
 
 const styles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(12,14,13,0.96)', alignItems: 'center' },
-  stage: { position: 'absolute', top: 80, bottom: 130, width: '100%', overflow: 'hidden' },
+  overlay: { flex: 1, backgroundColor: '#000' },
+  stage: { flex: 1, overflow: 'hidden' },
   image: { width: '100%', height: '100%' },
-  close: { position: 'absolute', top: 40, right: 12, width: 44, height: 44, alignItems: 'center' },
-  closeText: { color: '#aaa', fontSize: 30 },
-  toolbar: { position: 'absolute', bottom: 32, flexDirection: 'row', gap: 12, paddingHorizontal: 12,
-    paddingVertical: 4, borderRadius: 28, backgroundColor: '#282b2a' },
-  button: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-  label: { color: '#ccc', fontSize: 18, textAlign: 'center' },
-  status: { position: 'absolute', bottom: 96, color: '#ccc', fontSize: 13, maxWidth: 400, gap: 8 },
+  footer: { paddingHorizontal: 24, paddingBottom: 24, paddingTop: 12 },
+  actions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: 56 },
+  rotate: { width: 56, height: 56, alignItems: 'center', justifyContent: 'center' },
+  save: { marginLeft: 'auto', width: 56, height: 56, borderRadius: 28, backgroundColor: '#484848',
+    alignItems: 'center', justifyContent: 'center' },
+  disabled: { opacity: 0.4 },
+  notices: { position: 'absolute', bottom: 96, left: 16, right: 16, alignItems: 'center', gap: 8 },
+  status: { color: '#ddd', fontSize: 14, textAlign: 'center', maxWidth: 400 },
+  error: { maxWidth: 400, alignItems: 'center', backgroundColor: '#222', borderRadius: 12, padding: 8 },
+  retry: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
 });
