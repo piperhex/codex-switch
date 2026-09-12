@@ -5,6 +5,7 @@ import { Messages } from "../src/pages/codexGui/Messages";
 import { AsyncQuestions } from "../src/pages/codexGui/AsyncQuestions";
 import { TurnMessage } from "../src/pages/codexGui/TurnMessage";
 import type { Conversation } from "../src/pages/codexGui/types";
+import queueStyles from "../src/pages/codexGui/QueuedMessages.module.less";
 import styles from "../src/pages/codexGui/styles.module.less";
 
 const full = new URLSearchParams(location.search).has("full");
@@ -25,7 +26,12 @@ function Harness() {
               footer={<><AsyncQuestions value={value} onAnswer={async (item, answers) => {
                 const response = await fetch("/async-answer", { method: "POST", body: JSON.stringify({ item, answers }) });
                 return response.ok;
-              }} /><input aria-label="消息" placeholder="输入消息…" style={{ padding: 12 }} /></>} />}
+              }} /><div className={styles.composerWrap}>
+                <div className={[queueStyles.queue, queueStyles.attached].join(" ")} aria-label="待发送消息">
+                  待发送 · 1
+                </div>
+                <input aria-label="消息" placeholder="输入消息…" style={{ padding: 12 }} />
+              </div></>} />}
         </Profiler>
       </div>
     </main>

@@ -134,7 +134,9 @@
 .working { display: flex; align-items: center; gap: 10px; padding: 8px 0; color: var(--gui-muted); font-size: 12px; }
 .muted { color: var(--gui-muted); font-size: 12px; }
 .turnError { color: #c96c3d; font-size: 12px; }
-.composerWrap { width: min(100%, 920px); align-self: center; padding: 0 28px 14px; flex-shrink: 0; }
+.composerWrap, .questionWrap { width: min(100%, 920px); align-self: center;
+  padding: 0 28px; flex-shrink: 0; box-sizing: border-box; }
+.composerWrap { padding-bottom: 14px; }
 .projectBar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 5px 10px 8px; min-width: 0;
   > button { max-width: 50%; > span:last-child { overflow: hidden; text-overflow: ellipsis; } }
   :global(.ant-select) { width: 120px; } }
@@ -153,11 +155,12 @@
   :global(.ant-tag) { max-width: 240px; white-space: normal; overflow-wrap: anywhere; } }
 .error { margin: 10px 20px 0; flex-shrink: 0; font-size: 12px; overflow-wrap: anywhere; }
 .pendingBanner { border: 0; padding: 9px; background: #fff3d7; color: #885c20; cursor: pointer; }
-.approvals { flex-shrink: 0; max-height: 45%; overflow: auto; padding: 0 28px; }
+.approvals { flex-shrink: 0; max-height: 45%; overflow: auto; }
 .approval { width: min(100%, 400px); margin: 8px auto; padding: 16px; border: 1px solid #e4c993;
   background: var(--panel); border-radius: 12px; font-size: 12px; overflow-wrap: anywhere;
   > strong { display: flex; gap: 8px; align-items: center; }
   pre { font-size: 11px; padding: 10px; background: var(--bg, #f4f3ee); white-space: pre-wrap; max-height: 180px; overflow: auto; } }
+.questionCard { width: 100%; }
 .approvalActions { display: flex; gap: 8px; margin-top: 12px; }
 .question { display: flex; flex-direction: column; gap: 10px; padding-top: 16px;
   :global(.ant-radio-group) { display: flex; flex-direction: column; gap: 10px; }
@@ -173,7 +176,8 @@
 @media (max-width: 1150px) {
   .page { grid-template-columns: 200px minmax(0, 1fr); }
   .collapsed { grid-template-columns: minmax(0, 1fr); }
-  .composerWrap { padding: 0 16px 10px; }
+  .composerWrap, .questionWrap { padding-inline: 16px; }
+  .composerWrap { padding-bottom: 10px; }
   .messageContent { padding: 20px; }
 }
 
@@ -185,9 +189,9 @@
     :global(.window-control) { width: 36px; height: 28px; } }
   .headerActions { gap: 0; }
   .messageContent { padding: 18px 14px; }
-  .composerWrap { padding: 0 10px 10px; }
+  .composerWrap, .questionWrap { padding-inline: 10px; }
+  .composerWrap { padding-bottom: 10px; }
   .modelControls { flex-basis: auto; flex-wrap: wrap; gap: 6px; }
   .localLabel { display: none; }
-  .approvals { padding: 0 12px; }
   .userMessage { max-width: 95%; }
 }

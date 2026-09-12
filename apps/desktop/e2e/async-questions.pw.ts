@@ -23,19 +23,38 @@ test("async questions show choices during work, preserve failed answers, and fit
   await expect(card.getByRole("radio")).toHaveCount(3);
   await expect(card.getByRole("radio", { name: options[0], exact: true })).toBeChecked();
   expect(replies).toHaveLength(0);
-  await expect(card.getByRole("button", { name: "提交回答" })).toBeDisabled();
+  await expect(card.getByRole("button")).toHaveCount(0);
+  const answer = card.getByRole("textbox", { name: "还有哪些现象？" });
+  await answer.press("Enter");
+  expect(replies).toHaveLength(0);
   await card.getByRole("radio", { name: options[1], exact: true }).check();
   await card.getByRole("textbox", { name: "还有哪些现象？" }).fill("列表里也找不到这个账户");
-  const submit = card.getByRole("button", { name: "提交回答" });
-  await submit.click();
-  await expect(submit).toBeEnabled();
+  await answer.press("Shift+Enter");
+  await expect(answer).toHaveValue("列表里也找不到这个账户\n");
+  await answer.fill("列表里也找不到这个账户");
+  await answer.dispatchEvent("keydown", { key: "Enter", isComposing: true });
+  await answer.dispatchEvent("keydown", { key: "Enter", keyCode: 229 });
+  await answer.dispatchEvent("keydown", { key: "Enter", repeat: true });
+  expect(replies).toHaveLength(0);
+  await answer.press("Enter");
+  await expect.poll(() => replies.length).toBe(1);
+  await expect(answer).toBeEnabled();
   await expect(card.getByRole("textbox", { name: title, exact: true })).toHaveValue(options[1]);
-  expect((await card.boundingBox())!.width).toBeLessThanOrEqual(400);
+  for (const width of [520, 1440, 800]) {
+    await page.setViewportSize({ width, height: 900 });
+    const queue = page.getByLabel("待发送消息", { exact: true });
+    await expect.poll(async () => {
+      const questionBox = (await card.boundingBox())!;
+      const queueBox = (await queue.boundingBox())!;
+      return Math.abs(questionBox.width - queueBox.width) + Math.abs(questionBox.x - queueBox.x);
+    }).toBeLessThan(2);
+  }
   await page.getByLabel("消息", { exact: true }).fill("任务执行时仍然能输入");
   await expect(page.getByLabel("消息", { exact: true })).toHaveValue("任务执行时仍然能输入");
   await page.screenshot({ path: "../../.codex-tmp/async-questions.png", animations: "disabled" });
   await card.getByRole("textbox", { name: title, exact: true }).fill("切换成功了，但回复慢");
-  await submit.click();
+  await card.getByRole("radio", { name: options[1], exact: true }).focus();
+  await page.keyboard.press("Enter");
   await expect(card).toHaveCount(0);
   expect(replies).toHaveLength(2);
   expect(replies[1]).toMatchObject({ answers: ["切换成功了，但回复慢", "列表里也找不到这个账户"] });
