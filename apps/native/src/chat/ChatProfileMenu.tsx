@@ -19,6 +19,7 @@ export function ChatProfileMenu({ client, deviceName, ready, active, email, choo
   const current = accounts.snapshot?.choices.find((choice) =>
     selection?.kind === choice.kind && selection.id === choice.id);
   const name = current?.name || '选择账户';
+  const initials = Array.from(current?.name.trim() || '').slice(0, 2).join('') || '我';
   const disabled = accounts.loading || Boolean(accounts.saving) || !ready || !accounts.snapshot?.running;
   const search = query.trim().toLowerCase();
   const choices = accounts.snapshot?.choices.filter((choice) =>
@@ -34,7 +35,7 @@ export function ChatProfileMenu({ client, deviceName, ready, active, email, choo
     <Pressable accessibilityRole="button" accessibilityLabel="打开头像菜单"
       accessibilityState={{ expanded: panel !== null && active }} style={pickerStyles.trigger}
       onPress={() => setPanel('profile')}>
-      <Text style={pickerStyles.initials}>{email.trim().slice(0, 2).toUpperCase() || '我'}</Text>
+      <Text style={pickerStyles.initials}>{initials}</Text>
     </Pressable>
     <BottomSheet visible={panel !== null && active} title={panel === 'accounts' ? '切换账户' : '账户与电脑'}
       subtitle={panel === 'accounts' ? '与电脑共用当前聊天账户' : undefined}
