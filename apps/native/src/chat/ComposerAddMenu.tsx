@@ -29,7 +29,9 @@ const menuStyles = StyleSheet.create({
     borderRadius: 16 },
   icon: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#f5f5f5',
     alignItems: 'center', justifyContent: 'center' },
-  label: { fontSize: 17, color: '#161616' },
+  // Reserve enough width and leading for Android's Chinese fallback fonts.
+  label: { flex: 1, fontSize: 17, lineHeight: 26, paddingVertical: 2,
+    includeFontPadding: true, color: '#161616' },
   pressed: { backgroundColor: '#f2f2f2' },
   disabled: { opacity: 0.4 },
 });
