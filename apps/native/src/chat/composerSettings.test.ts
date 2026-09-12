@@ -111,3 +111,34 @@ it('keeps a later PC change when an earlier save acknowledgement arrives', async
   expect(controller.snapshot().settings.effort).toBe('xhigh');
   controller.stop();
 });
+
+it('synchronizes speed both ways and clears its pending save before another message', async () => {
+  pc.settings.speed = 'normal';
+  const controller = await existingChat();
+  await controller.setSettings({ speed: 'fast' });
+  await vi.waitFor(() => expect(controller.snapshot().settingsBusy).toBe(false));
+  expect(pc.settings.speed).toBe('fast');
+  expect(mocks.request).toHaveBeenCalledWith('request', { operation: 'composerSet', settings: { speed: 'fast' } });
+  pc = { ...pc, revision: pc.revision + 1, settings: { ...pc.settings, speed: 'normal' } };
+  mocks.events!.event({ method: COMPOSER_EVENT, params: pc });
+  expect(controller.snapshot().settings.speed).toBe('normal');
+  controller.stop();
+});
+
+it('preserves a newer speed choice while the previous save is acknowledged', async () => {
+  pc.settings.speed = 'normal';
+  const controller = await existingChat();
+  let finish!: (value: ComposerSnapshot) => void;
+  mocks.request.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+  await controller.setSettings({ speed: 'fast' });
+  await controller.setSettings({ speed: 'normal' });
+  expect(mocks.request).toHaveBeenCalledTimes(1);
+  pc = { ...pc, revision: pc.revision + 1, settings: { ...pc.settings, speed: 'fast' } };
+  mocks.events!.event({ method: COMPOSER_EVENT, params: pc });
+  expect(controller.snapshot().settings.speed).toBe('normal');
+  finish(pc);
+  await vi.waitFor(() => expect(controller.snapshot().settingsBusy).toBe(false));
+  expect(pc.settings.speed).toBe('normal');
+  expect(mocks.request).toHaveBeenCalledTimes(2);
+  controller.stop();
+});

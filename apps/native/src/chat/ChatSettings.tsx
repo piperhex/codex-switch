@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomSheet } from '../components/BottomSheet';
 import type { Model } from './types';
 import type { ComposerSettings } from '../../../../shared/remote-chat/composer';
-import { SETTINGS_FIELDS, settingOptions, settingValue, settingsNotice,
+import { SETTINGS_FIELDS, settingOptions, settingValue, settingsNotice, visibleSettingsFields,
   type SettingField } from '../../../../shared/remote-chat/settingsMenu';
 import { palette, styles } from './styles';
 
@@ -28,7 +28,7 @@ export function ChatSettings({ models, selection, saving, ready, error, updateSe
   return <BottomSheet visible title="聊天设置" onClose={onClose}>
     <View style={[styles.settings, menuStyles.content]}
       accessibilityElementsHidden={field !== null} importantForAccessibility={field ? 'no-hide-descendants' : 'auto'}>
-      {SETTINGS_FIELDS.map((entry) => <Pressable key={entry.field} accessibilityRole="button"
+      {visibleSettingsFields(selection).map((entry) => <Pressable key={entry.field} accessibilityRole="button"
         accessibilityLabel={`设置${entry.label}`} onPress={() => setField(entry.field)} style={menuStyles.entry}>
         <Text style={styles.title}>{entry.label}</Text>
         <Text numberOfLines={1} style={menuStyles.value}>{settingValue(entry.field, models, selection)}</Text>

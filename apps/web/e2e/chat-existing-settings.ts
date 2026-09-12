@@ -24,7 +24,7 @@ export async function existingChatSettings({ page, request, info }: {
   await screenshot(page, info, '09-existing-chat-settings-saving');
   // Two serialized saves deliberately wait five seconds each before acknowledging.
   await expect.poll(async () => (await state(request)).composer.settings, { timeout: 15_000 }).toEqual({
-    model: 'second-model', effort: 'xhigh', access: 'read-only',
+    model: 'second-model', effort: 'xhigh', access: 'read-only', speed: 'normal',
   });
   await expect(page.getByText('正在保存设置…', { exact: true })).toHaveCount(0, { timeout: 15_000 });
   await request.post(`${fixtureUrl}/test/settings-delay`, { data: { milliseconds: 0 } });

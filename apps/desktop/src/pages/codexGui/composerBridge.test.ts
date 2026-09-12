@@ -3,7 +3,7 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { ComposerBridge } from './composerBridge';
 import { GuiController } from './controller';
 import { guiApi } from './api';
-import { composerLabel } from '../../../../../shared/remote-chat/composer';
+import { composerLabel, type RequestSpeed } from '../../../../../shared/remote-chat/composer';
 import type { Model } from './types';
 
 vi.mock('./api', () => ({ guiApi: { request: vi.fn(), connect: vi.fn(), subscribe: vi.fn() } }));
@@ -95,4 +95,38 @@ it('does not replay a detached conversation choice when the GUI attaches again',
   const stop = bridge.attach(controller);
   expect(controller.getSnapshot().settings).toMatchObject({ model: 'first', effort: 'high' });
   stop(); controller.dispose();
+});
+
+it('shares host speed changes without persisting speed in the conversation or losing it on model edits', async () => {
+  let speed: RequestSpeed = 'normal';
+  let notify: (value: RequestSpeed) => void = () => undefined;
+  const unsubscribe = vi.fn();
+  const source = {
+    read: vi.fn(async () => speed),
+    set: vi.fn(async (next: RequestSpeed) => { speed = next; notify(next); return next; }),
+    subscribe: (listener: typeof notify) => { notify = listener; return unsubscribe; },
+  };
+  const bridge = new ComposerBridge(source);
+  const controller = new GuiController();
+  controller.setProviderModels(models);
+  const detach = bridge.attach(controller);
+  const settings = vi.spyOn(controller, 'settings');
+  const changed = vi.fn();
+  const stop = bridge.subscribe(changed);
+  expect((await bridge.read()).settings.speed).toBe('normal');
+  expect((await bridge.update({ speed: 'fast' })).settings.speed).toBe('fast');
+  expect(source.set).toHaveBeenCalledWith('fast');
+  expect(settings).not.toHaveBeenCalled();
+  controller.settings({ model: 'second', effort: 'xhigh' });
+  expect((await bridge.read()).settings).toMatchObject({ model: 'second', effort: 'xhigh', speed: 'fast' });
+  expect(controller.getSnapshot().settings).not.toHaveProperty('speed');
+  speed = 'normal'; notify(speed);
+  expect(changed).toHaveBeenLastCalledWith(expect.objectContaining({
+    settings: expect.objectContaining({ speed: 'normal' }),
+  }));
+  const count = source.set.mock.calls.length;
+  await bridge.update({ speed: 'normal' });
+  expect(source.set).toHaveBeenCalledTimes(count);
+  stop(); expect(unsubscribe).toHaveBeenCalledOnce();
+  detach(); controller.dispose();
 });

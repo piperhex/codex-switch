@@ -10,7 +10,7 @@ import { ImageCache } from './imageCache';
 import { validateChatImages } from '../attachments';
 import { compactUnavailableReason } from './composerCommands';
 import type { ConnectionMode } from '../protocol';
-import { COMPOSER_EVENT, composerPatch, type ComposerModelsResponse,
+import { COMPOSER_EVENT, COMPOSER_FIELDS, composerPatch, type ComposerModelsResponse,
   type ComposerSettings, type ComposerSnapshot } from '../composer';
 import { resolveModelSelection } from '../../../apps/desktop/src/pages/codexGui/modelSelection';
 import { SIDEBAR_EVENT, type SidebarSnapshot } from '../sidebar';
@@ -273,7 +273,7 @@ export class ChatController {
       const result = await this.connection.request<ComposerSnapshot>('request', { operation: 'composerSet', settings });
       if (generation !== this.synchronization) return;
       if (!result?.settings || !Number.isSafeInteger(result.revision)) throw new Error('电脑尚未确认设置，请重试。');
-      for (const field of ['model', 'effort', 'access'] as const) {
+      for (const field of COMPOSER_FIELDS) {
         if (settings[field] !== undefined && this.pendingSettings[field] === settings[field]) {
           delete this.pendingSettings[field];
         }

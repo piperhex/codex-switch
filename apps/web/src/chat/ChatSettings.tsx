@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { AdaptiveSheet } from '../components/AdaptiveSheet';
 import type { Model } from './types';
 import type { ComposerSettings } from '../../../../shared/remote-chat/composer';
-import { SETTINGS_FIELDS, settingOptions, settingValue, settingsNotice,
+import { SETTINGS_FIELDS, settingOptions, settingValue, settingsNotice, visibleSettingsFields,
   type SettingField } from '../../../../shared/remote-chat/settingsMenu';
 
 interface Props {
@@ -25,7 +25,8 @@ export function ChatSettings({ models, selection, saving, ready, error, updateSe
   };
   return <AdaptiveSheet open title="聊天设置" width={400} onClose={onClose}>
     <div className="chat-settings" aria-hidden={field !== null}>
-      {SETTINGS_FIELDS.map((entry) => <button key={entry.field} type="button" className="chat-setting-entry"
+      {visibleSettingsFields(selection).map((entry) => <button key={entry.field} type="button"
+        className="chat-setting-entry"
         aria-label={`设置${entry.label}`} onClick={() => setField(entry.field)} tabIndex={field ? -1 : 0}>
         <strong>{entry.label}</strong><span>{settingValue(entry.field, models, selection)}</span>
         <span aria-hidden="true">›</span>

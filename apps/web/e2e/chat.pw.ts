@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { connect, navigate, send, settled, screenshot, state, fixtureUrl } from './chat-helpers';
+import { connect, navigate, send, settled, screenshot, state, fixtureUrl, openChatSettings } from './chat-helpers';
 import { chatJourney } from './chat-journey';
 import { historyJourney } from './chat-history';
 import { attachmentJourney } from './chat-attachments';
@@ -18,6 +18,29 @@ test.beforeEach(async ({ page, request }) => {
 
 
 test('keeps composer icons below single and multiline drafts', async ({ page }) => composerLayout(page));
+
+test('syncs request speed with the PC and shows a lightning indicator only in fast mode', async ({ page, request }) => {
+  await connect(page);
+  await expect(page.getByRole('status').filter({ hasText: /P2P|Relay/ })).toBeVisible({ timeout: 16_000 });
+  await openChatSettings(page);
+  await page.getByRole('button', { name: '设置速度模式', exact: true }).click();
+  await page.getByRole('radio', { name: '快速模式', exact: true }).click();
+  await expect.poll(async () => (await state(request)).composer.settings.speed).toBe('fast');
+  await page.getByRole('button', { name: '完成', exact: true }).click();
+  await page.getByRole('textbox', { name: '聊天消息' }).focus();
+  await page.evaluate(() => {
+    // This web composer shows its model control while the keyboard is open.
+    if (!window.visualViewport) throw new Error('Visual viewport is required');
+    Object.defineProperty(window.visualViewport, 'height', { configurable: true, get: () => innerHeight - 300 });
+    window.visualViewport.dispatchEvent(new Event('resize'));
+  });
+  const settings = page.getByRole('button', { name: /聊天设置/ });
+  await expect(settings).toContainText('⚡');
+  await request.post(`${fixtureUrl}/test/composer`, { data: { speed: 'normal' } });
+  await expect(settings).not.toContainText('⚡');
+  await openChatSettings(page);
+  await expect(page.getByRole('button', { name: '设置速度模式', exact: true })).toContainText('普通模式');
+});
 
 test('syncs PC chats over direct transport, supports actions and reconnects without duplicate sends',
   async ({ page, request }, info) => chatJourney({ page, request, info }));

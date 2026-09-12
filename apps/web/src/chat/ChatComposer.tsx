@@ -96,8 +96,10 @@ export function ChatComposer({ models, selection, settingsBusy, settingsError, u
       </div>
       {keyboardVisible && <div className="chat-row chat-composer-settings">
         <button type="button" className="chat-button chat-model" onPointerDown={(event) => event.preventDefault()}
-          aria-label={`${composerLabel(models, selection)}，聊天设置`} onClick={() => setSettings(true)}>
-          {composerLabel(models, selection)} ▾</button>
+          aria-label={`${composerLabel(models, selection)}${selection.speed === 'fast' ? '，快速模式' : ''}，聊天设置`}
+          onClick={() => setSettings(true)}>
+          {composerLabel(models, selection)}{selection.speed === 'fast' && <span aria-hidden="true"> ⚡</span>}
+          {' ▾'}</button>
       </div>}
     </form>
     {attachments && <ChatAttachmentSheet busy={busy} pick={openAlbum} onClose={() => setAttachments(false)} />}

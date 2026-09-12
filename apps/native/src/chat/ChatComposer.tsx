@@ -133,9 +133,12 @@ export function ChatComposer({ models, selection, settingsBusy, settingsError, u
         </Pressable>
         <View style={styles.composerTrailing}>
           <Pressable accessibilityRole="button" style={styles.composerModel}
-            accessibilityLabel={`${composerLabel(models, selection)}，聊天设置`} onPress={() => setSettings(true)}>
+            accessibilityLabel={`${composerLabel(models, selection)}${selection.speed === 'fast' ? '，快速模式' : ''}，聊天设置`}
+            onPress={() => setSettings(true)}>
             <Text numberOfLines={1} ellipsizeMode="head" style={styles.composerModelText}>
               {modelLabelTail(composerLabel(models, selection))}</Text>
+            {selection.speed === 'fast' && <Feather name="zap" size={14}
+              color={styles.composerModelText.color} accessibilityLabel="快速模式" />}
             <Feather name="chevron-down" size={12} color={styles.composerModelText.color} />
           </Pressable>
           <ComposerActionButton action={action} disabled={actionDisabled} busy={pausing || sending}

@@ -197,6 +197,11 @@ npm run test:chat:android -w @codex-switch/desktop
 结果位于仓库 `.codex-tmp/android-chat-regression/report.md`，详细数据为同目录的 `report.json`，
 每项操作对应一张 PNG。测试端只使用虚构账号和聊天，运行时不请求真实 Codex 模型，也不修改生产数据。
 
+速度模式专项回归使用相同环境和新的测试服务，运行
+`node apps/desktop/e2e/android-speed-regression.mjs`。
+它验证普通/快速模式双向同步、菜单选中项、推理强度右侧的闪电标记，以及回复期间切换模式的响应。
+结果写入同一目录的 `speed-report.json`。手机和电脑都需更新到支持速度同步的版本。
+
 侧栏与搜索专项回归使用同样的临时模拟器及新的测试服务，运行
 `npm run test:chat:android:search -w @codex-switch/desktop`。
 覆盖回复期间的头像菜单、电脑和账户切换、独立搜索、清空与关闭、结果跳转和底部新聊天，

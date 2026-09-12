@@ -1,7 +1,9 @@
 import type { AccessMode, Model } from './client/types';
 import { object } from './protocol';
 
-export interface ComposerSettings { model: string; effort: string; access: AccessMode }
+export type RequestSpeed = 'normal' | 'fast';
+export interface ComposerSettings { model: string; effort: string; access: AccessMode; speed?: RequestSpeed }
+export const COMPOSER_FIELDS = ['model', 'effort', 'access', 'speed'] as const;
 export interface ComposerSnapshot { models: Model[]; settings: ComposerSettings; revision: number }
 export interface ComposerModelsResponse { data: Model[]; nextCursor: string | null; composer?: ComposerSnapshot }
 export const COMPOSER_EVENT = 'chat/composer/updated';
@@ -25,7 +27,7 @@ export const ACCESS_OPTIONS = [
 
 export function composerPatch(value: unknown): Partial<ComposerSettings> {
   const input = object(value);
-  if (Object.keys(input).some((key) => !['model', 'effort', 'access'].includes(key))) {
+  if (Object.keys(input).some((key) => !(COMPOSER_FIELDS as readonly string[]).includes(key))) {
     throw new Error('聊天设置无效，请重新选择。');
   }
   for (const key of ['model', 'effort'] as const) {
@@ -35,6 +37,9 @@ export function composerPatch(value: unknown): Partial<ComposerSettings> {
   }
   if (input.access !== undefined && !ACCESS_OPTIONS.some((option) => option.value === input.access)) {
     throw new Error('请选择有效的访问权限。');
+  }
+  if (input.speed !== undefined && input.speed !== 'normal' && input.speed !== 'fast') {
+    throw new Error('请选择普通模式或快速模式。');
   }
   return input as Partial<ComposerSettings>;
 }
