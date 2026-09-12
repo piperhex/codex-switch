@@ -13,7 +13,6 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import type { Translate } from "../../i18n";
-import styles from "./DashboardNavigation.module.less";
 
 export type DashboardPage =
   | "accounts"
@@ -70,9 +69,6 @@ export function DashboardNavigation({
         aria-label={collapsed ? label : undefined} title={collapsed ? label : undefined}
         onClick={() => onPageChange(item.page)}>
         <Icon size={19} /><span>{label}</span>
-        {item.page === "codexGui" && variant === "sidebar" && !collapsed && (
-          <span className={styles.betaBadge}>Beta</span>
-        )}
       </button>
     );
   };
