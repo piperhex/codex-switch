@@ -7,5 +7,5 @@
 .item { border-top: 1px solid var(--gui-border); }
 .row { display: flex; align-items: center; gap: 6px; padding: 8px 10px; min-width: 0;
   > svg, > button { flex-shrink: 0; } }
-.text { flex: 1; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 72px; overflow-y: auto;
+.text { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   small { color: var(--gui-muted); } }
