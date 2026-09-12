@@ -11,6 +11,7 @@ use std::os::windows::process::CommandExt;
 use sysinfo::{ProcessesToUpdate, System};
 use tauri::{AppHandle, Runtime};
 
+#[cfg(windows)]
 use super::command_name_matches;
 #[cfg(windows)]
 use super::known_windows_commands;

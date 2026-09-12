@@ -31,7 +31,7 @@ fn find_codex_install() -> Result<CodexInstall, String> {
         })
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(all(target_os = "macos", test))]
 fn find_default_codex_install() -> Result<CodexInstall, String> {
     find_codex_install()
 }

@@ -4,6 +4,7 @@ use std::process::Command;
 use tauri::{AppHandle, Runtime};
 use tauri_plugin_opener::OpenerExt;
 
+#[cfg(target_os = "windows")]
 const WINDOWS_CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 /// Opens a URL in the detected default browser's private browsing mode.

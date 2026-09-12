@@ -1,5 +1,6 @@
+#[cfg(not(target_os = "macos"))]
+use std::fs;
 use std::{
-    fs,
     path::PathBuf,
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -35,6 +36,7 @@ struct MainWindowState {
 }
 
 #[derive(Clone, Copy, Debug)]
+#[cfg(any(not(target_os = "macos"), test))]
 struct WorkArea {
     x: i32,
     y: i32,
@@ -224,6 +226,7 @@ pub(crate) fn save_cached<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> 
     crate::storage::write_json_atomic(&state_path(app)?, &value)
 }
 
+#[cfg(not(target_os = "macos"))]
 fn load<R: Runtime>(app: &AppHandle<R>) -> Option<MainWindowState> {
     let bytes = fs::read(state_path(app).ok()?).ok()?;
     let state = serde_json::from_slice::<MainWindowState>(&bytes).ok()?;
@@ -268,6 +271,7 @@ fn is_sane(state: MainWindowState) -> bool {
         && (MIN_HEIGHT as u32..=32_768).contains(&state.height)
 }
 
+#[cfg(not(target_os = "macos"))]
 fn fit_to_available_screens(
     state: MainWindowState,
     monitors: &[tauri::Monitor],
@@ -287,6 +291,7 @@ fn fit_to_available_screens(
     fit_to_work_areas(state, &work_areas)
 }
 
+#[cfg(any(not(target_os = "macos"), test))]
 fn fit_to_work_areas(state: MainWindowState, work_areas: &[WorkArea]) -> Option<MainWindowState> {
     if !is_sane(state) || work_areas.is_empty() {
         return None;
@@ -332,6 +337,7 @@ fn fit_to_work_areas(state: MainWindowState, work_areas: &[WorkArea]) -> Option<
     })
 }
 
+#[cfg(any(not(target_os = "macos"), test))]
 fn intersection_area(state: MainWindowState, area: WorkArea) -> i64 {
     let left = i64::from(state.x).max(i64::from(area.x));
     let top = i64::from(state.y).max(i64::from(area.y));

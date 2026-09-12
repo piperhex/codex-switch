@@ -178,6 +178,7 @@ fn should_proxy_target(target: &Url) -> bool {
             .is_ok_and(|address| address.is_loopback())
 }
 
+#[cfg(any(windows, test))]
 fn parse_windows_proxy(
     proxy_server: &str,
     proxy_bypass: Option<&str>,
@@ -214,6 +215,7 @@ fn parse_windows_proxy(
         .then_some(config)
 }
 
+#[cfg(any(windows, test))]
 fn parse_proxy_endpoint(endpoint: &str) -> Option<Url> {
     let endpoint = endpoint.trim().trim_matches('"');
     if endpoint.is_empty() {
@@ -229,6 +231,7 @@ fn parse_proxy_endpoint(endpoint: &str) -> Option<Url> {
         .filter(|url| matches!(url.scheme(), "http" | "https") && url.host_str().is_some())
 }
 
+#[cfg(any(windows, test))]
 fn parse_proxy_result(value: &str) -> Option<Url> {
     for entry in value.split(';').map(str::trim) {
         let mut parts = entry.split_whitespace();

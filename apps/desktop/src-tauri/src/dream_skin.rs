@@ -1,4 +1,6 @@
-use std::{env, fs, path::PathBuf};
+#[cfg(not(target_os = "macos"))]
+use std::env;
+use std::{fs, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 use tauri::AppHandle;
@@ -69,13 +71,13 @@ pub(crate) fn state_root() -> Result<PathBuf, String> {
     }
     #[cfg(target_os = "macos")]
     {
-        return dirs::home_dir()
+        dirs::home_dir()
             .map(|path| {
                 path.join("Library")
                     .join("Application Support")
                     .join("CodexDreamSkinStudio")
             })
-            .ok_or_else(|| "Home directory is unavailable.".to_string());
+            .ok_or_else(|| "Home directory is unavailable.".to_string())
     }
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     {

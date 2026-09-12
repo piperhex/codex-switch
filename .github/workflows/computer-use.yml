@@ -3,14 +3,14 @@ name: Computer Use macOS
 on:
   push:
     paths:
-      - "apps/desktop/src-tauri/src/computer_use/**"
+      - "apps/desktop/src-tauri/src/**"
       - "apps/desktop/src-tauri/Cargo.*"
       - "apps/desktop/src-tauri/Info.plist"
       - "apps/desktop/src-tauri/resources/codex-switch-computer-use/**"
       - ".github/workflows/computer-use.yml"
   pull_request:
     paths:
-      - "apps/desktop/src-tauri/src/computer_use/**"
+      - "apps/desktop/src-tauri/src/**"
       - "apps/desktop/src-tauri/Cargo.*"
       - "apps/desktop/src-tauri/Info.plist"
       - "apps/desktop/src-tauri/resources/codex-switch-computer-use/**"

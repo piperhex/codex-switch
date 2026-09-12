@@ -1,3 +1,4 @@
+#[cfg(any(windows, test))]
 use std::path::Path;
 #[cfg(windows)]
 use std::path::PathBuf;
@@ -20,6 +21,7 @@ pub(crate) async fn restart_open_code<R: Runtime + 'static>(
     process::restart_open_code(app).await
 }
 
+#[cfg(any(windows, test))]
 pub(super) fn command_name_matches(path: &Path) -> bool {
     path.file_stem()
         .and_then(|value| value.to_str())
