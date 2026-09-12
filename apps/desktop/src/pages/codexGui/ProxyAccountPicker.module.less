@@ -6,7 +6,7 @@
   border: 0; border-top: 1px solid var(--line); background: transparent; color: var(--ink);
   text-align: left; cursor: pointer;
   > svg { flex-shrink: 0; color: var(--muted); }
-  &:hover { background: var(--green-selection-hover); }
+  &:hover { background: color-mix(in srgb, var(--green) 8%, transparent); }
   &:focus-visible { outline: 2px solid var(--green); outline-offset: -2px; }
 }
 .popup :global(.ant-popover-inner) {
